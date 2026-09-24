@@ -374,7 +374,9 @@ function soundingRules(alternativesByRule) {
       // A token whose tags name its phoneme sounds as that phoneme, whatever
       // lies under it (engine §5).
       const fixed = items.every((item) => namesPhoneme(effectiveTerm(item.tags, alternative) || effectiveTerm(alternative.tags || alternative.clauses.tags, alternative)));
-      if (!items[0].erase && !fixed) topItems(alternative.expr).forEach(reach);
+      // Inside a token an ancestor emits, the ancestor's phonemes come from
+      // what lies under it, whatever this token's tags say.
+      if (!items[0].erase && (all || !fixed)) topItems(alternative.expr).forEach(reach);
       return;
     }
     const erased = new Set(items.flatMap((item) => (item.erase && item.capture ? [item.capture] : [])));

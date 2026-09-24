@@ -41,6 +41,10 @@ test("the audit finds an erasure that could change nothing", () => {
   // A token whose tags name its phoneme does not sound like what is under it.
   const [fixed] = audit(dialect("text ≔ x ⇒ $ </a/> ; x ≔ A ⇒ $ <> ;"));
   assert.deepEqual(fixed.idleErasures.map((e) => [e.rule, e.erased]), [["x", "$"]]);
+  // Not inside a token an ancestor emits, whose phonemes come from what lies
+  // under it.
+  const [inside] = audit(dialect("text ≔ y ⇒ $ ; y ≔ x ⇒ $ </a/> ; x ≔ B ⇒ $ <> ;"));
+  assert.deepEqual(inside.idleErasures, []);
   // Not when that tag term is dropped for the alternative, for naming a
   // capture it lacks.
   const [dropped] = audit(dialect("text <\"/a/\" ∪ tags($x)> ≔ $x(A) | y ⇒ $ ; y ≔ B ⇒ $ <> ;"));
