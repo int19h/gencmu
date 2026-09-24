@@ -33,7 +33,9 @@ function write(relative, content) {
 
 function grammarFiles(directory = grammars, prefix = "") {
   const files = [];
-  for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
+  // Hidden files, such as a desktop's .DS_Store, are not grammars.
+  const entries = fs.readdirSync(directory, { withFileTypes: true }).filter((entry) => !entry.name.startsWith("."));
+  for (const entry of entries.sort((a, b) => (a.name < b.name ? -1 : 1))) {
     const relative = prefix + entry.name;
     if (entry.isDirectory()) files.push(...grammarFiles(path.join(directory, entry.name), relative + "/"));
     else if (relative !== "compiled.json") files.push(relative);

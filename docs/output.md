@@ -140,7 +140,9 @@ These are for people. The CLI and the playground implement all three; every
 library implements brackets, which the corpus compares. None of them shows a
 **hollow** rule node, one with no token and no elided node below it, such as
 an empty free-modifier slot: brackets drop it as an empty node, and the tree
-and the display JSON leave it out.
+and the display JSON leave it out. The root is always shown, so a text whose
+tree is hollow, such as the empty text, renders in the tree as the root's
+rule name alone and in the display JSON as `{"text":[]}`.
 
 ### Brackets
 

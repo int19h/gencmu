@@ -88,6 +88,7 @@ test("the check holds a precompiled emission and format to the reader's rules", 
   assert.equal(domProblem(tagged({ call: "tags", args: [{ capture: "" }] })), "a constituent's tags made of its own");
   assert.equal(domProblem(tagged({ union: [{ literal: "x" }, { capture: "" }] })), "a constituent's tags made of its own");
   assert.equal(domProblem(tagged({ call: "tags", args: [{ capture: "" }, { rule: "a" }] })), null);
+  assert.equal(domProblem(tagged({ call: "tags", args: null })), "a malformed term");
   const alternative = (expr) => ({ format: 2, rules: [{ name: "text", op: "define", alternatives: [{ guards: [], expr }], conditions: [], at: [1, 1] }], directives: [] });
   assert.equal(domProblem(alternative({ seq: [{ optional: { capture: "x", expr: { ref: "A" } } }, { ref: "B" }] })), "a capture below the top level of an alternative");
   assert.equal(domProblem(alternative({ seq: [{ capture: "x", expr: { ref: "A" } }, { capture: "x", expr: { ref: "B" } }] })), "a capture name used twice in an alternative");
