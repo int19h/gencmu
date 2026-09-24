@@ -82,6 +82,10 @@ export declare class Ranker {
     };
     /** @type {Map<Item, number>} */
     itemIds: Map<Item, number>;
+    /** @type {Map<Item, RopeLeaf>} */
+    closes: Map<Item, RopeLeaf>;
+    /** @type {Map<string, RopeLeaf>} */
+    reads: Map<string, RopeLeaf>;
     /**
      * @param {Token[]} tokens
      * @param {Lean} lean
@@ -93,6 +97,22 @@ export declare class Ranker {
      */
     candidates(item: Item): Candidate[];
     /**
+     * The one leaf for closing an item: every sequence that closes it shares
+     * it, rather than each making its own.
+     * @param {Item} item
+     * @returns {RopeLeaf}
+     */
+    closeLeaf(item: Item): RopeLeaf;
+    /**
+     * The one leaf for reading a token as a terminal.
+     * @param {number} token
+     * @param {string} terminal
+     * @param {boolean} weak
+     * @returns {RopeLeaf}
+     */
+    readLeaf(token: number, terminal: string, weak: boolean): RopeLeaf;
+    /**
+     * An item's candidates, each ended by the item's own close.
      * @param {Item} item
      * @returns {Candidate[]}
      */

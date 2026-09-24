@@ -336,6 +336,10 @@ export class Ranker {
     this.counts = { plain: new Map(), contextual: new Map() };
     /** @type {Map<Item, number>} */
     this.itemIds = new Map();
+    /** @type {Map<Item, RopeLeaf>} */
+    this.closes = new Map();
+    /** @type {Map<string, RopeLeaf>} */
+    this.reads = new Map();
   }
 
   // An item's candidates: for each sequence the item's derivations could
@@ -361,10 +365,10 @@ export class Ranker {
         if (edge.kind === "seed") produced = [{ seq: EMPTY, alts: [], at: Infinity }];
         else if (edge.kind === "scan") {
           const token = this.tokens[edge.token];
-          const read = leaf({ kind: "read", token: edge.token, terminal: edge.terminal, weak: token.tags.get(edge.terminal) === false });
+          const read = this.readLeaf(edge.token, edge.terminal, token.tags.get(edge.terminal) === false);
           produced = dependency(edge.previous).map((entry) => extend(entry, read));
         } else {
-          const close = leaf({ kind: "close", item: edge.child });
+          const close = this.closeLeaf(edge.child);
           const children = dependency(edge.child).map((entry) => extend(entry, close));
           produced = [];
           for (const before of dependency(edge.previous)) {
@@ -386,11 +390,38 @@ export class Ranker {
   }
 
   /**
+   * The one leaf for closing an item: every sequence that closes it shares
+   * it, rather than each making its own.
+   * @param {Item} item
+   * @returns {RopeLeaf}
+   */
+  closeLeaf(item) {
+    let found = this.closes.get(item);
+    if (!found) this.closes.set(item, (found = leaf({ kind: "close", item })));
+    return found;
+  }
+
+  /**
+   * The one leaf for reading a token as a terminal.
+   * @param {number} token
+   * @param {string} terminal
+   * @param {boolean} weak
+   * @returns {RopeLeaf}
+   */
+  readLeaf(token, terminal, weak) {
+    const key = `${token}\u0000${terminal}`;
+    let found = this.reads.get(key);
+    if (!found) this.reads.set(key, (found = leaf({ kind: "read", token, terminal, weak })));
+    return found;
+  }
+
+  /**
+   * An item's candidates, each ended by the item's own close.
    * @param {Item} item
    * @returns {Candidate[]}
    */
   full(item) {
-    const close = leaf({ kind: "close", item });
+    const close = this.closeLeaf(item);
     return this.candidates(item).map((entry) => extend(entry, close));
   }
 
