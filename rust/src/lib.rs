@@ -36,12 +36,12 @@
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
-#![allow(missing_docs)]
 
 mod dialect;
 mod dom;
 mod earley;
 mod error;
+mod fxhash;
 mod grammar;
 mod json;
 mod loader;

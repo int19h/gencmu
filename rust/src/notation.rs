@@ -65,7 +65,7 @@ impl<'a> Reader<'a> {
             .unwrap_or_else(|| panic!("the notation's {} has no {name}", rule_name(node)))
     }
 
-    fn tokens_of<'n>(node: &'n Node) -> impl Iterator<Item = &'n Node> + 'n {
+    fn tokens_of(node: &Node) -> impl Iterator<Item = &Node> + '_ {
         node.children.iter().filter(|child| child.kind == NodeKind::Token)
     }
 

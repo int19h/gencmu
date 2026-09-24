@@ -1,6 +1,8 @@
 //! A loaded dialect and the pipeline that runs it (engine §7, §11, §13).
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet};
+
+use crate::fxhash::FxMap;
 use std::sync::{Arc, Mutex};
 
 use crate::earley::{EngineError, Recognizer, Shared, Tok};
@@ -43,8 +45,11 @@ impl Default for ParseOptions {
 /// single spaces, and each token's source is its text's place in it.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct InputToken {
+    /// The token's text.
     pub text: String,
+    /// Its tags, `true` for strong.
     pub tags: Tags,
+    /// What it sounds like, if anything (engine §5).
     pub phonemes: Option<String>,
 }
 
@@ -60,7 +65,7 @@ pub struct Dialect {
     pub(crate) features: Vec<String>,
     pub(crate) unicode: Arc<Unicode>,
     pub(crate) changes: Vec<Change>,
-    lowered: Mutex<HashMap<LoweredKey, Arc<Lowered>>>,
+    lowered: Mutex<FxMap<LoweredKey, Arc<Lowered>>>,
 }
 
 impl std::fmt::Debug for Dialect {
@@ -107,7 +112,7 @@ pub(crate) fn line_column(text: &[char], offset: usize) -> (usize, usize) {
 impl Dialect {
     pub(crate) fn new(stages: Vec<StageGrammar>, features: Vec<String>, unicode: Arc<Unicode>) -> Dialect {
         let changes = stages.iter().flat_map(|stage| stage.changes.iter().cloned()).collect();
-        Dialect { stages, features, unicode, changes, lowered: Mutex::new(HashMap::new()) }
+        Dialect { stages, features, unicode, changes, lowered: Mutex::new(FxMap::default()) }
     }
 
     /// The names of the pipeline's stages, in order.

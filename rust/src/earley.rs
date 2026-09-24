@@ -2,7 +2,7 @@
 //! capture before the dot, the captured part's span and tag set; with the
 //! evaluation of terms and conditions (§10) and nested parses.
 
-use std::collections::{HashMap, HashSet};
+use crate::fxhash::{FxMap, FxSet};
 
 use crate::lower::{CmpOp, LCond, LTerm, Lowered, Span, Sym};
 use crate::tags::{intersection, union, SetId, TagId, TagList, Tags};
@@ -38,16 +38,16 @@ pub(crate) struct ESet {
     pub items: Vec<Item>,
     /// For a completed item, its constituent's tag set; else `u32::MAX`.
     pub tagset: Vec<SetId>,
-    index: HashMap<Item, u32>,
-    failed: HashSet<Item>,
-    waiting: HashMap<u32, Vec<u32>>,
+    index: FxMap<Item, u32>,
+    failed: FxSet<Item>,
+    waiting: FxMap<u32, Vec<u32>>,
     /// Completed items by (rule, origin).
-    pub completed: HashMap<(u32, u32), Vec<u32>>,
+    pub completed: FxMap<(u32, u32), Vec<u32>>,
     /// The origins of each rule's completed items, in order of completion.
-    pub origins: HashMap<u32, Vec<u32>>,
-    done: HashSet<(u32, u32, SetId)>,
-    empty: HashMap<u32, Vec<SetId>>,
-    predicted: HashSet<u32>,
+    pub origins: FxMap<u32, Vec<u32>>,
+    done: FxSet<(u32, u32, SetId)>,
+    empty: FxMap<u32, Vec<SetId>>,
+    predicted: FxSet<u32>,
 }
 
 impl ESet {
@@ -60,7 +60,7 @@ impl ESet {
 pub(crate) struct Chart {
     pub sets: Vec<ESet>,
     caps: Vec<Vec<Cap>>,
-    caps_index: HashMap<Vec<Cap>, u32>,
+    caps_index: FxMap<Vec<Cap>, u32>,
 }
 
 impl Chart {
@@ -105,13 +105,13 @@ pub(crate) struct Shared<'a> {
     pub tags: Tags,
     pub unicode: &'a Unicode,
     pub text: &'a [char],
-    memo: HashMap<NestedKey, (bool, SetId)>,
-    running: HashSet<NestedKey>,
+    memo: FxMap<NestedKey, (bool, SetId)>,
+    running: FxSet<NestedKey>,
 }
 
 impl<'a> Shared<'a> {
     pub(crate) fn new(unicode: &'a Unicode, text: &'a [char]) -> Shared<'a> {
-        Shared { tags: Tags::new(), unicode, text, memo: HashMap::new(), running: HashSet::new() }
+        Shared { tags: Tags::new(), unicode, text, memo: FxMap::default(), running: FxSet::default() }
     }
 
     /// Forgets the nested parses of the previous stage, whose rules differ.
@@ -141,6 +141,27 @@ pub(crate) struct Recognizer<'g, 's, 'a> {
 
 /// A span's bounds and, if it is a whole capture, the capture's slot.
 type Bounds = (usize, usize, Option<u8>);
+
+fn span_bounds(span: &Span, caps: &[Cap]) -> Bounds {
+    match span {
+        Span::Cap(slot) => {
+            let cap = caps[*slot as usize];
+            (cap.start as usize, cap.end as usize, Some(*slot))
+        }
+        Span::Head(inner) => {
+            let (start, end, _) = span_bounds(inner, caps);
+            (start, if start < end { start + 1 } else { start }, None)
+        }
+        Span::Tail(inner) => {
+            let (start, end, _) = span_bounds(inner, caps);
+            (if start < end { start + 1 } else { start }, end, None)
+        }
+        Span::Last(inner) => {
+            let (start, end, _) = span_bounds(inner, caps);
+            (if start < end { end - 1 } else { end }, end, None)
+        }
+    }
+}
 
 impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     /// Recognizes `tokens` (which start at `base` in the stage's input) with
@@ -359,27 +380,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
 
     // ---- terms and conditions
 
-    fn span(&self, span: &Span, caps: &[Cap]) -> Bounds {
-        match span {
-            Span::Cap(slot) => {
-                let cap = caps[*slot as usize];
-                (cap.start as usize, cap.end as usize, Some(*slot))
-            }
-            Span::Head(inner) => {
-                let (start, end, _) = self.span(inner, caps);
-                (start, if start < end { start + 1 } else { start }, None)
-            }
-            Span::Tail(inner) => {
-                let (start, end, _) = self.span(inner, caps);
-                (if start < end { start + 1 } else { start }, end, None)
-            }
-            Span::Last(inner) => {
-                let (start, end, _) = self.span(inner, caps);
-                (if start < end { end - 1 } else { end }, end, None)
-            }
-        }
-    }
-
     fn phonemes(tokens: &[Tok], start: usize, end: usize) -> String {
         tokens[start..end].iter().filter_map(|token| token.phonemes.as_deref()).collect()
     }
@@ -441,11 +441,11 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 Value::Set(list.unwrap_or_default())
             }
             LTerm::Phonemes(span) => {
-                let (start, end, _) = self.span(span, caps);
+                let (start, end, _) = span_bounds(span, caps);
                 Value::Str(Self::phonemes(tokens, start, end))
             }
             LTerm::Text(span) => {
-                let (start, end, _) = self.span(span, caps);
+                let (start, end, _) = span_bounds(span, caps);
                 Value::Str(self.text(tokens, start, end))
             }
             LTerm::Lower(inner) => match self.term(inner, caps, tokens, base)? {
@@ -463,16 +463,16 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 }
             },
             LTerm::Tags(span) => {
-                let bounds = self.span(span, caps);
+                let bounds = span_bounds(span, caps);
                 Value::Set(self.span_tags(bounds, caps, tokens))
             }
             LTerm::TagsRule(span, rule) => {
-                let (start, end, _) = self.span(span, caps);
+                let (start, end, _) = span_bounds(span, caps);
                 let (_, set) = self.nested(tokens, base, start, end, *rule)?;
                 Value::Set(self.shared.tags.list(set).clone())
             }
             LTerm::Classes(span) => {
-                let bounds = self.span(span, caps);
+                let bounds = span_bounds(span, caps);
                 let list = self.span_tags(bounds, caps, tokens);
                 Value::Set(
                     list.into_iter()
@@ -481,7 +481,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 )
             }
             LTerm::Words(span) => {
-                let (start, end, _) = self.span(span, caps);
+                let (start, end, _) = span_bounds(span, caps);
                 Value::List(
                     Self::phonemes(tokens, start, end)
                         .split(' ')
@@ -509,7 +509,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 false
             }
             LCond::Matches(span, rule) => {
-                let (start, end, _) = self.span(span, caps);
+                let (start, end, _) = span_bounds(span, caps);
                 self.nested(tokens, base, start, end, *rule)?.0
             }
             LCond::Cmp(op, left, right) => {

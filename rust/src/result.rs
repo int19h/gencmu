@@ -16,6 +16,7 @@ pub struct Token {
     pub text: String,
     /// What the token sounds like (engine §5), if anything.
     pub phonemes: Option<String>,
+    /// The token's tags.
     pub tags: Tags,
     /// The range of the previous stage's tokens this token covers; for the
     /// first stage's input, the character's own position.
@@ -42,6 +43,7 @@ pub enum NodeKind {
 /// Trees can be as deep as a text is long, so dropping, cloning and
 /// comparing a node never recurse.
 pub struct Node {
+    /// What kind of node this is.
     pub kind: NodeKind,
     /// For a rule node, the rule's name.
     pub rule: Option<String>,
@@ -168,15 +170,29 @@ pub enum Verdict {
 /// An action of a derivation, in a tie's witness (engine §6).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
-    /// A read of the stage-input token `token` as `terminal`.
-    Read { token: usize, terminal: String },
-    /// A close of `production`, of `rule`, over `span`.
-    Close { rule: String, production: usize, span: Range<usize> },
+    /// A read of a token as a terminal.
+    Read {
+        /// The index of the stage-input token read.
+        token: usize,
+        /// The terminal it was read as.
+        terminal: String,
+    },
+    /// A close of a production over a span.
+    Close {
+        /// The rule the production belongs to; for one lowering made up,
+        /// the rule whose alternative it came from.
+        rule: String,
+        /// The production's number (engine §3), counting from 0.
+        production: usize,
+        /// The range of the stage's input tokens it covers.
+        span: Range<usize>,
+    },
 }
 
 /// One stage of a run.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Stage {
+    /// The stage's name in its pipeline.
     pub name: String,
     /// The tokens the stage read.
     pub input: Vec<Token>,
@@ -208,13 +224,16 @@ pub enum ParseErrorKind {
 /// items could have read it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Expected {
+    /// The terminal.
     pub terminal: String,
+    /// The rules whose items could have read it, in code point order.
     pub rules: Vec<String>,
 }
 
 /// The error of a result whose `ok` is false.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseError {
+    /// Why the text did not parse.
     pub kind: ParseErrorKind,
     /// The stage it concerns.
     pub stage: Option<String>,

@@ -2,7 +2,9 @@
 //! (tag, strength) interned to numbers, so that items can compare them
 //! cheaply.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
+
+use crate::fxhash::FxMap;
 
 pub(crate) type TagId = u32;
 pub(crate) type SetId = u32;
@@ -13,9 +15,9 @@ pub(crate) type TagList = Vec<(TagId, bool)>;
 #[derive(Debug, Default)]
 pub(crate) struct Tags {
     names: Vec<String>,
-    index: HashMap<String, TagId>,
+    index: FxMap<String, TagId>,
     sets: Vec<TagList>,
-    set_index: HashMap<TagList, SetId>,
+    set_index: FxMap<TagList, SetId>,
 }
 
 impl Tags {

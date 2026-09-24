@@ -11,8 +11,8 @@
 //! follows them. Derivations are kept as a shared DAG, so comparing two of
 //! them walks only where they differ.
 
+use crate::fxhash::FxMap;
 use std::cmp::Ordering;
-use std::collections::HashMap;
 
 use crate::earley::{Chart, Item, Tok};
 use crate::grammar::Lean;
@@ -134,10 +134,10 @@ pub(crate) struct Ranker<'c> {
     pub arena: Vec<DNode>,
     vlen: Vec<u32>,
     flen: Vec<u32>,
-    memo: HashMap<Key, u32>,
+    memo: FxMap<Key, u32>,
     results: Vec<NodeResult>,
     fsets: Vec<Vec<u32>>,
-    fset_index: HashMap<Vec<u32>, u32>,
+    fset_index: FxMap<Vec<u32>, u32>,
 }
 
 impl<'c> Ranker<'c> {
@@ -159,10 +159,10 @@ impl<'c> Ranker<'c> {
             arena: Vec::new(),
             vlen: Vec::new(),
             flen: Vec::new(),
-            memo: HashMap::new(),
+            memo: FxMap::default(),
             results: Vec::new(),
             fsets: vec![Vec::new()],
-            fset_index: HashMap::new(),
+            fset_index: FxMap::default(),
         };
         ranker.fset_index.insert(Vec::new(), 0);
         ranker.push(DNode::Empty, 0, 0);
@@ -477,6 +477,17 @@ impl<'c> Ranker<'c> {
                 for comp in &loser.comps {
                     if comp.div < p {
                         winner.comps.push(comp.clone());
+                    } else if comp.div == p && !tie {
+                        // Beaten at p, the loser's companion that diverged
+                        // from it at p can still be tied with the winner
+                        // there: under rule 1 alone, a close is tied with a
+                        // weak read and with the strong read that beat it.
+                        if let Diff::At { index, a, b } = self.first_difference(winner.x, comp.d, true) {
+                            let (winner_first, tied) = self.outcome(&a, &b);
+                            if tied && winner_first {
+                                winner.comps.push(Comp { d: comp.d, div: index });
+                            }
+                        }
                     }
                 }
             }

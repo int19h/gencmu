@@ -1,7 +1,9 @@
 //! Lowering a stitched grammar to the productions the parser runs, given
 //! the enabled features (engine §3).
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::BTreeSet;
+
+use crate::fxhash::FxMap;
 use std::sync::Arc;
 
 use crate::dom::{Arg, Cond, Emit, EmitItem, Expr, Term};
@@ -129,7 +131,7 @@ struct Lowerer<'a> {
     grammar: &'a StageGrammar,
     mandatory: bool,
     terminals: Vec<String>,
-    terminal_index: HashMap<String, u32>,
+    terminal_index: FxMap<String, u32>,
     helpers: Vec<HelperDef>,
     owner: u32,
 }
@@ -268,9 +270,9 @@ impl<'a> Lowerer<'a> {
 struct Missing;
 
 struct Scope<'a> {
-    names: &'a HashMap<String, u8>,
+    names: &'a FxMap<String, u8>,
     cap_pos: &'a [u16],
-    rules: &'a HashMap<String, usize>,
+    rules: &'a std::collections::HashMap<String, usize>,
     /// The latest position of a capture mentioned so far.
     last: Option<u16>,
 }
@@ -374,7 +376,7 @@ pub(crate) fn lower(grammar: &StageGrammar, features: &BTreeSet<String>, mandato
         grammar,
         mandatory,
         terminals: Vec::new(),
-        terminal_index: HashMap::new(),
+        terminal_index: FxMap::default(),
         helpers: Vec::new(),
         owner: 0,
     };
@@ -475,7 +477,7 @@ pub(crate) fn lower(grammar: &StageGrammar, features: &BTreeSet<String>, mandato
         let syms: Vec<Sym> = pending.sequence.iter().map(|(sym, _)| *sym).collect();
         let mut cap_at = vec![None; syms.len()];
         let mut cap_pos = Vec::new();
-        let mut names = HashMap::new();
+        let mut names = FxMap::default();
         for (position, (_, name)) in pending.sequence.iter().enumerate() {
             if let Some(name) = name {
                 cap_at[position] = Some(cap_pos.len() as u8);
