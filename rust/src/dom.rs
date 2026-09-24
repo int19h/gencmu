@@ -275,7 +275,9 @@ fn emit_from_json(value: &Json) -> R<Emit> {
 
 // ---- holding a DOM to the reader's rules
 
-/// How deeply an expression, a term or a condition may nest (engine §9).
+/// How many compound nodes of an expression, a term or a condition may lie
+/// above any node of it (engine §9): the depth a node is checked at is the
+/// number of such ancestors, counted from the root at 0.
 pub(crate) const DOM_MAX_DEPTH: usize = 256;
 
 fn is_object(value: &Json) -> bool {
@@ -403,6 +405,9 @@ pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
                         return Some("a capture name used twice in one alternative");
                     }
                     names.push(name);
+                    if names.len() > 4 {
+                        return Some("more than four captures in an alternative");
+                    }
                 }
                 if let Some(items) = expr.get("seq").and_then(Json::as_array) {
                     stack.extend(items.iter().map(|item| (item, if level == 0 { 1 } else { 2 })));
@@ -521,8 +526,10 @@ pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
                     } else {
                         return Some("a malformed emission");
                     }
+                    // The emission is no node of the term: its depth
+                    // counts from the term's own root (§9).
                     if let Some(tags) = item.get("tags") {
-                        pending.push((Kind::Term, tags, next));
+                        pending.push((Kind::Term, tags, 0));
                     }
                 }
                 if this > 0 && this < items.len() {

@@ -76,11 +76,22 @@ fn a_well_formed_dom_is_used() {
     assert!(!document_was_read(&bare_capture));
     let this_twice = with_emission(r#"{"items":[{"this":true},{"this":true,"tags":{"literal":"T"}}]}"#);
     assert!(!document_was_read(&this_twice));
+    // Four captures, and nodes below exactly 256 compound nodes, are allowed.
+    let four = with_alternative(
+        r#"{"guards":[],"expr":{"seq":[{"capture":"w","expr":{"terminal":"b"}},{"capture":"x","expr":{"terminal":"c"}},{"capture":"y","expr":{"terminal":"c"}},{"capture":"z","expr":{"terminal":"c"}}]}}"#,
+    );
+    assert!(!document_was_read(&four));
+    let optionals = format!("{}{{\"terminal\":\"b\"}}{}", "{\"optional\":".repeat(256), "}".repeat(256));
+    assert!(!document_was_read(&with_alternative(&format!(r#"{{"guards":[],"expr":{optionals}}}"#))));
+    let sets = format!("{}{{\"literal\":\"T\"}}{}", "{\"set\":[".repeat(256), "]}".repeat(256));
+    assert!(!document_was_read(&with_tags(&sets)));
+    let deep_emission_tags = with_emission(&format!(r#"{{"items":[{{"capture":"x","tags":{sets}}}]}}"#));
+    assert!(!document_was_read(&deep_emission_tags), "an emission is no node of its tags' term");
 }
 
 #[test]
 fn every_malformed_dom_is_a_cache_miss() {
-    let nested = format!("{}{{\"terminal\":\"b\"}}{}", "{\"optional\":".repeat(300), "}".repeat(300));
+    let nested = format!("{}{{\"terminal\":\"b\"}}{}", "{\"optional\":".repeat(257), "}".repeat(257));
     let cases: Vec<(&str, String)> = vec![
         ("format 2", dom(B, "", "", 2, r#""greedy""#)),
         ("a directive argument that is not a string", dom(B, "", "", 1, "7")),
@@ -183,11 +194,11 @@ fn a_malformed_bootstrap_is_an_error() {
 
 #[test]
 fn a_document_nested_too_deeply_is_an_error_at_its_rule() {
-    let ok = format!("```ebnf\na ≔ {}B{} ;\n```\n", "[".repeat(250), "]".repeat(250));
+    let ok = format!("```ebnf\na ≔ {}B{} ;\n```\n", "[".repeat(256), "]".repeat(256));
     assert!(gencmu::tools::read_grammar_document(&ok).is_ok());
     let parentheses = format!("```ebnf\na ≔ {}B{} ;\n```\n", "(".repeat(1000), ")".repeat(1000));
     assert!(gencmu::tools::read_grammar_document(&parentheses).is_ok(), "parentheses do not nest the DOM");
-    let deep = format!("```ebnf\na ≔ B ;\nc ≔ {}B{} ;\n```\n", "[".repeat(300), "]".repeat(300));
+    let deep = format!("```ebnf\na ≔ B ;\nc ≔ {}B{} ;\n```\n", "[".repeat(257), "]".repeat(257));
     let error = gencmu::tools::read_grammar_document(&deep).expect_err("nested more than 256 deep");
     assert_eq!((error.line, error.column), (Some(3), Some(1)), "{error}");
 }
