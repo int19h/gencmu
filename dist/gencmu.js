@@ -4,6 +4,25 @@
 (function (root) {
   "use strict";
   function gencmuFactory() {
+  // ---- errors.js
+  // The one error type the library throws: a grammar that cannot be loaded or
+  // run. A text that does not parse is not an error but a result.
+
+  class GencmuError extends Error {
+    /**
+     * @param {"grammar" | "usage"} kind a grammar that cannot be loaded or
+     *   run, or a caller's mistake such as an unknown stage name
+     * @param {string} message
+     * @param {import("./types.js").ErrorLocation} [where]
+     */
+    constructor(kind, message, where) {
+      super(message);
+      this.name = "GencmuError";
+      this.kind = kind;
+      this.where = where || {};
+    }
+  }
+
   // ---- tags.js
   // Tag sets: a map from tag to strength, true for strong and false for weak.
 
@@ -110,82 +129,6 @@
     const result = {};
     for (const tag of [...tags.keys()].sort(compareCodePoints)) result[tag] = /** @type {boolean} */ (tags.get(tag));
     return result;
-  }
-
-  // ---- tokens.js
-  // Tokens (engine §1): what every stage reads and writes.
-
-
-
-  /** @import { TagSet, Span } from "./types.js" */
-  /** @import { UnicodeTable } from "./unicode.js" */
-
-  class Token {
-    /**
-     * @param {TagSet} tags
-     * @param {Span} span the tokens of the stage before it this token covers
-     * @param {Span} source the code points of the text it covers
-     * @param {string} text the text it covers, as written
-     * @param {string | null} phonemes what it sounds like
-     * @param {string | undefined} insertedBy the rule that inserted it, for a
-     *   token no text stands for
-     */
-    constructor(tags, span, source, text, phonemes, insertedBy) {
-      this.tags = tags;
-      this.span = span;
-      this.source = source;
-      this.text = text;
-      this.phonemes = phonemes;
-      this.insertedBy = insertedBy;
-    }
-  }
-
-  // The first stage's input: one token per code point, tagged with the
-  // character, strong, and its class, weak.
-  /**
-   * @param {string} text
-   * @param {UnicodeTable} unicode
-   * @returns {Token[]}
-   */
-  function characterTokens(text, unicode) {
-    const tokens = [];
-    let index = 0;
-    for (const character of text) {
-      const tags = tagSet([[character, true]]);
-      const kind = unicode.classOf(/** @type {number} */ (character.codePointAt(0)));
-      if (!tags.has(kind)) tags.set(kind, false);
-      tokens.push(new Token(tags, [index, index + 1], [index, index + 1], character, null, undefined));
-      index++;
-    }
-    return tokens;
-  }
-
-  // A text's code points, for slicing by code point positions.
-  /**
-   * @param {string} text
-   * @returns {string[]}
-   */
-  function codePoints(text) {
-    return [...text];
-  }
-
-  // ---- errors.js
-  // The one error type the library throws: a grammar that cannot be loaded or
-  // run. A text that does not parse is not an error but a result.
-
-  class GencmuError extends Error {
-    /**
-     * @param {"grammar" | "usage"} kind a grammar that cannot be loaded or
-     *   run, or a caller's mistake such as an unknown stage name
-     * @param {string} message
-     * @param {import("./types.js").ErrorLocation} [where]
-     */
-    constructor(kind, message, where) {
-      super(message);
-      this.name = "GencmuError";
-      this.kind = kind;
-      this.where = where || {};
-    }
   }
 
   // ---- earley.js
@@ -2166,12 +2109,15 @@
   // ---- Audit ---------------------------------------------------------------
 
   /**
+   * The rules an expression refers to; `#` as the rule it stands for.
    * @param {Expr} expr
    * @param {Set<string>} into
+   * @param {string | null} freeModifiers
    */
-  function referencedRules(expr, into) {
+  function referencedRules(expr, into, freeModifiers) {
     const stack = [expr];
     for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
+      if ("hash" in current && freeModifiers) into.add(freeModifiers);
       if ("ref" in current) into.add(current.ref);
       else if ("seq" in current) stack.push(...current.seq);
       else if ("choice" in current) stack.push(...current.choice);
@@ -2219,15 +2165,22 @@
       const grammar = stage.grammar;
       const resolution = grammar.resolution;
       const reachable = new Set(["text"]);
-      if (grammar.freeModifiers) reachable.add(grammar.freeModifiers);
-      const pending = ["text", ...(grammar.freeModifiers ? [grammar.freeModifiers] : [])];
+      const pending = ["text"];
       for (let name = pending.pop(); name !== undefined; name = pending.pop()) {
         const rule = grammar.rules.get(name);
         if (!rule) continue;
         const found = new Set();
         for (const alternative of rule.alternatives) {
-          referencedRules(alternative.expr, found);
-          namedRules([alternative.tags, alternative.clauses], found);
+          referencedRules(alternative.expr, found, grammar.freeModifiers);
+          // Rules named in clauses count only where the clause applies to the
+          // alternative: a condition that names a capture the alternative
+          // lacks never runs for it (engine §3.6).
+          const top = "seq" in alternative.expr ? alternative.expr.seq : [alternative.expr];
+          const captured = new Set(top.flatMap((item) => ("capture" in item ? [item.capture] : [])));
+          /** @type {(clause: unknown) => boolean} */
+          const applies = (clause) => termVariables(/** @type {Condition} */ (clause)).every((variable) => captured.has(variable));
+          const clauses = alternative.clauses;
+          namedRules([alternative.tags, clauses.tags, clauses.emit, ...clauses.conditions].filter((clause) => clause && applies(clause)), found);
         }
         for (const next of found) {
           if (!reachable.has(next) && grammar.rules.has(next)) {
@@ -2305,21 +2258,20 @@
    * grammar not accept this text here".
    * @param {Dialect} dialect
    * @param {string} text
-   * @param {{stage: string, position: number, features?: Iterable<string>}} options
+   * @param {{stage: string, position: number, features?: Iterable<string>, autoFeatures?: boolean}} options
    * @returns {Trace}
    */
   function trace(dialect, text, options) {
     const index = dialect.stages.findIndex((stage) => stage.name === options.stage);
-    if (index < 0) throw new Error(`no stage is named ${options.stage}`);
-    const features = new Set([...dialect.features, ...(options.features || [])]);
-    let tokens;
-    if (index === 0) tokens = characterTokens(text, dialect.loader.unicode);
-    else {
-      const before = dialect.parse(text, { features, until: dialect.stages[index - 1].name, autoFeatures: false });
-      const last = before.stages[before.stages.length - 1];
-      if (!before.ok || !last.output) throw new Error(`the ${last ? last.name : "first"} stage did not hand on tokens: ${explainError(before)}`);
-      tokens = last.output;
-    }
+    if (index < 0) throw new GencmuError("usage", `no stage is named ${options.stage}`);
+    // The parse the caller would get up to that stage, so that the traced
+    // stage reads the same tokens under the same features, auto features
+    // included.
+    const run = dialect.parse(text, { features: options.features, autoFeatures: options.autoFeatures, until: options.stage });
+    const report = run.stages[index];
+    if (!report || !report.input) throw new GencmuError("usage", `the ${options.stage} stage is not reached: ${explainError(run)}`);
+    const tokens = report.input;
+    const features = new Set(run.features);
     const stage = dialect.stages[index];
     const lowered = stage.grammar.lower(features, false);
     const context = new ParseContext(lowered, tokens, [...text], dialect.loader.unicode);
@@ -3082,6 +3034,63 @@
   // Exposed for the property test, which checks the ranking against an
   // enumeration of every derivation.
   const internals = { actions, firstDifference, totalOrder, decide, visible, concat, leaf };
+
+  // ---- tokens.js
+  // Tokens (engine §1): what every stage reads and writes.
+
+
+
+  /** @import { TagSet, Span } from "./types.js" */
+  /** @import { UnicodeTable } from "./unicode.js" */
+
+  class Token {
+    /**
+     * @param {TagSet} tags
+     * @param {Span} span the tokens of the stage before it this token covers
+     * @param {Span} source the code points of the text it covers
+     * @param {string} text the text it covers, as written
+     * @param {string | null} phonemes what it sounds like
+     * @param {string | undefined} insertedBy the rule that inserted it, for a
+     *   token no text stands for
+     */
+    constructor(tags, span, source, text, phonemes, insertedBy) {
+      this.tags = tags;
+      this.span = span;
+      this.source = source;
+      this.text = text;
+      this.phonemes = phonemes;
+      this.insertedBy = insertedBy;
+    }
+  }
+
+  // The first stage's input: one token per code point, tagged with the
+  // character, strong, and its class, weak.
+  /**
+   * @param {string} text
+   * @param {UnicodeTable} unicode
+   * @returns {Token[]}
+   */
+  function characterTokens(text, unicode) {
+    const tokens = [];
+    let index = 0;
+    for (const character of text) {
+      const tags = tagSet([[character, true]]);
+      const kind = unicode.classOf(/** @type {number} */ (character.codePointAt(0)));
+      if (!tags.has(kind)) tags.set(kind, false);
+      tokens.push(new Token(tags, [index, index + 1], [index, index + 1], character, null, undefined));
+      index++;
+    }
+    return tokens;
+  }
+
+  // A text's code points, for slicing by code point positions.
+  /**
+   * @param {string} text
+   * @returns {string[]}
+   */
+  function codePoints(text) {
+    return [...text];
+  }
 
   // ---- stage.js
   // Running one stage: recognition, the choice of a parse, the result tree
@@ -4396,6 +4405,7 @@
         tree: error ? null : final.tree,
         error: error ? locate(/** @type {ParseError} */ (error.error), text) : null,
         text,
+        features: [...options.features].sort(),
       };
       return result;
     }
@@ -4676,6 +4686,8 @@
    * @property {ResultNode | null} tree the last stage's tree
    * @property {ParseError | null} error
    * @property {string} text
+   * @property {string[]} features the features the parse ran with, those auto
+   *   features added included; not part of the canonical JSON
    */
 
   /**

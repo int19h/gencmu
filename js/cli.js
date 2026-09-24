@@ -91,13 +91,13 @@ function dialectOf(command) {
 function parseCommand(command) {
   const text = command.words.length ? command.words.join(" ") : fs.readFileSync(0, "utf8").replace(/\r?\n$/, "");
   const dialect = dialectOf(command);
-  if (command.trace) {
-    console.log(formatTrace(trace(dialect, text, { ...command.trace, features: command.features })));
-    return 0;
-  }
   const result = dialect.parse(text, {
     features: command.features, until: command.until, elisionOnly: command.elisionOnly, autoFeatures: command.autoFeatures,
   });
+  if (command.trace) {
+    console.log(formatTrace(trace(dialect, text, { ...command.trace, features: command.features, autoFeatures: command.autoFeatures })));
+    return result.ok ? 0 : 1;
+  }
   const ties = explainTies(result);
   if (ties) console.error(ties);
   if (command.format === "tokens") console.log(tokenTable(result));
@@ -136,7 +136,7 @@ function testCommand(command) {
     if (words && words.output) got.words = words.output.map((token) => token.phonemes || token.text);
     if (result.ok) got.brackets = toBrackets(result);
     for (const key of ["expect", "verdict", "stage", "ties", "words", "brackets"]) {
-      if (!(key in c)) continue;
+      if (!(key in c) && !(key in got)) continue;
       if (JSON.stringify(c[key]) !== JSON.stringify(got[key])) {
         failed++;
         console.log(`${c.id || c.text}: ${key} expected ${JSON.stringify(c[key])}, got ${JSON.stringify(got[key])}`);

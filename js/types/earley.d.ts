@@ -6,6 +6,7 @@ export type Chart = {
     start: number;
     end: number;
     setAt: (position: number) => ChartSet;
+    context: ParseContext;
 };
 /**
  * @import { Argument, Condition, Edge, Expectation, LoweredGrammar, Production, Scope, Slot, SpanValue, TagSet, Term, TermValue } from "./types.js"
@@ -19,6 +20,7 @@ export type Chart = {
  * @property {number} start
  * @property {number} end
  * @property {(position: number) => ChartSet} setAt
+ * @property {ParseContext} context
  */
 export declare class TagInterner {
     /** @type {TagSet[]} */
@@ -121,6 +123,15 @@ export declare class ChartSet {
     waiting: Map<string, Item[]>;
     /** @type {Map<string, Item[]>} */
     nullable: Map<string, Item[]>;
+    /** @type {Set<string>} the rules already predicted here */
+    predicted: Set<string>;
+    /**
+     * Productions predicted here but not made items, since they begin with
+     * a terminal the next token does not carry; kept for saying what could
+     * have come next.
+     * @type {Production[]}
+     */
+    skipped: Production[];
     /** @param {number} position */
     constructor(position: number);
 }
@@ -176,3 +187,12 @@ export declare function rejectionOf(chart: Chart): {
     position: number;
     expected: Expectation[];
 };
+/**
+ * The terminals the parse could have read at a position, each with the
+ * rules whose items could have read it: the items there whose next symbol
+ * is a terminal, and the predictions the lookahead did not make items of.
+ * @param {Chart} chart
+ * @param {number} position
+ * @returns {Expectation[]}
+ */
+export declare function expectedAt(chart: Chart, position: number): Expectation[];

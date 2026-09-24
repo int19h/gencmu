@@ -146,13 +146,14 @@ export type Trace = {
  * grammar not accept this text here".
  * @param {Dialect} dialect
  * @param {string} text
- * @param {{stage: string, position: number, features?: Iterable<string>}} options
+ * @param {{stage: string, position: number, features?: Iterable<string>, autoFeatures?: boolean}} options
  * @returns {Trace}
  */
 export declare function trace(dialect: Dialect, text: string, options: {
     stage: string;
     position: number;
     features?: Iterable<string>;
+    autoFeatures?: boolean;
 }): Trace;
 /**
  * A trace as text.

@@ -41,7 +41,7 @@ test("parse explains a tie on standard error", () => {
 
 test("trace shows what a stage did at a position", () => {
   const out = run("parse", "--trace", "syntax:2", "mi le le zarci");
-  assert.equal(out.status, 0);
+  assert.equal(out.status, 1, "the text is rejected, whatever is traced");
   assert.match(out.stdout, /The syntax stage at position 2/);
   assert.match(out.stdout, /could read next:/);
 });
@@ -50,12 +50,26 @@ test("audit, dialects and test run", () => {
   assert.match(run("audit", "--dialect", "zantufa").stdout, /paragraph replaced by syntax\/zantufa\.md/);
   assert.match(run("dialects").stdout, /^cll\s+The CLL dialect$/m);
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "gencmu-")), "cases.jsonl");
-  fs.writeFileSync(file, JSON.stringify({ id: "a", text: "mi klama", dialect: "cll", expect: "accept", brackets: "(mi klama)" }) + "\n" +
-    JSON.stringify({ id: "b", text: "mi klama", dialect: "cll", expect: "reject" }) + "\n");
+  const accepted = { id: "a", text: "mi klama", dialect: "cll", expect: "accept", verdict: "unique", words: ["mi", "klama"], brackets: "(mi klama)" };
+  fs.writeFileSync(file, [accepted, { ...accepted, id: "b", expect: "reject" }, { ...accepted, id: "c", verdict: undefined }]
+    .map((c) => JSON.stringify(c)).join("\n") + "\n");
   const out = run("test", file);
   assert.equal(out.status, 1);
   assert.match(out.stdout, /b: expect expected "reject", got "accept"/);
-  assert.match(out.stdout, /1 of 2 cases pass/);
+  // A field the result has and the case lacks is a difference too.
+  assert.match(out.stdout, /c: verdict expected undefined, got "unique"/);
+  assert.match(out.stdout, /1 of 3 cases pass/);
+});
+
+test("trace reads the stage's input as the parse does, auto features included", () => {
+  const out = run("parse", "--trace", "syntax:0", "mi sa do klama");
+  assert.match(out.stdout, /after the start and before "do"/);
+  assert.equal(out.status, 0);
+  const rejected = run("parse", "--trace", "syntax:0", "mi le le zarci");
+  assert.equal(rejected.status, 1);
+  const unknown = run("parse", "--trace", "nonesuch:0", "mi");
+  assert.equal(unknown.status, 2);
+  assert.doesNotMatch(unknown.stderr, /at /);
 });
 
 test("mistakes of the command exit 2", () => {

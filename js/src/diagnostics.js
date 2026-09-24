@@ -2,7 +2,7 @@
 // the grammar's own terms. The CLI and the playground print these; nothing
 // here changes what a parse computes.
 
-import { characterTokens } from "./tokens.js";
+import { GencmuError } from "./errors.js";
 import { ParseContext, recognize, expectedAt } from "./earley.js";
 import { nodeBrackets, nodeTree } from "./output.js";
 import { compareCodePoints } from "./tags.js";
@@ -257,12 +257,15 @@ export function formatItem(production, dot) {
 // ---- Audit ---------------------------------------------------------------
 
 /**
+ * The rules an expression refers to; `#` as the rule it stands for.
  * @param {Expr} expr
  * @param {Set<string>} into
+ * @param {string | null} freeModifiers
  */
-function referencedRules(expr, into) {
+function referencedRules(expr, into, freeModifiers) {
   const stack = [expr];
   for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
+    if ("hash" in current && freeModifiers) into.add(freeModifiers);
     if ("ref" in current) into.add(current.ref);
     else if ("seq" in current) stack.push(...current.seq);
     else if ("choice" in current) stack.push(...current.choice);
@@ -310,15 +313,22 @@ export function audit(dialect) {
     const grammar = stage.grammar;
     const resolution = grammar.resolution;
     const reachable = new Set(["text"]);
-    if (grammar.freeModifiers) reachable.add(grammar.freeModifiers);
-    const pending = ["text", ...(grammar.freeModifiers ? [grammar.freeModifiers] : [])];
+    const pending = ["text"];
     for (let name = pending.pop(); name !== undefined; name = pending.pop()) {
       const rule = grammar.rules.get(name);
       if (!rule) continue;
       const found = new Set();
       for (const alternative of rule.alternatives) {
-        referencedRules(alternative.expr, found);
-        namedRules([alternative.tags, alternative.clauses], found);
+        referencedRules(alternative.expr, found, grammar.freeModifiers);
+        // Rules named in clauses count only where the clause applies to the
+        // alternative: a condition that names a capture the alternative
+        // lacks never runs for it (engine §3.6).
+        const top = "seq" in alternative.expr ? alternative.expr.seq : [alternative.expr];
+        const captured = new Set(top.flatMap((item) => ("capture" in item ? [item.capture] : [])));
+        /** @type {(clause: unknown) => boolean} */
+        const applies = (clause) => termVariables(/** @type {Condition} */ (clause)).every((variable) => captured.has(variable));
+        const clauses = alternative.clauses;
+        namedRules([alternative.tags, clauses.tags, clauses.emit, ...clauses.conditions].filter((clause) => clause && applies(clause)), found);
       }
       for (const next of found) {
         if (!reachable.has(next) && grammar.rules.has(next)) {
@@ -396,21 +406,20 @@ export function formatAudit(stages) {
  * grammar not accept this text here".
  * @param {Dialect} dialect
  * @param {string} text
- * @param {{stage: string, position: number, features?: Iterable<string>}} options
+ * @param {{stage: string, position: number, features?: Iterable<string>, autoFeatures?: boolean}} options
  * @returns {Trace}
  */
 export function trace(dialect, text, options) {
   const index = dialect.stages.findIndex((stage) => stage.name === options.stage);
-  if (index < 0) throw new Error(`no stage is named ${options.stage}`);
-  const features = new Set([...dialect.features, ...(options.features || [])]);
-  let tokens;
-  if (index === 0) tokens = characterTokens(text, dialect.loader.unicode);
-  else {
-    const before = dialect.parse(text, { features, until: dialect.stages[index - 1].name, autoFeatures: false });
-    const last = before.stages[before.stages.length - 1];
-    if (!before.ok || !last.output) throw new Error(`the ${last ? last.name : "first"} stage did not hand on tokens: ${explainError(before)}`);
-    tokens = last.output;
-  }
+  if (index < 0) throw new GencmuError("usage", `no stage is named ${options.stage}`);
+  // The parse the caller would get up to that stage, so that the traced
+  // stage reads the same tokens under the same features, auto features
+  // included.
+  const run = dialect.parse(text, { features: options.features, autoFeatures: options.autoFeatures, until: options.stage });
+  const report = run.stages[index];
+  if (!report || !report.input) throw new GencmuError("usage", `the ${options.stage} stage is not reached: ${explainError(run)}`);
+  const tokens = report.input;
+  const features = new Set(run.features);
   const stage = dialect.stages[index];
   const lowered = stage.grammar.lower(features, false);
   const context = new ParseContext(lowered, tokens, [...text], dialect.loader.unicode);
