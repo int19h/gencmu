@@ -59,10 +59,11 @@ impl Json {
     }
 }
 
-/// How deeply arrays and objects may nest. The shipped files nest a few
-/// dozen levels; a deeper text, corrupt or malicious, is an error rather
-/// than a structure whose conversion or drop would exhaust the stack.
-pub(crate) const MAX_DEPTH: usize = 256;
+/// How deeply arrays and objects may nest: room for a DOM nested as deep
+/// as engine §9 allows (two levels a node at most, and a few around it); a
+/// deeper text, corrupt or malicious, is an error rather than a structure
+/// whose conversion or drop would exhaust the stack.
+pub(crate) const MAX_DEPTH: usize = 1024;
 
 /// Parses a JSON text. Numbers must be integers, which is all the shipped
 /// files hold. The error is a message with the byte offset.

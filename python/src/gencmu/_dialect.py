@@ -18,7 +18,7 @@ from ._markdown import Pipeline, ebnf_text, read_pipeline
 from ._model import ParseError, ParseResult, Stage, Token
 from ._stage import DChild, DRead, StageOutcome, StageRunner, constituent_phonemes
 from ._unicode import UnicodeTable
-from ._validate import dom_problem
+from ._validate import MAX_DEPTH, TOO_DEEP, dom_problem
 
 DOM_FORMAT = 1
 
@@ -149,12 +149,27 @@ class NotationReader:
                 tokens = outcome.output
         assert tree is not None
         try:
-            return DomBuilder(tokens, grammar_text, path).document_dom(tree)
+            dom = DomBuilder(tokens, grammar_text, path).document_dom(tree)
         except GencmuError:
             raise
         except (LookupError, TypeError, ValueError, AttributeError, AssertionError) as error:
             # Only a bootstrap that is not the notation's gives such a tree.
             raise GencmuError(f"the notation's tree cannot be read as a grammar ({error!r}); is the bootstrap the notation's?", document=path) from error
+        if dom_problem(dom) == TOO_DEEP:
+            # The bound on nesting is the same for a document read here as for
+            # a precompiled DOM (engine §9); reported at the first rule too deep.
+            line, column = 1, 1
+            for rule in dom["rules"]:
+                if dom_problem({**dom, "rules": [rule], "directives": []}) == TOO_DEEP:
+                    line, column = rule["at"]
+                    break
+            raise GencmuError(
+                f"an expression, term or condition is nested more than {MAX_DEPTH} deep",
+                document=path,
+                line=line,
+                column=column,
+            )
+        return dom
 
 
 def _reader(bootstrap: str, unicode_text: str) -> NotationReader:
