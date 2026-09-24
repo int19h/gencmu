@@ -170,9 +170,10 @@ text: that is an error of the grammar, reported with the span and the rule,
 and the whole parse fails with it.
 
 **Derivations** are finite trees, and a derivation in which a constituent
-has, below it, a constituent of the same rule over the same span built only
-of single-symbol productions is not counted: `a ≔ b ; b ≔ a | A ;` has one
-derivation of `A` as `a`, not infinitely many.
+has, anywhere below it, a constituent of the same rule over the same span is
+not counted, since such a derivation could repeat without end: `a ≔ b ; b
+≔ a | A ;` has one derivation of `A` as `a`, not infinitely many, and so
+does `t ≔ u | ε ; u ≔ t ;` of the empty text as `t`.
 
 **Acceptance.** The input is accepted when an item of the start rule `text`
 spans the whole input. A rejected input reports the furthest position any
@@ -229,23 +230,29 @@ difference with it, and `tie` otherwise.
 For a tie, the undominated derivations are put in a canonical order, and
 the first is **chosen**. Two of them are ordered by their first differing
 action: a read before a close; two reads by terminal, in code point order;
-two closes by production number, then span start, then span end. The
-**witness** is the pair of actions at the first difference between the
-first two derivations in that order.
+two closes by production number, then span start, then span end. Breaking
+every tie of rules 1 to 3 this way makes a total order *T* on derivations;
+the chosen derivation, `m`, is *T*'s least element, whatever the verdict.
 
-**Computing it.** Break every tie of rules 1 to 3 by the canonical keys:
-that makes a total order *T* on derivations, whose least element is the
-chosen one, `m`, whatever the verdict. A derivation is undominated, besides
-`m`, exactly when its first difference with `m` is a tie; so the verdict is
-`tie` when such a derivation exists, and the second in canonical order is
-the *T*-least of them. Both minima compose over the packed forest: an
-implementation keeps, for each item, its *T*-least derivation and the
-*T*-least one tied with it, and keeps several only while one is a visible
-prefix of another, since the order of those is decided later. No
-implementation has to enumerate derivations, whose number can be
-exponential.
+A derivation other than `m` is undominated exactly when its first
+difference with `m` is a tie, so the verdict is `tie` when such a
+derivation exists. Of those, the **tied** derivation reported beside `m` is
+the one that diverges from `m` earliest: the fewest visible actions before
+its first visible difference with `m`, a derivation that differs from `m`
+only in transparent actions counting as diverging last, and several that
+diverge at the same point ordered by *T*. It shows the first point at which
+the text could be read another way. The **witness** is the pair of actions
+at the first difference between `m` and it, visible if there is one.
 
-
+**Computing it.** Both `m` and the earliest-diverging tied derivation
+compose over the packed forest: an implementation keeps, for each item, its
+*T*-least derivation and the earliest-diverging derivation tied with it, and
+keeps several only while one is a visible prefix of another, since the order
+of those is decided later. When one candidate beats another, the loser's
+tied derivation stays tied with the winner exactly when it diverged from the
+loser no later than the point where the winner beat it, so nothing needs to
+be enumerated, and the number of derivations, which can be exponential,
+never matters.
 
 ## 7. Elision-only
 
@@ -260,8 +267,10 @@ and the verdict is not `unique`:
 3. Rank that forest using only rule 1 of §6: two derivations differing first
    anywhere else are tied. If one derivation is left, the check passes and
    the result is the original one. Otherwise the result is an error of kind
-   `ambiguous`: `ok` is false, and the error carries the chosen tree and the
-   first competing derivation, both of the original input.
+   `ambiguous`: `ok` is false, and the error carries two readings, the
+   chosen derivation of that ranking and the tied one reported beside it,
+   shown over the original input, the written-back terminators as elided
+   nodes.
 
 A caller may also switch the check off for a stage that declares it.
 

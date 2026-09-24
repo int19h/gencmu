@@ -9,6 +9,7 @@ export * from "./index.js";
 
 // The grammars shipped with the package, or, in a clone of the repository,
 // the repository's own.
+/** @returns {string} */
 export function bundledGrammarsDirectory() {
   const here = path.dirname(fileURLToPath(import.meta.url));
   for (const candidate of [path.join(here, "..", "grammars"), path.join(here, "..", "..", "grammars")]) {
@@ -18,13 +19,17 @@ export function bundledGrammarsDirectory() {
 }
 
 // A loader over a directory of grammars, the bundled one by default.
+/**
+ * @param {string} [directory]
+ * @returns {Loader}
+ */
 export function loaderFromDirectory(directory = bundledGrammarsDirectory()) {
   return new Loader((relative) => {
     const file = path.join(directory, ...relative.split("/"));
     try {
       return fs.readFileSync(file, "utf8");
     } catch (error) {
-      if (error.code === "ENOENT") return undefined;
+      if (/** @type {NodeJS.ErrnoException} */ (error).code === "ENOENT") return undefined;
       throw error;
     }
   });

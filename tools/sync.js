@@ -92,6 +92,7 @@ const bodies = order.map((file) => {
     .replace(/^import\s[^;]*?from\s+"[^"]+";$/gms, "")
     .replace(/^export\s+\{[^}]*\}\s+from\s+"[^"]+";$/gms, "")
     .replace(/^export\s+\*\s+from\s+"[^"]+";$/gm, "")
+    .replace(/^export\s*\{\s*\};$/gm, "")
     .replace(/^export\s+(?=(async\s+)?(function|class|const|let)\b)/gm, "");
   for (const match of body.matchAll(/^(?:async\s+)?(?:function\*?|class|const|let)\s+([A-Za-z_$][\w$]*)/gm)) {
     if (declared.has(match[1])) throw new Error(`${match[1]} is declared in both ${declared.get(match[1])} and ${file}; the bundle needs unique top-level names`);

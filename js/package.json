@@ -5,17 +5,31 @@
   "license": "MIT",
   "type": "module",
   "exports": {
-    ".": "./src/index.js",
-    "./node": "./src/node.js"
+    ".": {
+      "types": "./types/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./node": {
+      "types": "./types/node.d.ts",
+      "default": "./src/node.js"
+    }
   },
+  "types": "./types/index.d.ts",
   "files": [
     "src",
+    "types",
     "grammars"
   ],
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "types": "tsc -p .",
+    "check-types": "tsc -p . --noEmit && tsc -p typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.43",
+    "typescript": "7.0.2"
   }
 }

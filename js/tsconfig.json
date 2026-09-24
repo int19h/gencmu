@@ -1,0 +1,22 @@
+{
+  // TypeScript checks the JSDoc types of src/ and writes their declarations
+  // to types/. Nothing needs it to build or run: the library is plain
+  // JavaScript.
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "strict": true,
+    "noImplicitOverride": true,
+    "target": "es2022",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "lib": ["es2022"],
+    "types": ["node"],
+    "rootDir": "src",
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationDir": "types",
+    "newLine": "lf"
+  },
+  "include": ["src"]
+}

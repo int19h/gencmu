@@ -43,4 +43,27 @@ jobs:
         run: node --test
       - name: The package holds everything it needs
         working-directory: js
-        run: npm pack --dry-run 2>&1 | tee pack.txt && grep -q "grammars/compiled.json" pack.txt && grep -q "src/index.js" pack.txt
+        run: npm pack --dry-run 2>&1 | tee pack.txt && grep -q "grammars/compiled.json" pack.txt && grep -q "src/index.js" pack.txt && grep -q "types/index.d.ts" pack.txt
+
+  types:
+    name: JavaScript types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      # TypeScript is a development dependency only: the tests above run
+      # without installing it.
+      - name: Install the type checker
+        working-directory: js
+        run: npm ci
+      - name: The sources and a client of the package type-check
+        working-directory: js
+        run: npm run check-types
+      - name: The declarations are up to date
+        working-directory: js
+        run: |
+          npm run types
+          git diff --exit-code -- types
+          test -z "$(git status --porcelain -- types)" || { git status --porcelain -- types; exit 1; }

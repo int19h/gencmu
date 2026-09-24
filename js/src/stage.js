@@ -2,23 +2,48 @@
 // (engine §12), emission (engine §11) and elision-only (engine §7).
 
 import { GencmuError } from "./errors.js";
-import { ParseContext, recognize, rootItems, rejectionOf, evaluate, phonemesOf } from "./earley.js";
+import { ParseContext, recognize, rootItems, rejectionOf, evaluate } from "./earley.js";
 import { Ranker, derivationTree } from "./rank.js";
 import { Token } from "./tokens.js";
 import { tagSet, strongTag, compareCodePoints } from "./tags.js";
 
+/**
+ * @import { Derivation, DerivationRule, ElidedNode, EmitItem, ResultNode, Scope, Span, StageReport, TagSet, TermValue } from "./types.js"
+ * @import { Grammar } from "./grammar.js"
+ * @import { UnicodeTable } from "./unicode.js"
+ */
+
+/**
+ * The options of one stage's run.
+ * @typedef {object} StageOptions
+ * @property {Set<string>} features
+ * @property {boolean | null | undefined} elisionOnly
+ * @property {boolean} last whether this is the pipeline's last stage
+ */
+
 export class Stage {
+  /**
+   * @param {string} name
+   * @param {Grammar} grammar
+   */
   constructor(name, grammar) {
     this.name = name;
     this.grammar = grammar;
   }
 
-  // Runs the stage over `tokens`. `sourceText` is the original text as an
-  // array of code points. Returns a stage report.
+  /**
+   * Runs the stage over `tokens`.
+   * @param {Token[]} tokens
+   * @param {string[]} sourceText the original text as an array of code points
+   * @param {UnicodeTable} unicode
+   * @param {StageOptions} options
+   * @returns {StageReport}
+   */
   run(tokens, sourceText, unicode, options) {
     const features = options.features;
     const lowered = this.grammar.lower(features, false);
     const context = new ParseContext(lowered, tokens, sourceText, unicode);
+    /** @type {StageReport} */
     const report = { name: this.name, verdict: null, witness: null, output: null, tree: null, error: null };
     let chart;
     let roots;
@@ -33,7 +58,7 @@ export class Stage {
       throw error;
     }
     if (roots.length === 0) {
-      const rejection = rejectionOf(chart, lowered);
+      const rejection = rejectionOf(chart);
       report.error = {
         kind: "rejected",
         stage: this.name,
@@ -79,19 +104,31 @@ export class Stage {
     return report;
   }
 
-  // Engine §7: null when the check passes, else the two first readings of
-  // the input with its elided terminators written out.
+  /**
+   * Engine §7: null when the check passes, else the two first readings of
+   * the input with its elided terminators written out.
+   * @param {ResultNode} tree
+   * @param {Token[]} tokens
+   * @param {string[]} sourceText
+   * @param {UnicodeTable} unicode
+   * @param {Set<string>} features
+   * @returns {ResultNode[] | null}
+   */
   elisionCheck(tree, tokens, sourceText, unicode, features) {
+    /** @type {ElidedNode[]} */
     const elided = [];
+    /** @type {(node: ResultNode) => void} */
     const collect = (node) => {
       if (node.kind === "elided") elided.push(node);
-      for (const child of node.children || []) collect(child);
+      if (node.kind === "rule") for (const child of node.children) collect(child);
     };
     collect(tree);
     // The input with the chosen parse's elided terminators written back, in
     // text order, inner before outer where several are at one position; and
     // which positions of it are those synthetic terminators.
+    /** @type {Token[]} */
     const restored = [];
+    /** @type {number[]} */
     const synthetic = [];
     let next = 0;
     for (let index = 0; index <= tokens.length; index++) {
@@ -113,7 +150,9 @@ export class Stage {
     // The readings are shown over the original input: a synthetic
     // terminator becomes an elided node where it was inserted.
     const isSynthetic = new Set(synthetic);
+    /** @type {(index: number) => number} */
     const toOriginal = (index) => index - synthetic.filter((position) => position < index).length;
+    /** @type {(node: ResultNode) => ResultNode} */
     const remap = (node) => {
       if (node.kind === "token" && isSynthetic.has(node.token)) {
         const at = toOriginal(node.token);
@@ -123,22 +162,38 @@ export class Stage {
       if (node.kind === "elided") return { ...node, span: [toOriginal(node.span[0]), toOriginal(node.span[0])] };
       return { ...node, span: [toOriginal(node.span[0]), toOriginal(node.span[1])], children: node.children.map(remap) };
     };
-    return [ranking.chosen, ranking.second].map((rope) => remap(resultTree(derivationTree(rope), context)[0]));
+    return [ranking.chosen, /** @type {import("./types.js").Rope} */ (ranking.second)].map((rope) => remap(resultTree(derivationTree(rope), context)[0]));
   }
 }
 
+/**
+ * @param {Token[]} tokens
+ * @param {number} position
+ * @returns {Span}
+ */
 function sourceAt(tokens, position) {
-  if (position < tokens.length) return tokens[position].source.slice();
+  if (position < tokens.length) return [tokens[position].source[0], tokens[position].source[1]];
   const end = tokens.length ? tokens[tokens.length - 1].source[1] : 0;
   return [end, end];
 }
 
 // Where an empty span at token index `at` lies in the source.
+/**
+ * @param {Token[]} tokens
+ * @param {number} at
+ * @returns {number}
+ */
 function emptySource(tokens, at) {
   if (at > 0) return tokens[at - 1].source[1];
   return tokens.length ? tokens[0].source[0] : 0;
 }
 
+/**
+ * @param {Token[]} tokens
+ * @param {number} start
+ * @param {number} end
+ * @returns {Span}
+ */
 function sourceOf(tokens, start, end) {
   if (start >= end) {
     const position = emptySource(tokens, start);
@@ -147,8 +202,13 @@ function sourceOf(tokens, start, end) {
   return [tokens[start].source[0], tokens[end - 1].source[1]];
 }
 
+/**
+ * @param {Derivation} node
+ * @param {ParseContext} context
+ * @returns {TagSet}
+ */
 function nodeTags(node, context) {
-  if (node.read) return context.tokens[node.read.token].tags;
+  if ("read" in node) return context.tokens[node.read.token].tags;
   return context.interner.get(node.item.tagId);
 }
 
@@ -156,12 +216,16 @@ function nodeTags(node, context) {
 // child is a node of the same production's left side, as `r ≔ r x` and the
 // helper of `x ...` make. Walking them in a loop keeps the walks of a long
 // text from nesting as deep as the text is long.
+/**
+ * @param {DerivationRule} node
+ * @returns {DerivationRule[]}
+ */
 function spine(node) {
   const chain = [node];
   let current = node;
-  while (current.children && current.children.length > 0) {
+  while (current.children.length > 0) {
     const first = current.children[0];
-    if (first.read || first.production.lhs !== current.production.lhs) break;
+    if ("read" in first || first.production.lhs !== current.production.lhs) break;
     chain.push(first);
     current = first;
   }
@@ -170,9 +234,14 @@ function spine(node) {
 
 // The result tree of a derivation (engine §12), as a list: a spliced node
 // yields its children.
+/**
+ * @param {Derivation} node
+ * @param {ParseContext} context
+ * @returns {ResultNode[]}
+ */
 export function resultTree(node, context) {
   const tokens = context.tokens;
-  if (node.read) {
+  if ("read" in node) {
     return [{ kind: "token", terminal: node.read.terminal, token: node.read.token, span: [node.start, node.end], source: sourceOf(tokens, node.start, node.end) }];
   }
   const production = node.production;
@@ -184,6 +253,7 @@ export function resultTree(node, context) {
     // A repetition's helper is left-recursive: its items are the bottom
     // node's children, then each node's other children going up.
     const chain = spine(node);
+    /** @type {ResultNode[]} */
     const result = [];
     for (let index = chain.length - 1; index >= 0; index--) {
       const children = index === chain.length - 1 ? chain[index].children : chain[index].children.slice(1);
@@ -191,6 +261,7 @@ export function resultTree(node, context) {
     }
     return result;
   }
+  /** @type {ResultNode[]} */
   let children;
   if (production.recursivePrefix) {
     const chain = spine(node).filter((member, index, all) => index === 0 || all[index - 1].production.recursivePrefix);
@@ -212,19 +283,30 @@ export function resultTree(node, context) {
   }];
 }
 
+/** @implements {Scope} */
 class TreeScope {
+  /**
+   * @param {DerivationRule} node
+   * @param {ParseContext} context
+   */
   constructor(node, context) {
     this.node = node;
     this.context = context;
   }
+  /** @param {string} name */
   capture(name) {
-    const capture = this.node.production.captures.find((entry) => entry.name === name);
+    const capture = /** @type {import("./types.js").Capture} */ (this.node.production.captures.find((entry) => entry.name === name));
     const child = this.node.children[capture.index];
     return { start: child.start, end: child.end, tags: nodeTags(child, this.context) };
   }
 }
 
+/**
+ * @param {TagSet} tags
+ * @returns {string | null}
+ */
 function phonemeTag(tags) {
+  /** @type {string[]} */
   const found = [];
   for (const [tag, strong] of tags) {
     if (strong && tag.length >= 3 && tag[0] === "/" && tag[tag.length - 1] === "/" && [...tag].length === 3) found.push(tag);
@@ -237,21 +319,31 @@ function phonemeTag(tags) {
 
 // What a node says: its tokens' phonemes, less every part that emits
 // nothing (engine §5).
+/**
+ * @param {Derivation} node
+ * @param {ParseContext} context
+ * @returns {string}
+ */
 function spoken(node, context) {
   let result = "";
   const stack = [node];
-  while (stack.length > 0) {
-    const current = stack.pop();
-    if (current.read) {
+  for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
+    if ("read" in current) {
       result += context.tokens[current.read.token].phonemes || "";
       continue;
     }
-    if (current.production.emit && current.production.emit.nothing) continue;
+    if (current.production.emit && "nothing" in current.production.emit) continue;
     for (let index = current.children.length - 1; index >= 0; index--) stack.push(current.children[index]);
   }
   return result;
 }
 
+/**
+ * @param {Derivation} node
+ * @param {TagSet} tags
+ * @param {ParseContext} context
+ * @returns {Token}
+ */
 function makeToken(node, tags, context) {
   const tokens = context.tokens;
   const source = sourceOf(tokens, node.start, node.end);
@@ -260,6 +352,14 @@ function makeToken(node, tags, context) {
   return new Token(tags, [node.start, node.end], source, context.sourceText.slice(source[0], source[1]).join(""), phonemes, undefined);
 }
 
+/**
+ * @param {string} tag
+ * @param {number} at
+ * @param {DerivationRule} node
+ * @param {ParseContext} context
+ * @param {string} owner
+ * @returns {Token}
+ */
 function insertedToken(tag, at, node, context, owner) {
   const tokens = context.tokens;
   const position = at > node.start ? tokens[at - 1].source[1] : sourceOf(tokens, node.start, node.end)[0];
@@ -270,39 +370,52 @@ function insertedToken(tag, at, node, context, owner) {
 
 // The tokens a derivation emits for the next stage (engine §11). The walk
 // keeps its own stack of tasks, in text order, rather than recursing.
+/**
+ * @typedef {{walk: Derivation} | {token: () => Token}} EmitTask
+ */
+
+/**
+ * @param {Derivation} root
+ * @param {ParseContext} context
+ * @returns {Token[]}
+ */
 export function emit(root, context) {
+  /** @type {Token[]} */
   const out = [];
+  /** @type {EmitTask[]} */
   const tasks = [{ walk: root }];
-  while (tasks.length > 0) {
-    const task = tasks.pop();
-    if (task.token) {
+  for (let task = tasks.pop(); task !== undefined; task = tasks.pop()) {
+    if ("token" in task) {
       out.push(task.token());
       continue;
     }
     const node = task.walk;
-    if (node.read) continue;
+    if ("read" in node) continue;
     const production = node.production;
     const clause = production.emit;
     if (!clause) {
       for (let index = node.children.length - 1; index >= 0; index--) tasks.push({ walk: node.children[index] });
       continue;
     }
-    if (clause.nothing) continue;
+    if ("nothing" in clause) continue;
     const scope = new TreeScope(node, context);
+    /** @type {(item: EmitItem, fallback: TagSet) => TagSet} */
     const valueTags = (item, fallback) => (item.tags ? asTags(evaluate(context, item.tags, scope)) : fallback);
     const thisItem = clause.items.find((item) => item.this);
     if (thisItem) {
       out.push(makeToken(node, valueTags(thisItem, nodeTags(node, context)), context));
       continue;
     }
+    /** @type {Map<number, EmitItem>} */
     const named = new Map();
     for (const item of clause.items) {
       if (item.capture !== undefined) {
-        const capture = production.captures.find((entry) => entry.name === item.capture);
+        const capture = /** @type {import("./types.js").Capture} */ (production.captures.find((entry) => entry.name === item.capture));
         named.set(capture.index, item);
       }
     }
     // The node's tasks in text order, then pushed in reverse.
+    /** @type {EmitTask[]} */
     const ordered = [];
     let next = 0;
     let cursor = node.start;
@@ -310,9 +423,10 @@ export function emit(root, context) {
       if (named.has(index)) {
         while (next < clause.items.length) {
           const item = clause.items[next];
-          if (item.insert !== undefined) {
+          const insert = item.insert;
+          if (insert !== undefined) {
             const at = cursor;
-            ordered.push({ token: () => insertedToken(item.insert, at, node, context, production.owner) });
+            ordered.push({ token: () => insertedToken(insert, at, node, context, production.owner) });
             next++;
           } else if (named.get(index) === item) {
             ordered.push({ token: () => makeToken(child, valueTags(item, nodeTags(child, context)), context) });
@@ -330,18 +444,20 @@ export function emit(root, context) {
     for (; next < clause.items.length; next++) {
       const item = clause.items[next];
       const at = cursor;
-      if (item.insert !== undefined) ordered.push({ token: () => insertedToken(item.insert, at, node, context, production.owner) });
+      const insert = item.insert;
+      if (insert !== undefined) ordered.push({ token: () => insertedToken(insert, at, node, context, production.owner) });
     }
     for (let index = ordered.length - 1; index >= 0; index--) tasks.push(ordered[index]);
   }
   return out;
 }
 
+/**
+ * @param {TermValue} value
+ * @returns {TagSet}
+ */
 function asTags(value) {
-  if (value.tags) return value.tags;
-  if (value.string !== undefined) return strongTag(value.string);
+  if ("tags" in value) return value.tags;
+  if ("string" in value) return strongTag(value.string);
   return tagSet(value.list.map((item) => [item, true]));
 }
-
-
-void phonemesOf;

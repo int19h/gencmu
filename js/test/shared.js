@@ -17,13 +17,21 @@ export function readGrammarFile(relative) {
 }
 
 // A loader that reads the repository's grammars and, under `case/`, a
-// case's own documents.
+// case's own documents. One loader serves every case, since building one
+// reads the Unicode table and the bootstrap, and its cache is keyed by each
+// document's text as well as its path.
+let caseDocuments = {};
+const repositoryFiles = new Map();
+const sharedLoader = new Loader((relative) => {
+  if (relative.startsWith("case/")) return caseDocuments[relative.slice(5)];
+  if (relative === "compiled.json") return undefined;
+  if (!repositoryFiles.has(relative)) repositoryFiles.set(relative, readGrammarFile(relative));
+  return repositoryFiles.get(relative);
+});
+
 export function loaderWith(documents) {
-  return new Loader((relative) => {
-    if (relative.startsWith("case/")) return documents[relative.slice(5)];
-    if (relative === "compiled.json") return undefined;
-    return readGrammarFile(relative);
-  });
+  caseDocuments = documents;
+  return sharedLoader;
 }
 
 // Whether a value matches a pattern (tests/README.md).

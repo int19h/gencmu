@@ -6,10 +6,18 @@ import { GencmuError } from "./errors.js";
 
 // The grammar text of a document: its `ebnf` blocks joined with a newline,
 // with the line and column of every code point in the document.
+/**
+ * @param {string} markdown
+ * @param {string} path
+ * @returns {{text: string, positions: import("./types.js").Position[]}}
+ */
 export function extractGrammarText(markdown, path) {
   const lines = splitLines(markdown);
+  /** @type {string[]} */
   const chars = [];
+  /** @type {import("./types.js").Position[]} */
   const positions = [];
+  /** @type {string | {skip: string} | null} */
   let inside = null;
   let first = true;
   for (let number = 0; number < lines.length; number++) {
@@ -49,13 +57,23 @@ export function extractGrammarText(markdown, path) {
   return { text: chars.join(""), positions };
 }
 
+/**
+ * @param {string} text
+ * @returns {string[]}
+ */
 export function splitLines(text) {
   return text.split(/\r\n|\r|\n/);
 }
 
 // The stages of a pipeline document, each a name and a list of document
 // paths as written, relative to the pipeline document.
+/**
+ * @param {string} markdown
+ * @param {string} path
+ * @returns {{name: string, documents: string[]}[]}
+ */
 export function readPipeline(markdown, path) {
+  /** @type {{name: string, documents: string[]}[]} */
   const stages = [];
   const lines = splitLines(markdown);
   for (let number = 0; number < lines.length; number++) {
@@ -95,6 +113,11 @@ export function readPipeline(markdown, path) {
 }
 
 // A path relative to a document, resolved and normalized.
+/**
+ * @param {string} from
+ * @param {string} relative
+ * @returns {string}
+ */
 export function resolvePath(from, relative) {
   const parts = from.split("/").slice(0, -1);
   for (const part of relative.split("/")) {

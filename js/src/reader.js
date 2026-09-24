@@ -2,59 +2,96 @@
 
 import { GencmuError } from "./errors.js";
 
-// `tree` is the syntax stage's result tree; `tokens` the syntax stage's
-// input tokens, whose text is what the author wrote; `positionOf` maps a
-// token to its [line, column] in the document.
+/**
+ * @import { Argument, Comparator, Condition, DomAlternative, DomDirective, DomRule, EmitItem, Emission, Expr, GrammarDom, Position, ResultNode, RuleNode, Term } from "./types.js"
+ * @import { Token } from "./tokens.js"
+ */
+
+/**
+ * `tree` is the syntax stage's result tree; `tokens` the syntax stage's
+ * input tokens, whose text is what the author wrote; `positionOf` maps a
+ * token to its [line, column] in the document.
+ * @param {ResultNode} tree
+ * @param {Token[]} tokens
+ * @param {(token: Token) => Position} positionOf
+ * @param {string} path
+ * @returns {GrammarDom}
+ */
 export function treeToDom(tree, tokens, positionOf, path) {
-  const text = (node) => tokens[node.token].text;
+  /** @type {(node: ResultNode) => string} */
+  const text = (node) => tokens[/** @type {import("./types.js").TokenNode} */ (node).token].text;
+  /** @type {(node: ResultNode) => Position} */
   const at = (node) => positionOf(tokens[firstToken(node)]);
+  /** @type {(message: string, node: ResultNode) => never} */
   const fail = (message, node) => {
     const [line, column] = at(node);
     throw new GencmuError("grammar", `${path}:${line}:${column}: ${message}`, { document: path, line, column });
   };
 
   // A rule node's children, with transparent rules read in their place.
+  /** @type {(node: ResultNode) => ResultNode[]} */
   const parts = (node) => {
+    /** @type {ResultNode[]} */
     const result = [];
+    if (node.kind !== "rule") return result;
     for (const child of node.children) {
       if (child.kind === "rule" && !NAMED.has(child.rule)) result.push(...parts(child));
       else result.push(child);
     }
     return result;
   };
+  /** @type {(node: ResultNode) => string | null} */
   const tokenText = (node) => (node.kind === "token" ? text(node) : null);
-  const ofRule = (node, name) => parts(node).filter((child) => child.kind === "rule" && child.rule === name);
+  /** @type {(node: ResultNode, name: string) => RuleNode[]} */
+  const ofRule = (node, name) => parts(node).flatMap((child) => (child.kind === "rule" && child.rule === name ? [child] : []));
+  /** @type {(node: ResultNode, name: string) => RuleNode | undefined} */
   const one = (node, name) => ofRule(node, name)[0];
+  /** @type {(node: ResultNode, name: string) => RuleNode} */
+  const only = (node, name) => {
+    const found = one(node, name);
+    return found || fail(`expected ${name}`, node);
+  };
+  /** @type {(node: ResultNode) => string | undefined} */
+  const ruleOf = (node) => (node.kind === "rule" ? node.rule : undefined);
 
+  /** @type {DomRule[]} */
   const rules = [];
+  /** @type {DomDirective[]} */
   const directives = [];
   for (const item of parts(tree)) {
-    if (item.rule === "directive-statement") {
+    if (ruleOf(item) === "directive-statement") {
       const [directiveToken, ...rest] = parts(item);
       directives.push({
         name: text(directiveToken).slice(1),
-        args: rest.filter((child) => child.rule === "argument-word").map((child) => text(parts(child)[0])),
+        args: rest.filter((child) => ruleOf(child) === "argument-word").map((child) => text(parts(child)[0])),
         at: at(item),
       });
-    } else if (item.rule === "rule") {
+    } else if (ruleOf(item) === "rule") {
       rules.push(readRule(item));
     }
   }
   return { format: 1, rules, directives };
 
+  /**
+   * @param {ResultNode} node
+   * @returns {DomRule}
+   */
   function readRule(node) {
     const children = parts(node);
     const name = text(children[0]);
-    const definer = one(node, "definer");
+    const definer = only(node, "definer");
+    /** @type {Partial<DomRule>} */
     const rule = { name, op: tokenText(parts(definer)[0]) === "|≔" ? "extend" : "define" };
     const tags = one(node, "rule-tags");
-    if (tags) rule.tags = readTerm(one(tags, "term"));
-    rule.alternatives = ofRule(one(node, "body"), "alternative").map(readAlternative);
+    if (tags) rule.tags = readTerm(only(tags, "term"));
+    rule.alternatives = ofRule(only(node, "body"), "alternative").map(readAlternative);
+    /** @type {Condition[]} */
     const conditions = [];
+    /** @type {Emission | undefined} */
     let emit;
     for (const clause of ofRule(node, "clause")) {
       const inner = parts(clause)[0];
-      if (inner.rule === "emission") {
+      if (ruleOf(inner) === "emission") {
         if (emit) fail("a rule may have one ⇒ clause", inner);
         emit = readEmission(inner);
       } else {
@@ -64,22 +101,31 @@ export function treeToDom(tree, tokens, positionOf, path) {
     if (emit) rule.emit = emit;
     rule.conditions = conditions;
     rule.at = at(node);
-    return rule;
+    return /** @type {DomRule} */ (rule);
   }
 
+  /**
+   * @param {ResultNode} node
+   * @returns {DomAlternative}
+   */
   function readAlternative(node) {
     const guards = ofRule(node, "guard").map((guard) => {
       const spelled = text(parts(guard)[0]);
       return { feature: spelled.replace(/^@!?/, ""), negated: spelled.startsWith("@!") };
     });
-    const alternative = { guards, expr: readExpression(one(node, "conjunction")) };
+    /** @type {DomAlternative} */
+    const alternative = { guards, expr: readExpression(only(node, "conjunction")) };
     const tags = one(node, "alternative-tags");
-    if (tags) alternative.tags = readTerm(one(tags, "term"));
+    if (tags) alternative.tags = readTerm(only(tags, "term"));
     return alternative;
   }
 
+  /**
+   * @param {ResultNode} node
+   * @returns {Expr}
+   */
   function readExpression(node) {
-    switch (node.rule) {
+    switch (ruleOf(node)) {
       case "choice": {
         const items = ofRule(node, "conjunction").map(readExpression);
         return items.length === 1 ? items[0] : { choice: items };
@@ -96,38 +142,47 @@ export function treeToDom(tree, tokens, positionOf, path) {
         const primary = readPrimary(parts(one(node, "primary") || node)[0]);
         const repeated = parts(node).some((child) => tokenText(child) === "...");
         if (!repeated) return primary;
-        if (primary.optional !== undefined) return { repeat: primary.optional, min: 0 };
+        if ("optional" in primary) return { repeat: primary.optional, min: 0 };
         return { repeat: primary, min: 1 };
       }
       default:
-        return fail(`unexpected ${node.rule}`, node);
+        return fail(`unexpected ${ruleOf(node)}`, node);
     }
   }
 
+  /**
+   * @param {ResultNode} node
+   * @returns {Expr}
+   */
   function readPrimary(node) {
-    switch (node.rule) {
+    switch (ruleOf(node)) {
       case "reference": return { ref: text(parts(node)[0]) };
       case "string": return { terminal: decode(parts(node)[0]) };
       case "phoneme": return { terminal: text(parts(node)[0]) };
       case "capture": {
         const [captureToken, , inner] = parts(node);
         const expr = readPrimary(parts(inner)[0]);
-        if (expr.ref === undefined && expr.terminal === undefined) fail("a capture wraps one symbol", node);
+        if (!("ref" in expr) && !("terminal" in expr)) fail("a capture wraps one symbol", node);
         return { capture: text(captureToken).slice(1), expr };
       }
-      case "group": return readExpression(one(node, "choice"));
-      case "optional": return { optional: readExpression(one(node, "choice")) };
+      case "group": return readExpression(only(node, "choice"));
+      case "optional": return { optional: readExpression(only(node, "choice")) };
       case "hash": return { hash: true };
       case "empty": return { empty: true };
-      default: return fail(`unexpected ${node.rule}`, node);
+      default: return fail(`unexpected ${ruleOf(node)}`, node);
     }
   }
 
+  /**
+   * @param {ResultNode} node
+   * @returns {Emission}
+   */
   function readEmission(node) {
     const items = ofRule(node, "emit-item").map((itemNode) => {
-      const target = parts(one(itemNode, "emit-target"))[0];
-      const kind = target.terminal;
-      let item;
+      const target = parts(only(itemNode, "emit-target"))[0];
+      const kind = target.kind === "rule" ? undefined : target.terminal;
+      /** @type {EmitItem} */
+      let item = {};
       if (kind === "identifier" && text(target) === "this") item = { this: true };
       else if (kind === "identifier" && text(target) === "nothing") item = { nothing: true };
       else if (kind === "capture") item = { capture: text(target).slice(1) };
@@ -135,7 +190,7 @@ export function treeToDom(tree, tokens, positionOf, path) {
       else if (kind === "phoneme") item = { insert: text(target) };
       else fail("expected this, nothing, a capture or a tag after ⇒", itemNode);
       const tags = one(itemNode, "emit-tags");
-      if (tags) item.tags = readTerm(one(tags, "term"));
+      if (tags) item.tags = readTerm(only(tags, "term"));
       return item;
     });
     if (items.some((item) => item.nothing)) {
@@ -146,46 +201,59 @@ export function treeToDom(tree, tokens, positionOf, path) {
     return { items };
   }
 
+  /**
+   * @param {ResultNode} node
+   * @returns {Condition}
+   */
   function readConditionItem(node) {
     const items = ofRule(node, "condition").map(readCondition);
     return items.length === 1 ? items[0] : { any: items };
   }
 
+  /**
+   * @param {ResultNode} node
+   * @returns {Condition}
+   */
   function readCondition(node) {
     const inner = parts(node)[0];
-    switch (inner.rule) {
+    switch (ruleOf(inner)) {
       case "comparison": {
         const [left, comparator, right] = parts(inner);
-        return { op: text(parts(comparator)[0]), left: readTerm(left), right: readTerm(right) };
+        return { op: /** @type {Comparator} */ (text(parts(comparator)[0])), left: readTerm(left), right: readTerm(right) };
       }
       case "negation":
-        return { not: readCondition(one(inner, "condition")) };
+        return { not: readCondition(only(inner, "condition")) };
       case "call": {
         const call = readCall(inner);
-        if (call.call !== "matches" || call.args.length !== 2 || call.args[1].rule === undefined) {
-          fail("a condition calls only matches(span, rule)", inner);
+        const [span, rule] = call.args;
+        if (call.call !== "matches" || call.args.length !== 2 || !("rule" in rule) || "rule" in span) {
+          return fail("a condition calls only matches(span, rule)", inner);
         }
-        return { matches: call.args[0], rule: call.args[1].rule };
+        return { matches: span, rule: rule.rule };
       }
       default:
-        return fail(`unexpected ${inner.rule}`, inner);
+        return fail(`unexpected ${ruleOf(inner)}`, inner);
     }
   }
 
+  /**
+   * @param {ResultNode} node
+   * @returns {Term}
+   */
   function readTerm(node) {
-    if (node.rule === "term") {
+    if (ruleOf(node) === "term") {
       const items = ofRule(node, "intersection").map(readTerm);
       return items.length === 1 ? items[0] : { union: items };
     }
-    if (node.rule === "intersection") {
+    if (ruleOf(node) === "intersection") {
       const items = ofRule(node, "term-atom").map(readTerm);
       return items.length === 1 ? items[0] : { intersection: items };
     }
-    if (node.rule === "term-atom") {
+    if (ruleOf(node) === "term-atom") {
       const inner = parts(node).find((child) => child.kind === "rule");
-      return readTerm(inner);
+      return inner ? readTerm(inner) : fail("expected a term", node);
     }
-    switch (node.rule) {
+    switch (ruleOf(node)) {
       case "string": return { literal: decode(parts(node)[0]) };
       case "phoneme": return { literal: text(parts(node)[0]) };
       case "weak": return { weak: decode(parts(node)[1]) };
@@ -193,10 +261,14 @@ export function treeToDom(tree, tokens, positionOf, path) {
       case "set": return { set: ofRule(node, "term").map(readTerm) };
       case "call": return readCall(node);
       case "capture-reference": return { capture: text(parts(node)[0]).slice(1) };
-      default: return fail(`unexpected ${node.rule}`, node);
+      default: return fail(`unexpected ${ruleOf(node)}`, node);
     }
   }
 
+  /**
+   * @param {ResultNode} node
+   * @returns {{call: string, args: Argument[]}}
+   */
   function readCall(node) {
     const name = text(parts(node)[0]);
     if (!FUNCTIONS.has(name)) fail(`unknown function ${name}`, node);
@@ -208,6 +280,10 @@ export function treeToDom(tree, tokens, positionOf, path) {
     return { call: name, args };
   }
 
+  /**
+   * @param {ResultNode} tokenNode
+   * @returns {string}
+   */
   function decode(tokenNode) {
     const spelled = [...text(tokenNode)].slice(1, -1);
     let result = "";
@@ -245,8 +321,13 @@ const NAMED = new Set([
   "intersection", "term-atom", "weak", "empty-set", "set", "call", "argument", "capture-reference",
 ]);
 
+/**
+ * @param {ResultNode} node
+ * @returns {number}
+ */
 function firstToken(node) {
   if (node.kind === "token") return node.token;
+  if (node.kind === "elided") return node.span[0];
   for (const child of node.children) {
     if (child.kind === "token") return child.token;
     if (child.kind === "rule") {

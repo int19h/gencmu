@@ -1,0 +1,145 @@
+import type { Argument, Condition, Edge, Expectation, LoweredGrammar, Production, Scope, Slot, TagSet, TermValue } from "./types.js";
+import type { Token } from "./tokens.js";
+import type { UnicodeTable } from "./unicode.js";
+export type Chart = {
+    sets: ChartSet[];
+    start: number;
+    end: number;
+    setAt: (position: number) => ChartSet;
+};
+/**
+ * @import { Argument, Condition, Edge, Expectation, LoweredGrammar, Production, Scope, Slot, SpanValue, TagSet, Term, TermValue } from "./types.js"
+ * @import { Token } from "./tokens.js"
+ * @import { UnicodeTable } from "./unicode.js"
+ */
+/**
+ * A chart: one set per position of the span it was run over.
+ * @typedef {object} Chart
+ * @property {ChartSet[]} sets
+ * @property {number} start
+ * @property {number} end
+ * @property {(position: number) => ChartSet} setAt
+ */
+export declare class TagInterner {
+    /** @type {TagSet[]} */
+    sets: TagSet[];
+    /** @type {Map<string, number>} */
+    ids: Map<string, number>;
+    constructor();
+    /**
+     * @param {TagSet} tags
+     * @returns {number}
+     */
+    intern(tags: TagSet): number;
+    /**
+     * @param {number} id
+     * @returns {TagSet}
+     */
+    get(id: number): TagSet;
+}
+export declare class ParseContext {
+    lowered: LoweredGrammar;
+    tokens: Token[];
+    sourceText: string[];
+    unicode: UnicodeTable;
+    interner: TagInterner;
+    /** @type {Map<string, boolean | TagSet>} */
+    nested: Map<string, boolean | TagSet>;
+    /** @type {Set<string>} */
+    inProgress: Set<string>;
+    /**
+     * @param {LoweredGrammar} lowered
+     * @param {Token[]} tokens
+     * @param {string[]} sourceText the text's code points
+     * @param {UnicodeTable} unicode
+     */
+    constructor(lowered: LoweredGrammar, tokens: Token[], sourceText: string[], unicode: UnicodeTable);
+}
+export declare class Item {
+    production: Production;
+    dot: number;
+    origin: number;
+    slots: Slot[];
+    key: string;
+    tagId: number;
+    /** @type {Edge[]} */
+    edges: Edge[];
+    end: number;
+    /**
+     * @param {Production} production
+     * @param {number} dot
+     * @param {number} origin
+     * @param {Slot[]} slots
+     * @param {string} key
+     */
+    constructor(production: Production, dot: number, origin: number, slots: Slot[], key: string);
+    get complete(): boolean;
+}
+export declare class ChartSet {
+    position: number;
+    /** @type {Item[]} */
+    items: Item[];
+    /** @type {Map<string, Item>} */
+    index: Map<string, Item>;
+    /** @type {Item[]} */
+    queue: Item[];
+    head: number;
+    /** @type {Map<string, Item[]>} */
+    waiting: Map<string, Item[]>;
+    /** @type {Map<string, Item[]>} */
+    nullable: Map<string, Item[]>;
+    /** @param {number} position */
+    constructor(position: number);
+}
+/**
+ * Runs the recognizer over tokens[start, end) with `rule` as the start rule.
+ * @param {ParseContext} context
+ * @param {string} rule
+ * @param {number} start
+ * @param {number} end
+ * @returns {Chart}
+ */
+export declare function recognize(context: ParseContext, rule: string, start: number, end: number): Chart;
+/**
+ * The completed items of `rule` spanning [start, end).
+ * @param {Chart} chart
+ * @param {string} rule
+ * @returns {Item[]}
+ */
+export declare function rootItems(chart: Chart, rule: string): Item[];
+/**
+ * @param {Token[]} tokens
+ * @param {number} start
+ * @param {number} end
+ * @returns {string}
+ */
+export declare function phonemesOf(tokens: Token[], start: number, end: number): string;
+/**
+ * @param {ParseContext} context
+ * @param {number} start
+ * @param {number} end
+ * @returns {string}
+ */
+export declare function textOf(context: ParseContext, start: number, end: number): string;
+/**
+ * @param {ParseContext} context
+ * @param {Argument} term
+ * @param {Scope} scope
+ * @returns {TermValue}
+ */
+export declare function evaluate(context: ParseContext, term: Argument, scope: Scope): TermValue;
+/**
+ * @param {ParseContext} context
+ * @param {Condition} condition
+ * @param {Scope} scope
+ * @returns {boolean}
+ */
+export declare function holds(context: ParseContext, condition: Condition, scope: Scope): boolean;
+/**
+ * @param {Chart} chart
+ * @returns {{position: number, expected: Expectation[]}}
+ */
+export declare function rejectionOf(chart: Chart): {
+    position: number;
+    expected: Expectation[];
+};

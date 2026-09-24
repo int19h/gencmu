@@ -1,14 +1,26 @@
-// gencmu: a Lojban parser whose grammars are literate documents loaded at
-// runtime. This module works anywhere JavaScript runs; `gencmu/node` adds
-// loading grammars from disk.
-
 export { Loader, Dialect, fnv1a64 } from "./dialect.js";
 export { GencmuError } from "./errors.js";
 export { Token } from "./tokens.js";
 export { resultJson, toBrackets, toTree, displayValue, prettyJson } from "./output.js";
-
 import { Loader } from "./dialect.js";
-
+export type TagSet = import("./types.js").TagSet;
+export type Span = import("./types.js").Span;
+export type Resources = import("./types.js").Resources;
+export type Verdict = import("./types.js").Verdict;
+export type ResultNode = import("./types.js").ResultNode;
+export type TokenNode = import("./types.js").TokenNode;
+export type ElidedNode = import("./types.js").ElidedNode;
+export type RuleNode = import("./types.js").RuleNode;
+export type ParseError = import("./types.js").ParseError;
+export type Expectation = import("./types.js").Expectation;
+export type StageReport = import("./types.js").StageReport;
+export type ParseResult = import("./types.js").ParseResult;
+export type ParseOptions = import("./types.js").ParseOptions;
+export type Action = import("./types.js").Action;
+export type GrammarDom = import("./types.js").GrammarDom;
+export type ErrorLocation = import("./types.js").ErrorLocation;
+export type ResultJson = import("./output.js").ResultJson;
+export type DisplayValue = import("./output.js").DisplayValue;
 /**
  * @typedef {import("./types.js").TagSet} TagSet
  * @typedef {import("./types.js").Span} Span
@@ -29,14 +41,8 @@ import { Loader } from "./dialect.js";
  * @typedef {import("./output.js").ResultJson} ResultJson
  * @typedef {import("./output.js").DisplayValue} DisplayValue
  */
-
-// A loader over grammar documents held in memory: a map, or a plain object,
-// from path to text.
 /**
  * @param {Map<string, string> | Record<string, string>} sources
  * @returns {Loader}
  */
-export function loaderFromSources(sources) {
-  const map = sources instanceof Map ? sources : new Map(Object.entries(sources));
-  return new Loader((path) => map.get(path));
-}
+export declare function loaderFromSources(sources: Map<string, string> | Record<string, string>): Loader;

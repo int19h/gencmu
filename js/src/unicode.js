@@ -2,10 +2,15 @@
 // the simple lowercase mapping, the same in every gencmu library.
 
 export class UnicodeTable {
+  /** @param {string} text the contents of unicode.txt */
   constructor(text) {
+    /** @type {string | null} */
     this.version = null;
+    /** @type {[number, number][]} */
     this.marks = [];
+    /** @type {[number, number][]} */
     this.alphas = [];
+    /** @type {Map<number, number>} */
     this.lower = new Map();
     for (const line of text.split("\n")) {
       const fields = line.trim().split(/\s+/);
@@ -16,7 +21,11 @@ export class UnicodeTable {
     }
   }
 
-  // The class tag of a code point (engine §1).
+  /**
+   * The class tag of a code point (engine §1).
+   * @param {number} code
+   * @returns {"space" | "digit" | "mark" | "alpha" | "other"}
+   */
   classOf(code) {
     if ((code >= 0x09 && code <= 0x0d) || code === 0x20 || code === 0x85 || code === 0xa0 || code === 0x1680 ||
         (code >= 0x2000 && code <= 0x200a) || code === 0x2028 || code === 0x2029 || code === 0x202f ||
@@ -29,16 +38,24 @@ export class UnicodeTable {
     return "other";
   }
 
+  /**
+   * @param {string} text
+   * @returns {string}
+   */
   lowercase(text) {
     let result = "";
     for (const character of text) {
-      const mapped = this.lower.get(character.codePointAt(0));
+      const mapped = this.lower.get(/** @type {number} */ (character.codePointAt(0)));
       result += mapped === undefined ? character : String.fromCodePoint(mapped);
     }
     return result;
   }
 }
 
+/**
+ * @param {[number, number][]} ranges
+ * @param {number} code
+ */
 function inRanges(ranges, code) {
   let low = 0;
   let high = ranges.length - 1;
