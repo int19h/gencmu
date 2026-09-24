@@ -1,0 +1,37 @@
+{
+  "description": "A rule with two alternatives (engine §9).",
+  "document": "# A document\n\nSome prose.\n\n```ebnf\ntext ≔ A B | C ;\n```\n",
+  "expect": {
+    "dom": {
+      "format": 1,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "seq": [
+                  {
+                    "ref": "A"
+                  },
+                  {
+                    "ref": "B"
+                  }
+                ]
+              }
+            },
+            {
+              "guards": [],
+              "expr": {
+                "ref": "C"
+              }
+            }
+          ]
+        }
+      ],
+      "directives": []
+    }
+  }
+}

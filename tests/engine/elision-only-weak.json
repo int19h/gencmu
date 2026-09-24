@@ -1,0 +1,18 @@
+{
+  "description": "elision-only allows a choice settled by strong and weak tags (engine §7).",
+  "grammar": "%ambiguity-resolution greedy elision-only ;\ntext ≔ X | Y ;",
+  "tokens": [
+    {
+      "text": "w",
+      "tags": [
+        "?X",
+        "Y"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

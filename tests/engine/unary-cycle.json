@@ -1,0 +1,22 @@
+{
+  "description": "A cycle of single-symbol rules adds no derivations (engine §4, derivations).",
+  "grammar": "text ≔ a ; a ≔ b | A ; b ≔ a ;",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

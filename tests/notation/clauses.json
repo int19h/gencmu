@@ -1,0 +1,75 @@
+{
+  "description": "Conditions with ∨ and ¬, and an emission list with an inserted phoneme (engine §9).",
+  "document": "# A document\n\nSome prose.\n\n```ebnf\ng ≔ $a(A) $b(B) : phonemes($a) = \"x\" ∨ phonemes($a) ∈ words($b), ¬matches($b, r) ⇒ $a, /'/, $b <\"W\"> ;\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "conditions": [
+            {
+              "any": [
+                {
+                  "op": "=",
+                  "left": {
+                    "call": "phonemes",
+                    "args": [
+                      {
+                        "capture": "a"
+                      }
+                    ]
+                  },
+                  "right": {
+                    "literal": "x"
+                  }
+                },
+                {
+                  "op": "∈",
+                  "left": {
+                    "call": "phonemes",
+                    "args": [
+                      {
+                        "capture": "a"
+                      }
+                    ]
+                  },
+                  "right": {
+                    "call": "words",
+                    "args": [
+                      {
+                        "capture": "b"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "not": {
+                "matches": {
+                  "capture": "b"
+                },
+                "rule": "r"
+              }
+            }
+          ],
+          "emit": {
+            "items": [
+              {
+                "capture": "a"
+              },
+              {
+                "insert": "/'/"
+              },
+              {
+                "capture": "b",
+                "tags": {
+                  "literal": "W"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

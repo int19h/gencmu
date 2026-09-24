@@ -1,0 +1,27 @@
+{
+  "description": "⇒ this and ⇒ nothing (engine §9).",
+  "document": "# A document\n\nSome prose.\n\n```ebnf\na ≔ A ⇒ this <\"X\"> ; b ≔ B ⇒ nothing ;\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "emit": {
+            "items": [
+              {
+                "this": true,
+                "tags": {
+                  "literal": "X"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "emit": {
+            "nothing": true
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "description": "Greedy: where one parse reads and the other closes, the one that reads wins, so s takes B (engine §6.2).",
+  "grammar": "text ≔ s | s B ; s ≔ A [B] ;",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "resolved"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "s",
+            "span": [
+              0,
+              2
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

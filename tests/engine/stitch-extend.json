@@ -1,0 +1,35 @@
+{
+  "description": "|≔ adds alternatives, with the extending rule's own clauses (engine §2).",
+  "documents": {
+    "p.md": "## s <?stage main?>\n\n- [g](g.md) <?grammar?>\n- [h](h.md) <?grammar?>\n",
+    "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ x ;\nx ≔ A <\"FROM-A\"> ;\n```\n",
+    "h.md": "```ebnf\nx |≔ B <\"FROM-B\"> ;\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "x",
+            "tags": {
+              "FROM-B": true
+            }
+          }
+        ]
+      }
+    }
+  }
+}

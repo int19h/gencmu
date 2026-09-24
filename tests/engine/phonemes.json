@@ -1,0 +1,32 @@
+{
+  "description": "Phoneme tags say what a token sounds like, and phonemes() of later stages reads them (engine §5).",
+  "documents": {
+    "p.md": "## s <?stage sounds?>\n\n- [g](g.md) <?grammar?>\n\n## t <?stage words?>\n\n- [h](h.md) <?grammar?>\n",
+    "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ [c] ... ;\nc ≔ \"a\" </a/> | \"Á\" </A/> | \"space\" </ /> ⇒ this ;\n```\n",
+    "h.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ $w(pair) : phonemes($w) = \"aA\" ;\npair ≔ /a/ /A/ ;\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "aÁ",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "text": "a",
+              "phonemes": "a"
+            },
+            {
+              "text": "Á",
+              "phonemes": "A"
+            }
+          ]
+        },
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

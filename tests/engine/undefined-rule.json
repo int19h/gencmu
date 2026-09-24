@@ -1,0 +1,15 @@
+{
+  "description": "A lower-case name must be a rule of the stage (engine §2).",
+  "grammar": "text ≔ nowhere ;",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

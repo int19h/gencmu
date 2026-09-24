@@ -1,0 +1,43 @@
+{
+  "description": "A rejection names the furthest position reached and what could have been read there, with the rules (engine §4, output.md).",
+  "grammar": "text ≔ A s ; s ≔ B | C D ;",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    },
+    {
+      "text": "e",
+      "tags": [
+        "E"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 2,
+        "expected": [
+          {
+            "terminal": "D",
+            "rules": [
+              "s"
+            ]
+          }
+        ]
+      }
+    },
+    "error": "rejected"
+  }
+}

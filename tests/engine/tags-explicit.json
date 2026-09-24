@@ -1,0 +1,39 @@
+{
+  "description": "Tags written on an alternative replace the default, and may use the captures (engine §3.6, §10).",
+  "documents": {
+    "p.md": "## s <?stage first?>\n\n- [g](g.md) <?grammar?>\n\n## t <?stage second?>\n\n- [h](h.md) <?grammar?>\n",
+    "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ w ... ;\nw ≔ $x(A) <\"WORD\" ∪ tags($x)> ⇒ this ;\n```\n",
+    "h.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ WORD ... ;\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "k",
+      "tags": [
+        "A",
+        "?B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": {
+                "A": true,
+                "B": false,
+                "WORD": true
+              }
+            }
+          ]
+        },
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

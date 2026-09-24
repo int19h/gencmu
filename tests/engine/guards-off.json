@@ -1,0 +1,18 @@
+{
+  "description": "The same grammar without the feature.",
+  "grammar": "text ≔ @f A | @!f B ;",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false
+    },
+    "error": "rejected"
+  }
+}

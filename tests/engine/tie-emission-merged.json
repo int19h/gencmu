@@ -1,0 +1,45 @@
+{
+  "description": "A tie at a non-final stage whose derivations emit the same tokens is resolved, and the tags merged (engine §11).",
+  "documents": {
+    "p.md": "## s <?stage first?>\n\n- [g](g.md) <?grammar?>\n\n## t <?stage second?>\n\n- [h](h.md) <?grammar?>\n",
+    "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ p | q ;\np ≔ A B <\"P\"> ⇒ this ;\nq ≔ A B <\"Q\"> ⇒ this ;\n```\n",
+    "h.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ P ;\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "resolved",
+          "merged": true,
+          "output": [
+            {
+              "tags": {
+                "P": true,
+                "Q": true
+              }
+            }
+          ]
+        },
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

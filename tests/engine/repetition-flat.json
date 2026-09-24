@@ -1,0 +1,53 @@
+{
+  "description": "A trailing repetition is left recursion on the rule, and its prefixes are spliced out of the tree (engine §3.3, §12).",
+  "grammar": "text ≔ A ... ;",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A"
+          },
+          {
+            "kind": "token",
+            "terminal": "A"
+          },
+          {
+            "kind": "token",
+            "terminal": "A"
+          }
+        ]
+      }
+    },
+    "brackets": "(a a a)"
+  }
+}

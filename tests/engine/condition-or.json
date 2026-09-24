@@ -1,0 +1,17 @@
+{
+  "description": "An item of a condition list may be several conditions joined by ∨ (engine §10).",
+  "grammar": "text ≔ $a(W) : text($a) = \"x\" ∨ text($a) = \"y\" ;",
+  "tokens": [
+    {
+      "text": "y",
+      "tags": [
+        "W"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

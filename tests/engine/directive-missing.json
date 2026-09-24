@@ -1,0 +1,19 @@
+{
+  "description": "A stage without %ambiguity-resolution is an error (engine §2).",
+  "documents": {
+    "p.md": "## s <?stage main?>\n\n- [g](g.md) <?grammar?>\n",
+    "g.md": "```ebnf\ntext ≔ A ;\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

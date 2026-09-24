@@ -1,0 +1,23 @@
+{
+  "description": "≔ in a later document replaces the rule (engine §2).",
+  "documents": {
+    "p.md": "## s <?stage main?>\n\n- [g](g.md) <?grammar?>\n- [h](h.md) <?grammar?>\n",
+    "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ x ;\nx ≔ A ;\n```\n",
+    "h.md": "```ebnf\nx ≔ B ;\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false
+    },
+    "error": "rejected"
+  }
+}

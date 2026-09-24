@@ -1,0 +1,36 @@
+{
+  "description": "# means zero or more of the declared free-modifier rule (engine §2, §3.2).",
+  "grammar": "%free-modifiers free ;\ntext ≔ A # B ; free ≔ F ;",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "f",
+      "tags": [
+        "F"
+      ]
+    },
+    {
+      "text": "f",
+      "tags": [
+        "F"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "brackets": "(a f f b)"
+  }
+}
