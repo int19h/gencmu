@@ -1,8 +1,10 @@
 #!/usr/bin/env node
-// Opens the playground in a headless browser and checks that its parser
-// worker answered. With no URL the page is opened from file://, as someone
-// who cloned the repository would; given a URL, that URL is checked instead,
-// which is how a GitHub Pages deployment is tested.
+// Opens the playground in a headless browser and checks that it works: its
+// parser worker starts, parses a sentence under the CLL dialect into the
+// expected brackets, and explains a text it rejects. With no URL the page is
+// opened from file://, as someone who cloned the repository would; given a
+// URL, that URL is checked instead, which is how a GitHub Pages deployment is
+// tested.
 //
 //   node tools/smoke-playground.js [--browser chrome|firefox] [URL]
 //
@@ -98,26 +100,64 @@ async function main() {
     });
     const id = session.sessionId;
     try {
+      /** Runs a script in the page and returns its value. */
+      const run = (script, ...args) => request(base, "POST", `/session/${id}/execute/sync`, { script, args });
+      /** Polls a script until it returns something other than null. */
+      async function until(what, script, ...args) {
+        let value = null;
+        for (let attempt = 0; attempt < 600; attempt++) {
+          value = await run(script, ...args);
+          if (value !== null) return value;
+          await sleep(100);
+        }
+        const status = await run(`return document.getElementById("status").textContent`);
+        throw new Error(`timed out waiting for ${what}; the status says ${JSON.stringify(status)}`);
+      }
+      // The answer shown for a text, once the page has one and is idle.
+      const answerFor = (text) => until(`the answer for ${JSON.stringify(text)}`, `
+        const status = document.getElementById("status");
+        const result = document.getElementById("result");
+        if (status.dataset.state === "error") return { error: status.textContent };
+        if (status.dataset.state !== "ready" || result.dataset.for !== arguments[0] || result.hasAttribute("aria-busy")) return null;
+        const output = document.querySelector("#output pre");
+        const explanation = document.getElementById("explanation");
+        return { output: output ? output.textContent : "", explanation: explanation ? explanation.textContent : "",
+                 verdict: document.querySelector("#summary .badge").textContent };`, text);
+      const type = (text) => run(`
+        const input = document.getElementById("input");
+        input.value = arguments[0];
+        input.dispatchEvent(new Event("input"));`, text);
+
       await request(base, "POST", `/session/${id}/url`, { url: target });
-      let state;
-      for (let attempt = 0; attempt < 100; attempt++) {
-        state = await request(base, "POST", `/session/${id}/execute/sync`, {
-          script: `const status = document.getElementById("status");
-                   return { state: status && status.dataset.state, status: status && status.textContent,
-                            output: (document.getElementById("output") || {}).textContent || "" };`,
-          args: [],
-        });
-        if (state.state !== "loading") break;
-        await sleep(100);
+      const started = await until("the page to start", `
+        const status = document.getElementById("status");
+        return status && status.dataset.state !== "loading" ? { state: status.dataset.state, status: status.textContent } : null;`);
+      if (started.state !== "ready") throw new Error(`the playground did not become ready: ${started.status}`);
+      const version = await run(`return document.getElementById("version").textContent`);
+      if (!/^library \d+\.\d+\.\d+/.test(version)) throw new Error(`the worker did not report the library's version: ${version}`);
+
+      await run(`
+        const dialect = document.getElementById("dialect");
+        dialect.value = "dialects/cll.md";
+        dialect.dispatchEvent(new Event("change"));`);
+      const sentence = "mi klama le zarci";
+      await type(sentence);
+      const accepted = await answerFor(sentence);
+      if (accepted.error) throw new Error(`the playground failed: ${accepted.error}`);
+      const brackets = "(mi [klama {le zarci}])";
+      if (accepted.output.trim() !== brackets) {
+        throw new Error(`${sentence} under cll gave ${JSON.stringify(accepted.output)}, not ${brackets}`);
       }
-      if (state.state !== "ready") {
-        throw new Error(`the playground did not become ready: ${state.state}: ${state.status}`);
+
+      const rejected = "mi klama le le";
+      await type(rejected);
+      const explained = await answerFor(rejected);
+      if (explained.error) throw new Error(`the playground failed: ${explained.error}`);
+      if (!/rejected/.test(explained.verdict) || !/The syntax stage cannot read the text/.test(explained.explanation) ||
+          !/\^/.test(explained.explanation) || !/sumti-6: .*LE/.test(explained.explanation)) {
+        throw new Error(`${rejected} was not explained as a rejection: ${JSON.stringify(explained)}`);
       }
-      const result = JSON.parse(state.output.split("\n\n")[0]);
-      if (!result.ok || typeof result.version !== "string") {
-        throw new Error(`the worker answered without a complete result: ${state.output}`);
-      }
-      console.log(`playground ready in ${browser} at ${target}, library ${result.version}`);
+      console.log(`playground works in ${browser} at ${target}, ${version}`);
     } finally {
       await request(base, "DELETE", `/session/${id}`).catch(() => {});
     }
