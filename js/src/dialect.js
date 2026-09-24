@@ -145,7 +145,10 @@ export class Dialect {
    */
   parse(text, options = {}) {
     let features = new Set([...this.features, ...(options.features || [])]);
-    if (options.autoFeatures !== false && !features.has("sa-su") && this.stages.some((stage) => stage.name === "words")) {
+    const wordsAt = this.stages.findIndex((stage) => stage.name === "words");
+    const untilAt = options.until === undefined ? this.stages.length - 1 : this.stages.findIndex((stage) => stage.name === options.until);
+    // The probe is for a run that reaches the words stage (engine §13).
+    if (options.autoFeatures !== false && !features.has("sa-su") && wordsAt >= 0 && untilAt >= wordsAt) {
       const probe = this.run(text, { ...options, features, until: "words" }, null);
       const words = probe.stages[probe.stages.length - 1];
       const needs = !words || words.name !== "words" || words.error || containsWord(words.tree, words.input, ["sa", "su"]);

@@ -82,9 +82,12 @@ result.ok; result.tree; result.error;
 JSON.stringify(resultJson(result)); toBrackets(result, { showElided: true });
 ```
 
-- `loadDialect(name)`, `loadDialectFile(path)` from `gencmu/node`;
-  `loadDialectSources(sources, pipelinePath)` from `gencmu`, where
-  `sources` is a `Map` or a plain object.
+- `loadDialect(name)` and `loadDialectFile(path)` from `gencmu/node`, and
+  `loadDialectSources(sources, pipelinePath)`, where `sources` is a `Map`
+  or a plain object. The `gencmu/node` version fills in `unicode.txt`,
+  `notation/bootstrap.json` and `compiled.json` from the bundled grammars;
+  the `gencmu` version, which has no files to read, needs the map to hold
+  the first two itself, as the browser bundle's grammar object does.
 - `dialect.parse(text, { features, autoFeatures, until, elisionOnly })`
   returns a `ParseResult`; `autoFeatures` defaults to `true`.
 - `resultJson(result)` is the canonical JSON as a value; `toBrackets`,
@@ -155,7 +158,7 @@ let result = dialect.parse("mi klama", &gencmu::ParseOptions {
     until: Some("words".into()),
     ..Default::default()
 })?;
-result.ok; result.tree; result.error;
+let (ok, tree, error) = (result.ok, &result.tree, &result.error);
 gencmu::to_json(&result);
 gencmu::to_brackets(&result, true);
 ```
@@ -168,4 +171,6 @@ gencmu::to_brackets(&result, true);
   on.
 - `to_json(&ParseResult) -> String`; `to_brackets(&ParseResult, show_elided:
   bool) -> String`.
+- A result owns its data (`String`, `Vec`), borrowing neither the text nor
+  the dialect, so it outlives both.
 - No dependencies; the crate states its minimum supported Rust version.

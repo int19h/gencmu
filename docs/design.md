@@ -380,12 +380,13 @@ ParseResult
 
 Node
   kind          "rule", "token", or "elided" (a terminator elided at this point)
-  rule          the rule the author wrote (for a token or an elided terminator: the terminal)
-  children      nodes, in text order
+  rule          for a rule node: the rule the author wrote
+  terminal      for a token or elided node: the terminal it read or stands for
+  children      for a rule node: nodes, in text order
   span          token range in the stage's input
   source        code-point range in the original text
-  tags          its tag set, each tag strong or weak
-  token         for a token node: the stage-input token itself
+  tags          for a rule node: its tag set, each tag strong or weak
+  token         for a token node: the index of the stage-input token it read
 ```
 
 The tree is lossless with respect to the grammar the author wrote: every
@@ -400,7 +401,8 @@ libraries compute them from the tokens, so that the two cannot disagree.
 
 Each library exposes this idiomatically: plain objects and arrays in
 JavaScript, dataclasses in Python, structs with slices in Go, structs with
-`Vec` and borrowed `&str` in Rust. Each can serialize a result to the
+`Vec` and owned `String` in Rust, so that a result outlives the text and the
+dialect it came from. Each can serialize a result to the
 canonical JSON of `docs/output.md`, and each renders the canonical bracket
 form, since the shared tests compare it.
 

@@ -3209,7 +3209,10 @@
      */
     parse(text, options = {}) {
       let features = new Set([...this.features, ...(options.features || [])]);
-      if (options.autoFeatures !== false && !features.has("sa-su") && this.stages.some((stage) => stage.name === "words")) {
+      const wordsAt = this.stages.findIndex((stage) => stage.name === "words");
+      const untilAt = options.until === undefined ? this.stages.length - 1 : this.stages.findIndex((stage) => stage.name === options.until);
+      // The probe is for a run that reaches the words stage (engine §13).
+      if (options.autoFeatures !== false && !features.has("sa-su") && wordsAt >= 0 && untilAt >= wordsAt) {
         const probe = this.run(text, { ...options, features, until: "words" }, null);
         const words = probe.stages[probe.stages.length - 1];
         const needs = !words || words.name !== "words" || words.error || containsWord(words.tree, words.input, ["sa", "su"]);
@@ -3349,6 +3352,19 @@
    * @typedef {import("./output.js").ResultJson} ResultJson
    * @typedef {import("./output.js").DisplayValue} DisplayValue
    */
+
+  /**
+   * A dialect from documents held in memory: a map, or a plain object, from
+   * path to text, which must include `unicode.txt` and
+   * `notation/bootstrap.json` (`gencmu/node` fills them in from the bundled
+   * grammars), and the path of the pipeline document among them.
+   * @param {Map<string, string> | Record<string, string>} sources
+   * @param {string} pipelinePath
+   * @returns {Dialect}
+   */
+  function loadDialectSources(sources, pipelinePath) {
+    return loaderFromSources(sources).dialect(pipelinePath);
+  }
 
   // A loader over grammar documents held in memory: a map, or a plain object,
   // from path to text.
@@ -4033,7 +4049,7 @@
 
 
 
-    return { version: "0.1.0", Loader, Dialect, fnv1a64, GencmuError, Token, resultJson, toBrackets, toTree, displayValue, prettyJson, loaderFromSources };
+    return { version: "0.1.0", Loader, Dialect, fnv1a64, GencmuError, Token, resultJson, toBrackets, toTree, displayValue, prettyJson, loadDialectSources, loaderFromSources };
   }
   root.gencmuFactory = gencmuFactory;
   root.gencmu = gencmuFactory();

@@ -441,8 +441,9 @@ pipeline declares with `<?features?>` together with the caller's. A stage that r
 that rejection; an `ambiguous` error (§7) ends it likewise. The result's
 `ok` is true when every stage run accepted without an error.
 
-**Auto features.** When the caller asks for auto features and `sa-su` is
-not already enabled, the stages up to and including the one named `words`
+**Auto features.** When the caller asks for auto features, `sa-su` is
+not already enabled, and the run reaches a stage named `words` (it has one,
+and `until`, if given, names it or a later stage), the stages up to and including the one named `words`
 are run once without it. If that stage rejects, or its chosen tree has a
 constituent of the rule `word` whose phonemes are `sa` or `su`, the parse
 is run with `sa-su` added; otherwise that first run's stages are the
