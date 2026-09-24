@@ -1,6 +1,7 @@
 # gencmu: design
 
-Status: proposal, for review before any code is written.
+Status: accepted; the plan the implementation follows. Where the implementation
+shows a decision to be wrong, this document is changed with it.
 
 ## What gencmu is
 
