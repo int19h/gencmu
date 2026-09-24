@@ -179,8 +179,20 @@ function leafLabel(node, tokens) {
  */
 export function toBrackets(result, options = {}) {
   if (!result.tree) return "";
-  const tokens = finalInput(result);
-  const flat = foldTree(result.tree,
+  return nodeBrackets(result.tree, finalInput(result), options);
+}
+
+/**
+ * The bracket rendering of any tree over the tokens its nodes index: a
+ * tied reading, or one of an ambiguous error's readings, as well as a
+ * result's tree.
+ * @param {ResultNode} root
+ * @param {Token[]} tokens
+ * @param {{showElided?: boolean}} [options]
+ * @returns {string}
+ */
+export function nodeBrackets(root, tokens, options = {}) {
+  const flat = foldTree(root,
     /** @returns {Flat | null} */
     (leaf) => (leaf.kind === "token" ? { leaf: leafLabel(leaf, tokens) }
       : options.showElided ? { leaf: `⟨${leaf.terminal.toLowerCase()}⟩` } : null),
@@ -227,7 +239,16 @@ export function toBrackets(result, options = {}) {
  */
 export function toTree(result) {
   if (!result.tree) return "";
-  const tokens = finalInput(result);
+  return nodeTree(result.tree, finalInput(result));
+}
+
+/**
+ * The tree rendering of any tree over the tokens its nodes index.
+ * @param {ResultNode} root
+ * @param {Token[]} tokens
+ * @returns {string}
+ */
+export function nodeTree(root, tokens) {
   /** @type {string[]} */
   const lines = [];
   /** @type {(node: ResultNode) => string} */
@@ -237,7 +258,7 @@ export function toTree(result) {
     return node.rule;
   };
   /** @type {{node: ResultNode, indent: number}[]} */
-  const stack = [{ node: result.tree, indent: 0 }];
+  const stack = [{ node: root, indent: 0 }];
   for (let task = stack.pop(); task !== undefined; task = stack.pop()) {
     const { node, indent } = task;
     const chain = [label(node)];

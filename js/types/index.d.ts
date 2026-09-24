@@ -1,7 +1,8 @@
 export { Loader, Dialect, fnv1a64 } from "./dialect.js";
 export { GencmuError } from "./errors.js";
 export { Token } from "./tokens.js";
-export { resultJson, toJson, compactJson, toBrackets, toTree, displayValue, prettyJson } from "./output.js";
+export { resultJson, toJson, compactJson, toBrackets, toTree, displayValue, prettyJson, nodeBrackets, nodeTree } from "./output.js";
+export { explainError, explainTies, tokenTable, audit, formatAudit, trace, formatTrace, sourceExcerpt, formatCondition, formatTerm, formatItem } from "./diagnostics.js";
 import { Loader, Dialect } from "./dialect.js";
 export type TagSet = import("./types.js").TagSet;
 export type Span = import("./types.js").Span;

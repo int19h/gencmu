@@ -4,6 +4,9 @@
   "description": "A Lojban parser whose grammars are literate documents loaded at runtime",
   "license": "MIT",
   "type": "module",
+  "bin": {
+    "gencmu": "./cli.js"
+  },
   "exports": {
     ".": {
       "types": "./types/index.d.ts",
@@ -16,6 +19,7 @@
   },
   "types": "./types/index.d.ts",
   "files": [
+    "cli.js",
     "src",
     "types",
     "grammars"
