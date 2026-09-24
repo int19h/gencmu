@@ -310,24 +310,36 @@ func Brackets(result *ParseResult, options BracketOptions) string {
 		}
 	}
 	var b strings.Builder
-	var write func(r *rendered, depth int)
-	write = func(r *rendered, depth int) {
-		if r.group == nil {
-			b.WriteString(r.leaf)
-			return
-		}
-		open, close := "([{"[depth%3], ")]}"[depth%3]
-		b.WriteByte(open)
-		for i, k := range r.group {
-			if i > 0 {
-				b.WriteByte(' ')
-			}
-			write(k, depth+1)
-		}
-		b.WriteByte(close)
+	if result2.empty {
+		return ""
 	}
-	if !result2.empty {
-		write(result2, 0)
+	// Write the groups with an explicit stack: a group's members, then its
+	// closing bracket.
+	type task struct {
+		r     *rendered
+		depth int
+		close byte
+		space bool
+	}
+	tasks := []task{{r: result2}}
+	for len(tasks) > 0 {
+		t := tasks[len(tasks)-1]
+		tasks = tasks[:len(tasks)-1]
+		if t.space {
+			b.WriteByte(' ')
+		}
+		switch {
+		case t.r == nil:
+			b.WriteByte(t.close)
+		case t.r.group == nil:
+			b.WriteString(t.r.leaf)
+		default:
+			b.WriteByte("([{"[t.depth%3])
+			tasks = append(tasks, task{close: ")]}"[t.depth%3]})
+			for i := len(t.r.group) - 1; i >= 0; i-- {
+				tasks = append(tasks, task{r: t.r.group[i], depth: t.depth + 1, space: i > 0})
+			}
+		}
 	}
 	return b.String()
 }

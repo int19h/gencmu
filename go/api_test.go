@@ -247,3 +247,27 @@ func TestConcurrentParses(t *testing.T) {
 		t.Fatal(e)
 	}
 }
+
+// TestDeepDerivations parses long inputs whose derivations nest as deep as
+// the input is long, to the left and, shorter since right recursion costs
+// an Earley recognizer quadratic time, to the right.
+func TestDeepDerivations(t *testing.T) {
+	for _, c := range []struct {
+		grammar string
+		n       int
+	}{
+		{"text ≔ text \"a\" | \"a\" ;", 50000},
+		{"text ≔ [w] ... ; w ≔ \"a\" ⇒ this ;", 50000},
+		{"text ≔ \"a\" text | \"a\" ;", 1500},
+	} {
+		d := mustLoad(t, oneStage("%ambiguity-resolution greedy ;\n"+c.grammar))
+		res, err := d.Parse(strings.Repeat("a", c.n), ParseOptions{})
+		if err != nil || !res.OK {
+			t.Fatalf("%s: %v %+v", c.grammar, err, res.Error)
+		}
+		data, _ := MarshalResult(res)
+		if len(data) < c.n || len(Brackets(res, BracketOptions{})) < c.n {
+			t.Fatalf("%s: the output is too short", c.grammar)
+		}
+	}
+}
