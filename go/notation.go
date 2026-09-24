@@ -529,18 +529,27 @@ func (b *domBuilder) call(n *Node, inCondition bool) *domTerm {
 	return &domTerm{Kind: tmCall, Str: name, Items: args}
 }
 
-// anyOf reads conditions joined by ∨, each several joined by ∧.
+// anyOf reads conditions joined by ∨, each several joined by ∧. Parentheses
+// make no node, so a group of the connective around it is folded into it:
+// (a ∧ b) ∧ c is an all of three, (a ∨ b) ∨ c an any of three (§9).
 func (b *domBuilder) anyOf(n *Node) *domCond {
 	var items []*domCond
 	for _, all := range ruleParts(n) {
 		var conds []*domCond
 		for _, p := range ruleParts(all) {
-			conds = append(conds, b.condition(p))
+			if c := b.condition(p); c.Kind == cdAll {
+				conds = append(conds, c.Items...)
+			} else {
+				conds = append(conds, c)
+			}
 		}
-		if len(conds) == 1 {
-			items = append(items, conds[0])
-		} else {
+		switch {
+		case len(conds) > 1:
 			items = append(items, &domCond{Kind: cdAll, Items: conds})
+		case conds[0].Kind == cdAny:
+			items = append(items, conds[0].Items...)
+		default:
+			items = append(items, conds[0])
 		}
 	}
 	if len(items) == 1 {
