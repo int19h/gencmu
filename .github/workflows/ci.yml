@@ -45,6 +45,39 @@ jobs:
         working-directory: js
         run: npm pack --dry-run 2>&1 | tee pack.txt && grep -q "grammars/compiled.json" pack.txt && grep -q "src/index.js" pack.txt && grep -q "types/index.d.ts" pack.txt
 
+  python:
+    name: Python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.x"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Tests
+        working-directory: python
+        run: python -m unittest -v
+      # The build backend is needed to build the wheel only; the package and
+      # its tests use the standard library alone.
+      - name: Build the wheel
+        working-directory: python
+        run: |
+          python -m venv "$RUNNER_TEMP/build"
+          "$RUNNER_TEMP/build/bin/python" -m pip install build
+          "$RUNNER_TEMP/build/bin/python" -m build --outdir "$RUNNER_TEMP/dist"
+      - name: The wheel holds everything it needs
+        working-directory: python
+        run: |
+          python -m zipfile -l "$RUNNER_TEMP"/dist/*.whl | tee wheel.txt
+          grep -q "gencmu/grammars/compiled.json" wheel.txt
+          grep -q "gencmu/grammars/notation/bootstrap.json" wheel.txt
+          python -m venv "$RUNNER_TEMP/installed"
+          "$RUNNER_TEMP/installed/bin/python" -m pip install "$RUNNER_TEMP"/dist/*.whl
+          GENCMU_INSTALLED=1 "$RUNNER_TEMP/installed/bin/python" -m unittest
+
   types:
     name: JavaScript types
     runs-on: ubuntu-latest
