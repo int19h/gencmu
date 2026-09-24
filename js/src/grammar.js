@@ -320,11 +320,14 @@ class Lowering {
     /** @type {Term | null} */
     let tags = alternative.tags || clauses.tags || null;
     if (tags && !termVariables(tags).every((name) => names.has(name))) tags = null;
-    if (!tags && sequence.length === 1 && captures.length === 0) {
-      // A production with one symbol has that symbol's tags (engine §3.7).
-      captures.push({ name: "\u0000child", index: 0 });
-      names.add("\u0000child");
-      tags = { call: "tags", args: [{ capture: "\u0000child" }] };
+    if (!tags && sequence.length === 1) {
+      // A production with one symbol has that symbol's tags (engine §3.7),
+      // whether or not the author captured it.
+      if (captures.length === 0) {
+        captures.push({ name: "\u0000child", index: 0 });
+        names.add("\u0000child");
+      }
+      tags = { call: "tags", args: [{ capture: captures[0].name }] };
     }
     /** @type {import("./types.js").ReadyCondition[]} */
     const conditions = [];
