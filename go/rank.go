@@ -1,7 +1,6 @@
 package gencmu
 
 import (
-	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -158,11 +157,20 @@ type cmpRes struct {
 	outcome  int
 	wa, wb   action // the first difference of the whole sequences
 	hasWhole bool   // both sequences have an action at the first whole difference
+	aEnded   bool   // without one, whether a's whole sequence is the one that ended
+}
+
+// decided says whether the comparison holds whatever follows both.
+func (r cmpRes) decided() bool {
+	return r.kind == cVisDiff || r.kind == cIdentical || (r.kind == cVisEqual && r.hasWhole)
 }
 
 func (r cmpRes) flip() cmpRes {
 	r.va, r.vb = r.vb, r.va
 	r.wa, r.wb = r.wb, r.wa
+	if !r.hasWhole {
+		r.aEnded = !r.aEnded
+	}
 	switch r.outcome {
 	case oA:
 		r.outcome = oB
@@ -250,9 +258,13 @@ func (rk *ranker) aFirst(r cmpRes) bool {
 		return rk.canonLess(r.va, r.vb)
 	case cIdentical:
 		return true
+	case cAPrefix:
+		return true // a visible prefix precedes its extensions
+	case cBPrefix:
+		return false
 	}
 	if !r.hasWhole {
-		return r.kind == cAPrefix
+		return r.aEnded // a whole prefix precedes its extensions
 	}
 	return rk.canonLess(r.wa, r.wb)
 }
@@ -271,6 +283,7 @@ func (rk *ranker) compare(a, b *dn) cmpRes {
 			return cmpRes{kind: cIdentical}
 		}
 		if !oka || !okb {
+			r.aEnded = !oka
 			break
 		}
 		if ea == eb {
@@ -366,12 +379,25 @@ func (rk *ranker) compare(a, b *dn) cmpRes {
 	}
 }
 
-const inf = math.MaxInt32
+const inf = 1 << 30 // the divergence of derivations that differ only in transparent actions
+
+// tiedSet holds the derivations tied with a candidate that diverge from it
+// earliest, all at div, reduced to those no other beats.
+type tiedSet struct {
+	ds  []*dn
+	div int
+}
 
 type cand struct {
 	d    *dn
-	tied []*dn // derivations tied with d, all diverging from it at tdiv
-	tdiv int
+	tied tiedSet
+	// closes is the same for the tied derivations whose action where they
+	// diverge is a close. Under rule 1 alone (§7) tying is not an
+	// equivalence: a close ties with a strong read and a weak one alike, so
+	// when a strong read beats a weak one, a close tied with the weak one is
+	// tied with the strong one too, though the best tied derivation, a read,
+	// is not.
+	closes tiedSet
 }
 
 type entry struct {
@@ -379,27 +405,60 @@ type entry struct {
 	count int // derivations, up to 2
 }
 
-// addTied offers a derivation tied with c that diverges from it at div.
-func (rk *ranker) addTied(c *cand, d *dn, div int) {
-	if len(c.tied) > 0 && div > c.tdiv {
+func (rk *ranker) addTo(s *tiedSet, d *dn, div int) {
+	if len(s.ds) > 0 && div > s.div {
 		return
 	}
-	if len(c.tied) == 0 || div < c.tdiv {
-		c.tied, c.tdiv = []*dn{d}, div
+	if len(s.ds) == 0 || div < s.div {
+		s.ds, s.div = []*dn{d}, div
 		return
 	}
-	c.tied = rk.insertChain(c.tied, d)
+	s.ds = rk.insertChain(s.ds, d)
 }
+
+// addTied offers a derivation tied with c that diverges from it at div,
+// where its action is a close or not.
+func (rk *ranker) addTied(c *cand, d *dn, div int, close bool) {
+	rk.addTo(&c.tied, d, div)
+	if close {
+		rk.addTo(&c.closes, d, div)
+	}
+}
+
+// inherit offers what of a tied set, with each derivation changed by f, is
+// tied with c at the same divergence.
+func (rk *ranker) inherit(c *cand, z *cand, shift int, f func(*dn) *dn, below int) {
+	for _, set := range []struct {
+		s     tiedSet
+		close bool
+	}{{z.tied, false}, {z.closes, true}} {
+		if len(set.s.ds) == 0 {
+			continue
+		}
+		div := set.s.div
+		if div != inf {
+			div += shift
+		}
+		if set.s.div >= below {
+			continue
+		}
+		for _, t := range set.s.ds {
+			rk.addTied(c, f(t), div, set.close)
+		}
+	}
+}
+
+func same(d *dn) *dn { return d }
 
 // insertChain adds d to a list of derivations no other beats, whose members
 // are visible prefixes of one another.
 func (rk *ranker) insertChain(chain []*dn, d *dn) []*dn {
 	for i := 0; i < len(chain); i++ {
 		r := rk.compare(chain[i], d)
-		switch r.kind {
-		case cIdentical:
+		if r.kind == cIdentical {
 			return chain
-		case cVisDiff, cVisEqual:
+		}
+		if r.decided() {
 			if rk.aFirst(r) {
 				return chain
 			}
@@ -416,23 +475,23 @@ func (rk *ranker) insertChain(chain []*dn, d *dn) []*dn {
 func (rk *ranker) contribute(w, z *cand, r cmpRes) {
 	switch r.kind {
 	case cVisDiff, cAPrefix, cBPrefix:
-		if r.kind != cVisDiff || r.outcome == oTie {
-			rk.addTied(w, z.d, r.pos)
+		tie := r.kind != cVisDiff || r.outcome == oTie
+		if tie {
+			rk.addTied(w, z.d, r.pos, r.kind == cVisDiff && !r.vb.read)
 		}
-		if len(z.tied) > 0 && z.tdiv < r.pos {
-			for _, t := range z.tied {
-				rk.addTied(w, t, z.tdiv)
+		rk.inherit(w, z, 0, same, r.pos)
+		if r.kind == cVisDiff && len(z.closes.ds) > 0 && z.closes.div == r.pos {
+			for _, t := range z.closes.ds {
+				if r2 := rk.compare(w.d, t); r2.kind == cVisDiff && r2.outcome == oTie {
+					rk.addTied(w, t, r2.pos, true)
+				}
 			}
 		}
-	case cVisEqual:
-		rk.addTied(w, z.d, inf)
-		for _, t := range z.tied {
-			rk.addTied(w, t, z.tdiv)
+	case cVisEqual, cIdentical:
+		if r.kind == cVisEqual {
+			rk.addTied(w, z.d, inf, false)
 		}
-	case cIdentical:
-		for _, t := range z.tied {
-			rk.addTied(w, t, z.tdiv)
-		}
+		rk.inherit(w, z, 0, same, inf+1)
 	}
 }
 
@@ -447,11 +506,11 @@ func (rk *ranker) merge(cands []*cand) []*cand {
 		for i := 0; i < len(chain); i++ {
 			w := chain[i]
 			r := rk.compare(w.d, z.d)
-			switch r.kind {
-			case cIdentical:
+			switch {
+			case r.kind == cIdentical:
 				rk.contribute(w, z, r)
 				dominated = true
-			case cVisDiff, cVisEqual:
+			case r.decided():
 				if rk.aFirst(r) {
 					rk.contribute(w, z, r)
 					dominated = true
@@ -487,14 +546,14 @@ func (rk *ranker) finish(cands []*cand) *cand {
 			rk.contribute(m, z, rk.compare(m.d, z.d))
 		}
 	}
-	if len(m.tied) > 1 {
+	if len(m.tied.ds) > 1 {
 		t := 0
-		for i := 1; i < len(m.tied); i++ {
-			if !rk.aFirst(rk.compare(m.tied[t], m.tied[i])) {
+		for i := 1; i < len(m.tied.ds); i++ {
+			if !rk.aFirst(rk.compare(m.tied.ds[t], m.tied.ds[i])) {
 				t = i
 			}
 		}
-		m.tied = []*dn{m.tied[t]}
+		m.tied.ds = []*dn{m.tied.ds[t]}
 	}
 	return m
 }
@@ -503,18 +562,8 @@ func (rk *ranker) extend(xs, cs []*cand, into []*cand) []*cand {
 	for _, x := range xs {
 		for _, c := range cs {
 			n := &cand{d: partNode(x.d, c.d)}
-			for _, t := range x.tied {
-				rk.addTied(n, partNode(t, c.d), x.tdiv)
-			}
-			if len(c.tied) > 0 {
-				div := c.tdiv
-				if div != inf {
-					div += visOf(x.d)
-				}
-				for _, t := range c.tied {
-					rk.addTied(n, partNode(x.d, t), div)
-				}
-			}
+			rk.inherit(n, x, 0, func(t *dn) *dn { return partNode(t, c.d) }, inf+1)
+			rk.inherit(n, c, visOf(x.d), func(t *dn) *dn { return partNode(x.d, t) }, inf+1)
 			into = append(into, n)
 		}
 	}
@@ -524,11 +573,16 @@ func (rk *ranker) extend(xs, cs []*cand, into []*cand) []*cand {
 // ---- over the forest
 
 type itemRank struct {
-	base *entry
-	done bool
-	busy bool
-	byF  map[string]*entry
+	base memoSlot
+	byF  map[string]*memoSlot
 	mark bool
+}
+
+// memoSlot is one ranking of an item or constituent under one set of
+// forbidden ancestors: being computed, or computed.
+type memoSlot struct {
+	state uint8 // 0 not yet, 1 being computed, 2 done
+	e     *entry
 }
 
 type symRank = itemRank
@@ -580,23 +634,20 @@ func (f forbidden) with(r int32) forbidden {
 
 var unitEntry = &entry{cands: []*cand{{}}, count: 1}
 
-func memoGet(m *itemRank, f forbidden) (*entry, bool) {
+func memoSlotFor(m *itemRank, f forbidden) *memoSlot {
 	if len(f) == 0 {
-		return m.base, m.done
-	}
-	e, ok := m.byF[f.key()]
-	return e, ok
-}
-
-func memoSet(m *itemRank, f forbidden, e *entry) {
-	if len(f) == 0 {
-		m.base, m.done = e, true
-		return
+		return &m.base
 	}
 	if m.byF == nil {
-		m.byF = map[string]*entry{}
+		m.byF = map[string]*memoSlot{}
 	}
-	m.byF[f.key()] = e
+	k := f.key()
+	slot := m.byF[k]
+	if slot == nil {
+		slot = &memoSlot{}
+		m.byF[k] = slot
+	}
+	return slot
 }
 
 // itemVal ranks the derivations of an item's children; f applies to its
@@ -606,13 +657,14 @@ func (rk *ranker) itemVal(it *item, f forbidden) *entry {
 		return unitEntry
 	}
 	f = rk.restrict(f, it.prod.lhs)
-	if e, ok := memoGet(&it.rk, f); ok {
-		return e
-	}
-	if it.rk.busy {
+	slot := memoSlotFor(&it.rk, f)
+	switch slot.state {
+	case 1:
 		return nil
+	case 2:
+		return slot.e
 	}
-	it.rk.busy = true
+	slot.state = 1
 	var cands []*cand
 	count := 0
 	for _, l := range it.links {
@@ -647,8 +699,7 @@ func (rk *ranker) itemVal(it *item, f forbidden) *entry {
 	if count > 0 {
 		e = &entry{cands: rk.merge(cands), count: min(count, 2)}
 	}
-	it.rk.busy = false
-	memoSet(&it.rk, f, e)
+	slot.state, slot.e = 2, e
 	return e
 }
 
@@ -658,13 +709,14 @@ func (rk *ranker) symVal(s *symNode, f forbidden) *entry {
 		return nil
 	}
 	f = rk.restrict(f, s.rule)
-	if e, ok := memoGet(&s.rk, f); ok {
-		return e
-	}
-	if s.rk.busy {
+	slot := memoSlotFor(&s.rk, f)
+	switch slot.state {
+	case 1:
 		return nil
+	case 2:
+		return slot.e
 	}
-	s.rk.busy = true
+	slot.state = 1
 	inner := f
 	if rk.rec.g.rules[s.rule].scc >= 0 {
 		inner = f.with(s.rule)
@@ -679,9 +731,7 @@ func (rk *ranker) symVal(s *symNode, f forbidden) *entry {
 		count += e.count
 		for _, x := range e.cands {
 			n := &cand{d: closeNode(c.prod, s.start, s.end, s.tags, x.d)}
-			for _, t := range x.tied {
-				rk.addTied(n, closeNode(c.prod, s.start, s.end, s.tags, t), x.tdiv)
-			}
+			rk.inherit(n, x, 0, func(t *dn) *dn { return closeNode(c.prod, s.start, s.end, s.tags, t) }, inf+1)
 			cands = append(cands, n)
 		}
 	}
@@ -689,8 +739,7 @@ func (rk *ranker) symVal(s *symNode, f forbidden) *entry {
 	if count > 0 {
 		e = &entry{cands: rk.merge(cands), count: min(count, 2)}
 	}
-	s.rk.busy = false
-	memoSet(&s.rk, f, e)
+	slot.state, slot.e = 2, e
 	return e
 }
 
@@ -766,8 +815,8 @@ func (rk *ranker) rank(top []*symNode) *rankResult {
 	}
 	m := rk.finish(rk.merge(cands))
 	res := &rankResult{count: min(count, 2), chosen: m.d}
-	if len(m.tied) > 0 {
-		res.tied = m.tied[0]
+	if len(m.tied.ds) > 0 {
+		res.tied = m.tied.ds[0]
 		r := rk.compare(m.d, res.tied)
 		if r.kind == cVisDiff {
 			res.witness = [2]action{r.va, r.vb}
