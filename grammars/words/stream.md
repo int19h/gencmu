@@ -1,14 +1,16 @@
-## Lojban words from phonemes: the stream and the magic words
+# The word stream
 
-This grammar is the second stage of every pipeline. It reads the phonemes the first stage emitted and hands the erasure stage the words of the text, each tagged with its class: `word` on every word, `cmavo`, `BRIVLA` or `CMEVLA` by its shape, and every selma'o the lexicon document stitched into this stage gives it. It also resolves most of what CLL 19 calls the magic words, the constructs that act on the word stream before the syntax sees it: the quotes `zo`, `ma'oi`, `zoi`, `la'o`, `mu'oi`, `lo'u ... le'u`, `zo'oi` and its relatives, the compounders `bu` and `zei`, the eraser `si`, hesitation, and `fa'o`. They are resolved together, in one grammar, because they act strictly left to right on one stream: `merko zei zo` is a `zei` compound whose second word is `zo`, since `zei` took the word before any quote could form, and `fa fe si bu zei fi` erases `fe`, makes `fa bu`, and compounds it with `fi`. The two erasers that reach back over many words, `sa` and `su`, are resolved in the same pass, since they act in the same order.
+This document opens the word stage, the second stage of every Lojban dialect: [CLL](../dialects/cll.md), [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The stage reads the phonemes the phoneme stage emitted and hands the indicator stage the words of the text, each tagged with its class: `word` on every word, `cmavo`, `BRIVLA` or `CMEVLA` by its shape, and every selma'o the lexicon document stitched into this stage gives it. This document contributes the stream of words and the magic words of CLL 19, the constructs that act on the word stream before the syntax sees it: the quotes `zo`, `ma'oi`, `zoi`, `la'o`, `mu'oi`, `lo'u ... le'u`, `zo'oi` and its relatives, the compounders `bu` and `zei`, the erasers `si`, `sa` and `su`, hesitation, and `fa'o`. They are resolved together, in one grammar, because they act strictly left to right on one stream: `merko zei zo` is a `zei` compound whose second word is `zo`, since `zei` took the word before any quote could form, and `fa fe si bu zei fi` erases `fe`, makes `fa bu`, and compounds it with `fi`. The two erasers that reach back over many words, `sa` and `su`, are resolved in the same pass, since they act in the same order.
 
-What a word looks like is not decided here. This document is stitched into the word stage with `shapes.md`, the word shapes every family shares, and with one family document, `cll.md` for chapter 4 of *The Complete Lojban Language* as printed or `bpfk.md` for the definition effort's word-form grammar, which define the three shapes this grammar reads, `cmavo-shape`, `brivla-shape` and `cmevla-shape`, and tag each with its pause properties. The notation is explained in `notation.md`, and the stage's choice among parses, at the end of this document, is the mirror of the syntax grammar's.
+What a word looks like is not decided here. This document is stitched into the word stage with [shapes.md](shapes.md), the word shapes every family shares; with one family document, [cll.md](cll.md) for chapter 4 of *The Complete Lojban Language* as printed or [bpfk.md](bpfk.md) for the definition effort's approved word-form grammar, which defines the three shapes this grammar reads, `cmavo-shape`, `brivla-shape` and `cmevla-shape`, and tags each with its pause properties; and with one lexicon, [lexicon-cll.md](lexicon-cll.md) or [lexicon-experimental.md](lexicon-experimental.md), which gives each cmavo its selma'o. The notation is explained in [the notation document](../../docs/notation.md), and the stage's choice among parses, at the end of this document, is the mirror of the syntax stage's.
 
-### The stream of elements
+## The stream of elements
 
 The text is a stream of elements, an element being a word, a quote package, a `bu` or `zei` compound, an erasure, or hesitation, and the pauses between them. CLL 4.9 gives the rules for pauses, which this section states as properties every element carries as tags, decided by the word shapes of the family document. An element has `onset` when it may follow another element without a pause: it begins with a consonant, and is not a cmevla, which rule 4 surrounds with pauses. An element is `continued` when another element may follow it without a pause: a cmavo, a compound, a brivla whose stress is marked, but not an unmarked brivla, which by 3.9 reaches the next pause, nor a cmevla, nor a quote that ends in a delimiter. The stream is left-recursive and carries the tags of its last element, so each rule below joins one more element to what precedes it.
 
-Two families state one more rule each through tags of their own. Under CLL, a `Cy` letter cmavo is `cy` rather than `continued`: rule 6 lets only another `Cy` follow it directly, which is what keeps `desygau` one lujvo and not `de sy gau`; the corpus writes `fyno` for `fy no` often enough that a `Cy` beginning its stretch after a pause is treated as continued. Under the definition effort's grammar a `Cy` is an ordinary continued cmavo, and instead an unstressed CV cmavo, tagged `cv`, directly followed by a `Cy`, tagged `y-letter`, and then directly by a brivla is read as one lujvo with a y-hyphen, `bajykla`, never as `ba jy kla`: the stream after such a pair is tagged `cvcy`, and neither a brivla nor a short final rafsi such as the `bau` of `lobybau` may follow it without a pause. A family that uses neither rule tags nothing, and the alternatives that mention those tags never apply.
+Two families state one more rule each through tags of their own. Under CLL, a `Cy` letter cmavo is `cy` rather than `continued`: rule 6 lets only another `Cy` follow it directly, which is what keeps `desygau` one lujvo and not `de sy gau`; written usage has `fyno` for `fy no` often enough that a `Cy` beginning its stretch after a pause is treated as continued. Under the definition effort's grammar a `Cy` is an ordinary continued cmavo, and instead an unstressed CV cmavo, tagged `cv`, directly followed by a `Cy`, tagged `y-letter`, and then directly by a brivla is read as one lujvo with a y-hyphen, `bajykla`, never as `ba jy kla`: the stream after such a pair is tagged `cvcy`, and neither a brivla nor a short final rafsi such as the `bau` of `lobybau` may follow it without a pause. A family that uses neither rule tags nothing, and the alternatives that mention those tags never apply.
+
+The stage is lazy: where two parses differ, it takes the one that closes a constituent over the one that reads the next phoneme, so a word ends as early as the grammar allows, which is CLL's tosmabru rule. "Choosing among parses" at the end of this document says why.
 
 ```ebnf
 %ambiguity-resolution lazy ;
@@ -65,7 +67,7 @@ unit
 
 Besides the tags of its last element, the stream carries what a rule reaching back over it needs: `first-onset`, when its first element may follow another without a pause, which is what joins a reach to the element before it; `first-cy`, when that element is a `Cy` letter, which under CLL may follow another word directly only if another `Cy` follows it and under the definition effort's grammar would make a lujvo with a CV word before it, so that a join without a pause refuses it and `sutyterjvi` stays one lujvo in both; and the union of the selma'o of every element in it, which is what tells a `sa` that nothing in its reach matches. `gap` is an optional pause; where the rules below join two parts across one, the condition says that either the pause is there or the two parts may stand together without it.
 
-A `si` with nothing before it erases nothing (CLL 19.13 says only what it erases; jbotci accepts `si` at the start of a text, and the corpus has many such lines), and so does a run of them, whether at the start of the text, after hesitation there, after an erasure that has already taken everything before it, or after an unmatched `sa` or `su` that has.
+A `si` with nothing before it erases nothing (CLL 19.13 says what `si` erases, not that there must be something to erase), and so does a run of them, whether at the start of the text, after hesitation there, after an erasure that has already taken everything before it, or after an unmatched `sa` or `su` that has.
 
 ```ebnf
 stray-si
@@ -106,7 +108,7 @@ faho-word
 : phonemes($q) = "fa'o" ;
 ```
 
-### Words
+## Words
 
 A word is a cmavo, a brivla or a cmevla; what shapes each has is the business of the family document, `cll.md` or `bpfk.md`, which defines `cmavo-shape`, `brivla-shape` and `cmevla-shape` and tags each with its pause properties. A word is emitted as one token carrying `word`, its kind, those properties, and the classes the lexicon gives it: `tags($c, lexicon)` parses the cmavo's phonemes against the lexicon rules, which is where its selma'o come from, so a cmavo unknown to the lexicon is still a word, as `zo` needs it to be, but a word of no class. A name is always `CMEVLA`; the cmevla-brivla merger of the experimental grammars is a matter of syntax, stated there with the `cbm` guard, not a second class on the word. The magic words are never plain words: the rules under "Quotes", "Compounds" and "Erasure" say what each does instead, and the condition here keeps them out, so that `zo` cannot be read as a word standing beside the word it quotes.
 
@@ -123,16 +125,16 @@ word
 
 The family document also defines `plain-cmavo-body`, the shape of a cmavo that begins with a consonant, which the magic words all have; the rules below name their words by their phonemes.
 
-### Quotes
+## Quotes
 
-CLL 19.10 to 19.13. A quote is decided at this stage because the words inside it are not read as words: `zo si` quotes `si`, and a `zoi` body is not Lojban at all. Each quote hands the syntax stage its marker, carrying the selma'o the lexicon gives it and nothing else, so that a marker which is also an attitudinal in some table is never taken for an indicator, and its contents as bare words or as one stretch of `foreign-text`, which is what the syntax grammar's `any-word` and `anything` read. The quotes that take a run of characters or a delimited body end their stretch, since the quoted run or the closing delimiter must be followed by a pause; a quoted single word is continued exactly as that word would be.
+CLL 19.10 to 19.13. A quote is decided at this stage because the words inside it are not read as words: `zo si` quotes `si`, and a `zoi` body is not Lojban at all. Each quote hands the syntax stage its marker, carrying the selma'o the lexicon gives it and nothing else, so that a marker which is also an attitudinal in a lexicon, as `zo'oi` is in the experimental one, is never taken for an indicator, and its contents as bare words or as one stretch of `foreign-text`, which is what the syntax grammar's `any-word` and `anything` read. The quotes that take a run of characters or a delimited body end their stretch, since the quoted run or the closing delimiter must be followed by a pause; a quoted single word is continued exactly as that word would be.
 
 ```ebnf
 quote
 ≔ quoted-word | zoi-quote | lohu-quote | single-word-quote ;
 ```
 
-`zo` and `ma'oi` quote the next word, whatever it is, except hesitation, which is not a word: `zo y co` quotes `co`, as jbotci reads it, and `zo .y'y.` quotes the letter word. The quoted word ends where that word ends, so a quoted brivla runs on into the next word only when its stress is marked, exactly as an unquoted one, which the tags of the word constituent already say. A cmevla is surrounded by pauses (CLL 4.9 rule 4), quoted or not, so a quoted cmevla ends its stretch and needs a pause before it: `zo n` is no quote in `amazon`. CLL 4.9 rule 3 holds inside a quote too: a quoted word that begins with a vowel needs a pause before it, so `zoi` is never `zo` and `.i`.
+`zo` and `ma'oi` quote the next word, whatever it is, except hesitation, which is not a word: `zo y co` quotes `co`, and `zo .y'y.` quotes the letter word. The quoted word ends where that word ends, so a quoted brivla runs on into the next word only when its stress is marked, exactly as an unquoted one, which the tags of the word constituent already say. A cmevla is surrounded by pauses (CLL 4.9 rule 4), quoted or not, so a quoted cmevla ends its stretch and needs a pause before it: `zo n` is no quote in `amazon`. CLL 4.9 rule 3 holds inside a quote too: a quoted word that begins with a vowel needs a pause before it, so `zoi` is never `zo` and `.i`.
 
 ```ebnf
 quoted-word
@@ -153,7 +155,7 @@ quotable-word
 ≔ $c(cmavo-shape) <tags($c)> | $b(brivla-shape) <tags($b)> ;
 ```
 
-`zo'oi` and its relatives quote the next run of characters up to a pause. `zoi`, `la'o` and `mu'oi` quote a body between two delimiter words: the two delimiters must be the same word, and that word may not occur as a word of the body, so the quote ends at its first occurrence. That is the condition the captures state, and it is checked as the parse advances, so a candidate close that is not the opener never opens a continuation of the text. A quote whose delimiters stand side by side quotes nothing, and hands the syntax an empty stretch of foreign text so that its shape is the same as any other's; a letter word such as `ibu` is one word and may serve as a delimiter, as jbotci reads it.
+`zo'oi` and its relatives quote the next run of characters up to a pause. `zoi`, `la'o` and `mu'oi` quote a body between two delimiter words: the two delimiters must be the same word, and that word may not occur as a word of the body, so the quote ends at its first occurrence. That is the condition the captures state, and it is checked as the parse advances, so a candidate close that is not the opener never opens a continuation of the text. A quote whose delimiters stand side by side quotes nothing, and hands the syntax an empty stretch of foreign text so that its shape is the same as any other's; a letter word such as `ibu` is one word and may serve as a delimiter.
 
 ```ebnf
 single-word-quote
@@ -186,7 +188,7 @@ zoi-marker
 : phonemes($q) ∈ {"zoi", "la'o", "mu'oi"} ;
 ```
 
-Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL 4.9, but no quote marker opens anything and no eraser erases, so a `lo'u` stretch is a stream of bare word shapes joined by the same rules as the stream of the text; the quote ends at the first `le'u`, and it is not an error for it to be empty, as jbotci accepts. The words inside are handed on as bare words, and the markers as `LOhU` and `LEhU`; the closing marker is handed on as `LEhU` alone, not also as a word, so that the syntax cannot read it as one more quoted word and look for a later `le'u`.
+Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL 4.9, but no quote marker opens anything and no eraser erases, so a `lo'u` stretch is a stream of bare word shapes joined by the same rules as the stream of the text; the quote ends at the first `le'u`, and it may be empty, `lo'u le'u`, as a `zoi` quote may. The words inside are handed on as bare words, and the markers as `LOhU` and `LEhU`; the closing marker is handed on as `LEhU` alone, not also as a word, so that the syntax cannot read it as one more quoted word and look for a later `le'u`.
 
 ```ebnf
 lohu-quote
@@ -244,7 +246,7 @@ non-pause-char
 | /b/ | /c/ | /d/ | /f/ | /g/ | /j/ | /k/ | /l/ | /m/ | /n/ | /p/ | /r/ | /s/ | /t/ | /v/ | /x/ | /z/ ;
 ```
 
-### Compounds
+## Compounds
 
 CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a `BY` when `sa` looks for a match, and any two words joined by `zei` are one brivla. The operand of `bu` and the left operand of `zei` are whatever the stream has already produced, a word, a quote or a compound, since the operators act on what exists when they are read; a `si` erasure may sit between an operand and its operator, because the erased word is no longer there for the operator to see. The right operand of `zei` is the next word whatever it is, a quote marker or an eraser included, which is why `merko zei zo` is a compound: the word was taken before it could act. A compound is one word (CLL 4.6, 17.4) and is handed on as one token, a `BY` for `bu` and a `BRIVLA` for `zei`, which the syntax grammar reads as it reads any letter word or brivla; its printed rules `any-word BU` and `any-word ZEI any-word` are kept there for fidelity and never match.
 
@@ -293,7 +295,7 @@ gap-erasures
 
 The pause between an operand and its operator is stated where it matters: a `bu` may follow its word directly only if the word is continued, or is a `Cy` letter cmavo, since `xybu` is the usual way to write that letter word; a `zei` may follow directly only a continued word; a pause is always allowed. The erasures that may stand between them obey the same pause rules, joined through the tags of the first erasure, and an erasure is always continued, so what follows a run of them needs no pause. The word after `zei` follows it directly or after a pause. A compound may follow the word before it without a pause exactly when its first word may, which is what the `onset` in its tags records; `.abu` needs the pause before it that `a` needs.
 
-### Erasure by `si`
+## Erasure by `si`
 
 CLL 19.13: `si` erases the word before it, a compound or a quote counting as one word, and a run of `si` erases as many words: `broda brode si si` erases both, which the rule states as an erasure whose unit is followed by one or more erasures and then the `si` that erases the unit; `klama co si gunka si si` erases `co`, then `gunka`, then `klama`. Hesitation may stand between the word and its `si`, since it is not a word, and `co .y. si` erases `co`. An erased stretch emits nothing. What a `sa` or `su` leaves standing is a unit, so a following `si` erases it, and a `sa` or `su` with nothing to act on is itself a word that `si` erases: `le broda sa si` is `le broda`.
 
@@ -325,13 +327,13 @@ eraser
 ≔ sa-word | su-word ;
 ```
 
-### Erasure by `sa` and `su`
+## Erasure by `sa` and `su`
 
 These two erasers are behind the feature `sa-su`. They are the most expensive part of the word grammar: a `sa` may reach back to any earlier word, so the parser must keep a possible reach open from every word it reads, not knowing whether a `sa` will come, and the cost grows faster than the length of the text. They are also rare in written text. Without the feature, `sa` and `su` are ordinary cmavo of SA and SU, which the syntax grammars do not accept, so a text that uses them is rejected at the word where they stand rather than misread.
 
 CLL 19.13: `sa` erases back to the most recent word of the same selma'o as the word after it, that word included, and leaves the word after it standing; `su` erases back to the start of the text or to the most recent `ni'o`, `no'i`, `lu`, `tu'e` or `to`, which survives. Both are resolved here, in the same left-to-right pass as the quotes, the compounds and `si`, because they act in that order: in `mi le brodi sa le si la brodo` the `sa` takes `le brodi` before the `si` erases the `le` that follows it, and `mi brodi .i sa mi zei co mi` compounds `mi zei co` only after the `sa` has taken `mi brodi .i`.
 
-The reach of a `sa` is stated from its far end: `sa-open` is an element, which has some selma'o, and the elements after it, none of which has a class of the first one's, so the `sa` that follows finds the nearest match. It is left-recursive and checks the class at every step, so that a reach dies at the first element that would match; that keeps the chart linear in the length of the text, which a reach stated as an element followed by a whole stream does not, since a stream may start anywhere and cannot know which class it is keeping clear of. Each step restates the stream's join in three lines: without a pause, the element before must be continued or both must be `Cy` letters; after a pause, anything may follow, and a `Cy` after a pause counts as continued. The definition effort's `CVCy` guard is not restated, since the reach is erased text and the guard only chooses between two readings of text that parses either way. The match is by selma'o: the first element's classes and the classes of the word after `sa` must share one. Hesitation may stand between a `sa` and the word after it, as between a word and its `si`. What the `sa` leaves is the word after it, a word or a quote and never a compound, since the `sa` acts before a `bu` or `zei` after that word does, and the compound is then built on what the `sa` left; the erasure carries the classes of that word, so that a later `sa` may match it in turn; the erasure may follow the element before it without a pause exactly when its first element may. Two `sa` in a row reach back to the second-nearest match, as jbotci reads `sa sa le`, and three to the third: the reach is then two or three open reaches, each beginning at a match of the next.
+The reach of a `sa` is stated from its far end: `sa-open` is an element, which has some selma'o, and the elements after it, none of which has a class of the first one's, so the `sa` that follows finds the nearest match. It is left-recursive and checks the class at every step, so that a reach dies at the first element that would match; that keeps the chart linear in the length of the text, which a reach stated as an element followed by a whole stream does not, since a stream may start anywhere and cannot know which class it is keeping clear of. Each step restates the stream's join in three lines: without a pause, the element before must be continued or both must be `Cy` letters; after a pause, anything may follow, and a `Cy` after a pause counts as continued. The definition effort's `CVCy` guard is not restated, since the reach is erased text and the guard only chooses between two readings of text that parses either way. The match is by selma'o: the first element's classes and the classes of the word after `sa` must share one. Hesitation may stand between a `sa` and the word after it, as between a word and its `si`. What the `sa` leaves is the word after it, a word or a quote and never a compound, since the `sa` acts before a `bu` or `zei` after that word does, and the compound is then built on what the `sa` left; the erasure carries the classes of that word, so that a later `sa` may match it in turn; the erasure may follow the element before it without a pause exactly when its first element may. Two `sa` in a row reach back to the second-nearest match, each `sa` erasing back one match further than the last, and three to the third: the reach is then two or three open reaches, each beginning at a match of the next.
 
 ```ebnf
 sa-erasure
@@ -420,7 +422,7 @@ su-word
 ⇒ nothing ;
 ```
 
-A `su` with no boundary before it, or a `sa` whose following word matches nothing before it, erases everything back to the start of the text; the word after such a `sa` stays, and a later unmatched one takes it too; a run of `sa` that matches nothing is one unmatched `sa`. A `sa` at the end of the text, with no word after it, erases nothing, as jbotci reads `.i sa`; the text rule accepts it after the stream. These are the wiped stretches the text rule accepts before its stream.
+A `su` with no boundary before it, or a `sa` whose following word matches nothing before it, erases everything back to the start of the text; the word after such a `sa` stays, and a later unmatched one takes it too; a run of `sa` that matches nothing is one unmatched `sa`. A `sa` at the end of the text, with no word after it, has no selma'o to look for and erases nothing, so `.i sa` is `.i`; the text rule accepts it after the stream. These are the wiped stretches the text rule accepts before its stream.
 
 ```ebnf
 wiped
@@ -452,8 +454,8 @@ wiped-reach
 
 ## Choosing among parses
 
-Where the grammar admits more than one parse of a text, the stage prefers, at the first difference, the parse that closes a constituent over the one that reads the next phoneme; `notation.md` states the rule. This is the mirror of the syntax grammar's preference, and the reason is CLL 4.6's tosmabru test: a word ends as early as the grammar allows, so `tosmabru` is `to smabru` and `lemiklama` is `le mi klama`, while `spageti` and `toirbroda` are one word each because the grammar allows no earlier end. It also says that an operator acts on what exists when it is read: `mi si si` erases `mi` and then nothing, rather than waiting to see whether more will be erased. Two parses that emit the same words with the same boundaries are one analysis, and their tags are merged.
+The stage declares `%ambiguity-resolution lazy`: where the grammar admits more than one parse of a text, the stage takes, at the first difference, the parse that closes a constituent over the one that reads the next phoneme; [the notation document](../../docs/notation.md), under "Ambiguity", states the rule. This is the mirror of the syntax stage, which is greedy, and the reason is CLL 4.6's tosmabru test: a word ends as early as the grammar allows, so `tosmabru` is `to smabru` and `lemiklama` is `le mi klama`, while `spageti` and `toirbroda` are one word each because the grammar allows no earlier end. It also says that an operator acts on what exists when it is read: `mi si si` erases `mi` and then nothing, rather than waiting to see whether more will be erased.
 
 ## Known gaps
 
-Cyrillic and zbalermorna are read by the phoneme stage, so this grammar never sees them; what it does not read is a `zoi` quote whose delimiters are not set off by pauses. A run of four or more `sa` in a row before one word erases back to the fourth-nearest match in jbotci; here runs of up to three are read, and a run of two or three with fewer matches before it than its length, which jbotci reads as erasing everything, is not read.
+Cyrillic and zbalermorna are read by the phoneme stage, so this grammar never sees them; what it does not read is a `zoi` quote whose delimiters are not set off by pauses. A run of four or more `sa` in a row before one word would erase back to the fourth-nearest match or further; here runs of up to three are read. A run of two or three with fewer matches before it than its length would erase everything back to the start of the text, and is not read.
