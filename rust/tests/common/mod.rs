@@ -246,10 +246,10 @@ pub fn case_documents(case: &Value) -> (BTreeMap<String, String>, String) {
     if let Some(grammar) = case.get("grammar").and_then(Value::str) {
         let mut text = String::new();
         if !grammar.contains("%ambiguity-resolution") {
-            text.push_str("%ambiguity-resolution greedy ;\n");
+            text.push_str("%ambiguity-resolution greedy\n");
         }
         text.push_str(grammar);
-        documents.insert("main.md".to_string(), format!("```ebnf\n{text}\n```\n"));
+        documents.insert("main.md".to_string(), format!("```jbogenbau\n{text}\n```\n"));
         documents
             .insert("pipeline.md".to_string(), "## main <?stage main?>\n\n- [main](main.md) <?grammar?>\n".to_string());
         return (documents, "pipeline.md".to_string());

@@ -210,7 +210,7 @@ fn span_of(tree: &ITree, index: u32) -> (u32, u32) {
 }
 
 /// The phonemes of a token emitted from a node (§5): its strong phoneme
-/// tag, or the phonemes of the tokens below it, skipping every erased
+/// tag, or the phonemes of the tokens below it, skipping every silent
 /// constituent, with the spaces at either end removed.
 fn phonemes(
     recognizer: &Recognizer,
@@ -244,7 +244,7 @@ fn phonemes(
             IKind::Close { prod, .. } => {
                 let production = &recognizer.g.prods[prod as usize];
                 for (position, &child) in node.children.iter().enumerate().rev() {
-                    if !production.emit.erases(production, position) {
+                    if !production.emit.silences(production, position) {
                         stack.push(child);
                     }
                 }
@@ -261,7 +261,8 @@ fn item_tags(recognizer: &mut Recognizer, term: &LTerm, frame: &Frame, tokens: &
     if recognizer.shared.tags.list(set).is_empty() {
         let owner = recognizer.g.prods[frame.prod as usize].owner;
         return Err(EngineError {
-            message: "an emission gives a token no tags, which no terminal can read; <> erases".to_string(),
+            message: "an emission gives a token no tags, which no terminal can read; <> makes an item silent"
+                .to_string(),
             rule: Some(owner),
         });
     }
@@ -292,7 +293,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                 let frame = Frame { caps: &caps, prod: *prod, origin: *start, end: *end, tags: Some(tags) };
                 let production = &g.prods[*prod as usize];
                 match &production.emit {
-                    LEmit::Erased => {}
+                    LEmit::Silent => {}
                     LEmit::None => {
                         for &child in node.children.iter().rev() {
                             stack.push(Work::Visit(child));
@@ -310,57 +311,28 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                         stack.extend(covers.into_iter().rev());
                     }
                     LEmit::Items(items) => {
-                        let mut sequence = Vec::new();
-                        // An inserted tag goes before the first capture
-                        // listed after it, emitted or erased (§11).
-                        let mut pending: Vec<&str> = Vec::new();
-                        let mut before: Vec<(u8, Vec<&str>)> = Vec::new();
-                        // Each capture listed: its slot, and its term, or
-                        // `None` if it is erased.
-                        let mut named: Vec<(u8, Option<Option<&LTerm>>)> = Vec::new();
+                        // Exactly the items, in the order listed; nothing
+                        // inside the constituent is walked (§11).
+                        let (_, end) = span_of(tree, index);
+                        let child = |slot: u8| node.children[production.cap_pos[slot as usize] as usize];
+                        let mut sequence = Vec::with_capacity(items.len());
                         for item in items {
                             match item {
-                                LEmitItem::Insert(tag) => pending.push(tag),
                                 LEmitItem::Cap(slot, term) => {
-                                    named.push((*slot, Some(term.as_ref())));
-                                    before.push((*slot, std::mem::take(&mut pending)));
-                                }
-                                LEmitItem::Erase(slot) => {
-                                    named.push((*slot, None));
-                                    before.push((*slot, std::mem::take(&mut pending)));
-                                }
-                            }
-                        }
-                        let (_, end) = span_of(tree, index);
-                        for (position, &child) in node.children.iter().enumerate() {
-                            let slot = production.cap_at[position];
-                            let listed = slot.and_then(|slot| named.iter().find(|(named, _)| *named == slot));
-                            match listed {
-                                Some(&(slot, emitted)) => {
-                                    let (child_start, _) = span_of(tree, child);
-                                    if let Some((_, tags)) = before.iter().find(|(named, _)| *named == slot) {
-                                        for tag in tags {
-                                            sequence.push(Work::Insert {
-                                                tag: tag.to_string(),
-                                                at: child_start,
-                                                node: index,
-                                            });
-                                        }
-                                    }
-                                    let set = match emitted {
-                                        None => continue,
-                                        Some(Some(term)) => item_tags(recognizer, term, &frame, tokens)?,
-                                        Some(None) => caps[slot as usize].tags,
+                                    let set = match term {
+                                        Some(term) => item_tags(recognizer, term, &frame, tokens)?,
+                                        None => caps[*slot as usize].tags,
                                     };
-                                    sequence.push(Work::Cover(child, set));
+                                    sequence.push(Work::Cover(child(*slot), set));
                                 }
-                                None => sequence.push(Work::Visit(child)),
+                                LEmitItem::Silent(_) => {}
+                                LEmitItem::Insert(tag, anchor) => {
+                                    // At the start of the part of the capture
+                                    // listed next, or at the constituent's end.
+                                    let at = anchor.map_or(end, |slot| span_of(tree, child(slot)).0);
+                                    sequence.push(Work::Insert { tag: tag.clone(), at, node: index });
+                                }
                             }
-                        }
-                        // Inserted tags with no capture listed after them go
-                        // after the constituent's last child.
-                        for tag in pending {
-                            sequence.push(Work::Insert { tag: tag.to_string(), at: end, node: index });
                         }
                         stack.extend(sequence.into_iter().rev());
                     }

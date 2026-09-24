@@ -3,7 +3,7 @@
 //! DOM per rule, each of which must be a cache miss, so that the document
 //! is read instead and no cache entry can change a result.
 
-const DOCUMENT: &str = "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ \"a\" ;\n```\n";
+const DOCUMENT: &str = "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n";
 
 /// A DOM like the document's, but accepting "b" rather than "a", with
 /// `rule` added and the text rule's alternative and emission as given.
@@ -23,16 +23,16 @@ fn dom(text_alternative: &str, text_extra: &str, rule: &str, format: u32, direct
 const B: &str = r#"{"guards":[],"expr":{"terminal":"b"}}"#;
 
 fn with_rule(rule: &str) -> String {
-    dom(B, "", rule, 2, r#""greedy""#)
+    dom(B, "", rule, 3, r#""greedy""#)
 }
 
 fn with_alternative(alternative: &str) -> String {
-    dom(alternative, "", "", 2, r#""greedy""#)
+    dom(alternative, "", "", 3, r#""greedy""#)
 }
 
 fn with_emission(emission: &str) -> String {
     let alternative = r#"{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"terminal":"b"}},{"capture":"y","expr":{"terminal":"c"}}]}}"#;
-    dom(alternative, &format!(r#","emit":{emission}"#), "", 2, r#""greedy""#)
+    dom(alternative, &format!(r#","emit":{emission}"#), "", 3, r#""greedy""#)
 }
 
 fn with_condition(condition: &str) -> String {
@@ -49,7 +49,7 @@ fn with_tags(term: &str) -> String {
 /// Parses "a" with a dialect whose `compiled.json` holds `dom` for the
 /// document: true when the document itself was read.
 fn document_was_read(dom: &str) -> bool {
-    document_was_read_from(2, dom)
+    document_was_read_from(3, dom)
 }
 
 /// The same, with a `compiled.json` of the given format.
@@ -81,9 +81,9 @@ fn a_well_formed_dom_is_used() {
     assert!(!document_was_read(&bare_capture));
     let whole_twice = with_emission(r#"{"items":[{"capture":""},{"capture":"","tags":{"literal":"T"}}]}"#);
     assert!(!document_was_read(&whole_twice));
-    assert!(!document_was_read(&with_emission(r#"{"items":[{"capture":"","erase":true}]}"#)));
+    assert!(!document_was_read(&with_emission(r#"{"items":[{"capture":"","silent":true}]}"#)));
     assert!(!document_was_read(&with_emission(
-        r#"{"items":[{"insert":"X"},{"capture":"x","erase":true},{"capture":"y"}]}"#
+        r#"{"items":[{"insert":"X"},{"capture":"x","silent":true},{"capture":"y"}]}"#
     )));
     // `#` is a rule's name, and `$` may be read by a condition, and by a
     // tag term through another rule.
@@ -97,6 +97,18 @@ fn a_well_formed_dom_is_used() {
     assert!(!document_was_read(&with_condition(&both)));
     assert!(!document_was_read(&with_tags(r#"{"call":"tags","args":[{"capture":""},{"rule":"text"}]}"#)));
     assert!(!document_was_read(&with_tags(r#"{"call":"text","args":[{"capture":""}]}"#)));
+    // A guarded tag term, a presence test and an implication (§10).
+    let guarded = with_tags(
+        r#"{"union":[{"literal":"T"},{"if":{"captured":"x"},"then":{"call":"tags","args":[{"capture":"x"}]}}]}"#,
+    );
+    assert!(!document_was_read(&guarded));
+    let implication = r#"{"if":{"captured":"w"},"then":{"op":"=","left":{"call":"text","args":[{"capture":"w"}]},"right":{"literal":"b"}}}"#;
+    assert!(!document_was_read(&with_condition(implication)));
+    // A condition and an emission that serve some alternatives only.
+    let some = r#"{"name":"x","op":"define","alternatives":[{"guards":[],"expr":{"capture":"w","expr":{"terminal":"b"}}},{"guards":[],"expr":{"terminal":"c"}}],"emit":{"items":[{"capture":"w"},{"capture":""}]},"conditions":[{"op":"=","left":{"call":"text","args":[{"capture":"w"}]},"right":{"literal":"b"}}],"at":[4,1]}"#;
+    assert!(document_was_read(&with_rule(some)), "$ with a capture is malformed");
+    let some = r#"{"name":"x","op":"define","alternatives":[{"guards":[],"expr":{"seq":[{"capture":"w","expr":{"terminal":"b"}},{"terminal":"c"}]}},{"guards":[],"expr":{"terminal":"c"}}],"emit":{"items":[{"capture":"w"},{"insert":"T"}]},"conditions":[{"op":"=","left":{"call":"text","args":[{"capture":"w"}]},"right":{"literal":"b"}}],"at":[4,1]}"#;
+    assert!(!document_was_read(&with_rule(some)));
     // Four captures, and nodes below exactly 256 compound nodes, are allowed.
     let four = with_alternative(
         r#"{"guards":[],"expr":{"seq":[{"capture":"w","expr":{"terminal":"b"}},{"capture":"x","expr":{"terminal":"c"}},{"capture":"y","expr":{"terminal":"c"}},{"capture":"z","expr":{"terminal":"c"}}]}}"#,
@@ -112,7 +124,8 @@ fn a_well_formed_dom_is_used() {
 
 #[test]
 fn a_cache_of_another_format_is_a_miss() {
-    assert!(!document_was_read_from(2, &with_rule("")));
+    assert!(!document_was_read_from(3, &with_rule("")));
+    assert!(document_was_read_from(2, &with_rule("")), "a format-2 cache is never used");
     assert!(document_was_read_from(1, &with_rule("")), "a format-1 cache is never used");
 }
 
@@ -121,7 +134,8 @@ fn every_malformed_dom_is_a_cache_miss() {
     let nested = format!("{}{{\"terminal\":\"b\"}}{}", "{\"optional\":".repeat(257), "}".repeat(257));
     let cases: Vec<(&str, String)> = vec![
         ("format 1", dom(B, "", "", 1, r#""greedy""#)),
-        ("a directive argument that is not a string", dom(B, "", "", 2, "7")),
+        ("format 2", dom(B, "", "", 2, r#""greedy""#)),
+        ("a directive argument that is not a string", dom(B, "", "", 3, "7")),
         (
             "a rule name that is not a name",
             with_rule(
@@ -180,20 +194,23 @@ fn every_malformed_dom_is_a_cache_miss() {
         ("no emission items", with_emission(r#"{"items":[]}"#)),
         ("$ with an inserted tag", with_emission(r#"{"items":[{"capture":""},{"insert":"X"}]}"#)),
         ("$ with a capture", with_emission(r#"{"items":[{"capture":""},{"capture":"x"}]}"#)),
-        ("$ <> with $", with_emission(r#"{"items":[{"capture":"","erase":true},{"capture":""}]}"#)),
-        ("$ <> twice", with_emission(r#"{"items":[{"capture":"","erase":true},{"capture":"","erase":true}]}"#)),
+        ("$ <> with $", with_emission(r#"{"items":[{"capture":"","silent":true},{"capture":""}]}"#)),
+        ("$ <> twice", with_emission(r#"{"items":[{"capture":"","silent":true},{"capture":"","silent":true}]}"#)),
         ("a capture listed twice", with_emission(r#"{"items":[{"capture":"x"},{"capture":"x"}]}"#)),
         (
             "a capture listed twice, once erased",
-            with_emission(r#"{"items":[{"capture":"x","erase":true},{"capture":"x"}]}"#),
+            with_emission(r#"{"items":[{"capture":"x","silent":true},{"capture":"x"}]}"#),
         ),
         (
             "tags on an inserted tag",
             with_emission(r#"{"items":[{"capture":"x"},{"insert":"X","tags":{"literal":"T"}}]}"#),
         ),
-        ("<> on an inserted tag", with_emission(r#"{"items":[{"capture":"x"},{"insert":"X","erase":true}]}"#)),
-        ("an erase that is false", with_emission(r#"{"items":[{"capture":"x","erase":false}]}"#)),
-        ("an erase with tags", with_emission(r#"{"items":[{"capture":"x","erase":true,"tags":{"literal":"T"}}]}"#)),
+        ("<> on an inserted tag", with_emission(r#"{"items":[{"capture":"x"},{"insert":"X","silent":true}]}"#)),
+        ("a silent that is false", with_emission(r#"{"items":[{"capture":"x","silent":false}]}"#)),
+        (
+            "a silent item with tags",
+            with_emission(r#"{"items":[{"capture":"x","silent":true,"tags":{"literal":"T"}}]}"#),
+        ),
         ("<∅>", with_emission(r#"{"items":[{"capture":"x","tags":{"emptySet":true}}]}"#)),
         ("an unknown emission item", with_emission(r#"{"items":[{"emit":"x"}]}"#)),
         (
@@ -225,6 +242,60 @@ fn every_malformed_dom_is_a_cache_miss() {
             with_tags(r#"{"union":[{"literal":"T"},{"intersection":[{"capture":""},{"literal":"U"}]}]}"#),
         ),
         ("an unknown term", with_tags(r#"{"string":"T"}"#)),
+        ("a presence test of a capture no alternative has", with_condition(r#"{"captured":"v"}"#)),
+        ("a presence test that is not a string", with_condition(r#"{"captured":7}"#)),
+        ("a presence test with another key", with_condition(r#"{"captured":"w","not":{"captured":"w"}}"#)),
+        ("an implication without a consequent", with_condition(r#"{"if":{"captured":"w"}}"#)),
+        (
+            "a guarded term with an else",
+            with_tags(r#"{"if":{"captured":"x"},"then":{"literal":"T"},"else":{"literal":"U"}}"#),
+        ),
+        ("a guarded term without a term", with_tags(r#"{"if":{"captured":"x"}}"#)),
+        (
+            "a guard that reads the tags its term defines",
+            with_tags(
+                r#"{"if":{"op":"∈","left":{"literal":"T"},"right":{"call":"tags","args":[{"capture":""}]}},"then":{"literal":"T"}}"#,
+            ),
+        ),
+        (
+            "a redefinition with an unknown op",
+            with_rule(
+                r#"{"name":"x","op":"replace","alternatives":[{"guards":[],"expr":{"terminal":"b"}}],"conditions":[],"at":[4,1]}"#,
+            ),
+        ),
+        (
+            "a condition that applies to no alternative",
+            with_rule(
+                r#"{"name":"x","op":"define","alternatives":[{"guards":[],"expr":{"capture":"w","expr":{"terminal":"b"}}},{"guards":[],"expr":{"capture":"v","expr":{"terminal":"c"}}}],"conditions":[{"all":[{"op":"=","left":{"call":"text","args":[{"capture":"w"}]},"right":{"literal":"b"}},{"op":"=","left":{"call":"text","args":[{"capture":"v"}]},"right":{"literal":"c"}}]}],"at":[4,1]}"#,
+            ),
+        ),
+        (
+            "an unguarded tag term",
+            with_rule(
+                r#"{"name":"x","op":"define","tags":{"call":"tags","args":[{"capture":"w"}]},"alternatives":[{"guards":[],"expr":{"capture":"w","expr":{"terminal":"b"}}},{"guards":[],"expr":{"terminal":"c"}}],"conditions":[],"at":[4,1]}"#,
+            ),
+        ),
+        (
+            "an inserted tag whose anchor an alternative lacks",
+            with_rule(
+                r#"{"name":"x","op":"define","alternatives":[{"guards":[],"expr":{"seq":[{"capture":"w","expr":{"terminal":"b"}},{"capture":"v","expr":{"terminal":"c"}}]}},{"guards":[],"expr":{"capture":"w","expr":{"terminal":"b"}}}],"emit":{"items":[{"capture":"w"},{"insert":"T"},{"capture":"v"}]},"conditions":[],"at":[4,1]}"#,
+            ),
+        ),
+        (
+            "an alternative left nothing to emit",
+            with_rule(
+                r#"{"name":"x","op":"define","alternatives":[{"guards":[],"expr":{"capture":"w","expr":{"terminal":"b"}}},{"guards":[],"expr":{"terminal":"c"}}],"emit":{"items":[{"capture":"w"}]},"conditions":[],"at":[4,1]}"#,
+            ),
+        ),
+        ("captures listed out of order", with_emission(r#"{"items":[{"capture":"y"},{"capture":"x"}]}"#)),
+        (
+            "an emission naming a capture no alternative has",
+            with_emission(r#"{"items":[{"capture":"x"},{"capture":"z","silent":true}]}"#),
+        ),
+        (
+            "an item's tags using a capture no alternative has",
+            with_emission(r#"{"items":[{"capture":"x","tags":{"call":"tags","args":[{"capture":"z"}]}}]}"#),
+        ),
         ("a term that is not an object", with_tags(r#""T""#)),
     ];
     let mut used = Vec::new();
@@ -239,7 +310,7 @@ fn every_malformed_dom_is_a_cache_miss() {
 #[test]
 fn a_malformed_bootstrap_is_an_error() {
     let bootstrap = format!(
-        r#"{{"format":2,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
+        r#"{{"format":3,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
         with_emission(r#"{"items":[{"capture":""},{"insert":"X"}]}"#)
     );
     let sources = [
@@ -253,11 +324,11 @@ fn a_malformed_bootstrap_is_an_error() {
 
 #[test]
 fn a_document_nested_too_deeply_is_an_error_at_its_rule() {
-    let ok = format!("```ebnf\na ≔ {}B{} ;\n```\n", "[".repeat(256), "]".repeat(256));
+    let ok = format!("```jbogenbau\n%rule a {}B{}\n```\n", "[".repeat(256), "]".repeat(256));
     assert!(gencmu::tools::read_grammar_document(&ok).is_ok());
-    let parentheses = format!("```ebnf\na ≔ {}B{} ;\n```\n", "(".repeat(1000), ")".repeat(1000));
+    let parentheses = format!("```jbogenbau\n%rule a {}B{}\n```\n", "(".repeat(1000), ")".repeat(1000));
     assert!(gencmu::tools::read_grammar_document(&parentheses).is_ok(), "parentheses do not nest the DOM");
-    let deep = format!("```ebnf\na ≔ B ;\nc ≔ {}B{} ;\n```\n", "[".repeat(257), "]".repeat(257));
+    let deep = format!("```jbogenbau\n%rule a B\n%rule c {}B{}\n```\n", "[".repeat(257), "]".repeat(257));
     let error = gencmu::tools::read_grammar_document(&deep).expect_err("nested more than 256 deep");
     assert_eq!((error.line, error.column), (Some(3), Some(1)), "{error}");
 }

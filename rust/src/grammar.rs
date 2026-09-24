@@ -43,7 +43,8 @@ pub struct Change {
     pub stage: String,
     /// The rule that was replaced or extended.
     pub rule: String,
-    /// True for an extension (`|≔`), false for a replacement (`≔`).
+    /// True for an extension (`%extend-rule`), false for a replacement
+    /// (`%redefine-rule`).
     pub extension: bool,
     /// The document that made the change.
     pub document: String,
@@ -85,6 +86,7 @@ pub(crate) fn stitch(stage: &str, documents: &[(Arc<str>, Arc<Dom>)]) -> Result<
     };
     let mut resolution: Option<(Arc<str>, (usize, usize))> = None;
     for (document, dom) in documents {
+        // The rules this document defined or redefined (engine §2).
         let mut defined_here: HashMap<&str, ()> = HashMap::new();
         for rule in &dom.rules {
             let alternatives: Vec<StitchedAlternative> = rule
@@ -99,31 +101,50 @@ pub(crate) fn stitch(stage: &str, documents: &[(Arc<str>, Arc<Dom>)]) -> Result<
                     at: rule.at,
                 })
                 .collect();
+            let error = |message: String| Err(located(message, document, rule.at));
+            let stitched = || StitchedRule {
+                name: rule.name.clone(),
+                alternatives: alternatives.clone(),
+                document: document.clone(),
+            };
             match rule.op {
                 Op::Define => {
-                    if defined_here.insert(&rule.name, ()).is_some() {
-                        return Err(located(format!("{} is defined twice with ≔", rule.name), document, rule.at));
+                    if grammar.index.contains_key(&rule.name) {
+                        return error(format!(
+                            "%rule {} is already defined; %redefine-rule replaces a rule an earlier document defined",
+                            rule.name
+                        ));
                     }
-                    let stitched = StitchedRule { name: rule.name.clone(), alternatives, document: document.clone() };
-                    if let Some(&index) = grammar.index.get(&rule.name) {
-                        grammar.rules[index] = stitched;
-                        grammar.changes.push(Change {
-                            stage: stage.to_string(),
-                            rule: rule.name.clone(),
-                            extension: false,
-                            document: document.to_string(),
-                        });
-                    } else {
-                        grammar.index.insert(rule.name.clone(), grammar.rules.len());
-                        grammar.rules.push(stitched);
-                    }
+                    defined_here.insert(&rule.name, ());
+                    grammar.index.insert(rule.name.clone(), grammar.rules.len());
+                    grammar.rules.push(stitched());
+                }
+                Op::Redefine => {
+                    let index = match grammar.index.get(&rule.name) {
+                        Some(&index) if !defined_here.contains_key(rule.name.as_str()) => index,
+                        _ => {
+                            return error(format!(
+                                "%redefine-rule {} replaces no rule of an earlier document",
+                                rule.name
+                            ))
+                        }
+                    };
+                    defined_here.insert(&rule.name, ());
+                    // The replacement keeps the place of the rule it
+                    // replaces (§3, "Numbering").
+                    grammar.rules[index] = stitched();
+                    grammar.changes.push(Change {
+                        stage: stage.to_string(),
+                        rule: rule.name.clone(),
+                        extension: false,
+                        document: document.to_string(),
+                    });
                 }
                 Op::Extend => {
                     let Some(&index) = grammar.index.get(&rule.name) else {
-                        return Err(located(
-                            format!("{} is extended with |≔ but not defined before", rule.name),
-                            document,
-                            rule.at,
+                        return error(format!(
+                            "%extend-rule {} extends a rule that is not defined before it",
+                            rule.name
                         ));
                     };
                     grammar.rules[index].alternatives.extend(alternatives);
@@ -281,6 +302,10 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
             Ok(())
         }
         Term::Capture(_) => Ok(()),
+        Term::If(cond, then) => {
+            check_cond(grammar, cond)?;
+            check_term(grammar, then)
+        }
         Term::Call(name, args) => match (name.as_str(), &args[..]) {
             ("phonemes" | "text" | "classes" | "words" | "tags", [Arg::Term(span)]) => check_span(span),
             ("tags", [Arg::Term(span), Arg::Rule(rule)]) => {
@@ -311,6 +336,11 @@ fn check_cond(grammar: &StageGrammar, cond: &Cond) -> Result<(), String> {
             check_rule(grammar, rule)
         }
         Cond::Not(inner) => check_cond(grammar, inner),
+        Cond::Captured(_) => Ok(()),
+        Cond::If(antecedent, consequent) => {
+            check_cond(grammar, antecedent)?;
+            check_cond(grammar, consequent)
+        }
         Cond::Any(items) | Cond::All(items) => {
             for item in items {
                 check_cond(grammar, item)?;

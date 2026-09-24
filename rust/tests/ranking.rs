@@ -274,12 +274,12 @@ fn item_text(item: &Item) -> String {
 fn grammar_text(source: &Source) -> String {
     let mut text = String::new();
     text.push_str(match (source.lean, source.elision_only) {
-        (Lean::Lazy, _) => "%ambiguity-resolution lazy ;\n",
-        (_, true) => "%ambiguity-resolution greedy elision-only ;\n",
-        _ => "%ambiguity-resolution greedy ;\n",
+        (Lean::Lazy, _) => "%ambiguity-resolution lazy\n",
+        (_, true) => "%ambiguity-resolution greedy elision-only\n",
+        _ => "%ambiguity-resolution greedy\n",
     });
     if let Some(t) = source.elidable {
-        text.push_str(&format!("%elidable {} ;\n", TERMINALS[t]));
+        text.push_str(&format!("%elidable {}\n", TERMINALS[t]));
     }
     for (rule, alternatives) in source.rules.iter().enumerate() {
         let bodies: Vec<String> = alternatives
@@ -295,7 +295,7 @@ fn grammar_text(source: &Source) -> String {
                 body.join(" ")
             })
             .collect();
-        text.push_str(&format!("{} ≔ {} ;\n", RULES[rule], bodies.join(" | ")));
+        text.push_str(&format!("%rule {} {}\n", RULES[rule], bodies.join(" | ")));
     }
     text
 }
@@ -347,7 +347,7 @@ fn grammar_dom(source: &Source) -> String {
     if let Some(t) = source.elidable {
         directives.push(format!("{{\"name\":\"elidable\",\"args\":[\"{}\"],\"at\":[3,1]}}", TERMINALS[t]));
     }
-    format!("{{\"format\":2,\"rules\":[{}],\"directives\":[{}]}}", rules.join(","), directives.join(","))
+    format!("{{\"format\":3,\"rules\":[{}],\"directives\":[{}]}}", rules.join(","), directives.join(","))
 }
 
 // ---- derivations by brute force
@@ -775,7 +775,7 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
     let visible = full.iter().map(|acts| acts.iter().filter(|act| act.visible()).copied().collect()).collect();
     let ranked = Ranked { visible, full };
 
-    let document = format!("```ebnf\n{text}```\n");
+    let document = format!("```jbogenbau\n{text}```\n");
     let dom = grammar_dom(&source);
     if seed % 50 == 0 {
         // The DOM given to the cache is the one the notation reads.
@@ -785,7 +785,7 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
         }
     }
     let compiled = format!(
-        "{{\"format\":2,\"bootstrap\":\"{}\",\"documents\":{{\"main.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
+        "{{\"format\":3,\"bootstrap\":\"{}\",\"documents\":{{\"main.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
         gencmu::tools::bootstrap_hash(),
         gencmu::tools::fnv1a64(&document)
     );
