@@ -212,8 +212,13 @@ function walkDifference(left, right, onlyVisible) {
         continue;
       }
       if (!("leaf" in x) && !("leaf" in y)) {
-        a.descend();
-        b.descend();
+        // Descend the larger side first, so that a subtree the two share is
+        // met at the front of both rather than walked leaf by leaf because
+        // it sits at different depths. Only a skip of both sides or a leaf
+        // from each consumes anything, so the order of descent cannot change
+        // the result.
+        if (x.size >= y.size) a.descend();
+        if (y.size >= x.size) b.descend();
         continue;
       }
       break;
@@ -617,7 +622,7 @@ export class Ranker {
   // result is a tie, and the witness.
   /**
    * @param {Item[]} roots
-   * @returns {Ranking}
+   * @returns {Ranking | null} null when every derivation is cyclic
    */
   rank(roots) {
     const count = Math.min(2, roots.reduce((sum, item) => sum + this.count(item), 0));
@@ -626,6 +631,7 @@ export class Ranker {
     for (const root of roots) for (const entry of this.full(root)) kept = this.keep(kept, entry);
     // At the root nothing follows: candidates still undecided are tied
     // (engine §6), and T orders them.
+    if (kept.length === 0) return null;
     kept.sort((left, right) => totalOrder(left.seq, right.seq, this.lean));
     let main = kept[0];
     for (const other of kept.slice(1)) {

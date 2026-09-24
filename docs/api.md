@@ -76,12 +76,12 @@ reading, with the cache both used and bypassed.
 
 ```js
 import { loadDialect, loadDialectFile } from "gencmu/node";
-import { loadDialectSources, resultJson, toBrackets } from "gencmu";
+import { loadDialectSources, toJson, toBrackets } from "gencmu";
 
 const dialect = loadDialect("cll");
 const result = dialect.parse("mi klama", { features: ["cbm"], until: "words" });
 result.ok; result.tree; result.error;
-JSON.stringify(resultJson(result)); toBrackets(result, { showElided: true });
+toJson(result); toBrackets(result, { showElided: true });
 ```
 
 - `loadDialect(name)` and `loadDialectFile(path)` from `gencmu/node`, and
@@ -92,8 +92,11 @@ JSON.stringify(resultJson(result)); toBrackets(result, { showElided: true });
   the first two itself, as the browser bundle's grammar object does.
 - `dialect.parse(text, { features, autoFeatures, until, elisionOnly })`
   returns a `ParseResult`; `autoFeatures` defaults to `true`.
-- `resultJson(result)` is the canonical JSON as a value; `toBrackets`,
-  `toTree`, `displayValue` and `prettyJson` render it.
+- `toJson(result)` writes the canonical JSON as text and `resultJson(result)`
+  returns it as a value; `toBrackets`, `toTree`, `displayValue` and
+  `prettyJson` render it. `toJson` and `prettyJson` do not recurse, since a
+  tree can nest deeper than the call stack allows, which `JSON.stringify`
+  does not survive.
 - Errors are `GencmuError`, with `kind` and `where`.
 - The lower-level `Loader`, `loaderFromSources` and `loaderFromDirectory`
   stay available for tools that load several dialects over one set of
