@@ -143,7 +143,9 @@ export function domProblem(dom) {
       for (const item of /** @type {Record<string, unknown>[]} */ (items)) {
         if (item.tags === undefined) continue;
         if (typeof item.insert === "string") return "a malformed emission";
-        push("term", item.tags);
+        // An emission is not a compound node (engine §9): its items' tag
+        // terms stand at its own depth.
+        pending.push({ kind: "term", value: item.tags, depth });
       }
     } else if (kind === "condition") {
       if ("any" in value) {
