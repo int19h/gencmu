@@ -17,6 +17,7 @@ import { tagKey, tagUnion, tagIntersection, sameTagNames, strongTag, weakTag, ta
  * @property {number} start
  * @property {number} end
  * @property {(position: number) => ChartSet} setAt
+ * @property {ParseContext} context
  */
 
 // Interns tag sets, so that an item names a captured part's tags by number.
@@ -129,6 +130,15 @@ export class ChartSet {
     this.waiting = new Map();
     /** @type {Map<string, Item[]>} */
     this.nullable = new Map();
+    /** @type {Set<string>} the rules already predicted here */
+    this.predicted = new Set();
+    /**
+     * Productions predicted here but not made items, since they begin with
+     * a terminal the next token does not carry; kept for saying what could
+     * have come next.
+     * @type {Production[]}
+     */
+    this.skipped = [];
   }
 }
 
@@ -183,7 +193,19 @@ export function recognize(context, rule, start, end) {
 
   /** @type {(set: ChartSet, name: string) => void} */
   const predict = (set, name) => {
+    // A rule's productions are the same at every prediction in one set:
+    // predicting them again would only rebuild items that already exist.
+    if (set.predicted.has(name)) return;
+    set.predicted.add(name);
+    const next = set.position < end ? tokens[set.position] : null;
     for (const production of lowered.byLhs.get(name) || []) {
+      // One token of lookahead: an item whose first symbol is a terminal the
+      // next token lacks could never advance, so it is not made.
+      const first = production.rhs[0];
+      if (first && first.terminal && !(next && next.tags.has(first.name))) {
+        set.skipped.push(production);
+        continue;
+      }
       const slots = emptySlots(production);
       const failed = failedCondition(context, production, -1, slots);
       if (failed) {
@@ -256,7 +278,7 @@ export function recognize(context, rule, start, end) {
       }
     }
   }
-  return { sets, start, end, setAt };
+  return { sets, start, end, setAt, context };
 }
 
 /** @type {Edge} */
@@ -635,20 +657,36 @@ function nestedTags(context, rule, start, end) {
 export function rejectionOf(chart) {
   let position = chart.end;
   while (position > chart.start && chart.setAt(position).items.length === 0) position--;
+  return { position, expected: expectedAt(chart, position) };
+}
+
+/**
+ * The terminals the parse could have read at a position, each with the
+ * rules whose items could have read it: the items there whose next symbol
+ * is a terminal, and the predictions the lookahead did not make items of.
+ * @param {Chart} chart
+ * @param {number} position
+ * @returns {Expectation[]}
+ */
+export function expectedAt(chart, position) {
+  const set = chart.setAt(position);
   /** @type {Map<string, Set<string>>} */
   const expected = new Map();
-  for (const item of chart.setAt(position).items) {
-    const next = item.production.rhs[item.dot];
-    if (!next || !next.terminal) continue;
-    let rules = expected.get(next.name);
-    if (!rules) expected.set(next.name, (rules = new Set()));
-    rules.add(item.production.owner);
-  }
-  return {
-    position,
-    expected: [...expected].sort((left, right) => compareCodePoints(left[0], right[0])).map(([terminal, rules]) => ({
-      terminal,
-      rules: [...rules].sort(compareCodePoints),
-    })),
+  /** @type {(terminal: string, rule: string) => void} */
+  const note = (terminal, rule) => {
+    let rules = expected.get(terminal);
+    if (!rules) expected.set(terminal, (rules = new Set()));
+    rules.add(rule);
   };
+  for (const item of set.items) {
+    const next = item.production.rhs[item.dot];
+    if (next && next.terminal) note(next.name, item.production.owner);
+  }
+  for (const production of set.skipped) {
+    if (failedCondition(chart.context, production, -1, emptySlots(production)) === null) note(production.rhs[0].name, production.owner);
+  }
+  return [...expected].sort((left, right) => compareCodePoints(left[0], right[0])).map(([terminal, rules]) => ({
+    terminal,
+    rules: [...rules].sort(compareCodePoints),
+  }));
 }

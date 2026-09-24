@@ -3,7 +3,7 @@
 // here changes what a parse computes.
 
 import { characterTokens } from "./tokens.js";
-import { ParseContext, recognize, rejectionOf } from "./earley.js";
+import { ParseContext, recognize, expectedAt } from "./earley.js";
 import { nodeBrackets, nodeTree } from "./output.js";
 import { compareCodePoints } from "./tags.js";
 import { termVariables } from "./grammar.js";
@@ -417,21 +417,7 @@ export function trace(dialect, text, options) {
   const position = Math.max(0, Math.min(options.position, tokens.length));
   context.trace = { position, events: [], depth: 0 };
   const chart = recognize(context, "text", 0, tokens.length);
-  const expected = new Map();
-  for (const item of chart.setAt(position).items) {
-    const next = item.production.rhs[item.dot];
-    if (!next || !next.terminal) continue;
-    if (!expected.has(next.name)) expected.set(next.name, new Set());
-    expected.get(next.name).add(item.production.owner);
-  }
-  void rejectionOf;
-  return {
-    stage: stage.name,
-    position,
-    tokens,
-    events: context.trace.events,
-    expected: [...expected.keys()].sort(compareCodePoints).map((terminal) => ({ terminal, rules: [...expected.get(terminal)].sort(compareCodePoints) })),
-  };
+  return { stage: stage.name, position, tokens, events: context.trace.events, expected: expectedAt(chart, position) };
 }
 
 /**
