@@ -4305,6 +4305,17 @@
   }
 
   /**
+   * Whether a term is a string: a literal, or phonemes, text or lowercase of
+   * something.
+   * @param {unknown} value
+   * @returns {boolean}
+   */
+  function isDomString(value) {
+    return isDomObject(value) && (typeof value.literal === "string" ||
+      (typeof value.call === "string" && ["phonemes", "text", "lowercase"].includes(value.call)));
+  }
+
+  /**
    * Why a value is not a grammar DOM, or null when it is one.
    * @param {unknown} dom
    * @returns {string | null}
@@ -4410,7 +4421,7 @@
           let ok;
           if (typeof call !== "string" || !DOM_FUNCTIONS.has(call) || call === "matches") ok = false;
           else if (call === "tags") ok = (args.length === 1 && isDomSpan(args[0])) || (args.length === 2 && isDomSpan(args[0]) && isRule(args[1]));
-          else if (call === "lowercase") ok = args.length === 1 && !isRule(args[0]) && !isDomSpan(args[0]);
+          else if (call === "lowercase") ok = args.length === 1 && isDomString(args[0]);
           else ok = args.length === 1 && isDomSpan(args[0]);
           if (!ok || (!argument && DOM_SPANS.has(/** @type {string} */ (call)))) return "a malformed term";
           for (const arg of args) if (!isRule(arg)) pending.push({ kind: "argument", value: arg, depth: next });

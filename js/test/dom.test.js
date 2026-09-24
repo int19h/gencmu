@@ -75,5 +75,6 @@ test("the check holds a precompiled emission and format to the reader's rules", 
   const tagged = (tags) => ({ format: 1, rules: [{ name: "text", op: "define", tags, alternatives: [{ guards: [], expr: { capture: "x", expr: { ref: "A" } } }], conditions: [], at: [1, 1] }], directives: [] });
   assert.equal(domProblem(tagged({ call: "matches", args: [{ literal: "x" }] })), "a malformed term");
   assert.equal(domProblem(tagged({ call: "head", args: [{ capture: "x" }] })), "a malformed term");
+  assert.equal(domProblem(tagged({ call: "lowercase", args: [{ weak: "x" }] })), "a malformed term");
   assert.equal(domProblem(tagged({ call: "tags", args: [{ call: "head", args: [{ capture: "x" }] }, { rule: "a" }] })), null);
 });
