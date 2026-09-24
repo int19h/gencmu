@@ -61,6 +61,9 @@ type lowered struct {
 	prods      []*production
 	lean       string // "greedy", "lazy", or "" for rule 1 only (§7)
 	sccMembers [][]int32
+	// fault is an error of the grammar that lowering for these features
+	// found (§3.3), or "": parsing with it is a result with that error.
+	fault string
 }
 
 type slot struct {
@@ -153,6 +156,11 @@ func (lw *lowerer) lowerRule(r *sRule) {
 				prefix = e.Items[:len(e.Items)-1]
 			}
 		}
+		if last != nil && lw.l.fault == "" && hasCapture(e) {
+			// Its recursive productions could not have its captures, whose
+			// parts lie inside the inner constituent (§3.3).
+			lw.l.fault = fmt.Sprintf("%s: an alternative of %s captures a part, and is lowered as a trailing repetition", a.doc, r.name)
+		}
 		if last != nil {
 			// Trailing repetition (§3.3): r → p x ... is r → p x | r x, and
 			// r → p [x] ... is r → p | r x. The places are expanded in the
@@ -198,6 +206,21 @@ func (lw *lowerer) lowerRule(r *sRule) {
 		}
 		number(helpers)
 	}
+}
+
+// hasCapture says whether an alternative's expression captures a part,
+// which it can only at its top level (§3.5).
+func hasCapture(e *domExpr) bool {
+	items := []*domExpr{e}
+	if e.Kind == exSeq {
+		items = e.Items
+	}
+	for _, it := range items {
+		if it.Kind == exCapture {
+			return true
+		}
+	}
+	return false
 }
 
 func concat(a, b []slot) []slot {

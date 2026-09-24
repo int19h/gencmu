@@ -19,17 +19,16 @@ const (
 	alwaysFalse
 )
 
-// reducedEmpty is the empty set a guarded term reduces to where its
-// condition is false. It is told apart from a ∅ the author wrote, which is
-// kept as written.
+// reducedEmpty is the empty set a term reduces to.
 var reducedEmpty = &domTerm{Kind: tmEmptySet}
 
 // simplifyCond simplifies a condition for a production that has the
 // captures has says it has (engine §3.6): each presence test becomes true
-// or false, A ⟹ B becomes B where A is true and true where A is false, and
-// ¬, ∧, ∨ and ⟹ over a true or false part are reduced as logic says. An
-// open result is the condition left to evaluate; the one given is returned
-// where nothing changed.
+// or false, A ⟹ B becomes B where A is true and true where A is false, a
+// true B makes it true and a false one ¬A, and ¬, ∧ and ∨ over a true or
+// false part are reduced as logic says. An open result is the condition
+// left to evaluate; the one given is returned where nothing changed. A
+// reduced part is never evaluated (§10).
 func simplifyCond(c *domCond, has func(string) bool) (*domCond, truth) {
 	switch c.Kind {
 	case cdCaptured:
@@ -110,7 +109,9 @@ func simplifyCond(c *domCond, has func(string) bool) (*domCond, truth) {
 
 // simplifyTerm simplifies a term for a production, as simplifyCond does a
 // condition: a guarded term is its term where its condition is true, and
-// the empty set where it is false.
+// the empty set where it is false or its term is empty; an empty set is
+// dropped from a union, a union of nothing else is empty, and so is an
+// intersection with one.
 func simplifyTerm(t *domTerm, has func(string) bool) *domTerm {
 	if t == nil {
 		return nil
@@ -125,11 +126,16 @@ func simplifyTerm(t *domTerm, has func(string) bool) *domTerm {
 			return simplifyTerm(t.Items[0], has)
 		}
 		then := simplifyTerm(t.Items[0], has)
+		if then.Kind == tmEmptySet {
+			return reducedEmpty
+		}
 		if cond == t.Cond && then == t.Items[0] {
 			return t
 		}
 		return &domTerm{Kind: tmIf, Cond: cond, Items: []*domTerm{then}}
 	case tmUnion, tmIntersection, tmCall:
+		// An empty set, written ∅ or left by a guard, is dropped from a
+		// union and makes an intersection empty.
 		var items []*domTerm
 		changed := false
 		for _, it := range t.Items {
@@ -137,11 +143,12 @@ func simplifyTerm(t *domTerm, has func(string) bool) *domTerm {
 			if s != it {
 				changed = true
 			}
-			if s == reducedEmpty {
+			if s.Kind == tmEmptySet {
 				if t.Kind == tmIntersection {
 					return reducedEmpty
 				}
 				if t.Kind == tmUnion {
+					changed = true
 					continue
 				}
 			}

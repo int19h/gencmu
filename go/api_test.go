@@ -148,6 +148,21 @@ func TestParseOptions(t *testing.T) {
 
 func boolPtr(b bool) *bool { return &b }
 
+// A trailing repetition that captures a part is an error of the grammar
+// found at lowering, for the features that leave it alone in its rule: a
+// result, not a load error (engine §3.3).
+func TestLoweringFault(t *testing.T) {
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text @f $a(A) B ... | @¬f A B ..."))
+	toks := []Token{{Text: "a", Tags: map[string]bool{"A": true}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}, {Text: "b", Tags: map[string]bool{"B": true}, Span: [2]int{1, 2}, Source: [2]int{1, 2}}}
+	res, err := d.ParseTokens("ab", toks, ParseOptions{Features: []string{"f"}})
+	if err != nil || res.OK || res.Error.Kind != ErrorGrammar || res.Error.Stage != "main" || res.Stages[0].Verdict != "" || res.Tree != nil {
+		t.Fatalf("expected a grammar error as the result: %v %+v", err, res)
+	}
+	if res, err := d.ParseTokens("ab", toks, ParseOptions{}); err != nil || !res.OK {
+		t.Fatalf("without f the alternative with a capture is not alone: %v %+v", err, res)
+	}
+}
+
 // A words stage whose word is sa: auto features run the parse again with
 // sa-su (engine §13).
 func TestAutoFeatures(t *testing.T) {

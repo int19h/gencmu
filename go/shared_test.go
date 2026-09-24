@@ -163,9 +163,9 @@ func checkCase(c *engineCase, noCache bool) error {
 		if err := match(pattern, got, "result"); err != nil {
 			return fmt.Errorf("%v\n%s", err, data)
 		}
-	} else if c.Expect.Error != "" {
-		return fmt.Errorf("expected a load error %s, got a result\n%s", c.Expect.Error, data)
 	}
+	// An error the case expects is a load error or the result's error, as
+	// where the grammar's error is found while lowering it (engine §3.3).
 	if c.Expect.Brackets != nil {
 		if b := Brackets(res, BracketOptions{}); b != *c.Expect.Brackets {
 			return fmt.Errorf("brackets: expected %q, got %q", *c.Expect.Brackets, b)

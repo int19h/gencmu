@@ -48,8 +48,12 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (*notationReader, er
 		if gerr != nil {
 			return nil, gerr
 		}
+		l := lower(g, nil, false)
+		if l.fault != "" {
+			return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Stage: s.Name, Message: l.fault}
+		}
 		nr.stages = append(nr.stages, g)
-		nr.lowered = append(nr.lowered, lower(g, nil, false))
+		nr.lowered = append(nr.lowered, l)
 	}
 	if len(nr.stages) == 0 {
 		return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "the bootstrap has no stages"}
