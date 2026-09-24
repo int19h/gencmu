@@ -1,7 +1,5 @@
 package gencmu
 
-import "strings"
-
 // A stage's grammar: its documents stitched into one set of rules and
 // directives (engine §2).
 type stageGrammar struct {
@@ -55,7 +53,6 @@ func stitch(stageName string, docs []docDOM) (*stageGrammar, *Error) {
 		return e
 	}
 	var ambiguity []*domDirective
-	var ambiguityDoc string
 	freeCount := 0
 	for _, d := range docs {
 		defined := map[string]bool{}
@@ -93,7 +90,6 @@ func stitch(stageName string, docs []docDOM) (*stageGrammar, *Error) {
 			switch dir.Name {
 			case "ambiguity-resolution":
 				ambiguity = append(ambiguity, dir)
-				ambiguityDoc = d.path
 				if len(ambiguity) > 1 {
 					return nil, fail(d.path, dir.At, "stage %s has more than one %%ambiguity-resolution", stageName)
 				}
@@ -121,7 +117,6 @@ func stitch(stageName string, docs []docDOM) (*stageGrammar, *Error) {
 			}
 		}
 	}
-	_ = ambiguityDoc
 	if len(ambiguity) == 0 {
 		e := &Error{Kind: "grammar", Stage: stageName, Message: "stage " + stageName + " has no %ambiguity-resolution"}
 		if len(docs) > 0 {
@@ -288,5 +283,3 @@ func condCaptures(c *domCond, into map[string]bool) {
 		}
 	}
 }
-
-var _ = strings.TrimSpace

@@ -72,7 +72,6 @@ type stageOutcome struct {
 	stage Stage
 	tree  *Node
 	err   *ParseError
-	words []*Node // for auto features: nothing; the tree is enough
 }
 
 func (run *stageRun) actions(rec *recognizer, w [2]action) []Action {
