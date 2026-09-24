@@ -76,8 +76,9 @@ differ. It covers:
    notation of `notation.md` (sequence, `[ ]`, `...`, `&`, `/ /`, `#`, `ε`,
    `@feature` guards, captures `$x( )`, tags `< >`, phoneme tags `/a/`, `⇒`
    emission, `:` conditions with `,` and `∨`, the `prefer` declaration);
-   stitching several documents into one grammar by unioning the alternatives
-   of rules with the same name. Errors carry file, line and column.
+   stitching several documents into one grammar, where `≔` defines a rule,
+   replacing any earlier definition, and `|≔` adds alternatives to an
+   earlier one. Errors carry file, line and column.
 2. **Lowering** to a context-free grammar with named helper rules for the
    sugar, which diagnostics hide.
 3. **Recognition.** An Earley parser whose items record, for each captured
@@ -317,26 +318,51 @@ and, for the CLI, Node's `fs`. Python's standard library has everything,
 reader, so the Rust tests carry a small one, and the library writes JSON by
 hand; that is a few hundred lines, and the one real cost of the rule.
 
-## Dialects that replace rules
+## Stitching: defining, replacing, adding
 
-A dialect often has to change a rule, not only add to it: the Zantufa syntax
-is the experimental one with some alternatives replaced. Stitching unions the
-alternatives of rules with the same name, which can add but not remove. The
-notation therefore gets one more form, whole-rule replacement:
+A stage is several documents stitched in order, and a later document may
+change what an earlier one said. Two forms say how:
 
 ```
-selbri-3
-≝ selbri-4 ... | zantufa-extension
+consonant
+|≔ "б" </b/> | "в" </v/>
+
+relative-clause
+≔ GOI # term /GEhU/ # | @!zantufa-terms NOI # subsentence /KUhO/ # | @zantufa-terms NOI # statement /KUhO/ #
 ```
 
-`≝` defines the rule anew in a document stitched after the one that defined
-it with `≔`; the earlier alternatives are gone. Two replacements of the same
-rule, or a replacement with nothing to replace, are grammar errors, so a
-dialect's effect on its base is always exactly what its document says.
-Removing individual alternatives is not supported: a rule is small enough to
-restate, and restating it is easier to read than a list of deletions. The
-Zantufa dialect becomes the experimental documents plus a Zantufa document
-of replacements and additions, instead of a generated copy.
+`|≔` adds alternatives to a rule an earlier document defined; it is an error
+if none did, so a misspelt name cannot quietly start a new rule. `≔` defines
+a rule, and if an earlier document defined it, replaces it: the earlier
+alternatives are gone. A rule defined twice with `≔` in one document is an
+error. The audit lists every replacement, so that a dialect's effect on its
+base can be read off in one place.
+
+This is what the dialects need. A script document adds letters to the
+phoneme grammar's rules with `|≔`; a word family adds the syllables its
+morphology allows. The Zantufa syntax is the experimental syntax with 13 new
+rules, 9 rules extended and 17 replaced, where a Zantufa form generalizes an
+older one over the same text and the two must not both be live; the
+replacement restates the rule with both forms under complementary feature
+guards. The Zantufa dialect becomes the experimental documents plus one
+Zantufa document of those changes, instead of a generated copy.
+
+Removing a single alternative is not supported: a rule is small enough to
+restate, and restating it is easier to read than a list of deletions.
+
+## Expensive constructs behind features
+
+The erasers `sa` and `su` reach back over any number of words, so the parser
+keeps a possible reach open from every word, not knowing whether a `sa` will
+come. In the prototype that made long texts about ten times slower, and it
+grows faster than the text. They are rare, so they are behind a feature,
+`sa-su`: without it they are ordinary words, which the syntax rejects. The
+libraries offer a helper that parses a text's words once without the feature
+and enables it only if a `sa` or `su` stands as a word; the CLI and the
+playground use it by default. The engine may later make this unnecessary by
+not predicting a rule whose required words cannot occur in the rest of the
+input; that is an optimization to specify once it is understood, not part
+of the first version.
 
 ## What moves from the prototype
 
@@ -345,7 +371,7 @@ parsers or research notes; the notation document; the fixture corpus,
 converted to the format above. Nothing else: no code, no scripts, no notes.
 The lexicon that was derived from another parser's word table becomes a
 document of its own, maintained by hand, and the Zantufa grammar becomes a
-document of replacements, as above.
+document of replacements and additions, as above.
 
 ## Order of work
 
@@ -359,7 +385,5 @@ document of replacements, as above.
 
 ## Open questions
 
-1. The replacement symbol: `≝` is proposed; any single unambiguous symbol
-   will do.
-2. The corpus is 26,000 cases, about 8 MB with words and brackets. It stays
+1. The corpus is 26,000 cases, about 8 MB with words and brackets. It stays
    whole in the repository.
