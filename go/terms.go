@@ -110,7 +110,7 @@ func (ev *evaluator) term(t *domTerm) value {
 		return value{kind: vSet, set: in.single(t.Str, false)}
 	case tmEmptySet:
 		return value{kind: vSet, set: in.empty()}
-	case tmSet, tmUnion:
+	case tmUnion:
 		out := in.empty()
 		for _, it := range t.Items {
 			out = in.union(out, ev.tagsOf(it))
@@ -213,6 +213,13 @@ func (ev *evaluator) cond(c *domCond) bool {
 			}
 		}
 		return false
+	case cdAll:
+		for _, it := range c.Items {
+			if !ev.cond(it) {
+				return false
+			}
+		}
+		return true
 	}
 	panic(&parseFailure{message: "cannot evaluate condition " + c.Kind})
 }

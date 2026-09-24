@@ -125,12 +125,12 @@ var domRules = map[string]bool{
 	"directive-statement": true, "rule": true, "alternative": true, "choice": true,
 	"conjunction": true, "sequence": true, "element": true, "reference": true,
 	"string": true, "phoneme": true, "capture": true, "group": true, "optional": true,
-	"hash": true, "empty": true, "emission": true, "conditions": true,
-	"condition-item": true, "comparison": true, "negation": true, "call": true,
-	"term": true, "intersection": true, "weak": true, "empty-set": true, "set": true,
+	"empty": true, "emission": true, "conditions": true, "any-of": true,
+	"all-of": true, "comparison": true, "negation": true, "call": true,
+	"term": true, "intersection": true, "weak": true, "empty-set": true,
 	"capture-reference": true, "rule-tags": true, "alternative-tags": true,
-	"emit-tags": true, "emit-item": true, "definer": true, "argument-word": true,
-	"guard": true, "comparator": true,
+	"emit-tags": true, "erase": true, "emit-item": true, "definer": true,
+	"argument-word": true, "guard": true, "comparator": true,
 }
 
 func (b *domBuilder) at(n *Node) [2]int {
@@ -228,7 +228,7 @@ func (b *domBuilder) rule(n *Node) *domRule {
 		}
 		switch p.Rule {
 		case "rule-tags":
-			r.Tags = b.value(ruleParts(p)[0])
+			r.Tags = b.constituentTags(p)
 		case "definer":
 			if b.text(p) == "|≔" {
 				r.Op = "extend"
@@ -244,8 +244,15 @@ func (b *domBuilder) rule(n *Node) *domRule {
 			emission = p
 			r.Emit = b.emission(p)
 		case "conditions":
-			for _, item := range ruleParts(p) {
-				r.Conditions = append(r.Conditions, b.conditionItem(item))
+			// The conditions joined by ∧ at the top are the rule's
+			// conditions, one by one (§9).
+			top := ruleParts(p)[0]
+			if alls := ruleParts(top); len(alls) == 1 {
+				for _, c := range ruleParts(alls[0]) {
+					r.Conditions = append(r.Conditions, b.condition(c))
+				}
+			} else {
+				r.Conditions = append(r.Conditions, b.anyOf(top))
 			}
 		}
 	}
@@ -259,15 +266,25 @@ func (b *domBuilder) alternative(n *Node) *domAlt {
 		switch p.Rule {
 		case "guard":
 			g := strings.TrimPrefix(b.text(p), "@")
-			neg := strings.HasPrefix(g, "!")
-			a.Guards = append(a.Guards, domGuard{Feature: strings.TrimPrefix(g, "!"), Negated: neg})
+			neg := strings.HasPrefix(g, "¬")
+			a.Guards = append(a.Guards, domGuard{Feature: strings.TrimPrefix(g, "¬"), Negated: neg})
 		case "alternative-tags":
-			a.Tags = b.value(ruleParts(p)[0])
+			a.Tags = b.constituentTags(p)
 		default:
 			a.Expr = b.expr(p)
 		}
 	}
 	return a
+}
+
+// constituentTags reads a rule's or an alternative's tag term, which cannot
+// be made of the tags it defines: $, tags($) or classes($) (§9).
+func (b *domBuilder) constituentTags(n *Node) *domTerm {
+	t := b.value(ruleParts(n)[0])
+	if readsOwnTags(t) {
+		b.fail(n, "a constituent's tags cannot be made of its own: $, tags($) or classes($)")
+	}
+	return t
 }
 
 func (b *domBuilder) expr(n *Node) *domExpr {
@@ -329,6 +346,9 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 	case "capture":
 		ps := parts(n)
 		inner := ruleParts(n)
+		if b.text(ps[0]) == "$" {
+			b.fail(ps[0], "$ is the whole constituent and wraps nothing")
+		}
 		if len(inner) != 1 || (inner[0].Rule != "reference" && inner[0].Rule != "string" && inner[0].Rule != "phoneme") {
 			b.fail(ps[0], "a capture wraps a single symbol: a name, a string or a phoneme tag")
 		}
@@ -349,8 +369,6 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 			return inner
 		}
 		return &domExpr{Kind: exOptional, Inner: inner}
-	case "hash":
-		return &domExpr{Kind: exHash}
 	case "empty":
 		return &domExpr{Kind: exEmpty}
 	}
@@ -434,12 +452,6 @@ func (b *domBuilder) term(n *Node) *domTerm {
 		}
 	case "empty-set":
 		return &domTerm{Kind: tmEmptySet}
-	case "set":
-		t := &domTerm{Kind: tmSet, Items: []*domTerm{}}
-		for _, p := range ruleParts(n) {
-			t.Items = append(t.Items, b.value(p))
-		}
-		return t
 	case "capture-reference":
 		return &domTerm{Kind: tmCapture, Str: strings.TrimPrefix(b.text(n), "$")}
 	case "call":
@@ -519,10 +531,19 @@ func (b *domBuilder) call(n *Node, inCondition bool) *domTerm {
 	return &domTerm{Kind: tmCall, Str: name, Items: args}
 }
 
-func (b *domBuilder) conditionItem(n *Node) *domCond {
+// anyOf reads conditions joined by ∨, each several joined by ∧.
+func (b *domBuilder) anyOf(n *Node) *domCond {
 	var items []*domCond
-	for _, p := range ruleParts(n) {
-		items = append(items, b.condition(p))
+	for _, all := range ruleParts(n) {
+		var conds []*domCond
+		for _, p := range ruleParts(all) {
+			conds = append(conds, b.condition(p))
+		}
+		if len(conds) == 1 {
+			items = append(items, conds[0])
+		} else {
+			items = append(items, &domCond{Kind: cdAll, Items: conds})
+		}
 	}
 	if len(items) == 1 {
 		return items[0]
@@ -540,6 +561,8 @@ func (b *domBuilder) condition(n *Node) *domCond {
 	case "call":
 		t := b.call(n, true)
 		return &domCond{Kind: cdMatches, Span: t.Items[0], Rule: t.Items[1].Str}
+	case "any-of":
+		return b.anyOf(n)
 	}
 	b.fail(n, "unexpected %s in a condition", n.Rule)
 	return nil
@@ -548,57 +571,59 @@ func (b *domBuilder) condition(n *Node) *domCond {
 func (b *domBuilder) emission(n *Node) *domEmit {
 	first := parts(n)[0]
 	e := &domEmit{}
-	things, nothings := 0, 0
+	whole, erasesWhole := 0, false
 	listed := map[string]bool{}
 	for _, item := range ruleParts(n) {
 		ps := parts(item)
 		target := ps[0]
-		var tags *domTerm
+		it := &domEmitItem{}
+		var tagsNode *Node
 		for _, p := range ps[1:] {
 			if p.Kind == KindRule && p.Rule == "emit-tags" {
-				tags = b.value(ruleParts(p)[0])
+				tagsNode = p
 			}
 		}
 		text := b.text(target)
-		it := &domEmitItem{Tags: tags}
 		switch {
-		case b.isIdentifier(target):
-			switch text {
-			case "this":
-				it.This = true
-				things++
-			case "nothing":
-				nothings++
-				if tags != nil {
-					b.fail(target, "nothing takes no tags")
-				}
-			default:
-				b.fail(target, "an emission lists this, nothing, captures and tags; %s is none of them", text)
-			}
 		case strings.HasPrefix(text, "$"):
 			it.Capture = text[1:]
-			if listed[it.Capture] {
-				b.fail(first, "an emission lists $%s twice", it.Capture)
+			if it.Capture == "" {
+				whole++
+			} else {
+				if listed[it.Capture] {
+					b.fail(first, "an emission lists $%s twice", it.Capture)
+				}
+				listed[it.Capture] = true
 			}
-			listed[it.Capture] = true
 		case strings.HasPrefix(text, "\""):
 			it.IsInsert, it.Insert = true, b.decode(target)
 		default:
 			it.IsInsert, it.Insert = true, text
 		}
-		if it.IsInsert && tags != nil {
-			b.fail(target, "an inserted tag takes no tags")
+		if tagsNode != nil {
+			if it.IsInsert {
+				b.fail(target, "an inserted tag takes no tags, and is not erased")
+			}
+			inner := ruleParts(tagsNode)[0]
+			if inner.Rule == "erase" {
+				it.Erase = true
+				if it.Capture == "" {
+					erasesWhole = true
+				}
+			} else {
+				it.Tags = b.value(inner)
+				if it.Tags.Kind == tmEmptySet {
+					b.fail(target, "<∅> emits a token no terminal can read; <> erases")
+				}
+			}
 		}
 		e.Items = append(e.Items, it)
 	}
-	if nothings > 0 {
-		if len(e.Items) != 1 {
-			b.fail(first, "nothing is used with other items")
-		}
-		return &domEmit{Nothing: true}
+	if whole > 0 && whole != len(e.Items) {
+		b.fail(first, "$ is used with items other than $")
 	}
-	if things > 0 && things != len(e.Items) {
-		b.fail(first, "this is used with items other than this")
+	if erasesWhole && len(e.Items) != 1 {
+		b.fail(first, "$ <> stands alone")
 	}
 	return e
 }

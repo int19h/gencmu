@@ -104,7 +104,7 @@ func TestLoadErrors(t *testing.T) {
 func TestParseOptions(t *testing.T) {
 	d := mustLoad(t, map[string]string{
 		"p.md": "# D <?features base?>\n\n## One <?stage one?>\n\n- [g](g.md) <?grammar?>\n\n## Two <?stage two?>\n\n- [h](h.md) <?grammar?>\n",
-		"g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ [w] ... ;\nw ≔ @base \"a\" <\"A\"> | @extra \"b\" <\"B\"> ⇒ this ;\n```\n",
+		"g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ [w] ... ;\nw ≔ @base \"a\" <\"A\"> | @extra \"b\" <\"B\"> ⇒ $ ;\n```\n",
 		"h.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ s | s B ; s ≔ A [B] ;\n```\n",
 	})
 	res, err := d.Parse("a", ParseOptions{})
@@ -150,8 +150,8 @@ func boolPtr(b bool) *bool { return &b }
 func TestAutoFeatures(t *testing.T) {
 	d := mustLoad(t, map[string]string{
 		"p.md": "## Sounds <?stage sounds?>\n\n- [g](g.md) <?grammar?>\n\n## Words <?stage words?>\n\n- [h](h.md) <?grammar?>\n\n## Syntax <?stage syntax?>\n\n- [s](s.md) <?grammar?>\n",
-		"g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ [c] ... ;\nc ≔ \"s\" </s/> | \"a\" </a/> | \"u\" </u/> | @sa-su \"x\" </x/> ⇒ this ;\n```\n",
-		"h.md": "```ebnf\n%ambiguity-resolution lazy ;\ntext ≔ [word] ... ;\nword ≔ @!sa-su /s/ /a/ <\"W\"> | @sa-su /s/ /a/ <\"SA\"> | /u/ <\"W\"> | /x/ <\"W\"> ⇒ this ;\n```\n",
+		"g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ [c] ... ;\nc ≔ \"s\" </s/> | \"a\" </a/> | \"u\" </u/> | @sa-su \"x\" </x/> ⇒ $ ;\n```\n",
+		"h.md": "```ebnf\n%ambiguity-resolution lazy ;\ntext ≔ [word] ... ;\nword ≔ @¬sa-su /s/ /a/ <\"W\"> | @sa-su /s/ /a/ <\"SA\"> | /u/ <\"W\"> | /x/ <\"W\"> ⇒ $ ;\n```\n",
 		"s.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ [W | SA] ... ;\n```\n",
 	})
 	tags := func(res *ParseResult) string {
@@ -227,7 +227,7 @@ func TestConcurrentParses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	texts := []string{"a ≔ A ;", "b ≔ [B] ... C & D ;", "c <\"X\"> ≔ $x(C) : text($x) = \"c\" ⇒ this ;", "%elidable KU ;"}
+	texts := []string{"a ≔ A ;", "b ≔ [B] ... C & D ;", "c <\"X\"> ≔ $x(C) : text($x) = \"c\" ⇒ $ ;", "%elidable KU ;"}
 	want := make([]string, len(texts))
 	for i, text := range texts {
 		res, _ := d.Parse(text, ParseOptions{})
@@ -270,7 +270,7 @@ func TestDeepDerivations(t *testing.T) {
 		n       int
 	}{
 		{"text ≔ text \"a\" | \"a\" ;", 50000},
-		{"text ≔ [w] ... ; w ≔ \"a\" ⇒ this ;", 50000},
+		{"text ≔ [w] ... ; w ≔ \"a\" ⇒ $ ;", 50000},
 		{"text ≔ \"a\" text | \"a\" ;", 1500},
 	} {
 		d := mustLoad(t, oneStage("%ambiguity-resolution greedy ;\n"+c.grammar))
@@ -308,13 +308,13 @@ func TestMalformedPrecompiled(t *testing.T) {
 		bad = append(bad, `{"seq":[{"terminal":"a"},{"terminal":"b"}]},"tags":`+tags)
 	}
 	for _, expr := range bad {
-		dom := `{"format":1,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[1,1]}]}`
+		dom := `{"format":2,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[1,1]}]}`
 		// In compiled.json, with every hash matching: a miss.
 		src := map[string]string{}
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["compiled.json"] = `{"format":1,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(gText) + `","dom":` + dom + `}}}`
+		src["compiled.json"] = `{"format":2,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(gText) + `","dom":` + dom + `}}}`
 		d, err := LoadDialectSources(src, "p.md")
 		if err != nil {
 			t.Fatalf("%s in compiled.json: %v", expr, err)
@@ -328,7 +328,7 @@ func TestMalformedPrecompiled(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["notation/bootstrap.json"] = `{"format":1,"stages":[{"name":"lexical","documents":[{"path":"notation/lexical.md","dom":` + dom + `}]}]}`
+		src["notation/bootstrap.json"] = `{"format":2,"stages":[{"name":"lexical","documents":[{"path":"notation/lexical.md","dom":` + dom + `}]}]}`
 		_, err = LoadDialectSources(src, "p.md")
 		var e *Error
 		if !errors.As(err, &e) || e.Kind != ErrorGrammar {
@@ -340,7 +340,7 @@ func TestMalformedPrecompiled(t *testing.T) {
 // Caller tokens whose source lies outside the text are a usage error, not
 // a panic (review of PR #8).
 func TestParseTokensOutOfRange(t *testing.T) {
-	d := mustLoad(t, oneStage("%ambiguity-resolution greedy ;\ntext ≔ \"a\" ⇒ this ;"))
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy ;\ntext ≔ \"a\" ⇒ $ ;"))
 	for _, src := range [][2]int{{100, 101}, {1, 0}, {-1, 0}, {0, 2}} {
 		toks := []Token{{Text: "a", Tags: map[string]bool{"a": true}, Span: [2]int{0, 1}, Source: src}}
 		res, err := d.ParseTokens("a", toks, ParseOptions{})
@@ -373,7 +373,7 @@ func TestEmptyStringTerminal(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			sources["compiled.json"] = `{"format":1,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(sources["g.md"]) + `","dom":` + string(dom.json()) + `}}}`
+			sources["compiled.json"] = `{"format":2,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(sources["g.md"]) + `","dom":` + string(dom.json()) + `}}}`
 			if _, err := decodeDOM(dom.json()); err != nil {
 				t.Fatalf("the reader's DOM is refused: %v", err)
 			}

@@ -173,10 +173,14 @@ func (run *stageRun) plan(rec *recognizer, n *dn) []emitTask {
 		}
 		return plan
 	}
-	if p.emit.Nothing {
+	if p.eraseAll {
 		return nil
 	}
+	start, end := rec.base+int(n.start), rec.base+int(n.end)
 	ev := run.evaluator(rec.g, func(name string) (spanVal, bool) {
+		if name == "" {
+			return spanVal{a: start, b: end, whole: true, tags: n.tags}, true
+		}
 		for i, c := range p.capName {
 			if c == name {
 				a, b, tags := run.kidSpan(rec, kids[i])
@@ -185,25 +189,26 @@ func (run *stageRun) plan(rec *recognizer, n *dn) []emitTask {
 		}
 		return spanVal{}, false
 	})
-	items := p.emit.Items
-	allThis := len(items) > 0
-	for _, it := range items {
-		if !it.This {
-			allThis = false
+	// An item's tag term that gives no tags is an error of the grammar: no
+	// terminal could read the token (§11).
+	itemTags := func(it *domEmitItem, own *tagset) *tagset {
+		if it.Tags == nil {
+			return own
 		}
+		tags := ev.tagsOf(it.Tags)
+		if len(tags.names) == 0 {
+			panic(&parseFailure{message: p.ruleName + " emits a token with no tags", token: start, tokenEnd: end, hasToken: true, rule: p.ruleName})
+		}
+		return tags
 	}
-	if allThis {
+	items := p.emit.Items
+	if p.emit.whole() {
 		var plan []emitTask
 		for _, it := range items {
-			tags := n.tags
-			if it.Tags != nil {
-				tags = ev.tagsOf(it.Tags)
-			}
-			plan = append(plan, emitTask{emit: n, tags: tags})
+			plan = append(plan, emitTask{emit: n, tags: itemTags(it, n.tags)})
 		}
 		return plan
 	}
-	start, end := rec.base+int(n.start), rec.base+int(n.end)
 	insert := func(tag string, index int) emitTask {
 		src := run.spanSource(start, end)
 		if index > start {
@@ -227,7 +232,7 @@ func (run *stageRun) plan(rec *recognizer, n *dn) []emitTask {
 		switch {
 		case it.IsInsert:
 			pendingTags = append(pendingTags, it.Insert)
-		case it.Capture != "":
+		default:
 			named[it.Capture] = it
 			before[it.Capture] = append(before[it.Capture], pendingTags...)
 			pendingTags = nil
@@ -245,11 +250,11 @@ func (run *stageRun) plan(rec *recognizer, n *dn) []emitTask {
 		for _, tag := range before[name] {
 			plan = append(plan, insert(tag, a))
 		}
-		tags := own
-		if it.Tags != nil {
-			tags = ev.tagsOf(it.Tags)
+		// An erased capture is neither emitted nor walked; the tags
+		// inserted before it stand where its token would have.
+		if !it.Erase {
+			plan = append(plan, emitTask{emit: k, tags: itemTags(it, own)})
 		}
-		plan = append(plan, emitTask{emit: k, tags: tags})
 	}
 	for _, tag := range pendingTags {
 		plan = append(plan, insert(tag, end))
@@ -275,8 +280,8 @@ func (run *stageRun) emitted(rec *recognizer, n *dn, tags *tagset) Token {
 		tok.Phonemes = strong[0]
 		return tok
 	}
-	// The phonemes of the tokens it was emitted from, omitting what a
-	// constituent that emits nothing covers.
+	// The phonemes of the tokens it was emitted from, omitting every token
+	// inside an erased constituent.
 	var sb strings.Builder
 	stack := []*dn{n}
 	for len(stack) > 0 {
@@ -286,7 +291,16 @@ func (run *stageRun) emitted(rec *recognizer, n *dn, tags *tagset) Token {
 		case dRead:
 			sb.WriteString(run.toks[rec.base+int(x.tok)].Phonemes)
 		case dClose:
-			if (x.prod.emit != nil && x.prod.emit.Nothing) || x.a == nil {
+			if x.prod.eraseAll || x.a == nil {
+				continue
+			}
+			if x.prod.erased != nil {
+				kids := flattenKids(x.a)
+				for i := len(kids) - 1; i >= 0; i-- {
+					if !x.prod.erased[i] {
+						stack = append(stack, kids[i])
+					}
+				}
 				continue
 			}
 			stack = append(stack, x.a)

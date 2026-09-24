@@ -3,14 +3,13 @@ package gencmu
 // A stage's grammar: its documents stitched into one set of rules and
 // directives (engine §2).
 type stageGrammar struct {
-	name          string
-	rules         []*sRule
-	byName        map[string]*sRule
-	lean          string // "greedy" or "lazy"
-	elisionOnly   bool
-	elidable      map[string]bool
-	freeModifiers string
-	changes       []stitchChange
+	name        string
+	rules       []*sRule
+	byName      map[string]*sRule
+	lean        string // "greedy" or "lazy"
+	elisionOnly bool
+	elidable    map[string]bool
+	changes     []stitchChange
 }
 
 // stitchChange records a rule a later document replaced or extended.
@@ -57,7 +56,6 @@ func stitch(stageName string, docs []docDOM) (*stageGrammar, *Error) {
 		return e
 	}
 	var ambiguity []*domDirective
-	freeCount := 0
 	for _, d := range docs {
 		defined := map[string]bool{}
 		for _, r := range d.dom.Rules {
@@ -107,15 +105,6 @@ func stitch(stageName string, docs []docDOM) (*stageGrammar, *Error) {
 				for _, a := range dir.Args {
 					g.elidable[a] = true
 				}
-			case "free-modifiers":
-				freeCount++
-				if freeCount > 1 {
-					return nil, fail(d.path, dir.At, "stage %s has more than one %%free-modifiers", stageName)
-				}
-				if len(dir.Args) != 1 {
-					return nil, fail(d.path, dir.At, "%%free-modifiers takes one rule name")
-				}
-				g.freeModifiers = dir.Args[0]
 			default:
 				return nil, fail(d.path, dir.At, "unknown directive %%%s", dir.Name)
 			}
@@ -127,9 +116,6 @@ func stitch(stageName string, docs []docDOM) (*stageGrammar, *Error) {
 			e.Document = docs[0].path
 		}
 		return nil, e
-	}
-	if g.freeModifiers != "" && g.byName[g.freeModifiers] == nil {
-		return nil, fail(docs[0].path, [2]int{}, "%%free-modifiers names %s, which is not a rule of the stage", g.freeModifiers)
 	}
 	if g.byName["text"] == nil {
 		e := &Error{Kind: "grammar", Stage: stageName, Message: "stage " + stageName + " defines no start rule text"}
@@ -150,7 +136,7 @@ func stitch(stageName string, docs []docDOM) (*stageGrammar, *Error) {
 }
 
 // checkAlt checks what the notation's grammar cannot state: every rule named
-// is defined, # has a declaration, and captures stand at the top level.
+// is defined, and captures stand at the top level.
 func (g *stageGrammar) checkAlt(a *sAlt) *Error {
 	fail := func(format string, args ...any) *Error { return grammarError(a.doc, a.at, format, args...) }
 	captures := map[string]bool{}
@@ -160,10 +146,6 @@ func (g *stageGrammar) checkAlt(a *sAlt) *Error {
 		case exRef:
 			if !isTerminalName(e.Name) && g.byName[e.Name] == nil {
 				return fail("%s is not a rule of stage %s", e.Name, g.name)
-			}
-		case exHash:
-			if g.freeModifiers == "" {
-				return fail("# is used, but the stage has no %%free-modifiers")
 			}
 		case exCapture:
 			if !top {
@@ -233,7 +215,7 @@ func (g *stageGrammar) checkAlt(a *sAlt) *Error {
 			return checkTerm(c.Span)
 		case cdNot:
 			return checkCond(c.Inner)
-		case cdAny:
+		case cdAny, cdAll:
 			for _, it := range c.Items {
 				if err := checkCond(it); err != nil {
 					return err
@@ -284,7 +266,7 @@ func condCaptures(c *domCond, into map[string]bool) {
 		termCaptures(c.Span, into)
 	case cdNot:
 		condCaptures(c.Inner, into)
-	case cdAny:
+	case cdAny, cdAll:
 		for _, it := range c.Items {
 			condCaptures(it, into)
 		}

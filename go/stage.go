@@ -156,7 +156,7 @@ func (run *stageRun) rejection(rec *recognizer) *ParseError {
 		// token (earley.go, predict).
 		for rule := range rec.sets[k].predicted {
 			for _, p := range rec.g.rules[rule].prods {
-				if rec.predictable(p) {
+				if rec.predictable(p, k) {
 					expect(p, 0)
 				}
 			}
