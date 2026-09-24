@@ -42,13 +42,17 @@ export class Stage {
    */
   run(tokens, sourceText, unicode, options) {
     const features = options.features;
-    const lowered = this.grammar.lower(features, false);
-    const context = new ParseContext(lowered, tokens, sourceText, unicode);
     /** @type {StageReport} */
     const report = { name: this.name, verdict: null, witness: null, output: null, tree: null, error: null };
+    let lowered;
+    let context;
     let chart;
     let roots;
     try {
+      // Lowering for these features may itself find an error of the grammar
+      // (engine §3.3), which is a result like any found while parsing.
+      lowered = this.grammar.lower(features, false);
+      context = new ParseContext(lowered, tokens, sourceText, unicode);
       chart = recognize(context, "text", 0, tokens.length);
       roots = rootItems(chart, "text");
     } catch (error) {

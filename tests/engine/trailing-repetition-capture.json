@@ -1,0 +1,21 @@
+{
+  "description": "An alternative lowered as a trailing repetition cannot capture anything, since its recursive productions could not have the capture; it is an error found when the grammar is lowered (engine §3.3).",
+  "grammar": "%rule text $a(A) B ...",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}
