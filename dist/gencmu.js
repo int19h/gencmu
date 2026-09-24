@@ -3662,7 +3662,7 @@
     const tokens = context.tokens;
     const source = sourceOf(tokens, node.start, node.end);
     const phoneme = phonemeTag(tags);
-    const phonemes = phoneme !== null ? phoneme : spoken(node, context).trim();
+    const phonemes = phoneme !== null ? phoneme : spoken(node, context).replace(/^ +| +$/g, "");
     return new Token(tags, [node.start, node.end], source, context.sourceText.slice(source[0], source[1]).join(""), phonemes, undefined);
   }
 
@@ -4689,8 +4689,6 @@
 
 
 
-
-  export { DOM_FORMAT };
 
   /** @import { GrammarDom, ParseError, ParseOptions, ParseResult, Resources, ResultNode, StageReport } from "./types.js" */
 

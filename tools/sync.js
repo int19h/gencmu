@@ -13,7 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loaderFromDirectory, fnv1a64 } from "../js/src/node.js";
-import { DOM_FORMAT } from "../js/src/dialect.js";
+import { DOM_FORMAT } from "../js/src/dom.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const grammars = path.join(root, "grammars");

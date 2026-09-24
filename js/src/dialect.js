@@ -12,8 +12,6 @@ import { UnicodeTable } from "./unicode.js";
 import { someNode } from "./walk.js";
 import { domProblem, isDom, DOM_FORMAT, DOM_MAX_DEPTH } from "./dom.js";
 
-export { DOM_FORMAT };
-
 /** @import { GrammarDom, ParseError, ParseOptions, ParseResult, Resources, ResultNode, StageReport } from "./types.js" */
 
 

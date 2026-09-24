@@ -1,8 +1,6 @@
 import { Stage } from "./stage.js";
 import { Token } from "./tokens.js";
 import { UnicodeTable } from "./unicode.js";
-import { DOM_FORMAT } from "./dom.js";
-export { DOM_FORMAT };
 import type { GrammarDom, ParseOptions, ParseResult, Resources } from "./types.js";
 export type CompiledEntry = {
     hash: string;
