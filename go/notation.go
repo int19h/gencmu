@@ -114,6 +114,7 @@ func (nr *notationReader) read(text, docPath string) (dom *domDoc, err *Error) {
 
 type domBuilder struct {
 	captures map[string]bool // the captures of the alternative being read
+	inner    int             // how deep inside [ ], ( ), ..., & or a choice the reader is
 	toks     []Token
 	gt       *grammarText
 	doc      string
@@ -274,8 +275,18 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 	case "choice", "conjunction", "sequence":
 		kind := map[string]string{"choice": exChoice, "conjunction": exAnd, "sequence": exSeq}[n.Rule]
 		var items []*domExpr
-		for _, p := range ruleParts(n) {
+		parts := ruleParts(n)
+		// A capture stands only at an alternative's top level (§3.5): an
+		// item of a choice or an & is inside.
+		inside := kind != exSeq && len(parts) > 1
+		if inside {
+			b.inner++
+		}
+		for _, p := range parts {
 			items = append(items, b.expr(p))
+		}
+		if inside {
+			b.inner--
 		}
 		if len(items) == 1 {
 			return items[0]
@@ -287,12 +298,20 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 	case "element":
 		var prim *domExpr
 		repeat := false
+		var primNode *Node
 		for _, p := range parts(n) {
 			if p.Kind == KindRule {
-				prim = b.expr(p)
+				primNode = p
 			} else if b.text(p) == "..." {
 				repeat = true
 			}
+		}
+		if repeat {
+			b.inner++
+		}
+		prim = b.expr(primNode)
+		if repeat {
+			b.inner--
 		}
 		if !repeat {
 			return prim
@@ -314,15 +333,22 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 			b.fail(ps[0], "a capture wraps a single symbol: a name, a string or a phoneme tag")
 		}
 		name := strings.TrimPrefix(b.text(ps[0]), "$")
+		if b.inner > 0 {
+			b.fail(ps[0], "a capture stands only at the top level of an alternative, not inside [ ], ( ), ..., & or a choice")
+		}
 		if b.captures[name] {
 			b.fail(ps[0], "$%s is captured twice in one alternative", name)
 		}
 		b.captures[name] = true
 		return &domExpr{Kind: exCapture, Name: name, Inner: b.expr(inner[0])}
-	case "group":
-		return b.expr(ruleParts(n)[0])
-	case "optional":
-		return &domExpr{Kind: exOptional, Inner: b.expr(ruleParts(n)[0])}
+	case "group", "optional":
+		b.inner++
+		inner := b.expr(ruleParts(n)[0])
+		b.inner--
+		if n.Rule == "group" {
+			return inner
+		}
+		return &domExpr{Kind: exOptional, Inner: inner}
 	case "hash":
 		return &domExpr{Kind: exHash}
 	case "empty":

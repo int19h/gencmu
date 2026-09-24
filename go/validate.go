@@ -57,7 +57,7 @@ func checkDOM(d *domDoc) *domProblem {
 				continue
 			}
 			c.captures = map[string]bool{}
-			c.expr(a.Expr, 0)
+			c.expr(a.Expr, 0, true)
 			c.term(a.Tags, 0, false)
 		}
 		if c.problem != nil {
@@ -89,7 +89,9 @@ func (c *domChecker) deep(depth int) bool {
 	return c.problem != nil
 }
 
-func (c *domChecker) expr(e *domExpr, depth int) {
+// expr checks an expression; top says it is the alternative's own or an
+// item of its top-level seq, the only places a capture may stand (§3.5).
+func (c *domChecker) expr(e *domExpr, depth int, top bool) {
 	if c.deep(depth) {
 		return
 	}
@@ -105,17 +107,21 @@ func (c *domChecker) expr(e *domExpr, depth int) {
 			return
 		}
 		for _, it := range e.Items {
-			c.expr(it, depth+1)
+			c.expr(it, depth+1, top && e.Kind == exSeq)
 		}
 	case exOptional:
-		c.expr(e.Inner, depth+1)
+		c.expr(e.Inner, depth+1, false)
 	case exRepeat:
 		if e.Min != 0 && e.Min != 1 {
 			c.fail("a repetition with min %d", e.Min)
 			return
 		}
-		c.expr(e.Inner, depth+1)
+		c.expr(e.Inner, depth+1, false)
 	case exCapture:
+		if !top {
+			c.fail("a capture inside [ ], ( ), ..., & or a choice")
+			return
+		}
 		// A capture wraps a reference or a terminal, its name once per
 		// alternative.
 		if e.Inner == nil || (e.Inner.Kind != exRef && e.Inner.Kind != exTerminal) || e.Inner.Name == "" {
