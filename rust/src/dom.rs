@@ -387,28 +387,35 @@ pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
             if !is_object(alternative) || !guards_ok {
                 return Some("a malformed alternative");
             }
-            // A capture name once per alternative, as the reader requires.
+            // A capture only at the top level, the expression itself or an
+            // item of its top-level seq (§3.5), and a name once per
+            // alternative, as the reader requires.
             let mut names: Vec<&str> = Vec::new();
-            let mut stack: Vec<&Json> = alternative.get("expr").into_iter().collect();
-            while let Some(expr) = stack.pop() {
+            // 0: the alternative's expression; 1: an item of its top-level
+            // seq; 2: anything deeper.
+            let mut stack: Vec<(&Json, u8)> = alternative.get("expr").map(|expr| (expr, 0)).into_iter().collect();
+            while let Some((expr, level)) = stack.pop() {
                 if let Some(name) = expr.get("capture").and_then(Json::as_str) {
+                    if level > 1 {
+                        return Some("a capture inside [ ], ( ), ..., & or a choice");
+                    }
                     if names.contains(&name) {
                         return Some("a capture name used twice in one alternative");
                     }
                     names.push(name);
                 }
-                for key in ["seq", "choice", "and"] {
+                if let Some(items) = expr.get("seq").and_then(Json::as_array) {
+                    stack.extend(items.iter().map(|item| (item, if level == 0 { 1 } else { 2 })));
+                }
+                for key in ["choice", "and"] {
                     if let Some(items) = expr.get(key).and_then(Json::as_array) {
-                        stack.extend(items.iter());
+                        stack.extend(items.iter().map(|item| (item, 2)));
                     }
                 }
                 for key in ["optional", "repeat"] {
                     if let Some(inner) = expr.get(key) {
-                        stack.push(inner);
+                        stack.push((inner, 2));
                     }
-                }
-                if stack.len() > 100_000 {
-                    return Some("nested too deeply");
                 }
             }
             match alternative.get("expr") {
