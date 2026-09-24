@@ -402,16 +402,17 @@ class StageRunner:
             outcome.witness = (_action(ranking.witness[0], lowered), _action(ranking.witness[1], lowered))
             outcome.tied = Tree(derivation(forest, ranking.tied), self.tokens, context.tagtab).root
             outcome.tied_actions = list(actions(ranking.tied))
-        if elision_only and ranking.verdict != "unique":
-            error = self.check_elision(tree.root)
-            if error is not None:
-                outcome.error = error
-                outcome.tree = None
-                return outcome
         emitter = Emitter(context, forest, tree, root)
         outcome.erased = emitter.erased
         if self.emit:
             outcome.output = emitter.emit()
+        if elision_only and ranking.verdict != "unique":
+            # The stage accepted its input, so it has its output; the check
+            # makes the parse fail, and the result has no tree.
+            error = self.check_elision(tree.root)
+            if error is not None:
+                outcome.error = error
+                outcome.tree = None
         return outcome
 
     def check_elision(self, tree: Node) -> ParseError | None:

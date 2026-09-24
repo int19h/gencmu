@@ -162,7 +162,11 @@ def reference(productions: list[tuple[int, tuple[Any, ...], bool]], rules: int, 
             continue
         difference = visible_difference(chosen, other)
         if difference is None:
-            tied.append((INF, other))
+            # Equal visible sequences diverge last; one that extends the
+            # other first differs where the shorter ends.
+            shorter = min(sum(1 for x in seq if visible(x)) for seq in (chosen, other))
+            longer = max(sum(1 for x in seq if visible(x)) for seq in (chosen, other))
+            tied.append((INF if shorter == longer else shorter, other))
         elif decide(difference[1], difference[2], lean) == 0:
             tied.append((difference[0], other))
     if not tied:

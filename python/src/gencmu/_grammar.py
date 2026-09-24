@@ -304,10 +304,10 @@ class _Lowerer:
             items = expr["and"]
             if len(items) > 20:
                 raise self.fail("& joins too many items")
+            expanded = [self.expand(item) for item in items]
             result: list[list[_Sym]] = []
             for mask in range(1, 1 << len(items)):
-                chosen = [items[index] for index in range(len(items)) if mask >> index & 1]
-                parts = [self.expand(item) for item in chosen]
+                parts = [expanded[index] for index in range(len(items)) if mask >> index & 1]
                 result.extend([sym for part in combination for sym in part] for combination in itertools.product(*parts))
             return result
         if "optional" in expr:
@@ -397,15 +397,23 @@ class _Lowerer:
             slots[position] = index
         production.slots = tuple(slots)
         self.productions.append(production)
-        for sym, _ in expansion:
-            if sym[0] == "n" and sym[1] in self.helper_expansions and sym[1] not in self.emitted_helpers:
-                self.emit_helper(sym[1])
 
-    def emit_helper(self, number: int) -> None:
-        self.emitted_helpers.add(number)
-        elided = self.helper_elided.get(number)
-        for expansion in self.helper_expansions[number]:
-            self.add(number, expansion, None, elided=elided if not expansion else None)
+    def flush(self, expansions: list[list[_Sym]]) -> None:
+        """Number the helpers these expansions use, after the productions of
+        the alternative that introduced them: in the order they were made,
+        each followed by the helpers its own productions use."""
+        used = sorted(
+            {sym[1] for expansion in expansions for sym, _ in expansion if sym[0] == "n" and sym[1] in self.helper_expansions}
+        )
+        for number in used:
+            if number in self.emitted_helpers:
+                continue
+            self.emitted_helpers.add(number)
+            elided = self.helper_elided.get(number)
+            own = self.helper_expansions[number]
+            for expansion in own:
+                self.add(number, expansion, None, elided=elided if not expansion else None)
+            self.flush(own)
 
     def lower_emit(self, emit: Dom | None, captures: dict[str, int]) -> Any:
         if emit is None:
@@ -468,19 +476,23 @@ class _Lowerer:
                     elif "seq" in expr and expr["seq"] and "repeat" in expr["seq"][-1]:
                         trailing = (expr["seq"][:-1], expr["seq"][-1])
                 if trailing is None:
-                    for expansion in self.expand(expr, top=True):
+                    expansions = self.expand(expr, top=True)
+                    for expansion in expansions:
                         self.add(lhs, expansion, alt)
+                    self.flush(expansions)
                     continue
                 prefix, repeat = trailing
+                heads = self.expand({"seq": prefix}, top=True)
                 body = self.expand(repeat["repeat"])
                 if repeat.get("min", 1) == 1:
-                    bases = self.expand({"seq": [*prefix, repeat["repeat"]]}, top=True)
+                    bases = [head + item for head in heads for item in body]
                 else:
-                    bases = self.expand({"seq": prefix}, top=True)
+                    bases = heads
                 for expansion in bases:
                     self.add(lhs, expansion, alt)
                 for expansion in body:
                     self.add(lhs, [(("n", lhs), None)] + expansion, alt, rep_splice=True)
+                self.flush(bases + body)
             self.current_alt = None
         rule_productions: list[list[int]] = [[] for _ in self.rule_names]
         for production in self.productions:

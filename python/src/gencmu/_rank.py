@@ -531,13 +531,16 @@ class Ranker:
                 chosen = entry
         if total == 1:
             return Ranking("unique", chosen.seq, None, None)
+        # Every other candidate's visible sequence extends the chosen one's,
+        # so it first differs from it visibly where the chosen one ends, and
+        # so do its tied derivations that diverge from it no earlier.
         length = vis(chosen.seq)
         candidates: list[tuple[int, Rope | None]] = [(chosen.at, alt) for alt, _ in chosen.alts]
         for entry in kept:
             if entry is chosen:
                 continue
-            candidates.append((INF, entry.seq))
-            candidates.extend((entry.at if entry.at < length else INF, alt) for alt, _ in entry.alts)
+            candidates.append((length, entry.seq))
+            candidates.extend((entry.at if entry.at < length else length, alt) for alt, _ in entry.alts)
         if not candidates:
             return Ranking("resolved", chosen.seq, None, None)
         best_at, best = candidates[0]
