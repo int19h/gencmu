@@ -76,8 +76,7 @@ leak into the base rule.
 - `%free-modifiers R`: `#` means `[R ...]`, zero or more `R`; at most one
   per stage, and `#` without one is an error.
 
-**Names.** A name whose first character is an upper-case letter is a
-terminal; the DOM writes both kinds as `ref`, and lowering tells them apart
+**Names.** A name whose first character is `A` to `Z` is a terminal; the DOM writes both kinds as `ref`, and lowering tells them apart
 by that first letter. Any other name is a rule reference, and must be defined in the
 stage, or it is an error. A quoted string or a phoneme tag is a terminal.
 
@@ -279,7 +278,10 @@ documents included; reading the notation documents with the bootstrap must
 reproduce the bootstrap exactly (the fixpoint). An implementation may keep
 DOMs it has already built, keyed by the document's text hash, the
 bootstrap's hash and the DOM format version (`docs/output.md`), and must
-treat a mismatch of any of the three as a miss.
+treat a mismatch of any of the three as a miss. The hash is 64-bit FNV-1a
+over the text's UTF-8 bytes, written as 16 lower-case hexadecimal digits.
+Every package ships `compiled.json` beside its grammars, holding the DOM of
+each bundled grammar document in this way.
 
 ## 9. From notation tree to DOM
 
@@ -343,7 +345,7 @@ empty if the span is.
 | `lowercase(t)` | `t` with each code point replaced by its simple lowercase mapping, the `lower` entries of `grammars/unicode.txt` |
 | `tags(s)` | the captured part's constituent tags if `s` is a whole capture, else the union of the span's tokens' tags |
 | `tags(s, R)` | the union of the tags of every derivation of the span as `R`, empty if none |
-| `classes(s)` | the tags of `tags(s)` whose first character is an upper-case letter |
+| `classes(s)` | the tags of `tags(s)` whose first character is `A` to `Z` |
 | `words(s)` | a list (§5) |
 
 A string used where a tag set is needed is the set of that one strong tag.

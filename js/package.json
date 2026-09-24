@@ -1,0 +1,21 @@
+{
+  "name": "gencmu",
+  "version": "0.1.0",
+  "description": "A Lojban parser whose grammars are literate documents loaded at runtime",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./node": "./src/node.js"
+  },
+  "files": [
+    "src",
+    "grammars"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}

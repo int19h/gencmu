@@ -15,8 +15,9 @@
   async function run() {
     try {
       await loaded;
-      const result = await parser.parse(input.value, { dialect: "cll", features: [] });
-      output.textContent = JSON.stringify(result, null, 2);
+      const answer = await parser.parse(input.value, { dialect: "dialects/notation.md", features: [] });
+      output.textContent = JSON.stringify({ version: answer.version, ok: answer.result.ok, brackets: answer.brackets }, null, 2) +
+        "\n\n" + answer.tree;
       status.textContent = "ready";
       status.dataset.state = "ready";
     } catch (error) {
