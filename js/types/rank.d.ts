@@ -70,10 +70,16 @@ export type TraversalContext = Set<Item | string>;
 export declare class Ranker {
     tokens: import("./tokens.js").Token[];
     lean: Lean;
-    /** @type {Map<Item, Map<string, Candidate[]>>} */
-    memo: Map<Item, Map<string, Candidate[]>>;
-    /** @type {Map<Item, Map<string, number>>} */
-    counts: Map<Item, Map<string, number>>;
+    /** @type {{plain: Map<Item, Candidate[]>, contextual: Map<Item, Map<string, Candidate[]>>}} */
+    memo: {
+        plain: Map<Item, Candidate[]>;
+        contextual: Map<Item, Map<string, Candidate[]>>;
+    };
+    /** @type {{plain: Map<Item, number>, contextual: Map<Item, Map<string, number>>}} */
+    counts: {
+        plain: Map<Item, number>;
+        contextual: Map<Item, Map<string, number>>;
+    };
     /** @type {Map<Item, number>} */
     itemIds: Map<Item, number>;
     /**
@@ -113,12 +119,15 @@ export declare class Ranker {
     /**
      * @template T
      * @param {Item} root
-     * @param {Map<Item, Map<string, T>>} memo
+     * @param {{plain: Map<Item, T>, contextual: Map<Item, Map<string, T>>}} memo
      * @param {(item: Item, dependency: (item: Item) => T) => T} combine
      * @param {T} cut the value of a dependency that would close a cycle
      * @returns {T}
      */
-    traverse<T>(root: Item, memo: Map<Item, Map<string, T>>, combine: (item: Item, dependency: (item: Item) => T) => T, cut: T): T;
+    traverse<T>(root: Item, memo: {
+        plain: Map<Item, T>;
+        contextual: Map<Item, Map<string, T>>;
+    }, combine: (item: Item, dependency: (item: Item) => T) => T, cut: T): T;
     /**
      * @param {Item[]} roots
      * @returns {Ranking | null} null when every derivation is cyclic

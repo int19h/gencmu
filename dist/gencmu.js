@@ -231,14 +231,12 @@
      * @param {number} dot
      * @param {number} origin
      * @param {Slot[]} slots
-     * @param {string} key
      */
-    constructor(production, dot, origin, slots, key) {
+    constructor(production, dot, origin, slots) {
       this.production = production;
       this.dot = dot;
       this.origin = origin;
       this.slots = slots;
-      this.key = key;
       this.tagId = -1;
       /** @type {Edge[]} */
       this.edges = [];
@@ -300,7 +298,7 @@
         if (!item.edges.some((existing) => sameEdge(existing, edge))) item.edges.push(edge);
         return;
       }
-      item = new Item(production, dot, origin, slots, key);
+      item = new Item(production, dot, origin, slots);
       item.end = set.position;
       const trace = context.trace;
       if (trace && trace.depth === 0 && set.position === trace.position) {
@@ -333,13 +331,6 @@
       set.predicted.add(name);
       const next = set.position < end ? tokens[set.position] : null;
       for (const production of lowered.byLhs.get(name) || []) {
-        // One token of lookahead: an item whose first symbol is a terminal the
-        // next token lacks could never advance, so it is not made.
-        const first = production.rhs[0];
-        if (first && first.terminal && !(next && next.tags.has(first.name))) {
-          set.skipped.push(production);
-          continue;
-        }
         const slots = emptySlots(production);
         const failed = failedCondition(context, production, -1, slots);
         if (failed) {
@@ -347,6 +338,15 @@
           if (trace && trace.depth === 0 && set.position === trace.position) {
             trace.events.push({ kind: "dropped", production, dot: 0, origin: set.position, condition: failed });
           }
+          continue;
+        }
+        // One token of lookahead: an item whose first symbol is a terminal the
+        // next token lacks could never advance, so it is not made. The
+        // conditions above run first, as they did when every prediction was
+        // made an item, so that a defect in one is reported all the same.
+        const first = production.rhs[0];
+        if (first && first.terminal && !(next && next.tags.has(first.name))) {
+          set.skipped.push(production);
           continue;
         }
         const tagId = production.rhs.length === 0 ? completeTags(context, production, slots) : -1;
@@ -382,6 +382,15 @@
     predict(setAt(start), rule);
     for (let position = start; position <= end; position++) {
       const set = setAt(position);
+      if (position > start) {
+        // Nothing is added to a set once the next one is being built: its
+        // index, queue and predictions can go, which a long text needs.
+        const done = setAt(position - 1);
+        done.index = new Map();
+        done.queue = [];
+        done.predicted = new Set();
+        done.nullable = new Map();
+      }
       while (set.head < set.queue.length) {
         const item = set.queue[set.head++];
         const next = item.production.rhs[item.dot];
@@ -816,9 +825,8 @@
       const next = item.production.rhs[item.dot];
       if (next && next.terminal) note(next.name, item.production.owner);
     }
-    for (const production of set.skipped) {
-      if (failedCondition(chart.context, production, -1, emptySlots(production)) === null) note(production.rhs[0].name, production.owner);
-    }
+    // Skipped predictions passed their conditions before they were skipped.
+    for (const production of set.skipped) note(production.rhs[0].name, production.owner);
     return [...expected].sort((left, right) => compareCodePoints(left[0], right[0])).map(([terminal, rules]) => ({
       terminal,
       rules: [...rules].sort(compareCodePoints),
@@ -2180,7 +2188,9 @@
           /** @type {(clause: unknown) => boolean} */
           const applies = (clause) => termVariables(/** @type {Condition} */ (clause)).every((variable) => captured.has(variable));
           const clauses = alternative.clauses;
-          namedRules([alternative.tags, clauses.tags, clauses.emit, ...clauses.conditions].filter((clause) => clause && applies(clause)), found);
+          // An alternative's own tags replace the rule's (engine §3.6).
+          const tags = alternative.tags || clauses.tags;
+          namedRules([tags, clauses.emit, ...clauses.conditions].filter((clause) => clause && applies(clause)), found);
         }
         for (const next of found) {
           if (!reachable.has(next) && grammar.rules.has(next)) {
@@ -2646,10 +2656,10 @@
     constructor(tokens, lean) {
       this.tokens = tokens;
       this.lean = lean;
-      /** @type {Map<Item, Map<string, Candidate[]>>} */
-      this.memo = new Map();
-      /** @type {Map<Item, Map<string, number>>} */
-      this.counts = new Map();
+      /** @type {{plain: Map<Item, Candidate[]>, contextual: Map<Item, Map<string, Candidate[]>>}} */
+      this.memo = { plain: new Map(), contextual: new Map() };
+      /** @type {{plain: Map<Item, number>, contextual: Map<Item, Map<string, number>>}} */
+      this.counts = { plain: new Map(), contextual: new Map() };
       /** @type {Map<Item, number>} */
       this.itemIds = new Map();
     }
@@ -2829,7 +2839,7 @@
     /**
      * @template T
      * @param {Item} root
-     * @param {Map<Item, Map<string, T>>} memo
+     * @param {{plain: Map<Item, T>, contextual: Map<Item, Map<string, T>>}} memo
      * @param {(item: Item, dependency: (item: Item) => T) => T} combine
      * @param {T} cut the value of a dependency that would close a cycle
      * @returns {T}
@@ -2850,14 +2860,21 @@
       /** @type {(item: Item) => string} */
       const ruleKey = (item) => `\u0000${item.production.lhs}`;
       /** @type {(item: Item, key: string) => T | undefined} */
+      // Almost every item is looked up with no context, so those results are
+      // kept in a plain map and only the rest by context.
       const lookup = (item, key) => {
-        const byContext = memo.get(item);
+        if (key === "") return memo.plain.get(item);
+        const byContext = memo.contextual.get(item);
         return byContext ? byContext.get(key) : undefined;
       };
       /** @type {(item: Item, key: string, value: T) => void} */
       const store = (item, key, value) => {
-        let byContext = memo.get(item);
-        if (!byContext) memo.set(item, (byContext = new Map()));
+        if (key === "") {
+          memo.plain.set(item, value);
+          return;
+        }
+        let byContext = memo.contextual.get(item);
+        if (!byContext) memo.contextual.set(item, (byContext = new Map()));
         byContext.set(key, value);
       };
       const itemIds = this.itemIds;

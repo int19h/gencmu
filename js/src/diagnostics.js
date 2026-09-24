@@ -328,7 +328,9 @@ export function audit(dialect) {
         /** @type {(clause: unknown) => boolean} */
         const applies = (clause) => termVariables(/** @type {Condition} */ (clause)).every((variable) => captured.has(variable));
         const clauses = alternative.clauses;
-        namedRules([alternative.tags, clauses.tags, clauses.emit, ...clauses.conditions].filter((clause) => clause && applies(clause)), found);
+        // An alternative's own tags replace the rule's (engine §3.6).
+        const tags = alternative.tags || clauses.tags;
+        namedRules([tags, clauses.emit, ...clauses.conditions].filter((clause) => clause && applies(clause)), found);
       }
       for (const next of found) {
         if (!reachable.has(next) && grammar.rules.has(next)) {

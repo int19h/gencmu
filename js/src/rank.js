@@ -330,10 +330,10 @@ export class Ranker {
   constructor(tokens, lean) {
     this.tokens = tokens;
     this.lean = lean;
-    /** @type {Map<Item, Map<string, Candidate[]>>} */
-    this.memo = new Map();
-    /** @type {Map<Item, Map<string, number>>} */
-    this.counts = new Map();
+    /** @type {{plain: Map<Item, Candidate[]>, contextual: Map<Item, Map<string, Candidate[]>>}} */
+    this.memo = { plain: new Map(), contextual: new Map() };
+    /** @type {{plain: Map<Item, number>, contextual: Map<Item, Map<string, number>>}} */
+    this.counts = { plain: new Map(), contextual: new Map() };
     /** @type {Map<Item, number>} */
     this.itemIds = new Map();
   }
@@ -513,7 +513,7 @@ export class Ranker {
   /**
    * @template T
    * @param {Item} root
-   * @param {Map<Item, Map<string, T>>} memo
+   * @param {{plain: Map<Item, T>, contextual: Map<Item, Map<string, T>>}} memo
    * @param {(item: Item, dependency: (item: Item) => T) => T} combine
    * @param {T} cut the value of a dependency that would close a cycle
    * @returns {T}
@@ -534,14 +534,21 @@ export class Ranker {
     /** @type {(item: Item) => string} */
     const ruleKey = (item) => `\u0000${item.production.lhs}`;
     /** @type {(item: Item, key: string) => T | undefined} */
+    // Almost every item is looked up with no context, so those results are
+    // kept in a plain map and only the rest by context.
     const lookup = (item, key) => {
-      const byContext = memo.get(item);
+      if (key === "") return memo.plain.get(item);
+      const byContext = memo.contextual.get(item);
       return byContext ? byContext.get(key) : undefined;
     };
     /** @type {(item: Item, key: string, value: T) => void} */
     const store = (item, key, value) => {
-      let byContext = memo.get(item);
-      if (!byContext) memo.set(item, (byContext = new Map()));
+      if (key === "") {
+        memo.plain.set(item, value);
+        return;
+      }
+      let byContext = memo.contextual.get(item);
+      if (!byContext) memo.contextual.set(item, (byContext = new Map()));
       byContext.set(key, value);
     };
     const itemIds = this.itemIds;

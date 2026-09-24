@@ -95,7 +95,6 @@ export declare class Item {
     dot: number;
     origin: number;
     slots: Slot[];
-    key: string;
     tagId: number;
     /** @type {Edge[]} */
     edges: Edge[];
@@ -105,9 +104,8 @@ export declare class Item {
      * @param {number} dot
      * @param {number} origin
      * @param {Slot[]} slots
-     * @param {string} key
      */
-    constructor(production: Production, dot: number, origin: number, slots: Slot[], key: string);
+    constructor(production: Production, dot: number, origin: number, slots: Slot[]);
     get complete(): boolean;
 }
 export declare class ChartSet {
