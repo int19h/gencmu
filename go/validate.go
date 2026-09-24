@@ -135,7 +135,9 @@ func validateTerm(t *domTerm, required bool) error {
 			ok = (len(args) == 1 || len(args) == 2) && isSpanShape(args[0]) &&
 				(len(args) == 1 || (args[1] != nil && args[1].Kind == tmRule && args[1].Str != ""))
 		case "lowercase":
-			ok = len(args) == 1 && args[0] != nil && validateTerm(args[0], true) == nil && args[0].Kind != tmRule
+			// A string, as the reader requires: a literal, or phonemes,
+			// text or lowercase of something (§9).
+			ok = len(args) == 1 && args[0] != nil && isStringTerm(args[0]) && validateTerm(args[0], true) == nil
 		}
 		if !ok {
 			return fmt.Errorf("a malformed call of %q", t.Str)

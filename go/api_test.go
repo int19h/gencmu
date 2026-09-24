@@ -297,6 +297,16 @@ func TestMalformedPrecompiled(t *testing.T) {
 		`{"repeat":{"ref":"A"},"min":5}`, `{"capture":"x","expr":{"seq":[{"ref":"A"},{"ref":"B"}]}}`,
 		`{"ref":""}`, `{"what":1}`, `null`, `[]`,
 	}
+	// Terms the reader never builds, in an otherwise good alternative.
+	badTags := []string{
+		`{"call":"lowercase","args":[{"weak":"X"}]}`,
+		`{"call":"lowercase","args":[{"emptySet":true}]}`,
+		`{"call":"head","args":[{"literal":"x"}]}`,
+		`{"union":[]}`,
+	}
+	for _, tags := range badTags {
+		bad = append(bad, `{"seq":[{"terminal":"a"},{"terminal":"b"}]},"tags":`+tags)
+	}
 	for _, expr := range bad {
 		dom := `{"format":1,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[1,1]}]}`
 		// In compiled.json, with every hash matching: a miss.
