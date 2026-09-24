@@ -2,7 +2,7 @@ export { Loader, Dialect, fnv1a64 } from "./dialect.js";
 export { GencmuError } from "./errors.js";
 export { Token } from "./tokens.js";
 export { resultJson, toBrackets, toTree, displayValue, prettyJson } from "./output.js";
-import { Loader } from "./dialect.js";
+import { Loader, Dialect } from "./dialect.js";
 export type TagSet = import("./types.js").TagSet;
 export type Span = import("./types.js").Span;
 export type Resources = import("./types.js").Resources;
@@ -41,6 +41,16 @@ export type DisplayValue = import("./output.js").DisplayValue;
  * @typedef {import("./output.js").ResultJson} ResultJson
  * @typedef {import("./output.js").DisplayValue} DisplayValue
  */
+/**
+ * A dialect from documents held in memory: a map, or a plain object, from
+ * path to text, which must include `unicode.txt` and
+ * `notation/bootstrap.json` (`gencmu/node` fills them in from the bundled
+ * grammars), and the path of the pipeline document among them.
+ * @param {Map<string, string> | Record<string, string>} sources
+ * @param {string} pipelinePath
+ * @returns {Dialect}
+ */
+export declare function loadDialectSources(sources: Map<string, string> | Record<string, string>, pipelinePath: string): Dialect;
 /**
  * @param {Map<string, string> | Record<string, string>} sources
  * @returns {Loader}

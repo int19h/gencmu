@@ -11,7 +11,7 @@ import { readPipeline, resolvePath } from "../js/src/markdown.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "grammars");
 const pipelinePath = "dialects/notation.md";
-const stages = readPipeline(fs.readFileSync(path.join(root, pipelinePath), "utf8"), pipelinePath).map((stage) => ({
+const stages = readPipeline(fs.readFileSync(path.join(root, pipelinePath), "utf8"), pipelinePath).stages.map((stage) => ({
   name: stage.name,
   documents: stage.documents.map((relative) => {
     const documentPath = resolvePath(pipelinePath, relative);

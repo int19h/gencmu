@@ -113,12 +113,13 @@ export class Loader {
    */
   dialect(path) {
     const markdown = this.need(path);
-    const stages = readPipeline(markdown, path).map((stage) => new Stage(stage.name,
+    const pipeline = readPipeline(markdown, path);
+    const stages = pipeline.stages.map((stage) => new Stage(stage.name,
       new Grammar(stage.name, stage.documents.map((document) => {
         const documentPath = resolvePath(path, document);
         return { path: documentPath, dom: this.documentDom(documentPath) };
       }))));
-    return new Dialect(path, stages, this);
+    return new Dialect(path, stages, this, pipeline.features);
   }
 }
 
@@ -127,11 +128,13 @@ export class Dialect {
    * @param {string} path
    * @param {Stage[]} stages
    * @param {Loader} loader
+   * @param {string[]} [features] the features the pipeline enables
    */
-  constructor(path, stages, loader) {
+  constructor(path, stages, loader, features = []) {
     this.path = path;
     this.stages = stages;
     this.loader = loader;
+    this.features = features;
   }
 
   /**
@@ -141,8 +144,11 @@ export class Dialect {
    * @returns {ParseResult}
    */
   parse(text, options = {}) {
-    let features = new Set(options.features || []);
-    if (options.autoFeatures && !features.has("sa-su") && this.stages.some((stage) => stage.name === "words")) {
+    let features = new Set([...this.features, ...(options.features || [])]);
+    const wordsAt = this.stages.findIndex((stage) => stage.name === "words");
+    const untilAt = options.until === undefined ? this.stages.length - 1 : this.stages.findIndex((stage) => stage.name === options.until);
+    // The probe is for a run that reaches the words stage (engine §13).
+    if (options.autoFeatures !== false && !features.has("sa-su") && wordsAt >= 0 && untilAt >= wordsAt) {
       const probe = this.run(text, { ...options, features, until: "words" }, null);
       const words = probe.stages[probe.stages.length - 1];
       const needs = !words || words.name !== "words" || words.error || containsWord(words.tree, words.input, ["sa", "su"]);

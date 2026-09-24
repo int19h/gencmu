@@ -197,7 +197,7 @@ export function treeToDom(tree, tokens, positionOf, path) {
       if (items.length !== 1 || items[0].tags) fail("⇒ nothing stands alone", node);
       return { nothing: true };
     }
-    if (items.some((item) => item.this) && items.length !== 1) fail("⇒ this stands alone", node);
+    if (items.some((item) => item.this) && !items.every((item) => item.this)) fail("⇒ this goes with no item but another this", node);
     return { items };
   }
 

@@ -1,0 +1,28 @@
+{
+  "description": "A pipeline's <?features?> enables features for every parse, and the caller's features are added to them (engine §13).",
+  "documents": {
+    "p.md": "# A dialect <?features f?>\n\n## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n",
+    "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ @f A | @!f B | @f @g A A ;\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "a"
+  }
+}

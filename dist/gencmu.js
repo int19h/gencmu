@@ -2447,9 +2447,10 @@
       const scope = new TreeScope(node, context);
       /** @type {(item: EmitItem, fallback: TagSet) => TagSet} */
       const valueTags = (item, fallback) => (item.tags ? asTags(evaluate(context, item.tags, scope)) : fallback);
-      const thisItem = clause.items.find((item) => item.this);
-      if (thisItem) {
-        out.push(makeToken(node, valueTags(thisItem, nodeTags(node, context)), context));
+      if (clause.items.length > 0 && clause.items[0].this) {
+        // One token covering the constituent per `this`: a digit that is two
+        // phonemes is emitted as two tokens over the same character.
+        for (const item of clause.items) out.push(makeToken(node, valueTags(item, nodeTags(node, context)), context));
         continue;
       }
       /** @type {Map<number, EmitItem>} */
@@ -2708,7 +2709,7 @@
         if (items.length !== 1 || items[0].tags) fail("⇒ nothing stands alone", node);
         return { nothing: true };
       }
-      if (items.some((item) => item.this) && items.length !== 1) fail("⇒ this stands alone", node);
+      if (items.some((item) => item.this) && !items.every((item) => item.this)) fail("⇒ this goes with no item but another this", node);
       return { items };
     }
 
@@ -2918,21 +2919,27 @@
   }
 
   // The stages of a pipeline document, each a name and a list of document
-  // paths as written, relative to the pipeline document.
+  // paths as written, relative to the pipeline document, and the features the
+  // dialect enables.
   /**
    * @param {string} markdown
    * @param {string} path
-   * @returns {{name: string, documents: string[]}[]}
+   * @returns {{stages: {name: string, documents: string[]}[], features: string[]}}
    */
   function readPipeline(markdown, path) {
     /** @type {{name: string, documents: string[]}[]} */
     const stages = [];
+    /** @type {string[]} */
+    const features = [];
     const lines = splitLines(markdown);
     for (let number = 0; number < lines.length; number++) {
       const line = lines[number].replace(/\s+$/, "");
       const marker = /<\?([a-z]+)(?:\s+([^?]*?))?\s*\?>$/.exec(line);
       if (!marker) continue;
       const at = { document: path, line: number + 1, column: marker.index + 1 };
+      if (/<\?[a-z]+(?:\s[^?]*)?\?>/.test(line.slice(0, marker.index))) {
+        throw new GencmuError("grammar", `${path}:${number + 1}: a line holds one processing instruction`, at);
+      }
       if (marker[1] === "stage") {
         const name = (marker[2] || "").trim();
         if (!/^[A-Za-z][A-Za-z0-9-]*$/.test(name)) {
@@ -2951,6 +2958,12 @@
           throw new GencmuError("grammar", `${path}:${number + 1}: <?grammar?> needs a link [text](path) on its line`, at);
         }
         stages[stages.length - 1].documents.push(link[1]);
+      } else if (marker[1] === "features") {
+        const names = (marker[2] || "").trim().split(/\s+/).filter((name) => name !== "");
+        if (names.length === 0 || !names.every((name) => /^[A-Za-z][A-Za-z0-9-]*$/.test(name))) {
+          throw new GencmuError("grammar", `${path}:${number + 1}: <?features?> lists feature names, <?features NAME ...?>`, at);
+        }
+        for (const name of names) if (!features.includes(name)) features.push(name);
       }
     }
     if (stages.length === 0) {
@@ -2961,7 +2974,7 @@
         throw new GencmuError("grammar", `${path}: stage ${stage.name} has no <?grammar?> documents`, { document: path });
       }
     }
-    return stages;
+    return { stages, features };
   }
 
   // A path relative to a document, resolved and normalized.
@@ -3168,12 +3181,13 @@
      */
     dialect(path) {
       const markdown = this.need(path);
-      const stages = readPipeline(markdown, path).map((stage) => new Stage(stage.name,
+      const pipeline = readPipeline(markdown, path);
+      const stages = pipeline.stages.map((stage) => new Stage(stage.name,
         new Grammar(stage.name, stage.documents.map((document) => {
           const documentPath = resolvePath(path, document);
           return { path: documentPath, dom: this.documentDom(documentPath) };
         }))));
-      return new Dialect(path, stages, this);
+      return new Dialect(path, stages, this, pipeline.features);
     }
   }
 
@@ -3182,11 +3196,13 @@
      * @param {string} path
      * @param {Stage[]} stages
      * @param {Loader} loader
+     * @param {string[]} [features] the features the pipeline enables
      */
-    constructor(path, stages, loader) {
+    constructor(path, stages, loader, features = []) {
       this.path = path;
       this.stages = stages;
       this.loader = loader;
+      this.features = features;
     }
 
     /**
@@ -3196,8 +3212,11 @@
      * @returns {ParseResult}
      */
     parse(text, options = {}) {
-      let features = new Set(options.features || []);
-      if (options.autoFeatures && !features.has("sa-su") && this.stages.some((stage) => stage.name === "words")) {
+      let features = new Set([...this.features, ...(options.features || [])]);
+      const wordsAt = this.stages.findIndex((stage) => stage.name === "words");
+      const untilAt = options.until === undefined ? this.stages.length - 1 : this.stages.findIndex((stage) => stage.name === options.until);
+      // The probe is for a run that reaches the words stage (engine §13).
+      if (options.autoFeatures !== false && !features.has("sa-su") && wordsAt >= 0 && untilAt >= wordsAt) {
         const probe = this.run(text, { ...options, features, until: "words" }, null);
         const words = probe.stages[probe.stages.length - 1];
         const needs = !words || words.name !== "words" || words.error || containsWord(words.tree, words.input, ["sa", "su"]);
@@ -3337,6 +3356,19 @@
    * @typedef {import("./output.js").ResultJson} ResultJson
    * @typedef {import("./output.js").DisplayValue} DisplayValue
    */
+
+  /**
+   * A dialect from documents held in memory: a map, or a plain object, from
+   * path to text, which must include `unicode.txt` and
+   * `notation/bootstrap.json` (`gencmu/node` fills them in from the bundled
+   * grammars), and the path of the pipeline document among them.
+   * @param {Map<string, string> | Record<string, string>} sources
+   * @param {string} pipelinePath
+   * @returns {Dialect}
+   */
+  function loadDialectSources(sources, pipelinePath) {
+    return loaderFromSources(sources).dialect(pipelinePath);
+  }
 
   // A loader over grammar documents held in memory: a map, or a plain object,
   // from path to text.
@@ -3799,9 +3831,10 @@
 
   /**
    * @typedef {object} ParseOptions
-   * @property {Iterable<string>} [features] the dialect features to enable
+   * @property {Iterable<string>} [features] the features to enable, besides
+   *   those the dialect's pipeline enables
    * @property {boolean} [autoFeatures] enable `sa-su` only for a text that
-   *   needs it
+   *   needs it; on unless `false`
    * @property {string} [until] the name of the last stage to run
    * @property {boolean | null} [elisionOnly] override the grammar's own
    *   elision-only setting
@@ -4020,7 +4053,7 @@
 
 
 
-    return { version: "0.1.0", Loader, Dialect, fnv1a64, GencmuError, Token, resultJson, toBrackets, toTree, displayValue, prettyJson, loaderFromSources };
+    return { version: "0.1.0", Loader, Dialect, fnv1a64, GencmuError, Token, resultJson, toBrackets, toTree, displayValue, prettyJson, loadDialectSources, loaderFromSources };
   }
   root.gencmuFactory = gencmuFactory;
   root.gencmu = gencmuFactory();

@@ -162,9 +162,10 @@
 
 /**
  * @typedef {object} ParseOptions
- * @property {Iterable<string>} [features] the dialect features to enable
+ * @property {Iterable<string>} [features] the features to enable, besides
+ *   those the dialect's pipeline enables
  * @property {boolean} [autoFeatures] enable `sa-su` only for a text that
- *   needs it
+ *   needs it; on unless `false`
  * @property {string} [until] the name of the last stage to run
  * @property {boolean | null} [elisionOnly] override the grammar's own
  *   elision-only setting

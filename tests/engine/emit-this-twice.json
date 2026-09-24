@@ -1,0 +1,54 @@
+{
+  "description": "⇒ this <t>, this <u> emits one token per item, in order, each covering the whole constituent (engine §11): one character read as two phonemes.",
+  "grammar": "text ≔ [d] ... ; d ≔ D ⇒ this </n/>, this </o/> ;",
+  "tokens": [
+    {
+      "text": "0",
+      "tags": [
+        "D"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "output": [
+            {
+              "text": "0",
+              "phonemes": "n",
+              "tags": {
+                "/n/": true
+              },
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "text": "0",
+              "phonemes": "o",
+              "tags": {
+                "/o/": true
+              },
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

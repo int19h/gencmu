@@ -83,8 +83,9 @@ declared once for the grammar (see "Directives"). Slashes are for phonemes.
 
 An alternative may begin with `@name` or `@!name`. The alternative exists
 only when the feature `name` is enabled, respectively disabled, for the
-parse. Features come from the dialect the text is parsed under, or from the
-caller; the pipeline enables the same set for every stage.
+parse. Features come from the dialect's pipeline, which may enable some
+(see "Pipelines"), and from the caller, who may add others; the same set is
+enabled for every stage.
 
 ```
 tanru-unit-2 ≔ BRIVLA # | @cbm CMEVLA # | ... ;
@@ -207,7 +208,9 @@ standard class.
 
 A rule says what its constituents hand to the next stage after `⇒`. `⇒ this`
 emits the whole constituent as one token, carrying the constituent's tags;
-`⇒ this <term>` emits it with the tags of the term instead. `⇒ $a <term>,
+`⇒ this <term>` emits it with the tags of the term instead, and `⇒ this
+</n/>, this </o/>` emits it twice, as two tokens over the same text, which
+is how the digit `0` becomes the phonemes of `no`. `⇒ $a <term>,
 $b` emits the captured parts named, each as one token, in text order, with
 the tags given or their own; a part not named is walked in turn, and its own
 rules decide. A string or phoneme tag in the list, `⇒ $g, /'/, $v`, emits a
@@ -262,7 +265,9 @@ not show, so the document reads as plain hyperlinked prose there:
 the stage; the link must be written `[text](path)` with no spaces,
 parentheses or backslashes in the path. Stages run in document order, and
 documents are stitched in list order, which matters since `≔` replaces.
-Every stage's start rule is `text`. The first stage reads the text's
+Every stage's start rule is `text`. `<?features NAME ...?>` at the end of
+any line names features the dialect enables for every parse, to which a
+caller may add others. The first stage reads the text's
 characters, each a token tagged with the character itself and, weakly, its
 class; every later stage reads what the stage before it emitted.
 
