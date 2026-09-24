@@ -123,7 +123,12 @@ export class Loader {
     }
     // The bound on nesting is the same for a document read here as for a
     // precompiled DOM (engine §9).
-    if (domProblem(dom) === "nested too deeply") throw new GencmuError("grammar", `${path}: an expression, term or condition is nested more than ${DOM_MAX_DEPTH} deep`, { document: path });
+    if (domProblem(dom) === "nested too deeply") {
+      // Reported at the rule that holds it, the first too deep.
+      const rule = dom.rules.find((candidate) => domProblem({ ...dom, rules: [candidate], directives: [] }) === "nested too deeply");
+      const [line, column] = rule ? rule.at : [1, 1];
+      throw new GencmuError("grammar", `${path}:${line}:${column}: an expression, term or condition is nested more than ${DOM_MAX_DEPTH} deep`, { document: path, line, column });
+    }
     return dom;
   }
 

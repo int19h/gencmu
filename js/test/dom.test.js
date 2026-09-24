@@ -60,7 +60,8 @@ test("a tag term naming a capture the production lacks is dropped from the item"
 
 test("the reader holds documents to the same nesting bound as precompiled DOMs", () => {
   const deep = (n) => "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ " + "[".repeat(n) + "A" + "]".repeat(n) + " ;\n```\n";
-  assert.throws(() => loadDialectSources({ ...sources, "g.md": deep(300) }, "p.md"), GencmuError);
+  assert.throws(() => loadDialectSources({ ...sources, "g.md": deep(300) }, "p.md"),
+    (error) => error instanceof GencmuError && error.where.line === 3 && error.where.column === 1);
   assert.doesNotThrow(() => loadDialectSources({ ...sources, "g.md": deep(100) }, "p.md"));
 });
 
@@ -71,4 +72,8 @@ test("the check holds a precompiled emission and format to the reader's rules", 
   assert.equal(domProblem(rule({ items: [{ insert: "y", tags: { literal: "z" } }] })), "a malformed emission");
   assert.equal(domProblem(rule({ items: [{ this: true }, { this: true }] })), null);
   assert.equal(domProblem({ format: 2, rules: [], directives: [] }), "not a DOM of format 1");
+  const tagged = (tags) => ({ format: 1, rules: [{ name: "text", op: "define", tags, alternatives: [{ guards: [], expr: { capture: "x", expr: { ref: "A" } } }], conditions: [], at: [1, 1] }], directives: [] });
+  assert.equal(domProblem(tagged({ call: "matches", args: [{ literal: "x" }] })), "a malformed term");
+  assert.equal(domProblem(tagged({ call: "head", args: [{ capture: "x" }] })), "a malformed term");
+  assert.equal(domProblem(tagged({ call: "tags", args: [{ call: "head", args: [{ capture: "x" }] }, { rule: "a" }] })), null);
 });

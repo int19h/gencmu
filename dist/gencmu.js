@@ -4293,6 +4293,17 @@
     return Array.isArray(value) && value.length === 2 && value.every((n) => Number.isInteger(n));
   }
 
+  const DOM_SPANS = new Set(["head", "tail", "last"]);
+
+  /**
+   * Whether a term is a span: a capture, or head, tail or last of one.
+   * @param {unknown} value
+   * @returns {boolean}
+   */
+  function isDomSpan(value) {
+    return isDomObject(value) && (typeof value.capture === "string" || (typeof value.call === "string" && DOM_SPANS.has(value.call)));
+  }
+
   /**
    * Why a value is not a grammar DOM, or null when it is one.
    * @param {unknown} dom
@@ -4325,6 +4336,8 @@
     }
     for (let task = pending.pop(); task !== undefined; task = pending.pop()) {
       const { kind, value, depth } = task;
+      // A function's argument is a term where a span may stand.
+      const argument = kind === "argument";
       if (depth > DOM_MAX_DEPTH) return "nested too deeply";
       if (!isDomObject(value)) return `a malformed ${kind}`;
       const next = depth + 1;
@@ -4377,8 +4390,8 @@
         } else if ("not" in value) {
           push("condition", value.not);
         } else if ("matches" in value) {
-          if (typeof value.rule !== "string") return "a malformed condition";
-          push("term", value.matches);
+          if (typeof value.rule !== "string" || !isDomSpan(value.matches)) return "a malformed condition";
+          pending.push({ kind: "argument", value: value.matches, depth: next });
         } else {
           if (typeof value.op !== "string" || !DOM_COMPARATORS.has(value.op)) return "a malformed condition";
           push("term", value.left);
@@ -4390,11 +4403,17 @@
           if (!list(items, "set" in value ? 0 : 2)) return "a malformed term";
           for (const item of /** @type {unknown[]} */ (items)) push("term", item);
         } else if ("call" in value) {
-          if (typeof value.call !== "string" || !DOM_FUNCTIONS.has(value.call) || !list(value.args, 1, 2)) return "a malformed term";
-          for (const arg of /** @type {unknown[]} */ (value.args)) {
-            if (isDomObject(arg) && typeof arg.rule === "string" && Object.keys(arg).length === 1) continue;
-            push("term", arg);
-          }
+          // The reader's signatures (engine §9), with a span where one is due.
+          const args = /** @type {unknown[]} */ (Array.isArray(value.args) ? value.args : []);
+          const isRule = (/** @type {unknown} */ arg) => isDomObject(arg) && typeof arg.rule === "string" && Object.keys(arg).length === 1;
+          const call = value.call;
+          let ok;
+          if (typeof call !== "string" || !DOM_FUNCTIONS.has(call) || call === "matches") ok = false;
+          else if (call === "tags") ok = (args.length === 1 && isDomSpan(args[0])) || (args.length === 2 && isDomSpan(args[0]) && isRule(args[1]));
+          else if (call === "lowercase") ok = args.length === 1 && !isRule(args[0]) && !isDomSpan(args[0]);
+          else ok = args.length === 1 && isDomSpan(args[0]);
+          if (!ok || (!argument && DOM_SPANS.has(/** @type {string} */ (call)))) return "a malformed term";
+          for (const arg of args) if (!isRule(arg)) pending.push({ kind: "argument", value: arg, depth: next });
         } else if (!(typeof value.literal === "string" || typeof value.weak === "string" || value.emptySet === true || typeof value.capture === "string")) {
           return "a malformed term";
         }
@@ -4538,7 +4557,12 @@
       }
       // The bound on nesting is the same for a document read here as for a
       // precompiled DOM (engine §9).
-      if (domProblem(dom) === "nested too deeply") throw new GencmuError("grammar", `${path}: an expression, term or condition is nested more than ${DOM_MAX_DEPTH} deep`, { document: path });
+      if (domProblem(dom) === "nested too deeply") {
+        // Reported at the rule that holds it, the first too deep.
+        const rule = dom.rules.find((candidate) => domProblem({ ...dom, rules: [candidate], directives: [] }) === "nested too deeply");
+        const [line, column] = rule ? rule.at : [1, 1];
+        throw new GencmuError("grammar", `${path}:${line}:${column}: an expression, term or condition is nested more than ${DOM_MAX_DEPTH} deep`, { document: path, line, column });
+      }
       return dom;
     }
 
