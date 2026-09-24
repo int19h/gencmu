@@ -324,10 +324,15 @@ class Dialect:
         self.features = pipeline.features
         self.grammars = stages
         self.unicode = unicode
-        self._lowered: dict[tuple[int, frozenset[str], bool], Lowered] = {}
+        self._lowered: dict[tuple[int, frozenset[str], bool], Lowered | GencmuError] = {}
         self._lock = threading.Lock()
         for number in range(len(stages)):
-            self.lowered(number, self.features, False)
+            try:
+                self.lowered(number, self.features, False)
+            except GencmuError:
+                # An error lowering finds is a result of the parses that
+                # meet it (engine §3.3, §13), not an error of the load.
+                pass
 
     @property
     def stage_names(self) -> list[str]:
@@ -338,9 +343,14 @@ class Dialect:
         with self._lock:
             found = self._lowered.get(key)
         if found is None:
-            found = lower(self.grammars[number], features, elision)
+            try:
+                found = lower(self.grammars[number], features, elision)
+            except GencmuError as error:
+                found = error
             with self._lock:
                 self._lowered[key] = found
+        if isinstance(found, GencmuError):
+            raise found
         return found
 
     def parse(
@@ -433,7 +443,15 @@ class Dialect:
         current = tokens
         for number in range(first, last + 1):
             grammar = self.grammars[number]
-            lowered = self.lowered(number, features, False)
+            try:
+                lowered = self.lowered(number, features, False)
+            except GencmuError as error:
+                # An error of the grammar lowering finds for these features
+                # is a result, with its stage and no position (engine §13).
+                failure = ParseError("grammar", error.message, stage=grammar.stage)
+                stages.append(Stage(grammar.stage, None, current))
+                outcomes.append(StageOutcome(error=failure))
+                return ParseResult(False, stages, None, failure, text), [StageOutcome()] * first + outcomes
 
             def elision_lowered(number: int = number) -> Lowered:
                 return self.lowered(number, features, True)

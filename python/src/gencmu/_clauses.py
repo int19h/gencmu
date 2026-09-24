@@ -116,7 +116,14 @@ def _condition(dom: Dom, present: AbstractSet[str]) -> Walk:
     return dom
 
 
+def is_empty_set(dom: Any) -> bool:
+    return isinstance(dom, dict) and dom.get("emptySet") is True
+
+
 def _term(dom: Any, present: AbstractSet[str]) -> Walk:
+    """A term's empty set, written or left by a guard, is dropped from a
+    union, and makes an intersection or a guarded term empty (engine §3.6):
+    what is reduced away is never evaluated."""
     if not isinstance(dom, dict):
         return dom
     if "if" in dom:
@@ -124,13 +131,26 @@ def _term(dom: Any, present: AbstractSet[str]) -> Walk:
         if premise is False:
             return dict(EMPTY_SET)
         then = yield _term(dom["then"], present)
+        if is_empty_set(then):
+            return then
         return then if premise is True else {"if": premise, "then": then}
-    for key in ("union", "intersection"):
-        if isinstance(dom.get(key), list):
-            parts = []
-            for item in dom[key]:
-                parts.append((yield _term(item, present)))
-            return {key: parts}
+    if isinstance(dom.get("union"), list):
+        parts = []
+        for item in dom["union"]:
+            part = yield _term(item, present)
+            if not is_empty_set(part):
+                parts.append(part)
+        if not parts:
+            return dict(EMPTY_SET)
+        return parts[0] if len(parts) == 1 else {"union": parts}
+    if isinstance(dom.get("intersection"), list):
+        parts = []
+        for item in dom["intersection"]:
+            part = yield _term(item, present)
+            if is_empty_set(part):
+                return part
+            parts.append(part)
+        return {"intersection": parts}
     if isinstance(dom.get("args"), list):
         args = []
         for arg in dom["args"]:

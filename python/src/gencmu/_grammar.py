@@ -387,12 +387,9 @@ class _Lowerer:
                     # prediction.
                     production.conds_predict.append(condition)
             # The union of the alternative's own tags and the definition's
-            # (engine §3.7). The reader has made sure neither uses a capture
-            # the alternative lacks; only the recursive production of a
-            # trailing repetition lacks the captures of the prefix it
-            # repeats after, and a term that uses one gives it no tags.
+            # (engine §3.7); the reader has made sure neither uses a capture
+            # the alternative lacks.
             terms = [simplify_term(term, present) for term in (alt.tags, alt.rule_tags) if term is not None]
-            terms = [term for term in terms if captures_in(term) <= present]
             if terms:
                 production.tags_term = terms[0] if len(terms) == 1 else {"union": terms}
             production.emit = self.lower_emit(alt.emit, captures)
@@ -499,6 +496,11 @@ class _Lowerer:
                     self.flush(expansions)
                     continue
                 prefix, repeat = trailing
+                if any("capture" in item and "expr" in item for item in prefix):
+                    # The recursive productions could not have the capture,
+                    # whose part lies inside the inner constituent (engine
+                    # §3.3).
+                    raise self.fail(f"an alternative of {name} captures a part, and is lowered as a trailing repetition")
                 heads = self.expand({"seq": prefix}, top=True)
                 body = self.expand(repeat["repeat"])
                 if repeat.get("min", 1) == 1:
