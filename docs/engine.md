@@ -92,8 +92,9 @@ decides nothing a user can observe except through §4-§6.
 2. Each remaining alternative is expanded into sequences of symbols. `(a |
    b)` expands to both, in written order. `[x]` is a helper `h ≔ ε | x`.
    `x ...` is a helper `h ≔ x | h x`; `[x] ...` is `h ≔ ε | h x`.
-   `A₁ & … & Aₙ` expands to every non-empty subsequence that keeps their
-   order, in the order of the binary numbers 1 to 2ⁿ−1, `A₁` being the
+   `A₁ & … & Aₙ`, with at most 16 items (more is an error of the document,
+   §9, since the expansions number 2ⁿ−1), expands to every non-empty
+   subsequence that keeps their order, in the order of the binary numbers 1 to 2ⁿ−1, `A₁` being the
    lowest bit. `#` is `[R] ...` for the declared `R`. `ε` is the empty
    sequence. A sequence's expansions are the products of its items'
    expansions, the first item varying slowest.
@@ -424,6 +425,7 @@ document, reported at the first token of the offending construct:
   tag, or `phonemes`, `text` or `lowercase` of something;
 - `head`, `tail` or `last` where a value is needed, and `matches` as a
   term;
+- an `&` of more than 16 items;
 - `nothing` with other items or with tags; `this` with items other than
   `this`; tags on an inserted tag; a capture listed twice in one emission;
   a second `⇒` clause in one rule;

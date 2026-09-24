@@ -23,6 +23,1310 @@
     }
   }
 
+  // ---- tags.js
+  // Tag sets: a map from tag to strength, true for strong and false for weak.
+
+  /** @import { TagSet } from "./types.js" */
+
+  /**
+   * @param {Iterable<[string, boolean]>} [entries]
+   * @returns {TagSet}
+   */
+  function tagSet(entries) {
+    return new Map(entries || []);
+  }
+
+  /**
+   * @param {string} tag
+   * @returns {TagSet}
+   */
+  function strongTag(tag) {
+    return new Map([[tag, true]]);
+  }
+
+  /**
+   * @param {string} tag
+   * @returns {TagSet}
+   */
+  function weakTag(tag) {
+    return new Map([[tag, false]]);
+  }
+
+  // Every tag of either set, strong if it is strong in either.
+  /**
+   * @param {TagSet} left
+   * @param {TagSet} right
+   * @returns {TagSet}
+   */
+  function tagUnion(left, right) {
+    const result = new Map(left);
+    for (const [tag, strong] of right) {
+      result.set(tag, (result.get(tag) || false) || strong);
+    }
+    return result;
+  }
+
+  // The tags of the first set that are also in the second, with the first's
+  // strength.
+  /**
+   * @param {TagSet} left
+   * @param {TagSet} right
+   * @returns {TagSet}
+   */
+  function tagIntersection(left, right) {
+    const result = new Map();
+    for (const [tag, strong] of left) {
+      if (right.has(tag)) result.set(tag, strong);
+    }
+    return result;
+  }
+
+  // A stable, unambiguous string for a tag set: its tags in code point order,
+  // each with its strength.
+  /**
+   * @param {TagSet} tags
+   * @returns {string}
+   */
+  function tagKey(tags) {
+    return JSON.stringify([...tags.keys()].sort(compareCodePoints).map((tag) => [tag, tags.get(tag)]));
+  }
+
+  /**
+   * @param {TagSet} left
+   * @param {TagSet} right
+   * @returns {boolean}
+   */
+  function sameTagNames(left, right) {
+    if (left.size !== right.size) return false;
+    for (const tag of left.keys()) if (!right.has(tag)) return false;
+    return true;
+  }
+
+  // Orders strings by code point, as the specification requires, rather than
+  // by UTF-16 unit as JavaScript's default comparison does.
+  /**
+   * @param {string} left
+   * @param {string} right
+   * @returns {number}
+   */
+  function compareCodePoints(left, right) {
+    const a = [...left];
+    const b = [...right];
+    const length = Math.min(a.length, b.length);
+    for (let index = 0; index < length; index++) {
+      const difference = /** @type {number} */ (a[index].codePointAt(0)) - /** @type {number} */ (b[index].codePointAt(0));
+      if (difference !== 0) return difference;
+    }
+    return a.length - b.length;
+  }
+
+  /**
+   * @param {TagSet} tags
+   * @returns {Record<string, boolean>}
+   */
+  function sortedTagObject(tags) {
+    /** @type {Record<string, boolean>} */
+    const result = {};
+    for (const tag of [...tags.keys()].sort(compareCodePoints)) result[tag] = /** @type {boolean} */ (tags.get(tag));
+    return result;
+  }
+
+  // ---- earley.js
+  // Recognition (engine §4) and the terms and conditions it evaluates
+  // (engine §10).
+
+
+
+
+  /**
+   * @import { Argument, Condition, Edge, Expectation, LoweredGrammar, Production, Scope, Slot, SpanValue, TagSet, Term, TermValue } from "./types.js"
+   * @import { Token } from "./tokens.js"
+   * @import { UnicodeTable } from "./unicode.js"
+   */
+
+  /**
+   * A chart: one set per position of the span it was run over.
+   * @typedef {object} Chart
+   * @property {ChartSet[]} sets
+   * @property {number} start
+   * @property {number} end
+   * @property {(position: number) => ChartSet} setAt
+   * @property {ParseContext} context
+   */
+
+  // Interns tag sets, so that an item names a captured part's tags by number.
+  class TagInterner {
+    constructor() {
+      /** @type {TagSet[]} */
+      this.sets = [];
+      /** @type {Map<string, number>} */
+      this.ids = new Map();
+    }
+    /**
+     * @param {TagSet} tags
+     * @returns {number}
+     */
+    intern(tags) {
+      const key = tagKey(tags);
+      let id = this.ids.get(key);
+      if (id === undefined) {
+        id = this.sets.length;
+        this.sets.push(tags);
+        this.ids.set(key, id);
+      }
+      return id;
+    }
+    /**
+     * @param {number} id
+     * @returns {TagSet}
+     */
+    get(id) {
+      return this.sets[id];
+    }
+  }
+
+  // What a parse and every nested parse it starts share.
+  class ParseContext {
+    /**
+     * @param {LoweredGrammar} lowered
+     * @param {Token[]} tokens
+     * @param {string[]} sourceText the text's code points
+     * @param {UnicodeTable} unicode
+     */
+    constructor(lowered, tokens, sourceText, unicode) {
+      this.lowered = lowered;
+      this.tokens = tokens;
+      this.sourceText = sourceText;
+      this.unicode = unicode;
+      this.interner = new TagInterner();
+      /** @type {Map<string, boolean | TagSet>} */
+      this.nested = new Map();
+      /** @type {Set<string>} */
+      this.inProgress = new Set();
+      /**
+       * When set, the recognizer records what happens at one position of the
+       * top-level parse, for diagnostics (see diagnostics.js, trace).
+       * @type {{position: number, events: TraceEvent[], depth: number} | null}
+       */
+      this.trace = null;
+    }
+  }
+
+  /**
+   * Something the recognizer did at the traced position: an item predicted,
+   * advanced or completed there, or an advance that a condition refused.
+   * @typedef {object} TraceEvent
+   * @property {"predicted" | "advanced" | "completed" | "dropped"} kind
+   * @property {Production} production
+   * @property {number} dot the dot of the item made, or of the item refused
+   * @property {number} origin
+   * @property {Condition} [condition] for a drop, the condition that failed
+   */
+
+  // A chart item: a production with a dot, its origin, and its captured
+  // parts; `end` is the position of the set that holds it.
+  class Item {
+    /**
+     * @param {Production} production
+     * @param {number} dot
+     * @param {number} origin
+     * @param {Slot[]} slots
+     */
+    constructor(production, dot, origin, slots) {
+      this.production = production;
+      this.dot = dot;
+      this.origin = origin;
+      this.slots = slots;
+      this.tagId = -1;
+      /** @type {Edge[]} */
+      this.edges = [];
+      this.end = -1;
+    }
+    get complete() {
+      return this.dot === this.production.rhs.length;
+    }
+  }
+
+  class ChartSet {
+    /** @param {number} position */
+    constructor(position) {
+      this.position = position;
+      /** @type {Item[]} */
+      this.items = [];
+      /** @type {Map<string, Item>} */
+      this.index = new Map();
+      /** @type {Item[]} */
+      this.queue = [];
+      this.head = 0;
+      /** @type {Map<string, Item[]>} */
+      this.waiting = new Map();
+      /** @type {Map<string, Item[]>} */
+      this.nullable = new Map();
+      /** @type {Set<string>} the rules already predicted here */
+      this.predicted = new Set();
+      /**
+       * Productions predicted here but not made items, since they begin with
+       * a terminal the next token does not carry; kept for saying what could
+       * have come next.
+       * @type {Production[]}
+       */
+      this.skipped = [];
+    }
+  }
+
+  /**
+   * Runs the recognizer over tokens[start, end) with `rule` as the start rule.
+   * @param {ParseContext} context
+   * @param {string} rule
+   * @param {number} start
+   * @param {number} end
+   * @returns {Chart}
+   */
+  function recognize(context, rule, start, end) {
+    const { lowered, tokens } = context;
+    /** @type {ChartSet[]} */
+    const sets = [];
+    for (let position = start; position <= end; position++) sets.push(new ChartSet(position));
+    /** @type {(position: number) => ChartSet} */
+    const setAt = (position) => sets[position - start];
+
+    /** @type {(set: ChartSet, production: Production, dot: number, origin: number, slots: Slot[], edge: Edge, tagId: number) => void} */
+    const add = (set, production, dot, origin, slots, edge, tagId) => {
+      const key = slotKey(production.id, dot, origin, slots);
+      let item = set.index.get(key);
+      if (item) {
+        if (!item.edges.some((existing) => sameEdge(existing, edge))) item.edges.push(edge);
+        return;
+      }
+      item = new Item(production, dot, origin, slots);
+      item.end = set.position;
+      const trace = context.trace;
+      if (trace && trace.depth === 0 && set.position === trace.position) {
+        const kind = dot === production.rhs.length ? "completed" : dot === 0 ? "predicted" : "advanced";
+        trace.events.push({ kind, production, dot, origin });
+      }
+      item.tagId = tagId;
+      item.edges.push(edge);
+      set.items.push(item);
+      set.index.set(key, item);
+      set.queue.push(item);
+      const next = production.rhs[dot];
+      if (next && !next.terminal) {
+        let waiting = set.waiting.get(next.name);
+        if (!waiting) set.waiting.set(next.name, (waiting = []));
+        waiting.push(item);
+      }
+      if (dot === production.rhs.length && origin === set.position) {
+        let nullable = set.nullable.get(production.lhs);
+        if (!nullable) set.nullable.set(production.lhs, (nullable = []));
+        nullable.push(item);
+      }
+    };
+
+    /** @type {(set: ChartSet, name: string) => void} */
+    const predict = (set, name) => {
+      // A rule's productions are the same at every prediction in one set:
+      // predicting them again would only rebuild items that already exist.
+      if (set.predicted.has(name)) return;
+      set.predicted.add(name);
+      const next = set.position < end ? tokens[set.position] : null;
+      for (const production of lowered.byLhs.get(name) || []) {
+        const slots = emptySlots(production);
+        const failed = failedCondition(context, production, -1, slots);
+        if (failed) {
+          const trace = context.trace;
+          if (trace && trace.depth === 0 && set.position === trace.position) {
+            trace.events.push({ kind: "dropped", production, dot: 0, origin: set.position, condition: failed });
+          }
+          continue;
+        }
+        // One token of lookahead: an item whose first symbol is a terminal the
+        // next token lacks could never advance, so it is not made. The
+        // conditions above run first, as they did when every prediction was
+        // made an item, so that a defect in one is reported all the same.
+        const first = production.rhs[0];
+        if (first && first.terminal && !(next && next.tags.has(first.name))) {
+          set.skipped.push(production);
+          continue;
+        }
+        const tagId = production.rhs.length === 0 ? completeTags(context, production, slots) : -1;
+        add(set, production, 0, set.position, slots, SEED, tagId);
+      }
+    };
+
+    // The item advanced over its next symbol, which spans [from, to) and was
+    // built by `child`, or read as a token; null when a condition fails.
+    /** @type {(item: Item, from: number, to: number, child: Item | null) => {dot: number, slots: Slot[], tagId: number} | null} */
+    const advance = (item, from, to, child) => {
+      const production = item.production;
+      let slots = item.slots;
+      const captureIndex = production.captures.findIndex((capture) => capture.index === item.dot);
+      if (captureIndex >= 0) {
+        slots = slots.slice();
+        const tags = child ? child.tagId : context.interner.intern(tokens[from].tags);
+        slots[captureIndex] = [from, to, tags];
+      }
+      const failed = failedCondition(context, production, item.dot, slots);
+      if (failed) {
+        const trace = context.trace;
+        if (trace && trace.depth === 0 && to === trace.position) {
+          trace.events.push({ kind: "dropped", production, dot: item.dot, origin: item.origin, condition: failed });
+        }
+        return null;
+      }
+      const dot = item.dot + 1;
+      const tagId = dot === production.rhs.length ? completeTags(context, production, slots) : -1;
+      return { dot, slots, tagId };
+    };
+
+    predict(setAt(start), rule);
+    for (let position = start; position <= end; position++) {
+      const set = setAt(position);
+      if (position > start) {
+        // Nothing is added to a set once the next one is being built: its
+        // index, queue and predictions can go, which a long text needs.
+        const done = setAt(position - 1);
+        done.index = new Map();
+        done.queue = [];
+        done.predicted = new Set();
+        done.nullable = new Map();
+      }
+      while (set.head < set.queue.length) {
+        const item = set.queue[set.head++];
+        const next = item.production.rhs[item.dot];
+        if (!next) {
+          const origin = setAt(item.origin);
+          for (const waiting of origin.waiting.get(item.production.lhs) || []) {
+            const advanced = advance(waiting, item.origin, position, item);
+            if (advanced) {
+              add(set, waiting.production, advanced.dot, waiting.origin, advanced.slots,
+                { kind: "complete", previous: waiting, child: item }, advanced.tagId);
+            }
+          }
+        } else if (!next.terminal) {
+          predict(set, next.name);
+          for (const done of set.nullable.get(next.name) || []) {
+            const advanced = advance(item, position, position, done);
+            if (advanced) {
+              add(set, item.production, advanced.dot, item.origin, advanced.slots,
+                { kind: "complete", previous: item, child: done }, advanced.tagId);
+            }
+          }
+        } else if (position < end && tokens[position].tags.has(next.name)) {
+          const advanced = advance(item, position, position + 1, null);
+          if (advanced) {
+            add(setAt(position + 1), item.production, advanced.dot, item.origin, advanced.slots,
+              { kind: "scan", previous: item, token: position, terminal: next.name }, advanced.tagId);
+          }
+        }
+      }
+    }
+    return { sets, start, end, setAt, context };
+  }
+
+  /** @type {Edge} */
+  const SEED = { kind: "seed" };
+
+  /**
+   * @param {Edge} left
+   * @param {Edge} right
+   * @returns {boolean}
+   */
+  function sameEdge(left, right) {
+    if (left.kind === "seed" || right.kind === "seed") return left.kind === right.kind;
+    if (left.kind === "scan" || right.kind === "scan") {
+      return left.kind === "scan" && right.kind === "scan" &&
+        left.previous === right.previous && left.token === right.token && left.terminal === right.terminal;
+    }
+    return left.previous === right.previous && left.child === right.child;
+  }
+
+  /**
+   * @param {Production} production
+   * @returns {Slot[]}
+   */
+  function emptySlots(production) {
+    return production.captures.map(() => null);
+  }
+
+  /**
+   * @param {number} id
+   * @param {number} dot
+   * @param {number} origin
+   * @param {Slot[]} slots
+   * @returns {string}
+   */
+  function slotKey(id, dot, origin, slots) {
+    let key = id + "," + dot + "," + origin;
+    for (const slot of slots) key += slot ? "," + slot[0] + ":" + slot[1] + ":" + slot[2] : ",-";
+    return key;
+  }
+
+  /**
+   * The completed items of `rule` spanning [start, end).
+   * @param {Chart} chart
+   * @param {string} rule
+   * @returns {Item[]}
+   */
+  function rootItems(chart, rule) {
+    return chart.setAt(chart.end).items.filter((item) =>
+      item.complete && item.origin === chart.start && item.production.lhs === rule);
+  }
+
+  /**
+   * The first condition of a production that is ready at `readyAt` and fails,
+   * or null when they all hold.
+   * @param {ParseContext} context
+   * @param {Production} production
+   * @param {number} readyAt
+   * @param {Slot[]} slots
+   * @returns {Condition | null}
+   */
+  function failedCondition(context, production, readyAt, slots) {
+    for (const { condition, readyAt: at } of production.conditions) {
+      if (at !== readyAt) continue;
+      const scope = new ChartScope(context, production, slots);
+      if (!holds(context, condition, scope)) return condition;
+    }
+    return null;
+  }
+
+  /**
+   * @param {ParseContext} context
+   * @param {Production} production
+   * @param {Slot[]} slots
+   * @returns {number}
+   */
+  function completeTags(context, production, slots) {
+    if (!production.tags) return context.interner.intern(tagSet());
+    const scope = new ChartScope(context, production, slots);
+    return context.interner.intern(asTagSet(evaluate(context, production.tags, scope)));
+  }
+
+  /** @implements {Scope} */
+  class ChartScope {
+    /**
+     * @param {ParseContext} context
+     * @param {Production} production
+     * @param {Slot[]} slots
+     */
+    constructor(context, production, slots) {
+      this.context = context;
+      this.production = production;
+      this.slots = slots;
+    }
+    /**
+     * @param {string} name
+     * @returns {SpanValue}
+     */
+    capture(name) {
+      const index = this.production.captures.findIndex((capture) => capture.name === name);
+      const slot = /** @type {[number, number, number]} */ (this.slots[index]);
+      return { start: slot[0], end: slot[1], tags: this.context.interner.get(slot[2]) };
+    }
+  }
+
+  // A span value: [start, end) of the stage's tokens, and the tags of the
+  // captured constituent if it is a whole capture.
+  /**
+   * @param {ParseContext} context
+   * @param {Argument} span
+   * @param {Scope} scope
+   * @returns {SpanValue}
+   */
+  function spanOf(context, span, scope) {
+    if ("capture" in span) return scope.capture(span.capture);
+    if ("call" in span && (span.call === "head" || span.call === "tail" || span.call === "last")) {
+      const inner = spanOf(context, span.args[0], scope);
+      const { start, end } = inner;
+      if (span.call === "head") return { start, end: Math.min(start + 1, end) };
+      if (span.call === "tail") return { start: Math.min(start + 1, end), end };
+      return { start: Math.max(end - 1, start), end };
+    }
+    throw new GencmuError("grammar", `expected a span, found ${JSON.stringify(span)}`);
+  }
+
+  /**
+   * @param {Token[]} tokens
+   * @param {number} start
+   * @param {number} end
+   * @returns {string}
+   */
+  function phonemesOf(tokens, start, end) {
+    let result = "";
+    for (let index = start; index < end; index++) result += tokens[index].phonemes || "";
+    return result;
+  }
+
+  /**
+   * @param {ParseContext} context
+   * @param {number} start
+   * @param {number} end
+   * @returns {string}
+   */
+  function textOf(context, start, end) {
+    if (start >= end) return "";
+    const from = context.tokens[start].source[0];
+    const to = context.tokens[end - 1].source[1];
+    return context.sourceText.slice(from, to).join("");
+  }
+
+  /**
+   * @param {Token[]} tokens
+   * @param {number} start
+   * @param {number} end
+   * @returns {TagSet}
+   */
+  function tokensTags(tokens, start, end) {
+    let result = tagSet();
+    for (let index = start; index < end; index++) result = tagUnion(result, tokens[index].tags);
+    return result;
+  }
+
+  /**
+   * @param {ParseContext} context
+   * @param {Argument} term
+   * @param {Scope} scope
+   * @returns {TermValue}
+   */
+  function evaluate(context, term, scope) {
+    if ("literal" in term) return { string: term.literal };
+    if ("weak" in term) return { tags: weakTag(term.weak) };
+    if ("emptySet" in term) return { tags: tagSet() };
+    if ("set" in term) return { tags: term.set.reduce((acc, item) => tagUnion(acc, asTagSet(evaluate(context, item, scope))), tagSet()) };
+    if ("union" in term) return { tags: term.union.reduce((acc, item) => tagUnion(acc, asTagSet(evaluate(context, item, scope))), tagSet()) };
+    if ("intersection" in term) {
+      const [first, ...rest] = term.intersection.map((item) => asTagSet(evaluate(context, item, scope)));
+      return { tags: rest.reduce((acc, item) => tagIntersection(acc, item), first) };
+    }
+    if ("call" in term) {
+      const args = term.args;
+      switch (term.call) {
+        case "phonemes": {
+          const span = spanOf(context, args[0], scope);
+          return { string: phonemesOf(context.tokens, span.start, span.end) };
+        }
+        case "text": {
+          const span = spanOf(context, args[0], scope);
+          return { string: textOf(context, span.start, span.end) };
+        }
+        case "lowercase": {
+          const inner = evaluate(context, args[0], scope);
+          return { string: context.unicode.lowercase(asString(inner)) };
+        }
+        case "words": {
+          const span = spanOf(context, args[0], scope);
+          return { list: phonemesOf(context.tokens, span.start, span.end).split(" ").filter((word) => word !== "") };
+        }
+        case "tags": {
+          const span = spanOf(context, args[0], scope);
+          if (args.length === 2) return { tags: nestedTags(context, ruleName(args[1]), span.start, span.end) };
+          if (span.tags && "capture" in args[0]) return { tags: span.tags };
+          return { tags: tokensTags(context.tokens, span.start, span.end) };
+        }
+        case "classes": {
+          const span = spanOf(context, args[0], scope);
+          const tags = span.tags && "capture" in args[0] ? span.tags : tokensTags(context.tokens, span.start, span.end);
+          const result = tagSet();
+          for (const [tag, strong] of tags) {
+            const first = tag.charCodeAt(0);
+            if (first >= 0x41 && first <= 0x5a) result.set(tag, strong);
+          }
+          return { tags: result };
+        }
+        default:
+          throw new GencmuError("grammar", `unknown function ${term.call}`);
+      }
+    }
+    if ("capture" in term) {
+      const span = scope.capture(term.capture);
+      return { tags: span.tags || tagSet() };
+    }
+    throw new GencmuError("grammar", `unknown term ${JSON.stringify(term)}`);
+  }
+
+  /**
+   * The rule an argument names.
+   * @param {Argument} argument
+   * @returns {string}
+   */
+  function ruleName(argument) {
+    if ("rule" in argument) return argument.rule;
+    throw new GencmuError("grammar", `expected a rule name, found ${JSON.stringify(argument)}`);
+  }
+
+  /**
+   * @param {TermValue} value
+   * @returns {TagSet}
+   */
+  function asTagSet(value) {
+    if ("tags" in value) return value.tags;
+    if ("string" in value) return strongTag(value.string);
+    return tagSet(value.list.map((item) => [item, true]));
+  }
+
+  /**
+   * @param {TermValue} value
+   * @returns {string}
+   */
+  function asString(value) {
+    if ("string" in value) return value.string;
+    throw new GencmuError("grammar", "expected a string");
+  }
+
+  /**
+   * @param {ParseContext} context
+   * @param {Condition} condition
+   * @param {Scope} scope
+   * @returns {boolean}
+   */
+  function holds(context, condition, scope) {
+    if ("any" in condition) return condition.any.some((item) => holds(context, item, scope));
+    if ("not" in condition) return !holds(context, condition.not, scope);
+    if ("matches" in condition) {
+      const span = spanOf(context, condition.matches, scope);
+      return nestedMatches(context, condition.rule, span.start, span.end);
+    }
+    const left = evaluate(context, condition.left, scope);
+    const right = evaluate(context, condition.right, scope);
+    switch (condition.op) {
+      case "=":
+      case "≠": {
+        let equal;
+        if ("string" in left && "string" in right) equal = left.string === right.string;
+        else equal = sameTagNames(asTagSet(left), asTagSet(right));
+        return equal === (condition.op === "=");
+      }
+      case "∈":
+      case "∉": {
+        const needle = asString(left);
+        let member;
+        if ("list" in right) member = right.list.includes(needle);
+        else if ("tags" in right) member = right.tags.has(needle);
+        else member = right.string === needle;
+        return member === (condition.op === "∈");
+      }
+      case "⊆": {
+        const small = asTagSet(left);
+        const large = asTagSet(right);
+        for (const tag of small.keys()) if (!large.has(tag)) return false;
+        return true;
+      }
+      default:
+        throw new GencmuError("grammar", `unknown comparison ${condition.op}`);
+    }
+  }
+
+  // The key under which a nested parse's answer is remembered: everything a
+  // nested parse can observe (engine §4).
+  /**
+   * @param {ParseContext} context
+   * @param {string} kind
+   * @param {string} rule
+   * @param {number} start
+   * @param {number} end
+   * @returns {string}
+   */
+  function nestedKey(context, kind, rule, start, end) {
+    let key = kind + "\u0001" + rule + "\u0001" + textOf(context, start, end);
+    for (let index = start; index < end; index++) {
+      const token = context.tokens[index];
+      key += "\u0001" + tagKey(token.tags) + "\u0002" + token.text + "\u0002" + (token.phonemes || "");
+    }
+    return key;
+  }
+
+  /**
+   * @template {boolean | TagSet} T
+   * @param {ParseContext} context
+   * @param {string} kind
+   * @param {string} rule
+   * @param {number} start
+   * @param {number} end
+   * @param {(chart: Chart) => T} compute
+   * @returns {T}
+   */
+  function nested(context, kind, rule, start, end, compute) {
+    const key = nestedKey(context, kind, rule, start, end);
+    if (context.nested.has(key)) return /** @type {T} */ (context.nested.get(key));
+    const circular = nestedKey(context, "parse", rule, start, end);
+    if (context.inProgress.has(circular)) {
+      throw new GencmuError("grammar",
+        `a condition asks whether ${JSON.stringify(textOf(context, start, end))} parses as ${rule} from inside the parse of that span as ${rule}: ` +
+        `the grammar defines ${rule} by its own negation over the same text`, { rule });
+    }
+    context.inProgress.add(circular);
+    if (context.trace) context.trace.depth++;
+    try {
+      const chart = recognize(context, rule, start, end);
+      const answer = compute(chart);
+      context.nested.set(key, answer);
+      return answer;
+    } finally {
+      context.inProgress.delete(circular);
+      if (context.trace) context.trace.depth--;
+    }
+  }
+
+  /**
+   * @param {ParseContext} context
+   * @param {string} rule
+   * @param {number} start
+   * @param {number} end
+   * @returns {boolean}
+   */
+  function nestedMatches(context, rule, start, end) {
+    return nested(context, "matches", rule, start, end, (chart) => rootItems(chart, rule).length > 0);
+  }
+
+  /**
+   * @param {ParseContext} context
+   * @param {string} rule
+   * @param {number} start
+   * @param {number} end
+   * @returns {TagSet}
+   */
+  function nestedTags(context, rule, start, end) {
+    return nested(context, "tags", rule, start, end, (chart) =>
+      rootItems(chart, rule).reduce((acc, item) => tagUnion(acc, context.interner.get(item.tagId)), tagSet()));
+  }
+
+  // The furthest position the parse reached, and what could have been read
+  // there, with the rules that could have read it.
+  /**
+   * @param {Chart} chart
+   * @returns {{position: number, expected: Expectation[]}}
+   */
+  function rejectionOf(chart) {
+    let position = chart.end;
+    while (position > chart.start && chart.setAt(position).items.length === 0) position--;
+    return { position, expected: expectedAt(chart, position) };
+  }
+
+  /**
+   * The terminals the parse could have read at a position, each with the
+   * rules whose items could have read it: the items there whose next symbol
+   * is a terminal, and the predictions the lookahead did not make items of.
+   * @param {Chart} chart
+   * @param {number} position
+   * @returns {Expectation[]}
+   */
+  function expectedAt(chart, position) {
+    const set = chart.setAt(position);
+    /** @type {Map<string, Set<string>>} */
+    const expected = new Map();
+    /** @type {(terminal: string, rule: string) => void} */
+    const note = (terminal, rule) => {
+      let rules = expected.get(terminal);
+      if (!rules) expected.set(terminal, (rules = new Set()));
+      rules.add(rule);
+    };
+    for (const item of set.items) {
+      const next = item.production.rhs[item.dot];
+      if (next && next.terminal) note(next.name, item.production.owner);
+    }
+    // Skipped predictions passed their conditions before they were skipped.
+    for (const production of set.skipped) note(production.rhs[0].name, production.owner);
+    return [...expected].sort((left, right) => compareCodePoints(left[0], right[0])).map(([terminal, rules]) => ({
+      terminal,
+      rules: [...rules].sort(compareCodePoints),
+    }));
+  }
+
+  // ---- walk.js
+  // Walks over result trees with an explicit stack. A left-recursive rule
+  // with several alternatives, such as the word stage's stream, leaves one
+  // node per word nested in the next, so a tree is as deep as a long text is
+  // long, deeper than any call stack.
+
+  /** @import { ResultNode, RuleNode } from "./types.js" */
+
+  /**
+   * Folds a tree bottom-up: `leaf` maps a token or elided node, `rule` a rule
+   * node given its children's values in order.
+   * @template T
+   * @param {ResultNode} root
+   * @param {(node: Exclude<ResultNode, RuleNode>) => T} leaf
+   * @param {(node: RuleNode, children: T[]) => T} rule
+   * @returns {T}
+   */
+  function foldTree(root, leaf, rule) {
+    /** @type {{node: RuleNode, next: number, values: T[]}[]} */
+    const stack = [];
+    /** @type {T | undefined} */
+    let value;
+    /** @type {ResultNode | null} */
+    let pending = root;
+    for (;;) {
+      if (pending !== null) {
+        if (pending.kind === "rule") {
+          stack.push({ node: pending, next: 0, values: [] });
+          pending = null;
+        } else {
+          value = leaf(pending);
+          pending = null;
+          if (stack.length === 0) return value;
+          stack[stack.length - 1].values.push(value);
+        }
+        continue;
+      }
+      const frame = stack[stack.length - 1];
+      if (frame.next < frame.node.children.length) {
+        pending = frame.node.children[frame.next++];
+        continue;
+      }
+      stack.pop();
+      value = rule(frame.node, frame.values);
+      if (stack.length === 0) return value;
+      stack[stack.length - 1].values.push(value);
+    }
+  }
+
+  /**
+   * Whether any node of a tree satisfies a test, visiting nodes top-down.
+   * @param {ResultNode} root
+   * @param {(node: ResultNode) => boolean} test
+   * @returns {boolean}
+   */
+  function someNode(root, test) {
+    const stack = [root];
+    for (let node = stack.pop(); node !== undefined; node = stack.pop()) {
+      if (test(node)) return true;
+      if (node.kind === "rule") for (let index = node.children.length - 1; index >= 0; index--) stack.push(node.children[index]);
+    }
+    return false;
+  }
+
+  // ---- output.js
+  // The canonical result JSON and the renderings of docs/output.md.
+
+
+
+
+  /** @import { Action, ParseError, ParseResult, ResultNode, Span } from "./types.js" */
+  /** @import { Token } from "./tokens.js" */
+
+  /**
+   * A token in the result JSON.
+   * @typedef {object} TokenJson
+   * @property {string} text
+   * @property {string} phonemes
+   * @property {Record<string, boolean>} tags
+   * @property {Span} span
+   * @property {Span} source
+   * @property {string} [insertedBy]
+   */
+
+  /**
+   * A result tree node in the result JSON.
+   * @typedef {{kind: "token", terminal: string, token: number, span: Span, source: Span}
+   *   | {kind: "elided", terminal: string, span: Span, source: Span}
+   *   | {kind: "rule", rule: string, span: Span, source: Span, tags: Record<string, boolean>, children: NodeJson[]}} NodeJson
+   */
+
+  /**
+   * A witness action in the result JSON.
+   * @typedef {{read: {token: number, terminal: string}}
+   *   | {close: {rule: string, production: number, span: Span}}} ActionJson
+   */
+
+  /**
+   * An error in the result JSON.
+   * @typedef {object} ErrorJson
+   * @property {ParseError["kind"]} kind
+   * @property {string} [stage]
+   * @property {number} [token]
+   * @property {Span} [source]
+   * @property {number} [line]
+   * @property {number} [column]
+   * @property {import("./types.js").Expectation[]} [expected]
+   * @property {NodeJson[]} [readings]
+   * @property {string} [document]
+   * @property {string} message
+   */
+
+  /**
+   * A stage in the result JSON.
+   * @typedef {object} StageJson
+   * @property {string} name
+   * @property {import("./types.js").Verdict | null} verdict
+   * @property {(ActionJson | null)[]} [witness]
+   * @property {NodeJson} [tied]
+   * @property {TokenJson[]} [output]
+   */
+
+  /**
+   * The canonical result JSON (docs/output.md).
+   * @typedef {object} ResultJson
+   * @property {number} format
+   * @property {boolean} ok
+   * @property {StageJson[]} stages
+   * @property {NodeJson | null} tree
+   * @property {ErrorJson | null} error
+   */
+
+  /**
+   * The display JSON projection of a tree: each node an object with one
+   * member, its rule or terminal.
+   * @typedef {{[name: string]: DisplayValue | DisplayValue[] | string | null}} DisplayValue
+   */
+
+  const RESULT_FORMAT = 1;
+
+  /**
+   * @param {Token} token
+   * @returns {TokenJson}
+   */
+  function tokenJson(token) {
+    /** @type {TokenJson} */
+    const result = {
+      text: token.text,
+      phonemes: token.phonemes || "",
+      tags: sortedTagObject(token.tags),
+      span: [token.span[0], token.span[1]],
+      source: [token.source[0], token.source[1]],
+    };
+    if (token.insertedBy !== undefined) result.insertedBy = token.insertedBy;
+    return result;
+  }
+
+  /**
+   * @param {ResultNode} node
+   * @returns {NodeJson}
+   */
+  function nodeJson(node) {
+    return foldTree(node,
+      /** @returns {NodeJson} */
+      (leaf) => (leaf.kind === "token"
+        ? { kind: "token", terminal: leaf.terminal, token: leaf.token, span: leaf.span, source: leaf.source }
+        : { kind: "elided", terminal: leaf.terminal, span: leaf.span, source: leaf.source }),
+      /** @returns {NodeJson} */
+      (rule, children) => ({ kind: "rule", rule: rule.rule, span: rule.span, source: rule.source, tags: sortedTagObject(rule.tags), children }));
+  }
+
+  /**
+   * @param {Action | null} action
+   * @returns {ActionJson | null}
+   */
+  function actionJson(action) {
+    if (action === null) return null;
+    if (action.kind === "read") return { read: { token: action.token, terminal: action.terminal } };
+    const production = action.item.production;
+    return { close: { rule: production.owner, production: production.id, span: [action.item.origin, action.item.end] } };
+  }
+
+  /**
+   * @param {ParseError} error
+   * @returns {ErrorJson}
+   */
+  function errorJson(error) {
+    /** @type {Partial<ErrorJson>} */
+    const result = { kind: error.kind };
+    if (error.stage !== undefined) result.stage = error.stage;
+    if (error.token !== undefined) result.token = error.token;
+    if (error.source !== undefined) result.source = error.source;
+    if (error.line !== undefined) result.line = error.line;
+    if (error.column !== undefined) result.column = error.column;
+    if (error.expected !== undefined) result.expected = error.expected;
+    if (error.readings !== undefined) result.readings = error.readings.map(nodeJson);
+    if (error.document !== undefined) result.document = error.document;
+    result.message = error.message;
+    return /** @type {ErrorJson} */ (result);
+  }
+
+  /**
+   * The canonical JSON value of a parse result.
+   * @param {ParseResult} result
+   * @returns {ResultJson}
+   */
+  function resultJson(result) {
+    return {
+      format: RESULT_FORMAT,
+      ok: result.ok,
+      stages: result.stages.map((stage) => {
+        /** @type {StageJson} */
+        const json = { name: stage.name, verdict: stage.verdict };
+        if (stage.witness) json.witness = stage.witness.map(actionJson);
+        if (stage.tied) json.tied = nodeJson(stage.tied);
+        if (stage.output) json.output = stage.output.map(tokenJson);
+        return json;
+      }),
+      tree: result.tree ? nodeJson(result.tree) : null,
+      error: result.error ? errorJson(result.error) : null,
+    };
+  }
+
+  // The tokens a node reads, for its labels.
+  /**
+   * @param {import("./types.js").TokenNode} node
+   * @param {Token[]} tokens
+   * @returns {string}
+   */
+  function leafLabel(node, tokens) {
+    const token = tokens[node.token];
+    return token.phonemes ? token.phonemes : token.text;
+  }
+
+  // The bracket rendering (docs/output.md): nested groups cycling ( [ {.
+  /**
+   * @typedef {{leaf: string} | {group: Flat[]}} Flat
+   */
+
+  /**
+   * @param {ParseResult} result
+   * @param {{showElided?: boolean}} [options]
+   * @returns {string}
+   */
+  function toBrackets(result, options = {}) {
+    if (!result.tree) return "";
+    return nodeBrackets(result.tree, finalInput(result), options);
+  }
+
+  /**
+   * The bracket rendering of any tree over the tokens its nodes index: a
+   * tied reading, or one of an ambiguous error's readings, as well as a
+   * result's tree.
+   * @param {ResultNode} root
+   * @param {Token[]} tokens
+   * @param {{showElided?: boolean}} [options]
+   * @returns {string}
+   */
+  function nodeBrackets(root, tokens, options = {}) {
+    const flat = foldTree(root,
+      /** @returns {Flat | null} */
+      (leaf) => (leaf.kind === "token" ? { leaf: leafLabel(leaf, tokens) }
+        : options.showElided ? { leaf: `⟨${leaf.terminal.toLowerCase()}⟩` } : null),
+      /** @returns {Flat | null} */
+      (rule, values) => {
+        const children = /** @type {Flat[]} */ (values.filter((child) => child !== null));
+        if (children.length === 0) return null;
+        if (children.length === 1) return children[0];
+        return { group: children };
+      });
+    if (!flat) return "";
+    /** @type {string[]} */
+    const parts = [];
+    /** @type {{node: Flat, depth: number, next: number}[]} */
+    const stack = [{ node: flat, depth: 0, next: -1 }];
+    while (stack.length > 0) {
+      const frame = stack[stack.length - 1];
+      const node = frame.node;
+      if ("leaf" in node) {
+        parts.push(node.leaf);
+        stack.pop();
+        continue;
+      }
+      const [open, close] = [["(", ")"], ["[", "]"], ["{", "}"]][frame.depth % 3];
+      if (frame.next < 0) {
+        parts.push(open);
+        frame.next = 0;
+      }
+      if (frame.next < node.group.length) {
+        if (frame.next > 0) parts.push(" ");
+        stack.push({ node: node.group[frame.next++], depth: frame.depth + 1, next: -1 });
+        continue;
+      }
+      parts.push(close);
+      stack.pop();
+    }
+    return parts.join("");
+  }
+
+  // The tree rendering: one node per line, single-child chains on one line.
+  /**
+   * @param {ParseResult} result
+   * @returns {string}
+   */
+  function toTree(result) {
+    if (!result.tree) return "";
+    return nodeTree(result.tree, finalInput(result));
+  }
+
+  /**
+   * The tree rendering of any tree over the tokens its nodes index.
+   * @param {ResultNode} root
+   * @param {Token[]} tokens
+   * @returns {string}
+   */
+  function nodeTree(root, tokens) {
+    /** @type {string[]} */
+    const lines = [];
+    /** @type {(node: ResultNode) => string} */
+    const label = (node) => {
+      if (node.kind === "token") return `${node.terminal} ${JSON.stringify(leafLabel(node, tokens))}`;
+      if (node.kind === "elided") return `⟨${node.terminal}⟩`;
+      return node.rule;
+    };
+    /** @type {{node: ResultNode, indent: number}[]} */
+    const stack = [{ node: root, indent: 0 }];
+    for (let task = stack.pop(); task !== undefined; task = stack.pop()) {
+      const { node, indent } = task;
+      const chain = [label(node)];
+      let current = node;
+      while (current.kind === "rule" && current.children.length === 1 && current.children[0].kind === "rule") {
+        current = current.children[0];
+        chain.push(label(current));
+      }
+      let line = " ".repeat(indent) + chain.join(" › ");
+      if (current.kind === "rule" && current.children.every((child) => child.kind !== "rule")) {
+        const words = current.children.flatMap((child) => (child.kind === "token" ? [leafLabel(child, tokens)] : []));
+        if (words.length) line += " · " + words.join(" ");
+        lines.push(line);
+        continue;
+      }
+      lines.push(line);
+      if (current.kind === "rule") {
+        for (let index = current.children.length - 1; index >= 0; index--) stack.push({ node: current.children[index], indent: indent + 2 });
+      }
+    }
+    return lines.join("\n");
+  }
+
+  // The display JSON projection of the tree (docs/output.md).
+  /**
+   * @param {ParseResult} result
+   * @returns {DisplayValue | null}
+   */
+  function displayValue(result) {
+    if (!result.tree) return null;
+    const tokens = finalInput(result);
+    return foldTree(result.tree,
+      /** @returns {DisplayValue} */
+      (leaf) => (leaf.kind === "token" ? { [leaf.terminal]: leafLabel(leaf, tokens) } : { [leaf.terminal]: null }),
+      /** @returns {DisplayValue} */
+      (rule, children) => ({ [rule.rule]: children.length === 1 ? children[0] : children }));
+  }
+
+  // Pretty-prints a JSON value so that single-member objects nest without
+  // indentation (docs/output.md, "Display JSON").
+  /**
+   * @param {unknown} value
+   * @param {number} [indent]
+   * @returns {string}
+   */
+  function prettyJson(value, indent = 0) {
+    /** @type {(n: number) => string} */
+    const pad = (n) => " ".repeat(n);
+    /** @type {string[]} */
+    const out = [];
+    // Tasks run last first: a string is written as it is, a value is laid out
+    // into further tasks. The stack keeps a deep value from nesting calls.
+    /** @type {(string | {value: unknown, indent: number})[]} */
+    const tasks = [{ value, indent }];
+    for (let task = tasks.pop(); task !== undefined; task = tasks.pop()) {
+      if (typeof task === "string") {
+        out.push(task);
+        continue;
+      }
+      const current = task.value;
+      const at = task.indent;
+      if (current === null || typeof current !== "object") {
+        out.push(JSON.stringify(current));
+        continue;
+      }
+      /** @type {(string | {value: unknown, indent: number})[]} */
+      const layout = [];
+      if (Array.isArray(current)) {
+        if (current.length === 0) {
+          out.push("[]");
+          continue;
+        }
+        layout.push("[\n");
+        current.forEach((item, index) => {
+          if (index > 0) layout.push(",\n");
+          layout.push(pad(at + 2), { value: item, indent: at + 2 });
+        });
+        layout.push("\n" + pad(at) + "]");
+      } else {
+        const object = /** @type {Record<string, unknown>} */ (current);
+        const keys = Object.keys(object);
+        if (keys.length === 0) {
+          out.push("{}");
+          continue;
+        }
+        if (keys.length === 1) {
+          layout.push(`{${JSON.stringify(keys[0])}: `, { value: object[keys[0]], indent: at }, "}");
+        } else {
+          layout.push("{\n");
+          keys.forEach((key, index) => {
+            if (index > 0) layout.push(",\n");
+            layout.push(`${pad(at + 2)}${JSON.stringify(key)}: `, { value: object[key], indent: at + 2 });
+          });
+          layout.push("\n" + pad(at) + "}");
+        }
+      }
+      for (let index = layout.length - 1; index >= 0; index--) tasks.push(layout[index]);
+    }
+    return out.join("");
+  }
+
+  /**
+   * A JSON value as compact text, like `JSON.stringify` with no spacing, but
+   * with an explicit stack, since a parse tree can nest deeper than the call
+   * stack allows.
+   * @param {unknown} value
+   * @returns {string}
+   */
+  function compactJson(value) {
+    /** @type {string[]} */
+    const out = [];
+    /** @type {(string | {value: unknown})[]} */
+    const tasks = [{ value }];
+    for (let task = tasks.pop(); task !== undefined; task = tasks.pop()) {
+      if (typeof task === "string") {
+        out.push(task);
+        continue;
+      }
+      const current = task.value;
+      if (current === null || typeof current !== "object") {
+        out.push(JSON.stringify(current));
+        continue;
+      }
+      /** @type {(string | {value: unknown})[]} */
+      const layout = [];
+      if (Array.isArray(current)) {
+        layout.push("[");
+        current.forEach((item, index) => {
+          if (index > 0) layout.push(",");
+          layout.push({ value: item });
+        });
+        layout.push("]");
+      } else {
+        const object = /** @type {Record<string, unknown>} */ (current);
+        layout.push("{");
+        let first = true;
+        for (const key of Object.keys(object)) {
+          if (object[key] === undefined) continue;
+          if (!first) layout.push(",");
+          first = false;
+          layout.push(JSON.stringify(key) + ":", { value: object[key] });
+        }
+        layout.push("}");
+      }
+      for (let index = layout.length - 1; index >= 0; index--) tasks.push(layout[index]);
+    }
+    return out.join("");
+  }
+
+  /**
+   * The canonical JSON of a parse result as text (docs/output.md).
+   * @param {ParseResult} result
+   * @returns {string}
+   */
+  function toJson(result) {
+    return compactJson(resultJson(result));
+  }
+
+  /**
+   * The tokens the last stage read, which its tree's nodes index.
+   * @param {ParseResult} result
+   * @returns {Token[]}
+   */
+  function finalInput(result) {
+    return result.stages[result.stages.length - 1].input || [];
+  }
+
+
   // ---- grammar.js
   // A stage's grammar: its documents stitched together (engine §2) and
   // lowered to productions for one set of features (engine §3).
@@ -553,728 +1857,470 @@
     return termVariables(condition);
   }
 
-  // ---- tags.js
-  // Tag sets: a map from tag to strength, true for strong and false for weak.
+  // ---- diagnostics.js
+  // Diagnostics for people: what went wrong with a text or a grammar, said in
+  // the grammar's own terms. The CLI and the playground print these; nothing
+  // here changes what a parse computes.
 
-  /** @import { TagSet } from "./types.js" */
 
-  /**
-   * @param {Iterable<[string, boolean]>} [entries]
-   * @returns {TagSet}
-   */
-  function tagSet(entries) {
-    return new Map(entries || []);
-  }
+
+
+
+
 
   /**
-   * @param {string} tag
-   * @returns {TagSet}
+   * @import { Action, Condition, Expr, ParseResult, ResultNode, Span, StageReport, TagSet, Term, Argument, Production } from "./types.js"
+   * @import { Token } from "./tokens.js"
+   * @import { Dialect } from "./dialect.js"
+   * @import { TraceEvent } from "./earley.js"
+   * @import { StitchedAlternative } from "./grammar.js"
    */
-  function strongTag(tag) {
-    return new Map([[tag, true]]);
-  }
+
+  // ---- Where in the text --------------------------------------------------
 
   /**
-   * @param {string} tag
-   * @returns {TagSet}
+   * The line of the text holding a source range, and a caret line under the
+   * range: at least one caret, at the end of the line for an empty range.
+   * @param {string} text
+   * @param {Span} source code point range
+   * @returns {{line: number, column: number, excerpt: string}}
    */
-  function weakTag(tag) {
-    return new Map([[tag, false]]);
-  }
-
-  // Every tag of either set, strong if it is strong in either.
-  /**
-   * @param {TagSet} left
-   * @param {TagSet} right
-   * @returns {TagSet}
-   */
-  function tagUnion(left, right) {
-    const result = new Map(left);
-    for (const [tag, strong] of right) {
-      result.set(tag, (result.get(tag) || false) || strong);
+  function sourceExcerpt(text, source) {
+    const characters = [...text];
+    let line = 1;
+    let lineStart = 0;
+    for (let index = 0; index < source[0] && index < characters.length; index++) {
+      const character = characters[index];
+      if (character === "\n" || (character === "\r" && characters[index + 1] !== "\n")) {
+        line++;
+        lineStart = index + 1;
+      }
     }
-    return result;
+    let lineEnd = lineStart;
+    while (lineEnd < characters.length && characters[lineEnd] !== "\n" && characters[lineEnd] !== "\r") lineEnd++;
+    const shown = characters.slice(lineStart, lineEnd).join("").replace(/\t/g, " ");
+    const column = source[0] - lineStart + 1;
+    const width = Math.max(1, Math.min(source[1], lineEnd) - source[0]);
+    const gutter = `${line} | `;
+    const excerpt = `${gutter}${shown}\n${" ".repeat(gutter.length - 2)}| ${" ".repeat(column - 1)}${"^".repeat(width)}`;
+    return { line, column, excerpt };
   }
 
-  // The tags of the first set that are also in the second, with the first's
-  // strength.
   /**
-   * @param {TagSet} left
-   * @param {TagSet} right
-   * @returns {TagSet}
-   */
-  function tagIntersection(left, right) {
-    const result = new Map();
-    for (const [tag, strong] of left) {
-      if (right.has(tag)) result.set(tag, strong);
-    }
-    return result;
-  }
-
-  // A stable, unambiguous string for a tag set: its tags in code point order,
-  // each with its strength.
-  /**
-   * @param {TagSet} tags
+   * @param {string} text
    * @returns {string}
    */
-  function tagKey(tags) {
-    return JSON.stringify([...tags.keys()].sort(compareCodePoints).map((tag) => [tag, tags.get(tag)]));
+  function quoted(text) {
+    return JSON.stringify(text);
   }
 
+  // ---- Errors -------------------------------------------------------------
+
   /**
-   * @param {TagSet} left
-   * @param {TagSet} right
-   * @returns {boolean}
+   * A result's error explained: for a rejection, the stage, the line with a
+   * caret under the token the stage could not read, and what could have come
+   * there, grouped by the rules that could have read it; for an ambiguous
+   * text, its two readings; for a grammar error, where. Empty for a result
+   * with no error.
+   * @param {ParseResult} result
+   * @returns {string}
    */
-  function sameTagNames(left, right) {
-    if (left.size !== right.size) return false;
-    for (const tag of left.keys()) if (!right.has(tag)) return false;
-    return true;
+  function explainError(result) {
+    const error = result.error;
+    if (!error) return "";
+    const lines = [];
+    if (error.kind === "rejected") {
+      const report = result.stages.find((stage) => stage.name === error.stage);
+      const tokens = (report && report.input) || [];
+      const at = error.token === undefined ? tokens.length : error.token;
+      const what = at < tokens.length ? `at ${quoted(tokens[at].text)}` : "at the end of the text";
+      lines.push(`The ${error.stage} stage cannot read the text ${what}:`);
+      if (error.source) lines.push(sourceExcerpt(result.text, error.source).excerpt);
+      const byRule = new Map();
+      for (const expectation of error.expected || []) {
+        for (const rule of expectation.rules) {
+          if (!byRule.has(rule)) byRule.set(rule, []);
+          byRule.get(rule).push(expectation.terminal);
+        }
+      }
+      if (byRule.size === 0) lines.push("Nothing could have continued there.");
+      else {
+        lines.push("What could have come there, by the rule that would have read it:");
+        for (const rule of [...byRule.keys()].sort(compareCodePoints)) lines.push(`  ${rule}: ${byRule.get(rule).join(", ")}`);
+      }
+    } else if (error.kind === "ambiguous") {
+      const report = result.stages.find((stage) => stage.name === error.stage);
+      const tokens = (report && report.input) || [];
+      lines.push(`The ${error.stage} stage's text is ambiguous even with every elided terminator written out,`);
+      lines.push("so the ambiguity is not about terminators (elision-only). Two readings:");
+      for (const reading of error.readings || []) lines.push("  " + nodeBrackets(reading, tokens, { showElided: true }));
+    } else {
+      const where = error.document ? `${error.document}${error.line ? `:${error.line}:${error.column}` : ""}: ` : "";
+      lines.push(`A grammar error${error.stage ? ` in the ${error.stage} stage` : ""}: ${where}${error.message}`);
+    }
+    return lines.join("\n");
   }
 
-  // Orders strings by code point, as the specification requires, rather than
-  // by UTF-16 unit as JavaScript's default comparison does.
+  // ---- Ties ----------------------------------------------------------------
+
   /**
+   * @param {Action | null} action
+   * @param {Token[]} tokens
+   * @returns {string}
+   */
+  function describeAction(action, tokens) {
+    if (!action) return "ends there";
+    if (action.kind === "read") return `reads ${quoted(tokens[action.token] ? tokens[action.token].text : "")} as ${action.terminal}`;
+    const production = action.item.production;
+    const rule = production.helper ? `part of ${production.owner}` : production.lhs;
+    return `closes ${rule} over tokens ${action.item.origin} to ${action.item.end}`;
+  }
+
+  /**
+   * Two blocks of text side by side.
    * @param {string} left
    * @param {string} right
-   * @returns {number}
+   * @param {string} leftTitle
+   * @param {string} rightTitle
+   * @returns {string}
    */
-  function compareCodePoints(left, right) {
-    const a = [...left];
-    const b = [...right];
-    const length = Math.min(a.length, b.length);
-    for (let index = 0; index < length; index++) {
-      const difference = /** @type {number} */ (a[index].codePointAt(0)) - /** @type {number} */ (b[index].codePointAt(0));
-      if (difference !== 0) return difference;
+  function sideBySide(left, right, leftTitle, rightTitle) {
+    const a = [leftTitle, ...left.split("\n")];
+    const b = [rightTitle, ...right.split("\n")];
+    const width = Math.max(...a.map((line) => [...line].length)) + 3;
+    const out = [];
+    for (let index = 0; index < Math.max(a.length, b.length); index++) {
+      const line = a[index] || "";
+      out.push(line + " ".repeat(width - [...line].length) + (b[index] || ""));
     }
-    return a.length - b.length;
+    return out.map((line) => line.replace(/\s+$/, "")).join("\n");
   }
+
+  /**
+   * The ties of a result explained, stage by stage: where the two readings
+   * first differ, both readings as brackets, and both trees side by side.
+   * Empty when no stage ties.
+   * @param {ParseResult} result
+   * @returns {string}
+   */
+  function explainTies(result) {
+    const blocks = [];
+    for (const stage of result.stages) {
+      if (stage.verdict !== "tie") continue;
+      const tokens = stage.input || [];
+      const [chosen, tied] = stage.witness;
+      const action = chosen || tied;
+      const at = action ? (action.kind === "read" ? action.token : action.item.end) : 0;
+      const lines = [`The ${stage.name} stage is ambiguous: its grammar reads the text two ways, which first differ here:`];
+      if (tokens.length) {
+        const token = tokens[Math.min(at, tokens.length - 1)];
+        /** @type {Span} */
+        const source = at < tokens.length ? token.source : [token.source[1], token.source[1]];
+        lines.push(sourceExcerpt(result.text, source).excerpt);
+      }
+      lines.push(`  the chosen reading ${describeAction(chosen, tokens)}`);
+      lines.push(`  the other reading ${describeAction(tied, tokens)}`);
+      if (stage.tree) {
+        lines.push(`  chosen: ${nodeBrackets(stage.tree, tokens, { showElided: true })}`);
+        lines.push(`  other:  ${nodeBrackets(stage.tied, tokens, { showElided: true })}`);
+        lines.push("");
+        lines.push(sideBySide(nodeTree(stage.tree, tokens), nodeTree(stage.tied, tokens), "chosen", "other"));
+      }
+      lines.push("The grammar should say which reading it means; until it does, the first in the canonical order is used.");
+      blocks.push(lines.join("\n"));
+    }
+    return blocks.join("\n\n");
+  }
+
+  // ---- Tokens --------------------------------------------------------------
 
   /**
    * @param {TagSet} tags
-   * @returns {Record<string, boolean>}
-   */
-  function sortedTagObject(tags) {
-    /** @type {Record<string, boolean>} */
-    const result = {};
-    for (const tag of [...tags.keys()].sort(compareCodePoints)) result[tag] = /** @type {boolean} */ (tags.get(tag));
-    return result;
-  }
-
-  // ---- earley.js
-  // Recognition (engine §4) and the terms and conditions it evaluates
-  // (engine §10).
-
-
-
-
-  /**
-   * @import { Argument, Condition, Edge, Expectation, LoweredGrammar, Production, Scope, Slot, SpanValue, TagSet, Term, TermValue } from "./types.js"
-   * @import { Token } from "./tokens.js"
-   * @import { UnicodeTable } from "./unicode.js"
-   */
-
-  /**
-   * A chart: one set per position of the span it was run over.
-   * @typedef {object} Chart
-   * @property {ChartSet[]} sets
-   * @property {number} start
-   * @property {number} end
-   * @property {(position: number) => ChartSet} setAt
-   */
-
-  // Interns tag sets, so that an item names a captured part's tags by number.
-  class TagInterner {
-    constructor() {
-      /** @type {TagSet[]} */
-      this.sets = [];
-      /** @type {Map<string, number>} */
-      this.ids = new Map();
-    }
-    /**
-     * @param {TagSet} tags
-     * @returns {number}
-     */
-    intern(tags) {
-      const key = tagKey(tags);
-      let id = this.ids.get(key);
-      if (id === undefined) {
-        id = this.sets.length;
-        this.sets.push(tags);
-        this.ids.set(key, id);
-      }
-      return id;
-    }
-    /**
-     * @param {number} id
-     * @returns {TagSet}
-     */
-    get(id) {
-      return this.sets[id];
-    }
-  }
-
-  // What a parse and every nested parse it starts share.
-  class ParseContext {
-    /**
-     * @param {LoweredGrammar} lowered
-     * @param {Token[]} tokens
-     * @param {string[]} sourceText the text's code points
-     * @param {UnicodeTable} unicode
-     */
-    constructor(lowered, tokens, sourceText, unicode) {
-      this.lowered = lowered;
-      this.tokens = tokens;
-      this.sourceText = sourceText;
-      this.unicode = unicode;
-      this.interner = new TagInterner();
-      /** @type {Map<string, boolean | TagSet>} */
-      this.nested = new Map();
-      /** @type {Set<string>} */
-      this.inProgress = new Set();
-    }
-  }
-
-  // A chart item: a production with a dot, its origin, and its captured
-  // parts; `end` is the position of the set that holds it.
-  class Item {
-    /**
-     * @param {Production} production
-     * @param {number} dot
-     * @param {number} origin
-     * @param {Slot[]} slots
-     * @param {string} key
-     */
-    constructor(production, dot, origin, slots, key) {
-      this.production = production;
-      this.dot = dot;
-      this.origin = origin;
-      this.slots = slots;
-      this.key = key;
-      this.tagId = -1;
-      /** @type {Edge[]} */
-      this.edges = [];
-      this.end = -1;
-    }
-    get complete() {
-      return this.dot === this.production.rhs.length;
-    }
-  }
-
-  class ChartSet {
-    /** @param {number} position */
-    constructor(position) {
-      this.position = position;
-      /** @type {Item[]} */
-      this.items = [];
-      /** @type {Map<string, Item>} */
-      this.index = new Map();
-      /** @type {Item[]} */
-      this.queue = [];
-      this.head = 0;
-      /** @type {Map<string, Item[]>} */
-      this.waiting = new Map();
-      /** @type {Map<string, Item[]>} */
-      this.nullable = new Map();
-    }
-  }
-
-  /**
-   * Runs the recognizer over tokens[start, end) with `rule` as the start rule.
-   * @param {ParseContext} context
-   * @param {string} rule
-   * @param {number} start
-   * @param {number} end
-   * @returns {Chart}
-   */
-  function recognize(context, rule, start, end) {
-    const { lowered, tokens } = context;
-    /** @type {ChartSet[]} */
-    const sets = [];
-    for (let position = start; position <= end; position++) sets.push(new ChartSet(position));
-    /** @type {(position: number) => ChartSet} */
-    const setAt = (position) => sets[position - start];
-
-    /** @type {(set: ChartSet, production: Production, dot: number, origin: number, slots: Slot[], edge: Edge, tagId: number) => void} */
-    const add = (set, production, dot, origin, slots, edge, tagId) => {
-      const key = slotKey(production.id, dot, origin, slots);
-      let item = set.index.get(key);
-      if (item) {
-        if (!item.edges.some((existing) => sameEdge(existing, edge))) item.edges.push(edge);
-        return;
-      }
-      item = new Item(production, dot, origin, slots, key);
-      item.end = set.position;
-      item.tagId = tagId;
-      item.edges.push(edge);
-      set.items.push(item);
-      set.index.set(key, item);
-      set.queue.push(item);
-      const next = production.rhs[dot];
-      if (next && !next.terminal) {
-        let waiting = set.waiting.get(next.name);
-        if (!waiting) set.waiting.set(next.name, (waiting = []));
-        waiting.push(item);
-      }
-      if (dot === production.rhs.length && origin === set.position) {
-        let nullable = set.nullable.get(production.lhs);
-        if (!nullable) set.nullable.set(production.lhs, (nullable = []));
-        nullable.push(item);
-      }
-    };
-
-    /** @type {(set: ChartSet, name: string) => void} */
-    const predict = (set, name) => {
-      for (const production of lowered.byLhs.get(name) || []) {
-        const slots = emptySlots(production);
-        if (!conditionsHold(context, production, -1, slots)) continue;
-        const tagId = production.rhs.length === 0 ? completeTags(context, production, slots) : -1;
-        add(set, production, 0, set.position, slots, SEED, tagId);
-      }
-    };
-
-    // The item advanced over its next symbol, which spans [from, to) and was
-    // built by `child`, or read as a token; null when a condition fails.
-    /** @type {(item: Item, from: number, to: number, child: Item | null) => {dot: number, slots: Slot[], tagId: number} | null} */
-    const advance = (item, from, to, child) => {
-      const production = item.production;
-      let slots = item.slots;
-      const captureIndex = production.captures.findIndex((capture) => capture.index === item.dot);
-      if (captureIndex >= 0) {
-        slots = slots.slice();
-        const tags = child ? child.tagId : context.interner.intern(tokens[from].tags);
-        slots[captureIndex] = [from, to, tags];
-      }
-      if (!conditionsHold(context, production, item.dot, slots)) return null;
-      const dot = item.dot + 1;
-      const tagId = dot === production.rhs.length ? completeTags(context, production, slots) : -1;
-      return { dot, slots, tagId };
-    };
-
-    predict(setAt(start), rule);
-    for (let position = start; position <= end; position++) {
-      const set = setAt(position);
-      while (set.head < set.queue.length) {
-        const item = set.queue[set.head++];
-        const next = item.production.rhs[item.dot];
-        if (!next) {
-          const origin = setAt(item.origin);
-          for (const waiting of origin.waiting.get(item.production.lhs) || []) {
-            const advanced = advance(waiting, item.origin, position, item);
-            if (advanced) {
-              add(set, waiting.production, advanced.dot, waiting.origin, advanced.slots,
-                { kind: "complete", previous: waiting, child: item }, advanced.tagId);
-            }
-          }
-        } else if (!next.terminal) {
-          predict(set, next.name);
-          for (const done of set.nullable.get(next.name) || []) {
-            const advanced = advance(item, position, position, done);
-            if (advanced) {
-              add(set, item.production, advanced.dot, item.origin, advanced.slots,
-                { kind: "complete", previous: item, child: done }, advanced.tagId);
-            }
-          }
-        } else if (position < end && tokens[position].tags.has(next.name)) {
-          const advanced = advance(item, position, position + 1, null);
-          if (advanced) {
-            add(setAt(position + 1), item.production, advanced.dot, item.origin, advanced.slots,
-              { kind: "scan", previous: item, token: position, terminal: next.name }, advanced.tagId);
-          }
-        }
-      }
-    }
-    return { sets, start, end, setAt };
-  }
-
-  /** @type {Edge} */
-  const SEED = { kind: "seed" };
-
-  /**
-   * @param {Edge} left
-   * @param {Edge} right
-   * @returns {boolean}
-   */
-  function sameEdge(left, right) {
-    if (left.kind === "seed" || right.kind === "seed") return left.kind === right.kind;
-    if (left.kind === "scan" || right.kind === "scan") {
-      return left.kind === "scan" && right.kind === "scan" &&
-        left.previous === right.previous && left.token === right.token && left.terminal === right.terminal;
-    }
-    return left.previous === right.previous && left.child === right.child;
-  }
-
-  /**
-   * @param {Production} production
-   * @returns {Slot[]}
-   */
-  function emptySlots(production) {
-    return production.captures.map(() => null);
-  }
-
-  /**
-   * @param {number} id
-   * @param {number} dot
-   * @param {number} origin
-   * @param {Slot[]} slots
    * @returns {string}
    */
-  function slotKey(id, dot, origin, slots) {
-    let key = id + "," + dot + "," + origin;
-    for (const slot of slots) key += slot ? "," + slot[0] + ":" + slot[1] + ":" + slot[2] : ",-";
-    return key;
+  function tagList(tags) {
+    return [...tags.keys()].sort(compareCodePoints).map((tag) => (tags.get(tag) ? tag : `?${tag}`)).join(" ");
   }
 
   /**
-   * The completed items of `rule` spanning [start, end).
-   * @param {Chart} chart
-   * @param {string} rule
-   * @returns {Item[]}
-   */
-  function rootItems(chart, rule) {
-    return chart.setAt(chart.end).items.filter((item) =>
-      item.complete && item.origin === chart.start && item.production.lhs === rule);
-  }
-
-  /**
-   * @param {ParseContext} context
-   * @param {Production} production
-   * @param {number} readyAt
-   * @param {Slot[]} slots
-   * @returns {boolean}
-   */
-  function conditionsHold(context, production, readyAt, slots) {
-    for (const { condition, readyAt: at } of production.conditions) {
-      if (at !== readyAt) continue;
-      const scope = new ChartScope(context, production, slots);
-      if (!holds(context, condition, scope)) return false;
-    }
-    return true;
-  }
-
-  /**
-   * @param {ParseContext} context
-   * @param {Production} production
-   * @param {Slot[]} slots
-   * @returns {number}
-   */
-  function completeTags(context, production, slots) {
-    if (!production.tags) return context.interner.intern(tagSet());
-    const scope = new ChartScope(context, production, slots);
-    return context.interner.intern(asTagSet(evaluate(context, production.tags, scope)));
-  }
-
-  /** @implements {Scope} */
-  class ChartScope {
-    /**
-     * @param {ParseContext} context
-     * @param {Production} production
-     * @param {Slot[]} slots
-     */
-    constructor(context, production, slots) {
-      this.context = context;
-      this.production = production;
-      this.slots = slots;
-    }
-    /**
-     * @param {string} name
-     * @returns {SpanValue}
-     */
-    capture(name) {
-      const index = this.production.captures.findIndex((capture) => capture.name === name);
-      const slot = /** @type {[number, number, number]} */ (this.slots[index]);
-      return { start: slot[0], end: slot[1], tags: this.context.interner.get(slot[2]) };
-    }
-  }
-
-  // A span value: [start, end) of the stage's tokens, and the tags of the
-  // captured constituent if it is a whole capture.
-  /**
-   * @param {ParseContext} context
-   * @param {Argument} span
-   * @param {Scope} scope
-   * @returns {SpanValue}
-   */
-  function spanOf(context, span, scope) {
-    if ("capture" in span) return scope.capture(span.capture);
-    if ("call" in span && (span.call === "head" || span.call === "tail" || span.call === "last")) {
-      const inner = spanOf(context, span.args[0], scope);
-      const { start, end } = inner;
-      if (span.call === "head") return { start, end: Math.min(start + 1, end) };
-      if (span.call === "tail") return { start: Math.min(start + 1, end), end };
-      return { start: Math.max(end - 1, start), end };
-    }
-    throw new GencmuError("grammar", `expected a span, found ${JSON.stringify(span)}`);
-  }
-
-  /**
-   * @param {Token[]} tokens
-   * @param {number} start
-   * @param {number} end
+   * The tokens each stage handed on, or one stage's, as a table.
+   * @param {ParseResult} result
+   * @param {string} [stageName]
    * @returns {string}
    */
-  function phonemesOf(tokens, start, end) {
-    let result = "";
-    for (let index = start; index < end; index++) result += tokens[index].phonemes || "";
-    return result;
+  function tokenTable(result, stageName) {
+    const blocks = [];
+    for (const stage of result.stages) {
+      if (stageName && stage.name !== stageName) continue;
+      if (!stage.output) {
+        blocks.push(`${stage.name}: no tokens (${stage.error ? stage.error.kind : "not run"})`);
+        continue;
+      }
+      const rows = stage.output.map((token, index) => [String(index), quoted(token.text), quoted(token.phonemes || ""),
+        `${token.span[0]}-${token.span[1]}`, `${token.source[0]}-${token.source[1]}`, tagList(token.tags) + (token.insertedBy ? `  (inserted by ${token.insertedBy})` : "")]);
+      const header = ["#", "text", "phonemes", "span", "source", "tags"];
+      const widths = header.map((title, column) => Math.max([...title].length, ...rows.map((row) => [...row[column]].length)));
+      /** @type {(row: string[]) => string} */
+      const format = (row) => row.map((cell, column) => (column === row.length - 1 ? cell : cell + " ".repeat(widths[column] - [...cell].length))).join("  ");
+      blocks.push([`${stage.name}: ${stage.output.length} tokens, ${stage.verdict}`, format(header), ...rows.map(format)].join("\n"));
+    }
+    return blocks.join("\n\n");
   }
 
-  /**
-   * @param {ParseContext} context
-   * @param {number} start
-   * @param {number} end
-   * @returns {string}
-   */
-  function textOf(context, start, end) {
-    if (start >= end) return "";
-    const from = context.tokens[start].source[0];
-    const to = context.tokens[end - 1].source[1];
-    return context.sourceText.slice(from, to).join("");
-  }
+  // ---- The notation, printed back ------------------------------------------
 
   /**
-   * @param {Token[]} tokens
-   * @param {number} start
-   * @param {number} end
-   * @returns {TagSet}
-   */
-  function tokensTags(tokens, start, end) {
-    let result = tagSet();
-    for (let index = start; index < end; index++) result = tagUnion(result, tokens[index].tags);
-    return result;
-  }
-
-  /**
-   * @param {ParseContext} context
    * @param {Argument} term
-   * @param {Scope} scope
-   * @returns {TermValue}
-   */
-  function evaluate(context, term, scope) {
-    if ("literal" in term) return { string: term.literal };
-    if ("weak" in term) return { tags: weakTag(term.weak) };
-    if ("emptySet" in term) return { tags: tagSet() };
-    if ("set" in term) return { tags: term.set.reduce((acc, item) => tagUnion(acc, asTagSet(evaluate(context, item, scope))), tagSet()) };
-    if ("union" in term) return { tags: term.union.reduce((acc, item) => tagUnion(acc, asTagSet(evaluate(context, item, scope))), tagSet()) };
-    if ("intersection" in term) {
-      const [first, ...rest] = term.intersection.map((item) => asTagSet(evaluate(context, item, scope)));
-      return { tags: rest.reduce((acc, item) => tagIntersection(acc, item), first) };
-    }
-    if ("call" in term) {
-      const args = term.args;
-      switch (term.call) {
-        case "phonemes": {
-          const span = spanOf(context, args[0], scope);
-          return { string: phonemesOf(context.tokens, span.start, span.end) };
-        }
-        case "text": {
-          const span = spanOf(context, args[0], scope);
-          return { string: textOf(context, span.start, span.end) };
-        }
-        case "lowercase": {
-          const inner = evaluate(context, args[0], scope);
-          return { string: context.unicode.lowercase(asString(inner)) };
-        }
-        case "words": {
-          const span = spanOf(context, args[0], scope);
-          return { list: phonemesOf(context.tokens, span.start, span.end).split(" ").filter((word) => word !== "") };
-        }
-        case "tags": {
-          const span = spanOf(context, args[0], scope);
-          if (args.length === 2) return { tags: nestedTags(context, ruleName(args[1]), span.start, span.end) };
-          if (span.tags && "capture" in args[0]) return { tags: span.tags };
-          return { tags: tokensTags(context.tokens, span.start, span.end) };
-        }
-        case "classes": {
-          const span = spanOf(context, args[0], scope);
-          const tags = span.tags && "capture" in args[0] ? span.tags : tokensTags(context.tokens, span.start, span.end);
-          const result = tagSet();
-          for (const [tag, strong] of tags) {
-            const first = tag.charCodeAt(0);
-            if (first >= 0x41 && first <= 0x5a) result.set(tag, strong);
-          }
-          return { tags: result };
-        }
-        default:
-          throw new GencmuError("grammar", `unknown function ${term.call}`);
-      }
-    }
-    if ("capture" in term) {
-      const span = scope.capture(term.capture);
-      return { tags: span.tags || tagSet() };
-    }
-    throw new GencmuError("grammar", `unknown term ${JSON.stringify(term)}`);
-  }
-
-  /**
-   * The rule an argument names.
-   * @param {Argument} argument
    * @returns {string}
    */
-  function ruleName(argument) {
-    if ("rule" in argument) return argument.rule;
-    throw new GencmuError("grammar", `expected a rule name, found ${JSON.stringify(argument)}`);
+  function formatTerm(term) {
+    if ("rule" in term) return term.rule;
+    if ("literal" in term) return /^\/.\/$/u.test(term.literal) ? term.literal : quoted(term.literal);
+    if ("weak" in term) return `?${quoted(term.weak)}`;
+    if ("emptySet" in term) return "∅";
+    if ("set" in term) return `{${term.set.map(formatTerm).join(", ")}}`;
+    if ("union" in term) return term.union.map(formatTerm).join(" ∪ ");
+    if ("intersection" in term) return term.intersection.map((item) => ("union" in item ? `(${formatTerm(item)})` : formatTerm(item))).join(" ∩ ");
+    if ("call" in term) return `${term.call}(${term.args.map(formatTerm).join(", ")})`;
+    return `$${term.capture}`;
   }
 
   /**
-   * @param {TermValue} value
-   * @returns {TagSet}
-   */
-  function asTagSet(value) {
-    if ("tags" in value) return value.tags;
-    if ("string" in value) return strongTag(value.string);
-    return tagSet(value.list.map((item) => [item, true]));
-  }
-
-  /**
-   * @param {TermValue} value
-   * @returns {string}
-   */
-  function asString(value) {
-    if ("string" in value) return value.string;
-    throw new GencmuError("grammar", "expected a string");
-  }
-
-  /**
-   * @param {ParseContext} context
    * @param {Condition} condition
-   * @param {Scope} scope
-   * @returns {boolean}
-   */
-  function holds(context, condition, scope) {
-    if ("any" in condition) return condition.any.some((item) => holds(context, item, scope));
-    if ("not" in condition) return !holds(context, condition.not, scope);
-    if ("matches" in condition) {
-      const span = spanOf(context, condition.matches, scope);
-      return nestedMatches(context, condition.rule, span.start, span.end);
-    }
-    const left = evaluate(context, condition.left, scope);
-    const right = evaluate(context, condition.right, scope);
-    switch (condition.op) {
-      case "=":
-      case "≠": {
-        let equal;
-        if ("string" in left && "string" in right) equal = left.string === right.string;
-        else equal = sameTagNames(asTagSet(left), asTagSet(right));
-        return equal === (condition.op === "=");
-      }
-      case "∈":
-      case "∉": {
-        const needle = asString(left);
-        let member;
-        if ("list" in right) member = right.list.includes(needle);
-        else if ("tags" in right) member = right.tags.has(needle);
-        else member = right.string === needle;
-        return member === (condition.op === "∈");
-      }
-      case "⊆": {
-        const small = asTagSet(left);
-        const large = asTagSet(right);
-        for (const tag of small.keys()) if (!large.has(tag)) return false;
-        return true;
-      }
-      default:
-        throw new GencmuError("grammar", `unknown comparison ${condition.op}`);
-    }
-  }
-
-  // The key under which a nested parse's answer is remembered: everything a
-  // nested parse can observe (engine §4).
-  /**
-   * @param {ParseContext} context
-   * @param {string} kind
-   * @param {string} rule
-   * @param {number} start
-   * @param {number} end
    * @returns {string}
    */
-  function nestedKey(context, kind, rule, start, end) {
-    let key = kind + "\u0001" + rule + "\u0001" + textOf(context, start, end);
-    for (let index = start; index < end; index++) {
-      const token = context.tokens[index];
-      key += "\u0001" + tagKey(token.tags) + "\u0002" + token.text + "\u0002" + (token.phonemes || "");
-    }
-    return key;
+  function formatCondition(condition) {
+    if ("any" in condition) return condition.any.map(formatCondition).join(" ∨ ");
+    if ("not" in condition) return `¬(${formatCondition(condition.not)})`;
+    if ("matches" in condition) return `matches(${formatTerm(condition.matches)}, ${condition.rule})`;
+    return `${formatTerm(condition.left)} ${condition.op} ${formatTerm(condition.right)}`;
   }
 
   /**
-   * @template {boolean | TagSet} T
-   * @param {ParseContext} context
-   * @param {string} kind
-   * @param {string} rule
-   * @param {number} start
-   * @param {number} end
-   * @param {(chart: Chart) => T} compute
-   * @returns {T}
+   * A production with a dot, its captures shown, a helper as the rule it
+   * belongs to.
+   * @param {Production} production
+   * @param {number} dot
+   * @returns {string}
    */
-  function nested(context, kind, rule, start, end, compute) {
-    const key = nestedKey(context, kind, rule, start, end);
-    if (context.nested.has(key)) return /** @type {T} */ (context.nested.get(key));
-    const circular = nestedKey(context, "parse", rule, start, end);
-    if (context.inProgress.has(circular)) {
-      throw new GencmuError("grammar",
-        `a condition asks whether ${JSON.stringify(textOf(context, start, end))} parses as ${rule} from inside the parse of that span as ${rule}: ` +
-        `the grammar defines ${rule} by its own negation over the same text`, { rule });
-    }
-    context.inProgress.add(circular);
-    try {
-      const chart = recognize(context, rule, start, end);
-      const answer = compute(chart);
-      context.nested.set(key, answer);
-      return answer;
-    } finally {
-      context.inProgress.delete(circular);
+  function formatItem(production, dot) {
+    const symbols = production.rhs.map((symbol, index) => {
+      const name = symbol.name.includes("·") ? `‹${symbol.name.split("·")[0]} part›` : symbol.name;
+      const capture = production.captures.find((entry) => entry.index === index && !entry.name.startsWith("\u0000"));
+      return capture ? `$${capture.name}(${name})` : name;
+    });
+    symbols.splice(dot, 0, "•");
+    const lhs = production.helper ? `‹${production.owner} part›` : production.lhs;
+    return `${lhs} ≔ ${symbols.join(" ")}`;
+  }
+
+  // ---- Audit ---------------------------------------------------------------
+
+  /**
+   * The rules an expression refers to; `#` as the rule it stands for.
+   * @param {Expr} expr
+   * @param {Set<string>} into
+   * @param {string | null} freeModifiers
+   */
+  function referencedRules(expr, into, freeModifiers) {
+    const stack = [expr];
+    for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
+      if ("hash" in current && freeModifiers) into.add(freeModifiers);
+      if ("ref" in current) into.add(current.ref);
+      else if ("seq" in current) stack.push(...current.seq);
+      else if ("choice" in current) stack.push(...current.choice);
+      else if ("and" in current) stack.push(...current.and);
+      else if ("optional" in current) stack.push(current.optional);
+      else if ("repeat" in current) stack.push(current.repeat);
+      else if ("capture" in current) stack.push(current.expr);
     }
   }
 
   /**
-   * @param {ParseContext} context
-   * @param {string} rule
-   * @param {number} start
-   * @param {number} end
-   * @returns {boolean}
+   * @param {unknown} node
+   * @param {Set<string>} into
    */
-  function nestedMatches(context, rule, start, end) {
-    return nested(context, "matches", rule, start, end, (chart) => rootItems(chart, rule).length > 0);
-  }
-
-  /**
-   * @param {ParseContext} context
-   * @param {string} rule
-   * @param {number} start
-   * @param {number} end
-   * @returns {TagSet}
-   */
-  function nestedTags(context, rule, start, end) {
-    return nested(context, "tags", rule, start, end, (chart) =>
-      rootItems(chart, rule).reduce((acc, item) => tagUnion(acc, context.interner.get(item.tagId)), tagSet()));
-  }
-
-  // The furthest position the parse reached, and what could have been read
-  // there, with the rules that could have read it.
-  /**
-   * @param {Chart} chart
-   * @returns {{position: number, expected: Expectation[]}}
-   */
-  function rejectionOf(chart) {
-    let position = chart.end;
-    while (position > chart.start && chart.setAt(position).items.length === 0) position--;
-    /** @type {Map<string, Set<string>>} */
-    const expected = new Map();
-    for (const item of chart.setAt(position).items) {
-      const next = item.production.rhs[item.dot];
-      if (!next || !next.terminal) continue;
-      let rules = expected.get(next.name);
-      if (!rules) expected.set(next.name, (rules = new Set()));
-      rules.add(item.production.owner);
+  function namedRules(node, into) {
+    const stack = [node];
+    for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
+      if (!current || typeof current !== "object") continue;
+      const record = /** @type {Record<string, unknown>} */ (current);
+      if (typeof record.rule === "string") into.add(record.rule);
+      for (const value of Object.values(record)) if (value && typeof value === "object") stack.push(value);
     }
-    return {
-      position,
-      expected: [...expected].sort((left, right) => compareCodePoints(left[0], right[0])).map(([terminal, rules]) => ({
-        terminal,
-        rules: [...rules].sort(compareCodePoints),
-      })),
-    };
+  }
+
+  /**
+   * @typedef {object} StageAudit
+   * @property {string} name
+   * @property {string} resolution
+   * @property {number} rules
+   * @property {string[]} unreachable rules no derivation of `text` can reach
+   * @property {{kind: string, rule: string, document: string, previous: string}[]} changes
+   * @property {{rule: string, document: string, condition: string}[]} idleConditions conditions no
+   *   alternative of their definition captures every part of
+   */
+
+  /**
+   * What a grammar author should know about a dialect's grammars: per stage,
+   * the rules nothing reaches, every rule a later document replaced or
+   * extended, and conditions that never apply.
+   * @param {Dialect} dialect
+   * @returns {StageAudit[]}
+   */
+  function audit(dialect) {
+    return dialect.stages.map((stage) => {
+      const grammar = stage.grammar;
+      const resolution = grammar.resolution;
+      const reachable = new Set(["text"]);
+      const pending = ["text"];
+      for (let name = pending.pop(); name !== undefined; name = pending.pop()) {
+        const rule = grammar.rules.get(name);
+        if (!rule) continue;
+        const found = new Set();
+        for (const alternative of rule.alternatives) {
+          referencedRules(alternative.expr, found, grammar.freeModifiers);
+          // Rules named in clauses count only where the clause applies to the
+          // alternative: a condition that names a capture the alternative
+          // lacks never runs for it (engine §3.6).
+          const top = "seq" in alternative.expr ? alternative.expr.seq : [alternative.expr];
+          const captured = new Set(top.flatMap((item) => ("capture" in item ? [item.capture] : [])));
+          /** @type {(clause: unknown) => boolean} */
+          const applies = (clause) => termVariables(/** @type {Condition} */ (clause)).every((variable) => captured.has(variable));
+          const clauses = alternative.clauses;
+          // An alternative's own tags replace the rule's (engine §3.6).
+          const tags = alternative.tags || clauses.tags;
+          namedRules([tags, clauses.emit, ...clauses.conditions].filter((clause) => clause && applies(clause)), found);
+        }
+        for (const next of found) {
+          if (!reachable.has(next) && grammar.rules.has(next)) {
+            reachable.add(next);
+            pending.push(next);
+          }
+        }
+      }
+      /** @type {{rule: string, document: string, condition: string}[]} */
+      const idleConditions = [];
+      for (const rule of grammar.rules.values()) {
+        /** @type {Map<object, StitchedAlternative[]>} */
+        const byDefinition = new Map();
+        for (const alternative of rule.alternatives) {
+          if (!byDefinition.has(alternative.clauses)) byDefinition.set(alternative.clauses, []);
+          /** @type {StitchedAlternative[]} */ (byDefinition.get(alternative.clauses)).push(alternative);
+        }
+        for (const [clauses, alternatives] of byDefinition) {
+          const captured = alternatives.map((alternative) => {
+            const top = "seq" in alternative.expr ? alternative.expr.seq : [alternative.expr];
+            return new Set(top.flatMap((item) => ("capture" in item ? [item.capture] : [])));
+          });
+          for (const condition of /** @type {{conditions: Condition[]}} */ (clauses).conditions) {
+            const needs = termVariables(condition);
+            if (!captured.some((names) => needs.every((name) => names.has(name)))) {
+              idleConditions.push({ rule: rule.name, document: alternatives[0].document, condition: formatCondition(condition) });
+            }
+          }
+        }
+      }
+      return {
+        name: stage.name,
+        resolution: resolution ? `${resolution.lean}${resolution.elisionOnly ? " elision-only" : ""}` : "none",
+        rules: grammar.rules.size,
+        unreachable: [...grammar.rules.keys()].filter((name) => !reachable.has(name)).sort(compareCodePoints),
+        changes: grammar.changes.slice(),
+        idleConditions,
+      };
+    });
+  }
+
+  /**
+   * An audit as text.
+   * @param {StageAudit[]} stages
+   * @returns {string}
+   */
+  function formatAudit(stages) {
+    const blocks = [];
+    for (const stage of stages) {
+      const lines = [`${stage.name}: ${stage.rules} rules, ${stage.resolution}`];
+      if (stage.unreachable.length) lines.push(`  unreachable from text: ${stage.unreachable.join(", ")}`);
+      for (const change of stage.changes) lines.push(`  ${change.rule} ${change.kind} by ${change.document} (defined in ${change.previous})`);
+      for (const idle of stage.idleConditions) lines.push(`  a condition of ${idle.rule} in ${idle.document} applies to no alternative: ${idle.condition}`);
+      if (lines.length === 1) lines.push("  nothing to report");
+      blocks.push(lines.join("\n"));
+    }
+    return blocks.join("\n\n");
+  }
+
+  // ---- Trace ---------------------------------------------------------------
+
+  /**
+   * @typedef {object} Trace
+   * @property {string} stage
+   * @property {number} position the position between input tokens traced
+   * @property {Token[]} tokens the stage's input
+   * @property {TraceEvent[]} events
+   * @property {{terminal: string, rules: string[]}[]} expected terminals items at the position could read
+   */
+
+  /**
+   * What one stage's recognizer did at one position of its input: which items
+   * it predicted, advanced and completed there, and which advances a
+   * condition refused, with the condition. This is the tool for "why does my
+   * grammar not accept this text here".
+   * @param {Dialect} dialect
+   * @param {string} text
+   * @param {{stage: string, position: number, features?: Iterable<string>, autoFeatures?: boolean}} options
+   * @returns {Trace}
+   */
+  function trace(dialect, text, options) {
+    const index = dialect.stages.findIndex((stage) => stage.name === options.stage);
+    if (index < 0) throw new GencmuError("usage", `no stage is named ${options.stage}`);
+    // The parse the caller would get up to that stage, so that the traced
+    // stage reads the same tokens under the same features, auto features
+    // included.
+    const run = dialect.parse(text, { features: options.features, autoFeatures: options.autoFeatures, until: options.stage });
+    const report = run.stages[index];
+    if (!report || !report.input) throw new GencmuError("usage", `the ${options.stage} stage is not reached: ${explainError(run)}`);
+    const tokens = report.input;
+    const features = new Set(run.features);
+    const stage = dialect.stages[index];
+    const lowered = stage.grammar.lower(features, false);
+    const context = new ParseContext(lowered, tokens, [...text], dialect.loader.unicode);
+    const position = Math.max(0, Math.min(options.position, tokens.length));
+    context.trace = { position, events: [], depth: 0 };
+    const chart = recognize(context, "text", 0, tokens.length);
+    return { stage: stage.name, position, tokens, events: context.trace.events, expected: expectedAt(chart, position) };
+  }
+
+  /**
+   * A trace as text.
+   * @param {Trace} traced
+   * @returns {string}
+   */
+  function formatTrace(traced) {
+    const { tokens, position } = traced;
+    const before = position > 0 ? quoted(tokens[position - 1].text) : "the start";
+    const after = position < tokens.length ? quoted(tokens[position].text) : "the end";
+    const lines = [`The ${traced.stage} stage at position ${position}, after ${before} and before ${after}:`];
+    const order = ["completed", "advanced", "predicted", "dropped"];
+    for (const kind of order) {
+      // An optional's or a repetition's empty step is noise here.
+      const events = traced.events.filter((event) => event.kind === kind &&
+        !(kind === "completed" && event.production.helper && event.production.rhs.length === 0));
+      if (!events.length) continue;
+      lines.push(`${kind}:`);
+      for (const event of events) {
+        const item = formatItem(event.production, event.kind === "dropped" ? event.dot + 1 : event.dot);
+        const span = event.kind === "dropped" ? "" : `  [${event.origin}..${position}]`;
+        lines.push(`  ${item}${span}${event.condition ? `\n      refused: ${formatCondition(event.condition)}` : ""}`);
+      }
+    }
+    if (traced.expected.length) {
+      lines.push("could read next:");
+      for (const expectation of traced.expected) lines.push(`  ${expectation.terminal} (${expectation.rules.join(", ")})`);
+    } else {
+      lines.push("could read nothing next");
+    }
+    return lines.join("\n");
   }
 
   // ---- rank.js
@@ -1610,12 +2656,16 @@
     constructor(tokens, lean) {
       this.tokens = tokens;
       this.lean = lean;
-      /** @type {Map<Item, Map<string, Candidate[]>>} */
-      this.memo = new Map();
-      /** @type {Map<Item, Map<string, number>>} */
-      this.counts = new Map();
+      /** @type {{plain: Map<Item, Candidate[]>, contextual: Map<Item, Map<string, Candidate[]>>}} */
+      this.memo = { plain: new Map(), contextual: new Map() };
+      /** @type {{plain: Map<Item, number>, contextual: Map<Item, Map<string, number>>}} */
+      this.counts = { plain: new Map(), contextual: new Map() };
       /** @type {Map<Item, number>} */
       this.itemIds = new Map();
+      /** @type {Map<Item, RopeLeaf>} */
+      this.closes = new Map();
+      /** @type {Map<string, RopeLeaf>} */
+      this.reads = new Map();
     }
 
     // An item's candidates: for each sequence the item's derivations could
@@ -1641,10 +2691,10 @@
           if (edge.kind === "seed") produced = [{ seq: EMPTY, alts: [], at: Infinity }];
           else if (edge.kind === "scan") {
             const token = this.tokens[edge.token];
-            const read = leaf({ kind: "read", token: edge.token, terminal: edge.terminal, weak: token.tags.get(edge.terminal) === false });
+            const read = this.readLeaf(edge.token, edge.terminal, token.tags.get(edge.terminal) === false);
             produced = dependency(edge.previous).map((entry) => extend(entry, read));
           } else {
-            const close = leaf({ kind: "close", item: edge.child });
+            const close = this.closeLeaf(edge.child);
             const children = dependency(edge.child).map((entry) => extend(entry, close));
             produced = [];
             for (const before of dependency(edge.previous)) {
@@ -1666,11 +2716,38 @@
     }
 
     /**
+     * The one leaf for closing an item: every sequence that closes it shares
+     * it, rather than each making its own.
+     * @param {Item} item
+     * @returns {RopeLeaf}
+     */
+    closeLeaf(item) {
+      let found = this.closes.get(item);
+      if (!found) this.closes.set(item, (found = leaf({ kind: "close", item })));
+      return found;
+    }
+
+    /**
+     * The one leaf for reading a token as a terminal.
+     * @param {number} token
+     * @param {string} terminal
+     * @param {boolean} weak
+     * @returns {RopeLeaf}
+     */
+    readLeaf(token, terminal, weak) {
+      const key = `${token}\u0000${terminal}`;
+      let found = this.reads.get(key);
+      if (!found) this.reads.set(key, (found = leaf({ kind: "read", token, terminal, weak })));
+      return found;
+    }
+
+    /**
+     * An item's candidates, each ended by the item's own close.
      * @param {Item} item
      * @returns {Candidate[]}
      */
     full(item) {
-      const close = leaf({ kind: "close", item });
+      const close = this.closeLeaf(item);
       return this.candidates(item).map((entry) => extend(entry, close));
     }
 
@@ -1793,7 +2870,7 @@
     /**
      * @template T
      * @param {Item} root
-     * @param {Map<Item, Map<string, T>>} memo
+     * @param {{plain: Map<Item, T>, contextual: Map<Item, Map<string, T>>}} memo
      * @param {(item: Item, dependency: (item: Item) => T) => T} combine
      * @param {T} cut the value of a dependency that would close a cycle
      * @returns {T}
@@ -1814,14 +2891,21 @@
       /** @type {(item: Item) => string} */
       const ruleKey = (item) => `\u0000${item.production.lhs}`;
       /** @type {(item: Item, key: string) => T | undefined} */
+      // Almost every item is looked up with no context, so those results are
+      // kept in a plain map and only the rest by context.
       const lookup = (item, key) => {
-        const byContext = memo.get(item);
+        if (key === "") return memo.plain.get(item);
+        const byContext = memo.contextual.get(item);
         return byContext ? byContext.get(key) : undefined;
       };
       /** @type {(item: Item, key: string, value: T) => void} */
       const store = (item, key, value) => {
-        let byContext = memo.get(item);
-        if (!byContext) memo.set(item, (byContext = new Map()));
+        if (key === "") {
+          memo.plain.set(item, value);
+          return;
+        }
+        let byContext = memo.contextual.get(item);
+        if (!byContext) memo.contextual.set(item, (byContext = new Map()));
         byContext.set(key, value);
       };
       const itemIds = this.itemIds;
@@ -2054,70 +3138,6 @@
    */
   function codePoints(text) {
     return [...text];
-  }
-
-  // ---- walk.js
-  // Walks over result trees with an explicit stack. A left-recursive rule
-  // with several alternatives, such as the word stage's stream, leaves one
-  // node per word nested in the next, so a tree is as deep as a long text is
-  // long, deeper than any call stack.
-
-  /** @import { ResultNode, RuleNode } from "./types.js" */
-
-  /**
-   * Folds a tree bottom-up: `leaf` maps a token or elided node, `rule` a rule
-   * node given its children's values in order.
-   * @template T
-   * @param {ResultNode} root
-   * @param {(node: Exclude<ResultNode, RuleNode>) => T} leaf
-   * @param {(node: RuleNode, children: T[]) => T} rule
-   * @returns {T}
-   */
-  function foldTree(root, leaf, rule) {
-    /** @type {{node: RuleNode, next: number, values: T[]}[]} */
-    const stack = [];
-    /** @type {T | undefined} */
-    let value;
-    /** @type {ResultNode | null} */
-    let pending = root;
-    for (;;) {
-      if (pending !== null) {
-        if (pending.kind === "rule") {
-          stack.push({ node: pending, next: 0, values: [] });
-          pending = null;
-        } else {
-          value = leaf(pending);
-          pending = null;
-          if (stack.length === 0) return value;
-          stack[stack.length - 1].values.push(value);
-        }
-        continue;
-      }
-      const frame = stack[stack.length - 1];
-      if (frame.next < frame.node.children.length) {
-        pending = frame.node.children[frame.next++];
-        continue;
-      }
-      stack.pop();
-      value = rule(frame.node, frame.values);
-      if (stack.length === 0) return value;
-      stack[stack.length - 1].values.push(value);
-    }
-  }
-
-  /**
-   * Whether any node of a tree satisfies a test, visiting nodes top-down.
-   * @param {ResultNode} root
-   * @param {(node: ResultNode) => boolean} test
-   * @returns {boolean}
-   */
-  function someNode(root, test) {
-    const stack = [root];
-    for (let node = stack.pop(); node !== undefined; node = stack.pop()) {
-      if (test(node)) return true;
-      if (node.kind === "rule") for (let index = node.children.length - 1; index >= 0; index--) stack.push(node.children[index]);
-    }
-    return false;
   }
 
   // ---- stage.js
@@ -2767,6 +3787,8 @@
         }
         case "conjunction": {
           const items = ofRule(node, "sequence").map(readExpression);
+          // A & of n items expands to 2ⁿ−1 sequences (engine §3.2).
+          if (items.length > 16) fail("an & joins at most 16 items", node);
           return items.length === 1 ? items[0] : { and: items };
         }
         case "sequence": {
@@ -3433,6 +4455,7 @@
         tree: error ? null : final.tree,
         error: error ? locate(/** @type {ParseError} */ (error.error), text) : null,
         text,
+        features: [...options.features].sort(),
       };
       return result;
     }
@@ -3506,6 +4529,7 @@
 
 
 
+
   /**
    * @typedef {import("./types.js").TagSet} TagSet
    * @typedef {import("./types.js").Span} Span
@@ -3550,415 +4574,6 @@
     const map = sources instanceof Map ? sources : new Map(Object.entries(sources));
     return new Loader((path) => map.get(path));
   }
-
-  // ---- output.js
-  // The canonical result JSON and the renderings of docs/output.md.
-
-
-
-
-  /** @import { Action, ParseError, ParseResult, ResultNode, Span } from "./types.js" */
-  /** @import { Token } from "./tokens.js" */
-
-  /**
-   * A token in the result JSON.
-   * @typedef {object} TokenJson
-   * @property {string} text
-   * @property {string} phonemes
-   * @property {Record<string, boolean>} tags
-   * @property {Span} span
-   * @property {Span} source
-   * @property {string} [insertedBy]
-   */
-
-  /**
-   * A result tree node in the result JSON.
-   * @typedef {{kind: "token", terminal: string, token: number, span: Span, source: Span}
-   *   | {kind: "elided", terminal: string, span: Span, source: Span}
-   *   | {kind: "rule", rule: string, span: Span, source: Span, tags: Record<string, boolean>, children: NodeJson[]}} NodeJson
-   */
-
-  /**
-   * A witness action in the result JSON.
-   * @typedef {{read: {token: number, terminal: string}}
-   *   | {close: {rule: string, production: number, span: Span}}} ActionJson
-   */
-
-  /**
-   * An error in the result JSON.
-   * @typedef {object} ErrorJson
-   * @property {ParseError["kind"]} kind
-   * @property {string} [stage]
-   * @property {number} [token]
-   * @property {Span} [source]
-   * @property {number} [line]
-   * @property {number} [column]
-   * @property {import("./types.js").Expectation[]} [expected]
-   * @property {NodeJson[]} [readings]
-   * @property {string} [document]
-   * @property {string} message
-   */
-
-  /**
-   * A stage in the result JSON.
-   * @typedef {object} StageJson
-   * @property {string} name
-   * @property {import("./types.js").Verdict | null} verdict
-   * @property {(ActionJson | null)[]} [witness]
-   * @property {NodeJson} [tied]
-   * @property {TokenJson[]} [output]
-   */
-
-  /**
-   * The canonical result JSON (docs/output.md).
-   * @typedef {object} ResultJson
-   * @property {number} format
-   * @property {boolean} ok
-   * @property {StageJson[]} stages
-   * @property {NodeJson | null} tree
-   * @property {ErrorJson | null} error
-   */
-
-  /**
-   * The display JSON projection of a tree: each node an object with one
-   * member, its rule or terminal.
-   * @typedef {{[name: string]: DisplayValue | DisplayValue[] | string | null}} DisplayValue
-   */
-
-  const RESULT_FORMAT = 1;
-
-  /**
-   * @param {Token} token
-   * @returns {TokenJson}
-   */
-  function tokenJson(token) {
-    /** @type {TokenJson} */
-    const result = {
-      text: token.text,
-      phonemes: token.phonemes || "",
-      tags: sortedTagObject(token.tags),
-      span: [token.span[0], token.span[1]],
-      source: [token.source[0], token.source[1]],
-    };
-    if (token.insertedBy !== undefined) result.insertedBy = token.insertedBy;
-    return result;
-  }
-
-  /**
-   * @param {ResultNode} node
-   * @returns {NodeJson}
-   */
-  function nodeJson(node) {
-    return foldTree(node,
-      /** @returns {NodeJson} */
-      (leaf) => (leaf.kind === "token"
-        ? { kind: "token", terminal: leaf.terminal, token: leaf.token, span: leaf.span, source: leaf.source }
-        : { kind: "elided", terminal: leaf.terminal, span: leaf.span, source: leaf.source }),
-      /** @returns {NodeJson} */
-      (rule, children) => ({ kind: "rule", rule: rule.rule, span: rule.span, source: rule.source, tags: sortedTagObject(rule.tags), children }));
-  }
-
-  /**
-   * @param {Action | null} action
-   * @returns {ActionJson | null}
-   */
-  function actionJson(action) {
-    if (action === null) return null;
-    if (action.kind === "read") return { read: { token: action.token, terminal: action.terminal } };
-    const production = action.item.production;
-    return { close: { rule: production.owner, production: production.id, span: [action.item.origin, action.item.end] } };
-  }
-
-  /**
-   * @param {ParseError} error
-   * @returns {ErrorJson}
-   */
-  function errorJson(error) {
-    /** @type {Partial<ErrorJson>} */
-    const result = { kind: error.kind };
-    if (error.stage !== undefined) result.stage = error.stage;
-    if (error.token !== undefined) result.token = error.token;
-    if (error.source !== undefined) result.source = error.source;
-    if (error.line !== undefined) result.line = error.line;
-    if (error.column !== undefined) result.column = error.column;
-    if (error.expected !== undefined) result.expected = error.expected;
-    if (error.readings !== undefined) result.readings = error.readings.map(nodeJson);
-    if (error.document !== undefined) result.document = error.document;
-    result.message = error.message;
-    return /** @type {ErrorJson} */ (result);
-  }
-
-  /**
-   * The canonical JSON value of a parse result.
-   * @param {ParseResult} result
-   * @returns {ResultJson}
-   */
-  function resultJson(result) {
-    return {
-      format: RESULT_FORMAT,
-      ok: result.ok,
-      stages: result.stages.map((stage) => {
-        /** @type {StageJson} */
-        const json = { name: stage.name, verdict: stage.verdict };
-        if (stage.witness) json.witness = stage.witness.map(actionJson);
-        if (stage.tied) json.tied = nodeJson(stage.tied);
-        if (stage.output) json.output = stage.output.map(tokenJson);
-        return json;
-      }),
-      tree: result.tree ? nodeJson(result.tree) : null,
-      error: result.error ? errorJson(result.error) : null,
-    };
-  }
-
-  // The tokens a node reads, for its labels.
-  /**
-   * @param {import("./types.js").TokenNode} node
-   * @param {Token[]} tokens
-   * @returns {string}
-   */
-  function leafLabel(node, tokens) {
-    const token = tokens[node.token];
-    return token.phonemes ? token.phonemes : token.text;
-  }
-
-  // The bracket rendering (docs/output.md): nested groups cycling ( [ {.
-  /**
-   * @typedef {{leaf: string} | {group: Flat[]}} Flat
-   */
-
-  /**
-   * @param {ParseResult} result
-   * @param {{showElided?: boolean}} [options]
-   * @returns {string}
-   */
-  function toBrackets(result, options = {}) {
-    if (!result.tree) return "";
-    const tokens = finalInput(result);
-    const flat = foldTree(result.tree,
-      /** @returns {Flat | null} */
-      (leaf) => (leaf.kind === "token" ? { leaf: leafLabel(leaf, tokens) }
-        : options.showElided ? { leaf: `⟨${leaf.terminal.toLowerCase()}⟩` } : null),
-      /** @returns {Flat | null} */
-      (rule, values) => {
-        const children = /** @type {Flat[]} */ (values.filter((child) => child !== null));
-        if (children.length === 0) return null;
-        if (children.length === 1) return children[0];
-        return { group: children };
-      });
-    if (!flat) return "";
-    /** @type {string[]} */
-    const parts = [];
-    /** @type {{node: Flat, depth: number, next: number}[]} */
-    const stack = [{ node: flat, depth: 0, next: -1 }];
-    while (stack.length > 0) {
-      const frame = stack[stack.length - 1];
-      const node = frame.node;
-      if ("leaf" in node) {
-        parts.push(node.leaf);
-        stack.pop();
-        continue;
-      }
-      const [open, close] = [["(", ")"], ["[", "]"], ["{", "}"]][frame.depth % 3];
-      if (frame.next < 0) {
-        parts.push(open);
-        frame.next = 0;
-      }
-      if (frame.next < node.group.length) {
-        if (frame.next > 0) parts.push(" ");
-        stack.push({ node: node.group[frame.next++], depth: frame.depth + 1, next: -1 });
-        continue;
-      }
-      parts.push(close);
-      stack.pop();
-    }
-    return parts.join("");
-  }
-
-  // The tree rendering: one node per line, single-child chains on one line.
-  /**
-   * @param {ParseResult} result
-   * @returns {string}
-   */
-  function toTree(result) {
-    if (!result.tree) return "";
-    const tokens = finalInput(result);
-    /** @type {string[]} */
-    const lines = [];
-    /** @type {(node: ResultNode) => string} */
-    const label = (node) => {
-      if (node.kind === "token") return `${node.terminal} ${JSON.stringify(leafLabel(node, tokens))}`;
-      if (node.kind === "elided") return `⟨${node.terminal}⟩`;
-      return node.rule;
-    };
-    /** @type {{node: ResultNode, indent: number}[]} */
-    const stack = [{ node: result.tree, indent: 0 }];
-    for (let task = stack.pop(); task !== undefined; task = stack.pop()) {
-      const { node, indent } = task;
-      const chain = [label(node)];
-      let current = node;
-      while (current.kind === "rule" && current.children.length === 1 && current.children[0].kind === "rule") {
-        current = current.children[0];
-        chain.push(label(current));
-      }
-      let line = " ".repeat(indent) + chain.join(" › ");
-      if (current.kind === "rule" && current.children.every((child) => child.kind !== "rule")) {
-        const words = current.children.flatMap((child) => (child.kind === "token" ? [leafLabel(child, tokens)] : []));
-        if (words.length) line += " · " + words.join(" ");
-        lines.push(line);
-        continue;
-      }
-      lines.push(line);
-      if (current.kind === "rule") {
-        for (let index = current.children.length - 1; index >= 0; index--) stack.push({ node: current.children[index], indent: indent + 2 });
-      }
-    }
-    return lines.join("\n");
-  }
-
-  // The display JSON projection of the tree (docs/output.md).
-  /**
-   * @param {ParseResult} result
-   * @returns {DisplayValue | null}
-   */
-  function displayValue(result) {
-    if (!result.tree) return null;
-    const tokens = finalInput(result);
-    return foldTree(result.tree,
-      /** @returns {DisplayValue} */
-      (leaf) => (leaf.kind === "token" ? { [leaf.terminal]: leafLabel(leaf, tokens) } : { [leaf.terminal]: null }),
-      /** @returns {DisplayValue} */
-      (rule, children) => ({ [rule.rule]: children.length === 1 ? children[0] : children }));
-  }
-
-  // Pretty-prints a JSON value so that single-member objects nest without
-  // indentation (docs/output.md, "Display JSON").
-  /**
-   * @param {unknown} value
-   * @param {number} [indent]
-   * @returns {string}
-   */
-  function prettyJson(value, indent = 0) {
-    /** @type {(n: number) => string} */
-    const pad = (n) => " ".repeat(n);
-    /** @type {string[]} */
-    const out = [];
-    // Tasks run last first: a string is written as it is, a value is laid out
-    // into further tasks. The stack keeps a deep value from nesting calls.
-    /** @type {(string | {value: unknown, indent: number})[]} */
-    const tasks = [{ value, indent }];
-    for (let task = tasks.pop(); task !== undefined; task = tasks.pop()) {
-      if (typeof task === "string") {
-        out.push(task);
-        continue;
-      }
-      const current = task.value;
-      const at = task.indent;
-      if (current === null || typeof current !== "object") {
-        out.push(JSON.stringify(current));
-        continue;
-      }
-      /** @type {(string | {value: unknown, indent: number})[]} */
-      const layout = [];
-      if (Array.isArray(current)) {
-        if (current.length === 0) {
-          out.push("[]");
-          continue;
-        }
-        layout.push("[\n");
-        current.forEach((item, index) => {
-          if (index > 0) layout.push(",\n");
-          layout.push(pad(at + 2), { value: item, indent: at + 2 });
-        });
-        layout.push("\n" + pad(at) + "]");
-      } else {
-        const object = /** @type {Record<string, unknown>} */ (current);
-        const keys = Object.keys(object);
-        if (keys.length === 0) {
-          out.push("{}");
-          continue;
-        }
-        if (keys.length === 1) {
-          layout.push(`{${JSON.stringify(keys[0])}: `, { value: object[keys[0]], indent: at }, "}");
-        } else {
-          layout.push("{\n");
-          keys.forEach((key, index) => {
-            if (index > 0) layout.push(",\n");
-            layout.push(`${pad(at + 2)}${JSON.stringify(key)}: `, { value: object[key], indent: at + 2 });
-          });
-          layout.push("\n" + pad(at) + "}");
-        }
-      }
-      for (let index = layout.length - 1; index >= 0; index--) tasks.push(layout[index]);
-    }
-    return out.join("");
-  }
-
-  /**
-   * A JSON value as compact text, like `JSON.stringify` with no spacing, but
-   * with an explicit stack, since a parse tree can nest deeper than the call
-   * stack allows.
-   * @param {unknown} value
-   * @returns {string}
-   */
-  function compactJson(value) {
-    /** @type {string[]} */
-    const out = [];
-    /** @type {(string | {value: unknown})[]} */
-    const tasks = [{ value }];
-    for (let task = tasks.pop(); task !== undefined; task = tasks.pop()) {
-      if (typeof task === "string") {
-        out.push(task);
-        continue;
-      }
-      const current = task.value;
-      if (current === null || typeof current !== "object") {
-        out.push(JSON.stringify(current));
-        continue;
-      }
-      /** @type {(string | {value: unknown})[]} */
-      const layout = [];
-      if (Array.isArray(current)) {
-        layout.push("[");
-        current.forEach((item, index) => {
-          if (index > 0) layout.push(",");
-          layout.push({ value: item });
-        });
-        layout.push("]");
-      } else {
-        const object = /** @type {Record<string, unknown>} */ (current);
-        layout.push("{");
-        let first = true;
-        for (const key of Object.keys(object)) {
-          if (object[key] === undefined) continue;
-          if (!first) layout.push(",");
-          first = false;
-          layout.push(JSON.stringify(key) + ":", { value: object[key] });
-        }
-        layout.push("}");
-      }
-      for (let index = layout.length - 1; index >= 0; index--) tasks.push(layout[index]);
-    }
-    return out.join("");
-  }
-
-  /**
-   * The canonical JSON of a parse result as text (docs/output.md).
-   * @param {ParseResult} result
-   * @returns {string}
-   */
-  function toJson(result) {
-    return compactJson(resultJson(result));
-  }
-
-  /**
-   * The tokens the last stage read, which its tree's nodes index.
-   * @param {ParseResult} result
-   * @returns {Token[]}
-   */
-  function finalInput(result) {
-    return result.stages[result.stages.length - 1].input || [];
-  }
-
 
   // ---- types.js
   // The shapes of the values the library passes around, as JSDoc type
@@ -4121,6 +4736,8 @@
    * @property {ResultNode | null} tree the last stage's tree
    * @property {ParseError | null} error
    * @property {string} text
+   * @property {string[]} features the features the parse ran with, those auto
+   *   features added included; not part of the canonical JSON
    */
 
   /**
@@ -4347,7 +4964,7 @@
 
 
 
-    return { version: "0.1.0", Loader, Dialect, fnv1a64, GencmuError, Token, resultJson, toJson, compactJson, toBrackets, toTree, displayValue, prettyJson, loadDialectSources, loaderFromSources };
+    return { version: "0.1.0", Loader, Dialect, fnv1a64, GencmuError, Token, resultJson, toJson, compactJson, toBrackets, toTree, displayValue, prettyJson, nodeBrackets, nodeTree, explainError, explainTies, tokenTable, audit, formatAudit, trace, formatTrace, sourceExcerpt, formatCondition, formatTerm, formatItem, loadDialectSources, loaderFromSources };
   }
   root.gencmuFactory = gencmuFactory;
   root.gencmu = gencmuFactory();
