@@ -129,8 +129,6 @@ decides nothing a user can observe except through §4-§6.
    elidable, even if every branch begins with an elidable terminal.
    `elision-only` checking (§7) lowers the grammar a second time with every
    elidable optional made mandatory: its helper loses `ε`.
-9. `[x] ...` and `x ...` whose `x` can match nothing are errors of the
-   document: a repetition must consume something at each step.
 
 **Numbering.** Productions are numbered from 0, and the number is the
 tie-break of §6. Rules are taken in the order they were first defined after
@@ -146,7 +144,12 @@ contributes, in this order:
   `...` or `#` is written, in the order those places are written, left to
   right; each helper's productions are followed at once by the helpers of
   the places written inside it, depth first, before the next helper of the
-  alternative.
+  alternative. The `...` of a trailing repetition (step 3) has no helper:
+  it is lowered into the rule's own productions, though sugar inside its
+  item has helpers as anywhere else.
+
+A repetition whose item can match nothing is allowed: its derivations that
+repeat nothing are cyclic (§4) and are not counted.
 
 A helper is shared by every expansion of the alternative that goes through
 its place, so an item of `&`, or the repeated item of a trailing
@@ -422,7 +425,8 @@ document, reported at the first token of the offending construct:
 - `head`, `tail` or `last` where a value is needed, and `matches` as a
   term;
 - `nothing` with other items or with tags; `this` with items other than
-  `this`; tags on an inserted tag; a second `⇒` clause in one rule;
+  `this`; tags on an inserted tag; a capture listed twice in one emission;
+  a second `⇒` clause in one rule;
 - an unknown directive; `%free-modifiers` naming a rule the stage does not
   define, or `#` in a stage without it.
 

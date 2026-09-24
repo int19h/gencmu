@@ -1,5 +1,5 @@
 {
-  "description": "A repetition whose item can match nothing is an error of the document (engine §3.9).",
+  "description": "A repetition whose item can match nothing is allowed (engine §3, Numbering): the derivations that repeat nothing are cyclic and not counted, so [[B]] ... over one A is simply not a reading.",
   "grammar": "text ≔ [A] ... | [[B]] ... ;",
   "tokens": [
     {
