@@ -382,7 +382,12 @@ impl<'a> Reader<'a> {
         let depth = self.deeper(node, depth)?;
         let mut parts = Vec::new();
         for all_of in Self::rules(node, "all-of") {
-            parts.push(self.all_of(all_of, depth)?);
+            // A parenthesized group of the same connective makes no node
+            // of its own: its conditions take its place (§9).
+            match self.all_of(all_of, depth)? {
+                Cond::Any(items) => parts.extend(items),
+                other => parts.push(other),
+            }
         }
         Ok(if parts.len() == 1 { parts.pop().expect("a condition") } else { Cond::Any(parts) })
     }
@@ -392,7 +397,12 @@ impl<'a> Reader<'a> {
         let depth = self.deeper(node, depth)?;
         let mut parts = Vec::new();
         for condition in Self::rules(node, "condition") {
-            parts.push(self.condition(condition, depth)?);
+            // A parenthesized group of the same connective makes no node
+            // of its own: its conditions take its place (§9).
+            match self.condition(condition, depth)? {
+                Cond::All(items) => parts.extend(items),
+                other => parts.push(other),
+            }
         }
         Ok(if parts.len() == 1 { parts.pop().expect("a condition") } else { Cond::All(parts) })
     }
