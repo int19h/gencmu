@@ -136,8 +136,9 @@ def to_brackets(result: ParseResult, *, show_elided: bool = False) -> str:
         node, done = stack.pop()
         if node.kind == "token":
             token = tokens[node.token] if node.token is not None and node.token < len(tokens) else None
-            label = (token.phonemes or token.text) if token is not None else ""
-            rendered[id(node)] = label or None
+            # A token is a member even when its label is empty, as an empty
+            # quotation's text is; only empty rule nodes are dropped.
+            rendered[id(node)] = (token.phonemes or token.text) if token is not None else ""
         elif node.kind == "elided":
             rendered[id(node)] = f"⟨{(node.terminal or '').lower()}⟩" if show_elided else None
         elif not done:

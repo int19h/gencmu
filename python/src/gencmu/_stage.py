@@ -173,6 +173,22 @@ def erased_tokens(root: DNode, size: int) -> list[bool]:
     return erased
 
 
+def constituent_phonemes(tokens: list[Token], node: DNode) -> str:
+    """A constituent's phonemes (engine §5): its tokens' phonemes, leaving
+    out every token of a constituent inside it that emits nothing."""
+    parts: list[str] = []
+    stack: list[DChild] = [node]
+    while stack:
+        current = stack.pop()
+        if isinstance(current, DRead):
+            parts.append(tokens[current.token].phonemes or "")
+            continue
+        if current is not node and current.production.emit == ("nothing",):
+            continue
+        stack.extend(reversed(current.children))
+    return "".join(parts).strip(" ")
+
+
 def span_phonemes(tokens: list[Token], erased: list[bool], start: int, end: int) -> str:
     return "".join(tokens[index].phonemes or "" for index in range(start, end) if not erased[index]).strip(" ")
 

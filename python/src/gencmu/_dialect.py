@@ -16,7 +16,7 @@ from ._grammar import Grammar, Lowered, lower, stitch
 from ._hash import fnv1a64
 from ._markdown import Pipeline, ebnf_text, read_pipeline
 from ._model import ParseError, ParseResult, Stage, Token
-from ._stage import StageOutcome, StageRunner, span_phonemes
+from ._stage import DChild, DRead, StageOutcome, StageRunner, constituent_phonemes
 from ._unicode import UnicodeTable
 
 DOM_FORMAT = 1
@@ -363,16 +363,19 @@ class Dialect:
 
     @staticmethod
     def _reads_sa_su(stage: Stage, outcome: StageOutcome) -> bool:
-        tree = stage.tree
-        if tree is None or outcome.erased is None:
+        """Whether the chosen tree has a constituent of the rule word whose
+        phonemes are sa or su, erased or not (engine §13)."""
+        root = outcome.derivation
+        if root is None:
             return False
-        stack = [tree]
+        stack: list[DChild] = [root]
         while stack:
             node = stack.pop()
-            if node.kind != "rule":
+            if isinstance(node, DRead):
                 continue
-            if node.rule == "word" and span_phonemes(stage.input, outcome.erased, node.span[0], node.span[1]) in ("sa", "su"):
-                return True
+            if not node.production.helper and node.production.rule_name == "word":
+                if constituent_phonemes(stage.input, node) in ("sa", "su"):
+                    return True
             stack.extend(node.children)
         return False
 
