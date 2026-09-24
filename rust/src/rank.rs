@@ -124,7 +124,8 @@ pub(crate) struct Ranking {
     pub witness: Option<(Act, Act)>,
 }
 
-pub(crate) struct Ranker<'c> {
+/// A derivation DAG, with what comparing its derivations needs.
+pub(crate) struct Dag<'c> {
     g: &'c Lowered,
     chart: &'c mut Chart,
     tokens: &'c [Tok],
@@ -134,43 +135,19 @@ pub(crate) struct Ranker<'c> {
     pub arena: Vec<DNode>,
     vlen: Vec<u32>,
     flen: Vec<u32>,
+}
+
+pub(crate) struct Ranker<'c> {
+    pub dag: Dag<'c>,
     memo: FxMap<Key, u32>,
     results: Vec<NodeResult>,
     fsets: Vec<Vec<u32>>,
     fset_index: FxMap<Vec<u32>, u32>,
 }
 
-impl<'c> Ranker<'c> {
-    pub(crate) fn new(
-        g: &'c Lowered,
-        chart: &'c mut Chart,
-        tokens: &'c [Tok],
-        tags: &'c Tags,
-        term_tags: &'c [u32],
-        lean: Lean,
-    ) -> Ranker<'c> {
-        let mut ranker = Ranker {
-            g,
-            chart,
-            tokens,
-            tags,
-            term_tags,
-            lean,
-            arena: Vec::new(),
-            vlen: Vec::new(),
-            flen: Vec::new(),
-            memo: FxMap::default(),
-            results: Vec::new(),
-            fsets: vec![Vec::new()],
-            fset_index: FxMap::default(),
-        };
-        ranker.fset_index.insert(Vec::new(), 0);
-        ranker.push(DNode::Empty, 0, 0);
-        ranker
-    }
-
-    pub(crate) fn chart(&self) -> &Chart {
-        self.chart
+impl<'c> Dag<'c> {
+    fn item(&self, set: u32, index: u32) -> Item {
+        self.chart.sets[set as usize].items[index as usize]
     }
 
     fn push(&mut self, node: DNode, vlen: u32, flen: u32) -> u32 {
@@ -193,218 +170,10 @@ impl<'c> Ranker<'c> {
         self.push(DNode::Close { body, set, item }, vlen, flen)
     }
 
-    pub(crate) fn item(&self, set: u32, index: u32) -> Item {
-        self.chart.sets[set as usize].items[index as usize]
-    }
-
     fn close_act(&self, set: u32, item: u32) -> Act {
         let item = self.item(set, item);
         Act::Close { prod: item.prod, start: item.origin, end: set, visible: self.g.prods[item.prod as usize].visible }
     }
-
-    fn fset_with(&mut self, fset: u32, rule: u32) -> u32 {
-        if !self.g.cyclic[rule as usize] {
-            return fset;
-        }
-        let mut list = self.fsets[fset as usize].clone();
-        if let Err(at) = list.binary_search(&rule) {
-            list.insert(at, rule);
-        }
-        if let Some(&id) = self.fset_index.get(&list) {
-            return id;
-        }
-        let id = self.fsets.len() as u32;
-        self.fsets.push(list.clone());
-        self.fset_index.insert(list, id);
-        id
-    }
-
-    // ---- the forest
-
-    fn deps(&mut self, (node, fset): Key) -> Deps {
-        match node {
-            Node::Read { .. } => Deps::Leaf,
-            Node::Item { set, index } => {
-                let item = self.item(set, index);
-                if item.dot == 0 {
-                    return Deps::Leaf;
-                }
-                let production = &self.g.prods[item.prod as usize];
-                let position = item.dot as usize - 1;
-                let captured = production.cap_at[position].is_some();
-                let caps = self.chart.caps(item.caps).to_vec();
-                let previous = if captured {
-                    match self.chart.lookup_caps(&caps[..caps.len() - 1]) {
-                        Some(id) => id,
-                        None => return Deps::Links(Vec::new()),
-                    }
-                } else {
-                    item.caps
-                };
-                let pred = Item { prod: item.prod, dot: item.dot - 1, origin: item.origin, caps: previous };
-                let mut links = Vec::new();
-                let same = |m: u32, fset: u32| if m == set { fset } else { 0 };
-                match production.syms[position] {
-                    Sym::T(terminal) => {
-                        let m = set - 1;
-                        if let Some(p) = self.chart.sets[m as usize].find(&pred) {
-                            links.push(((Node::Item { set: m, index: p }, 0), (Node::Read { tok: m, terminal }, 0)));
-                        }
-                    }
-                    Sym::N(rule) => {
-                        if captured {
-                            let cap = caps[caps.len() - 1];
-                            let m = cap.start;
-                            if let Some(p) = self.chart.sets[m as usize].find(&pred) {
-                                let child = Node::Group { rule, origin: m, set, tags: cap.tags };
-                                let child_fset = if m == item.origin { fset } else { 0 };
-                                links.push(((Node::Item { set: m, index: p }, same(m, fset)), (child, child_fset)));
-                            }
-                        } else {
-                            let mut origins: Vec<u32> = self.chart.sets[set as usize]
-                                .origins
-                                .get(&rule)
-                                .map(|origins| origins.iter().copied().filter(|&m| m >= item.origin).collect())
-                                .unwrap_or_default();
-                            origins.sort_unstable();
-                            for m in origins {
-                                if let Some(p) = self.chart.sets[m as usize].find(&pred) {
-                                    let child = Node::Group { rule, origin: m, set, tags: ANY };
-                                    let child_fset = if m == item.origin { fset } else { 0 };
-                                    links.push(((Node::Item { set: m, index: p }, same(m, fset)), (child, child_fset)));
-                                }
-                            }
-                        }
-                    }
-                }
-                Deps::Links(links)
-            }
-            Node::Close { set, index } => {
-                let item = self.item(set, index);
-                let rule = self.g.prods[item.prod as usize].rule;
-                if self.fsets[fset as usize].binary_search(&rule).is_ok() {
-                    return Deps::Close(None);
-                }
-                let inner = self.fset_with(fset, rule);
-                Deps::Close(Some((Node::Item { set, index }, inner)))
-            }
-            Node::Group { rule, origin, set, tags } => {
-                let eset = &self.chart.sets[set as usize];
-                let members = eset
-                    .completed
-                    .get(&(rule, origin))
-                    .map(|items| {
-                        items
-                            .iter()
-                            .filter(|&&index| tags == ANY || eset.tagset[index as usize] == tags)
-                            .map(|&index| (Node::Close { set, index }, fset))
-                            .collect()
-                    })
-                    .unwrap_or_default();
-                Deps::Group(members)
-            }
-        }
-    }
-
-    fn keys(deps: &Deps) -> Vec<Key> {
-        match deps {
-            Deps::Leaf | Deps::Close(None) => Vec::new(),
-            Deps::Links(links) => links.iter().flat_map(|&(a, b)| [a, b]).collect(),
-            Deps::Close(Some(key)) => vec![*key],
-            Deps::Group(keys) => keys.clone(),
-        }
-    }
-
-    fn evaluate(&mut self, root: Key) -> NodeResult {
-        let mut stack: Vec<(Key, Option<Deps>)> = vec![(root, None)];
-        while let Some((key, deps)) = stack.last_mut() {
-            let key = *key;
-            if self.memo.contains_key(&key) {
-                stack.pop();
-                continue;
-            }
-            if deps.is_none() {
-                let found = self.deps(key);
-                let missing: Vec<Key> =
-                    Self::keys(&found).into_iter().filter(|dep| !self.memo.contains_key(dep)).collect();
-                *deps = Some(found);
-                for dep in missing.into_iter().rev() {
-                    stack.push((dep, None));
-                }
-                continue;
-            }
-            let (_, deps) = stack.pop().expect("a frame");
-            let result = self.compute(key, deps.expect("dependencies"));
-            self.results.push(result);
-            self.memo.insert(key, (self.results.len() - 1) as u32);
-        }
-        self.results[self.memo[&root] as usize].clone()
-    }
-
-    fn result(&self, key: &Key) -> &NodeResult {
-        &self.results[self.memo[key] as usize]
-    }
-
-    fn compute(&mut self, (node, _): Key, deps: Deps) -> NodeResult {
-        match deps {
-            Deps::Leaf => match node {
-                Node::Read { tok, terminal } => {
-                    let tag = self.term_tags[terminal as usize];
-                    let list = self.tags.list(self.tokens[tok as usize].tags);
-                    let strong = list.binary_search_by_key(&tag, |&(id, _)| id).map(|at| list[at].1).unwrap_or(false);
-                    let x = self.push(DNode::Read { tok, terminal, strong }, 1, 1);
-                    NodeResult { entries: vec![Entry { x, comps: Vec::new() }], count: 1 }
-                }
-                _ => NodeResult { entries: vec![Entry { x: EMPTY, comps: Vec::new() }], count: 1 },
-            },
-            Deps::Links(links) => {
-                let mut list = Vec::new();
-                let mut count = 0u8;
-                for (pred, child) in links {
-                    let left = self.result(&pred).clone();
-                    let right = self.result(&child).clone();
-                    count = count.saturating_add(left.count.saturating_mul(right.count)).min(2);
-                    for first in &left.entries {
-                        for second in &right.entries {
-                            let entry = self.product(first, second);
-                            self.add_entry(&mut list, entry);
-                        }
-                    }
-                }
-                NodeResult { entries: list, count }
-            }
-            Deps::Close(None) => NodeResult::default(),
-            Deps::Close(Some(inner)) => {
-                let Node::Close { set, index } = node else { unreachable!("a close") };
-                let body = self.result(&inner).clone();
-                let mut list = Vec::new();
-                for entry in &body.entries {
-                    let x = self.close(entry.x, set, index);
-                    let comps = entry
-                        .comps
-                        .iter()
-                        .map(|comp| Comp { d: self.close(comp.d, set, index), div: comp.div })
-                        .collect();
-                    self.add_entry(&mut list, Entry { x, comps });
-                }
-                NodeResult { entries: list, count: body.count }
-            }
-            Deps::Group(members) => {
-                let mut list = Vec::new();
-                let mut count = 0u8;
-                for member in members {
-                    let result = self.result(&member).clone();
-                    count = count.saturating_add(result.count).min(2);
-                    for entry in result.entries {
-                        self.add_entry(&mut list, entry);
-                    }
-                }
-                NodeResult { entries: list, count }
-            }
-        }
-    }
-
-    // ---- composing entries
 
     fn product(&mut self, first: &Entry, second: &Entry) -> Entry {
         let x = self.seq(first.x, second.x);
@@ -528,8 +297,6 @@ impl<'c> Ranker<'c> {
         }
         *comps = kept;
     }
-
-    // ---- comparing derivations
 
     fn walk_len(&self, walk: &Walk, visible: bool) -> u32 {
         match walk {
@@ -714,19 +481,247 @@ impl<'c> Ranker<'c> {
             },
         }
     }
+}
+
+impl<'c> Ranker<'c> {
+    pub(crate) fn new(
+        g: &'c Lowered,
+        chart: &'c mut Chart,
+        tokens: &'c [Tok],
+        tags: &'c Tags,
+        term_tags: &'c [u32],
+        lean: Lean,
+    ) -> Ranker<'c> {
+        let mut dag =
+            Dag { g, chart, tokens, tags, term_tags, lean, arena: Vec::new(), vlen: Vec::new(), flen: Vec::new() };
+        dag.push(DNode::Empty, 0, 0);
+        let mut ranker = Ranker {
+            dag,
+            memo: FxMap::default(),
+            results: Vec::new(),
+            fsets: vec![Vec::new()],
+            fset_index: FxMap::default(),
+        };
+        ranker.fset_index.insert(Vec::new(), 0);
+        ranker
+    }
+
+    pub(crate) fn chart(&self) -> &Chart {
+        self.dag.chart
+    }
+
+    pub(crate) fn item(&self, set: u32, index: u32) -> Item {
+        self.dag.chart.sets[set as usize].items[index as usize]
+    }
+
+    fn fset_with(&mut self, fset: u32, rule: u32) -> u32 {
+        if !self.dag.g.cyclic[rule as usize] {
+            return fset;
+        }
+        let mut list = self.fsets[fset as usize].clone();
+        if let Err(at) = list.binary_search(&rule) {
+            list.insert(at, rule);
+        }
+        if let Some(&id) = self.fset_index.get(&list) {
+            return id;
+        }
+        let id = self.fsets.len() as u32;
+        self.fsets.push(list.clone());
+        self.fset_index.insert(list, id);
+        id
+    }
+
+    fn deps(&mut self, (node, fset): Key) -> Deps {
+        match node {
+            Node::Read { .. } => Deps::Leaf,
+            Node::Item { set, index } => {
+                let item = self.item(set, index);
+                if item.dot == 0 {
+                    return Deps::Leaf;
+                }
+                let production = &self.dag.g.prods[item.prod as usize];
+                let position = item.dot as usize - 1;
+                let captured = production.cap_at[position].is_some();
+                let caps = self.dag.chart.caps(item.caps).to_vec();
+                let previous = if captured {
+                    match self.dag.chart.lookup_caps(&caps[..caps.len() - 1]) {
+                        Some(id) => id,
+                        None => return Deps::Links(Vec::new()),
+                    }
+                } else {
+                    item.caps
+                };
+                let pred = Item { prod: item.prod, dot: item.dot - 1, origin: item.origin, caps: previous };
+                let mut links = Vec::new();
+                let same = |m: u32, fset: u32| if m == set { fset } else { 0 };
+                match production.syms[position] {
+                    Sym::T(terminal) => {
+                        let m = set - 1;
+                        if let Some(p) = self.dag.chart.sets[m as usize].find(&pred) {
+                            links.push(((Node::Item { set: m, index: p }, 0), (Node::Read { tok: m, terminal }, 0)));
+                        }
+                    }
+                    Sym::N(rule) => {
+                        if captured {
+                            let cap = caps[caps.len() - 1];
+                            let m = cap.start;
+                            if let Some(p) = self.dag.chart.sets[m as usize].find(&pred) {
+                                let child = Node::Group { rule, origin: m, set, tags: cap.tags };
+                                let child_fset = if m == item.origin { fset } else { 0 };
+                                links.push(((Node::Item { set: m, index: p }, same(m, fset)), (child, child_fset)));
+                            }
+                        } else {
+                            let mut origins: Vec<u32> = self.dag.chart.sets[set as usize]
+                                .origins
+                                .get(&rule)
+                                .map(|origins| origins.iter().copied().filter(|&m| m >= item.origin).collect())
+                                .unwrap_or_default();
+                            origins.sort_unstable();
+                            for m in origins {
+                                if let Some(p) = self.dag.chart.sets[m as usize].find(&pred) {
+                                    let child = Node::Group { rule, origin: m, set, tags: ANY };
+                                    let child_fset = if m == item.origin { fset } else { 0 };
+                                    links.push(((Node::Item { set: m, index: p }, same(m, fset)), (child, child_fset)));
+                                }
+                            }
+                        }
+                    }
+                }
+                Deps::Links(links)
+            }
+            Node::Close { set, index } => {
+                let item = self.item(set, index);
+                let rule = self.dag.g.prods[item.prod as usize].rule;
+                if self.fsets[fset as usize].binary_search(&rule).is_ok() {
+                    return Deps::Close(None);
+                }
+                let inner = self.fset_with(fset, rule);
+                Deps::Close(Some((Node::Item { set, index }, inner)))
+            }
+            Node::Group { rule, origin, set, tags } => {
+                let eset = &self.dag.chart.sets[set as usize];
+                let members = eset
+                    .completed
+                    .get(&(rule, origin))
+                    .map(|items| {
+                        items
+                            .iter()
+                            .filter(|&&index| tags == ANY || eset.tagset[index as usize] == tags)
+                            .map(|&index| (Node::Close { set, index }, fset))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                Deps::Group(members)
+            }
+        }
+    }
+
+    fn keys(deps: &Deps) -> Vec<Key> {
+        match deps {
+            Deps::Leaf | Deps::Close(None) => Vec::new(),
+            Deps::Links(links) => links.iter().flat_map(|&(a, b)| [a, b]).collect(),
+            Deps::Close(Some(key)) => vec![*key],
+            Deps::Group(keys) => keys.clone(),
+        }
+    }
+
+    fn evaluate(&mut self, root: Key) -> NodeResult {
+        let mut stack: Vec<(Key, Option<Deps>)> = vec![(root, None)];
+        while let Some((key, deps)) = stack.last_mut() {
+            let key = *key;
+            if self.memo.contains_key(&key) {
+                stack.pop();
+                continue;
+            }
+            if deps.is_none() {
+                let found = self.deps(key);
+                let missing: Vec<Key> =
+                    Self::keys(&found).into_iter().filter(|dep| !self.memo.contains_key(dep)).collect();
+                *deps = Some(found);
+                for dep in missing.into_iter().rev() {
+                    stack.push((dep, None));
+                }
+                continue;
+            }
+            let (_, deps) = stack.pop().expect("a frame");
+            let result = self.compute(key, deps.expect("dependencies"));
+            self.results.push(result);
+            self.memo.insert(key, (self.results.len() - 1) as u32);
+        }
+        self.results[self.memo[&root] as usize].clone()
+    }
+
+    fn compute(&mut self, (node, _): Key, deps: Deps) -> NodeResult {
+        match deps {
+            Deps::Leaf => match node {
+                Node::Read { tok, terminal } => {
+                    let tag = self.dag.term_tags[terminal as usize];
+                    let list = self.dag.tags.list(self.dag.tokens[tok as usize].tags);
+                    let strong = list.binary_search_by_key(&tag, |&(id, _)| id).map(|at| list[at].1).unwrap_or(false);
+                    let x = self.dag.push(DNode::Read { tok, terminal, strong }, 1, 1);
+                    NodeResult { entries: vec![Entry { x, comps: Vec::new() }], count: 1 }
+                }
+                _ => NodeResult { entries: vec![Entry { x: EMPTY, comps: Vec::new() }], count: 1 },
+            },
+            Deps::Links(links) => {
+                let mut list = Vec::new();
+                let mut count = 0u8;
+                for (pred, child) in links {
+                    let left = &self.results[self.memo[&pred] as usize];
+                    let right = &self.results[self.memo[&child] as usize];
+                    count = count.saturating_add(left.count.saturating_mul(right.count)).min(2);
+                    for first in &left.entries {
+                        for second in &right.entries {
+                            let entry = self.dag.product(first, second);
+                            self.dag.add_entry(&mut list, entry);
+                        }
+                    }
+                }
+                NodeResult { entries: list, count }
+            }
+            Deps::Close(None) => NodeResult::default(),
+            Deps::Close(Some(inner)) => {
+                let Node::Close { set, index } = node else { unreachable!("a close") };
+                let body = &self.results[self.memo[&inner] as usize];
+                let mut list = Vec::new();
+                for entry in &body.entries {
+                    let x = self.dag.close(entry.x, set, index);
+                    let comps = entry
+                        .comps
+                        .iter()
+                        .map(|comp| Comp { d: self.dag.close(comp.d, set, index), div: comp.div })
+                        .collect();
+                    self.dag.add_entry(&mut list, Entry { x, comps });
+                }
+                NodeResult { entries: list, count: body.count }
+            }
+            Deps::Group(members) => {
+                let mut list = Vec::new();
+                let mut count = 0u8;
+                for member in members {
+                    let result = &self.results[self.memo[&member] as usize];
+                    count = count.saturating_add(result.count).min(2);
+                    for entry in &result.entries {
+                        self.dag.add_entry(&mut list, entry.clone());
+                    }
+                }
+                NodeResult { entries: list, count }
+            }
+        }
+    }
 
     /// Ranks the derivations of the start rule over the whole input; `None`
     /// if it has none (every one is cyclic).
     pub(crate) fn rank(&mut self) -> Option<Ranking> {
-        let n = (self.chart.sets.len() - 1) as u32;
-        let root = (Node::Group { rule: self.g.start, origin: 0, set: n, tags: ANY }, 0);
+        let n = (self.dag.chart.sets.len() - 1) as u32;
+        let root = (Node::Group { rule: self.dag.g.start, origin: 0, set: n, tags: ANY }, 0);
         let result = self.evaluate(root);
         if result.count == 0 || result.entries.is_empty() {
             return None;
         }
         let mut chosen = result.entries[0].x;
         for entry in &result.entries[1..] {
-            if self.before(entry.x, chosen) {
+            if self.dag.before(entry.x, chosen) {
                 chosen = entry.x;
             }
         }
@@ -741,16 +736,16 @@ impl<'c> Ranker<'c> {
         // earliest, and of those the first in T.
         let mut tied: Option<(u32, u32)> = None;
         for d in candidates {
-            let div = match self.first_difference(chosen, d, true) {
+            let div = match self.dag.first_difference(chosen, d, true) {
                 Diff::At { index, a, b } => {
-                    let (_, tie) = self.outcome(&a, &b);
+                    let (_, tie) = self.dag.outcome(&a, &b);
                     if !tie {
                         continue;
                     }
                     index
                 }
                 Diff::APrefix { len } | Diff::BPrefix { len } => len,
-                Diff::Equal => match self.first_difference(chosen, d, false) {
+                Diff::Equal => match self.dag.first_difference(chosen, d, false) {
                     Diff::Equal => continue,
                     _ => INF,
                 },
@@ -760,7 +755,7 @@ impl<'c> Ranker<'c> {
                 Some((best, best_div)) => match div.cmp(&best_div) {
                     Ordering::Less => true,
                     Ordering::Greater => false,
-                    Ordering::Equal => self.before(d, best),
+                    Ordering::Equal => self.dag.before(d, best),
                 },
             };
             if better {
@@ -774,9 +769,9 @@ impl<'c> Ranker<'c> {
         } else {
             Verdict::Resolved
         };
-        let witness = tied.map(|(t, _)| match self.first_difference(chosen, t, true) {
+        let witness = tied.map(|(t, _)| match self.dag.first_difference(chosen, t, true) {
             Diff::At { a, b, .. } => (a, b),
-            _ => match self.first_difference(chosen, t, false) {
+            _ => match self.dag.first_difference(chosen, t, false) {
                 Diff::At { a, b, .. } => (a, b),
                 _ => unreachable!("two different derivations differ"),
             },

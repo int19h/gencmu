@@ -47,7 +47,8 @@ pub(crate) struct ESet {
     pub origins: FxMap<u32, Vec<u32>>,
     done: FxSet<(u32, u32, SetId)>,
     empty: FxMap<u32, Vec<SetId>>,
-    predicted: FxSet<u32>,
+    /// The rules predicted here.
+    pub predicted: FxSet<u32>,
 }
 
 impl ESet {
@@ -248,6 +249,18 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         }
         let g = self.g;
         for &production in &g.rules[rule as usize].prods {
+            // A production that must first read a terminal the next token
+            // lacks would add a dead item; the rejection report adds back
+            // the terminals such items expected.
+            let lowered = &g.prods[production as usize];
+            if let (Some(Sym::T(terminal)), false) =
+                (lowered.syms.first(), lowered.conds.iter().any(|&(_, at)| at == 0))
+            {
+                let tag = self.term_tags[*terminal as usize];
+                if e >= tokens.len() || !self.shared.tags.contains(tokens[e].tags, tag) {
+                    continue;
+                }
+            }
             self.add(chart, tokens, base, Item { prod: production, dot: 0, origin: e as u32, caps: 0 }, e)?;
         }
         Ok(())

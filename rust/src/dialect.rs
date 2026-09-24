@@ -432,13 +432,22 @@ impl Dialect {
     ) -> ParseError {
         let furthest = (0..chart.sets.len()).rev().find(|&e| !chart.sets[e].items.is_empty()).unwrap_or(0);
         let mut expected: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-        for item in &chart.sets[furthest].items {
-            let production = &g.prods[item.prod as usize];
-            if let Some(Sym::T(terminal)) = production.syms.get(item.dot as usize) {
+        let mut expect = |production: &crate::lower::Prod, dot: usize| {
+            if let Some(Sym::T(terminal)) = production.syms.get(dot) {
                 expected
                     .entry(g.terminals[*terminal as usize].clone())
                     .or_default()
                     .insert(g.rules[production.owner as usize].name.clone());
+            }
+        };
+        for item in &chart.sets[furthest].items {
+            expect(&g.prods[item.prod as usize], item.dot as usize);
+        }
+        // The predictions the recognizer did not add, since the next token
+        // could not continue them.
+        for &rule in &chart.sets[furthest].predicted {
+            for &production in &g.rules[rule as usize].prods {
+                expect(&g.prods[production as usize], 0);
             }
         }
         let source = source_at(input, furthest);

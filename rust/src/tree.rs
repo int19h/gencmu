@@ -33,7 +33,7 @@ pub(crate) fn build(ranker: &Ranker, root: u32) -> ITree {
     let mut stack: Vec<(u32, Option<u32>)> = vec![(root, None)];
     while let Some((id, parent)) = stack.pop() {
         let index = nodes.len() as u32;
-        match ranker.arena[id as usize] {
+        match ranker.dag.arena[id as usize] {
             DNode::Read { tok, terminal, .. } => {
                 nodes.push(INode { kind: IKind::Read { tok, terminal }, children: Vec::new() });
             }
@@ -52,7 +52,7 @@ pub(crate) fn build(ranker: &Ranker, root: u32) -> ITree {
                 });
                 let mut kids = Vec::new();
                 let mut current = body;
-                while let DNode::Seq { left, right } = ranker.arena[current as usize] {
+                while let DNode::Seq { left, right } = ranker.dag.arena[current as usize] {
                     kids.push(right);
                     current = left;
                 }
@@ -138,7 +138,9 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
                 for (position, &child) in node.children.iter().enumerate() {
                     let mut made = std::mem::take(&mut fragments[child as usize]);
                     if position == 0 && production.trailing_step && made.len() == 1 && made[0].kind == NodeKind::Rule {
-                        children.append(&mut made[0].children);
+                        // Take over the prefix's list rather than copy it, so
+                        // that a long repetition costs linear time.
+                        children = std::mem::take(&mut made[0].children);
                     } else {
                         children.append(&mut made);
                     }
