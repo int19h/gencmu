@@ -1683,7 +1683,12 @@
       }
       let emit = clauses.emit || null;
       if (emit && "items" in emit) {
-        emit = { items: emit.items.filter((item) => item.capture === undefined || names.has(item.capture)) };
+        // An item naming a capture the production lacks is dropped, and so is
+        // a tag term naming one: the item keeps its own tags (engine §3.6).
+        emit = {
+          items: emit.items.filter((item) => item.capture === undefined || names.has(item.capture)).map((item) =>
+            item.tags && !termVariables(item.tags).every((name) => names.has(name)) ? { ...item, tags: undefined } : item),
+        };
       }
       this.addProduction({
         lhs: rule.name,
@@ -4257,10 +4262,191 @@
     return false;
   }
 
+  // ---- dom.js
+  // Checks that a grammar DOM that did not come from reading a document, the
+  // bootstrap's or a precompiled one from compiled.json, has the shape the
+  // reader would have given it (docs/output.md, "The DOM"), so that a corrupt
+  // or hand-made one is refused rather than failing somewhere inside a parse.
+
+  /** @import { GrammarDom } from "./types.js" */
+
+  const DOM_FUNCTIONS = new Set(["phonemes", "text", "lowercase", "tags", "classes", "words", "head", "tail", "last", "matches"]);
+  const DOM_COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆"]);
+  const DOM_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
+  // The nesting the notation allows (engine §9): deeper than any grammar a
+  // person writes, and shallow enough for the recursive walks over a DOM.
+  const DOM_MAX_DEPTH = 256;
+
+  /**
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isDomObject(value) {
+    return value !== null && typeof value === "object" && !Array.isArray(value);
+  }
+
+  /**
+   * @param {unknown} value
+   * @returns {boolean}
+   */
+  function isDomPosition(value) {
+    return Array.isArray(value) && value.length === 2 && value.every((n) => Number.isInteger(n));
+  }
+
+  const DOM_SPANS = new Set(["head", "tail", "last"]);
+
+  /**
+   * Whether a term is a span: a capture, or head, tail or last of one.
+   * @param {unknown} value
+   * @returns {boolean}
+   */
+  function isDomSpan(value) {
+    return isDomObject(value) && (typeof value.capture === "string" || (typeof value.call === "string" && DOM_SPANS.has(value.call)));
+  }
+
+  /**
+   * Whether a term is a string: a literal, or phonemes, text or lowercase of
+   * something.
+   * @param {unknown} value
+   * @returns {boolean}
+   */
+  function isDomString(value) {
+    return isDomObject(value) && (typeof value.literal === "string" ||
+      (typeof value.call === "string" && ["phonemes", "text", "lowercase"].includes(value.call)));
+  }
+
+  /**
+   * Why a value is not a grammar DOM, or null when it is one.
+   * @param {unknown} dom
+   * @returns {string | null}
+   */
+  function domProblem(dom) {
+    if (!isDomObject(dom) || dom.format !== 1 || !Array.isArray(dom.rules) || !Array.isArray(dom.directives)) return "not a DOM of format 1";
+    for (const directive of dom.directives) {
+      if (!isDomObject(directive) || typeof directive.name !== "string" || !Array.isArray(directive.args) ||
+          !directive.args.every((arg) => typeof arg === "string") || !isDomPosition(directive.at)) return "a malformed directive";
+    }
+    /** @type {{kind: string, value: unknown, depth: number}[]} */
+    const pending = [];
+    for (const rule of dom.rules) {
+      if (!isDomObject(rule) || typeof rule.name !== "string" || !DOM_NAME.test(rule.name) || (rule.op !== "define" && rule.op !== "extend") ||
+          !Array.isArray(rule.alternatives) || rule.alternatives.length === 0 || !Array.isArray(rule.conditions) || !isDomPosition(rule.at)) {
+        return "a malformed rule";
+      }
+      if (rule.tags !== undefined) pending.push({ kind: "term", value: rule.tags, depth: 0 });
+      if (rule.emit !== undefined) pending.push({ kind: "emission", value: rule.emit, depth: 0 });
+      for (const condition of rule.conditions) pending.push({ kind: "condition", value: condition, depth: 0 });
+      for (const alternative of rule.alternatives) {
+        if (!isDomObject(alternative) || !Array.isArray(alternative.guards) ||
+            !alternative.guards.every((guard) => isDomObject(guard) && typeof guard.feature === "string" && typeof guard.negated === "boolean")) {
+          return "a malformed alternative";
+        }
+        pending.push({ kind: "expr", value: alternative.expr, depth: 0 });
+        if (alternative.tags !== undefined) pending.push({ kind: "term", value: alternative.tags, depth: 0 });
+      }
+    }
+    for (let task = pending.pop(); task !== undefined; task = pending.pop()) {
+      const { kind, value, depth } = task;
+      // A function's argument is a term where a span may stand.
+      const argument = kind === "argument";
+      if (depth > DOM_MAX_DEPTH) return "nested too deeply";
+      if (!isDomObject(value)) return `a malformed ${kind}`;
+      const next = depth + 1;
+      /** @type {(kind: string, value: unknown) => void} */
+      const push = (childKind, child) => pending.push({ kind: childKind, value: child, depth: next });
+      /** @type {(list: unknown, least: number, most?: number) => boolean} */
+      const list = (items, least, most = Infinity) => Array.isArray(items) && items.length >= least && items.length <= most;
+      if (kind === "expr") {
+        if ("choice" in value || "seq" in value) {
+          const items = "choice" in value ? value.choice : value.seq;
+          if (!list(items, 2)) return "a malformed expression";
+          for (const item of /** @type {unknown[]} */ (items)) push("expr", item);
+        } else if ("and" in value) {
+          if (!list(value.and, 2, 16)) return "a malformed expression";
+          for (const item of /** @type {unknown[]} */ (value.and)) push("expr", item);
+        } else if ("repeat" in value) {
+          if (value.min !== 0 && value.min !== 1) return "a malformed expression";
+          push("expr", value.repeat);
+        } else if ("optional" in value) {
+          push("expr", value.optional);
+        } else if ("capture" in value) {
+          const inner = value.expr;
+          if (typeof value.capture !== "string" || !isDomObject(inner) ||
+              !(typeof inner.ref === "string" || typeof inner.terminal === "string")) return "a malformed capture";
+        } else if (!(typeof value.ref === "string" || typeof value.terminal === "string" || value.hash === true || value.empty === true)) {
+          return "a malformed expression";
+        }
+      } else if (kind === "emission") {
+        // The reader's rules (engine §9): nothing alone, this only with this,
+        // a capture listed once, no tags on an inserted tag.
+        if (value.nothing === true) {
+          if (Object.keys(value).length !== 1) return "a malformed emission";
+          continue;
+        }
+        if (!list(value.items, 1)) return "a malformed emission";
+        const items = /** @type {unknown[]} */ (value.items);
+        const kinds = items.map((item) => (!isDomObject(item) ? null : item.this === true ? "this" : typeof item.capture === "string" ? "capture" : typeof item.insert === "string" ? "insert" : null));
+        if (kinds.includes(null) || (kinds.includes("this") && !kinds.every((k) => k === "this"))) return "a malformed emission";
+        const captures = items.flatMap((item) => (isDomObject(item) && typeof item.capture === "string" ? [item.capture] : []));
+        if (new Set(captures).size !== captures.length) return "a malformed emission";
+        for (const item of /** @type {Record<string, unknown>[]} */ (items)) {
+          if (item.tags === undefined) continue;
+          if (typeof item.insert === "string") return "a malformed emission";
+          push("term", item.tags);
+        }
+      } else if (kind === "condition") {
+        if ("any" in value) {
+          if (!list(value.any, 2)) return "a malformed condition";
+          for (const item of /** @type {unknown[]} */ (value.any)) push("condition", item);
+        } else if ("not" in value) {
+          push("condition", value.not);
+        } else if ("matches" in value) {
+          if (typeof value.rule !== "string" || !isDomSpan(value.matches)) return "a malformed condition";
+          pending.push({ kind: "argument", value: value.matches, depth: next });
+        } else {
+          if (typeof value.op !== "string" || !DOM_COMPARATORS.has(value.op)) return "a malformed condition";
+          push("term", value.left);
+          push("term", value.right);
+        }
+      } else {
+        if ("set" in value || "union" in value || "intersection" in value) {
+          const items = value.set ?? value.union ?? value.intersection;
+          if (!list(items, "set" in value ? 0 : 2)) return "a malformed term";
+          for (const item of /** @type {unknown[]} */ (items)) push("term", item);
+        } else if ("call" in value) {
+          // The reader's signatures (engine §9), with a span where one is due.
+          const args = /** @type {unknown[]} */ (Array.isArray(value.args) ? value.args : []);
+          const isRule = (/** @type {unknown} */ arg) => isDomObject(arg) && typeof arg.rule === "string" && Object.keys(arg).length === 1;
+          const call = value.call;
+          let ok;
+          if (typeof call !== "string" || !DOM_FUNCTIONS.has(call) || call === "matches") ok = false;
+          else if (call === "tags") ok = (args.length === 1 && isDomSpan(args[0])) || (args.length === 2 && isDomSpan(args[0]) && isRule(args[1]));
+          else if (call === "lowercase") ok = args.length === 1 && isDomString(args[0]);
+          else ok = args.length === 1 && isDomSpan(args[0]);
+          if (!ok || (!argument && DOM_SPANS.has(/** @type {string} */ (call)))) return "a malformed term";
+          for (const arg of args) if (!isRule(arg)) pending.push({ kind: "argument", value: arg, depth: next });
+        } else if (!(typeof value.literal === "string" || typeof value.weak === "string" || value.emptySet === true || typeof value.capture === "string")) {
+          return "a malformed term";
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Whether a value is a grammar DOM.
+   * @param {unknown} dom
+   * @returns {dom is GrammarDom}
+   */
+  function isDom(dom) {
+    return domProblem(dom) === null;
+  }
+
   // ---- dialect.js
   // Dialects: loading pipeline documents and their grammars, reading grammar
   // documents with the notation dialect (engine §8), and running a text
   // through the stages (engine §13).
+
 
 
 
@@ -4297,18 +4483,26 @@
     constructor(read) {
       this.read = read;
       this.unicode = new UnicodeTable(this.need("unicode.txt"));
-      /** @type {{stages: {name: string, documents: {path: string, dom: GrammarDom}[]}[]}} */
-      const bootstrap = JSON.parse(this.need("notation/bootstrap.json"));
+      const bootstrap = readBootstrap(this.need("notation/bootstrap.json"));
       this.bootstrapHash = fnv1a64(this.need("notation/bootstrap.json"));
       this.notation = new Dialect("dialects/notation.md", bootstrap.stages.map((stage) =>
         new Stage(stage.name, new Grammar(stage.name, stage.documents.map((document) => ({ path: document.path, dom: document.dom }))))), this);
       /** @type {Map<string, CompiledEntry>} */
       this.compiled = new Map();
+      // Precompiled DOMs are a cache: one that cannot be read, or an entry
+      // that is not a DOM, is a miss, and the document is read instead.
       const compiled = this.read("compiled.json");
       if (compiled !== undefined) {
-        const data = JSON.parse(compiled);
-        if (data.format === DOM_FORMAT && data.bootstrap === this.bootstrapHash) {
-          for (const [path, entry] of Object.entries(data.documents)) this.compiled.set(path, entry);
+        let data;
+        try {
+          data = JSON.parse(compiled);
+        } catch {
+          data = null;
+        }
+        if (data && data.format === DOM_FORMAT && data.bootstrap === this.bootstrapHash && data.documents && typeof data.documents === "object") {
+          for (const [path, entry] of Object.entries(data.documents)) {
+            if (entry && typeof entry.hash === "string" && isDom(entry.dom)) this.compiled.set(path, entry);
+          }
         }
       }
       /** @type {Map<string, GrammarDom>} */
@@ -4364,7 +4558,23 @@
         throw new GencmuError("grammar", `${path}:${line}:${column}: ${error.message}`, { document: path, line, column });
       }
       const syntax = run.stages[run.stages.length - 1];
-      return treeToDom(/** @type {ResultNode} */ (syntax.tree), syntax.input || [], positionOf, path);
+      /** @type {GrammarDom} */
+      let dom;
+      try {
+        dom = treeToDom(/** @type {ResultNode} */ (syntax.tree), syntax.input || [], positionOf, path);
+      } catch (error) {
+        if (error instanceof RangeError) throw new GencmuError("grammar", `${path}: nested too deeply`, { document: path });
+        throw error;
+      }
+      // The bound on nesting is the same for a document read here as for a
+      // precompiled DOM (engine §9).
+      if (domProblem(dom) === "nested too deeply") {
+        // Reported at the rule that holds it, the first too deep.
+        const rule = dom.rules.find((candidate) => domProblem({ ...dom, rules: [candidate], directives: [] }) === "nested too deeply");
+        const [line, column] = rule ? rule.at : [1, 1];
+        throw new GencmuError("grammar", `${path}:${line}:${column}: an expression, term or condition is nested more than ${DOM_MAX_DEPTH} deep`, { document: path, line, column });
+      }
+      return dom;
     }
 
     /**
@@ -4478,6 +4688,33 @@
   }
 
   // Adds the line and column of an error's source position.
+  /**
+   * The notation dialect's DOM from bootstrap.json, or a grammar error saying
+   * what is wrong with it.
+   * @param {string} text
+   * @returns {{stages: {name: string, documents: {path: string, dom: GrammarDom}[]}[]}}
+   */
+  function readBootstrap(text) {
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (error) {
+      throw new GencmuError("grammar", `notation/bootstrap.json is not JSON: ${/** @type {Error} */ (error).message}`, { document: "notation/bootstrap.json" });
+    }
+    const stages = data && data.format === DOM_FORMAT && Array.isArray(data.stages) ? data.stages : null;
+    if (!stages || stages.length === 0) throw new GencmuError("grammar", "notation/bootstrap.json has no stages", { document: "notation/bootstrap.json" });
+    for (const stage of stages) {
+      if (!stage || typeof stage.name !== "string" || !Array.isArray(stage.documents) || stage.documents.length === 0) {
+        throw new GencmuError("grammar", "notation/bootstrap.json has a malformed stage", { document: "notation/bootstrap.json" });
+      }
+      for (const document of stage.documents) {
+        const problem = document && typeof document.path === "string" ? domProblem(document.dom) : "a document without a path";
+        if (problem) throw new GencmuError("grammar", `notation/bootstrap.json: ${problem}`, { document: "notation/bootstrap.json" });
+      }
+    }
+    return data;
+  }
+
   /**
    * @param {ParseError} error
    * @param {string} text

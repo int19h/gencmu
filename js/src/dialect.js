@@ -10,6 +10,7 @@ import { extractGrammarText, readPipeline, resolvePath } from "./markdown.js";
 import { characterTokens, Token } from "./tokens.js";
 import { UnicodeTable } from "./unicode.js";
 import { someNode } from "./walk.js";
+import { domProblem, isDom, DOM_MAX_DEPTH } from "./dom.js";
 
 /** @import { GrammarDom, ParseError, ParseOptions, ParseResult, Resources, ResultNode, StageReport } from "./types.js" */
 
@@ -37,18 +38,26 @@ export class Loader {
   constructor(read) {
     this.read = read;
     this.unicode = new UnicodeTable(this.need("unicode.txt"));
-    /** @type {{stages: {name: string, documents: {path: string, dom: GrammarDom}[]}[]}} */
-    const bootstrap = JSON.parse(this.need("notation/bootstrap.json"));
+    const bootstrap = readBootstrap(this.need("notation/bootstrap.json"));
     this.bootstrapHash = fnv1a64(this.need("notation/bootstrap.json"));
     this.notation = new Dialect("dialects/notation.md", bootstrap.stages.map((stage) =>
       new Stage(stage.name, new Grammar(stage.name, stage.documents.map((document) => ({ path: document.path, dom: document.dom }))))), this);
     /** @type {Map<string, CompiledEntry>} */
     this.compiled = new Map();
+    // Precompiled DOMs are a cache: one that cannot be read, or an entry
+    // that is not a DOM, is a miss, and the document is read instead.
     const compiled = this.read("compiled.json");
     if (compiled !== undefined) {
-      const data = JSON.parse(compiled);
-      if (data.format === DOM_FORMAT && data.bootstrap === this.bootstrapHash) {
-        for (const [path, entry] of Object.entries(data.documents)) this.compiled.set(path, entry);
+      let data;
+      try {
+        data = JSON.parse(compiled);
+      } catch {
+        data = null;
+      }
+      if (data && data.format === DOM_FORMAT && data.bootstrap === this.bootstrapHash && data.documents && typeof data.documents === "object") {
+        for (const [path, entry] of Object.entries(data.documents)) {
+          if (entry && typeof entry.hash === "string" && isDom(entry.dom)) this.compiled.set(path, entry);
+        }
       }
     }
     /** @type {Map<string, GrammarDom>} */
@@ -104,7 +113,23 @@ export class Loader {
       throw new GencmuError("grammar", `${path}:${line}:${column}: ${error.message}`, { document: path, line, column });
     }
     const syntax = run.stages[run.stages.length - 1];
-    return treeToDom(/** @type {ResultNode} */ (syntax.tree), syntax.input || [], positionOf, path);
+    /** @type {GrammarDom} */
+    let dom;
+    try {
+      dom = treeToDom(/** @type {ResultNode} */ (syntax.tree), syntax.input || [], positionOf, path);
+    } catch (error) {
+      if (error instanceof RangeError) throw new GencmuError("grammar", `${path}: nested too deeply`, { document: path });
+      throw error;
+    }
+    // The bound on nesting is the same for a document read here as for a
+    // precompiled DOM (engine §9).
+    if (domProblem(dom) === "nested too deeply") {
+      // Reported at the rule that holds it, the first too deep.
+      const rule = dom.rules.find((candidate) => domProblem({ ...dom, rules: [candidate], directives: [] }) === "nested too deeply");
+      const [line, column] = rule ? rule.at : [1, 1];
+      throw new GencmuError("grammar", `${path}:${line}:${column}: an expression, term or condition is nested more than ${DOM_MAX_DEPTH} deep`, { document: path, line, column });
+    }
+    return dom;
   }
 
   /**
@@ -218,6 +243,33 @@ function containsWord(tree, tokens, words) {
 }
 
 // Adds the line and column of an error's source position.
+/**
+ * The notation dialect's DOM from bootstrap.json, or a grammar error saying
+ * what is wrong with it.
+ * @param {string} text
+ * @returns {{stages: {name: string, documents: {path: string, dom: GrammarDom}[]}[]}}
+ */
+function readBootstrap(text) {
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch (error) {
+    throw new GencmuError("grammar", `notation/bootstrap.json is not JSON: ${/** @type {Error} */ (error).message}`, { document: "notation/bootstrap.json" });
+  }
+  const stages = data && data.format === DOM_FORMAT && Array.isArray(data.stages) ? data.stages : null;
+  if (!stages || stages.length === 0) throw new GencmuError("grammar", "notation/bootstrap.json has no stages", { document: "notation/bootstrap.json" });
+  for (const stage of stages) {
+    if (!stage || typeof stage.name !== "string" || !Array.isArray(stage.documents) || stage.documents.length === 0) {
+      throw new GencmuError("grammar", "notation/bootstrap.json has a malformed stage", { document: "notation/bootstrap.json" });
+    }
+    for (const document of stage.documents) {
+      const problem = document && typeof document.path === "string" ? domProblem(document.dom) : "a document without a path";
+      if (problem) throw new GencmuError("grammar", `notation/bootstrap.json: ${problem}`, { document: "notation/bootstrap.json" });
+    }
+  }
+  return data;
+}
+
 /**
  * @param {ParseError} error
  * @param {string} text

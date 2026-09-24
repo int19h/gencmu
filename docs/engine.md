@@ -119,7 +119,9 @@ decides nothing a user can observe except through §4-§6.
    likewise: the alternative's own tags if it has them, else the rule-level
    tags, and if either mentions a capture the production lacks, the
    production has default tags (§4). An emission item naming a capture the
-   production lacks is dropped from that production's emission.
+   production lacks is dropped from that production's emission, and an
+   item's tag term that names one is dropped from the item, which then
+   carries its own tags.
 7. A production with one symbol and no tags has the tags of that symbol's
    constituent; one with several symbols and no tags has none. This is
    stated in §4; lowering makes it explicit by treating the single symbol as
@@ -426,6 +428,7 @@ document, reported at the first token of the offending construct:
 - `head`, `tail` or `last` where a value is needed, and `matches` as a
   term;
 - an `&` of more than 16 items;
+- an expression, a term or a condition nested more than 256 deep;
 - `nothing` with other items or with tags; `this` with items other than
   `this`; tags on an inserted tag; a capture listed twice in one emission;
   a second `⇒` clause in one rule;
