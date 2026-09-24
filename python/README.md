@@ -1,0 +1,100 @@
+# gencmu for Python
+
+A Lojban parser whose grammars are literate Markdown documents loaded at
+runtime. This is the Python library: pure Python, standard library only,
+Python 3.10 and later. It implements the engine specification of the gencmu
+repository, `docs/engine.md`, and its results are the canonical JSON of
+`docs/output.md`.
+
+```python
+import gencmu
+
+dialect = gencmu.load_dialect("notation")
+result = dialect.parse("text ≔ A B ;")
+result.ok, result.tree, result.error
+gencmu.to_json(result)
+gencmu.to_brackets(result, show_elided=True)
+```
+
+## Loading a dialect
+
+A dialect is a pipeline document and the grammar documents it names.
+
+- `load_dialect(name)`: a dialect of the bundled grammars, by the name of
+  its pipeline document under `grammars/dialects/` without `.md`.
+- `load_dialect_file(path)`: a pipeline document on disk; its grammar
+  documents are found relative to it, and the Unicode table and the
+  notation's bootstrap come from the bundled grammars.
+- `load_dialect_sources(sources, pipeline)`: documents held in memory, a
+  mapping from `/`-separated path to text, and the path of the pipeline
+  document in it. The mapping may hold its own `unicode.txt`,
+  `notation/bootstrap.json` and `compiled.json`; the bundled ones fill in
+  what it lacks.
+
+A grammar document is read through the notation only when the precompiled
+DOMs, `compiled.json`, have no entry for its text under the same bootstrap
+and DOM format; reading a large grammar through the notation is slow in
+pure Python, so the bundled grammars all have one. Each loader takes
+`use_cache=False` to read every document afresh. A dialect that cannot be
+loaded raises `gencmu.GencmuError`, whose `kind` is `"grammar"` and whose
+`where` is `document:line:column` as far as it is known.
+
+## Parsing
+
+```python
+result = dialect.parse(text, features=(), auto_features=True, until=None, elision_only=None)
+```
+
+- `features`: feature names to enable in every stage, besides those the
+  pipeline enables with `<?features?>`.
+- `auto_features`: add `sa-su` only where the text needs it, by parsing up
+  to the stage named `words` without it first.
+- `until`: the name of the last stage to run; an unknown name raises
+  `GencmuError` with `kind` `"usage"`.
+- `elision_only`: `True` or `False` to override the grammars'
+  `%ambiguity-resolution ... elision-only`.
+
+A text that does not parse is a result whose `ok` is false and whose
+`error` says why: `rejected`, `ambiguous`, or `grammar` for a defect of a
+grammar found only while parsing. `Dialect.parse_tokens(tokens, text, ...)`
+takes pre-built tokens in place of the first stage's characters, for tests
+and tools.
+
+A dialect may be used for any number of parses and shared between threads.
+
+## The result
+
+`ParseResult`, `Stage`, `Node`, `Token`, `ParseError`, `Action` and
+`Expected` are dataclasses. Tags are `dict[str, bool]`, `True` for a strong
+tag; ranges are `(start, end)` tuples, source ranges in code points.
+
+- `gencmu.to_json(result)` is the canonical JSON as text, in the key order
+  of `docs/output.md`; `gencmu.result_json(result)` is the same as plain
+  data.
+- `gencmu.to_brackets(result, show_elided=False)` renders the last stage's
+  tree as nested groups.
+
+## Development
+
+The grammar copy under `src/gencmu/grammars/` is generated: run
+`node tools/sync.js` at the repository root after changing `grammars/`.
+
+The tests use only `unittest` and run from this directory against the
+sources in `src/`:
+
+```sh
+python -m unittest
+```
+
+They run the shared cases of the repository's `tests/engine/` and
+`tests/notation/`, the fixpoint of the notation's bootstrap, the check of
+`compiled.json` against a fresh reading, the API, and a property test of the
+ranking against brute-force enumeration. `GENCMU_PROPERTY_CASES` and
+`GENCMU_PROPERTY_SEED` run a larger sweep of the property test, and
+`GENCMU_INSTALLED=1` tests an installed package instead of `src/`.
+
+Building the wheel needs `build` and setuptools, at build time only:
+
+```sh
+python -m build
+```
