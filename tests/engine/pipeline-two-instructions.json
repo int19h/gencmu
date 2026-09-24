@@ -1,0 +1,19 @@
+{
+  "description": "A line of a pipeline holds one processing instruction; a heading with <?stage?> and <?features?> both is an error (design, \"Pipelines\").",
+  "documents": {
+    "p.md": "## Main <?stage main?> <?features f?>\n\n- [g](g.md) <?grammar?>\n",
+    "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ @f A | @!f B | @f @g A A ;\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

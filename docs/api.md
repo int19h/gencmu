@@ -20,7 +20,9 @@ documents it names. A library loads one in three ways:
 - from documents held in memory: a map from `/`-separated path to text, and
   the path of the pipeline document in it. The map may supply its own
   `unicode.txt`, `notation/bootstrap.json` and `compiled.json`; any it lacks
-  come from the bundled grammars.
+  come from the bundled grammars, except in the portable JavaScript entry
+  point, which has no bundle to read and needs the map to hold the first
+  two (see "JavaScript").
 
 Paths inside a pipeline resolve against the pipeline document's own path,
 with `.` and `..` normalized (engine §8). A document is read through the

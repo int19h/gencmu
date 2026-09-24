@@ -301,6 +301,8 @@ features are added to them and cannot remove them: a dialect that is its
 base with some features on is a pipeline of its own, as the Zantufa dialect
 is the experimental documents plus its own with the Zantufa features on. Link targets are relative to the
 pipeline document, and resolve the same way on disk, in memory and on GitHub.
+A line holds at most one processing instruction: a second is an error, so
+that a stage and its features cannot share a heading and lose one of them.
 
 ## Ambiguity
 

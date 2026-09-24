@@ -84,6 +84,9 @@ export function readPipeline(markdown, path) {
     const marker = /<\?([a-z]+)(?:\s+([^?]*?))?\s*\?>$/.exec(line);
     if (!marker) continue;
     const at = { document: path, line: number + 1, column: marker.index + 1 };
+    if (/<\?[a-z]+(?:\s[^?]*)?\?>/.test(line.slice(0, marker.index))) {
+      throw new GencmuError("grammar", `${path}:${number + 1}: a line holds one processing instruction`, at);
+    }
     if (marker[1] === "stage") {
       const name = (marker[2] || "").trim();
       if (!/^[A-Za-z][A-Za-z0-9-]*$/.test(name)) {
