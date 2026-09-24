@@ -45,6 +45,7 @@ export declare class ParseContext {
     sourceText: string[];
     unicode: UnicodeTable;
     interner: TagInterner;
+    dots: number;
     /** @type {Map<string, boolean | TagSet>} */
     nested: Map<string, boolean | TagSet>;
     /** @type {Set<string>} */
@@ -96,24 +97,33 @@ export declare class Item {
     origin: number;
     slots: Slot[];
     tagId: number;
-    /** @type {Edge[]} */
-    edges: Edge[];
     end: number;
+    previous: Item | null;
+    child: Item | null;
+    /** @type {Edge[] | null} */
+    more: Edge[] | null;
     /**
      * @param {Production} production
      * @param {number} dot
      * @param {number} origin
      * @param {Slot[]} slots
+     * @param {Item | null} previous
+     * @param {Item | null} child
      */
-    constructor(production: Production, dot: number, origin: number, slots: Slot[]);
+    constructor(production: Production, dot: number, origin: number, slots: Slot[], previous: Item | null, child: Item | null);
     get complete(): boolean;
+    /**
+     * Every way the item was built, in the order they were found.
+     * @returns {Edge[]}
+     */
+    get edges(): Edge[];
 }
 export declare class ChartSet {
     position: number;
     /** @type {Item[]} */
     items: Item[];
-    /** @type {Map<string, Item>} */
-    index: Map<string, Item>;
+    /** @type {Map<number | string, Item>} */
+    index: Map<number | string, Item>;
     /** @type {Item[]} */
     queue: Item[];
     head: number;
@@ -124,12 +134,13 @@ export declare class ChartSet {
     /** @type {Set<string>} the rules already predicted here */
     predicted: Set<string>;
     /**
-     * Productions predicted here but not made items, since they begin with
-     * a terminal the next token does not carry; kept for saying what could
-     * have come next.
-     * @type {Production[]}
+     * The rules predicted here with productions not made items, since they
+     * begin with a terminal the next token does not carry; kept for saying
+     * what could have come next (see expectedAt). A rule, not each of its
+     * productions: a long text skips millions.
+     * @type {string[]}
      */
-    skipped: Production[];
+    skipped: string[];
     /** @param {number} position */
     constructor(position: number);
 }

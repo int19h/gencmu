@@ -90,8 +90,9 @@ jobs:
         working-directory: js
         env:
           GENCMU_CORPUS: full
-          # Two workers: a book chapter takes about 4 GB, and the runner has 16.
-          GENCMU_CORPUS_WORKERS: "2"
+          # Three workers: a book chapter takes about 1.5 GB, and the runner
+          # has 16.
+          GENCMU_CORPUS_WORKERS: "3"
         run: node --test test/corpus.test.js
 
   types:
