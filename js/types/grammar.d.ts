@@ -43,8 +43,6 @@ export declare class Grammar {
     elidable: Set<string>;
     /** @type {Resolution | null} */
     resolution: Resolution | null;
-    /** @type {string | null} */
-    freeModifiers: string | null;
     /** @type {Map<string, LoweredGrammar>} */
     lowered: Map<string, LoweredGrammar>;
     /**

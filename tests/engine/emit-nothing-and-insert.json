@@ -1,8 +1,8 @@
 {
-  "description": "⇒ nothing drops a constituent; a string in a ⇒ list inserts a token with an empty span (engine §11).",
+  "description": "⇒ $ <> drops a constituent; a string in a ⇒ list inserts a token with an empty span (engine §11).",
   "documents": {
     "p.md": "## s <?stage first?>\n\n- [g](g.md) <?grammar?>\n\n## t <?stage second?>\n\n- [h](h.md) <?grammar?>\n",
-    "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ x ... ;\nx ≔ y | z ;\ny ≔ $a(A) $b(B) ⇒ $a, \"MID\", $b ;\nz ≔ C ⇒ nothing ;\n```\n",
+    "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ x ... ;\nx ≔ y | z ;\ny ≔ $a(A) $b(B) ⇒ $a, \"MID\", $b ;\nz ≔ C ⇒ $ <> ;\n```\n",
     "h.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ A MID B ;\n```\n"
   },
   "pipeline": "p.md",

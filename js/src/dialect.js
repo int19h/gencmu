@@ -10,11 +10,12 @@ import { extractGrammarText, readPipeline, resolvePath } from "./markdown.js";
 import { characterTokens, Token } from "./tokens.js";
 import { UnicodeTable } from "./unicode.js";
 import { someNode } from "./walk.js";
-import { domProblem, isDom, DOM_MAX_DEPTH } from "./dom.js";
+import { domProblem, isDom, DOM_FORMAT, DOM_MAX_DEPTH } from "./dom.js";
+
+export { DOM_FORMAT };
 
 /** @import { GrammarDom, ParseError, ParseOptions, ParseResult, Resources, ResultNode, StageReport } from "./types.js" */
 
-export const DOM_FORMAT = 1;
 
 /**
  * A precompiled document of compiled.json.

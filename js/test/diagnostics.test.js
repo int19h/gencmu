@@ -15,9 +15,9 @@ test("the audit reaches rules only through what a reachable alternative can use"
   assert.deepEqual(idle.unreachable, ["helper"]);
   assert.equal(idle.idleConditions.length, 1);
   // The free-modifier rule is reached through a reachable #, and only so.
-  const [unused] = audit(dialect("%free-modifiers free ;\ntext ≔ A ; other ≔ B # ; free ≔ C ;"));
-  assert.deepEqual(unused.unreachable, ["free", "other"]);
-  const [used] = audit(dialect("%free-modifiers free ;\ntext ≔ A # ; free ≔ C ;"));
+  const [unused] = audit(dialect("text ≔ A ; other ≔ B # ; # ≔ [free ...] ; free ≔ C ;"));
+  assert.deepEqual(unused.unreachable, ["#", "free", "other"]);
+  const [used] = audit(dialect("text ≔ A # ; # ≔ [free ...] ; free ≔ C ;"));
   assert.deepEqual(used.unreachable, []);
   // A condition that applies reaches the rule it names.
   const [applies] = audit(dialect("text ≔ $x(A) : matches($x, helper) ; helper ≔ A ;"));

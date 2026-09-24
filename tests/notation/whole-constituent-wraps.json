@@ -1,0 +1,10 @@
+{
+  "description": "$ is the whole constituent and wraps nothing (engine §9); the error is at the capture.",
+  "document": "```ebnf\na ≔ $(A) ;\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 5
+    }
+  }
+}

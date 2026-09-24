@@ -1,6 +1,6 @@
 {
-  "description": "Sets, weak tags, ∅ and ∩ binding tighter than ∪ (engine §10).",
-  "document": "# A document\n\nSome prose.\n\n```ebnf\nw ≔ $a(A) <{\"X\", ?\"Y\"} ∪ tags($a) ∩ ∅> ;\n```\n",
+  "description": "Weak tags, ∅, and ∩ binding tighter than ∪ (engine §10).",
+  "document": "# A document\n\nSome prose.\n\n```ebnf\nw ≔ $a(A) <\"X\" ∪ ?\"Y\" ∪ tags($a) ∩ ∅> ;\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -10,14 +10,10 @@
               "tags": {
                 "union": [
                   {
-                    "set": [
-                      {
-                        "literal": "X"
-                      },
-                      {
-                        "weak": "Y"
-                      }
-                    ]
+                    "literal": "X"
+                  },
+                  {
+                    "weak": "Y"
                   },
                   {
                     "intersection": [

@@ -2,7 +2,7 @@
 
 This document opens the phoneme stage, the first stage of every Lojban dialect: [CLL](../dialects/cll.md), [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The stage reads the characters of a text and hands the word stage the phonemes they stand for. Its terminals are characters, each written in straight quotes, and the character classes `alpha`, `digit`, `space`, `mark` and `other` that every character token also carries; it emits one token per phoneme, carrying that phoneme's tag, so that the word grammar never sees a character and reads every script alike. This document contributes the standard Latin orthography of CLL chapter 3 and the frame of the stage, runs of letters between pauses; [cyrillic.md](cyrillic.md) and [zbalermorna.md](zbalermorna.md) add their letters to the same rules. The notation is explained in [the notation document](../../docs/notation.md).
 
-The phonemes are the letters of CLL chapter 3, each written as a phoneme tag: the consonants `/b/`, `/c/`, `/d/` and so on through `/z/`, the vowels `/a/ /e/ /i/ /o/ /u/ /y/`, the apostrophe `/'/`, and the stressed vowels `/A/ /E/ /I/ /O/ /U/ /Y/`, a stressed vowel being a separate phoneme so that stress is a position in the word grammar rather than a mark it tests. Two tags stand for what is not a letter: `PAUSE` for a pause of any length, which also carries the phoneme tag `/ /` so that it sounds as a space, and `FOREIGN` for a character that is not Lojban at all, which the word grammar admits only inside a foreign quote.
+The phonemes are the letters of CLL chapter 3, each written as a phoneme tag: the consonants `/b/`, `/c/`, `/d/` and so on through `/z/`, the vowels `/a/ /e/ /i/ /o/ /u/ /y/`, the apostrophe `/'/`, and the stressed vowels `/A/ /E/ /I/ /O/ /U/ /Y/`, a stressed vowel being a separate phoneme so that stress is a position in the word grammar rather than a mark it tests. Two tags stand for what is not a letter: `PAUSE` for a pause of any length, which also carries the phoneme tag `/./`, the pause, which sounds as a space, and `FOREIGN` for a character that is not Lojban at all, which the word grammar admits only inside a foreign quote.
 
 ## The text and its runs
 
@@ -21,7 +21,7 @@ items
 
 pause
 ≔ pause-char | pause pause-char
-⇒ this <"PAUSE" ∪ / /> ;
+⇒ $ <"PAUSE" ∪ /./> ;
 pause-char
 ≔ "space"
 | $c("other")
@@ -78,11 +78,11 @@ vowel-group
 
 vowel-group-plain
 ≔ $g(vowel-group) $v(vowel) <tags($v)>| $h(vowel-group) $w(vowel) <tags($w)>
-: "syllabic" ∉ tags($g), "syllabic" ∈ tags($h), "syllabic" ∉ tags($w) ;
+: "syllabic" ∉ tags($g) ∧ "syllabic" ∈ tags($h) ∧ "syllabic" ∉ tags($w) ;
 
 vowel-group-joined
 ≔ $g(vowel-group) $v(vowel) <tags($v)>
-: "syllabic" ∈ tags($g), "syllabic" ∈ tags($v)
+: "syllabic" ∈ tags($g) ∧ "syllabic" ∈ tags($v)
 ⇒ $g, /'/, $v ;
 
 folded-vowel-group
@@ -90,11 +90,11 @@ folded-vowel-group
 
 folded-vowel-group-plain
 ≔ $g(folded-vowel-group) $v(folded-vowel) <tags($v)>| $h(folded-vowel-group) $w(folded-vowel) <tags($w)>
-: "syllabic" ∉ tags($g), "syllabic" ∈ tags($h), "syllabic" ∉ tags($w) ;
+: "syllabic" ∉ tags($g) ∧ "syllabic" ∈ tags($h) ∧ "syllabic" ∉ tags($w) ;
 
 folded-vowel-group-joined
 ≔ $g(folded-vowel-group) $v(folded-vowel) <tags($v)>
-: "syllabic" ∈ tags($g), "syllabic" ∈ tags($v)
+: "syllabic" ∈ tags($g) ∧ "syllabic" ∈ tags($v)
 ⇒ $g, /'/, $v ;
 
 any-lojban-char
@@ -116,7 +116,7 @@ foreign-part
 foreign-char
 ≔ $c("alpha") | $c("digit")
 : ¬matches($c, any-lojban-char)
-⇒ this <"FOREIGN"> ;
+⇒ $ <"FOREIGN"> ;
 ```
 
 A foreign run is read from its first foreign character: only Lojban
@@ -132,30 +132,30 @@ A consonant is emitted as itself whatever its case; CLL 3.9 uses case on vowels 
 ```ebnf
 consonant
 ≔ "b" </b/>| "B" </b/>| "c" </c/>| "C" </c/>| "d" </d/>| "D" </d/>| "f" </f/>| "F" </f/>| "g" </g/>| "G" </g/>| "j" </j/>| "J" </j/>| "k" </k/>| "K" </k/>| "l" </l/>| "L" </l/>| "m" </m/>| "M" </m/>| "n" </n/>| "N" </n/>| "p" </p/>| "P" </p/>| "r" </r/>| "R" </r/>| "s" </s/>| "S" </s/>| "t" </t/>| "T" </t/>| "v" </v/>| "V" </v/>| "x" </x/>| "X" </x/>| "z" </z/>| "Z" </z/>
-⇒ this ;
+⇒ $ ;
 
 plain-vowel
 ≔ "a" </a/>| "e" </e/>| "i" </i/>| "o" </o/>| "u" </u/>| "y" </y/>| "ĭ" </i/>| "Ĭ" </i/>| "ŭ" </u/>| "Ŭ" </u/>| "i" glide-mark </i/>| "u" glide-mark </u/>| "I" glide-mark </i/>| "U" glide-mark </u/>
-⇒ this ;
+⇒ $ ;
 
 stressed-vowel
 ≔ "A" </A/>| "E" </E/>| "I" </I/>| "O" </O/>| "U" </U/>| "Y" </Y/>| "á" </A/>| "é" </E/>| "í" </I/>| "ó" </O/>| "ú" </U/>| "ý" </Y/>| "à" </A/>| "è" </E/>| "ì" </I/>| "ò" </O/>| "ù" </U/>| "ỳ" </Y/>| "Á" </A/>| "É" </E/>| "Í" </I/>| "Ó" </O/>| "Ú" </U/>| "Ý" </Y/>| "À" </A/>| "È" </E/>| "Ì" </I/>| "Ò" </O/>| "Ù" </U/>| "Ỳ" </Y/>| "a" stress-mark </A/>| "e" stress-mark </E/>| "i" stress-mark </I/>| "o" stress-mark </O/>| "u" stress-mark </U/>| "y" stress-mark </Y/>| "A" stress-mark </A/>| "E" stress-mark </E/>| "I" stress-mark </I/>| "O" stress-mark </O/>| "U" stress-mark </U/>| "Y" stress-mark </Y/>
-⇒ this ;
+⇒ $ ;
 
 folded-vowel
 ≔ "A" </a/>| "E" </e/>| "I" </i/>| "O" </o/>| "U" </u/>| "Y" </y/>
-⇒ this ;
+⇒ $ ;
 
 apostrophe
 ≔ "'" | "’" | "‘" | "h" | "H" | "ʼ"
-⇒ this </'/> ;
+⇒ $ </'/> ;
 comma
 ≔ ","
-⇒ nothing ;
+⇒ $ <> ;
 
 mark
 ≔ "mark"
-⇒ nothing ;
+⇒ $ <> ;
 
 stress-mark
 ≔ "\u{0301}" | "\u{0300}" ;
@@ -174,35 +174,35 @@ digit
 
 digit-0
 ≔ "0"
-⇒ this </n/>, this </o/> ;
+⇒ $ </n/>, $ </o/> ;
 digit-1
 ≔ "1"
-⇒ this </p/>, this </a/> ;
+⇒ $ </p/>, $ </a/> ;
 digit-2
 ≔ "2"
-⇒ this </r/>, this </e/> ;
+⇒ $ </r/>, $ </e/> ;
 digit-3
 ≔ "3"
-⇒ this </c/>, this </i/> ;
+⇒ $ </c/>, $ </i/> ;
 digit-4
 ≔ "4"
-⇒ this </v/>, this </o/> ;
+⇒ $ </v/>, $ </o/> ;
 digit-5
 ≔ "5"
-⇒ this </m/>, this </u/> ;
+⇒ $ </m/>, $ </u/> ;
 digit-6
 ≔ "6"
-⇒ this </x/>, this </a/> ;
+⇒ $ </x/>, $ </a/> ;
 digit-7
 ≔ "7"
-⇒ this </z/>, this </e/> ;
+⇒ $ </z/>, $ </e/> ;
 digit-8
 ≔ "8"
-⇒ this </b/>, this </i/> ;
+⇒ $ </b/>, $ </i/> ;
 digit-9
 ≔ "9"
-⇒ this </s/>, this </o/> ;
+⇒ $ </s/>, $ </o/> ;
 decimal-point
 ≔ "."
-⇒ this </p/>, this </i/> ;
+⇒ $ </p/>, $ </i/> ;
 ```

@@ -1,0 +1,10 @@
+{
+  "description": "A constituent's tags cannot be made of its own: $, tags($) or classes($) (engine §9).",
+  "document": "```ebnf\na ≔ A B <tags($) ∪ \"T\"> ;\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  }
+}

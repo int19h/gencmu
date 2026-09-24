@@ -162,7 +162,7 @@ cmavo-shape <"word"> ≔ plain-cmavo-body | cmavo-nuclei word-end ;
 The `;` is required, so a rule's end never depends on layout, and a missing
 one is an error at a known place. Every binary operator may also stand
 first, as a no-op, so that a list can put one item on each line: `|` and `&`
-in bodies, `∪` and `∩` in tag terms, `,`, `∧` and `∨` in conditions. Tags
+in bodies, `∪` and `∩` in tag terms, `∧` and `∨` in conditions. Tags
 written on the rule's name apply to every alternative that has none of its
 own; tags after an alternative apply to it. Nothing is recognized by its
 position on a line.
@@ -190,16 +190,14 @@ of those changes, instead of a generated copy.
 **Terminals.** A name in upper case is a terminal that matches a token
 carrying that tag. A string in straight quotes, `"а"`, `"word"`, is a
 terminal whose tag the name syntax cannot spell. A phoneme between slashes,
-`/a/`, `/'/`, `/ /` for a pause, is a phoneme tag: it matches like any tag,
+`/a/`, `/'/`, `/./` for a pause, is a phoneme tag: it matches like any tag,
 and it also says what a token carrying it sounds like, which is what
 `phonemes()` reads. Slashes mean nothing else.
 
 **Operators** are those of CLL: juxtaposition is sequence; `[x]` optional;
 `x ...` one or more, `[x] ...` zero or more, left-recursive; `A & B` and/or
-in order; `( )` grouping; `ε` empty; `@f` and `@!f` feature guards on an
-alternative; `$x(symbol)` a capture. `#` is not built in: it is shorthand
-that the grammar declares, `%free-modifiers free ;`, meaning `[free ...]`,
-and a grammar without the declaration has no `#`. CLL's `/KU/` for an
+in order; `( )` grouping; `ε` empty; `@f` and `@¬f` feature guards on an
+alternative; `$x(symbol)` a capture, and `$` the whole constituent. `#` is not built in: it is a rule the grammar defines, `# ≔ [free ...] ;`, as CLL's EBNF defines it, so the free modifiers of one slot are one node of the tree. CLL's `/KU/` for an
 elidable terminator is written `[KU]`, and `/KU#/` is `[KU #]`; which
 terminators are elidable is declared once (see below). `[KU #]` is exactly
 what CLL prints: an elided terminator takes its free-modifier slot with it,
@@ -210,9 +208,7 @@ elided terminator, as the camxes family does, write `[KU] #`. The conversion
 keeps each grammar's reading, and the corpus, converted before the grammars,
 catches any slip.
 
-**Clauses.** `⇒` says what the rule hands to the next stage; `:` lists
-conditions over captures, joined by `,` or `∧`, each item possibly several
-conditions joined by `∨`. A weak tag is `?"KOhA"`.
+**Clauses.** `⇒` says what the rule hands to the next stage, as a list of captures, each with its own tags or erased with `<>`; `:` states conditions over captures, joined by `∧` and `∨` in the usual precedence and grouped with parentheses. A weak tag is `?"KOhA"`. There is one notation for a set of tags, the union: `"UI" ∪ "CAI"`.
 
 **Directives** start with `%`, end with `;`, and may stand in any block:
 
@@ -223,7 +219,6 @@ conditions joined by `∨`. A weak tag is `?"KOhA"`.
 - `%elidable KU KEI VAU ... ;`: the terminators that may be elided. An absent
   optional whose first symbol is one of them appears in the tree as that
   terminator, elided at that point, and `elision-only` restores them.
-- `%free-modifiers free ;`: what `#` stands for.
 
 By convention a directive stands in a block of its own, after prose that
 says why the grammar needs it; the reader does not enforce the convention.
@@ -397,7 +392,7 @@ Node
 The tree is lossless with respect to the grammar the author wrote: every
 rule the parse went through is a node, including chains of single-child
 rules, so a program can tell `sumti-6` from `sumti`. Only the helper rules
-that lowering invents for `[ ]`, `...`, `&` and `#` are spliced out, since no
+that lowering invents for `[ ]`, `...` and `&` are spliced out, since no
 author wrote them; an absent optional that begins with an `%elidable`
 terminator leaves an `elided` node with an empty span where the terminator
 would have been. Collapsing chains is a choice of the renderers,

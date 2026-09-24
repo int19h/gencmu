@@ -1,6 +1,7 @@
 // From the notation's syntax tree to a grammar DOM (engine §9).
 
 import { GencmuError } from "./errors.js";
+import { DOM_FORMAT, readsOwnTags } from "./dom.js";
 
 /**
  * @import { Argument, Comparator, Condition, DomAlternative, DomDirective, DomRule, EmitItem, Emission, Expr, GrammarDom, Position, ResultNode, RuleNode, Term } from "./types.js"
@@ -70,7 +71,7 @@ export function treeToDom(tree, tokens, positionOf, path) {
       rules.push(readRule(item));
     }
   }
-  return { format: 1, rules, directives };
+  return { format: DOM_FORMAT, rules, directives };
 
   /**
    * @param {ResultNode} node
@@ -83,7 +84,7 @@ export function treeToDom(tree, tokens, positionOf, path) {
     /** @type {Partial<DomRule>} */
     const rule = { name, op: tokenText(parts(definer)[0]) === "|≔" ? "extend" : "define" };
     const tags = one(node, "rule-tags");
-    if (tags) rule.tags = readTerm(only(tags, "term"));
+    if (tags) rule.tags = readConstituentTags(tags);
     rule.alternatives = ofRule(only(node, "body"), "alternative").map(readAlternative);
     /** @type {Condition[]} */
     const conditions = [];
@@ -95,7 +96,10 @@ export function treeToDom(tree, tokens, positionOf, path) {
         if (emit) fail("a rule may have one ⇒ clause", inner);
         emit = readEmission(inner);
       } else {
-        for (const itemNode of ofRule(inner, "condition-item")) conditions.push(readConditionItem(itemNode));
+        // The conditions joined by ∧ at the top are the rule's conditions,
+        // each applying where its captures are (engine §3.6).
+        const top = readAnyOf(only(inner, "any-of"));
+        conditions.push(...("all" in top ? top.all : [top]));
       }
     }
     if (emit) rule.emit = emit;
@@ -111,12 +115,12 @@ export function treeToDom(tree, tokens, positionOf, path) {
   function readAlternative(node) {
     const guards = ofRule(node, "guard").map((guard) => {
       const spelled = text(parts(guard)[0]);
-      return { feature: spelled.replace(/^@!?/, ""), negated: spelled.startsWith("@!") };
+      return { feature: spelled.replace(/^@¬?/, ""), negated: spelled.startsWith("@¬") };
     });
     /** @type {DomAlternative} */
     const alternative = { guards, expr: readExpression(only(node, "conjunction"), true) };
     const tags = one(node, "alternative-tags");
-    if (tags) alternative.tags = readTerm(only(tags, "term"));
+    if (tags) alternative.tags = readConstituentTags(tags);
     return alternative;
   }
 
@@ -169,6 +173,7 @@ export function treeToDom(tree, tokens, positionOf, path) {
       case "capture": {
         if (!top) fail("a capture stands at the top level of an alternative, not inside [ ], ( ), ..., & or a choice", node);
         const [captureToken, , inner] = parts(node);
+        if (text(captureToken) === "$") fail("$ is the whole constituent and wraps nothing", node);
         const wrapped = parts(inner)[0];
         const kind = ruleOf(wrapped);
         if (kind !== "reference" && kind !== "string" && kind !== "phoneme") fail("a capture wraps one symbol", node);
@@ -177,7 +182,6 @@ export function treeToDom(tree, tokens, positionOf, path) {
       }
       case "group": return readExpression(only(node, "choice"));
       case "optional": return { optional: readExpression(only(node, "choice")) };
-      case "hash": return { hash: true };
       case "empty": return { empty: true };
       default: return fail(`unexpected ${ruleOf(node)}`, node);
     }
@@ -193,33 +197,50 @@ export function treeToDom(tree, tokens, positionOf, path) {
       const kind = target.kind === "rule" ? undefined : target.terminal;
       /** @type {EmitItem} */
       let item = {};
-      if (kind === "identifier" && text(target) === "this") item = { this: true };
-      else if (kind === "identifier" && text(target) === "nothing") item = { nothing: true };
-      else if (kind === "capture") item = { capture: text(target).slice(1) };
+      if (kind === "capture") item = { capture: text(target).slice(1) };
       else if (kind === "string") item = { insert: decode(target) };
       else if (kind === "phoneme") item = { insert: text(target) };
-      else fail("expected this, nothing, a capture or a tag after ⇒", itemNode);
+      else fail("expected a capture or a tag after ⇒", itemNode);
       const tags = one(itemNode, "emit-tags");
       if (tags && item.insert !== undefined) fail("an inserted tag takes no tags of its own", itemNode);
-      if (tags) item.tags = readTerm(only(tags, "term"));
+      if (tags && one(tags, "erase")) item.erase = true;
+      else if (tags) {
+        item.tags = readTerm(only(tags, "term"));
+        if ("emptySet" in item.tags) fail("<∅> emits a token no terminal can read; <> erases", itemNode);
+      }
       return item;
     });
-    if (items.some((item) => item.nothing)) {
-      if (items.length !== 1 || items[0].tags) fail("⇒ nothing stands alone", node);
-      return { nothing: true };
+    if (items.some((item) => item.capture === "") && !items.every((item) => item.capture === "")) {
+      fail("⇒ $ goes with no item but another $", node);
     }
-    if (items.some((item) => item.this) && !items.every((item) => item.this)) fail("⇒ this goes with no item but another this", node);
-    const named = items.flatMap((item) => (item.capture !== undefined ? [item.capture] : []));
+    if (items.some((item) => item.capture === "" && item.erase) && items.length !== 1) fail("⇒ $ <> stands alone", node);
+    const named = items.flatMap((item) => (item.capture !== undefined && item.capture !== "" ? [item.capture] : []));
     if (named.some((name, index) => named.indexOf(name) !== index)) fail("⇒ lists a capture twice", node);
     return { items };
   }
 
   /**
+   * A constituent's tag term, which cannot read the tags it defines: `$`,
+   * `tags($)` or `classes($)` (engine §9).
+   * @param {ResultNode} node
+   * @returns {Term}
+   */
+  function readConstituentTags(node) {
+    const term = readTerm(only(node, "term"));
+    if (readsOwnTags(term)) fail("a constituent's tags cannot be made of its own tags, $, tags($) or classes($)", node);
+    return term;
+  }
+
+  /**
+   * Conditions joined by ∨, each several joined by ∧.
    * @param {ResultNode} node
    * @returns {Condition}
    */
-  function readConditionItem(node) {
-    const items = ofRule(node, "condition").map(readCondition);
+  function readAnyOf(node) {
+    const items = ofRule(node, "all-of").map((allNode) => {
+      const all = ofRule(allNode, "condition").map(readCondition);
+      return all.length === 1 ? all[0] : { all };
+    });
     return items.length === 1 ? items[0] : { any: items };
   }
 
@@ -228,8 +249,10 @@ export function treeToDom(tree, tokens, positionOf, path) {
    * @returns {Condition}
    */
   function readCondition(node) {
-    const inner = parts(node)[0];
+    const inner = /** @type {ResultNode} */ (parts(node).find((child) => child.kind === "rule"));
     switch (ruleOf(inner)) {
+      case "any-of":
+        return readAnyOf(inner);
       case "comparison": {
         const [left, comparator, right] = parts(inner);
         return { op: /** @type {Comparator} */ (text(parts(comparator)[0])), left: readTerm(left), right: readTerm(right) };
@@ -282,7 +305,6 @@ export function treeToDom(tree, tokens, positionOf, path) {
       case "phoneme": return { literal: text(parts(node)[0]) };
       case "weak": return { weak: decode(parts(node)[1]) };
       case "empty-set": return { emptySet: true };
-      case "set": return { set: ofRule(node, "term").map((item) => readTerm(item)) };
       case "call": return readCall(node);
       case "capture-reference": return { capture: text(parts(node)[0]).slice(1) };
       default: return fail(`unexpected ${ruleOf(node)}`, node);
@@ -364,9 +386,9 @@ const SIGNATURES = {
 const NAMED = new Set([
   "directive-statement", "argument-word", "rule", "rule-tags", "definer", "body", "alternative", "guard",
   "alternative-tags", "conjunction", "sequence", "element", "primary", "reference", "string", "phoneme",
-  "capture", "group", "optional", "choice", "hash", "empty", "clause", "emission", "emit-item", "emit-target",
-  "emit-tags", "conditions", "condition-item", "condition", "comparison", "comparator", "negation", "term",
-  "intersection", "term-atom", "weak", "empty-set", "set", "call", "argument", "capture-reference",
+  "capture", "group", "optional", "choice", "empty", "clause", "emission", "emit-item", "emit-target",
+  "emit-tags", "erase", "conditions", "any-of", "all-of", "condition", "comparison", "comparator", "negation", "term",
+  "intersection", "term-atom", "weak", "empty-set", "call", "argument", "capture-reference",
 ]);
 
 /**
@@ -385,3 +407,4 @@ function firstToken(node) {
   }
   return node.span[0];
 }
+

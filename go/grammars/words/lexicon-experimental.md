@@ -24,31 +24,31 @@ lexicon
 ```ebnf
 lexicon-a
 ≔ any-a <"A">
-| any-a /'/ any-a <{"UI", "indicator"}>
-| any-a /'/ any-a any-i <{"UI", "UI3a", "indicator"}>
-| any-a /'/ any-e <{"UI", "indicator"}>
-| any-a /'/ any-i <{"UI", "indicator"}>
-| any-a /'/ any-o <{"UI", "indicator"}>
+| any-a /'/ any-a <"UI" ∪ "indicator">
+| any-a /'/ any-a any-i <"UI" ∪ "UI3a" ∪ "indicator">
+| any-a /'/ any-e <"UI" ∪ "indicator">
+| any-a /'/ any-i <"UI" ∪ "indicator">
+| any-a /'/ any-o <"UI" ∪ "indicator">
 | any-a /'/ any-o any-i <"COI">
-| any-a /'/ any-u <{"UI", "indicator"}>
+| any-a /'/ any-u <"UI" ∪ "indicator">
 | any-a /'/ any-y <"BY">
-| any-a any-i <{"UI", "indicator"}>
-| any-a any-i /'/ any-i <{"UI", "indicator"}>
-| any-a any-u <{"UI", "indicator"}>
-| any-a any-u /'/ any-a any-u <{"UI", "UI3a", "indicator"}> ;
+| any-a any-i <"UI" ∪ "indicator">
+| any-a any-i /'/ any-i <"UI" ∪ "indicator">
+| any-a any-u <"UI" ∪ "indicator">
+| any-a any-u /'/ any-a any-u <"UI" ∪ "UI3a" ∪ "indicator"> ;
 ```
 
 ```ebnf
 lexicon-b
 ≔ /b/ any-a <"PU">
-| /b/ any-a /'/ any-a <{"UI", "indicator"}>
+| /b/ any-a /'/ any-a <"UI" ∪ "indicator">
 | /b/ any-a /'/ any-a any-u <"CUhE">
 | /b/ any-a /'/ any-e <"BAhE">
-| /b/ any-a /'/ any-e any-i <{"UI", "UI3a", "indicator"}>
+| /b/ any-a /'/ any-e any-i <"UI" ∪ "UI3a" ∪ "indicator">
 | /b/ any-a /'/ any-i <"BAI">
 | /b/ any-a /'/ any-o <"ZAhO">
 | /b/ any-a /'/ any-o any-i <"ROI">
-| /b/ any-a /'/ any-u <{"UI", "indicator"}>
+| /b/ any-a /'/ any-u <"UI" ∪ "indicator">
 | /b/ any-a any-i <"BAI">
 | /b/ any-a any-i /'/ any-a any-u <"BAI">
 | /b/ any-a any-u <"BAI">
@@ -59,14 +59,14 @@ lexicon-b
 | /b/ any-e /'/ any-e any-i <"BAI">
 | /b/ any-e /'/ any-i <"BAI">
 | /b/ any-e /'/ any-o <"BEhO">
-| /b/ any-e /'/ any-u <{"UI", "indicator"}>
+| /b/ any-e /'/ any-u <"UI" ∪ "indicator">
 | /b/ any-e any-i <"BEI">
 | /b/ any-i <"PA">
 | /b/ any-i /'/ any-a any-i <"CAhA">
 | /b/ any-i /'/ any-e <"BIhE">
 | /b/ any-i /'/ any-i <"BIhI">
 | /b/ any-i /'/ any-o <"BIhI">
-| /b/ any-i /'/ any-u <{"UI", "indicator"}>
+| /b/ any-i /'/ any-u <"UI" ∪ "indicator">
 | /b/ any-o <"BO">
 | /b/ any-o /'/ any-a any-i <"LI">
 | /b/ any-o /'/ any-e any-i <"BOhEI">
@@ -75,9 +75,9 @@ lexicon-b
 | /b/ any-u <"BU">
 | /b/ any-u /'/ any-a <"GOhA">
 | /b/ any-u /'/ any-e <"GOhA">
-| /b/ any-u /'/ any-e any-i <{"UI", "UI3a", "indicator"}>
+| /b/ any-u /'/ any-e any-i <"UI" ∪ "UI3a" ∪ "indicator">
 | /b/ any-u /'/ any-i <"GOhA">
-| /b/ any-u /'/ any-o <{"UI", "indicator"}>
+| /b/ any-u /'/ any-o <"UI" ∪ "indicator">
 | /b/ any-u /'/ any-u <"FAhA">
 | /b/ any-u /'/ any-u /'/ any-e <"BAI">
 | /b/ any-y <"BY"> ;
@@ -87,11 +87,11 @@ lexicon-b
 lexicon-c
 ≔ /c/ any-a <"PU">
 | /c/ any-a /'/ any-a <"CAhA">
-| /c/ any-a /'/ any-e <{"UI", "indicator"}>
+| /c/ any-a /'/ any-e <"UI" ∪ "indicator">
 | /c/ any-a /'/ any-i <"BAI">
 | /c/ any-a /'/ any-o <"ZAhO">
 | /c/ any-a /'/ any-u <"FAhA">
-| /c/ any-a any-i <{"CAI", "indicator"}>
+| /c/ any-a any-i <"CAI" ∪ "indicator">
 | /c/ any-a any-u <"BAI">
 | /c/ any-a any-u /'/ any-e <"BY">
 | /c/ any-a any-u /'/ any-i <"BY">
@@ -124,8 +124,8 @@ lexicon-c
 | /c/ any-u <"CU">
 | /c/ any-u /'/ any-a <"VUhU">
 | /c/ any-u /'/ any-e <"CUhE">
-| /c/ any-u /'/ any-e any-i <{"BAI", "UI", "UI3a"}>
-| /c/ any-u /'/ any-i <{"CAI", "indicator"}>
+| /c/ any-u /'/ any-e any-i <"BAI" ∪ "UI" ∪ "UI3a">
+| /c/ any-u /'/ any-i <"CAI" ∪ "indicator">
 | /c/ any-u /'/ any-o <"MOI">
 | /c/ any-u /'/ any-u <"BAI">
 | /c/ any-y <"BY"> ;
@@ -136,16 +136,16 @@ lexicon-d
 ≔ /d/ any-a <"KOhA">
 | /d/ any-a /'/ any-a <"PA">
 | /d/ any-a /'/ any-e <"KOhA">
-| /d/ any-a /'/ any-e any-i <{"DOI", "KOhA"}>
-| /d/ any-a /'/ any-i <{"UI", "indicator"}>
-| /d/ any-a /'/ any-o <{"DAhO", "indicator", ?"UI"}>
+| /d/ any-a /'/ any-e any-i <"DOI" ∪ "KOhA">
+| /d/ any-a /'/ any-i <"UI" ∪ "indicator">
+| /d/ any-a /'/ any-o <"DAhO" ∪ "indicator" ∪ ?"UI">
 | /d/ any-a /'/ any-o any-i <"DOI">
 | /d/ any-a /'/ any-u <"KOhA">
-| /d/ any-a any-i <{"UI", "indicator"}>
+| /d/ any-a any-i <"UI" ∪ "indicator">
 | /d/ any-a any-i /'/ any-a <"BY">
 | /d/ any-a any-i /'/ any-e <"BY">
 | /d/ any-a any-i /'/ any-i <"BY">
-| /d/ any-a any-i /'/ any-o <{"DAhO", "BY"}>
+| /d/ any-a any-i /'/ any-o <"DAhO" ∪ "BY">
 | /d/ any-a any-i /'/ any-u <"BY">
 | /d/ any-a any-i /'/ any-y <"BY">
 | /d/ any-a any-u <"PA">
@@ -157,7 +157,7 @@ lexicon-d
 | /d/ any-e <"KOhA">
 | /d/ any-e /'/ any-a <"ZAhO">
 | /d/ any-e /'/ any-a /'/ any-u <"BAI">
-| /d/ any-e /'/ any-a any-i <{"NAhE", "SE"}>
+| /d/ any-e /'/ any-a any-i <"NAhE" ∪ "SE">
 | /d/ any-e /'/ any-e <"KOhA">
 | /d/ any-e /'/ any-e any-i <"ROI">
 | /d/ any-e /'/ any-i <"BAI">
@@ -180,8 +180,8 @@ lexicon-d
 | /d/ any-i /'/ any-o <"BAI">
 | /d/ any-i /'/ any-u <"KOhA">
 | /d/ any-o <"KOhA">
-| /d/ any-o /'/ any-a <{"UI", "indicator"}>
-| /d/ any-o /'/ any-a any-i <{"DAhO", "indicator"}>
+| /d/ any-o /'/ any-a <"UI" ∪ "indicator">
+| /d/ any-o /'/ any-a any-i <"DAhO" ∪ "indicator">
 | /d/ any-o /'/ any-e <"BAI">
 | /d/ any-o /'/ any-i <"KOhA">
 | /d/ any-o /'/ any-o <"KOhA">
@@ -201,16 +201,16 @@ lexicon-d
 ```ebnf
 lexicon-e
 ≔ any-e <"A">
-| any-e /'/ any-a <{"UI", "indicator"}>
-| any-e /'/ any-e <{"UI", "indicator"}>
-| any-e /'/ any-e any-i <{"UI", "indicator"}>
-| any-e /'/ any-i <{"UI", "indicator"}>
-| any-e /'/ any-o <{"UI", "indicator"}>
-| any-e /'/ any-u <{"UI", "indicator"}>
+| any-e /'/ any-a <"UI" ∪ "indicator">
+| any-e /'/ any-e <"UI" ∪ "indicator">
+| any-e /'/ any-e any-i <"UI" ∪ "indicator">
+| any-e /'/ any-i <"UI" ∪ "indicator">
+| any-e /'/ any-o <"UI" ∪ "indicator">
+| any-e /'/ any-u <"UI" ∪ "indicator">
 | any-e /'/ any-u /'/ any-i <"BAI">
 | any-e /'/ any-y <"BY">
-| any-e any-i <{"UI", "indicator"}>
-| any-e any-i /'/ any-a any-i <{"UI", "UI3a", "indicator"}>
+| any-e any-i <"UI" ∪ "indicator">
+| any-e any-i /'/ any-a any-i <"UI" ∪ "UI3a" ∪ "indicator">
 | any-e any-i /'/ any-e any-i <"BAI"> ;
 ```
 
@@ -218,7 +218,7 @@ lexicon-e
 lexicon-f
 ≔ /f/ any-a <"FA">
 | /f/ any-a /'/ any-a <"FAhA">
-| /f/ any-a /'/ any-a any-i <{"UI", "UI3a", "indicator"}>
+| /f/ any-a /'/ any-a any-i <"UI" ∪ "UI3a" ∪ "indicator">
 | /f/ any-a /'/ any-e <"BAI">
 | /f/ any-a /'/ any-i <"VUhU">
 | /f/ any-a /'/ any-o <"FAhO">
@@ -227,10 +227,10 @@ lexicon-f
 | /f/ any-a any-i /'/ any-u <"PA">
 | /f/ any-a any-u <"BAI">
 | /f/ any-a any-u /'/ any-a <"BY">
-| /f/ any-a any-u /'/ any-e <{"XI", "BY"}>
+| /f/ any-a any-u /'/ any-e <"XI" ∪ "BY">
 | /f/ any-a any-u /'/ any-i <"BY">
 | /f/ any-a any-u /'/ any-o <"BY">
-| /f/ any-a any-u /'/ any-u <{"BAI", "BY"}>
+| /f/ any-a any-u /'/ any-u <"BAI" ∪ "BY">
 | /f/ any-e <"FA">
 | /f/ any-e /'/ any-a <"VUhU">
 | /f/ any-e /'/ any-a /'/ any-a <"VUhU">
@@ -261,10 +261,10 @@ lexicon-f
 | /f/ any-o any-i <"FOI">
 | /f/ any-u <"FA">
 | /f/ any-u /'/ any-a <"FUhA">
-| /f/ any-u /'/ any-a any-u <{"UI", "indicator"}>
-| /f/ any-u /'/ any-e <{"FUhE", "indicator", ?"UI"}>
-| /f/ any-u /'/ any-i <{"UI", "indicator"}>
-| /f/ any-u /'/ any-o <{"FUhO", "indicator", ?"UI"}>
+| /f/ any-u /'/ any-a any-u <"UI" ∪ "indicator">
+| /f/ any-u /'/ any-e <"FUhE" ∪ "indicator" ∪ ?"UI">
+| /f/ any-u /'/ any-i <"UI" ∪ "indicator">
+| /f/ any-u /'/ any-o <"FUhO" ∪ "indicator" ∪ ?"UI">
 | /f/ any-u /'/ any-u <"VUhU">
 | /f/ any-y <"BY"> ;
 ```
@@ -275,23 +275,23 @@ lexicon-g
 | /g/ any-a /'/ any-a <"BAI">
 | /g/ any-a /'/ any-e <"BY">
 | /g/ any-a /'/ any-e any-i <"BAI">
-| /g/ any-a /'/ any-i <{"UI", "indicator"}>
-| /g/ any-a /'/ any-i /'/ any-i <{"UI", "UI3a", "indicator"}>
+| /g/ any-a /'/ any-i <"UI" ∪ "indicator">
+| /g/ any-a /'/ any-i /'/ any-i <"UI" ∪ "UI3a" ∪ "indicator">
 | /g/ any-a /'/ any-o <"GAhO">
 | /g/ any-a /'/ any-u <"FAhA">
-| /g/ any-a /'/ any-u /'/ any-i <{"UI", "UI3a", "indicator"}>
+| /g/ any-a /'/ any-u /'/ any-i <"UI" ∪ "UI3a" ∪ "indicator">
 | /g/ any-a any-i <"PA">
 | /g/ any-a any-i /'/ any-a <"BY">
 | /g/ any-a any-i /'/ any-e <"BY">
 | /g/ any-a any-i /'/ any-i <"BY">
-| /g/ any-a any-i /'/ any-o <{"GOhA", "BY"}>
+| /g/ any-a any-i /'/ any-o <"GOhA" ∪ "BY">
 | /g/ any-a any-i /'/ any-u <"BY">
 | /g/ any-a any-u <"BAI">
 | /g/ any-a any-u /'/ any-i <"COI">
 | /g/ any-e <"GA">
 | /g/ any-e /'/ any-a <"VUhU">
-| /g/ any-e /'/ any-a any-i <{"UI", "UI3a", "ZOhU", "indicator"}>
-| /g/ any-e /'/ any-e <{"UI", "indicator"}>
+| /g/ any-e /'/ any-a any-i <"UI" ∪ "UI3a" ∪ "ZOhU" ∪ "indicator">
+| /g/ any-e /'/ any-e <"UI" ∪ "indicator">
 | /g/ any-e /'/ any-i <"GA">
 | /g/ any-e /'/ any-o <"BY">
 | /g/ any-e /'/ any-u <"GEhU">
@@ -301,7 +301,7 @@ lexicon-g
 | /g/ any-i <"GI">
 | /g/ any-i /'/ any-a <"GIhA">
 | /g/ any-i /'/ any-e <"GIhA">
-| /g/ any-i /'/ any-i <{"GIhA", ?"GIhI"}>
+| /g/ any-i /'/ any-i <"GIhA" ∪ ?"GIhI">
 | /g/ any-i /'/ any-o <"GIhA">
 | /g/ any-i /'/ any-u <"GIhA">
 | /g/ any-o <"GA">
@@ -324,39 +324,39 @@ lexicon-g
 ```ebnf
 lexicon-i
 ≔ any-i <"I">
-| any-i /'/ any-a <{"UI", "indicator"}>
-| any-i /'/ any-a any-u <{"UI", "UI3a", "indicator"}>
-| any-i /'/ any-e <{"UI", "indicator"}>
-| any-i /'/ any-e any-i <{"UI", "UI3a", "indicator"}>
-| any-i /'/ any-i <{"UI", "indicator"}>
-| any-i /'/ any-i /'/ any-i <{"UI", "UI3a", "indicator"}>
-| any-i /'/ any-o <{"UI", "indicator"}>
-| any-i /'/ any-u <{"UI", "indicator"}>
+| any-i /'/ any-a <"UI" ∪ "indicator">
+| any-i /'/ any-a any-u <"UI" ∪ "UI3a" ∪ "indicator">
+| any-i /'/ any-e <"UI" ∪ "indicator">
+| any-i /'/ any-e any-i <"UI" ∪ "UI3a" ∪ "indicator">
+| any-i /'/ any-i <"UI" ∪ "indicator">
+| any-i /'/ any-i /'/ any-i <"UI" ∪ "UI3a" ∪ "indicator">
+| any-i /'/ any-o <"UI" ∪ "indicator">
+| any-i /'/ any-u <"UI" ∪ "indicator">
 | any-i /'/ any-y <"BY">
-| any-i any-a <{"UI", "indicator"}>
-| any-i any-a /'/ any-a any-u <{"UI", "UI3a", "indicator"}>
+| any-i any-a <"UI" ∪ "indicator">
+| any-i any-a /'/ any-a any-u <"UI" ∪ "UI3a" ∪ "indicator">
 | any-i any-a /'/ any-u <"IhAU">
-| any-i any-e <{"UI", "indicator"}>
-| any-i any-e /'/ any-o <{"Y", "indicator"}>
-| any-i any-i <{"UI", "indicator"}>
-| any-i any-o <{"UI", "indicator"}>
-| any-i any-u <{"UI", "indicator"}>
+| any-i any-e <"UI" ∪ "indicator">
+| any-i any-e /'/ any-o <"Y" ∪ "indicator">
+| any-i any-i <"UI" ∪ "indicator">
+| any-i any-o <"UI" ∪ "indicator">
+| any-i any-u <"UI" ∪ "indicator">
 | any-i any-y <"BY"> ;
 ```
 
 ```ebnf
 lexicon-j
-≔ /j/ any-a <{"JA", ?"JEhI"}>
+≔ /j/ any-a <"JA" ∪ ?"JEhI">
 | /j/ any-a /'/ any-a <"NA">
 | /j/ any-a /'/ any-a any-i <"NAI">
 | /j/ any-a /'/ any-a any-u <"BAI">
 | /j/ any-a /'/ any-e <"BAI">
 | /j/ any-a /'/ any-e any-i <"JAI">
 | /j/ any-a /'/ any-i <"BAI">
-| /j/ any-a /'/ any-o <{"UI", "indicator"}>
-| /j/ any-a /'/ any-o /'/ any-e <{"UI", "UI3a", "indicator"}>
-| /j/ any-a /'/ any-o /'/ any-o <{"UI", "UI3a", "indicator"}>
-| /j/ any-a /'/ any-o any-i <{"BAI", "NU"}>
+| /j/ any-a /'/ any-o <"UI" ∪ "indicator">
+| /j/ any-a /'/ any-o /'/ any-e <"UI" ∪ "UI3a" ∪ "indicator">
+| /j/ any-a /'/ any-o /'/ any-o <"UI" ∪ "UI3a" ∪ "indicator">
+| /j/ any-a /'/ any-o any-i <"BAI" ∪ "NU">
 | /j/ any-a /'/ any-u any-i <"BAI">
 | /j/ any-a any-i <"JAI">
 | /j/ any-a any-u <"PA">
@@ -364,32 +364,32 @@ lexicon-j
 | /j/ any-a any-u /'/ any-e <"BY">
 | /j/ any-a any-u /'/ any-i <"BY">
 | /j/ any-a any-u /'/ any-o <"BY">
-| /j/ any-a any-u /'/ any-u <{"JOI", "BY"}>
-| /j/ any-e <{"JA", ?"JEhI"}>
+| /j/ any-a any-u /'/ any-u <"JOI" ∪ "BY">
+| /j/ any-e <"JA" ∪ ?"JEhI">
 | /j/ any-e /'/ any-a <"NAhE">
 | /j/ any-e /'/ any-a any-u <"JOI">
 | /j/ any-e /'/ any-e <"COI">
-| /j/ any-e /'/ any-i <{"JA", ?"JEhI"}>
+| /j/ any-e /'/ any-i <"JA" ∪ ?"JEhI">
 | /j/ any-e /'/ any-o <"BY">
-| /j/ any-e /'/ any-u <{"UI", "indicator"}>
+| /j/ any-e /'/ any-u <"UI" ∪ "indicator">
 | /j/ any-e any-i <"NU">
 | /j/ any-e any-i /'/ any-e <"COI">
 | /j/ any-e any-i /'/ any-i <"JOI">
 | /j/ any-e any-i /'/ any-o <"JOI">
 | /j/ any-i <"A">
-| /j/ any-i /'/ any-a <{"UI", "indicator"}>
-| /j/ any-i /'/ any-a any-i <{"UI", "UI3a", "indicator"}>
+| /j/ any-i /'/ any-a <"UI" ∪ "indicator">
+| /j/ any-i /'/ any-a any-i <"UI" ∪ "UI3a" ∪ "indicator">
 | /j/ any-i /'/ any-e <"BAI">
 | /j/ any-i /'/ any-e /'/ any-e <"BAI">
-| /j/ any-i /'/ any-e any-i <{"UI", "UI3a", "indicator"}>
+| /j/ any-i /'/ any-e any-i <"UI" ∪ "UI3a" ∪ "indicator">
 | /j/ any-i /'/ any-i <"PA">
 | /j/ any-i /'/ any-i /'/ any-a <"BAI">
 | /j/ any-i /'/ any-o <"BAI">
-| /j/ any-i /'/ any-o /'/ any-e <{"UI", "UI3a", "indicator"}>
-| /j/ any-i /'/ any-o /'/ any-o <{"UI", "UI3a", "indicator"}>
+| /j/ any-i /'/ any-o /'/ any-e <"UI" ∪ "UI3a" ∪ "indicator">
+| /j/ any-i /'/ any-o /'/ any-o <"UI" ∪ "UI3a" ∪ "indicator">
 | /j/ any-i /'/ any-u <"BAI">
-| /j/ any-o <{"JA", ?"JEhI"}>
-| /j/ any-o /'/ any-a <{"UI", "indicator"}>
+| /j/ any-o <"JA" ∪ ?"JEhI">
+| /j/ any-o /'/ any-a <"UI" ∪ "indicator">
 | /j/ any-o /'/ any-a any-i <"JAI">
 | /j/ any-o /'/ any-a any-u <"JOI">
 | /j/ any-o /'/ any-e <"JOI">
@@ -403,12 +403,12 @@ lexicon-j
 | /j/ any-o any-i /'/ any-i <"VUhU">
 | /j/ any-o any-i /'/ any-o <"BY">
 | /j/ any-o any-i /'/ any-u <"BY">
-| /j/ any-u <{"JA", ?"JEhI"}>
-| /j/ any-u /'/ any-a <{"UI", "indicator"}>
+| /j/ any-u <"JA" ∪ ?"JEhI">
+| /j/ any-u /'/ any-a <"UI" ∪ "indicator">
 | /j/ any-u /'/ any-e <"JOI">
 | /j/ any-u /'/ any-i <"COI">
-| /j/ any-u /'/ any-o <{"UI", "indicator"}>
-| /j/ any-u /'/ any-o any-i <{"UI", "indicator"}>
+| /j/ any-u /'/ any-o <"UI" ∪ "indicator">
+| /j/ any-u /'/ any-o any-i <"UI" ∪ "indicator">
 | /j/ any-u /'/ any-u <"VUhU">
 | /j/ any-y <"BY"> ;
 ```
@@ -417,15 +417,15 @@ lexicon-j
 lexicon-k
 ≔ /k/ any-a <"NU">
 | /k/ any-a /'/ any-a <"BAI">
-| /k/ any-a /'/ any-a any-i <{"BAI", "NU"}>
+| /k/ any-a /'/ any-a any-i <"BAI" ∪ "NU">
 | /k/ any-a /'/ any-e <"CAhA">
 | /k/ any-a /'/ any-i <"BAI">
 | /k/ any-a /'/ any-o <"PA">
-| /k/ any-a /'/ any-u <{"UI", "indicator"}>
+| /k/ any-a /'/ any-u <"UI" ∪ "indicator">
 | /k/ any-a any-i <"BAI">
 | /k/ any-a any-i /'/ any-a any-i <"NU">
 | /k/ any-a any-i /'/ any-u <"NU">
-| /k/ any-a any-u <{"UI", "indicator"}>
+| /k/ any-a any-u <"UI" ∪ "indicator">
 | /k/ any-a any-u /'/ any-a <"BY">
 | /k/ any-a any-u /'/ any-e <"BY">
 | /k/ any-a any-u /'/ any-i <"BY">
@@ -436,17 +436,17 @@ lexicon-k
 | /k/ any-e /'/ any-a any-u <"ZOhU">
 | /k/ any-e /'/ any-e <"KEhE">
 | /k/ any-e /'/ any-i <"GAhO">
-| /k/ any-e /'/ any-i /'/ any-a any-i <{"UI", "UI3a", "indicator"}>
+| /k/ any-e /'/ any-i /'/ any-a any-i <"UI" ∪ "UI3a" ∪ "indicator">
 | /k/ any-e /'/ any-o <"COI">
-| /k/ any-e /'/ any-u <{"UI", "indicator"}>
+| /k/ any-e /'/ any-u <"UI" ∪ "indicator">
 | /k/ any-e any-i <"KEI">
 | /k/ any-i <"KI">
-| /k/ any-i /'/ any-a <{"UI", "indicator"}>
+| /k/ any-i /'/ any-a <"UI" ∪ "indicator">
 | /k/ any-i /'/ any-a /'/ any-a <"KOhA">
-| /k/ any-i /'/ any-a any-i <{"BAI", "COI", "UI", "UI3a"}>
+| /k/ any-i /'/ any-a any-i <"BAI" ∪ "COI" ∪ "UI" ∪ "UI3a">
 | /k/ any-i /'/ any-e <"COI">
 | /k/ any-i /'/ any-e /'/ any-a <"KOhA">
-| /k/ any-i /'/ any-i <{"BAI", ?"NU"}>
+| /k/ any-i /'/ any-i <"BAI" ∪ ?"NU">
 | /k/ any-i /'/ any-i /'/ any-a <"KOhA">
 | /k/ any-i /'/ any-o <"PA">
 | /k/ any-i /'/ any-o /'/ any-a <"KOhA">
@@ -462,14 +462,14 @@ lexicon-k
 | /k/ any-o /'/ any-e <"KOhA">
 | /k/ any-o /'/ any-i <"KOhA">
 | /k/ any-o /'/ any-o <"KOhA">
-| /k/ any-o /'/ any-o any-i <{"UI", "indicator"}>
+| /k/ any-o /'/ any-o any-i <"UI" ∪ "indicator">
 | /k/ any-o /'/ any-u <"KOhA">
 | /k/ any-o any-i <"BAI">
 | /k/ any-u <"KU">
 | /k/ any-u /'/ any-a <"JOI">
 | /k/ any-u /'/ any-a any-u <"KUhAU">
 | /k/ any-u /'/ any-e <"KUhE">
-| /k/ any-u /'/ any-i <{"UI", "indicator"}>
+| /k/ any-u /'/ any-i <"UI" ∪ "indicator">
 | /k/ any-u /'/ any-o <"KUhO">
 | /k/ any-u /'/ any-o any-i <"KUhOI">
 | /k/ any-u /'/ any-u <"BAI">
@@ -479,15 +479,15 @@ lexicon-k
 ```ebnf
 lexicon-l
 ≔ /l/ any-a <"LA">
-| /l/ any-a /'/ any-a <{"UI", "indicator"}>
+| /l/ any-a /'/ any-a <"UI" ∪ "indicator">
 | /l/ any-a /'/ any-a any-i <"BAI">
 | /l/ any-a /'/ any-a any-u <"LU">
 | /l/ any-a /'/ any-e <"LAhE">
-| /l/ any-a /'/ any-e any-i <{"BAI", "LE", "UI", "UI3a"}>
+| /l/ any-a /'/ any-e any-i <"BAI" ∪ "LE" ∪ "UI" ∪ "UI3a">
 | /l/ any-a /'/ any-i <"LA">
 | /l/ any-a /'/ any-o <"ZOI">
 | /l/ any-a /'/ any-o /'/ any-o <"BAI">
-| /l/ any-a /'/ any-o any-i <{"LAhOI", "UI", "UI3a"}>
+| /l/ any-a /'/ any-o any-i <"LAhOI" ∪ "UI" ∪ "UI3a">
 | /l/ any-a /'/ any-u <"BAI">
 | /l/ any-a any-i <"LA">
 | /l/ any-a any-u <"LAU">
@@ -497,22 +497,22 @@ lexicon-l
 | /l/ any-e /'/ any-e <"LE">
 | /l/ any-e /'/ any-e any-i <"LE">
 | /l/ any-e /'/ any-i <"LE">
-| /l/ any-e /'/ any-o <{"UI", "indicator"}>
-| /l/ any-e /'/ any-o /'/ any-e <{"UI", "UI3a", "indicator"}>
+| /l/ any-e /'/ any-o <"UI" ∪ "indicator">
+| /l/ any-e /'/ any-o /'/ any-e <"UI" ∪ "UI3a" ∪ "indicator">
 | /l/ any-e /'/ any-u <"LEhU">
 | /l/ any-e any-i <"LE">
 | /l/ any-e any-i /'/ any-e <"LE">
 | /l/ any-e any-i /'/ any-i <"LE">
 | /l/ any-i <"LI">
-| /l/ any-i /'/ any-a <{"UI", "indicator"}>
+| /l/ any-i /'/ any-a <"UI" ∪ "indicator">
 | /l/ any-i /'/ any-a any-i <"LI">
 | /l/ any-i /'/ any-a any-u <"LIhAU">
 | /l/ any-i /'/ any-e <"BAI">
 | /l/ any-i /'/ any-e /'/ any-e <"BAI">
-| /l/ any-i /'/ any-e any-i <{"BAI", "LI"}>
+| /l/ any-i /'/ any-e any-i <"BAI" ∪ "LI">
 | /l/ any-i /'/ any-i <"NU">
-| /l/ any-i /'/ any-o <{"UI", "indicator"}>
-| /l/ any-i /'/ any-o any-i <{"UI", "indicator"}>
+| /l/ any-i /'/ any-o <"UI" ∪ "indicator">
+| /l/ any-i /'/ any-o any-i <"UI" ∪ "indicator">
 | /l/ any-i /'/ any-u <"LIhU">
 | /l/ any-o <"LE">
 | /l/ any-o /'/ any-a <"BY">
@@ -524,8 +524,8 @@ lexicon-l
 | /l/ any-o /'/ any-o any-i <"LOhOI">
 | /l/ any-o /'/ any-u <"LOhU">
 | /l/ any-o any-i <"LE">
-| /l/ any-o any-i /'/ any-e <{"LAhE", "LE"}>
-| /l/ any-o any-i /'/ any-i <{"LAhE", "LE"}>
+| /l/ any-o any-i /'/ any-e <"LAhE" ∪ "LE">
+| /l/ any-o any-i /'/ any-i <"LAhE" ∪ "LE">
 | /l/ any-u <"LU">
 | /l/ any-u /'/ any-a <"LAhE">
 | /l/ any-u /'/ any-e <"LAhE">
@@ -540,13 +540,13 @@ lexicon-l
 lexicon-m
 ≔ /m/ any-a <"KOhA">
 | /m/ any-a /'/ any-a <"KOhA">
-| /m/ any-a /'/ any-a any-i <{"UI", "UI3a", "indicator"}>
+| /m/ any-a /'/ any-a any-i <"UI" ∪ "UI3a" ∪ "indicator">
 | /m/ any-a /'/ any-a any-u <"KOhA">
 | /m/ any-a /'/ any-e <"BAI">
-| /m/ any-a /'/ any-e any-i <{"BAI", "KOhA"}>
+| /m/ any-a /'/ any-e any-i <"BAI" ∪ "KOhA">
 | /m/ any-a /'/ any-i <"BAI">
 | /m/ any-a /'/ any-o <"MAhO">
-| /m/ any-a /'/ any-o any-i <{"MAhOI", "KOhA", "ZO"}>
+| /m/ any-a /'/ any-o any-i <"MAhOI" ∪ "KOhA" ∪ "ZO">
 | /m/ any-a /'/ any-u <"PA">
 | /m/ any-a any-i <"MAI">
 | /m/ any-a any-i /'/ any-o <"LI">
@@ -560,7 +560,7 @@ lexicon-m
 | /m/ any-e /'/ any-a <"BAI">
 | /m/ any-e /'/ any-a any-u <"ME">
 | /m/ any-e /'/ any-e <"BAI">
-| /m/ any-e /'/ any-e any-i <{"LE", "PA"}>
+| /m/ any-e /'/ any-e any-i <"LE" ∪ "PA">
 | /m/ any-e /'/ any-i <"PA">
 | /m/ any-e /'/ any-o <"LI">
 | /m/ any-e /'/ any-o /'/ any-e <"LAhE">
@@ -575,25 +575,25 @@ lexicon-m
 | /m/ any-i /'/ any-e any-i <"COI">
 | /m/ any-i /'/ any-i <"BIhI">
 | /m/ any-i /'/ any-o <"KOhA">
-| /m/ any-i /'/ any-u <{"UI", "indicator"}>
+| /m/ any-i /'/ any-u <"UI" ∪ "indicator">
 | /m/ any-o <"GOhA">
 | /m/ any-o /'/ any-a <"PA">
 | /m/ any-o /'/ any-e <"MOhE">
 | /m/ any-o /'/ any-i <"MOhI">
-| /m/ any-o /'/ any-o <{"MAI", ?"KOhA"}>
+| /m/ any-o /'/ any-o <"MAI" ∪ ?"KOhA">
 | /m/ any-o /'/ any-o any-i <"LE">
-| /m/ any-o /'/ any-u <{"ZAhO", ?"KOhA"}>
+| /m/ any-o /'/ any-u <"ZAhO" ∪ ?"KOhA">
 | /m/ any-o any-i <"MOI">
 | /m/ any-o any-i /'/ any-o <"MOI">
 | /m/ any-o any-i /'/ any-o any-i <"LE">
 | /m/ any-u <"PA">
-| /m/ any-u /'/ any-a <{"UI", "indicator"}>
+| /m/ any-u /'/ any-a <"UI" ∪ "indicator">
 | /m/ any-u /'/ any-a any-i <"BAI">
 | /m/ any-u /'/ any-e <"NU">
 | /m/ any-u /'/ any-e any-i <"ROI">
 | /m/ any-u /'/ any-i <"BAI">
 | /m/ any-u /'/ any-o <"COI">
-| /m/ any-u /'/ any-o any-i <{"BAI", "ZOI"}>
+| /m/ any-u /'/ any-o any-i <"BAI" ∪ "ZOI">
 | /m/ any-u /'/ any-u <"BAI">
 | /m/ any-y <"BY"> ;
 ```
@@ -604,7 +604,7 @@ lexicon-n
 | /n/ any-a /'/ any-a <"BY">
 | /n/ any-a /'/ any-e <"NAhE">
 | /n/ any-a /'/ any-e any-i <"NAhE">
-| /n/ any-a /'/ any-i <{"UI", "indicator"}>
+| /n/ any-a /'/ any-i <"UI" ∪ "indicator">
 | /n/ any-a /'/ any-o <"TAhE">
 | /n/ any-a /'/ any-o any-i <"SE">
 | /n/ any-a /'/ any-u <"NAhU">
@@ -622,7 +622,7 @@ lexicon-n
 | /n/ any-i <"NU">
 | /n/ any-i /'/ any-a <"FAhA">
 | /n/ any-i /'/ any-e <"NIhE">
-| /n/ any-i /'/ any-e any-i <{"UI", "UI3a", "indicator"}>
+| /n/ any-i /'/ any-e any-i <"UI" ∪ "UI3a" ∪ "indicator">
 | /n/ any-i /'/ any-i <"BAI">
 | /n/ any-i /'/ any-i /'/ any-i <"BAI">
 | /n/ any-i /'/ any-o <"NIhO">
@@ -651,16 +651,16 @@ lexicon-n
 ```ebnf
 lexicon-o
 ≔ any-o <"A">
-| any-o /'/ any-a <{"UI", "indicator"}>
+| any-o /'/ any-a <"UI" ∪ "indicator">
 | any-o /'/ any-a any-i <"COI">
-| any-o /'/ any-e <{"UI", "indicator"}>
-| any-o /'/ any-i <{"UI", "indicator"}>
-| any-o /'/ any-o <{"UI", "indicator"}>
-| any-o /'/ any-u <{"UI", "indicator"}>
+| any-o /'/ any-e <"UI" ∪ "indicator">
+| any-o /'/ any-i <"UI" ∪ "indicator">
+| any-o /'/ any-o <"UI" ∪ "indicator">
+| any-o /'/ any-u <"UI" ∪ "indicator">
 | any-o /'/ any-y <"BY">
-| any-o any-i <{"UI", "indicator"}>
-| any-o any-i /'/ any-a <{"UI", "indicator"}>
-| any-o any-i /'/ any-o any-i <{"UI", "UI3a", "indicator"}> ;
+| any-o any-i <"UI" ∪ "indicator">
+| any-o any-i /'/ any-a <"UI" ∪ "indicator">
+| any-o any-i /'/ any-o any-i <"UI" ∪ "UI3a" ∪ "indicator"> ;
 ```
 
 ```ebnf
@@ -668,22 +668,22 @@ lexicon-p
 ≔ /p/ any-a <"PA">
 | /p/ any-a /'/ any-a <"BAI">
 | /p/ any-a /'/ any-a /'/ any-i <"BAI">
-| /p/ any-a /'/ any-e <{"UI", "indicator"}>
+| /p/ any-a /'/ any-e <"UI" ∪ "indicator">
 | /p/ any-a /'/ any-i <"VUhU">
 | /p/ any-a /'/ any-o <"FAhA">
 | /p/ any-a /'/ any-u <"BAI">
 | /p/ any-a any-i <"PA">
 | /p/ any-a any-i /'/ any-e <"NU">
-| /p/ any-a any-u <{"UI", "indicator"}>
+| /p/ any-a any-u <"UI" ∪ "indicator">
 | /p/ any-e <"GOI">
-| /p/ any-e /'/ any-a <{"UI", "indicator"}>
+| /p/ any-e /'/ any-a <"UI" ∪ "indicator">
 | /p/ any-e /'/ any-a /'/ any-i <"BAI">
 | /p/ any-e /'/ any-e <"PEhE">
 | /p/ any-e /'/ any-e any-i <"COI">
-| /p/ any-e /'/ any-i <{"UI", "indicator"}>
+| /p/ any-e /'/ any-i <"UI" ∪ "indicator">
 | /p/ any-e /'/ any-o <"PEhO">
 | /p/ any-e /'/ any-u <"COI">
-| /p/ any-e any-i <{"CAI", "indicator"}>
+| /p/ any-e any-i <"CAI" ∪ "indicator">
 | /p/ any-e any-i /'/ any-e <"COI">
 | /p/ any-i <"PA">
 | /p/ any-i /'/ any-a <"VUhU">
@@ -694,11 +694,11 @@ lexicon-p
 | /p/ any-i /'/ any-o <"BAI">
 | /p/ any-i /'/ any-u <"JOI">
 | /p/ any-o <"GOI">
-| /p/ any-o /'/ any-a any-i <{"UI", "UI3a", "indicator"}>
+| /p/ any-o /'/ any-a any-i <"UI" ∪ "UI3a" ∪ "indicator">
 | /p/ any-o /'/ any-e <"GOI">
 | /p/ any-o /'/ any-i <"BAI">
-| /p/ any-o /'/ any-o <{"UI", "indicator"}>
-| /p/ any-o /'/ any-o any-i <{"LAhE", "NOI"}>
+| /p/ any-o /'/ any-o <"UI" ∪ "indicator">
+| /p/ any-o /'/ any-o any-i <"LAhE" ∪ "NOI">
 | /p/ any-o /'/ any-u <"GOI">
 | /p/ any-o any-i <"NOI">
 | /p/ any-o any-i /'/ any-a <"NOIhA">
@@ -728,14 +728,14 @@ lexicon-r
 | /r/ any-a /'/ any-i <"BAI">
 | /r/ any-a /'/ any-o <"RAhO">
 | /r/ any-a /'/ any-o any-i <"RAhOI">
-| /r/ any-a /'/ any-u <{"UI", "indicator"}>
+| /r/ any-a /'/ any-u <"UI" ∪ "indicator">
 | /r/ any-a any-i <"BAI">
 | /r/ any-a any-i /'/ any-e <"BAI">
 | /r/ any-a any-u <"PA">
 | /r/ any-a any-u /'/ any-i <"KOhA">
 | /r/ any-e <"PA">
 | /r/ any-e /'/ any-a <"VUhU">
-| /r/ any-e /'/ any-e <{"UI", "indicator"}>
+| /r/ any-e /'/ any-e <"UI" ∪ "indicator">
 | /r/ any-e /'/ any-e any-i <"COI">
 | /r/ any-e /'/ any-i <"COI">
 | /r/ any-e /'/ any-o <"FAhA">
@@ -743,7 +743,7 @@ lexicon-r
 | /r/ any-e any-i <"PA">
 | /r/ any-i <"KOhA">
 | /r/ any-i /'/ any-a <"BAI">
-| /r/ any-i /'/ any-e <{"UI", "indicator"}>
+| /r/ any-i /'/ any-e <"UI" ∪ "indicator">
 | /r/ any-i /'/ any-i <"BAI">
 | /r/ any-i /'/ any-i /'/ any-a <"BAI">
 | /r/ any-i /'/ any-i /'/ any-e <"BAI">
@@ -754,17 +754,17 @@ lexicon-r
 | /r/ any-i /'/ any-o any-i <"LE">
 | /r/ any-i /'/ any-u <"FAhA">
 | /r/ any-o <"PA">
-| /r/ any-o /'/ any-a <{"UI", "indicator"}>
-| /r/ any-o /'/ any-e <{"UI", "indicator"}>
+| /r/ any-o /'/ any-a <"UI" ∪ "indicator">
+| /r/ any-o /'/ any-e <"UI" ∪ "indicator">
 | /r/ any-o /'/ any-e any-i <"KOhA">
-| /r/ any-o /'/ any-i <{"UI", "indicator"}>
-| /r/ any-o /'/ any-o <{"UI", "indicator"}>
+| /r/ any-o /'/ any-i <"UI" ∪ "indicator">
+| /r/ any-o /'/ any-o <"UI" ∪ "indicator">
 | /r/ any-o /'/ any-o any-i <"PA">
-| /r/ any-o /'/ any-u <{"UI", "indicator"}>
+| /r/ any-o /'/ any-u <"UI" ∪ "indicator">
 | /r/ any-o any-i <"ROI">
 | /r/ any-u <"KOhA">
-| /r/ any-u /'/ any-a <{"UI", "indicator"}>
-| /r/ any-u /'/ any-e <{"CAI", "indicator"}>
+| /r/ any-u /'/ any-a <"UI" ∪ "indicator">
+| /r/ any-u /'/ any-e <"CAI" ∪ "indicator">
 | /r/ any-u /'/ any-i <"TAhE">
 | /r/ any-u /'/ any-o <"BY">
 | /r/ any-u /'/ any-u <"FAhA">
@@ -774,42 +774,42 @@ lexicon-r
 ```ebnf
 lexicon-s
 ≔ /s/ any-a <"SA">
-| /s/ any-a /'/ any-a <{"UI", "indicator"}>
+| /s/ any-a /'/ any-a <"UI" ∪ "indicator">
 | /s/ any-a /'/ any-a any-i <"SAhAI">
-| /s/ any-a /'/ any-e <{"UI", "indicator"}>
+| /s/ any-a /'/ any-e <"UI" ∪ "indicator">
 | /s/ any-a /'/ any-e any-i <"COI">
 | /s/ any-a /'/ any-i <"VUhU">
 | /s/ any-a /'/ any-i /'/ any-a <"VUhU">
 | /s/ any-a /'/ any-o <"VUhU">
-| /s/ any-a /'/ any-u <{"UI", "indicator"}>
-| /s/ any-a any-i <{"CAI", "indicator"}>
+| /s/ any-a /'/ any-u <"UI" ∪ "indicator">
+| /s/ any-a any-i <"CAI" ∪ "indicator">
 | /s/ any-a any-i /'/ any-e <"SEI">
-| /s/ any-a any-i /'/ any-i <{"UI", "UI3a", "indicator"}>
+| /s/ any-a any-i /'/ any-i <"UI" ∪ "UI3a" ∪ "indicator">
 | /s/ any-a any-u <"BAI">
 | /s/ any-a any-u /'/ any-a <"ZAhO">
 | /s/ any-e <"SE">
-| /s/ any-e /'/ any-a <{"UI", "indicator"}>
-| /s/ any-e /'/ any-e <{"BY", ?"KOhA"}>
-| /s/ any-e /'/ any-i <{"UI", "indicator"}>
-| /s/ any-e /'/ any-o <{"UI", "indicator"}>
+| /s/ any-e /'/ any-a <"UI" ∪ "indicator">
+| /s/ any-e /'/ any-e <"BY" ∪ ?"KOhA">
+| /s/ any-e /'/ any-i <"UI" ∪ "indicator">
+| /s/ any-e /'/ any-o <"UI" ∪ "indicator">
 | /s/ any-e /'/ any-u <"SEhU">
 | /s/ any-e any-i <"SEI">
-| /s/ any-e any-i /'/ any-a <{"UI", "UI3a", "indicator"}>
+| /s/ any-e any-i /'/ any-a <"UI" ∪ "UI3a" ∪ "indicator">
 | /s/ any-e any-i /'/ any-e <"SEI">
-| /s/ any-e any-i /'/ any-i <{"UI", "UI3a", "indicator"}>
+| /s/ any-e any-i /'/ any-i <"UI" ∪ "UI3a" ∪ "indicator">
 | /s/ any-i <"SI">
-| /s/ any-i /'/ any-a <{"UI", "indicator"}>
-| /s/ any-i /'/ any-a any-u <{"UI", "indicator"}>
+| /s/ any-i /'/ any-a <"UI" ∪ "indicator">
+| /s/ any-i /'/ any-a any-u <"UI" ∪ "indicator">
 | /s/ any-i /'/ any-e <"MOI">
 | /s/ any-i /'/ any-i <"VUhU">
 | /s/ any-i /'/ any-o <"NU">
 | /s/ any-i /'/ any-u <"BAI">
 | /s/ any-o <"PA">
 | /s/ any-o /'/ any-a <"PA">
-| /s/ any-o /'/ any-a /'/ any-u <{"UI", "UI3a", "indicator"}>
-| /s/ any-o /'/ any-a any-i <{"KOhA", "PA"}>
+| /s/ any-o /'/ any-a /'/ any-u <"UI" ∪ "UI3a" ∪ "indicator">
+| /s/ any-o /'/ any-a any-i <"KOhA" ∪ "PA">
 | /s/ any-o /'/ any-e <"PA">
-| /s/ any-o /'/ any-e any-i <{"PA", "UI", "UI3a"}>
+| /s/ any-o /'/ any-e any-i <"PA" ∪ "UI" ∪ "UI3a">
 | /s/ any-o /'/ any-i <"PA">
 | /s/ any-o /'/ any-o <"PA">
 | /s/ any-o /'/ any-o any-i <"PA">
@@ -818,13 +818,13 @@ lexicon-s
 | /s/ any-o any-i /'/ any-a <"NOIhA">
 | /s/ any-o any-i /'/ any-e <"SEI">
 | /s/ any-u <"SU">
-| /s/ any-u /'/ any-a <{"UI", "indicator"}>
+| /s/ any-u /'/ any-a <"UI" ∪ "indicator">
 | /s/ any-u /'/ any-a any-i <"PA">
 | /s/ any-u /'/ any-e <"PA">
-| /s/ any-u /'/ any-e any-i <{"SE", "UI", "UI3a"}>
+| /s/ any-u /'/ any-e any-i <"SE" ∪ "UI" ∪ "UI3a">
 | /s/ any-u /'/ any-i <"VUhU">
 | /s/ any-u /'/ any-o <"PA">
-| /s/ any-u /'/ any-o any-i <{"PA", "SEI"}>
+| /s/ any-u /'/ any-o any-i <"PA" ∪ "SEI">
 | /s/ any-u /'/ any-u <"NU">
 | /s/ any-y <"BY"> ;
 ```
@@ -841,14 +841,14 @@ lexicon-t
 | /t/ any-a /'/ any-i /'/ any-i <"BAI">
 | /t/ any-a /'/ any-i /'/ any-o <"BAI">
 | /t/ any-a /'/ any-i /'/ any-u <"BAI">
-| /t/ any-a /'/ any-o <{"UI", "indicator"}>
-| /t/ any-a /'/ any-u <{"UI", "indicator"}>
+| /t/ any-a /'/ any-o <"UI" ∪ "indicator">
+| /t/ any-a /'/ any-u <"UI" ∪ "indicator">
 | /t/ any-a /'/ any-u /'/ any-i <"BAI">
 | /t/ any-a any-i <"BAI">
 | /t/ any-a any-u <"LAU">
 | /t/ any-e <"SE">
 | /t/ any-e /'/ any-a <"VUhU">
-| /t/ any-e /'/ any-a any-i <{"BAI", "XI"}>
+| /t/ any-e /'/ any-a any-i <"BAI" ∪ "XI">
 | /t/ any-e /'/ any-e <"FAhA">
 | /t/ any-e /'/ any-o <"PA">
 | /t/ any-e /'/ any-o any-i <"LAhE">
@@ -857,7 +857,7 @@ lexicon-t
 | /t/ any-i <"KOhA">
 | /t/ any-i /'/ any-a <"FAhA">
 | /t/ any-i /'/ any-a any-u <"KOhA">
-| /t/ any-i /'/ any-e <{"UI", "indicator"}>
+| /t/ any-i /'/ any-e <"UI" ∪ "indicator">
 | /t/ any-i /'/ any-i <"BAI">
 | /t/ any-i /'/ any-i /'/ any-a <"BAI">
 | /t/ any-i /'/ any-o <"SEI">
@@ -872,7 +872,7 @@ lexicon-t
 | /t/ any-o /'/ any-i <"TO">
 | /t/ any-o /'/ any-o <"FAhA">
 | /t/ any-o /'/ any-o /'/ any-e <"KOhA">
-| /t/ any-o /'/ any-u <{"UI", "indicator"}>
+| /t/ any-o /'/ any-u <"UI" ∪ "indicator">
 | /t/ any-o any-i <"TOI">
 | /t/ any-u <"KOhA">
 | /t/ any-u /'/ any-a <"LAhE">
@@ -893,24 +893,24 @@ lexicon-t
 ```ebnf
 lexicon-u
 ≔ any-u <"A">
-| any-u /'/ any-a <{"UI", "indicator"}>
-| any-u /'/ any-e <{"UI", "indicator"}>
-| any-u /'/ any-i <{"UI", "indicator"}>
-| any-u /'/ any-o <{"UI", "indicator"}>
-| any-u /'/ any-o /'/ any-e <{"UI", "UI3a", "indicator"}>
-| any-u /'/ any-o /'/ any-i <{"UI", "UI3a", "indicator"}>
-| any-u /'/ any-o /'/ any-o <{"UI", "UI3a", "indicator"}>
-| any-u /'/ any-o /'/ any-u <{"UI", "UI3a", "indicator"}>
-| any-u /'/ any-o any-i <{"UI", "UI3a", "indicator"}>
-| any-u /'/ any-u <{"UI", "indicator"}>
+| any-u /'/ any-a <"UI" ∪ "indicator">
+| any-u /'/ any-e <"UI" ∪ "indicator">
+| any-u /'/ any-i <"UI" ∪ "indicator">
+| any-u /'/ any-o <"UI" ∪ "indicator">
+| any-u /'/ any-o /'/ any-e <"UI" ∪ "UI3a" ∪ "indicator">
+| any-u /'/ any-o /'/ any-i <"UI" ∪ "UI3a" ∪ "indicator">
+| any-u /'/ any-o /'/ any-o <"UI" ∪ "UI3a" ∪ "indicator">
+| any-u /'/ any-o /'/ any-u <"UI" ∪ "UI3a" ∪ "indicator">
+| any-u /'/ any-o any-i <"UI" ∪ "UI3a" ∪ "indicator">
+| any-u /'/ any-u <"UI" ∪ "indicator">
 | any-u /'/ any-y <"BY">
-| any-u any-a <{"UI", "indicator"}>
-| any-u any-e <{"UI", "indicator"}>
-| any-u any-e /'/ any-i <{"UI", "indicator"}>
-| any-u any-i <{"UI", "indicator"}>
-| any-u any-i /'/ any-a any-i <{"UI", "UI3a", "indicator"}>
-| any-u any-o <{"UI", "indicator"}>
-| any-u any-u <{"UI", "indicator"}>
+| any-u any-a <"UI" ∪ "indicator">
+| any-u any-e <"UI" ∪ "indicator">
+| any-u any-e /'/ any-i <"UI" ∪ "indicator">
+| any-u any-i <"UI" ∪ "indicator">
+| any-u any-i /'/ any-a any-i <"UI" ∪ "UI3a" ∪ "indicator">
+| any-u any-o <"UI" ∪ "indicator">
+| any-u any-u <"UI" ∪ "indicator">
 | any-u any-y <"BY"> ;
 ```
 
@@ -920,12 +920,12 @@ lexicon-v
 | /v/ any-a /'/ any-a <"VUhU">
 | /v/ any-a /'/ any-e <"MOI">
 | /v/ any-a /'/ any-e any-i <"ROI">
-| /v/ any-a /'/ any-i <{"UI", "indicator"}>
+| /v/ any-a /'/ any-i <"UI" ∪ "indicator">
 | /v/ any-a /'/ any-o <"BAI">
 | /v/ any-a /'/ any-o /'/ any-i <"BAI">
 | /v/ any-a /'/ any-u <"BAI">
 | /v/ any-a any-i <"PA">
-| /v/ any-a any-i /'/ any-e <{"UI", "UI3a", "indicator"}>
+| /v/ any-a any-i /'/ any-e <"UI" ∪ "UI3a" ∪ "indicator">
 | /v/ any-a any-u <"VAU">
 | /v/ any-e <"SE">
 | /v/ any-e /'/ any-a <"VEhA">
@@ -948,11 +948,11 @@ lexicon-v
 | /v/ any-o /'/ any-o <"KOhA">
 | /v/ any-o /'/ any-u <"KOhA">
 | /v/ any-o any-i <"NOI">
-| /v/ any-o any-i /'/ any-e <{"GOI", "LAhE"}>
+| /v/ any-o any-i /'/ any-e <"GOI" ∪ "LAhE">
 | /v/ any-o any-i /'/ any-i <"NOI">
 | /v/ any-u <"VA">
 | /v/ any-u /'/ any-a <"FAhA">
-| /v/ any-u /'/ any-e <{"UI", "indicator"}>
+| /v/ any-u /'/ any-e <"UI" ∪ "indicator">
 | /v/ any-u /'/ any-i <"LAhE">
 | /v/ any-u /'/ any-o <"VUhO">
 | /v/ any-u /'/ any-u <"VUhU">
@@ -965,34 +965,34 @@ lexicon-x
 | /x/ any-a /'/ any-o <"ZAhO">
 | /x/ any-a any-i <"KOhA">
 | /x/ any-a any-i /'/ any-e <"PA">
-| /x/ any-a any-u /'/ any-a <{"LOhOI", "UI", "UI3a"}>
-| /x/ any-a any-u /'/ any-e <{"PA", "UI", "UI3a"}>
-| /x/ any-a any-u /'/ any-i <{"UI", "UI3a", "indicator"}>
-| /x/ any-a any-u /'/ any-o <{"UI", "UI3a", "indicator"}>
-| /x/ any-a any-u /'/ any-u <{"UI", "UI3a", "indicator"}>
+| /x/ any-a any-u /'/ any-a <"LOhOI" ∪ "UI" ∪ "UI3a">
+| /x/ any-a any-u /'/ any-e <"PA" ∪ "UI" ∪ "UI3a">
+| /x/ any-a any-u /'/ any-i <"UI" ∪ "UI3a" ∪ "indicator">
+| /x/ any-a any-u /'/ any-o <"UI" ∪ "UI3a" ∪ "indicator">
+| /x/ any-a any-u /'/ any-u <"UI" ∪ "UI3a" ∪ "indicator">
 | /x/ any-e <"SE">
 | /x/ any-e /'/ any-a any-u <"SEhU">
 | /x/ any-e /'/ any-e <"PA">
 | /x/ any-e /'/ any-e any-i <"NU">
-| /x/ any-e /'/ any-i /'/ any-a <{"UI", "UI3a", "indicator"}>
-| /x/ any-e /'/ any-i /'/ any-e <{"UI", "UI3a", "indicator"}>
-| /x/ any-e /'/ any-i /'/ any-i <{"UI", "UI3a", "indicator"}>
-| /x/ any-e /'/ any-i /'/ any-o <{"UI", "UI3a", "indicator"}>
-| /x/ any-e /'/ any-i /'/ any-u <{"UI", "UI3a", "indicator"}>
+| /x/ any-e /'/ any-i /'/ any-a <"UI" ∪ "UI3a" ∪ "indicator">
+| /x/ any-e /'/ any-i /'/ any-e <"UI" ∪ "UI3a" ∪ "indicator">
+| /x/ any-e /'/ any-i /'/ any-i <"UI" ∪ "UI3a" ∪ "indicator">
+| /x/ any-e /'/ any-i /'/ any-o <"UI" ∪ "UI3a" ∪ "indicator">
+| /x/ any-e /'/ any-i /'/ any-u <"UI" ∪ "UI3a" ∪ "indicator">
 | /x/ any-e /'/ any-u <"GOhA">
 | /x/ any-e any-i /'/ any-e <"FAhA">
 | /x/ any-i <"XI">
 | /x/ any-i /'/ any-e <"XI">
 | /x/ any-i /'/ any-i <"XI">
 | /x/ any-o <"PA">
-| /x/ any-o /'/ any-a any-i <{"PA", "SE"}>
+| /x/ any-o /'/ any-a any-i <"PA" ∪ "SE">
 | /x/ any-o /'/ any-e <"PA">
-| /x/ any-o /'/ any-i <{"XOhI", "ME"}>
-| /x/ any-o /'/ any-o <{"UI", "indicator"}>
-| /x/ any-o /'/ any-u <{"PA", "ZAhO"}>
+| /x/ any-o /'/ any-i <"XOhI" ∪ "ME">
+| /x/ any-o /'/ any-o <"UI" ∪ "indicator">
+| /x/ any-o /'/ any-u <"PA" ∪ "ZAhO">
 | /x/ any-o any-i <"SOI">
 | /x/ any-o any-i /'/ any-i <"PA">
-| /x/ any-u <{"UI", "indicator"}>
+| /x/ any-u <"UI" ∪ "indicator">
 | /x/ any-u /'/ any-a any-i <"BAI">
 | /x/ any-u /'/ any-a any-u <"ROI">
 | /x/ any-u /'/ any-e any-i <"COI">
@@ -1002,20 +1002,20 @@ lexicon-x
 
 ```ebnf
 lexicon-y
-≔ any-y <{"Y", "indicator", ?"BY"}>
+≔ any-y <"Y" ∪ "indicator" ∪ ?"BY">
 | any-y /'/ any-y <"BY"> ;
 ```
 
 ```ebnf
 lexicon-z
 ≔ /z/ any-a <"ZI">
-| /z/ any-a /'/ any-a <{"UI", "indicator"}>
-| /z/ any-a /'/ any-a any-i <{"NU", "PA"}>
+| /z/ any-a /'/ any-a <"UI" ∪ "indicator">
+| /z/ any-a /'/ any-a any-i <"NU" ∪ "PA">
 | /z/ any-a /'/ any-e <"BAhE">
-| /z/ any-a /'/ any-e any-i <{"UI", "UI3a", "indicator"}>
+| /z/ any-a /'/ any-e any-i <"UI" ∪ "UI3a" ∪ "indicator">
 | /z/ any-a /'/ any-i <"NU">
 | /z/ any-a /'/ any-o <"ZAhO">
-| /z/ any-a /'/ any-o /'/ any-a <{"UI", "UI3a", "indicator"}>
+| /z/ any-a /'/ any-o /'/ any-a <"UI" ∪ "UI3a" ∪ "indicator">
 | /z/ any-a /'/ any-u <"PA">
 | /z/ any-a any-i <"LAU">
 | /z/ any-a any-u <"BAI">
@@ -1039,10 +1039,10 @@ lexicon-z
 | /z/ any-o /'/ any-a <"FAhA">
 | /z/ any-o /'/ any-a any-u <"LE">
 | /z/ any-o /'/ any-e <"KOhA">
-| /z/ any-o /'/ any-e any-i <{"KOhA", "LAhE"}>
+| /z/ any-o /'/ any-e any-i <"KOhA" ∪ "LAhE">
 | /z/ any-o /'/ any-i <"FAhA">
-| /z/ any-o /'/ any-o <{"UI", "indicator"}>
-| /z/ any-o /'/ any-o any-i <{"ZOhOI", "UI", "UI3a"}>
+| /z/ any-o /'/ any-o <"UI" ∪ "indicator">
+| /z/ any-o /'/ any-o any-i <"ZOhOI" ∪ "UI" ∪ "UI3a">
 | /z/ any-o /'/ any-u <"ZOhU">
 | /z/ any-o any-i <"ZOI">
 | /z/ any-u <"ZI">
@@ -1052,6 +1052,6 @@ lexicon-z
 | /z/ any-u /'/ any-e <"BAI">
 | /z/ any-u /'/ any-i <"KOhA">
 | /z/ any-u /'/ any-o <"NU">
-| /z/ any-u /'/ any-u <{"UI", "indicator"}>
+| /z/ any-u /'/ any-u <"UI" ∪ "indicator">
 | /z/ any-y <"BY"> ;
 ```

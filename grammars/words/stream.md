@@ -26,16 +26,16 @@ text
 
 body
 ≔ $t(body-tail) <tags($t)> | stray-si | $y(stray-si) $g(gap) $z(body-tail) <"stream-end" ∩ tags($z)>
-: "first-onset" ∈ tags($z) ∨ phonemes($g) = " ", "first-cy" ∉ tags($z) ∨ phonemes($g) = " " ;
+: ("first-onset" ∈ tags($z) ∨ phonemes($g) = " ") ∧ ("first-cy" ∉ tags($z) ∨ phonemes($g) = " ") ;
 
 body-tail
-≔ $a(stream) <({"first-onset", "first-cy"} ∩ tags($a)) ∪ "stream-end"> | @sa-su sa-run <"first-onset">
-| @sa-su $b(wiped) <({"first-onset", "first-cy"} ∩ tags($b))> | @sa-su $w(wiped) $g(gap) $v(stream) <({"first-onset", "first-cy"} ∩ tags($w)) ∪ "stream-end">
-| @sa-su $s(stream) $h(gap) sa-run <({"first-onset", "first-cy"} ∩ tags($s))>
-| @sa-su $x(wiped) $h(gap) sa-run <({"first-onset", "first-cy"} ∩ tags($x))>
-| @sa-su $w(wiped) $g(gap) $v(stream) $h(gap) sa-run <({"first-onset", "first-cy"} ∩ tags($w))>
-: "continued" ∈ tags($w) ∨ phonemes($g) = " ", "first-onset" ∈ tags($v) ∨ phonemes($g) = " ", "first-cy" ∉ tags($v) ∨ phonemes($g) = " "
-, "continued" ∈ tags($s) ∨ phonemes($h) = " ", "continued" ∈ tags($x) ∨ phonemes($h) = " ", "continued" ∈ tags($v) ∨ phonemes($h) = " " ;
+≔ $a(stream) <(("first-onset" ∪ "first-cy") ∩ tags($a)) ∪ "stream-end"> | @sa-su sa-run <"first-onset">
+| @sa-su $b(wiped) <(("first-onset" ∪ "first-cy") ∩ tags($b))> | @sa-su $w(wiped) $g(gap) $v(stream) <(("first-onset" ∪ "first-cy") ∩ tags($w)) ∪ "stream-end">
+| @sa-su $s(stream) $h(gap) sa-run <(("first-onset" ∪ "first-cy") ∩ tags($s))>
+| @sa-su $x(wiped) $h(gap) sa-run <(("first-onset" ∪ "first-cy") ∩ tags($x))>
+| @sa-su $w(wiped) $g(gap) $v(stream) $h(gap) sa-run <(("first-onset" ∪ "first-cy") ∩ tags($w))>
+: ("continued" ∈ tags($w) ∨ phonemes($g) = " ") ∧ ("first-onset" ∈ tags($v) ∨ phonemes($g) = " ") ∧ ("first-cy" ∉ tags($v) ∨ phonemes($g) = " ")
+∧ ("continued" ∈ tags($s) ∨ phonemes($h) = " ") ∧ ("continued" ∈ tags($x) ∨ phonemes($h) = " ") ∧ ("continued" ∈ tags($v) ∨ phonemes($h) = " ") ;
 
 gap
 ≔ ε | PAUSE ;
@@ -43,22 +43,22 @@ gap
 stream
 ≔ $e(opener) <tags($e)>
 | $c(opener) <tags($c) ∪ "continued">
-| $s(stream) PAUSE $e(element) <tags($e) ∪ classes($s) ∪ ({"first-onset", "first-cy"} ∩ tags($s))>
-| $s(stream) PAUSE $c(element) <tags($c) ∪ "continued" ∪ classes($s) ∪ ({"first-onset", "first-cy"} ∩ tags($s))>
-| $t(stream) $f(element) <tags($f) ∪ classes($t) ∪ ({"first-onset", "first-cy"} ∩ tags($t))>
-| $u(stream) $g(element) <tags($g) ∪ classes($u) ∪ ({"first-onset", "first-cy"} ∩ tags($u))>
-| $a(stream) $b(element) <tags($b) ∪ "cvcy" ∪ classes($a) ∪ ({"first-onset", "first-cy"} ∩ tags($a))>
-| $a(stream) $d(element) <tags($d) ∪ classes($a) ∪ ({"first-onset", "first-cy"} ∩ tags($a))>
-| $x(stream) $z(element) <tags($z) ∪ classes($x) ∪ ({"first-onset", "first-cy"} ∩ tags($x))>
-: "cy" ∉ tags($e), "cy" ∈ tags($c)
-, "continued" ∈ tags($t), "onset" ∈ tags($f), "cv" ∉ tags($t), "cvcy" ∉ tags($t), "cy" ∉ tags($t) ∨ "cy" ∉ tags($f)
-, "cy" ∈ tags($u), "cy" ∈ tags($g)
-, "continued" ∈ tags($a), "cv" ∈ tags($a), "onset" ∈ tags($b), "y-letter" ∈ tags($b), "onset" ∈ tags($d), "y-letter" ∉ tags($d)
-, "cvcy" ∈ tags($x), "onset" ∈ tags($z), "BRIVLA" ∉ tags($z), ¬matches($z, lujvo-final-shape) ;
+| $s(stream) PAUSE $e(element) <tags($e) ∪ classes($s) ∪ (("first-onset" ∪ "first-cy") ∩ tags($s))>
+| $s(stream) PAUSE $c(element) <tags($c) ∪ "continued" ∪ classes($s) ∪ (("first-onset" ∪ "first-cy") ∩ tags($s))>
+| $t(stream) $f(element) <tags($f) ∪ classes($t) ∪ (("first-onset" ∪ "first-cy") ∩ tags($t))>
+| $u(stream) $g(element) <tags($g) ∪ classes($u) ∪ (("first-onset" ∪ "first-cy") ∩ tags($u))>
+| $a(stream) $b(element) <tags($b) ∪ "cvcy" ∪ classes($a) ∪ (("first-onset" ∪ "first-cy") ∩ tags($a))>
+| $a(stream) $d(element) <tags($d) ∪ classes($a) ∪ (("first-onset" ∪ "first-cy") ∩ tags($a))>
+| $x(stream) $z(element) <tags($z) ∪ classes($x) ∪ (("first-onset" ∪ "first-cy") ∩ tags($x))>
+: "cy" ∉ tags($e) ∧ "cy" ∈ tags($c)
+∧ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f) ∧ "cv" ∉ tags($t) ∧ "cvcy" ∉ tags($t) ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f))
+∧ "cy" ∈ tags($u) ∧ "cy" ∈ tags($g)
+∧ "continued" ∈ tags($a) ∧ "cv" ∈ tags($a) ∧ "onset" ∈ tags($b) ∧ "y-letter" ∈ tags($b) ∧ "onset" ∈ tags($d) ∧ "y-letter" ∉ tags($d)
+∧ "cvcy" ∈ tags($x) ∧ "onset" ∈ tags($z) ∧ "BRIVLA" ∉ tags($z) ∧ ¬matches($z, lujvo-final-shape) ;
 
 opener
 ≔ $o(element) <tags($o) ∪ "first-onset"> | $k(element) <tags($k) ∪ "first-onset" ∪ "first-cy"> | $p(element) <tags($p)>
-: "onset" ∈ tags($o), {"cy", "y-letter"} ∩ tags($o) = ∅, "onset" ∈ tags($k), {"cy", "y-letter"} ∩ tags($k) ≠ ∅, "onset" ∉ tags($p) ;
+: "onset" ∈ tags($o) ∧ ("cy" ∪ "y-letter") ∩ tags($o) = ∅ ∧ "onset" ∈ tags($k) ∧ ("cy" ∪ "y-letter") ∩ tags($k) ≠ ∅ ∧ "onset" ∉ tags($p) ;
 
 element
 ≔ unit | erasure | hesitation ;
@@ -86,7 +86,7 @@ A `si` with nothing before it erases nothing (CLL 19.13 says what `si` erases, n
 ```ebnf
 stray-si
 ≔ si-run | hesitations si-gap si-run | erasure [si-gap] si-run | @sa-su wiped [si-gap] si-run
-⇒ nothing ;
+⇒ $ <> ;
 
 si-run
 ≔ si-word | si-run [si-gap] si-word ;
@@ -97,7 +97,7 @@ Hesitation, `y` however long, is not a word of the text (CLL 19.14) and is dropp
 ```ebnf
 hesitation
 ≔ y-run <"continued">
-⇒ nothing ;
+⇒ $ <> ;
 
 y-run
 ≔ y | y y-run ;
@@ -115,7 +115,7 @@ y
 ```ebnf
 faho-group
 ≔ faho-word | faho-word PAUSE | faho-word PAUSE zoi-body
-⇒ nothing ;
+⇒ $ <> ;
 
 faho-word
 ≔ $q(plain-cmavo-body)
@@ -129,12 +129,12 @@ A word is a cmavo, a brivla or a cmevla; what shapes each has is the business of
 ```ebnf
 word
 ≔ @sa-su $c(cmavo-shape) <"word" ∪ "cmavo" ∪ tags($c) ∪ tags($c, lexicon)>
-| @!sa-su $e(cmavo-shape) <"word" ∪ "cmavo" ∪ tags($e) ∪ tags($e, lexicon)>
+| @¬sa-su $e(cmavo-shape) <"word" ∪ "cmavo" ∪ tags($e) ∪ tags($e, lexicon)>
 | $b(brivla-shape) <"word" ∪ "BRIVLA" ∪ tags($b)>
 | cmevla-shape <"word" ∪ "CMEVLA">
-: phonemes($c) ∉ {"zo", "zoi", "la'o", "mu'oi", "lo'u", "ma'oi", "zo'oi", "la'oi", "ra'oi", "me'oi", "go'oi", "ze'oi", "ta'ai", "bo'ei", "fa'o", "bu", "zei", "si", "sa", "su"}
-, phonemes($e) ∉ {"zo", "zoi", "la'o", "mu'oi", "lo'u", "ma'oi", "zo'oi", "la'oi", "ra'oi", "me'oi", "go'oi", "ze'oi", "ta'ai", "bo'ei", "fa'o", "bu", "zei", "si"}
-⇒ this ;
+: phonemes($c) ∉ "zo" ∪ "zoi" ∪ "la'o" ∪ "mu'oi" ∪ "lo'u" ∪ "ma'oi" ∪ "zo'oi" ∪ "la'oi" ∪ "ra'oi" ∪ "me'oi" ∪ "go'oi" ∪ "ze'oi" ∪ "ta'ai" ∪ "bo'ei" ∪ "fa'o" ∪ "bu" ∪ "zei" ∪ "si" ∪ "sa" ∪ "su"
+∧ phonemes($e) ∉ "zo" ∪ "zoi" ∪ "la'o" ∪ "mu'oi" ∪ "lo'u" ∪ "ma'oi" ∪ "zo'oi" ∪ "la'oi" ∪ "ra'oi" ∪ "me'oi" ∪ "go'oi" ∪ "ze'oi" ∪ "ta'ai" ∪ "bo'ei" ∪ "fa'o" ∪ "bu" ∪ "zei" ∪ "si"
+⇒ $ ;
 ```
 
 The family document also defines `plain-cmavo-body`, the shape of a cmavo that begins with a consonant, which the magic words all have; the rules below name their words by their phonemes.
@@ -152,15 +152,15 @@ quote
 
 ```ebnf
 quoted-word
-≔ $m(word-quote-marker) quote-gap $w(quotable-word) <tags($m) ∪ "onset" ∪ ({"continued", "cy", "y-letter", "cv"} ∩ tags($w))>
-| $m(word-quote-marker) pause-gap $v(quotable-word) <tags($m) ∪ "onset" ∪ ({"continued", "cy", "y-letter", "cv"} ∩ tags($v))>
+≔ $m(word-quote-marker) quote-gap $w(quotable-word) <tags($m) ∪ "onset" ∪ (("continued" ∪ "cy" ∪ "y-letter" ∪ "cv") ∩ tags($w))>
+| $m(word-quote-marker) pause-gap $v(quotable-word) <tags($m) ∪ "onset" ∪ (("continued" ∪ "cy" ∪ "y-letter" ∪ "cv") ∩ tags($v))>
 | $m(word-quote-marker) pause-gap $n(cmevla-shape) <tags($m) ∪ "onset">
-: "onset" ∈ tags($w), "onset" ∉ tags($v)
+: "onset" ∈ tags($w) ∧ "onset" ∉ tags($v)
 ⇒ $m, $w <"word">, $v <"word">, $n <"word"> ;
 
 word-quote-marker
 ≔ $q(quote-marker-body) <"word" ∪ "cmavo" ∪ classes($q)>
-: phonemes($q) ∈ {"zo", "ma'oi"} ;
+: phonemes($q) ∈ "zo" ∪ "ma'oi" ;
 
 quote-marker-body
 ≔ $w(plain-cmavo-body) <tags($w, lexicon)> ;
@@ -178,20 +178,20 @@ single-word-quote
 
 single-marker
 ≔ $q(quote-marker-body) <"word" ∪ "cmavo" ∪ classes($q)>
-: phonemes($q) ∈ {"zo'oi", "la'oi", "ra'oi", "me'oi", "go'oi", "ze'oi", "ta'ai", "bo'ei"} ;
+: phonemes($q) ∈ "zo'oi" ∪ "la'oi" ∪ "ra'oi" ∪ "me'oi" ∪ "go'oi" ∪ "ze'oi" ∪ "ta'ai" ∪ "bo'ei" ;
 
 zoi-quote
 ≔ $m(zoi-marker) quote-gap $open(delimiter) PAUSE $content(zoi-body) PAUSE $close(delimiter) <tags($m) ∪ "onset">
 | $m(zoi-marker) pause-gap $o(delimiter) PAUSE $content(zoi-body) PAUSE $close(delimiter) <tags($m) ∪ "onset">
 | empty-zoi-quote
-: phonemes($open) = phonemes($close), phonemes($open) ∉ words($content), "onset" ∈ tags($open)
-, phonemes($o) = phonemes($close), phonemes($o) ∉ words($content), "onset" ∉ tags($o)
+: phonemes($open) = phonemes($close) ∧ phonemes($open) ∉ words($content) ∧ "onset" ∈ tags($open)
+∧ phonemes($o) = phonemes($close) ∧ phonemes($o) ∉ words($content) ∧ "onset" ∉ tags($o)
 ⇒ $m, $open <"word">, $o <"word">, $content <"foreign-text">, $close <"word"> ;
 
 empty-zoi-quote
 ≔ $m(zoi-marker) quote-gap $open(delimiter) PAUSE $close(delimiter) <tags($m) ∪ "onset">
 | $m(zoi-marker) pause-gap $o(delimiter) PAUSE $close(delimiter) <tags($m) ∪ "onset">
-: phonemes($open) = phonemes($close), "onset" ∈ tags($open), phonemes($o) = phonemes($close), "onset" ∉ tags($o)
+: phonemes($open) = phonemes($close) ∧ "onset" ∈ tags($open) ∧ phonemes($o) = phonemes($close) ∧ "onset" ∉ tags($o)
 ⇒ $m, $open <"word">, $o <"word">, "foreign-text", $close <"word"> ;
 
 delimiter
@@ -199,7 +199,7 @@ delimiter
 
 zoi-marker
 ≔ $q(quote-marker-body) <"word" ∪ "cmavo" ∪ classes($q)>
-: phonemes($q) ∈ {"zoi", "la'o", "mu'oi"} ;
+: phonemes($q) ∈ "zoi" ∪ "la'o" ∪ "mu'oi" ;
 ```
 
 Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL 4.9, but no quote marker opens anything and no eraser erases, so a `lo'u` stretch is a stream of bare word shapes joined by the same rules as the stream of the text; the quote ends at the first `le'u`, and it may be empty, `lo'u le'u`, as a `zoi` quote may. The words inside are handed on as bare words, and the markers as `LOhU` and `LEhU`; the closing marker is handed on as `LEhU` alone, not also as a word, so that the syntax cannot read it as one more quoted word and look for a later `le'u`.
@@ -226,12 +226,12 @@ lohu-stream
 | $s(lohu-stream) PAUSE $c(lohu-word) <tags($c) ∪ "continued">
 | $t(lohu-stream) $f(lohu-word) <tags($f)>
 | $u(lohu-stream) $g(lohu-word) <tags($g)>
-: "cy" ∉ tags($e), "cy" ∈ tags($c), "continued" ∈ tags($t), "onset" ∈ tags($f), "cy" ∈ tags($u), "cy" ∈ tags($g) ;
+: "cy" ∉ tags($e) ∧ "cy" ∈ tags($c) ∧ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f) ∧ "cy" ∈ tags($u) ∧ "cy" ∈ tags($g) ;
 
 lohu-word
 ≔ $c(cmavo-shape) <tags($c)> | $b(brivla-shape) <tags($b)> | cmevla-shape <∅> | y-run <"continued">
 : phonemes($c) ≠ "le'u"
-⇒ this <"word"> ;
+⇒ $ <"word"> ;
 ```
 
 The gap between a marker and its word is an optional pause, with hesitation allowed inside it; a word that begins with a vowel needs the pause. A quoted body is any run of phonemes, pauses included, which is where a character that is not Lojban at all may appear; the phonemes are listed here, since the body is the one place a grammar reads them without regard to what they spell.
@@ -266,14 +266,14 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
 
 ```ebnf
 lerfu-word
-≔ $u(unit) $b(bu-word) <"word" ∪ "BY" ∪ "continued" ∪ ({"onset"} ∩ tags($u))>
-| $c(unit) $b(bu-word) <"word" ∪ "BY" ∪ "continued" ∪ ({"onset"} ∩ tags($c))>
-| $v(unit) PAUSE $b(bu-word) <"word" ∪ "BY" ∪ "continued" ∪ ({"onset"} ∩ tags($v))>
-| $u(unit) $g(gap-erasures) $b(bu-word) <"word" ∪ "BY" ∪ "continued" ∪ ({"onset"} ∩ tags($u))>
-| $v(unit) PAUSE $h(gap-erasures) $b(bu-word) <"word" ∪ "BY" ∪ "continued" ∪ ({"onset"} ∩ tags($v))>
+≔ $u(unit) $b(bu-word) <"word" ∪ "BY" ∪ "continued" ∪ ("onset" ∩ tags($u))>
+| $c(unit) $b(bu-word) <"word" ∪ "BY" ∪ "continued" ∪ ("onset" ∩ tags($c))>
+| $v(unit) PAUSE $b(bu-word) <"word" ∪ "BY" ∪ "continued" ∪ ("onset" ∩ tags($v))>
+| $u(unit) $g(gap-erasures) $b(bu-word) <"word" ∪ "BY" ∪ "continued" ∪ ("onset" ∩ tags($u))>
+| $v(unit) PAUSE $h(gap-erasures) $b(bu-word) <"word" ∪ "BY" ∪ "continued" ∪ ("onset" ∩ tags($v))>
 | $y(y-base) [PAUSE] $b(bu-word) <"word" ∪ "BY" ∪ "continued">
-: "continued" ∈ tags($u), "cy" ∈ tags($c), "onset" ∈ tags($g)
-⇒ this ;
+: "continued" ∈ tags($u) ∧ "cy" ∈ tags($c) ∧ "onset" ∈ tags($g)
+⇒ $ ;
 
 y-base
 ≔ y-run ;
@@ -283,14 +283,14 @@ bu-word
 : phonemes($q) = "bu" ;
 
 zei-compound
-≔ $l(unit) $z(zei-word) $r(zei-right) <"word" ∪ "BRIVLA" ∪ ({"onset"} ∩ tags($l)) ∪ ({"continued", "cy", "y-letter"} ∩ tags($r))>
-| $k(unit) PAUSE $z(zei-word) $r(zei-right) <"word" ∪ "BRIVLA" ∪ ({"onset"} ∩ tags($k)) ∪ ({"continued", "cy", "y-letter"} ∩ tags($r))>
-| $l(unit) $z(zei-word) PAUSE $p(zei-right) <"word" ∪ "BRIVLA" ∪ ({"onset"} ∩ tags($l)) ∪ ({"continued", "cy", "y-letter"} ∩ tags($p))>
-| $k(unit) PAUSE $z(zei-word) PAUSE $p(zei-right) <"word" ∪ "BRIVLA" ∪ ({"onset"} ∩ tags($k)) ∪ ({"continued", "cy", "y-letter"} ∩ tags($p))>
-| $l(unit) $g(gap-erasures) $z(zei-word) $r(zei-right) <"word" ∪ "BRIVLA" ∪ ({"onset"} ∩ tags($l)) ∪ ({"continued", "cy", "y-letter"} ∩ tags($r))>
-| $k(unit) PAUSE $h(gap-erasures) $z(zei-word) $r(zei-right) <"word" ∪ "BRIVLA" ∪ ({"onset"} ∩ tags($k)) ∪ ({"continued", "cy", "y-letter"} ∩ tags($r))>
-: "continued" ∈ tags($l), "onset" ∈ tags($r), "onset" ∈ tags($g)
-⇒ this ;
+≔ $l(unit) $z(zei-word) $r(zei-right) <"word" ∪ "BRIVLA" ∪ ("onset" ∩ tags($l)) ∪ (("continued" ∪ "cy" ∪ "y-letter") ∩ tags($r))>
+| $k(unit) PAUSE $z(zei-word) $r(zei-right) <"word" ∪ "BRIVLA" ∪ ("onset" ∩ tags($k)) ∪ (("continued" ∪ "cy" ∪ "y-letter") ∩ tags($r))>
+| $l(unit) $z(zei-word) PAUSE $p(zei-right) <"word" ∪ "BRIVLA" ∪ ("onset" ∩ tags($l)) ∪ (("continued" ∪ "cy" ∪ "y-letter") ∩ tags($p))>
+| $k(unit) PAUSE $z(zei-word) PAUSE $p(zei-right) <"word" ∪ "BRIVLA" ∪ ("onset" ∩ tags($k)) ∪ (("continued" ∪ "cy" ∪ "y-letter") ∩ tags($p))>
+| $l(unit) $g(gap-erasures) $z(zei-word) $r(zei-right) <"word" ∪ "BRIVLA" ∪ ("onset" ∩ tags($l)) ∪ (("continued" ∪ "cy" ∪ "y-letter") ∩ tags($r))>
+| $k(unit) PAUSE $h(gap-erasures) $z(zei-word) $r(zei-right) <"word" ∪ "BRIVLA" ∪ ("onset" ∩ tags($k)) ∪ (("continued" ∪ "cy" ∪ "y-letter") ∩ tags($r))>
+: "continued" ∈ tags($l) ∧ "onset" ∈ tags($r) ∧ "onset" ∈ tags($g)
+⇒ $ ;
 
 zei-word
 ≔ $q(plain-cmavo-body)
@@ -315,13 +315,13 @@ CLL 19.13: `si` erases the word before it, a compound or a quote counting as one
 
 ```ebnf
 erasure
-≔ $u(unit) $s(si-word) <{"onset"} ∩ tags($u) ∪ "continued">
-| $v(unit) si-gap $s(si-word) <{"onset"} ∩ tags($v) ∪ "continued">
-| $u(unit) $e(erasures) [si-gap] $s(si-word) <{"onset"} ∩ tags($u) ∪ "continued">
-| $v(unit) si-gap $f(erasures) [si-gap] $s(si-word) <{"onset"} ∩ tags($v) ∪ "continued">
+≔ $u(unit) $s(si-word) <"onset" ∩ tags($u) ∪ "continued">
+| $v(unit) si-gap $s(si-word) <"onset" ∩ tags($v) ∪ "continued">
+| $u(unit) $e(erasures) [si-gap] $s(si-word) <"onset" ∩ tags($u) ∪ "continued">
+| $v(unit) si-gap $f(erasures) [si-gap] $s(si-word) <"onset" ∩ tags($v) ∪ "continued">
 | @sa-su eraser [si-gap] $s(si-word) <"onset" ∪ "continued">
-: "continued" ∈ tags($u), "onset" ∈ tags($e)
-⇒ nothing ;
+: "continued" ∈ tags($u) ∧ "onset" ∈ tags($e)
+⇒ $ <> ;
 
 erasures
 ≔ $e(erasure) <tags($e)>
@@ -335,7 +335,7 @@ si-gap
 si-word
 ≔ $q(plain-cmavo-body)
 : phonemes($q) = "si"
-⇒ nothing ;
+⇒ $ <> ;
 
 eraser
 ≔ sa-word | su-word ;
@@ -351,37 +351,37 @@ The reach of a `sa` is stated from its far end: `sa-open` is an element, which h
 
 ```ebnf
 sa-erasure
-≔ $first(sa-open) $g(gap) sa-word $h(sa-gap) $next(sa-next) <({"onset"} ∩ tags($first)) ∪ ({"continued", "cy", "cv", "y-letter"} ∩ tags($next)) ∪ classes($next)>
-| $first(sa-open-twice) $g(gap) sa-twice $h(sa-gap) $next(sa-next) <({"onset"} ∩ tags($first)) ∪ ({"continued", "cy", "cv", "y-letter"} ∩ tags($next)) ∪ classes($next)>
-| $first(sa-open-thrice) $g(gap) sa-thrice $h(sa-gap) $next(sa-next) <({"onset"} ∩ tags($first)) ∪ ({"continued", "cy", "cv", "y-letter"} ∩ tags($next)) ∪ classes($next)>
+≔ $first(sa-open) $g(gap) sa-word $h(sa-gap) $next(sa-next) <("onset" ∩ tags($first)) ∪ (("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($next)) ∪ classes($next)>
+| $first(sa-open-twice) $g(gap) sa-twice $h(sa-gap) $next(sa-next) <("onset" ∩ tags($first)) ∪ (("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($next)) ∪ classes($next)>
+| $first(sa-open-thrice) $g(gap) sa-thrice $h(sa-gap) $next(sa-next) <("onset" ∩ tags($first)) ∪ (("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($next)) ∪ classes($next)>
 : classes($first) ∩ classes($next) ≠ ∅
-, "continued" ∈ tags($first) ∨ phonemes($g) = " "
-, "onset" ∈ tags($next) ∨ phonemes($h) ≠ "" ;
+∧ ("continued" ∈ tags($first) ∨ phonemes($g) = " ")
+∧ ("onset" ∈ tags($next) ∨ phonemes($h) ≠ "") ;
 
 sa-open
-≔ $first(element) <classes($first) ∪ ({"onset", "continued", "cy"} ∩ tags($first))>
-| $o(sa-open) $f(element) <classes($o) ∪ ({"continued", "cy"} ∩ tags($f))>
-| $o(sa-open) PAUSE $p(element) <classes($o) ∪ ({"continued", "cy"} ∩ tags($p))>
+≔ $first(element) <classes($first) ∪ (("onset" ∪ "continued" ∪ "cy") ∩ tags($first))>
+| $o(sa-open) $f(element) <classes($o) ∪ (("continued" ∪ "cy") ∩ tags($f))>
+| $o(sa-open) PAUSE $p(element) <classes($o) ∪ (("continued" ∪ "cy") ∩ tags($p))>
 | $o(sa-open) PAUSE $c(element) <classes($o) ∪ "continued" ∪ "cy">
 : classes($first) ≠ ∅
-, "continued" ∈ tags($o) ∨ "cy" ∈ tags($o) ∨ "onset" ∉ tags($f), "continued" ∈ tags($o) ∨ "cy" ∈ tags($f), "onset" ∈ tags($f)
-, "cy" ∉ tags($p), "cy" ∈ tags($c)
-, classes($o) ∩ classes($f) = ∅, classes($o) ∩ classes($p) = ∅, classes($o) ∩ classes($c) = ∅
-⇒ nothing ;
+∧ ("continued" ∈ tags($o) ∨ "cy" ∈ tags($o) ∨ "onset" ∉ tags($f)) ∧ ("continued" ∈ tags($o) ∨ "cy" ∈ tags($f)) ∧ "onset" ∈ tags($f)
+∧ "cy" ∉ tags($p) ∧ "cy" ∈ tags($c)
+∧ classes($o) ∩ classes($f) = ∅ ∧ classes($o) ∩ classes($p) = ∅ ∧ classes($o) ∩ classes($c) = ∅
+⇒ $ <> ;
 
 sa-open-twice
-≔ $a(sa-open) $g(gap) $b(sa-open) <classes($a) ∪ ({"onset"} ∩ tags($a)) ∪ ({"continued", "cy", "cv", "y-letter"} ∩ tags($b))>
+≔ $a(sa-open) $g(gap) $b(sa-open) <classes($a) ∪ ("onset" ∩ tags($a)) ∪ (("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($b))>
 : classes($a) ∩ classes($b) ≠ ∅
-, "continued" ∈ tags($a) ∨ phonemes($g) = " "
-, "onset" ∈ tags($b) ∨ phonemes($g) = " "
-⇒ nothing ;
+∧ ("continued" ∈ tags($a) ∨ phonemes($g) = " ")
+∧ ("onset" ∈ tags($b) ∨ phonemes($g) = " ")
+⇒ $ <> ;
 
 sa-open-thrice
-≔ $a(sa-open) $g(gap) $t(sa-open-twice) <classes($a) ∪ ({"onset"} ∩ tags($a)) ∪ ({"continued", "cy", "cv", "y-letter"} ∩ tags($t))>
+≔ $a(sa-open) $g(gap) $t(sa-open-twice) <classes($a) ∪ ("onset" ∩ tags($a)) ∪ (("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($t))>
 : classes($a) ∩ classes($t) ≠ ∅
-, "continued" ∈ tags($a) ∨ phonemes($g) = " "
-, "onset" ∈ tags($t) ∨ phonemes($g) = " "
-⇒ nothing ;
+∧ ("continued" ∈ tags($a) ∨ phonemes($g) = " ")
+∧ ("onset" ∈ tags($t) ∨ phonemes($g) = " ")
+⇒ $ <> ;
 
 sa-next
 ≔ word | quote ;
@@ -392,7 +392,7 @@ sa-gap
 sa-word
 ≔ $q(plain-cmavo-body)
 : phonemes($q) = "sa"
-⇒ nothing ;
+⇒ $ <> ;
 
 sa-twice
 ≔ sa-word gap sa-word ;
@@ -408,32 +408,32 @@ sa-run
 
 ```ebnf
 su-erasure
-≔ $stop(boundary) $g(gap) su-word <({"onset"} ∩ tags($stop)) ∪ classes($stop) ∪ "continued">
-| $stop(boundary) $g(gap) $reach(su-reach) $h(gap) su-word <({"onset"} ∩ tags($stop)) ∪ classes($stop) ∪ "continued">
-: "continued" ∈ tags($stop) ∨ phonemes($g) = " "
-, "first-onset" ∈ tags($reach) ∨ phonemes($g) = " "
-, "first-cy" ∉ tags($reach) ∨ phonemes($g) = " "
-, "continued" ∈ tags($reach) ∨ phonemes($h) = " " ;
+≔ $stop(boundary) $g(gap) su-word <("onset" ∩ tags($stop)) ∪ classes($stop) ∪ "continued">
+| $stop(boundary) $g(gap) $reach(su-reach) $h(gap) su-word <("onset" ∩ tags($stop)) ∪ classes($stop) ∪ "continued">
+: ("continued" ∈ tags($stop) ∨ phonemes($g) = " ")
+∧ ("first-onset" ∈ tags($reach) ∨ phonemes($g) = " ")
+∧ ("first-cy" ∉ tags($reach) ∨ phonemes($g) = " ")
+∧ ("continued" ∈ tags($reach) ∨ phonemes($h) = " ") ;
 
 boundary
 ≔ $b(element) <tags($b)>
-: classes($b) ∩ {"NIhO", "LU", "TUhE", "TO"} ≠ ∅ ;
+: classes($b) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") ≠ ∅ ;
 
 su-reach
-≔ $first(opener) <{"first-onset", "first-cy", "continued", "cy"} ∩ tags($first)>
-| $o(su-reach) $f(element) <({"first-onset", "first-cy"} ∩ tags($o)) ∪ ({"continued", "cy"} ∩ tags($f))>
-| $o(su-reach) PAUSE $p(element) <({"first-onset", "first-cy"} ∩ tags($o)) ∪ ({"continued", "cy"} ∩ tags($p))>
-| $o(su-reach) PAUSE $c(element) <({"first-onset", "first-cy"} ∩ tags($o)) ∪ "continued" ∪ "cy">
-: classes($first) ∩ {"NIhO", "LU", "TUhE", "TO"} = ∅
-, "continued" ∈ tags($o) ∨ "cy" ∈ tags($o) ∨ "onset" ∉ tags($f), "continued" ∈ tags($o) ∨ "cy" ∈ tags($f), "onset" ∈ tags($f)
-, "cy" ∉ tags($p), "cy" ∈ tags($c)
-, classes($f) ∩ {"NIhO", "LU", "TUhE", "TO"} = ∅, classes($p) ∩ {"NIhO", "LU", "TUhE", "TO"} = ∅, classes($c) ∩ {"NIhO", "LU", "TUhE", "TO"} = ∅
-⇒ nothing ;
+≔ $first(opener) <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy") ∩ tags($first)>
+| $o(su-reach) $f(element) <(("first-onset" ∪ "first-cy") ∩ tags($o)) ∪ (("continued" ∪ "cy") ∩ tags($f))>
+| $o(su-reach) PAUSE $p(element) <(("first-onset" ∪ "first-cy") ∩ tags($o)) ∪ (("continued" ∪ "cy") ∩ tags($p))>
+| $o(su-reach) PAUSE $c(element) <(("first-onset" ∪ "first-cy") ∩ tags($o)) ∪ "continued" ∪ "cy">
+: classes($first) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅
+∧ ("continued" ∈ tags($o) ∨ "cy" ∈ tags($o) ∨ "onset" ∉ tags($f)) ∧ ("continued" ∈ tags($o) ∨ "cy" ∈ tags($f)) ∧ "onset" ∈ tags($f)
+∧ "cy" ∉ tags($p) ∧ "cy" ∈ tags($c)
+∧ classes($f) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅ ∧ classes($p) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅ ∧ classes($c) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅
+⇒ $ <> ;
 
 su-word
 ≔ $q(plain-cmavo-body)
 : phonemes($q) = "su"
-⇒ nothing ;
+⇒ $ <> ;
 ```
 
 A `su` with no boundary before it, or a `sa` whose following word matches nothing before it, erases everything back to the start of the text; the word after such a `sa` stays, and a later unmatched one takes it too; a run of `sa` that matches nothing is one unmatched `sa`. A `sa` at the end of the text, with no word after it, has no selma'o to look for and erases nothing, so `.i sa` is `.i`; the text rule accepts it after the stream. These are the wiped stretches the text rule accepts before its stream.
@@ -442,28 +442,28 @@ A `su` with no boundary before it, or a `sa` whose following word matches nothin
 wiped
 ≔ $i(wiped-item) <tags($i)>
 | $p(wiped-prefix) $g(gap) $i(wiped-item) <tags($i)>
-: "continued" ∈ tags($p) ∨ phonemes($g) = " "
-, "first-onset" ∈ tags($i) ∨ phonemes($g) = " "
-, "first-cy" ∉ tags($i) ∨ phonemes($g) = " " ;
+: ("continued" ∈ tags($p) ∨ phonemes($g) = " ")
+∧ ("first-onset" ∈ tags($i) ∨ phonemes($g) = " ")
+∧ ("first-cy" ∉ tags($i) ∨ phonemes($g) = " ") ;
 
 wiped-prefix
 ≔ $w(wiped) <tags($w)>
-⇒ nothing ;
+⇒ $ <> ;
 
 wiped-item
 ≔ su-word <"onset" ∪ "continued" ∪ "first-onset">
-| $q(wiped-reach) $g(gap) su-word <"continued" ∪ ({"first-onset", "first-cy"} ∩ tags($q))>
+| $q(wiped-reach) $g(gap) su-word <"continued" ∪ (("first-onset" ∪ "first-cy") ∩ tags($q))>
 | sa-run gap su-word <"onset" ∪ "continued" ∪ "first-onset">
-| sa-run $h(sa-gap) $n(sa-next) <"first-onset" ∪ ({"continued", "cy", "cv", "y-letter"} ∩ tags($n)) ∪ classes($n)>
-| $r(wiped-reach) $g(gap) sa-run $h(sa-gap) $n(sa-next) <({"first-onset", "first-cy"} ∩ tags($r)) ∪ ({"continued", "cy", "cv", "y-letter"} ∩ tags($n)) ∪ classes($n)>
-: classes($q) ∩ {"NIhO", "LU", "TUhE", "TO"} = ∅
-, classes($r) ∩ classes($n) = ∅
-, "continued" ∈ tags($q) ∨ phonemes($g) = " ", "continued" ∈ tags($r) ∨ phonemes($g) = " "
-, "onset" ∈ tags($n) ∨ phonemes($h) ≠ "" ;
+| sa-run $h(sa-gap) $n(sa-next) <"first-onset" ∪ (("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($n)) ∪ classes($n)>
+| $r(wiped-reach) $g(gap) sa-run $h(sa-gap) $n(sa-next) <(("first-onset" ∪ "first-cy") ∩ tags($r)) ∪ (("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($n)) ∪ classes($n)>
+: classes($q) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅
+∧ classes($r) ∩ classes($n) = ∅
+∧ ("continued" ∈ tags($q) ∨ phonemes($g) = " ") ∧ ("continued" ∈ tags($r) ∨ phonemes($g) = " ")
+∧ ("onset" ∈ tags($n) ∨ phonemes($h) ≠ "") ;
 
 wiped-reach
 ≔ $s(stream) <tags($s)>
-⇒ nothing ;
+⇒ $ <> ;
 ```
 
 ## Choosing among parses

@@ -2,7 +2,7 @@
   "description": "A helper with one symbol has that symbol's tags, so an optional passes its tags on (engine §3.7).",
   "documents": {
     "p.md": "## s <?stage first?>\n\n- [g](g.md) <?grammar?>\n\n## t <?stage second?>\n\n- [h](h.md) <?grammar?>\n",
-    "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ w ;\nw ≔ [A] ⇒ this ;\n```\n",
+    "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ w ;\nw ≔ [A] ⇒ $ ;\n```\n",
     "h.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ A ;\n```\n"
   },
   "pipeline": "p.md",

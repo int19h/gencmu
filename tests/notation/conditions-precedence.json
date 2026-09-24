@@ -1,0 +1,126 @@
+{
+  "description": "∧ binds tighter than ∨, and parentheses group; the conditions joined by ∧ at the top are the rule's conditions, one by one (engine §9).",
+  "document": "```ebnf\na ≔ $x(A) $y(B) : \"p\" ∈ tags($x) ∨ \"q\" ∈ tags($y) ∧ \"r\" ∈ tags($x) ;\nb ≔ $x(A) $y(B) : (\"p\" ∈ tags($x) ∨ \"q\" ∈ tags($y)) ∧ ¬(\"r\" ∈ tags($x) ∧ matches($y, a)) ;\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "conditions": [
+            {
+              "any": [
+                {
+                  "op": "∈",
+                  "left": {
+                    "literal": "p"
+                  },
+                  "right": {
+                    "call": "tags",
+                    "args": [
+                      {
+                        "capture": "x"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "all": [
+                    {
+                      "op": "∈",
+                      "left": {
+                        "literal": "q"
+                      },
+                      "right": {
+                        "call": "tags",
+                        "args": [
+                          {
+                            "capture": "y"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "op": "∈",
+                      "left": {
+                        "literal": "r"
+                      },
+                      "right": {
+                        "call": "tags",
+                        "args": [
+                          {
+                            "capture": "x"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "conditions": [
+            {
+              "any": [
+                {
+                  "op": "∈",
+                  "left": {
+                    "literal": "p"
+                  },
+                  "right": {
+                    "call": "tags",
+                    "args": [
+                      {
+                        "capture": "x"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "op": "∈",
+                  "left": {
+                    "literal": "q"
+                  },
+                  "right": {
+                    "call": "tags",
+                    "args": [
+                      {
+                        "capture": "y"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "not": {
+                "all": [
+                  {
+                    "op": "∈",
+                    "left": {
+                      "literal": "r"
+                    },
+                    "right": {
+                      "call": "tags",
+                      "args": [
+                        {
+                          "capture": "x"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "matches": {
+                      "capture": "y"
+                    },
+                    "rule": "a"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

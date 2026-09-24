@@ -26,9 +26,9 @@ test("a malformed precompiled DOM is a miss, and the document is read instead", 
   const bootstrapHash = loadDialectSources(sources, "p.md").loader.bootstrapHash;
   const hash = fnv1a64(sources["g.md"]);
   const token = new Token(new Map([["A", true]]), [0, 1], [0, 1], "a", null, undefined);
-  for (const dom of [{ format: 1, rules: [{}], directives: [] },
-    { format: 1, rules: [{ name: "text", op: "define", alternatives: [{ guards: [], expr: { seq: [] } }], conditions: [], at: [1, 1] }], directives: [] }]) {
-    const compiled = JSON.stringify({ format: 1, bootstrap: bootstrapHash, documents: { "g.md": { hash, dom } } });
+  for (const dom of [{ format: 2, rules: [{}], directives: [] },
+    { format: 2, rules: [{ name: "text", op: "define", alternatives: [{ guards: [], expr: { seq: [] } }], conditions: [], at: [1, 1] }], directives: [] }]) {
+    const compiled = JSON.stringify({ format: 2, bootstrap: bootstrapHash, documents: { "g.md": { hash, dom } } });
     const dialect = loadDialectSources({ ...sources, "compiled.json": compiled }, "p.md");
     assert.equal(dialect.loader.compiled.size, 0, "the entry was refused");
     assert.equal(dialect.parse("a", { tokens: [token], autoFeatures: false }).ok, true, "the document was read instead");
@@ -46,17 +46,17 @@ test("a malformed bootstrap is a grammar error", () => {
 test("nesting deeper than any grammar is refused", () => {
   let expr = { ref: "a" };
   for (let depth = 0; depth < 257; depth++) expr = { optional: expr };
-  const dom = { format: 1, rules: [{ name: "text", op: "define", alternatives: [{ guards: [], expr }], conditions: [], at: [1, 1] }], directives: [] };
+  const dom = { format: 2, rules: [{ name: "text", op: "define", alternatives: [{ guards: [], expr }], conditions: [], at: [1, 1] }], directives: [] };
   assert.equal(domProblem(dom), "nested too deeply");
   // An emission's tag terms are counted from the top as any term is.
   let term = { literal: "x" };
-  for (let depth = 0; depth < 256; depth++) term = { set: [term] };
-  const emitted = { format: 1, rules: [{ name: "text", op: "define", alternatives: [{ guards: [], expr: { ref: "A" } }], emit: { items: [{ this: true, tags: term }] }, conditions: [], at: [1, 1] }], directives: [] };
+  for (let depth = 0; depth < 256; depth++) term = { union: [term, { literal: "y" }] };
+  const emitted = { format: 2, rules: [{ name: "text", op: "define", alternatives: [{ guards: [], expr: { ref: "A" } }], emit: { items: [{ capture: "", tags: term }] }, conditions: [], at: [1, 1] }], directives: [] };
   assert.equal(domProblem(emitted), null);
 });
 
 test("a tag term naming a capture the production lacks is dropped from the item", () => {
-  const dialect = loadDialectSources({ ...sources, "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ A ⇒ this <$x> ;\n```\n" }, "p.md");
+  const dialect = loadDialectSources({ ...sources, "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ A ⇒ $ <$x> ;\n```\n" }, "p.md");
   const token = new Token(new Map([["A", true]]), [0, 1], [0, 1], "a", null, undefined);
   const result = dialect.parse("a", { tokens: [token], autoFeatures: false });
   assert.equal(result.ok, true);
@@ -71,17 +71,24 @@ test("the reader holds documents to the same nesting bound as precompiled DOMs",
 });
 
 test("the check holds a precompiled emission and format to the reader's rules", () => {
-  const rule = (emit) => ({ format: 1, rules: [{ name: "text", op: "define", alternatives: [{ guards: [], expr: { capture: "x", expr: { ref: "A" } } }], emit, conditions: [], at: [1, 1] }], directives: [] });
-  assert.equal(domProblem(rule({ items: [{ this: true }, { capture: "x" }] })), "a malformed emission");
+  const rule = (emit) => ({ format: 2, rules: [{ name: "text", op: "define", alternatives: [{ guards: [], expr: { capture: "x", expr: { ref: "A" } } }], emit, conditions: [], at: [1, 1] }], directives: [] });
+  assert.equal(domProblem(rule({ items: [{ capture: "" }, { capture: "x" }] })), "a malformed emission");
+  assert.equal(domProblem(rule({ items: [{ capture: "", erase: true }, { capture: "" }] })), "a malformed emission");
+  assert.equal(domProblem(rule({ items: [{ insert: "y", erase: true }] })), "a malformed emission");
+  assert.equal(domProblem(rule({ items: [{ capture: "x", tags: { emptySet: true } }] })), "a malformed emission");
+  assert.equal(domProblem(rule({ items: [{ capture: "x", erase: true }] })), null);
   assert.equal(domProblem(rule({ items: [{ capture: "x" }, { capture: "x" }] })), "a malformed emission");
   assert.equal(domProblem(rule({ items: [{ insert: "y", tags: { literal: "z" } }] })), "a malformed emission");
-  assert.equal(domProblem(rule({ items: [{ this: true }, { this: true }] })), null);
-  assert.equal(domProblem({ format: 2, rules: [], directives: [] }), "not a DOM of format 1");
-  const tagged = (tags) => ({ format: 1, rules: [{ name: "text", op: "define", tags, alternatives: [{ guards: [], expr: { capture: "x", expr: { ref: "A" } } }], conditions: [], at: [1, 1] }], directives: [] });
+  assert.equal(domProblem(rule({ items: [{ capture: "" }, { capture: "" }] })), null);
+  assert.equal(domProblem({ format: 1, rules: [], directives: [] }), "not a DOM of format 2");
+  const tagged = (tags) => ({ format: 2, rules: [{ name: "text", op: "define", tags, alternatives: [{ guards: [], expr: { capture: "x", expr: { ref: "A" } } }], conditions: [], at: [1, 1] }], directives: [] });
   assert.equal(domProblem(tagged({ call: "matches", args: [{ literal: "x" }] })), "a malformed term");
   assert.equal(domProblem(tagged({ call: "head", args: [{ capture: "x" }] })), "a malformed term");
   assert.equal(domProblem(tagged({ call: "lowercase", args: [{ weak: "x" }] })), "a malformed term");
-  const alternative = (expr) => ({ format: 1, rules: [{ name: "text", op: "define", alternatives: [{ guards: [], expr }], conditions: [], at: [1, 1] }], directives: [] });
+  assert.equal(domProblem(tagged({ call: "tags", args: [{ capture: "" }] })), "a constituent's tags made of its own");
+  assert.equal(domProblem(tagged({ union: [{ literal: "x" }, { capture: "" }] })), "a constituent's tags made of its own");
+  assert.equal(domProblem(tagged({ call: "tags", args: [{ capture: "" }, { rule: "a" }] })), null);
+  const alternative = (expr) => ({ format: 2, rules: [{ name: "text", op: "define", alternatives: [{ guards: [], expr }], conditions: [], at: [1, 1] }], directives: [] });
   assert.equal(domProblem(alternative({ seq: [{ optional: { capture: "x", expr: { ref: "A" } } }, { ref: "B" }] })), "a capture below the top level of an alternative");
   assert.equal(domProblem(alternative({ seq: [{ capture: "x", expr: { ref: "A" } }, { capture: "x", expr: { ref: "B" } }] })), "a capture name used twice in an alternative");
   assert.equal(domProblem(alternative({ seq: [{ capture: "x", expr: { ref: "A" } }, { ref: "B" }] })), null);

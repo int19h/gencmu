@@ -218,7 +218,6 @@ export function formatTerm(term) {
   if ("literal" in term) return /^\/.\/$/u.test(term.literal) ? term.literal : quoted(term.literal);
   if ("weak" in term) return `?${quoted(term.weak)}`;
   if ("emptySet" in term) return "∅";
-  if ("set" in term) return `{${term.set.map(formatTerm).join(", ")}}`;
   if ("union" in term) return term.union.map(formatTerm).join(" ∪ ");
   if ("intersection" in term) return term.intersection.map((item) => ("union" in item ? `(${formatTerm(item)})` : formatTerm(item))).join(" ∩ ");
   if ("call" in term) return `${term.call}(${term.args.map(formatTerm).join(", ")})`;
@@ -231,6 +230,7 @@ export function formatTerm(term) {
  */
 export function formatCondition(condition) {
   if ("any" in condition) return condition.any.map(formatCondition).join(" ∨ ");
+  if ("all" in condition) return condition.all.map((item) => ("any" in item ? `(${formatCondition(item)})` : formatCondition(item))).join(" ∧ ");
   if ("not" in condition) return `¬(${formatCondition(condition.not)})`;
   if ("matches" in condition) return `matches(${formatTerm(condition.matches)}, ${condition.rule})`;
   return `${formatTerm(condition.left)} ${condition.op} ${formatTerm(condition.right)}`;
@@ -257,15 +257,13 @@ export function formatItem(production, dot) {
 // ---- Audit ---------------------------------------------------------------
 
 /**
- * The rules an expression refers to; `#` as the rule it stands for.
+ * The rules an expression refers to.
  * @param {Expr} expr
  * @param {Set<string>} into
- * @param {string | null} freeModifiers
  */
-function referencedRules(expr, into, freeModifiers) {
+function referencedRules(expr, into) {
   const stack = [expr];
   for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
-    if ("hash" in current && freeModifiers) into.add(freeModifiers);
     if ("ref" in current) into.add(current.ref);
     else if ("seq" in current) stack.push(...current.seq);
     else if ("choice" in current) stack.push(...current.choice);
@@ -319,12 +317,12 @@ export function audit(dialect) {
       if (!rule) continue;
       const found = new Set();
       for (const alternative of rule.alternatives) {
-        referencedRules(alternative.expr, found, grammar.freeModifiers);
+        referencedRules(alternative.expr, found);
         // Rules named in clauses count only where the clause applies to the
         // alternative: a condition that names a capture the alternative
         // lacks never runs for it (engine §3.6).
         const top = "seq" in alternative.expr ? alternative.expr.seq : [alternative.expr];
-        const captured = new Set(top.flatMap((item) => ("capture" in item ? [item.capture] : [])));
+        const captured = new Set(["", ...top.flatMap((item) => ("capture" in item ? [item.capture] : []))]);
         /** @type {(clause: unknown) => boolean} */
         const applies = (clause) => termVariables(/** @type {Condition} */ (clause)).every((variable) => captured.has(variable));
         const clauses = alternative.clauses;
@@ -351,7 +349,7 @@ export function audit(dialect) {
       for (const [clauses, alternatives] of byDefinition) {
         const captured = alternatives.map((alternative) => {
           const top = "seq" in alternative.expr ? alternative.expr.seq : [alternative.expr];
-          return new Set(top.flatMap((item) => ("capture" in item ? [item.capture] : [])));
+          return new Set(["", ...top.flatMap((item) => ("capture" in item ? [item.capture] : []))]);
         });
         for (const condition of /** @type {{conditions: Condition[]}} */ (clauses).conditions) {
           const needs = termVariables(condition);

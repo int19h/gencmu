@@ -14,7 +14,7 @@ cmavo-shape
 | $v(plain-cmavo-body) <"onset" ∪ "continued" ∪ "cv">
 | letter-cmavo <"onset" ∪ "continued" ∪ "y-letter">
 | $n(cmavo-nuclei) word-end <"continued">
-: ¬matches($w, cv-body), ¬matches($w, letter-cmavo), matches($v, cv-body), phonemes($n) ∉ {"y", "Y"} ;
+: ¬matches($w, cv-body) ∧ ¬matches($w, letter-cmavo) ∧ matches($v, cv-body) ∧ phonemes($n) ∉ "y" ∪ "Y" ;
 
 plain-cmavo-body
 ≔ cmavo-onset cmavo-nuclei ;
@@ -48,7 +48,7 @@ brivla-shape
 | $u(brivla-with-onset) <"onset">
 | $n(fuhivla-without-onset) <"continued">
 | $o(fuhivla-without-onset) <∅>
-: phonemes($m) ≠ lowercase(phonemes($m)), phonemes($u) = lowercase(phonemes($u)), phonemes($n) ≠ lowercase(phonemes($n)), phonemes($o) = lowercase(phonemes($o)) ;
+: phonemes($m) ≠ lowercase(phonemes($m)) ∧ phonemes($u) = lowercase(phonemes($u)) ∧ phonemes($n) ≠ lowercase(phonemes($n)) ∧ phonemes($o) = lowercase(phonemes($o)) ;
 ```
 
 ## Extended rafsi
@@ -85,7 +85,7 @@ stressed-brivla-rafsi
 fuhivla-rafsi
 ≔ $h(rafsi-head) consonant y [/'/]
 | $h(rafsi-head) initial-cluster y [/'/]
-: ¬matches(tail($h), rafsi-string), ¬matches($h, plain-rafsi-head) ;
+: ¬matches(tail($h), rafsi-string) ∧ ¬matches($h, plain-rafsi-head) ;
 
 plain-rafsi-head
 ≔ [basic-initial-rafsi-sequence] (consonant | initial-pair) plain-vowel ;

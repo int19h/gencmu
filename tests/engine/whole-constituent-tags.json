@@ -1,0 +1,21 @@
+{
+  "description": "$ in a condition has the constituent's tags, which its production's tag term gives it (engine §4, §10).",
+  "grammar": "text ≔ x ; x ≔ $a(A) <tags($a) ∪ \"T\"> | $b(B) <tags($b)> : \"T\" ∈ tags($) ;",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected"
+      }
+    },
+    "error": "rejected"
+  }
+}

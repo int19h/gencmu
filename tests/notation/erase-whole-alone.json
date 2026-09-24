@@ -1,0 +1,10 @@
+{
+  "description": "⇒ $ <> stands alone (engine §9); the error is at the ⇒.",
+  "document": "```ebnf\na ≔ A ⇒ $ <>, $ ;\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 7
+    }
+  }
+}

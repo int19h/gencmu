@@ -174,6 +174,14 @@ export declare function nodeBrackets(root: ResultNode, tokens: Token[], options?
  */
 export declare function toTree(result: ParseResult): string;
 /**
+ * A tree without its hollow rule nodes, those with no token and no elided
+ * terminator below them, such as an empty free-modifier slot: the renderings
+ * for people leave them out (docs/output.md).
+ * @param {ResultNode} root
+ * @returns {ResultNode}
+ */
+export declare function withoutHollowNodes(root: ResultNode): ResultNode;
+/**
  * The tree rendering of any tree over the tokens its nodes index.
  * @param {ResultNode} root
  * @param {Token[]} tokens

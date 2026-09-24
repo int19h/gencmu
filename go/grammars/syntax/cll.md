@@ -6,12 +6,12 @@ The notation is explained in [the notation document](../../docs/notation.md). On
 
 The grammar is written literately: each block of rules follows the prose that explains it, and the blocks together are the grammar. The prose says what each construct is for and how the rules achieve it; the chapter numbers are those of CLL.
 
-Three directives set the grammar up. `%ambiguity-resolution greedy elision-only` says how the stage chooses among parses. It is greedy because an elided terminator is absent for as long as the grammar allows: at the first difference between two parses the stage takes the one that reads the next word, so a constituent ends as late as it can and an elided terminator sits at the latest point the grammar permits. It is `elision-only` because CLL permits eliding a terminator only where no ambiguity results: after the greedy choice, the chosen parse's elided terminators are written back and the text is parsed again with none elidable, and a text still ambiguous then is an error rather than a silent choice. `%elidable` lists the terminators CLL marks as elidable, which the printed grammar writes between slashes; here each is an optional, `[KU]`, or `[KU #]` when its free-modifier slot goes with it, and an absent one shows in the parse tree as that terminator, elided. `%free-modifiers free` makes `#` stand for any number of free modifiers, `[free] ...`, defined under "Free modifiers, vocatives and indicators".
+Two directives and a rule set the grammar up. `%ambiguity-resolution greedy elision-only` says how the stage chooses among parses. It is greedy because an elided terminator is absent for as long as the grammar allows: at the first difference between two parses the stage takes the one that reads the next word, so a constituent ends as late as it can and an elided terminator sits at the latest point the grammar permits. It is `elision-only` because CLL permits eliding a terminator only where no ambiguity results: after the greedy choice, the chosen parse's elided terminators are written back and the text is parsed again with none elidable, and a text still ambiguous then is an error rather than a silent choice. `%elidable` lists the terminators CLL marks as elidable, which the printed grammar writes between slashes; here each is an optional, `[KU]`, or `[KU #]` when its free-modifier slot goes with it, and an absent one shows in the parse tree as that terminator, elided. `#` is the free-modifier slot that follows almost every word, any number of free modifiers, as CLL's EBNF defines it; `free`, a single free modifier, is defined under "Free modifiers, vocatives and indicators".
 
 ```ebnf
 %ambiguity-resolution greedy elision-only ;
 %elidable BEhO BOI DOhU FEhU GEhU KEI KEhE KU KUhE KUhO LIhU LOhO LUhU MEhU NUhU SEhU TEhU TOI TUhU VAU VEhO ;
-%free-modifiers free ;
+# ≔ [free ...] ;
 ```
 
 ## The text and its paragraphs
