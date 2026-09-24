@@ -79,6 +79,7 @@ export function runEngineCase(testCase) {
   const options = {
     features: new Set((testCase.options && testCase.options.features) || []),
     elisionOnly: testCase.options ? testCase.options.elisionOnly : undefined,
+    autoFeatures: Boolean(testCase.options && testCase.options.autoFeatures),
   };
   let text = testCase.input;
   if (testCase.tokens) {

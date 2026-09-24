@@ -68,12 +68,14 @@ export declare class Dialect {
     path: string;
     stages: Stage[];
     loader: Loader;
+    features: string[];
     /**
      * @param {string} path
      * @param {Stage[]} stages
      * @param {Loader} loader
+     * @param {string[]} [features] the features the pipeline enables
      */
-    constructor(path: string, stages: Stage[], loader: Loader);
+    constructor(path: string, stages: Stage[], loader: Loader, features?: string[]);
     /**
      * Parses a text.
      * @param {string} text

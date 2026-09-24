@@ -34,6 +34,9 @@ given; its phonemes the `phonemes` member if present, else none; its span
 `[i, i+1]`; and its source the position of its text in the texts joined
 with single spaces.
 
+Auto features (engine §13) are off for a case unless its options say
+`"autoFeatures": true`.
+
 `expect.result` is a pattern matched against the canonical result of
 `docs/output.md`: an object matches when every member of the pattern matches
 the member of the same name, an array when it has the same length and each

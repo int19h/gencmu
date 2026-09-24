@@ -436,7 +436,8 @@ The result's tree is built from the chosen derivation:
 
 A dialect is a pipeline document (`docs/design.md`, "Pipelines"). The first
 stage reads the character tokens of §1; each later stage reads the tokens
-the one before emitted. A stage that rejects its input ends the run with
+the one before emitted. The features enabled for every stage are those the
+pipeline declares with `<?features?>` together with the caller's. A stage that rejects its input ends the run with
 that rejection; an `ambiguous` error (§7) ends it likewise. The result's
 `ok` is true when every stage run accepted without an error.
 

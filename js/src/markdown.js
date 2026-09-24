@@ -66,15 +66,18 @@ export function splitLines(text) {
 }
 
 // The stages of a pipeline document, each a name and a list of document
-// paths as written, relative to the pipeline document.
+// paths as written, relative to the pipeline document, and the features the
+// dialect enables.
 /**
  * @param {string} markdown
  * @param {string} path
- * @returns {{name: string, documents: string[]}[]}
+ * @returns {{stages: {name: string, documents: string[]}[], features: string[]}}
  */
 export function readPipeline(markdown, path) {
   /** @type {{name: string, documents: string[]}[]} */
   const stages = [];
+  /** @type {string[]} */
+  const features = [];
   const lines = splitLines(markdown);
   for (let number = 0; number < lines.length; number++) {
     const line = lines[number].replace(/\s+$/, "");
@@ -99,6 +102,12 @@ export function readPipeline(markdown, path) {
         throw new GencmuError("grammar", `${path}:${number + 1}: <?grammar?> needs a link [text](path) on its line`, at);
       }
       stages[stages.length - 1].documents.push(link[1]);
+    } else if (marker[1] === "features") {
+      const names = (marker[2] || "").trim().split(/\s+/).filter((name) => name !== "");
+      if (names.length === 0 || !names.every((name) => /^[A-Za-z][A-Za-z0-9-]*$/.test(name))) {
+        throw new GencmuError("grammar", `${path}:${number + 1}: <?features?> lists feature names, <?features NAME ...?>`, at);
+      }
+      for (const name of names) if (!features.includes(name)) features.push(name);
     }
   }
   if (stages.length === 0) {
@@ -109,7 +118,7 @@ export function readPipeline(markdown, path) {
       throw new GencmuError("grammar", `${path}: stage ${stage.name} has no <?grammar?> documents`, { document: path });
     }
   }
-  return stages;
+  return { stages, features };
 }
 
 // A path relative to a document, resolved and normalized.

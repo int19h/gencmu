@@ -15,12 +15,15 @@ export declare function splitLines(text: string): string[];
 /**
  * @param {string} markdown
  * @param {string} path
- * @returns {{name: string, documents: string[]}[]}
+ * @returns {{stages: {name: string, documents: string[]}[], features: string[]}}
  */
 export declare function readPipeline(markdown: string, path: string): {
-    name: string;
-    documents: string[];
-}[];
+    stages: {
+        name: string;
+        documents: string[];
+    }[];
+    features: string[];
+};
 /**
  * @param {string} from
  * @param {string} relative

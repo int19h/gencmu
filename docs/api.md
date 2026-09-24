@@ -37,7 +37,7 @@ optional:
 
 | option | default | meaning |
 | --- | --- | --- |
-| features | none | the feature names to enable, for every stage |
+| features | none | feature names to enable for every stage, besides those the pipeline's `<?features?>` enables |
 | auto features | on | add `sa-su` only where the text needs it (design, "Expensive constructs behind features"); ignored for a dialect with no stage named `words` |
 | until | the last stage | the name of the last stage to run; an unknown name is an error |
 | elision-only | the grammar's own | on or off for every stage that runs, overriding `%ambiguity-resolution ... elision-only` |

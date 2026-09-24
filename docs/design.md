@@ -292,7 +292,14 @@ spaces, parentheses or backslashes; a `<?grammar?>` line without such a link
 is an error. Stages run in document order, documents stitch in
 list order, and since `≔` replaces, that order matters. A link without a
 marker is ordinary prose: a pipeline may link to CLL or to other dialects
-freely. Every stage's start rule is `text`. Link targets are relative to the
+freely. Every stage's start rule is `text`.
+
+`<?features NAME ...?>` at the end of any line of a pipeline, a heading
+included, names features the dialect enables for every parse, separated by
+spaces; there may be several, and their names are unioned. A caller's
+features are added to them and cannot remove them: a dialect that is its
+base with some features on is a pipeline of its own, as the Zantufa dialect
+is the experimental documents plus its own with the Zantufa features on. Link targets are relative to the
 pipeline document, and resolve the same way on disk, in memory and on GitHub.
 
 ## Ambiguity
