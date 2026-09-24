@@ -5,8 +5,11 @@ use crate::error::Error;
 use crate::result::{Node, NodeKind, Token};
 
 /// How deeply constructs may nest before the reader gives up, so that a
-/// pathological document cannot exhaust the stack.
-const MAX_DEPTH: usize = 400;
+/// pathological document cannot exhaust the stack of the thread that reads
+/// it (see `loader::read_document`). A construct costs a few levels, and
+/// parentheses nest without nesting the DOM, so this is well above the 256
+/// of engine §9, which the DOM is checked against afterwards.
+const MAX_DEPTH: usize = 12_000;
 
 pub(crate) struct Reader<'a> {
     pub tokens: &'a [Token],
@@ -160,7 +163,7 @@ impl<'a> Reader<'a> {
             })
             .collect();
         self.captures.borrow_mut().clear();
-        let expr = self.conjunction(self.one(node, "conjunction"), 0)?;
+        let expr = self.conjunction(self.one(node, "conjunction"), 0, true)?;
         let tags = match Self::rules(node, "alternative-tags").next() {
             Some(tags) => Some(self.value(self.one(tags, "term"), 0)?),
             None => None,
@@ -168,13 +171,16 @@ impl<'a> Reader<'a> {
         Ok(Alternative { guards, expr, tags })
     }
 
-    fn conjunction(&self, node: &'a Node, depth: usize) -> R<Expr> {
+    /// `top` is whether this is an alternative's own expression, whose
+    /// sequence's items may be captures (engine §3.5), unless it is an `&`.
+    fn conjunction(&self, node: &'a Node, depth: usize, top: bool) -> R<Expr> {
         let depth = self.deeper(node, depth)?;
+        let top = top && Self::rules(node, "sequence").count() == 1;
         let mut parts = Vec::new();
         for sequence in Self::rules(node, "sequence") {
             let mut elements = Vec::new();
             for element in Self::rules(sequence, "element") {
-                elements.push(self.element(element, depth)?);
+                elements.push(self.element(element, depth, top)?);
             }
             parts.push(if elements.len() == 1 { elements.pop().expect("an element") } else { Expr::Seq(elements) });
         }
@@ -191,14 +197,14 @@ impl<'a> Reader<'a> {
         let depth = self.deeper(node, depth)?;
         let mut parts = Vec::new();
         for conjunction in Self::rules(node, "conjunction") {
-            parts.push(self.conjunction(conjunction, depth)?);
+            parts.push(self.conjunction(conjunction, depth, false)?);
         }
         Ok(if parts.len() == 1 { parts.pop().expect("a conjunction") } else { Expr::Choice(parts) })
     }
 
-    fn element(&self, node: &'a Node, depth: usize) -> R<Expr> {
-        let primary = self.primary(self.one(node, "primary"), depth)?;
+    fn element(&self, node: &'a Node, depth: usize, top: bool) -> R<Expr> {
         let repeated = Self::tokens_of(node).any(|token| self.text(token) == "...");
+        let primary = self.primary(self.one(node, "primary"), depth, top && !repeated)?;
         Ok(match (repeated, primary) {
             (false, primary) => primary,
             (true, Expr::Optional(inner)) => Expr::Repeat(inner, 0),
@@ -206,7 +212,8 @@ impl<'a> Reader<'a> {
         })
     }
 
-    fn primary(&self, node: &'a Node, depth: usize) -> R<Expr> {
+    /// `top` is whether a capture may stand here (engine §3.5).
+    fn primary(&self, node: &'a Node, depth: usize, top: bool) -> R<Expr> {
         let depth = self.deeper(node, depth)?;
         let inner = Self::inner(node);
         let token = || Self::tokens_of(inner).next().expect("a token");
@@ -221,12 +228,18 @@ impl<'a> Reader<'a> {
                 if !matches!(rule_name(wrapped), "reference" | "string" | "phoneme") {
                     return Err(self.error(capture, "a capture must wrap a single symbol"));
                 }
+                if !top {
+                    return Err(self.error(
+                        capture,
+                        "a capture stands at the top level of an alternative, not inside [ ], ( ), ..., & or a choice",
+                    ));
+                }
                 let name = self.text(capture).trim_start_matches('$').to_string();
                 if self.captures.borrow().contains(&name) {
                     return Err(self.error(capture, format!("the capture ${name} is used twice in one alternative")));
                 }
                 self.captures.borrow_mut().push(name.clone());
-                Expr::Capture(name, Box::new(self.primary(primary, depth)?))
+                Expr::Capture(name, Box::new(self.primary(primary, depth, false)?))
             }
             "group" => self.choice(self.one(inner, "choice"), depth)?,
             "optional" => Expr::Optional(Box::new(self.choice(self.one(inner, "choice"), depth)?)),

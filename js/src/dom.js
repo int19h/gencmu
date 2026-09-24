@@ -76,7 +76,21 @@ export function domProblem(dom) {
           !alternative.guards.every((guard) => isDomObject(guard) && typeof guard.feature === "string" && typeof guard.negated === "boolean")) {
         return "a malformed alternative";
       }
-      pending.push({ kind: "expr", value: alternative.expr, depth: 0 });
+      // A capture stands only at the top level of an alternative: the
+      // expression itself or an item of its sequence (engine §3.5).
+      // Depth counts the compound nodes above a node (engine §9): the
+      // items of a top-level sequence are below one, the sequence.
+      const expr = alternative.expr;
+      const isSeq = isDomObject(expr) && Array.isArray(expr.seq);
+      const top = isSeq ? /** @type {unknown[]} */ (expr.seq) : [expr];
+      for (const item of top) {
+        if (isDomObject(item) && "capture" in item) pending.push({ kind: "top-capture", value: item, depth: isSeq ? 1 : 0 });
+        else pending.push({ kind: "expr", value: item, depth: isSeq ? 1 : 0 });
+      }
+      if (isDomObject(expr) && Array.isArray(expr.seq) && expr.seq.length < 2) return "a malformed expression";
+      const names = top.flatMap((item) => (isDomObject(item) && typeof item.capture === "string" ? [item.capture] : []));
+      if (new Set(names).size !== names.length) return "a capture name used twice in an alternative";
+      if (names.length > 4) return "more than four captures in an alternative";
       if (alternative.tags !== undefined) pending.push({ kind: "term", value: alternative.tags, depth: 0 });
     }
   }
@@ -105,12 +119,14 @@ export function domProblem(dom) {
       } else if ("optional" in value) {
         push("expr", value.optional);
       } else if ("capture" in value) {
-        const inner = value.expr;
-        if (typeof value.capture !== "string" || !isDomObject(inner) ||
-            !(typeof inner.ref === "string" || typeof inner.terminal === "string")) return "a malformed capture";
+        return "a capture below the top level of an alternative";
       } else if (!(typeof value.ref === "string" || typeof value.terminal === "string" || value.hash === true || value.empty === true)) {
         return "a malformed expression";
       }
+    } else if (kind === "top-capture") {
+      const inner = value.expr;
+      if (typeof value.capture !== "string" || !isDomObject(inner) ||
+          !(typeof inner.ref === "string" || typeof inner.terminal === "string")) return "a malformed capture";
     } else if (kind === "emission") {
       // The reader's rules (engine §9): nothing alone, this only with this,
       // a capture listed once, no tags on an inserted tag.
@@ -127,7 +143,9 @@ export function domProblem(dom) {
       for (const item of /** @type {Record<string, unknown>[]} */ (items)) {
         if (item.tags === undefined) continue;
         if (typeof item.insert === "string") return "a malformed emission";
-        push("term", item.tags);
+        // An emission is not a compound node (engine §9): its items' tag
+        // terms stand at its own depth.
+        pending.push({ kind: "term", value: item.tags, depth });
       }
     } else if (kind === "condition") {
       if ("any" in value) {

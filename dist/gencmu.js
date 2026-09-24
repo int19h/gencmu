@@ -3774,7 +3774,7 @@
         return { feature: spelled.replace(/^@!?/, ""), negated: spelled.startsWith("@!") };
       });
       /** @type {DomAlternative} */
-      const alternative = { guards, expr: readExpression(only(node, "conjunction")) };
+      const alternative = { guards, expr: readExpression(only(node, "conjunction"), true) };
       const tags = one(node, "alternative-tags");
       if (tags) alternative.tags = readTerm(only(tags, "term"));
       return alternative;
@@ -3782,27 +3782,31 @@
 
     /**
      * @param {ResultNode} node
+     * @param {boolean} [top] whether the expression is an alternative's top
+     *   level, where a capture may stand (engine §3.5)
      * @returns {Expr}
      */
-    function readExpression(node) {
+    function readExpression(node, top = false) {
       switch (ruleOf(node)) {
         case "choice": {
-          const items = ofRule(node, "conjunction").map(readExpression);
+          const found = ofRule(node, "conjunction");
+          const items = found.map((item) => readExpression(item, top && found.length === 1));
           return items.length === 1 ? items[0] : { choice: items };
         }
         case "conjunction": {
-          const items = ofRule(node, "sequence").map(readExpression);
+          const found = ofRule(node, "sequence");
+          const items = found.map((item) => readExpression(item, top && found.length === 1));
           // A & of n items expands to 2ⁿ−1 sequences (engine §3.2).
           if (items.length > 16) fail("an & joins at most 16 items", node);
           return items.length === 1 ? items[0] : { and: items };
         }
         case "sequence": {
-          const items = ofRule(node, "element").map(readExpression);
+          const items = ofRule(node, "element").map((item) => readExpression(item, top));
           return items.length === 1 ? items[0] : { seq: items };
         }
         case "element": {
-          const primary = readPrimary(parts(one(node, "primary") || node)[0]);
           const repeated = parts(node).some((child) => tokenText(child) === "...");
+          const primary = readPrimary(parts(one(node, "primary") || node)[0], top && !repeated);
           if (!repeated) return primary;
           if ("optional" in primary) return { repeat: primary.optional, min: 0 };
           return { repeat: primary, min: 1 };
@@ -3814,14 +3818,16 @@
 
     /**
      * @param {ResultNode} node
+     * @param {boolean} [top] whether a capture may stand here
      * @returns {Expr}
      */
-    function readPrimary(node) {
+    function readPrimary(node, top = false) {
       switch (ruleOf(node)) {
         case "reference": return { ref: text(parts(node)[0]) };
         case "string": return { terminal: decode(parts(node)[0]) };
         case "phoneme": return { terminal: text(parts(node)[0]) };
         case "capture": {
+          if (!top) fail("a capture stands at the top level of an alternative, not inside [ ], ( ), ..., & or a choice", node);
           const [captureToken, , inner] = parts(node);
           const wrapped = parts(inner)[0];
           const kind = ruleOf(wrapped);
@@ -4341,7 +4347,21 @@
             !alternative.guards.every((guard) => isDomObject(guard) && typeof guard.feature === "string" && typeof guard.negated === "boolean")) {
           return "a malformed alternative";
         }
-        pending.push({ kind: "expr", value: alternative.expr, depth: 0 });
+        // A capture stands only at the top level of an alternative: the
+        // expression itself or an item of its sequence (engine §3.5).
+        // Depth counts the compound nodes above a node (engine §9): the
+        // items of a top-level sequence are below one, the sequence.
+        const expr = alternative.expr;
+        const isSeq = isDomObject(expr) && Array.isArray(expr.seq);
+        const top = isSeq ? /** @type {unknown[]} */ (expr.seq) : [expr];
+        for (const item of top) {
+          if (isDomObject(item) && "capture" in item) pending.push({ kind: "top-capture", value: item, depth: isSeq ? 1 : 0 });
+          else pending.push({ kind: "expr", value: item, depth: isSeq ? 1 : 0 });
+        }
+        if (isDomObject(expr) && Array.isArray(expr.seq) && expr.seq.length < 2) return "a malformed expression";
+        const names = top.flatMap((item) => (isDomObject(item) && typeof item.capture === "string" ? [item.capture] : []));
+        if (new Set(names).size !== names.length) return "a capture name used twice in an alternative";
+        if (names.length > 4) return "more than four captures in an alternative";
         if (alternative.tags !== undefined) pending.push({ kind: "term", value: alternative.tags, depth: 0 });
       }
     }
@@ -4370,12 +4390,14 @@
         } else if ("optional" in value) {
           push("expr", value.optional);
         } else if ("capture" in value) {
-          const inner = value.expr;
-          if (typeof value.capture !== "string" || !isDomObject(inner) ||
-              !(typeof inner.ref === "string" || typeof inner.terminal === "string")) return "a malformed capture";
+          return "a capture below the top level of an alternative";
         } else if (!(typeof value.ref === "string" || typeof value.terminal === "string" || value.hash === true || value.empty === true)) {
           return "a malformed expression";
         }
+      } else if (kind === "top-capture") {
+        const inner = value.expr;
+        if (typeof value.capture !== "string" || !isDomObject(inner) ||
+            !(typeof inner.ref === "string" || typeof inner.terminal === "string")) return "a malformed capture";
       } else if (kind === "emission") {
         // The reader's rules (engine §9): nothing alone, this only with this,
         // a capture listed once, no tags on an inserted tag.
@@ -4392,7 +4414,9 @@
         for (const item of /** @type {Record<string, unknown>[]} */ (items)) {
           if (item.tags === undefined) continue;
           if (typeof item.insert === "string") return "a malformed emission";
-          push("term", item.tags);
+          // An emission is not a compound node (engine §9): its items' tag
+          // terms stand at its own depth.
+          pending.push({ kind: "term", value: item.tags, depth });
         }
       } else if (kind === "condition") {
         if ("any" in value) {
