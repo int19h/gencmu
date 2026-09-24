@@ -433,9 +433,6 @@
         const min = expr.min;
         const name = this.helper(where, (context) => {
           const expansions = this.expand(inner, context);
-          if (expansions.some((sequence) => sequence.length === 0)) {
-            throw new GencmuError("grammar", `${where.rule.document}: a repetition in ${where.rule.name} can match nothing`, where.rule.at);
-          }
           /** @type {SequenceItem} */
           const self = { symbol: { name, terminal: false } };
           const recursive = expansions.map((sequence) => [self, ...sequence]);
@@ -2839,6 +2836,8 @@
         return { nothing: true };
       }
       if (items.some((item) => item.this) && !items.every((item) => item.this)) fail("⇒ this goes with no item but another this", node);
+      const named = items.flatMap((item) => (item.capture !== undefined ? [item.capture] : []));
+      if (named.some((name, index) => named.indexOf(name) !== index)) fail("⇒ lists a capture twice", node);
       return { items };
     }
 

@@ -407,9 +407,6 @@ class Lowering {
       const min = expr.min;
       const name = this.helper(where, (context) => {
         const expansions = this.expand(inner, context);
-        if (expansions.some((sequence) => sequence.length === 0)) {
-          throw new GencmuError("grammar", `${where.rule.document}: a repetition in ${where.rule.name} can match nothing`, where.rule.at);
-        }
         /** @type {SequenceItem} */
         const self = { symbol: { name, terminal: false } };
         const recursive = expansions.map((sequence) => [self, ...sequence]);

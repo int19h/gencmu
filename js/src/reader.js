@@ -201,6 +201,8 @@ export function treeToDom(tree, tokens, positionOf, path) {
       return { nothing: true };
     }
     if (items.some((item) => item.this) && !items.every((item) => item.this)) fail("⇒ this goes with no item but another this", node);
+    const named = items.flatMap((item) => (item.capture !== undefined ? [item.capture] : []));
+    if (named.some((name, index) => named.indexOf(name) !== index)) fail("⇒ lists a capture twice", node);
     return { items };
   }
 
