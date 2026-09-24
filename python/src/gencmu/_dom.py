@@ -280,12 +280,12 @@ class DomBuilder:
     # -- conditions
 
     def conditions(self, node: Node) -> list[Dom]:
-        """The conditions a ``:`` clause adds to its rule: those joined by ∧
-        at the top, each on its own, or the one ∨ of them (engine §9)."""
-        alls = self.rules(node, "all-of")
-        if len(alls) == 1:
-            return [run(self._condition(kid)) for kid in self.kids(alls[0]) if kid.kind == "rule"]
-        return [run(self._condition(node))]
+        """The conditions a ``:`` clause adds to its rule: read as one
+        condition, each of its conditions on its own if it is an ``all``,
+        else itself (engine §9). Parentheses make no node, so ``: (a ∧ b)``
+        is two conditions, as ``: a ∧ b`` is."""
+        top: Dom = run(self._condition(node))
+        return list(top["all"]) if "all" in top else [top]
 
     def _condition(self, node: Node) -> Walk:
         if node.rule in ("any-of", "all-of"):
