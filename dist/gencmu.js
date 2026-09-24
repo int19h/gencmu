@@ -890,18 +890,103 @@
     return left.item.production.id === right.item.production.id && left.item.origin === right.item.origin && left.item.end === right.item.end;
   }
 
+  // Walks a rope's actions, and can skip a whole subtree: two ropes built on
+  // the same prefix share it as one object, which a comparison need not walk.
+  class Cursor {
+    constructor(rope) {
+      this.stack = [rope];
+    }
+    // The node at the front, descending into concatenations, or null at the
+    // end.
+    front() {
+      while (this.stack.length > 0) {
+        const node = this.stack[this.stack.length - 1];
+        if (node.empty) {
+          this.stack.pop();
+          continue;
+        }
+        return node;
+      }
+      return null;
+    }
+    descend() {
+      const node = this.stack.pop();
+      this.stack.push(node.right, node.left);
+    }
+    skip() {
+      this.stack.pop();
+    }
+  }
+
+  // Pairs of ropes already found equal in their visible actions. Candidates
+  // that differ only in transparent closes are extended by the same actions
+  // again and again, and are compared again each time; remembering the pair
+  // lets the next comparison skip it.
+  const visiblyEqual = new WeakMap();
+
+  function knownEqual(x, y) {
+    const set = visiblyEqual.get(x);
+    return set !== undefined && set.has(y);
+  }
+
+  function rememberEqual(x, y) {
+    for (const [from, to] of [[x, y], [y, x]]) {
+      let set = visiblyEqual.get(from);
+      if (!set) visiblyEqual.set(from, (set = new WeakSet()));
+      set.add(to);
+    }
+  }
+
   // The first differing pair of two ropes' actions, visible ones only or all.
   function firstDifference(left, right, onlyVisible) {
-    const a = actions(left);
-    const b = actions(right);
+    const difference = walkDifference(left, right, onlyVisible);
+    if (difference === null && onlyVisible && !left.leaf && !right.leaf) rememberEqual(left, right);
+    return difference;
+  }
+
+  function walkDifference(left, right, onlyVisible) {
+    const a = new Cursor(left);
+    const b = new Cursor(right);
+    const nextLeaf = (cursor, other) => {
+      for (;;) {
+        const node = cursor.front();
+        if (node === null) return null;
+        const opposite = other ? other.front() : null;
+        if (opposite && !node.leaf && (node === opposite || (onlyVisible && knownEqual(node, opposite)))) return "shared";
+        if (node.leaf) {
+          cursor.skip();
+          if (!onlyVisible || visible(node.leaf)) return node.leaf;
+          continue;
+        }
+        cursor.descend();
+      }
+    };
     for (;;) {
-      let x = a.next();
-      while (onlyVisible && !x.done && !visible(x.value)) x = a.next();
-      let y = b.next();
-      while (onlyVisible && !y.done && !visible(y.value)) y = b.next();
-      if (x.done && y.done) return null;
-      if (x.done || y.done) return { left: x.done ? null : x.value, right: y.done ? null : y.value };
-      if (!sameAction(x.value, y.value)) return { left: x.value, right: y.value };
+      // Skip what both sides share, descending both together while both are
+      // concatenations, so that a shared or known-equal subtree is met at the
+      // same depth on each side rather than after walking one side's spine.
+      for (;;) {
+        const x = a.front();
+        const y = b.front();
+        if (x === null || y === null) break;
+        if (x === y || (onlyVisible && knownEqual(x, y))) {
+          a.skip();
+          b.skip();
+          continue;
+        }
+        if (!x.leaf && !y.leaf) {
+          a.descend();
+          b.descend();
+          continue;
+        }
+        break;
+      }
+      const x = nextLeaf(a, b);
+      if (x === "shared") continue;
+      const y = nextLeaf(b, null);
+      if (x === null && y === null) return null;
+      if (x === null || y === null) return { left: x, right: y };
+      if (!sameAction(x, y)) return { left: x, right: y };
     }
   }
 
