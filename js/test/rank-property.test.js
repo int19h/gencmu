@@ -16,6 +16,17 @@ function random(seed) {
   };
 }
 
+// The enumeration is exponential: a grammar like `v ≔ t t ; t ≔ v u ;` with
+// a nullable `u` has more derivations of four tokens than can be listed. It
+// gives up past a budget of sequences built, and the round is skipped.
+const TOO_MANY = new Error("too many derivations to enumerate");
+let budget = 0;
+
+function spend(rope) {
+  if (--budget < 0) throw TOO_MANY;
+  return rope;
+}
+
 // Every derivation of an item, as ropes, excluding cyclic ones.
 function enumerate(item, tokens, open = new Set()) {
   const keys = [item];
@@ -24,14 +35,14 @@ function enumerate(item, tokens, open = new Set()) {
   const inner = new Set([...open, ...keys]);
   const result = [];
   for (const edge of item.edges) {
-    if (edge.kind === "seed") result.push({ empty: true, size: 0 });
+    if (edge.kind === "seed") result.push(spend({ empty: true, size: 0 }));
     else if (edge.kind === "scan") {
       const read = leaf({ kind: "read", token: edge.token, terminal: edge.terminal, weak: tokens[edge.token].tags.get(edge.terminal) === false });
-      for (const before of enumerate(edge.previous, tokens, inner)) result.push(concat(before, read));
+      for (const before of enumerate(edge.previous, tokens, inner)) result.push(spend(concat(before, read)));
     } else {
       const close = leaf({ kind: "close", item: edge.child });
-      const children = enumerate(edge.child, tokens, inner).map((child) => concat(child, close));
-      for (const before of enumerate(edge.previous, tokens, inner)) for (const child of children) result.push(concat(before, child));
+      const children = enumerate(edge.child, tokens, inner).map((child) => spend(concat(child, close)));
+      for (const before of enumerate(edge.previous, tokens, inner)) for (const child of children) result.push(spend(concat(before, child)));
     }
   }
   return result;
@@ -100,7 +111,14 @@ test("the ranking agrees with an enumeration of every derivation", () => {
     const context = stage.context;
     const chart = recognize(context, "text", 0, stage.input.length);
     const roots = rootItems(chart, "text");
-    const truth = expected(roots, stage.input, lean);
+    let truth;
+    budget = 20000;
+    try {
+      truth = expected(roots, stage.input, lean);
+    } catch (error) {
+      if (error === TOO_MANY) continue;
+      throw error;
+    }
     if (!truth || truth.count > 200) continue;
     const got = new Ranker(stage.input, lean).rank(roots);
     const where = `${grammar}\ntokens ${JSON.stringify(tokens)}`;
