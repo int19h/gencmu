@@ -113,7 +113,7 @@ decides nothing a user can observe except through §4-§6.
    elidable optional made mandatory: its helper loses `ε`.
 
 **Numbering.** Productions are numbered from 0, and the number is the
-tie-break of §6. Rules are taken in the order they were first defined after
+tie-break of §6. A production that a condition false for it removes (§3.6) takes no number, though the helpers of its alternative still do. Rules are taken in the order they were first defined after
 stitching: a rule replaced with `%redefine-rule` keeps the place of the rule it replaces, and alternatives added with `%extend-rule` follow the rule's own. Within a
 rule its remaining alternatives are taken in order, and each alternative
 contributes, in this order:
@@ -396,7 +396,7 @@ document, reported at the first token of the offending construct:
   nodes of it, a compound node being one of `optional`, `repeat`, `and`,
   `choice`, `seq` and `capture` in an expression; `union`,
   `intersection`, `if` and `call` in a term; `any`, `all`, `not`, `if`, `matches` and a
-  comparison in a condition. `( )` makes no node, so it adds nothing;
+  comparison in a condition. The condition of a guarded term counts on from the term's depth, as a comparison's terms count on from the condition's. `( )` makes no node, so it adds nothing;
   256 nested `[ ]` around a symbol are allowed, and 257 are not;
 - `$` with items other than `$`; `$ <>` with any other item; tags or `<>` on an inserted tag; `∅` as an item's tags, which is a token no terminal reads; a capture other than `$` listed twice in one emission;
 - a rule's or an alternative's tag term that reads the tags it defines:
