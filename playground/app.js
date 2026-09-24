@@ -11,9 +11,11 @@
     status.dataset.state = "error";
     return;
   }
+  const loaded = parser.load(self.gencmuGrammars);
   async function run() {
     try {
-      const result = await parser.parse(input.value);
+      await loaded;
+      const result = await parser.parse(input.value, { dialect: "cll", features: [] });
       output.textContent = JSON.stringify(result, null, 2);
       status.textContent = "ready";
       status.dataset.state = "ready";
