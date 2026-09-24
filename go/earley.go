@@ -102,7 +102,7 @@ func (r *recognizer) predict(s *eset, k int, rule int32) {
 		if len(p.rhs) > 0 && p.rhs[0].term && !r.canRead(k, p.rhs[0].id) {
 			continue
 		}
-		if !r.predictable(p) {
+		if !r.predictable(p, k) {
 			continue
 		}
 		r.add(k, itemKey{prod: p, origin: int32(k)}, link{}, false)
@@ -118,10 +118,16 @@ func (r *recognizer) canRead(k int, term int32) bool {
 }
 
 // predictable checks the conditions of a production that mention no
-// capture, which hold or fail at prediction.
-func (r *recognizer) predictable(p *production) bool {
+// capture, which hold or fail at prediction at k, as do those of a
+// production with no symbols that mention $, over the empty span there.
+func (r *recognizer) predictable(p *production, k int) bool {
 	if len(p.predictConds) > 0 {
-		ev := r.run.evaluator(r.g, func(string) (spanVal, bool) { return spanVal{}, false })
+		var caps [4]capVal
+		var tags *tagset
+		if len(p.rhs) == 0 {
+			tags = r.completedTags(p, &caps, int32(k), int32(k))
+		}
+		ev := r.run.evaluator(r.g, r.captureFunc(p, &caps, int32(k), int32(k), tags))
 		ok := true
 		for _, c := range p.predictConds {
 			if !ev.cond(c) {
@@ -174,7 +180,7 @@ func (r *recognizer) process(k int, it *item) {
 		return
 	}
 	// Complete.
-	ts := r.completedTags(it)
+	ts := r.completedTags(p, &it.caps, it.origin, int32(k))
 	key := symKey{p.lhs, it.origin, ts.id}
 	c := s.syms[key]
 	if c != nil {
@@ -209,9 +215,15 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link) {
 		key.caps[slot] = cv
 	}
 	key.dot++
+	var whole *tagset
 	for _, c := range p.conds {
 		if c.trigger == int(key.dot) {
-			if !r.condHolds(p, &key.caps, c.cond) {
+			// A condition on $ is evaluated once the item is complete,
+			// with the tags its production's tag term gives it (§4).
+			if c.whole && whole == nil {
+				whole = r.completedTags(p, &key.caps, key.origin, int32(k))
+			}
+			if !r.run.evaluator(r.g, r.captureFunc(p, &key.caps, key.origin, int32(k), whole)).cond(c.cond) {
 				return
 			}
 		}
@@ -222,8 +234,14 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link) {
 	r.add(k, key, l, true)
 }
 
-func (r *recognizer) captureFunc(p *production, caps *[4]capVal) func(string) (spanVal, bool) {
+// captureFunc gives an item's captures; $ spans [origin, end) and has the
+// given tags, nil while they are being computed, when a term cannot read
+// them (§9).
+func (r *recognizer) captureFunc(p *production, caps *[4]capVal, origin, end int32, whole *tagset) func(string) (spanVal, bool) {
 	return func(name string) (spanVal, bool) {
+		if name == "" {
+			return spanVal{a: r.base + int(origin), b: r.base + int(end), whole: whole != nil, tags: whole}, true
+		}
 		slot, ok := p.slotOf[name]
 		if !ok {
 			return spanVal{}, false
@@ -233,19 +251,15 @@ func (r *recognizer) captureFunc(p *production, caps *[4]capVal) func(string) (s
 	}
 }
 
-func (r *recognizer) condHolds(p *production, caps *[4]capVal, c *domCond) bool {
-	return r.run.evaluator(r.g, r.captureFunc(p, caps)).cond(c)
-}
-
-// completedTags is a completed item's constituent tags (engine §4).
-func (r *recognizer) completedTags(it *item) *tagset {
-	p := it.prod
+// completedTags is the constituent tags of a production's item over
+// [origin, end) with the given captures (engine §4).
+func (r *recognizer) completedTags(p *production, caps *[4]capVal, origin, end int32) *tagset {
 	in := r.run.ps.in
 	switch {
 	case p.tags != nil:
-		return r.run.evaluator(r.g, r.captureFunc(p, &it.caps)).tagsOf(p.tags)
+		return r.run.evaluator(r.g, r.captureFunc(p, caps, origin, end, nil)).tagsOf(p.tags)
 	case p.implicit:
-		return in.all[it.caps[p.capSlot[0]].tags]
+		return in.all[caps[p.capSlot[0]].tags]
 	}
 	return in.empty()
 }

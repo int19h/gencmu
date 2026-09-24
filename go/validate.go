@@ -45,11 +45,11 @@ func checkDOM(d *domDoc) *domProblem {
 		}
 	}
 	for _, r := range d.Rules {
-		if r == nil || !domName.MatchString(r.Name) || (r.Op != "define" && r.Op != "extend") || len(r.Alternatives) == 0 {
+		if r == nil || !(domName.MatchString(r.Name) || r.Name == "#") || (r.Op != "define" && r.Op != "extend") || len(r.Alternatives) == 0 {
 			return &domProblem{message: "a malformed rule"}
 		}
 		c := &domChecker{rule: r}
-		c.term(r.Tags, 0, false)
+		c.constituentTags(r.Tags)
 		c.emission(r.Emit)
 		for _, cond := range r.Conditions {
 			c.condition(cond, 0)
@@ -61,7 +61,7 @@ func checkDOM(d *domDoc) *domProblem {
 			}
 			c.captures = map[string]bool{}
 			c.expr(a.Expr, 0, true)
-			c.term(a.Tags, 0, false)
+			c.constituentTags(a.Tags)
 		}
 		if c.problem != nil {
 			return c.problem
@@ -126,7 +126,11 @@ func (c *domChecker) expr(e *domExpr, depth int, top bool) {
 			return
 		}
 		// A capture wraps a reference or a terminal, its name once per
-		// alternative.
+		// alternative; $, the whole constituent, wraps nothing.
+		if e.Name == "" {
+			c.fail("$ wraps a symbol")
+			return
+		}
 		if e.Inner == nil || (e.Inner.Kind != exRef && e.Inner.Kind != exTerminal) || (e.Inner.Kind == exRef && e.Inner.Name == "") {
 			c.fail("a capture of something other than a reference or a terminal")
 			return
@@ -146,7 +150,7 @@ func (c *domChecker) expr(e *domExpr, depth int, top bool) {
 		}
 	case exTerminal:
 		// Any string, "" included: the reader decodes "" to one.
-	case exHash, exEmpty:
+	case exEmpty:
 	default:
 		c.fail("an unknown expression %q", e.Kind)
 	}
@@ -166,12 +170,8 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 	}
 	switch t.Kind {
 	case tmLiteral, tmWeak, tmCapture, tmEmptySet:
-	case tmSet, tmUnion, tmIntersection:
-		least := 2
-		if t.Kind == tmSet {
-			least = 0
-		}
-		if len(t.Items) < least {
+	case tmUnion, tmIntersection:
+		if len(t.Items) < 2 {
 			c.fail("a %s of %d items", t.Kind, len(t.Items))
 			return
 		}
@@ -243,9 +243,9 @@ func (c *domChecker) condition(d *domCond, depth int) {
 		c.term(d.Span, depth+1, true)
 	case cdNot:
 		c.condition(d.Inner, depth+1)
-	case cdAny:
+	case cdAny, cdAll:
 		if len(d.Items) < 2 {
-			c.fail("an any of %d conditions", len(d.Items))
+			c.fail("an %s of %d conditions", d.Kind, len(d.Items))
 			return
 		}
 		for _, it := range d.Items {
@@ -256,17 +256,58 @@ func (c *domChecker) condition(d *domCond, depth int) {
 	}
 }
 
-// emission: nothing alone and without tags (decodeEmit holds it to that);
-// this only with this; a capture listed once; no tags on an inserted tag.
+// constituentTags checks a rule's or an alternative's tag term, which
+// cannot read the tags it defines (§9). Its shape is checked first, so
+// that readsOwnTags walks only a well-formed term.
+func (c *domChecker) constituentTags(t *domTerm) {
+	c.term(t, 0, false)
+	if t != nil && c.problem == nil && readsOwnTags(t) {
+		c.fail("a constituent's tags made of its own")
+	}
+}
+
+// readsOwnTags says whether a term reads the tags of $, the constituent
+// whose tags it may be defining: $ itself as a value, tags($) or
+// classes($).
+func readsOwnTags(t *domTerm) bool {
+	if t == nil {
+		return false
+	}
+	switch t.Kind {
+	case tmCapture:
+		return t.Str == ""
+	case tmUnion, tmIntersection:
+		for _, it := range t.Items {
+			if readsOwnTags(it) {
+				return true
+			}
+		}
+	case tmCall:
+		if (t.Str == "tags" || t.Str == "classes") && len(t.Items) == 1 {
+			a := t.Items[0]
+			return a != nil && a.Kind == tmCapture && a.Str == ""
+		}
+		// A span argument is not a value; a term argument may be one.
+		for _, a := range t.Items {
+			if a != nil && a.Kind != tmCapture && readsOwnTags(a) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// emission: $ only with $, and $ <> alone; a capture other than $ listed
+// once; no tags or <> on an inserted tag; no ∅ as an item's tags.
 func (c *domChecker) emission(e *domEmit) {
-	if e == nil || e.Nothing {
+	if e == nil {
 		return
 	}
 	if len(e.Items) == 0 {
 		c.fail("an emission of no items")
 		return
 	}
-	this := 0
+	whole := 0
 	listed := map[string]bool{}
 	for _, it := range e.Items {
 		if it == nil {
@@ -274,11 +315,15 @@ func (c *domChecker) emission(e *domEmit) {
 			return
 		}
 		switch {
-		case it.This:
-			this++
 		case it.IsInsert:
-			if it.Tags != nil {
+			if it.Tags != nil || it.Erase {
 				c.fail("tags on an inserted tag")
+				return
+			}
+		case it.Capture == "":
+			whole++
+			if it.Erase && len(e.Items) != 1 {
+				c.fail("$ <> with other items")
 				return
 			}
 		default:
@@ -288,9 +333,17 @@ func (c *domChecker) emission(e *domEmit) {
 			}
 			listed[it.Capture] = true
 		}
+		if it.Erase && it.Tags != nil {
+			c.fail("tags on an erased capture")
+			return
+		}
+		if it.Tags != nil && it.Tags.Kind == tmEmptySet {
+			c.fail("∅ as an emitted item's tags")
+			return
+		}
 		c.term(it.Tags, 0, false)
 	}
-	if this > 0 && this != len(e.Items) {
-		c.fail("this with items other than this")
+	if whole > 0 && whole != len(e.Items) {
+		c.fail("$ with items other than $")
 	}
 }

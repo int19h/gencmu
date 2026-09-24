@@ -6,7 +6,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 1
+const domFormat = 2
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
@@ -46,7 +46,6 @@ const (
 	exRef      = "ref"
 	exTerminal = "terminal"
 	exCapture  = "capture"
-	exHash     = "hash"
 	exEmpty    = "empty"
 )
 
@@ -58,13 +57,12 @@ type domExpr struct {
 	Name  string     // ref, terminal, capture
 }
 
-// Term kinds. A span is a term of kind tmCapture, or a tmCall of head, tail
-// or last; a rule argument is tmRule.
+// Term kinds. A span is a term of kind tmCapture, "" for $, the whole
+// constituent, or a tmCall of head, tail or last; a rule argument is tmRule.
 const (
 	tmLiteral      = "literal"
 	tmWeak         = "weak"
 	tmEmptySet     = "emptySet"
-	tmSet          = "set"
 	tmUnion        = "union"
 	tmIntersection = "intersection"
 	tmCall         = "call"
@@ -75,7 +73,7 @@ const (
 type domTerm struct {
 	Kind  string
 	Str   string     // literal, weak, call (the function), capture, rule
-	Items []*domTerm // set, union, intersection, call arguments
+	Items []*domTerm // union, intersection, call arguments
 }
 
 // Condition kinds.
@@ -84,6 +82,7 @@ const (
 	cdMatches = "matches"
 	cdNot     = "not"
 	cdAny     = "any"
+	cdAll     = "all"
 )
 
 type domCond struct {
@@ -97,16 +96,27 @@ type domCond struct {
 }
 
 type domEmit struct {
-	Nothing bool
-	Items   []*domEmitItem
+	Items []*domEmitItem
 }
 
+// domEmitItem is a capture, "" for $, with its tags or erased, or an
+// inserted tag.
 type domEmitItem struct {
-	This     bool
 	Capture  string
+	Erase    bool
 	IsInsert bool
 	Insert   string
 	Tags     *domTerm
+}
+
+// whole says the emission is of $, the whole constituent: every item is $.
+func (e *domEmit) whole() bool {
+	return len(e.Items) > 0 && !e.Items[0].IsInsert && e.Items[0].Capture == ""
+}
+
+// erasesAll says the emission is $ <>, which erases the whole constituent.
+func (e *domEmit) erasesAll() bool {
+	return e.whole() && e.Items[0].Erase
 }
 
 type domDirective struct {
@@ -233,10 +243,8 @@ func (e *domExpr) writeJSON(w *jsonWriter) {
 		w.raw(`,"expr":`)
 		e.Inner.writeJSON(w)
 		w.raw("}")
-	case exHash, exEmpty:
-		w.raw("{")
-		w.str(e.Kind)
-		w.raw(":true}")
+	case exEmpty:
+		w.raw(`{"empty":true}`)
 	}
 }
 
@@ -250,7 +258,7 @@ func (t *domTerm) writeJSON(w *jsonWriter) {
 		w.raw("}")
 	case tmEmptySet:
 		w.raw(`{"emptySet":true}`)
-	case tmSet, tmUnion, tmIntersection:
+	case tmUnion, tmIntersection:
 		w.raw("{")
 		w.str(t.Kind)
 		w.raw(":[")
@@ -295,8 +303,10 @@ func (c *domCond) writeJSON(w *jsonWriter) {
 		w.raw(`{"not":`)
 		c.Inner.writeJSON(w)
 		w.raw("}")
-	case cdAny:
-		w.raw(`{"any":[`)
+	case cdAny, cdAll:
+		w.raw("{")
+		w.str(c.Kind)
+		w.raw(":[")
 		for i, it := range c.Items {
 			if i > 0 {
 				w.raw(",")
@@ -308,10 +318,6 @@ func (c *domCond) writeJSON(w *jsonWriter) {
 }
 
 func (e *domEmit) writeJSON(w *jsonWriter) {
-	if e.Nothing {
-		w.raw(`{"nothing":true}`)
-		return
-	}
 	w.raw(`{"items":[`)
 	for i, it := range e.Items {
 		if i > 0 {
@@ -321,11 +327,12 @@ func (e *domEmit) writeJSON(w *jsonWriter) {
 		case it.IsInsert:
 			w.raw(`{"insert":`)
 			w.str(it.Insert)
-		case it.This:
-			w.raw(`{"this":true`)
 		default:
 			w.raw(`{"capture":`)
 			w.str(it.Capture)
+		}
+		if it.Erase {
+			w.raw(`,"erase":true`)
 		}
 		if it.Tags != nil {
 			w.raw(`,"tags":`)
@@ -482,7 +489,7 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 	return r, nil
 }
 
-// isTrue: the flags of the DOM, such as {"hash":true}, are true or absent.
+// isTrue: the flags of the DOM, such as {"empty":true}, are true or absent.
 func isTrue(raw json.RawMessage) bool {
 	var b bool
 	return raw != nil && json.Unmarshal(raw, &b) == nil && b
@@ -548,9 +555,6 @@ func decodeExpr(raw json.RawMessage) (*domExpr, error) {
 			return &domExpr{Kind: k, Name: name}, err
 		}
 	}
-	if isTrue(o["hash"]) {
-		return &domExpr{Kind: exHash}, nil
-	}
 	if isTrue(o["empty"]) {
 		return &domExpr{Kind: exEmpty}, nil
 	}
@@ -571,7 +575,7 @@ func decodeTerm(raw json.RawMessage) (*domTerm, error) {
 	if isTrue(o["emptySet"]) {
 		return &domTerm{Kind: tmEmptySet}, nil
 	}
-	for _, k := range []string{tmSet, tmUnion, tmIntersection} {
+	for _, k := range []string{tmUnion, tmIntersection} {
 		if v, ok := o[k]; ok {
 			items, err := decodeList(v, decodeTerm)
 			return &domTerm{Kind: k, Items: items}, err
@@ -616,9 +620,11 @@ func decodeCond(raw json.RawMessage) (*domCond, error) {
 		inner, err := decodeCond(v)
 		return &domCond{Kind: cdNot, Inner: inner}, err
 	}
-	if v, ok := o["any"]; ok {
-		items, err := decodeList(v, decodeCond)
-		return &domCond{Kind: cdAny, Items: items}, err
+	for _, k := range []string{cdAny, cdAll} {
+		if v, ok := o[k]; ok {
+			items, err := decodeList(v, decodeCond)
+			return &domCond{Kind: k, Items: items}, err
+		}
 	}
 	return nil, fmt.Errorf("unknown condition %s", string(raw))
 }
@@ -628,12 +634,8 @@ func decodeEmit(raw json.RawMessage) (*domEmit, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, ok := o["nothing"]; ok {
-		// Nothing alone, and without tags (§9).
-		if !isTrue(o["nothing"]) || len(o) != 1 {
-			return nil, fmt.Errorf("a malformed emission")
-		}
-		return &domEmit{Nothing: true}, nil
+	if len(o) != 1 || o["items"] == nil {
+		return nil, fmt.Errorf("a malformed emission")
 	}
 	items, err := decodeList(o["items"], func(r json.RawMessage) (*domEmitItem, error) {
 		io, err := decodeObj(r)
@@ -641,17 +643,20 @@ func decodeEmit(raw json.RawMessage) (*domEmit, error) {
 			return nil, err
 		}
 		it := &domEmitItem{}
+		// An item is a capture or an inserted tag; only a capture may be
+		// erased, and an erased one has no tags.
 		switch {
-		case io["insert"] != nil:
+		case io["insert"] != nil && io["capture"] == nil && io["erase"] == nil:
 			it.IsInsert = true
 			it.Insert, err = decodeString(io["insert"])
-		case io["this"] != nil:
-			if !isTrue(io["this"]) {
-				return nil, fmt.Errorf("a malformed emission item")
-			}
-			it.This = true
-		case io["capture"] != nil:
+		case io["capture"] != nil && io["insert"] == nil:
 			it.Capture, err = decodeString(io["capture"])
+			if io["erase"] != nil {
+				if !isTrue(io["erase"]) || io["tags"] != nil {
+					return nil, fmt.Errorf("a malformed emission item")
+				}
+				it.Erase = true
+			}
 		default:
 			err = fmt.Errorf("unknown emission item %s", string(r))
 		}

@@ -21,8 +21,10 @@ type production struct {
 	tags         *domTerm        // nil: default tags (§4)
 	implicit     bool            // one symbol and no tags: the constituent has its symbol's tags (§3.7)
 	conds        []lcond
-	predictConds []*domCond // conditions mentioning no capture, checked at prediction
+	predictConds []*domCond // conditions mentioning no capture but $ of an empty production, checked at prediction
 	emit         *domEmit
+	eraseAll     bool   // ⇒ $ <>: the constituent is erased (§11)
+	erased       []bool // per position: a capture its emission erases, or nil for none
 	transparent  bool
 	helper       bool
 	elided       string // for the ε production of an optional beginning with an elidable terminal
@@ -33,10 +35,12 @@ type production struct {
 }
 
 // lcond is a condition with the dot position at which the item has read the
-// last capture it mentions.
+// last capture it mentions, or, for one that mentions $, at which it is
+// complete.
 type lcond struct {
 	cond    *domCond
 	trigger int
+	whole   bool // it mentions $
 }
 
 type lrule struct {
@@ -74,7 +78,7 @@ type lowerer struct {
 	into      *[]*helperNode        // where a new helper goes
 }
 
-// helperNode is the helper of one place where [ ], ... or # is written,
+// helperNode is the helper of one place where [ ] or ... is written,
 // with the helpers of the places written inside it.
 type helperNode struct {
 	rule     int32
@@ -240,9 +244,10 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt, repeatPrefix b
 			p.nslots++
 		}
 	}
+	// $, the whole constituent, is a capture every production has (§3.5).
 	has := func(names map[string]bool) bool {
 		for n := range names {
-			if _, ok := position[n]; !ok {
+			if _, ok := position[n]; !ok && n != "" {
 				return false
 			}
 		}
@@ -274,48 +279,50 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt, repeatPrefix b
 		}
 		trigger := 0
 		for n := range names {
-			if position[n]+1 > trigger {
-				trigger = position[n] + 1
+			at := len(body)
+			if n != "" {
+				at = position[n] + 1
+			}
+			if at > trigger {
+				trigger = at
 			}
 		}
 		if trigger == 0 {
 			p.predictConds = append(p.predictConds, c)
 		} else {
-			p.conds = append(p.conds, lcond{cond: c, trigger: trigger})
+			p.conds = append(p.conds, lcond{cond: c, trigger: trigger, whole: names[""]})
 		}
 	}
 	if a.emit != nil {
-		if a.emit.Nothing {
-			p.emit = a.emit
-		} else {
-			e := &domEmit{}
-			for _, it := range a.emit.Items {
-				switch {
-				case it.IsInsert:
-					e.Items = append(e.Items, it)
-				case it.This:
-					names := map[string]bool{}
-					termCaptures(it.Tags, names)
-					if has(names) {
-						e.Items = append(e.Items, it)
-					} else {
-						e.Items = append(e.Items, &domEmitItem{This: true})
+		e := &domEmit{}
+		for _, it := range a.emit.Items {
+			if it.IsInsert {
+				e.Items = append(e.Items, it)
+				continue
+			}
+			if _, ok := position[it.Capture]; !ok && it.Capture != "" {
+				continue
+			}
+			names := map[string]bool{}
+			termCaptures(it.Tags, names)
+			if has(names) {
+				e.Items = append(e.Items, it)
+			} else {
+				e.Items = append(e.Items, &domEmitItem{Capture: it.Capture})
+			}
+		}
+		p.emit = e
+		for i, name := range p.capName {
+			for _, it := range e.Items {
+				if it.Erase && !it.IsInsert && it.Capture != "" && it.Capture == name {
+					if p.erased == nil {
+						p.erased = make([]bool, len(body))
 					}
-				default:
-					if _, ok := position[it.Capture]; !ok {
-						continue
-					}
-					names := map[string]bool{}
-					termCaptures(it.Tags, names)
-					if has(names) {
-						e.Items = append(e.Items, it)
-					} else {
-						e.Items = append(e.Items, &domEmitItem{Capture: it.Capture})
-					}
+					p.erased[i] = true
 				}
 			}
-			p.emit = e
 		}
+		p.eraseAll = e.erasesAll()
 	}
 }
 
@@ -419,11 +426,6 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 				out = append(out, concat([]slot{{sym: symbol{id: h}}}, x))
 			}
 			return out
-		})
-	case exHash:
-		free := lw.l.byName[lw.g.freeModifiers]
-		return lw.helper(a, ruleName, "", func(h int32) [][]slot {
-			return [][]slot{{}, {{sym: symbol{id: h}}, {sym: symbol{id: free}}}}
 		})
 	case exRef:
 		if isTerminalName(e.Name) {
