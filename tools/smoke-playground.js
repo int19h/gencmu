@@ -128,6 +128,11 @@ async function main() {
         input.value = arguments[0];
         input.dispatchEvent(new Event("input"));`, text);
 
+      const choose = (dialect) => run(`
+        const select = document.getElementById("dialect");
+        select.value = arguments[0];
+        select.dispatchEvent(new Event("change"));`, dialect);
+
       await request(base, "POST", `/session/${id}/url`, { url: target });
       // The status is "loading" and then "busy" until the first answer,
       // which makes it "ready", or a failure, which makes it "error".
@@ -138,10 +143,28 @@ async function main() {
       const version = await run(`return document.getElementById("version").textContent`);
       if (!/^library \d+\.\d+\.\d+/.test(version)) throw new Error(`the worker did not report the library's version: ${version}`);
 
+      // From here on, every answer the page shows as ready must be for the
+      // text and dialect its controls hold at that moment: an answer that
+      // arrives after they changed is out of date and must not be shown.
       await run(`
-        const dialect = document.getElementById("dialect");
-        dialect.value = "dialects/cll.md";
-        dialect.dispatchEvent(new Event("change"));`);
+        self.smokeStale = [];
+        const check = () => {
+          const status = document.getElementById("status");
+          const result = document.getElementById("result");
+          if (status.dataset.state !== "ready") return;
+          const text = document.getElementById("input").value;
+          const dialect = document.getElementById("dialect").value;
+          if (result.dataset.for !== text || "dialects/" + result.dataset.dialect + ".md" !== dialect) {
+            self.smokeStale.push({ shown: result.dataset.for, dialect: result.dataset.dialect, text, selected: dialect });
+          }
+        };
+        new MutationObserver(check).observe(document.getElementById("status"), { attributes: true, childList: true, subtree: true });`);
+      const stale = async () => {
+        const found = await run(`return self.smokeStale`);
+        if (found.length) throw new Error(`the page showed an answer for an earlier state as current: ${JSON.stringify(found[0])}`);
+      };
+
+      await choose("dialects/cll.md");
       const sentence = "mi klama le zarci";
       await type(sentence);
       const accepted = await answerFor(sentence);
@@ -159,6 +182,42 @@ async function main() {
           !/\^/.test(explained.explanation) || !/sumti-6: .*LE/.test(explained.explanation)) {
         throw new Error(`${rejected} was not explained as a rejection: ${JSON.stringify(explained)}`);
       }
+
+      // Texts typed while earlier ones are still being parsed, one of them
+      // long enough to be parsing when the next arrives.
+      const long = Array(8).fill("lo lojbo cu tavla fi lo nu mi klama le zarci .i do pu tavla mi").join(" .i ");
+      for (const text of [long, "mi klama", long + " .i mi", "mi klama le zarci .i do klama", "do klama"]) {
+        await type(text);
+        await sleep(170 + Math.floor(Math.random() * 100));
+      }
+      await choose("dialects/experimental.md");
+      await type("mi cu klama");
+      await choose("dialects/cll.md");
+      const last = "mi klama le zarci";
+      await type(last);
+      const settled = await answerFor(last);
+      if (settled.error || settled.output.trim() !== brackets) throw new Error(`after a burst of changes: ${JSON.stringify(settled)}`);
+      await stale();
+
+      // An edited lexicon is read with the notation grammar, which takes a
+      // while; a dialect that does not use it should not wait for that.
+      await run(`[...document.querySelectorAll("button.doc")].find((button) => button.textContent === "words/lexicon-cll").click();
+        const editor = document.getElementById("doc-text");
+        editor.value = editor.value.replace("≔", "≔ ");
+        editor.dispatchEvent(new Event("input"));`);
+      await until("the edited lexicon to be read", `
+        return document.getElementById("status").textContent.includes("Reading words/lexicon-cll") ? true : null;`);
+      await choose("dialects/experimental.md");
+      const other = await until("an answer under the experimental dialect", `
+        const status = document.getElementById("status");
+        const result = document.getElementById("result");
+        return status.dataset.state === "ready" && result.dataset.dialect === "experimental" && !result.hasAttribute("aria-busy")
+          ? { read: self.playground.client.doms.has("words/lexicon-cll.md"), output: (document.querySelector("#output pre") || {}).textContent } : null;`);
+      // The worker hands the page every document it finishes reading, so
+      // the lexicon's being there means the switch waited for it.
+      if (other.read) throw new Error("switching to a dialect that does not read the edited lexicon waited for it to be read");
+      if (!other.output || !other.output.includes("klama")) throw new Error(`no brackets under experimental: ${JSON.stringify(other)}`);
+      await stale();
       console.log(`playground works in ${browser} at ${target}, ${version}`);
     } finally {
       await request(base, "DELETE", `/session/${id}`).catch(() => {});
