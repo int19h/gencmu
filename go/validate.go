@@ -12,8 +12,11 @@ import (
 // bad cache entry is then a miss, and a bad bootstrap a load error.
 
 // maxDOMDepth is how deep an expression, a term or a condition may nest
-// (engine §9), counted from the one a rule, an alternative or a clause
-// holds, at 0.
+// (engine §9): no node of one may lie below more than 256 compound nodes
+// of it. A node's depth is the number of compound nodes above it, 0 for
+// the one a rule, an alternative or a clause holds; every node with
+// children, a capture and a call included, is compound, and ( ) makes no
+// node.
 const maxDOMDepth = 256
 
 var domName = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9-]*$`)
@@ -132,6 +135,11 @@ func (c *domChecker) expr(e *domExpr, depth int, top bool) {
 			c.fail("$%s is captured twice in one alternative", e.Name)
 		}
 		c.captures[e.Name] = true
+		if len(c.captures) > 4 {
+			c.fail("an alternative has at most four captures")
+		}
+		// A capture is a compound node: its symbol lies below it.
+		c.deep(depth + 1)
 	case exRef, exTerminal:
 		if e.Name == "" {
 			c.fail("an empty %s", e.Kind)
@@ -192,7 +200,9 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			return
 		}
 		for _, a := range args {
-			if !isRule(a) {
+			if isRule(a) {
+				c.deep(depth + 1) // a rule name is a node below the call
+			} else {
 				c.term(a, depth+1, true)
 			}
 		}
