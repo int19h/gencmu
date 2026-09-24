@@ -337,7 +337,9 @@
       this.doms = new Map();
       // Edits the running worker has not been told of yet.
       this.unsent = new Set();
-      this.version = 0;
+      // How many times each document was changed, so that a run can tell
+      // whether the text it is reading is still the current one.
+      this.revisions = new Map();
       this.worker = null;
       this.startedAt = 0;
     }
@@ -376,7 +378,12 @@
       if (text === this.bundled[path]) this.edits.delete(path);
       else this.edits.set(path, text);
       this.unsent.add(path);
-      this.version++;
+      this.revisions.set(path, this.revision(path) + 1);
+    }
+
+    /** How many times a document was changed. */
+    revision(path) {
+      return this.revisions.get(path) || 0;
     }
 
     /** Sends a run, after any edits the worker has not seen. */

@@ -144,22 +144,30 @@
     status.dataset.state = kind;
     $("status-text").textContent = text;
   }
-  // The busy state shows only for a run that takes a moment, so that fast
-  // parses while typing do not make the page flicker.
+  // The page is busy from a change until the answer for it is shown; the
+  // busy state shows only after a moment, so that fast parses while typing
+  // do not make the page flicker.
   function setBusy(busy) {
+    if (busy) {
+      if (!busyTimer && !$("result").hasAttribute("aria-busy")) {
+        busyTimer = setTimeout(() => {
+          busyTimer = 0;
+          $("result").setAttribute("aria-busy", "true");
+          describePhase();
+        }, 120);
+      }
+      return;
+    }
     clearTimeout(busyTimer);
-    if (busy) busyTimer = setTimeout(() => {
-      $("result").setAttribute("aria-busy", "true");
-      describePhase();
-    }, 120);
-    else $("result").removeAttribute("aria-busy");
+    busyTimer = 0;
+    $("result").removeAttribute("aria-busy");
   }
   function describePhase() {
     const running = job.running;
-    if (!running) return;
-    const phase = running.phase;
+    const phase = running ? running.phase : "waiting";
     let text = "Parsing…";
-    if (phase === "starting") text = workerReady ? "Working…" : "Starting the parser…";
+    if (phase === "waiting") text = "Working…";
+    else if (phase === "starting") text = workerReady ? "Working…" : "Starting the parser…";
     else if (phase === "loading") text = `Loading the ${dialectName(running.path || state.dialect)} dialect…`;
     else if (phase === "reading") text = `Reading ${running.path} with the notation grammar…`;
     else if (phase === "rendering") text = "Rendering…";
@@ -169,10 +177,16 @@
 
   // ---- The worker ---------------------------------------------------------
 
-  const timings = { workerReady: null, runs: [] };
+  const timings = { workerReady: null, runs: [], restarts: 0 };
   let workerReady = false;
   let nextId = 1;
   const job = { running: null, pending: false, timer: 0, debounce: 0 };
+  // Every change to the state starts a new generation, and an answer is
+  // shown only if it is for the current one: an answer that arrives after
+  // the text or an option changed would show the old result under the new
+  // controls.
+  let generation = 0;
+  let shownGeneration = -1;
   let client;
 
   function startWorker() {
@@ -205,40 +219,59 @@
     };
   }
 
-  // Asks for the current state, now or after a pause.
+  // The state changed: ask for it, now or after a pause.
   function schedule(delay) {
+    generation++;
     clearTimeout(job.debounce);
     saveFragment();
-    if (delay) {
-      job.debounce = setTimeout(() => schedule(0), delay);
+    setBusy(true);
+    if (delay) job.debounce = setTimeout(dispatch, delay);
+    else dispatch();
+  }
+
+  function dispatch() {
+    if (shownGeneration === generation) {
+      setBusy(false);
       return;
     }
     if (!job.running) return send();
+    // The run already asks for the current state.
+    if (job.running.generation === generation) return;
     job.pending = true;
     considerRestart();
   }
 
+  // The documents a run of the selected dialect reads.
+  function neededDocuments() {
+    return new Set([state.dialect, ...pipelineStages(state.dialect, client.text(state.dialect)).flatMap((stage) => stage.documents)]);
+  }
+
   // A run whose answer is no longer wanted goes on if it is reading a
-  // document the next run needs too, or if it has barely started;
-  // otherwise its worker is replaced.
+  // document the next run needs too, unchanged since, or if it has barely
+  // started; otherwise its worker is replaced.
   function considerRestart() {
     const running = job.running;
     clearTimeout(job.timer);
     if (!running || !job.pending) return;
-    if (running.phase === "reading" && running.version === client.version) return;
+    if (running.phase === "reading" && neededDocuments().has(running.path) &&
+        client.revision(running.path) === running.revisions.get(running.path)) return;
     const elapsed = performance.now() - running.started;
     if (elapsed < RESTART_AFTER) {
       job.timer = setTimeout(considerRestart, RESTART_AFTER - elapsed);
       return;
     }
     job.running = null;
+    timings.restarts++;
     startWorker();
     send();
   }
 
   function send() {
     const id = nextId++;
-    job.running = { id, started: performance.now(), phase: "starting", path: null, version: client.version };
+    job.running = {
+      id, generation, started: performance.now(), phase: "starting", path: null,
+      revisions: new Map(client.revisions),
+    };
     job.pending = false;
     client.run(id, currentRequest());
     setBusy(true);
@@ -261,14 +294,20 @@
         if ($("result").hasAttribute("aria-busy")) describePhase();
         considerRestart();
         break;
-      case "result":
+      case "result": {
         if (!running || message.id !== running.id) break;
         timings.runs.push({ total: performance.now() - running.started, worker: message.ms, parse: message.parseMs });
-        finishRun();
-        show(message);
+        finishRun(running.generation === generation);
+        // Remembering the dialect's stages may change the state, when the
+        // last stage asked for is not one of them.
+        remember(message);
+        // An answer for an earlier state is not shown; the run for the
+        // current one is on its way, and the page stays busy until it comes.
+        if (running.generation === generation) show(message);
         break;
+      }
       case "failed":
-        finishRun();
+        finishRun(true);
         showFailure(`The parser failed, which is a bug in gencmu:\n${message.message}`);
         break;
       case "crashed":
@@ -284,7 +323,7 @@
     }
   }
 
-  function finishRun() {
+  function finishRun(current) {
     clearTimeout(job.timer);
     job.running = null;
     if (reading) {
@@ -292,7 +331,7 @@
       renderDocuments();
     }
     if (job.pending) send();
-    else setBusy(false);
+    else if (current) setBusy(false);
   }
 
   // ---- Drawing helpers ------------------------------------------------------
@@ -336,20 +375,26 @@
 
   // ---- The answer -------------------------------------------------------------
 
-  function show(message) {
-    shown = message;
-    if (message.info) {
-      const before = JSON.stringify(infos.get(message.dialect) || null);
-      infos.set(message.dialect, message.info);
-      if (message.dialect === state.dialect && before !== JSON.stringify(message.info)) {
+  // What an answer says about its dialect is worth keeping even when the
+  // answer itself is out of date.
+  function remember(message) {
+    if (!message.info) return;
+    const before = JSON.stringify(infos.get(message.dialect) || null);
+    infos.set(message.dialect, message.info);
+    if (message.dialect === state.dialect && before !== JSON.stringify(message.info)) {
+      renderOptions();
+      if (state.until && !message.info.stages.some((stage) => stage.name === state.until)) {
+        state.until = "";
         renderOptions();
-        if (state.until && !message.info.stages.some((stage) => stage.name === state.until)) {
-          state.until = "";
-          renderOptions();
-          schedule(0);
-        }
+        schedule(0);
       }
     }
+  }
+
+  function show(message) {
+    shown = message;
+    shownGeneration = generation;
+    setBusy(false);
     $("result").dataset.for = message.text;
     $("result").dataset.dialect = dialectName(message.dialect);
     renderSummary(message);
