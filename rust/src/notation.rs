@@ -135,16 +135,11 @@ impl<'a> Reader<'a> {
                 }
                 _ => {
                     // The conditions joined by ∧ at the top are the rule's
-                    // conditions, one by one (§9).
-                    let any_of = self.one(inner, "any-of");
-                    let all_of: Vec<&Node> = Self::rules(any_of, "all-of").collect();
-                    match &all_of[..] {
-                        [all_of] => {
-                            for condition in Self::rules(all_of, "condition") {
-                                conditions.push(self.condition(condition, 0)?);
-                            }
-                        }
-                        _ => conditions.push(self.any_of(any_of, 0)?),
+                    // conditions, one by one; parentheses make no node, so
+                    // `: (a ∧ b)` is two conditions too (§9).
+                    match self.any_of(self.one(inner, "any-of"), 0)? {
+                        Cond::All(items) => conditions.extend(items),
+                        other => conditions.push(other),
                     }
                 }
             }
