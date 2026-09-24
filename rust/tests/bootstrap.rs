@@ -58,13 +58,27 @@ fn compiled_doms_match_a_fresh_reading() {
     let compiled = parse_json(&read("compiled.json")).expect("compiled.json");
     assert_eq!(compiled.get("format"), Some(&Value::Number(1.0)));
     assert_eq!(compiled.get("bootstrap").and_then(Value::str), Some(gencmu::tools::bootstrap_hash().as_str()));
-    let documents = compiled.get("documents").expect("documents").object();
+    let documents = compiled.get("documents").expect("documents").object().to_vec();
     assert!(!documents.is_empty());
-    for (path, entry) in documents {
-        let text = read(path);
-        assert_eq!(entry.get("hash").and_then(Value::str), Some(gencmu::tools::fnv1a64(&text).as_str()), "{path}");
-        let fresh = parse_json(&gencmu::tools::read_grammar_document(&text).expect("a DOM")).expect("JSON");
-        assert!(&fresh == entry.get("dom").expect("a DOM"), "{path} differs from its compiled DOM");
+    // Each document is read on a thread of its own: the Lojban grammars
+    // are slow to read through the notation in a debug build.
+    let threads: Vec<_> = documents
+        .into_iter()
+        .map(|(path, entry)| {
+            std::thread::spawn(move || {
+                let text = read(&path);
+                assert_eq!(
+                    entry.get("hash").and_then(Value::str),
+                    Some(gencmu::tools::fnv1a64(&text).as_str()),
+                    "{path}"
+                );
+                let fresh = parse_json(&gencmu::tools::read_grammar_document(&text).expect("a DOM")).expect("JSON");
+                assert!(&fresh == entry.get("dom").expect("a DOM"), "{path} differs from its compiled DOM");
+            })
+        })
+        .collect();
+    for thread in threads {
+        thread.join().expect("a document matches");
     }
 }
 

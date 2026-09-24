@@ -125,6 +125,8 @@ struct HelperDef {
     owner: u32,
     prods: Vec<Sequence>,
     elided: Option<String>,
+    /// The helpers of the places written inside this one, in order.
+    children: Vec<usize>,
 }
 
 struct Lowerer<'a> {
@@ -134,6 +136,9 @@ struct Lowerer<'a> {
     terminal_index: FxMap<String, u32>,
     helpers: Vec<HelperDef>,
     owner: u32,
+    /// For each place of sugar being expanded, and the alternative itself at
+    /// the bottom, the helpers of the places written inside it so far.
+    places: Vec<Vec<usize>>,
 }
 
 fn product(left: Vec<Sequence>, right: &[Sequence]) -> Vec<Sequence> {
@@ -159,10 +164,17 @@ impl<'a> Lowerer<'a> {
         id
     }
 
+    /// Makes the helper of a place whose inside `enter` began.
     fn helper(&mut self, prods: Vec<Sequence>, elided: Option<String>) -> Sym {
         let id = (self.grammar.rules.len() + self.helpers.len()) as u32;
-        self.helpers.push(HelperDef { owner: self.owner, prods, elided });
+        let children = self.places.pop().expect("a place entered");
+        self.places.last_mut().expect("an alternative").push(self.helpers.len());
+        self.helpers.push(HelperDef { owner: self.owner, prods, elided, children });
         Sym::N(id)
+    }
+
+    fn enter(&mut self) {
+        self.places.push(Vec::new());
     }
 
     fn symbol(&mut self, name: &str, reference: bool) -> Sym {
@@ -174,6 +186,7 @@ impl<'a> Lowerer<'a> {
     }
 
     fn repeat(&mut self, inner: &Expr, min: u8) -> Sym {
+        self.enter();
         let body = self.expand(inner);
         let id = (self.grammar.rules.len() + self.helpers.len()) as u32;
         let mut prods = Vec::new();
@@ -222,21 +235,12 @@ impl<'a> Lowerer<'a> {
                 out
             }
             Expr::Optional(inner) => {
+                self.enter();
                 let body = self.expand(inner);
-                let elided = match body.first().and_then(|sequence| sequence.first()) {
-                    Some((Sym::T(first), _)) => {
-                        let name = &self.terminals[*first as usize];
-                        let all_begin = body
-                            .iter()
-                            .all(|sequence| matches!(sequence.first(), Some((Sym::T(t), _)) if self.grammar.elidable.contains(&self.terminals[*t as usize])));
-                        if all_begin && self.grammar.elidable.contains(name) {
-                            Some(name.clone())
-                        } else {
-                            None
-                        }
-                    }
-                    _ => None,
-                };
+                // An optional of a symbol, or of a sequence that begins with
+                // one, is elidable when that symbol is an elidable
+                // terminal; one of a choice or an `&` never is (§3.8).
+                let elided = elidable_terminal(inner).filter(|name| self.grammar.elidable.contains(name));
                 let mut prods = Vec::new();
                 if !(self.mandatory && elided.is_some()) {
                     prods.push(Vec::new());
@@ -263,6 +267,17 @@ impl<'a> Lowerer<'a> {
             }
             Expr::Empty => vec![Vec::new()],
         }
+    }
+}
+
+/// The terminal an optional's content begins with, if it is a symbol or a
+/// sequence that begins, recursively, with one.
+fn elidable_terminal(expr: &Expr) -> Option<String> {
+    match expr {
+        Expr::Ref(name) if is_terminal_name(name) => Some(name.clone()),
+        Expr::Terminal(name) => Some(name.clone()),
+        Expr::Seq(items) => items.first().and_then(elidable_terminal),
+        _ => None,
     }
 }
 
@@ -315,7 +330,8 @@ impl<'a> Scope<'a> {
             Term::Set(items) => LTerm::Set(list(self, items)?),
             Term::Union(items) => LTerm::Union(list(self, items)?),
             Term::Intersection(items) => LTerm::Inter(list(self, items)?),
-            Term::Capture(_) => return Err(Missing),
+            // A bare capture where a value is needed is its tags (§10).
+            Term::Capture(_) => LTerm::Tags(self.span(term)?),
             Term::Call(name, args) => match (name.as_str(), &args[..]) {
                 ("phonemes", [Arg::Term(span)]) => LTerm::Phonemes(self.span(span)?),
                 ("text", [Arg::Term(span)]) => LTerm::Text(self.span(span)?),
@@ -379,10 +395,17 @@ pub(crate) fn lower(grammar: &StageGrammar, features: &BTreeSet<String>, mandato
         terminal_index: FxMap::default(),
         helpers: Vec::new(),
         owner: 0,
+        places: Vec::new(),
     };
-    // Expand every live alternative, remembering which one each user
-    // production came from.
-    let mut user: Vec<Vec<Pending>> = Vec::new();
+    // Each alternative's own productions, then its helpers in the order
+    // their places are written, each followed at once by the helpers
+    // inside it, depth first (§3, "Numbering"). Helper productions are
+    // filled in once every helper exists.
+    enum Slot {
+        Own(Pending),
+        Helper(usize),
+    }
+    let mut slots: Vec<Slot> = Vec::new();
     let mut alternatives: Vec<Vec<&StitchedAlternative>> = Vec::new();
     for (index, rule) in grammar.rules.iter().enumerate() {
         lowerer.owner = index as u32;
@@ -393,33 +416,36 @@ pub(crate) fn lower(grammar: &StageGrammar, features: &BTreeSet<String>, mandato
                 alternative.alternative.guards.iter().all(|guard| features.contains(&guard.feature) != guard.negated)
             })
             .collect();
-        let mut pending = Vec::new();
         let trailing = if live.len() == 1 { ends_in_repeat(&live[0].alternative.expr) } else { None };
-        if let Some((prefix, repeated, min)) = trailing {
-            let body = lowerer.expand(repeated);
-            let base = lowerer.expand(&Expr::Seq(prefix));
-            let bases = if min == 0 { base } else { product(base, &body) };
-            for sequence in bases {
-                pending.push(Pending { rule: index as u32, sequence, source: Some((0, 0)), trailing_step: false });
-            }
-            for sequence in body {
-                let mut step = vec![(Sym::N(index as u32), None)];
-                step.extend(sequence);
-                pending.push(Pending { rule: index as u32, sequence: step, source: Some((0, 0)), trailing_step: true });
-            }
-        } else {
-            for (number, alternative) in live.iter().enumerate() {
+        for (number, alternative) in live.iter().enumerate() {
+            lowerer.places = vec![Vec::new()];
+            let own = |sequence, trailing_step| {
+                Slot::Own(Pending { rule: index as u32, sequence, source: Some((number, 0)), trailing_step })
+            };
+            if let Some((prefix, repeated, min)) = &trailing {
+                let base = lowerer.expand(&Expr::Seq(prefix.clone()));
+                let body = lowerer.expand(repeated);
+                let bases = if *min == 0 { base } else { product(base, &body) };
+                for sequence in bases {
+                    slots.push(own(sequence, false));
+                }
+                for sequence in body {
+                    let mut step = vec![(Sym::N(index as u32), None)];
+                    step.extend(sequence);
+                    slots.push(own(step, true));
+                }
+            } else {
                 for sequence in lowerer.expand(&alternative.alternative.expr) {
-                    pending.push(Pending {
-                        rule: index as u32,
-                        sequence,
-                        source: Some((number, 0)),
-                        trailing_step: false,
-                    });
+                    slots.push(own(sequence, false));
                 }
             }
+            let roots = lowerer.places.pop().expect("the alternative's places");
+            let mut stack: Vec<usize> = roots.into_iter().rev().collect();
+            while let Some(helper) = stack.pop() {
+                slots.push(Slot::Helper(helper));
+                stack.extend(lowerer.helpers[helper].children.iter().rev());
+            }
         }
-        user.push(pending);
         alternatives.push(live);
     }
 
@@ -437,35 +463,20 @@ pub(crate) fn lower(grammar: &StageGrammar, features: &BTreeSet<String>, mandato
             elided: helper.elided.clone(),
         });
     }
-
-    // Number the productions: each rule's in order, each helper's right
-    // after the production that first uses it.
     let mut order: Vec<Pending> = Vec::new();
-    let mut numbered = vec![false; lowerer.helpers.len()];
-    let mut helper_prods: Vec<Vec<Sequence>> =
-        lowerer.helpers.iter_mut().map(|helper| std::mem::take(&mut helper.prods)).collect();
-    for pending in user.into_iter().flatten() {
-        let mut stack: Vec<Pending> = vec![pending];
-        while let Some(production) = stack.pop() {
-            let mut introduced = Vec::new();
-            for (sym, _) in &production.sequence {
-                if let Sym::N(id) = sym {
-                    let id = *id as usize;
-                    if id >= user_count && !numbered[id - user_count] {
-                        numbered[id - user_count] = true;
-                        introduced.push(id);
-                    }
+    for slot in slots {
+        match slot {
+            Slot::Own(pending) => order.push(pending),
+            Slot::Helper(helper) => {
+                for sequence in std::mem::take(&mut lowerer.helpers[helper].prods) {
+                    order.push(Pending {
+                        rule: (user_count + helper) as u32,
+                        sequence,
+                        source: None,
+                        trailing_step: false,
+                    });
                 }
             }
-            order.push(production);
-            // Push in reverse so that they come out in order.
-            let mut next = Vec::new();
-            for id in introduced {
-                for sequence in std::mem::take(&mut helper_prods[id - user_count]) {
-                    next.push(Pending { rule: id as u32, sequence, source: None, trailing_step: false });
-                }
-            }
-            stack.extend(next.into_iter().rev());
         }
     }
 

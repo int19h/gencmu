@@ -29,10 +29,8 @@ fn write_tags(out: &mut String, tags: &Tags) {
 fn write_token(out: &mut String, token: &Token) {
     out.push_str("{\"text\":");
     write_str(out, &token.text);
-    if let Some(phonemes) = &token.phonemes {
-        out.push_str(",\"phonemes\":");
-        write_str(out, phonemes);
-    }
+    out.push_str(",\"phonemes\":");
+    write_str(out, token.phonemes.as_deref().unwrap_or(""));
     out.push_str(",\"tags\":");
     write_tags(out, &token.tags);
     out.push_str(",\"span\":");
@@ -293,14 +291,15 @@ pub(crate) fn brackets(tree: &Node, tokens: &[Token], show_elided: bool) -> Stri
             NodeKind::Token => {
                 let token = node.token.and_then(|token| tokens.get(token));
                 let label = match token {
-                    Some(token) => token.phonemes.clone().unwrap_or_else(|| token.text.clone()),
+                    Some(token) => match token.phonemes.as_deref() {
+                        Some(phonemes) if !phonemes.is_empty() => phonemes.to_string(),
+                        _ => token.text.clone(),
+                    },
                     None => String::new(),
                 };
-                if label.is_empty() {
-                    Rendered::Empty
-                } else {
-                    Rendered::Leaf(label)
-                }
+                // A token is never an empty node, even when its label is
+                // empty, as an empty zoi quotation's is.
+                Rendered::Leaf(label)
             }
             NodeKind::Elided => {
                 if show_elided {

@@ -156,24 +156,33 @@ fn generate(rng: &mut Rng) -> (Source, Vec<Vec<(usize, bool)>>) {
     (source, tokens)
 }
 
-/// Lowers the grammar (engine §3): a helper per optional or repetition,
-/// numbered right after the production that introduces it, and a rule
-/// whose only alternative ends in a repetition made left-recursive.
+/// Lowers the grammar (engine §3): a helper per optional or repetition, a
+/// rule whose only alternative ends in a repetition made left-recursive,
+/// and each alternative's own productions numbered before its helpers,
+/// which follow in the order their places are written.
 fn lower(source: &Source) -> Grammar {
     let user = source.rules.len();
     let mut rules: Vec<LRule> =
         (0..user).map(|owner| LRule { prods: Vec::new(), helper: false, owner, elided: None }).collect();
     let mut helper_prods: Vec<Vec<Vec<Sym>>> = Vec::new();
     let mut pending: Vec<(usize, Vec<Sym>, bool)> = Vec::new();
-    let mut helper = |rules: &mut Vec<LRule>, owner: usize, prods: Vec<Vec<Sym>>, elided: Option<usize>| {
+    // The helpers of the alternative being lowered, in written order.
+    let mut places: Vec<usize> = Vec::new();
+    fn helper(
+        (rules, helper_prods): (&mut Vec<LRule>, &mut Vec<Vec<Vec<Sym>>>),
+        owner: usize,
+        prods: Vec<Vec<Sym>>,
+        elided: Option<usize>,
+    ) -> Sym {
         rules.push(LRule { prods: Vec::new(), helper: true, owner, elided });
         helper_prods.push(prods);
         Sym::N(rules.len() - 1)
-    };
+    }
     for (rule, alternatives) in source.rules.iter().enumerate() {
         let trailing = alternatives.len() == 1
             && matches!(alternatives[0].0.last(), Some(Item::Repeat(_) | Item::OptionalRepeat(_)));
         for (items, _) in alternatives {
+            let first_helper = rules.len();
             let mut syms = Vec::new();
             let lowered_items = if trailing { &items[..items.len() - 1] } else { &items[..] };
             for item in lowered_items {
@@ -184,15 +193,15 @@ fn lower(source: &Source) -> Grammar {
                             Sym::T(t) if source.elidable == Some(t) => Some(t),
                             _ => None,
                         };
-                        helper(&mut rules, rule, vec![vec![], vec![sym]], elided)
+                        helper((&mut rules, &mut helper_prods), rule, vec![vec![], vec![sym]], elided)
                     }
                     Item::Repeat(sym) => {
                         let id = rules.len();
-                        helper(&mut rules, rule, vec![vec![sym], vec![Sym::N(id), sym]], None)
+                        helper((&mut rules, &mut helper_prods), rule, vec![vec![sym], vec![Sym::N(id), sym]], None)
                     }
                     Item::OptionalRepeat(sym) => {
                         let id = rules.len();
-                        helper(&mut rules, rule, vec![vec![], vec![Sym::N(id), sym]], None)
+                        helper((&mut rules, &mut helper_prods), rule, vec![vec![], vec![Sym::N(id), sym]], None)
                     }
                 });
             }
@@ -213,33 +222,18 @@ fn lower(source: &Source) -> Grammar {
             } else {
                 pending.push((rule, syms, false));
             }
+            places.extend(first_helper..rules.len());
+            for id in places.drain(..) {
+                for syms in &helper_prods[id - user] {
+                    pending.push((id, syms.clone(), false));
+                }
+            }
         }
     }
     let mut prods: Vec<LProd> = Vec::new();
-    let mut numbered = vec![false; rules.len()];
     for (rule, syms, trailing_step) in pending {
-        let mut order = vec![(rule, syms, trailing_step)];
-        while let Some((rule, syms, trailing_step)) = order.pop() {
-            let introduced: Vec<usize> = syms
-                .iter()
-                .filter_map(|sym| match sym {
-                    Sym::N(n) if *n >= user && !numbered[*n] => Some(*n),
-                    _ => None,
-                })
-                .collect();
-            rules[rule].prods.push(prods.len());
-            prods.push(LProd { rule, syms, trailing_step });
-            let mut next = Vec::new();
-            for id in introduced {
-                if !numbered[id] {
-                    numbered[id] = true;
-                    for syms in &helper_prods[id - user] {
-                        next.push((id, syms.clone(), false));
-                    }
-                }
-            }
-            order.extend(next.into_iter().rev());
-        }
+        rules[rule].prods.push(prods.len());
+        prods.push(LProd { rule, syms, trailing_step });
     }
     Grammar { rules, prods, lean: source.lean, elision_only: source.elision_only }
 }
@@ -550,6 +544,8 @@ impl Ranked {
     fn before(&self, lean: Lean, a: usize, b: usize) -> bool {
         match first_difference(&self.visible[a], &self.visible[b]) {
             Some((_, x, y)) => outcome(lean, x, y).0,
+            // A visible prefix before its extensions.
+            None if self.visible[a].len() != self.visible[b].len() => self.visible[a].len() < self.visible[b].len(),
             None => match first_difference(&self.full[a], &self.full[b]) {
                 Some((_, x, y)) => canonical(x, y),
                 None => self.full[a].len() < self.full[b].len(),
@@ -833,11 +829,8 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
     }
     let expected = match expect(&ranked, grammar.lean, findings) {
         Outcome::Expected(expected) => expected,
-        Outcome::NoLeast(finding) => {
-            *findings.entry(finding).or_default() += 1;
-            eprintln!("seed {seed}: {finding}\n{text}tokens: {tokens:?}");
-            return Ok(false);
-        }
+        // T is a total order (§6), so this cannot happen.
+        Outcome::NoLeast(finding) => return Err(describe(finding.to_string())),
     };
     // With elision-only and no elidable terminators, the check ranks the
     // same forest by rule 1 alone.
@@ -853,7 +846,7 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
                 return common::matches(&pattern, &actual, "result").map(|_| true).map_err(describe);
             }
         } else {
-            return Ok(false);
+            return Err(describe("T has no least derivation under rule 1 alone".to_string()));
         }
     }
     let mut pattern = format!("{{\"ok\":true,\"stages\":[{{\"verdict\":\"{}\"", expected.verdict);
@@ -902,9 +895,8 @@ fn ranking_matches_the_definitions() {
             break;
         }
     }
-    eprintln!(
-        "ranking: {checked} of {cases} cases checked in {:?}; findings about the specification: {findings:?}",
-        started.elapsed()
-    );
+    eprintln!("ranking: {checked} of {cases} cases checked in {:?}; {findings:?}", started.elapsed());
+    let contradictions: Vec<_> = findings.keys().filter(|key| !key.starts_with("(stat)")).collect();
+    assert!(contradictions.is_empty(), "the definitions of engine §6 contradict each other: {contradictions:?}");
     assert!(failures.is_empty(), "{} failures:\n\n{}", failures.len(), failures.join("\n\n"));
 }

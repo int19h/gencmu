@@ -34,7 +34,6 @@ pub(crate) struct StitchedRule {
     pub name: String,
     pub alternatives: Vec<StitchedAlternative>,
     pub document: Arc<str>,
-    pub at: (usize, usize),
 }
 
 /// One replacement or extension the loader recorded (engine §2).
@@ -104,8 +103,7 @@ pub(crate) fn stitch(stage: &str, documents: &[(Arc<str>, Arc<Dom>)]) -> Result<
                     if defined_here.insert(&rule.name, ()).is_some() {
                         return Err(located(format!("{} is defined twice with ≔", rule.name), document, rule.at));
                     }
-                    let stitched =
-                        StitchedRule { name: rule.name.clone(), alternatives, document: document.clone(), at: rule.at };
+                    let stitched = StitchedRule { name: rule.name.clone(), alternatives, document: document.clone() };
                     if let Some(&index) = grammar.index.get(&rule.name) {
                         grammar.rules[index] = stitched;
                         grammar.changes.push(Change {
@@ -300,7 +298,7 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
             }
             Ok(())
         }
-        Term::Capture(name) => Err(format!("the span ${name} is used as a value")),
+        Term::Capture(_) => Ok(()),
         Term::Call(name, args) => match (name.as_str(), &args[..]) {
             ("phonemes" | "text" | "classes" | "words" | "tags", [Arg::Term(span)]) => check_span(span),
             ("tags", [Arg::Term(span), Arg::Rule(rule)]) => {

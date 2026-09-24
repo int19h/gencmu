@@ -119,9 +119,10 @@ pub(crate) fn intersection(left: &TagList, right: &TagList) -> TagList {
     left.iter().filter(|&&(id, _)| right.binary_search_by_key(&id, |&(other, _)| other).is_ok()).copied().collect()
 }
 
-/// Whether a tag is a phoneme tag `/p/`, and if so its phonemes `p`.
+/// Whether a tag is a phoneme tag `/p/`, exactly three code points, and if
+/// so its phoneme `p` (engine §5).
 pub(crate) fn phoneme_of(tag: &str) -> Option<&str> {
-    if tag.chars().count() >= 3 && tag.starts_with('/') && tag.ends_with('/') {
+    if tag.chars().count() == 3 && tag.starts_with('/') && tag.ends_with('/') {
         Some(&tag[1..tag.len() - 1])
     } else {
         None

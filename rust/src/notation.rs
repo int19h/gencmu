@@ -10,6 +10,8 @@ const MAX_DEPTH: usize = 400;
 
 pub(crate) struct Reader<'a> {
     pub tokens: &'a [Token],
+    /// The capture names of the alternative being read.
+    pub captures: std::cell::RefCell<Vec<String>>,
     /// The document position of a grammar-text index.
     pub position: &'a dyn Fn(usize) -> (usize, usize),
 }
@@ -157,6 +159,7 @@ impl<'a> Reader<'a> {
                 }
             })
             .collect();
+        self.captures.borrow_mut().clear();
         let expr = self.conjunction(self.one(node, "conjunction"), 0)?;
         let tags = match Self::rules(node, "alternative-tags").next() {
             Some(tags) => Some(self.value(self.one(tags, "term"), 0)?),
@@ -213,6 +216,10 @@ impl<'a> Reader<'a> {
                     return Err(self.error(capture, "a capture must wrap a single symbol"));
                 }
                 let name = self.text(capture).trim_start_matches('$').to_string();
+                if self.captures.borrow().contains(&name) {
+                    return Err(self.error(capture, format!("the capture ${name} is used twice in one alternative")));
+                }
+                self.captures.borrow_mut().push(name.clone());
                 Expr::Capture(name, Box::new(self.primary(primary, depth)?))
             }
             "group" => self.choice(self.one(inner, "choice"), depth)?,
@@ -274,13 +281,16 @@ impl<'a> Reader<'a> {
             };
             let terminal = target.terminal.as_deref().unwrap_or("");
             match terminal {
+                "capture" if items.iter().any(|item| matches!(item, EmitItem::Capture(name, _) if name == self.text(target).trim_start_matches('$'))) => {
+                    return Err(self.error(arrow, "an emission lists the same capture twice"));
+                }
                 "capture" => items.push(EmitItem::Capture(
                     self.text(target).trim_start_matches('$').to_string(),
                     tags.map(|(_, term)| term),
                 )),
                 "string" | "phoneme" => {
-                    if let Some((tags, _)) = tags {
-                        return Err(self.error(tags, "an inserted tag takes no tags of its own"));
+                    if tags.is_some() {
+                        return Err(self.error(target, "an inserted tag takes no tags of its own"));
                     }
                     let tag = if terminal == "string" { self.decode(target)? } else { self.text(target).to_string() };
                     items.push(EmitItem::Insert(tag));
@@ -288,8 +298,8 @@ impl<'a> Reader<'a> {
                 _ => match self.text(target) {
                     "this" => items.push(EmitItem::This(tags.map(|(_, term)| term))),
                     "nothing" => {
-                        if let Some((tags, _)) = tags {
-                            return Err(self.error(tags, "nothing takes no tags"));
+                        if tags.is_some() {
+                            return Err(self.error(target, "nothing takes no tags"));
                         }
                         nothing = true;
                     }
@@ -367,9 +377,11 @@ impl<'a> Reader<'a> {
         }
     }
 
+    /// A term where a value is needed: a bare capture is its tags, but
+    /// `head`, `tail` and `last` give spans, which are not values.
     fn value(&self, node: &'a Node, depth: usize) -> R<Term> {
         let term = self.term(node, depth)?;
-        if is_span(&term) {
+        if is_derived_span(&term) {
             return Err(self.error(node, "a span is used as a value"));
         }
         Ok(term)
@@ -387,7 +399,7 @@ impl<'a> Reader<'a> {
                 parts.push(atoms.pop().expect("an atom"));
             } else {
                 for (atom, node) in atoms.iter().zip(Self::rules(intersection, "term-atom")) {
-                    if is_span(atom) {
+                    if is_derived_span(atom) {
                         return Err(self.error(node, "a span is used as a value"));
                     }
                 }
@@ -398,7 +410,7 @@ impl<'a> Reader<'a> {
             return Ok(parts.pop().expect("a part"));
         }
         for (part, node) in parts.iter().zip(Self::rules(node, "intersection")) {
-            if is_span(part) {
+            if is_derived_span(part) {
                 return Err(self.error(node, "a span is used as a value"));
             }
         }
@@ -453,7 +465,16 @@ impl<'a> Reader<'a> {
                 if self.rule_argument(args[0]).is_some() {
                     return Err(wrong());
                 }
-                vec![Arg::Term(self.value(self.one(args[0], "term"), depth)?)]
+                let term = self.value(self.one(args[0], "term"), depth)?;
+                let string = match &term {
+                    Term::Literal(_) => true,
+                    Term::Call(name, _) => matches!(name.as_str(), "phonemes" | "text" | "lowercase"),
+                    _ => false,
+                };
+                if !string {
+                    return Err(wrong());
+                }
+                vec![Arg::Term(term)]
             }
             ("phonemes" | "text" | "classes" | "words" | "head" | "tail" | "last" | "tags" | "lowercase", _) => {
                 return Err(wrong())
@@ -463,6 +484,12 @@ impl<'a> Reader<'a> {
         };
         Ok(Term::Call(name, built))
     }
+}
+
+/// Whether a term is `head`, `tail` or `last` of a span, which is a span
+/// and never a value.
+fn is_derived_span(term: &Term) -> bool {
+    matches!(term, Term::Call(name, _) if matches!(name.as_str(), "head" | "tail" | "last"))
 }
 
 /// Whether a term is a span: a capture, or `head`, `tail` or `last` of one.

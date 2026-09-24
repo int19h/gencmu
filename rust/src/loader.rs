@@ -128,7 +128,7 @@ impl Context {
 
 /// Reads a grammar document through the notation dialect (engine §8, §9).
 pub(crate) fn read_document(notation: &Dialect, text: &str) -> Result<Dom, Error> {
-    let grammar = grammar_text(text);
+    let grammar = grammar_text(text)?;
     let options = ParseOptions { auto_features: false, ..ParseOptions::default() };
     let result = notation.parse_chars(grammar.chars.clone(), &options)?;
     if let Some(error) = &result.error {
@@ -147,7 +147,7 @@ pub(crate) fn read_document(notation: &Dialect, text: &str) -> Result<Dom, Error
         return Err(Error::grammar("the notation produced no tree"));
     };
     let position = |index: usize| grammar.position(index);
-    let reader = Reader { tokens: &stage.input, position: &position };
+    let reader = Reader { tokens: &stage.input, captures: Default::default(), position: &position };
     reader.document(tree)
 }
 

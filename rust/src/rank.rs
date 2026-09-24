@@ -474,7 +474,10 @@ impl<'c> Dag<'c> {
     fn before(&self, a: u32, b: u32) -> bool {
         match self.first_difference(a, b, true) {
             Diff::At { a: x, b: y, .. } => self.outcome(&x, &y).0,
-            _ => match self.first_difference(a, b, false) {
+            // A visible prefix comes before its extensions.
+            Diff::APrefix { .. } => true,
+            Diff::BPrefix { .. } => false,
+            Diff::Equal => match self.first_difference(a, b, false) {
                 Diff::At { a: x, b: y, .. } => self.canonical(&x, &y),
                 Diff::APrefix { .. } => true,
                 _ => false,

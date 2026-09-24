@@ -223,11 +223,7 @@ fn phonemes(
     for &(id, strong) in recognizer.shared.tags.list(tags) {
         if let (true, Some(phoneme)) = (strong, phoneme_of(recognizer.shared.tags.name(id))) {
             if own.is_some() {
-                return Err(EngineError {
-                    message: "a token carries two strong phoneme tags".to_string(),
-                    token: Some(span_of(tree, root).0 as usize),
-                    rule: None,
-                });
+                return Err(EngineError { message: "a token carries two strong phoneme tags".to_string(), rule: None });
             }
             own = Some(phoneme);
         }
@@ -235,7 +231,6 @@ fn phonemes(
     if let Some(phoneme) = own {
         return Ok(Some(phoneme.to_string()));
     }
-    let mut found = false;
     let mut out = String::new();
     let mut stack = vec![root];
     while let Some(index) = stack.pop() {
@@ -243,7 +238,6 @@ fn phonemes(
         match node.kind {
             IKind::Read { tok, .. } => {
                 if let Some(phonemes) = &tokens[tok as usize].phonemes {
-                    found = true;
                     out.push_str(phonemes);
                 }
             }
@@ -254,7 +248,7 @@ fn phonemes(
             }
         }
     }
-    Ok(found.then(|| out.trim_matches(' ').to_string()))
+    Ok(Some(out.trim_matches(' ').to_string()))
 }
 
 /// Walks the chosen tree from the left and emits the next stage's tokens
@@ -299,8 +293,8 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                     }
                     LEmit::Items(items) => {
                         let mut sequence = Vec::new();
-                        // Inserted tags go before the capture listed after
-                        // them, or after the last one listed.
+                        // An inserted tag goes before the first capture
+                        // listed after it (§11).
                         let mut pending: Vec<&str> = Vec::new();
                         let mut before: Vec<(u8, Vec<&str>)> = Vec::new();
                         let mut named: Vec<(u8, Option<&crate::lower::LTerm>)> = Vec::new();
@@ -313,19 +307,13 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                                 }
                             }
                         }
-                        let last_named = named.last().map(|&(slot, _)| slot);
-                        let (start, _) = span_of(tree, index);
-                        if named.is_empty() {
-                            for tag in pending.drain(..) {
-                                sequence.push(Work::Insert { tag: tag.to_string(), at: start, node: index });
-                            }
-                        }
+                        let (_, end) = span_of(tree, index);
                         for (position, &child) in node.children.iter().enumerate() {
                             let slot = production.cap_at[position];
                             let listed = slot.and_then(|slot| named.iter().find(|(named, _)| *named == slot));
                             match listed {
                                 Some(&(slot, term)) => {
-                                    let (child_start, child_end) = span_of(tree, child);
+                                    let (child_start, _) = span_of(tree, child);
                                     if let Some((_, tags)) = before.iter().find(|(named, _)| *named == slot) {
                                         for tag in tags {
                                             sequence.push(Work::Insert {
@@ -340,18 +328,14 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                                         None => caps[slot as usize].tags,
                                     };
                                     sequence.push(Work::Cover(child, set));
-                                    if Some(slot) == last_named {
-                                        for tag in pending.drain(..) {
-                                            sequence.push(Work::Insert {
-                                                tag: tag.to_string(),
-                                                at: child_end,
-                                                node: index,
-                                            });
-                                        }
-                                    }
                                 }
                                 None => sequence.push(Work::Visit(child)),
                             }
+                        }
+                        // Inserted tags with no capture listed after them go
+                        // after the constituent's last child.
+                        for tag in pending {
+                            sequence.push(Work::Insert { tag: tag.to_string(), at: end, node: index });
                         }
                         stack.extend(sequence.into_iter().rev());
                     }
@@ -384,7 +368,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                     span: (at as usize, at as usize),
                     source: (source, source),
                     tags: set,
-                    phonemes: phoneme_of(&tag).map(str::to_string),
+                    phonemes: Some(phoneme_of(&tag).unwrap_or("").to_string()),
                     inserted_by: Some(g.rules[owner as usize].name.clone()),
                 });
             }

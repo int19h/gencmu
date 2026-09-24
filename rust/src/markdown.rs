@@ -72,11 +72,17 @@ fn fence(line: &[char]) -> Option<(char, usize, String)> {
     if length < 3 {
         return None;
     }
-    Some((first, length, line[indent + length..].iter().collect()))
+    let info: String = line[indent + length..].iter().collect();
+    // A backtick fence's info string may not hold a backtick (CommonMark).
+    if first == '`' && info.contains('`') {
+        return None;
+    }
+    Some((first, length, info))
 }
 
-/// Extracts the grammar text of a Markdown document (engine §8).
-pub(crate) fn grammar_text(document: &str) -> GrammarText {
+/// Extracts the grammar text of a Markdown document (engine §8). An
+/// `ebnf` block that is never closed is an error at its opening fence.
+pub(crate) fn grammar_text(document: &str) -> Result<GrammarText, Error> {
     let mut text = GrammarText { chars: Vec::new(), positions: Vec::new(), end: (1, 1) };
     let lines = lines(document);
     let mut cursor = (1, 1);
@@ -96,6 +102,10 @@ pub(crate) fn grammar_text(document: &str) -> GrammarText {
                 }
             }
             end += 1;
+        }
+        if grammar && end == lines.len() {
+            let indent = lines[index].chars.iter().take_while(|&&c| c == ' ').count();
+            return Err(Error::grammar("an ebnf block that is never closed").at(lines[index].number, indent + 1));
         }
         if grammar {
             if blocks > 0 {
@@ -122,7 +132,7 @@ pub(crate) fn grammar_text(document: &str) -> GrammarText {
         index = end + 1;
     }
     text.end = cursor;
-    text
+    Ok(text)
 }
 
 /// A stage of a pipeline document: its name and the paths of its documents,
@@ -277,7 +287,7 @@ mod tests {
 
     #[test]
     fn blocks_keep_positions() {
-        let text = grammar_text("# x\n\n```ebnf\na ≔ A ;\n```\n\n~~~ ebnf\nb\r\n c\n~~~\n");
+        let text = grammar_text("# x\n\n```ebnf\na ≔ A ;\n```\n\n~~~ ebnf\nb\r\n c\n~~~\n").unwrap();
         let chars: String = text.chars.iter().collect();
         assert_eq!(chars, "a ≔ A ;\nb\r\n c");
         assert_eq!(text.position(0), (4, 1));

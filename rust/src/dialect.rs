@@ -227,12 +227,11 @@ impl Dialect {
             let mut run = fresh;
             self.stages_between(&mut shared, &mut run, &features, 0, words, options.elision_only);
             let reached = run.stages.len() == words + 1;
-            let rejected = run.error.as_ref().is_some_and(|error| error.kind == ParseErrorKind::Rejected);
-            let needs = if reached {
-                rejected || run.tree.as_ref().is_some_and(|tree| has_sa_su(tree, &run.stages[words].input))
-            } else {
-                false
-            };
+            // Unless `words` accepted, for whatever reason, and read no
+            // `sa` or `su`, the parse is run again with `sa-su`.
+            let needs = !reached
+                || run.error.is_some()
+                || run.tree.as_ref().is_some_and(|tree| has_sa_su(tree, &run.stages[words].input));
             if needs {
                 features.insert("sa-su".to_string());
                 let mut again = Run {
@@ -279,32 +278,27 @@ impl Dialect {
         }
     }
 
-    fn grammar_error(&self, index: usize, shared: &Shared, input: &[Tok], error: EngineError) -> ParseError {
+    /// A defect of a grammar found while parsing: its stage and a message,
+    /// and no position (engine §13).
+    fn grammar_error(&self, index: usize, error: EngineError) -> ParseError {
         let stage = &self.stages[index];
-        let mut out = ParseError {
+        let rule = error.rule.and_then(|rule| stage.rules.get(rule as usize));
+        let message = match rule {
+            Some(rule) => format!("{} (the rule {} of {})", error.message, rule.name, rule.document),
+            None => error.message,
+        };
+        ParseError {
             kind: ParseErrorKind::Grammar,
             stage: Some(stage.name.clone()),
-            token: error.token,
-            source: error.token.map(|token| source_at(input, token)),
+            token: None,
+            source: None,
             document: None,
             line: None,
             column: None,
             expected: Vec::new(),
             readings: Vec::new(),
-            message: error.message,
-        };
-        if let Some(rule) = error.rule {
-            if let Some(stitched) = stage.rules.get(rule as usize) {
-                out.document = Some(stitched.document.to_string());
-                out.line = Some(stitched.at.0);
-                out.column = Some(stitched.at.1);
-            }
-        } else if let Some(source) = &out.source {
-            let (line, column) = line_column(shared.text, source.start);
-            out.line = Some(line);
-            out.column = Some(column);
+            message,
         }
-        out
     }
 
     /// Runs one stage over `run.input`, recording it; an error ends the run.
@@ -336,7 +330,7 @@ impl Dialect {
         let mut chart = match chart {
             Ok(chart) => chart,
             Err(error) => {
-                let error = self.grammar_error(index, shared, &input, error);
+                let error = self.grammar_error(index, error);
                 run.stages.push(stage);
                 return Err(Box::new(error));
             }
@@ -374,15 +368,12 @@ impl Dialect {
             stage.witness = Some([action(&lowered, first), action(&lowered, second)]);
         }
         let check = elision.unwrap_or(grammar.elision_only);
+        let mut ambiguous = None;
         if check && ranking.verdict != RankVerdict::Unique {
             match self.elision_check(index, shared, &input, &tree, features) {
-                Ok(None) => {}
-                Ok(Some(error)) => {
-                    run.stages.push(stage);
-                    return Err(Box::new(error));
-                }
+                Ok(found) => ambiguous = found,
                 Err(error) => {
-                    let error = self.grammar_error(index, shared, &input, error);
+                    let error = self.grammar_error(index, error);
                     run.stages.push(stage);
                     return Err(Box::new(error));
                 }
@@ -395,7 +386,7 @@ impl Dialect {
         let emitted = match emitted {
             Ok(emitted) => emitted,
             Err(error) => {
-                let error = self.grammar_error(index, shared, &input, error);
+                let error = self.grammar_error(index, error);
                 run.stages.push(stage);
                 return Err(Box::new(error));
             }
@@ -416,6 +407,11 @@ impl Dialect {
         }
         stage.output = Some(public.clone());
         run.stages.push(stage);
+        // An ambiguous stage accepted its input: it keeps its output, and
+        // the run ends with the error (§7).
+        if let Some(error) = ambiguous {
+            return Err(Box::new(error));
+        }
         run.input = next;
         run.public_input = public;
         run.tree = Some(tree);
@@ -531,7 +527,7 @@ impl Dialect {
             return Ok(None);
         }
         let mut ranker = Ranker::new(&lowered, &mut chart, &tokens, &shared.tags, &term_tags, Lean::TagsOnly);
-        let Some(Ranking { verdict: RankVerdict::Tie, chosen, tied: Some(tied), witness }) = ranker.rank() else {
+        let Some(Ranking { verdict: RankVerdict::Tie, chosen, tied: Some(tied), .. }) = ranker.rank() else {
             return Ok(None);
         };
         let chosen = build(&ranker, chosen);
@@ -539,23 +535,15 @@ impl Dialect {
         let tag_map = |set: u32| shared.tags.to_map(set);
         let context = TreeContext { g: &lowered, tokens: &tokens, tag_map: &tag_map, synthetic: Some(&synthetic) };
         let readings = vec![public_tree(&chosen, &context), public_tree(&tied, &context)];
-        let at = match witness {
-            Some((Act::Read { tok, .. }, _)) => tok as usize,
-            Some((Act::Close { start, .. }, _)) => start as usize,
-            None => 0,
-        };
-        let token = at - synthetic[..at].iter().filter(|&&flag| flag).count();
-        let source = source_at(input, token);
-        let (line, column) = line_column(shared.text, source.start);
         let stage = &self.stages[index].name;
         Ok(Some(ParseError {
             kind: ParseErrorKind::Ambiguous,
             stage: Some(stage.clone()),
-            token: Some(token),
-            source: Some(source),
+            token: None,
+            source: None,
             document: None,
-            line: Some(line),
-            column: Some(column),
+            line: None,
+            column: None,
             expected: Vec::new(),
             readings,
             message: format!(

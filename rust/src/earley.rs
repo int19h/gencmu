@@ -88,8 +88,6 @@ impl Chart {
 #[derive(Debug, Clone)]
 pub(crate) struct EngineError {
     pub message: String,
-    /// The token the defect concerns, in the stage's input.
-    pub token: Option<usize>,
     pub rule: Option<u32>,
 }
 
@@ -370,7 +368,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     "the rule {} is defined by its own negation: a condition asks whether the span it is parsing matches it",
                     self.g.rules[rule as usize].name
                 ),
-                token: Some(base + start),
                 rule: Some(rule),
             });
         }
