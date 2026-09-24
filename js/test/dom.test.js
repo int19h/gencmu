@@ -45,7 +45,7 @@ test("a malformed bootstrap is a grammar error", () => {
 
 test("nesting deeper than any grammar is refused", () => {
   let expr = { ref: "a" };
-  for (let depth = 0; depth < 300; depth++) expr = { optional: expr };
+  for (let depth = 0; depth < 257; depth++) expr = { optional: expr };
   const dom = { format: 1, rules: [{ name: "text", op: "define", alternatives: [{ guards: [], expr }], conditions: [], at: [1, 1] }], directives: [] };
   assert.equal(domProblem(dom), "nested too deeply");
 });
@@ -80,5 +80,7 @@ test("the check holds a precompiled emission and format to the reader's rules", 
   assert.equal(domProblem(alternative({ seq: [{ optional: { capture: "x", expr: { ref: "A" } } }, { ref: "B" }] })), "a capture below the top level of an alternative");
   assert.equal(domProblem(alternative({ seq: [{ capture: "x", expr: { ref: "A" } }, { capture: "x", expr: { ref: "B" } }] })), "a capture name used twice in an alternative");
   assert.equal(domProblem(alternative({ seq: [{ capture: "x", expr: { ref: "A" } }, { ref: "B" }] })), null);
+  const five = { seq: ["a", "b", "c", "d", "e"].map((name) => ({ capture: name, expr: { ref: "A" } })) };
+  assert.equal(domProblem(alternative(five)), "more than four captures in an alternative");
   assert.equal(domProblem(tagged({ call: "tags", args: [{ call: "head", args: [{ capture: "x" }] }, { rule: "a" }] })), null);
 });

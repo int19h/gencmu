@@ -4349,15 +4349,19 @@
         }
         // A capture stands only at the top level of an alternative: the
         // expression itself or an item of its sequence (engine §3.5).
+        // Depth counts the compound nodes above a node (engine §9): the
+        // items of a top-level sequence are below one, the sequence.
         const expr = alternative.expr;
-        const top = isDomObject(expr) && Array.isArray(expr.seq) ? expr.seq : [expr];
+        const isSeq = isDomObject(expr) && Array.isArray(expr.seq);
+        const top = isSeq ? /** @type {unknown[]} */ (expr.seq) : [expr];
         for (const item of top) {
-          if (isDomObject(item) && "capture" in item) pending.push({ kind: "top-capture", value: item, depth: 1 });
-          else pending.push({ kind: "expr", value: item, depth: 1 });
+          if (isDomObject(item) && "capture" in item) pending.push({ kind: "top-capture", value: item, depth: isSeq ? 1 : 0 });
+          else pending.push({ kind: "expr", value: item, depth: isSeq ? 1 : 0 });
         }
         if (isDomObject(expr) && Array.isArray(expr.seq) && expr.seq.length < 2) return "a malformed expression";
         const names = top.flatMap((item) => (isDomObject(item) && typeof item.capture === "string" ? [item.capture] : []));
         if (new Set(names).size !== names.length) return "a capture name used twice in an alternative";
+        if (names.length > 4) return "more than four captures in an alternative";
         if (alternative.tags !== undefined) pending.push({ kind: "term", value: alternative.tags, depth: 0 });
       }
     }
