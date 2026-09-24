@@ -1,6 +1,6 @@
-## Lojban phonemes from zbalermorna text
+# zbalermorna
 
-This document adds the zbalermorna script described in CLL 3.12 to the phoneme stage, as the private-use code points jbotci reads. It adds alternatives to the rules of `latin.md` and defines no frame of its own. The notation is explained in `notation.md`.
+This document adds the zbalermorna script described in CLL 3.12 to the phoneme stage of every Lojban dialect: [CLL](../dialects/cll.md), [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The script is read as the code points of the private-use block its fonts assign it. The document adds alternatives to the rules of [latin.md](latin.md) with `|≔` and defines no frame of its own. The notation is explained in [the notation document](../../docs/notation.md).
 
 Each zbalermorna symbol is a radical, a consonant, with a diacritic above it for the vowel that follows; a vowel with no consonant before it stands on the radical for the period, which the script uses as a null onset, and a word-initial vowel is written on it likewise. The script has a full-vowel form used in names and borrowings, four diphthong diacritics, a stress mark placed after the vowel, an "attitudinal shorthand" that stands for a vowel and the apostrophe after it, and glide radicals for `i` and `u` before a vowel. The code points are those of the font's private-use block; each is written here as an escape so that the rule can be read without the font.
 
@@ -20,7 +20,7 @@ comma
 ⇒ nothing ;
 ```
 
-A vowel diacritic and its full-vowel form are the same phoneme; the stress mark U+ED98 after either, or after a diphthong diacritic, makes it stressed, and a repeated mark is one mark, as jbotci reads it. The glide radicals U+EDAA and U+EDAB are `i` and `u` before a vowel. A diphthong diacritic is two phonemes and stands where a vowel stands; the shorthand U+ED8B followed by a vowel is that vowel and an apostrophe, which the rule emits as a token with no span of its own, and it stands where a non-vowel stands, since the apostrophe closes the vowel group.
+A vowel diacritic and its full-vowel form are the same phoneme; the stress mark U+ED98 after either, or after a diphthong diacritic, makes it stressed, and a repeated mark is one mark. The glide radicals U+EDAA and U+EDAB are `i` and `u` before a vowel. A diphthong diacritic is two phonemes and stands where a vowel stands; the shorthand U+ED8B followed by a vowel is that vowel and an apostrophe, which the rule emits as a token with no span of its own, and it stands where a non-vowel stands, since the apostrophe closes the vowel group.
 
 ```ebnf
 plain-vowel
