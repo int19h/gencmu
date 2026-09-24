@@ -1,0 +1,10 @@
+{
+  "description": "An & joins at most 16 items, since it expands to 2ⁿ−1 sequences (engine §3.2, §9); the error is at the & expression's first token.",
+  "document": "```ebnf\na ≔ A & A & A & A & A & A & A & A & A & A & A & A & A & A & A & A & A ;\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 5
+    }
+  }
+}
