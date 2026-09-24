@@ -290,21 +290,31 @@ export function simplify(node, has) {
     if (antecedent === DOM_FALSE) return isTerm ? DOM_EMPTY : DOM_TRUE;
     const consequent = simplify(node.then, has);
     if (antecedent === DOM_TRUE) return consequent;
+    if (isTerm && isEmptySet(consequent)) return DOM_EMPTY;
     if (!isTerm && consequent === DOM_TRUE) return DOM_TRUE;
     if (!isTerm && consequent === DOM_FALSE) return { not: antecedent };
     return { if: antecedent, then: consequent };
   }
   if (Array.isArray(node.union)) {
-    const items = node.union.map((item) => simplify(item, has)).filter((item) => item !== DOM_EMPTY);
+    const items = node.union.map((item) => simplify(item, has)).filter((item) => !isEmptySet(item));
     return items.length === 0 ? DOM_EMPTY : items.length === 1 ? items[0] : { union: items };
   }
   if (Array.isArray(node.intersection)) {
     const items = node.intersection.map((item) => simplify(item, has));
-    return items.includes(DOM_EMPTY) ? DOM_EMPTY : { intersection: items };
+    return items.some(isEmptySet) ? DOM_EMPTY : { intersection: items };
   }
   if (typeof node.op === "string") return { op: node.op, left: simplify(node.left, has), right: simplify(node.right, has) };
   if (typeof node.call === "string" && Array.isArray(node.args)) return { call: node.call, args: node.args.map((argument) => simplify(argument, has)) };
   return node;
+}
+
+/**
+ * Whether a term is the empty set, written or left by a guard.
+ * @param {any} node
+ * @returns {boolean}
+ */
+function isEmptySet(node) {
+  return isDomObject(node) && node.emptySet === true && Object.keys(node).length === 1;
 }
 
 /**
@@ -376,7 +386,9 @@ export function definitionProblem(rule) {
   const anyHas = (/** @type {string} */ name) => alternatives.some((/** @type {Map<string, number>} */ captures) => captures.has(name));
   const items = rule.emit ? rule.emit.items : [];
   const clauses = [rule.tags, ...rule.conditions, ...rule.alternatives.map((/** @type {any} */ a) => a.tags), ...items];
-  for (const name of clauses.flatMap(capturesMentioned)) {
+  // An emission item mentions its own capture, whatever else it says.
+  const named = items.flatMap((/** @type {any} */ item) => (typeof item.capture === "string" ? [item.capture] : []));
+  for (const name of [...named, ...clauses.flatMap(capturesMentioned)]) {
     if (!anyHas(name)) return `$${name} is captured by no alternative of ${rule.name}`;
   }
   for (const condition of rule.conditions) {

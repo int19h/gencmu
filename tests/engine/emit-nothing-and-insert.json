@@ -1,5 +1,5 @@
 {
-  "description": "⇒ $ <> drops a constituent; a string in a ⇒ list inserts a token with an empty span (engine §11).",
+  "description": "%emits $ <> makes a constituent silent; a string in an %emits list inserts a token with an empty span (engine §11).",
   "documents": {
     "p.md": "## s <?stage first?>\n\n- [g](g.md) <?grammar?>\n\n## t <?stage second?>\n\n- [h](h.md) <?grammar?>\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text x ...\n%rule x y | z\n%rule y $a(A) $b(B) %emits $a, \"MID\", $b\n%rule z C %emits $ <>\n```\n",
