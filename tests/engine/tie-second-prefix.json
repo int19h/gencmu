@@ -1,0 +1,67 @@
+{
+  "description": "The second derivation of a tie is the T-least of those tied with the chosen one after the whole text is read: B e, not B, once C follows, since lazy prefers closing e before reading C (engine §6).",
+  "grammar": "%ambiguity-resolution lazy ;\ntext ≔ t C ; t ≔ A | B | B e ; e ≔ ε ;",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "tie",
+          "tied": {
+            "rule": "text",
+            "children": [
+              {
+                "rule": "t",
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "B"
+                  },
+                  {
+                    "rule": "e"
+                  }
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "C"
+              }
+            ]
+          }
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "t",
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "A"
+              }
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "C"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -27,12 +27,14 @@ or `null`; `error` is `null` when `ok` is true.
 **Stage**:
 
 ```
-{"name":"words","verdict":"resolved","witness":[ACTION,ACTION],"output":[TOKEN...]}
+{"name":"words","verdict":"tie","witness":[ACTION,ACTION],"tied":NODE,"output":[TOKEN...]}
 ```
 
 `verdict` is `unique`, `resolved`, `tie`, or `null` for a stage that
-rejected; `witness` is present only for `tie`; `output` is the emitted
-tokens, present for every accepted stage, the last included.
+rejected; `witness` and `tied` are present only for `tie`: the witness, and
+the tree of the second derivation in canonical order, the one the chosen
+tree is tied with; `output` is the emitted tokens, present for every
+accepted stage, the last included.
 
 **Token**:
 

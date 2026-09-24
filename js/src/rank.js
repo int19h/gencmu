@@ -199,11 +199,6 @@ function canonicalKey(x, y) {
   return x.item.production.id - y.item.production.id || x.item.origin - y.item.origin || x.item.end - y.item.end;
 }
 
-function smaller(left, right, lean) {
-  if (!left) return right;
-  if (!right) return left;
-  return totalOrder(left, right, lean) <= 0 ? left : right;
-}
 
 // What makes a derivation cyclic (engine §4, derivations): the same item
 // again, or a constituent of the same rule over the same span again below a
@@ -225,38 +220,38 @@ export class Ranker {
 
   // An item's candidates: for each sequence the item's derivations could
   // still be decided by, the T-least of them, `seq`, and the T-least
-  // derivation tied with it, `alt`, or null. Sequences one of which is a
-  // prefix of the other are not yet decided and are kept side by side;
-  // everything else is settled here, so the list stays short.
+  // derivations tied with it, `alts`. Sequences whose order a later action
+  // could still change, one a visible prefix of another or equal to it up to
+  // one's end, are kept side by side, both as candidates and as tied
+  // alternatives; everything else is settled here, so the lists stay short.
   candidates(item) {
     return this.traverse(item, this.memo, (current, dependency) => {
       let kept = [];
       for (const edge of current.edges) {
         let produced;
-        if (edge.kind === "seed") produced = [{ seq: EMPTY, alt: null }];
+        if (edge.kind === "seed") produced = [{ seq: EMPTY, alts: [] }];
         else if (edge.kind === "scan") {
           const token = this.tokens[edge.token];
           const read = leaf({ kind: "read", token: edge.token, terminal: edge.terminal, weak: token.tags.get(edge.terminal) === false });
           produced = dependency(edge.previous).map((entry) => ({
             seq: concat(entry.seq, read),
-            alt: entry.alt ? concat(entry.alt, read) : null,
+            alts: entry.alts.map((alt) => concat(alt, read)),
           }));
         } else {
           const close = leaf({ kind: "close", item: edge.child });
           const children = dependency(edge.child).map((entry) => ({
             seq: concat(entry.seq, close),
-            alt: entry.alt ? concat(entry.alt, close) : null,
+            alts: entry.alts.map((alt) => concat(alt, close)),
           }));
           produced = [];
           for (const before of dependency(edge.previous)) {
             for (const child of children) {
               // A derivation tied with the combination differs from it first
               // either in the earlier part or in the child.
-              const alt = smaller(
-                before.alt ? concat(before.alt, child.seq) : null,
-                child.alt ? concat(before.seq, child.alt) : null,
-                this.lean);
-              produced.push({ seq: concat(before.seq, child.seq), alt });
+              let alts = [];
+              for (const alt of before.alts) alts = this.addAlt(alts, concat(alt, child.seq));
+              for (const alt of child.alts) alts = this.addAlt(alts, concat(before.seq, alt));
+              produced.push({ seq: concat(before.seq, child.seq), alts });
             }
           }
         }
@@ -270,8 +265,27 @@ export class Ranker {
     const close = leaf({ kind: "close", item });
     return this.candidates(item).map((entry) => ({
       seq: concat(entry.seq, close),
-      alt: entry.alt ? concat(entry.alt, close) : null,
+      alts: entry.alts.map((alt) => concat(alt, close)),
     }));
+  }
+
+  // Adds a tied alternative, keeping the T-least of those whose order is
+  // settled and every one whose order is not.
+  addAlt(alts, alt) {
+    const result = [];
+    let current = alt;
+    for (const other of alts) {
+      if (current === null || !orderSettled(other, current)) {
+        result.push(other);
+        continue;
+      }
+      if (totalOrder(other, current, this.lean) <= 0) {
+        result.push(other);
+        current = null;
+      }
+    }
+    if (current !== null) result.push(current);
+    return result;
   }
 
   // Adds a candidate to a list, settling it against every candidate it can
@@ -279,22 +293,22 @@ export class Ranker {
   keep(kept, entry) {
     const lean = this.lean;
     const result = [];
-    let current = { ...entry };
+    let current = { seq: entry.seq, alts: entry.alts };
     for (const other of kept) {
       if (current === null) {
         result.push(other);
         continue;
       }
       const { order, settled } = comparison(other.seq, current.seq, lean);
-      if (!settled) {
+      if (!settled || (order === 0 && !orderSettled(other.seq, current.seq))) {
         result.push(other);
         continue;
       }
       if (order !== 0) {
-        // One beats the other; the loser's tied alternative may still be
+        // One beats the other; the loser's tied alternatives may still be
         // tied with the winner.
-        const [winner, loser] = order < 0 ? [{ ...other }, current] : [current, other];
-        if (loser.alt && isTie(winner.seq, loser.alt, lean)) winner.alt = smaller(winner.alt, loser.alt, lean);
+        const [winner, loser] = order < 0 ? [{ ...other }, current] : [{ ...current }, other];
+        for (const alt of loser.alts) if (isTie(winner.seq, alt, lean)) winner.alts = this.addAlt(winner.alts, alt);
         if (order < 0) {
           result.push(winner);
           current = null;
@@ -304,10 +318,11 @@ export class Ranker {
         continue;
       }
       // Tied: the T-lesser stays, and the other, with its own tied
-      // alternative, is tied with it (ties are transitive).
+      // alternatives, is tied with it (ties are transitive).
       const first = totalOrder(other.seq, current.seq, lean) <= 0;
-      const [main, second] = first ? [{ ...other }, current] : [current, other];
-      main.alt = smaller(smaller(main.alt, second.seq, lean), second.alt, lean);
+      const [main, second] = first ? [{ ...other }, current] : [{ ...current }, other];
+      main.alts = this.addAlt(main.alts, second.seq);
+      for (const alt of second.alts) main.alts = this.addAlt(main.alts, alt);
       current = main;
     }
     if (current !== null) result.push(current);
@@ -398,31 +413,35 @@ export class Ranker {
     const count = Math.min(2, roots.reduce((sum, item) => sum + this.count(item), 0));
     let kept = [];
     for (const root of roots) for (const entry of this.full(root)) kept = this.keep(kept, entry);
-    // Candidates still undecided at the root, one a prefix of another, are
-    // tied (engine §6).
-    let main = null;
-    for (const entry of kept) {
-      if (!main) {
-        main = { ...entry };
-        continue;
-      }
-      const first = totalOrder(main.seq, entry.seq, this.lean) <= 0;
-      const [winner, other] = first ? [main, entry] : [{ ...entry }, main];
-      winner.alt = smaller(smaller(winner.alt, other.seq, this.lean), other.alt, this.lean);
-      main = winner;
-    }
+    // At the root nothing follows: candidates still undecided are tied
+    // (engine §6), and T orders every pair.
+    const byOrder = (left, right) => totalOrder(left, right, this.lean);
+    kept.sort((left, right) => byOrder(left.seq, right.seq));
+    const main = kept[0];
+    const tied = [...kept.slice(1).flatMap((entry) => [entry.seq, ...entry.alts]), ...main.alts].sort(byOrder);
     let verdict;
     if (count === 1) verdict = "unique";
-    else if (!main.alt) verdict = "resolved";
+    else if (tied.length === 0) verdict = "resolved";
     else verdict = "tie";
     let witness = null;
-    if (verdict === "tie") {
-      let difference = firstDifference(main.seq, main.alt, true);
-      if (!difference || !difference.left || !difference.right) difference = firstDifference(main.seq, main.alt, false);
+    const second = verdict === "tie" ? tied[0] : null;
+    if (second) {
+      let difference = firstDifference(main.seq, second, true);
+      if (!difference || !difference.left || !difference.right) difference = firstDifference(main.seq, second, false);
       witness = difference ? [difference.left, difference.right] : null;
     }
-    return { verdict, chosen: main.seq, second: verdict === "tie" ? main.alt : null, witness };
+    return { verdict, chosen: main.seq, second, witness };
   }
+}
+
+// Whether the T-order of two sequences is settled whatever follows: they
+// differ at a visible action both have, or, visibly equal, at an action of
+// all both have.
+function orderSettled(left, right) {
+  const visible = firstDifference(left, right, true);
+  if (visible) return Boolean(visible.left && visible.right);
+  const all = firstDifference(left, right, false);
+  return all === null || Boolean(all.left && all.right);
 }
 
 function isTie(left, right, lean) {

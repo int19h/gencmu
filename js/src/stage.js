@@ -51,6 +51,7 @@ export class Stage {
     report.witness = ranking.witness;
     const derivation = derivationTree(ranking.chosen);
     report.tree = resultTree(derivation, context)[0];
+    if (ranking.second) report.tied = resultTree(derivationTree(ranking.second), context)[0];
     report.derivation = derivation;
     report.context = context;
     try {

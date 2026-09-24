@@ -50,6 +50,7 @@ export function resultJson(result) {
     stages: result.stages.map((stage) => {
       const json = { name: stage.name, verdict: stage.verdict };
       if (stage.witness) json.witness = stage.witness.map(actionJson);
+      if (stage.tied) json.tied = nodeJson(stage.tied);
       if (stage.output) json.output = stage.output.map(tokenJson);
       return json;
     }),
