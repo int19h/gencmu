@@ -64,8 +64,13 @@ go test -race -run Concurrent ./...
 ```
 
 The tests read the shared cases in `../tests/`: every engine and notation
-case, the bootstrap's fixpoint, and `compiled.json` against a fresh reading
-with the cache both used and bypassed. `TestRankingProperty` checks the
+case, the corpus, the bootstrap's fixpoint, and `compiled.json` against a
+fresh reading with the cache both used and bypassed. `TestCorpus` runs the
+core sample of the Lojban corpus (`../tests/core.txt`) on as many
+goroutines as there are CPUs, sharing one dialect each;
+`GENCMU_CORPUS=full` runs every case of `../tests/corpus/`, and
+`GENCMU_CORPUS_WORKERS` sets the number of goroutines.
+`TestRankingProperty` checks the
 ranking against a brute-force enumeration of every derivation of small
 random grammars; a larger sweep is
 
