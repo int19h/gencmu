@@ -138,26 +138,49 @@ pub(crate) struct Recognizer<'g, 's, 'a> {
     pub shared: &'s mut Shared<'a>,
 }
 
-/// A span's bounds and, if it is a whole capture, the capture's slot.
-type Bounds = (usize, usize, Option<u8>);
+/// What terms and conditions are evaluated over (§10): an item's captured
+/// parts, and `$`, the whole constituent, from the item's origin to `end`.
+#[derive(Clone, Copy)]
+pub(crate) struct Frame<'c> {
+    pub caps: &'c [Cap],
+    pub prod: u32,
+    pub origin: u32,
+    pub end: u32,
+    /// The constituent's tags, when known; otherwise its production's tag
+    /// term gives them when they are read (§4).
+    pub tags: Option<SetId>,
+}
 
-fn span_bounds(span: &Span, caps: &[Cap]) -> Bounds {
+/// Whose tags a span has: a captured part's, the whole constituent's, or
+/// those of its tokens.
+#[derive(Clone, Copy)]
+enum Whose {
+    Cap(SetId),
+    Whole,
+    Tokens,
+}
+
+/// A span's bounds, and whose tags it has.
+type Bounds = (usize, usize, Whose);
+
+fn span_bounds(span: &Span, frame: &Frame) -> Bounds {
     match span {
         Span::Cap(slot) => {
-            let cap = caps[*slot as usize];
-            (cap.start as usize, cap.end as usize, Some(*slot))
+            let cap = frame.caps[*slot as usize];
+            (cap.start as usize, cap.end as usize, Whose::Cap(cap.tags))
         }
+        Span::Whole => (frame.origin as usize, frame.end as usize, Whose::Whole),
         Span::Head(inner) => {
-            let (start, end, _) = span_bounds(inner, caps);
-            (start, if start < end { start + 1 } else { start }, None)
+            let (start, end, _) = span_bounds(inner, frame);
+            (start, if start < end { start + 1 } else { start }, Whose::Tokens)
         }
         Span::Tail(inner) => {
-            let (start, end, _) = span_bounds(inner, caps);
-            (if start < end { start + 1 } else { start }, end, None)
+            let (start, end, _) = span_bounds(inner, frame);
+            (if start < end { start + 1 } else { start }, end, Whose::Tokens)
         }
         Span::Last(inner) => {
-            let (start, end, _) = span_bounds(inner, caps);
-            (if start < end { end - 1 } else { end }, end, None)
+            let (start, end, _) = span_bounds(inner, frame);
+            (if start < end { end - 1 } else { end }, end, Whose::Tokens)
         }
     }
 }
@@ -221,7 +244,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         for (cond, trigger) in &production.conds {
             if u32::from(*trigger) == item.dot {
                 let caps = chart.caps(item.caps).to_vec();
-                if !self.condition(cond, &caps, tokens, base)? {
+                let frame = Frame { caps: &caps, prod: item.prod, origin: item.origin, end: set as u32, tags: None };
+                if !self.condition(cond, &frame, tokens, base)? {
                     chart.sets[set].failed.insert(item);
                     return Ok(());
                 }
@@ -298,17 +322,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let g = self.g;
         let production = &g.prods[item.prod as usize];
         let caps = chart.caps(item.caps).to_vec();
-        let tags = match &production.tags {
-            Some(term) => {
-                let value = self.term(term, &caps, tokens, base)?;
-                let list = self.as_set(value);
-                self.shared.tags.set(list)
-            }
-            None if production.syms.len() == 1 => {
-                caps[production.cap_at[0].expect("an implicit capture") as usize].tags
-            }
-            None => 0,
-        };
+        let frame = Frame { caps: &caps, prod: item.prod, origin: item.origin, end: e as u32, tags: None };
+        let tags = self.constituent_tags(&frame, tokens, base)?;
         let rule = production.rule;
         chart.sets[e].tagset[k] = tags;
         let completed = chart.sets[e].completed.entry((rule, item.origin)).or_default();
@@ -333,6 +348,26 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             self.advance(chart, tokens, base, waiting, cap, e)?;
         }
         Ok(())
+    }
+
+    /// A constituent's tags (§4): its production's tag term, or, with none,
+    /// its one symbol's tags or none (§3.7).
+    fn constituent_tags(&mut self, frame: &Frame, tokens: &[Tok], base: usize) -> Result<SetId, EngineError> {
+        let g = self.g;
+        let production = &g.prods[frame.prod as usize];
+        Ok(match &production.tags {
+            Some(term) => {
+                // The term cannot read `$`'s tags, which it defines (§9).
+                let frame = Frame { tags: Some(0), ..*frame };
+                let value = self.term(term, &frame, tokens, base)?;
+                let list = self.as_set(value);
+                self.shared.tags.set(list)
+            }
+            None if production.syms.len() == 1 => {
+                frame.caps[production.cap_at[0].expect("an implicit capture") as usize].tags
+            }
+            None => 0,
+        })
     }
 
     // ---- nested parses
@@ -402,13 +437,26 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         }
     }
 
-    fn span_tags(&self, bounds: Bounds, caps: &[Cap], tokens: &[Tok]) -> TagList {
-        match bounds {
-            (_, _, Some(slot)) => self.shared.tags.list(caps[slot as usize].tags).clone(),
-            (start, end, None) => tokens[start..end]
+    fn span_tags(
+        &mut self,
+        bounds: Bounds,
+        frame: &Frame,
+        tokens: &[Tok],
+        base: usize,
+    ) -> Result<TagList, EngineError> {
+        Ok(match bounds {
+            (_, _, Whose::Cap(set)) => self.shared.tags.list(set).clone(),
+            (_, _, Whose::Whole) => {
+                let set = match frame.tags {
+                    Some(set) => set,
+                    None => self.constituent_tags(frame, tokens, base)?,
+                };
+                self.shared.tags.list(set).clone()
+            }
+            (start, end, Whose::Tokens) => tokens[start..end]
                 .iter()
                 .fold(TagList::new(), |list, token| union(&list, self.shared.tags.list(token.tags))),
-        }
+        })
     }
 
     fn as_set(&mut self, value: Value) -> TagList {
@@ -425,15 +473,15 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         }
     }
 
-    fn term(&mut self, term: &LTerm, caps: &[Cap], tokens: &[Tok], base: usize) -> Result<Value, EngineError> {
+    fn term(&mut self, term: &LTerm, frame: &Frame, tokens: &[Tok], base: usize) -> Result<Value, EngineError> {
         Ok(match term {
             LTerm::Lit(text) => Value::Str(text.clone()),
             LTerm::Weak(text) => Value::Set(vec![(self.shared.tags.tag(text), false)]),
             LTerm::Empty => Value::Set(TagList::new()),
-            LTerm::Set(items) | LTerm::Union(items) => {
+            LTerm::Union(items) => {
                 let mut list = TagList::new();
                 for item in items {
-                    let value = self.term(item, caps, tokens, base)?;
+                    let value = self.term(item, frame, tokens, base)?;
                     list = union(&list, &self.as_set(value));
                 }
                 Value::Set(list)
@@ -441,7 +489,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             LTerm::Inter(items) => {
                 let mut list: Option<TagList> = None;
                 for item in items {
-                    let value = self.term(item, caps, tokens, base)?;
+                    let value = self.term(item, frame, tokens, base)?;
                     let set = self.as_set(value);
                     list = Some(match list {
                         None => set,
@@ -451,14 +499,14 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 Value::Set(list.unwrap_or_default())
             }
             LTerm::Phonemes(span) => {
-                let (start, end, _) = span_bounds(span, caps);
+                let (start, end, _) = span_bounds(span, frame);
                 Value::Str(Self::phonemes(tokens, start, end))
             }
             LTerm::Text(span) => {
-                let (start, end, _) = span_bounds(span, caps);
+                let (start, end, _) = span_bounds(span, frame);
                 Value::Str(self.text(tokens, start, end))
             }
-            LTerm::Lower(inner) => match self.term(inner, caps, tokens, base)? {
+            LTerm::Lower(inner) => match self.term(inner, frame, tokens, base)? {
                 Value::Str(text) => Value::Str(self.shared.unicode.lowercase(&text)),
                 Value::List(items) => {
                     Value::List(items.iter().map(|item| self.shared.unicode.lowercase(item)).collect())
@@ -473,17 +521,17 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 }
             },
             LTerm::Tags(span) => {
-                let bounds = span_bounds(span, caps);
-                Value::Set(self.span_tags(bounds, caps, tokens))
+                let bounds = span_bounds(span, frame);
+                Value::Set(self.span_tags(bounds, frame, tokens, base)?)
             }
             LTerm::TagsRule(span, rule) => {
-                let (start, end, _) = span_bounds(span, caps);
+                let (start, end, _) = span_bounds(span, frame);
                 let (_, set) = self.nested(tokens, base, start, end, *rule)?;
                 Value::Set(self.shared.tags.list(set).clone())
             }
             LTerm::Classes(span) => {
-                let bounds = span_bounds(span, caps);
-                let list = self.span_tags(bounds, caps, tokens);
+                let bounds = span_bounds(span, frame);
+                let list = self.span_tags(bounds, frame, tokens, base)?;
                 Value::Set(
                     list.into_iter()
                         .filter(|&(id, _)| self.shared.tags.name(id).starts_with(|c: char| c.is_ascii_uppercase()))
@@ -491,7 +539,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 )
             }
             LTerm::Words(span) => {
-                let (start, end, _) = span_bounds(span, caps);
+                let (start, end, _) = span_bounds(span, frame);
                 Value::List(
                     Self::phonemes(tokens, start, end)
                         .split(' ')
@@ -507,24 +555,32 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         list.iter().map(|&(id, _)| id).collect()
     }
 
-    fn condition(&mut self, cond: &LCond, caps: &[Cap], tokens: &[Tok], base: usize) -> Result<bool, EngineError> {
+    fn condition(&mut self, cond: &LCond, frame: &Frame, tokens: &[Tok], base: usize) -> Result<bool, EngineError> {
         Ok(match cond {
-            LCond::Not(inner) => !self.condition(inner, caps, tokens, base)?,
+            LCond::Not(inner) => !self.condition(inner, frame, tokens, base)?,
             LCond::Any(items) => {
                 for item in items {
-                    if self.condition(item, caps, tokens, base)? {
+                    if self.condition(item, frame, tokens, base)? {
                         return Ok(true);
                     }
                 }
                 false
             }
+            LCond::All(items) => {
+                for item in items {
+                    if !self.condition(item, frame, tokens, base)? {
+                        return Ok(false);
+                    }
+                }
+                true
+            }
             LCond::Matches(span, rule) => {
-                let (start, end, _) = span_bounds(span, caps);
+                let (start, end, _) = span_bounds(span, frame);
                 self.nested(tokens, base, start, end, *rule)?.0
             }
             LCond::Cmp(op, left, right) => {
-                let left = self.term(left, caps, tokens, base)?;
-                let right = self.term(right, caps, tokens, base)?;
+                let left = self.term(left, frame, tokens, base)?;
+                let right = self.term(right, frame, tokens, base)?;
                 match op {
                     CmpOp::Eq | CmpOp::Ne => {
                         let equal = match (left, right) {
@@ -563,15 +619,15 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         })
     }
 
-    /// Evaluates a tag term over an item's captures, for emission (§11).
+    /// Evaluates a tag term over a constituent, for emission (§11).
     pub(crate) fn tag_term(
         &mut self,
         term: &LTerm,
-        caps: &[Cap],
+        frame: &Frame,
         tokens: &[Tok],
         base: usize,
     ) -> Result<SetId, EngineError> {
-        let value = self.term(term, caps, tokens, base)?;
+        let value = self.term(term, frame, tokens, base)?;
         let list = self.as_set(value);
         Ok(self.shared.tags.set(list))
     }

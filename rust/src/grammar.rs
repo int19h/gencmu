@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::dom::{Alternative, Arg, Cond, Dom, Emit, EmitItem, Expr, Op, Term};
+use crate::dom::{Alternative, Arg, Cond, Dom, EmitItem, Expr, Op, Term};
 use crate::error::Error;
 
 /// How a stage chooses among parses (engine §6): the lean of rule 2, or,
@@ -23,7 +23,7 @@ pub(crate) enum Lean {
 pub(crate) struct StitchedAlternative {
     pub alternative: Alternative,
     pub rule_tags: Option<Term>,
-    pub emit: Option<Emit>,
+    pub emit: Option<Vec<EmitItem>>,
     pub conditions: Vec<Cond>,
     pub document: Arc<str>,
     pub at: (usize, usize),
@@ -57,7 +57,6 @@ pub(crate) struct StageGrammar {
     pub lean: Lean,
     pub elision_only: bool,
     pub elidable: Vec<String>,
-    pub free: Option<String>,
     pub changes: Vec<Change>,
 }
 
@@ -82,11 +81,9 @@ pub(crate) fn stitch(stage: &str, documents: &[(Arc<str>, Arc<Dom>)]) -> Result<
         lean: Lean::Greedy,
         elision_only: false,
         elidable: Vec::new(),
-        free: None,
         changes: Vec::new(),
     };
     let mut resolution: Option<(Arc<str>, (usize, usize))> = None;
-    let mut free_at: Option<(Arc<str>, (usize, usize))> = None;
     for (document, dom) in documents {
         let mut defined_here: HashMap<&str, ()> = HashMap::new();
         for rule in &dom.rules {
@@ -168,16 +165,6 @@ pub(crate) fn stitch(stage: &str, documents: &[(Arc<str>, Arc<Dom>)]) -> Result<
                         }
                     }
                 }
-                "free-modifiers" => {
-                    if free_at.is_some() {
-                        return Err(here(format!("stage {stage} has two %free-modifiers directives")));
-                    }
-                    let [rule] = &directive.args[..] else {
-                        return Err(here("%free-modifiers takes one rule".to_string()));
-                    };
-                    grammar.free = Some(rule.clone());
-                    free_at = Some((document.clone(), directive.at));
-                }
                 other => return Err(here(format!("an unknown directive %{other}"))),
             }
         }
@@ -187,11 +174,6 @@ pub(crate) fn stitch(stage: &str, documents: &[(Arc<str>, Arc<Dom>)]) -> Result<
     }
     if !grammar.index.contains_key("text") {
         return Err(Error::grammar(format!("stage {stage} does not define its start rule text")).in_stage(stage));
-    }
-    if let (Some(free), Some((document, at))) = (&grammar.free, &free_at) {
-        if !grammar.index.contains_key(free) {
-            return Err(located(format!("the free-modifier rule {free} is not defined"), document, *at));
-        }
     }
     for rule in &grammar.rules {
         for alternative in &rule.alternatives {
@@ -230,12 +212,9 @@ fn check_alternative(grammar: &StageGrammar, alternative: &StitchedAlternative) 
     for cond in &alternative.conditions {
         check_cond(grammar, cond)?;
     }
-    if let Some(Emit::Items(items)) = &alternative.emit {
-        for item in items {
-            match item {
-                EmitItem::This(Some(term)) | EmitItem::Capture(_, Some(term)) => check_term(grammar, term)?,
-                _ => {}
-            }
+    for item in alternative.emit.iter().flatten() {
+        if let EmitItem::Capture(_, Some(term)) = item {
+            check_term(grammar, term)?;
         }
     }
     Ok(())
@@ -269,10 +248,6 @@ fn check_expr(grammar: &StageGrammar, expr: &Expr, top: bool) -> Result<(), Stri
             }
         }
         Expr::Terminal(_) | Expr::Empty => Ok(()),
-        Expr::Hash => match &grammar.free {
-            Some(_) => Ok(()),
-            None => Err("# is used without a %free-modifiers directive".to_string()),
-        },
         Expr::Capture(name, inner) => {
             if !top {
                 return Err(format!("the capture ${name} is not at the top level of its alternative"));
@@ -299,7 +274,7 @@ fn check_span(term: &Term) -> Result<(), String> {
 fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
     match term {
         Term::Literal(_) | Term::Weak(_) | Term::EmptySet => Ok(()),
-        Term::Set(items) | Term::Union(items) | Term::Intersection(items) => {
+        Term::Union(items) | Term::Intersection(items) => {
             for item in items {
                 check_term(grammar, item)?;
             }
@@ -336,7 +311,7 @@ fn check_cond(grammar: &StageGrammar, cond: &Cond) -> Result<(), String> {
             check_rule(grammar, rule)
         }
         Cond::Not(inner) => check_cond(grammar, inner),
-        Cond::Any(items) => {
+        Cond::Any(items) | Cond::All(items) => {
             for item in items {
                 check_cond(grammar, item)?;
             }
