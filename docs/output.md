@@ -1,17 +1,19 @@
 # Output formats
 
 What a gencmu library hands back, as data and as text. The canonical JSON is
-what the shared tests compare, so every library must produce it byte for
-byte; the renderings are what people read.
+what the shared tests compare, as parsed JSON values, so two libraries agree
+when their outputs parse to equal values; the renderings are what people
+read.
 
 ## Canonical JSON
 
-Canonical JSON is UTF-8, with object keys in the order given here, no
-whitespace outside strings, strings escaped as JSON requires and nothing
-more (non-ASCII characters are written as themselves), and integers only.
-Optional members that are absent are omitted, never `null`, unless this
-document says otherwise. Every library writes it with its own code, since
-the Rust standard library has no JSON writer.
+Canonical JSON is UTF-8 JSON with integers only. Optional members that are
+absent are omitted, never `null`, unless this document says otherwise.
+Libraries write object keys in the order given here, with no whitespace
+outside strings and non-ASCII characters as themselves, so that outputs are
+easy to compare by eye; conformance is equality of the parsed values. Every
+library writes it with its own code, since the Rust standard library has no
+JSON writer.
 
 ### A parse result
 

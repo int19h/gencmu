@@ -27,10 +27,20 @@ Everything a stage reads and writes is a sequence of tokens. A token has:
 
 The input of the first stage is the text's characters, one token per code
 point `c` at position `i`: `span` and `source` are `[i, i+1)`, `text` is `c`,
-and `tags` are `c` itself, strong, and one class tag, weak: `space` if `c` is
-White_Space, `alpha` if Alphabetic, `digit` if Numeric_Type is Decimal,
-`mark` if General_Category is Mn, otherwise `other`. A character token has no
-phonemes.
+and `tags` are `c` itself, strong, and one class tag, weak, the first that
+applies of:
+
+- `space`: U+0009 to U+000D, U+0020, U+0085, U+00A0, U+1680, U+2000 to
+  U+200A, U+2028, U+2029, U+202F, U+205F, U+3000;
+- `digit`: U+0030 to U+0039;
+- `mark`: General_Category Mn;
+- `alpha`: General_Category Lu, Ll, Lt, Lm or Lo;
+- `other`: anything else.
+
+`mark` and `alpha` use the platform's Unicode data, which must be version
+13.0 or later; a character assigned after the version a platform has may be
+classed `other` there. The shared tests use only characters assigned by
+13.0, so the libraries agree on them. A character token has no phonemes.
 
 A tag set is a map from tag to strength. The union of two sets holds every
 tag of either, strong if it is strong in either. The intersection holds the
@@ -67,7 +77,8 @@ leak into the base rule.
   per stage, and `#` without one is an error.
 
 **Names.** A name whose first character is an upper-case letter is a
-terminal. Any other name is a rule reference, and must be defined in the
+terminal; the DOM writes both kinds as `ref`, and lowering tells them apart
+by that first letter. Any other name is a rule reference, and must be defined in the
 stage, or it is an error. A quoted string or a phoneme tag is a terminal.
 
 ## 3. Lowering
@@ -149,7 +160,10 @@ predicted.
 **Nested parses.** `matches(span, rule)` and `tags(span, rule)` parse the
 span's tokens alone with `rule` as the start rule, over the same lowered
 grammar. Their answers depend only on the rule and the span's tokens' tags,
-and an implementation should remember them by that key for the whole parse.
+and an implementation should remember them for the whole parse, keyed by
+the rule and, for each token of the span, its tags with their strengths, its
+text and its phonemes: everything a nested parse can observe. Tags alone
+are not enough, since a condition may read `text()`.
 If, while such a parse of span `S` as `R` is running, a condition asks for
 `S` as `R` again, the grammar defines `R` by its own negation over the same
 text: that is an error of the grammar, reported with the span and the rule,
@@ -170,7 +184,8 @@ together with the rules those items belong to (§11).
 A token's `phonemes`:
 
 - if its tag set holds a strong phoneme tag `/p/`, `p` (a pause `/ /` is a
-  space);
+  space); two strong phoneme tags on one token are an error of the grammar
+  that emitted it;
 - otherwise, the concatenation of the phonemes of the tokens it was emitted
   from, omitting every token of a constituent that emits nothing, with
   leading and trailing spaces removed;
@@ -254,7 +269,9 @@ newline between them.
 
 The grammar text is parsed with the notation dialect,
 `grammars/dialects/notation.md`, whose DOM ships as
-`grammars/notation/bootstrap.json`. The tree it produces is turned into the
+`grammars/notation/bootstrap.json`. The first bootstrap is produced by the
+JavaScript library's pull request, which also adds the fixpoint check that
+every library then runs. The tree it produces is turned into the
 document's DOM by the rules in §9. An implementation reads the bootstrap
 DOM, not the notation documents, to parse any grammar, the notation
 documents included; reading the notation documents with the bootstrap must
@@ -322,7 +339,7 @@ empty if the span is.
 | `{a, b, ...}` | the union of the items as tag sets |
 | `a ∪ b`, `a ∩ b` | union, intersection; `∩` binds tighter |
 | `phonemes(s)`, `text(s)` | strings (§5) |
-| `lowercase(t)` | `t` with every letter lower-cased (Unicode default case mapping) |
+| `lowercase(t)` | `t` with each code point replaced by its simple lowercase mapping from UnicodeData, if it has one |
 | `tags(s)` | the captured part's constituent tags if `s` is a whole capture, else the union of the span's tokens' tags |
 | `tags(s, R)` | the union of the tags of every derivation of the span as `R`, empty if none |
 | `classes(s)` | the tags of `tags(s)` whose first character is an upper-case letter |
