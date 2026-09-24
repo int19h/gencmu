@@ -1,0 +1,337 @@
+//! The library's API (docs/api.md): the three loaders, the options, the
+//! errors, and inputs long enough that anything recursive would overflow.
+
+use std::collections::BTreeMap;
+
+use gencmu::{ErrorKind, NodeKind, ParseErrorKind, ParseOptions, Verdict};
+
+fn grammar(rules: &str) -> String {
+    format!("# A grammar\n\n```ebnf\n{rules}\n```\n")
+}
+
+fn single(rules: &str) -> BTreeMap<String, String> {
+    let mut sources = BTreeMap::new();
+    sources.insert("p.md".to_string(), "## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n".to_string());
+    sources.insert("g.md".to_string(), grammar(rules));
+    sources
+}
+
+fn no_auto() -> ParseOptions {
+    ParseOptions { auto_features: false, ..ParseOptions::default() }
+}
+
+#[test]
+fn a_bundled_dialect_loads_by_name() {
+    let dialect = gencmu::load_dialect("notation").expect("the notation dialect");
+    assert_eq!(dialect.stage_names(), ["lexical", "syntax"]);
+    let result = dialect.parse("text ≔ A ;", &ParseOptions::default()).expect("a parse");
+    assert!(result.ok);
+    assert_eq!(result.stages.len(), 2);
+    assert_eq!(result.tree.as_ref().and_then(|tree| tree.rule.as_deref()), Some("text"));
+    let error = gencmu::load_dialect("nonesuch").expect_err("no such dialect");
+    assert_eq!(error.kind, ErrorKind::Usage);
+}
+
+#[test]
+fn a_dialect_loads_from_disk() {
+    let bundled = gencmu::load_dialect("notation").expect("bundled");
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("grammars/dialects/notation.md");
+    let from_disk = gencmu::load_dialect_file(path).expect("from disk");
+    let text = "a ≔ $x(B) <\"T\"> : text($x) ≠ \"q\" ⇒ this ;";
+    assert_eq!(
+        gencmu::to_json(&bundled.parse(text, &ParseOptions::default()).unwrap()),
+        gencmu::to_json(&from_disk.parse(text, &ParseOptions::default()).unwrap())
+    );
+
+    let directory = std::env::temp_dir().join(format!("gencmu-api-{}", std::process::id()));
+    std::fs::create_dir_all(directory.join("dialects")).unwrap();
+    std::fs::create_dir_all(directory.join("grammars")).unwrap();
+    std::fs::write(
+        directory.join("dialects/mine.md"),
+        "# Mine\n\n## Only <?stage only?>\n\n- [the grammar](../grammars/g.md) <?grammar?>\n",
+    )
+    .unwrap();
+    std::fs::write(directory.join("grammars/g.md"), grammar("%ambiguity-resolution greedy ;\ntext ≔ \"a\" ... ;"))
+        .unwrap();
+    let mine = gencmu::load_dialect_file(directory.join("dialects/mine.md")).expect("a dialect on disk");
+    let result = mine.parse("aaa", &ParseOptions::default()).unwrap();
+    assert!(result.ok);
+    assert_eq!(gencmu::to_brackets(&result, false), "(a a a)");
+
+    std::fs::write(
+        directory.join("dialects/broken.md"),
+        "## Only <?stage only?>\n\n- [gone](../grammars/gone.md) <?grammar?>\n",
+    )
+    .unwrap();
+    let error = gencmu::load_dialect_file(directory.join("dialects/broken.md")).expect_err("a missing document");
+    assert_eq!(error.kind, ErrorKind::Grammar);
+    assert!(error.message.contains("gone.md"), "{error}");
+    std::fs::remove_dir_all(&directory).ok();
+}
+
+#[test]
+fn load_errors_carry_the_document_and_position() {
+    let error = gencmu::load_dialect_sources(single("%ambiguity-resolution greedy ;\ntext ≔ A\nb ≔ B ;"), "p.md")
+        .expect_err("a syntax error");
+    assert_eq!(error.kind, ErrorKind::Grammar);
+    assert_eq!(error.document.as_deref(), Some("g.md"));
+    assert_eq!((error.line, error.column), (Some(6), Some(3)));
+    assert!(error.to_string().starts_with("g.md:6:3: "), "{error}");
+
+    let error = gencmu::load_dialect_sources(single("%ambiguity-resolution greedy ;\ntext ≔ a ;"), "p.md")
+        .expect_err("an undefined rule");
+    assert_eq!(error.document.as_deref(), Some("g.md"));
+    assert_eq!(error.line, Some(5));
+
+    let mut sources = single("%ambiguity-resolution greedy ;\ntext ≔ A ;");
+    sources.remove("g.md");
+    let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("a missing document");
+    assert!(error.message.contains("g.md"), "{error}");
+
+    let error = gencmu::load_dialect_sources(single("text ≔ A ;"), "p.md").expect_err("no directive");
+    assert_eq!(error.stage.as_deref(), Some("main"));
+
+    let error = gencmu::load_dialect_sources(single("%ambiguity-resolution greedy ;\ntext ≔ A ;"), "nowhere.md")
+        .expect_err("no pipeline");
+    assert_eq!(error.kind, ErrorKind::Grammar);
+    let _: &dyn std::error::Error = &error;
+}
+
+#[test]
+fn sources_may_bring_their_own_tables() {
+    let mut sources = single("%ambiguity-resolution greedy ;\ntext ≔ \"alpha\" ;");
+    // A character table that knows no letters: every one is "other".
+    sources.insert("unicode.txt".to_string(), "unicode 0.0.0\n".to_string());
+    let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
+    assert!(!dialect.parse("a", &no_auto()).unwrap().ok);
+    let dialect =
+        gencmu::load_dialect_sources(single("%ambiguity-resolution greedy ;\ntext ≔ \"alpha\" ;"), "p.md").unwrap();
+    assert!(dialect.parse("a", &no_auto()).unwrap().ok);
+}
+
+#[test]
+fn until_features_and_elision_only() {
+    let mut sources = BTreeMap::new();
+    sources.insert(
+        "p.md".to_string(),
+        "# D <?features f?>\n\n## One <?stage one?>\n\n- [g](g.md) <?grammar?>\n\n## Two <?stage two?>\n\n- [h](h.md) <?grammar?>\n"
+            .to_string(),
+    );
+    sources.insert(
+        "g.md".to_string(),
+        grammar("%ambiguity-resolution greedy ;\ntext ≔ [w] ... ;\nw ≔ \"x\" <\"X\"> ⇒ this ;"),
+    );
+    sources.insert("h.md".to_string(), grammar("%ambiguity-resolution greedy ;\ntext ≔ @f @g X X | @f @!g X ;"));
+    let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
+    assert_eq!(dialect.features(), ["f"]);
+
+    let result = dialect.parse("xx", &ParseOptions { until: Some("one".into()), ..no_auto() }).unwrap();
+    assert!(result.ok);
+    assert_eq!(result.stages.len(), 1);
+    assert_eq!(result.stages[0].output.as_ref().map(Vec::len), Some(2));
+
+    assert!(!dialect.parse("xx", &no_auto()).unwrap().ok);
+    assert!(dialect.parse("x", &no_auto()).unwrap().ok);
+    let with_g = ParseOptions { features: vec!["g".into()], ..no_auto() };
+    assert!(dialect.parse("xx", &with_g).unwrap().ok);
+
+    let error = dialect.parse("x", &ParseOptions { until: Some("three".into()), ..no_auto() }).expect_err("no stage");
+    assert_eq!(error.kind, ErrorKind::Usage);
+
+    let ambiguous = gencmu::load_dialect_sources(
+        single("%ambiguity-resolution greedy elision-only ;\ntext ≔ s | s \"b\" ; s ≔ \"a\" [\"b\"] ;"),
+        "p.md",
+    )
+    .unwrap();
+    let result = ambiguous.parse("ab", &no_auto()).unwrap();
+    assert!(!result.ok);
+    let error = result.error.as_ref().unwrap();
+    assert_eq!(error.kind, ParseErrorKind::Ambiguous);
+    assert_eq!(error.readings.len(), 2);
+    assert!(result.tree.is_none());
+    let off = ambiguous.parse("ab", &ParseOptions { elision_only: Some(false), ..no_auto() }).unwrap();
+    assert!(off.ok);
+    assert_eq!(off.stages[0].verdict, Some(Verdict::Resolved));
+    let on = gencmu::load_dialect_sources(
+        single("%ambiguity-resolution greedy ;\ntext ≔ s | s \"b\" ; s ≔ \"a\" [\"b\"] ;"),
+        "p.md",
+    )
+    .unwrap()
+    .parse("ab", &ParseOptions { elision_only: Some(true), ..no_auto() })
+    .unwrap();
+    assert!(!on.ok);
+}
+
+/// A dialect with a `words` stage, where `sa` and `su` are words only
+/// under the feature `sa-su`.
+fn words_dialect() -> gencmu::Dialect {
+    let mut sources = BTreeMap::new();
+    sources.insert(
+        "p.md".to_string(),
+        "## Sounds <?stage sounds?>\n\n- [s](s.md) <?grammar?>\n\n## Words <?stage words?>\n\n- [w](w.md) <?grammar?>\n".to_string(),
+    );
+    sources.insert(
+        "s.md".to_string(),
+        grammar("%ambiguity-resolution greedy ;\ntext ≔ [c] ... ;\nc ≔ \"s\" </s/> | \"a\" </a/> | \"u\" </u/> | \"m\" </m/> | \"i\" </i/> | \"space\" </ /> ⇒ this ;"),
+    );
+    sources.insert(
+        "w.md".to_string(),
+        grammar(
+            "%ambiguity-resolution lazy ;\ntext ≔ [piece] ... ;\npiece ≔ word | / / ;\nword ≔ /m/ /i/ | @sa-su /s/ /a/ | @sa-su /s/ /u/ ;",
+        ),
+    );
+    gencmu::load_dialect_sources(sources, "p.md").unwrap()
+}
+
+#[test]
+fn auto_features_add_sa_su_only_where_needed() {
+    let dialect = words_dialect();
+    let plain = dialect.parse("mi mi", &ParseOptions::default()).unwrap();
+    assert!(plain.ok);
+    let needs = dialect.parse("mi sa", &ParseOptions::default()).unwrap();
+    assert!(needs.ok, "{}", gencmu::to_json(&needs));
+    let off = dialect.parse("mi sa", &no_auto()).unwrap();
+    assert!(!off.ok);
+    assert_eq!(off.error.as_ref().unwrap().kind, ParseErrorKind::Rejected);
+    let explicit = dialect.parse("mi su", &ParseOptions { features: vec!["sa-su".into()], ..no_auto() }).unwrap();
+    assert!(explicit.ok);
+    // `until` before `words` skips the probe.
+    let early =
+        dialect.parse("mi sa", &ParseOptions { until: Some("sounds".into()), ..ParseOptions::default() }).unwrap();
+    assert!(early.ok);
+    assert_eq!(early.stages.len(), 1);
+}
+
+#[test]
+fn rejections_say_where_and_what() {
+    let dialect =
+        gencmu::load_dialect_sources(single("%ambiguity-resolution greedy ;\ntext ≔ \"a\" \"b\" ;"), "p.md").unwrap();
+    let result = dialect.parse("a\nc", &no_auto()).unwrap();
+    assert!(!result.ok);
+    assert!(result.tree.is_none());
+    let error = result.error.unwrap();
+    assert_eq!(error.kind, ParseErrorKind::Rejected);
+    assert_eq!(error.stage.as_deref(), Some("main"));
+    assert_eq!(error.token, Some(1));
+    assert_eq!(error.source, Some(1..2));
+    assert_eq!((error.line, error.column), (Some(1), Some(2)));
+    assert_eq!(error.expected.len(), 1);
+    assert_eq!(error.expected[0].terminal, "b");
+    assert_eq!(error.expected[0].rules, ["text"]);
+    assert_eq!(result.stages[0].verdict, None);
+    assert!(result.stages[0].output.is_none());
+    assert!(!error.to_string().is_empty());
+}
+
+#[test]
+fn positions_are_code_points() {
+    let dialect = gencmu::load_dialect_sources(
+        single("%ambiguity-resolution greedy ;\ntext ≔ [c] ... ; c ≔ \"other\" | \"alpha\" ⇒ this ;"),
+        "p.md",
+    )
+    .unwrap();
+    let result = dialect.parse("😀é\u{10348}", &no_auto()).unwrap();
+    assert!(result.ok);
+    let output = result.stages[0].output.as_ref().unwrap();
+    let sources: Vec<_> = output.iter().map(|token| token.source.clone()).collect();
+    assert_eq!(sources, [0..1, 1..2, 2..3]);
+    assert_eq!(output[0].text, "😀");
+}
+
+#[test]
+fn results_outlive_the_dialect_and_cross_threads() {
+    let result = {
+        let dialect = gencmu::load_dialect("notation").unwrap();
+        let text = String::from("x ≔ A ;");
+        dialect.parse(&text, &ParseOptions::default()).unwrap()
+    };
+    let json = std::thread::spawn(move || gencmu::to_json(&result)).join().unwrap();
+    assert!(json.starts_with("{\"format\":1,\"ok\":true"));
+
+    let dialect = std::sync::Arc::new(gencmu::load_dialect("notation").unwrap());
+    let threads: Vec<_> = (0..4)
+        .map(|index| {
+            let dialect = dialect.clone();
+            std::thread::spawn(move || {
+                dialect.parse(&format!("r{index} ≔ A{index} ;"), &ParseOptions::default()).unwrap().ok
+            })
+        })
+        .collect();
+    assert!(threads.into_iter().all(|thread| thread.join().unwrap()));
+}
+
+/// Runs `body` on a thread with a small stack, so that recursion over a
+/// long input would overflow.
+fn small_stack(body: impl FnOnce() + Send + 'static) {
+    std::thread::Builder::new().stack_size(256 * 1024).spawn(body).unwrap().join().expect("no overflow");
+}
+
+#[test]
+fn deep_left_recursion_does_not_overflow() {
+    small_stack(|| {
+        let dialect =
+            gencmu::load_dialect_sources(single("%ambiguity-resolution greedy ;\ntext ≔ text \"a\" | \"a\" ;"), "p.md")
+                .unwrap();
+        let text = "a".repeat(20_000);
+        let started = std::time::Instant::now();
+        let result = dialect.parse(&text, &no_auto()).unwrap();
+        eprintln!("20000 characters through a left-recursive rule in {:?}", started.elapsed());
+        assert!(result.ok);
+        assert_eq!(result.stages[0].verdict, Some(Verdict::Unique));
+        let tree = result.tree.as_ref().unwrap();
+        let mut depth = 0;
+        let mut node = tree;
+        while let Some(first) = node.children.first() {
+            depth += 1;
+            node = first;
+        }
+        assert_eq!(depth, 20_000);
+        assert_eq!(node.kind, NodeKind::Token);
+        let copy = result.clone();
+        assert!(copy == result);
+        let json = gencmu::to_json(&result);
+        assert!(json.len() > 20_000 * 50);
+        let brackets = gencmu::to_brackets(&result, false);
+        assert!(brackets.starts_with("([{([{") && brackets.ends_with(" a)"), "{}", &brackets[..40]);
+        let _ = format!("{:?}", result.tree);
+        drop(copy);
+    });
+}
+
+#[test]
+fn deep_tokens_and_ties_do_not_overflow() {
+    small_stack(|| {
+        let dialect = gencmu::load_dialect_sources(
+            single("%ambiguity-resolution greedy ;\ntext ≔ text p | p ;\np ≔ A B <\"ONE\"> | A B <\"TWO\"> ;"),
+            "p.md",
+        )
+        .unwrap();
+        let tokens: Vec<gencmu::InputToken> = (0..6000)
+            .map(|index| gencmu::InputToken {
+                text: if index % 2 == 0 { "a".into() } else { "b".into() },
+                tags: [(if index % 2 == 0 { "A" } else { "B" }.to_string(), true)].into_iter().collect(),
+                phonemes: None,
+            })
+            .collect();
+        let started = std::time::Instant::now();
+        let result = dialect.parse_tokens(&tokens, &no_auto()).unwrap();
+        eprintln!("6000 tokens with 3000 independent ties in {:?}", started.elapsed());
+        assert!(result.ok);
+        assert_eq!(result.stages[0].verdict, Some(Verdict::Tie));
+        assert!(result.stages[0].tied.is_some());
+        let _ = gencmu::to_json(&result);
+    });
+}
+
+#[test]
+fn a_long_name_through_the_notation_does_not_overflow() {
+    small_stack(|| {
+        let dialect = gencmu::load_dialect("notation").unwrap();
+        let name = "a".repeat(150);
+        let started = std::time::Instant::now();
+        let result = dialect.parse(&format!("{name} ≔ B ;"), &ParseOptions::default()).unwrap();
+        eprintln!("a 150-character name through the notation in {:?}", started.elapsed());
+        assert!(result.ok);
+        assert_eq!(result.stages[0].output.as_ref().unwrap()[0].text.len(), 150);
+    });
+}
