@@ -32,6 +32,8 @@ async function outcome(g, dialects, c) {
   const got = { expect: result.ok ? "accept" : "reject" };
   if (result.ok) got.verdict = result.stages[result.stages.length - 1].verdict;
   else got.stage = result.error ? result.error.stage : null;
+  const ties = result.stages.filter((stage) => stage.verdict === "tie").map((stage) => stage.name);
+  if (ties.length) got.ties = ties;
   if (words && words.output) got.words = words.output.map((token) => token.phonemes || token.text);
   if (result.ok) got.brackets = g.toBrackets(result);
   return got;
@@ -72,7 +74,7 @@ if (!isMainThread) {
         const c = byId.get(message.id);
         if (message.crash) failures.push(`${c.id}: ${message.crash}`);
         else {
-          for (const key of ["expect", "verdict", "stage", "words", "brackets"]) {
+          for (const key of ["expect", "verdict", "stage", "ties", "words", "brackets"]) {
             if (!(key in c) && !(key in message.got)) continue;
             if (JSON.stringify(c[key]) !== JSON.stringify(message.got[key])) {
               failures.push(`${c.id} (${c.dialect}): ${key} expected ${JSON.stringify(c[key])}, got ${JSON.stringify(message.got[key])}`);
