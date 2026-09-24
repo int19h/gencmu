@@ -112,9 +112,42 @@ def result_json(result: ParseResult) -> dict[str, Any]:
     }
 
 
+def compact_json(value: Any) -> str:
+    """JSON with no whitespace outside strings and non-ASCII characters as
+    themselves, written without recursion, since a tree can nest deeper
+    than the call stack allows."""
+    out: list[str] = []
+    # Each entry is a value to write, or a piece of text already written.
+    stack: list[tuple[bool, Any]] = [(False, value)]
+    while stack:
+        is_text, item = stack.pop()
+        if is_text:
+            out.append(item)
+        elif isinstance(item, dict):
+            out.append("{")
+            stack.append((True, "}"))
+            entries = list(item.items())
+            for index in range(len(entries) - 1, -1, -1):
+                key, member = entries[index]
+                stack.append((False, member))
+                stack.append((True, json.dumps(key, ensure_ascii=False) + ":"))
+                if index:
+                    stack.append((True, ","))
+        elif isinstance(item, (list, tuple)):
+            out.append("[")
+            stack.append((True, "]"))
+            for index in range(len(item) - 1, -1, -1):
+                stack.append((False, item[index]))
+                if index:
+                    stack.append((True, ","))
+        else:
+            out.append(json.dumps(item, ensure_ascii=False))
+    return "".join(out)
+
+
 def to_json(result: ParseResult) -> str:
     """The canonical JSON of a result, as text."""
-    return json.dumps(result_json(result), ensure_ascii=False, separators=(",", ":"))
+    return compact_json(result_json(result))
 
 
 class _Group:

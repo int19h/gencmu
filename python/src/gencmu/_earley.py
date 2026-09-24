@@ -11,6 +11,7 @@ from ._errors import _GrammarFault
 from ._grammar import Lowered, Production
 from ._model import Tags, Token
 from ._tags import TagTable, intersection, union
+from ._trampoline import Walk, run
 from ._unicode import UnicodeTable
 
 SEED = (-1, 0, 0, 0)
@@ -126,7 +127,7 @@ class Evaluator:
                 bound[name] = (start + base, end + base, tag)
         return bound
 
-    def span(self, dom: Any, bound: dict[str, tuple[int, int, int]]) -> tuple[int, int, int | None]:
+    def _span(self, dom: Any, bound: dict[str, tuple[int, int, int]]) -> Walk:
         if isinstance(dom, dict):
             if "capture" in dom:
                 found = bound.get(dom["capture"])
@@ -138,7 +139,7 @@ class Evaluator:
                 args = dom.get("args", [])
                 if len(args) != 1:
                     raise _GrammarFault(f"{name}() takes one span")
-                start, end, _ = self.span(args[0], bound)
+                start, end, _ = yield self._span(args[0], bound)
                 if start >= end:
                     return (start, start, None)
                 if name == "head":
@@ -160,7 +161,7 @@ class Evaluator:
     def phonemes(self, start: int, end: int) -> str:
         return "".join(token.phonemes or "" for token in self.context.tokens[start:end])
 
-    def value(self, dom: Any, bound: dict[str, tuple[int, int, int]]) -> Any:
+    def _value(self, dom: Any, bound: dict[str, tuple[int, int, int]]) -> Walk:
         if "literal" in dom:
             return dom["literal"]
         if "weak" in dom:
@@ -170,31 +171,31 @@ class Evaluator:
         if "set" in dom:
             result: Tags = {}
             for item in dom["set"]:
-                result = union(result, _as_tags(self.value(item, bound)))
+                result = union(result, _as_tags((yield self._value(item, bound))))
             return result
         if "union" in dom:
             result = {}
             for item in dom["union"]:
-                result = union(result, _as_tags(self.value(item, bound)))
+                result = union(result, _as_tags((yield self._value(item, bound))))
             return result
         if "intersection" in dom:
             parts = dom["intersection"]
-            result = _as_tags(self.value(parts[0], bound))
+            result = _as_tags((yield self._value(parts[0], bound)))
             for item in parts[1:]:
-                result = intersection(result, _as_tags(self.value(item, bound)))
+                result = intersection(result, _as_tags((yield self._value(item, bound))))
             return result
         name = dom.get("call")
         if name is not None:
             args = dom.get("args", [])
             if name == "lowercase":
-                text = self.value(args[0], bound)
+                text = yield self._value(args[0], bound)
                 if not isinstance(text, str):
                     raise _GrammarFault("lowercase() takes a string")
                 return self.context.unicode.lowercase(text)
             if name == "tags" and len(args) == 2:
-                start, end, _ = self.span(args[0], bound)
+                start, end, _ = yield self._span(args[0], bound)
                 return dict(self.context.nested(args[1]["rule"], start, end).tags)
-            span = self.span(args[0], bound)
+            span = yield self._span(args[0], bound)
             if name == "phonemes":
                 return self.phonemes(span[0], span[1])
             if name == "text":
@@ -208,17 +209,23 @@ class Evaluator:
             raise _GrammarFault(f"an unknown function {name}()")
         if "capture" in dom:
             # A bare capture is its tags (engine §10).
-            return dict(self.span_tags(self.span(dom, bound)))
+            return dict(self.span_tags((yield self._span(dom, bound))))
         raise _GrammarFault("a span is used where a value is needed")
+
+    def value(self, dom: Any, bound: dict[str, tuple[int, int, int]]) -> Any:
+        return run(self._value(dom, bound))
 
     def tags(self, dom: Any, bound: dict[str, tuple[int, int, int]]) -> Tags:
         return _as_tags(self.value(dom, bound))
 
     def condition(self, dom: Any, bound: dict[str, tuple[int, int, int]]) -> bool:
+        return bool(run(self._condition(dom, bound)))
+
+    def _condition(self, dom: Any, bound: dict[str, tuple[int, int, int]]) -> Walk:
         if "op" in dom:
             op = dom["op"]
-            left = self.value(dom["left"], bound)
-            right = self.value(dom["right"], bound)
+            left = yield self._value(dom["left"], bound)
+            right = yield self._value(dom["right"], bound)
             if op in ("=", "≠"):
                 if isinstance(left, str) and isinstance(right, str):
                     equal = left == right
@@ -236,12 +243,15 @@ class Evaluator:
                 return _as_tags(left).keys() <= _as_tags(right).keys()
             raise _GrammarFault(f"an unknown comparison {op}")
         if "matches" in dom:
-            start, end, _ = self.span(dom["matches"], bound)
+            start, end, _ = yield self._span(dom["matches"], bound)
             return self.context.nested(dom["rule"], start, end).accepted
         if "not" in dom:
-            return not self.condition(dom["not"], bound)
+            return not (yield self._condition(dom["not"], bound))
         if "any" in dom:
-            return any(self.condition(item, bound) for item in dom["any"])
+            for item in dom["any"]:
+                if (yield self._condition(item, bound)):
+                    return True
+            return False
         raise _GrammarFault("an unknown condition")
 
 

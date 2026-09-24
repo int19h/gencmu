@@ -18,6 +18,7 @@ from ._markdown import Pipeline, ebnf_text, read_pipeline
 from ._model import ParseError, ParseResult, Stage, Token
 from ._stage import DChild, DRead, StageOutcome, StageRunner, constituent_phonemes
 from ._unicode import UnicodeTable
+from ._validate import dom_problem
 
 DOM_FORMAT = 1
 
@@ -93,16 +94,28 @@ class NotationReader:
     def __init__(self, bootstrap: str, unicode: UnicodeTable) -> None:
         self.hash = fnv1a64(bootstrap)
         self.unicode = unicode
+        where = "notation/bootstrap.json"
         try:
             data = json.loads(bootstrap)
-            stages = [
-                stitch(stage["name"], [(document["path"], document["dom"]) for document in stage["documents"]])
-                for stage in data["stages"]
-            ]
-        except (ValueError, KeyError, TypeError) as error:
-            raise GencmuError(f"the bootstrap cannot be read: {error}", document="notation/bootstrap.json") from error
-        if data.get("format") != DOM_FORMAT:
-            raise GencmuError("the bootstrap's DOM format is not 1", document="notation/bootstrap.json")
+        except ValueError as error:
+            raise GencmuError(f"the bootstrap is not JSON: {error}", document=where) from error
+        stages_data = data.get("stages") if isinstance(data, dict) else None
+        if not isinstance(data, dict) or data.get("format") != DOM_FORMAT or not isinstance(stages_data, list) or not stages_data:
+            raise GencmuError("the bootstrap is an object of format 1 with at least one stage", document=where)
+        stages: list[Grammar] = []
+        for stage in stages_data:
+            documents = stage.get("documents") if isinstance(stage, dict) else None
+            if not isinstance(stage, dict) or not isinstance(stage.get("name"), str) or not isinstance(documents, list):
+                raise GencmuError("a stage of the bootstrap has a name and documents", document=where)
+            pairs: list[tuple[str, Dom]] = []
+            for document in documents:
+                if not isinstance(document, dict) or not isinstance(document.get("path"), str):
+                    raise GencmuError("a document of the bootstrap has a path and a DOM", document=where)
+                problem = dom_problem(document.get("dom"))
+                if problem is not None:
+                    raise GencmuError(f"the bootstrap's DOM of {document['path']} is malformed: {problem}", document=where)
+                pairs.append((document["path"], document["dom"]))
+            stages.append(stitch(stage["name"], pairs))
         self.stages = [(grammar.stage, lower(grammar, frozenset())) for grammar in stages]
 
     def read(self, text: str, path: str) -> Dom:
@@ -133,7 +146,13 @@ class NotationReader:
                 assert outcome.output is not None
                 tokens = outcome.output
         assert tree is not None
-        return DomBuilder(tokens, grammar_text, path).document_dom(tree)
+        try:
+            return DomBuilder(tokens, grammar_text, path).document_dom(tree)
+        except GencmuError:
+            raise
+        except (LookupError, TypeError, ValueError, AttributeError, AssertionError) as error:
+            # Only a bootstrap that is not the notation's gives such a tree.
+            raise GencmuError(f"the notation's tree cannot be read as a grammar ({error!r}); is the bootstrap the notation's?", document=path) from error
 
 
 def _reader(bootstrap: str, unicode_text: str) -> NotationReader:
@@ -161,7 +180,8 @@ def _compiled_index(compiled: str | None, bootstrap_hash: str) -> dict[str, Dom]
         data = json.loads(compiled)
         if data.get("format") == DOM_FORMAT and data.get("bootstrap") == bootstrap_hash:
             for entry in data.get("documents", {}).values():
-                if entry.get("dom", {}).get("format") == DOM_FORMAT:
+                # A malformed entry is a miss: its document is read afresh.
+                if isinstance(entry, dict) and isinstance(entry.get("hash"), str) and dom_problem(entry.get("dom")) is None:
                     index[entry["hash"]] = entry["dom"]
     except (ValueError, AttributeError, KeyError, TypeError):
         index = {}

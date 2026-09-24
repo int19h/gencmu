@@ -7,6 +7,7 @@ from typing import Any
 from ._errors import GencmuError
 from ._markdown import GrammarText
 from ._model import Node, Token
+from ._trampoline import Walk, run
 
 Dom = dict[str, Any]
 
@@ -163,7 +164,7 @@ class DomBuilder:
                 negated = text.startswith("@!")
                 guards.append({"feature": text[2:] if negated else text[1:], "negated": negated})
             elif kid.rule == "conjunction":
-                expr = self.expr(kid, True)
+                expr = run(self._expr(kid, True))
             elif kid.rule == "alternative-tags":
                 tags = self.value(self.rules(kid, "term")[0])
         assert expr is not None
@@ -172,7 +173,7 @@ class DomBuilder:
             dom["tags"] = tags
         return dom
 
-    def expr(self, node: Node, top: bool = False) -> Dom:
+    def _expr(self, node: Node, top: bool = False) -> Walk:
         rule = node.rule
         if rule in ("choice", "conjunction", "sequence"):
             part = {"choice": "conjunction", "conjunction": "sequence", "sequence": "element"}[rule]
@@ -180,18 +181,21 @@ class DomBuilder:
             if rule == "conjunction" and len(parts) > 16:
                 raise self.fail(node, "& joins at most 16 items, since it expands to 2ⁿ−1 sequences")
             if len(parts) == 1:
-                return self.expr(parts[0], top and rule != "choice")
+                return (yield self._expr(parts[0], top and rule != "choice"))
             key = {"choice": "choice", "conjunction": "and", "sequence": "seq"}[rule]
-            return {key: [self.expr(p, top and rule == "sequence") for p in parts]}
+            items: list[Dom] = []
+            for p in parts:
+                items.append((yield self._expr(p, top and rule == "sequence")))
+            return {key: items}
         if rule == "element":
             kids = self.kids(node)
             primary = kids[0]
             repeated = any(kid.kind == "token" and self.text(kid) == "..." for kid in kids[1:])
             if not repeated:
-                return self.expr(primary, top)
+                return (yield self._expr(primary, top))
             if primary.kind == "rule" and primary.rule == "optional":
-                return {"repeat": self.expr(self.rules(primary, "choice")[0]), "min": 0}
-            return {"repeat": self.expr(primary), "min": 1}
+                return {"repeat": (yield self._expr(self.rules(primary, "choice")[0])), "min": 0}
+            return {"repeat": (yield self._expr(primary)), "min": 1}
         if rule == "reference":
             return {"ref": self.text(self.kids(node)[0])}
         if rule == "string":
@@ -211,11 +215,11 @@ class DomBuilder:
             self.captures.add(name)
             if len(self.captures) > 4:
                 raise self.fail(node, "an alternative has at most four captures")
-            return {"capture": name, "expr": self.expr(inner[0])}
+            return {"capture": name, "expr": (yield self._expr(inner[0]))}
         if rule == "group":
-            return self.expr(self.rules(node, "choice")[0])
+            return (yield self._expr(self.rules(node, "choice")[0]))
         if rule == "optional":
-            return {"optional": self.expr(self.rules(node, "choice")[0])}
+            return {"optional": (yield self._expr(self.rules(node, "choice")[0]))}
         if rule == "hash":
             return {"hash": True}
         if rule == "empty":
@@ -273,25 +277,33 @@ class DomBuilder:
     # -- conditions
 
     def condition_item(self, node: Node) -> Dom:
-        parts = [self.condition(kid) for kid in self.kids(node) if kid.kind == "rule"]
+        return run(self._condition_item(node))  # type: ignore[no-any-return]
+
+    def _condition_item(self, node: Node) -> Walk:
+        parts: list[Dom] = []
+        for kid in self.kids(node):
+            if kid.kind == "rule":
+                parts.append((yield self._condition(kid)))
         return parts[0] if len(parts) == 1 else {"any": parts}
 
-    def condition(self, node: Node) -> Dom:
+    def _condition(self, node: Node) -> Walk:
         if node.rule == "comparison":
             kids = self.kids(node)
             terms = [kid for kid in kids if kid.kind == "rule"]
             op = next(self.text(kid) for kid in kids if kid.kind == "token")
-            return {"op": op, "left": self.value(terms[0]), "right": self.value(terms[1])}
+            left = yield self._value(terms[0])
+            right = yield self._value(terms[1])
+            return {"op": op, "left": left, "right": right}
         if node.rule == "negation":
             inner = [kid for kid in self.kids(node) if kid.kind == "rule"]
-            return {"not": self.condition(inner[0])}
+            return {"not": (yield self._condition(inner[0]))}
         if node.rule == "call":
             name, args = self.call_parts(node)
             if name != "matches":
                 raise self.fail(node, f"a condition calls matches(), not {name}()")
             if len(args) != 2 or args[1].kind != "token":
                 raise self.fail(node, "matches() takes a span and a rule name")
-            return {"matches": self.span(args[0], node), "rule": self.text(args[1])}
+            return {"matches": (yield self._span(args[0], node)), "rule": self.text(args[1])}
         raise self.fail(node, f"unexpected {node.rule} in a condition")
 
     # -- terms
@@ -302,30 +314,25 @@ class DomBuilder:
         args = [kid for kid in kids[1:] if kid.kind == "rule" or self.tokens[kid.token].tags.get("identifier")]  # type: ignore[index]
         return name, args
 
-    def span(self, node: Node, at: Node | None = None) -> Dom:
+    def value(self, node: Node) -> Dom:
+        return run(self._value(node))  # type: ignore[no-any-return]
+
+    def _span(self, node: Node, at: Node | None = None) -> Walk:
         """A span argument; a wrong one is an error of the call ``at``."""
         if node.kind == "token":
             raise self.fail(at or node, "a span is needed here, not a name")
-        dom = self.term(node)
+        dom = yield self._term(node)
         if not _is_span(dom):
             raise self.fail(at or node, "a span is needed here: a capture, or head(), tail() or last() of one")
         return dom
 
-    def value(self, node: Node) -> Dom:
-        dom = self.term(node)
+    def _value(self, node: Node) -> Walk:
+        dom = yield self._term(node)
         if isinstance(dom, dict) and dom.get("call") in _SPAN_FUNCTIONS:
             raise self.fail(node, f"{dom['call']}() is a span, used where a string or tag set is needed")
         return dom
 
-    def string_value(self, node: Node, at: Node) -> Dom:
-        """A term that is a string: a quoted string, a phoneme tag, or
-        phonemes(), text() or lowercase() of something."""
-        dom = self.term(node)
-        if "literal" in dom or dom.get("call") in ("phonemes", "text", "lowercase"):
-            return dom
-        raise self.fail(at, "a string is needed here")
-
-    def term(self, node: Node) -> Dom:
+    def _term(self, node: Node) -> Walk:
         rule = node.rule
         if rule in ("term", "intersection"):
             part_names = ("intersection",) if rule == "term" else None
@@ -335,9 +342,12 @@ class DomBuilder:
                 if kid.kind == "rule" and (part_names is None or kid.rule in part_names)
             ]
             if len(parts) == 1:
-                return self.term(parts[0])
+                return (yield self._term(parts[0]))
             key = "union" if rule == "term" else "intersection"
-            return {key: [self.value(part) for part in parts]}
+            values: list[Dom] = []
+            for part in parts:
+                values.append((yield self._value(part)))
+            return {key: values}
         if rule == "string":
             return {"literal": self.decode(self.kids(node)[0])}
         if rule == "phoneme":
@@ -348,7 +358,11 @@ class DomBuilder:
         if rule == "empty-set":
             return {"emptySet": True}
         if rule == "set":
-            return {"set": [self.value(kid) for kid in self.kids(node) if kid.kind == "rule"]}
+            items: list[Dom] = []
+            for kid in self.kids(node):
+                if kid.kind == "rule":
+                    items.append((yield self._value(kid)))
+            return {"set": items}
         if rule == "capture-reference":
             return {"capture": self.text(self.kids(node)[0])[1:]}
         if rule == "call":
@@ -356,11 +370,11 @@ class DomBuilder:
             if name in _ONE_SPAN:
                 if len(args) != 1:
                     raise self.fail(node, f"{name}() takes one span")
-                return {"call": name, "args": [self.span(args[0], node)]}
+                return {"call": name, "args": [(yield self._span(args[0], node))]}
             if name == "tags":
                 if len(args) not in (1, 2):
                     raise self.fail(node, "tags() takes a span and optionally a rule name")
-                converted: list[Dom] = [self.span(args[0], node)]
+                converted: list[Dom] = [(yield self._span(args[0], node))]
                 if len(args) == 2:
                     if args[1].kind != "token":
                         raise self.fail(args[1], "the second argument of tags() is a rule name")
@@ -369,7 +383,10 @@ class DomBuilder:
             if name == "lowercase":
                 if len(args) != 1 or args[0].kind == "token":
                     raise self.fail(node, "lowercase() takes a string")
-                return {"call": name, "args": [self.string_value(args[0], node)]}
+                dom = yield self._term(args[0])
+                if not ("literal" in dom or dom.get("call") in ("phonemes", "text", "lowercase")):
+                    raise self.fail(node, "lowercase() takes a string")
+                return {"call": name, "args": [dom]}
             if name == "matches":
                 raise self.fail(node, "matches() is a condition, not a term")
             raise self.fail(node, f"an unknown function {name}()")

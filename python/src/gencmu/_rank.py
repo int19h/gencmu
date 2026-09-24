@@ -259,22 +259,41 @@ class Ranker:
     def sensitive(self, item: int) -> bool:
         """Whether an item's derivations depend on its context: whether it has
         a child, directly or through an empty-ended predecessor, spanning its
-        whole span."""
-        found = self.sensitive_memo.get(item)
-        if found is not None:
-            return found
+        whole span. Predecessors are followed with a stack, not recursion."""
+        memo = self.sensitive_memo
+        if item in memo:
+            return memo[item]
         forest = self.forest
         origin = forest.origin
-        start, end = origin[item], forest.end[item]
-        result = False
-        for pred, kind, a, _ in forest.edges[item]:
-            if kind != 2:
+        stack = [item]
+        while stack:
+            current = stack[-1]
+            if current in memo:
+                stack.pop()
                 continue
-            if origin[a] == start or (origin[a] == end and self.sensitive(pred)):
-                result = True
-                break
-        self.sensitive_memo[item] = result
-        return result
+            start, end = origin[current], forest.end[current]
+            result = False
+            waiting = None
+            for pred, kind, a, _ in forest.edges[current]:
+                if kind != 2:
+                    continue
+                if origin[a] == start:
+                    result = True
+                    break
+                if origin[a] == end:
+                    known = memo.get(pred)
+                    if known is None:
+                        waiting = pred
+                        break
+                    if known:
+                        result = True
+                        break
+            if waiting is not None and not result:
+                stack.append(waiting)
+                continue
+            memo[current] = result
+            stack.pop()
+        return memo[item]
 
     def full_key(self, item: int, forbidden: frozenset[int]) -> tuple[Any, ...] | None:
         if self.rule(item) in forbidden:

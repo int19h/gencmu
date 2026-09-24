@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any, Union
 
 from ._errors import GencmuError
+from ._trampoline import Walk, run
 
 Dom = dict[str, Any]
 
@@ -297,16 +298,27 @@ class _Lowerer:
         return ("n", number)
 
     def expand(self, expr: Dom, top: bool = False) -> list[list[_Sym]]:
+        """An expression's expansions (engine §3.2), without recursion."""
+        return run(self._expand(expr, top))  # type: ignore[no-any-return]
+
+    def _expand(self, expr: Dom, top: bool = False) -> Walk:
         if "seq" in expr:
-            parts = [self.expand(item, top) for item in expr["seq"]]
+            parts = []
+            for item in expr["seq"]:
+                parts.append((yield self._expand(item, top)))
             return [[sym for part in combination for sym in part] for combination in itertools.product(*parts)]
         if "choice" in expr:
-            return [expansion for option in expr["choice"] for expansion in self.expand(option)]
+            options = []
+            for option in expr["choice"]:
+                options.extend((yield self._expand(option)))
+            return options
         if "and" in expr:
             items = expr["and"]
             if len(items) > 16:
                 raise self.fail("& joins at most 16 items, since it expands to 2ⁿ−1 sequences")
-            expanded = [self.expand(item) for item in items]
+            expanded = []
+            for item in items:
+                expanded.append((yield self._expand(item)))
             result: list[list[_Sym]] = []
             for mask in range(1, 1 << len(items)):
                 parts = [expanded[index] for index in range(len(items)) if mask >> index & 1]
@@ -314,7 +326,7 @@ class _Lowerer:
             return result
         if "optional" in expr:
             inner = expr["optional"]
-            body = self.expand(inner)
+            body = yield self._expand(inner)
             first = self.first_terminal(inner)
             elidable = first is not None and first in self.grammar.elidable
             if elidable and self.elision:
@@ -322,7 +334,7 @@ class _Lowerer:
             helper = self.new_helper([[]] + body, first if elidable else None)
             return [[(("n", helper), None)]]
         if "repeat" in expr:
-            body = self.expand(expr["repeat"])
+            body = yield self._expand(expr["repeat"])
             return [[(("n", self.repeat_helper(body, expr.get("min", 1))), None)]]
         if "hash" in expr:
             free = self.grammar.free
@@ -404,10 +416,15 @@ class _Lowerer:
         """Number the helpers these expansions use, after the productions of
         the alternative that introduced them: in the order they were made,
         each followed by the helpers its own productions use."""
-        used = sorted(
-            {sym[1] for expansion in expansions for sym, _ in expansion if sym[0] == "n" and sym[1] in self.helper_expansions}
-        )
-        for number in used:
+        def used(expansions: list[list[_Sym]]) -> list[int]:
+            return sorted(
+                {sym[1] for expansion in expansions for sym, _ in expansion if sym[0] == "n" and sym[1] in self.helper_expansions}
+            )
+
+        # Depth first, with a stack of the helpers still to number.
+        stack = list(reversed(used(expansions)))
+        while stack:
+            number = stack.pop()
             if number in self.emitted_helpers:
                 continue
             self.emitted_helpers.add(number)
@@ -415,7 +432,7 @@ class _Lowerer:
             own = self.helper_expansions[number]
             for expansion in own:
                 self.add(number, expansion, None, elided=elided if not expansion else None)
-            self.flush(own)
+            stack.extend(reversed(used(own)))
 
     def lower_emit(self, emit: Dom | None, captures: dict[str, int]) -> Any:
         if emit is None:

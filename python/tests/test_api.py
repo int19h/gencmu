@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 import gencmu
+from gencmu._dialect import bundled_text
 
 PIPELINE = """# A test dialect
 
@@ -263,3 +264,63 @@ class Deep(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Robustness(unittest.TestCase):
+    """Malformed support files, and grammars and trees deeper than the call
+    stack."""
+
+    MAIN = "## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n"
+
+    def grammar(self, rules: str) -> dict[str, str]:
+        return {"p.md": self.MAIN, "g.md": "```ebnf\n%ambiguity-resolution greedy ;\n" + rules + "\n```\n"}
+
+    def test_malformed_bootstrap(self) -> None:
+        for bootstrap in ('{"format":1,"stages":[]}', "[]", "not json", '{"format":1,"stages":[{"name":"x","documents":[{"path":"a","dom":{"rules":[{}]}}]}]}'):
+            with self.subTest(bootstrap=bootstrap):
+                sources = self.grammar('text ≔ "a" ;')
+                sources["notation/bootstrap.json"] = bootstrap
+                with self.assertRaises(gencmu.GencmuError) as caught:
+                    gencmu.load_dialect_sources(sources, "p.md", use_cache=False)
+                self.assertEqual(caught.exception.kind, "grammar")
+
+    def test_malformed_cache_entry_is_a_miss(self) -> None:
+        from gencmu._hash import fnv1a64
+
+        sources = self.grammar('text ≔ "a" ;')
+        compiled = {
+            "format": 1,
+            "bootstrap": fnv1a64(bundled_text("notation/bootstrap.json") or ""),
+            "documents": {"g.md": {"hash": fnv1a64(sources["g.md"]), "dom": {"format": 1, "rules": [{}], "directives": []}}},
+        }
+        sources["compiled.json"] = json.dumps(compiled)
+        dialect = gencmu.load_dialect_sources(sources, "p.md")
+        self.assertTrue(dialect.parse("a", auto_features=False).ok)
+
+    def test_bundled_doms_are_well_formed(self) -> None:
+        from gencmu._validate import dom_problem
+
+        compiled = json.loads(bundled_text("compiled.json") or "{}")
+        for path, entry in compiled["documents"].items():
+            with self.subTest(document=path):
+                self.assertIsNone(dom_problem(entry["dom"]))
+
+    def test_deeply_nested_grammar(self) -> None:
+        depth = 400
+        rules = "text ≔ " + "[" * depth + '("a")' + "]" * depth
+        rules += ' <' + "(" * depth + '"T"' + ")" * depth + '> : ' + "¬" * (depth + 1) + '"a" = "b" ;'
+        dialect = gencmu.load_dialect_sources(self.grammar(rules), "p.md")
+        result = dialect.parse("a", auto_features=False)
+        self.assertTrue(result.ok, result.error)
+        self.assertEqual(gencmu.to_brackets(result), "a")
+        assert result.tree is not None
+        self.assertEqual(result.tree.tags, {"T": True})
+
+    def test_deep_tree(self) -> None:
+        dialect = gencmu.load_dialect_sources(self.grammar('text ≔ text "a" | "a" ;'), "p.md")
+        result = dialect.parse("a" * 10000, auto_features=False)
+        self.assertTrue(result.ok)
+        text = gencmu.to_json(result)
+        self.assertEqual(text.count('"rule":"text"'), 10000)
+        brackets = gencmu.to_brackets(result)
+        self.assertTrue(brackets.startswith("(" + "[{(" * 3) and brackets.endswith("a)"))
