@@ -199,6 +199,9 @@
       this.sourceText = sourceText;
       this.unicode = unicode;
       this.interner = new TagInterner();
+      // The most places a dot can be in one production, for numbering the
+      // items of a set (see itemKey).
+      this.dots = lowered.productions.reduce((most, production) => Math.max(most, production.rhs.length + 1), 1);
       /** @type {Map<string, boolean | TagSet>} */
       this.nested = new Map();
       /** @type {Set<string>} */
@@ -225,25 +228,47 @@
 
   // A chart item: a production with a dot, its origin, and its captured
   // parts; `end` is the position of the set that holds it.
+  //
+  // A long text makes millions of items, almost every one built one way only,
+  // so an item holds its first way itself rather than as an edge in a list:
+  // the item it advanced, `previous`, null for a prediction, and the completed
+  // item it advanced over, `child`, null for a read, whose token and terminal
+  // the item implies. Each further way is an edge in `more`.
   class Item {
     /**
      * @param {Production} production
      * @param {number} dot
      * @param {number} origin
      * @param {Slot[]} slots
+     * @param {Item | null} previous
+     * @param {Item | null} child
      */
-    constructor(production, dot, origin, slots) {
+    constructor(production, dot, origin, slots, previous, child) {
       this.production = production;
       this.dot = dot;
       this.origin = origin;
       this.slots = slots;
       this.tagId = -1;
-      /** @type {Edge[]} */
-      this.edges = [];
       this.end = -1;
+      this.previous = previous;
+      this.child = child;
+      /** @type {Edge[] | null} */
+      this.more = null;
     }
     get complete() {
       return this.dot === this.production.rhs.length;
+    }
+    /**
+     * Every way the item was built, in the order they were found.
+     * @returns {Edge[]}
+     */
+    get edges() {
+      /** @type {Edge} */
+      let first;
+      if (this.previous === null) first = SEED;
+      else if (this.child === null) first = { kind: "scan", previous: this.previous, token: this.end - 1, terminal: this.production.rhs[this.dot - 1].name };
+      else first = { kind: "complete", previous: this.previous, child: this.child };
+      return this.more === null ? [first] : [first, ...this.more];
     }
   }
 
@@ -253,7 +278,7 @@
       this.position = position;
       /** @type {Item[]} */
       this.items = [];
-      /** @type {Map<string, Item>} */
+      /** @type {Map<number | string, Item>} */
       this.index = new Map();
       /** @type {Item[]} */
       this.queue = [];
@@ -265,10 +290,11 @@
       /** @type {Set<string>} the rules already predicted here */
       this.predicted = new Set();
       /**
-       * Productions predicted here but not made items, since they begin with
-       * a terminal the next token does not carry; kept for saying what could
-       * have come next.
-       * @type {Production[]}
+       * The rules predicted here with productions not made items, since they
+       * begin with a terminal the next token does not carry; kept for saying
+       * what could have come next (see expectedAt). A rule, not each of its
+       * productions: a long text skips millions.
+       * @type {string[]}
        */
       this.skipped = [];
     }
@@ -289,16 +315,31 @@
     for (let position = start; position <= end; position++) sets.push(new ChartSet(position));
     /** @type {(position: number) => ChartSet} */
     const setAt = (position) => sets[position - start];
+    const dots = context.dots;
+    const width = end - start + 1;
 
-    /** @type {(set: ChartSet, production: Production, dot: number, origin: number, slots: Slot[], edge: Edge, tagId: number) => void} */
-    const add = (set, production, dot, origin, slots, edge, tagId) => {
-      const key = slotKey(production.id, dot, origin, slots);
+    // Adds the item `previous` makes advanced over `child`, or over the token
+    // before the set when `child` is null; a prediction when both are null.
+    /** @type {(set: ChartSet, production: Production, dot: number, origin: number, slots: Slot[], previous: Item | null, child: Item | null, tagId: number) => void} */
+    const add = (set, production, dot, origin, slots, previous, child, tagId) => {
+      const key = itemKey((production.id * dots + dot) * width + origin - start, slots);
       let item = set.index.get(key);
       if (item) {
-        if (!item.edges.some((existing) => sameEdge(existing, edge))) item.edges.push(edge);
+        // The symbol before an item's dot fixes the kind of all its edges,
+        // and the item fixes a read's token and terminal: two edges are the
+        // same when they have the same `previous` and `child`. A prediction
+        // has no other edge, since nothing else puts a dot at the start.
+        if ((item.previous === previous && item.child === child) || previous === null) return;
+        const more = item.more || (item.more = []);
+        for (const edge of more) {
+          if (edge.kind === "scan" && edge.previous === previous) return;
+          if (edge.kind === "complete" && edge.previous === previous && edge.child === child) return;
+        }
+        if (child === null) more.push({ kind: "scan", previous, token: set.position - 1, terminal: production.rhs[dot - 1].name });
+        else more.push({ kind: "complete", previous, child });
         return;
       }
-      item = new Item(production, dot, origin, slots);
+      item = new Item(production, dot, origin, slots, previous, child);
       item.end = set.position;
       const trace = context.trace;
       if (trace && trace.depth === 0 && set.position === trace.position) {
@@ -306,15 +347,16 @@
         trace.events.push({ kind, production, dot, origin });
       }
       item.tagId = tagId;
-      item.edges.push(edge);
       set.items.push(item);
       set.index.set(key, item);
       set.queue.push(item);
       const next = production.rhs[dot];
       if (next && !next.terminal) {
-        let waiting = set.waiting.get(next.name);
-        if (!waiting) set.waiting.set(next.name, (waiting = []));
-        waiting.push(item);
+        // Most lists hold one item, and an array made with its first element
+        // is a fraction of the size an empty one grows to on its first push.
+        const waiting = set.waiting.get(next.name);
+        if (waiting) waiting.push(item);
+        else set.waiting.set(next.name, [item]);
       }
       if (dot === production.rhs.length && origin === set.position) {
         let nullable = set.nullable.get(production.lhs);
@@ -330,6 +372,7 @@
       if (set.predicted.has(name)) return;
       set.predicted.add(name);
       const next = set.position < end ? tokens[set.position] : null;
+      let skipped = false;
       for (const production of lowered.byLhs.get(name) || []) {
         const slots = emptySlots(production);
         const failed = failedCondition(context, production, -1, slots);
@@ -340,18 +383,16 @@
           }
           continue;
         }
-        // One token of lookahead: an item whose first symbol is a terminal the
-        // next token lacks could never advance, so it is not made. The
-        // conditions above run first, as they did when every prediction was
-        // made an item, so that a defect in one is reported all the same.
-        const first = production.rhs[0];
-        if (first && first.terminal && !(next && next.tags.has(first.name))) {
-          set.skipped.push(production);
+        // The conditions above run first, as they did when every prediction
+        // was made an item, so that a defect in one is reported all the same.
+        if (lookaheadSkips(production, next)) {
+          skipped = true;
           continue;
         }
         const tagId = production.rhs.length === 0 ? completeTags(context, production, slots) : -1;
-        add(set, production, 0, set.position, slots, SEED, tagId);
+        add(set, production, 0, set.position, slots, null, null, tagId);
       }
+      if (skipped) set.skipped.push(name);
     };
 
     // The item advanced over its next symbol, which spans [from, to) and was
@@ -384,12 +425,17 @@
       const set = setAt(position);
       if (position > start) {
         // Nothing is added to a set once the next one is being built: its
-        // index, queue and predictions can go, which a long text needs.
+        // index, queue and predictions can go, which a long text needs, and
+        // the lists it keeps can be copied to arrays of their own length,
+        // rather than of the length growing them by pushes left.
         const done = setAt(position - 1);
         done.index = new Map();
         done.queue = [];
         done.predicted = new Set();
         done.nullable = new Map();
+        done.items = done.items.slice();
+        done.skipped = done.skipped.slice();
+        for (const [name, waiting] of done.waiting) if (waiting.length > 1) done.waiting.set(name, waiting.slice());
       }
       while (set.head < set.queue.length) {
         const item = set.queue[set.head++];
@@ -399,8 +445,7 @@
           for (const waiting of origin.waiting.get(item.production.lhs) || []) {
             const advanced = advance(waiting, item.origin, position, item);
             if (advanced) {
-              add(set, waiting.production, advanced.dot, waiting.origin, advanced.slots,
-                { kind: "complete", previous: waiting, child: item }, advanced.tagId);
+              add(set, waiting.production, advanced.dot, waiting.origin, advanced.slots, waiting, item, advanced.tagId);
             }
           }
         } else if (!next.terminal) {
@@ -408,15 +453,13 @@
           for (const done of set.nullable.get(next.name) || []) {
             const advanced = advance(item, position, position, done);
             if (advanced) {
-              add(set, item.production, advanced.dot, item.origin, advanced.slots,
-                { kind: "complete", previous: item, child: done }, advanced.tagId);
+              add(set, item.production, advanced.dot, item.origin, advanced.slots, item, done, advanced.tagId);
             }
           }
         } else if (position < end && tokens[position].tags.has(next.name)) {
           const advanced = advance(item, position, position + 1, null);
           if (advanced) {
-            add(setAt(position + 1), item.production, advanced.dot, item.origin, advanced.slots,
-              { kind: "scan", previous: item, token: position, terminal: next.name }, advanced.tagId);
+            add(setAt(position + 1), item.production, advanced.dot, item.origin, advanced.slots, item, null, advanced.tagId);
           }
         }
       }
@@ -427,39 +470,50 @@
   /** @type {Edge} */
   const SEED = { kind: "seed" };
 
+  // One token of lookahead: an item whose first symbol is a terminal the next
+  // token lacks could never advance, so a prediction of it is not made.
   /**
-   * @param {Edge} left
-   * @param {Edge} right
+   * @param {Production} production
+   * @param {Token | null} next
    * @returns {boolean}
    */
-  function sameEdge(left, right) {
-    if (left.kind === "seed" || right.kind === "seed") return left.kind === right.kind;
-    if (left.kind === "scan" || right.kind === "scan") {
-      return left.kind === "scan" && right.kind === "scan" &&
-        left.previous === right.previous && left.token === right.token && left.terminal === right.terminal;
-    }
-    return left.previous === right.previous && left.child === right.child;
+  function lookaheadSkips(production, next) {
+    const first = production.rhs[0];
+    return Boolean(first && first.terminal && !(next && next.tags.has(first.name)));
   }
+
+  // The slots of a predicted item, one list per production that all its
+  // predictions share: advancing over a capture copies the list first.
+  /** @type {WeakMap<Production, Slot[]>} */
+  const noSlots = new WeakMap();
 
   /**
    * @param {Production} production
    * @returns {Slot[]}
    */
   function emptySlots(production) {
-    return production.captures.map(() => null);
+    let slots = noSlots.get(production);
+    if (!slots) noSlots.set(production, (slots = /** @type {Slot[]} */ (Object.freeze(production.captures.map(() => null)))));
+    return slots;
   }
 
+  // An item's key in its set's index: `base`, a number unique to its
+  // production, dot and origin, and for an item that has captured something,
+  // a string adding its slots. Almost no item has, and a number is no
+  // allocation.
   /**
-   * @param {number} id
-   * @param {number} dot
-   * @param {number} origin
+   * @param {number} base
    * @param {Slot[]} slots
-   * @returns {string}
+   * @returns {number | string}
    */
-  function slotKey(id, dot, origin, slots) {
-    let key = id + "," + dot + "," + origin;
-    for (const slot of slots) key += slot ? "," + slot[0] + ":" + slot[1] + ":" + slot[2] : ",-";
-    return key;
+  function itemKey(base, slots) {
+    /** @type {string | null} */
+    let key = null;
+    for (let index = 0; index < slots.length; index++) {
+      const slot = slots[index];
+      if (slot) key = (key === null ? String(base) : key) + "," + index + ":" + slot[0] + ":" + slot[1] + ":" + slot[2];
+    }
+    return key === null ? base : key;
   }
 
   /**
@@ -825,8 +879,16 @@
       const next = item.production.rhs[item.dot];
       if (next && next.terminal) note(next.name, item.production.owner);
     }
-    // Skipped predictions passed their conditions before they were skipped.
-    for (const production of set.skipped) note(production.rhs[0].name, production.owner);
+    // A skipped prediction passed its conditions before it was skipped. Those
+    // it checked then use no captures, so they hold again now.
+    const context = chart.context;
+    const next = position < chart.end ? context.tokens[position] : null;
+    for (const rule of set.skipped) {
+      for (const production of context.lowered.byLhs.get(rule) || []) {
+        if (!lookaheadSkips(production, next) || failedCondition(context, production, -1, emptySlots(production))) continue;
+        note(production.rhs[0].name, production.owner);
+      }
+    }
     return [...expected].sort((left, right) => compareCodePoints(left[0], right[0])).map(([terminal, rules]) => ({
       terminal,
       rules: [...rules].sort(compareCodePoints),
