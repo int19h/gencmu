@@ -56,6 +56,7 @@ func TestDOMRules(t *testing.T) {
 		{"a capture's symbol counts toward the nesting", alt(`{"seq":[` + strings.Repeat(`{"seq":[{"terminal":"a"},`, 255) + `{"capture":"x","expr":{"terminal":"b"}}` + strings.Repeat(`]}`, 255) + `,{"terminal":"b"}]}`)},
 		{"a term nests at most 256 deep", tagged(strings.Repeat(`{"set":[`, 257) + `{"literal":"X"}` + strings.Repeat(`]}`, 257))},
 		{"a condition nests at most 256 deep", cond(strings.Repeat(`{"not":`, 256) + `{"matches":{"capture":"x"},"rule":"text"}` + strings.Repeat(`}`, 256))},
+		{"an emitted item's term nests at most 256 deep", emit(`{"items":[{"this":true,"tags":` + strings.Repeat(`{"set":[`, 257) + `{"literal":"X"}` + strings.Repeat(`]}`, 257) + `}]}`)},
 		{"a capture name once per alternative", alt(`{"seq":[{"capture":"x","expr":{"terminal":"a"}},{"capture":"x","expr":{"terminal":"b"}}]}`)},
 		{"a flag is true", alt(`{"seq":[{"terminal":"a"},{"hash":false}]}`)},
 		{"an expression is known", alt(`{"seq":[{"terminal":"a"},{"what":"b"}]}`)},
@@ -94,6 +95,9 @@ func TestDOMRules(t *testing.T) {
 		// Each at the bound: the deepest node below exactly 256 compound ones.
 		alt(`{"seq":[` + strings.Repeat(`{"seq":[{"terminal":"a"},`, 254) + `{"capture":"x","expr":{"terminal":"b"}}` + strings.Repeat(`]}`, 254) + `,{"terminal":"b"}]}`),
 		tagged(strings.Repeat(`{"set":[`, 256) + `{"literal":"X"}` + strings.Repeat(`]}`, 256)),
+		// An emission and its items are not compound: an item's term counts
+		// from the top.
+		emit(`{"items":[{"this":true,"tags":` + strings.Repeat(`{"set":[`, 256) + `{"literal":"X"}` + strings.Repeat(`]}`, 256) + `}]}`),
 		cond(strings.Repeat(`{"not":`, 255) + `{"matches":{"capture":"x"},"rule":"text"}` + strings.Repeat(`}`, 255)), emit(`{"items":[{"this":true},{"this":true}]}`), emit(`{"items":[{"insert":"y"},{"capture":"x"}]}`),
 		tagged(`{"call":"lowercase","args":[{"call":"text","args":[{"call":"head","args":[{"capture":"x"}]}]}]}`),
 		cond(`{"any":[{"not":{"matches":{"capture":"x"},"rule":"text"}},{"op":"=","left":{"literal":"a"},"right":{"literal":"a"}}]}`)} {
