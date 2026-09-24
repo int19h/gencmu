@@ -113,7 +113,7 @@ async function main() {
       if (state.state !== "ready") {
         throw new Error(`the playground did not become ready: ${state.state}: ${state.status}`);
       }
-      const result = JSON.parse(state.output);
+      const result = JSON.parse(state.output.split("\n\n")[0]);
       if (!result.ok || typeof result.version !== "string") {
         throw new Error(`the worker answered without a complete result: ${state.output}`);
       }

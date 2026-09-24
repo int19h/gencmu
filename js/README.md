@@ -1,0 +1,35 @@
+# gencmu for JavaScript
+
+The JavaScript library of gencmu, a Lojban parser whose grammars are
+literate documents loaded at runtime. It needs nothing beyond the language,
+and Node's `fs` for loading grammars from disk.
+
+```js
+import { loaderFromDirectory } from "gencmu/node";
+import { toBrackets } from "gencmu";
+
+const dialect = loaderFromDirectory().dialect("dialects/notation.md");
+const result = dialect.parse("text ≔ A ;");
+console.log(result.ok, toBrackets(result));
+```
+
+`gencmu` works anywhere JavaScript runs, with grammars from memory through
+`loaderFromSources`; `gencmu/node` adds `loaderFromDirectory`, whose default
+is the grammars shipped with the package.
+
+## Types
+
+The sources are plain JavaScript with JSDoc type annotations. TypeScript
+checks them and writes the declarations in `types/`, which are checked in
+and published, so TypeScript clients and editors see the library's types.
+TypeScript is a development dependency only: nothing needs it to run, test
+or use the library.
+
+```sh
+npm test                # the tests; no install needed
+npm ci                  # installs TypeScript
+npm run check-types     # checks src/ and a client of the package, typecheck/client.ts
+npm run types           # rewrites types/ after a change to the annotations
+```
+
+CI fails if `types/` is not what `npm run types` writes.

@@ -76,8 +76,7 @@ leak into the base rule.
 - `%free-modifiers R`: `#` means `[R ...]`, zero or more `R`; at most one
   per stage, and `#` without one is an error.
 
-**Names.** A name whose first character is an upper-case letter is a
-terminal; the DOM writes both kinds as `ref`, and lowering tells them apart
+**Names.** A name whose first character is `A` to `Z` is a terminal; the DOM writes both kinds as `ref`, and lowering tells them apart
 by that first letter. Any other name is a rule reference, and must be defined in the
 stage, or it is an error. A quoted string or a phoneme tag is a terminal.
 
@@ -171,9 +170,10 @@ text: that is an error of the grammar, reported with the span and the rule,
 and the whole parse fails with it.
 
 **Derivations** are finite trees, and a derivation in which a constituent
-has, below it, a constituent of the same rule over the same span built only
-of single-symbol productions is not counted: `a ≔ b ; b ≔ a | A ;` has one
-derivation of `A` as `a`, not infinitely many.
+has, anywhere below it, a constituent of the same rule over the same span is
+not counted, since such a derivation could repeat without end: `a ≔ b ; b
+≔ a | A ;` has one derivation of `A` as `a`, not infinitely many, and so
+does `t ≔ u | ε ; u ≔ t ;` of the empty text as `t`.
 
 **Acceptance.** The input is accepted when an item of the start rule `text`
 spans the whole input. A rejected input reports the furthest position any
@@ -230,15 +230,41 @@ difference with it, and `tie` otherwise.
 For a tie, the undominated derivations are put in a canonical order, and
 the first is **chosen**. Two of them are ordered by their first differing
 action: a read before a close; two reads by terminal, in code point order;
-two closes by production number, then span start, then span end. The
-**witness** is the pair of actions at the first difference between the
-first two derivations in that order.
+two closes by production number, then span start, then span end. Breaking
+every tie of rules 1 to 3 this way makes a total order *T* on derivations;
+the chosen derivation, `m`, is *T*'s least element, whatever the verdict.
 
-The number of derivations can be exponential; the order is compositional,
-so the winner can be found over the packed forest by keeping, for each
-item, the candidates no other candidate for that item beats, with
-candidates that are prefixes of each other kept together until a later
-action separates them.
+Nothing beats `m`, since whatever beats a derivation precedes it in *T*.
+So an undominated derivation other than `m` is **tied with `m`**: its first
+difference with `m` is a tie. The converse does not hold. In `text ≔ A X |
+B X | B Y ;`, over a token tagged `A` and `B` and one tagged `Y` and weakly
+`X`, `m` is `A X`, and `B X` is tied with it but loses to `B Y`.
+
+Of the derivations tied with `m`, the **tied** derivation reported beside
+`m` is the one that diverges from `m` earliest: the fewest visible actions
+before its first visible difference with `m`, a derivation that differs
+from `m` only in transparent actions counting as diverging last, and
+several that diverge at the same point ordered by *T*. That derivation, `t`,
+is undominated. A derivation that beat `t` before `t` diverges from `m`
+would beat `m`, which nothing does. One that beat `t` later would share
+`t`'s divergence from `m`. One that beat `t` just where `t` diverges would
+beat `m` there too, or be tied with `m` there, since an action that beats
+one tied with `m`'s cannot lose to `m`'s. Either way it would be tied with
+`m`, diverge no later than `t`, and precede `t` in *T*. So the verdict is `tie` exactly when some derivation
+is tied with `m`. In the example, `t` is `B Y`. It shows the first point
+at which the text could be read another way. The **witness** is the pair
+of actions at the first difference between `m` and `t`, visible if there is
+one.
+
+**Computing it.** Both `m` and the earliest-diverging tied derivation
+compose over the packed forest: an implementation keeps, for each item, its
+*T*-least derivation and the earliest-diverging derivation tied with it, and
+keeps several only while one is a visible prefix of another, since the order
+of those is decided later. When one candidate beats another, the loser's
+tied derivation stays tied with the winner exactly when it diverged from the
+loser no later than the point where the winner beat it, so nothing needs to
+be enumerated, and the number of derivations, which can be exponential,
+never matters.
 
 ## 7. Elision-only
 
@@ -253,8 +279,10 @@ and the verdict is not `unique`:
 3. Rank that forest using only rule 1 of §6: two derivations differing first
    anywhere else are tied. If one derivation is left, the check passes and
    the result is the original one. Otherwise the result is an error of kind
-   `ambiguous`: `ok` is false, and the error carries the chosen tree and the
-   first competing derivation, both of the original input.
+   `ambiguous`: `ok` is false, and the error carries two readings, the
+   chosen derivation of that ranking and the tied one reported beside it,
+   shown over the original input, the written-back terminators as elided
+   nodes.
 
 A caller may also switch the check off for a stage that declares it.
 
@@ -279,7 +307,10 @@ documents included; reading the notation documents with the bootstrap must
 reproduce the bootstrap exactly (the fixpoint). An implementation may keep
 DOMs it has already built, keyed by the document's text hash, the
 bootstrap's hash and the DOM format version (`docs/output.md`), and must
-treat a mismatch of any of the three as a miss.
+treat a mismatch of any of the three as a miss. The hash is 64-bit FNV-1a
+over the text's UTF-8 bytes, written as 16 lower-case hexadecimal digits.
+Every package ships `compiled.json` beside its grammars, holding the DOM of
+each bundled grammar document in this way.
 
 ## 9. From notation tree to DOM
 
@@ -343,7 +374,7 @@ empty if the span is.
 | `lowercase(t)` | `t` with each code point replaced by its simple lowercase mapping, the `lower` entries of `grammars/unicode.txt` |
 | `tags(s)` | the captured part's constituent tags if `s` is a whole capture, else the union of the span's tokens' tags |
 | `tags(s, R)` | the union of the tags of every derivation of the span as `R`, empty if none |
-| `classes(s)` | the tags of `tags(s)` whose first character is an upper-case letter |
+| `classes(s)` | the tags of `tags(s)` whose first character is `A` to `Z` |
 | `words(s)` | a list (§5) |
 
 A string used where a tag set is needed is the set of that one strong tag.
@@ -381,11 +412,10 @@ token's span is empty at the index of the next input token, and its source
 is empty at the source end of the input token before it, or at the source
 start of the constituent if nothing of the constituent precedes it.
 
-**Ties at non-final stages.** When the verdict is `tie`, every undominated
-derivation is emitted. If each emits the same token sequence, equal in span,
-source, text and phonemes and differing at most in tags, the stage emits
-that sequence with each token's tags unioned across the derivations, and its
-verdict becomes `resolved`. Otherwise the tie stands.
+**Ties.** A stage whose verdict is `tie` emits its chosen derivation, and
+the tie is reported, at whichever stage it is. A tie is a property of the
+grammar that the grammar should settle, and the engine does not hide one
+even where the tied derivations would emit the same tokens.
 
 ## 12. The tree
 

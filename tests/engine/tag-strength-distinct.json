@@ -1,0 +1,28 @@
+{
+  "description": "A strong tag named ?X and a weak tag X are different tag sets, so constituents carrying them are different items (engine §1, §4).",
+  "grammar": "text ≔ $a(w) : \"?X\" ∈ tags($a) ; w ≔ W <?\"X\"> | S <\"?X\"> ;",
+  "tokens": [
+    {
+      "text": "t",
+      "tags": [
+        "S",
+        "W"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "rule": "w",
+            "tags": {
+              "?X": true
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -51,7 +51,7 @@ tests/
   notation/                small grammar documents with their expected DOMs and errors
   corpus/                  Lojban texts with expected verdicts and trees
   core.txt                 the ids of the corpus subset every language runs in CI
-js/                        npm package `gencmu`: library and CLI (`js/cli.js`)
+js/                        npm package `gencmu`: library, CLI (`js/cli.js`) and type declarations
 python/                    Python package `gencmu`
 go/                        Go module `github.com/int19h/gencmu/go`, package `gencmu`
 rust/                      crate `gencmu`
@@ -552,6 +552,16 @@ and, for the CLI, Node's `fs`. Python's standard library has everything,
 `json` included. Go's has `embed` and `encoding/json`. Rust's has no JSON
 reader, so the Rust tests carry a small one, and the library writes JSON by
 hand; that is a few hundred lines, and the one real cost of the rule.
+
+The rule is about what building and running needs, not what checking does.
+The JavaScript sources carry JSDoc type annotations, and TypeScript checks
+them in CI, with `strict` on; it is the package's one development
+dependency, with Node's type definitions for the Node entry point, and
+nothing runs it to build, test or use the library. The declarations it
+writes from the annotations, `js/types/`, are checked in, verified fresh in
+CI like the other generated files, and published with the package, so a
+client in TypeScript or an editor gets the library's types without gencmu
+having a build step.
 
 ## Expensive constructs behind features
 

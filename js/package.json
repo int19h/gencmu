@@ -1,0 +1,35 @@
+{
+  "name": "gencmu",
+  "version": "0.1.0",
+  "description": "A Lojban parser whose grammars are literate documents loaded at runtime",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./node": {
+      "types": "./types/node.d.ts",
+      "default": "./src/node.js"
+    }
+  },
+  "types": "./types/index.d.ts",
+  "files": [
+    "src",
+    "types",
+    "grammars"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test",
+    "types": "tsc -p .",
+    "check-types": "tsc -p . --noEmit && tsc -p typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.43",
+    "typescript": "7.0.2"
+  }
+}

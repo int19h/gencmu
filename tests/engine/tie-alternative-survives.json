@@ -1,0 +1,67 @@
+{
+  "description": "The tied derivation reported is the one diverging from the chosen one earliest; it stays tied when the candidate it was first tied with loses to one that closes an empty constituent before X (engine §6).",
+  "grammar": "%ambiguity-resolution lazy ;\ntext ≔ t X ; t ≔ A | a | C | A f ; a ≔ A ; f ≔ ε ;",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "A",
+        "C"
+      ]
+    },
+    {
+      "text": "y",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "tie",
+          "tied": {
+            "rule": "text",
+            "children": [
+              {
+                "rule": "t",
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "C"
+                  }
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "X"
+              }
+            ]
+          }
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "t",
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "A"
+              },
+              {
+                "rule": "f"
+              }
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "X"
+          }
+        ]
+      }
+    }
+  }
+}
