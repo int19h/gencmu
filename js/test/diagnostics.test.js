@@ -38,6 +38,9 @@ test("the audit finds an erasure that could change nothing", () => {
   // x is inside a token text emits, whose phonemes would include it.
   const [sounds] = audit(dialect("text ≔ y ⇒ $ ; y ≔ x B ; x ≔ A ⇒ $ <> ;"));
   assert.deepEqual(sounds.idleErasures, []);
+  // A token whose tags name its phoneme does not sound like what is under it.
+  const [fixed] = audit(dialect("text ≔ x ⇒ $ </a/> ; x ≔ A ⇒ $ <> ;"));
+  assert.deepEqual(fixed.idleErasures.map((e) => [e.rule, e.erased]), [["x", "$"]]);
   // A capture erased by name is judged the same way.
   const [named] = audit(dialect("text ≔ $a(A) $b(w) ⇒ $a <>, $b ; w ≔ B ;"));
   assert.deepEqual(named.idleErasures.map((e) => [e.rule, e.erased]), [["text", "$a"]]);

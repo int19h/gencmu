@@ -371,14 +371,18 @@ function soundingRules(alternativesByRule) {
   const reachParts = (alternative, all) => {
     const items = effectiveItems(alternative);
     if (items.length > 0 && items[0].capture === "") {
-      if (!items[0].erase) topItems(alternative.expr).forEach(reach);
+      // A token whose tags name its phoneme sounds as that phoneme, whatever
+      // lies under it (engine §5).
+      const fixed = items.every((item) => namesPhoneme(item.tags || alternative.tags || alternative.clauses.tags));
+      if (!items[0].erase && !fixed) topItems(alternative.expr).forEach(reach);
       return;
     }
     const erased = new Set(items.flatMap((item) => (item.erase && item.capture ? [item.capture] : [])));
     const emitted = new Set(items.flatMap((item) => (!item.erase && item.capture ? [item.capture] : [])));
+    const fixed = new Set(items.flatMap((item) => (!item.erase && item.capture && namesPhoneme(item.tags) ? [item.capture] : [])));
     for (const part of topItems(alternative.expr)) {
       const name = "capture" in part ? part.capture : null;
-      if (name !== null && erased.has(name)) continue;
+      if (name !== null && (erased.has(name) || (!all && fixed.has(name)))) continue;
       if (all || (name !== null && emitted.has(name))) reach(part);
     }
   };
@@ -387,6 +391,19 @@ function soundingRules(alternativesByRule) {
     for (const alternative of alternativesByRule.get(name) || []) reachParts(alternative, true);
   }
   return inside;
+}
+
+/**
+ * Whether a tag term certainly holds a strong phoneme tag, which fixes the
+ * phonemes of a token it tags (engine §5).
+ * @param {Term | undefined} term
+ * @returns {boolean}
+ */
+function namesPhoneme(term) {
+  if (!term) return false;
+  if ("literal" in term) return [...term.literal].length === 3 && term.literal.startsWith("/") && term.literal.endsWith("/");
+  if ("union" in term) return term.union.some(namesPhoneme);
+  return false;
 }
 
 /**

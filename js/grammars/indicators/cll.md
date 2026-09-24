@@ -21,7 +21,7 @@ item-run
 ≔ item | item-run item ;
 
 item
-≔ [absorbed-bahe] $w(unit) [absorbed]
+≔ [absorbed-bahe] $w(unit) [absorbed] <tags($w)>
 ⇒ $w ;
 
 unit
