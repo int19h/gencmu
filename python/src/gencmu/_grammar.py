@@ -304,8 +304,8 @@ class _Lowerer:
             return [expansion for option in expr["choice"] for expansion in self.expand(option)]
         if "and" in expr:
             items = expr["and"]
-            if len(items) > 20:
-                raise self.fail("& joins too many items")
+            if len(items) > 16:
+                raise self.fail("& joins at most 16 items, since it expands to 2ⁿ−1 sequences")
             expanded = [self.expand(item) for item in items]
             result: list[list[_Sym]] = []
             for mask in range(1, 1 << len(items)):

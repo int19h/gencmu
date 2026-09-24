@@ -177,6 +177,8 @@ class DomBuilder:
         if rule in ("choice", "conjunction", "sequence"):
             part = {"choice": "conjunction", "conjunction": "sequence", "sequence": "element"}[rule]
             parts = self.rules(node, part)
+            if rule == "conjunction" and len(parts) > 16:
+                raise self.fail(node, "& joins at most 16 items, since it expands to 2ⁿ−1 sequences")
             if len(parts) == 1:
                 return self.expr(parts[0], top and rule != "choice")
             key = {"choice": "choice", "conjunction": "and", "sequence": "seq"}[rule]
