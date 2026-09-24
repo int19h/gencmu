@@ -102,6 +102,11 @@ func (run *stageRun) run(g *lowered, mandatory func() *lowered, elisionOnly bool
 			out.err = run.failure(f)
 		}
 	}()
+	// An error of the grammar that lowering for these features found is a
+	// result like one found while parsing (§3.3).
+	if g.fault != "" {
+		panic(&parseFailure{message: g.fault})
+	}
 	start := g.byName["text"]
 	rec := run.recognize(g, start, 0, len(run.toks))
 	top := rec.accepted(start)

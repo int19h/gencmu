@@ -21,7 +21,7 @@ func mustLoad(t *testing.T, sources map[string]string) *Dialect {
 func oneStage(grammar string) map[string]string {
 	return map[string]string{
 		"p.md": "# A dialect\n\n## Main <?stage main?>\n\n- [the grammar](g.md) <?grammar?>\n",
-		"g.md": "# A grammar\n\n```ebnf\n" + grammar + "\n```\n",
+		"g.md": "# A grammar\n\n```jbogenbau\n" + grammar + "\n```\n",
 	}
 }
 
@@ -33,7 +33,7 @@ func TestLoadDialectBundled(t *testing.T) {
 	if got := strings.Join(d.StageNames(), " "); got != "lexical syntax" {
 		t.Fatalf("stages %q", got)
 	}
-	res, err := d.Parse("text ≔ A [B] ... ;", ParseOptions{})
+	res, err := d.Parse("%rule text A [B] ...", ParseOptions{})
 	if err != nil || !res.OK {
 		t.Fatalf("%v %+v", err, res.Error)
 	}
@@ -55,7 +55,7 @@ func TestLoadDialectFile(t *testing.T) {
 	os.MkdirAll(filepath.Join(dir, "dialects"), 0o755)
 	os.MkdirAll(filepath.Join(dir, "syntax"), 0o755)
 	os.WriteFile(filepath.Join(dir, "dialects", "mine.md"), []byte("## Main <?stage main?>\n\n- [g](../syntax/g.md) <?grammar?>\n"), 0o644)
-	os.WriteFile(filepath.Join(dir, "syntax", "g.md"), []byte("```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ \"a\" ... ;\n```\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "syntax", "g.md"), []byte("```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\" ...\n```\n"), 0o644)
 	d, err := LoadDialectFile(filepath.Join(dir, "dialects", "mine.md"))
 	if err != nil {
 		t.Fatal(err)
@@ -79,9 +79,12 @@ func TestLoadErrors(t *testing.T) {
 		column  int
 		doc     string
 	}{
-		"syntax":         {oneStage("%ambiguity-resolution greedy ;\ntext ≔ A B"), 5, 11, "g.md"},
-		"escape":         {oneStage("%ambiguity-resolution greedy ;\ntext ≔ \"\\q\" ;"), 5, 8, "g.md"},
-		"undefined":      {oneStage("%ambiguity-resolution greedy ;\ntext ≔ nowhere ;"), 5, 1, "g.md"},
+		"syntax":         {oneStage("%ambiguity-resolution greedy\n%rule text A ) B"), 5, 14, "g.md"},
+		"keyword":        {oneStage("%ambiguity-resolution greedy\n%rule text A\n  %emit $"), 6, 3, "g.md"},
+		"escape":         {oneStage("%ambiguity-resolution greedy\n%rule text \"\\q\""), 5, 12, "g.md"},
+		"undefined":      {oneStage("%ambiguity-resolution greedy\n%rule text nowhere"), 5, 1, "g.md"},
+		"defined twice":  {oneStage("%ambiguity-resolution greedy\n%rule text A\n%rule text B"), 6, 1, "g.md"},
+		"definition":     {oneStage("%ambiguity-resolution greedy\n%rule text $a(A) | B\n%emits $a"), 5, 1, "g.md"},
 		"missing":        {map[string]string{"p.md": "## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n"}, 0, 0, "g.md"},
 		"no link":        {map[string]string{"p.md": "## Main <?stage main?>\n\n- g.md <?grammar?>\n"}, 3, 8, "p.md"},
 		"two stages":     {map[string]string{"p.md": "## A <?stage x?>\n## B <?stage x?>\n"}, 2, 6, "p.md"},
@@ -104,8 +107,8 @@ func TestLoadErrors(t *testing.T) {
 func TestParseOptions(t *testing.T) {
 	d := mustLoad(t, map[string]string{
 		"p.md": "# D <?features base?>\n\n## One <?stage one?>\n\n- [g](g.md) <?grammar?>\n\n## Two <?stage two?>\n\n- [h](h.md) <?grammar?>\n",
-		"g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ [w] ... ;\nw ≔ @base \"a\" <\"A\"> | @extra \"b\" <\"B\"> ⇒ $ ;\n```\n",
-		"h.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ s | s B ; s ≔ A [B] ;\n```\n",
+		"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [w] ...\n%rule w @base \"a\" <\"A\"> | @extra \"b\" <\"B\">\n%emits $\n```\n",
+		"h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text s | s B\n%rule s A [B]\n```\n",
 	})
 	res, err := d.Parse("a", ParseOptions{})
 	if err != nil || !res.OK || len(res.Stages) != 2 {
@@ -145,14 +148,29 @@ func TestParseOptions(t *testing.T) {
 
 func boolPtr(b bool) *bool { return &b }
 
+// A trailing repetition that captures a part is an error of the grammar
+// found at lowering, for the features that leave it alone in its rule: a
+// result, not a load error (engine §3.3).
+func TestLoweringFault(t *testing.T) {
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text @f $a(A) B ... | @¬f A B ..."))
+	toks := []Token{{Text: "a", Tags: map[string]bool{"A": true}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}, {Text: "b", Tags: map[string]bool{"B": true}, Span: [2]int{1, 2}, Source: [2]int{1, 2}}}
+	res, err := d.ParseTokens("ab", toks, ParseOptions{Features: []string{"f"}})
+	if err != nil || res.OK || res.Error.Kind != ErrorGrammar || res.Error.Stage != "main" || res.Stages[0].Verdict != "" || res.Tree != nil {
+		t.Fatalf("expected a grammar error as the result: %v %+v", err, res)
+	}
+	if res, err := d.ParseTokens("ab", toks, ParseOptions{}); err != nil || !res.OK {
+		t.Fatalf("without f the alternative with a capture is not alone: %v %+v", err, res)
+	}
+}
+
 // A words stage whose word is sa: auto features run the parse again with
 // sa-su (engine §13).
 func TestAutoFeatures(t *testing.T) {
 	d := mustLoad(t, map[string]string{
 		"p.md": "## Sounds <?stage sounds?>\n\n- [g](g.md) <?grammar?>\n\n## Words <?stage words?>\n\n- [h](h.md) <?grammar?>\n\n## Syntax <?stage syntax?>\n\n- [s](s.md) <?grammar?>\n",
-		"g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ [c] ... ;\nc ≔ \"s\" </s/> | \"a\" </a/> | \"u\" </u/> | @sa-su \"x\" </x/> ⇒ $ ;\n```\n",
-		"h.md": "```ebnf\n%ambiguity-resolution lazy ;\ntext ≔ [word] ... ;\nword ≔ @¬sa-su /s/ /a/ <\"W\"> | @sa-su /s/ /a/ <\"SA\"> | /u/ <\"W\"> | /x/ <\"W\"> ⇒ $ ;\n```\n",
-		"s.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ [W | SA] ... ;\n```\n",
+		"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [c] ...\n%rule c \"s\" </s/> | \"a\" </a/> | \"u\" </u/> | @sa-su \"x\" </x/>\n%emits $\n```\n",
+		"h.md": "```jbogenbau\n%ambiguity-resolution lazy\n%rule text [word] ...\n%rule word @¬sa-su /s/ /a/ <\"W\"> | @sa-su /s/ /a/ <\"SA\"> | /u/ <\"W\"> | /x/ <\"W\">\n%emits $\n```\n",
+		"s.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [W | SA] ...\n```\n",
 	})
 	tags := func(res *ParseResult) string {
 		var out []string
@@ -189,7 +207,7 @@ func TestAutoFeatures(t *testing.T) {
 }
 
 func TestMarshalResult(t *testing.T) {
-	d := mustLoad(t, oneStage("%ambiguity-resolution greedy ;\n%elidable KU ;\ntext ≔ \"é\" [KU] ;"))
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%elidable KU\n%rule text \"é\" [KU]"))
 	res, _ := d.Parse("é", ParseOptions{})
 	data, err := MarshalResult(res)
 	if err != nil {
@@ -213,7 +231,7 @@ func TestMarshalResult(t *testing.T) {
 }
 
 func TestBracketsDepth(t *testing.T) {
-	d := mustLoad(t, oneStage("%ambiguity-resolution greedy ;\ntext ≔ a a ; a ≔ \"x\" b ; b ≔ \"y\" c ; c ≔ \"z\" \"w\" ;"))
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text a a\n%rule a \"x\" b\n%rule b \"y\" c\n%rule c \"z\" \"w\""))
 	res, _ := d.Parse("xyzwxyzw", ParseOptions{})
 	if b := Brackets(res, BracketOptions{}); b != "([x {y (z w)}] [x {y (z w)}])" {
 		t.Fatalf("brackets %q", b)
@@ -227,7 +245,7 @@ func TestConcurrentParses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	texts := []string{"a ≔ A ;", "b ≔ [B] ... C & D ;", "c <\"X\"> ≔ $x(C) : text($x) = \"c\" ⇒ $ ;", "%elidable KU ;"}
+	texts := []string{"%rule a A", "%rule b [B] ... C & D", "%rule c $x(C) %tags \"X\" %conditions text($x) = \"c\" ⟹ $x %emits $", "%elidable KU"}
 	want := make([]string, len(texts))
 	for i, text := range texts {
 		res, _ := d.Parse(text, ParseOptions{})
@@ -269,11 +287,11 @@ func TestDeepDerivations(t *testing.T) {
 		grammar string
 		n       int
 	}{
-		{"text ≔ text \"a\" | \"a\" ;", 50000},
-		{"text ≔ [w] ... ; w ≔ \"a\" ⇒ $ ;", 50000},
-		{"text ≔ \"a\" text | \"a\" ;", 1500},
+		{"%rule text text \"a\" | \"a\"", 50000},
+		{"%rule text [w] ...\n%rule w \"a\"\n%emits $", 50000},
+		{"%rule text \"a\" text | \"a\"", 1500},
 	} {
-		d := mustLoad(t, oneStage("%ambiguity-resolution greedy ;\n"+c.grammar))
+		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n"+c.grammar))
 		res, err := d.Parse(strings.Repeat("a", c.n), ParseOptions{})
 		if err != nil || !res.OK {
 			t.Fatalf("%s: %v %+v", c.grammar, err, res.Error)
@@ -290,7 +308,7 @@ func TestDeepDerivations(t *testing.T) {
 // panics (review of PR #8).
 func TestMalformedPrecompiled(t *testing.T) {
 	loadBundled()
-	sources := oneStage("%ambiguity-resolution greedy ;\ntext ≔ \"a\" \"b\" ;")
+	sources := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
 	gText := sources["g.md"]
 	bad := []string{
 		`{"seq":[]}`, `{"choice":[]}`, `{"and":[]}`, `{"seq":[null]}`, `{"optional":null}`,
@@ -308,13 +326,13 @@ func TestMalformedPrecompiled(t *testing.T) {
 		bad = append(bad, `{"seq":[{"terminal":"a"},{"terminal":"b"}]},"tags":`+tags)
 	}
 	for _, expr := range bad {
-		dom := `{"format":2,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[1,1]}]}`
+		dom := `{"format":3,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[1,1]}]}`
 		// In compiled.json, with every hash matching: a miss.
 		src := map[string]string{}
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["compiled.json"] = `{"format":2,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(gText) + `","dom":` + dom + `}}}`
+		src["compiled.json"] = `{"format":3,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(gText) + `","dom":` + dom + `}}}`
 		d, err := LoadDialectSources(src, "p.md")
 		if err != nil {
 			t.Fatalf("%s in compiled.json: %v", expr, err)
@@ -328,7 +346,7 @@ func TestMalformedPrecompiled(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["notation/bootstrap.json"] = `{"format":2,"stages":[{"name":"lexical","documents":[{"path":"notation/lexical.md","dom":` + dom + `}]}]}`
+		src["notation/bootstrap.json"] = `{"format":3,"stages":[{"name":"lexical","documents":[{"path":"notation/lexical.md","dom":` + dom + `}]}]}`
 		_, err = LoadDialectSources(src, "p.md")
 		var e *Error
 		if !errors.As(err, &e) || e.Kind != ErrorGrammar {
@@ -340,7 +358,7 @@ func TestMalformedPrecompiled(t *testing.T) {
 // Caller tokens whose source lies outside the text are a usage error, not
 // a panic (review of PR #8).
 func TestParseTokensOutOfRange(t *testing.T) {
-	d := mustLoad(t, oneStage("%ambiguity-resolution greedy ;\ntext ≔ \"a\" ⇒ $ ;"))
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text \"a\"\n%emits $"))
 	for _, src := range [][2]int{{100, 101}, {1, 0}, {-1, 0}, {0, 2}} {
 		toks := []Token{{Text: "a", Tags: map[string]bool{"a": true}, Span: [2]int{0, 1}, Source: src}}
 		res, err := d.ParseTokens("a", toks, ParseOptions{})
@@ -366,14 +384,14 @@ func TestParseTokensOutOfRange(t *testing.T) {
 // loads, from its text and from its precompiled DOM (Codex's review).
 func TestEmptyStringTerminal(t *testing.T) {
 	for _, noCache := range []bool{true, false} {
-		sources := oneStage("%ambiguity-resolution greedy ;\ntext ≔ \"\" | \"a\" ;")
+		sources := oneStage("%ambiguity-resolution greedy\n%rule text \"\" | \"a\"")
 		if !noCache {
 			loadBundled()
 			dom, err := bundled.reader.read(sources["g.md"], "g.md")
 			if err != nil {
 				t.Fatal(err)
 			}
-			sources["compiled.json"] = `{"format":2,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(sources["g.md"]) + `","dom":` + string(dom.json()) + `}}}`
+			sources["compiled.json"] = `{"format":3,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(sources["g.md"]) + `","dom":` + string(dom.json()) + `}}}`
 			if _, err := decodeDOM(dom.json()); err != nil {
 				t.Fatalf("the reader's DOM is refused: %v", err)
 			}

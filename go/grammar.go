@@ -64,23 +64,28 @@ func stitch(stageName string, docs []docDOM) (*stageGrammar, *Error) {
 				alts[i] = &sAlt{alt: a, ruleTags: r.Tags, emit: r.Emit, conds: r.Conditions, doc: d.path, at: r.At}
 			}
 			existing := g.byName[r.Name]
+			// Each way of stating a rule says what it expects to be there
+			// already (engine §2).
 			switch r.Op {
 			case "define":
-				if defined[r.Name] {
-					return nil, fail(d.path, r.At, "%s is defined twice with ≔ in one document", r.Name)
+				if existing != nil {
+					return nil, fail(d.path, r.At, "%%rule %s is already defined, in %s; %%redefine-rule replaces a rule", r.Name, existing.doc)
 				}
 				defined[r.Name] = true
-				if existing != nil {
-					g.changes = append(g.changes, stitchChange{r.Name, d.path, "replace"})
-					existing.alts, existing.doc, existing.at = alts, d.path, r.At
-				} else {
-					nr := &sRule{name: r.Name, alts: alts, doc: d.path, at: r.At}
-					g.rules = append(g.rules, nr)
-					g.byName[r.Name] = nr
+				nr := &sRule{name: r.Name, alts: alts, doc: d.path, at: r.At}
+				g.rules = append(g.rules, nr)
+				g.byName[r.Name] = nr
+			case "redefine":
+				if existing == nil || defined[r.Name] {
+					return nil, fail(d.path, r.At, "%%redefine-rule %s replaces no rule of an earlier document", r.Name)
 				}
+				defined[r.Name] = true
+				// The replacement keeps the place of the rule it replaces.
+				g.changes = append(g.changes, stitchChange{r.Name, d.path, "replace"})
+				existing.alts, existing.doc, existing.at = alts, d.path, r.At
 			case "extend":
 				if existing == nil {
-					return nil, fail(d.path, r.At, "%s |≔ extends a rule not defined before it", r.Name)
+					return nil, fail(d.path, r.At, "%%extend-rule %s extends a rule not defined before it", r.Name)
 				}
 				g.changes = append(g.changes, stitchChange{r.Name, d.path, "extend"})
 				existing.alts = append(existing.alts, alts...)
@@ -186,12 +191,18 @@ func (g *stageGrammar) checkAlt(a *sAlt) *Error {
 		return err
 	}
 	var checkTerm func(t *domTerm) *Error
+	var checkCond func(c *domCond) *Error
 	checkTerm = func(t *domTerm) *Error {
 		if t == nil {
 			return nil
 		}
 		if t.Kind == tmRule && g.byName[t.Str] == nil {
 			return fail("%s is not a rule of stage %s", t.Str, g.name)
+		}
+		if t.Cond != nil {
+			if err := checkCond(t.Cond); err != nil {
+				return err
+			}
 		}
 		for _, it := range t.Items {
 			if err := checkTerm(it); err != nil {
@@ -200,7 +211,6 @@ func (g *stageGrammar) checkAlt(a *sAlt) *Error {
 		}
 		return nil
 	}
-	var checkCond func(c *domCond) *Error
 	checkCond = func(c *domCond) *Error {
 		switch c.Kind {
 		case cdCompare:
@@ -215,7 +225,7 @@ func (g *stageGrammar) checkAlt(a *sAlt) *Error {
 			return checkTerm(c.Span)
 		case cdNot:
 			return checkCond(c.Inner)
-		case cdAny, cdAll:
+		case cdAny, cdAll, cdIf:
 			for _, it := range c.Items {
 				if err := checkCond(it); err != nil {
 					return err
@@ -242,33 +252,4 @@ func (g *stageGrammar) checkAlt(a *sAlt) *Error {
 		}
 	}
 	return nil
-}
-
-// termCaptures lists the captures a term mentions.
-func termCaptures(t *domTerm, into map[string]bool) {
-	if t == nil {
-		return
-	}
-	if t.Kind == tmCapture {
-		into[t.Str] = true
-	}
-	for _, it := range t.Items {
-		termCaptures(it, into)
-	}
-}
-
-func condCaptures(c *domCond, into map[string]bool) {
-	switch c.Kind {
-	case cdCompare:
-		termCaptures(c.Left, into)
-		termCaptures(c.Right, into)
-	case cdMatches:
-		termCaptures(c.Span, into)
-	case cdNot:
-		condCaptures(c.Inner, into)
-	case cdAny, cdAll:
-		for _, it := range c.Items {
-			condCaptures(it, into)
-		}
-	}
 }

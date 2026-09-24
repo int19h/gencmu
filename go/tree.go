@@ -173,7 +173,7 @@ func (run *stageRun) plan(rec *recognizer, n *dn) []emitTask {
 		}
 		return plan
 	}
-	if p.eraseAll {
+	if p.silentAll {
 		return nil
 	}
 	start, end := rec.base+int(n.start), rec.base+int(n.end)
@@ -201,65 +201,59 @@ func (run *stageRun) plan(rec *recognizer, n *dn) []emitTask {
 		}
 		return tags
 	}
-	items := p.emit.Items
-	if p.emit.whole() {
-		var plan []emitTask
-		for _, it := range items {
-			plan = append(plan, emitTask{emit: n, tags: itemTags(it, n.tags)})
+	// The items as listed, and nothing else of the constituent (§11).
+	part := func(name string) *dn {
+		for i, c := range p.capName {
+			if c == name {
+				return kids[i]
+			}
 		}
-		return plan
-	}
-	insert := func(tag string, index int) emitTask {
-		src := run.spanSource(start, end)
-		if index > start {
-			e := run.toks[index-1].Source[1]
-			src = [2]int{e, e}
-		} else {
-			src = [2]int{src[0], src[0]}
-		}
-		tok := &Token{Text: "", Tags: map[string]bool{tag: true}, Span: [2]int{index, index}, Source: src, InsertedBy: p.ruleName}
-		if ph, ok := phonemeTag(tag); ok {
-			tok.Phonemes = ph
-		}
-		return emitTask{tok: tok}
-	}
-	// An inserted tag goes before the token of the first capture listed
-	// after it, or, with none listed after it, after the last child (§11).
-	named := map[string]*domEmitItem{}
-	before := map[string][]string{}
-	var pendingTags []string
-	for _, it := range items {
-		switch {
-		case it.IsInsert:
-			pendingTags = append(pendingTags, it.Insert)
-		default:
-			named[it.Capture] = it
-			before[it.Capture] = append(before[it.Capture], pendingTags...)
-			pendingTags = nil
-		}
+		return nil
 	}
 	var plan []emitTask
-	for i, k := range kids {
-		name := p.capName[i]
-		it := named[name]
-		if name == "" || it == nil {
-			plan = append(plan, emitTask{walk: k})
-			continue
-		}
-		a, _, own := run.kidSpan(rec, k)
-		for _, tag := range before[name] {
-			plan = append(plan, insert(tag, a))
-		}
-		// An erased capture is neither emitted nor walked; the tags
-		// inserted before it stand where its token would have.
-		if !it.Erase {
+	for i, it := range p.emit.Items {
+		switch {
+		case it.IsInsert:
+			// Its span is empty at the start of the part of the capture
+			// listed next after it, or at the constituent's end.
+			at := end
+			for _, next := range p.emit.Items[i+1:] {
+				if !next.IsInsert {
+					if k := part(next.Capture); k != nil {
+						at, _, _ = run.kidSpan(rec, k)
+					}
+					break
+				}
+			}
+			plan = append(plan, run.inserted(it.Insert, at, start, end, p.ruleName))
+		case it.Capture == "":
+			plan = append(plan, emitTask{emit: n, tags: itemTags(it, n.tags)})
+		case !it.Silent:
+			k := part(it.Capture)
+			_, _, own := run.kidSpan(rec, k)
 			plan = append(plan, emitTask{emit: k, tags: itemTags(it, own)})
 		}
 	}
-	for _, tag := range pendingTags {
-		plan = append(plan, insert(tag, end))
-	}
 	return plan
+}
+
+// inserted is the token of an inserted tag at token position at of a
+// constituent over [start, end): its source is empty at the source end of
+// the token before, or at the constituent's source start if at is its
+// start (§11).
+func (run *stageRun) inserted(tag string, at, start, end int, rule string) emitTask {
+	src := run.spanSource(start, end)
+	if at > start {
+		e := run.toks[at-1].Source[1]
+		src = [2]int{e, e}
+	} else {
+		src = [2]int{src[0], src[0]}
+	}
+	tok := &Token{Text: "", Tags: map[string]bool{tag: true}, Span: [2]int{at, at}, Source: src, InsertedBy: rule}
+	if ph, ok := phonemeTag(tag); ok {
+		tok.Phonemes = ph
+	}
+	return emitTask{tok: tok}
 }
 
 // emitted is the token a constituent emits, with the given tags.
@@ -281,7 +275,7 @@ func (run *stageRun) emitted(rec *recognizer, n *dn, tags *tagset) Token {
 		return tok
 	}
 	// The phonemes of the tokens it was emitted from, omitting every token
-	// inside an erased constituent.
+	// inside a silent constituent.
 	var sb strings.Builder
 	stack := []*dn{n}
 	for len(stack) > 0 {
@@ -291,13 +285,13 @@ func (run *stageRun) emitted(rec *recognizer, n *dn, tags *tagset) Token {
 		case dRead:
 			sb.WriteString(run.toks[rec.base+int(x.tok)].Phonemes)
 		case dClose:
-			if x.prod.eraseAll || x.a == nil {
+			if x.prod.silentAll || x.a == nil {
 				continue
 			}
-			if x.prod.erased != nil {
+			if x.prod.silent != nil {
 				kids := flattenKids(x.a)
 				for i := len(kids) - 1; i >= 0; i-- {
-					if !x.prod.erased[i] {
+					if !x.prod.silent[i] {
 						stack = append(stack, kids[i])
 					}
 				}
