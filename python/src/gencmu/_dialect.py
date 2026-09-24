@@ -97,7 +97,9 @@ class NotationReader:
         where = "notation/bootstrap.json"
         try:
             data = json.loads(bootstrap)
-        except ValueError as error:
+        except (ValueError, RecursionError) as error:
+            # json.loads recurses, and a text nested deeper than the stack
+            # allows is no bootstrap either.
             raise GencmuError(f"the bootstrap is not JSON: {error}", document=where) from error
         stages_data = data.get("stages") if isinstance(data, dict) else None
         if not isinstance(data, dict) or data.get("format") != DOM_FORMAT or not isinstance(stages_data, list) or not stages_data:
@@ -183,7 +185,9 @@ def _compiled_index(compiled: str | None, bootstrap_hash: str) -> dict[str, Dom]
                 # A malformed entry is a miss: its document is read afresh.
                 if isinstance(entry, dict) and isinstance(entry.get("hash"), str) and dom_problem(entry.get("dom")) is None:
                     index[entry["hash"]] = entry["dom"]
-    except (ValueError, AttributeError, KeyError, TypeError):
+    except (ValueError, AttributeError, KeyError, TypeError, RecursionError):
+        # An unreadable compiled.json, one nested deeper than json.loads can
+        # follow included, is no cache: every document is read afresh.
         index = {}
     with _lock:
         _compiled_indexes[key] = index

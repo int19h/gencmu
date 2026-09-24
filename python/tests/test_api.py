@@ -276,8 +276,8 @@ class Robustness(unittest.TestCase):
         return {"p.md": self.MAIN, "g.md": "```ebnf\n%ambiguity-resolution greedy ;\n" + rules + "\n```\n"}
 
     def test_malformed_bootstrap(self) -> None:
-        for bootstrap in ('{"format":1,"stages":[]}', "[]", "not json", '{"format":1,"stages":[{"name":"x","documents":[{"path":"a","dom":{"rules":[{}]}}]}]}'):
-            with self.subTest(bootstrap=bootstrap):
+        for bootstrap in ('{"format":1,"stages":[]}', "[]", "not json", "[" * 2000 + "]" * 2000, '{"format":1,"stages":[{"name":"x","documents":[{"path":"a","dom":{"rules":[{}]}}]}]}'):
+            with self.subTest(bootstrap=bootstrap[:40]):
                 sources = self.grammar('text ≔ "a" ;')
                 sources["notation/bootstrap.json"] = bootstrap
                 with self.assertRaises(gencmu.GencmuError) as caught:
@@ -296,6 +296,14 @@ class Robustness(unittest.TestCase):
         sources["compiled.json"] = json.dumps(compiled)
         dialect = gencmu.load_dialect_sources(sources, "p.md")
         self.assertTrue(dialect.parse("a", auto_features=False).ok)
+
+    def test_unreadable_cache_is_no_cache(self) -> None:
+        for compiled in ("[" * 2000 + "]" * 2000, "not json", "[]"):
+            with self.subTest(compiled=compiled[:10]):
+                sources = self.grammar('text ≔ "a" ;')
+                sources["compiled.json"] = compiled
+                dialect = gencmu.load_dialect_sources(sources, "p.md")
+                self.assertTrue(dialect.parse("a", auto_features=False).ok)
 
     def test_bundled_doms_are_well_formed(self) -> None:
         from gencmu._validate import dom_problem
