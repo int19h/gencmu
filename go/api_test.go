@@ -1,0 +1,249 @@
+package gencmu
+
+import (
+	"errors"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"testing"
+)
+
+func mustLoad(t *testing.T, sources map[string]string) *Dialect {
+	t.Helper()
+	d, err := LoadDialectSources(sources, "p.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return d
+}
+
+func oneStage(grammar string) map[string]string {
+	return map[string]string{
+		"p.md": "# A dialect\n\n## Main <?stage main?>\n\n- [the grammar](g.md) <?grammar?>\n",
+		"g.md": "# A grammar\n\n```ebnf\n" + grammar + "\n```\n",
+	}
+}
+
+func TestLoadDialectBundled(t *testing.T) {
+	d, err := LoadDialect("notation")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(d.StageNames(), " "); got != "lexical syntax" {
+		t.Fatalf("stages %q", got)
+	}
+	res, err := d.Parse("text ≔ A [B] ... ;", ParseOptions{})
+	if err != nil || !res.OK {
+		t.Fatalf("%v %+v", err, res.Error)
+	}
+	if res.Tree == nil || res.Tree.Rule != "text" || len(res.Stages) != 2 {
+		t.Fatalf("unexpected result %+v", res)
+	}
+	if _, err := LoadDialect("no-such-dialect"); err == nil {
+		t.Fatal("a missing dialect loaded")
+	} else {
+		var e *Error
+		if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "dialects/no-such-dialect.md" {
+			t.Fatalf("unexpected error %#v", err)
+		}
+	}
+}
+
+func TestLoadDialectFile(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "dialects"), 0o755)
+	os.MkdirAll(filepath.Join(dir, "syntax"), 0o755)
+	os.WriteFile(filepath.Join(dir, "dialects", "mine.md"), []byte("## Main <?stage main?>\n\n- [g](../syntax/g.md) <?grammar?>\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "syntax", "g.md"), []byte("```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ \"a\" ... ;\n```\n"), 0o644)
+	d, err := LoadDialectFile(filepath.Join(dir, "dialects", "mine.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, _ := d.Parse("aaa", ParseOptions{})
+	if !res.OK || Brackets(res, BracketOptions{}) != "(a a a)" {
+		t.Fatalf("%+v %q", res.Error, Brackets(res, BracketOptions{}))
+	}
+	os.WriteFile(filepath.Join(dir, "dialects", "broken.md"), []byte("## Main <?stage main?>\n\n- [g](../syntax/missing.md) <?grammar?>\n"), 0o644)
+	_, err = LoadDialectFile(filepath.Join(dir, "dialects", "broken.md"))
+	var e *Error
+	if !errors.As(err, &e) || !strings.HasSuffix(e.Document, "syntax/missing.md") || e.Stage != "main" {
+		t.Fatalf("unexpected error %#v", err)
+	}
+}
+
+func TestLoadErrors(t *testing.T) {
+	cases := map[string]struct {
+		sources map[string]string
+		line    int
+		column  int
+		doc     string
+	}{
+		"syntax":         {oneStage("%ambiguity-resolution greedy ;\ntext ≔ A B"), 5, 11, "g.md"},
+		"escape":         {oneStage("%ambiguity-resolution greedy ;\ntext ≔ \"\\q\" ;"), 5, 8, "g.md"},
+		"undefined":      {oneStage("%ambiguity-resolution greedy ;\ntext ≔ nowhere ;"), 5, 1, "g.md"},
+		"missing":        {map[string]string{"p.md": "## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n"}, 0, 0, "g.md"},
+		"no link":        {map[string]string{"p.md": "## Main <?stage main?>\n\n- g.md <?grammar?>\n"}, 3, 8, "p.md"},
+		"two stages":     {map[string]string{"p.md": "## A <?stage x?>\n## B <?stage x?>\n"}, 2, 6, "p.md"},
+		"bad feature":    {map[string]string{"p.md": "# D <?features 9x?>\n## A <?stage x?>\n"}, 1, 5, "p.md"},
+		"empty features": {map[string]string{"p.md": "# D <?features ?>\n## A <?stage x?>\n"}, 1, 5, "p.md"},
+	}
+	for name, c := range cases {
+		_, err := LoadDialectSources(c.sources, "p.md")
+		var e *Error
+		if !errors.As(err, &e) {
+			t.Errorf("%s: expected a *Error, got %v", name, err)
+			continue
+		}
+		if e.Kind != ErrorGrammar || e.Document != c.doc || e.Line != c.line || e.Column != c.column || e.Error() == "" {
+			t.Errorf("%s: unexpected error %#v", name, e)
+		}
+	}
+}
+
+func TestParseOptions(t *testing.T) {
+	d := mustLoad(t, map[string]string{
+		"p.md": "# D <?features base?>\n\n## One <?stage one?>\n\n- [g](g.md) <?grammar?>\n\n## Two <?stage two?>\n\n- [h](h.md) <?grammar?>\n",
+		"g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ [w] ... ;\nw ≔ @base \"a\" <\"A\"> | @extra \"b\" <\"B\"> ⇒ this ;\n```\n",
+		"h.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ s | s B ; s ≔ A [B] ;\n```\n",
+	})
+	res, err := d.Parse("a", ParseOptions{})
+	if err != nil || !res.OK || len(res.Stages) != 2 {
+		t.Fatalf("%v %+v", err, res)
+	}
+	if res, _ := d.Parse("ab", ParseOptions{}); res.OK || res.Error.Kind != ErrorRejected || res.Error.Stage != "one" || *res.Error.Token != 1 || res.Error.Column != 2 {
+		t.Fatalf("expected a rejection at b: %+v", res.Error)
+	}
+	res, _ = d.Parse("ab", ParseOptions{Features: []string{"extra"}})
+	if !res.OK || res.Stages[1].Verdict != VerdictResolved {
+		t.Fatalf("%+v", res.Error)
+	}
+	res, _ = d.Parse("ab", ParseOptions{Features: []string{"extra"}, ElisionOnly: boolPtr(true)})
+	if res.OK || res.Error.Kind != ErrorAmbiguous || len(res.Error.Readings) != 2 || res.Tree != nil {
+		t.Fatalf("expected elision-only to fail: %+v", res.Error)
+	}
+	res, err = d.Parse("ab", ParseOptions{Features: []string{"extra"}, Until: "one"})
+	if err != nil || !res.OK || len(res.Stages) != 1 || res.Tree.Rule != "text" || len(res.Stages[0].Output) != 2 {
+		t.Fatalf("%v %+v", err, res)
+	}
+	if _, err := d.Parse("a", ParseOptions{Until: "three"}); err == nil {
+		t.Fatal("an unknown stage is not an error")
+	}
+	toks := []Token{{Text: "a", Tags: map[string]bool{"A": true}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}}
+	res, err = d.ParseTokens("a", toks, ParseOptions{Until: "one"})
+	if err != nil || res.OK {
+		t.Fatalf("pre-built tokens tagged A are not characters: %+v", res)
+	}
+}
+
+func boolPtr(b bool) *bool { return &b }
+
+// A words stage whose word is sa: auto features run the parse again with
+// sa-su (engine §13).
+func TestAutoFeatures(t *testing.T) {
+	d := mustLoad(t, map[string]string{
+		"p.md": "## Sounds <?stage sounds?>\n\n- [g](g.md) <?grammar?>\n\n## Words <?stage words?>\n\n- [h](h.md) <?grammar?>\n\n## Syntax <?stage syntax?>\n\n- [s](s.md) <?grammar?>\n",
+		"g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ [c] ... ;\nc ≔ \"s\" </s/> | \"a\" </a/> | \"u\" </u/> ⇒ this ;\n```\n",
+		"h.md": "```ebnf\n%ambiguity-resolution lazy ;\ntext ≔ [word] ... ;\nword ≔ @!sa-su /s/ /a/ <\"W\"> | @sa-su /s/ /a/ <\"SA\"> | /u/ <\"W\"> ⇒ this ;\n```\n",
+		"s.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ [W | SA] ... ;\n```\n",
+	})
+	tags := func(res *ParseResult) string {
+		var out []string
+		for _, tok := range res.Stages[1].Output {
+			for tag := range tok.Tags {
+				out = append(out, tag)
+			}
+		}
+		return strings.Join(out, " ")
+	}
+	res, _ := d.Parse("sa", ParseOptions{})
+	if !res.OK || tags(res) != "SA" {
+		t.Fatalf("auto features did not add sa-su: %q", tags(res))
+	}
+	res, _ = d.Parse("sa", ParseOptions{NoAutoFeatures: true})
+	if !res.OK || tags(res) != "W" {
+		t.Fatalf("sa-su was added with auto features off: %q", tags(res))
+	}
+	res, _ = d.Parse("u", ParseOptions{})
+	if !res.OK || tags(res) != "W" {
+		t.Fatalf("%q", tags(res))
+	}
+	// A run that stops before words does not probe.
+	res, _ = d.Parse("sa", ParseOptions{Until: "sounds"})
+	if !res.OK || len(res.Stages) != 1 {
+		t.Fatalf("%+v", res)
+	}
+}
+
+func TestMarshalResult(t *testing.T) {
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy ;\n%elidable KU ;\ntext ≔ \"é\" [KU] ;"))
+	res, _ := d.Parse("é", ParseOptions{})
+	data, err := MarshalResult(res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"format":1,"ok":true,"stages":[{"name":"main","verdict":"unique","output":[]}],"tree":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":{},"children":[{"kind":"token","terminal":"é","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"KU","span":[1,1],"source":[1,1]}]},"error":null}`
+	if string(data) != want {
+		t.Fatalf("got  %s\nwant %s", data, want)
+	}
+	if b := Brackets(res, BracketOptions{ShowElided: true}); b != "(é ⟨ku⟩)" {
+		t.Fatalf("brackets %q", b)
+	}
+	if b := Brackets(res, BracketOptions{}); b != "é" {
+		t.Fatalf("brackets %q", b)
+	}
+	res, _ = d.Parse("x", ParseOptions{})
+	data, _ = MarshalResult(res)
+	if !strings.HasPrefix(string(data), `{"format":1,"ok":false,"stages":[{"name":"main","verdict":null}],"tree":null,"error":{"kind":"rejected","stage":"main","token":0,"source":[0,1],"line":1,"column":1,"expected":[{"terminal":"é","rules":["text"]}],"message":`) {
+		t.Fatalf("%s", data)
+	}
+}
+
+func TestBracketsDepth(t *testing.T) {
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy ;\ntext ≔ a a ; a ≔ \"x\" b ; b ≔ \"y\" c ; c ≔ \"z\" \"w\" ;"))
+	res, _ := d.Parse("xyzwxyzw", ParseOptions{})
+	if b := Brackets(res, BracketOptions{}); b != "([x {y (z w)}] [x {y (z w)}])" {
+		t.Fatalf("brackets %q", b)
+	}
+}
+
+// TestConcurrentParses shares one dialect among goroutines; run it with
+// -race.
+func TestConcurrentParses(t *testing.T) {
+	d, err := LoadDialect("notation")
+	if err != nil {
+		t.Fatal(err)
+	}
+	texts := []string{"a ≔ A ;", "b ≔ [B] ... C & D ;", "c <\"X\"> ≔ $x(C) : text($x) = \"c\" ⇒ this ;", "%elidable KU ;"}
+	want := make([]string, len(texts))
+	for i, text := range texts {
+		res, _ := d.Parse(text, ParseOptions{})
+		data, _ := MarshalResult(res)
+		want[i] = string(data)
+	}
+	var wg sync.WaitGroup
+	errs := make(chan string, 64)
+	for g := 0; g < 16; g++ {
+		wg.Add(1)
+		go func(g int) {
+			defer wg.Done()
+			for i := range texts {
+				k := (i + g) % len(texts)
+				res, err := d.Parse(texts[k], ParseOptions{Features: []string{"f" + string(rune('a'+g%4))}})
+				if err != nil {
+					errs <- err.Error()
+					return
+				}
+				data, _ := MarshalResult(res)
+				if string(data) != want[k] {
+					errs <- "a concurrent parse differs"
+				}
+			}
+		}(g)
+	}
+	wg.Wait()
+	close(errs)
+	for e := range errs {
+		t.Fatal(e)
+	}
+}

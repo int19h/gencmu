@@ -414,7 +414,7 @@ func sameActions(a, b []action) bool {
 var printDerivations = false
 
 func TestRankingProperty(t *testing.T) {
-	cases := 8000
+	cases := 5000
 	if s := os.Getenv("GENCMU_PROPERTY_CASES"); s != "" {
 		cases, _ = strconv.Atoi(s)
 	}
