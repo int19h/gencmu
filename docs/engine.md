@@ -54,7 +54,7 @@ A grammar is the stitching of one or more documents (§8, §9) into a set of rul
 **Stitching.** Documents are read in order, and each document's rules in order. Each rule is stated one of three ways, and each is an error in the case given:
 
 - `%rule` (`define`) defines a rule: an error if a rule of that name was defined before it, in an earlier document or earlier in the same one.
-- `%redefine-rule` (`redefine`) replaces the rule of that name an earlier document defined, whose alternatives are then gone: an error if no earlier document defined one, or if one was defined before it in the same document.
+- `%redefine-rule` (`redefine`) replaces the rule of that name an earlier document defined, whose alternatives are then gone: an error if no earlier document defined one, or if a `%rule` or `%redefine-rule` of that name stands before it in the same document. An `%extend-rule` before it in the same document does not count: its alternatives are replaced with the rest.
 - `%extend-rule` (`extend`) appends its alternatives to the rule of that name defined before it, in an earlier document or earlier in the same one: an error if none was.
 
 When `%extend-rule` extends a rule, each appended alternative carries the extension's own clauses, its rule-level tags, conditions and emission, which apply to it alone, and the base rule's clauses do not apply to it; the earlier alternatives keep theirs. So a script document can add letters to a rule without restating its clauses, and its own clauses do not leak into the base rule. A **definition** is a `%rule`, `%redefine-rule` or `%extend-rule` statement: its alternatives and the clauses written with them. The loader records every replacement and extension.
@@ -91,7 +91,7 @@ decides nothing a user can observe except through §4-§6.
    the rule itself: `r → p x ...` becomes `r → p x | r x`, and `r → p [x] ...`
    becomes `r → p | r x`. Its intermediate prefixes are then constituents of
    `r`, which the ranking sees (§6); this is how CLL's YACC grammar realizes
-   `...`, and CLL says left grouping is implied.
+   `...`, and CLL says left grouping is implied. The recursive productions have none of the alternative's captures, whose parts lie inside the inner `r`, so an alternative lowered this way that captures anything is an error of the grammar, found when the grammar is lowered for features that leave the alternative alone in its rule.
 4. Helpers are named by the engine; their names are never shown. A helper
    is a production whose left side is a helper name.
 5. A capture `$x(s)` must wrap a single symbol `s` in a sequence at the top
@@ -100,7 +100,7 @@ decides nothing a user can observe except through §4-§6.
    alternative. `$`, the whole constituent, is a capture of every
    production that no alternative writes: its span runs from the item's
    origin to its end, and its tags are the constituent's (§4).
-6. Conditions, tags and emission attach to the production an alternative lowers to, or each production if it expands to several, with the clauses of the alternative's definition (§2). A production **has** a capture if its alternative captures it; every production has `$`. Before a clause is attached, it is **simplified** for the production: each presence test `$x` (§10) becomes true or false as the production has `x` or not; `A ⟹ B` becomes `B` where `A` is then true, and true, as a condition, or the empty set, as a term, where `A` is false; and `¬`, `∧` and `∨` over a true or false part are reduced as logic says. A capture that is still mentioned after simplification is **used** by the clause.
+6. Conditions, tags and emission attach to the production an alternative lowers to, or each production if it expands to several, with the clauses of the alternative's definition (§2). A production **has** a capture if its alternative captures it; every production has `$`. Before a clause is attached, it is **simplified** for the production: each presence test `$x` (§10) becomes true or false as the production has `x` or not; `A ⟹ B` becomes `B` where `A` is then true, and true, as a condition, or the empty set, as a term, where `A` is false; a condition `A ⟹ B` whose `B` is then true becomes true, and one whose `B` is false becomes `¬A`; `¬`, `∧` and `∨` over a true or false part are reduced as logic says; and a term's empty set, written `∅` or left by a guard, is dropped from a union, a union of nothing but empty sets is the empty set, as is an intersection with one, and a guarded term whose term is the empty set is the empty set. Since a reduced part is never evaluated, the reduction is part of the order of evaluation (§10). A capture that is still mentioned after simplification is **used** by the clause.
    - A condition applies to a production if it has not simplified to true and the production has every capture it uses; otherwise it is dropped for that production. A condition that simplifies to false applies, and removes the production: `%conditions $x` keeps the alternatives that capture `x` and removes the others.
    - An emission item naming a capture the production lacks is dropped from that production's emission.
    - A tag term, the alternative's own or the definition's `%tags`, that uses a capture the production lacks is an error of the document.
@@ -447,7 +447,7 @@ list or a tag set. `a ⊆ b` tests that every tag of `a` is in `b`.
 
 **Order of evaluation.** Evaluating a condition may run a nested parse, which may fail with an error of the grammar (§4), so which parts are evaluated is observable. Conditions joined by `∧` or `∨` are evaluated from left to right, and evaluation stops at the first that decides the whole: a false one for `∧`, a true one for `∨`. `A ⟹ B` evaluates `A` first, and `B` only if `A` holds; a guarded term `A ⟹ t` likewise evaluates `t` only if `A` holds.
 
-**Guarded terms.** `A ⟹ t`, where `A` is a condition, is the value of `t` where `A` holds and the empty tag set where it does not; `t` must then be a tag set. A guarded term binds looser than `∪` and `∩`, so it stands in parentheses inside either.
+**Guarded terms.** `A ⟹ t`, where `A` is a condition, is the value of `t` as a tag set where `A` holds, and the empty tag set where it does not. A guarded term binds looser than `∪` and `∩`, so it stands in parentheses inside either.
 
 ## 11. Emission
 

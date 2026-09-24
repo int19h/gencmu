@@ -256,6 +256,11 @@ class Lowering {
     /** @type {PendingHelper[]} */
     const pending = [];
     const trailing = only ? trailingRepetition(alternative.expr) : null;
+    // A trailing repetition's recursive productions could not have its
+    // captures, whose parts lie inside the inner constituent (engine §3.3).
+    if (trailing && ("seq" in alternative.expr ? alternative.expr.seq : [alternative.expr]).some((item) => "capture" in item)) {
+      throw new GencmuError("grammar", `${alternative.document}: an alternative of ${rule.name} captures a part, and is lowered as a trailing repetition`, rule.at);
+    }
     /** @type {Where} */
     const where = { rule, pending };
     /** @type {SequenceItem[][]} */
