@@ -133,7 +133,7 @@ export function domProblem(dom) {
           !(typeof inner.ref === "string" || typeof inner.terminal === "string")) return "a malformed capture";
     } else if (kind === "constituent-tags") {
       // A constituent's tags cannot be made of its own (engine §9).
-      if (readsOwnTags(/** @type {Term} */ (value))) return "a constituent's tags made of its own";
+      if (domReadsOwnTags(value)) return "a constituent's tags made of its own";
       pending.push({ kind: "term", value, depth });
     } else if (kind === "emission") {
       // The reader's rules (engine §9): $ only with $, $ <> alone, a capture
@@ -221,6 +221,30 @@ export function readsOwnTags(term) {
       return "capture" in span && span.capture === "";
     }
     return term.args.some((argument) => "call" in argument && readsOwnTags(argument));
+  }
+  return false;
+}
+
+/**
+ * readsOwnTags for a term whose shape is not yet checked: anything that is
+ * not a well-formed term reads nothing, and the check of its shape refuses
+ * it.
+ * @param {unknown} term
+ * @returns {boolean}
+ */
+function domReadsOwnTags(term) {
+  if (!isDomObject(term)) return false;
+  if (term.capture === "") return true;
+  for (const key of ["union", "intersection"]) {
+    const items = term[key];
+    if (Array.isArray(items)) return items.some(domReadsOwnTags);
+  }
+  if (typeof term.call === "string" && Array.isArray(term.args)) {
+    if ((term.call === "tags" || term.call === "classes") && term.args.length === 1) {
+      const span = term.args[0];
+      return isDomObject(span) && span.capture === "";
+    }
+    return term.args.some((argument) => isDomObject(argument) && typeof argument.call === "string" && domReadsOwnTags(argument));
   }
   return false;
 }
