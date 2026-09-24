@@ -22,7 +22,6 @@ type item struct {
 	itemKey
 	set   int32
 	links []link
-	rk    itemRank
 }
 
 // link is one way an item was reached: its predecessor (nil for dot 1 from a
@@ -40,7 +39,6 @@ type symNode struct {
 	start, end int32
 	tags       *tagset
 	items      []*item
-	rk         symRank
 }
 
 type symKey struct {
@@ -66,7 +64,7 @@ type recognizer struct {
 
 func (r *recognizer) set(k int) *eset {
 	for len(r.sets) <= k {
-		r.sets = append(r.sets, &eset{index: map[itemKey]*item{}, waiting: map[int32][]*item{}, predicted: map[int32]bool{}, syms: map[symKey]*symNode{}, empties: map[int32][]*symNode{}})
+		r.sets = append(r.sets, &eset{index: map[itemKey]*item{}})
 	}
 	return r.sets[k]
 }
@@ -89,27 +87,53 @@ func (run *stageRun) recognize(g *lowered, start int32, base, n int) *recognizer
 	return r
 }
 
+// predict adds the items of a rule's productions at k, except those whose
+// first symbol is a terminal the next token lacks, which could never
+// advance; expected() accounts for them in a rejection.
 func (r *recognizer) predict(s *eset, k int, rule int32) {
 	if s.predicted[rule] {
 		return
 	}
+	if s.predicted == nil {
+		s.predicted = map[int32]bool{}
+	}
 	s.predicted[rule] = true
 	for _, p := range r.g.rules[rule].prods {
-		if len(p.predictConds) > 0 {
-			ev := r.run.evaluator(r.g, func(string) (spanVal, bool) { return spanVal{}, false })
-			ok := true
-			for _, c := range p.predictConds {
-				if !ev.cond(c) {
-					ok = false
-					break
-				}
-			}
-			if !ok {
-				continue
-			}
+		if len(p.rhs) > 0 && p.rhs[0].term && !r.canRead(k, p.rhs[0].id) {
+			continue
+		}
+		if !r.predictable(p) {
+			continue
 		}
 		r.add(k, itemKey{prod: p, origin: int32(k)}, link{}, false)
 	}
+}
+
+func (r *recognizer) canRead(k int, term int32) bool {
+	if k >= r.n {
+		return false
+	}
+	_, ok := r.run.tagsets[r.base+k].has(r.g.terminals[term])
+	return ok
+}
+
+// predictable checks the conditions of a production that mention no
+// capture, which hold or fail at prediction.
+func (r *recognizer) predictable(p *production) bool {
+	if len(p.predictConds) > 0 {
+		ev := r.run.evaluator(r.g, func(string) (spanVal, bool) { return spanVal{}, false })
+		ok := true
+		for _, c := range p.predictConds {
+			if !ev.cond(c) {
+				ok = false
+				break
+			}
+		}
+		if !ok {
+			return false
+		}
+	}
+	return true
 }
 
 func (r *recognizer) add(k int, key itemKey, l link, hasLink bool) {
@@ -139,6 +163,9 @@ func (r *recognizer) process(k int, it *item) {
 			}
 			return
 		}
+		if s.waiting == nil {
+			s.waiting = map[int32][]*item{}
+		}
 		s.waiting[sym.id] = append(s.waiting[sym.id], it)
 		r.predict(s, k, sym.id)
 		for _, c := range s.empties[sym.id] {
@@ -155,8 +182,14 @@ func (r *recognizer) process(k int, it *item) {
 		return
 	}
 	c = &symNode{rule: p.lhs, start: it.origin, end: int32(k), tags: ts, items: []*item{it}}
+	if s.syms == nil {
+		s.syms = map[symKey]*symNode{}
+	}
 	s.syms[key] = c
 	if int(it.origin) == k {
+		if s.empties == nil {
+			s.empties = map[int32][]*symNode{}
+		}
 		s.empties[p.lhs] = append(s.empties[p.lhs], c)
 	}
 	waiters := r.sets[it.origin].waiting[p.lhs]

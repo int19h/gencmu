@@ -108,7 +108,7 @@ func (run *stageRun) run(g *lowered, mandatory func() *lowered, elisionOnly bool
 	top := rec.accepted(start)
 	var res *rankResult
 	if len(top) > 0 {
-		res = (&ranker{rec: rec, lean: g.lean}).rank(top)
+		res = newRanker(rec, g.lean).rank(top)
 	}
 	if res == nil {
 		out.err = run.rejection(rec)
@@ -139,14 +139,26 @@ func (run *stageRun) run(g *lowered, mandatory func() *lowered, elisionOnly bool
 func (run *stageRun) rejection(rec *recognizer) *ParseError {
 	k := rec.furthest
 	rules := map[string]map[string]bool{}
+	expect := func(p *production, pos int) {
+		if pos < len(p.rhs) && p.rhs[pos].term {
+			t := rec.g.terminals[p.rhs[pos].id]
+			if rules[t] == nil {
+				rules[t] = map[string]bool{}
+			}
+			rules[t][p.ruleName] = true
+		}
+	}
 	if k < len(rec.sets) {
 		for _, it := range rec.sets[k].items {
-			if int(it.dot) < len(it.prod.rhs) && it.prod.rhs[it.dot].term {
-				t := rec.g.terminals[it.prod.rhs[it.dot].id]
-				if rules[t] == nil {
-					rules[t] = map[string]bool{}
+			expect(it.prod, int(it.dot))
+		}
+		// The predictions left out because they could not read the next
+		// token (earley.go, predict).
+		for rule := range rec.sets[k].predicted {
+			for _, p := range rec.g.rules[rule].prods {
+				if rec.predictable(p) {
+					expect(p, 0)
 				}
-				rules[t][it.prod.ruleName] = true
 			}
 		}
 	}
@@ -230,7 +242,7 @@ func (run *stageRun) checkElision(tree *Node, g *lowered) *ParseError {
 	if len(top) == 0 {
 		return nil
 	}
-	res := (&ranker{rec: rec, lean: ""}).rank(top)
+	res := newRanker(rec, "").rank(top)
 	if res == nil || res.tied == nil {
 		return nil
 	}

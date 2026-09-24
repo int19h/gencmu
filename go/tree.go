@@ -44,9 +44,21 @@ type pendingKid struct {
 	splice bool // the prefix of a trailing repetition
 }
 
+// treeFrame is a rule node being built; pending holds its remaining
+// children in reverse, the next one last.
 type treeFrame struct {
 	node    *Node
 	pending []pendingKid
+}
+
+// pushKids pushes a close's children onto a pending stack, the first last,
+// marking the first as spliced when the close is a trailing repetition's.
+func pushKids(pending []pendingKid, n *dn, splice bool) []pendingKid {
+	kids := flattenKids(n.a)
+	for i := len(kids) - 1; i >= 0; i-- {
+		pending = append(pending, pendingKid{n: kids[i], splice: splice && i == 0 && n.prod.repeatPrefix})
+	}
+	return pending
 }
 
 // buildTree turns a derivation of a constituent into the result's tree.
@@ -56,11 +68,7 @@ func (run *stageRun) buildTree(rec *recognizer, d *dn) *Node {
 	newRule := func(n *dn) *treeFrame {
 		a, b := base+int(n.start), base+int(n.end)
 		node := &Node{Kind: KindRule, Rule: n.prod.ruleName, Span: [2]int{a, b}, Source: run.spanSource(a, b), Tags: n.tags.toMap(), Children: []*Node{}}
-		f := &treeFrame{node: node}
-		for i, k := range flattenKids(n.a) {
-			f.pending = append(f.pending, pendingKid{n: k, splice: i == 0 && n.prod.repeatPrefix})
-		}
-		return f
+		return &treeFrame{node: node, pending: pushKids(nil, n, true)}
 	}
 	root := newRule(d)
 	stack := []*treeFrame{root}
@@ -74,8 +82,8 @@ func (run *stageRun) buildTree(rec *recognizer, d *dn) *Node {
 			}
 			continue
 		}
-		k := f.pending[0]
-		f.pending = f.pending[1:]
+		k := f.pending[len(f.pending)-1]
+		f.pending = f.pending[:len(f.pending)-1]
 		n := k.n
 		switch {
 		case n.kind == dRead:
@@ -85,12 +93,7 @@ func (run *stageRun) buildTree(rec *recognizer, d *dn) *Node {
 			p := base + int(n.start)
 			f.node.Children = append(f.node.Children, &Node{Kind: KindElided, Terminal: n.prod.elided, Span: [2]int{p, p}, Source: run.emptySource(p)})
 		case n.prod.helper || k.splice:
-			kids := flattenKids(n.a)
-			front := make([]pendingKid, 0, len(kids)+len(f.pending))
-			for i, kid := range kids {
-				front = append(front, pendingKid{n: kid, splice: k.splice && i == 0 && n.prod.repeatPrefix})
-			}
-			f.pending = append(front, f.pending...)
+			f.pending = pushKids(f.pending, n, k.splice)
 		default:
 			stack = append(stack, newRule(n))
 		}

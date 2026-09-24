@@ -126,6 +126,13 @@ func elAction(e iterEl) action {
 	return action{prod: e.n.prod, start: e.n.start, end: e.n.end}
 }
 
+func elWhole(e iterEl) int {
+	if isLeaf(e) {
+		return 1
+	}
+	return int(e.n.whole)
+}
+
 func elVis(e iterEl) int {
 	if e.leaf {
 		if e.n.prod.transparent {
@@ -187,8 +194,33 @@ func (r cmpRes) flip() cmpRes {
 }
 
 type ranker struct {
-	rec  *recognizer
-	lean string // greedy, lazy, or "" for rule 1 alone
+	rec    *recognizer
+	lean   string // greedy, lazy, or "" for rule 1 alone
+	items  map[*item]*itemRank
+	syms   map[*symNode]*itemRank
+	marked map[*item]bool
+}
+
+func newRanker(rec *recognizer, lean string) *ranker {
+	return &ranker{rec: rec, lean: lean, items: map[*item]*itemRank{}, syms: map[*symNode]*itemRank{}, marked: map[*item]bool{}}
+}
+
+func (rk *ranker) itemMemo(it *item) *itemRank {
+	m := rk.items[it]
+	if m == nil {
+		m = &itemRank{}
+		rk.items[it] = m
+	}
+	return m
+}
+
+func (rk *ranker) symMemo(s *symNode) *itemRank {
+	m := rk.syms[s]
+	if m == nil {
+		m = &itemRank{}
+		rk.syms[s] = m
+	}
+	return m
 }
 
 // canonLess orders the actions at a first difference (engine §6): a read
@@ -292,12 +324,14 @@ func (rk *ranker) compare(a, b *dn) cmpRes {
 			ib.pop()
 			continue
 		}
-		la, lb := isLeaf(ea), isLeaf(eb)
-		if !la || !lb {
-			if !la {
+		if !isLeaf(ea) || !isLeaf(eb) {
+			// Expand the larger side first, so that the two meet at a
+			// subtree they share.
+			wa, wb := elWhole(ea), elWhole(eb)
+			if !isLeaf(ea) && wa >= wb {
 				ia.expand()
 			}
-			if !lb {
+			if !isLeaf(eb) && wb >= wa {
 				ib.expand()
 			}
 			continue
@@ -356,12 +390,12 @@ func (rk *ranker) compare(a, b *dn) cmpRes {
 			ib.pop()
 			continue
 		}
-		la, lb := isLeaf(ea), isLeaf(eb)
-		if !la || !lb {
-			if !la {
+		if !isLeaf(ea) || !isLeaf(eb) {
+			va, vb := elVis(ea), elVis(eb)
+			if !isLeaf(ea) && va >= vb {
 				ia.expand()
 			}
-			if !lb {
+			if !isLeaf(eb) && vb >= va {
 				ib.expand()
 			}
 			continue
@@ -585,8 +619,6 @@ type memoSlot struct {
 	e     *entry
 }
 
-type symRank = itemRank
-
 // forbidden is the set of rules of the constituents above, over the same
 // span (engine §4, derivations), restricted to one cycle class.
 type forbidden []int32
@@ -657,7 +689,7 @@ func (rk *ranker) itemVal(it *item, f forbidden) *entry {
 		return unitEntry
 	}
 	f = rk.restrict(f, it.prod.lhs)
-	slot := memoSlotFor(&it.rk, f)
+	slot := memoSlotFor(rk.itemMemo(it), f)
 	switch slot.state {
 	case 1:
 		return nil
@@ -709,7 +741,7 @@ func (rk *ranker) symVal(s *symNode, f forbidden) *entry {
 		return nil
 	}
 	f = rk.restrict(f, s.rule)
-	slot := memoSlotFor(&s.rk, f)
+	slot := memoSlotFor(rk.symMemo(s), f)
 	switch slot.state {
 	case 1:
 		return nil
@@ -748,14 +780,15 @@ func (rk *ranker) symVal(s *symNode, f forbidden) *entry {
 // right, so that no recursion runs deeper than one set's items of one origin.
 func (rk *ranker) prepare(top []*symNode) {
 	var stack []*item
+	seen := map[*symNode]bool{}
 	markSym := func(s *symNode) {
-		if s.rk.mark {
+		if seen[s] {
 			return
 		}
-		s.rk.mark = true
+		seen[s] = true
 		for _, c := range s.items {
-			if !c.rk.mark {
-				c.rk.mark = true
+			if !rk.marked[c] {
+				rk.marked[c] = true
 				stack = append(stack, c)
 			}
 		}
@@ -767,8 +800,8 @@ func (rk *ranker) prepare(top []*symNode) {
 		it := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 		for _, l := range it.links {
-			if l.prev != nil && !l.prev.rk.mark {
-				l.prev.rk.mark = true
+			if l.prev != nil && !rk.marked[l.prev] {
+				rk.marked[l.prev] = true
 				stack = append(stack, l.prev)
 			}
 			if l.sym != nil {
@@ -776,14 +809,20 @@ func (rk *ranker) prepare(top []*symNode) {
 			}
 		}
 	}
-	for _, s := range rk.rec.sets {
-		var marked []*item
-		for _, it := range s.items {
-			if it.rk.mark {
-				marked = append(marked, it)
+	bySet := make([][]*item, len(rk.rec.sets))
+	for it := range rk.marked {
+		bySet[it.set] = append(bySet[it.set], it)
+	}
+	for _, marked := range bySet {
+		// By origin from the right; ties by creation are irrelevant to the
+		// result, but a fixed order keeps recursion shallow the same way
+		// every time.
+		sort.Slice(marked, func(i, j int) bool {
+			if marked[i].origin != marked[j].origin {
+				return marked[i].origin > marked[j].origin
 			}
-		}
-		sort.SliceStable(marked, func(i, j int) bool { return marked[i].origin > marked[j].origin })
+			return marked[i].dot < marked[j].dot
+		})
 		for _, it := range marked {
 			rk.itemVal(it, nil)
 		}

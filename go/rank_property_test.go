@@ -473,7 +473,7 @@ func TestRankingProperty(t *testing.T) {
 		if r.Intn(100) < leanNone {
 			lean = "" // rule 1 alone, as elision-only ranks (engine §7)
 		}
-		rk := &ranker{rec: rec, lean: lean}
+		rk := newRanker(rec, lean)
 		var got *rankResult
 		if top := rec.accepted(lg.byName["text"]); len(top) > 0 {
 			got = rk.rank(top)
