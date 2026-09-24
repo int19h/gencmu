@@ -3787,6 +3787,8 @@
         }
         case "conjunction": {
           const items = ofRule(node, "sequence").map(readExpression);
+          // A & of n items expands to 2ⁿ−1 sequences (engine §3.2).
+          if (items.length > 16) fail("an & joins at most 16 items", node);
           return items.length === 1 ? items[0] : { and: items };
         }
         case "sequence": {
