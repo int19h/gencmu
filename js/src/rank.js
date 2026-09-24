@@ -145,10 +145,6 @@ function walkDifference(left, right, onlyVisible) {
 
 // -1 when left beats right, 1 when right beats left, 0 when they are tied
 // (engine §6). `lean` is greedy, lazy, or none for elision-only's check.
-function compare(left, right, lean) {
-  return comparison(left, right, lean).order;
-}
-
 // The order of two sequences, and whether it is settled: a tie at a real
 // difference, or two equal sequences, stays a tie whatever follows, while
 // two sequences one of which is a prefix of the other are still undecided.
@@ -175,17 +171,38 @@ function decide(difference, lean) {
   return 0;
 }
 
-// The canonical order of tied derivations (engine §6).
-function canonical(left, right) {
+// The total order T (engine §6): at the first visible difference, the
+// pair's decision by tag strength and lean, and where that is a tie, the
+// canonical keys; sequences equal in their visible actions are ordered at
+// their first difference among all actions. The chosen derivation is T's
+// minimum.
+function totalOrder(left, right, lean) {
   let difference = firstDifference(left, right, true);
-  if (!difference) difference = firstDifference(left, right, false);
+  if (difference && difference.left && difference.right) {
+    const decided = decide(difference, lean);
+    if (decided !== 0) return decided;
+    return canonicalKey(difference.left, difference.right);
+  }
+  if (difference) return difference.left ? 1 : -1;
+  difference = firstDifference(left, right, false);
   if (!difference) return 0;
-  const { left: x, right: y } = difference;
-  if (!x) return -1;
-  if (!y) return 1;
+  if (!difference.left) return -1;
+  if (!difference.right) return 1;
+  return canonicalKey(difference.left, difference.right);
+}
+
+// Two differing actions in canonical order: a read before a close, reads
+// by terminal, closes by production, then span.
+function canonicalKey(x, y) {
   if (x.kind !== y.kind) return x.kind === "read" ? -1 : 1;
   if (x.kind === "read") return compareCodePoints(x.terminal, y.terminal);
   return x.item.production.id - y.item.production.id || x.item.origin - y.item.origin || x.item.end - y.item.end;
+}
+
+function smaller(left, right, lean) {
+  if (!left) return right;
+  if (!right) return left;
+  return totalOrder(left, right, lean) <= 0 ? left : right;
 }
 
 // What makes a derivation cyclic (engine §4, derivations): the same item
@@ -206,24 +223,44 @@ export class Ranker {
     this.counts = new Map();
   }
 
-  // The undominated action sequences of an item's children so far.
+  // An item's candidates: for each sequence the item's derivations could
+  // still be decided by, the T-least of them, `seq`, and the T-least
+  // derivation tied with it, `alt`, or null. Sequences one of which is a
+  // prefix of the other are not yet decided and are kept side by side;
+  // everything else is settled here, so the list stays short.
   candidates(item) {
     return this.traverse(item, this.memo, (current, dependency) => {
       let kept = [];
       for (const edge of current.edges) {
         let produced;
-        if (edge.kind === "seed") produced = [EMPTY];
+        if (edge.kind === "seed") produced = [{ seq: EMPTY, alt: null }];
         else if (edge.kind === "scan") {
           const token = this.tokens[edge.token];
           const read = leaf({ kind: "read", token: edge.token, terminal: edge.terminal, weak: token.tags.get(edge.terminal) === false });
-          produced = dependency(edge.previous).map((rope) => concat(rope, read));
+          produced = dependency(edge.previous).map((entry) => ({
+            seq: concat(entry.seq, read),
+            alt: entry.alt ? concat(entry.alt, read) : null,
+          }));
         } else {
           const close = leaf({ kind: "close", item: edge.child });
-          const children = dependency(edge.child).map((rope) => concat(rope, close));
+          const children = dependency(edge.child).map((entry) => ({
+            seq: concat(entry.seq, close),
+            alt: entry.alt ? concat(entry.alt, close) : null,
+          }));
           produced = [];
-          for (const before of dependency(edge.previous)) for (const child of children) produced.push(concat(before, child));
+          for (const before of dependency(edge.previous)) {
+            for (const child of children) {
+              // A derivation tied with the combination differs from it first
+              // either in the earlier part or in the child.
+              const alt = smaller(
+                before.alt ? concat(before.alt, child.seq) : null,
+                child.alt ? concat(before.seq, child.alt) : null,
+                this.lean);
+              produced.push({ seq: concat(before.seq, child.seq), alt });
+            }
+          }
         }
-        for (const rope of produced) kept = this.keep(kept, rope);
+        for (const entry of produced) kept = this.keep(kept, entry);
       }
       return kept;
     }, []);
@@ -231,39 +268,49 @@ export class Ranker {
 
   full(item) {
     const close = leaf({ kind: "close", item });
-    return this.candidates(item).map((rope) => concat(rope, close));
+    return this.candidates(item).map((entry) => ({
+      seq: concat(entry.seq, close),
+      alt: entry.alt ? concat(entry.alt, close) : null,
+    }));
   }
 
-  keep(kept, rope) {
+  // Adds a candidate to a list, settling it against every candidate it can
+  // be settled against.
+  keep(kept, entry) {
+    const lean = this.lean;
     const result = [];
+    let current = { ...entry };
     for (const other of kept) {
-      const order = compare(other, rope, this.lean);
-      if (order < 0) return kept;
-      if (order === 0) result.push(other);
-    }
-    result.push(rope);
-    return result.length > 2 ? this.prune(result) : result;
-  }
-
-  // Keeps what can still matter: the verdict needs to know whether two
-  // undominated sequences exist, and the result the first two in canonical
-  // order. A sequence tied, at a settled point, with two that come before it
-  // in that order can neither beat anything they would not nor be among the
-  // first two, so it is dropped; sequences still undecided are all kept.
-  // Without this, a text with many independent ties would keep every
-  // combination of them.
-  prune(list) {
-    const sorted = list.slice().sort(canonical);
-    const result = [];
-    for (const rope of sorted) {
-      let settledBefore = 0;
-      for (const earlier of result) {
-        const { order, settled } = comparison(earlier, rope, this.lean);
-        if (order === 0 && settled) settledBefore++;
-        if (settledBefore >= 2) break;
+      if (current === null) {
+        result.push(other);
+        continue;
       }
-      if (settledBefore < 2) result.push(rope);
+      const { order, settled } = comparison(other.seq, current.seq, lean);
+      if (!settled) {
+        result.push(other);
+        continue;
+      }
+      if (order !== 0) {
+        // One beats the other; the loser's tied alternative may still be
+        // tied with the winner.
+        const [winner, loser] = order < 0 ? [{ ...other }, current] : [current, other];
+        if (loser.alt && isTie(winner.seq, loser.alt, lean)) winner.alt = smaller(winner.alt, loser.alt, lean);
+        if (order < 0) {
+          result.push(winner);
+          current = null;
+        } else {
+          current = winner;
+        }
+        continue;
+      }
+      // Tied: the T-lesser stays, and the other, with its own tied
+      // alternative, is tied with it (ties are transitive).
+      const first = totalOrder(other.seq, current.seq, lean) <= 0;
+      const [main, second] = first ? [{ ...other }, current] : [current, other];
+      main.alt = smaller(smaller(main.alt, second.seq, lean), second.alt, lean);
+      current = main;
     }
+    if (current !== null) result.push(current);
     return result;
   }
 
@@ -345,24 +392,42 @@ export class Ranker {
   }
 
   // Ranks the derivations of the root items: the verdict, the chosen
-  // derivation, every undominated one in canonical order, and the witness.
+  // derivation, the second in canonical order if the result is a tie, and
+  // the witness.
   rank(roots) {
     const count = Math.min(2, roots.reduce((sum, item) => sum + this.count(item), 0));
     let kept = [];
-    for (const root of roots) for (const rope of this.full(root)) kept = this.keep(kept, rope);
-    kept.sort(canonical);
+    for (const root of roots) for (const entry of this.full(root)) kept = this.keep(kept, entry);
+    // Candidates still undecided at the root, one a prefix of another, are
+    // tied (engine §6).
+    let main = null;
+    for (const entry of kept) {
+      if (!main) {
+        main = { ...entry };
+        continue;
+      }
+      const first = totalOrder(main.seq, entry.seq, this.lean) <= 0;
+      const [winner, other] = first ? [main, entry] : [{ ...entry }, main];
+      winner.alt = smaller(smaller(winner.alt, other.seq, this.lean), other.alt, this.lean);
+      main = winner;
+    }
     let verdict;
     if (count === 1) verdict = "unique";
-    else if (kept.length === 1) verdict = "resolved";
+    else if (!main.alt) verdict = "resolved";
     else verdict = "tie";
     let witness = null;
     if (verdict === "tie") {
-      let difference = firstDifference(kept[0], kept[1], true);
-      if (!difference || !difference.left || !difference.right) difference = firstDifference(kept[0], kept[1], false);
+      let difference = firstDifference(main.seq, main.alt, true);
+      if (!difference || !difference.left || !difference.right) difference = firstDifference(main.seq, main.alt, false);
       witness = difference ? [difference.left, difference.right] : null;
     }
-    return { verdict, chosen: kept[0], undominated: kept, witness };
+    return { verdict, chosen: main.seq, second: verdict === "tie" ? main.alt : null, witness };
   }
+}
+
+function isTie(left, right, lean) {
+  const { order, settled } = comparison(left, right, lean);
+  return order === 0 && settled;
 }
 
 // The raw derivation tree of a rope: every production closed, helpers and

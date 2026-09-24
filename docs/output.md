@@ -27,12 +27,11 @@ or `null`; `error` is `null` when `ok` is true.
 **Stage**:
 
 ```
-{"name":"words","verdict":"resolved","witness":[ACTION,ACTION],"merged":false,"output":[TOKEN...]}
+{"name":"words","verdict":"resolved","witness":[ACTION,ACTION],"output":[TOKEN...]}
 ```
 
 `verdict` is `unique`, `resolved`, `tie`, or `null` for a stage that
-rejected; `witness` is present only for `tie`; `merged` is true when a tie
-was resolved by equal emissions (engine §11); `output` is the emitted
+rejected; `witness` is present only for `tie`; `output` is the emitted
 tokens, present for every accepted stage, the last included.
 
 **Token**:

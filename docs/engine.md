@@ -233,14 +233,19 @@ two closes by production number, then span start, then span end. The
 **witness** is the pair of actions at the first difference between the
 first two derivations in that order.
 
-The number of derivations can be exponential; the order is compositional,
-so the winner can be found over the packed forest by keeping, for each
-item, the candidates no other candidate for that item beats, with
-candidates that are prefixes of each other kept together until a later
-action separates them. Two candidates tied at a real difference, or equal,
-stay tied whatever follows, so of a set of candidates tied that way only
-the first two in canonical order can matter to the result; an
-implementation keeps those and drops the rest.
+**Computing it.** Break every tie of rules 1 to 3 by the canonical keys:
+that makes a total order *T* on derivations, whose least element is the
+chosen one, `m`, whatever the verdict. A derivation is undominated, besides
+`m`, exactly when its first difference with `m` is a tie; so the verdict is
+`tie` when such a derivation exists, and the second in canonical order is
+the *T*-least of them. Both minima compose over the packed forest: an
+implementation keeps, for each item, its *T*-least derivation and the
+*T*-least one tied with it, and keeps several only while one is a visible
+prefix of another, since the order of those is decided later. No
+implementation has to enumerate derivations, whose number can be
+exponential.
+
+
 
 ## 7. Elision-only
 
@@ -386,14 +391,10 @@ token's span is empty at the index of the next input token, and its source
 is empty at the source end of the input token before it, or at the source
 start of the constituent if nothing of the constituent precedes it.
 
-**Ties at non-final stages.** When the verdict is `tie`, the two
-derivations of the witness, the first two in canonical order, are both
-emitted. If they emit the same token sequence, equal in span, source, text
-and phonemes and differing at most in tags, the stage emits that sequence
-with each token's tags unioned across the two, and its verdict becomes
-`resolved`. Otherwise the tie stands. Only the two are compared, so that a
-text with many independent ties is not ranked by enumerating their
-combinations (§6).
+**Ties.** A stage whose verdict is `tie` emits its chosen derivation, and
+the tie is reported, at whichever stage it is. A tie is a property of the
+grammar that the grammar should settle, and the engine does not hide one
+even where the tied derivations would emit the same tokens.
 
 ## 12. The tree
 

@@ -5,7 +5,7 @@ import { GencmuError } from "./errors.js";
 import { ParseContext, recognize, rootItems, rejectionOf, evaluate, phonemesOf } from "./earley.js";
 import { Ranker, derivationTree } from "./rank.js";
 import { Token } from "./tokens.js";
-import { tagSet, tagUnion, strongTag, compareCodePoints } from "./tags.js";
+import { tagSet, strongTag, compareCodePoints } from "./tags.js";
 
 export class Stage {
   constructor(name, grammar) {
@@ -19,7 +19,7 @@ export class Stage {
     const features = options.features;
     const lowered = this.grammar.lower(features, false);
     const context = new ParseContext(lowered, tokens, sourceText, unicode);
-    const report = { name: this.name, verdict: null, witness: null, merged: false, output: null, tree: null, error: null };
+    const report = { name: this.name, verdict: null, witness: null, output: null, tree: null, error: null };
     let chart;
     let roots;
     try {
@@ -55,16 +55,6 @@ export class Stage {
     report.context = context;
     try {
       report.output = emit(derivation, context);
-      if (ranking.verdict === "tie" && !options.last) {
-        // The witness pair: the two first tied derivations (engine §11).
-        const other = emit(derivationTree(ranking.undominated[1]), context);
-        if (sameEmission(report.output, other)) {
-          report.output.forEach((token, index) => { token.tags = tagUnion(token.tags, other[index].tags); });
-          report.verdict = "resolved";
-          report.merged = true;
-          report.witness = null;
-        }
-      }
     } catch (error) {
       if (error instanceof GencmuError) {
         report.error = { kind: "grammar", stage: this.name, message: error.message };
@@ -132,7 +122,7 @@ export class Stage {
       if (node.kind === "elided") return { ...node, span: [toOriginal(node.span[0]), toOriginal(node.span[0])] };
       return { ...node, span: [toOriginal(node.span[0]), toOriginal(node.span[1])], children: node.children.map(remap) };
     };
-    return ranking.undominated.slice(0, 2).map((rope) => remap(resultTree(derivationTree(rope), context)[0]));
+    return [ranking.chosen, ranking.second].map((rope) => remap(resultTree(derivationTree(rope), context)[0]));
   }
 }
 
@@ -352,13 +342,5 @@ function asTags(value) {
   return tagSet(value.list.map((item) => [item, true]));
 }
 
-function sameEmission(left, right) {
-  return left.length === right.length && left.every((token, index) => {
-    const other = right[index];
-    return token.span[0] === other.span[0] && token.span[1] === other.span[1] &&
-      token.source[0] === other.source[0] && token.source[1] === other.source[1] &&
-      token.text === other.text && token.phonemes === other.phonemes;
-  });
-}
 
 void phonemesOf;
