@@ -245,14 +245,12 @@ func (b *domBuilder) rule(n *Node) *domRule {
 			r.Emit = b.emission(p)
 		case "conditions":
 			// The conditions joined by ∧ at the top are the rule's
-			// conditions, one by one (§9).
-			top := ruleParts(p)[0]
-			if alls := ruleParts(top); len(alls) == 1 {
-				for _, c := range ruleParts(alls[0]) {
-					r.Conditions = append(r.Conditions, b.condition(c))
-				}
+			// conditions, one by one, parenthesized or not: parentheses
+			// make no node (§9).
+			if c := b.anyOf(ruleParts(p)[0]); c.Kind == cdAll {
+				r.Conditions = append(r.Conditions, c.Items...)
 			} else {
-				r.Conditions = append(r.Conditions, b.anyOf(top))
+				r.Conditions = append(r.Conditions, c)
 			}
 		}
 	}
