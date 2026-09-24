@@ -424,9 +424,21 @@ fn ends_in_repeat(expr: &Expr) -> Option<(Vec<Expr>, &Expr, u8)> {
     }
 }
 
+/// An error of the grammar found when it is lowered for a set of features
+/// (§3.3): the message, and the rule it is in.
+#[derive(Debug, Clone)]
+pub(crate) struct LowerError {
+    pub message: String,
+    pub rule: u32,
+}
+
 /// Lowers a stage grammar for a set of features; `mandatory` makes every
 /// optional that begins with an elidable terminator mandatory (§3.8).
-pub(crate) fn lower(grammar: &StageGrammar, features: &BTreeSet<String>, mandatory: bool) -> Lowered {
+pub(crate) fn lower(
+    grammar: &StageGrammar,
+    features: &BTreeSet<String>,
+    mandatory: bool,
+) -> Result<Lowered, LowerError> {
     let mut lowerer = Lowerer {
         grammar,
         mandatory,
@@ -456,6 +468,23 @@ pub(crate) fn lower(grammar: &StageGrammar, features: &BTreeSet<String>, mandato
             })
             .collect();
         let trailing = if live.len() == 1 { ends_in_repeat(&live[0].alternative.expr) } else { None };
+        // A trailing repetition's recursive productions could not have its
+        // captures, whose parts lie inside the inner constituent (§3.3).
+        if trailing.is_some() {
+            let top: &[Expr] = match &live[0].alternative.expr {
+                Expr::Seq(items) => items,
+                other => std::slice::from_ref(other),
+            };
+            if top.iter().any(|item| matches!(item, Expr::Capture(..))) {
+                return Err(LowerError {
+                    message: format!(
+                        "an alternative of {} captures a part, and is lowered as a trailing repetition",
+                        rule.name
+                    ),
+                    rule: index as u32,
+                });
+            }
+        }
         for (number, alternative) in live.iter().enumerate() {
             lowerer.places = vec![Vec::new()];
             let own = |sequence, trailing_step| {
@@ -570,9 +599,9 @@ pub(crate) fn lower(grammar: &StageGrammar, features: &BTreeSet<String>, mandato
                 _ => Some(Term::Union(written)),
             };
             // The reader has made sure a tag term uses only captures its
-            // alternatives have; a production without one of them, the
-            // step of a trailing repetition, has the default.
-            production.tags = tags.and_then(|term| scope.term(&term).ok());
+            // alternative has, and so every production of it has (§3.3).
+            production.tags = tags
+                .map(|term| scope.term(&term).unwrap_or_else(|_| unreachable!("a tag term uses a missing capture")));
             for cond in &alternative.conditions {
                 let simple = match simplify_cond(cond, &has) {
                     Simple::True => continue,
@@ -660,7 +689,7 @@ pub(crate) fn lower(grammar: &StageGrammar, features: &BTreeSet<String>, mandato
     }
 
     let cyclic = cyclic_rules(&rules, &prods);
-    Lowered { start: grammar.index["text"] as u32, rules, prods, terminals, cyclic }
+    Ok(Lowered { start: grammar.index["text"] as u32, rules, prods, terminals, cyclic })
 }
 
 /// The nonterminals that lie on a cycle of the unit graph.

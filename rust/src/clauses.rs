@@ -78,14 +78,17 @@ pub(crate) fn simplify_cond(cond: &Cond, has: &dyn Fn(&str) -> bool) -> Simple {
     }
 }
 
-/// Simplifies a term for a production (engine §3.6): `None` where a guard
-/// that does not hold leaves it the empty set.
+/// Simplifies a term for a production (engine §3.6): `None` where it is
+/// the empty set, written `∅` or left by a guard that does not hold. The
+/// empty set is dropped from a union, makes an intersection empty, and
+/// makes a guarded term empty.
 pub(crate) fn simplify_term(term: &Term, has: &dyn Fn(&str) -> bool) -> Option<Term> {
     match term {
+        Term::EmptySet => None,
         Term::If(cond, then) => match simplify_cond(cond, has) {
             Simple::False => None,
             Simple::True => simplify_term(then, has),
-            Simple::Cond(cond) => Some(Term::If(Box::new(cond), Box::new(simplify_value(then, has)))),
+            Simple::Cond(cond) => Some(Term::If(Box::new(cond), Box::new(simplify_term(then, has)?))),
         },
         Term::Union(items) => {
             let mut left: Vec<Term> = items.iter().filter_map(|item| simplify_term(item, has)).collect();

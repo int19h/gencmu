@@ -54,6 +54,7 @@ pub struct InputToken {
 }
 
 type LoweredKey = (usize, Vec<String>, bool);
+type LoweredResult = Result<Arc<Lowered>, EngineError>;
 
 /// A loaded dialect: a pipeline of stages, each a stitched grammar.
 ///
@@ -65,7 +66,7 @@ pub struct Dialect {
     pub(crate) features: Vec<String>,
     pub(crate) unicode: Arc<Unicode>,
     pub(crate) changes: Vec<Change>,
-    lowered: Mutex<FxMap<LoweredKey, Arc<Lowered>>>,
+    lowered: Mutex<FxMap<LoweredKey, LoweredResult>>,
 }
 
 impl std::fmt::Debug for Dialect {
@@ -130,10 +131,20 @@ impl Dialect {
         &self.changes
     }
 
-    fn lowered(&self, stage: usize, features: &BTreeSet<String>, mandatory: bool) -> Arc<Lowered> {
+    /// The stage's grammar lowered for a set of features, or the error of
+    /// the grammar that lowering found (engine §3.3), which a parse reports
+    /// as it reports any found while parsing.
+    fn lowered(&self, stage: usize, features: &BTreeSet<String>, mandatory: bool) -> LoweredResult {
         let key = (stage, features.iter().cloned().collect(), mandatory);
         let mut cache = self.lowered.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-        cache.entry(key).or_insert_with(|| Arc::new(lower(&self.stages[stage], features, mandatory))).clone()
+        cache
+            .entry(key)
+            .or_insert_with(|| {
+                lower(&self.stages[stage], features, mandatory)
+                    .map(Arc::new)
+                    .map_err(|error| EngineError { message: error.message, rule: Some(error.rule) })
+            })
+            .clone()
     }
 
     /// Parses a text.
@@ -311,8 +322,6 @@ impl Dialect {
         elision: Option<bool>,
     ) -> Result<(), Box<ParseError>> {
         let grammar = &self.stages[index];
-        let lowered = self.lowered(index, features, false);
-        let term_tags: Vec<u32> = lowered.terminals.iter().map(|name| shared.tags.tag(name)).collect();
         let input = std::mem::take(&mut run.input);
         let public_input = std::mem::take(&mut run.public_input);
         let mut stage = Stage {
@@ -323,6 +332,15 @@ impl Dialect {
             witness: None,
             tied: None,
         };
+        let lowered = match self.lowered(index, features, false) {
+            Ok(lowered) => lowered,
+            Err(error) => {
+                let error = self.grammar_error(index, error);
+                run.stages.push(stage);
+                return Err(Box::new(error));
+            }
+        };
+        let term_tags: Vec<u32> = lowered.terminals.iter().map(|name| shared.tags.tag(name)).collect();
         let chart = {
             let mut recognizer = Recognizer { g: &lowered, term_tags: &term_tags, shared };
             recognizer.recognize(&input, 0, lowered.start)
@@ -514,7 +532,7 @@ impl Dialect {
                 synthetic.push(false);
             }
         }
-        let lowered = self.lowered(index, features, true);
+        let lowered = self.lowered(index, features, true)?;
         let term_tags: Vec<u32> = lowered.terminals.iter().map(|name| shared.tags.tag(name)).collect();
         shared.next_stage();
         let chart = {
