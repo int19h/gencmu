@@ -1,0 +1,388 @@
+"""Recognition (engine §4): an Earley recognizer whose items hold their
+captured parts' spans and tag sets, and the terms and conditions of engine
+§10 that it evaluates."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any, Callable
+
+from ._errors import _GrammarFault
+from ._grammar import Lowered, Production
+from ._model import Tags, Token
+from ._tags import TagTable, intersection, union
+from ._unicode import UnicodeTable
+
+SEED = (-1, 0, 0, 0)
+"""The edge of a predicted item: (predecessor, kind, a, b), where kind is 0
+for a prediction, 1 for a read of token a as terminal b, 2 for a completed
+child item a."""
+
+Caps = tuple[tuple[int, int, int], ...]
+
+
+@dataclass
+class Forest:
+    """The items of a parse, each with the edges it was derived by."""
+
+    tokens: list[Token]
+    lowered: Lowered
+    prod: list[int]
+    dot: list[int]
+    origin: list[int]
+    end: list[int]
+    caps: list[Caps]
+    edges: list[list[tuple[Any, ...]]]
+    tag: dict[int, int]
+    roots: list[int]
+    furthest: int
+    expected: dict[str, set[str]]
+
+
+@dataclass
+class NestedAnswer:
+    accepted: bool
+    tags: Tags
+
+
+@dataclass
+class StageContext:
+    """What every parse of one stage run shares: the stage's input tokens,
+    the original text, the tag table, and the answers of nested parses."""
+
+    lowered: Lowered
+    tokens: list[Token]
+    text: str
+    unicode: UnicodeTable
+    tagtab: TagTable = field(default_factory=TagTable)
+    memo: dict[Any, NestedAnswer] = field(default_factory=dict)
+    running: set[Any] = field(default_factory=set)
+    token_tags: list[int] = field(default_factory=list)
+    count: Callable[[Forest, list[int]], list[int]] | None = None
+
+    def __post_init__(self) -> None:
+        self.token_tags = [self.tagtab.intern(token.tags) for token in self.tokens]
+
+    def span_text(self, start: int, end: int) -> str:
+        if start >= end:
+            return ""
+        return self.text[self.tokens[start].source[0] : self.tokens[end - 1].source[1]]
+
+    def nested(self, rule: str, start: int, end: int) -> NestedAnswer:
+        """Parse tokens start..end alone as rule (engine §4, nested parses)."""
+        key = (
+            rule,
+            self.span_text(start, end),
+            tuple((self.token_tags[index], self.tokens[index].text, self.tokens[index].phonemes) for index in range(start, end)),
+        )
+        found = self.memo.get(key)
+        if found is not None:
+            return found
+        if key in self.running:
+            raise _GrammarFault(
+                f"a condition asks whether tokens {start}..{end} parse as {rule} while that very question is being answered",
+                (start, end),
+            )
+        number = self.lowered.rule_ids.get(rule)
+        if number is None:
+            raise _GrammarFault(f"{rule} is not a rule of this stage", (start, end))
+        self.running.add(key)
+        try:
+            forest = Parser(self, start, end).parse(number)
+            accepted = False
+            tags: Tags = {}
+            if forest.roots and self.count is not None:
+                counts = self.count(forest, forest.roots)
+                for root, count in zip(forest.roots, counts):
+                    if count > 0:
+                        accepted = True
+                        tags = union(tags, self.tagtab.get(forest.tag[root]))
+            answer = NestedAnswer(accepted, tags)
+        finally:
+            self.running.discard(key)
+        self.memo[key] = answer
+        return answer
+
+
+def _as_tags(value: Any) -> Tags:
+    if isinstance(value, str):
+        return {value: True}
+    if isinstance(value, dict):
+        return value
+    raise _GrammarFault("a list is used where a tag set is needed")
+
+
+class Evaluator:
+    """Terms and conditions (engine §10) over one parse's captures."""
+
+    def __init__(self, context: StageContext, base: int) -> None:
+        self.context = context
+        self.base = base
+
+    def bind(self, production: Production, caps: Caps) -> dict[str, tuple[int, int, int]]:
+        bound: dict[str, tuple[int, int, int]] = {}
+        base = self.base
+        for name, position in production.captures.items():
+            slot = production.slots[position]
+            if 0 <= slot < len(caps):
+                start, end, tag = caps[slot]
+                bound[name] = (start + base, end + base, tag)
+        return bound
+
+    def span(self, dom: Any, bound: dict[str, tuple[int, int, int]]) -> tuple[int, int, int | None]:
+        if isinstance(dom, dict):
+            if "capture" in dom:
+                found = bound.get(dom["capture"])
+                if found is None:
+                    raise _GrammarFault(f"${dom['capture']} is not captured here")
+                return found
+            name = dom.get("call")
+            if name in ("head", "tail", "last"):
+                args = dom.get("args", [])
+                if len(args) != 1:
+                    raise _GrammarFault(f"{name}() takes one span")
+                start, end, _ = self.span(args[0], bound)
+                if start >= end:
+                    return (start, start, None)
+                if name == "head":
+                    return (start, start + 1, None)
+                if name == "tail":
+                    return (start + 1, end, None)
+                return (end - 1, end, None)
+        raise _GrammarFault("a span is needed here")
+
+    def span_tags(self, span: tuple[int, int, int | None]) -> Tags:
+        start, end, whole = span
+        if whole is not None:
+            return self.context.tagtab.get(whole)
+        result: Tags = {}
+        for index in range(start, end):
+            result = union(result, self.context.tokens[index].tags)
+        return result
+
+    def phonemes(self, start: int, end: int) -> str:
+        return "".join(token.phonemes or "" for token in self.context.tokens[start:end])
+
+    def value(self, dom: Any, bound: dict[str, tuple[int, int, int]]) -> Any:
+        if "literal" in dom:
+            return dom["literal"]
+        if "weak" in dom:
+            return {dom["weak"]: False}
+        if "emptySet" in dom:
+            return {}
+        if "set" in dom:
+            result: Tags = {}
+            for item in dom["set"]:
+                result = union(result, _as_tags(self.value(item, bound)))
+            return result
+        if "union" in dom:
+            result = {}
+            for item in dom["union"]:
+                result = union(result, _as_tags(self.value(item, bound)))
+            return result
+        if "intersection" in dom:
+            parts = dom["intersection"]
+            result = _as_tags(self.value(parts[0], bound))
+            for item in parts[1:]:
+                result = intersection(result, _as_tags(self.value(item, bound)))
+            return result
+        name = dom.get("call")
+        if name is not None:
+            args = dom.get("args", [])
+            if name == "lowercase":
+                text = self.value(args[0], bound)
+                if not isinstance(text, str):
+                    raise _GrammarFault("lowercase() takes a string")
+                return self.context.unicode.lowercase(text)
+            if name == "tags" and len(args) == 2:
+                start, end, _ = self.span(args[0], bound)
+                return dict(self.context.nested(args[1]["rule"], start, end).tags)
+            span = self.span(args[0], bound)
+            if name == "phonemes":
+                return self.phonemes(span[0], span[1])
+            if name == "text":
+                return self.context.span_text(span[0], span[1])
+            if name == "words":
+                return [word for word in self.phonemes(span[0], span[1]).split(" ") if word]
+            if name == "tags":
+                return dict(self.span_tags(span))
+            if name == "classes":
+                return {tag: strong for tag, strong in self.span_tags(span).items() if "A" <= tag[:1] <= "Z"}
+            raise _GrammarFault(f"an unknown function {name}()")
+        raise _GrammarFault("a span is used where a value is needed")
+
+    def tags(self, dom: Any, bound: dict[str, tuple[int, int, int]]) -> Tags:
+        return _as_tags(self.value(dom, bound))
+
+    def condition(self, dom: Any, bound: dict[str, tuple[int, int, int]]) -> bool:
+        if "op" in dom:
+            op = dom["op"]
+            left = self.value(dom["left"], bound)
+            right = self.value(dom["right"], bound)
+            if op in ("=", "≠"):
+                if isinstance(left, str) and isinstance(right, str):
+                    equal = left == right
+                elif isinstance(left, list) or isinstance(right, list):
+                    equal = left == right
+                else:
+                    equal = _as_tags(left).keys() == _as_tags(right).keys()
+                return equal if op == "=" else not equal
+            if op in ("∈", "∉"):
+                if not isinstance(left, str):
+                    raise _GrammarFault(f"the left side of {op} is a string")
+                inside = left in right if isinstance(right, (list, dict)) else left == right
+                return inside if op == "∈" else not inside
+            if op == "⊆":
+                return _as_tags(left).keys() <= _as_tags(right).keys()
+            raise _GrammarFault(f"an unknown comparison {op}")
+        if "matches" in dom:
+            start, end, _ = self.span(dom["matches"], bound)
+            return self.context.nested(dom["rule"], start, end).accepted
+        if "not" in dom:
+            return not self.condition(dom["not"], bound)
+        if "any" in dom:
+            return any(self.condition(item, bound) for item in dom["any"])
+        raise _GrammarFault("an unknown condition")
+
+
+class Parser:
+    """One Earley parse of tokens start..end of a stage's input."""
+
+    def __init__(self, context: StageContext, start: int = 0, end: int | None = None) -> None:
+        self.context = context
+        self.base = start
+        self.end = len(context.tokens) if end is None else end
+        self.evaluator = Evaluator(context, start)
+
+    def parse(self, start_rule: int) -> Forest:
+        context = self.context
+        lowered = context.lowered
+        productions = lowered.productions
+        rule_productions = lowered.rule_productions
+        tokens = context.tokens[self.base : self.end]
+        token_tags = context.token_tags[self.base : self.end]
+        tagtab = context.tagtab
+        evaluator = self.evaluator
+        n = len(tokens)
+
+        prod: list[int] = []
+        dot: list[int] = []
+        origin: list[int] = []
+        end: list[int] = []
+        caps: list[Caps] = []
+        edges: list[list[tuple[Any, ...]]] = []
+        tag: dict[int, int] = {}
+        sets: list[dict[tuple[Any, ...], int]] = [{} for _ in range(n + 1)]
+        waiting: list[dict[int, list[int]]] = [{} for _ in range(n + 1)]
+        scanning: list[dict[str, list[int]]] = [{} for _ in range(n + 1)]
+        empty_done: list[dict[int, list[int]]] = [{} for _ in range(n + 1)]
+        predicted: list[set[int]] = [set() for _ in range(n + 1)]
+        agenda: list[int] = []
+
+        def add(production: int, position: int, start: int, captured: Caps, at: int, edge: tuple[Any, ...]) -> None:
+            key = (production, position, start, captured)
+            found = sets[at].get(key)
+            if found is None:
+                found = len(prod)
+                sets[at][key] = found
+                prod.append(production)
+                dot.append(position)
+                origin.append(start)
+                end.append(at)
+                caps.append(captured)
+                edges.append([edge])
+                if at == current[0]:
+                    agenda.append(found)
+                else:
+                    following.append(found)
+            else:
+                edges[found].append(edge)
+
+        def advance(item: int, part: tuple[int, int, int], at: int, edge: tuple[Any, ...]) -> None:
+            production = productions[prod[item]]
+            position = dot[item]
+            captured = caps[item]
+            if production.slots[position] >= 0:
+                captured = captured + (part,)
+            conditions = production.conds_at.get(position)
+            if conditions:
+                bound = evaluator.bind(production, captured)
+                for condition in conditions:
+                    if not evaluator.condition(condition, bound):
+                        return
+            add(production.id, position + 1, origin[item], captured, at, edge)
+
+        current = [0]
+        following: list[int] = []
+        # Predict the start rule.
+        predicted[0].add(start_rule)
+        for number in rule_productions[start_rule]:
+            production = productions[number]
+            if production.conds_predict and not all(evaluator.condition(c, {}) for c in production.conds_predict):
+                continue
+            add(number, 0, 0, (), 0, SEED)
+        furthest = 0
+        for j in range(n + 1):
+            current[0] = j
+            if j > 0:
+                agenda = following
+                following = []
+            if not agenda and not sets[j]:
+                break
+            if sets[j]:
+                furthest = j
+            while agenda:
+                item = agenda.pop()
+                production = productions[prod[item]]
+                position = dot[item]
+                if position < len(production.rhs):
+                    symbol = production.rhs[position]
+                    if production.terminal[position]:
+                        scanning[j].setdefault(symbol, []).append(item)  # type: ignore[arg-type]
+                        continue
+                    rule = symbol  # type: ignore[assignment]
+                    waiting[j].setdefault(rule, []).append(item)  # type: ignore[arg-type]
+                    if rule not in predicted[j]:
+                        predicted[j].add(rule)  # type: ignore[arg-type]
+                        for number in rule_productions[rule]:  # type: ignore[index]
+                            candidate = productions[number]
+                            if candidate.conds_predict and not all(
+                                evaluator.condition(c, {}) for c in candidate.conds_predict
+                            ):
+                                continue
+                            add(number, 0, j, (), j, SEED)
+                    for child in empty_done[j].get(rule, ()):  # type: ignore[arg-type]
+                        advance(item, (j, j, tag[child]), j, (item, 2, child, 0))
+                    continue
+                # A completed item: its tag set, then the items waiting for it.
+                captured = caps[item]
+                if production.tags_term is not None:
+                    tagset = evaluator.tags(production.tags_term, evaluator.bind(production, captured))
+                    tag[item] = tagtab.intern(tagset)
+                elif len(production.rhs) == 1:
+                    tag[item] = captured[production.slots[0]][2]
+                else:
+                    tag[item] = tagtab.empty
+                start = origin[item]
+                lhs = production.lhs
+                if start == j:
+                    empty_done[j].setdefault(lhs, []).append(item)
+                part = (start, j, tag[item])
+                for waiter in list(waiting[start].get(lhs, ())):
+                    advance(waiter, part, j, (waiter, 2, item, 0))
+            if j < n:
+                token = tokens[j]
+                token_tag = token_tags[j]
+                for terminal, waiters in scanning[j].items():
+                    if terminal in token.tags:
+                        for waiter in waiters:
+                            advance(waiter, (j, j + 1, token_tag), j + 1, (waiter, 1, j, terminal))
+        roots = [
+            item
+            for item in sets[n].values()
+            if origin[item] == 0 and productions[prod[item]].lhs == start_rule and dot[item] == len(productions[prod[item]].rhs)
+        ]
+        expected: dict[str, set[str]] = {}
+        for terminal, waiters in scanning[furthest].items():
+            expected.setdefault(terminal, set()).update(productions[prod[waiter]].rule_name for waiter in waiters)  # type: ignore[index]
+        return Forest(tokens, lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected)

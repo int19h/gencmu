@@ -1,0 +1,493 @@
+"""Stitching documents into a stage's grammar (engine §2) and lowering it to
+productions (engine §3)."""
+
+from __future__ import annotations
+
+import itertools
+from dataclasses import dataclass, field
+from typing import Any, Union
+
+from ._errors import GencmuError
+
+Dom = dict[str, Any]
+
+
+def is_terminal_name(name: str) -> bool:
+    return bool(name) and "A" <= name[0] <= "Z"
+
+
+# ---------------------------------------------------------------------------
+# Stitching
+
+
+@dataclass
+class Alternative:
+    """An alternative as stitched, with the clauses of the rule that wrote it."""
+
+    guards: list[Dom]
+    expr: Dom
+    tags: Dom | None
+    rule_tags: Dom | None
+    emit: Dom | None
+    conditions: list[Dom]
+    document: str
+    at: tuple[int, int]
+
+
+@dataclass
+class Rule:
+    name: str
+    alternatives: list[Alternative]
+    document: str
+    at: tuple[int, int]
+
+
+@dataclass
+class Change:
+    """A replacement or extension the loader records (engine §2)."""
+
+    kind: str
+    rule: str
+    document: str
+    previous: str
+
+
+@dataclass
+class Grammar:
+    """A stage's stitched grammar and its directives."""
+
+    stage: str
+    rules: dict[str, Rule]
+    lean: str
+    elision_only: bool
+    elidable: frozenset[str]
+    free: str | None
+    changes: list[Change] = field(default_factory=list)
+
+
+def _error(message: str, document: str, at: Any = None, stage: str | None = None) -> GencmuError:
+    line = column = None
+    if isinstance(at, (list, tuple)) and len(at) == 2:
+        line, column = int(at[0]), int(at[1])
+    return GencmuError(message, document=document, line=line, column=column, stage=stage)
+
+
+def stitch(stage: str, documents: list[tuple[str, Dom]]) -> Grammar:
+    """Stitch a stage's documents, in order, into one grammar."""
+    rules: dict[str, Rule] = {}
+    changes: list[Change] = []
+    resolutions: list[tuple[list[str], str, Any]] = []
+    elidable: set[str] = set()
+    frees: list[tuple[str, str, Any]] = []
+    for path, dom in documents:
+        defined_here: set[str] = set()
+        for rule in dom.get("rules", []):
+            name = rule["name"]
+            at = tuple(rule.get("at", (0, 0)))
+            alternatives = [
+                Alternative(
+                    guards=list(alt.get("guards", [])),
+                    expr=alt["expr"],
+                    tags=alt.get("tags"),
+                    rule_tags=rule.get("tags"),
+                    emit=rule.get("emit"),
+                    conditions=list(rule.get("conditions", [])),
+                    document=path,
+                    at=at,  # type: ignore[arg-type]
+                )
+                for alt in rule.get("alternatives", [])
+            ]
+            if rule.get("op") == "extend":
+                existing = rules.get(name)
+                if existing is None:
+                    raise _error(f"|≔ extends {name}, which no document defined before it", path, at, stage)
+                existing.alternatives.extend(alternatives)
+                changes.append(Change("extend", name, path, existing.document))
+            else:
+                if name in defined_here:
+                    raise _error(f"{name} is defined twice with ≔ in one document", path, at, stage)
+                defined_here.add(name)
+                if name in rules:
+                    changes.append(Change("replace", name, path, rules[name].document))
+                    rules[name] = Rule(name, alternatives, path, at)  # type: ignore[arg-type]
+                else:
+                    rules[name] = Rule(name, alternatives, path, at)  # type: ignore[arg-type]
+        for directive in dom.get("directives", []):
+            name = directive["name"]
+            args = list(directive.get("args", []))
+            at = directive.get("at")
+            if name == "ambiguity-resolution":
+                resolutions.append((args, path, at))
+            elif name == "elidable":
+                elidable.update(args)
+            elif name == "free-modifiers":
+                frees.append((" ".join(args), path, at))
+                if len(args) != 1:
+                    raise _error("%free-modifiers names exactly one rule", path, at, stage)
+            else:
+                raise _error(f"an unknown directive %{name}", path, at, stage)
+    if not resolutions:
+        raise GencmuError(f"stage {stage} has no %ambiguity-resolution", stage=stage)
+    if len(resolutions) > 1:
+        args, path, at = resolutions[1]
+        raise _error(f"stage {stage} has more than one %ambiguity-resolution", path, at, stage)
+    args, path, at = resolutions[0]
+    if not args or args[0] not in ("greedy", "lazy") or len(args) > 2 or (len(args) == 2 and args[1] != "elision-only"):
+        raise _error("%ambiguity-resolution is greedy or lazy, optionally followed by elision-only", path, at, stage)
+    if len(frees) > 1:
+        _, path, at = frees[1]
+        raise _error(f"stage {stage} has more than one %free-modifiers", path, at, stage)
+    free = frees[0][0] if frees else None
+    if free is not None and free not in rules:
+        _, path, at = frees[0]
+        raise _error(f"%free-modifiers names {free}, which is not a rule of stage {stage}", path, at, stage)
+    if "text" not in rules:
+        raise GencmuError(f"stage {stage} has no rule text, its start rule", stage=stage)
+    for rule in rules.values():
+        for alt in rule.alternatives:
+            stack: list[Any] = [alt.expr, alt.tags, alt.rule_tags, alt.emit, alt.conditions]
+            while stack:
+                value = stack.pop()
+                if isinstance(value, dict):
+                    ref = value.get("ref")
+                    if isinstance(ref, str) and not is_terminal_name(ref) and ref not in rules:
+                        raise _error(f"{ref} is not a rule of stage {stage}", alt.document, alt.at, stage)
+                    if isinstance(value.get("rule"), str) and value["rule"] not in rules:
+                        raise _error(f"{value['rule']} is not a rule of stage {stage}", alt.document, alt.at, stage)
+                    if value.get("hash") and free is None:
+                        raise _error(f"# is used, but stage {stage} has no %free-modifiers", alt.document, alt.at, stage)
+                    stack.extend(value.values())
+                elif isinstance(value, list):
+                    stack.extend(value)
+    return Grammar(stage, rules, args[0], len(args) == 2, frozenset(elidable), free, changes)
+
+
+# ---------------------------------------------------------------------------
+# Lowering
+
+
+def captures_in(dom: Any) -> set[str]:
+    """The capture names a condition or term mentions."""
+    found: set[str] = set()
+    stack = [dom]
+    while stack:
+        value = stack.pop()
+        if isinstance(value, dict):
+            name = value.get("capture")
+            if isinstance(name, str) and "expr" not in value:
+                found.add(name)
+            stack.extend(value.values())
+        elif isinstance(value, list):
+            stack.extend(value)
+    return found
+
+
+@dataclass
+class Production:
+    """A production of the lowered grammar."""
+
+    id: int
+    lhs: int
+    rhs: tuple[Union[str, int], ...]
+    terminal: tuple[bool, ...]
+    rule_name: str
+    helper: bool
+    rep_splice: bool = False
+    elided: str | None = None
+    captures: dict[str, int] = field(default_factory=dict)
+    slots: tuple[int, ...] = ()
+    conds_predict: list[Dom] = field(default_factory=list)
+    conds_at: dict[int, list[Dom]] = field(default_factory=dict)
+    tags_term: Dom | None = None
+    emit: Any = None
+
+    @property
+    def transparent(self) -> bool:
+        return self.helper or len(self.rhs) == 1
+
+
+IMPLICIT = ""
+"""The capture name of the implicit capture of a one-symbol production
+without tags (engine §3.7)."""
+
+
+@dataclass
+class Lowered:
+    """A lowered grammar: productions, and rules by number."""
+
+    grammar: Grammar
+    productions: list[Production]
+    rule_names: list[str]
+    rule_ids: dict[str, int]
+    rule_productions: list[list[int]]
+    rule_display: list[str]
+    lean: str
+
+
+# A symbol of an expansion: ("t", tag) or ("n", rule id), and its capture.
+_Sym = tuple[tuple[str, Any], Union[str, None]]
+
+
+class _Lowerer:
+    def __init__(self, grammar: Grammar, features: frozenset[str], elision: bool) -> None:
+        self.grammar = grammar
+        self.features = features
+        self.elision = elision
+        self.rule_names: list[str] = list(grammar.rules)
+        self.rule_ids = {name: index for index, name in enumerate(self.rule_names)}
+        self.rule_display: list[str] = list(self.rule_names)
+        self.helper_expansions: dict[int, list[list[_Sym]]] = {}
+        self.helper_elided: dict[int, str] = {}
+        self.emitted_helpers: set[int] = set()
+        self.productions: list[Production] = []
+        self.current: Rule | None = None
+        self.current_alt: Alternative | None = None
+
+    def fail(self, message: str) -> GencmuError:
+        rule = self.current
+        alt = self.current_alt
+        document = alt.document if alt else (rule.document if rule else None)
+        at = alt.at if alt else (rule.at if rule else None)
+        return _error(message, document or "", at, self.grammar.stage)
+
+    # -- expansions
+
+    def new_helper(self, expansions: list[list[_Sym]], elided: str | None = None) -> int:
+        number = len(self.rule_names)
+        owner = self.current.name if self.current else "?"
+        self.rule_names.append(f"\u0000{owner}\u0000{number}")
+        self.rule_display.append(owner)
+        self.helper_expansions[number] = expansions
+        if elided is not None:
+            self.helper_elided[number] = elided
+        return number
+
+    def first_terminal(self, expr: Dom) -> str | None:
+        while True:
+            if "seq" in expr:
+                if not expr["seq"]:
+                    return None
+                expr = expr["seq"][0]
+                continue
+            if "ref" in expr:
+                return expr["ref"] if is_terminal_name(expr["ref"]) else None
+            if "terminal" in expr:
+                return expr["terminal"]
+            return None
+
+    def symbol(self, name: str) -> tuple[str, Any]:
+        if is_terminal_name(name):
+            return ("t", name)
+        number = self.rule_ids.get(name)
+        if number is None:
+            raise self.fail(f"{name} is not a rule of stage {self.grammar.stage}")
+        return ("n", number)
+
+    def expand(self, expr: Dom, top: bool = False) -> list[list[_Sym]]:
+        if "seq" in expr:
+            parts = [self.expand(item, top) for item in expr["seq"]]
+            return [[sym for part in combination for sym in part] for combination in itertools.product(*parts)]
+        if "choice" in expr:
+            return [expansion for option in expr["choice"] for expansion in self.expand(option)]
+        if "and" in expr:
+            items = expr["and"]
+            if len(items) > 20:
+                raise self.fail("& joins too many items")
+            result: list[list[_Sym]] = []
+            for mask in range(1, 1 << len(items)):
+                chosen = [items[index] for index in range(len(items)) if mask >> index & 1]
+                parts = [self.expand(item) for item in chosen]
+                result.extend([sym for part in combination for sym in part] for combination in itertools.product(*parts))
+            return result
+        if "optional" in expr:
+            inner = expr["optional"]
+            body = self.expand(inner)
+            first = self.first_terminal(inner)
+            elidable = first is not None and first in self.grammar.elidable
+            if elidable and self.elision:
+                return [[(("n", self.new_helper(body)), None)]]
+            helper = self.new_helper([[]] + body, first if elidable else None)
+            return [[(("n", helper), None)]]
+        if "repeat" in expr:
+            body = self.expand(expr["repeat"])
+            return [[(("n", self.repeat_helper(body, expr.get("min", 1))), None)]]
+        if "hash" in expr:
+            free = self.grammar.free
+            if free is None:
+                raise self.fail("# is used, but the stage has no %free-modifiers")
+            body = [[(self.symbol(free), None)]]
+            return [[(("n", self.repeat_helper(body, 0)), None)]]
+        if "empty" in expr:
+            return [[]]
+        if "ref" in expr:
+            return [[(self.symbol(expr["ref"]), None)]]
+        if "terminal" in expr:
+            return [[(("t", expr["terminal"]), None)]]
+        if "capture" in expr:
+            if not top:
+                raise self.fail(f"the capture ${expr['capture']} is not at the top level of its alternative")
+            inner = expr.get("expr", {})
+            if "ref" in inner:
+                symbol = self.symbol(inner["ref"])
+            elif "terminal" in inner:
+                symbol = ("t", inner["terminal"])
+            else:
+                raise self.fail(f"the capture ${expr['capture']} does not wrap one symbol")
+            return [[(symbol, expr["capture"])]]
+        raise self.fail(f"an unknown expression {sorted(expr)}")
+
+    def repeat_helper(self, body: list[list[_Sym]], minimum: int) -> int:
+        number = len(self.rule_names)
+        recursive: list[list[_Sym]] = [[(("n", number), None)] + expansion for expansion in body]
+        base: list[list[_Sym]] = [[]] if minimum == 0 else body
+        helper = self.new_helper(base + recursive)
+        assert helper == number
+        return helper
+
+    # -- productions
+
+    def add(self, lhs: int, expansion: list[_Sym], alt: Alternative | None, rep_splice: bool = False, elided: str | None = None) -> None:
+        rhs = tuple(sym[1] for sym, _ in expansion)
+        terminal = tuple(sym[0] == "t" for sym, _ in expansion)
+        captures: dict[str, int] = {}
+        for position, (_, name) in enumerate(expansion):
+            if name is not None:
+                if name in captures:
+                    raise self.fail(f"the capture ${name} appears twice in one alternative")
+                captures[name] = position
+        production = Production(
+            id=len(self.productions),
+            lhs=lhs,
+            rhs=rhs,
+            terminal=terminal,
+            rule_name=self.rule_display[lhs],
+            helper=alt is None,
+            rep_splice=rep_splice,
+            elided=elided,
+            captures=captures,
+        )
+        if alt is not None:
+            for condition in alt.conditions:
+                names = captures_in(condition)
+                if not names <= captures.keys():
+                    continue
+                if names:
+                    production.conds_at.setdefault(max(captures[name] for name in names), []).append(condition)
+                else:
+                    production.conds_predict.append(condition)
+            term = alt.tags if alt.tags is not None else alt.rule_tags
+            if term is not None and captures_in(term) <= captures.keys():
+                production.tags_term = term
+            production.emit = self.lower_emit(alt.emit, captures)
+        if production.tags_term is None and len(rhs) == 1 and 0 not in captures.values():
+            captures[IMPLICIT] = 0
+        slots = [-1] * len(rhs)
+        for index, position in enumerate(sorted(captures.values())):
+            slots[position] = index
+        production.slots = tuple(slots)
+        self.productions.append(production)
+        for sym, _ in expansion:
+            if sym[0] == "n" and sym[1] in self.helper_expansions and sym[1] not in self.emitted_helpers:
+                self.emit_helper(sym[1])
+
+    def emit_helper(self, number: int) -> None:
+        self.emitted_helpers.add(number)
+        elided = self.helper_elided.get(number)
+        for expansion in self.helper_expansions[number]:
+            self.add(number, expansion, None, elided=elided if not expansion else None)
+
+    def lower_emit(self, emit: Dom | None, captures: dict[str, int]) -> Any:
+        if emit is None:
+            return None
+        if emit.get("nothing"):
+            return ("nothing",)
+        items = emit.get("items", [])
+        if items and all("this" in item for item in items):
+            return ("this", [item.get("tags") if captures_in(item.get("tags")) <= captures.keys() else None for item in items])
+        lowered: list[tuple[Any, ...]] = []
+        for item in items:
+            if "capture" in item:
+                if item["capture"] in captures:
+                    tags = item.get("tags")
+                    if tags is not None and not captures_in(tags) <= captures.keys():
+                        tags = None
+                    lowered.append(("capture", captures[item["capture"]], tags))
+            elif "insert" in item:
+                lowered.append(("insert", item["insert"]))
+        return ("items", lowered)
+
+    def check_captures(self, expr: Dom) -> None:
+        top = expr["seq"] if "seq" in expr else [expr]
+        count = 0
+        nested: list[Any] = []
+        for item in top:
+            if "capture" in item and "expr" in item:
+                count += 1
+                inner = item["expr"]
+                if not isinstance(inner, dict) or not ("ref" in inner or "terminal" in inner):
+                    raise self.fail(f"the capture ${item['capture']} does not wrap one symbol")
+            else:
+                nested.append(item)
+        while nested:
+            value = nested.pop()
+            if isinstance(value, dict):
+                if "capture" in value and "expr" in value:
+                    raise self.fail(f"the capture ${value['capture']} is not at the top level of its alternative")
+                nested.extend(value.values())
+            elif isinstance(value, list):
+                nested.extend(value)
+        if count > 4:
+            raise self.fail("an alternative has more than four captures")
+
+    def lower(self) -> Lowered:
+        for name, rule in self.grammar.rules.items():
+            self.current = rule
+            lhs = self.rule_ids[name]
+            for alt in rule.alternatives:
+                self.current_alt = alt
+                self.check_captures(alt.expr)
+            alternatives = [alt for alt in rule.alternatives if self.holds(alt.guards)]
+            for alt in alternatives:
+                self.current_alt = alt
+                expr = alt.expr
+                trailing = None
+                if len(alternatives) == 1:
+                    if "repeat" in expr:
+                        trailing = ([], expr)
+                    elif "seq" in expr and expr["seq"] and "repeat" in expr["seq"][-1]:
+                        trailing = (expr["seq"][:-1], expr["seq"][-1])
+                if trailing is None:
+                    for expansion in self.expand(expr, top=True):
+                        self.add(lhs, expansion, alt)
+                    continue
+                prefix, repeat = trailing
+                body = self.expand(repeat["repeat"])
+                if repeat.get("min", 1) == 1:
+                    bases = self.expand({"seq": [*prefix, repeat["repeat"]]}, top=True)
+                else:
+                    bases = self.expand({"seq": prefix}, top=True)
+                for expansion in bases:
+                    self.add(lhs, expansion, alt)
+                for expansion in body:
+                    self.add(lhs, [(("n", lhs), None)] + expansion, alt, rep_splice=True)
+            self.current_alt = None
+        rule_productions: list[list[int]] = [[] for _ in self.rule_names]
+        for production in self.productions:
+            rule_productions[production.lhs].append(production.id)
+        return Lowered(
+            grammar=self.grammar,
+            productions=self.productions,
+            rule_names=self.rule_names,
+            rule_ids={name: index for index, name in enumerate(self.rule_names)},
+            rule_productions=rule_productions,
+            rule_display=self.rule_display,
+            lean=self.grammar.lean,
+        )
+
+    def holds(self, guards: list[Dom]) -> bool:
+        return all((guard["feature"] in self.features) != bool(guard.get("negated")) for guard in guards)
+
+
+def lower(grammar: Grammar, features: frozenset[str], elision: bool = False) -> Lowered:
+    """Lower a stage's grammar for a set of enabled features (engine §3)."""
+    return _Lowerer(grammar, features, elision).lower()
