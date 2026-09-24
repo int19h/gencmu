@@ -314,15 +314,27 @@ class Robustness(unittest.TestCase):
                 self.assertIsNone(dom_problem(entry["dom"]))
 
     def test_deeply_nested_grammar(self) -> None:
-        depth = 400
+        """A grammar nested as deep as engine §9 allows loads and parses."""
+        depth = 250
         rules = "text ≔ " + "[" * depth + '("a")' + "]" * depth
-        rules += ' <' + "(" * depth + '"T"' + ")" * depth + '> : ' + "¬" * (depth + 1) + '"a" = "b" ;'
+        rules += " <" + "(" * depth + '"T"' + ")" * depth + "> : " + "¬" * depth + '"a" = "a" ;'
         dialect = gencmu.load_dialect_sources(self.grammar(rules), "p.md")
         result = dialect.parse("a", auto_features=False)
         self.assertTrue(result.ok, result.error)
         self.assertEqual(gencmu.to_brackets(result), "a")
         assert result.tree is not None
         self.assertEqual(result.tree.tags, {"T": True})
+
+    def test_too_deeply_nested_grammar(self) -> None:
+        """Nesting more than 256 deep is an error at the rule that holds it."""
+        for rules in (
+            'x ≔ "b" ;\ntext ≔ ' + "[" * 300 + '"a"' + "]" * 300 + " ;",
+            'x ≔ "b" ;\ntext ≔ "a" : ' + "¬" * 300 + '"a" = "a" ;',
+        ):
+            with self.subTest(rules=rules[:30]):
+                with self.assertRaises(gencmu.GencmuError) as caught:
+                    gencmu.load_dialect_sources(self.grammar(rules), "p.md")
+                self.assertEqual((caught.exception.document, caught.exception.line, caught.exception.column), ("g.md", 4, 1))
 
     def test_deep_tree(self) -> None:
         dialect = gencmu.load_dialect_sources(self.grammar('text ≔ text "a" | "a" ;'), "p.md")

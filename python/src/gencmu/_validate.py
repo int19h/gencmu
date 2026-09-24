@@ -1,135 +1,247 @@
 """The shape of a grammar DOM (docs/output.md, "A grammar DOM").
 
-DOMs come from files a library did not write itself, a bootstrap or a
-compiled.json supplied beside the documents, so they are checked before use.
+A DOM that was not read from a document here, the bootstrap's or a
+precompiled one from compiled.json, is held to every rule the reader holds a
+document to (engine §9), so that a corrupt or hand-made one is refused, or
+read afresh, rather than changing a result or failing inside a parse. The
+same walk bounds the nesting of a document that was read (engine §9).
 """
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
-_EXPRESSION_KEYS = {"seq", "choice", "and", "optional", "repeat", "ref", "terminal", "capture", "hash", "empty"}
-_OPS = {"=", "≠", "∈", "∉", "⊆"}
-_FUNCTIONS = {"phonemes", "text", "words", "classes", "head", "tail", "last", "lowercase", "tags"}
+MAX_DEPTH = 256
+"""No node of an expression, a term or a condition may lie below more than
+this many compound nodes of it (engine §9). A node's depth here is the
+number of compound nodes above it, since only compound nodes have children:
+optional, repeat, and, choice, seq and capture; set, union, intersection
+and call; any, not, matches and a comparison."""
+
+TOO_DEEP = "nested too deeply"
+
+_FUNCTIONS = {"phonemes", "text", "lowercase", "tags", "classes", "words", "head", "tail", "last", "matches"}
+_COMPARATORS = {"=", "≠", "∈", "∉", "⊆"}
+_SPANS = {"head", "tail", "last"}
+_NAME = re.compile(r"[A-Za-z][A-Za-z0-9-]*")
 
 
 def _is_int(value: Any) -> bool:
     return isinstance(value, int) and not isinstance(value, bool)
 
 
+def _is_position(value: Any) -> bool:
+    return isinstance(value, list) and len(value) == 2 and all(_is_int(x) for x in value)
+
+
+def _is_one_of(value: Any, names: set[str]) -> bool:
+    """Whether a value is one of some strings; any other value, a list or an
+    object included, is not, and raises nothing."""
+    return isinstance(value, str) and value in names
+
+
+def _is_span(value: Any) -> bool:
+    """A capture, or head, tail or last of one."""
+    return isinstance(value, dict) and (isinstance(value.get("capture"), str) or _is_one_of(value.get("call"), _SPANS))
+
+
+def _is_string(value: Any) -> bool:
+    """A literal, or phonemes, text or lowercase of something."""
+    return isinstance(value, dict) and (
+        isinstance(value.get("literal"), str) or _is_one_of(value.get("call"), {"phonemes", "text", "lowercase"})
+    )
+
+
+def _is_rule_name(value: Any) -> bool:
+    return isinstance(value, dict) and isinstance(value.get("rule"), str) and len(value) == 1
+
+
+def _items(value: Any, least: int, most: float = float("inf")) -> bool:
+    return isinstance(value, list) and least <= len(value) <= most
+
+
 def dom_problem(dom: Any) -> str | None:
-    """What is wrong with a DOM's shape, or None if nothing is."""
-    if not isinstance(dom, dict) or dom.get("format") != 1:
-        return "a DOM is an object of format 1"
-    rules = dom.get("rules")
-    directives = dom.get("directives")
-    if not isinstance(rules, list) or not isinstance(directives, list):
-        return "a DOM has lists of rules and directives"
-    work: list[tuple[str, Any]] = []
-    for rule in rules:
-        if not isinstance(rule, dict) or not isinstance(rule.get("name"), str) or rule.get("op") not in ("define", "extend"):
-            return "a rule has a name and an op"
-        at = rule.get("at")
-        if not (isinstance(at, list) and len(at) == 2 and all(_is_int(x) for x in at)):
-            return f"rule {rule['name']} has no position"
-        alternatives = rule.get("alternatives")
-        conditions = rule.get("conditions")
-        if not isinstance(alternatives, list) or not isinstance(conditions, list):
-            return f"rule {rule['name']} has lists of alternatives and conditions"
-        for alternative in alternatives:
-            if not isinstance(alternative, dict) or not isinstance(alternative.get("guards"), list) or "expr" not in alternative:
-                return f"an alternative of {rule['name']} has guards and an expression"
-            for guard in alternative["guards"]:
-                if not isinstance(guard, dict) or not isinstance(guard.get("feature"), str) or not isinstance(guard.get("negated"), bool):
-                    return f"a guard of {rule['name']} has a feature and negated"
-            work.append(("expr", alternative["expr"]))
-            if "tags" in alternative:
-                work.append(("term", alternative["tags"]))
-        if "tags" in rule:
-            work.append(("term", rule["tags"]))
-        work.extend(("cond", condition) for condition in conditions)
-        if "emit" in rule:
-            work.append(("emit", rule["emit"]))
-    for directive in directives:
+    """Why a value is not a grammar DOM the reader could have written, or
+    None when it is one."""
+    if (
+        not isinstance(dom, dict)
+        or dom.get("format") != 1
+        or not isinstance(dom.get("rules"), list)
+        or not isinstance(dom.get("directives"), list)
+    ):
+        return "not a DOM of format 1"
+    for directive in dom["directives"]:
         if (
             not isinstance(directive, dict)
             or not isinstance(directive.get("name"), str)
             or not isinstance(directive.get("args"), list)
             or not all(isinstance(arg, str) for arg in directive["args"])
+            or not _is_position(directive.get("at"))
         ):
-            return "a directive has a name and words"
-    while work:
-        kind, value = work.pop()
+            return "a malformed directive"
+    pending: list[tuple[str, Any, int]] = []
+    for rule in dom["rules"]:
+        if (
+            not isinstance(rule, dict)
+            or not isinstance(rule.get("name"), str)
+            or not _NAME.fullmatch(rule["name"])
+            or not _is_one_of(rule.get("op"), {"define", "extend"})
+            or not _items(rule.get("alternatives"), 1)
+            or not isinstance(rule.get("conditions"), list)
+            or not _is_position(rule.get("at"))
+        ):
+            return "a malformed rule"
+        if "tags" in rule:
+            pending.append(("term", rule["tags"], 0))
+        if "emit" in rule:
+            pending.append(("emission", rule["emit"], 0))
+        pending.extend(("condition", condition, 0) for condition in rule["conditions"])
+        for alternative in rule["alternatives"]:
+            if (
+                not isinstance(alternative, dict)
+                or not isinstance(alternative.get("guards"), list)
+                or not all(
+                    isinstance(guard, dict) and isinstance(guard.get("feature"), str) and isinstance(guard.get("negated"), bool)
+                    for guard in alternative["guards"]
+                )
+            ):
+                return "a malformed alternative"
+            # A capture stands only at the top level of an alternative: the
+            # expression itself, or an item of its sequence (engine §3.5);
+            # an alternative has at most four, each named once.
+            expr = alternative.get("expr")
+            top = expr["seq"] if isinstance(expr, dict) and isinstance(expr.get("seq"), list) else [expr]
+            names = [item["capture"] for item in top if isinstance(item, dict) and isinstance(item.get("capture"), str)]
+            if len(set(names)) != len(names):
+                return "a capture name used twice in an alternative"
+            if len(names) > 4:
+                return "more than four captures in an alternative"
+            pending.append(("top", expr, 0))
+            if "tags" in alternative:
+                pending.append(("term", alternative["tags"], 0))
+    items: Any
+    args: Any
+    while pending:
+        kind, value, depth = pending.pop()
+        if depth > MAX_DEPTH:
+            return TOO_DEEP
         if not isinstance(value, dict):
-            return f"a malformed {kind}"
-        if kind == "expr":
-            keys = _EXPRESSION_KEYS & value.keys()
-            if len(keys) != 1:
-                return "a malformed expression"
-            key = keys.pop()
-            if key in ("seq", "choice", "and"):
-                if not isinstance(value[key], list):
+            return f"a malformed {'expression' if kind in ('top', 'item') else kind}"
+        below = depth + 1
+        if kind in ("expr", "top", "item"):
+            if "choice" in value or "seq" in value:
+                items = value["choice"] if "choice" in value else value["seq"]
+                if not _items(items, 2):
                     return "a malformed expression"
-                work.extend(("expr", item) for item in value[key])
-            elif key in ("optional", "repeat"):
-                if key == "repeat" and value.get("min") not in (0, 1):
-                    return "a repetition has min 0 or 1"
-                work.append(("expr", value[key]))
-            elif key in ("ref", "terminal"):
-                if not isinstance(value[key], str):
-                    return "a malformed name"
-            elif key == "capture":
-                if not isinstance(value[key], str) or not isinstance(value.get("expr"), dict):
+                child_kind = "item" if kind == "top" and "seq" in value else "expr"
+                pending.extend((child_kind, item, below) for item in items)
+            elif "and" in value:
+                if not _items(value["and"], 2, 16):
+                    return "a malformed expression"
+                pending.extend(("expr", item, below) for item in value["and"])
+            elif "repeat" in value:
+                if not (_is_int(value.get("min")) and value["min"] in (0, 1)):
+                    return "a malformed expression"
+                pending.append(("expr", value["repeat"], below))
+            elif "optional" in value:
+                pending.append(("expr", value["optional"], below))
+            elif "capture" in value:
+                inner = value.get("expr")
+                if kind == "expr":
+                    return "a capture below the top level of an alternative"
+                if (
+                    not isinstance(value["capture"], str)
+                    or not isinstance(inner, dict)
+                    or not (isinstance(inner.get("ref"), str) or isinstance(inner.get("terminal"), str))
+                ):
                     return "a malformed capture"
-                work.append(("expr", value["expr"]))
-        elif kind == "emit":
+            elif not (
+                isinstance(value.get("ref"), str)
+                or isinstance(value.get("terminal"), str)
+                or value.get("hash") is True
+                or value.get("empty") is True
+            ):
+                return "a malformed expression"
+        elif kind == "emission":
+            # Nothing alone, this only with this, a capture listed once, no
+            # tags on an inserted tag (engine §9).
             if value.get("nothing") is True:
+                if len(value) != 1:
+                    return "a malformed emission"
                 continue
             items = value.get("items")
-            if not isinstance(items, list):
+            if not _items(items, 1):
                 return "a malformed emission"
+            kinds: list[str | None] = []
             for item in items:
-                if not isinstance(item, dict) or not ({"this", "capture", "insert"} & item.keys()):
-                    return "a malformed emission item"
-                if "tags" in item:
-                    work.append(("term", item["tags"]))
-        elif kind == "cond":
-            if "op" in value:
-                if value["op"] not in _OPS or "left" not in value or "right" not in value:
-                    return "a malformed comparison"
-                work.append(("term", value["left"]))
-                work.append(("term", value["right"]))
-            elif "matches" in value:
-                if not isinstance(value.get("rule"), str):
-                    return "a malformed matches"
-                work.append(("term", value["matches"]))
-            elif "not" in value:
-                work.append(("cond", value["not"]))
-            elif "any" in value:
-                if not isinstance(value["any"], list):
+                if not isinstance(item, dict):
+                    kinds.append(None)
+                elif item.get("this") is True:
+                    kinds.append("this")
+                elif isinstance(item.get("capture"), str):
+                    kinds.append("capture")
+                elif isinstance(item.get("insert"), str):
+                    kinds.append("insert")
+                else:
+                    kinds.append(None)
+            if None in kinds or ("this" in kinds and any(k != "this" for k in kinds)):
+                return "a malformed emission"
+            captures = [item["capture"] for item, k in zip(items, kinds) if k == "capture"]
+            if len(set(captures)) != len(captures):
+                return "a malformed emission"
+            for item, k in zip(items, kinds):
+                if "tags" not in item:
+                    continue
+                if k == "insert":
+                    return "a malformed emission"
+                # An emission is no node of a term: its tags start at the top.
+                pending.append(("term", item["tags"], depth))
+        elif kind == "condition":
+            if "any" in value:
+                if not _items(value["any"], 2):
                     return "a malformed condition"
-                work.extend(("cond", item) for item in value["any"])
+                pending.extend(("condition", item, below) for item in value["any"])
+            elif "not" in value:
+                pending.append(("condition", value["not"], below))
+            elif "matches" in value:
+                if not isinstance(value.get("rule"), str) or not _is_span(value["matches"]):
+                    return "a malformed condition"
+                pending.append(("argument", value["matches"], below))
             else:
-                return "a malformed condition"
+                if not _is_one_of(value.get("op"), _COMPARATORS):
+                    return "a malformed condition"
+                pending.append(("term", value.get("left"), below))
+                pending.append(("term", value.get("right"), below))
         else:
-            if "literal" in value or "weak" in value:
-                if not isinstance(value.get("literal", value.get("weak")), str):
+            # A term; an argument is a term where a span may stand.
+            if "set" in value or "union" in value or "intersection" in value:
+                items = value["set"] if "set" in value else value["union"] if "union" in value else value["intersection"]
+                if not _items(items, 0 if "set" in value else 2):
                     return "a malformed term"
-            elif "emptySet" in value or "capture" in value:
-                if "capture" in value and not isinstance(value["capture"], str):
-                    return "a malformed term"
-            elif "rule" in value:
-                if not isinstance(value["rule"], str):
-                    return "a malformed term"
-            elif any(key in value for key in ("set", "union", "intersection")):
-                items = value.get("set", value.get("union", value.get("intersection")))
-                if not isinstance(items, list) or (not items and "set" not in value):
-                    return "a malformed term"
-                work.extend(("term", item) for item in items)
+                pending.extend(("term", item, below) for item in items)
             elif "call" in value:
-                if value["call"] not in _FUNCTIONS or not isinstance(value.get("args"), list) or not value["args"]:
-                    return "a malformed call"
-                work.extend(("term", item) for item in value["args"])
-            else:
+                # The reader's signatures (engine §9), with a span where one is due.
+                args = value.get("args") if isinstance(value.get("args"), list) else []
+                call = value["call"]
+                if not _is_one_of(call, _FUNCTIONS) or call == "matches":
+                    ok = False
+                elif call == "tags":
+                    ok = (len(args) == 1 and _is_span(args[0])) or (
+                        len(args) == 2 and _is_span(args[0]) and _is_rule_name(args[1])
+                    )
+                elif call == "lowercase":
+                    ok = len(args) == 1 and _is_string(args[0])
+                else:
+                    ok = len(args) == 1 and _is_span(args[0])
+                if not ok or (kind != "argument" and call in _SPANS):
+                    return "a malformed term"
+                pending.extend(("argument", arg, below) for arg in args if not _is_rule_name(arg))
+            elif not (
+                isinstance(value.get("literal"), str)
+                or isinstance(value.get("weak"), str)
+                or value.get("emptySet") is True
+                or isinstance(value.get("capture"), str)
+            ):
                 return "a malformed term"
     return None
