@@ -2,7 +2,7 @@
 
 This document is the lexicon of the word stage in the [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) dialects, whose syntax grammars name selma'o that CLL does not have: the cmavo in use beyond CLL, with their selma'o, together with the cmavo of CLL. It has 943 words, of which 345 are outside CLL. It is maintained by hand in this repository.
 
-Each alternative spells one word in the phonemes of the word grammar, as [lexicon-cll.md](lexicon-cll.md) explains, and carries the word's classes. A class that CLL's dictionary also gives the word is a strong tag. A class that CLL's dictionary does not give it is weak, as `mo'o` is `?"KOhA"` beside its CLL MAI: the syntax stage may read the word that way, but a weak reading loses to a strong one at the first difference between two parses, so the word is read under its CLL class wherever that reading exists. A word CLL does not have carries all its classes as strong tags. A word is tagged `indicator` when its principal class is an attitudinal class, UI, CAI, Y, DAhO, FUhO or FUhE; `cu'ei`, whose principal class is BAI, is not, and stays a word of the syntax. Some attitudinals outside CLL also carry `UI3a`, a numbered subclass of UI that no grammar names.
+Each alternative spells one word in the phonemes of the word grammar, as [lexicon-cll.md](lexicon-cll.md) explains, and carries the word's classes. A class that CLL's dictionary also gives the word is a strong tag. A class that CLL's dictionary does not give it is weak, as `mo'o` is `?"KOhA"` beside its CLL MAI: the syntax stage may read the word that way, but a weak reading loses to a strong one at the first difference between two parses, so the word is read under its CLL class wherever that reading exists. A word CLL does not have carries all its classes as strong tags. A word is tagged `indicator` when its principal class is an attitudinal class, UI, CAI, Y, DAhO, FUhO or FUhE; `cu'ei`, whose principal class is BAI, is not, and stays a word of the syntax. As in the CLL lexicon, the dictionary's numbered subclasses are collapsed to the selma'o the syntax grammars name.
 
 Five words are given only the classes that their meaning and their dictionary entry support:
 
@@ -12,7 +12,7 @@ Five words are given only the classes that their meaning and their dictionary en
 - `ku'oi` is KUhOI: the elidable terminator of a `no'oi` clause.
 - `su'ai` is PA: a number word, "approximately, to within the stated precision", as its dictionary entry defines it; it does not form an abstraction.
 
-A word that is the only member of its selma'o carries that selma'o. Those that CLL has take their CLL class (`bi'e`, `bo`, `boi`, `cei`, `do'u`, `doi`, `fe'e`, `fe'u`, `fi'o`, `foi`, `ge'u`, `jai`, `ke`, `ke'e`, `kei`, `ki`, `ku'e`, `ku'o`, `lu'u`, `ma'o`, `me`, `me'u`, `mo'e`, `na'u`, `ni'e`, `nu'a`, `nu'i`, `nu'u`, `pe'o`, `ra'o`, `se'u`, `te'u`, `tei`, `tu'u`, `vu'o`, `zi'e`); the rest are the single-word terminals of the experimental syntax grammar, each named after its word, which each carries first, before any broader class it also has: `bo'ei` BOhEI, `fi'au` FIhAU, `fi'oi` FIhOI, `xo'i` XOhI, `ma'oi` MAhOI, `zo'oi` ZOhOI, `la'oi` LAhOI, `go'oi` GOhOI, `ia'u` IhAU, `ku'au` KUhAU, `le'ai` LEhAI, `lo'ai` LOhAI, `me'oi` MEhOI, `ra'oi` RAhOI, `sa'ai` SAhAI, `ta'ai` TAhAI, `ze'oi` ZEhOI.
+A word that is the only member of its selma'o carries that selma'o. Those that CLL has take their CLL class (`bi'e`, `bo`, `boi`, `cei`, `do'u`, `doi`, `fe'e`, `fe'u`, `fi'o`, `foi`, `ge'u`, `jai`, `ke`, `ke'e`, `kei`, `ki`, `ku'e`, `ku'o`, `lu'u`, `ma'o`, `me`, `me'u`, `mo'e`, `na'u`, `ni'e`, `nu'a`, `nu'i`, `nu'u`, `pe'o`, `ra'o`, `se'u`, `te'u`, `tei`, `tu'u`, `vu'o`, `zi'e`); the rest are the single-word terminals of the experimental syntax grammar, each named after its word, which each carries beside any broader class it also has: `bo'ei` BOhEI, `fi'au` FIhAU, `fi'oi` FIhOI, `xo'i` XOhI, `ma'oi` MAhOI, `zo'oi` ZOhOI, `la'oi` LAhOI, `go'oi` GOhOI, `ia'u` IhAU, `ku'au` KUhAU, `le'ai` LEhAI, `lo'ai` LOhAI, `me'oi` MEhOI, `ra'oi` RAhOI, `sa'ai` SAhAI, `ta'ai` TAhAI, `ze'oi` ZEhOI.
 
 The notation is explained in [the notation document](../../docs/notation.md).
 
@@ -47,7 +47,7 @@ The notation is explained in [the notation document](../../docs/notation.md).
 %rule lexicon-a
   | any-a <"A">
   | any-a /'/ any-a <"UI" ∪ "indicator">
-  | any-a /'/ any-a any-i <"UI" ∪ "UI3a" ∪ "indicator">
+  | any-a /'/ any-a any-i <"UI" ∪ "indicator">
   | any-a /'/ any-e <"UI" ∪ "indicator">
   | any-a /'/ any-i <"UI" ∪ "indicator">
   | any-a /'/ any-o <"UI" ∪ "indicator">
@@ -57,7 +57,7 @@ The notation is explained in [the notation document](../../docs/notation.md).
   | any-a any-i <"UI" ∪ "indicator">
   | any-a any-i /'/ any-i <"UI" ∪ "indicator">
   | any-a any-u <"UI" ∪ "indicator">
-  | any-a any-u /'/ any-a any-u <"UI" ∪ "UI3a" ∪ "indicator">
+  | any-a any-u /'/ any-a any-u <"UI" ∪ "indicator">
 ```
 
 ```jbogenbau
@@ -66,7 +66,7 @@ The notation is explained in [the notation document](../../docs/notation.md).
   | /b/ any-a /'/ any-a <"UI" ∪ "indicator">
   | /b/ any-a /'/ any-a any-u <"CUhE">
   | /b/ any-a /'/ any-e <"BAhE">
-  | /b/ any-a /'/ any-e any-i <"UI" ∪ "UI3a" ∪ "indicator">
+  | /b/ any-a /'/ any-e any-i <"UI" ∪ "indicator">
   | /b/ any-a /'/ any-i <"BAI">
   | /b/ any-a /'/ any-o <"ZAhO">
   | /b/ any-a /'/ any-o any-i <"ROI">
@@ -97,7 +97,7 @@ The notation is explained in [the notation document](../../docs/notation.md).
   | /b/ any-u <"BU">
   | /b/ any-u /'/ any-a <"GOhA">
   | /b/ any-u /'/ any-e <"GOhA">
-  | /b/ any-u /'/ any-e any-i <"UI" ∪ "UI3a" ∪ "indicator">
+  | /b/ any-u /'/ any-e any-i <"UI" ∪ "indicator">
   | /b/ any-u /'/ any-i <"GOhA">
   | /b/ any-u /'/ any-o <"UI" ∪ "indicator">
   | /b/ any-u /'/ any-u <"FAhA">
@@ -146,7 +146,7 @@ The notation is explained in [the notation document](../../docs/notation.md).
   | /c/ any-u <"CU">
   | /c/ any-u /'/ any-a <"VUhU">
   | /c/ any-u /'/ any-e <"CUhE">
-  | /c/ any-u /'/ any-e any-i <"BAI" ∪ "UI" ∪ "UI3a">
+  | /c/ any-u /'/ any-e any-i <"BAI" ∪ "UI">
   | /c/ any-u /'/ any-i <"CAI" ∪ "indicator">
   | /c/ any-u /'/ any-o <"MOI">
   | /c/ any-u /'/ any-u <"BAI">
@@ -232,7 +232,7 @@ The notation is explained in [the notation document](../../docs/notation.md).
   | any-e /'/ any-u /'/ any-i <"BAI">
   | any-e /'/ any-y <"BY">
   | any-e any-i <"UI" ∪ "indicator">
-  | any-e any-i /'/ any-a any-i <"UI" ∪ "UI3a" ∪ "indicator">
+  | any-e any-i /'/ any-a any-i <"UI" ∪ "indicator">
   | any-e any-i /'/ any-e any-i <"BAI">
 ```
 
@@ -240,7 +240,7 @@ The notation is explained in [the notation document](../../docs/notation.md).
 %rule lexicon-f
   | /f/ any-a <"FA">
   | /f/ any-a /'/ any-a <"FAhA">
-  | /f/ any-a /'/ any-a any-i <"UI" ∪ "UI3a" ∪ "indicator">
+  | /f/ any-a /'/ any-a any-i <"UI" ∪ "indicator">
   | /f/ any-a /'/ any-e <"BAI">
   | /f/ any-a /'/ any-i <"VUhU">
   | /f/ any-a /'/ any-o <"FAhO">
@@ -298,10 +298,10 @@ The notation is explained in [the notation document](../../docs/notation.md).
   | /g/ any-a /'/ any-e <"BY">
   | /g/ any-a /'/ any-e any-i <"BAI">
   | /g/ any-a /'/ any-i <"UI" ∪ "indicator">
-  | /g/ any-a /'/ any-i /'/ any-i <"UI" ∪ "UI3a" ∪ "indicator">
+  | /g/ any-a /'/ any-i /'/ any-i <"UI" ∪ "indicator">
   | /g/ any-a /'/ any-o <"GAhO">
   | /g/ any-a /'/ any-u <"FAhA">
-  | /g/ any-a /'/ any-u /'/ any-i <"UI" ∪ "UI3a" ∪ "indicator">
+  | /g/ any-a /'/ any-u /'/ any-i <"UI" ∪ "indicator">
   | /g/ any-a any-i <"PA">
   | /g/ any-a any-i /'/ any-a <"BY">
   | /g/ any-a any-i /'/ any-e <"BY">
@@ -312,7 +312,7 @@ The notation is explained in [the notation document](../../docs/notation.md).
   | /g/ any-a any-u /'/ any-i <"COI">
   | /g/ any-e <"GA">
   | /g/ any-e /'/ any-a <"VUhU">
-  | /g/ any-e /'/ any-a any-i <"UI" ∪ "UI3a" ∪ "ZOhU" ∪ "indicator">
+  | /g/ any-e /'/ any-a any-i <"UI" ∪ "ZOhU" ∪ "indicator">
   | /g/ any-e /'/ any-e <"UI" ∪ "indicator">
   | /g/ any-e /'/ any-i <"GA">
   | /g/ any-e /'/ any-o <"BY">
@@ -347,16 +347,16 @@ The notation is explained in [the notation document](../../docs/notation.md).
 %rule lexicon-i
   | any-i <"I">
   | any-i /'/ any-a <"UI" ∪ "indicator">
-  | any-i /'/ any-a any-u <"UI" ∪ "UI3a" ∪ "indicator">
+  | any-i /'/ any-a any-u <"UI" ∪ "indicator">
   | any-i /'/ any-e <"UI" ∪ "indicator">
-  | any-i /'/ any-e any-i <"UI" ∪ "UI3a" ∪ "indicator">
+  | any-i /'/ any-e any-i <"UI" ∪ "indicator">
   | any-i /'/ any-i <"UI" ∪ "indicator">
-  | any-i /'/ any-i /'/ any-i <"UI" ∪ "UI3a" ∪ "indicator">
+  | any-i /'/ any-i /'/ any-i <"UI" ∪ "indicator">
   | any-i /'/ any-o <"UI" ∪ "indicator">
   | any-i /'/ any-u <"UI" ∪ "indicator">
   | any-i /'/ any-y <"BY">
   | any-i any-a <"UI" ∪ "indicator">
-  | any-i any-a /'/ any-a any-u <"UI" ∪ "UI3a" ∪ "indicator">
+  | any-i any-a /'/ any-a any-u <"UI" ∪ "indicator">
   | any-i any-a /'/ any-u <"IhAU">
   | any-i any-e <"UI" ∪ "indicator">
   | any-i any-e /'/ any-o <"Y" ∪ "indicator">
@@ -376,8 +376,8 @@ The notation is explained in [the notation document](../../docs/notation.md).
   | /j/ any-a /'/ any-e any-i <"JAI">
   | /j/ any-a /'/ any-i <"BAI">
   | /j/ any-a /'/ any-o <"UI" ∪ "indicator">
-  | /j/ any-a /'/ any-o /'/ any-e <"UI" ∪ "UI3a" ∪ "indicator">
-  | /j/ any-a /'/ any-o /'/ any-o <"UI" ∪ "UI3a" ∪ "indicator">
+  | /j/ any-a /'/ any-o /'/ any-e <"UI" ∪ "indicator">
+  | /j/ any-a /'/ any-o /'/ any-o <"UI" ∪ "indicator">
   | /j/ any-a /'/ any-o any-i <"BAI" ∪ "NU">
   | /j/ any-a /'/ any-u any-i <"BAI">
   | /j/ any-a any-i <"JAI">
@@ -400,15 +400,15 @@ The notation is explained in [the notation document](../../docs/notation.md).
   | /j/ any-e any-i /'/ any-o <"JOI">
   | /j/ any-i <"A">
   | /j/ any-i /'/ any-a <"UI" ∪ "indicator">
-  | /j/ any-i /'/ any-a any-i <"UI" ∪ "UI3a" ∪ "indicator">
+  | /j/ any-i /'/ any-a any-i <"UI" ∪ "indicator">
   | /j/ any-i /'/ any-e <"BAI">
   | /j/ any-i /'/ any-e /'/ any-e <"BAI">
-  | /j/ any-i /'/ any-e any-i <"UI" ∪ "UI3a" ∪ "indicator">
+  | /j/ any-i /'/ any-e any-i <"UI" ∪ "indicator">
   | /j/ any-i /'/ any-i <"PA">
   | /j/ any-i /'/ any-i /'/ any-a <"BAI">
   | /j/ any-i /'/ any-o <"BAI">
-  | /j/ any-i /'/ any-o /'/ any-e <"UI" ∪ "UI3a" ∪ "indicator">
-  | /j/ any-i /'/ any-o /'/ any-o <"UI" ∪ "UI3a" ∪ "indicator">
+  | /j/ any-i /'/ any-o /'/ any-e <"UI" ∪ "indicator">
+  | /j/ any-i /'/ any-o /'/ any-o <"UI" ∪ "indicator">
   | /j/ any-i /'/ any-u <"BAI">
   | /j/ any-o <"JA" ∪ ?"JEhI">
   | /j/ any-o /'/ any-a <"UI" ∪ "indicator">
@@ -458,14 +458,14 @@ The notation is explained in [the notation document](../../docs/notation.md).
   | /k/ any-e /'/ any-a any-u <"ZOhU">
   | /k/ any-e /'/ any-e <"KEhE">
   | /k/ any-e /'/ any-i <"GAhO">
-  | /k/ any-e /'/ any-i /'/ any-a any-i <"UI" ∪ "UI3a" ∪ "indicator">
+  | /k/ any-e /'/ any-i /'/ any-a any-i <"UI" ∪ "indicator">
   | /k/ any-e /'/ any-o <"COI">
   | /k/ any-e /'/ any-u <"UI" ∪ "indicator">
   | /k/ any-e any-i <"KEI">
   | /k/ any-i <"KI">
   | /k/ any-i /'/ any-a <"UI" ∪ "indicator">
   | /k/ any-i /'/ any-a /'/ any-a <"KOhA">
-  | /k/ any-i /'/ any-a any-i <"BAI" ∪ "COI" ∪ "UI" ∪ "UI3a">
+  | /k/ any-i /'/ any-a any-i <"BAI" ∪ "COI" ∪ "UI">
   | /k/ any-i /'/ any-e <"COI">
   | /k/ any-i /'/ any-e /'/ any-a <"KOhA">
   | /k/ any-i /'/ any-i <"BAI" ∪ ?"NU">
@@ -505,11 +505,11 @@ The notation is explained in [the notation document](../../docs/notation.md).
   | /l/ any-a /'/ any-a any-i <"BAI">
   | /l/ any-a /'/ any-a any-u <"LU">
   | /l/ any-a /'/ any-e <"LAhE">
-  | /l/ any-a /'/ any-e any-i <"BAI" ∪ "LE" ∪ "UI" ∪ "UI3a">
+  | /l/ any-a /'/ any-e any-i <"BAI" ∪ "LE" ∪ "UI">
   | /l/ any-a /'/ any-i <"LA">
   | /l/ any-a /'/ any-o <"ZOI">
   | /l/ any-a /'/ any-o /'/ any-o <"BAI">
-  | /l/ any-a /'/ any-o any-i <"LAhOI" ∪ "UI" ∪ "UI3a">
+  | /l/ any-a /'/ any-o any-i <"LAhOI" ∪ "UI">
   | /l/ any-a /'/ any-u <"BAI">
   | /l/ any-a any-i <"LA">
   | /l/ any-a any-u <"LAU">
@@ -520,7 +520,7 @@ The notation is explained in [the notation document](../../docs/notation.md).
   | /l/ any-e /'/ any-e any-i <"LE">
   | /l/ any-e /'/ any-i <"LE">
   | /l/ any-e /'/ any-o <"UI" ∪ "indicator">
-  | /l/ any-e /'/ any-o /'/ any-e <"UI" ∪ "UI3a" ∪ "indicator">
+  | /l/ any-e /'/ any-o /'/ any-e <"UI" ∪ "indicator">
   | /l/ any-e /'/ any-u <"LEhU">
   | /l/ any-e any-i <"LE">
   | /l/ any-e any-i /'/ any-e <"LE">
@@ -562,7 +562,7 @@ The notation is explained in [the notation document](../../docs/notation.md).
 %rule lexicon-m
   | /m/ any-a <"KOhA">
   | /m/ any-a /'/ any-a <"KOhA">
-  | /m/ any-a /'/ any-a any-i <"UI" ∪ "UI3a" ∪ "indicator">
+  | /m/ any-a /'/ any-a any-i <"UI" ∪ "indicator">
   | /m/ any-a /'/ any-a any-u <"KOhA">
   | /m/ any-a /'/ any-e <"BAI">
   | /m/ any-a /'/ any-e any-i <"BAI" ∪ "KOhA">
@@ -644,7 +644,7 @@ The notation is explained in [the notation document](../../docs/notation.md).
   | /n/ any-i <"NU">
   | /n/ any-i /'/ any-a <"FAhA">
   | /n/ any-i /'/ any-e <"NIhE">
-  | /n/ any-i /'/ any-e any-i <"UI" ∪ "UI3a" ∪ "indicator">
+  | /n/ any-i /'/ any-e any-i <"UI" ∪ "indicator">
   | /n/ any-i /'/ any-i <"BAI">
   | /n/ any-i /'/ any-i /'/ any-i <"BAI">
   | /n/ any-i /'/ any-o <"NIhO">
@@ -682,7 +682,7 @@ The notation is explained in [the notation document](../../docs/notation.md).
   | any-o /'/ any-y <"BY">
   | any-o any-i <"UI" ∪ "indicator">
   | any-o any-i /'/ any-a <"UI" ∪ "indicator">
-  | any-o any-i /'/ any-o any-i <"UI" ∪ "UI3a" ∪ "indicator">
+  | any-o any-i /'/ any-o any-i <"UI" ∪ "indicator">
 ```
 
 ```jbogenbau
@@ -716,7 +716,7 @@ The notation is explained in [the notation document](../../docs/notation.md).
   | /p/ any-i /'/ any-o <"BAI">
   | /p/ any-i /'/ any-u <"JOI">
   | /p/ any-o <"GOI">
-  | /p/ any-o /'/ any-a any-i <"UI" ∪ "UI3a" ∪ "indicator">
+  | /p/ any-o /'/ any-a any-i <"UI" ∪ "indicator">
   | /p/ any-o /'/ any-e <"GOI">
   | /p/ any-o /'/ any-i <"BAI">
   | /p/ any-o /'/ any-o <"UI" ∪ "indicator">
@@ -806,7 +806,7 @@ The notation is explained in [the notation document](../../docs/notation.md).
   | /s/ any-a /'/ any-u <"UI" ∪ "indicator">
   | /s/ any-a any-i <"CAI" ∪ "indicator">
   | /s/ any-a any-i /'/ any-e <"SEI">
-  | /s/ any-a any-i /'/ any-i <"UI" ∪ "UI3a" ∪ "indicator">
+  | /s/ any-a any-i /'/ any-i <"UI" ∪ "indicator">
   | /s/ any-a any-u <"BAI">
   | /s/ any-a any-u /'/ any-a <"ZAhO">
   | /s/ any-e <"SE">
@@ -816,9 +816,9 @@ The notation is explained in [the notation document](../../docs/notation.md).
   | /s/ any-e /'/ any-o <"UI" ∪ "indicator">
   | /s/ any-e /'/ any-u <"SEhU">
   | /s/ any-e any-i <"SEI">
-  | /s/ any-e any-i /'/ any-a <"UI" ∪ "UI3a" ∪ "indicator">
+  | /s/ any-e any-i /'/ any-a <"UI" ∪ "indicator">
   | /s/ any-e any-i /'/ any-e <"SEI">
-  | /s/ any-e any-i /'/ any-i <"UI" ∪ "UI3a" ∪ "indicator">
+  | /s/ any-e any-i /'/ any-i <"UI" ∪ "indicator">
   | /s/ any-i <"SI">
   | /s/ any-i /'/ any-a <"UI" ∪ "indicator">
   | /s/ any-i /'/ any-a any-u <"UI" ∪ "indicator">
@@ -828,10 +828,10 @@ The notation is explained in [the notation document](../../docs/notation.md).
   | /s/ any-i /'/ any-u <"BAI">
   | /s/ any-o <"PA">
   | /s/ any-o /'/ any-a <"PA">
-  | /s/ any-o /'/ any-a /'/ any-u <"UI" ∪ "UI3a" ∪ "indicator">
+  | /s/ any-o /'/ any-a /'/ any-u <"UI" ∪ "indicator">
   | /s/ any-o /'/ any-a any-i <"KOhA" ∪ "PA">
   | /s/ any-o /'/ any-e <"PA">
-  | /s/ any-o /'/ any-e any-i <"PA" ∪ "UI" ∪ "UI3a">
+  | /s/ any-o /'/ any-e any-i <"PA" ∪ "UI">
   | /s/ any-o /'/ any-i <"PA">
   | /s/ any-o /'/ any-o <"PA">
   | /s/ any-o /'/ any-o any-i <"PA">
@@ -843,7 +843,7 @@ The notation is explained in [the notation document](../../docs/notation.md).
   | /s/ any-u /'/ any-a <"UI" ∪ "indicator">
   | /s/ any-u /'/ any-a any-i <"PA">
   | /s/ any-u /'/ any-e <"PA">
-  | /s/ any-u /'/ any-e any-i <"SE" ∪ "UI" ∪ "UI3a">
+  | /s/ any-u /'/ any-e any-i <"SE" ∪ "UI">
   | /s/ any-u /'/ any-i <"VUhU">
   | /s/ any-u /'/ any-o <"PA">
   | /s/ any-u /'/ any-o any-i <"PA" ∪ "SEI">
@@ -919,18 +919,18 @@ The notation is explained in [the notation document](../../docs/notation.md).
   | any-u /'/ any-e <"UI" ∪ "indicator">
   | any-u /'/ any-i <"UI" ∪ "indicator">
   | any-u /'/ any-o <"UI" ∪ "indicator">
-  | any-u /'/ any-o /'/ any-e <"UI" ∪ "UI3a" ∪ "indicator">
-  | any-u /'/ any-o /'/ any-i <"UI" ∪ "UI3a" ∪ "indicator">
-  | any-u /'/ any-o /'/ any-o <"UI" ∪ "UI3a" ∪ "indicator">
-  | any-u /'/ any-o /'/ any-u <"UI" ∪ "UI3a" ∪ "indicator">
-  | any-u /'/ any-o any-i <"UI" ∪ "UI3a" ∪ "indicator">
+  | any-u /'/ any-o /'/ any-e <"UI" ∪ "indicator">
+  | any-u /'/ any-o /'/ any-i <"UI" ∪ "indicator">
+  | any-u /'/ any-o /'/ any-o <"UI" ∪ "indicator">
+  | any-u /'/ any-o /'/ any-u <"UI" ∪ "indicator">
+  | any-u /'/ any-o any-i <"UI" ∪ "indicator">
   | any-u /'/ any-u <"UI" ∪ "indicator">
   | any-u /'/ any-y <"BY">
   | any-u any-a <"UI" ∪ "indicator">
   | any-u any-e <"UI" ∪ "indicator">
   | any-u any-e /'/ any-i <"UI" ∪ "indicator">
   | any-u any-i <"UI" ∪ "indicator">
-  | any-u any-i /'/ any-a any-i <"UI" ∪ "UI3a" ∪ "indicator">
+  | any-u any-i /'/ any-a any-i <"UI" ∪ "indicator">
   | any-u any-o <"UI" ∪ "indicator">
   | any-u any-u <"UI" ∪ "indicator">
   | any-u any-y <"BY">
@@ -947,7 +947,7 @@ The notation is explained in [the notation document](../../docs/notation.md).
   | /v/ any-a /'/ any-o /'/ any-i <"BAI">
   | /v/ any-a /'/ any-u <"BAI">
   | /v/ any-a any-i <"PA">
-  | /v/ any-a any-i /'/ any-e <"UI" ∪ "UI3a" ∪ "indicator">
+  | /v/ any-a any-i /'/ any-e <"UI" ∪ "indicator">
   | /v/ any-a any-u <"VAU">
   | /v/ any-e <"SE">
   | /v/ any-e /'/ any-a <"VEhA">
@@ -987,20 +987,20 @@ The notation is explained in [the notation document](../../docs/notation.md).
   | /x/ any-a /'/ any-o <"ZAhO">
   | /x/ any-a any-i <"KOhA">
   | /x/ any-a any-i /'/ any-e <"PA">
-  | /x/ any-a any-u /'/ any-a <"LOhOI" ∪ "UI" ∪ "UI3a">
-  | /x/ any-a any-u /'/ any-e <"PA" ∪ "UI" ∪ "UI3a">
-  | /x/ any-a any-u /'/ any-i <"UI" ∪ "UI3a" ∪ "indicator">
-  | /x/ any-a any-u /'/ any-o <"UI" ∪ "UI3a" ∪ "indicator">
-  | /x/ any-a any-u /'/ any-u <"UI" ∪ "UI3a" ∪ "indicator">
+  | /x/ any-a any-u /'/ any-a <"LOhOI" ∪ "UI">
+  | /x/ any-a any-u /'/ any-e <"PA" ∪ "UI">
+  | /x/ any-a any-u /'/ any-i <"UI" ∪ "indicator">
+  | /x/ any-a any-u /'/ any-o <"UI" ∪ "indicator">
+  | /x/ any-a any-u /'/ any-u <"UI" ∪ "indicator">
   | /x/ any-e <"SE">
   | /x/ any-e /'/ any-a any-u <"SEhU">
   | /x/ any-e /'/ any-e <"PA">
   | /x/ any-e /'/ any-e any-i <"NU">
-  | /x/ any-e /'/ any-i /'/ any-a <"UI" ∪ "UI3a" ∪ "indicator">
-  | /x/ any-e /'/ any-i /'/ any-e <"UI" ∪ "UI3a" ∪ "indicator">
-  | /x/ any-e /'/ any-i /'/ any-i <"UI" ∪ "UI3a" ∪ "indicator">
-  | /x/ any-e /'/ any-i /'/ any-o <"UI" ∪ "UI3a" ∪ "indicator">
-  | /x/ any-e /'/ any-i /'/ any-u <"UI" ∪ "UI3a" ∪ "indicator">
+  | /x/ any-e /'/ any-i /'/ any-a <"UI" ∪ "indicator">
+  | /x/ any-e /'/ any-i /'/ any-e <"UI" ∪ "indicator">
+  | /x/ any-e /'/ any-i /'/ any-i <"UI" ∪ "indicator">
+  | /x/ any-e /'/ any-i /'/ any-o <"UI" ∪ "indicator">
+  | /x/ any-e /'/ any-i /'/ any-u <"UI" ∪ "indicator">
   | /x/ any-e /'/ any-u <"GOhA">
   | /x/ any-e any-i /'/ any-e <"FAhA">
   | /x/ any-i <"XI">
@@ -1033,10 +1033,10 @@ The notation is explained in [the notation document](../../docs/notation.md).
   | /z/ any-a /'/ any-a <"UI" ∪ "indicator">
   | /z/ any-a /'/ any-a any-i <"NU" ∪ "PA">
   | /z/ any-a /'/ any-e <"BAhE">
-  | /z/ any-a /'/ any-e any-i <"UI" ∪ "UI3a" ∪ "indicator">
+  | /z/ any-a /'/ any-e any-i <"UI" ∪ "indicator">
   | /z/ any-a /'/ any-i <"NU">
   | /z/ any-a /'/ any-o <"ZAhO">
-  | /z/ any-a /'/ any-o /'/ any-a <"UI" ∪ "UI3a" ∪ "indicator">
+  | /z/ any-a /'/ any-o /'/ any-a <"UI" ∪ "indicator">
   | /z/ any-a /'/ any-u <"PA">
   | /z/ any-a any-i <"LAU">
   | /z/ any-a any-u <"BAI">
@@ -1063,7 +1063,7 @@ The notation is explained in [the notation document](../../docs/notation.md).
   | /z/ any-o /'/ any-e any-i <"KOhA" ∪ "LAhE">
   | /z/ any-o /'/ any-i <"FAhA">
   | /z/ any-o /'/ any-o <"UI" ∪ "indicator">
-  | /z/ any-o /'/ any-o any-i <"ZOhOI" ∪ "UI" ∪ "UI3a">
+  | /z/ any-o /'/ any-o any-i <"ZOhOI" ∪ "UI">
   | /z/ any-o /'/ any-u <"ZOhU">
   | /z/ any-o any-i <"ZOI">
   | /z/ any-u <"ZI">

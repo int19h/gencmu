@@ -153,8 +153,6 @@ A `y` here is either phoneme of the letter, plain or stressed, since hesitation 
 ```jbogenbau
 %rule faho-group
   faho-word | faho-word PAUSE | faho-word PAUSE zoi-body
-%emits
-  $ <>
 
 %rule faho-word
   $q(plain-cmavo-body)
@@ -462,8 +460,6 @@ CLL 19.13: `si` erases the word before it, a compound or a quote counting as one
   $q(plain-cmavo-body)
 %conditions
   phonemes($q) = "si"
-%emits
-  $ <>
 
 %rule eraser
   sa-word | su-word

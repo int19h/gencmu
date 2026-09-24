@@ -208,13 +208,9 @@ A consonant is emitted as itself whatever its case; CLL 3.9 uses case on vowels 
 
 %rule comma
   ","
-%emits
-  $ <>
 
 %rule mark
   "mark"
-%emits
-  $ <>
 
 %rule stress-mark
   "\u{0301}" | "\u{0300}"

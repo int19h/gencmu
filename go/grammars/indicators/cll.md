@@ -22,17 +22,14 @@ An indicator run is read as far as it goes, so the stage is greedy: where two pa
   item | item-run item
 
 %rule item
-  | $w(unit)
-  | $w(unit) absorbed
-  | absorbed-bahe $w(unit)
-  | absorbed-bahe $w(unit) absorbed
+  [absorbed-bahe] $w(unit) [absorbed]
 %tags
   tags($w)
 %emits
   $w
 
 %rule unit
-  | $w("word") | $f("foreign-text") | $l("LEhU")
+  | $w("word") | "foreign-text" | "LEhU"
 %conditions
   "indicator" ∉ tags($w),
   "BAhE" ∉ tags($w),
