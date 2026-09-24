@@ -1,0 +1,131 @@
+{
+  "description": "T puts a visible prefix before its extensions and compares whole sequences only between visibly equal derivations, so it is a total order (engine §6): three derivations of one token that the whole sequences alone would order in a cycle.",
+  "grammar": "text ≔ text A text | A text | [A] ;",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 1,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie",
+          "witness": [
+            {
+              "read": {
+                "token": 0,
+                "terminal": "A"
+              }
+            },
+            {
+              "close": {
+                "rule": "text",
+                "production": 3,
+                "span": [
+                  0,
+                  0
+                ]
+              }
+            }
+          ],
+          "tied": {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": {},
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "text",
+                "span": [
+                  0,
+                  0
+                ],
+                "source": [
+                  0,
+                  0
+                ],
+                "tags": {},
+                "children": []
+              },
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "kind": "rule",
+                "rule": "text",
+                "span": [
+                  1,
+                  1
+                ],
+                "source": [
+                  1,
+                  1
+                ],
+                "tags": {},
+                "children": []
+              }
+            ]
+          },
+          "output": []
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "tags": {
+          "A": true
+        },
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "error": null
+    },
+    "brackets": "a"
+  }
+}

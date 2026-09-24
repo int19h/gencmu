@@ -1,0 +1,10 @@
+{
+  "description": "phonemes takes one span (engine §9).",
+  "document": "```ebnf\na ≔ $x(B) : phonemes($x, $x) = \"b\" ;\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 13
+    }
+  }
+}

@@ -161,8 +161,10 @@ export function treeToDom(tree, tokens, positionOf, path) {
       case "phoneme": return { terminal: text(parts(node)[0]) };
       case "capture": {
         const [captureToken, , inner] = parts(node);
-        const expr = readPrimary(parts(inner)[0]);
-        if (!("ref" in expr) && !("terminal" in expr)) fail("a capture wraps one symbol", node);
+        const wrapped = parts(inner)[0];
+        const kind = ruleOf(wrapped);
+        if (kind !== "reference" && kind !== "string" && kind !== "phoneme") fail("a capture wraps one symbol", node);
+        const expr = readPrimary(wrapped);
         return { capture: text(captureToken).slice(1), expr };
       }
       case "group": return readExpression(only(node, "choice"));
@@ -190,6 +192,7 @@ export function treeToDom(tree, tokens, positionOf, path) {
       else if (kind === "phoneme") item = { insert: text(target) };
       else fail("expected this, nothing, a capture or a tag after ⇒", itemNode);
       const tags = one(itemNode, "emit-tags");
+      if (tags && item.insert !== undefined) fail("an inserted tag takes no tags of its own", itemNode);
       if (tags) item.tags = readTerm(only(tags, "term"));
       return item;
     });
@@ -238,27 +241,38 @@ export function treeToDom(tree, tokens, positionOf, path) {
 
   /**
    * @param {ResultNode} node
+   * @param {boolean} [argument] whether the term is a function's argument,
+   *   where a span may stand
    * @returns {Term}
    */
-  function readTerm(node) {
+  function readTerm(node, argument = false) {
     if (ruleOf(node) === "term") {
-      const items = ofRule(node, "intersection").map(readTerm);
+      const found = ofRule(node, "intersection");
+      const items = found.map((item) => readTerm(item, argument && found.length === 1));
       return items.length === 1 ? items[0] : { union: items };
     }
     if (ruleOf(node) === "intersection") {
-      const items = ofRule(node, "term-atom").map(readTerm);
+      const found = ofRule(node, "term-atom");
+      const items = found.map((item) => readTerm(item, argument && found.length === 1));
       return items.length === 1 ? items[0] : { intersection: items };
     }
     if (ruleOf(node) === "term-atom") {
       const inner = parts(node).find((child) => child.kind === "rule");
-      return inner ? readTerm(inner) : fail("expected a term", node);
+      if (!inner) return fail("expected a term", node);
+      if (ruleOf(inner) === "call") {
+        const call = readCall(inner);
+        if (!argument && SPANS.has(call.call)) fail(`${call.call} gives a span, which is not a value`, inner);
+        if (call.call === "matches") fail("matches is a condition, not a term", inner);
+        return call;
+      }
+      return readTerm(inner);
     }
     switch (ruleOf(node)) {
       case "string": return { literal: decode(parts(node)[0]) };
       case "phoneme": return { literal: text(parts(node)[0]) };
       case "weak": return { weak: decode(parts(node)[1]) };
       case "empty-set": return { emptySet: true };
-      case "set": return { set: ofRule(node, "term").map(readTerm) };
+      case "set": return { set: ofRule(node, "term").map((item) => readTerm(item)) };
       case "call": return readCall(node);
       case "capture-reference": return { capture: text(parts(node)[0]).slice(1) };
       default: return fail(`unexpected ${ruleOf(node)}`, node);
@@ -272,11 +286,24 @@ export function treeToDom(tree, tokens, positionOf, path) {
   function readCall(node) {
     const name = text(parts(node)[0]);
     if (!FUNCTIONS.has(name)) fail(`unknown function ${name}`, node);
+    /** @type {Argument[]} */
     const args = ofRule(node, "argument").map((argument) => {
       const inner = parts(argument)[0];
       if (inner.kind === "token") return { rule: text(inner) };
-      return readTerm(inner);
+      return readTerm(inner, true);
     });
+    /** @type {(argument: Argument | undefined) => boolean} */
+    const isSpan = (argument) => argument !== undefined && ("capture" in argument || ("call" in argument && SPANS.has(argument.call)));
+    /** @type {(argument: Argument | undefined) => boolean} */
+    const isRule = (argument) => argument !== undefined && "rule" in argument;
+    /** @type {(argument: Argument | undefined) => boolean} */
+    const isString = (argument) => argument !== undefined && ("literal" in argument || ("call" in argument && STRINGS.has(argument.call)));
+    let ok;
+    if (name === "tags") ok = (args.length === 1 && isSpan(args[0])) || (args.length === 2 && isSpan(args[0]) && isRule(args[1]));
+    else if (name === "matches") ok = args.length === 2 && isSpan(args[0]) && isRule(args[1]);
+    else if (name === "lowercase") ok = args.length === 1 && isString(args[0]);
+    else ok = args.length === 1 && isSpan(args[0]);
+    if (!ok) fail(`${name} takes ${SIGNATURES[name]}`, node);
     return { call: name, args };
   }
 
@@ -310,6 +337,17 @@ export function treeToDom(tree, tokens, positionOf, path) {
 }
 
 const FUNCTIONS = new Set(["phonemes", "text", "lowercase", "tags", "classes", "words", "head", "tail", "last", "matches"]);
+
+// The functions whose value is a span, and those whose value is a string.
+const SPANS = new Set(["head", "tail", "last"]);
+const STRINGS = new Set(["phonemes", "text", "lowercase"]);
+
+/** @type {Record<string, string>} */
+const SIGNATURES = {
+  phonemes: "one span", text: "one span", words: "one span", classes: "one span",
+  head: "one span", tail: "one span", last: "one span",
+  lowercase: "one string", tags: "a span, and optionally a rule", matches: "a span and a rule",
+};
 
 // The rules of the notation's syntax grammar that the reader reads; every
 // other rule is transparent.

@@ -6,6 +6,7 @@ import { ParseContext, recognize, rootItems, rejectionOf, evaluate } from "./ear
 import { Ranker, derivationTree } from "./rank.js";
 import { Token } from "./tokens.js";
 import { tagSet, strongTag, compareCodePoints } from "./tags.js";
+import { foldTree } from "./walk.js";
 
 /**
  * @import { Derivation, DerivationRule, ElidedNode, EmitItem, ResultNode, Scope, Span, StageReport, TagSet, TermValue } from "./types.js"
@@ -57,7 +58,10 @@ export class Stage {
       }
       throw error;
     }
-    if (roots.length === 0) {
+    // An input whose every derivation is cyclic (engine §4) has none to
+    // count, and is rejected like one with no item of `text` at all.
+    const ranking = roots.length === 0 ? null : new Ranker(tokens, lowered.resolution.lean).rank(roots);
+    if (ranking === null) {
       const rejection = rejectionOf(chart);
       report.error = {
         kind: "rejected",
@@ -70,8 +74,6 @@ export class Stage {
       };
       return report;
     }
-    const ranker = new Ranker(tokens, lowered.resolution.lean);
-    const ranking = ranker.rank(roots);
     if (ranking.verdict === "tie") {
       // A tie always has a second derivation, and so a witness.
       Object.assign(report, {
@@ -124,12 +126,12 @@ export class Stage {
   elisionCheck(tree, tokens, sourceText, unicode, features) {
     /** @type {ElidedNode[]} */
     const elided = [];
-    /** @type {(node: ResultNode) => void} */
-    const collect = (node) => {
+    // In text order: the leaves left to right.
+    const pending = [tree];
+    for (let node = pending.pop(); node !== undefined; node = pending.pop()) {
       if (node.kind === "elided") elided.push(node);
-      if (node.kind === "rule") for (const child of node.children) collect(child);
-    };
-    collect(tree);
+      if (node.kind === "rule") for (let index = node.children.length - 1; index >= 0; index--) pending.push(node.children[index]);
+    }
     // The input with the chosen parse's elided terminators written back, in
     // text order, inner before outer where several are at one position; and
     // which positions of it are those synthetic terminators.
@@ -153,22 +155,25 @@ export class Stage {
     const roots = rootItems(chart, "text");
     if (roots.length === 0) return null;
     const ranking = new Ranker(restored, "none").rank(roots);
-    if (ranking.verdict !== "tie") return null;
+    if (ranking === null || ranking.verdict !== "tie") return null;
     // The readings are shown over the original input: a synthetic
     // terminator becomes an elided node where it was inserted.
     const isSynthetic = new Set(synthetic);
     /** @type {(index: number) => number} */
     const toOriginal = (index) => index - synthetic.filter((position) => position < index).length;
     /** @type {(node: ResultNode) => ResultNode} */
-    const remap = (node) => {
-      if (node.kind === "token" && isSynthetic.has(node.token)) {
-        const at = toOriginal(node.token);
-        return { kind: "elided", terminal: node.terminal, span: [at, at], source: node.source };
-      }
-      if (node.kind === "token") return { ...node, token: toOriginal(node.token), span: [toOriginal(node.span[0]), toOriginal(node.span[0]) + 1] };
-      if (node.kind === "elided") return { ...node, span: [toOriginal(node.span[0]), toOriginal(node.span[0])] };
-      return { ...node, span: [toOriginal(node.span[0]), toOriginal(node.span[1])], children: node.children.map(remap) };
-    };
+    const remap = (root) => foldTree(root,
+      /** @returns {ResultNode} */
+      (node) => {
+        if (node.kind === "token" && isSynthetic.has(node.token)) {
+          const at = toOriginal(node.token);
+          return { kind: "elided", terminal: node.terminal, span: [at, at], source: node.source };
+        }
+        if (node.kind === "token") return { ...node, token: toOriginal(node.token), span: [toOriginal(node.span[0]), toOriginal(node.span[0]) + 1] };
+        return { ...node, span: [toOriginal(node.span[0]), toOriginal(node.span[0])] };
+      },
+      /** @returns {ResultNode} */
+      (node, children) => ({ ...node, span: [toOriginal(node.span[0]), toOriginal(node.span[1])], children }));
     return [ranking.chosen, /** @type {import("./types.js").Rope} */ (ranking.second)].map((rope) => remap(resultTree(derivationTree(rope), context)[0]));
   }
 }
@@ -242,52 +247,86 @@ function spine(node) {
 // The result tree of a derivation (engine §12), as a list: a spliced node
 // yields its children.
 /**
- * @param {Derivation} node
+ * The children a node's result is built from, in order: a node's own, or,
+ * for a repetition's helper and a rule's left-recursive prefix, those of
+ * the whole chain, the bottom node's first.
+ * @param {DerivationRule} node
+ * @returns {Derivation[]}
+ */
+function orderedChildren(node) {
+  const production = node.production;
+  if (!production.helper && !production.recursivePrefix) return node.children;
+  let chain = spine(node);
+  if (!production.helper) chain = chain.filter((member, index, all) => index === 0 || all[index - 1].production.recursivePrefix);
+  /** @type {Derivation[]} */
+  const result = [];
+  for (let index = chain.length - 1; index >= 0; index--) {
+    const own = chain[index].children;
+    for (let at = index === chain.length - 1 ? 0 : 1; at < own.length; at++) result.push(own[at]);
+  }
+  return result;
+}
+
+/**
+ * The result tree of a derivation (engine §12), as a list: a spliced node
+ * yields its children. The walk keeps its own stack, since a right-recursive
+ * rule over a long text, such as paragraphs joined by `ni'o`, nests as deep
+ * as the text is long.
+ * @param {Derivation} root
  * @param {ParseContext} context
  * @returns {ResultNode[]}
  */
-export function resultTree(node, context) {
+export function resultTree(root, context) {
   const tokens = context.tokens;
-  if ("read" in node) {
-    return [{ kind: "token", terminal: node.read.terminal, token: node.read.token, span: [node.start, node.end], source: sourceOf(tokens, node.start, node.end) }];
-  }
-  const production = node.production;
-  if (production.helper) {
-    if (production.elided && node.children.length === 0) {
-      const position = emptySource(tokens, node.start);
-      return [{ kind: "elided", terminal: production.elided, span: [node.start, node.start], source: [position, position] }];
-    }
-    // A repetition's helper is left-recursive: its items are the bottom
-    // node's children, then each node's other children going up.
-    const chain = spine(node);
-    /** @type {ResultNode[]} */
-    const result = [];
-    for (let index = chain.length - 1; index >= 0; index--) {
-      const children = index === chain.length - 1 ? chain[index].children : chain[index].children.slice(1);
-      for (const child of children) result.push(...resultTree(child, context));
-    }
-    return result;
-  }
+  /** @typedef {{node: Derivation, children: Derivation[] | null, next: number, out: ResultNode[]}} TreeFrame */
+  /** @type {TreeFrame[]} */
+  const stack = [{ node: root, children: null, next: 0, out: [] }];
   /** @type {ResultNode[]} */
-  let children;
-  if (production.recursivePrefix) {
-    const chain = spine(node).filter((member, index, all) => index === 0 || all[index - 1].production.recursivePrefix);
-    children = [];
-    for (let index = chain.length - 1; index >= 0; index--) {
-      const own = index === chain.length - 1 ? chain[index].children : chain[index].children.slice(1);
-      for (const child of own) children.push(...resultTree(child, context));
+  let result = [];
+  /** @param {ResultNode[]} list */
+  const finish = (list) => {
+    stack.pop();
+    if (stack.length === 0) {
+      result = list;
+      return;
     }
-  } else {
-    children = node.children.flatMap((child) => resultTree(child, context));
+    const out = stack[stack.length - 1].out;
+    for (const item of list) out.push(item);
+  };
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1];
+    const node = frame.node;
+    if ("read" in node) {
+      finish([{ kind: "token", terminal: node.read.terminal, token: node.read.token, span: [node.start, node.end], source: sourceOf(tokens, node.start, node.end) }]);
+      continue;
+    }
+    const production = node.production;
+    if (frame.children === null) {
+      if (production.helper && production.elided && node.children.length === 0) {
+        const position = emptySource(tokens, node.start);
+        finish([{ kind: "elided", terminal: production.elided, span: [node.start, node.start], source: [position, position] }]);
+        continue;
+      }
+      frame.children = orderedChildren(node);
+    }
+    if (frame.next < frame.children.length) {
+      stack.push({ node: frame.children[frame.next++], children: null, next: 0, out: [] });
+      continue;
+    }
+    if (production.helper) {
+      finish(frame.out);
+      continue;
+    }
+    finish([{
+      kind: "rule",
+      rule: production.lhs,
+      span: [node.start, node.end],
+      source: sourceOf(tokens, node.start, node.end),
+      tags: nodeTags(node, context),
+      children: frame.out,
+    }]);
   }
-  return [{
-    kind: "rule",
-    rule: production.lhs,
-    span: [node.start, node.end],
-    source: sourceOf(tokens, node.start, node.end),
-    tags: nodeTags(node, context),
-    children,
-  }];
+  return result;
 }
 
 /** @implements {Scope} */
@@ -422,39 +461,39 @@ export function emit(root, context) {
         named.set(capture.index, item);
       }
     }
+    // Each inserted tag goes just before the first capture listed after it,
+    // or after the last child if none is (engine §11); the captures go in
+    // text order, whatever order the list names them in.
+    /** @type {Map<EmitItem, string[]>} */
+    const insertsBefore = new Map();
+    /** @type {string[]} */
+    let waiting = [];
+    for (const item of clause.items) {
+      if (item.insert !== undefined) waiting.push(item.insert);
+      else if (item.capture !== undefined) {
+        insertsBefore.set(item, waiting);
+        waiting = [];
+      }
+    }
     // The node's tasks in text order, then pushed in reverse.
     /** @type {EmitTask[]} */
     const ordered = [];
-    let next = 0;
+    /** @type {(inserts: string[], at: number) => void} */
+    const insertAll = (inserts, at) => {
+      for (const insert of inserts) ordered.push({ token: () => insertedToken(insert, at, node, context, production.owner) });
+    };
     let cursor = node.start;
     node.children.forEach((child, index) => {
-      if (named.has(index)) {
-        while (next < clause.items.length) {
-          const item = clause.items[next];
-          const insert = item.insert;
-          if (insert !== undefined) {
-            const at = cursor;
-            ordered.push({ token: () => insertedToken(insert, at, node, context, production.owner) });
-            next++;
-          } else if (named.get(index) === item) {
-            ordered.push({ token: () => makeToken(child, valueTags(item, nodeTags(child, context)), context) });
-            next++;
-            break;
-          } else {
-            break;
-          }
-        }
+      const item = named.get(index);
+      if (item) {
+        insertAll(insertsBefore.get(item) || [], cursor);
+        ordered.push({ token: () => makeToken(child, valueTags(item, nodeTags(child, context)), context) });
       } else {
         ordered.push({ walk: child });
       }
       cursor = child.end;
     });
-    for (; next < clause.items.length; next++) {
-      const item = clause.items[next];
-      const at = cursor;
-      const insert = item.insert;
-      if (insert !== undefined) ordered.push({ token: () => insertedToken(insert, at, node, context, production.owner) });
-    }
+    insertAll(waiting, cursor);
     for (let index = ordered.length - 1; index >= 0; index--) tasks.push(ordered[index]);
   }
   return out;

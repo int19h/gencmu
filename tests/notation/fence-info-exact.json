@@ -1,0 +1,13 @@
+{
+  "description": "Only an info string that is exactly ebnf, once trimmed, makes a grammar block (engine §8).",
+  "document": "```ebnf extra\na ≔ B ;\n```\n\n```  ebnf  \nc ≔ D ;\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "c"
+        }
+      ]
+    }
+  }
+}

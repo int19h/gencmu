@@ -1,0 +1,10 @@
+{
+  "description": "head, tail and last give spans, which are not values (engine §9).",
+  "document": "```ebnf\na ≔ $x(B) : head($x) = \"b\" ;\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 13
+    }
+  }
+}

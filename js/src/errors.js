@@ -3,7 +3,8 @@
 
 export class GencmuError extends Error {
   /**
-   * @param {"grammar"} kind what went wrong; grammar errors are the only kind
+   * @param {"grammar" | "usage"} kind a grammar that cannot be loaded or
+   *   run, or a caller's mistake such as an unknown stage name
    * @param {string} message
    * @param {import("./types.js").ErrorLocation} [where]
    */

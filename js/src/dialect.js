@@ -9,6 +9,7 @@ import { treeToDom } from "./reader.js";
 import { extractGrammarText, readPipeline, resolvePath } from "./markdown.js";
 import { characterTokens, Token } from "./tokens.js";
 import { UnicodeTable } from "./unicode.js";
+import { someNode } from "./walk.js";
 
 /** @import { GrammarDom, ParseError, ParseOptions, ParseResult, Resources, ResultNode, StageReport } from "./types.js" */
 
@@ -173,7 +174,7 @@ export class Dialect {
     let tokens = options.tokens || characterTokens(text, this.loader.unicode);
     if (continued) tokens = /** @type {Token[]} */ (stages[stages.length - 1].output);
     const last = options.until ? this.stages.findIndex((stage) => stage.name === options.until) : this.stages.length - 1;
-    if (last < 0) throw new GencmuError("grammar", `no stage is named ${options.until}`);
+    if (last < 0) throw new GencmuError("usage", `no stage is named ${options.until}`);
     for (let index = stages.length; index <= last; index++) {
       const stage = this.stages[index];
       const report = stage.run(tokens, sourceText, this.loader.unicode, {
@@ -206,14 +207,13 @@ export class Dialect {
  * @returns {boolean}
  */
 function containsWord(tree, tokens, words) {
-  if (!tree) return false;
-  if (tree.kind !== "rule") return false;
-  if (tree.rule === "word" && tokens) {
+  if (!tree || !tokens) return false;
+  return someNode(tree, (node) => {
+    if (node.kind !== "rule" || node.rule !== "word") return false;
     let phonemes = "";
-    for (let index = tree.span[0]; index < tree.span[1]; index++) phonemes += tokens[index].phonemes || "";
-    if (words.includes(phonemes)) return true;
-  }
-  return tree.children.some((child) => containsWord(child, tokens, words));
+    for (let index = node.span[0]; index < node.span[1]; index++) phonemes += tokens[index].phonemes || "";
+    return words.includes(phonemes);
+  });
 }
 
 // Adds the line and column of an error's source position.

@@ -1,0 +1,100 @@
+{
+  "description": "A random grammar with the notation's sugar and weak tags (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 3 derivations.",
+  "grammar": "%ambiguity-resolution lazy ;\ntext ≔ v | v v | ε ;\nt ≔ [v] ... u | B ;\nu ≔ u A | v [A] ;\nv ≔ ε | B v ... ;",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "B",
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 1,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved",
+          "output": []
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "tags": {},
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "v",
+            "span": [
+              0,
+              0
+            ],
+            "source": [
+              0,
+              0
+            ],
+            "tags": {},
+            "children": []
+          },
+          {
+            "kind": "rule",
+            "rule": "v",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": {},
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "B",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "kind": "rule",
+                "rule": "v",
+                "span": [
+                  1,
+                  1
+                ],
+                "source": [
+                  1,
+                  1
+                ],
+                "tags": {},
+                "children": []
+              }
+            ]
+          }
+        ]
+      },
+      "error": null
+    },
+    "brackets": "a"
+  }
+}
