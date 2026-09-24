@@ -56,7 +56,7 @@ class Compiled(unittest.TestCase):
     def test_parsing_with_and_without_the_cache(self) -> None:
         cached = gencmu.load_dialect("notation")
         fresh = gencmu.load_dialect("notation", use_cache=False)
-        for text in ("text ≔ A B ;", "a ≔ $x(A) [B #] ... : text($x) = \"y\" ⇒ $ ;", "%elidable KU ;\n"):
+        for text in ("%rule text A B", "%rule a $x(A) [B #] ...\n%conditions text($x) = \"y\"\n%emits $", "%elidable KU\n"):
             with self.subTest(text=text):
                 self.assertEqual(gencmu.to_json(cached.parse(text)), gencmu.to_json(fresh.parse(text)))
 
@@ -75,7 +75,7 @@ class Compiled(unittest.TestCase):
         # The stale DOM has no rules; were it used, the stage would have no
         # rule text and fail to load.
         loaded = gencmu.load_dialect_sources(sources, "p.md")
-        self.assertTrue(loaded.parse("a ≔ B ;").ok)
+        self.assertTrue(loaded.parse("%rule a B").ok)
         # And an entry that matches the text is used: the same stale DOM
         # under the text's own hash makes the load fail.
         stale["documents"]["notation/lexical.md"]["hash"] = fnv1a64(edited)

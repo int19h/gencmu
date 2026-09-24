@@ -16,13 +16,15 @@ from gencmu._dialect import DOM_FORMAT, bundled_text, read_document
 from gencmu._hash import fnv1a64
 from gencmu._validate import dom_problem
 
-DOCUMENT = """```ebnf
-%ambiguity-resolution greedy ;
-text ≔ $x("a") ["b"] <"T" ∪ tags($x)> : phonemes($x) = "" ⇒ $x ;
+DOCUMENT = """```jbogenbau
+%ambiguity-resolution greedy
+%rule text $x("a") ["b"] <"T" ∪ tags($x)>
+%conditions phonemes($x) = ""
+%emits $x
 ```
 """
 PIPELINE = "## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n\n## Next <?stage next?>\n\n- [h](h.md) <?grammar?>\n"
-NEXT = "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ [\"a\"] [\"Y\"] ;\n```\n"
+NEXT = "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [\"a\"] [\"Y\"]\n```\n"
 
 Dom = dict[str, Any]
 
@@ -70,6 +72,19 @@ def set_condition(condition: Any) -> Callable[[Dom], None]:
     return change
 
 
+def with_bare_alternative(*changes: Callable[[Dom], None]) -> Callable[[Dom], None]:
+    """A second alternative, which captures nothing, and an emission of $,
+    which serves it: then the changes."""
+
+    def change(dom: Dom) -> None:
+        rule(dom)["alternatives"].append({"guards": [], "expr": {"terminal": "b"}})
+        rule(dom)["emit"] = {"items": [WHOLE]}
+        for other in changes:
+            other(dom)
+
+    return change
+
+
 def nested_union(depth: int) -> Any:
     term: Any = {"literal": "T"}
     for _ in range(depth):
@@ -101,14 +116,14 @@ SAME = {"op": "=", "left": LIT, "right": LIT}
 
 # One malformed DOM for each rule the reader enforces.
 CASES: list[tuple[str, Callable[[Dom], None]]] = [
-    ("format other than 2", lambda dom: dom.update(format=1)),
+    ("format other than 3", lambda dom: dom.update(format=2)),
     ("rules not a list", lambda dom: dom.update(rules={})),
     ("directive without a position", lambda dom: dom["directives"][0].pop("at")),
     ("directive argument not a word", lambda dom: dom["directives"][0].update(args=[1])),
     ("rule without a name", lambda dom: rule(dom).pop("name")),
     ("rule name not a name", lambda dom: rule(dom).update(name="9 x")),
     ("rule name ##", lambda dom: rule(dom).update(name="##")),
-    ("rule op neither define nor extend", lambda dom: rule(dom).update(op="replace")),
+    ("rule op not define, redefine or extend", lambda dom: rule(dom).update(op="replace")),
     ("rule without alternatives", lambda dom: rule(dom).update(alternatives=[])),
     ("rule without a position", lambda dom: rule(dom).pop("at")),
     ("guard without negated", lambda dom: alt(dom).update(guards=[{"feature": "f"}])),
@@ -132,11 +147,11 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("this, of format 1", set_emit({"items": [{"this": True}]})),
     ("$ with an inserted tag", set_emit({"items": [WHOLE, {"insert": "Y"}]})),
     ("$ with a capture", set_emit({"items": [WHOLE, {"capture": "x"}]})),
-    ("$ <> with $", set_emit({"items": [{"capture": "", "erase": True}, WHOLE]})),
-    ("$ <> twice", set_emit({"items": [{"capture": "", "erase": True}, {"capture": "", "erase": True}]})),
-    ("<> with tags", set_emit({"items": [{"capture": "x", "erase": True, "tags": LIT}]})),
-    ("erase that is not true", set_emit({"items": [{"capture": "x", "erase": False}]})),
-    ("<> on an inserted tag", set_emit({"items": [{"capture": "x"}, {"insert": "Y", "erase": True}]})),
+    ("$ <> with $", set_emit({"items": [{"capture": "", "silent": True}, WHOLE]})),
+    ("$ <> twice", set_emit({"items": [{"capture": "", "silent": True}, {"capture": "", "silent": True}]})),
+    ("<> with tags", set_emit({"items": [{"capture": "x", "silent": True, "tags": LIT}]})),
+    ("silent that is not true", set_emit({"items": [{"capture": "x", "silent": False}]})),
+    ("<> on an inserted tag", set_emit({"items": [{"capture": "x"}, {"insert": "Y", "silent": True}]})),
     ("∅ as an item's tags", set_emit({"items": [{"capture": "x", "tags": {"emptySet": True}}]})),
     ("a capture listed twice", set_emit({"items": [{"capture": "x"}, {"capture": "x"}]})),
     ("tags on an inserted tag", set_emit({"items": [{"capture": "x"}, {"insert": "Y", "tags": LIT}]})),
@@ -169,6 +184,25 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("a function that is a list", set_tags({"call": ["phonemes"], "args": [X]})),
     ("an op that is a list", lambda dom: rule(dom).update(op=["define"])),
     ("a comparison without a side", set_condition({"op": "=", "left": LIT})),
+    ("a presence test of no name", set_condition({"captured": 1})),
+    ("an implication without a consequent", set_condition({"if": SAME})),
+    ("a guarded term without a term", set_tags({"if": SAME})),
+    ("a guarded term as a span", set_tags({"call": "tags", "args": [{"if": SAME, "then": X}]})),
+    ("a guarded term of a span", set_tags({"if": SAME, "then": {"call": "head", "args": [X]}})),
+    ("$ in a guard of an alternative's tags", set_tags({"if": {"op": "∈", "left": LIT, "right": WHOLE}, "then": LIT})),
+    ("tags($) in a guard of a rule's tags", set_rule_tags({"if": {"not": {"op": "=", "left": LIT, "right": {"call": "tags", "args": [WHOLE]}}}, "then": LIT})),
+    # A definition as a whole (engine §9).
+    ("a condition on a capture no alternative has", set_condition({"op": "=", "left": {"call": "text", "args": [{"capture": "y"}]}, "right": LIT})),
+    ("a presence test of a capture no alternative has", set_condition({"captured": "y"})),
+    ("an emitted capture no alternative has", set_emit({"items": [{"capture": "y"}]})),
+    ("a condition that applies to no alternative", set_condition({"captured": "x"})),
+    ("a condition that is true everywhere", set_condition({"if": {"captured": "x"}, "then": {"captured": ""}})),
+    ("a rule's tags using a capture an alternative lacks", with_bare_alternative(set_rule_tags(X))),
+    ("an alternative's tags using a capture it lacks", with_bare_alternative(lambda dom: rule(dom)["alternatives"][1].update(tags=X))),
+    ("an emitted item's tags using a capture an alternative lacks", with_bare_alternative(set_emit({"items": [{"capture": "", "tags": X}]}))),
+    ("captures emitted out of order", lambda dom: (set_expr({"seq": [{"capture": "x", "expr": A}, {"capture": "y", "expr": A}]})(dom), set_emit({"items": [{"capture": "y"}, {"capture": "x"}]})(dom))),
+    ("an inserted tag anchored on a missing capture", with_bare_alternative(set_emit({"items": [{"insert": "Y"}, {"capture": "x"}]}))),
+    ("an emission that leaves an alternative nothing", with_bare_alternative(set_emit({"items": [{"capture": "x"}]}))),
 ]
 
 
@@ -247,7 +281,9 @@ class PrecompiledDomRules(unittest.TestCase):
         expression, term or condition (engine §9); an emission is none."""
         for depth, allowed in ((256, True), (257, False)):
             for name, change in (
-                ("expression", set_expr(nested(depth))),
+                # The capture the clauses use, and the nesting beside it in a
+                # sequence, which is one compound node.
+                ("expression", set_expr({"seq": [{"capture": "x", "expr": A}, nested(depth - 1)]})),
                 ("alternative's term", set_tags(nested_union(depth))),
                 ("emitted term", set_emit({"items": [{"capture": "x", "tags": nested_union(depth)}]})),
                 ("condition", set_condition(nested_not(depth))),
@@ -257,13 +293,14 @@ class PrecompiledDomRules(unittest.TestCase):
                     change(dom)
                     self.assertEqual(dom_problem(dom) is None, allowed, dom_problem(dom))
 
-    def test_the_whole_constituent_and_erasure_are_allowed(self) -> None:
+    def test_what_the_reader_allows_is_allowed(self) -> None:
         """$ in conditions, in emission and as a span of tags($, rule), <>,
-        ∧, and # as a rule's name (engine §9)."""
+        ∧, ⟹, presence tests, guarded terms, and # as a rule's name
+        (engine §9)."""
         for name, change in (
             ("$ twice", set_emit({"items": [{"capture": "", "tags": LIT}, WHOLE]})),
-            ("$ <>", set_emit({"items": [{"capture": "", "erase": True}]})),
-            ("an erased capture", set_emit({"items": [{"capture": "x", "erase": True}, {"insert": "Y"}]})),
+            ("$ <>", set_emit({"items": [{"capture": "", "silent": True}]})),
+            ("a silent capture", set_emit({"items": [{"capture": "x", "silent": True}, {"insert": "Y"}]})),
             ("tags($) in an emitted term", set_emit({"items": [{"capture": "x", "tags": {"call": "tags", "args": [WHOLE]}}]})),
             ("tags($, rule) in an alternative's tags", set_tags({"call": "tags", "args": [WHOLE, {"rule": "text"}]})),
             ("text($) in an alternative's tags", set_tags({"call": "text", "args": [WHOLE]})),
@@ -271,6 +308,11 @@ class PrecompiledDomRules(unittest.TestCase):
             ("a condition on $", set_condition({"op": "∈", "left": LIT, "right": {"call": "tags", "args": [WHOLE]}})),
             ("all", set_condition({"all": [SAME, {"not": {"matches": WHOLE, "rule": "text"}}]})),
             ("# as a rule's name", lambda dom: rule(dom).update(name="#")),
+            ("an implication", set_condition({"if": SAME, "then": {"op": "=", "left": {"call": "text", "args": [X]}, "right": LIT}})),
+            ("a presence test that removes an alternative", with_bare_alternative(set_condition({"captured": "x"}))),
+            ("a guarded term", with_bare_alternative(set_rule_tags({"union": [LIT, {"if": {"captured": "x"}, "then": X}]}))),
+            ("a guard reading tags(head($))", set_tags({"if": {"op": "∈", "left": LIT, "right": {"call": "tags", "args": [{"call": "head", "args": [WHOLE]}]}}, "then": LIT})),
+            ("an emitted item dropped where its capture is missing", with_bare_alternative(set_emit({"items": [{"capture": "x"}, {"insert": "Y"}]}))),
         ):
             with self.subTest(what=name):
                 dom = copy.deepcopy(self.dom)

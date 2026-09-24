@@ -27,29 +27,49 @@ PIPELINE = """# A test dialect
 
 SOUNDS = """# Sounds
 
-```ebnf
-%ambiguity-resolution greedy ;
-text ≔ [c] ... ;
-c ≔ "s" </s/> | "a" </a/> | "m" </m/> | "i" </i/> | "space" </./> ⇒ $ ;
+```jbogenbau
+%ambiguity-resolution greedy
+
+%rule text
+  [c] ...
+
+%rule c
+  "s" </s/> | "a" </a/> | "m" </m/> | "i" </i/> | "space" </./>
+%emits
+  $
 ```
 """
 
 WORDS = """# Words
 
-```ebnf
-%ambiguity-resolution lazy ;
-text ≔ [piece] ... ;
-piece ≔ word | pause ;
-pause ≔ /./ ⇒ $ <> ;
-word ≔ /s/ /a/ | /m/ /i/ ⇒ $ <"WORD"> ;
+```jbogenbau
+%ambiguity-resolution lazy
+
+%rule text
+  [piece] ...
+
+%rule piece
+  word | pause
+
+%rule pause
+  /./
+%emits
+  $ <>
+
+%rule word
+  /s/ /a/ | /m/ /i/
+%emits
+  $ <"WORD">
 ```
 """
 
 SYNTAX = """# Syntax
 
-```ebnf
-%ambiguity-resolution greedy ;
-text ≔ @¬sa-su WORD ... | @sa-su WORD ... <"ERASING"> ;
+```jbogenbau
+%ambiguity-resolution greedy
+
+%rule text
+  @¬sa-su WORD ... | @sa-su WORD ... <"ERASING">
 ```
 """
 
@@ -57,7 +77,7 @@ SOURCES = {"dialect.md": PIPELINE, "sounds.md": SOUNDS, "words.md": WORDS, "synt
 
 ELIDING = {
     "p.md": "## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n",
-    "g.md": "```ebnf\n%ambiguity-resolution greedy elision-only ;\n%elidable KU ;\ntext ≔ s [KU] | s B [KU] ;\ns ≔ A [B] ;\n```\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy elision-only\n%elidable KU\n%rule text s [KU] | s B [KU]\n%rule s A [B]\n```\n",
 }
 
 
@@ -75,7 +95,7 @@ class Loaders(unittest.TestCase):
     def test_bundled(self) -> None:
         dialect = gencmu.load_dialect("notation")
         self.assertEqual(dialect.stage_names, ["lexical", "syntax"])
-        result = dialect.parse("text ≔ A ;")
+        result = dialect.parse("%rule text A")
         self.assertTrue(result.ok)
         self.assertEqual(result.tree.rule if result.tree else None, "text")
 
@@ -108,7 +128,7 @@ class Loaders(unittest.TestCase):
         """A map may supply the notation's bootstrap; the bundled one is used
         only when it does not."""
         broken = dict(SOURCES)
-        broken["notation/bootstrap.json"] = json.dumps({"format": 2, "stages": []})
+        broken["notation/bootstrap.json"] = json.dumps({"format": 3, "stages": []})
         with self.assertRaises(gencmu.GencmuError):
             gencmu.load_dialect_sources(broken, "dialect.md", use_cache=False)
 
@@ -121,7 +141,7 @@ class Loaders(unittest.TestCase):
 
     def test_grammar_error_position(self) -> None:
         sources = dict(SOURCES)
-        sources["syntax.md"] = "# Syntax\n\n```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ WORD\n```\n"
+        sources["syntax.md"] = "# Syntax\n\n```jbogenbau\n%ambiguity-resolution greedy\n%rules text WORD\n```\n"
         with self.assertRaises(gencmu.GencmuError) as caught:
             gencmu.load_dialect_sources(sources, "dialect.md")
         error = caught.exception
@@ -242,7 +262,7 @@ class Output(unittest.TestCase):
     def test_brackets_depth(self) -> None:
         sources = {
             "p.md": "## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n",
-            "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ A s ; s ≔ A t ; t ≔ A u ; u ≔ A A ;\n```\n",
+            "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A s %rule s A t %rule t A u %rule u A A\n```\n",
         }
         dialect = gencmu.load_dialect_sources(sources, "p.md")
         tokens = [gencmu.Token(str(n), {"A": True}, (n, n + 1), (2 * n, 2 * n + 1)) for n in range(5)]
@@ -273,12 +293,12 @@ class Robustness(unittest.TestCase):
     MAIN = "## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n"
 
     def grammar(self, rules: str) -> dict[str, str]:
-        return {"p.md": self.MAIN, "g.md": "```ebnf\n%ambiguity-resolution greedy ;\n" + rules + "\n```\n"}
+        return {"p.md": self.MAIN, "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n" + rules + "\n```\n"}
 
     def test_malformed_bootstrap(self) -> None:
         for bootstrap in ('{"format":1,"stages":[]}', "[]", "not json", "[" * 2000 + "]" * 2000, '{"format":1,"stages":[{"name":"x","documents":[{"path":"a","dom":{"rules":[{}]}}]}]}'):
             with self.subTest(bootstrap=bootstrap[:40]):
-                sources = self.grammar('text ≔ "a" ;')
+                sources = self.grammar('%rule text "a"')
                 sources["notation/bootstrap.json"] = bootstrap
                 with self.assertRaises(gencmu.GencmuError) as caught:
                     gencmu.load_dialect_sources(sources, "p.md", use_cache=False)
@@ -287,11 +307,11 @@ class Robustness(unittest.TestCase):
     def test_malformed_cache_entry_is_a_miss(self) -> None:
         from gencmu._hash import fnv1a64
 
-        sources = self.grammar('text ≔ "a" ;')
+        sources = self.grammar('%rule text "a"')
         compiled = {
-            "format": 2,
+            "format": 3,
             "bootstrap": fnv1a64(bundled_text("notation/bootstrap.json") or ""),
-            "documents": {"g.md": {"hash": fnv1a64(sources["g.md"]), "dom": {"format": 2, "rules": [{}], "directives": []}}},
+            "documents": {"g.md": {"hash": fnv1a64(sources["g.md"]), "dom": {"format": 3, "rules": [{}], "directives": []}}},
         }
         sources["compiled.json"] = json.dumps(compiled)
         dialect = gencmu.load_dialect_sources(sources, "p.md")
@@ -300,7 +320,7 @@ class Robustness(unittest.TestCase):
     def test_unreadable_cache_is_no_cache(self) -> None:
         for compiled in ("[" * 2000 + "]" * 2000, "not json", "[]"):
             with self.subTest(compiled=compiled[:10]):
-                sources = self.grammar('text ≔ "a" ;')
+                sources = self.grammar('%rule text "a"')
                 sources["compiled.json"] = compiled
                 dialect = gencmu.load_dialect_sources(sources, "p.md")
                 self.assertTrue(dialect.parse("a", auto_features=False).ok)
@@ -316,8 +336,8 @@ class Robustness(unittest.TestCase):
     def test_deeply_nested_grammar(self) -> None:
         """A grammar nested as deep as engine §9 allows loads and parses."""
         depth = 250
-        rules = "text ≔ " + "[" * depth + '("a")' + "]" * depth
-        rules += " <" + "(" * depth + '"T"' + ")" * depth + "> : " + "¬" * depth + '"a" = "a" ;'
+        rules = "%rule text " + "[" * depth + '("a")' + "]" * depth
+        rules += " <" + "(" * depth + '"T"' + ")" * depth + "> %conditions " + "¬" * depth + '"a" = "a"'
         dialect = gencmu.load_dialect_sources(self.grammar(rules), "p.md")
         result = dialect.parse("a", auto_features=False)
         self.assertTrue(result.ok, result.error)
@@ -328,8 +348,8 @@ class Robustness(unittest.TestCase):
     def test_too_deeply_nested_grammar(self) -> None:
         """Nesting more than 256 deep is an error at the rule that holds it."""
         for rules in (
-            'x ≔ "b" ;\ntext ≔ ' + "[" * 300 + '"a"' + "]" * 300 + " ;",
-            'x ≔ "b" ;\ntext ≔ "a" : ' + "¬" * 300 + '"a" = "a" ;',
+            '%rule x "b"\n%rule text ' + "[" * 300 + '"a"' + "]" * 300,
+            '%rule x "b"\n%rule text "a" %conditions ' + "¬" * 300 + '"a" = "a"',
         ):
             with self.subTest(rules=rules[:30]):
                 with self.assertRaises(gencmu.GencmuError) as caught:
@@ -337,7 +357,7 @@ class Robustness(unittest.TestCase):
                 self.assertEqual((caught.exception.document, caught.exception.line, caught.exception.column), ("g.md", 4, 1))
 
     def test_deep_tree(self) -> None:
-        dialect = gencmu.load_dialect_sources(self.grammar('text ≔ text "a" | "a" ;'), "p.md")
+        dialect = gencmu.load_dialect_sources(self.grammar('%rule text text "a" | "a"'), "p.md")
         result = dialect.parse("a" * 10000, auto_features=False)
         self.assertTrue(result.ok)
         text = gencmu.to_json(result)

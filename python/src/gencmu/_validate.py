@@ -12,15 +12,17 @@ from __future__ import annotations
 import re
 from typing import Any
 
-FORMAT = 2
+from ._clauses import definition_problem
+
+FORMAT = 3
 """The version of the DOM's shape (docs/output.md)."""
 
 MAX_DEPTH = 256
 """No node of an expression, a term or a condition may lie below more than
 this many compound nodes of it (engine §9). A node's depth here is the
 number of compound nodes above it, since only compound nodes have children:
-optional, repeat, and, choice, seq and capture; union, intersection and
-call; any, all, not, matches and a comparison."""
+optional, repeat, and, choice, seq and capture; union, intersection, if and
+call; any, all, not, if, matches and a comparison."""
 
 TOO_DEEP = "nested too deeply"
 
@@ -90,18 +92,22 @@ def reads_own_tags(term: Any, argument: bool = False) -> bool:
 
 
 def term_reads_own_tags(term: Any) -> bool:
-    """Whether a well-formed tag term reads the tags it defines anywhere."""
+    """Whether a well-formed tag term reads the tags it defines anywhere,
+    the conditions of its guarded terms included."""
     stack: list[tuple[Any, bool]] = [(term, False)]
     while stack:
         value, argument = stack.pop()
         if reads_own_tags(value, argument):
             return True
         if isinstance(value, dict):
-            for key in ("union", "intersection"):
-                if isinstance(value.get(key), list):
-                    stack.extend((item, False) for item in value[key])
-            if isinstance(value.get("args"), list):
-                stack.extend((arg, True) for arg in value["args"])
+            for key, inner in value.items():
+                # A call's arguments and a matches() are spans, where $ is
+                # the constituent's tokens and not its tags.
+                spans = key in ("args", "matches")
+                if isinstance(inner, list):
+                    stack.extend((item, spans) for item in inner)
+                elif isinstance(inner, dict):
+                    stack.append((inner, spans))
     return False
 
 
@@ -133,7 +139,7 @@ def dom_problem(dom: Any) -> str | None:
             not isinstance(rule, dict)
             or not isinstance(rule.get("name"), str)
             or not (_NAME.fullmatch(rule["name"]) or rule["name"] == "#")
-            or not _is_one_of(rule.get("op"), {"define", "extend"})
+            or not _is_one_of(rule.get("op"), {"define", "redefine", "extend"})
             or not _items(rule.get("alternatives"), 1)
             or not isinstance(rule.get("conditions"), list)
             or not _is_position(rule.get("at"))
@@ -169,6 +175,22 @@ def dom_problem(dom: Any) -> str | None:
             pending.append(("top", expr, 0, False))
             if "tags" in alternative:
                 pending.append(("term", alternative["tags"], 0, True))
+    problem = _walk(pending)
+    if problem is not None:
+        return problem
+    # A definition is checked as a whole (engine §9), once its clauses are
+    # known to be well formed.
+    for rule in dom["rules"]:
+        problem = definition_problem(rule)
+        if problem is not None:
+            return problem
+    return None
+
+
+def _walk(pending: list[tuple[str, Any, int, bool]]) -> str | None:
+    """Check the nodes of expressions, emissions, conditions and terms, each
+    entry a node, its kind, its depth, and whether it lies in a rule's or an
+    alternative's tag term, which may not read the tags it defines."""
     items: Any
     args: Any
     while pending:
@@ -224,21 +246,21 @@ def dom_problem(dom: Any) -> str | None:
                 if not isinstance(item, dict):
                     kinds.append(None)
                 elif isinstance(item.get("insert"), str):
-                    kinds.append(None if "tags" in item or "erase" in item or "capture" in item else "insert")
+                    kinds.append(None if "tags" in item or "silent" in item or "capture" in item else "insert")
                 elif isinstance(item.get("capture"), str):
-                    if "erase" in item and (item["erase"] is not True or "tags" in item):
+                    if "silent" in item and (item["silent"] is not True or "tags" in item):
                         kinds.append(None)
                     elif item["capture"] == _WHOLE:
-                        kinds.append("erase-whole" if "erase" in item else "whole")
+                        kinds.append("silent-whole" if "silent" in item else "whole")
                     else:
                         kinds.append("capture")
                 else:
                     kinds.append(None)
             if None in kinds:
                 return "a malformed emission"
-            if ("whole" in kinds or "erase-whole" in kinds) and any(k not in ("whole", "erase-whole") for k in kinds):
+            if ("whole" in kinds or "silent-whole" in kinds) and any(k not in ("whole", "silent-whole") for k in kinds):
                 return "a malformed emission"
-            if "erase-whole" in kinds and len(kinds) != 1:
+            if "silent-whole" in kinds and len(kinds) != 1:
                 return "a malformed emission"
             captures = [item["capture"] for item, k in zip(items, kinds) if k == "capture"]
             if len(set(captures)) != len(captures):
@@ -251,22 +273,32 @@ def dom_problem(dom: Any) -> str | None:
                 # An emission is no node of a term: its tags start at the top.
                 pending.append(("term", item["tags"], depth, False))
         elif kind == "condition":
+            # The condition of a guarded term in a tag term may not read the
+            # tags the term defines either.
             if "any" in value or "all" in value:
                 items = value["any"] if "any" in value else value["all"]
                 if not _items(items, 2):
                     return "a malformed condition"
-                pending.extend(("condition", item, below, False) for item in items)
+                pending.extend(("condition", item, below, own) for item in items)
             elif "not" in value:
-                pending.append(("condition", value["not"], below, False))
+                pending.append(("condition", value["not"], below, own))
+            elif "if" in value:
+                if "then" not in value:
+                    return "a malformed condition"
+                pending.append(("condition", value["if"], below, own))
+                pending.append(("condition", value["then"], below, own))
+            elif "captured" in value:
+                if not isinstance(value["captured"], str):
+                    return "a malformed condition"
             elif "matches" in value:
                 if not isinstance(value.get("rule"), str) or not _is_span(value["matches"]):
                     return "a malformed condition"
-                pending.append(("argument", value["matches"], below, False))
+                pending.append(("argument", value["matches"], below, own))
             else:
                 if not _is_one_of(value.get("op"), _COMPARATORS):
                     return "a malformed condition"
-                pending.append(("term", value.get("left"), below, False))
-                pending.append(("term", value.get("right"), below, False))
+                pending.append(("term", value.get("left"), below, own))
+                pending.append(("term", value.get("right"), below, own))
         else:
             # A term; an argument is a term where a span may stand.
             if own and reads_own_tags(value, kind == "argument"):
@@ -276,6 +308,12 @@ def dom_problem(dom: Any) -> str | None:
                 if not _items(items, 2):
                     return "a malformed term"
                 pending.extend(("term", item, below, own) for item in items)
+            elif "if" in value:
+                # A guarded term: its condition, and the tag set it guards.
+                if kind == "argument" or "then" not in value:
+                    return "a malformed term"
+                pending.append(("condition", value["if"], below, own))
+                pending.append(("term", value["then"], below, own))
             elif "call" in value:
                 # The reader's signatures (engine §9), with a span where one is due.
                 args = value.get("args") if isinstance(value.get("args"), list) else []

@@ -1,5 +1,5 @@
 """The two parts of reading Markdown that are not grammars: the fenced
-``ebnf`` blocks of a grammar document (engine §8) and the processing
+``jbogenbau`` blocks of a grammar document (engine §8) and the processing
 instructions of a pipeline document (design, "Pipelines")."""
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ def line_column(text: str, index: int) -> tuple[int, int]:
 
 @dataclass
 class GrammarText:
-    """The grammar text of a document: its ``ebnf`` blocks joined with a
+    """The grammar text of a document: its ``jbogenbau`` blocks joined with a
     newline between them, and each character's line and column in the
     document, with one more entry for the end of the text."""
 
@@ -46,8 +46,12 @@ class GrammarText:
         return self.positions[min(max(index, 0), len(self.positions) - 1)]
 
 
-def ebnf_text(document: str) -> GrammarText:
-    """Find the fenced ``ebnf`` blocks of a Markdown document (engine §8)."""
+INFO = "jbogenbau"
+"""The info string of a fenced block that holds grammar text (engine §8)."""
+
+
+def jbogenbau_text(document: str) -> GrammarText:
+    """Find the fenced ``jbogenbau`` blocks of a Markdown document (engine §8)."""
     lines = split_lines(document)
     blocks: list[list[tuple[int, str]]] = []
     index = 0
@@ -67,12 +71,12 @@ def ebnf_text(document: str) -> GrammarText:
         while index < len(lines) and closing.match(lines[index]) is None:
             body.append((index + 1, lines[index]))
             index += 1
-        if index >= len(lines) and info.strip() == "ebnf":
-            # An ebnf block that is never closed is an error; any other runs
-            # to the end of the document, as in CommonMark (engine §8).
-            raise GencmuError("an ebnf block is never closed", line=opening, column=1)
+        if index >= len(lines) and info.strip() == INFO:
+            # A jbogenbau block that is never closed is an error; any other
+            # runs to the end of the document, as in CommonMark (engine §8).
+            raise GencmuError(f"a {INFO} block is never closed", line=opening, column=1)
         index += 1
-        if info.strip() == "ebnf":
+        if info.strip() == INFO:
             blocks.append(body)
     chars: list[str] = []
     positions: list[tuple[int, int]] = []

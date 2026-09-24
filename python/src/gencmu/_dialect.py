@@ -14,7 +14,7 @@ from ._dom import DomBuilder
 from ._errors import GencmuError
 from ._grammar import Grammar, Lowered, lower, stitch
 from ._hash import fnv1a64
-from ._markdown import Pipeline, ebnf_text, read_pipeline
+from ._markdown import Pipeline, jbogenbau_text, read_pipeline
 from ._model import ParseError, ParseResult, Stage, Token
 from ._stage import DChild, DRead, StageOutcome, StageRunner, constituent_phonemes
 from ._unicode import UnicodeTable
@@ -123,7 +123,7 @@ class NotationReader:
     def read(self, text: str, path: str) -> Dom:
         """The DOM of a grammar document (engine §8, §9)."""
         try:
-            grammar_text = ebnf_text(text)
+            grammar_text = jbogenbau_text(text)
         except GencmuError as error:
             error.document = path
             raise
@@ -403,7 +403,7 @@ class Dialect:
     @staticmethod
     def _reads_sa_su(stage: Stage, outcome: StageOutcome) -> bool:
         """Whether the chosen tree has a constituent of the rule word whose
-        phonemes are sa or su, erased or not (engine §13)."""
+        phonemes are sa or su, silent or not (engine §13)."""
         root = outcome.derivation
         if root is None:
             return False

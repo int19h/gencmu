@@ -51,11 +51,11 @@ def case_sources(case: dict[str, Any]) -> tuple[dict[str, str], str]:
     if "grammar" in case:
         grammar = case["grammar"]
         if "%ambiguity-resolution" not in grammar:
-            grammar = "%ambiguity-resolution greedy ;\n" + grammar
+            grammar = "%ambiguity-resolution greedy\n" + grammar
         return (
             {
                 "p.md": "## Main <?stage main?>\n\n- [main](main.md) <?grammar?>\n",
-                "main.md": "```ebnf\n" + grammar + "\n```\n",
+                "main.md": "```jbogenbau\n" + grammar + "\n```\n",
             },
             "p.md",
         )

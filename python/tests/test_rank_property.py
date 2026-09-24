@@ -254,7 +254,7 @@ def dom_of(rules: list[list[list[Any]]], names: list[str], lean: str) -> dict[st
         return {"seq": [symbol(value) for value in alt]}
 
     return {
-        "format": 2,
+        "format": 3,
         "rules": [
             {
                 "name": names[number],
@@ -333,7 +333,7 @@ def random_sugared(rng: random.Random) -> dict[str, Any]:
             alternatives.append({"guards": [], "expr": items[0] if len(items) == 1 else {"seq": items}})
         rules.append({"name": names[number], "op": "define", "alternatives": alternatives, "conditions": [], "at": [number + 1, 1]})
     return {
-        "format": 2,
+        "format": 3,
         "rules": rules,
         "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [9, 1]}],
     }
@@ -344,7 +344,7 @@ def describe(rules: list[list[list[Any]]], names: list[str], tokens: list[dict[s
         return value if isinstance(value, str) else names[value]
 
     grammar = " ".join(
-        f"{names[number]} ≔ {' | '.join(' '.join(show(v) for v in alt) or 'ε' for alt in alts)} ;" for number, alts in enumerate(rules)
+        f"%rule {names[number]} {' | '.join(' '.join(show(v) for v in alt) or 'ε' for alt in alts)}" for number, alts in enumerate(rules)
     )
     shown = " ".join("[" + " ".join(t if s else "?" + t for t, s in tags.items()) + "]" for tags in tokens)
     return f"{lean}: {grammar} over {shown}"
