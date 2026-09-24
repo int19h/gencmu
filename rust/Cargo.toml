@@ -1,0 +1,16 @@
+[package]
+name = "gencmu"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "MIT"
+description = "A Lojban parser whose grammars are literate Markdown documents loaded at runtime"
+repository = "https://github.com/int19h/gencmu"
+readme = "README.md"
+keywords = ["lojban", "parser", "earley", "grammar"]
+categories = ["parser-implementations", "text-processing"]
+include = ["src/**/*.rs", "build.rs", "grammars/**", "tests/**/*.rs", "README.md", "Cargo.toml"]
+
+[dependencies]
+
+[dev-dependencies]
