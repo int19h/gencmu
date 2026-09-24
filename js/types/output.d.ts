@@ -1,4 +1,5 @@
 import type { ParseError, ParseResult, ResultNode, Span } from "./types.js";
+import type { Token } from "./tokens.js";
 export type TokenJson = {
     text: string;
     phonemes: string;
@@ -156,10 +157,29 @@ export declare function toBrackets(result: ParseResult, options?: {
     showElided?: boolean;
 }): string;
 /**
+ * The bracket rendering of any tree over the tokens its nodes index: a
+ * tied reading, or one of an ambiguous error's readings, as well as a
+ * result's tree.
+ * @param {ResultNode} root
+ * @param {Token[]} tokens
+ * @param {{showElided?: boolean}} [options]
+ * @returns {string}
+ */
+export declare function nodeBrackets(root: ResultNode, tokens: Token[], options?: {
+    showElided?: boolean;
+}): string;
+/**
  * @param {ParseResult} result
  * @returns {string}
  */
 export declare function toTree(result: ParseResult): string;
+/**
+ * The tree rendering of any tree over the tokens its nodes index.
+ * @param {ResultNode} root
+ * @param {Token[]} tokens
+ * @returns {string}
+ */
+export declare function nodeTree(root: ResultNode, tokens: Token[]): string;
 /**
  * @param {ParseResult} result
  * @returns {DisplayValue | null}

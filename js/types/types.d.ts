@@ -104,6 +104,11 @@ export type ParseResult = {
     tree: ResultNode | null;
     error: ParseError | null;
     text: string;
+    /**
+     * the features the parse ran with, those auto
+     * features added included; not part of the canonical JSON
+     */
+    features: string[];
 };
 export type ParseOptions = {
     /**
@@ -464,6 +469,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {ResultNode | null} tree the last stage's tree
  * @property {ParseError | null} error
  * @property {string} text
+ * @property {string[]} features the features the parse ran with, those auto
+ *   features added included; not part of the canonical JSON
  */
 /**
  * @typedef {object} ParseOptions

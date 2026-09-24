@@ -330,12 +330,16 @@ export class Ranker {
   constructor(tokens, lean) {
     this.tokens = tokens;
     this.lean = lean;
-    /** @type {Map<Item, Map<string, Candidate[]>>} */
-    this.memo = new Map();
-    /** @type {Map<Item, Map<string, number>>} */
-    this.counts = new Map();
+    /** @type {{plain: Map<Item, Candidate[]>, contextual: Map<Item, Map<string, Candidate[]>>}} */
+    this.memo = { plain: new Map(), contextual: new Map() };
+    /** @type {{plain: Map<Item, number>, contextual: Map<Item, Map<string, number>>}} */
+    this.counts = { plain: new Map(), contextual: new Map() };
     /** @type {Map<Item, number>} */
     this.itemIds = new Map();
+    /** @type {Map<Item, RopeLeaf>} */
+    this.closes = new Map();
+    /** @type {Map<string, RopeLeaf>} */
+    this.reads = new Map();
   }
 
   // An item's candidates: for each sequence the item's derivations could
@@ -361,10 +365,10 @@ export class Ranker {
         if (edge.kind === "seed") produced = [{ seq: EMPTY, alts: [], at: Infinity }];
         else if (edge.kind === "scan") {
           const token = this.tokens[edge.token];
-          const read = leaf({ kind: "read", token: edge.token, terminal: edge.terminal, weak: token.tags.get(edge.terminal) === false });
+          const read = this.readLeaf(edge.token, edge.terminal, token.tags.get(edge.terminal) === false);
           produced = dependency(edge.previous).map((entry) => extend(entry, read));
         } else {
-          const close = leaf({ kind: "close", item: edge.child });
+          const close = this.closeLeaf(edge.child);
           const children = dependency(edge.child).map((entry) => extend(entry, close));
           produced = [];
           for (const before of dependency(edge.previous)) {
@@ -386,11 +390,38 @@ export class Ranker {
   }
 
   /**
+   * The one leaf for closing an item: every sequence that closes it shares
+   * it, rather than each making its own.
+   * @param {Item} item
+   * @returns {RopeLeaf}
+   */
+  closeLeaf(item) {
+    let found = this.closes.get(item);
+    if (!found) this.closes.set(item, (found = leaf({ kind: "close", item })));
+    return found;
+  }
+
+  /**
+   * The one leaf for reading a token as a terminal.
+   * @param {number} token
+   * @param {string} terminal
+   * @param {boolean} weak
+   * @returns {RopeLeaf}
+   */
+  readLeaf(token, terminal, weak) {
+    const key = `${token}\u0000${terminal}`;
+    let found = this.reads.get(key);
+    if (!found) this.reads.set(key, (found = leaf({ kind: "read", token, terminal, weak })));
+    return found;
+  }
+
+  /**
+   * An item's candidates, each ended by the item's own close.
    * @param {Item} item
    * @returns {Candidate[]}
    */
   full(item) {
-    const close = leaf({ kind: "close", item });
+    const close = this.closeLeaf(item);
     return this.candidates(item).map((entry) => extend(entry, close));
   }
 
@@ -513,7 +544,7 @@ export class Ranker {
   /**
    * @template T
    * @param {Item} root
-   * @param {Map<Item, Map<string, T>>} memo
+   * @param {{plain: Map<Item, T>, contextual: Map<Item, Map<string, T>>}} memo
    * @param {(item: Item, dependency: (item: Item) => T) => T} combine
    * @param {T} cut the value of a dependency that would close a cycle
    * @returns {T}
@@ -534,14 +565,21 @@ export class Ranker {
     /** @type {(item: Item) => string} */
     const ruleKey = (item) => `\u0000${item.production.lhs}`;
     /** @type {(item: Item, key: string) => T | undefined} */
+    // Almost every item is looked up with no context, so those results are
+    // kept in a plain map and only the rest by context.
     const lookup = (item, key) => {
-      const byContext = memo.get(item);
+      if (key === "") return memo.plain.get(item);
+      const byContext = memo.contextual.get(item);
       return byContext ? byContext.get(key) : undefined;
     };
     /** @type {(item: Item, key: string, value: T) => void} */
     const store = (item, key, value) => {
-      let byContext = memo.get(item);
-      if (!byContext) memo.set(item, (byContext = new Map()));
+      if (key === "") {
+        memo.plain.set(item, value);
+        return;
+      }
+      let byContext = memo.contextual.get(item);
+      if (!byContext) memo.contextual.set(item, (byContext = new Map()));
       byContext.set(key, value);
     };
     const itemIds = this.itemIds;

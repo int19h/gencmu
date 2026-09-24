@@ -141,10 +141,14 @@ library implements brackets, which the corpus compares.
 
 The final stage's tree as nested groups:
 
-1. A token node's label is its token's phonemes, or its text if it has none;
+1. A token node's label is its token's phonemes, or its text if its phonemes
+   are empty; a label may itself be empty, as a `zoi` quote of nothing is,
+   and is kept;
    an elided node's label is empty unless elided terminators are shown, when
    it is the terminal in lower case between `⟨` and `⟩`.
-2. A rule node's children are rendered, and empty ones dropped. If none is
+2. A rule node's children are rendered, and empty ones dropped, an empty one
+   being an elided node that is not shown or a rule node that renders
+   nothing; a token node is never empty. If none is
    left, the node is empty; if one, the node is that child; otherwise it is a
    group.
 3. A group at depth *d* is written between `(` `)` when *d* mod 3 is 0,
