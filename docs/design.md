@@ -455,7 +455,8 @@ These are the product, not an afterthought:
   my grammar not accept this".
 - **Audit**: undefined and unreachable rules, every rule a later document
   replaced or extended, stages without an `%ambiguity-resolution`, conditions
-  that never apply to any alternative.
+  that never apply to any alternative, and erasures that change nothing,
+  of parts that could never emit a token or sound inside one.
 
 ## CLI and playground
 

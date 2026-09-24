@@ -87,17 +87,16 @@ export type StageAudit = {
         document: string;
         condition: string;
     }[];
+    /**
+     * erasures, `$ <>` or
+     * `$x <>`, of what could never emit anything anyway and never lies inside an emitted token
+     */
+    idleErasures: {
+        rule: string;
+        document: string;
+        erased: string;
+    }[];
 };
-/**
- * @typedef {object} StageAudit
- * @property {string} name
- * @property {string} resolution
- * @property {number} rules
- * @property {string[]} unreachable rules no derivation of `text` can reach
- * @property {{kind: string, rule: string, document: string, previous: string}[]} changes
- * @property {{rule: string, document: string, condition: string}[]} idleConditions conditions no
- *   alternative of their definition captures every part of
- */
 /**
  * What a grammar author should know about a dialect's grammars: per stage,
  * the rules nothing reaches, every rule a later document replaced or

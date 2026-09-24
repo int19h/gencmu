@@ -21,14 +21,11 @@ item-run
 ≔ item | item-run item ;
 
 item
-≔ $w(unit) <tags($w)>
-| $w(unit) absorbed <tags($w)>
-| absorbed-bahe $w(unit) <tags($w)>
-| absorbed-bahe $w(unit) absorbed <tags($w)>
+≔ [absorbed-bahe] $w(unit) [absorbed]
 ⇒ $w ;
 
 unit
-≔ $w("word") | $f("foreign-text") | $l("LEhU")
+≔ $w("word") | "foreign-text" | "LEhU"
 : "indicator" ∉ tags($w) ∧ "BAhE" ∉ tags($w) ∧ "LEhU" ∉ tags($w) ;
 
 absorbed
