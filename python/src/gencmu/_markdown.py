@@ -67,11 +67,10 @@ def ebnf_text(document: str) -> GrammarText:
         while index < len(lines) and closing.match(lines[index]) is None:
             body.append((index + 1, lines[index]))
             index += 1
-        if index >= len(lines):
-            # Were a block that is never closed to run to the end, a missing
-            # fence would silently make the rest of the document grammar, or
-            # hide it.
-            raise GencmuError("a fenced code block is never closed", line=opening, column=1)
+        if index >= len(lines) and info.strip() == "ebnf":
+            # An ebnf block that is never closed is an error; any other runs
+            # to the end of the document, as in CommonMark (engine §8).
+            raise GencmuError("an ebnf block is never closed", line=opening, column=1)
         index += 1
         if info.strip() == "ebnf":
             blocks.append(body)
@@ -141,8 +140,6 @@ def read_pipeline(text: str, path: str) -> Pipeline:
             continue
         kind, argument = match.group(1), match.group(2).strip()
         if kind == "stage":
-            if not line.lstrip().startswith("#"):
-                raise fail("<?stage?> must end a heading")
             if not _STAGE_NAME.fullmatch(argument):
                 raise fail(f"a malformed stage name: {argument!r}")
             if argument in names:

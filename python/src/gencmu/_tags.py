@@ -20,8 +20,8 @@ def intersection(left: Tags, right: Tags) -> Tags:
 
 def phoneme_of(tag: str) -> str | None:
     """The phoneme a phoneme tag ``/p/`` names, or ``None`` for another tag."""
-    if len(tag) >= 3 and tag[0] == "/" and tag[-1] == "/":
-        return tag[1:-1]
+    if len(tag) == 3 and tag[0] == "/" and tag[2] == "/":
+        return tag[1]
     return None
 
 

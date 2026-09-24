@@ -69,20 +69,28 @@ def _range_source(tokens: list[Token], start: int, end: int) -> Range | None:
     return None
 
 
+def _empty_source(tokens: list[Token], position: int) -> Range:
+    """Where an empty span stands in the text (engine §12)."""
+    if position > 0:
+        at = tokens[position - 1].source[1]
+    elif tokens:
+        at = tokens[0].source[0]
+    else:
+        at = 0
+    return (at, at)
+
+
 class Tree:
     """The result tree of a derivation (engine §12), and where each closed
     production of the derivation stands in the text."""
 
     def __init__(self, root: DNode, tokens: list[Token], tagtab: Any) -> None:
         self.tokens = tokens
-        self.sources: dict[int, Range] = {}
         self.root = self.build(root, tagtab)
 
     def build(self, root: DNode, tagtab: Any) -> Node:
         tokens = self.tokens
-        by_dnode: list[tuple[DNode, Node]] = []
         top = Node("rule", (root.start, root.end), (0, 0), rule=root.production.rule_name, tags=dict(tagtab.get(root.tag)))
-        by_dnode.append((root, top))
         builders: list[Node] = [top]
         work: list[tuple[str, Any]] = [("close", root), ("kids", (root, root.production.rep_splice))]
         while work:
@@ -117,47 +125,24 @@ class Tree:
                         rule=child.production.rule_name,
                         tags=dict(tagtab.get(child.tag)),
                     )
-                    by_dnode.append((child, node))
                     parent.children.append(node)
                     builders.append(node)
                     work.append(("close", child))
                     work.append(("kids", (child, child.production.rep_splice)))
             else:
                 builders.pop()
-        # Sources, top down: an empty node stands at the end of the token
-        # before it, or at the start of its parent if nothing of the parent
-        # precedes it.
-        top.source = _range_source(tokens, top.span[0], top.span[1]) or (0, 0)
+        # Sources: an empty node stands at the source end of the token
+        # before it, or at position 0 at the start of the first (engine §12).
         stack = [top]
         while stack:
             node = stack.pop()
-            for child in node.children:
-                if child.span[0] == child.span[1]:
-                    start = child.span[0]
-                    at = tokens[start - 1].source[1] if start > node.span[0] else node.source[0]
-                    child.source = (at, at)
-                elif child.kind == "rule":
-                    child.source = _range_source(tokens, child.span[0], child.span[1])  # type: ignore[assignment]
-                if child.kind == "rule":
-                    stack.append(child)
-        for dnode, node in by_dnode:
-            self.sources[id(dnode)] = node.source
+            if node.kind != "token":
+                node.source = _range_source(tokens, node.span[0], node.span[1]) or _empty_source(tokens, node.span[0])
+            stack.extend(node.children)
         return top
 
     def source_of(self, node: DNode) -> Range:
-        found = self.sources.get(id(node))
-        if found is not None:
-            return found
-        source = _range_source(self.tokens, node.start, node.end)
-        if source is not None:
-            return source
-        if node.start > 0:
-            at = self.tokens[node.start - 1].source[1]
-        elif self.tokens:
-            at = self.tokens[0].source[0]
-        else:
-            at = 0
-        return (at, at)
+        return _range_source(self.tokens, node.start, node.end) or _empty_source(self.tokens, node.start)
 
 
 def elided_nodes(tree: Node) -> list[Node]:
@@ -211,7 +196,7 @@ class Emitter:
             raise _GrammarFault(f"an emitted token has two strong phoneme tags: {', '.join(sorted(t for t, s in tags.items() if s and phoneme_of(t) is not None))}", (start, end))
         phonemes = strong[0] if strong else span_phonemes(self.tokens, self.erased, start, end)
         text = self.context.text[source[0] : source[1]]
-        return Token(text, dict(tags), (start, end), source, phonemes, inserted_by if start == end else None)
+        return Token(text, dict(tags), (start, end), source, phonemes, inserted_by)
 
     def part_source(self, part: DChild) -> Range:
         if isinstance(part, DRead):
@@ -234,7 +219,7 @@ class Emitter:
                     tags = self.tokens[part.token].tags
                 else:
                     tags = tagtab.get(part.tag)
-                self.output.append(self.token(part.start, part.end, tags, self.part_source(part), node.production.rule_name))
+                self.output.append(self.token(part.start, part.end, tags, self.part_source(part), None))
                 continue
             if kind == "insert":
                 node, tag, boundary = value
@@ -260,7 +245,7 @@ class Emitter:
                         tags = self.evaluator.tags(term, self.evaluator.bind(node.production, self.context_caps(node)))
                     else:
                         tags = tagtab.get(node.tag)
-                    self.output.append(self.token(node.start, node.end, tags, source, node.production.rule_name))
+                    self.output.append(self.token(node.start, node.end, tags, source, None))
                 continue
             work.extend(reversed(self.plan(node, emit[1])))
         return self.output
@@ -269,31 +254,30 @@ class Emitter:
         return self.forest.caps[node.item]
 
     def plan(self, node: DNode, items: list[tuple[Any, ...]]) -> list[tuple[str, Any]]:
+        """The steps of ``⇒ $a, "x", $b``: children in text order, named
+        captures as tokens, each inserted tag just before the token of the
+        first capture listed after it, or after the last child if none is
+        (engine §11)."""
         named: dict[int, Any] = {}
         before: dict[int, list[str]] = {}
-        after: dict[int, list[str]] = {}
-        start: list[str] = []
+        after_last: list[str] = []
         for index, item in enumerate(items):
             if item[0] == "capture":
                 named[item[1]] = item[2]
-                continue
-            previous = next((other[1] for other in reversed(items[:index]) if other[0] == "capture"), None)
-            if previous is not None:
-                after.setdefault(previous, []).append(item[1])
                 continue
             following = next((other[1] for other in items[index + 1 :] if other[0] == "capture"), None)
             if following is not None:
                 before.setdefault(following, []).append(item[1])
             else:
-                start.append(item[1])
-        steps: list[tuple[str, Any]] = [("insert", (node, tag, node.start)) for tag in start]
+                after_last.append(item[1])
+        steps: list[tuple[str, Any]] = []
         for position, child in enumerate(node.children):
-            steps.extend(("insert", (node, tag, child.start)) for tag in before.get(position, ()))
             if position in named:
+                steps.extend(("insert", (node, tag, child.start)) for tag in before.get(position, ()))
                 steps.append(("part", (node, child, named[position])))
             else:
                 steps.append(("walk", child))
-            steps.extend(("insert", (node, tag, child.end)) for tag in after.get(position, ()))
+        steps.extend(("insert", (node, tag, node.end)) for tag in after_last)
         return steps
 
 
@@ -347,17 +331,8 @@ class StageRunner:
         return context
 
     def fault(self, fault: _GrammarFault, tokens: list[Token]) -> ParseError:
-        error = ParseError("grammar", fault.message, stage=self.name)
-        if fault.span is not None:
-            start, end = fault.span
-            error.token = start
-            source = _range_source(tokens, start, end)
-            if source is None:
-                at = tokens[start - 1].source[1] if 0 < start <= len(tokens) else 0
-                source = (at, at)
-            error.source = source
-            error.line, error.column = line_column(self.text, source[0])
-        return error
+        # A defect found while parsing has its stage and no position (§13).
+        return ParseError("grammar", fault.message, stage=self.name)
 
     def rejection(self, forest: Forest) -> ParseError:
         tokens = self.tokens

@@ -88,16 +88,13 @@ class StageContext:
             raise _GrammarFault(f"{rule} is not a rule of this stage", (start, end))
         self.running.add(key)
         try:
+            # The answer reads the items: every completed item of the rule
+            # over the span, whether or not its derivations are all cyclic.
             forest = Parser(self, start, end).parse(number)
-            accepted = False
             tags: Tags = {}
-            if forest.roots and self.count is not None:
-                counts = self.count(forest, forest.roots)
-                for root, count in zip(forest.roots, counts):
-                    if count > 0:
-                        accepted = True
-                        tags = union(tags, self.tagtab.get(forest.tag[root]))
-            answer = NestedAnswer(accepted, tags)
+            for root in forest.roots:
+                tags = union(tags, self.tagtab.get(forest.tag[root]))
+            answer = NestedAnswer(bool(forest.roots), tags)
         finally:
             self.running.discard(key)
         self.memo[key] = answer
@@ -209,6 +206,9 @@ class Evaluator:
             if name == "classes":
                 return {tag: strong for tag, strong in self.span_tags(span).items() if "A" <= tag[:1] <= "Z"}
             raise _GrammarFault(f"an unknown function {name}()")
+        if "capture" in dom:
+            # A bare capture is its tags (engine §10).
+            return dict(self.span_tags(self.span(dom, bound)))
         raise _GrammarFault("a span is used where a value is needed")
 
     def tags(self, dom: Any, bound: dict[str, tuple[int, int, int]]) -> Tags:

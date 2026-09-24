@@ -89,7 +89,11 @@ python -m unittest
 They run the shared cases of the repository's `tests/engine/` and
 `tests/notation/`, the fixpoint of the notation's bootstrap, the check of
 `compiled.json` against a fresh reading, the API, and a property test of the
-ranking against brute-force enumeration. `GENCMU_PROPERTY_CASES` and
+ranking against brute-force enumeration, and the core sample of the Lojban
+corpus (`tests/core.txt`). `GENCMU_CORPUS=full` runs every corpus case, on
+a pool of processes whose size `GENCMU_CORPUS_WORKERS` sets; a book chapter
+of about 15,000 characters takes up to a minute and about a gigabyte.
+`GENCMU_PROPERTY_CASES` and
 `GENCMU_PROPERTY_SEED` run a larger sweep of the property test, and
 `GENCMU_INSTALLED=1` tests an installed package instead of `src/`.
 

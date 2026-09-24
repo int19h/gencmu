@@ -250,6 +250,8 @@ class DomBuilder:
                 else:
                     raise self.fail(target, f"⇒ lists {text}, which is neither this, nothing, a capture nor a tag")
             elif "capture" in tags_of_target:
+                if any(item.get("capture") == text[1:] for item in items):
+                    raise self.fail(node, f"⇒ lists ${text[1:]} twice")
                 kinds.append("capture")
                 items.append({"capture": text[1:]} if tags is None else {"capture": text[1:], "tags": tags})
             else:
@@ -287,7 +289,7 @@ class DomBuilder:
                 raise self.fail(node, f"a condition calls matches(), not {name}()")
             if len(args) != 2 or args[1].kind != "token":
                 raise self.fail(node, "matches() takes a span and a rule name")
-            return {"matches": self.span(args[0]), "rule": self.text(args[1])}
+            return {"matches": self.span(args[0], node), "rule": self.text(args[1])}
         raise self.fail(node, f"unexpected {node.rule} in a condition")
 
     # -- terms
@@ -298,19 +300,28 @@ class DomBuilder:
         args = [kid for kid in kids[1:] if kid.kind == "rule" or self.tokens[kid.token].tags.get("identifier")]  # type: ignore[index]
         return name, args
 
-    def span(self, node: Node) -> Dom:
+    def span(self, node: Node, at: Node | None = None) -> Dom:
+        """A span argument; a wrong one is an error of the call ``at``."""
         if node.kind == "token":
-            raise self.fail(node, "a span is needed here, not a name")
+            raise self.fail(at or node, "a span is needed here, not a name")
         dom = self.term(node)
         if not _is_span(dom):
-            raise self.fail(node, "a span is needed here: a capture, or head(), tail() or last() of one")
+            raise self.fail(at or node, "a span is needed here: a capture, or head(), tail() or last() of one")
         return dom
 
     def value(self, node: Node) -> Dom:
         dom = self.term(node)
-        if _is_span(dom):
-            raise self.fail(node, "a span is used where a string or tag set is needed")
+        if isinstance(dom, dict) and dom.get("call") in _SPAN_FUNCTIONS:
+            raise self.fail(node, f"{dom['call']}() is a span, used where a string or tag set is needed")
         return dom
+
+    def string_value(self, node: Node, at: Node) -> Dom:
+        """A term that is a string: a quoted string, a phoneme tag, or
+        phonemes(), text() or lowercase() of something."""
+        dom = self.term(node)
+        if "literal" in dom or dom.get("call") in ("phonemes", "text", "lowercase"):
+            return dom
+        raise self.fail(at, "a string is needed here")
 
     def term(self, node: Node) -> Dom:
         rule = node.rule
@@ -343,11 +354,11 @@ class DomBuilder:
             if name in _ONE_SPAN:
                 if len(args) != 1:
                     raise self.fail(node, f"{name}() takes one span")
-                return {"call": name, "args": [self.span(args[0])]}
+                return {"call": name, "args": [self.span(args[0], node)]}
             if name == "tags":
                 if len(args) not in (1, 2):
                     raise self.fail(node, "tags() takes a span and optionally a rule name")
-                converted: list[Dom] = [self.span(args[0])]
+                converted: list[Dom] = [self.span(args[0], node)]
                 if len(args) == 2:
                     if args[1].kind != "token":
                         raise self.fail(args[1], "the second argument of tags() is a rule name")
@@ -356,7 +367,7 @@ class DomBuilder:
             if name == "lowercase":
                 if len(args) != 1 or args[0].kind == "token":
                     raise self.fail(node, "lowercase() takes a string")
-                return {"call": name, "args": [self.value(args[0])]}
+                return {"call": name, "args": [self.string_value(args[0], node)]}
             if name == "matches":
                 raise self.fail(node, "matches() is a condition, not a term")
             raise self.fail(node, f"an unknown function {name}()")
