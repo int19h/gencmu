@@ -1,10 +1,10 @@
 //! The two parts of reading documents that are not grammars: finding the
-//! `ebnf` blocks of a grammar document (engine §8), and reading the stages,
+//! `jbogenbau` blocks of a grammar document (engine §8), and reading the stages,
 //! documents and features of a pipeline document (design, "Pipelines").
 
 use crate::error::Error;
 
-/// A document's grammar text: its `ebnf` blocks joined with a newline,
+/// A document's grammar text: its `jbogenbau` blocks joined with a newline,
 /// each character remembering its line and column in the document.
 #[derive(Debug, Clone)]
 pub(crate) struct GrammarText {
@@ -81,7 +81,7 @@ fn fence(line: &[char]) -> Option<(char, usize, String)> {
 }
 
 /// Extracts the grammar text of a Markdown document (engine §8). An
-/// `ebnf` block that is never closed is an error at its opening fence.
+/// `jbogenbau` block that is never closed is an error at its opening fence.
 pub(crate) fn grammar_text(document: &str) -> Result<GrammarText, Error> {
     let mut text = GrammarText { chars: Vec::new(), positions: Vec::new(), end: (1, 1) };
     let lines = lines(document);
@@ -93,7 +93,7 @@ pub(crate) fn grammar_text(document: &str) -> Result<GrammarText, Error> {
             index += 1;
             continue;
         };
-        let grammar = info.trim() == "ebnf";
+        let grammar = info.trim() == "jbogenbau";
         let mut end = index + 1;
         while end < lines.len() {
             if let Some((closing, closing_length, rest)) = fence(&lines[end].chars) {
@@ -105,7 +105,7 @@ pub(crate) fn grammar_text(document: &str) -> Result<GrammarText, Error> {
         }
         if grammar && end == lines.len() {
             let indent = lines[index].chars.iter().take_while(|&&c| c == ' ').count();
-            return Err(Error::grammar("an ebnf block that is never closed").at(lines[index].number, indent + 1));
+            return Err(Error::grammar("a jbogenbau block that is never closed").at(lines[index].number, indent + 1));
         }
         if grammar {
             if blocks > 0 {
@@ -287,9 +287,9 @@ mod tests {
 
     #[test]
     fn blocks_keep_positions() {
-        let text = grammar_text("# x\n\n```ebnf\na ≔ A ;\n```\n\n~~~ ebnf\nb\r\n c\n~~~\n").unwrap();
+        let text = grammar_text("# x\n\n```jbogenbau\n%rule a\n```\n\n~~~ jbogenbau\nb\r\n c\n~~~\n").unwrap();
         let chars: String = text.chars.iter().collect();
-        assert_eq!(chars, "a ≔ A ;\nb\r\n c");
+        assert_eq!(chars, "%rule a\nb\r\n c");
         assert_eq!(text.position(0), (4, 1));
         assert_eq!(text.position(2), (4, 3));
         assert_eq!(text.position(7), (4, 8));

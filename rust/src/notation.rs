@@ -91,7 +91,7 @@ impl<'a> Reader<'a> {
             }
             match rule_name(node) {
                 "rule" => dom.rules.push(self.rule(node)?),
-                "directive-statement" => dom.directives.push(self.directive(node)?),
+                "directive" => dom.directives.push(self.directive(node)?),
                 _ => stack.extend(node.children.iter().rev()),
             }
         }
@@ -99,7 +99,7 @@ impl<'a> Reader<'a> {
     }
 
     fn directive(&self, node: &'a Node) -> R<Directive> {
-        let token = Self::tokens_of(node).next().expect("a directive token");
+        let token = Self::tokens_of(self.one(node, "directive-name")).next().expect("a directive keyword");
         let name = self.text(token).trim_start_matches('%').to_string();
         let args = Self::rules(node, "argument-word")
             .map(|word| self.text(Self::tokens_of(word).next().expect("an argument")).to_string())
@@ -109,50 +109,45 @@ impl<'a> Reader<'a> {
 
     fn rule(&self, node: &'a Node) -> R<RuleDef> {
         let name_token = Self::tokens_of(self.one(node, "rule-name")).next().expect("a rule name");
-        let definer = self.one(node, "definer");
-        let op = match self.text(Self::tokens_of(definer).next().expect("a definer")) {
-            "|≔" => Op::Extend,
+        let definer = Self::tokens_of(self.one(node, "definer")).next().expect("a definer");
+        let op = match self.text(definer) {
+            "%redefine-rule" => Op::Redefine,
+            "%extend-rule" => Op::Extend,
             _ => Op::Define,
         };
-        let tags = match Self::rules(node, "rule-tags").next() {
-            Some(tags) => Some(self.tag_term(tags)?),
+        let tags = match Self::rules(node, "tags-clause").next() {
+            Some(clause) => Some(self.tag_term(clause)?),
             None => None,
         };
         let mut alternatives = Vec::new();
         for alternative in Self::rules(self.one(node, "body"), "alternative") {
             alternatives.push(self.alternative(alternative)?);
         }
-        let mut emit = None;
+        let emit = match Self::rules(node, "emits-clause").next() {
+            Some(clause) => Some(self.emission(clause)?),
+            None => None,
+        };
+        // Each condition of the list is one condition (§9).
         let mut conditions = Vec::new();
-        for clause in Self::rules(node, "clause") {
-            let inner = Self::inner(clause);
-            match rule_name(inner) {
-                "emission" => {
-                    if emit.is_some() {
-                        return Err(self.error(inner, "a rule has two emission clauses"));
-                    }
-                    emit = Some(self.emission(inner)?);
-                }
-                _ => {
-                    // The conditions joined by ∧ at the top are the rule's
-                    // conditions, one by one; parentheses make no node, so
-                    // `: (a ∧ b)` is two conditions too (§9).
-                    match self.any_of(self.one(inner, "any-of"), 0)? {
-                        Cond::All(items) => conditions.extend(items),
-                        other => conditions.push(other),
-                    }
-                }
+        if let Some(clause) = Self::rules(node, "conditions-clause").next() {
+            for implication in Self::rules(clause, "implication") {
+                conditions.push(self.implication(implication, 0)?);
             }
         }
-        Ok(RuleDef {
+        let rule = RuleDef {
             name: self.text(name_token).to_string(),
             op,
             tags,
             alternatives,
             emit,
             conditions,
-            at: self.at(name_token),
-        })
+            at: self.at(definer),
+        };
+        // The definition is checked as a whole once it is read (§9).
+        if let Some(problem) = crate::clauses::definition_problem(&rule) {
+            return Err(self.error(definer, problem));
+        }
+        Ok(rule)
     }
 
     fn alternative(&self, node: &'a Node) -> R<Alternative> {
@@ -177,26 +172,12 @@ impl<'a> Reader<'a> {
 
     /// A rule's or an alternative's tags, which say what the constituent's
     /// tags are and so cannot read them: `$`, `tags($)` and `classes($)`
-    /// are errors there (§9), reported at the tags.
+    /// are errors anywhere in them, guards included (§9), reported at the
+    /// tags.
     fn tag_term(&self, node: &'a Node) -> R<Term> {
-        let term = self.value(self.one(node, "term"), 0)?;
-        let mut stack = vec![&term];
-        while let Some(term) = stack.pop() {
-            let own = match term {
-                Term::Capture(name) => name.is_empty(),
-                Term::Call(name, args) => {
-                    matches!(name.as_str(), "tags" | "classes")
-                        && matches!(&args[..], [Arg::Term(Term::Capture(name))] if name.is_empty())
-                }
-                Term::Union(items) | Term::Intersection(items) => {
-                    stack.extend(items);
-                    false
-                }
-                _ => false,
-            };
-            if own {
-                return Err(self.error(node, "a tag term cannot read the tags it defines: $, tags($) or classes($)"));
-            }
+        let term = self.term(self.one(node, "term"), 0)?;
+        if reads_own_tags(&term) {
+            return Err(self.error(node, "a tag term cannot read the tags it defines: $, tags($) or classes($)"));
         }
         Ok(term)
     }
@@ -321,17 +302,17 @@ impl<'a> Reader<'a> {
     }
 
     fn emission(&self, node: &'a Node) -> R<Vec<EmitItem>> {
-        let arrow = Self::tokens_of(node).next().expect("⇒");
+        let arrow = Self::tokens_of(node).next().expect("%emits");
         let mut items = Vec::new();
         for item in Self::rules(node, "emit-item") {
             let target = Self::tokens_of(self.one(item, "emit-target")).next().expect("an emission target");
-            // `<term>`, or `<>`, which erases.
+            // `<term>`, or `<>`, which makes the item silent.
             let tags = match Self::rules(item, "emit-tags").next() {
                 Some(tags) => match Self::rules(tags, "term").next() {
                     Some(term) => {
-                        let term = self.value(term, 0)?;
+                        let term = self.term(term, 0)?;
                         if term == Term::EmptySet {
-                            return Err(self.error(item, "<∅> emits a token no terminal can read; <> erases"));
+                            return Err(self.error(item, "<∅> emits a token no terminal can read; <> makes it silent"));
                         }
                         Some(Some(term))
                     }
@@ -344,14 +325,14 @@ impl<'a> Reader<'a> {
                 "capture" => {
                     let name = self.text(target).trim_start_matches('$').to_string();
                     let listed = items.iter().any(|item| match item {
-                        EmitItem::Capture(other, _) | EmitItem::Erase(other) => *other == name,
+                        EmitItem::Capture(other, _) | EmitItem::Silent(other) => *other == name,
                         EmitItem::Insert(_) => false,
                     });
                     if listed && !name.is_empty() {
                         return Err(self.error(arrow, "an emission lists the same capture twice"));
                     }
                     items.push(match tags {
-                        Some(None) => EmitItem::Erase(name),
+                        Some(None) => EmitItem::Silent(name),
                         Some(Some(term)) => EmitItem::Capture(name, Some(term)),
                         None => EmitItem::Capture(name, None),
                     });
@@ -366,15 +347,26 @@ impl<'a> Reader<'a> {
             }
         }
         let whole =
-            |item: &EmitItem| matches!(item, EmitItem::Capture(name, _) | EmitItem::Erase(name) if name.is_empty());
+            |item: &EmitItem| matches!(item, EmitItem::Capture(name, _) | EmitItem::Silent(name) if name.is_empty());
         let wholes = items.iter().filter(|item| whole(item)).count();
         if wholes > 0 && wholes < items.len() {
             return Err(self.error(arrow, "$ is used with a capture or an inserted tag"));
         }
-        if items.len() > 1 && items.iter().any(|item| matches!(item, EmitItem::Erase(name) if name.is_empty())) {
-            return Err(self.error(arrow, "$ <> erases the whole constituent and stands alone"));
+        if items.len() > 1 && items.iter().any(|item| matches!(item, EmitItem::Silent(name) if name.is_empty())) {
+            return Err(self.error(arrow, "$ <> makes the whole constituent silent and stands alone"));
         }
         Ok(items)
+    }
+
+    /// `A ⟹ B`, grouping to the right: `if` of its `any-of` and the
+    /// implication after `⟹`, or the one `any-of` itself.
+    fn implication(&self, node: &'a Node, depth: usize) -> R<Cond> {
+        let depth = self.deeper(node, depth)?;
+        let antecedent = self.any_of(self.one(node, "any-of"), depth)?;
+        Ok(match Self::rules(node, "implication").next() {
+            Some(consequent) => Cond::If(Box::new(antecedent), Box::new(self.implication(consequent, depth)?)),
+            None => antecedent,
+        })
     }
 
     /// Conditions joined by `∨`: `any` of its `all-of`s, or the one itself.
@@ -411,14 +403,21 @@ impl<'a> Reader<'a> {
         let depth = self.deeper(node, depth)?;
         let inner = Self::inner(node);
         match rule_name(inner) {
-            "any-of" => self.any_of(inner, depth),
+            // Parentheses make no node of their own (§9).
+            "implication" => self.implication(inner, depth),
             "comparison" => {
-                let terms: Vec<&Node> = Self::rules(inner, "term").collect();
+                let operands: Vec<&Node> = Self::rules(inner, "union").collect();
                 let comparator = self.one(inner, "comparator");
                 let op = self.text(Self::tokens_of(comparator).next().expect("a comparator")).to_string();
-                Ok(Cond::Compare(op, self.value(terms[0], depth)?, self.value(terms[1], depth)?))
+                let left = self.checked_value(operands[0], depth)?;
+                let right = self.checked_value(operands[1], depth)?;
+                Ok(Cond::Compare(op, left, right))
             }
             "negation" => Ok(Cond::Not(Box::new(self.condition(self.one(inner, "condition"), depth)?))),
+            "presence" => {
+                let token = Self::tokens_of(inner).next().expect("a capture");
+                Ok(Cond::Captured(self.text(token).trim_start_matches('$').to_string()))
+            }
             "call" => {
                 let name_token = Self::tokens_of(inner).next().expect("a function name");
                 let name = self.text(name_token);
@@ -449,7 +448,7 @@ impl<'a> Reader<'a> {
         if self.rule_argument(node).is_some() {
             return Err(self.error(node, "a span is expected here"));
         }
-        let term = self.term(self.one(node, "term"), depth)?;
+        let term = self.union(self.one(node, "union"), depth)?;
         if is_span(&term) {
             Ok(term)
         } else {
@@ -457,17 +456,33 @@ impl<'a> Reader<'a> {
         }
     }
 
-    /// A term where a value is needed: a bare capture is its tags, but
+    /// A `union` where a value is needed: a bare capture is its tags, but
     /// `head`, `tail` and `last` give spans, which are not values.
-    fn value(&self, node: &'a Node, depth: usize) -> R<Term> {
-        let term = self.term(node, depth)?;
+    fn checked_value(&self, node: &'a Node, depth: usize) -> R<Term> {
+        let term = self.union(node, depth)?;
         if is_derived_span(&term) {
             return Err(self.error(node, "a span is used as a value"));
         }
         Ok(term)
     }
 
+    /// A `term`: its union, or its guarded term, `if` of its condition and
+    /// its term (§9).
     fn term(&self, node: &'a Node, depth: usize) -> R<Term> {
+        let depth = self.deeper(node, depth)?;
+        let inner = Self::inner(node);
+        match rule_name(inner) {
+            "guarded-term" => {
+                let depth = self.deeper(inner, depth)?;
+                let cond = self.any_of(self.one(inner, "any-of"), depth)?;
+                let then = self.term(self.one(inner, "term"), depth)?;
+                Ok(Term::If(Box::new(cond), Box::new(then)))
+            }
+            _ => self.checked_value(inner, depth),
+        }
+    }
+
+    fn union(&self, node: &'a Node, depth: usize) -> R<Term> {
         let depth = self.deeper(node, depth)?;
         let mut parts = Vec::new();
         for intersection in Self::rules(node, "intersection") {
@@ -504,7 +519,11 @@ impl<'a> Reader<'a> {
         };
         let token = || Self::tokens_of(inner).next().expect("a token");
         Ok(match rule_name(inner) {
-            "term" => self.term(inner, depth)?,
+            // A span may stand in parentheses where a span is due.
+            "term" => match rule_name(Self::inner(inner)) {
+                "guarded-term" => self.term(inner, depth)?,
+                _ => self.union(Self::inner(inner), depth)?,
+            },
             "string" => Term::Literal(self.decode(token())?),
             "phoneme" => Term::Literal(self.text(token()).to_string()),
             "weak" => {
@@ -538,7 +557,7 @@ impl<'a> Reader<'a> {
                 if self.rule_argument(args[0]).is_some() {
                     return Err(wrong());
                 }
-                let term = self.value(self.one(args[0], "term"), depth)?;
+                let term = self.checked_value(self.one(args[0], "union"), depth)?;
                 let string = match &term {
                     Term::Literal(_) => true,
                     Term::Call(name, _) => matches!(name.as_str(), "phonemes" | "text" | "lowercase"),
@@ -571,5 +590,32 @@ fn is_span(term: &Term) -> bool {
         Term::Capture(_) => true,
         Term::Call(name, _) => matches!(name.as_str(), "head" | "tail" | "last"),
         _ => false,
+    }
+}
+
+/// Whether a tag term, or a condition inside one, reads the tags of `$`,
+/// the constituent whose tags it defines: `$` as a value, `tags($)` or
+/// `classes($)` (§9). A span argument such as `phonemes($)` reads tokens,
+/// and `tags($, R)` parses them again.
+pub(crate) fn reads_own_tags(term: &Term) -> bool {
+    match term {
+        Term::Capture(name) => name.is_empty(),
+        Term::Call(name, args) => {
+            matches!(name.as_str(), "tags" | "classes")
+                && matches!(&args[..], [Arg::Term(Term::Capture(name))] if name.is_empty())
+        }
+        Term::Union(items) | Term::Intersection(items) => items.iter().any(reads_own_tags),
+        Term::If(cond, then) => cond_reads_own_tags(cond) || reads_own_tags(then),
+        Term::Literal(_) | Term::Weak(_) | Term::EmptySet => false,
+    }
+}
+
+fn cond_reads_own_tags(cond: &Cond) -> bool {
+    match cond {
+        Cond::Compare(_, left, right) => reads_own_tags(left) || reads_own_tags(right),
+        Cond::Not(inner) => cond_reads_own_tags(inner),
+        Cond::Any(items) | Cond::All(items) => items.iter().any(cond_reads_own_tags),
+        Cond::If(antecedent, consequent) => cond_reads_own_tags(antecedent) || cond_reads_own_tags(consequent),
+        Cond::Matches(..) | Cond::Captured(_) => false,
     }
 }

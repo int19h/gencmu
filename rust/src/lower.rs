@@ -6,6 +6,7 @@ use std::collections::BTreeSet;
 use crate::fxhash::FxMap;
 use std::sync::Arc;
 
+use crate::clauses::{simplify_cond, simplify_value, Simple};
 use crate::dom::{Arg, Cond, EmitItem, Expr, Term};
 use crate::grammar::{is_terminal_name, StageGrammar, StitchedAlternative};
 
@@ -39,6 +40,8 @@ pub(crate) enum LTerm {
     TagsRule(Span, u32),
     Classes(Span),
     Words(Span),
+    /// `A ⟹ t`: `t` where the condition holds, else the empty set.
+    If(Box<LCond>, Box<LTerm>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -57,34 +60,41 @@ pub(crate) enum LCond {
     Not(Box<LCond>),
     Any(Vec<LCond>),
     All(Vec<LCond>),
+    /// `A ⟹ B`: `B` is evaluated only where `A` holds (§10).
+    If(Box<LCond>, Box<LCond>),
 }
 
 #[derive(Debug, Clone)]
 pub(crate) enum LEmitItem {
+    /// A capture, emitted over its part with the item's tags or the part's.
     Cap(u8, Option<LTerm>),
-    /// A capture named with `<>`: neither emitted nor walked (§11).
-    Erase(u8),
-    Insert(String),
+    /// A capture named with `<>`: neither emitted nor heard (§11).
+    Silent(u8),
+    /// An inserted tag, anchored at the start of the part of the capture
+    /// listed next after it, or at the constituent's end if none is.
+    Insert(String, Option<u8>),
 }
 
 #[derive(Debug, Clone)]
 pub(crate) enum LEmit {
+    /// No emission: the constituent is walked.
     None,
-    /// `⇒ $ <>`: the constituent is erased.
-    Erased,
-    /// `⇒ $`, once per item, with the item's tag term if it has one.
+    /// `%emits $ <>`: the constituent is silent.
+    Silent,
+    /// `%emits $`, once per item, with the item's tag term if it has one.
     This(Vec<Option<LTerm>>),
+    /// Exactly these items, in the order listed.
     Items(Vec<LEmitItem>),
 }
 
 impl LEmit {
     /// Whether the child at `position` of a constituent of `production` is
-    /// erased by its emission (§5, §11).
-    pub(crate) fn erases(&self, production: &Prod, position: usize) -> bool {
+    /// silent, by its parent's emission (§5, §11).
+    pub(crate) fn silences(&self, production: &Prod, position: usize) -> bool {
         match self {
-            LEmit::Erased => true,
+            LEmit::Silent => true,
             LEmit::Items(items) => production.cap_at[position].is_some_and(|slot| {
-                items.iter().any(|item| matches!(item, LEmitItem::Erase(erased) if *erased == slot))
+                items.iter().any(|item| matches!(item, LEmitItem::Silent(silent) if *silent == slot))
             }),
             LEmit::None | LEmit::This(_) => false,
         }
@@ -108,7 +118,7 @@ pub(crate) struct Prod {
     /// Conditions, each with the dot at which it is evaluated.
     pub conds: Vec<(LCond, u16)>,
     pub visible: bool,
-    /// `r ≔ r x`, the step of a trailing repetition (§3.3).
+    /// `r → r x`, the step of a trailing repetition (§3.3).
     pub trailing_step: bool,
     pub document: Option<Arc<str>>,
     pub at: (usize, usize),
@@ -355,6 +365,7 @@ impl<'a> Scope<'a> {
             Term::Intersection(items) => LTerm::Inter(list(self, items)?),
             // A bare capture where a value is needed is its tags (§10).
             Term::Capture(_) => LTerm::Tags(self.span(term)?),
+            Term::If(cond, then) => LTerm::If(Box::new(self.cond(cond)?), Box::new(self.term(then)?)),
             Term::Call(name, args) => match (name.as_str(), &args[..]) {
                 ("phonemes", [Arg::Term(span)]) => LTerm::Phonemes(self.span(span)?),
                 ("text", [Arg::Term(span)]) => LTerm::Text(self.span(span)?),
@@ -385,6 +396,11 @@ impl<'a> Scope<'a> {
             Cond::Not(inner) => LCond::Not(Box::new(self.cond(inner)?)),
             Cond::Any(items) => LCond::Any(items.iter().map(|item| self.cond(item)).collect::<Result<Vec<_>, _>>()?),
             Cond::All(items) => LCond::All(items.iter().map(|item| self.cond(item)).collect::<Result<Vec<_>, _>>()?),
+            Cond::If(antecedent, consequent) => {
+                LCond::If(Box::new(self.cond(antecedent)?), Box::new(self.cond(consequent)?))
+            }
+            // Simplification has decided every presence test (§3.6).
+            Cond::Captured(_) => return Err(Missing),
         })
     }
 }
@@ -408,9 +424,21 @@ fn ends_in_repeat(expr: &Expr) -> Option<(Vec<Expr>, &Expr, u8)> {
     }
 }
 
+/// An error of the grammar found when it is lowered for a set of features
+/// (§3.3): the message, and the rule it is in.
+#[derive(Debug, Clone)]
+pub(crate) struct LowerError {
+    pub message: String,
+    pub rule: u32,
+}
+
 /// Lowers a stage grammar for a set of features; `mandatory` makes every
 /// optional that begins with an elidable terminator mandatory (§3.8).
-pub(crate) fn lower(grammar: &StageGrammar, features: &BTreeSet<String>, mandatory: bool) -> Lowered {
+pub(crate) fn lower(
+    grammar: &StageGrammar,
+    features: &BTreeSet<String>,
+    mandatory: bool,
+) -> Result<Lowered, LowerError> {
     let mut lowerer = Lowerer {
         grammar,
         mandatory,
@@ -440,6 +468,23 @@ pub(crate) fn lower(grammar: &StageGrammar, features: &BTreeSet<String>, mandato
             })
             .collect();
         let trailing = if live.len() == 1 { ends_in_repeat(&live[0].alternative.expr) } else { None };
+        // A trailing repetition's recursive productions could not have its
+        // captures, whose parts lie inside the inner constituent (§3.3).
+        if trailing.is_some() {
+            let top: &[Expr] = match &live[0].alternative.expr {
+                Expr::Seq(items) => items,
+                other => std::slice::from_ref(other),
+            };
+            if top.iter().any(|item| matches!(item, Expr::Capture(..))) {
+                return Err(LowerError {
+                    message: format!(
+                        "an alternative of {} captures a part, and is lowered as a trailing repetition",
+                        rule.name
+                    ),
+                    rule: index as u32,
+                });
+            }
+        }
         for (number, alternative) in live.iter().enumerate() {
             lowerer.places = vec![Vec::new()];
             let own = |sequence, trailing_step| {
@@ -505,9 +550,7 @@ pub(crate) fn lower(grammar: &StageGrammar, features: &BTreeSet<String>, mandato
 
     let terminals = std::mem::take(&mut lowerer.terminals);
     let mut prods = Vec::with_capacity(order.len());
-    for pending in order {
-        let number = prods.len() as u32;
-        rules[pending.rule as usize].prods.push(number);
+    'productions: for pending in order {
         let syms: Vec<Sym> = pending.sequence.iter().map(|(sym, _)| *sym).collect();
         let mut cap_at = vec![None; syms.len()];
         let mut cap_pos = Vec::new();
@@ -541,46 +584,97 @@ pub(crate) fn lower(grammar: &StageGrammar, features: &BTreeSet<String>, mandato
             production.at = alternative.at;
             let cap_pos = production.cap_pos.clone();
             let mut scope = Scope { names: &names, cap_pos: &cap_pos, rules: &grammar.index, last: None, whole: false };
-            if let Some(term) = alternative.alternative.tags.as_ref().or(alternative.rule_tags.as_ref()) {
-                production.tags = scope.term(term).ok();
-            }
+            // Every clause is simplified for this production first (§3.6).
+            let has = |name: &str| name.is_empty() || names.contains_key(name);
+            // The union of the alternative's own tags and its definition's
+            // (§3.7); with neither written, the default below.
+            let written: Vec<Term> = [alternative.alternative.tags.as_ref(), alternative.rule_tags.as_ref()]
+                .into_iter()
+                .flatten()
+                .map(|term| simplify_value(term, &has))
+                .collect();
+            let tags = match written.len() {
+                0 => None,
+                1 => written.into_iter().next(),
+                _ => Some(Term::Union(written)),
+            };
+            // The reader has made sure a tag term uses only captures its
+            // alternative has, and so every production of it has (§3.3).
+            production.tags = tags
+                .map(|term| scope.term(&term).unwrap_or_else(|_| unreachable!("a tag term uses a missing capture")));
             for cond in &alternative.conditions {
+                let simple = match simplify_cond(cond, &has) {
+                    Simple::True => continue,
+                    // A condition false for this production removes it.
+                    Simple::False => continue 'productions,
+                    Simple::Cond(simple) => simple,
+                };
                 scope.last = None;
                 scope.whole = false;
-                if let Ok(lowered) = scope.cond(cond) {
-                    // One that mentions `$` waits for the item to be
-                    // complete (§4).
+                if let Ok(lowered) = scope.cond(&simple) {
+                    // One that uses `$` waits for the item to be complete
+                    // (§4).
                     let trigger =
                         if scope.whole { production.syms.len() as u16 } else { scope.last.map_or(0, |last| last + 1) };
                     production.conds.push((lowered, trigger));
                 }
             }
-            let whole =
-                |item: &EmitItem| matches!(item, EmitItem::Capture(name, _) | EmitItem::Erase(name) if name.is_empty());
             production.emit = match &alternative.emit {
                 None => LEmit::None,
-                Some(items) if matches!(&items[..], [EmitItem::Erase(name)] if name.is_empty()) => LEmit::Erased,
-                Some(items) if !items.is_empty() && items.iter().all(whole) => LEmit::This(
-                    items
+                Some(items) => {
+                    // An item naming a capture the production lacks is
+                    // dropped (§3.6).
+                    let items: Vec<&EmitItem> = items
                         .iter()
-                        .map(|item| match item {
-                            EmitItem::Capture(_, Some(term)) => scope.term(term).ok(),
-                            _ => None,
+                        .filter(|item| match item {
+                            EmitItem::Capture(name, _) | EmitItem::Silent(name) => has(name),
+                            EmitItem::Insert(_) => true,
                         })
-                        .collect(),
-                ),
-                Some(items) => LEmit::Items(
-                    items
-                        .iter()
-                        .filter_map(|item| match item {
-                            EmitItem::Capture(name, tags) => names.get(name).map(|&slot| {
-                                LEmitItem::Cap(slot, tags.as_ref().and_then(|term| scope.term(term).ok()))
-                            }),
-                            EmitItem::Erase(name) => names.get(name).map(|&slot| LEmitItem::Erase(slot)),
-                            EmitItem::Insert(tag) => Some(LEmitItem::Insert(tag.clone())),
-                        })
-                        .collect(),
-                ),
+                        .collect();
+                    let mut item_tags = |term: &Option<Term>| {
+                        term.as_ref().and_then(|term| scope.term(&simplify_value(term, &has)).ok())
+                    };
+                    let whole = |item: &&EmitItem| match item {
+                        EmitItem::Capture(name, _) | EmitItem::Silent(name) => name.is_empty(),
+                        EmitItem::Insert(_) => false,
+                    };
+                    if matches!(&items[..], [EmitItem::Silent(name)] if name.is_empty()) {
+                        LEmit::Silent
+                    } else if !items.is_empty() && items.iter().all(whole) {
+                        LEmit::This(
+                            items
+                                .iter()
+                                .map(|item| match item {
+                                    EmitItem::Capture(_, tags) => item_tags(tags),
+                                    _ => None,
+                                })
+                                .collect(),
+                        )
+                    } else {
+                        let slot = |name: &str| names.get(name).copied();
+                        let mut lowered = Vec::with_capacity(items.len());
+                        for (index, item) in items.iter().enumerate() {
+                            lowered.push(match item {
+                                EmitItem::Capture(name, tags) => {
+                                    LEmitItem::Cap(slot(name).expect("a capture the production has"), item_tags(tags))
+                                }
+                                EmitItem::Silent(name) => {
+                                    LEmitItem::Silent(slot(name).expect("a capture the production has"))
+                                }
+                                EmitItem::Insert(tag) => {
+                                    // The anchor is the capture listed next
+                                    // after the tag, silent or not (§11).
+                                    let anchor = items[index + 1..].iter().find_map(|item| match item {
+                                        EmitItem::Capture(name, _) | EmitItem::Silent(name) => slot(name),
+                                        EmitItem::Insert(_) => None,
+                                    });
+                                    LEmitItem::Insert(tag.clone(), anchor)
+                                }
+                            });
+                        }
+                        LEmit::Items(lowered)
+                    }
+                }
             };
         }
         // A production with one symbol and no tags has its symbol's tags:
@@ -589,11 +683,13 @@ pub(crate) fn lower(grammar: &StageGrammar, features: &BTreeSet<String>, mandato
             production.cap_at[0] = Some(production.cap_pos.len() as u8);
             production.cap_pos.push(0);
         }
+        let number = prods.len() as u32;
+        rules[pending.rule as usize].prods.push(number);
         prods.push(production);
     }
 
     let cyclic = cyclic_rules(&rules, &prods);
-    Lowered { start: grammar.index["text"] as u32, rules, prods, terminals, cyclic }
+    Ok(Lowered { start: grammar.index["text"] as u32, rules, prods, terminals, cyclic })
 }
 
 /// The nonterminals that lie on a cycle of the unit graph.

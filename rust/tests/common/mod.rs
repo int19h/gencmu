@@ -246,10 +246,10 @@ pub fn case_documents(case: &Value) -> (BTreeMap<String, String>, String) {
     if let Some(grammar) = case.get("grammar").and_then(Value::str) {
         let mut text = String::new();
         if !grammar.contains("%ambiguity-resolution") {
-            text.push_str("%ambiguity-resolution greedy ;\n");
+            text.push_str("%ambiguity-resolution greedy\n");
         }
         text.push_str(grammar);
-        documents.insert("main.md".to_string(), format!("```ebnf\n{text}\n```\n"));
+        documents.insert("main.md".to_string(), format!("```jbogenbau\n{text}\n```\n"));
         documents
             .insert("pipeline.md".to_string(), "## main <?stage main?>\n\n- [main](main.md) <?grammar?>\n".to_string());
         return (documents, "pipeline.md".to_string());
@@ -340,8 +340,6 @@ pub fn run_engine_case(case: &Value) -> Result<(), String> {
         if let Err(problem) = matches(pattern, &actual, "result") {
             let _ = writeln!(problems, "{problem}");
         }
-    } else if expect.get("error").and_then(Value::str) == Some("grammar") {
-        let _ = writeln!(problems, "the dialect loaded, but a load error was expected");
     }
     if let Some(expected) = expect.get("brackets").and_then(Value::str) {
         let found = gencmu::to_brackets(&result, false);
@@ -349,13 +347,18 @@ pub fn run_engine_case(case: &Value) -> Result<(), String> {
             let _ = writeln!(problems, "brackets are {found:?}, not {expected:?}");
         }
     }
-    if let Some(kind) = expect.get("error").and_then(Value::str) {
-        if expect.get("result").is_some() {
-            let found = result.error.as_ref().map(|error| error_kind(error.kind));
-            if found != Some(kind) {
-                let _ = writeln!(problems, "the error is {found:?}, not {kind:?}");
-            }
+    // The error kind of the result, which for a grammar error found
+    // while parsing, such as at lowering (engine §3.3), is the whole of
+    // what the case expects.
+    let found = result.error.as_ref().map(|error| error_kind(error.kind));
+    match expect.get("error").and_then(Value::str) {
+        Some(kind) if found != Some(kind) => {
+            let _ = writeln!(problems, "the error is {found:?}, not {kind:?}");
         }
+        None if found.is_some() => {
+            let _ = writeln!(problems, "an unexpected error {found:?}");
+        }
+        _ => {}
     }
     if problems.is_empty() {
         Ok(())
