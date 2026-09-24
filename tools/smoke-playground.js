@@ -84,11 +84,13 @@ async function main() {
   const base = `http://127.0.0.1:${port}`;
   try {
     for (let attempt = 0; ; attempt++) {
+      let reason = "not ready";
       try {
         if ((await request(base, "GET", "/status")).ready) break;
       } catch (error) {
-        if (attempt > 100) throw new Error(`${driver.file} did not start: ${error.message}`);
+        reason = error.message;
       }
+      if (attempt >= 100) throw new Error(`${driver.file} did not become ready: ${reason}`);
       await sleep(100);
     }
     const session = await request(base, "POST", "/session", {
