@@ -158,6 +158,8 @@
  * @property {ResultNode | null} tree the last stage's tree
  * @property {ParseError | null} error
  * @property {string} text
+ * @property {string[]} features the features the parse ran with, those auto
+ *   features added included; not part of the canonical JSON
  */
 
 /**

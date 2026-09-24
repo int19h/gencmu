@@ -17,6 +17,21 @@ console.log(result.ok, toBrackets(result));
 `loaderFromSources`; `gencmu/node` adds `loaderFromDirectory`, whose default
 is the grammars shipped with the package.
 
+## The command line
+
+`node cli.js` (or `npx gencmu` once published) parses texts, audits
+grammars and runs test files; `node cli.js help` lists the commands. A parse
+prints its result on standard output and explains any tie or error on
+standard error: a rejection shows the line with a caret under the word the
+stage could not read and what could have come there, by rule; a tie shows
+where the two readings first differ and both trees side by side; `--trace
+STAGE:POSITION` shows the items a stage predicted, completed and dropped at
+one position, with the condition that dropped each.
+
+The same explanations are functions of the library, for tools of your own:
+`explainError`, `explainTies`, `tokenTable`, `audit` with `formatAudit`, and
+`trace` with `formatTrace`.
+
 ## Types
 
 The sources are plain JavaScript with JSDoc type annotations. TypeScript

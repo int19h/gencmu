@@ -195,6 +195,7 @@ export class Dialect {
       tree: error ? null : final.tree,
       error: error ? locate(/** @type {ParseError} */ (error.error), text) : null,
       text,
+      features: [...options.features].sort(),
     };
     return result;
   }
