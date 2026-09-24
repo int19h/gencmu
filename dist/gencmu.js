@@ -2111,11 +2111,18 @@
       }
       const ranker = new Ranker(tokens, lowered.resolution.lean);
       const ranking = ranker.rank(roots);
-      report.verdict = ranking.verdict;
-      report.witness = ranking.witness;
+      if (ranking.verdict === "tie") {
+        // A tie always has a second derivation, and so a witness.
+        Object.assign(report, {
+          verdict: "tie",
+          witness: /** @type {import("./types.js").Witness} */ (ranking.witness),
+          tied: resultTree(derivationTree(/** @type {import("./types.js").Rope} */ (ranking.second)), context)[0],
+        });
+      } else {
+        Object.assign(report, { verdict: ranking.verdict, witness: null });
+      }
       const derivation = derivationTree(ranking.chosen);
       report.tree = resultTree(derivation, context)[0];
-      if (ranking.second) report.tied = resultTree(derivationTree(ranking.second), context)[0];
       report.derivation = derivation;
       report.context = context;
       try {
@@ -3749,14 +3756,29 @@
    */
 
   /**
-   * What one stage did.
-   * @typedef {object} StageReport
+   * What one stage did. A stage whose verdict is `tie` has a witness and a
+   * tied tree; any other has neither.
+   * @typedef {TiedStageReport | SettledStageReport} StageReport
+   */
+
+  /**
+   * @typedef {StageReportBase & {verdict: "tie", witness: Witness, tied: ResultNode}} TiedStageReport
+   */
+
+  /**
+   * @typedef {StageReportBase & {verdict: "unique" | "resolved" | null, witness: null, tied?: undefined}} SettledStageReport
+   */
+
+  /**
+   * Where the chosen and the tied derivation first differ: their actions
+   * there, null on the side of one that ended.
+   * @typedef {[Action | null, Action | null]} Witness
+   */
+
+  /**
+   * What every stage report has.
+   * @typedef {object} StageReportBase
    * @property {string} name
-   * @property {Verdict | null} verdict
-   * @property {[Action | null, Action | null] | null} witness where the chosen
-   *   and the tied derivation first differ, for a tie
-   * @property {ResultNode} [tied] the tied derivation diverging from the chosen
-   *   one earliest
    * @property {Token[] | null} output the tokens handed to the next stage
    * @property {ResultNode | null} tree
    * @property {ParseError | null} error

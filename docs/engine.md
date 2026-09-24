@@ -234,15 +234,27 @@ two closes by production number, then span start, then span end. Breaking
 every tie of rules 1 to 3 this way makes a total order *T* on derivations;
 the chosen derivation, `m`, is *T*'s least element, whatever the verdict.
 
-A derivation other than `m` is undominated exactly when its first
-difference with `m` is a tie, so the verdict is `tie` when such a
-derivation exists. Of those, the **tied** derivation reported beside `m` is
-the one that diverges from `m` earliest: the fewest visible actions before
-its first visible difference with `m`, a derivation that differs from `m`
-only in transparent actions counting as diverging last, and several that
-diverge at the same point ordered by *T*. It shows the first point at which
-the text could be read another way. The **witness** is the pair of actions
-at the first difference between `m` and it, visible if there is one.
+Nothing beats `m`, since whatever beats a derivation precedes it in *T*.
+So an undominated derivation other than `m` is **tied with `m`**: its first
+difference with `m` is a tie. The converse does not hold. In `text ≔ A X |
+B X | B Y ;`, over a token tagged `A` and `B` and one tagged `Y` and weakly
+`X`, `m` is `A X`, and `B X` is tied with it but loses to `B Y`.
+
+Of the derivations tied with `m`, the **tied** derivation reported beside
+`m` is the one that diverges from `m` earliest: the fewest visible actions
+before its first visible difference with `m`, a derivation that differs
+from `m` only in transparent actions counting as diverging last, and
+several that diverge at the same point ordered by *T*. That derivation, `t`,
+is undominated. A derivation that beat `t` before `t` diverges from `m`
+would beat `m`, which nothing does. One that beat `t` later would share
+`t`'s divergence from `m`. One that beat `t` just where `t` diverges would
+beat `m` there too, or be tied with `m` there, since an action that beats
+one tied with `m`'s cannot lose to `m`'s. Either way it would be tied with
+`m`, diverge no later than `t`, and precede `t` in *T*. So the verdict is `tie` exactly when some derivation
+is tied with `m`. In the example, `t` is `B Y`. It shows the first point
+at which the text could be read another way. The **witness** is the pair
+of actions at the first difference between `m` and `t`, visible if there is
+one.
 
 **Computing it.** Both `m` and the earliest-diverging tied derivation
 compose over the packed forest: an implementation keeps, for each item, its

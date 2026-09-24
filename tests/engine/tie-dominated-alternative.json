@@ -1,0 +1,56 @@
+{
+  "description": "A derivation tied with the chosen one can still be dominated: B X ties with A X at the first read but loses to B Y, so B Y is the tied derivation reported (engine §6).",
+  "grammar": "%ambiguity-resolution greedy ;\ntext ≔ A X | B X | B Y ;",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "A",
+        "B"
+      ]
+    },
+    {
+      "text": "y",
+      "tags": [
+        "?X",
+        "Y"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "tie",
+          "tied": {
+            "rule": "text",
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "B"
+              },
+              {
+                "kind": "token",
+                "terminal": "Y"
+              }
+            ]
+          }
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A"
+          },
+          {
+            "kind": "token",
+            "terminal": "X"
+          }
+        ]
+      }
+    }
+  }
+}

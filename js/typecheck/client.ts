@@ -8,6 +8,16 @@ const dialect = loader.dialect("dialects/notation.md");
 const result: ParseResult = dialect.parse("text ≔ A ;", { features: ["sa-su"], until: "syntax" });
 
 const verdicts: (Verdict | null)[] = result.stages.map((stage) => stage.verdict);
+for (const stage of result.stages) {
+  if (stage.verdict === "tie") {
+    // A tie has its tied tree and witness without a check.
+    rules(stage.tied);
+    void stage.witness[0];
+  } else {
+    // @ts-expect-error only a tie has a tied tree
+    rules(stage.tied);
+  }
+}
 const brackets: string = toBrackets(result, { showElided: true });
 const json = resultJson(result);
 const format: number = json.format;

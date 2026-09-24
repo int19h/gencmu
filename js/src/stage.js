@@ -72,11 +72,18 @@ export class Stage {
     }
     const ranker = new Ranker(tokens, lowered.resolution.lean);
     const ranking = ranker.rank(roots);
-    report.verdict = ranking.verdict;
-    report.witness = ranking.witness;
+    if (ranking.verdict === "tie") {
+      // A tie always has a second derivation, and so a witness.
+      Object.assign(report, {
+        verdict: "tie",
+        witness: /** @type {import("./types.js").Witness} */ (ranking.witness),
+        tied: resultTree(derivationTree(/** @type {import("./types.js").Rope} */ (ranking.second)), context)[0],
+      });
+    } else {
+      Object.assign(report, { verdict: ranking.verdict, witness: null });
+    }
     const derivation = derivationTree(ranking.chosen);
     report.tree = resultTree(derivation, context)[0];
-    if (ranking.second) report.tied = resultTree(derivationTree(ranking.second), context)[0];
     report.derivation = derivation;
     report.context = context;
     try {
