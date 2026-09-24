@@ -7,7 +7,9 @@ Status: proposal, for review before any code is written.
 A standalone Lojban parser whose grammar is data. Every layer of the language,
 from characters to phonemes, phonemes to words, words to a parse tree, is a
 literate grammar document in one notation, loaded at runtime. A dialect is a
-pipeline document that lists which grammar documents make up each stage. The
+pipeline document, itself literate Markdown, that lists the stages and the
+grammar documents stitched into each, and explains what each stage receives
+and hands on. The
 people this is for want to read a grammar, change it, and see at once what the
 change does to a text, so the notation, the diagnostics and the interactive
 tools matter as much as the parser.
@@ -36,7 +38,8 @@ grammars/                  the grammar documents, the single source of truth
   words/                   phonemes to words: stream, shapes, families, lexicons
   indicators/              the non-formal indicator and ba'e rule
   syntax/                  the syntax grammars
-  dialects/                pipeline documents: cll, bpfk, experimental, zantufa
+  notation/                the grammar of the notation itself, and its bootstrap
+  dialects/                pipeline documents: cll, bpfk, experimental, zantufa, notation
 docs/
   notation.md              the grammar notation, for grammar authors
   engine.md                the engine specification, for implementers
@@ -72,13 +75,11 @@ The four libraries implement one specification, `docs/engine.md`, written
 first and precisely enough that two implementations cannot legitimately
 differ. It covers:
 
-1. **Reading documents.** Fenced `ebnf` blocks of a Markdown document; the
-   notation of `notation.md` (sequence, `[ ]`, `...`, `&`, `/ /`, `#`, `ε`,
-   `@feature` guards, captures `$x( )`, tags `< >`, phoneme tags `/a/`, `⇒`
-   emission, `:` conditions with `,` and `∨`, the `prefer` declaration);
-   stitching several documents into one grammar, where `≔` defines a rule,
-   replacing any earlier definition, and `|≔` adds alternatives to an
-   earlier one. Errors carry file, line and column.
+1. **Reading documents.** The fenced `ebnf` blocks of a Markdown document,
+   read by the notation's own grammar (see "The notation" below) into a
+   grammar DOM; pipeline documents, read as described under "Pipelines";
+   stitching several documents into one grammar. Errors carry file, line
+   and column.
 2. **Lowering** to a context-free grammar with named helper rules for the
    sugar, which diagnostics hide.
 3. **Recognition.** An Earley parser whose items record, for each captured
@@ -88,9 +89,9 @@ differ. It covers:
    parse that started them; a nested parse asked about its own span is a
    grammar error.
 4. **Choosing a parse.** The first-difference order over bottom-up action
-   sequences, with the grammar's `read-on` or `close-early` preference and
-   strong-over-weak tags; the verdicts unique, resolved, tie; the tie
-   witness.
+   sequences, with strong-over-weak tags and the grammar's declared
+   `%ambiguity-resolution`; the verdicts unique, resolved, tie; the tie
+   witness; the `elision-only` check (see "Ambiguity" below).
 5. **Emission** of the next stage's tokens, each with its text, its phonemes
    and its source range.
 6. **The pipeline**: stages in order, stopping at the first rejection.
@@ -136,6 +137,197 @@ that emission: it records the rule whose clause inserted it. Following
 `span` from stage to stage, or `inserted-by` where a token has no span,
 explains any token down to the characters or to the rule that made it.
 
+## The notation
+
+The notation keeps the look of CLL's EBNF and changes what the prototype
+showed to be fragile or ambiguous. `docs/notation.md` explains it for grammar
+authors; this is the summary.
+
+**Documents.** A grammar document is Markdown. Its fenced `ebnf` blocks, in
+order, are the grammar; the prose between them explains it. Only the fences
+are found by lines, as Markdown requires; inside a block, line breaks mean
+nothing.
+
+**Rules.** A rule is a name, an optional tag term, `≔` or `|≔`, a body, its
+clauses, and `;`:
+
+```
+term-not-starting-with-bare-gek ≔
+| term-3-not-starting-with-bare-gek [term-connective term-3] ...
+| tagged-term (joik # | ek #) BO # tagged-term
+| @term-hierarchy term-3-not-starting-with-bare-gek (joik # | ek #) BO # term-3
+;
+
+cmavo-shape <"word"> ≔ plain-cmavo-body | cmavo-nuclei word-end ;
+```
+
+The `;` is required, so a rule's end never depends on layout, and a missing
+one is an error at a known place. Every binary operator may also stand
+first, as a no-op, so that a list can put one item on each line: `|` and `&`
+in bodies, `∪` and `∩` in tag terms, `,`, `∧` and `∨` in conditions. Tags
+written on the rule's name apply to every alternative that has none of its
+own; tags after an alternative apply to it. Nothing is recognized by its
+position on a line.
+
+**Stitching.** A stage is several documents read in order. `≔` defines a
+rule and, if an earlier document defined it, replaces it: the earlier
+alternatives are gone. `|≔` adds alternatives to a rule an earlier document
+defined, and is an error if none did, so a misspelt name cannot quietly
+start a new rule. Defining a rule twice in one document is an error. The
+loader reports every replacement, which document replaced which, so a
+dialect's effect on its base can be read off in one place and an accidental
+override is visible. Removing a single alternative is not supported: a rule
+is small enough to restate, and restating it reads better than a list of
+deletions.
+
+This is what the dialects need. A script document adds its letters to the
+phoneme grammar's rules with `|≔`; a word family adds the syllables its
+morphology allows. The Zantufa syntax is the experimental syntax with 13 new
+rules, 9 extended and 17 replaced, where a Zantufa form generalizes an older
+one over the same text and the two must not both be live; the replacement
+restates the rule with both forms under complementary feature guards. The
+Zantufa dialect becomes the experimental documents plus one Zantufa document
+of those changes, instead of a generated copy.
+
+**Terminals.** A name in upper case is a terminal that matches a token
+carrying that tag. A string in straight quotes, `"а"`, `"word"`, is a
+terminal whose tag the name syntax cannot spell. A phoneme between slashes,
+`/a/`, `/'/`, `/ /` for a pause, is a phoneme tag: it matches like any tag,
+and it also says what a token carrying it sounds like, which is what
+`phonemes()` reads. Slashes mean nothing else.
+
+**Operators** are those of CLL: juxtaposition is sequence; `[x]` optional;
+`x ...` one or more, `[x] ...` zero or more, left-recursive; `A & B` and/or
+in order; `( )` grouping; `ε` empty; `@f` and `@!f` feature guards on an
+alternative; `$x(symbol)` a capture. `#` is not built in: it is shorthand
+that the grammar declares, `%free-modifiers free ;`, meaning `[free ...]`,
+and a grammar without the declaration has no `#`. CLL's `/KU/` for an
+elidable terminator is written `[KU]`, and `/KU#/` is `[KU #]`; which
+terminators are elidable is declared once (see below).
+
+**Clauses.** `⇒` says what the rule hands to the next stage; `:` lists
+conditions over captures, joined by `,` or `∧`, each item possibly several
+conditions joined by `∨`. A weak tag is `?"KOhA"`.
+
+**Directives** start with `%`, end with `;`, and may stand in any block:
+
+- `%ambiguity-resolution greedy ;`, `lazy`, optionally followed by
+  `elision-only`: how the stage chooses among parses (see "Ambiguity").
+  Every stage must have exactly one, in any of its documents; a stage with
+  none or two is a load error that names the stage.
+- `%elidable KU KEI VAU ... ;`: the terminators that may be elided. An absent
+  optional whose first symbol is one of them appears in the tree as that
+  terminator, elided at that point, and `elision-only` restores them.
+- `%free-modifiers free ;`: what `#` stands for.
+
+By convention a directive stands in a block of its own, after prose that
+says why the grammar needs it; the reader does not enforce the convention.
+
+**Self-hosting.** The notation is itself a dialect of two stages: a lexical
+grammar from characters to notation tokens, and a syntax grammar from those
+tokens to a document tree, both in `grammars/notation/`, both written in the
+notation. `docs/notation.md` explains the notation; these documents define
+it. The chicken-and-egg problem is solved once: the notation grammar's DOM
+is checked in as `grammars/notation/bootstrap.json`, every library loads it
+to read every grammar document, `notation/` included, and CI checks the
+fixpoint, that reading the notation documents with the bootstrap reproduces
+the bootstrap exactly. A change to the notation is made in its documents and
+the bootstrap is regenerated from them; the very first bootstrap is written
+by hand in JavaScript. Each library then writes by hand only the walk from a
+document tree to its grammar objects, specified in `docs/engine.md` rule by
+rule.
+
+Grammar authors get the same diagnostics for a malformed grammar as for a
+malformed Lojban text, and the playground can show how a grammar document
+parses. The cost is load time: the bundled grammars are about 200 KB, which a
+character-level stage reads quickly in Rust and JavaScript but slowly in pure
+Python. So every package ships, beside its grammar copy, the DOM of each
+bundled document as JSON, keyed by a hash of the document's text; a library
+reads a document through the notation grammar only when no DOM matches its
+hash, which happens only for a grammar someone has written or edited. The
+playground caches edited documents' DOMs the same way. CI checks that the
+shipped DOMs match a fresh reading.
+
+## Pipelines
+
+A pipeline document is Markdown too, and literate: each stage is a heading,
+followed by the list of documents stitched into it and by prose saying what
+the stage receives from the one before, what it does, and what it hands on.
+The machine-readable parts are processing instructions at the end of a line,
+which GitHub's renderer drops, so the document reads as plain hyperlinked
+prose there:
+
+```
+# The CLL dialect
+
+... what the dialect is ...
+
+## Stage 1: phonemes <?stage phonemes?>
+
+- [Latin orthography](../phonemes/latin.md) <?grammar?>
+  ... what this document contributes ...
+- [Cyrillic orthography](../phonemes/cyrillic.md) <?grammar?>
+
+... what the stage receives, does and hands on ...
+```
+
+`<?stage NAME?>` at the end of a heading line starts a stage; `NAME` is what
+the API, the CLI's `--until` and diagnostics call it, independent of the
+heading's wording. `<?grammar?>` at the end of a line makes the first
+`[...](...)` link on that line a document of the current stage; the line may
+end in trailing whitespace. Stages run in document order, documents stitch in
+list order, and since `≔` replaces, that order matters. A link without a
+marker is ordinary prose: a pipeline may link to CLL or to other dialects
+freely. Every stage's start rule is `text`. Link targets are relative to the
+pipeline document, and resolve the same way on disk, in memory and on GitHub.
+
+## Ambiguity
+
+A grammar admits every parse its rules allow. Where a text has more than one,
+each parse is read as the sequence of steps a bottom-up reader takes, reading
+the next token or closing a constituent, and at the first step where two
+differ:
+
+- if both read the same token under two tags, a strong tag beats a weak one;
+- if one reads and the other closes, `%ambiguity-resolution` decides:
+  `greedy` takes the one that reads, so a constituent ends as late as the
+  grammar allows; `lazy` takes the one that closes, so it ends as early as
+  the grammar allows;
+- if both close different constituents, the text is ambiguous for this
+  grammar and the result is a tie, with its witness.
+
+The preference is like greedy and lazy quantifiers in a backtracking regular
+expression engine, not like PEG's greed: it orders parses the grammar
+already admits and never commits, so it cannot reject a text; the earliest
+difference dominates; and it applies to every constituent of the stage, not
+to one quantifier. The syntax grammars are greedy, which is how an elided
+terminator is placed and what CLL's official YACC parser does; the word
+grammar is lazy, which is CLL's tosmabru rule, a word ending as early as it
+can.
+
+CLL's own rule is narrower. It says only that a terminator may be elided if
+no ambiguity results, and says nothing of the other ambiguities its EBNF
+has. `elision-only` applies that rule literally: after choosing a parse, the
+engine writes the chosen parse's elided terminators back into the input and
+parses again with no terminator elidable; if the input is still ambiguous,
+the ambiguity is not about terminators, and the parse is an error of kind
+`ambiguous`, with both readings. Choices settled by strong and weak tags are
+allowed, since a weak tag is exactly how a dialect marks a reading it admits
+second.
+
+Measured on the prototype's corpus, `elision-only` costs the CLL grammar
+nothing: every one of its 8,853 ambiguous texts becomes unambiguous with its
+terminators written out. The extended grammars are another matter: 63
+experimental and 74 Zantufa texts stay ambiguous, through a bare `na` term
+(`la olivian na klama` is both "Olivian doesn't go" and "Olivian, not-term,
+goes"), a name that is also a selbri under `cbm`, `bo` connection under
+`term-hierarchy`, and Zantufa's mekso. So the CLL syntax grammar declares
+`%ambiguity-resolution greedy elision-only ;` and the extended ones
+`greedy`, each with prose citing these reasons. A parse option overrides
+`elision-only` either way, to check an extension for overlaps or to loosen
+the CLL dialect; the lean itself cannot be overridden, since a lazy syntax
+or a greedy word grammar is a different language, not a variation.
+
 ## The result, and why it has no types
 
 The tree's shape is decided by the grammar, which is loaded at runtime, so no
@@ -149,8 +341,8 @@ ParseResult
   error         the first rejection, with source position and what was expected
 
 Node
-  kind          "rule" or "token"
-  rule          the rule the author wrote (for a token: the terminal it was read as)
+  kind          "rule", "token", or "elided" (a terminator elided at this point)
+  rule          the rule the author wrote (for a token or an elided terminator: the terminal)
   children      nodes, in text order
   span          token range in the stage's input
   source        code-point range in the original text
@@ -161,8 +353,10 @@ Node
 The tree is lossless with respect to the grammar the author wrote: every
 rule the parse went through is a node, including chains of single-child
 rules, so a program can tell `sumti-6` from `sumti`. Only the helper rules
-that lowering invents for `[ ]`, `...`, `/ /`, `&` and `#` are spliced out,
-since no author wrote them. Collapsing chains is a choice of the renderers,
+that lowering invents for `[ ]`, `...`, `&` and `#` are spliced out, since no
+author wrote them; an absent optional that begins with an `%elidable`
+terminator leaves an `elided` node with an empty span where the terminator
+would have been. Collapsing chains is a choice of the renderers,
 not of the tree. `text` and `phonemes` are not stored on nodes; the
 libraries compute them from the tokens, so that the two cannot disagree.
 
@@ -180,7 +374,7 @@ The same shape in every language, spelled idiomatically:
 dialect = load_dialect("cll")                 # a bundled dialect by name
 dialect = load_dialect_file("my/pipeline.md") # or a pipeline document on disk
 dialect = load_dialect_sources({path: text})  # or documents held in memory, for the browser
-result  = dialect.parse(text, features={"cbm"}, until="words")
+result  = dialect.parse(text, features={"cbm"}, until="words", elision_only=None)
 result.ok; result.tree; result.error.describe()
 to_json(result); to_brackets(result)
 ```
@@ -192,6 +386,9 @@ memory. In-memory sources are a map from path to text; paths are
 paths are resolved against the pipeline's own path with `.` and `..`
 normalized, exactly as on disk. The bundled dialects are that same map.
 Parsing is synchronous everywhere; the browser runs it in a worker.
+`elision_only` left unset follows the grammar's directive. `features` may
+also be `auto`, which adds `sa-su` only where it is needed (see "Expensive
+constructs behind features").
 
 The distributable artifacts are exactly: the npm package `gencmu` (the `js/`
 directory); the Python distribution `gencmu` (`python/`, a pure-Python wheel);
@@ -215,8 +412,9 @@ These are the product, not an afterthought:
 - **Trace**: for one position, which items were predicted, completed and
   dropped, and which condition dropped them. This is the tool for "why does
   my grammar not accept this".
-- **Audit**: undefined and unreachable rules, rules no document declares a
-  preference for, conditions that never apply to any alternative.
+- **Audit**: undefined and unreachable rules, every rule a later document
+  replaced or extended, stages without an `%ambiguity-resolution`, conditions
+  that never apply to any alternative.
 
 ## CLI and playground
 
@@ -249,7 +447,8 @@ Defined exactly in `docs/output.md`, implemented in JavaScript for the CLI
 and the playground, and the bracket form in every library for the tests:
 
 - **brackets**: the tree as nested groups, cycling `( ) [ ] { }` by depth,
-  groups of one child collapsed, leaves as their phonemes with stress shown;
+  groups of one child collapsed, leaves as their phonemes with stress shown,
+  elided terminators shown in angle brackets, `⟨ku⟩`, or hidden, by option;
 - **tree**: an indented listing, one node per line, rule name and text;
 - **json**: the canonical JSON, pretty-printed so that a node with one field
   stays on one line with its parent, `{"sumti": {"text": "lo mlatu"}}`,
@@ -318,38 +517,6 @@ and, for the CLI, Node's `fs`. Python's standard library has everything,
 reader, so the Rust tests carry a small one, and the library writes JSON by
 hand; that is a few hundred lines, and the one real cost of the rule.
 
-## Stitching: defining, replacing, adding
-
-A stage is several documents stitched in order, and a later document may
-change what an earlier one said. Two forms say how:
-
-```
-consonant
-|≔ "б" </b/> | "в" </v/>
-
-relative-clause
-≔ GOI # term /GEhU/ # | @!zantufa-terms NOI # subsentence /KUhO/ # | @zantufa-terms NOI # statement /KUhO/ #
-```
-
-`|≔` adds alternatives to a rule an earlier document defined; it is an error
-if none did, so a misspelt name cannot quietly start a new rule. `≔` defines
-a rule, and if an earlier document defined it, replaces it: the earlier
-alternatives are gone. A rule defined twice with `≔` in one document is an
-error. The audit lists every replacement, so that a dialect's effect on its
-base can be read off in one place.
-
-This is what the dialects need. A script document adds letters to the
-phoneme grammar's rules with `|≔`; a word family adds the syllables its
-morphology allows. The Zantufa syntax is the experimental syntax with 13 new
-rules, 9 rules extended and 17 replaced, where a Zantufa form generalizes an
-older one over the same text and the two must not both be live; the
-replacement restates the rule with both forms under complementary feature
-guards. The Zantufa dialect becomes the experimental documents plus one
-Zantufa document of those changes, instead of a generated copy.
-
-Removing a single alternative is not supported: a rule is small enough to
-restate, and restating it is easier to read than a list of deletions.
-
 ## Expensive constructs behind features
 
 The erasers `sa` and `su` reach back over any number of words, so the parser
@@ -357,9 +524,11 @@ keeps a possible reach open from every word, not knowing whether a `sa` will
 come. In the prototype that made long texts about ten times slower, and it
 grows faster than the text. They are rare, so they are behind a feature,
 `sa-su`: without it they are ordinary words, which the syntax rejects. The
-libraries offer a helper that parses a text's words once without the feature
-and enables it only if a `sa` or `su` stands as a word; the CLI and the
-playground use it by default. The engine may later make this unnecessary by
+libraries' `auto` features parse a text's word stage once without the
+feature and enable it only if that stage rejects the text or reads a `sa` or
+`su` as a word anywhere in its tree, erased by a `si` or not; a text with no
+such word parses the same either way. The CLI and the playground use `auto`
+by default. The engine may later make this unnecessary by
 not predicting a rule whose required words cannot occur in the rest of the
 input; that is an optimization to specify once it is understood, not part
 of the first version.
@@ -367,7 +536,8 @@ of the first version.
 ## What moves from the prototype
 
 The grammar documents, rewritten where they refer to the prototype, other
-parsers or research notes; the notation document; the fixture corpus,
+parsers or research notes, and converted to the notation above; the notation
+document; the fixture corpus,
 converted to the format above. Nothing else: no code, no scripts, no notes.
 The lexicon that was derived from another parser's word table becomes a
 document of its own, maintained by hand, and the Zantufa grammar becomes a
@@ -377,8 +547,12 @@ document of replacements and additions, as above.
 
 1. The engine specification and its engine cases, with the output formats.
 2. The `file://` and Pages proof for the playground, with a stub parser.
-3. The JavaScript library, against the engine cases, then the Lojban
-   grammars and the corpus; the CLI and the playground on top of it.
+3. The JavaScript library: first a hand-written bootstrap reader good
+   enough to produce the first `bootstrap.json`, then the engine against
+   the engine cases, then the notation grammar reading itself to the
+   fixpoint, then the Lojban grammars converted to the new notation and the
+   pipelines to the new format, then the corpus; the CLI and the
+   playground on top of it.
 4. Rust, Python and Go, each against the same cases, each its own pull
    request.
 5. CI grows with each: one job per language as it lands.
