@@ -83,7 +83,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]]) -> Grammar:
         defined_here: set[str] = set()
         for rule in dom.get("rules", []):
             name = rule["name"]
-            at = tuple(rule.get("at", (0, 0)))
+            at: tuple[int, int] = (int(rule.get("at", (0, 0))[0]), int(rule.get("at", (0, 0))[1]))
             alternatives = [
                 Alternative(
                     guards=list(alt.get("guards", [])),
@@ -93,7 +93,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]]) -> Grammar:
                     emit=rule.get("emit"),
                     conditions=list(rule.get("conditions", [])),
                     document=path,
-                    at=at,  # type: ignore[arg-type]
+                    at=at,
                 )
                 for alt in rule.get("alternatives", [])
             ]
@@ -109,9 +109,9 @@ def stitch(stage: str, documents: list[tuple[str, Dom]]) -> Grammar:
                 defined_here.add(name)
                 if name in rules:
                     changes.append(Change("replace", name, path, rules[name].document))
-                    rules[name] = Rule(name, alternatives, path, at)  # type: ignore[arg-type]
+                    rules[name] = Rule(name, alternatives, path, at)
                 else:
-                    rules[name] = Rule(name, alternatives, path, at)  # type: ignore[arg-type]
+                    rules[name] = Rule(name, alternatives, path, at)
         for directive in dom.get("directives", []):
             name = directive["name"]
             args = list(directive.get("args", []))
@@ -281,9 +281,11 @@ class _Lowerer:
                 expr = expr["seq"][0]
                 continue
             if "ref" in expr:
-                return expr["ref"] if is_terminal_name(expr["ref"]) else None
+                name: str = expr["ref"]
+                return name if is_terminal_name(name) else None
             if "terminal" in expr:
-                return expr["terminal"]
+                terminal: str = expr["terminal"]
+                return terminal
             return None
 
     def symbol(self, name: str) -> tuple[str, Any]:
@@ -469,7 +471,7 @@ class _Lowerer:
             for alt in alternatives:
                 self.current_alt = alt
                 expr = alt.expr
-                trailing = None
+                trailing: tuple[list[Dom], Dom] | None = None
                 if len(alternatives) == 1:
                     if "repeat" in expr:
                         trailing = ([], expr)

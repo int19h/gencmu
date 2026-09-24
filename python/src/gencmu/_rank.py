@@ -506,8 +506,11 @@ class Ranker:
         results: list[int] = []
         for root in roots:
             key = self.full_key(root, self.empty)
-            value = 0 if key is None else self.solve(key)
-            results.append(value if not self.entries else value[1])
+            if key is None:
+                results.append(0)
+                continue
+            value = self.solve(key)
+            results.append(value[1] if self.entries else value)
         return results
 
     def rank(self, roots: list[int]) -> Ranking | None:

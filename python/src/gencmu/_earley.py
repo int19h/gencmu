@@ -355,7 +355,7 @@ class Parser:
                     if production.terminal[position]:
                         scanning[j].setdefault(symbol, []).append(item)  # type: ignore[arg-type]
                         continue
-                    rule = symbol  # type: ignore[assignment]
+                    rule = symbol
                     waiting[j].setdefault(rule, []).append(item)  # type: ignore[arg-type]
                     if rule not in predicted[j]:
                         predicted[j].add(rule)  # type: ignore[arg-type]
@@ -401,5 +401,5 @@ class Parser:
                     if allowed(productions[number]):
                         expected.setdefault(terminal, set()).add(productions[number].rule_name)
         for terminal, waiters in scanning[furthest].items():
-            expected.setdefault(terminal, set()).update(productions[prod[waiter]].rule_name for waiter in waiters)  # type: ignore[index]
+            expected.setdefault(terminal, set()).update(productions[prod[waiter]].rule_name for waiter in waiters)
         return Forest(tokens, lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected)
