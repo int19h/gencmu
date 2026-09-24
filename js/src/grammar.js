@@ -73,8 +73,6 @@ export class Grammar {
     this.elidable = new Set();
     /** @type {Resolution | null} */
     this.resolution = null;
-    /** @type {string | null} */
-    this.freeModifiers = null;
     for (const { path, dom } of documents) this.addDocument(path, dom);
     if (!this.resolution) {
       throw new GencmuError("grammar", `stage ${stageName} has no %ambiguity-resolution`, { stage: stageName });
@@ -130,12 +128,6 @@ export class Grammar {
         case "elidable":
           for (const terminal of directive.args) this.elidable.add(terminal);
           break;
-        case "free-modifiers":
-          if (this.freeModifiers || directive.args.length !== 1) {
-            throw new GencmuError("grammar", `${path}:${at.line}: %free-modifiers names one rule, once per stage`, at);
-          }
-          this.freeModifiers = directive.args[0];
-          break;
         default:
           throw new GencmuError("grammar", `${path}:${at.line}: unknown directive %${directive.name}`, at);
       }
@@ -147,9 +139,6 @@ export class Grammar {
     const visit = (expr, rule) => {
       if ("ref" in expr && !isTerminalName(expr.ref) && !this.rules.has(expr.ref)) {
         throw new GencmuError("grammar", `${rule.document}: ${rule.name} refers to ${expr.ref}, which is not defined`, rule.at);
-      }
-      if ("hash" in expr && !this.freeModifiers) {
-        throw new GencmuError("grammar", `${rule.document}: ${rule.name} uses # without %free-modifiers`, rule.at);
       }
       for (const child of childExpressions(expr)) visit(child, rule);
     };
@@ -163,9 +152,6 @@ export class Grammar {
           throw new GencmuError("grammar", `${rule.document}: an alternative of ${rule.name} captures $${twice} twice`, rule.at);
         }
       }
-    }
-    if (this.freeModifiers !== null && !this.rules.has(this.freeModifiers)) {
-      throw new GencmuError("grammar", `stage ${this.stageName}: %free-modifiers names ${this.freeModifiers}, which is not defined`, { stage: this.stageName });
     }
     if (!this.rules.has("text")) throw new GencmuError("grammar", `stage ${this.stageName} has no rule text`, { stage: this.stageName });
   }
@@ -328,7 +314,8 @@ class Lowering {
     if (captures.length > MAX_CAPTURES) {
       throw new GencmuError("grammar", `${alternative.document}: an alternative of ${rule.name} has more than ${MAX_CAPTURES} captures`, rule.at);
     }
-    const names = new Set(captures.map((capture) => capture.name));
+    // `$`, the whole constituent, is a capture every production has.
+    const names = new Set(["", ...captures.map((capture) => capture.name)]);
     const clauses = alternative.clauses;
     /** @type {Term | null} */
     let tags = alternative.tags || clauses.tags || null;
@@ -347,8 +334,10 @@ class Lowering {
     for (const condition of clauses.conditions) {
       const variables = conditionVariables(condition);
       if (!variables.every((name) => names.has(name))) continue;
-      const readyAt = Math.max(-1, ...variables.map((name) =>
-        /** @type {import("./types.js").Capture} */ (captures.find((capture) => capture.name === name)).index));
+      // A condition is ready once its last capture is read, and one that
+      // reads `$` once the constituent is complete (engine §4).
+      const readyAt = Math.max(-1, ...variables.map((name) => (name === "" ? sequence.length - 1
+        : /** @type {import("./types.js").Capture} */ (captures.find((capture) => capture.name === name)).index)));
       conditions.push({ condition, readyAt });
     }
     let emit = clauses.emit || null;
@@ -418,9 +407,6 @@ class Lowering {
         return min === 1 ? [...expansions, ...recursive] : [/** @type {SequenceItem[]} */ ([]), ...recursive];
       }, null);
       return [[{ symbol: { name, terminal: false } }]];
-    }
-    if ("hash" in expr) {
-      return this.expand({ repeat: { ref: /** @type {string} */ (this.grammar.freeModifiers) }, min: 0 }, where);
     }
     if ("empty" in expr) return [[]];
     if ("ref" in expr) return [[{ symbol: { name: expr.ref, terminal: isTerminalName(expr.ref) } }]];

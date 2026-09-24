@@ -1,21 +1,12 @@
 # The notation: from tokens to a grammar
 
-This is the second stage of the notation dialect, `../dialects/notation.md`.
-It reads the tokens `lexical.md` emitted and builds the tree from which a
-library reads the grammar's rules and directives. Its rule names matter to
-that reader: the table in `../../docs/engine.md`, §9, says what each named
-constituent becomes. The notation is explained for authors in
-`../../docs/notation.md`.
+This is the second stage of the notation dialect, `../dialects/notation.md`. It reads the tokens `lexical.md` emitted and builds the tree from which a library reads the grammar's rules and directives. Its rule names matter to that reader: the table in `../../docs/engine.md`, §9, says what each named constituent becomes. The notation is explained for authors in `../../docs/notation.md`.
 
-The tokens arrive tagged `identifier`, `string`, `phoneme`, `capture`,
-`guard` or `directive`, or with their own spelling for a symbol such as
-`"≔"` or `"..."`.
+The tokens arrive tagged `identifier`, `string`, `phoneme`, `capture`, `guard` or `directive`, or with their own spelling for a symbol such as `"≔"` or `"..."`.
 
 ## Choosing among parses
 
-Every construct of the notation is closed by a symbol or by the `;` that
-ends its rule, so the grammar is unambiguous except where a list could end
-earlier or later; the greedy reading takes the longer list.
+Every construct of the notation is closed by a symbol or by the `;` that ends its rule, so the grammar is unambiguous except where a list could end earlier or later; the greedy reading takes the longer list.
 
 ```ebnf
 %ambiguity-resolution greedy ;
@@ -23,8 +14,7 @@ earlier or later; the greedy reading takes the longer list.
 
 ## Documents
 
-A grammar text is a sequence of rules and directives. A directive is its
-name and any number of words, ended by `;`.
+A grammar text is a sequence of rules and directives. A directive is its name and any number of words, ended by `;`.
 
 ```ebnf
 text ≔ [item] ... ;
@@ -38,13 +28,12 @@ argument-word ≔ "identifier" ;
 
 ## Rules
 
-A rule is a name, optional tags for all its alternatives, `≔` to define it
-or `|≔` to add to it, its alternatives, its clauses, and `;`. Every list
-separator may also stand first, so an author can put each alternative on a
-line of its own starting with `|`.
+A rule is a name, optional tags for all its alternatives, `≔` to define it or `|≔` to add to it, its alternatives, its clauses, and `;`. A rule's name is a name, or `#`, the free-modifier slot. Every list separator may also stand first, so an author can put each alternative on a line of its own starting with `|`.
 
 ```ebnf
-rule ≔ "identifier" [rule-tags] definer body [clause] ... ";" ;
+rule ≔ rule-name [rule-tags] definer body [clause] ... ";" ;
+
+rule-name ≔ "identifier" | "#" ;
 
 rule-tags ≔ "<" term ">" ;
 
@@ -61,10 +50,7 @@ alternative-tags ≔ "<" term ">" ;
 
 ## Expressions
 
-`&` joins sequences, and a sequence is one or more elements. An element is a
-primary, followed by `...` for one or more of it; an optional followed by
-`...` is zero or more. Parentheses group a choice, whose alternatives carry
-neither guards nor tags.
+`&` joins sequences, and a sequence is one or more elements. An element is a primary, followed by `...` for one or more of it; an optional followed by `...` is zero or more. Parentheses group a choice, whose alternatives carry neither guards nor tags.
 
 ```ebnf
 conjunction ≔ ["&"] sequence ["&" sequence] ... ;
@@ -80,11 +66,10 @@ primary ≔
 | capture
 | group
 | optional
-| hash
 | empty
 ;
 
-reference ≔ "identifier" ;
+reference ≔ "identifier" | "#" ;
 
 string ≔ "string" ;
 
@@ -98,15 +83,12 @@ optional ≔ "[" choice "]" ;
 
 choice ≔ ["|"] conjunction ["|" conjunction] ... ;
 
-hash ≔ "#" ;
-
 empty ≔ "ε" ;
 ```
 
 ## Clauses
 
-A rule may say what it emits, after `⇒`, and what must hold of its captured
-parts, after `:`, in either order.
+A rule may say what it emits, after `⇒`, and what must hold of its captured parts, after `:`, in either order. An emitted item is a capture, with tags of its own between `<` and `>` or with nothing between them, which erases it, or an inserted tag.
 
 ```ebnf
 clause ≔ emission | conditions ;
@@ -115,23 +97,29 @@ emission ≔ "⇒" [","] emit-item ["," emit-item] ... ;
 
 emit-item ≔ emit-target [emit-tags] ;
 
-emit-target ≔ "identifier" | "capture" | "string" | "phoneme" ;
+emit-target ≔ "capture" | "string" | "phoneme" ;
 
-emit-tags ≔ "<" term ">" ;
+emit-tags ≔ "<" term ">" | erase ;
 
-conditions ≔ ":" [condition-separator] condition-item [condition-separator condition-item] ... ;
+erase ≔ "<" ">" ;
+```
 
-condition-separator ≔ "," | "∧" ;
+Conditions are joined by `∧` and `∨`, `∧` binding tighter, and grouped with parentheses; `¬` negates the condition after it.
 
-condition-item ≔ ["∨"] condition ["∨" condition] ... ;
+```ebnf
+conditions ≔ ":" any-of ;
 
-condition ≔ comparison | call | negation ;
+any-of ≔ ["∨"] all-of ["∨" all-of] ... ;
+
+all-of ≔ ["∧"] condition ["∧" condition] ... ;
+
+condition ≔ comparison | call | negation | "(" any-of ")" ;
 
 comparison ≔ term comparator term ;
 
 comparator ≔ "=" | "≠" | "∈" | "∉" | "⊆" ;
 
-negation ≔ "¬" condition | "¬" "(" condition ")" ;
+negation ≔ "¬" condition ;
 ```
 
 ## Terms
@@ -148,7 +136,6 @@ term-atom ≔
 | phoneme
 | weak
 | empty-set
-| set
 | "(" term ")"
 | call
 | capture-reference
@@ -157,8 +144,6 @@ term-atom ≔
 weak ≔ "?" "string" ;
 
 empty-set ≔ "∅" ;
-
-set ≔ "{" [term ["," term] ...] "}" ;
 
 call ≔ "identifier" "(" argument ["," argument] ... ")" ;
 

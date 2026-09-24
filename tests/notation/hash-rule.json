@@ -1,0 +1,42 @@
+{
+  "description": "# is a rule's name like any other, the free-modifier slot (engine §9).",
+  "document": "```ebnf\n# ≔ [free ...] ;\ntext ≔ A # ;\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "#",
+          "alternatives": [
+            {
+              "expr": {
+                "optional": {
+                  "repeat": {
+                    "ref": "free"
+                  },
+                  "min": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "alternatives": [
+            {
+              "expr": {
+                "seq": [
+                  {
+                    "ref": "A"
+                  },
+                  {
+                    "ref": "#"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

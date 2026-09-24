@@ -1,0 +1,50 @@
+{
+  "description": "A constituent its own rule erases, emitted by its parent as a capture, is a token that sounds as nothing: its phonemes leave out what it erased (engine §5, §11).",
+  "documents": {
+    "p.md": "## s <?stage first?>\n\n- [g](g.md) <?grammar?>\n\n## t <?stage second?>\n\n- [h](h.md) <?grammar?>\n",
+    "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ $a(x) $b(y) ⇒ $a <\"X\">, $b ;\nx ≔ A ⇒ $ <> ;\ny ≔ B ;\n```\n",
+    "h.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ X B ;\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "b"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "text": "a",
+              "phonemes": "",
+              "tags": {
+                "X": true
+              }
+            },
+            {
+              "text": "b",
+              "phonemes": "b"
+            }
+          ]
+        },
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

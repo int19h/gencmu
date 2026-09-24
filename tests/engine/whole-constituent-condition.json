@@ -1,0 +1,35 @@
+{
+  "description": "A condition on $ is evaluated when the constituent is complete, over its whole span (engine §4, §10): here it rules out one of two splits.",
+  "grammar": "text ≔ x x ; x ≔ A | A A : text($) ≠ \"a b\" ;",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "(a [b c])"
+  }
+}

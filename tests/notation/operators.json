@@ -1,5 +1,5 @@
 {
-  "description": "Optional, repetition, zero-or-more, grouping, and/or, # and ε (engine §9).",
+  "description": "Optional, repetition, zero-or-more, grouping, and/or, # as a rule and ε (engine §9).",
   "document": "# A document\n\nSome prose.\n\n```ebnf\ntext ≔ [A] B ... [C] ... (D | E) F & G # ε ;\n```\n",
   "expect": {
     "dom": {
@@ -49,7 +49,7 @@
                         "ref": "G"
                       },
                       {
-                        "hash": true
+                        "ref": "#"
                       },
                       {
                         "empty": true

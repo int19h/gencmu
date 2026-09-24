@@ -1,6 +1,6 @@
 {
   "description": "An alternative guarded by a disabled feature does not exist (engine §3.1).",
-  "grammar": "text ≔ @f A | @!f B ;",
+  "grammar": "text ≔ @f A | @¬f B ;",
   "tokens": [
     {
       "text": "a",

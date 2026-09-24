@@ -13,7 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loaderFromDirectory, fnv1a64 } from "../js/src/node.js";
-import { DOM_FORMAT } from "../js/src/dialect.js";
+import { DOM_FORMAT } from "../js/src/dom.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const grammars = path.join(root, "grammars");
@@ -33,7 +33,9 @@ function write(relative, content) {
 
 function grammarFiles(directory = grammars, prefix = "") {
   const files = [];
-  for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
+  // Hidden files, such as a desktop's .DS_Store, are not grammars.
+  const entries = fs.readdirSync(directory, { withFileTypes: true }).filter((entry) => !entry.name.startsWith("."));
+  for (const entry of entries.sort((a, b) => (a.name < b.name ? -1 : 1))) {
     const relative = prefix + entry.name;
     if (entry.isDirectory()) files.push(...grammarFiles(path.join(directory, entry.name), relative + "/"));
     else if (relative !== "compiled.json") files.push(relative);

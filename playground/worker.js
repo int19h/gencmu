@@ -101,7 +101,7 @@
       try {
         const dialect = loader.dialect(path);
         // The features a switch can change: every feature an alternative of
-        // the dialect's grammars is guarded on, with @f or @!f.
+        // the dialect's grammars is guarded on, with @f or @¬f.
         const guarded = new Set();
         for (const stage of dialect.stages) {
           for (const rule of stage.grammar.rules.values()) {

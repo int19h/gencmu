@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from ._errors import _GrammarFault
-from ._grammar import Lowered, Production
+from ._grammar import WHOLE, Lowered, Production
 from ._model import Tags, Token
 from ._tags import TagTable, intersection, union
 from ._trampoline import Walk, run
@@ -117,7 +117,12 @@ class Evaluator:
         self.context = context
         self.base = base
 
-    def bind(self, production: Production, caps: Caps) -> dict[str, tuple[int, int, int]]:
+    def bind(
+        self, production: Production, caps: Caps, whole: tuple[int, int, int | None] | None = None
+    ) -> dict[str, tuple[int, int, int]]:
+        """The captures of an item, and ``$`` when ``whole`` gives the
+        constituent's span and tag set (``None`` while its tag set is being
+        computed, when no term may read it)."""
         bound: dict[str, tuple[int, int, int]] = {}
         base = self.base
         for name, position in production.captures.items():
@@ -125,6 +130,8 @@ class Evaluator:
             if 0 <= slot < len(caps):
                 start, end, tag = caps[slot]
                 bound[name] = (start + base, end + base, tag)
+        if whole is not None:
+            bound[WHOLE] = (whole[0] + base, whole[1] + base, whole[2])  # type: ignore[assignment]
         return bound
 
     def _span(self, dom: Any, bound: dict[str, tuple[int, int, int]]) -> Walk:
@@ -168,13 +175,8 @@ class Evaluator:
             return {dom["weak"]: False}
         if "emptySet" in dom:
             return {}
-        if "set" in dom:
-            result: Tags = {}
-            for item in dom["set"]:
-                result = union(result, _as_tags((yield self._value(item, bound))))
-            return result
         if "union" in dom:
-            result = {}
+            result: Tags = {}
             for item in dom["union"]:
                 result = union(result, _as_tags((yield self._value(item, bound))))
             return result
@@ -252,6 +254,11 @@ class Evaluator:
                 if (yield self._condition(item, bound)):
                     return True
             return False
+        if "all" in dom:
+            for item in dom["all"]:
+                if not (yield self._condition(item, bound)):
+                    return False
+            return True
         raise _GrammarFault("an unknown condition")
 
 
@@ -308,6 +315,15 @@ class Parser:
             else:
                 edges[found].append(edge)
 
+        def constituent_tag(production: Production, captured: Caps, start: int, at: int) -> int:
+            """The tag set of a completed item (engine §4)."""
+            if production.tags_term is not None:
+                bound = evaluator.bind(production, captured, (start, at, None))
+                return tagtab.intern(evaluator.tags(production.tags_term, bound))
+            if len(production.rhs) == 1:
+                return captured[production.slots[0]][2]
+            return tagtab.empty
+
         def advance(item: int, part: tuple[int, int, int], at: int, edge: tuple[Any, ...]) -> None:
             production = productions[prod[item]]
             position = dot[item]
@@ -320,6 +336,14 @@ class Parser:
                 for condition in conditions:
                     if not evaluator.condition(condition, bound):
                         return
+            if production.conds_whole and position + 1 == len(production.rhs):
+                # The conditions on $, once the constituent is complete.
+                start = origin[item]
+                whole = (start, at, constituent_tag(production, captured, start, at))
+                bound = evaluator.bind(production, captured, whole)
+                for condition in production.conds_whole:
+                    if not evaluator.condition(condition, bound):
+                        return
             add(production.id, position + 1, origin[item], captured, at, edge)
 
         # A production whose first symbol is a terminal the next token lacks
@@ -328,19 +352,24 @@ class Parser:
         by_first = lowered.by_first_terminal
         not_terminal_first = lowered.not_terminal_first
 
-        def allowed(production: Production) -> bool:
-            return not production.conds_predict or all(evaluator.condition(c, {}) for c in production.conds_predict)
+        def allowed(production: Production, j: int) -> bool:
+            if not production.conds_predict:
+                return True
+            # $ is bound for an empty production, whose span is empty at j.
+            whole = (j, j, constituent_tag(production, (), j, j)) if not production.rhs else None
+            bound = evaluator.bind(production, (), whole)
+            return all(evaluator.condition(c, bound) for c in production.conds_predict)
 
         def predict(rule: int, j: int) -> None:
             for number in not_terminal_first[rule]:
-                if allowed(productions[number]):
+                if allowed(productions[number], j):
                     add(number, 0, j, (), j, SEED)
             if j < n:
                 table = by_first[rule]
                 if table:
                     for tag in tokens[j].tags:
                         for number in table.get(tag, ()):
-                            if allowed(productions[number]):
+                            if allowed(productions[number], j):
                                 add(number, 0, j, (), j, SEED)
 
         current = [0]
@@ -374,15 +403,8 @@ class Parser:
                         advance(item, (j, j, tag[child]), j, (item, 2, child, 0))
                     continue
                 # A completed item: its tag set, then the items waiting for it.
-                captured = caps[item]
-                if production.tags_term is not None:
-                    tagset = evaluator.tags(production.tags_term, evaluator.bind(production, captured))
-                    tag[item] = tagtab.intern(tagset)
-                elif len(production.rhs) == 1:
-                    tag[item] = captured[production.slots[0]][2]
-                else:
-                    tag[item] = tagtab.empty
                 start = origin[item]
+                tag[item] = constituent_tag(production, caps[item], start, j)
                 lhs = production.lhs
                 if start == j:
                     empty_done[j].setdefault(lhs, []).append(item)
@@ -408,7 +430,7 @@ class Parser:
                 if terminal in here:
                     continue
                 for number in numbers:
-                    if allowed(productions[number]):
+                    if allowed(productions[number], furthest):
                         expected.setdefault(terminal, set()).add(productions[number].rule_name)
         for terminal, waiters in scanning[furthest].items():
             expected.setdefault(terminal, set()).update(productions[prod[waiter]].rule_name for waiter in waiters)

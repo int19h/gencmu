@@ -1,0 +1,49 @@
+{
+  "description": "$ alone is the whole constituent, a capture every alternative has, in a condition and after ⇒ (engine §9).",
+  "document": "```ebnf\na ≔ A B : text($) ≠ \"x\" ⇒ $ ;\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "seq": [
+                  {
+                    "ref": "A"
+                  },
+                  {
+                    "ref": "B"
+                  }
+                ]
+              }
+            }
+          ],
+          "conditions": [
+            {
+              "op": "≠",
+              "left": {
+                "call": "text",
+                "args": [
+                  {
+                    "capture": ""
+                  }
+                ]
+              },
+              "right": {
+                "literal": "x"
+              }
+            }
+          ],
+          "emit": {
+            "items": [
+              {
+                "capture": ""
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

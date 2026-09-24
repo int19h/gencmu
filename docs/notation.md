@@ -35,7 +35,7 @@ term-not-starting-with-bare-gek ≔
 ```
 
 The same is true of every separator the notation has: `&` in bodies, `∪` and
-`∩` in tag terms, `,`, `∧` and `∨` in conditions.
+`∩` in tag terms, `∧` and `∨` in conditions.
 
 `(* ... *)` is a comment, anywhere in a block.
 
@@ -52,9 +52,10 @@ Two other kinds of terminal spell tags a name cannot:
 - a string in straight double quotes, `"а"`, `"word"`, `"≔"`; inside it,
   `\\` is a backslash, `\"` a quote, and `\u{ED80}` the code point with that
   hexadecimal value;
-- a phoneme between slashes, `/a/`, `/'/`, and `/ /` for a pause. It is a
-  phoneme tag: it matches like any tag, and it also says what a token
-  carrying it sounds like, which is what `phonemes()` reads.
+- a phoneme between slashes, `/a/`, `/'/`, and `/./` for a pause, which
+  sounds as a space. It is a phoneme tag: it matches like any tag, and it
+  also says what a token carrying it sounds like, which is what `phonemes()`
+  reads.
 
 ## Operators
 
@@ -67,10 +68,9 @@ The operators are those of CLL:
 - `A & B` is and/or: `A`, `B` or `A B`, but not `B A`, and `A & B & C` is any
   non-empty subsequence in that order;
 - `( )` groups;
-- `ε` is the empty sequence;
-- `#` is shorthand for zero or more free modifiers, where the grammar says
-  what a free modifier is: `%free-modifiers free ;` makes `#` mean
-  `[free] ...`.
+- `ε` is the empty sequence.
+
+`#` is the free-modifier slot, which CLL writes after almost every word. It is not an operator but a rule, whose name is `#` rather than a word, and the grammar defines it like any other: the syntax grammars write `# ≔ [free ...] ;`, zero or more free modifiers, as CLL's own EBNF defines it. Its constituent is a node of the tree like any rule's, so the free modifiers in one slot are grouped under it.
 
 `...` binds tighter than `&`, which binds tighter than `|`.
 
@@ -81,7 +81,7 @@ declared once for the grammar (see "Directives"). Slashes are for phonemes.
 
 ## Feature guards
 
-An alternative may begin with `@name` or `@!name`. The alternative exists
+An alternative may begin with `@name` or `@¬name`. The alternative exists
 only when the feature `name` is enabled, respectively disabled, for the
 parse. Features come from the dialect's pipeline, which may enable some
 (see "Pipelines"), and from the caller, who may add others; the same set is
@@ -97,11 +97,11 @@ A stage of a pipeline is several documents read in order, and a later one
 may change what an earlier one said:
 
 ```
-consonant |≔ "б" </b/> | "в" </v/> ⇒ this ;
+consonant |≔ "б" </b/> | "в" </v/> ⇒ $ ;
 
 relative-clause ≔
 | GOI # term [GEhU #]
-| @!zantufa-terms NOI # subsentence [KUhO #]
+| @¬zantufa-terms NOI # subsentence [KUhO #]
 | @zantufa-terms NOI # statement [KUhO #]
 ;
 ```
@@ -123,26 +123,18 @@ restate, and restating it reads better than a list of deletions.
 
 ## Captures and conditions
 
-A symbol of a rule's body may be captured by writing `$name(symbol)` around
-it. A rule may then list conditions over its captures after `:`, joined by
-`,` or `∧`; an item of the list may itself be several conditions joined by
-`∨`, of which one must hold. A parse in which a condition fails does not
-exist: the parser checks each condition the moment it has read the last
-capture the condition mentions. A condition applies to every alternative
-that captures all the parts it mentions and to no other, so one rule can
-state a condition for the alternatives that have a quote body and none for
-the one that has not. A capture wraps one symbol at the top level of an
-alternative, not inside `[ ]`, `...`, `( )` or `&`, and an alternative has at
-most four.
+A symbol of a rule's body may be captured by writing `$name(symbol)` around it. A capture wraps one symbol at the top level of an alternative, not inside `[ ]`, `...`, `( )` or `&`, and an alternative has at most four. `$` alone is the whole constituent, a capture every alternative has without writing it.
+
+A rule may then state conditions over its captures after `:`, joined by `∧` and `∨`, with `∧` binding tighter, grouped with parentheses, and negated with `¬`, which applies to the condition after it. A parse in which a condition fails does not exist: the parser checks each condition the moment it has read the last capture the condition mentions, and one that mentions `$` when the constituent is complete. The conditions joined by `∧` at the top are separate conditions: each applies to every alternative that captures all the parts it mentions and to no other, so one rule can state a condition for the alternatives that have a quote body and none for the one that has not.
 
 ```
 zoi-quote ≔ zoi-marker gap $open(word) PAUSE $content(body) PAUSE $close(word)
-: phonemes($open) = phonemes($close), phonemes($open) ∉ words($content) ;
+: phonemes($open) = phonemes($close) ∧ phonemes($open) ∉ words($content) ;
 ```
 
 The terms of a condition have three types.
 
-**Spans.** A capture `$x` is a span, the tokens the captured part covers.
+**Spans.** A capture `$x` is a span, the tokens the captured part covers, and `$` the tokens the whole constituent covers.
 `head($x)` is its first token, `tail($x)` the rest, `last($x)` the last.
 
 **Strings.** `phonemes(span)` is what a span sounds like: for each token,
@@ -158,16 +150,15 @@ quotes, or a phoneme tag, is a literal.
 over every parse, and empty when it does not parse; this is how a word looks
 itself up in a lexicon that is itself a set of rules. `classes(span)` keeps
 only the tags that begin with a capital. `"KOhA"` is the set with that one
-tag; `{"UI", "CAI"}` lists several; `∅` is empty; `∪` and `∩` are union and
-intersection, `∩` binding tighter.
+tag, so `"UI" ∪ "CAI"` is the set of both; `∅` is empty; `∪` and `∩` are
+union and intersection, `∩` binding tighter.
 
 **Lists.** `words(span)` is the list of pause-separated words of a span's
 phonemes.
 
 The predicates are `=` and `≠` on two strings or two tag sets, `∈` and `∉`
 of a string in a list or a tag set, `⊆` of one tag set in another, and
-`matches(span, rule)`, true when the span parses as the named rule; `¬`
-negates, and `¬( ... )` negates a whole condition. `matches` and
+`matches(span, rule)`, true when the span parses as the named rule. `matches` and
 `tags(span, rule)` parse the captured span alone, as the named rule, with
 the same grammar, which is how CLL's slinku'i test, "a borrowing is not a
 consonant followed by a string of rafsi", is stated as `¬matches(tail($b),
@@ -186,7 +177,7 @@ has none of its own.
 
 ```
 cmevla ≔
-| @!cbm $b(cmevla-body) <"CMEVLA">
+| @¬cbm $b(cmevla-body) <"CMEVLA">
 | @cbm $b(cmevla-body) <"CMEVLA" ∪ "BRIVLA">
 ;
 
@@ -196,7 +187,7 @@ cmavo <"cmavo" ∪ tags($w, lexicon)> ≔ $w(cmavo-body) ;
 With no tags at all, a constituent built from one symbol has that symbol's
 tags, and one built from several has none. So `word ≔ cmavo | brivla |
 cmevla ;` needs no tags: a `mi` arrives at the next stage tagged by the
-chain of rules that built it.
+chain of rules that built it. A tag term says what a constituent's tags are, so it cannot be made of them: `$`, `tags($)` and `classes($)` are errors there, while `tags($, lexicon)`, which parses the constituent's tokens again, is not.
 
 A tag may be weak, `?"KOhA"`. A reading of a token under a weak tag loses,
 at the first difference between two parses, to a reading under a strong
@@ -206,25 +197,18 @@ standard class.
 
 ## Emission
 
-A rule says what its constituents hand to the next stage after `⇒`. `⇒ this`
-emits the whole constituent as one token, carrying the constituent's tags;
-`⇒ this <term>` emits it with the tags of the term instead, and `⇒ this
-</n/>, this </o/>` emits it twice, as two tokens over the same text, which
-is how the digit `0` becomes the phonemes of `no`. `⇒ $a <term>,
-$b` emits the captured parts named, each as one token, in text order, with
-the tags given or their own; a part not named is walked in turn, and its own
-rules decide. A string or phoneme tag in the list, `⇒ $g, /'/, $v`, emits a
-token with that one tag and no text of its own, for a phoneme the script
-writes with no letter. `⇒ nothing` emits neither the constituent nor
-anything inside it, which is what an erased stretch of text hands on. With
-no `⇒`, a rule is transparent: the walk continues into its children.
+A rule says what its constituents hand to the next stage after `⇒`, as a list of captures, each optionally with tags of its own between `<` and `>`. `⇒ $` emits the whole constituent as one token, carrying the constituent's tags; `⇒ $ <term>` emits it with the tags of the term instead, and `⇒ $ </n/>, $ </o/>` emits it twice, as two tokens over the same text, which is how the digit `0` becomes the phonemes of `no`. `⇒ $a <term>, $b` emits the captured parts named, each as one token, in text order, with the tags given or their own; every other child, captured or not, is walked in turn, and its own rules decide. A string or phoneme tag in the list, `⇒ $g, /'/, $v`, emits a token with that one tag and no text of its own, for a phoneme the script writes with no letter.
+
+`<>`, a capture with no tags at all, erases it: it is neither emitted nor walked. `⇒ $ <>` erases the whole constituent and everything inside it, which is what an erased stretch of text hands on, and `⇒ $a <>, $b` erases one part and emits the other. A tag term that gives no tags when the parse is made is an error of the grammar, since no terminal could read the token; `<>` is how a grammar says it wants nothing emitted.
+
+With no `⇒`, a rule is transparent: the walk continues into its children, and a token that a rule reads directly emits nothing. So a rule needs `⇒ $ <>` only when something inside it would emit.
 
 ```
-plain-word ≔ cmavo | brivla | cmevla ⇒ this ;
+plain-word ≔ cmavo | brivla | cmevla ⇒ $ ;
 
 quoted-word ≔ $m(zo-marker) gap $w(quotable-word) ⇒ $m, $w <"word"> ;
 
-erasure ≔ unit gap si-word ⇒ nothing ;
+erasure ≔ unit gap si-word ⇒ $ <> ;
 ```
 
 ## Directives
@@ -240,7 +224,6 @@ a block of its own, after prose that says why the grammar needs it.
   absent optional whose first symbol is one of them shows in the parse tree
   as that terminator, elided at that point, and `elision-only` writes them
   back.
-- `%free-modifiers free ;`: what `#` stands for.
 
 ## Pipelines
 

@@ -1,0 +1,24 @@
+{
+  "description": "A condition on $ in an empty constituent is evaluated when it is predicted, over an empty span (engine §4).",
+  "grammar": "text ≔ A x B ; x ≔ ε : text($) = \"\" ∧ phonemes($) = \"\" ;",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "brackets": "(a b)"
+  }
+}

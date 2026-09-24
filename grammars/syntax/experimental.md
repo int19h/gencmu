@@ -10,12 +10,12 @@ Unlike [the CLL grammar](cll.md), this grammar writes the free-modifier slot aft
 
 The grammar is written literately: each block of rules follows the prose that explains it, and the blocks together are the grammar. Each section first says what CLL provides, then what this grammar adds beyond it.
 
-Three directives set the grammar up. `%ambiguity-resolution greedy` says how the stage chooses among parses: at the first difference between two parses it takes the one that reads the next word, so an elided terminator is absent for as long as the grammar allows, as in the CLL grammar. Unlike the CLL grammar, this one does not declare `elision-only`, because it has real ambiguities that are not about terminators, and the greedy rule is what settles them: a bare `na` is a term, beside the `na` that negates a selbri; under `cbm` a name is also a selbri; and under `term-hierarchy` terms may be joined by a connective and `bo` where a tagged term could take the same connection. With `elision-only`, each of those texts would be an error. `%elidable` lists the terminators that may be elided, CLL's and the experimental `fi'au`, `ku'au` and `ku'oi`. `%free-modifiers free` makes `#` stand for any number of free modifiers, `[free] ...`, defined under "Free modifiers, vocatives and indicators".
+Two directives and a rule set the grammar up. `%ambiguity-resolution greedy` says how the stage chooses among parses: at the first difference between two parses it takes the one that reads the next word, so an elided terminator is absent for as long as the grammar allows, as in the CLL grammar. Unlike the CLL grammar, this one does not declare `elision-only`, because it has real ambiguities that are not about terminators, and the greedy rule is what settles them: a bare `na` is a term, beside the `na` that negates a selbri; under `cbm` a name is also a selbri; and under `term-hierarchy` terms may be joined by a connective and `bo` where a tagged term could take the same connection. With `elision-only`, each of those texts would be an error. `%elidable` lists the terminators that may be elided, CLL's and the experimental `fi'au`, `ku'au` and `ku'oi`. `#` is the free-modifier slot, any number of free modifiers, each a `free` as defined under "Free modifiers, vocatives and indicators".
 
 ```ebnf
 %ambiguity-resolution greedy ;
 %elidable BEhO BOI DOhU FEhU FIhAU GEhU KEI KEhE KU KUhAU KUhE KUhO KUhOI LIhU LOhO LUhU MEhU NUhU SEhU TEhU TOI TUhU VAU VEhO ;
-%free-modifiers free ;
+# ≔ [free ...] ;
 ```
 
 ## The text and its paragraphs
@@ -209,7 +209,7 @@ sumti-6
 | (LAhE # | NAhE BO #) (tag | FA #) sumti [LUhU] #
 | KOhA #
 | lerfu-string free-after-elided-boi
-| @!cbm LA # [relative-clauses] CMEVLA ... #
+| @¬cbm LA # [relative-clauses] CMEVLA ... #
 | (LA | LE) # sumti-tail [KU] #
 | (LA | LE) # jek (LA | LE) # sumti-tail [KU] #
 | LOhOI # [(joik # | jek #) LOhOI #] ... statement [KUhAU] #
@@ -507,7 +507,7 @@ free
 ≔ SEI # [terms [CU #]] selbri [SEhU]
 | SOI # sumti [sumti] [SEhU]
 | vocative [relative-clauses] selbri [relative-clauses] [DOhU]
-| @!cbm vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
+| @¬cbm vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
 | vocative [sumti] [DOhU]
 | (number | lerfu-string) MAI
 | TO text [TOI]
@@ -524,7 +524,7 @@ free-not-starting-with-number
 ≔ SEI # [terms [CU #]] selbri [SEhU]
 | SOI # sumti [sumti] [SEhU]
 | vocative [relative-clauses] selbri [relative-clauses] [DOhU]
-| @!cbm vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
+| @¬cbm vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
 | vocative [sumti] [DOhU]
 | TO text [TOI]
 | XI # (number | lerfu-string) [BOI]

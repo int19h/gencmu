@@ -30,7 +30,7 @@ SOUNDS = """# Sounds
 ```ebnf
 %ambiguity-resolution greedy ;
 text ≔ [c] ... ;
-c ≔ "s" </s/> | "a" </a/> | "m" </m/> | "i" </i/> | "space" </ /> ⇒ this ;
+c ≔ "s" </s/> | "a" </a/> | "m" </m/> | "i" </i/> | "space" </./> ⇒ $ ;
 ```
 """
 
@@ -40,8 +40,8 @@ WORDS = """# Words
 %ambiguity-resolution lazy ;
 text ≔ [piece] ... ;
 piece ≔ word | pause ;
-pause ≔ / / ⇒ nothing ;
-word ≔ /s/ /a/ | /m/ /i/ ⇒ this <"WORD"> ;
+pause ≔ /./ ⇒ $ <> ;
+word ≔ /s/ /a/ | /m/ /i/ ⇒ $ <"WORD"> ;
 ```
 """
 
@@ -49,7 +49,7 @@ SYNTAX = """# Syntax
 
 ```ebnf
 %ambiguity-resolution greedy ;
-text ≔ @!sa-su WORD ... | @sa-su WORD ... <"ERASING"> ;
+text ≔ @¬sa-su WORD ... | @sa-su WORD ... <"ERASING"> ;
 ```
 """
 
@@ -289,9 +289,9 @@ class Robustness(unittest.TestCase):
 
         sources = self.grammar('text ≔ "a" ;')
         compiled = {
-            "format": 1,
+            "format": 2,
             "bootstrap": fnv1a64(bundled_text("notation/bootstrap.json") or ""),
-            "documents": {"g.md": {"hash": fnv1a64(sources["g.md"]), "dom": {"format": 1, "rules": [{}], "directives": []}}},
+            "documents": {"g.md": {"hash": fnv1a64(sources["g.md"]), "dom": {"format": 2, "rules": [{}], "directives": []}}},
         }
         sources["compiled.json"] = json.dumps(compiled)
         dialect = gencmu.load_dialect_sources(sources, "p.md")

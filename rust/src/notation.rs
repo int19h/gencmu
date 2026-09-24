@@ -1,6 +1,6 @@
 //! From the notation's document tree to a grammar DOM (engine §9).
 
-use crate::dom::{Alternative, Arg, Cond, Directive, Dom, Emit, EmitItem, Expr, Guard, Op, RuleDef, Term};
+use crate::dom::{Alternative, Arg, Cond, Directive, Dom, EmitItem, Expr, Guard, Op, RuleDef, Term};
 use crate::error::Error;
 use crate::result::{Node, NodeKind, Token};
 
@@ -108,14 +108,14 @@ impl<'a> Reader<'a> {
     }
 
     fn rule(&self, node: &'a Node) -> R<RuleDef> {
-        let name_token = Self::tokens_of(node).next().expect("a rule name");
+        let name_token = Self::tokens_of(self.one(node, "rule-name")).next().expect("a rule name");
         let definer = self.one(node, "definer");
         let op = match self.text(Self::tokens_of(definer).next().expect("a definer")) {
             "|≔" => Op::Extend,
             _ => Op::Define,
         };
         let tags = match Self::rules(node, "rule-tags").next() {
-            Some(tags) => Some(self.value(self.one(tags, "term"), 0)?),
+            Some(tags) => Some(self.tag_term(tags)?),
             None => None,
         };
         let mut alternatives = Vec::new();
@@ -134,8 +134,12 @@ impl<'a> Reader<'a> {
                     emit = Some(self.emission(inner)?);
                 }
                 _ => {
-                    for item in Self::rules(inner, "condition-item") {
-                        conditions.push(self.condition_item(item)?);
+                    // The conditions joined by ∧ at the top are the rule's
+                    // conditions, one by one; parentheses make no node, so
+                    // `: (a ∧ b)` is two conditions too (§9).
+                    match self.any_of(self.one(inner, "any-of"), 0)? {
+                        Cond::All(items) => conditions.extend(items),
+                        other => conditions.push(other),
                     }
                 }
             }
@@ -156,7 +160,7 @@ impl<'a> Reader<'a> {
             .map(|guard| {
                 let text = self.text(Self::tokens_of(guard).next().expect("a guard token"));
                 let text = text.trim_start_matches('@');
-                match text.strip_prefix('!') {
+                match text.strip_prefix('¬') {
                     Some(feature) => Guard { feature: feature.to_string(), negated: true },
                     None => Guard { feature: text.to_string(), negated: false },
                 }
@@ -165,10 +169,36 @@ impl<'a> Reader<'a> {
         self.captures.borrow_mut().clear();
         let expr = self.conjunction(self.one(node, "conjunction"), 0, true)?;
         let tags = match Self::rules(node, "alternative-tags").next() {
-            Some(tags) => Some(self.value(self.one(tags, "term"), 0)?),
+            Some(tags) => Some(self.tag_term(tags)?),
             None => None,
         };
         Ok(Alternative { guards, expr, tags })
+    }
+
+    /// A rule's or an alternative's tags, which say what the constituent's
+    /// tags are and so cannot read them: `$`, `tags($)` and `classes($)`
+    /// are errors there (§9), reported at the tags.
+    fn tag_term(&self, node: &'a Node) -> R<Term> {
+        let term = self.value(self.one(node, "term"), 0)?;
+        let mut stack = vec![&term];
+        while let Some(term) = stack.pop() {
+            let own = match term {
+                Term::Capture(name) => name.is_empty(),
+                Term::Call(name, args) => {
+                    matches!(name.as_str(), "tags" | "classes")
+                        && matches!(&args[..], [Arg::Term(Term::Capture(name))] if name.is_empty())
+                }
+                Term::Union(items) | Term::Intersection(items) => {
+                    stack.extend(items);
+                    false
+                }
+                _ => false,
+            };
+            if own {
+                return Err(self.error(node, "a tag term cannot read the tags it defines: $, tags($) or classes($)"));
+            }
+        }
+        Ok(term)
     }
 
     /// `top` is whether this is an alternative's own expression, whose
@@ -223,6 +253,9 @@ impl<'a> Reader<'a> {
             "phoneme" => Expr::Terminal(self.text(token()).to_string()),
             "capture" => {
                 let capture = token();
+                if self.text(capture) == "$" {
+                    return Err(self.error(capture, "$ is the whole constituent and wraps nothing"));
+                }
                 let primary = self.one(inner, "primary");
                 let wrapped = Self::inner(primary);
                 if !matches!(rule_name(wrapped), "reference" | "string" | "phoneme") {
@@ -243,7 +276,6 @@ impl<'a> Reader<'a> {
             }
             "group" => self.choice(self.one(inner, "choice"), depth)?,
             "optional" => Expr::Optional(Box::new(self.choice(self.one(inner, "choice"), depth)?)),
-            "hash" => Expr::Hash,
             "empty" => Expr::Empty,
             other => panic!("an unknown primary {other}"),
         })
@@ -288,69 +320,98 @@ impl<'a> Reader<'a> {
         Ok(out)
     }
 
-    fn emission(&self, node: &'a Node) -> R<Emit> {
+    fn emission(&self, node: &'a Node) -> R<Vec<EmitItem>> {
         let arrow = Self::tokens_of(node).next().expect("⇒");
         let mut items = Vec::new();
-        let mut nothing = false;
         for item in Self::rules(node, "emit-item") {
             let target = Self::tokens_of(self.one(item, "emit-target")).next().expect("an emission target");
+            // `<term>`, or `<>`, which erases.
             let tags = match Self::rules(item, "emit-tags").next() {
-                Some(tags) => Some((tags, self.value(self.one(tags, "term"), 0)?)),
+                Some(tags) => match Self::rules(tags, "term").next() {
+                    Some(term) => {
+                        let term = self.value(term, 0)?;
+                        if term == Term::EmptySet {
+                            return Err(self.error(item, "<∅> emits a token no terminal can read; <> erases"));
+                        }
+                        Some(Some(term))
+                    }
+                    None => Some(None),
+                },
                 None => None,
             };
             let terminal = target.terminal.as_deref().unwrap_or("");
             match terminal {
-                "capture" if items.iter().any(|item| matches!(item, EmitItem::Capture(name, _) if name == self.text(target).trim_start_matches('$'))) => {
-                    return Err(self.error(arrow, "an emission lists the same capture twice"));
+                "capture" => {
+                    let name = self.text(target).trim_start_matches('$').to_string();
+                    let listed = items.iter().any(|item| match item {
+                        EmitItem::Capture(other, _) | EmitItem::Erase(other) => *other == name,
+                        EmitItem::Insert(_) => false,
+                    });
+                    if listed && !name.is_empty() {
+                        return Err(self.error(arrow, "an emission lists the same capture twice"));
+                    }
+                    items.push(match tags {
+                        Some(None) => EmitItem::Erase(name),
+                        Some(Some(term)) => EmitItem::Capture(name, Some(term)),
+                        None => EmitItem::Capture(name, None),
+                    });
                 }
-                "capture" => items.push(EmitItem::Capture(
-                    self.text(target).trim_start_matches('$').to_string(),
-                    tags.map(|(_, term)| term),
-                )),
-                "string" | "phoneme" => {
+                _ => {
                     if tags.is_some() {
-                        return Err(self.error(target, "an inserted tag takes no tags of its own"));
+                        return Err(self.error(target, "an inserted tag takes no tags of its own, nor <>"));
                     }
                     let tag = if terminal == "string" { self.decode(target)? } else { self.text(target).to_string() };
                     items.push(EmitItem::Insert(tag));
                 }
-                _ => match self.text(target) {
-                    "this" => items.push(EmitItem::This(tags.map(|(_, term)| term))),
-                    "nothing" => {
-                        if tags.is_some() {
-                            return Err(self.error(target, "nothing takes no tags"));
-                        }
-                        nothing = true;
-                    }
-                    other => return Err(self.error(target, format!("{other} is not this, nothing or a capture"))),
-                },
             }
         }
-        if nothing {
-            if !items.is_empty() {
-                return Err(self.error(arrow, "nothing is used with other items"));
-            }
-            return Ok(Emit::Nothing);
+        let whole =
+            |item: &EmitItem| matches!(item, EmitItem::Capture(name, _) | EmitItem::Erase(name) if name.is_empty());
+        let wholes = items.iter().filter(|item| whole(item)).count();
+        if wholes > 0 && wholes < items.len() {
+            return Err(self.error(arrow, "$ is used with a capture or an inserted tag"));
         }
-        let this = items.iter().filter(|item| matches!(item, EmitItem::This(_))).count();
-        if this > 0 && this < items.len() {
-            return Err(self.error(arrow, "this is used with a capture or an inserted tag"));
+        if items.len() > 1 && items.iter().any(|item| matches!(item, EmitItem::Erase(name) if name.is_empty())) {
+            return Err(self.error(arrow, "$ <> erases the whole constituent and stands alone"));
         }
-        Ok(Emit::Items(items))
+        Ok(items)
     }
 
-    fn condition_item(&self, node: &'a Node) -> R<Cond> {
+    /// Conditions joined by `∨`: `any` of its `all-of`s, or the one itself.
+    fn any_of(&self, node: &'a Node, depth: usize) -> R<Cond> {
+        let depth = self.deeper(node, depth)?;
         let mut parts = Vec::new();
-        for condition in Self::rules(node, "condition") {
-            parts.push(self.condition(condition, 0)?);
+        for all_of in Self::rules(node, "all-of") {
+            // A parenthesized group of the same connective makes no node
+            // of its own: its conditions take its place (§9).
+            match self.all_of(all_of, depth)? {
+                Cond::Any(items) => parts.extend(items),
+                other => parts.push(other),
+            }
         }
         Ok(if parts.len() == 1 { parts.pop().expect("a condition") } else { Cond::Any(parts) })
+    }
+
+    /// Conditions joined by `∧`: `all` of them, or the one itself.
+    fn all_of(&self, node: &'a Node, depth: usize) -> R<Cond> {
+        let depth = self.deeper(node, depth)?;
+        let mut parts = Vec::new();
+        for condition in Self::rules(node, "condition") {
+            // A parenthesized group of the same connective makes no node
+            // of its own: its conditions take its place (§9).
+            match self.condition(condition, depth)? {
+                Cond::All(items) => parts.extend(items),
+                other => parts.push(other),
+            }
+        }
+        Ok(if parts.len() == 1 { parts.pop().expect("a condition") } else { Cond::All(parts) })
     }
 
     fn condition(&self, node: &'a Node, depth: usize) -> R<Cond> {
         let depth = self.deeper(node, depth)?;
         let inner = Self::inner(node);
         match rule_name(inner) {
+            "any-of" => self.any_of(inner, depth),
             "comparison" => {
                 let terms: Vec<&Node> = Self::rules(inner, "term").collect();
                 let comparator = self.one(inner, "comparator");
@@ -451,13 +512,6 @@ impl<'a> Reader<'a> {
                 Term::Weak(self.decode(string)?)
             }
             "empty-set" => Term::EmptySet,
-            "set" => {
-                let mut items = Vec::new();
-                for term in Self::rules(inner, "term") {
-                    items.push(self.value(term, depth)?);
-                }
-                Term::Set(items)
-            }
             "capture-reference" => Term::Capture(self.text(token()).trim_start_matches('$').to_string()),
             "call" => self.call(inner, depth)?,
             other => panic!("an unknown term atom {other}"),

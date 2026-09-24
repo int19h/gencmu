@@ -13,7 +13,7 @@ func TestDOMRules(t *testing.T) {
 	loadBundled()
 	const good = `{"seq":[{"terminal":"a"},{"terminal":"b"}]}`
 	rule := func(fields string) string {
-		return `{"format":1,"rules":[{"name":"text","op":"define",` + fields + `,"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[1,1]}]}`
+		return `{"format":2,"rules":[{"name":"text","op":"define",` + fields + `,"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[1,1]}]}`
 	}
 	alt := func(expr string) string {
 		return rule(`"alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[]`)
@@ -27,14 +27,20 @@ func TestDOMRules(t *testing.T) {
 	cond := func(condition string) string {
 		return rule(`"alternatives":[{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"terminal":"a"}},{"terminal":"b"}]}}],"conditions":[` + condition + `]`)
 	}
+	// n unions, each of a literal and the next: the innermost literal is n
+	// deep.
+	unions := func(n int) string {
+		return strings.Repeat(`{"union":[{"literal":"Y"},`, n) + `{"literal":"X"}` + strings.Repeat(`]}`, n)
+	}
 	// n optionals around a sequence of two terminals: the terminals are
 	// n+1 deep.
 	nested := func(n int) string {
 		return strings.Repeat(`{"optional":`, n) + good + strings.Repeat(`}`, n)
 	}
 	cases := []struct{ rule, dom string }{
-		{"format 1", strings.Replace(alt(good), `"format":1`, `"format":2`, 1)},
+		{"format 2", strings.Replace(alt(good), `"format":2`, `"format":1`, 1)},
 		{"a rule's name is a name", strings.Replace(alt(good), `"name":"text"`, `"name":"9x"`, 1)},
+		{"a rule's name is a name or #", strings.Replace(alt(good), `"name":"text"`, `"name":"##"`, 1)},
 		{"op is define or extend", strings.Replace(alt(good), `"define"`, `"replace"`, 1)},
 		{"a rule has alternatives", rule(`"alternatives":[],"conditions":[]`)},
 		{"a rule has conditions", rule(`"alternatives":[{"guards":[],"expr":` + good + `}]`)},
@@ -54,18 +60,27 @@ func TestDOMRules(t *testing.T) {
 		{"a capture stands at the top level (repetition)", alt(`{"seq":[{"terminal":"a"},{"repeat":{"capture":"x","expr":{"terminal":"b"}},"min":1}]}`)},
 		{"at most four captures per alternative", alt(`{"seq":[{"capture":"a","expr":{"terminal":"a"}},{"capture":"b","expr":{"terminal":"b"}},{"capture":"c","expr":{"ref":"C"}},{"capture":"d","expr":{"ref":"D"}},{"capture":"e","expr":{"ref":"E"}}]}`)},
 		{"a capture's symbol counts toward the nesting", alt(`{"seq":[` + strings.Repeat(`{"seq":[{"terminal":"a"},`, 255) + `{"capture":"x","expr":{"terminal":"b"}}` + strings.Repeat(`]}`, 255) + `,{"terminal":"b"}]}`)},
-		{"a term nests at most 256 deep", tagged(strings.Repeat(`{"set":[`, 257) + `{"literal":"X"}` + strings.Repeat(`]}`, 257))},
+		{"a term nests at most 256 deep", tagged(unions(257))},
 		{"a condition nests at most 256 deep", cond(strings.Repeat(`{"not":`, 256) + `{"matches":{"capture":"x"},"rule":"text"}` + strings.Repeat(`}`, 256))},
-		{"an emitted item's term nests at most 256 deep", emit(`{"items":[{"this":true,"tags":` + strings.Repeat(`{"set":[`, 257) + `{"literal":"X"}` + strings.Repeat(`]}`, 257) + `}]}`)},
+		{"an emitted item's term nests at most 256 deep", emit(`{"items":[{"capture":"","tags":` + unions(257) + `}]}`)},
 		{"a capture name once per alternative", alt(`{"seq":[{"capture":"x","expr":{"terminal":"a"}},{"capture":"x","expr":{"terminal":"b"}}]}`)},
-		{"a flag is true", alt(`{"seq":[{"terminal":"a"},{"hash":false}]}`)},
+		{"a flag is true", alt(`{"seq":[{"terminal":"a"},{"empty":false}]}`)},
+		{"# is not an expression", alt(`{"seq":[{"terminal":"a"},{"hash":true}]}`)},
+		{"$ wraps nothing", alt(`{"seq":[{"capture":"","expr":{"terminal":"a"}},{"terminal":"b"}]}`)},
 		{"an expression is known", alt(`{"seq":[{"terminal":"a"},{"what":"b"}]}`)},
 		{"a reference names something", alt(`{"seq":[{"terminal":"a"},{"ref":""}]}`)},
 		{"a captured reference names something", alt(`{"seq":[{"terminal":"a"},{"capture":"x","expr":{"ref":""}}]}`)},
-		{"nothing alone", emit(`{"nothing":true,"items":[{"capture":"x"}]}`)},
-		{"nothing without tags", emit(`{"nothing":true,"tags":{"literal":"X"}}`)},
-		{"this only with this (a capture)", emit(`{"items":[{"this":true},{"capture":"x"}]}`)},
-		{"this only with this (an inserted tag)", emit(`{"items":[{"this":true},{"insert":"/a/"}]}`)},
+		{"no nothing", emit(`{"nothing":true}`)},
+		{"no this", emit(`{"items":[{"this":true}]}`)},
+		{"an emission has only items", emit(`{"items":[{"capture":"x"}],"nothing":true}`)},
+		{"$ only with $ (a capture)", emit(`{"items":[{"capture":""},{"capture":"x"}]}`)},
+		{"$ only with $ (an inserted tag)", emit(`{"items":[{"capture":""},{"insert":"/a/"}]}`)},
+		{"$ <> alone", emit(`{"items":[{"capture":"","erase":true},{"capture":""}]}`)},
+		{"an item is a capture or an inserted tag", emit(`{"items":[{"capture":"x","insert":"y"}]}`)},
+		{"erase is true", emit(`{"items":[{"capture":"x","erase":false}]}`)},
+		{"no tags on an erased capture", emit(`{"items":[{"capture":"x","erase":true,"tags":{"literal":"X"}}]}`)},
+		{"no <> on an inserted tag", emit(`{"items":[{"capture":"x"},{"insert":"y","erase":true}]}`)},
+		{"no ∅ as an item's tags", emit(`{"items":[{"capture":"x","tags":{"emptySet":true}}]}`)},
 		{"a capture listed once", emit(`{"items":[{"capture":"x"},{"capture":"x"}]}`)},
 		{"no tags on an inserted tag", emit(`{"items":[{"capture":"x"},{"insert":"y","tags":{"literal":"Z"}}]}`)},
 		{"an emission lists items", emit(`{"items":[]}`)},
@@ -80,9 +95,18 @@ func TestDOMRules(t *testing.T) {
 		{"a union has two parts or more", tagged(`{"union":[{"literal":"X"}]}`)},
 		{"an intersection has two parts or more", tagged(`{"intersection":[]}`)},
 		{"a term is known", tagged(`{"what":"X"}`)},
+		{"no set", tagged(`{"set":[{"literal":"X"},{"literal":"Y"}]}`)},
+		{"a call's arguments are a list", tagged(`{"call":"tags","args":null}`)},
+		{"a rule's tag term is well formed", rule(`"tags":{"call":"classes","args":null},"alternatives":[{"guards":[],"expr":` + good + `}],"conditions":[]`)},
+		{"an alternative's tags are not $", tagged(`{"union":[{"literal":"X"},{"capture":""}]}`)},
+		{"an alternative's tags are not tags($)", tagged(`{"call":"tags","args":[{"capture":""}]}`)},
+		{"an alternative's tags are not classes($)", tagged(`{"call":"classes","args":[{"capture":""}]}`)},
+		{"a rule's tags are not tags($)", rule(`"tags":{"call":"tags","args":[{"capture":""}]},"alternatives":[{"guards":[],"expr":` + good + `}],"conditions":[]`)},
 		{"a comparison is known", cond(`{"op":"<","left":{"literal":"a"},"right":{"literal":"b"}}`)},
 		{"a comparison has two terms", cond(`{"op":"=","left":{"literal":"a"}}`)},
 		{"an any has two conditions or more", cond(`{"any":[{"not":{"matches":{"capture":"x"},"rule":"text"}}]}`)},
+		{"an all has two conditions or more", cond(`{"all":[{"not":{"matches":{"capture":"x"},"rule":"text"}}]}`)},
+		{"an all counts toward the nesting", cond(strings.Repeat(`{"all":[{"matches":{"capture":"x"},"rule":"text"},`, 256) + `{"matches":{"capture":"x"},"rule":"text"}` + strings.Repeat(`]}`, 256))},
 		{"matches takes a span", cond(`{"matches":{"literal":"x"},"rule":"text"}`)},
 		{"matches takes a rule", cond(`{"matches":{"capture":"x"}}`)},
 		{"nesting at most 256", alt(nested(256))},
@@ -95,11 +119,16 @@ func TestDOMRules(t *testing.T) {
 		alt(`{"seq":[{"capture":"a","expr":{"terminal":"a"}},{"capture":"b","expr":{"terminal":"b"}},{"capture":"c","expr":{"ref":"C"}},{"capture":"d","expr":{"ref":"D"}}]}`),
 		// Each at the bound: the deepest node below exactly 256 compound ones.
 		alt(`{"seq":[` + strings.Repeat(`{"seq":[{"terminal":"a"},`, 254) + `{"capture":"x","expr":{"terminal":"b"}}` + strings.Repeat(`]}`, 254) + `,{"terminal":"b"}]}`),
-		tagged(strings.Repeat(`{"set":[`, 256) + `{"literal":"X"}` + strings.Repeat(`]}`, 256)),
+		tagged(unions(256)),
+		strings.Replace(alt(good), `"name":"text"`, `"name":"#"`, 1),
 		// An emission and its items are not compound: an item's term counts
 		// from the top.
-		emit(`{"items":[{"this":true,"tags":` + strings.Repeat(`{"set":[`, 256) + `{"literal":"X"}` + strings.Repeat(`]}`, 256) + `}]}`),
-		cond(strings.Repeat(`{"not":`, 255) + `{"matches":{"capture":"x"},"rule":"text"}` + strings.Repeat(`}`, 255)), emit(`{"items":[{"this":true},{"this":true}]}`), emit(`{"items":[{"insert":"y"},{"capture":"x"}]}`),
+		emit(`{"items":[{"capture":"","tags":` + unions(256) + `}]}`),
+		cond(strings.Repeat(`{"not":`, 255) + `{"matches":{"capture":"x"},"rule":"text"}` + strings.Repeat(`}`, 255)), emit(`{"items":[{"capture":""},{"capture":""}]}`), emit(`{"items":[{"insert":"y"},{"capture":"x"}]}`),
+		emit(`{"items":[{"capture":"","erase":true}]}`), emit(`{"items":[{"capture":"x","erase":true},{"insert":"y"},{"capture":"y","tags":{"capture":""}}]}`),
+		tagged(`{"call":"tags","args":[{"capture":""},{"rule":"text"}]}`), tagged(`{"call":"tags","args":[{"call":"head","args":[{"capture":""}]}]}`),
+		cond(`{"all":[{"matches":{"capture":""},"rule":"text"},{"op":"∈","left":{"literal":"a"},"right":{"call":"tags","args":[{"capture":""}]}}]}`),
+		cond(strings.Repeat(`{"all":[{"matches":{"capture":"x"},"rule":"text"},`, 255) + `{"matches":{"capture":"x"},"rule":"text"}` + strings.Repeat(`]}`, 255)),
 		tagged(`{"call":"lowercase","args":[{"call":"text","args":[{"call":"head","args":[{"capture":"x"}]}]}]}`),
 		cond(`{"any":[{"not":{"matches":{"capture":"x"},"rule":"text"}},{"op":"=","left":{"literal":"a"},"right":{"literal":"a"}}]}`)} {
 		if _, err := decodeDOM(json.RawMessage(ok)); err != nil {
@@ -116,7 +145,7 @@ func TestDOMRules(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["compiled.json"] = `{"format":1,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + c.dom + `}}}`
+		src["compiled.json"] = `{"format":2,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + c.dom + `}}}`
 		d, err := LoadDialectSources(src, "p.md")
 		if err != nil {
 			t.Errorf("%s: %v", c.rule, err)

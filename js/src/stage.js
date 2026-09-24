@@ -341,6 +341,7 @@ class TreeScope {
   }
   /** @param {string} name */
   capture(name) {
+    if (name === "") return { start: this.node.start, end: this.node.end, tags: nodeTags(this.node, this.context) };
     const capture = /** @type {import("./types.js").Capture} */ (this.node.production.captures.find((entry) => entry.name === name));
     const child = this.node.children[capture.index];
     return { start: child.start, end: child.end, tags: nodeTags(child, this.context) };
@@ -360,11 +361,14 @@ function phonemeTag(tags) {
   if (found.length > 1) {
     throw new GencmuError("grammar", `a token carries two phoneme tags, ${found.sort(compareCodePoints).join(" and ")}`);
   }
-  return found.length ? [...found[0]][1] : null;
+  if (!found.length) return null;
+  // The pause, `/./`, sounds as a space (engine §5).
+  const phoneme = [...found[0]][1];
+  return phoneme === "." ? " " : phoneme;
 }
 
-// What a node says: its tokens' phonemes, less every part that emits
-// nothing (engine §5).
+// What a node says: its tokens' phonemes, less every part that is erased
+// (engine §5).
 /**
  * @param {Derivation} node
  * @param {ParseContext} context
@@ -378,10 +382,36 @@ function spoken(node, context) {
       result += context.tokens[current.read.token].phonemes || "";
       continue;
     }
-    if (current.production.emit && "nothing" in current.production.emit) continue;
-    for (let index = current.children.length - 1; index >= 0; index--) stack.push(current.children[index]);
+    const erased = erasedChildren(current.production);
+    if (erased === ERASE_ALL) continue;
+    for (let index = current.children.length - 1; index >= 0; index--) {
+      if (!erased.has(index)) stack.push(current.children[index]);
+    }
   }
   return result;
+}
+
+const ERASE_ALL = new Set([-1]);
+/** @type {Set<number>} */
+const ERASE_NONE = new Set();
+
+/**
+ * Which children of a production's constituent its emission erases: ERASE_ALL
+ * for `⇒ $ <>`, else the captures named with `<>` (engine §11).
+ * @param {import("./types.js").Production} production
+ * @returns {Set<number>}
+ */
+function erasedChildren(production) {
+  const emission = production.emit;
+  if (!emission || !emission.items.some((item) => item.erase)) return ERASE_NONE;
+  if (emission.items[0].capture === "") return ERASE_ALL;
+  const erased = new Set();
+  for (const item of emission.items) {
+    if (!item.erase) continue;
+    const capture = production.captures.find((entry) => entry.name === item.capture);
+    if (capture) erased.add(capture.index);
+  }
+  return erased;
 }
 
 /**
@@ -394,7 +424,7 @@ function makeToken(node, tags, context) {
   const tokens = context.tokens;
   const source = sourceOf(tokens, node.start, node.end);
   const phoneme = phonemeTag(tags);
-  const phonemes = phoneme !== null ? phoneme : spoken(node, context).trim();
+  const phonemes = phoneme !== null ? phoneme : spoken(node, context).replace(/^ +| +$/g, "");
   return new Token(tags, [node.start, node.end], source, context.sourceText.slice(source[0], source[1]).join(""), phonemes, undefined);
 }
 
@@ -443,12 +473,21 @@ export function emit(root, context) {
       for (let index = node.children.length - 1; index >= 0; index--) tasks.push({ walk: node.children[index] });
       continue;
     }
-    if ("nothing" in clause) continue;
     const scope = new TreeScope(node, context);
     /** @type {(item: EmitItem, fallback: TagSet) => TagSet} */
-    const valueTags = (item, fallback) => (item.tags ? asTags(evaluate(context, item.tags, scope)) : fallback);
-    if (clause.items.length > 0 && clause.items[0].this) {
-      // One token covering the constituent per `this`: a digit that is two
+    const valueTags = (item, fallback) => {
+      if (!item.tags) return fallback;
+      const tags = asTags(evaluate(context, item.tags, scope));
+      // A token no terminal can read is a mistake; <> is how a grammar
+      // erases a part (engine §11).
+      if (tags.size === 0) throw new GencmuError("grammar", `${production.owner} emits a token with no tags`);
+      return tags;
+    };
+    // An emission whose items all name captures this production lacks
+    // leaves the constituent to be walked (engine §3.6).
+    if (clause.items.length > 0 && clause.items[0].capture === "") {
+      if (clause.items[0].erase) continue;
+      // One token covering the constituent per `$`: a digit that is two
       // phonemes is emitted as two tokens over the same character.
       for (const item of clause.items) out.push(makeToken(node, valueTags(item, nodeTags(node, context)), context));
       continue;
@@ -487,7 +526,7 @@ export function emit(root, context) {
       const item = named.get(index);
       if (item) {
         insertAll(insertsBefore.get(item) || [], cursor);
-        ordered.push({ token: () => makeToken(child, valueTags(item, nodeTags(child, context)), context) });
+        if (!item.erase) ordered.push({ token: () => makeToken(child, valueTags(item, nodeTags(child, context)), context) });
       } else {
         ordered.push({ walk: child });
       }

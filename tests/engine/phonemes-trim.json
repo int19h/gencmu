@@ -1,0 +1,45 @@
+{
+  "description": "An emitted token's phonemes lose leading and trailing U+0020 spaces only; any other space, such as U+00A0, is kept (engine §5).",
+  "documents": {
+    "p.md": "## s <?stage first?>\n\n- [g](g.md) <?grammar?>\n\n## t <?stage second?>\n\n- [h](h.md) <?grammar?>\n\n## u <?stage third?>\n\n- [k](k.md) <?grammar?>\n",
+    "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ E ⇒ $ </ /> ;\n```\n",
+    "h.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ \"/\\u{A0}/\" ⇒ $ <\"X\"> ;\n```\n",
+    "k.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ X ;\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "e",
+      "tags": [
+        "E"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "phonemes": " "
+            }
+          ]
+        },
+        {
+          "output": [
+            {
+              "phonemes": " ",
+              "tags": {
+                "X": true
+              }
+            }
+          ]
+        },
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

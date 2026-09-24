@@ -1,0 +1,10 @@
+{
+  "description": "An inserted tag takes no tags, <> included (engine §9); the error is at the item.",
+  "document": "```ebnf\na ≔ $x(A) ⇒ $x, \"T\" <> ;\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 17
+    }
+  }
+}

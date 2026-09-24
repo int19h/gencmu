@@ -1,0 +1,10 @@
+{
+  "description": "Conditions are joined by ∧, not by a comma (engine §9); the error is at the comma.",
+  "document": "```ebnf\na ≔ $x(A) : \"p\" ∈ tags($x), \"q\" ∈ tags($x) ;\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 27
+    }
+  }
+}

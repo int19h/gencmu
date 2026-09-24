@@ -1,0 +1,23 @@
+{
+  "description": "<> after a capture erases it, while the other captures are emitted (engine §9, §11).",
+  "document": "```ebnf\na ≔ $x(A) $y(B) ⇒ $x <>, $y ;\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "emit": {
+            "items": [
+              {
+                "capture": "x",
+                "erase": true
+              },
+              {
+                "capture": "y"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

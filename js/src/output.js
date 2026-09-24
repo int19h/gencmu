@@ -243,6 +243,21 @@ export function toTree(result) {
 }
 
 /**
+ * A tree without its hollow rule nodes, those with no token and no elided
+ * terminator below them, such as an empty free-modifier slot: the renderings
+ * for people leave them out (docs/output.md).
+ * @param {ResultNode} root
+ * @returns {ResultNode}
+ */
+export function withoutHollowNodes(root) {
+  return foldTree(root,
+    /** @returns {ResultNode} */
+    (leaf) => leaf,
+    /** @returns {ResultNode} */
+    (rule, children) => ({ ...rule, children: children.filter((child) => child.kind !== "rule" || child.children.length > 0) }));
+}
+
+/**
  * The tree rendering of any tree over the tokens its nodes index.
  * @param {ResultNode} root
  * @param {Token[]} tokens
@@ -251,6 +266,7 @@ export function toTree(result) {
 export function nodeTree(root, tokens) {
   /** @type {string[]} */
   const lines = [];
+  root = withoutHollowNodes(root);
   /** @type {(node: ResultNode) => string} */
   const label = (node) => {
     if (node.kind === "token") return `${node.terminal} ${JSON.stringify(leafLabel(node, tokens))}`;
@@ -290,7 +306,7 @@ export function nodeTree(root, tokens) {
 export function displayValue(result) {
   if (!result.tree) return null;
   const tokens = finalInput(result);
-  return foldTree(result.tree,
+  return foldTree(withoutHollowNodes(result.tree),
     /** @returns {DisplayValue} */
     (leaf) => (leaf.kind === "token" ? { [leaf.terminal]: leafLabel(leaf, tokens) } : { [leaf.terminal]: null }),
     /** @returns {DisplayValue} */

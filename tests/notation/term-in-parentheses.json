@@ -1,0 +1,42 @@
+{
+  "description": "A comparison may begin with a term in parentheses, which is not a group of conditions (engine §9).",
+  "document": "```ebnf\na ≔ $x(A) : (\"p\" ∪ \"q\") ∩ tags($x) ≠ ∅ ;\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "conditions": [
+            {
+              "op": "≠",
+              "left": {
+                "intersection": [
+                  {
+                    "union": [
+                      {
+                        "literal": "p"
+                      },
+                      {
+                        "literal": "q"
+                      }
+                    ]
+                  },
+                  {
+                    "call": "tags",
+                    "args": [
+                      {
+                        "capture": "x"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "right": {
+                "emptySet": true
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

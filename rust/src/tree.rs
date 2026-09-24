@@ -3,8 +3,8 @@
 
 use std::collections::BTreeMap;
 
-use crate::earley::{Cap, EngineError, Recognizer, Tok};
-use crate::lower::{LEmit, LEmitItem, Lowered};
+use crate::earley::{Cap, EngineError, Frame, Recognizer, Tok};
+use crate::lower::{LEmit, LEmitItem, LTerm, Lowered};
 use crate::rank::{DNode, Ranker};
 use crate::result::{Node, NodeKind};
 use crate::tags::{phoneme_of, SetId};
@@ -210,8 +210,8 @@ fn span_of(tree: &ITree, index: u32) -> (u32, u32) {
 }
 
 /// The phonemes of a token emitted from a node (§5): its strong phoneme
-/// tag, or the phonemes of the tokens below it, skipping what emits
-/// nothing, with the spaces at either end removed.
+/// tag, or the phonemes of the tokens below it, skipping every erased
+/// constituent, with the spaces at either end removed.
 fn phonemes(
     recognizer: &Recognizer,
     tree: &ITree,
@@ -242,13 +242,30 @@ fn phonemes(
                 }
             }
             IKind::Close { prod, .. } => {
-                if !matches!(recognizer.g.prods[prod as usize].emit, LEmit::Nothing) {
-                    stack.extend(node.children.iter().rev());
+                let production = &recognizer.g.prods[prod as usize];
+                for (position, &child) in node.children.iter().enumerate().rev() {
+                    if !production.emit.erases(production, position) {
+                        stack.push(child);
+                    }
                 }
             }
         }
     }
     Ok(Some(out.trim_matches(' ').to_string()))
+}
+
+/// The tags an emission item's term gives a token (§11): a term that gives
+/// none is an error of the grammar, since no terminal could read the token.
+fn item_tags(recognizer: &mut Recognizer, term: &LTerm, frame: &Frame, tokens: &[Tok]) -> Result<SetId, EngineError> {
+    let set = recognizer.tag_term(term, frame, tokens, 0)?;
+    if recognizer.shared.tags.list(set).is_empty() {
+        let owner = recognizer.g.prods[frame.prod as usize].owner;
+        return Err(EngineError {
+            message: "an emission gives a token no tags, which no terminal can read; <> erases".to_string(),
+            rule: Some(owner),
+        });
+    }
+    Ok(set)
 }
 
 /// Walks the chosen tree from the left and emits the next stage's tokens
@@ -268,13 +285,14 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
         match work {
             Work::Visit(index) => {
                 let node = &tree.nodes[index as usize];
-                let IKind::Close { prod, tags, caps, .. } = &node.kind else {
+                let IKind::Close { prod, start, end, tags, caps } = &node.kind else {
                     continue;
                 };
                 let (tags, caps) = (*tags, caps.clone());
+                let frame = Frame { caps: &caps, prod: *prod, origin: *start, end: *end, tags: Some(tags) };
                 let production = &g.prods[*prod as usize];
                 match &production.emit {
-                    LEmit::Nothing => {}
+                    LEmit::Erased => {}
                     LEmit::None => {
                         for &child in node.children.iter().rev() {
                             stack.push(Work::Visit(child));
@@ -284,7 +302,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                         let mut covers = Vec::new();
                         for term in items {
                             let set = match term {
-                                Some(term) => recognizer.tag_term(term, &caps, tokens, 0)?,
+                                Some(term) => item_tags(recognizer, term, &frame, tokens)?,
                                 None => tags,
                             };
                             covers.push(Work::Cover(index, set));
@@ -294,15 +312,21 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                     LEmit::Items(items) => {
                         let mut sequence = Vec::new();
                         // An inserted tag goes before the first capture
-                        // listed after it (§11).
+                        // listed after it, emitted or erased (§11).
                         let mut pending: Vec<&str> = Vec::new();
                         let mut before: Vec<(u8, Vec<&str>)> = Vec::new();
-                        let mut named: Vec<(u8, Option<&crate::lower::LTerm>)> = Vec::new();
+                        // Each capture listed: its slot, and its term, or
+                        // `None` if it is erased.
+                        let mut named: Vec<(u8, Option<Option<&LTerm>>)> = Vec::new();
                         for item in items {
                             match item {
                                 LEmitItem::Insert(tag) => pending.push(tag),
                                 LEmitItem::Cap(slot, term) => {
-                                    named.push((*slot, term.as_ref()));
+                                    named.push((*slot, Some(term.as_ref())));
+                                    before.push((*slot, std::mem::take(&mut pending)));
+                                }
+                                LEmitItem::Erase(slot) => {
+                                    named.push((*slot, None));
                                     before.push((*slot, std::mem::take(&mut pending)));
                                 }
                             }
@@ -312,7 +336,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                             let slot = production.cap_at[position];
                             let listed = slot.and_then(|slot| named.iter().find(|(named, _)| *named == slot));
                             match listed {
-                                Some(&(slot, term)) => {
+                                Some(&(slot, emitted)) => {
                                     let (child_start, _) = span_of(tree, child);
                                     if let Some((_, tags)) = before.iter().find(|(named, _)| *named == slot) {
                                         for tag in tags {
@@ -323,9 +347,10 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                                             });
                                         }
                                     }
-                                    let set = match term {
-                                        Some(term) => recognizer.tag_term(term, &caps, tokens, 0)?,
-                                        None => caps[slot as usize].tags,
+                                    let set = match emitted {
+                                        None => continue,
+                                        Some(Some(term)) => item_tags(recognizer, term, &frame, tokens)?,
+                                        Some(None) => caps[slot as usize].tags,
                                     };
                                     sequence.push(Work::Cover(child, set));
                                 }

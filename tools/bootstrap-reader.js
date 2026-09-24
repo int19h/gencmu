@@ -8,7 +8,7 @@
 
 import { extractGrammarText } from "../js/src/markdown.js";
 
-const SYMBOLS = ["|≔", "...", "≔", "|", "&", "(", ")", "[", "]", "{", "}", "<", ">", "#", "ε", "⇒", ":", ";", ",",
+const SYMBOLS = ["|≔", "...", "≔", "|", "&", "(", ")", "[", "]", "<", ">", "#", "ε", "⇒", ":", ";", ",",
   "∧", "∨", "¬", "?", "=", "≠", "∈", "∉", "⊆", "∪", "∩", "∅"];
 
 function fail(message, token) {
@@ -55,9 +55,10 @@ function lex(text, positions) {
     }
     if (c === "$" || c === "%" || c === "@") {
       i++;
-      if (c === "@" && chars[i] === "!") i++;
+      if (c === "@" && chars[i] === "¬") i++;
       const nameStart = i;
-      if (!isLetter(chars[i] || "")) fail(`a name after ${c}`, { at: at(start) });
+      // `$` alone is the whole constituent; every other sigil needs a name.
+      if (!isLetter(chars[i] || "") && c !== "$") fail(`a name after ${c}`, { at: at(start) });
       while (i < chars.length && isNameChar(chars[i])) i++;
       const kind = c === "$" ? "capture" : c === "%" ? "directive" : "guard";
       tokens.push({ kind, text: chars.slice(start, i).join(""), at: at(start), name: chars.slice(nameStart, i).join("") });
@@ -119,11 +120,11 @@ class Parser {
         rules.push(this.rule());
       }
     }
-    return { format: 1, rules, directives };
+    return { format: 2, rules, directives };
   }
 
   rule() {
-    const name = this.take("identifier");
+    const name = this.is("#") ? this.take("#") : this.take("identifier");
     const rule = { name: name.text, op: "define" };
     if (this.is("<")) rule.tags = this.angleTerm();
     if (this.accept("|≔")) rule.op = "extend";
@@ -136,12 +137,10 @@ class Parser {
         if (rule.emit) fail("a rule may have one ⇒ clause", token);
         rule.emit = this.emission(token);
       } else if (this.accept(":")) {
-        this.accept(",") || this.accept("∧");
-        rule.conditions.push(this.conditionItem());
-        while (this.is(",") || this.is("∧")) {
-          this.index++;
-          rule.conditions.push(this.conditionItem());
-        }
+        // The conditions joined by ∧ at the top are the rule's conditions,
+        // each applying where its captures are (engine §9).
+        const top = this.anyOf();
+        rule.conditions.push(...(top.all || [top]));
       } else break;
     }
     this.take(";");
@@ -165,7 +164,7 @@ class Parser {
     const guards = [];
     while (this.is("guard")) {
       const token = this.take();
-      guards.push({ feature: token.name, negated: token.text.startsWith("@!") });
+      guards.push({ feature: token.name, negated: token.text.startsWith("@¬") });
     }
     const alternative = { guards, expr: this.conjunction() };
     if (this.is("<")) alternative.tags = this.angleTerm();
@@ -205,6 +204,7 @@ class Parser {
       case "phoneme": this.index++; return { terminal: token.text };
       case "capture": {
         this.index++;
+        if (token.name === "") fail("$ is the whole constituent and wraps nothing", token);
         this.take("(");
         const inner = this.primary();
         this.take(")");
@@ -213,7 +213,7 @@ class Parser {
       }
       case "(": { this.index++; const inner = this.choice(); this.take(")"); return inner; }
       case "[": { this.index++; const inner = this.choice(); this.take("]"); return { optional: inner }; }
-      case "#": this.index++; return { hash: true };
+      case "#": this.index++; return { ref: "#" };
       case "ε": this.index++; return { empty: true };
       default: fail("expected an expression", token);
     }
@@ -237,52 +237,58 @@ class Parser {
     this.accept(",");
     const items = [this.emitItem()];
     while (this.accept(",")) items.push(this.emitItem());
-    if (items.some((item) => item.nothing)) {
-      if (items.length !== 1 || items[0].tags) fail("⇒ nothing stands alone", at);
-      return { nothing: true };
-    }
-    if (items.some((item) => item.this) && items.length !== 1) fail("⇒ this stands alone", at);
+    if (items.some((item) => item.capture === "") && !items.every((item) => item.capture === "")) fail("⇒ $ goes with no item but another $", at);
+    if (items.some((item) => item.capture === "" && item.erase) && items.length !== 1) fail("⇒ $ <> stands alone", at);
     return { items };
   }
 
   emitItem() {
     const token = this.take();
     let item;
-    if (token.kind === "identifier" && token.text === "this") item = { this: true };
-    else if (token.kind === "identifier" && token.text === "nothing") item = { nothing: true };
-    else if (token.kind === "capture") item = { capture: token.name };
+    if (token.kind === "capture") item = { capture: token.name };
     else if (token.kind === "string") item = { insert: decodeString(token.text, token) };
     else if (token.kind === "phoneme") item = { insert: token.text };
-    else fail("expected this, nothing, a capture or a tag after ⇒", token);
-    if (this.is("<")) item.tags = this.angleTerm();
+    else fail("expected a capture or a tag after ⇒", token);
+    if (this.is("<") && this.is(">", 1)) {
+      if (item.insert !== undefined) fail("an inserted tag takes no tags of its own", token);
+      this.index += 2;
+      item.erase = true;
+    } else if (this.is("<")) {
+      if (item.insert !== undefined) fail("an inserted tag takes no tags of its own", token);
+      item.tags = this.angleTerm();
+    }
     return item;
   }
 
-  conditionItem() {
+  anyOf() {
     this.accept("∨");
-    const items = [this.condition()];
-    while (this.accept("∨")) items.push(this.condition());
+    const items = [this.allOf()];
+    while (this.accept("∨")) items.push(this.allOf());
     return items.length === 1 ? items[0] : { any: items };
   }
 
+  allOf() {
+    this.accept("∧");
+    const items = [this.condition()];
+    while (this.accept("∧")) items.push(this.condition());
+    return items.length === 1 ? items[0] : { all: items };
+  }
+
   condition() {
-    if (this.is("¬")) {
-      const token = this.take();
-      if (this.is("(")) {
-        // ¬( condition ) or ¬ followed by a term in parentheses: try the
-        // condition first, as the grammar's greedy reading does.
-        const saved = this.index;
-        try {
-          this.take("(");
-          const inner = this.condition();
-          this.take(")");
-          return { not: inner };
-        } catch (error) {
-          this.index = saved;
-        }
+    if (this.accept("¬")) return { not: this.condition() };
+    if (this.is("(")) {
+      // Conditions in parentheses, or a comparison whose first term is in
+      // parentheses: only one of the two reads on to a whole condition.
+      const saved = this.index;
+      try {
+        this.take("(");
+        const inner = this.anyOf();
+        this.take(")");
+        return inner;
+      } catch (error) {
+        void error;
+        this.index = saved;
       }
-      void token;
-      return { not: this.condition() };
     }
     if (this.is("identifier") && this.peek().text === "matches" && this.is("(", 1)) {
       const saved = this.index;
@@ -326,16 +332,6 @@ class Parser {
       case "phoneme": this.index++; return { literal: token.text };
       case "?": { this.index++; const s = this.take("string"); return { weak: decodeString(s.text, s) }; }
       case "∅": this.index++; return { emptySet: true };
-      case "{": {
-        this.index++;
-        const items = [];
-        if (!this.is("}")) {
-          items.push(this.term());
-          while (this.accept(",")) items.push(this.term());
-        }
-        this.take("}");
-        return { set: items };
-      }
       case "(": { this.index++; const inner = this.term(); this.take(")"); return inner; }
       case "capture": this.index++; return { capture: token.name };
       case "identifier": return this.call();

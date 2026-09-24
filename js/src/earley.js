@@ -241,7 +241,7 @@ export function recognize(context, rule, start, end) {
     let skipped = false;
     for (const production of lowered.byLhs.get(name) || []) {
       const slots = emptySlots(production);
-      const failed = failedCondition(context, production, -1, slots);
+      const failed = failedCondition(context, production, -1, slots, set.position, set.position);
       if (failed) {
         const trace = context.trace;
         if (trace && trace.depth === 0 && set.position === trace.position) {
@@ -255,7 +255,7 @@ export function recognize(context, rule, start, end) {
         skipped = true;
         continue;
       }
-      const tagId = production.rhs.length === 0 ? completeTags(context, production, slots) : -1;
+      const tagId = production.rhs.length === 0 ? completeTags(context, production, slots, set.position, set.position) : -1;
       add(set, production, 0, set.position, slots, null, null, tagId);
     }
     if (skipped) set.skipped.push(name);
@@ -273,7 +273,7 @@ export function recognize(context, rule, start, end) {
       const tags = child ? child.tagId : context.interner.intern(tokens[from].tags);
       slots[captureIndex] = [from, to, tags];
     }
-    const failed = failedCondition(context, production, item.dot, slots);
+    const failed = failedCondition(context, production, item.dot, slots, item.origin, to);
     if (failed) {
       const trace = context.trace;
       if (trace && trace.depth === 0 && to === trace.position) {
@@ -282,7 +282,7 @@ export function recognize(context, rule, start, end) {
       return null;
     }
     const dot = item.dot + 1;
-    const tagId = dot === production.rhs.length ? completeTags(context, production, slots) : -1;
+    const tagId = dot === production.rhs.length ? completeTags(context, production, slots, item.origin, to) : -1;
     return { dot, slots, tagId };
   };
 
@@ -400,12 +400,14 @@ export function rootItems(chart, rule) {
  * @param {Production} production
  * @param {number} readyAt
  * @param {Slot[]} slots
+ * @param {number} origin where the item began
+ * @param {number} end where it ends once it has read the symbol at `readyAt`
  * @returns {Condition | null}
  */
-function failedCondition(context, production, readyAt, slots) {
+function failedCondition(context, production, readyAt, slots, origin, end) {
   for (const { condition, readyAt: at } of production.conditions) {
     if (at !== readyAt) continue;
-    const scope = new ChartScope(context, production, slots);
+    const scope = new ChartScope(context, production, slots, origin, end);
     if (!holds(context, condition, scope)) return condition;
   }
   return null;
@@ -415,12 +417,24 @@ function failedCondition(context, production, readyAt, slots) {
  * @param {ParseContext} context
  * @param {Production} production
  * @param {Slot[]} slots
+ * @param {number} origin
+ * @param {number} end
  * @returns {number}
  */
-function completeTags(context, production, slots) {
-  if (!production.tags) return context.interner.intern(tagSet());
-  const scope = new ChartScope(context, production, slots);
-  return context.interner.intern(asTagSet(evaluate(context, production.tags, scope)));
+function completeTags(context, production, slots, origin, end) {
+  return context.interner.intern(constituentTags(context, production, new ChartScope(context, production, slots, origin, end)));
+}
+
+/**
+ * A completed constituent's tags: its production's tag term, which cannot
+ * read `$`'s own (engine §9).
+ * @param {ParseContext} context
+ * @param {Production} production
+ * @param {Scope} scope
+ * @returns {TagSet}
+ */
+function constituentTags(context, production, scope) {
+  return production.tags ? asTagSet(evaluate(context, production.tags, scope)) : tagSet();
 }
 
 /** @implements {Scope} */
@@ -429,17 +443,31 @@ class ChartScope {
    * @param {ParseContext} context
    * @param {Production} production
    * @param {Slot[]} slots
+   * @param {number} origin
+   * @param {number} end
    */
-  constructor(context, production, slots) {
+  constructor(context, production, slots, origin, end) {
     this.context = context;
     this.production = production;
     this.slots = slots;
+    this.origin = origin;
+    this.end = end;
   }
   /**
    * @param {string} name
    * @returns {SpanValue}
    */
   capture(name) {
+    // `$` is the whole constituent, whose tags are read only once it is
+    // complete, by a condition or an emission (engine §4).
+    if (name === "") {
+      const scope = this;
+      return {
+        start: this.origin,
+        end: this.end,
+        get tags() { return constituentTags(scope.context, scope.production, scope); },
+      };
+    }
     const index = this.production.captures.findIndex((capture) => capture.name === name);
     const slot = /** @type {[number, number, number]} */ (this.slots[index]);
     return { start: slot[0], end: slot[1], tags: this.context.interner.get(slot[2]) };
@@ -513,7 +541,6 @@ export function evaluate(context, term, scope) {
   if ("literal" in term) return { string: term.literal };
   if ("weak" in term) return { tags: weakTag(term.weak) };
   if ("emptySet" in term) return { tags: tagSet() };
-  if ("set" in term) return { tags: term.set.reduce((acc, item) => tagUnion(acc, asTagSet(evaluate(context, item, scope))), tagSet()) };
   if ("union" in term) return { tags: term.union.reduce((acc, item) => tagUnion(acc, asTagSet(evaluate(context, item, scope))), tagSet()) };
   if ("intersection" in term) {
     const [first, ...rest] = term.intersection.map((item) => asTagSet(evaluate(context, item, scope)));
@@ -602,6 +629,7 @@ function asString(value) {
  */
 export function holds(context, condition, scope) {
   if ("any" in condition) return condition.any.some((item) => holds(context, item, scope));
+  if ("all" in condition) return condition.all.every((item) => holds(context, item, scope));
   if ("not" in condition) return !holds(context, condition.not, scope);
   if ("matches" in condition) {
     const span = spanOf(context, condition.matches, scope);
@@ -751,7 +779,7 @@ export function expectedAt(chart, position) {
   const next = position < chart.end ? context.tokens[position] : null;
   for (const rule of set.skipped) {
     for (const production of context.lowered.byLhs.get(rule) || []) {
-      if (!lookaheadSkips(production, next) || failedCondition(context, production, -1, emptySlots(production))) continue;
+      if (!lookaheadSkips(production, next) || failedCondition(context, production, -1, emptySlots(production), position, position)) continue;
       note(production.rhs[0].name, production.owner);
     }
   }

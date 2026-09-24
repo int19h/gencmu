@@ -37,7 +37,7 @@ fn a_dialect_loads_from_disk() {
     let bundled = gencmu::load_dialect("notation").expect("bundled");
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("grammars/dialects/notation.md");
     let from_disk = gencmu::load_dialect_file(path).expect("from disk");
-    let text = "a ≔ $x(B) <\"T\"> : text($x) ≠ \"q\" ⇒ this ;";
+    let text = "a ≔ $x(B) <\"T\"> : text($x) ≠ \"q\" ⇒ $ ;";
     assert_eq!(
         gencmu::to_json(&bundled.parse(text, &ParseOptions::default()).unwrap()),
         gencmu::to_json(&from_disk.parse(text, &ParseOptions::default()).unwrap())
@@ -119,9 +119,9 @@ fn until_features_and_elision_only() {
     );
     sources.insert(
         "g.md".to_string(),
-        grammar("%ambiguity-resolution greedy ;\ntext ≔ [w] ... ;\nw ≔ \"x\" <\"X\"> ⇒ this ;"),
+        grammar("%ambiguity-resolution greedy ;\ntext ≔ [w] ... ;\nw ≔ \"x\" <\"X\"> ⇒ $ ;"),
     );
-    sources.insert("h.md".to_string(), grammar("%ambiguity-resolution greedy ;\ntext ≔ @f @g X X | @f @!g X ;"));
+    sources.insert("h.md".to_string(), grammar("%ambiguity-resolution greedy ;\ntext ≔ @f @g X X | @f @¬g X ;"));
     let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
     assert_eq!(dialect.features(), ["f"]);
 
@@ -172,12 +172,12 @@ fn words_dialect() -> gencmu::Dialect {
     );
     sources.insert(
         "s.md".to_string(),
-        grammar("%ambiguity-resolution greedy ;\ntext ≔ [c] ... ;\nc ≔ \"s\" </s/> | \"a\" </a/> | \"u\" </u/> | \"m\" </m/> | \"i\" </i/> | \"space\" </ /> ⇒ this ;"),
+        grammar("%ambiguity-resolution greedy ;\ntext ≔ [c] ... ;\nc ≔ \"s\" </s/> | \"a\" </a/> | \"u\" </u/> | \"m\" </m/> | \"i\" </i/> | \"space\" </./> ⇒ $ ;"),
     );
     sources.insert(
         "w.md".to_string(),
         grammar(
-            "%ambiguity-resolution lazy ;\ntext ≔ [piece] ... ;\npiece ≔ word | / / ;\nword ≔ /m/ /i/ | @sa-su /s/ /a/ | @sa-su /s/ /u/ ;",
+            "%ambiguity-resolution lazy ;\ntext ≔ [piece] ... ;\npiece ≔ word | /./ ;\nword ≔ /m/ /i/ | @sa-su /s/ /a/ | @sa-su /s/ /u/ ;",
         ),
     );
     gencmu::load_dialect_sources(sources, "p.md").unwrap()
@@ -200,6 +200,38 @@ fn auto_features_add_sa_su_only_where_needed() {
         dialect.parse("mi sa", &ParseOptions { until: Some("sounds".into()), ..ParseOptions::default() }).unwrap();
     assert!(early.ok);
     assert_eq!(early.stages.len(), 1);
+}
+
+#[test]
+fn erased_parts_are_neither_emitted_nor_heard() {
+    let mut sources = BTreeMap::new();
+    sources.insert(
+        "p.md".to_string(),
+        "## One <?stage one?>\n\n- [f](f.md) <?grammar?>\n\n## Two <?stage two?>\n\n- [g](g.md) <?grammar?>\n\n## Three <?stage three?>\n\n- [h](h.md) <?grammar?>\n"
+            .to_string(),
+    );
+    sources.insert(
+        "f.md".to_string(),
+        grammar(
+            "%ambiguity-resolution greedy ;\ntext ≔ [c] ... ;\nc ≔ \"a\" </a/> | \"b\" </b/> | \"space\" </./> ⇒ $ ;",
+        ),
+    );
+    sources.insert(
+        "g.md".to_string(),
+        grammar(
+            "%ambiguity-resolution greedy ;\ntext ≔ [unit] ... ;\nunit ≔ pair <\"U\"> | /./ ⇒ $ ;\npair ≔ $a(letter) $b(letter) ⇒ $a <>, $b ;\nletter ≔ /a/ | /b/ ;",
+        ),
+    );
+    sources.insert("h.md".to_string(), grammar("%ambiguity-resolution greedy ;\ntext ≔ [U | /./] ... ;"));
+    let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
+    let result = dialect.parse("ab ba", &no_auto()).unwrap();
+    assert!(result.ok, "{}", gencmu::to_json(&result));
+    let output = result.stages[1].output.as_ref().unwrap();
+    let heard: Vec<_> = output.iter().map(|token| token.phonemes.as_deref().unwrap_or("?")).collect();
+    // The erased first letter of each pair is not heard, and the pause
+    // sounds as a space (engine §5).
+    assert_eq!(heard, ["b", " ", "a"]);
+    assert_eq!(output[0].text, "ab");
 }
 
 #[test]
@@ -226,7 +258,7 @@ fn rejections_say_where_and_what() {
 #[test]
 fn positions_are_code_points() {
     let dialect = gencmu::load_dialect_sources(
-        single("%ambiguity-resolution greedy ;\ntext ≔ [c] ... ; c ≔ \"other\" | \"alpha\" ⇒ this ;"),
+        single("%ambiguity-resolution greedy ;\ntext ≔ [c] ... ; c ≔ \"other\" | \"alpha\" ⇒ $ ;"),
         "p.md",
     )
     .unwrap();
@@ -350,11 +382,11 @@ fn an_and_of_more_than_sixteen_items_is_an_error() {
     let mut sources = single("%ambiguity-resolution greedy ;\ntext ≔ A ;");
     let refs: Vec<String> = (0..64).map(|index| format!("{{\"ref\":\"A{index}\"}}")).collect();
     let dom = format!(
-        "{{\"format\":1,\"rules\":[{{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{{\"guards\":[],\"expr\":{{\"and\":[{}]}}}}],\"conditions\":[],\"at\":[4,1]}}],\"directives\":[{{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[3,1]}}]}}",
+        "{{\"format\":2,\"rules\":[{{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{{\"guards\":[],\"expr\":{{\"and\":[{}]}}}}],\"conditions\":[],\"at\":[4,1]}}],\"directives\":[{{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[3,1]}}]}}",
         refs.join(",")
     );
     let compiled = format!(
-        "{{\"format\":1,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
+        "{{\"format\":2,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
         gencmu::tools::bootstrap_hash(),
         gencmu::tools::fnv1a64(&sources["g.md"])
     );
@@ -374,11 +406,11 @@ fn a_corrupt_cache_is_a_miss_not_an_abort() {
         for compiled in [
             format!("{}{}", "[".repeat(10_000), "]".repeat(10_000)),
             format!(
-                "{{\"format\":1,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{deep_dom}}}}}}}",
+                "{{\"format\":2,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{deep_dom}}}}}}}",
                 gencmu::tools::bootstrap_hash()
             ),
             format!(
-                "{{\"format\":1,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{{\"rules\":7}}}}}}}}",
+                "{{\"format\":2,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{{\"rules\":7}}}}}}}}",
                 gencmu::tools::bootstrap_hash()
             ),
             "not JSON".to_string(),

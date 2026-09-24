@@ -1,6 +1,6 @@
 {
-  "description": "⇒ this and ⇒ nothing (engine §9).",
-  "document": "# A document\n\nSome prose.\n\n```ebnf\na ≔ A ⇒ this <\"X\"> ; b ≔ B ⇒ nothing ;\n```\n",
+  "description": "⇒ $ emits the whole constituent, with tags of its own, and ⇒ $ <> erases it (engine §9).",
+  "document": "# A document\n\nSome prose.\n\n```ebnf\na ≔ A ⇒ $ <\"X\"> ; b ≔ B ⇒ $ <> ;\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -8,7 +8,7 @@
           "emit": {
             "items": [
               {
-                "this": true,
+                "capture": "",
                 "tags": {
                   "literal": "X"
                 }
@@ -18,7 +18,12 @@
         },
         {
           "emit": {
-            "nothing": true
+            "items": [
+              {
+                "capture": "",
+                "erase": true
+              }
+            ]
           }
         }
       ]

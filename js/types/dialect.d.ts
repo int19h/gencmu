@@ -2,8 +2,6 @@ import { Stage } from "./stage.js";
 import { Token } from "./tokens.js";
 import { UnicodeTable } from "./unicode.js";
 import type { GrammarDom, ParseOptions, ParseResult, Resources } from "./types.js";
-/** @import { GrammarDom, ParseError, ParseOptions, ParseResult, Resources, ResultNode, StageReport } from "./types.js" */
-export declare const DOM_FORMAT = 1;
 export type CompiledEntry = {
     hash: string;
     dom: GrammarDom;
@@ -14,6 +12,7 @@ export type RunOptions = {
     elisionOnly?: boolean | null;
     tokens?: Token[];
 };
+/** @import { GrammarDom, ParseError, ParseOptions, ParseResult, Resources, ResultNode, StageReport } from "./types.js" */
 /**
  * A precompiled document of compiled.json.
  * @typedef {{hash: string, dom: GrammarDom}} CompiledEntry

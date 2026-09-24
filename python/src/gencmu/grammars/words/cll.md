@@ -41,7 +41,7 @@ brivla-shape
 | $u(brivla-with-onset) <"onset">
 | $n(fuhivla-without-onset) <"continued">
 | $o(fuhivla-without-onset) <∅>
-: phonemes($m) ≠ lowercase(phonemes($m)), phonemes($u) = lowercase(phonemes($u)), phonemes($n) ≠ lowercase(phonemes($n)), phonemes($o) = lowercase(phonemes($o)) ;
+: phonemes($m) ≠ lowercase(phonemes($m)) ∧ phonemes($u) = lowercase(phonemes($u)) ∧ phonemes($n) ≠ lowercase(phonemes($n)) ∧ phonemes($o) = lowercase(phonemes($o)) ;
 ```
 
 ## Cmevla

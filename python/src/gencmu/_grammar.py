@@ -62,7 +62,6 @@ class Grammar:
     lean: str
     elision_only: bool
     elidable: frozenset[str]
-    free: str | None
     changes: list[Change] = field(default_factory=list)
 
 
@@ -79,7 +78,6 @@ def stitch(stage: str, documents: list[tuple[str, Dom]]) -> Grammar:
     changes: list[Change] = []
     resolutions: list[tuple[list[str], str, Any]] = []
     elidable: set[str] = set()
-    frees: list[tuple[str, str, Any]] = []
     for path, dom in documents:
         defined_here: set[str] = set()
         for rule in dom.get("rules", []):
@@ -121,10 +119,6 @@ def stitch(stage: str, documents: list[tuple[str, Dom]]) -> Grammar:
                 resolutions.append((args, path, at))
             elif name == "elidable":
                 elidable.update(args)
-            elif name == "free-modifiers":
-                frees.append((" ".join(args), path, at))
-                if len(args) != 1:
-                    raise _error("%free-modifiers names exactly one rule", path, at, stage)
             else:
                 raise _error(f"an unknown directive %{name}", path, at, stage)
     if not resolutions:
@@ -135,13 +129,6 @@ def stitch(stage: str, documents: list[tuple[str, Dom]]) -> Grammar:
     args, path, at = resolutions[0]
     if not args or args[0] not in ("greedy", "lazy") or len(args) > 2 or (len(args) == 2 and args[1] != "elision-only"):
         raise _error("%ambiguity-resolution is greedy or lazy, optionally followed by elision-only", path, at, stage)
-    if len(frees) > 1:
-        _, path, at = frees[1]
-        raise _error(f"stage {stage} has more than one %free-modifiers", path, at, stage)
-    free = frees[0][0] if frees else None
-    if free is not None and free not in rules:
-        _, path, at = frees[0]
-        raise _error(f"%free-modifiers names {free}, which is not a rule of stage {stage}", path, at, stage)
     if "text" not in rules:
         raise GencmuError(f"stage {stage} has no rule text, its start rule", stage=stage)
     for rule in rules.values():
@@ -155,20 +142,23 @@ def stitch(stage: str, documents: list[tuple[str, Dom]]) -> Grammar:
                         raise _error(f"{ref} is not a rule of stage {stage}", alt.document, alt.at, stage)
                     if isinstance(value.get("rule"), str) and value["rule"] not in rules:
                         raise _error(f"{value['rule']} is not a rule of stage {stage}", alt.document, alt.at, stage)
-                    if value.get("hash") and free is None:
-                        raise _error(f"# is used, but stage {stage} has no %free-modifiers", alt.document, alt.at, stage)
                     stack.extend(value.values())
                 elif isinstance(value, list):
                     stack.extend(value)
-    return Grammar(stage, rules, args[0], len(args) == 2, frozenset(elidable), free, changes)
+    return Grammar(stage, rules, args[0], len(args) == 2, frozenset(elidable), changes)
 
 
 # ---------------------------------------------------------------------------
 # Lowering
 
 
+WHOLE = ""
+"""The capture name of ``$``, the whole constituent, which every production
+has without writing it (engine §3.5)."""
+
+
 def captures_in(dom: Any) -> set[str]:
-    """The capture names a condition or term mentions."""
+    """The capture names a condition or term mentions, ``WHOLE`` for ``$``."""
     found: set[str] = set()
     stack = [dom]
     while stack:
@@ -199,6 +189,7 @@ class Production:
     slots: tuple[int, ...] = ()
     conds_predict: list[Dom] = field(default_factory=list)
     conds_at: dict[int, list[Dom]] = field(default_factory=dict)
+    conds_whole: list[Dom] = field(default_factory=list)
     tags_term: Dom | None = None
     emit: Any = None
 
@@ -207,9 +198,9 @@ class Production:
         return self.helper or len(self.rhs) == 1
 
 
-IMPLICIT = ""
+IMPLICIT = "\u0000"
 """The capture name of the implicit capture of a one-symbol production
-without tags (engine §3.7)."""
+without tags (engine §3.7), which no written capture can have."""
 
 
 @dataclass
@@ -336,12 +327,6 @@ class _Lowerer:
         if "repeat" in expr:
             body = yield self._expand(expr["repeat"])
             return [[(("n", self.repeat_helper(body, expr.get("min", 1))), None)]]
-        if "hash" in expr:
-            free = self.grammar.free
-            if free is None:
-                raise self.fail("# is used, but the stage has no %free-modifiers")
-            body = [[(self.symbol(free), None)]]
-            return [[(("n", self.repeat_helper(body, 0)), None)]]
         if "empty" in expr:
             return [[]]
         if "ref" in expr:
@@ -392,16 +377,23 @@ class _Lowerer:
             captures=captures,
         )
         if alt is not None:
+            # $ is a capture every production has (engine §3.6).
+            present = captures.keys() | {WHOLE}
             for condition in alt.conditions:
                 names = captures_in(condition)
-                if not names <= captures.keys():
+                if not names <= present:
                     continue
-                if names:
+                if WHOLE in names and rhs:
+                    # Evaluated when the item is complete (engine §4).
+                    production.conds_whole.append(condition)
+                elif names - {WHOLE}:
                     production.conds_at.setdefault(max(captures[name] for name in names), []).append(condition)
                 else:
+                    # No capture, or only $ over an empty production: at
+                    # prediction.
                     production.conds_predict.append(condition)
             term = alt.tags if alt.tags is not None else alt.rule_tags
-            if term is not None and captures_in(term) <= captures.keys():
+            if term is not None and captures_in(term) <= present:
                 production.tags_term = term
             production.emit = self.lower_emit(alt.emit, captures)
         if production.tags_term is None and len(rhs) == 1 and 0 not in captures.values():
@@ -435,21 +427,28 @@ class _Lowerer:
             stack.extend(reversed(used(own)))
 
     def lower_emit(self, emit: Dom | None, captures: dict[str, int]) -> Any:
+        """A production's emission: ``("erase",)`` for ``⇒ $ <>``,
+        ``("whole", [term or None, ...])`` for ``⇒ $``, or ``("items", [...])``
+        of ``("capture", position, term or None, erased)`` and
+        ``("insert", tag)``, less what names a capture the production lacks
+        (engine §3.6, §11)."""
         if emit is None:
             return None
-        if emit.get("nothing"):
-            return ("nothing",)
+        present = captures.keys() | {WHOLE}
+
+        def own(term: Any) -> Any:
+            return term if term is not None and captures_in(term) <= present else None
+
         items = emit.get("items", [])
-        if items and all("this" in item for item in items):
-            return ("this", [item.get("tags") if captures_in(item.get("tags")) <= captures.keys() else None for item in items])
+        if items and all(item.get("capture") == WHOLE for item in items):
+            if items[0].get("erase"):
+                return ("erase",)
+            return ("whole", [own(item.get("tags")) for item in items])
         lowered: list[tuple[Any, ...]] = []
         for item in items:
             if "capture" in item:
                 if item["capture"] in captures:
-                    tags = item.get("tags")
-                    if tags is not None and not captures_in(tags) <= captures.keys():
-                        tags = None
-                    lowered.append(("capture", captures[item["capture"]], tags))
+                    lowered.append(("capture", captures[item["capture"]], own(item.get("tags")), bool(item.get("erase"))))
             elif "insert" in item:
                 lowered.append(("insert", item["insert"]))
         return ("items", lowered)

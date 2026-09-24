@@ -15,7 +15,7 @@ enables: `zantufa-connectives`, `zantufa-terms`, `zantufa-tags` and
 the experimental grammar over text it rejects, so they cannot change a
 reading it already has. Where a Zantufa form generalizes an older form over
 the same text, the rule is restated with the two under complementary
-guards, `@!feature` on the old one and `@feature` on the new, so that the
+guards, `@¬feature` on the old one and `@feature` on the new, so that the
 two never compete; that is why most changes here replace a rule rather than
 extend it.
 
@@ -40,13 +40,13 @@ complete (`zantufa-terms`).
 
 ```ebnf
 paragraph ≔
-| @!zantufa-terms (statement | fragment) [I # [statement | fragment]] ...
+| @¬zantufa-terms (statement | fragment) [I # [statement | fragment]] ...
 | @zantufa-terms (statement | fragment | statement (IhAU # [terms] | terms)) [I # [statement | fragment | statement (IhAU # [terms] | terms)]] ...
 | I # NIhO ... # [(statement | fragment) [I # [statement | fragment]] ...]
 ;
 
 statement-3 ≔
-| @!zantufa-connectives sentence [bridi-tail-connective [stag] BO # subsentence | selbri-connective [stag] KE # subsentence [KEhE] #] ...
+| @¬zantufa-connectives sentence [bridi-tail-connective [stag] BO # subsentence | selbri-connective [stag] KE # subsentence [KEhE] #] ...
 | @zantufa-connectives sentence
 | [tag] TUhE # text-1 [TUhU] #
 | @zantufa-connectives gek statement gik statement [(gik statement) ...] [GIhI] #
@@ -62,7 +62,7 @@ can share arguments.
 
 ```ebnf
 gek-sentence ≔
-| @!zantufa-connectives gek subsentence gik subsentence tail-terms
+| @¬zantufa-connectives gek subsentence gik subsentence tail-terms
 | @zantufa-connectives gek subsentence gik subsentence [(gik subsentence) ...] [GIhI] # tail-terms
 | [tag] KE # gek-sentence [KEhE] #
 | NA # gek-sentence
@@ -81,14 +81,14 @@ unguarded.
 
 ```ebnf
 termset ≔
-| @!zantufa-connectives [NUhI #] gek terms [NUhU] # gik terms [NUhU] #
+| @¬zantufa-connectives [NUhI #] gek terms [NUhU] # gik terms [NUhU] #
 | @zantufa-connectives [NUhI #] gek terms [NUhU] # gik terms [NUhU] # [(gik terms [NUhU] #) ...] [GIhI] #
 | NUhI # terms-not-starting-with-bare-gek [NUhU] #
 | KE # terms [KEhE] #
 ;
 
 termset-with-nuhi ≔
-| @!zantufa-connectives NUhI # gek terms [NUhU] # gik terms [NUhU] #
+| @¬zantufa-connectives NUhI # gek terms [NUhU] # gik terms [NUhU] #
 | @zantufa-connectives NUhI # gek terms [NUhU] # gik terms [NUhU] # [(gik terms [NUhU] #) ...] [GIhI] #
 | NUhI # terms-not-starting-with-bare-gek [NUhU] #
 | KE # terms [KEhE] #
@@ -114,7 +114,7 @@ delimited by the word stage; the quote is unguarded.
 ```ebnf
 sumti-4 ≔
 | sumti-5
-| @!zantufa-connectives gek sumti gik sumti-4
+| @¬zantufa-connectives gek sumti gik sumti-4
 | @zantufa-connectives gek sumti gik sumti-4 [(gik sumti-4) ...] [GIhI] #
 ;
 
@@ -129,7 +129,7 @@ it may hold connected sentences, `poi broda .i je brode` (`zantufa-terms`).
 ```ebnf
 relative-clause ≔
 | GOI # term [GEhU] #
-| @!zantufa-terms NOI # subsentence [KUhO] #
+| @¬zantufa-terms NOI # subsentence [KUhO] #
 | @zantufa-terms NOI # statement [KUhO] #
 ;
 ```
@@ -146,13 +146,13 @@ MOI.
 ```ebnf
 selbri-6 ≔
 | tanru-unit [[stag] BO # selbri-6]
-| @!zantufa-connectives [NAhE #] guhek selbri gik selbri-6
+| @¬zantufa-connectives [NAhE #] guhek selbri gik selbri-6
 | @zantufa-connectives [NAhE #] guhek selbri gik selbri-6 [(gik selbri-6) ...] [GIhI] #
 ;
 
 selbri-6-not-starting-with-ke ≔
 | tanru-unit-not-starting-with-ke [[stag] BO # selbri-6]
-| @!zantufa-connectives [NAhE #] guhek selbri gik selbri-6
+| @¬zantufa-connectives [NAhE #] guhek selbri gik selbri-6
 | @zantufa-connectives [NAhE #] guhek selbri gik selbri-6 [(gik selbri-6) ...] [GIhI] #
 ;
 
@@ -168,7 +168,7 @@ tanru-unit-2 ≔
 | JAI # [tag] tanru-unit-2
 | any-word (ZEI any-word) ...
 | NAhE # tanru-unit-2
-| @!zantufa-terms NU [NAI] # [joik-jek NU [NAI] #] ... subsentence [KEI] #
+| @¬zantufa-terms NU [NAI] # [joik-jek NU [NAI] #] ... subsentence [KEI] #
 | @zantufa-terms NU [NAI] # [joik-jek NU [NAI] #] ... statement [KEI] #
 | linkargs tanru-unit-2
 | XOhI # tag
@@ -193,7 +193,7 @@ tanru-unit-2-not-starting-with-ke ≔
 | JAI # [tag] tanru-unit-2
 | any-word (ZEI any-word) ...
 | NAhE # tanru-unit-2
-| @!zantufa-terms NU [NAI] # [joik-jek NU [NAI] #] ... subsentence [KEI] #
+| @¬zantufa-terms NU [NAI] # [joik-jek NU [NAI] #] ... subsentence [KEI] #
 | @zantufa-terms NU [NAI] # [joik-jek NU [NAI] #] ... statement [KEI] #
 | linkargs tanru-unit-2
 | XOhI # tag
@@ -216,11 +216,11 @@ A `sei` discursive contains a statement rather than a bare selbri
 
 ```ebnf
 free ≔
-| @!zantufa-terms SEI # [terms [CU #]] selbri [SEhU]
+| @¬zantufa-terms SEI # [terms [CU #]] selbri [SEhU]
 | @zantufa-terms SEI # statement [SEhU]
 | SOI # sumti [sumti] [SEhU]
 | vocative [relative-clauses] selbri [relative-clauses] [DOhU]
-| @!cbm vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
+| @¬cbm vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
 | vocative [sumti] [DOhU]
 | (number | lerfu-string) MAI
 | TO text [TOI]
@@ -233,11 +233,11 @@ free ≔
 ;
 
 free-not-starting-with-number ≔
-| @!zantufa-terms SEI # [terms [CU #]] selbri [SEhU]
+| @¬zantufa-terms SEI # [terms [CU #]] selbri [SEhU]
 | @zantufa-terms SEI # statement [SEhU]
 | SOI # sumti [sumti] [SEhU]
 | vocative [relative-clauses] selbri [relative-clauses] [DOhU]
-| @!cbm vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
+| @¬cbm vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
 | vocative [sumti] [DOhU]
 | TO text [TOI]
 | XI # (number | lerfu-string) [BOI]
@@ -307,12 +307,12 @@ CLL form over the same text, the feature replaces the older alternative.
 ```ebnf
 quantifier |≔ @zantufa-mex zantufa-raw-mex ;
 
-fragment |≔ @!zantufa-mex zantufa-raw-mex ;
+fragment |≔ @¬zantufa-mex zantufa-raw-mex ;
 
 mex ≔
-| @!zantufa-mex mex-1 [operator mex-1] ...
+| @¬zantufa-mex mex-1 [operator mex-1] ...
 | @zantufa-mex mex-1 [operator ... [mex-1]] ...
-| @!zantufa-mex FUhA # rp-expression
+| @¬zantufa-mex FUhA # rp-expression
 | @zantufa-mex FUhA # mex-2 ... operator [(mex-2 ... operator) | (operator)] ... [KUhE] #
 ;
 
@@ -328,7 +328,7 @@ mex-operator |≔
 ;
 
 operand-1 ≔
-| @!zantufa-mex operand-2 [joik-ek operand-2 | jek # operand-2] ...
+| @¬zantufa-mex operand-2 [joik-ek operand-2 | jek # operand-2] ...
 | @zantufa-mex operand-2
 ;
 
@@ -404,7 +404,7 @@ zantufa-raw-mex-operator ≔
 zantufa-raw-operand-0 ≔ zantufa-raw-operand-1 [(ek | joik) [stag] KE # operand [KEhE] #] ;
 
 zantufa-raw-operand-1 ≔
-| @!zantufa-mex zantufa-raw-operand-2 [joik-ek operand-2 | jek # operand-2] ...
+| @¬zantufa-mex zantufa-raw-operand-2 [joik-ek operand-2 | jek # operand-2] ...
 | @zantufa-mex zantufa-raw-operand-2
 ;
 

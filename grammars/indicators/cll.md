@@ -12,7 +12,7 @@ An indicator run is read as far as it goes, so the stage is greedy: where two pa
 text
 ≔ ε | item-run | item-run bahe-run | leading | leading bahe-run | bahe-run
 | $l(leading) $r(item-run) | $l(leading) $r(item-run) bahe-run
-: "NAI" ∉ tags(head($r)) ∨ classes(last($l)) ∩ {"UI", "CAI"} = ∅ ;
+: "NAI" ∉ tags(head($r)) ∨ classes(last($l)) ∩ ("UI" ∪ "CAI") = ∅ ;
 
 leading
 ≔ indicator-run ;
@@ -29,15 +29,15 @@ item
 
 unit
 ≔ $w("word") | $f("foreign-text") | $l("LEhU")
-: "indicator" ∉ tags($w), "BAhE" ∉ tags($w), "LEhU" ∉ tags($w) ;
+: "indicator" ∉ tags($w) ∧ "BAhE" ∉ tags($w) ∧ "LEhU" ∉ tags($w) ;
 
 absorbed
 ≔ indicator-run
-⇒ nothing ;
+⇒ $ <> ;
 
 absorbed-bahe
 ≔ bahe-run
-⇒ nothing ;
+⇒ $ <> ;
 
 bahe-run
 ≔ bahe | bahe-run bahe ;
@@ -45,7 +45,7 @@ bahe-run
 bahe
 ≔ $b("word") <tags($b)>
 : "BAhE" ∈ tags($b)
-⇒ this ;
+⇒ $ ;
 
 indicator-run
 ≔ indicator | attitudinal nai | indicator-run indicator | indicator-run attitudinal nai ;
@@ -53,17 +53,17 @@ indicator-run
 indicator
 ≔ $i("word") <tags($i)> | absorbed-bahe $i("word") <tags($i)>
 : "indicator" ∈ tags($i)
-⇒ this ;
+⇒ $ ;
 
 attitudinal
 ≔ $i("word") <tags($i)> | absorbed-bahe $i("word") <tags($i)>
-: "indicator" ∈ tags($i), classes($i) ∩ {"UI", "CAI"} ≠ ∅
-⇒ this ;
+: "indicator" ∈ tags($i) ∧ classes($i) ∩ ("UI" ∪ "CAI") ≠ ∅
+⇒ $ ;
 
 nai
 ≔ $n("word") <tags($n)>
 : "NAI" ∈ tags($n)
-⇒ this ;
+⇒ $ ;
 ```
 
 A `le'u` outside any quote is still a word, but it is read as `LEhU` and

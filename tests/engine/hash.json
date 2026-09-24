@@ -1,6 +1,6 @@
 {
-  "description": "# means zero or more of the declared free-modifier rule (engine §2, §3.2).",
-  "grammar": "%free-modifiers free ;\ntext ≔ A # B ; free ≔ F ;",
+  "description": "# is an ordinary rule, the free-modifier slot, which the grammar defines like any other; here zero or more free modifiers, which its one node groups (engine §2).",
+  "grammar": "# ≔ [free ...] ;\ntext ≔ A # B ; free ≔ F ;",
   "tokens": [
     {
       "text": "a",
@@ -29,8 +29,29 @@
   ],
   "expect": {
     "result": {
-      "ok": true
+      "ok": true,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A"
+          },
+          {
+            "kind": "rule",
+            "rule": "#",
+            "span": [
+              1,
+              3
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "B"
+          }
+        ]
+      }
     },
-    "brackets": "(a f f b)"
+    "brackets": "(a [f f] b)"
   }
 }

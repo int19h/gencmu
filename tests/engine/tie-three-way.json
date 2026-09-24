@@ -2,7 +2,7 @@
   "description": "A three-way tie at a non-final stage stays a tie, whatever the derivations emit (engine §6, §11).",
   "documents": {
     "p.md": "## s <?stage first?>\n\n- [g](g.md) <?grammar?>\n\n## t <?stage second?>\n\n- [h](h.md) <?grammar?>\n",
-    "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ p | q | r ;\np ≔ A B <\"A\"> ⇒ this ;\nq ≔ A B <\"A\"> ⇒ this ;\nr ≔ $a(A) $b(B) ⇒ $a, $b ;\n```\n",
+    "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ p | q | r ;\np ≔ A B <\"A\"> ⇒ $ ;\nq ≔ A B <\"A\"> ⇒ $ ;\nr ≔ $a(A) $b(B) ⇒ $a, $b ;\n```\n",
     "h.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ [A] [B] ;\n```\n"
   },
   "pipeline": "p.md",

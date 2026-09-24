@@ -220,23 +220,22 @@
  * A rule body expression.
  * @typedef {{choice: Expr[]} | {and: Expr[]} | {seq: Expr[]} | {repeat: Expr, min: number}
  *   | {optional: Expr} | {capture: string, expr: Expr} | {ref: string} | {terminal: string}
- *   | {hash: true} | {empty: true}} Expr
+ *   | {empty: true}} Expr
  */
 
 /**
  * An emission clause.
- * @typedef {{nothing: true} | {items: EmitItem[]}} Emission
+ * @typedef {{items: EmitItem[]}} Emission
  */
 
 /**
- * One item of an emission clause: the node itself, a capture, or an
- * inserted token, each optionally with the tags to give it.
+ * One item of an emission clause: a capture, `""` for `$`, the whole
+ * constituent, with the tags to give it or erased; or an inserted token.
  * @typedef {object} EmitItem
- * @property {true} [this]
- * @property {true} [nothing]
  * @property {string} [capture]
  * @property {string} [insert]
  * @property {Term} [tags]
+ * @property {true} [erase]
  */
 
 /**
@@ -245,13 +244,13 @@
 
 /**
  * A condition.
- * @typedef {{any: Condition[]} | {not: Condition} | {matches: Term, rule: string}
+ * @typedef {{any: Condition[]} | {all: Condition[]} | {not: Condition} | {matches: Term, rule: string}
  *   | {op: Comparator, left: Term, right: Term}} Condition
  */
 
 /**
  * A term of a condition or a tags clause.
- * @typedef {{literal: string} | {weak: string} | {emptySet: true} | {set: Term[]} | {union: Term[]}
+ * @typedef {{literal: string} | {weak: string} | {emptySet: true} | {union: Term[]}
  *   | {intersection: Term[]} | {call: string, args: Argument[]} | {capture: string}} Term
  */
 

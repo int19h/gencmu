@@ -1,6 +1,6 @@
 {
-  "description": "⇒ this may be listed several times, but not with a capture or an inserted tag (engine §9).",
-  "document": "```ebnf\na ≔ $x(A) ⇒ this, $x ;\n```\n",
+  "description": "⇒ $ may be listed several times, but not with a capture or an inserted tag (engine §9).",
+  "document": "```ebnf\na ≔ $x(A) ⇒ $, $x ;\n```\n",
   "expect": {
     "error": {
       "line": 2,
