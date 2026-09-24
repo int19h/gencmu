@@ -107,19 +107,15 @@ that decide which parse comes out, before the Lojban corpus can become the
 specification by accident:
 
 - **Ties.** A tie is a successful parse (`ok` is true) with the verdict
-  `tie` and a witness. The chosen tree is the first of the tied derivations
-  in a canonical order: at the first difference, the lower production index,
-  where productions are numbered in document order after stitching. The tie
-  is never silent: every surface shows it.
-- **Emission from a tie.** A non-final stage emits the chosen derivation.
-  Every derivation tied with it at the first difference is also emitted; if
-  each emits the same token sequence, equal in span, source, text and
-  phonemes and differing at most in tags, the tie is resolved: the
-  derivations were one analysis, their tag sets are unioned token by token
-  (a tag strong on any side is strong), and the verdict is `resolved`. If
-  any differs in anything but tags, the stage's tie stands and its witness
-  names the first two that differ. The engine cases include a three-way tie
-  of each kind.
+  `tie`, a witness and the tied tree. The chosen tree is the least in a
+  total order that breaks the ranking's ties by canonical keys, and the
+  tied tree is the derivation tied with it that diverges from it earliest
+  (engine §6). The tie is never silent: every surface shows it.
+- **Emission from a tie.** A non-final stage emits the chosen derivation,
+  and its tie stands even when every tied derivation would emit the same
+  tokens: the stage is ambiguous as written, and saying so is what lets a
+  grammar author fix it. The engine cases include a three-way tie and a tie
+  whose derivations emit the same tokens.
 - **Empty spans and cycles.** Nullable rules, empty captures, a condition on
   an empty span, a unary cycle `a ≔ b`, `b ≔ a`, and a nested parse asked
   about its own span, each with its defined outcome.
@@ -340,8 +336,8 @@ declares it, and only when that stage's ranking was not `unique`:
    a terminator elided somewhere the chosen reading did not, and CLL's rule
    forbids that elision because it made the text ambiguous. Otherwise the
    ambiguity is not about terminators, and the result is an error of kind
-   `ambiguous`: `ok` is false, and the error carries the chosen tree and the
-   first competing reading.
+   `ambiguous`: `ok` is false, and the error carries the two readings that
+   ranking reports, the chosen and the tied, shown over the original input.
 
 A weak tag is exactly how a dialect marks a reading it admits second, which
 is why the tag rule still applies in step 3. The engine cases pin the
