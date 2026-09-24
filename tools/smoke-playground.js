@@ -123,12 +123,21 @@ async function main() {
         const explanation = document.getElementById("explanation");
         return { output: output ? output.textContent : "", explanation: explanation ? explanation.textContent : "",
                  verdict: document.querySelector("#summary .badge").textContent };`, text);
-      const type = (text) => run(`
+      // A change marks the shown result stale at once, before any answer:
+      // the result region is busy and the status no longer says ready.
+      const staleAtOnce = `
+        const status = document.getElementById("status").dataset.state;
+        const busy = document.getElementById("result").getAttribute("aria-busy");
+        return busy === "true" && status !== "ready" ? null : { status, busy };`;
+      const change = async (what, script, value) => {
+        const left = await run(script + staleAtOnce, value);
+        if (left) throw new Error(`right after ${what} the old result was still shown as current: ${JSON.stringify(left)}`);
+      };
+      const type = (text) => change("typing", `
         const input = document.getElementById("input");
         input.value = arguments[0];
         input.dispatchEvent(new Event("input"));`, text);
-
-      const choose = (dialect) => run(`
+      const choose = (dialect) => change("choosing a dialect", `
         const select = document.getElementById("dialect");
         select.value = arguments[0];
         select.dispatchEvent(new Event("change"));`, dialect);
