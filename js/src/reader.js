@@ -114,7 +114,7 @@ export function treeToDom(tree, tokens, positionOf, path) {
       return { feature: spelled.replace(/^@!?/, ""), negated: spelled.startsWith("@!") };
     });
     /** @type {DomAlternative} */
-    const alternative = { guards, expr: readExpression(only(node, "conjunction")) };
+    const alternative = { guards, expr: readExpression(only(node, "conjunction"), true) };
     const tags = one(node, "alternative-tags");
     if (tags) alternative.tags = readTerm(only(tags, "term"));
     return alternative;
@@ -122,27 +122,31 @@ export function treeToDom(tree, tokens, positionOf, path) {
 
   /**
    * @param {ResultNode} node
+   * @param {boolean} [top] whether the expression is an alternative's top
+   *   level, where a capture may stand (engine §3.5)
    * @returns {Expr}
    */
-  function readExpression(node) {
+  function readExpression(node, top = false) {
     switch (ruleOf(node)) {
       case "choice": {
-        const items = ofRule(node, "conjunction").map(readExpression);
+        const found = ofRule(node, "conjunction");
+        const items = found.map((item) => readExpression(item, top && found.length === 1));
         return items.length === 1 ? items[0] : { choice: items };
       }
       case "conjunction": {
-        const items = ofRule(node, "sequence").map(readExpression);
+        const found = ofRule(node, "sequence");
+        const items = found.map((item) => readExpression(item, top && found.length === 1));
         // A & of n items expands to 2ⁿ−1 sequences (engine §3.2).
         if (items.length > 16) fail("an & joins at most 16 items", node);
         return items.length === 1 ? items[0] : { and: items };
       }
       case "sequence": {
-        const items = ofRule(node, "element").map(readExpression);
+        const items = ofRule(node, "element").map((item) => readExpression(item, top));
         return items.length === 1 ? items[0] : { seq: items };
       }
       case "element": {
-        const primary = readPrimary(parts(one(node, "primary") || node)[0]);
         const repeated = parts(node).some((child) => tokenText(child) === "...");
+        const primary = readPrimary(parts(one(node, "primary") || node)[0], top && !repeated);
         if (!repeated) return primary;
         if ("optional" in primary) return { repeat: primary.optional, min: 0 };
         return { repeat: primary, min: 1 };
@@ -154,14 +158,16 @@ export function treeToDom(tree, tokens, positionOf, path) {
 
   /**
    * @param {ResultNode} node
+   * @param {boolean} [top] whether a capture may stand here
    * @returns {Expr}
    */
-  function readPrimary(node) {
+  function readPrimary(node, top = false) {
     switch (ruleOf(node)) {
       case "reference": return { ref: text(parts(node)[0]) };
       case "string": return { terminal: decode(parts(node)[0]) };
       case "phoneme": return { terminal: text(parts(node)[0]) };
       case "capture": {
+        if (!top) fail("a capture stands at the top level of an alternative, not inside [ ], ( ), ..., & or a choice", node);
         const [captureToken, , inner] = parts(node);
         const wrapped = parts(inner)[0];
         const kind = ruleOf(wrapped);

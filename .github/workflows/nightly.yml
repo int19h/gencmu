@@ -1,0 +1,78 @@
+name: Nightly
+
+# The whole Lojban corpus in every language, every night and on demand
+# (design, "Tests"): pull requests run the core sample everywhere and the
+# whole corpus in JavaScript and Rust only.
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  javascript:
+    name: The whole corpus in JavaScript
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - name: Every corpus case
+        working-directory: js
+        env:
+          GENCMU_CORPUS: full
+          # A book chapter takes a few gigabytes in JavaScript; the runner has 16.
+          GENCMU_CORPUS_WORKERS: "2"
+        run: node --test test/corpus.test.js
+
+  python:
+    name: The whole corpus in Python
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.x"
+      - name: Every corpus case
+        working-directory: python
+        env:
+          GENCMU_CORPUS: full
+          GENCMU_CORPUS_WORKERS: "4"
+        run: python -m unittest -v tests.test_corpus
+
+  go:
+    name: The whole corpus in Go
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@GO_SETUP_SHA # GO_SETUP_VERSION
+        with:
+          go-version: stable
+      - name: Every corpus case
+        working-directory: go
+        env:
+          GENCMU_CORPUS: full
+          GENCMU_CORPUS_WORKERS: "3"
+        run: go test -run TestCorpus -timeout 50m -v ./...
+
+  rust:
+    name: The whole corpus in Rust
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # v1
+        with:
+          toolchain: stable
+      - name: Every corpus case
+        working-directory: rust
+        env:
+          GENCMU_CORPUS: full
+        run: cargo test --release --test corpus -- --nocapture
