@@ -59,9 +59,9 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (*notationReader, er
 
 // read reads one grammar document into its DOM.
 func (nr *notationReader) read(text, docPath string) (dom *domDoc, err *Error) {
-	gt := extractEBNF(text)
+	gt := extractGrammarText(text)
 	if gt.unclosed != nil {
-		return nil, grammarError(docPath, *gt.unclosed, "an ebnf block is never closed")
+		return nil, grammarError(docPath, *gt.unclosed, "a jbogenbau block is never closed")
 	}
 	ps := newParseState(nr.uni, gt.text)
 	toks := ps.characterTokens()
@@ -122,15 +122,15 @@ type domBuilder struct {
 
 // The rules the reader looks at by name; every other rule is transparent.
 var domRules = map[string]bool{
-	"directive-statement": true, "rule": true, "alternative": true, "choice": true,
+	"directive": true, "rule": true, "definer": true, "alternative": true, "choice": true,
 	"conjunction": true, "sequence": true, "element": true, "reference": true,
 	"string": true, "phoneme": true, "capture": true, "group": true, "optional": true,
-	"empty": true, "emission": true, "conditions": true, "any-of": true,
-	"all-of": true, "comparison": true, "negation": true, "call": true,
-	"term": true, "intersection": true, "weak": true, "empty-set": true,
-	"capture-reference": true, "rule-tags": true, "alternative-tags": true,
-	"emit-tags": true, "erase": true, "emit-item": true, "definer": true,
-	"argument-word": true, "guard": true, "comparator": true,
+	"empty": true, "tags-clause": true, "conditions-clause": true, "emits-clause": true,
+	"emit-item": true, "emit-tags": true, "silent": true, "implication": true,
+	"any-of": true, "all-of": true, "comparison": true, "negation": true,
+	"presence": true, "call": true, "term": true, "guarded-term": true, "union": true,
+	"intersection": true, "weak": true, "empty-set": true, "capture-reference": true,
+	"alternative-tags": true, "argument-word": true, "guard": true, "comparator": true,
 }
 
 func (b *domBuilder) at(n *Node) [2]int {
@@ -204,7 +204,7 @@ func (b *domBuilder) document(root *Node) *domDoc {
 		switch c.Rule {
 		case "rule":
 			d.Rules = append(d.Rules, b.rule(c))
-		case "directive-statement":
+		case "directive":
 			ps := parts(c)
 			dir := &domDirective{Name: strings.TrimPrefix(b.text(ps[0]), "%"), Args: []string{}, At: b.at(ps[0])}
 			for _, p := range ps {
@@ -219,40 +219,39 @@ func (b *domBuilder) document(root *Node) *domDoc {
 }
 
 func (b *domBuilder) rule(n *Node) *domRule {
+	// The definer, the name, the alternatives and the clauses; the syntax
+	// allows at most one of each clause, in order.
 	ps := parts(n)
-	r := &domRule{Name: b.text(ps[0]), At: b.at(ps[0]), Conditions: []*domCond{}}
-	var emission *Node
-	for _, p := range ps[1:] {
+	r := &domRule{Name: b.text(ps[1]), At: b.at(ps[0]), Conditions: []*domCond{}}
+	switch b.text(ps[0]) {
+	case "%redefine-rule":
+		r.Op = "redefine"
+	case "%extend-rule":
+		r.Op = "extend"
+	default:
+		r.Op = "define"
+	}
+	for _, p := range ps[2:] {
 		if p.Kind != KindRule {
 			continue
 		}
 		switch p.Rule {
-		case "rule-tags":
-			r.Tags = b.constituentTags(p)
-		case "definer":
-			if b.text(p) == "|≔" {
-				r.Op = "extend"
-			} else {
-				r.Op = "define"
-			}
 		case "alternative":
 			r.Alternatives = append(r.Alternatives, b.alternative(p))
-		case "emission":
-			if emission != nil {
-				b.fail(p, "a rule has at most one emission")
+		case "tags-clause":
+			r.Tags = b.constituentTags(p)
+		case "conditions-clause":
+			// Each item of the list is one condition (§9).
+			for _, c := range ruleParts(p) {
+				r.Conditions = append(r.Conditions, b.implication(c))
 			}
-			emission = p
+		case "emits-clause":
 			r.Emit = b.emission(p)
-		case "conditions":
-			// The conditions joined by ∧ at the top are the rule's
-			// conditions, one by one, parenthesized or not: parentheses
-			// make no node (§9).
-			if c := b.anyOf(ruleParts(p)[0]); c.Kind == cdAll {
-				r.Conditions = append(r.Conditions, c.Items...)
-			} else {
-				r.Conditions = append(r.Conditions, c)
-			}
 		}
+	}
+	// The definition as a whole (§9), reported at the rule.
+	if msg := definitionProblem(r); msg != "" {
+		b.fail(ps[0], "%s", msg)
 	}
 	return r
 }
@@ -424,7 +423,13 @@ func (b *domBuilder) decode(n *Node) string {
 
 func (b *domBuilder) term(n *Node) *domTerm {
 	switch n.Rule {
-	case "term", "intersection":
+	case "term":
+		return b.term(ruleParts(n)[0])
+	case "guarded-term":
+		// A ⟹ t: its condition, and its term, which must be a value (§10).
+		ps := ruleParts(n)
+		return &domTerm{Kind: tmIf, Cond: b.anyOf(ps[0]), Items: []*domTerm{b.value(ps[1])}}
+	case "union", "intersection":
 		kind := tmUnion
 		if n.Rule == "intersection" {
 			kind = tmIntersection
@@ -529,6 +534,16 @@ func (b *domBuilder) call(n *Node, inCondition bool) *domTerm {
 	return &domTerm{Kind: tmCall, Str: name, Items: args}
 }
 
+// implication reads A ⟹ B, which groups to the right, or the one any-of.
+func (b *domBuilder) implication(n *Node) *domCond {
+	ps := ruleParts(n)
+	premise := b.anyOf(ps[0])
+	if len(ps) == 1 {
+		return premise
+	}
+	return &domCond{Kind: cdIf, Items: []*domCond{premise, b.implication(ps[1])}}
+}
+
 // anyOf reads conditions joined by ∨, each several joined by ∧. Parentheses
 // make no node, so a group of the connective around it is folded into it:
 // (a ∧ b) ∧ c is an all of three, (a ∨ b) ∨ c an any of three (§9).
@@ -568,8 +583,11 @@ func (b *domBuilder) condition(n *Node) *domCond {
 	case "call":
 		t := b.call(n, true)
 		return &domCond{Kind: cdMatches, Span: t.Items[0], Rule: t.Items[1].Str}
-	case "any-of":
-		return b.anyOf(n)
+	case "presence":
+		return &domCond{Kind: cdCaptured, Rule: strings.TrimPrefix(b.text(n), "$")}
+	case "implication":
+		// Between parentheses, which make no node.
+		return b.implication(n)
 	}
 	b.fail(n, "unexpected %s in a condition", n.Rule)
 	return nil
@@ -578,7 +596,7 @@ func (b *domBuilder) condition(n *Node) *domCond {
 func (b *domBuilder) emission(n *Node) *domEmit {
 	first := parts(n)[0]
 	e := &domEmit{}
-	whole, erasesWhole := 0, false
+	whole, silentWhole := 0, false
 	listed := map[string]bool{}
 	for _, item := range ruleParts(n) {
 		ps := parts(item)
@@ -609,18 +627,18 @@ func (b *domBuilder) emission(n *Node) *domEmit {
 		}
 		if tagsNode != nil {
 			if it.IsInsert {
-				b.fail(target, "an inserted tag takes no tags, and is not erased")
+				b.fail(target, "an inserted tag takes no tags, and is not silent")
 			}
 			inner := ruleParts(tagsNode)[0]
-			if inner.Rule == "erase" {
-				it.Erase = true
+			if inner.Rule == "silent" {
+				it.Silent = true
 				if it.Capture == "" {
-					erasesWhole = true
+					silentWhole = true
 				}
 			} else {
 				it.Tags = b.value(inner)
 				if it.Tags.Kind == tmEmptySet {
-					b.fail(target, "<∅> emits a token no terminal can read; <> erases")
+					b.fail(target, "<∅> emits a token no terminal can read; <> makes a part silent")
 				}
 			}
 		}
@@ -629,7 +647,7 @@ func (b *domBuilder) emission(n *Node) *domEmit {
 	if whole > 0 && whole != len(e.Items) {
 		b.fail(first, "$ is used with items other than $")
 	}
-	if erasesWhole && len(e.Items) != 1 {
+	if silentWhole && len(e.Items) != 1 {
 		b.fail(first, "$ <> stands alone")
 	}
 	return e

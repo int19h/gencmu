@@ -177,7 +177,7 @@ func TestCacheUsedAndBypassed(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		res, err := d.Parse(string(extractEBNF(text).text), ParseOptions{})
+		res, err := d.Parse(string(extractGrammarText(text).text), ParseOptions{})
 		if err != nil {
 			t.Fatal(err)
 		}

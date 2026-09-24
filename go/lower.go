@@ -21,26 +21,26 @@ type production struct {
 	tags         *domTerm        // nil: default tags (§4)
 	implicit     bool            // one symbol and no tags: the constituent has its symbol's tags (§3.7)
 	conds        []lcond
-	predictConds []*domCond // conditions mentioning no capture but $ of an empty production, checked at prediction
-	emit         *domEmit
-	eraseAll     bool   // ⇒ $ <>: the constituent is erased (§11)
-	erased       []bool // per position: a capture its emission erases, or nil for none
+	predictConds []*domCond // conditions using no capture but $ of an empty production, checked at prediction
+	emit         *domEmit   // as dropped and simplified for the production (§3.6)
+	silentAll    bool       // %emits $ <>: the constituent is silent (§11)
+	silent       []bool     // per position: a capture its emission makes silent, or nil for none
 	transparent  bool
 	helper       bool
 	elided       string // for the ε production of an optional beginning with an elidable terminal
-	repeatPrefix bool   // r ≔ r x of a trailing repetition: the first child is spliced out (§12)
+	repeatPrefix bool   // r → r x of a trailing repetition: the first child is spliced out (§12)
 	ruleName     string // the rule the author wrote (for a helper, the one it serves)
 	doc          string
 	at           [2]int
 }
 
-// lcond is a condition with the dot position at which the item has read the
-// last capture it mentions, or, for one that mentions $, at which it is
-// complete.
+// lcond is a condition, simplified for its production, with the dot
+// position at which the item has read the last capture it uses, or, for one
+// that uses $, at which it is complete.
 type lcond struct {
 	cond    *domCond
 	trigger int
-	whole   bool // it mentions $
+	whole   bool // it uses $
 }
 
 type lrule struct {
@@ -154,8 +154,8 @@ func (lw *lowerer) lowerRule(r *sRule) {
 			}
 		}
 		if last != nil {
-			// Trailing repetition (§3.3): r ≔ p x ... is r ≔ p x | r x, and
-			// r ≔ p [x] ... is r ≔ p | r x. The places are expanded in the
+			// Trailing repetition (§3.3): r → p x ... is r → p x | r x, and
+			// r → p [x] ... is r → p | r x. The places are expanded in the
 			// order they are written, which numbers their helpers.
 			ps := lw.expandSeq(prefix, a, r.name)
 			xs := lw.expand(last.Inner, a, r.name)
@@ -226,6 +226,36 @@ func (lw *lowerer) newProduction(lhs int32, body []slot) *production {
 }
 
 func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt, repeatPrefix bool) {
+	position := map[string]int{}
+	for i, s := range body {
+		if s.capture != "" {
+			position[s.capture] = i
+		}
+	}
+	// $, the whole constituent, is a capture every production has (§3.5).
+	has := func(name string) bool {
+		_, ok := position[name]
+		return ok || name == ""
+	}
+	// The clauses are simplified for the production (§3.6). A condition
+	// that became true is dropped, and one that became false removes the
+	// production; one that uses a capture the production lacks does not
+	// apply to it.
+	var conds []*domCond
+	for _, c := range a.conds {
+		s, tv := simplifyCond(c, has)
+		switch tv {
+		case alwaysTrue:
+			continue
+		case alwaysFalse:
+			return
+		}
+		used := map[string]bool{}
+		condCaptures(s, used)
+		if _, ok := usesAll(used, has); ok {
+			conds = append(conds, s)
+		}
+	}
 	p := lw.newProduction(lhs, body)
 	p.repeatPrefix = repeatPrefix
 	p.ruleName = lw.l.rules[lhs].name
@@ -233,36 +263,28 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt, repeatPrefix b
 	p.transparent = len(body) == 1
 	p.implicit = false
 	p.nslots = 0
-	position := map[string]int{}
 	for i, s := range body {
 		p.capName[i] = s.capture
 		p.capSlot[i] = -1
 		if s.capture != "" {
 			p.capSlot[i] = int8(p.nslots)
 			p.slotOf[s.capture] = int8(p.nslots)
-			position[s.capture] = i
 			p.nslots++
 		}
 	}
-	// $, the whole constituent, is a capture every production has (§3.5).
-	has := func(names map[string]bool) bool {
-		for n := range names {
-			if _, ok := position[n]; !ok && n != "" {
-				return false
-			}
+	// The union of the alternative's own tag term and its definition's
+	// %tags, where either is written (§3.7).
+	var written []*domTerm
+	for _, t := range []*domTerm{a.alt.Tags, a.ruleTags} {
+		if t != nil {
+			written = append(written, simplifyTerm(t, has))
 		}
-		return true
 	}
-	tags := a.alt.Tags
-	if tags == nil {
-		tags = a.ruleTags
-	}
-	if tags != nil {
-		names := map[string]bool{}
-		termCaptures(tags, names)
-		if has(names) {
-			p.tags = tags
-		}
+	switch len(written) {
+	case 1:
+		p.tags = written[0]
+	case 2:
+		p.tags = &domTerm{Kind: tmUnion, Items: written}
 	}
 	if p.tags == nil && len(body) == 1 {
 		p.implicit = true
@@ -271,12 +293,9 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt, repeatPrefix b
 			p.nslots++
 		}
 	}
-	for _, c := range a.conds {
+	for _, c := range conds {
 		names := map[string]bool{}
 		condCaptures(c, names)
-		if !has(names) {
-			continue
-		}
 		trigger := 0
 		for n := range names {
 			at := len(body)
@@ -294,35 +313,27 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt, repeatPrefix b
 		}
 	}
 	if a.emit != nil {
+		// An item naming a capture the production lacks is dropped (§3.6).
 		e := &domEmit{}
 		for _, it := range a.emit.Items {
-			if it.IsInsert {
-				e.Items = append(e.Items, it)
+			if !it.IsInsert && !has(it.Capture) {
 				continue
 			}
-			if _, ok := position[it.Capture]; !ok && it.Capture != "" {
-				continue
+			if it.Tags != nil {
+				kept := *it
+				kept.Tags = simplifyTerm(it.Tags, has)
+				it = &kept
 			}
-			names := map[string]bool{}
-			termCaptures(it.Tags, names)
-			if has(names) {
-				e.Items = append(e.Items, it)
-			} else {
-				e.Items = append(e.Items, &domEmitItem{Capture: it.Capture})
+			e.Items = append(e.Items, it)
+			if it.Silent && it.Capture != "" {
+				if p.silent == nil {
+					p.silent = make([]bool, len(body))
+				}
+				p.silent[position[it.Capture]] = true
 			}
 		}
 		p.emit = e
-		for i, name := range p.capName {
-			for _, it := range e.Items {
-				if it.Erase && !it.IsInsert && it.Capture != "" && it.Capture == name {
-					if p.erased == nil {
-						p.erased = make([]bool, len(body))
-					}
-					p.erased[i] = true
-				}
-			}
-		}
-		p.eraseAll = e.erasesAll()
+		p.silentAll = e.silentAll()
 	}
 }
 
@@ -449,7 +460,7 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 }
 
 // computeCycles finds the rules that can lie below themselves over the same
-// span: A reaches B when A ≔ α B β with α and β nullable. A forbidden set of
+// span: A reaches B when A → α B β with α and β nullable. A forbidden set of
 // ancestors (engine §4, derivations) matters only within such a class.
 func (l *lowered) computeCycles() {
 	for changed := true; changed; {

@@ -94,11 +94,11 @@ func caseDialect(c *engineCase, noCache bool) (*Dialect, error) {
 	if c.Grammar != nil {
 		g := *c.Grammar
 		if !strings.Contains(g, "%ambiguity-resolution") {
-			g = "%ambiguity-resolution greedy ;\n" + g
+			g = "%ambiguity-resolution greedy\n" + g
 		}
 		return loadSources(map[string]string{
 			"p.md": "## main <?stage main?>\n\n- [g](g.md) <?grammar?>\n",
-			"g.md": "```ebnf\n" + g + "\n```\n",
+			"g.md": "```jbogenbau\n" + g + "\n```\n",
 		}, "p.md", noCache)
 	}
 	return loadSources(c.Documents, c.Pipeline, noCache)

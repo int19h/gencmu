@@ -45,7 +45,7 @@ func checkDOM(d *domDoc) *domProblem {
 		}
 	}
 	for _, r := range d.Rules {
-		if r == nil || !(domName.MatchString(r.Name) || r.Name == "#") || (r.Op != "define" && r.Op != "extend") || len(r.Alternatives) == 0 {
+		if r == nil || !(domName.MatchString(r.Name) || r.Name == "#") || (r.Op != "define" && r.Op != "redefine" && r.Op != "extend") || len(r.Alternatives) == 0 {
 			return &domProblem{message: "a malformed rule"}
 		}
 		c := &domChecker{rule: r}
@@ -65,6 +65,10 @@ func checkDOM(d *domDoc) *domProblem {
 		}
 		if c.problem != nil {
 			return c.problem
+		}
+		// The definition as a whole (engine §9, the end).
+		if msg := definitionProblem(r); msg != "" {
+			return &domProblem{message: msg, rule: r}
 		}
 	}
 	return nil
@@ -208,6 +212,14 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 				c.term(a, depth+1, true)
 			}
 		}
+	case tmIf:
+		// A guarded term: a condition, and the term it guards.
+		if t.Cond == nil || len(t.Items) != 1 || t.Items[0] == nil || argument {
+			c.fail("a malformed guarded term")
+			return
+		}
+		c.condition(t.Cond, depth+1)
+		c.term(t.Items[0], depth+1, false)
 	default:
 		c.fail("an unknown term %q", t.Kind)
 	}
@@ -251,6 +263,19 @@ func (c *domChecker) condition(d *domCond, depth int) {
 		for _, it := range d.Items {
 			c.condition(it, depth+1)
 		}
+	case cdIf:
+		if len(d.Items) != 2 {
+			c.fail("a malformed implication")
+			return
+		}
+		for _, it := range d.Items {
+			c.condition(it, depth+1)
+		}
+	case cdCaptured:
+		// A presence test, of a capture or of $.
+		if d.Rule != "" && !domName.MatchString(d.Rule) {
+			c.fail("a presence test of %q", d.Rule)
+		}
 	default:
 		c.fail("an unknown condition %q", d.Kind)
 	}
@@ -268,7 +293,7 @@ func (c *domChecker) constituentTags(t *domTerm) {
 
 // readsOwnTags says whether a term reads the tags of $, the constituent
 // whose tags it may be defining: $ itself as a value, tags($) or
-// classes($).
+// classes($), anywhere in it, the conditions of its guards included.
 func readsOwnTags(t *domTerm) bool {
 	if t == nil {
 		return false
@@ -276,6 +301,8 @@ func readsOwnTags(t *domTerm) bool {
 	switch t.Kind {
 	case tmCapture:
 		return t.Str == ""
+	case tmIf:
+		return condReadsOwnTags(t.Cond) || readsOwnTags(t.Items[0])
 	case tmUnion, tmIntersection:
 		for _, it := range t.Items {
 			if readsOwnTags(it) {
@@ -290,6 +317,27 @@ func readsOwnTags(t *domTerm) bool {
 		// A span argument is not a value; a term argument may be one.
 		for _, a := range t.Items {
 			if a != nil && a.Kind != tmCapture && readsOwnTags(a) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// condReadsOwnTags is readsOwnTags of a guard's condition: matches() parses
+// the tokens again, and a presence test reads no tags.
+func condReadsOwnTags(c *domCond) bool {
+	if c == nil {
+		return false
+	}
+	switch c.Kind {
+	case cdCompare:
+		return readsOwnTags(c.Left) || readsOwnTags(c.Right)
+	case cdNot:
+		return condReadsOwnTags(c.Inner)
+	case cdAny, cdAll, cdIf:
+		for _, it := range c.Items {
+			if condReadsOwnTags(it) {
 				return true
 			}
 		}
@@ -316,13 +364,13 @@ func (c *domChecker) emission(e *domEmit) {
 		}
 		switch {
 		case it.IsInsert:
-			if it.Tags != nil || it.Erase {
+			if it.Tags != nil || it.Silent {
 				c.fail("tags on an inserted tag")
 				return
 			}
 		case it.Capture == "":
 			whole++
-			if it.Erase && len(e.Items) != 1 {
+			if it.Silent && len(e.Items) != 1 {
 				c.fail("$ <> with other items")
 				return
 			}
@@ -333,8 +381,8 @@ func (c *domChecker) emission(e *domEmit) {
 			}
 			listed[it.Capture] = true
 		}
-		if it.Erase && it.Tags != nil {
-			c.fail("tags on an erased capture")
+		if it.Silent && it.Tags != nil {
+			c.fail("tags on a silent capture")
 			return
 		}
 		if it.Tags != nil && it.Tags.Kind == tmEmptySet {
