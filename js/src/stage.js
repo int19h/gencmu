@@ -408,9 +408,10 @@ export function emit(root, context) {
     const scope = new TreeScope(node, context);
     /** @type {(item: EmitItem, fallback: TagSet) => TagSet} */
     const valueTags = (item, fallback) => (item.tags ? asTags(evaluate(context, item.tags, scope)) : fallback);
-    const thisItem = clause.items.find((item) => item.this);
-    if (thisItem) {
-      out.push(makeToken(node, valueTags(thisItem, nodeTags(node, context)), context));
+    if (clause.items.length > 0 && clause.items[0].this) {
+      // One token covering the constituent per `this`: a digit that is two
+      // phonemes is emitted as two tokens over the same character.
+      for (const item of clause.items) out.push(makeToken(node, valueTags(item, nodeTags(node, context)), context));
       continue;
     }
     /** @type {Map<number, EmitItem>} */

@@ -208,7 +208,9 @@ standard class.
 
 A rule says what its constituents hand to the next stage after `⇒`. `⇒ this`
 emits the whole constituent as one token, carrying the constituent's tags;
-`⇒ this <term>` emits it with the tags of the term instead. `⇒ $a <term>,
+`⇒ this <term>` emits it with the tags of the term instead, and `⇒ this
+</n/>, this </o/>` emits it twice, as two tokens over the same text, which
+is how the digit `0` becomes the phonemes of `no`. `⇒ $a <term>,
 $b` emits the captured parts named, each as one token, in text order, with
 the tags given or their own; a part not named is walked in turn, and its own
 rules decide. A string or phoneme tag in the list, `⇒ $g, /'/, $v`, emits a

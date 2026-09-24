@@ -347,9 +347,9 @@ its children taken in order.
 
 A rule with any other name is transparent: its children are read in its
 place. Every restriction the grammar does not state, such as a capture
-wrapping more than one symbol, an unknown function, `this` or `nothing`
-used with other items, is an error of the document, reported at the
-offending token.
+wrapping more than one symbol, an unknown function, `nothing` used with
+other items, or `this` used with items other than `this`, is an error of
+the document, reported at the offending token.
 
 A string's decoding: the quotes are removed, `\\` is `\`, `\"` is `"`, and
 `\u{h...}` is the code point with that hexadecimal value; any other `\` is
@@ -395,7 +395,9 @@ the chosen tree from the left:
   inside it is walked.
 - A constituent whose production has `⇒ this` emits one token covering the
   constituent, with the constituent's tags, or with the tags of the item's
-  term if it has one.
+  term if it has one. `⇒ this <t>, this <u>` emits one such token per item,
+  in the order listed, all with the same span and source: a digit that
+  stands for a two-phoneme word is two tokens over one character.
 - `⇒ $a <t>, "x", $b` emits, in text order, one token per named capture,
   with the given tags or the captured constituent's own, and one inserted
   token per quoted tag or phoneme tag, at the position between the parts
