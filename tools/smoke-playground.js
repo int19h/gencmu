@@ -129,9 +129,11 @@ async function main() {
         input.dispatchEvent(new Event("input"));`, text);
 
       await request(base, "POST", `/session/${id}/url`, { url: target });
+      // The status is "loading" and then "busy" until the first answer,
+      // which makes it "ready", or a failure, which makes it "error".
       const started = await until("the page to start", `
         const status = document.getElementById("status");
-        return status && status.dataset.state !== "loading" ? { state: status.dataset.state, status: status.textContent } : null;`);
+        return status && ["ready", "error"].includes(status.dataset.state) ? { state: status.dataset.state, status: status.textContent } : null;`);
       if (started.state !== "ready") throw new Error(`the playground did not become ready: ${started.status}`);
       const version = await run(`return document.getElementById("version").textContent`);
       if (!/^library \d+\.\d+\.\d+/.test(version)) throw new Error(`the worker did not report the library's version: ${version}`);
