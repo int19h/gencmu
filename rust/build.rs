@@ -10,6 +10,8 @@ fn collect(root: &Path, directory: &Path, files: &mut Vec<String>) {
     let mut entries: Vec<PathBuf> = fs::read_dir(directory)
         .unwrap_or_else(|error| panic!("cannot read {}: {error}", directory.display()))
         .map(|entry| entry.expect("a directory entry").path())
+        // Hidden files, such as a desktop's .DS_Store, are not grammars.
+        .filter(|path| !path.file_name().is_some_and(|name| name.to_string_lossy().starts_with('.')))
         .collect();
     entries.sort();
     for path in entries {

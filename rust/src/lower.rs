@@ -6,7 +6,7 @@ use std::collections::BTreeSet;
 use crate::fxhash::FxMap;
 use std::sync::Arc;
 
-use crate::dom::{Arg, Cond, Emit, EmitItem, Expr, Term};
+use crate::dom::{Arg, Cond, EmitItem, Expr, Term};
 use crate::grammar::{is_terminal_name, StageGrammar, StitchedAlternative};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -18,6 +18,8 @@ pub(crate) enum Sym {
 #[derive(Debug, Clone)]
 pub(crate) enum Span {
     Cap(u8),
+    /// `$`, the whole constituent: from the item's origin to its end.
+    Whole,
     Head(Box<Span>),
     Tail(Box<Span>),
     Last(Box<Span>),
@@ -28,7 +30,6 @@ pub(crate) enum LTerm {
     Lit(String),
     Weak(String),
     Empty,
-    Set(Vec<LTerm>),
     Union(Vec<LTerm>),
     Inter(Vec<LTerm>),
     Phonemes(Span),
@@ -55,20 +56,39 @@ pub(crate) enum LCond {
     Matches(Span, u32),
     Not(Box<LCond>),
     Any(Vec<LCond>),
+    All(Vec<LCond>),
 }
 
 #[derive(Debug, Clone)]
 pub(crate) enum LEmitItem {
     Cap(u8, Option<LTerm>),
+    /// A capture named with `<>`: neither emitted nor walked (§11).
+    Erase(u8),
     Insert(String),
 }
 
 #[derive(Debug, Clone)]
 pub(crate) enum LEmit {
     None,
-    Nothing,
+    /// `⇒ $ <>`: the constituent is erased.
+    Erased,
+    /// `⇒ $`, once per item, with the item's tag term if it has one.
     This(Vec<Option<LTerm>>),
     Items(Vec<LEmitItem>),
+}
+
+impl LEmit {
+    /// Whether the child at `position` of a constituent of `production` is
+    /// erased by its emission (§5, §11).
+    pub(crate) fn erases(&self, production: &Prod, position: usize) -> bool {
+        match self {
+            LEmit::Erased => true,
+            LEmit::Items(items) => production.cap_at[position].is_some_and(|slot| {
+                items.iter().any(|item| matches!(item, LEmitItem::Erase(erased) if *erased == slot))
+            }),
+            LEmit::None | LEmit::This(_) => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -252,10 +272,6 @@ impl<'a> Lowerer<'a> {
                 vec![vec![(sym, None)]]
             }
             Expr::Repeat(inner, min) => vec![vec![(self.repeat(inner, *min), None)]],
-            Expr::Hash => {
-                let free = Expr::Ref(self.grammar.free.clone().unwrap_or_default());
-                vec![vec![(self.repeat(&free, 0), None)]]
-            }
             Expr::Ref(name) => vec![vec![(self.symbol(name, true), None)]],
             Expr::Terminal(name) => vec![vec![(self.symbol(name, false), None)]],
             Expr::Capture(name, inner) => {
@@ -292,11 +308,17 @@ struct Scope<'a> {
     rules: &'a std::collections::HashMap<String, usize>,
     /// The latest position of a capture mentioned so far.
     last: Option<u16>,
+    /// Whether `$` has been mentioned so far.
+    whole: bool,
 }
 
 impl<'a> Scope<'a> {
     fn span(&mut self, term: &Term) -> Result<Span, Missing> {
         match term {
+            Term::Capture(name) if name.is_empty() => {
+                self.whole = true;
+                Ok(Span::Whole)
+            }
             Term::Capture(name) => {
                 let &slot = self.names.get(name).ok_or(Missing)?;
                 let position = self.cap_pos[slot as usize];
@@ -329,7 +351,6 @@ impl<'a> Scope<'a> {
             Term::Literal(text) => LTerm::Lit(text.clone()),
             Term::Weak(text) => LTerm::Weak(text.clone()),
             Term::EmptySet => LTerm::Empty,
-            Term::Set(items) => LTerm::Set(list(self, items)?),
             Term::Union(items) => LTerm::Union(list(self, items)?),
             Term::Intersection(items) => LTerm::Inter(list(self, items)?),
             // A bare capture where a value is needed is its tags (§10).
@@ -363,6 +384,7 @@ impl<'a> Scope<'a> {
             Cond::Matches(span, rule) => LCond::Matches(self.span(span)?, self.rule(rule)?),
             Cond::Not(inner) => LCond::Not(Box::new(self.cond(inner)?)),
             Cond::Any(items) => LCond::Any(items.iter().map(|item| self.cond(item)).collect::<Result<Vec<_>, _>>()?),
+            Cond::All(items) => LCond::All(items.iter().map(|item| self.cond(item)).collect::<Result<Vec<_>, _>>()?),
         })
     }
 }
@@ -378,7 +400,6 @@ struct Pending {
 fn ends_in_repeat(expr: &Expr) -> Option<(Vec<Expr>, &Expr, u8)> {
     match expr {
         Expr::Repeat(inner, min) => Some((Vec::new(), inner, *min)),
-        Expr::Hash => None,
         Expr::Seq(items) => match items.last() {
             Some(Expr::Repeat(inner, min)) => Some((items[..items.len() - 1].to_vec(), inner, *min)),
             _ => None,
@@ -519,38 +540,44 @@ pub(crate) fn lower(grammar: &StageGrammar, features: &BTreeSet<String>, mandato
             production.document = Some(alternative.document.clone());
             production.at = alternative.at;
             let cap_pos = production.cap_pos.clone();
-            let mut scope = Scope { names: &names, cap_pos: &cap_pos, rules: &grammar.index, last: None };
+            let mut scope = Scope { names: &names, cap_pos: &cap_pos, rules: &grammar.index, last: None, whole: false };
             if let Some(term) = alternative.alternative.tags.as_ref().or(alternative.rule_tags.as_ref()) {
                 production.tags = scope.term(term).ok();
             }
             for cond in &alternative.conditions {
                 scope.last = None;
+                scope.whole = false;
                 if let Ok(lowered) = scope.cond(cond) {
-                    let trigger = scope.last.map_or(0, |last| last + 1);
+                    // One that mentions `$` waits for the item to be
+                    // complete (§4).
+                    let trigger =
+                        if scope.whole { production.syms.len() as u16 } else { scope.last.map_or(0, |last| last + 1) };
                     production.conds.push((lowered, trigger));
                 }
             }
+            let whole =
+                |item: &EmitItem| matches!(item, EmitItem::Capture(name, _) | EmitItem::Erase(name) if name.is_empty());
             production.emit = match &alternative.emit {
                 None => LEmit::None,
-                Some(Emit::Nothing) => LEmit::Nothing,
-                Some(Emit::Items(items)) if items.iter().all(|item| matches!(item, EmitItem::This(_))) => LEmit::This(
+                Some(items) if matches!(&items[..], [EmitItem::Erase(name)] if name.is_empty()) => LEmit::Erased,
+                Some(items) if !items.is_empty() && items.iter().all(whole) => LEmit::This(
                     items
                         .iter()
                         .map(|item| match item {
-                            EmitItem::This(Some(term)) => scope.term(term).ok(),
+                            EmitItem::Capture(_, Some(term)) => scope.term(term).ok(),
                             _ => None,
                         })
                         .collect(),
                 ),
-                Some(Emit::Items(items)) => LEmit::Items(
+                Some(items) => LEmit::Items(
                     items
                         .iter()
                         .filter_map(|item| match item {
                             EmitItem::Capture(name, tags) => names.get(name).map(|&slot| {
                                 LEmitItem::Cap(slot, tags.as_ref().and_then(|term| scope.term(term).ok()))
                             }),
+                            EmitItem::Erase(name) => names.get(name).map(|&slot| LEmitItem::Erase(slot)),
                             EmitItem::Insert(tag) => Some(LEmitItem::Insert(tag.clone())),
-                            EmitItem::This(_) => None,
                         })
                         .collect(),
                 ),

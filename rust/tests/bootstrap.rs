@@ -56,7 +56,7 @@ fn the_grammar_copy_is_current() {
 #[test]
 fn compiled_doms_match_a_fresh_reading() {
     let compiled = parse_json(&read("compiled.json")).expect("compiled.json");
-    assert_eq!(compiled.get("format"), Some(&Value::Number(1.0)));
+    assert_eq!(compiled.get("format"), Some(&Value::Number(2.0)));
     assert_eq!(compiled.get("bootstrap").and_then(Value::str), Some(gencmu::tools::bootstrap_hash().as_str()));
     let documents = compiled.get("documents").expect("documents").object().to_vec();
     assert!(!documents.is_empty());
@@ -100,7 +100,7 @@ fn parsing_with_and_without_the_cache() {
     let cached = gencmu::load_dialect("notation").expect("the notation dialect");
     let with_cache = started.elapsed();
     let started = std::time::Instant::now();
-    let empty = r#"{"format":1,"bootstrap":"0000000000000000","documents":{}}"#;
+    let empty = r#"{"format":2,"bootstrap":"0000000000000000","documents":{}}"#;
     let fresh =
         gencmu::load_dialect_sources(bundled_sources(Some(empty)), "dialects/notation.md").expect("a fresh load");
     let without_cache = started.elapsed();
@@ -108,7 +108,7 @@ fn parsing_with_and_without_the_cache() {
     let also_cached =
         gencmu::load_dialect_sources(bundled_sources(None), "dialects/notation.md").expect("a cached load");
     for text in [
-        "text ≔ [piece] ... ; piece ≔ word | \"x\" </x/> ⇒ this ;",
+        "text ≔ [piece] ... ; piece ≔ word | \"x\" </x/> ⇒ $ ;",
         "%ambiguity-resolution greedy elision-only ;\na ≔ $x(b) <\"T\" ∪ tags($x, c)> : ¬matches(tail($x), d) ;",
         "broken ≔ ;",
     ] {
