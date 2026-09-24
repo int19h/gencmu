@@ -114,8 +114,7 @@ y
 
 ```ebnf
 faho-group
-≔ faho-word | faho-word PAUSE | faho-word PAUSE zoi-body
-⇒ $ <> ;
+≔ faho-word | faho-word PAUSE | faho-word PAUSE zoi-body ;
 
 faho-word
 ≔ $q(plain-cmavo-body)
@@ -334,8 +333,7 @@ si-gap
 
 si-word
 ≔ $q(plain-cmavo-body)
-: phonemes($q) = "si"
-⇒ $ <> ;
+: phonemes($q) = "si" ;
 
 eraser
 ≔ sa-word | su-word ;

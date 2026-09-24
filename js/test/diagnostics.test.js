@@ -28,6 +28,32 @@ test("the audit reaches rules only through what a reachable alternative can use"
   assert.deepEqual(overridden.unreachable, ["ghost"]);
 });
 
+test("the audit finds an erasure that could change nothing", () => {
+  // Nothing under x emits, and x is inside no emitted token: erasing it says nothing.
+  const [idle] = audit(dialect("text ≔ x ; x ≔ A ⇒ $ <> ;"));
+  assert.deepEqual(idle.idleErasures.map((e) => [e.rule, e.erased]), [["x", "$"]]);
+  // Something under x emits.
+  const [emits] = audit(dialect("text ≔ x ; x ≔ w ⇒ $ <> ; w ≔ A ⇒ $ ;"));
+  assert.deepEqual(emits.idleErasures, []);
+  // x is inside a token text emits, whose phonemes would include it.
+  const [sounds] = audit(dialect("text ≔ y ⇒ $ ; y ≔ x B ; x ≔ A ⇒ $ <> ;"));
+  assert.deepEqual(sounds.idleErasures, []);
+  // A token whose tags name its phoneme does not sound like what is under it.
+  const [fixed] = audit(dialect("text ≔ x ⇒ $ </a/> ; x ≔ A ⇒ $ <> ;"));
+  assert.deepEqual(fixed.idleErasures.map((e) => [e.rule, e.erased]), [["x", "$"]]);
+  // Not inside a token an ancestor emits, whose phonemes come from what lies
+  // under it.
+  const [inside] = audit(dialect("text ≔ y ⇒ $ ; y ≔ x ⇒ $ </a/> ; x ≔ B ⇒ $ <> ;"));
+  assert.deepEqual(inside.idleErasures, []);
+  // Not when that tag term is dropped for the alternative, for naming a
+  // capture it lacks.
+  const [dropped] = audit(dialect("text <\"/a/\" ∪ tags($x)> ≔ $x(A) | y ⇒ $ ; y ≔ B ⇒ $ <> ;"));
+  assert.deepEqual(dropped.idleErasures, []);
+  // A capture erased by name is judged the same way.
+  const [named] = audit(dialect("text ≔ $a(A) $b(w) ⇒ $a <>, $b ; w ≔ B ;"));
+  assert.deepEqual(named.idleErasures.map((e) => [e.rule, e.erased]), [["text", "$a"]]);
+});
+
 test("a defect in a condition is reported although the lookahead skips its production", async () => {
   const d = dialect("text ≔ good | bad ; good ≔ A ; bad ≔ B : ∅ ∈ ∅ ;");
   const { Token } = await import("../src/node.js");

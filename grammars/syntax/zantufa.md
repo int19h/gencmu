@@ -7,7 +7,7 @@ that grammar in the syntax stage of the Zantufa dialect,
 [`../dialects/zantufa.md`](../dialects/zantufa.md), so every rule here either
 is new, adds alternatives to a rule of the experimental grammar with `|≔`,
 or restates one with `≔`, replacing it. The notation is explained in
-`docs/notation.md`.
+[the notation document](../../docs/notation.md).
 
 Most of the constructs are behind features, which the Zantufa dialect
 enables: `zantufa-connectives`, `zantufa-terms`, `zantufa-tags` and

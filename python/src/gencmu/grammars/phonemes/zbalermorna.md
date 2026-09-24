@@ -16,8 +16,7 @@ pause-char
 |≔ "\u{ED89}" ;
 
 comma
-|≔ "\u{ED9A}" | "\u{ED8C}" | "\u{ED99}" | "\u{ED9B}"
-⇒ $ <> ;
+|≔ "\u{ED9A}" | "\u{ED8C}" | "\u{ED99}" | "\u{ED9B}" ;
 ```
 
 A vowel diacritic and its full-vowel form are the same phoneme; the stress mark U+ED98 after either, or after a diphthong diacritic, makes it stressed, and a repeated mark is one mark. The glide radicals U+EDAA and U+EDAB are `i` and `u` before a vowel. A diphthong diacritic is two phonemes and stands where a vowel stands; the shorthand U+ED8B followed by a vowel is that vowel and an apostrophe, which the rule emits as a token with no span of its own, and it stands where a non-vowel stands, since the apostrophe closes the vowel group.

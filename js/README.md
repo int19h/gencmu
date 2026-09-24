@@ -5,17 +5,18 @@ literate documents loaded at runtime. It needs nothing beyond the language,
 and Node's `fs` for loading grammars from disk.
 
 ```js
-import { loaderFromDirectory } from "gencmu/node";
+import { loadDialect } from "gencmu/node";
 import { toBrackets } from "gencmu";
 
-const dialect = loaderFromDirectory().dialect("dialects/notation.md");
-const result = dialect.parse("text ≔ A ;");
+const dialect = loadDialect("cll");
+const result = dialect.parse("mi klama le zarci");
 console.log(result.ok, toBrackets(result));
 ```
 
 `gencmu` works anywhere JavaScript runs, with grammars from memory through
-`loaderFromSources`; `gencmu/node` adds `loaderFromDirectory`, whose default
-is the grammars shipped with the package.
+`loadDialectSources`; `gencmu/node` adds `loadDialect`, for the grammars
+shipped with the package, and `loadDialectFile`, for a pipeline document on
+disk.
 
 ## The command line
 

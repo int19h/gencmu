@@ -9,8 +9,8 @@ repository, `docs/engine.md`, and its results are the canonical JSON of
 ```python
 import gencmu
 
-dialect = gencmu.load_dialect("notation")
-result = dialect.parse("text ≔ A B ;")
+dialect = gencmu.load_dialect("cll")
+result = dialect.parse("mi klama le zarci")
 result.ok, result.tree, result.error
 gencmu.to_json(result)
 gencmu.to_brackets(result, show_elided=True)

@@ -12,7 +12,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { loaderFromDirectory, fnv1a64 } from "../js/src/node.js";
+import { Loader, fnv1a64 } from "../js/src/node.js";
 import { DOM_FORMAT } from "../js/src/dom.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -43,8 +43,42 @@ function grammarFiles(directory = grammars, prefix = "") {
   return files;
 }
 
-// The precompiled DOMs, read with the engine and the current bootstrap.
-const loader = loaderFromDirectory(grammars);
+// The bootstrap: the notation's own documents read with the bootstrap, until
+// reading them again changes nothing (docs/design.md, "Self-hosting"). A
+// change to the notation that the current bootstrap cannot read needs
+// tools/write-bootstrap.js first.
+const bootstrapPath = path.join(grammars, "notation", "bootstrap.json");
+let bootstrapText = fs.readFileSync(bootstrapPath, "utf8");
+// A loader of grammars/ with the given bootstrap and no precompiled DOMs.
+/** @param {string} bootstrap */
+const loaderWith = (bootstrap) => new Loader((relative) => {
+  if (relative === "notation/bootstrap.json") return bootstrap;
+  if (relative === "compiled.json") return undefined;
+  const file = path.join(grammars, ...relative.split("/"));
+  return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : undefined;
+});
+for (let round = 0; ; round++) {
+  const reader = loaderWith(bootstrapText);
+  const current = JSON.parse(bootstrapText);
+  const next = {
+    format: DOM_FORMAT,
+    stages: current.stages.map((stage) => ({
+      name: stage.name,
+      documents: stage.documents.map((document) => ({
+        path: document.path,
+        dom: reader.readDocument(fs.readFileSync(path.join(grammars, document.path), "utf8"), document.path),
+      })),
+    })),
+  };
+  const nextText = JSON.stringify(next) + "\n";
+  if (nextText === bootstrapText) break;
+  if (round === 3) throw new Error("the notation does not reach a fixpoint");
+  bootstrapText = nextText;
+}
+write("grammars/notation/bootstrap.json", bootstrapText);
+
+// The precompiled DOMs, read with the engine and the bootstrap.
+const loader = loaderWith(bootstrapText);
 const documents = {};
 for (const file of grammarFiles()) {
   if (!file.endsWith(".md") || file.startsWith("dialects/")) continue;
