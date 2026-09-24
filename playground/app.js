@@ -139,28 +139,22 @@
   // ---- Status -----------------------------------------------------------------
 
   const status = $("status");
-  let busyTimer = 0;
   function setStatus(kind, text) {
     status.dataset.state = kind;
     $("status-text").textContent = text;
   }
-  // The page is busy from a change until the answer for it is shown; the
-  // busy state shows only after a moment, so that fast parses while typing
-  // do not make the page flicker.
+  // The page is busy from a change until the answer for it is shown: the
+  // result is marked stale and the status stops saying Ready at once, so
+  // that the result of an earlier text is never shown as the current one.
+  // The spinner and the dimming appear only after a moment (style.css), so
+  // that fast parses while typing do not make the page flicker.
   function setBusy(busy) {
     if (busy) {
-      if (!busyTimer && !$("result").hasAttribute("aria-busy")) {
-        busyTimer = setTimeout(() => {
-          busyTimer = 0;
-          $("result").setAttribute("aria-busy", "true");
-          describePhase();
-        }, 120);
-      }
-      return;
+      $("result").setAttribute("aria-busy", "true");
+      describePhase();
+    } else {
+      $("result").removeAttribute("aria-busy");
     }
-    clearTimeout(busyTimer);
-    busyTimer = 0;
-    $("result").removeAttribute("aria-busy");
   }
   function describePhase() {
     const running = job.running;

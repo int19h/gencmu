@@ -86,6 +86,10 @@ a, .link { color: var(--accent); }
 }
 .status .spinner { display: none; }
 .status[data-state="loading"] .spinner, .status[data-state="busy"] .spinner { display: inline-block; }
+/* The spinner of a busy page shows after a moment, so that a fast parse
+   does not make it flicker. */
+.status[data-state="busy"] .spinner { animation: spin 0.8s linear infinite, appear 0s linear 150ms both; }
+@keyframes appear { from { visibility: hidden; } to { visibility: visible; } }
 .status[data-state="error"] { color: var(--bad); border-color: var(--bad); }
 .status[data-state="busy"], .status[data-state="loading"] { color: var(--accent); border-color: var(--accent); }
 .spinner {
@@ -98,7 +102,7 @@ a, .link { color: var(--accent); }
   flex: none;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+@media (prefers-reduced-motion: reduce) { .spinner, .status[data-state] .spinner { animation-duration: 3s, 0s; } }
 
 /* ---- Layout ---- */
 .layout {
@@ -253,7 +257,12 @@ button.link {
 .tab-controls > div { margin-bottom: 8px; }
 .copy-row { display: flex; justify-content: flex-end; margin-bottom: -4px; }
 .output .result-text { max-height: 70vh; min-height: 3em; }
-#result[aria-busy="true"] .output, #result[aria-busy="true"] .summary { opacity: 0.55; transition: opacity 0.2s; }
+/* A result that is not for the current text and options is stale: dimmed,
+   after a moment so that a fast parse does not make it flicker. */
+#result[aria-busy="true"] .output, #result[aria-busy="true"] .summary, #result[aria-busy="true"] .diagnostics {
+  opacity: 0.55;
+  transition: opacity 0.15s 0.1s;
+}
 .empty { color: var(--muted); font-style: italic; }
 .segmented { display: flex; flex-wrap: wrap; gap: 4px; }
 .segmented [aria-checked="true"] { background: var(--accent-bg); border-color: var(--accent); font-weight: 600; }
