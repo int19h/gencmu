@@ -270,6 +270,9 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 		if len(items) == 1 {
 			return items[0]
 		}
+		if kind == exAnd && len(items) > maxAnd {
+			b.fail(n, "an & joins at most %d items, since it expands to 2ⁿ−1 sequences", maxAnd)
+		}
 		return &domExpr{Kind: kind, Items: items}
 	case "element":
 		var prim *domExpr

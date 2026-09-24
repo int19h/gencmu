@@ -41,6 +41,10 @@ type docDOM struct {
 	dom  *domDoc
 }
 
+// maxAnd is the most items an & may join: it expands to 2ⁿ−1 sequences
+// (engine §3.2, §9).
+const maxAnd = 16
+
 func isTerminalName(name string) bool {
 	return name != "" && name[0] >= 'A' && name[0] <= 'Z'
 }
@@ -183,6 +187,9 @@ func (g *stageGrammar) checkAlt(a *sAlt) *Error {
 				}
 			}
 		case exChoice, exAnd:
+			if e.Kind == exAnd && len(e.Items) > maxAnd {
+				return fail("an & joins at most %d items", maxAnd)
+			}
 			for _, it := range e.Items {
 				if err := walk(it, false); err != nil {
 					return err
