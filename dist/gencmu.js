@@ -190,15 +190,18 @@
         const helper = pending.shift();
         const nested = [];
         for (const sequence of helper.build({ rule, pending: nested })) {
+          // A helper with one symbol has that symbol's tags, like any
+          // production (engine §3.7).
+          const single = sequence.length === 1;
           this.addProduction({
             lhs: helper.name,
             rhs: sequence.map((item) => item.symbol),
             helper: true,
             owner: rule.name,
             elided: helper.elided,
-            captures: [],
+            captures: single ? [{ name: "\u0000child", index: 0 }] : [],
             conditions: [],
-            tags: null,
+            tags: single ? { call: "tags", args: [{ capture: "\u0000child" }] } : null,
             emit: null,
             recursivePrefix: false,
           });
@@ -395,9 +398,10 @@
     return result;
   }
 
-  // A stable string for a tag set: tags in code point order, weak ones marked.
+  // A stable, unambiguous string for a tag set: its tags in code point order,
+  // each with its strength.
   function tagKey(tags) {
-    return [...tags.keys()].sort(compareCodePoints).map((tag) => (tags.get(tag) ? tag : "?" + tag)).join("\u0000");
+    return JSON.stringify([...tags.keys()].sort(compareCodePoints).map((tag) => [tag, tags.get(tag)]));
   }
 
   function sameTagNames(left, right) {
@@ -904,8 +908,20 @@
   // -1 when left beats right, 1 when right beats left, 0 when they are tied
   // (engine §6). `lean` is greedy, lazy, or none for elision-only's check.
   function compare(left, right, lean) {
+    return comparison(left, right, lean).order;
+  }
+
+  // The order of two sequences, and whether it is settled: a tie at a real
+  // difference, or two equal sequences, stays a tie whatever follows, while
+  // two sequences one of which is a prefix of the other are still undecided.
+  function comparison(left, right, lean) {
     const difference = firstDifference(left, right, true);
-    if (!difference || !difference.left || !difference.right) return 0;
+    if (!difference) return { order: 0, settled: true };
+    if (!difference.left || !difference.right) return { order: 0, settled: false };
+    return { order: decide(difference, lean), settled: true };
+  }
+
+  function decide(difference, lean) {
     const { left: x, right: y } = difference;
     if (x.kind === "read" && y.kind === "read") {
       if (x.weak && !y.weak) return 1;
@@ -988,6 +1004,28 @@
         if (order === 0) result.push(other);
       }
       result.push(rope);
+      return result.length > 2 ? this.prune(result) : result;
+    }
+
+    // Keeps what can still matter: the verdict needs to know whether two
+    // undominated sequences exist, and the result the first two in canonical
+    // order. A sequence tied, at a settled point, with two that come before it
+    // in that order can neither beat anything they would not nor be among the
+    // first two, so it is dropped; sequences still undecided are all kept.
+    // Without this, a text with many independent ties would keep every
+    // combination of them.
+    prune(list) {
+      const sorted = list.slice().sort(canonical);
+      const result = [];
+      for (const rope of sorted) {
+        let settledBefore = 0;
+        for (const earlier of result) {
+          const { order, settled } = comparison(earlier, rope, this.lean);
+          if (order === 0 && settled) settledBefore++;
+          if (settledBefore >= 2) break;
+        }
+        if (settledBefore < 2) result.push(rope);
+      }
       return result;
     }
 
@@ -1200,9 +1238,10 @@
       try {
         report.output = emit(derivation, context);
         if (ranking.verdict === "tie" && !options.last) {
-          const others = ranking.undominated.slice(1).map((rope) => emit(derivationTree(rope), context));
-          if (others.every((other) => sameEmission(report.output, other))) {
-            for (const other of others) report.output.forEach((token, index) => { token.tags = tagUnion(token.tags, other[index].tags); });
+          // The witness pair: the two first tied derivations (engine §11).
+          const other = emit(derivationTree(ranking.undominated[1]), context);
+          if (sameEmission(report.output, other)) {
+            report.output.forEach((token, index) => { token.tags = tagUnion(token.tags, other[index].tags); });
             report.verdict = "resolved";
             report.merged = true;
             report.witness = null;
@@ -1240,11 +1279,20 @@
         for (const child of node.children || []) collect(child);
       };
       collect(tree);
-      const restored = tokens.slice();
-      for (const node of elided.slice().reverse()) {
-        const at = node.span[0];
-        const position = node.source[0];
-        restored.splice(at, 0, new Token(strongTag(node.terminal), [at, at], [position, position], "", null, undefined));
+      // The input with the chosen parse's elided terminators written back, in
+      // text order, inner before outer where several are at one position; and
+      // which positions of it are those synthetic terminators.
+      const restored = [];
+      const synthetic = [];
+      let next = 0;
+      for (let index = 0; index <= tokens.length; index++) {
+        while (next < elided.length && elided[next].span[0] === index) {
+          const node = elided[next++];
+          const position = node.source[0];
+          synthetic.push(restored.length);
+          restored.push(new Token(strongTag(node.terminal), [restored.length, restored.length], [position, position], "", null, undefined));
+        }
+        if (index < tokens.length) restored.push(tokens[index]);
       }
       const lowered = this.grammar.lower(features, true);
       const context = new ParseContext(lowered, restored, sourceText, unicode);
@@ -1253,7 +1301,20 @@
       if (roots.length === 0) return null;
       const ranking = new Ranker(restored, "none").rank(roots);
       if (ranking.verdict !== "tie") return null;
-      return ranking.undominated.slice(0, 2).map((rope) => resultTree(derivationTree(rope), context)[0]);
+      // The readings are shown over the original input: a synthetic
+      // terminator becomes an elided node where it was inserted.
+      const isSynthetic = new Set(synthetic);
+      const toOriginal = (index) => index - synthetic.filter((position) => position < index).length;
+      const remap = (node) => {
+        if (node.kind === "token" && isSynthetic.has(node.token)) {
+          const at = toOriginal(node.token);
+          return { kind: "elided", terminal: node.terminal, span: [at, at], source: node.source };
+        }
+        if (node.kind === "token") return { ...node, token: toOriginal(node.token), span: [toOriginal(node.span[0]), toOriginal(node.span[0]) + 1] };
+        if (node.kind === "elided") return { ...node, span: [toOriginal(node.span[0]), toOriginal(node.span[0])] };
+        return { ...node, span: [toOriginal(node.span[0]), toOriginal(node.span[1])], children: node.children.map(remap) };
+      };
+      return ranking.undominated.slice(0, 2).map((rope) => remap(resultTree(derivationTree(rope), context)[0]));
     }
   }
 

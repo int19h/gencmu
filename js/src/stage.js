@@ -56,9 +56,10 @@ export class Stage {
     try {
       report.output = emit(derivation, context);
       if (ranking.verdict === "tie" && !options.last) {
-        const others = ranking.undominated.slice(1).map((rope) => emit(derivationTree(rope), context));
-        if (others.every((other) => sameEmission(report.output, other))) {
-          for (const other of others) report.output.forEach((token, index) => { token.tags = tagUnion(token.tags, other[index].tags); });
+        // The witness pair: the two first tied derivations (engine §11).
+        const other = emit(derivationTree(ranking.undominated[1]), context);
+        if (sameEmission(report.output, other)) {
+          report.output.forEach((token, index) => { token.tags = tagUnion(token.tags, other[index].tags); });
           report.verdict = "resolved";
           report.merged = true;
           report.witness = null;
@@ -96,11 +97,20 @@ export class Stage {
       for (const child of node.children || []) collect(child);
     };
     collect(tree);
-    const restored = tokens.slice();
-    for (const node of elided.slice().reverse()) {
-      const at = node.span[0];
-      const position = node.source[0];
-      restored.splice(at, 0, new Token(strongTag(node.terminal), [at, at], [position, position], "", null, undefined));
+    // The input with the chosen parse's elided terminators written back, in
+    // text order, inner before outer where several are at one position; and
+    // which positions of it are those synthetic terminators.
+    const restored = [];
+    const synthetic = [];
+    let next = 0;
+    for (let index = 0; index <= tokens.length; index++) {
+      while (next < elided.length && elided[next].span[0] === index) {
+        const node = elided[next++];
+        const position = node.source[0];
+        synthetic.push(restored.length);
+        restored.push(new Token(strongTag(node.terminal), [restored.length, restored.length], [position, position], "", null, undefined));
+      }
+      if (index < tokens.length) restored.push(tokens[index]);
     }
     const lowered = this.grammar.lower(features, true);
     const context = new ParseContext(lowered, restored, sourceText, unicode);
@@ -109,7 +119,20 @@ export class Stage {
     if (roots.length === 0) return null;
     const ranking = new Ranker(restored, "none").rank(roots);
     if (ranking.verdict !== "tie") return null;
-    return ranking.undominated.slice(0, 2).map((rope) => resultTree(derivationTree(rope), context)[0]);
+    // The readings are shown over the original input: a synthetic
+    // terminator becomes an elided node where it was inserted.
+    const isSynthetic = new Set(synthetic);
+    const toOriginal = (index) => index - synthetic.filter((position) => position < index).length;
+    const remap = (node) => {
+      if (node.kind === "token" && isSynthetic.has(node.token)) {
+        const at = toOriginal(node.token);
+        return { kind: "elided", terminal: node.terminal, span: [at, at], source: node.source };
+      }
+      if (node.kind === "token") return { ...node, token: toOriginal(node.token), span: [toOriginal(node.span[0]), toOriginal(node.span[0]) + 1] };
+      if (node.kind === "elided") return { ...node, span: [toOriginal(node.span[0]), toOriginal(node.span[0])] };
+      return { ...node, span: [toOriginal(node.span[0]), toOriginal(node.span[1])], children: node.children.map(remap) };
+    };
+    return ranking.undominated.slice(0, 2).map((rope) => remap(resultTree(derivationTree(rope), context)[0]));
   }
 }
 

@@ -170,15 +170,18 @@ class Lowering {
       const helper = pending.shift();
       const nested = [];
       for (const sequence of helper.build({ rule, pending: nested })) {
+        // A helper with one symbol has that symbol's tags, like any
+        // production (engine §3.7).
+        const single = sequence.length === 1;
         this.addProduction({
           lhs: helper.name,
           rhs: sequence.map((item) => item.symbol),
           helper: true,
           owner: rule.name,
           elided: helper.elided,
-          captures: [],
+          captures: single ? [{ name: "\u0000child", index: 0 }] : [],
           conditions: [],
-          tags: null,
+          tags: single ? { call: "tags", args: [{ capture: "\u0000child" }] } : null,
           emit: null,
           recursivePrefix: false,
         });

@@ -1,0 +1,18 @@
+{
+  "description": "A strong tag named ?X and a weak tag X are different tag sets (engine §1).",
+  "grammar": "text ≔ $a(w) : \"?X\" ∈ tags($a) ; w ≔ $b(T) <tags($b)> ;",
+  "tokens": [
+    {
+      "text": "t",
+      "tags": [
+        "T",
+        "??X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

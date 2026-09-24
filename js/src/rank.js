@@ -61,8 +61,20 @@ function firstDifference(left, right, onlyVisible) {
 // -1 when left beats right, 1 when right beats left, 0 when they are tied
 // (engine §6). `lean` is greedy, lazy, or none for elision-only's check.
 function compare(left, right, lean) {
+  return comparison(left, right, lean).order;
+}
+
+// The order of two sequences, and whether it is settled: a tie at a real
+// difference, or two equal sequences, stays a tie whatever follows, while
+// two sequences one of which is a prefix of the other are still undecided.
+function comparison(left, right, lean) {
   const difference = firstDifference(left, right, true);
-  if (!difference || !difference.left || !difference.right) return 0;
+  if (!difference) return { order: 0, settled: true };
+  if (!difference.left || !difference.right) return { order: 0, settled: false };
+  return { order: decide(difference, lean), settled: true };
+}
+
+function decide(difference, lean) {
   const { left: x, right: y } = difference;
   if (x.kind === "read" && y.kind === "read") {
     if (x.weak && !y.weak) return 1;
@@ -145,6 +157,28 @@ export class Ranker {
       if (order === 0) result.push(other);
     }
     result.push(rope);
+    return result.length > 2 ? this.prune(result) : result;
+  }
+
+  // Keeps what can still matter: the verdict needs to know whether two
+  // undominated sequences exist, and the result the first two in canonical
+  // order. A sequence tied, at a settled point, with two that come before it
+  // in that order can neither beat anything they would not nor be among the
+  // first two, so it is dropped; sequences still undecided are all kept.
+  // Without this, a text with many independent ties would keep every
+  // combination of them.
+  prune(list) {
+    const sorted = list.slice().sort(canonical);
+    const result = [];
+    for (const rope of sorted) {
+      let settledBefore = 0;
+      for (const earlier of result) {
+        const { order, settled } = comparison(earlier, rope, this.lean);
+        if (order === 0 && settled) settledBefore++;
+        if (settledBefore >= 2) break;
+      }
+      if (settledBefore < 2) result.push(rope);
+    }
     return result;
   }
 

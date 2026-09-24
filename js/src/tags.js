@@ -31,9 +31,10 @@ export function tagIntersection(left, right) {
   return result;
 }
 
-// A stable string for a tag set: tags in code point order, weak ones marked.
+// A stable, unambiguous string for a tag set: its tags in code point order,
+// each with its strength.
 export function tagKey(tags) {
-  return [...tags.keys()].sort(compareCodePoints).map((tag) => (tags.get(tag) ? tag : "?" + tag)).join("\u0000");
+  return JSON.stringify([...tags.keys()].sort(compareCodePoints).map((tag) => [tag, tags.get(tag)]));
 }
 
 export function sameTagNames(left, right) {

@@ -1,0 +1,84 @@
+{
+  "description": "An ambiguous result's readings are shown over the original input, the written-back terminators as elided nodes (engine §7).",
+  "grammar": "%ambiguity-resolution greedy elision-only ;\n%elidable KU ;\ntext ≔ s [KU] | s B [KU] ; s ≔ A [B] ;",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "ambiguous",
+        "readings": [
+          {
+            "span": [
+              0,
+              2
+            ],
+            "children": [
+              {
+                "rule": "s",
+                "span": [
+                  0,
+                  2
+                ]
+              },
+              {
+                "kind": "elided",
+                "terminal": "KU",
+                "span": [
+                  2,
+                  2
+                ]
+              }
+            ]
+          },
+          {
+            "span": [
+              0,
+              2
+            ],
+            "children": [
+              {
+                "rule": "s",
+                "span": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "B",
+                "token": 1,
+                "span": [
+                  1,
+                  2
+                ]
+              },
+              {
+                "kind": "elided",
+                "terminal": "KU",
+                "span": [
+                  2,
+                  2
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "error": "ambiguous"
+  }
+}
