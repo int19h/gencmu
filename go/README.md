@@ -8,11 +8,11 @@ standard library only, and embeds the bundled grammars.
 ```go
 import gencmu "github.com/int19h/gencmu/go"
 
-dialect, err := gencmu.LoadDialect("notation")
+dialect, err := gencmu.LoadDialect("cll")
 if err != nil {
 	log.Fatal(err) // a *gencmu.Error, with document, line and column
 }
-result, err := dialect.Parse("text ≔ A [B] ... ;", gencmu.ParseOptions{})
+result, err := dialect.Parse("mi klama le zarci", gencmu.ParseOptions{})
 if err != nil {
 	log.Fatal(err) // a caller's mistake, such as an unknown stage
 }

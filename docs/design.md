@@ -1,7 +1,6 @@
 # gencmu: design
 
-Status: accepted; the plan the implementation follows. Where the implementation
-shows a decision to be wrong, this document is changed with it.
+Status: implemented. Where the implementation shows a decision to be wrong, this document is changed with it.
 
 ## What gencmu is
 
@@ -32,7 +31,7 @@ scripts that produced the corpus. Those stay in the prototype repository.
 ## Repository layout
 
 ```
-index.html                 web playground; GitHub Pages serves the repo root
+index.html                 web playground, which GitHub Pages can serve from the root
 playground/                playground scripts and styles, relative paths only
 grammars/                  the grammar documents, the single source of truth
   phonemes/                characters to phonemes: latin, cyrillic, zbalermorna
@@ -475,8 +474,8 @@ the design, so it is proved first, before the library exists, with a stub
 parser: a page that starts a blob worker from `file://` and gets an answer,
 checked in current Chrome and Firefox, and in CI with the headless Chrome
 that GitHub's runners already have (`--headless --dump-dom` on a `file://`
-URL), with no test framework. The same smoke test runs against the Pages
-URL after each deploy, to catch an absolute path. It has: the text; the dialect and
+URL), with no test framework. Given a URL, the same smoke test checks a
+deployment, such as GitHub Pages, for an absolute path. It has: the text; the dialect and
 feature switches; the output in the three formats and the per-stage tokens;
 the diagnostics above; and an editor for the grammar documents, whose edits
 reparse the text at once and can be downloaded. Parsing runs in a worker
@@ -548,8 +547,7 @@ toolchain:
 - Rust: MSRV and stable, `cargo fmt --check`, `cargo clippy`, `cargo test`,
   `cargo package` to prove the crate is self-contained.
 
-Third-party actions are pinned by commit hash. GitHub Pages serves `main`
-from the root, which needs no workflow.
+Third-party actions are pinned by commit hash. GitHub Pages can serve `main` from the root with no workflow; it is not enabled while the repository is private, since the site would be public.
 
 ## Standard library only
 
@@ -585,31 +583,6 @@ not predicting a rule whose required words cannot occur in the rest of the
 input; that is an optimization to specify once it is understood, not part
 of the first version.
 
-## What moves from the prototype
+## What came from the prototype
 
-The grammar documents, rewritten where they refer to the prototype, other
-parsers or research notes, and converted to the notation above; the notation
-document; the fixture corpus,
-converted to the format above. Nothing else: no code, no scripts, no notes.
-The lexicon that was derived from another parser's word table becomes a
-document of its own, maintained by hand, and the Zantufa grammar becomes a
-document of replacements and additions, as above.
-
-## Order of work
-
-1. The engine specification and its engine cases, with the output formats.
-2. The `file://` and Pages proof for the playground, with a stub parser.
-3. The JavaScript library: first a hand-written bootstrap reader good
-   enough to produce the first `bootstrap.json`, then the engine against
-   the engine cases, then the notation grammar reading itself to the
-   fixpoint, then the Lojban grammars converted to the new notation and the
-   pipelines to the new format, then the corpus; the CLI and the
-   playground on top of it.
-4. Rust, Python and Go, each against the same cases, each its own pull
-   request.
-5. CI grows with each: one job per language as it lands.
-
-## Open questions
-
-1. The corpus is 26,000 cases, about 8 MB with words and brackets. It stays
-   whole in the repository.
+The grammar documents, rewritten where they referred to the prototype, other parsers or research notes, and converted to the notation above; the notation document; and the fixture corpus, converted to the format above, about 26,000 cases and 8 MB with words and brackets, kept whole in the repository. Nothing else: no code, no scripts, no notes. The lexicon that was derived from another parser's word table is a document of its own, maintained by hand, and the Zantufa grammar is a document of replacements and additions, as above.
