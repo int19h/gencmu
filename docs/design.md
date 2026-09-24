@@ -47,6 +47,7 @@ docs/
   output.md                the output formats, defined exactly
 tests/
   engine/                  small grammars with expected parses: the engine spec as tests
+  notation/                small grammar documents with their expected DOMs and errors
   corpus/                  Lojban texts with expected verdicts and trees
   core.txt                 the ids of the corpus subset every language runs in CI
 js/                        npm package `gencmu`: library and CLI (`js/cli.js`)
@@ -203,7 +204,14 @@ alternative; `$x(symbol)` a capture. `#` is not built in: it is shorthand
 that the grammar declares, `%free-modifiers free ;`, meaning `[free ...]`,
 and a grammar without the declaration has no `#`. CLL's `/KU/` for an
 elidable terminator is written `[KU]`, and `/KU#/` is `[KU #]`; which
-terminators are elidable is declared once (see below).
+terminators are elidable is declared once (see below). `[KU #]` is exactly
+what CLL prints: an elided terminator takes its free-modifier slot with it,
+so `xy. xi ky.` (CLL 17.38) needs `xy. boi xi ky.` under the printed
+grammar, which is what CLL's official parser does and what the prototype's
+corpus scans confirm. The grammars that allow free modifiers after an
+elided terminator, as the camxes family does, write `[KU] #`. The conversion
+keeps each grammar's reading, and the corpus, converted before the grammars,
+catches any slip.
 
 **Clauses.** `⇒` says what the rule hands to the next stage; `:` lists
 conditions over captures, joined by `,` or `∧`, each item possibly several
@@ -242,11 +250,16 @@ malformed Lojban text, and the playground can show how a grammar document
 parses. The cost is load time: the bundled grammars are about 200 KB, which a
 character-level stage reads quickly in Rust and JavaScript but slowly in pure
 Python. So every package ships, beside its grammar copy, the DOM of each
-bundled document as JSON, keyed by a hash of the document's text; a library
-reads a document through the notation grammar only when no DOM matches its
-hash, which happens only for a grammar someone has written or edited. The
-playground caches edited documents' DOMs the same way. CI checks that the
-shipped DOMs match a fresh reading.
+bundled document as JSON. A DOM is keyed by three things: a hash of the
+document's text, a hash of the bootstrap that read it, and the DOM format's
+version number; a change to any of them misses the cache. A library reads a
+document through the notation grammar only on a miss, which in practice
+happens only for a grammar someone has written or edited; the playground
+caches edited documents' DOMs the same way. CI checks that the shipped DOMs
+match a fresh reading, and every library's tests include forced cache
+misses. The fixpoint alone proves only that the notation reads itself
+consistently, so `tests/notation/` also holds direct cases, small documents
+with their expected DOMs and their expected errors, run by every library.
 
 ## Pipelines
 
@@ -273,9 +286,13 @@ prose there:
 
 `<?stage NAME?>` at the end of a heading line starts a stage; `NAME` is what
 the API, the CLI's `--until` and diagnostics call it, independent of the
-heading's wording. `<?grammar?>` at the end of a line makes the first
-`[...](...)` link on that line a document of the current stage; the line may
-end in trailing whitespace. Stages run in document order, documents stitch in
+heading's wording, and two stages with one name are an error. `<?grammar?>`
+at the end of a line makes the first link on that line a document of the
+current stage; the line may end in trailing whitespace. The pipeline reader
+is not a Markdown parser, and accepts one form of link only, so that four
+implementations agree: `[` text `](` target `)`, where the target has no
+spaces, parentheses or backslashes; a `<?grammar?>` line without such a link
+is an error. Stages run in document order, documents stitch in
 list order, and since `≔` replaces, that order matters. A link without a
 marker is ordinary prose: a pipeline may link to CLL or to other dialects
 freely. Every stage's start rule is `text`. Link targets are relative to the
@@ -307,13 +324,30 @@ can.
 
 CLL's own rule is narrower. It says only that a terminator may be elided if
 no ambiguity results, and says nothing of the other ambiguities its EBNF
-has. `elision-only` applies that rule literally: after choosing a parse, the
-engine writes the chosen parse's elided terminators back into the input and
-parses again with no terminator elidable; if the input is still ambiguous,
-the ambiguity is not about terminators, and the parse is an error of kind
-`ambiguous`, with both readings. Choices settled by strong and weak tags are
-allowed, since a weak tag is exactly how a dialect marks a reading it admits
-second.
+has. `elision-only` applies that rule literally, to the stage whose grammar
+declares it, and only when that stage's ranking was not `unique`:
+
+1. Take the chosen tree's `elided` nodes in text order, inner before outer
+   where several stand at one point, and insert before the stage-input
+   token at each one's position a synthetic token carrying only that
+   terminator's tag, strong, marked synthetic.
+2. Lower the same grammar again with every optional whose first symbol is an
+   `%elidable` terminator made mandatory, and parse the new token sequence.
+3. Build that forest's ranking using only the strong-over-weak rule, with no
+   lean. If it has exactly one derivation, or the tag rule alone selects
+   one, the check passes: every other reading of the original input needed
+   a terminator elided somewhere the chosen reading did not, and CLL's rule
+   forbids that elision because it made the text ambiguous. Otherwise the
+   ambiguity is not about terminators, and the result is an error of kind
+   `ambiguous`: `ok` is false, and the error carries the chosen tree and the
+   first competing reading.
+
+A weak tag is exactly how a dialect marks a reading it admits second, which
+is why the tag rule still applies in step 3. The engine cases pin the
+definition: two readings that elide different terminators (which passes),
+two readings that differ with every terminator written (which fails), one
+settled by a weak tag (which passes), and several terminators elided at one
+point.
 
 Measured on the prototype's corpus, `elision-only` costs the CLL grammar
 nothing: every one of its 8,853 ambiguous texts becomes unambiguous with its
@@ -374,7 +408,8 @@ The same shape in every language, spelled idiomatically:
 dialect = load_dialect("cll")                 # a bundled dialect by name
 dialect = load_dialect_file("my/pipeline.md") # or a pipeline document on disk
 dialect = load_dialect_sources({path: text})  # or documents held in memory, for the browser
-result  = dialect.parse(text, features={"cbm"}, until="words", elision_only=None)
+result  = dialect.parse(text, features={"cbm"}, auto_features=True,
+                        until="words", elision_only=None)
 result.ok; result.tree; result.error.describe()
 to_json(result); to_brackets(result)
 ```
@@ -386,9 +421,9 @@ memory. In-memory sources are a map from path to text; paths are
 paths are resolved against the pipeline's own path with `.` and `..`
 normalized, exactly as on disk. The bundled dialects are that same map.
 Parsing is synchronous everywhere; the browser runs it in a worker.
-`elision_only` left unset follows the grammar's directive. `features` may
-also be `auto`, which adds `sa-su` only where it is needed (see "Expensive
-constructs behind features").
+`elision_only` left unset follows the grammar's directive.
+`auto_features`, on by default, adds `sa-su` to the given features only
+where it is needed (see "Expensive constructs behind features").
 
 The distributable artifacts are exactly: the npm package `gencmu` (the `js/`
 directory); the Python distribution `gencmu` (`python/`, a pure-Python wheel);
@@ -524,11 +559,11 @@ keeps a possible reach open from every word, not knowing whether a `sa` will
 come. In the prototype that made long texts about ten times slower, and it
 grows faster than the text. They are rare, so they are behind a feature,
 `sa-su`: without it they are ordinary words, which the syntax rejects. The
-libraries' `auto` features parse a text's word stage once without the
+libraries' `auto_features` parse a text's word stage once without the
 feature and enable it only if that stage rejects the text or reads a `sa` or
 `su` as a word anywhere in its tree, erased by a `si` or not; a text with no
-such word parses the same either way. The CLI and the playground use `auto`
-by default. The engine may later make this unnecessary by
+such word parses the same either way. The CLI and the playground use it by
+default. The engine may later make this unnecessary by
 not predicting a rule whose required words cannot occur in the rest of the
 input; that is an optimization to specify once it is understood, not part
 of the first version.
