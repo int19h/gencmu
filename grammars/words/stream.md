@@ -19,16 +19,18 @@ The stage is lazy: where two parses differ, it takes the one that closes a const
 ```ebnf
 text
 ≔ ε | PAUSE
-| [PAUSE] body | [PAUSE] body PAUSE | [PAUSE] body PAUSE hesitation | [PAUSE] body PAUSE hesitation PAUSE
-| [PAUSE] faho-group | [PAUSE] body PAUSE faho-group ;
+| [PAUSE] body | [PAUSE] body PAUSE
+| [PAUSE] $b(body) PAUSE hesitation | [PAUSE] $b(body) PAUSE hesitation PAUSE
+| [PAUSE] faho-group | [PAUSE] body PAUSE faho-group
+: "stream-end" ∉ tags($b) ;
 
 body
-≔ $t(body-tail) <tags($t)> | stray-si | $y(stray-si) $g(gap) $z(body-tail)
+≔ $t(body-tail) <tags($t)> | stray-si | $y(stray-si) $g(gap) $z(body-tail) <"stream-end" ∩ tags($z)>
 : "first-onset" ∈ tags($z) ∨ phonemes($g) = " ", "first-cy" ∉ tags($z) ∨ phonemes($g) = " " ;
 
 body-tail
-≔ $a(stream) <({"first-onset", "first-cy"} ∩ tags($a))> | @sa-su sa-run <"first-onset">
-| @sa-su $b(wiped) <({"first-onset", "first-cy"} ∩ tags($b))> | @sa-su $w(wiped) $g(gap) $v(stream) <({"first-onset", "first-cy"} ∩ tags($w))>
+≔ $a(stream) <({"first-onset", "first-cy"} ∩ tags($a)) ∪ "stream-end"> | @sa-su sa-run <"first-onset">
+| @sa-su $b(wiped) <({"first-onset", "first-cy"} ∩ tags($b))> | @sa-su $w(wiped) $g(gap) $v(stream) <({"first-onset", "first-cy"} ∩ tags($w)) ∪ "stream-end">
 | @sa-su $s(stream) $h(gap) sa-run <({"first-onset", "first-cy"} ∩ tags($s))>
 | @sa-su $x(wiped) $h(gap) sa-run <({"first-onset", "first-cy"} ∩ tags($x))>
 | @sa-su $w(wiped) $g(gap) $v(stream) $h(gap) sa-run <({"first-onset", "first-cy"} ∩ tags($w))>

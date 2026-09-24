@@ -98,14 +98,17 @@ folded-vowel-group-joined
 ⇒ $g, /'/, $v ;
 
 any-lojban-char
-≔ consonant | plain-vowel | stressed-vowel | folded-vowel | digit | apostrophe | comma | mark ;
+≔ consonant | plain-vowel | stressed-vowel | digit | apostrophe | comma | mark ;
 ```
 
 A run with a letter or digit that no script here reads is foreign through and through: each of its characters is emitted as `FOREIGN` with its own text, so that the delimiters of a `zoi` quote and the words of its body can still be compared.
 
 ```ebnf
 foreign-run
-≔ foreign-part foreign-char foreign-part ;
+≔ lojban-part foreign-char foreign-part ;
+
+lojban-part
+≔ ε | lojban-part any-lojban-char ;
 
 foreign-part
 ≔ ε | foreign-part foreign-char | foreign-part any-lojban-char ;

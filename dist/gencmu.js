@@ -1481,8 +1481,13 @@
           continue;
         }
         if (!("leaf" in x) && !("leaf" in y)) {
-          a.descend();
-          b.descend();
+          // Descend the larger side first, so that a subtree the two share is
+          // met at the front of both rather than walked leaf by leaf because
+          // it sits at different depths. Only a skip of both sides or a leaf
+          // from each consumes anything, so the order of descent cannot change
+          // the result.
+          if (x.size >= y.size) a.descend();
+          if (y.size >= x.size) b.descend();
           continue;
         }
         break;
@@ -2284,52 +2289,86 @@
   // The result tree of a derivation (engine §12), as a list: a spliced node
   // yields its children.
   /**
-   * @param {Derivation} node
+   * The children a node's result is built from, in order: a node's own, or,
+   * for a repetition's helper and a rule's left-recursive prefix, those of
+   * the whole chain, the bottom node's first.
+   * @param {DerivationRule} node
+   * @returns {Derivation[]}
+   */
+  function orderedChildren(node) {
+    const production = node.production;
+    if (!production.helper && !production.recursivePrefix) return node.children;
+    let chain = spine(node);
+    if (!production.helper) chain = chain.filter((member, index, all) => index === 0 || all[index - 1].production.recursivePrefix);
+    /** @type {Derivation[]} */
+    const result = [];
+    for (let index = chain.length - 1; index >= 0; index--) {
+      const own = chain[index].children;
+      for (let at = index === chain.length - 1 ? 0 : 1; at < own.length; at++) result.push(own[at]);
+    }
+    return result;
+  }
+
+  /**
+   * The result tree of a derivation (engine §12), as a list: a spliced node
+   * yields its children. The walk keeps its own stack, since a right-recursive
+   * rule over a long text, such as paragraphs joined by `ni'o`, nests as deep
+   * as the text is long.
+   * @param {Derivation} root
    * @param {ParseContext} context
    * @returns {ResultNode[]}
    */
-  function resultTree(node, context) {
+  function resultTree(root, context) {
     const tokens = context.tokens;
-    if ("read" in node) {
-      return [{ kind: "token", terminal: node.read.terminal, token: node.read.token, span: [node.start, node.end], source: sourceOf(tokens, node.start, node.end) }];
-    }
-    const production = node.production;
-    if (production.helper) {
-      if (production.elided && node.children.length === 0) {
-        const position = emptySource(tokens, node.start);
-        return [{ kind: "elided", terminal: production.elided, span: [node.start, node.start], source: [position, position] }];
-      }
-      // A repetition's helper is left-recursive: its items are the bottom
-      // node's children, then each node's other children going up.
-      const chain = spine(node);
-      /** @type {ResultNode[]} */
-      const result = [];
-      for (let index = chain.length - 1; index >= 0; index--) {
-        const children = index === chain.length - 1 ? chain[index].children : chain[index].children.slice(1);
-        for (const child of children) result.push(...resultTree(child, context));
-      }
-      return result;
-    }
+    /** @typedef {{node: Derivation, children: Derivation[] | null, next: number, out: ResultNode[]}} TreeFrame */
+    /** @type {TreeFrame[]} */
+    const stack = [{ node: root, children: null, next: 0, out: [] }];
     /** @type {ResultNode[]} */
-    let children;
-    if (production.recursivePrefix) {
-      const chain = spine(node).filter((member, index, all) => index === 0 || all[index - 1].production.recursivePrefix);
-      children = [];
-      for (let index = chain.length - 1; index >= 0; index--) {
-        const own = index === chain.length - 1 ? chain[index].children : chain[index].children.slice(1);
-        for (const child of own) children.push(...resultTree(child, context));
+    let result = [];
+    /** @param {ResultNode[]} list */
+    const finish = (list) => {
+      stack.pop();
+      if (stack.length === 0) {
+        result = list;
+        return;
       }
-    } else {
-      children = node.children.flatMap((child) => resultTree(child, context));
+      const out = stack[stack.length - 1].out;
+      for (const item of list) out.push(item);
+    };
+    while (stack.length > 0) {
+      const frame = stack[stack.length - 1];
+      const node = frame.node;
+      if ("read" in node) {
+        finish([{ kind: "token", terminal: node.read.terminal, token: node.read.token, span: [node.start, node.end], source: sourceOf(tokens, node.start, node.end) }]);
+        continue;
+      }
+      const production = node.production;
+      if (frame.children === null) {
+        if (production.helper && production.elided && node.children.length === 0) {
+          const position = emptySource(tokens, node.start);
+          finish([{ kind: "elided", terminal: production.elided, span: [node.start, node.start], source: [position, position] }]);
+          continue;
+        }
+        frame.children = orderedChildren(node);
+      }
+      if (frame.next < frame.children.length) {
+        stack.push({ node: frame.children[frame.next++], children: null, next: 0, out: [] });
+        continue;
+      }
+      if (production.helper) {
+        finish(frame.out);
+        continue;
+      }
+      finish([{
+        kind: "rule",
+        rule: production.lhs,
+        span: [node.start, node.end],
+        source: sourceOf(tokens, node.start, node.end),
+        tags: nodeTags(node, context),
+        children: frame.out,
+      }]);
     }
-    return [{
-      kind: "rule",
-      rule: production.lhs,
-      span: [node.start, node.end],
-      source: sourceOf(tokens, node.start, node.end),
-      tags: nodeTags(node, context),
-      children,
-    }];
+    return result;
   }
 
   /** @implements {Scope} */

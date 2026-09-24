@@ -63,7 +63,7 @@ can share arguments.
 ```ebnf
 gek-sentence ≔
 | @!zantufa-connectives gek subsentence gik subsentence tail-terms
-| @zantufa-connectives gek subsentence gik subsentence [[(gik subsentence) ...] [GIhI] #] tail-terms
+| @zantufa-connectives gek subsentence gik subsentence [(gik subsentence) ...] [GIhI] # tail-terms
 | [tag] KE # gek-sentence [KEhE] #
 | NA # gek-sentence
 ;
@@ -82,14 +82,14 @@ unguarded.
 ```ebnf
 termset ≔
 | @!zantufa-connectives [NUhI #] gek terms [NUhU] # gik terms [NUhU] #
-| @zantufa-connectives [NUhI #] gek terms [NUhU] # gik terms [NUhU] # [[(gik terms [NUhU] #) ...] [GIhI] #]
+| @zantufa-connectives [NUhI #] gek terms [NUhU] # gik terms [NUhU] # [(gik terms [NUhU] #) ...] [GIhI] #
 | NUhI # terms-not-starting-with-bare-gek [NUhU] #
 | KE # terms [KEhE] #
 ;
 
 termset-with-nuhi ≔
 | @!zantufa-connectives NUhI # gek terms [NUhU] # gik terms [NUhU] #
-| @zantufa-connectives NUhI # gek terms [NUhU] # gik terms [NUhU] # [[(gik terms [NUhU] #) ...] [GIhI] #]
+| @zantufa-connectives NUhI # gek terms [NUhU] # gik terms [NUhU] # [(gik terms [NUhU] #) ...] [GIhI] #
 | NUhI # terms-not-starting-with-bare-gek [NUhU] #
 | KE # terms [KEhE] #
 ;
@@ -115,7 +115,7 @@ delimited by the word stage; the quote is unguarded.
 sumti-4 ≔
 | sumti-5
 | @!zantufa-connectives gek sumti gik sumti-4
-| @zantufa-connectives gek sumti gik sumti-4 [[(gik sumti-4) ...] [GIhI] #]
+| @zantufa-connectives gek sumti gik sumti-4 [(gik sumti-4) ...] [GIhI] #
 ;
 
 sumti-6 |≔ RAhOI anything # ;
@@ -147,13 +147,13 @@ MOI.
 selbri-6 ≔
 | tanru-unit [[stag] BO # selbri-6]
 | @!zantufa-connectives [NAhE #] guhek selbri gik selbri-6
-| @zantufa-connectives [NAhE #] guhek selbri gik selbri-6 [[(gik selbri-6) ...] [GIhI] #]
+| @zantufa-connectives [NAhE #] guhek selbri gik selbri-6 [(gik selbri-6) ...] [GIhI] #
 ;
 
 selbri-6-not-starting-with-ke ≔
 | tanru-unit-not-starting-with-ke [[stag] BO # selbri-6]
 | @!zantufa-connectives [NAhE #] guhek selbri gik selbri-6
-| @zantufa-connectives [NAhE #] guhek selbri gik selbri-6 [[(gik selbri-6) ...] [GIhI] #]
+| @zantufa-connectives [NAhE #] guhek selbri gik selbri-6 [(gik selbri-6) ...] [GIhI] #
 ;
 
 tanru-unit-2 ≔

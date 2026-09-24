@@ -1,10 +1,10 @@
-## The definition effort's word shapes
+# Approved word forms
 
-This document is the family part of the word stage for the word-form grammar that the Logical Language Group's definition effort approved, the PEG grammar printed as appendix A2 of the 1.3 editions of *The Complete Lojban Language* and implemented by camxes and jbotci; it is stitched in after `stream.md` and `shapes.md` in place of `cll.md`. It defines the three shapes the stream reads, with the pause properties of that grammar's `post_word` as tags, and adds what the approved grammar has beyond the printed chapter 4: the extended rafsi that shorten a borrowing with a hyphen. What it withholds is as important: it adds no alternative with a glide after a consonant, since the definition effort banned the consonant-glide-vowel syllable (change log A3, approved 2014-12-27), and it holds a name's consonant runs to the pair table of CLL 3.6, as the letter rules of the PEG do. The camxes parsers implement the same word-form grammar, so no separate camxes family is needed. The notation is explained in `notation.md`.
+This document is the family part of the word stage in the [approved word forms](../dialects/bpfk.md) dialect, for the word-form grammar that the Logical Language Group's definition effort approved, the PEG grammar printed as appendix A2 of the 1.3 editions of *The Complete Lojban Language*; it is stitched in after [stream.md](stream.md) and [shapes.md](shapes.md) in place of [cll.md](cll.md). It defines the three shapes the stream reads, with the pause properties of that grammar's `post_word` as tags, and adds what the approved grammar has beyond the printed chapter 4: the extended rafsi that shorten a borrowing with a hyphen. What it withholds is as important: it adds no alternative with a glide after a consonant, since the definition effort banned the consonant-glide-vowel syllable (change log A3, approved 2014-12-27), and it holds a name's consonant runs to the pair table of CLL 3.6, as the letter rules of the approved grammar do. The notation is explained in [the notation document](../../docs/notation.md).
 
-The approved grammar reads four things this stage cannot: a digit inside a name, since the phoneme stage has already read every digit as the number word it stands for; a cmavo whose final stressed vowel is followed by a consonant cluster, which the PEG refuses and this grammar admits; a comma, which the phoneme stage drops for both families; and the PEG's `!cmavo` guard at the head of a borrowing, which the choice among parses replaces, as the section on that choice in `stream.md` explains.
+The approved grammar reads four things this stage cannot: a digit inside a name, since the phoneme stage has already read every digit as the number word it stands for; a cmavo whose final stressed vowel is followed by a consonant cluster, which the approved grammar refuses and this grammar admits; a comma, which the phoneme stage drops for both families; and the approved grammar's `!cmavo` guard at the head of a borrowing, which the stage's lazy choice among parses replaces, as "Choosing among parses" in [stream.md](stream.md) explains.
 
-### Cmavo
+## Cmavo
 
 A cmavo is an onset, a consonant or a glide, followed by nuclei joined by apostrophes, or the nuclei alone; here `y` is a nucleus like any other, so `y'y`, `a'y` and the `Cy` letter words are all ordinary cmavo, and only a bare run of `y` is hesitation. A `Cy` is tagged `y-letter` and an unstressed CV cmavo `cv`: the approved grammar's `CVCy_lujvo` guard reads `bajykla` as one lujvo and not as `ba jy kla`, and the stream's join rules apply that guard through these two tags.
 
@@ -38,7 +38,7 @@ letter-cmavo
 ≔ consonant y ;
 ```
 
-### Brivla
+## Brivla
 
 A brivla with an onset may follow a word without a pause; it may be followed by one only if its stress is marked, since an unmarked brivla is stressed on the penultimate syllable before a pause, which is what the approved grammar's `stress` rule says. A vowel-initial borrowing needs a pause before it.
 
@@ -51,7 +51,7 @@ brivla-shape
 : phonemes($m) ≠ lowercase(phonemes($m)), phonemes($u) = lowercase(phonemes($u)), phonemes($n) ≠ lowercase(phonemes($n)), phonemes($o) = lowercase(phonemes($o)) ;
 ```
 
-### Extended rafsi
+## Extended rafsi
 
 The approved grammar lets a borrowing serve as a rafsi in two ways (A2.6). A `brivla_rafsi` is a head of at least two syllables followed by `'y`, as in `fuly'ismu`; a `fuhivla_rafsi` is a head of borrowing syllables followed by a consonant onset and `y`, as in `aktyiismu`. Each has a stressed form, whose last syllable before the hyphen is the stressed one, for use directly before a short final rafsi. The apostrophe that may follow the hyphen is also the onset of a vowel-initial borrowing that serves as the core, `fuly'ismu`, so a core may begin with it. The slinku'i test of CLL 4.7 applies to the head of a borrowing rafsi as to a borrowing: its tail is not a string of rafsi. The approved grammar also asks that the head itself not begin a rafsi string; here that is left to the choice among parses, since a head that is a string of rafsi is also a lujvo reading of the same letters, and the earlier close wins. The alternatives below join the shared rules for the first and later rafsi of a lujvo.
 
@@ -109,7 +109,7 @@ rafsi-head-part
 | glide plain-nucleus ;
 ```
 
-### Cmevla
+## Cmevla
 
 A name is surrounded by pauses, so its shape carries neither property. Its consonant runs are held to the pair table: each adjacent pair is a permissible pair of CLL 3.6, which is what the letter rules of the approved grammar say for every position, and so `.tlaiv.` is a name and `.ekstcat.` is one, while a doubled consonant or a voiced consonant beside an unvoiced one is not.
 
@@ -121,7 +121,7 @@ cmevla-run
 ≔ permissible-run ;
 ```
 
-A permissible run is built from the `before-x` tables of `shapes.md`: a run ending in a consonant is that consonant alone, or a run ending in one of the consonants that may precede it, followed by it.
+A permissible run is built from the `before-x` tables of [shapes.md](shapes.md): a run ending in a consonant is that consonant alone, or a run ending in one of the consonants that may precede it, followed by it.
 
 ```ebnf
 permissible-run

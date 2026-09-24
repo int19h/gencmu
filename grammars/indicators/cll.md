@@ -29,7 +29,7 @@ item
 
 unit
 ≔ $w("word") | $f("foreign-text") | $l("LEhU")
-: "indicator" ∉ tags($w), "BAhE" ∉ tags($w) ;
+: "indicator" ∉ tags($w), "BAhE" ∉ tags($w), "LEhU" ∉ tags($w) ;
 
 absorbed
 ≔ indicator-run
