@@ -107,7 +107,11 @@ class NotationReader:
 
     def read(self, text: str, path: str) -> Dom:
         """The DOM of a grammar document (engine §8, §9)."""
-        grammar_text = ebnf_text(text)
+        try:
+            grammar_text = ebnf_text(text)
+        except GencmuError as error:
+            error.document = path
+            raise
         tokens = character_tokens(grammar_text.text, self.unicode)
         tree = None
         for number, (name, lowered) in enumerate(self.stages):

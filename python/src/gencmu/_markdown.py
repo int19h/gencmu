@@ -62,10 +62,16 @@ def ebnf_text(document: str) -> GrammarText:
             continue
         closing = re.compile(r"^ {0,3}" + re.escape(fence[0]) + "{" + str(len(fence)) + r",}[ \t]*$")
         body: list[tuple[int, str]] = []
+        opening = index + 1
         index += 1
         while index < len(lines) and closing.match(lines[index]) is None:
             body.append((index + 1, lines[index]))
             index += 1
+        if index >= len(lines):
+            # Were a block that is never closed to run to the end, a missing
+            # fence would silently make the rest of the document grammar, or
+            # hide it.
+            raise GencmuError("a fenced code block is never closed", line=opening, column=1)
         index += 1
         if info.strip() == "ebnf":
             blocks.append(body)
