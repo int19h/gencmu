@@ -143,7 +143,7 @@ term-3
 ≔ sumti | tagged-term | termset | NA KU # | NA # | NOIhA # selbri [FEhU] # | FIhOI # statement [FIhAU] # | SOI # statement [SEhU] # ;
 
 tagged-term
-≔ (tag | FA #) (sumti | [KU] #) ;
+≔ tag (sumti | [KU] #) | FA # (sumti | [KU #]) ;
 
 termset
 ≔ [NUhI #] gek terms [NUhU] # gik terms [NUhU] # | NUhI # terms-not-starting-with-bare-gek [NUhU] # | KE # terms [KEhE] # ;

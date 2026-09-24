@@ -6,6 +6,7 @@ import { ParseContext, recognize, rootItems, rejectionOf, evaluate } from "./ear
 import { Ranker, derivationTree } from "./rank.js";
 import { Token } from "./tokens.js";
 import { tagSet, strongTag, compareCodePoints } from "./tags.js";
+import { foldTree } from "./walk.js";
 
 /**
  * @import { Derivation, DerivationRule, ElidedNode, EmitItem, ResultNode, Scope, Span, StageReport, TagSet, TermValue } from "./types.js"
@@ -124,12 +125,12 @@ export class Stage {
   elisionCheck(tree, tokens, sourceText, unicode, features) {
     /** @type {ElidedNode[]} */
     const elided = [];
-    /** @type {(node: ResultNode) => void} */
-    const collect = (node) => {
+    // In text order: the leaves left to right.
+    const pending = [tree];
+    for (let node = pending.pop(); node !== undefined; node = pending.pop()) {
       if (node.kind === "elided") elided.push(node);
-      if (node.kind === "rule") for (const child of node.children) collect(child);
-    };
-    collect(tree);
+      if (node.kind === "rule") for (let index = node.children.length - 1; index >= 0; index--) pending.push(node.children[index]);
+    }
     // The input with the chosen parse's elided terminators written back, in
     // text order, inner before outer where several are at one position; and
     // which positions of it are those synthetic terminators.
@@ -160,15 +161,18 @@ export class Stage {
     /** @type {(index: number) => number} */
     const toOriginal = (index) => index - synthetic.filter((position) => position < index).length;
     /** @type {(node: ResultNode) => ResultNode} */
-    const remap = (node) => {
-      if (node.kind === "token" && isSynthetic.has(node.token)) {
-        const at = toOriginal(node.token);
-        return { kind: "elided", terminal: node.terminal, span: [at, at], source: node.source };
-      }
-      if (node.kind === "token") return { ...node, token: toOriginal(node.token), span: [toOriginal(node.span[0]), toOriginal(node.span[0]) + 1] };
-      if (node.kind === "elided") return { ...node, span: [toOriginal(node.span[0]), toOriginal(node.span[0])] };
-      return { ...node, span: [toOriginal(node.span[0]), toOriginal(node.span[1])], children: node.children.map(remap) };
-    };
+    const remap = (root) => foldTree(root,
+      /** @returns {ResultNode} */
+      (node) => {
+        if (node.kind === "token" && isSynthetic.has(node.token)) {
+          const at = toOriginal(node.token);
+          return { kind: "elided", terminal: node.terminal, span: [at, at], source: node.source };
+        }
+        if (node.kind === "token") return { ...node, token: toOriginal(node.token), span: [toOriginal(node.span[0]), toOriginal(node.span[0]) + 1] };
+        return { ...node, span: [toOriginal(node.span[0]), toOriginal(node.span[0])] };
+      },
+      /** @returns {ResultNode} */
+      (node, children) => ({ ...node, span: [toOriginal(node.span[0]), toOriginal(node.span[1])], children }));
     return [ranking.chosen, /** @type {import("./types.js").Rope} */ (ranking.second)].map((rope) => remap(resultTree(derivationTree(rope), context)[0]));
   }
 }

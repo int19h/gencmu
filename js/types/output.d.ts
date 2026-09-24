@@ -171,3 +171,17 @@ export declare function displayValue(result: ParseResult): DisplayValue | null;
  * @returns {string}
  */
 export declare function prettyJson(value: unknown, indent?: number): string;
+/**
+ * A JSON value as compact text, like `JSON.stringify` with no spacing, but
+ * with an explicit stack, since a parse tree can nest deeper than the call
+ * stack allows.
+ * @param {unknown} value
+ * @returns {string}
+ */
+export declare function compactJson(value: unknown): string;
+/**
+ * The canonical JSON of a parse result as text (docs/output.md).
+ * @param {ParseResult} result
+ * @returns {string}
+ */
+export declare function toJson(result: ParseResult): string;
