@@ -10,7 +10,7 @@ import { extractGrammarText, readPipeline, resolvePath } from "./markdown.js";
 import { characterTokens, Token } from "./tokens.js";
 import { UnicodeTable } from "./unicode.js";
 import { someNode } from "./walk.js";
-import { domProblem, isDom } from "./dom.js";
+import { domProblem, isDom, DOM_MAX_DEPTH } from "./dom.js";
 
 /** @import { GrammarDom, ParseError, ParseOptions, ParseResult, Resources, ResultNode, StageReport } from "./types.js" */
 
@@ -113,7 +113,18 @@ export class Loader {
       throw new GencmuError("grammar", `${path}:${line}:${column}: ${error.message}`, { document: path, line, column });
     }
     const syntax = run.stages[run.stages.length - 1];
-    return treeToDom(/** @type {ResultNode} */ (syntax.tree), syntax.input || [], positionOf, path);
+    /** @type {GrammarDom} */
+    let dom;
+    try {
+      dom = treeToDom(/** @type {ResultNode} */ (syntax.tree), syntax.input || [], positionOf, path);
+    } catch (error) {
+      if (error instanceof RangeError) throw new GencmuError("grammar", `${path}: nested too deeply`, { document: path });
+      throw error;
+    }
+    // The bound on nesting is the same for a document read here as for a
+    // precompiled DOM (engine §9).
+    if (domProblem(dom) === "nested too deeply") throw new GencmuError("grammar", `${path}: an expression, term or condition is nested more than ${DOM_MAX_DEPTH} deep`, { document: path });
+    return dom;
   }
 
   /**
@@ -240,7 +251,7 @@ function readBootstrap(text) {
   } catch (error) {
     throw new GencmuError("grammar", `notation/bootstrap.json is not JSON: ${/** @type {Error} */ (error).message}`, { document: "notation/bootstrap.json" });
   }
-  const stages = data && Array.isArray(data.stages) ? data.stages : null;
+  const stages = data && data.format === DOM_FORMAT && Array.isArray(data.stages) ? data.stages : null;
   if (!stages || stages.length === 0) throw new GencmuError("grammar", "notation/bootstrap.json has no stages", { document: "notation/bootstrap.json" });
   for (const stage of stages) {
     if (!stage || typeof stage.name !== "string" || !Array.isArray(stage.documents) || stage.documents.length === 0) {

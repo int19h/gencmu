@@ -8,9 +8,9 @@
 const DOM_FUNCTIONS = new Set(["phonemes", "text", "lowercase", "tags", "classes", "words", "head", "tail", "last", "matches"]);
 const DOM_COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆"]);
 const DOM_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
-// Deeper than any grammar a person writes, and shallow enough for the
-// recursive walks over a DOM.
-const DOM_MAX_DEPTH = 256;
+// The nesting the notation allows (engine §9): deeper than any grammar a
+// person writes, and shallow enough for the recursive walks over a DOM.
+export const DOM_MAX_DEPTH = 256;
 
 /**
  * @param {unknown} value
@@ -34,7 +34,7 @@ function isDomPosition(value) {
  * @returns {string | null}
  */
 export function domProblem(dom) {
-  if (!isDomObject(dom) || !Array.isArray(dom.rules) || !Array.isArray(dom.directives)) return "not a DOM";
+  if (!isDomObject(dom) || dom.format !== 1 || !Array.isArray(dom.rules) || !Array.isArray(dom.directives)) return "not a DOM of format 1";
   for (const directive of dom.directives) {
     if (!isDomObject(directive) || typeof directive.name !== "string" || !Array.isArray(directive.args) ||
         !directive.args.every((arg) => typeof arg === "string") || !isDomPosition(directive.at)) return "a malformed directive";
@@ -88,11 +88,22 @@ export function domProblem(dom) {
         return "a malformed expression";
       }
     } else if (kind === "emission") {
-      if (value.nothing === true) continue;
+      // The reader's rules (engine §9): nothing alone, this only with this,
+      // a capture listed once, no tags on an inserted tag.
+      if (value.nothing === true) {
+        if (Object.keys(value).length !== 1) return "a malformed emission";
+        continue;
+      }
       if (!list(value.items, 1)) return "a malformed emission";
-      for (const item of /** @type {unknown[]} */ (value.items)) {
-        if (!isDomObject(item) || !(item.this === true || typeof item.capture === "string" || typeof item.insert === "string")) return "a malformed emission";
-        if (item.tags !== undefined) push("term", item.tags);
+      const items = /** @type {unknown[]} */ (value.items);
+      const kinds = items.map((item) => (!isDomObject(item) ? null : item.this === true ? "this" : typeof item.capture === "string" ? "capture" : typeof item.insert === "string" ? "insert" : null));
+      if (kinds.includes(null) || (kinds.includes("this") && !kinds.every((k) => k === "this"))) return "a malformed emission";
+      const captures = items.flatMap((item) => (isDomObject(item) && typeof item.capture === "string" ? [item.capture] : []));
+      if (new Set(captures).size !== captures.length) return "a malformed emission";
+      for (const item of /** @type {Record<string, unknown>[]} */ (items)) {
+        if (item.tags === undefined) continue;
+        if (typeof item.insert === "string") return "a malformed emission";
+        push("term", item.tags);
       }
     } else if (kind === "condition") {
       if ("any" in value) {

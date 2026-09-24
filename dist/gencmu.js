@@ -1683,7 +1683,12 @@
       }
       let emit = clauses.emit || null;
       if (emit && "items" in emit) {
-        emit = { items: emit.items.filter((item) => item.capture === undefined || names.has(item.capture)) };
+        // An item naming a capture the production lacks is dropped, and so is
+        // a tag term naming one: the item keeps its own tags (engine §3.6).
+        emit = {
+          items: emit.items.filter((item) => item.capture === undefined || names.has(item.capture)).map((item) =>
+            item.tags && !termVariables(item.tags).every((name) => names.has(name)) ? { ...item, tags: undefined } : item),
+        };
       }
       this.addProduction({
         lhs: rule.name,
@@ -4268,8 +4273,8 @@
   const DOM_FUNCTIONS = new Set(["phonemes", "text", "lowercase", "tags", "classes", "words", "head", "tail", "last", "matches"]);
   const DOM_COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆"]);
   const DOM_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
-  // Deeper than any grammar a person writes, and shallow enough for the
-  // recursive walks over a DOM.
+  // The nesting the notation allows (engine §9): deeper than any grammar a
+  // person writes, and shallow enough for the recursive walks over a DOM.
   const DOM_MAX_DEPTH = 256;
 
   /**
@@ -4294,7 +4299,7 @@
    * @returns {string | null}
    */
   function domProblem(dom) {
-    if (!isDomObject(dom) || !Array.isArray(dom.rules) || !Array.isArray(dom.directives)) return "not a DOM";
+    if (!isDomObject(dom) || dom.format !== 1 || !Array.isArray(dom.rules) || !Array.isArray(dom.directives)) return "not a DOM of format 1";
     for (const directive of dom.directives) {
       if (!isDomObject(directive) || typeof directive.name !== "string" || !Array.isArray(directive.args) ||
           !directive.args.every((arg) => typeof arg === "string") || !isDomPosition(directive.at)) return "a malformed directive";
@@ -4348,11 +4353,22 @@
           return "a malformed expression";
         }
       } else if (kind === "emission") {
-        if (value.nothing === true) continue;
+        // The reader's rules (engine §9): nothing alone, this only with this,
+        // a capture listed once, no tags on an inserted tag.
+        if (value.nothing === true) {
+          if (Object.keys(value).length !== 1) return "a malformed emission";
+          continue;
+        }
         if (!list(value.items, 1)) return "a malformed emission";
-        for (const item of /** @type {unknown[]} */ (value.items)) {
-          if (!isDomObject(item) || !(item.this === true || typeof item.capture === "string" || typeof item.insert === "string")) return "a malformed emission";
-          if (item.tags !== undefined) push("term", item.tags);
+        const items = /** @type {unknown[]} */ (value.items);
+        const kinds = items.map((item) => (!isDomObject(item) ? null : item.this === true ? "this" : typeof item.capture === "string" ? "capture" : typeof item.insert === "string" ? "insert" : null));
+        if (kinds.includes(null) || (kinds.includes("this") && !kinds.every((k) => k === "this"))) return "a malformed emission";
+        const captures = items.flatMap((item) => (isDomObject(item) && typeof item.capture === "string" ? [item.capture] : []));
+        if (new Set(captures).size !== captures.length) return "a malformed emission";
+        for (const item of /** @type {Record<string, unknown>[]} */ (items)) {
+          if (item.tags === undefined) continue;
+          if (typeof item.insert === "string") return "a malformed emission";
+          push("term", item.tags);
         }
       } else if (kind === "condition") {
         if ("any" in value) {
@@ -4512,7 +4528,18 @@
         throw new GencmuError("grammar", `${path}:${line}:${column}: ${error.message}`, { document: path, line, column });
       }
       const syntax = run.stages[run.stages.length - 1];
-      return treeToDom(/** @type {ResultNode} */ (syntax.tree), syntax.input || [], positionOf, path);
+      /** @type {GrammarDom} */
+      let dom;
+      try {
+        dom = treeToDom(/** @type {ResultNode} */ (syntax.tree), syntax.input || [], positionOf, path);
+      } catch (error) {
+        if (error instanceof RangeError) throw new GencmuError("grammar", `${path}: nested too deeply`, { document: path });
+        throw error;
+      }
+      // The bound on nesting is the same for a document read here as for a
+      // precompiled DOM (engine §9).
+      if (domProblem(dom) === "nested too deeply") throw new GencmuError("grammar", `${path}: an expression, term or condition is nested more than ${DOM_MAX_DEPTH} deep`, { document: path });
+      return dom;
     }
 
     /**
@@ -4639,7 +4666,7 @@
     } catch (error) {
       throw new GencmuError("grammar", `notation/bootstrap.json is not JSON: ${/** @type {Error} */ (error).message}`, { document: "notation/bootstrap.json" });
     }
-    const stages = data && Array.isArray(data.stages) ? data.stages : null;
+    const stages = data && data.format === DOM_FORMAT && Array.isArray(data.stages) ? data.stages : null;
     if (!stages || stages.length === 0) throw new GencmuError("grammar", "notation/bootstrap.json has no stages", { document: "notation/bootstrap.json" });
     for (const stage of stages) {
       if (!stage || typeof stage.name !== "string" || !Array.isArray(stage.documents) || stage.documents.length === 0) {

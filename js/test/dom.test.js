@@ -49,3 +49,26 @@ test("nesting deeper than any grammar is refused", () => {
   const dom = { format: 1, rules: [{ name: "text", op: "define", alternatives: [{ guards: [], expr }], conditions: [], at: [1, 1] }], directives: [] };
   assert.equal(domProblem(dom), "nested too deeply");
 });
+
+test("a tag term naming a capture the production lacks is dropped from the item", () => {
+  const dialect = loadDialectSources({ ...sources, "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ A ⇒ this <$x> ;\n```\n" }, "p.md");
+  const token = new Token(new Map([["A", true]]), [0, 1], [0, 1], "a", null, undefined);
+  const result = dialect.parse("a", { tokens: [token], autoFeatures: false });
+  assert.equal(result.ok, true);
+  assert.deepEqual([...result.stages[0].output[0].tags.keys()], ["A"], "the constituent's own tags");
+});
+
+test("the reader holds documents to the same nesting bound as precompiled DOMs", () => {
+  const deep = (n) => "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ " + "[".repeat(n) + "A" + "]".repeat(n) + " ;\n```\n";
+  assert.throws(() => loadDialectSources({ ...sources, "g.md": deep(300) }, "p.md"), GencmuError);
+  assert.doesNotThrow(() => loadDialectSources({ ...sources, "g.md": deep(100) }, "p.md"));
+});
+
+test("the check holds a precompiled emission and format to the reader's rules", () => {
+  const rule = (emit) => ({ format: 1, rules: [{ name: "text", op: "define", alternatives: [{ guards: [], expr: { capture: "x", expr: { ref: "A" } } }], emit, conditions: [], at: [1, 1] }], directives: [] });
+  assert.equal(domProblem(rule({ items: [{ this: true }, { capture: "x" }] })), "a malformed emission");
+  assert.equal(domProblem(rule({ items: [{ capture: "x" }, { capture: "x" }] })), "a malformed emission");
+  assert.equal(domProblem(rule({ items: [{ insert: "y", tags: { literal: "z" } }] })), "a malformed emission");
+  assert.equal(domProblem(rule({ items: [{ this: true }, { this: true }] })), null);
+  assert.equal(domProblem({ format: 2, rules: [], directives: [] }), "not a DOM of format 1");
+});
