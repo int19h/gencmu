@@ -6,7 +6,7 @@ import { GencmuError } from "./errors.js";
 import { ParseContext, recognize, expectedAt } from "./earley.js";
 import { nodeBrackets, nodeTree } from "./output.js";
 import { compareCodePoints } from "./tags.js";
-import { termVariables } from "./grammar.js";
+import { simplify, capturesUsed, DOM_TRUE } from "./dom.js";
 
 /**
  * @import { Action, Condition, Expr, ParseResult, ResultNode, Span, StageReport, TagSet, Term, Argument, Production } from "./types.js"
@@ -298,14 +298,157 @@ function namedRules(node, into) {
  * @property {number} rules
  * @property {string[]} unreachable rules no derivation of `text` can reach
  * @property {{kind: string, rule: string, document: string, previous: string}[]} changes
- * @property {{rule: string, document: string, condition: string}[]} idleConditions conditions no
- *   alternative of their definition captures every part of
+ * @property {{rule: string, document: string, erased: string}[]} idleErasures silent items, `$ <>`
+ *   or `$x <>`, of what could never emit anything and never sounds inside an emitted token
  */
+
+/**
+ * The top-level items of an alternative's expression.
+ * @param {Expr} expr
+ * @returns {Expr[]}
+ */
+function topItems(expr) {
+  return "seq" in expr ? expr.seq : [expr];
+}
+
+/**
+ * Whether an alternative has a capture; every alternative has `$`.
+ * @param {StitchedAlternative} alternative
+ * @returns {(name: string) => boolean}
+ */
+function capturesOf(alternative) {
+  const captured = new Set(["", ...topItems(alternative.expr).flatMap((item) => ("capture" in item ? [item.capture] : []))]);
+  return (name) => captured.has(name);
+}
+
+/**
+ * An alternative's emission items, less those naming captures it lacks
+ * (engine §3.6), with their tag terms simplified for it.
+ * @param {StitchedAlternative} alternative
+ * @returns {import("./types.js").EmitItem[]}
+ */
+function effectiveItems(alternative) {
+  const has = capturesOf(alternative);
+  return (alternative.clauses.emit ? alternative.clauses.emit.items : [])
+    .filter((item) => item.capture === undefined || has(item.capture))
+    .map((item) => (item.tags ? { ...item, tags: simplify(item.tags, has) } : item));
+}
+
+/**
+ * The tag terms of an alternative's constituent, simplified for it: its own
+ * and its definition's %tags (engine §3.7).
+ * @param {StitchedAlternative} alternative
+ * @returns {Term[]}
+ */
+function constituentTerms(alternative) {
+  const has = capturesOf(alternative);
+  return [alternative.tags, alternative.clauses.tags].filter((term) => term !== undefined).map((term) => simplify(term, has));
+}
+
+/**
+ * Which rules of a stage could emit a token (engine §11): one with an
+ * alternative whose emission lists something that is not silent, or that
+ * has no emission and walks a part that could.
+ * @param {Map<string, StitchedAlternative[]>} alternativesByRule
+ * @returns {Set<string>}
+ */
+function emittingRules(alternativesByRule) {
+  const emitting = new Set();
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const [name, alternatives] of alternativesByRule) {
+      if (emitting.has(name)) continue;
+      if (alternatives.some((alternative) => alternativeEmits(alternative, emitting))) {
+        emitting.add(name);
+        changed = true;
+      }
+    }
+  }
+  return emitting;
+}
+
+/**
+ * Whether an alternative could emit a token, given the rules that could.
+ * @param {StitchedAlternative} alternative
+ * @param {Set<string>} emitting
+ * @returns {boolean}
+ */
+function alternativeEmits(alternative, emitting) {
+  if (alternative.clauses.emit) return effectiveItems(alternative).some((item) => item.insert !== undefined || !item.silent);
+  /** @type {Set<string>} */
+  const walked = new Set();
+  for (const part of topItems(alternative.expr)) referencedRules(part, walked);
+  return [...walked].some((name) => emitting.has(name));
+}
+
+/**
+ * Which rules could sound inside an emitted token, where what they read is
+ * part of the token's phonemes unless it is silent (engine §5): those under
+ * a part emitted as a token whose tags do not name its phoneme, and all
+ * that lies under them but what is silent.
+ * @param {Map<string, StitchedAlternative[]>} alternativesByRule
+ * @returns {Set<string>}
+ */
+function soundingRules(alternativesByRule) {
+  const inside = new Set();
+  /** @type {string[]} */
+  const pending = [];
+  /** @type {(part: Expr) => void} */
+  const reach = (part) => {
+    /** @type {Set<string>} */
+    const found = new Set();
+    referencedRules(part, found);
+    for (const name of found) {
+      if (!inside.has(name)) {
+        inside.add(name);
+        pending.push(name);
+      }
+    }
+  };
+  // Where tokens are emitted: a token whose tags name its phoneme sounds as
+  // that phoneme, whatever lies under it.
+  for (const alternatives of alternativesByRule.values()) {
+    for (const alternative of alternatives) {
+      const items = effectiveItems(alternative);
+      if (items.length > 0 && items[0].capture === "") {
+        const fixed = items.every((item) => namesPhoneme(item.tags) || (!item.tags && constituentTerms(alternative).some(namesPhoneme)));
+        if (!items[0].silent && !fixed) topItems(alternative.expr).forEach(reach);
+        continue;
+      }
+      const emitted = new Set(items.flatMap((item) => (!item.silent && item.capture && !namesPhoneme(item.tags) ? [item.capture] : [])));
+      for (const part of topItems(alternative.expr)) if ("capture" in part && emitted.has(part.capture)) reach(part);
+    }
+  }
+  // Inside a token, everything is heard but what is silent, whatever any
+  // token under it says of its own phonemes.
+  for (let name = pending.pop(); name !== undefined; name = pending.pop()) {
+    for (const alternative of alternativesByRule.get(name) || []) {
+      const items = effectiveItems(alternative);
+      if (items.length > 0 && items[0].capture === "" && items[0].silent) continue;
+      const silent = new Set(items.flatMap((item) => (item.silent && item.capture ? [item.capture] : [])));
+      for (const part of topItems(alternative.expr)) if (!("capture" in part && silent.has(part.capture))) reach(part);
+    }
+  }
+  return inside;
+}
+
+/**
+ * Whether a tag term certainly holds a strong phoneme tag, which fixes the
+ * phonemes of a token it tags (engine §5).
+ * @param {Term | undefined} term
+ * @returns {boolean}
+ */
+function namesPhoneme(term) {
+  if (!term) return false;
+  if ("literal" in term) return [...term.literal].length === 3 && term.literal.startsWith("/") && term.literal.endsWith("/");
+  if ("union" in term) return term.union.some(namesPhoneme);
+  return false;
+}
 
 /**
  * What a grammar author should know about a dialect's grammars: per stage,
  * the rules nothing reaches, every rule a later document replaced or
- * extended, and conditions that never apply.
+ * extended, and silent items that change nothing.
  * @param {Dialect} dialect
  * @returns {StageAudit[]}
  */
@@ -322,16 +465,12 @@ export function audit(dialect) {
       for (const alternative of rule.alternatives) {
         referencedRules(alternative.expr, found);
         // Rules named in clauses count only where the clause applies to the
-        // alternative: a condition that names a capture the alternative
-        // lacks never runs for it (engine §3.6).
-        const top = "seq" in alternative.expr ? alternative.expr.seq : [alternative.expr];
-        const captured = new Set(["", ...top.flatMap((item) => ("capture" in item ? [item.capture] : []))]);
-        /** @type {(clause: unknown) => boolean} */
-        const applies = (clause) => termVariables(/** @type {Condition} */ (clause)).every((variable) => captured.has(variable));
+        // alternative (engine §3.6).
+        const has = capturesOf(alternative);
         const clauses = alternative.clauses;
-        // An alternative's own tags replace the rule's (engine §3.6).
-        const tags = alternative.tags || clauses.tags;
-        namedRules([tags, clauses.emit, ...clauses.conditions].filter((clause) => clause && applies(clause)), found);
+        const conditions = clauses.conditions.map((condition) => simplify(condition, has))
+          .filter((condition) => condition !== DOM_TRUE && capturesUsed(condition).every(has));
+        namedRules([...constituentTerms(alternative), ...effectiveItems(alternative), ...conditions], found);
       }
       for (const next of found) {
         if (!reachable.has(next) && grammar.rules.has(next)) {
@@ -340,24 +479,32 @@ export function audit(dialect) {
         }
       }
     }
-    /** @type {{rule: string, document: string, condition: string}[]} */
-    const idleConditions = [];
+    // A silent item says nothing if what it silences could never emit and
+    // never sounds inside an emitted token (engine §5, §11).
+    const byRule = new Map([...grammar.rules].map(([name, rule]) => [name, rule.alternatives]));
+    const emitting = emittingRules(byRule);
+    const sounding = soundingRules(byRule);
+    /** @type {{rule: string, document: string, erased: string}[]} */
+    const idleErasures = [];
+    /** @type {Set<object>} */
+    const seen = new Set();
     for (const rule of grammar.rules.values()) {
-      /** @type {Map<object, StitchedAlternative[]>} */
-      const byDefinition = new Map();
       for (const alternative of rule.alternatives) {
-        if (!byDefinition.has(alternative.clauses)) byDefinition.set(alternative.clauses, []);
-        /** @type {StitchedAlternative[]} */ (byDefinition.get(alternative.clauses)).push(alternative);
-      }
-      for (const [clauses, alternatives] of byDefinition) {
-        const captured = alternatives.map((alternative) => {
-          const top = "seq" in alternative.expr ? alternative.expr.seq : [alternative.expr];
-          return new Set(["", ...top.flatMap((item) => ("capture" in item ? [item.capture] : []))]);
-        });
-        for (const condition of /** @type {{conditions: Condition[]}} */ (clauses).conditions) {
-          const needs = termVariables(condition);
-          if (!captured.some((names) => needs.every((name) => names.has(name)))) {
-            idleConditions.push({ rule: rule.name, document: alternatives[0].document, condition: formatCondition(condition) });
+        const emit = alternative.clauses.emit;
+        if (!emit || seen.has(alternative.clauses)) continue;
+        const siblings = rule.alternatives.filter((other) => other.clauses === alternative.clauses);
+        seen.add(alternative.clauses);
+        for (const item of emit.items) {
+          if (!item.silent || item.capture === undefined) continue;
+          /** @type {Set<string>} */
+          const reached = new Set();
+          for (const sibling of siblings) {
+            for (const part of topItems(sibling.expr)) {
+              if (item.capture === "" || ("capture" in part && part.capture === item.capture)) referencedRules(part, reached);
+            }
+          }
+          if (!sounding.has(rule.name) && ![...reached].some((name) => emitting.has(name))) {
+            idleErasures.push({ rule: rule.name, document: alternative.document, erased: item.capture === "" ? "$" : `$${item.capture}` });
           }
         }
       }
@@ -368,7 +515,7 @@ export function audit(dialect) {
       rules: grammar.rules.size,
       unreachable: [...grammar.rules.keys()].filter((name) => !reachable.has(name)).sort(compareCodePoints),
       changes: grammar.changes.slice(),
-      idleConditions,
+      idleErasures,
     };
   });
 }
@@ -384,7 +531,7 @@ export function formatAudit(stages) {
     const lines = [`${stage.name}: ${stage.rules} rules, ${stage.resolution}`];
     if (stage.unreachable.length) lines.push(`  unreachable from text: ${stage.unreachable.join(", ")}`);
     for (const change of stage.changes) lines.push(`  ${change.rule} ${change.kind} by ${change.document} (defined in ${change.previous})`);
-    for (const idle of stage.idleConditions) lines.push(`  a condition of ${idle.rule} in ${idle.document} applies to no alternative: ${idle.condition}`);
+    for (const idle of stage.idleErasures) lines.push(`  ${idle.rule} in ${idle.document} makes ${idle.erased} silent, which could never emit anything or sound inside a token`);
     if (lines.length === 1) lines.push("  nothing to report");
     blocks.push(lines.join("\n"));
   }

@@ -77,10 +77,10 @@ function expected(roots, tokens, lean) {
 }
 
 test("the ranking agrees with an enumeration of every derivation", () => {
-  // GENCMU_RANK_ROUNDS and GENCMU_RANK_SEED run a larger sweep locally.
-  const next = random(Number(process.env.GENCMU_RANK_SEED || 20260924));
-  const rounds = Number(process.env.GENCMU_RANK_ROUNDS || 3000);
-  const longest = Number(process.env.GENCMU_RANK_TOKENS || 3);
+  // GENCMU_PROPERTY_CASES and GENCMU_PROPERTY_SEED run a larger sweep locally.
+  const next = random(Number(process.env.GENCMU_PROPERTY_SEED || 20260924));
+  const rounds = Number(process.env.GENCMU_PROPERTY_CASES || 3000);
+  const longest = Number(process.env.GENCMU_PROPERTY_TOKENS || 3);
   const terminals = ["A", "B", "C"];
   const rules = ["t", "u", "v"];
   let checked = 0;

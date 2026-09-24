@@ -15,7 +15,7 @@ const HELP = `gencmu: a Lojban parser whose grammars are literate documents.
 Usage:
   gencmu parse [options] [TEXT...]   parse TEXT, or standard input if none is given
   gencmu audit [options]             report unreachable rules, replaced and extended
-                                     rules, and conditions that never apply
+                                     rules, and silent items that change nothing
   gencmu test FILE [options]         run corpus-format test cases (tests/README.md)
   gencmu dialects                    list the bundled dialects
   gencmu help                        show this

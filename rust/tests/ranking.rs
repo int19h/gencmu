@@ -3,8 +3,8 @@
 //! chosen derivation, tied derivation and witness computed straight from
 //! the definitions, compared with the library's.
 //!
-//! `GENCMU_RANKING_CASES` sets how many cases to run (default 600) and
-//! `GENCMU_RANKING_SEED` the first seed; a failing case prints its seed,
+//! `GENCMU_PROPERTY_CASES` sets how many cases to run (default 600) and
+//! `GENCMU_PROPERTY_SEED` the first seed; a failing case prints its seed,
 //! grammar and tokens.
 
 mod common;
@@ -603,7 +603,7 @@ enum Outcome {
 fn expect(ranked: &Ranked, lean: Lean, findings: &mut BTreeMap<&'static str, usize>) -> Outcome {
     let all: Vec<usize> = (0..ranked.full.len()).collect();
     let Some(chosen) = ranked.least(lean, &all) else {
-        if std::env::var("GENCMU_RANKING_DUMP").is_ok() {
+        if std::env::var("GENCMU_PROPERTY_VERBOSE").is_ok() {
             for &d in &all {
                 eprintln!("{d}: V {:?}\n   F {:?}", ranked.visible[d], ranked.full[d]);
             }
@@ -626,7 +626,7 @@ fn expect(ranked: &Ranked, lean: Lean, findings: &mut BTreeMap<&'static str, usi
             match ranked.least(lean, &group) {
                 Some(tied) => Some(tied),
                 None => {
-                    if std::env::var("GENCMU_RANKING_DUMP").is_ok() {
+                    if std::env::var("GENCMU_PROPERTY_VERBOSE").is_ok() {
                         eprintln!("chosen: V {:?}\n        F {:?}", ranked.visible[chosen], ranked.full[chosen]);
                         for &d in &group {
                             eprintln!(
@@ -879,8 +879,8 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
 
 #[test]
 fn ranking_matches_the_definitions() {
-    let cases: u64 = std::env::var("GENCMU_RANKING_CASES").ok().and_then(|n| n.parse().ok()).unwrap_or(600);
-    let first: u64 = std::env::var("GENCMU_RANKING_SEED").ok().and_then(|n| n.parse().ok()).unwrap_or(1);
+    let cases: u64 = std::env::var("GENCMU_PROPERTY_CASES").ok().and_then(|n| n.parse().ok()).unwrap_or(600);
+    let first: u64 = std::env::var("GENCMU_PROPERTY_SEED").ok().and_then(|n| n.parse().ok()).unwrap_or(1);
     let started = std::time::Instant::now();
     let mut findings = BTreeMap::new();
     let mut checked = 0;

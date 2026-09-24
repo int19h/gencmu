@@ -12,8 +12,7 @@ documents it names. A library loads one in three ways:
 
 - by name, from the grammars bundled in the package: the name is a pipeline
   document's file name under `grammars/dialects/` without `.md`, so
-  `notation`, and `cll`, `bpfk`, `experimental` and `zantufa` once the Lojban
-  grammars are converted;
+  `cll`, `bpfk`, `experimental`, `zantufa` and `notation`;
 - from a pipeline document on disk, whose grammar documents are found
   relative to it, and whose `unicode.txt` and `notation/bootstrap.json` come
   from the bundled grammars;
@@ -48,8 +47,9 @@ A text that does not parse is not an error but a result whose `ok` is false
 and whose `error` says why (`rejected`, `ambiguous`, or `grammar` for a
 defect found only while parsing, such as a nested parse asked about its own
 span). Parsing is synchronous, and a loaded dialect may be used for any
-number of parses; libraries in languages with threads say whether one
-dialect may be shared between them.
+number of parses. In Python, Go and Rust one dialect may be shared by any
+number of threads parsing at once; JavaScript has one thread, and the
+playground's worker has its own dialects.
 
 **The result** has the fields of `docs/output.md`, as the language's own
 data: whether it is `ok`, the stages, the last stage's `tree`, and the
@@ -151,8 +151,7 @@ gencmu.Brackets(result, gencmu.BracketOptions{ShowElided: true})
   features are on unless it is set), `Until string` and `ElisionOnly
   *bool`.
 - `MarshalResult(result) ([]byte, error)` writes the canonical JSON.
-- A `*Dialect` may be shared by goroutines only if the library says so in
-  its package documentation.
+- A `*Dialect` is safe for concurrent use by any number of goroutines.
 
 ## Rust
 

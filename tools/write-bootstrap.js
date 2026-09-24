@@ -2,7 +2,8 @@
 // Writes grammars/notation/bootstrap.json with the hand-written reader. Run
 // it only to create the first bootstrap or to recover from a notation change
 // the current bootstrap cannot read; otherwise tools/sync.js regenerates the
-// bootstrap with the engine itself.
+// bootstrap with the engine itself, reading the notation's documents until
+// that reaches a fixpoint.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

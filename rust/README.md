@@ -8,8 +8,8 @@ The grammars it bundles are embedded in the crate.
 
 ```rust
 // in a function that returns Result<_, gencmu::Error>
-let dialect = gencmu::load_dialect("notation")?;
-let result = dialect.parse("text ≔ A ;", &gencmu::ParseOptions::default())?;
+let dialect = gencmu::load_dialect("cll")?;
+let result = dialect.parse("mi klama le zarci", &gencmu::ParseOptions::default())?;
 if result.ok {
     println!("{}", gencmu::to_brackets(&result, true));
 } else if let Some(error) = &result.error {
@@ -52,7 +52,7 @@ The crate's grammars, `grammars/`, are a copy of the repository's that
 `tests/`, the bootstrap fixpoint, the DOM cache, the API, the core sample
 of the Lojban corpus, and a property test of the ranking, which compares
 the library with a brute-force enumeration of every derivation of random
-small grammars. `GENCMU_RANKING_CASES` and `GENCMU_RANKING_SEED` run a
+small grammars. `GENCMU_PROPERTY_CASES` and `GENCMU_PROPERTY_SEED` run a
 larger sweep, and `GENCMU_CORPUS=full cargo test --release --test corpus`
 the whole corpus, on `GENCMU_CORPUS_WORKERS` threads (by default one fewer
 than the cores).
