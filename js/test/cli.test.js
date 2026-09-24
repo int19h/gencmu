@@ -72,6 +72,15 @@ test("trace reads the stage's input as the parse does, auto features included", 
   assert.doesNotMatch(unknown.stderr, /at /);
 });
 
+test("a defect of the grammar found while parsing exits 2", () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "gencmu-"));
+  fs.writeFileSync(path.join(directory, "p.md"), "## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n");
+  fs.writeFileSync(path.join(directory, "g.md"), "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ $a(x) : ¬matches($a, text) ; x ≔ \"a\" ;\n```\n");
+  const out = run("parse", "--pipeline", path.join(directory, "p.md"), "a");
+  assert.equal(out.status, 2);
+  assert.match(out.stderr, /A grammar error/);
+});
+
 test("mistakes of the command exit 2", () => {
   assert.equal(run("parse", "--until", "nonesuch", "mi").status, 2);
   assert.equal(run("parse", "--format", "nonesuch", "mi").status, 2);

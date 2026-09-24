@@ -96,7 +96,7 @@ function parseCommand(command) {
   });
   if (command.trace) {
     console.log(formatTrace(trace(dialect, text, { ...command.trace, features: command.features, autoFeatures: command.autoFeatures })));
-    return result.ok ? 0 : 1;
+    return exitStatus(result);
   }
   const ties = explainTies(result);
   if (ties) console.error(ties);
@@ -108,7 +108,17 @@ function parseCommand(command) {
     else console.log(prettyJson(displayValue(result)));
   }
   if (result.error) console.error(explainError(result));
-  return result.ok ? 0 : 1;
+  return exitStatus(result);
+}
+
+/**
+ * 0 for an accepted text, 1 for one the dialect does not accept, 2 for a
+ * defect of the grammar found while parsing.
+ * @param {import("./src/types.js").ParseResult} result
+ */
+function exitStatus(result) {
+  if (result.ok) return 0;
+  return result.error && result.error.kind === "grammar" ? 2 : 1;
 }
 
 /** @param {Command} command */
