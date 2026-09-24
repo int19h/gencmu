@@ -33,14 +33,14 @@ applies of:
 - `space`: U+0009 to U+000D, U+0020, U+0085, U+00A0, U+1680, U+2000 to
   U+200A, U+2028, U+2029, U+202F, U+205F, U+3000;
 - `digit`: U+0030 to U+0039;
-- `mark`: General_Category Mn;
-- `alpha`: General_Category Lu, Ll, Lt, Lm or Lo;
+- `mark`: a `mark` range of `grammars/unicode.txt` (General_Category Mn);
+- `alpha`: an `alpha` range of it (General_Category Lu, Ll, Lt, Lm or Lo);
 - `other`: anything else.
 
-`mark` and `alpha` use the platform's Unicode data, which must be version
-13.0 or later; a character assigned after the version a platform has may be
-classed `other` there. The shared tests use only characters assigned by
-13.0, so the libraries agree on them. A character token has no phonemes.
+`grammars/unicode.txt` is generated from one version of the Unicode
+Character Database, which it names, by `tools/unicode-table.py`, and every
+library uses it rather than its platform's Unicode data, so that the four
+agree on every character. A character token has no phonemes.
 
 A tag set is a map from tag to strength. The union of two sets holds every
 tag of either, strong if it is strong in either. The intersection holds the
@@ -159,11 +159,12 @@ predicted.
 
 **Nested parses.** `matches(span, rule)` and `tags(span, rule)` parse the
 span's tokens alone with `rule` as the start rule, over the same lowered
-grammar. Their answers depend only on the rule and the span's tokens' tags,
-and an implementation should remember them for the whole parse, keyed by
-the rule and, for each token of the span, its tags with their strengths, its
-text and its phonemes: everything a nested parse can observe. Tags alone
-are not enough, since a condition may read `text()`.
+grammar. An implementation should remember their answers for the whole parse,
+keyed by everything a nested parse can observe: the rule, the original text
+the span covers from its first token's source start to its last token's
+source end, and, for each token of the span, its tags with their strengths,
+its text and its phonemes. Tags alone are not enough, since a condition may
+read `text()`, which includes what lies between the tokens.
 If, while such a parse of span `S` as `R` is running, a condition asks for
 `S` as `R` again, the grammar defines `R` by its own negation over the same
 text: that is an error of the grammar, reported with the span and the rule,
@@ -339,7 +340,7 @@ empty if the span is.
 | `{a, b, ...}` | the union of the items as tag sets |
 | `a ∪ b`, `a ∩ b` | union, intersection; `∩` binds tighter |
 | `phonemes(s)`, `text(s)` | strings (§5) |
-| `lowercase(t)` | `t` with each code point replaced by its simple lowercase mapping from UnicodeData, if it has one |
+| `lowercase(t)` | `t` with each code point replaced by its simple lowercase mapping, the `lower` entries of `grammars/unicode.txt` |
 | `tags(s)` | the captured part's constituent tags if `s` is a whole capture, else the union of the span's tokens' tags |
 | `tags(s, R)` | the union of the tags of every derivation of the span as `R`, empty if none |
 | `classes(s)` | the tags of `tags(s)` whose first character is an upper-case letter |
