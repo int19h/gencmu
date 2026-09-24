@@ -20,7 +20,12 @@ node js/cli.js help
 ```
 
 Or open `index.html` in a browser, from the clone or from GitHub Pages: the
-playground runs the same library in the page, with nothing fetched.
+playground runs the same library in the page, with nothing fetched. It parses
+as you type under any dialect and set of features, shows the brackets, the
+tree, the JSON and every stage's tokens, explains a rejection or a tie, traces
+a stage at a position, audits the dialect, and has an editor for the grammar
+documents: change one and the text is parsed again at once, and download what
+you changed.
 
 ## The dialects
 
