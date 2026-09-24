@@ -8,13 +8,14 @@ from ._errors import GencmuError
 from ._markdown import GrammarText
 from ._model import Node, Token
 from ._trampoline import Walk, run
+from ._validate import FORMAT, term_reads_own_tags
 
 Dom = dict[str, Any]
 
 _MAPPED = frozenset(
     """rule rule-tags alternative alternative-tags directive-statement choice conjunction sequence element
-    reference string phoneme capture group optional hash empty emission emit-item emit-tags conditions
-    condition-item comparison negation call term intersection weak empty-set set capture-reference""".split()
+    reference string phoneme capture group optional empty emission emit-item emit-tags erase conditions
+    any-of all-of comparison negation call term intersection weak empty-set capture-reference""".split()
 )
 _SPAN_FUNCTIONS = frozenset(["head", "tail", "last"])
 _ONE_SPAN = frozenset(["phonemes", "text", "classes", "words", "head", "tail", "last"])
@@ -110,7 +111,7 @@ class DomBuilder:
                 rules.append(self.rule(kid))
             elif kid.kind == "rule" and kid.rule == "directive-statement":
                 directives.append(self.directive(kid))
-        return {"format": 1, "rules": rules, "directives": directives}
+        return {"format": FORMAT, "rules": rules, "directives": directives}
 
     def directive(self, node: Node) -> Dom:
         kids = self.kids(node)
@@ -132,7 +133,7 @@ class DomBuilder:
                     op = "extend"
                 continue
             if kid.rule == "rule-tags":
-                tags = self.value(self.rules(kid, "term")[0])
+                tags = self.own_tags(kid)
             elif kid.rule == "alternative":
                 alternatives.append(self.alternative(kid))
             elif kid.rule == "emission":
@@ -140,7 +141,7 @@ class DomBuilder:
                     raise self.fail(kid, "a rule has at most one ⇒ clause")
                 emit = self.emission(kid)
             elif kid.rule == "conditions":
-                conditions.extend(self.condition_item(item) for item in self.rules(kid, "condition-item"))
+                conditions.extend(self.conditions(self.rules(kid, "any-of")[0]))
         dom: Dom = {"name": name, "op": op}
         if tags is not None:
             dom["tags"] = tags
@@ -161,17 +162,25 @@ class DomBuilder:
         for kid in self.kids(node):
             if kid.kind == "token":
                 text = self.text(kid)
-                negated = text.startswith("@!")
+                negated = text.startswith("@¬")
                 guards.append({"feature": text[2:] if negated else text[1:], "negated": negated})
             elif kid.rule == "conjunction":
                 expr = run(self._expr(kid, True))
             elif kid.rule == "alternative-tags":
-                tags = self.value(self.rules(kid, "term")[0])
+                tags = self.own_tags(kid)
         assert expr is not None
         dom: Dom = {"guards": guards, "expr": expr}
         if tags is not None:
             dom["tags"] = tags
         return dom
+
+    def own_tags(self, node: Node) -> Dom:
+        """A rule's or an alternative's tag term, which may not read the tags
+        it defines (engine §9)."""
+        tags = self.value(self.rules(node, "term")[0])
+        if term_reads_own_tags(tags):
+            raise self.fail(node, "a constituent's tags cannot be made of its own: $, tags($) or classes($)")
+        return tags
 
     def _expr(self, node: Node, top: bool = False) -> Walk:
         rule = node.rule
@@ -205,6 +214,8 @@ class DomBuilder:
         if rule == "capture":
             kids = self.kids(node)
             name = self.text(kids[0])[1:]
+            if not name:
+                raise self.fail(node, "$ is the whole constituent and wraps nothing")
             inner = [kid for kid in kids[1:] if kid.kind == "rule"]
             if len(inner) != 1 or inner[0].rule not in ("reference", "string", "phoneme"):
                 raise self.fail(node, f"the capture ${name} must wrap one name, string or phoneme")
@@ -220,8 +231,6 @@ class DomBuilder:
             return (yield self._expr(self.rules(node, "choice")[0]))
         if rule == "optional":
             return {"optional": (yield self._expr(self.rules(node, "choice")[0]))}
-        if rule == "hash":
-            return {"hash": True}
         if rule == "empty":
             return {"empty": True}
         raise self.fail(node, f"unexpected {rule} in an expression")
@@ -236,57 +245,59 @@ class DomBuilder:
 
     def emission(self, node: Node) -> Dom:
         items: list[Dom] = []
-        kinds: list[str] = []
         for item in self.rules(node, "emit-item"):
             kids = self.kids(item)
             target = kids[0]
             tag_nodes = [kid for kid in kids[1:] if kid.kind == "rule" and kid.rule == "emit-tags"]
-            tags = self.value(self.rules(tag_nodes[0], "term")[0]) if tag_nodes else None
+            erase = bool(tag_nodes) and bool(self.rules(tag_nodes[0], "erase"))
+            tags = self.value(self.rules(tag_nodes[0], "term")[0]) if tag_nodes and not erase else None
             text = self.text(target)
             tags_of_target = self.tokens[target.token].tags if target.token is not None else {}
-            if "identifier" in tags_of_target:
-                if text == "this":
-                    kinds.append("this")
-                    items.append({"this": True} if tags is None else {"this": True, "tags": tags})
-                elif text == "nothing":
-                    if tags is not None:
-                        raise self.fail(target, "nothing takes no tags")
-                    kinds.append("nothing")
-                    items.append({"nothing": True})
-                else:
-                    raise self.fail(target, f"⇒ lists {text}, which is neither this, nothing, a capture nor a tag")
-            elif "capture" in tags_of_target:
-                if any(item.get("capture") == text[1:] for item in items):
-                    raise self.fail(node, f"⇒ lists ${text[1:]} twice")
-                kinds.append("capture")
-                items.append({"capture": text[1:]} if tags is None else {"capture": text[1:], "tags": tags})
+            if "capture" in tags_of_target:
+                name = text[1:]
+                if name and any(item.get("capture") == name for item in items):
+                    raise self.fail(node, f"⇒ lists ${name} twice")
+                if tags is not None and tags.get("emptySet") is True:
+                    raise self.fail(target, "an emitted token's tags cannot be ∅, which no terminal reads; <> erases")
+                entry: Dom = {"capture": name}
+                if erase:
+                    entry["erase"] = True
+                elif tags is not None:
+                    entry["tags"] = tags
+                items.append(entry)
             else:
-                if tags is not None:
-                    raise self.fail(target, "an inserted tag takes no tags of its own")
-                kinds.append("insert")
+                if tag_nodes:
+                    raise self.fail(target, "an inserted tag takes no tags of its own, nor <>")
                 value = self.decode(target) if "string" in tags_of_target else text
                 items.append({"insert": value})
-        if "nothing" in kinds:
-            if len(kinds) > 1:
-                raise self.fail(node, "nothing is used with other items")
-            return {"nothing": True}
-        if "this" in kinds and any(kind != "this" for kind in kinds):
-            raise self.fail(node, "this is used with items other than this")
+        whole = [item for item in items if item.get("capture") == ""]
+        if whole and len(whole) != len(items):
+            raise self.fail(node, "$ is used with items other than $")
+        if any(item.get("erase") for item in whole) and len(items) > 1:
+            raise self.fail(node, "$ <> erases the whole constituent and stands alone")
         return {"items": items}
 
     # -- conditions
 
-    def condition_item(self, node: Node) -> Dom:
-        return run(self._condition_item(node))  # type: ignore[no-any-return]
-
-    def _condition_item(self, node: Node) -> Walk:
-        parts: list[Dom] = []
-        for kid in self.kids(node):
-            if kid.kind == "rule":
-                parts.append((yield self._condition(kid)))
-        return parts[0] if len(parts) == 1 else {"any": parts}
+    def conditions(self, node: Node) -> list[Dom]:
+        """The conditions a ``:`` clause adds to its rule: those joined by ∧
+        at the top, each on its own, or the one ∨ of them (engine §9)."""
+        alls = self.rules(node, "all-of")
+        if len(alls) == 1:
+            return [run(self._condition(kid)) for kid in self.kids(alls[0]) if kid.kind == "rule"]
+        return [run(self._condition(node))]
 
     def _condition(self, node: Node) -> Walk:
+        if node.rule in ("any-of", "all-of"):
+            parts: list[Dom] = []
+            for kid in self.kids(node):
+                if kid.kind == "rule":
+                    parts.append((yield self._condition(kid)))
+            key = "any" if node.rule == "any-of" else "all"
+            return parts[0] if len(parts) == 1 else {key: parts}
+        return (yield self._simple_condition(node))
+
+    def _simple_condition(self, node: Node) -> Walk:
         if node.rule == "comparison":
             kids = self.kids(node)
             terms = [kid for kid in kids if kid.kind == "rule"]
@@ -357,12 +368,6 @@ class DomBuilder:
             return {"weak": self.decode(token[0])}
         if rule == "empty-set":
             return {"emptySet": True}
-        if rule == "set":
-            items: list[Dom] = []
-            for kid in self.kids(node):
-                if kid.kind == "rule":
-                    items.append((yield self._value(kid)))
-            return {"set": items}
         if rule == "capture-reference":
             return {"capture": self.text(self.kids(node)[0])[1:]}
         if rule == "call":

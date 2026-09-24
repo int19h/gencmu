@@ -56,7 +56,7 @@ class Compiled(unittest.TestCase):
     def test_parsing_with_and_without_the_cache(self) -> None:
         cached = gencmu.load_dialect("notation")
         fresh = gencmu.load_dialect("notation", use_cache=False)
-        for text in ("text ≔ A B ;", "a ≔ $x(A) [B #] ... : text($x) = \"y\" ⇒ this ;", "%elidable KU ;\n"):
+        for text in ("text ≔ A B ;", "a ≔ $x(A) [B #] ... : text($x) = \"y\" ⇒ $ ;", "%elidable KU ;\n"):
             with self.subTest(text=text):
                 self.assertEqual(gencmu.to_json(cached.parse(text)), gencmu.to_json(fresh.parse(text)))
 
@@ -65,7 +65,7 @@ class Compiled(unittest.TestCase):
         lexical = bundled_text("notation/lexical.md")
         assert lexical is not None
         stale = json.loads(json.dumps(self.compiled))
-        stale["documents"]["notation/lexical.md"]["dom"] = {"format": 1, "rules": [], "directives": []}
+        stale["documents"]["notation/lexical.md"]["dom"] = {"format": DOM_FORMAT, "rules": [], "directives": []}
         edited = lexical + "\nA note added after the grammar.\n"
         sources = {
             "compiled.json": json.dumps(stale),

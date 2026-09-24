@@ -157,25 +157,43 @@ def elided_nodes(tree: Node) -> list[Node]:
     return found
 
 
+def erased_children(production: Production) -> tuple[bool, frozenset[int]]:
+    """What a production's emission erases (engine §11): the whole
+    constituent, for ``⇒ $ <>``, or the positions of the captures it names
+    with ``<>``."""
+    emit = production.emit
+    if emit is None:
+        return False, frozenset()
+    if emit[0] == "erase":
+        return True, frozenset()
+    if emit[0] == "items":
+        return False, frozenset(item[1] for item in emit[1] if item[0] == "capture" and item[3])
+    return False, frozenset()
+
+
 def erased_tokens(root: DNode, size: int) -> list[bool]:
-    """Which input tokens lie inside a constituent that emits nothing."""
+    """Which input tokens lie inside an erased constituent or an erased
+    captured part."""
     erased = [False] * size
-    stack: list[DChild] = [root]
+    stack: list[tuple[DChild, bool]] = [(root, False)]
     while stack:
-        node = stack.pop()
+        node, inside = stack.pop()
         if isinstance(node, DRead):
+            if inside:
+                erased[node.token] = True
             continue
-        if node.production.emit == ("nothing",):
+        whole, parts = erased_children(node.production)
+        if inside or whole:
             for index in range(node.start, node.end):
                 erased[index] = True
             continue
-        stack.extend(node.children)
+        stack.extend((child, position in parts) for position, child in enumerate(node.children))
     return erased
 
 
 def constituent_phonemes(tokens: list[Token], node: DNode) -> str:
     """A constituent's phonemes (engine §5): its tokens' phonemes, leaving
-    out every token of a constituent inside it that emits nothing."""
+    out every token inside it that is erased."""
     parts: list[str] = []
     stack: list[DChild] = [node]
     while stack:
@@ -183,9 +201,10 @@ def constituent_phonemes(tokens: list[Token], node: DNode) -> str:
         if isinstance(current, DRead):
             parts.append(tokens[current.token].phonemes or "")
             continue
-        if current is not node and current.production.emit == ("nothing",):
+        whole, erased = erased_children(current.production)
+        if current is not node and whole:
             continue
-        stack.extend(reversed(current.children))
+        stack.extend(child for position, child in reversed(list(enumerate(current.children))) if position not in erased)
     return "".join(parts).strip(" ")
 
 
@@ -230,7 +249,7 @@ class Emitter:
             if kind == "part":
                 node, part, term = value
                 if term is not None:
-                    tags = self.evaluator.tags(term, self.evaluator.bind(node.production, self.context_caps(node)))
+                    tags = self.item_tags(node, term)
                 elif isinstance(part, DRead):
                     tags = self.tokens[part.token].tags
                 else:
@@ -252,13 +271,13 @@ class Emitter:
             if emit is None:
                 work.extend(("walk", child) for child in reversed(node.children))
                 continue
-            if emit[0] == "nothing":
+            if emit[0] == "erase":
                 continue
-            if emit[0] == "this":
+            if emit[0] == "whole":
                 source = self.tree.source_of(node)
                 for term in emit[1]:
                     if term is not None:
-                        tags = self.evaluator.tags(term, self.evaluator.bind(node.production, self.context_caps(node)))
+                        tags = self.item_tags(node, term)
                     else:
                         tags = tagtab.get(node.tag)
                     self.output.append(self.token(node.start, node.end, tags, source, None))
@@ -269,17 +288,30 @@ class Emitter:
     def context_caps(self, node: DNode) -> Any:
         return self.forest.caps[node.item]
 
+    def item_tags(self, node: DNode, term: Any) -> Tags:
+        """The tags an emission item's term gives, over the constituent's
+        captures and ``$``; no tags at all is an error of the grammar, since
+        no terminal could read the token (engine §11)."""
+        bound = self.evaluator.bind(node.production, self.context_caps(node), (node.start, node.end, node.tag))
+        tags = self.evaluator.tags(term, bound)
+        if not tags:
+            raise _GrammarFault(f"{node.production.rule_name} emits a token with no tags; <> is how a grammar erases one", (node.start, node.end))
+        return tags
+
     def plan(self, node: DNode, items: list[tuple[Any, ...]]) -> list[tuple[str, Any]]:
         """The steps of ``⇒ $a, "x", $b``: children in text order, named
-        captures as tokens, each inserted tag just before the token of the
-        first capture listed after it, or after the last child if none is
-        (engine §11)."""
+        captures as tokens, or nothing for one erased, each inserted tag just
+        before the token of the first capture listed after it, or where it
+        would be if erased, or after the last child if none is (engine §11)."""
         named: dict[int, Any] = {}
+        erased: set[int] = set()
         before: dict[int, list[str]] = {}
         after_last: list[str] = []
         for index, item in enumerate(items):
             if item[0] == "capture":
                 named[item[1]] = item[2]
+                if item[3]:
+                    erased.add(item[1])
                 continue
             following = next((other[1] for other in items[index + 1 :] if other[0] == "capture"), None)
             if following is not None:
@@ -290,7 +322,8 @@ class Emitter:
         for position, child in enumerate(node.children):
             if position in named:
                 steps.extend(("insert", (node, tag, child.start)) for tag in before.get(position, ()))
-                steps.append(("part", (node, child, named[position])))
+                if position not in erased:
+                    steps.append(("part", (node, child, named[position])))
             else:
                 steps.append(("walk", child))
         steps.extend(("insert", (node, tag, node.end)) for tag in after_last)

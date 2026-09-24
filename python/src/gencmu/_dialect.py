@@ -18,9 +18,9 @@ from ._markdown import Pipeline, ebnf_text, read_pipeline
 from ._model import ParseError, ParseResult, Stage, Token
 from ._stage import DChild, DRead, StageOutcome, StageRunner, constituent_phonemes
 from ._unicode import UnicodeTable
-from ._validate import MAX_DEPTH, TOO_DEEP, dom_problem
+from ._validate import FORMAT, MAX_DEPTH, TOO_DEEP, dom_problem
 
-DOM_FORMAT = 1
+DOM_FORMAT = FORMAT
 
 Dom = dict[str, Any]
 
@@ -103,7 +103,7 @@ class NotationReader:
             raise GencmuError(f"the bootstrap is not JSON: {error}", document=where) from error
         stages_data = data.get("stages") if isinstance(data, dict) else None
         if not isinstance(data, dict) or data.get("format") != DOM_FORMAT or not isinstance(stages_data, list) or not stages_data:
-            raise GencmuError("the bootstrap is an object of format 1 with at least one stage", document=where)
+            raise GencmuError(f"the bootstrap is an object of format {DOM_FORMAT} with at least one stage", document=where)
         stages: list[Grammar] = []
         for stage in stages_data:
             documents = stage.get("documents") if isinstance(stage, dict) else None

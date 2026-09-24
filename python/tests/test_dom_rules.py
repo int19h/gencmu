@@ -12,7 +12,7 @@ import unittest
 from typing import Any, Callable
 
 import gencmu
-from gencmu._dialect import bundled_text, read_document
+from gencmu._dialect import DOM_FORMAT, bundled_text, read_document
 from gencmu._hash import fnv1a64
 from gencmu._validate import dom_problem
 
@@ -56,6 +56,13 @@ def set_tags(term: Any) -> Callable[[Dom], None]:
     return change
 
 
+def set_rule_tags(term: Any) -> Callable[[Dom], None]:
+    def change(dom: Dom) -> None:
+        rule(dom)["tags"] = term
+
+    return change
+
+
 def set_condition(condition: Any) -> Callable[[Dom], None]:
     def change(dom: Dom) -> None:
         rule(dom)["conditions"] = [condition]
@@ -63,10 +70,10 @@ def set_condition(condition: Any) -> Callable[[Dom], None]:
     return change
 
 
-def nested_set(depth: int) -> Any:
+def nested_union(depth: int) -> Any:
     term: Any = {"literal": "T"}
     for _ in range(depth):
-        term = {"set": [term]}
+        term = {"union": [term, {"literal": "U"}]}
     return term
 
 
@@ -87,17 +94,20 @@ def nested(depth: int) -> Any:
 
 A = {"terminal": "a"}
 X = {"capture": "x"}
+WHOLE = {"capture": ""}
 LIT = {"literal": "b"}
+SAME = {"op": "=", "left": LIT, "right": LIT}
 
 
 # One malformed DOM for each rule the reader enforces.
 CASES: list[tuple[str, Callable[[Dom], None]]] = [
-    ("format other than 1", lambda dom: dom.update(format=2)),
+    ("format other than 2", lambda dom: dom.update(format=1)),
     ("rules not a list", lambda dom: dom.update(rules={})),
     ("directive without a position", lambda dom: dom["directives"][0].pop("at")),
     ("directive argument not a word", lambda dom: dom["directives"][0].update(args=[1])),
     ("rule without a name", lambda dom: rule(dom).pop("name")),
     ("rule name not a name", lambda dom: rule(dom).update(name="9 x")),
+    ("rule name ##", lambda dom: rule(dom).update(name="##")),
     ("rule op neither define nor extend", lambda dom: rule(dom).update(op="replace")),
     ("rule without alternatives", lambda dom: rule(dom).update(alternatives=[])),
     ("rule without a position", lambda dom: rule(dom).pop("at")),
@@ -113,12 +123,21 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("capture inside a choice", set_expr({"choice": [{"capture": "x", "expr": A}, A]})),
     ("capture inside a repetition", set_expr({"repeat": {"capture": "x", "expr": A}, "min": 1})),
     ("unknown expression", set_expr({"star": A})),
+    ("the free-modifier shorthand of format 1", set_expr({"seq": [A, {"hash": True}]})),
+    ("$ wrapping a symbol", set_expr({"capture": "", "expr": A})),
     ("nested more than 256 deep", set_expr(nested(257))),
     ("five captures in an alternative", set_expr({"seq": [{"capture": name, "expr": A} for name in "xyzvw"]})),
     ("a capture name used twice", set_expr({"seq": [{"capture": "x", "expr": A}, {"capture": "x", "expr": A}]})),
-    ("nothing with tags", set_emit({"nothing": True, "tags": LIT})),
-    ("this with an inserted tag", set_emit({"items": [{"this": True}, {"insert": "Y"}]})),
-    ("this with a capture", set_emit({"items": [{"this": True}, {"capture": "x"}]})),
+    ("nothing, of format 1", set_emit({"nothing": True})),
+    ("this, of format 1", set_emit({"items": [{"this": True}]})),
+    ("$ with an inserted tag", set_emit({"items": [WHOLE, {"insert": "Y"}]})),
+    ("$ with a capture", set_emit({"items": [WHOLE, {"capture": "x"}]})),
+    ("$ <> with $", set_emit({"items": [{"capture": "", "erase": True}, WHOLE]})),
+    ("$ <> twice", set_emit({"items": [{"capture": "", "erase": True}, {"capture": "", "erase": True}]})),
+    ("<> with tags", set_emit({"items": [{"capture": "x", "erase": True, "tags": LIT}]})),
+    ("erase that is not true", set_emit({"items": [{"capture": "x", "erase": False}]})),
+    ("<> on an inserted tag", set_emit({"items": [{"capture": "x"}, {"insert": "Y", "erase": True}]})),
+    ("∅ as an item's tags", set_emit({"items": [{"capture": "x", "tags": {"emptySet": True}}]})),
     ("a capture listed twice", set_emit({"items": [{"capture": "x"}, {"capture": "x"}]})),
     ("tags on an inserted tag", set_emit({"items": [{"capture": "x"}, {"insert": "Y", "tags": LIT}]})),
     ("an emission with no items", set_emit({"items": []})),
@@ -133,8 +152,15 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("tags with a term for a rule", set_tags({"call": "tags", "args": [X, LIT]})),
     ("a rule name as a term", set_tags({"rule": "text"})),
     ("union of one part", set_tags({"union": [LIT]})),
+    ("a set, of format 1", set_tags({"set": [LIT]})),
+    ("tags with arguments that are no list", set_tags({"call": "tags", "args": None})),
+    ("classes of a list in a rule's tags", set_rule_tags({"call": "classes", "args": [[WHOLE]]})),
+    ("$ in an alternative's tags", set_tags({"union": [WHOLE, LIT]})),
+    ("tags($) in an alternative's tags", set_tags({"call": "tags", "args": [WHOLE]})),
+    ("classes($) in a rule's tags", set_rule_tags({"intersection": [{"call": "classes", "args": [WHOLE]}, LIT]})),
     ("an unknown term", set_tags({"number": 1})),
-    ("any of one condition", set_condition({"any": [{"op": "=", "left": LIT, "right": LIT}]})),
+    ("any of one condition", set_condition({"any": [SAME]})),
+    ("all of one condition", set_condition({"all": [SAME]})),
     ("matches of a literal", set_condition({"matches": LIT, "rule": "text"})),
     ("matches without a rule", set_condition({"matches": X})),
     ("an unknown comparator", set_condition({"op": "<", "left": LIT, "right": LIT})),
@@ -178,7 +204,7 @@ class PrecompiledDomRules(unittest.TestCase):
         sources = {"p.md": PIPELINE, "g.md": DOCUMENT, "h.md": NEXT}
         if dom is not None:
             sources["compiled.json"] = json.dumps(
-                {"format": 1, "bootstrap": self.bootstrap_hash, "documents": {"g.md": {"hash": fnv1a64(DOCUMENT), "dom": dom}}}
+                {"format": DOM_FORMAT, "bootstrap": self.bootstrap_hash, "documents": {"g.md": {"hash": fnv1a64(DOCUMENT), "dom": dom}}}
             )
         dialect = gencmu.load_dialect_sources(sources, "p.md", use_cache=dom is not None)
         return gencmu.to_json(dialect.parse("a", auto_features=False))
@@ -222,14 +248,34 @@ class PrecompiledDomRules(unittest.TestCase):
         for depth, allowed in ((256, True), (257, False)):
             for name, change in (
                 ("expression", set_expr(nested(depth))),
-                ("alternative's term", set_tags(nested_set(depth))),
-                ("emitted term", set_emit({"items": [{"capture": "x", "tags": nested_set(depth)}]})),
+                ("alternative's term", set_tags(nested_union(depth))),
+                ("emitted term", set_emit({"items": [{"capture": "x", "tags": nested_union(depth)}]})),
                 ("condition", set_condition(nested_not(depth))),
             ):
                 with self.subTest(what=name, depth=depth):
                     dom = copy.deepcopy(self.dom)
                     change(dom)
                     self.assertEqual(dom_problem(dom) is None, allowed, dom_problem(dom))
+
+    def test_the_whole_constituent_and_erasure_are_allowed(self) -> None:
+        """$ in conditions, in emission and as a span of tags($, rule), <>,
+        ∧, and # as a rule's name (engine §9)."""
+        for name, change in (
+            ("$ twice", set_emit({"items": [{"capture": "", "tags": LIT}, WHOLE]})),
+            ("$ <>", set_emit({"items": [{"capture": "", "erase": True}]})),
+            ("an erased capture", set_emit({"items": [{"capture": "x", "erase": True}, {"insert": "Y"}]})),
+            ("tags($) in an emitted term", set_emit({"items": [{"capture": "x", "tags": {"call": "tags", "args": [WHOLE]}}]})),
+            ("tags($, rule) in an alternative's tags", set_tags({"call": "tags", "args": [WHOLE, {"rule": "text"}]})),
+            ("text($) in an alternative's tags", set_tags({"call": "text", "args": [WHOLE]})),
+            ("tags(head($)) in an alternative's tags", set_tags({"call": "tags", "args": [{"call": "head", "args": [WHOLE]}]})),
+            ("a condition on $", set_condition({"op": "∈", "left": LIT, "right": {"call": "tags", "args": [WHOLE]}})),
+            ("all", set_condition({"all": [SAME, {"not": {"matches": WHOLE, "rule": "text"}}]})),
+            ("# as a rule's name", lambda dom: rule(dom).update(name="#")),
+        ):
+            with self.subTest(what=name):
+                dom = copy.deepcopy(self.dom)
+                change(dom)
+                self.assertIsNone(dom_problem(dom))
 
     def test_four_captures_are_allowed(self) -> None:
         dom = copy.deepcopy(self.dom)
