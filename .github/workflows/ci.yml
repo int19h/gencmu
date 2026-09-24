@@ -67,3 +67,59 @@ jobs:
           npm run types
           git diff --exit-code -- types
           test -z "$(git status --porcelain -- types)" || { git status --porcelain -- types; exit 1; }
+
+  go:
+    name: Go ${{ matrix.go }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The oldest release go/go.mod states, and the current one.
+        go: ["1.22", stable]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ matrix.go }}
+          cache: false
+      - name: Vet
+        working-directory: go
+        run: go vet ./...
+      - name: Tests
+        working-directory: go
+        run: go test ./...
+      - name: Concurrent parses under the race detector
+        working-directory: go
+        run: go test -race -run Concurrent ./...
+      - name: The module holds everything it needs
+        run: |
+          # A copy of go/ alone, built in module mode, and a program that
+          # requires it and parses with the embedded grammars.
+          cp -r go "$RUNNER_TEMP/module"
+          (cd "$RUNNER_TEMP/module" && GOFLAGS=-mod=mod go build ./... && go vet ./...)
+          mkdir "$RUNNER_TEMP/consumer" && cd "$RUNNER_TEMP/consumer"
+          go mod init example.com/consumer
+          go mod edit -require=github.com/int19h/gencmu/go@v0.0.0 -replace=github.com/int19h/gencmu/go="$RUNNER_TEMP/module"
+          cat > main.go <<'PROGRAM'
+          package main
+
+          import (
+          	"fmt"
+          	"log"
+
+          	gencmu "github.com/int19h/gencmu/go"
+          )
+
+          func main() {
+          	dialect, err := gencmu.LoadDialect("notation")
+          	if err != nil {
+          		log.Fatal(err)
+          	}
+          	result, err := dialect.Parse("text ≔ A [B] ... ;", gencmu.ParseOptions{})
+          	if err != nil || !result.OK {
+          		log.Fatalf("%v %v", err, result.Error)
+          	}
+          	fmt.Println(gencmu.Brackets(result, gencmu.BracketOptions{}))
+          }
+          PROGRAM
+          GOFLAGS=-mod=mod go run .
