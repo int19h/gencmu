@@ -218,8 +218,9 @@ A token's `phonemes`:
   that emitted it. A phoneme tag is a tag of exactly three code points, the
   first and last `/`;
 - otherwise, the concatenation of the phonemes of the tokens it was emitted
-  from, omitting every token inside an erased constituent (§11), with
-  leading and trailing spaces removed;
+  from, omitting every token inside an erased constituent (§11), the token's
+  own constituent included when its rule erases it and a parent emits it as a
+  capture, with leading and trailing spaces removed;
 - a character token has none.
 
 An emitted token always has phonemes, possibly the empty string; only the
