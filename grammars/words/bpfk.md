@@ -85,7 +85,10 @@ stressed-brivla-rafsi
 fuhivla-rafsi
 ≔ $h(rafsi-head) consonant y [/'/]
 | $h(rafsi-head) initial-cluster y [/'/]
-: ¬matches(tail($h), rafsi-string) ;
+: ¬matches(tail($h), rafsi-string), ¬matches($h, plain-rafsi-head) ;
+
+plain-rafsi-head
+≔ [basic-initial-rafsi-sequence] (consonant | initial-pair) plain-vowel ;
 
 stressed-fuhivla-rafsi
 ≔ $h(rafsi-head) stressed-nucleus consonant y

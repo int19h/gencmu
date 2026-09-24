@@ -54,7 +54,7 @@ stream
 , "continued" ∈ tags($t), "onset" ∈ tags($f), "cv" ∉ tags($t), "cvcy" ∉ tags($t), "cy" ∉ tags($t) ∨ "cy" ∉ tags($f)
 , "cy" ∈ tags($u), "cy" ∈ tags($g)
 , "continued" ∈ tags($a), "cv" ∈ tags($a), "onset" ∈ tags($b), "y-letter" ∈ tags($b), "onset" ∈ tags($d), "y-letter" ∉ tags($d)
-, "cvcy" ∈ tags($x), "onset" ∈ tags($z), "BRIVLA" ∉ tags($z), ¬matches($z, short-final-rafsi) ;
+, "cvcy" ∈ tags($x), "onset" ∈ tags($z), "BRIVLA" ∉ tags($z), ¬matches($z, lujvo-final-shape) ;
 
 opener
 ≔ $o(element) <tags($o) ∪ "first-onset"> | $k(element) <tags($k) ∪ "first-onset" ∪ "first-cy"> | $p(element) <tags($p)>
@@ -140,8 +140,8 @@ quote
 
 ```ebnf
 quoted-word
-≔ $m(word-quote-marker) quote-gap $w(quotable-word) <tags($m) ∪ "onset" ∪ ({"continued", "cy", "y-letter"} ∩ tags($w))>
-| $m(word-quote-marker) pause-gap $v(quotable-word) <tags($m) ∪ "onset" ∪ ({"continued", "cy", "y-letter"} ∩ tags($v))>
+≔ $m(word-quote-marker) quote-gap $w(quotable-word) <tags($m) ∪ "onset" ∪ ({"continued", "cy", "y-letter", "cv"} ∩ tags($w))>
+| $m(word-quote-marker) pause-gap $v(quotable-word) <tags($m) ∪ "onset" ∪ ({"continued", "cy", "y-letter", "cv"} ∩ tags($v))>
 | $m(word-quote-marker) pause-gap $n(cmevla-shape) <tags($m) ∪ "onset">
 : "onset" ∈ tags($w), "onset" ∉ tags($v)
 ⇒ $m, $w <"word">, $v <"word">, $n <"word"> ;

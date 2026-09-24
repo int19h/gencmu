@@ -102,6 +102,9 @@ short-final-rafsi
 ccv-final-rafsi
 ≔ initial-pair plain-vowel ;
 
+lujvo-final-shape
+≔ consonant cvv-body | ccv-final-rafsi ;
+
 word-initial-stressed-rafsi
 ≔ consonant stressed-vowel consonant | initial-pair stressed-vowel
 | consonant stressed-cvv-body r-hyphen | stressed-y-rafsi ;

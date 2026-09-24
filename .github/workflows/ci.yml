@@ -45,6 +45,20 @@ jobs:
         working-directory: js
         run: npm pack --dry-run 2>&1 | tee pack.txt && grep -q "grammars/compiled.json" pack.txt && grep -q "src/index.js" pack.txt && grep -q "types/index.d.ts" pack.txt
 
+  corpus:
+    name: The whole corpus in JavaScript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - name: Every corpus case
+        working-directory: js
+        env:
+          GENCMU_CORPUS: full
+        run: node --test test/corpus.test.js
+
   types:
     name: JavaScript types
     runs-on: ubuntu-latest
