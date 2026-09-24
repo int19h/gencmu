@@ -41,6 +41,10 @@ test("the audit finds an erasure that could change nothing", () => {
   // A token whose tags name its phoneme does not sound like what is under it.
   const [fixed] = audit(dialect("text ≔ x ⇒ $ </a/> ; x ≔ A ⇒ $ <> ;"));
   assert.deepEqual(fixed.idleErasures.map((e) => [e.rule, e.erased]), [["x", "$"]]);
+  // Not when that tag term is dropped for the alternative, for naming a
+  // capture it lacks.
+  const [dropped] = audit(dialect("text <\"/a/\" ∪ tags($x)> ≔ $x(A) | y ⇒ $ ; y ≔ B ⇒ $ <> ;"));
+  assert.deepEqual(dropped.idleErasures, []);
   // A capture erased by name is judged the same way.
   const [named] = audit(dialect("text ≔ $a(A) $b(w) ⇒ $a <>, $b ; w ≔ B ;"));
   assert.deepEqual(named.idleErasures.map((e) => [e.rule, e.erased]), [["text", "$a"]]);

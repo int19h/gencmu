@@ -373,13 +373,13 @@ function soundingRules(alternativesByRule) {
     if (items.length > 0 && items[0].capture === "") {
       // A token whose tags name its phoneme sounds as that phoneme, whatever
       // lies under it (engine §5).
-      const fixed = items.every((item) => namesPhoneme(item.tags || alternative.tags || alternative.clauses.tags));
+      const fixed = items.every((item) => namesPhoneme(effectiveTerm(item.tags, alternative) || effectiveTerm(alternative.tags || alternative.clauses.tags, alternative)));
       if (!items[0].erase && !fixed) topItems(alternative.expr).forEach(reach);
       return;
     }
     const erased = new Set(items.flatMap((item) => (item.erase && item.capture ? [item.capture] : [])));
     const emitted = new Set(items.flatMap((item) => (!item.erase && item.capture ? [item.capture] : [])));
-    const fixed = new Set(items.flatMap((item) => (!item.erase && item.capture && namesPhoneme(item.tags) ? [item.capture] : [])));
+    const fixed = new Set(items.flatMap((item) => (!item.erase && item.capture && namesPhoneme(effectiveTerm(item.tags, alternative)) ? [item.capture] : [])));
     for (const part of topItems(alternative.expr)) {
       const name = "capture" in part ? part.capture : null;
       if (name !== null && (erased.has(name) || (!all && fixed.has(name)))) continue;
@@ -391,6 +391,19 @@ function soundingRules(alternativesByRule) {
     for (const alternative of alternativesByRule.get(name) || []) reachParts(alternative, true);
   }
   return inside;
+}
+
+/**
+ * A tag term as it applies to an alternative: none if it names a capture
+ * the alternative lacks, since lowering then drops it (engine §3.6).
+ * @param {Term | undefined} term
+ * @param {StitchedAlternative} alternative
+ * @returns {Term | undefined}
+ */
+function effectiveTerm(term, alternative) {
+  if (!term) return undefined;
+  const captured = new Set(["", ...topItems(alternative.expr).flatMap((item) => ("capture" in item ? [item.capture] : []))]);
+  return termVariables(term).every((name) => captured.has(name)) ? term : undefined;
 }
 
 /**
