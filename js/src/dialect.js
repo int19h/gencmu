@@ -174,7 +174,7 @@ export class Dialect {
     let tokens = options.tokens || characterTokens(text, this.loader.unicode);
     if (continued) tokens = /** @type {Token[]} */ (stages[stages.length - 1].output);
     const last = options.until ? this.stages.findIndex((stage) => stage.name === options.until) : this.stages.length - 1;
-    if (last < 0) throw new GencmuError("grammar", `no stage is named ${options.until}`);
+    if (last < 0) throw new GencmuError("usage", `no stage is named ${options.until}`);
     for (let index = stages.length; index <= last; index++) {
       const stage = this.stages[index];
       const report = stage.run(tokens, sourceText, this.loader.unicode, {

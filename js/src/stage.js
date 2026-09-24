@@ -58,7 +58,10 @@ export class Stage {
       }
       throw error;
     }
-    if (roots.length === 0) {
+    // An input whose every derivation is cyclic (engine §4) has none to
+    // count, and is rejected like one with no item of `text` at all.
+    const ranking = roots.length === 0 ? null : new Ranker(tokens, lowered.resolution.lean).rank(roots);
+    if (ranking === null) {
       const rejection = rejectionOf(chart);
       report.error = {
         kind: "rejected",
@@ -71,8 +74,6 @@ export class Stage {
       };
       return report;
     }
-    const ranker = new Ranker(tokens, lowered.resolution.lean);
-    const ranking = ranker.rank(roots);
     if (ranking.verdict === "tie") {
       // A tie always has a second derivation, and so a witness.
       Object.assign(report, {
@@ -154,7 +155,7 @@ export class Stage {
     const roots = rootItems(chart, "text");
     if (roots.length === 0) return null;
     const ranking = new Ranker(restored, "none").rank(roots);
-    if (ranking.verdict !== "tie") return null;
+    if (ranking === null || ranking.verdict !== "tie") return null;
     // The readings are shown over the original input: a synthetic
     // terminator becomes an elided node where it was inserted.
     const isSynthetic = new Set(synthetic);
@@ -460,39 +461,39 @@ export function emit(root, context) {
         named.set(capture.index, item);
       }
     }
+    // Each inserted tag goes just before the first capture listed after it,
+    // or after the last child if none is (engine §11); the captures go in
+    // text order, whatever order the list names them in.
+    /** @type {Map<EmitItem, string[]>} */
+    const insertsBefore = new Map();
+    /** @type {string[]} */
+    let waiting = [];
+    for (const item of clause.items) {
+      if (item.insert !== undefined) waiting.push(item.insert);
+      else if (item.capture !== undefined) {
+        insertsBefore.set(item, waiting);
+        waiting = [];
+      }
+    }
     // The node's tasks in text order, then pushed in reverse.
     /** @type {EmitTask[]} */
     const ordered = [];
-    let next = 0;
+    /** @type {(inserts: string[], at: number) => void} */
+    const insertAll = (inserts, at) => {
+      for (const insert of inserts) ordered.push({ token: () => insertedToken(insert, at, node, context, production.owner) });
+    };
     let cursor = node.start;
     node.children.forEach((child, index) => {
-      if (named.has(index)) {
-        while (next < clause.items.length) {
-          const item = clause.items[next];
-          const insert = item.insert;
-          if (insert !== undefined) {
-            const at = cursor;
-            ordered.push({ token: () => insertedToken(insert, at, node, context, production.owner) });
-            next++;
-          } else if (named.get(index) === item) {
-            ordered.push({ token: () => makeToken(child, valueTags(item, nodeTags(child, context)), context) });
-            next++;
-            break;
-          } else {
-            break;
-          }
-        }
+      const item = named.get(index);
+      if (item) {
+        insertAll(insertsBefore.get(item) || [], cursor);
+        ordered.push({ token: () => makeToken(child, valueTags(item, nodeTags(child, context)), context) });
       } else {
         ordered.push({ walk: child });
       }
       cursor = child.end;
     });
-    for (; next < clause.items.length; next++) {
-      const item = clause.items[next];
-      const at = cursor;
-      const insert = item.insert;
-      if (insert !== undefined) ordered.push({ token: () => insertedToken(insert, at, node, context, production.owner) });
-    }
+    insertAll(waiting, cursor);
     for (let index = ordered.length - 1; index >= 0; index--) tasks.push(ordered[index]);
   }
   return out;

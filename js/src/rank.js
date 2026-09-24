@@ -622,7 +622,7 @@ export class Ranker {
   // result is a tie, and the witness.
   /**
    * @param {Item[]} roots
-   * @returns {Ranking}
+   * @returns {Ranking | null} null when every derivation is cyclic
    */
   rank(roots) {
     const count = Math.min(2, roots.reduce((sum, item) => sum + this.count(item), 0));
@@ -631,6 +631,7 @@ export class Ranker {
     for (const root of roots) for (const entry of this.full(root)) kept = this.keep(kept, entry);
     // At the root nothing follows: candidates still undecided are tied
     // (engine §6), and T orders them.
+    if (kept.length === 0) return null;
     kept.sort((left, right) => totalOrder(left.seq, right.seq, this.lean));
     let main = kept[0];
     for (const other of kept.slice(1)) {

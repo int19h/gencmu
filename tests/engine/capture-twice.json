@@ -1,0 +1,15 @@
+{
+  "description": "One alternative may not capture two parts under one name (engine §9).",
+  "grammar": "text ≔ $a(A) $a(B) ;",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

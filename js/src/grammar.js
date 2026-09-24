@@ -153,7 +153,20 @@ export class Grammar {
       }
       for (const child of childExpressions(expr)) visit(child, rule);
     };
-    for (const rule of this.rules.values()) for (const alternative of rule.alternatives) visit(alternative.expr, rule);
+    for (const rule of this.rules.values()) {
+      for (const alternative of rule.alternatives) {
+        visit(alternative.expr, rule);
+        const top = "seq" in alternative.expr ? alternative.expr.seq : [alternative.expr];
+        const names = top.flatMap((item) => ("capture" in item ? [item.capture] : []));
+        const twice = names.find((name, index) => names.indexOf(name) !== index);
+        if (twice !== undefined) {
+          throw new GencmuError("grammar", `${rule.document}: an alternative of ${rule.name} captures $${twice} twice`, rule.at);
+        }
+      }
+    }
+    if (this.freeModifiers !== null && !this.rules.has(this.freeModifiers)) {
+      throw new GencmuError("grammar", `stage ${this.stageName}: %free-modifiers names ${this.freeModifiers}, which is not defined`, { stage: this.stageName });
+    }
     if (!this.rules.has("text")) throw new GencmuError("grammar", `stage ${this.stageName} has no rule text`, { stage: this.stageName });
   }
 

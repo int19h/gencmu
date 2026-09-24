@@ -10,7 +10,8 @@
 
   class GencmuError extends Error {
     /**
-     * @param {"grammar"} kind what went wrong; grammar errors are the only kind
+     * @param {"grammar" | "usage"} kind a grammar that cannot be loaded or
+     *   run, or a caller's mistake such as an unknown stage name
      * @param {string} message
      * @param {import("./types.js").ErrorLocation} [where]
      */
@@ -178,7 +179,20 @@
         }
         for (const child of childExpressions(expr)) visit(child, rule);
       };
-      for (const rule of this.rules.values()) for (const alternative of rule.alternatives) visit(alternative.expr, rule);
+      for (const rule of this.rules.values()) {
+        for (const alternative of rule.alternatives) {
+          visit(alternative.expr, rule);
+          const top = "seq" in alternative.expr ? alternative.expr.seq : [alternative.expr];
+          const names = top.flatMap((item) => ("capture" in item ? [item.capture] : []));
+          const twice = names.find((name, index) => names.indexOf(name) !== index);
+          if (twice !== undefined) {
+            throw new GencmuError("grammar", `${rule.document}: an alternative of ${rule.name} captures $${twice} twice`, rule.at);
+          }
+        }
+      }
+      if (this.freeModifiers !== null && !this.rules.has(this.freeModifiers)) {
+        throw new GencmuError("grammar", `stage ${this.stageName}: %free-modifiers names ${this.freeModifiers}, which is not defined`, { stage: this.stageName });
+      }
       if (!this.rules.has("text")) throw new GencmuError("grammar", `stage ${this.stageName} has no rule text`, { stage: this.stageName });
     }
 
@@ -1891,7 +1905,7 @@
     // result is a tie, and the witness.
     /**
      * @param {Item[]} roots
-     * @returns {Ranking}
+     * @returns {Ranking | null} null when every derivation is cyclic
      */
     rank(roots) {
       const count = Math.min(2, roots.reduce((sum, item) => sum + this.count(item), 0));
@@ -1900,6 +1914,7 @@
       for (const root of roots) for (const entry of this.full(root)) kept = this.keep(kept, entry);
       // At the root nothing follows: candidates still undecided are tied
       // (engine §6), and T orders them.
+      if (kept.length === 0) return null;
       kept.sort((left, right) => totalOrder(left.seq, right.seq, this.lean));
       let main = kept[0];
       for (const other of kept.slice(1)) {
@@ -2169,7 +2184,10 @@
         }
         throw error;
       }
-      if (roots.length === 0) {
+      // An input whose every derivation is cyclic (engine §4) has none to
+      // count, and is rejected like one with no item of `text` at all.
+      const ranking = roots.length === 0 ? null : new Ranker(tokens, lowered.resolution.lean).rank(roots);
+      if (ranking === null) {
         const rejection = rejectionOf(chart);
         report.error = {
           kind: "rejected",
@@ -2182,8 +2200,6 @@
         };
         return report;
       }
-      const ranker = new Ranker(tokens, lowered.resolution.lean);
-      const ranking = ranker.rank(roots);
       if (ranking.verdict === "tie") {
         // A tie always has a second derivation, and so a witness.
         Object.assign(report, {
@@ -2265,7 +2281,7 @@
       const roots = rootItems(chart, "text");
       if (roots.length === 0) return null;
       const ranking = new Ranker(restored, "none").rank(roots);
-      if (ranking.verdict !== "tie") return null;
+      if (ranking === null || ranking.verdict !== "tie") return null;
       // The readings are shown over the original input: a synthetic
       // terminator becomes an elided node where it was inserted.
       const isSynthetic = new Set(synthetic);
@@ -2571,39 +2587,39 @@
           named.set(capture.index, item);
         }
       }
+      // Each inserted tag goes just before the first capture listed after it,
+      // or after the last child if none is (engine §11); the captures go in
+      // text order, whatever order the list names them in.
+      /** @type {Map<EmitItem, string[]>} */
+      const insertsBefore = new Map();
+      /** @type {string[]} */
+      let waiting = [];
+      for (const item of clause.items) {
+        if (item.insert !== undefined) waiting.push(item.insert);
+        else if (item.capture !== undefined) {
+          insertsBefore.set(item, waiting);
+          waiting = [];
+        }
+      }
       // The node's tasks in text order, then pushed in reverse.
       /** @type {EmitTask[]} */
       const ordered = [];
-      let next = 0;
+      /** @type {(inserts: string[], at: number) => void} */
+      const insertAll = (inserts, at) => {
+        for (const insert of inserts) ordered.push({ token: () => insertedToken(insert, at, node, context, production.owner) });
+      };
       let cursor = node.start;
       node.children.forEach((child, index) => {
-        if (named.has(index)) {
-          while (next < clause.items.length) {
-            const item = clause.items[next];
-            const insert = item.insert;
-            if (insert !== undefined) {
-              const at = cursor;
-              ordered.push({ token: () => insertedToken(insert, at, node, context, production.owner) });
-              next++;
-            } else if (named.get(index) === item) {
-              ordered.push({ token: () => makeToken(child, valueTags(item, nodeTags(child, context)), context) });
-              next++;
-              break;
-            } else {
-              break;
-            }
-          }
+        const item = named.get(index);
+        if (item) {
+          insertAll(insertsBefore.get(item) || [], cursor);
+          ordered.push({ token: () => makeToken(child, valueTags(item, nodeTags(child, context)), context) });
         } else {
           ordered.push({ walk: child });
         }
         cursor = child.end;
       });
-      for (; next < clause.items.length; next++) {
-        const item = clause.items[next];
-        const at = cursor;
-        const insert = item.insert;
-        if (insert !== undefined) ordered.push({ token: () => insertedToken(insert, at, node, context, production.owner) });
-      }
+      insertAll(waiting, cursor);
       for (let index = ordered.length - 1; index >= 0; index--) tasks.push(ordered[index]);
     }
     return out;
@@ -2783,8 +2799,10 @@
         case "phoneme": return { terminal: text(parts(node)[0]) };
         case "capture": {
           const [captureToken, , inner] = parts(node);
-          const expr = readPrimary(parts(inner)[0]);
-          if (!("ref" in expr) && !("terminal" in expr)) fail("a capture wraps one symbol", node);
+          const wrapped = parts(inner)[0];
+          const kind = ruleOf(wrapped);
+          if (kind !== "reference" && kind !== "string" && kind !== "phoneme") fail("a capture wraps one symbol", node);
+          const expr = readPrimary(wrapped);
           return { capture: text(captureToken).slice(1), expr };
         }
         case "group": return readExpression(only(node, "choice"));
@@ -2812,6 +2830,7 @@
         else if (kind === "phoneme") item = { insert: text(target) };
         else fail("expected this, nothing, a capture or a tag after ⇒", itemNode);
         const tags = one(itemNode, "emit-tags");
+        if (tags && item.insert !== undefined) fail("an inserted tag takes no tags of its own", itemNode);
         if (tags) item.tags = readTerm(only(tags, "term"));
         return item;
       });
@@ -2860,27 +2879,38 @@
 
     /**
      * @param {ResultNode} node
+     * @param {boolean} [argument] whether the term is a function's argument,
+     *   where a span may stand
      * @returns {Term}
      */
-    function readTerm(node) {
+    function readTerm(node, argument = false) {
       if (ruleOf(node) === "term") {
-        const items = ofRule(node, "intersection").map(readTerm);
+        const found = ofRule(node, "intersection");
+        const items = found.map((item) => readTerm(item, argument && found.length === 1));
         return items.length === 1 ? items[0] : { union: items };
       }
       if (ruleOf(node) === "intersection") {
-        const items = ofRule(node, "term-atom").map(readTerm);
+        const found = ofRule(node, "term-atom");
+        const items = found.map((item) => readTerm(item, argument && found.length === 1));
         return items.length === 1 ? items[0] : { intersection: items };
       }
       if (ruleOf(node) === "term-atom") {
         const inner = parts(node).find((child) => child.kind === "rule");
-        return inner ? readTerm(inner) : fail("expected a term", node);
+        if (!inner) return fail("expected a term", node);
+        if (ruleOf(inner) === "call") {
+          const call = readCall(inner);
+          if (!argument && SPANS.has(call.call)) fail(`${call.call} gives a span, which is not a value`, inner);
+          if (call.call === "matches") fail("matches is a condition, not a term", inner);
+          return call;
+        }
+        return readTerm(inner);
       }
       switch (ruleOf(node)) {
         case "string": return { literal: decode(parts(node)[0]) };
         case "phoneme": return { literal: text(parts(node)[0]) };
         case "weak": return { weak: decode(parts(node)[1]) };
         case "empty-set": return { emptySet: true };
-        case "set": return { set: ofRule(node, "term").map(readTerm) };
+        case "set": return { set: ofRule(node, "term").map((item) => readTerm(item)) };
         case "call": return readCall(node);
         case "capture-reference": return { capture: text(parts(node)[0]).slice(1) };
         default: return fail(`unexpected ${ruleOf(node)}`, node);
@@ -2894,11 +2924,24 @@
     function readCall(node) {
       const name = text(parts(node)[0]);
       if (!FUNCTIONS.has(name)) fail(`unknown function ${name}`, node);
+      /** @type {Argument[]} */
       const args = ofRule(node, "argument").map((argument) => {
         const inner = parts(argument)[0];
         if (inner.kind === "token") return { rule: text(inner) };
-        return readTerm(inner);
+        return readTerm(inner, true);
       });
+      /** @type {(argument: Argument | undefined) => boolean} */
+      const isSpan = (argument) => argument !== undefined && ("capture" in argument || ("call" in argument && SPANS.has(argument.call)));
+      /** @type {(argument: Argument | undefined) => boolean} */
+      const isRule = (argument) => argument !== undefined && "rule" in argument;
+      /** @type {(argument: Argument | undefined) => boolean} */
+      const isString = (argument) => argument !== undefined && ("literal" in argument || ("call" in argument && STRINGS.has(argument.call)));
+      let ok;
+      if (name === "tags") ok = (args.length === 1 && isSpan(args[0])) || (args.length === 2 && isSpan(args[0]) && isRule(args[1]));
+      else if (name === "matches") ok = args.length === 2 && isSpan(args[0]) && isRule(args[1]);
+      else if (name === "lowercase") ok = args.length === 1 && isString(args[0]);
+      else ok = args.length === 1 && isSpan(args[0]);
+      if (!ok) fail(`${name} takes ${SIGNATURES[name]}`, node);
       return { call: name, args };
     }
 
@@ -2932,6 +2975,17 @@
   }
 
   const FUNCTIONS = new Set(["phonemes", "text", "lowercase", "tags", "classes", "words", "head", "tail", "last", "matches"]);
+
+  // The functions whose value is a span, and those whose value is a string.
+  const SPANS = new Set(["head", "tail", "last"]);
+  const STRINGS = new Set(["phonemes", "text", "lowercase"]);
+
+  /** @type {Record<string, string>} */
+  const SIGNATURES = {
+    phonemes: "one span", text: "one span", words: "one span", classes: "one span",
+    head: "one span", tail: "one span", last: "one span",
+    lowercase: "one string", tags: "a span, and optionally a rule", matches: "a span and a rule",
+  };
 
   // The rules of the notation's syntax grammar that the reader reads; every
   // other rule is transparent.
@@ -2982,13 +3036,19 @@
     const positions = [];
     /** @type {string | {skip: string} | null} */
     let inside = null;
+    let openedAt = 0;
     let first = true;
     for (let number = 0; number < lines.length; number++) {
       const line = lines[number];
       if (inside === null) {
-        const open = /^ {0,3}(`{3,}|~{3,})\s*([^`\s]*)/.exec(line);
+        // A fence and its info string; a backtick fence's info string has no
+        // backtick, or the line is not a fence (CommonMark). Only an info
+        // string that is exactly `ebnf` makes a grammar block.
+        const fence = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+        const open = fence && !(fence[1][0] === "`" && fence[2].includes("`")) ? [fence[0], fence[1], fence[2].trim()] : null;
         if (open && open[2] === "ebnf") {
           inside = open[1];
+          openedAt = number + 1;
           if (!first) {
             chars.push("\n");
             positions.push([number + 1, 1]);
@@ -3014,8 +3074,9 @@
       chars.push("\n");
       positions.push([number + 1, column]);
     }
-    if (inside !== null) {
-      throw new GencmuError("grammar", `${path}: an unclosed code block`, { document: path });
+    if (inside !== null && typeof inside === "string") {
+      const column = lines[openedAt - 1].indexOf(inside[0]) + 1;
+      throw new GencmuError("grammar", `${path}:${openedAt}:${column}: an ebnf block that is never closed`, { document: path, line: openedAt, column });
     }
     return { text: chars.join(""), positions };
   }
@@ -3352,7 +3413,7 @@
       let tokens = options.tokens || characterTokens(text, this.loader.unicode);
       if (continued) tokens = /** @type {Token[]} */ (stages[stages.length - 1].output);
       const last = options.until ? this.stages.findIndex((stage) => stage.name === options.until) : this.stages.length - 1;
-      if (last < 0) throw new GencmuError("grammar", `no stage is named ${options.until}`);
+      if (last < 0) throw new GencmuError("usage", `no stage is named ${options.until}`);
       for (let index = stages.length; index <= last; index++) {
         const stage = this.stages[index];
         const report = stage.run(tokens, sourceText, this.loader.unicode, {
