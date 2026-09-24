@@ -1,10 +1,11 @@
 export declare class GencmuError extends Error {
-    kind: "grammar";
+    kind: "grammar" | "usage";
     where: import("./types.js").ErrorLocation;
     /**
-     * @param {"grammar"} kind what went wrong; grammar errors are the only kind
+     * @param {"grammar" | "usage"} kind a grammar that cannot be loaded or
+     *   run, or a caller's mistake such as an unknown stage name
      * @param {string} message
      * @param {import("./types.js").ErrorLocation} [where]
      */
-    constructor(kind: "grammar", message: string, where?: import("./types.js").ErrorLocation);
+    constructor(kind: "grammar" | "usage", message: string, where?: import("./types.js").ErrorLocation);
 }

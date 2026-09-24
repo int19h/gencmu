@@ -1,0 +1,115 @@
+{
+  "description": "A random grammar with the notation's sugar and weak tags (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 1 derivations.",
+  "grammar": "%ambiguity-resolution lazy ;\ntext ≔ B v | v (t | A) | ε ;\nt ≔ [A] ... | t A ;\nu ≔ A | B ;\nv ≔ t u ... | u u ;",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 1,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": []
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "tags": {},
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "v",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": {},
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "t",
+                "span": [
+                  0,
+                  0
+                ],
+                "source": [
+                  0,
+                  0
+                ],
+                "tags": {},
+                "children": []
+              },
+              {
+                "kind": "rule",
+                "rule": "u",
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ],
+                "tags": {
+                  "A": true
+                },
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "t",
+            "span": [
+              1,
+              1
+            ],
+            "source": [
+              1,
+              1
+            ],
+            "tags": {},
+            "children": []
+          }
+        ]
+      },
+      "error": null
+    },
+    "brackets": "a"
+  }
+}

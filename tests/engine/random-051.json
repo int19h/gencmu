@@ -1,0 +1,61 @@
+{
+  "description": "A random grammar with the notation's sugar and weak tags (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 1 derivations.",
+  "grammar": "%ambiguity-resolution lazy ;\ntext ≔ ε | ε | A ;\nt ≔ B A ... | C C ;\nu ≔ A ... [A] ... | t ;\nv ≔ v | v B ;",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "B",
+        "?C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 1,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": []
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "tags": {
+          "A": true,
+          "B": true,
+          "C": false
+        },
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "error": null
+    },
+    "brackets": "a"
+  }
+}

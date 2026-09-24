@@ -53,11 +53,15 @@ export declare class Stage {
     elisionCheck(tree: ResultNode, tokens: Token[], sourceText: string[], unicode: UnicodeTable, features: Set<string>): ResultNode[] | null;
 }
 /**
- * @param {Derivation} node
+ * The result tree of a derivation (engine §12), as a list: a spliced node
+ * yields its children. The walk keeps its own stack, since a right-recursive
+ * rule over a long text, such as paragraphs joined by `ni'o`, nests as deep
+ * as the text is long.
+ * @param {Derivation} root
  * @param {ParseContext} context
  * @returns {ResultNode[]}
  */
-export declare function resultTree(node: Derivation, context: ParseContext): ResultNode[];
+export declare function resultTree(root: Derivation, context: ParseContext): ResultNode[];
 export type EmitTask = {
     walk: Derivation;
 } | {

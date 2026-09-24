@@ -1,0 +1,67 @@
+{
+  "description": "An optional whose content is a choice is never elidable, even when each branch begins with an elidable terminator (engine §3.8): no elided node appears for [KU | VAU].",
+  "grammar": "%ambiguity-resolution greedy ;\n%elidable KU VAU ;\ntext ≔ A [KU | VAU] [KU] ;",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 1,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": []
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "tags": {},
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          },
+          {
+            "kind": "elided",
+            "terminal": "KU",
+            "span": [
+              1,
+              1
+            ],
+            "source": [
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "error": null
+    },
+    "brackets": "a"
+  }
+}

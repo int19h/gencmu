@@ -78,6 +78,22 @@ jobs:
           "$RUNNER_TEMP/installed/bin/python" -m pip install "$RUNNER_TEMP"/dist/*.whl
           GENCMU_INSTALLED=1 "$RUNNER_TEMP/installed/bin/python" -m unittest
 
+  corpus:
+    name: The whole corpus in JavaScript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - name: Every corpus case
+        working-directory: js
+        env:
+          GENCMU_CORPUS: full
+          # Two workers: a book chapter takes about 4 GB, and the runner has 16.
+          GENCMU_CORPUS_WORKERS: "2"
+        run: node --test test/corpus.test.js
+
   types:
     name: JavaScript types
     runs-on: ubuntu-latest

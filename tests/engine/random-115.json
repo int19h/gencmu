@@ -1,0 +1,164 @@
+{
+  "description": "A random grammar with the notation's sugar and weak tags (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 2 derivations.",
+  "grammar": "%ambiguity-resolution lazy ;\ntext ≔ ε | v A | ε ;\nt ≔ (B | C) | ε ;\nu ≔ ε | ε ;\nv ≔ [C] ... C ... | u ... [t] ... ;",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "?A",
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 1,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie",
+          "witness": [
+            {
+              "close": {
+                "rule": "u",
+                "production": 6,
+                "span": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "close": {
+                "rule": "u",
+                "production": 7,
+                "span": [
+                  0,
+                  0
+                ]
+              }
+            }
+          ],
+          "tied": {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": {},
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "v",
+                "span": [
+                  0,
+                  0
+                ],
+                "source": [
+                  0,
+                  0
+                ],
+                "tags": {},
+                "children": [
+                  {
+                    "kind": "rule",
+                    "rule": "u",
+                    "span": [
+                      0,
+                      0
+                    ],
+                    "source": [
+                      0,
+                      0
+                    ],
+                    "tags": {},
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              }
+            ]
+          },
+          "output": []
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "tags": {},
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "v",
+            "span": [
+              0,
+              0
+            ],
+            "source": [
+              0,
+              0
+            ],
+            "tags": {},
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "u",
+                "span": [
+                  0,
+                  0
+                ],
+                "source": [
+                  0,
+                  0
+                ],
+                "tags": {},
+                "children": []
+              }
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "A",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "error": null
+    },
+    "brackets": "a"
+  }
+}

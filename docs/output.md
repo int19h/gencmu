@@ -43,8 +43,9 @@ accepted stage, the last included.
 ```
 
 `tags` lists every tag in code point order, strong as `true`, weak as
-`false`. `insertedBy`, the rule name, follows `source` for an inserted
-token.
+`false`. `phonemes` is always present, the empty string for a token with
+none (engine §5). `insertedBy`, the rule name, follows `source` for a token
+inserted from a quoted tag or a phoneme tag (engine §1).
 
 **Node**:
 
@@ -58,7 +59,8 @@ A token node's `token` is the index of the stage-input token it read.
 
 **Action**, in a witness: `{"read":{"token":4,"terminal":"KOhA"}}` or
 `{"close":{"rule":"sumti","production":57,"span":[2,5]}}`, the production
-numbered as in engine §3.
+numbered from 0 as in engine §3; for a helper's production, `rule` is the
+rule whose alternative introduced the helper.
 
 **Error**:
 
@@ -68,10 +70,12 @@ numbered as in engine §3.
 ```
 
 `kind` is `rejected` (the stage's grammar does not accept its input),
-`ambiguous` (engine §7; `expected` is replaced by `"readings":[NODE,NODE]`),
-or `grammar` (a grammar could not be loaded or a condition asked about its
-own span; `stage`, `token` and `source` are present when known, `document`,
-`line` and `column` name the grammar position). `line` and `column` count
+`ambiguous` (engine §7; the error has `stage`, `"readings":[NODE,NODE]` and
+`message`, and no position), or `grammar` (a grammar could not be loaded,
+with `document`, `line` and `column` where known, or a defect found while
+parsing, such as a condition that asked about its own span, with `stage`
+and no position). A caller's mistake is not a result but an error of kind
+`usage` (engine §13). `line` and `column` count
 from 1, in code points, lines ending at `\n`, `\r\n` or `\r`. `expected`
 lists terminals in code point order, each with the rules whose items could
 have read it, in code point order. `message` is the human description; its

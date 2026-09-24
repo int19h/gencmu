@@ -19,13 +19,19 @@ export function extractGrammarText(markdown, path) {
   const positions = [];
   /** @type {string | {skip: string} | null} */
   let inside = null;
+  let openedAt = 0;
   let first = true;
   for (let number = 0; number < lines.length; number++) {
     const line = lines[number];
     if (inside === null) {
-      const open = /^ {0,3}(`{3,}|~{3,})\s*([^`\s]*)/.exec(line);
+      // A fence and its info string; a backtick fence's info string has no
+      // backtick, or the line is not a fence (CommonMark). Only an info
+      // string that is exactly `ebnf` makes a grammar block.
+      const fence = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+      const open = fence && !(fence[1][0] === "`" && fence[2].includes("`")) ? [fence[0], fence[1], fence[2].trim()] : null;
       if (open && open[2] === "ebnf") {
         inside = open[1];
+        openedAt = number + 1;
         if (!first) {
           chars.push("\n");
           positions.push([number + 1, 1]);
@@ -51,8 +57,9 @@ export function extractGrammarText(markdown, path) {
     chars.push("\n");
     positions.push([number + 1, column]);
   }
-  if (inside !== null) {
-    throw new GencmuError("grammar", `${path}: an unclosed code block`, { document: path });
+  if (inside !== null && typeof inside === "string") {
+    const column = lines[openedAt - 1].indexOf(inside[0]) + 1;
+    throw new GencmuError("grammar", `${path}:${openedAt}:${column}: an ebnf block that is never closed`, { document: path, line: openedAt, column });
   }
   return { text: chars.join(""), positions };
 }

@@ -1,0 +1,192 @@
+{
+  "description": "A random grammar with the notation's sugar and weak tags (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 4 derivations.",
+  "grammar": "%ambiguity-resolution lazy ;\ntext ≔ (C | A) B | v t | [C] ;\nt ≔ ε | t C ;\nu ≔ (u | B) | (A | C) ;\nv ≔ ε | [t] ... ;",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "B",
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 1,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie",
+          "witness": [
+            {
+              "close": {
+                "rule": "t",
+                "production": 6,
+                "span": [
+                  0,
+                  0
+                ]
+              }
+            },
+            {
+              "close": {
+                "rule": "v",
+                "production": 12,
+                "span": [
+                  0,
+                  0
+                ]
+              }
+            }
+          ],
+          "tied": {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": {},
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "v",
+                "span": [
+                  0,
+                  0
+                ],
+                "source": [
+                  0,
+                  0
+                ],
+                "tags": {},
+                "children": []
+              },
+              {
+                "kind": "rule",
+                "rule": "t",
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ],
+                "tags": {},
+                "children": [
+                  {
+                    "kind": "rule",
+                    "rule": "t",
+                    "span": [
+                      0,
+                      0
+                    ],
+                    "source": [
+                      0,
+                      0
+                    ],
+                    "tags": {},
+                    "children": []
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "C",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "output": []
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "tags": {},
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "v",
+            "span": [
+              0,
+              0
+            ],
+            "source": [
+              0,
+              0
+            ],
+            "tags": {},
+            "children": []
+          },
+          {
+            "kind": "rule",
+            "rule": "t",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": {},
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "t",
+                "span": [
+                  0,
+                  0
+                ],
+                "source": [
+                  0,
+                  0
+                ],
+                "tags": {},
+                "children": []
+              },
+              {
+                "kind": "token",
+                "terminal": "C",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "error": null
+    },
+    "brackets": "a"
+  }
+}

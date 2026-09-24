@@ -121,9 +121,9 @@ export declare class Ranker {
     traverse<T>(root: Item, memo: Map<Item, Map<string, T>>, combine: (item: Item, dependency: (item: Item) => T) => T, cut: T): T;
     /**
      * @param {Item[]} roots
-     * @returns {Ranking}
+     * @returns {Ranking | null} null when every derivation is cyclic
      */
-    rank(roots: Item[]): Ranking;
+    rank(roots: Item[]): Ranking | null;
 }
 /**
  * @param {Rope} rope

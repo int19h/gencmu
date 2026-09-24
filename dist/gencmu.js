@@ -10,7 +10,8 @@
 
   class GencmuError extends Error {
     /**
-     * @param {"grammar"} kind what went wrong; grammar errors are the only kind
+     * @param {"grammar" | "usage"} kind a grammar that cannot be loaded or
+     *   run, or a caller's mistake such as an unknown stage name
      * @param {string} message
      * @param {import("./types.js").ErrorLocation} [where]
      */
@@ -178,7 +179,20 @@
         }
         for (const child of childExpressions(expr)) visit(child, rule);
       };
-      for (const rule of this.rules.values()) for (const alternative of rule.alternatives) visit(alternative.expr, rule);
+      for (const rule of this.rules.values()) {
+        for (const alternative of rule.alternatives) {
+          visit(alternative.expr, rule);
+          const top = "seq" in alternative.expr ? alternative.expr.seq : [alternative.expr];
+          const names = top.flatMap((item) => ("capture" in item ? [item.capture] : []));
+          const twice = names.find((name, index) => names.indexOf(name) !== index);
+          if (twice !== undefined) {
+            throw new GencmuError("grammar", `${rule.document}: an alternative of ${rule.name} captures $${twice} twice`, rule.at);
+          }
+        }
+      }
+      if (this.freeModifiers !== null && !this.rules.has(this.freeModifiers)) {
+        throw new GencmuError("grammar", `stage ${this.stageName}: %free-modifiers names ${this.freeModifiers}, which is not defined`, { stage: this.stageName });
+      }
       if (!this.rules.has("text")) throw new GencmuError("grammar", `stage ${this.stageName} has no rule text`, { stage: this.stageName });
     }
 
@@ -345,11 +359,14 @@
       /** @type {Term | null} */
       let tags = alternative.tags || clauses.tags || null;
       if (tags && !termVariables(tags).every((name) => names.has(name))) tags = null;
-      if (!tags && sequence.length === 1 && captures.length === 0) {
-        // A production with one symbol has that symbol's tags (engine §3.7).
-        captures.push({ name: "\u0000child", index: 0 });
-        names.add("\u0000child");
-        tags = { call: "tags", args: [{ capture: "\u0000child" }] };
+      if (!tags && sequence.length === 1) {
+        // A production with one symbol has that symbol's tags (engine §3.7),
+        // whether or not the author captured it.
+        if (captures.length === 0) {
+          captures.push({ name: "\u0000child", index: 0 });
+          names.add("\u0000child");
+        }
+        tags = { call: "tags", args: [{ capture: captures[0].name }] };
       }
       /** @type {import("./types.js").ReadyCondition[]} */
       const conditions = [];
@@ -1478,8 +1495,13 @@
           continue;
         }
         if (!("leaf" in x) && !("leaf" in y)) {
-          a.descend();
-          b.descend();
+          // Descend the larger side first, so that a subtree the two share is
+          // met at the front of both rather than walked leaf by leaf because
+          // it sits at different depths. Only a skip of both sides or a leaf
+          // from each consumes anything, so the order of descent cannot change
+          // the result.
+          if (x.size >= y.size) a.descend();
+          if (y.size >= x.size) b.descend();
           continue;
         }
         break;
@@ -1883,7 +1905,7 @@
     // result is a tie, and the witness.
     /**
      * @param {Item[]} roots
-     * @returns {Ranking}
+     * @returns {Ranking | null} null when every derivation is cyclic
      */
     rank(roots) {
       const count = Math.min(2, roots.reduce((sum, item) => sum + this.count(item), 0));
@@ -1892,6 +1914,7 @@
       for (const root of roots) for (const entry of this.full(root)) kept = this.keep(kept, entry);
       // At the root nothing follows: candidates still undecided are tied
       // (engine §6), and T orders them.
+      if (kept.length === 0) return null;
       kept.sort((left, right) => totalOrder(left.seq, right.seq, this.lean));
       let main = kept[0];
       for (const other of kept.slice(1)) {
@@ -2036,9 +2059,74 @@
     return [...text];
   }
 
+  // ---- walk.js
+  // Walks over result trees with an explicit stack. A left-recursive rule
+  // with several alternatives, such as the word stage's stream, leaves one
+  // node per word nested in the next, so a tree is as deep as a long text is
+  // long, deeper than any call stack.
+
+  /** @import { ResultNode, RuleNode } from "./types.js" */
+
+  /**
+   * Folds a tree bottom-up: `leaf` maps a token or elided node, `rule` a rule
+   * node given its children's values in order.
+   * @template T
+   * @param {ResultNode} root
+   * @param {(node: Exclude<ResultNode, RuleNode>) => T} leaf
+   * @param {(node: RuleNode, children: T[]) => T} rule
+   * @returns {T}
+   */
+  function foldTree(root, leaf, rule) {
+    /** @type {{node: RuleNode, next: number, values: T[]}[]} */
+    const stack = [];
+    /** @type {T | undefined} */
+    let value;
+    /** @type {ResultNode | null} */
+    let pending = root;
+    for (;;) {
+      if (pending !== null) {
+        if (pending.kind === "rule") {
+          stack.push({ node: pending, next: 0, values: [] });
+          pending = null;
+        } else {
+          value = leaf(pending);
+          pending = null;
+          if (stack.length === 0) return value;
+          stack[stack.length - 1].values.push(value);
+        }
+        continue;
+      }
+      const frame = stack[stack.length - 1];
+      if (frame.next < frame.node.children.length) {
+        pending = frame.node.children[frame.next++];
+        continue;
+      }
+      stack.pop();
+      value = rule(frame.node, frame.values);
+      if (stack.length === 0) return value;
+      stack[stack.length - 1].values.push(value);
+    }
+  }
+
+  /**
+   * Whether any node of a tree satisfies a test, visiting nodes top-down.
+   * @param {ResultNode} root
+   * @param {(node: ResultNode) => boolean} test
+   * @returns {boolean}
+   */
+  function someNode(root, test) {
+    const stack = [root];
+    for (let node = stack.pop(); node !== undefined; node = stack.pop()) {
+      if (test(node)) return true;
+      if (node.kind === "rule") for (let index = node.children.length - 1; index >= 0; index--) stack.push(node.children[index]);
+    }
+    return false;
+  }
+
   // ---- stage.js
   // Running one stage: recognition, the choice of a parse, the result tree
   // (engine §12), emission (engine §11) and elision-only (engine §7).
+
 
 
 
@@ -2096,7 +2184,10 @@
         }
         throw error;
       }
-      if (roots.length === 0) {
+      // An input whose every derivation is cyclic (engine §4) has none to
+      // count, and is rejected like one with no item of `text` at all.
+      const ranking = roots.length === 0 ? null : new Ranker(tokens, lowered.resolution.lean).rank(roots);
+      if (ranking === null) {
         const rejection = rejectionOf(chart);
         report.error = {
           kind: "rejected",
@@ -2109,8 +2200,6 @@
         };
         return report;
       }
-      const ranker = new Ranker(tokens, lowered.resolution.lean);
-      const ranking = ranker.rank(roots);
       if (ranking.verdict === "tie") {
         // A tie always has a second derivation, and so a witness.
         Object.assign(report, {
@@ -2163,12 +2252,12 @@
     elisionCheck(tree, tokens, sourceText, unicode, features) {
       /** @type {ElidedNode[]} */
       const elided = [];
-      /** @type {(node: ResultNode) => void} */
-      const collect = (node) => {
+      // In text order: the leaves left to right.
+      const pending = [tree];
+      for (let node = pending.pop(); node !== undefined; node = pending.pop()) {
         if (node.kind === "elided") elided.push(node);
-        if (node.kind === "rule") for (const child of node.children) collect(child);
-      };
-      collect(tree);
+        if (node.kind === "rule") for (let index = node.children.length - 1; index >= 0; index--) pending.push(node.children[index]);
+      }
       // The input with the chosen parse's elided terminators written back, in
       // text order, inner before outer where several are at one position; and
       // which positions of it are those synthetic terminators.
@@ -2192,22 +2281,25 @@
       const roots = rootItems(chart, "text");
       if (roots.length === 0) return null;
       const ranking = new Ranker(restored, "none").rank(roots);
-      if (ranking.verdict !== "tie") return null;
+      if (ranking === null || ranking.verdict !== "tie") return null;
       // The readings are shown over the original input: a synthetic
       // terminator becomes an elided node where it was inserted.
       const isSynthetic = new Set(synthetic);
       /** @type {(index: number) => number} */
       const toOriginal = (index) => index - synthetic.filter((position) => position < index).length;
       /** @type {(node: ResultNode) => ResultNode} */
-      const remap = (node) => {
-        if (node.kind === "token" && isSynthetic.has(node.token)) {
-          const at = toOriginal(node.token);
-          return { kind: "elided", terminal: node.terminal, span: [at, at], source: node.source };
-        }
-        if (node.kind === "token") return { ...node, token: toOriginal(node.token), span: [toOriginal(node.span[0]), toOriginal(node.span[0]) + 1] };
-        if (node.kind === "elided") return { ...node, span: [toOriginal(node.span[0]), toOriginal(node.span[0])] };
-        return { ...node, span: [toOriginal(node.span[0]), toOriginal(node.span[1])], children: node.children.map(remap) };
-      };
+      const remap = (root) => foldTree(root,
+        /** @returns {ResultNode} */
+        (node) => {
+          if (node.kind === "token" && isSynthetic.has(node.token)) {
+            const at = toOriginal(node.token);
+            return { kind: "elided", terminal: node.terminal, span: [at, at], source: node.source };
+          }
+          if (node.kind === "token") return { ...node, token: toOriginal(node.token), span: [toOriginal(node.span[0]), toOriginal(node.span[0]) + 1] };
+          return { ...node, span: [toOriginal(node.span[0]), toOriginal(node.span[0])] };
+        },
+        /** @returns {ResultNode} */
+        (node, children) => ({ ...node, span: [toOriginal(node.span[0]), toOriginal(node.span[1])], children }));
       return [ranking.chosen, /** @type {import("./types.js").Rope} */ (ranking.second)].map((rope) => remap(resultTree(derivationTree(rope), context)[0]));
     }
   }
@@ -2281,52 +2373,86 @@
   // The result tree of a derivation (engine §12), as a list: a spliced node
   // yields its children.
   /**
-   * @param {Derivation} node
+   * The children a node's result is built from, in order: a node's own, or,
+   * for a repetition's helper and a rule's left-recursive prefix, those of
+   * the whole chain, the bottom node's first.
+   * @param {DerivationRule} node
+   * @returns {Derivation[]}
+   */
+  function orderedChildren(node) {
+    const production = node.production;
+    if (!production.helper && !production.recursivePrefix) return node.children;
+    let chain = spine(node);
+    if (!production.helper) chain = chain.filter((member, index, all) => index === 0 || all[index - 1].production.recursivePrefix);
+    /** @type {Derivation[]} */
+    const result = [];
+    for (let index = chain.length - 1; index >= 0; index--) {
+      const own = chain[index].children;
+      for (let at = index === chain.length - 1 ? 0 : 1; at < own.length; at++) result.push(own[at]);
+    }
+    return result;
+  }
+
+  /**
+   * The result tree of a derivation (engine §12), as a list: a spliced node
+   * yields its children. The walk keeps its own stack, since a right-recursive
+   * rule over a long text, such as paragraphs joined by `ni'o`, nests as deep
+   * as the text is long.
+   * @param {Derivation} root
    * @param {ParseContext} context
    * @returns {ResultNode[]}
    */
-  function resultTree(node, context) {
+  function resultTree(root, context) {
     const tokens = context.tokens;
-    if ("read" in node) {
-      return [{ kind: "token", terminal: node.read.terminal, token: node.read.token, span: [node.start, node.end], source: sourceOf(tokens, node.start, node.end) }];
-    }
-    const production = node.production;
-    if (production.helper) {
-      if (production.elided && node.children.length === 0) {
-        const position = emptySource(tokens, node.start);
-        return [{ kind: "elided", terminal: production.elided, span: [node.start, node.start], source: [position, position] }];
-      }
-      // A repetition's helper is left-recursive: its items are the bottom
-      // node's children, then each node's other children going up.
-      const chain = spine(node);
-      /** @type {ResultNode[]} */
-      const result = [];
-      for (let index = chain.length - 1; index >= 0; index--) {
-        const children = index === chain.length - 1 ? chain[index].children : chain[index].children.slice(1);
-        for (const child of children) result.push(...resultTree(child, context));
-      }
-      return result;
-    }
+    /** @typedef {{node: Derivation, children: Derivation[] | null, next: number, out: ResultNode[]}} TreeFrame */
+    /** @type {TreeFrame[]} */
+    const stack = [{ node: root, children: null, next: 0, out: [] }];
     /** @type {ResultNode[]} */
-    let children;
-    if (production.recursivePrefix) {
-      const chain = spine(node).filter((member, index, all) => index === 0 || all[index - 1].production.recursivePrefix);
-      children = [];
-      for (let index = chain.length - 1; index >= 0; index--) {
-        const own = index === chain.length - 1 ? chain[index].children : chain[index].children.slice(1);
-        for (const child of own) children.push(...resultTree(child, context));
+    let result = [];
+    /** @param {ResultNode[]} list */
+    const finish = (list) => {
+      stack.pop();
+      if (stack.length === 0) {
+        result = list;
+        return;
       }
-    } else {
-      children = node.children.flatMap((child) => resultTree(child, context));
+      const out = stack[stack.length - 1].out;
+      for (const item of list) out.push(item);
+    };
+    while (stack.length > 0) {
+      const frame = stack[stack.length - 1];
+      const node = frame.node;
+      if ("read" in node) {
+        finish([{ kind: "token", terminal: node.read.terminal, token: node.read.token, span: [node.start, node.end], source: sourceOf(tokens, node.start, node.end) }]);
+        continue;
+      }
+      const production = node.production;
+      if (frame.children === null) {
+        if (production.helper && production.elided && node.children.length === 0) {
+          const position = emptySource(tokens, node.start);
+          finish([{ kind: "elided", terminal: production.elided, span: [node.start, node.start], source: [position, position] }]);
+          continue;
+        }
+        frame.children = orderedChildren(node);
+      }
+      if (frame.next < frame.children.length) {
+        stack.push({ node: frame.children[frame.next++], children: null, next: 0, out: [] });
+        continue;
+      }
+      if (production.helper) {
+        finish(frame.out);
+        continue;
+      }
+      finish([{
+        kind: "rule",
+        rule: production.lhs,
+        span: [node.start, node.end],
+        source: sourceOf(tokens, node.start, node.end),
+        tags: nodeTags(node, context),
+        children: frame.out,
+      }]);
     }
-    return [{
-      kind: "rule",
-      rule: production.lhs,
-      span: [node.start, node.end],
-      source: sourceOf(tokens, node.start, node.end),
-      tags: nodeTags(node, context),
-      children,
-    }];
+    return result;
   }
 
   /** @implements {Scope} */
@@ -2461,39 +2587,39 @@
           named.set(capture.index, item);
         }
       }
+      // Each inserted tag goes just before the first capture listed after it,
+      // or after the last child if none is (engine §11); the captures go in
+      // text order, whatever order the list names them in.
+      /** @type {Map<EmitItem, string[]>} */
+      const insertsBefore = new Map();
+      /** @type {string[]} */
+      let waiting = [];
+      for (const item of clause.items) {
+        if (item.insert !== undefined) waiting.push(item.insert);
+        else if (item.capture !== undefined) {
+          insertsBefore.set(item, waiting);
+          waiting = [];
+        }
+      }
       // The node's tasks in text order, then pushed in reverse.
       /** @type {EmitTask[]} */
       const ordered = [];
-      let next = 0;
+      /** @type {(inserts: string[], at: number) => void} */
+      const insertAll = (inserts, at) => {
+        for (const insert of inserts) ordered.push({ token: () => insertedToken(insert, at, node, context, production.owner) });
+      };
       let cursor = node.start;
       node.children.forEach((child, index) => {
-        if (named.has(index)) {
-          while (next < clause.items.length) {
-            const item = clause.items[next];
-            const insert = item.insert;
-            if (insert !== undefined) {
-              const at = cursor;
-              ordered.push({ token: () => insertedToken(insert, at, node, context, production.owner) });
-              next++;
-            } else if (named.get(index) === item) {
-              ordered.push({ token: () => makeToken(child, valueTags(item, nodeTags(child, context)), context) });
-              next++;
-              break;
-            } else {
-              break;
-            }
-          }
+        const item = named.get(index);
+        if (item) {
+          insertAll(insertsBefore.get(item) || [], cursor);
+          ordered.push({ token: () => makeToken(child, valueTags(item, nodeTags(child, context)), context) });
         } else {
           ordered.push({ walk: child });
         }
         cursor = child.end;
       });
-      for (; next < clause.items.length; next++) {
-        const item = clause.items[next];
-        const at = cursor;
-        const insert = item.insert;
-        if (insert !== undefined) ordered.push({ token: () => insertedToken(insert, at, node, context, production.owner) });
-      }
+      insertAll(waiting, cursor);
       for (let index = ordered.length - 1; index >= 0; index--) tasks.push(ordered[index]);
     }
     return out;
@@ -2673,8 +2799,10 @@
         case "phoneme": return { terminal: text(parts(node)[0]) };
         case "capture": {
           const [captureToken, , inner] = parts(node);
-          const expr = readPrimary(parts(inner)[0]);
-          if (!("ref" in expr) && !("terminal" in expr)) fail("a capture wraps one symbol", node);
+          const wrapped = parts(inner)[0];
+          const kind = ruleOf(wrapped);
+          if (kind !== "reference" && kind !== "string" && kind !== "phoneme") fail("a capture wraps one symbol", node);
+          const expr = readPrimary(wrapped);
           return { capture: text(captureToken).slice(1), expr };
         }
         case "group": return readExpression(only(node, "choice"));
@@ -2702,6 +2830,7 @@
         else if (kind === "phoneme") item = { insert: text(target) };
         else fail("expected this, nothing, a capture or a tag after ⇒", itemNode);
         const tags = one(itemNode, "emit-tags");
+        if (tags && item.insert !== undefined) fail("an inserted tag takes no tags of its own", itemNode);
         if (tags) item.tags = readTerm(only(tags, "term"));
         return item;
       });
@@ -2750,27 +2879,38 @@
 
     /**
      * @param {ResultNode} node
+     * @param {boolean} [argument] whether the term is a function's argument,
+     *   where a span may stand
      * @returns {Term}
      */
-    function readTerm(node) {
+    function readTerm(node, argument = false) {
       if (ruleOf(node) === "term") {
-        const items = ofRule(node, "intersection").map(readTerm);
+        const found = ofRule(node, "intersection");
+        const items = found.map((item) => readTerm(item, argument && found.length === 1));
         return items.length === 1 ? items[0] : { union: items };
       }
       if (ruleOf(node) === "intersection") {
-        const items = ofRule(node, "term-atom").map(readTerm);
+        const found = ofRule(node, "term-atom");
+        const items = found.map((item) => readTerm(item, argument && found.length === 1));
         return items.length === 1 ? items[0] : { intersection: items };
       }
       if (ruleOf(node) === "term-atom") {
         const inner = parts(node).find((child) => child.kind === "rule");
-        return inner ? readTerm(inner) : fail("expected a term", node);
+        if (!inner) return fail("expected a term", node);
+        if (ruleOf(inner) === "call") {
+          const call = readCall(inner);
+          if (!argument && SPANS.has(call.call)) fail(`${call.call} gives a span, which is not a value`, inner);
+          if (call.call === "matches") fail("matches is a condition, not a term", inner);
+          return call;
+        }
+        return readTerm(inner);
       }
       switch (ruleOf(node)) {
         case "string": return { literal: decode(parts(node)[0]) };
         case "phoneme": return { literal: text(parts(node)[0]) };
         case "weak": return { weak: decode(parts(node)[1]) };
         case "empty-set": return { emptySet: true };
-        case "set": return { set: ofRule(node, "term").map(readTerm) };
+        case "set": return { set: ofRule(node, "term").map((item) => readTerm(item)) };
         case "call": return readCall(node);
         case "capture-reference": return { capture: text(parts(node)[0]).slice(1) };
         default: return fail(`unexpected ${ruleOf(node)}`, node);
@@ -2784,11 +2924,24 @@
     function readCall(node) {
       const name = text(parts(node)[0]);
       if (!FUNCTIONS.has(name)) fail(`unknown function ${name}`, node);
+      /** @type {Argument[]} */
       const args = ofRule(node, "argument").map((argument) => {
         const inner = parts(argument)[0];
         if (inner.kind === "token") return { rule: text(inner) };
-        return readTerm(inner);
+        return readTerm(inner, true);
       });
+      /** @type {(argument: Argument | undefined) => boolean} */
+      const isSpan = (argument) => argument !== undefined && ("capture" in argument || ("call" in argument && SPANS.has(argument.call)));
+      /** @type {(argument: Argument | undefined) => boolean} */
+      const isRule = (argument) => argument !== undefined && "rule" in argument;
+      /** @type {(argument: Argument | undefined) => boolean} */
+      const isString = (argument) => argument !== undefined && ("literal" in argument || ("call" in argument && STRINGS.has(argument.call)));
+      let ok;
+      if (name === "tags") ok = (args.length === 1 && isSpan(args[0])) || (args.length === 2 && isSpan(args[0]) && isRule(args[1]));
+      else if (name === "matches") ok = args.length === 2 && isSpan(args[0]) && isRule(args[1]);
+      else if (name === "lowercase") ok = args.length === 1 && isString(args[0]);
+      else ok = args.length === 1 && isSpan(args[0]);
+      if (!ok) fail(`${name} takes ${SIGNATURES[name]}`, node);
       return { call: name, args };
     }
 
@@ -2822,6 +2975,17 @@
   }
 
   const FUNCTIONS = new Set(["phonemes", "text", "lowercase", "tags", "classes", "words", "head", "tail", "last", "matches"]);
+
+  // The functions whose value is a span, and those whose value is a string.
+  const SPANS = new Set(["head", "tail", "last"]);
+  const STRINGS = new Set(["phonemes", "text", "lowercase"]);
+
+  /** @type {Record<string, string>} */
+  const SIGNATURES = {
+    phonemes: "one span", text: "one span", words: "one span", classes: "one span",
+    head: "one span", tail: "one span", last: "one span",
+    lowercase: "one string", tags: "a span, and optionally a rule", matches: "a span and a rule",
+  };
 
   // The rules of the notation's syntax grammar that the reader reads; every
   // other rule is transparent.
@@ -2872,13 +3036,19 @@
     const positions = [];
     /** @type {string | {skip: string} | null} */
     let inside = null;
+    let openedAt = 0;
     let first = true;
     for (let number = 0; number < lines.length; number++) {
       const line = lines[number];
       if (inside === null) {
-        const open = /^ {0,3}(`{3,}|~{3,})\s*([^`\s]*)/.exec(line);
+        // A fence and its info string; a backtick fence's info string has no
+        // backtick, or the line is not a fence (CommonMark). Only an info
+        // string that is exactly `ebnf` makes a grammar block.
+        const fence = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+        const open = fence && !(fence[1][0] === "`" && fence[2].includes("`")) ? [fence[0], fence[1], fence[2].trim()] : null;
         if (open && open[2] === "ebnf") {
           inside = open[1];
+          openedAt = number + 1;
           if (!first) {
             chars.push("\n");
             positions.push([number + 1, 1]);
@@ -2904,8 +3074,9 @@
       chars.push("\n");
       positions.push([number + 1, column]);
     }
-    if (inside !== null) {
-      throw new GencmuError("grammar", `${path}: an unclosed code block`, { document: path });
+    if (inside !== null && typeof inside === "string") {
+      const column = lines[openedAt - 1].indexOf(inside[0]) + 1;
+      throw new GencmuError("grammar", `${path}:${openedAt}:${column}: an ebnf block that is never closed`, { document: path, line: openedAt, column });
     }
     return { text: chars.join(""), positions };
   }
@@ -3078,6 +3249,7 @@
 
 
 
+
   /** @import { GrammarDom, ParseError, ParseOptions, ParseResult, Resources, ResultNode, StageReport } from "./types.js" */
 
   const DOM_FORMAT = 1;
@@ -3241,7 +3413,7 @@
       let tokens = options.tokens || characterTokens(text, this.loader.unicode);
       if (continued) tokens = /** @type {Token[]} */ (stages[stages.length - 1].output);
       const last = options.until ? this.stages.findIndex((stage) => stage.name === options.until) : this.stages.length - 1;
-      if (last < 0) throw new GencmuError("grammar", `no stage is named ${options.until}`);
+      if (last < 0) throw new GencmuError("usage", `no stage is named ${options.until}`);
       for (let index = stages.length; index <= last; index++) {
         const stage = this.stages[index];
         const report = stage.run(tokens, sourceText, this.loader.unicode, {
@@ -3274,14 +3446,13 @@
    * @returns {boolean}
    */
   function containsWord(tree, tokens, words) {
-    if (!tree) return false;
-    if (tree.kind !== "rule") return false;
-    if (tree.rule === "word" && tokens) {
+    if (!tree || !tokens) return false;
+    return someNode(tree, (node) => {
+      if (node.kind !== "rule" || node.rule !== "word") return false;
       let phonemes = "";
-      for (let index = tree.span[0]; index < tree.span[1]; index++) phonemes += tokens[index].phonemes || "";
-      if (words.includes(phonemes)) return true;
-    }
-    return tree.children.some((child) => containsWord(child, tokens, words));
+      for (let index = node.span[0]; index < node.span[1]; index++) phonemes += tokens[index].phonemes || "";
+      return words.includes(phonemes);
+    });
   }
 
   // Adds the line and column of an error's source position.
@@ -3386,6 +3557,7 @@
 
 
 
+
   /** @import { Action, ParseError, ParseResult, ResultNode, Span } from "./types.js" */
   /** @import { Token } from "./tokens.js" */
 
@@ -3478,9 +3650,13 @@
    * @returns {NodeJson}
    */
   function nodeJson(node) {
-    if (node.kind === "token") return { kind: "token", terminal: node.terminal, token: node.token, span: node.span, source: node.source };
-    if (node.kind === "elided") return { kind: "elided", terminal: node.terminal, span: node.span, source: node.source };
-    return { kind: "rule", rule: node.rule, span: node.span, source: node.source, tags: sortedTagObject(node.tags), children: node.children.map(nodeJson) };
+    return foldTree(node,
+      /** @returns {NodeJson} */
+      (leaf) => (leaf.kind === "token"
+        ? { kind: "token", terminal: leaf.terminal, token: leaf.token, span: leaf.span, source: leaf.source }
+        : { kind: "elided", terminal: leaf.terminal, span: leaf.span, source: leaf.source }),
+      /** @returns {NodeJson} */
+      (rule, children) => ({ kind: "rule", rule: rule.rule, span: rule.span, source: rule.source, tags: sortedTagObject(rule.tags), children }));
   }
 
   /**
@@ -3559,23 +3735,44 @@
   function toBrackets(result, options = {}) {
     if (!result.tree) return "";
     const tokens = finalInput(result);
-    /** @type {(node: ResultNode) => Flat | null} */
-    const flatten = (node) => {
-      if (node.kind === "token") return { leaf: leafLabel(node, tokens) };
-      if (node.kind === "elided") return options.showElided ? { leaf: `⟨${node.terminal.toLowerCase()}⟩` } : null;
-      const children = /** @type {Flat[]} */ (node.children.map(flatten).filter((child) => child !== null));
-      if (children.length === 0) return null;
-      if (children.length === 1) return children[0];
-      return { group: children };
-    };
-    /** @type {(node: Flat, depth: number) => string} */
-    const render = (node, depth) => {
-      if ("leaf" in node) return node.leaf;
-      const [open, close] = [["(", ")"], ["[", "]"], ["{", "}"]][depth % 3];
-      return open + node.group.map((child) => render(child, depth + 1)).join(" ") + close;
-    };
-    const flat = flatten(result.tree);
-    return flat ? render(flat, 0) : "";
+    const flat = foldTree(result.tree,
+      /** @returns {Flat | null} */
+      (leaf) => (leaf.kind === "token" ? { leaf: leafLabel(leaf, tokens) }
+        : options.showElided ? { leaf: `⟨${leaf.terminal.toLowerCase()}⟩` } : null),
+      /** @returns {Flat | null} */
+      (rule, values) => {
+        const children = /** @type {Flat[]} */ (values.filter((child) => child !== null));
+        if (children.length === 0) return null;
+        if (children.length === 1) return children[0];
+        return { group: children };
+      });
+    if (!flat) return "";
+    /** @type {string[]} */
+    const parts = [];
+    /** @type {{node: Flat, depth: number, next: number}[]} */
+    const stack = [{ node: flat, depth: 0, next: -1 }];
+    while (stack.length > 0) {
+      const frame = stack[stack.length - 1];
+      const node = frame.node;
+      if ("leaf" in node) {
+        parts.push(node.leaf);
+        stack.pop();
+        continue;
+      }
+      const [open, close] = [["(", ")"], ["[", "]"], ["{", "}"]][frame.depth % 3];
+      if (frame.next < 0) {
+        parts.push(open);
+        frame.next = 0;
+      }
+      if (frame.next < node.group.length) {
+        if (frame.next > 0) parts.push(" ");
+        stack.push({ node: node.group[frame.next++], depth: frame.depth + 1, next: -1 });
+        continue;
+      }
+      parts.push(close);
+      stack.pop();
+    }
+    return parts.join("");
   }
 
   // The tree rendering: one node per line, single-child chains on one line.
@@ -3594,8 +3791,10 @@
       if (node.kind === "elided") return `⟨${node.terminal}⟩`;
       return node.rule;
     };
-    /** @type {(node: ResultNode, indent: number) => void} */
-    const walk = (node, indent) => {
+    /** @type {{node: ResultNode, indent: number}[]} */
+    const stack = [{ node: result.tree, indent: 0 }];
+    for (let task = stack.pop(); task !== undefined; task = stack.pop()) {
+      const { node, indent } = task;
       const chain = [label(node)];
       let current = node;
       while (current.kind === "rule" && current.children.length === 1 && current.children[0].kind === "rule") {
@@ -3607,12 +3806,13 @@
         const words = current.children.flatMap((child) => (child.kind === "token" ? [leafLabel(child, tokens)] : []));
         if (words.length) line += " · " + words.join(" ");
         lines.push(line);
-        return;
+        continue;
       }
       lines.push(line);
-      if (current.kind === "rule") for (const child of current.children) walk(child, indent + 2);
-    };
-    walk(result.tree, 0);
+      if (current.kind === "rule") {
+        for (let index = current.children.length - 1; index >= 0; index--) stack.push({ node: current.children[index], indent: indent + 2 });
+      }
+    }
     return lines.join("\n");
   }
 
@@ -3624,14 +3824,11 @@
   function displayValue(result) {
     if (!result.tree) return null;
     const tokens = finalInput(result);
-    /** @type {(node: ResultNode) => DisplayValue} */
-    const project = (node) => {
-      if (node.kind === "token") return { [node.terminal]: leafLabel(node, tokens) };
-      if (node.kind === "elided") return { [node.terminal]: null };
-      const children = node.children.map(project);
-      return { [node.rule]: children.length === 1 ? children[0] : children };
-    };
-    return project(result.tree);
+    return foldTree(result.tree,
+      /** @returns {DisplayValue} */
+      (leaf) => (leaf.kind === "token" ? { [leaf.terminal]: leafLabel(leaf, tokens) } : { [leaf.terminal]: null }),
+      /** @returns {DisplayValue} */
+      (rule, children) => ({ [rule.rule]: children.length === 1 ? children[0] : children }));
   }
 
   // Pretty-prints a JSON value so that single-member objects nest without
@@ -3642,18 +3839,116 @@
    * @returns {string}
    */
   function prettyJson(value, indent = 0) {
-    if (value === null || typeof value !== "object") return JSON.stringify(value);
     /** @type {(n: number) => string} */
     const pad = (n) => " ".repeat(n);
-    if (Array.isArray(value)) {
-      if (value.length === 0) return "[]";
-      return "[\n" + value.map((item) => pad(indent + 2) + prettyJson(item, indent + 2)).join(",\n") + "\n" + pad(indent) + "]";
+    /** @type {string[]} */
+    const out = [];
+    // Tasks run last first: a string is written as it is, a value is laid out
+    // into further tasks. The stack keeps a deep value from nesting calls.
+    /** @type {(string | {value: unknown, indent: number})[]} */
+    const tasks = [{ value, indent }];
+    for (let task = tasks.pop(); task !== undefined; task = tasks.pop()) {
+      if (typeof task === "string") {
+        out.push(task);
+        continue;
+      }
+      const current = task.value;
+      const at = task.indent;
+      if (current === null || typeof current !== "object") {
+        out.push(JSON.stringify(current));
+        continue;
+      }
+      /** @type {(string | {value: unknown, indent: number})[]} */
+      const layout = [];
+      if (Array.isArray(current)) {
+        if (current.length === 0) {
+          out.push("[]");
+          continue;
+        }
+        layout.push("[\n");
+        current.forEach((item, index) => {
+          if (index > 0) layout.push(",\n");
+          layout.push(pad(at + 2), { value: item, indent: at + 2 });
+        });
+        layout.push("\n" + pad(at) + "]");
+      } else {
+        const object = /** @type {Record<string, unknown>} */ (current);
+        const keys = Object.keys(object);
+        if (keys.length === 0) {
+          out.push("{}");
+          continue;
+        }
+        if (keys.length === 1) {
+          layout.push(`{${JSON.stringify(keys[0])}: `, { value: object[keys[0]], indent: at }, "}");
+        } else {
+          layout.push("{\n");
+          keys.forEach((key, index) => {
+            if (index > 0) layout.push(",\n");
+            layout.push(`${pad(at + 2)}${JSON.stringify(key)}: `, { value: object[key], indent: at + 2 });
+          });
+          layout.push("\n" + pad(at) + "}");
+        }
+      }
+      for (let index = layout.length - 1; index >= 0; index--) tasks.push(layout[index]);
     }
-    const object = /** @type {Record<string, unknown>} */ (value);
-    const keys = Object.keys(object);
-    if (keys.length === 1) return `{${JSON.stringify(keys[0])}: ${prettyJson(object[keys[0]], indent)}}`;
-    if (keys.length === 0) return "{}";
-    return "{\n" + keys.map((key) => `${pad(indent + 2)}${JSON.stringify(key)}: ${prettyJson(object[key], indent + 2)}`).join(",\n") + "\n" + pad(indent) + "}";
+    return out.join("");
+  }
+
+  /**
+   * A JSON value as compact text, like `JSON.stringify` with no spacing, but
+   * with an explicit stack, since a parse tree can nest deeper than the call
+   * stack allows.
+   * @param {unknown} value
+   * @returns {string}
+   */
+  function compactJson(value) {
+    /** @type {string[]} */
+    const out = [];
+    /** @type {(string | {value: unknown})[]} */
+    const tasks = [{ value }];
+    for (let task = tasks.pop(); task !== undefined; task = tasks.pop()) {
+      if (typeof task === "string") {
+        out.push(task);
+        continue;
+      }
+      const current = task.value;
+      if (current === null || typeof current !== "object") {
+        out.push(JSON.stringify(current));
+        continue;
+      }
+      /** @type {(string | {value: unknown})[]} */
+      const layout = [];
+      if (Array.isArray(current)) {
+        layout.push("[");
+        current.forEach((item, index) => {
+          if (index > 0) layout.push(",");
+          layout.push({ value: item });
+        });
+        layout.push("]");
+      } else {
+        const object = /** @type {Record<string, unknown>} */ (current);
+        layout.push("{");
+        let first = true;
+        for (const key of Object.keys(object)) {
+          if (object[key] === undefined) continue;
+          if (!first) layout.push(",");
+          first = false;
+          layout.push(JSON.stringify(key) + ":", { value: object[key] });
+        }
+        layout.push("}");
+      }
+      for (let index = layout.length - 1; index >= 0; index--) tasks.push(layout[index]);
+    }
+    return out.join("");
+  }
+
+  /**
+   * The canonical JSON of a parse result as text (docs/output.md).
+   * @param {ParseResult} result
+   * @returns {string}
+   */
+  function toJson(result) {
+    return compactJson(resultJson(result));
   }
 
   /**
@@ -4053,7 +4348,7 @@
 
 
 
-    return { version: "0.1.0", Loader, Dialect, fnv1a64, GencmuError, Token, resultJson, toBrackets, toTree, displayValue, prettyJson, loadDialectSources, loaderFromSources };
+    return { version: "0.1.0", Loader, Dialect, fnv1a64, GencmuError, Token, resultJson, toJson, compactJson, toBrackets, toTree, displayValue, prettyJson, loadDialectSources, loaderFromSources };
   }
   root.gencmuFactory = gencmuFactory;
   root.gencmu = gencmuFactory();
