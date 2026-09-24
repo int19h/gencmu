@@ -400,9 +400,9 @@ its children taken in order.
 | `optional` | `optional` of its `choice` |
 | `empty` | `empty` |
 | `emission` | `items`: a capture, `""` for `$`, with the term of its `emit-tags` or with `erase` for an `erase`; or an inserted tag from a string or phoneme |
-| `conditions` | its `any-of`, read as a condition: if that is an `all`, each of its conditions is appended to the rule's conditions on its own, and otherwise it is appended; since parentheses make no node, `: (a ∧ b)` is two conditions, as `: a ∧ b` is |
-| `any-of` | `any` of its `all-of`s, or the one `all-of` itself |
-| `all-of` | `all` of its `condition`s, or the one condition itself |
+| `conditions` | its `any-of`, read as a condition: if that is an `all`, each of its conditions is appended to the rule's conditions on its own, and otherwise it is appended; since parentheses make no node, `: (a ∧ b)` is two conditions, as `: a ∧ b` is, and `: (a ∧ b) ∧ c` three |
+| `any-of` | `any` of its `all-of`s, or the one `all-of` itself; an `all-of` that is itself an `any` gives its conditions in its place |
+| `all-of` | `all` of its `condition`s, or the one condition itself; a `condition` that is itself an `all` gives its conditions in its place |
 | `condition` | its comparison, call or negation, or the `any-of` between its parentheses, which makes no node of its own |
 | `comparison` | the comparator and its two terms |
 | `negation` | `not` of its condition |
