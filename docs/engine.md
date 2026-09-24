@@ -399,10 +399,10 @@ its children taken in order.
 | `optional` | `optional` of its `choice` |
 | `empty` | `empty` |
 | `emission` | `items`: a capture, `""` for `$`, with the term of its `emit-tags` or with `erase` for an `erase`; or an inserted tag from a string or phoneme |
-| `conditions` | its `any-of`, appended to the rule's conditions: the conditions of its one `all-of` each on its own, when it has one, otherwise the `any` itself |
+| `conditions` | its `any-of`, read as a condition: if that is an `all`, each of its conditions is appended to the rule's conditions on its own, and otherwise it is appended; since parentheses make no node, `: (a ∧ b)` is two conditions, as `: a ∧ b` is |
 | `any-of` | `any` of its `all-of`s, or the one `all-of` itself |
 | `all-of` | `all` of its `condition`s, or the one condition itself |
-| `condition` | its comparison, call or negation, or the `any-of` between its parentheses |
+| `condition` | its comparison, call or negation, or the `any-of` between its parentheses, which makes no node of its own |
 | `comparison` | the comparator and its two terms |
 | `negation` | `not` of its condition |
 | `call` in a condition | `matches`, which is the only function a condition calls directly |
@@ -438,7 +438,8 @@ document, reported at the first token of the offending construct:
   reads; a capture other than `$` listed twice in one emission; a second
   `⇒` clause in one rule;
 - a rule's or an alternative's tag term that reads the tags it defines:
-  `$`, `tags($)` or `classes($)` in it;
+  `$`, `tags($)` or `classes($)` in it; `tags(head($))` and the like read the
+  tokens' tags, not the constituent's, and are allowed, as is `tags($, R)`;
 - an unknown directive.
 
 A string's decoding: the quotes are removed, `\\` is `\`, `\"` is `"`, and
@@ -476,13 +477,12 @@ list or a tag set. `a ⊆ b` tests that every tag of `a` is in `b`.
 
 ## 11. Emission
 
-A stage that is not the last emits the tokens of the next stage by walking
-the chosen tree from the left:
+Every stage that accepts its input emits tokens by walking its chosen tree from the left, the last stage included, whose tokens are its output (`docs/output.md`), though no stage reads them:
 
 - A constituent whose production has `⇒ $ <>` is **erased**: it emits nothing, and nothing inside it is walked.
 - A constituent whose production has `⇒ $` emits one token covering the constituent, with the constituent's tags, or with the tags of the item's term if it has one. `⇒ $ <t>, $ <u>` emits one such token per item, in the order listed, all with the same span and source: a digit that stands for a two-phoneme word is two tokens over one character.
 - `⇒ $a <t>, "x", $b` emits, in text order, one token per named capture, with the given tags or the captured constituent's own, and one inserted token per quoted tag or phoneme tag, with that one strong tag and empty span; a capture named with `<>` is erased; captured parts not named, and other children, are walked in turn. An inserted tag goes immediately before the token of the first capture listed after it, or where that capture's token would be if it is erased, and one with no capture listed after it goes after the constituent's last child. Captures are emitted in text order whatever order the list names them in.
-- A constituent whose production's emission names no capture it has, as when every item names a capture of another alternative (§3.6), is walked.
+- A constituent whose production's emission names no capture it has, as when every item names a capture of another alternative (§3.6), is walked, and the emission's inserted tags, if any, are emitted after its last child.
 - A constituent with no emission clause is walked: its children in order.
 - A token read directly by a production with no emission clause emits nothing.
 
