@@ -359,8 +359,10 @@ fn an_and_of_more_than_sixteen_items_is_an_error() {
         gencmu::tools::fnv1a64(&sources["g.md"])
     );
     sources.insert("compiled.json".to_string(), compiled);
-    let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("an & of 64 items from the cache");
-    assert_eq!(error.kind, ErrorKind::Grammar);
+    // It is not a DOM the reader could give, so it is a cache miss, and
+    // the document itself is read.
+    let dialect = gencmu::load_dialect_sources(sources, "p.md").expect("the document read instead");
+    assert!(dialect.parse("A", &no_auto()).unwrap().ok);
 }
 
 #[test]

@@ -132,8 +132,8 @@ fn position(value: &Json) -> R<(usize, usize)> {
 }
 
 pub(crate) fn dom_from_json(value: &Json) -> R<Dom> {
-    if field(value, "format")?.as_int() != Some(DOM_FORMAT) {
-        return Err("an unsupported DOM format".to_string());
+    if let Some(problem) = dom_problem(value) {
+        return Err(problem.to_string());
     }
     let rules = array(value, "rules")?.iter().map(rule_from_json).collect::<R<Vec<_>>>()?;
     let directives = array(value, "directives")?
@@ -271,6 +271,340 @@ fn emit_from_json(value: &Json) -> R<Emit> {
         })
         .collect::<R<Vec<_>>>()?;
     Ok(Emit::Items(items))
+}
+
+// ---- holding a DOM to the reader's rules
+
+/// How deeply an expression, a term or a condition may nest (engine §9).
+pub(crate) const DOM_MAX_DEPTH: usize = 256;
+
+fn is_object(value: &Json) -> bool {
+    matches!(value, Json::Obj(_))
+}
+
+fn has(value: &Json, key: &str) -> bool {
+    value.get(key).is_some()
+}
+
+fn is_str(value: Option<&Json>) -> bool {
+    matches!(value, Some(Json::Str(_)))
+}
+
+fn is_true(value: Option<&Json>) -> bool {
+    matches!(value, Some(Json::Bool(true)))
+}
+
+fn is_position(value: Option<&Json>) -> bool {
+    matches!(value.and_then(Json::as_array), Some([Json::Int(_), Json::Int(_)]))
+}
+
+fn is_name(name: &str) -> bool {
+    let mut chars = name.chars();
+    chars.next().is_some_and(|c| c.is_ascii_alphabetic()) && chars.all(|c| c.is_ascii_alphanumeric() || c == '-')
+}
+
+/// A span: a capture, or `head`, `tail` or `last` of something.
+fn is_span_json(value: &Json) -> bool {
+    is_object(value)
+        && (is_str(value.get("capture"))
+            || matches!(value.get("call").and_then(Json::as_str), Some("head" | "tail" | "last")))
+}
+
+/// A string: a literal, or `phonemes`, `text` or `lowercase` of something.
+fn is_string_json(value: &Json) -> bool {
+    is_object(value)
+        && (is_str(value.get("literal"))
+            || matches!(value.get("call").and_then(Json::as_str), Some("phonemes" | "text" | "lowercase")))
+}
+
+fn is_rule_arg(value: &Json) -> bool {
+    matches!(value.as_object(), Some([(key, Json::Str(_))]) if key == "rule")
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Kind {
+    Expr,
+    Term,
+    /// A function's argument: a term where a span may stand.
+    Argument,
+    Condition,
+    Emission,
+}
+
+/// Why a JSON value is not a DOM the reader could have produced (engine
+/// §9, docs/output.md "A grammar DOM"), or `None` when it is one. A DOM
+/// from the bootstrap or from `compiled.json` is held to every rule the
+/// reader enforces, so that no cache entry can change a result.
+pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
+    if !is_object(dom)
+        || dom.get("format").and_then(Json::as_int) != Some(DOM_FORMAT)
+        || dom.get("rules").and_then(Json::as_array).is_none()
+        || dom.get("directives").and_then(Json::as_array).is_none()
+    {
+        return Some("not a DOM of format 1");
+    }
+    for directive in dom.get("directives").and_then(Json::as_array).unwrap_or(&[]) {
+        let args = directive.get("args").and_then(Json::as_array);
+        if !is_object(directive)
+            || !is_str(directive.get("name"))
+            || !args.is_some_and(|args| args.iter().all(|arg| matches!(arg, Json::Str(_))))
+            || !is_position(directive.get("at"))
+        {
+            return Some("a malformed directive");
+        }
+    }
+    let mut pending: Vec<(Kind, &Json, usize)> = Vec::new();
+    for rule in dom.get("rules").and_then(Json::as_array).unwrap_or(&[]) {
+        let alternatives = rule.get("alternatives").and_then(Json::as_array);
+        let conditions = rule.get("conditions").and_then(Json::as_array);
+        if !is_object(rule)
+            || !rule.get("name").and_then(Json::as_str).is_some_and(is_name)
+            || !matches!(rule.get("op").and_then(Json::as_str), Some("define" | "extend"))
+            || !alternatives.is_some_and(|alternatives| !alternatives.is_empty())
+            || conditions.is_none()
+            || !is_position(rule.get("at"))
+        {
+            return Some("a malformed rule");
+        }
+        if let Some(tags) = rule.get("tags") {
+            pending.push((Kind::Term, tags, 0));
+        }
+        if let Some(emit) = rule.get("emit") {
+            pending.push((Kind::Emission, emit, 0));
+        }
+        for condition in conditions.unwrap_or(&[]) {
+            pending.push((Kind::Condition, condition, 0));
+        }
+        for alternative in alternatives.unwrap_or(&[]) {
+            let guards = alternative.get("guards").and_then(Json::as_array);
+            let guards_ok = guards.is_some_and(|guards| {
+                guards.iter().all(|guard| {
+                    is_object(guard)
+                        && is_str(guard.get("feature"))
+                        && matches!(guard.get("negated"), Some(Json::Bool(_)))
+                })
+            });
+            if !is_object(alternative) || !guards_ok {
+                return Some("a malformed alternative");
+            }
+            // A capture name once per alternative, as the reader requires.
+            let mut names: Vec<&str> = Vec::new();
+            let mut stack: Vec<&Json> = alternative.get("expr").into_iter().collect();
+            while let Some(expr) = stack.pop() {
+                if let Some(name) = expr.get("capture").and_then(Json::as_str) {
+                    if names.contains(&name) {
+                        return Some("a capture name used twice in one alternative");
+                    }
+                    names.push(name);
+                }
+                for key in ["seq", "choice", "and"] {
+                    if let Some(items) = expr.get(key).and_then(Json::as_array) {
+                        stack.extend(items.iter());
+                    }
+                }
+                for key in ["optional", "repeat"] {
+                    if let Some(inner) = expr.get(key) {
+                        stack.push(inner);
+                    }
+                }
+                if stack.len() > 100_000 {
+                    return Some("nested too deeply");
+                }
+            }
+            match alternative.get("expr") {
+                Some(expr) => pending.push((Kind::Expr, expr, 0)),
+                None => return Some("a malformed alternative"),
+            }
+            if let Some(tags) = alternative.get("tags") {
+                pending.push((Kind::Term, tags, 0));
+            }
+        }
+    }
+    let list = |items: Option<&Json>, least: usize, most: usize| {
+        items.and_then(Json::as_array).is_some_and(|items| items.len() >= least && items.len() <= most)
+    };
+    while let Some((kind, value, depth)) = pending.pop() {
+        if depth > DOM_MAX_DEPTH {
+            return Some("nested too deeply");
+        }
+        if !is_object(value) {
+            return Some(match kind {
+                Kind::Expr => "a malformed expression",
+                Kind::Term | Kind::Argument => "a malformed term",
+                Kind::Condition => "a malformed condition",
+                Kind::Emission => "a malformed emission",
+            });
+        }
+        let next = depth + 1;
+        match kind {
+            Kind::Expr => {
+                if has(value, "choice") || has(value, "seq") {
+                    let items = value.get("choice").or_else(|| value.get("seq"));
+                    if !list(items, 2, usize::MAX) {
+                        return Some("a malformed expression");
+                    }
+                    pending.extend(
+                        items.and_then(Json::as_array).unwrap_or(&[]).iter().map(|item| (Kind::Expr, item, next)),
+                    );
+                } else if has(value, "and") {
+                    if !list(value.get("and"), 2, crate::grammar::MAX_AND) {
+                        return Some("a malformed expression");
+                    }
+                    pending.extend(
+                        value
+                            .get("and")
+                            .and_then(Json::as_array)
+                            .unwrap_or(&[])
+                            .iter()
+                            .map(|item| (Kind::Expr, item, next)),
+                    );
+                } else if let Some(inner) = value.get("repeat") {
+                    if !matches!(value.get("min"), Some(Json::Int(0 | 1))) {
+                        return Some("a malformed expression");
+                    }
+                    pending.push((Kind::Expr, inner, next));
+                } else if let Some(inner) = value.get("optional") {
+                    pending.push((Kind::Expr, inner, next));
+                } else if has(value, "capture") {
+                    let inner = value.get("expr");
+                    let wraps_symbol = inner.is_some_and(|inner| {
+                        is_object(inner) && (is_str(inner.get("ref")) || is_str(inner.get("terminal")))
+                    });
+                    if !is_str(value.get("capture")) || !wraps_symbol {
+                        return Some("a malformed capture");
+                    }
+                } else if !(is_str(value.get("ref"))
+                    || is_str(value.get("terminal"))
+                    || is_true(value.get("hash"))
+                    || is_true(value.get("empty")))
+                {
+                    return Some("a malformed expression");
+                }
+            }
+            Kind::Emission => {
+                // Nothing alone, this only with this, a capture listed
+                // once, no tags on an inserted tag (§9).
+                if is_true(value.get("nothing")) {
+                    if value.as_object().map_or(0, <[_]>::len) != 1 {
+                        return Some("a malformed emission");
+                    }
+                    continue;
+                }
+                if !list(value.get("items"), 1, usize::MAX) {
+                    return Some("a malformed emission");
+                }
+                let items = value.get("items").and_then(Json::as_array).unwrap_or(&[]);
+                let mut this = 0;
+                let mut captures: Vec<&str> = Vec::new();
+                for item in items {
+                    if !is_object(item) {
+                        return Some("a malformed emission");
+                    }
+                    if is_true(item.get("this")) {
+                        this += 1;
+                    } else if let Some(name) = item.get("capture").and_then(Json::as_str) {
+                        if captures.contains(&name) {
+                            return Some("a malformed emission");
+                        }
+                        captures.push(name);
+                    } else if is_str(item.get("insert")) {
+                        if has(item, "tags") {
+                            return Some("a malformed emission");
+                        }
+                    } else {
+                        return Some("a malformed emission");
+                    }
+                    if let Some(tags) = item.get("tags") {
+                        pending.push((Kind::Term, tags, next));
+                    }
+                }
+                if this > 0 && this < items.len() {
+                    return Some("a malformed emission");
+                }
+            }
+            Kind::Condition => {
+                if has(value, "any") {
+                    if !list(value.get("any"), 2, usize::MAX) {
+                        return Some("a malformed condition");
+                    }
+                    pending.extend(
+                        value
+                            .get("any")
+                            .and_then(Json::as_array)
+                            .unwrap_or(&[])
+                            .iter()
+                            .map(|item| (Kind::Condition, item, next)),
+                    );
+                } else if let Some(inner) = value.get("not") {
+                    pending.push((Kind::Condition, inner, next));
+                } else if let Some(span) = value.get("matches") {
+                    if !is_str(value.get("rule")) || !is_span_json(span) {
+                        return Some("a malformed condition");
+                    }
+                    pending.push((Kind::Argument, span, next));
+                } else {
+                    if !matches!(value.get("op").and_then(Json::as_str), Some("=" | "≠" | "∈" | "∉" | "⊆")) {
+                        return Some("a malformed condition");
+                    }
+                    match (value.get("left"), value.get("right")) {
+                        (Some(left), Some(right)) => {
+                            pending.push((Kind::Term, left, next));
+                            pending.push((Kind::Term, right, next));
+                        }
+                        _ => return Some("a malformed condition"),
+                    }
+                }
+            }
+            Kind::Term | Kind::Argument => {
+                if has(value, "set") || has(value, "union") || has(value, "intersection") {
+                    let (items, least) = if has(value, "set") {
+                        (value.get("set"), 0)
+                    } else {
+                        (value.get("union").or_else(|| value.get("intersection")), 2)
+                    };
+                    if !list(items, least, usize::MAX) {
+                        return Some("a malformed term");
+                    }
+                    pending.extend(
+                        items.and_then(Json::as_array).unwrap_or(&[]).iter().map(|item| (Kind::Term, item, next)),
+                    );
+                } else if has(value, "call") {
+                    // The reader's signatures, with a span where one is due.
+                    let args = value.get("args").and_then(Json::as_array).unwrap_or(&[]);
+                    let call = value.get("call").and_then(Json::as_str);
+                    let ok = match call {
+                        Some("tags") => match args {
+                            [span] => is_span_json(span),
+                            [span, rule] => is_span_json(span) && is_rule_arg(rule),
+                            _ => false,
+                        },
+                        Some("lowercase") => matches!(args, [string] if is_string_json(string)),
+                        Some("phonemes" | "text" | "classes" | "words" | "head" | "tail" | "last") => {
+                            matches!(args, [span] if is_span_json(span))
+                        }
+                        // `matches` is a condition, never a term.
+                        _ => false,
+                    };
+                    let span_call = matches!(call, Some("head" | "tail" | "last"));
+                    if !ok || (kind != Kind::Argument && span_call) {
+                        return Some("a malformed term");
+                    }
+                    for arg in args {
+                        if !is_rule_arg(arg) {
+                            pending.push((Kind::Argument, arg, next));
+                        }
+                    }
+                } else if !(is_str(value.get("literal"))
+                    || is_str(value.get("weak"))
+                    || is_true(value.get("emptySet"))
+                    || is_str(value.get("capture")))
+                {
+                    return Some("a malformed term");
+                }
+            }
+        }
+    }
+    None
 }
 
 // ---- writing a DOM as canonical JSON

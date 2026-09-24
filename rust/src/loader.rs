@@ -7,7 +7,7 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
 use crate::dialect::{Dialect, ParseOptions};
-use crate::dom::{dom_from_json, dom_to_json, Dom, DOM_FORMAT};
+use crate::dom::{dom_from_json, dom_problem, dom_to_json, Dom, DOM_FORMAT};
 use crate::error::{Error, ErrorKind};
 use crate::grammar::stitch;
 use crate::json::{self, fnv1a64, Json};
@@ -150,9 +150,47 @@ pub(crate) fn read_document(notation: &Dialect, text: &str) -> Result<Dom, Error
     let (Some(tree), Some(stage)) = (&result.tree, result.stages.last()) else {
         return Err(Error::grammar("the notation produced no tree"));
     };
-    let position = |index: usize| grammar.position(index);
-    let reader = Reader { tokens: &stage.input, captures: Default::default(), position: &position };
-    reader.document(tree)
+    // The walk from the tree to the DOM recurses as deeply as the document
+    // nests, so it runs on a thread with room for the deepest it allows.
+    let grammar = &grammar;
+    std::thread::scope(|scope| {
+        std::thread::Builder::new()
+            .stack_size(256 << 20)
+            .spawn_scoped(scope, move || {
+                let position = |index: usize| grammar.position(index);
+                let reader = Reader { tokens: &stage.input, captures: Default::default(), position: &position };
+                let dom = reader.document(tree)?;
+                check_read(&dom)?;
+                Ok(dom)
+            })
+            .map_err(|error| Error::grammar(format!("cannot start a thread to read the document: {error}")))?
+            .join()
+            .unwrap_or_else(|panic| std::panic::resume_unwind(panic))
+    })
+}
+
+/// Holds a DOM just read to the rules a precompiled one is held to, the
+/// bound on nesting among them (engine §9), reported at the first rule
+/// that breaks one.
+fn check_read(dom: &Dom) -> Result<(), Error> {
+    let whole = json::parse(&dom_to_json(dom)).map_err(|message| Error::grammar(format!("the DOM: {message}")))?;
+    let Some(problem) = dom_problem(&whole) else {
+        return Ok(());
+    };
+    for rule in &dom.rules {
+        let single = Dom { rules: vec![rule.clone()], directives: Vec::new() };
+        let json =
+            json::parse(&dom_to_json(&single)).map_err(|message| Error::grammar(format!("the DOM: {message}")))?;
+        if let Some(problem) = dom_problem(&json) {
+            let problem = if problem == "nested too deeply" {
+                "an expression, term or condition is nested more than 256 deep"
+            } else {
+                problem
+            };
+            return Err(Error::grammar(problem).at(rule.at.0, rule.at.1));
+        }
+    }
+    Err(Error::grammar(problem))
 }
 
 /// Where a loader finds its documents.

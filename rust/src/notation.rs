@@ -5,8 +5,11 @@ use crate::error::Error;
 use crate::result::{Node, NodeKind, Token};
 
 /// How deeply constructs may nest before the reader gives up, so that a
-/// pathological document cannot exhaust the stack.
-const MAX_DEPTH: usize = 400;
+/// pathological document cannot exhaust the stack of the thread that reads
+/// it (see `loader::read_document`). A construct costs a few levels, and
+/// parentheses nest without nesting the DOM, so this is well above the 256
+/// of engine §9, which the DOM is checked against afterwards.
+const MAX_DEPTH: usize = 12_000;
 
 pub(crate) struct Reader<'a> {
     pub tokens: &'a [Token],
