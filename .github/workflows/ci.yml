@@ -84,6 +84,39 @@ jobs:
           git diff --exit-code -- types
           test -z "$(git status --porcelain -- types)" || { git status --porcelain -- types; exit 1; }
 
+  rust:
+    name: Rust ${{ matrix.rust }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The crate's minimum supported Rust version, and the newest.
+        rust: ["1.75", stable]
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # v1
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: clippy, rustfmt
+      - name: Formatting
+        run: cargo fmt --check
+      - name: Lints
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Tests
+        run: cargo test
+      - name: The crate holds everything it needs
+        run: cargo package
+      # The whole Lojban corpus, on each pull request (design, "Tests"):
+      # about a minute on a hosted runner's cores, under 2 GB.
+      - name: The whole corpus
+        if: matrix.rust == 'stable'
+        env:
+          GENCMU_CORPUS: full
+        run: cargo test --release --test corpus -- --nocapture
+
   go:
     name: Go ${{ matrix.go }}
     runs-on: ubuntu-latest
