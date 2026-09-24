@@ -212,8 +212,13 @@ function walkDifference(left, right, onlyVisible) {
         continue;
       }
       if (!("leaf" in x) && !("leaf" in y)) {
-        a.descend();
-        b.descend();
+        // Descend the larger side first, so that a subtree the two share is
+        // met at the front of both rather than walked leaf by leaf because
+        // it sits at different depths. Only a skip of both sides or a leaf
+        // from each consumes anything, so the order of descent cannot change
+        // the result.
+        if (x.size >= y.size) a.descend();
+        if (y.size >= x.size) b.descend();
         continue;
       }
       break;

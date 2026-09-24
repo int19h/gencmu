@@ -47,7 +47,7 @@ stream
 | $a(stream) $d(element) <tags($d) ∪ classes($a) ∪ ({"first-onset", "first-cy"} ∩ tags($a))>
 | $x(stream) $z(element) <tags($z) ∪ classes($x) ∪ ({"first-onset", "first-cy"} ∩ tags($x))>
 : "cy" ∉ tags($e), "cy" ∈ tags($c)
-, "continued" ∈ tags($t), "onset" ∈ tags($f), "cv" ∉ tags($t), "cvcy" ∉ tags($t)
+, "continued" ∈ tags($t), "onset" ∈ tags($f), "cv" ∉ tags($t), "cvcy" ∉ tags($t), "cy" ∉ tags($t) ∨ "cy" ∉ tags($f)
 , "cy" ∈ tags($u), "cy" ∈ tags($g)
 , "continued" ∈ tags($a), "cv" ∈ tags($a), "onset" ∈ tags($b), "y-letter" ∈ tags($b), "onset" ∈ tags($d), "y-letter" ∉ tags($d)
 , "cvcy" ∈ tags($x), "onset" ∈ tags($z), "BRIVLA" ∉ tags($z), ¬matches($z, short-final-rafsi) ;

@@ -180,7 +180,8 @@ fuhivla-without-onset
 
 fuhivla-two-syllables
 ≔ stressed-nucleus long-cluster plain-nucleus
-| stressed-diphthong consonant-pair plain-vowel ;
+| stressed-diphthong $p(consonant-pair) plain-vowel
+: ¬matches($p, initial-pair) ;
 
 long-cluster
 ≔ medial-triple | medial-quad | syllabic-cluster ;
@@ -281,7 +282,7 @@ stressed-diphthong
 ≔ plain-diphthong | /A/ /i/ | /A/ /u/ | /E/ /i/ | /O/ /i/ ;
 
 free-diphthong
-≔ /a/ /i/ | /a/ /u/ | /e/ /i/ | /o/ /i/ | /A/ /i/ | /A/ /u/ | /E/ /i/ | /O/ /i/ | /A/ /I/ | /A/ /U/ | /E/ /I/ | /O/ /I/ ;
+≔ stressed-diphthong | /A/ /I/ | /A/ /U/ | /E/ /I/ | /O/ /I/ ;
 
 any-a
 ≔ /a/ | /A/ ;

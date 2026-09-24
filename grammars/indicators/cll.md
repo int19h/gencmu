@@ -8,7 +8,9 @@ This grammar is the third stage of the CLL pipeline. It reads the words the word
 
 ```ebnf
 text
-≔ ε | [leading] item-run | [leading] item-run bahe-run | leading | leading bahe-run | bahe-run ;
+≔ ε | item-run | item-run bahe-run | leading | leading bahe-run | bahe-run
+| $l(leading) $r(item-run) | $l(leading) $r(item-run) bahe-run
+: "NAI" ∉ tags(head($r)) ∨ classes(last($l)) ∩ {"UI", "CAI"} = ∅ ;
 
 leading
 ≔ indicator-run ;
