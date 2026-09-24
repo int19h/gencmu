@@ -31,15 +31,21 @@ def _is_position(value: Any) -> bool:
     return isinstance(value, list) and len(value) == 2 and all(_is_int(x) for x in value)
 
 
+def _is_one_of(value: Any, names: set[str]) -> bool:
+    """Whether a value is one of some strings; any other value, a list or an
+    object included, is not, and raises nothing."""
+    return isinstance(value, str) and value in names
+
+
 def _is_span(value: Any) -> bool:
     """A capture, or head, tail or last of one."""
-    return isinstance(value, dict) and (isinstance(value.get("capture"), str) or value.get("call") in _SPANS)
+    return isinstance(value, dict) and (isinstance(value.get("capture"), str) or _is_one_of(value.get("call"), _SPANS))
 
 
 def _is_string(value: Any) -> bool:
     """A literal, or phonemes, text or lowercase of something."""
     return isinstance(value, dict) and (
-        isinstance(value.get("literal"), str) or value.get("call") in ("phonemes", "text", "lowercase")
+        isinstance(value.get("literal"), str) or _is_one_of(value.get("call"), {"phonemes", "text", "lowercase"})
     )
 
 
@@ -76,7 +82,7 @@ def dom_problem(dom: Any) -> str | None:
             not isinstance(rule, dict)
             or not isinstance(rule.get("name"), str)
             or not _NAME.fullmatch(rule["name"])
-            or rule.get("op") not in ("define", "extend")
+            or not _is_one_of(rule.get("op"), {"define", "extend"})
             or not _items(rule.get("alternatives"), 1)
             or not isinstance(rule.get("conditions"), list)
             or not _is_position(rule.get("at"))
@@ -97,7 +103,9 @@ def dom_problem(dom: Any) -> str | None:
                 )
             ):
                 return "a malformed alternative"
-            pending.append(("expr", alternative.get("expr"), 0))
+            # A capture stands only at the top level of an alternative: the
+            # expression itself, or an item of its sequence (engine §3.5).
+            pending.append(("top", alternative.get("expr"), 0))
             if "tags" in alternative:
                 pending.append(("term", alternative["tags"], 0))
     items: Any
@@ -107,26 +115,29 @@ def dom_problem(dom: Any) -> str | None:
         if depth > MAX_DEPTH:
             return TOO_DEEP
         if not isinstance(value, dict):
-            return f"a malformed {kind}"
+            return f"a malformed {'expression' if kind in ('top', 'item') else kind}"
         below = depth + 1
-        if kind == "expr":
+        if kind in ("expr", "top", "item"):
             if "choice" in value or "seq" in value:
                 items = value["choice"] if "choice" in value else value["seq"]
                 if not _items(items, 2):
                     return "a malformed expression"
-                pending.extend(("expr", item, below) for item in items)
+                child_kind = "item" if kind == "top" and "seq" in value else "expr"
+                pending.extend((child_kind, item, below) for item in items)
             elif "and" in value:
                 if not _items(value["and"], 2, 16):
                     return "a malformed expression"
                 pending.extend(("expr", item, below) for item in value["and"])
             elif "repeat" in value:
-                if value.get("min") not in (0, 1) or isinstance(value.get("min"), bool):
+                if not (_is_int(value.get("min")) and value["min"] in (0, 1)):
                     return "a malformed expression"
                 pending.append(("expr", value["repeat"], below))
             elif "optional" in value:
                 pending.append(("expr", value["optional"], below))
             elif "capture" in value:
                 inner = value.get("expr")
+                if kind == "expr":
+                    return "a capture below the top level of an alternative"
                 if (
                     not isinstance(value["capture"], str)
                     or not isinstance(inner, dict)
@@ -185,7 +196,7 @@ def dom_problem(dom: Any) -> str | None:
                     return "a malformed condition"
                 pending.append(("argument", value["matches"], below))
             else:
-                if value.get("op") not in _COMPARATORS:
+                if not _is_one_of(value.get("op"), _COMPARATORS):
                     return "a malformed condition"
                 pending.append(("term", value.get("left"), below))
                 pending.append(("term", value.get("right"), below))
@@ -200,7 +211,7 @@ def dom_problem(dom: Any) -> str | None:
                 # The reader's signatures (engine §9), with a span where one is due.
                 args = value.get("args") if isinstance(value.get("args"), list) else []
                 call = value["call"]
-                if not isinstance(call, str) or call not in _FUNCTIONS or call == "matches":
+                if not _is_one_of(call, _FUNCTIONS) or call == "matches":
                     ok = False
                 elif call == "tags":
                     ok = (len(args) == 1 and _is_span(args[0])) or (

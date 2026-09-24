@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import copy
 import json
+import random
 import unittest
 from typing import Any, Callable
 
@@ -92,6 +93,10 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("repetition with min 2", set_expr({"repeat": A, "min": 2})),
     ("capture of an optional", set_expr({"capture": "x", "expr": {"optional": A}})),
     ("capture of a group", set_expr({"capture": "x", "expr": {"seq": [A, A]}})),
+    ("capture inside an optional", set_expr({"seq": [{"optional": {"capture": "x", "expr": A}}, A]})),
+    ("capture inside a group", set_expr({"seq": [{"seq": [{"capture": "x", "expr": A}, A]}, A]})),
+    ("capture inside a choice", set_expr({"choice": [{"capture": "x", "expr": A}, A]})),
+    ("capture inside a repetition", set_expr({"repeat": {"capture": "x", "expr": A}, "min": 1})),
     ("unknown expression", set_expr({"star": A})),
     ("nested more than 256 deep", set_expr(nested(300))),
     ("nothing with tags", set_emit({"nothing": True, "tags": LIT})),
@@ -116,8 +121,31 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("matches of a literal", set_condition({"matches": LIT, "rule": "text"})),
     ("matches without a rule", set_condition({"matches": X})),
     ("an unknown comparator", set_condition({"op": "<", "left": LIT, "right": LIT})),
+    ("a comparator that is a list", set_condition({"op": ["="], "left": LIT, "right": LIT})),
+    ("matches of a call that is a list", set_condition({"matches": {"call": []}, "rule": "text"})),
+    ("a function that is a list", set_tags({"call": ["phonemes"], "args": [X]})),
+    ("an op that is a list", lambda dom: rule(dom).update(op=["define"])),
     ("a comparison without a side", set_condition({"op": "=", "left": LIT})),
 ]
+
+
+def scramble(value: Any, rng: random.Random) -> Any:
+    """A copy of a DOM with one value somewhere replaced by another of any
+    JSON shape."""
+    paths: list[tuple[Any, Any]] = []
+    stack = [value]
+    while stack:
+        current = stack.pop()
+        keys = range(len(current)) if isinstance(current, list) else list(current) if isinstance(current, dict) else []
+        for key in keys:
+            paths.append((current, key))
+            stack.append(current[key])
+    container, key = rng.choice(paths)
+    container[key] = rng.choice(
+        [None, True, 0, 2, -1, 1.5, "", "x", "=", "head", "matches", [], [{}], {}, {"call": []}, {"capture": 1},
+         {"call": "head", "args": [{"capture": "x"}]}, {"literal": []}, {"capture": "x", "expr": {"ref": "A"}}]
+    )
+    return value
 
 
 class PrecompiledDomRules(unittest.TestCase):
@@ -149,6 +177,27 @@ class PrecompiledDomRules(unittest.TestCase):
         set_emit({"items": [{"capture": "x"}, {"insert": "Y"}]})(changed)
         self.assertIsNone(dom_problem(changed))
         self.assertNotEqual(self.parse(changed), self.parse(None))
+
+    def test_no_shape_raises(self) -> None:
+        """Whatever the shape, the check gives an answer, never an exception."""
+        rng = random.Random(7)
+        for _ in range(3000):
+            broken = copy.deepcopy(self.dom)
+            for _ in range(rng.randint(1, 3)):
+                broken = scramble(broken, rng)
+            try:
+                dom_problem(broken)
+            except Exception as error:  # pragma: no cover - the failure itself
+                self.fail(f"{type(error).__name__} for {json.dumps(broken)[:300]}")
+
+    def test_a_broken_bootstrap_dom_is_an_error(self) -> None:
+        """In a bootstrap, where there is no document to read instead, a
+        broken DOM is a GencmuError."""
+        bootstrap = json.loads(bundled_text("notation/bootstrap.json") or "{}")
+        bootstrap["stages"][-1]["documents"][0]["dom"]["rules"][0]["conditions"] = [{"matches": {"call": []}, "rule": "text"}]
+        sources = {"p.md": PIPELINE, "g.md": DOCUMENT, "h.md": NEXT, "notation/bootstrap.json": json.dumps(bootstrap)}
+        with self.assertRaises(gencmu.GencmuError):
+            gencmu.load_dialect_sources(sources, "p.md", use_cache=False)
 
     def test_each_broken_rule_is_a_miss(self) -> None:
         fresh = self.parse(None)
