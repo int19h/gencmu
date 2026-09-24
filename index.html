@@ -3,14 +3,143 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <title>gencmu playground</title>
 <link rel="stylesheet" href="playground/style.css">
 </head>
 <body>
-<h1>gencmu</h1>
-<p id="status" data-state="loading">loading</p>
-<textarea id="input" rows="4">text ≔ A [B] ... ;</textarea>
-<pre id="output"></pre>
+<header class="masthead">
+  <div class="brand">
+    <h1>gencmu <span class="subtitle">playground</span></h1>
+    <p class="tagline">A Lojban parser whose grammars are literate documents. Type a text, change a grammar, and see what the change does.</p>
+  </div>
+  <p id="status" class="status" role="status" aria-live="polite" data-state="loading"><span class="spinner" aria-hidden="true"></span><span id="status-text">Starting the parser…</span></p>
+</header>
+
+<main class="layout">
+  <div class="input-column">
+    <section class="panel" aria-labelledby="text-heading">
+      <div class="panel-head">
+        <h2 id="text-heading"><label for="input">Text</label></h2>
+        <select id="examples" aria-label="Load an example">
+          <option value="">Examples…</option>
+        </select>
+      </div>
+      <textarea id="input" rows="4" spellcheck="false" autocapitalize="off" autocomplete="off" aria-describedby="input-hint">mi klama le zarci</textarea>
+      <p id="input-hint" class="hint">Parsed as you type, in a worker, so a long text never freezes the page.</p>
+    </section>
+
+    <section class="panel options" aria-labelledby="options-heading">
+      <h2 id="options-heading">Dialect and options</h2>
+      <div class="field">
+        <label for="dialect">Dialect</label>
+        <select id="dialect"></select>
+      </div>
+      <div class="field">
+        <span class="label" id="features-label">Features</span>
+        <div id="features" class="features" role="group" aria-labelledby="features-label"><span class="muted">loading…</span></div>
+      </div>
+      <div class="field">
+        <span class="label">Auto features</span>
+        <label class="check"><input type="checkbox" id="auto-features" checked> add <code>sa-su</code> only when the text needs it</label>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="elision">Elision-only</label>
+          <select id="elision">
+            <option value="">grammar's own</option>
+            <option value="on">on for every stage</option>
+            <option value="off">off for every stage</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="until">Run until</label>
+          <select id="until"><option value="">the last stage</option></select>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel editor" aria-labelledby="editor-heading">
+      <div class="panel-head">
+        <h2 id="editor-heading">Grammar documents</h2>
+        <button type="button" id="download-all" class="small" disabled>Download edited</button>
+      </div>
+      <p class="hint">The documents of the selected dialect, stage by stage. Edit one and the text is parsed again at once; an edited document is read with the notation grammar, which takes a few seconds for a lexicon.</p>
+      <nav id="documents" class="documents" aria-label="Documents of the dialect"></nav>
+      <div id="edited-elsewhere" class="hint" hidden></div>
+      <div id="doc-editor" class="doc-editor" hidden>
+        <div class="doc-bar">
+          <span id="doc-path" class="doc-path"></span>
+          <span id="doc-state" class="doc-state"></span>
+          <span class="spacer"></span>
+          <button type="button" id="doc-reset" class="small" disabled>Reset to bundled</button>
+          <button type="button" id="doc-download" class="small">Download</button>
+          <button type="button" id="doc-close" class="small" aria-label="Close the document">Close</button>
+        </div>
+        <div class="doc-body">
+          <pre id="gutter" class="gutter" aria-hidden="true"></pre>
+          <textarea id="doc-text" wrap="off" spellcheck="false" autocapitalize="off" autocomplete="off" aria-labelledby="doc-path" aria-describedby="doc-error"></textarea>
+        </div>
+        <div class="doc-foot">
+          <span id="doc-cursor" class="muted"></span>
+          <div id="doc-error" class="doc-error" hidden></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="result-column" id="result" aria-live="off">
+    <section class="panel" aria-labelledby="result-heading">
+      <div class="panel-head">
+        <h2 id="result-heading">Result</h2>
+        <span id="timing" class="muted"></span>
+      </div>
+      <div id="summary" class="summary"><span class="muted">Waiting for the parser…</span></div>
+      <div id="diagnostics" class="diagnostics"></div>
+    </section>
+
+    <section class="panel output-panel" aria-label="Output">
+      <div class="tabs" role="tablist" aria-label="Output">
+        <button type="button" role="tab" id="tab-brackets" data-tab="brackets" aria-controls="output-panel">Brackets</button>
+        <button type="button" role="tab" id="tab-tree" data-tab="tree" aria-controls="output-panel">Tree</button>
+        <button type="button" role="tab" id="tab-json" data-tab="json" aria-controls="output-panel">JSON</button>
+        <button type="button" role="tab" id="tab-canonical" data-tab="canonical" aria-controls="output-panel">Canonical JSON</button>
+        <button type="button" role="tab" id="tab-tokens" data-tab="tokens" aria-controls="output-panel">Tokens</button>
+        <button type="button" role="tab" id="tab-trace" data-tab="trace" aria-controls="output-panel">Trace</button>
+        <button type="button" role="tab" id="tab-audit" data-tab="audit" aria-controls="output-panel">Audit</button>
+      </div>
+      <div id="output-panel" role="tabpanel" tabindex="-1">
+        <div id="tab-controls" class="tab-controls">
+          <div data-for="brackets"><label class="check"><input type="checkbox" id="show-elided"> show elided terminators, as <code>⟨ku⟩</code></label></div>
+          <div data-for="tree"><span class="hint">One node per line; a chain of single-child rules on one line, joined by ›.</span></div>
+          <div data-for="json"><span class="hint">The display JSON: each rule an object holding its children.</span></div>
+          <div data-for="canonical"><label class="check"><input type="checkbox" id="pretty-json" checked> pretty-printed (unchecked: exactly as <code>toJson</code> writes it)</label></div>
+          <div data-for="tokens"><div id="token-stages" class="segmented" role="radiogroup" aria-label="Stage"></div></div>
+          <div data-for="trace" class="trace-controls">
+            <div class="field-row">
+              <div class="field"><label for="trace-stage">Stage</label><select id="trace-stage"></select></div>
+              <div class="field"><label for="trace-position">Position</label>
+                <span class="stepper"><button type="button" id="trace-back" class="small" aria-label="Previous position">◀</button><input type="number" id="trace-position" min="0" value="0" inputmode="numeric"><button type="button" id="trace-next" class="small" aria-label="Next position">▶</button></span>
+              </div>
+            </div>
+            <div id="trace-picker" class="picker" aria-label="Positions in the stage's input"></div>
+            <p class="hint">What the stage's recognizer predicted, advanced, completed and dropped between two tokens of its input, and which condition dropped what.</p>
+          </div>
+          <div data-for="audit"><span class="hint">Unreachable rules, rules a later document replaced or extended, and conditions that never apply, stage by stage.</span></div>
+        </div>
+        <div id="output" class="output"></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer class="footer">
+  <a href="docs/notation.md">The notation</a> ·
+  <a href="docs/design.md">Design</a> ·
+  <a href="grammars/dialects/cll.md">The CLL dialect</a> ·
+  <span id="version"></span>
+</footer>
+
 <script src="dist/gencmu.js"></script>
 <script src="dist/grammars.js"></script>
 <script src="playground/worker.js"></script>
