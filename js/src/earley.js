@@ -68,8 +68,25 @@ export class ParseContext {
     this.nested = new Map();
     /** @type {Set<string>} */
     this.inProgress = new Set();
+    /**
+     * When set, the recognizer records what happens at one position of the
+     * top-level parse, for diagnostics (see diagnostics.js, trace).
+     * @type {{position: number, events: TraceEvent[], depth: number} | null}
+     */
+    this.trace = null;
   }
 }
+
+/**
+ * Something the recognizer did at the traced position: an item predicted,
+ * advanced or completed there, or an advance that a condition refused.
+ * @typedef {object} TraceEvent
+ * @property {"predicted" | "advanced" | "completed" | "dropped"} kind
+ * @property {Production} production
+ * @property {number} dot the dot of the item made, or of the item refused
+ * @property {number} origin
+ * @property {Condition} [condition] for a drop, the condition that failed
+ */
 
 // A chart item: a production with a dot, its origin, and its captured
 // parts; `end` is the position of the set that holds it.
@@ -141,6 +158,11 @@ export function recognize(context, rule, start, end) {
     }
     item = new Item(production, dot, origin, slots, key);
     item.end = set.position;
+    const trace = context.trace;
+    if (trace && trace.depth === 0 && set.position === trace.position) {
+      const kind = dot === production.rhs.length ? "completed" : dot === 0 ? "predicted" : "advanced";
+      trace.events.push({ kind, production, dot, origin });
+    }
     item.tagId = tagId;
     item.edges.push(edge);
     set.items.push(item);
@@ -163,7 +185,14 @@ export function recognize(context, rule, start, end) {
   const predict = (set, name) => {
     for (const production of lowered.byLhs.get(name) || []) {
       const slots = emptySlots(production);
-      if (!conditionsHold(context, production, -1, slots)) continue;
+      const failed = failedCondition(context, production, -1, slots);
+      if (failed) {
+        const trace = context.trace;
+        if (trace && trace.depth === 0 && set.position === trace.position) {
+          trace.events.push({ kind: "dropped", production, dot: 0, origin: set.position, condition: failed });
+        }
+        continue;
+      }
       const tagId = production.rhs.length === 0 ? completeTags(context, production, slots) : -1;
       add(set, production, 0, set.position, slots, SEED, tagId);
     }
@@ -181,7 +210,14 @@ export function recognize(context, rule, start, end) {
       const tags = child ? child.tagId : context.interner.intern(tokens[from].tags);
       slots[captureIndex] = [from, to, tags];
     }
-    if (!conditionsHold(context, production, item.dot, slots)) return null;
+    const failed = failedCondition(context, production, item.dot, slots);
+    if (failed) {
+      const trace = context.trace;
+      if (trace && trace.depth === 0 && to === trace.position) {
+        trace.events.push({ kind: "dropped", production, dot: item.dot, origin: item.origin, condition: failed });
+      }
+      return null;
+    }
     const dot = item.dot + 1;
     const tagId = dot === production.rhs.length ? completeTags(context, production, slots) : -1;
     return { dot, slots, tagId };
@@ -273,19 +309,21 @@ export function rootItems(chart, rule) {
 }
 
 /**
+ * The first condition of a production that is ready at `readyAt` and fails,
+ * or null when they all hold.
  * @param {ParseContext} context
  * @param {Production} production
  * @param {number} readyAt
  * @param {Slot[]} slots
- * @returns {boolean}
+ * @returns {Condition | null}
  */
-function conditionsHold(context, production, readyAt, slots) {
+function failedCondition(context, production, readyAt, slots) {
   for (const { condition, readyAt: at } of production.conditions) {
     if (at !== readyAt) continue;
     const scope = new ChartScope(context, production, slots);
-    if (!holds(context, condition, scope)) return false;
+    if (!holds(context, condition, scope)) return condition;
   }
-  return true;
+  return null;
 }
 
 /**
@@ -553,6 +591,7 @@ function nested(context, kind, rule, start, end, compute) {
       `the grammar defines ${rule} by its own negation over the same text`, { rule });
   }
   context.inProgress.add(circular);
+  if (context.trace) context.trace.depth++;
   try {
     const chart = recognize(context, rule, start, end);
     const answer = compute(chart);
@@ -560,6 +599,7 @@ function nested(context, kind, rule, start, end, compute) {
     return answer;
   } finally {
     context.inProgress.delete(circular);
+    if (context.trace) context.trace.depth--;
   }
 }
 

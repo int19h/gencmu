@@ -48,6 +48,16 @@ export declare class ParseContext {
     /** @type {Set<string>} */
     inProgress: Set<string>;
     /**
+     * When set, the recognizer records what happens at one position of the
+     * top-level parse, for diagnostics (see diagnostics.js, trace).
+     * @type {{position: number, events: TraceEvent[], depth: number} | null}
+     */
+    trace: {
+        position: number;
+        events: TraceEvent[];
+        depth: number;
+    } | null;
+    /**
      * @param {LoweredGrammar} lowered
      * @param {Token[]} tokens
      * @param {string[]} sourceText the text's code points
@@ -55,6 +65,29 @@ export declare class ParseContext {
      */
     constructor(lowered: LoweredGrammar, tokens: Token[], sourceText: string[], unicode: UnicodeTable);
 }
+export type TraceEvent = {
+    kind: "predicted" | "advanced" | "completed" | "dropped";
+    production: Production;
+    /**
+     * the dot of the item made, or of the item refused
+     */
+    dot: number;
+    origin: number;
+    /**
+     * for a drop, the condition that failed
+     */
+    condition?: Condition;
+};
+/**
+ * Something the recognizer did at the traced position: an item predicted,
+ * advanced or completed there, or an advance that a condition refused.
+ * @typedef {object} TraceEvent
+ * @property {"predicted" | "advanced" | "completed" | "dropped"} kind
+ * @property {Production} production
+ * @property {number} dot the dot of the item made, or of the item refused
+ * @property {number} origin
+ * @property {Condition} [condition] for a drop, the condition that failed
+ */
 export declare class Item {
     production: Production;
     dot: number;
