@@ -289,11 +289,17 @@ class DomBuilder:
 
     def _condition(self, node: Node) -> Walk:
         if node.rule in ("any-of", "all-of"):
+            key = "any" if node.rule == "any-of" else "all"
             parts: list[Dom] = []
             for kid in self.kids(node):
                 if kid.kind == "rule":
-                    parts.append((yield self._condition(kid)))
-            key = "any" if node.rule == "any-of" else "all"
+                    part = yield self._condition(kid)
+                    # Parentheses make no node: a group of the same
+                    # connective is folded into this one (engine §9).
+                    if key in part:
+                        parts.extend(part[key])
+                    else:
+                        parts.append(part)
             return parts[0] if len(parts) == 1 else {key: parts}
         return (yield self._simple_condition(node))
 
