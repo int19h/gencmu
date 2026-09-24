@@ -64,7 +64,9 @@ if (!isMainThread) {
     const failures = [];
     const workers = Math.max(1, Math.min(queue.length, Number(process.env.GENCMU_CORPUS_WORKERS) || os.availableParallelism() - 1 || 1));
     await Promise.all(Array.from({ length: workers }, () => new Promise((resolve, reject) => {
-      const worker = new Worker(fileURLToPath(import.meta.url));
+      // A chapter of a book takes a few gigabytes to parse, more than a
+      // worker's default heap.
+      const worker = new Worker(fileURLToPath(import.meta.url), { resourceLimits: { maxOldGenerationSizeMb: 6144 } });
       const feed = () => {
         const next = queue.pop();
         if (next) worker.postMessage(next);
