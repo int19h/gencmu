@@ -1,0 +1,10 @@
+{
+  "description": "A capture stands at the top level of an alternative, not inside [ ], ( ), ..., & or a choice (engine §3.5); the error is at the capture.",
+  "document": "```ebnf\na ≔ [$x(A)] B ;\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 6
+    }
+  }
+}
