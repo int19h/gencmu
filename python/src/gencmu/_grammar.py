@@ -222,6 +222,17 @@ class Lowered:
     rule_productions: list[list[int]]
     rule_display: list[str]
     lean: str
+    by_first_terminal: list[dict[str, list[int]]] = field(default_factory=list)
+    not_terminal_first: list[list[int]] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        self.by_first_terminal = [{} for _ in self.rule_names]
+        self.not_terminal_first = [[] for _ in self.rule_names]
+        for production in self.productions:
+            if production.rhs and production.terminal[0]:
+                self.by_first_terminal[production.lhs].setdefault(production.rhs[0], []).append(production.id)  # type: ignore[arg-type]
+            else:
+                self.not_terminal_first[production.lhs].append(production.id)
 
 
 # A symbol of an expansion: ("t", tag) or ("n", rule id), and its capture.

@@ -32,8 +32,19 @@ def _bundled_root() -> Any:
     return resources.files("gencmu").joinpath("grammars")
 
 
+_bundled: dict[str, str | None] = {}
+
+
 def bundled_text(path: str) -> str | None:
     """A file of the bundled grammars, by its ``/``-separated path."""
+    if path in _bundled:
+        return _bundled[path]
+    text = _read_bundled(path)
+    _bundled[path] = text
+    return text
+
+
+def _read_bundled(path: str) -> str | None:
     node = _bundled_root()
     for part in path.split("/"):
         if part in ("", ".", ".."):
@@ -46,20 +57,21 @@ def bundled_text(path: str) -> str | None:
 
 
 _lock = threading.Lock()
+# Keyed by the texts themselves: a string caches its own hash, so a text
+# read once is found again at no cost.
 _unicode_tables: dict[str, UnicodeTable] = {}
 _readers: dict[tuple[str, str], NotationReader] = {}
-_compiled_indexes: dict[str, dict[str, Dom]] = {}
+_compiled_indexes: dict[tuple[str, str], dict[str, Dom]] = {}
 _dom_cache: dict[tuple[str, str, int], Dom] = {}
 
 
 def _unicode_table(text: str) -> UnicodeTable:
-    key = fnv1a64(text)
     with _lock:
-        table = _unicode_tables.get(key)
+        table = _unicode_tables.get(text)
     if table is None:
         table = UnicodeTable(text)
         with _lock:
-            _unicode_tables[key] = table
+            _unicode_tables[text] = table
     return table
 
 
@@ -121,7 +133,7 @@ class NotationReader:
 
 
 def _reader(bootstrap: str, unicode_text: str) -> NotationReader:
-    key = (fnv1a64(bootstrap), fnv1a64(unicode_text))
+    key = (bootstrap, unicode_text)
     with _lock:
         reader = _readers.get(key)
     if reader is None:
@@ -135,7 +147,7 @@ def _compiled_index(compiled: str | None, bootstrap_hash: str) -> dict[str, Dom]
     """The precompiled DOMs usable with this bootstrap, by text hash."""
     if not compiled:
         return {}
-    key = fnv1a64(compiled) + bootstrap_hash
+    key = (compiled, bootstrap_hash)
     with _lock:
         found = _compiled_indexes.get(key)
     if found is not None:

@@ -312,15 +312,31 @@ class Parser:
                         return
             add(production.id, position + 1, origin[item], captured, at, edge)
 
+        # A production whose first symbol is a terminal the next token lacks
+        # is not predicted, since its item could never advance; a rejection
+        # at that position lists the terminals it expected all the same.
+        by_first = lowered.by_first_terminal
+        not_terminal_first = lowered.not_terminal_first
+
+        def allowed(production: Production) -> bool:
+            return not production.conds_predict or all(evaluator.condition(c, {}) for c in production.conds_predict)
+
+        def predict(rule: int, j: int) -> None:
+            for number in not_terminal_first[rule]:
+                if allowed(productions[number]):
+                    add(number, 0, j, (), j, SEED)
+            if j < n:
+                table = by_first[rule]
+                if table:
+                    for tag in tokens[j].tags:
+                        for number in table.get(tag, ()):
+                            if allowed(productions[number]):
+                                add(number, 0, j, (), j, SEED)
+
         current = [0]
         following: list[int] = []
-        # Predict the start rule.
         predicted[0].add(start_rule)
-        for number in rule_productions[start_rule]:
-            production = productions[number]
-            if production.conds_predict and not all(evaluator.condition(c, {}) for c in production.conds_predict):
-                continue
-            add(number, 0, 0, (), 0, SEED)
+        predict(start_rule, 0)
         furthest = 0
         for j in range(n + 1):
             current[0] = j
@@ -329,8 +345,7 @@ class Parser:
                 following = []
             if not agenda and not sets[j]:
                 break
-            if sets[j]:
-                furthest = j
+            furthest = j
             while agenda:
                 item = agenda.pop()
                 production = productions[prod[item]]
@@ -344,13 +359,7 @@ class Parser:
                     waiting[j].setdefault(rule, []).append(item)  # type: ignore[arg-type]
                     if rule not in predicted[j]:
                         predicted[j].add(rule)  # type: ignore[arg-type]
-                        for number in rule_productions[rule]:  # type: ignore[index]
-                            candidate = productions[number]
-                            if candidate.conds_predict and not all(
-                                evaluator.condition(c, {}) for c in candidate.conds_predict
-                            ):
-                                continue
-                            add(number, 0, j, (), j, SEED)
+                        predict(rule, j)  # type: ignore[arg-type]
                     for child in empty_done[j].get(rule, ()):  # type: ignore[arg-type]
                         advance(item, (j, j, tag[child]), j, (item, 2, child, 0))
                     continue
@@ -383,6 +392,14 @@ class Parser:
             if origin[item] == 0 and productions[prod[item]].lhs == start_rule and dot[item] == len(productions[prod[item]].rhs)
         ]
         expected: dict[str, set[str]] = {}
+        here = tokens[furthest].tags if furthest < n else {}
+        for rule in predicted[furthest]:
+            for terminal, numbers in by_first[rule].items():
+                if terminal in here:
+                    continue
+                for number in numbers:
+                    if allowed(productions[number]):
+                        expected.setdefault(terminal, set()).add(productions[number].rule_name)
         for terminal, waiters in scanning[furthest].items():
             expected.setdefault(terminal, set()).update(productions[prod[waiter]].rule_name for waiter in waiters)  # type: ignore[index]
         return Forest(tokens, lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected)
