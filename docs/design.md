@@ -77,7 +77,7 @@ The four libraries implement one specification, `docs/engine.md`, written
 first and precisely enough that two implementations cannot legitimately
 differ. It covers:
 
-1. **Reading documents.** The fenced `ebnf` blocks of a Markdown document,
+1. **Reading documents.** The fenced `jbogenbau` blocks of a Markdown document,
    read by the notation's own grammar (see "The notation" below) into a
    grammar DOM; pipeline documents, read as described under "Pipelines";
    stitching several documents into one grammar. Errors carry file, line
@@ -117,7 +117,7 @@ specification by accident:
   grammar author fix it. The engine cases include a three-way tie and a tie
   whose derivations emit the same tokens.
 - **Empty spans and cycles.** Nullable rules, empty captures, a condition on
-  an empty span, a unary cycle `a ≔ b`, `b ≔ a`, and a nested parse asked
+  an empty span, a unary cycle of `a` to `b` and `b` to `a`, and a nested parse asked
   about its own span, each with its defined outcome.
 
 **Coordinates.** Every position in a result is a half-open range. Source
@@ -137,91 +137,47 @@ explains any token down to the characters or to the rule that made it.
 
 ## The notation
 
-The notation keeps the look of CLL's EBNF and changes what the prototype
-showed to be fragile or ambiguous. `docs/notation.md` explains it for grammar
-authors; this is the summary.
+gencmu's grammars are written in jbogenbau, a notation of its own. `docs/notation.md` explains it for grammar authors; this is the summary and the reasons.
 
-**Documents.** A grammar document is Markdown. Its fenced `ebnf` blocks, in
-order, are the grammar; the prose between them explains it. Only the fences
-are found by lines, as Markdown requires; inside a block, line breaks mean
-nothing.
+**What it is.** A jbogenbau grammar is an attribute grammar with EBNF rule bodies: each rule's body is EBNF in the dialect CLL prints, each constituent carries one attribute, its set of tags, computed bottom-up from its parts; conditions over the parts, including whether a part also parses as another rule, restrict which parses exist, as in a Boolean grammar; and a rule may say what its constituents hand to the next stage, so that each grammar is a transducer and a dialect a pipeline of them. The bodies keep the look of CLL's EBNF, since that is what a reader of CLL recognizes; everything around them is spelled with keywords, since symbols there proved opaque.
 
-**Rules.** A rule is a name, an optional tag term, `≔` or `|≔`, a body, its
-clauses, and `;`:
+**Documents.** A grammar document is Markdown. Its fenced `jbogenbau` blocks, in order, are the grammar; the prose between them explains it. Only the fences are found by lines, as Markdown requires; inside a block, line breaks and indentation mean nothing.
 
+**Rules.** A rule is a keyword, its name and its body, followed by its clauses, each a keyword and what it says; a rule ends where the next keyword that begins a rule or a directive stands, so no terminator is needed and nothing is recognized by its position on a line:
+
+```jbogenbau
+%rule term-not-starting-with-bare-gek
+  | term-3-not-starting-with-bare-gek [term-connective term-3] ...
+  | tagged-term (joik # | ek #) BO # tagged-term
+  | @term-hierarchy term-3-not-starting-with-bare-gek (joik # | ek #) BO # term-3
+
+%rule vowel-group-joined
+  $g(vowel-group) $v(vowel) <tags($v)>
+%conditions
+  "syllabic" ∈ tags($g),
+  "syllabic" ∈ tags($v)
+%emits
+  $g, /'/, $v
 ```
-term-not-starting-with-bare-gek ≔
-| term-3-not-starting-with-bare-gek [term-connective term-3] ...
-| tagged-term (joik # | ek #) BO # tagged-term
-| @term-hierarchy term-3-not-starting-with-bare-gek (joik # | ek #) BO # term-3
-;
 
-cmavo-shape <"word"> ≔ plain-cmavo-body | cmavo-nuclei word-end ;
-```
+Every binary operator may also stand first, as a no-op, so that a list can put one item on each line: `|` and `&` in bodies, `∪` and `∩` in tag terms, `∧` and `∨` in conditions.
 
-The `;` is required, so a rule's end never depends on layout, and a missing
-one is an error at a known place. Every binary operator may also stand
-first, as a no-op, so that a list can put one item on each line: `|` and `&`
-in bodies, `∪` and `∩` in tag terms, `∧` and `∨` in conditions. Tags
-written on the rule's name apply to every alternative that has none of its
-own; tags after an alternative apply to it. Nothing is recognized by its
-position on a line.
+**Stitching.** A stage is several documents read in order. `%rule` defines a rule and is an error if one of that name exists; `%redefine-rule` replaces a rule an earlier document defined and is an error if none did; `%extend-rule` adds alternatives to a rule defined before it and is an error if none was. So neither a misspelt name nor an accidental override passes silently, and a replacement says so where it is made. The loader also reports every replacement and extension, which document changed which rule, so a dialect's effect on its base can be read off in one place. Removing a single alternative is not supported: a rule is small enough to restate, and restating it reads better than a list of deletions.
 
-**Stitching.** A stage is several documents read in order. `≔` defines a
-rule and, if an earlier document defined it, replaces it: the earlier
-alternatives are gone. `|≔` adds alternatives to a rule an earlier document
-defined, and is an error if none did, so a misspelt name cannot quietly
-start a new rule. Defining a rule twice in one document is an error. The
-loader reports every replacement, which document replaced which, so a
-dialect's effect on its base can be read off in one place and an accidental
-override is visible. Removing a single alternative is not supported: a rule
-is small enough to restate, and restating it reads better than a list of
-deletions.
+This is what the dialects need. A script document adds its letters to the phoneme grammar's rules with `%extend-rule`; a word family adds the syllables its morphology allows. The Zantufa syntax is the experimental syntax with 13 new rules, 9 extended and 17 redefined, where a Zantufa form generalizes an older one over the same text and the two must not both be live; the redefinition restates the rule with both forms under complementary feature guards. The Zantufa dialect is the experimental documents plus one Zantufa document of those changes, instead of a generated copy.
 
-This is what the dialects need. A script document adds its letters to the
-phoneme grammar's rules with `|≔`; a word family adds the syllables its
-morphology allows. The Zantufa syntax is the experimental syntax with 13 new
-rules, 9 extended and 17 replaced, where a Zantufa form generalizes an older
-one over the same text and the two must not both be live; the replacement
-restates the rule with both forms under complementary feature guards. The
-Zantufa dialect becomes the experimental documents plus one Zantufa document
-of those changes, instead of a generated copy.
+**Terminals.** A name in upper case is a terminal that matches a token carrying that tag. A string in straight quotes, `"а"`, `"word"`, is a terminal whose tag the name syntax cannot spell. A phoneme between slashes, `/a/`, `/'/`, `/./` for a pause, is a phoneme tag: it matches like any tag, and it also says what a token carrying it sounds like, which is what `phonemes()` reads. Slashes mean nothing else.
 
-**Terminals.** A name in upper case is a terminal that matches a token
-carrying that tag. A string in straight quotes, `"а"`, `"word"`, is a
-terminal whose tag the name syntax cannot spell. A phoneme between slashes,
-`/a/`, `/'/`, `/./` for a pause, is a phoneme tag: it matches like any tag,
-and it also says what a token carrying it sounds like, which is what
-`phonemes()` reads. Slashes mean nothing else.
+**Operators** are those of CLL: juxtaposition is sequence; `[x]` optional; `x ...` one or more, `[x] ...` zero or more, left-recursive; `A & B` and/or in order; `( )` grouping; `ε` empty; `@f` and `@¬f` feature guards on an alternative; `$x(symbol)` a capture, and `$` the whole constituent. `#` is not built in: it is a rule the grammar defines as `[free ...]`, as CLL's EBNF defines it, so the free modifiers of one slot are one node of the tree. CLL's `/KU/` for an elidable terminator is written `[KU]`, and `/KU#/` is `[KU #]`; which terminators are elidable is declared once (see below). `[KU #]` is exactly what CLL prints: an elided terminator takes its free-modifier slot with it, so `xy. xi ky.` (CLL 17.38) needs `xy. boi xi ky.` under the printed grammar, which is what CLL's official parser does and what the prototype's corpus scans confirm. The grammars that allow free modifiers after an elided terminator, as the camxes family does, write `[KU] #`.
 
-**Operators** are those of CLL: juxtaposition is sequence; `[x]` optional;
-`x ...` one or more, `[x] ...` zero or more, left-recursive; `A & B` and/or
-in order; `( )` grouping; `ε` empty; `@f` and `@¬f` feature guards on an
-alternative; `$x(symbol)` a capture, and `$` the whole constituent. `#` is not built in: it is a rule the grammar defines, `# ≔ [free ...] ;`, as CLL's EBNF defines it, so the free modifiers of one slot are one node of the tree. CLL's `/KU/` for an
-elidable terminator is written `[KU]`, and `/KU#/` is `[KU #]`; which
-terminators are elidable is declared once (see below). `[KU #]` is exactly
-what CLL prints: an elided terminator takes its free-modifier slot with it,
-so `xy. xi ky.` (CLL 17.38) needs `xy. boi xi ky.` under the printed
-grammar, which is what CLL's official parser does and what the prototype's
-corpus scans confirm. The grammars that allow free modifiers after an
-elided terminator, as the camxes family does, write `[KU] #`. The conversion
-keeps each grammar's reading, and the corpus, converted before the grammars,
-catches any slip.
+**Clauses.** `%tags` gives the tags every alternative's constituent carries, which an alternative's own tags after it in angle brackets add to. `%conditions` lists conditions over the captured parts, each of which applies to the alternatives that capture what it mentions and is checked as early as it can be; within one, `∧`, `∨` and `⟹` are logic, in that order of precedence, grouped with parentheses. `%emits` lists exactly what the constituent hands to the next stage, in order, each capture with its own tags, or silent with `<>`. A clause that refers to a capture some alternative lacks is decided when the grammar is read: a condition or an emitted item then does not apply to that alternative, and a tag term is an error unless guarded, `($c ⟹ tags($c, lexicon))`, since a tag term has no value that could mean "nothing to say". A clause that applies to no alternative, or a capture no alternative captures, is an error. A weak tag is `?"KOhA"`. There is one notation for a set of tags, the union: `"UI" ∪ "CAI"`.
 
-**Clauses.** `⇒` says what the rule hands to the next stage, as a list of captures, each with its own tags or erased with `<>`; `:` states conditions over captures, joined by `∧` and `∨` in the usual precedence and grouped with parentheses. A weak tag is `?"KOhA"`. There is one notation for a set of tags, the union: `"UI" ∪ "CAI"`.
+**Directives** are keywords too, and may stand in any block:
 
-**Directives** start with `%`, end with `;`, and may stand in any block:
+- `%ambiguity-resolution greedy`, `lazy`, optionally followed by `elision-only`: how the stage chooses among parses (see "Ambiguity"). Every stage must have exactly one, in any of its documents; a stage with none or two is a load error that names the stage.
+- `%elidable KU KEI VAU ...`: the terminators that may be elided. An absent optional whose first symbol is one of them appears in the tree as that terminator, elided at that point, and `elision-only` restores them.
 
-- `%ambiguity-resolution greedy ;`, `lazy`, optionally followed by
-  `elision-only`: how the stage chooses among parses (see "Ambiguity").
-  Every stage must have exactly one, in any of its documents; a stage with
-  none or two is a load error that names the stage.
-- `%elidable KU KEI VAU ... ;`: the terminators that may be elided. An absent
-  optional whose first symbol is one of them appears in the tree as that
-  terminator, elided at that point, and `elision-only` restores them.
-
-By convention a directive stands in a block of its own, after prose that
-says why the grammar needs it; the reader does not enforce the convention.
+By convention a directive stands in a block of its own, after prose that says why the grammar needs it; the reader does not enforce the convention.
 
 **Self-hosting.** The notation is itself a dialect of two stages: a lexical
 grammar from characters to notation tokens, and a syntax grammar from those
@@ -285,7 +241,7 @@ is not a Markdown parser, and accepts one form of link only, so that four
 implementations agree: `[` text `](` target `)`, where the target has no
 spaces, parentheses or backslashes; a `<?grammar?>` line without such a link
 is an error. Stages run in document order, documents stitch in
-list order, and since `≔` replaces, that order matters. A link without a
+list order, and since a later document may redefine or extend a rule, that order matters. A link without a
 marker is ordinary prose: a pipeline may link to CLL or to other dialects
 freely. Every stage's start rule is `text`.
 
