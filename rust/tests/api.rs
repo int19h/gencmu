@@ -335,3 +335,69 @@ fn a_long_name_through_the_notation_does_not_overflow() {
         assert_eq!(result.stages[0].output.as_ref().unwrap()[0].text.len(), 150);
     });
 }
+
+#[test]
+fn an_and_of_more_than_sixteen_items_is_an_error() {
+    let items: Vec<String> = (0..17).map(|index| format!("A{index}")).collect();
+    let rules = format!("%ambiguity-resolution greedy ;\ntext ≔ B {} ;", items.join(" & "));
+    let error = gencmu::load_dialect_sources(single(&rules), "p.md").expect_err("an & of 17 items");
+    assert_eq!(error.kind, ErrorKind::Grammar);
+    assert_eq!((error.document.as_deref(), error.line, error.column), (Some("g.md"), Some(5), Some(8)), "{error}");
+    let sixteen = format!("%ambiguity-resolution greedy ;\ntext ≔ {} ;", items[..16].join(" & "));
+    assert!(gencmu::load_dialect_sources(single(&sixteen), "p.md").is_ok());
+
+    // A DOM from the cache is checked too, rather than trusted.
+    let mut sources = single("%ambiguity-resolution greedy ;\ntext ≔ A ;");
+    let refs: Vec<String> = (0..64).map(|index| format!("{{\"ref\":\"A{index}\"}}")).collect();
+    let dom = format!(
+        "{{\"format\":1,\"rules\":[{{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{{\"guards\":[],\"expr\":{{\"and\":[{}]}}}}],\"conditions\":[],\"at\":[4,1]}}],\"directives\":[{{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[3,1]}}]}}",
+        refs.join(",")
+    );
+    let compiled = format!(
+        "{{\"format\":1,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
+        gencmu::tools::bootstrap_hash(),
+        gencmu::tools::fnv1a64(&sources["g.md"])
+    );
+    sources.insert("compiled.json".to_string(), compiled);
+    let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("an & of 64 items from the cache");
+    assert_eq!(error.kind, ErrorKind::Grammar);
+}
+
+#[test]
+fn a_corrupt_cache_is_a_miss_not_an_abort() {
+    small_stack(|| {
+        let text = "%ambiguity-resolution greedy ;\ntext ≔ \"a\" ;";
+        let hash = gencmu::tools::fnv1a64(&grammar(text));
+        let deep_dom = format!("{}{{\"empty\":true}}{}", "{\"optional\":".repeat(10_000), "}".repeat(10_000));
+        for compiled in [
+            format!("{}{}", "[".repeat(10_000), "]".repeat(10_000)),
+            format!(
+                "{{\"format\":1,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{deep_dom}}}}}}}",
+                gencmu::tools::bootstrap_hash()
+            ),
+            format!(
+                "{{\"format\":1,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{{\"rules\":7}}}}}}}}",
+                gencmu::tools::bootstrap_hash()
+            ),
+            "not JSON".to_string(),
+        ] {
+            let mut sources = single(text);
+            sources.insert("compiled.json".to_string(), compiled);
+            let dialect = gencmu::load_dialect_sources(sources, "p.md").expect("read through the notation instead");
+            assert!(dialect.parse("a", &no_auto()).unwrap().ok);
+        }
+    });
+}
+
+#[test]
+fn relative_paths_keep_their_leading_parents() {
+    // From the crate's directory, up two levels and down again into this
+    // checkout: the grammar links must resolve beside the pipeline.
+    let crate_directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let checkout = crate_directory.parent().and_then(|parent| parent.file_name()).expect("a checkout directory");
+    let relative = std::path::Path::new("../..").join(checkout).join("rust/grammars/dialects/notation.md");
+    std::env::set_current_dir(crate_directory).unwrap();
+    let dialect =
+        gencmu::load_dialect_file(&relative).unwrap_or_else(|error| panic!("{}: {error}", relative.display()));
+    assert!(dialect.parse("a ≔ B ;", &ParseOptions::default()).unwrap().ok);
+}

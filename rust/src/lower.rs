@@ -223,7 +223,9 @@ impl<'a> Lowerer<'a> {
             Expr::And(items) => {
                 let expanded: Vec<Vec<Sequence>> = items.iter().map(|item| self.expand(item)).collect();
                 let mut out = Vec::new();
-                for mask in 1u64..(1u64 << items.len()) {
+                // At most MAX_AND items (§3.2), which stitching checks.
+                debug_assert!(items.len() <= crate::grammar::MAX_AND);
+                for mask in 1u64..(1u64 << items.len().min(crate::grammar::MAX_AND)) {
                     let mut chosen = vec![Vec::new()];
                     for (bit, options) in expanded.iter().enumerate() {
                         if mask & (1 << bit) != 0 {

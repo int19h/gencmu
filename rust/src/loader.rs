@@ -34,7 +34,11 @@ struct Compiled {
 
 impl Compiled {
     fn parse(text: &str, bootstrap_hash: &str) -> Result<Compiled, Error> {
-        let value = json::parse(text).map_err(|message| Error::grammar(format!("compiled.json: {message}")))?;
+        // A cache that does not parse, corrupt or malicious, is no cache:
+        // every document is read through the notation instead.
+        let Ok(value) = json::parse(text) else {
+            return Ok(Compiled::default());
+        };
         let mut compiled = Compiled::default();
         let usable = value.get("format").and_then(Json::as_int) == Some(DOM_FORMAT)
             && value.get("bootstrap").and_then(Json::as_str) == Some(bootstrap_hash);
@@ -176,18 +180,27 @@ impl Sources for MapSources {
 
 struct DiskSources;
 
+/// Normalizes `.` and `..` lexically, keeping the `..` that lead out of a
+/// relative path's start: `../../a/b/../c` is `../../a/c`.
 fn normalize(path: &Path) -> PathBuf {
-    let mut out = PathBuf::new();
+    let mut parts: Vec<Component> = Vec::new();
     for component in path.components() {
         match component {
             Component::CurDir => {}
-            Component::ParentDir => {
-                if !out.pop() {
-                    out.push("..");
+            Component::ParentDir => match parts.last() {
+                Some(Component::Normal(_)) => {
+                    parts.pop();
                 }
-            }
-            other => out.push(other.as_os_str()),
+                // Above the root is the root.
+                Some(Component::RootDir | Component::Prefix(_)) => {}
+                _ => parts.push(Component::ParentDir),
+            },
+            other => parts.push(other),
         }
+    }
+    let mut out = PathBuf::new();
+    for part in parts {
+        out.push(part.as_os_str());
     }
     out
 }
@@ -286,4 +299,22 @@ pub fn read_grammar_document(text: &str) -> Result<String, Error> {
 /// The FNV-1a hash of the bundled `notation/bootstrap.json` (engine §8).
 pub fn bootstrap_hash() -> String {
     fnv1a64(bundled("notation/bootstrap.json").unwrap_or(""))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::normalize;
+    use std::path::Path;
+
+    #[test]
+    fn leading_parents_are_kept() {
+        let normal = |path: &str| normalize(Path::new(path)).to_string_lossy().replace('\\', "/");
+        assert_eq!(
+            normal("../../w/rust/grammars/dialects/../notation/lexical.md"),
+            "../../w/rust/grammars/notation/lexical.md"
+        );
+        assert_eq!(normal("a/../../b"), "../b");
+        assert_eq!(normal("./a/./b/.."), "a");
+        assert_eq!(normal("/../a"), "/a");
+    }
 }

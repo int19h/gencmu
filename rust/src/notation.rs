@@ -178,6 +178,12 @@ impl<'a> Reader<'a> {
             }
             parts.push(if elements.len() == 1 { elements.pop().expect("an element") } else { Expr::Seq(elements) });
         }
+        if parts.len() > crate::grammar::MAX_AND {
+            return Err(self.error(
+                node,
+                format!("an & of {} items; at most {} are allowed", parts.len(), crate::grammar::MAX_AND),
+            ));
+        }
         Ok(if parts.len() == 1 { parts.pop().expect("a sequence") } else { Expr::And(parts) })
     }
 

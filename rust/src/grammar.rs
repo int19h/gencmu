@@ -61,6 +61,10 @@ pub(crate) struct StageGrammar {
     pub changes: Vec<Change>,
 }
 
+/// The most items an `&` may have (engine §3.2): its expansions are every
+/// non-empty subsequence, so more would be too many to lower.
+pub(crate) const MAX_AND: usize = 16;
+
 pub(crate) fn is_terminal_name(name: &str) -> bool {
     name.chars().next().is_some_and(|c| c.is_ascii_uppercase())
 }
@@ -247,6 +251,9 @@ fn check_rule(grammar: &StageGrammar, name: &str) -> Result<(), String> {
 
 fn check_expr(grammar: &StageGrammar, expr: &Expr, top: bool) -> Result<(), String> {
     match expr {
+        Expr::And(items) if items.len() > MAX_AND => {
+            Err(format!("an & of {} items; at most {MAX_AND} are allowed", items.len()))
+        }
         Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => {
             for item in items {
                 check_expr(grammar, item, false)?;

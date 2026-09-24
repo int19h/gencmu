@@ -59,6 +59,11 @@ impl Json {
     }
 }
 
+/// How deeply arrays and objects may nest. The shipped files nest a few
+/// dozen levels; a deeper text, corrupt or malicious, is an error rather
+/// than a structure whose conversion or drop would exhaust the stack.
+pub(crate) const MAX_DEPTH: usize = 256;
+
 /// Parses a JSON text. Numbers must be integers, which is all the shipped
 /// files hold. The error is a message with the byte offset.
 pub(crate) fn parse(text: &str) -> Result<Json, String> {
@@ -125,6 +130,9 @@ impl<'a> Reader<'a> {
                         let key = self.string()?;
                         self.space();
                         self.expect(b':')?;
+                        if stack.len() >= MAX_DEPTH {
+                            return Err(self.error("JSON nested too deeply"));
+                        }
                         stack.push(Frame::Obj(Vec::new(), key));
                         continue;
                     }
@@ -136,6 +144,9 @@ impl<'a> Reader<'a> {
                         self.at += 1;
                         Json::Arr(Vec::new())
                     } else {
+                        if stack.len() >= MAX_DEPTH {
+                            return Err(self.error("JSON nested too deeply"));
+                        }
                         stack.push(Frame::Arr(Vec::new()));
                         continue;
                     }
@@ -314,4 +325,19 @@ pub fn fnv1a64(text: &str) -> String {
         hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
     }
     format!("{hash:016x}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nesting_is_bounded() {
+        let deep = format!("{}{}", "[".repeat(10_000), "]".repeat(10_000));
+        assert!(parse(&deep).unwrap_err().contains("too deeply"));
+        let deep = format!("{}1{}", "{\"a\":".repeat(10_000), "}".repeat(10_000));
+        assert!(parse(&deep).is_err());
+        let fine = format!("{}{}", "[".repeat(MAX_DEPTH), "]".repeat(MAX_DEPTH));
+        assert!(parse(&fine).is_ok());
+    }
 }
