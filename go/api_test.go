@@ -361,3 +361,30 @@ func TestParseTokensOutOfRange(t *testing.T) {
 		t.Fatalf("%v %+v", err, res)
 	}
 }
+
+// An empty string is a terminal the reader produces, so a document with one
+// loads, from its text and from its precompiled DOM (Codex's review).
+func TestEmptyStringTerminal(t *testing.T) {
+	for _, noCache := range []bool{true, false} {
+		sources := oneStage("%ambiguity-resolution greedy ;\ntext ≔ \"\" | \"a\" ;")
+		if !noCache {
+			loadBundled()
+			dom, err := bundled.reader.read(sources["g.md"], "g.md")
+			if err != nil {
+				t.Fatal(err)
+			}
+			sources["compiled.json"] = `{"format":1,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(sources["g.md"]) + `","dom":` + string(dom.json()) + `}}}`
+			if _, err := decodeDOM(dom.json()); err != nil {
+				t.Fatalf("the reader's DOM is refused: %v", err)
+			}
+		}
+		d, err := loadSources(sources, "p.md", noCache)
+		if err != nil {
+			t.Fatalf("cache bypassed %v: %v", noCache, err)
+		}
+		res, err := d.Parse("a", ParseOptions{})
+		if err != nil || !res.OK || Brackets(res, BracketOptions{}) != "a" {
+			t.Fatalf("cache bypassed %v: %v %+v", noCache, err, res)
+		}
+	}
+}

@@ -61,6 +61,7 @@ func TestDOMRules(t *testing.T) {
 		{"a flag is true", alt(`{"seq":[{"terminal":"a"},{"hash":false}]}`)},
 		{"an expression is known", alt(`{"seq":[{"terminal":"a"},{"what":"b"}]}`)},
 		{"a reference names something", alt(`{"seq":[{"terminal":"a"},{"ref":""}]}`)},
+		{"a captured reference names something", alt(`{"seq":[{"terminal":"a"},{"capture":"x","expr":{"ref":""}}]}`)},
 		{"nothing alone", emit(`{"nothing":true,"items":[{"capture":"x"}]}`)},
 		{"nothing without tags", emit(`{"nothing":true,"tags":{"literal":"X"}}`)},
 		{"this only with this (a capture)", emit(`{"items":[{"this":true},{"capture":"x"}]}`)},

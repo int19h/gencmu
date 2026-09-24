@@ -127,7 +127,7 @@ func (c *domChecker) expr(e *domExpr, depth int, top bool) {
 		}
 		// A capture wraps a reference or a terminal, its name once per
 		// alternative.
-		if e.Inner == nil || (e.Inner.Kind != exRef && e.Inner.Kind != exTerminal) || e.Inner.Name == "" {
+		if e.Inner == nil || (e.Inner.Kind != exRef && e.Inner.Kind != exTerminal) || (e.Inner.Kind == exRef && e.Inner.Name == "") {
 			c.fail("a capture of something other than a reference or a terminal")
 			return
 		}
@@ -140,10 +140,12 @@ func (c *domChecker) expr(e *domExpr, depth int, top bool) {
 		}
 		// A capture is a compound node: its symbol lies below it.
 		c.deep(depth + 1)
-	case exRef, exTerminal:
+	case exRef:
 		if e.Name == "" {
-			c.fail("an empty %s", e.Kind)
+			c.fail("an empty ref")
 		}
+	case exTerminal:
+		// Any string, "" included: the reader decodes "" to one.
 	case exHash, exEmpty:
 	default:
 		c.fail("an unknown expression %q", e.Kind)
