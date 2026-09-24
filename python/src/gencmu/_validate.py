@@ -13,7 +13,11 @@ import re
 from typing import Any
 
 MAX_DEPTH = 256
-"""The deepest an expression, a term or a condition may nest (engine §9)."""
+"""No node of an expression, a term or a condition may lie below more than
+this many compound nodes of it (engine §9). A node's depth here is the
+number of compound nodes above it, since only compound nodes have children:
+optional, repeat, and, choice, seq and capture; set, union, intersection
+and call; any, not, matches and a comparison."""
 
 TOO_DEEP = "nested too deeply"
 
@@ -104,8 +108,16 @@ def dom_problem(dom: Any) -> str | None:
             ):
                 return "a malformed alternative"
             # A capture stands only at the top level of an alternative: the
-            # expression itself, or an item of its sequence (engine §3.5).
-            pending.append(("top", alternative.get("expr"), 0))
+            # expression itself, or an item of its sequence (engine §3.5);
+            # an alternative has at most four, each named once.
+            expr = alternative.get("expr")
+            top = expr["seq"] if isinstance(expr, dict) and isinstance(expr.get("seq"), list) else [expr]
+            names = [item["capture"] for item in top if isinstance(item, dict) and isinstance(item.get("capture"), str)]
+            if len(set(names)) != len(names):
+                return "a capture name used twice in an alternative"
+            if len(names) > 4:
+                return "more than four captures in an alternative"
+            pending.append(("top", expr, 0))
             if "tags" in alternative:
                 pending.append(("term", alternative["tags"], 0))
     items: Any
@@ -183,7 +195,8 @@ def dom_problem(dom: Any) -> str | None:
                     continue
                 if k == "insert":
                     return "a malformed emission"
-                pending.append(("term", item["tags"], below))
+                # An emission is no node of a term: its tags start at the top.
+                pending.append(("term", item["tags"], depth))
         elif kind == "condition":
             if "any" in value:
                 if not _items(value["any"], 2):

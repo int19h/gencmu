@@ -63,6 +63,21 @@ def set_condition(condition: Any) -> Callable[[Dom], None]:
     return change
 
 
+def nested_set(depth: int) -> Any:
+    term: Any = {"literal": "T"}
+    for _ in range(depth):
+        term = {"set": [term]}
+    return term
+
+
+def nested_not(depth: int) -> Any:
+    condition: Any = {"op": "=", "left": {"literal": "a"}, "right": {"literal": "a"}}
+    # The comparison is compound too: its terms lie below it.
+    for _ in range(depth - 1):
+        condition = {"not": condition}
+    return condition
+
+
 def nested(depth: int) -> Any:
     expr: Any = {"terminal": "a"}
     for _ in range(depth):
@@ -98,7 +113,9 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("capture inside a choice", set_expr({"choice": [{"capture": "x", "expr": A}, A]})),
     ("capture inside a repetition", set_expr({"repeat": {"capture": "x", "expr": A}, "min": 1})),
     ("unknown expression", set_expr({"star": A})),
-    ("nested more than 256 deep", set_expr(nested(300))),
+    ("nested more than 256 deep", set_expr(nested(257))),
+    ("five captures in an alternative", set_expr({"seq": [{"capture": name, "expr": A} for name in "xyzvw"]})),
+    ("a capture name used twice", set_expr({"seq": [{"capture": "x", "expr": A}, {"capture": "x", "expr": A}]})),
     ("nothing with tags", set_emit({"nothing": True, "tags": LIT})),
     ("this with an inserted tag", set_emit({"items": [{"this": True}, {"insert": "Y"}]})),
     ("this with a capture", set_emit({"items": [{"this": True}, {"capture": "x"}]})),
@@ -198,6 +215,26 @@ class PrecompiledDomRules(unittest.TestCase):
         sources = {"p.md": PIPELINE, "g.md": DOCUMENT, "h.md": NEXT, "notation/bootstrap.json": json.dumps(bootstrap)}
         with self.assertRaises(gencmu.GencmuError):
             gencmu.load_dialect_sources(sources, "p.md", use_cache=False)
+
+    def test_nesting_bound(self) -> None:
+        """No node may lie below more than 256 compound nodes of its
+        expression, term or condition (engine §9); an emission is none."""
+        for depth, allowed in ((256, True), (257, False)):
+            for name, change in (
+                ("expression", set_expr(nested(depth))),
+                ("alternative's term", set_tags(nested_set(depth))),
+                ("emitted term", set_emit({"items": [{"capture": "x", "tags": nested_set(depth)}]})),
+                ("condition", set_condition(nested_not(depth))),
+            ):
+                with self.subTest(what=name, depth=depth):
+                    dom = copy.deepcopy(self.dom)
+                    change(dom)
+                    self.assertEqual(dom_problem(dom) is None, allowed, dom_problem(dom))
+
+    def test_four_captures_are_allowed(self) -> None:
+        dom = copy.deepcopy(self.dom)
+        set_expr({"seq": [{"capture": name, "expr": A} for name in "xyzv"]})(dom)
+        self.assertIsNone(dom_problem(dom))
 
     def test_each_broken_rule_is_a_miss(self) -> None:
         fresh = self.parse(None)
