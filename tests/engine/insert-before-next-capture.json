@@ -1,0 +1,140 @@
+{
+  "description": "An inserted tag goes before the first capture listed after it, and captures are emitted in text order whatever the list's order (engine §11): x is listed before $a, so it comes before a.",
+  "grammar": "text ≔ $a(A) B $b(C) ⇒ $b, \"x\", $a ;",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 1,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "",
+              "phonemes": "",
+              "tags": {
+                "x": true
+              },
+              "span": [
+                0,
+                0
+              ],
+              "source": [
+                0,
+                0
+              ],
+              "insertedBy": "text"
+            },
+            {
+              "text": "a",
+              "phonemes": "",
+              "tags": {
+                "A": true
+              },
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "text": "c",
+              "phonemes": "",
+              "tags": {
+                "C": true
+              },
+              "span": [
+                2,
+                3
+              ],
+              "source": [
+                4,
+                5
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          3
+        ],
+        "source": [
+          0,
+          5
+        ],
+        "tags": {},
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "B",
+            "token": 1,
+            "span": [
+              1,
+              2
+            ],
+            "source": [
+              2,
+              3
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "C",
+            "token": 2,
+            "span": [
+              2,
+              3
+            ],
+            "source": [
+              4,
+              5
+            ]
+          }
+        ]
+      },
+      "error": null
+    },
+    "brackets": "(a b c)"
+  }
+}

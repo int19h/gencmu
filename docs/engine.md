@@ -22,8 +22,9 @@ Everything a stage reads and writes is a sequence of tokens. A token has:
   code points;
 - `text`: the original text over `source`;
 - `phonemes`: what the token sounds like (§5);
-- `insertedBy`: for a token with an empty span, the rule whose emission
-  clause inserted it; otherwise absent.
+- `insertedBy`: for a token an emission clause inserted from a quoted tag
+  or a phoneme tag (§11), the rule whose clause it is; otherwise absent,
+  even for a token of `⇒ this` over an empty constituent.
 
 The input of the first stage is the text's characters, one token per code
 point `c` at position `i`: `span` and `source` are `[i, i+1)`, `text` is `c`,
@@ -97,11 +98,13 @@ decides nothing a user can observe except through §4-§6.
    sequence. A sequence's expansions are the products of its items'
    expansions, the first item varying slowest.
 3. **Trailing repetition.** An alternative that is the only alternative of
-   its rule and ends in `x ...` or `[x] ...` is lowered as left recursion on
+   its rule left after step 1, and whose expression is `x ...` or `[x] ...`
+   or a sequence ending in one, is lowered as left recursion on
    the rule itself: `r ≔ p x ...` becomes `r ≔ p x | r x`, and `r ≔ p [x] ...`
    becomes `r ≔ p | r x`. Its intermediate prefixes are then constituents of
    `r`, which the ranking sees (§6); this is how CLL's YACC grammar realizes
-   `...`, and CLL says left grouping is implied.
+   `...`, and CLL says left grouping is implied. A trailing `#` is not a
+   trailing repetition, although it stands for one.
 4. Helpers are named by the engine; their names are never shown. A helper
    is a production whose left side is a helper name.
 5. A capture `$x(s)` must wrap a single symbol `s` in a sequence at the top
@@ -120,13 +123,37 @@ decides nothing a user can observe except through §4-§6.
    constituent; one with several symbols and no tags has none. This is
    stated in §4; lowering makes it explicit by treating the single symbol as
    captured.
-8. `elision-only` checking (§7) lowers the grammar a second time with every
-   optional whose expansion begins with an `%elidable` terminal made
-   mandatory: its helper loses `ε`.
+8. An optional `[x]` is **elidable** when `x` is a symbol, or a sequence
+   whose first item is, recursively, one, and that symbol is an `%elidable`
+   terminal; an optional whose content is a choice or an `&` is never
+   elidable, even if every branch begins with an elidable terminal.
+   `elision-only` checking (§7) lowers the grammar a second time with every
+   elidable optional made mandatory: its helper loses `ε`.
 
-The productions are numbered in the order their alternatives appear after
-stitching, helpers after the production that introduced them; the number is
-the tie-break of §6.
+**Numbering.** Productions are numbered from 0, and the number is the
+tie-break of §6. Rules are taken in the order they were first defined after
+stitching: a rule replaced with `≔` keeps the place of the rule it
+replaces, and alternatives added with `|≔` follow the rule's own. Within a
+rule its remaining alternatives are taken in order, and each alternative
+contributes, in this order:
+
+- its own productions, in the order of its expansions (step 2); for a
+  trailing repetition, the non-recursive productions first and then the
+  recursive ones;
+- then its helpers, one for each place in the alternative where `[ ]`,
+  `...` or `#` is written, in the order those places are written, left to
+  right; each helper's productions are followed at once by the helpers of
+  the places written inside it, depth first, before the next helper of the
+  alternative. The `...` of a trailing repetition (step 3) has no helper:
+  it is lowered into the rule's own productions, though sugar inside its
+  item has helpers as anywhere else.
+
+A repetition whose item can match nothing is allowed: its derivations that
+repeat nothing are cyclic (§4) and are not counted.
+
+A helper is shared by every expansion of the alternative that goes through
+its place, so an item of `&`, or the repeated item of a trailing
+repetition, has one helper however many expansions use it.
 
 ## 4. Recognition
 
@@ -158,7 +185,9 @@ predicted.
 
 **Nested parses.** `matches(span, rule)` and `tags(span, rule)` parse the
 span's tokens alone with `rule` as the start rule, over the same lowered
-grammar. An implementation should remember their answers for the whole parse,
+grammar. They read the recognizer's items: `matches` holds when a completed
+item of `rule` spans the tokens, and `tags` is the union of those items'
+tag sets, whether or not an item's every derivation is cyclic. An implementation should remember their answers for the whole parse,
 keyed by everything a nested parse can observe: the rule, the original text
 the span covers from its first token's source start to its last token's
 source end, and, for each token of the span, its tags with their strengths,
@@ -176,7 +205,9 @@ not counted, since such a derivation could repeat without end: `a ≔ b ; b
 does `t ≔ u | ε ; u ≔ t ;` of the empty text as `t`.
 
 **Acceptance.** The input is accepted when an item of the start rule `text`
-spans the whole input. A rejected input reports the furthest position any
+spans the whole input and has at least one derivation that is counted. An
+input whose every such derivation is cyclic is rejected, as one with no
+such item is. A rejected input reports the furthest position any
 item reached, and the terminals the items there could have read next,
 together with the rules those items belong to (§11).
 
@@ -186,11 +217,15 @@ A token's `phonemes`:
 
 - if its tag set holds a strong phoneme tag `/p/`, `p` (a pause `/ /` is a
   space); two strong phoneme tags on one token are an error of the grammar
-  that emitted it;
+  that emitted it. A phoneme tag is a tag of exactly three code points, the
+  first and last `/`;
 - otherwise, the concatenation of the phonemes of the tokens it was emitted
   from, omitting every token of a constituent that emits nothing, with
   leading and trailing spaces removed;
 - a character token has none.
+
+An emitted token always has phonemes, possibly the empty string; only the
+character tokens of the first stage have none.
 
 `phonemes(span)` in a condition is the concatenation of the span's tokens'
 phonemes. `text(span)` is the original text of the span, from the start of
@@ -217,22 +252,33 @@ visible action:
    close.
 3. Both close, different productions or different spans: **tied**.
 
-If the visible sequences are equal, or one is a prefix of the other, they
-are tied, and their first difference, for the witness below, is the first
-pair of differing actions of the whole sequences, transparent ones
-included.
+If the visible sequences are equal, or one is a proper prefix of the other,
+the two are tied. Their first difference, for the witness below, is the
+first pair of differing actions of the whole sequences, transparent ones
+included; a derivation whose visible sequence is a proper prefix of the
+other's differs from it where the shorter ends.
 
 The **winner** is a derivation that no other derivation beats. The verdict
 is `unique` if the input has one derivation, `resolved` if it has several
 and one winner that is not tied with any other derivation at its first
 difference with it, and `tie` otherwise.
 
-For a tie, the undominated derivations are put in a canonical order, and
-the first is **chosen**. Two of them are ordered by their first differing
-action: a read before a close; two reads by terminal, in code point order;
-two closes by production number, then span start, then span end. Breaking
-every tie of rules 1 to 3 this way makes a total order *T* on derivations;
-the chosen derivation, `m`, is *T*'s least element, whatever the verdict.
+The derivations are put in a canonical order, *T*, and the first is
+**chosen**. *T* compares two derivations first by their visible sequences:
+
+- at their first differing visible pair, by rules 1 to 3 where those
+  decide, and otherwise by the **canonical keys**: a read before a close;
+  two reads by terminal, in code point order; two closes by production
+  number, then span start, then span end;
+- if one visible sequence is a proper prefix of the other, the shorter
+  comes first;
+- if the visible sequences are equal, at the first differing pair of the
+  whole sequences by the canonical keys, the shorter first if one whole
+  sequence is a prefix of the other.
+
+*T* is lexicographic on the visible sequences and then on the whole ones,
+so it is a total order. The chosen derivation, `m`, is its least element,
+whatever the verdict.
 
 Nothing beats `m`, since whatever beats a derivation precedes it in *T*.
 So an undominated derivation other than `m` is **tied with `m`**: its first
@@ -242,9 +288,10 @@ B X | B Y ;`, over a token tagged `A` and `B` and one tagged `Y` and weakly
 
 Of the derivations tied with `m`, the **tied** derivation reported beside
 `m` is the one that diverges from `m` earliest: the fewest visible actions
-before its first visible difference with `m`, a derivation that differs
-from `m` only in transparent actions counting as diverging last, and
-several that diverge at the same point ordered by *T*. That derivation, `t`,
+before its first visible difference with `m`, where a derivation whose
+visible sequence is a proper prefix or an extension of `m`'s diverges where
+the shorter ends, and one whose visible sequence equals `m`'s diverges
+last; several that diverge at the same point are ordered by *T*. That derivation, `t`,
 is undominated. A derivation that beat `t` before `t` diverges from `m`
 would beat `m`, which nothing does. One that beat `t` later would share
 `t`'s divergence from `m`. One that beat `t` just where `t` diverges would
@@ -258,13 +305,20 @@ one.
 
 **Computing it.** Both `m` and the earliest-diverging tied derivation
 compose over the packed forest: an implementation keeps, for each item, its
-*T*-least derivation and the earliest-diverging derivation tied with it, and
-keeps several only while one is a visible prefix of another, since the order
-of those is decided later. When one candidate beats another, the loser's
-tied derivation stays tied with the winner exactly when it diverged from the
-loser no later than the point where the winner beat it, so nothing needs to
-be enumerated, and the number of derivations, which can be exponential,
-never matters.
+*T*-least derivation and the earliest-diverging derivations tied with it.
+It keeps several candidates side by side while their order is not yet
+settled: while one's visible sequence is a prefix of another's, or while
+their visible sequences are equal and one whole sequence is a prefix of the
+other, since what follows decides. When one candidate beats another under
+`greedy` or `lazy`, the loser's tied derivation stays tied with the winner
+exactly when it diverged from the loser before the point where the winner
+beat it; one that diverged there is beaten there too. Under rule 1 alone
+(§7) tying is not transitive, since a close is tied with a weak read and
+with the strong read that beats it: a tied derivation of the loser that
+diverged there with a close is still tied with the winner, so an
+implementation checks such a derivation against the winner itself. So
+nothing needs to be enumerated, and the number of derivations, which can be
+exponential, never matters.
 
 ## 7. Elision-only
 
@@ -282,7 +336,12 @@ and the verdict is not `unique`:
    `ambiguous`: `ok` is false, and the error carries two readings, the
    chosen derivation of that ranking and the tied one reported beside it,
    shown over the original input, the written-back terminators as elided
-   nodes.
+   nodes. The result's `tree` is null. The stage keeps its verdict,
+   witness, tied tree and output, since it accepted its input; the error
+   has no `token` or `source`, the readings showing where they differ.
+
+The elided terminators are taken in the order of the chosen tree's leaves,
+left to right. If the parse of step 2 accepts nothing, the check passes.
 
 A caller may also switch the check off for a stage that declares it.
 
@@ -291,8 +350,14 @@ A caller may also switch the check off for a stage that declares it.
 A grammar document is Markdown. Its grammar text is the content of every
 fenced code block whose info string is `ebnf`, in order: a fence is a line
 of three or more backticks or tildes, optionally indented up to three
-spaces, followed by the info string; the block ends at a line with a fence
-of the same character at least as long. Every character of the grammar text
+spaces, followed by the info string; a backtick fence whose info string
+holds a backtick is not a fence, as in CommonMark. The info string is
+`ebnf` when it is exactly that once leading and trailing whitespace is
+removed. A block ends at a line holding only a fence of the same character
+at least as long, indented up to three spaces and followed by nothing but
+whitespace. An `ebnf` block that is never closed is an error of the
+document, reported at its opening fence; any other unclosed block runs to
+the end of the document, as in CommonMark. Every character of the grammar text
 keeps its line and column in the document, and the blocks are joined with a
 newline between them.
 
@@ -346,10 +411,24 @@ its children taken in order.
 | `call` in a term | `call` with its arguments; a bare name as the second argument of `tags` or `matches` is a rule name |
 
 A rule with any other name is transparent: its children are read in its
-place. Every restriction the grammar does not state, such as a capture
-wrapping more than one symbol, an unknown function, `nothing` used with
-other items, or `this` used with items other than `this`, is an error of
-the document, reported at the offending token.
+place. Every restriction the grammar does not state is an error of the
+document, reported at the first token of the offending construct:
+
+- a capture wrapping anything but a reference, a string or a phoneme,
+  `$x((B))` included, or a capture name used twice in one alternative;
+- a function that does not exist, or called with the wrong arguments:
+  `phonemes`, `text`, `words`, `classes`, `head`, `tail` and `last` take
+  one span, `lowercase` one string, `tags` a span and optionally a rule
+  name, and `matches` a span and a rule name. A span is a capture or
+  `head`, `tail` or `last` of one; a string is a quoted string, a phoneme
+  tag, or `phonemes`, `text` or `lowercase` of something;
+- `head`, `tail` or `last` where a value is needed, and `matches` as a
+  term;
+- `nothing` with other items or with tags; `this` with items other than
+  `this`; tags on an inserted tag; a capture listed twice in one emission;
+  a second `⇒` clause in one rule;
+- an unknown directive; `%free-modifiers` naming a rule the stage does not
+  define, or `#` in a stage without it.
 
 A string's decoding: the quotes are removed, `\\` is `\`, `\"` is `"`, and
 `\u{h...}` is the code point with that hexadecimal value; any other `\` is
@@ -365,7 +444,8 @@ empty if the span is.
 
 | term | value |
 | --- | --- |
-| `"s"`, `/p/` | the string, or as a tag set the one strong tag |
+| `"s"`, `/p/` | the string (`/p/` with its slashes), or as a tag set the one strong tag |
+| `$x` | the captured part's tags, as `tags($x)` |
 | `?"s"` | the tag set of one weak tag |
 | `∅` | the empty tag set |
 | `{a, b, ...}` | the union of the items as tag sets |
@@ -400,9 +480,12 @@ the chosen tree from the left:
   stands for a two-phoneme word is two tokens over one character.
 - `⇒ $a <t>, "x", $b` emits, in text order, one token per named capture,
   with the given tags or the captured constituent's own, and one inserted
-  token per quoted tag or phoneme tag, at the position between the parts
-  where it is listed, with that one strong tag and empty span; captured
-  parts not named, and other children, are walked in turn.
+  token per quoted tag or phoneme tag, with that one strong tag and empty
+  span; captured parts not named, and other children, are walked in turn.
+  An inserted tag goes immediately before the token of the first capture
+  listed after it, and one with no capture listed after it goes after the
+  constituent's last child. Captures are emitted in text order whatever
+  order the list names them in.
 - A constituent with no emission clause is walked: its children in order.
 - A token read directly by a production with no emission clause emits
   nothing.
@@ -425,14 +508,19 @@ The result's tree is built from the chosen derivation:
 
 - a closed production of a rule the author wrote is a `rule` node, its
   children in order;
-- a read token is a `token` node holding the input token and the terminal
-  it was read as;
+- a read token is a `token` node holding the index of the input token and
+  the terminal it was read as;
 - helper productions are spliced out: their children take their place;
 - the prefixes of a trailing repetition (§3.3) are spliced out, so the rule
   is one node whose children are its items in order;
-- an optional that is absent and whose expansion begins with an `%elidable`
-  terminal `T` becomes an `elided` node for `T`, with an empty span at the
-  position where it would have been.
+- an elidable optional (§3.8) that is absent becomes an `elided` node for
+  its terminal `T`, with an empty span at the position where it would have
+  been.
+
+A node with an empty span, an `elided` node or a rule that read nothing,
+has an empty source at the source end of the input token before its
+position, or, at position 0, at the source start of the first input token,
+or 0 if there is none.
 
 ## 13. The pipeline
 
@@ -446,7 +534,14 @@ that rejection; an `ambiguous` error (§7) ends it likewise. The result's
 **Auto features.** When the caller asks for auto features, `sa-su` is
 not already enabled, and the run reaches a stage named `words` (it has one,
 and `until`, if given, names it or a later stage), the stages up to and including the one named `words`
-are run once without it. If that stage rejects, or its chosen tree has a
-constituent of the rule `word` whose phonemes are `sa` or `su`, the parse
-is run with `sa-su` added; otherwise that first run's stages are the
-parse's, continued to the end.
+are run once without it. If that run does not end with the `words` stage
+accepting, for any reason, a rejection or an error in it or in a stage
+before it, or if its chosen tree has a constituent of the rule `word` whose
+phonemes are `sa` or `su`, the parse is run with `sa-su` added; otherwise
+that first run's stages are the parse's, continued to the end.
+
+**Mistakes of the caller**, such as an `until` that names no stage, are
+errors of kind `usage`, raised or returned as a load error is, not results.
+A grammar error found while parsing, such as a nested parse asked about its
+own span, is a result: its error has kind `grammar`, the `stage` it arose
+in and a message, and no position.

@@ -303,6 +303,9 @@ is the experimental documents plus its own with the Zantufa features on. Link ta
 pipeline document, and resolve the same way on disk, in memory and on GitHub.
 A line holds at most one processing instruction: a second is an error, so
 that a stage and its features cannot share a heading and lose one of them.
+An instruction counts only at the end of its line; elsewhere it is prose.
+An instruction the reader does not know is ignored, and `<?stage?>` is
+conventionally, not necessarily, at the end of a heading.
 
 ## Ambiguity
 

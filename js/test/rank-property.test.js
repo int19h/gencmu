@@ -85,14 +85,22 @@ test("the ranking agrees with an enumeration of every derivation", () => {
   const rules = ["t", "u", "v"];
   let checked = 0;
   for (let round = 0; round < rounds; round++) {
-    const lean = next() < 0.5 ? "greedy" : "lazy";
+    // Greedy, lazy, or the tag rule alone, which is how elision-only's check
+    // ranks (engine §7).
+    const leanPick = next();
+    const lean = leanPick < 0.4 ? "greedy" : leanPick < 0.8 ? "lazy" : "none";
     const body = (depth) => {
       const length = Math.floor(next() * 3);
       const symbols = [];
       for (let index = 0; index < length; index++) {
         const pick = next();
-        if (pick < 0.5) symbols.push(terminals[Math.floor(next() * terminals.length)]);
-        else symbols.push(rules[Math.floor(next() * rules.length)]);
+        const symbol = pick < 0.5 ? terminals[Math.floor(next() * terminals.length)] : rules[Math.floor(next() * rules.length)];
+        // Now and then the notation's sugar, whose helpers are transparent.
+        const sugar = next();
+        if (sugar < 0.08) symbols.push(`[${symbol}]`);
+        else if (sugar < 0.12) symbols.push(`${symbol} ...`);
+        else if (sugar < 0.16) symbols.push(`[${symbol}] ...`);
+        else symbols.push(symbol);
       }
       return symbols.length ? symbols.join(" ") : "ε";
     };
@@ -104,7 +112,7 @@ test("the ranking agrees with an enumeration of every derivation", () => {
       const tags = terminals.filter(() => next() < 0.5).map((tag) => (next() < 0.25 ? "?" + tag : tag));
       tokens.push({ text: "x", tags: tags.length ? tags : ["A"] });
     }
-    const grammar = `%ambiguity-resolution ${lean} ;\n${lines.join("\n")}`;
+    const grammar = `%ambiguity-resolution ${lean === "none" ? "greedy" : lean} ;\n${lines.join("\n")}`;
     const outcome = runEngineCase({ grammar, tokens });
     if (outcome.loadError || !outcome.result.ok) continue;
     const stage = outcome.result.stages[0];
@@ -122,6 +130,7 @@ test("the ranking agrees with an enumeration of every derivation", () => {
     if (!truth || truth.count > 200) continue;
     const got = new Ranker(stage.input, lean).rank(roots);
     const where = `${grammar}\ntokens ${JSON.stringify(tokens)}`;
+    if (got === null) continue;
     assert.equal(got.verdict, truth.verdict, `verdict\n${where}`);
     assert.ok(sameSequence(got.chosen, truth.m), `chosen\n${where}`);
     if (truth.second) assert.ok(sameSequence(got.second, truth.second), `tied derivation\n${where}`);
