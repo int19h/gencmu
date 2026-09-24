@@ -138,7 +138,7 @@ lexicon-d
 | /d/ any-a /'/ any-e <"KOhA">
 | /d/ any-a /'/ any-e any-i <{"DOI", "KOhA"}>
 | /d/ any-a /'/ any-i <{"UI", "indicator"}>
-| /d/ any-a /'/ any-o <{"indicator", ?"UI"}>
+| /d/ any-a /'/ any-o <{"DAhO", "indicator", ?"UI"}>
 | /d/ any-a /'/ any-o any-i <"DOI">
 | /d/ any-a /'/ any-u <"KOhA">
 | /d/ any-a any-i <{"UI", "indicator"}>
@@ -262,9 +262,9 @@ lexicon-f
 | /f/ any-u <"FA">
 | /f/ any-u /'/ any-a <"FUhA">
 | /f/ any-u /'/ any-a any-u <{"UI", "indicator"}>
-| /f/ any-u /'/ any-e <{"indicator", ?"UI"}>
+| /f/ any-u /'/ any-e <{"FUhE", "indicator", ?"UI"}>
 | /f/ any-u /'/ any-i <{"UI", "indicator"}>
-| /f/ any-u /'/ any-o <{"indicator", ?"UI"}>
+| /f/ any-u /'/ any-o <{"FUhO", "indicator", ?"UI"}>
 | /f/ any-u /'/ any-u <"VUhU">
 | /f/ any-y <"BY"> ;
 ```

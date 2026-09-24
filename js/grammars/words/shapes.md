@@ -125,6 +125,11 @@ stressed-cvv-body
 ≔ plain-vowel /'/ stressed-vowel | stressed-diphthong ;
 ```
 
+`lujvo-final-shape` is every shape that may end a lujvo after a y-hyphen:
+a CVV or CV'V rafsi, or a CCV one. The stream uses it to keep a CV cmavo,
+a `Cy` and such a shape together as one lujvo in the families that read
+them so.
+
 The unstressed rafsi before the core are the CVC, CCV and CVV forms of CLL 4.5, with the y-hyphen and the r-hyphen of CLL 4.6, and the four-letter and five-letter forms that a y-hyphen always follows.
 
 ```ebnf
@@ -226,6 +231,10 @@ clustered-onset
 ≔ consonant-cluster ;
 ```
 
+A two-syllable borrowing whose consonant pair may begin a word, `maikro`,
+is a CVV rafsi followed by a CCV rafsi, which is a lujvo; so the borrowing
+form requires a pair that may not begin a word.
+
 ## Nuclei and syllable structure
 
 A nucleus is a vowel or a diphthong; `y` is not a nucleus here, since inside a word it appears only as a lujvo hyphen or in a name, never as the vowel of an ordinary syllable. A glide begins a syllable just as a consonant does, as in the name `nuiork`. Whether it may also follow a consonant or a cluster, as in `.atkuila`, is where the families part: CLL 3.5 admits the on-glide diphthongs in names and borrowings, and [cll.md](cll.md) adds those alternatives; the definition effort's grammar bans a glide after a consonant, and [bpfk.md](bpfk.md) adds nothing. The consonants between two nuclei are one consonant, a permissible pair, a triple or quadruple, or a cluster around a syllabic consonant. CLL 3.7 gives the rule for a medial triple: its first two consonants are a permissible pair, its last two a permissible initial pair, and `ndj`, `ndz`, `ntc` and `nts` are excluded; a quadruple is a consonant before a permissible initial triple under the same pair condition. The tables `before-x` list, for each consonant, the consonants that may precede it in a permissible pair, and the triples and quadruples are spelled out from them so that every one is checked. CLL 3.4 lets `l`, `m`, `n` and `r` be syllabic between consonants, as in `.rubnstain.` and `cidjrpitsa`; what follows the syllabic consonant is the next syllable's onset.
@@ -305,6 +314,15 @@ any-u
 any-y
 ≔ /y/ | /Y/ ;
 ```
+
+A cmavo's diphthong and a brivla's are one constituent: `free-diphthong`
+is built on `stressed-diphthong` and that on `plain-diphthong`, rather than
+spelling the same vowels again. So where a text could begin with a CVV
+cmavo or with a brivla that starts the same way, the two parses agree on the
+diphthong and first differ where the cmavo ends and the brivla reads on,
+and the stage's lazy lean ends the word there: `causelzdi` is `cau selzdi`,
+as CLL 4.6 requires of a brivla that would break into a cmavo and a valid
+brivla.
 
 ## Consonants
 

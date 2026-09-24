@@ -112,6 +112,11 @@ rafsi-head-part
 | glide plain-nucleus ;
 ```
 
+An extended rafsi is a shortening the regular rafsi cannot spell: its head
+is not a string of regular rafsi followed by the CV or CCV that begins a
+CVC, CVCC or CCVC rafsi, since `srimaky` in `srimakyvelvei` is `sri` and
+`mak` with a y-hyphen.
+
 ## Cmevla
 
 A name is surrounded by pauses, so its shape carries neither property. Its consonant runs are held to the pair table: each adjacent pair is a permissible pair of CLL 3.6, which is what the letter rules of the approved grammar say for every position, and so `.tlaiv.` is a name and `.ekstcat.` is one, while a doubled consonant or a voiced consonant beside an unvoiced one is not.

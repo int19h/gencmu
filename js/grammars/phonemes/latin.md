@@ -119,6 +119,12 @@ foreign-char
 ⇒ this <"FOREIGN"> ;
 ```
 
+A foreign run is read from its first foreign character: only Lojban
+characters come before it, so a run with several foreign characters has
+one parse. Inside a foreign run a capital vowel is a stressed vowel; the
+folded reading of an all-capital run applies only to runs that are all
+Lojban.
+
 ## Letters
 
 A consonant is emitted as itself whatever its case; CLL 3.9 uses case on vowels only. A vowel with a stress mark, a capital or an acute or grave accent, whether precomposed or combining, is the stressed phoneme; inside an all-capital run the same capital is folded. A breve on `i` or `u` marks a glide, which the word grammar finds by position, so the letter is emitted plain. The apostrophe is the phoneme `/'/`; its typographic forms and the letter `h`, which some texts use for it, are the same phoneme. A comma marks a syllable break in CLL 3.3 and nothing in the definition effort's word grammar, which ignores it; it is dropped here too, as is a combining mark that no letter rule has taken.

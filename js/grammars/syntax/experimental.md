@@ -169,6 +169,12 @@ termset-with-nuhi
 ≔ NUhI # gek terms [NUhU] # gik terms [NUhU] # | NUhI # terms-not-starting-with-bare-gek [NUhU] # | KE # terms [KEhE] # ;
 ```
 
+A tagged term whose tag is a bare `fa` has its free modifiers after the
+`fa`, and after the `ku` when the `ku` is written: `FA # [KU #]`. With the
+`ku` elided the two slots would stand side by side and a free modifier
+could sit in either, so the elided `ku` takes its slot with it here, as the
+CLL grammar's terminators do.
+
 ## Sumti
 
 A sumti is an argument (CLL 6), and the levels `sumti` to `sumti-4` state its connectives and grouping in the same shape as for statements: a `ke` group, the left-grouping afterthought sequence, the `bo` form, and a forethought connection. `sumti-5` places the outer quantifier, before a `sumti-6` or before a bare selbri with elidable `ku` (CLL 6.7). `sumti-6` lists the simple sumti: a `la'e` or `na'e bo` reference closed by `lu'u`, a pronoun, a lerfu string, a name, a description, a `li` mekso, and the quotes `zo`, `lu ... li'u`, `lo'u ... le'u` and `zoi`. `sumti-tail` is what follows a descriptor: an optional inner sumti, relative clauses, the inner quantifier and the selbri, or a quantifier and a sumti (CLL 6.2, 8.7).
