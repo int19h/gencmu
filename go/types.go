@@ -79,6 +79,8 @@ const (
 	ErrorRejected  = "rejected"
 	ErrorAmbiguous = "ambiguous"
 	ErrorGrammar   = "grammar"
+	// ErrorUsage is a caller's mistake, returned by Parse, never a result.
+	ErrorUsage = "usage"
 )
 
 // Expected is a terminal a rejected input could have continued with, and

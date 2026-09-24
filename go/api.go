@@ -280,7 +280,8 @@ func (d *Dialect) lower(stage int, features map[string]bool, mandatory bool) *lo
 }
 
 // Parse parses a text. A text that does not parse is a result whose OK is
-// false; the error is for a caller's mistake, such as an unknown stage.
+// false; the error is for a caller's mistake, such as an unknown stage, and
+// is a *Error of kind "usage".
 func (d *Dialect) Parse(text string, options ParseOptions) (*ParseResult, error) {
 	return d.parse([]rune(text), nil, options)
 }
@@ -305,7 +306,7 @@ func (d *Dialect) parse(text []rune, tokens []Token, options ParseOptions) (*Par
 			}
 		}
 		if last < 0 {
-			return nil, fmt.Errorf("gencmu: the dialect has no stage %q", options.Until)
+			return nil, &Error{Kind: ErrorUsage, Message: fmt.Sprintf("the dialect has no stage %q", options.Until)}
 		}
 	}
 	features := map[string]bool{}
@@ -329,11 +330,13 @@ func (d *Dialect) parse(text []rune, tokens []Token, options ParseOptions) (*Par
 	if !options.NoAutoFeatures && !features["sa-su"] && words >= 0 && words <= last {
 		outcomes = d.runStages(ps, features, options, tokens, 0, words)
 		probe := outcomes[len(outcomes)-1]
-		if len(outcomes) == words+1 && (probe.err != nil && probe.err.Kind == ErrorRejected || hasSaSu(probe)) {
+		// Rerun with sa-su unless the probe ends with words accepting, or if
+		// words read sa or su (§13).
+		if len(outcomes) != words+1 || probe.err != nil || hasSaSu(probe) {
 			features["sa-su"] = true
 			ps = newParseState(d.uni, text)
 			outcomes = nil
-		} else if probe.err == nil && words < last {
+		} else if words < last {
 			outcomes = append(outcomes, d.runStages(ps, features, options, probe.stage.Output, words+1, last)...)
 		}
 	}

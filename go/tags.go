@@ -131,10 +131,12 @@ func sameNames(a, b *tagset) bool {
 	return true
 }
 
-// phonemeTag is the phoneme a tag /p/ names, a pause /_/ being a space.
+// phonemeTag is the phoneme a tag /p/ names, a pause / / being a space: a
+// phoneme tag is exactly three code points, the first and last / (§5).
 func phonemeTag(tag string) (string, bool) {
-	if len(tag) >= 3 && tag[0] == '/' && tag[len(tag)-1] == '/' {
-		return tag[1 : len(tag)-1], true
+	r := []rune(tag)
+	if len(r) == 3 && r[0] == '/' && r[2] == '/' {
+		return string(r[1]), true
 	}
 	return "", false
 }

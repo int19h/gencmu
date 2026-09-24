@@ -122,12 +122,19 @@ func TestParseOptions(t *testing.T) {
 	if res.OK || res.Error.Kind != ErrorAmbiguous || len(res.Error.Readings) != 2 || res.Tree != nil {
 		t.Fatalf("expected elision-only to fail: %+v", res.Error)
 	}
+	// An ambiguous stage keeps its verdict and output, and the error has no
+	// position (§7).
+	if last := res.Stages[1]; last.Verdict != VerdictResolved || last.Output == nil || res.Error.Token != nil || res.Error.Source != nil || res.Error.Stage != "two" {
+		t.Fatalf("the ambiguous stage lost its result: %+v %+v", last, res.Error)
+	}
 	res, err = d.Parse("ab", ParseOptions{Features: []string{"extra"}, Until: "one"})
 	if err != nil || !res.OK || len(res.Stages) != 1 || res.Tree.Rule != "text" || len(res.Stages[0].Output) != 2 {
 		t.Fatalf("%v %+v", err, res)
 	}
 	if _, err := d.Parse("a", ParseOptions{Until: "three"}); err == nil {
 		t.Fatal("an unknown stage is not an error")
+	} else if e, ok := err.(*Error); !ok || e.Kind != ErrorUsage {
+		t.Fatalf("an unknown stage is %#v, not a usage error", err)
 	}
 	toks := []Token{{Text: "a", Tags: map[string]bool{"A": true}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}}
 	res, err = d.ParseTokens("a", toks, ParseOptions{Until: "one"})
@@ -143,8 +150,8 @@ func boolPtr(b bool) *bool { return &b }
 func TestAutoFeatures(t *testing.T) {
 	d := mustLoad(t, map[string]string{
 		"p.md": "## Sounds <?stage sounds?>\n\n- [g](g.md) <?grammar?>\n\n## Words <?stage words?>\n\n- [h](h.md) <?grammar?>\n\n## Syntax <?stage syntax?>\n\n- [s](s.md) <?grammar?>\n",
-		"g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ [c] ... ;\nc ≔ \"s\" </s/> | \"a\" </a/> | \"u\" </u/> ⇒ this ;\n```\n",
-		"h.md": "```ebnf\n%ambiguity-resolution lazy ;\ntext ≔ [word] ... ;\nword ≔ @!sa-su /s/ /a/ <\"W\"> | @sa-su /s/ /a/ <\"SA\"> | /u/ <\"W\"> ⇒ this ;\n```\n",
+		"g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ [c] ... ;\nc ≔ \"s\" </s/> | \"a\" </a/> | \"u\" </u/> | @sa-su \"x\" </x/> ⇒ this ;\n```\n",
+		"h.md": "```ebnf\n%ambiguity-resolution lazy ;\ntext ≔ [word] ... ;\nword ≔ @!sa-su /s/ /a/ <\"W\"> | @sa-su /s/ /a/ <\"SA\"> | /u/ <\"W\"> | /x/ <\"W\"> ⇒ this ;\n```\n",
 		"s.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ [W | SA] ... ;\n```\n",
 	})
 	tags := func(res *ParseResult) string {
@@ -167,6 +174,12 @@ func TestAutoFeatures(t *testing.T) {
 	res, _ = d.Parse("u", ParseOptions{})
 	if !res.OK || tags(res) != "W" {
 		t.Fatalf("%q", tags(res))
+	}
+	// A probe that fails before words, for any reason, runs the parse again
+	// with sa-su (§13).
+	res, _ = d.Parse("x", ParseOptions{})
+	if !res.OK || tags(res) != "W" {
+		t.Fatalf("an earlier stage's rejection did not rerun with sa-su: %+v", res.Error)
 	}
 	// A run that stops before words does not probe.
 	res, _ = d.Parse("sa", ParseOptions{Until: "sounds"})

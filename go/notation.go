@@ -60,6 +60,9 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (*notationReader, er
 // read reads one grammar document into its DOM.
 func (nr *notationReader) read(text, docPath string) (dom *domDoc, err *Error) {
 	gt := extractEBNF(text)
+	if gt.unclosed != nil {
+		return nil, grammarError(docPath, *gt.unclosed, "an ebnf block is never closed")
+	}
 	ps := newParseState(nr.uni, gt.text)
 	toks := ps.characterTokens()
 	var out stageOutcome
@@ -100,9 +103,10 @@ func (nr *notationReader) read(text, docPath string) (dom *domDoc, err *Error) {
 }
 
 type domBuilder struct {
-	toks []Token
-	gt   *grammarText
-	doc  string
+	captures map[string]bool // the captures of the alternative being read
+	toks     []Token
+	gt       *grammarText
+	doc      string
 }
 
 // The rules the reader looks at by name; every other rule is transparent.
@@ -213,7 +217,7 @@ func (b *domBuilder) rule(n *Node) *domRule {
 		}
 		switch p.Rule {
 		case "rule-tags":
-			r.Tags = b.term(ruleParts(p)[0])
+			r.Tags = b.value(ruleParts(p)[0])
 		case "definer":
 			if b.text(p) == "|≔" {
 				r.Op = "extend"
@@ -239,6 +243,7 @@ func (b *domBuilder) rule(n *Node) *domRule {
 
 func (b *domBuilder) alternative(n *Node) *domAlt {
 	a := &domAlt{Guards: []domGuard{}}
+	b.captures = map[string]bool{}
 	for _, p := range ruleParts(n) {
 		switch p.Rule {
 		case "guard":
@@ -246,7 +251,7 @@ func (b *domBuilder) alternative(n *Node) *domAlt {
 			neg := strings.HasPrefix(g, "!")
 			a.Guards = append(a.Guards, domGuard{Feature: strings.TrimPrefix(g, "!"), Negated: neg})
 		case "alternative-tags":
-			a.Tags = b.term(ruleParts(p)[0])
+			a.Tags = b.value(ruleParts(p)[0])
 		default:
 			a.Expr = b.expr(p)
 		}
@@ -295,7 +300,12 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 		if len(inner) != 1 || (inner[0].Rule != "reference" && inner[0].Rule != "string" && inner[0].Rule != "phoneme") {
 			b.fail(ps[0], "a capture wraps a single symbol: a name, a string or a phoneme tag")
 		}
-		return &domExpr{Kind: exCapture, Name: strings.TrimPrefix(b.text(ps[0]), "$"), Inner: b.expr(inner[0])}
+		name := strings.TrimPrefix(b.text(ps[0]), "$")
+		if b.captures[name] {
+			b.fail(ps[0], "$%s is captured twice in one alternative", name)
+		}
+		b.captures[name] = true
+		return &domExpr{Kind: exCapture, Name: name, Inner: b.expr(inner[0])}
 	case "group":
 		return b.expr(ruleParts(n)[0])
 	case "optional":
@@ -365,11 +375,12 @@ func (b *domBuilder) term(n *Node) *domTerm {
 			kind = tmIntersection
 		}
 		var items []*domTerm
-		for _, p := range ruleParts(n) {
-			items = append(items, b.term(p))
+		parts := ruleParts(n)
+		if len(parts) == 1 {
+			return b.term(parts[0])
 		}
-		if len(items) == 1 {
-			return items[0]
+		for _, p := range parts {
+			items = append(items, b.value(p))
 		}
 		return &domTerm{Kind: kind, Items: items}
 	case "string":
@@ -387,7 +398,7 @@ func (b *domBuilder) term(n *Node) *domTerm {
 	case "set":
 		t := &domTerm{Kind: tmSet, Items: []*domTerm{}}
 		for _, p := range ruleParts(n) {
-			t.Items = append(t.Items, b.term(p))
+			t.Items = append(t.Items, b.value(p))
 		}
 		return t
 	case "capture-reference":
@@ -397,6 +408,22 @@ func (b *domBuilder) term(n *Node) *domTerm {
 	}
 	b.fail(n, "unexpected %s in a term", n.Rule)
 	return nil
+}
+
+// value reads a term where a value is needed: head, tail and last give
+// spans, which are not values (§9).
+func (b *domBuilder) value(n *Node) *domTerm {
+	t := b.term(n)
+	if t.Kind == tmCall && (t.Str == "head" || t.Str == "tail" || t.Str == "last") {
+		b.fail(n, "%s() gives a span, which is not a value", t.Str)
+	}
+	return t
+}
+
+// isStringTerm: a quoted string, a phoneme tag, or phonemes, text or
+// lowercase of something.
+func isStringTerm(t *domTerm) bool {
+	return t.Kind == tmLiteral || (t.Kind == tmCall && (t.Str == "phonemes" || t.Str == "text" || t.Str == "lowercase"))
 }
 
 func isSpanTerm(t *domTerm) bool {
@@ -444,7 +471,7 @@ func (b *domBuilder) call(n *Node, inCondition bool) *domTerm {
 	case "tags":
 		shape((len(args) == 1 && span(0)) || (len(args) == 2 && span(0) && rule(1)))
 	case "lowercase":
-		shape(len(args) == 1 && args[0].Kind != tmRule)
+		shape(len(args) == 1 && isStringTerm(args[0]))
 	case "matches":
 		b.fail(ps[0], "matches() is a condition, not a term")
 	default:
@@ -468,7 +495,7 @@ func (b *domBuilder) condition(n *Node) *domCond {
 	switch n.Rule {
 	case "comparison":
 		ps := ruleParts(n)
-		return &domCond{Kind: cdCompare, Left: b.term(ps[0]), Op: b.text(ps[1]), Right: b.term(ps[2])}
+		return &domCond{Kind: cdCompare, Left: b.value(ps[0]), Op: b.text(ps[1]), Right: b.value(ps[2])}
 	case "negation":
 		return &domCond{Kind: cdNot, Inner: b.condition(ruleParts(n)[0])}
 	case "call":
@@ -483,13 +510,14 @@ func (b *domBuilder) emission(n *Node) *domEmit {
 	first := parts(n)[0]
 	e := &domEmit{}
 	things, nothings := 0, 0
+	listed := map[string]bool{}
 	for _, item := range ruleParts(n) {
 		ps := parts(item)
 		target := ps[0]
 		var tags *domTerm
 		for _, p := range ps[1:] {
 			if p.Kind == KindRule && p.Rule == "emit-tags" {
-				tags = b.term(ruleParts(p)[0])
+				tags = b.value(ruleParts(p)[0])
 			}
 		}
 		text := b.text(target)
@@ -510,6 +538,10 @@ func (b *domBuilder) emission(n *Node) *domEmit {
 			}
 		case strings.HasPrefix(text, "$"):
 			it.Capture = text[1:]
+			if listed[it.Capture] {
+				b.fail(first, "an emission lists $%s twice", it.Capture)
+			}
+			listed[it.Capture] = true
 		case strings.HasPrefix(text, "\""):
 			it.IsInsert, it.Insert = true, b.decode(target)
 		default:

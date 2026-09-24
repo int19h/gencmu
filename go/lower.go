@@ -69,15 +69,19 @@ type lowerer struct {
 	l         *lowered
 	features  map[string]bool
 	mandatory bool
-	pending   []pendingHelper
 	helpers   int
+	memo      map[*domExpr][][]slot // expansions of one alternative, by place
+	into      *[]*helperNode        // where a new helper goes
 }
 
-type pendingHelper struct {
-	rule  int32
-	build func() [][]slot // its productions' bodies
-	elide string
-	owner *sAlt
+// helperNode is the helper of one place where [ ], ... or # is written,
+// with the helpers of the places written inside it.
+type helperNode struct {
+	rule     int32
+	bodies   [][]slot
+	elide    string
+	owner    *sAlt
+	children []*helperNode
 }
 
 // lower lowers a stage's grammar for a set of features; mandatory makes
@@ -131,7 +135,9 @@ func (lw *lowerer) lowerRule(r *sRule) {
 	}
 	lhs := lw.l.byName[r.name]
 	for _, a := range alts {
-		lw.pending = nil
+		var helpers []*helperNode
+		lw.memo = map[*domExpr][][]slot{}
+		lw.into = &helpers
 		e := a.alt.Expr
 		var last *domExpr
 		var prefix []*domExpr
@@ -145,9 +151,10 @@ func (lw *lowerer) lowerRule(r *sRule) {
 		}
 		if last != nil {
 			// Trailing repetition (§3.3): r ≔ p x ... is r ≔ p x | r x, and
-			// r ≔ p [x] ... is r ≔ p | r x.
-			xs := lw.expand(last.Inner, a, r.name)
+			// r ≔ p [x] ... is r ≔ p | r x. The places are expanded in the
+			// order they are written, which numbers their helpers.
 			ps := lw.expandSeq(prefix, a, r.name)
+			xs := lw.expand(last.Inner, a, r.name)
 			if last.Min == 1 {
 				for _, p := range ps {
 					for _, x := range xs {
@@ -167,22 +174,25 @@ func (lw *lowerer) lowerRule(r *sRule) {
 				lw.addProduction(lhs, s, a, false)
 			}
 		}
-		// Helpers after the productions that introduced them, in the order
-		// they were created; a helper's own helpers come after it.
-		for i := 0; i < len(lw.pending); i++ {
-			h := lw.pending[i]
-			bodies := h.build()
-			for _, b := range bodies {
-				p := lw.newProduction(h.rule, b)
-				p.helper = true
-				p.transparent = true
-				p.ruleName = lw.l.rules[h.rule].owner
-				p.doc, p.at = h.owner.doc, h.owner.at
-				if len(b) == 0 && h.elide != "" {
-					p.elided = h.elide
+		// Then the helpers, in the order their places are written, each
+		// followed at once by those inside it (§3, Numbering).
+		var number func(hs []*helperNode)
+		number = func(hs []*helperNode) {
+			for _, h := range hs {
+				for _, b := range h.bodies {
+					p := lw.newProduction(h.rule, b)
+					p.helper = true
+					p.transparent = true
+					p.ruleName = lw.l.rules[h.rule].owner
+					p.doc, p.at = h.owner.doc, h.owner.at
+					if len(b) == 0 && h.elide != "" {
+						p.elided = h.elide
+					}
 				}
+				number(h.children)
 			}
 		}
+		number(helpers)
 	}
 }
 
@@ -309,16 +319,12 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt, repeatPrefix b
 	}
 }
 
-// firstTerminal is the terminal an expression's expansions begin with, if it
-// is one written first.
-func firstTerminal(e *domExpr) string {
+// elidableTerminal is the symbol an optional's content is, or begins with
+// as a sequence, recursively (§3.8); a choice or an & begins with none.
+func elidableTerminal(e *domExpr) string {
 	switch e.Kind {
 	case exSeq:
-		return firstTerminal(e.Items[0])
-	case exRepeat:
-		if e.Min == 1 {
-			return firstTerminal(e.Inner)
-		}
+		return elidableTerminal(e.Items[0])
 	case exRef, exTerminal:
 		return e.Name
 	}
@@ -341,6 +347,28 @@ func (lw *lowerer) expandSeq(items []*domExpr, a *sAlt, ruleName string) [][]slo
 }
 
 func (lw *lowerer) expand(e *domExpr, a *sAlt, ruleName string) [][]slot {
+	if x, ok := lw.memo[e]; ok {
+		return x
+	}
+	x := lw.expandPlace(e, a, ruleName)
+	lw.memo[e] = x
+	return x
+}
+
+// helper makes the helper of one place, its bodies expanded at once so that
+// the helpers inside it follow it.
+func (lw *lowerer) helper(a *sAlt, ruleName, elide string, bodies func(h int32) [][]slot) [][]slot {
+	h := lw.newHelper(a, ruleName)
+	node := &helperNode{rule: h, elide: elide, owner: a}
+	*lw.into = append(*lw.into, node)
+	outer := lw.into
+	lw.into = &node.children
+	node.bodies = bodies(h)
+	lw.into = outer
+	return [][]slot{{{sym: symbol{id: h}}}}
+}
+
+func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 	switch e.Kind {
 	case exSeq:
 		return lw.expandSeq(e.Items, a, ruleName)
@@ -364,25 +392,22 @@ func (lw *lowerer) expand(e *domExpr, a *sAlt, ruleName string) [][]slot {
 		}
 		return out
 	case exOptional:
-		h := lw.newHelper(a, ruleName)
 		inner := e.Inner
 		elide := ""
-		if t := firstTerminal(inner); t != "" && lw.g.elidable[t] {
+		if t := elidableTerminal(inner); t != "" && lw.g.elidable[t] {
 			elide = t
 		}
 		mandatory := elide != "" && lw.mandatory
-		lw.pending = append(lw.pending, pendingHelper{rule: h, owner: a, elide: elide, build: func() [][]slot {
+		return lw.helper(a, ruleName, elide, func(int32) [][]slot {
 			var out [][]slot
 			if !mandatory {
 				out = append(out, []slot{})
 			}
 			return append(out, lw.expand(inner, a, ruleName)...)
-		}})
-		return [][]slot{{{sym: symbol{id: h}}}}
+		})
 	case exRepeat:
-		h := lw.newHelper(a, ruleName)
 		inner, min := e.Inner, e.Min
-		lw.pending = append(lw.pending, pendingHelper{rule: h, owner: a, build: func() [][]slot {
+		return lw.helper(a, ruleName, "", func(h int32) [][]slot {
 			xs := lw.expand(inner, a, ruleName)
 			var out [][]slot
 			if min == 0 {
@@ -394,15 +419,12 @@ func (lw *lowerer) expand(e *domExpr, a *sAlt, ruleName string) [][]slot {
 				out = append(out, concat([]slot{{sym: symbol{id: h}}}, x))
 			}
 			return out
-		}})
-		return [][]slot{{{sym: symbol{id: h}}}}
+		})
 	case exHash:
-		h := lw.newHelper(a, ruleName)
 		free := lw.l.byName[lw.g.freeModifiers]
-		lw.pending = append(lw.pending, pendingHelper{rule: h, owner: a, build: func() [][]slot {
+		return lw.helper(a, ruleName, "", func(h int32) [][]slot {
 			return [][]slot{{}, {{sym: symbol{id: h}}, {sym: symbol{id: free}}}}
-		}})
-		return [][]slot{{{sym: symbol{id: h}}}}
+		})
 	case exRef:
 		if isTerminalName(e.Name) {
 			return [][]slot{{{sym: lw.terminal(e.Name)}}}
@@ -411,11 +433,13 @@ func (lw *lowerer) expand(e *domExpr, a *sAlt, ruleName string) [][]slot {
 	case exTerminal:
 		return [][]slot{{{sym: lw.terminal(e.Name)}}}
 	case exCapture:
-		xs := lw.expand(e.Inner, a, ruleName)
-		for _, x := range xs {
-			x[0].capture = e.Name
+		var out [][]slot
+		for _, x := range lw.expand(e.Inner, a, ruleName) {
+			c := concat(nil, x)
+			c[0].capture = e.Name
+			out = append(out, c)
 		}
-		return xs
+		return out
 	case exEmpty:
 		return [][]slot{{}}
 	}

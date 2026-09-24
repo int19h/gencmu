@@ -126,9 +126,10 @@ func (run *stageRun) run(g *lowered, mandatory func() *lowered, elisionOnly bool
 	out.tree = run.buildTree(rec, res.chosen)
 	if elisionOnly && out.stage.Verdict != VerdictUnique {
 		if err := run.checkElision(out.tree, mandatory()); err != nil {
+			// The stage accepted its input: it keeps its verdict, witness,
+			// tied tree and output, and the result has no tree (§7).
 			out.err = err
 			out.tree = nil
-			return out
 		}
 	}
 	out.stage.Output = run.emit(rec, res.chosen)
@@ -197,19 +198,16 @@ func (run *stageRun) rejection(rec *recognizer) *ParseError {
 	return &ParseError{Kind: ErrorRejected, Stage: run.name, Token: &tok, Source: &src, Line: line, Column: col, Expected: expected, Message: msg}
 }
 
+// failure is a grammar error found while parsing: its kind, stage and
+// message, and no position (§13).
 func (run *stageRun) failure(f *parseFailure) *ParseError {
-	e := &ParseError{Kind: ErrorGrammar, Stage: run.name, Message: "stage " + run.name + ": " + f.message}
+	msg := "stage " + run.name + ": " + f.message
 	if f.hasToken {
-		tok := f.token
 		src := run.spanSource(f.token, f.tokenEnd)
-		e.Token, e.Source = &tok, &src
+		line, col := run.ps.lineColumn(src[0])
+		msg += fmt.Sprintf(" (tokens %d to %d, at line %d, column %d)", f.token, f.tokenEnd, line, col)
 	}
-	if f.rule != "" {
-		if r := run.grammar.byName[f.rule]; r != nil {
-			e.Document, e.Line, e.Column = r.doc, r.at[0], r.at[1]
-		}
-	}
-	return e
+	return &ParseError{Kind: ErrorGrammar, Stage: run.name, Message: msg}
 }
 
 // checkElision is engine §7: write the chosen tree's elided terminators back

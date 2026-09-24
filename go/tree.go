@@ -218,35 +218,22 @@ func (run *stageRun) plan(rec *recognizer, n *dn) []emitTask {
 		}
 		return emitTask{tok: tok}
 	}
-	// Each inserted tag goes after the capture listed before it, or before
-	// the first capture listed if none is.
+	// An inserted tag goes before the token of the first capture listed
+	// after it, or, with none listed after it, after the last child (§11).
 	named := map[string]*domEmitItem{}
-	after := map[string][]string{}
-	var leading []string
-	firstCapture := ""
-	lastCapture := ""
+	before := map[string][]string{}
+	var pendingTags []string
 	for _, it := range items {
 		switch {
 		case it.IsInsert:
-			if lastCapture == "" {
-				leading = append(leading, it.Insert)
-			} else {
-				after[lastCapture] = append(after[lastCapture], it.Insert)
-			}
+			pendingTags = append(pendingTags, it.Insert)
 		case it.Capture != "":
 			named[it.Capture] = it
-			lastCapture = it.Capture
-			if firstCapture == "" {
-				firstCapture = it.Capture
-			}
+			before[it.Capture] = append(before[it.Capture], pendingTags...)
+			pendingTags = nil
 		}
 	}
 	var plan []emitTask
-	if firstCapture == "" {
-		for _, tag := range leading {
-			plan = append(plan, insert(tag, start))
-		}
-	}
 	for i, k := range kids {
 		name := p.capName[i]
 		it := named[name]
@@ -254,20 +241,18 @@ func (run *stageRun) plan(rec *recognizer, n *dn) []emitTask {
 			plan = append(plan, emitTask{walk: k})
 			continue
 		}
-		a, b, own := run.kidSpan(rec, k)
-		if name == firstCapture {
-			for _, tag := range leading {
-				plan = append(plan, insert(tag, a))
-			}
+		a, _, own := run.kidSpan(rec, k)
+		for _, tag := range before[name] {
+			plan = append(plan, insert(tag, a))
 		}
 		tags := own
 		if it.Tags != nil {
 			tags = ev.tagsOf(it.Tags)
 		}
 		plan = append(plan, emitTask{emit: k, tags: tags})
-		for _, tag := range after[name] {
-			plan = append(plan, insert(tag, b))
-		}
+	}
+	for _, tag := range pendingTags {
+		plan = append(plan, insert(tag, end))
 	}
 	return plan
 }

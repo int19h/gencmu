@@ -13,7 +13,7 @@ import (
 // Line and Column say where, when known; Line and Column count from 1, in
 // code points.
 type Error struct {
-	Kind     string // always "grammar" for a load error
+	Kind     string // "grammar" for a load error, "usage" for a caller's mistake
 	Document string
 	Line     int
 	Column   int
@@ -65,8 +65,9 @@ func splitLines(s string) []string {
 // grammarText is the text of a document's ebnf blocks (engine §8), with the
 // document position of each of its code points and of its end.
 type grammarText struct {
-	text []rune
-	pos  [][2]int // len(text)+1 entries: line and column, from 1
+	text     []rune
+	pos      [][2]int // len(text)+1 entries: line and column, from 1
+	unclosed *[2]int  // the opening fence of an ebnf block never closed
 }
 
 func (g *grammarText) at(offset int) [2]int {
@@ -90,6 +91,7 @@ func extractEBNF(doc string) *grammarText {
 	var fence string // the open fence, or "" outside a block
 	isEBNF, blocks, linesInBlock := false, 0, 0
 	lastEnd := [2]int{1, 1}
+	var opened [2]int
 	newline := func() {
 		g.text = append(g.text, '\n')
 		g.pos = append(g.pos, lastEnd)
@@ -106,6 +108,7 @@ func extractEBNF(doc string) *grammarText {
 			}
 			fence = m[1]
 			isEBNF = info == "ebnf"
+			opened = [2]int{n + 1, runeColumn(line, 0)}
 			if isEBNF {
 				if blocks > 0 {
 					newline()
@@ -135,6 +138,11 @@ func extractEBNF(doc string) *grammarText {
 		lastEnd = [2]int{n + 1, col}
 	}
 	g.pos = append(g.pos, lastEnd)
+	if fence != "" && isEBNF {
+		// Another unclosed block runs to the end, as in CommonMark; an
+		// ebnf block is an error at its fence (§8).
+		g.unclosed = &opened
+	}
 	return g
 }
 
@@ -167,7 +175,6 @@ type pipeline struct {
 
 var (
 	instruction = regexp.MustCompile(`<\?([A-Za-z][A-Za-z0-9-]*)((?:\s[^?]*)?)\?>`)
-	heading     = regexp.MustCompile(`^ {0,3}#{1,6}(\s|$)`)
 	linkStart   = regexp.MustCompile(`\[[^\]]*\]\(`)
 	featureName = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9-]*$`)
 )
@@ -199,9 +206,6 @@ func readPipeline(text, docPath string) (*pipeline, *Error) {
 		name, args := line[m[2]:m[3]], strings.TrimSpace(line[m[4]:m[5]])
 		switch name {
 		case "stage":
-			if !heading.MatchString(line) {
-				return nil, grammarError(docPath, at, "<?stage?> must end a heading")
-			}
 			if args == "" || strings.ContainsAny(args, " \t") {
 				return nil, grammarError(docPath, at, "<?stage?> needs one stage name")
 			}
