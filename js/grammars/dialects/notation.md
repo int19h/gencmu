@@ -8,7 +8,7 @@ DOM of this dialect from `../notation/bootstrap.json`, and a check in every
 library's tests reads these documents with it and compares the result with
 the bootstrap itself.
 
-The input is the text of a grammar document's `ebnf` blocks, joined with a
+The input is the text of a grammar document's `jbogenbau` blocks, joined with a
 newline between blocks; finding the blocks in the Markdown is the one part
 of reading a grammar that is not itself a grammar.
 

@@ -1,0 +1,35 @@
+{
+  "description": "A presence test is decided per alternative: %conditions $a removes the alternative that does not capture a (engine §3.6).",
+  "grammar": "%rule text x\n%rule x $a(A) <\"captured\"> | A <\"bare\">\n%conditions $a",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "x",
+            "tags": {
+              "captured": true
+            }
+          }
+        ]
+      }
+    }
+  }
+}

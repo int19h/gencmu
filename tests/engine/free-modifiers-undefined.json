@@ -1,6 +1,6 @@
 {
   "description": "%free-modifiers must name a rule the stage defines (engine §9).",
-  "grammar": "%ambiguity-resolution greedy ;\n# ≔ [free ...] ;\ntext ≔ A # ;",
+  "grammar": "%ambiguity-resolution greedy\n%rule # [free ...]\n%rule text A #",
   "tokens": [
     {
       "text": "a",

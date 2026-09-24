@@ -1,6 +1,6 @@
 {
   "description": "A derivation tied with the chosen one can still be dominated: B X ties with A X at the first read but loses to B Y, so B Y is the tied derivation reported (engine §6).",
-  "grammar": "%ambiguity-resolution greedy ;\ntext ≔ A X | B X | B Y ;",
+  "grammar": "%ambiguity-resolution greedy\n%rule text A X | B X | B Y",
   "tokens": [
     {
       "text": "x",

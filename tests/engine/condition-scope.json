@@ -1,6 +1,6 @@
 {
   "description": "A condition applies only to alternatives that capture everything it mentions (engine §3.6).",
-  "grammar": "text ≔ $a(W) | $b(W) W : text($a) = \"x\" ;",
+  "grammar": "%rule text $a(W) | $b(W) W %conditions text($a) = \"x\"",
   "tokens": [
     {
       "text": "y",

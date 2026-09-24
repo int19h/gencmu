@@ -13,7 +13,7 @@ const DOM_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
 export const DOM_MAX_DEPTH = 256;
 
 // The version of the DOM's shape (docs/output.md), part of every cache key.
-export const DOM_FORMAT = 2;
+export const DOM_FORMAT = 3;
 
 /**
  * @param {unknown} value
@@ -67,7 +67,7 @@ export function domProblem(dom) {
   /** @type {{kind: string, value: unknown, depth: number}[]} */
   const pending = [];
   for (const rule of dom.rules) {
-    if (!isDomObject(rule) || typeof rule.name !== "string" || !(DOM_NAME.test(rule.name) || rule.name === "#") || (rule.op !== "define" && rule.op !== "extend") ||
+    if (!isDomObject(rule) || typeof rule.name !== "string" || !(DOM_NAME.test(rule.name) || rule.name === "#") || !["define", "redefine", "extend"].includes(/** @type {string} */ (rule.op)) ||
         !Array.isArray(rule.alternatives) || rule.alternatives.length === 0 || !Array.isArray(rule.conditions) || !isDomPosition(rule.at)) {
       return "a malformed rule";
     }
@@ -133,22 +133,22 @@ export function domProblem(dom) {
           !(typeof inner.ref === "string" || typeof inner.terminal === "string")) return "a malformed capture";
     } else if (kind === "constituent-tags") {
       // A constituent's tags cannot be made of its own (engine §9).
-      if (domReadsOwnTags(value)) return "a constituent's tags made of its own";
+      if (readsOwnTags(value)) return "a constituent's tags made of its own";
       pending.push({ kind: "term", value, depth });
     } else if (kind === "emission") {
       // The reader's rules (engine §9): $ only with $, $ <> alone, a capture
-      // listed once, no tags on an inserted tag, <> only on a capture.
+      // listed once, no tags on an inserted tag, silent only on a capture.
       if (!list(value.items, 1) || Object.keys(value).length !== 1) return "a malformed emission";
       const items = /** @type {unknown[]} */ (value.items);
       if (!items.every((item) => isDomObject(item) && (typeof item.capture === "string") !== (typeof item.insert === "string"))) return "a malformed emission";
       const records = /** @type {Record<string, unknown>[]} */ (items);
       const whole = records.filter((item) => item.capture === "");
       if (whole.length && whole.length !== records.length) return "a malformed emission";
-      if (whole.some((item) => item.erase === true) && records.length !== 1) return "a malformed emission";
+      if (whole.some((item) => item.silent === true) && records.length !== 1) return "a malformed emission";
       const captures = records.flatMap((item) => (typeof item.capture === "string" && item.capture !== "" ? [item.capture] : []));
       if (new Set(captures).size !== captures.length) return "a malformed emission";
       for (const item of records) {
-        if (item.erase !== undefined && (item.erase !== true || item.tags !== undefined || typeof item.insert === "string")) return "a malformed emission";
+        if (item.silent !== undefined && (item.silent !== true || item.tags !== undefined || typeof item.insert === "string")) return "a malformed emission";
         if (item.tags === undefined) continue;
         if (typeof item.insert === "string") return "a malformed emission";
         if (isDomObject(item.tags) && item.tags.emptySet === true) return "a malformed emission";
@@ -163,6 +163,12 @@ export function domProblem(dom) {
         for (const item of /** @type {unknown[]} */ (items)) push("condition", item);
       } else if ("not" in value) {
         push("condition", value.not);
+      } else if ("captured" in value) {
+        if (typeof value.captured !== "string" || Object.keys(value).length !== 1) return "a malformed condition";
+      } else if ("if" in value) {
+        if (Object.keys(value).length !== 2 || !("then" in value)) return "a malformed condition";
+        push("condition", value.if);
+        push("condition", value.then);
       } else if ("matches" in value) {
         if (typeof value.rule !== "string" || !isDomSpan(value.matches)) return "a malformed condition";
         pending.push({ kind: "argument", value: value.matches, depth: next });
@@ -172,7 +178,11 @@ export function domProblem(dom) {
         push("term", value.right);
       }
     } else {
-      if ("union" in value || "intersection" in value) {
+      if ("if" in value) {
+        if (Object.keys(value).length !== 2 || !("then" in value)) return "a malformed term";
+        push("condition", value.if);
+        push("term", value.then);
+      } else if ("union" in value || "intersection" in value) {
         const items = value.union ?? value.intersection;
         if (!list(items, 2)) return "a malformed term";
         for (const item of /** @type {unknown[]} */ (items)) push("term", item);
@@ -193,6 +203,11 @@ export function domProblem(dom) {
       }
     }
   }
+  // A definition the reader would refuse (engine §9).
+  for (const rule of /** @type {unknown[]} */ (dom.rules)) {
+    const problem = definitionProblem(rule);
+    if (problem) return problem;
+  }
   return null;
 }
 
@@ -206,45 +221,198 @@ export function isDom(dom) {
 }
 
 /**
- * Whether a term reads the tags of `$`, the constituent whose tags it may
- * be defining.
- * @param {Argument} term
+ * Whether a term, or a condition inside one, reads the tags of `$`, the
+ * constituent whose tags it may be defining: `$` as a value, `tags($)` or
+ * `classes($)`. A span argument such as `phonemes($)` reads tokens, not tags.
+ * The DOM's shape need not have been checked: anything malformed reads
+ * nothing, and the check of its shape refuses it.
+ * @param {unknown} node
  * @returns {boolean}
  */
-export function readsOwnTags(term) {
-  if ("capture" in term) return term.capture === "";
-  if ("union" in term) return term.union.some(readsOwnTags);
-  if ("intersection" in term) return term.intersection.some(readsOwnTags);
-  if ("call" in term) {
-    if ((term.call === "tags" || term.call === "classes") && term.args.length === 1) {
-      const span = term.args[0];
-      return "capture" in span && span.capture === "";
+export function readsOwnTags(node) {
+  if (!isDomObject(node)) return false;
+  if (node.capture === "" && Object.keys(node).length === 1) return true;
+  if (typeof node.call === "string") {
+    if (!Array.isArray(node.args)) return false;
+    if ((node.call === "tags" || node.call === "classes") && node.args.length === 1) {
+      const span = node.args[0];
+      return isDomObject(span) && span.capture === "";
     }
-    return term.args.some((argument) => "call" in argument && readsOwnTags(argument));
+    return node.args.some((argument) => isDomObject(argument) && typeof argument.call === "string" && readsOwnTags(argument));
   }
-  return false;
+  if ("matches" in node) return false;
+  for (const key of ["union", "intersection", "any", "all"]) {
+    const items = node[key];
+    if (Array.isArray(items)) return items.some(readsOwnTags);
+  }
+  return ["left", "right", "not", "if", "then"].some((key) => readsOwnTags(node[key]));
+}
+
+// ---- Clauses against the captures of alternatives (engine §3.6, §9) ----
+
+/** A condition that simplifies to true or false for a production. */
+export const DOM_TRUE = Object.freeze({ constant: true });
+export const DOM_FALSE = Object.freeze({ constant: false });
+/** A term that simplifies to the empty set. */
+const DOM_EMPTY = Object.freeze({ emptySet: true });
+
+/**
+ * A clause simplified for a production that has the captures `has`: each
+ * presence test becomes true or false, and guards and logic over them are
+ * reduced (engine §3.6). A condition may become DOM_TRUE or DOM_FALSE; a term may
+ * become the empty set.
+ * @param {any} node a condition or a term
+ * @param {(name: string) => boolean} has
+ * @returns {any}
+ */
+export function simplify(node, has) {
+  if (!isDomObject(node)) return node;
+  if (typeof node.captured === "string") return has(node.captured) ? DOM_TRUE : DOM_FALSE;
+  if ("not" in node) {
+    const inner = simplify(node.not, has);
+    return inner === DOM_TRUE ? DOM_FALSE : inner === DOM_FALSE ? DOM_TRUE : { not: inner };
+  }
+  if (Array.isArray(node.all)) {
+    const items = node.all.map((item) => simplify(item, has));
+    if (items.includes(DOM_FALSE)) return DOM_FALSE;
+    const left = items.filter((item) => item !== DOM_TRUE);
+    return left.length === 0 ? DOM_TRUE : left.length === 1 ? left[0] : { all: left };
+  }
+  if (Array.isArray(node.any)) {
+    const items = node.any.map((item) => simplify(item, has));
+    if (items.includes(DOM_TRUE)) return DOM_TRUE;
+    const left = items.filter((item) => item !== DOM_FALSE);
+    return left.length === 0 ? DOM_FALSE : left.length === 1 ? left[0] : { any: left };
+  }
+  if ("if" in node) {
+    const antecedent = simplify(node.if, has);
+    const isTerm = !isCondition(node.then);
+    if (antecedent === DOM_FALSE) return isTerm ? DOM_EMPTY : DOM_TRUE;
+    const consequent = simplify(node.then, has);
+    if (antecedent === DOM_TRUE) return consequent;
+    if (!isTerm && consequent === DOM_TRUE) return DOM_TRUE;
+    if (!isTerm && consequent === DOM_FALSE) return { not: antecedent };
+    return { if: antecedent, then: consequent };
+  }
+  if (Array.isArray(node.union)) {
+    const items = node.union.map((item) => simplify(item, has)).filter((item) => item !== DOM_EMPTY);
+    return items.length === 0 ? DOM_EMPTY : items.length === 1 ? items[0] : { union: items };
+  }
+  if (Array.isArray(node.intersection)) {
+    const items = node.intersection.map((item) => simplify(item, has));
+    return items.includes(DOM_EMPTY) ? DOM_EMPTY : { intersection: items };
+  }
+  if (typeof node.op === "string") return { op: node.op, left: simplify(node.left, has), right: simplify(node.right, has) };
+  if (typeof node.call === "string" && Array.isArray(node.args)) return { call: node.call, args: node.args.map((argument) => simplify(argument, has)) };
+  return node;
 }
 
 /**
- * readsOwnTags for a term whose shape is not yet checked: anything that is
- * not a well-formed term reads nothing, and the check of its shape refuses
- * it.
- * @param {unknown} term
+ * Whether a DOM node is a condition rather than a term.
+ * @param {any} node
  * @returns {boolean}
  */
-function domReadsOwnTags(term) {
-  if (!isDomObject(term)) return false;
-  if (term.capture === "") return true;
-  for (const key of ["union", "intersection"]) {
-    const items = term[key];
-    if (Array.isArray(items)) return items.some(domReadsOwnTags);
+function isCondition(node) {
+  return isDomObject(node) && (typeof node.op === "string" || "not" in node || "all" in node || "any" in node ||
+    "matches" in node || "captured" in node || ("if" in node && isCondition(node.then)) || "constant" in node);
+}
+
+/**
+ * The captures a clause uses as values or spans, presence tests aside.
+ * @param {unknown} node
+ * @returns {string[]}
+ */
+export function capturesUsed(node) {
+  /** @type {string[]} */
+  const names = [];
+  const stack = [node];
+  for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
+    if (!isDomObject(current) && !Array.isArray(current)) continue;
+    if (isDomObject(current) && typeof current.capture === "string" && Object.keys(current).length === 1) names.push(current.capture);
+    for (const value of Object.values(current)) if (value && typeof value === "object") stack.push(value);
   }
-  if (typeof term.call === "string" && Array.isArray(term.args)) {
-    if ((term.call === "tags" || term.call === "classes") && term.args.length === 1) {
-      const span = term.args[0];
-      return isDomObject(span) && span.capture === "";
+  return names;
+}
+
+/**
+ * The captures a clause mentions at all, presence tests included.
+ * @param {unknown} node
+ * @returns {string[]}
+ */
+function capturesMentioned(node) {
+  const names = capturesUsed(node);
+  const stack = [node];
+  for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
+    if (!isDomObject(current) && !Array.isArray(current)) continue;
+    if (isDomObject(current) && typeof current.captured === "string") names.push(current.captured);
+    for (const value of Object.values(current)) if (value && typeof value === "object") stack.push(value);
+  }
+  return names;
+}
+
+/**
+ * The captures of an alternative's top level, name to position.
+ * @param {any} alternative
+ * @returns {Map<string, number>}
+ */
+export function alternativeCaptures(alternative) {
+  const top = isDomObject(alternative.expr) && Array.isArray(alternative.expr.seq) ? alternative.expr.seq : [alternative.expr];
+  /** @type {Map<string, number>} */
+  const captures = new Map([["", -1]]);
+  top.forEach((/** @type {any} */ item, /** @type {number} */ index) => {
+    if (isDomObject(item) && typeof item.capture === "string") captures.set(item.capture, index);
+  });
+  return captures;
+}
+
+/**
+ * Why a definition, a rule's alternatives with its own clauses, cannot be
+ * read (engine §9), or null. The DOM's shape must already be checked.
+ * @param {any} rule
+ * @returns {string | null}
+ */
+export function definitionProblem(rule) {
+  const alternatives = rule.alternatives.map(alternativeCaptures);
+  const anyHas = (/** @type {string} */ name) => alternatives.some((/** @type {Map<string, number>} */ captures) => captures.has(name));
+  const items = rule.emit ? rule.emit.items : [];
+  const clauses = [rule.tags, ...rule.conditions, ...rule.alternatives.map((/** @type {any} */ a) => a.tags), ...items];
+  for (const name of clauses.flatMap(capturesMentioned)) {
+    if (!anyHas(name)) return `$${name} is captured by no alternative of ${rule.name}`;
+  }
+  for (const condition of rule.conditions) {
+    const applies = alternatives.some((/** @type {Map<string, number>} */ captures) => {
+      const simple = simplify(condition, (name) => captures.has(name));
+      return simple !== DOM_TRUE && capturesUsed(simple).every((name) => captures.has(name));
+    });
+    if (!applies) return `a condition of ${rule.name} applies to no alternative`;
+  }
+  for (let index = 0; index < alternatives.length; index++) {
+    const captures = alternatives[index];
+    const has = (/** @type {string} */ name) => captures.has(name);
+    for (const term of [rule.tags, rule.alternatives[index].tags]) {
+      if (term === undefined) continue;
+      const missing = capturesUsed(simplify(term, has)).find((name) => !has(name));
+      if (missing !== undefined) return `a tag term of ${rule.name} uses $${missing}, which an alternative lacks; guard it with $${missing} ⟹`;
     }
-    return term.args.some((argument) => isDomObject(argument) && typeof argument.call === "string" && domReadsOwnTags(argument));
+    if (!rule.emit) continue;
+    const present = items.filter((/** @type {any} */ item) => item.capture === undefined || has(item.capture));
+    if (present.length === 0) return `%emits of ${rule.name} leaves an alternative nothing to emit`;
+    const positions = present.flatMap((/** @type {any} */ item) => (item.capture ? [/** @type {number} */ (captures.get(item.capture))] : []));
+    if (positions.some((/** @type {number} */ position, /** @type {number} */ at) => at > 0 && position < positions[at - 1])) {
+      return `%emits of ${rule.name} lists captures out of the order they stand in`;
+    }
+    for (const item of present) {
+      if (!item.tags) continue;
+      const missing = capturesUsed(simplify(item.tags, has)).find((name) => !has(name));
+      if (missing !== undefined) return `a tag term of ${rule.name} uses $${missing}, which an alternative lacks; guard it with $${missing} ⟹`;
+    }
   }
-  return false;
+  for (let index = 0; index < items.length; index++) {
+    if (items[index].insert === undefined) continue;
+    const next = items.slice(index + 1).find((/** @type {any} */ item) => item.capture !== undefined);
+    if (next && next.capture !== "" && !alternatives.every((/** @type {Map<string, number>} */ captures) => captures.has(next.capture))) {
+      return `%emits of ${rule.name} inserts a tag before $${next.capture}, which an alternative lacks`;
+    }
+  }
+  return null;
 }

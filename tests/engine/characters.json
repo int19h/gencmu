@@ -1,6 +1,6 @@
 {
   "description": "The first stage reads one token per code point, tagged with the character and, weakly, its class (engine §1).",
-  "grammar": "text ≔ \"x\" \"space\" \"digit\" \"é\" ;",
+  "grammar": "%rule text \"x\" \"space\" \"digit\" \"é\"",
   "input": "x 7é",
   "expect": {
     "result": {

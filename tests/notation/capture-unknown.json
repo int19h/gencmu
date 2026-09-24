@@ -1,0 +1,10 @@
+{
+  "description": "A capture no alternative captures is an error wherever it is mentioned, a presence test included (engine §9).",
+  "document": "```jbogenbau\n%rule a $x(A) %conditions $y ⟹ \"p\" ∈ tags($x)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  }
+}

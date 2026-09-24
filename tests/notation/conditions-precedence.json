@@ -1,6 +1,6 @@
 {
-  "description": "∧ binds tighter than ∨, and parentheses group; the conditions joined by ∧ at the top are the rule's conditions, one by one (engine §9).",
-  "document": "```ebnf\na ≔ $x(A) $y(B) : \"p\" ∈ tags($x) ∨ \"q\" ∈ tags($y) ∧ \"r\" ∈ tags($x) ;\nb ≔ $x(A) $y(B) : (\"p\" ∈ tags($x) ∨ \"q\" ∈ tags($y)) ∧ ¬(\"r\" ∈ tags($x) ∧ matches($y, a)) ;\n```\n",
+  "description": "∧ binds tighter than ∨, which binds tighter than ⟹, which groups to the right; parentheses group (engine §9, §10).",
+  "document": "```jbogenbau\n%rule a $x(A) $y(B) %conditions \"p\" ∈ tags($x) ∨ \"q\" ∈ tags($y) ∧ \"r\" ∈ tags($x)\n%rule b $x(A) $y(B) %conditions (\"p\" ∈ tags($x) ∨ \"q\" ∈ tags($y)) ∧ ¬(\"r\" ∈ tags($x) ∧ matches($y, a))\n%rule c $x(A) %conditions \"p\" ∈ tags($x) ⟹ \"q\" ∈ tags($x) ⟹ \"r\" ∈ tags($x)\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -61,11 +61,91 @@
         {
           "conditions": [
             {
-              "any": [
+              "all": [
                 {
+                  "any": [
+                    {
+                      "op": "∈",
+                      "left": {
+                        "literal": "p"
+                      },
+                      "right": {
+                        "call": "tags",
+                        "args": [
+                          {
+                            "capture": "x"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "op": "∈",
+                      "left": {
+                        "literal": "q"
+                      },
+                      "right": {
+                        "call": "tags",
+                        "args": [
+                          {
+                            "capture": "y"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "not": {
+                    "all": [
+                      {
+                        "op": "∈",
+                        "left": {
+                          "literal": "r"
+                        },
+                        "right": {
+                          "call": "tags",
+                          "args": [
+                            {
+                              "capture": "x"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "matches": {
+                          "capture": "y"
+                        },
+                        "rule": "a"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "conditions": [
+            {
+              "if": {
+                "op": "∈",
+                "left": {
+                  "literal": "p"
+                },
+                "right": {
+                  "call": "tags",
+                  "args": [
+                    {
+                      "capture": "x"
+                    }
+                  ]
+                }
+              },
+              "then": {
+                "if": {
                   "op": "∈",
                   "left": {
-                    "literal": "p"
+                    "literal": "q"
                   },
                   "right": {
                     "call": "tags",
@@ -76,46 +156,20 @@
                     ]
                   }
                 },
-                {
+                "then": {
                   "op": "∈",
                   "left": {
-                    "literal": "q"
+                    "literal": "r"
                   },
                   "right": {
                     "call": "tags",
                     "args": [
                       {
-                        "capture": "y"
+                        "capture": "x"
                       }
                     ]
                   }
                 }
-              ]
-            },
-            {
-              "not": {
-                "all": [
-                  {
-                    "op": "∈",
-                    "left": {
-                      "literal": "r"
-                    },
-                    "right": {
-                      "call": "tags",
-                      "args": [
-                        {
-                          "capture": "x"
-                        }
-                      ]
-                    }
-                  },
-                  {
-                    "matches": {
-                      "capture": "y"
-                    },
-                    "rule": "a"
-                  }
-                ]
               }
             }
           ]

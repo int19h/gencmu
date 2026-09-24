@@ -1,6 +1,6 @@
 {
   "description": "An input whose only derivations are cyclic has none to count and is rejected (engine §4): text needs r's tag T, which only the cycle r, q, r gives it.",
-  "grammar": "text ≔ $a(r) : \"T\" ∈ tags($a) ; r ≔ q <\"T\"> | A ; q ≔ r ;",
+  "grammar": "%rule text $a(r) %conditions \"T\" ∈ tags($a)\n%rule r q <\"T\"> | A\n%rule q r",
   "tokens": [
     {
       "text": "a",

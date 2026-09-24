@@ -1,6 +1,6 @@
 {
   "description": "The second derivation of a tie is the T-least of those tied with the chosen one after the whole text is read: B e, not B, once C follows, since lazy prefers closing e before reading C (engine §6).",
-  "grammar": "%ambiguity-resolution lazy ;\ntext ≔ t C ; t ≔ A | B | B e ; e ≔ ε ;",
+  "grammar": "%ambiguity-resolution lazy\n%rule text t C\n%rule t A | B | B e\n%rule e ε",
   "tokens": [
     {
       "text": "x",

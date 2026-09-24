@@ -1,6 +1,6 @@
 {
   "description": "A backtick fence whose info string holds a backtick is not a fence (engine §8, CommonMark): the line is prose and the block after it is read.",
-  "document": "``` ebnf`x\na ≔ B ;\n```ebnf\nc ≔ D ;\n```\n",
+  "document": "``` jbogenbau`x\n%rule a B\n```jbogenbau\n%rule c D\n```\n",
   "expect": {
     "dom": {
       "rules": [

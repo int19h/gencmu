@@ -221,6 +221,7 @@ export function formatTerm(term) {
   if ("union" in term) return term.union.map(formatTerm).join(" ∪ ");
   if ("intersection" in term) return term.intersection.map((item) => ("union" in item ? `(${formatTerm(item)})` : formatTerm(item))).join(" ∩ ");
   if ("call" in term) return `${term.call}(${term.args.map(formatTerm).join(", ")})`;
+  if ("if" in term) return `(${formatCondition(term.if)} ⟹ ${formatTerm(term.then)})`;
   return `$${term.capture}`;
 }
 
@@ -232,6 +233,8 @@ export function formatCondition(condition) {
   if ("any" in condition) return condition.any.map(formatCondition).join(" ∨ ");
   if ("all" in condition) return condition.all.map((item) => ("any" in item ? `(${formatCondition(item)})` : formatCondition(item))).join(" ∧ ");
   if ("not" in condition) return `¬(${formatCondition(condition.not)})`;
+  if ("captured" in condition) return `$${condition.captured}`;
+  if ("if" in condition) return `(${formatCondition(condition.if)} ⟹ ${formatCondition(/** @type {Condition} */ (condition.then))})`;
   if ("matches" in condition) return `matches(${formatTerm(condition.matches)}, ${condition.rule})`;
   return `${formatTerm(condition.left)} ${condition.op} ${formatTerm(condition.right)}`;
 }

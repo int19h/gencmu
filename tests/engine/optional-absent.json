@@ -1,6 +1,6 @@
 {
   "description": "An absent optional leaves no node (engine §12).",
-  "grammar": "text ≔ [A] B ;",
+  "grammar": "%rule text [A] B",
   "tokens": [
     {
       "text": "b",

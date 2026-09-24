@@ -5,31 +5,29 @@ import { loadDialectSources, audit } from "../src/node.js";
 
 const dialect = (rules) => loadDialectSources({
   "p.md": "## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n",
-  "g.md": "```ebnf\n%ambiguity-resolution greedy ;\n" + rules + "\n```\n",
+  "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n" + rules + "\n```\n",
 }, "p.md");
 
 test("the audit reaches rules only through what a reachable alternative can use", () => {
-  // A condition naming a capture no alternative has never runs, so the rule
-  // it names is not reached through it.
-  const [idle] = audit(dialect("text ≔ A : matches($x, helper) ; helper ≔ B ;"));
-  assert.deepEqual(idle.unreachable, ["helper"]);
-  assert.equal(idle.idleConditions.length, 1);
+  // A condition that applies to no alternative is an error of the grammar.
+  assert.throws(() => dialect("%rule text $y(A) %conditions matches($x, helper)\n%rule helper B"), /\$x is captured by no alternative/);
+  assert.throws(() => dialect("%rule text $y(A) | B %conditions $y ⟹ matches($x, helper)\n%rule helper B"), /\$x is captured by no alternative/);
   // The free-modifier rule is reached through a reachable #, and only so.
-  const [unused] = audit(dialect("text ≔ A ; other ≔ B # ; # ≔ [free ...] ; free ≔ C ;"));
+  const [unused] = audit(dialect("%rule text A %rule other B # %rule # [free ...] %rule free C"));
   assert.deepEqual(unused.unreachable, ["#", "free", "other"]);
-  const [used] = audit(dialect("text ≔ A # ; # ≔ [free ...] ; free ≔ C ;"));
+  const [used] = audit(dialect("%rule text A # %rule # [free ...] %rule free C"));
   assert.deepEqual(used.unreachable, []);
   // A condition that applies reaches the rule it names.
-  const [applies] = audit(dialect("text ≔ $x(A) : matches($x, helper) ; helper ≔ A ;"));
+  const [applies] = audit(dialect("%rule text $x(A) %conditions matches($x, helper) %rule helper A"));
   assert.deepEqual(applies.unreachable, []);
-  // An alternative's own tags replace the rule's, so a rule the rule-level
-  // tags name is not reached through an alternative that has its own.
-  const [overridden] = audit(dialect("text <tags($x, ghost)> ≔ $x(A) <\"T\"> ; ghost ≔ A ;"));
-  assert.deepEqual(overridden.unreachable, ["ghost"]);
+  // A condition reaches the rule it names only through the alternatives it
+  // applies to.
+  const [partly] = audit(dialect("%rule text $a(A) | B %conditions matches($a, ghost) %rule ghost A"));
+  assert.deepEqual(partly.unreachable, []);
 });
 
 test("a defect in a condition is reported although the lookahead skips its production", async () => {
-  const d = dialect("text ≔ good | bad ; good ≔ A ; bad ≔ B : ∅ ∈ ∅ ;");
+  const d = dialect("%rule text good | bad %rule good A %rule bad B %conditions ∅ ∈ ∅");
   const { Token } = await import("../src/node.js");
   const result = d.parse("", { tokens: [new Token(new Map([["A", true]]), [0, 1], [0, 1], "a", null, undefined)] });
   assert.equal(result.ok, false);

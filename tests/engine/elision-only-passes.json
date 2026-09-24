@@ -1,6 +1,6 @@
 {
   "description": "elision-only passes when writing the chosen parse's elided terminators back leaves one parse (engine §7).",
-  "grammar": "%ambiguity-resolution greedy elision-only ;\n%elidable KU ;\ntext ≔ d BRIVLA | d ; d ≔ LE BRIVLA [BRIVLA] [KU] ;",
+  "grammar": "%ambiguity-resolution greedy elision-only\n%elidable KU\n%rule text d BRIVLA | d\n%rule d LE BRIVLA [BRIVLA] [KU]",
   "tokens": [
     {
       "text": "le",

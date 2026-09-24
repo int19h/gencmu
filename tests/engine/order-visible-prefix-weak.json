@@ -1,6 +1,6 @@
 {
   "description": "T with a visible prefix among derivations that also differ in tag strength (engine §6).",
-  "grammar": "text ≔ a | B ; a ≔ a text | [text] ... | text text ... ;",
+  "grammar": "%rule text a | B\n%rule a a text | [text] ... | text text ...",
   "tokens": [
     {
       "text": "x",

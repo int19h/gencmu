@@ -1,9 +1,9 @@
 {
-  "description": "|≔ adds alternatives, with the extending rule's own clauses (engine §2).",
+  "description": "%extend-rule adds alternatives, with the extension's own clauses (engine §2).",
   "documents": {
     "p.md": "## s <?stage main?>\n\n- [g](g.md) <?grammar?>\n- [h](h.md) <?grammar?>\n",
-    "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ x ;\nx ≔ A <\"FROM-A\"> ;\n```\n",
-    "h.md": "```ebnf\nx |≔ B <\"FROM-B\"> ;\n```\n"
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text x\n%rule x A <\"FROM-A\">\n```\n",
+    "h.md": "```jbogenbau\n%extend-rule x B <\"FROM-B\">\n```\n"
   },
   "pipeline": "p.md",
   "tokens": [

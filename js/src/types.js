@@ -195,7 +195,7 @@
 /**
  * @typedef {object} DomRule
  * @property {string} name
- * @property {"define" | "extend"} op
+ * @property {"define" | "redefine" | "extend"} op
  * @property {Term} [tags]
  * @property {DomAlternative[]} alternatives
  * @property {Emission} [emit]
@@ -230,12 +230,12 @@
 
 /**
  * One item of an emission clause: a capture, `""` for `$`, the whole
- * constituent, with the tags to give it or erased; or an inserted token.
+ * constituent, with the tags to give it or silent; or an inserted token.
  * @typedef {object} EmitItem
  * @property {string} [capture]
  * @property {string} [insert]
  * @property {Term} [tags]
- * @property {true} [erase]
+ * @property {true} [silent]
  */
 
 /**
@@ -244,13 +244,14 @@
 
 /**
  * A condition.
- * @typedef {{any: Condition[]} | {all: Condition[]} | {not: Condition} | {matches: Term, rule: string}
+ * @typedef {{any: Condition[]} | {all: Condition[]} | {not: Condition} | {captured: string}
+ *   | {if: Condition, then: Condition} | {matches: Term, rule: string}
  *   | {op: Comparator, left: Term, right: Term}} Condition
  */
 
 /**
  * A term of a condition or a tags clause.
- * @typedef {{literal: string} | {weak: string} | {emptySet: true} | {union: Term[]}
+ * @typedef {{literal: string} | {weak: string} | {emptySet: true} | {union: Term[]} | {if: Condition, then: Term}
  *   | {intersection: Term[]} | {call: string, args: Argument[]} | {capture: string}} Term
  */
 

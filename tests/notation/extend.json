@@ -1,12 +1,16 @@
 {
-  "description": "|≔ is an extension (engine §9).",
-  "document": "# A document\n\nSome prose.\n\n```ebnf\nx |≔ B ;\n```\n",
+  "description": "%extend-rule is an extension, and %redefine-rule a redefinition (engine §9).",
+  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%extend-rule x B\n%redefine-rule y C\n```\n",
   "expect": {
     "dom": {
       "rules": [
         {
           "name": "x",
           "op": "extend"
+        },
+        {
+          "name": "y",
+          "op": "redefine"
         }
       ]
     }

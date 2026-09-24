@@ -1,0 +1,42 @@
+{
+  "description": "A guarded tag term gives its tags where its condition holds and none where it does not (engine §10).",
+  "grammar": "%rule text x x\n%rule x $a(A)\n%tags \"x\" ∈ tags($a) ⟹ \"Y\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "x"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "x",
+            "tags": {
+              "Y": true
+            }
+          },
+          {
+            "kind": "rule",
+            "rule": "x",
+            "tags": {}
+          }
+        ]
+      }
+    }
+  }
+}

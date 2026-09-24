@@ -1,6 +1,6 @@
 {
-  "description": "Comments are dropped, and several ebnf blocks form one grammar; other fences are ignored (engine §8).",
-  "document": "```ebnf\n(* first *) a ≔ A ;\n```\n\n```\nnot ≔ grammar\n```\n\n~~~ebnf\nb ≔ B (* a ** b *) ;\n~~~\n",
+  "description": "Comments are dropped, and several jbogenbau blocks form one grammar; other fences are ignored (engine §8).",
+  "document": "```jbogenbau\n(* first *) %rule a A\n```\n\n```\nnot a grammar\n```\n\n~~~jbogenbau\n%rule b B (* a ** b *)\n~~~\n",
   "expect": {
     "dom": {
       "rules": [

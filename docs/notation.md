@@ -95,12 +95,12 @@ A symbol of a rule's body may be captured by writing `$name(symbol)` around it. 
 
 The clauses of a rule serve all its alternatives, which need not capture the same parts. Whether an alternative captured a part is known when the grammar is read, and a clause refers to a capture an alternative lacks in one of two ways, depending on what the clause is:
 
-- a condition, or an item of `%emits`, that mentions a capture an alternative lacks does not apply to that alternative: a condition about a part that is not there holds, and a part that is not there is not emitted;
-- a tag term that mentions a capture an alternative lacks is an error, unless the mention is guarded by `⟹` (below), since a tag term has no value that could mean "nothing to say".
+- a condition, or an item of `%emits`, that uses a capture an alternative lacks does not apply to that alternative: a condition about a part that is not there holds, and a part that is not there is not emitted;
+- a tag term that uses a capture an alternative it serves lacks is an error, unless the use is guarded by `⟹` (below), since a tag term has no value that could mean "nothing to say". An alternative's own tags serve that alternative, `%tags` every alternative, and an emitted item's tags every alternative that has the item.
 
 A capture that no alternative of the rule, or of the extension, captures is an error wherever it is mentioned, and so is a condition or an item of `%emits` that applies to no alternative: each is a mistake, such as a misspelt name.
 
-`$x`, standing as a condition, says whether the alternative captured `x`, which is also known when the grammar is read; `$` alone is always true. `A ⟹ B`, where `A` is a condition, is `B` where `A` holds: as a condition, `B` or true; as a tag term, the tags of `B` or none. So a tag term that should apply only to the alternatives with a certain capture says so:
+`$x`, standing as a condition, says whether the alternative captured `x`, which is also known when the grammar is read; `$` alone is always true. A presence test is decided for each alternative before anything else, so it is not a use of the capture: `%conditions $x` applies to every alternative, and removes those that do not capture `x`. `A ⟹ B`, where `A` is a condition, is `B` where `A` holds: as a condition, `B` or true; as a tag term, the tags of `B` or none. So a tag term that should apply only to the alternatives with a certain capture says so:
 
 ```jbogenbau
 %rule word

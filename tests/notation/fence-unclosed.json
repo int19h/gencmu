@@ -1,6 +1,6 @@
 {
   "description": "A block that is never closed is an error at its opening fence (engine §8).",
-  "document": "# A document\n\n```ebnf\na ≔ B ;\n",
+  "document": "# A document\n\n```jbogenbau\n%rule a B\n",
   "expect": {
     "error": {
       "line": 3,

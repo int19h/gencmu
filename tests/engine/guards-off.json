@@ -1,6 +1,6 @@
 {
   "description": "The same grammar without the feature.",
-  "grammar": "text ≔ @f A | @¬f B ;",
+  "grammar": "%rule text @f A | @¬f B",
   "tokens": [
     {
       "text": "a",

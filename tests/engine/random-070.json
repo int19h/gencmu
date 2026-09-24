@@ -1,6 +1,6 @@
 {
   "description": "A random grammar with the notation's sugar and weak tags (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 14 derivations.",
-  "grammar": "%ambiguity-resolution greedy ;\ntext ≔ v u | A ... | [t] t ;\nt ≔ [A] | v B ;\nu ≔ B u | ε ;\nv ≔ C u | u u ;",
+  "grammar": "%ambiguity-resolution greedy\n%rule text v u | A ... | [t] t\n%rule t [A] | v B\n%rule u B u | ε\n%rule v C u | u u",
   "tokens": [
     {
       "text": "a",

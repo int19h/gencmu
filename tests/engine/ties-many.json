@@ -1,6 +1,6 @@
 {
   "description": "Many independent ties are ranked without enumerating their combinations; the result is a tie, chosen canonically (engine §6).",
-  "grammar": "text ≔ p ... ; p ≔ A B <\"ONE\"> | A B <\"TWO\"> ;",
+  "grammar": "%rule text p ...\n%rule p A B <\"ONE\"> | A B <\"TWO\">",
   "tokens": [
     {
       "text": "a",

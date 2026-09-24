@@ -2,8 +2,8 @@
   "description": "A one-symbol constituent has its symbol's tags; tags are unioned into emitted tokens (engine §4, §11).",
   "documents": {
     "p.md": "## s <?stage first?>\n\n- [g](g.md) <?grammar?>\n\n## t <?stage second?>\n\n- [h](h.md) <?grammar?>\n",
-    "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ [w] ... ;\nw ≔ a ⇒ $ ;\na ≔ A ;\n```\n",
-    "h.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ K ;\n```\n"
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [w] ...\n%rule w a %emits $\n%rule a A\n```\n",
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text K\n```\n"
   },
   "pipeline": "p.md",
   "tokens": [

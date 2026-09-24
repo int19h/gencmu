@@ -1,6 +1,6 @@
 {
   "description": "Optional, repetition, zero-or-more, grouping, and/or, # as a rule and ε (engine §9).",
-  "document": "# A document\n\nSome prose.\n\n```ebnf\ntext ≔ [A] B ... [C] ... (D | E) F & G # ε ;\n```\n",
+  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule text [A] B ... [C] ... (D | E) F & G # ε\n```\n",
   "expect": {
     "dom": {
       "rules": [

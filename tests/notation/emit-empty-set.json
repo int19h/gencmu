@@ -1,10 +1,10 @@
 {
-  "description": "An emitted item's tags cannot be ∅, which no terminal reads; <> erases (engine §9).",
-  "document": "```ebnf\na ≔ $x(A) ⇒ $x <∅> ;\n```\n",
+  "description": "An emitted item's tags cannot be ∅, which no terminal reads; <> makes a part silent (engine §9).",
+  "document": "```jbogenbau\n%rule a $x(A) %emits $x <∅>\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 13
+      "column": 22
     }
   }
 }

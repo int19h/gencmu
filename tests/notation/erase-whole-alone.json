@@ -1,10 +1,10 @@
 {
-  "description": "⇒ $ <> stands alone (engine §9); the error is at the ⇒.",
-  "document": "```ebnf\na ≔ A ⇒ $ <>, $ ;\n```\n",
+  "description": "%emits $ <> stands alone (engine §9); the error is at %emits.",
+  "document": "```jbogenbau\n%rule a A %emits $ <>, $\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 7
+      "column": 11
     }
   }
 }

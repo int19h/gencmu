@@ -1,6 +1,6 @@
 {
   "description": "A condition on $ is evaluated when the constituent is complete, over its whole span (engine §4, §10): here it rules out one of two splits.",
-  "grammar": "text ≔ x x ; x ≔ A | A A : text($) ≠ \"a b\" ;",
+  "grammar": "%rule text x x\n%rule x A | A A %conditions text($) ≠ \"a b\"",
   "tokens": [
     {
       "text": "a",

@@ -16,7 +16,7 @@ function random(seed) {
   };
 }
 
-// The enumeration is exponential: a grammar like `v ≔ t t ; t ≔ v u ;` with
+// The enumeration is exponential: a grammar like `%rule v t t %rule t v u` with
 // a nullable `u` has more derivations of four tokens than can be listed. It
 // gives up past a budget of sequences built, and the round is skipped.
 const TOO_MANY = new Error("too many derivations to enumerate");
@@ -104,15 +104,15 @@ test("the ranking agrees with an enumeration of every derivation", () => {
       }
       return symbols.length ? symbols.join(" ") : "ε";
     };
-    const lines = ["text ≔ " + [body(), body(), body()].join(" | ") + " ;"];
-    for (const rule of rules) lines.push(`${rule} ≔ ${[body(), body()].join(" | ")} ;`);
+    const lines = ["%rule text " + [body(), body(), body()].join(" | ")];
+    for (const rule of rules) lines.push(`%rule ${rule} ${[body(), body()].join(" | ")}`);
     const tokens = [];
     const length = 1 + Math.floor(next() * longest);
     for (let index = 0; index < length; index++) {
       const tags = terminals.filter(() => next() < 0.5).map((tag) => (next() < 0.25 ? "?" + tag : tag));
       tokens.push({ text: "x", tags: tags.length ? tags : ["A"] });
     }
-    const grammar = `%ambiguity-resolution ${lean === "none" ? "greedy" : lean} ;\n${lines.join("\n")}`;
+    const grammar = `%ambiguity-resolution ${lean === "none" ? "greedy" : lean}\n${lines.join("\n")}`;
     const outcome = runEngineCase({ grammar, tokens });
     if (outcome.loadError || !outcome.result.ok) continue;
     const stage = outcome.result.stages[0];

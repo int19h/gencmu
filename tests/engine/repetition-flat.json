@@ -1,6 +1,6 @@
 {
   "description": "A trailing repetition is left recursion on the rule, and its prefixes are spliced out of the tree (engine §3.3, §12).",
-  "grammar": "text ≔ A ... ;",
+  "grammar": "%rule text A ...",
   "tokens": [
     {
       "text": "a",

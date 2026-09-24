@@ -1,6 +1,6 @@
 {
   "description": "An optional whose content is a choice is never elidable, even when each branch begins with an elidable terminator (engine §3.8): no elided node appears for [KU | VAU].",
-  "grammar": "%ambiguity-resolution greedy ;\n%elidable KU VAU ;\ntext ≔ A [KU | VAU] [KU] ;",
+  "grammar": "%ambiguity-resolution greedy\n%elidable KU VAU\n%rule text A [KU | VAU] [KU]",
   "tokens": [
     {
       "text": "a",

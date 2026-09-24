@@ -75,7 +75,7 @@
     { label: "Cyrillic orthography", text: "ми клама ле зарши", dialect: "cll" },
     { label: "A tie in the words stage (BPFK)", text: "ko na krici fi locesyselmanci", dialect: "bpfk" },
     { label: "Ambiguous beyond elision (experimental, elision-only on)", text: "la olivian na klama", dialect: "experimental", elision: "on" },
-    { label: "A rule in the notation", text: "sumti-tail ≔ [sumti-6 [relative-clauses]] sumti-tail-1 | relative-clauses sumti-tail-1 ;", dialect: "notation" },
+    { label: "A rule in jbogenbau", text: "%rule sumti-tail\n  [sumti-6 [relative-clauses]] sumti-tail-1 | relative-clauses sumti-tail-1", dialect: "notation" },
   ];
 
   // ---- State ----------------------------------------------------------------

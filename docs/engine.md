@@ -101,7 +101,7 @@ decides nothing a user can observe except through §4-§6.
    production that no alternative writes: its span runs from the item's
    origin to its end, and its tags are the constituent's (§4).
 6. Conditions, tags and emission attach to the production an alternative lowers to, or each production if it expands to several, with the clauses of the alternative's definition (§2). A production **has** a capture if its alternative captures it; every production has `$`. Before a clause is attached, it is **simplified** for the production: each presence test `$x` (§10) becomes true or false as the production has `x` or not; `A ⟹ B` becomes `B` where `A` is then true, and true, as a condition, or the empty set, as a term, where `A` is false; and `¬`, `∧` and `∨` over a true or false part are reduced as logic says. A capture that is still mentioned after simplification is **used** by the clause.
-   - A condition applies to a production only if the production has every capture the condition uses; otherwise it is dropped for that production. A condition that simplifies to true is dropped; one that simplifies to false removes the production.
+   - A condition applies to a production if it has not simplified to true and the production has every capture it uses; otherwise it is dropped for that production. A condition that simplifies to false applies, and removes the production: `%conditions $x` keeps the alternatives that capture `x` and removes the others.
    - An emission item naming a capture the production lacks is dropped from that production's emission.
    - A tag term, the alternative's own or the definition's `%tags`, that uses a capture the production lacks is an error of the document.
 7. A production's tags are the union of its alternative's own tag term and its definition's `%tags` term, where either is written. A production with neither has the tags of its symbol's constituent if it has one symbol, and none if it has several; lowering makes this explicit by treating the single symbol as captured.
@@ -408,8 +408,8 @@ A definition (§2) is checked as a whole once it is read, and these are errors o
 
 - a capture, in any clause, `$x` presence tests included, that no alternative of the definition captures;
 - a condition that applies (§3.6) to no alternative of the definition, whatever features are enabled;
-- a tag term that uses (§3.6) a capture some alternative lacks;
-- in an emission, captures listed in an order other than the one in which some alternative that has them captures them; an inserted tag followed in the list by a capture that some alternative of the definition lacks; or an alternative for which every item is dropped, so that it would emit nothing although the rule says what to emit.
+- a tag term that uses (§3.6) a capture that an alternative it serves lacks: an alternative's own tags serve that alternative, `%tags` every alternative of the definition, and an emission item's tags every alternative in which the item is not dropped;
+- in an emission, captures listed in an order other than the one in which some alternative that has them captures them; an inserted tag whose anchor, the capture listed next after it, is one that some alternative of the definition lacks; or an alternative for which every item is dropped, so that it would emit nothing although the rule says what to emit.
 
 A string's decoding: the quotes are removed, `\\` is `\`, `\"` is `"`, and
 `\u{h...}` is the code point with that hexadecimal value; any other `\` is
@@ -444,6 +444,8 @@ A string used where a tag set is needed is the set of that one strong tag.
 their tags alone, ignoring strength. `a ∈ b` and `a ∉ b` test a string in a
 list or a tag set. `a ⊆ b` tests that every tag of `a` is in `b`.
 `matches(s, R)` holds when the span parses as `R`. `$x`, as a condition, holds when the production has the capture `x` (§3.6), and `$` always. `¬c` negates. Conditions joined by `∨` hold when any does, and those joined by `∧` when all do. `A ⟹ B`, a condition, holds when `A` does not or `B` does; `⟹` binds looser than `∨`, which binds looser than `∧`, it groups to the right, and parentheses group.
+
+**Order of evaluation.** Evaluating a condition may run a nested parse, which may fail with an error of the grammar (§4), so which parts are evaluated is observable. Conditions joined by `∧` or `∨` are evaluated from left to right, and evaluation stops at the first that decides the whole: a false one for `∧`, a true one for `∨`. `A ⟹ B` evaluates `A` first, and `B` only if `A` holds; a guarded term `A ⟹ t` likewise evaluates `t` only if `A` holds.
 
 **Guarded terms.** `A ⟹ t`, where `A` is a condition, is the value of `t` where `A` holds and the empty tag set where it does not; `t` must then be a tag set. A guarded term binds looser than `∪` and `∩`, so it stands in parentheses inside either.
 

@@ -1,0 +1,36 @@
+{
+  "description": "A rule with %emits emits exactly its list: a part it does not name is not walked, although that part's rule emits (engine §11).",
+  "grammar": "%rule text $a(x) y\n%emits $a\n%rule x A\n%emits $\n%rule y B\n%emits $",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "text": "a",
+              "span": [
+                0,
+                1
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

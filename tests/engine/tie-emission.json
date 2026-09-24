@@ -2,8 +2,8 @@
   "description": "A tie at a non-final stage is reported and the chosen derivation emitted, even where the tied derivations would emit the same tokens (engine §11).",
   "documents": {
     "p.md": "## s <?stage first?>\n\n- [g](g.md) <?grammar?>\n\n## t <?stage second?>\n\n- [h](h.md) <?grammar?>\n",
-    "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ p | q ;\np ≔ A B <\"P\"> ⇒ $ ;\nq ≔ A B <\"Q\"> ⇒ $ ;\n```\n",
-    "h.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ P ;\n```\n"
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text p | q\n%rule p A B <\"P\"> %emits $\n%rule q A B <\"Q\"> %emits $\n```\n",
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text P\n```\n"
   },
   "pipeline": "p.md",
   "tokens": [

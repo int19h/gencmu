@@ -1,6 +1,6 @@
 {
   "description": "An inserted tag with no capture listed after it goes after the constituent's last child, unnamed ones included (engine §11).",
-  "grammar": "text ≔ $a(A) B ⇒ $a, \"x\" ;",
+  "grammar": "%rule text $a(A) B %emits $a, \"x\"",
   "tokens": [
     {
       "text": "a",

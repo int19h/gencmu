@@ -1,0 +1,10 @@
+{
+  "description": "An inserted tag's anchor, the capture listed next after it, must be one every alternative has (engine §9); the error is at the rule.",
+  "document": "```jbogenbau\n%rule a $x(A) $y(B) | $x(A) %emits $x, \"T\", $y\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  }
+}

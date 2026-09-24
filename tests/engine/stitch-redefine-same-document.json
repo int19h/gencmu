@@ -1,0 +1,15 @@
+{
+  "description": "%redefine-rule of a rule its own document defined is an error: a document defines a rule once (engine §2).",
+  "grammar": "%rule text A\n%redefine-rule text B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

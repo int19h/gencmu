@@ -1,6 +1,6 @@
 {
   "description": "$ alone is the whole constituent, a capture every alternative has, in a condition and after ⇒ (engine §9).",
-  "document": "```ebnf\na ≔ A B : text($) ≠ \"x\" ⇒ $ ;\n```\n",
+  "document": "```jbogenbau\n%rule a A B %conditions text($) ≠ \"x\" %emits $\n```\n",
   "expect": {
     "dom": {
       "rules": [

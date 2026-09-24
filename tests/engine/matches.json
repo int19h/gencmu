@@ -1,6 +1,6 @@
 {
   "description": "matches() parses the captured span alone as another rule (engine §4, nested parses).",
-  "grammar": "text ≔ $w(word) : ¬matches($w, pair) ; word ≔ A ... ; pair ≔ A A ;",
+  "grammar": "%rule text $w(word) %conditions ¬matches($w, pair)\n%rule word A ...\n%rule pair A A",
   "tokens": [
     {
       "text": "a",

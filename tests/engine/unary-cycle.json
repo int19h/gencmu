@@ -1,6 +1,6 @@
 {
   "description": "A cycle of single-symbol rules adds no derivations (engine §4, derivations).",
-  "grammar": "text ≔ a ; a ≔ b | A ; b ≔ a ;",
+  "grammar": "%rule text a\n%rule a b | A\n%rule b a",
   "tokens": [
     {
       "text": "a",

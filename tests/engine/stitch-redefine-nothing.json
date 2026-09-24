@@ -1,0 +1,20 @@
+{
+  "description": "%redefine-rule with no rule of an earlier document to replace is an error (engine §2).",
+  "documents": {
+    "p.md": "## s <?stage main?>\n\n- [g](g.md) <?grammar?>\n- [h](h.md) <?grammar?>\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n```\n",
+    "h.md": "```jbogenbau\n%redefine-rule y B\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

@@ -4,66 +4,88 @@ This document is the indicator stage, the third stage of every Lojban dialect: [
 
 An indicator run is read as far as it goes, so the stage is greedy: where two parses differ, it takes the one that reads the next word over the one that closes a constituent.
 
-```ebnf
-%ambiguity-resolution greedy ;
+```jbogenbau
+%ambiguity-resolution greedy
 ```
 
-```ebnf
-text
-≔ ε | item-run | item-run bahe-run | leading | leading bahe-run | bahe-run
-| $l(leading) $r(item-run) | $l(leading) $r(item-run) bahe-run
-: "NAI" ∉ tags(head($r)) ∨ classes(last($l)) ∩ ("UI" ∪ "CAI") = ∅ ;
+```jbogenbau
+%rule text
+  | ε | item-run | item-run bahe-run | leading | leading bahe-run | bahe-run
+  | $l(leading) $r(item-run) | $l(leading) $r(item-run) bahe-run
+%conditions
+  "NAI" ∉ tags(head($r)) ∨ classes(last($l)) ∩ ("UI" ∪ "CAI") = ∅
 
-leading
-≔ indicator-run ;
+%rule leading
+  indicator-run
 
-item-run
-≔ item | item-run item ;
+%rule item-run
+  item | item-run item
 
-item
-≔ $w(unit) <tags($w)>
-| $w(unit) absorbed <tags($w)>
-| absorbed-bahe $w(unit) <tags($w)>
-| absorbed-bahe $w(unit) absorbed <tags($w)>
-⇒ $w ;
+%rule item
+  | $w(unit)
+  | $w(unit) absorbed
+  | absorbed-bahe $w(unit)
+  | absorbed-bahe $w(unit) absorbed
+%tags
+  tags($w)
+%emits
+  $w
 
-unit
-≔ $w("word") | $f("foreign-text") | $l("LEhU")
-: "indicator" ∉ tags($w) ∧ "BAhE" ∉ tags($w) ∧ "LEhU" ∉ tags($w) ;
+%rule unit
+  | $w("word") | $f("foreign-text") | $l("LEhU")
+%conditions
+  "indicator" ∉ tags($w),
+  "BAhE" ∉ tags($w),
+  "LEhU" ∉ tags($w)
 
-absorbed
-≔ indicator-run
-⇒ $ <> ;
+%rule absorbed
+  indicator-run
+%emits
+  $ <>
 
-absorbed-bahe
-≔ bahe-run
-⇒ $ <> ;
+%rule absorbed-bahe
+  bahe-run
+%emits
+  $ <>
 
-bahe-run
-≔ bahe | bahe-run bahe ;
+%rule bahe-run
+  bahe | bahe-run bahe
 
-bahe
-≔ $b("word") <tags($b)>
-: "BAhE" ∈ tags($b)
-⇒ $ ;
+%rule bahe
+  $b("word") <tags($b)>
+%conditions
+  "BAhE" ∈ tags($b)
+%emits
+  $
 
-indicator-run
-≔ indicator | attitudinal nai | indicator-run indicator | indicator-run attitudinal nai ;
+%rule indicator-run
+  indicator | attitudinal nai | indicator-run indicator | indicator-run attitudinal nai
 
-indicator
-≔ $i("word") <tags($i)> | absorbed-bahe $i("word") <tags($i)>
-: "indicator" ∈ tags($i)
-⇒ $ ;
+%rule indicator
+  | $i("word") | absorbed-bahe $i("word")
+%tags
+  tags($i)
+%conditions
+  "indicator" ∈ tags($i)
+%emits
+  $
 
-attitudinal
-≔ $i("word") <tags($i)> | absorbed-bahe $i("word") <tags($i)>
-: "indicator" ∈ tags($i) ∧ classes($i) ∩ ("UI" ∪ "CAI") ≠ ∅
-⇒ $ ;
+%rule attitudinal
+  | $i("word") | absorbed-bahe $i("word")
+%tags
+  tags($i)
+%conditions
+  "indicator" ∈ tags($i),
+  classes($i) ∩ ("UI" ∪ "CAI") ≠ ∅
+%emits
+  $
 
-nai
-≔ $n("word") <tags($n)>
-: "NAI" ∈ tags($n)
-⇒ $ ;
+%rule nai
+  $n("word") <tags($n)>
+%conditions
+  "NAI" ∈ tags($n)
+%emits
+  $
 ```
 
 A `le'u` outside any quote is still a word, but it is read as `LEhU` and

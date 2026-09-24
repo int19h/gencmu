@@ -1,6 +1,6 @@
 {
   "description": "Lazy: the one that closes wins, so s ends before B (engine §6.2).",
-  "grammar": "%ambiguity-resolution lazy ;\ntext ≔ s | s B ; s ≔ A [B] ;",
+  "grammar": "%ambiguity-resolution lazy\n%rule text s | s B\n%rule s A [B]",
   "tokens": [
     {
       "text": "a",

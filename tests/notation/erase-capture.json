@@ -1,6 +1,6 @@
 {
-  "description": "<> after a capture erases it, while the other captures are emitted (engine §9, §11).",
-  "document": "```ebnf\na ≔ $x(A) $y(B) ⇒ $x <>, $y ;\n```\n",
+  "description": "<> after a capture makes it silent, while the other captures are emitted (engine §9, §11).",
+  "document": "```jbogenbau\n%rule a $x(A) $y(B) %emits $x <>, $y\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -9,7 +9,7 @@
             "items": [
               {
                 "capture": "x",
-                "erase": true
+                "silent": true
               },
               {
                 "capture": "y"

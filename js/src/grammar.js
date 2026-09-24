@@ -2,6 +2,7 @@
 // lowered to productions for one set of features (engine §3).
 
 import { GencmuError } from "./errors.js";
+import { simplify, DOM_TRUE, DOM_FALSE } from "./dom.js";
 
 /**
  * @import { Condition, DomAlternative, Emission, ErrorLocation, Expr, GrammarDom, Guard, LoweredGrammar, Production, Resolution, Term } from "./types.js"
@@ -92,20 +93,24 @@ export class Grammar {
       const at = { document: path, line: rule.at[0], column: rule.at[1] };
       const clauses = { tags: rule.tags, emit: rule.emit, conditions: rule.conditions || [] };
       const alternatives = rule.alternatives.map((alternative) => ({ ...alternative, clauses, document: path }));
+      const previous = this.rules.get(rule.name);
       if (rule.op === "define") {
-        if (definedHere.has(rule.name)) {
-          throw new GencmuError("grammar", `${path}:${at.line}: ${rule.name} is defined twice with ≔`, at);
+        if (previous) {
+          throw new GencmuError("grammar", `${path}:${at.line}: %rule ${rule.name} is already defined, in ${previous.document}; %redefine-rule replaces a rule`, at);
         }
         definedHere.add(rule.name);
-        const previous = this.rules.get(rule.name);
-        if (previous) {
-          this.changes.push({ kind: "replaced", rule: rule.name, document: path, previous: previous.document });
+        this.rules.set(rule.name, { name: rule.name, document: path, at, alternatives });
+      } else if (rule.op === "redefine") {
+        if (!previous || definedHere.has(rule.name)) {
+          throw new GencmuError("grammar", `${path}:${at.line}: %redefine-rule ${rule.name} replaces no rule of an earlier document`, at);
         }
+        definedHere.add(rule.name);
+        this.changes.push({ kind: "replaced", rule: rule.name, document: path, previous: previous.document });
         this.rules.set(rule.name, { name: rule.name, document: path, at, alternatives });
       } else {
-        const base = this.rules.get(rule.name);
+        const base = previous;
         if (!base) {
-          throw new GencmuError("grammar", `${path}:${at.line}: ${rule.name} |≔ extends a rule that is not defined before it`, at);
+          throw new GencmuError("grammar", `${path}:${at.line}: %extend-rule ${rule.name} extends a rule that is not defined before it`, at);
         }
         this.changes.push({ kind: "extended", rule: rule.name, document: path, previous: base.document });
         base.alternatives = base.alternatives.concat(alternatives);
@@ -317,9 +322,15 @@ class Lowering {
     // `$`, the whole constituent, is a capture every production has.
     const names = new Set(["", ...captures.map((capture) => capture.name)]);
     const clauses = alternative.clauses;
+    // The clauses simplified for this production: presence tests and the
+    // guards over them decided (engine §3.6).
+    /** @type {(name: string) => boolean} */
+    const has = (name) => names.has(name);
+    // The union of the alternative's own tags and the rule's (engine §3.7);
+    // the reader has made sure neither uses a capture this production lacks.
+    const written = [alternative.tags, clauses.tags].filter((term) => term !== undefined).map((term) => simplify(term, has));
     /** @type {Term | null} */
-    let tags = alternative.tags || clauses.tags || null;
-    if (tags && !termVariables(tags).every((name) => names.has(name))) tags = null;
+    let tags = written.length === 0 ? null : written.length === 1 ? written[0] : { union: written };
     if (!tags && sequence.length === 1) {
       // A production with one symbol has that symbol's tags (engine §3.7),
       // whether or not the author captured it.
@@ -331,7 +342,11 @@ class Lowering {
     }
     /** @type {import("./types.js").ReadyCondition[]} */
     const conditions = [];
-    for (const condition of clauses.conditions) {
+    for (const written of clauses.conditions) {
+      const condition = simplify(written, has);
+      if (condition === DOM_TRUE) continue;
+      // A condition false for this production removes it (engine §3.6).
+      if (condition === DOM_FALSE) return;
       const variables = conditionVariables(condition);
       if (!variables.every((name) => names.has(name))) continue;
       // A condition is ready once its last capture is read, and one that
@@ -341,12 +356,12 @@ class Lowering {
       conditions.push({ condition, readyAt });
     }
     let emit = clauses.emit || null;
-    if (emit && "items" in emit) {
-      // An item naming a capture the production lacks is dropped, and so is
-      // a tag term naming one: the item keeps its own tags (engine §3.6).
+    if (emit) {
+      // An item naming a capture the production lacks is dropped (engine
+      // §3.6); the reader has made sure the tags of those left use none.
       emit = {
-        items: emit.items.filter((item) => item.capture === undefined || names.has(item.capture)).map((item) =>
-          item.tags && !termVariables(item.tags).every((name) => names.has(name)) ? { ...item, tags: undefined } : item),
+        items: emit.items.filter((item) => item.capture === undefined || names.has(item.capture))
+          .map((item) => (item.tags ? { ...item, tags: simplify(item.tags, has) } : item)),
       };
     }
     this.addProduction({

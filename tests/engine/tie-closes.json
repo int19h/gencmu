@@ -1,6 +1,6 @@
 {
   "description": "Two different constituents over the same span are a tie; the chosen one has the lower production number (engine §6.3).",
-  "grammar": "text ≔ p | q ; p ≔ A B ; q ≔ A B ;",
+  "grammar": "%rule text p | q\n%rule p A B\n%rule q A B",
   "tokens": [
     {
       "text": "a",

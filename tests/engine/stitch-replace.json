@@ -1,9 +1,9 @@
 {
-  "description": "≔ in a later document replaces the rule (engine §2).",
+  "description": "%redefine-rule in a later document replaces the rule (engine §2).",
   "documents": {
     "p.md": "## s <?stage main?>\n\n- [g](g.md) <?grammar?>\n- [h](h.md) <?grammar?>\n",
-    "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ x ;\nx ≔ A ;\n```\n",
-    "h.md": "```ebnf\nx ≔ B ;\n```\n"
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text x\n%rule x A\n```\n",
+    "h.md": "```jbogenbau\n%redefine-rule x B\n```\n"
   },
   "pipeline": "p.md",
   "tokens": [

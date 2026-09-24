@@ -1,6 +1,6 @@
 {
   "description": "A nested parse's answer depends on the text of the span's tokens, not only on their tags, so it must be remembered by both (engine §4, nested parses).",
-  "grammar": "text ≔ $a(item) $b(item) ; item ≔ $w(W) : ¬matches($w, special) ; special ≔ $s(W) : text($s) = \"x\" ;",
+  "grammar": "%rule text $a(item) $b(item)\n%rule item $w(W) %conditions ¬matches($w, special)\n%rule special $s(W) %conditions text($s) = \"x\"",
   "tokens": [
     {
       "text": "y",

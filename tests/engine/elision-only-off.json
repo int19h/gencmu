@@ -1,6 +1,6 @@
 {
   "description": "A caller may switch elision-only off for a grammar that declares it (engine §7).",
-  "grammar": "%ambiguity-resolution greedy elision-only ;\ntext ≔ s | s B ; s ≔ A [B] ;",
+  "grammar": "%ambiguity-resolution greedy elision-only\n%rule text s | s B\n%rule s A [B]",
   "tokens": [
     {
       "text": "a",

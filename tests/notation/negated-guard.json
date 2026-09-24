@@ -1,6 +1,6 @@
 {
   "description": "@¬f is a guard on a disabled feature (engine §9).",
-  "document": "```ebnf\na ≔ @¬f A | @f B ;\n```\n",
+  "document": "```jbogenbau\n%rule a @¬f A | @f B\n```\n",
   "expect": {
     "dom": {
       "rules": [

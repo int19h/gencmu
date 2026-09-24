@@ -539,6 +539,7 @@ function tokensTags(tokens, start, end) {
  */
 export function evaluate(context, term, scope) {
   if ("literal" in term) return { string: term.literal };
+  if ("if" in term) return holds(context, term.if, scope) ? evaluate(context, term.then, scope) : { tags: tagSet() };
   if ("weak" in term) return { tags: weakTag(term.weak) };
   if ("emptySet" in term) return { tags: tagSet() };
   if ("union" in term) return { tags: term.union.reduce((acc, item) => tagUnion(acc, asTagSet(evaluate(context, item, scope))), tagSet()) };
@@ -630,7 +631,11 @@ function asString(value) {
 export function holds(context, condition, scope) {
   if ("any" in condition) return condition.any.some((item) => holds(context, item, scope));
   if ("all" in condition) return condition.all.every((item) => holds(context, item, scope));
+  // The consequent is evaluated only where the antecedent holds (engine §10).
+  if ("if" in condition) return !holds(context, condition.if, scope) || holds(context, /** @type {Condition} */ (condition.then), scope);
   if ("not" in condition) return !holds(context, condition.not, scope);
+  // A presence test is decided when the grammar is lowered (engine §3.6).
+  if ("captured" in condition) throw new GencmuError("grammar", "a presence test outlived lowering");
   if ("matches" in condition) {
     const span = spanOf(context, condition.matches, scope);
     return nestedMatches(context, condition.rule, span.start, span.end);

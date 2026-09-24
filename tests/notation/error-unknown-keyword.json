@@ -1,0 +1,10 @@
+{
+  "description": "A keyword the notation does not have is an error at the keyword (engine §9).",
+  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule a A\n%rules b B\n```\n",
+  "expect": {
+    "error": {
+      "line": 7,
+      "column": 1
+    }
+  }
+}

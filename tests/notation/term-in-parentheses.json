@@ -1,6 +1,6 @@
 {
   "description": "A comparison may begin with a term in parentheses, which is not a group of conditions (engine §9).",
-  "document": "```ebnf\na ≔ $x(A) : (\"p\" ∪ \"q\") ∩ tags($x) ≠ ∅ ;\n```\n",
+  "document": "```jbogenbau\n%rule a $x(A) %conditions (\"p\" ∪ \"q\") ∩ tags($x) ≠ ∅\n```\n",
   "expect": {
     "dom": {
       "rules": [

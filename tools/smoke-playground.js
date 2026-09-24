@@ -212,7 +212,7 @@ async function main() {
       // while; a dialect that does not use it should not wait for that.
       await run(`[...document.querySelectorAll("button.doc")].find((button) => button.textContent === "words/lexicon-cll").click();
         const editor = document.getElementById("doc-text");
-        editor.value = editor.value.replace("≔", "≔ ");
+        editor.value = editor.value.replace("%rule", "%rule ");
         editor.dispatchEvent(new Event("input"));`);
       await until("the edited lexicon to be read", `
         return document.getElementById("status").textContent.includes("Reading words/lexicon-cll") ? true : null;`);

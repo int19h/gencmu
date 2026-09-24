@@ -316,7 +316,7 @@ experimental and 74 Zantufa texts stay ambiguous, through a bare `na` term
 (`la olivian na klama` is both "Olivian doesn't go" and "Olivian, not-term,
 goes"), a name that is also a selbri under `cbm`, `bo` connection under
 `term-hierarchy`, and Zantufa's mekso. So the CLL syntax grammar declares
-`%ambiguity-resolution greedy elision-only ;` and the extended ones
+`%ambiguity-resolution greedy elision-only` and the extended ones
 `greedy`, each with prose citing these reasons. A parse option overrides
 `elision-only` either way, to check an extension for overlaps or to loosen
 the CLL dialect; the lean itself cannot be overridden, since a lazy syntax

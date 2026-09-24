@@ -2,8 +2,8 @@
   "description": "Tags written on an alternative replace the default, and may use the captures (engine §3.6, §10).",
   "documents": {
     "p.md": "## s <?stage first?>\n\n- [g](g.md) <?grammar?>\n\n## t <?stage second?>\n\n- [h](h.md) <?grammar?>\n",
-    "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ w ... ;\nw ≔ $x(A) <\"WORD\" ∪ tags($x)> ⇒ $ ;\n```\n",
-    "h.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ WORD ... ;\n```\n"
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text w ...\n%rule w $x(A) <\"WORD\" ∪ tags($x)> %emits $\n```\n",
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text WORD ...\n```\n"
   },
   "pipeline": "p.md",
   "tokens": [

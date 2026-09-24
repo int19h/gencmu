@@ -1,6 +1,6 @@
 {
-  "description": "≔ twice for one name in one document is an error (engine §2).",
-  "grammar": "text ≔ A ; text ≔ B ;",
+  "description": "%rule twice for one name in one document is an error (engine §2).",
+  "grammar": "%rule text A\n%rule text B",
   "tokens": [
     {
       "text": "a",

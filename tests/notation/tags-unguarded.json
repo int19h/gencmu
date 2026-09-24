@@ -1,0 +1,10 @@
+{
+  "description": "%tags that uses a capture some alternative lacks, unguarded, is an error at the rule (engine §9).",
+  "document": "```jbogenbau\n%rule a $x(A) | B %tags \"T\" ∪ tags($x)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  }
+}

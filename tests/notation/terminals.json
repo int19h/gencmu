@@ -1,6 +1,6 @@
 {
   "description": "Strings are decoded; phoneme tags keep their slashes (engine §9).",
-  "document": "# A document\n\nSome prose.\n\n```ebnf\ntext ≔ \"a\\u{ED80}\\\"\" /ʃ/ / / ;\n```\n",
+  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule text \"a\\u{ED80}\\\"\" /ʃ/ / /\n```\n",
   "expect": {
     "dom": {
       "rules": [

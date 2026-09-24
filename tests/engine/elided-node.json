@@ -1,6 +1,6 @@
 {
   "description": "An absent optional that begins with an elidable terminator is an elided node in the tree (engine §12).",
-  "grammar": "%elidable KU ;\ntext ≔ LE BRIVLA [KU] ;",
+  "grammar": "%elidable KU\n%rule text LE BRIVLA [KU]",
   "tokens": [
     {
       "text": "le",
