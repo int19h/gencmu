@@ -428,7 +428,13 @@ document, reported at the first token of the offending construct:
 - `head`, `tail` or `last` where a value is needed, and `matches` as a
   term;
 - an `&` of more than 16 items;
-- an expression, a term or a condition nested more than 256 deep;
+- an expression, a term or a condition nested more than 256 deep: in the
+  DOM (docs/output.md), no node of one may lie below more than 256 compound
+  nodes of it, a compound node being one of `optional`, `repeat`, `and`,
+  `choice`, `seq` and `capture` in an expression; `set`, `union`,
+  `intersection` and `call` in a term; `any`, `not`, `matches` and a
+  comparison in a condition. `( )` makes no node, so it adds nothing;
+  256 nested `[ ]` around a symbol are allowed, and 257 are not;
 - `nothing` with other items or with tags; `this` with items other than
   `this`; tags on an inserted tag; a capture listed twice in one emission;
   a second `⇒` clause in one rule;
