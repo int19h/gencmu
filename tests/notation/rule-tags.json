@@ -1,0 +1,31 @@
+{
+  "description": "Tags on a rule's name apply to all its alternatives (engine §9).",
+  "document": "# A document\n\nSome prose.\n\n```ebnf\ncmavo <\"cmavo\" ∪ tags($w, lexicon)> ≔ $w(body) ;\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "cmavo",
+          "tags": {
+            "union": [
+              {
+                "literal": "cmavo"
+              },
+              {
+                "call": "tags",
+                "args": [
+                  {
+                    "capture": "w"
+                  },
+                  {
+                    "rule": "lexicon"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

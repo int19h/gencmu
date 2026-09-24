@@ -1,0 +1,27 @@
+{
+  "description": "elision-only fails when the text is still ambiguous with every terminator written (engine §7).",
+  "grammar": "%ambiguity-resolution greedy elision-only ;\ntext ≔ s | s B ; s ≔ A [B] ;",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "ambiguous"
+      }
+    },
+    "error": "ambiguous"
+  }
+}

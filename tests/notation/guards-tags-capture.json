@@ -1,0 +1,47 @@
+{
+  "description": "Guards, a capture and alternative tags (engine §9).",
+  "document": "# A document\n\nSome prose.\n\n```ebnf\ntext ≔ @f @!g $x(A) <\"T\" ∪ tags($x)> ;\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "guards": [
+                {
+                  "feature": "f",
+                  "negated": false
+                },
+                {
+                  "feature": "g",
+                  "negated": true
+                }
+              ],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              },
+              "tags": {
+                "union": [
+                  {
+                    "literal": "T"
+                  },
+                  {
+                    "call": "tags",
+                    "args": [
+                      {
+                        "capture": "x"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,167 @@
+# Output formats
+
+What a gencmu library hands back, as data and as text. The canonical JSON is
+what the shared tests compare, so every library must produce it byte for
+byte; the renderings are what people read.
+
+## Canonical JSON
+
+Canonical JSON is UTF-8, with object keys in the order given here, no
+whitespace outside strings, strings escaped as JSON requires and nothing
+more (non-ASCII characters are written as themselves), and integers only.
+Optional members that are absent are omitted, never `null`, unless this
+document says otherwise. Every library writes it with its own code, since
+the Rust standard library has no JSON writer.
+
+### A parse result
+
+```
+{"format":1,"ok":true,"stages":[STAGE...],"tree":NODE,"error":ERROR}
+```
+
+`format` is this document's version. `tree` is the last stage's chosen tree
+or `null`; `error` is `null` when `ok` is true.
+
+**Stage**:
+
+```
+{"name":"words","verdict":"resolved","witness":[ACTION,ACTION],"merged":false,"output":[TOKEN...]}
+```
+
+`verdict` is `unique`, `resolved`, `tie`, or `null` for a stage that
+rejected; `witness` is present only for `tie`; `merged` is true when a tie
+was resolved by equal emissions (engine §11); `output` is the emitted
+tokens, present for every accepted stage, the last included.
+
+**Token**:
+
+```
+{"text":"mi","phonemes":"mi","tags":{"KOhA":true,"UI":false,"word":true},"span":[0,2],"source":[0,2]}
+```
+
+`tags` lists every tag in code point order, strong as `true`, weak as
+`false`. `insertedBy`, the rule name, follows `source` for an inserted
+token.
+
+**Node**:
+
+```
+{"kind":"rule","rule":"sumti","span":[0,3],"source":[0,9],"tags":{...},"children":[NODE...]}
+{"kind":"token","terminal":"KOhA","token":0,"span":[0,1],"source":[0,2]}
+{"kind":"elided","terminal":"KU","span":[3,3],"source":[9,9]}
+```
+
+A token node's `token` is the index of the stage-input token it read.
+
+**Action**, in a witness: `{"read":{"token":4,"terminal":"KOhA"}}` or
+`{"close":{"rule":"sumti","production":57,"span":[2,5]}}`, the production
+numbered as in engine §3.
+
+**Error**:
+
+```
+{"kind":"rejected","stage":"syntax","token":4,"source":[12,15],"line":1,"column":13,
+ "expected":[{"terminal":"KU","rules":["sumti"]},...],"message":"..."}
+```
+
+`kind` is `rejected` (the stage's grammar does not accept its input),
+`ambiguous` (engine §7; `expected` is replaced by `"readings":[NODE,NODE]`),
+or `grammar` (a grammar could not be loaded or a condition asked about its
+own span; `stage`, `token` and `source` are present when known, `document`,
+`line` and `column` name the grammar position). `line` and `column` count
+from 1, in code points, lines ending at `\n`, `\r\n` or `\r`. `expected`
+lists terminals in code point order, each with the rules whose items could
+have read it, in code point order. `message` is the human description; its
+wording is not compared by the shared tests.
+
+### A grammar DOM
+
+What reading a grammar document produces (engine §8, §9), and what
+`bootstrap.json` and the precompiled DOMs hold.
+
+```
+{"format":1,"rules":[RULE...],"directives":[DIRECTIVE...]}
+```
+
+**Rule**: `{"name":"sumti","op":"define","tags":TERM,"alternatives":[ALT...],"emit":EMIT,"conditions":[COND...],"at":[line,column]}`,
+`op` being `define` or `extend`, and `tags`, `emit` optional.
+
+**Alternative**: `{"guards":[{"feature":"cbm","negated":false}...],"expr":EXPR,"tags":TERM}`,
+`tags` optional.
+
+**Expression**: one of
+
+```
+{"seq":[EXPR...]}  {"choice":[EXPR...]}  {"and":[EXPR...]}
+{"optional":EXPR}  {"repeat":EXPR,"min":1}
+{"ref":"sumti"}    {"terminal":"KOhA"}    {"capture":"x","expr":EXPR}
+{"hash":true}      {"empty":true}
+```
+
+`terminal` holds a name, a decoded string, or a phoneme tag `/p/`.
+
+**Term**: `{"literal":"s"}`, `{"weak":"s"}`, `{"emptySet":true}`,
+`{"set":[TERM...]}`, `{"union":[TERM...]}`, `{"intersection":[TERM...]}`,
+`{"call":"phonemes","args":[ARG...]}` where an argument is a span or a term
+or, for `tags` and `matches`, a rule name `{"rule":"lexicon"}`; a span is
+`{"capture":"x"}` or `{"call":"head","args":[SPAN]}` and likewise `tail`,
+`last`.
+
+**Condition**: `{"op":"=","left":TERM,"right":TERM}` with `op` one of `=`,
+`≠`, `∈`, `∉`, `⊆`; `{"matches":SPAN,"rule":"r"}`; `{"not":COND}`;
+`{"any":[COND...]}`.
+
+**Emission**: `{"nothing":true}` or `{"items":[ITEM...]}`, an item being
+`{"this":true,"tags":TERM}`, `{"capture":"x","tags":TERM}` or
+`{"insert":"h"}`, `tags` optional.
+
+**Directive**: `{"name":"elidable","args":["KU","KEI"],"at":[line,column]}`.
+
+## Renderings
+
+These are for people. The CLI and the playground implement all three; every
+library implements brackets, which the corpus compares.
+
+### Brackets
+
+The final stage's tree as nested groups:
+
+1. A token node's label is its token's phonemes, or its text if it has none;
+   an elided node's label is empty unless elided terminators are shown, when
+   it is the terminal in lower case between `⟨` and `⟩`.
+2. A rule node's children are rendered, and empty ones dropped. If none is
+   left, the node is empty; if one, the node is that child; otherwise it is a
+   group.
+3. A group at depth *d* is written between `(` `)` when *d* mod 3 is 0,
+   `[` `]` when 1, `{` `}` when 2, its members separated by one space. Depth
+   counts groups only: a child group of a group at depth *d* is at *d*+1.
+
+So `lo mlatu cu citka le finpe` is `([lo mlatu] cu [citka {le finpe}])`.
+
+### Tree
+
+One node per line, children indented two spaces under their parent: a rule
+node as its name, followed by ` · ` and its text when it has only token
+descendants on one line of source; a token node as its terminal, then its
+label from above in quotes; an elided node as its terminal in angle
+brackets. Chains of rule nodes with one child are written on one line,
+joined by ` › `.
+
+### Display JSON
+
+The tree projected for reading, not the canonical form: a rule node is an
+object with one member, its rule name, whose value is its only child's
+projection if it has one child and the array of its children's projections
+otherwise; a token node is `{"TERMINAL":"label"}`; an elided node is
+`{"TERMINAL":null}`. It is pretty-printed so that nesting costs no
+indentation where nothing is gained:
+
+- a scalar is written as JSON;
+- an empty array is `[]`; a non-empty one is `[`, a newline, each item
+  indented two more spaces than the array and followed by `,` except the
+  last, a newline, and `]` at the array's indentation;
+- an object with one member is `{"name": ` followed by the value written at
+  the same indentation as the object, then `}`, so `{"a": {"b": {"c": "x"}}}`
+  stays on one line and a long chain adds no indentation;
+- an object with several members is written like an array, as `"key": value`
+  lines between `{` and `}`.

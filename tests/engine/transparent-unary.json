@@ -1,0 +1,32 @@
+{
+  "description": "Closes of single-symbol productions are transparent: p and q differ only in a relabelling, which is a tie found at the whole sequences (engine §6).",
+  "grammar": "text ≔ p | q ; p ≔ A ; q ≔ A ;",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "tie"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "p"
+          }
+        ]
+      }
+    }
+  }
+}

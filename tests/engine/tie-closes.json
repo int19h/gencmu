@@ -1,0 +1,58 @@
+{
+  "description": "Two different constituents over the same span are a tie; the chosen one has the lower production number (engine §6.3).",
+  "grammar": "text ≔ p | q ; p ≔ A B ; q ≔ A B ;",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "tie",
+          "witness": [
+            {
+              "close": {
+                "rule": "p",
+                "span": [
+                  0,
+                  2
+                ]
+              }
+            },
+            {
+              "close": {
+                "rule": "q",
+                "span": [
+                  0,
+                  2
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "p"
+          }
+        ]
+      }
+    }
+  }
+}

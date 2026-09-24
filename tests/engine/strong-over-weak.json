@@ -1,0 +1,33 @@
+{
+  "description": "The same token read under a strong and a weak tag: the strong reading wins, whatever the lean (engine §6.1).",
+  "grammar": "text ≔ X | Y ;",
+  "tokens": [
+    {
+      "text": "w",
+      "tags": [
+        "?X",
+        "Y"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "resolved"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "Y"
+          }
+        ]
+      }
+    }
+  }
+}

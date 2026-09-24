@@ -1,0 +1,36 @@
+{
+  "description": "Source ranges count code points, so a character outside the BMP is one position (engine §1, output.md).",
+  "grammar": "text ≔ \"other\" \"a\" ;",
+  "input": "😀a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "source": [
+          0,
+          2
+        ],
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "other",
+            "source": [
+              0,
+              1
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "a",
+            "source": [
+              1,
+              2
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

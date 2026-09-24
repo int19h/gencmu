@@ -1,0 +1,10 @@
+{
+  "description": "An unknown escape in a string is an error at the string (engine §9).",
+  "document": "# A document\n\nSome prose.\n\n```ebnf\na ≔ \"\\q\" ;\n```\n",
+  "expect": {
+    "error": {
+      "line": 6,
+      "column": 5
+    }
+  }
+}

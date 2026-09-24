@@ -1,0 +1,21 @@
+{
+  "description": "A condition asking, inside a nested parse, about that parse's own span as the same rule is a grammar error (engine §4).",
+  "grammar": "text ≔ $a(x) : ¬matches($a, text) ; x ≔ A ;",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "grammar"
+      }
+    },
+    "error": "grammar"
+  }
+}

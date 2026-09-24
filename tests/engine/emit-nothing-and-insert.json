@@ -1,0 +1,72 @@
+{
+  "description": "⇒ nothing drops a constituent; a string in a ⇒ list inserts a token with an empty span (engine §11).",
+  "documents": {
+    "p.md": "## s <?stage first?>\n\n- [g](g.md) <?grammar?>\n\n## t <?stage second?>\n\n- [h](h.md) <?grammar?>\n",
+    "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ x ... ;\nx ≔ y | z ;\ny ≔ $a(A) $b(B) ⇒ $a, \"MID\", $b ;\nz ≔ C ⇒ nothing ;\n```\n",
+    "h.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ A MID B ;\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "text": "a",
+              "span": [
+                1,
+                2
+              ]
+            },
+            {
+              "text": "",
+              "tags": {
+                "MID": true
+              },
+              "span": [
+                2,
+                2
+              ],
+              "insertedBy": "y",
+              "source": [
+                3,
+                3
+              ]
+            },
+            {
+              "text": "b",
+              "span": [
+                2,
+                3
+              ]
+            }
+          ]
+        },
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

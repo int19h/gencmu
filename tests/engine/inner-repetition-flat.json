@@ -1,0 +1,58 @@
+{
+  "description": "A repetition inside an alternative is a helper, spliced out (engine §3.2, §12).",
+  "grammar": "text ≔ A B ... C ;",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A"
+          },
+          {
+            "kind": "token",
+            "terminal": "B"
+          },
+          {
+            "kind": "token",
+            "terminal": "B"
+          },
+          {
+            "kind": "token",
+            "terminal": "C"
+          }
+        ]
+      }
+    },
+    "brackets": "(a b b c)"
+  }
+}

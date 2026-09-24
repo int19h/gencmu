@@ -1,0 +1,15 @@
+{
+  "description": "|≔ with nothing to extend is an error (engine §2).",
+  "grammar": "text ≔ A ; y |≔ B ;",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

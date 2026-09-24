@@ -1,0 +1,24 @@
+{
+  "description": "matches() parses the captured span alone as another rule (engine §4, nested parses).",
+  "grammar": "text ≔ $w(word) : ¬matches($w, pair) ; word ≔ A ... ; pair ≔ A A ;",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false
+    },
+    "error": "rejected"
+  }
+}

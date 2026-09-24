@@ -1,0 +1,24 @@
+{
+  "description": "An empty input is accepted by a nullable start rule.",
+  "grammar": "text ≔ [A] ... ;",
+  "tokens": [],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          0
+        ],
+        "children": []
+      }
+    }
+  }
+}

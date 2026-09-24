@@ -1,0 +1,28 @@
+{
+  "description": "An absent optional leaves no node (engine §12).",
+  "grammar": "text ≔ [A] B ;",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "B"
+          }
+        ]
+      }
+    },
+    "brackets": "b"
+  }
+}

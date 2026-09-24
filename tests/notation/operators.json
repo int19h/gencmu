@@ -1,0 +1,67 @@
+{
+  "description": "Optional, repetition, zero-or-more, grouping, and/or, # and ε (engine §9).",
+  "document": "# A document\n\nSome prose.\n\n```ebnf\ntext ≔ [A] B ... [C] ... (D | E) F & G # ε ;\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "and": [
+                  {
+                    "seq": [
+                      {
+                        "optional": {
+                          "ref": "A"
+                        }
+                      },
+                      {
+                        "repeat": {
+                          "ref": "B"
+                        },
+                        "min": 1
+                      },
+                      {
+                        "repeat": {
+                          "ref": "C"
+                        },
+                        "min": 0
+                      },
+                      {
+                        "choice": [
+                          {
+                            "ref": "D"
+                          },
+                          {
+                            "ref": "E"
+                          }
+                        ]
+                      },
+                      {
+                        "ref": "F"
+                      }
+                    ]
+                  },
+                  {
+                    "seq": [
+                      {
+                        "ref": "G"
+                      },
+                      {
+                        "hash": true
+                      },
+                      {
+                        "empty": true
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

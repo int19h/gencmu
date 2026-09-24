@@ -1,0 +1,50 @@
+{
+  "description": "A sequence of terminals matched by tag (engine §4).",
+  "grammar": "text ≔ A B ;",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          2
+        ],
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A",
+            "token": 0
+          },
+          {
+            "kind": "token",
+            "terminal": "B",
+            "token": 1
+          }
+        ]
+      }
+    },
+    "brackets": "(a b)"
+  }
+}

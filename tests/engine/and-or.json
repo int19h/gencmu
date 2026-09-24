@@ -1,0 +1,25 @@
+{
+  "description": "A & B is A, B or A B, never B A (engine §3.2).",
+  "grammar": "text ≔ A & B ;",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "tree": null
+    },
+    "error": "rejected"
+  }
+}

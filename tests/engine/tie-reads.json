@@ -1,0 +1,47 @@
+{
+  "description": "The same token read under two strong tags is a tie; the chosen reading is the terminal first in code point order (engine §6.1).",
+  "grammar": "text ≔ X | Y ;",
+  "tokens": [
+    {
+      "text": "w",
+      "tags": [
+        "X",
+        "Y"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "tie",
+          "witness": [
+            {
+              "read": {
+                "token": 0,
+                "terminal": "X"
+              }
+            },
+            {
+              "read": {
+                "token": 0,
+                "terminal": "Y"
+              }
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "X"
+          }
+        ]
+      }
+    }
+  }
+}
