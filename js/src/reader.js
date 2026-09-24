@@ -237,9 +237,12 @@ export function treeToDom(tree, tokens, positionOf, path) {
    * @returns {Condition}
    */
   function readAnyOf(node) {
-    const items = ofRule(node, "all-of").map((allNode) => {
-      const all = ofRule(allNode, "condition").map(readCondition);
-      return all.length === 1 ? all[0] : { all };
+    // Parentheses make no node, so a group of the same connective as the
+    // one around it is part of it: (a ∧ b) ∧ c is a ∧ b ∧ c (engine §9).
+    const items = ofRule(node, "all-of").flatMap((allNode) => {
+      const all = ofRule(allNode, "condition").map(readCondition).flatMap((item) => ("all" in item ? item.all : [item]));
+      const one = all.length === 1 ? all[0] : { all };
+      return "any" in one ? one.any : [one];
     });
     return items.length === 1 ? items[0] : { any: items };
   }
