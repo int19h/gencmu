@@ -353,7 +353,12 @@ class Lowering {
     }
     let emit = clauses.emit || null;
     if (emit && "items" in emit) {
-      emit = { items: emit.items.filter((item) => item.capture === undefined || names.has(item.capture)) };
+      // An item naming a capture the production lacks is dropped, and so is
+      // a tag term naming one: the item keeps its own tags (engine §3.6).
+      emit = {
+        items: emit.items.filter((item) => item.capture === undefined || names.has(item.capture)).map((item) =>
+          item.tags && !termVariables(item.tags).every((name) => names.has(name)) ? { ...item, tags: undefined } : item),
+      };
     }
     this.addProduction({
       lhs: rule.name,
