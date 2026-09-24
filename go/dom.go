@@ -382,6 +382,9 @@ func decodeDOM(raw json.RawMessage) (*domDoc, error) {
 		d.Rules = append(d.Rules, rule)
 	}
 	for _, r := range dirs {
+		if string(r) == "null" {
+			return nil, fmt.Errorf("a null directive")
+		}
 		var dir struct {
 			Name string
 			Args []string
@@ -391,6 +394,9 @@ func decodeDOM(raw json.RawMessage) (*domDoc, error) {
 			return nil, err
 		}
 		d.Directives = append(d.Directives, &domDirective{Name: dir.Name, Args: dir.Args, At: dir.At})
+	}
+	if err := validateDOM(d); err != nil {
+		return nil, err
 	}
 	return d, nil
 }

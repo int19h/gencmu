@@ -284,3 +284,70 @@ func TestDeepDerivations(t *testing.T) {
 		}
 	}
 }
+
+// Malformed precompiled DOMs: a bad compiled.json entry is a miss, read
+// from the document instead, and a bad bootstrap is a load error; neither
+// panics (review of PR #8).
+func TestMalformedPrecompiled(t *testing.T) {
+	loadBundled()
+	sources := oneStage("%ambiguity-resolution greedy ;\ntext ≔ \"a\" \"b\" ;")
+	gText := sources["g.md"]
+	bad := []string{
+		`{"seq":[]}`, `{"choice":[]}`, `{"and":[]}`, `{"seq":[null]}`, `{"optional":null}`,
+		`{"repeat":{"ref":"A"},"min":5}`, `{"capture":"x","expr":{"seq":[{"ref":"A"},{"ref":"B"}]}}`,
+		`{"ref":""}`, `{"what":1}`, `null`, `[]`,
+	}
+	for _, expr := range bad {
+		dom := `{"format":1,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[1,1]}]}`
+		// In compiled.json, with every hash matching: a miss.
+		src := map[string]string{}
+		for k, v := range sources {
+			src[k] = v
+		}
+		src["compiled.json"] = `{"format":1,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(gText) + `","dom":` + dom + `}}}`
+		d, err := LoadDialectSources(src, "p.md")
+		if err != nil {
+			t.Fatalf("%s in compiled.json: %v", expr, err)
+		}
+		res, err := d.Parse("ab", ParseOptions{})
+		if err != nil || !res.OK {
+			t.Fatalf("%s in compiled.json: the document was not read instead: %v %+v", expr, err, res)
+		}
+		// In the bootstrap: a load error.
+		src = map[string]string{}
+		for k, v := range sources {
+			src[k] = v
+		}
+		src["notation/bootstrap.json"] = `{"format":1,"stages":[{"name":"lexical","documents":[{"path":"notation/lexical.md","dom":` + dom + `}]}]}`
+		_, err = LoadDialectSources(src, "p.md")
+		var e *Error
+		if !errors.As(err, &e) || e.Kind != ErrorGrammar {
+			t.Fatalf("%s in the bootstrap: expected a load error, got %v", expr, err)
+		}
+	}
+}
+
+// Caller tokens whose source lies outside the text are a usage error, not
+// a panic (review of PR #8).
+func TestParseTokensOutOfRange(t *testing.T) {
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy ;\ntext ≔ \"a\" ⇒ this ;"))
+	for _, src := range [][2]int{{100, 101}, {1, 0}, {-1, 0}, {0, 2}} {
+		toks := []Token{{Text: "a", Tags: map[string]bool{"a": true}, Span: [2]int{0, 1}, Source: src}}
+		res, err := d.ParseTokens("a", toks, ParseOptions{})
+		var e *Error
+		if res != nil || !errors.As(err, &e) || e.Kind != ErrorUsage {
+			t.Fatalf("source %v: expected a usage error, got %v %v", src, res, err)
+		}
+	}
+	toks := []Token{
+		{Text: "a", Tags: map[string]bool{"a": true}, Source: [2]int{2, 3}},
+		{Text: "a", Tags: map[string]bool{"a": true}, Source: [2]int{0, 1}},
+	}
+	if _, err := d.ParseTokens("a a", toks, ParseOptions{}); err == nil {
+		t.Fatal("tokens out of order were accepted")
+	}
+	toks = []Token{{Text: "a", Tags: map[string]bool{"a": true}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}}
+	if res, err := d.ParseTokens("a", toks, ParseOptions{}); err != nil || !res.OK {
+		t.Fatalf("%v %+v", err, res)
+	}
+}

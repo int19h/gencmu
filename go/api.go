@@ -101,7 +101,20 @@ func (l *loader) document(p string) (*domDoc, *Error) {
 	return l.reader.read(text, p)
 }
 
-func (l *loader) dialect(pipelinePath string) (*Dialect, error) {
+// guard turns a panic, which a defect of this library or of data it trusted
+// could still raise, into an error, so that no call of the API panics.
+func guard(kind string, err *error) {
+	if x := recover(); x != nil {
+		*err = &Error{Kind: kind, Message: fmt.Sprintf("internal error: %v", x)}
+	}
+}
+
+func (l *loader) dialect(pipelinePath string) (d *Dialect, err error) {
+	defer guard(ErrorGrammar, &err)
+	return l.load(pipelinePath)
+}
+
+func (l *loader) load(pipelinePath string) (*Dialect, error) {
 	text, ok := l.read(pipelinePath)
 	if !ok {
 		return nil, &Error{Kind: ErrorGrammar, Document: pipelinePath, Message: "the pipeline document is missing"}
@@ -188,10 +201,11 @@ func LoadDialectSources(sources map[string]string, pipeline string) (*Dialect, e
 	return loadSources(sources, pipeline, false)
 }
 
-func loadSources(sources map[string]string, pipeline string, noCache bool) (*Dialect, error) {
-	l, err := bundledLoader()
-	if err != nil {
-		return nil, err
+func loadSources(sources map[string]string, pipeline string, noCache bool) (d *Dialect, err error) {
+	defer guard(ErrorGrammar, &err)
+	l, lerr := bundledLoader()
+	if lerr != nil {
+		return nil, lerr
 	}
 	norm := make(map[string]string, len(sources))
 	for p, t := range sources {
@@ -289,14 +303,31 @@ func (d *Dialect) Parse(text string, options ParseOptions) (*ParseResult, error)
 // ParseTokens parses pre-built tokens in place of the first stage's
 // character tokens, for tests and tools: text is the original text their
 // Source ranges index, in code points.
+// Each token's Source must lie within the text, in order: a token may not
+// start before the one before it ends.
 func (d *Dialect) ParseTokens(text string, tokens []Token, options ParseOptions) (*ParseResult, error) {
 	if tokens == nil {
 		tokens = []Token{}
 	}
-	return d.parse([]rune(text), tokens, options)
+	runes := []rune(text)
+	end := 0
+	for i, t := range tokens {
+		s := t.Source
+		if s[0] < end || s[0] > s[1] || s[1] > len(runes) || t.Span[0] < 0 || t.Span[0] > t.Span[1] {
+			return nil, &Error{Kind: ErrorUsage, Message: fmt.Sprintf("token %d: source %v and span %v do not lie in order within a text of %d code points", i, s, t.Span, len(runes))}
+		}
+		end = s[1]
+	}
+	return d.parse(runes, tokens, options)
 }
 
-func (d *Dialect) parse(text []rune, tokens []Token, options ParseOptions) (*ParseResult, error) {
+func (d *Dialect) parse(text []rune, tokens []Token, options ParseOptions) (res *ParseResult, err error) {
+	defer func() {
+		if err != nil {
+			res = nil
+		}
+	}()
+	defer guard(ErrorGrammar, &err)
 	last := len(d.stages) - 1
 	if options.Until != "" {
 		last = -1
@@ -343,7 +374,7 @@ func (d *Dialect) parse(text []rune, tokens []Token, options ParseOptions) (*Par
 	if outcomes == nil {
 		outcomes = d.runStages(ps, features, options, tokens, 0, last)
 	}
-	res := &ParseResult{OK: true}
+	res = &ParseResult{OK: true}
 	for _, o := range outcomes {
 		res.Stages = append(res.Stages, o.stage)
 		if o.err != nil {
