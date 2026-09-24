@@ -1,219 +1,278 @@
 package gencmu
 
-import "fmt"
+import (
+	"fmt"
+	"regexp"
+)
 
-// validateDOM checks the shape of a DOM read from JSON, a precompiled one
-// or the bootstrap's, as the notation reader would have built it (engine
-// §9), so that a malformed one is refused rather than lowered: a bad cache
-// entry is then a miss, and a bad bootstrap a load error.
+// The DOM of a grammar document, when it did not come from reading the
+// document (the bootstrap's, or a precompiled one from compiled.json), is
+// held to every rule the reader enforces (engine §9, docs/output.md "A
+// grammar DOM"), so that a malformed one is refused rather than lowered: a
+// bad cache entry is then a miss, and a bad bootstrap a load error.
+
+// maxDOMDepth is how deep an expression, a term or a condition may nest
+// (engine §9), counted from the one a rule, an alternative or a clause
+// holds, at 0.
+const maxDOMDepth = 256
+
+var domName = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9-]*$`)
+
+// domProblem is why a DOM is malformed; tooDeep marks the nesting limit,
+// the one problem a DOM the reader built can have.
+type domProblem struct {
+	message string
+	rule    *domRule
+	tooDeep bool
+}
+
+func (p *domProblem) Error() string { return p.message }
+
 func validateDOM(d *domDoc) error {
-	for _, r := range d.Rules {
-		if r == nil || r.Name == "" || (r.Op != "define" && r.Op != "extend") || len(r.Alternatives) == 0 {
-			return fmt.Errorf("a malformed rule")
-		}
-		if err := validateTerm(r.Tags, false); err != nil {
-			return fmt.Errorf("rule %s: %v", r.Name, err)
-		}
-		for _, a := range r.Alternatives {
-			if a == nil {
-				return fmt.Errorf("rule %s: a missing alternative", r.Name)
-			}
-			for _, g := range a.Guards {
-				if g.Feature == "" {
-					return fmt.Errorf("rule %s: a guard without a feature", r.Name)
-				}
-			}
-			if err := validateExpr(a.Expr); err != nil {
-				return fmt.Errorf("rule %s: %v", r.Name, err)
-			}
-			if err := validateTerm(a.Tags, false); err != nil {
-				return fmt.Errorf("rule %s: %v", r.Name, err)
-			}
-		}
-		if err := validateEmit(r.Emit); err != nil {
-			return fmt.Errorf("rule %s: %v", r.Name, err)
-		}
-		for _, c := range r.Conditions {
-			if err := validateCond(c); err != nil {
-				return fmt.Errorf("rule %s: %v", r.Name, err)
-			}
+	if p := checkDOM(d); p != nil {
+		return p
+	}
+	return nil
+}
+
+func checkDOM(d *domDoc) *domProblem {
+	for _, dir := range d.Directives {
+		if dir == nil || dir.Args == nil {
+			return &domProblem{message: "a malformed directive"}
 		}
 	}
-	for _, dir := range d.Directives {
-		if dir == nil || dir.Name == "" {
-			return fmt.Errorf("a malformed directive")
+	for _, r := range d.Rules {
+		if r == nil || !domName.MatchString(r.Name) || (r.Op != "define" && r.Op != "extend") || len(r.Alternatives) == 0 {
+			return &domProblem{message: "a malformed rule"}
+		}
+		c := &domChecker{rule: r}
+		c.term(r.Tags, 0, false)
+		c.emission(r.Emit)
+		for _, cond := range r.Conditions {
+			c.condition(cond, 0)
+		}
+		for _, a := range r.Alternatives {
+			if a == nil || a.Guards == nil {
+				c.fail("a malformed alternative")
+				continue
+			}
+			c.captures = map[string]bool{}
+			c.expr(a.Expr, 0)
+			c.term(a.Tags, 0, false)
+		}
+		if c.problem != nil {
+			return c.problem
 		}
 	}
 	return nil
 }
 
-func validateExpr(e *domExpr) error {
+type domChecker struct {
+	rule     *domRule
+	captures map[string]bool
+	problem  *domProblem
+}
+
+func (c *domChecker) fail(format string, args ...any) {
+	if c.problem == nil {
+		c.problem = &domProblem{message: fmt.Sprintf("rule %s: ", c.rule.Name) + fmt.Sprintf(format, args...), rule: c.rule}
+	}
+}
+
+func (c *domChecker) deep(depth int) bool {
+	if depth > maxDOMDepth {
+		if c.problem == nil {
+			c.problem = &domProblem{message: fmt.Sprintf("rule %s: an expression, term or condition is nested more than %d deep", c.rule.Name, maxDOMDepth), rule: c.rule, tooDeep: true}
+		}
+		return true
+	}
+	return c.problem != nil
+}
+
+func (c *domChecker) expr(e *domExpr, depth int) {
+	if c.deep(depth) {
+		return
+	}
 	if e == nil {
-		return fmt.Errorf("a missing expression")
+		c.fail("a missing expression")
+		return
 	}
 	switch e.Kind {
 	case exSeq, exChoice, exAnd:
-		if len(e.Items) == 0 {
-			return fmt.Errorf("an empty %s", e.Kind)
-		}
-		if e.Kind == exAnd && len(e.Items) > maxAnd {
-			return fmt.Errorf("an & of more than %d items", maxAnd)
+		// The reader makes each only of two or more, an & of at most 16.
+		if len(e.Items) < 2 || (e.Kind == exAnd && len(e.Items) > maxAnd) {
+			c.fail("a %s of %d items", e.Kind, len(e.Items))
+			return
 		}
 		for _, it := range e.Items {
-			if err := validateExpr(it); err != nil {
-				return err
-			}
+			c.expr(it, depth+1)
 		}
 	case exOptional:
-		return validateExpr(e.Inner)
+		c.expr(e.Inner, depth+1)
 	case exRepeat:
 		if e.Min != 0 && e.Min != 1 {
-			return fmt.Errorf("a repetition with min %d", e.Min)
+			c.fail("a repetition with min %d", e.Min)
+			return
 		}
-		return validateExpr(e.Inner)
+		c.expr(e.Inner, depth+1)
 	case exCapture:
-		if e.Name == "" || e.Inner == nil || (e.Inner.Kind != exRef && e.Inner.Kind != exTerminal) {
-			return fmt.Errorf("a malformed capture")
+		// A capture wraps a reference or a terminal, its name once per
+		// alternative.
+		if e.Inner == nil || (e.Inner.Kind != exRef && e.Inner.Kind != exTerminal) || e.Inner.Name == "" {
+			c.fail("a capture of something other than a reference or a terminal")
+			return
 		}
-		return validateExpr(e.Inner)
+		if c.captures[e.Name] {
+			c.fail("$%s is captured twice in one alternative", e.Name)
+		}
+		c.captures[e.Name] = true
 	case exRef, exTerminal:
 		if e.Name == "" {
-			return fmt.Errorf("an empty %s", e.Kind)
+			c.fail("an empty %s", e.Kind)
 		}
 	case exHash, exEmpty:
 	default:
-		return fmt.Errorf("an unknown expression %q", e.Kind)
+		c.fail("an unknown expression %q", e.Kind)
 	}
-	return nil
 }
 
+// isSpanShape: a capture, or head, tail or last of a span.
 func isSpanShape(t *domTerm) bool {
-	if t == nil {
-		return false
-	}
-	switch {
-	case t.Kind == tmCapture:
-		return t.Str != ""
-	case t.Kind == tmCall && (t.Str == "head" || t.Str == "tail" || t.Str == "last"):
-		return len(t.Items) == 1 && isSpanShape(t.Items[0])
-	}
-	return false
+	return t != nil && (t.Kind == tmCapture ||
+		(t.Kind == tmCall && (t.Str == "head" || t.Str == "tail" || t.Str == "last")))
 }
 
-// validateTerm checks a term; a nil one is an absent, optional term unless
-// required.
-func validateTerm(t *domTerm, required bool) error {
-	if t == nil {
-		if required {
-			return fmt.Errorf("a missing term")
-		}
-		return nil
+// term checks a term; argument says it is a function's argument, where a
+// span may stand. A nil term is an absent, optional one.
+func (c *domChecker) term(t *domTerm, depth int, argument bool) {
+	if t == nil || c.deep(depth) {
+		return
 	}
 	switch t.Kind {
-	case tmLiteral, tmWeak:
-	case tmCapture:
-		if t.Str == "" {
-			return fmt.Errorf("a capture without a name")
-		}
-	case tmEmptySet:
+	case tmLiteral, tmWeak, tmCapture, tmEmptySet:
 	case tmSet, tmUnion, tmIntersection:
-		if t.Kind != tmSet && len(t.Items) == 0 {
-			return fmt.Errorf("an empty %s", t.Kind)
+		least := 2
+		if t.Kind == tmSet {
+			least = 0
+		}
+		if len(t.Items) < least {
+			c.fail("a %s of %d items", t.Kind, len(t.Items))
+			return
 		}
 		for _, it := range t.Items {
-			if err := validateTerm(it, true); err != nil {
-				return err
+			if it == nil {
+				c.fail("a missing term")
+				return
 			}
+			c.term(it, depth+1, false)
 		}
 	case tmCall:
+		// The reader's signatures (engine §9), with a span where one is due;
+		// head, tail and last only where a span may stand, and matches
+		// never as a term.
 		args := t.Items
-		ok := false
+		isRule := func(a *domTerm) bool { return a != nil && a.Kind == tmRule && a.Str != "" }
+		var ok bool
 		switch t.Str {
 		case "phonemes", "text", "words", "classes", "head", "tail", "last":
 			ok = len(args) == 1 && isSpanShape(args[0])
 		case "tags":
-			ok = (len(args) == 1 || len(args) == 2) && isSpanShape(args[0]) &&
-				(len(args) == 1 || (args[1] != nil && args[1].Kind == tmRule && args[1].Str != ""))
+			ok = (len(args) == 1 && isSpanShape(args[0])) || (len(args) == 2 && isSpanShape(args[0]) && isRule(args[1]))
 		case "lowercase":
-			// A string, as the reader requires: a literal, or phonemes,
-			// text or lowercase of something (§9).
-			ok = len(args) == 1 && args[0] != nil && isStringTerm(args[0]) && validateTerm(args[0], true) == nil
+			ok = len(args) == 1 && isStringTerm(args[0])
 		}
-		if !ok {
-			return fmt.Errorf("a malformed call of %q", t.Str)
+		if !ok || (!argument && (t.Str == "head" || t.Str == "tail" || t.Str == "last")) {
+			c.fail("a malformed call of %q", t.Str)
+			return
+		}
+		for _, a := range args {
+			if !isRule(a) {
+				c.term(a, depth+1, true)
+			}
 		}
 	default:
-		return fmt.Errorf("an unknown term %q", t.Kind)
+		c.fail("an unknown term %q", t.Kind)
 	}
-	return nil
 }
 
-func validateCond(c *domCond) error {
-	if c == nil {
-		return fmt.Errorf("a missing condition")
+func (c *domChecker) condition(d *domCond, depth int) {
+	if c.deep(depth) {
+		return
 	}
-	switch c.Kind {
+	if d == nil {
+		c.fail("a missing condition")
+		return
+	}
+	switch d.Kind {
 	case cdCompare:
-		switch c.Op {
+		switch d.Op {
 		case "=", "≠", "∈", "∉", "⊆":
 		default:
-			return fmt.Errorf("an unknown comparison %q", c.Op)
+			c.fail("an unknown comparison %q", d.Op)
+			return
 		}
-		if err := validateTerm(c.Left, true); err != nil {
-			return err
+		if d.Left == nil || d.Right == nil {
+			c.fail("a comparison without two terms")
+			return
 		}
-		return validateTerm(c.Right, true)
+		c.term(d.Left, depth+1, false)
+		c.term(d.Right, depth+1, false)
 	case cdMatches:
-		if !isSpanShape(c.Span) || c.Rule == "" {
-			return fmt.Errorf("a malformed matches()")
+		if !isSpanShape(d.Span) || d.Rule == "" {
+			c.fail("a malformed matches()")
+			return
 		}
+		c.term(d.Span, depth+1, true)
 	case cdNot:
-		return validateCond(c.Inner)
+		c.condition(d.Inner, depth+1)
 	case cdAny:
-		if len(c.Items) == 0 {
-			return fmt.Errorf("an empty any")
+		if len(d.Items) < 2 {
+			c.fail("an any of %d conditions", len(d.Items))
+			return
 		}
-		for _, it := range c.Items {
-			if err := validateCond(it); err != nil {
-				return err
-			}
+		for _, it := range d.Items {
+			c.condition(it, depth+1)
 		}
 	default:
-		return fmt.Errorf("an unknown condition %q", c.Kind)
+		c.fail("an unknown condition %q", d.Kind)
 	}
-	return nil
 }
 
-func validateEmit(e *domEmit) error {
+// emission: nothing alone and without tags (decodeEmit holds it to that);
+// this only with this; a capture listed once; no tags on an inserted tag.
+func (c *domChecker) emission(e *domEmit) {
 	if e == nil || e.Nothing {
-		return nil
+		return
 	}
 	if len(e.Items) == 0 {
-		return fmt.Errorf("an emission of no items")
+		c.fail("an emission of no items")
+		return
 	}
+	this := 0
+	listed := map[string]bool{}
 	for _, it := range e.Items {
 		if it == nil {
-			return fmt.Errorf("a missing emission item")
+			c.fail("a missing emission item")
+			return
 		}
-		kinds := 0
-		if it.This {
-			kinds++
-		}
-		if it.Capture != "" {
-			kinds++
-		}
-		if it.IsInsert {
-			kinds++
-			if it.Insert == "" || it.Tags != nil {
-				return fmt.Errorf("a malformed inserted tag")
+		switch {
+		case it.This:
+			this++
+		case it.IsInsert:
+			if it.Tags != nil {
+				c.fail("tags on an inserted tag")
+				return
 			}
+		default:
+			if listed[it.Capture] {
+				c.fail("$%s is listed twice in an emission", it.Capture)
+				return
+			}
+			listed[it.Capture] = true
 		}
-		if kinds != 1 {
-			return fmt.Errorf("a malformed emission item")
-		}
-		if err := validateTerm(it.Tags, false); err != nil {
-			return err
-		}
+		c.term(it.Tags, 0, false)
 	}
-	return nil
+	if this > 0 && this != len(e.Items) {
+		c.fail("this with items other than this")
+	}
 }

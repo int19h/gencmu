@@ -386,14 +386,17 @@ func decodeDOM(raw json.RawMessage) (*domDoc, error) {
 			return nil, fmt.Errorf("a null directive")
 		}
 		var dir struct {
-			Name string
+			Name *string
 			Args []string
-			At   [2]int
+			At   []int
 		}
 		if err := json.Unmarshal(r, &dir); err != nil {
 			return nil, err
 		}
-		d.Directives = append(d.Directives, &domDirective{Name: dir.Name, Args: dir.Args, At: dir.At})
+		if dir.Name == nil || dir.Args == nil || len(dir.At) != 2 {
+			return nil, fmt.Errorf("a malformed directive")
+		}
+		d.Directives = append(d.Directives, &domDirective{Name: *dir.Name, Args: dir.Args, At: [2]int{dir.At[0], dir.At[1]}})
 	}
 	if err := validateDOM(d); err != nil {
 		return nil, err
@@ -413,8 +416,13 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 	if err := json.Unmarshal(o["op"], &r.Op); err != nil {
 		return nil, err
 	}
-	if err := json.Unmarshal(o["at"], &r.At); err != nil {
-		return nil, err
+	var at []int
+	if err := json.Unmarshal(o["at"], &at); err != nil || len(at) != 2 {
+		return nil, fmt.Errorf("a malformed rule")
+	}
+	r.At = [2]int{at[0], at[1]}
+	if _, ok := o["conditions"]; !ok {
+		return nil, fmt.Errorf("a malformed rule")
 	}
 	if t, ok := o["tags"]; ok {
 		if r.Tags, err = decodeTerm(t); err != nil {
@@ -440,18 +448,19 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 		if err != nil {
 			return nil, err
 		}
-		alt := &domAlt{}
-		if g, ok := ao["guards"]; ok {
-			var guards []struct {
-				Feature string
-				Negated bool
+		alt := &domAlt{Guards: []domGuard{}}
+		var guards []*struct {
+			Feature *string
+			Negated *bool
+		}
+		if err := json.Unmarshal(ao["guards"], &guards); err != nil || guards == nil {
+			return nil, fmt.Errorf("a malformed alternative")
+		}
+		for _, gd := range guards {
+			if gd == nil || gd.Feature == nil || gd.Negated == nil {
+				return nil, fmt.Errorf("a malformed guard")
 			}
-			if err := json.Unmarshal(g, &guards); err != nil {
-				return nil, err
-			}
-			for _, gd := range guards {
-				alt.Guards = append(alt.Guards, domGuard{gd.Feature, gd.Negated})
-			}
+			alt.Guards = append(alt.Guards, domGuard{*gd.Feature, *gd.Negated})
 		}
 		if alt.Expr, err = decodeExpr(ao["expr"]); err != nil {
 			return nil, err
@@ -471,6 +480,12 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 		r.Conditions = append(r.Conditions, cond)
 	}
 	return r, nil
+}
+
+// isTrue: the flags of the DOM, such as {"hash":true}, are true or absent.
+func isTrue(raw json.RawMessage) bool {
+	var b bool
+	return raw != nil && json.Unmarshal(raw, &b) == nil && b
 }
 
 func decodeList[T any](raw json.RawMessage, each func(json.RawMessage) (T, error)) ([]T, error) {
@@ -533,10 +548,10 @@ func decodeExpr(raw json.RawMessage) (*domExpr, error) {
 			return &domExpr{Kind: k, Name: name}, err
 		}
 	}
-	if _, ok := o["hash"]; ok {
+	if isTrue(o["hash"]) {
 		return &domExpr{Kind: exHash}, nil
 	}
-	if _, ok := o["empty"]; ok {
+	if isTrue(o["empty"]) {
 		return &domExpr{Kind: exEmpty}, nil
 	}
 	return nil, fmt.Errorf("unknown expression %s", string(raw))
@@ -553,7 +568,7 @@ func decodeTerm(raw json.RawMessage) (*domTerm, error) {
 			return &domTerm{Kind: k, Str: s}, err
 		}
 	}
-	if _, ok := o["emptySet"]; ok {
+	if isTrue(o["emptySet"]) {
 		return &domTerm{Kind: tmEmptySet}, nil
 	}
 	for _, k := range []string{tmSet, tmUnion, tmIntersection} {
@@ -614,6 +629,10 @@ func decodeEmit(raw json.RawMessage) (*domEmit, error) {
 		return nil, err
 	}
 	if _, ok := o["nothing"]; ok {
+		// Nothing alone, and without tags (§9).
+		if !isTrue(o["nothing"]) || len(o) != 1 {
+			return nil, fmt.Errorf("a malformed emission")
+		}
 		return &domEmit{Nothing: true}, nil
 	}
 	items, err := decodeList(o["items"], func(r json.RawMessage) (*domEmitItem, error) {
@@ -627,6 +646,9 @@ func decodeEmit(raw json.RawMessage) (*domEmit, error) {
 			it.IsInsert = true
 			it.Insert, err = decodeString(io["insert"])
 		case io["this"] != nil:
+			if !isTrue(io["this"]) {
+				return nil, fmt.Errorf("a malformed emission item")
+			}
 			it.This = true
 		case io["capture"] != nil:
 			it.Capture, err = decodeString(io["capture"])

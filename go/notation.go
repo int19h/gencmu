@@ -99,7 +99,17 @@ func (nr *notationReader) read(text, docPath string) (dom *domDoc, err *Error) {
 			panic(x)
 		}
 	}()
-	return b.document(out.tree), nil
+	dom = b.document(out.tree)
+	// What the notation's grammar cannot state and the walk does not see:
+	// nesting deeper than 256 (§9), reported at the rule.
+	if p := checkDOM(dom); p != nil {
+		e := &Error{Kind: ErrorGrammar, Document: docPath, Message: p.message}
+		if p.rule != nil {
+			e.Line, e.Column = p.rule.At[0], p.rule.At[1]
+		}
+		return nil, e
+	}
+	return dom, nil
 }
 
 type domBuilder struct {
