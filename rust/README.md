@@ -49,9 +49,12 @@ The minimum supported Rust version is 1.75.
 The crate's grammars, `grammars/`, are a copy of the repository's that
 `node tools/sync.js` writes; edit the repository's `grammars/` and run it.
 `cargo test` runs the shared engine and notation cases of the repository's
-`tests/`, the bootstrap fixpoint, the DOM cache, the API, and a property
-test of the ranking, which compares the library with a brute-force
-enumeration of every derivation of random small grammars.
-`GENCMU_RANKING_CASES` and `GENCMU_RANKING_SEED` run a larger sweep.
+`tests/`, the bootstrap fixpoint, the DOM cache, the API, the core sample
+of the Lojban corpus, and a property test of the ranking, which compares
+the library with a brute-force enumeration of every derivation of random
+small grammars. `GENCMU_RANKING_CASES` and `GENCMU_RANKING_SEED` run a
+larger sweep, and `GENCMU_CORPUS=full cargo test --release --test corpus`
+the whole corpus, on `GENCMU_CORPUS_WORKERS` threads (by default one fewer
+than the cores).
 
 MIT licensed.

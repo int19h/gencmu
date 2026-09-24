@@ -109,3 +109,10 @@ jobs:
         run: cargo test
       - name: The crate holds everything it needs
         run: cargo package
+      # The whole Lojban corpus, on each pull request (design, "Tests"):
+      # about a minute on a hosted runner's cores, under 2 GB.
+      - name: The whole corpus
+        if: matrix.rust == 'stable'
+        env:
+          GENCMU_CORPUS: full
+        run: cargo test --release --test corpus -- --nocapture
