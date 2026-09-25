@@ -9,7 +9,7 @@ The Zantufa cmavo, `mu'ei` in ROI, `xe'u`, `no'oi` in NOhOI and the others, come
 Two more terminators are elidable here:
 
 ```jbogenbau
-%elidable GIhI LIhAU
+%elidable FIhAU GIhI LIhAU
 ```
 
 ## Statements
@@ -66,11 +66,29 @@ A forethought termset may take further `gi` branches and end in `gi'i` (`zantufa
   | NUhI # terms-not-starting-with-bare-gek [NUhU] #
   | KE # terms [KEhE] #
 
-%extend-rule term-3
-  NOIhA # selbri KU # | @zantufa-tags? JAI # [tag] sumti
+%redefine-rule term-3
+  | sumti
+  | tagged-term
+  | termset
+  | NA KU #
+  | NA #
+  | NOIhA # selbri [FEhU] #
+  | FIhOI # statement [FIhAU] #
+  | SOI # statement [SEhU] #
+  | NOIhA # selbri KU #
+  | @zantufa-tags? JAI # [tag] sumti
 
-%extend-rule term-3-not-starting-with-bare-gek
-  NOIhA # selbri KU # | @zantufa-tags? JAI # [tag] sumti
+%redefine-rule term-3-not-starting-with-bare-gek
+  | sumti
+  | tagged-term
+  | termset-with-nuhi
+  | NA KU #
+  | NA #
+  | NOIhA # selbri [FEhU] #
+  | FIhOI # statement [FIhAU] #
+  | SOI # statement [SEhU] #
+  | NOIhA # selbri KU #
+  | @zantufa-tags? JAI # [tag] sumti
 ```
 
 ## Sumti
@@ -83,8 +101,32 @@ A forethought sumti connection may take further `gi` branches and end in `gi'i` 
   | @¬zantufa-connectives? gek sumti gik sumti-4
   | @zantufa-connectives? gek sumti gik sumti-4 [(gik sumti-4) ...] [GIhI] #
 
-%extend-rule sumti-6
-  RAhOI anything #
+%redefine-rule sumti-6
+  | (LAhE # | NAhE BO #) [relative-clauses] sumti [LUhU] #
+  | NAhE # sumti [LUhU] #
+  | (LAhE # | NAhE BO #) (tag | FA #) sumti [LUhU] #
+  | KOhA #
+  | lerfu-string free-after-elided-boi
+  | @¬cbm? LA # [relative-clauses] CMEVLA ... #
+  | (LA | LE) # sumti-tail [KU] #
+  | (LA | LE) # jek (LA | LE) # sumti-tail [KU] #
+  | LOhOI # [(joik # | jek #) LOhOI #] ... statement [KUhAU] #
+  | LI # mex [LOhO] #
+  | ZO any-word #
+  | MAhOI any-word #
+  | LU text [LIhU] #
+  | LOhU [any-word ...] LEhU #
+  | ZOI any-word anything any-word #
+  | ZOhOI anything #
+  | LAhOI anything #
+  | MEhOI anything #
+  | RAhOI anything #
+
+%redefine-rule sumti-connective
+  ek # | jehi # | joik # | VUhU #
+
+%rule jehi
+  [NA] [SE] JEhI [NAI]
 ```
 
 ## Relative clauses
