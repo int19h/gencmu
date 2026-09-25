@@ -147,9 +147,9 @@ A `y` here is either phoneme of the letter, plain or stressed, since hesitation 
   faho-word | faho-word PAUSE | faho-word PAUSE zoi-body
 
 %rule faho-word
-  $q(plain-cmavo-body)
+  $q(magic-body)
 %conditions
-  phonemes($q) = "fa'o"
+  "FAhO" ∈ classes($q)
 ```
 
 ## Words
@@ -163,15 +163,20 @@ A word is a cmavo, a brivla or a cmevla; what shapes each has is the business of
   | $b(brivla-shape) <"word" ∪ "BRIVLA" ∪ tags($b)>
   | cmevla-shape <"word" ∪ "CMEVLA">
 %conditions
-  phonemes($c) ∉ "zo" ∪ "zoi" ∪ "la'o" ∪ "mu'oi" ∪ "lo'u" ∪ "ma'oi" ∪ "zo'oi" ∪ "la'oi" ∪ "ra'oi" ∪
-    "me'oi" ∪ "go'oi" ∪ "ze'oi" ∪ "ta'ai" ∪ "bo'ei" ∪ "fa'o" ∪ "bu" ∪ "zei" ∪ "si" ∪ "sa" ∪ "su",
-  phonemes($e) ∉ "zo" ∪ "zoi" ∪ "la'o" ∪ "mu'oi" ∪ "lo'u" ∪ "ma'oi" ∪ "zo'oi" ∪ "la'oi" ∪ "ra'oi" ∪
-    "me'oi" ∪ "go'oi" ∪ "ze'oi" ∪ "ta'ai" ∪ "bo'ei" ∪ "fa'o" ∪ "bu" ∪ "zei" ∪ "si"
+  tags($c, lexicon) ∩ ("ZO" ∪ "ZOI" ∪ "LOhU" ∪ "ZOhOI" ∪ "LAhOI" ∪ "RAhOI" ∪ "MEhOI" ∪ "GOhOI" ∪ "ZEhOI" ∪ "TAhAI" ∪ "BOhEI" ∪
+    "FAhO" ∪ "BU" ∪ "ZEI" ∪ "SI" ∪ "SA" ∪ "SU") = ∅,
+  tags($e, lexicon) ∩ ("ZO" ∪ "ZOI" ∪ "LOhU" ∪ "ZOhOI" ∪ "LAhOI" ∪ "RAhOI" ∪ "MEhOI" ∪ "GOhOI" ∪ "ZEhOI" ∪ "TAhAI" ∪ "BOhEI" ∪
+    "FAhO" ∪ "BU" ∪ "ZEI" ∪ "SI") = ∅
 %emits
   $
 ```
 
-The family document also defines `plain-cmavo-body`, the shape of a cmavo that begins with a consonant, which the magic words all have; the rules below name their words by their phonemes.
+The family document also defines `plain-cmavo-body`, the shape of a cmavo that begins with a consonant, which the magic words all have. The rules below know a magic word by the selma'o the lexicon gives it, not by its spelling: a cmavo's stress is free (CLL 3.9), and the lexicon reads a stressed vowel as the plain one, so `zO` quotes as `zo` does; and the dialect's lexicon decides which words are magic, so `ma'oi` and `zo'oi`, which CLL does not have, are quote words only where the experimental lexicon gives them their classes.
+
+```jbogenbau
+%rule magic-body
+  $w(plain-cmavo-body) <tags($w, lexicon)>
+```
 
 ## Quotes
 
@@ -198,12 +203,9 @@ CLL 19.10 to 19.13. A quote is decided at this stage because the words inside it
   $m, $w <"word">, $v <"word">, $n <"word">
 
 %rule word-quote-marker
-  $q(quote-marker-body) <"word" ∪ "cmavo" ∪ classes($q)>
+  $q(magic-body) <"word" ∪ "cmavo" ∪ classes($q)>
 %conditions
-  phonemes($q) ∈ "zo" ∪ "ma'oi"
-
-%rule quote-marker-body
-  $w(plain-cmavo-body) <tags($w, lexicon)>
+  "ZO" ∈ classes($q)
 
 %rule quotable-word
   $c(cmavo-shape) <tags($c)> | $b(brivla-shape) <tags($b)>
@@ -218,9 +220,9 @@ CLL 19.10 to 19.13. A quote is decided at this stage because the words inside it
   $m, $r <"foreign-text">
 
 %rule single-marker
-  $q(quote-marker-body) <"word" ∪ "cmavo" ∪ classes($q)>
+  $q(magic-body) <"word" ∪ "cmavo" ∪ classes($q)>
 %conditions
-  phonemes($q) ∈ "zo'oi" ∪ "la'oi" ∪ "ra'oi" ∪ "me'oi" ∪ "go'oi" ∪ "ze'oi" ∪ "ta'ai" ∪ "bo'ei"
+  classes($q) ∩ ("ZOhOI" ∪ "LAhOI" ∪ "RAhOI" ∪ "MEhOI" ∪ "GOhOI" ∪ "ZEhOI" ∪ "TAhAI" ∪ "BOhEI") ≠ ∅
 
 %rule zoi-quote
   | $m(zoi-marker) quote-gap $open(delimiter) PAUSE $content(zoi-body) PAUSE $close(delimiter)
@@ -257,9 +259,9 @@ CLL 19.10 to 19.13. A quote is decided at this stage because the words inside it
   | $l(lerfu-word) <tags($l)>
 
 %rule zoi-marker
-  $q(quote-marker-body) <"word" ∪ "cmavo" ∪ classes($q)>
+  $q(magic-body) <"word" ∪ "cmavo" ∪ classes($q)>
 %conditions
-  phonemes($q) ∈ "zoi" ∪ "la'o" ∪ "mu'oi"
+  "ZOI" ∈ classes($q)
 ```
 
 Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL 4.9, but no quote marker opens anything and no eraser erases, so a `lo'u` stretch is a stream of bare word shapes joined by the same rules as the stream of the text; the quote ends at the first `le'u`, and it may be empty, `lo'u le'u`, as a `zoi` quote may. The words inside are handed on as bare words, and the markers as `LOhU` and `LEhU`; the closing marker is handed on as `LEhU` alone, not also as a word, so that the syntax cannot read it as one more quoted word and look for a later `le'u`.
@@ -270,20 +272,18 @@ Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL
   | $m(lohu-marker) [PAUSE] $e(lehu-marker)
 %tags
   tags($m) ∪ "onset" ∪ "continued"
-%conditions
-  "le'u" ∉ words($content)
 
 %rule lohu-marker
-  $q(quote-marker-body) <"word" ∪ "cmavo" ∪ classes($q)>
+  $q(magic-body) <"word" ∪ "cmavo" ∪ classes($q)>
 %conditions
-  phonemes($q) = "lo'u"
+  "LOhU" ∈ classes($q)
 %emits
   $
 
 %rule lehu-marker
-  $q(quote-marker-body) <"word" ∪ "cmavo" ∪ classes($q)>
+  $q(magic-body) <"word" ∪ "cmavo" ∪ classes($q)>
 %conditions
-  phonemes($q) = "le'u"
+  "LEhU" ∈ classes($q)
 %emits
   $ <"LEhU">
 
@@ -308,7 +308,7 @@ Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL
   | cmevla-shape <∅>
   | y-run <"continued">
 %conditions
-  phonemes($c) ≠ "le'u"
+  "LEhU" ∉ tags($c, lexicon)
 %emits
   $ <"word">
 ```
@@ -378,9 +378,9 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
   y-run
 
 %rule bu-word
-  $q(plain-cmavo-body)
+  $q(magic-body)
 %conditions
-  phonemes($q) = "bu"
+  "BU" ∈ classes($q)
 
 %rule zei-compound
   | $l(unit) $z(zei-word) $r(zei-right)
@@ -403,9 +403,9 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
   $
 
 %rule zei-word
-  $q(plain-cmavo-body)
+  $q(magic-body)
 %conditions
-  phonemes($q) = "zei"
+  "ZEI" ∈ classes($q)
 
 %rule zei-right
   $c(cmavo-shape) <tags($c)> | $b(brivla-shape) <tags($b)> | cmevla-shape <∅> | y-run <"continued">
@@ -449,9 +449,9 @@ CLL 19.13: `si` erases the word before it, a compound or a quote counting as one
   PAUSE | PAUSE hesitations PAUSE | PAUSE hesitations
 
 %rule si-word
-  $q(plain-cmavo-body)
+  $q(magic-body)
 %conditions
-  phonemes($q) = "si"
+  "SI" ∈ classes($q)
 
 %rule eraser
   sa-word | su-word
@@ -522,9 +522,9 @@ $a(sa-open) $g(gap) $t(sa-open-twice)
   gap | PAUSE hesitations PAUSE
 
 %rule sa-word
-  $q(plain-cmavo-body)
+  $q(magic-body)
 %conditions
-  phonemes($q) = "sa"
+  "SA" ∈ classes($q)
 %emits
   ε
 
@@ -578,9 +578,9 @@ $a(sa-open) $g(gap) $t(sa-open-twice)
   ε
 
 %rule su-word
-  $q(plain-cmavo-body)
+  $q(magic-body)
 %conditions
-  phonemes($q) = "su"
+  "SU" ∈ classes($q)
 %emits
   ε
 ```
