@@ -185,14 +185,8 @@ func (ev *evaluator) cond(c *domCond) bool {
 			switch {
 			case l.kind == vString && r.kind == vString:
 				eq = l.s == r.s
-			case l.kind == vList && r.kind == vList:
-				// A word may hold a space, so the lists are compared word
-				// by word.
-				eq = len(l.list) == len(r.list)
-				for i := 0; eq && i < len(l.list); i++ {
-					eq = l.list[i] == r.list[i]
-				}
 			default:
+				// A list is the set of its strings (§10).
 				eq = sameNames(ev.toSet(l), ev.toSet(r))
 			}
 			return eq == (c.Op == "=")

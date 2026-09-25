@@ -255,9 +255,9 @@ func TestBracketsPause(t *testing.T) {
 	}
 }
 
-// Two lists of words are equal word by word: a word may hold a space, so
-// joining them would make ["a b", "c"] and ["a", "b c"] the same.
-func TestWordsCompareWordByWord(t *testing.T) {
+// Two lists of words compare as the sets of their words (engine §10), each
+// word whole: a word may hold a space, and ["a b", "c"] is not ["a", "b c"].
+func TestWordsCompareAsSets(t *testing.T) {
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text $x(A) $y(A)\n%conditions words($x) ≠ words($y)"))
 	toks := []Token{{Text: "x", Tags: map[string]bool{"A": true}, Phonemes: "a b.c", Span: [2]int{0, 1}, Source: [2]int{0, 1}}, {Text: "y", Tags: map[string]bool{"A": true}, Phonemes: "a.b c", Span: [2]int{1, 2}, Source: [2]int{1, 2}}}
 	if res, err := d.ParseTokens("xy", toks, ParseOptions{}); err != nil || !res.OK {
