@@ -192,7 +192,6 @@ export type EmitItem = {
     capture?: string;
     insert?: string;
     tags?: Term;
-    silent?: true;
 };
 export type Comparator = "=" | "≠" | "∈" | "∉" | "⊆";
 export type Condition = {
@@ -298,8 +297,6 @@ export type TermValue = {
     string: string;
 } | {
     tags: TagSet;
-} | {
-    list: string[];
 };
 export type SpanValue = {
     start: number;
@@ -533,12 +530,11 @@ export type ParseContext = import("./earley.js").ParseContext;
  */
 /**
  * One item of an emission clause: a capture, `""` for `$`, the whole
- * constituent, with the tags to give it or silent; or an inserted token.
+ * constituent, with the tags to give it; or an inserted token.
  * @typedef {object} EmitItem
  * @property {string} [capture]
  * @property {string} [insert]
  * @property {Term} [tags]
- * @property {true} [silent]
  */
 /**
  * @typedef {"=" | "≠" | "∈" | "∉" | "⊆"} Comparator
@@ -620,7 +616,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  */
 /**
  * A value a term evaluates to.
- * @typedef {{string: string} | {tags: TagSet} | {list: string[]}} TermValue
+ * @typedef {{string: string} | {tags: TagSet}} TermValue
  */
 /**
  * A span a term denotes, with the tags of the captured part when it is a
