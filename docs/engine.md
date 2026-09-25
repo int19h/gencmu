@@ -227,7 +227,7 @@ A string's decoding: the quotes are removed, `\\` is `\`, `\"` is `"`, and `\u{h
 | `classes(s)` | the tags of `tags(s)` whose first character is `A` to `Z` |
 | `words(s)` | a list (§5) |
 
-A string used where a tag set is needed is the set of that one strong tag.
+A string used where a tag set is needed is the set of that one strong tag, and a list the set of its strings, each a strong tag, so that `=` between two lists compares the words they hold and not their order or number.
 
 **Conditions.** `a = b` and `a ≠ b` compare two strings, or two tag sets by their tags alone, ignoring strength. `a ∈ b` and `a ∉ b` test a string in a list or a tag set. `a ⊆ b` tests that every tag of `a` is in `b`. `matches(s, R)` holds when the span parses as `R`. `$x`, as a condition, holds when the production has the capture `x` (§3.6), and `$` always. `¬c` negates. Conditions joined by `∨` hold when any does, and those joined by `∧` when all do. `A ⟹ B`, a condition, holds when `A` does not or `B` does; `⟹` binds looser than `∨`, which binds looser than `∧`, it groups to the right, and parentheses group.
 
@@ -268,6 +268,6 @@ A node with an empty span, an `elided` node or a rule that read nothing, has an 
 
 A dialect is a pipeline document (`docs/design.md`, "Pipelines"). The first stage reads the character tokens of §1; each later stage reads the tokens the one before emitted. The features enabled for every stage are those the pipeline declares with `<?features?>` together with the caller's. A stage that rejects its input ends the run with that rejection; an `ambiguous` error (§7) ends it likewise. The result's `ok` is true when every stage run accepted without an error.
 
-**Auto features.** When the caller asks for auto features, `sa-su` is not already enabled, and the run reaches a stage named `words` (it has one, and `until`, if given, names it or a later stage), the stages up to and including the one named `words` are run once without it. If that run does not end with the `words` stage accepting, for any reason, a rejection or an error in it or in a stage before it, or if its chosen tree has a constituent of the rule `word` whose phonemes are `sa` or `su`, the parse is run with `sa-su` added; otherwise that first run's stages are the parse's, continued to the end.
+**Auto features.** When the caller asks for auto features, `sa-su` is not already enabled, and the run reaches a stage named `words` (it has one, and `until`, if given, names it or a later stage), the stages up to and including the one named `words` are run once without it. If that run does not end with the `words` stage accepting, for any reason, a rejection or an error in it or in a stage before it, or if its chosen tree has a constituent of the rule `word` whose phonemes are `sa` or `su`, its phonemes being those of the tokens it covers joined as `phonemes()` joins them (§10), with nothing left out, collapsed or trimmed, the parse is run with `sa-su` added; otherwise that first run's stages are the parse's, continued to the end.
 
 **Mistakes of the caller**, such as an `until` that names no stage, are errors of kind `usage`, raised or returned as a load error is, not results. A grammar error found while parsing, such as a nested parse asked about its own span, is a result: its error has kind `grammar`, the `stage` it arose in and a message, and no position.
