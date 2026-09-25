@@ -2941,7 +2941,7 @@
 {"id":"corpus.camxes.1260","text":"melbi ke cmalu nixli ckule [ke'e]","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["melbi","ke","cmalu","nixli","ckule","ke'e"],"brackets":"(melbi [ke {cmalu nixli ckule} ke'e])"}
 {"id":"corpus.camxes.12600","text":"pula","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["pu","la"]}
 {"id":"corpus.camxes.12601","text":"pizda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["pizda"],"brackets":"pizda"}
-{"id":"corpus.camxes.12602","text":"mutce zei y","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mutce.zei.y"],"brackets":"mutce zei y","seeded":"reject","reason":"The CLL word forms read this text as the Lojban words listed in words."}
+{"id":"corpus.camxes.12602","text":"mutce zei y","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"corpus.camxes.12603","text":"doi Taliesin do mo","dialect":"experimental","expect":"accept","verdict":"unique","words":["doi","taliesin","do","mo"],"brackets":"([doi taliesin] [do mo])"}
 {"id":"corpus.camxes.12604","text":"to mi viska le tivni toi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["to","mi","viska","le","tivni","toi"],"brackets":"(to [mi {viska (le tivni)}] toi)"}
 {"id":"corpus.camxes.12605","text":"or jai cfari","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["or","jai","cfari"],"brackets":"(or [jai cfari])"}
@@ -21883,7 +21883,7 @@
 {"id":"corpus.camxes.9059","text":"coi adym","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["coi","adym"],"brackets":"(coi adym)"}
 {"id":"corpus.camxes.906","text":"le cukta ka'e viska","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["le","cukta","ka'e","viska"],"brackets":"([le cukta] [ka'e viska])"}
 {"id":"corpus.camxes.9060","text":".iku'i na briti","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["i","ku'i","na","briti"],"brackets":"(i [na briti])"}
-{"id":"corpus.camxes.9061","text":".ua lo cmene ka'e vasru zo .ybu .i mi ca tcidu","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["ua","lo","cmene","ka'e","vasru","zo","bu","i","mi","ca","tcidu"],"brackets":"(ua [{(lo cmene) ([ka'e vasru] [zo bu])} i {mi (ca tcidu)}])"}
+{"id":"corpus.camxes.9061","text":".ua lo cmene ka'e vasru zo .ybu .i mi ca tcidu","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["ua","lo","cmene","ka'e","vasru","zo","ybu","i","mi","ca","tcidu"],"brackets":"(ua [{(lo cmene) ([ka'e vasru] [zo ybu])} i {mi (ca tcidu)}])"}
 {"id":"corpus.camxes.9062","text":"not a le jinvi","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["not","a","le","jinvi"]}
 {"id":"corpus.camxes.9063","text":"jinvi seki'u briti","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["jinvi","se","ki'u","briti"]}
 {"id":"corpus.camxes.9064","text":"mi pensi zo pensi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","pensi","zo","pensi"],"brackets":"(mi [pensi {zo pensi}])"}

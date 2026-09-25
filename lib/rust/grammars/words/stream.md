@@ -177,18 +177,19 @@ CLL 19.10 to 19.13. A quote is decided at this stage because the words inside it
   quoted-word | zoi-quote | empty-zoi-quote | lohu-quote | single-word-quote
 ```
 
-`zo` and `ma'oi` quote the next word, whatever it is, except hesitation, which is not a word: `zo y co` quotes `co`, and `zo .y'y.` quotes the letter word. The quoted word ends where that word ends, so a quoted brivla runs on into the next word only when its stress is marked, exactly as an unquoted one, which the tags of the word constituent already say. A cmevla is surrounded by pauses (CLL 4.9 rule 4), quoted or not, so a quoted cmevla ends its stretch and needs a pause before it: `zo n` is no quote in `amazon`. CLL 4.9 rule 3 holds inside a quote too: a quoted word that begins with a vowel needs a pause before it, so `zoi` is never `zo` and `.i`.
+`zo` and `ma'oi` quote the next word, whatever it is, except hesitation, which is not a word: `zo y co` quotes `co`, and `zo .y'y.` quotes the letter word. The Magic Words proposal makes `.y. bu` a letter word "before any other processing of any kind", so `zo .y. bu` quotes that letter word, and a hesitation before the quoted word is never the base of a following `bu`. The quoted word ends where that word ends, so a quoted brivla runs on into the next word only when its stress is marked, exactly as an unquoted one, which the tags of the word constituent already say. A cmevla is surrounded by pauses (CLL 4.9 rule 4), quoted or not, so a quoted cmevla ends its stretch and needs a pause before it: `zo n` is no quote in `amazon`. CLL 4.9 rule 3 holds inside a quote too: a quoted word that begins with a vowel needs a pause before it, so `zoi` is never `zo` and `.i`.
 
 ```jbogenbau
 %rule quoted-word
-  | $m(word-quote-marker) quote-gap $w(quotable-word)
+  | $m(word-quote-marker) $g(quote-gap) $w(quotable-word)
       <tags($m) ∪ "onset" ∪ ("continued" ∪ "cy" ∪ "y-letter" ∪ "cv") ∩ tags($w)>
   | $m(word-quote-marker) pause-gap $v(quotable-word)
       <tags($m) ∪ "onset" ∪ ("continued" ∪ "cy" ∪ "y-letter" ∪ "cv") ∩ tags($v)>
   | $m(word-quote-marker) pause-gap $n(cmevla-shape) <tags($m) ∪ "onset">
 %conditions
   "onset" ∈ tags($w),
-  "onset" ∉ tags($v)
+  "onset" ∉ tags($v),
+  words($g) = ∅ ∨ "BU" ∉ tags($w, lexicon)
 %emits
   $m, $w <"word">, $v <"word">, $n <"word">
 
@@ -198,7 +199,10 @@ CLL 19.10 to 19.13. A quote is decided at this stage because the words inside it
   "ZO" ∈ classes($q)
 
 %rule quotable-word
-  $c(cmavo-shape) <tags($c)> | $b(brivla-shape) <tags($b)>
+  $c(cmavo-shape) <tags($c)> | $b(brivla-shape) <tags($b)> | y-bu-word <"continued">
+
+%rule y-bu-word
+  y-run [PAUSE] bu-word
 ```
 
 `zo'oi` and its relatives quote the next run of characters up to a pause. `zoi`, `la'o` and `mu'oi` quote a body between two delimiter words: the two delimiters must be the same word, and that word may not occur as a word of the body, so the quote ends at its first occurrence. That is the condition the captures state, and it is checked as the parse advances, so a candidate close that is not the opener never opens a continuation of the text. A quote whose delimiters stand side by side quotes nothing, and hands the syntax an empty stretch of foreign text so that its shape is the same as any other's; a letter word such as `ibu` is one word and may serve as a delimiter.
@@ -425,9 +429,9 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
       <"word" ∪ "BRIVLA" ∪ "onset" ∩ tags($l) ∪ ("continued" ∪ "cy" ∪ "y-letter") ∩ tags($r)>
   | $k(unit) PAUSE $z(zei-word) $r(zei-right)
       <"word" ∪ "BRIVLA" ∪ "onset" ∩ tags($k) ∪ ("continued" ∪ "cy" ∪ "y-letter") ∩ tags($r)>
-  | $l(unit) $z(zei-word) PAUSE $p(zei-right)
+  | $l(unit) zei-word $j(pause-gap) $p(zei-right)
       <"word" ∪ "BRIVLA" ∪ "onset" ∩ tags($l) ∪ ("continued" ∪ "cy" ∪ "y-letter") ∩ tags($p)>
-  | $k(unit) PAUSE $z(zei-word) PAUSE $p(zei-right)
+  | $k(unit) PAUSE zei-word $j(pause-gap) $p(zei-right)
       <"word" ∪ "BRIVLA" ∪ "onset" ∩ tags($k) ∪ ("continued" ∪ "cy" ∪ "y-letter") ∩ tags($p)>
   | $l(unit) $g(gap-erasures) $z(zei-word) $r(zei-right)
       <"word" ∪ "BRIVLA" ∪ "onset" ∩ tags($l) ∪ ("continued" ∪ "cy" ∪ "y-letter") ∩ tags($r)>
@@ -436,7 +440,8 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
 %conditions
   "continued" ∈ tags($l),
   "onset" ∈ tags($r),
-  "onset" ∈ tags($g)
+  "onset" ∈ tags($g),
+  words($j) = ∅ ∨ "BU" ∉ tags($p, lexicon)
 %emits
   $
 
@@ -446,7 +451,7 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
   "ZEI" ∈ classes($q)
 
 %rule zei-right
-  $c(cmavo-shape) <tags($c)> | $b(brivla-shape) <tags($b)> | cmevla-shape <∅> | y-run <"continued">
+  $c(cmavo-shape) <tags($c)> | $b(brivla-shape) <tags($b)> | cmevla-shape <∅> | y-bu-word <"continued">
 
 %rule gap-erasures
   | $e(erasure) <tags($e)>
@@ -459,7 +464,7 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
 
 `sa bu` "backs up to the last BU, pulling an already constructed pseudo-word apart", as the proposal puts it among its unique cases: it erases back to the `bu` of the last letter word, and the new `bu` binds to that letter word's base again, so `.abu sa bu` is `.abu`. `bu-part` reads such a stretch as the letter word's `bu`; nothing between may be a letter word, since its `bu` would be the last.
 
-The pause between an operand and its operator is stated where it matters: a `bu` may follow its word directly only if the word is continued, or is a `Cy` letter cmavo, since `xybu` is the usual way to write that letter word; a `zei` may follow directly only a continued word; a pause is always allowed. The erasures that may stand between them obey the same pause rules, joined through the tags of the first erasure, and an erasure is always continued, so what follows a run of them needs no pause. The word after `zei` follows it directly or after a pause. A compound may follow the word before it without a pause exactly when its first word may, which is what the `onset` in its tags records; `.abu` needs the pause before it that `a` needs.
+The pause between an operand and its operator is stated where it matters: a `bu` may follow its word directly only if the word is continued, or is a `Cy` letter cmavo, since `xybu` is the usual way to write that letter word; a `zei` may follow directly only a continued word; a pause is always allowed. The erasures that may stand between them obey the same pause rules, joined through the tags of the first erasure, and an erasure is always continued, so what follows a run of them needs no pause. The word after `zei` follows it directly or after a pause, and hesitation may stand between them, since the proposal treats `.y.` as whitespace; `.y. bu` there is the letter word, so `da zei .y. bu` is a lujvo of `da` and that letter. A compound may follow the word before it without a pause exactly when its first word may, which is what the `onset` in its tags records; `.abu` needs the pause before it that `a` needs.
 
 ## Erasure by `si`
 
