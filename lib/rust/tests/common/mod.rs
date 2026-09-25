@@ -226,6 +226,14 @@ pub fn matches(pattern: &Value, actual: &Value, path: &str) -> Result<(), String
     }
 }
 
+/// Compares a value with an expected one whole (tests/README.md): each
+/// matches the other as a pattern, so neither has a member the other
+/// lacks, whatever the order of their members.
+pub fn same(expected: &Value, found: &Value, path: &str) -> Result<(), String> {
+    matches(expected, found, path)?;
+    matches(found, expected, path).map_err(|_| format!("{path} is {found:?}, not {expected:?}"))
+}
+
 pub fn repository() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..")
 }
@@ -260,16 +268,18 @@ pub fn case_documents(case: &Value) -> (BTreeMap<String, String>, String) {
     (documents, case.get("pipeline").and_then(Value::str).expect("a pipeline").to_string())
 }
 
+/// The names of a list of features, `features` or `withoutFeatures`, in an
+/// engine case's options or a corpus case.
+pub fn feature_names(list: Option<&Value>) -> Vec<String> {
+    list.map(Value::array).unwrap_or(&[]).iter().map(|v| v.str().unwrap().to_string()).collect()
+}
+
 pub fn case_options(case: &Value) -> gencmu::ParseOptions {
     let options = case.get("options");
     let get = |key: &str| options.and_then(|options| options.get(key));
     gencmu::ParseOptions {
-        features: get("features")
-            .map(Value::array)
-            .unwrap_or(&[])
-            .iter()
-            .map(|v| v.str().unwrap().to_string())
-            .collect(),
+        features: feature_names(get("features")),
+        without_features: feature_names(get("withoutFeatures")),
         auto_features: matches!(get("autoFeatures"), Some(Value::Bool(true))),
         until: get("until").and_then(Value::str).map(str::to_string),
         elision_only: match get("elisionOnly") {
@@ -314,6 +324,19 @@ pub fn error_kind(kind: gencmu::ParseErrorKind) -> &'static str {
     }
 }
 
+/// A dialect's feature as a case lists it (tests/README.md).
+pub fn feature_value(feature: &gencmu::Feature) -> Value {
+    let kind = match feature.kind {
+        gencmu::FeatureKind::Gate => "gate",
+        gencmu::FeatureKind::Warning => "warning",
+    };
+    Value::Object(vec![
+        ("name".to_string(), Value::String(feature.name.clone())),
+        ("kind".to_string(), Value::String(kind.to_string())),
+        ("default".to_string(), Value::Bool(feature.default)),
+    ])
+}
+
 /// Runs one engine case (tests/README.md); the error says what differs.
 pub fn run_engine_case(case: &Value) -> Result<(), String> {
     let (documents, pipeline) = case_documents(case);
@@ -327,15 +350,38 @@ pub fn run_engine_case(case: &Value) -> Result<(), String> {
             };
         }
     };
+    let mut problems = String::new();
+    if let Some(expected) = expect.get("features") {
+        let found = Value::Array(dialect.features().iter().map(feature_value).collect());
+        if let Err(problem) = same(expected, &found, "features") {
+            let _ = writeln!(problems, "{problem}");
+        }
+    }
     let options = case_options(case);
-    let result = match case_tokens(case) {
+    let parsed = match case_tokens(case) {
         Some(tokens) => dialect.parse_tokens(&tokens, &options),
         None => dialect.parse(case.get("input").and_then(Value::str).unwrap_or(""), &options),
-    }
-    .map_err(|error| format!("the parse failed: {error}"))?;
+    };
+    let result = match parsed {
+        Ok(result) => result,
+        // A mistake of the caller is an error, not a result (engine §13),
+        // and there is nothing more to compare.
+        Err(error) => {
+            if error.kind != gencmu::ErrorKind::Usage || expect.get("error").and_then(Value::str) != Some("usage") {
+                let _ = writeln!(problems, "the parse failed: {error}");
+            }
+            return if problems.is_empty() { Ok(()) } else { Err(problems) };
+        }
+    };
     let json = gencmu::to_json(&result);
     let actual = parse_json(&json).map_err(|error| format!("the result is not JSON ({error}): {json}"))?;
-    let mut problems = String::new();
+    if let Some(expected) = expect.get("warnings") {
+        // The canonical result has no `warnings` when there are none.
+        let none = Value::Array(Vec::new());
+        if let Err(problem) = same(expected, actual.get("warnings").unwrap_or(&none), "warnings") {
+            let _ = writeln!(problems, "{problem}");
+        }
+    }
     if let Some(pattern) = expect.get("result") {
         if let Err(problem) = matches(pattern, &actual, "result") {
             let _ = writeln!(problems, "{problem}");

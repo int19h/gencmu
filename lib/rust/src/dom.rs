@@ -5,7 +5,7 @@
 use crate::json::{write_str, Json};
 
 /// The DOM format version (`docs/output.md`).
-pub(crate) const DOM_FORMAT: i64 = 4;
+pub(crate) const DOM_FORMAT: i64 = 5;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Dom {
@@ -31,9 +31,24 @@ pub(crate) struct RuleDef {
     pub at: (usize, usize),
 }
 
+/// What kind of feature a name is (engine §13), as each guard that uses it
+/// says.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum FeatureKind {
+    /// A gate, `@f?` or `@¬f?`: its alternatives are kept only while the
+    /// feature is on, or off.
+    Gate,
+    /// A warning, `@f!`: its alternatives are always kept, and while the
+    /// feature is on, each node of a chosen tree built from one gives a
+    /// warning (engine §12).
+    Warning,
+}
+
+/// A guard; a warning is never negated.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Guard {
     pub feature: String,
+    pub kind: FeatureKind,
     pub negated: bool,
 }
 
@@ -180,6 +195,11 @@ fn rule_from_json(value: &Json) -> R<RuleDef> {
                         .map(|guard| {
                             Ok(Guard {
                                 feature: string(guard, "feature")?,
+                                kind: match string(guard, "kind")?.as_str() {
+                                    "gate" => FeatureKind::Gate,
+                                    "warning" => FeatureKind::Warning,
+                                    _ => return Err("a bad guard".to_string()),
+                                },
                                 negated: field(guard, "negated")?.as_bool().ok_or("a bad guard")?,
                             })
                         })
@@ -365,7 +385,7 @@ pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
         || dom.get("rules").and_then(Json::as_array).is_none()
         || dom.get("directives").and_then(Json::as_array).is_none()
     {
-        return Some("not a DOM of format 4");
+        return Some("not a DOM of format 5");
     }
     for directive in dom.get("directives").and_then(Json::as_array).unwrap_or(&[]) {
         let args = directive.get("args").and_then(Json::as_array);
@@ -400,12 +420,18 @@ pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
             pending.push((Kind::Condition, condition, 0));
         }
         for alternative in alternatives.unwrap_or(&[]) {
+            // A guard is a gate, negated or not, or a warning, which never
+            // is (§9).
             let guards = alternative.get("guards").and_then(Json::as_array);
             let guards_ok = guards.is_some_and(|guards| {
                 guards.iter().all(|guard| {
                     is_object(guard)
                         && is_str(guard.get("feature"))
-                        && matches!(guard.get("negated"), Some(Json::Bool(_)))
+                        && match (guard.get("kind").and_then(Json::as_str), guard.get("negated")) {
+                            (Some("gate"), Some(Json::Bool(_))) => true,
+                            (Some("warning"), Some(Json::Bool(negated))) => !negated,
+                            _ => false,
+                        }
                 })
             });
             if !is_object(alternative) || !guards_ok {
@@ -722,6 +748,10 @@ fn write_rule(out: &mut String, rule: &RuleDef) {
             }
             out.push_str("{\"feature\":");
             write_str(out, &guard.feature);
+            out.push_str(match guard.kind {
+                FeatureKind::Gate => ",\"kind\":\"gate\"",
+                FeatureKind::Warning => ",\"kind\":\"warning\"",
+            });
             out.push_str(if guard.negated { ",\"negated\":true}" } else { ",\"negated\":false}" });
         }
         out.push_str("],\"expr\":");

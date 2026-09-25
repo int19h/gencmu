@@ -59,6 +59,13 @@ func checkDOM(d *domDoc) *domProblem {
 				c.fail("a malformed alternative")
 				continue
 			}
+			// A guard is a gate or a warning, and a warning has no negated
+			// form (§9).
+			for _, g := range a.Guards {
+				if g.Kind != FeatureGate && (g.Kind != FeatureWarning || g.Negated) {
+					c.fail("a malformed guard")
+				}
+			}
 			c.captures = map[string]bool{}
 			c.expr(a.Expr, 0, true)
 			c.constituentTags(a.Tags)

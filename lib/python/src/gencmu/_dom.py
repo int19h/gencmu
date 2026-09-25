@@ -165,9 +165,12 @@ class DomBuilder:
         self.captures: set[str] = set()
         for kid in self.kids(node):
             if kid.kind == "token":
+                # A guard's token is its spelling: @f? or @¬f? for a gate,
+                # @f! for a warning (engine §9).
                 text = self.text(kid)
                 negated = text.startswith("@¬")
-                guards.append({"feature": text[2:] if negated else text[1:], "negated": negated})
+                kind = "warning" if text.endswith("!") else "gate"
+                guards.append({"feature": text[2 if negated else 1 : -1], "kind": kind, "negated": negated})
             elif kid.rule == "conjunction":
                 expr = run(self._expr(kid, True))
             elif kid.rule == "alternative-tags":

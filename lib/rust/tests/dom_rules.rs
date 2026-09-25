@@ -23,16 +23,16 @@ fn dom(text_alternative: &str, text_extra: &str, rule: &str, format: u32, direct
 const B: &str = r#"{"guards":[],"expr":{"terminal":"b"}}"#;
 
 fn with_rule(rule: &str) -> String {
-    dom(B, "", rule, 4, r#""greedy""#)
+    dom(B, "", rule, 5, r#""greedy""#)
 }
 
 fn with_alternative(alternative: &str) -> String {
-    dom(alternative, "", "", 4, r#""greedy""#)
+    dom(alternative, "", "", 5, r#""greedy""#)
 }
 
 fn with_emission(emission: &str) -> String {
     let alternative = r#"{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"terminal":"b"}},{"capture":"y","expr":{"terminal":"c"}}]}}"#;
-    dom(alternative, &format!(r#","emit":{emission}"#), "", 4, r#""greedy""#)
+    dom(alternative, &format!(r#","emit":{emission}"#), "", 5, r#""greedy""#)
 }
 
 fn with_condition(condition: &str) -> String {
@@ -49,7 +49,7 @@ fn with_tags(term: &str) -> String {
 /// Parses "a" with a dialect whose `compiled.json` holds `dom` for the
 /// document: true when the document itself was read.
 fn document_was_read(dom: &str) -> bool {
-    document_was_read_from(4, dom)
+    document_was_read_from(5, dom)
 }
 
 /// The same, with a `compiled.json` of the given format.
@@ -83,6 +83,11 @@ fn a_well_formed_dom_is_used() {
     assert!(!document_was_read(&whole_twice));
     // `%emits ε` is no items (§9).
     assert!(!document_was_read(&with_emission(r#"{"items":[]}"#)));
+    // A guard is a gate, negated or not, or a warning (§9).
+    let gate_and_warning = with_alternative(
+        r#"{"guards":[{"feature":"f","kind":"gate","negated":true},{"feature":"w","kind":"warning","negated":false}],"expr":{"terminal":"b"}}"#,
+    );
+    assert!(!document_was_read(&gate_and_warning));
     // `#` is a rule's name, and `$` may be read by a condition, and by a
     // tag term through another rule.
     let hash = with_rule(
@@ -122,7 +127,8 @@ fn a_well_formed_dom_is_used() {
 
 #[test]
 fn a_cache_of_another_format_is_a_miss() {
-    assert!(!document_was_read_from(4, &with_rule("")));
+    assert!(!document_was_read_from(5, &with_rule("")));
+    assert!(document_was_read_from(4, &with_rule("")), "a format-4 cache is never used");
     assert!(document_was_read_from(3, &with_rule("")), "a format-3 cache is never used");
     assert!(document_was_read_from(2, &with_rule("")), "a format-2 cache is never used");
     assert!(document_was_read_from(1, &with_rule("")), "a format-1 cache is never used");
@@ -132,8 +138,8 @@ fn a_cache_of_another_format_is_a_miss() {
 fn every_malformed_dom_is_a_cache_miss() {
     let nested = format!("{}{{\"terminal\":\"b\"}}{}", "{\"optional\":".repeat(257), "}".repeat(257));
     let cases: Vec<(&str, String)> = vec![
-        ("format 3", dom(B, "", "", 3, r#""greedy""#)),
-        ("a directive argument that is not a string", dom(B, "", "", 4, "7")),
+        ("format 4", dom(B, "", "", 4, r#""greedy""#)),
+        ("a directive argument that is not a string", dom(B, "", "", 5, "7")),
         (
             "a rule name that is not a name",
             with_rule(
@@ -155,7 +161,19 @@ fn every_malformed_dom_is_a_cache_miss() {
         ),
         (
             "a guard's negated not a boolean",
-            with_alternative(r#"{"guards":[{"feature":"f","negated":"no"}],"expr":{"terminal":"b"}}"#),
+            with_alternative(r#"{"guards":[{"feature":"f","kind":"gate","negated":"no"}],"expr":{"terminal":"b"}}"#),
+        ),
+        (
+            "a guard without a kind",
+            with_alternative(r#"{"guards":[{"feature":"f","negated":false}],"expr":{"terminal":"b"}}"#),
+        ),
+        (
+            "a guard of an unknown kind",
+            with_alternative(r#"{"guards":[{"feature":"f","kind":"hint","negated":false}],"expr":{"terminal":"b"}}"#),
+        ),
+        (
+            "a negated warning",
+            with_alternative(r#"{"guards":[{"feature":"f","kind":"warning","negated":true}],"expr":{"terminal":"b"}}"#),
         ),
         ("a seq of one item", with_alternative(r#"{"guards":[],"expr":{"seq":[{"terminal":"b"}]}}"#)),
         ("a choice of one item", with_alternative(r#"{"guards":[],"expr":{"choice":[{"terminal":"b"}]}}"#)),
@@ -295,7 +313,7 @@ fn every_malformed_dom_is_a_cache_miss() {
 #[test]
 fn a_malformed_bootstrap_is_an_error() {
     let bootstrap = format!(
-        r#"{{"format":4,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
+        r#"{{"format":5,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
         with_emission(r#"{"items":[{"capture":""},{"insert":"X"}]}"#)
     );
     let sources = [

@@ -31,6 +31,10 @@ type production struct {
 	ruleName     string // the rule the author wrote (for a helper, the one it serves)
 	doc          string
 	at           [2]int
+	// warnings are the features of its alternative's warnings that are on,
+	// in the order written, each giving a warning for a node of the chosen
+	// tree built by the production (§12); a helper has none.
+	warnings []string
 }
 
 // lcond is a condition, simplified for its production, with the dot
@@ -63,6 +67,8 @@ type lowered struct {
 	// fault is an error of the grammar that lowering for these features
 	// found (§3.3), or "": parsing with it is a result with that error.
 	fault string
+	// warns says some production gives warnings under these features (§12).
+	warns bool
 }
 
 type slot struct {
@@ -123,9 +129,11 @@ func (lw *lowerer) newHelper(owner *sAlt, ownerRule string) int32 {
 	return id
 }
 
+// guardsHold says whether an alternative's gates all hold; a warning is not
+// a gate and never drops its alternative (§3.1).
 func (lw *lowerer) guardsHold(a *domAlt) bool {
 	for _, gd := range a.Guards {
-		if lw.features[gd.Feature] == gd.Negated {
+		if gd.Kind != FeatureWarning && lw.features[gd.Feature] == gd.Negated {
 			return false
 		}
 	}
@@ -282,6 +290,12 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt, repeatPrefix b
 	p.repeatPrefix = repeatPrefix
 	p.ruleName = lw.l.rules[lhs].name
 	p.doc, p.at = a.doc, a.at
+	for _, gd := range a.alt.Guards {
+		if gd.Kind == FeatureWarning && lw.features[gd.Feature] {
+			p.warnings = append(p.warnings, gd.Feature)
+			lw.l.warns = true
+		}
+	}
 	p.transparent = len(body) == 1
 	p.implicit = false
 	p.nslots = 0

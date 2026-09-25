@@ -15,7 +15,7 @@ from ._errors import GencmuError
 from ._grammar import Grammar, Lowered, lower, stitch
 from ._hash import fnv1a64
 from ._markdown import Pipeline, jbogenbau_text, read_pipeline
-from ._model import ParseError, ParseResult, Stage, Token
+from ._model import Feature, ParseError, ParseResult, ParseWarning, Stage, Token
 from ._stage import DChild, DRead, StageOutcome, StageRunner
 from ._unicode import UnicodeTable
 from ._validate import FORMAT, MAX_DEPTH, TOO_DEEP, dom_problem
@@ -314,21 +314,41 @@ def load_dialect_sources(sources: Mapping[str, str], pipeline: str, *, use_cache
     return _Loader(documents.get, _resources(documents), use_cache).load(pipeline)
 
 
+def _dialect_features(path: str, grammars: list[Grammar], declared: frozenset[str]) -> tuple[Feature, ...]:
+    """A dialect's features (engine §13): every name a guard of a stage's
+    stitched rules uses, and every name the pipeline's ``<?features?>``
+    declares, in code point order. Each is a gate or a warning as its guards
+    use it, and a gate if only declared; a name used both ways is an error
+    of the dialect."""
+    kinds: dict[str, str] = {}
+    for grammar in grammars:
+        for rule in grammar.rules.values():
+            for alternative in rule.alternatives:
+                for guard in alternative.guards:
+                    name = guard["feature"]
+                    kind = "warning" if guard.get("kind") == "warning" else "gate"
+                    if kinds.setdefault(name, kind) != kind:
+                        raise GencmuError(f"the feature {name} is used both as a gate and as a warning", document=path)
+    return tuple(Feature(name, kinds.get(name, "gate"), name in declared) for name in sorted(kinds.keys() | declared))
+
+
 class Dialect:
-    """A loaded dialect: a pipeline of stages, each a stitched grammar. A
-    dialect may be used for any number of parses, and shared between
-    threads."""
+    """A loaded dialect: a pipeline of stages, each a stitched grammar, and
+    its ``features``, each a :class:`Feature`. A dialect may be used for any
+    number of parses, and shared between threads."""
 
     def __init__(self, path: str, pipeline: Pipeline, stages: list[Grammar], unicode: UnicodeTable) -> None:
         self.path = path
-        self.features = pipeline.features
+        # The features the pipeline turns on, and every feature with its kind.
+        self.declared = pipeline.features
+        self.features = _dialect_features(path, stages, pipeline.features)
         self.grammars = stages
         self.unicode = unicode
         self._lowered: dict[tuple[int, frozenset[str], bool], Lowered | GencmuError] = {}
         self._lock = threading.Lock()
         for number in range(len(stages)):
             try:
-                self.lowered(number, self.features, False)
+                self.lowered(number, self.declared, False)
             except GencmuError:
                 # An error lowering finds is a result of the parses that
                 # meet it (engine §3.3, §13), not an error of the load.
@@ -358,17 +378,21 @@ class Dialect:
         text: str,
         *,
         features: Iterable[str] = (),
+        without_features: Iterable[str] = (),
         auto_features: bool = True,
         until: str | None = None,
         elision_only: bool | None = None,
     ) -> ParseResult:
-        """Parse a text. A text that does not parse is a result whose ``ok`` is
-        false; a mistake in the call, such as an unknown stage name, raises
-        :class:`GencmuError`."""
+        """Parse a text, with ``features`` turned on and ``without_features``
+        turned off, the pipeline's among them. A text that does not parse is
+        a result whose ``ok`` is false; a mistake in the call, such as an
+        unknown stage name or a feature named both to turn on and to turn
+        off, raises :class:`GencmuError`."""
         return self.parse_tokens(
             character_tokens(text, self.unicode),
             text,
             features=features,
+            without_features=without_features,
             auto_features=auto_features,
             until=until,
             elision_only=elision_only,
@@ -380,6 +404,7 @@ class Dialect:
         text: str,
         *,
         features: Iterable[str] = (),
+        without_features: Iterable[str] = (),
         auto_features: bool = True,
         until: str | None = None,
         elision_only: bool | None = None,
@@ -387,8 +412,9 @@ class Dialect:
         """Parse pre-built tokens in place of the first stage's characters,
         over the original ``text`` their sources point into. For tests and
         tools; :meth:`parse` is the usual entry point."""
-        if isinstance(features, str):
-            raise GencmuError("features is a collection of names, not one string", kind="usage")
+        for option, value in (("features", features), ("without_features", without_features)):
+            if isinstance(value, str):
+                raise GencmuError(f"{option} is a collection of names, not one string", kind="usage")
         names = self.stage_names
         if until is None:
             last = len(names) - 1
@@ -396,19 +422,30 @@ class Dialect:
             last = names.index(until)
         else:
             raise GencmuError(f"the dialect has no stage {until}; its stages are {', '.join(names)}", kind="usage")
-        enabled = frozenset(features) | self.features
+        # The features on are the pipeline's, with the caller's added and the
+        # caller's turned off removed (engine §13).
+        on = frozenset(features)
+        off = frozenset(without_features)
+        if on & off:
+            raise GencmuError(f"the feature {min(on & off)} is named both to turn on and to turn off", kind="usage")
+        enabled = (self.declared | on) - off
         tokens = list(tokens)
-        if auto_features and "sa-su" not in enabled and "words" in names and names.index("words") <= last:
+        # Only a dialect that has sa-su as a gate adds it by itself, and not
+        # when the caller has turned it off (engine §13).
+        gated = any(feature.name == "sa-su" and feature.kind == "gate" for feature in self.features)
+        if auto_features and gated and "sa-su" not in enabled and "sa-su" not in off and "words" in names and names.index("words") <= last:
             words = names.index("words")
-            probe, outcomes = self._run(text, tokens, enabled, 0, words, elision_only, [])
+            probe, outcomes = self._run(text, tokens, enabled, 0, words, elision_only, None)
             if not probe.ok or self._reads_sa_su(probe.stages[words], outcomes[words]):
-                return self._run(text, tokens, enabled | {"sa-su"}, 0, last, elision_only, [])[0]
+                # The parse runs again from the first stage, and the probe's
+                # stages and warnings are discarded.
+                return self._run(text, tokens, enabled | {"sa-su"}, 0, last, elision_only, None)[0]
             if words == last:
                 return probe
             following = probe.stages[words].output
             assert following is not None
-            return self._run(text, following, enabled, words + 1, last, elision_only, probe.stages)[0]
-        return self._run(text, tokens, enabled, 0, last, elision_only, [])[0]
+            return self._run(text, following, enabled, words + 1, last, elision_only, probe)[0]
+        return self._run(text, tokens, enabled, 0, last, elision_only, None)[0]
 
     @staticmethod
     def _reads_sa_su(stage: Stage, outcome: StageOutcome) -> bool:
@@ -438,9 +475,15 @@ class Dialect:
         first: int,
         last: int,
         elision_only: bool | None,
-        before: list[Stage],
+        before: ParseResult | None,
     ) -> tuple[ParseResult, list[StageOutcome]]:
-        stages = list(before)
+        """Run the stages from ``first`` to ``last`` over ``tokens``,
+        continuing the stages and warnings of the run ``before``, the auto
+        features' probe, when there is one."""
+        stages = list(before.stages) if before is not None else []
+        # Every stage's warnings, in stage order, kept whether or not the
+        # parse is ok (engine §13).
+        warnings: list[ParseWarning] = list(before.warnings) if before is not None else []
         outcomes: list[StageOutcome] = []
         current = tokens
         for number in range(first, last + 1):
@@ -453,12 +496,12 @@ class Dialect:
                 failure = ParseError("grammar", error.message, stage=grammar.stage)
                 stages.append(Stage(grammar.stage, None, current))
                 outcomes.append(StageOutcome(error=failure))
-                return ParseResult(False, stages, None, failure, text), [StageOutcome()] * first + outcomes
+                return ParseResult(False, stages, None, failure, text, warnings), [StageOutcome()] * first + outcomes
 
             def elision_lowered(number: int = number) -> Lowered:
                 return self.lowered(number, features, True)
 
-            runner = StageRunner(grammar.stage, lowered, elision_lowered, current, text, self.unicode)
+            runner = StageRunner(grammar.stage, lowered, elision_lowered, current, text, self.unicode, features=features)
             check = grammar.elision_only if elision_only is None else elision_only
             outcome = runner.run(check)
             outcomes.append(outcome)
@@ -472,11 +515,12 @@ class Dialect:
                 outcome.tree,
             )
             stages.append(stage)
+            warnings.extend(outcome.warnings)
             if outcome.error is not None:
-                return ParseResult(False, stages, None, outcome.error, text), [StageOutcome()] * first + outcomes
+                return ParseResult(False, stages, None, outcome.error, text, warnings), [StageOutcome()] * first + outcomes
             assert outcome.output is not None
             current = outcome.output
-        return ParseResult(True, stages, stages[-1].tree if stages else None, None, text), [StageOutcome()] * first + outcomes
+        return ParseResult(True, stages, stages[-1].tree if stages else None, None, text, warnings), [StageOutcome()] * first + outcomes
 
 
 def read_document(text: str, path: str = "document.md", *, sources: Mapping[str, str] | None = None) -> Dom:

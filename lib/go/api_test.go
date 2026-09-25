@@ -4,6 +4,8 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -90,6 +92,8 @@ func TestLoadErrors(t *testing.T) {
 		"two stages":     {map[string]string{"p.md": "## A <?stage x?>\n## B <?stage x?>\n"}, 2, 6, "p.md"},
 		"bad feature":    {map[string]string{"p.md": "# D <?features 9x?>\n## A <?stage x?>\n"}, 1, 5, "p.md"},
 		"empty features": {map[string]string{"p.md": "# D <?features ?>\n## A <?stage x?>\n"}, 1, 5, "p.md"},
+		// At the rule of the guard that disagrees with the first (§13).
+		"gate and warning": {oneStage("%ambiguity-resolution greedy\n%rule text @f? A | B\n%rule a @f! A"), 6, 1, "g.md"},
 	}
 	for name, c := range cases {
 		_, err := LoadDialectSources(c.sources, "p.md")
@@ -107,7 +111,7 @@ func TestLoadErrors(t *testing.T) {
 func TestParseOptions(t *testing.T) {
 	d := mustLoad(t, map[string]string{
 		"p.md": "# D <?features base?>\n\n## One <?stage one?>\n\n- [g](g.md) <?grammar?>\n\n## Two <?stage two?>\n\n- [h](h.md) <?grammar?>\n",
-		"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [w] ...\n%rule w @base \"a\" <\"A\"> | @extra \"b\" <\"B\">\n%emits $\n```\n",
+		"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [w] ...\n%rule w @base? \"a\" <\"A\"> | @extra? \"b\" <\"B\">\n%emits $\n```\n",
 		"h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text s | s B\n%rule s A [B]\n```\n",
 	})
 	res, err := d.Parse("a", ParseOptions{})
@@ -152,7 +156,7 @@ func boolPtr(b bool) *bool { return &b }
 // found at lowering, for the features that leave it alone in its rule: a
 // result, not a load error (engine §3.3).
 func TestLoweringFault(t *testing.T) {
-	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text @f $a(A) B ... | @¬f A B ..."))
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text @f? $a(A) B ... | @¬f? A B ..."))
 	toks := []Token{{Text: "a", Tags: map[string]bool{"A": true}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}, {Text: "b", Tags: map[string]bool{"B": true}, Span: [2]int{1, 2}, Source: [2]int{1, 2}}}
 	res, err := d.ParseTokens("ab", toks, ParseOptions{Features: []string{"f"}})
 	if err != nil || res.OK || res.Error.Kind != ErrorGrammar || res.Error.Stage != "main" || res.Stages[0].Verdict != "" || res.Tree != nil {
@@ -168,8 +172,8 @@ func TestLoweringFault(t *testing.T) {
 func TestAutoFeatures(t *testing.T) {
 	d := mustLoad(t, map[string]string{
 		"p.md": "## Sounds <?stage sounds?>\n\n- [g](g.md) <?grammar?>\n\n## Words <?stage words?>\n\n- [h](h.md) <?grammar?>\n\n## Syntax <?stage syntax?>\n\n- [s](s.md) <?grammar?>\n",
-		"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [c] ...\n%rule c \"s\" </s/> | \"a\" </a/> | \"u\" </u/> | @sa-su \"x\" </x/>\n%emits $\n```\n",
-		"h.md": "```jbogenbau\n%ambiguity-resolution lazy\n%rule text [word] ...\n%rule word @¬sa-su /s/ /a/ <\"W\"> | @sa-su /s/ /a/ <\"SA\"> | /u/ <\"W\"> | /x/ <\"W\">\n%emits $\n```\n",
+		"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [c] ...\n%rule c \"s\" </s/> | \"a\" </a/> | \"u\" </u/> | @sa-su? \"x\" </x/>\n%emits $\n```\n",
+		"h.md": "```jbogenbau\n%ambiguity-resolution lazy\n%rule text [word] ...\n%rule word @¬sa-su? /s/ /a/ <\"W\"> | @sa-su? /s/ /a/ <\"SA\"> | /u/ <\"W\"> | /x/ <\"W\">\n%emits $\n```\n",
 		"s.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [W | SA] ...\n```\n",
 	})
 	tags := func(res *ParseResult) string {
@@ -206,6 +210,39 @@ func TestAutoFeatures(t *testing.T) {
 	}
 }
 
+// Every bundled dialect with a words stage has sa-su as a gate, off by
+// default, which auto features need (engine §13); a dialect's list of
+// features is the caller's own copy.
+func TestDialectFeatures(t *testing.T) {
+	for _, name := range []string{"cll", "bpfk", "experimental", "zantufa"} {
+		d, err := LoadDialect(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		gate := false
+		for _, f := range d.Features() {
+			if f.Name == "sa-su" {
+				gate = f.Kind == FeatureGate && !f.Default
+			}
+		}
+		if !gate {
+			t.Errorf("%s: sa-su is not a gate off by default: %+v", name, d.Features())
+		}
+	}
+	d, err := LoadDialect("zantufa")
+	if err != nil {
+		t.Fatal(err)
+	}
+	features := d.Features()
+	features[0] = Feature{Name: "changed"}
+	if d.Features()[0].Name == "changed" {
+		t.Fatal("changing the list changed the dialect's")
+	}
+	if d, _ := LoadDialect("notation"); d.Features() == nil || len(d.Features()) != 0 {
+		t.Fatalf("the notation has features %#v", d.Features())
+	}
+}
+
 func TestMarshalResult(t *testing.T) {
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%elidable KU\n%rule text \"é\" [KU]"))
 	res, _ := d.Parse("é", ParseOptions{})
@@ -213,7 +250,7 @@ func TestMarshalResult(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"format":1,"ok":true,"stages":[{"name":"main","verdict":"unique","output":[]}],"tree":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":{},"children":[{"kind":"token","terminal":"é","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"KU","span":[1,1],"source":[1,1]}]},"error":null}`
+	want := `{"format":2,"ok":true,"stages":[{"name":"main","verdict":"unique","output":[]}],"tree":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":{},"children":[{"kind":"token","terminal":"é","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"KU","span":[1,1],"source":[1,1]}]},"error":null}`
 	if string(data) != want {
 		t.Fatalf("got  %s\nwant %s", data, want)
 	}
@@ -225,8 +262,51 @@ func TestMarshalResult(t *testing.T) {
 	}
 	res, _ = d.Parse("x", ParseOptions{})
 	data, _ = MarshalResult(res)
-	if !strings.HasPrefix(string(data), `{"format":1,"ok":false,"stages":[{"name":"main","verdict":null}],"tree":null,"error":{"kind":"rejected","stage":"main","token":0,"source":[0,1],"line":1,"column":1,"expected":[{"terminal":"é","rules":["text"]}],"message":`) {
+	if !strings.HasPrefix(string(data), `{"format":2,"ok":false,"stages":[{"name":"main","verdict":null}],"tree":null,"error":{"kind":"rejected","stage":"main","token":0,"source":[0,1],"line":1,"column":1,"expected":[{"terminal":"é","rules":["text"]}],"message":`) {
 		t.Fatalf("%s", data)
+	}
+	// The warnings follow the error, only when there is one; the result's
+	// list is empty, not nil, when there is none.
+	d = mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text @w! \"é\" \"x\" | \"x\""))
+	res, _ = d.Parse("éx", ParseOptions{})
+	if data, _ = MarshalResult(res); res.Warnings == nil || len(res.Warnings) != 0 || strings.Contains(string(data), "warnings") {
+		t.Fatalf("%#v %s", res.Warnings, data)
+	}
+	res, _ = d.Parse("éx", ParseOptions{Features: []string{"w"}})
+	data, _ = MarshalResult(res)
+	if !strings.HasSuffix(string(data), `,"error":null,"warnings":[{"stage":"main","feature":"w","rule":"text","span":[0,2],"source":[0,2]}]}`) {
+		t.Fatalf("%s", data)
+	}
+}
+
+// A trailing repetition is one node of the tree, however many times it
+// repeats, and gives its warnings once; the prefixes spliced into it and the
+// helpers of [ ] and ... give none (engine §12).
+func TestWarningsSpliced(t *testing.T) {
+	for _, c := range []struct {
+		grammar, text string
+		want          []Warning
+	}{
+		{"%rule text @w! a [\"b\"] ...\n%rule a @v! \"a\" [\"c\"]", "acbbb", []Warning{
+			{Stage: "main", Feature: "w", Rule: "text", Span: [2]int{0, 5}, Source: [2]int{0, 5}},
+			{Stage: "main", Feature: "v", Rule: "a", Span: [2]int{0, 2}, Source: [2]int{0, 2}},
+		}},
+		{"%rule text @w! a \"b\" ...\n%rule a @v! \"a\" [\"c\"]", "abb", []Warning{
+			{Stage: "main", Feature: "w", Rule: "text", Span: [2]int{0, 3}, Source: [2]int{0, 3}},
+			{Stage: "main", Feature: "v", Rule: "a", Span: [2]int{0, 1}, Source: [2]int{0, 1}},
+		}},
+		{"%rule text x | @w! \"q\"\n%rule x @w! [\"a\"] ... \"b\" | \"c\"", "aab", []Warning{
+			{Stage: "main", Feature: "w", Rule: "x", Span: [2]int{0, 3}, Source: [2]int{0, 3}},
+		}},
+	} {
+		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n"+c.grammar))
+		res, err := d.Parse(c.text, ParseOptions{Features: []string{"v", "w"}})
+		if err != nil || !res.OK {
+			t.Fatalf("%s: %v %+v", c.grammar, err, res)
+		}
+		if !reflect.DeepEqual(res.Warnings, c.want) {
+			t.Errorf("%s: warnings %+v", c.grammar, res.Warnings)
+		}
 	}
 }
 
@@ -306,6 +386,56 @@ func TestConcurrentParses(t *testing.T) {
 	}
 }
 
+// TestConcurrentFeatures shares one dialect among goroutines that turn
+// gates and warnings on and off; run it with -race.
+func TestConcurrentFeatures(t *testing.T) {
+	d := mustLoad(t, map[string]string{
+		"p.md": "# D <?features g?>\n\n## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n",
+		"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [item] ...\n%rule item @g? @w! \"a\" | @¬g? \"a\" <\"A\"> | @v! \"b\"\n```\n",
+	})
+	options := []ParseOptions{
+		{}, {Features: []string{"w"}}, {Features: []string{"v", "w"}},
+		{WithoutFeatures: []string{"g"}}, {Features: []string{"v", "w"}, WithoutFeatures: []string{"g"}},
+	}
+	counts := []int{0, 2, 4, 0, 2}
+	want := make([]string, len(options))
+	for i, o := range options {
+		res, err := d.Parse("abab", o)
+		if err != nil || !res.OK || len(res.Warnings) != counts[i] {
+			t.Fatalf("%+v: %v %+v", o, err, res)
+		}
+		data, _ := MarshalResult(res)
+		want[i] = string(data)
+	}
+	var wg sync.WaitGroup
+	errs := make(chan string, 64)
+	for g := 0; g < 16; g++ {
+		wg.Add(1)
+		go func(g int) {
+			defer wg.Done()
+			for i := range options {
+				k := (i + g) % len(options)
+				res, err := d.Parse("abab", options[k])
+				if err != nil {
+					errs <- err.Error()
+					return
+				}
+				if data, _ := MarshalResult(res); string(data) != want[k] {
+					errs <- "a concurrent parse differs"
+				}
+				if len(d.Features()) != 3 {
+					errs <- "the dialect's features changed"
+				}
+			}
+		}(g)
+	}
+	wg.Wait()
+	close(errs)
+	for e := range errs {
+		t.Fatal(e)
+	}
+}
+
 // TestDeepDerivations parses long inputs whose derivations nest as deep as
 // the input is long, to the left and, shorter since right recursion costs
 // an Earley recognizer quadratic time, to the right.
@@ -352,14 +482,15 @@ func TestMalformedPrecompiled(t *testing.T) {
 	for _, tags := range badTags {
 		bad = append(bad, `{"seq":[{"terminal":"a"},{"terminal":"b"}]},"tags":`+tags)
 	}
+	format := strconv.Itoa(domFormat)
 	for _, expr := range bad {
-		dom := `{"format":4,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[1,1]}]}`
+		dom := `{"format":` + format + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[1,1]}]}`
 		// In compiled.json, with every hash matching: a miss.
 		src := map[string]string{}
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["compiled.json"] = `{"format":4,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(gText) + `","dom":` + dom + `}}}`
+		src["compiled.json"] = `{"format":` + format + `,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(gText) + `","dom":` + dom + `}}}`
 		d, err := LoadDialectSources(src, "p.md")
 		if err != nil {
 			t.Fatalf("%s in compiled.json: %v", expr, err)
@@ -373,7 +504,7 @@ func TestMalformedPrecompiled(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["notation/bootstrap.json"] = `{"format":4,"stages":[{"name":"lexical","documents":[{"path":"notation/lexical.md","dom":` + dom + `}]}]}`
+		src["notation/bootstrap.json"] = `{"format":` + format + `,"stages":[{"name":"lexical","documents":[{"path":"notation/lexical.md","dom":` + dom + `}]}]}`
 		_, err = LoadDialectSources(src, "p.md")
 		var e *Error
 		if !errors.As(err, &e) || e.Kind != ErrorGrammar {
@@ -418,7 +549,7 @@ func TestEmptyStringTerminal(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			sources["compiled.json"] = `{"format":4,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(sources["g.md"]) + `","dom":` + string(dom.json()) + `}}}`
+			sources["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(sources["g.md"]) + `","dom":` + string(dom.json()) + `}}}`
 			if _, err := decodeDOM(dom.json()); err != nil {
 				t.Fatalf("the reader's DOM is refused: %v", err)
 			}

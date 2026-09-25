@@ -5,10 +5,10 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from ._model import Action, Node, ParseError, ParseResult, Stage, Token
+from ._model import Action, Node, ParseError, ParseResult, ParseWarning, Stage, Token
 from ._tags import PAUSE
 
-FORMAT = 1
+FORMAT = 2
 
 
 def _tags(tags: dict[str, bool]) -> dict[str, bool]:
@@ -101,16 +101,30 @@ def error_json(error: ParseError) -> dict[str, Any]:
     return value
 
 
+def warning_json(warning: ParseWarning) -> dict[str, Any]:
+    return {
+        "stage": warning.stage,
+        "feature": warning.feature,
+        "rule": warning.rule,
+        "span": list(warning.span),
+        "source": list(warning.source),
+    }
+
+
 def result_json(result: ParseResult) -> dict[str, Any]:
     """The canonical JSON of a result, as plain data in the key order of
     docs/output.md."""
-    return {
+    value: dict[str, Any] = {
         "format": FORMAT,
         "ok": result.ok,
         "stages": [stage_json(stage) for stage in result.stages],
         "tree": node_json(result.tree) if result.tree is not None else None,
         "error": error_json(result.error) if result.error is not None else None,
     }
+    # Present only when there is at least one (docs/output.md).
+    if result.warnings:
+        value["warnings"] = [warning_json(warning) for warning in result.warnings]
+    return value
 
 
 def compact_json(value: Any) -> str:

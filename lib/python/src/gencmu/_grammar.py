@@ -181,6 +181,9 @@ class Production:
     conds_whole: list[Dom] = field(default_factory=list)
     tags_term: Dom | None = None
     emit: Any = None
+    # The features of the alternative's warnings, in the order they are
+    # written (engine §12); none for a helper.
+    warnings: tuple[str, ...] = ()
 
     @property
     def transparent(self) -> bool:
@@ -393,6 +396,7 @@ class _Lowerer:
             if terms:
                 production.tags_term = terms[0] if len(terms) == 1 else {"union": terms}
             production.emit = self.lower_emit(alt.emit, captures)
+            production.warnings = tuple(guard["feature"] for guard in alt.guards if guard.get("kind") == "warning")
         if production.tags_term is None and len(rhs) == 1 and 0 not in captures.values():
             captures[IMPLICIT] = 0
         slots = [-1] * len(rhs)
@@ -527,7 +531,11 @@ class _Lowerer:
         )
 
     def holds(self, guards: list[Dom]) -> bool:
-        return all((guard["feature"] in self.features) != bool(guard.get("negated")) for guard in guards)
+        # Only gates drop an alternative; a warning keeps it (engine §3.1).
+        return all(
+            guard.get("kind") == "warning" or (guard["feature"] in self.features) != bool(guard.get("negated"))
+            for guard in guards
+        )
 
 
 def lower(grammar: Grammar, features: frozenset[str], elision: bool = False) -> Lowered:

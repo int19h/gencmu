@@ -116,7 +116,7 @@ SAME = {"op": "=", "left": LIT, "right": LIT}
 
 # One malformed DOM for each rule the reader enforces.
 CASES: list[tuple[str, Callable[[Dom], None]]] = [
-    ("format other than 4", lambda dom: dom.update(format=3)),
+    (f"format other than {DOM_FORMAT}", lambda dom: dom.update(format=DOM_FORMAT - 1)),
     ("rules not a list", lambda dom: dom.update(rules={})),
     ("directive without a position", lambda dom: dom["directives"][0].pop("at")),
     ("directive argument not a word", lambda dom: dom["directives"][0].update(args=[1])),
@@ -126,7 +126,10 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("rule op not define, redefine or extend", lambda dom: rule(dom).update(op="replace")),
     ("rule without alternatives", lambda dom: rule(dom).update(alternatives=[])),
     ("rule without a position", lambda dom: rule(dom).pop("at")),
-    ("guard without negated", lambda dom: alt(dom).update(guards=[{"feature": "f"}])),
+    ("guard without negated", lambda dom: alt(dom).update(guards=[{"feature": "f", "kind": "gate"}])),
+    ("guard without a kind", lambda dom: alt(dom).update(guards=[{"feature": "f", "negated": False}])),
+    ("guard of an unknown kind", lambda dom: alt(dom).update(guards=[{"feature": "f", "kind": "hint", "negated": False}])),
+    ("a negated warning", lambda dom: alt(dom).update(guards=[{"feature": "f", "kind": "warning", "negated": True}])),
     ("seq of one item", set_expr({"seq": [A]})),
     ("choice of one item", set_expr({"choice": [A]})),
     ("& of more than 16 items", set_expr({"and": [A] * 17})),
@@ -288,8 +291,8 @@ class PrecompiledDomRules(unittest.TestCase):
 
     def test_what_the_reader_allows_is_allowed(self) -> None:
         """$ in conditions, in emission and as a span of tags($, rule), ε,
-        ∧, ⟹, presence tests, guarded terms, and # as a rule's name
-        (engine §9)."""
+        ∧, ⟹, presence tests, guarded terms, # as a rule's name, a negated
+        gate and a warning (engine §9)."""
         for name, change in (
             ("$ twice", set_emit({"items": [{"capture": "", "tags": LIT}, WHOLE]})),
             ("ε", set_emit({"items": []})),
@@ -300,6 +303,8 @@ class PrecompiledDomRules(unittest.TestCase):
             ("a condition on $", set_condition({"op": "∈", "left": LIT, "right": {"call": "tags", "args": [WHOLE]}})),
             ("all", set_condition({"all": [SAME, {"not": {"matches": WHOLE, "rule": "text"}}]})),
             ("# as a rule's name", lambda dom: rule(dom).update(name="#")),
+            ("a negated gate", lambda dom: alt(dom).update(guards=[{"feature": "f", "kind": "gate", "negated": True}])),
+            ("a warning", lambda dom: alt(dom).update(guards=[{"feature": "w", "kind": "warning", "negated": False}])),
             ("an implication", set_condition({"if": SAME, "then": {"op": "=", "left": {"call": "text", "args": [X]}, "right": LIT}})),
             ("a presence test that removes an alternative", with_bare_alternative(set_condition({"captured": "x"}))),
             ("a guarded term", with_bare_alternative(set_rule_tags({"union": [LIT, {"if": {"captured": "x"}, "then": X}]}))),

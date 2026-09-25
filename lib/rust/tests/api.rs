@@ -3,7 +3,7 @@
 
 use std::collections::BTreeMap;
 
-use gencmu::{ErrorKind, NodeKind, ParseErrorKind, ParseOptions, Verdict};
+use gencmu::{ErrorKind, Feature, FeatureKind, NodeKind, ParseErrorKind, ParseOptions, Verdict, Warning};
 
 fn grammar(rules: &str) -> String {
     format!("# A grammar\n\n```jbogenbau\n{rules}\n```\n")
@@ -122,9 +122,10 @@ fn until_features_and_elision_only() {
         "g.md".to_string(),
         grammar("%ambiguity-resolution greedy\n%rule text [w] ...\n%rule w \"x\" <\"X\"> %emits $"),
     );
-    sources.insert("h.md".to_string(), grammar("%ambiguity-resolution greedy\n%rule text @f @g X X | @f @¬g X"));
+    sources.insert("h.md".to_string(), grammar("%ambiguity-resolution greedy\n%rule text @f? @g? X X | @f? @¬g? X"));
     let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
-    assert_eq!(dialect.features(), ["f"]);
+    let gate = |name: &str, default| Feature { name: name.to_string(), kind: FeatureKind::Gate, default };
+    assert_eq!(dialect.features(), [gate("f", true), gate("g", false)]);
 
     let result = dialect.parse("xx", &ParseOptions { until: Some("one".into()), ..no_auto() }).unwrap();
     assert!(result.ok);
@@ -178,7 +179,7 @@ fn words_dialect() -> gencmu::Dialect {
     sources.insert(
         "w.md".to_string(),
         grammar(
-            "%ambiguity-resolution lazy\n%rule text [piece] ...\n%rule piece word | /./\n%rule word /m/ /i/ | @sa-su /s/ /a/ | @sa-su /s/ /u/",
+            "%ambiguity-resolution lazy\n%rule text [piece] ...\n%rule piece word | /./\n%rule word /m/ /i/ | @sa-su? /s/ /a/ | @sa-su? /s/ /u/",
         ),
     );
     gencmu::load_dialect_sources(sources, "p.md").unwrap()
@@ -196,11 +197,70 @@ fn auto_features_add_sa_su_only_where_needed() {
     assert_eq!(off.error.as_ref().unwrap().kind, ParseErrorKind::Rejected);
     let explicit = dialect.parse("mi su", &ParseOptions { features: vec!["sa-su".into()], ..no_auto() }).unwrap();
     assert!(explicit.ok);
+    // Auto features never add `sa-su` once the caller has turned it off.
+    let without = ParseOptions { without_features: vec!["sa-su".into()], ..ParseOptions::default() };
+    assert!(!dialect.parse("mi sa", &without).unwrap().ok);
     // `until` before `words` skips the probe.
     let early =
         dialect.parse("mi sa", &ParseOptions { until: Some("sounds".into()), ..ParseOptions::default() }).unwrap();
     assert!(early.ok);
     assert_eq!(early.stages.len(), 1);
+}
+
+#[test]
+fn gates_turn_off_and_warnings_follow_the_chosen_tree() {
+    let mut sources = BTreeMap::new();
+    sources.insert(
+        "p.md".to_string(),
+        "# D <?features f?>\n\n## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n".to_string(),
+    );
+    sources.insert(
+        "g.md".to_string(),
+        grammar("%ambiguity-resolution greedy\n%rule text @f? \"a\" | @¬f? @w! part ...\n%rule part @w! \"b\" | \"c\""),
+    );
+    let dialect = gencmu::load_dialect_sources(sources.clone(), "p.md").unwrap();
+    assert_eq!(
+        dialect.features(),
+        [
+            Feature { name: "f".to_string(), kind: FeatureKind::Gate, default: true },
+            Feature { name: "w".to_string(), kind: FeatureKind::Warning, default: false },
+        ]
+    );
+    assert!(!dialect.parse("bcb", &no_auto()).unwrap().ok);
+    let off = ParseOptions { without_features: vec!["f".into()], ..no_auto() };
+    let quiet = dialect.parse("bcb", &off).unwrap();
+    assert!(quiet.ok);
+    assert!(quiet.warnings.is_empty());
+    assert!(!gencmu::to_json(&quiet).contains("\"warnings\""));
+    // One warning for each node of the chosen tree built from a warned
+    // alternative: the prefixes of `part ...`, which the tree splices out,
+    // are not its nodes (engine §12).
+    let warned = dialect.parse("bcb", &ParseOptions { features: vec!["w".into()], ..off }).unwrap();
+    assert!(warned.ok);
+    assert_eq!(gencmu::to_brackets(&warned, false), "(b c b)");
+    let warning = |rule: &str, span: std::ops::Range<usize>| Warning {
+        stage: "main".to_string(),
+        feature: "w".to_string(),
+        rule: rule.to_string(),
+        span: span.clone(),
+        source: span,
+    };
+    assert_eq!(warned.warnings, [warning("text", 0..3), warning("part", 0..1), warning("part", 2..3)]);
+    assert!(gencmu::to_json(&warned).contains(
+        ",\"error\":null,\"warnings\":[{\"stage\":\"main\",\"feature\":\"w\",\"rule\":\"text\",\"span\":[0,3],\"source\":[0,3]},"
+    ));
+    let both = ParseOptions { features: vec!["w".into()], without_features: vec!["w".into()], ..no_auto() };
+    assert_eq!(dialect.parse("bcb", &both).expect_err("w both on and off").kind, ErrorKind::Usage);
+
+    // A name is a gate or a warning across every stage of a dialect.
+    sources.insert(
+        "q.md".to_string(),
+        "## One <?stage one?>\n\n- [g](g.md) <?grammar?>\n\n## Two <?stage two?>\n\n- [h](h.md) <?grammar?>\n"
+            .to_string(),
+    );
+    sources.insert("h.md".to_string(), grammar("%ambiguity-resolution greedy\n%rule text @w? X"));
+    let error = gencmu::load_dialect_sources(sources, "q.md").expect_err("w a warning in one stage, a gate in another");
+    assert_eq!((error.kind, error.document.as_deref()), (ErrorKind::Grammar, Some("q.md")), "{error}");
 }
 
 #[test]
@@ -279,7 +339,7 @@ fn results_outlive_the_dialect_and_cross_threads() {
         dialect.parse(&text, &ParseOptions::default()).unwrap()
     };
     let json = std::thread::spawn(move || gencmu::to_json(&result)).join().unwrap();
-    assert!(json.starts_with("{\"format\":1,\"ok\":true"));
+    assert!(json.starts_with("{\"format\":2,\"ok\":true"));
 
     let dialect = std::sync::Arc::new(gencmu::load_dialect("notation").unwrap());
     let threads: Vec<_> = (0..4)
@@ -383,11 +443,11 @@ fn an_and_of_more_than_sixteen_items_is_an_error() {
     let mut sources = single("%ambiguity-resolution greedy\n%rule text A");
     let refs: Vec<String> = (0..64).map(|index| format!("{{\"ref\":\"A{index}\"}}")).collect();
     let dom = format!(
-        "{{\"format\":4,\"rules\":[{{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{{\"guards\":[],\"expr\":{{\"and\":[{}]}}}}],\"conditions\":[],\"at\":[4,1]}}],\"directives\":[{{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[3,1]}}]}}",
+        "{{\"format\":5,\"rules\":[{{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{{\"guards\":[],\"expr\":{{\"and\":[{}]}}}}],\"conditions\":[],\"at\":[4,1]}}],\"directives\":[{{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[3,1]}}]}}",
         refs.join(",")
     );
     let compiled = format!(
-        "{{\"format\":4,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
+        "{{\"format\":5,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
         gencmu::tools::bootstrap_hash(),
         gencmu::tools::fnv1a64(&sources["g.md"])
     );
@@ -407,11 +467,11 @@ fn a_corrupt_cache_is_a_miss_not_an_abort() {
         for compiled in [
             format!("{}{}", "[".repeat(10_000), "]".repeat(10_000)),
             format!(
-                "{{\"format\":4,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{deep_dom}}}}}}}",
+                "{{\"format\":5,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{deep_dom}}}}}}}",
                 gencmu::tools::bootstrap_hash()
             ),
             format!(
-                "{{\"format\":4,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{{\"rules\":7}}}}}}}}",
+                "{{\"format\":5,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{{\"rules\":7}}}}}}}}",
                 gencmu::tools::bootstrap_hash()
             ),
             "not JSON".to_string(),

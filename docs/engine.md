@@ -139,7 +139,7 @@ When the stage's directive has `elision-only`, or the caller asks for it, and th
 2. Parse the new token sequence with the grammar lowered as in §3.8.
 3. Rank that forest using only rule 1 of §6: two derivations differing first anywhere else are tied. If one derivation is left, the check passes and the result is the original one. Otherwise the result is an error of kind `ambiguous`: `ok` is false, and the error carries two readings, the chosen derivation of that ranking and the tied one reported beside it, shown over the original input, the written-back terminators as elided nodes. The result's `tree` is null. The stage keeps its verdict, witness, tied tree and output, since it accepted its input; the error has no `token` or `source`, the readings showing where they differ.
 
-The elided terminators are taken in the order of the chosen tree's leaves, left to right. If the parse of step 2 accepts nothing, the check passes.
+The elided terminators are taken in the order of the chosen tree's leaves, left to right. If the parse of step 2 accepts nothing, the check passes. An error of the grammar found in the parse of step 2 ends the stage as one found while emitting does (§11): the stage keeps its verdict, witness, tied tree and warnings, has no output, and the error is the result's.
 
 A caller may also switch the check off for a stage that declares it.
 
@@ -246,7 +246,7 @@ Every stage that accepts its input emits tokens by walking its chosen tree from 
   - an inserted tag, a string or phoneme tag, emits a token with that one strong tag and an empty span.
 - A constituent whose production's emission is `ε`, no items, emits nothing and **does not count**: nothing inside it is part of the phonemes of a token that covers it (§5). It is how a grammar erases text, which is still there, and still covered by the tokens around it, but counts for nothing. A part that an emission merely does not list is not emitted, but counts.
 
-An item's tag term that gives the empty set is an error of the grammar, found while parsing: no terminal could read the token.
+An item's tag term that gives the empty set is an error of the grammar, found while parsing: no terminal could read the token. The stage has accepted its input and chosen its tree, so it keeps its verdict, witness, tied tree and warnings (§12), but it has no output, and the error is the result's.
 
 An emitted token's span is the range of the stage's input tokens its constituent covers; its `source` runs from the source start of the first of them to the source end of the last; its phonemes are as in §5. An inserted token's span is empty at the start of the part of the capture listed next after it, or at the end of the constituent if no capture is listed after it; its source is empty at the source end of the input token before that position, or at the source start of the constituent if the position is the constituent's start.
 

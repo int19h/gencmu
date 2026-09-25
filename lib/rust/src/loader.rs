@@ -99,7 +99,8 @@ fn notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dialect, E
     if stages.is_empty() {
         return Err(grammar_error("bootstrap.json has no stages".to_string()));
     }
-    Ok(Dialect::new(stages, Vec::new(), unicode))
+    Dialect::new(stages, Vec::new(), unicode)
+        .map_err(|error| grammar_error(format!("bootstrap.json: {}", error.message)))
 }
 
 impl Context {
@@ -276,7 +277,9 @@ fn load(context: &Context, sources: &dyn Sources, pipeline_path: &str) -> Result
         }
         stages.push(stitch(&stage.name, &documents).map_err(|error| error.in_stage(&stage.name))?);
     }
-    Ok(Dialect::new(stages, pipeline.features, context.unicode.clone()))
+    // A name used both as a gate and as a warning, in any of the stages, is
+    // an error of the dialect as a whole (engine §13).
+    Dialect::new(stages, pipeline.features, context.unicode.clone()).map_err(|error| error.in_document(pipeline_path))
 }
 
 /// Loads a bundled dialect by name: the pipeline document

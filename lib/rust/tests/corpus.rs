@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use common::{parse_json, repository, Value};
+use common::{feature_names, parse_json, repository, Value};
 
 fn all_cases() -> Vec<Value> {
     let directory = repository().join("tests/corpus");
@@ -37,9 +37,11 @@ fn string(value: &str) -> Value {
 /// What gencmu makes of a case, in the case's own terms.
 fn outcome(dialect: &gencmu::Dialect, case: &Value) -> BTreeMap<&'static str, Value> {
     let text = case.get("text").and_then(Value::str).expect("a text");
-    let features =
-        case.get("features").map(Value::array).unwrap_or(&[]).iter().map(|f| f.str().unwrap().to_string()).collect();
-    let options = gencmu::ParseOptions { features, ..gencmu::ParseOptions::default() };
+    let options = gencmu::ParseOptions {
+        features: feature_names(case.get("features")),
+        without_features: feature_names(case.get("withoutFeatures")),
+        ..gencmu::ParseOptions::default()
+    };
     let result = dialect.parse(text, &options).expect("a parse");
     let mut got = BTreeMap::new();
     got.insert("expect", string(if result.ok { "accept" } else { "reject" }));

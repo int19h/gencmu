@@ -25,14 +25,17 @@ type engineCase struct {
 	}
 	Input   *string
 	Options struct {
-		Features     []string
-		ElisionOnly  *bool
-		AutoFeatures *bool
-		Until        string
+		Features        []string
+		WithoutFeatures []string
+		ElisionOnly     *bool
+		AutoFeatures    *bool
+		Until           string
 	}
 	Expect struct {
 		Result   json.RawMessage
 		Brackets *string
+		Warnings json.RawMessage
+		Features json.RawMessage
 		Error    string
 	}
 }
@@ -105,7 +108,7 @@ func caseDialect(c *engineCase, noCache bool) (*Dialect, error) {
 }
 
 func runCase(d *Dialect, c *engineCase) (*ParseResult, error) {
-	opts := ParseOptions{Features: c.Options.Features, ElisionOnly: c.Options.ElisionOnly, Until: c.Options.Until, NoAutoFeatures: true}
+	opts := ParseOptions{Features: c.Options.Features, WithoutFeatures: c.Options.WithoutFeatures, ElisionOnly: c.Options.ElisionOnly, Until: c.Options.Until, NoAutoFeatures: true}
 	if c.Options.AutoFeatures != nil && *c.Options.AutoFeatures {
 		opts.NoAutoFeatures = false
 	}
@@ -148,14 +151,44 @@ func checkCase(c *engineCase, noCache bool) error {
 		}
 		return nil
 	}
+	// The dialect's features, compared whole.
+	if c.Expect.Features != nil {
+		var want any
+		json.Unmarshal(c.Expect.Features, &want)
+		have := []any{}
+		for _, f := range d.Features() {
+			have = append(have, map[string]any{"name": f.Name, "kind": f.Kind, "default": f.Default})
+		}
+		if !reflect.DeepEqual(have, want) {
+			return fmt.Errorf("features: expected %s, got %+v", c.Expect.Features, d.Features())
+		}
+	}
 	res, err := runCase(d, c)
 	if err != nil {
+		// A mistake of the caller is an error, and there is no result
+		// (engine §13).
+		if e, ok := err.(*Error); ok && e.Kind == ErrorUsage && c.Expect.Error == ErrorUsage {
+			return nil
+		}
 		return err
 	}
 	data, _ := MarshalResult(res)
 	var got any
 	if err := json.Unmarshal(data, &got); err != nil {
 		return fmt.Errorf("the canonical JSON does not parse: %v\n%s", err, data)
+	}
+	// The warnings, compared whole, so [] says that there are none; the
+	// canonical JSON leaves them out then.
+	if c.Expect.Warnings != nil {
+		var want any
+		json.Unmarshal(c.Expect.Warnings, &want)
+		have, ok := got.(map[string]any)["warnings"]
+		if !ok {
+			have = []any{}
+		}
+		if !reflect.DeepEqual(have, want) {
+			return fmt.Errorf("warnings: expected %s\n%s", c.Expect.Warnings, data)
+		}
 	}
 	if c.Expect.Result != nil {
 		var pattern any
@@ -175,7 +208,7 @@ func checkCase(c *engineCase, noCache bool) error {
 		if res.Error == nil || res.Error.Kind != c.Expect.Error {
 			return fmt.Errorf("expected error %s\n%s", c.Expect.Error, data)
 		}
-	} else if res.Error != nil && c.Expect.Result == nil {
+	} else if res.Error != nil {
 		return fmt.Errorf("unexpected error\n%s", data)
 	}
 	return nil

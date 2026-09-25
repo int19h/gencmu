@@ -1,6 +1,6 @@
 //! From the notation's document tree to a grammar DOM (engine §9).
 
-use crate::dom::{Alternative, Arg, Cond, Directive, Dom, EmitItem, Expr, Guard, Op, RuleDef, Term};
+use crate::dom::{Alternative, Arg, Cond, Directive, Dom, EmitItem, Expr, FeatureKind, Guard, Op, RuleDef, Term};
 use crate::error::Error;
 use crate::result::{Node, NodeKind, Token};
 
@@ -151,13 +151,19 @@ impl<'a> Reader<'a> {
     }
 
     fn alternative(&self, node: &'a Node) -> R<Alternative> {
+        // A guard's token is its spelling: `@f?` or `@¬f?` for a gate, `@f!`
+        // for a warning (§9).
         let guards = Self::rules(node, "guard")
             .map(|guard| {
                 let text = self.text(Self::tokens_of(guard).next().expect("a guard token"));
+                let (text, kind) = match text.strip_suffix('!') {
+                    Some(text) => (text, FeatureKind::Warning),
+                    None => (text.trim_end_matches('?'), FeatureKind::Gate),
+                };
                 let text = text.trim_start_matches('@');
                 match text.strip_prefix('¬') {
-                    Some(feature) => Guard { feature: feature.to_string(), negated: true },
-                    None => Guard { feature: text.to_string(), negated: false },
+                    Some(feature) => Guard { feature: feature.to_string(), kind, negated: true },
+                    None => Guard { feature: text.to_string(), kind, negated: false },
                 }
             })
             .collect();

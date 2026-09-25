@@ -3976,7 +3976,19 @@
       const elisionOnly = options.elisionOnly === undefined || options.elisionOnly === null
         ? lowered.resolution.elisionOnly : options.elisionOnly;
       if (elisionOnly && report.verdict !== "unique") {
-        const readings = this.elisionCheck(report.tree, tokens, sourceText, unicode, features);
+        let readings;
+        try {
+          readings = this.elisionCheck(report.tree, tokens, sourceText, unicode, features);
+        } catch (error) {
+          // An error of the grammar in the reparse ends the stage as one found
+          // while emitting does: no output, the rest kept (engine §7).
+          if (error instanceof GencmuError) {
+            report.output = null;
+            report.error = { kind: "grammar", stage: this.name, message: error.message };
+            return report;
+          }
+          throw error;
+        }
         if (readings) {
           report.error = {
             kind: "ambiguous",

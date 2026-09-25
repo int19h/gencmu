@@ -17,9 +17,10 @@ println!("{}", gencmu::to_json(&result));
 ## The API
 
 - `load_dialect(name)` loads a bundled dialect, the pipeline document `grammars/dialects/NAME.md`; `load_dialect_file(path)` loads a pipeline document from disk, finding its grammar documents relative to it; and `load_dialect_sources(sources, pipeline)` loads documents held in memory, any iterable of `(path, text)` pairs. Each returns `Result<Dialect, gencmu::Error>`.
-- `Dialect::parse(&self, text, &ParseOptions) -> Result<ParseResult, Error>`. A text that does not parse is a result whose `ok` is false; the `Error` is for a caller's mistake, such as an unknown stage in `until`. `ParseOptions` has `features`, `auto_features` (on by default), `until` and `elision_only`.
+- `Dialect::parse(&self, text, &ParseOptions) -> Result<ParseResult, Error>`. A text that does not parse is a result whose `ok` is false; the `Error` is for a caller's mistake, such as an unknown stage in `until`, or a feature named both to turn on and to turn off. `ParseOptions` has `features` and `without_features`, the features to turn on and off besides the pipeline's own, `auto_features` (on by default), `until` and `elision_only`.
+- `Dialect::features()` lists the dialect's features in code point order, each a `Feature` with its `name`, its `kind`, `FeatureKind::Gate` or `FeatureKind::Warning`, and whether the pipeline turns it on by `default`.
 - `to_json(&result)` writes the canonical JSON of `docs/output.md`; `to_brackets(&result, show_elided)` renders the tree as brackets.
-- A `ParseResult` owns its data: stages with their input and output tokens, verdicts and tie witnesses, the tree, and the error. Positions are Unicode code points; tags are a `BTreeMap<String, bool>`, `true` for strong.
+- A `ParseResult` owns its data: stages with their input and output tokens, verdicts and tie witnesses, the tree, the error, and the warnings of the warning features turned on. Positions are Unicode code points; tags are a `BTreeMap<String, bool>`, `true` for strong.
 - `Dialect` is `Send` and `Sync`: share one between threads freely.
 - For tests and tools: `Dialect::parse_tokens` feeds tokens straight to the first stage, and `gencmu::tools` reads one grammar document to its DOM and computes the hashes of the DOM cache.
 

@@ -5,25 +5,30 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::fxhash::FxMap;
 use std::sync::{Arc, Mutex};
 
+use crate::dom::FeatureKind;
 use crate::earley::{EngineError, Recognizer, Shared, Tok};
 use crate::error::Error;
 use crate::grammar::{Change, Lean, StageGrammar};
 use crate::lower::{lower, Lowered, Sym};
 use crate::rank::{Act, Ranker, Ranking, Verdict as RankVerdict};
 use crate::result::{
-    Action, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Stage, Tags, Token, Verdict,
+    Action, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Stage, Tags, Token, Verdict, Warning,
 };
-use crate::tree::{build, emit, public_tree, TreeContext};
+use crate::tree::{build, emit, public_tree, warnings_of, TreeContext};
 use crate::unicode::Unicode;
 
 /// The options of [`Dialect::parse`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseOptions {
-    /// Features to enable for every stage, besides those the pipeline's
-    /// `<?features?>` enables.
+    /// Features to turn on for every stage, besides those the pipeline's
+    /// `<?features?>` turns on.
     pub features: Vec<String>,
-    /// Add `sa-su` only where the text needs it (engine §13). On by
-    /// default; ignored for a dialect with no stage named `words`.
+    /// Features to turn off for every stage, among them any that the
+    /// pipeline turns on. A name also in `features` is a usage error.
+    pub without_features: Vec<String>,
+    /// Add `sa-su` only where the text needs it (engine §13), unless
+    /// `without_features` names it. On by default; ignored for a dialect
+    /// with no stage named `words`, or one where `sa-su` is not a gate.
     pub auto_features: bool,
     /// The name of the last stage to run; all of them when `None`.
     pub until: Option<String>,
@@ -34,8 +39,26 @@ pub struct ParseOptions {
 
 impl Default for ParseOptions {
     fn default() -> ParseOptions {
-        ParseOptions { features: Vec::new(), auto_features: true, until: None, elision_only: None }
+        ParseOptions {
+            features: Vec::new(),
+            without_features: Vec::new(),
+            auto_features: true,
+            until: None,
+            elision_only: None,
+        }
     }
+}
+
+/// One of a dialect's features (engine §13), as [`Dialect::features`]
+/// lists them.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Feature {
+    /// The feature's name.
+    pub name: String,
+    /// Whether it is a gate or a warning.
+    pub kind: FeatureKind,
+    /// Whether the pipeline's `<?features?>` turns it on.
+    pub default: bool,
 }
 
 /// A token given directly to the first stage, instead of the text's
@@ -63,7 +86,9 @@ type LoweredResult = Result<Arc<Lowered>, EngineError>;
 /// of features are kept behind a mutex and shared by later parses.
 pub struct Dialect {
     pub(crate) stages: Vec<StageGrammar>,
-    pub(crate) features: Vec<String>,
+    /// The features the pipeline's `<?features?>` turns on.
+    pub(crate) declared: Vec<String>,
+    pub(crate) features: Vec<Feature>,
     pub(crate) unicode: Arc<Unicode>,
     pub(crate) changes: Vec<Change>,
     lowered: Mutex<FxMap<LoweredKey, LoweredResult>>,
@@ -82,6 +107,36 @@ struct Run {
     public_input: Vec<Token>,
     tree: Option<Node>,
     error: Option<ParseError>,
+    /// The warnings of the stages run so far, in stage order (§12).
+    warnings: Vec<Warning>,
+}
+
+/// A dialect's features (engine §13): every name a guard of a stage's
+/// stitched rules uses, and every name the pipeline's `<?features?>`
+/// declares, in code point order. A name that one guard uses as a gate and
+/// another as a warning is an error of the dialect; one that only
+/// `<?features?>` declares is a gate.
+fn dialect_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec<Feature>, Error> {
+    let mut kinds: BTreeMap<&str, FeatureKind> = BTreeMap::new();
+    for stage in stages {
+        for rule in &stage.rules {
+            for guard in rule.alternatives.iter().flat_map(|alternative| &alternative.alternative.guards) {
+                if *kinds.entry(&guard.feature).or_insert(guard.kind) != guard.kind {
+                    return Err(Error::grammar(format!(
+                        "the feature {} is used both as a gate and as a warning",
+                        guard.feature
+                    )));
+                }
+            }
+        }
+    }
+    for name in declared {
+        kinds.entry(name).or_insert(FeatureKind::Gate);
+    }
+    Ok(kinds
+        .into_iter()
+        .map(|(name, kind)| Feature { name: name.to_string(), kind, default: declared.iter().any(|on| on == name) })
+        .collect())
 }
 
 /// Line and column, from 1, of a code point offset (lines end at `\n`,
@@ -111,9 +166,17 @@ pub(crate) fn line_column(text: &[char], offset: usize) -> (usize, usize) {
 }
 
 impl Dialect {
-    pub(crate) fn new(stages: Vec<StageGrammar>, features: Vec<String>, unicode: Arc<Unicode>) -> Dialect {
+    /// A dialect of stitched stages, whose pipeline's `<?features?>` turns
+    /// on `declared`; a feature used both as a gate and as a warning is an
+    /// error of the dialect (engine §13).
+    pub(crate) fn new(
+        stages: Vec<StageGrammar>,
+        declared: Vec<String>,
+        unicode: Arc<Unicode>,
+    ) -> Result<Dialect, Error> {
+        let features = dialect_features(&stages, &declared)?;
         let changes = stages.iter().flat_map(|stage| stage.changes.iter().cloned()).collect();
-        Dialect { stages, features, unicode, changes, lowered: Mutex::new(FxMap::default()) }
+        Ok(Dialect { stages, declared, features, unicode, changes, lowered: Mutex::new(FxMap::default()) })
     }
 
     /// The names of the pipeline's stages, in order.
@@ -121,8 +184,10 @@ impl Dialect {
         self.stages.iter().map(|stage| stage.name.as_str()).collect()
     }
 
-    /// The features the pipeline enables for every parse.
-    pub fn features(&self) -> &[String] {
+    /// The dialect's features (engine §13), each with its kind and whether
+    /// the pipeline turns it on for every parse, in code point order of
+    /// their names.
+    pub fn features(&self) -> &[Feature] {
         &self.features
     }
 
@@ -218,6 +283,14 @@ impl Dialect {
         options: &ParseOptions,
         first: impl FnOnce(&mut crate::tags::Tags, &[char]) -> (Vec<Tok>, Vec<Token>),
     ) -> Result<ParseResult, Error> {
+        // The features on are the pipeline's, with the caller's added and
+        // those the caller turns off removed (engine §13).
+        let off = &options.without_features;
+        if let Some(both) = options.features.iter().find(|name| off.contains(name)) {
+            return Err(Error::usage(format!("the feature {both} is named both to turn on and to turn off")));
+        }
+        let mut features: BTreeSet<String> =
+            self.declared.iter().chain(&options.features).filter(|name| !off.contains(name)).cloned().collect();
         let last = match &options.until {
             None => self.stages.len() - 1,
             Some(name) => self
@@ -226,13 +299,18 @@ impl Dialect {
                 .position(|stage| &stage.name == name)
                 .ok_or_else(|| Error::usage(format!("the dialect has no stage named {name}")))?,
         };
-        let mut features: BTreeSet<String> = self.features.iter().cloned().collect();
-        features.extend(options.features.iter().cloned());
         let mut shared = Shared::new(&self.unicode, &chars);
         let (input, public_input) = first(&mut shared.tags, &chars);
-        let fresh = Run { stages: Vec::new(), input, public_input, tree: None, error: None };
+        let fresh = Run { stages: Vec::new(), input, public_input, tree: None, error: None, warnings: Vec::new() };
         let words = self.stages.iter().position(|stage| stage.name == "words");
-        let probe = options.auto_features && !features.contains("sa-su") && words.is_some_and(|words| words <= last);
+        // Auto features add `sa-su` only in a dialect where it is a gate,
+        // and never once the caller has turned it off (engine §13).
+        let gated = self.features.iter().any(|feature| feature.name == "sa-su" && feature.kind == FeatureKind::Gate);
+        let probe = options.auto_features
+            && gated
+            && !features.contains("sa-su")
+            && !off.iter().any(|name| name == "sa-su")
+            && words.is_some_and(|words| words <= last);
         let run = if let (true, Some(words)) = (probe, words) {
             let checkpoint = (fresh.input.clone(), fresh.public_input.clone());
             let mut run = fresh;
@@ -244,6 +322,8 @@ impl Dialect {
                 || run.error.is_some()
                 || run.tree.as_ref().is_some_and(|tree| has_sa_su(tree, &run.stages[words].input));
             if needs {
+                // From the first stage again, the first run's stages and
+                // warnings discarded.
                 features.insert("sa-su".to_string());
                 let mut again = Run {
                     stages: Vec::new(),
@@ -251,6 +331,7 @@ impl Dialect {
                     public_input: checkpoint.1,
                     tree: None,
                     error: None,
+                    warnings: Vec::new(),
                 };
                 shared.next_stage();
                 self.stages_between(&mut shared, &mut again, &features, 0, last, options.elision_only);
@@ -267,7 +348,13 @@ impl Dialect {
             run
         };
         let ok = run.error.is_none();
-        Ok(ParseResult { ok, stages: run.stages, tree: if ok { run.tree } else { None }, error: run.error })
+        Ok(ParseResult {
+            ok,
+            stages: run.stages,
+            tree: if ok { run.tree } else { None },
+            error: run.error,
+            warnings: run.warnings,
+        })
     }
 
     fn stages_between(
@@ -374,6 +461,9 @@ impl Dialect {
         let tag_map = |set: u32| shared.tags.to_map(set);
         let context = TreeContext { g: &lowered, tokens: &input, tag_map: &tag_map, synthetic: None };
         let tree = public_tree(&chosen, &context);
+        // The chosen tree's warnings, which stand even if the `elision-only`
+        // check or the emission then fails (§12).
+        run.warnings.extend(warnings_of(&chosen, &lowered, &input, features, &grammar.name));
         stage.verdict = Some(match ranking.verdict {
             RankVerdict::Unique => Verdict::Unique,
             RankVerdict::Resolved => Verdict::Resolved,

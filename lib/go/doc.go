@@ -37,6 +37,18 @@
 // bytes: Go's UTF-8 is converted at the edge. Tags are maps from tag to
 // strength, true for strong.
 //
+// # Features
+//
+// A feature is a name that is on or off for a parse, the same for every
+// stage. The pipeline turns some on; ParseOptions.Features turns others on,
+// and ParseOptions.WithoutFeatures turns any of them off. A guard on an
+// alternative of a grammar is a gate, @f? or @¬f?, which keeps the
+// alternative only while f is on, or off, or a warning, @f!, which keeps it
+// either way and, while f is on, adds a Warning to the result for each node
+// of the chosen tree that the alternative built. Dialect.Features lists a
+// dialect's features, each with its kind and whether the pipeline turns it
+// on.
+//
 // # Concurrency
 //
 // A *Dialect is safe for concurrent use by several goroutines. Each parse

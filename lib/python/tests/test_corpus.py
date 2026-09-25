@@ -39,7 +39,7 @@ def outcome(case: dict[str, Any]) -> dict[str, Any]:
     dialect = _dialects.get(case["dialect"])
     if dialect is None:
         dialect = _dialects[case["dialect"]] = gencmu.load_dialect(case["dialect"])
-    result = dialect.parse(case["text"], features=case.get("features", []))
+    result = dialect.parse(case["text"], features=case.get("features", []), without_features=case.get("withoutFeatures", []))
     got: dict[str, Any] = {"expect": "accept" if result.ok else "reject"}
     if result.ok:
         got["verdict"] = result.stages[-1].verdict

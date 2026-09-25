@@ -123,7 +123,7 @@ func (l *loader) load(pipelinePath string) (*Dialect, error) {
 	if perr != nil {
 		return nil, perr
 	}
-	d := &Dialect{uni: l.uni, features: p.features, lowered: map[lowerKey]*lowered{}}
+	d := &Dialect{uni: l.uni, declared: p.features, lowered: map[lowerKey]*lowered{}}
 	doms := map[string]*domDoc{}
 	for _, s := range p.stages {
 		var docs []docDOM
@@ -149,7 +149,53 @@ func (l *loader) load(pipelinePath string) (*Dialect, error) {
 		}
 		d.stages = append(d.stages, g)
 	}
+	features, err := dialectFeatures(d.stages, p.features)
+	if err != nil {
+		return nil, err
+	}
+	d.features = features
 	return d, nil
+}
+
+// dialectFeatures lists a dialect's features (engine §13): every name that a
+// guard of a stage's stitched rules uses, whatever features are on, and
+// every name the pipeline's <?features?> declares, in code point order. A
+// name only <?features?> declares is a gate; a name that one guard uses as a
+// gate and another as a warning is an error of the dialect.
+func dialectFeatures(stages []*stageGrammar, declared []string) ([]Feature, *Error) {
+	kinds := map[string]string{}
+	firstIn := map[string]string{} // the document of a name's first guard
+	for _, g := range stages {
+		for _, r := range g.rules {
+			for _, a := range r.alts {
+				for _, gd := range a.alt.Guards {
+					known, ok := kinds[gd.Feature]
+					if !ok {
+						kinds[gd.Feature], firstIn[gd.Feature] = gd.Kind, a.doc
+						continue
+					}
+					if known != gd.Kind {
+						e := grammarError(a.doc, a.at, "the feature %s is used as a %s here and as a %s in %s; a feature is a gate or a warning, not both", gd.Feature, gd.Kind, known, firstIn[gd.Feature])
+						e.Stage = g.name
+						return nil, e
+					}
+				}
+			}
+		}
+	}
+	on := map[string]bool{}
+	for _, f := range declared {
+		on[f] = true
+		if kinds[f] == "" {
+			kinds[f] = FeatureGate
+		}
+	}
+	features := make([]Feature, 0, len(kinds))
+	for name, kind := range kinds {
+		features = append(features, Feature{Name: name, Kind: kind, Default: on[name]})
+	}
+	sort.Slice(features, func(i, j int) bool { return features[i].Name < features[j].Name })
+	return features, nil
 }
 
 func bundledLoader() (*loader, error) {
@@ -239,7 +285,8 @@ func loadSources(sources map[string]string, pipeline string, noCache bool) (d *D
 // lowered for a set of features are cached under a mutex.
 type Dialect struct {
 	stages   []*stageGrammar
-	features []string
+	declared []string  // the features the pipeline's <?features?> turns on
+	features []Feature // every feature, with its kind and default (§13)
 	uni      *unicodeTable
 	mu       sync.Mutex
 	lowered  map[lowerKey]*lowered
@@ -255,8 +302,12 @@ type lowerKey struct {
 // parses with the dialect's own features, auto features on, every stage,
 // and each grammar's own elision-only setting.
 type ParseOptions struct {
-	// Features to enable for every stage, besides those the pipeline enables.
+	// Features to turn on for every stage, besides those the pipeline turns
+	// on.
 	Features []string
+	// WithoutFeatures to turn off for every stage, among them any the
+	// pipeline turns on; a name in both lists is a usage error.
+	WithoutFeatures []string
 	// NoAutoFeatures switches off adding sa-su only where the text needs it.
 	NoAutoFeatures bool
 	// Until names the last stage to run; empty runs every stage.
@@ -272,6 +323,23 @@ func (d *Dialect) StageNames() []string {
 		out[i] = s.name
 	}
 	return out
+}
+
+// Features lists the dialect's features in code point order of their names
+// (engine §13): each a gate or a warning, and on by default when the
+// pipeline's <?features?> turns it on.
+func (d *Dialect) Features() []Feature {
+	return append([]Feature{}, d.features...)
+}
+
+// kind is a feature's kind in the dialect, or "" for a name it does not have.
+func (d *Dialect) kind(name string) string {
+	for _, f := range d.features {
+		if f.Name == name {
+			return f.Kind
+		}
+	}
+	return ""
 }
 
 func (d *Dialect) lower(stage int, features map[string]bool, mandatory bool) *lowered {
@@ -294,8 +362,9 @@ func (d *Dialect) lower(stage int, features map[string]bool, mandatory bool) *lo
 }
 
 // Parse parses a text. A text that does not parse is a result whose OK is
-// false; the error is for a caller's mistake, such as an unknown stage, and
-// is a *Error of kind "usage".
+// false; the error is for a caller's mistake, such as an unknown stage or a
+// feature named both to turn on and to turn off, and is a *Error of kind
+// "usage".
 func (d *Dialect) Parse(text string, options ParseOptions) (*ParseResult, error) {
 	return d.parse([]rune(text), nil, options)
 }
@@ -340,12 +409,23 @@ func (d *Dialect) parse(text []rune, tokens []Token, options ParseOptions) (res 
 			return nil, &Error{Kind: ErrorUsage, Message: fmt.Sprintf("the dialect has no stage %q", options.Until)}
 		}
 	}
+	// The features on are the pipeline's and the caller's, less those the
+	// caller turns off (§13).
+	off := map[string]bool{}
+	for _, f := range options.WithoutFeatures {
+		off[f] = true
+	}
 	features := map[string]bool{}
-	for _, f := range d.features {
+	for _, f := range options.Features {
+		if off[f] {
+			return nil, &Error{Kind: ErrorUsage, Message: fmt.Sprintf("the feature %s is named both to turn on and to turn off", f)}
+		}
 		features[f] = true
 	}
-	for _, f := range options.Features {
-		features[f] = true
+	for _, f := range d.declared {
+		if !off[f] {
+			features[f] = true
+		}
 	}
 	words := -1
 	for i, s := range d.stages {
@@ -358,11 +438,14 @@ func (d *Dialect) parse(text []rune, tokens []Token, options ParseOptions) (res 
 		tokens = ps.characterTokens()
 	}
 	var outcomes []stageOutcome
-	if !options.NoAutoFeatures && !features["sa-su"] && words >= 0 && words <= last {
+	// Only a dialect with sa-su as a gate adds it by itself, and not when the
+	// caller turns it off (§13).
+	if !options.NoAutoFeatures && d.kind("sa-su") == FeatureGate && !features["sa-su"] && !off["sa-su"] && words >= 0 && words <= last {
 		outcomes = d.runStages(ps, features, options, tokens, 0, words)
 		probe := outcomes[len(outcomes)-1]
 		// Rerun with sa-su unless the probe ends with words accepting, or if
-		// words read sa or su (§13).
+		// words read sa or su (§13). A rerun discards the probe's stages and
+		// warnings.
 		if len(outcomes) != words+1 || probe.err != nil || hasSaSu(probe) {
 			features["sa-su"] = true
 			ps = newParseState(d.uni, text)
@@ -374,9 +457,12 @@ func (d *Dialect) parse(text []rune, tokens []Token, options ParseOptions) (res 
 	if outcomes == nil {
 		outcomes = d.runStages(ps, features, options, tokens, 0, last)
 	}
-	res = &ParseResult{OK: true}
+	// The warnings of every stage run, in stage order, whether or not the
+	// result is ok (§13).
+	res = &ParseResult{OK: true, Warnings: []Warning{}}
 	for _, o := range outcomes {
 		res.Stages = append(res.Stages, o.stage)
+		res.Warnings = append(res.Warnings, o.warnings...)
 		if o.err != nil {
 			res.OK, res.Error = false, o.err
 		}

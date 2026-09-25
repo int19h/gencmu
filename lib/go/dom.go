@@ -6,7 +6,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 4
+const domFormat = 5
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
@@ -31,8 +31,11 @@ type domAlt struct {
 	Tags   *domTerm
 }
 
+// domGuard is a gate, @f? or @¬f?, or a warning, @f!, which is never
+// negated (engine §9).
 type domGuard struct {
 	Feature string
+	Kind    string // FeatureGate or FeatureWarning
 	Negated bool
 }
 
@@ -185,6 +188,8 @@ func (r *domRule) writeJSON(w *jsonWriter) {
 			}
 			w.raw(`{"feature":`)
 			w.str(g.Feature)
+			w.raw(`,"kind":`)
+			w.str(g.Kind)
 			w.raw(`,"negated":`)
 			w.bool(g.Negated)
 			w.raw("}")
@@ -477,16 +482,17 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 		alt := &domAlt{Guards: []domGuard{}}
 		var guards []*struct {
 			Feature *string
+			Kind    *string
 			Negated *bool
 		}
 		if err := json.Unmarshal(ao["guards"], &guards); err != nil || guards == nil {
 			return nil, fmt.Errorf("a malformed alternative")
 		}
 		for _, gd := range guards {
-			if gd == nil || gd.Feature == nil || gd.Negated == nil {
+			if gd == nil || gd.Feature == nil || gd.Kind == nil || gd.Negated == nil {
 				return nil, fmt.Errorf("a malformed guard")
 			}
-			alt.Guards = append(alt.Guards, domGuard{*gd.Feature, *gd.Negated})
+			alt.Guards = append(alt.Guards, domGuard{*gd.Feature, *gd.Kind, *gd.Negated})
 		}
 		if alt.Expr, err = decodeExpr(ao["expr"]); err != nil {
 			return nil, err

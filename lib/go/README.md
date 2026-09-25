@@ -25,7 +25,8 @@ data, _ := gencmu.MarshalResult(result) // canonical JSON, docs/output.md
 - `LoadDialect(name)`: a bundled dialect, the name of a pipeline document under `grammars/dialects/` without `.md`.
 - `LoadDialectFile(path)`: a pipeline document on disk, whose grammar documents are found relative to it.
 - `LoadDialectSources(sources, pipeline)`: documents held in memory, a map from `/`-separated path to text. The map may hold its own `unicode.txt`, `notation/bootstrap.json` and `compiled.json`; the bundled ones fill in the rest.
-- `(*Dialect).Parse(text, ParseOptions{Features, NoAutoFeatures, Until, ElisionOnly})`, and `(*Dialect).ParseTokens(text, tokens, options)`, which feeds pre-built tokens to the first stage, for tests and tools.
+- `(*Dialect).Parse(text, ParseOptions{Features, WithoutFeatures, NoAutoFeatures, Until, ElisionOnly})`, and `(*Dialect).ParseTokens(text, tokens, options)`, which feeds pre-built tokens to the first stage, for tests and tools. A result's `Warnings` are those of the warning features turned on.
+- `(*Dialect).Features()`: the dialect's features, each a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`, whether the pipeline turns it on.
 - `MarshalResult(result)` writes the canonical JSON; `Brackets(result, BracketOptions{ShowElided})` renders the tree as nested groups.
 
 A `*Dialect` is safe for concurrent use. Positions are code points.

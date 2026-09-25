@@ -69,9 +69,10 @@ func (ps *parseState) newRun(name string, grammar *stageGrammar, toks []Token) *
 
 // stageOutcome is one stage's part of the result.
 type stageOutcome struct {
-	stage Stage
-	tree  *Node
-	err   *ParseError
+	stage    Stage
+	tree     *Node
+	err      *ParseError
+	warnings []Warning // those of the chosen tree (§12)
 }
 
 func (run *stageRun) actions(rec *recognizer, w [2]action) []Action {
@@ -95,9 +96,11 @@ func (run *stageRun) run(g *lowered, mandatory func() *lowered, elisionOnly bool
 			if !ok {
 				panic(x)
 			}
+			// A fault found once the stage has chosen its tree, while
+			// emitting or in the reparse of elision-only, leaves it without
+			// output; it keeps its verdict, witness, tied tree and warnings,
+			// none of which is set if the fault came earlier (§7, §11, §12).
 			out.stage.Output = nil
-			out.stage.Verdict = ""
-			out.stage.Witness, out.stage.Tied = nil, nil
 			out.tree = nil
 			out.err = run.failure(f)
 		}
@@ -129,6 +132,11 @@ func (run *stageRun) run(g *lowered, mandatory func() *lowered, elisionOnly bool
 		out.stage.Verdict = VerdictResolved
 	}
 	out.tree = run.buildTree(rec, res.chosen)
+	// Only the chosen tree gives warnings: not the tied one, nor the reparse
+	// of elision-only (§12).
+	if g.warns {
+		out.warnings = run.warnings(rec, res.chosen)
+	}
 	if elisionOnly && out.stage.Verdict != VerdictUnique {
 		if err := run.checkElision(out.tree, mandatory()); err != nil {
 			// The stage accepted its input: it keeps its verdict, witness,
