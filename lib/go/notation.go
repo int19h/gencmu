@@ -130,7 +130,7 @@ var domRules = map[string]bool{
 	"conjunction": true, "sequence": true, "element": true, "reference": true,
 	"string": true, "phoneme": true, "capture": true, "group": true, "optional": true,
 	"empty": true, "tags-clause": true, "conditions-clause": true, "emits-clause": true,
-	"emit-item": true, "emit-tags": true, "silent": true, "implication": true,
+	"emit-item": true, "emit-tags": true, "implication": true,
 	"any-of": true, "all-of": true, "comparison": true, "negation": true,
 	"presence": true, "call": true, "term": true, "guarded-term": true, "union": true,
 	"intersection": true, "weak": true, "empty-set": true, "capture-reference": true,
@@ -600,7 +600,7 @@ func (b *domBuilder) condition(n *Node) *domCond {
 func (b *domBuilder) emission(n *Node) *domEmit {
 	first := parts(n)[0]
 	e := &domEmit{}
-	whole, silentWhole := 0, false
+	whole := 0
 	listed := map[string]bool{}
 	for _, item := range ruleParts(n) {
 		ps := parts(item)
@@ -631,28 +631,17 @@ func (b *domBuilder) emission(n *Node) *domEmit {
 		}
 		if tagsNode != nil {
 			if it.IsInsert {
-				b.fail(target, "an inserted tag takes no tags, and is not silent")
+				b.fail(target, "an inserted tag takes no tags")
 			}
-			inner := ruleParts(tagsNode)[0]
-			if inner.Rule == "silent" {
-				it.Silent = true
-				if it.Capture == "" {
-					silentWhole = true
-				}
-			} else {
-				it.Tags = b.value(inner)
-				if it.Tags.Kind == tmEmptySet {
-					b.fail(target, "<∅> emits a token no terminal can read; <> makes a part silent")
-				}
+			it.Tags = b.value(ruleParts(tagsNode)[0])
+			if it.Tags.Kind == tmEmptySet {
+				b.fail(target, "<∅> emits a token no terminal can read; %%emits ε emits nothing")
 			}
 		}
 		e.Items = append(e.Items, it)
 	}
 	if whole > 0 && whole != len(e.Items) {
 		b.fail(first, "$ is used with items other than $")
-	}
-	if silentWhole && len(e.Items) != 1 {
-		b.fail(first, "$ <> stands alone")
 	}
 	return e
 }

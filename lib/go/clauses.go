@@ -369,8 +369,9 @@ func definitionProblem(r *domRule) string {
 				return msg
 			}
 		}
-		if left == 0 {
-			return fmt.Sprintf("%%emits of %s leaves an alternative nothing to emit", r.Name)
+		// Only a rule that lists items can leave nothing; ε lists none.
+		if left == 0 && len(items) > 0 {
+			return fmt.Sprintf("%%emits of %s leaves an alternative nothing to emit; a rule that emits nothing says %%emits ε", r.Name)
 		}
 	}
 	// An inserted tag's anchor, the capture listed next after it, is one
