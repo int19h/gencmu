@@ -14,7 +14,7 @@ from typing import Any
 
 from ._clauses import definition_problem
 
-FORMAT = 5
+FORMAT = 6
 """The version of the DOM's shape (docs/output.md)."""
 
 MAX_DEPTH = 256
@@ -153,6 +153,7 @@ def dom_problem(dom: Any) -> str | None:
             or not _items(rule.get("alternatives"), 1)
             or not isinstance(rule.get("conditions"), list)
             or not _is_position(rule.get("at"))
+            or ("verbatim" in rule and rule["verbatim"] is not True)
         ):
             return "a malformed rule"
         if "tags" in rule:
