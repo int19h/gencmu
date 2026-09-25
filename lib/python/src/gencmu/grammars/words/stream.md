@@ -686,10 +686,17 @@ A `su` with no boundary before it, or any `su` without `su-boundary`, or a `sa` 
   "onset" ∈ tags($n) ∨ phonemes($h) ≠ ""
 
 %rule wiped-reach
-  $s(stream) <tags($s)>
+  | $s(stream) <tags($s)>
+  | bu-word <"first-onset" ∪ "continued">
+  | bu-word $g(gap) $t(stream) <"first-onset" ∪ "continued" ∩ tags($t) ∪ classes($t)>
+%conditions
+  "first-onset" ∈ tags($t) ∨ phonemes($g) = ".",
+  "first-cy" ∉ tags($t) ∨ phonemes($g) = "."
 %emits
   ε
 ```
+
+A stretch that an unmatched `sa` or a `su` wipes can begin with a `bu` that has no word before it, because the proposal lets a bare `bu` stand in an erased stretch. So `bu sa broda` and `bu su broda` leave `broda`. Such a `bu` stands at the start of the text or after a wiped stretch, since anywhere else a word or a unit stands before it and the `bu` binds to it.
 
 ## Departures from CLL 19
 

@@ -630,3 +630,9 @@
 {"id":"adhoc.words.magic-rules.lohu-cycy-lehu.bpfk","text":"lo'u cycy le'u","dialect":"bpfk","expect":"accept","verdict":"unique","words":["lo'u","cy","cy","le'u"],"brackets":"(lo'u cy cy le'u)"}
 {"id":"adhoc.words.magic-rules.mido-klama-sa-ti","text":"mido klama sa ti","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","ti"],"brackets":"(mi ti)"}
 {"id":"adhoc.words.magic-rules.mido-klama-sa-ti.bpfk","text":"mido klama sa ti","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","ti"],"brackets":"(mi ti)"}
+{"id":"adhoc.words.magic-rules.bare-bu-erased-by-sa","text":"bu sa broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
+{"id":"adhoc.words.magic-rules.bare-bu-erased-by-sa.bpfk","text":"bu sa broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
+{"id":"adhoc.words.magic-rules.bare-bu-erased-by-su","text":"bu su broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
+{"id":"adhoc.words.magic-rules.bare-bu-erased-by-su.bpfk","text":"bu su broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
+{"id":"adhoc.words.magic-rules.bare-bu-after-su-erased-by-su","text":"mi su bu su broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
+{"id":"adhoc.words.magic-rules.bare-bu-after-su-erased-by-su.bpfk","text":"mi su bu su broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
