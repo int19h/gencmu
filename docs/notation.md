@@ -145,7 +145,16 @@ The terms of a condition have three types.
 
 **Sets of tags.** `tags(span)` is the tag set of the captured part. `tags(span, rule)` is the tag set the span has when parsed as `rule`, unioned over every parse, and empty when it does not parse; this is how a word looks itself up in a lexicon that is itself a set of rules. `classes(span)` keeps only the tags that begin with a capital. `"KOhA"` is the set with that one tag, so `"UI" ∪ "CAI"` is the set of both; `∅` is empty; `∪` and `∩` are union and intersection, `∩` binding tighter. `words(span)` is the set of the words of a span's phonemes, the strings between its pauses, so `phonemes($open) ∉ words($content)` says that the word `$open` does not occur in `$content`.
 
-The predicates are `=` and `≠` on two strings or two tag sets, `∈` and `∉` of a string in a tag set, `⊆` of one tag set in another, `$x` of a capture, and `matches(span, rule)`, true when the span parses as the named rule. `matches` and `tags(span, rule)` parse the captured span alone, as the named rule, with the same grammar, which is how CLL's slinku'i test, "a borrowing is not a consonant followed by a string of rafsi", is stated as `¬matches(tail($b), rafsi-string)`. A condition that asks, inside such a parse, about the very span being parsed as the same rule defines the rule by its own negation; that has no answer, and the parser reports it as an error of the grammar.
+The predicates are `=` and `≠` on two strings or two tag sets, `∈` and `∉` of a string in a tag set, `⊆` of one tag set in another, `$x` of a capture, `matches(span, rule)`, true when the span parses as the named rule, and `initial(span)`, true when the span begins where the parser's input begins. `matches` and `tags(span, rule)` parse the captured span alone, as the named rule, with the same grammar, which is how CLL's slinku'i test, "a borrowing is not a consonant followed by a string of rafsi", is stated as `¬matches(tail($b), rafsi-string)`. A condition that asks, inside such a parse, about the very span being parsed as the same rule defines the rule by its own negation; that has no answer, and the parser reports it as an error of the grammar.
+
+`initial` lets a rule begin only at the start of the input. The rule below matches nothing, and its condition holds only where the input begins, so an alternative that starts with `text-start` is read there and nowhere else. The parser checks the condition before it looks further, so such an alternative costs nothing at the other positions. In a nested parse, the input is the span being parsed, so `initial` holds at the span's start.
+
+```jbogenbau
+%rule text-start
+  ε
+%conditions
+  initial($)
+```
 
 ## Tags
 

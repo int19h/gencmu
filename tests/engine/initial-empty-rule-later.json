@@ -1,0 +1,24 @@
+{
+  "description": "A rule anchored by initial($) is not read after the start of the input (engine §4, §10).",
+  "grammar": "%rule text a | W a\n%rule a begin W\n%rule begin ε %conditions initial($)",
+  "tokens": [
+    {
+      "text": "w",
+      "tags": [
+        "W"
+      ]
+    },
+    {
+      "text": "w",
+      "tags": [
+        "W"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false
+    },
+    "error": "rejected"
+  }
+}
