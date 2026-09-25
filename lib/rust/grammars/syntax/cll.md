@@ -383,7 +383,7 @@ A time tense is any combination, in order, of a `zi` distance, offsets `pu`, `ca
 
 A free modifier may stand wherever the grammar writes `#`, which is after almost every word (CLL 19.12). The forms are: a `sei ... se'u` discursive bridi, `sei mi cusku`; a `soi ... se'u` reciprocity marker; a vocative phrase, `coi` or `doi` and their kin, followed by a selbri, by names, or by a sumti, and closed by `do'u`; an utterance ordinal `pa mai`; a parenthetical text `to ... toi`; and a subscript `xi` with a number, lerfu string or bracketed mekso. The `se'u`, `do'u`, `toi`, `boi` and `ve'o` here are elidable, but they are written without `#`, since the slot that follows a free modifier is the one it sits in.
 
-A vocative is a run of COI words, each with an optional `nai`, or `doi`, or both in that order. Indicators are the attitudinals and discursives, `UI` and `CAI` with an optional `nai`, the hesitation `y`, the cancel `da'o`, and `fu'o`, which closes a scope opened by `fu'e`. A run of indicators attaches to the word before it, as CLL's non-formal rule below says, which is why `indicators` appears only at the start of a text.
+A vocative is a run of COI words, each with an optional `nai`, or `doi`, or both in that order. Indicators are the attitudinals and discursives, `UI` and `CAI` with an optional `nai`, the hesitation `y`, the cancel `da'o`, and `fu'o`, which closes a scope opened by `fu'e`. The `Y` alternative never applies here: the word stage reads `.y.` as hesitation and drops it, as the Magic Words proposal treats it as whitespace, so no `Y` reaches this grammar. A run of indicators attaches to the word before it, as CLL's non-formal rule below says, which is why `indicators` appears only at the start of a text.
 
 ```jbogenbau
 %rule free
