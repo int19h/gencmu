@@ -6,7 +6,7 @@
 // grammars/notation/*.md and docs/engine.md §9, and must produce exactly
 // the DOM the self-hosted reader does; the fixpoint check compares them.
 
-import { extractGrammarText } from "../js/src/markdown.js";
+import { extractGrammarText } from "../lib/js/src/markdown.js";
 
 const SYMBOLS = ["...", "|", "&", "(", ")", "[", "]", "<", ">", "#", "ε", ",", "∧", "∨", "¬", "⟹", "?", "=", "≠",
   "∈", "∉", "⊆", "∪", "∩", "∅"];

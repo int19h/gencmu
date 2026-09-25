@@ -50,10 +50,11 @@ tests/
   notation/                small grammar documents with their expected DOMs and errors
   corpus/                  Lojban texts with expected verdicts and trees
   core.txt                 the ids of the corpus subset every language runs in CI
-js/                        npm package `gencmu`: library, CLI (`js/cli.js`) and type declarations
-python/                    Python package `gencmu`
-go/                        Go module `github.com/int19h/gencmu/go`, package `gencmu`
-rust/                      crate `gencmu`
+lib/                       the four libraries, each with its own copy of grammars/
+  js/                      npm package `gencmu`: library, CLI (`lib/js/cli.js`) and type declarations
+  python/                  Python package `gencmu`
+  go/                      Go module `github.com/int19h/gencmu/lib/go`, package `gencmu`
+  rust/                    crate `gencmu`
 dist/                      the browser bundle and the grammar bundle
 tools/sync.js              regenerates every generated file below
 .github/workflows/         CI
@@ -62,8 +63,8 @@ tools/sync.js              regenerates every generated file below
 **Generated files are checked in and verified.** `grammars/` is the single
 source. Each package needs its own copy, because every ecosystem's packaging
 refuses files outside the package directory and Go's `embed` also refuses
-symbolic links: `js/grammars/`, `python/src/gencmu/grammars/`,
-`go/grammars/`, `rust/grammars/`, and `dist/grammars.js` for the browser.
+symbolic links: `lib/js/grammars/`, `lib/python/src/gencmu/grammars/`,
+`lib/go/grammars/`, `lib/rust/grammars/`, and `dist/grammars.js` for the browser.
 `dist/gencmu.js`, the library as one classic script, is generated too, so
 that `index.html` works from a clone opened with a double click and from
 GitHub Pages without a build step. One Node script with no dependencies,
@@ -386,11 +387,11 @@ Parsing is synchronous everywhere; the browser runs it in a worker.
 `auto_features`, on by default, adds `sa-su` to the given features only
 where it is needed (see "Expensive constructs behind features").
 
-The distributable artifacts are exactly: the npm package `gencmu` (the `js/`
-directory); the Python distribution `gencmu` (`python/`, a pure-Python wheel);
-the Go module `github.com/int19h/gencmu/go` (import it as
-`gencmu "github.com/int19h/gencmu/go"`; a Go module in a subdirectory is
-tagged `go/vX.Y.Z`); the crate `gencmu` (`rust/`). Each contains its grammar
+The distributable artifacts are exactly: the npm package `gencmu` (the `lib/js/`
+directory); the Python distribution `gencmu` (`lib/python/`, a pure-Python wheel);
+the Go module `github.com/int19h/gencmu/lib/go` (import it as
+`gencmu "github.com/int19h/gencmu/lib/go"`; a Go module in a subdirectory is
+tagged `lib/go/vX.Y.Z`); the crate `gencmu` (`lib/rust/`). Each contains its grammar
 copy and nothing from outside its directory, which CI proves by building
 each from a clean checkout (`npm pack`, `python -m build`, `go build` from a
 module-mode checkout, `cargo package`).
@@ -413,7 +414,7 @@ These are the product, not an afterthought:
 
 ## CLI and playground
 
-The CLI is `node js/cli.js` (and `npx gencmu` once published): `parse` with
+The CLI is `node lib/js/cli.js` (and `npx gencmu` once published): `parse` with
 `--dialect`, `--feature`, `--until`, `--format brackets|tree|json|tokens`,
 `--trace`; `audit`; `test` to run a test file against a dialect. It needs
 Node and nothing else.
@@ -516,7 +517,7 @@ The JavaScript sources carry JSDoc type annotations, and TypeScript checks
 them in CI, with `strict` on; it is the package's one development
 dependency, with Node's type definitions for the Node entry point, and
 nothing runs it to build, test or use the library. The declarations it
-writes from the annotations, `js/types/`, are checked in, verified fresh in
+writes from the annotations, `lib/js/types/`, are checked in, verified fresh in
 CI like the other generated files, and published with the package, so a
 client in TypeScript or an editor gets the library's types without gencmu
 having a build step.

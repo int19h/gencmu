@@ -227,7 +227,7 @@ pub fn matches(pattern: &Value, actual: &Value, path: &str) -> Result<(), String
 }
 
 pub fn repository() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("..")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..")
 }
 
 pub fn case_files(directory: &str) -> Vec<PathBuf> {

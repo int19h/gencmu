@@ -32,10 +32,10 @@ type corpusCase struct {
 var corpusFields = []string{"expect", "verdict", "stage", "ties", "words", "brackets"}
 
 func readCorpus(t *testing.T) []*corpusCase {
-	files, _ := filepath.Glob("../tests/corpus/*.jsonl")
+	files, _ := filepath.Glob("../../tests/corpus/*.jsonl")
 	sort.Strings(files)
 	if len(files) == 0 {
-		t.Fatal("no corpus in ../tests/corpus")
+		t.Fatal("no corpus in ../../tests/corpus")
 	}
 	var cases []*corpusCase
 	for _, f := range files {
@@ -118,7 +118,7 @@ func TestCorpus(t *testing.T) {
 	cases := readCorpus(t)
 	full := os.Getenv("GENCMU_CORPUS") == "full"
 	if !full {
-		data, err := os.ReadFile("../tests/core.txt")
+		data, err := os.ReadFile("../../tests/core.txt")
 		if err != nil {
 			t.Fatal(err)
 		}

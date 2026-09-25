@@ -91,4 +91,4 @@ change that causes it.
 `core.txt` lists the ids of the sample every library runs on each pull
 request; the JavaScript and Rust libraries also run the whole corpus there,
 and the others run it nightly. In JavaScript, `GENCMU_CORPUS=full node
---test test/corpus.test.js` runs every case.
+--test test/corpus.test.js`, run in `lib/js/`, runs every case.

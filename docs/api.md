@@ -102,7 +102,7 @@ toJson(result); toBrackets(result, { showElided: true });
   stay available for tools that load several dialects over one set of
   documents.
 
-The types are in the package's declarations (`js/types/`).
+The types are in the package's declarations (`lib/js/types/`).
 
 ## Python
 
@@ -132,7 +132,7 @@ Python 3.10 and later; the package is pure Python with no dependencies.
 ## Go
 
 ```go
-import gencmu "github.com/int19h/gencmu/go"
+import gencmu "github.com/int19h/gencmu/lib/go"
 
 dialect, err := gencmu.LoadDialect("cll")
 result, err := dialect.Parse("mi klama", gencmu.ParseOptions{Features: []string{"cbm"}, Until: "words"})

@@ -1,12 +1,12 @@
 # gencmu for Go
 
-The Go library of [gencmu](../README.md), a Lojban parser whose grammars
+The Go library of [gencmu](../../README.md), a Lojban parser whose grammars
 are literate Markdown documents loaded at runtime. It implements
-[`docs/engine.md`](../docs/engine.md) from the specification alone, with the
+[`docs/engine.md`](../../docs/engine.md) from the specification alone, with the
 standard library only, and embeds the bundled grammars.
 
 ```go
-import gencmu "github.com/int19h/gencmu/go"
+import gencmu "github.com/int19h/gencmu/lib/go"
 
 dialect, err := gencmu.LoadDialect("cll")
 if err != nil {
@@ -63,12 +63,12 @@ go test ./...
 go test -race -run Concurrent ./...
 ```
 
-The tests read the shared cases in `../tests/`: every engine and notation
+The tests read the shared cases in `../../tests/`: every engine and notation
 case, the corpus, the bootstrap's fixpoint, and `compiled.json` against a
 fresh reading with the cache both used and bypassed. `TestCorpus` runs the
-core sample of the Lojban corpus (`../tests/core.txt`) on as many
+core sample of the Lojban corpus (`../../tests/core.txt`) on as many
 goroutines as there are CPUs, sharing one dialect each;
-`GENCMU_CORPUS=full` runs every case of `../tests/corpus/`, and
+`GENCMU_CORPUS=full` runs every case of `../../tests/corpus/`, and
 `GENCMU_CORPUS_WORKERS` sets the number of goroutines.
 `TestRankingProperty` checks the
 ranking against a brute-force enumeration of every derivation of small

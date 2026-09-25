@@ -21,9 +21,9 @@ func TestNotationCases(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
-	files, _ := filepath.Glob("../tests/notation/*.json")
+	files, _ := filepath.Glob("../../tests/notation/*.json")
 	if len(files) == 0 {
-		t.Fatal("no notation cases in ../tests/notation")
+		t.Fatal("no notation cases in ../../tests/notation")
 	}
 	for _, f := range files {
 		data, err := os.ReadFile(f)
@@ -85,7 +85,7 @@ func TestFixpoint(t *testing.T) {
 	n := 0
 	for _, s := range b.Stages {
 		for _, d := range s.Documents {
-			text, err := os.ReadFile(filepath.Join("..", "grammars", d.Path))
+			text, err := os.ReadFile(filepath.Join("..", "..", "grammars", d.Path))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -153,7 +153,7 @@ func TestCompiled(t *testing.T) {
 		}
 	}
 	for p, text := range bundled.sources {
-		disk, err := os.ReadFile(filepath.Join("..", "grammars", p))
+		disk, err := os.ReadFile(filepath.Join("..", "..", "grammars", p))
 		if err != nil || string(disk) != text {
 			t.Errorf("go/grammars/%s differs from grammars/%s; run node tools/sync.js", p, p)
 		}

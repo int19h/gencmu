@@ -39,10 +39,10 @@ jobs:
       - name: Generated files are up to date
         run: node tools/sync.js --check
       - name: Tests
-        working-directory: js
+        working-directory: lib/js
         run: node --test
       - name: The package holds everything it needs
-        working-directory: js
+        working-directory: lib/js
         run: npm pack --dry-run 2>&1 | tee pack.txt && grep -q "grammars/compiled.json" pack.txt && grep -q "src/index.js" pack.txt && grep -q "types/index.d.ts" pack.txt
 
   python:
@@ -58,18 +58,18 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: Tests
-        working-directory: python
+        working-directory: lib/python
         run: python -m unittest -v
       # The build backend is needed to build the wheel only; the package and
       # its tests use the standard library alone.
       - name: Build the wheel
-        working-directory: python
+        working-directory: lib/python
         run: |
           python -m venv "$RUNNER_TEMP/build"
           "$RUNNER_TEMP/build/bin/python" -m pip install build
           "$RUNNER_TEMP/build/bin/python" -m build --outdir "$RUNNER_TEMP/dist"
       - name: The wheel holds everything it needs
-        working-directory: python
+        working-directory: lib/python
         run: |
           python -m zipfile -l "$RUNNER_TEMP"/dist/*.whl | tee wheel.txt
           grep -q "gencmu/grammars/compiled.json" wheel.txt
@@ -87,7 +87,7 @@ jobs:
         with:
           node-version: 24
       - name: Every corpus case
-        working-directory: js
+        working-directory: lib/js
         env:
           GENCMU_CORPUS: full
           # Three workers: a book chapter takes about 1.5 GB, and the runner
@@ -106,13 +106,13 @@ jobs:
       # TypeScript is a development dependency only: the tests above run
       # without installing it.
       - name: Install the type checker
-        working-directory: js
+        working-directory: lib/js
         run: npm ci
       - name: The sources and a client of the package type-check
-        working-directory: js
+        working-directory: lib/js
         run: npm run check-types
       - name: The declarations are up to date
-        working-directory: js
+        working-directory: lib/js
         run: |
           npm run types
           git diff --exit-code -- types
@@ -128,7 +128,7 @@ jobs:
         rust: ["1.75", stable]
     defaults:
       run:
-        working-directory: rust
+        working-directory: lib/rust
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # v1
@@ -157,7 +157,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # The oldest release go/go.mod states, and the current one.
+        # The oldest release lib/go/go.mod states, and the current one.
         go: ["1.22", stable]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -166,23 +166,23 @@ jobs:
           go-version: ${{ matrix.go }}
           cache: false
       - name: Vet
-        working-directory: go
+        working-directory: lib/go
         run: go vet ./...
       - name: Tests
-        working-directory: go
+        working-directory: lib/go
         run: go test ./...
       - name: Concurrent parses under the race detector
-        working-directory: go
+        working-directory: lib/go
         run: go test -race -run Concurrent ./...
       - name: The module holds everything it needs
         run: |
-          # A copy of go/ alone, built in module mode, and a program that
+          # A copy of lib/go/ alone, built in module mode, and a program that
           # requires it and parses with the embedded grammars.
-          cp -r go "$RUNNER_TEMP/module"
+          cp -r lib/go "$RUNNER_TEMP/module"
           (cd "$RUNNER_TEMP/module" && GOFLAGS=-mod=mod go build ./... && go vet ./...)
           mkdir "$RUNNER_TEMP/consumer" && cd "$RUNNER_TEMP/consumer"
           go mod init example.com/consumer
-          go mod edit -require=github.com/int19h/gencmu/go@v0.0.0 -replace=github.com/int19h/gencmu/go="$RUNNER_TEMP/module"
+          go mod edit -require=github.com/int19h/gencmu/lib/go@v0.0.0 -replace=github.com/int19h/gencmu/lib/go="$RUNNER_TEMP/module"
           cat > main.go <<'PROGRAM'
           package main
 
@@ -190,7 +190,7 @@ jobs:
               "fmt"
               "log"
 
-              gencmu "github.com/int19h/gencmu/go"
+              gencmu "github.com/int19h/gencmu/lib/go"
           )
 
           func main() {

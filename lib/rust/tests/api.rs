@@ -426,11 +426,15 @@ fn a_corrupt_cache_is_a_miss_not_an_abort() {
 
 #[test]
 fn relative_paths_keep_their_leading_parents() {
-    // From the crate's directory, up two levels and down again into this
-    // checkout: the grammar links must resolve beside the pipeline.
+    // From the crate's directory, up out of the checkout and down again into
+    // it: the grammar links must resolve beside the pipeline.
     let crate_directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let checkout = crate_directory.parent().and_then(|parent| parent.file_name()).expect("a checkout directory");
-    let relative = std::path::Path::new("../..").join(checkout).join("rust/grammars/dialects/notation.md");
+    let checkout = crate_directory
+        .parent()
+        .and_then(|lib| lib.parent())
+        .and_then(|repository| repository.file_name())
+        .expect("a checkout directory");
+    let relative = std::path::Path::new("../../..").join(checkout).join("lib/rust/grammars/dialects/notation.md");
     std::env::set_current_dir(crate_directory).unwrap();
     let dialect =
         gencmu::load_dialect_file(&relative).unwrap_or_else(|error| panic!("{}: {error}", relative.display()));

@@ -182,9 +182,9 @@ func checkCase(c *engineCase, noCache bool) error {
 }
 
 func TestEngineCases(t *testing.T) {
-	files, _ := filepath.Glob("../tests/engine/*.json")
+	files, _ := filepath.Glob("../../tests/engine/*.json")
 	if len(files) == 0 {
-		t.Fatal("no engine cases in ../tests/engine")
+		t.Fatal("no engine cases in ../../tests/engine")
 	}
 	for _, f := range files {
 		c := loadCase(t, f)

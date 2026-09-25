@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readDocument } from "./bootstrap-reader.js";
-import { readPipeline, resolvePath } from "../js/src/markdown.js";
+import { readPipeline, resolvePath } from "../lib/js/src/markdown.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "grammars");
 const pipelinePath = "dialects/notation.md";

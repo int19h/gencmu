@@ -12,12 +12,12 @@ and you change the language the parser reads; nothing is compiled.
 From a clone, with Node 20 or later and nothing installed:
 
 ```sh
-node js/cli.js parse mi klama le zarci
-node js/cli.js parse --format tree lo mlatu cu citka lo finpe
-node js/cli.js parse --dialect experimental mi cu klama
-node js/cli.js parse --trace syntax:2 mi le le zarci
-node js/cli.js audit --dialect zantufa
-node js/cli.js help
+node lib/js/cli.js parse mi klama le zarci
+node lib/js/cli.js parse --format tree lo mlatu cu citka lo finpe
+node lib/js/cli.js parse --dialect experimental mi cu klama
+node lib/js/cli.js parse --trace syntax:2 mi le le zarci
+node lib/js/cli.js audit --dialect zantufa
+node lib/js/cli.js help
 ```
 
 Or open `index.html` in a browser, from the clone or from GitHub Pages: the
@@ -45,10 +45,10 @@ links the grammar documents of its stages.
 Four libraries implement one specification, each with no dependency beyond
 its language's standard library, and each passes the same shared tests:
 
-- JavaScript: [`js/`](js), the npm package `gencmu`, with the CLI;
-- Python: [`python/`](python), the package `gencmu`;
-- Go: [`go/`](go), the module `github.com/int19h/gencmu/go`;
-- Rust: [`rust/`](rust), the crate `gencmu`.
+- JavaScript: [`lib/js/`](lib/js), the npm package `gencmu`, with the CLI;
+- Python: [`lib/python/`](lib/python), the package `gencmu`;
+- Go: [`lib/go/`](lib/go), the module `github.com/int19h/gencmu/lib/go`;
+- Rust: [`lib/rust/`](lib/rust), the crate `gencmu`.
 
 ```js
 import { loadDialect, toBrackets } from "gencmu/node";

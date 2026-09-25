@@ -9,7 +9,7 @@ from typing import Any
 import gencmu
 from gencmu._model import Token
 
-REPOSITORY = Path(__file__).resolve().parents[2]
+REPOSITORY = Path(__file__).resolve().parents[3]
 SHARED = REPOSITORY / "tests"
 
 
