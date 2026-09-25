@@ -1,8 +1,8 @@
-# The experimental dialect <?features su-boundary?>
+# The experimental dialect <?features cbm term-hierarchy su-boundary?>
 
 The CLL dialect with the experimental constructs that have grown up in use since CLL was printed, such as `cu` before a bare selbri, connected sumti with `je`, and the experimental cmavo. The word stage reads the approved word forms of the definition effort ([`../words/bpfk.md`](../words/bpfk.md)), with the gaps that document lists. camxes-exp, the experimental PEG grammar, reads the same word forms, and it also allows the consonant pair `mz`, which [`../words/experimental.md`](../words/experimental.md) adds. A lexicon gives the experimental cmavo their selma'o. The feature `su-boundary` is on, so that `su` erases back to the last `ni'o`, `no'i`, `lu`, `tu'e` or `to`, as camxes-exp's does. The phoneme stage is the approved word forms' ([`bpfk.md`](bpfk.md)), and the indicator stage the cll-ebnf dialect's ([`cll-ebnf.md`](cll-ebnf.md)). The syntax is [`../syntax/experimental.md`](../syntax/experimental.md), which says what it adds to CLL's.
 
-Some constructs are behind features a caller may enable: `cbm`, the cmevla-brivla merger, and `term-hierarchy`.
+The dialect turns on two features, as camxes-exp always has them: `cbm`, the cmevla-brivla merger, and `term-hierarchy`. A caller can turn either off to read the CLL form.
 
 ## Stage 1: phonemes <?stage phonemes?>
 

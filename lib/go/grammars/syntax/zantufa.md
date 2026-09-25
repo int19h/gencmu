@@ -9,7 +9,7 @@ The Zantufa cmavo, `mu'ei` in ROI, `xe'u`, `no'oi` in NOhOI and the others, come
 Two more terminators are elidable here:
 
 ```jbogenbau
-%elidable GIhI LIhAU
+%elidable FIhAU GIhI LIhAU
 ```
 
 ## Statements
@@ -66,11 +66,29 @@ A forethought termset may take further `gi` branches and end in `gi'i` (`zantufa
   | NUhI # terms-not-starting-with-bare-gek [NUhU] #
   | KE # terms [KEhE] #
 
-%extend-rule term-3
-  NOIhA # selbri KU # | @zantufa-tags? JAI # [tag] sumti
+%redefine-rule term-3
+  | sumti
+  | tagged-term
+  | termset
+  | NA KU #
+  | NA #
+  | NOIhA # selbri [FEhU] #
+  | FIhOI # statement [FIhAU] #
+  | SOI # statement [SEhU] #
+  | NOIhA # selbri KU #
+  | @zantufa-tags? JAI # [tag] sumti
 
-%extend-rule term-3-not-starting-with-bare-gek
-  NOIhA # selbri KU # | @zantufa-tags? JAI # [tag] sumti
+%redefine-rule term-3-not-starting-with-bare-gek
+  | sumti
+  | tagged-term
+  | termset-with-nuhi
+  | NA KU #
+  | NA #
+  | NOIhA # selbri [FEhU] #
+  | FIhOI # statement [FIhAU] #
+  | SOI # statement [SEhU] #
+  | NOIhA # selbri KU #
+  | @zantufa-tags? JAI # [tag] sumti
 ```
 
 ## Sumti
@@ -83,8 +101,32 @@ A forethought sumti connection may take further `gi` branches and end in `gi'i` 
   | @¬zantufa-connectives? gek sumti gik sumti-4
   | @zantufa-connectives? gek sumti gik sumti-4 [(gik sumti-4) ...] [GIhI] #
 
-%extend-rule sumti-6
-  RAhOI anything #
+%redefine-rule sumti-6
+  | (LAhE # | NAhE BO #) [relative-clauses] sumti [LUhU] #
+  | NAhE # sumti [LUhU] #
+  | (LAhE # | NAhE BO #) (tag | FA #) sumti [LUhU] #
+  | KOhA #
+  | lerfu-string free-after-elided-boi
+  | @¬cbm? LA # [relative-clauses] CMEVLA ... #
+  | (LA | LE) # sumti-tail [KU] #
+  | (LA | LE) # jek (LA | LE) # sumti-tail [KU] #
+  | LOhOI # [(joik # | jek #) LOhOI #] ... statement [KUhAU] #
+  | LI # mex [LOhO] #
+  | ZO any-word #
+  | MAhOI any-word #
+  | LU text [LIhU] #
+  | LOhU [any-word ...] LEhU #
+  | ZOI any-word anything any-word #
+  | ZOhOI anything #
+  | LAhOI anything #
+  | MEhOI anything #
+  | RAhOI anything #
+
+%redefine-rule sumti-connective
+  ek # | jehi # | joik # | VUhU #
+
+%rule jehi
+  [NA] [SE] JEhI [NAI]
 ```
 
 ## Relative clauses
@@ -226,16 +268,40 @@ A tag may carry any sequence of two or more `na'e` and `se` prefixes before a si
   FA | PU | ZI | ZEhA | VA | FAhA | VEhA | VIhA | CAhA | ZAhO | CUhE | KI
 ```
 
-## Mekso
-
-A raw mekso, one written without `li` or `vei`, is a quantifier (`zantufa-mex`), and a bare mekso is a fragment. Infix mekso may chain several operators and omit a trailing operand (`pa su'i`); reverse Polish mekso takes trailing operator groups; `bo` and `ke ... ke'e` group operands; `ma'o selbri`, `ma'o sumti` and a joik or ek are operators; `na'e operand` and `mo'e selbri` are operands. Where a Zantufa form generalizes a CLL form over the same text, the feature replaces the older alternative.
+Zantufa does not have four connective forms of the experimental grammar, and these rules restate them without those forms. An ek cannot follow a text-leading `.i`. `gu` followed by a joik or jek is not a guhek. `gi` followed by a word of JOI, JA or A is not a gihek. And `gi` with a stag cannot join bridi-tails before `bo` or `ke`.
 
 ```jbogenbau
-%extend-rule quantifier
-  @zantufa-mex? zantufa-raw-mex
+%redefine-rule text-1
+  [(I [jek | joik] [[tag] BO] #) ...] [NIhO ... # [I # NIhO ... #]] [paragraphs]
 
-%extend-rule fragment
-  @¬zantufa-mex? zantufa-raw-mex
+%redefine-rule guhek
+  [SE] GUhA [NAI] #
+
+%redefine-rule gihek
+  [NA] [SE] GIhA [NAI]
+
+%redefine-rule bridi-tail
+  bridi-tail-1 [gihek [stag] KE # bridi-tail [KEhE] # tail-terms]
+
+%redefine-rule bridi-tail-2
+  bridi-tail-3 [bridi-tail-connective [stag] BO # [CU #] bridi-tail-2 tail-terms]
+
+%redefine-rule bridi-tail-2-not-starting-with-ke
+  bridi-tail-3-not-starting-with-ke [bridi-tail-connective [stag] BO # [CU #] bridi-tail-2 tail-terms]
+```
+
+## Mekso
+
+Under `zantufa-mex`, a raw mekso, one written without `li` or `vei`, is a quantifier as Zantufa reads it. Without the feature, the quantifier is the experimental grammar's mekso. In both cases, a bare mekso is a fragment. Infix mekso may chain several operators and omit a trailing operand (`pa su'i`); reverse Polish mekso takes trailing operator groups; `bo` and `ke ... ke'e` group operands; `ma'o selbri` and `ma'o sumti` are operators; `na'e operand` and `mo'e selbri` are operands. A `jo'i` vector is an operand, as in the CLL grammar, although camxes-exp does not have it. Where a Zantufa form generalizes a CLL form over the same text, the feature replaces the older alternative.
+
+```jbogenbau
+%redefine-rule quantifier
+  | @¬zantufa-mex? $m(mex)
+  | @zantufa-mex? number free-after-elided-boi
+  | @zantufa-mex? VEI # mex [VEhO] #
+  | @zantufa-mex? zantufa-raw-mex
+%conditions
+  ¬matches(head($m), quantifier-barrier)
 
 %redefine-rule mex
   | @¬zantufa-mex? mex-1 [operator mex-1] ...
@@ -244,10 +310,12 @@ A raw mekso, one written without `li` or `vei`, is a quantifier (`zantufa-mex`),
   | @zantufa-mex? FUhA # mex-2 ... operator [(mex-2 ... operator) | (operator)] ... [KUhE] #
 
 %extend-rule mex-2
-  @zantufa-mex? operand (BO # operand) ... | @zantufa-mex? KE # operand ... [KEhE] #
+  | JOhI # mex-2 ... [TEhU] #
+  | @zantufa-mex? operand (BO # operand) ...
+  | @zantufa-mex? KE # operand ... [KEhE] #
 
 %extend-rule mex-operator
-  @zantufa-mex? MAhO # selbri [TEhU] # | @zantufa-mex? MAhO # sumti [TEhU] # | @zantufa-mex? joik-ek
+  @zantufa-mex? MAhO # selbri [TEhU] # | @zantufa-mex? MAhO # sumti [TEhU] #
 
 %redefine-rule operand-1
   @¬zantufa-mex? operand-2 [joik-ek operand-2 | jek # operand-2] ... | @zantufa-mex? operand-2
@@ -256,8 +324,6 @@ A raw mekso, one written without `li` or `vei`, is a quantifier (`zantufa-mex`),
   | number free-after-elided-boi
   | VEI # mex [VEhO] #
   | lerfu-string free-after-elided-boi
-  | NIhE # selbri [TEhU] #
-  | MOhE # sumti [TEhU] #
   | JOhI # mex-2 ... [TEhU] #
   | gek operand gik operand-3
   | (LAhE # | NAhE BO #) operand [LUhU] #
@@ -286,8 +352,6 @@ A raw mekso quantifier may not be a plain number, and may not begin with a lerfu
   | @zantufa-mex? zantufa-raw-operand-0 (BO # operand) ...
 
 %rule zantufa-raw-operand
-  | NIhE # selbri [TEhU] #
-  | MOhE # sumti [TEhU] #
   | MOhE # selbri [TEhU] #
   | JOhI # mex-2 ... [TEhU] #
   | gek zantufa-raw-operand-0 gik operand-3
@@ -321,8 +385,6 @@ A raw mekso quantifier may not be a plain number, and may not begin with a lerfu
 %rule zantufa-raw-operand-3
   | number free-after-elided-boi
   | VEI # mex [VEhO] #
-  | NIhE # selbri [TEhU] #
-  | MOhE # sumti [TEhU] #
   | JOhI # mex-2 ... [TEhU] #
   | gek zantufa-raw-operand-0 gik operand-3
   | @zantufa-mex? MOhE # selbri [TEhU] #
