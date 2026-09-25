@@ -187,22 +187,22 @@ jobs:
           package main
 
           import (
-          	"fmt"
-          	"log"
+              "fmt"
+              "log"
 
-          	gencmu "github.com/int19h/gencmu/go"
+              gencmu "github.com/int19h/gencmu/go"
           )
 
           func main() {
-          	dialect, err := gencmu.LoadDialect("notation")
-          	if err != nil {
-          		log.Fatal(err)
-          	}
-          	result, err := dialect.Parse("%rule text A [B] ...", gencmu.ParseOptions{})
-          	if err != nil || !result.OK {
-          		log.Fatalf("%v %v", err, result.Error)
-          	}
-          	fmt.Println(gencmu.Brackets(result, gencmu.BracketOptions{}))
+              dialect, err := gencmu.LoadDialect("notation")
+              if err != nil {
+                  log.Fatal(err)
+              }
+              result, err := dialect.Parse("%rule text A [B] ...", gencmu.ParseOptions{})
+              if err != nil || !result.OK {
+                  log.Fatalf("%v %v", err, result.Error)
+              }
+              fmt.Println(gencmu.Brackets(result, gencmu.BracketOptions{}))
           }
           PROGRAM
           GOFLAGS=-mod=mod go run .
