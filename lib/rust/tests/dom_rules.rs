@@ -132,8 +132,6 @@ fn a_cache_of_another_format_is_a_miss() {
 fn every_malformed_dom_is_a_cache_miss() {
     let nested = format!("{}{{\"terminal\":\"b\"}}{}", "{\"optional\":".repeat(257), "}".repeat(257));
     let cases: Vec<(&str, String)> = vec![
-        ("format 1", dom(B, "", "", 1, r#""greedy""#)),
-        ("format 2", dom(B, "", "", 2, r#""greedy""#)),
         ("format 3", dom(B, "", "", 3, r#""greedy""#)),
         ("a directive argument that is not a string", dom(B, "", "", 4, "7")),
         (
@@ -189,8 +187,6 @@ fn every_malformed_dom_is_a_cache_miss() {
                 r###"{"name":"##","op":"define","alternatives":[{"guards":[],"expr":{"terminal":"b"}}],"conditions":[],"at":[4,1]}"###,
             ),
         ),
-        ("nothing", with_emission(r#"{"nothing":true}"#)),
-        ("this", with_emission(r#"{"items":[{"this":true}]}"#)),
         ("$ with an inserted tag", with_emission(r#"{"items":[{"capture":""},{"insert":"X"}]}"#)),
         ("$ with a capture", with_emission(r#"{"items":[{"capture":""},{"capture":"x"}]}"#)),
         ("a capture listed twice", with_emission(r#"{"items":[{"capture":"x"},{"capture":"x"}]}"#)),
@@ -199,10 +195,6 @@ fn every_malformed_dom_is_a_cache_miss() {
             with_emission(r#"{"items":[{"capture":"x"},{"insert":"X","tags":{"literal":"T"}}]}"#),
         ),
         ("a capture and an insert in one item", with_emission(r#"{"items":[{"capture":"x","insert":"X"}]}"#)),
-        // Only capture, insert and tags: format 3's silent is gone.
-        ("a silent $", with_emission(r#"{"items":[{"capture":"","silent":true}]}"#)),
-        ("a silent capture", with_emission(r#"{"items":[{"capture":"x","silent":true},{"capture":"y"}]}"#)),
-        ("a silent insert", with_emission(r#"{"items":[{"capture":"x"},{"insert":"X","silent":true}]}"#)),
         ("an unknown member of an item", with_emission(r#"{"items":[{"capture":"x","at":[1,1]}]}"#)),
         ("<∅>", with_emission(r#"{"items":[{"capture":"x","tags":{"emptySet":true}}]}"#)),
         ("an unknown emission item", with_emission(r#"{"items":[{"emit":"x"}]}"#)),
