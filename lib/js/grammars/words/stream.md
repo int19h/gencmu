@@ -224,7 +224,7 @@ CLL 19.10 to 19.13. A quote is decided at this stage because the words inside it
   y-run [PAUSE] bu-word
 ```
 
-`zo'oi` and its relatives quote the next run of characters up to a pause. `zoi`, `la'o` and `mu'oi` quote a body between two delimiter words: the two delimiters must be the same word, and that word may not occur as a word of the body, so the quote ends at its first occurrence. The delimiter may occur inside a word of the body, and the two delimiters are compared exactly, stress included, which is the sixth of the departures from CLL 19. That is the condition the captures state, and it is checked as the parse advances, so a candidate close that is not the opener never opens a continuation of the text. A quote whose delimiters stand side by side quotes nothing, and hands the syntax an empty stretch of foreign text so that its shape is the same as any other's; a letter word such as `ibu` is one word and may serve as a delimiter.
+`zo'oi` and its relatives quote the next run of characters up to a pause. `zoi`, `la'o` and `mu'oi` quote a body between two delimiter words: the two delimiters must be the same word, and that word may not occur as a word of the body, so the quote ends at its first occurrence. The delimiter may occur inside a word of the body, and the two delimiters are compared exactly, stress included, which is the sixth of the departures from CLL 19. That is the condition the captures state, and it is checked as the parse advances, so a candidate close that is not the opener never opens a continuation of the text. A quote whose delimiters stand side by side quotes nothing, and hands the syntax an empty stretch of foreign text so that its shape is the same as any other's; a letter word such as `ibu` is one word and may serve as a delimiter. The body of a `zoi` quote and the run that `zo'oi` quotes are `%verbatim`. So the syntax receives a token that sounds like the text as written, with its punctuation. It does not sound like the phonemes that the phoneme stage read in the text. The delimiters are still compared by their phonemes, and so is each word of the body.
 
 ```jbogenbau
 %rule single-word-quote
@@ -389,9 +389,11 @@ The gap between a marker and its word is an optional pause, with hesitation allo
 
 %rule zoi-body
   any-char | zoi-body any-char
+%verbatim
 
 %rule non-pause-run
   non-pause-char | non-pause-char non-pause-run
+%verbatim
 
 %rule any-char
   non-pause-char | PAUSE

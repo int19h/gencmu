@@ -545,3 +545,13 @@ adhoc.words.bpfk-forms.vowel-before-glide-begins-lujvo
 adhoc.words.bpfk-forms.vowel-before-glide-begins-lujvo.bpfk
 adhoc.words.bpfk-forms.glide-after-consonant-before-glide
 adhoc.words.bpfk-forms.glide-after-consonant-before-glide.bpfk
+adhoc.words.verbatim.zoi-body-keeps-punctuation
+adhoc.words.verbatim.foreign-run-sounds-like-its-text
+adhoc.words.verbatim.zoi-body-as-written
+adhoc.words.verbatim.zoi-body-keeps-periods
+adhoc.words.verbatim.stray-mark-makes-run-foreign
+adhoc.words.verbatim.decimal-point-between-digits
+adhoc.words.verbatim.punctuation-at-pause-edge
+adhoc.words.verbatim.punctuation-between-spaces-in-a-quote
+adhoc.words.verbatim.punctuation-between-spaces
+adhoc.words.verbatim.punctuation-at-text-end
