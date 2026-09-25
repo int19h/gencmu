@@ -1,14 +1,13 @@
-# The CLL dialect, by its printed grammar
+# The CLL dialect, by its printed grammar <?features cll-cyrillic?>
 
 Lojban as *The Complete Lojban Language* describes it: the grammar printed in its chapter 21, the word forms of its chapter 4, and the selma'o its dictionary gives each cmavo. The printed grammar is normative here, with the repairs [the CLL grammar](../syntax/cll.md) lists: any parse it admits counts, and a text is accepted when it has one reading. Each stage is a grammar over the tokens the stage before it emitted; `docs/notation.md` explains the notation.
 
 ## Stage 1: phonemes <?stage phonemes?>
 
-- [Latin orthography](../phonemes/latin.md): the letters, stress, the apostrophe, digits and pauses, and the frame every script's letters join <?grammar?>
-- [Cyrillic orthography](../phonemes/cyrillic.md) <?grammar?>
-- [zbalermorna](../phonemes/zbalermorna.md) <?grammar?>
+- [The Latin orthography of CLL](../phonemes/latin-strict.md): the letters, stress, apostrophe, comma and pauses of CLL chapter 3, and the frame of the stage <?grammar?>
+- [The Cyrillic orthography of CLL](../phonemes/cyrillic-cll.md): the Cyrillic letters of CLL 3.12, which the feature `cll-cyrillic` turns on <?grammar?>
 
-The stage receives the text's characters and hands on one token per phoneme, whatever the script, and a `PAUSE` wherever the text pauses. A run of letters is one stretch until a pause says otherwise, so the stage is greedy.
+The stage receives the text's characters and hands on one token per phoneme, whatever the script, and a `PAUSE` wherever the text pauses. It reads the orthography of CLL chapter 3 and no more. A digit, an accent or a question mark is foreign to it, so a text with one outside a quote is rejected. The feature `cll-cyrillic`, which the dialect turns on, reads the Cyrillic of CLL 3.12. gencmu's own Cyrillic is not CLL's, so this dialect does not offer it: with the feature off, it reads no Cyrillic. A run of letters is one stretch until a pause says otherwise, so the stage is greedy.
 
 ## Stage 2: words <?stage words?>
 
