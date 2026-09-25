@@ -12,7 +12,7 @@ from ._grammar import Lowered, Production
 from ._markdown import line_column
 from ._model import Action, Expected, Node, ParseError, Range, Tags, Token
 from ._rank import Act, Ranker, Rope, actions, count_roots
-from ._tags import phoneme_of
+from ._tags import PAUSE, phoneme_of
 from ._unicode import UnicodeTable
 
 
@@ -157,40 +157,38 @@ def elided_nodes(tree: Node) -> list[Node]:
     return found
 
 
-def silent_children(production: Production) -> tuple[bool, frozenset[int]]:
-    """What a production's emission makes silent (engine §11): the whole
-    constituent, for ``%emits $ <>``, or the positions of the captures it
-    names with ``<>``."""
-    emit = production.emit
-    if emit is None:
-        return False, frozenset()
-    whole = any(item[0] == "whole" and item[2] for item in emit)
-    return whole, frozenset(item[1] for item in emit if item[0] == "capture" and item[3])
+def emits_nothing(production: Production) -> bool:
+    """Whether a production's emission is ``ε``, which makes its constituent
+    not count (engine §11). An emission that lists items keeps at least one
+    for every production (engine §9), so only ``ε`` lowers to none."""
+    return production.emit is not None and not production.emit
 
 
-def silent_tokens(root: DNode, size: int) -> list[bool]:
-    """Which input tokens lie inside a silent constituent or a silent
-    captured part."""
-    silent = [False] * size
-    stack: list[tuple[DChild, bool]] = [(root, False)]
+def uncounted_tokens(root: DNode, size: int) -> list[bool]:
+    """Which input tokens lie inside a constituent that does not count."""
+    uncounted = [False] * size
+    stack: list[DChild] = [root]
     while stack:
-        node, inside = stack.pop()
+        node = stack.pop()
         if isinstance(node, DRead):
-            if inside:
-                silent[node.token] = True
             continue
-        whole, parts = silent_children(node.production)
-        if inside or whole:
+        if emits_nothing(node.production):
             for index in range(node.start, node.end):
-                silent[index] = True
+                uncounted[index] = True
             continue
-        stack.extend((child, position in parts) for position, child in enumerate(node.children))
-    return silent
+        stack.extend(node.children)
+    return uncounted
+
+
+def joined_phonemes(parts: list[str]) -> str:
+    """Phonemes joined in order, each run of pauses made one and a pause at
+    either end removed (engine §5)."""
+    return PAUSE.join(part for part in "".join(parts).split(PAUSE) if part)
 
 
 def constituent_phonemes(tokens: list[Token], node: DNode) -> str:
     """A constituent's phonemes (engine §5): its tokens' phonemes, leaving
-    out every token inside it that is silent."""
+    out every token inside a constituent below it that does not count."""
     parts: list[str] = []
     stack: list[DChild] = [node]
     while stack:
@@ -198,15 +196,14 @@ def constituent_phonemes(tokens: list[Token], node: DNode) -> str:
         if isinstance(current, DRead):
             parts.append(tokens[current.token].phonemes or "")
             continue
-        whole, silent = silent_children(current.production)
-        if current is not node and whole:
+        if current is not node and emits_nothing(current.production):
             continue
-        stack.extend(child for position, child in reversed(list(enumerate(current.children))) if position not in silent)
-    return "".join(parts).strip(" ")
+        stack.extend(reversed(current.children))
+    return joined_phonemes(parts)
 
 
-def span_phonemes(tokens: list[Token], silent: list[bool], start: int, end: int) -> str:
-    return "".join(tokens[index].phonemes or "" for index in range(start, end) if not silent[index]).strip(" ")
+def span_phonemes(tokens: list[Token], uncounted: list[bool], start: int, end: int) -> str:
+    return joined_phonemes([tokens[index].phonemes or "" for index in range(start, end) if not uncounted[index]])
 
 
 class Emitter:
@@ -219,14 +216,14 @@ class Emitter:
         self.tree = tree
         self.root = root
         self.evaluator = Evaluator(context, 0)
-        self.silent = silent_tokens(root, len(self.tokens))
+        self.uncounted = uncounted_tokens(root, len(self.tokens))
         self.output: list[Token] = []
 
     def token(self, start: int, end: int, tags: Tags, source: Range, inserted_by: str | None) -> Token:
         strong = [phoneme for phoneme in (phoneme_of(tag) for tag, st in tags.items() if st) if phoneme is not None]
         if len(strong) > 1:
             raise _GrammarFault(f"an emitted token has two strong phoneme tags: {', '.join(sorted(t for t, s in tags.items() if s and phoneme_of(t) is not None))}", (start, end))
-        phonemes = strong[0] if strong else span_phonemes(self.tokens, self.silent, start, end)
+        phonemes = strong[0] if strong else span_phonemes(self.tokens, self.uncounted, start, end)
         text = self.context.text[source[0] : source[1]]
         return Token(text, dict(tags), (start, end), source, phonemes, inserted_by)
 
@@ -255,21 +252,19 @@ class Emitter:
     def emit_item(self, node: DNode, item: tuple[Any, ...]) -> None:
         tagtab = self.context.tagtab
         if item[0] == "whole":
-            _, term, silent = item
-            if not silent:
-                tags = self.item_tags(node, term) if term is not None else tagtab.get(node.tag)
-                self.output.append(self.token(node.start, node.end, tags, self.tree.source_of(node), None))
+            _, term = item
+            tags = self.item_tags(node, term) if term is not None else tagtab.get(node.tag)
+            self.output.append(self.token(node.start, node.end, tags, self.tree.source_of(node), None))
         elif item[0] == "capture":
-            _, position, term, silent = item
-            if not silent:
-                part = node.children[position]
-                if term is not None:
-                    tags = self.item_tags(node, term)
-                elif isinstance(part, DRead):
-                    tags = self.tokens[part.token].tags
-                else:
-                    tags = tagtab.get(part.tag)
-                self.output.append(self.token(part.start, part.end, tags, self.part_source(part), None))
+            _, position, term = item
+            part = node.children[position]
+            if term is not None:
+                tags = self.item_tags(node, term)
+            elif isinstance(part, DRead):
+                tags = self.tokens[part.token].tags
+            else:
+                tags = tagtab.get(part.tag)
+            self.output.append(self.token(part.start, part.end, tags, self.part_source(part), None))
         else:
             # An inserted tag stands, with an empty span, at the start of the
             # part of the capture listed next after it, or at the end of the
@@ -292,7 +287,7 @@ class Emitter:
         bound = self.evaluator.bind(node.production, self.context_caps(node), (node.start, node.end, node.tag))
         tags = self.evaluator.tags(term, bound)
         if not tags:
-            raise _GrammarFault(f"{node.production.rule_name} emits a token with no tags; <> is how a grammar makes one silent", (node.start, node.end))
+            raise _GrammarFault(f"{node.production.rule_name} emits a token with no tags; a rule that emits nothing says %emits ε", (node.start, node.end))
         return tags
 
 
@@ -307,7 +302,7 @@ class StageOutcome:
     witness: tuple[Action, Action] | None = None
     tied: Node | None = None
     error: ParseError | None = None
-    silent: list[bool] | None = None
+    uncounted: list[bool] | None = None
     chosen_actions: list[Act] | None = None
     tied_actions: list[Act] | None = None
 
@@ -393,7 +388,7 @@ class StageRunner:
             outcome.tied = Tree(derivation(forest, ranking.tied), self.tokens, context.tagtab).root
             outcome.tied_actions = list(actions(ranking.tied))
         emitter = Emitter(context, forest, tree, root)
-        outcome.silent = emitter.silent
+        outcome.uncounted = emitter.uncounted
         if self.emit:
             outcome.output = emitter.emit()
         if elision_only and ranking.verdict != "unique":

@@ -18,15 +18,15 @@ def intersection(left: Tags, right: Tags) -> Tags:
     return {tag: strong for tag, strong in left.items() if tag in right}
 
 
-PAUSE = "/./"
-"""The pause's phoneme tag, whose phonemes are a space (engine §5)."""
+PAUSE = "."
+"""The pause, the phonemes of the tag ``/./`` (engine §5)."""
 
 
 def phoneme_of(tag: str) -> str | None:
-    """The phonemes of a phoneme tag ``/p/``, a space for the pause, or
+    """The phonemes of a phoneme tag ``/p/``, ``.`` for the pause, or
     ``None`` for another tag."""
     if len(tag) == 3 and tag[0] == "/" and tag[2] == "/":
-        return " " if tag == PAUSE else tag[1]
+        return tag[1]
     return None
 
 

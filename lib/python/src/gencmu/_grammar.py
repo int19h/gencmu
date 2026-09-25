@@ -426,10 +426,10 @@ class _Lowerer:
     def lower_emit(self, emit: Dom | None, captures: dict[str, int]) -> list[tuple[Any, ...]] | None:
         """A production's emission, the items it emits in list order, less
         those that name a capture the production lacks (engine §3.6, §11):
-        ``("whole", term or None, silent)`` for ``$``, ``("capture",
-        position, term or None, silent)``, and ``("insert", tag, anchor)``,
-        the anchor being the position of the capture listed next after it,
-        or ``None`` for the constituent's end."""
+        ``("whole", term or None)`` for ``$``, ``("capture", position, term
+        or None)``, and ``("insert", tag, anchor)``, the anchor being the
+        position of the capture listed next after it, or ``None`` for the
+        constituent's end. ``%emits ε`` is the empty list."""
         if emit is None:
             return None
         present = captures.keys() | {WHOLE}
@@ -444,9 +444,9 @@ class _Lowerer:
                 anchor = next((captures[other["capture"]] for other in items[index + 1 :] if "capture" in other), None)
                 lowered.append(("insert", item["insert"], anchor))
             elif item["capture"] == WHOLE:
-                lowered.append(("whole", own(item.get("tags")), bool(item.get("silent"))))
+                lowered.append(("whole", own(item.get("tags"))))
             else:
-                lowered.append(("capture", captures[item["capture"]], own(item.get("tags")), bool(item.get("silent"))))
+                lowered.append(("capture", captures[item["capture"]], own(item.get("tags"))))
         return lowered
 
     def check_captures(self, expr: Dom) -> None:

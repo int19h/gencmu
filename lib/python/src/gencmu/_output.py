@@ -6,6 +6,7 @@ import json
 from typing import Any
 
 from ._model import Action, Node, ParseError, ParseResult, Stage, Token
+from ._tags import PAUSE
 
 FORMAT = 1
 
@@ -170,8 +171,9 @@ def to_brackets(result: ParseResult, *, show_elided: bool = False) -> str:
         if node.kind == "token":
             token = tokens[node.token] if node.token is not None and node.token < len(tokens) else None
             # A token is a member even when its label is empty, as an empty
-            # quotation's text is; only empty rule nodes are dropped.
-            rendered[id(node)] = (token.phonemes or token.text) if token is not None else ""
+            # quotation's text is; only empty rule nodes are dropped. A pause
+            # is written as a space.
+            rendered[id(node)] = (token.phonemes.replace(PAUSE, " ") if token.phonemes else token.text) if token is not None else ""
         elif node.kind == "elided":
             rendered[id(node)] = f"⟨{(node.terminal or '').lower()}⟩" if show_elided else None
         elif not done:

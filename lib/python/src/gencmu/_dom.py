@@ -16,7 +16,7 @@ Dom = dict[str, Any]
 _MAPPED = frozenset(
     """directive rule alternative alternative-tags choice conjunction sequence element reference string
     phoneme capture group optional empty tags-clause conditions-clause emits-clause emit-item emit-tags
-    silent implication any-of all-of comparison negation presence call term guarded-term union
+    implication any-of all-of comparison negation presence call term guarded-term union
     intersection weak empty-set capture-reference""".split()
 )
 _DEFINERS = {"%rule": "define", "%redefine-rule": "redefine", "%extend-rule": "extend"}
@@ -248,15 +248,15 @@ class DomBuilder:
     # -- emission
 
     def emission(self, node: Node) -> Dom:
-        """An ``%emits`` clause: its items, each a capture with its own tags,
-        a term, or silent, or an inserted tag (engine §9)."""
+        """An ``%emits`` clause: its items, each a capture, with a term for
+        its own tags if it has one, or an inserted tag; no items for ``ε``
+        (engine §9)."""
         items: list[Dom] = []
         for item in self.rules(node, "emit-item"):
             kids = self.kids(item)
             target = kids[0]
             tag_nodes = [kid for kid in kids[1:] if kid.kind == "rule" and kid.rule == "emit-tags"]
-            silent = bool(tag_nodes) and bool(self.rules(tag_nodes[0], "silent"))
-            tags = self.value(self.rules(tag_nodes[0], "term")[0]) if tag_nodes and not silent else None
+            tags = self.value(self.rules(tag_nodes[0], "term")[0]) if tag_nodes else None
             text = self.text(target)
             tags_of_target = self.tokens[target.token].tags if target.token is not None else {}
             if "capture" in tags_of_target:
@@ -264,23 +264,19 @@ class DomBuilder:
                 if name and any(item.get("capture") == name for item in items):
                     raise self.fail(node, f"%emits lists ${name} twice")
                 if tags is not None and tags.get("emptySet") is True:
-                    raise self.fail(target, "an emitted token's tags cannot be ∅, which no terminal reads; <> makes it silent")
+                    raise self.fail(target, "an emitted token's tags cannot be ∅, which no terminal reads; a rule that emits nothing says %emits ε")
                 entry: Dom = {"capture": name}
-                if silent:
-                    entry["silent"] = True
-                elif tags is not None:
+                if tags is not None:
                     entry["tags"] = tags
                 items.append(entry)
             else:
                 if tag_nodes:
-                    raise self.fail(target, "an inserted tag takes no tags of its own, nor <>")
+                    raise self.fail(target, "an inserted tag takes no tags of its own")
                 value = self.decode(target) if "string" in tags_of_target else text
                 items.append({"insert": value})
         whole = [item for item in items if item.get("capture") == ""]
         if whole and len(whole) != len(items):
             raise self.fail(node, "$ is used with items other than $")
-        if any(item.get("silent") for item in whole) and len(items) > 1:
-            raise self.fail(node, "$ <> makes the whole constituent silent and stands alone")
         return {"items": items}
 
     # -- conditions
