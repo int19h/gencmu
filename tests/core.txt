@@ -457,3 +457,5 @@ adhoc.words.magic-rules.mido-klama-sa-ti
 adhoc.words.magic-rules.bare-bu-erased-by-sa
 adhoc.words.magic-rules.bare-bu-erased-by-su
 adhoc.words.magic-rules.bare-bu-after-su-erased-by-su
+adhoc.words.magic-rules.bare-bu-after-si-erased-by-sa
+adhoc.words.magic-rules.bare-bu-after-si-erased-by-su

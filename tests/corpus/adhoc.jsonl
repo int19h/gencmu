@@ -636,3 +636,7 @@
 {"id":"adhoc.words.magic-rules.bare-bu-erased-by-su.bpfk","text":"bu su broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
 {"id":"adhoc.words.magic-rules.bare-bu-after-su-erased-by-su","text":"mi su bu su broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
 {"id":"adhoc.words.magic-rules.bare-bu-after-su-erased-by-su.bpfk","text":"mi su bu su broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
+{"id":"adhoc.words.magic-rules.bare-bu-after-si-erased-by-sa","text":"mi si bu sa broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
+{"id":"adhoc.words.magic-rules.bare-bu-after-si-erased-by-sa.bpfk","text":"mi si bu sa broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
+{"id":"adhoc.words.magic-rules.bare-bu-after-si-erased-by-su","text":"mi si bu su broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
+{"id":"adhoc.words.magic-rules.bare-bu-after-si-erased-by-su.bpfk","text":"mi si bu su broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}

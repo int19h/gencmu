@@ -689,14 +689,19 @@ A `su` with no boundary before it, or any `su` without `su-boundary`, or a `sa` 
   | $s(stream) <tags($s)>
   | bu-word <"first-onset" ∪ "continued">
   | bu-word $g(gap) $t(stream) <"first-onset" ∪ "continued" ∩ tags($t) ∪ classes($t)>
+  | $l(erasures) gap bu-word <("onset" ∈ tags($l) ⟹ "first-onset") ∪ "continued">
+  | $m(erasures) gap bu-word $h(gap) $u(stream)
+      <("onset" ∈ tags($m) ⟹ "first-onset") ∪ "continued" ∩ tags($u) ∪ classes($u)>
 %conditions
   "first-onset" ∈ tags($t) ∨ phonemes($g) = ".",
-  "first-cy" ∉ tags($t) ∨ phonemes($g) = "."
+  "first-cy" ∉ tags($t) ∨ phonemes($g) = ".",
+  "first-onset" ∈ tags($u) ∨ phonemes($h) = ".",
+  "first-cy" ∉ tags($u) ∨ phonemes($h) = "."
 %emits
   ε
 ```
 
-A stretch that an unmatched `sa` or a `su` wipes can begin with a `bu` that has no word before it, because the proposal lets a bare `bu` stand in an erased stretch. So `bu sa broda` and `bu su broda` leave `broda`. Such a `bu` stands at the start of the text or after a wiped stretch, since anywhere else a word or a unit stands before it and the `bu` binds to it.
+A stretch that an unmatched `sa` or a `su` wipes can contain a `bu` that has no word before it, because the proposal lets a bare `bu` stand in an erased stretch. So `bu sa broda`, `bu su broda` and `mi si bu sa broda` leave `broda`. Such a `bu` stands at the start of the text, after erasures that leave nothing before it, or after a wiped stretch. Anywhere else, a word or a unit stands before it, and the `bu` binds to that.
 
 ## Departures from CLL 19
 
