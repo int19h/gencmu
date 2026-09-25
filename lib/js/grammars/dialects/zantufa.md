@@ -16,7 +16,7 @@ The experimental dialect ([`experimental.md`](experimental.md)) with the constru
 - [Word shapes](../words/shapes.md) <?grammar?>
 - [Approved word forms](../words/bpfk.md) <?grammar?>
 - [Experimental word forms](../words/experimental.md) <?grammar?>
-- [The experimental lexicon](../words/lexicon-experimental.md) <?grammar?>
+- [The Zantufa lexicon](../words/lexicon-zantufa.md) <?grammar?>
 
 ## Stage 3: indicators <?stage indicators?>
 
