@@ -1,6 +1,6 @@
 # The experimental dialect
 
-The CLL dialect with the experimental constructs that have grown up in use since CLL was printed, such as `cu` before a bare selbri, connected sumti with `je`, and the experimental cmavo. The word and indicator stages are the CLL dialect's ([`cll.md`](cll.md)), with a lexicon that gives the experimental cmavo their selma'o; the syntax is [`../syntax/experimental.md`](../syntax/experimental.md), which says what it adds to CLL's.
+The CLL dialect with the experimental constructs that have grown up in use since CLL was printed, such as `cu` before a bare selbri, connected sumti with `je`, and the experimental cmavo. The word and indicator stages are the cll-ebnf dialect's ([`cll-ebnf.md`](cll-ebnf.md)), with a lexicon that gives the experimental cmavo their selma'o; the syntax is [`../syntax/experimental.md`](../syntax/experimental.md), which says what it adds to CLL's.
 
 Some constructs are behind features a caller may enable: `cbm`, the cmevla-brivla merger, and `term-hierarchy`.
 

@@ -6,15 +6,16 @@ use crate::fxhash::FxMap;
 use std::sync::{Arc, Mutex};
 
 use crate::dom::FeatureKind;
-use crate::earley::{EngineError, Recognizer, Shared, Tok};
+use crate::earley::{Chart, EngineError, Recognizer, Shared, Tok};
 use crate::error::Error;
 use crate::grammar::{Change, Lean, StageGrammar};
-use crate::lower::{lower, Lowered, Sym};
+use crate::lower::{lower, Lowered, Prod, Sym};
+use crate::maximal::Maximal;
 use crate::rank::{Act, Ranker, Ranking, Verdict as RankVerdict};
 use crate::result::{
     Action, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Stage, Tags, Token, Verdict, Warning,
 };
-use crate::tree::{build, emit, public_tree, warnings_of, TreeContext};
+use crate::tree::{build, emit, public_tree, warnings_of, IKind, ITree, TreeContext};
 use crate::unicode::Unicode;
 
 /// The options of [`Dialect::parse`].
@@ -432,7 +433,7 @@ impl Dialect {
             let mut recognizer = Recognizer { g: &lowered, term_tags: &term_tags, shared };
             recognizer.recognize(&input, 0, lowered.start)
         };
-        let mut chart = match chart {
+        let chart = match chart {
             Ok(chart) => chart,
             Err(error) => {
                 let error = self.grammar_error(index, error);
@@ -443,8 +444,9 @@ impl Dialect {
         let n = input.len();
         let accepted = chart.sets[n].completed.contains_key(&(lowered.start, 0));
         let lean = grammar.lean;
+        let maximal = grammar.maximal.then(|| Maximal::new(&lowered, &chart));
         let ranked = if accepted {
-            let mut ranker = Ranker::new(&lowered, &mut chart, &input, &shared.tags, &term_tags, lean);
+            let mut ranker = Ranker::new(&lowered, &chart, &input, &shared.tags, &term_tags, lean, maximal.as_ref());
             ranker.rank().map(|ranking| {
                 let chosen = build(&ranker, ranking.chosen);
                 let tied = ranking.tied.map(|tied| build(&ranker, tied));
@@ -454,7 +456,20 @@ impl Dialect {
             None
         };
         let Some((ranking, chosen, tied)) = ranked else {
-            let error = self.rejection(index, shared, &lowered, &chart, &input);
+            // A text that `maximal` leaves with no derivation is rejected at
+            // the first terminator it forbids in the derivation the stage
+            // would otherwise have chosen (§4).
+            let forbidden = match &maximal {
+                Some(maximal) if accepted => {
+                    let mut ranker = Ranker::new(&lowered, &chart, &input, &shared.tags, &term_tags, lean, None);
+                    ranker
+                        .rank()
+                        .and_then(|ranking| forbidden_terminator(&build(&ranker, ranking.chosen), &lowered, maximal))
+                }
+                _ => None,
+            };
+            let (position, expected) = forbidden.unwrap_or_else(|| rejection_of(&lowered, &chart));
+            let error = self.rejection(index, shared, &input, position, expected);
             run.stages.push(stage);
             return Err(Box::new(error));
         };
@@ -526,39 +541,21 @@ impl Dialect {
         Ok(())
     }
 
+    /// The error of a stage that rejected its input at the token `position`,
+    /// where it expected `expected` (§4).
     fn rejection(
         &self,
         index: usize,
         shared: &Shared,
-        g: &Lowered,
-        chart: &crate::earley::Chart,
         input: &[Tok],
+        position: usize,
+        expected: Vec<Expected>,
     ) -> ParseError {
-        let furthest = (0..chart.sets.len()).rev().find(|&e| !chart.sets[e].items.is_empty()).unwrap_or(0);
-        let mut expected: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-        let mut expect = |production: &crate::lower::Prod, dot: usize| {
-            if let Some(Sym::T(terminal)) = production.syms.get(dot) {
-                expected
-                    .entry(g.terminals[*terminal as usize].clone())
-                    .or_default()
-                    .insert(g.rules[production.owner as usize].name.clone());
-            }
-        };
-        for item in &chart.sets[furthest].items {
-            expect(&g.prods[item.prod as usize], item.dot as usize);
-        }
-        // The predictions the recognizer did not add, since the next token
-        // could not continue them.
-        for &rule in &chart.sets[furthest].predicted {
-            for &production in &g.rules[rule as usize].prods {
-                expect(&g.prods[production as usize], 0);
-            }
-        }
-        let source = source_at(input, furthest);
+        let source = source_at(input, position);
         let (line, column) = line_column(shared.text, source.start);
         let stage = &self.stages[index].name;
-        let found = input.get(furthest).map_or("the end of the input".to_string(), |token| format!("{:?}", token.text));
-        let wanted: Vec<&str> = expected.keys().map(String::as_str).collect();
+        let found = input.get(position).map_or("the end of the input".to_string(), |token| format!("{:?}", token.text));
+        let wanted: Vec<&str> = expected.iter().map(|expected| expected.terminal.as_str()).collect();
         let message = if wanted.is_empty() {
             format!("stage {stage} cannot read {found}")
         } else {
@@ -567,15 +564,12 @@ impl Dialect {
         ParseError {
             kind: ParseErrorKind::Rejected,
             stage: Some(stage.clone()),
-            token: Some(furthest),
+            token: Some(position),
             source: Some(source),
             document: None,
             line: Some(line),
             column: Some(column),
-            expected: expected
-                .into_iter()
-                .map(|(terminal, rules)| Expected { terminal, rules: rules.into_iter().collect() })
-                .collect(),
+            expected,
             readings: Vec::new(),
             message,
         }
@@ -630,11 +624,13 @@ impl Dialect {
             recognizer.recognize(&tokens, 0, lowered.start)
         };
         shared.next_stage();
-        let mut chart = chart?;
+        let chart = chart?;
         if !chart.sets[tokens.len()].completed.contains_key(&(lowered.start, 0)) {
             return Ok(None);
         }
-        let mut ranker = Ranker::new(&lowered, &mut chart, &tokens, &shared.tags, &term_tags, Lean::TagsOnly);
+        // `maximal` does not apply here: the check's parse has no elided
+        // terminator (§4).
+        let mut ranker = Ranker::new(&lowered, &chart, &tokens, &shared.tags, &term_tags, Lean::TagsOnly, None);
         let Some(Ranking { verdict: RankVerdict::Tie, chosen, tied: Some(tied), .. }) = ranker.rank() else {
             return Ok(None);
         };
@@ -659,6 +655,78 @@ impl Dialect {
             ),
         }))
     }
+}
+
+/// Where a rejected input stopped (§4): the furthest position any item
+/// reached, and the terminals the items there could have read next, each
+/// with the rules those items belong to.
+fn rejection_of(g: &Lowered, chart: &Chart) -> (usize, Vec<Expected>) {
+    let furthest = (0..chart.sets.len()).rev().find(|&e| !chart.sets[e].items.is_empty()).unwrap_or(0);
+    let mut expected: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    let mut expect = |production: &Prod, dot: usize| {
+        if let Some(Sym::T(terminal)) = production.syms.get(dot) {
+            expected
+                .entry(g.terminals[*terminal as usize].clone())
+                .or_default()
+                .insert(g.rules[production.owner as usize].name.clone());
+        }
+    };
+    for item in &chart.sets[furthest].items {
+        expect(&g.prods[item.prod as usize], item.dot as usize);
+    }
+    // The predictions the recognizer did not add, since the next token
+    // could not continue them.
+    for &rule in &chart.sets[furthest].predicted {
+        for &production in &g.rules[rule as usize].prods {
+            expect(&g.prods[production as usize], 0);
+        }
+    }
+    let expected = expected
+        .into_iter()
+        .map(|(terminal, rules)| Expected { terminal, rules: rules.into_iter().collect() })
+        .collect();
+    (furthest, expected)
+}
+
+/// Of a derivation, the first elided terminator, in the order of the
+/// tree's leaves, that `maximal` forbids: its position, and its terminal
+/// with the rule its optional is written in as the one expected there (§4).
+/// `None` if it forbids none.
+fn forbidden_terminator(tree: &ITree, g: &Lowered, maximal: &Maximal) -> Option<(usize, Vec<Expected>)> {
+    // Each node on the path from the root, with the index of its next
+    // child to visit.
+    let mut stack: Vec<(u32, usize)> = vec![(0, 0)];
+    while let Some(&mut (index, ref mut next)) = stack.last_mut() {
+        let node = &tree.nodes[index as usize];
+        let Some(&child) = node.children.get(*next) else {
+            stack.pop();
+            continue;
+        };
+        let position = *next;
+        *next += 1;
+        let IKind::Close { prod, .. } = node.kind else { unreachable!("a read has no children") };
+        if let IKind::Close { prod: inner, start, end, .. } = tree.nodes[child as usize].kind {
+            let helper = &g.prods[inner as usize];
+            // The terminator's constituent is the node before it: there is
+            // none at the start of a production, after a read, or after the
+            // first symbol of a production when that is its own rule, what
+            // a repetition has read so far.
+            let production = &g.prods[prod as usize];
+            let own = position == 1 && production.syms[0] == Sym::N(production.rule);
+            if maximal.elided(helper.rule, start, end) && position > 0 && !own {
+                let before = &tree.nodes[node.children[position - 1] as usize];
+                if let IKind::Close { prod: constituent, start: from, end: to, .. } = before.kind {
+                    if maximal.forbids(g.prods[constituent as usize].rule, from, to) {
+                        let terminal = g.rules[helper.rule as usize].elided.clone().expect("an elidable terminator");
+                        let rule = g.rules[helper.owner as usize].name.clone();
+                        return Some((start as usize, vec![Expected { terminal, rules: vec![rule] }]));
+                    }
+                }
+            }
+        }
+        stack.push((child, 0));
+    }
+    None
 }
 
 /// The source range of the token at `index`, or an empty range at the end

@@ -1,6 +1,6 @@
-# The CLL dialect
+# The CLL dialect, by its printed grammar
 
-Lojban as *The Complete Lojban Language* describes it: the grammar printed in its chapter 21, the word forms of its chapter 4, and the selma'o its dictionary gives each cmavo. Each stage is a grammar over the tokens the stage before it emitted; `docs/notation.md` explains the notation.
+Lojban as *The Complete Lojban Language* describes it: the grammar printed in its chapter 21, the word forms of its chapter 4, and the selma'o its dictionary gives each cmavo. The printed grammar is normative here, with the repairs [the CLL grammar](../syntax/cll.md) lists: any parse it admits counts, and a text is accepted when it has one reading. Each stage is a grammar over the tokens the stage before it emitted; `docs/notation.md` explains the notation.
 
 ## Stage 1: phonemes <?stage phonemes?>
 
@@ -28,5 +28,6 @@ The stage applies CLL's non-formal rule `word = [BAhE] any-word [indicators]`: a
 ## Stage 4: syntax <?stage syntax?>
 
 - [The CLL grammar](../syntax/cll.md) <?grammar?>
+- [The printed grammar's readings](../syntax/cll-ebnf.md) <?grammar?>
 
-The grammar of chapter 21 over selma'o. An elided terminator is absent for as long as the grammar allows, so the stage is greedy; and CLL's own rule, that a terminator may be elided only where no ambiguity results, is applied literally with `elision-only`.
+The grammar of chapter 21 over selma'o. An elided terminator is absent for as long as the grammar allows, so the stage is greedy; a terminator may be elided wherever a parse of the whole text needs it; and a text still ambiguous with its terminators written back is an error, with `elision-only`.

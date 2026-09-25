@@ -4,7 +4,7 @@ A Lojban parser whose grammars are literate Markdown documents, loaded at runtim
 
 ```rust
 // in a function that returns Result<_, gencmu::Error>
-let dialect = gencmu::load_dialect("cll")?;
+let dialect = gencmu::load_dialect("cll-ebnf")?;
 let result = dialect.parse("mi klama le zarci", &gencmu::ParseOptions::default())?;
 if result.ok {
     println!("{}", gencmu::to_brackets(&result, true));

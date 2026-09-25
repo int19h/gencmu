@@ -5,7 +5,7 @@ A Lojban parser whose grammars are literate Markdown documents loaded at runtime
 ```python
 import gencmu
 
-dialect = gencmu.load_dialect("cll")
+dialect = gencmu.load_dialect("cll-ebnf")
 result = dialect.parse("mi klama le zarci")
 result.ok, result.tree, result.error, result.warnings
 gencmu.to_json(result)

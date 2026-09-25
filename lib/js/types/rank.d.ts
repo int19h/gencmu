@@ -1,4 +1,9 @@
 import type { Action, Derivation, Item, Lean, Production, Rope, RopeLeaf, Token } from "./types.js";
+import type { Maximal } from "./maximal.js";
+export type Allowed<T> = {
+    all: T;
+    allowed: T;
+};
 export type Candidate = {
     seq: Rope;
     alts: Rope[];
@@ -70,15 +75,16 @@ export type TraversalContext = Set<Item | string>;
 export declare class Ranker {
     tokens: import("./tokens.js").Token[];
     lean: Lean;
-    /** @type {{plain: Map<Item, Candidate[]>, contextual: Map<Item, Map<string, Candidate[]>>}} */
+    maximal: Maximal | null;
+    /** @type {{plain: Map<Item, Allowed<Candidate[]>>, contextual: Map<Item, Map<string, Allowed<Candidate[]>>>}} */
     memo: {
-        plain: Map<Item, Candidate[]>;
-        contextual: Map<Item, Map<string, Candidate[]>>;
+        plain: Map<Item, Allowed<Candidate[]>>;
+        contextual: Map<Item, Map<string, Allowed<Candidate[]>>>;
     };
-    /** @type {{plain: Map<Item, number>, contextual: Map<Item, Map<string, number>>}} */
+    /** @type {{plain: Map<Item, Allowed<number>>, contextual: Map<Item, Map<string, Allowed<number>>>}} */
     counts: {
-        plain: Map<Item, number>;
-        contextual: Map<Item, Map<string, number>>;
+        plain: Map<Item, Allowed<number>>;
+        contextual: Map<Item, Map<string, Allowed<number>>>;
     };
     /** @type {Map<Item, number>} */
     itemIds: Map<Item, number>;
@@ -89,13 +95,20 @@ export declare class Ranker {
     /**
      * @param {Token[]} tokens
      * @param {Lean} lean
+     * @param {Maximal | null} [maximal] the resolution's maximal, if it has
+     *   it (engine §4)
      */
-    constructor(tokens: Token[], lean: Lean);
+    constructor(tokens: Token[], lean: Lean, maximal?: Maximal | null);
     /**
      * @param {Item} item
      * @returns {Candidate[]}
      */
     candidates(item: Item): Candidate[];
+    /**
+     * @param {Item} item
+     * @returns {Allowed<Candidate[]>}
+     */
+    allowedCandidates(item: Item): Allowed<Candidate[]>;
     /**
      * The one leaf for closing an item: every sequence that closes it shares
      * it, rather than each making its own.

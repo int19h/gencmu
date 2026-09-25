@@ -16,6 +16,7 @@ from __future__ import annotations
 from typing import Any, Iterator, Optional
 
 from ._earley import Forest
+from ._maximal import Maximal
 
 INF = 1 << 60
 
@@ -237,11 +238,13 @@ class Entry:
 
 
 class Ranker:
-    """Ranks a forest's derivations, or only counts them (up to two)."""
+    """Ranks a forest's derivations, or only counts them (up to two).
+    ``maximal`` is the resolution's maximal, if it has it (engine §4)."""
 
-    def __init__(self, forest: Forest, lean: str, entries: bool = True) -> None:
+    def __init__(self, forest: Forest, lean: str, maximal: Maximal | None = None, entries: bool = True) -> None:
         self.forest = forest
         self.lean = lean
+        self.maximal = maximal
         self.entries = entries
         self.productions = forest.lowered.productions
         self.memo: dict[tuple[Any, ...], Any] = {}
@@ -374,11 +377,15 @@ class Ranker:
         return found
 
     def compute(self, key: tuple[Any, ...]) -> Any:
+        """A key's value: the candidates and the number of derivations, or
+        the number alone when only counting. A partial key has two, as a
+        pair: over all its item's derivations, and over those an elided
+        terminator may follow."""
         kind, item, context = key
         deps = self.dependencies(key)
         memo = self.memo
         if kind == 0:
-            inner = memo[deps[0]]
+            inner = memo[deps[0]][0]
             if not self.entries:
                 return inner
             entries, count = inner
@@ -387,45 +394,70 @@ class Ranker:
             for entry in entries:
                 self.keep(kept, self.extend(entry, close))
             return (kept, count)
+        # Under maximal (engine §4, §6), an item whose next symbol is an
+        # elidable optional takes its second value from only the ways of
+        # building it whose last symbol's node maximal does not forbid; for
+        # any other item the two are one. An elided terminator's edge takes
+        # the second value of the item before it.
         forest = self.forest
+        maximal = self.maximal
+        guarded = maximal is not None and maximal.guards(item)
         start = forest.origin[item]
-        total = 0
+        total = allowed_total = 0
         kept = []
+        allowed: list[Entry] = []
         position = 0
         for pred, edge_kind, a, b in forest.edges[item]:
+            permitted = True
+            produced: list[Entry] = []
             if edge_kind == 0:
-                total += 1
+                ways = 1
                 if self.entries:
-                    self.keep(kept, Entry(None, [], INF))
-                continue
-            pred_value = memo[deps[position]]
-            position += 1
-            child_value: Any = None
-            if edge_kind == 2:
-                child_key = self.full_key(a, context if forest.origin[a] == start else self.empty)
-                if child_key is None:
-                    continue
-                child_value = memo[deps[position]]
-                position += 1
-            if not self.entries:
-                total += pred_value * (1 if child_value is None else child_value)
-                continue
-            pred_entries, pred_count = pred_value
-            if edge_kind == 1:
-                read = self.read_leaf(a, b)
-                total += pred_count
-                for entry in pred_entries:
-                    self.keep(kept, self.extend(entry, read))
+                    produced.append(Entry(None, [], INF))
             else:
-                child_entries, child_count = child_value
-                total += pred_count * child_count
-                for before in pred_entries:
-                    for after in child_entries:
-                        self.keep(kept, self.combine(before, after))
-            if total > 2:
-                total = 2
+                pred_value = memo[deps[position]]
+                position += 1
+                earlier = pred_value[0]
+                child_value: Any = None
+                if edge_kind == 2:
+                    child_key = self.full_key(a, context if forest.origin[a] == start else self.empty)
+                    if child_key is None:
+                        continue
+                    child_value = memo[deps[position]]
+                    position += 1
+                    if maximal is not None:
+                        if maximal.elided(a):
+                            earlier = pred_value[1]
+                        permitted = not (guarded and maximal.forbids(a))
+                if not self.entries:
+                    ways = earlier * (1 if child_value is None else child_value)
+                elif edge_kind == 1:
+                    pred_entries, ways = earlier
+                    read = self.read_leaf(a, b)
+                    for entry in pred_entries:
+                        produced.append(self.extend(entry, read))
+                else:
+                    pred_entries, pred_count = earlier
+                    child_entries, child_count = child_value
+                    ways = pred_count * child_count
+                    for before in pred_entries:
+                        for after in child_entries:
+                            produced.append(self.combine(before, after))
+            total += ways
+            if guarded and permitted:
+                allowed_total += ways
+            for entry in produced:
+                if guarded and permitted:
+                    # Candidates are settled in place, so the second list
+                    # keeps copies of its own.
+                    self.keep(allowed, Entry(entry.seq, list(entry.alts), entry.at))
+                self.keep(kept, entry)
         total = min(total, 2)
-        return (kept, total) if self.entries else total
+        value = (kept, total) if self.entries else total
+        if not guarded:
+            return (value, value)
+        allowed_total = min(allowed_total, 2)
+        return (value, (allowed, allowed_total) if self.entries else allowed_total)
 
     def extend(self, entry: Entry, rope: Rope) -> Entry:
         result = Entry(concat(entry.seq, rope), [], INF)

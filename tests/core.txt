@@ -358,3 +358,8 @@ adhoc.syntax.yacc-repair-i-i-nioho
 adhoc.syntax.yacc-repair-empty-lohu
 adhoc.syntax.yacc-repair-free-after-elided-lihu
 adhoc.syntax.yacc-repair-free-inside-lu
+adhoc.syntax.maximal-joi
+adhoc.syntax.maximal-joi.bpfk
+corpus.camxes.12997.bpfk
+corpus.camxes.644.bpfk
+corpus.camxes.10929.bpfk

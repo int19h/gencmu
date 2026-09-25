@@ -1,0 +1,30 @@
+{
+  "description": "A terminator elided at the start of a repeated item follows what the repetition has read so far, the first symbol of the recursive production, and has no constituent: a PEG reads (T? A)+ over a a (engine §4).",
+  "grammar": "%ambiguity-resolution greedy maximal\n%elidable T\n%rule text x\n%rule x ([T] A) ...",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "(a a)"
+  }
+}

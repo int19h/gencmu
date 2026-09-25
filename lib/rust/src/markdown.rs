@@ -301,7 +301,7 @@ mod tests {
 
     #[test]
     fn paths_resolve() {
-        assert_eq!(resolve("dialects/cll.md", "../phonemes/latin.md").as_deref(), Some("phonemes/latin.md"));
+        assert_eq!(resolve("dialects/cll-ebnf.md", "../phonemes/latin.md").as_deref(), Some("phonemes/latin.md"));
         assert_eq!(resolve("p.md", "g.md").as_deref(), Some("g.md"));
         assert_eq!(resolve("p.md", "../g.md"), None);
         assert_eq!(resolve("a/b/p.md", "./c/../g.md").as_deref(), Some("a/b/g.md"));

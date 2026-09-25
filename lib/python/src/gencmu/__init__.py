@@ -3,7 +3,7 @@ runtime.
 
     import gencmu
 
-    dialect = gencmu.load_dialect("cll")
+    dialect = gencmu.load_dialect("cll-ebnf")
     result = dialect.parse("mi klama", features={"cbm"}, until="words")
     result.ok, result.tree, result.error, result.warnings
     dialect.features  # (Feature(name="sa-su", kind="gate", default=False),)

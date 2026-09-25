@@ -320,6 +320,11 @@ export type Production = {
 export type Resolution = {
     lean: "greedy" | "lazy";
     elisionOnly: boolean;
+    /**
+     * whether an elided terminator is forbidden
+     * where its constituent could have been longer (engine §4)
+     */
+    maximal: boolean;
 };
 export type LoweredGrammar = {
     productions: Production[];
@@ -664,6 +669,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} Resolution
  * @property {"greedy" | "lazy"} lean
  * @property {boolean} elisionOnly
+ * @property {boolean} maximal whether an elided terminator is forbidden
+ *   where its constituent could have been longer (engine §4)
  */
 /**
  * A grammar lowered for one set of features.

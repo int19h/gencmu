@@ -1,0 +1,44 @@
+{
+  "description": "An optional is a constituent, empty or not: maximal forbids the terminator elided after the empty [y], since y could have read b (engine §4).",
+  "grammar": "%ambiguity-resolution greedy maximal\n%elidable T\n%rule text x B\n%rule x A [y] [T]\n%rule y B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 1,
+        "expected": [
+          {
+            "terminal": "T",
+            "rules": [
+              "x"
+            ]
+          }
+        ]
+      }
+    },
+    "error": "rejected"
+  }
+}

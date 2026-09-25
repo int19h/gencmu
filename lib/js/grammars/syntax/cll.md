@@ -1,15 +1,14 @@
 # The CLL grammar
 
-This document is the syntax stage, the last stage of the [CLL](../dialects/cll.md) and [approved word forms](../dialects/bpfk.md) dialects: the grammar of Lojban as printed in chapter 21 of *The Complete Lojban Language*, in the notation the book uses, with the departures listed at the end under "Differences from the printed CLL grammar". Its terminals are selma'o. The word stream it reads is produced by the stages before it: the word stage, [the word stream](../words/stream.md) with a family of word forms, which reads phonemes into words, quotes and compounds and applies the erasers `si`, `sa` and `su`; and [the indicator stage](../indicators/cll.md), which attaches a run of indicators to the word before it, as CLL's non-formal rule `word = [BAhE] any-word [indicators]` says. Every cmavo reaches this grammar under each selma'o [the CLL lexicon](../words/lexicon-cll.md) gives it, and the material of a quote arrives tagged `word` or `foreign-text`, which is what `any-word` and `anything` read.
+This document is the syntax stage, the last stage of the [CLL](../dialects/cll-ebnf.md) and [approved word forms](../dialects/bpfk.md) dialects: the grammar of Lojban as printed in chapter 21 of *The Complete Lojban Language*, in the notation the book uses, with the departures listed at the end under "Differences from the printed CLL grammar". Its terminals are selma'o. The word stream it reads is produced by the stages before it: the word stage, [the word stream](../words/stream.md) with a family of word forms, which reads phonemes into words, quotes and compounds and applies the erasers `si`, `sa` and `su`; and [the indicator stage](../indicators/cll.md), which attaches a run of indicators to the word before it, as CLL's non-formal rule `word = [BAhE] any-word [indicators]` says. Every cmavo reaches this grammar under each selma'o [the CLL lexicon](../words/lexicon-cll.md) gives it, and the material of a quote arrives tagged `word` or `foreign-text`, which is what `any-word` and `anything` read.
 
 The notation is explained in [the notation document](../../docs/notation.md). One point bears repeating here: an elided terminator takes its `#` with it, so an elided `[X #]` leaves no free-modifier slot at that point; and when omitting terminators leaves a text with more than one parse, the parse is chosen as "Choosing among parses" after the grammar says.
 
 The grammar is written literately: each block of rules follows the prose that explains it, and the blocks together are the grammar. The prose says what each construct is for and how the rules achieve it; the chapter numbers are those of CLL.
 
-Two directives and a rule set the grammar up. `%ambiguity-resolution greedy elision-only` says how the stage chooses among parses. It is greedy because an elided terminator is absent for as long as the grammar allows: at the first difference between two parses the stage takes the one that reads the next word, so a constituent ends as late as it can and an elided terminator sits at the latest point the grammar permits. It is `elision-only` because CLL permits eliding a terminator only where no ambiguity results: after the greedy choice, the chosen parse's elided terminators are written back and the text is parsed again with none elidable, and a text still ambiguous then is an error rather than a silent choice. `%elidable` lists the terminators CLL marks as elidable, which the printed grammar writes between slashes; here each is an optional, `[KU]`, or `[KU #]` when its free-modifier slot goes with it, and an absent one shows in the parse tree as that terminator, elided. `#` is the free-modifier slot that follows almost every word, any number of free modifiers, as CLL's EBNF defines it; `free`, a single free modifier, is defined under "Free modifiers, vocatives and indicators".
+A directive and a rule set the grammar up. How the stage chooses among parses is not said here: CLL's rule that a terminator may be elided "if no grammatical ambiguity results" is read in more than one way (see "Choosing among parses"), and each dialect that uses this grammar names its own reading in a document of one directive, stitched after this one. `%elidable` lists the terminators CLL marks as elidable, which the printed grammar writes between slashes; here each is an optional, `[KU]`, or `[KU #]` when its free-modifier slot goes with it, and an absent one shows in the parse tree as that terminator, elided. `#` is the free-modifier slot that follows almost every word, any number of free modifiers, as CLL's EBNF defines it; `free`, a single free modifier, is defined under "Free modifiers, vocatives and indicators".
 
 ```jbogenbau
-%ambiguity-resolution greedy elision-only
 %elidable
   BEhO BOI DOhU FEhU GEhU KEI KEhE KU KUhE KUhO
   LIhU LOhO LUhU MEhU NUhU SEhU TEhU TOI TUhU VAU
@@ -69,7 +68,7 @@ A sentence is a bridi: some terms, then optionally `cu`, then the bridi-tail, wh
 
 The bridi-tail levels state how sentences share a head under a gihek, the connective family `gi'e`, `gi'a` and so on (CLL 14.9). `bridi-tail-3` is one selbri with its tail terms, or a forethought `gek-sentence`. `bridi-tail-2` binds two tails with `gihek [stag] bo`, right-grouping. `bridi-tail-1` joins tails with a plain gihek, left-grouping. `bridi-tail` at the top lets a gihek be followed by `ke ... ke'e`, which groups the tails inside the brackets against the tail to the left. The tail terms after each selbri belong to that selbri; `vau` closes them and is almost always elided.
 
-The rules whose names end in `-not-starting-with-ke` are this grammar's one structural departure from the printed EBNF, explained at the end under "Differences": the tail after a plain gihek in `bridi-tail-1` may not itself begin with `[tag] ke`, because CLL 14.10 says that a `ke` directly after a connective brackets the connection, which `bridi-tail` above already provides. Without that restriction `mi broda gi'e ke brode gi'a brodi` would have two parses that differ in meaning and that no ordering of parses could separate. The restricted chain repeats the selbri rules below without the `ke selbri-3 ke'e` tanru unit at the front; the rest of each selbri is unchanged.
+The printed grammar lets the tail after a plain gihek begin with `ke`, so `mi broda gi'e ke brode gi'a brodi` has two parses, which differ in meaning: `ke ... ke'e` groups the tails after `gi'e`, through `bridi-tail`, or it groups a tanru that begins the second tail. CLL 14.10 shows the first, and the official parser reads only the first, through a token of its lexer, `GIhEK_KE`. This grammar follows the printed one. The two parses differ only in where `ke'e` is elided, so the text is accepted with a tie, and the ranking takes the group of tails; with `ke'e` written after `brode`, only the tanru reading is left. A joik directly before `ke`, in a tanru or between operators, has two parses in the same way, but they still differ with every terminator written, so `mi broda joi ke brode ke'e` is an error that shows both; the official parser reads it as a group joined by `joi`, through its lexer token `JOIK_KE`.
 
 A `gek-sentence` is the forethought form: `ga A gi B`, or with a tense in the gek, `pu gi A gi B`, joins two subsentences before either is spoken, and may be preceded by a tag, by `ke` for grouping, or by `na` (CLL 14.5, 14.10). Its tail terms follow the whole connection and apply to both sides.
 
@@ -84,7 +83,7 @@ A `gek-sentence` is the forethought form: `ga A gi B`, or with a tense in the ge
   bridi-tail-1 [gihek [stag] KE # bridi-tail [KEhE #] tail-terms]
 
 %rule bridi-tail-1
-  bridi-tail-2 [gihek # bridi-tail-2-not-starting-with-ke tail-terms] ...
+  bridi-tail-2 [gihek # bridi-tail-2 tail-terms] ...
 
 %rule bridi-tail-2
   bridi-tail-3 [gihek [stag] BO # bridi-tail-2 tail-terms]
@@ -92,11 +91,6 @@ A `gek-sentence` is the forethought form: `ga A gi B`, or with a tense in the ge
 %rule bridi-tail-3
   selbri tail-terms | gek-sentence
 
-%rule bridi-tail-2-not-starting-with-ke
-  bridi-tail-3-not-starting-with-ke [gihek [stag] BO # bridi-tail-2 tail-terms]
-
-%rule bridi-tail-3-not-starting-with-ke
-  selbri-not-starting-with-ke tail-terms | gek-sentence
 
 %rule gek-sentence
   gek subsentence gik subsentence tail-terms | [tag] KE # gek-sentence [KEhE #] | NA # gek-sentence
@@ -192,7 +186,6 @@ A relative clause attaches to a sumti and restricts or comments on it (CLL 8). `
 
 A selbri is the predicate of a bridi (CLL 5). It may be preceded by a tag, which is how a tense or modal is attached to the whole bridi when it is not written as a term (`mi pu klama`), and the levels below state the tanru grouping. `selbri-1` allows `na` before a selbri, the contradictory negation (CLL 15.2). `selbri-2` is the `co` inversion, `sutra co tavla`, which swaps the order of modifier and modified and groups to the right, so everything after `co` is the modifier's argument structure (CLL 5.8). `selbri-3` is a plain tanru: a sequence of `selbri-4` with no connective between them, grouping to the left, so `barda gerku zdani` is `(barda gerku) zdani`. `selbri-4` joins units by a jek or joik in afterthought, `barda je melbi`, or by a joik followed by `ke ... ke'e`. `selbri-5` is the `bo` form, which binds more tightly than plain juxtaposition, `melbi cmalu bo nixli`. `selbri-6` is a tanru unit, optionally followed by `bo` and a further `selbri-6`, or a forethought connection with a guhek, `gu'e barda gi melbi`, optionally negated by `na'e` (CLL 5.6, 14.12).
 
-The `-not-starting-with-ke` chain repeats these rules for the restricted position described under "Sentences and bridi-tails"; only the tanru unit at the front differs, and after the first unit each rule returns to the unrestricted chain.
 
 A tanru unit is one brick of the selbri. `tanru-unit` allows `cei` to assign the unit to a pro-bridi (`broda cei klama`), and `tanru-unit-1` attaches linked arguments, `be ... bei ... be'o`, which fill the places of that one unit rather than of the whole bridi (CLL 5.7). `tanru-unit-2` lists the simple units: a brivla; a pro-bridi `go'i` with optional `ra'o`; a `ke ... ke'e` grouped selbri; `me sumti me'u`, which turns a sumti into a selbri, optionally with a following `moi`; a number or lerfu string with `moi`, `mei` or the others of MOI; `nu'a` before an operator; a conversion `se`, `te`, ...; `jai` with an optional tag; a `zei` compound of any words; a scalar negation `na'e`; and an abstraction, `nu`, `ka`, `du'u` and the others of NU, possibly connected by jek or joik (`nu je ka`), around a subsentence and closed by `kei`. The `SE`, `JAI` and `NAhE` forms refer back to `tanru-unit-2`, so `se se broda` and `na'e se broda` are single units.
 
@@ -218,27 +211,6 @@ A tanru unit is one brick of the selbri. `tanru-unit` allows `cei` to assign the
 %rule selbri-6
   tanru-unit [BO # selbri-6] | [NAhE #] guhek selbri gik selbri-6
 
-%rule selbri-not-starting-with-ke
-  [tag] selbri-1-not-starting-with-ke
-
-%rule selbri-1-not-starting-with-ke
-  selbri-2-not-starting-with-ke | NA # selbri
-
-%rule selbri-2-not-starting-with-ke
-  selbri-3-not-starting-with-ke [CO # selbri-2]
-
-%rule selbri-3-not-starting-with-ke
-  selbri-4-not-starting-with-ke [selbri-4] ...
-
-%rule selbri-4-not-starting-with-ke
-  selbri-5-not-starting-with-ke [joik-jek selbri-5 | joik [stag] KE # selbri-3 [KEhE #]] ...
-
-%rule selbri-5-not-starting-with-ke
-  selbri-6-not-starting-with-ke [(jek | joik) [stag] BO # selbri-5]
-
-%rule selbri-6-not-starting-with-ke
-  tanru-unit-not-starting-with-ke [BO # selbri-6] | [NAhE #] guhek selbri gik selbri-6
-
 %rule tanru-unit
   tanru-unit-1 [CEI # tanru-unit-1] ...
 
@@ -249,24 +221,6 @@ A tanru unit is one brick of the selbri. `tanru-unit` allows `cei` to assign the
   | BRIVLA #
   | GOhA [RAhO] #
   | KE # selbri-3 [KEhE #]
-  | ME # sumti [MEhU #] [MOI #]
-  | (number | lerfu-string) MOI #
-  | NUhA # mex-operator
-  | SE # tanru-unit-2
-  | JAI # [tag] tanru-unit-2
-  | any-word (ZEI any-word) ...
-  | NAhE # tanru-unit-2
-  | NU [NAI] # [joik-jek NU [NAI] #] ... subsentence [KEI #]
-
-%rule tanru-unit-not-starting-with-ke
-  tanru-unit-1-not-starting-with-ke [CEI # tanru-unit-1] ...
-
-%rule tanru-unit-1-not-starting-with-ke
-  tanru-unit-2-not-starting-with-ke [linkargs]
-
-%rule tanru-unit-2-not-starting-with-ke
-  | BRIVLA #
-  | GOhA [RAhO] #
   | ME # sumti [MEhU #] [MOI #]
   | (number | lerfu-string) MOI #
   | NUhA # mex-operator
@@ -474,18 +428,17 @@ null = any-word SI | utterance SA | text SU
 
 ## Choosing among parses
 
-Because terminators may be omitted, some texts have more than one parse. The stage chooses among them by the rule that [the notation document](../../docs/notation.md) states under "Ambiguity", with the `greedy elision-only` resolution this grammar declares at the top: a constituent ends as late as the grammar allows, and a text whose parses differ in anything but where a terminator was elided is an error.
+Because terminators may be omitted, some texts have more than one parse. The stage chooses among them by the rule that [the notation document](../../docs/notation.md) states under "Ambiguity" and "Elided terminators", with the resolution each dialect declares. Both dialects that use this grammar declare `greedy elision-only`: a constituent ends as late as the grammar allows, and a text whose parses differ in anything but where a terminator was elided is an error. They differ in where the part before an elided terminator may end. The cll-ebnf dialect takes the printed grammar as normative and lets it end wherever a parse of the whole text needs it (`cll-ebnf.md`). The bpfk dialect reads as the PEG grammars that the definition effort adopted, which never end it where it could have been longer (`bpfk.md`). CLL's official parser reads in a third way, one lexeme ahead, which no dialect here follows; the design document says why.
 
 Example. `le sutra tavla` has two parses: a statement with the description `le sutra`, its `ku` elided before `tavla`, and the selbri `tavla`; or a fragment consisting of the single description `le sutra tavla`. The two agree up to the word `sutra`. There the statement closes the tanru of the description, the first step toward closing the description itself, while the fragment reads `tavla` into that tanru. The greedy rule takes the parse that reads, and `le sutra tavla` is a fragment. A speaker who means the statement says `le sutra cu tavla` or `le sutra ku tavla`.
 
 ## Differences from the printed CLL grammar
 
-This grammar departs from the EBNF printed in CLL in five places. The first two settle what the printed grammar leaves ambiguous. The last three are repairs of the EBNF's copy of the YACC grammar, the machine grammar from which the EBNF was transcribed and whose rule numbers it cites: in each, the EBNF lost a path that the YACC grammar has, and the official parser built from the YACC grammar accepts the text.
+This grammar departs from the EBNF printed in CLL in four places. The first settles a precedence that the printed text states in a way that cannot be meant. The other three are repairs of the EBNF's copy of the YACC grammar, the machine grammar from which the EBNF was transcribed and whose rule numbers it cites: in each, the EBNF lost a path that the YACC grammar has, and the official parser built from the YACC grammar accepts the text. Apart from these, the printed grammar's `CMENE` is spelled `CMEVLA` here, the class the word stage gives a name.
 
 1. In `simple-tense-modal`, the printed text reads `[NAhE] (time [space] | space [time]) & CAhA [KI]`, which by the stated precedence of `&` attaches `[NAhE]` only to the time/space branch and `[KI]` only to the `CAhA` branch. This grammar reads `[NAhE] ((time [space] | space [time]) & CAhA) [KI]`, so that `ba za ki` is one tag and `na'e ka'e` is a tag.
-2. A `bridi-tail-2` that follows a gihek in `bridi-tail-1` may not begin with `[tag] KE`. This is written as the rules ending in `-not-starting-with-ke`, which repeat the selbri chain without the `KE # selbri-3 [KEhE #]` tanru unit. It encodes CLL 14.10, which states that `ke` directly after a connective brackets what the connective joins; without it, `mi broda gi'e ke brode gi'a brodi` has two parses that differ in meaning and that no choice among parses could separate.
-3. A text may begin with `.i` separators followed by `ni'o` markers, as in `.i ni'o mi klama`. The printed `text-1` makes the two alternatives; YACC rule 2 (`text_B_2`) lets any number of `.i` forms precede a `ni'o` run, and the camxes grammars call the printed form "a bug in the BNF".
-4. A `lo'u ... le'u` quote may be empty, `lo'u le'u`. The printed `sumti-6` requires at least one word; YACC rule 436 reads the quote's body as one token that may be empty.
-5. The free-modifier slot after a `lu ... li'u` quote follows the quote whether or not `li'u` is written, so `lu cy. to toi` is a quote followed by a parenthesis. The printed `sumti-6` writes `/LIhU#/`, which drops the slot with the elided `li'u`; YACC rule 432 (`quote_arg`) attaches free modifiers to the whole quote, and its `LIhU` gap carries none. Every other elidable terminator keeps its slot as printed.
+2. A text may begin with `.i` separators followed by `ni'o` markers, as in `.i ni'o mi klama`. The printed `text-1` makes the two alternatives; YACC rule 2 (`text_B_2`) lets any number of `.i` forms precede a `ni'o` run, and the camxes grammars call the printed form "a bug in the BNF".
+3. A `lo'u ... le'u` quote may be empty, `lo'u le'u`. The printed `sumti-6` requires at least one word; YACC rule 436 reads the quote's body as one token that may be empty.
+4. The free-modifier slot after a `lu ... li'u` quote follows the quote whether or not `li'u` is written, so `lu cy. to toi` is a quote followed by a parenthesis. The printed `sumti-6` writes `/LIhU#/`, which drops the slot with the elided `li'u`; YACC rule 432 (`quote_arg`) attaches free modifiers to the whole quote, and its `LIhU` gap carries none. Every other elidable terminator keeps its slot as printed.
 
 The free-modifier slot after an elided terminator is kept as printed: an elided `[X #]` leaves no slot. So a free modifier cannot follow an elided `boi`, and where CLL example 17.38 writes `xy. xi ky.`, this grammar requires `xy. boi xi ky.`.

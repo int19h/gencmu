@@ -194,15 +194,16 @@ func (r cmpRes) flip() cmpRes {
 }
 
 type ranker struct {
-	rec    *recognizer
-	lean   string // greedy, lazy, or "" for rule 1 alone
-	items  map[*item]*itemRank
-	syms   map[*symNode]*itemRank
-	marked map[*item]bool
+	rec     *recognizer
+	lean    string   // greedy, lazy, or "" for rule 1 alone
+	maximal *maximal // the resolution's maximal, if it has it (engine §4)
+	items   map[*item]*itemRank
+	syms    map[*symNode]*itemRank
+	marked  map[*item]bool
 }
 
-func newRanker(rec *recognizer, lean string) *ranker {
-	return &ranker{rec: rec, lean: lean, items: map[*item]*itemRank{}, syms: map[*symNode]*itemRank{}, marked: map[*item]bool{}}
+func newRanker(rec *recognizer, lean string, mx *maximal) *ranker {
+	return &ranker{rec: rec, lean: lean, maximal: mx, items: map[*item]*itemRank{}, syms: map[*symNode]*itemRank{}, marked: map[*item]bool{}}
 }
 
 func (rk *ranker) itemMemo(it *item) *itemRank {
@@ -437,6 +438,10 @@ type cand struct {
 type entry struct {
 	cands []*cand
 	count int // derivations, up to 2
+	// allowed is the same over only the derivations an elided terminator
+	// may follow, where maximal forbids some of the item's (see itemVal);
+	// nil where it may follow them all.
+	allowed *entry
 }
 
 func (rk *ranker) addTo(s *tiedSet, d *dn, div int) {
@@ -592,6 +597,16 @@ func (rk *ranker) finish(cands []*cand) *cand {
 	return m
 }
 
+// fork copies a candidate for a second list, merged apart from the first:
+// merging changes a candidate's tied sets, never its derivations.
+func (c *cand) fork() *cand {
+	return &cand{d: c.d, tied: c.tied.fork(), closes: c.closes.fork()}
+}
+
+func (s tiedSet) fork() tiedSet {
+	return tiedSet{ds: append([]*dn(nil), s.ds...), div: s.div}
+}
+
 func (rk *ranker) extend(xs, cs []*cand, into []*cand) []*cand {
 	for _, x := range xs {
 		for _, c := range cs {
@@ -684,6 +699,12 @@ func memoSlotFor(m *itemRank, f forbidden) *memoSlot {
 
 // itemVal ranks the derivations of an item's children; f applies to its
 // children over the item's whole span.
+//
+// Under maximal (engine §4, §6), an item whose next symbol is an elidable
+// optional ranks twice: over all its derivations, and over only those of
+// the links whose last symbol's node maximal does not forbid, which an
+// elided terminator may follow. A link over an elided terminator combines
+// the second of the item before it.
 func (rk *ranker) itemVal(it *item, f forbidden) *entry {
 	if it.dot == 0 {
 		return unitEntry
@@ -697,8 +718,10 @@ func (rk *ranker) itemVal(it *item, f forbidden) *entry {
 		return slot.e
 	}
 	slot.state = 1
-	var cands []*cand
-	count := 0
+	mx := rk.maximal
+	guarded := mx != nil && mx.guards(it)
+	var cands, permitted []*cand
+	count, permittedCount, forbade := 0, 0, false
 	for _, l := range it.links {
 		prev := unitEntry
 		if l.prev != nil {
@@ -707,6 +730,9 @@ func (rk *ranker) itemVal(it *item, f forbidden) *entry {
 				pf = f
 			}
 			prev = rk.itemVal(l.prev, pf)
+			if prev != nil && prev.allowed != nil && l.sym != nil && mx.elided(l.sym.rule, l.sym.start, l.sym.end) {
+				prev = prev.allowed
+			}
 		}
 		if prev == nil || prev.count == 0 {
 			continue
@@ -724,12 +750,32 @@ func (rk *ranker) itemVal(it *item, f forbidden) *entry {
 		if child == nil || child.count == 0 {
 			continue
 		}
+		from := len(cands)
 		count += prev.count * child.count
 		cands = rk.extend(prev.cands, child.cands, cands)
+		if guarded {
+			if l.sym != nil && mx.forbids(l.sym.rule, l.sym.start, l.sym.end) {
+				forbade = true
+			} else {
+				permittedCount += prev.count * child.count
+				permitted = append(permitted, cands[from:]...)
+			}
+		}
 	}
 	var e *entry
 	if count > 0 {
-		e = &entry{cands: rk.merge(cands), count: min(count, 2)}
+		e = &entry{count: min(count, 2)}
+		// Where maximal forbids none of the links, an elided terminator may
+		// follow every derivation. Otherwise it may follow the candidates of
+		// the links maximal permits, copied before merging changes them.
+		if forbade {
+			forks := make([]*cand, len(permitted))
+			for i, c := range permitted {
+				forks[i] = c.fork()
+			}
+			e.allowed = &entry{cands: rk.merge(forks), count: min(permittedCount, 2)}
+		}
+		e.cands = rk.merge(cands)
 	}
 	slot.state, slot.e = 2, e
 	return e

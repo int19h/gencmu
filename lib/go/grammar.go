@@ -8,6 +8,7 @@ type stageGrammar struct {
 	byName      map[string]*sRule
 	lean        string // "greedy" or "lazy"
 	elisionOnly bool
+	maximal     bool // no terminator is elided where its constituent could have been longer (engine §4)
 	elidable    map[string]bool
 	changes     []stitchChange
 }
@@ -100,12 +101,25 @@ func stitch(stageName string, docs []docDOM) (*stageGrammar, *Error) {
 				if len(ambiguity) > 1 {
 					return nil, fail(d.path, dir.At, "stage %s has more than one %%ambiguity-resolution", stageName)
 				}
+				// greedy or lazy, then optionally elision-only, then
+				// optionally maximal, in that order (engine §2).
 				args := dir.Args
-				if len(args) == 0 || len(args) > 2 || (args[0] != "greedy" && args[0] != "lazy") || (len(args) == 2 && args[1] != "elision-only") {
-					return nil, fail(d.path, dir.At, "%%ambiguity-resolution takes greedy or lazy, optionally followed by elision-only")
+				rest := args
+				if len(rest) > 0 {
+					rest = rest[1:]
 				}
-				g.lean = args[0]
-				g.elisionOnly = len(args) == 2
+				elisionOnly := len(rest) > 0 && rest[0] == "elision-only"
+				if elisionOnly {
+					rest = rest[1:]
+				}
+				maximal := len(rest) > 0 && rest[0] == "maximal"
+				if maximal {
+					rest = rest[1:]
+				}
+				if len(args) == 0 || (args[0] != "greedy" && args[0] != "lazy") || len(rest) > 0 {
+					return nil, fail(d.path, dir.At, "%%ambiguity-resolution takes greedy or lazy, then optionally elision-only, then optionally maximal")
+				}
+				g.lean, g.elisionOnly, g.maximal = args[0], elisionOnly, maximal
 			case "elidable":
 				for _, a := range dir.Args {
 					g.elidable[a] = true

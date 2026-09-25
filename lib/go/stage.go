@@ -113,12 +113,26 @@ func (run *stageRun) run(g *lowered, mandatory func() *lowered, elisionOnly bool
 	start := g.byName["text"]
 	rec := run.recognize(g, start, 0, len(run.toks))
 	top := rec.accepted(start)
+	var mx *maximal
+	if g.maximal {
+		mx = newMaximal(rec)
+	}
 	var res *rankResult
 	if len(top) > 0 {
-		res = newRanker(rec, g.lean).rank(top)
+		res = newRanker(rec, g.lean, mx).rank(top)
 	}
 	if res == nil {
-		out.err = run.rejection(rec)
+		// A text that maximal leaves with no derivation is rejected at the
+		// first terminator it forbids in the derivation the stage would
+		// otherwise have chosen (§4).
+		if mx != nil && len(top) > 0 {
+			if other := newRanker(rec, g.lean, nil).rank(top); other != nil {
+				out.err = run.forbiddenTerminator(rec, other.chosen, mx)
+			}
+		}
+		if out.err == nil {
+			out.err = run.rejection(rec)
+		}
 		return out
 	}
 	switch {
@@ -185,6 +199,52 @@ func (run *stageRun) rejection(rec *recognizer) *ParseError {
 		expected = append(expected, e)
 	}
 	sort.Slice(expected, func(i, j int) bool { return expected[i].Terminal < expected[j].Terminal })
+	return run.rejectedAt(k, expected)
+}
+
+// forbiddenTerminator is the rejection of a text that maximal leaves with no
+// derivation (§4): of the derivation d the stage would otherwise have chosen,
+// the first elided terminator, in the order of the tree's leaves, that
+// maximal forbids, at its position, with its terminal and the rule its
+// optional is written in as the one expected there. It is nil if d has none.
+func (run *stageRun) forbiddenTerminator(rec *recognizer, d *dn, mx *maximal) *ParseError {
+	type frame struct {
+		prod *production
+		kids []*dn
+		next int
+	}
+	stack := []frame{{prod: d.prod, kids: flattenKids(d.a)}}
+	for len(stack) > 0 {
+		f := &stack[len(stack)-1]
+		if f.next == len(f.kids) {
+			stack = stack[:len(stack)-1]
+			continue
+		}
+		i := f.next
+		f.next++
+		k := f.kids[i]
+		if k.kind == dRead {
+			continue
+		}
+		if i > 0 && mx.elided(k.prod.lhs, k.start, k.end) {
+			// Its constituent is the node before it, unless that is a token,
+			// or what a production whose first symbol is its own rule has
+			// read so far.
+			rhs := f.prod.rhs
+			own := i == 1 && !rhs[0].term && rhs[0].id == f.prod.lhs
+			if b := f.kids[i-1]; !own && b.kind == dClose && mx.forbids(b.prod.lhs, b.start, b.end) {
+				expected := []Expected{{Terminal: mx.elides[k.prod.lhs], Rules: []string{k.prod.ruleName}}}
+				return run.rejectedAt(rec.base+int(k.start), expected)
+			}
+		}
+		stack = append(stack, frame{prod: k.prod, kids: flattenKids(k.a)})
+	}
+	return nil
+}
+
+// rejectedAt is the error of a text rejected at token k, where the expected
+// terminals could have been read.
+func (run *stageRun) rejectedAt(k int, expected []Expected) *ParseError {
 	var src [2]int
 	if k < len(run.toks) {
 		src = run.toks[k].Source
@@ -252,7 +312,7 @@ func (run *stageRun) checkElision(tree *Node, g *lowered) *ParseError {
 	if len(top) == 0 {
 		return nil
 	}
-	res := newRanker(rec, "").rank(top)
+	res := newRanker(rec, "", nil).rank(top)
 	if res == nil || res.tied == nil {
 		return nil
 	}

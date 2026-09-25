@@ -42,7 +42,7 @@ The document is read as a grammar document (engine §8, §9), and its DOM matche
 Lojban texts, one case per line, with what gencmu is meant to make of them:
 
 ```
-{"id": "cll.5.1.c5e1d1", "text": "do mamta mi", "dialect": "cll", "expect": "accept",
+{"id": "cll.5.1.c5e1d1", "text": "do mamta mi", "dialect": "cll-ebnf", "expect": "accept",
  "verdict": "unique", "words": ["do", "mamta", "mi"], "brackets": "(do [mamta mi])"}
 ```
 

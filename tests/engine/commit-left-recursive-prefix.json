@@ -1,0 +1,30 @@
+{
+  "description": "A left-recursive rule builds on a node that ends at an elided terminator; the terminator follows a terminal, so maximal forbids nothing (engine §4).",
+  "grammar": "%ambiguity-resolution greedy maximal\n%elidable T\n%rule text x\n%rule x A [T] | x B [T]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "(a b)"
+  }
+}

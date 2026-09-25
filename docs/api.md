@@ -6,7 +6,7 @@ Every gencmu library offers the same operations on the same data, spelled the wa
 
 **Loading a dialect.** A dialect is a pipeline document and the grammar documents it names. A library loads one in three ways:
 
-- by name, from the grammars bundled in the package: the name is a pipeline document's file name under `grammars/dialects/` without `.md`, so `cll`, `bpfk`, `experimental`, `zantufa` and `notation`;
+- by name, from the grammars bundled in the package: the name is a pipeline document's file name under `grammars/dialects/` without `.md`, so `cll-ebnf`, `bpfk`, `experimental`, `zantufa` and `notation`;
 - from a pipeline document on disk, whose grammar documents are found relative to it, and whose `unicode.txt` and `notation/bootstrap.json` come from the bundled grammars;
 - from documents held in memory: a map from `/`-separated path to text, and the path of the pipeline document in it. The map may supply its own `unicode.txt`, `notation/bootstrap.json` and `compiled.json`; any it lacks come from the bundled grammars, except in the portable JavaScript entry point, which has no bundle to read and needs the map to hold the first two (see "JavaScript").
 
@@ -42,7 +42,7 @@ A text that does not parse is not an error but a result whose `ok` is false and 
 import { loadDialect, loadDialectFile } from "gencmu/node";
 import { loadDialectSources, toJson, toBrackets } from "gencmu";
 
-const dialect = loadDialect("cll");
+const dialect = loadDialect("cll-ebnf");
 const result = dialect.parse("mi klama", { features: ["cbm"], until: "words" });
 result.ok; result.tree; result.error; result.warnings;
 dialect.features; // [{ name: "sa-su", kind: "gate", default: false }]
@@ -63,7 +63,7 @@ The types are in the package's declarations (`lib/js/types/`).
 ```python
 import gencmu
 
-dialect = gencmu.load_dialect("cll")
+dialect = gencmu.load_dialect("cll-ebnf")
 result = dialect.parse("mi klama", features={"cbm"}, until="words")
 result.ok, result.tree, result.error, result.warnings
 dialect.features  # (Feature(name="sa-su", kind="gate", default=False),)
@@ -85,7 +85,7 @@ Python 3.10 and later; the package is pure Python with no dependencies.
 ```go
 import gencmu "github.com/int19h/gencmu/lib/go"
 
-dialect, err := gencmu.LoadDialect("cll")
+dialect, err := gencmu.LoadDialect("cll-ebnf")
 result, err := dialect.Parse("mi klama", gencmu.ParseOptions{Features: []string{"cbm"}, Until: "words"})
 result.OK; result.Tree; result.Error; result.Warnings
 dialect.Features() // []gencmu.Feature{{Name: "sa-su", Kind: "gate", Default: false}}
@@ -102,7 +102,7 @@ gencmu.Brackets(result, gencmu.BracketOptions{ShowElided: true})
 ## Rust
 
 ```rust
-let dialect = gencmu::load_dialect("cll")?;
+let dialect = gencmu::load_dialect("cll-ebnf")?;
 let result = dialect.parse("mi klama", &gencmu::ParseOptions {
     features: vec!["cbm".into()],
     until: Some("words".into()),

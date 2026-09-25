@@ -1,0 +1,30 @@
+{
+  "description": "maximal removes parses before the ranking: it forbids the parse in which y could have been longer, and the other is the only derivation left (engine §4, §6).",
+  "grammar": "%ambiguity-resolution greedy maximal\n%elidable T\n%rule text x [B]\n%rule x y [T]\n%rule y A | A B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "(a b)"
+  }
+}

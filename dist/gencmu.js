@@ -2407,7 +2407,7 @@
       }
       return {
         name: stage.name,
-        resolution: resolution ? `${resolution.lean}${resolution.elisionOnly ? " elision-only" : ""}` : "none",
+        resolution: resolution ? `${resolution.lean}${resolution.elisionOnly ? " elision-only" : ""}${resolution.maximal ? " maximal" : ""}` : "none",
         rules: grammar.rules.size,
         unreachable: [...grammar.rules.keys()].filter((name) => !reachable.has(name)).sort(compareCodePoints),
         changes: grammar.changes.slice(),
@@ -2634,10 +2634,14 @@
               throw new GencmuError("grammar", `${path}:${at.line}: stage ${this.stageName} has a second %ambiguity-resolution`, at);
             }
             const [lean, ...rest] = directive.args;
-            if ((lean !== "greedy" && lean !== "lazy") || rest.some((word) => word !== "elision-only") || rest.length > 1) {
-              throw new GencmuError("grammar", `${path}:${at.line}: %ambiguity-resolution takes greedy or lazy, then optionally elision-only`, at);
+            const elisionOnly = rest[0] === "elision-only";
+            if (elisionOnly) rest.shift();
+            const maximal = rest[0] === "maximal";
+            if (maximal) rest.shift();
+            if ((lean !== "greedy" && lean !== "lazy") || rest.length > 0) {
+              throw new GencmuError("grammar", `${path}:${at.line}: %ambiguity-resolution takes greedy or lazy, then optionally elision-only, then optionally maximal`, at);
             }
-            this.resolution = { lean, elisionOnly: rest.length === 1 };
+            this.resolution = { lean, elisionOnly, maximal };
             break;
           }
           case "elidable":
@@ -3059,6 +3063,14 @@
 
   /**
    * @import { Action, Derivation, Item, Lean, Production, ReadAction, Rope, RopeConcat, RopeLeaf, Token } from "./types.js"
+   * @import { Maximal } from "./maximal.js"
+   */
+
+  /**
+   * A value over an item's derivations, and over those an elided terminator
+   * may follow (see Ranker.allowedCandidates).
+   * @template T
+   * @typedef {{all: T, allowed: T}} Allowed
    */
 
   /**
@@ -3380,13 +3392,16 @@
     /**
      * @param {Token[]} tokens
      * @param {Lean} lean
+     * @param {Maximal | null} [maximal] the resolution's maximal, if it has
+     *   it (engine §4)
      */
-    constructor(tokens, lean) {
+    constructor(tokens, lean, maximal = null) {
       this.tokens = tokens;
       this.lean = lean;
-      /** @type {{plain: Map<Item, Candidate[]>, contextual: Map<Item, Map<string, Candidate[]>>}} */
+      this.maximal = maximal;
+      /** @type {{plain: Map<Item, Allowed<Candidate[]>>, contextual: Map<Item, Map<string, Allowed<Candidate[]>>>}} */
       this.memo = { plain: new Map(), contextual: new Map() };
-      /** @type {{plain: Map<Item, number>, contextual: Map<Item, Map<string, number>>}} */
+      /** @type {{plain: Map<Item, Allowed<number>>, contextual: Map<Item, Map<string, Allowed<number>>>}} */
       this.counts = { plain: new Map(), contextual: new Map() };
       /** @type {Map<Item, number>} */
       this.itemIds = new Map();
@@ -3410,22 +3425,41 @@
      * @returns {Candidate[]}
      */
     candidates(item) {
+      return this.allowedCandidates(item).all;
+    }
+
+    // An item's candidates twice: over all its derivations, and, under maximal
+    // (engine §4, §6), for an item whose next symbol is an elidable optional,
+    // over only the ways of building it whose last symbol's node maximal does
+    // not forbid, which an elided terminator may follow. An elided
+    // terminator's edge takes the second of the item before it.
+    /**
+     * @param {Item} item
+     * @returns {Allowed<Candidate[]>}
+     */
+    allowedCandidates(item) {
+      const maximal = this.maximal;
       return this.traverse(item, this.memo, (current, dependency) => {
+        const guarded = maximal !== null && maximal.guards(current);
         /** @type {Candidate[]} */
-        let kept = [];
+        let all = [];
+        /** @type {Candidate[]} */
+        let allowed = [];
         for (const edge of current.edges) {
           /** @type {Candidate[]} */
           let produced;
+          let permitted = true;
           if (edge.kind === "seed") produced = [{ seq: EMPTY, alts: [], at: Infinity }];
           else if (edge.kind === "scan") {
             const token = this.tokens[edge.token];
             const read = this.readLeaf(edge.token, edge.terminal, token.tags.get(edge.terminal) === false);
-            produced = dependency(edge.previous).map((entry) => extend(entry, read));
+            produced = dependency(edge.previous).all.map((entry) => extend(entry, read));
           } else {
             const close = this.closeLeaf(edge.child);
-            const children = dependency(edge.child).map((entry) => extend(entry, close));
+            const children = dependency(edge.child).all.map((entry) => extend(entry, close));
+            const earlier = maximal !== null && maximal.elided(edge.child) ? dependency(edge.previous).allowed : dependency(edge.previous).all;
             produced = [];
-            for (const before of dependency(edge.previous)) {
+            for (const before of earlier) {
               for (const child of children) {
                 // A derivation tied with the combination differs from it first
                 // either in the earlier part or in the child.
@@ -3436,11 +3470,15 @@
                 produced.push(entry);
               }
             }
+            if (guarded) permitted = !(/** @type {Maximal} */ (maximal)).forbids(edge.child);
           }
-          for (const entry of produced) kept = this.keep(kept, entry);
+          for (const entry of produced) {
+            all = this.keep(all, entry);
+            if (guarded && permitted) allowed = this.keep(allowed, entry);
+          }
         }
-        return kept;
-      }, []);
+        return { all, allowed: guarded ? allowed : all };
+      }, { all: [], allowed: [] });
     }
 
     /**
@@ -3572,16 +3610,25 @@
      * @returns {number}
      */
     count(item) {
+      const maximal = this.maximal;
       return this.traverse(item, this.counts, (current, dependency) => {
-        let total = 0;
+        const guarded = maximal !== null && maximal.guards(current);
+        let all = 0;
+        let allowed = 0;
         for (const edge of current.edges) {
-          if (edge.kind === "seed") total += 1;
-          else if (edge.kind === "scan") total += dependency(edge.previous);
-          else total += dependency(edge.previous) * dependency(edge.child);
-          if (total >= 2) break;
+          let ways;
+          if (edge.kind === "seed") ways = 1;
+          else if (edge.kind === "scan") ways = dependency(edge.previous).all;
+          else {
+            const before = dependency(edge.previous);
+            ways = (maximal !== null && maximal.elided(edge.child) ? before.allowed : before.all) * dependency(edge.child).all;
+          }
+          all = Math.min(2, all + ways);
+          if (guarded && (edge.kind !== "complete" || !(/** @type {Maximal} */ (maximal)).forbids(edge.child))) allowed = Math.min(2, allowed + ways);
+          if (all === 2 && (!guarded || allowed === 2)) break;
         }
-        return Math.min(total, 2);
-      }, 0);
+        return { all, allowed: guarded ? allowed : all };
+      }, { all: 0, allowed: 0 }).all;
     }
 
     // Computes `combine(item, dependency)` for an item after every item it
@@ -3811,6 +3858,74 @@
   // enumeration of every derivation.
   const internals = { actions, firstDifference, totalOrder, decide, visible, concat, leaf };
 
+  // ---- maximal.js
+  // The resolution maximal (engine §4): an elided terminator is forbidden
+  // where its constituent, the node before it, could have been longer.
+
+  /**
+   * @import { Item, LoweredGrammar } from "./types.js"
+   * @import { Chart } from "./earley.js"
+   */
+
+  /**
+   * What the ranking asks of maximal.
+   * @typedef {object} Maximal
+   * @property {(item: Item) => boolean} elided whether a completed item is an
+   *   elided terminator: the empty production of an elidable optional's helper
+   * @property {(item: Item) => boolean} guards whether an item's next symbol
+   *   is an elidable optional whose elision the node before it can forbid:
+   *   not at the start of a production, and not after a production's first
+   *   symbol when that is its own rule, what a repetition has read so far
+   * @property {(item: Item) => boolean} forbids whether an elided terminator
+   *   may not follow the completed item, its constituent
+   */
+
+  /**
+   * @param {Chart} chart
+   * @param {LoweredGrammar} lowered
+   * @returns {Maximal}
+   */
+  function maximalRule(chart, lowered) {
+    /** @type {Set<string>} */
+    const elidable = new Set();
+    for (const production of lowered.productions) {
+      if (production.helper && production.elided !== null) elidable.add(production.lhs);
+    }
+    // Whether a constituent could have been longer depends only on its
+    // symbol, origin and end: the furthest set holding a completed item of
+    // each symbol from each origin decides it.
+    /** @type {Map<string, Map<number, number>> | null} */
+    let furthest = null;
+    const longest = () => {
+      if (furthest) return furthest;
+      furthest = new Map();
+      for (const set of chart.sets) {
+        for (const item of set.items) {
+          if (item.dot !== item.production.rhs.length) continue;
+          let byOrigin = furthest.get(item.production.lhs);
+          if (!byOrigin) furthest.set(item.production.lhs, (byOrigin = new Map()));
+          const known = byOrigin.get(item.origin);
+          if (known === undefined || known < set.position) byOrigin.set(item.origin, set.position);
+        }
+      }
+      return furthest;
+    };
+    return {
+      elided: (item) => item.production.helper && item.production.elided !== null && item.production.rhs.length === 0,
+      guards: (item) => {
+        const rhs = item.production.rhs;
+        const next = rhs[item.dot];
+        if (next === undefined || next.terminal || !elidable.has(next.name)) return false;
+        return !(item.dot === 1 && !rhs[0].terminal && rhs[0].name === item.production.lhs);
+      },
+      forbids: (item) => {
+        const byOrigin = longest().get(item.production.lhs);
+        const end = byOrigin === undefined ? undefined : byOrigin.get(item.origin);
+        return end !== undefined && end > item.end;
+      },
+    };
+  }
+
   // ---- tokens.js
   // Tokens (engine §1): what every stage reads and writes.
 
@@ -3879,6 +3994,7 @@
 
 
 
+
   /**
    * @import { Derivation, DerivationRule, ElidedNode, EmitItem, ResultNode, Scope, Span, StageReport, TagSet, TermValue } from "./types.js"
    * @import { Grammar } from "./grammar.js"
@@ -3935,9 +4051,15 @@
       }
       // An input whose every derivation is cyclic (engine §4) has none to
       // count, and is rejected like one with no item of `text` at all.
-      const ranking = roots.length === 0 ? null : new Ranker(tokens, lowered.resolution.lean).rank(roots);
+      const resolution = lowered.resolution;
+      const maximal = resolution.maximal ? maximalRule(chart, lowered) : null;
+      const ranking = roots.length === 0 ? null : new Ranker(tokens, resolution.lean, maximal).rank(roots);
       if (ranking === null) {
-        const rejection = rejectionOf(chart);
+        // A text that maximal leaves with no derivation is rejected at the
+        // first terminator it forbids in the derivation the stage would
+        // otherwise have chosen (engine §4).
+        const rejection = (maximal && roots.length > 0 && forbiddenTerminator(new Ranker(tokens, resolution.lean).rank(roots), maximal))
+          || rejectionOf(chart);
         report.error = {
           kind: "rejected",
           stage: this.name,
@@ -4187,6 +4309,42 @@
       for (let index = children.length - 1; index >= 0; index--) stack.push(children[index]);
     }
     return warnings;
+  }
+
+  /**
+   * Of a ranking's chosen derivation, the first elided terminator, in the order
+   * of the tree's leaves, that maximal forbids: its position, and its terminal
+   * with the rule its optional is written in as the one expected there (engine
+   * §4). Null for no ranking, or none forbidden.
+   * @param {import("./rank.js").Ranking | null} ranking
+   * @param {import("./maximal.js").Maximal} maximal
+   * @returns {{position: number, expected: import("./types.js").Expectation[]} | null}
+   */
+  function forbiddenTerminator(ranking, maximal) {
+    if (ranking === null) return null;
+    /** @type {{node: Derivation, next: number}[]} */
+    const stack = [{ node: derivationTree(ranking.chosen), next: 0 }];
+    while (stack.length > 0) {
+      const frame = stack[stack.length - 1];
+      const node = frame.node;
+      if ("read" in node || frame.next >= node.children.length) {
+        stack.pop();
+        continue;
+      }
+      const index = frame.next++;
+      const child = node.children[index];
+      if (!("read" in child) && maximal.elided(child.item)) {
+        const rhs = node.production.rhs;
+        const own = index === 1 && !rhs[0].terminal && rhs[0].name === node.production.lhs;
+        const before = index > 0 && !own ? node.children[index - 1] : null;
+        if (before && !("read" in before) && maximal.forbids(before.item)) {
+          const production = child.production;
+          return { position: child.start, expected: [{ terminal: /** @type {string} */ (production.elided), rules: [production.owner] }] };
+        }
+      }
+      stack.push({ node: child, next: 0 });
+    }
+    return null;
   }
 
   /**
@@ -5821,6 +5979,8 @@
    * @typedef {object} Resolution
    * @property {"greedy" | "lazy"} lean
    * @property {boolean} elisionOnly
+   * @property {boolean} maximal whether an elided terminator is forbidden
+   *   where its constituent could have been longer (engine §4)
    */
 
   /**
