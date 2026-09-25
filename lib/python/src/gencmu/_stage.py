@@ -3,14 +3,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable, Union
 
 from ._earley import Evaluator, Forest, Parser, StageContext
 from ._errors import _GrammarFault
 from ._grammar import Lowered, Production
 from ._markdown import line_column
-from ._model import Action, Expected, Node, ParseError, Range, Tags, Token
+from ._model import Action, Expected, Node, ParseError, ParseWarning, Range, Tags, Token
 from ._rank import Act, Ranker, Rope, actions, count_roots
 from ._tags import PAUSE, phoneme_of
 from ._unicode import UnicodeTable
@@ -143,6 +143,32 @@ class Tree:
 
     def source_of(self, node: DNode) -> Range:
         return _range_source(self.tokens, node.start, node.end) or _empty_source(self.tokens, node.start)
+
+
+def warnings_of(root: DNode, tree: Tree, features: frozenset[str], stage: str) -> list[ParseWarning]:
+    """The warnings of a chosen derivation (engine §12): each rule node of its
+    tree gives one for each warning of its alternative whose feature is on,
+    in the order a walk meets the nodes, parent before children and children
+    left to right. The walk splices helpers and the prefixes of a trailing
+    repetition, which are no nodes of the tree, as the tree does."""
+    warnings: list[ParseWarning] = []
+    # Each entry is a node, and whether it is the prefix of a trailing
+    # repetition, the first child of a production lowered as one.
+    stack: list[tuple[DChild, bool]] = [(root, False)]
+    while stack:
+        node, prefix = stack.pop()
+        if isinstance(node, DRead):
+            continue
+        production = node.production
+        if not prefix and not production.helper:
+            for feature in production.warnings:
+                if feature in features:
+                    span = (node.start, node.end)
+                    warnings.append(ParseWarning(stage, feature, production.rule_name, span, tree.source_of(node)))
+        children = node.children
+        for index in range(len(children) - 1, -1, -1):
+            stack.append((children[index], index == 0 and production.rep_splice))
+    return warnings
 
 
 def elided_nodes(tree: Node) -> list[Node]:
@@ -289,6 +315,7 @@ class StageOutcome:
     uncounted: list[bool] | None = None
     chosen_actions: list[Act] | None = None
     tied_actions: list[Act] | None = None
+    warnings: list[ParseWarning] = field(default_factory=list)
 
 
 def _action(act: Act, lowered: Lowered) -> Action:
@@ -299,7 +326,8 @@ def _action(act: Act, lowered: Lowered) -> Action:
 
 
 class StageRunner:
-    """Runs one stage over its input tokens."""
+    """Runs one stage over its input tokens. ``features`` are the features
+    on, which decide the warnings the stage gives (engine §12)."""
 
     def __init__(
         self,
@@ -310,6 +338,7 @@ class StageRunner:
         text: str,
         unicode: UnicodeTable,
         emit: bool = True,
+        features: frozenset[str] = frozenset(),
     ) -> None:
         self.name = name
         self.lowered = lowered
@@ -318,6 +347,7 @@ class StageRunner:
         self.text = text
         self.unicode = unicode
         self.emit = emit
+        self.features = features
 
     def context(self, lowered: Lowered, tokens: list[Token]) -> StageContext:
         context = StageContext(lowered, tokens, self.text, self.unicode)
@@ -365,6 +395,7 @@ class StageRunner:
         root = derivation(forest, ranking.chosen)
         tree = Tree(root, self.tokens, context.tagtab)
         outcome = StageOutcome(verdict=ranking.verdict, tree=tree.root, derivation=root)
+        outcome.warnings = warnings_of(root, tree, self.features, self.name)
         outcome.chosen_actions = list(actions(ranking.chosen))
         if ranking.verdict == "tie":
             assert ranking.witness is not None and ranking.witness[0] is not None and ranking.witness[1] is not None
@@ -373,15 +404,25 @@ class StageRunner:
             outcome.tied_actions = list(actions(ranking.tied))
         emitter = Emitter(context, forest, tree, root)
         outcome.uncounted = emitter.uncounted
-        if self.emit:
-            outcome.output = emitter.emit()
-        if elision_only and ranking.verdict != "unique":
-            # The stage accepted its input, so it has its output; the check
-            # makes the parse fail, and the result has no tree.
-            error = self.check_elision(tree.root)
-            if error is not None:
-                outcome.error = error
-                outcome.tree = None
+        try:
+            if self.emit:
+                outcome.output = emitter.emit()
+            if elision_only and ranking.verdict != "unique":
+                # The stage accepted its input, so it has its output; the
+                # check makes the parse fail, and the result has no tree.
+                error = self.check_elision(tree.root)
+                if error is not None:
+                    outcome.error = error
+                    outcome.tree = None
+        except _GrammarFault as fault:
+            # A defect found once the stage has chosen its tree, while emitting
+            # or in the reparse of elision-only, leaves it without output; it
+            # keeps its verdict, witness, tied tree and warnings (engine §7,
+            # §11).
+            outcome.output = None
+            outcome.tree = None
+            outcome.error = self.fault(fault, self.tokens)
+            return outcome
         return outcome
 
     def check_elision(self, tree: Node) -> ParseError | None:

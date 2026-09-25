@@ -2,6 +2,7 @@ package gencmu
 
 import (
 	"encoding/json"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -12,8 +13,12 @@ import (
 func TestDOMRules(t *testing.T) {
 	loadBundled()
 	const good = `{"seq":[{"terminal":"a"},{"terminal":"b"}]}`
+	format := `"format":` + strconv.Itoa(domFormat)
 	rule := func(fields string) string {
-		return `{"format":4,"rules":[{"name":"text","op":"define",` + fields + `,"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[1,1]}]}`
+		return `{` + format + `,"rules":[{"name":"text","op":"define",` + fields + `,"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[1,1]}]}`
+	}
+	guarded := func(guard string) string {
+		return rule(`"alternatives":[{"guards":[` + guard + `],"expr":` + good + `}],"conditions":[]`)
 	}
 	alt := func(expr string) string {
 		return rule(`"alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[]`)
@@ -42,7 +47,7 @@ func TestDOMRules(t *testing.T) {
 		return strings.Repeat(`{"optional":`, n) + good + strings.Repeat(`}`, n)
 	}
 	cases := []struct{ rule, dom string }{
-		{"format 3", strings.Replace(alt(good), `"format":4`, `"format":3`, 1)},
+		{"format 3", strings.Replace(alt(good), format, `"format":3`, 1)},
 		{"a rule's name is a name", strings.Replace(alt(good), `"name":"text"`, `"name":"9x"`, 1)},
 		{"a rule's name is a name or #", strings.Replace(alt(good), `"name":"text"`, `"name":"##"`, 1)},
 		{"op is define, redefine or extend", strings.Replace(alt(good), `"define"`, `"replace"`, 1)},
@@ -63,6 +68,9 @@ func TestDOMRules(t *testing.T) {
 		{"a rule has conditions", rule(`"alternatives":[{"guards":[],"expr":` + good + `}]`)},
 		{"a rule has a position", strings.Replace(alt(good), `"at":[1,1]}],"directives"`, `"at":[1]}],"directives"`, 1)},
 		{"a guard has a feature and negated", rule(`"alternatives":[{"guards":[{"feature":"f"}],"expr":` + good + `}],"conditions":[]`)},
+		{"a guard has a kind", guarded(`{"feature":"f","negated":false}`)},
+		{"a guard is a gate or a warning", guarded(`{"feature":"f","kind":"hint","negated":false}`)},
+		{"a warning is never negated", guarded(`{"feature":"f","kind":"warning","negated":true}`)},
 		{"an alternative has guards", rule(`"alternatives":[{"expr":` + good + `}],"conditions":[]`)},
 		{"a seq has two items or more", alt(`{"seq":[{"terminal":"a"}]}`)},
 		{"a seq is not empty", alt(`{"seq":[]}`)},
@@ -128,6 +136,8 @@ func TestDOMRules(t *testing.T) {
 	// Each variation's well-formed twin decodes, so that the refusals are
 	// the rule's and not the test's.
 	for _, ok := range []string{alt(good), alt(nested(255)),
+		// A gate, negated or not, and a warning.
+		guarded(`{"feature":"f","kind":"gate","negated":true}`), guarded(`{"feature":"f","kind":"gate","negated":false},{"feature":"g","kind":"warning","negated":false}`),
 		alt(`{"seq":[{"capture":"a","expr":{"terminal":"a"}},{"capture":"b","expr":{"terminal":"b"}},{"capture":"c","expr":{"ref":"C"}},{"capture":"d","expr":{"ref":"D"}}]}`),
 		// Each at the bound: the deepest node below exactly 256 compound ones.
 		alt(`{"seq":[` + strings.Repeat(`{"seq":[{"terminal":"a"},`, 254) + `{"capture":"x","expr":{"terminal":"b"}}` + strings.Repeat(`]}`, 254) + `,{"terminal":"b"}]}`),
@@ -165,7 +175,7 @@ func TestDOMRules(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["compiled.json"] = `{"format":4,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + c.dom + `}}}`
+		src["compiled.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + c.dom + `}}}`
 		d, err := LoadDialectSources(src, "p.md")
 		if err != nil {
 			t.Errorf("%s: %v", c.rule, err)

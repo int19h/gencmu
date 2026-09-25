@@ -1056,6 +1056,17 @@
    * @property {StageJson[]} stages
    * @property {NodeJson | null} tree
    * @property {ErrorJson | null} error
+   * @property {WarningJson[]} [warnings] present only when there is one
+   */
+
+  /**
+   * A warning (docs/output.md).
+   * @typedef {object} WarningJson
+   * @property {string} stage
+   * @property {string} feature
+   * @property {string} rule
+   * @property {[number, number]} span
+   * @property {[number, number]} source
    */
 
   /**
@@ -1064,7 +1075,7 @@
    * @typedef {{[name: string]: DisplayValue | DisplayValue[] | string | null}} DisplayValue
    */
 
-  const RESULT_FORMAT = 1;
+  const RESULT_FORMAT = 2;
 
   /**
    * @param {Token} token
@@ -1133,7 +1144,8 @@
    * @returns {ResultJson}
    */
   function resultJson(result) {
-    return {
+    /** @type {ResultJson} */
+    const json = {
       format: RESULT_FORMAT,
       ok: result.ok,
       stages: result.stages.map((stage) => {
@@ -1147,6 +1159,12 @@
       tree: result.tree ? nodeJson(result.tree) : null,
       error: result.error ? errorJson(result.error) : null,
     };
+    if (result.warnings && result.warnings.length > 0) {
+      json.warnings = result.warnings.map((warning) => ({
+        stage: warning.stage, feature: warning.feature, rule: warning.rule, span: [warning.span[0], warning.span[1]], source: [warning.source[0], warning.source[1]],
+      }));
+    }
+    return json;
   }
 
   // The tokens a node reads, for its labels.
@@ -1453,7 +1471,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 4;
+  const DOM_FORMAT = 5;
 
   /**
    * @param {unknown} value
@@ -1516,7 +1534,8 @@
       for (const condition of rule.conditions) pending.push({ kind: "condition", value: condition, depth: 0 });
       for (const alternative of rule.alternatives) {
         if (!isDomObject(alternative) || !Array.isArray(alternative.guards) ||
-            !alternative.guards.every((guard) => isDomObject(guard) && typeof guard.feature === "string" && typeof guard.negated === "boolean")) {
+            !alternative.guards.every((guard) => isDomObject(guard) && typeof guard.feature === "string" && typeof guard.negated === "boolean" &&
+              (guard.kind === "gate" || (guard.kind === "warning" && guard.negated === false)))) {
           return "a malformed alternative";
         }
         // A capture stands only at the top level of an alternative: the
@@ -2043,6 +2062,19 @@
     return blocks.join("\n\n");
   }
 
+  /**
+   * Each warning of a result (engine §12) as the feature it names and an
+   * excerpt of the text the warned constituent covers.
+   * @param {ParseResult} result
+   * @returns {string}
+   */
+  function explainWarnings(result) {
+    return (result.warnings || []).map((warning) => [
+      `Warning: the ${warning.stage} stage read this with the feature ${warning.feature}, in the rule ${warning.rule}:`,
+      sourceExcerpt(result.text, warning.source).excerpt,
+    ].join("\n")).join("\n\n");
+  }
+
   // ---- Tokens --------------------------------------------------------------
 
   /**
@@ -2420,7 +2452,7 @@
    * grammar not accept this text here".
    * @param {Dialect} dialect
    * @param {string} text
-   * @param {{stage: string, position: number, features?: Iterable<string>, autoFeatures?: boolean}} options
+   * @param {{stage: string, position: number, features?: Iterable<string>, withoutFeatures?: Iterable<string>, autoFeatures?: boolean}} options
    * @returns {Trace}
    */
   function trace(dialect, text, options) {
@@ -2429,7 +2461,7 @@
     // The parse the caller would get up to that stage, so that the traced
     // stage reads the same tokens under the same features, auto features
     // included.
-    const run = dialect.parse(text, { features: options.features, autoFeatures: options.autoFeatures, until: options.stage });
+    const run = dialect.parse(text, { features: options.features, withoutFeatures: options.withoutFeatures, autoFeatures: options.autoFeatures, until: options.stage });
     const report = run.stages[index];
     if (!report || !report.input) throw new GencmuError("usage", `the ${options.stage} stage is not reached: ${explainError(run)}`);
     const tokens = report.input;
@@ -2698,8 +2730,9 @@
     /** @returns {LoweredGrammar} */
     run() {
       for (const rule of this.grammar.rules.values()) {
+        // Only gates drop an alternative; a warning keeps it (engine §3.1).
         const enabled = rule.alternatives.filter((alternative) => alternative.guards.every(
-          (guard) => this.features.has(guard.feature) !== guard.negated));
+          (guard) => guard.kind === "warning" || this.features.has(guard.feature) !== guard.negated));
         for (const alternative of enabled) this.lowerAlternative(rule, alternative, enabled.length === 1);
       }
       return {
@@ -2781,6 +2814,7 @@
             tags: single ? { call: "tags", args: [{ capture: "\u0000child" }] } : null,
             emit: null,
             recursivePrefix: false,
+            warnings: [],
           });
         }
         pending.unshift(...nested);
@@ -2858,6 +2892,7 @@
         tags,
         emit,
         recursivePrefix,
+        warnings: alternative.guards.filter((guard) => guard.kind === "warning").map((guard) => guard.feature),
       });
     }
 
@@ -3928,6 +3963,7 @@
       report.tree = resultTree(derivation, context)[0];
       report.derivation = derivation;
       report.context = context;
+      report.warnings = warningsOf(derivation, context, features, this.name);
       try {
         report.output = emit(derivation, context);
       } catch (error) {
@@ -3940,7 +3976,19 @@
       const elisionOnly = options.elisionOnly === undefined || options.elisionOnly === null
         ? lowered.resolution.elisionOnly : options.elisionOnly;
       if (elisionOnly && report.verdict !== "unique") {
-        const readings = this.elisionCheck(report.tree, tokens, sourceText, unicode, features);
+        let readings;
+        try {
+          readings = this.elisionCheck(report.tree, tokens, sourceText, unicode, features);
+        } catch (error) {
+          // An error of the grammar in the reparse ends the stage as one found
+          // while emitting does: no output, the rest kept (engine §7).
+          if (error instanceof GencmuError) {
+            report.output = null;
+            report.error = { kind: "grammar", stage: this.name, message: error.message };
+            return report;
+          }
+          throw error;
+        }
         if (readings) {
           report.error = {
             kind: "ambiguous",
@@ -4105,6 +4153,40 @@
       for (let at = index === chain.length - 1 ? 0 : 1; at < own.length; at++) result.push(own[at]);
     }
     return result;
+  }
+
+  /**
+   * The warnings of a chosen derivation (engine §12): each rule node of its
+   * tree gives one for each warning of its alternative whose feature is on, in
+   * the order a walk meets the nodes, parent before children and children left
+   * to right. The walk splices helpers and the prefixes of a trailing
+   * repetition as the tree does, with its own stack for the same reason.
+   * @param {Derivation} root
+   * @param {ParseContext} context
+   * @param {Set<string>} features
+   * @param {string} stage
+   * @returns {import("./types.js").ParseWarning[]}
+   */
+  function warningsOf(root, context, features, stage) {
+    const tokens = context.tokens;
+    /** @type {import("./types.js").ParseWarning[]} */
+    const warnings = [];
+    /** @type {Derivation[]} */
+    const stack = [root];
+    for (let node = stack.pop(); node !== undefined; node = stack.pop()) {
+      if ("read" in node) continue;
+      const production = node.production;
+      if (!production.helper) {
+        for (const feature of production.warnings) {
+          if (features.has(feature)) {
+            warnings.push({ stage, feature, rule: production.lhs, span: [node.start, node.end], source: sourceOf(tokens, node.start, node.end) });
+          }
+        }
+      }
+      const children = orderedChildren(node);
+      for (let index = children.length - 1; index >= 0; index--) stack.push(children[index]);
+    }
+    return warnings;
   }
 
   /**
@@ -4449,9 +4531,13 @@
      * @returns {DomAlternative}
      */
     function readAlternative(node) {
+      // A guard's token is its spelling: `@f?` or `@¬f?` for a gate, `@f!`
+      // for a warning (engine §9).
       const guards = ofRule(node, "guard").map((guard) => {
         const spelled = text(parts(guard)[0]);
-        return { feature: spelled.replace(/^@¬?/, ""), negated: spelled.startsWith("@¬") };
+        /** @type {import("./types.js").Guard} */
+        const read = { feature: spelled.slice(spelled.startsWith("@¬") ? 2 : 1, -1), kind: spelled.endsWith("!") ? "warning" : "gate", negated: spelled.startsWith("@¬") };
+        return read;
       });
       /** @type {DomAlternative} */
       const alternative = { guards, expr: readExpression(only(node, "conjunction"), true) };
@@ -5007,7 +5093,8 @@
 
 
 
-  /** @import { GrammarDom, ParseError, ParseOptions, ParseResult, Resources, ResultNode, StageReport } from "./types.js" */
+
+  /** @import { Feature, GrammarDom, ParseError, ParseOptions, ParseResult, Resources, ResultNode, StageReport } from "./types.js" */
 
 
   /**
@@ -5143,18 +5230,50 @@
     }
   }
 
+  /**
+   * A dialect's features (engine §13): every name a guard of any stage uses,
+   * and every name the pipeline's `<?features?>` declares, in code point
+   * order. A name used both as a gate and as a warning is an error of the
+   * dialect.
+   * @param {string} path
+   * @param {Stage[]} stages
+   * @param {string[]} declared
+   * @returns {Feature[]}
+   */
+  function dialectFeatures(path, stages, declared) {
+    /** @type {Map<string, "gate" | "warning">} */
+    const kinds = new Map();
+    for (const stage of stages) {
+      for (const rule of stage.grammar.rules.values()) {
+        for (const alternative of rule.alternatives) {
+          for (const guard of alternative.guards) {
+            const known = kinds.get(guard.feature);
+            if (known !== undefined && known !== guard.kind) {
+              throw new GencmuError("grammar", `${path}: the feature ${guard.feature} is used both as a gate and as a warning`, { document: path });
+            }
+            kinds.set(guard.feature, guard.kind);
+          }
+        }
+      }
+    }
+    const names = [...new Set([...kinds.keys(), ...declared])].sort(compareCodePoints);
+    return names.map((name) => ({ name, kind: kinds.get(name) || "gate", default: declared.includes(name) }));
+  }
+
   class Dialect {
     /**
      * @param {string} path
      * @param {Stage[]} stages
      * @param {Loader} loader
-     * @param {string[]} [features] the features the pipeline enables
+     * @param {string[]} [declared] the features the pipeline turns on
      */
-    constructor(path, stages, loader, features = []) {
+    constructor(path, stages, loader, declared = []) {
       this.path = path;
       this.stages = stages;
       this.loader = loader;
-      this.features = features;
+      this.declared = declared;
+      /** @type {Feature[]} the dialect's features, with their kinds and defaults */
+      this.features = dialectFeatures(path, stages, declared);
     }
 
     /**
@@ -5164,11 +5283,19 @@
      * @returns {ParseResult}
      */
     parse(text, options = {}) {
-      let features = new Set([...this.features, ...(options.features || [])]);
+      // The features on are the pipeline's, with the caller's added and the
+      // caller's turned off removed (engine §13).
+      const on = [...(options.features || [])];
+      const off = new Set(options.withoutFeatures || []);
+      const both = on.find((name) => off.has(name));
+      if (both !== undefined) throw new GencmuError("usage", `the feature ${both} is named both to turn on and to turn off`);
+      let features = new Set([...this.declared, ...on].filter((name) => !off.has(name)));
       const wordsAt = this.stages.findIndex((stage) => stage.name === "words");
       const untilAt = options.until === undefined ? this.stages.length - 1 : this.stages.findIndex((stage) => stage.name === options.until);
       // The probe is for a run that reaches the words stage (engine §13).
-      if (options.autoFeatures !== false && !features.has("sa-su") && wordsAt >= 0 && untilAt >= wordsAt) {
+      // Only a dialect that has sa-su as a gate adds it by itself (engine §13).
+      const gated = this.features.some((feature) => feature.name === "sa-su" && feature.kind === "gate");
+      if (options.autoFeatures !== false && gated && !features.has("sa-su") && !off.has("sa-su") && wordsAt >= 0 && untilAt >= wordsAt) {
         const probe = this.run(text, { ...options, features, until: "words" }, null);
         const words = probe.stages[probe.stages.length - 1];
         const needs = !words || words.name !== "words" || words.error || containsWord(words.tree, words.input, ["sa", "su"]);
@@ -5213,6 +5340,7 @@
         stages,
         tree: error ? null : final.tree,
         error: error ? locate(/** @type {ParseError} */ (error.error), text) : null,
+        warnings: stages.flatMap((stage) => stage.warnings || []),
         text,
         features: [...options.features].sort(),
       };
@@ -5512,6 +5640,27 @@
    * @property {Token[]} [input] the tokens the stage read
    * @property {Derivation} [derivation] the chosen derivation, helpers and all
    * @property {ParseContext} [context]
+   * @property {ParseWarning[]} [warnings] the warnings of the chosen tree
+   *   (engine §12); absent for a stage that rejected its input
+   */
+
+  /**
+   * A warning (engine §12): a node of a stage's chosen tree that a warned
+   * alternative built while its feature was on.
+   * @typedef {object} ParseWarning
+   * @property {string} stage
+   * @property {string} feature
+   * @property {string} rule
+   * @property {Span} span the node's span over the stage's input tokens
+   * @property {Span} source the node's range of the original text
+   */
+
+  /**
+   * One of a dialect's features (engine §13).
+   * @typedef {object} Feature
+   * @property {string} name
+   * @property {"gate" | "warning"} kind
+   * @property {boolean} default whether the pipeline's `<?features?>` turns it on
    */
 
   /**
@@ -5522,14 +5671,17 @@
    * @property {ResultNode | null} tree the last stage's tree
    * @property {ParseError | null} error
    * @property {string} text
+   * @property {ParseWarning[]} warnings every stage's warnings, in stage order
    * @property {string[]} features the features the parse ran with, those auto
    *   features added included; not part of the canonical JSON
    */
 
   /**
    * @typedef {object} ParseOptions
-   * @property {Iterable<string>} [features] the features to enable, besides
-   *   those the dialect's pipeline enables
+   * @property {Iterable<string>} [features] the features to turn on, besides
+   *   those the dialect's pipeline turns on
+   * @property {Iterable<string>} [withoutFeatures] the features to turn off,
+   *   the pipeline's among them; naming one in both lists is a usage error
    * @property {boolean} [autoFeatures] enable `sa-su` only for a text that
    *   needs it; on unless `false`
    * @property {string} [until] the name of the last stage to run
@@ -5577,7 +5729,9 @@
   /**
    * @typedef {object} Guard
    * @property {string} feature
-   * @property {boolean} negated
+   * @property {"gate" | "warning"} kind a gate keeps its alternative only while
+   *   its feature is on, or off if negated; a warning always keeps it
+   * @property {boolean} negated always false for a warning
    */
 
   /**
@@ -5659,6 +5813,8 @@
    * @property {Term | null} tags
    * @property {Emission | null} emit
    * @property {boolean} recursivePrefix
+   * @property {string[]} warnings the features of the alternative's warnings,
+   *   in the order they are written; none for a helper
    */
 
   /**
@@ -5749,7 +5905,7 @@
 
 
 
-    return { version: "0.1.0", Loader, Dialect, fnv1a64, GencmuError, Token, resultJson, toJson, compactJson, toBrackets, toTree, displayValue, prettyJson, nodeBrackets, nodeTree, explainError, explainTies, tokenTable, audit, formatAudit, trace, formatTrace, sourceExcerpt, formatCondition, formatTerm, formatItem, loadDialectSources, loaderFromSources };
+    return { version: "0.1.0", Loader, Dialect, fnv1a64, GencmuError, Token, resultJson, toJson, compactJson, toBrackets, toTree, displayValue, prettyJson, nodeBrackets, nodeTree, explainError, explainTies, explainWarnings, tokenTable, audit, formatAudit, trace, formatTrace, sourceExcerpt, formatCondition, formatTerm, formatItem, loadDialectSources, loaderFromSources };
   }
   root.gencmuFactory = gencmuFactory;
   root.gencmu = gencmuFactory();

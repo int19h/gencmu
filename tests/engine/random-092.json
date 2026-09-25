@@ -20,7 +20,7 @@
   ],
   "expect": {
     "result": {
-      "format": 1,
+      "format": 2,
       "ok": true,
       "stages": [
         {

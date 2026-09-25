@@ -94,6 +94,32 @@ export type StageReportBase = {
      */
     derivation?: Derivation;
     context?: ParseContext;
+    /**
+     * the warnings of the chosen tree
+     * (engine §12); absent for a stage that rejected its input
+     */
+    warnings?: ParseWarning[];
+};
+export type ParseWarning = {
+    stage: string;
+    feature: string;
+    rule: string;
+    /**
+     * the node's span over the stage's input tokens
+     */
+    span: Span;
+    /**
+     * the node's range of the original text
+     */
+    source: Span;
+};
+export type Feature = {
+    name: string;
+    kind: "gate" | "warning";
+    /**
+     * whether the pipeline's `<?features?>` turns it on
+     */
+    default: boolean;
 };
 export type ParseResult = {
     ok: boolean;
@@ -105,6 +131,10 @@ export type ParseResult = {
     error: ParseError | null;
     text: string;
     /**
+     * every stage's warnings, in stage order
+     */
+    warnings: ParseWarning[];
+    /**
      * the features the parse ran with, those auto
      * features added included; not part of the canonical JSON
      */
@@ -112,10 +142,15 @@ export type ParseResult = {
 };
 export type ParseOptions = {
     /**
-     * the features to enable, besides
-     * those the dialect's pipeline enables
+     * the features to turn on, besides
+     * those the dialect's pipeline turns on
      */
     features?: Iterable<string>;
+    /**
+     * the features to turn off,
+     * the pipeline's among them; naming one in both lists is a usage error
+     */
+    withoutFeatures?: Iterable<string>;
     /**
      * enable `sa-su` only for a text that
      * needs it; on unless `false`
@@ -162,6 +197,14 @@ export type DomAlternative = {
 };
 export type Guard = {
     feature: string;
+    /**
+     * a gate keeps its alternative only while
+     * its feature is on, or off if negated; a warning always keeps it
+     */
+    kind: "gate" | "warning";
+    /**
+     * always false for a warning
+     */
     negated: boolean;
 };
 export type Expr = {
@@ -268,6 +311,11 @@ export type Production = {
     tags: Term | null;
     emit: Emission | null;
     recursivePrefix: boolean;
+    /**
+     * the features of the alternative's warnings,
+     * in the order they are written; none for a helper
+     */
+    warnings: string[];
 };
 export type Resolution = {
     lean: "greedy" | "lazy";
@@ -460,6 +508,25 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Token[]} [input] the tokens the stage read
  * @property {Derivation} [derivation] the chosen derivation, helpers and all
  * @property {ParseContext} [context]
+ * @property {ParseWarning[]} [warnings] the warnings of the chosen tree
+ *   (engine §12); absent for a stage that rejected its input
+ */
+/**
+ * A warning (engine §12): a node of a stage's chosen tree that a warned
+ * alternative built while its feature was on.
+ * @typedef {object} ParseWarning
+ * @property {string} stage
+ * @property {string} feature
+ * @property {string} rule
+ * @property {Span} span the node's span over the stage's input tokens
+ * @property {Span} source the node's range of the original text
+ */
+/**
+ * One of a dialect's features (engine §13).
+ * @typedef {object} Feature
+ * @property {string} name
+ * @property {"gate" | "warning"} kind
+ * @property {boolean} default whether the pipeline's `<?features?>` turns it on
  */
 /**
  * The result of parsing a text.
@@ -469,13 +536,16 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {ResultNode | null} tree the last stage's tree
  * @property {ParseError | null} error
  * @property {string} text
+ * @property {ParseWarning[]} warnings every stage's warnings, in stage order
  * @property {string[]} features the features the parse ran with, those auto
  *   features added included; not part of the canonical JSON
  */
 /**
  * @typedef {object} ParseOptions
- * @property {Iterable<string>} [features] the features to enable, besides
- *   those the dialect's pipeline enables
+ * @property {Iterable<string>} [features] the features to turn on, besides
+ *   those the dialect's pipeline turns on
+ * @property {Iterable<string>} [withoutFeatures] the features to turn off,
+ *   the pipeline's among them; naming one in both lists is a usage error
  * @property {boolean} [autoFeatures] enable `sa-su` only for a text that
  *   needs it; on unless `false`
  * @property {string} [until] the name of the last stage to run
@@ -516,7 +586,9 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * @typedef {object} Guard
  * @property {string} feature
- * @property {boolean} negated
+ * @property {"gate" | "warning"} kind a gate keeps its alternative only while
+ *   its feature is on, or off if negated; a warning always keeps it
+ * @property {boolean} negated always false for a warning
  */
 /**
  * A rule body expression.
@@ -585,6 +657,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Term | null} tags
  * @property {Emission | null} emit
  * @property {boolean} recursivePrefix
+ * @property {string[]} warnings the features of the alternative's warnings,
+ *   in the order they are written; none for a helper
  */
 /**
  * @typedef {object} Resolution

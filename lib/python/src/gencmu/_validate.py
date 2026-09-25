@@ -14,7 +14,7 @@ from typing import Any
 
 from ._clauses import definition_problem
 
-FORMAT = 4
+FORMAT = 5
 """The version of the DOM's shape (docs/output.md)."""
 
 MAX_DEPTH = 256
@@ -57,6 +57,16 @@ def _is_string(value: Any) -> bool:
     """A literal, or phonemes, text or lowercase of something."""
     return isinstance(value, dict) and (
         isinstance(value.get("literal"), str) or _is_one_of(value.get("call"), {"phonemes", "text", "lowercase"})
+    )
+
+
+def _is_guard(value: Any) -> bool:
+    """A gate, negated or not, or a warning, which never is (engine §9)."""
+    return (
+        isinstance(value, dict)
+        and isinstance(value.get("feature"), str)
+        and isinstance(value.get("negated"), bool)
+        and (value.get("kind") == "gate" or (value.get("kind") == "warning" and value["negated"] is False))
     )
 
 
@@ -154,10 +164,7 @@ def dom_problem(dom: Any) -> str | None:
             if (
                 not isinstance(alternative, dict)
                 or not isinstance(alternative.get("guards"), list)
-                or not all(
-                    isinstance(guard, dict) and isinstance(guard.get("feature"), str) and isinstance(guard.get("negated"), bool)
-                    for guard in alternative["guards"]
-                )
+                or not all(_is_guard(guard) for guard in alternative["guards"])
             ):
                 return "a malformed alternative"
             # A capture stands only at the top level of an alternative: the

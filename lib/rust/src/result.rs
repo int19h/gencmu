@@ -271,6 +271,22 @@ impl fmt::Display for ParseError {
     }
 }
 
+/// A warning (engine §12): a rule node of a stage's chosen tree, built from
+/// an alternative with a warning `@f!` while the feature `f` was on.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Warning {
+    /// The stage whose chosen tree has the node.
+    pub stage: String,
+    /// The warning's feature, the `f` of `@f!`.
+    pub feature: String,
+    /// The node's rule.
+    pub rule: String,
+    /// The range of the stage's input tokens the node covers.
+    pub span: Range<usize>,
+    /// The range of the original text the node covers, in code points.
+    pub source: Range<usize>,
+}
+
 /// The result of parsing a text (`docs/output.md`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseResult {
@@ -282,4 +298,7 @@ pub struct ParseResult {
     pub tree: Option<Node>,
     /// Why the text did not parse, when not `ok`.
     pub error: Option<ParseError>,
+    /// The warnings of every stage run, in stage order, whether or not the
+    /// result is `ok`; empty when there are none.
+    pub warnings: Vec<Warning>,
 }

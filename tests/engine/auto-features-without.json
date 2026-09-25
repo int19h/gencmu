@@ -1,0 +1,32 @@
+{
+  "description": "Auto features do not add sa-su when the caller has turned it off, so a words stage that needs it rejects the text (engine §13).",
+  "documents": {
+    "p.md": "# A dialect\n\n## Words <?stage words?>\n\n- [g](g.md) <?grammar?>\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution lazy\n%rule text @sa-su? A | B\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "options": {
+    "autoFeatures": true,
+    "withoutFeatures": [
+      "sa-su"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "stage": "words"
+      }
+    },
+    "error": "rejected"
+  }
+}

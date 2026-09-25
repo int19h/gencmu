@@ -73,22 +73,35 @@ def case_tokens(case: dict[str, Any]) -> tuple[list[Token], str]:
     return tokens, " ".join(spec["text"] for spec in case["tokens"])
 
 
-def run_case(case: dict[str, Any], use_cache: bool = True) -> tuple[dict[str, Any] | None, gencmu.ParseResult | None, gencmu.GencmuError | None]:
+def run_case(
+    case: dict[str, Any], use_cache: bool = True
+) -> tuple[dict[str, Any] | None, gencmu.ParseResult | None, gencmu.GencmuError | None, list[dict[str, Any]] | None]:
+    """An engine case's canonical result and result, or the error in their
+    place: the load's, or the parse's for a mistake of the caller, which is
+    no result (engine §13). Last, the dialect's features as a case writes
+    them, or None if it did not load."""
     sources, pipeline = case_sources(case)
     try:
         dialect = gencmu.load_dialect_sources(sources, pipeline, use_cache=use_cache)
     except gencmu.GencmuError as error:
-        return None, None, error
+        return None, None, error, None
+    features = [{"name": feature.name, "kind": feature.kind, "default": feature.default} for feature in dialect.features]
     options = case.get("options", {})
     kwargs: dict[str, Any] = {
         "features": options.get("features", []),
+        "without_features": options.get("withoutFeatures", []),
         "auto_features": options.get("autoFeatures", False),
         "until": options.get("until"),
         "elision_only": options.get("elisionOnly"),
     }
-    if "tokens" in case:
-        tokens, text = case_tokens(case)
-        result = dialect.parse_tokens(tokens, text, **kwargs)
-    else:
-        result = dialect.parse(case.get("input", ""), **kwargs)
-    return gencmu.result_json(result), result, None
+    try:
+        if "tokens" in case:
+            tokens, text = case_tokens(case)
+            result = dialect.parse_tokens(tokens, text, **kwargs)
+        else:
+            result = dialect.parse(case.get("input", ""), **kwargs)
+    except gencmu.GencmuError as error:
+        if error.kind != "usage":
+            raise
+        return None, None, error, features
+    return gencmu.result_json(result), result, None, features

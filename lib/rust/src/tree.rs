@@ -1,12 +1,13 @@
-//! From a chosen derivation to the result's tree (engine §12) and to the
-//! next stage's tokens (§11). Every walk here is iterative.
+//! From a chosen derivation to the result's tree and its warnings (engine
+//! §12), and to the next stage's tokens (§11). Every walk here is
+//! iterative.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::earley::{Cap, EngineError, Frame, Recognizer, Tok};
 use crate::lower::{LEmit, LEmitItem, LTerm, Lowered};
 use crate::rank::{DNode, Ranker};
-use crate::result::{Node, NodeKind};
+use crate::result::{Node, NodeKind, Warning};
 use crate::tags::{phoneme_of, SetId};
 
 #[derive(Debug, Clone)]
@@ -178,6 +179,48 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
     }
     let mut root = std::mem::take(&mut fragments[0]);
     root.pop().expect("the root is a rule node")
+}
+
+/// The warnings of a stage's chosen tree (§12): each rule node gives one
+/// for each warning of its production whose feature is on, in the order a
+/// walk meets the nodes, parent before children and children left to
+/// right. The walk passes through what the tree splices out, helpers and
+/// the prefixes of trailing repetitions, without counting them as nodes,
+/// and so meets the tree's nodes in the tree's own order.
+pub(crate) fn warnings_of(
+    tree: &ITree,
+    g: &Lowered,
+    tokens: &[Tok],
+    features: &BTreeSet<String>,
+    stage: &str,
+) -> Vec<Warning> {
+    let tokens: Vec<&Tok> = tokens.iter().collect();
+    let mut warnings = Vec::new();
+    // Each node with whether the tree splices it out as a prefix.
+    let mut stack = vec![(0u32, false)];
+    while let Some((index, prefix)) = stack.pop() {
+        let node = &tree.nodes[index as usize];
+        let IKind::Close { prod, start, end, .. } = node.kind else {
+            continue;
+        };
+        let production = &g.prods[prod as usize];
+        if !prefix {
+            // A helper's productions have no warnings.
+            for feature in production.warnings.iter().filter(|&feature| features.contains(feature)) {
+                warnings.push(Warning {
+                    stage: stage.to_string(),
+                    feature: feature.clone(),
+                    rule: g.rules[production.rule as usize].name.clone(),
+                    span: start as usize..end as usize,
+                    source: source_of(&tokens, start as usize, end as usize),
+                });
+            }
+        }
+        for (position, &child) in node.children.iter().enumerate().rev() {
+            stack.push((child, position == 0 && production.trailing_step));
+        }
+    }
+    warnings
 }
 
 /// A token emitted for the next stage.

@@ -83,7 +83,10 @@
   const state = {
     text: $("input").value,
     dialect: dialectPaths.includes("dialects/cll.md") ? "dialects/cll.md" : dialectPaths[0],
+    // The features the page turns on, and those it turns off among the
+    // ones the dialect turns on.
     features: new Set(),
+    without: new Set(),
     autoFeatures: true,
     elision: "",
     until: "",
@@ -109,6 +112,7 @@
     const dialect = params.get("dialect");
     if (dialect && dialectPaths.includes(`dialects/${dialect}.md`)) state.dialect = `dialects/${dialect}.md`;
     if (params.get("features")) state.features = new Set(params.get("features").split(",").filter(Boolean));
+    if (params.get("without")) state.without = new Set(params.get("without").split(",").filter(Boolean));
     if (params.get("auto") === "off") state.autoFeatures = false;
     if (["on", "off"].includes(params.get("elision"))) state.elision = params.get("elision");
     if (params.get("until")) state.until = params.get("until");
@@ -122,6 +126,7 @@
       params.set("text", state.text);
       params.set("dialect", dialectName(state.dialect));
       if (state.features.size) params.set("features", [...state.features].join(","));
+      if (state.without.size) params.set("without", [...state.without].join(","));
       if (!state.autoFeatures) params.set("auto", "off");
       if (state.elision) params.set("elision", state.elision);
       if (state.until) params.set("until", state.until);
@@ -204,6 +209,7 @@
       dialect: state.dialect,
       text: state.text,
       features: [...state.features],
+      withoutFeatures: [...state.without],
       autoFeatures: state.autoFeatures,
       until: state.until || null,
       elisionOnly: state.elision === "" ? null : state.elision === "on",
@@ -417,7 +423,11 @@
     let verdict;
     if (message.loadError) verdict = badge("bad", "grammar error");
     else if (message.parseError) verdict = badge("bad", "error");
-    else if (message.parse.ok) verdict = message.parse.ties.length ? badge("warn", "accepted, with a tie") : badge("good", "accepted");
+    else if (message.parse.ok) {
+      const warned = message.parse.warnings.length;
+      verdict = message.parse.ties.length ? badge("warn", "accepted, with a tie")
+        : badge("good", warned ? `accepted, with ${plural(warned, "warning")}` : "accepted");
+    }
     else if (message.parse.error.kind === "rejected") verdict = badge("bad", `rejected by the ${message.parse.error.stage} stage`);
     else if (message.parse.error.kind === "ambiguous") verdict = badge("bad", `ambiguous in the ${message.parse.error.stage} stage`);
     else verdict = badge("bad", `grammar error in the ${message.parse.error.stage || "?"} stage`);
@@ -484,6 +494,11 @@
       boxes.push(element("div", { class: "box bad", id: "explanation" },
         element("h3", { text: titles[error.kind] || "Not accepted" }),
         element("pre", { class: "explanation" }, linkified(parse.explanation)), actions));
+    }
+    if (parse && parse.warnings.length) {
+      boxes.push(element("div", { class: "box warn" },
+        element("h3", { text: parse.warnings.length === 1 ? "A warning" : `${parse.warnings.length} warnings` }),
+        element("pre", { class: "explanation", text: parse.warningsText })));
     }
     for (const tie of parse ? parse.ties : []) {
       boxes.push(element("div", { class: "box warn" },
@@ -641,23 +656,31 @@
       features.replaceChildren(element("span", { class: "muted", text: "loading…" }));
       return;
     }
-    const names = [...new Set([...info.features, ...info.dialectFeatures])].sort();
-    if (!names.length) features.replaceChildren(element("span", { class: "muted", text: "none: no grammar of this dialect is guarded on a feature" }));
+    if (!info.features.length) features.replaceChildren(element("span", { class: "muted", text: "none: no grammar of this dialect is guarded on a feature" }));
     else {
-      features.replaceChildren(...names.map((name) => {
-        const fixed = info.dialectFeatures.includes(name);
-        const auto = name === "sa-su" && state.autoFeatures && !state.features.has(name);
-        return element("label", { class: "chip" + (fixed ? " fixed" : ""), title: fixed ? "The dialect enables this feature for every parse" : null },
+      features.replaceChildren(...info.features.map((feature) => {
+        const name = feature.name;
+        const on = feature.default ? !state.without.has(name) : state.features.has(name);
+        const auto = name === "sa-su" && feature.kind === "gate" && state.autoFeatures && !on && !state.without.has(name);
+        const title = (feature.kind === "warning" ? "A warning: while it is on, a parse that uses this addition says where" : "A gate: while it is on, the grammar has this construct") +
+          (feature.default ? "; the dialect turns it on" : "");
+        return element("label", { class: "chip" + (feature.default ? " fixed" : ""), title },
           element("input", {
-            type: "checkbox", value: name, checked: fixed || state.features.has(name), disabled: fixed,
+            type: "checkbox", value: name, checked: on,
             onchange: (event) => {
-              if (event.target.checked) state.features.add(name);
-              else state.features.delete(name);
+              // A switch records only a departure from the dialect's default,
+              // and a name is never in both lists, which the library refuses:
+              // another dialect may have put it in the other one.
+              state.features.delete(name);
+              state.without.delete(name);
+              if (feature.default && !event.target.checked) state.without.add(name);
+              else if (!feature.default && event.target.checked) state.features.add(name);
               renderOptions();
               schedule(0);
             },
           }),
-          " ", name, fixed ? element("small", { text: " dialect" }) : null, auto ? element("small", { text: " auto", title: "Auto features switch it on for a text that needs it" }) : null);
+          " ", name, element("small", { text: feature.kind === "warning" ? " warning" : "" }),
+          feature.default ? element("small", { text: " dialect" }) : null, auto ? element("small", { text: " auto", title: "Auto features switch it on for a text that needs it" }) : null);
       }));
     }
     const until = $("until");

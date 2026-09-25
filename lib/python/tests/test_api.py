@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 import gencmu
-from gencmu._dialect import bundled_text
+from gencmu._dialect import DOM_FORMAT, bundled_text
 
 PIPELINE = """# A test dialect
 
@@ -69,7 +69,7 @@ SYNTAX = """# Syntax
 %ambiguity-resolution greedy
 
 %rule text
-  @¬sa-su WORD ... | @sa-su WORD ... <"ERASING">
+  @¬sa-su? WORD ... | @sa-su? WORD ... <"ERASING">
 ```
 """
 
@@ -128,7 +128,7 @@ class Loaders(unittest.TestCase):
         """A map may supply the notation's bootstrap; the bundled one is used
         only when it does not."""
         broken = dict(SOURCES)
-        broken["notation/bootstrap.json"] = json.dumps({"format": 4, "stages": []})
+        broken["notation/bootstrap.json"] = json.dumps({"format": DOM_FORMAT, "stages": []})
         with self.assertRaises(gencmu.GencmuError):
             gencmu.load_dialect_sources(broken, "dialect.md", use_cache=False)
 
@@ -189,8 +189,23 @@ class Options(unittest.TestCase):
         sources = dict(SOURCES)
         sources["dialect.md"] = PIPELINE.replace("# A test dialect", "# A test dialect <?features sa-su?>")
         dialect = gencmu.load_dialect_sources(sources, "dialect.md")
-        self.assertEqual(dialect.features, frozenset({"sa-su"}))
+        self.assertEqual(dialect.features, (gencmu.Feature("sa-su", "gate", True),))
         self.assertTrue(self.erasing(dialect.parse("mi mi", auto_features=False)))
+        # A caller can turn off a feature the pipeline turns on.
+        self.assertFalse(self.erasing(dialect.parse("mi mi", without_features=["sa-su"], auto_features=False)))
+
+    def test_dialect_features(self) -> None:
+        self.assertEqual(self.dialect.features, (gencmu.Feature("sa-su", "gate", False),))
+
+    def test_without_features(self) -> None:
+        """Auto features do not add a feature the caller turned off, and a
+        name both turned on and off is a mistake of the caller (engine §13)."""
+        self.assertFalse(self.erasing(self.dialect.parse("mi sa mi", without_features={"sa-su"})))
+        for options in ({"features": ["sa-su"], "without_features": ("sa-su",)}, {"without_features": "sa-su"}):
+            with self.subTest(options=options):
+                with self.assertRaises(gencmu.GencmuError) as caught:
+                    self.dialect.parse("mi", **options)  # type: ignore[arg-type]
+                self.assertEqual(caught.exception.kind, "usage")
 
     def test_until(self) -> None:
         result = self.dialect.parse("mi sa", until="words")
@@ -235,7 +250,7 @@ class Output(unittest.TestCase):
         result = dialect.parse("mi", until="words", auto_features=False)
         text = gencmu.to_json(result)
         self.assertEqual(json.loads(text), gencmu.result_json(result))
-        self.assertTrue(text.startswith('{"format":1,"ok":true,"stages":[{"name":"sounds","verdict":"unique","output":[{"text":"m","phonemes":"m","tags":{"/m/":true},"span":[0,1],"source":[0,1]}'), text)
+        self.assertTrue(text.startswith('{"format":2,"ok":true,"stages":[{"name":"sounds","verdict":"unique","output":[{"text":"m","phonemes":"m","tags":{"/m/":true},"span":[0,1],"source":[0,1]}'), text)
         self.assertIn(
             '"tree":{"kind":"rule","rule":"text","span":[0,2],"source":[0,2],"tags":{},"children":[{"kind":"rule","rule":"piece"',
             text,
@@ -285,6 +300,40 @@ class Output(unittest.TestCase):
         self.assertEqual(gencmu.to_brackets(result), "(klama bu x.y)")
 
 
+class Warnings(unittest.TestCase):
+    def dialect(self, rules: str) -> gencmu.Dialect:
+        sources = {
+            "p.md": "## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n",
+            "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n" + rules + "\n```\n",
+        }
+        return gencmu.load_dialect_sources(sources, "p.md")
+
+    def test_result_and_json(self) -> None:
+        """A warning is a ParseWarning of the result, and in the canonical
+        JSON after the error only when there is one (docs/output.md)."""
+        dialect = self.dialect("%rule text @w! A | B")
+        tokens = [gencmu.Token("a", {"A": True}, (0, 1), (0, 1))]
+        result = dialect.parse_tokens(tokens, "a", features=["w"])
+        self.assertEqual(result.warnings, [gencmu.ParseWarning("main", "w", "text", (0, 1), (0, 1))])
+        self.assertTrue(
+            gencmu.to_json(result).endswith(',"error":null,"warnings":[{"stage":"main","feature":"w","rule":"text","span":[0,1],"source":[0,1]}]}')
+        )
+        quiet = dialect.parse_tokens(tokens, "a")
+        self.assertEqual(quiet.warnings, [])
+        self.assertNotIn("warnings", gencmu.result_json(quiet))
+
+    def test_trailing_repetition(self) -> None:
+        """The prefixes of a trailing repetition are no nodes of the tree, so
+        they give no warnings of their own (engine §3.3, §12)."""
+        dialect = self.dialect("%rule text @w! x ...\n%rule x @v! A")
+        tokens = [gencmu.Token(str(n), {"A": True}, (n, n + 1), (2 * n, 2 * n + 1)) for n in range(3)]
+        result = dialect.parse_tokens(tokens, "0 1 2", features=["v", "w"])
+        self.assertEqual(
+            [(warning.feature, warning.rule, warning.span, warning.source) for warning in result.warnings],
+            [("w", "text", (0, 3), (0, 5)), ("v", "x", (0, 1), (0, 1)), ("v", "x", (1, 2), (2, 3)), ("v", "x", (2, 3), (4, 5))],
+        )
+
+
 class Deep(unittest.TestCase):
     def test_long_left_recursion(self) -> None:
         """A derivation as deep as the text is long needs no recursion."""
@@ -324,9 +373,9 @@ class Robustness(unittest.TestCase):
 
         sources = self.grammar('%rule text "a"')
         compiled = {
-            "format": 4,
+            "format": DOM_FORMAT,
             "bootstrap": fnv1a64(bundled_text("notation/bootstrap.json") or ""),
-            "documents": {"g.md": {"hash": fnv1a64(sources["g.md"]), "dom": {"format": 4, "rules": [{}], "directives": []}}},
+            "documents": {"g.md": {"hash": fnv1a64(sources["g.md"]), "dom": {"format": DOM_FORMAT, "rules": [{}], "directives": []}}},
         }
         sources["compiled.json"] = json.dumps(compiled)
         dialect = gencmu.load_dialect_sources(sources, "p.md")

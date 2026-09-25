@@ -107,12 +107,42 @@ type ParseError struct {
 	Message  string
 }
 
+// Warning reports a rule node of a stage's chosen tree that an alternative
+// with a warning guard, @f!, built while the feature f was on (engine §12).
+// Span counts the stage's input tokens, Source the original text's code
+// points, as a node's do.
+type Warning struct {
+	Stage   string
+	Feature string
+	Rule    string
+	Span    [2]int
+	Source  [2]int
+}
+
 // ParseResult is the result of a parse: OK when every stage run accepted
-// without an error, the stages run, the last stage's chosen tree, and the
-// error that ended the run.
+// without an error, the stages run, the last stage's chosen tree, the error
+// that ended the run, and the warnings of every stage run, in stage order,
+// an empty list when there are none.
 type ParseResult struct {
-	OK     bool
-	Stages []Stage
-	Tree   *Node
-	Error  *ParseError
+	OK       bool
+	Stages   []Stage
+	Tree     *Node
+	Error    *ParseError
+	Warnings []Warning
+}
+
+// Feature kinds: a gate keeps its alternatives only while it is on, or off
+// where negated; a warning keeps them either way and reports their use.
+const (
+	FeatureGate    = "gate"
+	FeatureWarning = "warning"
+)
+
+// Feature is one of a dialect's features (engine §13): a name its guards
+// use or its pipeline's <?features?> declares, its kind, and whether
+// <?features?> turns it on by default.
+type Feature struct {
+	Name    string
+	Kind    string
+	Default bool
 }

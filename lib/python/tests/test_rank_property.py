@@ -20,7 +20,7 @@ import random
 import unittest
 from typing import Any
 
-from gencmu._dialect import _resources, _unicode_table
+from gencmu._dialect import DOM_FORMAT, _resources, _unicode_table
 from gencmu._earley import Parser, StageContext
 from gencmu._grammar import lower, stitch
 from gencmu._model import Token
@@ -254,7 +254,7 @@ def dom_of(rules: list[list[list[Any]]], names: list[str], lean: str) -> dict[st
         return {"seq": [symbol(value) for value in alt]}
 
     return {
-        "format": 4,
+        "format": DOM_FORMAT,
         "rules": [
             {
                 "name": names[number],
@@ -333,7 +333,7 @@ def random_sugared(rng: random.Random) -> dict[str, Any]:
             alternatives.append({"guards": [], "expr": items[0] if len(items) == 1 else {"seq": items}})
         rules.append({"name": names[number], "op": "define", "alternatives": alternatives, "conditions": [], "at": [number + 1, 1]})
     return {
-        "format": 4,
+        "format": DOM_FORMAT,
         "rules": rules,
         "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [9, 1]}],
     }

@@ -6,7 +6,7 @@ import (
 )
 
 // resultFormat is the version of docs/output.md.
-const resultFormat = 1
+const resultFormat = 2
 
 // MarshalResult writes the canonical JSON of a result (docs/output.md).
 func MarshalResult(result *ParseResult) ([]byte, error) {
@@ -26,8 +26,33 @@ func MarshalResult(result *ParseResult) ([]byte, error) {
 	writeNode(&w, result.Tree)
 	w.raw(`,"error":`)
 	writeError(&w, result.Error)
+	// Present only when there is a warning.
+	if len(result.Warnings) > 0 {
+		w.raw(`,"warnings":[`)
+		for i := range result.Warnings {
+			if i > 0 {
+				w.raw(",")
+			}
+			writeWarning(&w, &result.Warnings[i])
+		}
+		w.raw("]")
+	}
 	w.raw("}")
 	return w.buf, nil
+}
+
+func writeWarning(w *jsonWriter, x *Warning) {
+	w.raw(`{"stage":`)
+	w.str(x.Stage)
+	w.raw(`,"feature":`)
+	w.str(x.Feature)
+	w.raw(`,"rule":`)
+	w.str(x.Rule)
+	w.raw(`,"span":`)
+	w.pair(x.Span)
+	w.raw(`,"source":`)
+	w.pair(x.Source)
+	w.raw("}")
 }
 
 func writeStage(w *jsonWriter, s *Stage) {

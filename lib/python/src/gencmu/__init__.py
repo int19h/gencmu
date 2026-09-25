@@ -5,7 +5,8 @@ runtime.
 
     dialect = gencmu.load_dialect("cll")
     result = dialect.parse("mi klama", features={"cbm"}, until="words")
-    result.ok, result.tree, result.error
+    result.ok, result.tree, result.error, result.warnings
+    dialect.features  # (Feature(name="sa-su", kind="gate", default=False),)
     gencmu.to_json(result)
     gencmu.to_brackets(result, show_elided=True)
 
@@ -17,17 +18,19 @@ from __future__ import annotations
 
 from ._dialect import Dialect, load_dialect, load_dialect_file, load_dialect_sources
 from ._errors import GencmuError
-from ._model import Action, Expected, Node, ParseError, ParseResult, Stage, Token
+from ._model import Action, Expected, Feature, Node, ParseError, ParseResult, ParseWarning, Stage, Token
 from ._output import result_json, to_brackets, to_json
 
 __all__ = [
     "Action",
     "Dialect",
     "Expected",
+    "Feature",
     "GencmuError",
     "Node",
     "ParseError",
     "ParseResult",
+    "ParseWarning",
     "Stage",
     "Token",
     "load_dialect",

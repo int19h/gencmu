@@ -35,4 +35,28 @@ fn harness_detects_a_wrong_expectation() {
     assert!(run_engine_case(&case).is_err());
     let case = parse_json(r#"{"grammar": "%rule text X | Y", "tokens": [{"text": "w", "tags": ["X", "Y"]}], "expect": {"result": {"ok": true, "tree": {"children": [{"terminal": "X"}]}}, "brackets": "v"}}"#).unwrap();
     assert!(run_engine_case(&case).is_err());
+    // Warnings and features are compared whole, and a usage error is
+    // expected exactly when there is one.
+    let warned = |expect: &str| {
+        let case = format!(
+            r#"{{"grammar": "%rule text @w! X", "tokens": [{{"text": "x", "tags": ["X"]}}], "options": {{"features": ["w"]}}, "expect": {expect}}}"#
+        );
+        run_engine_case(&parse_json(&case).unwrap())
+    };
+    let warning = r#"{"stage": "main", "feature": "w", "rule": "text", "span": [0, 1], "source": [0, 1]}"#;
+    assert!(warned(&format!(r#"{{"warnings": [{warning}]}}"#)).is_ok());
+    assert!(warned(r#"{"warnings": []}"#).is_err());
+    assert!(warned(r#"{"features": [{"name": "w", "kind": "warning", "default": false}]}"#).is_ok());
+    assert!(warned(r#"{"features": [{"name": "w", "kind": "gate", "default": false}]}"#).is_err());
+    assert!(warned(r#"{"features": [{"name": "w", "kind": "warning", "default": false, "on": true}]}"#).is_err());
+    let usage = |options: &str, expect: &str| {
+        let case = format!(
+            r#"{{"grammar": "%rule text X", "tokens": [{{"text": "x", "tags": ["X"]}}], "options": {options}, "expect": {expect}}}"#
+        );
+        run_engine_case(&parse_json(&case).unwrap())
+    };
+    let both = r#"{"features": ["f"], "withoutFeatures": ["f"]}"#;
+    assert!(usage(both, r#"{"error": "usage"}"#).is_ok());
+    assert!(usage(both, "{}").is_err());
+    assert!(usage("{}", r#"{"error": "usage"}"#).is_err());
 }

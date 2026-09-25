@@ -2,7 +2,7 @@
   "description": "A pipeline's <?features?> enables features for every parse, and the caller's features are added to them (engine §13).",
   "documents": {
     "p.md": "# A dialect <?features f?>\n\n## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n",
-    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text @f A | @¬f B | @f @g A A\n```\n"
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text @f? A | @¬f? B | @f? @g? A A\n```\n"
   },
   "pipeline": "p.md",
   "tokens": [

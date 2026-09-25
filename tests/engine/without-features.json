@@ -1,0 +1,33 @@
+{
+  "description": "A caller can turn off a feature that the pipeline's <?features?> turns on (engine §13).",
+  "documents": {
+    "p.md": "# A dialect <?features f?>\n\n## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text @f? A | @¬f? B\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "options": {
+    "withoutFeatures": [
+      "f"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "b"
+  }
+}

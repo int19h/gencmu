@@ -22,11 +22,12 @@ import (
 // share one *Dialect per dialect.
 
 type corpusCase struct {
-	ID       string
-	Text     string
-	Dialect  string
-	Features []string
-	fields   map[string]any // the fields compared
+	ID              string
+	Text            string
+	Dialect         string
+	Features        []string
+	WithoutFeatures []string
+	fields          map[string]any // the fields compared
 }
 
 var corpusFields = []string{"expect", "verdict", "stage", "ties", "words", "brackets"}
@@ -74,7 +75,7 @@ func readCorpus(t *testing.T) []*corpusCase {
 
 // corpusOutcome is what gencmu makes of a case, in the case's own terms.
 func corpusOutcome(d *Dialect, c *corpusCase) (map[string]any, error) {
-	res, err := d.Parse(c.Text, ParseOptions{Features: c.Features})
+	res, err := d.Parse(c.Text, ParseOptions{Features: c.Features, WithoutFeatures: c.WithoutFeatures})
 	if err != nil {
 		return nil, err
 	}

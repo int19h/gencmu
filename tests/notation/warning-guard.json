@@ -1,0 +1,28 @@
+{
+  "description": "@w! is a warning guard, and @f? a gate (engine §9).",
+  "document": "```jbogenbau\n%rule a @f? @w! A\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "guards": [
+                {
+                  "feature": "f",
+                  "kind": "gate",
+                  "negated": false
+                },
+                {
+                  "feature": "w",
+                  "kind": "warning",
+                  "negated": false
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -266,9 +266,16 @@ func (b *domBuilder) alternative(n *Node) *domAlt {
 	for _, p := range ruleParts(n) {
 		switch p.Rule {
 		case "guard":
+			// A guard's token is its spelling: @f? or @¬f? for a gate, @f!
+			// for a warning (§9).
 			g := strings.TrimPrefix(b.text(p), "@")
+			kind := FeatureGate
+			if strings.HasSuffix(g, "!") {
+				kind = FeatureWarning
+			}
 			neg := strings.HasPrefix(g, "¬")
-			a.Guards = append(a.Guards, domGuard{Feature: strings.TrimPrefix(g, "¬"), Negated: neg})
+			name := strings.TrimSuffix(strings.TrimSuffix(strings.TrimPrefix(g, "¬"), "?"), "!")
+			a.Guards = append(a.Guards, domGuard{Feature: name, Kind: kind, Negated: neg})
 		case "alternative-tags":
 			a.Tags = b.constituentTags(p)
 		default:

@@ -1,6 +1,6 @@
 {
-  "description": "@¬f is a guard on a disabled feature (engine §9).",
-  "document": "```jbogenbau\n%rule a @¬f A | @f B\n```\n",
+  "description": "@¬f? is a guard on a disabled feature (engine §9).",
+  "document": "```jbogenbau\n%rule a @¬f? A | @f? B\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -10,6 +10,7 @@
               "guards": [
                 {
                   "feature": "f",
+                  "kind": "gate",
                   "negated": true
                 }
               ]
@@ -18,6 +19,7 @@
               "guards": [
                 {
                   "feature": "f",
+                  "kind": "gate",
                   "negated": false
                 }
               ]

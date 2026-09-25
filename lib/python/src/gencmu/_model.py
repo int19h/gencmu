@@ -1,4 +1,5 @@
-"""The data a parse hands back (docs/output.md), as dataclasses."""
+"""The data a parse hands back (docs/output.md), and a dialect's features,
+as dataclasses."""
 
 from __future__ import annotations
 
@@ -106,12 +107,41 @@ class Stage:
 
 
 @dataclass
+class ParseWarning:
+    """A warning (engine §12): a rule node of a stage's chosen tree whose
+    alternative has a warning ``@feature!``, while the feature is on.
+    ``span`` is the node's range of the stage's input tokens, and ``source``
+    its range of the original text. Not called ``Warning``, which is a
+    built-in exception."""
+
+    stage: str
+    feature: str
+    rule: str
+    span: Range
+    source: Range
+
+
+@dataclass
 class ParseResult:
     """The result of a parse: ``ok`` when every stage run accepted without an
-    error, the stages run, the last stage's ``tree`` and the ``error``."""
+    error, the stages run, the last stage's ``tree``, the ``error``, and the
+    ``warnings`` of every stage run, in stage order, whether or not the
+    parse is ``ok``."""
 
     ok: bool
     stages: list[Stage]
     tree: Node | None
     error: ParseError | None
     text: str = ""
+    warnings: list[ParseWarning] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class Feature:
+    """One of a dialect's features (engine §13): its ``name``, its ``kind``,
+    ``"gate"`` or ``"warning"``, and whether the pipeline's
+    ``<?features?>`` turns it on by ``default``."""
+
+    name: str
+    kind: str
+    default: bool

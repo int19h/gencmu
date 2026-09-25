@@ -1,0 +1,84 @@
+{
+  "description": "Warnings come in the order a walk of the chosen tree meets their nodes, parent before children and children left to right, and for one node in the order its guards are written (engine §12).",
+  "grammar": "%rule text @w! @v! a b\n%rule a @v! A\n%rule b @w! B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "v",
+      "w"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "warnings": [
+      {
+        "stage": "main",
+        "feature": "w",
+        "rule": "text",
+        "span": [
+          0,
+          2
+        ],
+        "source": [
+          0,
+          3
+        ]
+      },
+      {
+        "stage": "main",
+        "feature": "v",
+        "rule": "text",
+        "span": [
+          0,
+          2
+        ],
+        "source": [
+          0,
+          3
+        ]
+      },
+      {
+        "stage": "main",
+        "feature": "v",
+        "rule": "a",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ]
+      },
+      {
+        "stage": "main",
+        "feature": "w",
+        "rule": "b",
+        "span": [
+          1,
+          2
+        ],
+        "source": [
+          2,
+          3
+        ]
+      }
+    ],
+    "brackets": "(a b)"
+  }
+}

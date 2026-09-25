@@ -19,7 +19,7 @@ Line breaks and indentation mean nothing, so a long list of alternatives may put
 %rule term-not-starting-with-bare-gek
   | term-3-not-starting-with-bare-gek [term-connective term-3] ...
   | tagged-term (joik # | ek #) BO # tagged-term
-  | @term-hierarchy term-3-not-starting-with-bare-gek (joik # | ek #) BO # term-3
+  | @term-hierarchy? term-3-not-starting-with-bare-gek (joik # | ek #) BO # term-3
 ```
 
 The same is true of every separator the notation has: `&` in bodies, `∪` and `∩` in tag terms, `∧` and `∨` in conditions, and the commas of a clause's list.
@@ -56,14 +56,26 @@ CLL writes an elidable terminator between slashes, `/KU/`, and `/KU#/` for a ter
 
 ## Feature guards
 
-An alternative may begin with `@name` or `@¬name`. The alternative exists only when the feature `name` is enabled, respectively disabled, for the parse. Features come from the dialect's pipeline, which may enable some (see "Pipelines"), and from the caller, who may add others; the same set is enabled for every stage.
+A feature is a name that is on or off for a parse, the same for every stage of it. The dialect's pipeline turns some features on (see "Pipelines"), and the caller can turn others on and any of those off. An alternative may begin with guards, which make it depend on features. There are two kinds:
+
+- A gate, `@name?`, keeps the alternative only while the feature `name` is on, and `@¬name?` keeps it only while the feature is off. A gate changes what the grammar accepts.
+- A warning, `@name!`, keeps the alternative whether the feature is on or off. While the feature is on, a parse whose chosen tree uses the alternative carries a warning that names the feature and the text the alternative's constituent covers. A warning changes nothing that the grammar accepts or chooses. It reports where a text relies on an addition to a base grammar.
+
+An alternative with several guards exists when all its gates hold. A name is a gate or a warning, not both: a name that one guard uses as a gate and another as a warning, in any stage of a dialect, is an error of the dialect. A warning has no negated form, since it keeps its alternative either way.
 
 ```jbogenbau
 %rule tanru-unit-2
   | BRIVLA #
-  | @cbm CMEVLA #
+  | @cbm? CMEVLA #
   | ...
+
+%rule sumti-tail
+  | [sumti-6 [relative-clauses]] sumti-tail-1
+  | relative-clauses sumti-tail-1
+  | @inner-sumti! sumti sumti-tail-1
 ```
+
+A dialect that extends another uses the two kinds for two kinds of change. An addition, a text the base grammar rejects and the dialect accepts, is a warning, so that a reader can learn which additions a text relies on. The dialect turns none of its warnings on, so that its texts parse without warnings unless the caller asks. A change to how the dialect reads a text of the base cannot be a warning, since the base reading would be gone. It is a gate, with the old form under `@¬name?` beside it, and the dialect turns it on; a caller who wants the base reading turns it off.
 
 ## Stitching documents
 
@@ -81,8 +93,8 @@ A stage of a pipeline is several documents read in order, and a later one may ch
 
 %redefine-rule relative-clause
   | GOI # term [GEhU #]
-  | @¬zantufa-terms NOI # subsentence [KUhO #]
-  | @zantufa-terms NOI # statement [KUhO #]
+  | @¬zantufa-terms? NOI # subsentence [KUhO #]
+  | @zantufa-terms? NOI # statement [KUhO #]
 ```
 
 So a misspelt name can neither quietly start a new rule nor quietly replace one. The alternatives an extension adds carry the extension's own clauses, not the base rule's, and the base rule's clauses do not apply to them, so an extension says everything about what it adds. The loader reports every replacement and extension, which document changed which rule, so a dialect's effect on its base can be read off in one place.
@@ -141,8 +153,8 @@ Every token and every constituent carries a set of tags. A terminal matches a to
 
 ```jbogenbau
 %rule cmevla
-  | @¬cbm $b(cmevla-body) <"CMEVLA">
-  | @cbm $b(cmevla-body) <"CMEVLA" ∪ "BRIVLA">
+  | @¬cbm? $b(cmevla-body) <"CMEVLA">
+  | @cbm? $b(cmevla-body) <"CMEVLA" ∪ "BRIVLA">
 %tags
   "word"
 
@@ -202,7 +214,7 @@ A dialect is a pipeline document, which is Markdown too: each stage is a heading
 ... what the stage receives, does and hands on ...
 ```
 
-`<?stage NAME?>` at the end of a heading starts a stage called `NAME`. `<?grammar?>` at the end of a line makes the link on that line a document of the stage; the link must be written `[text](path)` with no spaces, parentheses or backslashes in the path. Stages run in document order, and documents are stitched in list order, which matters since a later document may redefine or extend a rule. Every stage's start rule is `text`. `<?features NAME ...?>` at the end of any line names features the dialect enables for every parse, to which a caller may add others. The first stage reads the text's characters, each a token tagged with the character itself and, weakly, its class; every later stage reads what the stage before it emitted.
+`<?stage NAME?>` at the end of a heading starts a stage called `NAME`. `<?grammar?>` at the end of a line makes the link on that line a document of the stage; the link must be written `[text](path)` with no spaces, parentheses or backslashes in the path. Stages run in document order, and documents are stitched in list order, which matters since a later document may redefine or extend a rule. Every stage's start rule is `text`. `<?features NAME ...?>` at the end of any line names features the dialect turns on for every parse. A caller can turn other features on, and can turn any of these off. The first stage reads the text's characters, each a token tagged with the character itself and, weakly, its class; every later stage reads what the stage before it emitted.
 
 ## Ambiguity
 

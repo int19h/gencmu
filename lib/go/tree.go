@@ -101,6 +101,35 @@ func (run *stageRun) buildTree(rec *recognizer, d *dn) *Node {
 	return root.node
 }
 
+// warnings lists the warnings of a chosen derivation (engine §12): each rule
+// node of its tree gives one for each warning of its production, in the
+// order a walk meets the nodes, parent before children and children left to
+// right. Helpers and the prefixes of a trailing repetition give their
+// children in their place, as in buildTree.
+func (run *stageRun) warnings(rec *recognizer, d *dn) []Warning {
+	var out []Warning
+	pending := []pendingKid{{n: d}}
+	for len(pending) > 0 {
+		k := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		n := k.n
+		if n.kind == dRead {
+			continue
+		}
+		if !n.prod.helper && !k.splice {
+			a, b := rec.base+int(n.start), rec.base+int(n.end)
+			for _, f := range n.prod.warnings {
+				out = append(out, Warning{Stage: run.name, Feature: f, Rule: n.prod.ruleName, Span: [2]int{a, b}, Source: run.spanSource(a, b)})
+			}
+		}
+		// buildTree splices the first child of a rule node or of a spliced
+		// prefix whose production is r → r x; a helper's never is, so true
+		// serves for every close.
+		pending = pushKids(pending, n, true)
+	}
+	return out
+}
+
 // elidedNodes lists a tree's elided nodes in text order.
 func elidedNodes(root *Node) []*Node {
 	var out []*Node

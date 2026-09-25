@@ -7,7 +7,7 @@ use crate::fxhash::FxMap;
 use std::sync::Arc;
 
 use crate::clauses::{simplify_cond, simplify_value, Simple};
-use crate::dom::{Arg, Cond, EmitItem, Expr, Term};
+use crate::dom::{Arg, Cond, EmitItem, Expr, FeatureKind, Term};
 use crate::grammar::{is_terminal_name, StageGrammar, StitchedAlternative};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -104,6 +104,9 @@ pub(crate) struct Prod {
     pub visible: bool,
     /// `r → r x`, the step of a trailing repetition (§3.3).
     pub trailing_step: bool,
+    /// The features of its alternative's warnings, in the order they are
+    /// written (§12); none for a helper.
+    pub warnings: Vec<String>,
     pub document: Option<Arc<str>>,
     pub at: (usize, usize),
 }
@@ -444,11 +447,14 @@ pub(crate) fn lower(
     let mut alternatives: Vec<Vec<&StitchedAlternative>> = Vec::new();
     for (index, rule) in grammar.rules.iter().enumerate() {
         lowerer.owner = index as u32;
+        // Only a gate drops an alternative; a warning keeps it (§3.1).
         let live: Vec<&StitchedAlternative> = rule
             .alternatives
             .iter()
             .filter(|alternative| {
-                alternative.alternative.guards.iter().all(|guard| features.contains(&guard.feature) != guard.negated)
+                alternative.alternative.guards.iter().all(|guard| {
+                    guard.kind == FeatureKind::Warning || features.contains(&guard.feature) != guard.negated
+                })
             })
             .collect();
         let trailing = if live.len() == 1 { ends_in_repeat(&live[0].alternative.expr) } else { None };
@@ -559,6 +565,7 @@ pub(crate) fn lower(
             emit: LEmit::None,
             conds: Vec::new(),
             trailing_step: pending.trailing_step,
+            warnings: Vec::new(),
             document: None,
             at: (0, 0),
         };
@@ -566,6 +573,13 @@ pub(crate) fn lower(
             let alternative = alternatives[pending.rule as usize][number];
             production.document = Some(alternative.document.clone());
             production.at = alternative.at;
+            production.warnings = alternative
+                .alternative
+                .guards
+                .iter()
+                .filter(|guard| guard.kind == FeatureKind::Warning)
+                .map(|guard| guard.feature.clone())
+                .collect();
             let cap_pos = production.cap_pos.clone();
             let mut scope = Scope { names: &names, cap_pos: &cap_pos, rules: &grammar.index, last: None, whole: false };
             // Every clause is simplified for this production first (§3.6).

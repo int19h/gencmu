@@ -1,0 +1,48 @@
+{
+  "description": "A stage whose emission fails with an error of the grammar keeps its verdict and the warnings of its chosen tree, and has no output (engine §11, §12).",
+  "grammar": "%rule text @w! $a(A) %emits $a <tags($a) ∩ \"Z\">",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "w"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "error": {
+        "kind": "grammar",
+        "stage": "main"
+      }
+    },
+    "warnings": [
+      {
+        "stage": "main",
+        "feature": "w",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ]
+      }
+    ],
+    "error": "grammar"
+  }
+}

@@ -4,7 +4,9 @@
 use std::ops::Range;
 
 use crate::json::write_str;
-use crate::result::{Action, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Stage, Tags, Token, Verdict};
+use crate::result::{
+    Action, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Stage, Tags, Token, Verdict, Warning,
+};
 
 fn write_range(out: &mut String, range: &Range<usize>) {
     out.push('[');
@@ -226,11 +228,25 @@ fn write_error(out: &mut String, error: &ParseError) {
     out.push('}');
 }
 
+fn write_warning(out: &mut String, warning: &Warning) {
+    out.push_str("{\"stage\":");
+    write_str(out, &warning.stage);
+    out.push_str(",\"feature\":");
+    write_str(out, &warning.feature);
+    out.push_str(",\"rule\":");
+    write_str(out, &warning.rule);
+    out.push_str(",\"span\":");
+    write_range(out, &warning.span);
+    out.push_str(",\"source\":");
+    write_range(out, &warning.source);
+    out.push('}');
+}
+
 /// Writes a result as the canonical JSON of `docs/output.md`: keys in the
 /// documented order, no whitespace, non-ASCII characters as themselves.
 pub fn to_json(result: &ParseResult) -> String {
     let mut out = String::new();
-    out.push_str("{\"format\":1,\"ok\":");
+    out.push_str("{\"format\":2,\"ok\":");
     out.push_str(if result.ok { "true" } else { "false" });
     out.push_str(",\"stages\":[");
     for (index, stage) in result.stages.iter().enumerate() {
@@ -248,6 +264,17 @@ pub fn to_json(result: &ParseResult) -> String {
     match &result.error {
         Some(error) => write_error(&mut out, error),
         None => out.push_str("null"),
+    }
+    // Present only when there is at least one.
+    if !result.warnings.is_empty() {
+        out.push_str(",\"warnings\":[");
+        for (index, warning) in result.warnings.iter().enumerate() {
+            if index > 0 {
+                out.push(',');
+            }
+            write_warning(&mut out, warning);
+        }
+        out.push(']');
     }
     out.push('}');
     out

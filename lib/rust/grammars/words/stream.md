@@ -35,12 +35,12 @@ The stage is lazy: where two parses differ, it takes the one that closes a const
 
 %rule body-tail
   | $a(stream) <("first-onset" ∪ "first-cy") ∩ tags($a) ∪ "stream-end">
-  | @sa-su sa-run <"first-onset">
-  | @sa-su $b(wiped) <("first-onset" ∪ "first-cy") ∩ tags($b)>
-  | @sa-su $w(wiped) $g(gap) $v(stream) <("first-onset" ∪ "first-cy") ∩ tags($w) ∪ "stream-end">
-  | @sa-su $s(stream) $h(gap) sa-run <("first-onset" ∪ "first-cy") ∩ tags($s)>
-  | @sa-su $x(wiped) $h(gap) sa-run <("first-onset" ∪ "first-cy") ∩ tags($x)>
-  | @sa-su $w(wiped) $g(gap) $v(stream) $h(gap) sa-run <("first-onset" ∪ "first-cy") ∩ tags($w)>
+  | @sa-su? sa-run <"first-onset">
+  | @sa-su? $b(wiped) <("first-onset" ∪ "first-cy") ∩ tags($b)>
+  | @sa-su? $w(wiped) $g(gap) $v(stream) <("first-onset" ∪ "first-cy") ∩ tags($w) ∪ "stream-end">
+  | @sa-su? $s(stream) $h(gap) sa-run <("first-onset" ∪ "first-cy") ∩ tags($s)>
+  | @sa-su? $x(wiped) $h(gap) sa-run <("first-onset" ∪ "first-cy") ∩ tags($x)>
+  | @sa-su? $w(wiped) $g(gap) $v(stream) $h(gap) sa-run <("first-onset" ∪ "first-cy") ∩ tags($w)>
 %conditions
   "continued" ∈ tags($w) ∨ phonemes($g) = ".",
   "first-onset" ∈ tags($v) ∨ phonemes($g) = ".",
@@ -100,7 +100,7 @@ The stage is lazy: where two parses differ, it takes the one that closes a const
   unit | erasure | hesitation
 
 %rule unit
-  word | quote | lerfu-word | zei-compound | @sa-su sa-erasure | @sa-su su-erasure
+  word | quote | lerfu-word | zei-compound | @sa-su? sa-erasure | @sa-su? su-erasure
 ```
 
 Hesitation after a final pause belongs to the stream when the body ends in one, since an element may always follow a pause; the text's own `PAUSE hesitation` is for a body that ends in an erasure, which is not a stream. `stream-end` is the tag that tells the two apart, so that a trailing `.y.` has one reading.
@@ -113,7 +113,7 @@ A `si` with nothing before it erases nothing (CLL 19.13 says what `si` erases, n
 
 ```jbogenbau
 %rule stray-si
-  si-run | hesitations si-gap si-run | erasure [si-gap] si-run | @sa-su wiped [si-gap] si-run
+  si-run | hesitations si-gap si-run | erasure [si-gap] si-run | @sa-su? wiped [si-gap] si-run
 %emits
   ε
 
@@ -158,8 +158,8 @@ A word is a cmavo, a brivla or a cmevla; what shapes each has is the business of
 
 ```jbogenbau
 %rule word
-  | @sa-su $c(cmavo-shape) <"word" ∪ "cmavo" ∪ tags($c) ∪ tags($c, lexicon)>
-  | @¬sa-su $e(cmavo-shape) <"word" ∪ "cmavo" ∪ tags($e) ∪ tags($e, lexicon)>
+  | @sa-su? $c(cmavo-shape) <"word" ∪ "cmavo" ∪ tags($c) ∪ tags($c, lexicon)>
+  | @¬sa-su? $e(cmavo-shape) <"word" ∪ "cmavo" ∪ tags($e) ∪ tags($e, lexicon)>
   | $b(brivla-shape) <"word" ∪ "BRIVLA" ∪ tags($b)>
   | cmevla-shape <"word" ∪ "CMEVLA">
 %conditions
@@ -431,7 +431,7 @@ CLL 19.13: `si` erases the word before it, a compound or a quote counting as one
   | $v(unit) si-gap $s(si-word) <"onset" ∩ tags($v) ∪ "continued">
   | $u(unit) $e(erasures) [si-gap] $s(si-word) <"onset" ∩ tags($u) ∪ "continued">
   | $v(unit) si-gap $f(erasures) [si-gap] $s(si-word) <"onset" ∩ tags($v) ∪ "continued">
-  | @sa-su eraser [si-gap] $s(si-word) <"onset" ∪ "continued">
+  | @sa-su? eraser [si-gap] $s(si-word) <"onset" ∪ "continued">
 %conditions
   "continued" ∈ tags($u),
   "onset" ∈ tags($e)

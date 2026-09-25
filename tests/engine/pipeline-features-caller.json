@@ -2,7 +2,7 @@
   "description": "The caller's features are added to those the pipeline's <?features?> enables: f from the pipeline and g from the caller enable the third alternative (engine §13).",
   "documents": {
     "p.md": "# A dialect <?features f?>\n\n## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n",
-    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text @f A | @¬f B | @f @g A A\n```\n"
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text @f? A | @¬f? B | @f? @g? A A\n```\n"
   },
   "pipeline": "p.md",
   "tokens": [

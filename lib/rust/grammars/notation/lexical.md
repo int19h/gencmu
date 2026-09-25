@@ -84,7 +84,7 @@ A string is written in straight double quotes. Inside it, a backslash escapes th
 
 ## Captures, guards and keywords
 
-A capture is `$` and a name, or `$` alone for the whole constituent; a feature guard is `@` or `@¬` and a name; a keyword is `%` and a name, tagged with its own spelling, `%rule`, so that the second stage names each keyword it knows and has no other. Each is one token, so the second stage sees `$first` as one thing.
+A capture is `$` and a name, or `$` alone for the whole constituent; a feature guard is a gate, `@` or `@¬`, a name and `?`, or a warning, `@`, a name and `!`; a keyword is `%` and a name, tagged with its own spelling, `%rule`, so that the second stage names each keyword it knows and has no other. Each is one token, so the second stage sees `$first` as one thing.
 
 ```jbogenbau
 %rule capture
@@ -95,7 +95,8 @@ A capture is `$` and a name, or `$` alone for the whole constituent; a feature g
   $
 
 %rule guard
-  "@" ["¬"] name
+  | "@" ["¬"] name "?"
+  | "@" name "!"
 %tags
   "guard"
 %emits

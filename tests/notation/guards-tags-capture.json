@@ -1,6 +1,6 @@
 {
   "description": "Guards, a capture and alternative tags (engine §9).",
-  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule text @f @¬g $x(A) <\"T\" ∪ tags($x)>\n```\n",
+  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule text @f? @¬g? $x(A) <\"T\" ∪ tags($x)>\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -10,10 +10,12 @@
               "guards": [
                 {
                   "feature": "f",
+                  "kind": "gate",
                   "negated": false
                 },
                 {
                   "feature": "g",
+                  "kind": "gate",
                   "negated": true
                 }
               ],
