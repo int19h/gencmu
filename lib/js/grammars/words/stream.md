@@ -92,17 +92,20 @@ The joins are stated so that no two apply to the same pair: two `Cy` letter word
 
 Besides the tags of its last element, the stream carries what a rule reaching back over it needs: `first-onset`, when its first element may follow another without a pause, which is what joins a reach to the element before it; `first-cy`, when that element is a `Cy` letter, which under CLL may follow another word directly only if another `Cy` follows it and under the definition effort's grammar would make a lujvo with a CV word before it, so that a join without a pause refuses it and `sutyterjvi` stays one lujvo in both; and the union of the selma'o of every element in it, which is what tells a `sa` that nothing in its reach matches. `gap` is an optional pause; where the rules below join two parts across one, the condition says that either the pause is there or the two parts may stand together without it.
 
-A `si` with nothing before it erases nothing (CLL 19.13 says what `si` erases, not that there must be something to erase), and so does a run of them, whether at the start of the text, after hesitation there, after an erasure that has already taken everything before it, or after an unmatched `sa` or `su` that has. A `sa` directly before a `si` is one of those: it looks for a word of `si`'s selma'o, which no word before it has, since every `si` has acted, so it erases back to the start of the text, and the `si` then has nothing to erase.
+A `si` with nothing before it erases nothing (CLL 19.13 says what `si` erases, not that there must be something to erase), and so does a run of them, whether at the start of the text, after hesitation there, after an erasure that has already taken everything before it, or after an unmatched `sa` or `su` that has. A `sa` directly before a `si` is one of those: it looks for a word of `si`'s selma'o, which no word before it has, since every `si` has acted, so it erases back to the start of the text, and the `si` then has nothing to erase. A `bu` with no word before it to bind to may stand there too, erased by the first `si`: the proposal says that `bu` and `le'u` "are never grammatical by themselves, but are grammatical as part of an utterance erased by sa, si, or su", so `bu si` is nothing, as is `mi si bu si`.
 
 ```jbogenbau
 %rule stray-si
-  | si-run | hesitations si-gap si-run | erasure [si-gap] si-run | @sa-su? wiped [si-gap] si-run
+  | stray-run | hesitations si-gap stray-run | erasure [si-gap] stray-run | @sa-su? wiped [si-gap] stray-run
   | @sa-su? sa-run [si-gap] si-run
   | @sa-su? $r(wiped-reach) $g(gap) sa-run [si-gap] si-run
 %conditions
   "continued" ∈ tags($r) ∨ phonemes($g) = "."
 %emits
   ε
+
+%rule stray-run
+  si-run | bu-word [si-gap] si-run
 
 %rule si-run
   si-word | si-run [si-gap] si-word
@@ -251,14 +254,14 @@ CLL 19.10 to 19.13. A quote is decided at this stage because the words inside it
   "ZOI" ∈ classes($q)
 ```
 
-Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL 4.9, but no quote marker opens anything and no eraser erases, so a `lo'u` stretch is a stream of bare word shapes joined by the same rules as the stream of the text, and it joins `lo'u` and `le'u` by them too, so that `lo'umi le'u` and `lo'u mile'u` need no pause; the quote ends at the first `le'u`, and it may be empty, `lo'u le'u`, as a `zoi` quote may. The words inside are handed on as bare words, and the markers as `LOhU` and `LEhU`; the closing marker is handed on as `LEhU` alone, not also as a word, so that the syntax cannot read it as one more quoted word and look for a later `le'u`.
+Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL 4.9, but no quote marker opens anything and no eraser erases, so a `lo'u` stretch is a stream of bare word shapes joined by the same rules as the stream of the text, and it joins `lo'u` and `le'u` by them too, so that `lo'umi le'u` and `lo'u mile'u` need no pause; the quote ends at the first `le'u`, and it may be empty, `lo'u le'u`, as a `zoi` quote may. The words inside are handed on as bare words, and the markers as `LOhU` and `LEhU`; the closing marker is handed on as `LEhU` alone, not also as a word, so that the syntax cannot read it as one more quoted word and look for a later `le'u`. For `sa`, the quote has the selma'o of both its markers, as the Magic Words proposal says. `sa lo'u` erases back to the start of the last quote and opens a new one. `sa le'u` "destroys everything since the end of the last LOhU...LEhU quote, replacing the terminating LEhU with a new LEhU (i.e. not changing the quote at all)": `lehu-close` reads such a stretch as the quote's closing, so that `lo'u co le'u broda sa le'u` is the quote `lo'u co le'u`, and the ordinary erasure by `sa` does not take a `le'u` after it.
 
 ```jbogenbau
 %rule lohu-quote
-  | $m(lohu-marker) $g(gap) $content(lohu-stream) $h(gap) lehu-marker
-  | $m(lohu-marker) [PAUSE] lehu-marker
+  | $m(lohu-marker) $g(gap) $content(lohu-stream) $h(gap) lehu-close
+  | $m(lohu-marker) [PAUSE] lehu-close
 %tags
-  tags($m) ∪ "onset" ∪ "continued"
+  tags($m) ∪ "LEhU" ∪ "onset" ∪ "continued"
 %conditions
   "first-onset" ∈ tags($content) ∨ phonemes($g) = ".",
   "first-cy" ∉ tags($content) ∨ phonemes($g) = ".",
@@ -277,6 +280,28 @@ Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL
   "LEhU" ∈ classes($q)
 %emits
   $ <"LEhU">
+
+%rule lehu-close
+  | lehu-marker
+  | @sa-su? lehu-erased [PAUSE] sa-word sa-gap lehu-marker
+  | @sa-su? lehu-erased $g(gap) $r(lehu-reach) $h(gap) sa-word sa-gap lehu-marker
+%conditions
+  classes($r) ∩ ("LOhU" ∪ "LEhU") = ∅,
+  "first-onset" ∈ tags($r) ∨ phonemes($g) = ".",
+  "first-cy" ∉ tags($r) ∨ phonemes($g) = ".",
+  "continued" ∈ tags($r) ∨ phonemes($h) = "."
+
+%rule lehu-erased
+  $q(magic-body)
+%conditions
+  "LEhU" ∈ classes($q)
+%emits
+  ε
+
+%rule lehu-reach
+  $s(stream) <tags($s)>
+%emits
+  ε
 
 %rule lohu-stream
   | $o(lohu-word)
@@ -352,12 +377,12 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
 
 ```jbogenbau
 %rule lerfu-word
-  | $u(unit) $b(bu-word) <"word" ∪ "BY" ∪ "continued" ∪ "onset" ∩ tags($u)>
-  | $c(unit) $b(bu-word) <"word" ∪ "BY" ∪ "continued" ∪ "onset" ∩ tags($c)>
-  | $v(unit) PAUSE $b(bu-word) <"word" ∪ "BY" ∪ "continued" ∪ "onset" ∩ tags($v)>
-  | $u(unit) $g(gap-erasures) $b(bu-word) <"word" ∪ "BY" ∪ "continued" ∪ "onset" ∩ tags($u)>
-  | $v(unit) PAUSE $h(gap-erasures) $b(bu-word) <"word" ∪ "BY" ∪ "continued" ∪ "onset" ∩ tags($v)>
-  | $y(y-base) [PAUSE] $b(bu-word) <"word" ∪ "BY" ∪ "continued">
+  | $u(unit) bu-part <"word" ∪ "BY" ∪ "continued" ∪ "onset" ∩ tags($u)>
+  | $c(unit) bu-part <"word" ∪ "BY" ∪ "continued" ∪ "onset" ∩ tags($c)>
+  | $v(unit) PAUSE bu-part <"word" ∪ "BY" ∪ "continued" ∪ "onset" ∩ tags($v)>
+  | $u(unit) $g(gap-erasures) bu-part <"word" ∪ "BY" ∪ "continued" ∪ "onset" ∩ tags($u)>
+  | $v(unit) PAUSE $h(gap-erasures) bu-part <"word" ∪ "BY" ∪ "continued" ∪ "onset" ∩ tags($v)>
+  | $y(y-base) [PAUSE] bu-part <"word" ∪ "BY" ∪ "continued">
 %conditions
   "continued" ∈ tags($u),
   "cy" ∈ tags($c),
@@ -372,6 +397,28 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
   $q(magic-body)
 %conditions
   "BU" ∈ classes($q)
+
+%rule bu-part
+  | bu-word
+  | @sa-su? bu-erased [PAUSE] sa-word sa-gap bu-word
+  | @sa-su? bu-erased $g(gap) $r(bu-reach) $h(gap) sa-word sa-gap bu-word
+%conditions
+  classes($r) ∩ "BY" = ∅,
+  "first-onset" ∈ tags($r) ∨ phonemes($g) = ".",
+  "first-cy" ∉ tags($r) ∨ phonemes($g) = ".",
+  "continued" ∈ tags($r) ∨ phonemes($h) = "."
+
+%rule bu-erased
+  $q(magic-body)
+%conditions
+  "BU" ∈ classes($q)
+%emits
+  ε
+
+%rule bu-reach
+  $s(stream) <tags($s)>
+%emits
+  ε
 
 %rule zei-compound
   | $l(unit) $z(zei-word) $r(zei-right)
@@ -409,6 +456,8 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
 %conditions
   "onset" ∈ tags($f)
 ```
+
+`sa bu` "backs up to the last BU, pulling an already constructed pseudo-word apart", as the proposal puts it among its unique cases: it erases back to the `bu` of the last letter word, and the new `bu` binds to that letter word's base again, so `.abu sa bu` is `.abu`. `bu-part` reads such a stretch as the letter word's `bu`; nothing between may be a letter word, since its `bu` would be the last.
 
 The pause between an operand and its operator is stated where it matters: a `bu` may follow its word directly only if the word is continued, or is a `Cy` letter cmavo, since `xybu` is the usual way to write that letter word; a `zei` may follow directly only a continued word; a pause is always allowed. The erasures that may stand between them obey the same pause rules, joined through the tags of the first erasure, and an erasure is always continued, so what follows a run of them needs no pause. The word after `zei` follows it directly or after a pause. A compound may follow the word before it without a pause exactly when its first word may, which is what the `onset` in its tags records; `.abu` needs the pause before it that `a` needs.
 
@@ -459,6 +508,7 @@ The reach of a `sa` is stated from its far end: `sa-open` is an element, which h
   ("first-onset" ∈ tags($first) ⟹ "onset") ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($next) ∪ classes($next)
 %conditions
   classes($first) ∩ classes($next) ≠ ∅,
+  "LEhU" ∉ classes($next) ∨ "LOhU" ∈ classes($next),
   "onset" ∈ tags($next) ∨ phonemes($h) ≠ ""
 
 %rule sa-nest
