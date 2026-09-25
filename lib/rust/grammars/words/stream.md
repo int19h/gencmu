@@ -83,7 +83,7 @@ The stage is lazy: where two parses differ, it takes the one that closes a const
   unit | erasure | hesitation
 
 %rule unit
-  word | quote | lerfu-word | zei-compound | @sa-su? sa-erasure | @sa-su? su-erasure
+  word | quote | lerfu-word | zei-compound | @sa-su? sa-erasure | @sa-su? @su-boundary? su-erasure
 ```
 
 Hesitation after a final pause belongs to the stream when the body ends in one, since an element may always follow a pause; the text's own `PAUSE hesitation` is for a body that ends in an erasure, which is not a stream. `stream-end` is the tag that tells the two apart, so that a trailing `.y.` has one reading.
@@ -92,11 +92,15 @@ The joins are stated so that no two apply to the same pair: two `Cy` letter word
 
 Besides the tags of its last element, the stream carries what a rule reaching back over it needs: `first-onset`, when its first element may follow another without a pause, which is what joins a reach to the element before it; `first-cy`, when that element is a `Cy` letter, which under CLL may follow another word directly only if another `Cy` follows it and under the definition effort's grammar would make a lujvo with a CV word before it, so that a join without a pause refuses it and `sutyterjvi` stays one lujvo in both; and the union of the selma'o of every element in it, which is what tells a `sa` that nothing in its reach matches. `gap` is an optional pause; where the rules below join two parts across one, the condition says that either the pause is there or the two parts may stand together without it.
 
-A `si` with nothing before it erases nothing (CLL 19.13 says what `si` erases, not that there must be something to erase), and so does a run of them, whether at the start of the text, after hesitation there, after an erasure that has already taken everything before it, or after an unmatched `sa` or `su` that has.
+A `si` with nothing before it erases nothing (CLL 19.13 says what `si` erases, not that there must be something to erase), and so does a run of them, whether at the start of the text, after hesitation there, after an erasure that has already taken everything before it, or after an unmatched `sa` or `su` that has. A `sa` directly before a `si` is one of those: it looks for a word of `si`'s selma'o, which no word before it has, since every `si` has acted, so it erases back to the start of the text, and the `si` then has nothing to erase.
 
 ```jbogenbau
 %rule stray-si
-  si-run | hesitations si-gap si-run | erasure [si-gap] si-run | @sa-su? wiped [si-gap] si-run
+  | si-run | hesitations si-gap si-run | erasure [si-gap] si-run | @sa-su? wiped [si-gap] si-run
+  | @sa-su? sa-run [si-gap] si-run
+  | @sa-su? $r(wiped-reach) $g(gap) sa-run [si-gap] si-run
+%conditions
+  "continued" ∈ tags($r) ∨ phonemes($g) = "."
 %emits
   ε
 
@@ -410,7 +414,7 @@ The pause between an operand and its operator is stated where it matters: a `bu`
 
 ## Erasure by `si`
 
-CLL 19.13: `si` erases the word before it, a compound or a quote counting as one word, and a run of `si` erases as many words: `broda brode si si` erases both, which the rule states as an erasure whose unit is followed by one or more erasures and then the `si` that erases the unit; `klama co si gunka si si` erases `co`, then `gunka`, then `klama`. Hesitation may stand between the word and its `si`, since it is not a word, and `co .y. si` erases `co`. An erased stretch emits nothing. What a `sa` or `su` leaves standing is a unit, so a following `si` erases it, and a `sa` or `su` with nothing to act on is itself a word that `si` erases: `le broda sa si` is `le broda`.
+CLL 19.13: `si` erases the word before it, a compound or a quote counting as one word, and a run of `si` erases as many words: `broda brode si si` erases both, which the rule states as an erasure whose unit is followed by one or more erasures and then the `si` that erases the unit; `klama co si gunka si si` erases `co`, then `gunka`, then `klama`. Hesitation may stand between the word and its `si`, since it is not a word, and `co .y. si` erases `co`. An erased stretch emits nothing. What a `sa` or `su` leaves standing is a unit, so a following `si` erases it. An eraser acts when it is read, as the Magic Words proposal has it, so a `si` never erases a `sa` or `su` as though it were a word: `mi ni'o do su si` erases back to the `ni'o` first, and the `si` then erases that.
 
 ```jbogenbau
 %rule erasure
@@ -418,7 +422,6 @@ CLL 19.13: `si` erases the word before it, a compound or a quote counting as one
   | $v(unit) si-gap $s(si-word) <"onset" ∩ tags($v) ∪ "continued">
   | $u(unit) $e(erasures) [si-gap] $s(si-word) <"onset" ∩ tags($u) ∪ "continued">
   | $v(unit) si-gap $f(erasures) [si-gap] $s(si-word) <"onset" ∩ tags($v) ∪ "continued">
-  | @sa-su? eraser [si-gap] $s(si-word) <"onset" ∪ "continued">
 %conditions
   "continued" ∈ tags($u),
   "onset" ∈ tags($e)
@@ -439,16 +442,13 @@ CLL 19.13: `si` erases the word before it, a compound or a quote counting as one
   $q(magic-body)
 %conditions
   "SI" ∈ classes($q)
-
-%rule eraser
-  sa-word | su-word
 ```
 
 ## Erasure by `sa` and `su`
 
 These two erasers are behind the feature `sa-su`. They are the most expensive part of the word grammar: a `sa` may reach back to any earlier word, so the parser must keep a possible reach open from every word it reads, not knowing whether a `sa` will come, and the cost grows faster than the length of the text. They are also rare in written text. Without the feature, `sa` and `su` are ordinary cmavo of SA and SU, which the syntax grammars do not accept, so a text that uses them is rejected at the word where they stand rather than misread.
 
-CLL 19.13: `sa` erases back to the most recent word of the same selma'o as the word after it, that word included, and leaves the word after it standing; `su` erases back to the start of the text or to the most recent `ni'o`, `no'i`, `lu`, `tu'e` or `to`, which survives. Both are resolved here, in the same left-to-right pass as the quotes, the compounds and `si`, because they act in that order: in `mi le brodi sa le si la brodo` the `sa` takes `le brodi` before the `si` erases the `le` that follows it, and `mi brodi .i sa mi zei co mi` compounds `mi zei co` only after the `sa` has taken `mi brodi .i`.
+CLL 19.13: `sa` erases back to the most recent word of the same selma'o as the word after it, that word included, and leaves the word after it standing; `su` "erases the entire text". The Magic Words proposal and camxes-std stop `su` sooner, at the most recent `ni'o`, `no'i`, `lu`, `tu'e` or `to`, which survives, as step 2g of the YACC preamble also does. The feature `su-boundary` gives that reading: the approved word forms, experimental and Zantufa dialects turn it on, and the CLL dialect leaves it off, so that there `su` erases the whole text before it. Both are resolved here, in the same left-to-right pass as the quotes, the compounds and `si`, because they act in that order: in `mi le brodi sa le si la brodo` the `sa` takes `le brodi` before the `si` erases the `le` that follows it, and `mi brodi .i sa mi zei co mi` compounds `mi zei co` only after the `sa` has taken `mi brodi .i`.
 
 The reach of a `sa` is stated from its far end: `sa-open` is an element, which has some selma'o, and the elements after it, none of which has a class of the first one's, so the `sa` that follows finds the nearest match. It is left-recursive and checks the class at every step, so that a reach dies at the first element that would match; that keeps the chart linear in the length of the text, which a reach stated as an element followed by a whole stream does not, since a stream may start anywhere and cannot know which class it is keeping clear of. Each step restates the stream's join in three lines: without a pause, the element before must be continued or both must be `Cy` letters; after a pause, anything may follow, and a `Cy` after a pause counts as continued. The definition effort's `CVCy` guard is not restated, since the reach is erased text and the guard only chooses between two readings of text that parses either way. The match is by selma'o: the first element's classes and the classes of the word after `sa` must share one. Hesitation may stand between a `sa` and the word after it, as between a word and its `si`. What the `sa` leaves is the word after it, a word or a quote and never a compound, since the `sa` acts before a `bu` or `zei` after that word does, and the compound is then built on what the `sa` left; the erasure carries the classes of that word, so that a later `sa` may match it in turn; the erasure may follow the element before it without a pause exactly when its first element may. Two `sa` in a row reach back to the second-nearest match, each `sa` erasing back one match further than the last, and three to the third: the reach is then two or three open reaches, each beginning at a match of the next.
 
@@ -525,7 +525,7 @@ $a(sa-open) $g(gap) $t(sa-open-twice)
   sa-word | sa-run gap sa-word
 ```
 
-`su` erases back to a boundary word, which survives, or to the start of the text. The boundary words are ordinary words to every other rule; only `su` knows them, by their classes: what a `su` erases is a reach none of whose elements has one of those classes. Like the reach of a `sa`, it is left-recursive and checks every element as it goes, so that it dies at the next boundary rather than running to the end of the text. The boundary is an element, so that what an earlier `su` left standing bounds the next.
+With `su-boundary`, `su` erases back to a boundary word, which survives, or to the start of the text; without it, always to the start of the text. The boundary words are ordinary words to every other rule; only `su` knows them, by their classes: what a `su` erases is a reach none of whose elements has one of those classes. Like the reach of a `sa`, it is left-recursive and checks every element as it goes, so that it dies at the next boundary rather than running to the end of the text. The boundary is an element, so that what an earlier `su` left standing bounds the next.
 
 ```jbogenbau
 %rule su-erasure
@@ -574,7 +574,7 @@ $a(sa-open) $g(gap) $t(sa-open-twice)
   ε
 ```
 
-A `su` with no boundary before it, or a `sa` whose following word matches nothing before it, erases everything back to the start of the text; the word after such a `sa` stays, and a later unmatched one takes it too; a run of `sa` that matches nothing is one unmatched `sa`. A `sa` at the end of the text, with no word after it, has no selma'o to look for and erases nothing, so `.i sa` is `.i`; the text rule accepts it after the stream. These are the wiped stretches the text rule accepts before its stream.
+A `su` with no boundary before it, or any `su` without `su-boundary`, or a `sa` whose following word matches nothing before it, erases everything back to the start of the text; the word after such a `sa` stays, and a later unmatched one takes it too; a run of `sa` that matches nothing is one unmatched `sa`. A `sa` at the end of the text, with no word after it, has no selma'o to look for and erases nothing, so `.i sa` is `.i`; the text rule accepts it after the stream. These are the wiped stretches the text rule accepts before its stream.
 
 ```jbogenbau
 %rule wiped
@@ -594,8 +594,10 @@ A `su` with no boundary before it, or a `sa` whose following word matches nothin
 
 %rule wiped-item
   | su-word <"onset" ∪ "continued" ∪ "first-onset">
-  | $q(wiped-reach) $g(gap) su-word <"continued" ∪ ("first-onset" ∪ "first-cy") ∩ tags($q)>
+  | @su-boundary? $q(wiped-reach) $g(gap) su-word <"continued" ∪ ("first-onset" ∪ "first-cy") ∩ tags($q)>
+  | @¬su-boundary? $v(wiped-reach) $j(gap) su-word <"continued" ∪ ("first-onset" ∪ "first-cy") ∩ tags($v)>
   | sa-run gap su-word <"onset" ∪ "continued" ∪ "first-onset">
+  | $t(wiped-reach) $k(gap) sa-run gap su-word <"continued" ∪ ("first-onset" ∪ "first-cy") ∩ tags($t)>
   | sa-run $h(sa-gap) $n(sa-next)
       <"first-onset" ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($n) ∪ classes($n)>
   | $r(wiped-reach) $g(gap) sa-run $h(sa-gap) $n(sa-next)
@@ -605,6 +607,8 @@ A `su` with no boundary before it, or a `sa` whose following word matches nothin
   classes($q) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅,
   classes($r) ∩ classes($n) = ∅,
   "continued" ∈ tags($q) ∨ phonemes($g) = ".",
+  "continued" ∈ tags($v) ∨ phonemes($j) = ".",
+  "continued" ∈ tags($t) ∨ phonemes($k) = ".",
   "continued" ∈ tags($r) ∨ phonemes($g) = ".",
   "onset" ∈ tags($n) ∨ phonemes($h) ≠ ""
 

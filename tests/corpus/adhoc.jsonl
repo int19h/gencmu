@@ -1,7 +1,11 @@
-{"id":"adhoc.issues.issue-340-su-lu-boundary","text":"lu mi klama su do cusku li'u","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["lu","do","cusku","li'u"],"brackets":"(lu [do cusku] li'u)"}
-{"id":"adhoc.issues.issue-340-su-niho-boundary","text":"mi klama ni'o do tavla su do cusku","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","klama","ni'o","do","cusku"],"brackets":"([mi klama] ni'o [do cusku])"}
-{"id":"adhoc.issues.issue-340-su-to-boundary","text":"mi klama to do tavla su do cusku toi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","klama","to","do","cusku","toi"],"brackets":"(mi [klama {to (do cusku) toi}])"}
-{"id":"adhoc.issues.issue-340-su-tuhe-boundary","text":"tu'e mi klama su do cusku tu'u","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tu'e","do","cusku","tu'u"],"brackets":"(tu'e [do cusku] tu'u)"}
+{"id":"adhoc.issues.issue-340-su-lu-boundary","text":"lu mi klama su do cusku li'u","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["do","cusku","li'u"]}
+{"id":"adhoc.issues.issue-340-su-lu-boundary.bpfk","text":"lu mi klama su do cusku li'u","dialect":"bpfk","expect":"accept","verdict":"unique","words":["lu","do","cusku","li'u"],"brackets":"(lu [do cusku] li'u)"}
+{"id":"adhoc.issues.issue-340-su-niho-boundary","text":"mi klama ni'o do tavla su do cusku","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["do","cusku"],"brackets":"(do cusku)"}
+{"id":"adhoc.issues.issue-340-su-niho-boundary.bpfk","text":"mi klama ni'o do tavla su do cusku","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","klama","ni'o","do","cusku"],"brackets":"([mi klama] ni'o [do cusku])"}
+{"id":"adhoc.issues.issue-340-su-to-boundary","text":"mi klama to do tavla su do cusku toi","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["do","cusku","toi"]}
+{"id":"adhoc.issues.issue-340-su-to-boundary.bpfk","text":"mi klama to do tavla su do cusku toi","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","klama","to","do","cusku","toi"],"brackets":"(mi [klama {to (do cusku) toi}])"}
+{"id":"adhoc.issues.issue-340-su-tuhe-boundary","text":"tu'e mi klama su do cusku tu'u","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["do","cusku","tu'u"]}
+{"id":"adhoc.issues.issue-340-su-tuhe-boundary.bpfk","text":"tu'e mi klama su do cusku tu'u","dialect":"bpfk","expect":"accept","verdict":"unique","words":["tu'e","do","cusku","tu'u"],"brackets":"(tu'e [do cusku] tu'u)"}
 {"id":"adhoc.issues.issue-729-cbm-la-cmevla-description","text":"la .lojban.","dialect":"experimental","features":["cbm"],"expect":"accept","verdict":"unique","words":["la","lojban"],"brackets":"(la lojban)"}
 {"id":"adhoc.issues.issue-729-cbm-la-cmevla-tanru-description","text":"la .alis. broda cu klama","dialect":"experimental","features":["cbm"],"expect":"accept","verdict":"unique","words":["la","alis","broda","cu","klama"],"brackets":"([la {alis broda}] cu klama)"}
 {"id":"adhoc.issues.issue-729-la-explicit-relative-name","text":"la noi bangu ku'o .lojban.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["la","noi","bangu","ku'o","lojban"],"brackets":"(la [noi bangu ku'o] lojban)"}
@@ -114,10 +118,14 @@
 {"id":"adhoc.v0.morphology.basic.simple-cmevla","text":"la .djan.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["la","djan"],"brackets":"(la djan)"}
 {"id":"adhoc.v0.morphology.basic.smart-apostrophe-cmavo","text":"le’i","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["le'i"]}
 {"id":"adhoc.v0.morphology.basic.smart-apostrophe-lujvo","text":"cmali’i","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["cmali'i"],"brackets":"cmali'i"}
-{"id":"adhoc.v0.morphology.basic.su-erases-to-previous-lu","text":"mi klama lu do cadzu li'u su broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","klama","lu","broda"],"brackets":"(mi [klama {lu broda}])"}
-{"id":"adhoc.v0.morphology.basic.su-erases-to-previous-niho","text":"mi klama ni'o do cadzu su broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","klama","ni'o","broda"],"brackets":"([mi klama] ni'o broda)"}
-{"id":"adhoc.v0.morphology.basic.su-erases-to-previous-to","text":"mi klama to do cadzu toi su broda","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["mi","klama","to","broda"],"brackets":"(mi [klama {to broda}])"}
-{"id":"adhoc.v0.morphology.basic.su-erases-to-previous-tuhe","text":"mi klama tu'e do cadzu tu'u su broda","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["mi","klama","tu'e","broda"]}
+{"id":"adhoc.v0.morphology.basic.su-erases-to-previous-lu","text":"mi klama lu do cadzu li'u su broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
+{"id":"adhoc.v0.morphology.basic.su-erases-to-previous-lu.bpfk","text":"mi klama lu do cadzu li'u su broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","klama","lu","broda"],"brackets":"(mi [klama {lu broda}])"}
+{"id":"adhoc.v0.morphology.basic.su-erases-to-previous-niho","text":"mi klama ni'o do cadzu su broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
+{"id":"adhoc.v0.morphology.basic.su-erases-to-previous-niho.bpfk","text":"mi klama ni'o do cadzu su broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","klama","ni'o","broda"],"brackets":"([mi klama] ni'o broda)"}
+{"id":"adhoc.v0.morphology.basic.su-erases-to-previous-to","text":"mi klama to do cadzu toi su broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
+{"id":"adhoc.v0.morphology.basic.su-erases-to-previous-to.bpfk","text":"mi klama to do cadzu toi su broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","klama","to","broda"],"brackets":"(mi [klama {to broda}])"}
+{"id":"adhoc.v0.morphology.basic.su-erases-to-previous-tuhe","text":"mi klama tu'e do cadzu tu'u su broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
+{"id":"adhoc.v0.morphology.basic.su-erases-to-previous-tuhe.bpfk","text":"mi klama tu'e do cadzu tu'u su broda","dialect":"bpfk","expect":"reject","stage":"syntax","words":["mi","klama","tu'e","broda"]}
 {"id":"adhoc.v0.morphology.basic.trailing-sa-run-is-a-no-op","text":"sa sa","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.v0.morphology.basic.ui-after-brivla","text":"klama .ui","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["klama","ui"],"brackets":"klama"}
 {"id":"adhoc.v0.morphology.basic.ui-preserved","text":"mi .ui","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","ui"],"brackets":"mi"}
@@ -219,10 +227,14 @@
 {"id":"adhoc.v0.syntax.basic.sa-no-match-erases-to-start","text":"mi do sa brodi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["brodi"],"brackets":"brodi"}
 {"id":"adhoc.v0.syntax.basic.sa-repeated-erases-further-back","text":"broda brode sa sa brodi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["brodi"],"brackets":"brodi"}
 {"id":"adhoc.v0.syntax.basic.simple-sentence","text":"mi klama","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
-{"id":"adhoc.v0.syntax.basic.su-erases-to-previous-lu","text":"mi klama lu do cadzu li'u su broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","klama","lu","broda"],"brackets":"(mi [klama {lu broda}])"}
-{"id":"adhoc.v0.syntax.basic.su-erases-to-previous-niho","text":"mi klama ni'o do cadzu su broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","klama","ni'o","broda"],"brackets":"([mi klama] ni'o broda)"}
-{"id":"adhoc.v0.syntax.basic.su-erases-to-previous-to","text":"mi klama to do cadzu toi su broda","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["mi","klama","to","broda"],"brackets":"(mi [klama {to broda}])"}
-{"id":"adhoc.v0.syntax.basic.su-erases-to-previous-tuhe","text":"mi klama tu'e do cadzu tu'u su broda","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["mi","klama","tu'e","broda"]}
+{"id":"adhoc.v0.syntax.basic.su-erases-to-previous-lu","text":"mi klama lu do cadzu li'u su broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
+{"id":"adhoc.v0.syntax.basic.su-erases-to-previous-lu.bpfk","text":"mi klama lu do cadzu li'u su broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","klama","lu","broda"],"brackets":"(mi [klama {lu broda}])"}
+{"id":"adhoc.v0.syntax.basic.su-erases-to-previous-niho","text":"mi klama ni'o do cadzu su broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
+{"id":"adhoc.v0.syntax.basic.su-erases-to-previous-niho.bpfk","text":"mi klama ni'o do cadzu su broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","klama","ni'o","broda"],"brackets":"([mi klama] ni'o broda)"}
+{"id":"adhoc.v0.syntax.basic.su-erases-to-previous-to","text":"mi klama to do cadzu toi su broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
+{"id":"adhoc.v0.syntax.basic.su-erases-to-previous-to.bpfk","text":"mi klama to do cadzu toi su broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","klama","to","broda"],"brackets":"(mi [klama {to broda}])"}
+{"id":"adhoc.v0.syntax.basic.su-erases-to-previous-tuhe","text":"mi klama tu'e do cadzu tu'u su broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
+{"id":"adhoc.v0.syntax.basic.su-erases-to-previous-tuhe.bpfk","text":"mi klama tu'e do cadzu tu'u su broda","dialect":"bpfk","expect":"reject","stage":"syntax","words":["mi","klama","tu'e","broda"]}
 {"id":"adhoc.v0.syntax.basic.tagged-forethought-sumti-before-selbri","text":"ni'i ge lo broda gi lo brode cu brodi","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["ni'i","ge","lo","broda","gi","lo","brode","cu","brodi"],"brackets":"([ni'i {ge (lo broda) gi (lo brode)}] cu brodi)"}
 {"id":"adhoc.v0.syntax.basic.tanru","text":"blabi gerku","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["blabi","gerku"],"brackets":"(blabi gerku)"}
 {"id":"adhoc.v0.syntax.basic.zo-quote","text":"zo mi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo","mi"],"brackets":"(zo mi)"}
