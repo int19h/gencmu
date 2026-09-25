@@ -21,7 +21,6 @@ A statement may be a forethought connection of statements, `ga broda gi brode gi
   | @¬zantufa-terms? (statement | fragment) [I # [statement | fragment]] ...
   | @zantufa-terms? (statement | fragment | statement (IhAU # [terms] | terms))
       [I # [statement | fragment | statement (IhAU # [terms] | terms)]] ...
-  | I # NIhO ... # [(statement | fragment) [I # [statement | fragment]] ...]
 
 %redefine-rule statement-3
   | @¬zantufa-connectives? sentence

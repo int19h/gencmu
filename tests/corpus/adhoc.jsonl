@@ -800,3 +800,7 @@
 {"id":"adhoc.words.orthography.cll-cyrillic-vowel-pair-is-a-diphthong.bpfk","text":"ла маи","dialect":"bpfk","expect":"reject","stage":"syntax","words":["la","ma'i"]}
 {"id":"adhoc.words.orthography.all-capitals","text":"MI KLAMA","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"adhoc.words.orthography.all-capitals.bpfk","text":"MI KLAMA","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mI","klama"],"brackets":"(mI klama)"}
+{"id":"adhoc.syntax.i-je-niho-at-text-start.experimental","text":".i je ni'o mi klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["i","je","ni'o","mi","klama"],"brackets":"(i je ni'o [mi klama])"}
+{"id":"adhoc.syntax.i-je-niho-at-text-start.zantufa","text":".i je ni'o mi klama","dialect":"zantufa","expect":"accept","verdict":"unique","words":["i","je","ni'o","mi","klama"],"brackets":"(i je ni'o [mi klama])"}
+{"id":"adhoc.syntax.niho-i-niho-at-text-start.experimental","text":"ni'o .i ni'o mi klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["ni'o","i","ni'o","mi","klama"],"brackets":"(ni'o i ni'o [mi klama])"}
+{"id":"adhoc.syntax.niho-i-niho-at-text-start.zantufa","text":"ni'o .i ni'o mi klama","dialect":"zantufa","expect":"accept","verdict":"unique","words":["ni'o","i","ni'o","mi","klama"],"brackets":"(ni'o i ni'o [mi klama])"}

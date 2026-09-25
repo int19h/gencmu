@@ -577,3 +577,7 @@ adhoc.words.orthography.cll-cyrillic-vowel-pair-is-a-diphthong
 adhoc.words.orthography.cll-cyrillic-vowel-pair-is-a-diphthong.bpfk
 adhoc.words.orthography.all-capitals
 adhoc.words.orthography.all-capitals.bpfk
+adhoc.syntax.i-je-niho-at-text-start.experimental
+adhoc.syntax.i-je-niho-at-text-start.zantufa
+adhoc.syntax.niho-i-niho-at-text-start.experimental
+adhoc.syntax.niho-i-niho-at-text-start.zantufa
