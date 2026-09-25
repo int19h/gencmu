@@ -55,37 +55,18 @@ The stage is lazy: where two parses differ, it takes the one that closes a const
   ε | PAUSE
 
 %rule stream
-  | $e(opener) <tags($e)>
-  | $c(opener) <tags($c) ∪ "continued">
-  | $s(stream) PAUSE $e(element) <tags($e) ∪ classes($s) ∪ ("first-onset" ∪ "first-cy") ∩ tags($s)>
-  | $s(stream) PAUSE $c(element)
-      <tags($c) ∪ "continued" ∪ classes($s) ∪ ("first-onset" ∪ "first-cy") ∩ tags($s)>
-  | $t(stream) $f(element) <tags($f) ∪ classes($t) ∪ ("first-onset" ∪ "first-cy") ∩ tags($t)>
-  | $u(stream) $g(element) <tags($g) ∪ classes($u) ∪ ("first-onset" ∪ "first-cy") ∩ tags($u)>
-  | $a(stream) $b(element)
-      <tags($b) ∪ "cvcy" ∪ classes($a) ∪ ("first-onset" ∪ "first-cy") ∩ tags($a)>
-  | $a(stream) $d(element) <tags($d) ∪ classes($a) ∪ ("first-onset" ∪ "first-cy") ∩ tags($a)>
-  | $x(stream) $z(element) <tags($z) ∪ classes($x) ∪ ("first-onset" ∪ "first-cy") ∩ tags($x)>
+  | $o(opener) <tags($o) ∪ ("cy" ∈ tags($o) ⟹ "continued")>
+  | $s(stream) PAUSE $e(element)
+      <tags($e) ∪ classes($s) ∪ ("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("cy" ∈ tags($e) ⟹ "continued")>
+  | $t(stream) $f(element)
+      <tags($f) ∪ classes($t) ∪ ("first-onset" ∪ "first-cy") ∩ tags($t)
+        ∪ ("cv" ∈ tags($t) ∧ "y-letter" ∈ tags($f) ⟹ "cvcy")>
 %conditions
-  "cy" ∉ tags($e),
-  "cy" ∈ tags($c),
-  "continued" ∈ tags($t),
-  "onset" ∈ tags($f),
-  "cv" ∉ tags($t),
-  "cvcy" ∉ tags($t),
-  "cy" ∉ tags($t) ∨ "cy" ∉ tags($f),
-  "cy" ∈ tags($u),
-  "cy" ∈ tags($g),
-  "continued" ∈ tags($a),
-  "cv" ∈ tags($a),
-  "onset" ∈ tags($b),
-  "y-letter" ∈ tags($b),
-  "onset" ∈ tags($d),
-  "y-letter" ∉ tags($d),
-  "cvcy" ∈ tags($x),
-  "onset" ∈ tags($z),
-  "BRIVLA" ∉ tags($z),
-  ¬matches($z, lujvo-final-shape)
+  ("continued" ∪ "cy" ∪ "cvcy") ∩ tags($t) ≠ ∅,
+  "cy" ∈ tags($t) ∧ "cy" ∈ tags($f)
+    ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f)
+      ∧ ("cv" ∈ tags($t) ∨ "cvcy" ∉ tags($t) ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f)))
+    ∨ "cvcy" ∈ tags($t) ∧ "onset" ∈ tags($f) ∧ "BRIVLA" ∉ tags($f) ∧ ¬matches($f, lujvo-final-shape)
 
 %rule opener
   | $o(element) <tags($o) ∪ "first-onset">
@@ -266,14 +247,18 @@ CLL 19.10 to 19.13. A quote is decided at this stage because the words inside it
   "ZOI" ∈ classes($q)
 ```
 
-Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL 4.9, but no quote marker opens anything and no eraser erases, so a `lo'u` stretch is a stream of bare word shapes joined by the same rules as the stream of the text; the quote ends at the first `le'u`, and it may be empty, `lo'u le'u`, as a `zoi` quote may. The words inside are handed on as bare words, and the markers as `LOhU` and `LEhU`; the closing marker is handed on as `LEhU` alone, not also as a word, so that the syntax cannot read it as one more quoted word and look for a later `le'u`.
+Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL 4.9, but no quote marker opens anything and no eraser erases, so a `lo'u` stretch is a stream of bare word shapes joined by the same rules as the stream of the text, and it joins `lo'u` and `le'u` by them too, so that `lo'umi le'u` and `lo'u mile'u` need no pause; the quote ends at the first `le'u`, and it may be empty, `lo'u le'u`, as a `zoi` quote may. The words inside are handed on as bare words, and the markers as `LOhU` and `LEhU`; the closing marker is handed on as `LEhU` alone, not also as a word, so that the syntax cannot read it as one more quoted word and look for a later `le'u`.
 
 ```jbogenbau
 %rule lohu-quote
-  | $m(lohu-marker) PAUSE $content(lohu-stream) PAUSE $e(lehu-marker)
-  | $m(lohu-marker) [PAUSE] $e(lehu-marker)
+  | $m(lohu-marker) $g(gap) $content(lohu-stream) $h(gap) lehu-marker
+  | $m(lohu-marker) [PAUSE] lehu-marker
 %tags
   tags($m) ∪ "onset" ∪ "continued"
+%conditions
+  "first-onset" ∈ tags($content) ∨ phonemes($g) = ".",
+  "first-cy" ∉ tags($content) ∨ phonemes($g) = ".",
+  "continued" ∈ tags($content) ∨ phonemes($h) = "."
 
 %rule lohu-marker
   $q(magic-body) <"word" ∪ "cmavo" ∪ classes($q)>
@@ -290,23 +275,23 @@ Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL
   $ <"LEhU">
 
 %rule lohu-stream
-  | $e(lohu-word) <tags($e)>
-  | $c(lohu-word) <tags($c) ∪ "continued">
-  | $s(lohu-stream) PAUSE $e(lohu-word) <tags($e)>
-  | $s(lohu-stream) PAUSE $c(lohu-word) <tags($c) ∪ "continued">
-  | $t(lohu-stream) $f(lohu-word) <tags($f)>
-  | $u(lohu-stream) $g(lohu-word) <tags($g)>
+  | $o(lohu-word)
+      <tags($o) ∪ ("cy" ∈ tags($o) ⟹ "continued") ∪ ("onset" ∈ tags($o) ⟹ "first-onset")
+        ∪ ("onset" ∈ tags($o) ∧ ("cy" ∪ "y-letter") ∩ tags($o) ≠ ∅ ⟹ "first-cy")>
+  | $s(lohu-stream) PAUSE $e(lohu-word)
+      <tags($e) ∪ ("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("cy" ∈ tags($e) ⟹ "continued")>
+  | $t(lohu-stream) $f(lohu-word)
+      <tags($f) ∪ ("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("cv" ∈ tags($t) ∧ "y-letter" ∈ tags($f) ⟹ "cvcy")>
 %conditions
-  "cy" ∉ tags($e),
-  "cy" ∈ tags($c),
-  "continued" ∈ tags($t),
-  "onset" ∈ tags($f),
-  "cy" ∈ tags($u),
-  "cy" ∈ tags($g)
+  ("continued" ∪ "cy" ∪ "cvcy") ∩ tags($t) ≠ ∅,
+  "cy" ∈ tags($t) ∧ "cy" ∈ tags($f)
+    ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f)
+      ∧ ("cv" ∈ tags($t) ∨ "cvcy" ∉ tags($t) ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f)))
+    ∨ "cvcy" ∈ tags($t) ∧ "onset" ∈ tags($f) ∧ "BRIVLA" ∉ tags($f) ∧ ¬matches($f, lujvo-final-shape)
 
 %rule lohu-word
   | $c(cmavo-shape) <tags($c)>
-  | $b(brivla-shape) <tags($b)>
+  | $b(brivla-shape) <tags($b) ∪ "BRIVLA">
   | cmevla-shape <∅>
   | y-run <"continued">
 %conditions
@@ -560,22 +545,24 @@ $a(sa-open) $g(gap) $t(sa-open-twice)
   classes($b) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") ≠ ∅
 
 %rule su-reach
-  | $first(opener) <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy") ∩ tags($first)>
-  | $o(su-reach) $f(element)
-      <("first-onset" ∪ "first-cy") ∩ tags($o) ∪ ("continued" ∪ "cy") ∩ tags($f)>
-  | $o(su-reach) PAUSE $p(element)
-      <("first-onset" ∪ "first-cy") ∩ tags($o) ∪ ("continued" ∪ "cy") ∩ tags($p)>
-  | $o(su-reach) PAUSE $c(element) <("first-onset" ∪ "first-cy") ∩ tags($o) ∪ "continued" ∪ "cy">
+  | $first(opener)
+      <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($first)
+        ∪ ("cy" ∈ tags($first) ⟹ "continued")>
+  | $s(su-reach) PAUSE $e(element)
+      <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($e)
+        ∪ ("cy" ∈ tags($e) ⟹ "continued")>
+  | $t(su-reach) $f(element)
+      <("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($f)
+        ∪ ("cv" ∈ tags($t) ∧ "y-letter" ∈ tags($f) ⟹ "cvcy")>
 %conditions
   classes($first) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅,
-  "continued" ∈ tags($o) ∨ "cy" ∈ tags($o) ∨ "onset" ∉ tags($f),
-  "continued" ∈ tags($o) ∨ "cy" ∈ tags($f),
-  "onset" ∈ tags($f),
-  "cy" ∉ tags($p),
-  "cy" ∈ tags($c),
+  classes($e) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅,
   classes($f) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅,
-  classes($p) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅,
-  classes($c) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅
+  ("continued" ∪ "cy" ∪ "cvcy") ∩ tags($t) ≠ ∅,
+  "cy" ∈ tags($t) ∧ "cy" ∈ tags($f)
+    ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f)
+      ∧ ("cv" ∈ tags($t) ∨ "cvcy" ∉ tags($t) ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f)))
+    ∨ "cvcy" ∈ tags($t) ∧ "onset" ∈ tags($f) ∧ "BRIVLA" ∉ tags($f) ∧ ¬matches($f, lujvo-final-shape)
 %emits
   ε
 
