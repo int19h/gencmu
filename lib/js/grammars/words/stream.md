@@ -268,7 +268,7 @@ CLL 19.10 to 19.13. A quote is decided at this stage because the words inside it
   "ZOI" ∈ classes($q)
 ```
 
-Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL 4.9, but no quote marker opens anything and no eraser erases, so a `lo'u` stretch is a stream of bare word shapes joined by the same rules as the stream of the text, and it joins `lo'u` and `le'u` by them too, so that `lo'umi le'u` and `lo'u mile'u` need no pause; the quote ends at the first `le'u`, even after a `zo`, which is the fifth of the departures from CLL 19, and it may be empty, `lo'u le'u`, as a `zoi` quote may. The words inside are handed on as bare words, and the markers as `LOhU` and `LEhU`; the closing marker is handed on as `LEhU` alone, not also as a word, so that the syntax cannot read it as one more quoted word and look for a later `le'u`. For `sa`, the quote has the selma'o of both its markers, as the Magic Words proposal says. `sa lo'u` erases back to the start of the last quote and opens a new one. `sa le'u` "destroys everything since the end of the last LOhU...LEhU quote, replacing the terminating LEhU with a new LEhU (i.e. not changing the quote at all)": `lehu-close` reads such a stretch as the quote's closing, so that `lo'u co le'u broda sa le'u` is the quote `lo'u co le'u`, and the ordinary erasure by `sa` does not take a `le'u` after it.
+Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL 4.9, but no quote marker opens anything and no eraser erases, so a `lo'u` stretch is a stream of bare word shapes joined by the same rules as the stream of the text, and it joins `lo'u` and `le'u` by them too, so that `lo'umi le'u` and `lo'u mile'u` need no pause; the quote ends at the first `le'u`, even after a `zo`, which is the fifth of the departures from CLL 19, and it may be empty, `lo'u le'u`, as a `zoi` quote may. The words inside are handed on as bare words, and the markers as `LOhU` and `LEhU`; the closing marker is handed on as `LEhU` alone, not also as a word, so that the syntax cannot read it as one more quoted word and look for a later `le'u`. For `sa`, the quote has the selma'o of both its markers, as the Magic Words proposal says. `sa lo'u` erases back to the start of the last quote and opens a new one. `sa le'u` "destroys everything since the end of the last LOhU...LEhU quote, replacing the terminating LEhU with a new LEhU (i.e. not changing the quote at all)": `lehu-close` reads such a stretch as the quote's closing, so that `lo'u co le'u broda sa le'u` is the quote `lo'u co le'u`, and the ordinary erasure by `sa` does not take a `le'u` after it. The stretch, `lehu-reach`, is stated as the reach of a `sa` is: it is left-recursive and checks each element, so that it ends at the first element with the selma'o of either marker. A stretch stated as a stream would run on from every `le'u` to the end of the text.
 
 ```jbogenbau
 %rule lohu-quote
@@ -300,7 +300,6 @@ Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL
   | @sa-su? lehu-erased [PAUSE] sa-word sa-gap lehu-marker
   | @sa-su? lehu-erased $g(gap) $r(lehu-reach) $h(gap) sa-word sa-gap lehu-marker
 %conditions
-  classes($r) ∩ ("LOhU" ∪ "LEhU") = ∅,
   "first-onset" ∈ tags($r) ∨ phonemes($g) = ".",
   "first-cy" ∉ tags($r) ∨ phonemes($g) = ".",
   "continued" ∈ tags($r) ∨ phonemes($h) = "."
@@ -313,9 +312,27 @@ Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL
   ε
 
 %rule lehu-reach
-  $s(stream) <tags($s)>
+  | $first(opener)
+      <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($first)
+        ∪ ("cy" ∈ tags($first) ⟹ "continued")>
+  | $s(lehu-reach) PAUSE $e(element)
+      <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($e)
+        ∪ ("cy" ∈ tags($e) ⟹ "continued")>
+  | $t(lehu-reach) $f(element)
+      <("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($f)
+        ∪ ("cv" ∈ tags($t) ∧ "y-letter" ∈ tags($f) ⟹ "cvcy")>
 %conditions
-  "first-wipes" ∉ tags($s)
+  classes($first) ∩ ("LOhU" ∪ "LEhU") = ∅,
+  "first-wipes" ∉ tags($first),
+  classes($e) ∩ ("LOhU" ∪ "LEhU") = ∅,
+  classes($f) ∩ ("LOhU" ∪ "LEhU") = ∅,
+  "wipes-all" ∉ tags($e),
+  "wipes-all" ∉ tags($f),
+  ("continued" ∪ "cy" ∪ "cvcy") ∩ tags($t) ≠ ∅,
+  "cy" ∈ tags($t) ∧ "cy" ∈ tags($f)
+    ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f)
+      ∧ ("cv" ∈ tags($t) ∨ "cvcy" ∉ tags($t) ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f)))
+    ∨ "cvcy" ∈ tags($t) ∧ "onset" ∈ tags($f) ∧ "BRIVLA" ∉ tags($f) ∧ ¬matches($f, lujvo-final-shape)
 %emits
   ε
 
@@ -419,7 +436,6 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
   | @sa-su? bu-erased [PAUSE] sa-word sa-gap bu-word
   | @sa-su? bu-erased $g(gap) $r(bu-reach) $h(gap) sa-word sa-gap bu-word
 %conditions
-  classes($r) ∩ "BY" = ∅,
   "first-onset" ∈ tags($r) ∨ phonemes($g) = ".",
   "first-cy" ∉ tags($r) ∨ phonemes($g) = ".",
   "continued" ∈ tags($r) ∨ phonemes($h) = "."
@@ -432,9 +448,27 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
   ε
 
 %rule bu-reach
-  $s(stream) <tags($s)>
+  | $first(opener)
+      <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($first)
+        ∪ ("cy" ∈ tags($first) ⟹ "continued")>
+  | $s(bu-reach) PAUSE $e(element)
+      <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($e)
+        ∪ ("cy" ∈ tags($e) ⟹ "continued")>
+  | $t(bu-reach) $f(element)
+      <("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($f)
+        ∪ ("cv" ∈ tags($t) ∧ "y-letter" ∈ tags($f) ⟹ "cvcy")>
 %conditions
-  "first-wipes" ∉ tags($s)
+  classes($first) ∩ ("BY") = ∅,
+  "first-wipes" ∉ tags($first),
+  classes($e) ∩ ("BY") = ∅,
+  classes($f) ∩ ("BY") = ∅,
+  "wipes-all" ∉ tags($e),
+  "wipes-all" ∉ tags($f),
+  ("continued" ∪ "cy" ∪ "cvcy") ∩ tags($t) ≠ ∅,
+  "cy" ∈ tags($t) ∧ "cy" ∈ tags($f)
+    ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f)
+      ∧ ("cv" ∈ tags($t) ∨ "cvcy" ∉ tags($t) ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f)))
+    ∨ "cvcy" ∈ tags($t) ∧ "onset" ∈ tags($f) ∧ "BRIVLA" ∉ tags($f) ∧ ¬matches($f, lujvo-final-shape)
 %emits
   ε
 
@@ -478,7 +512,7 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
   "wipes-all" ∉ tags($f)
 ```
 
-`sa bu` "backs up to the last BU, pulling an already constructed pseudo-word apart", as the proposal puts it among its unique cases: it erases back to the `bu` of the last letter word, and the new `bu` binds to that letter word's base again, so `.abu sa bu` is `.abu`. `bu-part` reads such a stretch as the letter word's `bu`; nothing between may be a letter word, since its `bu` would be the last.
+`sa bu` "backs up to the last BU, pulling an already constructed pseudo-word apart", as the proposal puts it among its unique cases: it erases back to the `bu` of the last letter word, and the new `bu` binds to that letter word's base again, so `.abu sa bu` is `.abu`. `bu-part` reads such a stretch as the letter word's `bu`. Nothing between may be a letter word, since its `bu` would be the last, so `bu-reach` is stated as the reach of a `sa` is and ends at the first letter word.
 
 The pause between an operand and its operator is stated where it matters: a `bu` may follow its word directly only if the word is continued, or is a `Cy` letter cmavo, since `xybu` is the usual way to write that letter word; a `zei` may follow directly only a continued word; a pause is always allowed. The erasures that may stand between them obey the same pause rules, joined through the tags of the first erasure, and an erasure is always continued, so what follows a run of them needs no pause. The word after `zei` follows it directly or after a pause, and hesitation may stand between them, since the proposal treats `.y.` as whitespace; `.y. bu` there is the letter word, so `da zei .y. bu` is a lujvo of `da` and that letter. A compound may follow the word before it without a pause exactly when its first word may, which is what the `onset` in its tags records; `.abu` needs the pause before it that `a` needs.
 
@@ -520,7 +554,7 @@ CLL 19.13: `si` erases the word before it. As in the Magic Words proposal, a com
 
 ## Erasure by `sa` and `su`
 
-These two erasers are behind the feature `sa-su`. They are the most expensive part of the word grammar: a `sa` may reach back to any earlier word, so the parser must keep a possible reach open from every word it reads, not knowing whether a `sa` will come, and the cost grows faster than the length of the text. They are also rare in written text. Without the feature, `sa` and `su` are ordinary cmavo of SA and SU, which the syntax grammars do not accept, so a text that uses them is rejected at the word where they stand rather than misread.
+These two erasers are behind the feature `sa-su`. They are the most expensive part of the word grammar. A `sa` may reach back to any earlier word, so the parser keeps a possible reach open from the most recent word of each selma'o, not knowing whether a `sa` will come. That multiplies the work for each word by the number of selma'o in use. They are also rare in written text. Without the feature, `sa` and `su` are ordinary cmavo of SA and SU, which the syntax grammars do not accept, so a text that uses them is rejected at the word where they stand rather than misread.
 
 CLL 19.13: `sa` erases back to the most recent word of the same selma'o as the word after it, that word included, and leaves the word after it standing; `su` "erases the entire text". The Magic Words proposal and camxes-std stop `su` sooner, at the most recent `ni'o`, `no'i`, `lu`, `tu'e` or `to`, which survives, as step 2g of the YACC preamble also does. The feature `su-boundary` gives that reading: the approved word forms, experimental and Zantufa dialects turn it on, and the CLL dialect leaves it off, so that there `su` erases the whole text before it. Both are resolved here, in the same left-to-right pass as the quotes, the compounds and `si`, because they act in that order: in `mi le brodi sa le si la brodo` the `sa` takes `le brodi` before the `si` erases the `le` that follows it, and `mi brodi .i sa mi zei co mi` compounds `mi zei co` only after the `sa` has taken `mi brodi .i`.
 
@@ -671,7 +705,7 @@ With `su-boundary`, `su` erases back to a boundary word, which survives, or to t
 
 A `su` with no boundary before it, or any `su` without `su-boundary`, erases everything back to the start of the text. So does a `sa` whose following word matches nothing before it, but the word after the `sa` stays. A run of `sa` that matches nothing is one unmatched `sa`. So is a run with fewer matches before it than it has `sa`: the reaches that did match are followed by more `sa` than there are reaches, in `sa-wipe-core`, and nothing before the furthest match has the selma'o the run looks for, so `mi klama sa sa do` is `do`. A `sa` at the end of the text, with no word after it, has no selma'o to look for and erases nothing, so `.i sa` is `.i`. The text rule accepts it after the stream.
 
-What an unmatched `su` erases is a wiped stretch, which the text rule accepts before its stream. An unmatched `sa`, with what it erases and the word it leaves, is the unit `sa-wiped`. So a `bu`, a `zei` or a `si` after that word acts on it, as on any other unit: `mi sa a bu` is the letter word `.abu`. Such a unit erases the whole text before it. It is tagged `wipes-all`, and so is every unit or erasure built on it. Only `opener` accepts an element with that tag, and it tags the stream `first-wipes`. Every rule that joins an element to what stands before it refuses the tag. A stream that opens with such an element can stand first in the text or after a wiped stretch, and the rules for a stream that stands after other text refuse `first-wipes`: the reach of `sa bu` or `sa le'u`, the reach of a `su` after its boundary, and the stream after a bare `bu`.
+What an unmatched `su` erases is a wiped stretch, which the text rule accepts before its stream. Every stretch that an unmatched `sa` or a `su` wipes runs back to the start of the text. So `wiped-reach` begins with `text-start`, which matches nothing and holds only where the input begins, as the notation's `initial` says. The parser therefore reads such a stretch only from the start of the text, and not from every position where a `su` or an unmatched `sa` could follow. The stretch can begin with earlier wiped stretches and stray `si`, `reach-prefix`, and then holds a stream or a bare `bu`, `reach-core`. An unmatched `sa`, with what it erases and the word it leaves, is the unit `sa-wiped`. So a `bu`, a `zei` or a `si` after that word acts on it, as on any other unit: `mi sa a bu` is the letter word `.abu`. Such a unit erases the whole text before it. It is tagged `wipes-all`, and so is every unit or erasure built on it. Only `opener` accepts an element with that tag, and it tags the stream `first-wipes`. Every rule that joins an element to what stands before it refuses the tag. A stream that opens with such an element can stand first in the text or after a wiped stretch, and the rules for a stream that stands after other text refuse `first-wipes`: the reach of `sa bu` or `sa le'u`, the reach of a `su` after its boundary, and the stream after a bare `bu`.
 
 ```jbogenbau
 %rule wiped
@@ -717,6 +751,31 @@ What an unmatched `su` erases is a wiped stretch, which the text rule accepts be
   "onset" ∈ tags($n) ∨ phonemes($h) ≠ ""
 
 %rule wiped-reach
+  text-start [PAUSE] $r(reach-body) <tags($r)>
+%emits
+  ε
+
+%rule text-start
+  ε
+%conditions
+  initial($)
+
+%rule reach-body
+  | $c(reach-core) <tags($c)>
+  | $p(reach-prefix) $g(gap) $c(reach-core) <"first-onset" ∩ tags($p) ∪ ("continued" ∪ "first-wipes") ∩ tags($c) ∪ classes($c)>
+%conditions
+  "first-onset" ∈ tags($c) ∨ phonemes($g) = ".",
+  "first-cy" ∉ tags($c) ∨ phonemes($g) = "."
+
+%rule reach-prefix
+  | stray-si <"continued">
+  | $w(wiped) <tags($w)>
+  | stray-si $g(gap) $w(wiped) <"continued">
+%conditions
+  "first-onset" ∈ tags($w) ∨ phonemes($g) = ".",
+  "first-cy" ∉ tags($w) ∨ phonemes($g) = "."
+
+%rule reach-core
   | $s(stream) <tags($s)>
   | bu-word <"first-onset" ∪ "continued">
   | bu-word $g(gap) $t(stream) <"first-onset" ∪ "continued" ∩ tags($t) ∪ classes($t)>
