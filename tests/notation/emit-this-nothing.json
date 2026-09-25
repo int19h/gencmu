@@ -1,6 +1,6 @@
 {
-  "description": "%emits $ emits the whole constituent, with tags of its own, and %emits $ <> makes it silent (engine §9).",
-  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule a A %emits $ <\"X\">\n%rule b B %emits $ <>\n```\n",
+  "description": "%emits $ emits the whole constituent, with tags of its own, and %emits ε emits nothing, which the DOM writes as no items (engine §9).",
+  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule a A %emits $ <\"X\">\n%rule b B %emits ε\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -18,12 +18,7 @@
         },
         {
           "emit": {
-            "items": [
-              {
-                "capture": "",
-                "silent": true
-              }
-            ]
+            "items": []
           }
         }
       ]

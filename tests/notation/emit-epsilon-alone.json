@@ -1,0 +1,10 @@
+{
+  "description": "ε stands alone after %emits: it cannot be listed with an item (engine §9); the error is at the comma after it.",
+  "document": "```jbogenbau\n%rule a A %emits ε, $\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 19
+    }
+  }
+}

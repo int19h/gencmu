@@ -1,0 +1,18 @@
+{
+  "description": "words() splits a span's phonemes at pauses, `.`, only: a space or a tab is part of a word (engine §10).",
+  "grammar": "%rule text $x(A)\n%conditions \"a\" ∉ words($x) ∧ \"a b\\u{9}c\" ∈ words($x) ∧ \"d\" ∈ words($x)",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a b\tc.d"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

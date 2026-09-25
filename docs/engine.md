@@ -95,13 +95,13 @@ The parser is an Earley recognizer over the lowered grammar. It is specified by 
 
 A token's `phonemes`:
 
-- if its tag set holds a strong phoneme tag `/p/`, `p`, except that the pause, `/./`, is a space; two strong phoneme tags on one token are an error of the grammar that emitted it. A phoneme tag is a tag of exactly three code points, the first and last `/`;
-- otherwise, the concatenation of the phonemes of the tokens it was emitted from, omitting every token inside a silent constituent (§11), the token's own constituent included when its own rule makes it silent and a parent emits it as a capture, with leading and trailing spaces, U+0020, removed;
+- if its tag set holds a strong phoneme tag `/p/`, `p`: the pause, `/./`, is `.`. Two strong phoneme tags on one token are an error of the grammar that emitted it. A phoneme tag is a tag of exactly three code points, the first and last `/`;
+- otherwise, the phonemes of the tokens it covers, the stage's input tokens in its span, joined in order, leaving out every token inside a constituent that does not count (§11), the token's own constituent included when its own rule does not count and a parent emits it as a capture; then each run of pauses, `.`, is made one, and a pause at either end is removed;
 - a character token has none.
 
 An emitted token always has phonemes, possibly the empty string; only the character tokens of the first stage have none.
 
-`phonemes(span)` in a condition is the concatenation of the span's tokens' phonemes. `text(span)` is the original text of the span, from the start of its first token's source to the end of its last. `words(span)` is `phonemes(span)` split at spaces, empty strings dropped.
+`phonemes(span)` in a condition is the concatenation of the span's tokens' phonemes. `text(span)` is the original text of the span, from the start of its first token's source to the end of its last. `words(span)` is `phonemes(span)` split at pauses, `.`, empty strings dropped.
 
 ## 6. Choosing a parse
 
@@ -171,7 +171,7 @@ The notation's syntax grammar names its constituents so that the DOM can be read
 | `empty` | `empty` |
 | `tags-clause` | its `term` |
 | `conditions-clause` | its `implication`s, each one condition of the list, in order |
-| `emits-clause` | `items` of its `emit-item`s: a capture, `""` for `$`, with the term of its `emit-tags` or with `silent` for a `silent`; or an inserted tag from a string or phoneme |
+| `emits-clause` | `items` of its `emit-item`s, each a capture, `""` for `$`, with the term of its `emit-tags` if it has one, or an inserted tag from a string or phoneme; no items for `ε` |
 | `implication` | `if` of its `any-of` and the `implication` after `⟹`, or the one `any-of` itself |
 | `any-of` | `any` of its `all-of`s, or the one `all-of` itself; an `all-of` that is itself an `any` gives its conditions in its place |
 | `all-of` | `all` of its `condition`s, or the one condition itself; a `condition` that is itself an `all` gives its conditions in its place |
@@ -193,7 +193,7 @@ A rule with any other name is transparent: its children are read in its place. E
 - `head`, `tail` or `last` where a value is needed, and `matches` as a term;
 - an `&` of more than 16 items;
 - an expression, a term or a condition nested more than 256 deep: in the DOM (docs/output.md), no node of one may lie below more than 256 compound nodes of it, a compound node being one of `optional`, `repeat`, `and`, `choice`, `seq` and `capture` in an expression; `union`, `intersection`, `if` and `call` in a term; `any`, `all`, `not`, `if`, `matches` and a comparison in a condition. The condition of a guarded term counts on from the term's depth, as a comparison's terms count on from the condition's. `( )` makes no node, so it adds nothing; 256 nested `[ ]` around a symbol are allowed, and 257 are not;
-- `$` with items other than `$`; `$ <>` with any other item; tags or `<>` on an inserted tag; `∅` as an item's tags, which is a token no terminal reads; a capture other than `$` listed twice in one emission;
+- `$` with items other than `$`; tags on an inserted tag; `∅` as an item's tags, which is a token no terminal reads; a capture other than `$` listed twice in one emission;
 - a rule's or an alternative's tag term that reads the tags it defines: `$`, `tags($)` or `classes($)` in it; `tags(head($))` and the like read the tokens' tags, not the constituent's, and are allowed, as is `tags($, R)`;
 - an unknown directive, which the syntax grammar already refuses.
 
@@ -202,7 +202,7 @@ A definition (§2) is checked as a whole once it is read, and these are errors o
 - a capture, in any clause, `$x` presence tests included, that no alternative of the definition captures;
 - a condition that applies (§3.6) to no alternative of the definition, whatever features are enabled;
 - a tag term that uses (§3.6) a capture that an alternative it serves lacks: an alternative's own tags serve that alternative, `%tags` every alternative of the definition, and an emission item's tags every alternative in which the item is not dropped;
-- in an emission, captures listed in an order other than the one in which some alternative that has them captures them; an inserted tag whose anchor, the capture listed next after it, is one that some alternative of the definition lacks; or an alternative for which every item is dropped, so that it would emit nothing although the rule says what to emit.
+- in an emission, captures listed in an order other than the one in which some alternative that has them captures them; an inserted tag whose anchor, the capture listed next after it, is one that some alternative of the definition lacks; or an alternative for which every item is dropped, so that it would emit nothing although the rule lists what to emit; a rule that emits nothing says so with `ε`.
 
 A string's decoding: the quotes are removed, `\\` is `\`, `\"` is `"`, and `\u{h...}` is the code point with that hexadecimal value; any other `\` is an error.
 
@@ -243,14 +243,12 @@ Every stage that accepts its input emits tokens by walking its chosen tree from 
 - A constituent whose production has an emission emits exactly the items of the emission, as dropped for its production (§3.6), in the order they are listed, and nothing inside it is walked:
   - a `$` item emits one token covering the constituent, with the constituent's tags, or with the tags of the item's term if it has one; `$ <t>, $ <u>` emits one such token per item, in order, all with the same span and source, as a digit that stands for a two-phoneme word is two tokens over one character;
   - a capture item emits one token covering the captured part, with the part's own tags, or with the tags of the item's term;
-  - an inserted tag, a string or phoneme tag, emits a token with that one strong tag and an empty span;
-  - a `silent` item emits nothing.
-
-A constituent is **silent** when its production's emission is `$ <>`, or when its parent's emission names it with `<>`. A silent constituent emits nothing, and nothing inside it is heard in the phonemes of a token that covers it (§5). A part that an emission merely does not list is not emitted, but is heard.
+  - an inserted tag, a string or phoneme tag, emits a token with that one strong tag and an empty span.
+- A constituent whose production's emission is `ε`, no items, emits nothing and **does not count**: nothing inside it is part of the phonemes of a token that covers it (§5). It is how a grammar erases text, which is still there, and still covered by the tokens around it, but counts for nothing. A part that an emission merely does not list is not emitted, but counts.
 
 An item's tag term that gives the empty set is an error of the grammar, found while parsing: no terminal could read the token.
 
-An emitted token's span is the range of the stage's input tokens its constituent covers; its `source` runs from the source start of the first of them to the source end of the last; its phonemes are as in §5. An inserted token's span is empty at the start of the part of the capture listed next after it, silent or not, or at the end of the constituent if no capture is listed after it; its source is empty at the source end of the input token before that position, or at the source start of the constituent if the position is the constituent's start.
+An emitted token's span is the range of the stage's input tokens its constituent covers; its `source` runs from the source start of the first of them to the source end of the last; its phonemes are as in §5. An inserted token's span is empty at the start of the part of the capture listed next after it, or at the end of the constituent if no capture is listed after it; its source is empty at the source end of the input token before that position, or at the source start of the constituent if the position is the constituent's start.
 
 **Ties.** A stage whose verdict is `tie` emits its chosen derivation, and the tie is reported, at whichever stage it is. A tie is a property of the grammar that the grammar should settle, and the engine does not hide one even where the tied derivations would emit the same tokens.
 

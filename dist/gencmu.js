@@ -698,7 +698,7 @@
         }
         case "words": {
           const span = spanOf(context, args[0], scope);
-          return { list: phonemesOf(context.tokens, span.start, span.end).split(" ").filter((word) => word !== "") };
+          return { list: phonemesOf(context.tokens, span.start, span.end).split(".").filter((word) => word !== "") };
         }
         case "tags": {
           const span = spanOf(context, args[0], scope);
@@ -1159,7 +1159,8 @@
    */
   function leafLabel(node, tokens) {
     const token = tokens[node.token];
-    return token.phonemes ? token.phonemes : token.text;
+    // For people a pause, `.`, is a space (docs/output.md).
+    return token.phonemes ? token.phonemes.replaceAll(".", " ") : token.text;
   }
 
   // The bracket rendering (docs/output.md): nested groups cycling ( [ {.
@@ -1454,7 +1455,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 3;
+  const DOM_FORMAT = 4;
 
   /**
    * @param {unknown} value
@@ -1577,19 +1578,18 @@
         if (readsOwnTags(value)) return "a constituent's tags made of its own";
         pending.push({ kind: "term", value, depth });
       } else if (kind === "emission") {
-        // The reader's rules (engine §9): $ only with $, $ <> alone, a capture
-        // listed once, no tags on an inserted tag, silent only on a capture.
-        if (!list(value.items, 1) || Object.keys(value).length !== 1) return "a malformed emission";
+        // The reader's rules (engine §9): $ only with $, a capture listed once,
+        // no tags on an inserted tag; no items at all is `ε`.
+        if (!list(value.items, 0) || Object.keys(value).length !== 1) return "a malformed emission";
         const items = /** @type {unknown[]} */ (value.items);
-        if (!items.every((item) => isDomObject(item) && (typeof item.capture === "string") !== (typeof item.insert === "string"))) return "a malformed emission";
+        const known = (/** @type {string} */ key) => key === "capture" || key === "insert" || key === "tags";
+        if (!items.every((item) => isDomObject(item) && (typeof item.capture === "string") !== (typeof item.insert === "string") && Object.keys(item).every(known))) return "a malformed emission";
         const records = /** @type {Record<string, unknown>[]} */ (items);
         const whole = records.filter((item) => item.capture === "");
         if (whole.length && whole.length !== records.length) return "a malformed emission";
-        if (whole.some((item) => item.silent === true) && records.length !== 1) return "a malformed emission";
         const captures = records.flatMap((item) => (typeof item.capture === "string" && item.capture !== "" ? [item.capture] : []));
         if (new Set(captures).size !== captures.length) return "a malformed emission";
         for (const item of records) {
-          if (item.silent !== undefined && (item.silent !== true || item.tags !== undefined || typeof item.insert === "string")) return "a malformed emission";
           if (item.tags === undefined) continue;
           if (typeof item.insert === "string") return "a malformed emission";
           if (isDomObject(item.tags) && item.tags.emptySet === true) return "a malformed emission";
@@ -1849,7 +1849,7 @@
       }
       if (!rule.emit) continue;
       const present = items.filter((/** @type {any} */ item) => item.capture === undefined || has(item.capture));
-      if (present.length === 0) return `%emits of ${rule.name} leaves an alternative nothing to emit`;
+      if (items.length > 0 && present.length === 0) return `%emits of ${rule.name} leaves an alternative nothing to emit`;
       const positions = present.flatMap((/** @type {any} */ item) => (item.capture ? [/** @type {number} */ (captures.get(item.capture))] : []));
       if (positions.some((/** @type {number} */ position, /** @type {number} */ at) => at > 0 && position < positions[at - 1])) {
         return `%emits of ${rule.name} lists captures out of the order they stand in`;
@@ -2171,8 +2171,8 @@
    * @property {number} rules
    * @property {string[]} unreachable rules no derivation of `text` can reach
    * @property {{kind: string, rule: string, document: string, previous: string}[]} changes
-   * @property {{rule: string, document: string, erased: string}[]} idleErasures silent items, `$ <>`
-   *   or `$x <>`, of what could never emit anything and never sounds inside an emitted token
+   * @property {{rule: string, document: string}[]} idleErasures rules that emit `ε` although nothing
+   *   under them could emit and no token could cover them
    */
 
   /**
@@ -2220,7 +2220,7 @@
 
   /**
    * Which rules of a stage could emit a token (engine §11): one with an
-   * alternative whose emission lists something that is not silent, or that
+   * alternative whose emission lists anything, or that
    * has no emission and walks a part that could.
    * @param {Map<string, StitchedAlternative[]>} alternativesByRule
    * @returns {Set<string>}
@@ -2247,7 +2247,7 @@
    * @returns {boolean}
    */
   function alternativeEmits(alternative, emitting) {
-    if (alternative.clauses.emit) return effectiveItems(alternative).some((item) => item.insert !== undefined || !item.silent);
+    if (alternative.clauses.emit) return effectiveItems(alternative).length > 0;
     /** @type {Set<string>} */
     const walked = new Set();
     for (const part of topItems(alternative.expr)) referencedRules(part, walked);
@@ -2256,9 +2256,9 @@
 
   /**
    * Which rules could sound inside an emitted token, where what they read is
-   * part of the token's phonemes unless it is silent (engine §5): those under
-   * a part emitted as a token whose tags do not name its phoneme, and all
-   * that lies under them but what is silent.
+   * part of the token's phonemes unless it does not count (engine §5): those
+   * under a part emitted as a token whose tags do not name its phoneme, and
+   * all that lies under them but what emits `ε`.
    * @param {Map<string, StitchedAlternative[]>} alternativesByRule
    * @returns {Set<string>}
    */
@@ -2285,21 +2285,20 @@
         const items = effectiveItems(alternative);
         if (items.length > 0 && items[0].capture === "") {
           const fixed = items.every((item) => namesPhoneme(item.tags) || (!item.tags && constituentTerms(alternative).some(namesPhoneme)));
-          if (!items[0].silent && !fixed) topItems(alternative.expr).forEach(reach);
+          if (!fixed) topItems(alternative.expr).forEach(reach);
           continue;
         }
-        const emitted = new Set(items.flatMap((item) => (!item.silent && item.capture && !namesPhoneme(item.tags) ? [item.capture] : [])));
+        const emitted = new Set(items.flatMap((item) => (item.capture && !namesPhoneme(item.tags) ? [item.capture] : [])));
         for (const part of topItems(alternative.expr)) if ("capture" in part && emitted.has(part.capture)) reach(part);
       }
     }
-    // Inside a token, everything is heard but what is silent, whatever any
+    // Inside a token, everything counts but what emits `ε`, whatever any
     // token under it says of its own phonemes.
     for (let name = pending.pop(); name !== undefined; name = pending.pop()) {
       for (const alternative of alternativesByRule.get(name) || []) {
-        const items = effectiveItems(alternative);
-        if (items.length > 0 && items[0].capture === "" && items[0].silent) continue;
-        const silent = new Set(items.flatMap((item) => (item.silent && item.capture ? [item.capture] : [])));
-        for (const part of topItems(alternative.expr)) if (!("capture" in part && silent.has(part.capture))) reach(part);
+        const emit = alternative.clauses.emit;
+        if (emit && emit.items.length === 0) continue;
+        topItems(alternative.expr).forEach(reach);
       }
     }
     return inside;
@@ -2321,7 +2320,7 @@
   /**
    * What a grammar author should know about a dialect's grammars: per stage,
    * the rules nothing reaches, every rule a later document replaced or
-   * extended, and silent items that change nothing.
+   * extended, and `%emits ε` that changes nothing.
    * @param {Dialect} dialect
    * @returns {StageAudit[]}
    */
@@ -2352,33 +2351,27 @@
           }
         }
       }
-      // A silent item says nothing if what it silences could never emit and
-      // never sounds inside an emitted token (engine §5, §11).
+      // `%emits ε` says nothing if nothing under it could emit and no token
+      // could cover it (engine §5, §11).
       const byRule = new Map([...grammar.rules].map(([name, rule]) => [name, rule.alternatives]));
       const emitting = emittingRules(byRule);
       const sounding = soundingRules(byRule);
-      /** @type {{rule: string, document: string, erased: string}[]} */
+      /** @type {{rule: string, document: string}[]} */
       const idleErasures = [];
       /** @type {Set<object>} */
       const seen = new Set();
       for (const rule of grammar.rules.values()) {
         for (const alternative of rule.alternatives) {
           const emit = alternative.clauses.emit;
-          if (!emit || seen.has(alternative.clauses)) continue;
-          const siblings = rule.alternatives.filter((other) => other.clauses === alternative.clauses);
+          if (!emit || emit.items.length > 0 || seen.has(alternative.clauses)) continue;
           seen.add(alternative.clauses);
-          for (const item of emit.items) {
-            if (!item.silent || item.capture === undefined) continue;
-            /** @type {Set<string>} */
-            const reached = new Set();
-            for (const sibling of siblings) {
-              for (const part of topItems(sibling.expr)) {
-                if (item.capture === "" || ("capture" in part && part.capture === item.capture)) referencedRules(part, reached);
-              }
-            }
-            if (!sounding.has(rule.name) && ![...reached].some((name) => emitting.has(name))) {
-              idleErasures.push({ rule: rule.name, document: alternative.document, erased: item.capture === "" ? "$" : `$${item.capture}` });
-            }
+          /** @type {Set<string>} */
+          const reached = new Set();
+          for (const sibling of rule.alternatives.filter((other) => other.clauses === alternative.clauses)) {
+            for (const part of topItems(sibling.expr)) referencedRules(part, reached);
+          }
+          if (!sounding.has(rule.name) && ![...reached].some((name) => emitting.has(name))) {
+            idleErasures.push({ rule: rule.name, document: alternative.document });
           }
         }
       }
@@ -2404,7 +2397,7 @@
       const lines = [`${stage.name}: ${stage.rules} rules, ${stage.resolution}`];
       if (stage.unreachable.length) lines.push(`  unreachable from text: ${stage.unreachable.join(", ")}`);
       for (const change of stage.changes) lines.push(`  ${change.rule} ${change.kind} by ${change.document} (defined in ${change.previous})`);
-      for (const idle of stage.idleErasures) lines.push(`  ${idle.rule} in ${idle.document} makes ${idle.erased} silent, which could never emit anything or sound inside a token`);
+      for (const idle of stage.idleErasures) lines.push(`  ${idle.rule} in ${idle.document} emits ε, although nothing under it could emit and no token could cover it`);
       if (lines.length === 1) lines.push("  nothing to report");
       blocks.push(lines.join("\n"));
     }
@@ -4210,14 +4203,12 @@
     if (found.length > 1) {
       throw new GencmuError("grammar", `a token carries two phoneme tags, ${found.sort(compareCodePoints).join(" and ")}`);
     }
-    if (!found.length) return null;
-    // The pause, `/./`, sounds as a space (engine §5).
-    const phoneme = [...found[0]][1];
-    return phoneme === "." ? " " : phoneme;
+    return found.length ? [...found[0]][1] : null;
   }
 
-  // What a node says: its tokens' phonemes, less every part that is silent
-  // (engine §5).
+  // What a node says: the phonemes of the tokens it covers, less those inside
+  // a constituent that does not count, with each run of pauses made one and
+  // a pause at either end removed (engine §5).
   /**
    * @param {Derivation} node
    * @param {ParseContext} context
@@ -4231,36 +4222,20 @@
         result += context.tokens[current.read.token].phonemes || "";
         continue;
       }
-      const erased = erasedChildren(current.production);
-      if (erased === ERASE_ALL) continue;
-      for (let index = current.children.length - 1; index >= 0; index--) {
-        if (!erased.has(index)) stack.push(current.children[index]);
-      }
+      if (countsForNothing(current.production)) continue;
+      for (let index = current.children.length - 1; index >= 0; index--) stack.push(current.children[index]);
     }
-    return result;
+    return result.replace(/\.{2,}/g, ".").replace(/^\.|\.$/g, "");
   }
 
-  const ERASE_ALL = new Set([-1]);
-  /** @type {Set<number>} */
-  const ERASE_NONE = new Set();
-
   /**
-   * Which children of a production's constituent its emission makes silent: ERASE_ALL
-   * for `⇒ $ <>`, else the captures named with `<>` (engine §11).
+   * Whether a production's constituent does not count: its emission is `ε`
+   * (engine §11).
    * @param {import("./types.js").Production} production
-   * @returns {Set<number>}
+   * @returns {boolean}
    */
-  function erasedChildren(production) {
-    const emission = production.emit;
-    if (!emission || !emission.items.some((item) => item.silent)) return ERASE_NONE;
-    if (emission.items[0].capture === "") return ERASE_ALL;
-    const erased = new Set();
-    for (const item of emission.items) {
-      if (!item.silent) continue;
-      const capture = production.captures.find((entry) => entry.name === item.capture);
-      if (capture) erased.add(capture.index);
-    }
-    return erased;
+  function countsForNothing(production) {
+    return production.emit !== null && production.emit.items.length === 0;
   }
 
   /**
@@ -4273,7 +4248,7 @@
     const tokens = context.tokens;
     const source = sourceOf(tokens, node.start, node.end);
     const phoneme = phonemeTag(tags);
-    const phonemes = phoneme !== null ? phoneme : spoken(node, context).replace(/^ +| +$/g, "");
+    const phonemes = phoneme !== null ? phoneme : spoken(node, context);
     return new Token(tags, [node.start, node.end], source, context.sourceText.slice(source[0], source[1]).join(""), phonemes, undefined);
   }
 
@@ -4327,13 +4302,13 @@
       const valueTags = (item, fallback) => {
         if (!item.tags) return fallback;
         const tags = asTags(evaluate(context, item.tags, scope));
-        // A token no terminal can read is a mistake; <> is how a grammar
-        // makes a part silent (engine §11).
+        // A token no terminal can read is a mistake; `%emits ε` is how a
+        // grammar emits nothing (engine §11).
         if (tags.size === 0) throw new GencmuError("grammar", `${production.owner} emits a token with no tags`);
         return tags;
       };
-      if (clause.items.length > 0 && clause.items[0].capture === "") {
-        if (clause.items[0].silent) continue;
+      if (clause.items.length === 0) continue;
+      if (clause.items[0].capture === "") {
         // One token covering the constituent per `$`: a digit that is two
         // phonemes is emitted as two tokens over the same character.
         for (const item of clause.items) out.push(makeToken(node, valueTags(item, nodeTags(node, context)), context));
@@ -4352,7 +4327,7 @@
           const next = clause.items.slice(index + 1).find((later) => later.capture !== undefined);
           const at = next && next.capture !== undefined ? part(next.capture).start : node.end;
           ordered.push({ token: () => insertedToken(insert, at, node, context, production.owner) });
-        } else if (item.capture !== undefined && !item.silent) {
+        } else if (item.capture !== undefined) {
           const child = part(item.capture);
           ordered.push({ token: () => makeToken(child, valueTags(item, nodeTags(child, context)), context) });
         }
@@ -4556,6 +4531,8 @@
      * @returns {Emission}
      */
     function readEmission(node) {
+      // `%emits ε` emits nothing, and the constituent does not count.
+      if (parts(node).some((child) => tokenText(child) === "ε")) return { items: [] };
       const items = ofRule(node, "emit-item").map((itemNode) => {
         const target = parts(only(itemNode, "emit-target"))[0];
         const kind = target.kind === "rule" ? undefined : target.terminal;
@@ -4567,17 +4544,15 @@
         else fail("expected a capture or a tag after %emits", itemNode);
         const tags = one(itemNode, "emit-tags");
         if (tags && item.insert !== undefined) fail("an inserted tag takes no tags of its own", itemNode);
-        if (tags && one(tags, "silent")) item.silent = true;
-        else if (tags) {
+        if (tags) {
           item.tags = readTerm(only(tags, "term"));
-          if ("emptySet" in item.tags) fail("<∅> emits a token no terminal can read; <> makes a part silent", itemNode);
+          if ("emptySet" in item.tags) fail("<∅> emits a token no terminal can read; %emits ε emits nothing", itemNode);
         }
         return item;
       });
       if (items.some((item) => item.capture === "") && !items.every((item) => item.capture === "")) {
         fail("$ goes with no item but another $", node);
       }
-      if (items.some((item) => item.capture === "" && item.silent) && items.length !== 1) fail("$ <> stands alone", node);
       const named = items.flatMap((item) => (item.capture !== undefined && item.capture !== "" ? [item.capture] : []));
       if (named.some((name, index) => named.indexOf(name) !== index)) fail("%emits lists a capture twice", node);
       return { items };
@@ -4775,7 +4750,7 @@
     "directive", "argument-word", "rule", "definer", "body", "alternative", "guard", "alternative-tags",
     "conjunction", "sequence", "element", "primary", "reference", "string", "phoneme", "capture", "group", "optional",
     "choice", "empty", "tags-clause", "conditions-clause", "emits-clause", "emit-item", "emit-target", "emit-tags",
-    "silent", "implication", "any-of", "all-of", "condition", "comparison", "comparator", "negation", "presence",
+    "implication", "any-of", "all-of", "condition", "comparison", "comparator", "negation", "presence",
     "term", "guarded-term", "union", "intersection", "term-atom", "weak", "empty-set", "call", "argument",
     "capture-reference",
   ]);
@@ -5622,12 +5597,11 @@
 
   /**
    * One item of an emission clause: a capture, `""` for `$`, the whole
-   * constituent, with the tags to give it or silent; or an inserted token.
+   * constituent, with the tags to give it; or an inserted token.
    * @typedef {object} EmitItem
    * @property {string} [capture]
    * @property {string} [insert]
    * @property {Term} [tags]
-   * @property {true} [silent]
    */
 
   /**

@@ -1,12 +1,12 @@
 {
-  "description": "The pause, /./, sounds as a space: a token tagged with it has a space as its phonemes, and words() splits at it (engine §5, §10).",
+  "description": "The pause, /./, is `.`: a token tagged with it has `.` as its phonemes; phonemes() of a span joins its tokens' phonemes as they are, and words() splits that at pauses, dropping the empty strings between two of them (engine §5, §10).",
   "documents": {
     "p.md": "## s <?stage sounds?>\n\n- [g](g.md) <?grammar?>\n\n## t <?stage words?>\n\n- [h](h.md) <?grammar?>\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [c] ...\n%rule c \"a\" </a/> | \"space\" </./> %emits $\n```\n",
-    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w(run) %conditions phonemes($w) = \"a a\", \"a\" ∈ words($w)\n%rule run /a/ /./ /a/\n```\n"
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w(run) %conditions phonemes($w) = \"a..a\", \"a\" ∈ words($w), \"\" ∉ words($w)\n%rule run /a/ /./ /./ /a/\n```\n"
   },
   "pipeline": "p.md",
-  "input": "a a",
+  "input": "a  a",
   "expect": {
     "result": {
       "ok": true,
@@ -19,7 +19,14 @@
             },
             {
               "text": " ",
-              "phonemes": " ",
+              "phonemes": ".",
+              "tags": {
+                "/./": true
+              }
+            },
+            {
+              "text": " ",
+              "phonemes": ".",
               "tags": {
                 "/./": true
               }

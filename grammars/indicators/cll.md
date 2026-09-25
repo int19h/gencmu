@@ -38,12 +38,12 @@ An indicator run is read as far as it goes, so the stage is greedy: where two pa
 %rule absorbed
   indicator-run
 %emits
-  $ <>
+  ε
 
 %rule absorbed-bahe
   bahe-run
 %emits
-  $ <>
+  ε
 
 %rule bahe-run
   bahe | bahe-run bahe

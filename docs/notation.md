@@ -35,7 +35,7 @@ A name is a letter followed by letters, digits and hyphens. A name that begins w
 Two other kinds of terminal spell tags a name cannot:
 
 - a string in straight double quotes, `"а"`, `"word"`, `"≔"`; inside it, `\\` is a backslash, `\"` a quote, and `\u{ED80}` the code point with that hexadecimal value;
-- a phoneme between slashes, `/a/`, `/'/`, and `/./` for a pause, which sounds as a space. It is a phoneme tag: it matches like any tag, and it also says what a token carrying it sounds like, which is what `phonemes()` reads.
+- a phoneme between slashes, `/a/`, `/'/`, and `/./` for a pause. It is a phoneme tag: it matches like any tag, and it also says what a token carrying it sounds like, which is what `phonemes()` reads.
 
 ## Operators
 
@@ -129,11 +129,11 @@ The terms of a condition have three types.
 
 **Spans.** A capture `$x` is a span, the tokens the captured part covers, and `$` the tokens the whole constituent covers. `head($x)` is its first token, `tail($x)` the rest, `last($x)` the last.
 
-**Strings.** `phonemes(span)` is what a span sounds like: for each token, the phoneme its `/x/` tag names, or else the phonemes of the tokens it was emitted from, with a space for each pause and nothing for a token that has no phoneme. `text(span)` is the original text the span covers. `lowercase(string)` folds capitals, so `phonemes($m) ≠ lowercase(phonemes($m))` says that `$m` carries a stress mark. A string in quotes, or a phoneme tag, is a literal.
+**Strings.** `phonemes(span)` is what a span sounds like: the phonemes of its tokens, joined. A token's phonemes are fixed when its stage emits it: the phoneme its `/x/` tag names, if it has one, or else the phonemes of the tokens of that stage's input that it covers, joined in order, leaving out those inside a rule that emits `ε` (see "Emission"), with each run of pauses made one and a pause at either end removed. A pause is `.`, so `klama bu` sounds as `klama.bu`; the renderings for people write it as a space. `text(span)` is the original text the span covers. `lowercase(string)` folds capitals, so `phonemes($m) ≠ lowercase(phonemes($m))` says that `$m` carries a stress mark. A string in quotes, or a phoneme tag, is a literal.
 
 **Sets of tags.** `tags(span)` is the tag set of the captured part. `tags(span, rule)` is the tag set the span has when parsed as `rule`, unioned over every parse, and empty when it does not parse; this is how a word looks itself up in a lexicon that is itself a set of rules. `classes(span)` keeps only the tags that begin with a capital. `"KOhA"` is the set with that one tag, so `"UI" ∪ "CAI"` is the set of both; `∅` is empty; `∪` and `∩` are union and intersection, `∩` binding tighter.
 
-**Lists.** `words(span)` is the list of pause-separated words of a span's phonemes.
+**Lists.** `words(span)` is the list of pause-separated words of a span's phonemes: its phonemes split at `.`.
 
 The predicates are `=` and `≠` on two strings or two tag sets, `∈` and `∉` of a string in a list or a tag set, `⊆` of one tag set in another, `$x` of a capture, and `matches(span, rule)`, true when the span parses as the named rule. `matches` and `tags(span, rule)` parse the captured span alone, as the named rule, with the same grammar, which is how CLL's slinku'i test, "a borrowing is not a consonant followed by a string of rafsi", is stated as `¬matches(tail($b), rafsi-string)`. A condition that asks, inside such a parse, about the very span being parsed as the same rule defines the rule by its own negation; that has no answer, and the parser reports it as an error of the grammar.
 
@@ -164,7 +164,7 @@ A rule with no `%emits` is walked: what it hands to the next stage is what its p
 
 An item of the list is a capture, handed on as one token with the constituent's tags or with those of a tag term after it in angle brackets, or a string or phoneme tag, handed on as a token with that one tag and no text of its own. The captures must be listed in the order they stand in the text. `$` is the whole constituent, and a list of `$` items hands on one token over the whole constituent for each: `%emits $ </n/>, $ </o/>` is how the digit `0` becomes the phonemes of `no`. An inserted tag stands where it is listed: `%emits $g, /'/, $v` hands on an apostrophe between two vowels for a script that writes none. A tag term that gives no tags when the parse is made is an error of the grammar, since no terminal could read the token.
 
-A capture with `<>`, no tags at all, is **silent**: it is not handed on, and nothing of it is heard in the phonemes of a token that covers it. `%emits $ <>` makes the whole constituent silent, which is what an erased stretch of text is: `broda si` hands on nothing, and a `bu` compound built across it does not sound like it. A part that is merely not listed is not handed on, but is still heard.
+`%emits ε` hands on nothing, and more: the constituent does not count, so none of it is part of what a token over it sounds like. That is what an erased stretch of text is. `broda brode si bu` hands on the letter word `broda bu`, whose token covers `brode si` too, since a `si` erasure may stand between a word and its `bu`, but does not sound like it. A part a rule's list merely does not name is not handed on, but it still counts: a pause inside a quote is part of what a compound over the quote sounds like. A rule with no `%emits` that happens to hand on nothing, as a gap does, counts as well; only `ε` says that text does not count.
 
 ```jbogenbau
 %rule plain-word
@@ -180,7 +180,7 @@ A capture with `<>`, no tags at all, is **silent**: it is not handed on, and not
 %rule erasure
   unit gap si-word
 %emits
-  $ <>
+  ε
 ```
 
 ## Directives

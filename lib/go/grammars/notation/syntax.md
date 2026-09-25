@@ -104,7 +104,7 @@ A rule is a keyword that says whether it defines, redefines or extends the rule,
 
 ## Clauses
 
-`%tags` says what tags every alternative's constituent carries, `%conditions` lists what must hold of the captured parts, and `%emits` what the constituent hands on. An emitted item is a capture, with tags of its own between `<` and `>` or with nothing between them, which makes it silent, or an inserted tag.
+`%tags` says what tags every alternative's constituent carries, `%conditions` lists what must hold of the captured parts, and `%emits` what the constituent hands on: a list of items, each a capture, with tags of its own between `<` and `>`, or an inserted tag; or `ε`, nothing, which also makes the constituent not count.
 
 ```jbogenbau
 %rule tags-clause
@@ -114,7 +114,7 @@ A rule is a keyword that says whether it defines, redefines or extends the rule,
   "%conditions" [","] implication ["," implication] ...
 
 %rule emits-clause
-  "%emits" [","] emit-item ["," emit-item] ...
+  "%emits" ([","] emit-item ["," emit-item] ... | "ε")
 
 %rule emit-item
   emit-target [emit-tags]
@@ -123,10 +123,7 @@ A rule is a keyword that says whether it defines, redefines or extends the rule,
   "capture" | "string" | "phoneme"
 
 %rule emit-tags
-  "<" term ">" | silent
-
-%rule silent
-  "<" ">"
+  "<" term ">"
 ```
 
 A condition joins others with `∧`, `∨` and `⟹`, binding in that order, `⟹` grouping to the right; parentheses group, and `¬` negates the condition after it. A capture alone is a condition, true where the alternative has it.
