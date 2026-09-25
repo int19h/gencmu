@@ -138,11 +138,7 @@ A run with a letter or digit that no script here reads is foreign through and th
   $ <"FOREIGN">
 ```
 
-A foreign run is read from its first foreign character: only Lojban
-characters come before it, so a run with several foreign characters has
-one parse. Inside a foreign run a capital vowel is a stressed vowel; the
-folded reading of an all-capital run applies only to runs that are all
-Lojban.
+A foreign run is read from its first foreign character: only Lojban characters come before it, so a run with several foreign characters has one parse. Inside a foreign run a capital vowel is a stressed vowel; the folded reading of an all-capital run applies only to runs that are all Lojban.
 
 ## Letters
 

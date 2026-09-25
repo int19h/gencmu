@@ -125,10 +125,7 @@ The approved grammar lets a borrowing serve as a rafsi in two ways (A2.6). A `br
   | glide plain-nucleus
 ```
 
-An extended rafsi is a shortening the regular rafsi cannot spell: its head
-is not a string of regular rafsi followed by the CV or CCV that begins a
-CVC, CVCC or CCVC rafsi, since `srimaky` in `srimakyvelvei` is `sri` and
-`mak` with a y-hyphen.
+An extended rafsi is a shortening the regular rafsi cannot spell: its head is not a string of regular rafsi followed by the CV or CCV that begins a CVC, CVCC or CCVC rafsi, since `srimaky` in `srimakyvelvei` is `sri` and `mak` with a y-hyphen.
 
 ## Cmevla
 

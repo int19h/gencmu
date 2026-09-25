@@ -85,11 +85,8 @@ An indicator run is read as far as it goes, so the stage is greedy: where two pa
   $
 ```
 
-A `le'u` outside any quote is still a word, but it is read as `LEhU` and
-not also as a plain word, so that it has one reading.
+A `le'u` outside any quote is still a word, but it is read as `LEhU` and not also as a plain word, so that it has one reading.
 
-After a run of indicators at the start of the text, a `nai` belongs to the
-last of them when that is an attitudinal: `iu nai` is one run, not `iu`
-followed by a text that begins with `nai`.
+After a run of indicators at the start of the text, a `nai` belongs to the last of them when that is an attitudinal: `iu nai` is one run, not `iu` followed by a text that begins with `nai`.
 
 A `ba'e` before an indicator marks the indicator and goes with it. An indicator run is read as far as it goes: `broda ui nai` attaches both words to `broda`, and the stage being greedy is what makes `nai` part of the run rather than the next word of the syntax. A `ba'e` is a word of BAhE, which the CLL lexicon gives only to `ba'e` and `za'e`.

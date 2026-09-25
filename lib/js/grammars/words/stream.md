@@ -103,17 +103,9 @@ The stage is lazy: where two parses differ, it takes the one that closes a const
   word | quote | lerfu-word | zei-compound | @sa-su sa-erasure | @sa-su su-erasure
 ```
 
-Hesitation after a final pause belongs to the stream when the body ends in
-one, since an element may always follow a pause; the text's own
-`PAUSE hesitation` is for a body that ends in an erasure, which is not a
-stream. `stream-end` is the tag that tells the two apart, so that a
-trailing `.y.` has one reading.
+Hesitation after a final pause belongs to the stream when the body ends in one, since an element may always follow a pause; the text's own `PAUSE hesitation` is for a body that ends in an erasure, which is not a stream. `stream-end` is the tag that tells the two apart, so that a trailing `.y.` has one reading.
 
-The joins are stated so that no two apply to the same pair: two `Cy` letter
-words side by side are joined by the `Cy` rule alone, which is why the
-general join, a continued element followed by an onset, leaves that case to
-it. Two joins that both applied would be two parses of one text that differ
-in nothing the next stage sees, and the stage would report them as a tie.
+The joins are stated so that no two apply to the same pair: two `Cy` letter words side by side are joined by the `Cy` rule alone, which is why the general join, a continued element followed by an onset, leaves that case to it. Two joins that both applied would be two parses of one text that differ in nothing the next stage sees, and the stage would report them as a tie.
 
 Besides the tags of its last element, the stream carries what a rule reaching back over it needs: `first-onset`, when its first element may follow another without a pause, which is what joins a reach to the element before it; `first-cy`, when that element is a `Cy` letter, which under CLL may follow another word directly only if another `Cy` follows it and under the definition effort's grammar would make a lujvo with a CV word before it, so that a join without a pause refuses it and `sutyterjvi` stays one lujvo in both; and the union of the selma'o of every element in it, which is what tells a `sa` that nothing in its reach matches. `gap` is an optional pause; where the rules below join two parts across one, the condition says that either the pause is there or the two parts may stand together without it.
 

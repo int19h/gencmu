@@ -1,26 +1,10 @@
 # The Zantufa constructs
 
-This document is the Zantufa dialect's addition to the experimental syntax
-grammar, [`experimental.md`](experimental.md): the constructs of Guskant's
-Zantufa grammar, version 1.9999, that go beyond it. It is stitched after
-that grammar in the syntax stage of the Zantufa dialect,
-[`../dialects/zantufa.md`](../dialects/zantufa.md), so every rule here either
-is new, adds alternatives to a rule of the experimental grammar with
-`%extend-rule`, or restates one with `%redefine-rule`, replacing it. The
-notation is explained in [the notation document](../../docs/notation.md).
+This document is the Zantufa dialect's addition to the experimental syntax grammar, [`experimental.md`](experimental.md): the constructs of Guskant's Zantufa grammar, version 1.9999, that go beyond it. It is stitched after that grammar in the syntax stage of the Zantufa dialect, [`../dialects/zantufa.md`](../dialects/zantufa.md), so every rule here either is new, adds alternatives to a rule of the experimental grammar with `%extend-rule`, or restates one with `%redefine-rule`, replacing it. The notation is explained in [the notation document](../../docs/notation.md).
 
-Most of the constructs are behind features, which the Zantufa dialect
-enables: `zantufa-connectives`, `zantufa-terms`, `zantufa-tags` and
-`zantufa-mex`, each named in its section. A few are unguarded: they extend
-the experimental grammar over text it rejects, so they cannot change a
-reading it already has. Where a Zantufa form generalizes an older form over
-the same text, the rule is restated with the two under complementary
-guards, `@¬feature` on the old one and `@feature` on the new, so that the
-two never compete; that is why most changes here replace a rule rather than
-extend it.
+Most of the constructs are behind features, which the Zantufa dialect enables: `zantufa-connectives`, `zantufa-terms`, `zantufa-tags` and `zantufa-mex`, each named in its section. A few are unguarded: they extend the experimental grammar over text it rejects, so they cannot change a reading it already has. Where a Zantufa form generalizes an older form over the same text, the rule is restated with the two under complementary guards, `@¬feature` on the old one and `@feature` on the new, so that the two never compete; that is why most changes here replace a rule rather than extend it.
 
-The Zantufa cmavo, `mu'ei` in ROI, `xe'u`, `no'oi` in NOhOI and the others,
-come from the experimental lexicon and need no grammar change.
+The Zantufa cmavo, `mu'ei` in ROI, `xe'u`, `no'oi` in NOhOI and the others, come from the experimental lexicon and need no grammar change.
 
 Two more terminators are elidable here:
 
@@ -30,13 +14,7 @@ Two more terminators are elidable here:
 
 ## Statements
 
-A statement may be a forethought connection of statements, `ga broda gi
-brode gi brodi gi'i`, with any number of `gi` branches and an optional
-closing `gi'i` (`zantufa-connectives`); under that feature the
-statement-level `bo` and `ke` continuations are disabled, since the
-forethought form takes their place. A statement may be followed by terms,
-optionally introduced by `i'au`, which supply arguments after the bridi is
-complete (`zantufa-terms`).
+A statement may be a forethought connection of statements, `ga broda gi brode gi brodi gi'i`, with any number of `gi` branches and an optional closing `gi'i` (`zantufa-connectives`); under that feature the statement-level `bo` and `ke` continuations are disabled, since the forethought form takes their place. A statement may be followed by terms, optionally introduced by `i'au`, which supply arguments after the bridi is complete (`zantufa-terms`).
 
 ```jbogenbau
 %redefine-rule paragraph
@@ -57,10 +35,7 @@ complete (`zantufa-terms`).
 
 ## Bridi-tails
 
-A forethought `gek-sentence` may take further `gi` branches and end in
-`gi'i` (`zantufa-connectives`), and `ke bridi-tail ke'e` followed by tail
-terms is a bridi-tail (`zantufa-terms`), so that a group of connected tails
-can share arguments.
+A forethought `gek-sentence` may take further `gi` branches and end in `gi'i` (`zantufa-connectives`), and `ke bridi-tail ke'e` followed by tail terms is a bridi-tail (`zantufa-terms`), so that a group of connected tails can share arguments.
 
 ```jbogenbau
 %redefine-rule gek-sentence
@@ -75,11 +50,7 @@ can share arguments.
 
 ## Terms
 
-A forethought termset may take further `gi` branches and end in `gi'i`
-(`zantufa-connectives`); `jai [tag] sumti` is a term (`zantufa-tags`), the
-argument-raising `jai` applied to a sumti rather than to a selbri; and
-`noi'a selbri ku` is the briga'i form of the selbri relative term,
-unguarded.
+A forethought termset may take further `gi` branches and end in `gi'i` (`zantufa-connectives`); `jai [tag] sumti` is a term (`zantufa-tags`), the argument-raising `jai` applied to a sumti rather than to a selbri; and `noi'a selbri ku` is the briga'i form of the selbri relative term, unguarded.
 
 ```jbogenbau
 %redefine-rule termset
@@ -105,9 +76,7 @@ unguarded.
 
 ## Sumti
 
-A forethought sumti connection may take further `gi` branches and end in
-`gi'i` (`zantufa-connectives`), and `ra'oi` quotes a single word as a sumti,
-delimited by the word stage; the quote is unguarded.
+A forethought sumti connection may take further `gi` branches and end in `gi'i` (`zantufa-connectives`), and `ra'oi` quotes a single word as a sumti, delimited by the word stage; the quote is unguarded.
 
 ```jbogenbau
 %redefine-rule sumti-4
@@ -121,8 +90,7 @@ delimited by the word stage; the quote is unguarded.
 
 ## Relative clauses
 
-A `noi` relative clause contains a statement rather than a subsentence, so
-it may hold connected sentences, `poi broda .i je brode` (`zantufa-terms`).
+A `noi` relative clause contains a statement rather than a subsentence, so it may hold connected sentences, `poi broda .i je brode` (`zantufa-terms`).
 
 ```jbogenbau
 %redefine-rule relative-clause
@@ -133,12 +101,7 @@ it may hold connected sentences, `poi broda .i je brode` (`zantufa-terms`).
 
 ## Selbri
 
-A forethought guhek connection may take further `gi` branches and end in
-`gi'i` (`zantufa-connectives`), and an abstraction contains a statement
-rather than a subsentence (`zantufa-terms`). Four tanru units are
-unguarded: `mu'oi` delimited quotes and `lu'ei text li'au` as selbri, `me`
-around a raw mekso, a run of operators or a tag, and a raw mekso before
-MOI.
+A forethought guhek connection may take further `gi` branches and end in `gi'i` (`zantufa-connectives`), and an abstraction contains a statement rather than a subsentence (`zantufa-terms`). Four tanru units are unguarded: `mu'oi` delimited quotes and `lu'ei text li'au` as selbri, `me` around a raw mekso, a run of operators or a tag, and a raw mekso before MOI.
 
 ```jbogenbau
 %redefine-rule selbri-6
@@ -203,9 +166,7 @@ MOI.
 
 ## Free modifiers
 
-A `sei` discursive contains a statement rather than a bare selbri
-(`zantufa-terms`), and a raw mekso before `mai` is an utterance ordinal
-(`zantufa-mex`).
+A `sei` discursive contains a statement rather than a bare selbri (`zantufa-terms`), and a raw mekso before `mai` is an utterance ordinal (`zantufa-mex`).
 
 ```jbogenbau
 %redefine-rule free
@@ -241,15 +202,9 @@ A `sei` discursive contains a statement rather than a bare selbri
 
 ## Connectives and tags
 
-A jek before `gi` is a gek, and `bo` may follow any `gi` gek, both
-unguarded; under `zantufa-connectives` the connective may come after `gi`,
-`gi je broda gi brode`.
+A jek before `gi` is a gek, and `bo` may follow any `gi` gek, both unguarded; under `zantufa-connectives` the connective may come after `gi`, `gi je broda gi brode`.
 
-A tag may carry any sequence of two or more `na'e` and `se` prefixes before
-a simple tense atom, `se se pu`, `na'e na'e ca` (`zantufa-tags`).
-`zantufa-tag-prefixes` is defined so as not to overlap the flat
-`[NAhE] [SE]` forms of the experimental grammar, which keeps the two
-readings from competing.
+A tag may carry any sequence of two or more `na'e` and `se` prefixes before a simple tense atom, `se se pu`, `na'e na'e ca` (`zantufa-tags`). `zantufa-tag-prefixes` is defined so as not to overlap the flat `[NAhE] [SE]` forms of the experimental grammar, which keeps the two readings from competing.
 
 ```jbogenbau
 %redefine-rule gek
@@ -274,13 +229,7 @@ readings from competing.
 
 ## Mekso
 
-A raw mekso, one written without `li` or `vei`, is a quantifier
-(`zantufa-mex`), and a bare mekso is a fragment. Infix mekso may chain
-several operators and omit a trailing operand (`pa su'i`); reverse Polish
-mekso takes trailing operator groups; `bo` and `ke ... ke'e` group
-operands; `ma'o selbri`, `ma'o sumti` and a joik or ek are operators; `na'e
-operand` and `mo'e selbri` are operands. Where a Zantufa form generalizes a
-CLL form over the same text, the feature replaces the older alternative.
+A raw mekso, one written without `li` or `vei`, is a quantifier (`zantufa-mex`), and a bare mekso is a fragment. Infix mekso may chain several operators and omit a trailing operand (`pa su'i`); reverse Polish mekso takes trailing operator groups; `bo` and `ke ... ke'e` group operands; `ma'o selbri`, `ma'o sumti` and a joik or ek are operators; `na'e operand` and `mo'e selbri` are operands. Where a Zantufa form generalizes a CLL form over the same text, the feature replaces the older alternative.
 
 ```jbogenbau
 %extend-rule quantifier
@@ -317,16 +266,7 @@ CLL form over the same text, the feature replaces the older alternative.
   | @zantufa-mex MOhE # selbri [TEhU] #
 ```
 
-A raw mekso quantifier may not be a plain number, and may not begin with a
-lerfu string, `la'e`, `na'e`, `se` or `ke`. Without that restriction `my
-jo'u gy` would tie between a connected sumti and the mekso `my jo'u`
-quantifying `gy`. The `zantufa-raw-*` rules state it: they repeat the left
-spine of the mekso rules and constrain only the leftmost symbol. The
-restriction also applies to the first operand after a `gek`, so that `ge nai
-abu gi no drata` is a forethought sumti connection rather than the
-quantifier `ge nai abu gi no` before the selbri `drata`. Inside a mekso
-operand, `quantifier` is spelled out as `number` or `vei mex ve'o`, so that
-the raw-mekso quantifier does not re-enter itself.
+A raw mekso quantifier may not be a plain number, and may not begin with a lerfu string, `la'e`, `na'e`, `se` or `ke`. Without that restriction `my jo'u gy` would tie between a connected sumti and the mekso `my jo'u` quantifying `gy`. The `zantufa-raw-*` rules state it: they repeat the left spine of the mekso rules and constrain only the leftmost symbol. The restriction also applies to the first operand after a `gek`, so that `ge nai abu gi no drata` is a forethought sumti connection rather than the quantifier `ge nai abu gi no` before the selbri `drata`. Inside a mekso operand, `quantifier` is spelled out as `number` or `vei mex ve'o`, so that the raw-mekso quantifier does not re-enter itself.
 
 ```jbogenbau
 %rule zantufa-raw-mex

@@ -195,11 +195,7 @@ Beyond CLL: terms may be connected directly by a joik, jek, ek or VUhU (`term-co
   | KE # terms [KEhE] #
 ```
 
-A tagged term whose tag is a bare `fa` has its free modifiers after the
-`fa`, and after the `ku` when the `ku` is written: `FA # [KU #]`. With the
-`ku` elided the two slots would stand side by side and a free modifier
-could sit in either, so the elided `ku` takes its slot with it here, as the
-CLL grammar's terminators do.
+A tagged term whose tag is a bare `fa` has its free modifiers after the `fa`, and after the `ku` when the `ku` is written: `FA # [KU #]`. With the `ku` elided the two slots would stand side by side and a free modifier could sit in either, so the elided `ku` takes its slot with it here, as the CLL grammar's terminators do.
 
 ## Sumti
 
@@ -582,11 +578,7 @@ Beyond CLL: the text replacement forms `lo'ai ... sa'ai ... le'ai`, `sa'ai ... l
 
 ## The non-formal rules
 
-CLL ends its grammar with four rules it calls non-formal, since a parser
-applies them before the grammar proper rather than through it (CLL 19.13).
-Two of them are the material of quotes. The word stage delimits every quote,
-and hands on a quoted word tagged `word` and quoted foreign text tagged
-`foreign-text`, so here they are ordinary rules:
+CLL ends its grammar with four rules it calls non-formal, since a parser applies them before the grammar proper rather than through it (CLL 19.13). Two of them are the material of quotes. The word stage delimits every quote, and hands on a quoted word tagged `word` and quoted foreign text tagged `foreign-text`, so here they are ordinary rules:
 
 ```jbogenbau
 %rule any-word
@@ -596,10 +588,7 @@ and hands on a quoted word tagged `word` and quoted foreign text tagged
   "foreign-text"
 ```
 
-The other two are applied by the stages before this one: the indicator
-stage attaches `ba'e` and indicators to their words, and the word stage
-applies the erasers. They are shown as CLL prints them, for reference only;
-the `utterance` that `sa` erases is not defined anywhere in CLL.
+The other two are applied by the stages before this one: the indicator stage attaches `ba'e` and indicators to their words, and the word stage applies the erasers. They are shown as CLL prints them, for reference only; the `utterance` that `sa` erases is not defined anywhere in CLL.
 
 ```text
 word = [BAhE] any-word [indicators]

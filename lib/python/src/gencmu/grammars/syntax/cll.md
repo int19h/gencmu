@@ -455,11 +455,7 @@ A vocative is a run of COI words, each with an optional `nai`, or `doi`, or both
 
 ## The non-formal rules
 
-CLL ends its grammar with four rules it calls non-formal, since a parser
-applies them before the grammar proper rather than through it (CLL 19.13).
-Two of them are the material of quotes. The word stage delimits every quote,
-and hands on a quoted word tagged `word` and quoted foreign text tagged
-`foreign-text`, so here they are ordinary rules:
+CLL ends its grammar with four rules it calls non-formal, since a parser applies them before the grammar proper rather than through it (CLL 19.13). Two of them are the material of quotes. The word stage delimits every quote, and hands on a quoted word tagged `word` and quoted foreign text tagged `foreign-text`, so here they are ordinary rules:
 
 ```jbogenbau
 %rule any-word
@@ -469,10 +465,7 @@ and hands on a quoted word tagged `word` and quoted foreign text tagged
   "foreign-text"
 ```
 
-The other two are applied by the stages before this one: the indicator
-stage attaches `ba'e` and indicators to their words, and the word stage
-applies the erasers. They are shown as CLL prints them, for reference only;
-the `utterance` that `sa` erases is not defined anywhere in CLL.
+The other two are applied by the stages before this one: the indicator stage attaches `ba'e` and indicators to their words, and the word stage applies the erasers. They are shown as CLL prints them, for reference only; the `utterance` that `sa` erases is not defined anywhere in CLL.
 
 ```text
 word = [BAhE] any-word [indicators]

@@ -115,10 +115,7 @@ The stressed vowel of a brivla is the one in its penultimate syllable, which is 
   plain-vowel /'/ stressed-vowel | stressed-diphthong
 ```
 
-`lujvo-final-shape` is every shape that may end a lujvo after a y-hyphen:
-a CVV or CV'V rafsi, or a CCV one. The stream uses it to keep a CV cmavo,
-a `Cy` and such a shape together as one lujvo in the families that read
-them so.
+`lujvo-final-shape` is every shape that may end a lujvo after a y-hyphen: a CVV or CV'V rafsi, or a CCV one. The stream uses it to keep a CV cmavo, a `Cy` and such a shape together as one lujvo in the families that read them so.
 
 The unstressed rafsi before the core are the CVC, CCV and CVV forms of CLL 4.5, with the y-hyphen and the r-hyphen of CLL 4.6, and the four-letter and five-letter forms that a y-hyphen always follows.
 
@@ -218,9 +215,7 @@ A borrowing is any run of syllables with penultimate stress that is not built fr
   consonant-cluster
 ```
 
-A two-syllable borrowing whose consonant pair may begin a word, `maikro`,
-is a CVV rafsi followed by a CCV rafsi, which is a lujvo; so the borrowing
-form requires a pair that may not begin a word.
+A two-syllable borrowing whose consonant pair may begin a word, `maikro`, is a CVV rafsi followed by a CCV rafsi, which is a lujvo; so the borrowing form requires a pair that may not begin a word.
 
 ## Nuclei and syllable structure
 
@@ -297,14 +292,7 @@ The plain vowels are the unmarked letters, which a position that may not bear st
   /y/ | /Y/
 ```
 
-A cmavo's diphthong and a brivla's are one constituent: `free-diphthong`
-is built on `stressed-diphthong` and that on `plain-diphthong`, rather than
-spelling the same vowels again. So where a text could begin with a CVV
-cmavo or with a brivla that starts the same way, the two parses agree on the
-diphthong and first differ where the cmavo ends and the brivla reads on,
-and the stage's lazy lean ends the word there: `causelzdi` is `cau selzdi`,
-as CLL 4.6 requires of a brivla that would break into a cmavo and a valid
-brivla.
+A cmavo's diphthong and a brivla's are one constituent: `free-diphthong` is built on `stressed-diphthong` and that on `plain-diphthong`, rather than spelling the same vowels again. So where a text could begin with a CVV cmavo or with a brivla that starts the same way, the two parses agree on the diphthong and first differ where the cmavo ends and the brivla reads on, and the stage's lazy lean ends the word there: `causelzdi` is `cau selzdi`, as CLL 4.6 requires of a brivla that would break into a cmavo and a valid brivla.
 
 ## Consonants
 
