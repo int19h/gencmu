@@ -7,7 +7,7 @@
 //   dist/grammars.js         grammars/ as one object, for the browser
 //   dist/gencmu.js           the library as one factory function, for the browser
 //
-// and the other packages' copies of grammars/ under lib/. No
+// and the other packages' copies of grammars/ and of LICENSE under lib/. No
 // dependencies; run it after editing a grammar.
 import fs from "node:fs";
 import path from "node:path";
@@ -88,6 +88,10 @@ for (const file of grammarFiles()) {
 }
 const compiled = { format: DOM_FORMAT, bootstrap: loader.bootstrapHash, documents };
 write("grammars/compiled.json", JSON.stringify(compiled) + "\n");
+
+// The licence, which every package ships beside its code.
+const license = fs.readFileSync(path.join(root, "LICENSE"), "utf8");
+for (const library of ["lib/js", "lib/python", "lib/go", "lib/rust"]) write(`${library}/LICENSE`, license);
 
 // The grammar copies.
 const copies = ["lib/js/grammars", "lib/python/src/gencmu/grammars", "lib/go/grammars", "lib/rust/grammars"];

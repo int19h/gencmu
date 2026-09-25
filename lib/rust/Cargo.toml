@@ -10,7 +10,7 @@ readme = "README.md"
 keywords = ["lojban", "parser", "earley", "grammar"]
 categories = ["parser-implementations", "text-processing"]
 # The tests read the shared cases of the repository, outside the crate.
-include = ["src/**/*.rs", "build.rs", "grammars/**", "README.md", "Cargo.toml", "rustfmt.toml"]
+include = ["src/**/*.rs", "build.rs", "grammars/**", "README.md", "LICENSE", "Cargo.toml", "rustfmt.toml"]
 
 [dependencies]
 
