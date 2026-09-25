@@ -5,7 +5,7 @@
 use crate::json::{write_str, Json};
 
 /// The DOM format version (`docs/output.md`).
-pub(crate) const DOM_FORMAT: i64 = 5;
+pub(crate) const DOM_FORMAT: i64 = 6;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Dom {
@@ -28,6 +28,9 @@ pub(crate) struct RuleDef {
     pub alternatives: Vec<Alternative>,
     pub emit: Option<Vec<EmitItem>>,
     pub conditions: Vec<Cond>,
+    /// `%verbatim`: a token over the rule's constituent sounds like its
+    /// text (engine §11).
+    pub verbatim: bool,
     pub at: (usize, usize),
 }
 
@@ -213,6 +216,7 @@ fn rule_from_json(value: &Json) -> R<RuleDef> {
             .collect::<R<Vec<_>>>()?,
         emit: value.get("emit").map(emit_from_json).transpose()?,
         conditions: array(value, "conditions")?.iter().map(cond_from_json).collect::<R<Vec<_>>>()?,
+        verbatim: is_true(value.get("verbatim")),
         at: position(value)?,
     })
 }
@@ -388,7 +392,7 @@ pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
         || dom.get("rules").and_then(Json::as_array).is_none()
         || dom.get("directives").and_then(Json::as_array).is_none()
     {
-        return Some("not a DOM of format 5");
+        return Some("not a DOM of format 6");
     }
     for directive in dom.get("directives").and_then(Json::as_array).unwrap_or(&[]) {
         let args = directive.get("args").and_then(Json::as_array);
@@ -410,6 +414,8 @@ pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
             || !alternatives.is_some_and(|alternatives| !alternatives.is_empty())
             || conditions.is_none()
             || !is_position(rule.get("at"))
+            // `verbatim` is present only as true (docs/output.md).
+            || !matches!(rule.get("verbatim"), None | Some(Json::Bool(true)))
         {
             return Some("a malformed rule");
         }
@@ -802,7 +808,11 @@ fn write_rule(out: &mut String, rule: &RuleDef) {
         }
         write_cond(out, cond);
     }
-    out.push_str(&format!("],\"at\":[{},{}]}}", rule.at.0, rule.at.1));
+    out.push(']');
+    if rule.verbatim {
+        out.push_str(",\"verbatim\":true");
+    }
+    out.push_str(&format!(",\"at\":[{},{}]}}", rule.at.0, rule.at.1));
 }
 
 fn write_list<T>(out: &mut String, key: &str, items: &[T], write: fn(&mut String, &T)) {

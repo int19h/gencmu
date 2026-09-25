@@ -1,0 +1,80 @@
+{
+  "description": "A token emitted over exactly one verbatim input token is verbatim, with that token's source; the output marks it, and the brackets show its text, periods included (engine §11, docs/output.md).",
+  "documents": {
+    "p.md": "## s <?stage first?>\n\n- [g](g.md) <?grammar?>\n\n## t <?stage second?>\n\n- [h](h.md) <?grammar?>\n\n## u <?stage third?>\n\n- [k](k.md) <?grammar?>\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [part] ...\n%rule part v | pause\n%rule v \"a\" \".\" \".\" \"b\"\n%emits $ <\"V\">\n%verbatim\n%rule pause \"-\"\n%emits $ <\"P\" ∪ /./>\n```\n",
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [item] ...\n%rule item word | P\n%rule word $w(V)\n%emits $w <\"W\">\n```\n",
+    "k.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [x] ...\n%rule x W\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "-a..b-a..b",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "phonemes": "."
+            },
+            {
+              "text": "a..b",
+              "phonemes": "a..b",
+              "source": [
+                1,
+                5
+              ],
+              "verbatim": true
+            },
+            {
+              "phonemes": "."
+            },
+            {
+              "text": "a..b",
+              "phonemes": "a..b",
+              "source": [
+                6,
+                10
+              ],
+              "verbatim": true
+            }
+          ]
+        },
+        {
+          "output": [
+            {
+              "text": "a..b",
+              "phonemes": "a..b",
+              "span": [
+                1,
+                2
+              ],
+              "source": [
+                1,
+                5
+              ],
+              "verbatim": true
+            },
+            {
+              "text": "a..b",
+              "phonemes": "a..b",
+              "span": [
+                3,
+                4
+              ],
+              "source": [
+                6,
+                10
+              ],
+              "verbatim": true
+            }
+          ]
+        },
+        {
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "(a..b a..b)"
+  }
+}

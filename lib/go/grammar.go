@@ -32,6 +32,7 @@ type sAlt struct {
 	ruleTags *domTerm
 	emit     *domEmit
 	conds    []*domCond
+	verbatim bool
 	doc      string
 	at       [2]int
 }
@@ -62,7 +63,7 @@ func stitch(stageName string, docs []docDOM) (*stageGrammar, *Error) {
 		for _, r := range d.dom.Rules {
 			alts := make([]*sAlt, len(r.Alternatives))
 			for i, a := range r.Alternatives {
-				alts[i] = &sAlt{alt: a, ruleTags: r.Tags, emit: r.Emit, conds: r.Conditions, doc: d.path, at: r.At}
+				alts[i] = &sAlt{alt: a, ruleTags: r.Tags, emit: r.Emit, conds: r.Conditions, verbatim: r.Verbatim, doc: d.path, at: r.At}
 			}
 			existing := g.byName[r.Name]
 			// Each way of stating a rule says what it expects to be there

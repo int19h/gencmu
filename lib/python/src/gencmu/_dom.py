@@ -15,7 +15,7 @@ Dom = dict[str, Any]
 
 _MAPPED = frozenset(
     """directive rule alternative alternative-tags choice conjunction sequence element reference string
-    phoneme capture group optional empty tags-clause conditions-clause emits-clause emit-item emit-tags
+    phoneme capture group optional empty tags-clause conditions-clause emits-clause verbatim-clause emit-item emit-tags
     implication any-of all-of comparison negation presence call term guarded-term union
     intersection weak empty-set capture-reference""".split()
 )
@@ -131,6 +131,7 @@ class DomBuilder:
         tags: Dom | None = None
         alternatives: list[Dom] = []
         emit: Dom | None = None
+        verbatim = False
         conditions: list[Dom] = []
         for kid in kids[2:]:
             if kid.kind == "token":
@@ -143,6 +144,8 @@ class DomBuilder:
                 conditions.extend(run(self._condition(item)) for item in self.rules(kid, "implication"))
             elif kid.rule == "emits-clause":
                 emit = self.emission(kid)
+            elif kid.rule == "verbatim-clause":
+                verbatim = True
         dom: Dom = {"name": name, "op": op}
         if tags is not None:
             dom["tags"] = tags
@@ -150,6 +153,9 @@ class DomBuilder:
         if emit is not None:
             dom["emit"] = emit
         dom["conditions"] = conditions
+        # Present only for a rule that has %verbatim (docs/output.md).
+        if verbatim:
+            dom["verbatim"] = True
         dom["at"] = list(self.position(node))
         problem = definition_problem(dom)
         if problem is not None:

@@ -1,0 +1,65 @@
+{
+  "description": "Text that no input token covers, between two verbatim tokens, belongs to the first of them (engine §11).",
+  "documents": {
+    "p.md": "## s <?stage letters?>\n\n- [g](g.md) <?grammar?>\n\n## t <?stage bodies?>\n\n- [h](h.md) <?grammar?>\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [part] ...\n%rule part letter | comma\n%rule letter \"a\" | \"b\"\n%emits $ <\"L\">\n%rule comma \",\"\n```\n",
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $a(v) $b(v)\n%emits $a <\"A\">, $b <\"B\">\n%rule v L\n%verbatim\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "a,b",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "text": "a",
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "text": "b",
+              "source": [
+                2,
+                3
+              ]
+            }
+          ]
+        },
+        {
+          "output": [
+            {
+              "text": "a,",
+              "phonemes": "a,",
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                2
+              ],
+              "verbatim": true
+            },
+            {
+              "text": "b",
+              "phonemes": "b",
+              "span": [
+                1,
+                2
+              ],
+              "source": [
+                2,
+                3
+              ],
+              "verbatim": true
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -20,7 +20,8 @@ class Token:
     ``source`` the range of the original text, in code points. ``phonemes``
     is ``None`` for a token that has none, such as a character.
     ``inserted_by`` names the rule whose emission clause made a token with
-    an empty span.
+    an empty span. ``verbatim`` is true for a verbatim token, whose
+    phonemes are its text (engine §11).
     """
 
     text: str
@@ -29,6 +30,7 @@ class Token:
     source: Range
     phonemes: str | None = None
     inserted_by: str | None = None
+    verbatim: bool = False
 
 
 @dataclass

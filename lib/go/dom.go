@@ -6,7 +6,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 5
+const domFormat = 6
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
@@ -22,6 +22,7 @@ type domRule struct {
 	Alternatives []*domAlt
 	Emit         *domEmit
 	Conditions   []*domCond
+	Verbatim     bool // %verbatim: a token over its constituent sounds like its text (engine §11)
 	At           [2]int
 }
 
@@ -215,7 +216,11 @@ func (r *domRule) writeJSON(w *jsonWriter) {
 		}
 		c.writeJSON(w)
 	}
-	w.raw(`],"at":`)
+	w.raw("]")
+	if r.Verbatim {
+		w.raw(`,"verbatim":true`)
+	}
+	w.raw(`,"at":`)
 	w.pair(r.At)
 	w.raw("}")
 }
@@ -469,6 +474,13 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 		if r.Emit, err = decodeEmit(e); err != nil {
 			return nil, err
 		}
+	}
+	// A flag: true or absent.
+	if v, ok := o["verbatim"]; ok {
+		if !isTrue(v) {
+			return nil, fmt.Errorf("a malformed rule")
+		}
+		r.Verbatim = true
 	}
 	var alts, conds []json.RawMessage
 	if err := json.Unmarshal(o["alternatives"], &alts); err != nil {

@@ -32,6 +32,7 @@ class Alternative:
     rule_tags: Dom | None
     emit: Dom | None
     conditions: list[Dom]
+    verbatim: bool
     document: str
     at: tuple[int, int]
 
@@ -95,6 +96,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]]) -> Grammar:
                     rule_tags=rule.get("tags"),
                     emit=rule.get("emit"),
                     conditions=list(rule.get("conditions", [])),
+                    verbatim=rule.get("verbatim") is True,
                     document=path,
                     at=at,
                 )
@@ -195,6 +197,9 @@ class Production:
     conds_whole: list[Dom] = field(default_factory=list)
     tags_term: Dom | None = None
     emit: Any = None
+    # Whether a token over its constituent sounds like its text (engine
+    # §11). It is false for a helper.
+    verbatim: bool = False
     # The features of the alternative's warnings, in the order they are
     # written (engine §12); none for a helper.
     warnings: tuple[str, ...] = ()
@@ -410,6 +415,7 @@ class _Lowerer:
             if terms:
                 production.tags_term = terms[0] if len(terms) == 1 else {"union": terms}
             production.emit = self.lower_emit(alt.emit, captures)
+            production.verbatim = alt.verbatim
             production.warnings = tuple(guard["feature"] for guard in alt.guards if guard.get("kind") == "warning")
         if production.tags_term is None and len(rhs) == 1 and 0 not in captures.values():
             captures[IMPLICIT] = 0

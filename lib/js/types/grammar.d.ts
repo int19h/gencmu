@@ -7,6 +7,7 @@ export type RuleClauses = {
     tags: Term | undefined;
     emit: Emission | undefined;
     conditions: Condition[];
+    verbatim: boolean;
 };
 export type StitchedRule = {
     name: string;

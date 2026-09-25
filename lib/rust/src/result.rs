@@ -23,6 +23,9 @@ pub struct Token {
     pub span: Range<usize>,
     /// The range of the original text this token covers, in code points.
     pub source: Range<usize>,
+    /// Whether the token is verbatim (engine §11): its phonemes are its
+    /// text.
+    pub verbatim: bool,
     /// For a token an emission clause inserted, the rule whose clause it is.
     pub inserted_by: Option<String>,
 }

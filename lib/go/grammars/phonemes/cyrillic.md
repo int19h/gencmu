@@ -31,7 +31,7 @@ CLL 3.12 gives the mapping: the consonants as in the table there, `ш` for `c`, 
 %emits
   $ </'/>
 
-%extend-rule pause-char
+%extend-rule core-char
   "ӏ" | "Ӏ"
 ```
 

@@ -141,6 +141,7 @@ impl<'a> Reader<'a> {
             alternatives,
             emit,
             conditions,
+            verbatim: Self::rules(node, "verbatim-clause").next().is_some(),
             at: self.at(definer),
         };
         // The definition is checked as a whole once it is read (§9).

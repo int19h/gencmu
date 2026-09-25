@@ -237,9 +237,10 @@ impl Dialect {
                     tags: tags.to_map(set),
                     span: index..index + 1,
                     source: index..index + 1,
+                    verbatim: false,
                     inserted_by: None,
                 });
-                input.push(Tok { text, tags: set, phonemes: None, source: (index, index + 1) });
+                input.push(Tok { text, tags: set, phonemes: None, source: (index, index + 1), verbatim: false });
             }
             (input, public)
         })
@@ -264,6 +265,7 @@ impl Dialect {
                     tags: tags.to_map(set),
                     span: index..index + 1,
                     source: at..at + length,
+                    verbatim: false,
                     inserted_by: None,
                 });
                 input.push(Tok {
@@ -271,6 +273,7 @@ impl Dialect {
                     tags: set,
                     phonemes: token.phonemes.clone(),
                     source: (at, at + length),
+                    verbatim: false,
                 });
                 at += length + 1;
             }
@@ -524,9 +527,16 @@ impl Dialect {
                 tags: shared.tags.to_map(token.tags),
                 span: token.span.0..token.span.1,
                 source: token.source.0..token.source.1,
+                verbatim: token.verbatim,
                 inserted_by: token.inserted_by,
             });
-            next.push(Tok { text, tags: token.tags, phonemes: token.phonemes, source: token.source });
+            next.push(Tok {
+                text,
+                tags: token.tags,
+                phonemes: token.phonemes,
+                source: token.source,
+                verbatim: token.verbatim,
+            });
         }
         stage.output = Some(public.clone());
         run.stages.push(stage);
@@ -608,6 +618,7 @@ impl Dialect {
                     tags: shared.tags.set_of([(terminal.as_str(), true)]),
                     phonemes: None,
                     source: (at, at),
+                    verbatim: false,
                 });
                 synthetic.push(true);
             }

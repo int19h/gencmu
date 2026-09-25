@@ -6,7 +6,13 @@ The phonemes are the letters of CLL chapter 3, each written as a phoneme tag: th
 
 ## The text and its runs
 
-The text is pauses and runs. A pause is any run of pause characters: the period, question mark, exclamation mark and whitespace that CLL 3.1 names, and any other character that is neither a letter of some script nor a digit, since such a character is not Lojban and separates words as firmly. A run is what stands between two pauses, and is read as one of three things: a run in which every vowel is a capital, which CLL 3.9 says carries no stress mark at all and is folded to lower case; an ordinary run of letters, in which a capital vowel marks stress; or a run containing a letter or digit of no script here, every character of which is foreign. The stage is greedy: where two parses differ, it takes the one that reads the next character over the one that closes a constituent, so a run is never cut short where a rule would let it continue; in particular a period between two digits is read as the decimal point of one number rather than as a pause.
+The text is pauses and runs. A pause is a run of whitespace characters and periods, with any punctuation inside it or next to it. Punctuation is any character that is not whitespace, a period, a Lojban letter of some script, the apostrophe, the comma, a digit or a mark. The question mark and the exclamation mark are punctuation. A run is what stands between two pauses. It is one of three things:
+
+- a run in which every vowel is a capital, which carries no stress mark and is folded to lower case
+- an ordinary run of letters, in which a capital vowel marks stress
+- a foreign run, which is one token
+
+The stage is greedy. Where two parses differ, it takes the one that reads the next character over the one that closes a constituent. So a run is never cut short where a rule would let it continue. A period between two digits is the decimal point of one number, and `items` says that no pause stands there.
 
 ```jbogenbau
 %ambiguity-resolution greedy
@@ -14,24 +20,56 @@ The text is pauses and runs. A pause is any run of pause characters: the period,
 
 ```jbogenbau
 %rule text
-  ε | pause | items | pause items | items pause | pause items pause
+  ε | pause | items | edge-pause items | items edge-pause | edge-pause items edge-pause
 
 %rule items
-  run | items pause run
-
-%rule pause
-  pause-char | pause pause-char
-%emits
-  $ <"PAUSE" ∪ /./>
-
-%rule pause-char
-  | "space"
-  | $c("other")
+  | run
+  | $i(items) $p(pause) $r(run)
 %conditions
-  ¬matches($c, any-lojban-char)
+  ¬matches(last($i), digit) ∨ text($p) ≠ "." ∨ ¬matches(head($r), digit)
 
 %rule run
   capital-run | ordinary-run | foreign-run
+```
+
+A pause is one token. Its core is the stretch from its first to its last whitespace character or period, with any punctuation inside it. Other punctuation at either end of a pause belongs to no token. So a `zoi` body keeps the quotation marks in `zoi gy. "Hello!" .gy.`: the body takes in the text next to it that no token covers, as [the notation](../../docs/notation.md) says under "Verbatim text". Punctuation between two letters, with no whitespace, is a pause token of its own, as in `klama!do`, and so is a text of nothing but punctuation. Punctuation next to the first or the last word of the text belongs to no token.
+
+The phoneme stage cannot know that a pause stands in a quote. So punctuation between two whitespace characters is part of a pause even there, and `zoi gy. !!! .gy.` quotes nothing. camxes-std reads it so too, since it reads `!` as a space.
+
+```jbogenbau
+%rule pause
+  spaced-pause | punctuation-pause
+
+%rule spaced-pause
+  | $c(pause-core)
+  | punctuation $c(pause-core)
+  | $c(pause-core) punctuation
+  | punctuation $c(pause-core) punctuation
+%emits
+  $c <"PAUSE" ∪ /./>
+
+%rule punctuation-pause
+  punctuation
+%emits
+  $ <"PAUSE" ∪ /./>
+
+%rule edge-pause
+  spaced-pause | punctuation
+
+%rule pause-core
+  core-char | pause-core core-char | pause-core punctuation core-char
+
+%rule core-char
+  "space" | "."
+
+%rule punctuation
+  punctuation-char | punctuation punctuation-char
+
+%rule punctuation-char
+  $c("other")
+%conditions
+  ¬matches($c, any-lojban-char),
+  ¬matches($c, core-char)
 ```
 
 An all-capital run has at least two vowel groups, every vowel a capital; `capital-shape` is that shape, its consonants and digits and its capital vowels, written out so that two groups are required, and `capital-run` reads it with every vowel folded. An ordinary run is any other run of letters, which the condition states by exclusion; in it a capital vowel marks stress. Digits inside either kind are read as the number words they stand for, and a period between two digits as `pi`.
@@ -115,34 +153,50 @@ A run of adjacent vowel letters is one vowel group, and a group carries the tags
   $g, /'/, $v
 
 %rule any-lojban-char
-  consonant | plain-vowel | stressed-vowel | digit | apostrophe | comma | mark
+  consonant | plain-vowel | stressed-vowel | digit | apostrophe | comma
 ```
 
-A run with a letter or digit that no script here reads is foreign through and through: each of its characters is emitted as `FOREIGN` with its own text, so that the delimiters of a `zoi` quote and the words of its body can still be compared.
+A run that is neither an all-capital run nor an ordinary run is foreign. It has a letter or digit that no script here reads, or a combining mark that no letter rule takes, as in `i` followed by U+0308. The precomposed `ï` is foreign too, so the two spellings of one letter are read alike. A foreign run is emitted as one `FOREIGN` token. Its phonemes are its text, since the rule is `%verbatim`. So a `zoi` delimiter matches the word `gqy` in a body only if it is `gqy` itself. A foreign run has at least one character that no letter rule of any script reads by itself: a letter or digit of no script here, or a combining mark. A run without one is always read by `letters`, so only a run with one is tested, and a long run of letters costs no more than it did.
 
 ```jbogenbau
 %rule foreign-run
-  lojban-part foreign-char foreign-part
-
-%rule lojban-part
-  ε | lojban-part any-lojban-char
-
-%rule foreign-part
-  ε | foreign-part foreign-char | foreign-part any-lojban-char
-
-%rule foreign-char
-  | $c("alpha") | $c("digit")
+  $r(foreign-chars)
 %conditions
-  ¬matches($c, any-lojban-char)
+  ¬matches($r, letters),
+  ¬matches($r, capital-shape)
 %emits
   $ <"FOREIGN">
-```
+%verbatim
 
-A foreign run is read from its first foreign character: only Lojban characters come before it, so a run with several foreign characters has one parse. Inside a foreign run a capital vowel is a stressed vowel; the folded reading of an all-capital run applies only to runs that are all Lojban.
+%rule foreign-chars
+  | foreign-char
+  | lojban-chars foreign-char
+  | foreign-chars run-char
+
+%rule lojban-chars
+  lojban-char | lojban-chars lojban-char
+
+%rule lojban-char
+  $c(run-char)
+%conditions
+  matches($c, any-lojban-char)
+
+%rule foreign-char
+  $c(run-char)
+%conditions
+  ¬matches($c, any-lojban-char)
+
+%rule run-char
+  | $a("alpha") | "digit" | "mark"
+  | $o("other")
+%conditions
+  ¬matches($a, core-char),
+  matches($o, any-lojban-char)
+```
 
 ## Letters
 
-A consonant is emitted as itself whatever its case; CLL 3.9 uses case on vowels only. A vowel with a stress mark, a capital or an acute or grave accent, whether precomposed or combining, is the stressed phoneme; inside an all-capital run the same capital is folded. A breve on `i` or `u` marks a glide, which the word grammar finds by position, so the letter is emitted plain. The apostrophe is the phoneme `/'/`; its typographic forms and the letter `h`, which some texts use for it, are the same phoneme. A comma marks a syllable break in CLL 3.3 and nothing in the definition effort's word grammar, which ignores it; it is dropped here too, as is a combining mark that no letter rule has taken.
+A consonant is emitted as itself whatever its case; CLL 3.9 uses case on vowels only. A vowel with a stress mark, a capital or an acute or grave accent, whether precomposed or combining, is the stressed phoneme; inside an all-capital run the same capital is folded. A breve on `i` or `u` marks a glide, which the word grammar finds by position, so the letter is emitted plain. The apostrophe is the phoneme `/'/`; its typographic forms and the letter `h`, which some texts use for it, are the same phoneme. A comma marks a syllable break in CLL 3.3 and nothing in the definition effort's word grammar, which ignores it; it is dropped here too. A combining mark that no letter rule takes makes its run foreign.
 
 ```jbogenbau
 %rule consonant
@@ -204,9 +258,6 @@ A consonant is emitted as itself whatever its case; CLL 3.9 uses case on vowels 
 
 %rule comma
   ","
-
-%rule mark
-  "mark"
 
 %rule stress-mark
   "\u{0301}" | "\u{0300}"

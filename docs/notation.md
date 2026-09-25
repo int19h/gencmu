@@ -24,7 +24,7 @@ Line breaks and indentation mean nothing, so a long list of alternatives may put
 
 The same is true of every separator the notation has: `&` in bodies, `∪` and `∩` in tag terms, `∧` and `∨` in conditions, and the commas of a clause's list.
 
-A body may be followed by clauses, each a keyword and what it says, at most one of each and in this order: `%tags`, the tags every alternative's constituent carries; `%conditions`, what must hold of the parts; and `%emits`, what the constituent hands to the next stage. The sections below explain each.
+A body may be followed by clauses, each a keyword and what it says, at most one of each and in this order: `%tags`, the tags every alternative's constituent carries; `%conditions`, what must hold of the parts; `%emits`, what the constituent hands to the next stage; and `%verbatim`, which says that the constituent's text is not read as sounds. The sections below explain each.
 
 `(* ... *)` is a comment, anywhere in a block.
 
@@ -141,7 +141,7 @@ The terms of a condition have three types.
 
 **Spans.** A capture `$x` is a span, the tokens the captured part covers, and `$` the tokens the whole constituent covers. `head($x)` is its first token, `tail($x)` the rest, `last($x)` the last.
 
-**Strings.** `phonemes(span)` is what a span sounds like: the phonemes of its tokens, joined. A token's phonemes are fixed when its stage emits it: the phoneme its `/x/` tag names, if it has one, or else the phonemes of the tokens of that stage's input that it covers, joined in order, leaving out those inside a rule that emits `ε` (see "Emission"), with each run of pauses made one and a pause at either end removed. A pause is `.`, so `klama bu` sounds as `klama.bu`; the renderings for people write it as a space. `text(span)` is the original text the span covers. `lowercase(string)` folds capitals, so `phonemes($m) ≠ lowercase(phonemes($m))` says that `$m` carries a stress mark. A string in quotes, or a phoneme tag, is a literal.
+**Strings.** `phonemes(span)` is what a span sounds like: the phonemes of its tokens, joined. A token's phonemes are fixed when its stage emits it. A token over a verbatim constituent sounds like its text (see "Verbatim text"). Any other token sounds like the phoneme its `/x/` tag names, if it has one. Otherwise it sounds like the tokens of that stage's input that it covers, joined in order. That leaves out the tokens inside a rule that emits `ε` (see "Emission"). It also makes each run of pause tokens one, and removes a pause token at either end. A pause is `.`, so `klama bu` sounds as `klama.bu`; the renderings for people write it as a space. `text(span)` is the original text the span covers. `lowercase(string)` folds capitals, so `phonemes($m) ≠ lowercase(phonemes($m))` says that `$m` carries a stress mark. A string in quotes, or a phoneme tag, is a literal.
 
 **Sets of tags.** `tags(span)` is the tag set of the captured part. `tags(span, rule)` is the tag set the span has when parsed as `rule`, unioned over every parse, and empty when it does not parse; this is how a word looks itself up in a lexicon that is itself a set of rules. `classes(span)` keeps only the tags that begin with a capital. `"KOhA"` is the set with that one tag, so `"UI" ∪ "CAI"` is the set of both; `∅` is empty; `∪` and `∩` are union and intersection, `∩` binding tighter. `words(span)` is the set of the words of a span's phonemes, the strings between its pauses, so `phonemes($open) ∉ words($content)` says that the word `$open` does not occur in `$content`.
 
@@ -201,6 +201,18 @@ An item of the list is a capture, handed on as one token with the constituent's 
 %emits
   ε
 ```
+
+## Verbatim text
+
+`%verbatim` says that a rule's constituents are text that is not Lojban. Examples are the body of a `zoi` quote and a run of letters that no script reads. A token over such a constituent sounds like what the author wrote: its phonemes are its text, whatever tags it carries. This is true whether the constituent emits the token with `$` or a parent emits it as a capture. So `zoi gy. John is a man .gy.` hands on the body as `John is a man`. The stage before emitted the phonemes `jo'n.is.a.man` for it.
+
+```jbogenbau
+%rule zoi-body
+  zoi-part | zoi-body zoi-part
+%verbatim
+```
+
+The token also takes in the text next to it that no token of the stage's input covers. An example is punctuation that the stage before read as part of a pause but did not emit. So its text starts at the end of the input token before it, or at the start of the text. It ends at the start of the input token after it, or at the end of the text. Text between two such tokens of one stage belongs to the first of them. A token of a later stage that covers only one verbatim token is verbatim too, so a quote body stays verbatim to the end of the pipeline. The renderings for people show a verbatim token's text as it is, and do not write its periods as spaces. A rule cannot have both `%verbatim` and `%emits ε`, since a constituent that does not count cannot sound like its text.
 
 ## Directives
 

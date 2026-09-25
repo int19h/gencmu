@@ -250,7 +250,7 @@ class Output(unittest.TestCase):
         result = dialect.parse("mi", until="words", auto_features=False)
         text = gencmu.to_json(result)
         self.assertEqual(json.loads(text), gencmu.result_json(result))
-        self.assertTrue(text.startswith('{"format":2,"ok":true,"stages":[{"name":"sounds","verdict":"unique","output":[{"text":"m","phonemes":"m","tags":{"/m/":true},"span":[0,1],"source":[0,1]}'), text)
+        self.assertTrue(text.startswith('{"format":3,"ok":true,"stages":[{"name":"sounds","verdict":"unique","output":[{"text":"m","phonemes":"m","tags":{"/m/":true},"span":[0,1],"source":[0,1]}'), text)
         self.assertIn(
             '"tree":{"kind":"rule","rule":"text","span":[0,2],"source":[0,2],"tags":{},"children":[{"kind":"rule","rule":"piece"',
             text,
@@ -286,18 +286,20 @@ class Output(unittest.TestCase):
 
     def test_brackets_pause(self) -> None:
         """A label writes each pause in a token's phonemes as a space, and a
-        token with no phonemes is labelled with its text as it is (docs/output.md)."""
+        token with no phonemes, or a verbatim token, is labelled with its
+        text as it is (docs/output.md)."""
         sources = {
             "p.md": "## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n",
-            "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A A\n```\n",
+            "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A A A\n```\n",
         }
         dialect = gencmu.load_dialect_sources(sources, "p.md")
         tokens = [
             gencmu.Token("klama bu", {"A": True}, (0, 1), (0, 8), "klama.bu"),
             gencmu.Token("x.y", {"A": True}, (1, 2), (9, 12), ""),
+            gencmu.Token("a..b", {"A": True}, (2, 3), (13, 17), "a..b", verbatim=True),
         ]
-        result = dialect.parse_tokens(tokens, "klama bu x.y")
-        self.assertEqual(gencmu.to_brackets(result), "(klama bu x.y)")
+        result = dialect.parse_tokens(tokens, "klama bu x.y a..b")
+        self.assertEqual(gencmu.to_brackets(result), "(klama bu x.y a..b)")
 
 
 class Warnings(unittest.TestCase):

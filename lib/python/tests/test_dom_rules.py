@@ -126,6 +126,7 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("rule op not define, redefine or extend", lambda dom: rule(dom).update(op="replace")),
     ("rule without alternatives", lambda dom: rule(dom).update(alternatives=[])),
     ("rule without a position", lambda dom: rule(dom).pop("at")),
+    ("verbatim other than true", lambda dom: rule(dom).update(verbatim=False)),
     ("guard without negated", lambda dom: alt(dom).update(guards=[{"feature": "f", "kind": "gate"}])),
     ("guard without a kind", lambda dom: alt(dom).update(guards=[{"feature": "f", "negated": False}])),
     ("guard of an unknown kind", lambda dom: alt(dom).update(guards=[{"feature": "f", "kind": "hint", "negated": False}])),
@@ -202,6 +203,7 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("captures emitted out of order", lambda dom: (set_expr({"seq": [{"capture": "x", "expr": A}, {"capture": "y", "expr": A}]})(dom), set_emit({"items": [{"capture": "y"}, {"capture": "x"}]})(dom))),
     ("an inserted tag anchored on a missing capture", with_bare_alternative(set_emit({"items": [{"insert": "Y"}, {"capture": "x"}]}))),
     ("an emission that leaves an alternative nothing", with_bare_alternative(set_emit({"items": [{"capture": "x"}]}))),
+    ("verbatim with ε", lambda dom: (rule(dom).update(verbatim=True), set_emit({"items": []})(dom))),
 ]
 
 
@@ -299,6 +301,7 @@ class PrecompiledDomRules(unittest.TestCase):
         for name, change in (
             ("$ twice", set_emit({"items": [{"capture": "", "tags": LIT}, WHOLE]})),
             ("ε", set_emit({"items": []})),
+            ("verbatim", lambda dom: rule(dom).update(verbatim=True)),
             ("tags($) in an emitted term", set_emit({"items": [{"capture": "x", "tags": {"call": "tags", "args": [WHOLE]}}]})),
             ("tags($, rule) in an alternative's tags", set_tags({"call": "tags", "args": [WHOLE, {"rule": "text"}]})),
             ("text($) in an alternative's tags", set_tags({"call": "text", "args": [WHOLE]})),

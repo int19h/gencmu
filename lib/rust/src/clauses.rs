@@ -218,6 +218,10 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
     };
     let any_has = |name: &str| name.is_empty() || alternatives.iter().flatten().any(|(captured, _)| *captured == name);
     let items: &[EmitItem] = rule.emit.as_deref().unwrap_or(&[]);
+    // A constituent that does not count cannot sound like its text (§9).
+    if rule.verbatim && rule.emit.is_some() && items.is_empty() {
+        return Some(format!("{} is verbatim and emits ε", rule.name));
+    }
 
     // A capture mentioned anywhere, presence tests included, that no
     // alternative captures.

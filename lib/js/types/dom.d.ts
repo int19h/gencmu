@@ -1,6 +1,6 @@
 import type { GrammarDom } from "./types.js";
 export declare const DOM_MAX_DEPTH = 256;
-export declare const DOM_FORMAT = 5;
+export declare const DOM_FORMAT = 6;
 /**
  * Why a value is not a grammar DOM, or null when it is one.
  * @param {unknown} dom

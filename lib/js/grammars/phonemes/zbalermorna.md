@@ -31,7 +31,7 @@ Each zbalermorna symbol is a radical, a consonant, with a diacritic above it for
 %emits
   $ </'/>
 
-%extend-rule pause-char
+%extend-rule core-char
   "\u{ED89}"
 
 %extend-rule comma

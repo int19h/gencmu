@@ -5,6 +5,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::earley::{Cap, EngineError, Frame, Recognizer, Tok};
+use crate::fxhash::FxSet;
 use crate::lower::{LEmit, LEmitItem, LTerm, Lowered};
 use crate::rank::{DNode, Ranker};
 use crate::result::{Node, NodeKind, Warning};
@@ -230,6 +231,8 @@ pub(crate) struct Emitted {
     pub source: (usize, usize),
     pub tags: SetId,
     pub phonemes: Option<String>,
+    /// Whether its phonemes are its text (§11).
+    pub verbatim: bool,
     pub inserted_by: Option<String>,
 }
 
@@ -252,17 +255,9 @@ fn span_of(tree: &ITree, index: u32) -> (u32, u32) {
     }
 }
 
-/// The phonemes of a token emitted from a node (§5): its strong phoneme
-/// tag, or the phonemes of the tokens below it, skipping every constituent
-/// that emits ε, the node's own included, with each run of pauses made one
-/// and a pause at either end removed.
-fn phonemes(
-    recognizer: &Recognizer,
-    tree: &ITree,
-    tokens: &[Tok],
-    root: u32,
-    tags: SetId,
-) -> Result<Option<String>, EngineError> {
+/// The phoneme of a token's strong phoneme tag, if it has one (§5). Two
+/// such tags are an error of the grammar on any token, verbatim or not.
+fn phoneme_tag(recognizer: &Recognizer, tags: SetId) -> Result<Option<String>, EngineError> {
     let mut own: Option<&str> = None;
     for &(id, strong) in recognizer.shared.tags.list(tags) {
         if let (true, Some(phoneme)) = (strong, phoneme_of(recognizer.shared.tags.name(id))) {
@@ -272,38 +267,101 @@ fn phonemes(
             own = Some(phoneme);
         }
     }
-    if let Some(phoneme) = own {
-        return Ok(Some(phoneme.to_string()));
-    }
-    let mut out = String::new();
+    Ok(own.map(str::to_string))
+}
+
+/// What a node says (§5): the phonemes of the tokens below it, skipping
+/// every constituent that emits ε, the node's own included. It keeps only
+/// the first of each run of pause tokens, and leaves out a pause token at
+/// either end. It counts pauses by token, so a verbatim token keeps its
+/// periods.
+fn spoken(g: &Lowered, tree: &ITree, tokens: &[Tok], root: u32) -> String {
+    let mut pieces: Vec<&str> = Vec::new();
     let mut stack = vec![root];
     while let Some(index) = stack.pop() {
         let node = &tree.nodes[index as usize];
         match node.kind {
             IKind::Read { tok, .. } => {
-                if let Some(phonemes) = &tokens[tok as usize].phonemes {
-                    out.push_str(phonemes);
+                let phonemes = tokens[tok as usize].phonemes.as_deref().unwrap_or("");
+                let repeated = phonemes == "." && matches!(pieces.last(), None | Some(&"."));
+                if !phonemes.is_empty() && !repeated {
+                    pieces.push(phonemes);
                 }
             }
             IKind::Close { prod, .. } => {
                 // A constituent that emits ε does not count (§11).
-                if !matches!(recognizer.g.prods[prod as usize].emit, LEmit::Nothing) {
+                if !matches!(g.prods[prod as usize].emit, LEmit::Nothing) {
                     stack.extend(node.children.iter().rev());
                 }
             }
         }
     }
-    // Each run of pauses is one, and none is left at either end.
-    let mut collapsed = String::with_capacity(out.len());
-    for c in out.chars() {
-        if c != '.' || !(collapsed.is_empty() || collapsed.ends_with('.')) {
-            collapsed.push(c);
+    if pieces.last() == Some(&".") {
+        pieces.pop();
+    }
+    pieces.concat()
+}
+
+/// The source position of an empty span at the token index `at`: the
+/// source end of the token before it, or the source start of the first.
+fn empty_source(tokens: &[Tok], at: u32) -> usize {
+    if at > 0 {
+        tokens[at as usize - 1].source.1
+    } else {
+        tokens.first().map_or(0, |token| token.source.0)
+    }
+}
+
+/// The token that covers node `index` with the given tags (§5, §11).
+/// `widened_ends` holds where the widened tokens emitted before it end.
+fn cover(
+    recognizer: &Recognizer,
+    tree: &ITree,
+    tokens: &[Tok],
+    index: u32,
+    tags: SetId,
+    widened_ends: &mut FxSet<u32>,
+) -> Result<Emitted, EngineError> {
+    let (start, end) = span_of(tree, index);
+    let span = (start as usize, end as usize);
+    // Two phoneme tags are an error on any token, verbatim or not (§5).
+    let phoneme = phoneme_tag(recognizer, tags)?;
+    let text = recognizer.shared.text;
+    if let IKind::Close { prod, .. } = tree.nodes[index as usize].kind {
+        if recognizer.g.prods[prod as usize].verbatim {
+            // A widened token takes in the text next to it that no input
+            // token covers, but not text that a widened token before it
+            // took. It sounds like its text.
+            let before = if start > 0 { tokens[span.0 - 1].source.1 } else { 0 };
+            let source = if start == end {
+                (before, before)
+            } else {
+                // It always holds its own tokens' sources, which the tokens
+                // next to it can share.
+                let own = (tokens[span.0].source.0, tokens[span.1 - 1].source.1);
+                let from = if widened_ends.contains(&start) { own.0 } else { own.0.min(before) };
+                let after = tokens.get(span.1).map_or(text.len(), |token| token.source.0);
+                widened_ends.insert(end);
+                (from, own.1.max(after))
+            };
+            let phonemes = text[source.0..source.1].iter().collect();
+            return Ok(Emitted { span, source, tags, phonemes: Some(phonemes), verbatim: true, inserted_by: None });
         }
     }
-    if collapsed.ends_with('.') {
-        collapsed.pop();
+    if end - start == 1 && tokens[span.0].verbatim {
+        // A token over one verbatim token is verbatim, with its source.
+        let only = &tokens[span.0];
+        let phonemes = Some(only.text.clone());
+        return Ok(Emitted { span, source: only.source, tags, phonemes, verbatim: true, inserted_by: None });
     }
-    Ok(Some(collapsed))
+    let source = if start < end {
+        (tokens[span.0].source.0, tokens[span.1 - 1].source.1)
+    } else {
+        let at = empty_source(tokens, start);
+        (at, at)
+    };
+    let phonemes = phoneme.unwrap_or_else(|| spoken(recognizer.g, tree, tokens, index));
+    Ok(Emitted { span, source, tags, phonemes: Some(phonemes), verbatim: false, inserted_by: None })
 }
 
 /// The tags an emission item's term gives a token (§11): a term that gives
@@ -326,14 +384,9 @@ fn item_tags(recognizer: &mut Recognizer, term: &LTerm, frame: &Frame, tokens: &
 pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) -> Result<Vec<Emitted>, EngineError> {
     let g = recognizer.g;
     let mut out = Vec::new();
+    // Where the widened tokens emitted so far end (§11).
+    let mut widened_ends: FxSet<u32> = FxSet::default();
     let mut stack = vec![Work::Visit(0)];
-    let empty_source = |at: u32| -> usize {
-        if at > 0 {
-            tokens[at as usize - 1].source.1
-        } else {
-            tokens.first().map_or(0, |token| token.source.0)
-        }
-    };
     while let Some(work) = stack.pop() {
         match work {
             Work::Visit(index) => {
@@ -390,15 +443,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                 }
             }
             Work::Cover(index, tags) => {
-                let (start, end) = span_of(tree, index);
-                let source = if start < end {
-                    (tokens[start as usize].source.0, tokens[end as usize - 1].source.1)
-                } else {
-                    let at = empty_source(start);
-                    (at, at)
-                };
-                let phonemes = phonemes(recognizer, tree, tokens, index, tags)?;
-                out.push(Emitted { span: (start as usize, end as usize), source, tags, phonemes, inserted_by: None });
+                out.push(cover(recognizer, tree, tokens, index, tags, &mut widened_ends)?);
             }
             Work::Insert { tag, at, node } => {
                 let (start, end) = span_of(tree, node);
@@ -407,7 +452,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                 } else if start < end {
                     tokens[start as usize].source.0
                 } else {
-                    empty_source(start)
+                    empty_source(tokens, start)
                 };
                 let IKind::Close { prod, .. } = &tree.nodes[node as usize].kind else { unreachable!("a close") };
                 let owner = g.prods[*prod as usize].owner;
@@ -417,6 +462,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                     source: (source, source),
                     tags: set,
                     phonemes: Some(phoneme_of(&tag).unwrap_or("").to_string()),
+                    verbatim: false,
                     inserted_by: Some(g.rules[owner as usize].name.clone()),
                 });
             }

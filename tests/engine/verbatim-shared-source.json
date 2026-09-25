@@ -1,0 +1,52 @@
+{
+  "description": "A widened token's source always holds the sources of its own input tokens, even where the input token before it shares its source (engine §11).",
+  "documents": {
+    "p.md": "## s <?stage first?>\n\n- [g](g.md) <?grammar?>\n\n## t <?stage second?>\n\n- [h](h.md) <?grammar?>\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text d\n%rule d \"a\"\n%emits $ <\"X\">, $ <\"Y\">\n```\n",
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text X $y(v)\n%emits $y <\"V\">\n%rule v Y\n%verbatim\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "text": "a",
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "text": "a",
+              "source": [
+                0,
+                1
+              ]
+            }
+          ]
+        },
+        {
+          "output": [
+            {
+              "text": "a",
+              "phonemes": "a",
+              "span": [
+                1,
+                2
+              ],
+              "source": [
+                0,
+                1
+              ],
+              "verbatim": true
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

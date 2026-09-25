@@ -39,6 +39,9 @@ fn write_token(out: &mut String, token: &Token) {
     write_range(out, &token.span);
     out.push_str(",\"source\":");
     write_range(out, &token.source);
+    if token.verbatim {
+        out.push_str(",\"verbatim\":true");
+    }
     if let Some(rule) = &token.inserted_by {
         out.push_str(",\"insertedBy\":");
         write_str(out, rule);
@@ -246,7 +249,7 @@ fn write_warning(out: &mut String, warning: &Warning) {
 /// documented order, no whitespace, non-ASCII characters as themselves.
 pub fn to_json(result: &ParseResult) -> String {
     let mut out = String::new();
-    out.push_str("{\"format\":2,\"ok\":");
+    out.push_str("{\"format\":3,\"ok\":");
     out.push_str(if result.ok { "true" } else { "false" });
     out.push_str(",\"stages\":[");
     for (index, stage) in result.stages.iter().enumerate() {
@@ -318,6 +321,8 @@ pub(crate) fn brackets(tree: &Node, tokens: &[Token], show_elided: bool) -> Stri
             NodeKind::Token => {
                 let token = node.token.and_then(|token| tokens.get(token));
                 let label = match token {
+                    // A verbatim token's label is its text (docs/output.md).
+                    Some(token) if token.verbatim => token.text.clone(),
                     Some(token) => match token.phonemes.as_deref() {
                         // Each pause is written as a space.
                         Some(phonemes) if !phonemes.is_empty() => phonemes.replace('.', " "),

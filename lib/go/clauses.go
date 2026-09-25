@@ -272,6 +272,10 @@ func definitionProblem(r *domRule) string {
 	if r.Emit != nil {
 		items = r.Emit.Items
 	}
+	// A constituent that does not count cannot sound like its text.
+	if r.Verbatim && r.Emit != nil && r.Emit.nothing() {
+		return fmt.Sprintf("%s is verbatim and emits ε", r.Name)
+	}
 	// A capture no alternative captures, wherever it is mentioned.
 	mentioned := map[string]bool{}
 	termMentions(r.Tags, mentioned)

@@ -1,0 +1,10 @@
+{
+  "description": "%verbatim stands after %emits, since a rule's clauses come in a fixed order (notation, \"Rules\").",
+  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule g A\n%verbatim\n%emits $\n```\n",
+  "expect": {
+    "error": {
+      "line": 8,
+      "column": 1
+    }
+  }
+}

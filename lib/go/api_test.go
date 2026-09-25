@@ -250,7 +250,7 @@ func TestMarshalResult(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"format":2,"ok":true,"stages":[{"name":"main","verdict":"unique","output":[]}],"tree":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":{},"children":[{"kind":"token","terminal":"é","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"KU","span":[1,1],"source":[1,1]}]},"error":null}`
+	want := `{"format":3,"ok":true,"stages":[{"name":"main","verdict":"unique","output":[]}],"tree":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":{},"children":[{"kind":"token","terminal":"é","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"KU","span":[1,1],"source":[1,1]}]},"error":null}`
 	if string(data) != want {
 		t.Fatalf("got  %s\nwant %s", data, want)
 	}
@@ -262,7 +262,7 @@ func TestMarshalResult(t *testing.T) {
 	}
 	res, _ = d.Parse("x", ParseOptions{})
 	data, _ = MarshalResult(res)
-	if !strings.HasPrefix(string(data), `{"format":2,"ok":false,"stages":[{"name":"main","verdict":null}],"tree":null,"error":{"kind":"rejected","stage":"main","token":0,"source":[0,1],"line":1,"column":1,"expected":[{"terminal":"é","rules":["text"]}],"message":`) {
+	if !strings.HasPrefix(string(data), `{"format":3,"ok":false,"stages":[{"name":"main","verdict":null}],"tree":null,"error":{"kind":"rejected","stage":"main","token":0,"source":[0,1],"line":1,"column":1,"expected":[{"terminal":"é","rules":["text"]}],"message":`) {
 		t.Fatalf("%s", data)
 	}
 	// The warnings follow the error, only when there is one; the result's
@@ -275,6 +275,13 @@ func TestMarshalResult(t *testing.T) {
 	res, _ = d.Parse("éx", ParseOptions{Features: []string{"w"}})
 	data, _ = MarshalResult(res)
 	if !strings.HasSuffix(string(data), `,"error":null,"warnings":[{"stage":"main","feature":"w","rule":"text","span":[0,2],"source":[0,2]}]}`) {
+		t.Fatalf("%s", data)
+	}
+	// "verbatim":true follows source, only on a verbatim token.
+	d = mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text w \"x\"\n%rule w \"é\"\n%emits $ <\"W\">\n%verbatim"))
+	res, _ = d.Parse("éx", ParseOptions{})
+	data, _ = MarshalResult(res)
+	if !strings.Contains(string(data), `"output":[{"text":"é","phonemes":"é","tags":{"W":true},"span":[0,1],"source":[0,1],"verbatim":true}]}`) {
 		t.Fatalf("%s", data)
 	}
 }

@@ -13,6 +13,7 @@ Everything a stage reads and writes is a sequence of tokens. A token has:
 - `source`: the half-open range of the original text it covers, in Unicode code points;
 - `text`: the original text over `source`;
 - `phonemes`: what the token sounds like (§5);
+- `verbatim`: true for a verbatim token (§11), whose phonemes are its text; otherwise false;
 - `insertedBy`: for a token an emission clause inserted from a quoted tag or a phoneme tag (§11), the rule whose clause it is; otherwise absent, even for a token of an emission `$` over an empty constituent.
 
 The input of the first stage is the text's characters, one token per code point `c` at position `i`: `span` and `source` are `[i, i+1)`, `text` is `c`, and `tags` are `c` itself, strong, and one class tag, weak, the first that applies of:
@@ -57,7 +58,7 @@ A grammar is lowered to a context-free grammar of productions, given the set of 
 3. **Trailing repetition.** An alternative that is the only alternative of its rule left after step 1, and whose expression is `x ...` or `[x] ...` or a sequence ending in one, is lowered as left recursion on the rule itself: `r → p x ...` becomes `r → p x | r x`, and `r → p [x] ...` becomes `r → p | r x`. Its intermediate prefixes are then constituents of `r`, which the ranking sees (§6); this is how CLL's YACC grammar realizes `...`, and CLL says left grouping is implied. The recursive productions have none of the alternative's captures, whose parts lie inside the inner `r`, so an alternative lowered this way that captures anything is an error of the grammar, found when the grammar is lowered for features that leave the alternative alone in its rule.
 4. Helpers are named by the engine; their names are never shown. A helper is a production whose left side is a helper name.
 5. A capture `$x(s)` must wrap a single symbol `s` in a sequence at the top level of an alternative: not inside `[ ]`, `...`, `( )`, `&`. It labels the symbol's position in the production. At most four captures per alternative. `$`, the whole constituent, is a capture of every production that no alternative writes: its span runs from the item's origin to its end, and its tags are the constituent's (§4).
-6. Conditions, tags and emission attach to the production an alternative lowers to, or each production if it expands to several, with the clauses of the alternative's definition (§2). A production **has** a capture if its alternative captures it; every production has `$`. Before a clause is attached, it is **simplified** for the production: each presence test `$x` (§10) becomes true or false as the production has `x` or not; `A ⟹ B` becomes `B` where `A` is then true, and true, as a condition, or the empty set, as a term, where `A` is false; a condition `A ⟹ B` whose `B` is then true becomes true, and one whose `B` is false becomes `¬A`; `¬`, `∧` and `∨` over a true or false part are reduced as logic says; and a term's empty set, written `∅` or left by a guard, is dropped from a union, a union of nothing but empty sets is the empty set, as is an intersection with one, and a guarded term whose term is the empty set is the empty set. Since a reduced part is never evaluated, the reduction is part of the order of evaluation (§10). A capture that is still mentioned after simplification is **used** by the clause.
+6. Conditions, tags, emission and `%verbatim` attach to the production an alternative lowers to, or each production if it expands to several, with the clauses of the alternative's definition (§2). A production **has** a capture if its alternative captures it; every production has `$`. Before a clause is attached, it is **simplified** for the production: each presence test `$x` (§10) becomes true or false as the production has `x` or not; `A ⟹ B` becomes `B` where `A` is then true, and true, as a condition, or the empty set, as a term, where `A` is false; a condition `A ⟹ B` whose `B` is then true becomes true, and one whose `B` is false becomes `¬A`; `¬`, `∧` and `∨` over a true or false part are reduced as logic says; and a term's empty set, written `∅` or left by a guard, is dropped from a union, a union of nothing but empty sets is the empty set, as is an intersection with one, and a guarded term whose term is the empty set is the empty set. Since a reduced part is never evaluated, the reduction is part of the order of evaluation (§10). A capture that is still mentioned after simplification is **used** by the clause.
    - A condition applies to a production if it has not simplified to true and the production has every capture it uses; otherwise it is dropped for that production. A condition that simplifies to false applies, and removes the production: `%conditions $x` keeps the alternatives that capture `x` and removes the others.
    - An emission item naming a capture the production lacks is dropped from that production's emission.
    - A tag term, the alternative's own or the definition's `%tags`, that uses a capture the production lacks is an error of the document.
@@ -99,11 +100,12 @@ When the stage's directive has `maximal`, a derivation is not counted, as a cycl
 
 A token's `phonemes`:
 
-- if its tag set holds a strong phoneme tag `/p/`, `p`: the pause, `/./`, is `.`. Two strong phoneme tags on one token are an error of the grammar that emitted it. A phoneme tag is a tag of exactly three code points, the first and last `/`;
-- otherwise, the phonemes of the tokens it covers, the stage's input tokens in its span, joined in order, leaving out every token inside a constituent that does not count (§11), the token's own constituent included when its own rule does not count and a parent emits it as a capture; then each run of pauses, `.`, is made one, and a pause at either end is removed;
+- if it is a verbatim token (§11): its text, whatever tags it carries;
+- otherwise, if its tag set holds a strong phoneme tag `/p/`, `p`: the pause, `/./`, is `.`. A phoneme tag is a tag of exactly three code points, the first and last `/`;
+- otherwise, the phonemes of the tokens it covers, the stage's input tokens in its span, joined in order. The join leaves out every token inside a constituent that does not count (§11). That includes the token's own constituent when its own rule does not count and a parent emits it as a capture. The join also leaves out every token whose phonemes are empty. Of each run of adjacent tokens whose phonemes are exactly the pause, `.`, it keeps only the first, and it leaves out such a token at either end. It counts pauses by token, not by character, so it keeps the text of a verbatim token as it is, periods included;
 - a character token has none.
 
-An emitted token always has phonemes, possibly the empty string; only the character tokens of the first stage have none.
+An emitted token always has phonemes, possibly the empty string; only the character tokens of the first stage have none. Two strong phoneme tags on one emitted token are an error of the grammar that emitted it, whether or not the token is verbatim.
 
 `phonemes(span)` in a condition is the concatenation of the span's tokens' phonemes. `text(span)` is the original text of the span, from the start of its first token's source to the end of its last. `words(span)` is the tag set of the words of `phonemes(span)`, the strings between its pauses, `.`, each a strong tag, the empty string never among them.
 
@@ -160,7 +162,7 @@ The notation's syntax grammar names its constituents so that the DOM can be read
 | rule | DOM |
 | --- | --- |
 | `directive` | a directive: name from its `directive-name` without `%`, arguments from its `argument-word`s |
-| `rule` | a rule: `define`, `redefine` or `extend` from its `definer`, `%rule`, `%redefine-rule` or `%extend-rule`; name from its `rule-name`, a name or `#`; alternatives from its `body`; tags from its `tags-clause`; conditions from its `conditions-clause`; emission from its `emits-clause` |
+| `rule` | a rule: `define`, `redefine` or `extend` from its `definer`, `%rule`, `%redefine-rule` or `%extend-rule`; name from its `rule-name`, a name or `#`; alternatives from its `body`; tags from its `tags-clause`; conditions from its `conditions-clause`; emission from its `emits-clause`; `verbatim` true if it has a `verbatim-clause` |
 | `alternative` | guards from its `guard`s: a gate from `@f?` or `@¬f?`, a warning from `@f!`; expression from its `conjunction`, tags from `alternative-tags` |
 | `choice` | `choice` of its `conjunction`s, or the one conjunction itself |
 | `conjunction` | `and` of its `sequence`s, or the one sequence itself |
@@ -206,6 +208,7 @@ A definition (§2) is checked as a whole once it is read, and these are errors o
 - a capture, in any clause, `$x` presence tests included, that no alternative of the definition captures;
 - a condition that applies (§3.6) to no alternative of the definition, whatever features are enabled;
 - a tag term that uses (§3.6) a capture that an alternative it serves lacks: an alternative's own tags serve that alternative, `%tags` every alternative of the definition, and an emission item's tags every alternative in which the item is not dropped;
+- `%verbatim` in a definition whose emission is `ε`, since a constituent that does not count cannot sound like its text;
 - in an emission, captures listed in an order other than the one in which some alternative that has them captures them; an inserted tag whose anchor, the capture listed next after it, is one that some alternative of the definition lacks; or an alternative for which every item is dropped, so that it would emit nothing although the rule lists what to emit; a rule that emits nothing says so with `ε`.
 
 A string's decoding: the quotes are removed, `\\` is `\`, `\"` is `"`, and `\u{h...}` is the code point with that hexadecimal value; any other `\` is an error.
@@ -252,7 +255,21 @@ Every stage that accepts its input emits tokens by walking its chosen tree from 
 
 An item's tag term that gives the empty set is an error of the grammar, found while parsing: no terminal could read the token. The stage has accepted its input and chosen its tree, so it keeps its verdict, witness, tied tree and warnings (§12), but it has no output, and the error is the result's.
 
-An emitted token's span is the range of the stage's input tokens its constituent covers; its `source` runs from the source start of the first of them to the source end of the last; its phonemes are as in §5. An inserted token's span is empty at the start of the part of the capture listed next after it, or at the end of the constituent if no capture is listed after it; its source is empty at the source end of the input token before that position, or at the source start of the constituent if the position is the constituent's start.
+An emitted token's span is the range of the stage's input tokens its constituent covers; its `source` runs from the source start of the first of them to the source end of the last, unless it is a verbatim token; its phonemes are as in §5. An inserted token's span is empty at the start of the part of the capture listed next after it, or at the end of the constituent if no capture is listed after it; its source is empty at the source end of the input token before that position, or at the source start of the constituent if the position is the constituent's start.
+
+**Verbatim tokens.** A token is verbatim in two cases:
+
+- A `$` item of a production with `%verbatim` emits it, or a capture item emits it for a part whose production has `%verbatim`. Such a token is **widened**: it takes in the text next to it that no input token covers, as the next paragraph says.
+- Otherwise, a `$` item or a capture item emits it over exactly one input token, and that input token is verbatim. Such a token has that input token's source. So a quote body stays verbatim through the stages after the one that read it.
+
+The text between two adjacent input tokens belongs to the widened token with a non-empty span that ends there, if one does, and otherwise to the one that starts there. The text before the first input token belongs to a widened token that starts there, and the text after the last input token to one that ends there. So a widened token's source always holds the sources of its own input tokens, from the source start of the first to the source end of the last, and more:
+
+- It starts earlier, at the source end of the input token just before its span, if that is earlier, or at the start of the text if there is no such token. It does not start earlier if another widened token with a non-empty span ends where this one starts.
+- It ends later, at the source start of the input token just after its span, if that is later, or at the end of the text if there is no such token.
+
+A widened token over an empty span takes in no text. Its source is empty, at the source end of the input token before the span, or at the start of the text if there is none.
+
+A verbatim token's text is the text of its source, and its phonemes are its text (§5). An inserted token is never verbatim. No other token is verbatim, whatever lies inside its constituent.
 
 **Ties.** A stage whose verdict is `tie` emits its chosen derivation, and the tie is reported, at whichever stage it is. A tie is a property of the grammar that the grammar should settle, and the engine does not hide one even where the tied derivations would emit the same tokens.
 

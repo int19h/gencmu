@@ -39,7 +39,7 @@ A rule is a keyword that says whether it defines, redefines or extends the rule,
 
 ```jbogenbau
 %rule rule
-  definer rule-name body [tags-clause] [conditions-clause] [emits-clause]
+  definer rule-name body [tags-clause] [conditions-clause] [emits-clause] [verbatim-clause]
 
 %rule definer
   "%rule" | "%redefine-rule" | "%extend-rule"
@@ -104,7 +104,7 @@ A rule is a keyword that says whether it defines, redefines or extends the rule,
 
 ## Clauses
 
-`%tags` says what tags every alternative's constituent carries, `%conditions` lists what must hold of the captured parts, and `%emits` what the constituent hands on: a list of items, each a capture, with tags of its own between `<` and `>`, or an inserted tag; or `ε`, nothing, which also makes the constituent not count.
+`%tags` says what tags every alternative's constituent carries. `%conditions` lists what must hold of the captured parts. `%emits` says what the constituent hands on. That is a list of items, each a capture, with tags of its own between `<` and `>`, or an inserted tag. It can also be `ε`, nothing, which also makes the constituent not count. `%verbatim` is a keyword alone. It says that a token over the constituent sounds like its text.
 
 ```jbogenbau
 %rule tags-clause
@@ -115,6 +115,9 @@ A rule is a keyword that says whether it defines, redefines or extends the rule,
 
 %rule emits-clause
   "%emits" ([","] emit-item ["," emit-item] ... | "ε")
+
+%rule verbatim-clause
+  "%verbatim"
 
 %rule emit-item
   emit-target [emit-tags]

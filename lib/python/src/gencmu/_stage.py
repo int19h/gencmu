@@ -236,13 +236,32 @@ def uncounted_tokens(root: DNode, size: int) -> list[bool]:
 
 
 def joined_phonemes(parts: list[str]) -> str:
-    """Phonemes joined in order, each run of pauses made one and a pause at
-    either end removed (engine §5)."""
-    return PAUSE.join(part for part in "".join(parts).split(PAUSE) if part)
+    """The tokens' phonemes joined in order, with each run of pause tokens
+    made one and a pause token at either end left out (engine §5). The
+    pauses are counted by token, so that a verbatim token keeps its
+    periods."""
+    pieces: list[str] = []
+    for part in parts:
+        if not part or part == PAUSE and (not pieces or pieces[-1] == PAUSE):
+            continue
+        pieces.append(part)
+    if pieces and pieces[-1] == PAUSE:
+        pieces.pop()
+    return "".join(pieces)
 
 
 def span_phonemes(tokens: list[Token], uncounted: list[bool], start: int, end: int) -> str:
     return joined_phonemes([tokens[index].phonemes or "" for index in range(start, end) if not uncounted[index]])
+
+
+def phoneme_tag(tags: Tags, span: Range) -> str | None:
+    """The phonemes of an emitted token's strong phoneme tag, or ``None`` if
+    it has none. Two are an error of the grammar on any emitted token,
+    verbatim or not (engine §5)."""
+    strong = sorted(tag for tag, st in tags.items() if st and phoneme_of(tag) is not None)
+    if len(strong) > 1:
+        raise _GrammarFault(f"an emitted token has two strong phoneme tags: {', '.join(strong)}", span)
+    return phoneme_of(strong[0]) if strong else None
 
 
 class Emitter:
@@ -257,14 +276,49 @@ class Emitter:
         self.evaluator = Evaluator(context, 0)
         self.uncounted = uncounted_tokens(root, len(self.tokens))
         self.output: list[Token] = []
+        # Where the widened tokens emitted so far end (engine §11).
+        self.widened_ends: set[int] = set()
 
     def token(self, start: int, end: int, tags: Tags, source: Range, inserted_by: str | None) -> Token:
-        strong = [phoneme for phoneme in (phoneme_of(tag) for tag, st in tags.items() if st) if phoneme is not None]
-        if len(strong) > 1:
-            raise _GrammarFault(f"an emitted token has two strong phoneme tags: {', '.join(sorted(t for t, s in tags.items() if s and phoneme_of(t) is not None))}", (start, end))
-        phonemes = strong[0] if strong else span_phonemes(self.tokens, self.uncounted, start, end)
+        phoneme = phoneme_tag(tags, (start, end))
+        phonemes = phoneme if phoneme is not None else span_phonemes(self.tokens, self.uncounted, start, end)
         text = self.context.text[source[0] : source[1]]
         return Token(text, dict(tags), (start, end), source, phonemes, inserted_by)
+
+    def part_token(self, part: DChild, tags: Tags) -> Token:
+        """The token a ``$`` item or a capture item emits over a part
+        (engine §11)."""
+        tokens = self.tokens
+        span = (part.start, part.end)
+        if isinstance(part, DNode) and part.production.verbatim:
+            # A widened token sounds like its text (engine §5), but two
+            # phoneme tags are still an error on it.
+            phoneme_tag(tags, span)
+            source = self.widened_source(part.start, part.end)
+            text = self.context.text[source[0] : source[1]]
+            return Token(text, dict(tags), span, source, text, verbatim=True)
+        if part.end - part.start == 1 and tokens[part.start].verbatim:
+            # A token over one verbatim token is verbatim, with its source.
+            phoneme_tag(tags, span)
+            only = tokens[part.start]
+            return Token(only.text, dict(tags), span, only.source, only.text, verbatim=True)
+        return self.token(part.start, part.end, tags, self.part_source(part), None)
+
+    def widened_source(self, start: int, end: int) -> Range:
+        """Where a widened token stands in the text (engine §11). It takes in
+        the text next to it that no input token covers, but not text that a
+        widened token before it has taken. It always holds its own tokens'
+        sources, which the tokens next to it can share. Over an empty span it
+        takes in nothing."""
+        tokens = self.tokens
+        before = tokens[start - 1].source[1] if start > 0 else 0
+        if start == end:
+            return (before, before)
+        own = (tokens[start].source[0], tokens[end - 1].source[1])
+        after = tokens[end].source[0] if end < len(tokens) else len(self.context.text)
+        first = own[0] if start in self.widened_ends else min(own[0], before)
+        self.widened_ends.add(end)
+        return (first, max(own[1], after))
 
     def part_source(self, part: DChild) -> Range:
         if isinstance(part, DRead):
@@ -293,7 +347,7 @@ class Emitter:
         if item[0] == "whole":
             _, term = item
             tags = self.item_tags(node, term) if term is not None else tagtab.get(node.tag)
-            self.output.append(self.token(node.start, node.end, tags, self.tree.source_of(node), None))
+            self.output.append(self.part_token(node, tags))
         elif item[0] == "capture":
             _, position, term = item
             part = node.children[position]
@@ -303,7 +357,7 @@ class Emitter:
                 tags = self.tokens[part.token].tags
             else:
                 tags = tagtab.get(part.tag)
-            self.output.append(self.token(part.start, part.end, tags, self.part_source(part), None))
+            self.output.append(self.part_token(part, tags))
         else:
             # An inserted tag stands, with an empty span, at the start of the
             # part of the capture listed next after it, or at the end of the
