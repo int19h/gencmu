@@ -643,3 +643,6 @@ adhoc.camxes-exp.connectives.selbri-tag-bo-rejected.zantufa
 adhoc.camxes-exp.connectives.cehe-at-text-start-rejected.experimental
 adhoc.camxes-exp.connectives.cehe-at-text-start-rejected.zantufa
 adhoc.camxes-exp.connectives.soi-free-rejected.experimental
+adhoc.camxes-exp.tanru.mehoi-tanru-unit.experimental
+adhoc.camxes-exp.tanru.mehoi-tanru-unit.zantufa
+adhoc.camxes-exp.tanru.mehoi-not-a-sumti.experimental

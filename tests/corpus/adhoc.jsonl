@@ -866,3 +866,6 @@
 {"id":"adhoc.camxes-exp.connectives.cehe-at-text-start-rejected.experimental","text":"ce'e mi","dialect":"experimental","expect":"reject","stage":"syntax","words":["ce'e","mi"]}
 {"id":"adhoc.camxes-exp.connectives.cehe-at-text-start-rejected.zantufa","text":"ce'e mi","dialect":"zantufa","expect":"reject","stage":"syntax","words":["ce'e","mi"]}
 {"id":"adhoc.camxes-exp.connectives.soi-free-rejected.experimental","text":"mi klama soi do","dialect":"experimental","expect":"reject","stage":"syntax","words":["mi","klama","soi","do"]}
+{"id":"adhoc.camxes-exp.tanru.mehoi-tanru-unit.experimental","text":"le me'oi klama cu broda","dialect":"experimental","expect":"accept","verdict":"unique","words":["le","me'oi","klama","cu","broda"],"brackets":"([le {me'oi klama}] cu broda)"}
+{"id":"adhoc.camxes-exp.tanru.mehoi-tanru-unit.zantufa","text":"le me'oi klama cu broda","dialect":"zantufa","expect":"reject","stage":"syntax","words":["le","me'oi","klama","cu","broda"]}
+{"id":"adhoc.camxes-exp.tanru.mehoi-not-a-sumti.experimental","text":"me'oi klama cu broda","dialect":"experimental","expect":"reject","stage":"syntax","words":["me'oi","klama","cu","broda"]}

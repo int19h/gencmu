@@ -178,7 +178,7 @@ Sumti connectives are ek, joik or VUhU (`sumti-connective`). After `vu'o`, a con
 - `la'e` or `na'e bo` around a tagged sumti
 - a description whose two descriptors are joined by a jek (`lo je le broda`)
 - `lo'oi subsentence ku'au`, a description of a subsentence
-- the single-word quotes `zo'oi`, `la'oi`, `ra'oi` and `me'oi`, whose bodies the word stage delimits
+- the single-word quotes `zo'oi`, `la'oi` and `ra'oi`, whose bodies the word stage delimits
 
 ```jbogenbau
 %redefine-rule sumti
@@ -215,7 +215,6 @@ Sumti connectives are ek, joik or VUhU (`sumti-connective`). After `vu'o`, a con
   | LOhU [any-word ...] LEhU #
   | ZOI any-word anything any-word #
   | ZOhOI anything #
-  | MEhOI anything #
 ```
 
 ## Relative clauses
@@ -233,7 +232,7 @@ Consecutive relative clauses can be joined by a joik, a jek or an ek, as well as
 
 ## Selbri and tanru
 
-Selbri and tanru-unit connectives are joik, jek, ek or VUhU (`selbri-connective`). A selbri can be tagged by a bare `fa`. The term after `be` or `bei` can be absent. The new tanru units are a cmevla, under `cbm`, and preposed linked arguments (`lo be mi broda`).
+Selbri and tanru-unit connectives are joik, jek, ek or VUhU (`selbri-connective`). A selbri can be tagged by a bare `fa`. The term after `be` or `bei` can be absent. The new tanru units are a cmevla, under `cbm`, preposed linked arguments (`lo be mi broda`), and `me'oi` with the word that it quotes (`le me'oi klama cu broda`).
 
 A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in which `ke'a` refers to the selbri (`mi klama no'oi bajra`). They are joined as relative clauses are: by `zi'e`, a joik, a jek or an ek, or two groups of them in forethought.
 
@@ -285,6 +284,7 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | NAhE # tanru-unit-2
   | NU [NAI] # [joik-jek NU [NAI] #] ... subsentence [KEI] #
   | linkargs tanru-unit-2
+  | MEhOI anything #
 
 %rule tanru-unit-not-starting-with-ke
   tanru-unit-1-not-starting-with-ke [CEI # tanru-unit-1] ... [selbri-relative-clauses]
@@ -305,6 +305,7 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | NAhE # tanru-unit-2
   | NU [NAI] # [joik-jek NU [NAI] #] ... subsentence [KEI] #
   | linkargs tanru-unit-2
+  | MEhOI anything #
 
 %rule selbri-relative-clauses
   | selbri-relative-clause [(ZIhE # | joik # | jek # | ek #) selbri-relative-clause] ...
