@@ -23,8 +23,7 @@ type production struct {
 	conds        []lcond
 	predictConds []*domCond // conditions using no capture but $ of an empty production, checked at prediction
 	emit         *domEmit   // as dropped and simplified for the production (§3.6)
-	silentAll    bool       // %emits $ <>: the constituent is silent (§11)
-	silent       []bool     // per position: a capture its emission makes silent, or nil for none
+	nothing      bool       // %emits ε: the constituent emits nothing and does not count (§11)
 	transparent  bool
 	helper       bool
 	elided       string // for the ε production of an optional beginning with an elidable terminal
@@ -348,15 +347,9 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt, repeatPrefix b
 				it = &kept
 			}
 			e.Items = append(e.Items, it)
-			if it.Silent && it.Capture != "" {
-				if p.silent == nil {
-					p.silent = make([]bool, len(body))
-				}
-				p.silent[position[it.Capture]] = true
-			}
 		}
 		p.emit = e
-		p.silentAll = e.silentAll()
+		p.nothing = a.emit.nothing()
 	}
 }
 

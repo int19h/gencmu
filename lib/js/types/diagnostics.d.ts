@@ -79,19 +79,18 @@ export type StageAudit = {
         previous: string;
     }[];
     /**
-     * silent items, `$ <>`
-     * or `$x <>`, of what could never emit anything and never sounds inside an emitted token
+     * rules that emit `ε` although nothing
+     * under them could emit and no token could cover them
      */
     idleErasures: {
         rule: string;
         document: string;
-        erased: string;
     }[];
 };
 /**
  * What a grammar author should know about a dialect's grammars: per stage,
  * the rules nothing reaches, every rule a later document replaced or
- * extended, and silent items that change nothing.
+ * extended, and `%emits ε` that changes nothing.
  * @param {Dialect} dialect
  * @returns {StageAudit[]}
  */

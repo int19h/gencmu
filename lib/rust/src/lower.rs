@@ -68,8 +68,6 @@ pub(crate) enum LCond {
 pub(crate) enum LEmitItem {
     /// A capture, emitted over its part with the item's tags or the part's.
     Cap(u8, Option<LTerm>),
-    /// A capture named with `<>`: neither emitted nor heard (§11).
-    Silent(u8),
     /// An inserted tag, anchored at the start of the part of the capture
     /// listed next after it, or at the constituent's end if none is.
     Insert(String, Option<u8>),
@@ -79,26 +77,12 @@ pub(crate) enum LEmitItem {
 pub(crate) enum LEmit {
     /// No emission: the constituent is walked.
     None,
-    /// `%emits $ <>`: the constituent is silent.
-    Silent,
+    /// `%emits ε`: the constituent emits nothing and does not count.
+    Nothing,
     /// `%emits $`, once per item, with the item's tag term if it has one.
     This(Vec<Option<LTerm>>),
     /// Exactly these items, in the order listed.
     Items(Vec<LEmitItem>),
-}
-
-impl LEmit {
-    /// Whether the child at `position` of a constituent of `production` is
-    /// silent, by its parent's emission (§5, §11).
-    pub(crate) fn silences(&self, production: &Prod, position: usize) -> bool {
-        match self {
-            LEmit::Silent => true,
-            LEmit::Items(items) => production.cap_at[position].is_some_and(|slot| {
-                items.iter().any(|item| matches!(item, LEmitItem::Silent(silent) if *silent == slot))
-            }),
-            LEmit::None | LEmit::This(_) => false,
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -627,7 +611,7 @@ pub(crate) fn lower(
                     let items: Vec<&EmitItem> = items
                         .iter()
                         .filter(|item| match item {
-                            EmitItem::Capture(name, _) | EmitItem::Silent(name) => has(name),
+                            EmitItem::Capture(name, _) => has(name),
                             EmitItem::Insert(_) => true,
                         })
                         .collect();
@@ -635,12 +619,12 @@ pub(crate) fn lower(
                         term.as_ref().and_then(|term| scope.term(&simplify_value(term, &has)).ok())
                     };
                     let whole = |item: &&EmitItem| match item {
-                        EmitItem::Capture(name, _) | EmitItem::Silent(name) => name.is_empty(),
+                        EmitItem::Capture(name, _) => name.is_empty(),
                         EmitItem::Insert(_) => false,
                     };
-                    if matches!(&items[..], [EmitItem::Silent(name)] if name.is_empty()) {
-                        LEmit::Silent
-                    } else if !items.is_empty() && items.iter().all(whole) {
+                    if items.is_empty() {
+                        LEmit::Nothing
+                    } else if items.iter().all(whole) {
                         LEmit::This(
                             items
                                 .iter()
@@ -658,14 +642,11 @@ pub(crate) fn lower(
                                 EmitItem::Capture(name, tags) => {
                                     LEmitItem::Cap(slot(name).expect("a capture the production has"), item_tags(tags))
                                 }
-                                EmitItem::Silent(name) => {
-                                    LEmitItem::Silent(slot(name).expect("a capture the production has"))
-                                }
                                 EmitItem::Insert(tag) => {
                                     // The anchor is the capture listed next
-                                    // after the tag, silent or not (§11).
+                                    // after the tag (§11).
                                     let anchor = items[index + 1..].iter().find_map(|item| match item {
-                                        EmitItem::Capture(name, _) | EmitItem::Silent(name) => slot(name),
+                                        EmitItem::Capture(name, _) => slot(name),
                                         EmitItem::Insert(_) => None,
                                     });
                                     LEmitItem::Insert(tag.clone(), anchor)

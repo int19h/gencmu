@@ -6,7 +6,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 3
+const domFormat = 4
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
@@ -101,15 +101,14 @@ type domCond struct {
 	Items       []*domCond
 }
 
+// domEmit is an emission; no items is %emits ε.
 type domEmit struct {
 	Items []*domEmitItem
 }
 
-// domEmitItem is a capture, "" for $, with its tags or silent, or an
-// inserted tag.
+// domEmitItem is a capture, "" for $, with its tags, or an inserted tag.
 type domEmitItem struct {
 	Capture  string
-	Silent   bool
 	IsInsert bool
 	Insert   string
 	Tags     *domTerm
@@ -120,10 +119,10 @@ func (e *domEmit) whole() bool {
 	return len(e.Items) > 0 && !e.Items[0].IsInsert && e.Items[0].Capture == ""
 }
 
-// silentAll says the emission is $ <>, which makes the whole constituent
-// silent.
-func (e *domEmit) silentAll() bool {
-	return e.whole() && e.Items[0].Silent
+// nothing says the emission is ε: the constituent emits nothing and does
+// not count (engine §11).
+func (e *domEmit) nothing() bool {
+	return len(e.Items) == 0
 }
 
 type domDirective struct {
@@ -353,9 +352,6 @@ func (e *domEmit) writeJSON(w *jsonWriter) {
 		default:
 			w.raw(`{"capture":`)
 			w.str(it.Capture)
-		}
-		if it.Silent {
-			w.raw(`,"silent":true`)
 		}
 		if it.Tags != nil {
 			w.raw(`,"tags":`)
@@ -677,7 +673,7 @@ func decodeEmit(raw json.RawMessage) (*domEmit, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(o) != 1 || o["items"] == nil {
+	if len(o) != 1 || o["items"] == nil || string(o["items"]) == "null" {
 		return nil, fmt.Errorf("a malformed emission")
 	}
 	items, err := decodeList(o["items"], func(r json.RawMessage) (*domEmitItem, error) {
@@ -686,20 +682,19 @@ func decodeEmit(raw json.RawMessage) (*domEmit, error) {
 			return nil, err
 		}
 		it := &domEmitItem{}
-		// An item is a capture or an inserted tag; only a capture may be
-		// silent, and a silent one has no tags.
+		// An item is a capture or an inserted tag, and has no other member
+		// than its tags.
+		for k := range io {
+			if k != "capture" && k != "insert" && k != "tags" {
+				return nil, fmt.Errorf("a malformed emission item")
+			}
+		}
 		switch {
-		case io["insert"] != nil && io["capture"] == nil && io["silent"] == nil:
+		case io["insert"] != nil && io["capture"] == nil:
 			it.IsInsert = true
 			it.Insert, err = decodeString(io["insert"])
 		case io["capture"] != nil && io["insert"] == nil:
 			it.Capture, err = decodeString(io["capture"])
-			if io["silent"] != nil {
-				if !isTrue(io["silent"]) || io["tags"] != nil {
-					return nil, fmt.Errorf("a malformed emission item")
-				}
-				it.Silent = true
-			}
 		default:
 			err = fmt.Errorf("unknown emission item %s", string(r))
 		}

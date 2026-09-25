@@ -54,7 +54,7 @@ WORDS = """# Words
 %rule pause
   /./
 %emits
-  $ <>
+  ε
 
 %rule word
   /s/ /a/ | /m/ /i/
@@ -128,7 +128,7 @@ class Loaders(unittest.TestCase):
         """A map may supply the notation's bootstrap; the bundled one is used
         only when it does not."""
         broken = dict(SOURCES)
-        broken["notation/bootstrap.json"] = json.dumps({"format": 3, "stages": []})
+        broken["notation/bootstrap.json"] = json.dumps({"format": 4, "stages": []})
         with self.assertRaises(gencmu.GencmuError):
             gencmu.load_dialect_sources(broken, "dialect.md", use_cache=False)
 
@@ -269,6 +269,21 @@ class Output(unittest.TestCase):
         result = dialect.parse_tokens(tokens, "0 1 2 3 4")
         self.assertEqual(gencmu.to_brackets(result), "(0 [1 {2 (3 4)}])")
 
+    def test_brackets_pause(self) -> None:
+        """A label writes each pause in a token's phonemes as a space, and a
+        token with no phonemes is labelled with its text as it is (docs/output.md)."""
+        sources = {
+            "p.md": "## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n",
+            "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A A\n```\n",
+        }
+        dialect = gencmu.load_dialect_sources(sources, "p.md")
+        tokens = [
+            gencmu.Token("klama bu", {"A": True}, (0, 1), (0, 8), "klama.bu"),
+            gencmu.Token("x.y", {"A": True}, (1, 2), (9, 12), ""),
+        ]
+        result = dialect.parse_tokens(tokens, "klama bu x.y")
+        self.assertEqual(gencmu.to_brackets(result), "(klama bu x.y)")
+
 
 class Deep(unittest.TestCase):
     def test_long_left_recursion(self) -> None:
@@ -309,9 +324,9 @@ class Robustness(unittest.TestCase):
 
         sources = self.grammar('%rule text "a"')
         compiled = {
-            "format": 3,
+            "format": 4,
             "bootstrap": fnv1a64(bundled_text("notation/bootstrap.json") or ""),
-            "documents": {"g.md": {"hash": fnv1a64(sources["g.md"]), "dom": {"format": 3, "rules": [{}], "directives": []}}},
+            "documents": {"g.md": {"hash": fnv1a64(sources["g.md"]), "dom": {"format": 4, "rules": [{}], "directives": []}}},
         }
         sources["compiled.json"] = json.dumps(compiled)
         dialect = gencmu.load_dialect_sources(sources, "p.md")

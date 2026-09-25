@@ -238,6 +238,33 @@ func TestBracketsDepth(t *testing.T) {
 	}
 }
 
+// Brackets write each pause in a token's phonemes as a space; the token
+// keeps its . (docs/output.md, "Brackets").
+func TestBracketsPause(t *testing.T) {
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text A A"))
+	toks := []Token{{Text: "x", Tags: map[string]bool{"A": true}, Phonemes: "a.b", Span: [2]int{0, 1}, Source: [2]int{0, 1}}, {Text: "y", Tags: map[string]bool{"A": true}, Phonemes: "c", Span: [2]int{1, 2}, Source: [2]int{1, 2}}}
+	res, err := d.ParseTokens("xy", toks, ParseOptions{})
+	if err != nil || !res.OK {
+		t.Fatalf("%v %+v", err, res)
+	}
+	if b := Brackets(res, BracketOptions{}); b != "(a b c)" {
+		t.Fatalf("brackets %q", b)
+	}
+	if p := res.Stages[0].Input[0].Phonemes; p != "a.b" {
+		t.Fatalf("the token's phonemes are %q", p)
+	}
+}
+
+// words() is the set of the words between pauses (engine §5), each word
+// whole: a word may hold a space, so {"a b", "c"} is not {"a", "b c"}.
+func TestWordsKeepSpaces(t *testing.T) {
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text $x(A) $y(A)\n%conditions words($x) ≠ words($y), \"a b\" ∈ words($x), \"a\" ∉ words($x)"))
+	toks := []Token{{Text: "x", Tags: map[string]bool{"A": true}, Phonemes: "a b.c", Span: [2]int{0, 1}, Source: [2]int{0, 1}}, {Text: "y", Tags: map[string]bool{"A": true}, Phonemes: "a.b c", Span: [2]int{1, 2}, Source: [2]int{1, 2}}}
+	if res, err := d.ParseTokens("xy", toks, ParseOptions{}); err != nil || !res.OK {
+		t.Fatalf("%v %+v", err, res)
+	}
+}
+
 // TestConcurrentParses shares one dialect among goroutines; run it with
 // -race.
 func TestConcurrentParses(t *testing.T) {
@@ -326,13 +353,13 @@ func TestMalformedPrecompiled(t *testing.T) {
 		bad = append(bad, `{"seq":[{"terminal":"a"},{"terminal":"b"}]},"tags":`+tags)
 	}
 	for _, expr := range bad {
-		dom := `{"format":3,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[1,1]}]}`
+		dom := `{"format":4,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[1,1]}]}`
 		// In compiled.json, with every hash matching: a miss.
 		src := map[string]string{}
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["compiled.json"] = `{"format":3,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(gText) + `","dom":` + dom + `}}}`
+		src["compiled.json"] = `{"format":4,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(gText) + `","dom":` + dom + `}}}`
 		d, err := LoadDialectSources(src, "p.md")
 		if err != nil {
 			t.Fatalf("%s in compiled.json: %v", expr, err)
@@ -346,7 +373,7 @@ func TestMalformedPrecompiled(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["notation/bootstrap.json"] = `{"format":3,"stages":[{"name":"lexical","documents":[{"path":"notation/lexical.md","dom":` + dom + `}]}]}`
+		src["notation/bootstrap.json"] = `{"format":4,"stages":[{"name":"lexical","documents":[{"path":"notation/lexical.md","dom":` + dom + `}]}]}`
 		_, err = LoadDialectSources(src, "p.md")
 		var e *Error
 		if !errors.As(err, &e) || e.Kind != ErrorGrammar {
@@ -391,7 +418,7 @@ func TestEmptyStringTerminal(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			sources["compiled.json"] = `{"format":3,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(sources["g.md"]) + `","dom":` + string(dom.json()) + `}}}`
+			sources["compiled.json"] = `{"format":4,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(sources["g.md"]) + `","dom":` + string(dom.json()) + `}}}`
 			if _, err := decodeDOM(dom.json()); err != nil {
 				t.Fatalf("the reader's DOM is refused: %v", err)
 			}

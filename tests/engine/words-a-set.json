@@ -1,0 +1,32 @@
+{
+  "description": "words() is a tag set, the words of a span's phonemes, so = between two of them compares the words they hold, not their order or number (engine §5, §10).",
+  "grammar": "%rule text $x(A) $y(B) $w(C)\n%conditions words($x) = words($y), words($x) ≠ words($w)",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a.b.a"
+    },
+    {
+      "text": "y",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "b.a"
+    },
+    {
+      "text": "w",
+      "tags": [
+        "C"
+      ],
+      "phonemes": "a.c"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

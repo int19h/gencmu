@@ -210,8 +210,9 @@ fn span_of(tree: &ITree, index: u32) -> (u32, u32) {
 }
 
 /// The phonemes of a token emitted from a node (§5): its strong phoneme
-/// tag, or the phonemes of the tokens below it, skipping every silent
-/// constituent, with the spaces at either end removed.
+/// tag, or the phonemes of the tokens below it, skipping every constituent
+/// that emits ε, the node's own included, with each run of pauses made one
+/// and a pause at either end removed.
 fn phonemes(
     recognizer: &Recognizer,
     tree: &ITree,
@@ -242,16 +243,24 @@ fn phonemes(
                 }
             }
             IKind::Close { prod, .. } => {
-                let production = &recognizer.g.prods[prod as usize];
-                for (position, &child) in node.children.iter().enumerate().rev() {
-                    if !production.emit.silences(production, position) {
-                        stack.push(child);
-                    }
+                // A constituent that emits ε does not count (§11).
+                if !matches!(recognizer.g.prods[prod as usize].emit, LEmit::Nothing) {
+                    stack.extend(node.children.iter().rev());
                 }
             }
         }
     }
-    Ok(Some(out.trim_matches(' ').to_string()))
+    // Each run of pauses is one, and none is left at either end.
+    let mut collapsed = String::with_capacity(out.len());
+    for c in out.chars() {
+        if c != '.' || !(collapsed.is_empty() || collapsed.ends_with('.')) {
+            collapsed.push(c);
+        }
+    }
+    if collapsed.ends_with('.') {
+        collapsed.pop();
+    }
+    Ok(Some(collapsed))
 }
 
 /// The tags an emission item's term gives a token (§11): a term that gives
@@ -261,7 +270,7 @@ fn item_tags(recognizer: &mut Recognizer, term: &LTerm, frame: &Frame, tokens: &
     if recognizer.shared.tags.list(set).is_empty() {
         let owner = recognizer.g.prods[frame.prod as usize].owner;
         return Err(EngineError {
-            message: "an emission gives a token no tags, which no terminal can read; <> makes an item silent"
+            message: "an emission gives a token no tags, which no terminal can read; %emits ε emits nothing"
                 .to_string(),
             rule: Some(owner),
         });
@@ -293,7 +302,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                 let frame = Frame { caps: &caps, prod: *prod, origin: *start, end: *end, tags: Some(tags) };
                 let production = &g.prods[*prod as usize];
                 match &production.emit {
-                    LEmit::Silent => {}
+                    LEmit::Nothing => {}
                     LEmit::None => {
                         for &child in node.children.iter().rev() {
                             stack.push(Work::Visit(child));
@@ -325,7 +334,6 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                                     };
                                     sequence.push(Work::Cover(child(*slot), set));
                                 }
-                                LEmitItem::Silent(_) => {}
                                 LEmitItem::Insert(tag, anchor) => {
                                     // At the start of the part of the capture
                                     // listed next, or at the constituent's end.

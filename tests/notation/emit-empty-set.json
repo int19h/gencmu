@@ -1,5 +1,5 @@
 {
-  "description": "An emitted item's tags cannot be ∅, which no terminal reads; <> makes a part silent (engine §9).",
+  "description": "An emitted item's tags cannot be ∅, which no terminal reads; a rule that emits nothing says %emits ε (engine §9).",
   "document": "```jbogenbau\n%rule a $x(A) %emits $x <∅>\n```\n",
   "expect": {
     "error": {

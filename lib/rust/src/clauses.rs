@@ -239,7 +239,6 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
                     term_presences(term, &mut mentioned);
                 }
             }
-            EmitItem::Silent(name) => mentioned.push(name),
             EmitItem::Insert(_) => {}
         }
     }
@@ -280,17 +279,19 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
         let present: Vec<&EmitItem> = items
             .iter()
             .filter(|item| match item {
-                EmitItem::Capture(name, _) | EmitItem::Silent(name) => has(name),
+                EmitItem::Capture(name, _) => has(name),
                 EmitItem::Insert(_) => true,
             })
             .collect();
-        if present.is_empty() {
+        // Nothing left to emit is an error only where the rule lists items:
+        // `%emits ε` lists none (§9).
+        if present.is_empty() && !items.is_empty() {
             return Some(format!("%emits of {} leaves an alternative nothing to emit", rule.name));
         }
         let positions: Vec<usize> = present
             .iter()
             .filter_map(|item| match item {
-                EmitItem::Capture(name, _) | EmitItem::Silent(name) if !name.is_empty() => {
+                EmitItem::Capture(name, _) if !name.is_empty() => {
                     alternatives[index].iter().find(|(captured, _)| captured == name).map(|(_, position)| *position)
                 }
                 _ => None,
@@ -317,7 +318,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
             continue;
         }
         let anchor = items[index + 1..].iter().find_map(|item| match item {
-            EmitItem::Capture(name, _) | EmitItem::Silent(name) => Some(name.as_str()),
+            EmitItem::Capture(name, _) => Some(name.as_str()),
             EmitItem::Insert(_) => None,
         });
         if let Some(anchor) = anchor {

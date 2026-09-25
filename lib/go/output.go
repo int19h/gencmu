@@ -270,8 +270,9 @@ func Brackets(result *ParseResult, options BracketOptions) string {
 		switch f.n.Kind {
 		case KindToken:
 			t := input[f.n.Token]
+			// Each pause, ., is written as a space.
 			if t.Phonemes != "" {
-				return &rendered{leaf: t.Phonemes}
+				return &rendered{leaf: strings.ReplaceAll(t.Phonemes, ".", " ")}
 			}
 			return &rendered{leaf: t.Text}
 		case KindElided:

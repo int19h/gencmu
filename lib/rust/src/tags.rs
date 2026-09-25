@@ -120,11 +120,9 @@ pub(crate) fn intersection(left: &TagList, right: &TagList) -> TagList {
 }
 
 /// Whether a tag is a phoneme tag `/p/`, exactly three code points, and if
-/// so its phoneme `p`, or a space for the pause, `/./` (engine §5).
+/// so its phoneme `p`; the pause, `/./`, is `.` (engine §5).
 pub(crate) fn phoneme_of(tag: &str) -> Option<&str> {
-    if tag == "/./" {
-        Some(" ")
-    } else if tag.chars().count() == 3 && tag.starts_with('/') && tag.ends_with('/') {
+    if tag.chars().count() == 3 && tag.starts_with('/') && tag.ends_with('/') {
         Some(&tag[1..tag.len() - 1])
     } else {
         None

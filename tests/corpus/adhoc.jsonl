@@ -75,8 +75,8 @@
 {"id":"adhoc.v0.morphology.basic.adjacent-zo-quotes-following","text":"zomimi klama","dialect":"cll","expect":"accept","verdict":"unique","words":["zo","mi","mi","klama"],"brackets":"([{zo mi} mi] klama)"}
 {"id":"adhoc.v0.morphology.basic.bahe-preserved","text":"ba'e mi","dialect":"cll","expect":"accept","verdict":"unique","words":["ba'e","mi"],"brackets":"mi"}
 {"id":"adhoc.v0.morphology.basic.breve-input-a","text":"ŭa","dialect":"cll","expect":"accept","verdict":"unique","words":["ua"],"brackets":"ua"}
-{"id":"adhoc.v0.morphology.basic.bu-after-brivla","text":"klama bu","dialect":"cll","expect":"accept","verdict":"unique","words":["klama bu"],"brackets":"klama bu"}
-{"id":"adhoc.v0.morphology.basic.bu-creates-lerfu","text":"mi bu","dialect":"cll","expect":"accept","verdict":"unique","words":["mi bu"],"brackets":"mi bu"}
+{"id":"adhoc.v0.morphology.basic.bu-after-brivla","text":"klama bu","dialect":"cll","expect":"accept","verdict":"unique","words":["klama.bu"],"brackets":"klama bu"}
+{"id":"adhoc.v0.morphology.basic.bu-creates-lerfu","text":"mi bu","dialect":"cll","expect":"accept","verdict":"unique","words":["mi.bu"],"brackets":"mi bu"}
 {"id":"adhoc.v0.morphology.basic.cmavo-before-brivla","text":"dotavla","dialect":"cll","expect":"accept","verdict":"unique","words":["do","tavla"],"brackets":"(do tavla)"}
 {"id":"adhoc.v0.morphology.basic.cmavo-brivla","text":"mi klama","dialect":"cll","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
 {"id":"adhoc.v0.morphology.basic.cmevla-keeps-grave-stressed-y","text":".finỳks.","dialect":"cll","expect":"accept","verdict":"unique","words":["finYks"],"brackets":"finYks"}
@@ -122,8 +122,8 @@
 {"id":"adhoc.v0.morphology.basic.ui-after-brivla","text":"klama .ui","dialect":"cll","expect":"accept","verdict":"unique","words":["klama","ui"],"brackets":"klama"}
 {"id":"adhoc.v0.morphology.basic.ui-preserved","text":"mi .ui","dialect":"cll","expect":"accept","verdict":"unique","words":["mi","ui"],"brackets":"mi"}
 {"id":"adhoc.v0.morphology.basic.zahe-preserved","text":"za'e mi","dialect":"cll","expect":"accept","verdict":"unique","words":["za'e","mi"],"brackets":"mi"}
-{"id":"adhoc.v0.morphology.basic.zei-creates-brivla","text":"mi zei do","dialect":"cll","expect":"accept","verdict":"unique","words":["mi zei do"],"brackets":"mi zei do"}
-{"id":"adhoc.v0.morphology.basic.zei-with-bu-suffix","text":"mi zei bu","dialect":"cll","expect":"accept","verdict":"unique","words":["mi zei bu"],"brackets":"mi zei bu"}
+{"id":"adhoc.v0.morphology.basic.zei-creates-brivla","text":"mi zei do","dialect":"cll","expect":"accept","verdict":"unique","words":["mi.zei.do"],"brackets":"mi zei do"}
+{"id":"adhoc.v0.morphology.basic.zei-with-bu-suffix","text":"mi zei bu","dialect":"cll","expect":"accept","verdict":"unique","words":["mi.zei.bu"],"brackets":"mi zei bu"}
 {"id":"adhoc.v0.morphology.basic.zo-quotes-brivla","text":"zo klama","dialect":"cll","expect":"accept","verdict":"unique","words":["zo","klama"],"brackets":"(zo klama)"}
 {"id":"adhoc.v0.morphology.basic.zo-quotes-cmevla","text":"zo djan","dialect":"cll","expect":"accept","verdict":"unique","words":["zo","djan"],"brackets":"(zo djan)"}
 {"id":"adhoc.v0.morphology.basic.zo-quotes-following","text":"zo si","dialect":"cll","expect":"accept","verdict":"unique","words":["zo","si"],"brackets":"(zo si)"}

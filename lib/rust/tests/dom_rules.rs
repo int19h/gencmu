@@ -23,16 +23,16 @@ fn dom(text_alternative: &str, text_extra: &str, rule: &str, format: u32, direct
 const B: &str = r#"{"guards":[],"expr":{"terminal":"b"}}"#;
 
 fn with_rule(rule: &str) -> String {
-    dom(B, "", rule, 3, r#""greedy""#)
+    dom(B, "", rule, 4, r#""greedy""#)
 }
 
 fn with_alternative(alternative: &str) -> String {
-    dom(alternative, "", "", 3, r#""greedy""#)
+    dom(alternative, "", "", 4, r#""greedy""#)
 }
 
 fn with_emission(emission: &str) -> String {
     let alternative = r#"{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"terminal":"b"}},{"capture":"y","expr":{"terminal":"c"}}]}}"#;
-    dom(alternative, &format!(r#","emit":{emission}"#), "", 3, r#""greedy""#)
+    dom(alternative, &format!(r#","emit":{emission}"#), "", 4, r#""greedy""#)
 }
 
 fn with_condition(condition: &str) -> String {
@@ -49,7 +49,7 @@ fn with_tags(term: &str) -> String {
 /// Parses "a" with a dialect whose `compiled.json` holds `dom` for the
 /// document: true when the document itself was read.
 fn document_was_read(dom: &str) -> bool {
-    document_was_read_from(3, dom)
+    document_was_read_from(4, dom)
 }
 
 /// The same, with a `compiled.json` of the given format.
@@ -81,10 +81,8 @@ fn a_well_formed_dom_is_used() {
     assert!(!document_was_read(&bare_capture));
     let whole_twice = with_emission(r#"{"items":[{"capture":""},{"capture":"","tags":{"literal":"T"}}]}"#);
     assert!(!document_was_read(&whole_twice));
-    assert!(!document_was_read(&with_emission(r#"{"items":[{"capture":"","silent":true}]}"#)));
-    assert!(!document_was_read(&with_emission(
-        r#"{"items":[{"insert":"X"},{"capture":"x","silent":true},{"capture":"y"}]}"#
-    )));
+    // `%emits ε` is no items (§9).
+    assert!(!document_was_read(&with_emission(r#"{"items":[]}"#)));
     // `#` is a rule's name, and `$` may be read by a condition, and by a
     // tag term through another rule.
     let hash = with_rule(
@@ -124,7 +122,8 @@ fn a_well_formed_dom_is_used() {
 
 #[test]
 fn a_cache_of_another_format_is_a_miss() {
-    assert!(!document_was_read_from(3, &with_rule("")));
+    assert!(!document_was_read_from(4, &with_rule("")));
+    assert!(document_was_read_from(3, &with_rule("")), "a format-3 cache is never used");
     assert!(document_was_read_from(2, &with_rule("")), "a format-2 cache is never used");
     assert!(document_was_read_from(1, &with_rule("")), "a format-1 cache is never used");
 }
@@ -133,9 +132,8 @@ fn a_cache_of_another_format_is_a_miss() {
 fn every_malformed_dom_is_a_cache_miss() {
     let nested = format!("{}{{\"terminal\":\"b\"}}{}", "{\"optional\":".repeat(257), "}".repeat(257));
     let cases: Vec<(&str, String)> = vec![
-        ("format 1", dom(B, "", "", 1, r#""greedy""#)),
-        ("format 2", dom(B, "", "", 2, r#""greedy""#)),
-        ("a directive argument that is not a string", dom(B, "", "", 3, "7")),
+        ("format 3", dom(B, "", "", 3, r#""greedy""#)),
+        ("a directive argument that is not a string", dom(B, "", "", 4, "7")),
         (
             "a rule name that is not a name",
             with_rule(
@@ -189,28 +187,15 @@ fn every_malformed_dom_is_a_cache_miss() {
                 r###"{"name":"##","op":"define","alternatives":[{"guards":[],"expr":{"terminal":"b"}}],"conditions":[],"at":[4,1]}"###,
             ),
         ),
-        ("nothing", with_emission(r#"{"nothing":true}"#)),
-        ("this", with_emission(r#"{"items":[{"this":true}]}"#)),
-        ("no emission items", with_emission(r#"{"items":[]}"#)),
         ("$ with an inserted tag", with_emission(r#"{"items":[{"capture":""},{"insert":"X"}]}"#)),
         ("$ with a capture", with_emission(r#"{"items":[{"capture":""},{"capture":"x"}]}"#)),
-        ("$ <> with $", with_emission(r#"{"items":[{"capture":"","silent":true},{"capture":""}]}"#)),
-        ("$ <> twice", with_emission(r#"{"items":[{"capture":"","silent":true},{"capture":"","silent":true}]}"#)),
         ("a capture listed twice", with_emission(r#"{"items":[{"capture":"x"},{"capture":"x"}]}"#)),
-        (
-            "a capture listed twice, once erased",
-            with_emission(r#"{"items":[{"capture":"x","silent":true},{"capture":"x"}]}"#),
-        ),
         (
             "tags on an inserted tag",
             with_emission(r#"{"items":[{"capture":"x"},{"insert":"X","tags":{"literal":"T"}}]}"#),
         ),
-        ("<> on an inserted tag", with_emission(r#"{"items":[{"capture":"x"},{"insert":"X","silent":true}]}"#)),
-        ("a silent that is false", with_emission(r#"{"items":[{"capture":"x","silent":false}]}"#)),
-        (
-            "a silent item with tags",
-            with_emission(r#"{"items":[{"capture":"x","silent":true,"tags":{"literal":"T"}}]}"#),
-        ),
+        ("a capture and an insert in one item", with_emission(r#"{"items":[{"capture":"x","insert":"X"}]}"#)),
+        ("an unknown member of an item", with_emission(r#"{"items":[{"capture":"x","at":[1,1]}]}"#)),
         ("<∅>", with_emission(r#"{"items":[{"capture":"x","tags":{"emptySet":true}}]}"#)),
         ("an unknown emission item", with_emission(r#"{"items":[{"emit":"x"}]}"#)),
         (
@@ -290,7 +275,7 @@ fn every_malformed_dom_is_a_cache_miss() {
         ("captures listed out of order", with_emission(r#"{"items":[{"capture":"y"},{"capture":"x"}]}"#)),
         (
             "an emission naming a capture no alternative has",
-            with_emission(r#"{"items":[{"capture":"x"},{"capture":"z","silent":true}]}"#),
+            with_emission(r#"{"items":[{"capture":"x"},{"capture":"z","tags":{"literal":"T"}}]}"#),
         ),
         (
             "an item's tags using a capture no alternative has",
@@ -310,7 +295,7 @@ fn every_malformed_dom_is_a_cache_miss() {
 #[test]
 fn a_malformed_bootstrap_is_an_error() {
     let bootstrap = format!(
-        r#"{{"format":3,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
+        r#"{{"format":4,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
         with_emission(r#"{"items":[{"capture":""},{"insert":"X"}]}"#)
     );
     let sources = [

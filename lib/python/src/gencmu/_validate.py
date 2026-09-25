@@ -14,7 +14,7 @@ from typing import Any
 
 from ._clauses import definition_problem
 
-FORMAT = 3
+FORMAT = 4
 """The version of the DOM's shape (docs/output.md)."""
 
 MAX_DEPTH = 256
@@ -235,32 +235,30 @@ def _walk(pending: list[tuple[str, Any, int, bool]]) -> str | None:
             ):
                 return "a malformed expression"
         elif kind == "emission":
-            # Captures, $ only with $ and $ <> alone, a capture other than $
-            # listed once, no tags and no <> on an inserted tag, no ∅ as an
-            # item's tags (engine §9).
+            # No items for ε; otherwise items of the keys capture, insert and
+            # tags alone, $ only with $, a capture other than $ listed once,
+            # no tags on an inserted tag, no ∅ as an item's tags (engine §9).
             items = value.get("items")
-            if not _items(items, 1):
+            if not _items(items, 0):
                 return "a malformed emission"
             kinds: list[str | None] = []
             for item in items:
                 if not isinstance(item, dict):
                     kinds.append(None)
                 elif isinstance(item.get("insert"), str):
-                    kinds.append(None if "tags" in item or "silent" in item or "capture" in item else "insert")
+                    kinds.append("insert" if item.keys() == {"insert"} else None)
                 elif isinstance(item.get("capture"), str):
-                    if "silent" in item and (item["silent"] is not True or "tags" in item):
+                    if not item.keys() <= {"capture", "tags"}:
                         kinds.append(None)
                     elif item["capture"] == _WHOLE:
-                        kinds.append("silent-whole" if "silent" in item else "whole")
+                        kinds.append("whole")
                     else:
                         kinds.append("capture")
                 else:
                     kinds.append(None)
             if None in kinds:
                 return "a malformed emission"
-            if ("whole" in kinds or "silent-whole" in kinds) and any(k not in ("whole", "silent-whole") for k in kinds):
-                return "a malformed emission"
-            if "silent-whole" in kinds and len(kinds) != 1:
+            if "whole" in kinds and any(k != "whole" for k in kinds):
                 return "a malformed emission"
             captures = [item["capture"] for item, k in zip(items, kinds) if k == "capture"]
             if len(set(captures)) != len(captures):

@@ -1,6 +1,6 @@
 {
-  "description": "An %emits item names its capture whatever else it says, so a silent or tagged item naming a capture no alternative has is an error at the rule (engine §9).",
-  "document": "```jbogenbau\n%rule a $x(A) %emits $x, $z <>\n```\n",
+  "description": "An %emits item names its capture whatever else it says, so a tagged item naming a capture no alternative has is an error at the rule (engine §9).",
+  "document": "```jbogenbau\n%rule a $x(A) %emits $x, $z <\"T\">\n```\n",
   "expect": {
     "error": {
       "line": 2,

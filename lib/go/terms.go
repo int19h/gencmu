@@ -12,17 +12,16 @@ type spanVal struct {
 	tags  *tagset // for a whole capture: the captured part's tags
 }
 
+// A term is a string or a tag set (§10).
 const (
 	vString = iota
 	vSet
-	vList
 )
 
 type value struct {
 	kind int
 	s    string
 	set  *tagset
-	list []string
 }
 
 type evaluator struct {
@@ -75,12 +74,6 @@ func (ev *evaluator) toSet(v value) *tagset {
 	switch v.kind {
 	case vString:
 		return ev.in().single(v.s, true)
-	case vList:
-		m := map[string]bool{}
-		for _, s := range v.list {
-			m[s] = true
-		}
-		return ev.in().fromMap(m)
 	}
 	return v.set
 }
@@ -131,14 +124,15 @@ func (ev *evaluator) term(t *domTerm) value {
 		case "text":
 			return value{kind: vString, s: ev.run.spanText(ev.span(t.Items[0]))}
 		case "words":
-			// Words are split at spaces, U+0020, only (engine §5).
-			var words []string
-			for _, word := range strings.Split(ev.run.phonemes(ev.span(t.Items[0])), " ") {
+			// The set of the words between pauses, ., each a strong tag,
+			// the empty string never among them (engine §5).
+			words := map[string]bool{}
+			for _, word := range strings.Split(ev.run.phonemes(ev.span(t.Items[0])), ".") {
 				if word != "" {
-					words = append(words, word)
+					words[word] = true
 				}
 			}
-			return value{kind: vList, list: words}
+			return value{kind: vSet, set: ev.in().fromMap(words)}
 		case "lowercase":
 			v := ev.term(t.Items[0])
 			if v.kind != vString {
@@ -185,8 +179,6 @@ func (ev *evaluator) cond(c *domCond) bool {
 			switch {
 			case l.kind == vString && r.kind == vString:
 				eq = l.s == r.s
-			case l.kind == vList && r.kind == vList:
-				eq = strings.Join(l.list, " ") == strings.Join(r.list, " ") && len(l.list) == len(r.list)
 			default:
 				eq = sameNames(ev.toSet(l), ev.toSet(r))
 			}
@@ -195,13 +187,6 @@ func (ev *evaluator) cond(c *domCond) bool {
 			var member bool
 			if l.kind == vString {
 				switch r.kind {
-				case vList:
-					for _, s := range r.list {
-						if s == l.s {
-							member = true
-							break
-						}
-					}
 				case vSet:
 					_, member = r.set.has(l.s)
 				default:

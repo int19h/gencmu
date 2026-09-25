@@ -5,7 +5,7 @@
 use crate::json::{write_str, Json};
 
 /// The DOM format version (`docs/output.md`).
-pub(crate) const DOM_FORMAT: i64 = 3;
+pub(crate) const DOM_FORMAT: i64 = 4;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Dom {
@@ -93,12 +93,10 @@ pub(crate) enum Cond {
 }
 
 /// An item of an emission clause. A capture named `""` is `$`, the whole
-/// constituent.
+/// constituent. An emission of no items is `%emits ε` (§11).
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum EmitItem {
     Capture(String, Option<Term>),
-    /// A capture named with `<>`: not emitted, and not heard (§11).
-    Silent(String),
     Insert(String),
 }
 
@@ -274,11 +272,7 @@ fn emit_from_json(value: &Json) -> R<Vec<EmitItem>> {
         .map(|item| {
             let tags = item.get("tags").map(term_from_json).transpose()?;
             if let Some(Json::Str(name)) = item.get("capture") {
-                if is_true(item.get("silent")) {
-                    Ok(EmitItem::Silent(name.clone()))
-                } else {
-                    Ok(EmitItem::Capture(name.clone(), tags))
-                }
+                Ok(EmitItem::Capture(name.clone(), tags))
             } else if let Some(Json::Str(tag)) = item.get("insert") {
                 Ok(EmitItem::Insert(tag.clone()))
             } else {
@@ -371,7 +365,7 @@ pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
         || dom.get("rules").and_then(Json::as_array).is_none()
         || dom.get("directives").and_then(Json::as_array).is_none()
     {
-        return Some("not a DOM of format 3");
+        return Some("not a DOM of format 4");
     }
     for directive in dom.get("directives").and_then(Json::as_array).unwrap_or(&[]) {
         let args = directive.get("args").and_then(Json::as_array);
@@ -520,35 +514,35 @@ pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
                 }
             }
             Kind::Emission => {
-                // `$` only with `$`, `$ <>` alone, a capture other than `$`
-                // listed once, tags or `<>` only on a capture, and never
-                // `<∅>` (§9).
-                if !list(value.get("items"), 1, usize::MAX) {
+                // `$` only with `$`, a capture other than `$` listed once,
+                // tags only on a capture, never `<∅>`, and no member but
+                // those; no items is `ε` (§9).
+                if !list(value.get("items"), 0, usize::MAX) {
                     return Some("a malformed emission");
                 }
                 let items = value.get("items").and_then(Json::as_array).unwrap_or(&[]);
                 let mut whole = 0;
-                let mut silent_whole = false;
                 let mut captures: Vec<&str> = Vec::new();
                 for item in items {
-                    if !is_object(item) {
-                        return Some("a malformed emission");
-                    }
-                    let silent = item.get("silent");
-                    if silent.is_some() && (!is_true(silent) || has(item, "tags")) {
+                    let known = item.as_object().is_some_and(|members| {
+                        members.iter().all(|(key, _)| matches!(key.as_str(), "capture" | "insert" | "tags"))
+                    });
+                    if !known {
                         return Some("a malformed emission");
                     }
                     if let Some(name) = item.get("capture").and_then(Json::as_str) {
+                        if has(item, "insert") {
+                            return Some("a malformed emission");
+                        }
                         if name.is_empty() {
                             whole += 1;
-                            silent_whole |= silent.is_some();
                         } else if captures.contains(&name) {
                             return Some("a malformed emission");
                         } else {
                             captures.push(name);
                         }
                     } else if is_str(item.get("insert")) {
-                        if has(item, "tags") || silent.is_some() {
+                        if has(item, "tags") {
                             return Some("a malformed emission");
                         }
                     } else {
@@ -563,7 +557,7 @@ pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
                         pending.push((Kind::Term, tags, 0));
                     }
                 }
-                if (whole > 0 && whole < items.len()) || (silent_whole && items.len() > 1) {
+                if whole > 0 && whole < items.len() {
                     return Some("a malformed emission");
                 }
             }
@@ -753,11 +747,6 @@ fn write_rule(out: &mut String, rule: &RuleDef) {
                         out.push_str(",\"tags\":");
                         write_term(out, tags);
                     }
-                }
-                EmitItem::Silent(name) => {
-                    out.push_str("{\"capture\":");
-                    write_str(out, name);
-                    out.push_str(",\"silent\":true");
                 }
                 EmitItem::Insert(tag) => {
                     out.push_str("{\"insert\":");

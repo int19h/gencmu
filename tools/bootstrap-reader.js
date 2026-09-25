@@ -130,7 +130,7 @@ class Parser {
         fail("expected a rule or a directive", token);
       }
     }
-    return { format: 3, rules, directives };
+    return { format: 4, rules, directives };
   }
 
   rule() {
@@ -233,11 +233,11 @@ class Parser {
   }
 
   emission(at) {
+    if (this.accept("ε")) return { items: [] };
     this.accept(",");
     const items = [this.emitItem()];
     while (this.accept(",")) items.push(this.emitItem());
     if (items.some((item) => item.capture === "") && !items.every((item) => item.capture === "")) fail("$ goes with no item but another $", at);
-    if (items.some((item) => item.capture === "" && item.silent) && items.length !== 1) fail("$ <> stands alone", at);
     return { items };
   }
 
@@ -248,11 +248,7 @@ class Parser {
     else if (token.kind === "string") item = { insert: decodeString(token.text, token) };
     else if (token.kind === "phoneme") item = { insert: token.text };
     else fail("expected a capture or a tag after %emits", token);
-    if (this.is("<") && this.is(">", 1)) {
-      if (item.insert !== undefined) fail("an inserted tag takes no tags of its own", token);
-      this.index += 2;
-      item.silent = true;
-    } else if (this.is("<")) {
+    if (this.is("<")) {
       if (item.insert !== undefined) fail("an inserted tag takes no tags of its own", token);
       item.tags = this.angleTerm();
     }

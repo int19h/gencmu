@@ -30,8 +30,8 @@ The stage is lazy: where two parses differ, it takes the one that closes a const
   | stray-si
   | $y(stray-si) $g(gap) $z(body-tail) <"stream-end" ∩ tags($z)>
 %conditions
-  "first-onset" ∈ tags($z) ∨ phonemes($g) = " ",
-  "first-cy" ∉ tags($z) ∨ phonemes($g) = " "
+  "first-onset" ∈ tags($z) ∨ phonemes($g) = ".",
+  "first-cy" ∉ tags($z) ∨ phonemes($g) = "."
 
 %rule body-tail
   | $a(stream) <("first-onset" ∪ "first-cy") ∩ tags($a) ∪ "stream-end">
@@ -42,12 +42,12 @@ The stage is lazy: where two parses differ, it takes the one that closes a const
   | @sa-su $x(wiped) $h(gap) sa-run <("first-onset" ∪ "first-cy") ∩ tags($x)>
   | @sa-su $w(wiped) $g(gap) $v(stream) $h(gap) sa-run <("first-onset" ∪ "first-cy") ∩ tags($w)>
 %conditions
-  "continued" ∈ tags($w) ∨ phonemes($g) = " ",
-  "first-onset" ∈ tags($v) ∨ phonemes($g) = " ",
-  "first-cy" ∉ tags($v) ∨ phonemes($g) = " ",
-  "continued" ∈ tags($s) ∨ phonemes($h) = " ",
-  "continued" ∈ tags($x) ∨ phonemes($h) = " ",
-  "continued" ∈ tags($v) ∨ phonemes($h) = " "
+  "continued" ∈ tags($w) ∨ phonemes($g) = ".",
+  "first-onset" ∈ tags($v) ∨ phonemes($g) = ".",
+  "first-cy" ∉ tags($v) ∨ phonemes($g) = ".",
+  "continued" ∈ tags($s) ∨ phonemes($h) = ".",
+  "continued" ∈ tags($x) ∨ phonemes($h) = ".",
+  "continued" ∈ tags($v) ∨ phonemes($h) = "."
 
 %rule gap
   ε | PAUSE
@@ -115,7 +115,7 @@ A `si` with nothing before it erases nothing (CLL 19.13 says what `si` erases, n
 %rule stray-si
   si-run | hesitations si-gap si-run | erasure [si-gap] si-run | @sa-su wiped [si-gap] si-run
 %emits
-  $ <>
+  ε
 
 %rule si-run
   si-word | si-run [si-gap] si-word
@@ -127,7 +127,7 @@ Hesitation, `y` however long, is not a word of the text (CLL 19.14) and is dropp
 %rule hesitation
   y-run <"continued">
 %emits
-  $ <>
+  ε
 
 %rule y-run
   y | y y-run
@@ -436,7 +436,7 @@ CLL 19.13: `si` erases the word before it, a compound or a quote counting as one
   "continued" ∈ tags($u),
   "onset" ∈ tags($e)
 %emits
-  $ <>
+  ε
 
 %rule erasures
   | $e(erasure) <tags($e)>
@@ -474,7 +474,7 @@ The reach of a `sa` is stated from its far end: `sa-open` is an element, which h
   "onset" ∩ tags($first) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($next) ∪ classes($next)
 %conditions
   classes($first) ∩ classes($next) ≠ ∅,
-  "continued" ∈ tags($first) ∨ phonemes($g) = " ",
+  "continued" ∈ tags($first) ∨ phonemes($g) = ".",
   "onset" ∈ tags($next) ∨ phonemes($h) ≠ ""
 
 %rule sa-open
@@ -493,27 +493,27 @@ The reach of a `sa` is stated from its far end: `sa-open` is an element, which h
   classes($o) ∩ classes($p) = ∅,
   classes($o) ∩ classes($c) = ∅
 %emits
-  $ <>
+  ε
 
 %rule sa-open-twice
 $a(sa-open) $g(gap) $b(sa-open)
     <classes($a) ∪ "onset" ∩ tags($a) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($b)>
 %conditions
   classes($a) ∩ classes($b) ≠ ∅,
-  "continued" ∈ tags($a) ∨ phonemes($g) = " ",
-  "onset" ∈ tags($b) ∨ phonemes($g) = " "
+  "continued" ∈ tags($a) ∨ phonemes($g) = ".",
+  "onset" ∈ tags($b) ∨ phonemes($g) = "."
 %emits
-  $ <>
+  ε
 
 %rule sa-open-thrice
 $a(sa-open) $g(gap) $t(sa-open-twice)
     <classes($a) ∪ "onset" ∩ tags($a) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($t)>
 %conditions
   classes($a) ∩ classes($t) ≠ ∅,
-  "continued" ∈ tags($a) ∨ phonemes($g) = " ",
-  "onset" ∈ tags($t) ∨ phonemes($g) = " "
+  "continued" ∈ tags($a) ∨ phonemes($g) = ".",
+  "onset" ∈ tags($t) ∨ phonemes($g) = "."
 %emits
-  $ <>
+  ε
 
 %rule sa-next
   word | quote
@@ -526,7 +526,7 @@ $a(sa-open) $g(gap) $t(sa-open-twice)
 %conditions
   phonemes($q) = "sa"
 %emits
-  $ <>
+  ε
 
 %rule sa-twice
   sa-word gap sa-word
@@ -547,10 +547,10 @@ $a(sa-open) $g(gap) $t(sa-open-twice)
 %tags
   "onset" ∩ tags($stop) ∪ classes($stop) ∪ "continued"
 %conditions
-  "continued" ∈ tags($stop) ∨ phonemes($g) = " ",
-  "first-onset" ∈ tags($reach) ∨ phonemes($g) = " ",
-  "first-cy" ∉ tags($reach) ∨ phonemes($g) = " ",
-  "continued" ∈ tags($reach) ∨ phonemes($h) = " "
+  "continued" ∈ tags($stop) ∨ phonemes($g) = ".",
+  "first-onset" ∈ tags($reach) ∨ phonemes($g) = ".",
+  "first-cy" ∉ tags($reach) ∨ phonemes($g) = ".",
+  "continued" ∈ tags($reach) ∨ phonemes($h) = "."
 
 %rule boundary
   $b(element) <tags($b)>
@@ -575,14 +575,14 @@ $a(sa-open) $g(gap) $t(sa-open-twice)
   classes($p) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅,
   classes($c) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅
 %emits
-  $ <>
+  ε
 
 %rule su-word
   $q(plain-cmavo-body)
 %conditions
   phonemes($q) = "su"
 %emits
-  $ <>
+  ε
 ```
 
 A `su` with no boundary before it, or a `sa` whose following word matches nothing before it, erases everything back to the start of the text; the word after such a `sa` stays, and a later unmatched one takes it too; a run of `sa` that matches nothing is one unmatched `sa`. A `sa` at the end of the text, with no word after it, has no selma'o to look for and erases nothing, so `.i sa` is `.i`; the text rule accepts it after the stream. These are the wiped stretches the text rule accepts before its stream.
@@ -594,14 +594,14 @@ A `su` with no boundary before it, or a `sa` whose following word matches nothin
 %tags
   tags($i)
 %conditions
-  "continued" ∈ tags($p) ∨ phonemes($g) = " ",
-  "first-onset" ∈ tags($i) ∨ phonemes($g) = " ",
-  "first-cy" ∉ tags($i) ∨ phonemes($g) = " "
+  "continued" ∈ tags($p) ∨ phonemes($g) = ".",
+  "first-onset" ∈ tags($i) ∨ phonemes($g) = ".",
+  "first-cy" ∉ tags($i) ∨ phonemes($g) = "."
 
 %rule wiped-prefix
   $w(wiped) <tags($w)>
 %emits
-  $ <>
+  ε
 
 %rule wiped-item
   | su-word <"onset" ∪ "continued" ∪ "first-onset">
@@ -615,14 +615,14 @@ A `su` with no boundary before it, or a `sa` whose following word matches nothin
 %conditions
   classes($q) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅,
   classes($r) ∩ classes($n) = ∅,
-  "continued" ∈ tags($q) ∨ phonemes($g) = " ",
-  "continued" ∈ tags($r) ∨ phonemes($g) = " ",
+  "continued" ∈ tags($q) ∨ phonemes($g) = ".",
+  "continued" ∈ tags($r) ∨ phonemes($g) = ".",
   "onset" ∈ tags($n) ∨ phonemes($h) ≠ ""
 
 %rule wiped-reach
   $s(stream) <tags($s)>
 %emits
-  $ <>
+  ε
 ```
 
 ## Choosing among parses
