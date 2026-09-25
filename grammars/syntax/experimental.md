@@ -25,12 +25,12 @@ If the layer declared `elision-only`, each of those texts would be an error. `%e
 
 ## The text and its paragraphs
 
-The layer changes the text in three ways. `ce'e` can be the text-leading connective, so that a text can continue a termset of the text before it. The tense before `bo` in a text-leading `.i` can be a full `tag` and not only a `stag`. And `.i ni'o` can follow a `ni'o`, which is how usage writes a new topic inside a reply. At the start of a text, the CLL grammar's `text-1` already reads `.i ni'o`, as the repair of the printed grammar that it lists says. So `text-1` takes the form after a first run of `ni'o`, and `paragraphs` takes it after a later one.
+The layer changes the text in two ways. The tense before `bo` in a text-leading `.i` can be a full `tag` and not only a `stag`. And `.i ni'o` can follow a `ni'o`, which is how usage writes a new topic inside a reply. At the start of a text, the CLL grammar's `text-1` already reads `.i ni'o`, as the repair of the printed grammar that it lists says. So `text-1` takes the form after a first run of `ni'o`, and `paragraphs` takes it after a later one.
 
 ```jbogenbau
 %redefine-rule text
-  | @¬cbm? [NAI ...] [CMEVLA ... # | (indicators & free ...)] [joik-jek | CEhE #] text-1
-  | @cbm? [NAI ...] [indicators & free ...] [joik-jek | CEhE #] text-1
+  | @¬cbm? [NAI ...] [CMEVLA ... # | (indicators & free ...)] [joik-jek] text-1
+  | @cbm? [NAI ...] [indicators & free ...] [joik-jek] text-1
 
 %redefine-rule text-1
   [(I [jek | joik] [[tag] BO] #) ...] [NIhO ... # [I # NIhO ... #]] [paragraphs]
@@ -41,7 +41,7 @@ The layer changes the text in three ways. `ce'e` can be the text-leading connect
 
 ## Statements and fragments
 
-The connective after `.i` can be an ek or a VUhU as well as a joik or jek. A statement connective can also precede `.i`, as in `mi klama joi .i do klama`. Both are `statement-connective`. The tag before `bo` after `.i` is a full `tag`, so `.i fi'o broda bo mi klama` parses. A sentence can go on at statement level with `connective [stag] bo subsentence` or with `connective [stag] ke subsentence ke'e`. That is where `mi klama .e bo do tavla` and `mi klama .e ke do tavla ke'e` attach, when the bridi-tail level cannot take them. A prenex can have no terms (`zo'u mi klama`).
+The connective after `.i` can be an ek or a VUhU as well as a joik or jek. A statement connective can also precede `.i`, as in `mi klama joi .i do klama`. Both are `statement-connective`. Before `bo` after `.i`, the connective can be an ek as well, and the tag is a `stag`, as in camxes-exp. A sentence can go on at statement level with `connective [stag] bo subsentence` or with `connective [stag] ke subsentence ke'e`. That is where `mi klama .e bo do tavla` and `mi klama .e ke do tavla ke'e` attach, when the bridi-tail level cannot take them. A prenex can have no terms (`zo'u mi klama`).
 
 CLL's `na` fragment is gone. A bare `na` is a term (see "Terms"), so `na` and `na na` are terms fragments. Only so do the two readings not compete.
 
@@ -50,7 +50,7 @@ CLL's `na` fragment is gone. A bare `na` is a term (see "Terms"), so `na` and `n
   statement-2 [I statement-connective [statement-2] | statement-connective I # [statement-2]] ...
 
 %redefine-rule statement-2
-  statement-3 [I [statement-connective] [tag] BO # [statement-2]]
+  statement-3 [I [joik | jek | ek] [stag] BO # [statement-2]]
 
 %redefine-rule statement-3
   | sentence
@@ -107,7 +107,7 @@ bridi-tail-3-not-starting-with-ke [bridi-tail-connective [stag] BO # [CU #] brid
 
 ## Terms
 
-Terms can be connected directly by a joik, jek, ek or VUhU (`term-connective`), so `mi joi do klama` has one term before its selbri. Tagged terms can be bound with `(joik | ek) bo`, and under `term-hierarchy` so can any terms. `pe'e` takes any statement connective. A forethought termset needs no `nu'i`, and `ke terms ke'e` is a termset. The new terms are a bare `na`, and `soi subsentence se'u` as camxes-exp reads it. `fi'oi` is a member of SOI.
+Terms can be connected directly by a joik, jek, ek or VUhU (`term-connective`), so `mi joi do klama` has one term before its selbri. camxes-exp's joik takes the words of JOI, JA and A, and so these four sets are its `joik_ek` and `joik_jek`. Tagged terms can be bound with `(joik | ek) bo`, and under `term-hierarchy` so can any terms. `pe'e` takes any statement connective. A forethought termset needs no `nu'i`. The new terms are a bare `na`, and `soi subsentence se'u` as camxes-exp reads it. `fi'oi` is a member of SOI.
 
 The first term inside `nu'i ... nu'u` cannot itself be a bare forethought termset. If it could, it would repeat the `nu'i gek` form. The `-not-starting-with-bare-gek` chain states that restriction: it repeats the term rules with only the first term restricted.
 
@@ -140,7 +140,6 @@ The first term inside `nu'i ... nu'u` cannot itself be a bare forethought termse
 %redefine-rule termset
   | [NUhI #] gek terms [NUhU] # gik terms [NUhU] #
   | NUhI # terms-not-starting-with-bare-gek [NUhU] #
-  | KE # terms [KEhE] #
 
 %rule terms-not-starting-with-bare-gek
   terms-1-not-starting-with-bare-gek [terms-1] ...
@@ -167,7 +166,6 @@ The first term inside `nu'i ... nu'u` cannot itself be a bare forethought termse
 %rule termset-with-nuhi
   | NUhI # gek terms [NUhU] # gik terms [NUhU] #
   | NUhI # terms-not-starting-with-bare-gek [NUhU] #
-  | KE # terms [KEhE] #
 ```
 
 A tagged term whose tag is a bare `fa` has its free modifiers after the `fa`. It also has them after the `ku`, when the `ku` is written: `FA # [KU #]`. If the `ku` is elided, the two slots stand side by side, and a free modifier can sit in either. So the elided `ku` takes its slot with it here, as the CLL grammar's terminators do.
@@ -196,7 +194,7 @@ Sumti connectives are ek, joik or VUhU (`sumti-connective`). After `vu'o`, a con
   sumti-4 [sumti-connective [stag] BO # sumti-3]
 
 %rule sumti-connective
-  ek # | joik # | VUhU #
+  ek # | joik # | jek # | VUhU #
 
 %redefine-rule sumti-5
   [quantifier] sumti-6 [relative-clauses] | quantifier selbri [KU] # [relative-clauses]
@@ -222,11 +220,12 @@ Sumti connectives are ek, joik or VUhU (`sumti-connective`). After `vu'o`, a con
 
 ## Relative clauses
 
-Consecutive relative clauses can be joined by a joik or a jek, as well as by `zi'e`.
+Consecutive relative clauses can be joined by a joik, a jek or an ek, as well as by `zi'e`, and two groups of them can be connected in forethought (`ge poi broda gi poi brode`).
 
 ```jbogenbau
 %redefine-rule relative-clauses
-  relative-clause [(ZIhE # | joik # | jek #) relative-clause] ...
+  | relative-clause [(ZIhE # | joik # | jek # | ek #) relative-clause] ...
+  | gek relative-clauses gik relative-clauses
 
 %redefine-rule relative-clause
   GOI # term [GEhU] # | NOI # subsentence [KUhO] #
@@ -234,7 +233,7 @@ Consecutive relative clauses can be joined by a joik or a jek, as well as by `zi
 
 ## Selbri and tanru
 
-Selbri and tanru-unit connectives are joik, jek, ek or VUhU (`selbri-connective`). A `bo` grouping can carry a stag without a connective. A selbri can be tagged by a bare `fa`. A guhek can be prefixed by `na'e`. The term after `be` or `bei` can be absent. The new tanru units are a cmevla, under `cbm`, and preposed linked arguments (`lo be mi broda`).
+Selbri and tanru-unit connectives are joik, jek, ek or VUhU (`selbri-connective`). A selbri can be tagged by a bare `fa`. The term after `be` or `bei` can be absent. The new tanru units are a cmevla, under `cbm`, and preposed linked arguments (`lo be mi broda`).
 
 A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in which `ke'a` refers to the selbri (`mi klama no'oi bajra`). They are joined by `zi'e` or a joik.
 
@@ -247,9 +246,6 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
 
 %redefine-rule selbri-5
   selbri-6 [selbri-connective [stag] BO # selbri-5]
-
-%redefine-rule selbri-6
-  tanru-unit [[stag] BO # selbri-6] | [NAhE #] guhek selbri gik selbri-6
 
 %rule selbri-not-starting-with-ke
   [tag] selbri-1-not-starting-with-ke
@@ -270,7 +266,7 @@ selbri-5-not-starting-with-ke [selbri-connective selbri-5 | joik [stag] KE # sel
   selbri-6-not-starting-with-ke [selbri-connective [stag] BO # selbri-5]
 
 %rule selbri-6-not-starting-with-ke
-  tanru-unit-not-starting-with-ke [[stag] BO # selbri-6] | [NAhE #] guhek selbri gik selbri-6
+  tanru-unit-not-starting-with-ke [BO # selbri-6] | [NAhE #] guhek selbri gik selbri-6
 
 %redefine-rule tanru-unit
   tanru-unit-1 [CEI # tanru-unit-1] ... [selbri-relative-clauses]
@@ -389,15 +385,6 @@ After an elided `boi`, a number or lerfu string is followed by `free-after-elide
 
 %redefine-rule interval-property
   (number | VEI # mex [VEhO] #) ROI [NAI] | TAhE [NAI] | ZAhO [NAI]
-```
-
-## Logical and non-logical connectives
-
-A guhek can be prefixed by `na'e`.
-
-```jbogenbau
-%redefine-rule guhek
-  [NAhE] [SE] GUhA [NAI] #
 ```
 
 ## Tenses and modals
