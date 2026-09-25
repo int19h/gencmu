@@ -353,3 +353,8 @@ muplis.18.888.canonical
 muplis.18.921.canonical
 muplis.18.932.canonical
 muplis.18.943.canonical
+adhoc.syntax.yacc-repair-i-nioho
+adhoc.syntax.yacc-repair-i-i-nioho
+adhoc.syntax.yacc-repair-empty-lohu
+adhoc.syntax.yacc-repair-free-after-elided-lihu
+adhoc.syntax.yacc-repair-free-inside-lu
