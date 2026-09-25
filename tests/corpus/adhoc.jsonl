@@ -26,14 +26,14 @@
 {"id":"adhoc.morphology.camxes-compatible.extended-lujvo-aktyiismu.bpfk","text":"aktyiismu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["aktyiismu"],"brackets":"aktyiismu"}
 {"id":"adhoc.morphology.camxes-compatible.extended-lujvo-fuly-ismu","text":"fuly'ismu","dialect":"cll-ebnf","expect":"reject","stage":"words","seeded":"accept","reason":"An extended-rafsi lujvo, which the approved word forms admit and CLL chapter 4 does not; the bpfk dialect accepts it."}
 {"id":"adhoc.morphology.camxes-compatible.extended-lujvo-fuly-ismu.bpfk","text":"fuly'ismu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["fuly'ismu"],"brackets":"fuly'ismu"}
-{"id":"adhoc.morphology.camxes-compatible.extended-lujvo-gimyiismu","text":"gimyiismu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["gimyiismu"],"brackets":"gimyiismu"}
+{"id":"adhoc.morphology.camxes-compatible.extended-lujvo-gimyiismu","text":"gimyiismu","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"adhoc.morphology.camxes-compatible.extended-lujvo-gismyiismu","text":"gismyiismu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["gismyiismu"],"brackets":"gismyiismu"}
 {"id":"adhoc.morphology.camxes-compatible.extended-lujvo-tcenelyiismu","text":"tcenelyiismu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tcenelyiismu"],"brackets":"tcenelyiismu"}
 {"id":"adhoc.morphology.camxes-compatible.pause-allows-vowel-initial-word","text":"mi le .ia klama","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","le","ia","klama"],"brackets":"(mi [le klama])"}
 {"id":"adhoc.morphology.camxes-compatible.pause-requires-vowel-initial-word","text":"mi lea klama","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"adhoc.morphology.camxes-compatible.reject-jvot3-more-raf-kerly-u-u-ykerlo","text":"kerly'u'u'ykerlo","dialect":"cll-ebnf","expect":"reject","stage":"words"}
-{"id":"adhoc.morphology.camxes-compatible.reject-jvot3-more-raf-kerly-u-u-ykerlo.bpfk","text":"kerly'u'u'ykerlo","dialect":"bpfk","expect":"accept","verdict":"unique","words":["kerly'u'u'ykerlo"],"brackets":"kerly'u'u'ykerlo","seeded":"reject","reason":"The CLL word forms read this text as the Lojban words listed in words."}
-{"id":"adhoc.morphology.camxes-compatible.reject-more-raf-fa-u-yiismu","text":"fa'u'yiismu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["fa'u'yiismu"],"brackets":"fa'u'yiismu","seeded":"reject","reason":"The printed CLL grammar admits this reading of the text, shown in brackets; every choice in it is one the grammar allows."}
+{"id":"adhoc.morphology.camxes-compatible.reject-jvot3-more-raf-kerly-u-u-ykerlo.bpfk","text":"kerly'u'u'ykerlo","dialect":"bpfk","expect":"reject","stage":"words"}
+{"id":"adhoc.morphology.camxes-compatible.reject-more-raf-fa-u-yiismu","text":"fa'u'yiismu","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"adhoc.morphology.camxes-compatible.reject-more-raf-kerlyfa-u-ukerlo","text":"kerlyfa'u'ukerlo","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["kerlyfa'u'ukerlo"],"brackets":"kerlyfa'u'ukerlo","seeded":"reject","reason":"The CLL word forms read this text as the Lojban words listed in words."}
 {"id":"adhoc.morphology.camxes-compatible.reject-more-raf-le-yia","text":"le'yia","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"adhoc.morphology.camxes-compatible.reject-more-raf-le-yia.bpfk","text":"le'yia","dialect":"bpfk","expect":"reject","stage":"syntax","words":["le'y","ia"]}
@@ -88,7 +88,7 @@
 {"id":"adhoc.v0.morphology.basic.cmevla-keeps-uppercase-acute-stressed-y","text":".finÝks.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["finYks"],"brackets":"finYks"}
 {"id":"adhoc.v0.morphology.basic.cmevla-keeps-uppercase-stressed-y","text":".finYks.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["finYks"],"brackets":"finYks"}
 {"id":"adhoc.v0.morphology.basic.cmevla-no-dots","text":"la djan","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["la","djan"],"brackets":"(la djan)"}
-{"id":"adhoc.v0.morphology.basic.cmevla-takes-priority","text":"ladjan","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ladjan"],"brackets":"ladjan"}
+{"id":"adhoc.v0.morphology.basic.cmevla-takes-priority","text":"ladjan","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["la","djan"],"brackets":"(la djan)"}
 {"id":"adhoc.v0.morphology.basic.concatenated-cmavo","text":"mimi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","mi"],"brackets":"(mi mi)"}
 {"id":"adhoc.v0.morphology.basic.concatenated-cmavo-2","text":"dodo","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["do","do"],"brackets":"(do do)"}
 {"id":"adhoc.v0.morphology.basic.faho-at-end","text":"mi fa'o","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi"],"brackets":"mi"}
@@ -142,7 +142,7 @@
 {"id":"adhoc.v0.morphology.cgv-warning.cgv-warning-accepts-cgv-city-name","text":"la .tokios.","dialect":"experimental","expect":"reject","stage":"words"}
 {"id":"adhoc.v0.morphology.cgv-warning.cgv-warning-accepts-cgv-country-name","text":"la .italias.","dialect":"experimental","expect":"reject","stage":"words"}
 {"id":"adhoc.v0.morphology.cgv-warning.cgv-warning-accepts-comma-separated-cgv-name","text":"la .si,atl.","dialect":"experimental","expect":"reject","stage":"words"}
-{"id":"adhoc.v0.morphology.diacritics.comma-preserves-glide-nu-a","text":"nu,ĭa","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["nu","ia"]}
+{"id":"adhoc.v0.morphology.diacritics.comma-preserves-glide-nu-a","text":"nu,ĭa","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["nuia"]}
 {"id":"adhoc.v0.morphology.diacritics.explicit-stress-fin-ks","text":"finỳks","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["finYks"],"brackets":"finYks"}
 {"id":"adhoc.v0.morphology.diacritics.explicit-stress-finyks","text":"finYks","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["finYks"],"brackets":"finYks"}
 {"id":"adhoc.v0.morphology.diacritics.explicit-stress-kl-ma","text":"klàma","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["klAma"],"brackets":"klAma"}
@@ -151,7 +151,7 @@
 {"id":"adhoc.v0.morphology.diacritics.falling-au","text":"maŭ","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mau"],"brackets":"mau"}
 {"id":"adhoc.v0.morphology.diacritics.falling-ei","text":"meĭ","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["mei"]}
 {"id":"adhoc.v0.morphology.diacritics.falling-oi","text":"moĭ","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["moi"]}
-{"id":"adhoc.v0.morphology.diacritics.glide-preserved-d-a","text":"dŭa","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"adhoc.v0.morphology.diacritics.glide-preserved-d-a","text":"dŭa","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["dua"]}
 {"id":"adhoc.v0.morphology.diacritics.glide-preserved-lojban","text":"lojban","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["lojban"],"brackets":"lojban"}
 {"id":"adhoc.v0.morphology.diacritics.no-stress-do","text":"do","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["do"],"brackets":"do"}
 {"id":"adhoc.v0.morphology.diacritics.no-stress-mi","text":"mi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi"],"brackets":"mi"}
@@ -654,3 +654,67 @@
 {"id":"adhoc.words.magic-rules.unmatched-sa-word-joins-cy.bpfk","text":"mi sa cycy","dialect":"bpfk","expect":"accept","verdict":"unique","words":["cy","cy"],"brackets":"(cy cy)"}
 {"id":"adhoc.words.magic-rules.unmatched-sa-word-joins-y-letter","text":"mi sa bajy","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["ba","jy"],"brackets":"(ba jy)"}
 {"id":"adhoc.words.magic-rules.unmatched-sa-word-joins-y-letter.bpfk","text":"mi sa bajy","dialect":"bpfk","expect":"accept","verdict":"resolved","words":["ba","jy"],"brackets":"(ba jy)"}
+{"id":"adhoc.words.cll-forms.la-before-name-without-pause","text":"ladjan.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["la","djan"],"brackets":"(la djan)"}
+{"id":"adhoc.words.cll-forms.la-before-name-without-pause.bpfk","text":"ladjan.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["ladjan"],"brackets":"ladjan"}
+{"id":"adhoc.words.cll-forms.doi-before-name-without-pause","text":"doidjan.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["doi","djan"],"brackets":"(doi djan)"}
+{"id":"adhoc.words.cll-forms.doi-before-name-without-pause.bpfk","text":"doidjan.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["doidjan"],"brackets":"doidjan"}
+{"id":"adhoc.words.cll-forms.la-inside-name-example-4-8","text":".laplas.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["la","plas"],"brackets":"(la plas)"}
+{"id":"adhoc.words.cll-forms.la-inside-name-example-4-8.bpfk","text":".laplas.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["laplas"],"brackets":"laplas"}
+{"id":"adhoc.words.cll-forms.la-inside-name-after-vowel-example-4-8","text":".ilanas.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["i","la","nas"],"brackets":"(i [la nas])"}
+{"id":"adhoc.words.cll-forms.la-inside-name-after-vowel-example-4-8.bpfk","text":".ilanas.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["ilanas"],"brackets":"ilanas"}
+{"id":"adhoc.words.cll-forms.la-inside-name-after-consonant","text":"la .nederlants.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["la","nederlants"],"brackets":"(la nederlants)"}
+{"id":"adhoc.words.cll-forms.la-inside-name-after-consonant.bpfk","text":"la .nederlants.","dialect":"bpfk","expect":"reject","stage":"words"}
+{"id":"adhoc.words.cll-forms.impermissible-pair-in-name-example-3-8","text":"la .djeimz.","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"adhoc.words.cll-forms.impermissible-pair-in-name-example-3-8.bpfk","text":"la .djeimz.","dialect":"bpfk","expect":"reject","stage":"words"}
+{"id":"adhoc.words.cll-forms.y-breaks-pair-in-name-example-3-8","text":"la .djeimyz.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["la","djeimyz"],"brackets":"(la djeimyz)"}
+{"id":"adhoc.words.cll-forms.y-breaks-pair-in-name-example-3-8.bpfk","text":"la .djeimyz.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["la","djeimyz"],"brackets":"(la djeimyz)"}
+{"id":"adhoc.words.cll-forms.n-before-affricate-in-name","text":"la .andj.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["la","andj"],"brackets":"(la andj)"}
+{"id":"adhoc.words.cll-forms.n-before-affricate-in-name.bpfk","text":"la .andj.","dialect":"bpfk","expect":"reject","stage":"words"}
+{"id":"adhoc.words.cll-forms.doubled-consonant-in-borrowing","text":"kallxa","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"adhoc.words.cll-forms.doubled-consonant-in-borrowing.bpfk","text":"kallxa","dialect":"bpfk","expect":"reject","stage":"words"}
+{"id":"adhoc.words.cll-forms.doubled-consonant-at-joint","text":"patta'a","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"adhoc.words.cll-forms.doubled-consonant-at-joint.bpfk","text":"patta'a","dialect":"bpfk","expect":"reject","stage":"words"}
+{"id":"adhoc.words.cll-forms.voicing-mismatch-at-joint","text":"kabkla","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"adhoc.words.cll-forms.voicing-mismatch-at-joint.bpfk","text":"kabkla","dialect":"bpfk","expect":"reject","stage":"words"}
+{"id":"adhoc.words.cll-forms.n-before-affricate-in-borrowing","text":"lerndjamo","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"adhoc.words.cll-forms.n-before-affricate-in-borrowing.bpfk","text":"lerndjamo","dialect":"bpfk","expect":"reject","stage":"words"}
+{"id":"adhoc.words.cll-forms.l-hyphen-example-4-51","text":"lerldjamo","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["lerldjamo"],"brackets":"lerldjamo"}
+{"id":"adhoc.words.cll-forms.l-hyphen-example-4-51.bpfk","text":"lerldjamo","dialect":"bpfk","expect":"accept","verdict":"unique","words":["lerldjamo"],"brackets":"lerldjamo"}
+{"id":"adhoc.words.cll-forms.flexible-medial-cluster-example-3-15","text":"bongnanba","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["bongnanba"],"brackets":"bongnanba"}
+{"id":"adhoc.words.cll-forms.flexible-medial-cluster-example-3-15.bpfk","text":"bongnanba","dialect":"bpfk","expect":"reject","stage":"words"}
+{"id":"adhoc.words.cll-forms.flexible-medial-cluster-example-4-52","text":"bang,r,blgaria","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["bangrblgaria"],"brackets":"bangrblgaria"}
+{"id":"adhoc.words.cll-forms.flexible-medial-cluster-example-4-52.bpfk","text":"bang,r,blgaria","dialect":"bpfk","expect":"reject","stage":"words"}
+{"id":"adhoc.words.cll-forms.consonant-glide-at-start-example-4-50","text":"kuarka","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["kuarka"],"brackets":"kuarka"}
+{"id":"adhoc.words.cll-forms.consonant-glide-at-start-example-4-50.bpfk","text":"kuarka","dialect":"bpfk","expect":"reject","stage":"words"}
+{"id":"adhoc.words.cll-forms.initial-triple-example-4-7","text":"spraile","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["spraile"],"brackets":"spraile"}
+{"id":"adhoc.words.cll-forms.initial-triple-example-4-7.bpfk","text":"spraile","dialect":"bpfk","expect":"accept","verdict":"unique","words":["spraile"],"brackets":"spraile"}
+{"id":"adhoc.words.cll-forms.bad-initial-triple-example-4-7","text":"ktraile","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"adhoc.words.cll-forms.bad-initial-triple-example-4-7.bpfk","text":"ktraile","dialect":"bpfk","expect":"reject","stage":"words"}
+{"id":"adhoc.words.cll-forms.no-cluster-in-first-five-letters","text":".a'e'a'arku","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"adhoc.words.cll-forms.no-cluster-in-first-five-letters.bpfk","text":".a'e'a'arku","dialect":"bpfk","expect":"accept","verdict":"unique","words":["a'e'a'arku"],"brackets":"a'e'a'arku"}
+{"id":"adhoc.words.cll-forms.y-not-counted-in-first-five-example-4-3","text":"bisycla","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["bisycla"],"brackets":"bisycla"}
+{"id":"adhoc.words.cll-forms.y-not-counted-in-first-five-example-4-3.bpfk","text":"bisycla","dialect":"bpfk","expect":"accept","verdict":"unique","words":["bisycla"],"brackets":"bisycla"}
+{"id":"adhoc.words.cll-forms.needless-y-hyphen","text":"geryzda","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"adhoc.words.cll-forms.needless-y-hyphen.bpfk","text":"geryzda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["geryzda"],"brackets":"geryzda"}
+{"id":"adhoc.words.cll-forms.no-needless-y-hyphen","text":"gerzda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["gerzda"],"brackets":"gerzda"}
+{"id":"adhoc.words.cll-forms.no-needless-y-hyphen.bpfk","text":"gerzda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["gerzda"],"brackets":"gerzda"}
+{"id":"adhoc.words.cll-forms.y-hyphen-before-affricate","text":"renytcana","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["renytcana"],"brackets":"renytcana"}
+{"id":"adhoc.words.cll-forms.y-hyphen-before-affricate.bpfk","text":"renytcana","dialect":"bpfk","expect":"accept","verdict":"unique","words":["renytcana"],"brackets":"renytcana"}
+{"id":"adhoc.words.cll-forms.apostrophe-after-y-hyphen","text":"bajy'kla","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"adhoc.words.cll-forms.apostrophe-after-y-hyphen.bpfk","text":"bajy'kla","dialect":"bpfk","expect":"reject","stage":"words"}
+{"id":"adhoc.words.cll-forms.capital-y-hyphen","text":"mi bajYkla","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"adhoc.words.cll-forms.capital-y-hyphen.bpfk","text":"mi bajYkla","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","bajYkla"],"brackets":"(mi bajYkla)"}
+{"id":"adhoc.words.cll-forms.stress-before-brivla-example-3-31","text":"le re NObliPREnu","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["le","re","nObli","prEnu"],"brackets":"(le [re {nObli prEnu}])"}
+{"id":"adhoc.words.cll-forms.stress-before-brivla-example-3-31.bpfk","text":"le re NObliPREnu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["le","re","nObli","prEnu"],"brackets":"(le [re {nObli prEnu}])"}
+{"id":"adhoc.words.cll-forms.stressed-cmavo-pause-before-brivla","text":"mI klama","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mI","klama"],"brackets":"(mI klama)"}
+{"id":"adhoc.words.cll-forms.stressed-cmavo-pause-before-brivla.bpfk","text":"mI klama","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mI","klama"],"brackets":"(mI klama)"}
+{"id":"adhoc.words.cll-forms.glide-initial-cmavo-needs-pause","text":"miui","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["miui"]}
+{"id":"adhoc.words.cll-forms.glide-initial-cmavo-needs-pause.bpfk","text":"miui","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","ui"],"brackets":"mi"}
+{"id":"adhoc.words.cll-forms.three-vowels-one-cmavo","text":"seia broda","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["seia","broda"]}
+{"id":"adhoc.words.cll-forms.three-vowels-one-cmavo.bpfk","text":"seia broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["se","ia","broda"],"brackets":"(se broda)"}
+{"id":"adhoc.words.cll-forms.three-vowel-experimental-cmavo","text":"zo .aui","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo","aui"],"brackets":"(zo aui)"}
+{"id":"adhoc.words.cll-forms.three-vowel-experimental-cmavo.bpfk","text":"zo .aui","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zo","a","ui"],"brackets":"(zo a)"}
+{"id":"adhoc.words.cll-forms.two-vowels-not-a-diphthong","text":"zo ae","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"adhoc.words.cll-forms.two-vowels-not-a-diphthong.bpfk","text":"zo ae","dialect":"bpfk","expect":"reject","stage":"words"}
+{"id":"adhoc.words.cll-forms.on-glide-diphthong-cmavo","text":"zo .ia","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo","ia"],"brackets":"(zo ia)"}
+{"id":"adhoc.words.cll-forms.on-glide-diphthong-cmavo.bpfk","text":"zo .ia","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zo","ia"],"brackets":"(zo ia)"}

@@ -71,11 +71,13 @@ The stage is lazy: where two parses differ, it takes the one that closes a const
 %conditions
   "wipes-all" ∉ tags($e),
   "wipes-all" ∉ tags($f),
-  ("continued" ∪ "cy" ∪ "cvcy") ∩ tags($t) ≠ ∅,
+  ("continued" ∪ "cy" ∪ "cvcy" ∪ "name-intro") ∩ tags($t) ≠ ∅,
   "cy" ∈ tags($t) ∧ "cy" ∈ tags($f)
     ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f)
       ∧ ("cv" ∈ tags($t) ∨ "cvcy" ∉ tags($t) ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f)))
+      ∧ ("final-stress" ∉ tags($t) ∨ "stress-guard" ∉ tags($f))
     ∨ "cvcy" ∈ tags($t) ∧ "onset" ∈ tags($f) ∧ "BRIVLA" ∉ tags($f) ∧ ¬matches($f, lujvo-final-shape)
+    ∨ "name-intro" ∈ tags($t) ∧ "name-onset" ∈ tags($f)
 
 %rule opener
   | $o(element) <tags($o) ∪ "first-onset">
@@ -168,7 +170,7 @@ A word is a cmavo, a brivla or a cmevla; what shapes each has is the business of
   | @sa-su? $c(cmavo-shape) <"word" ∪ "cmavo" ∪ tags($c) ∪ tags($c, lexicon)>
   | @¬sa-su? $e(cmavo-shape) <"word" ∪ "cmavo" ∪ tags($e) ∪ tags($e, lexicon)>
   | $b(brivla-shape) <"word" ∪ "BRIVLA" ∪ tags($b)>
-  | cmevla-shape <"word" ∪ "CMEVLA">
+  | $n(cmevla-shape) <"word" ∪ "CMEVLA" ∪ tags($n)>
 %conditions
   tags($c, lexicon) ∩ ("ZO" ∪ "ZOI" ∪ "LOhU" ∪ "ZOhOI" ∪ "LAhOI" ∪ "RAhOI" ∪ "MEhOI" ∪ "GOhOI" ∪ "ZEhOI" ∪ "TAhAI" ∪ "BOhEI" ∪
     "FAhO" ∪ "BU" ∪ "ZEI" ∪ "SI" ∪ "SA" ∪ "SU") = ∅,
@@ -199,9 +201,9 @@ CLL 19.10 to 19.13. A quote is decided at this stage because the words inside it
 ```jbogenbau
 %rule quoted-word
   | $m(word-quote-marker) $g(quote-gap) $w(quotable-word)
-      <tags($m) ∪ "onset" ∪ ("continued" ∪ "cy" ∪ "y-letter" ∪ "cv") ∩ tags($w)>
+      <tags($m) ∪ "onset" ∪ ("continued" ∪ "cy" ∪ "y-letter" ∪ "cv" ∪ "final-stress") ∩ tags($w)>
   | $m(word-quote-marker) pause-gap $v(quotable-word)
-      <tags($m) ∪ "onset" ∪ ("continued" ∪ "cy" ∪ "y-letter" ∪ "cv") ∩ tags($v)>
+      <tags($m) ∪ "onset" ∪ ("continued" ∪ "cy" ∪ "y-letter" ∪ "cv" ∪ "final-stress") ∩ tags($v)>
   | $m(word-quote-marker) pause-gap $n(cmevla-shape) <tags($m) ∪ "onset">
 %conditions
   "onset" ∈ tags($w),
@@ -320,13 +322,13 @@ Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL
 
 %rule lehu-reach
   | $first(opener)
-      <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($first)
+      <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($first)
         ∪ ("cy" ∈ tags($first) ⟹ "continued")>
   | $s(lehu-reach) PAUSE $e(element)
-      <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($e)
+      <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($e)
         ∪ ("cy" ∈ tags($e) ⟹ "continued")>
   | $t(lehu-reach) $f(element)
-      <("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($f)
+      <("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($f)
         ∪ ("cv" ∈ tags($t) ∧ "y-letter" ∈ tags($f) ⟹ "cvcy")>
 %conditions
   classes($first) ∩ ("LOhU" ∪ "LEhU") = ∅,
@@ -335,11 +337,13 @@ Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL
   classes($f) ∩ ("LOhU" ∪ "LEhU") = ∅,
   "wipes-all" ∉ tags($e),
   "wipes-all" ∉ tags($f),
-  ("continued" ∪ "cy" ∪ "cvcy") ∩ tags($t) ≠ ∅,
+  ("continued" ∪ "cy" ∪ "cvcy" ∪ "name-intro") ∩ tags($t) ≠ ∅,
   "cy" ∈ tags($t) ∧ "cy" ∈ tags($f)
     ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f)
       ∧ ("cv" ∈ tags($t) ∨ "cvcy" ∉ tags($t) ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f)))
+      ∧ ("final-stress" ∉ tags($t) ∨ "stress-guard" ∉ tags($f))
     ∨ "cvcy" ∈ tags($t) ∧ "onset" ∈ tags($f) ∧ "BRIVLA" ∉ tags($f) ∧ ¬matches($f, lujvo-final-shape)
+    ∨ "name-intro" ∈ tags($t) ∧ "name-onset" ∈ tags($f)
 %emits
   ε
 
@@ -352,16 +356,18 @@ Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL
   | $t(lohu-stream) $f(lohu-word)
       <tags($f) ∪ ("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("cv" ∈ tags($t) ∧ "y-letter" ∈ tags($f) ⟹ "cvcy")>
 %conditions
-  ("continued" ∪ "cy" ∪ "cvcy") ∩ tags($t) ≠ ∅,
+  ("continued" ∪ "cy" ∪ "cvcy" ∪ "name-intro") ∩ tags($t) ≠ ∅,
   "cy" ∈ tags($t) ∧ "cy" ∈ tags($f)
     ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f)
       ∧ ("cv" ∈ tags($t) ∨ "cvcy" ∉ tags($t) ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f)))
+      ∧ ("final-stress" ∉ tags($t) ∨ "stress-guard" ∉ tags($f))
     ∨ "cvcy" ∈ tags($t) ∧ "onset" ∈ tags($f) ∧ "BRIVLA" ∉ tags($f) ∧ ¬matches($f, lujvo-final-shape)
+    ∨ "name-intro" ∈ tags($t) ∧ "name-onset" ∈ tags($f)
 
 %rule lohu-word
   | $c(cmavo-shape) <tags($c)>
   | $b(brivla-shape) <tags($b) ∪ "BRIVLA">
-  | cmevla-shape <∅>
+  | $n(cmevla-shape) <tags($n)>
   | y-run <"continued">
 %conditions
   "LEhU" ∉ tags($c, lexicon)
@@ -456,13 +462,13 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
 
 %rule bu-reach
   | $first(opener)
-      <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($first)
+      <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($first)
         ∪ ("cy" ∈ tags($first) ⟹ "continued")>
   | $s(bu-reach) PAUSE $e(element)
-      <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($e)
+      <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($e)
         ∪ ("cy" ∈ tags($e) ⟹ "continued")>
   | $t(bu-reach) $f(element)
-      <("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($f)
+      <("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($f)
         ∪ ("cv" ∈ tags($t) ∧ "y-letter" ∈ tags($f) ⟹ "cvcy")>
 %conditions
   classes($first) ∩ ("BY") = ∅,
@@ -471,27 +477,29 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
   classes($f) ∩ ("BY") = ∅,
   "wipes-all" ∉ tags($e),
   "wipes-all" ∉ tags($f),
-  ("continued" ∪ "cy" ∪ "cvcy") ∩ tags($t) ≠ ∅,
+  ("continued" ∪ "cy" ∪ "cvcy" ∪ "name-intro") ∩ tags($t) ≠ ∅,
   "cy" ∈ tags($t) ∧ "cy" ∈ tags($f)
     ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f)
       ∧ ("cv" ∈ tags($t) ∨ "cvcy" ∉ tags($t) ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f)))
+      ∧ ("final-stress" ∉ tags($t) ∨ "stress-guard" ∉ tags($f))
     ∨ "cvcy" ∈ tags($t) ∧ "onset" ∈ tags($f) ∧ "BRIVLA" ∉ tags($f) ∧ ¬matches($f, lujvo-final-shape)
+    ∨ "name-intro" ∈ tags($t) ∧ "name-onset" ∈ tags($f)
 %emits
   ε
 
 %rule zei-compound
   | $l(unit) $z(zei-word) $r(zei-right)
-      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($l) ∪ ("continued" ∪ "cy" ∪ "y-letter") ∩ tags($r)>
+      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($l) ∪ ("continued" ∪ "cy" ∪ "y-letter" ∪ "final-stress") ∩ tags($r)>
   | $k(unit) PAUSE $z(zei-word) $r(zei-right)
-      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($k) ∪ ("continued" ∪ "cy" ∪ "y-letter") ∩ tags($r)>
+      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($k) ∪ ("continued" ∪ "cy" ∪ "y-letter" ∪ "final-stress") ∩ tags($r)>
   | $l(unit) zei-word $j(pause-gap) $p(zei-right)
-      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($l) ∪ ("continued" ∪ "cy" ∪ "y-letter") ∩ tags($p)>
+      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($l) ∪ ("continued" ∪ "cy" ∪ "y-letter" ∪ "final-stress") ∩ tags($p)>
   | $k(unit) PAUSE zei-word $j(pause-gap) $p(zei-right)
-      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($k) ∪ ("continued" ∪ "cy" ∪ "y-letter") ∩ tags($p)>
+      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($k) ∪ ("continued" ∪ "cy" ∪ "y-letter" ∪ "final-stress") ∩ tags($p)>
   | $l(unit) $g(gap-erasures) $z(zei-word) $r(zei-right)
-      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($l) ∪ ("continued" ∪ "cy" ∪ "y-letter") ∩ tags($r)>
+      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($l) ∪ ("continued" ∪ "cy" ∪ "y-letter" ∪ "final-stress") ∩ tags($r)>
   | $k(unit) PAUSE $h(gap-erasures) $z(zei-word) $r(zei-right)
-      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($k) ∪ ("continued" ∪ "cy" ∪ "y-letter") ∩ tags($r)>
+      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($k) ∪ ("continued" ∪ "cy" ∪ "y-letter" ∪ "final-stress") ∩ tags($r)>
 %conditions
   "continued" ∈ tags($l),
   "onset" ∈ tags($r),
@@ -572,7 +580,7 @@ The reach of a `sa` is stated from its far end: `sa-open` is an element, which h
   $first(sa-nest) $h(sa-gap) $next(sa-next)
 %tags
   ("first-onset" ∈ tags($first) ⟹ "onset") ∪ "wipes-all" ∩ tags($first)
-    ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($next) ∪ classes($next)
+    ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($next) ∪ classes($next)
 %conditions
   classes($first) ∩ classes($next) ≠ ∅,
   "LEhU" ∉ classes($next) ∨ "LOhU" ∈ classes($next),
@@ -597,10 +605,10 @@ The reach of a `sa` is stated from its far end: `sa-open` is an element, which h
         ∪ ("onset" ∈ tags($first) ⟹ "first-onset")
         ∪ ("onset" ∈ tags($first) ∧ ("cy" ∪ "y-letter") ∩ tags($first) ≠ ∅ ⟹ "first-cy")>
   | $s(sa-open) PAUSE $e(element)
-      <classes($s) ∪ ("first-onset" ∪ "first-cy" ∪ "wipes-all") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($e)
+      <classes($s) ∪ ("first-onset" ∪ "first-cy" ∪ "wipes-all") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($e)
         ∪ ("cy" ∈ tags($e) ⟹ "continued")>
   | $t(sa-open) $f(element)
-      <classes($t) ∪ ("first-onset" ∪ "first-cy" ∪ "wipes-all") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($f)
+      <classes($t) ∪ ("first-onset" ∪ "first-cy" ∪ "wipes-all") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($f)
         ∪ ("cv" ∈ tags($t) ∧ "y-letter" ∈ tags($f) ⟹ "cvcy")>
 %conditions
   classes($first) ≠ ∅,
@@ -608,11 +616,13 @@ The reach of a `sa` is stated from its far end: `sa-open` is an element, which h
   "wipes-all" ∉ tags($f),
   classes($s) ∩ classes($e) = ∅,
   classes($t) ∩ classes($f) = ∅,
-  ("continued" ∪ "cy" ∪ "cvcy") ∩ tags($t) ≠ ∅,
+  ("continued" ∪ "cy" ∪ "cvcy" ∪ "name-intro") ∩ tags($t) ≠ ∅,
   "cy" ∈ tags($t) ∧ "cy" ∈ tags($f)
     ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f)
       ∧ ("cv" ∈ tags($t) ∨ "cvcy" ∉ tags($t) ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f)))
+      ∧ ("final-stress" ∉ tags($t) ∨ "stress-guard" ∉ tags($f))
     ∨ "cvcy" ∈ tags($t) ∧ "onset" ∈ tags($f) ∧ "BRIVLA" ∉ tags($f) ∧ ¬matches($f, lujvo-final-shape)
+    ∨ "name-intro" ∈ tags($t) ∧ "name-onset" ∈ tags($f)
 %emits
   ε
 
@@ -679,13 +689,13 @@ With `su-boundary`, `su` erases back to a boundary word, which survives, or to t
 
 %rule su-reach
   | $first(opener)
-      <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($first)
+      <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($first)
         ∪ ("cy" ∈ tags($first) ⟹ "continued")>
   | $s(su-reach) PAUSE $e(element)
-      <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($e)
+      <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($e)
         ∪ ("cy" ∈ tags($e) ⟹ "continued")>
   | $t(su-reach) $f(element)
-      <("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($f)
+      <("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($f)
         ∪ ("cv" ∈ tags($t) ∧ "y-letter" ∈ tags($f) ⟹ "cvcy")>
 %conditions
   classes($first) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅,
@@ -694,11 +704,13 @@ With `su-boundary`, `su` erases back to a boundary word, which survives, or to t
   classes($f) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅,
   "wipes-all" ∉ tags($e),
   "wipes-all" ∉ tags($f),
-  ("continued" ∪ "cy" ∪ "cvcy") ∩ tags($t) ≠ ∅,
+  ("continued" ∪ "cy" ∪ "cvcy" ∪ "name-intro") ∩ tags($t) ≠ ∅,
   "cy" ∈ tags($t) ∧ "cy" ∈ tags($f)
     ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f)
       ∧ ("cv" ∈ tags($t) ∨ "cvcy" ∉ tags($t) ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f)))
+      ∧ ("final-stress" ∉ tags($t) ∨ "stress-guard" ∉ tags($f))
     ∨ "cvcy" ∈ tags($t) ∧ "onset" ∈ tags($f) ∧ "BRIVLA" ∉ tags($f) ∧ ¬matches($f, lujvo-final-shape)
+    ∨ "name-intro" ∈ tags($t) ∧ "name-onset" ∈ tags($f)
 %emits
   ε
 
@@ -744,13 +756,13 @@ What an unmatched `su` erases is a wiped stretch, which the text rule accepts be
 
 %rule sa-wiped
   | sa-run $h(sa-gap) $n(sa-next)
-      <"onset" ∪ "wipes-all" ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($n) ∪ classes($n)>
+      <"onset" ∪ "wipes-all" ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($n) ∪ classes($n)>
   | $r(wiped-reach) $g(gap) sa-run $h(sa-gap) $n(sa-next)
       <("first-onset" ∈ tags($r) ⟹ "onset") ∪ "first-cy" ∩ tags($r) ∪ "wipes-all"
-        ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($n) ∪ classes($n)>
+        ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($n) ∪ classes($n)>
   | $w(sa-wipe) $h(sa-gap) $n(sa-next)
       <("first-onset" ∈ tags($w) ⟹ "onset") ∪ "first-cy" ∩ tags($w) ∪ "wipes-all"
-        ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($n) ∪ classes($n)>
+        ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($n) ∪ classes($n)>
 %conditions
   classes($r) ∩ classes($n) = ∅,
   classes($w) ∩ classes($n) ≠ ∅,
