@@ -131,7 +131,14 @@ func (ev *evaluator) term(t *domTerm) value {
 		case "text":
 			return value{kind: vString, s: ev.run.spanText(ev.span(t.Items[0]))}
 		case "words":
-			return value{kind: vList, list: strings.Fields(strings.ReplaceAll(ev.run.phonemes(ev.span(t.Items[0])), "\t", " "))}
+			// Words are split at spaces, U+0020, only (engine §5).
+			var words []string
+			for _, word := range strings.Split(ev.run.phonemes(ev.span(t.Items[0])), " ") {
+				if word != "" {
+					words = append(words, word)
+				}
+			}
+			return value{kind: vList, list: words}
 		case "lowercase":
 			v := ev.term(t.Items[0])
 			if v.kind != vString {

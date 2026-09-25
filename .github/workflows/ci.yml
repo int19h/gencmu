@@ -198,7 +198,7 @@ jobs:
           	if err != nil {
           		log.Fatal(err)
           	}
-          	result, err := dialect.Parse("text ≔ A [B] ... ;", gencmu.ParseOptions{})
+          	result, err := dialect.Parse("%rule text A [B] ...", gencmu.ParseOptions{})
           	if err != nil || !result.OK {
           		log.Fatalf("%v %v", err, result.Error)
           	}
