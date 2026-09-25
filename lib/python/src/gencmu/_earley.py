@@ -105,11 +105,9 @@ class StageContext:
 
 def _as_tags(value: Any) -> Tags:
     """A value where a tag set is needed (engine §10): a string is the set of
-    that one strong tag, and a list the set of its strings, each strong."""
+    that one strong tag."""
     if isinstance(value, str):
         return {value: True}
-    if isinstance(value, list):
-        return {item: True for item in value}
     return value
 
 
@@ -212,7 +210,8 @@ class Evaluator:
             if name == "text":
                 return self.context.span_text(span[0], span[1])
             if name == "words":
-                return [word for word in self.phonemes(span[0], span[1]).split(PAUSE) if word]
+                # The words between pauses, each a strong tag (engine §5).
+                return {word: True for word in self.phonemes(span[0], span[1]).split(PAUSE) if word}
             if name == "tags":
                 return dict(self.span_tags(span))
             if name == "classes":
@@ -246,7 +245,7 @@ class Evaluator:
             if op in ("∈", "∉"):
                 if not isinstance(left, str):
                     raise _GrammarFault(f"the left side of {op} is a string")
-                inside = left in right if isinstance(right, (list, dict)) else left == right
+                inside = left in right if isinstance(right, dict) else left == right
                 return inside if op == "∈" else not inside
             if op == "⊆":
                 return _as_tags(left).keys() <= _as_tags(right).keys()
