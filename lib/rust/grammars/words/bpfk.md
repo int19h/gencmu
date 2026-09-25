@@ -2,7 +2,7 @@
 
 This document is the family part of the word stage in the [approved word forms](../dialects/bpfk.md) dialect, for the word-form grammar that the Logical Language Group's definition effort approved, the PEG grammar printed as appendix A2 of the 1.3 editions of *The Complete Lojban Language*; it is stitched in after [stream.md](stream.md) and [shapes.md](shapes.md) in place of [cll.md](cll.md). It defines the three shapes the stream reads, with the pause properties of that grammar's `post_word` as tags, and adds what the approved grammar has beyond the printed chapter 4: the extended rafsi that shorten a borrowing with a hyphen. What it withholds is as important: it adds no alternative with a glide after a consonant, since the definition effort banned the consonant-glide-vowel syllable (change log A3, approved 2014-12-27), and it holds a name's consonant runs to the pair table of CLL 3.6, as the letter rules of the approved grammar do. The notation is explained in [the notation document](../../docs/notation.md).
 
-The approved grammar reads four things this stage cannot: a digit inside a name, since the phoneme stage has already read every digit as the number word it stands for; a cmavo whose final stressed vowel is followed by a consonant cluster, which the approved grammar refuses and this grammar admits; a comma, which the phoneme stage drops for both families; and the approved grammar's `!cmavo` guard at the head of a borrowing, which the stage's lazy choice among parses replaces, as "Choosing among parses" in [stream.md](stream.md) explains.
+The approved grammar reads four things this stage cannot: a digit inside a name, since the phoneme stage has already read every digit as the number word it stands for; a cmavo whose final stressed vowel is followed by a consonant cluster, which the approved grammar refuses and this grammar admits; a comma, which the phoneme stage drops for both families; and the approved grammar's `!cmavo` guard at the head of a borrowing looks past the borrowing's end, where [shapes.md](shapes.md) states the same guard over the borrowing alone.
 
 ## Cmavo
 
@@ -56,7 +56,9 @@ A brivla with an onset may follow a word without a pause; it may be followed by 
   phonemes($m) ≠ lowercase(phonemes($m)),
   phonemes($u) = lowercase(phonemes($u)),
   phonemes($n) ≠ lowercase(phonemes($n)),
-  phonemes($o) = lowercase(phonemes($o))
+  phonemes($o) = lowercase(phonemes($o)),
+  ¬matches($n, broken-word),
+  ¬matches($o, broken-word)
 ```
 
 ## Extended rafsi

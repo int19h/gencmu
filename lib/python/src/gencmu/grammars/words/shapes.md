@@ -58,7 +58,8 @@ A brivla is a gismu, a lujvo built from rafsi, or a borrowing. CLL 4.7: a lone C
   | gismu | word-initial-stressed-rafsi short-final-rafsi
   | consonant stressed-cvv-body ccv-final-rafsi | $borrowing(fuhivla-with-onset)
 %conditions
-  ¬matches(tail($borrowing), rafsi-string)
+  ¬matches(tail($borrowing), rafsi-string),
+  ¬matches($borrowing, broken-word)
 
 %rule rafsi-string
   | rafsi-core
@@ -213,6 +214,23 @@ A borrowing is any run of syllables with penultimate stress that is not built fr
 
 %rule clustered-onset
   consonant-cluster
+```
+
+A borrowing is also not a run of words. CLL 4.7 says that a borrowing "must not be gismu or lujvo, or any combination of cmavo, gismu, and lujvo", and the approved grammar states the same as its `!cmavo` guard at the head of a brivla. So a borrowing may not parse as `broken-word`, a cmavo joined without a pause to a following word, which is a cmavo followed by more, or a brivla: `buklama` is `bu klama` and `aklama` is `a klama`. The test is part of what a word is, and not left to the choice among parses, which would keep `buklama` whole wherever `bu` could not act, since it compares only parses that succeed. The approved grammar's guard also looks past the borrowing, since the word after its cmavo may run on beyond it; here the split must cover the borrowing exactly, which no word of the corpus tells apart.
+
+```jbogenbau
+%rule broken-word
+  $c(cmavo-shape) $w(broken-rest)
+%conditions
+  "continued" ∈ tags($c),
+  "onset" ∈ tags($w)
+
+%rule broken-rest
+  | $b(brivla-shape) <tags($b)>
+  | $c(cmavo-shape) $w(broken-rest) <tags($c)>
+%conditions
+  "continued" ∈ tags($c),
+  "onset" ∈ tags($w)
 ```
 
 A two-syllable borrowing whose consonant pair may begin a word, `maikro`, is a CVV rafsi followed by a CCV rafsi, which is a lujvo; so the borrowing form requires a pair that may not begin a word.
