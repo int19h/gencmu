@@ -413,7 +413,7 @@ class Dialect:
     @staticmethod
     def _reads_sa_su(stage: Stage, outcome: StageOutcome) -> bool:
         """Whether the chosen tree has a constituent of the rule word whose
-        phonemes are sa or su, silent or not (engine §13)."""
+        phonemes are sa or su, whether it counts or not (engine §13)."""
         root = outcome.derivation
         if root is None:
             return False

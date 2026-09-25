@@ -116,7 +116,7 @@ SAME = {"op": "=", "left": LIT, "right": LIT}
 
 # One malformed DOM for each rule the reader enforces.
 CASES: list[tuple[str, Callable[[Dom], None]]] = [
-    ("format other than 3", lambda dom: dom.update(format=2)),
+    ("format other than 4", lambda dom: dom.update(format=3)),
     ("rules not a list", lambda dom: dom.update(rules={})),
     ("directive without a position", lambda dom: dom["directives"][0].pop("at")),
     ("directive argument not a word", lambda dom: dom["directives"][0].update(args=[1])),
@@ -147,15 +147,14 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("this, of format 1", set_emit({"items": [{"this": True}]})),
     ("$ with an inserted tag", set_emit({"items": [WHOLE, {"insert": "Y"}]})),
     ("$ with a capture", set_emit({"items": [WHOLE, {"capture": "x"}]})),
-    ("$ <> with $", set_emit({"items": [{"capture": "", "silent": True}, WHOLE]})),
-    ("$ <> twice", set_emit({"items": [{"capture": "", "silent": True}, {"capture": "", "silent": True}]})),
-    ("<> with tags", set_emit({"items": [{"capture": "x", "silent": True, "tags": LIT}]})),
-    ("silent that is not true", set_emit({"items": [{"capture": "x", "silent": False}]})),
-    ("<> on an inserted tag", set_emit({"items": [{"capture": "x"}, {"insert": "Y", "silent": True}]})),
+    ("$ <>, of format 3", set_emit({"items": [{"capture": "", "silent": True}]})),
+    ("a silent capture, of format 3", set_emit({"items": [{"capture": "x", "silent": True}, {"insert": "Y"}]})),
+    ("an item with a key of no item", set_emit({"items": [{"capture": "x", "tags": LIT, "weak": True}]})),
+    ("a capture on an inserted tag", set_emit({"items": [{"capture": "x"}, {"insert": "Y", "capture": "x"}]})),
     ("∅ as an item's tags", set_emit({"items": [{"capture": "x", "tags": {"emptySet": True}}]})),
     ("a capture listed twice", set_emit({"items": [{"capture": "x"}, {"capture": "x"}]})),
     ("tags on an inserted tag", set_emit({"items": [{"capture": "x"}, {"insert": "Y", "tags": LIT}]})),
-    ("an emission with no items", set_emit({"items": []})),
+    ("an emission with items that are no list", set_emit({"items": None})),
     ("an unknown emission item", set_emit({"items": [{"that": True}]})),
     ("an unknown function", set_tags({"call": "upper", "args": [X]})),
     ("matches as a term", set_tags({"call": "matches", "args": [X, {"rule": "text"}]})),
@@ -294,13 +293,12 @@ class PrecompiledDomRules(unittest.TestCase):
                     self.assertEqual(dom_problem(dom) is None, allowed, dom_problem(dom))
 
     def test_what_the_reader_allows_is_allowed(self) -> None:
-        """$ in conditions, in emission and as a span of tags($, rule), <>,
+        """$ in conditions, in emission and as a span of tags($, rule), ε,
         ∧, ⟹, presence tests, guarded terms, and # as a rule's name
         (engine §9)."""
         for name, change in (
             ("$ twice", set_emit({"items": [{"capture": "", "tags": LIT}, WHOLE]})),
-            ("$ <>", set_emit({"items": [{"capture": "", "silent": True}]})),
-            ("a silent capture", set_emit({"items": [{"capture": "x", "silent": True}, {"insert": "Y"}]})),
+            ("ε", set_emit({"items": []})),
             ("tags($) in an emitted term", set_emit({"items": [{"capture": "x", "tags": {"call": "tags", "args": [WHOLE]}}]})),
             ("tags($, rule) in an alternative's tags", set_tags({"call": "tags", "args": [WHOLE, {"rule": "text"}]})),
             ("text($) in an alternative's tags", set_tags({"call": "text", "args": [WHOLE]})),

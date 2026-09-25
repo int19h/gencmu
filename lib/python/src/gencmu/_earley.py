@@ -11,7 +11,7 @@ from ._clauses import WHOLE
 from ._errors import _GrammarFault
 from ._grammar import Lowered, Production
 from ._model import Tags, Token
-from ._tags import TagTable, intersection, union
+from ._tags import PAUSE, TagTable, intersection, union
 from ._trampoline import Walk, run
 from ._unicode import UnicodeTable
 
@@ -210,7 +210,7 @@ class Evaluator:
             if name == "text":
                 return self.context.span_text(span[0], span[1])
             if name == "words":
-                return [word for word in self.phonemes(span[0], span[1]).split(" ") if word]
+                return [word for word in self.phonemes(span[0], span[1]).split(PAUSE) if word]
             if name == "tags":
                 return dict(self.span_tags(span))
             if name == "classes":
