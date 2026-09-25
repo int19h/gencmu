@@ -2,7 +2,7 @@
 
 This document is the lexicon of the word stage in the [experimental](../dialects/experimental.md) dialect. It gives each cmavo the selma'o that camxes-exp, the experimental PEG grammar, gives it: the cmavo of CLL and the experimental cmavo that camxes-exp reads. `tools/peg-lexicon.js` writes the rules below from the selma'o lists of `camxes-exp.peg` in ilmentufa, as of commit 7cf6cab, and a change to the lexicon is made by running it again.
 
-Each alternative spells one word in the phonemes of the word grammar, as [lexicon-cll.md](lexicon-cll.md) explains, and carries the word's selma'o. camxes-exp gives each word one selma'o. It gives three CLL words another class than CLL does: `la`, `lai` and `la'i` are LE, since camxes-exp reads a name as a selbri. An attitudinal, a CAI word, `y`, `da'o`, `fu'e` and `fu'o` also carry the tag `indicator`, which the indicator stage reads.
+Each alternative spells one word in the phonemes of the word grammar, as [lexicon-cll.md](lexicon-cll.md) explains, and carries the word's selma'o. camxes-exp gives each word one selma'o. It gives three CLL words another class than CLL does: `la`, `lai` and `la'i` are LE, since camxes-exp reads a name as a selbri. An attitudinal, a CAI word, a NAI word, `y`, `da'o`, `fu'e` and `fu'o` also carry the tag `indicator`, which the indicator stage reads. camxes-exp reads a bare NAI as an indicator.
 
 The notation is explained in [the notation document](../../docs/notation.md).
 
@@ -262,7 +262,7 @@ The notation is explained in [the notation document](../../docs/notation.md).
 %rule lexicon-j
   | /j/ any-a <"JA">
   | /j/ any-a /'/ any-a <"NA">
-  | /j/ any-a /'/ any-a any-i <"NAI">
+  | /j/ any-a /'/ any-a any-i <"NAI" ∪ "indicator">
   | /j/ any-a /'/ any-e <"BAI">
   | /j/ any-a /'/ any-i <"BAI">
   | /j/ any-a /'/ any-o <"UI" ∪ "indicator">
@@ -436,7 +436,7 @@ The notation is explained in [the notation document](../../docs/notation.md).
   | /n/ any-a /'/ any-i <"UI" ∪ "indicator">
   | /n/ any-a /'/ any-o <"TAhE">
   | /n/ any-a /'/ any-u <"NAhU">
-  | /n/ any-a any-i <"NAI">
+  | /n/ any-a any-i <"NAI" ∪ "indicator">
   | /n/ any-a any-u <"CUhE">
   | /n/ any-a any-u /'/ any-o <"KOhA">
   | /n/ any-e <"GOI">
