@@ -50,6 +50,8 @@ export declare class ParseContext {
     nested: Map<string, boolean | TagSet>;
     /** @type {Set<string>} */
     inProgress: Set<string>;
+    /** Where the input of the recognition now running begins. */
+    inputStart: number;
     /**
      * When set, the recognizer records what happens at one position of the
      * top-level parse, for diagnostics (see diagnostics.js, trace).

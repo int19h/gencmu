@@ -206,6 +206,8 @@
       this.nested = new Map();
       /** @type {Set<string>} */
       this.inProgress = new Set();
+      /** Where the input of the recognition now running begins. */
+      this.inputStart = 0;
       /**
        * When set, the recognizer records what happens at one position of the
        * top-level parse, for diagnostics (see diagnostics.js, trace).
@@ -309,6 +311,23 @@
    * @returns {Chart}
    */
   function recognize(context, rule, start, end) {
+    const outer = context.inputStart;
+    context.inputStart = start;
+    try {
+      return recognizeFrom(context, rule, start, end);
+    } finally {
+      context.inputStart = outer;
+    }
+  }
+
+  /**
+   * @param {ParseContext} context
+   * @param {string} rule
+   * @param {number} start
+   * @param {number} end
+   * @returns {Chart}
+   */
+  function recognizeFrom(context, rule, start, end) {
     const { lowered, tokens } = context;
     /** @type {ChartSet[]} */
     const sets = [];
@@ -773,6 +792,8 @@
       const span = spanOf(context, condition.matches, scope);
       return nestedMatches(context, condition.rule, span.start, span.end);
     }
+    // Where the input of the parse that reads the condition begins (engine §10).
+    if ("initial" in condition) return spanOf(context, condition.initial, scope).start === context.inputStart;
     const left = evaluate(context, condition.left, scope);
     const right = evaluate(context, condition.right, scope);
     switch (condition.op) {
@@ -1463,7 +1484,7 @@
 
   /** @import { Argument, GrammarDom, Term } from "./types.js" */
 
-  const DOM_FUNCTIONS = new Set(["phonemes", "text", "lowercase", "tags", "classes", "words", "head", "tail", "last", "matches"]);
+  const DOM_FUNCTIONS = new Set(["phonemes", "text", "lowercase", "tags", "classes", "words", "head", "tail", "last", "matches", "initial"]);
   const DOM_COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆"]);
   const DOM_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
   // The nesting the notation allows (engine §9): deeper than any grammar a
@@ -1630,6 +1651,9 @@
         } else if ("matches" in value) {
           if (typeof value.rule !== "string" || !isDomSpan(value.matches)) return "a malformed condition";
           pending.push({ kind: "argument", value: value.matches, depth: next });
+        } else if ("initial" in value) {
+          if (Object.keys(value).length !== 1 || !isDomSpan(value.initial)) return "a malformed condition";
+          pending.push({ kind: "argument", value: value.initial, depth: next });
         } else {
           if (typeof value.op !== "string" || !DOM_COMPARATORS.has(value.op)) return "a malformed condition";
           push("term", value.left);
@@ -1650,7 +1674,7 @@
           const isRule = (/** @type {unknown} */ arg) => isDomObject(arg) && typeof arg.rule === "string" && Object.keys(arg).length === 1;
           const call = value.call;
           let ok;
-          if (typeof call !== "string" || !DOM_FUNCTIONS.has(call) || call === "matches") ok = false;
+          if (typeof call !== "string" || !DOM_FUNCTIONS.has(call) || call === "matches" || call === "initial") ok = false;
           else if (call === "tags") ok = (args.length === 1 && isDomSpan(args[0])) || (args.length === 2 && isDomSpan(args[0]) && isRule(args[1]));
           else if (call === "lowercase") ok = args.length === 1 && isDomString(args[0]);
           else ok = args.length === 1 && isDomSpan(args[0]);
@@ -1698,7 +1722,7 @@
       }
       return node.args.some((argument) => isDomObject(argument) && typeof argument.call === "string" && readsOwnTags(argument));
     }
-    if ("matches" in node) return false;
+    if ("matches" in node || "initial" in node) return false;
     for (const key of ["union", "intersection", "any", "all"]) {
       const items = node[key];
       if (Array.isArray(items)) return items.some(readsOwnTags);
@@ -1782,7 +1806,7 @@
    */
   function isCondition(node) {
     return isDomObject(node) && (typeof node.op === "string" || "not" in node || "all" in node || "any" in node ||
-      "matches" in node || "captured" in node || ("if" in node && isCondition(node.then)) || "constant" in node);
+      "matches" in node || "initial" in node || "captured" in node || ("if" in node && isCondition(node.then)) || "constant" in node);
   }
 
   /**
@@ -2139,6 +2163,7 @@
     if ("captured" in condition) return `$${condition.captured}`;
     if ("if" in condition) return `(${formatCondition(condition.if)} ⟹ ${formatCondition(/** @type {Condition} */ (condition.then))})`;
     if ("matches" in condition) return `matches(${formatTerm(condition.matches)}, ${condition.rule})`;
+    if ("initial" in condition) return `initial(${formatTerm(condition.initial)})`;
     return `${formatTerm(condition.left)} ${condition.op} ${formatTerm(condition.right)}`;
   }
 
@@ -4859,8 +4884,9 @@
         case "call": {
           const call = readCall(inner);
           const [span, rule] = call.args;
+          if (call.call === "initial" && call.args.length === 1 && !("rule" in span)) return { initial: span };
           if (call.call !== "matches" || call.args.length !== 2 || !("rule" in rule) || "rule" in span) {
-            return fail("a condition calls only matches(span, rule)", inner);
+            return fail("a condition calls only matches(span, rule) or initial(span)", inner);
           }
           return { matches: span, rule: rule.rule };
         }
@@ -4899,7 +4925,7 @@
         if (ruleOf(inner) === "call") {
           const call = readCall(inner);
           if (!argument && SPANS.has(call.call)) fail(`${call.call} gives a span, which is not a value`, inner);
-          if (call.call === "matches") fail("matches is a condition, not a term", inner);
+          if (call.call === "matches" || call.call === "initial") fail(`${call.call} is a condition, not a term`, inner);
           return call;
         }
         return readTerm(inner);
@@ -4972,7 +4998,7 @@
     }
   }
 
-  const FUNCTIONS = new Set(["phonemes", "text", "lowercase", "tags", "classes", "words", "head", "tail", "last", "matches"]);
+  const FUNCTIONS = new Set(["phonemes", "text", "lowercase", "tags", "classes", "words", "head", "tail", "last", "matches", "initial"]);
 
   // The functions whose value is a span, and those whose value is a string.
   const SPANS = new Set(["head", "tail", "last"]);
@@ -4981,7 +5007,7 @@
   /** @type {Record<string, string>} */
   const SIGNATURES = {
     phonemes: "one span", text: "one span", words: "one span", classes: "one span",
-    head: "one span", tail: "one span", last: "one span",
+    head: "one span", tail: "one span", last: "one span", initial: "one span",
     lowercase: "one string", tags: "a span, and optionally a rule", matches: "a span and a rule",
   };
 
@@ -5920,7 +5946,7 @@
   /**
    * A condition.
    * @typedef {{any: Condition[]} | {all: Condition[]} | {not: Condition} | {captured: string}
-   *   | {if: Condition, then: Condition} | {matches: Term, rule: string}
+   *   | {if: Condition, then: Condition} | {matches: Term, rule: string} | {initial: Term}
    *   | {op: Comparator, left: Term, right: Term}} Condition
    */
 
