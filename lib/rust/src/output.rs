@@ -292,7 +292,8 @@ pub(crate) fn brackets(tree: &Node, tokens: &[Token], show_elided: bool) -> Stri
                 let token = node.token.and_then(|token| tokens.get(token));
                 let label = match token {
                     Some(token) => match token.phonemes.as_deref() {
-                        Some(phonemes) if !phonemes.is_empty() => phonemes.to_string(),
+                        // Each pause is written as a space.
+                        Some(phonemes) if !phonemes.is_empty() => phonemes.replace('.', " "),
                         _ => token.text.clone(),
                     },
                     None => String::new(),

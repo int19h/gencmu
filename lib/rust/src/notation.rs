@@ -306,18 +306,15 @@ impl<'a> Reader<'a> {
         let mut items = Vec::new();
         for item in Self::rules(node, "emit-item") {
             let target = Self::tokens_of(self.one(item, "emit-target")).next().expect("an emission target");
-            // `<term>`, or `<>`, which makes the item silent.
+            // `<term>`, the item's own tags.
             let tags = match Self::rules(item, "emit-tags").next() {
-                Some(tags) => match Self::rules(tags, "term").next() {
-                    Some(term) => {
-                        let term = self.term(term, 0)?;
-                        if term == Term::EmptySet {
-                            return Err(self.error(item, "<∅> emits a token no terminal can read; <> makes it silent"));
-                        }
-                        Some(Some(term))
+                Some(tags) => {
+                    let term = self.term(self.one(tags, "term"), 0)?;
+                    if term == Term::EmptySet {
+                        return Err(self.error(item, "<∅> emits a token no terminal can read; %emits ε emits nothing"));
                     }
-                    None => Some(None),
-                },
+                    Some(term)
+                }
                 None => None,
             };
             let terminal = target.terminal.as_deref().unwrap_or("");
@@ -325,35 +322,27 @@ impl<'a> Reader<'a> {
                 "capture" => {
                     let name = self.text(target).trim_start_matches('$').to_string();
                     let listed = items.iter().any(|item| match item {
-                        EmitItem::Capture(other, _) | EmitItem::Silent(other) => *other == name,
+                        EmitItem::Capture(other, _) => *other == name,
                         EmitItem::Insert(_) => false,
                     });
                     if listed && !name.is_empty() {
                         return Err(self.error(arrow, "an emission lists the same capture twice"));
                     }
-                    items.push(match tags {
-                        Some(None) => EmitItem::Silent(name),
-                        Some(Some(term)) => EmitItem::Capture(name, Some(term)),
-                        None => EmitItem::Capture(name, None),
-                    });
+                    items.push(EmitItem::Capture(name, tags));
                 }
                 _ => {
                     if tags.is_some() {
-                        return Err(self.error(target, "an inserted tag takes no tags of its own, nor <>"));
+                        return Err(self.error(target, "an inserted tag takes no tags of its own"));
                     }
                     let tag = if terminal == "string" { self.decode(target)? } else { self.text(target).to_string() };
                     items.push(EmitItem::Insert(tag));
                 }
             }
         }
-        let whole =
-            |item: &EmitItem| matches!(item, EmitItem::Capture(name, _) | EmitItem::Silent(name) if name.is_empty());
+        let whole = |item: &EmitItem| matches!(item, EmitItem::Capture(name, _) if name.is_empty());
         let wholes = items.iter().filter(|item| whole(item)).count();
         if wholes > 0 && wholes < items.len() {
             return Err(self.error(arrow, "$ is used with a capture or an inserted tag"));
-        }
-        if items.len() > 1 && items.iter().any(|item| matches!(item, EmitItem::Silent(name) if name.is_empty())) {
-            return Err(self.error(arrow, "$ <> makes the whole constituent silent and stands alone"));
         }
         Ok(items)
     }

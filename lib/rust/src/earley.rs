@@ -551,7 +551,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 let (start, end, _) = span_bounds(span, frame);
                 Value::List(
                     Self::phonemes(tokens, start, end)
-                        .split(' ')
+                        .split('.')
                         .filter(|word| !word.is_empty())
                         .map(str::to_string)
                         .collect(),
