@@ -60,7 +60,7 @@
     return stages;
   }
 
-  const DIALECT_ORDER = ["cll", "bpfk", "experimental", "zantufa", "notation"];
+  const DIALECT_ORDER = ["cll-ebnf", "bpfk", "experimental", "zantufa", "notation"];
   const dialectName = (path) => path.replace(/^dialects\//, "").replace(/\.md$/, "");
   const dialectPaths = Object.keys(bundled).filter((path) => /^dialects\/[^/]+\.md$/.test(path)).sort((a, b) => {
     const rank = (path) => { const index = DIALECT_ORDER.indexOf(dialectName(path)); return index < 0 ? DIALECT_ORDER.length : index; };
@@ -68,11 +68,12 @@
   });
 
   const EXAMPLES = [
-    { label: "A sentence", text: "mi klama le zarci", dialect: "cll" },
-    { label: "Elided terminators", text: "lo lojbo cu tavla fi lo nu mi klama le zarci .i do pu tavla mi", dialect: "cll" },
-    { label: "A text the syntax rejects", text: "mi klama le le", dialect: "cll" },
-    { label: "The eraser sa, with auto features", text: "mi klama sa do", dialect: "cll" },
-    { label: "Cyrillic orthography", text: "ми клама ле зарши", dialect: "cll" },
+    { label: "A sentence", text: "mi klama le zarci", dialect: "cll-ebnf" },
+    { label: "Elided terminators", text: "lo lojbo cu tavla fi lo nu mi klama le zarci .i do pu tavla mi", dialect: "cll-ebnf" },
+    { label: "A text the syntax rejects", text: "mi klama le le", dialect: "cll-ebnf" },
+    { label: "The eraser sa, with auto features", text: "mi klama sa do", dialect: "cll-ebnf" },
+    { label: "Cyrillic orthography", text: "ми клама ле зарши", dialect: "cll-ebnf" },
+    { label: "An elided terminator the PEG reading forbids (BPFK)", text: "le lojbo se farvi le loglo gi'enai mintu ja dunli le logla", dialect: "bpfk" },
     { label: "A tie in the words stage (BPFK)", text: "ko na krici fi locesyselmanci", dialect: "bpfk" },
     { label: "Ambiguous beyond elision (experimental, elision-only on)", text: "la olivian na klama", dialect: "experimental", elision: "on" },
     { label: "A rule in jbogenbau", text: "%rule sumti-tail\n  [sumti-6 [relative-clauses]] sumti-tail-1 | relative-clauses sumti-tail-1", dialect: "notation" },
@@ -82,7 +83,7 @@
 
   const state = {
     text: $("input").value,
-    dialect: dialectPaths.includes("dialects/cll.md") ? "dialects/cll.md" : dialectPaths[0],
+    dialect: dialectPaths.includes("dialects/cll-ebnf.md") ? "dialects/cll-ebnf.md" : dialectPaths[0],
     // The features the page turns on, and those it turns off among the
     // ones the dialect turns on.
     features: new Set(),

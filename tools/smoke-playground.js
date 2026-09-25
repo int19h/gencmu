@@ -173,14 +173,14 @@ async function main() {
         if (found.length) throw new Error(`the page showed an answer for an earlier state as current: ${JSON.stringify(found[0])}`);
       };
 
-      await choose("dialects/cll.md");
+      await choose("dialects/cll-ebnf.md");
       const sentence = "mi klama le zarci";
       await type(sentence);
       const accepted = await answerFor(sentence);
       if (accepted.error) throw new Error(`the playground failed: ${accepted.error}`);
       const brackets = "(mi [klama {le zarci}])";
       if (accepted.output.trim() !== brackets) {
-        throw new Error(`${sentence} under cll gave ${JSON.stringify(accepted.output)}, not ${brackets}`);
+        throw new Error(`${sentence} under cll-ebnf gave ${JSON.stringify(accepted.output)}, not ${brackets}`);
       }
 
       const rejected = "mi klama le le";
@@ -201,7 +201,7 @@ async function main() {
       }
       await choose("dialects/experimental.md");
       await type("mi cu klama");
-      await choose("dialects/cll.md");
+      await choose("dialects/cll-ebnf.md");
       const last = "mi klama le zarci";
       await type(last);
       const settled = await answerFor(last);

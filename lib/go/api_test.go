@@ -214,7 +214,7 @@ func TestAutoFeatures(t *testing.T) {
 // default, which auto features need (engine §13); a dialect's list of
 // features is the caller's own copy.
 func TestDialectFeatures(t *testing.T) {
-	for _, name := range []string{"cll", "bpfk", "experimental", "zantufa"} {
+	for _, name := range []string{"cll-ebnf", "bpfk", "experimental", "zantufa"} {
 		d, err := LoadDialect(name)
 		if err != nil {
 			t.Fatal(err)
