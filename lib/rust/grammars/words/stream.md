@@ -399,7 +399,7 @@ The gap between a marker and its word is an optional pause, with hesitation allo
   non-pause-char | PAUSE
 
 %rule non-pause-char
-  | /a/ | /e/ | /i/ | /o/ | /u/ | /A/ | /E/ | /I/ | /O/ | /U/ | y | /'/ | FOREIGN
+  | /a/ | /e/ | /i/ | /o/ | /u/ | /A/ | /E/ | /I/ | /O/ | /U/ | y | /'/ | /,/ | FOREIGN
   | /b/
   | /c/
   | /d/

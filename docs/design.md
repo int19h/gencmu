@@ -21,7 +21,7 @@ What it does not ship: research notes, comparisons with other parsers, the scrip
 index.html                 web playground, which GitHub Pages can serve from the root
 playground/                playground scripts and styles, relative paths only
 grammars/                  the grammar documents, the single source of truth
-  phonemes/                characters to phonemes: latin, cyrillic, zbalermorna
+  phonemes/                characters to phonemes: latin-strict, latin, cyrillic, cyrillic-cll, zbalermorna
   words/                   phonemes to words: stream, shapes, families, lexicons
   indicators/              the non-formal indicator and ba'e rule
   syntax/                  the syntax grammars

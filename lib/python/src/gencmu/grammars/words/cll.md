@@ -414,3 +414,55 @@ CLL 3.4 admits a glide after a consonant or a cluster in a borrowing as well, as
 ```
 
 A borrowing may also open with a cluster and a glide, as in `zgiaca'a`, which usage attests.
+
+## Vowels in names
+
+CLL 3.4 says that "when more than two vowels occur together in Lojban, the normal pronunciation pairs vowels from the left into syllables". So `.meiin.` is `ei` followed by `i`, and not `e` followed by `ii`. A vowel that makes a falling diphthong with the `i` or `u` after it takes that letter into the diphthong. The letter is then no glide. A vowel may then stand right after the diphthong, in a syllable of its own. The shared rules of [shapes.md](shapes.md) read a name's vowels the other way. These rules change only how a name is parsed, not which texts are names.
+
+```jbogenbau
+%redefine-rule cmevla-body
+  | cmevla-nucleus cmevla-run
+  | $n(cmevla-nucleus) $c(cmevla-consonants) cmevla-body
+  | cmevla-nucleus /'/ cmevla-body
+  | free-diphthong cmevla-body
+%conditions
+  ¬matches($c, glide-i) ∨ ¬matches(last($n), before-i),
+  ¬matches($c, glide-u) ∨ ¬matches(last($n), before-u)
+
+%rule glide-i
+  /i/ | /I/
+
+%rule glide-u
+  /u/ | /U/
+
+%rule before-i
+  /a/ | /e/ | /o/ | /A/ | /E/ | /O/
+
+%rule before-u
+  /a/ | /A/
+```
+
+## Syllable breaks
+
+CLL 3.3 writes a comma between two vowels as a syllable break, and the phoneme stage reads it as `/,/`. The break parts the vowels into two syllables, as an apostrophe does, but with no sound of its own. So a name or a borrowing may have a break wherever it may have an apostrophe between two vowels. CLL 4.8 writes `kore,a` "because ea is not a valid diphthong". CLL 3.4 writes `.me,iin.` for `e` and `ii`, where `.meiin.` would be `ei` and `i`. After a break, a name may go on with a glide, as `ii` does. A break is one more letter for the checks on a whole word.
+
+```jbogenbau
+%extend-rule any-letter
+  /,/
+
+%extend-rule cmevla-body
+  | cmevla-nucleus /,/ cmevla-body
+  | cmevla-nucleus /,/ glide cmevla-body
+
+%extend-rule fuhivla-short-body
+  stressed-nucleus /,/ plain-nucleus
+
+%extend-rule fuhivla-head-part
+  plain-nucleus /,/
+
+%extend-rule fuhivla-clean-head
+  plain-nucleus /,/ | plain-nucleus /,/ fuhivla-clean-head
+
+%extend-rule fuhivla-clustered-head
+  plain-nucleus /,/ fuhivla-clustered-head
+```

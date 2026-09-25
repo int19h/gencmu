@@ -4,8 +4,10 @@ The experimental dialect ([`experimental.md`](experimental.md)) with the constru
 
 ## Stage 1: phonemes <?stage phonemes?>
 
-- [Latin orthography](../phonemes/latin.md) <?grammar?>
-- [Cyrillic orthography](../phonemes/cyrillic.md) <?grammar?>
+- [The Latin orthography of CLL](../phonemes/latin-strict.md) <?grammar?>
+- [Latin conventions](../phonemes/latin.md): punctuation, capital runs, accents and digits <?grammar?>
+- [Cyrillic orthography](../phonemes/cyrillic.md): gencmu's Cyrillic, the default <?grammar?>
+- [The Cyrillic orthography of CLL](../phonemes/cyrillic-cll.md): CLL 3.12's Cyrillic, which a caller chooses with the feature `cll-cyrillic` <?grammar?>
 - [zbalermorna](../phonemes/zbalermorna.md) <?grammar?>
 
 ## Stage 2: words <?stage words?>
