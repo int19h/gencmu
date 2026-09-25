@@ -142,7 +142,7 @@ Beyond CLL: terms may be connected directly by a joik, jek, ek or VUhU (`term-co
 %rule term
   | term-3 [term-connective term-3] ...
   | tagged-term (joik # | ek #) BO # tagged-term
-  | @term-hierarchy term-3 (joik # | ek #) BO # term-3
+  | @term-hierarchy? term-3 (joik # | ek #) BO # term-3
 
 %rule term-connective
   joik # | jek # | ek # | VUhU #
@@ -177,7 +177,7 @@ Beyond CLL: terms may be connected directly by a joik, jek, ek or VUhU (`term-co
 %rule term-not-starting-with-bare-gek
   | term-3-not-starting-with-bare-gek [term-connective term-3] ...
   | tagged-term (joik # | ek #) BO # tagged-term
-  | @term-hierarchy term-3-not-starting-with-bare-gek (joik # | ek #) BO # term-3
+  | @term-hierarchy? term-3-not-starting-with-bare-gek (joik # | ek #) BO # term-3
 
 %rule term-3-not-starting-with-bare-gek
   | sumti
@@ -231,7 +231,7 @@ Beyond CLL: sumti connectives are ek, JEhI, joik or VUhU (`sumti-connective`). A
   | (LAhE # | NAhE BO #) (tag | FA #) sumti [LUhU] #
   | KOhA #
   | lerfu-string free-after-elided-boi
-  | @¬cbm LA # [relative-clauses] CMEVLA ... #
+  | @¬cbm? LA # [relative-clauses] CMEVLA ... #
   | (LA | LE) # sumti-tail [KU] #
   | (LA | LE) # jek (LA | LE) # sumti-tail [KU] #
   | LOhOI # [(joik # | jek #) LOhOI #] ... statement [KUhAU] #
@@ -324,7 +324,7 @@ selbri-5-not-starting-with-ke [selbri-connective selbri-5 | joik [stag] KE # sel
 %rule tanru-unit-2
   | KE # selbri-3 [KEhE] #
   | BRIVLA #
-  | @cbm CMEVLA #
+  | @cbm? CMEVLA #
   | GOhA [RAhO] #
   | ME # sumti [MEhU] # [MOI #]
   | (number | lerfu-string) MOI #
@@ -349,7 +349,7 @@ selbri-5-not-starting-with-ke [selbri-connective selbri-5 | joik [stag] KE # sel
 
 %rule tanru-unit-2-not-starting-with-ke
   | BRIVLA #
-  | @cbm CMEVLA #
+  | @cbm? CMEVLA #
   | GOhA [RAhO] #
   | ME # sumti [MEhU] # [MOI #]
   | (number | lerfu-string) MOI #
@@ -540,7 +540,7 @@ Beyond CLL: the text replacement forms `lo'ai ... sa'ai ... le'ai`, `sa'ai ... l
   | SEI # [terms [CU #]] selbri [SEhU]
   | SOI # sumti [sumti] [SEhU]
   | vocative [relative-clauses] selbri [relative-clauses] [DOhU]
-  | @¬cbm vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
+  | @¬cbm? vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
   | vocative [sumti] [DOhU]
   | (number | lerfu-string) MAI
   | TO text [TOI]
@@ -557,7 +557,7 @@ Beyond CLL: the text replacement forms `lo'ai ... sa'ai ... le'ai`, `sa'ai ... l
   | SEI # [terms [CU #]] selbri [SEhU]
   | SOI # sumti [sumti] [SEhU]
   | vocative [relative-clauses] selbri [relative-clauses] [DOhU]
-  | @¬cbm vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
+  | @¬cbm? vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
   | vocative [sumti] [DOhU]
   | TO text [TOI]
   | XI # (number | lerfu-string) [BOI]

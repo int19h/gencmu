@@ -21,6 +21,7 @@
         "kind": "rejected"
       }
     },
-    "warnings": []
+    "warnings": [],
+    "error": "rejected"
   }
 }

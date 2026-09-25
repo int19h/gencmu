@@ -3,7 +3,7 @@
   "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule text A B | C\n```\n",
   "expect": {
     "dom": {
-      "format": 4,
+      "format": 5,
       "rules": [
         {
           "name": "text",

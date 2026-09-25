@@ -1,0 +1,36 @@
+{
+  "description": "When auto features run the parse again with sa-su, the first run's warnings are discarded: only the second run's chosen trees give warnings (engine §13).",
+  "documents": {
+    "p.md": "# A dialect\n\n## Words <?stage words?>\n\n- [g](g.md) <?grammar?>\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution lazy\n%rule text @¬sa-su? @w! word | @sa-su? word\n%rule word A\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "sa",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "sa"
+    }
+  ],
+  "options": {
+    "autoFeatures": true,
+    "features": [
+      "w"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "words",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "warnings": [],
+    "brackets": "sa"
+  }
+}

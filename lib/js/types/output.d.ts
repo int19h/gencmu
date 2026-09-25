@@ -64,6 +64,17 @@ export type ResultJson = {
     stages: StageJson[];
     tree: NodeJson | null;
     error: ErrorJson | null;
+    /**
+     * present only when there is one
+     */
+    warnings?: WarningJson[];
+};
+export type WarningJson = {
+    stage: string;
+    feature: string;
+    rule: string;
+    span: [number, number];
+    source: [number, number];
 };
 export type DisplayValue = {
     [name: string]: DisplayValue | DisplayValue[] | string | null;
@@ -122,13 +133,23 @@ export type DisplayValue = {
  * @property {StageJson[]} stages
  * @property {NodeJson | null} tree
  * @property {ErrorJson | null} error
+ * @property {WarningJson[]} [warnings] present only when there is one
+ */
+/**
+ * A warning (docs/output.md).
+ * @typedef {object} WarningJson
+ * @property {string} stage
+ * @property {string} feature
+ * @property {string} rule
+ * @property {[number, number]} span
+ * @property {[number, number]} source
  */
 /**
  * The display JSON projection of a tree: each node an object with one
  * member, its rule or terminal.
  * @typedef {{[name: string]: DisplayValue | DisplayValue[] | string | null}} DisplayValue
  */
-export declare const RESULT_FORMAT = 1;
+export declare const RESULT_FORMAT = 2;
 /**
  * @param {ResultNode} node
  * @returns {NodeJson}

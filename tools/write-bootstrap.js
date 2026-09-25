@@ -9,6 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readDocument } from "./bootstrap-reader.js";
 import { readPipeline, resolvePath } from "../lib/js/src/markdown.js";
+import { DOM_FORMAT } from "../lib/js/src/dom.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "grammars");
 const pipelinePath = "dialects/notation.md";
@@ -19,5 +20,5 @@ const stages = readPipeline(fs.readFileSync(path.join(root, pipelinePath), "utf8
     return { path: documentPath, dom: readDocument(fs.readFileSync(path.join(root, documentPath), "utf8"), documentPath) };
   }),
 }));
-fs.writeFileSync(path.join(root, "notation", "bootstrap.json"), JSON.stringify({ format: 4, stages }) + "\n");
+fs.writeFileSync(path.join(root, "notation", "bootstrap.json"), JSON.stringify({ format: DOM_FORMAT, stages }) + "\n");
 console.log("wrote grammars/notation/bootstrap.json");

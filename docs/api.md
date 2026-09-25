@@ -45,7 +45,7 @@ import { loadDialectSources, toJson, toBrackets } from "gencmu";
 const dialect = loadDialect("cll");
 const result = dialect.parse("mi klama", { features: ["cbm"], until: "words" });
 result.ok; result.tree; result.error; result.warnings;
-dialect.features; // [{ name: "cbm", kind: "gate", default: false }, ...]
+dialect.features; // [{ name: "sa-su", kind: "gate", default: false }]
 toJson(result); toBrackets(result, { showElided: true });
 ```
 
@@ -66,7 +66,7 @@ import gencmu
 dialect = gencmu.load_dialect("cll")
 result = dialect.parse("mi klama", features={"cbm"}, until="words")
 result.ok, result.tree, result.error, result.warnings
-dialect.features  # (Feature(name="cbm", kind="gate", default=False), ...)
+dialect.features  # (Feature(name="sa-su", kind="gate", default=False),)
 gencmu.to_json(result)
 gencmu.to_brackets(result, show_elided=True)
 ```
@@ -88,7 +88,7 @@ import gencmu "github.com/int19h/gencmu/lib/go"
 dialect, err := gencmu.LoadDialect("cll")
 result, err := dialect.Parse("mi klama", gencmu.ParseOptions{Features: []string{"cbm"}, Until: "words"})
 result.OK; result.Tree; result.Error; result.Warnings
-dialect.Features() // []gencmu.Feature{{Name: "cbm", Kind: "gate", Default: false}, ...}
+dialect.Features() // []gencmu.Feature{{Name: "sa-su", Kind: "gate", Default: false}}
 data, err := gencmu.MarshalResult(result)
 gencmu.Brackets(result, gencmu.BracketOptions{ShowElided: true})
 ```

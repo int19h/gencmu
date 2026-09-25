@@ -40,6 +40,13 @@ export declare function explainError(result: ParseResult): string;
  */
 export declare function explainTies(result: ParseResult): string;
 /**
+ * Each warning of a result (engine §12) as the feature it names and an
+ * excerpt of the text the warned constituent covers.
+ * @param {ParseResult} result
+ * @returns {string}
+ */
+export declare function explainWarnings(result: ParseResult): string;
+/**
  * The tokens each stage handed on, or one stage's, as a table.
  * @param {ParseResult} result
  * @param {string} [stageName]
@@ -135,13 +142,14 @@ export type Trace = {
  * grammar not accept this text here".
  * @param {Dialect} dialect
  * @param {string} text
- * @param {{stage: string, position: number, features?: Iterable<string>, autoFeatures?: boolean}} options
+ * @param {{stage: string, position: number, features?: Iterable<string>, withoutFeatures?: Iterable<string>, autoFeatures?: boolean}} options
  * @returns {Trace}
  */
 export declare function trace(dialect: Dialect, text: string, options: {
     stage: string;
     position: number;
     features?: Iterable<string>;
+    withoutFeatures?: Iterable<string>;
     autoFeatures?: boolean;
 }): Trace;
 /**

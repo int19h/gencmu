@@ -1,7 +1,7 @@
 import { Stage } from "./stage.js";
 import { Token } from "./tokens.js";
 import { UnicodeTable } from "./unicode.js";
-import type { GrammarDom, ParseOptions, ParseResult, Resources } from "./types.js";
+import type { Feature, GrammarDom, ParseOptions, ParseResult, Resources } from "./types.js";
 export type CompiledEntry = {
     hash: string;
     dom: GrammarDom;
@@ -12,7 +12,7 @@ export type RunOptions = {
     elisionOnly?: boolean | null;
     tokens?: Token[];
 };
-/** @import { GrammarDom, ParseError, ParseOptions, ParseResult, Resources, ResultNode, StageReport } from "./types.js" */
+/** @import { Feature, GrammarDom, ParseError, ParseOptions, ParseResult, Resources, ResultNode, StageReport } from "./types.js" */
 /**
  * A precompiled document of compiled.json.
  * @typedef {{hash: string, dom: GrammarDom}} CompiledEntry
@@ -67,14 +67,16 @@ export declare class Dialect {
     path: string;
     stages: Stage[];
     loader: Loader;
-    features: string[];
+    declared: string[];
+    /** @type {Feature[]} the dialect's features, with their kinds and defaults */
+    features: Feature[];
     /**
      * @param {string} path
      * @param {Stage[]} stages
      * @param {Loader} loader
-     * @param {string[]} [features] the features the pipeline enables
+     * @param {string[]} [declared] the features the pipeline turns on
      */
-    constructor(path: string, stages: Stage[], loader: Loader, features?: string[]);
+    constructor(path: string, stages: Stage[], loader: Loader, declared?: string[]);
     /**
      * Parses a text.
      * @param {string} text

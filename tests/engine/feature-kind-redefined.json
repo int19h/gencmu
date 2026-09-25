@@ -1,0 +1,30 @@
+{
+  "description": "A feature's kind comes from the rules after stitching: a warning that %redefine-rule replaced with a gate of the same name is not a conflict (engine §13).",
+  "documents": {
+    "p.md": "# A dialect\n\n## Main <?stage main?>\n\n- [a](a.md) <?grammar?>\n- [b](b.md) <?grammar?>\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text @f! A | B\n```\n",
+    "b.md": "```jbogenbau\n%redefine-rule text @f? A | B\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "features": [
+      {
+        "name": "f",
+        "kind": "gate",
+        "default": false
+      }
+    ],
+    "result": {
+      "ok": true
+    },
+    "brackets": "b"
+  }
+}

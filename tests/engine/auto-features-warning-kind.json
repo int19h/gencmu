@@ -1,0 +1,34 @@
+{
+  "description": "Auto features add sa-su only in a dialect where it is a gate; where it is a warning, the parse is not run again and gives no warning (engine §13).",
+  "documents": {
+    "p.md": "# A dialect\n\n## Words <?stage words?>\n\n- [g](g.md) <?grammar?>\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution lazy\n%rule text @sa-su! word\n%rule word A\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "sa",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "sa"
+    }
+  ],
+  "options": {
+    "autoFeatures": true
+  },
+  "expect": {
+    "features": [
+      {
+        "name": "sa-su",
+        "kind": "warning",
+        "default": false
+      }
+    ],
+    "result": {
+      "ok": true
+    },
+    "warnings": [],
+    "brackets": "sa"
+  }
+}

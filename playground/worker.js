@@ -100,14 +100,6 @@
       phase("loading", path);
       try {
         const dialect = loader.dialect(path);
-        // The features a switch can change: every feature an alternative of
-        // the dialect's grammars is guarded on, with @f or @¬f.
-        const guarded = new Set();
-        for (const stage of dialect.stages) {
-          for (const rule of stage.grammar.rules.values()) {
-            for (const alternative of rule.alternatives) for (const guard of alternative.guards || []) guarded.add(guard.feature);
-          }
-        }
         entry = {
           dialect,
           info: {
@@ -117,8 +109,9 @@
               lean: stage.grammar.resolution ? stage.grammar.resolution.lean : null,
               elisionOnly: !!(stage.grammar.resolution && stage.grammar.resolution.elisionOnly),
             })),
-            features: [...guarded].sort(),
-            dialectFeatures: dialect.features.slice(),
+            // Each feature a switch can change: its name, whether it is a
+            // gate or a warning, and whether the dialect turns it on.
+            features: dialect.features.map((feature) => ({ name: feature.name, kind: feature.kind, default: feature.default })),
           },
         };
       } catch (error) {
@@ -129,12 +122,13 @@
     }
 
     function parse(entry, request) {
-      const key = JSON.stringify([version, request.dialect, request.text, request.features, request.autoFeatures, request.until, request.elisionOnly]);
+      const key = JSON.stringify([version, request.dialect, request.text, request.features, request.withoutFeatures, request.autoFeatures, request.until, request.elisionOnly]);
       if (last && last.key === key) return last;
       phase("parsing");
       const started = now();
       const result = entry.dialect.parse(request.text, {
         features: request.features,
+        withoutFeatures: request.withoutFeatures,
         autoFeatures: request.autoFeatures,
         until: request.until || undefined,
         elisionOnly: request.elisionOnly,
@@ -150,6 +144,8 @@
         ok: result.ok,
         text: result.text,
         features: result.features || [],
+        warnings: (result.warnings || []).map((warning) => ({ stage: warning.stage, feature: warning.feature, rule: warning.rule })),
+        warningsText: gencmu.explainWarnings(result),
         stages: result.stages.map((stage) => ({
           name: stage.name,
           verdict: stage.verdict,
@@ -244,7 +240,7 @@
       try {
         const traced = gencmu.trace(entry.dialect, request.text, {
           stage: request.trace.stage, position: request.trace.position,
-          features: request.features, autoFeatures: request.autoFeatures,
+          features: request.features, withoutFeatures: request.withoutFeatures, autoFeatures: request.autoFeatures,
         });
         // The tokens around the position, for the page's picker.
         const from = Math.max(0, traced.position - 40);
@@ -263,7 +259,7 @@
 
     // One run: load the dialect, parse the text, render what the page shows.
     //
-    // request: { dialect, text, features: string[], autoFeatures, until,
+    // request: { dialect, text, features: string[], withoutFeatures: string[], autoFeatures, until,
     //   elisionOnly: null | boolean, view: { format, showElided, pretty,
     //   stage }, trace: null | { stage, position }, audit: boolean }
     function run(id, request) {
@@ -281,7 +277,7 @@
       answer.parse = parsed.summary;
       // The features auto features switched on for this text.
       answer.autoFeatures = parsed.summary.features.filter((name) =>
-        !request.features.includes(name) && !entry.info.dialectFeatures.includes(name));
+        !request.features.includes(name) && !entry.info.features.some((feature) => feature.name === name && feature.default));
       answer.parseMs = parsed.ms;
       answer.output = render(parsed, request.view);
       if (request.trace) answer.trace = runTrace(entry, parsed, request);

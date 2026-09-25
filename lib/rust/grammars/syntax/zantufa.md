@@ -2,7 +2,7 @@
 
 This document is the Zantufa dialect's addition to the experimental syntax grammar, [`experimental.md`](experimental.md): the constructs of Guskant's Zantufa grammar, version 1.9999, that go beyond it. It is stitched after that grammar in the syntax stage of the Zantufa dialect, [`../dialects/zantufa.md`](../dialects/zantufa.md), so every rule here either is new, adds alternatives to a rule of the experimental grammar with `%extend-rule`, or restates one with `%redefine-rule`, replacing it. The notation is explained in [the notation document](../../docs/notation.md).
 
-Most of the constructs are behind features, which the Zantufa dialect enables: `zantufa-connectives`, `zantufa-terms`, `zantufa-tags` and `zantufa-mex`, each named in its section. A few are unguarded: they extend the experimental grammar over text it rejects, so they cannot change a reading it already has. Where a Zantufa form generalizes an older form over the same text, the rule is restated with the two under complementary guards, `@¬feature` on the old one and `@feature` on the new, so that the two never compete; that is why most changes here replace a rule rather than extend it.
+Most of the constructs are behind features, which the Zantufa dialect enables: `zantufa-connectives`, `zantufa-terms`, `zantufa-tags` and `zantufa-mex`, each named in its section. A few are unguarded: they extend the experimental grammar over text it rejects, so they cannot change a reading it already has. Where a Zantufa form generalizes an older form over the same text, the rule is restated with the two under complementary guards, `@¬feature?` on the old one and `@feature?` on the new, so that the two never compete; that is why most changes here replace a rule rather than extend it.
 
 The Zantufa cmavo, `mu'ei` in ROI, `xe'u`, `no'oi` in NOhOI and the others, come from the experimental lexicon and need no grammar change.
 
@@ -18,19 +18,19 @@ A statement may be a forethought connection of statements, `ga broda gi brode gi
 
 ```jbogenbau
 %redefine-rule paragraph
-  | @¬zantufa-terms (statement | fragment) [I # [statement | fragment]] ...
-  | @zantufa-terms (statement | fragment | statement (IhAU # [terms] | terms))
+  | @¬zantufa-terms? (statement | fragment) [I # [statement | fragment]] ...
+  | @zantufa-terms? (statement | fragment | statement (IhAU # [terms] | terms))
       [I # [statement | fragment | statement (IhAU # [terms] | terms)]] ...
   | I # NIhO ... # [(statement | fragment) [I # [statement | fragment]] ...]
 
 %redefine-rule statement-3
-  | @¬zantufa-connectives sentence
+  | @¬zantufa-connectives? sentence
       [ bridi-tail-connective [stag] BO # subsentence
       | selbri-connective [stag] KE # subsentence [KEhE] #
       ] ...
-  | @zantufa-connectives sentence
+  | @zantufa-connectives? sentence
   | [tag] TUhE # text-1 [TUhU] #
-  | @zantufa-connectives gek statement gik statement [(gik statement) ...] [GIhI] #
+  | @zantufa-connectives? gek statement gik statement [(gik statement) ...] [GIhI] #
 ```
 
 ## Bridi-tails
@@ -39,13 +39,13 @@ A forethought `gek-sentence` may take further `gi` branches and end in `gi'i` (`
 
 ```jbogenbau
 %redefine-rule gek-sentence
-  | @¬zantufa-connectives gek subsentence gik subsentence tail-terms
-  | @zantufa-connectives gek subsentence gik subsentence [(gik subsentence) ...] [GIhI] # tail-terms
+  | @¬zantufa-connectives? gek subsentence gik subsentence tail-terms
+  | @zantufa-connectives? gek subsentence gik subsentence [(gik subsentence) ...] [GIhI] # tail-terms
   | [tag] KE # gek-sentence [KEhE] #
   | NA # gek-sentence
 
 %extend-rule bridi-tail-3
-  @zantufa-terms KE # bridi-tail [KEhE] # tail-terms
+  @zantufa-terms? KE # bridi-tail [KEhE] # tail-terms
 ```
 
 ## Terms
@@ -54,24 +54,24 @@ A forethought termset may take further `gi` branches and end in `gi'i` (`zantufa
 
 ```jbogenbau
 %redefine-rule termset
-  | @¬zantufa-connectives [NUhI #] gek terms [NUhU] # gik terms [NUhU] #
-  | @zantufa-connectives [NUhI #] gek terms [NUhU] # gik terms [NUhU] # [(gik terms [NUhU] #) ...]
+  | @¬zantufa-connectives? [NUhI #] gek terms [NUhU] # gik terms [NUhU] #
+  | @zantufa-connectives? [NUhI #] gek terms [NUhU] # gik terms [NUhU] # [(gik terms [NUhU] #) ...]
       [GIhI] #
   | NUhI # terms-not-starting-with-bare-gek [NUhU] #
   | KE # terms [KEhE] #
 
 %redefine-rule termset-with-nuhi
-  | @¬zantufa-connectives NUhI # gek terms [NUhU] # gik terms [NUhU] #
-  | @zantufa-connectives NUhI # gek terms [NUhU] # gik terms [NUhU] # [(gik terms [NUhU] #) ...]
+  | @¬zantufa-connectives? NUhI # gek terms [NUhU] # gik terms [NUhU] #
+  | @zantufa-connectives? NUhI # gek terms [NUhU] # gik terms [NUhU] # [(gik terms [NUhU] #) ...]
       [GIhI] #
   | NUhI # terms-not-starting-with-bare-gek [NUhU] #
   | KE # terms [KEhE] #
 
 %extend-rule term-3
-  NOIhA # selbri KU # | @zantufa-tags JAI # [tag] sumti
+  NOIhA # selbri KU # | @zantufa-tags? JAI # [tag] sumti
 
 %extend-rule term-3-not-starting-with-bare-gek
-  NOIhA # selbri KU # | @zantufa-tags JAI # [tag] sumti
+  NOIhA # selbri KU # | @zantufa-tags? JAI # [tag] sumti
 ```
 
 ## Sumti
@@ -81,8 +81,8 @@ A forethought sumti connection may take further `gi` branches and end in `gi'i` 
 ```jbogenbau
 %redefine-rule sumti-4
   | sumti-5
-  | @¬zantufa-connectives gek sumti gik sumti-4
-  | @zantufa-connectives gek sumti gik sumti-4 [(gik sumti-4) ...] [GIhI] #
+  | @¬zantufa-connectives? gek sumti gik sumti-4
+  | @zantufa-connectives? gek sumti gik sumti-4 [(gik sumti-4) ...] [GIhI] #
 
 %extend-rule sumti-6
   RAhOI anything #
@@ -95,8 +95,8 @@ A `noi` relative clause contains a statement rather than a subsentence, so it ma
 ```jbogenbau
 %redefine-rule relative-clause
   | GOI # term [GEhU] #
-  | @¬zantufa-terms NOI # subsentence [KUhO] #
-  | @zantufa-terms NOI # statement [KUhO] #
+  | @¬zantufa-terms? NOI # subsentence [KUhO] #
+  | @zantufa-terms? NOI # statement [KUhO] #
 ```
 
 ## Selbri
@@ -106,18 +106,18 @@ A forethought guhek connection may take further `gi` branches and end in `gi'i` 
 ```jbogenbau
 %redefine-rule selbri-6
   | tanru-unit [[stag] BO # selbri-6]
-  | @¬zantufa-connectives [NAhE #] guhek selbri gik selbri-6
-  | @zantufa-connectives [NAhE #] guhek selbri gik selbri-6 [(gik selbri-6) ...] [GIhI] #
+  | @¬zantufa-connectives? [NAhE #] guhek selbri gik selbri-6
+  | @zantufa-connectives? [NAhE #] guhek selbri gik selbri-6 [(gik selbri-6) ...] [GIhI] #
 
 %redefine-rule selbri-6-not-starting-with-ke
   | tanru-unit-not-starting-with-ke [[stag] BO # selbri-6]
-  | @¬zantufa-connectives [NAhE #] guhek selbri gik selbri-6
-  | @zantufa-connectives [NAhE #] guhek selbri gik selbri-6 [(gik selbri-6) ...] [GIhI] #
+  | @¬zantufa-connectives? [NAhE #] guhek selbri gik selbri-6
+  | @zantufa-connectives? [NAhE #] guhek selbri gik selbri-6 [(gik selbri-6) ...] [GIhI] #
 
 %redefine-rule tanru-unit-2
   | KE # selbri-3 [KEhE] #
   | BRIVLA #
-  | @cbm CMEVLA #
+  | @cbm? CMEVLA #
   | GOhA [RAhO] #
   | ME # sumti [MEhU] # [MOI #]
   | (number | lerfu-string) MOI #
@@ -126,8 +126,8 @@ A forethought guhek connection may take further `gi` branches and end in `gi'i` 
   | JAI # [tag] tanru-unit-2
   | any-word (ZEI any-word) ...
   | NAhE # tanru-unit-2
-  | @¬zantufa-terms NU [NAI] # [joik-jek NU [NAI] #] ... subsentence [KEI] #
-  | @zantufa-terms NU [NAI] # [joik-jek NU [NAI] #] ... statement [KEI] #
+  | @¬zantufa-terms? NU [NAI] # [joik-jek NU [NAI] #] ... subsentence [KEI] #
+  | @zantufa-terms? NU [NAI] # [joik-jek NU [NAI] #] ... statement [KEI] #
   | linkargs tanru-unit-2
   | XOhI # tag
   | GOhOI anything #
@@ -141,7 +141,7 @@ A forethought guhek connection may take further `gi` branches and end in `gi'i` 
 
 %redefine-rule tanru-unit-2-not-starting-with-ke
   | BRIVLA #
-  | @cbm CMEVLA #
+  | @cbm? CMEVLA #
   | GOhA [RAhO] #
   | ME # sumti [MEhU] # [MOI #]
   | (number | lerfu-string) MOI #
@@ -150,8 +150,8 @@ A forethought guhek connection may take further `gi` branches and end in `gi'i` 
   | JAI # [tag] tanru-unit-2
   | any-word (ZEI any-word) ...
   | NAhE # tanru-unit-2
-  | @¬zantufa-terms NU [NAI] # [joik-jek NU [NAI] #] ... subsentence [KEI] #
-  | @zantufa-terms NU [NAI] # [joik-jek NU [NAI] #] ... statement [KEI] #
+  | @¬zantufa-terms? NU [NAI] # [joik-jek NU [NAI] #] ... subsentence [KEI] #
+  | @zantufa-terms? NU [NAI] # [joik-jek NU [NAI] #] ... statement [KEI] #
   | linkargs tanru-unit-2
   | XOhI # tag
   | GOhOI anything #
@@ -170,11 +170,11 @@ A `sei` discursive contains a statement rather than a bare selbri (`zantufa-term
 
 ```jbogenbau
 %redefine-rule free
-  | @¬zantufa-terms SEI # [terms [CU #]] selbri [SEhU]
-  | @zantufa-terms SEI # statement [SEhU]
+  | @¬zantufa-terms? SEI # [terms [CU #]] selbri [SEhU]
+  | @zantufa-terms? SEI # statement [SEhU]
   | SOI # sumti [sumti] [SEhU]
   | vocative [relative-clauses] selbri [relative-clauses] [DOhU]
-  | @¬cbm vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
+  | @¬cbm? vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
   | vocative [sumti] [DOhU]
   | (number | lerfu-string) MAI
   | TO text [TOI]
@@ -183,14 +183,14 @@ A `sei` discursive contains a statement rather than a bare selbri (`zantufa-term
   | LOhAI [any-word ...] [SAhAI [any-word ...]] LEhAI
   | SAhAI [any-word ...] LEhAI
   | LEhAI
-  | @zantufa-mex zantufa-raw-mex MAI
+  | @zantufa-mex? zantufa-raw-mex MAI
 
 %redefine-rule free-not-starting-with-number
-  | @¬zantufa-terms SEI # [terms [CU #]] selbri [SEhU]
-  | @zantufa-terms SEI # statement [SEhU]
+  | @¬zantufa-terms? SEI # [terms [CU #]] selbri [SEhU]
+  | @zantufa-terms? SEI # statement [SEhU]
   | SOI # sumti [sumti] [SEhU]
   | vocative [relative-clauses] selbri [relative-clauses] [DOhU]
-  | @¬cbm vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
+  | @¬cbm? vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
   | vocative [sumti] [DOhU]
   | TO text [TOI]
   | XI # (number | lerfu-string) [BOI]
@@ -212,10 +212,10 @@ A tag may carry any sequence of two or more `na'e` and `se` prefixes before a si
   | joik GI # [BO #]
   | jek GI # [BO #]
   | stag gik [BO #]
-  | @zantufa-connectives GI (joik | jek) # [BO #]
+  | @zantufa-connectives? GI (joik | jek) # [BO #]
 
 %extend-rule simple-tense-modal
-  @zantufa-tags zantufa-tag-prefixes zantufa-tag-atom
+  @zantufa-tags? zantufa-tag-prefixes zantufa-tag-atom
 
 %rule zantufa-tag-prefixes
   | SE SE [NAhE | SE] ...
@@ -233,25 +233,25 @@ A raw mekso, one written without `li` or `vei`, is a quantifier (`zantufa-mex`),
 
 ```jbogenbau
 %extend-rule quantifier
-  @zantufa-mex zantufa-raw-mex
+  @zantufa-mex? zantufa-raw-mex
 
 %extend-rule fragment
-  @¬zantufa-mex zantufa-raw-mex
+  @¬zantufa-mex? zantufa-raw-mex
 
 %redefine-rule mex
-  | @¬zantufa-mex mex-1 [operator mex-1] ...
-  | @zantufa-mex mex-1 [operator ... [mex-1]] ...
-  | @¬zantufa-mex FUhA # rp-expression
-  | @zantufa-mex FUhA # mex-2 ... operator [(mex-2 ... operator) | (operator)] ... [KUhE] #
+  | @¬zantufa-mex? mex-1 [operator mex-1] ...
+  | @zantufa-mex? mex-1 [operator ... [mex-1]] ...
+  | @¬zantufa-mex? FUhA # rp-expression
+  | @zantufa-mex? FUhA # mex-2 ... operator [(mex-2 ... operator) | (operator)] ... [KUhE] #
 
 %extend-rule mex-2
-  @zantufa-mex operand (BO # operand) ... | @zantufa-mex KE # operand ... [KEhE] #
+  @zantufa-mex? operand (BO # operand) ... | @zantufa-mex? KE # operand ... [KEhE] #
 
 %extend-rule mex-operator
-  @zantufa-mex MAhO # selbri [TEhU] # | @zantufa-mex MAhO # sumti [TEhU] # | @zantufa-mex joik-ek
+  @zantufa-mex? MAhO # selbri [TEhU] # | @zantufa-mex? MAhO # sumti [TEhU] # | @zantufa-mex? joik-ek
 
 %redefine-rule operand-1
-  @¬zantufa-mex operand-2 [joik-ek operand-2 | jek # operand-2] ... | @zantufa-mex operand-2
+  @¬zantufa-mex? operand-2 [joik-ek operand-2 | jek # operand-2] ... | @zantufa-mex? operand-2
 
 %redefine-rule operand-3
   | number free-after-elided-boi
@@ -262,8 +262,8 @@ A raw mekso, one written without `li` or `vei`, is a quantifier (`zantufa-mex`),
   | JOhI # mex-2 ... [TEhU] #
   | gek operand gik operand-3
   | (LAhE # | NAhE BO #) operand [LUhU] #
-  | @zantufa-mex NAhE # operand-3
-  | @zantufa-mex MOhE # selbri [TEhU] #
+  | @zantufa-mex? NAhE # operand-3
+  | @zantufa-mex? MOhE # selbri [TEhU] #
 ```
 
 A raw mekso quantifier may not be a plain number, and may not begin with a lerfu string, `la'e`, `na'e`, `se` or `ke`. Without that restriction `my jo'u gy` would tie between a connected sumti and the mekso `my jo'u` quantifying `gy`. The `zantufa-raw-*` rules state it: they repeat the left spine of the mekso rules and constrain only the leftmost symbol. The restriction also applies to the first operand after a `gek`, so that `ge nai abu gi no drata` is a forethought sumti connection rather than the quantifier `ge nai abu gi no` before the selbri `drata`. Inside a mekso operand, `quantifier` is spelled out as `number` or `vei mex ve'o`, so that the raw-mekso quantifier does not re-enter itself.
@@ -284,7 +284,7 @@ A raw mekso quantifier may not be a plain number, and may not begin with a lerfu
   | zantufa-raw-operand-0
   | PEhO # operator mex-2 ... [KUhE] #
   | zantufa-raw-operator mex-2 ... [KUhE] #
-  | @zantufa-mex zantufa-raw-operand-0 (BO # operand) ...
+  | @zantufa-mex? zantufa-raw-operand-0 (BO # operand) ...
 
 %rule zantufa-raw-operand
   | NIhE # selbri [TEhU] #
@@ -305,16 +305,16 @@ A raw mekso quantifier may not be a plain number, and may not begin with a lerfu
   | MAhO # mex [TEhU] #
   | NAhU # selbri [TEhU] #
   | VUhU #
-  | @zantufa-mex MAhO # selbri [TEhU] #
-  | @zantufa-mex MAhO # sumti [TEhU] #
-  | @zantufa-mex joik-ek
+  | @zantufa-mex? MAhO # selbri [TEhU] #
+  | @zantufa-mex? MAhO # sumti [TEhU] #
+  | @zantufa-mex? joik-ek
 
 %rule zantufa-raw-operand-0
   zantufa-raw-operand-1 [(ek | joik) [stag] KE # operand [KEhE] #]
 
 %rule zantufa-raw-operand-1
-  | @¬zantufa-mex zantufa-raw-operand-2 [joik-ek operand-2 | jek # operand-2] ...
-  | @zantufa-mex zantufa-raw-operand-2
+  | @¬zantufa-mex? zantufa-raw-operand-2 [joik-ek operand-2 | jek # operand-2] ...
+  | @zantufa-mex? zantufa-raw-operand-2
 
 %rule zantufa-raw-operand-2
   zantufa-raw-operand-3 [(ek | joik) [stag] BO # operand-2]
@@ -326,5 +326,5 @@ A raw mekso quantifier may not be a plain number, and may not begin with a lerfu
   | MOhE # sumti [TEhU] #
   | JOhI # mex-2 ... [TEhU] #
   | gek zantufa-raw-operand-0 gik operand-3
-  | @zantufa-mex MOhE # selbri [TEhU] #
+  | @zantufa-mex? MOhE # selbri [TEhU] #
 ```

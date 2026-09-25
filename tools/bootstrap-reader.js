@@ -7,6 +7,7 @@
 // the DOM the self-hosted reader does; the fixpoint check compares them.
 
 import { extractGrammarText } from "../lib/js/src/markdown.js";
+import { DOM_FORMAT } from "../lib/js/src/dom.js";
 
 const SYMBOLS = ["...", "|", "&", "(", ")", "[", "]", "<", ">", "#", "ε", ",", "∧", "∨", "¬", "⟹", "?", "=", "≠",
   "∈", "∉", "⊆", "∪", "∩", "∅"];
@@ -63,10 +64,18 @@ function lex(text, positions) {
       // `$` alone is the whole constituent; every other sigil needs a name.
       if (!isLetter(chars[i] || "") && c !== "$") fail(`a name after ${c}`, { at: at(start) });
       while (i < chars.length && isNameChar(chars[i])) i++;
+      const nameEnd = i;
+      // A guard ends in its kind: `?` for a gate, `!` for a warning, which
+      // has no negated form.
+      if (c === "@") {
+        const negated = chars[start + 1] === "¬";
+        if (chars[i] === "?" || (chars[i] === "!" && !negated)) i++;
+        else fail(`? or ! after a guard's name`, { at: at(i) });
+      }
       const text = chars.slice(start, i).join("");
       if (c === "%" && !KEYWORDS.has(text)) fail(`an unknown keyword ${text}`, { at: at(start) });
       const kind = c === "$" ? "capture" : c === "%" ? text : "guard";
-      tokens.push({ kind, text, at: at(start), name: chars.slice(nameStart, i).join("") });
+      tokens.push({ kind, text, at: at(start), name: chars.slice(nameStart, nameEnd).join("") });
       continue;
     }
     const symbol = SYMBOLS.find((s) => chars.slice(i, i + [...s].length).join("") === s);
@@ -130,7 +139,7 @@ class Parser {
         fail("expected a rule or a directive", token);
       }
     }
-    return { format: 4, rules, directives };
+    return { format: DOM_FORMAT, rules, directives };
   }
 
   rule() {
@@ -163,7 +172,7 @@ class Parser {
     const guards = [];
     while (this.is("guard")) {
       const token = this.take();
-      guards.push({ feature: token.name, negated: token.text.startsWith("@¬") });
+      guards.push({ feature: token.name, kind: token.text.endsWith("!") ? "warning" : "gate", negated: token.text.startsWith("@¬") });
     }
     const alternative = { guards, expr: this.conjunction() };
     if (this.is("<")) alternative.tags = this.angleTerm();
