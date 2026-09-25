@@ -12,7 +12,8 @@ The experimental dialect ([`experimental.md`](experimental.md)) with the constru
 
 - [The word stream](../words/stream.md) <?grammar?>
 - [Word shapes](../words/shapes.md) <?grammar?>
-- [CLL word forms](../words/cll.md) <?grammar?>
+- [Approved word forms](../words/bpfk.md) <?grammar?>
+- [Experimental word forms](../words/experimental.md) <?grammar?>
 - [The experimental lexicon](../words/lexicon-experimental.md) <?grammar?>
 
 ## Stage 3: indicators <?stage indicators?>

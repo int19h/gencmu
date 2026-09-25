@@ -1,6 +1,6 @@
 # The experimental dialect <?features su-boundary?>
 
-The CLL dialect with the experimental constructs that have grown up in use since CLL was printed, such as `cu` before a bare selbri, connected sumti with `je`, and the experimental cmavo. The word and indicator stages are the cll-ebnf dialect's ([`cll-ebnf.md`](cll-ebnf.md)), with a lexicon that gives the experimental cmavo their selma'o, and with the feature `su-boundary` on, so that `su` erases back to the last `ni'o`, `no'i`, `lu`, `tu'e` or `to`, as camxes-exp's does; the syntax is [`../syntax/experimental.md`](../syntax/experimental.md), which says what it adds to CLL's.
+The CLL dialect with the experimental constructs that have grown up in use since CLL was printed, such as `cu` before a bare selbri, connected sumti with `je`, and the experimental cmavo. The word stage reads the approved word forms of the definition effort ([`../words/bpfk.md`](../words/bpfk.md)), with the gaps that document lists. camxes-exp, the experimental PEG grammar, reads the same word forms, and it also allows the consonant pair `mz`, which [`../words/experimental.md`](../words/experimental.md) adds. A lexicon gives the experimental cmavo their selma'o. The feature `su-boundary` is on, so that `su` erases back to the last `ni'o`, `no'i`, `lu`, `tu'e` or `to`, as camxes-exp's does. The indicator stage is the cll-ebnf dialect's ([`cll-ebnf.md`](cll-ebnf.md)). The syntax is [`../syntax/experimental.md`](../syntax/experimental.md), which says what it adds to CLL's.
 
 Some constructs are behind features a caller may enable: `cbm`, the cmevla-brivla merger, and `term-hierarchy`.
 
@@ -14,7 +14,8 @@ Some constructs are behind features a caller may enable: `cbm`, the cmevla-brivl
 
 - [The word stream](../words/stream.md) <?grammar?>
 - [Word shapes](../words/shapes.md) <?grammar?>
-- [CLL word forms](../words/cll.md) <?grammar?>
+- [Approved word forms](../words/bpfk.md) <?grammar?>
+- [Experimental word forms](../words/experimental.md) <?grammar?>
 - [The experimental lexicon](../words/lexicon-experimental.md) <?grammar?>
 
 ## Stage 3: indicators <?stage indicators?>
