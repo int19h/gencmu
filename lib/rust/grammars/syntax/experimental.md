@@ -29,7 +29,8 @@ The layer changes the text in three ways. `ce'e` can be the text-leading connect
 
 ```jbogenbau
 %redefine-rule text
-  [NAI ...] [CMEVLA ... # | (indicators & free ...)] [joik-jek | CEhE #] text-1
+  | @¬cbm? [NAI ...] [CMEVLA ... # | (indicators & free ...)] [joik-jek | CEhE #] text-1
+  | @cbm? [NAI ...] [indicators & free ...] [joik-jek | CEhE #] text-1
 
 %redefine-rule text-1
   [(I [jek | joik] [[tag] BO] #) ...] [NIhO ... # [I # NIhO ... #]] [paragraphs]
