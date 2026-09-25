@@ -492,23 +492,37 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
 %rule zei-compound
   | $l(unit) $z(zei-word) $r(zei-right)
       <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($l) ∪ ("continued" ∪ "cy" ∪ "y-letter" ∪ "final-stress") ∩ tags($r)>
-  | $k(unit) PAUSE $z(zei-word) $r(zei-right)
+  | $k(unit) zei-before-gap $z(zei-word) $r(zei-right)
       <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($k) ∪ ("continued" ∪ "cy" ∪ "y-letter" ∪ "final-stress") ∩ tags($r)>
-  | $l(unit) zei-word $j(pause-gap) $p(zei-right)
+  | $l(unit) zei-word $j(zei-after-gap) $p(zei-right)
       <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($l) ∪ ("continued" ∪ "cy" ∪ "y-letter" ∪ "final-stress") ∩ tags($p)>
-  | $k(unit) PAUSE zei-word $j(pause-gap) $p(zei-right)
+  | $k(unit) zei-before-gap zei-word $j(zei-after-gap) $p(zei-right)
       <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($k) ∪ ("continued" ∪ "cy" ∪ "y-letter" ∪ "final-stress") ∩ tags($p)>
   | $l(unit) $g(gap-erasures) $z(zei-word) $r(zei-right)
       <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($l) ∪ ("continued" ∪ "cy" ∪ "y-letter" ∪ "final-stress") ∩ tags($r)>
-  | $k(unit) PAUSE $h(gap-erasures) $z(zei-word) $r(zei-right)
+  | $k(unit) zei-before-gap $h(gap-erasures) $z(zei-word) $r(zei-right)
       <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($k) ∪ ("continued" ∪ "cy" ∪ "y-letter" ∪ "final-stress") ∩ tags($r)>
 %conditions
   "continued" ∈ tags($l),
   "onset" ∈ tags($r),
   "onset" ∈ tags($g),
-  words($j) = ∅ ∨ "BU" ∉ tags($p, lexicon)
+  matches($j, lone-pause) ∨ "BU" ∉ tags($p, lexicon)
 %emits
   $
+
+%rule zei-before-gap
+  PAUSE | PAUSE skipped-hesitations [PAUSE]
+
+%rule zei-after-gap
+  PAUSE | [PAUSE] skipped-hesitations PAUSE
+
+%rule skipped-hesitations
+  hesitations
+%emits
+  ε
+
+%rule lone-pause
+  PAUSE
 
 %rule zei-word
   $q(magic-body)
@@ -531,7 +545,7 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
 
 `sa bu` "backs up to the last BU, pulling an already constructed pseudo-word apart", as the proposal puts it among its unique cases: it erases back to the `bu` of the last letter word, and the new `bu` binds to that letter word's base again, so `.abu sa bu` is `.abu`. `bu-part` reads such a stretch as the letter word's `bu`. Nothing between may be a letter word, since its `bu` would be the last, so `bu-reach` is stated as the reach of a `sa` is and ends at the first letter word.
 
-The pause between an operand and its operator is stated where it matters: a `bu` may follow its word directly only if the word is continued, or is a `Cy` letter cmavo, since `xybu` is the usual way to write that letter word; a `zei` may follow directly only a continued word; a pause is always allowed. The erasures that may stand between them obey the same pause rules, joined through the tags of the first erasure, and an erasure is always continued, so what follows a run of them needs no pause. The word after `zei` follows it directly or after a pause, and hesitation may stand between them, since the proposal treats `.y.` as whitespace; `.y. bu` there is the letter word, so `da zei .y. bu` is a lujvo of `da` and that letter. A compound may follow the word before it without a pause exactly when its first word may, which is what the `onset` in its tags records; `.abu` needs the pause before it that `a` needs.
+The pause between an operand and its operator is stated where it matters: a `bu` may follow its word directly only if the word is continued, or is a `Cy` letter cmavo, since `xybu` is the usual way to write that letter word; a `zei` may follow directly only a continued word; a pause is always allowed. The erasures that may stand between them obey the same pause rules, joined through the tags of the first erasure, and an erasure is always continued, so what follows a run of them needs no pause. The word after `zei` follows it directly or after a pause. Hesitation may stand on either side of `zei`, since the proposal treats `.y.` as whitespace: `mi .y. zei broda` is the lujvo `mi zei broda`, as camxes-std and camxes-exp read it. The hesitation emits nothing, so it is not part of what the compound sounds like. After `zei`, `.y. bu` is the letter word, so `da zei .y. bu` is a lujvo of `da` and that letter. A compound may follow the word before it without a pause exactly when its first word may, which is what the `onset` in its tags records; `.abu` needs the pause before it that `a` needs.
 
 ## Erasure by `si`
 

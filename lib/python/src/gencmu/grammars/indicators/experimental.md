@@ -2,9 +2,9 @@
 
 This document is a layer over [the indicator stage of CLL](cll.md), and the [experimental](../dialects/experimental.md) dialect stitches it after that document. It changes three things, so that the stage reads indicators as camxes-exp does. The notation is explained in [the notation document](../../docs/notation.md).
 
-A bare `nai` is an indicator, since camxes-exp's `indicator` rule takes a NAI word alone. [The experimental lexicon](../words/lexicon-experimental.md) tags the NAI words `indicator`, so a `nai` after any word attaches to it: `mi nai klama` is `mi klama`, and `je nai` is `je` with the indicator `nai`. The syntax sees a `nai` only where no word stands before it, at the start of a text or of a quote. An attitudinal takes its `nai` as any word does, so the CLL document's `attitudinal nai` form is not used here. Two readings of `ui nai` would otherwise tie.
+A bare `nai` is an indicator, since camxes-exp's `indicator` rule takes a NAI word alone. [The experimental lexicon](../words/lexicon-experimental.md) tags the NAI words `indicator`. So a `nai` after any word attaches to it: `mi nai klama` is `mi klama`, and `je nai` is `je` with the indicator `nai`. The syntax sees a `nai` only where no word stands before it, at the start of a text or of a quote. An attitudinal takes its `nai` as any word does, so the CLL document's `attitudinal nai` form is not used here. Two readings of `ui nai` would otherwise tie.
 
-A `fu'e` must have an indicator after it, as in camxes-exp's `indicators` rule: `mi fu'e ui klama` is a text, and `mi fu'e klama` is not.
+A `fu'e` must have an indicator after it, as in camxes-exp's `indicators` rule. So `mi fu'e ui klama` is a text, and `mi fu'e klama` is not.
 
 Indicators do not attach to `lu`, since camxes-exp's `LU_post` takes none. They stay in the stream, where they begin the quoted text: `lu ui li'u` quotes the text `ui`.
 

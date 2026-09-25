@@ -665,3 +665,7 @@ adhoc.camxes-exp.indicators.indicator-after-lu-begins-quote.experimental
 adhoc.camxes-exp.indicators.indicator-after-lu-begins-quote.zantufa
 adhoc.camxes-exp.indicators.nai-after-lu-begins-quote.experimental
 adhoc.camxes-exp.indicators.nai-after-lu-begins-quote.zantufa
+adhoc.words.zei.hesitation-before-zei
+adhoc.words.zei.hesitation-after-zei
+adhoc.camxes-exp.words.hesitation-before-zei.experimental
+adhoc.camxes-exp.words.hesitation-before-zei.zantufa
