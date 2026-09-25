@@ -129,7 +129,6 @@ impl<'a> Shared<'a> {
 enum Value {
     Str(String),
     Set(TagList),
-    List(Vec<String>),
 }
 
 pub(crate) struct Recognizer<'g, 's, 'a> {
@@ -463,13 +462,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         match value {
             Value::Set(list) => list,
             Value::Str(text) => vec![(self.shared.tags.tag(&text), true)],
-            Value::List(items) => {
-                let mut list = TagList::new();
-                for item in items {
-                    list = union(&list, &vec![(self.shared.tags.tag(&item), true)]);
-                }
-                list
-            }
         }
     }
 
@@ -508,9 +500,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             }
             LTerm::Lower(inner) => match self.term(inner, frame, tokens, base)? {
                 Value::Str(text) => Value::Str(self.shared.unicode.lowercase(&text)),
-                Value::List(items) => {
-                    Value::List(items.iter().map(|item| self.shared.unicode.lowercase(item)).collect())
-                }
                 Value::Set(list) => {
                     let names: Vec<(String, bool)> = list
                         .iter()
@@ -547,15 +536,19 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     Value::Set(TagList::new())
                 }
             }
+            // The words between pauses, each a strong tag, never the empty
+            // string (§5).
             LTerm::Words(span) => {
                 let (start, end, _) = span_bounds(span, frame);
-                Value::List(
-                    Self::phonemes(tokens, start, end)
-                        .split('.')
-                        .filter(|word| !word.is_empty())
-                        .map(str::to_string)
-                        .collect(),
-                )
+                let phonemes = Self::phonemes(tokens, start, end);
+                let mut list: TagList = phonemes
+                    .split('.')
+                    .filter(|word| !word.is_empty())
+                    .map(|word| (self.shared.tags.tag(word), true))
+                    .collect();
+                list.sort_unstable();
+                list.dedup();
+                Value::Set(list)
             }
         })
     }
@@ -598,9 +591,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     CmpOp::Eq | CmpOp::Ne => {
                         let equal = match (left, right) {
                             (Value::Str(a), Value::Str(b)) => a == b,
-                            // Anything else, two lists included, compares
-                            // as tag sets: a list is the set of its strings
-                            // (§10).
                             (a, b) => {
                                 let a = self.as_set(a);
                                 let b = self.as_set(b);
@@ -611,7 +601,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     }
                     CmpOp::In | CmpOp::NotIn => {
                         let inside = match (left, right) {
-                            (Value::Str(a), Value::List(b)) => b.contains(&a),
                             (Value::Str(a), Value::Str(b)) => a == b,
                             (Value::Str(a), Value::Set(b)) => {
                                 self.shared.tags.lookup(&a).is_some_and(|id| b.iter().any(|&(tag, _)| tag == id))
