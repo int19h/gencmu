@@ -62,6 +62,9 @@ class Grammar:
     rules: dict[str, Rule]
     lean: str
     elision_only: bool
+    # Whether an elided terminator is forbidden where its constituent could
+    # have been longer (engine §4).
+    maximal: bool
     elidable: frozenset[str]
     changes: list[Change] = field(default_factory=list)
 
@@ -137,8 +140,19 @@ def stitch(stage: str, documents: list[tuple[str, Dom]]) -> Grammar:
         args, path, at = resolutions[1]
         raise _error(f"stage {stage} has more than one %ambiguity-resolution", path, at, stage)
     args, path, at = resolutions[0]
-    if not args or args[0] not in ("greedy", "lazy") or len(args) > 2 or (len(args) == 2 and args[1] != "elision-only"):
-        raise _error("%ambiguity-resolution is greedy or lazy, optionally followed by elision-only", path, at, stage)
+    # The lean, then elision-only and maximal, each optional, in that order
+    # (engine §2).
+    rest = args[1:]
+    elision_only = rest[:1] == ["elision-only"]
+    if elision_only:
+        rest = rest[1:]
+    maximal = rest[:1] == ["maximal"]
+    if maximal:
+        rest = rest[1:]
+    if not args or args[0] not in ("greedy", "lazy") or rest:
+        raise _error(
+            "%ambiguity-resolution takes greedy or lazy, then optionally elision-only, then optionally maximal", path, at, stage
+        )
     if "text" not in rules:
         raise GencmuError(f"stage {stage} has no rule text, its start rule", stage=stage)
     for rule in rules.values():
@@ -155,7 +169,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]]) -> Grammar:
                     stack.extend(value.values())
                 elif isinstance(value, list):
                     stack.extend(value)
-    return Grammar(stage, rules, args[0], len(args) == 2, frozenset(elidable), changes)
+    return Grammar(stage, rules, args[0], elision_only, maximal, frozenset(elidable), changes)
 
 
 # ---------------------------------------------------------------------------

@@ -10,8 +10,9 @@ from ._earley import Evaluator, Forest, Parser, StageContext
 from ._errors import _GrammarFault
 from ._grammar import Lowered, Production
 from ._markdown import line_column
+from ._maximal import Maximal
 from ._model import Action, Expected, Node, ParseError, ParseWarning, Range, Tags, Token
-from ._rank import Act, Ranker, Rope, actions, count_roots
+from ._rank import Act, Ranker, Ranking, Rope, actions, count_roots
 from ._tags import PAUSE, phoneme_of
 from ._unicode import UnicodeTable
 
@@ -169,6 +170,34 @@ def warnings_of(root: DNode, tree: Tree, features: frozenset[str], stage: str) -
         for index in range(len(children) - 1, -1, -1):
             stack.append((children[index], index == 0 and production.rep_splice))
     return warnings
+
+
+def forbidden_terminator(forest: Forest, ranking: Ranking | None, maximal: Maximal) -> tuple[int, list[Expected]] | None:
+    """Of a ranking's chosen derivation, the first elided terminator, in the
+    order of the tree's leaves, that maximal forbids: its position, and its
+    terminal with the rule its optional is written in as the one expected
+    there (engine §4). ``None`` for no ranking, or none forbidden."""
+    if ranking is None:
+        return None
+    # Each entry is a node, its parent, and its place among the parent's
+    # children.
+    stack: list[tuple[DChild, DNode | None, int]] = [(derivation(forest, ranking.chosen), None, 0)]
+    while stack:
+        node, parent, index = stack.pop()
+        if isinstance(node, DRead):
+            continue
+        if parent is not None and index > 0 and maximal.elided(node.item):
+            production = parent.production
+            own = index == 1 and not production.terminal[0] and production.rhs[0] == production.lhs
+            before = parent.children[index - 1]
+            if not own and isinstance(before, DNode) and maximal.forbids(before.item):
+                terminal = node.production.elided
+                assert terminal is not None
+                return (node.start, [Expected(terminal, [node.production.rule_name])])
+        children = node.children
+        for position in range(len(children) - 1, -1, -1):
+            stack.append((children[position], node, position))
+    return None
 
 
 def elided_nodes(tree: Node) -> list[Node]:
@@ -358,9 +387,17 @@ class StageRunner:
         # A defect found while parsing has its stage and no position (§13).
         return ParseError("grammar", fault.message, stage=self.name)
 
-    def rejection(self, forest: Forest) -> ParseError:
+    def rejection(self, forest: Forest, forbidden: tuple[int, list[Expected]] | None = None) -> ParseError:
+        """The error of a stage that rejected its input: at the furthest
+        position any item reached, with the terminals the items there could
+        have read next, or at the terminator maximal forbids, ``forbidden``,
+        with its one terminal (engine §4)."""
         tokens = self.tokens
-        position = forest.furthest
+        if forbidden is not None:
+            position, expected = forbidden
+        else:
+            position = forest.furthest
+            expected = [Expected(terminal, sorted(rules)) for terminal, rules in sorted(forest.expected.items())]
         if position < len(tokens):
             source = tokens[position].source
             shown = f"token {position} ({tokens[position].text!r})"
@@ -368,7 +405,6 @@ class StageRunner:
             at = tokens[-1].source[1] if tokens else 0
             source = (at, at)
             shown = "the end of the input"
-        expected = [Expected(terminal, sorted(rules)) for terminal, rules in sorted(forest.expected.items())]
         line, column = line_column(self.text, source[0])
         listed = ", ".join(f"{entry.terminal} ({', '.join(entry.rules)})" for entry in expected) or "nothing"
         message = f"stage {self.name} cannot read {shown}; it expected {listed}"
@@ -387,11 +423,19 @@ class StageRunner:
         context = self.context(lowered, self.tokens)
         start = lowered.rule_ids["text"]
         forest = Parser(context).parse(start)
-        ranking = Ranker(forest, lowered.lean).rank(forest.roots) if forest.roots else None
+        maximal = Maximal(forest) if lowered.grammar.maximal else None
+        ranking = Ranker(forest, lowered.lean, maximal).rank(forest.roots) if forest.roots else None
         if ranking is None:
+            forbidden = None
             if forest.roots:
                 forest.furthest = len(self.tokens)
-            return StageOutcome(error=self.rejection(forest))
+                if maximal is not None:
+                    # A text that maximal leaves with no derivation is
+                    # rejected at the first terminator it forbids in the
+                    # derivation the stage would otherwise have chosen
+                    # (engine §4).
+                    forbidden = forbidden_terminator(forest, Ranker(forest, lowered.lean).rank(forest.roots), maximal)
+            return StageOutcome(error=self.rejection(forest, forbidden))
         root = derivation(forest, ranking.chosen)
         tree = Tree(root, self.tokens, context.tagtab)
         outcome = StageOutcome(verdict=ranking.verdict, tree=tree.root, derivation=root)
