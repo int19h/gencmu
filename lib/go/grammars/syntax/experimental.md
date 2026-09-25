@@ -292,9 +292,9 @@ selbri-5-not-starting-with-ke [selbri-connective selbri-5 | joik [stag] KE # sel
   | BRIVLA #
   | @cbm? CMEVLA #
   | GOhA [RAhO] #
-  | ME # sumti [MEhU] # [MOI #]
-  | (number | lerfu-string) MOI #
-  | NUhA # mex-operator
+  | ME # (sumti | mex) [MEhU] # [MOI #]
+  | mex MOI #
+  | NUhA # operator
   | SE # tanru-unit-2
   | JAI # [tag] tanru-unit-2
   | any-word (ZEI any-word) ...
@@ -317,9 +317,9 @@ selbri-5-not-starting-with-ke [selbri-connective selbri-5 | joik [stag] KE # sel
   | BRIVLA #
   | @cbm? CMEVLA #
   | GOhA [RAhO] #
-  | ME # sumti [MEhU] # [MOI #]
-  | (number | lerfu-string) MOI #
-  | NUhA # mex-operator
+  | ME # (sumti | mex) [MEhU] # [MOI #]
+  | mex MOI #
+  | NUhA # operator
   | SE # tanru-unit-2
   | JAI # [tag] tanru-unit-2
   | any-word (ZEI any-word) ...
@@ -347,14 +347,43 @@ selbri-5-not-starting-with-ke [selbri-connective selbri-5 | joik [stag] KE # sel
 
 ## Numbers, lerfu strings and mekso
 
-Operands can be connected by a jek. After an elided `boi`, a number or lerfu string is followed by `free-after-elided-boi`, defined under "Free modifiers", and not by a plain `#`.
+camxes-exp replaces CLL's mekso with its own, and the layer follows it (camxes-exp.peg, `quantifier` to `lerfu_string`):
+
+- A number is a run of PA words, `ni'e` selbri and `mo'e` sumti, with no lerfu word in it. A lerfu string is a run of lerfu words, with no PA word in it. So `li pa by` is two terms, and `mi viska cy no` is not a text.
+- An operand of a mekso is `mex-2`: a number, a lerfu string, a `vei` group, a forethought connection, a `la'e` or `na'e` reference, a `pe'o` forethought expression or a reverse Polish expression. The operands `ni'e` and `mo'e` are inside numbers.
+- `bo` after an operator, with an optional tag, groups two operands tighter (`li pa su'i bo re`). There is no `bi'e`, and a forethought operator needs `pe'o`.
+- An operator can be a connective, a joik, jek or ek.
+- A quantifier is a whole mekso, `pa su'i re broda`. It cannot begin with a lerfu word, `la'e` or `na'e`, since there camxes-exp reads a sumti (its `!sumti_6`). camxes-exp also refuses a quantifier where a selbri begins (`!selbri`). The greedy choice among parses already reads `pa re moi broda` as the selbri `pa re moi broda`, so the layer needs no rule for that.
+- `me` takes a mekso as well as a sumti, a whole mekso takes `moi`, and `nu'a` takes a whole operator.
+
+After an elided `boi`, a number or lerfu string is followed by `free-after-elided-boi`, defined under "Free modifiers", and not by a plain `#`.
 
 ```jbogenbau
 %redefine-rule quantifier
-  number free-after-elided-boi | VEI # mex [VEhO] #
+  $m(mex)
+%conditions
+  ¬matches(head($m), quantifier-barrier)
+
+%rule quantifier-barrier
+  BY | LAU | TEI | LAhE | NAhE
+
+%redefine-rule mex
+  mex-1 [operator mex-1] ...
+
+%redefine-rule mex-1
+  mex-2 [operator [stag] BO # mex-1]
 
 %redefine-rule mex-2
-  operand | [PEhO #] operator mex-2 ... [KUhE] #
+  | number free-after-elided-boi
+  | lerfu-string free-after-elided-boi
+  | VEI # mex [VEhO] #
+  | gek mex gik mex-2
+  | (LAhE # | NAhE # [BO #]) mex [LUhU] #
+  | PEhO # operator mex ... [KUhE] #
+  | FUhA # rp-expression
+
+%redefine-rule rp-expression
+  mex-1 [rp-expression operator] ...
 
 %redefine-rule operator
   operator-1 [joik-jek operator-1 | joik [stag] KE # operator [KEhE] #] ...
@@ -363,22 +392,25 @@ Operands can be connected by a jek. After an elided `boi`, a number or lerfu str
   mex-operator | KE # operator [KEhE] #
 
 %redefine-rule mex-operator
-  SE # mex-operator | NAhE # mex-operator | MAhO # mex [TEhU] # | NAhU # selbri [TEhU] # | VUhU #
+  | SE # mex-operator
+  | NAhE # mex-operator
+  | MAhO # mex [TEhU] #
+  | NAhU # selbri [TEhU] #
+  | VUhU #
+  | joik-jek #
+  | ek #
 
-%redefine-rule operand
-  operand-1 [(ek | joik) [stag] KE # operand [KEhE] #]
+%redefine-rule number
+  number-part ...
 
-%redefine-rule operand-1
-  operand-2 [joik-ek operand-2 | jek # operand-2] ...
+%rule number-part
+  PA | NIhE # selbri [TEhU] # | MOhE # sumti [TEhU] #
 
-%redefine-rule operand-3
-  | quantifier
-  | lerfu-string free-after-elided-boi
-  | NIhE # selbri [TEhU] #
-  | MOhE # sumti [TEhU] #
-  | JOhI # mex-2 ... [TEhU] #
-  | gek operand gik operand-3
-  | (LAhE # | NAhE BO #) operand [LUhU] #
+%redefine-rule lerfu-string
+  lerfu-word ...
+
+%redefine-rule interval-property
+  (number | VEI # mex [VEhO] #) ROI [NAI] | TAhE [NAI] | ZAhO [NAI]
 ```
 
 ## Logical and non-logical connectives
@@ -424,9 +456,9 @@ The text replacement forms `lo'ai ... sa'ai ... le'ai`, `sa'ai ... le'ai` and `l
   | vocative [relative-clauses] selbri [relative-clauses] [DOhU]
   | @¬cbm? vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
   | vocative [sumti] [DOhU]
-  | (number | lerfu-string) MAI
+  | mex-2 MAI
   | TO text [TOI]
-  | XI # (number | lerfu-string) [BOI]
+  | XI # mex-2
   | XI # VEI # mex [VEhO]
   | LOhAI [any-word ...] [SAhAI [any-word ...]] LEhAI
   | SAhAI [any-word ...] LEhAI
@@ -442,7 +474,7 @@ The text replacement forms `lo'ai ... sa'ai ... le'ai`, `sa'ai ... le'ai` and `l
   | @¬cbm? vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
   | vocative [sumti] [DOhU]
   | TO text [TOI]
-  | XI # (number | lerfu-string) [BOI]
+  | XI # mex-2
   | XI # VEI # mex [VEhO]
   | LOhAI [any-word ...] [SAhAI [any-word ...]] LEhAI
   | SAhAI [any-word ...] LEhAI
