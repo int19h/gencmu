@@ -204,7 +204,7 @@ fn auto_features_add_sa_su_only_where_needed() {
 }
 
 #[test]
-fn silent_parts_are_neither_emitted_nor_heard() {
+fn parts_that_emit_epsilon_are_neither_emitted_nor_counted() {
     let mut sources = BTreeMap::new();
     sources.insert(
         "p.md".to_string(),
@@ -220,7 +220,7 @@ fn silent_parts_are_neither_emitted_nor_heard() {
     sources.insert(
         "g.md".to_string(),
         grammar(
-            "%ambiguity-resolution greedy\n%rule text [unit] ...\n%rule unit pair <\"U\"> | /./ %emits $\n%rule pair $a(letter) $b(letter) %emits $a <>, $b\n%rule letter /a/ | /b/",
+            "%ambiguity-resolution greedy\n%rule text [unit] ...\n%rule unit pair <\"U\"> | /./ %emits $\n%rule pair erased $b(letter) %emits $b\n%rule erased letter %emits ε\n%rule letter /a/ | /b/",
         ),
     );
     sources.insert("h.md".to_string(), grammar("%ambiguity-resolution greedy\n%rule text [U | /./] ..."));
@@ -229,9 +229,9 @@ fn silent_parts_are_neither_emitted_nor_heard() {
     assert!(result.ok, "{}", gencmu::to_json(&result));
     let output = result.stages[1].output.as_ref().unwrap();
     let heard: Vec<_> = output.iter().map(|token| token.phonemes.as_deref().unwrap_or("?")).collect();
-    // The silent first letter of each pair is not heard, and the pause
-    // sounds as a space (engine §5).
-    assert_eq!(heard, ["b", " ", "a"]);
+    // The erased first letter of each pair does not count, and the pause
+    // is `.` (engine §5).
+    assert_eq!(heard, ["b", ".", "a"]);
     assert_eq!(output[0].text, "ab");
 }
 
@@ -383,11 +383,11 @@ fn an_and_of_more_than_sixteen_items_is_an_error() {
     let mut sources = single("%ambiguity-resolution greedy\n%rule text A");
     let refs: Vec<String> = (0..64).map(|index| format!("{{\"ref\":\"A{index}\"}}")).collect();
     let dom = format!(
-        "{{\"format\":3,\"rules\":[{{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{{\"guards\":[],\"expr\":{{\"and\":[{}]}}}}],\"conditions\":[],\"at\":[4,1]}}],\"directives\":[{{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[3,1]}}]}}",
+        "{{\"format\":4,\"rules\":[{{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{{\"guards\":[],\"expr\":{{\"and\":[{}]}}}}],\"conditions\":[],\"at\":[4,1]}}],\"directives\":[{{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[3,1]}}]}}",
         refs.join(",")
     );
     let compiled = format!(
-        "{{\"format\":3,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
+        "{{\"format\":4,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
         gencmu::tools::bootstrap_hash(),
         gencmu::tools::fnv1a64(&sources["g.md"])
     );
@@ -407,11 +407,11 @@ fn a_corrupt_cache_is_a_miss_not_an_abort() {
         for compiled in [
             format!("{}{}", "[".repeat(10_000), "]".repeat(10_000)),
             format!(
-                "{{\"format\":3,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{deep_dom}}}}}}}",
+                "{{\"format\":4,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{deep_dom}}}}}}}",
                 gencmu::tools::bootstrap_hash()
             ),
             format!(
-                "{{\"format\":3,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{{\"rules\":7}}}}}}}}",
+                "{{\"format\":4,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{{\"rules\":7}}}}}}}}",
                 gencmu::tools::bootstrap_hash()
             ),
             "not JSON".to_string(),
