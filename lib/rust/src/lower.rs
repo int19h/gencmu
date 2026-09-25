@@ -101,6 +101,9 @@ pub(crate) struct Prod {
     pub cap_pos: Vec<u16>,
     pub tags: Option<LTerm>,
     pub emit: LEmit,
+    /// `%verbatim`: a token over its constituent is widened and sounds
+    /// like its text (§11).
+    pub verbatim: bool,
     /// Conditions, each with the dot at which it is evaluated.
     pub conds: Vec<(LCond, u16)>,
     pub visible: bool,
@@ -566,6 +569,7 @@ pub(crate) fn lower(
             cap_pos,
             tags: None,
             emit: LEmit::None,
+            verbatim: false,
             conds: Vec::new(),
             trailing_step: pending.trailing_step,
             warnings: Vec::new(),
@@ -576,6 +580,7 @@ pub(crate) fn lower(
             let alternative = alternatives[pending.rule as usize][number];
             production.document = Some(alternative.document.clone());
             production.at = alternative.at;
+            production.verbatim = alternative.verbatim;
             production.warnings = alternative
                 .alternative
                 .guards

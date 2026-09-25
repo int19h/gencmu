@@ -15,6 +15,8 @@ pub(crate) struct Tok {
     pub tags: SetId,
     pub phonemes: Option<String>,
     pub source: (usize, usize),
+    /// Whether its phonemes are its text (§11).
+    pub verbatim: bool,
 }
 
 /// A captured part: its span, relative to the parse's tokens, and its tag set.

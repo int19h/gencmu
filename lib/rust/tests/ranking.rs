@@ -347,7 +347,7 @@ fn grammar_dom(source: &Source) -> String {
     if let Some(t) = source.elidable {
         directives.push(format!("{{\"name\":\"elidable\",\"args\":[\"{}\"],\"at\":[3,1]}}", TERMINALS[t]));
     }
-    format!("{{\"format\":5,\"rules\":[{}],\"directives\":[{}]}}", rules.join(","), directives.join(","))
+    format!("{{\"format\":6,\"rules\":[{}],\"directives\":[{}]}}", rules.join(","), directives.join(","))
 }
 
 // ---- derivations by brute force
@@ -785,7 +785,7 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
         }
     }
     let compiled = format!(
-        "{{\"format\":5,\"bootstrap\":\"{}\",\"documents\":{{\"main.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
+        "{{\"format\":6,\"bootstrap\":\"{}\",\"documents\":{{\"main.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
         gencmu::tools::bootstrap_hash(),
         gencmu::tools::fnv1a64(&document)
     );
