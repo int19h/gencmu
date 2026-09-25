@@ -450,55 +450,72 @@ These two erasers are behind the feature `sa-su`. They are the most expensive pa
 
 CLL 19.13: `sa` erases back to the most recent word of the same selma'o as the word after it, that word included, and leaves the word after it standing; `su` "erases the entire text". The Magic Words proposal and camxes-std stop `su` sooner, at the most recent `ni'o`, `no'i`, `lu`, `tu'e` or `to`, which survives, as step 2g of the YACC preamble also does. The feature `su-boundary` gives that reading: the approved word forms, experimental and Zantufa dialects turn it on, and the CLL dialect leaves it off, so that there `su` erases the whole text before it. Both are resolved here, in the same left-to-right pass as the quotes, the compounds and `si`, because they act in that order: in `mi le brodi sa le si la brodo` the `sa` takes `le brodi` before the `si` erases the `le` that follows it, and `mi brodi .i sa mi zei co mi` compounds `mi zei co` only after the `sa` has taken `mi brodi .i`.
 
-The reach of a `sa` is stated from its far end: `sa-open` is an element, which has some selma'o, and the elements after it, none of which has a class of the first one's, so the `sa` that follows finds the nearest match. It is left-recursive and checks the class at every step, so that a reach dies at the first element that would match; that keeps the chart linear in the length of the text, which a reach stated as an element followed by a whole stream does not, since a stream may start anywhere and cannot know which class it is keeping clear of. Each step restates the stream's join in three lines: without a pause, the element before must be continued or both must be `Cy` letters; after a pause, anything may follow, and a `Cy` after a pause counts as continued. The definition effort's `CVCy` guard is not restated, since the reach is erased text and the guard only chooses between two readings of text that parses either way. The match is by selma'o: the first element's classes and the classes of the word after `sa` must share one. Hesitation may stand between a `sa` and the word after it, as between a word and its `si`. What the `sa` leaves is the word after it, a word or a quote and never a compound, since the `sa` acts before a `bu` or `zei` after that word does, and the compound is then built on what the `sa` left; the erasure carries the classes of that word, so that a later `sa` may match it in turn; the erasure may follow the element before it without a pause exactly when its first element may. Two `sa` in a row reach back to the second-nearest match, each `sa` erasing back one match further than the last, and three to the third: the reach is then two or three open reaches, each beginning at a match of the next.
+The reach of a `sa` is stated from its far end: `sa-open` is an element, which has some selma'o, and the elements after it, none of which has a class of the first one's, so the `sa` that follows finds the nearest match. It is left-recursive and checks the class at every step, so that a reach dies at the first element that would match; that keeps the chart linear in the length of the text, which a reach stated as an element followed by a whole stream does not, since a stream may start anywhere and cannot know which class it is keeping clear of. Each step restates the stream's join in three lines: without a pause, the element before must be continued or both must be `Cy` letters; after a pause, anything may follow, and a `Cy` after a pause counts as continued. The definition effort's `CVCy` guard is not restated, since the reach is erased text and the guard only chooses between two readings of text that parses either way. The match is by selma'o: the first element's classes and the classes of the word after `sa` must share one. Hesitation may stand between a `sa` and the word after it, as between a word and its `si`. What the `sa` leaves is the word after it, a word or a quote and never a compound, since the `sa` acts before a `bu` or `zei` after that word does, and the compound is then built on what the `sa` left; the erasure carries the classes of that word, so that a later `sa` may match it in turn; the erasure may follow the element before it without a pause exactly when its first element may. Several `sa` in a row reach back to successively further matches, "one for each SA", as the Magic Words proposal says: two `sa` erase back to the second-nearest match, three to the third, and so on. The erased text is then as many reaches as there are `sa`, each beginning at a match, followed by the `sa` themselves, which `sa-nest` pairs from the inside out: the innermost reach with the first `sa`, the next reach back with the second. A reach also carries whether its first element may follow the element before it without a pause, `first-onset`, and joins its elements by the same condition as the stream.
 
 ```jbogenbau
 %rule sa-erasure
-  | $first(sa-open) $g(gap) sa-word $h(sa-gap) $next(sa-next)
-  | $first(sa-open-twice) $g(gap) sa-twice $h(sa-gap) $next(sa-next)
-  | $first(sa-open-thrice) $g(gap) sa-thrice $h(sa-gap) $next(sa-next)
+  $first(sa-nest) $h(sa-gap) $next(sa-next)
 %tags
-  "onset" ∩ tags($first) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($next) ∪ classes($next)
+  ("first-onset" ∈ tags($first) ⟹ "onset") ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($next) ∪ classes($next)
 %conditions
   classes($first) ∩ classes($next) ≠ ∅,
-  "continued" ∈ tags($first) ∨ phonemes($g) = ".",
   "onset" ∈ tags($next) ∨ phonemes($h) ≠ ""
 
+%rule sa-nest
+  | $o(sa-open) $g(gap) sa-word <classes($o) ∪ ("first-onset" ∪ "first-cy") ∩ tags($o)>
+  | $a(sa-open) $k(gap) $n(sa-nest) gap sa-word
+      <classes($a) ∩ classes($n) ∪ ("first-onset" ∪ "first-cy") ∩ tags($a)>
+%conditions
+  "continued" ∈ tags($o) ∨ phonemes($g) = ".",
+  classes($a) ∩ classes($n) ≠ ∅,
+  "continued" ∈ tags($a) ∨ phonemes($k) = ".",
+  "first-onset" ∈ tags($n) ∨ phonemes($k) = ".",
+  "first-cy" ∉ tags($n) ∨ phonemes($k) = "."
+%emits
+  ε
+
 %rule sa-open
-  | $first(element) <classes($first) ∪ ("onset" ∪ "continued" ∪ "cy") ∩ tags($first)>
-  | $o(sa-open) $f(element) <classes($o) ∪ ("continued" ∪ "cy") ∩ tags($f)>
-  | $o(sa-open) PAUSE $p(element) <classes($o) ∪ ("continued" ∪ "cy") ∩ tags($p)>
-  | $o(sa-open) PAUSE $c(element) <classes($o) ∪ "continued" ∪ "cy">
+  | $first(element)
+      <classes($first) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($first)
+        ∪ ("onset" ∈ tags($first) ⟹ "first-onset")
+        ∪ ("onset" ∈ tags($first) ∧ ("cy" ∪ "y-letter") ∩ tags($first) ≠ ∅ ⟹ "first-cy")>
+  | $s(sa-open) PAUSE $e(element)
+      <classes($s) ∪ ("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($e)
+        ∪ ("cy" ∈ tags($e) ⟹ "continued")>
+  | $t(sa-open) $f(element)
+      <classes($t) ∪ ("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($f)
+        ∪ ("cv" ∈ tags($t) ∧ "y-letter" ∈ tags($f) ⟹ "cvcy")>
 %conditions
   classes($first) ≠ ∅,
-  "continued" ∈ tags($o) ∨ "cy" ∈ tags($o) ∨ "onset" ∉ tags($f),
-  "continued" ∈ tags($o) ∨ "cy" ∈ tags($f),
-  "onset" ∈ tags($f),
-  "cy" ∉ tags($p),
-  "cy" ∈ tags($c),
-  classes($o) ∩ classes($f) = ∅,
-  classes($o) ∩ classes($p) = ∅,
-  classes($o) ∩ classes($c) = ∅
+  classes($s) ∩ classes($e) = ∅,
+  classes($t) ∩ classes($f) = ∅,
+  ("continued" ∪ "cy" ∪ "cvcy") ∩ tags($t) ≠ ∅,
+  "cy" ∈ tags($t) ∧ "cy" ∈ tags($f)
+    ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f)
+      ∧ ("cv" ∈ tags($t) ∨ "cvcy" ∉ tags($t) ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f)))
+    ∨ "cvcy" ∈ tags($t) ∧ "onset" ∈ tags($f) ∧ "BRIVLA" ∉ tags($f) ∧ ¬matches($f, lujvo-final-shape)
 %emits
   ε
 
-%rule sa-open-twice
-$a(sa-open) $g(gap) $b(sa-open)
-    <classes($a) ∪ "onset" ∩ tags($a) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($b)>
+%rule sa-wipe
+  | $c(sa-wipe-core) <tags($c)>
+  | $r(wiped-reach) $g(gap) $c(sa-wipe-core) <classes($c) ∪ ("first-onset" ∪ "first-cy") ∩ tags($r)>
 %conditions
-  classes($a) ∩ classes($b) ≠ ∅,
-  "continued" ∈ tags($a) ∨ phonemes($g) = ".",
-  "onset" ∈ tags($b) ∨ phonemes($g) = "."
-%emits
-  ε
+  classes($r) ∩ classes($c) = ∅,
+  "continued" ∈ tags($r) ∨ phonemes($g) = ".",
+  "first-onset" ∈ tags($c) ∨ phonemes($g) = ".",
+  "first-cy" ∉ tags($c) ∨ phonemes($g) = "."
 
-%rule sa-open-thrice
-$a(sa-open) $g(gap) $t(sa-open-twice)
-    <classes($a) ∪ "onset" ∩ tags($a) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($t)>
+%rule sa-wipe-core
+  | $o(sa-open) $g(gap) sa-run-twice <classes($o) ∪ ("first-onset" ∪ "first-cy") ∩ tags($o)>
+  | $a(sa-open) $k(gap) $n(sa-wipe-core) gap sa-word
+      <classes($a) ∩ classes($n) ∪ ("first-onset" ∪ "first-cy") ∩ tags($a)>
 %conditions
-  classes($a) ∩ classes($t) ≠ ∅,
-  "continued" ∈ tags($a) ∨ phonemes($g) = ".",
-  "onset" ∈ tags($t) ∨ phonemes($g) = "."
+  "continued" ∈ tags($o) ∨ phonemes($g) = ".",
+  classes($a) ∩ classes($n) ≠ ∅,
+  "continued" ∈ tags($a) ∨ phonemes($k) = ".",
+  "first-onset" ∈ tags($n) ∨ phonemes($k) = ".",
+  "first-cy" ∉ tags($n) ∨ phonemes($k) = "."
 %emits
   ε
 
@@ -515,14 +532,11 @@ $a(sa-open) $g(gap) $t(sa-open-twice)
 %emits
   ε
 
-%rule sa-twice
-  sa-word gap sa-word
-
-%rule sa-thrice
-  sa-twice gap sa-word
-
 %rule sa-run
   sa-word | sa-run gap sa-word
+
+%rule sa-run-twice
+  sa-word gap sa-run
 ```
 
 With `su-boundary`, `su` erases back to a boundary word, which survives, or to the start of the text; without it, always to the start of the text. The boundary words are ordinary words to every other rule; only `su` knows them, by their classes: what a `su` erases is a reach none of whose elements has one of those classes. Like the reach of a `sa`, it is left-recursive and checks every element as it goes, so that it dies at the next boundary rather than running to the end of the text. The boundary is an element, so that what an earlier `su` left standing bounds the next.
@@ -574,7 +588,7 @@ With `su-boundary`, `su` erases back to a boundary word, which survives, or to t
   ε
 ```
 
-A `su` with no boundary before it, or any `su` without `su-boundary`, or a `sa` whose following word matches nothing before it, erases everything back to the start of the text; the word after such a `sa` stays, and a later unmatched one takes it too; a run of `sa` that matches nothing is one unmatched `sa`. A `sa` at the end of the text, with no word after it, has no selma'o to look for and erases nothing, so `.i sa` is `.i`; the text rule accepts it after the stream. These are the wiped stretches the text rule accepts before its stream.
+A `su` with no boundary before it, or any `su` without `su-boundary`, or a `sa` whose following word matches nothing before it, erases everything back to the start of the text; the word after such a `sa` stays, and a later unmatched one takes it too; a run of `sa` that matches nothing is one unmatched `sa`. So is a run with fewer matches before it than it has `sa`: the reaches that did match are followed by more `sa` than there are reaches, in `sa-wipe-core`, and nothing before the furthest match has the selma'o the run looks for, so `mi klama sa sa do` is `do`. A `sa` at the end of the text, with no word after it, has no selma'o to look for and erases nothing, so `.i sa` is `.i`; the text rule accepts it after the stream. These are the wiped stretches the text rule accepts before its stream.
 
 ```jbogenbau
 %rule wiped
@@ -603,9 +617,13 @@ A `su` with no boundary before it, or any `su` without `su-boundary`, or a `sa` 
   | $r(wiped-reach) $g(gap) sa-run $h(sa-gap) $n(sa-next)
       <("first-onset" ∪ "first-cy") ∩ tags($r) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($n)
       ∪ classes($n)>
+  | $w(sa-wipe) $h(sa-gap) $n(sa-next)
+      <("first-onset" ∪ "first-cy") ∩ tags($w) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($n)
+      ∪ classes($n)>
 %conditions
   classes($q) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅,
   classes($r) ∩ classes($n) = ∅,
+  classes($w) ∩ classes($n) ≠ ∅,
   "continued" ∈ tags($q) ∨ phonemes($g) = ".",
   "continued" ∈ tags($v) ∨ phonemes($j) = ".",
   "continued" ∈ tags($t) ∨ phonemes($k) = ".",
@@ -624,4 +642,4 @@ The stage declares `%ambiguity-resolution lazy`: where the grammar admits more t
 
 ## Known gaps
 
-Cyrillic and zbalermorna are read by the phoneme stage, so this grammar never sees them; what it does not read is a `zoi` quote whose delimiters are not set off by pauses. A run of four or more `sa` in a row before one word would erase back to the fourth-nearest match or further; here runs of up to three are read. A run of two or three with fewer matches before it than its length would erase everything back to the start of the text, and is not read.
+Cyrillic and zbalermorna are read by the phoneme stage, so this grammar never sees them; what it does not read is a `zoi` quote whose delimiters are not set off by pauses.
