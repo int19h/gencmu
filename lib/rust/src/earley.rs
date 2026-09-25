@@ -598,7 +598,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     CmpOp::Eq | CmpOp::Ne => {
                         let equal = match (left, right) {
                             (Value::Str(a), Value::Str(b)) => a == b,
-                            (Value::List(a), Value::List(b)) => a == b,
+                            // Anything else, two lists included, compares
+                            // as tag sets: a list is the set of its strings
+                            // (§10).
                             (a, b) => {
                                 let a = self.as_set(a);
                                 let b = self.as_set(b);
