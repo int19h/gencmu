@@ -268,6 +268,28 @@ A tag may carry any sequence of two or more `na'e` and `se` prefixes before a si
   FA | PU | ZI | ZEhA | VA | FAhA | VEhA | VIhA | CAhA | ZAhO | CUhE | KI
 ```
 
+Zantufa does not have four connective forms of the experimental grammar, and these rules restate them without those forms. An ek cannot follow a text-leading `.i`. `gu` followed by a joik or jek is not a guhek. `gi` followed by a word of JOI, JA or A is not a gihek. And `gi` with a stag cannot join bridi-tails before `bo` or `ke`.
+
+```jbogenbau
+%redefine-rule text-1
+  [(I [jek | joik] [[tag] BO] #) ...] [NIhO ... # [I # NIhO ... #]] [paragraphs]
+
+%redefine-rule guhek
+  [SE] GUhA [NAI] #
+
+%redefine-rule gihek
+  [NA] [SE] GIhA [NAI]
+
+%redefine-rule bridi-tail
+  bridi-tail-1 [gihek [stag] KE # bridi-tail [KEhE] # tail-terms]
+
+%redefine-rule bridi-tail-2
+  bridi-tail-3 [bridi-tail-connective [stag] BO # [CU #] bridi-tail-2 tail-terms]
+
+%redefine-rule bridi-tail-2-not-starting-with-ke
+  bridi-tail-3-not-starting-with-ke [bridi-tail-connective [stag] BO # [CU #] bridi-tail-2 tail-terms]
+```
+
 ## Mekso
 
 A raw mekso, one written without `li` or `vei`, is a quantifier (`zantufa-mex`), and a bare mekso is a fragment. Infix mekso may chain several operators and omit a trailing operand (`pa su'i`); reverse Polish mekso takes trailing operator groups; `bo` and `ke ... ke'e` group operands; `ma'o selbri`, `ma'o sumti` and a joik or ek are operators; `na'e operand` and `mo'e selbri` are operands. Where a Zantufa form generalizes a CLL form over the same text, the feature replaces the older alternative.

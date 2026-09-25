@@ -12,11 +12,11 @@ Unlike the CLL grammar, this layer writes the free-modifier slot after an elidab
 
 Two directives set the layer up. `%ambiguity-resolution greedy` says how the stage chooses among parses. At the first difference between two parses, it takes the one that reads the next word. So an elided terminator is absent for as long as the grammar allows, as in the CLL dialect. The layer does not declare `elision-only`, because it has real ambiguities that are not about terminators. The greedy rule settles them:
 
-- a bare `na` is a term, beside the `na` that negates a selbri
+- a bare `na` is a term, beside the `na` that negates a selbri and the `na` that starts a connective
 - under `cbm`, a name is also a selbri
 - under `term-hierarchy`, terms can be joined by a connective and `bo`, and a tagged term can take the same connection
 
-If the layer declared `elision-only`, each of those texts would be an error. `%elidable` adds the experimental terminators `fi'au`, `ku'au` and `ku'oi` to CLL's.
+If the layer declared `elision-only`, each of those texts would be an error. `%elidable` adds the experimental terminators `ku'au` and `ku'oi` to CLL's.
 
 ```jbogenbau
 %ambiguity-resolution greedy
@@ -25,7 +25,7 @@ If the layer declared `elision-only`, each of those texts would be an error. `%e
 
 ## The text and its paragraphs
 
-The layer changes the text in two ways. The tense before `bo` in a text-leading `.i` can be a full `tag` and not only a `stag`. And `.i ni'o` can follow a `ni'o`, which is how usage writes a new topic inside a reply. At the start of a text, the CLL grammar's `text-1` already reads `.i ni'o`, as the repair of the printed grammar that it lists says. So `text-1` takes the form after a first run of `ni'o`, and `paragraphs` takes it after a later one.
+The layer changes the text in three ways. The connective after a text-leading `.i` can be an ek, as in `.i .e do klama`, because camxes-exp's joik takes the words of A. The tense before `bo` in a text-leading `.i` can be a full `tag` and not only a `stag`. And `.i ni'o` can follow a `ni'o`, which is how usage writes a new topic inside a reply. At the start of a text, the CLL grammar's `text-1` already reads `.i ni'o`, as the repair of the printed grammar that it lists says. So `text-1` takes the form after a first run of `ni'o`, and `paragraphs` takes it after a later one.
 
 ```jbogenbau
 %redefine-rule text
@@ -33,7 +33,7 @@ The layer changes the text in two ways. The tense before `bo` in a text-leading 
   | @cbm? [NAI ...] [indicators & free ...] [joik-jek] text-1
 
 %redefine-rule text-1
-  [(I [jek | joik] [[tag] BO] #) ...] [NIhO ... # [I # NIhO ... #]] [paragraphs]
+  [(I [jek | joik | ek] [[tag] BO] #) ...] [NIhO ... # [I # NIhO ... #]] [paragraphs]
 
 %redefine-rule paragraphs
   paragraph [NIhO ... # (paragraphs | I # NIhO ... # [paragraphs])]
@@ -71,23 +71,23 @@ CLL's `na` fragment is gone. A bare `na` is a term (see "Terms"), so `na` and `n
 
 ## Sentences and bridi-tails
 
-`cu` can start a sentence with no leading terms, and terms can follow `cu` before the bridi-tail (`mi cu do klama`). The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or VUhU (`bridi-tail-connective`), and an explicit `cu` can follow it. Only a gihek opens the `ke` bridi-tail grouping.
+`cu` can start a sentence with no leading terms, and terms can follow `cu` before the bridi-tail (`mi cu do klama`). The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or VUhU (`bridi-tail-connective`), and an explicit `cu` can follow it. Only a gihek opens the `ke` bridi-tail grouping. Before `bo` or `ke`, a bare `gi` with a stag is a connective too, as in `mi klama gi ba bo tavla`.
 
 ```jbogenbau
 %redefine-rule sentence
   [terms] [CU # [terms]] bridi-tail
 
 %redefine-rule bridi-tail
-  bridi-tail-1 [gihek [stag] KE # bridi-tail [KEhE] # tail-terms]
+  bridi-tail-1 [(gihek [stag] | GI stag) KE # bridi-tail [KEhE] # tail-terms]
 
 %redefine-rule bridi-tail-1
   bridi-tail-2 [bridi-tail-connective [CU #] bridi-tail-2-not-starting-with-ke tail-terms] ...
 
 %redefine-rule bridi-tail-2
-  bridi-tail-3 [bridi-tail-connective [stag] BO # [CU #] bridi-tail-2 tail-terms]
+  bridi-tail-3 [(bridi-tail-connective [stag] | GI stag) BO # [CU #] bridi-tail-2 tail-terms]
 
 %rule bridi-tail-2-not-starting-with-ke
-bridi-tail-3-not-starting-with-ke [bridi-tail-connective [stag] BO # [CU #] bridi-tail-2 tail-terms]
+  bridi-tail-3-not-starting-with-ke [(bridi-tail-connective [stag] | GI stag) BO # [CU #] bridi-tail-2 tail-terms]
 
 %rule bridi-tail-3-not-starting-with-ke
   selbri-not-starting-with-ke tail-terms | gek-sentence
@@ -385,6 +385,34 @@ After an elided `boi`, a number or lerfu string is followed by `free-after-elide
 
 %redefine-rule interval-property
   (number | VEI # mex [VEhO] #) ROI [NAI] | TAhE [NAI] | ZAhO [NAI]
+```
+
+## Logical and non-logical connectives
+
+camxes-exp's joik takes `na` before a word of JOI, as its jek and ek do. So `mi na joi do klama` has one term, `mi na joi do`. The greedy rule settles this against the bare `na` term.
+
+A forethought connective can be `ga` or `gu` followed by a joik, jek, ek or VUhU, as in `ga je lo mlatu gi lo gerku`. With `ga`, it is a gek. With `gu`, it is a guhek, as in `mi gu je melbi gi kargydu'e`. camxes-exp allows only these two words here, so `ge je` and `gu'e je` are not connectives. The connective before `gi` in a gek can be a jek or an ek as well as a joik (`je gi mi broda gi mi brode`). A gihek can be `gi` followed by a word of JOI, JA or A (`mi klama gi je tavla`).
+
+```jbogenbau
+%redefine-rule joik
+  [NA] [SE] JOI [NAI] | interval | GAhO interval GAhO
+
+%redefine-rule gek
+  | [SE] GA [NAI] #
+  | $g(GA) [NAI] # (joik # | jek # | ek # | VUhU #)
+  | (joik | jek | ek) GI #
+  | stag gik
+%conditions
+  lowercase(phonemes($g)) = "ga"
+
+%redefine-rule guhek
+  | [SE] GUhA [NAI] #
+  | $g(GA) [NAI] # (joik # | jek # | ek # | VUhU #)
+%conditions
+  lowercase(phonemes($g)) = "gu"
+
+%redefine-rule gihek
+  [NA] [SE] (GIhA | GI (JOI | JA | A)) [NAI]
 ```
 
 ## Tenses and modals
