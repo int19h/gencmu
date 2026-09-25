@@ -78,9 +78,11 @@ An indicator run is read as far as it goes, so the stage is greedy: where two pa
   $
 
 %rule nai
-  $n("word") <tags($n)>
+  | $n("word") <tags($n)>
+  | absorbed-bahe $m("word") <tags($m)>
 %conditions
-  "NAI" ∈ tags($n)
+  "NAI" ∈ tags($n),
+  "NAI" ∈ tags($m)
 %emits
   $
 ```
@@ -89,4 +91,4 @@ A `le'u` outside any quote is still a word, but it is read as `LEhU` and not als
 
 After a run of indicators at the start of the text, a `nai` belongs to the last of them when that is an attitudinal: `iu nai` is one run, not `iu` followed by a text that begins with `nai`.
 
-A `ba'e` before an indicator marks the indicator and goes with it. An indicator run is read as far as it goes: `broda ui nai` attaches both words to `broda`, and the stage being greedy is what makes `nai` part of the run rather than the next word of the syntax. A `ba'e` is a word of BAhE, which the CLL lexicon gives only to `ba'e` and `za'e`.
+A `ba'e` before an indicator marks the indicator and goes with it, and so does a `ba'e` before the `nai` of an attitudinal: `ba'e` "marks the following word but does not change its meaning", as the Magic Words proposal says, and "One NAI can follow any UI or CAI cmavo", so `mi .e .ui ba'e nai do` negates the `.ui` and leaves the `.e` as it is. An indicator run is read as far as it goes: `broda ui nai` attaches both words to `broda`, and the stage being greedy is what makes `nai` part of the run rather than the next word of the syntax. A `ba'e` is a word of BAhE, which the CLL lexicon gives only to `ba'e` and `za'e`.

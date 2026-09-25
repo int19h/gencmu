@@ -45,7 +45,9 @@ A brivla with an onset may follow a word without a pause; it may be followed by 
   phonemes($m) ≠ lowercase(phonemes($m)),
   phonemes($u) = lowercase(phonemes($u)),
   phonemes($n) ≠ lowercase(phonemes($n)),
-  phonemes($o) = lowercase(phonemes($o))
+  phonemes($o) = lowercase(phonemes($o)),
+  ¬matches($n, broken-word),
+  ¬matches($o, broken-word)
 ```
 
 ## Cmevla
