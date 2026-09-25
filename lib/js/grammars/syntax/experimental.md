@@ -6,7 +6,7 @@ The layer restates each CLL rule that it changes with `%redefine-rule`. It adds 
 
 [The experimental lexicon](../words/lexicon-experimental.md) gives each cmavo the one selma'o that camxes-exp gives it. For example, `mi'ai` is KOhA, `la` is LE, `fi'oi` is SOI, `ma'oi` is ZO and `la'oi` is ZOhOI. `no'oi` and `po'oi` are NOhOI, with the terminator `ku'oi`. Some selma'o exist only here: `LOhOI`, `NOhOI` and `KUhOI`, and the single-word terminals `KUhAU`, `LOhAI`, `LEhAI`, `ZOhOI` and `MEhOI`. A class of the CLL grammar that camxes-exp does not have, such as LA, is never read here.
 
-The notation is explained in [the notation document](../../docs/notation.md). The terminals are selma'o, and `any-word` and `anything` are the tags `word` and `foreign-text` that the word stage puts on the material of a quote. The layer uses two feature guards: `cbm`, the cmevla-brivla merger, and `term-hierarchy`. The Zantufa dialect enables both, and a caller can enable either.
+The notation is explained in [the notation document](../../docs/notation.md). The terminals are selma'o, and `any-word` and `anything` are the tags `word` and `foreign-text` that the word stage puts on the material of a quote. The layer uses two feature guards: `cbm`, the cmevla-brivla merger, and `term-hierarchy`. The experimental and Zantufa dialects turn both on, as camxes-exp always has them, and a caller can turn either off.
 
 Unlike the CLL grammar, this layer writes the free-modifier slot after an elidable terminator outside its brackets: `[X] #` where CLL has `[X #]`. So free modifiers can follow an elided terminator. Many rules below are restated for that alone. A number or lerfu string is kept maximal by `free-after-elided-boi`, which excludes a following free modifier that itself starts with a number or lerfu string.
 
@@ -14,7 +14,7 @@ Two directives set the layer up. `%ambiguity-resolution greedy` says how the sta
 
 - a bare `na` is a term, beside the `na` that negates a selbri and the `na` that starts a connective
 - under `cbm`, a name is also a selbri
-- under `term-hierarchy`, terms can be joined by a connective and `bo`, and a tagged term can take the same connection
+- under `term-hierarchy`, two terms joined by a connective and `bo` are also two sumti joined that way
 
 If the layer declared `elision-only`, each of those texts would be an error. `%elidable` adds the experimental terminators `ku'au` and `ku'oi` to CLL's.
 
@@ -117,7 +117,7 @@ The first term inside `nu'i ... nu'u` cannot itself be a bare forethought termse
 
 %redefine-rule term
   | term-3 [term-connective term-3] ...
-  | tagged-term (joik # | ek #) BO # tagged-term
+  | @¬term-hierarchy? tagged-term (joik # | ek #) BO # tagged-term
   | @term-hierarchy? term-3 (joik # | ek #) BO # term-3
 
 %rule term-connective
@@ -152,7 +152,7 @@ The first term inside `nu'i ... nu'u` cannot itself be a bare forethought termse
 
 %rule term-not-starting-with-bare-gek
   | term-3-not-starting-with-bare-gek [term-connective term-3] ...
-  | tagged-term (joik # | ek #) BO # tagged-term
+  | @¬term-hierarchy? tagged-term (joik # | ek #) BO # tagged-term
   | @term-hierarchy? term-3-not-starting-with-bare-gek (joik # | ek #) BO # term-3
 
 %rule term-3-not-starting-with-bare-gek
@@ -235,7 +235,7 @@ Consecutive relative clauses can be joined by a joik, a jek or an ek, as well as
 
 Selbri and tanru-unit connectives are joik, jek, ek or VUhU (`selbri-connective`). A selbri can be tagged by a bare `fa`. The term after `be` or `bei` can be absent. The new tanru units are a cmevla, under `cbm`, and preposed linked arguments (`lo be mi broda`).
 
-A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in which `ke'a` refers to the selbri (`mi klama no'oi bajra`). They are joined by `zi'e` or a joik.
+A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in which `ke'a` refers to the selbri (`mi klama no'oi bajra`). They are joined as relative clauses are: by `zi'e`, a joik, a jek or an ek, or two groups of them in forethought.
 
 ```jbogenbau
 %redefine-rule selbri
@@ -260,7 +260,7 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   selbri-4-not-starting-with-ke [selbri-4] ...
 
 %rule selbri-4-not-starting-with-ke
-selbri-5-not-starting-with-ke [selbri-connective selbri-5 | joik [stag] KE # selbri-3 [KEhE] #] ...
+  selbri-5-not-starting-with-ke [selbri-connective selbri-5 | joik [stag] KE # selbri-3 [KEhE] #] ...
 
 %rule selbri-5-not-starting-with-ke
   selbri-6-not-starting-with-ke [selbri-connective [stag] BO # selbri-5]
@@ -307,7 +307,8 @@ selbri-5-not-starting-with-ke [selbri-connective selbri-5 | joik [stag] KE # sel
   | linkargs tanru-unit-2
 
 %rule selbri-relative-clauses
-  selbri-relative-clause [(ZIhE # | joik #) selbri-relative-clause] ...
+  | selbri-relative-clause [(ZIhE # | joik # | jek # | ek #) selbri-relative-clause] ...
+  | gek selbri-relative-clauses gik selbri-relative-clauses
 
 %rule selbri-relative-clause
   NOhOI # subsentence [KUhOI] #
@@ -448,7 +449,6 @@ The text replacement forms of camxes-exp are free modifiers: up to two runs of w
   | mex-2 MAI
   | TO text [TOI]
   | XI # mex-2
-  | XI # VEI # mex [VEhO]
   | LOhAI [lohai-word ...] [LOhAI [lohai-word ...]] LEhAI
   | LEhAI
 
@@ -468,7 +468,6 @@ The text replacement forms of camxes-exp are free modifiers: up to two runs of w
   | vocative [sumti] [DOhU]
   | TO text [TOI]
   | XI # mex-2
-  | XI # VEI # mex [VEhO]
   | LOhAI [lohai-word ...] [LOhAI [lohai-word ...]] LEhAI
   | LEhAI
 ```
@@ -477,7 +476,7 @@ The text replacement forms of camxes-exp are free modifiers: up to two runs of w
 
 Where a text has more than one parse, the stage chooses by the rule of [the notation document](../../docs/notation.md) under "Ambiguity". The layer declares the `greedy` resolution. At the first difference between two parses:
 
-- a reading of a word under a weak tag loses to one under a strong tag; the experimental lexicon gives none, but the Zantufa lexicon does
+- a reading of a word under a weak tag loses to one under a strong tag. The experimental lexicon gives no weak tags, but the Zantufa lexicon does.
 - a parse that reads the next word wins over one that closes a constituent, so a constituent ends as late as the grammar allows
 - two parses that close different constituents at the same point tie, and the tie is reported
 
