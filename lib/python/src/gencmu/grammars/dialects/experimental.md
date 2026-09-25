@@ -26,6 +26,7 @@ Some constructs are behind features a caller may enable: `cbm`, the cmevla-brivl
 
 ## Stage 4: syntax <?stage syntax?>
 
-- [The experimental grammar](../syntax/experimental.md) <?grammar?>
+- [The CLL grammar](../syntax/cll.md) <?grammar?>
+- [The experimental grammar](../syntax/experimental.md): what camxes-exp changes in it <?grammar?>
 
 The experimental grammar is greedy like CLL's but does not declare `elision-only`: it has ambiguities that are not about terminators, such as a bare `na` term beside a negated selbri, and those are settled by the greedy rule.

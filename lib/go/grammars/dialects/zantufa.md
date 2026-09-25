@@ -24,5 +24,6 @@ The experimental dialect ([`experimental.md`](experimental.md)) with the constru
 
 ## Stage 4: syntax <?stage syntax?>
 
-- [The experimental grammar](../syntax/experimental.md) <?grammar?>
+- [The CLL grammar](../syntax/cll.md) <?grammar?>
+- [The experimental grammar](../syntax/experimental.md): what camxes-exp changes in it <?grammar?>
 - [The Zantufa constructs](../syntax/zantufa.md) <?grammar?>
