@@ -50,3 +50,7 @@ console.log(toBrackets(loadDialect("cll").parse("mi klama")));
 - [`docs/output.md`](docs/output.md): the output formats.
 - [`docs/design.md`](docs/design.md): why gencmu is the way it is.
 - [`tests/README.md`](tests/README.md): the shared tests, the Lojban corpus among them.
+
+## Licence
+
+MIT; see [`LICENSE`](LICENSE). Each package carries a copy.
