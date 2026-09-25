@@ -104,11 +104,13 @@ class StageContext:
 
 
 def _as_tags(value: Any) -> Tags:
+    """A value where a tag set is needed (engine §10): a string is the set of
+    that one strong tag, and a list the set of its strings, each strong."""
     if isinstance(value, str):
         return {value: True}
-    if isinstance(value, dict):
-        return value
-    raise _GrammarFault("a list is used where a tag set is needed")
+    if isinstance(value, list):
+        return {item: True for item in value}
+    return value
 
 
 class Evaluator:
@@ -237,8 +239,6 @@ class Evaluator:
             right = yield self._value(dom["right"], bound)
             if op in ("=", "≠"):
                 if isinstance(left, str) and isinstance(right, str):
-                    equal = left == right
-                elif isinstance(left, list) or isinstance(right, list):
                     equal = left == right
                 else:
                     equal = _as_tags(left).keys() == _as_tags(right).keys()

@@ -186,22 +186,6 @@ def joined_phonemes(parts: list[str]) -> str:
     return PAUSE.join(part for part in "".join(parts).split(PAUSE) if part)
 
 
-def constituent_phonemes(tokens: list[Token], node: DNode) -> str:
-    """A constituent's phonemes (engine §5): its tokens' phonemes, leaving
-    out every token inside a constituent below it that does not count."""
-    parts: list[str] = []
-    stack: list[DChild] = [node]
-    while stack:
-        current = stack.pop()
-        if isinstance(current, DRead):
-            parts.append(tokens[current.token].phonemes or "")
-            continue
-        if current is not node and emits_nothing(current.production):
-            continue
-        stack.extend(reversed(current.children))
-    return joined_phonemes(parts)
-
-
 def span_phonemes(tokens: list[Token], uncounted: list[bool], start: int, end: int) -> str:
     return joined_phonemes([tokens[index].phonemes or "" for index in range(start, end) if not uncounted[index]])
 
