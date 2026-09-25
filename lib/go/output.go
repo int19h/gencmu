@@ -6,7 +6,7 @@ import (
 )
 
 // resultFormat is the version of docs/output.md.
-const resultFormat = 2
+const resultFormat = 3
 
 // MarshalResult writes the canonical JSON of a result (docs/output.md).
 func MarshalResult(result *ParseResult) ([]byte, error) {
@@ -113,6 +113,9 @@ func writeToken(w *jsonWriter, t *Token) {
 	w.pair(t.Span)
 	w.raw(`,"source":`)
 	w.pair(t.Source)
+	if t.Verbatim {
+		w.raw(`,"verbatim":true`)
+	}
 	if t.InsertedBy != "" {
 		w.raw(`,"insertedBy":`)
 		w.str(t.InsertedBy)
@@ -295,7 +298,11 @@ func Brackets(result *ParseResult, options BracketOptions) string {
 		switch f.n.Kind {
 		case KindToken:
 			t := input[f.n.Token]
-			// Each pause, ., is written as a space.
+			// The label of a verbatim token is its text as written. Other
+			// labels write each pause, ., as a space (docs/output.md).
+			if t.Verbatim {
+				return &rendered{leaf: t.Text}
+			}
 			if t.Phonemes != "" {
 				return &rendered{leaf: strings.ReplaceAll(t.Phonemes, ".", " ")}
 			}

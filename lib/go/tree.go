@@ -168,6 +168,8 @@ func (run *stageRun) kidSpan(rec *recognizer, k *dn) (int, int, *tagset) {
 // the next stage.
 func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 	out := []Token{}
+	// Where the widened tokens emitted so far end (§11).
+	widenedEnds := map[int]bool{}
 	stack := []emitTask{{walk: d}}
 	for len(stack) > 0 {
 		t := stack[len(stack)-1]
@@ -176,7 +178,7 @@ func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 		case t.tok != nil:
 			out = append(out, *t.tok)
 		case t.emit != nil:
-			out = append(out, run.emitted(rec, t.emit, t.tags))
+			out = append(out, run.emitted(rec, t.emit, t.tags, widenedEnds))
 		case t.walk != nil:
 			n := t.walk
 			if n.kind == dRead {
@@ -286,10 +288,11 @@ func (run *stageRun) inserted(tag string, at, start, end int, rule string) emitT
 }
 
 // emitted is the token a constituent emits, with the given tags.
-func (run *stageRun) emitted(rec *recognizer, n *dn, tags *tagset) Token {
+// widenedEnds holds where the widened tokens emitted before it end.
+func (run *stageRun) emitted(rec *recognizer, n *dn, tags *tagset, widenedEnds map[int]bool) Token {
 	a, b, _ := run.kidSpan(rec, n)
-	src := run.spanSource(a, b)
-	tok := Token{Text: string(run.ps.text[src[0]:src[1]]), Tags: tags.toMap(), Span: [2]int{a, b}, Source: src}
+	// Two strong phoneme tags are an error on any token, verbatim or not
+	// (§5).
 	var strong []string
 	for i, name := range tags.names {
 		if ph, ok := phonemeTag(name); ok && tags.strong[i] {
@@ -299,20 +302,44 @@ func (run *stageRun) emitted(rec *recognizer, n *dn, tags *tagset) Token {
 	if len(strong) > 1 {
 		panic(&parseFailure{message: "an emitted token has two strong phoneme tags", token: a, tokenEnd: b, hasToken: true})
 	}
+	if n.kind == dClose && n.prod.verbatim {
+		return run.widened(a, b, tags, widenedEnds)
+	}
+	if b-a == 1 && run.toks[a].Verbatim {
+		// A token over one verbatim token is verbatim, with its source (§11).
+		only := run.toks[a]
+		return Token{Text: only.Text, Phonemes: only.Text, Tags: tags.toMap(), Span: [2]int{a, b}, Source: only.Source, Verbatim: true}
+	}
+	src := run.spanSource(a, b)
+	tok := Token{Text: string(run.ps.text[src[0]:src[1]]), Tags: tags.toMap(), Span: [2]int{a, b}, Source: src}
 	if len(strong) == 1 {
 		tok.Phonemes = strong[0]
 		return tok
 	}
-	// The phonemes of the tokens it covers, joined, leaving out every token
-	// inside a constituent that does not count, its own included (§5).
+	// The phonemes of the tokens it covers, joined. The join leaves out every
+	// token inside a constituent that does not count, its own included, and
+	// every token with no phonemes. Of each run of pause tokens it keeps one,
+	// and it leaves out a pause token at either end. It counts the pauses by
+	// token, so a verbatim token keeps its periods (§5).
 	var sb strings.Builder
+	pause := false
 	stack := []*dn{n}
 	for len(stack) > 0 {
 		x := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 		switch x.kind {
 		case dRead:
-			sb.WriteString(run.toks[rec.base+int(x.tok)].Phonemes)
+			switch ph := run.toks[rec.base+int(x.tok)].Phonemes; ph {
+			case "":
+			case ".":
+				pause = sb.Len() > 0
+			default:
+				if pause {
+					sb.WriteByte('.')
+					pause = false
+				}
+				sb.WriteString(ph)
+			}
 		case dClose:
 			if x.prod.nothing || x.a == nil {
 				continue
@@ -325,29 +352,40 @@ func (run *stageRun) emitted(rec *recognizer, n *dn, tags *tagset) Token {
 			}
 		}
 	}
-	tok.Phonemes = tidyPauses(sb.String())
+	tok.Phonemes = sb.String()
 	return tok
 }
 
-// tidyPauses makes each run of pauses, ., one, and removes a pause at
-// either end (§5).
-func tidyPauses(s string) string {
-	if !strings.Contains(s, ".") {
-		return s
+// widened is the token of a verbatim constituent over [a, b) (§11). It
+// takes in the text next to it that no input token covers, but not the text
+// that a widened token before it took. It sounds like its text (§5).
+func (run *stageRun) widened(a, b int, tags *tagset, widenedEnds map[int]bool) Token {
+	before := 0
+	if a > 0 {
+		before = run.toks[a-1].Source[1]
 	}
-	// . is one byte, and never part of another code point's encoding.
-	b := make([]byte, 0, len(s))
-	pause := false
-	for i := 0; i < len(s); i++ {
-		if s[i] == '.' {
-			pause = len(b) > 0
-			continue
-		}
-		if pause {
-			b = append(b, '.')
-			pause = false
-		}
-		b = append(b, s[i])
+	tok := Token{Tags: tags.toMap(), Span: [2]int{a, b}, Source: [2]int{before, before}, Verbatim: true}
+	// Over an empty span it takes in no text.
+	if a == b {
+		return tok
 	}
-	return string(b)
+	// It always holds its own tokens' sources. The tokens next to it can
+	// share them.
+	own := run.spanSource(a, b)
+	start, end := own[0], own[1]
+	if !widenedEnds[a] && before < start {
+		start = before
+	}
+	after := len(run.ps.text)
+	if b < len(run.toks) {
+		after = run.toks[b].Source[0]
+	}
+	if after > end {
+		end = after
+	}
+	widenedEnds[b] = true
+	tok.Source = [2]int{start, end}
+	tok.Text = string(run.ps.text[start:end])
+	tok.Phonemes = tok.Text
+	return tok
 }

@@ -60,6 +60,8 @@ func TestDOMRules(t *testing.T) {
 		{"captures are emitted in text order", emit(`{"items":[{"capture":"y"},{"capture":"x"}]}`)},
 		{"an inserted tag's anchor is in every alternative", two(`"emit":{"items":[{"insert":"T"},{"capture":"x"}]},"conditions":[]`)},
 		{"every alternative emits something", two(`"emit":{"items":[{"capture":"x"}]},"conditions":[]`)},
+		{"a verbatim rule does not emit ε", emit(`{"items":[]},"verbatim":true`)},
+		{"verbatim is true or absent", strings.Replace(alt(good), `"conditions":[]`, `"conditions":[],"verbatim":false`, 1)},
 		{"a guard does not read the constituent's tags", tagged(`{"if":{"op":"∈","left":{"literal":"a"},"right":{"capture":""}},"then":{"literal":"T"}}`)},
 		{"a guarded term has a term", tagged(`{"if":{"captured":"x"}}`)},
 		{"an implication has a consequent", cond(`{"if":{"captured":"x"}}`)},
@@ -161,6 +163,7 @@ func TestDOMRules(t *testing.T) {
 		cond(`{"any":[{"not":{"matches":{"capture":"x"},"rule":"text"}},{"op":"=","left":{"literal":"a"},"right":{"literal":"a"}}]}`),
 		cond(strings.Repeat(`{"not":`, 254) + `{"initial":{"call":"tail","args":[{"capture":"x"}]}}` + strings.Repeat(`}`, 254)),
 		strings.Replace(alt(good), `"define"`, `"redefine"`, 1),
+		strings.Replace(alt(good), `"conditions":[]`, `"conditions":[],"verbatim":true`, 1), emit(`{"items":[{"capture":"x"}]},"verbatim":true`),
 		// Clauses that serve alternatives with different captures.
 		two(`"tags":{"union":[{"literal":"T"},{"if":{"captured":"x"},"then":{"call":"tags","args":[{"capture":"x"}]}}]},"conditions":[]`),
 		two(`"conditions":[{"captured":"x"},{"if":{"captured":"z"},"then":{"matches":{"capture":"z"},"rule":"text"}}]`),

@@ -130,7 +130,7 @@ var domRules = map[string]bool{
 	"conjunction": true, "sequence": true, "element": true, "reference": true,
 	"string": true, "phoneme": true, "capture": true, "group": true, "optional": true,
 	"empty": true, "tags-clause": true, "conditions-clause": true, "emits-clause": true,
-	"emit-item": true, "emit-tags": true, "implication": true,
+	"verbatim-clause": true, "emit-item": true, "emit-tags": true, "implication": true,
 	"any-of": true, "all-of": true, "comparison": true, "negation": true,
 	"presence": true, "call": true, "term": true, "guarded-term": true, "union": true,
 	"intersection": true, "weak": true, "empty-set": true, "capture-reference": true,
@@ -251,6 +251,8 @@ func (b *domBuilder) rule(n *Node) *domRule {
 			}
 		case "emits-clause":
 			r.Emit = b.emission(p)
+		case "verbatim-clause":
+			r.Verbatim = true
 		}
 	}
 	// The definition as a whole (§9), reported at the rule.

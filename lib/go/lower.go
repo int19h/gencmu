@@ -24,6 +24,7 @@ type production struct {
 	predictConds []*domCond // conditions using no capture but $ of an empty production, checked at prediction
 	emit         *domEmit   // as dropped and simplified for the production (§3.6)
 	nothing      bool       // %emits ε: the constituent emits nothing and does not count (§11)
+	verbatim     bool       // %verbatim: a token over the constituent is widened and sounds like its text (§11)
 	transparent  bool
 	helper       bool
 	elided       string // for the ε production of an optional beginning with an elidable terminal
@@ -289,6 +290,7 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt, repeatPrefix b
 	}
 	p := lw.newProduction(lhs, body)
 	p.repeatPrefix = repeatPrefix
+	p.verbatim = a.verbatim
 	p.ruleName = lw.l.rules[lhs].name
 	p.doc, p.at = a.doc, a.at
 	for _, gd := range a.alt.Guards {
