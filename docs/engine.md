@@ -101,7 +101,7 @@ A token's `phonemes`:
 
 An emitted token always has phonemes, possibly the empty string; only the character tokens of the first stage have none.
 
-`phonemes(span)` in a condition is the concatenation of the span's tokens' phonemes. `text(span)` is the original text of the span, from the start of its first token's source to the end of its last. `words(span)` is `phonemes(span)` split at pauses, `.`, empty strings dropped.
+`phonemes(span)` in a condition is the concatenation of the span's tokens' phonemes. `text(span)` is the original text of the span, from the start of its first token's source to the end of its last. `words(span)` is the tag set of the words of `phonemes(span)`, the strings between its pauses, `.`, each a strong tag, the empty string never among them.
 
 ## 6. Choosing a parse
 
@@ -210,7 +210,7 @@ A string's decoding: the quotes are removed, `\\` is `\`, `\"` is `"`, and `\u{h
 
 **Spans.** A capture `$x` is the span of the captured part, and `$` the span of the whole constituent (§3.5); `head(s)` its first token, `tail(s)` all but the first, `last(s)` its last token, each empty if the span is.
 
-**Values.** A term is a string, a tag set, or a list:
+**Values.** A term is a string or a tag set:
 
 | term | value |
 | --- | --- |
@@ -225,11 +225,11 @@ A string's decoding: the quotes are removed, `\\` is `\`, `\"` is `"`, and `\u{h
 | `tags(s)` | the captured part's constituent tags if `s` is a whole capture, else the union of the span's tokens' tags |
 | `tags(s, R)` | the union of the tags of every derivation of the span as `R`, empty if none |
 | `classes(s)` | the tags of `tags(s)` whose first character is `A` to `Z` |
-| `words(s)` | a list (§5) |
+| `words(s)` | a tag set (§5) |
 
-A string used where a tag set is needed is the set of that one strong tag, and a list the set of its strings, each a strong tag, so that `=` between two lists compares the words they hold and not their order or number.
+A string used where a tag set is needed is the set of that one strong tag.
 
-**Conditions.** `a = b` and `a ≠ b` compare two strings, or two tag sets by their tags alone, ignoring strength. `a ∈ b` and `a ∉ b` test a string in a list or a tag set. `a ⊆ b` tests that every tag of `a` is in `b`. `matches(s, R)` holds when the span parses as `R`. `$x`, as a condition, holds when the production has the capture `x` (§3.6), and `$` always. `¬c` negates. Conditions joined by `∨` hold when any does, and those joined by `∧` when all do. `A ⟹ B`, a condition, holds when `A` does not or `B` does; `⟹` binds looser than `∨`, which binds looser than `∧`, it groups to the right, and parentheses group.
+**Conditions.** `a = b` and `a ≠ b` compare two strings, or two tag sets by their tags alone, ignoring strength. `a ∈ b` and `a ∉ b` test a string in a tag set. `a ⊆ b` tests that every tag of `a` is in `b`. `matches(s, R)` holds when the span parses as `R`. `$x`, as a condition, holds when the production has the capture `x` (§3.6), and `$` always. `¬c` negates. Conditions joined by `∨` hold when any does, and those joined by `∧` when all do. `A ⟹ B`, a condition, holds when `A` does not or `B` does; `⟹` binds looser than `∨`, which binds looser than `∧`, it groups to the right, and parentheses group.
 
 **Order of evaluation.** Evaluating a condition may run a nested parse, which may fail with an error of the grammar (§4), so which parts are evaluated is observable. Conditions joined by `∧` or `∨` are evaluated from left to right, and evaluation stops at the first that decides the whole: a false one for `∧`, a true one for `∨`. `A ⟹ B` evaluates `A` first, and `B` only if `A` holds; a guarded term `A ⟹ t` likewise evaluates `t` only if `A` holds.
 

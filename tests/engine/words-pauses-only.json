@@ -1,5 +1,5 @@
 {
-  "description": "words() splits a span's phonemes at pauses, `.`, only: a space or a tab is part of a word (engine §10).",
+  "description": "words() takes the words of a span's phonemes between pauses, `.`, only: a space or a tab is part of a word (engine §5).",
   "grammar": "%rule text $x(A)\n%conditions \"a\" ∉ words($x) ∧ \"a b\\u{9}c\" ∈ words($x) ∧ \"d\" ∈ words($x)",
   "tokens": [
     {

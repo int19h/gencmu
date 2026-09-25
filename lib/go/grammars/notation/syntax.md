@@ -156,7 +156,7 @@ A condition joins others with `∧`, `∨` and `⟹`, binding in that order, `�
 
 ## Terms
 
-A term is a string, a tag set or a list. `∩` binds tighter than `∪`. A term guarded by a condition, `A ⟹ t`, is `t` where `A` holds and nothing where it does not; it binds looser than `∪` and `∩`, so it stands in parentheses inside a larger term, and only a whole tag term may be one without them.
+A term is a string or a tag set. `∩` binds tighter than `∪`. A term guarded by a condition, `A ⟹ t`, is `t` where `A` holds and nothing where it does not; it binds looser than `∪` and `∩`, so it stands in parentheses inside a larger term, and only a whole tag term may be one without them.
 
 ```jbogenbau
 %rule term

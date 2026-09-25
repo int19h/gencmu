@@ -698,7 +698,7 @@
         }
         case "words": {
           const span = spanOf(context, args[0], scope);
-          return { list: phonemesOf(context.tokens, span.start, span.end).split(".").filter((word) => word !== "") };
+          return { tags: tagSet(phonemesOf(context.tokens, span.start, span.end).split(".").filter((word) => word !== "").map((word) => [word, true])) };
         }
         case "tags": {
           const span = spanOf(context, args[0], scope);
@@ -743,8 +743,7 @@
    */
   function asTagSet(value) {
     if ("tags" in value) return value.tags;
-    if ("string" in value) return strongTag(value.string);
-    return tagSet(value.list.map((item) => [item, true]));
+    return strongTag(value.string);
   }
 
   /**
@@ -788,8 +787,7 @@
       case "∉": {
         const needle = asString(left);
         let member;
-        if ("list" in right) member = right.list.includes(needle);
-        else if ("tags" in right) member = right.tags.has(needle);
+        if ("tags" in right) member = right.tags.has(needle);
         else member = right.string === needle;
         return member === (condition.op === "∈");
       }
@@ -4343,8 +4341,7 @@
    */
   function asTags(value) {
     if ("tags" in value) return value.tags;
-    if ("string" in value) return strongTag(value.string);
-    return tagSet(value.list.map((item) => [item, true]));
+    return strongTag(value.string);
   }
 
   // ---- reader.js
@@ -5699,7 +5696,7 @@
 
   /**
    * A value a term evaluates to.
-   * @typedef {{string: string} | {tags: TagSet} | {list: string[]}} TermValue
+   * @typedef {{string: string} | {tags: TagSet}} TermValue
    */
 
   /**
