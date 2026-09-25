@@ -245,7 +245,7 @@ A `sei` discursive contains a statement rather than a bare selbri (`zantufa-term
 
 A jek before `gi` is a gek, and `bo` may follow any `gi` gek, both unguarded; under `zantufa-connectives` the connective may come after `gi`, `gi je broda gi brode`.
 
-A tag may carry any sequence of two or more `na'e` and `se` prefixes before a simple tense atom, `se se pu`, `na'e na'e ca` (`zantufa-tags`). `zantufa-tag-prefixes` is defined so as not to overlap the flat `[NAhE] [SE]` forms of the experimental grammar, which keeps the two readings from competing.
+The experimental grammar reads a tag as camxes-exp does, as a flat run of atoms. Zantufa's tags differ from those, and until the Zantufa dialect takes them from Zantufa 1.9999, this layer restates the tags as they were: CLL's, where `na'e [se] fa` and `se fa` are tags, `fa` alone is a stag, and `se` can prefix a time, space or CAhA tense, and a ROI word can follow a `vei` group. A tag may carry any sequence of two or more `na'e` and `se` prefixes before a simple tense atom, `se se pu`, `na'e na'e ca` (`zantufa-tags`). `zantufa-tag-prefixes` is defined so as not to overlap the flat `[NAhE] [SE]` forms, which keeps the two readings from competing.
 
 ```jbogenbau
 %redefine-rule gek
@@ -254,6 +254,26 @@ A tag may carry any sequence of two or more `na'e` and `se` prefixes before a si
   | jek GI # [BO #]
   | stag gik [BO #]
   | @zantufa-connectives? GI (joik | jek) # [BO #]
+
+%redefine-rule tag
+  tense-modal [joik-jek tense-modal] ...
+
+%redefine-rule stag
+  simple-tense-modal [(jek | joik) simple-tense-modal] ... | FA
+
+%redefine-rule tense-modal
+  simple-tense-modal # | FIhO # selbri [FEhU] #
+
+%redefine-rule simple-tense-modal
+  | [NAhE] [SE] BAI [NAI] [KI]
+  | [NAhE] [SE] ((time [space] | space [time]) & CAhA) [KI]
+  | NAhE [SE] FA
+  | SE FA
+  | KI
+  | CUhE
+
+%redefine-rule interval-property
+  (number | VEI # mex [VEhO] #) ROI [NAI] | TAhE [NAI] | ZAhO [NAI]
 
 %extend-rule simple-tense-modal
   @zantufa-tags? zantufa-tag-prefixes zantufa-tag-atom

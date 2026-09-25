@@ -73,20 +73,35 @@ CLL's `na` fragment is gone. A bare `na` is a term (see "Terms"), so `na` and `n
 
 ## Sentences and bridi-tails
 
-A bridi-tail can have terms before its selbri, as in camxes-exp (JACU). The terms and `cu` before a selbri are a `bridi-tail-head`, in which runs of terms and single `cu` words alternate: `mi cu do klama`, `cu mi klama`. A head can stand before the first bridi-tail of a sentence, and after each connective between bridi-tails: `mi klama je do tavla`, `mi klama gi'e cu do tavla`.
+A bridi-tail can have terms before its selbri, as in camxes-exp (JACU). The terms and `cu` before a selbri are a `bridi-tail-head`, in which runs of terms and single `cu` words alternate: `mi cu do klama`, `cu mi klama`. A head can stand before the first bridi-tail of a sentence, and after each connective between bridi-tails: `mi klama je do tavla`, `mi klama gi'e cu do tavla`. A head does not end in a tag whose `ku` is elided, since camxes-exp does not read a tag as a term where a selbri follows it (its `!selbri`). So `mi pu klama` has the tense `pu` on its selbri. `bare-tag-end` lists the selma'o that can end such a tag.
 
 The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or VUhU (`bridi-tail-connective`). Each of them can also open a `bo` or `ke` grouping of bridi-tails, and so can a bare `gi` with a stag, as in `mi klama gi ba bo tavla`. After a plain connective, a bridi-tail without a head does not begin with `ke`, and a head is not a bare stag, such as a tense whose `ku` is elided. Without these limits, `gi'e ke` and `gi'e ba ke` would each open two constructs. camxes-exp states the same limits as a lookahead after its gihek.
 
 ```jbogenbau
 %redefine-rule sentence
-  [bridi-tail-head] bridi-tail
+  headed-bridi-tail
 
 %rule bridi-tail-head
   | terms [(CU # terms) ...] [CU #]
   | CU # [terms [(CU # terms) ...] [CU #]]
 
+%rule headed-bridi-tail
+  | $h(bridi-tail-head) bridi-tail
+  | bridi-tail
+%conditions
+  ¬matches(last($h), bare-tag-end)
+
+%rule headed-bridi-tail-2
+  | $h(bridi-tail-head) bridi-tail-2
+  | bridi-tail-2
+%conditions
+  ¬matches(last($h), bare-tag-end)
+
+%rule bare-tag-end
+  BAI | CAhA | CUhE | KI | ZI | PU | VA | FAhA | ZEhA | VEhA | VIhA | ROI | TAhE | ZAhO | FA | FEhU | NAI
+
 %redefine-rule bridi-tail
-  bridi-tail-1 [(bridi-tail-connective [stag] | GI stag) KE # [bridi-tail-head] bridi-tail [KEhE] # tail-terms]
+  bridi-tail-1 [(bridi-tail-connective [stag] | GI stag) KE # headed-bridi-tail [KEhE] # tail-terms]
 
 %redefine-rule bridi-tail-1
   bridi-tail-2 [bridi-tail-connective connected-bridi-tail tail-terms] ...
@@ -95,13 +110,14 @@ The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or
   | $h(bridi-tail-head) bridi-tail-2
   | bridi-tail-2-not-starting-with-ke
 %conditions
-  ¬matches($h, stag)
+  ¬matches($h, stag),
+  ¬matches(last($h), bare-tag-end)
 
 %redefine-rule bridi-tail-2
-  bridi-tail-3 [(bridi-tail-connective [stag] | GI stag) BO # [bridi-tail-head] bridi-tail-2 tail-terms]
+  bridi-tail-3 [(bridi-tail-connective [stag] | GI stag) BO # headed-bridi-tail-2 tail-terms]
 
 %rule bridi-tail-2-not-starting-with-ke
-  bridi-tail-3-not-starting-with-ke [(bridi-tail-connective [stag] | GI stag) BO # [bridi-tail-head] bridi-tail-2 tail-terms]
+  bridi-tail-3-not-starting-with-ke [(bridi-tail-connective [stag] | GI stag) BO # headed-bridi-tail-2 tail-terms]
 
 %rule bridi-tail-3-not-starting-with-ke
   selbri-not-starting-with-ke tail-terms | gek-sentence
@@ -398,9 +414,6 @@ After an elided `boi`, a number or lerfu string is followed by `free-after-elide
 
 %redefine-rule lerfu-string
   lerfu-word ...
-
-%redefine-rule interval-property
-  (number | VEI # mex [VEhO] #) ROI [NAI] | TAhE [NAI] | ZAhO [NAI]
 ```
 
 ## Logical and non-logical connectives
@@ -433,22 +446,34 @@ A forethought connective can be `ga` or `gu` followed by a joik, jek, ek or VUhU
 
 ## Tenses and modals
 
-`na'e [se] fa` and `se fa` are tags, and `fa` alone is a stag, so a place tag can be converted like a modal. `se` can prefix a time, space or CAhA tense.
+A tag is a run of atoms, as in camxes-exp (`tense_modal`): `pu ba vi ca`, `ki ba`. Each atom can have `na'e` and `se` before it, and free modifiers after it: `na'e pu na'e ca`, `jai se ki broda`. An atom is one of these:
+
+- a word of BAI, CAhA, CUhE, KI, ZI, PU, VA, ZEhA, VEhA or VIhA
+- a word of FAhA, with an optional `mo'i` before it
+- a word of ROI after a number or a `vei` group, or a word of TAhE or ZAhO, each with an optional `fe'e` before it
+- `fi'o` with a selbri
+
+Tags are connected by a joik, jek, ek or VUhU. A stag is a tag, as in camxes-exp, so a stag can be a run of atoms or a `fi'o` selbri: `ko'a .e pu ba bo ko'e broda`, `mi klama .i fi'o broda fe'u bo do klama`. `fa` is an atom only after `na'e` or `se`, so that a place tag can be converted like a modal. A bare `fa` is a stag, and it tags a term or a selbri by the rules of "Terms" and "Selbri and tanru".
 
 ```jbogenbau
-%extend-rule stag
-  FA
+%redefine-rule tag
+  tense-modal [tag-connective tense-modal] ...
+
+%redefine-rule stag
+  tag | FA
+
+%rule tag-connective
+  joik # | jek # | ek # | VUhU #
 
 %redefine-rule tense-modal
-  simple-tense-modal # | FIhO # selbri [FEhU] #
+  tense-atom ...
 
-%redefine-rule simple-tense-modal
-  | [NAhE] [SE] BAI [NAI] [KI]
-  | [NAhE] [SE] ((time [space] | space [time]) & CAhA) [KI]
-  | NAhE [SE] FA
-  | SE FA
-  | KI
-  | CUhE
+%rule tense-atom
+  | [NAhE] [SE] (BAI | CAhA | CUhE | KI | ZI | PU | VA | [MOhI] FAhA | ZEhA | VEhA | VIhA) #
+  | [NAhE] [SE] [FEhE] ((number | VEI # mex [VEhO] #) ROI | TAhE | ZAhO) #
+  | [NAhE] [SE] FIhO # selbri [FEhU] #
+  | NAhE [SE] FA #
+  | SE FA #
 ```
 
 ## Free modifiers, vocatives and indicators
