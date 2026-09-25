@@ -48,7 +48,7 @@ fn the_grammar_copy_is_current() {
     ] {
         let original =
             std::fs::read_to_string(repository().join("grammars").join(path)).expect("the repository's grammars");
-        assert!(original == read(path), "rust/grammars/{path} is out of date; run node tools/sync.js");
+        assert!(original == read(path), "lib/rust/grammars/{path} is out of date; run node tools/sync.js");
     }
 }
 

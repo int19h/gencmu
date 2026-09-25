@@ -155,7 +155,7 @@ func TestCompiled(t *testing.T) {
 	for p, text := range bundled.sources {
 		disk, err := os.ReadFile(filepath.Join("..", "..", "grammars", p))
 		if err != nil || string(disk) != text {
-			t.Errorf("go/grammars/%s differs from grammars/%s; run node tools/sync.js", p, p)
+			t.Errorf("lib/go/grammars/%s differs from grammars/%s; run node tools/sync.js", p, p)
 		}
 	}
 }
