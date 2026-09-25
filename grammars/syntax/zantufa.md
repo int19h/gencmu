@@ -268,7 +268,7 @@ A tag may carry any sequence of two or more `na'e` and `se` prefixes before a si
   FA | PU | ZI | ZEhA | VA | FAhA | VEhA | VIhA | CAhA | ZAhO | CUhE | KI
 ```
 
-Zantufa does not have four connective forms of the experimental grammar, and these rules restate them without those forms. An ek cannot follow a text-leading `.i`. `gu` followed by a joik or jek is not a guhek. `gi` followed by a word of JOI, JA or A is not a gihek. And `gi` with a stag cannot join bridi-tails before `bo` or `ke`.
+Zantufa does not have five forms of the experimental grammar, and these rules restate the grammar without them. An ek cannot follow a text-leading `.i`. `gu` followed by a joik or jek is not a guhek. `gi` followed by a word of JOI, JA or A is not a gihek. `gi` with a stag cannot join bridi-tails before `bo` or `ke`. And a bridi-tail after a connective has no terms before its selbri, since Zantufa has no JACU.
 
 ```jbogenbau
 %redefine-rule text-1
@@ -280,8 +280,14 @@ Zantufa does not have four connective forms of the experimental grammar, and the
 %redefine-rule gihek
   [NA] [SE] GIhA [NAI]
 
+%redefine-rule sentence
+  [terms] [CU # [terms]] bridi-tail
+
 %redefine-rule bridi-tail
   bridi-tail-1 [gihek [stag] KE # bridi-tail [KEhE] # tail-terms]
+
+%redefine-rule bridi-tail-1
+  bridi-tail-2 [bridi-tail-connective [CU #] bridi-tail-2-not-starting-with-ke tail-terms] ...
 
 %redefine-rule bridi-tail-2
   bridi-tail-3 [bridi-tail-connective [stag] BO # [CU #] bridi-tail-2 tail-terms]

@@ -47,7 +47,7 @@ The layer changes the text in four ways. A `nai` at the start of a text is an in
 
 ## Statements and fragments
 
-The connective after `.i` can be an ek or a VUhU as well as a joik or jek. A statement connective can also precede `.i`, as in `mi klama joi .i do klama`. Both are `statement-connective`. Before `bo` after `.i`, the connective can be an ek as well, and the tag is a `stag`, as in camxes-exp. A sentence can go on at statement level with `connective [stag] bo subsentence` or with `connective [stag] ke subsentence ke'e`. That is where `mi klama .e bo do tavla` and `mi klama .e ke do tavla ke'e` attach, when the bridi-tail level cannot take them. A prenex can have no terms (`zo'u mi klama`).
+The connective after `.i` can be an ek or a VUhU as well as a joik or jek. A statement connective can also precede `.i`, as in `mi klama joi .i do klama`. Both are `statement-connective`. Before `bo` after `.i`, the connective can be an ek as well, and the tag is a `stag`, as in camxes-exp. A prenex can have no terms (`zo'u mi klama`).
 
 CLL's `na` fragment is gone. A bare `na` is a term (see "Terms"), so `na` and `na na` are terms fragments. Only so do the two readings not compete.
 
@@ -59,11 +59,7 @@ CLL's `na` fragment is gone. A bare `na` is a term (see "Terms"), so `na` and `n
   statement-3 [I [joik | jek | ek] [stag] BO # [statement-2]]
 
 %redefine-rule statement-3
-  | sentence
-      [ bridi-tail-connective [stag] BO # subsentence
-      | selbri-connective [stag] KE # subsentence [KEhE] #
-      ] ...
-  | [tag] TUhE # text-1 [TUhU] #
+  sentence | [tag] TUhE # text-1 [TUhU] #
 
 %rule statement-connective
   joik # | jek # | ek # | VUhU #
@@ -77,23 +73,35 @@ CLL's `na` fragment is gone. A bare `na` is a term (see "Terms"), so `na` and `n
 
 ## Sentences and bridi-tails
 
-`cu` can start a sentence with no leading terms, and terms can follow `cu` before the bridi-tail (`mi cu do klama`). The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or VUhU (`bridi-tail-connective`), and an explicit `cu` can follow it. Only a gihek opens the `ke` bridi-tail grouping. Before `bo` or `ke`, a bare `gi` with a stag is a connective too, as in `mi klama gi ba bo tavla`.
+A bridi-tail can have terms before its selbri, as in camxes-exp (JACU). The terms and `cu` before a selbri are a `bridi-tail-head`, in which runs of terms and single `cu` words alternate: `mi cu do klama`, `cu mi klama`. A head can stand before the first bridi-tail of a sentence, and after each connective between bridi-tails: `mi klama je do tavla`, `mi klama gi'e cu do tavla`.
+
+The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or VUhU (`bridi-tail-connective`). Each of them can also open a `bo` or `ke` grouping of bridi-tails, and so can a bare `gi` with a stag, as in `mi klama gi ba bo tavla`. After a plain connective, a bridi-tail without a head does not begin with `ke`, and a head is not a bare stag, such as a tense whose `ku` is elided. Without these limits, `gi'e ke` and `gi'e ba ke` would each open two constructs. camxes-exp states the same limits as a lookahead after its gihek.
 
 ```jbogenbau
 %redefine-rule sentence
-  [terms] [CU # [terms]] bridi-tail
+  [bridi-tail-head] bridi-tail
+
+%rule bridi-tail-head
+  | terms [(CU # terms) ...] [CU #]
+  | CU # [terms [(CU # terms) ...] [CU #]]
 
 %redefine-rule bridi-tail
-  bridi-tail-1 [(gihek [stag] | GI stag) KE # bridi-tail [KEhE] # tail-terms]
+  bridi-tail-1 [(bridi-tail-connective [stag] | GI stag) KE # [bridi-tail-head] bridi-tail [KEhE] # tail-terms]
 
 %redefine-rule bridi-tail-1
-  bridi-tail-2 [bridi-tail-connective [CU #] bridi-tail-2-not-starting-with-ke tail-terms] ...
+  bridi-tail-2 [bridi-tail-connective connected-bridi-tail tail-terms] ...
+
+%rule connected-bridi-tail
+  | $h(bridi-tail-head) bridi-tail-2
+  | bridi-tail-2-not-starting-with-ke
+%conditions
+  ¬matches($h, stag)
 
 %redefine-rule bridi-tail-2
-  bridi-tail-3 [(bridi-tail-connective [stag] | GI stag) BO # [CU #] bridi-tail-2 tail-terms]
+  bridi-tail-3 [(bridi-tail-connective [stag] | GI stag) BO # [bridi-tail-head] bridi-tail-2 tail-terms]
 
 %rule bridi-tail-2-not-starting-with-ke
-  bridi-tail-3-not-starting-with-ke [(bridi-tail-connective [stag] | GI stag) BO # [CU #] bridi-tail-2 tail-terms]
+  bridi-tail-3-not-starting-with-ke [(bridi-tail-connective [stag] | GI stag) BO # [bridi-tail-head] bridi-tail-2 tail-terms]
 
 %rule bridi-tail-3-not-starting-with-ke
   selbri-not-starting-with-ke tail-terms | gek-sentence
