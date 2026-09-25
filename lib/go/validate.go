@@ -195,8 +195,8 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		}
 	case tmCall:
 		// The reader's signatures (engine §9), with a span where one is due;
-		// head, tail and last only where a span may stand, and matches
-		// never as a term.
+		// head, tail and last only where a span may stand, and matches and
+		// initial never as terms.
 		args := t.Items
 		isRule := func(a *domTerm) bool { return a != nil && a.Kind == tmRule && a.Str != "" }
 		var ok bool
@@ -257,6 +257,12 @@ func (c *domChecker) condition(d *domCond, depth int) {
 	case cdMatches:
 		if !isSpanShape(d.Span) || d.Rule == "" {
 			c.fail("a malformed matches()")
+			return
+		}
+		c.term(d.Span, depth+1, true)
+	case cdInitial:
+		if !isSpanShape(d.Span) {
+			c.fail("a malformed initial()")
 			return
 		}
 		c.term(d.Span, depth+1, true)
@@ -332,7 +338,8 @@ func readsOwnTags(t *domTerm) bool {
 }
 
 // condReadsOwnTags is readsOwnTags of a guard's condition: matches() parses
-// the tokens again, and a presence test reads no tags.
+// the tokens again, initial() reads where they begin, and a presence test
+// reads no tags.
 func condReadsOwnTags(c *domCond) bool {
 	if c == nil {
 		return false

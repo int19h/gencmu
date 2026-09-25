@@ -70,8 +70,12 @@ func (r *recognizer) set(k int) *eset {
 }
 
 // recognize runs the recognizer over tokens [base, base+n) of the stage with
-// start as the start rule.
+// start as the start rule. While it runs, the input that initial() tests
+// begins at base, and a nested recognition sets its own.
 func (run *stageRun) recognize(g *lowered, start int32, base, n int) *recognizer {
+	outer := run.inputStart
+	run.inputStart = base
+	defer func() { run.inputStart = outer }()
 	r := &recognizer{run: run, g: g, base: base, n: n}
 	s0 := r.set(0)
 	r.predict(s0, 0, start)
