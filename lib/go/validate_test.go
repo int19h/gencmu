@@ -13,7 +13,7 @@ func TestDOMRules(t *testing.T) {
 	loadBundled()
 	const good = `{"seq":[{"terminal":"a"},{"terminal":"b"}]}`
 	rule := func(fields string) string {
-		return `{"format":3,"rules":[{"name":"text","op":"define",` + fields + `,"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[1,1]}]}`
+		return `{"format":4,"rules":[{"name":"text","op":"define",` + fields + `,"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[1,1]}]}`
 	}
 	alt := func(expr string) string {
 		return rule(`"alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[]`)
@@ -42,7 +42,7 @@ func TestDOMRules(t *testing.T) {
 		return strings.Repeat(`{"optional":`, n) + good + strings.Repeat(`}`, n)
 	}
 	cases := []struct{ rule, dom string }{
-		{"format 2", strings.Replace(alt(good), `"format":3`, `"format":1`, 1)},
+		{"format 3", strings.Replace(alt(good), `"format":4`, `"format":3`, 1)},
 		{"a rule's name is a name", strings.Replace(alt(good), `"name":"text"`, `"name":"9x"`, 1)},
 		{"a rule's name is a name or #", strings.Replace(alt(good), `"name":"text"`, `"name":"##"`, 1)},
 		{"op is define, redefine or extend", strings.Replace(alt(good), `"define"`, `"replace"`, 1)},
@@ -92,15 +92,15 @@ func TestDOMRules(t *testing.T) {
 		{"an emission has only items", emit(`{"items":[{"capture":"x"}],"nothing":true}`)},
 		{"$ only with $ (a capture)", emit(`{"items":[{"capture":""},{"capture":"x"}]}`)},
 		{"$ only with $ (an inserted tag)", emit(`{"items":[{"capture":""},{"insert":"/a/"}]}`)},
-		{"$ <> alone", emit(`{"items":[{"capture":"","silent":true},{"capture":""}]}`)},
 		{"an item is a capture or an inserted tag", emit(`{"items":[{"capture":"x","insert":"y"}]}`)},
-		{"silent is true", emit(`{"items":[{"capture":"x","silent":false}]}`)},
-		{"no tags on a silent capture", emit(`{"items":[{"capture":"x","silent":true,"tags":{"literal":"X"}}]}`)},
-		{"no <> on an inserted tag", emit(`{"items":[{"capture":"x"},{"insert":"y","silent":true}]}`)},
+		{"no silent capture", emit(`{"items":[{"capture":"x","silent":true}]}`)},
+		{"no silent $", emit(`{"items":[{"capture":"","silent":true}]}`)},
+		{"no silent inserted tag", emit(`{"items":[{"capture":"x"},{"insert":"y","silent":true}]}`)},
+		{"an item has only capture, insert and tags", emit(`{"items":[{"capture":"x","tags":{"literal":"X"},"what":true}]}`)},
 		{"no ∅ as an item's tags", emit(`{"items":[{"capture":"x","tags":{"emptySet":true}}]}`)},
 		{"a capture listed once", emit(`{"items":[{"capture":"x"},{"capture":"x"}]}`)},
 		{"no tags on an inserted tag", emit(`{"items":[{"capture":"x"},{"insert":"y","tags":{"literal":"Z"}}]}`)},
-		{"an emission lists items", emit(`{"items":[]}`)},
+		{"an emission's items are a list", emit(`{"items":null}`)},
 		{"a function exists", tagged(`{"call":"size","args":[{"capture":"x"}]}`)},
 		{"phonemes takes one span", tagged(`{"call":"phonemes","args":[{"capture":"x"},{"capture":"x"}]}`)},
 		{"text takes a span", tagged(`{"call":"text","args":[{"literal":"x"}]}`)},
@@ -142,7 +142,9 @@ func TestDOMRules(t *testing.T) {
 		// from the top.
 		emit(`{"items":[{"capture":"","tags":` + unions(256) + `}]}`),
 		cond(strings.Repeat(`{"not":`, 255) + `{"matches":{"capture":"x"},"rule":"text"}` + strings.Repeat(`}`, 255)), emit(`{"items":[{"capture":""},{"capture":""}]}`), emit(`{"items":[{"insert":"y"},{"capture":"x"}]}`),
-		emit(`{"items":[{"capture":"","silent":true}]}`), emit(`{"items":[{"capture":"x","silent":true},{"insert":"y"},{"capture":"y","tags":{"capture":""}}]}`),
+		// ε, no items, for one alternative and for several.
+		emit(`{"items":[]}`), two(`"emit":{"items":[]},"conditions":[]`),
+		emit(`{"items":[{"capture":"x"},{"insert":"y"},{"capture":"y","tags":{"capture":""}}]}`),
 		tagged(`{"call":"tags","args":[{"capture":""},{"rule":"text"}]}`), tagged(`{"call":"tags","args":[{"call":"head","args":[{"capture":""}]}]}`),
 		cond(`{"all":[{"matches":{"capture":""},"rule":"text"},{"op":"∈","left":{"literal":"a"},"right":{"call":"tags","args":[{"capture":""}]}}]}`),
 		cond(strings.Repeat(`{"all":[{"matches":{"capture":"x"},"rule":"text"},`, 255) + `{"matches":{"capture":"x"},"rule":"text"}` + strings.Repeat(`]}`, 255)),
@@ -168,7 +170,7 @@ func TestDOMRules(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["compiled.json"] = `{"format":3,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + c.dom + `}}}`
+		src["compiled.json"] = `{"format":4,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + c.dom + `}}}`
 		d, err := LoadDialectSources(src, "p.md")
 		if err != nil {
 			t.Errorf("%s: %v", c.rule, err)

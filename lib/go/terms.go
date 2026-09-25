@@ -131,9 +131,9 @@ func (ev *evaluator) term(t *domTerm) value {
 		case "text":
 			return value{kind: vString, s: ev.run.spanText(ev.span(t.Items[0]))}
 		case "words":
-			// Words are split at spaces, U+0020, only (engine §5).
+			// Words are split at pauses, ., only (engine §5).
 			var words []string
-			for _, word := range strings.Split(ev.run.phonemes(ev.span(t.Items[0])), " ") {
+			for _, word := range strings.Split(ev.run.phonemes(ev.span(t.Items[0])), ".") {
 				if word != "" {
 					words = append(words, word)
 				}
@@ -186,7 +186,12 @@ func (ev *evaluator) cond(c *domCond) bool {
 			case l.kind == vString && r.kind == vString:
 				eq = l.s == r.s
 			case l.kind == vList && r.kind == vList:
-				eq = strings.Join(l.list, " ") == strings.Join(r.list, " ") && len(l.list) == len(r.list)
+				// A word may hold a space, so the lists are compared word
+				// by word.
+				eq = len(l.list) == len(r.list)
+				for i := 0; eq && i < len(l.list); i++ {
+					eq = l.list[i] == r.list[i]
+				}
 			default:
 				eq = sameNames(ev.toSet(l), ev.toSet(r))
 			}

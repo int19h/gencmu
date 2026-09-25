@@ -173,7 +173,7 @@ func (run *stageRun) plan(rec *recognizer, n *dn) []emitTask {
 		}
 		return plan
 	}
-	if p.silentAll {
+	if p.nothing {
 		return nil
 	}
 	start, end := rec.base+int(n.start), rec.base+int(n.end)
@@ -228,7 +228,7 @@ func (run *stageRun) plan(rec *recognizer, n *dn) []emitTask {
 			plan = append(plan, run.inserted(it.Insert, at, start, end, p.ruleName))
 		case it.Capture == "":
 			plan = append(plan, emitTask{emit: n, tags: itemTags(it, n.tags)})
-		case !it.Silent:
+		default:
 			k := part(it.Capture)
 			_, _, own := run.kidSpan(rec, k)
 			plan = append(plan, emitTask{emit: k, tags: itemTags(it, own)})
@@ -274,8 +274,8 @@ func (run *stageRun) emitted(rec *recognizer, n *dn, tags *tagset) Token {
 		tok.Phonemes = strong[0]
 		return tok
 	}
-	// The phonemes of the tokens it was emitted from, omitting every token
-	// inside a silent constituent.
+	// The phonemes of the tokens it covers, joined, leaving out every token
+	// inside a constituent that does not count, its own included (§5).
 	var sb strings.Builder
 	stack := []*dn{n}
 	for len(stack) > 0 {
@@ -285,16 +285,7 @@ func (run *stageRun) emitted(rec *recognizer, n *dn, tags *tagset) Token {
 		case dRead:
 			sb.WriteString(run.toks[rec.base+int(x.tok)].Phonemes)
 		case dClose:
-			if x.prod.silentAll || x.a == nil {
-				continue
-			}
-			if x.prod.silent != nil {
-				kids := flattenKids(x.a)
-				for i := len(kids) - 1; i >= 0; i-- {
-					if !x.prod.silent[i] {
-						stack = append(stack, kids[i])
-					}
-				}
+			if x.prod.nothing || x.a == nil {
 				continue
 			}
 			stack = append(stack, x.a)
@@ -305,6 +296,29 @@ func (run *stageRun) emitted(rec *recognizer, n *dn, tags *tagset) Token {
 			}
 		}
 	}
-	tok.Phonemes = strings.Trim(sb.String(), " ")
+	tok.Phonemes = tidyPauses(sb.String())
 	return tok
+}
+
+// tidyPauses makes each run of pauses, ., one, and removes a pause at
+// either end (§5).
+func tidyPauses(s string) string {
+	if !strings.Contains(s, ".") {
+		return s
+	}
+	// . is one byte, and never part of another code point's encoding.
+	b := make([]byte, 0, len(s))
+	pause := false
+	for i := 0; i < len(s); i++ {
+		if s[i] == '.' {
+			pause = len(b) > 0
+			continue
+		}
+		if pause {
+			b = append(b, '.')
+			pause = false
+		}
+		b = append(b, s[i])
+	}
+	return string(b)
 }

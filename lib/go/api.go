@@ -425,7 +425,7 @@ func hasSaSu(o stageOutcome) bool {
 			for i := n.Span[0]; i < n.Span[1]; i++ {
 				b.WriteString(o.stage.Input[i].Phonemes)
 			}
-			if p := strings.Trim(b.String(), " "); p == "sa" || p == "su" {
+			if p := tidyPauses(b.String()); p == "sa" || p == "su" {
 				return true
 			}
 		}

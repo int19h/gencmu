@@ -345,14 +345,10 @@ func condReadsOwnTags(c *domCond) bool {
 	return false
 }
 
-// emission: $ only with $, and $ <> alone; a capture other than $ listed
-// once; no tags or <> on an inserted tag; no ∅ as an item's tags.
+// emission: $ only with $; a capture other than $ listed once; no tags on
+// an inserted tag; no ∅ as an item's tags. No items is ε.
 func (c *domChecker) emission(e *domEmit) {
 	if e == nil {
-		return
-	}
-	if len(e.Items) == 0 {
-		c.fail("an emission of no items")
 		return
 	}
 	whole := 0
@@ -364,26 +360,18 @@ func (c *domChecker) emission(e *domEmit) {
 		}
 		switch {
 		case it.IsInsert:
-			if it.Tags != nil || it.Silent {
+			if it.Tags != nil {
 				c.fail("tags on an inserted tag")
 				return
 			}
 		case it.Capture == "":
 			whole++
-			if it.Silent && len(e.Items) != 1 {
-				c.fail("$ <> with other items")
-				return
-			}
 		default:
 			if listed[it.Capture] {
 				c.fail("$%s is listed twice in an emission", it.Capture)
 				return
 			}
 			listed[it.Capture] = true
-		}
-		if it.Silent && it.Tags != nil {
-			c.fail("tags on a silent capture")
-			return
 		}
 		if it.Tags != nil && it.Tags.Kind == tmEmptySet {
 			c.fail("∅ as an emitted item's tags")
