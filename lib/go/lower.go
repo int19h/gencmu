@@ -63,6 +63,7 @@ type lowered struct {
 	termID     map[string]int32
 	prods      []*production
 	lean       string // "greedy", "lazy", or "" for rule 1 only (§7)
+	maximal    bool   // no terminator is elided where its constituent could have been longer (§4)
 	sccMembers [][]int32
 	// fault is an error of the grammar that lowering for these features
 	// found (§3.3), or "": parsing with it is a result with that error.
@@ -99,7 +100,7 @@ type helperNode struct {
 // lower lowers a stage's grammar for a set of features; mandatory makes
 // every optional that begins with an elidable terminal mandatory (§3.8).
 func lower(g *stageGrammar, features map[string]bool, mandatory bool) *lowered {
-	l := &lowered{stage: g, byName: map[string]int32{}, termID: map[string]int32{}, lean: g.lean}
+	l := &lowered{stage: g, byName: map[string]int32{}, termID: map[string]int32{}, lean: g.lean, maximal: g.maximal}
 	lw := &lowerer{g: g, l: l, features: features, mandatory: mandatory}
 	for _, r := range g.rules {
 		l.byName[r.name] = int32(len(l.rules))
