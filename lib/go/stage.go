@@ -57,6 +57,8 @@ type stageRun struct {
 	grammar *stageGrammar
 	toks    []Token
 	tagsets []*tagset
+	// inputStart is where the input of the recognition now running begins.
+	inputStart int
 }
 
 func (ps *parseState) newRun(name string, grammar *stageGrammar, toks []Token) *stageRun {

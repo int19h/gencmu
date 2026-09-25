@@ -1,0 +1,24 @@
+{
+  "description": "initial($x) fails for a captured part that begins after the start of the input (engine §10).",
+  "grammar": "%rule text W $x(W) %conditions initial($x)",
+  "tokens": [
+    {
+      "text": "w",
+      "tags": [
+        "W"
+      ]
+    },
+    {
+      "text": "w",
+      "tags": [
+        "W"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false
+    },
+    "error": "rejected"
+  }
+}

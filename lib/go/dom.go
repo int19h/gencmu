@@ -87,6 +87,7 @@ type domTerm struct {
 const (
 	cdCompare  = "compare"
 	cdMatches  = "matches"
+	cdInitial  = "initial"
 	cdNot      = "not"
 	cdAny      = "any"
 	cdAll      = "all"
@@ -98,7 +99,7 @@ type domCond struct {
 	Kind        string
 	Op          string
 	Left, Right *domTerm
-	Span        *domTerm // matches
+	Span        *domTerm // matches, initial
 	Rule        string   // matches; captured: the capture's name
 	Inner       *domCond
 	Items       []*domCond
@@ -315,6 +316,10 @@ func (c *domCond) writeJSON(w *jsonWriter) {
 		c.Span.writeJSON(w)
 		w.raw(`,"rule":`)
 		w.str(c.Rule)
+		w.raw("}")
+	case cdInitial:
+		w.raw(`{"initial":`)
+		c.Span.writeJSON(w)
 		w.raw("}")
 	case cdNot:
 		w.raw(`{"not":`)
@@ -648,6 +653,14 @@ func decodeCond(raw json.RawMessage) (*domCond, error) {
 		}
 		c.Rule, err = decodeString(o["rule"])
 		return c, err
+	}
+	if v, ok := o["initial"]; ok {
+		// Its span, and nothing else.
+		if len(o) != 1 {
+			return nil, fmt.Errorf("a malformed condition")
+		}
+		span, err := decodeTerm(v)
+		return &domCond{Kind: cdInitial, Span: span}, err
 	}
 	if v, ok := o["not"]; ok {
 		inner, err := decodeCond(v)

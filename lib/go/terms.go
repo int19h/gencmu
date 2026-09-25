@@ -202,6 +202,9 @@ func (ev *evaluator) cond(c *domCond) bool {
 	case cdMatches:
 		ok, _ := ev.run.nested(ev.g, c.Rule, ev.span(c.Span))
 		return ok
+	case cdInitial:
+		// Where the input of the parse that reads the condition begins (§10).
+		return ev.span(c.Span).a == ev.run.inputStart
 	case cdNot:
 		return !ev.cond(c.Inner)
 	case cdCaptured:

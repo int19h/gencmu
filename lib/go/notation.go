@@ -495,7 +495,7 @@ func isSpanTerm(t *domTerm) bool {
 	return t.Kind == tmCapture || (t.Kind == tmCall && (t.Str == "head" || t.Str == "tail" || t.Str == "last"))
 }
 
-// call reads a call in a term, or, in a condition, matches().
+// call reads a call in a term, or, in a condition, matches() or initial().
 func (b *domBuilder) call(n *Node, inCondition bool) *domTerm {
 	ps := parts(n)
 	name := b.text(ps[0])
@@ -524,10 +524,14 @@ func (b *domBuilder) call(n *Node, inCondition bool) *domTerm {
 		}
 	}
 	if inCondition {
-		if name != "matches" {
-			b.fail(ps[0], "a condition calls only matches(); %s() is a term", name)
+		switch name {
+		case "matches":
+			shape(len(args) == 2 && span(0) && rule(1))
+		case "initial":
+			shape(len(args) == 1 && span(0))
+		default:
+			b.fail(ps[0], "a condition calls only matches() or initial(); %s() is a term", name)
 		}
-		shape(len(args) == 2 && span(0) && rule(1))
 		return &domTerm{Kind: tmCall, Str: name, Items: args}
 	}
 	switch name {
@@ -537,8 +541,8 @@ func (b *domBuilder) call(n *Node, inCondition bool) *domTerm {
 		shape((len(args) == 1 && span(0)) || (len(args) == 2 && span(0) && rule(1)))
 	case "lowercase":
 		shape(len(args) == 1 && isStringTerm(args[0]))
-	case "matches":
-		b.fail(ps[0], "matches() is a condition, not a term")
+	case "matches", "initial":
+		b.fail(ps[0], "%s() is a condition, not a term", name)
 	default:
 		b.fail(ps[0], "%s() is not a function of the notation", name)
 	}
@@ -593,6 +597,9 @@ func (b *domBuilder) condition(n *Node) *domCond {
 		return &domCond{Kind: cdNot, Inner: b.condition(ruleParts(n)[0])}
 	case "call":
 		t := b.call(n, true)
+		if t.Str == "initial" {
+			return &domCond{Kind: cdInitial, Span: t.Items[0]}
+		}
 		return &domCond{Kind: cdMatches, Span: t.Items[0], Rule: t.Items[1].Str}
 	case "presence":
 		return &domCond{Kind: cdCaptured, Rule: strings.TrimPrefix(b.text(n), "$")}

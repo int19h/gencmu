@@ -1,0 +1,23 @@
+{
+  "description": "In a nested parse, initial() holds where the nested parse's input, the span, begins (engine §4, §10).",
+  "grammar": "%rule text W $b(X) %conditions matches($b, anchored)\n%rule anchored begin X\n%rule begin ε %conditions initial($)",
+  "tokens": [
+    {
+      "text": "w",
+      "tags": [
+        "W"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

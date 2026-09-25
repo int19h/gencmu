@@ -107,6 +107,9 @@ fn a_well_formed_dom_is_used() {
     assert!(!document_was_read(&guarded));
     let implication = r#"{"if":{"captured":"w"},"then":{"op":"=","left":{"call":"text","args":[{"capture":"w"}]},"right":{"literal":"b"}}}"#;
     assert!(!document_was_read(&with_condition(implication)));
+    // `initial` of a span, and of `$` in a guard inside a tag term (§9).
+    assert!(!document_was_read(&with_condition(r#"{"initial":{"call":"tail","args":[{"capture":"w"}]}}"#)));
+    assert!(!document_was_read(&with_tags(r#"{"if":{"initial":{"capture":""}},"then":{"literal":"T"}}"#)));
     // A condition and an emission that serve some alternatives only.
     let some = r#"{"name":"x","op":"define","alternatives":[{"guards":[],"expr":{"capture":"w","expr":{"terminal":"b"}}},{"guards":[],"expr":{"terminal":"c"}}],"emit":{"items":[{"capture":"w"},{"capture":""}]},"conditions":[{"op":"=","left":{"call":"text","args":[{"capture":"w"}]},"right":{"literal":"b"}}],"at":[4,1]}"#;
     assert!(document_was_read(&with_rule(some)), "$ with a capture is malformed");
@@ -225,9 +228,12 @@ fn every_malformed_dom_is_a_cache_miss() {
             with_condition(r#"{"all":[{"op":"=","left":{"literal":"a"},"right":{"literal":"b"}}]}"#),
         ),
         ("matches of a value", with_condition(r#"{"matches":{"literal":"b"},"rule":"text"}"#)),
+        ("initial of a value", with_condition(r#"{"initial":{"literal":"b"}}"#)),
+        ("initial with a rule", with_condition(r#"{"initial":{"capture":"w"},"rule":"text"}"#)),
         ("an unknown comparison", with_condition(r#"{"op":"<","left":{"literal":"a"},"right":{"literal":"b"}}"#)),
         ("an unknown function", with_tags(r#"{"call":"uppercase","args":[{"capture":"x"}]}"#)),
         ("matches as a term", with_tags(r#"{"call":"matches","args":[{"capture":"x"},{"rule":"text"}]}"#)),
+        ("initial as a term", with_tags(r#"{"call":"initial","args":[{"capture":"x"}]}"#)),
         ("head as a value", with_tags(r#"{"call":"head","args":[{"capture":"x"}]}"#)),
         ("lowercase of a weak tag", with_tags(r#"{"call":"lowercase","args":[{"weak":"x"}]}"#)),
         ("lowercase of a span", with_tags(r#"{"call":"lowercase","args":[{"capture":"x"}]}"#)),

@@ -1,0 +1,31 @@
+{
+  "description": "initial(span) is a condition (engine §9, §10).",
+  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule g $a(A) %conditions initial($a), ¬initial(tail($a))\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "conditions": [
+            {
+              "initial": {
+                "capture": "a"
+              }
+            },
+            {
+              "not": {
+                "initial": {
+                  "call": "tail",
+                  "args": [
+                    {
+                      "capture": "a"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
