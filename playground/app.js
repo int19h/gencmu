@@ -668,12 +668,13 @@
           element("input", {
             type: "checkbox", value: name, checked: on,
             onchange: (event) => {
-              // A switch records only a departure from the dialect's default.
-              if (feature.default) {
-                if (event.target.checked) state.without.delete(name);
-                else state.without.add(name);
-              } else if (event.target.checked) state.features.add(name);
-              else state.features.delete(name);
+              // A switch records only a departure from the dialect's default,
+              // and a name is never in both lists, which the library refuses:
+              // another dialect may have put it in the other one.
+              state.features.delete(name);
+              state.without.delete(name);
+              if (feature.default && !event.target.checked) state.without.add(name);
+              else if (!feature.default && event.target.checked) state.features.add(name);
               renderOptions();
               schedule(0);
             },
