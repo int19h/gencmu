@@ -640,3 +640,13 @@
 {"id":"adhoc.words.magic-rules.bare-bu-after-si-erased-by-sa.bpfk","text":"mi si bu sa broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
 {"id":"adhoc.words.magic-rules.bare-bu-after-si-erased-by-su","text":"mi si bu su broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
 {"id":"adhoc.words.magic-rules.bare-bu-after-si-erased-by-su.bpfk","text":"mi si bu su broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
+{"id":"adhoc.words.magic-rules.unmatched-sa-word-takes-bu","text":"mi sa a bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["a.bu"],"brackets":"a bu"}
+{"id":"adhoc.words.magic-rules.unmatched-sa-word-takes-bu.bpfk","text":"mi sa a bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["a.bu"],"brackets":"a bu"}
+{"id":"adhoc.words.magic-rules.unmatched-sa-word-takes-zei","text":"mi sa a zei broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["a.zei.broda"],"brackets":"a zei broda"}
+{"id":"adhoc.words.magic-rules.unmatched-sa-word-takes-zei.bpfk","text":"mi sa a zei broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["a.zei.broda"],"brackets":"a zei broda"}
+{"id":"adhoc.words.magic-rules.unmatched-sa-word-erased-then-bare-bu","text":"mi sa a si bu su broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
+{"id":"adhoc.words.magic-rules.unmatched-sa-word-erased-then-bare-bu.bpfk","text":"mi sa a si bu su broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
+{"id":"adhoc.words.magic-rules.su-stops-at-word-left-by-unmatched-sa","text":"mi sa ni'o do su","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":[],"brackets":""}
+{"id":"adhoc.words.magic-rules.su-stops-at-word-left-by-unmatched-sa.bpfk","text":"mi sa ni'o do su","dialect":"bpfk","expect":"accept","verdict":"unique","words":["ni'o"],"brackets":"ni'o"}
+{"id":"adhoc.words.magic-rules.name-before-si-needs-pause","text":"sa rafsi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["rafsi"],"brackets":"rafsi"}
+{"id":"adhoc.words.magic-rules.name-before-si-needs-pause.bpfk","text":"sa rafsi","dialect":"bpfk","expect":"accept","verdict":"unique","words":["rafsi"],"brackets":"rafsi"}

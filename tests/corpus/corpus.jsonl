@@ -1662,7 +1662,7 @@
 {"id":"corpus.camxes.11462","text":"catlu kakne","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["catlu","kakne"],"brackets":"(catlu kakne)"}
 {"id":"corpus.camxes.11463","text":"jy. na mulno farvi caku ku'i","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["jy","na","mulno","farvi","ca","ku","ku'i"],"brackets":"(jy [{na (mulno farvi)} {ca ku}])"}
 {"id":"corpus.camxes.11464","text":"mi ca tcidu la alis","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["mi","ca","tcidu","la","alis"],"brackets":"(mi [{ca tcidu} {la alis}])"}
-{"id":"corpus.camxes.11465","text":"sa rafsi li'o","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["li'o"],"brackets":"li'o"}
+{"id":"corpus.camxes.11465","text":"sa rafsi li'o","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["rafsi","li'o"],"brackets":"rafsi"}
 {"id":"corpus.camxes.11466","text":"do jibri ma","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["do","jibri","ma"],"brackets":"(do [jibri ma])"}
 {"id":"corpus.camxes.11467","text":"si samselpla","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["samselpla"],"brackets":"samselpla"}
 {"id":"corpus.camxes.11468","text":".i sy. srana loi vinji ke vreji datni","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["i","sy","srana","loi","vinji","ke","vreji","datni"],"brackets":"(i [sy {srana (loi [vinji {ke (vreji datni)}])}])"}

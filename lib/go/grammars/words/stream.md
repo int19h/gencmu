@@ -35,14 +35,14 @@ The stage is lazy: where two parses differ, it takes the one that closes a const
   "first-cy" ∉ tags($z) ∨ phonemes($g) = "."
 
 %rule body-tail
-  | $a(stream) <("first-onset" ∪ "first-cy" ∪ "continued") ∩ tags($a) ∪ "stream-end">
+  | $a(body-stream) <("first-onset" ∪ "first-cy" ∪ "continued") ∩ tags($a) ∪ "stream-end">
   | @sa-su? sa-run <"first-onset" ∪ "continued">
   | @sa-su? $b(wiped) <("first-onset" ∪ "first-cy" ∪ "continued") ∩ tags($b)>
-  | @sa-su? $w(wiped) $g(gap) $v(stream)
+  | @sa-su? $w(wiped) $g(gap) $v(body-stream)
       <("first-onset" ∪ "first-cy") ∩ tags($w) ∪ "continued" ∩ tags($v) ∪ "stream-end">
-  | @sa-su? $s(stream) $h(gap) sa-run <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ "continued">
+  | @sa-su? $s(body-stream) $h(gap) sa-run <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ "continued">
   | @sa-su? $x(wiped) $h(gap) sa-run <("first-onset" ∪ "first-cy") ∩ tags($x) ∪ "continued">
-  | @sa-su? $w(wiped) $g(gap) $v(stream) $h(gap) sa-run <("first-onset" ∪ "first-cy") ∩ tags($w) ∪ "continued">
+  | @sa-su? $w(wiped) $g(gap) $v(body-stream) $h(gap) sa-run <("first-onset" ∪ "first-cy") ∩ tags($w) ∪ "continued">
 %conditions
   "continued" ∈ tags($w) ∨ phonemes($g) = ".",
   "first-onset" ∈ tags($v) ∨ phonemes($g) = ".",
@@ -54,6 +54,19 @@ The stage is lazy: where two parses differ, it takes the one that closes a const
 %rule gap
   ε | PAUSE
 
+%rule body-stream
+  | $s(stream) <tags($s)>
+  | @sa-su? $l(element) <tags($l) ∪ ("onset" ∈ tags($l) ⟹ "first-onset") ∪ "first-cy" ∩ tags($l)>
+  | @sa-su? $m(element) $g(gap) $n(stream)
+      <("onset" ∈ tags($m) ⟹ "first-onset") ∪ "first-cy" ∩ tags($m) ∪ classes($m) ∪ classes($n)
+        ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "cvcy") ∩ tags($n)>
+%conditions
+  "wipes-all" ∈ tags($l),
+  "wipes-all" ∈ tags($m),
+  "continued" ∈ tags($m) ∨ phonemes($g) = ".",
+  "first-onset" ∈ tags($n) ∨ phonemes($g) = ".",
+  "first-cy" ∉ tags($n) ∨ phonemes($g) = "."
+
 %rule stream
   | $o(opener) <tags($o) ∪ ("cy" ∈ tags($o) ⟹ "continued")>
   | $s(stream) PAUSE $e(element)
@@ -62,6 +75,8 @@ The stage is lazy: where two parses differ, it takes the one that closes a const
       <tags($f) ∪ classes($t) ∪ ("first-onset" ∪ "first-cy") ∩ tags($t)
         ∪ ("cv" ∈ tags($t) ∧ "y-letter" ∈ tags($f) ⟹ "cvcy")>
 %conditions
+  "wipes-all" ∉ tags($e),
+  "wipes-all" ∉ tags($f),
   ("continued" ∪ "cy" ∪ "cvcy") ∩ tags($t) ≠ ∅,
   "cy" ∈ tags($t) ∧ "cy" ∈ tags($f)
     ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f)
@@ -77,14 +92,20 @@ The stage is lazy: where two parses differ, it takes the one that closes a const
   ("cy" ∪ "y-letter") ∩ tags($o) = ∅,
   "onset" ∈ tags($k),
   ("cy" ∪ "y-letter") ∩ tags($k) ≠ ∅,
-  "onset" ∉ tags($p)
+  "onset" ∉ tags($p),
+  "wipes-all" ∉ tags($o),
+  "wipes-all" ∉ tags($k),
+  "wipes-all" ∉ tags($p)
 
 %rule element
   unit | erasure | hesitation
 
 %rule unit
-  word | quote | lerfu-word | zei-compound | @sa-su? sa-erasure | @sa-su? @su-boundary? su-erasure
+  | word | quote | lerfu-word | zei-compound
+  | @sa-su? sa-erasure | @sa-su? sa-wiped | @sa-su? @su-boundary? su-erasure
 ```
+
+`body-stream` is a stream that can open with an element that erases the whole text before it. "Erasure by `sa` and `su`" explains such elements.
 
 Hesitation after a final pause belongs to the stream when the body ends in one, since an element may always follow a pause; the text's own `PAUSE hesitation` is for a body that ends in an erasure, which is not a stream. `stream-end` is the tag that tells the two apart, so that a trailing `.y.` has one reading.
 
@@ -381,11 +402,11 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
 
 ```jbogenbau
 %rule lerfu-word
-  | $u(unit) bu-part <"word" ∪ "BY" ∪ "continued" ∪ "onset" ∩ tags($u)>
-  | $c(unit) bu-part <"word" ∪ "BY" ∪ "continued" ∪ "onset" ∩ tags($c)>
-  | $v(unit) PAUSE bu-part <"word" ∪ "BY" ∪ "continued" ∪ "onset" ∩ tags($v)>
-  | $u(unit) $g(gap-erasures) bu-part <"word" ∪ "BY" ∪ "continued" ∪ "onset" ∩ tags($u)>
-  | $v(unit) PAUSE $h(gap-erasures) bu-part <"word" ∪ "BY" ∪ "continued" ∪ "onset" ∩ tags($v)>
+  | $u(unit) bu-part <"word" ∪ "BY" ∪ "continued" ∪ ("onset" ∪ "wipes-all") ∩ tags($u)>
+  | $c(unit) bu-part <"word" ∪ "BY" ∪ "continued" ∪ ("onset" ∪ "wipes-all") ∩ tags($c)>
+  | $v(unit) PAUSE bu-part <"word" ∪ "BY" ∪ "continued" ∪ ("onset" ∪ "wipes-all") ∩ tags($v)>
+  | $u(unit) $g(gap-erasures) bu-part <"word" ∪ "BY" ∪ "continued" ∪ ("onset" ∪ "wipes-all") ∩ tags($u)>
+  | $v(unit) PAUSE $h(gap-erasures) bu-part <"word" ∪ "BY" ∪ "continued" ∪ ("onset" ∪ "wipes-all") ∩ tags($v)>
   | $y(y-base) [PAUSE] bu-part <"word" ∪ "BY" ∪ "continued">
 %conditions
   "continued" ∈ tags($u),
@@ -426,17 +447,17 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
 
 %rule zei-compound
   | $l(unit) $z(zei-word) $r(zei-right)
-      <"word" ∪ "BRIVLA" ∪ "onset" ∩ tags($l) ∪ ("continued" ∪ "cy" ∪ "y-letter") ∩ tags($r)>
+      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($l) ∪ ("continued" ∪ "cy" ∪ "y-letter") ∩ tags($r)>
   | $k(unit) PAUSE $z(zei-word) $r(zei-right)
-      <"word" ∪ "BRIVLA" ∪ "onset" ∩ tags($k) ∪ ("continued" ∪ "cy" ∪ "y-letter") ∩ tags($r)>
+      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($k) ∪ ("continued" ∪ "cy" ∪ "y-letter") ∩ tags($r)>
   | $l(unit) zei-word $j(pause-gap) $p(zei-right)
-      <"word" ∪ "BRIVLA" ∪ "onset" ∩ tags($l) ∪ ("continued" ∪ "cy" ∪ "y-letter") ∩ tags($p)>
+      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($l) ∪ ("continued" ∪ "cy" ∪ "y-letter") ∩ tags($p)>
   | $k(unit) PAUSE zei-word $j(pause-gap) $p(zei-right)
-      <"word" ∪ "BRIVLA" ∪ "onset" ∩ tags($k) ∪ ("continued" ∪ "cy" ∪ "y-letter") ∩ tags($p)>
+      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($k) ∪ ("continued" ∪ "cy" ∪ "y-letter") ∩ tags($p)>
   | $l(unit) $g(gap-erasures) $z(zei-word) $r(zei-right)
-      <"word" ∪ "BRIVLA" ∪ "onset" ∩ tags($l) ∪ ("continued" ∪ "cy" ∪ "y-letter") ∩ tags($r)>
+      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($l) ∪ ("continued" ∪ "cy" ∪ "y-letter") ∩ tags($r)>
   | $k(unit) PAUSE $h(gap-erasures) $z(zei-word) $r(zei-right)
-      <"word" ∪ "BRIVLA" ∪ "onset" ∩ tags($k) ∪ ("continued" ∪ "cy" ∪ "y-letter") ∩ tags($r)>
+      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($k) ∪ ("continued" ∪ "cy" ∪ "y-letter") ∩ tags($r)>
 %conditions
   "continued" ∈ tags($l),
   "onset" ∈ tags($r),
@@ -459,7 +480,9 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
   | $h(gap-erasures) $f(erasure) <tags($h)>
   | $g(gap-erasures) PAUSE <tags($g)>
 %conditions
-  "onset" ∈ tags($f)
+  "onset" ∈ tags($f),
+  "wipes-all" ∉ tags($e),
+  "wipes-all" ∉ tags($f)
 ```
 
 `sa bu` "backs up to the last BU, pulling an already constructed pseudo-word apart", as the proposal puts it among its unique cases: it erases back to the `bu` of the last letter word, and the new `bu` binds to that letter word's base again, so `.abu sa bu` is `.abu`. `bu-part` reads such a stretch as the letter word's `bu`; nothing between may be a letter word, since its `bu` would be the last.
@@ -472,22 +495,26 @@ CLL 19.13: `si` erases the word before it. As in the Magic Words proposal, a com
 
 ```jbogenbau
 %rule erasure
-  | $u(unit) $s(si-word) <"onset" ∩ tags($u) ∪ "continued">
-  | $v(unit) si-gap $s(si-word) <"onset" ∩ tags($v) ∪ "continued">
-  | $u(unit) $e(erasures) [si-gap] $s(si-word) <"onset" ∩ tags($u) ∪ "continued">
-  | $v(unit) si-gap $f(erasures) [si-gap] $s(si-word) <"onset" ∩ tags($v) ∪ "continued">
+  | $u(unit) $s(si-word) <("onset" ∪ "wipes-all") ∩ tags($u) ∪ "continued">
+  | $v(unit) si-gap $s(si-word) <("onset" ∪ "wipes-all") ∩ tags($v) ∪ "continued">
+  | $u(unit) $e(erasures) [si-gap] $s(si-word) <("onset" ∪ "wipes-all") ∩ tags($u) ∪ "continued">
+  | $v(unit) si-gap $f(erasures) [si-gap] $s(si-word) <("onset" ∪ "wipes-all") ∩ tags($v) ∪ "continued">
 %conditions
   "continued" ∈ tags($u),
-  "onset" ∈ tags($e)
+  "onset" ∈ tags($e),
+  "wipes-all" ∉ tags($e),
+  "wipes-all" ∉ tags($f)
 %emits
   ε
 
 %rule erasures
-  | $e(erasure) <tags($e)>
+  | $d(erasure) <tags($d)>
   | $r(erasures) si-gap $e(erasure) <tags($r)>
   | $r(erasures) $f(erasure) <tags($r)>
 %conditions
-  "onset" ∈ tags($f)
+  "onset" ∈ tags($f),
+  "wipes-all" ∉ tags($e),
+  "wipes-all" ∉ tags($f)
 
 %rule si-gap
   PAUSE | PAUSE hesitations PAUSE | PAUSE hesitations
@@ -510,16 +537,17 @@ The reach of a `sa` is stated from its far end: `sa-open` is an element, which h
 %rule sa-erasure
   $first(sa-nest) $h(sa-gap) $next(sa-next)
 %tags
-  ("first-onset" ∈ tags($first) ⟹ "onset") ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($next) ∪ classes($next)
+  ("first-onset" ∈ tags($first) ⟹ "onset") ∪ "wipes-all" ∩ tags($first)
+    ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($next) ∪ classes($next)
 %conditions
   classes($first) ∩ classes($next) ≠ ∅,
   "LEhU" ∉ classes($next) ∨ "LOhU" ∈ classes($next),
   "onset" ∈ tags($next) ∨ phonemes($h) ≠ ""
 
 %rule sa-nest
-  | $o(sa-open) $g(gap) sa-word <classes($o) ∪ ("first-onset" ∪ "first-cy") ∩ tags($o)>
+  | $o(sa-open) $g(gap) sa-word <classes($o) ∪ ("first-onset" ∪ "first-cy" ∪ "wipes-all") ∩ tags($o)>
   | $a(sa-open) $k(gap) $n(sa-nest) gap sa-word
-      <classes($a) ∩ classes($n) ∪ ("first-onset" ∪ "first-cy") ∩ tags($a)>
+      <classes($a) ∩ classes($n) ∪ ("first-onset" ∪ "first-cy" ∪ "wipes-all") ∩ tags($a)>
 %conditions
   "continued" ∈ tags($o) ∨ phonemes($g) = ".",
   classes($a) ∩ classes($n) ≠ ∅,
@@ -531,17 +559,19 @@ The reach of a `sa` is stated from its far end: `sa-open` is an element, which h
 
 %rule sa-open
   | $first(element)
-      <classes($first) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($first)
+      <classes($first) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "wipes-all") ∩ tags($first)
         ∪ ("onset" ∈ tags($first) ⟹ "first-onset")
         ∪ ("onset" ∈ tags($first) ∧ ("cy" ∪ "y-letter") ∩ tags($first) ≠ ∅ ⟹ "first-cy")>
   | $s(sa-open) PAUSE $e(element)
-      <classes($s) ∪ ("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($e)
+      <classes($s) ∪ ("first-onset" ∪ "first-cy" ∪ "wipes-all") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($e)
         ∪ ("cy" ∈ tags($e) ⟹ "continued")>
   | $t(sa-open) $f(element)
-      <classes($t) ∪ ("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($f)
+      <classes($t) ∪ ("first-onset" ∪ "first-cy" ∪ "wipes-all") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($f)
         ∪ ("cv" ∈ tags($t) ∧ "y-letter" ∈ tags($f) ⟹ "cvcy")>
 %conditions
   classes($first) ≠ ∅,
+  "wipes-all" ∉ tags($e),
+  "wipes-all" ∉ tags($f),
   classes($s) ∩ classes($e) = ∅,
   classes($t) ∩ classes($f) = ∅,
   ("continued" ∪ "cy" ∪ "cvcy") ∩ tags($t) ≠ ∅,
@@ -601,7 +631,7 @@ With `su-boundary`, `su` erases back to a boundary word, which survives, or to t
   | $stop(boundary) $g(gap) su-word
   | $stop(boundary) $g(gap) $reach(su-reach) $h(gap) su-word
 %tags
-  "onset" ∩ tags($stop) ∪ classes($stop) ∪ "continued"
+  ("onset" ∪ "wipes-all") ∩ tags($stop) ∪ classes($stop) ∪ "continued"
 %conditions
   "continued" ∈ tags($stop) ∨ phonemes($g) = ".",
   "first-onset" ∈ tags($reach) ∨ phonemes($g) = ".",
@@ -627,6 +657,8 @@ With `su-boundary`, `su` erases back to a boundary word, which survives, or to t
   classes($first) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅,
   classes($e) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅,
   classes($f) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅,
+  "wipes-all" ∉ tags($e),
+  "wipes-all" ∉ tags($f),
   ("continued" ∪ "cy" ∪ "cvcy") ∩ tags($t) ≠ ∅,
   "cy" ∈ tags($t) ∧ "cy" ∈ tags($f)
     ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f)
@@ -643,7 +675,9 @@ With `su-boundary`, `su` erases back to a boundary word, which survives, or to t
   ε
 ```
 
-A `su` with no boundary before it, or any `su` without `su-boundary`, or a `sa` whose following word matches nothing before it, erases everything back to the start of the text; the word after such a `sa` stays, and a later unmatched one takes it too; a run of `sa` that matches nothing is one unmatched `sa`. So is a run with fewer matches before it than it has `sa`: the reaches that did match are followed by more `sa` than there are reaches, in `sa-wipe-core`, and nothing before the furthest match has the selma'o the run looks for, so `mi klama sa sa do` is `do`. A `sa` at the end of the text, with no word after it, has no selma'o to look for and erases nothing, so `.i sa` is `.i`; the text rule accepts it after the stream. These are the wiped stretches the text rule accepts before its stream.
+A `su` with no boundary before it, or any `su` without `su-boundary`, erases everything back to the start of the text. So does a `sa` whose following word matches nothing before it, but the word after the `sa` stays. A run of `sa` that matches nothing is one unmatched `sa`. So is a run with fewer matches before it than it has `sa`: the reaches that did match are followed by more `sa` than there are reaches, in `sa-wipe-core`, and nothing before the furthest match has the selma'o the run looks for, so `mi klama sa sa do` is `do`. A `sa` at the end of the text, with no word after it, has no selma'o to look for and erases nothing, so `.i sa` is `.i`. The text rule accepts it after the stream.
+
+What an unmatched `su` erases is a wiped stretch, which the text rule accepts before its stream. An unmatched `sa`, with what it erases and the word it leaves, is the unit `sa-wiped`. So a `bu`, a `zei` or a `si` after that word acts on it, as on any other unit: `mi sa a bu` is the letter word `.abu`. Such a unit erases the whole text before it. It is tagged `wipes-all`, and so is every unit or erasure built on it. Only `body-stream` accepts an element with that tag, as the first element of the text or after a wiped stretch. Every other rule that joins an element to what stands before it refuses the tag.
 
 ```jbogenbau
 %rule wiped
@@ -667,26 +701,29 @@ A `su` with no boundary before it, or any `su` without `su-boundary`, or a `sa` 
   | @¬su-boundary? $v(wiped-reach) $j(gap) su-word <"continued" ∪ ("first-onset" ∪ "first-cy") ∩ tags($v)>
   | sa-run gap su-word <"onset" ∪ "continued" ∪ "first-onset">
   | $t(wiped-reach) $k(gap) sa-run gap su-word <"continued" ∪ ("first-onset" ∪ "first-cy") ∩ tags($t)>
-  | sa-run $h(sa-gap) $n(sa-next)
-      <"first-onset" ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($n) ∪ classes($n)>
-  | $r(wiped-reach) $g(gap) sa-run $h(sa-gap) $n(sa-next)
-      <("first-onset" ∪ "first-cy") ∩ tags($r) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($n)
-      ∪ classes($n)>
-  | $w(sa-wipe) $h(sa-gap) $n(sa-next)
-      <("first-onset" ∪ "first-cy") ∩ tags($w) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($n)
-      ∪ classes($n)>
 %conditions
   classes($q) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅,
-  classes($r) ∩ classes($n) = ∅,
-  classes($w) ∩ classes($n) ≠ ∅,
   "continued" ∈ tags($q) ∨ phonemes($g) = ".",
   "continued" ∈ tags($v) ∨ phonemes($j) = ".",
-  "continued" ∈ tags($t) ∨ phonemes($k) = ".",
+  "continued" ∈ tags($t) ∨ phonemes($k) = "."
+
+%rule sa-wiped
+  | sa-run $h(sa-gap) $n(sa-next)
+      <"onset" ∪ "wipes-all" ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($n) ∪ classes($n)>
+  | $r(wiped-reach) $g(gap) sa-run $h(sa-gap) $n(sa-next)
+      <("first-onset" ∈ tags($r) ⟹ "onset") ∪ "first-cy" ∩ tags($r) ∪ "wipes-all"
+        ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($n) ∪ classes($n)>
+  | $w(sa-wipe) $h(sa-gap) $n(sa-next)
+      <("first-onset" ∈ tags($w) ⟹ "onset") ∪ "first-cy" ∩ tags($w) ∪ "wipes-all"
+        ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter") ∩ tags($n) ∪ classes($n)>
+%conditions
+  classes($r) ∩ classes($n) = ∅,
+  classes($w) ∩ classes($n) ≠ ∅,
   "continued" ∈ tags($r) ∨ phonemes($g) = ".",
   "onset" ∈ tags($n) ∨ phonemes($h) ≠ ""
 
 %rule wiped-reach
-  | $s(stream) <tags($s)>
+  | $s(body-stream) <tags($s)>
   | bu-word <"first-onset" ∪ "continued">
   | bu-word $g(gap) $t(stream) <"first-onset" ∪ "continued" ∩ tags($t) ∪ classes($t)>
   | $l(erasures) gap bu-word <("onset" ∈ tags($l) ⟹ "first-onset") ∪ "continued">

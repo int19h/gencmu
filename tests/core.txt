@@ -459,3 +459,9 @@ adhoc.words.magic-rules.bare-bu-erased-by-su
 adhoc.words.magic-rules.bare-bu-after-su-erased-by-su
 adhoc.words.magic-rules.bare-bu-after-si-erased-by-sa
 adhoc.words.magic-rules.bare-bu-after-si-erased-by-su
+adhoc.words.magic-rules.unmatched-sa-word-takes-bu
+adhoc.words.magic-rules.unmatched-sa-word-takes-zei
+adhoc.words.magic-rules.unmatched-sa-word-erased-then-bare-bu
+adhoc.words.magic-rules.su-stops-at-word-left-by-unmatched-sa
+adhoc.words.magic-rules.su-stops-at-word-left-by-unmatched-sa.bpfk
+adhoc.words.magic-rules.name-before-si-needs-pause
