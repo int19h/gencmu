@@ -1,0 +1,44 @@
+{
+  "description": "A longer constituent may be built on the constituent itself: y could have been y b, so the terminator after y may not be elided (engine §4).",
+  "grammar": "%ambiguity-resolution greedy maximal\n%elidable T\n%rule text z B\n%rule z y [T]\n%rule y A | y B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 1,
+        "expected": [
+          {
+            "terminal": "T",
+            "rules": [
+              "z"
+            ]
+          }
+        ]
+      }
+    },
+    "error": "rejected"
+  }
+}

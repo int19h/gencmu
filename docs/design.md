@@ -146,7 +146,7 @@ A grammar admits every parse its rules allow. Where a text has more than one, ea
 - if one reads and the other closes, `%ambiguity-resolution` decides: `greedy` takes the one that reads, so a constituent ends as late as the grammar allows; `lazy` takes the one that closes, so it ends as early as the grammar allows;
 - if both close different constituents, the text is ambiguous for this grammar and the result is a tie, with its witness.
 
-The preference is like greedy and lazy quantifiers in a backtracking regular expression engine, not like PEG's greed: it orders parses the grammar already admits and never commits, so it cannot reject a text; the earliest difference dominates; and it applies to every constituent of the stage, not to one quantifier. The syntax grammars are greedy, which is how an elided terminator is placed and what CLL's official YACC parser does; the word grammar is lazy, which is CLL's tosmabru rule, a word ending as early as it can.
+The preference is like greedy and lazy quantifiers in a backtracking regular expression engine, not like PEG's greed: it orders parses the grammar already admits and never commits, so it cannot reject a text; the earliest difference dominates; and it applies to every constituent of the stage, not to one quantifier. The syntax grammars are greedy, which is how an elided terminator is placed; the word grammar is lazy, which is CLL's tosmabru rule, a word ending as early as it can.
 
 CLL's own rule is narrower. It says only that a terminator may be elided if no ambiguity results, and says nothing of the other ambiguities its EBNF has. `elision-only` applies that rule literally, to the stage whose grammar declares it, and only when that stage's ranking was not `unique`:
 
@@ -156,7 +156,21 @@ CLL's own rule is narrower. It says only that a terminator may be elided if no a
 
 A weak tag is exactly how a dialect marks a reading it admits second, which is why the tag rule still applies in step 3. The engine cases pin the definition: two readings that elide different terminators (which passes), two readings that differ with every terminator written (which fails), one settled by a weak tag (which passes), and several terminators elided at one point.
 
-Measured on the prototype's corpus, `elision-only` costs the CLL grammar nothing: every one of its 8,853 ambiguous texts becomes unambiguous with its terminators written out. The extended grammars are another matter: 63 experimental and 74 Zantufa texts stay ambiguous, through a bare `na` term (`la olivian na klama` is both "Olivian doesn't go" and "Olivian, not-term, goes"), a name that is also a selbri under `cbm`, `bo` connection under `term-hierarchy`, and Zantufa's mekso. So the CLL syntax grammar declares `%ambiguity-resolution greedy elision-only` and the extended ones `greedy`, each with prose citing these reasons. A parse option overrides `elision-only` either way, to check an extension for overlaps or to loosen the CLL dialect; the lean itself cannot be overridden, since a lazy syntax or a greedy word grammar is a different language, not a variation.
+### Where an elided terminator may fall
+
+`elision-only` settles which reading a text has; it does not settle whether a reading that needs an elided terminator counts at all. CLL's rule, "if no grammatical ambiguity results", is read in three ways, and the grammar that CLL prints does not choose among them:
+
+- The printed grammar read literally counts every parse: a terminator may be elided wherever a parse of the whole text needs it. `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses, with the description ending before `se farvi`.
+- CLL's official parser reads one lexeme ahead and never goes back. It elides a terminator only through its grammar's error recovery, where the next lexeme cannot continue what it is reading. CLL's own explanations of elision describe this, which is why CLL 14.14 says that `le nanmu ku joi le ninmu` needs its `ku`.
+- The PEG grammars that replaced the YACC grammar commit too, but in another way: what a PEG has read before an elided terminator runs as far as it can be read, so `le nanmu joi le ninmu` parses and the `le lojbo` text does not.
+
+The notation offers the third as `maximal` (engine §4), a condition on which parses count, stated over the recognizer's items. It does not order the alternatives of a rule, so a grammar stays a description of its language. The bpfk dialect reads elided terminators this way, since the definition effort that approved its word forms also adopted the PEG. The cll-ebnf dialect takes the printed grammar as normative and keeps the literal reading, and so do the experimental and Zantufa dialects, which accept the most. Each dialect of the CLL grammar names its reading in a document of one directive stitched after the grammar, since a stage states its `%ambiguity-resolution` exactly once.
+
+Measured over the 24,552 CLL cases of the corpus, `maximal` rejects 68 texts that the literal reading accepts, and camxes-std, the reference PEG, rejects 66 of them. camxes-std reads one of the other two as a forethought termset without `nu'i`, which the CLL grammar does not have. In the other, `maximal` sees a longer constituent that splits the number `paso` in two, which a PEG never does, since its number is greedy as well.
+
+The official parser's reading is not in the notation. Its lookahead is a lexeme, not a word: step 5 of its preamble joins runs of words, such as the connective `na ja` or a number followed by `moi`, into one lexeme before its grammar sees them. A rule that reads one word ahead over a stage's tokens sees the `na` of `le nanla na vrude` as the start of `na ja`; tried word by word, such a rule rejected 369 texts of the corpus that the official parser accepts. A dialect that reads as the official parser does needs that preparser as a stage of its own ([issue 28](https://github.com/int19h/gencmu/issues/28)). The same preparser settles ambiguities that the printed grammar leaves open, such as a gihek or joik directly before `ke`, which the dialects here leave as the printed grammar has them: `mi broda joi ke brode ke'e` has two readings that differ in more than a terminator, which `elision-only` reports.
+
+Measured on the prototype's corpus, `elision-only` costs the CLL grammar nothing: every one of its 8,853 ambiguous texts becomes unambiguous with its terminators written out. The extended grammars are another matter: 63 experimental and 74 Zantufa texts stay ambiguous, through a bare `na` term (`la olivian na klama` is both "Olivian doesn't go" and "Olivian, not-term, goes"), a name that is also a selbri under `cbm`, `bo` connection under `term-hierarchy`, and Zantufa's mekso. So the dialects of the CLL syntax grammar declare `%ambiguity-resolution greedy elision-only`, with `maximal` in the bpfk dialect, and the extended ones `greedy`, each with prose citing these reasons. A parse option overrides `elision-only` either way, to check an extension for overlaps or to loosen the CLL dialect; the lean itself cannot be overridden, since a lazy syntax or a greedy word grammar is a different language, not a variation.
 
 ## The result, and why it has no types
 
@@ -189,7 +203,7 @@ Each library exposes this idiomatically: plain objects and arrays in JavaScript,
 The same shape in every language, spelled idiomatically:
 
 ```
-dialect = load_dialect("cll")                 # a bundled dialect by name
+dialect = load_dialect("cll-ebnf")                 # a bundled dialect by name
 dialect = load_dialect_file("my/pipeline.md") # or a pipeline document on disk
 dialect = load_dialect_sources({path: text})  # or documents held in memory, for the browser
 result  = dialect.parse(text, features={"jacu"}, without_features={"cbm"},
@@ -236,7 +250,7 @@ Two kinds of shared test, both run by every library:
 - `tests/corpus/*.jsonl`: Lojban texts, one case per line:
 
   ```
-  {"id": "cll-10-183", "text": "puzu", "dialect": "cll", "features": [],
+  {"id": "cll-10-183", "text": "puzu", "dialect": "cll-ebnf", "features": [],
    "expect": "accept", "verdict": "resolved", "words": ["pu", "zu"],
    "brackets": "(pu zu)"}
   ```

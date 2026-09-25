@@ -1,0 +1,36 @@
+{
+  "description": "The same holds for a repetition that is not the end of its alternative, whose helper is left-recursive (engine §3.2, §4).",
+  "grammar": "%ambiguity-resolution greedy maximal\n%elidable T\n%rule text ([T] A) ... B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "(a a b)"
+  }
+}

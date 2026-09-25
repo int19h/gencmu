@@ -5,7 +5,7 @@ The Go library of [gencmu](../../README.md), a Lojban parser whose grammars are 
 ```go
 import gencmu "github.com/int19h/gencmu/lib/go"
 
-dialect, err := gencmu.LoadDialect("cll")
+dialect, err := gencmu.LoadDialect("cll-ebnf")
 if err != nil {
 	log.Fatal(err) // a *gencmu.Error, with document, line and column
 }

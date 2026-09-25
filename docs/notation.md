@@ -197,7 +197,7 @@ An item of the list is a capture, handed on as one token with the constituent's 
 
 A directive is a keyword and its words. By convention each stands in a block of its own, after prose that says why the grammar needs it.
 
-- `%ambiguity-resolution greedy` or `lazy`, optionally followed by `elision-only`: how the stage chooses among parses, explained under "Ambiguity". Every stage must say it exactly once, in any of its documents.
+- `%ambiguity-resolution greedy` or `lazy`, optionally followed by `elision-only`, and then optionally by `maximal`: how the stage chooses among parses, explained under "Ambiguity" and "Elided terminators". Every stage must say it exactly once, in any of its documents.
 - `%elidable KU KEI VAU ...`: the terminators that may be elided. An absent optional whose first symbol is one of them shows in the parse tree as that terminator, elided at that point, and `elision-only` writes them back.
 
 ## Pipelines
@@ -226,6 +226,18 @@ A grammar admits every parse its rules allow. Where a text has more than one, ea
 
 Constituents with a single symbol, and the ones the notation's sugar creates, are transparent to the comparison: two parses that differ only in such a relabelling have not yet diverged.
 
-The preference is like greedy and lazy quantifiers in a backtracking regular expression engine, and unlike the greed of a PEG parser: it orders the parses the grammar already admits, never commits early, and so cannot reject a text; the earliest difference decides; and it applies to every constituent of the stage, not to one quantifier. The syntax grammars are greedy: an elided terminator sits as late as the grammar allows, which is what CLL's official YACC parser does. The word grammar is lazy: a word ends as early as it can, which is CLL's tosmabru rule, so `lemiklama` is `le mi klama`.
+The preference is like greedy and lazy quantifiers in a backtracking regular expression engine, and unlike the greed of a PEG parser: it orders the parses the grammar already admits, never commits early, and so cannot reject a text; the earliest difference decides; and it applies to every constituent of the stage, not to one quantifier. The syntax grammars are greedy: an elided terminator sits as late as the grammar allows. The word grammar is lazy: a word ends as early as it can, which is CLL's tosmabru rule, so `lemiklama` is `le mi klama`.
+
+## Elided terminators
+
+CLL permits eliding a terminator "if no grammatical ambiguity results", and says no more about how a parser decides that. By default a stage decides it from the whole text; a stage that declares `maximal` decides it as a PEG does.
+
+An elided terminator ends the part of its alternative written just before it, its *constituent*: a rule, an optional or a repetition, once parentheses are spelled out. In `le nanmu joi le ninmu`, the `ku` elided after `nanmu` ends the `sumti-tail` of `LE sumti-tail [KU #]`, which is `nanmu`. A terminator elided after a single word, at the start of its alternative, or at the start of a repeated item, where what the repetition has read so far stands before it, has no constituent.
+
+By default, the constituent of an elided terminator may end wherever a parse of the whole text needs it to end, and the ranking above chooses among the parses. So `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses: the `sumti-tail` of `le lojbo` ends before `se farvi`, which becomes the selbri, since the longer `sumti-tail` `lojbo se farvi` would leave the sentence without one.
+
+`maximal` forbids an elided terminator where its constituent could have been longer. That is what a PEG's greedy repetition does: once a PEG has read a constituent, it never gives back what it read. `le nanmu joi le ninmu cu klama` parses, since no longer `sumti-tail` begins at `nanmu`: `joi` may continue a tanru, but `le` may not follow it. The `le lojbo` text is an error, since `lojbo se farvi` is a longer `sumti-tail`. The longer constituent need not fit into a parse of the whole text, which is what makes `maximal` commit as a PEG does.
+
+`maximal` only removes parses. It never chooses among the parses that remain, and a text that is still ambiguous is chosen or reported as before. It does not order the alternatives of a rule, as a PEG does: a stage that declares `maximal` still sees every parse its rules allow, apart from those it removes. A text that it leaves with no parse is an error at the first terminator it forbids in the parse the stage would otherwise have chosen; writing that terminator out ends its constituent there.
 
 CLL's own rule is narrower: a terminator may be elided only if no ambiguity results, and CLL says nothing of its EBNF's other ambiguities. `elision-only` applies that rule literally. After choosing a parse, the chosen parse's elided terminators are written back into the input and it is parsed again with no terminator elidable; if it is still ambiguous, except for choices strong and weak tags settle, the ambiguity is not about terminators, and the parse is an error that shows both readings. For the CLL grammar this changes nothing: every ambiguous text of the corpus is about terminators. The grammars that extend CLL are really ambiguous in places, such as a bare `na` term beside a negated selbri, and declare only `greedy`. A caller can switch `elision-only` on or off for a parse, to check an extension for overlaps or to loosen a grammar that declares it.

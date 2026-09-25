@@ -1,0 +1,50 @@
+{
+  "description": "Of several forbidden terminators at one position, the rejection reports the first in the order of the tree's leaves: T, inside x, before U (engine §4).",
+  "grammar": "%ambiguity-resolution greedy maximal\n%elidable T U\n%rule text x [U] B C\n%rule x y [T]\n%rule y A | A B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 1,
+        "expected": [
+          {
+            "terminal": "T",
+            "rules": [
+              "x"
+            ]
+          }
+        ]
+      }
+    },
+    "error": "rejected"
+  }
+}

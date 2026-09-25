@@ -1,0 +1,36 @@
+{
+  "description": "An elided terminator after a terminal has no constituent, and maximal forbids nothing there, though another alternative of the rule reads further (engine §4).",
+  "grammar": "%ambiguity-resolution greedy maximal\n%elidable T\n%rule text x B C\n%rule x A [T] | A B [T]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "(a b c)"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "description": "With no maximal, the part before an elided terminator may end wherever a parse of the whole text needs it (engine §4): y ends after a, before the B that text reads.",
+  "grammar": "%ambiguity-resolution greedy\n%elidable T\n%rule text x B C\n%rule x y [T]\n%rule y A | A B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "(a b c)"
+  }
+}

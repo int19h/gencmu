@@ -6,7 +6,7 @@ The JavaScript library of gencmu, a Lojban parser whose grammars are literate do
 import { loadDialect } from "gencmu/node";
 import { toBrackets } from "gencmu";
 
-const dialect = loadDialect("cll");
+const dialect = loadDialect("cll-ebnf");
 const result = dialect.parse("mi klama le zarci");
 console.log(result.ok, toBrackets(result));
 ```

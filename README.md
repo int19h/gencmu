@@ -21,8 +21,8 @@ Or open `index.html` in a browser, from the clone or from GitHub Pages: the play
 
 | name | what it reads |
 | --- | --- |
-| `cll` | Lojban as *The Complete Lojban Language* describes it |
-| `bpfk` | the same, with the word forms the definition effort approved |
+| `cll-ebnf` | Lojban as *The Complete Lojban Language* describes it, its printed grammar taken as normative |
+| `bpfk` | CLL with the word forms the definition effort approved, elided terminators read as its PEG grammars read them |
 | `experimental` | CLL with the experimental constructs in use since |
 | `zantufa` | the experimental dialect with Guskant's Zantufa constructs |
 
@@ -39,7 +39,7 @@ Four libraries implement one specification, each with no dependency beyond its l
 
 ```js
 import { loadDialect, toBrackets } from "gencmu/node";
-console.log(toBrackets(loadDialect("cll").parse("mi klama")));
+console.log(toBrackets(loadDialect("cll-ebnf").parse("mi klama")));
 ```
 
 ## Documents

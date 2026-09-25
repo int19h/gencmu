@@ -1,0 +1,30 @@
+{
+  "description": "A terminator elided after the first symbol of a left-recursive production the author wrote, the rule itself, has no constituent (engine §4).",
+  "grammar": "%ambiguity-resolution greedy maximal\n%elidable T\n%rule text x\n%rule x A | x [T] B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "(a b)"
+  }
+}
