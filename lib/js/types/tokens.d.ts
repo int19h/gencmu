@@ -9,6 +9,7 @@ export declare class Token {
     text: string;
     phonemes: string | null;
     insertedBy: string | undefined;
+    verbatim: boolean;
     /**
      * @param {TagSet} tags
      * @param {Span} span the tokens of the stage before it this token covers
@@ -17,8 +18,9 @@ export declare class Token {
      * @param {string | null} phonemes what it sounds like
      * @param {string | undefined} insertedBy the rule that inserted it, for a
      *   token no text stands for
+     * @param {boolean} [verbatim] whether it sounds like its text (engine §11)
      */
-    constructor(tags: TagSet, span: Span, source: Span, text: string, phonemes: string | null, insertedBy: string | undefined);
+    constructor(tags: TagSet, span: Span, source: Span, text: string, phonemes: string | null, insertedBy: string | undefined, verbatim?: boolean);
 }
 /**
  * @param {string} text

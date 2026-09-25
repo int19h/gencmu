@@ -6,6 +6,7 @@ export type TokenJson = {
     tags: Record<string, boolean>;
     span: Span;
     source: Span;
+    verbatim?: true;
     insertedBy?: string;
 };
 export type NodeJson = {
@@ -89,6 +90,7 @@ export type DisplayValue = {
  * @property {Record<string, boolean>} tags
  * @property {Span} span
  * @property {Span} source
+ * @property {true} [verbatim]
  * @property {string} [insertedBy]
  */
 /**
@@ -149,7 +151,7 @@ export type DisplayValue = {
  * member, its rule or terminal.
  * @typedef {{[name: string]: DisplayValue | DisplayValue[] | string | null}} DisplayValue
  */
-export declare const RESULT_FORMAT = 2;
+export declare const RESULT_FORMAT = 3;
 /**
  * @param {ResultNode} node
  * @returns {NodeJson}

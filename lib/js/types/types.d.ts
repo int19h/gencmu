@@ -188,6 +188,7 @@ export type DomRule = {
     alternatives: DomAlternative[];
     emit?: Emission;
     conditions: Condition[];
+    verbatim?: true;
     at: Position;
 };
 export type DomAlternative = {
@@ -312,6 +313,11 @@ export type Production = {
     conditions: ReadyCondition[];
     tags: Term | null;
     emit: Emission | null;
+    /**
+     * whether a token over its constituent sounds
+     * like its text (engine §11)
+     */
+    verbatim: boolean;
     recursivePrefix: boolean;
     /**
      * the features of the alternative's warnings,
@@ -582,6 +588,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {DomAlternative[]} alternatives
  * @property {Emission} [emit]
  * @property {Condition[]} conditions
+ * @property {true} [verbatim]
  * @property {Position} at
  */
 /**
@@ -663,6 +670,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {ReadyCondition[]} conditions
  * @property {Term | null} tags
  * @property {Emission | null} emit
+ * @property {boolean} verbatim whether a token over its constituent sounds
+ *   like its text (engine §11)
  * @property {boolean} recursivePrefix
  * @property {string[]} warnings the features of the alternative's warnings,
  *   in the order they are written; none for a helper
