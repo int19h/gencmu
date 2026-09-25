@@ -14,8 +14,8 @@ Each file is one case:
   "pipeline": "path.md",
   "tokens": [{"text": "a", "tags": ["A"]}, {"text": "b", "tags": ["B", "?C"]}],
   "input": "characters",
-  "options": {"features": ["f"], "elisionOnly": true},
-  "expect": {"result": PATTERN, "brackets": "(a b)", "error": "grammar"}
+  "options": {"features": ["f"], "withoutFeatures": ["g"], "elisionOnly": true},
+  "expect": {"result": PATTERN, "brackets": "(a b)", "warnings": [WARNING...], "features": [FEATURE...], "error": "grammar"}
 }
 ```
 
@@ -25,7 +25,9 @@ The input is either `input`, a string of characters read as engine §1 says, or 
 
 Auto features (engine §13) are off for a case unless its options say `"autoFeatures": true`.
 
-`expect.result` is a pattern matched against the canonical result of `docs/output.md`: an object matches when every member of the pattern matches the member of the same name, an array when it has the same length and each element matches, and anything else when it is equal. `expect.brackets` is the bracket rendering, elided terminators hidden. `expect.error` is the error kind, when the case is about an error; for a grammar that cannot be loaded, the result is the error alone.
+`options.features` and `options.withoutFeatures` are the features the caller turns on and off (engine §13).
+
+`expect.result` is a pattern matched against the canonical result of `docs/output.md`: an object matches when every member of the pattern matches the member of the same name, an array when it has the same length and each element matches, and anything else when it is equal. `expect.brackets` is the bracket rendering, elided terminators hidden. `expect.warnings` is the result's list of warnings, compared whole, so `[]` says that there are none. `expect.features` is the dialect's list of features (`docs/api.md`), compared whole, each as `{"name":..., "kind":..., "default":...}`. `expect.error` is the error kind, when the case is about an error; for a grammar that cannot be loaded, the result is the error alone, and for a mistake of the caller, `usage`, there is no result.
 
 ## Notation cases: `notation/*.json`
 
@@ -44,7 +46,7 @@ Lojban texts, one case per line, with what gencmu is meant to make of them:
  "verdict": "unique", "words": ["do", "mamta", "mi"], "brackets": "(do [mamta mi])"}
 ```
 
-- `dialect` is a bundled dialect's name, and `features`, when present, the features the case adds to it.
+- `dialect` is a bundled dialect's name; `features`, when present, the features the case turns on, and `withoutFeatures` those it turns off.
 - `expect` is `accept` or `reject`. For an accepted text, `verdict` is the last stage's verdict and `brackets` its tree, elided terminators hidden. For a rejected one, `stage` names the stage that rejected it.
 - `ties`, when present, names every stage whose verdict is `tie`, so that a tie in a stage before the last is pinned too.
 - `words` is the word stage's output, each token's phonemes, a pause written `.`, or its text for a token with none, whenever the word stage accepted.

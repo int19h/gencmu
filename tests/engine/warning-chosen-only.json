@@ -1,0 +1,30 @@
+{
+  "description": "Only the chosen tree gives warnings: the tied derivation through the warned alternative gives none (engine §6, §12).",
+  "grammar": "%rule text A | @w! A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "w"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie"
+        }
+      ]
+    },
+    "warnings": [],
+    "brackets": "a"
+  }
+}

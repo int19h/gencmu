@@ -1,18 +1,23 @@
 {
-  "description": "A pipeline's <?features?> enables features for every parse, and the caller's features are added to them (engine §13).",
+  "description": "A caller can turn off a feature that the pipeline's <?features?> turns on (engine §13).",
   "documents": {
     "p.md": "# A dialect <?features f?>\n\n## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n",
-    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text @f? A | @¬f? B | @f? @g? A A\n```\n"
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text @f? A | @¬f? B\n```\n"
   },
   "pipeline": "p.md",
   "tokens": [
     {
-      "text": "a",
+      "text": "b",
       "tags": [
-        "A"
+        "B"
       ]
     }
   ],
+  "options": {
+    "withoutFeatures": [
+      "f"
+    ]
+  },
   "expect": {
     "result": {
       "ok": true,
@@ -23,6 +28,6 @@
         }
       ]
     },
-    "brackets": "a"
+    "brackets": "b"
   }
 }

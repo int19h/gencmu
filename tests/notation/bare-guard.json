@@ -1,0 +1,10 @@
+{
+  "description": "A guard needs its kind: @f followed by neither ? nor ! is not a guard, and reading stops after the name (engine §9).",
+  "document": "```jbogenbau\n%rule a @f A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 11
+    }
+  }
+}

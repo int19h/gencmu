@@ -1,0 +1,43 @@
+{
+  "description": "A dialect lists its features in code point order, each with its kind and whether <?features?> turns it on; a name only <?features?> declares is a gate (engine §13).",
+  "documents": {
+    "p.md": "# A dialect <?features f h?>\n\n## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text @f? A | @¬g? B | @w! C\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "features": [
+      {
+        "name": "f",
+        "kind": "gate",
+        "default": true
+      },
+      {
+        "name": "g",
+        "kind": "gate",
+        "default": false
+      },
+      {
+        "name": "h",
+        "kind": "gate",
+        "default": true
+      },
+      {
+        "name": "w",
+        "kind": "warning",
+        "default": false
+      }
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}

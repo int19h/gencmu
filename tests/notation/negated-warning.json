@@ -1,0 +1,10 @@
+{
+  "description": "A warning has no negated form: @¬w! is not a guard, and reading stops at the ! (engine §9).",
+  "document": "```jbogenbau\n%rule a @¬w! A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 12
+    }
+  }
+}

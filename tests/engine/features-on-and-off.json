@@ -1,0 +1,23 @@
+{
+  "description": "Naming one feature both to turn on and to turn off is a usage error (engine §13).",
+  "grammar": "%rule text @f? A | B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "f"
+    ],
+    "withoutFeatures": [
+      "f"
+    ]
+  },
+  "expect": {
+    "error": "usage"
+  }
+}

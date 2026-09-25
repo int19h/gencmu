@@ -1,0 +1,31 @@
+{
+  "description": "Auto features add sa-su when the words stage rejects the text without it (engine §13).",
+  "documents": {
+    "p.md": "# A dialect\n\n## Words <?stage words?>\n\n- [g](g.md) <?grammar?>\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution lazy\n%rule text @sa-su? A | B\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "options": {
+    "autoFeatures": true
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "words",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "a"
+  }
+}
