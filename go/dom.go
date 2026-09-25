@@ -6,7 +6,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 2
+const domFormat = 3
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
@@ -17,7 +17,7 @@ type domDoc struct {
 
 type domRule struct {
 	Name         string
-	Op           string // "define" or "extend"
+	Op           string // "define", "redefine" or "extend"
 	Tags         *domTerm
 	Alternatives []*domAlt
 	Emit         *domEmit
@@ -59,6 +59,7 @@ type domExpr struct {
 
 // Term kinds. A span is a term of kind tmCapture, "" for $, the whole
 // constituent, or a tmCall of head, tail or last; a rule argument is tmRule.
+// A guarded term, A ⟹ t, is tmIf: Cond is A, and Items holds t alone.
 const (
 	tmLiteral      = "literal"
 	tmWeak         = "weak"
@@ -68,21 +69,26 @@ const (
 	tmCall         = "call"
 	tmCapture      = "capture"
 	tmRule         = "rule"
+	tmIf           = "if"
 )
 
 type domTerm struct {
 	Kind  string
 	Str   string     // literal, weak, call (the function), capture, rule
-	Items []*domTerm // union, intersection, call arguments
+	Items []*domTerm // union, intersection, call arguments; if: its term
+	Cond  *domCond   // if: its condition
 }
 
-// Condition kinds.
+// Condition kinds. A presence test $x is cdCaptured, its name in Rule, ""
+// for $; A ⟹ B is cdIf, its Items A and B.
 const (
-	cdCompare = "compare"
-	cdMatches = "matches"
-	cdNot     = "not"
-	cdAny     = "any"
-	cdAll     = "all"
+	cdCompare  = "compare"
+	cdMatches  = "matches"
+	cdNot      = "not"
+	cdAny      = "any"
+	cdAll      = "all"
+	cdCaptured = "captured"
+	cdIf       = "if"
 )
 
 type domCond struct {
@@ -90,7 +96,7 @@ type domCond struct {
 	Op          string
 	Left, Right *domTerm
 	Span        *domTerm // matches
-	Rule        string   // matches
+	Rule        string   // matches; captured: the capture's name
 	Inner       *domCond
 	Items       []*domCond
 }
@@ -99,11 +105,11 @@ type domEmit struct {
 	Items []*domEmitItem
 }
 
-// domEmitItem is a capture, "" for $, with its tags or erased, or an
+// domEmitItem is a capture, "" for $, with its tags or silent, or an
 // inserted tag.
 type domEmitItem struct {
 	Capture  string
-	Erase    bool
+	Silent   bool
 	IsInsert bool
 	Insert   string
 	Tags     *domTerm
@@ -114,9 +120,10 @@ func (e *domEmit) whole() bool {
 	return len(e.Items) > 0 && !e.Items[0].IsInsert && e.Items[0].Capture == ""
 }
 
-// erasesAll says the emission is $ <>, which erases the whole constituent.
-func (e *domEmit) erasesAll() bool {
-	return e.whole() && e.Items[0].Erase
+// silentAll says the emission is $ <>, which makes the whole constituent
+// silent.
+func (e *domEmit) silentAll() bool {
+	return e.whole() && e.Items[0].Silent
 }
 
 type domDirective struct {
@@ -280,6 +287,12 @@ func (t *domTerm) writeJSON(w *jsonWriter) {
 			it.writeJSON(w)
 		}
 		w.raw("]}")
+	case tmIf:
+		w.raw(`{"if":`)
+		t.Cond.writeJSON(w)
+		w.raw(`,"then":`)
+		t.Items[0].writeJSON(w)
+		w.raw("}")
 	}
 }
 
@@ -302,6 +315,16 @@ func (c *domCond) writeJSON(w *jsonWriter) {
 	case cdNot:
 		w.raw(`{"not":`)
 		c.Inner.writeJSON(w)
+		w.raw("}")
+	case cdCaptured:
+		w.raw(`{"captured":`)
+		w.str(c.Rule)
+		w.raw("}")
+	case cdIf:
+		w.raw(`{"if":`)
+		c.Items[0].writeJSON(w)
+		w.raw(`,"then":`)
+		c.Items[1].writeJSON(w)
 		w.raw("}")
 	case cdAny, cdAll:
 		w.raw("{")
@@ -331,8 +354,8 @@ func (e *domEmit) writeJSON(w *jsonWriter) {
 			w.raw(`{"capture":`)
 			w.str(it.Capture)
 		}
-		if it.Erase {
-			w.raw(`,"erase":true`)
+		if it.Silent {
+			w.raw(`,"silent":true`)
 		}
 		if it.Tags != nil {
 			w.raw(`,"tags":`)
@@ -589,6 +612,14 @@ func decodeTerm(raw json.RawMessage) (*domTerm, error) {
 		args, err := decodeList(o["args"], decodeTerm)
 		return &domTerm{Kind: tmCall, Str: name, Items: args}, err
 	}
+	if v, ok := o["if"]; ok {
+		cond, err := decodeCond(v)
+		if err != nil {
+			return nil, err
+		}
+		then, err := decodeTerm(o["then"])
+		return &domTerm{Kind: tmIf, Cond: cond, Items: []*domTerm{then}}, err
+	}
 	return nil, fmt.Errorf("unknown term %s", string(raw))
 }
 
@@ -620,6 +651,18 @@ func decodeCond(raw json.RawMessage) (*domCond, error) {
 		inner, err := decodeCond(v)
 		return &domCond{Kind: cdNot, Inner: inner}, err
 	}
+	if v, ok := o["captured"]; ok {
+		name, err := decodeString(v)
+		return &domCond{Kind: cdCaptured, Rule: name}, err
+	}
+	if v, ok := o["if"]; ok {
+		premise, err := decodeCond(v)
+		if err != nil {
+			return nil, err
+		}
+		then, err := decodeCond(o["then"])
+		return &domCond{Kind: cdIf, Items: []*domCond{premise, then}}, err
+	}
 	for _, k := range []string{cdAny, cdAll} {
 		if v, ok := o[k]; ok {
 			items, err := decodeList(v, decodeCond)
@@ -644,18 +687,18 @@ func decodeEmit(raw json.RawMessage) (*domEmit, error) {
 		}
 		it := &domEmitItem{}
 		// An item is a capture or an inserted tag; only a capture may be
-		// erased, and an erased one has no tags.
+		// silent, and a silent one has no tags.
 		switch {
-		case io["insert"] != nil && io["capture"] == nil && io["erase"] == nil:
+		case io["insert"] != nil && io["capture"] == nil && io["silent"] == nil:
 			it.IsInsert = true
 			it.Insert, err = decodeString(io["insert"])
 		case io["capture"] != nil && io["insert"] == nil:
 			it.Capture, err = decodeString(io["capture"])
-			if io["erase"] != nil {
-				if !isTrue(io["erase"]) || io["tags"] != nil {
+			if io["silent"] != nil {
+				if !isTrue(io["silent"]) || io["tags"] != nil {
 					return nil, fmt.Errorf("a malformed emission item")
 				}
-				it.Erase = true
+				it.Silent = true
 			}
 		default:
 			err = fmt.Errorf("unknown emission item %s", string(r))

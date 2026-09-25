@@ -1,7 +1,7 @@
 // From the notation's syntax tree to a grammar DOM (engine §9).
 
 import { GencmuError } from "./errors.js";
-import { DOM_FORMAT, readsOwnTags } from "./dom.js";
+import { DOM_FORMAT, definitionProblem, readsOwnTags } from "./dom.js";
 
 /**
  * @import { Argument, Comparator, Condition, DomAlternative, DomDirective, DomRule, EmitItem, Emission, Expr, GrammarDom, Position, ResultNode, RuleNode, Term } from "./types.js"
@@ -60,7 +60,7 @@ export function treeToDom(tree, tokens, positionOf, path) {
   /** @type {DomDirective[]} */
   const directives = [];
   for (const item of parts(tree)) {
-    if (ruleOf(item) === "directive-statement") {
+    if (ruleOf(item) === "directive") {
       const [directiveToken, ...rest] = parts(item);
       directives.push({
         name: text(directiveToken).slice(1),
@@ -79,32 +79,21 @@ export function treeToDom(tree, tokens, positionOf, path) {
    */
   function readRule(node) {
     const children = parts(node);
-    const name = text(children[0]);
-    const definer = only(node, "definer");
+    const keyword = tokenText(parts(only(node, "definer"))[0]);
     /** @type {Partial<DomRule>} */
-    const rule = { name, op: tokenText(parts(definer)[0]) === "|≔" ? "extend" : "define" };
-    const tags = one(node, "rule-tags");
+    const rule = { name: text(children[1]), op: keyword === "%extend-rule" ? "extend" : keyword === "%redefine-rule" ? "redefine" : "define" };
+    const tags = one(node, "tags-clause");
     if (tags) rule.tags = readConstituentTags(tags);
     rule.alternatives = ofRule(only(node, "body"), "alternative").map(readAlternative);
-    /** @type {Condition[]} */
-    const conditions = [];
-    /** @type {Emission | undefined} */
-    let emit;
-    for (const clause of ofRule(node, "clause")) {
-      const inner = parts(clause)[0];
-      if (ruleOf(inner) === "emission") {
-        if (emit) fail("a rule may have one ⇒ clause", inner);
-        emit = readEmission(inner);
-      } else {
-        // The conditions joined by ∧ at the top are the rule's conditions,
-        // each applying where its captures are (engine §3.6).
-        const top = readAnyOf(only(inner, "any-of"));
-        conditions.push(...("all" in top ? top.all : [top]));
-      }
-    }
-    if (emit) rule.emit = emit;
-    rule.conditions = conditions;
+    const emits = one(node, "emits-clause");
+    if (emits) rule.emit = readEmission(emits);
+    // Each condition of the list is one condition, applying where its
+    // captures are (engine §3.6).
+    const conditions = one(node, "conditions-clause");
+    rule.conditions = conditions ? ofRule(conditions, "implication").map(readImplication) : [];
     rule.at = at(node);
+    const problem = definitionProblem(rule);
+    if (problem) fail(problem, node);
     return /** @type {DomRule} */ (rule);
   }
 
@@ -200,22 +189,22 @@ export function treeToDom(tree, tokens, positionOf, path) {
       if (kind === "capture") item = { capture: text(target).slice(1) };
       else if (kind === "string") item = { insert: decode(target) };
       else if (kind === "phoneme") item = { insert: text(target) };
-      else fail("expected a capture or a tag after ⇒", itemNode);
+      else fail("expected a capture or a tag after %emits", itemNode);
       const tags = one(itemNode, "emit-tags");
       if (tags && item.insert !== undefined) fail("an inserted tag takes no tags of its own", itemNode);
-      if (tags && one(tags, "erase")) item.erase = true;
+      if (tags && one(tags, "silent")) item.silent = true;
       else if (tags) {
         item.tags = readTerm(only(tags, "term"));
-        if ("emptySet" in item.tags) fail("<∅> emits a token no terminal can read; <> erases", itemNode);
+        if ("emptySet" in item.tags) fail("<∅> emits a token no terminal can read; <> makes a part silent", itemNode);
       }
       return item;
     });
     if (items.some((item) => item.capture === "") && !items.every((item) => item.capture === "")) {
-      fail("⇒ $ goes with no item but another $", node);
+      fail("$ goes with no item but another $", node);
     }
-    if (items.some((item) => item.capture === "" && item.erase) && items.length !== 1) fail("⇒ $ <> stands alone", node);
+    if (items.some((item) => item.capture === "" && item.silent) && items.length !== 1) fail("$ <> stands alone", node);
     const named = items.flatMap((item) => (item.capture !== undefined && item.capture !== "" ? [item.capture] : []));
-    if (named.some((name, index) => named.indexOf(name) !== index)) fail("⇒ lists a capture twice", node);
+    if (named.some((name, index) => named.indexOf(name) !== index)) fail("%emits lists a capture twice", node);
     return { items };
   }
 
@@ -232,7 +221,19 @@ export function treeToDom(tree, tokens, positionOf, path) {
   }
 
   /**
-   * Conditions joined by ∨, each several joined by ∧.
+   * A condition, or conditions joined by ⟹, grouping to the right.
+   * @param {ResultNode} node
+   * @returns {Condition}
+   */
+  function readImplication(node) {
+    const antecedent = readAnyOf(only(node, "any-of"));
+    const consequent = one(node, "implication");
+    return consequent ? { if: antecedent, then: readImplication(consequent) } : antecedent;
+  }
+
+  /**
+   * Conditions joined by ∨, each several joined by ∧; a parenthesized group
+   * of the same connective is part of the one around it (engine §9).
    * @param {ResultNode} node
    * @returns {Condition}
    */
@@ -254,8 +255,10 @@ export function treeToDom(tree, tokens, positionOf, path) {
   function readCondition(node) {
     const inner = /** @type {ResultNode} */ (parts(node).find((child) => child.kind === "rule"));
     switch (ruleOf(inner)) {
-      case "any-of":
-        return readAnyOf(inner);
+      case "implication":
+        return readImplication(inner);
+      case "presence":
+        return { captured: text(parts(inner)[0]).slice(1) };
       case "comparison": {
         const [left, comparator, right] = parts(inner);
         return { op: /** @type {Comparator} */ (text(parts(comparator)[0])), left: readTerm(left), right: readTerm(right) };
@@ -283,6 +286,13 @@ export function treeToDom(tree, tokens, positionOf, path) {
    */
   function readTerm(node, argument = false) {
     if (ruleOf(node) === "term") {
+      const inner = /** @type {ResultNode} */ (parts(node).find((child) => child.kind === "rule"));
+      return readTerm(inner, argument);
+    }
+    if (ruleOf(node) === "guarded-term") {
+      return { if: readAnyOf(only(node, "any-of")), then: readTerm(only(node, "term")) };
+    }
+    if (ruleOf(node) === "union") {
       const found = ofRule(node, "intersection");
       const items = found.map((item) => readTerm(item, argument && found.length === 1));
       return items.length === 1 ? items[0] : { union: items };
@@ -387,11 +397,12 @@ const SIGNATURES = {
 // The rules of the notation's syntax grammar that the reader reads; every
 // other rule is transparent.
 const NAMED = new Set([
-  "directive-statement", "argument-word", "rule", "rule-tags", "definer", "body", "alternative", "guard",
-  "alternative-tags", "conjunction", "sequence", "element", "primary", "reference", "string", "phoneme",
-  "capture", "group", "optional", "choice", "empty", "clause", "emission", "emit-item", "emit-target",
-  "emit-tags", "erase", "conditions", "any-of", "all-of", "condition", "comparison", "comparator", "negation", "term",
-  "intersection", "term-atom", "weak", "empty-set", "call", "argument", "capture-reference",
+  "directive", "argument-word", "rule", "definer", "body", "alternative", "guard", "alternative-tags",
+  "conjunction", "sequence", "element", "primary", "reference", "string", "phoneme", "capture", "group", "optional",
+  "choice", "empty", "tags-clause", "conditions-clause", "emits-clause", "emit-item", "emit-target", "emit-tags",
+  "silent", "implication", "any-of", "all-of", "condition", "comparison", "comparator", "negation", "presence",
+  "term", "guarded-term", "union", "intersection", "term-atom", "weak", "empty-set", "call", "argument",
+  "capture-reference",
 ]);
 
 /**

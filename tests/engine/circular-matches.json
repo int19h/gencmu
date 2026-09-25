@@ -1,6 +1,6 @@
 {
   "description": "A condition asking, inside a nested parse, about that parse's own span as the same rule is a grammar error (engine §4).",
-  "grammar": "text ≔ $a(x) : ¬matches($a, text) ; x ≔ A ;",
+  "grammar": "%rule text $a(x) %conditions ¬matches($a, text)\n%rule x A",
   "tokens": [
     {
       "text": "a",

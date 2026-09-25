@@ -2,7 +2,8 @@
 
 A Lojban parser whose grammar is data. Every layer of the language, from
 characters to phonemes, phonemes to words, words to a parse tree, is a
-literate grammar document, loaded at runtime. A dialect is a pipeline
+literate grammar document in jbogenbau, gencmu's grammar notation, loaded at
+runtime. A dialect is a pipeline
 document that lists the stages and the grammars of each. Change a grammar
 and you change the language the parser reads; nothing is compiled.
 
@@ -56,8 +57,8 @@ console.log(toBrackets(loadDialect("cll").parse("mi klama")));
 
 ## Documents
 
-- [`docs/notation.md`](docs/notation.md): the grammar notation, for grammar
-  authors.
+- [`docs/notation.md`](docs/notation.md): jbogenbau, the grammar notation,
+  for grammar authors.
 - [`docs/engine.md`](docs/engine.md): the engine specification, for
   implementers.
 - [`docs/api.md`](docs/api.md): the library API in each language.

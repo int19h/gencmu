@@ -1,6 +1,6 @@
 {
   "description": "# is a rule's name like any other, the free-modifier slot (engine §9).",
-  "document": "```ebnf\n# ≔ [free ...] ;\ntext ≔ A # ;\n```\n",
+  "document": "```jbogenbau\n%rule # [free ...]\n%rule text A #\n```\n",
   "expect": {
     "dom": {
       "rules": [

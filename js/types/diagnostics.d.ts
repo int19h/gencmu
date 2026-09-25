@@ -79,17 +79,8 @@ export type StageAudit = {
         previous: string;
     }[];
     /**
-     * conditions no
-     * alternative of their definition captures every part of
-     */
-    idleConditions: {
-        rule: string;
-        document: string;
-        condition: string;
-    }[];
-    /**
-     * erasures, `$ <>` or
-     * `$x <>`, of what could never emit anything anyway and never lies inside an emitted token
+     * silent items, `$ <>`
+     * or `$x <>`, of what could never emit anything and never sounds inside an emitted token
      */
     idleErasures: {
         rule: string;
@@ -100,7 +91,7 @@ export type StageAudit = {
 /**
  * What a grammar author should know about a dialect's grammars: per stage,
  * the rules nothing reaches, every rule a later document replaced or
- * extended, and conditions that never apply.
+ * extended, and silent items that change nothing.
  * @param {Dialect} dialect
  * @returns {StageAudit[]}
  */

@@ -1,10 +1,10 @@
 {
   "description": "The notation has no braces: a set of tags is a union (engine §9); the error is at the brace.",
-  "document": "```ebnf\na ≔ A <{\"X\"}> ;\n```\n",
+  "document": "```jbogenbau\n%rule a A <{\"X\"}>\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 8
+      "column": 12
     }
   }
 }

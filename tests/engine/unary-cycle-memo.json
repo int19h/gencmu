@@ -1,6 +1,22 @@
 {
   "description": "A cycle through a single-symbol chain is excluded whatever was ranked before it: here b is reached first on its own, and then again below a (engine §4, derivations).",
-  "grammar": "text ≔ b | a ; a ≔ b C | b ; b ≔ a | A ;",
-  "tokens": [{"text": "a", "tags": ["A"]}],
-  "expect": {"result": {"ok": true, "stages": [{"verdict": "tie"}]}}
+  "grammar": "%rule text b | a\n%rule a b C | b\n%rule b a | A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "tie"
+        }
+      ]
+    }
+  }
 }

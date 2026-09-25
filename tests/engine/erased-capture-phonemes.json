@@ -1,9 +1,9 @@
 {
-  "description": "A constituent its own rule erases, emitted by its parent as a capture, is a token that sounds as nothing: its phonemes leave out what it erased (engine §5, §11).",
+  "description": "A constituent its own rule makes silent, emitted by its parent as a capture, is a token that sounds as nothing: its phonemes leave out what is silent (engine §5, §11).",
   "documents": {
     "p.md": "## s <?stage first?>\n\n- [g](g.md) <?grammar?>\n\n## t <?stage second?>\n\n- [h](h.md) <?grammar?>\n",
-    "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ $a(x) $b(y) ⇒ $a <\"X\">, $b ;\nx ≔ A ⇒ $ <> ;\ny ≔ B ;\n```\n",
-    "h.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ X B ;\n```\n"
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $a(x) $b(y) %emits $a <\"X\">, $b\n%rule x A %emits $ <>\n%rule y B\n```\n",
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text X B\n```\n"
   },
   "pipeline": "p.md",
   "tokens": [

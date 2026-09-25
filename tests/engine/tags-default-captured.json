@@ -1,6 +1,6 @@
 {
   "description": "A production with one symbol and no tags has that symbol's tags even when the symbol is captured (engine §3.7): u carries X from w, and text reads it as X.",
-  "grammar": "text ≔ $u(u) : \"X\" ∈ tags($u) ; u ≔ $w(w) : \"Y\" ∉ tags($w) ; w ≔ A <\"X\"> ;",
+  "grammar": "%rule text $u(u) %conditions \"X\" ∈ tags($u)\n%rule u $w(w) %conditions \"Y\" ∉ tags($w)\n%rule w A <\"X\">",
   "tokens": [
     {
       "text": "a",

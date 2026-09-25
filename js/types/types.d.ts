@@ -148,7 +148,7 @@ export type DomDirective = {
 };
 export type DomRule = {
     name: string;
-    op: "define" | "extend";
+    op: "define" | "redefine" | "extend";
     tags?: Term;
     alternatives: DomAlternative[];
     emit?: Emission;
@@ -192,7 +192,7 @@ export type EmitItem = {
     capture?: string;
     insert?: string;
     tags?: Term;
-    erase?: true;
+    silent?: true;
 };
 export type Comparator = "=" | "≠" | "∈" | "∉" | "⊆";
 export type Condition = {
@@ -201,6 +201,11 @@ export type Condition = {
     all: Condition[];
 } | {
     not: Condition;
+} | {
+    captured: string;
+} | {
+    if: Condition;
+    then: Condition;
 } | {
     matches: Term;
     rule: string;
@@ -217,6 +222,9 @@ export type Term = {
     emptySet: true;
 } | {
     union: Term[];
+} | {
+    if: Condition;
+    then: Term;
 } | {
     intersection: Term[];
 } | {
@@ -495,7 +503,7 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * @typedef {object} DomRule
  * @property {string} name
- * @property {"define" | "extend"} op
+ * @property {"define" | "redefine" | "extend"} op
  * @property {Term} [tags]
  * @property {DomAlternative[]} alternatives
  * @property {Emission} [emit]
@@ -525,24 +533,25 @@ export type ParseContext = import("./earley.js").ParseContext;
  */
 /**
  * One item of an emission clause: a capture, `""` for `$`, the whole
- * constituent, with the tags to give it or erased; or an inserted token.
+ * constituent, with the tags to give it or silent; or an inserted token.
  * @typedef {object} EmitItem
  * @property {string} [capture]
  * @property {string} [insert]
  * @property {Term} [tags]
- * @property {true} [erase]
+ * @property {true} [silent]
  */
 /**
  * @typedef {"=" | "≠" | "∈" | "∉" | "⊆"} Comparator
  */
 /**
  * A condition.
- * @typedef {{any: Condition[]} | {all: Condition[]} | {not: Condition} | {matches: Term, rule: string}
+ * @typedef {{any: Condition[]} | {all: Condition[]} | {not: Condition} | {captured: string}
+ *   | {if: Condition, then: Condition} | {matches: Term, rule: string}
  *   | {op: Comparator, left: Term, right: Term}} Condition
  */
 /**
  * A term of a condition or a tags clause.
- * @typedef {{literal: string} | {weak: string} | {emptySet: true} | {union: Term[]}
+ * @typedef {{literal: string} | {weak: string} | {emptySet: true} | {union: Term[]} | {if: Condition, then: Term}
  *   | {intersection: Term[]} | {call: string, args: Argument[]} | {capture: string}} Term
  */
 /**

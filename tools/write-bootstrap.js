@@ -19,5 +19,5 @@ const stages = readPipeline(fs.readFileSync(path.join(root, pipelinePath), "utf8
     return { path: documentPath, dom: readDocument(fs.readFileSync(path.join(root, documentPath), "utf8"), documentPath) };
   }),
 }));
-fs.writeFileSync(path.join(root, "notation", "bootstrap.json"), JSON.stringify({ format: 2, stages }) + "\n");
+fs.writeFileSync(path.join(root, "notation", "bootstrap.json"), JSON.stringify({ format: 3, stages }) + "\n");
 console.log("wrote grammars/notation/bootstrap.json");

@@ -1,9 +1,9 @@
 {
-  "description": "<> after a capture erases it: it is neither emitted nor walked, while the other captures are emitted (engine §11).",
+  "description": "<> after a capture makes it silent: it is neither emitted nor walked, while the other captures are emitted (engine §11).",
   "documents": {
     "p.md": "## s <?stage first?>\n\n- [g](g.md) <?grammar?>\n\n## t <?stage second?>\n\n- [h](h.md) <?grammar?>\n",
-    "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ $a(x) $b(y) ⇒ $a <>, $b ;\nx ≔ A ⇒ $ ;\ny ≔ B ⇒ $ ;\n```\n",
-    "h.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ B ;\n```\n"
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $a(x) $b(y) %emits $a <>, $b\n%rule x A %emits $\n%rule y B %emits $\n```\n",
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text B\n```\n"
   },
   "pipeline": "p.md",
   "tokens": [

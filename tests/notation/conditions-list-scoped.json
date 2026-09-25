@@ -1,0 +1,42 @@
+{
+  "description": "Each condition of the list applies to the alternatives that capture what it uses, so two conditions serve two alternatives (engine §3.6, §9).",
+  "document": "```jbogenbau\n%rule a $x(A) | $y(B) %conditions \"p\" ∈ tags($x), \"q\" ∈ tags($y)\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "conditions": [
+            {
+              "op": "∈",
+              "left": {
+                "literal": "p"
+              },
+              "right": {
+                "call": "tags",
+                "args": [
+                  {
+                    "capture": "x"
+                  }
+                ]
+              }
+            },
+            {
+              "op": "∈",
+              "left": {
+                "literal": "q"
+              },
+              "right": {
+                "call": "tags",
+                "args": [
+                  {
+                    "capture": "y"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

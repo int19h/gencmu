@@ -1,6 +1,6 @@
 {
   "description": "A condition over two captures holds or the item is dropped (engine §4, §10).",
-  "grammar": "text ≔ $a(W) $b(W) : text($a) = text($b) ;",
+  "grammar": "%rule text $a(W) $b(W) %conditions text($a) = text($b)",
   "tokens": [
     {
       "text": "x",

@@ -1,10 +1,42 @@
 {
-  "description": "Conditions are joined by ∧, not by a comma (engine §9); the error is at the comma.",
-  "document": "```ebnf\na ≔ $x(A) : \"p\" ∈ tags($x), \"q\" ∈ tags($x) ;\n```\n",
+  "description": "The conditions of %conditions are separated by commas, each one condition (engine §9).",
+  "document": "```jbogenbau\n%rule a $x(A) %conditions \"p\" ∈ tags($x), \"q\" ∈ tags($x)\n```\n",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 27
+    "dom": {
+      "rules": [
+        {
+          "conditions": [
+            {
+              "op": "∈",
+              "left": {
+                "literal": "p"
+              },
+              "right": {
+                "call": "tags",
+                "args": [
+                  {
+                    "capture": "x"
+                  }
+                ]
+              }
+            },
+            {
+              "op": "∈",
+              "left": {
+                "literal": "q"
+              },
+              "right": {
+                "call": "tags",
+                "args": [
+                  {
+                    "capture": "x"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   }
 }

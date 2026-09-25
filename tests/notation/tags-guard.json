@@ -1,0 +1,32 @@
+{
+  "description": "%tags that uses a capture some alternative lacks must guard it with ⟹; guarded, it reads as an if (engine §3.6, §9).",
+  "document": "```jbogenbau\n%rule a $x(A) | B %tags \"T\" ∪ ($x ⟹ tags($x))\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "tags": {
+            "union": [
+              {
+                "literal": "T"
+              },
+              {
+                "if": {
+                  "captured": "x"
+                },
+                "then": {
+                  "call": "tags",
+                  "args": [
+                    {
+                      "capture": "x"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

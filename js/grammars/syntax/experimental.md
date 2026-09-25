@@ -12,10 +12,15 @@ The grammar is written literately: each block of rules follows the prose that ex
 
 Two directives and a rule set the grammar up. `%ambiguity-resolution greedy` says how the stage chooses among parses: at the first difference between two parses it takes the one that reads the next word, so an elided terminator is absent for as long as the grammar allows, as in the CLL grammar. Unlike the CLL grammar, this one does not declare `elision-only`, because it has real ambiguities that are not about terminators, and the greedy rule is what settles them: a bare `na` is a term, beside the `na` that negates a selbri; under `cbm` a name is also a selbri; and under `term-hierarchy` terms may be joined by a connective and `bo` where a tagged term could take the same connection. With `elision-only`, each of those texts would be an error. `%elidable` lists the terminators that may be elided, CLL's and the experimental `fi'au`, `ku'au` and `ku'oi`. `#` is the free-modifier slot, any number of free modifiers, each a `free` as defined under "Free modifiers, vocatives and indicators".
 
-```ebnf
-%ambiguity-resolution greedy ;
-%elidable BEhO BOI DOhU FEhU FIhAU GEhU KEI KEhE KU KUhAU KUhE KUhO KUhOI LIhU LOhO LUhU MEhU NUhU SEhU TEhU TOI TUhU VAU VEhO ;
-# ≔ [free ...] ;
+```jbogenbau
+%ambiguity-resolution greedy
+%elidable
+  BEhO BOI DOhU FEhU FIhAU GEhU KEI KEhE KU KUhAU
+  KUhE KUhO KUhOI LIhU LOhO LUhU MEhU NUhU SEhU TEhU
+  TOI TUhU VAU VEhO
+
+%rule #
+  [free ...]
 ```
 
 ## The text and its paragraphs
@@ -24,19 +29,19 @@ A text is what one speaker or writer produces (CLL 19.1). It may open with `nai`
 
 Beyond CLL: `ce'e` may be the text-leading connective, so that a text may continue a termset of the text before it; the tense before `bo` in a text-leading `.i` may be a full `tag` rather than a `stag`; and a paragraph may begin with `.i ni'o`, which is how usage writes a new topic inside a reply.
 
-```ebnf
-text
-≔ [NAI ...] [CMEVLA ... # | (indicators & free ...)] [joik-jek | CEhE #] text-1 ;
+```jbogenbau
+%rule text
+  [NAI ...] [CMEVLA ... # | (indicators & free ...)] [joik-jek | CEhE #] text-1
 
-text-1
-≔ [(I [jek | joik] [[tag] BO] #) ... | NIhO ... #] [paragraphs] ;
+%rule text-1
+  [(I [jek | joik] [[tag] BO] #) ... | NIhO ... #] [paragraphs]
 
-paragraphs
-≔ paragraph [NIhO ... # paragraphs] ;
+%rule paragraphs
+  paragraph [NIhO ... # paragraphs]
 
-paragraph
-≔ (statement | fragment) [I # [statement | fragment]] ...
-| I # NIhO ... # [(statement | fragment) [I # [statement | fragment]] ...] ;
+%rule paragraph
+  | (statement | fragment) [I # [statement | fragment]] ...
+  | I # NIhO ... # [(statement | fragment) [I # [statement | fragment]] ...]
 ```
 
 ## Statements and fragments
@@ -47,28 +52,31 @@ Beyond CLL: the connective after `.i` may be an ek or a VUhU as well as a joik o
 
 A fragment is what a speaker utters when the utterance is not a sentence: a bare connective, a bare quantifier, a list of terms with an optional `vau`, a prenex, a relative clause, or a `be` or `bei` phrase (CLL 14.11, 19.9). CLL's `na` fragment is gone here: a bare `na` is a term (see "Terms"), so `na` and `na na` are terms fragments, which is the only way the two readings do not compete.
 
-```ebnf
-statement
-≔ statement-1 | prenex statement ;
+```jbogenbau
+%rule statement
+  statement-1 | prenex statement
 
-statement-1
-≔ statement-2 [I statement-connective [statement-2] | statement-connective I # [statement-2]] ... ;
+%rule statement-1
+  statement-2 [I statement-connective [statement-2] | statement-connective I # [statement-2]] ...
 
-statement-2
-≔ statement-3 [I [statement-connective] [tag] BO # [statement-2]] ;
+%rule statement-2
+  statement-3 [I [statement-connective] [tag] BO # [statement-2]]
 
-statement-3
-≔ sentence [bridi-tail-connective [stag] BO # subsentence | selbri-connective [stag] KE # subsentence [KEhE] #] ...
-| [tag] TUhE # text-1 [TUhU] # ;
+%rule statement-3
+  | sentence
+      [ bridi-tail-connective [stag] BO # subsentence
+      | selbri-connective [stag] KE # subsentence [KEhE] #
+      ] ...
+  | [tag] TUhE # text-1 [TUhU] #
 
-statement-connective
-≔ joik # | jek # | ek # | VUhU # ;
+%rule statement-connective
+  joik # | jek # | ek # | VUhU #
 
-fragment
-≔ ek # | gihek # | quantifier | terms [VAU] # | prenex | relative-clauses | links | linkargs ;
+%rule fragment
+  ek # | gihek # | quantifier | terms [VAU] # | prenex | relative-clauses | links | linkargs
 
-prenex
-≔ [terms] ZOhU # ;
+%rule prenex
+  [terms] ZOhU #
 ```
 
 ## Sentences and bridi-tails
@@ -77,42 +85,42 @@ A sentence is some terms, optionally `cu`, and a bridi-tail holding the selbri a
 
 Beyond CLL: `cu` may start a sentence with no leading terms, and terms may follow `cu` before the bridi-tail (`mi cu do klama`). The afterthought connective between bridi-tails may be any of gihek, joik, jek, ek or VUhU (`bridi-tail-connective`), and an explicit `cu` may follow it; only a gihek opens the `ke` bridi-tail grouping.
 
-```ebnf
-sentence
-≔ [terms] [CU # [terms]] bridi-tail ;
+```jbogenbau
+%rule sentence
+  [terms] [CU # [terms]] bridi-tail
 
-subsentence
-≔ sentence | prenex subsentence ;
+%rule subsentence
+  sentence | prenex subsentence
 
-bridi-tail
-≔ bridi-tail-1 [gihek [stag] KE # bridi-tail [KEhE] # tail-terms] ;
+%rule bridi-tail
+  bridi-tail-1 [gihek [stag] KE # bridi-tail [KEhE] # tail-terms]
 
-bridi-tail-1
-≔ bridi-tail-2 [bridi-tail-connective [CU #] bridi-tail-2-not-starting-with-ke tail-terms] ... ;
+%rule bridi-tail-1
+  bridi-tail-2 [bridi-tail-connective [CU #] bridi-tail-2-not-starting-with-ke tail-terms] ...
 
-bridi-tail-2
-≔ bridi-tail-3 [bridi-tail-connective [stag] BO # [CU #] bridi-tail-2 tail-terms] ;
+%rule bridi-tail-2
+  bridi-tail-3 [bridi-tail-connective [stag] BO # [CU #] bridi-tail-2 tail-terms]
 
-bridi-tail-3
-≔ selbri tail-terms | gek-sentence ;
+%rule bridi-tail-3
+  selbri tail-terms | gek-sentence
 
-bridi-tail-2-not-starting-with-ke
-≔ bridi-tail-3-not-starting-with-ke [bridi-tail-connective [stag] BO # [CU #] bridi-tail-2 tail-terms] ;
+%rule bridi-tail-2-not-starting-with-ke
+bridi-tail-3-not-starting-with-ke [bridi-tail-connective [stag] BO # [CU #] bridi-tail-2 tail-terms]
 
-bridi-tail-3-not-starting-with-ke
-≔ selbri-not-starting-with-ke tail-terms | gek-sentence ;
+%rule bridi-tail-3-not-starting-with-ke
+  selbri-not-starting-with-ke tail-terms | gek-sentence
 
-gek-sentence
-≔ gek subsentence gik subsentence tail-terms | [tag] KE # gek-sentence [KEhE] # | NA # gek-sentence ;
+%rule gek-sentence
+  gek subsentence gik subsentence tail-terms | [tag] KE # gek-sentence [KEhE] # | NA # gek-sentence
 
-bridi-tail-connective
-≔ gihek # | selbri-connective ;
+%rule bridi-tail-connective
+  gihek # | selbri-connective
 
-selbri-connective
-≔ joik # | jek # | ek # | VUhU # ;
+%rule selbri-connective
+  joik # | jek # | ek # | VUhU #
 
-tail-terms
-≔ [terms] [VAU] # ;
+%rule tail-terms
+  [terms] [VAU] #
 ```
 
 ## Terms
@@ -121,52 +129,70 @@ A term is one argument or one free-standing tag: a sumti, a tagged sumti or a ta
 
 Beyond CLL: terms may be connected directly by a joik, jek, ek or VUhU (`term-connective`, `mi joi do klama` read as one term); tagged terms may be bound with `(joik | ek) bo`, and under `term-hierarchy` so may any terms. `pe'e` takes any statement connective. New terms: a bare `na`; `noi'a selbri fe'u`, a selbri attached as a relative to the bridi; `fi'oi statement fi'au`, a statement as a term; and `soi statement se'u` as a term. A forethought termset needs no `nu'i`, and `ke terms ke'e` is a termset. The first term inside `nu'i ... nu'u` may not itself be a bare forethought termset, which would otherwise duplicate the `nu'i gek` form; that restriction is the `-not-starting-with-bare-gek` chain, which repeats the term rules with only the first term restricted.
 
-```ebnf
-terms
-≔ terms-1 ... ;
+```jbogenbau
+%rule terms
+  terms-1 ...
 
-terms-1
-≔ terms-2 [PEhE # statement-connective terms-2] ... ;
+%rule terms-1
+  terms-2 [PEhE # statement-connective terms-2] ...
 
-terms-2
-≔ term [CEhE # term] ... ;
+%rule terms-2
+  term [CEhE # term] ...
 
-term
-≔ term-3 [term-connective term-3] ...
-| tagged-term (joik # | ek #) BO # tagged-term
-| @term-hierarchy term-3 (joik # | ek #) BO # term-3 ;
+%rule term
+  | term-3 [term-connective term-3] ...
+  | tagged-term (joik # | ek #) BO # tagged-term
+  | @term-hierarchy term-3 (joik # | ek #) BO # term-3
 
-term-connective
-≔ joik # | jek # | ek # | VUhU # ;
+%rule term-connective
+  joik # | jek # | ek # | VUhU #
 
-term-3
-≔ sumti | tagged-term | termset | NA KU # | NA # | NOIhA # selbri [FEhU] # | FIhOI # statement [FIhAU] # | SOI # statement [SEhU] # ;
+%rule term-3
+  | sumti
+  | tagged-term
+  | termset
+  | NA KU #
+  | NA #
+  | NOIhA # selbri [FEhU] #
+  | FIhOI # statement [FIhAU] #
+  | SOI # statement [SEhU] #
 
-tagged-term
-≔ tag (sumti | [KU] #) | FA # (sumti | [KU #]) ;
+%rule tagged-term
+  tag (sumti | [KU] #) | FA # (sumti | [KU #])
 
-termset
-≔ [NUhI #] gek terms [NUhU] # gik terms [NUhU] # | NUhI # terms-not-starting-with-bare-gek [NUhU] # | KE # terms [KEhE] # ;
+%rule termset
+  | [NUhI #] gek terms [NUhU] # gik terms [NUhU] #
+  | NUhI # terms-not-starting-with-bare-gek [NUhU] #
+  | KE # terms [KEhE] #
 
-terms-not-starting-with-bare-gek
-≔ terms-1-not-starting-with-bare-gek [terms-1] ... ;
+%rule terms-not-starting-with-bare-gek
+  terms-1-not-starting-with-bare-gek [terms-1] ...
 
-terms-1-not-starting-with-bare-gek
-≔ terms-2-not-starting-with-bare-gek [PEhE # statement-connective terms-2] ... ;
+%rule terms-1-not-starting-with-bare-gek
+  terms-2-not-starting-with-bare-gek [PEhE # statement-connective terms-2] ...
 
-terms-2-not-starting-with-bare-gek
-≔ term-not-starting-with-bare-gek [CEhE # term] ... ;
+%rule terms-2-not-starting-with-bare-gek
+  term-not-starting-with-bare-gek [CEhE # term] ...
 
-term-not-starting-with-bare-gek
-≔ term-3-not-starting-with-bare-gek [term-connective term-3] ...
-| tagged-term (joik # | ek #) BO # tagged-term
-| @term-hierarchy term-3-not-starting-with-bare-gek (joik # | ek #) BO # term-3 ;
+%rule term-not-starting-with-bare-gek
+  | term-3-not-starting-with-bare-gek [term-connective term-3] ...
+  | tagged-term (joik # | ek #) BO # tagged-term
+  | @term-hierarchy term-3-not-starting-with-bare-gek (joik # | ek #) BO # term-3
 
-term-3-not-starting-with-bare-gek
-≔ sumti | tagged-term | termset-with-nuhi | NA KU # | NA # | NOIhA # selbri [FEhU] # | FIhOI # statement [FIhAU] # | SOI # statement [SEhU] # ;
+%rule term-3-not-starting-with-bare-gek
+  | sumti
+  | tagged-term
+  | termset-with-nuhi
+  | NA KU #
+  | NA #
+  | NOIhA # selbri [FEhU] #
+  | FIhOI # statement [FIhAU] #
+  | SOI # statement [SEhU] #
 
-termset-with-nuhi
-≔ NUhI # gek terms [NUhU] # gik terms [NUhU] # | NUhI # terms-not-starting-with-bare-gek [NUhU] # | KE # terms [KEhE] # ;
+%rule termset-with-nuhi
+  | NUhI # gek terms [NUhU] # gik terms [NUhU] #
+  | NUhI # terms-not-starting-with-bare-gek [NUhU] #
+  | KE # terms [KEhE] #
 ```
 
 A tagged term whose tag is a bare `fa` has its free modifiers after the
@@ -181,65 +207,65 @@ A sumti is an argument (CLL 6), and the levels `sumti` to `sumti-4` state its co
 
 Beyond CLL: sumti connectives are ek, JEhI, joik or VUhU (`sumti-connective`). After `vu'o` a connected sumti may follow the relative clauses or replace them. New sumti: `na'e sumti lu'u` without `bo`; `la'e` or `na'e bo` around a tagged sumti; a description whose two descriptors are joined by a jek (`lo je le broda`); `lo'oi statement ku'au`, a description of a statement, with connected heads; the single-word quotes `zo'oi`, `la'oi`, `me'oi`, whose bodies the word stage delimits, and the selma'o quote `ma'oi`. A `lo'u ... le'u` quote may be empty. Under `cbm` a cmevla is a selbri word, so the `la CMEVLA` name form is removed and `la .alis.` is a description.
 
-```ebnf
-sumti
-≔ sumti-1 [VUhO # (relative-clauses [sumti-connective sumti] | sumti-connective sumti)] ;
+```jbogenbau
+%rule sumti
+  sumti-1 [VUhO # (relative-clauses [sumti-connective sumti] | sumti-connective sumti)]
 
-sumti-1
-≔ sumti-2 [sumti-connective [stag] KE # sumti [KEhE] #] ;
+%rule sumti-1
+  sumti-2 [sumti-connective [stag] KE # sumti [KEhE] #]
 
-sumti-2
-≔ sumti-3 [sumti-connective sumti-3] ... ;
+%rule sumti-2
+  sumti-3 [sumti-connective sumti-3] ...
 
-sumti-3
-≔ sumti-4 [sumti-connective [stag] BO # sumti-3] ;
+%rule sumti-3
+  sumti-4 [sumti-connective [stag] BO # sumti-3]
 
-sumti-connective
-≔ ek # | jehi # | joik # | VUhU # ;
+%rule sumti-connective
+  ek # | jehi # | joik # | VUhU #
 
-sumti-4
-≔ sumti-5 | gek sumti gik sumti-4 ;
+%rule sumti-4
+  sumti-5 | gek sumti gik sumti-4
 
-sumti-5
-≔ [quantifier] sumti-6 [relative-clauses] | quantifier selbri [KU] # [relative-clauses] ;
+%rule sumti-5
+  [quantifier] sumti-6 [relative-clauses] | quantifier selbri [KU] # [relative-clauses]
 
-sumti-6
-≔ (LAhE # | NAhE BO #) [relative-clauses] sumti [LUhU] #
-| NAhE # sumti [LUhU] #
-| (LAhE # | NAhE BO #) (tag | FA #) sumti [LUhU] #
-| KOhA #
-| lerfu-string free-after-elided-boi
-| @¬cbm LA # [relative-clauses] CMEVLA ... #
-| (LA | LE) # sumti-tail [KU] #
-| (LA | LE) # jek (LA | LE) # sumti-tail [KU] #
-| LOhOI # [(joik # | jek #) LOhOI #] ... statement [KUhAU] #
-| LI # mex [LOhO] #
-| ZO any-word #
-| MAhOI any-word #
-| LU text [LIhU] #
-| LOhU [any-word ...] LEhU #
-| ZOI any-word anything any-word #
-| ZOhOI anything #
-| LAhOI anything #
-| MEhOI anything # ;
+%rule sumti-6
+  | (LAhE # | NAhE BO #) [relative-clauses] sumti [LUhU] #
+  | NAhE # sumti [LUhU] #
+  | (LAhE # | NAhE BO #) (tag | FA #) sumti [LUhU] #
+  | KOhA #
+  | lerfu-string free-after-elided-boi
+  | @¬cbm LA # [relative-clauses] CMEVLA ... #
+  | (LA | LE) # sumti-tail [KU] #
+  | (LA | LE) # jek (LA | LE) # sumti-tail [KU] #
+  | LOhOI # [(joik # | jek #) LOhOI #] ... statement [KUhAU] #
+  | LI # mex [LOhO] #
+  | ZO any-word #
+  | MAhOI any-word #
+  | LU text [LIhU] #
+  | LOhU [any-word ...] LEhU #
+  | ZOI any-word anything any-word #
+  | ZOhOI anything #
+  | LAhOI anything #
+  | MEhOI anything #
 
-sumti-tail
-≔ [sumti-6 [relative-clauses]] sumti-tail-1 | relative-clauses sumti-tail-1 ;
+%rule sumti-tail
+  [sumti-6 [relative-clauses]] sumti-tail-1 | relative-clauses sumti-tail-1
 
-sumti-tail-1
-≔ [quantifier] selbri [relative-clauses] | quantifier sumti ;
+%rule sumti-tail-1
+  [quantifier] selbri [relative-clauses] | quantifier sumti
 ```
 
 ## Relative clauses
 
 A relative clause attaches to a sumti: `goi` and its kin take a term and are closed by `ge'u`; `poi`, `noi` and `voi` take a subsentence closed by `ku'o` (CLL 8). Several clauses are joined by `zi'e`. Beyond CLL, consecutive relative clauses may also be joined by a joik or a jek.
 
-```ebnf
-relative-clauses
-≔ relative-clause [(ZIhE # | joik # | jek #) relative-clause] ... ;
+```jbogenbau
+%rule relative-clauses
+  relative-clause [(ZIhE # | joik # | jek #) relative-clause] ...
 
-relative-clause
-≔ GOI # term [GEhU] # | NOI # subsentence [KUhO] # ;
+%rule relative-clause
+  GOI # term [GEhU] # | NOI # subsentence [KUhO] #
 ```
 
 ## Selbri and tanru
@@ -250,111 +276,111 @@ A tanru unit takes `cei` to assign a pro-bridi and linked arguments `be ... bei 
 
 Beyond CLL: selbri and tanru-unit connectives are joik, jek, ek or VUhU (`selbri-connective`); a `bo` grouping may carry a stag without a connective. A selbri may be tagged by a bare `fa`. A guhek may be prefixed by `na'e`. New tanru units: a cmevla under `cbm`; preposed linked arguments (`lo be mi broda`); `xo'i tag`, a tag turned into a selbri; the word quotes `go'oi`, `ze'oi`, `ta'ai`, `bo'ei` as selbri units. The term after `be` or `bei` may be absent. A tanru unit may carry selbri relative clauses: `no'oi subsentence ku'oi`, in which `ke'a` refers to the selbri (`mi klama no'oi bajra`), joined by `zi'e` or a joik.
 
-```ebnf
-selbri
-≔ [tag | FA #] selbri-1 ;
+```jbogenbau
+%rule selbri
+  [tag | FA #] selbri-1
 
-selbri-1
-≔ selbri-2 | NA # selbri ;
+%rule selbri-1
+  selbri-2 | NA # selbri
 
-selbri-2
-≔ selbri-3 [CO # selbri-2] ;
+%rule selbri-2
+  selbri-3 [CO # selbri-2]
 
-selbri-3
-≔ selbri-4 ... ;
+%rule selbri-3
+  selbri-4 ...
 
-selbri-4
-≔ selbri-5 [selbri-connective selbri-5 | joik [stag] KE # selbri-3 [KEhE] #] ... ;
+%rule selbri-4
+  selbri-5 [selbri-connective selbri-5 | joik [stag] KE # selbri-3 [KEhE] #] ...
 
-selbri-5
-≔ selbri-6 [selbri-connective [stag] BO # selbri-5] ;
+%rule selbri-5
+  selbri-6 [selbri-connective [stag] BO # selbri-5]
 
-selbri-6
-≔ tanru-unit [[stag] BO # selbri-6] | [NAhE #] guhek selbri gik selbri-6 ;
+%rule selbri-6
+  tanru-unit [[stag] BO # selbri-6] | [NAhE #] guhek selbri gik selbri-6
 
-selbri-not-starting-with-ke
-≔ [tag] selbri-1-not-starting-with-ke ;
+%rule selbri-not-starting-with-ke
+  [tag] selbri-1-not-starting-with-ke
 
-selbri-1-not-starting-with-ke
-≔ selbri-2-not-starting-with-ke | NA # selbri ;
+%rule selbri-1-not-starting-with-ke
+  selbri-2-not-starting-with-ke | NA # selbri
 
-selbri-2-not-starting-with-ke
-≔ selbri-3-not-starting-with-ke [CO # selbri-2] ;
+%rule selbri-2-not-starting-with-ke
+  selbri-3-not-starting-with-ke [CO # selbri-2]
 
-selbri-3-not-starting-with-ke
-≔ selbri-4-not-starting-with-ke [selbri-4] ... ;
+%rule selbri-3-not-starting-with-ke
+  selbri-4-not-starting-with-ke [selbri-4] ...
 
-selbri-4-not-starting-with-ke
-≔ selbri-5-not-starting-with-ke [selbri-connective selbri-5 | joik [stag] KE # selbri-3 [KEhE] #] ... ;
+%rule selbri-4-not-starting-with-ke
+selbri-5-not-starting-with-ke [selbri-connective selbri-5 | joik [stag] KE # selbri-3 [KEhE] #] ...
 
-selbri-5-not-starting-with-ke
-≔ selbri-6-not-starting-with-ke [selbri-connective [stag] BO # selbri-5] ;
+%rule selbri-5-not-starting-with-ke
+  selbri-6-not-starting-with-ke [selbri-connective [stag] BO # selbri-5]
 
-selbri-6-not-starting-with-ke
-≔ tanru-unit-not-starting-with-ke [[stag] BO # selbri-6] | [NAhE #] guhek selbri gik selbri-6 ;
+%rule selbri-6-not-starting-with-ke
+  tanru-unit-not-starting-with-ke [[stag] BO # selbri-6] | [NAhE #] guhek selbri gik selbri-6
 
-tanru-unit
-≔ tanru-unit-1 [CEI # tanru-unit-1] ... [selbri-relative-clauses] ;
+%rule tanru-unit
+  tanru-unit-1 [CEI # tanru-unit-1] ... [selbri-relative-clauses]
 
-tanru-unit-1
-≔ tanru-unit-2 [linkargs] ;
+%rule tanru-unit-1
+  tanru-unit-2 [linkargs]
 
-tanru-unit-2
-≔ KE # selbri-3 [KEhE] #
-| BRIVLA #
-| @cbm CMEVLA #
-| GOhA [RAhO] #
-| ME # sumti [MEhU] # [MOI #]
-| (number | lerfu-string) MOI #
-| NUhA # mex-operator
-| SE # tanru-unit-2
-| JAI # [tag] tanru-unit-2
-| any-word (ZEI any-word) ...
-| NAhE # tanru-unit-2
-| NU [NAI] # [joik-jek NU [NAI] #] ... subsentence [KEI] #
-| linkargs tanru-unit-2
-| XOhI # tag
-| GOhOI anything #
-| ZEhOI anything #
-| TAhAI anything #
-| BOhEI anything # ;
+%rule tanru-unit-2
+  | KE # selbri-3 [KEhE] #
+  | BRIVLA #
+  | @cbm CMEVLA #
+  | GOhA [RAhO] #
+  | ME # sumti [MEhU] # [MOI #]
+  | (number | lerfu-string) MOI #
+  | NUhA # mex-operator
+  | SE # tanru-unit-2
+  | JAI # [tag] tanru-unit-2
+  | any-word (ZEI any-word) ...
+  | NAhE # tanru-unit-2
+  | NU [NAI] # [joik-jek NU [NAI] #] ... subsentence [KEI] #
+  | linkargs tanru-unit-2
+  | XOhI # tag
+  | GOhOI anything #
+  | ZEhOI anything #
+  | TAhAI anything #
+  | BOhEI anything #
 
-tanru-unit-not-starting-with-ke
-≔ tanru-unit-1-not-starting-with-ke [CEI # tanru-unit-1] ... [selbri-relative-clauses] ;
+%rule tanru-unit-not-starting-with-ke
+  tanru-unit-1-not-starting-with-ke [CEI # tanru-unit-1] ... [selbri-relative-clauses]
 
-tanru-unit-1-not-starting-with-ke
-≔ tanru-unit-2-not-starting-with-ke [linkargs] ;
+%rule tanru-unit-1-not-starting-with-ke
+  tanru-unit-2-not-starting-with-ke [linkargs]
 
-tanru-unit-2-not-starting-with-ke
-≔ BRIVLA #
-| @cbm CMEVLA #
-| GOhA [RAhO] #
-| ME # sumti [MEhU] # [MOI #]
-| (number | lerfu-string) MOI #
-| NUhA # mex-operator
-| SE # tanru-unit-2
-| JAI # [tag] tanru-unit-2
-| any-word (ZEI any-word) ...
-| NAhE # tanru-unit-2
-| NU [NAI] # [joik-jek NU [NAI] #] ... subsentence [KEI] #
-| linkargs tanru-unit-2
-| XOhI # tag
-| GOhOI anything #
-| ZEhOI anything #
-| TAhAI anything #
-| BOhEI anything # ;
+%rule tanru-unit-2-not-starting-with-ke
+  | BRIVLA #
+  | @cbm CMEVLA #
+  | GOhA [RAhO] #
+  | ME # sumti [MEhU] # [MOI #]
+  | (number | lerfu-string) MOI #
+  | NUhA # mex-operator
+  | SE # tanru-unit-2
+  | JAI # [tag] tanru-unit-2
+  | any-word (ZEI any-word) ...
+  | NAhE # tanru-unit-2
+  | NU [NAI] # [joik-jek NU [NAI] #] ... subsentence [KEI] #
+  | linkargs tanru-unit-2
+  | XOhI # tag
+  | GOhOI anything #
+  | ZEhOI anything #
+  | TAhAI anything #
+  | BOhEI anything #
 
-selbri-relative-clauses
-≔ selbri-relative-clause [(ZIhE # | joik #) selbri-relative-clause] ... ;
+%rule selbri-relative-clauses
+  selbri-relative-clause [(ZIhE # | joik #) selbri-relative-clause] ...
 
-selbri-relative-clause
-≔ NOhOI # subsentence [KUhOI] # ;
+%rule selbri-relative-clause
+  NOhOI # subsentence [KUhOI] #
 
-linkargs
-≔ BE # [term] [links] [BEhO] # ;
+%rule linkargs
+  BE # [term] [links] [BEhO] #
 
-links
-≔ BEI # [term] [links] ;
+%rule links
+  BEI # [term] [links]
 ```
 
 ## Numbers, lerfu strings and mekso
@@ -363,96 +389,102 @@ A number is a string of PA words into which lerfu words may be mixed, and a lerf
 
 Beyond CLL: operands may be connected by a jek, and after an elided `boi` a number or lerfu string is followed by `free-after-elided-boi`, defined under "Free modifiers", rather than by a plain `#`.
 
-```ebnf
-quantifier
-≔ number free-after-elided-boi | VEI # mex [VEhO] # ;
+```jbogenbau
+%rule quantifier
+  number free-after-elided-boi | VEI # mex [VEhO] #
 
-mex
-≔ mex-1 [operator mex-1] ... | FUhA # rp-expression ;
+%rule mex
+  mex-1 [operator mex-1] ... | FUhA # rp-expression
 
-mex-1
-≔ mex-2 [BIhE # operator mex-1] ;
+%rule mex-1
+  mex-2 [BIhE # operator mex-1]
 
-mex-2
-≔ operand | [PEhO #] operator mex-2 ... [KUhE] # ;
+%rule mex-2
+  operand | [PEhO #] operator mex-2 ... [KUhE] #
 
-rp-expression
-≔ rp-operand rp-operand operator ;
+%rule rp-expression
+  rp-operand rp-operand operator
 
-rp-operand
-≔ operand | rp-expression ;
+%rule rp-operand
+  operand | rp-expression
 
-operator
-≔ operator-1 [joik-jek operator-1 | joik [stag] KE # operator [KEhE] #] ... ;
+%rule operator
+  operator-1 [joik-jek operator-1 | joik [stag] KE # operator [KEhE] #] ...
 
-operator-1
-≔ operator-2 | guhek operator-1 gik operator-2 | operator-2 (jek | joik) [stag] BO # operator-1 ;
+%rule operator-1
+  operator-2 | guhek operator-1 gik operator-2 | operator-2 (jek | joik) [stag] BO # operator-1
 
-operator-2
-≔ mex-operator | KE # operator [KEhE] # ;
+%rule operator-2
+  mex-operator | KE # operator [KEhE] #
 
-mex-operator
-≔ SE # mex-operator | NAhE # mex-operator | MAhO # mex [TEhU] # | NAhU # selbri [TEhU] # | VUhU # ;
+%rule mex-operator
+  SE # mex-operator | NAhE # mex-operator | MAhO # mex [TEhU] # | NAhU # selbri [TEhU] # | VUhU #
 
-operand
-≔ operand-1 [(ek | joik) [stag] KE # operand [KEhE] #] ;
+%rule operand
+  operand-1 [(ek | joik) [stag] KE # operand [KEhE] #]
 
-operand-1
-≔ operand-2 [joik-ek operand-2 | jek # operand-2] ... ;
+%rule operand-1
+  operand-2 [joik-ek operand-2 | jek # operand-2] ...
 
-operand-2
-≔ operand-3 [(ek | joik) [stag] BO # operand-2] ;
+%rule operand-2
+  operand-3 [(ek | joik) [stag] BO # operand-2]
 
-operand-3
-≔ quantifier | lerfu-string free-after-elided-boi | NIhE # selbri [TEhU] # | MOhE # sumti [TEhU] # | JOhI # mex-2 ... [TEhU] # | gek operand gik operand-3 | (LAhE # | NAhE BO #) operand [LUhU] # ;
+%rule operand-3
+  | quantifier
+  | lerfu-string free-after-elided-boi
+  | NIhE # selbri [TEhU] #
+  | MOhE # sumti [TEhU] #
+  | JOhI # mex-2 ... [TEhU] #
+  | gek operand gik operand-3
+  | (LAhE # | NAhE BO #) operand [LUhU] #
 
-number
-≔ PA [PA | lerfu-word] ... ;
+%rule number
+  PA [PA | lerfu-word] ...
 
-lerfu-string
-≔ lerfu-word [PA | lerfu-word] ... ;
+%rule lerfu-string
+  lerfu-word [PA | lerfu-word] ...
 
-lerfu-word
-≔ BY | any-word BU | LAU lerfu-word | TEI lerfu-string FOI ;
+%rule lerfu-word
+  BY | any-word BU | LAU lerfu-word | TEI lerfu-string FOI
 ```
 
 ## Logical and non-logical connectives
 
 An ek joins sumti, a gihek joins bridi-tails, a jek joins tanru units and sentences, and a gek is the forethought form; each afterthought connective may take `na` before, `nai` after, and `se` (CLL 14.2). A joik is a non-logical connective or an interval (CLL 14.14, 14.16). A gek is a forethought logical connective, a joik with `gi`, or a tense with `gi`, and the two halves are separated by a gik; a guhek is the forethought connective of tanru units. Beyond CLL: `jehi` is the JEhI family of sumti connectives, and a guhek may be prefixed by `na'e`.
 
-```ebnf
-ek
-≔ [NA] [SE] A [NAI] ;
+```jbogenbau
+%rule ek
+  [NA] [SE] A [NAI]
 
-jehi
-≔ [NA] [SE] JEhI [NAI] ;
+%rule jehi
+  [NA] [SE] JEhI [NAI]
 
-gihek
-≔ [NA] [SE] GIhA [NAI] ;
+%rule gihek
+  [NA] [SE] GIhA [NAI]
 
-jek
-≔ [NA] [SE] JA [NAI] ;
+%rule jek
+  [NA] [SE] JA [NAI]
 
-joik
-≔ [SE] JOI [NAI] | interval | GAhO interval GAhO ;
+%rule joik
+  [SE] JOI [NAI] | interval | GAhO interval GAhO
 
-interval
-≔ [SE] BIhI [NAI] ;
+%rule interval
+  [SE] BIhI [NAI]
 
-joik-ek
-≔ joik # | ek # ;
+%rule joik-ek
+  joik # | ek #
 
-joik-jek
-≔ joik # | jek # ;
+%rule joik-jek
+  joik # | jek #
 
-gek
-≔ [SE] GA [NAI] # | joik GI # | stag gik ;
+%rule gek
+  [SE] GA [NAI] # | joik GI # | stag gik
 
-guhek
-≔ [NAhE] [SE] GUhA [NAI] # ;
+%rule guhek
+  [NAhE] [SE] GUhA [NAI] #
 
-gik
-≔ GI [NAI] # ;
+%rule gik
+  GI [NAI] #
 ```
 
 ## Tenses and modals
@@ -461,39 +493,44 @@ A tag turns a sumti into a modal or tense term and marks a selbri or a sentence 
 
 Beyond CLL: `na'e [se] fa` and `se fa` are tags, and `fa` alone is a stag, so a place tag may be converted like a modal; and `se` may prefix a time, space or CAhA tense.
 
-```ebnf
-tag
-≔ tense-modal [joik-jek tense-modal] ... ;
+```jbogenbau
+%rule tag
+  tense-modal [joik-jek tense-modal] ...
 
-stag
-≔ simple-tense-modal [(jek | joik) simple-tense-modal] ... | FA ;
+%rule stag
+  simple-tense-modal [(jek | joik) simple-tense-modal] ... | FA
 
-tense-modal
-≔ simple-tense-modal # | FIhO # selbri [FEhU] # ;
+%rule tense-modal
+  simple-tense-modal # | FIhO # selbri [FEhU] #
 
-simple-tense-modal
-≔ [NAhE] [SE] BAI [NAI] [KI] | [NAhE] [SE] ((time [space] | space [time]) & CAhA) [KI] | NAhE [SE] FA | SE FA | KI | CUhE ;
+%rule simple-tense-modal
+  | [NAhE] [SE] BAI [NAI] [KI]
+  | [NAhE] [SE] ((time [space] | space [time]) & CAhA) [KI]
+  | NAhE [SE] FA
+  | SE FA
+  | KI
+  | CUhE
 
-time
-≔ ZI & time-offset ... & (ZEhA [PU [NAI]]) & interval-property ... ;
+%rule time
+  ZI & time-offset ... & (ZEhA [PU [NAI]]) & interval-property ...
 
-time-offset
-≔ PU [NAI] [ZI] ;
+%rule time-offset
+  PU [NAI] [ZI]
 
-space
-≔ VA & space-offset ... & space-interval & (MOhI space-offset) ;
+%rule space
+  VA & space-offset ... & space-interval & (MOhI space-offset)
 
-space-offset
-≔ FAhA [NAI] [VA] ;
+%rule space-offset
+  FAhA [NAI] [VA]
 
-space-interval
-≔ ((VEhA & VIhA) [FAhA [NAI]]) & space-int-props ;
+%rule space-interval
+  ((VEhA & VIhA) [FAhA [NAI]]) & space-int-props
 
-space-int-props
-≔ (FEhE interval-property) ... ;
+%rule space-int-props
+  (FEhE interval-property) ...
 
-interval-property
-≔ number ROI [NAI] | TAhE [NAI] | ZAhO [NAI] ;
+%rule interval-property
+  number ROI [NAI] | TAhE [NAI] | ZAhO [NAI]
 ```
 
 ## Free modifiers, vocatives and indicators
@@ -502,45 +539,45 @@ A free modifier may stand wherever the grammar writes `#` (CLL 19.12): a `sei` d
 
 Beyond CLL: the text replacement forms `lo'ai ... sa'ai ... le'ai`, `sa'ai ... le'ai` and `le'ai` are free modifiers. Under `cbm` the `vocative CMEVLA ...` form is removed, since a cmevla is then a selbri word and the two readings would tie. `free-after-elided-boi` is what follows a number or lerfu string whose `boi` is elided: either the spoken `boi` with its slot, or free modifiers that do not begin with a number or lerfu string, so that `pa so mo'o` is the number `pa so` and not `pa` followed by the ordinal `so mo'o`; `free-not-starting-with-number` is `free` without the MAI form.
 
-```ebnf
-free
-≔ SEI # [terms [CU #]] selbri [SEhU]
-| SOI # sumti [sumti] [SEhU]
-| vocative [relative-clauses] selbri [relative-clauses] [DOhU]
-| @¬cbm vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
-| vocative [sumti] [DOhU]
-| (number | lerfu-string) MAI
-| TO text [TOI]
-| XI # (number | lerfu-string) [BOI]
-| XI # VEI # mex [VEhO]
-| LOhAI [any-word ...] [SAhAI [any-word ...]] LEhAI
-| SAhAI [any-word ...] LEhAI
-| LEhAI ;
+```jbogenbau
+%rule free
+  | SEI # [terms [CU #]] selbri [SEhU]
+  | SOI # sumti [sumti] [SEhU]
+  | vocative [relative-clauses] selbri [relative-clauses] [DOhU]
+  | @¬cbm vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
+  | vocative [sumti] [DOhU]
+  | (number | lerfu-string) MAI
+  | TO text [TOI]
+  | XI # (number | lerfu-string) [BOI]
+  | XI # VEI # mex [VEhO]
+  | LOhAI [any-word ...] [SAhAI [any-word ...]] LEhAI
+  | SAhAI [any-word ...] LEhAI
+  | LEhAI
 
-free-after-elided-boi
-≔ BOI # | [free-not-starting-with-number ...] ;
+%rule free-after-elided-boi
+  BOI # | [free-not-starting-with-number ...]
 
-free-not-starting-with-number
-≔ SEI # [terms [CU #]] selbri [SEhU]
-| SOI # sumti [sumti] [SEhU]
-| vocative [relative-clauses] selbri [relative-clauses] [DOhU]
-| @¬cbm vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
-| vocative [sumti] [DOhU]
-| TO text [TOI]
-| XI # (number | lerfu-string) [BOI]
-| XI # VEI # mex [VEhO]
-| LOhAI [any-word ...] [SAhAI [any-word ...]] LEhAI
-| SAhAI [any-word ...] LEhAI
-| LEhAI ;
+%rule free-not-starting-with-number
+  | SEI # [terms [CU #]] selbri [SEhU]
+  | SOI # sumti [sumti] [SEhU]
+  | vocative [relative-clauses] selbri [relative-clauses] [DOhU]
+  | @¬cbm vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
+  | vocative [sumti] [DOhU]
+  | TO text [TOI]
+  | XI # (number | lerfu-string) [BOI]
+  | XI # VEI # mex [VEhO]
+  | LOhAI [any-word ...] [SAhAI [any-word ...]] LEhAI
+  | SAhAI [any-word ...] LEhAI
+  | LEhAI
 
-vocative
-≔ (COI [NAI]) ... & DOI ;
+%rule vocative
+  (COI [NAI]) ... & DOI
 
-indicators
-≔ [FUhE] indicator ... ;
+%rule indicators
+  [FUhE] indicator ...
 
-indicator
-≔ (UI | CAI) [NAI] | Y | DAhO | FUhO ;
+%rule indicator
+  (UI | CAI) [NAI] | Y | DAhO | FUhO
 ```
 
 ## The non-formal rules
@@ -551,10 +588,12 @@ Two of them are the material of quotes. The word stage delimits every quote,
 and hands on a quoted word tagged `word` and quoted foreign text tagged
 `foreign-text`, so here they are ordinary rules:
 
-```ebnf
-any-word ≔ "word" ;
+```jbogenbau
+%rule any-word
+  "word"
 
-anything ≔ "foreign-text" ;
+%rule anything
+  "foreign-text"
 ```
 
 The other two are applied by the stages before this one: the indicator

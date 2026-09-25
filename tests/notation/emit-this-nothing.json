@@ -1,6 +1,6 @@
 {
-  "description": "⇒ $ emits the whole constituent, with tags of its own, and ⇒ $ <> erases it (engine §9).",
-  "document": "# A document\n\nSome prose.\n\n```ebnf\na ≔ A ⇒ $ <\"X\"> ; b ≔ B ⇒ $ <> ;\n```\n",
+  "description": "%emits $ emits the whole constituent, with tags of its own, and %emits $ <> makes it silent (engine §9).",
+  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule a A %emits $ <\"X\">\n%rule b B %emits $ <>\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -21,7 +21,7 @@
             "items": [
               {
                 "capture": "",
-                "erase": true
+                "silent": true
               }
             ]
           }

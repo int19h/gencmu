@@ -1,8 +1,8 @@
 // Package gencmu is a Lojban parser whose grammars are data: literate
-// Markdown documents, loaded at runtime, whose fenced ebnf blocks are read
-// by the notation's own grammar. A dialect is a pipeline document naming
-// the stages a text passes through, from characters to phonemes, words and
-// a parse tree, and the grammar documents stitched into each.
+// Markdown documents, loaded at runtime, whose fenced jbogenbau blocks are
+// read by the notation's own grammar. A dialect is a pipeline document
+// naming the stages a text passes through, from characters to phonemes,
+// words and a parse tree, and the grammar documents stitched into each.
 //
 // This package is one of four clean-room implementations of one
 // specification, docs/engine.md in the gencmu repository, with the results
@@ -22,7 +22,7 @@
 // # Parsing
 //
 //	dialect, err := gencmu.LoadDialect("notation")
-//	result, err := dialect.Parse("text ≔ A [B] ... ;", gencmu.ParseOptions{})
+//	result, err := dialect.Parse("%rule text A [B] ...", gencmu.ParseOptions{})
 //	if result.OK { fmt.Println(gencmu.Brackets(result, gencmu.BracketOptions{})) }
 //	data, err := gencmu.MarshalResult(result) // the canonical JSON
 //

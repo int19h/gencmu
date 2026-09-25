@@ -5,7 +5,7 @@
 use crate::json::{write_str, Json};
 
 /// The DOM format version (`docs/output.md`).
-pub(crate) const DOM_FORMAT: i64 = 2;
+pub(crate) const DOM_FORMAT: i64 = 3;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Dom {
@@ -16,6 +16,7 @@ pub(crate) struct Dom {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Op {
     Define,
+    Redefine,
     Extend,
 }
 
@@ -68,6 +69,8 @@ pub(crate) enum Term {
     Intersection(Vec<Term>),
     Call(String, Vec<Arg>),
     Capture(String),
+    /// `A ⟹ t`: `t` where the condition holds, else the empty set.
+    If(Box<Cond>, Box<Term>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -83,6 +86,10 @@ pub(crate) enum Cond {
     Not(Box<Cond>),
     Any(Vec<Cond>),
     All(Vec<Cond>),
+    /// `$x` standing as a condition: whether the production has the capture.
+    Captured(String),
+    /// `A ⟹ B`.
+    If(Box<Cond>, Box<Cond>),
 }
 
 /// An item of an emission clause. A capture named `""` is `$`, the whole
@@ -90,7 +97,8 @@ pub(crate) enum Cond {
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum EmitItem {
     Capture(String, Option<Term>),
-    Erase(String),
+    /// A capture named with `<>`: not emitted, and not heard (§11).
+    Silent(String),
     Insert(String),
 }
 
@@ -145,12 +153,19 @@ pub(crate) fn dom_from_json(value: &Json) -> R<Dom> {
             })
         })
         .collect::<R<Vec<_>>>()?;
+    // A definition the reader would refuse (engine §9).
+    for rule in &rules {
+        if let Some(problem) = crate::clauses::definition_problem(rule) {
+            return Err(problem);
+        }
+    }
     Ok(Dom { rules, directives })
 }
 
 fn rule_from_json(value: &Json) -> R<RuleDef> {
     let op = match string(value, "op")?.as_str() {
         "define" => Op::Define,
+        "redefine" => Op::Redefine,
         "extend" => Op::Extend,
         other => return Err(format!("an unknown rule op {other:?}")),
     };
@@ -217,6 +232,9 @@ fn term_from_json(value: &Json) -> R<Term> {
         "union" => Term::Union(list("union")?),
         "intersection" => Term::Intersection(list("intersection")?),
         "capture" => Term::Capture(string(value, "capture")?),
+        "if" => {
+            Term::If(Box::new(cond_from_json(field(value, "if")?)?), Box::new(term_from_json(field(value, "then")?)?))
+        }
         "call" => Term::Call(
             string(value, "call")?,
             array(value, "args")?
@@ -242,6 +260,10 @@ fn cond_from_json(value: &Json) -> R<Cond> {
         "not" => Cond::Not(Box::new(cond_from_json(field(value, "not")?)?)),
         "any" => Cond::Any(array(value, "any")?.iter().map(cond_from_json).collect::<R<Vec<_>>>()?),
         "all" => Cond::All(array(value, "all")?.iter().map(cond_from_json).collect::<R<Vec<_>>>()?),
+        "captured" => Cond::Captured(string(value, "captured")?),
+        "if" => {
+            Cond::If(Box::new(cond_from_json(field(value, "if")?)?), Box::new(cond_from_json(field(value, "then")?)?))
+        }
         other => return Err(format!("an unknown condition {other:?}")),
     })
 }
@@ -252,8 +274,8 @@ fn emit_from_json(value: &Json) -> R<Vec<EmitItem>> {
         .map(|item| {
             let tags = item.get("tags").map(term_from_json).transpose()?;
             if let Some(Json::Str(name)) = item.get("capture") {
-                if is_true(item.get("erase")) {
-                    Ok(EmitItem::Erase(name.clone()))
+                if is_true(item.get("silent")) {
+                    Ok(EmitItem::Silent(name.clone()))
                 } else {
                     Ok(EmitItem::Capture(name.clone(), tags))
                 }
@@ -333,6 +355,9 @@ enum Kind {
     /// A function's argument: a term where a span may stand.
     Argument,
     Condition,
+    /// A condition inside a tag term, a guard's, which may not read the
+    /// tags the term defines either.
+    TagCondition,
     Emission,
 }
 
@@ -346,7 +371,7 @@ pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
         || dom.get("rules").and_then(Json::as_array).is_none()
         || dom.get("directives").and_then(Json::as_array).is_none()
     {
-        return Some("not a DOM of format 2");
+        return Some("not a DOM of format 3");
     }
     for directive in dom.get("directives").and_then(Json::as_array).unwrap_or(&[]) {
         let args = directive.get("args").and_then(Json::as_array);
@@ -364,7 +389,7 @@ pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
         let conditions = rule.get("conditions").and_then(Json::as_array);
         if !is_object(rule)
             || !rule.get("name").and_then(Json::as_str).is_some_and(is_rule_name)
-            || !matches!(rule.get("op").and_then(Json::as_str), Some("define" | "extend"))
+            || !matches!(rule.get("op").and_then(Json::as_str), Some("define" | "redefine" | "extend"))
             || !alternatives.is_some_and(|alternatives| !alternatives.is_empty())
             || conditions.is_none()
             || !is_position(rule.get("at"))
@@ -446,7 +471,7 @@ pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
             return Some(match kind {
                 Kind::Expr => "a malformed expression",
                 Kind::Term | Kind::TagTerm | Kind::Argument => "a malformed term",
-                Kind::Condition => "a malformed condition",
+                Kind::Condition | Kind::TagCondition => "a malformed condition",
                 Kind::Emission => "a malformed emission",
             });
         }
@@ -503,27 +528,27 @@ pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
                 }
                 let items = value.get("items").and_then(Json::as_array).unwrap_or(&[]);
                 let mut whole = 0;
-                let mut erased_whole = false;
+                let mut silent_whole = false;
                 let mut captures: Vec<&str> = Vec::new();
                 for item in items {
                     if !is_object(item) {
                         return Some("a malformed emission");
                     }
-                    let erase = item.get("erase");
-                    if erase.is_some() && (!is_true(erase) || has(item, "tags")) {
+                    let silent = item.get("silent");
+                    if silent.is_some() && (!is_true(silent) || has(item, "tags")) {
                         return Some("a malformed emission");
                     }
                     if let Some(name) = item.get("capture").and_then(Json::as_str) {
                         if name.is_empty() {
                             whole += 1;
-                            erased_whole |= erase.is_some();
+                            silent_whole |= silent.is_some();
                         } else if captures.contains(&name) {
                             return Some("a malformed emission");
                         } else {
                             captures.push(name);
                         }
                     } else if is_str(item.get("insert")) {
-                        if has(item, "tags") || erase.is_some() {
+                        if has(item, "tags") || silent.is_some() {
                             return Some("a malformed emission");
                         }
                     } else {
@@ -538,21 +563,35 @@ pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
                         pending.push((Kind::Term, tags, 0));
                     }
                 }
-                if (whole > 0 && whole < items.len()) || (erased_whole && items.len() > 1) {
+                if (whole > 0 && whole < items.len()) || (silent_whole && items.len() > 1) {
                     return Some("a malformed emission");
                 }
             }
-            Kind::Condition => {
+            Kind::Condition | Kind::TagCondition => {
+                // A guard's condition inside a tag term may not read the
+                // term's own tags either (§9).
+                let (conditions, terms) =
+                    if kind == Kind::TagCondition { (kind, Kind::TagTerm) } else { (kind, Kind::Term) };
                 if has(value, "any") || has(value, "all") {
                     let items = value.get("any").or_else(|| value.get("all"));
                     if !list(items, 2, usize::MAX) {
                         return Some("a malformed condition");
                     }
                     pending.extend(
-                        items.and_then(Json::as_array).unwrap_or(&[]).iter().map(|item| (Kind::Condition, item, next)),
+                        items.and_then(Json::as_array).unwrap_or(&[]).iter().map(|item| (conditions, item, next)),
                     );
                 } else if let Some(inner) = value.get("not") {
-                    pending.push((Kind::Condition, inner, next));
+                    pending.push((conditions, inner, next));
+                } else if let Some(name) = value.get("captured") {
+                    if !matches!(name, Json::Str(_)) || value.as_object().map_or(0, <[_]>::len) != 1 {
+                        return Some("a malformed condition");
+                    }
+                } else if let Some(inner) = value.get("if") {
+                    let Some(then) = value.get("then").filter(|_| value.as_object().map_or(0, <[_]>::len) == 2) else {
+                        return Some("a malformed condition");
+                    };
+                    pending.push((conditions, inner, next));
+                    pending.push((conditions, then, next));
                 } else if let Some(span) = value.get("matches") {
                     if !is_str(value.get("rule")) || !is_span_json(span) {
                         return Some("a malformed condition");
@@ -564,8 +603,8 @@ pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
                     }
                     match (value.get("left"), value.get("right")) {
                         (Some(left), Some(right)) => {
-                            pending.push((Kind::Term, left, next));
-                            pending.push((Kind::Term, right, next));
+                            pending.push((terms, left, next));
+                            pending.push((terms, right, next));
                         }
                         _ => return Some("a malformed condition"),
                     }
@@ -576,12 +615,18 @@ pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
                 if own && is_whole(value) {
                     return Some("a tag term that reads the tags it defines");
                 }
-                if has(value, "union") || has(value, "intersection") {
+                let inner = if own { Kind::TagTerm } else { Kind::Term };
+                if let Some(cond) = value.get("if") {
+                    let Some(then) = value.get("then").filter(|_| value.as_object().map_or(0, <[_]>::len) == 2) else {
+                        return Some("a malformed term");
+                    };
+                    pending.push((if own { Kind::TagCondition } else { Kind::Condition }, cond, next));
+                    pending.push((inner, then, next));
+                } else if has(value, "union") || has(value, "intersection") {
                     let items = value.get("union").or_else(|| value.get("intersection"));
                     if !list(items, 2, usize::MAX) {
                         return Some("a malformed term");
                     }
-                    let inner = if own { Kind::TagTerm } else { Kind::Term };
                     pending
                         .extend(items.and_then(Json::as_array).unwrap_or(&[]).iter().map(|item| (inner, item, next)));
                 } else if has(value, "call") {
@@ -664,6 +709,7 @@ fn write_rule(out: &mut String, rule: &RuleDef) {
     write_str(out, &rule.name);
     out.push_str(match rule.op {
         Op::Define => ",\"op\":\"define\"",
+        Op::Redefine => ",\"op\":\"redefine\"",
         Op::Extend => ",\"op\":\"extend\"",
     });
     if let Some(tags) = &rule.tags {
@@ -708,10 +754,10 @@ fn write_rule(out: &mut String, rule: &RuleDef) {
                         write_term(out, tags);
                     }
                 }
-                EmitItem::Erase(name) => {
+                EmitItem::Silent(name) => {
                     out.push_str("{\"capture\":");
                     write_str(out, name);
-                    out.push_str(",\"erase\":true");
+                    out.push_str(",\"silent\":true");
                 }
                 EmitItem::Insert(tag) => {
                     out.push_str("{\"insert\":");
@@ -801,6 +847,13 @@ fn write_term(out: &mut String, term: &Term) {
             write_str(out, name);
             out.push('}');
         }
+        Term::If(cond, then) => {
+            out.push_str("{\"if\":");
+            write_cond(out, cond);
+            out.push_str(",\"then\":");
+            write_term(out, then);
+            out.push('}');
+        }
         Term::Call(name, args) => {
             out.push_str("{\"call\":");
             write_str(out, name);
@@ -848,5 +901,17 @@ fn write_cond(out: &mut String, cond: &Cond) {
         }
         Cond::Any(items) => write_list(out, "any", items, write_cond),
         Cond::All(items) => write_list(out, "all", items, write_cond),
+        Cond::Captured(name) => {
+            out.push_str("{\"captured\":");
+            write_str(out, name);
+            out.push('}');
+        }
+        Cond::If(cond, then) => {
+            out.push_str("{\"if\":");
+            write_cond(out, cond);
+            out.push_str(",\"then\":");
+            write_cond(out, then);
+            out.push('}');
+        }
     }
 }

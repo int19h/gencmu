@@ -1,10 +1,10 @@
 {
   "description": "An emission may list a capture once (engine §9).",
-  "document": "```ebnf\na ≔ $x(A) ⇒ $x, \"X\", $x ;\n```\n",
+  "document": "```jbogenbau\n%rule a $x(A) %emits $x, \"X\", $x\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 11
+      "column": 15
     }
   }
 }

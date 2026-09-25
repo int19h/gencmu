@@ -1,52 +1,56 @@
 {
-  "description": "Parentheses make no node, so a group of the connective around it is part of it: (a ∧ b) ∧ c is three conditions, and (a ∨ b) ∨ c one any of three (engine §9).",
-  "document": "```ebnf\na ≔ $x(A) : (\"p\" ∈ tags($x) ∧ \"q\" ∈ tags($x)) ∧ \"r\" ∈ tags($x) ;\nb ≔ $x(A) : (\"p\" ∈ tags($x) ∨ \"q\" ∈ tags($x)) ∨ \"r\" ∈ tags($x) ;\n```\n",
+  "description": "Parentheses make no node, so a group of the connective around it is part of it: (a ∧ b) ∧ c is one all of three, and (a ∨ b) ∨ c one any of three (engine §9).",
+  "document": "```jbogenbau\n%rule a $x(A) %conditions (\"p\" ∈ tags($x) ∧ \"q\" ∈ tags($x)) ∧ \"r\" ∈ tags($x)\n%rule b $x(A) %conditions (\"p\" ∈ tags($x) ∨ \"q\" ∈ tags($x)) ∨ \"r\" ∈ tags($x)\n```\n",
   "expect": {
     "dom": {
       "rules": [
         {
           "conditions": [
             {
-              "op": "∈",
-              "left": {
-                "literal": "p"
-              },
-              "right": {
-                "call": "tags",
-                "args": [
-                  {
-                    "capture": "x"
+              "all": [
+                {
+                  "op": "∈",
+                  "left": {
+                    "literal": "p"
+                  },
+                  "right": {
+                    "call": "tags",
+                    "args": [
+                      {
+                        "capture": "x"
+                      }
+                    ]
                   }
-                ]
-              }
-            },
-            {
-              "op": "∈",
-              "left": {
-                "literal": "q"
-              },
-              "right": {
-                "call": "tags",
-                "args": [
-                  {
-                    "capture": "x"
+                },
+                {
+                  "op": "∈",
+                  "left": {
+                    "literal": "q"
+                  },
+                  "right": {
+                    "call": "tags",
+                    "args": [
+                      {
+                        "capture": "x"
+                      }
+                    ]
                   }
-                ]
-              }
-            },
-            {
-              "op": "∈",
-              "left": {
-                "literal": "r"
-              },
-              "right": {
-                "call": "tags",
-                "args": [
-                  {
-                    "capture": "x"
+                },
+                {
+                  "op": "∈",
+                  "left": {
+                    "literal": "r"
+                  },
+                  "right": {
+                    "call": "tags",
+                    "args": [
+                      {
+                        "capture": "x"
+                      }
+                    ]
                   }
-                ]
-              }
+                }
+              ]
             }
           ]
         },

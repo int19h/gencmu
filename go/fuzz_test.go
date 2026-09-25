@@ -16,10 +16,10 @@ func FuzzPrecompiledDOM(f *testing.F) {
 			Documents map[string]struct{ Dom json.RawMessage }
 		}
 		json.Unmarshal([]byte(bundled.sources["compiled.json"]), &c)
-		f.Add(string(c.Documents[doc].Dom), "text ≔ A ;")
+		f.Add(string(c.Documents[doc].Dom), "%rule text A")
 	}
-	f.Add(`{"format":2,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"seq":[]}}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[1,1]}]}`, "ab")
-	f.Add(`{"format":2,"rules":[{"name":"text","op":"define","tags":{"call":"tags","args":[{"capture":"x"},{"rule":"text"}]},"alternatives":[{"guards":[],"expr":{"capture":"x","expr":{"terminal":"a"}}}],"emit":{"items":[{"capture":"x"},{"insert":"/a/"}]},"conditions":[{"not":{"matches":{"call":"head","args":[{"capture":"x"}]},"rule":"text"}}],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["lazy","elision-only"],"at":[1,1]},{"name":"elidable","args":["a"],"at":[1,1]}]}`, "aa")
+	f.Add(`{"format":3,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"seq":[]}}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[1,1]}]}`, "ab")
+	f.Add(`{"format":3,"rules":[{"name":"text","op":"define","tags":{"call":"tags","args":[{"capture":"x"},{"rule":"text"}]},"alternatives":[{"guards":[],"expr":{"capture":"x","expr":{"terminal":"a"}}}],"emit":{"items":[{"capture":"x"},{"insert":"/a/"}]},"conditions":[{"not":{"matches":{"call":"head","args":[{"capture":"x"}]},"rule":"text"}}],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["lazy","elision-only"],"at":[1,1]},{"name":"elidable","args":["a"],"at":[1,1]}]}`, "aa")
 	f.Fuzz(func(t *testing.T, domJSON, text string) {
 		dom, err := decodeDOM(json.RawMessage(domJSON))
 		if err != nil {

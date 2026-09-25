@@ -1,6 +1,6 @@
 {
-  "description": "⇒ $ <t>, $ <u> emits one token per item, in order, each covering the whole constituent (engine §11): one character read as two phonemes.",
-  "grammar": "text ≔ [d] ... ; d ≔ D ⇒ $ </n/>, $ </o/> ;",
+  "description": "%emits $ <t>, $ <u> emits one token per item, in order, each covering the whole constituent (engine §11): one character read as two phonemes.",
+  "grammar": "%rule text [d] ...\n%rule d D %emits $ </n/>, $ </o/>",
   "tokens": [
     {
       "text": "0",

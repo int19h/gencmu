@@ -42,13 +42,17 @@ export class Stage {
    */
   run(tokens, sourceText, unicode, options) {
     const features = options.features;
-    const lowered = this.grammar.lower(features, false);
-    const context = new ParseContext(lowered, tokens, sourceText, unicode);
     /** @type {StageReport} */
     const report = { name: this.name, verdict: null, witness: null, output: null, tree: null, error: null };
+    let lowered;
+    let context;
     let chart;
     let roots;
     try {
+      // Lowering for these features may itself find an error of the grammar
+      // (engine §3.3), which is a result like any found while parsing.
+      lowered = this.grammar.lower(features, false);
+      context = new ParseContext(lowered, tokens, sourceText, unicode);
       chart = recognize(context, "text", 0, tokens.length);
       roots = rootItems(chart, "text");
     } catch (error) {
@@ -367,7 +371,7 @@ function phonemeTag(tags) {
   return phoneme === "." ? " " : phoneme;
 }
 
-// What a node says: its tokens' phonemes, less every part that is erased
+// What a node says: its tokens' phonemes, less every part that is silent
 // (engine §5).
 /**
  * @param {Derivation} node
@@ -396,18 +400,18 @@ const ERASE_ALL = new Set([-1]);
 const ERASE_NONE = new Set();
 
 /**
- * Which children of a production's constituent its emission erases: ERASE_ALL
+ * Which children of a production's constituent its emission makes silent: ERASE_ALL
  * for `⇒ $ <>`, else the captures named with `<>` (engine §11).
  * @param {import("./types.js").Production} production
  * @returns {Set<number>}
  */
 function erasedChildren(production) {
   const emission = production.emit;
-  if (!emission || !emission.items.some((item) => item.erase)) return ERASE_NONE;
+  if (!emission || !emission.items.some((item) => item.silent)) return ERASE_NONE;
   if (emission.items[0].capture === "") return ERASE_ALL;
   const erased = new Set();
   for (const item of emission.items) {
-    if (!item.erase) continue;
+    if (!item.silent) continue;
     const capture = production.captures.find((entry) => entry.name === item.capture);
     if (capture) erased.add(capture.index);
   }
@@ -479,60 +483,35 @@ export function emit(root, context) {
       if (!item.tags) return fallback;
       const tags = asTags(evaluate(context, item.tags, scope));
       // A token no terminal can read is a mistake; <> is how a grammar
-      // erases a part (engine §11).
+      // makes a part silent (engine §11).
       if (tags.size === 0) throw new GencmuError("grammar", `${production.owner} emits a token with no tags`);
       return tags;
     };
-    // An emission whose items all name captures this production lacks
-    // leaves the constituent to be walked (engine §3.6).
     if (clause.items.length > 0 && clause.items[0].capture === "") {
-      if (clause.items[0].erase) continue;
+      if (clause.items[0].silent) continue;
       // One token covering the constituent per `$`: a digit that is two
       // phonemes is emitted as two tokens over the same character.
       for (const item of clause.items) out.push(makeToken(node, valueTags(item, nodeTags(node, context)), context));
       continue;
     }
-    /** @type {Map<number, EmitItem>} */
-    const named = new Map();
-    for (const item of clause.items) {
-      if (item.capture !== undefined) {
-        const capture = /** @type {import("./types.js").Capture} */ (production.captures.find((entry) => entry.name === item.capture));
-        named.set(capture.index, item);
-      }
-    }
-    // Each inserted tag goes just before the first capture listed after it,
-    // or after the last child if none is (engine §11); the captures go in
-    // text order, whatever order the list names them in.
-    /** @type {Map<EmitItem, string[]>} */
-    const insertsBefore = new Map();
-    /** @type {string[]} */
-    let waiting = [];
-    for (const item of clause.items) {
-      if (item.insert !== undefined) waiting.push(item.insert);
-      else if (item.capture !== undefined) {
-        insertsBefore.set(item, waiting);
-        waiting = [];
-      }
-    }
-    // The node's tasks in text order, then pushed in reverse.
+    // The items, in the order listed, and nothing else of the constituent
+    // (engine §11). An inserted tag's position is the start of the part of
+    // the capture listed next after it, or the constituent's end.
+    /** @type {(name: string) => Derivation} */
+    const part = (name) => node.children[/** @type {import("./types.js").Capture} */ (production.captures.find((entry) => entry.name === name)).index];
     /** @type {EmitTask[]} */
     const ordered = [];
-    /** @type {(inserts: string[], at: number) => void} */
-    const insertAll = (inserts, at) => {
-      for (const insert of inserts) ordered.push({ token: () => insertedToken(insert, at, node, context, production.owner) });
-    };
-    let cursor = node.start;
-    node.children.forEach((child, index) => {
-      const item = named.get(index);
-      if (item) {
-        insertAll(insertsBefore.get(item) || [], cursor);
-        if (!item.erase) ordered.push({ token: () => makeToken(child, valueTags(item, nodeTags(child, context)), context) });
-      } else {
-        ordered.push({ walk: child });
+    clause.items.forEach((item, index) => {
+      if (item.insert !== undefined) {
+        const insert = item.insert;
+        const next = clause.items.slice(index + 1).find((later) => later.capture !== undefined);
+        const at = next && next.capture !== undefined ? part(next.capture).start : node.end;
+        ordered.push({ token: () => insertedToken(insert, at, node, context, production.owner) });
+      } else if (item.capture !== undefined && !item.silent) {
+        const child = part(item.capture);
+        ordered.push({ token: () => makeToken(child, valueTags(item, nodeTags(child, context)), context) });
       }
-      cursor = child.end;
     });
-    insertAll(waiting, cursor);
     for (let index = ordered.length - 1; index >= 0; index--) tasks.push(ordered[index]);
   }
   return out;

@@ -1,6 +1,6 @@
 {
   "description": "A leading | is a no-op, and line breaks mean nothing (notation.md).",
-  "document": "# A document\n\nSome prose.\n\n```ebnf\ntext ≔\n| A\n| B\n;\n```\n",
+  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule text A | B\n```\n",
   "expect": {
     "dom": {
       "rules": [

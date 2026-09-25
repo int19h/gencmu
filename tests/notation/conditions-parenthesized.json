@@ -1,42 +1,10 @@
 {
-  "description": "Parentheses around conditions make no node, so parenthesized conditions joined by ∧ at the top are still separate conditions, each applying where its captures are (engine §9).",
-  "document": "```ebnf\na ≔ $x(A) | $y(B) : (\"p\" ∈ tags($x) ∧ \"q\" ∈ tags($y)) ;\n```\n",
+  "description": "One condition of the list applies only to alternatives that capture everything it uses; one joining conditions on two alternatives' captures with ∧ applies to neither, which is an error at the rule (engine §3.6, §9).",
+  "document": "```jbogenbau\n%rule a $x(A) | $y(B) %conditions \"p\" ∈ tags($x) ∧ \"q\" ∈ tags($y)\n```\n",
   "expect": {
-    "dom": {
-      "rules": [
-        {
-          "conditions": [
-            {
-              "op": "∈",
-              "left": {
-                "literal": "p"
-              },
-              "right": {
-                "call": "tags",
-                "args": [
-                  {
-                    "capture": "x"
-                  }
-                ]
-              }
-            },
-            {
-              "op": "∈",
-              "left": {
-                "literal": "q"
-              },
-              "right": {
-                "call": "tags",
-                "args": [
-                  {
-                    "capture": "y"
-                  }
-                ]
-              }
-            }
-          ]
-        }
-      ]
+    "error": {
+      "line": 2,
+      "column": 1
     }
   }
 }

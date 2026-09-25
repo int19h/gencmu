@@ -1,6 +1,6 @@
 {
   "description": "elision-only allows a choice settled by strong and weak tags (engine §7).",
-  "grammar": "%ambiguity-resolution greedy elision-only ;\ntext ≔ X | Y ;",
+  "grammar": "%ambiguity-resolution greedy elision-only\n%rule text X | Y",
   "tokens": [
     {
       "text": "w",

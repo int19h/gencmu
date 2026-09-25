@@ -1,6 +1,6 @@
 {
   "description": "A repetition inside an alternative is a helper, spliced out (engine §3.2, §12).",
-  "grammar": "text ≔ A B ... C ;",
+  "grammar": "%rule text A B ... C",
   "tokens": [
     {
       "text": "a",

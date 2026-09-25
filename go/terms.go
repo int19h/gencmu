@@ -131,7 +131,14 @@ func (ev *evaluator) term(t *domTerm) value {
 		case "text":
 			return value{kind: vString, s: ev.run.spanText(ev.span(t.Items[0]))}
 		case "words":
-			return value{kind: vList, list: strings.Fields(strings.ReplaceAll(ev.run.phonemes(ev.span(t.Items[0])), "\t", " "))}
+			// Words are split at spaces, U+0020, only (engine §5).
+			var words []string
+			for _, word := range strings.Split(ev.run.phonemes(ev.span(t.Items[0])), " ") {
+				if word != "" {
+					words = append(words, word)
+				}
+			}
+			return value{kind: vList, list: words}
 		case "lowercase":
 			v := ev.term(t.Items[0])
 			if v.kind != vString {
@@ -158,6 +165,12 @@ func (ev *evaluator) term(t *domTerm) value {
 		case "head", "tail", "last":
 			return value{kind: vSet, set: ev.spanTags(ev.span(t))}
 		}
+	case tmIf:
+		// Its term, evaluated only where its condition holds (§10).
+		if ev.cond(t.Cond) {
+			return value{kind: vSet, set: ev.tagsOf(t.Items[0])}
+		}
+		return value{kind: vSet, set: in.empty()}
 	}
 	panic(&parseFailure{message: "cannot evaluate term " + t.Kind + " " + t.Str})
 }
@@ -206,6 +219,14 @@ func (ev *evaluator) cond(c *domCond) bool {
 		return ok
 	case cdNot:
 		return !ev.cond(c.Inner)
+	case cdCaptured:
+		// Simplification decides every presence test (§3.6); one left here
+		// asks the production.
+		_, ok := ev.capture(c.Rule)
+		return ok
+	case cdIf:
+		// The consequent only where the antecedent holds (§10).
+		return !ev.cond(c.Items[0]) || ev.cond(c.Items[1])
 	case cdAny:
 		for _, it := range c.Items {
 			if ev.cond(it) {

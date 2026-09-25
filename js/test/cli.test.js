@@ -75,7 +75,7 @@ test("trace reads the stage's input as the parse does, auto features included", 
 test("a defect of the grammar found while parsing exits 2", () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "gencmu-"));
   fs.writeFileSync(path.join(directory, "p.md"), "## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n");
-  fs.writeFileSync(path.join(directory, "g.md"), "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ $a(x) : ¬matches($a, text) ; x ≔ \"a\" ;\n```\n");
+  fs.writeFileSync(path.join(directory, "g.md"), "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $a(x) %conditions ¬matches($a, text)\n%rule x \"a\"\n```\n");
   const out = run("parse", "--pipeline", path.join(directory, "p.md"), "a");
   assert.equal(out.status, 2);
   assert.match(out.stderr, /A grammar error/);

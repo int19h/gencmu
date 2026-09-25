@@ -19,16 +19,16 @@ test("every bundled DOM passes the check", () => {
 
 const sources = {
   "p.md": "## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n",
-  "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ A ;\n```\n",
+  "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n```\n",
 };
 
 test("a malformed precompiled DOM is a miss, and the document is read instead", () => {
   const bootstrapHash = loadDialectSources(sources, "p.md").loader.bootstrapHash;
   const hash = fnv1a64(sources["g.md"]);
   const token = new Token(new Map([["A", true]]), [0, 1], [0, 1], "a", null, undefined);
-  for (const dom of [{ format: 2, rules: [{}], directives: [] },
-    { format: 2, rules: [{ name: "text", op: "define", alternatives: [{ guards: [], expr: { seq: [] } }], conditions: [], at: [1, 1] }], directives: [] }]) {
-    const compiled = JSON.stringify({ format: 2, bootstrap: bootstrapHash, documents: { "g.md": { hash, dom } } });
+  for (const dom of [{ format: 3, rules: [{}], directives: [] },
+    { format: 3, rules: [{ name: "text", op: "define", alternatives: [{ guards: [], expr: { seq: [] } }], conditions: [], at: [1, 1] }], directives: [] }]) {
+    const compiled = JSON.stringify({ format: 3, bootstrap: bootstrapHash, documents: { "g.md": { hash, dom } } });
     const dialect = loadDialectSources({ ...sources, "compiled.json": compiled }, "p.md");
     assert.equal(dialect.loader.compiled.size, 0, "the entry was refused");
     assert.equal(dialect.parse("a", { tokens: [token], autoFeatures: false }).ok, true, "the document was read instead");
@@ -46,42 +46,39 @@ test("a malformed bootstrap is a grammar error", () => {
 test("nesting deeper than any grammar is refused", () => {
   let expr = { ref: "a" };
   for (let depth = 0; depth < 257; depth++) expr = { optional: expr };
-  const dom = { format: 2, rules: [{ name: "text", op: "define", alternatives: [{ guards: [], expr }], conditions: [], at: [1, 1] }], directives: [] };
+  const dom = { format: 3, rules: [{ name: "text", op: "define", alternatives: [{ guards: [], expr }], conditions: [], at: [1, 1] }], directives: [] };
   assert.equal(domProblem(dom), "nested too deeply");
   // An emission's tag terms are counted from the top as any term is.
   let term = { literal: "x" };
   for (let depth = 0; depth < 256; depth++) term = { union: [term, { literal: "y" }] };
-  const emitted = { format: 2, rules: [{ name: "text", op: "define", alternatives: [{ guards: [], expr: { ref: "A" } }], emit: { items: [{ capture: "", tags: term }] }, conditions: [], at: [1, 1] }], directives: [] };
+  const emitted = { format: 3, rules: [{ name: "text", op: "define", alternatives: [{ guards: [], expr: { ref: "A" } }], emit: { items: [{ capture: "", tags: term }] }, conditions: [], at: [1, 1] }], directives: [] };
   assert.equal(domProblem(emitted), null);
 });
 
-test("a tag term naming a capture the production lacks is dropped from the item", () => {
-  const dialect = loadDialectSources({ ...sources, "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ A ⇒ $ <$x> ;\n```\n" }, "p.md");
-  const token = new Token(new Map([["A", true]]), [0, 1], [0, 1], "a", null, undefined);
-  const result = dialect.parse("a", { tokens: [token], autoFeatures: false });
-  assert.equal(result.ok, true);
-  assert.deepEqual([...result.stages[0].output[0].tags.keys()], ["A"], "the constituent's own tags");
+test("a tag term naming a capture no alternative has is an error of the grammar", () => {
+  assert.throws(() => loadDialectSources({ ...sources, "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A %emits $ <$x>\n```\n" }, "p.md"),
+    (error) => error instanceof GencmuError && /\$x is captured by no alternative/.test(error.message));
 });
 
 test("the reader holds documents to the same nesting bound as precompiled DOMs", () => {
-  const deep = (n) => "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ " + "[".repeat(n) + "A" + "]".repeat(n) + " ;\n```\n";
+  const deep = (n) => "```jbogenbau\n%ambiguity-resolution greedy\n%rule text " + "[".repeat(n) + "A" + "]".repeat(n) + "\n```\n";
   assert.throws(() => loadDialectSources({ ...sources, "g.md": deep(300) }, "p.md"),
     (error) => error instanceof GencmuError && error.where.line === 3 && error.where.column === 1);
   assert.doesNotThrow(() => loadDialectSources({ ...sources, "g.md": deep(100) }, "p.md"));
 });
 
 test("the check holds a precompiled emission and format to the reader's rules", () => {
-  const rule = (emit) => ({ format: 2, rules: [{ name: "text", op: "define", alternatives: [{ guards: [], expr: { capture: "x", expr: { ref: "A" } } }], emit, conditions: [], at: [1, 1] }], directives: [] });
+  const rule = (emit) => ({ format: 3, rules: [{ name: "text", op: "define", alternatives: [{ guards: [], expr: { capture: "x", expr: { ref: "A" } } }], emit, conditions: [], at: [1, 1] }], directives: [] });
   assert.equal(domProblem(rule({ items: [{ capture: "" }, { capture: "x" }] })), "a malformed emission");
-  assert.equal(domProblem(rule({ items: [{ capture: "", erase: true }, { capture: "" }] })), "a malformed emission");
-  assert.equal(domProblem(rule({ items: [{ insert: "y", erase: true }] })), "a malformed emission");
+  assert.equal(domProblem(rule({ items: [{ capture: "", silent: true }, { capture: "" }] })), "a malformed emission");
+  assert.equal(domProblem(rule({ items: [{ insert: "y", silent: true }] })), "a malformed emission");
   assert.equal(domProblem(rule({ items: [{ capture: "x", tags: { emptySet: true } }] })), "a malformed emission");
-  assert.equal(domProblem(rule({ items: [{ capture: "x", erase: true }] })), null);
+  assert.equal(domProblem(rule({ items: [{ capture: "x", silent: true }] })), null);
   assert.equal(domProblem(rule({ items: [{ capture: "x" }, { capture: "x" }] })), "a malformed emission");
   assert.equal(domProblem(rule({ items: [{ insert: "y", tags: { literal: "z" } }] })), "a malformed emission");
   assert.equal(domProblem(rule({ items: [{ capture: "" }, { capture: "" }] })), null);
-  assert.equal(domProblem({ format: 1, rules: [], directives: [] }), "not a DOM of format 2");
-  const tagged = (tags) => ({ format: 2, rules: [{ name: "text", op: "define", tags, alternatives: [{ guards: [], expr: { capture: "x", expr: { ref: "A" } } }], conditions: [], at: [1, 1] }], directives: [] });
+  assert.equal(domProblem({ format: 2, rules: [], directives: [] }), "not a DOM of format 3");
+  const tagged = (tags) => ({ format: 3, rules: [{ name: "text", op: "define", tags, alternatives: [{ guards: [], expr: { capture: "x", expr: { ref: "A" } } }], conditions: [], at: [1, 1] }], directives: [] });
   assert.equal(domProblem(tagged({ call: "matches", args: [{ literal: "x" }] })), "a malformed term");
   assert.equal(domProblem(tagged({ call: "head", args: [{ capture: "x" }] })), "a malformed term");
   assert.equal(domProblem(tagged({ call: "lowercase", args: [{ weak: "x" }] })), "a malformed term");
@@ -89,7 +86,7 @@ test("the check holds a precompiled emission and format to the reader's rules", 
   assert.equal(domProblem(tagged({ union: [{ literal: "x" }, { capture: "" }] })), "a constituent's tags made of its own");
   assert.equal(domProblem(tagged({ call: "tags", args: [{ capture: "" }, { rule: "a" }] })), null);
   assert.equal(domProblem(tagged({ call: "tags", args: null })), "a malformed term");
-  const alternative = (expr) => ({ format: 2, rules: [{ name: "text", op: "define", alternatives: [{ guards: [], expr }], conditions: [], at: [1, 1] }], directives: [] });
+  const alternative = (expr) => ({ format: 3, rules: [{ name: "text", op: "define", alternatives: [{ guards: [], expr }], conditions: [], at: [1, 1] }], directives: [] });
   assert.equal(domProblem(alternative({ seq: [{ optional: { capture: "x", expr: { ref: "A" } } }, { ref: "B" }] })), "a capture below the top level of an alternative");
   assert.equal(domProblem(alternative({ seq: [{ capture: "x", expr: { ref: "A" } }, { capture: "x", expr: { ref: "B" } }] })), "a capture name used twice in an alternative");
   assert.equal(domProblem(alternative({ seq: [{ capture: "x", expr: { ref: "A" } }, { ref: "B" }] })), null);

@@ -157,43 +157,40 @@ def elided_nodes(tree: Node) -> list[Node]:
     return found
 
 
-def erased_children(production: Production) -> tuple[bool, frozenset[int]]:
-    """What a production's emission erases (engine §11): the whole
-    constituent, for ``⇒ $ <>``, or the positions of the captures it names
-    with ``<>``."""
+def silent_children(production: Production) -> tuple[bool, frozenset[int]]:
+    """What a production's emission makes silent (engine §11): the whole
+    constituent, for ``%emits $ <>``, or the positions of the captures it
+    names with ``<>``."""
     emit = production.emit
     if emit is None:
         return False, frozenset()
-    if emit[0] == "erase":
-        return True, frozenset()
-    if emit[0] == "items":
-        return False, frozenset(item[1] for item in emit[1] if item[0] == "capture" and item[3])
-    return False, frozenset()
+    whole = any(item[0] == "whole" and item[2] for item in emit)
+    return whole, frozenset(item[1] for item in emit if item[0] == "capture" and item[3])
 
 
-def erased_tokens(root: DNode, size: int) -> list[bool]:
-    """Which input tokens lie inside an erased constituent or an erased
+def silent_tokens(root: DNode, size: int) -> list[bool]:
+    """Which input tokens lie inside a silent constituent or a silent
     captured part."""
-    erased = [False] * size
+    silent = [False] * size
     stack: list[tuple[DChild, bool]] = [(root, False)]
     while stack:
         node, inside = stack.pop()
         if isinstance(node, DRead):
             if inside:
-                erased[node.token] = True
+                silent[node.token] = True
             continue
-        whole, parts = erased_children(node.production)
+        whole, parts = silent_children(node.production)
         if inside or whole:
             for index in range(node.start, node.end):
-                erased[index] = True
+                silent[index] = True
             continue
         stack.extend((child, position in parts) for position, child in enumerate(node.children))
-    return erased
+    return silent
 
 
 def constituent_phonemes(tokens: list[Token], node: DNode) -> str:
     """A constituent's phonemes (engine §5): its tokens' phonemes, leaving
-    out every token inside it that is erased."""
+    out every token inside it that is silent."""
     parts: list[str] = []
     stack: list[DChild] = [node]
     while stack:
@@ -201,15 +198,15 @@ def constituent_phonemes(tokens: list[Token], node: DNode) -> str:
         if isinstance(current, DRead):
             parts.append(tokens[current.token].phonemes or "")
             continue
-        whole, erased = erased_children(current.production)
+        whole, silent = silent_children(current.production)
         if current is not node and whole:
             continue
-        stack.extend(child for position, child in reversed(list(enumerate(current.children))) if position not in erased)
+        stack.extend(child for position, child in reversed(list(enumerate(current.children))) if position not in silent)
     return "".join(parts).strip(" ")
 
 
-def span_phonemes(tokens: list[Token], erased: list[bool], start: int, end: int) -> str:
-    return "".join(tokens[index].phonemes or "" for index in range(start, end) if not erased[index]).strip(" ")
+def span_phonemes(tokens: list[Token], silent: list[bool], start: int, end: int) -> str:
+    return "".join(tokens[index].phonemes or "" for index in range(start, end) if not silent[index]).strip(" ")
 
 
 class Emitter:
@@ -222,14 +219,14 @@ class Emitter:
         self.tree = tree
         self.root = root
         self.evaluator = Evaluator(context, 0)
-        self.erased = erased_tokens(root, len(self.tokens))
+        self.silent = silent_tokens(root, len(self.tokens))
         self.output: list[Token] = []
 
     def token(self, start: int, end: int, tags: Tags, source: Range, inserted_by: str | None) -> Token:
         strong = [phoneme for phoneme in (phoneme_of(tag) for tag, st in tags.items() if st) if phoneme is not None]
         if len(strong) > 1:
             raise _GrammarFault(f"an emitted token has two strong phoneme tags: {', '.join(sorted(t for t, s in tags.items() if s and phoneme_of(t) is not None))}", (start, end))
-        phonemes = strong[0] if strong else span_phonemes(self.tokens, self.erased, start, end)
+        phonemes = strong[0] if strong else span_phonemes(self.tokens, self.silent, start, end)
         text = self.context.text[source[0] : source[1]]
         return Token(text, dict(tags), (start, end), source, phonemes, inserted_by)
 
@@ -239,15 +236,33 @@ class Emitter:
         return self.tree.source_of(part)
 
     def emit(self) -> list[Token]:
-        tagtab = self.context.tagtab
-        work: list[tuple[str, Any]] = [("walk", self.root)]
+        """Walk the chosen tree from the left: a constituent whose production
+        has no emission is walked, and one that has one emits exactly its
+        items, in list order, and nothing inside it is walked (engine §11)."""
+        work: list[DChild] = [self.root]
         while work:
-            kind, value = work.pop()
-            if kind == "token":
-                self.output.append(value)
+            node = work.pop()
+            if isinstance(node, DRead):
                 continue
-            if kind == "part":
-                node, part, term = value
+            emit = node.production.emit
+            if emit is None:
+                work.extend(reversed(node.children))
+                continue
+            for item in emit:
+                self.emit_item(node, item)
+        return self.output
+
+    def emit_item(self, node: DNode, item: tuple[Any, ...]) -> None:
+        tagtab = self.context.tagtab
+        if item[0] == "whole":
+            _, term, silent = item
+            if not silent:
+                tags = self.item_tags(node, term) if term is not None else tagtab.get(node.tag)
+                self.output.append(self.token(node.start, node.end, tags, self.tree.source_of(node), None))
+        elif item[0] == "capture":
+            _, position, term, silent = item
+            if not silent:
+                part = node.children[position]
                 if term is not None:
                     tags = self.item_tags(node, term)
                 elif isinstance(part, DRead):
@@ -255,35 +270,17 @@ class Emitter:
                 else:
                     tags = tagtab.get(part.tag)
                 self.output.append(self.token(part.start, part.end, tags, self.part_source(part), None))
-                continue
-            if kind == "insert":
-                node, tag, boundary = value
-                if boundary > node.start:
-                    at = self.tokens[boundary - 1].source[1]
-                else:
-                    at = self.tree.source_of(node)[0]
-                self.output.append(self.token(boundary, boundary, {tag: True}, (at, at), node.production.rule_name))
-                continue
-            node = value
-            if isinstance(node, DRead):
-                continue
-            emit = node.production.emit
-            if emit is None:
-                work.extend(("walk", child) for child in reversed(node.children))
-                continue
-            if emit[0] == "erase":
-                continue
-            if emit[0] == "whole":
-                source = self.tree.source_of(node)
-                for term in emit[1]:
-                    if term is not None:
-                        tags = self.item_tags(node, term)
-                    else:
-                        tags = tagtab.get(node.tag)
-                    self.output.append(self.token(node.start, node.end, tags, source, None))
-                continue
-            work.extend(reversed(self.plan(node, emit[1])))
-        return self.output
+        else:
+            # An inserted tag stands, with an empty span, at the start of the
+            # part of the capture listed next after it, or at the end of the
+            # constituent (engine §11).
+            _, tag, anchor = item
+            boundary = node.children[anchor].start if anchor is not None else node.end
+            if boundary > node.start:
+                at = self.tokens[boundary - 1].source[1]
+            else:
+                at = self.tree.source_of(node)[0]
+            self.output.append(self.token(boundary, boundary, {tag: True}, (at, at), node.production.rule_name))
 
     def context_caps(self, node: DNode) -> Any:
         return self.forest.caps[node.item]
@@ -295,39 +292,8 @@ class Emitter:
         bound = self.evaluator.bind(node.production, self.context_caps(node), (node.start, node.end, node.tag))
         tags = self.evaluator.tags(term, bound)
         if not tags:
-            raise _GrammarFault(f"{node.production.rule_name} emits a token with no tags; <> is how a grammar erases one", (node.start, node.end))
+            raise _GrammarFault(f"{node.production.rule_name} emits a token with no tags; <> is how a grammar makes one silent", (node.start, node.end))
         return tags
-
-    def plan(self, node: DNode, items: list[tuple[Any, ...]]) -> list[tuple[str, Any]]:
-        """The steps of ``⇒ $a, "x", $b``: children in text order, named
-        captures as tokens, or nothing for one erased, each inserted tag just
-        before the token of the first capture listed after it, or where it
-        would be if erased, or after the last child if none is (engine §11)."""
-        named: dict[int, Any] = {}
-        erased: set[int] = set()
-        before: dict[int, list[str]] = {}
-        after_last: list[str] = []
-        for index, item in enumerate(items):
-            if item[0] == "capture":
-                named[item[1]] = item[2]
-                if item[3]:
-                    erased.add(item[1])
-                continue
-            following = next((other[1] for other in items[index + 1 :] if other[0] == "capture"), None)
-            if following is not None:
-                before.setdefault(following, []).append(item[1])
-            else:
-                after_last.append(item[1])
-        steps: list[tuple[str, Any]] = []
-        for position, child in enumerate(node.children):
-            if position in named:
-                steps.extend(("insert", (node, tag, child.start)) for tag in before.get(position, ()))
-                if position not in erased:
-                    steps.append(("part", (node, child, named[position])))
-            else:
-                steps.append(("walk", child))
-        steps.extend(("insert", (node, tag, node.end)) for tag in after_last)
-        return steps
 
 
 @dataclass
@@ -341,7 +307,7 @@ class StageOutcome:
     witness: tuple[Action, Action] | None = None
     tied: Node | None = None
     error: ParseError | None = None
-    erased: list[bool] | None = None
+    silent: list[bool] | None = None
     chosen_actions: list[Act] | None = None
     tied_actions: list[Act] | None = None
 
@@ -427,7 +393,7 @@ class StageRunner:
             outcome.tied = Tree(derivation(forest, ranking.tied), self.tokens, context.tagtab).root
             outcome.tied_actions = list(actions(ranking.tied))
         emitter = Emitter(context, forest, tree, root)
-        outcome.erased = emitter.erased
+        outcome.silent = emitter.silent
         if self.emit:
             outcome.output = emitter.emit()
         if elision_only and ranking.verdict != "unique":

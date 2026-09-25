@@ -1,10 +1,10 @@
 {
   "description": "An inserted tag takes no tags of its own (engine §9).",
-  "document": "```ebnf\na ≔ $x(B) ⇒ $x, \"y\" <\"Z\"> ;\n```\n",
+  "document": "```jbogenbau\n%rule a $x(B) %emits $x, \"y\" <\"Z\">\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 17
+      "column": 26
     }
   }
 }

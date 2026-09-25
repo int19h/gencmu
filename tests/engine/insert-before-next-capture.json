@@ -1,6 +1,6 @@
 {
-  "description": "An inserted tag goes before the first capture listed after it, and captures are emitted in text order whatever the list's order (engine §11): x is listed before $a, so it comes before a.",
-  "grammar": "text ≔ $a(A) B $b(C) ⇒ $b, \"x\", $a ;",
+  "description": "An inserted tag stands where it is listed, its span empty at the start of the capture listed next after it; a part the list does not name is not emitted (engine §11).",
+  "grammar": "%rule text $a(A) B $b(C) %emits $a, \"x\", $b",
   "tokens": [
     {
       "text": "a",
@@ -23,7 +23,6 @@
   ],
   "expect": {
     "result": {
-      "format": 1,
       "ok": true,
       "stages": [
         {
@@ -31,27 +30,7 @@
           "verdict": "unique",
           "output": [
             {
-              "text": "",
-              "phonemes": "",
-              "tags": {
-                "x": true
-              },
-              "span": [
-                0,
-                0
-              ],
-              "source": [
-                0,
-                0
-              ],
-              "insertedBy": "text"
-            },
-            {
               "text": "a",
-              "phonemes": "",
-              "tags": {
-                "A": true
-              },
               "span": [
                 0,
                 1
@@ -62,11 +41,22 @@
               ]
             },
             {
-              "text": "c",
-              "phonemes": "",
+              "text": "",
               "tags": {
-                "C": true
+                "x": true
               },
+              "span": [
+                2,
+                2
+              ],
+              "source": [
+                3,
+                3
+              ],
+              "insertedBy": "text"
+            },
+            {
+              "text": "c",
               "span": [
                 2,
                 3
@@ -78,62 +68,7 @@
             }
           ]
         }
-      ],
-      "tree": {
-        "kind": "rule",
-        "rule": "text",
-        "span": [
-          0,
-          3
-        ],
-        "source": [
-          0,
-          5
-        ],
-        "tags": {},
-        "children": [
-          {
-            "kind": "token",
-            "terminal": "A",
-            "token": 0,
-            "span": [
-              0,
-              1
-            ],
-            "source": [
-              0,
-              1
-            ]
-          },
-          {
-            "kind": "token",
-            "terminal": "B",
-            "token": 1,
-            "span": [
-              1,
-              2
-            ],
-            "source": [
-              2,
-              3
-            ]
-          },
-          {
-            "kind": "token",
-            "terminal": "C",
-            "token": 2,
-            "span": [
-              2,
-              3
-            ],
-            "source": [
-              4,
-              5
-            ]
-          }
-        ]
-      },
-      "error": null
+      ]
     },
     "brackets": "(a b c)"
   }

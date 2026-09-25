@@ -1,153 +1,194 @@
-# The notation: from tokens to a grammar
+# jbogenbau: from tokens to a grammar
 
 This is the second stage of the notation dialect, `../dialects/notation.md`. It reads the tokens `lexical.md` emitted and builds the tree from which a library reads the grammar's rules and directives. Its rule names matter to that reader: the table in `../../docs/engine.md`, §9, says what each named constituent becomes. The notation is explained for authors in `../../docs/notation.md`.
 
-The tokens arrive tagged `identifier`, `string`, `phoneme`, `capture`, `guard` or `directive`, or with their own spelling for a symbol such as `"≔"` or `"..."`.
+The tokens arrive tagged `identifier`, `string`, `phoneme`, `capture` or `guard`, with their own spelling for a keyword such as `"%rule"`, or with their own spelling for a symbol such as `"|"` or `"..."`.
 
 ## Choosing among parses
 
-Every construct of the notation is closed by a symbol or by the `;` that ends its rule, so the grammar is unambiguous except where a list could end earlier or later; the greedy reading takes the longer list.
+Every rule and directive begins with a keyword, and a keyword begins nothing else, so where one ends is never in doubt, and the grammar is unambiguous except where a list could end earlier or later; the greedy reading takes the longer list.
 
-```ebnf
-%ambiguity-resolution greedy ;
+```jbogenbau
+%ambiguity-resolution greedy
 ```
 
 ## Documents
 
-A grammar text is a sequence of rules and directives. A directive is its name and any number of words, ended by `;`.
+A grammar text is a sequence of rules and directives. A directive is its keyword and any number of words.
 
-```ebnf
-text ≔ [item] ... ;
+```jbogenbau
+%rule text
+  [statement] ...
 
-item ≔ rule | directive-statement ;
+%rule statement
+  rule | directive
 
-directive-statement ≔ "directive" [argument-word] ... ";" ;
+%rule directive
+  directive-name [argument-word] ...
 
-argument-word ≔ "identifier" ;
+%rule directive-name
+  "%ambiguity-resolution" | "%elidable"
+
+%rule argument-word
+  "identifier"
 ```
 
 ## Rules
 
-A rule is a name, optional tags for all its alternatives, `≔` to define it or `|≔` to add to it, its alternatives, its clauses, and `;`. A rule's name is a name, or `#`, the free-modifier slot. Every list separator may also stand first, so an author can put each alternative on a line of its own starting with `|`.
+A rule is a keyword that says whether it defines, redefines or extends the rule, its name, its alternatives, and its clauses, at most one of each and in a fixed order. A rule's name is a name, or `#`, the free-modifier slot. Every list separator may also stand first, so an author can put each alternative on a line of its own starting with `|`.
 
-```ebnf
-rule ≔ rule-name [rule-tags] definer body [clause] ... ";" ;
+```jbogenbau
+%rule rule
+  definer rule-name body [tags-clause] [conditions-clause] [emits-clause]
 
-rule-name ≔ "identifier" | "#" ;
+%rule definer
+  "%rule" | "%redefine-rule" | "%extend-rule"
 
-rule-tags ≔ "<" term ">" ;
+%rule rule-name
+  "identifier" | "#"
 
-definer ≔ "≔" | "|≔" ;
+%rule body
+  ["|"] alternative ["|" alternative] ...
 
-body ≔ ["|"] alternative ["|" alternative] ... ;
+%rule alternative
+  [guard] ... conjunction [alternative-tags]
 
-alternative ≔ [guard] ... conjunction [alternative-tags] ;
+%rule guard
+  "guard"
 
-guard ≔ "guard" ;
-
-alternative-tags ≔ "<" term ">" ;
+%rule alternative-tags
+  "<" term ">"
 ```
 
 ## Expressions
 
 `&` joins sequences, and a sequence is one or more elements. An element is a primary, followed by `...` for one or more of it; an optional followed by `...` is zero or more. Parentheses group a choice, whose alternatives carry neither guards nor tags.
 
-```ebnf
-conjunction ≔ ["&"] sequence ["&" sequence] ... ;
+```jbogenbau
+%rule conjunction
+  ["&"] sequence ["&" sequence] ...
 
-sequence ≔ element ... ;
+%rule sequence
+  element ...
 
-element ≔ primary ["..."] ;
+%rule element
+  primary ["..."]
 
-primary ≔
-| reference
-| string
-| phoneme
-| capture
-| group
-| optional
-| empty
-;
+%rule primary
+  reference | string | phoneme | capture | group | optional | empty
 
-reference ≔ "identifier" | "#" ;
+%rule reference
+  "identifier" | "#"
 
-string ≔ "string" ;
+%rule string
+  "string"
 
-phoneme ≔ "phoneme" ;
+%rule phoneme
+  "phoneme"
 
-capture ≔ "capture" "(" primary ")" ;
+%rule capture
+  "capture" "(" primary ")"
 
-group ≔ "(" choice ")" ;
+%rule group
+  "(" choice ")"
 
-optional ≔ "[" choice "]" ;
+%rule optional
+  "[" choice "]"
 
-choice ≔ ["|"] conjunction ["|" conjunction] ... ;
+%rule choice
+  ["|"] conjunction ["|" conjunction] ...
 
-empty ≔ "ε" ;
+%rule empty
+  "ε"
 ```
 
 ## Clauses
 
-A rule may say what it emits, after `⇒`, and what must hold of its captured parts, after `:`, in either order. An emitted item is a capture, with tags of its own between `<` and `>` or with nothing between them, which erases it, or an inserted tag.
+`%tags` says what tags every alternative's constituent carries, `%conditions` lists what must hold of the captured parts, and `%emits` what the constituent hands on. An emitted item is a capture, with tags of its own between `<` and `>` or with nothing between them, which makes it silent, or an inserted tag.
 
-```ebnf
-clause ≔ emission | conditions ;
+```jbogenbau
+%rule tags-clause
+  "%tags" term
 
-emission ≔ "⇒" [","] emit-item ["," emit-item] ... ;
+%rule conditions-clause
+  "%conditions" [","] implication ["," implication] ...
 
-emit-item ≔ emit-target [emit-tags] ;
+%rule emits-clause
+  "%emits" [","] emit-item ["," emit-item] ...
 
-emit-target ≔ "capture" | "string" | "phoneme" ;
+%rule emit-item
+  emit-target [emit-tags]
 
-emit-tags ≔ "<" term ">" | erase ;
+%rule emit-target
+  "capture" | "string" | "phoneme"
 
-erase ≔ "<" ">" ;
+%rule emit-tags
+  "<" term ">" | silent
+
+%rule silent
+  "<" ">"
 ```
 
-Conditions are joined by `∧` and `∨`, `∧` binding tighter, and grouped with parentheses; `¬` negates the condition after it.
+A condition joins others with `∧`, `∨` and `⟹`, binding in that order, `⟹` grouping to the right; parentheses group, and `¬` negates the condition after it. A capture alone is a condition, true where the alternative has it.
 
-```ebnf
-conditions ≔ ":" any-of ;
+```jbogenbau
+%rule implication
+  any-of ["⟹" implication]
 
-any-of ≔ ["∨"] all-of ["∨" all-of] ... ;
+%rule any-of
+  ["∨"] all-of ["∨" all-of] ...
 
-all-of ≔ ["∧"] condition ["∧" condition] ... ;
+%rule all-of
+  ["∧"] condition ["∧" condition] ...
 
-condition ≔ comparison | call | negation | "(" any-of ")" ;
+%rule condition
+  comparison | call | negation | presence | "(" implication ")"
 
-comparison ≔ term comparator term ;
+%rule comparison
+  union comparator union
 
-comparator ≔ "=" | "≠" | "∈" | "∉" | "⊆" ;
+%rule comparator
+  "=" | "≠" | "∈" | "∉" | "⊆"
 
-negation ≔ "¬" condition ;
+%rule negation
+  "¬" condition
+
+%rule presence
+  "capture"
 ```
 
 ## Terms
 
-A term is a string, a tag set or a list. `∩` binds tighter than `∪`.
+A term is a string, a tag set or a list. `∩` binds tighter than `∪`. A term guarded by a condition, `A ⟹ t`, is `t` where `A` holds and nothing where it does not; it binds looser than `∪` and `∩`, so it stands in parentheses inside a larger term, and only a whole tag term may be one without them.
 
-```ebnf
-term ≔ ["∪"] intersection ["∪" intersection] ... ;
+```jbogenbau
+%rule term
+  union | guarded-term
 
-intersection ≔ ["∩"] term-atom ["∩" term-atom] ... ;
+%rule guarded-term
+  any-of "⟹" term
 
-term-atom ≔
-| string
-| phoneme
-| weak
-| empty-set
-| "(" term ")"
-| call
-| capture-reference
-;
+%rule union
+  ["∪"] intersection ["∪" intersection] ...
 
-weak ≔ "?" "string" ;
+%rule intersection
+  ["∩"] term-atom ["∩" term-atom] ...
 
-empty-set ≔ "∅" ;
+%rule term-atom
+  string | phoneme | weak | empty-set | "(" term ")" | call | capture-reference
 
-call ≔ "identifier" "(" argument ["," argument] ... ")" ;
+%rule weak
+  "?" "string"
 
-argument ≔ term | "identifier" ;
+%rule empty-set
+  "∅"
 
-capture-reference ≔ "capture" ;
+%rule call
+  "identifier" "(" argument ["," argument] ... ")"
+
+%rule argument
+  union | "identifier"
+
+%rule capture-reference
+  "capture"
 ```

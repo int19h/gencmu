@@ -1,6 +1,6 @@
 {
   "description": "A condition on $ in an empty constituent is evaluated when it is predicted, over an empty span (engine §4).",
-  "grammar": "text ≔ A x B ; x ≔ ε : text($) = \"\" ∧ phonemes($) = \"\" ;",
+  "grammar": "%rule text A x B\n%rule x ε %conditions text($) = \"\", phonemes($) = \"\"",
   "tokens": [
     {
       "text": "a",

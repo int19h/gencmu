@@ -7,8 +7,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
+from ._clauses import WHOLE
 from ._errors import _GrammarFault
-from ._grammar import WHOLE, Lowered, Production
+from ._grammar import Lowered, Production
 from ._model import Tags, Token
 from ._tags import TagTable, intersection, union
 from ._trampoline import Walk, run
@@ -175,6 +176,12 @@ class Evaluator:
             return {dom["weak"]: False}
         if "emptySet" in dom:
             return {}
+        if "if" in dom:
+            # A guarded term: its term is evaluated only where its condition
+            # holds (engine §10).
+            if (yield self._condition(dom["if"], bound)):
+                return _as_tags((yield self._value(dom["then"], bound)))
+            return {}
         if "union" in dom:
             result: Tags = {}
             for item in dom["union"]:
@@ -249,6 +256,15 @@ class Evaluator:
             return self.context.nested(dom["rule"], start, end).accepted
         if "not" in dom:
             return not (yield self._condition(dom["not"], bound))
+        if "if" in dom:
+            # The consequent is evaluated only where the premise holds
+            # (engine §10, "Order of evaluation").
+            if not (yield self._condition(dom["if"], bound)):
+                return True
+            return bool((yield self._condition(dom["then"], bound)))
+        if "captured" in dom:
+            # Decided for each production when it is lowered (engine §3.6).
+            raise _GrammarFault("a presence test outlived lowering")
         if "any" in dom:
             for item in dom["any"]:
                 if (yield self._condition(item, bound)):

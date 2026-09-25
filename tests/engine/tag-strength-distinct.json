@@ -1,6 +1,6 @@
 {
   "description": "A strong tag named ?X and a weak tag X are different tag sets, so constituents carrying them are different items (engine §1, §4).",
-  "grammar": "text ≔ $a(w) : \"?X\" ∈ tags($a) ; w ≔ W <?\"X\"> | S <\"?X\"> ;",
+  "grammar": "%rule text $a(w) %conditions \"?X\" ∈ tags($a)\n%rule w W <?\"X\"> | S <\"?X\">",
   "tokens": [
     {
       "text": "t",

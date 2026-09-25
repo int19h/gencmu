@@ -1,6 +1,6 @@
 {
   "description": "A sequence of terminals matched by tag (engine §4).",
-  "grammar": "text ≔ A B ;",
+  "grammar": "%rule text A B",
   "tokens": [
     {
       "text": "a",

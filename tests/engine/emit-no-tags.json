@@ -1,6 +1,6 @@
 {
   "description": "An emitted token whose tag term gives no tags is an error of the grammar, found while parsing (engine §11).",
-  "grammar": "text ≔ $a(A) ⇒ $a <tags($a) ∩ \"Z\"> ;",
+  "grammar": "%rule text $a(A) %emits $a <tags($a) ∩ \"Z\">",
   "tokens": [
     {
       "text": "a",

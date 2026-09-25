@@ -1,6 +1,6 @@
 {
   "description": "T puts a visible prefix before its extensions and compares whole sequences only between visibly equal derivations, so it is a total order (engine §6): three derivations of one token that the whole sequences alone would order in a cycle.",
-  "grammar": "text ≔ text A text | A text | [A] ;",
+  "grammar": "%rule text text A text | A text | [A]",
   "tokens": [
     {
       "text": "a",

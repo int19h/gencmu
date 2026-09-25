@@ -1,6 +1,6 @@
 {
   "description": "Productions are numbered by rule, then by alternative: an alternative's own productions, then its helpers in the order their sugar is written, each followed at once by the helpers inside it (engine §3, Numbering). The two derivations differ only in helpers, so the witness names their production numbers.",
-  "grammar": "text ≔ [A] [[A] B] ... [A] ;",
+  "grammar": "%rule text [A] [[A] B] ... [A]",
   "tokens": [
     {
       "text": "a",

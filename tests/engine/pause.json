@@ -2,8 +2,8 @@
   "description": "The pause, /./, sounds as a space: a token tagged with it has a space as its phonemes, and words() splits at it (engine §5, §10).",
   "documents": {
     "p.md": "## s <?stage sounds?>\n\n- [g](g.md) <?grammar?>\n\n## t <?stage words?>\n\n- [h](h.md) <?grammar?>\n",
-    "g.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ [c] ... ;\nc ≔ \"a\" </a/> | \"space\" </./> ⇒ $ ;\n```\n",
-    "h.md": "```ebnf\n%ambiguity-resolution greedy ;\ntext ≔ $w(run) : phonemes($w) = \"a a\" ∧ \"a\" ∈ words($w) ;\nrun ≔ /a/ /./ /a/ ;\n```\n"
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [c] ...\n%rule c \"a\" </a/> | \"space\" </./> %emits $\n```\n",
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w(run) %conditions phonemes($w) = \"a a\", \"a\" ∈ words($w)\n%rule run /a/ /./ /a/\n```\n"
   },
   "pipeline": "p.md",
   "input": "a a",

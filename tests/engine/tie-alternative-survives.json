@@ -1,6 +1,6 @@
 {
   "description": "The tied derivation reported is the one diverging from the chosen one earliest; it stays tied when the candidate it was first tied with loses to one that closes an empty constituent before X (engine §6).",
-  "grammar": "%ambiguity-resolution lazy ;\ntext ≔ t X ; t ≔ A | a | C | A f ; a ≔ A ; f ≔ ε ;",
+  "grammar": "%ambiguity-resolution lazy\n%rule text t X\n%rule t A | a | C | A f\n%rule a A\n%rule f ε",
   "tokens": [
     {
       "text": "x",

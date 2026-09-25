@@ -1,0 +1,15 @@
+{
+  "description": "# is a rule like any other, so a rule that refers to # needs a definition of it, and one of free (engine §2).",
+  "grammar": "%ambiguity-resolution greedy\n%rule # [free ...]\n%rule text A #",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

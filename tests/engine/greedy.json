@@ -1,6 +1,6 @@
 {
   "description": "Greedy: where one parse reads and the other closes, the one that reads wins, so s takes B (engine §6.2).",
-  "grammar": "text ≔ s | s B ; s ≔ A [B] ;",
+  "grammar": "%rule text s | s B\n%rule s A [B]",
   "tokens": [
     {
       "text": "a",

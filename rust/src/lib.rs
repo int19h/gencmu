@@ -11,7 +11,7 @@
 //!
 //! ```
 //! let dialect = gencmu::load_dialect("notation")?;
-//! let result = dialect.parse("text ≔ A ;", &gencmu::ParseOptions::default())?;
+//! let result = dialect.parse("%rule text A", &gencmu::ParseOptions::default())?;
 //! assert!(result.ok);
 //! let json = gencmu::to_json(&result);
 //! let brackets = gencmu::to_brackets(&result, false);
@@ -37,6 +37,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+mod clauses;
 mod dialect;
 mod dom;
 mod earley;

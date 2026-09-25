@@ -7,6 +7,7 @@ import itertools
 from dataclasses import dataclass, field
 from typing import Any, Union
 
+from ._clauses import WHOLE, applies, captures_in, simplify_term
 from ._errors import GencmuError
 from ._trampoline import Walk, run
 
@@ -96,21 +97,30 @@ def stitch(stage: str, documents: list[tuple[str, Dom]]) -> Grammar:
                 )
                 for alt in rule.get("alternatives", [])
             ]
-            if rule.get("op") == "extend":
-                existing = rules.get(name)
-                if existing is None:
-                    raise _error(f"|≔ extends {name}, which no document defined before it", path, at, stage)
-                existing.alternatives.extend(alternatives)
-                changes.append(Change("extend", name, path, existing.document))
-            else:
-                if name in defined_here:
-                    raise _error(f"{name} is defined twice with ≔ in one document", path, at, stage)
+            previous = rules.get(name)
+            op = rule.get("op")
+            if op == "extend":
+                if previous is None:
+                    raise _error(f"%extend-rule {name} extends a rule that is not defined before it", path, at, stage)
+                previous.alternatives.extend(alternatives)
+                changes.append(Change("extend", name, path, previous.document))
+            elif op == "redefine":
+                if previous is None or name in defined_here:
+                    raise _error(f"%redefine-rule {name} replaces no rule of an earlier document", path, at, stage)
                 defined_here.add(name)
-                if name in rules:
-                    changes.append(Change("replace", name, path, rules[name].document))
-                    rules[name] = Rule(name, alternatives, path, at)
-                else:
-                    rules[name] = Rule(name, alternatives, path, at)
+                changes.append(Change("replace", name, path, previous.document))
+                # The rule keeps its place (engine §3, "Numbering").
+                rules[name] = Rule(name, alternatives, path, at)
+            else:
+                if previous is not None:
+                    raise _error(
+                        f"%rule {name} is already defined, in {previous.document}; %redefine-rule replaces a rule",
+                        path,
+                        at,
+                        stage,
+                    )
+                defined_here.add(name)
+                rules[name] = Rule(name, alternatives, path, at)
         for directive in dom.get("directives", []):
             name = directive["name"]
             args = list(directive.get("args", []))
@@ -150,27 +160,6 @@ def stitch(stage: str, documents: list[tuple[str, Dom]]) -> Grammar:
 
 # ---------------------------------------------------------------------------
 # Lowering
-
-
-WHOLE = ""
-"""The capture name of ``$``, the whole constituent, which every production
-has without writing it (engine §3.5)."""
-
-
-def captures_in(dom: Any) -> set[str]:
-    """The capture names a condition or term mentions, ``WHOLE`` for ``$``."""
-    found: set[str] = set()
-    stack = [dom]
-    while stack:
-        value = stack.pop()
-        if isinstance(value, dict):
-            name = value.get("capture")
-            if isinstance(name, str) and "expr" not in value:
-                found.add(name)
-            stack.extend(value.values())
-        elif isinstance(value, list):
-            stack.extend(value)
-    return found
 
 
 @dataclass
@@ -377,12 +366,17 @@ class _Lowerer:
             captures=captures,
         )
         if alt is not None:
-            # $ is a capture every production has (engine §3.6).
+            # $ is a capture every production has, and each clause is
+            # simplified for the captures this one has (engine §3.6).
             present = captures.keys() | {WHOLE}
-            for condition in alt.conditions:
-                names = captures_in(condition)
-                if not names <= present:
+            for written in alt.conditions:
+                condition = applies(written, present)
+                if condition is None:
                     continue
+                if condition is False:
+                    # A condition false for this production removes it.
+                    return
+                names = captures_in(condition)
                 if WHOLE in names and rhs:
                     # Evaluated when the item is complete (engine §4).
                     production.conds_whole.append(condition)
@@ -392,9 +386,12 @@ class _Lowerer:
                     # No capture, or only $ over an empty production: at
                     # prediction.
                     production.conds_predict.append(condition)
-            term = alt.tags if alt.tags is not None else alt.rule_tags
-            if term is not None and captures_in(term) <= present:
-                production.tags_term = term
+            # The union of the alternative's own tags and the definition's
+            # (engine §3.7); the reader has made sure neither uses a capture
+            # the alternative lacks.
+            terms = [simplify_term(term, present) for term in (alt.tags, alt.rule_tags) if term is not None]
+            if terms:
+                production.tags_term = terms[0] if len(terms) == 1 else {"union": terms}
             production.emit = self.lower_emit(alt.emit, captures)
         if production.tags_term is None and len(rhs) == 1 and 0 not in captures.values():
             captures[IMPLICIT] = 0
@@ -426,32 +423,31 @@ class _Lowerer:
                 self.add(number, expansion, None, elided=elided if not expansion else None)
             stack.extend(reversed(used(own)))
 
-    def lower_emit(self, emit: Dom | None, captures: dict[str, int]) -> Any:
-        """A production's emission: ``("erase",)`` for ``⇒ $ <>``,
-        ``("whole", [term or None, ...])`` for ``⇒ $``, or ``("items", [...])``
-        of ``("capture", position, term or None, erased)`` and
-        ``("insert", tag)``, less what names a capture the production lacks
-        (engine §3.6, §11)."""
+    def lower_emit(self, emit: Dom | None, captures: dict[str, int]) -> list[tuple[Any, ...]] | None:
+        """A production's emission, the items it emits in list order, less
+        those that name a capture the production lacks (engine §3.6, §11):
+        ``("whole", term or None, silent)`` for ``$``, ``("capture",
+        position, term or None, silent)``, and ``("insert", tag, anchor)``,
+        the anchor being the position of the capture listed next after it,
+        or ``None`` for the constituent's end."""
         if emit is None:
             return None
         present = captures.keys() | {WHOLE}
 
         def own(term: Any) -> Any:
-            return term if term is not None and captures_in(term) <= present else None
+            return simplify_term(term, present) if term is not None else None
 
-        items = emit.get("items", [])
-        if items and all(item.get("capture") == WHOLE for item in items):
-            if items[0].get("erase"):
-                return ("erase",)
-            return ("whole", [own(item.get("tags")) for item in items])
+        items = [item for item in emit.get("items", []) if "insert" in item or item["capture"] in present]
         lowered: list[tuple[Any, ...]] = []
-        for item in items:
-            if "capture" in item:
-                if item["capture"] in captures:
-                    lowered.append(("capture", captures[item["capture"]], own(item.get("tags")), bool(item.get("erase"))))
-            elif "insert" in item:
-                lowered.append(("insert", item["insert"]))
-        return ("items", lowered)
+        for index, item in enumerate(items):
+            if "insert" in item:
+                anchor = next((captures[other["capture"]] for other in items[index + 1 :] if "capture" in other), None)
+                lowered.append(("insert", item["insert"], anchor))
+            elif item["capture"] == WHOLE:
+                lowered.append(("whole", own(item.get("tags")), bool(item.get("silent"))))
+            else:
+                lowered.append(("capture", captures[item["capture"]], own(item.get("tags")), bool(item.get("silent"))))
+        return lowered
 
     def check_captures(self, expr: Dom) -> None:
         top = expr["seq"] if "seq" in expr else [expr]
@@ -500,6 +496,11 @@ class _Lowerer:
                     self.flush(expansions)
                     continue
                 prefix, repeat = trailing
+                if any("capture" in item and "expr" in item for item in prefix):
+                    # The recursive productions could not have the capture,
+                    # whose part lies inside the inner constituent (engine
+                    # §3.3).
+                    raise self.fail(f"an alternative of {name} captures a part, and is lowered as a trailing repetition")
                 heads = self.expand({"seq": prefix}, top=True)
                 body = self.expand(repeat["repeat"])
                 if repeat.get("min", 1) == 1:

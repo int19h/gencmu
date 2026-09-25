@@ -62,12 +62,12 @@ func splitLines(s string) []string {
 	return append(lines, s[start:])
 }
 
-// grammarText is the text of a document's ebnf blocks (engine §8), with the
+// grammarText is the text of a document's jbogenbau blocks (engine §8), with the
 // document position of each of its code points and of its end.
 type grammarText struct {
 	text     []rune
 	pos      [][2]int // len(text)+1 entries: line and column, from 1
-	unclosed *[2]int  // the opening fence of an ebnf block never closed
+	unclosed *[2]int  // the opening fence of a jbogenbau block never closed
 }
 
 func (g *grammarText) at(offset int) [2]int {
@@ -82,14 +82,15 @@ func (g *grammarText) at(offset int) [2]int {
 
 var fenceOpen = regexp.MustCompile("^ {0,3}(`{3,}|~{3,})(.*)$")
 
-// extractEBNF finds the fenced code blocks whose info string is ebnf and joins
-// their contents with a newline between blocks. A block's lines are joined
-// with a newline too, so every line ending reads as \n.
-func extractEBNF(doc string) *grammarText {
+// extractGrammarText finds the fenced code blocks whose info string is
+// jbogenbau and joins their contents with a newline between blocks. A
+// block's lines are joined with a newline too, so every line ending reads
+// as \n.
+func extractGrammarText(doc string) *grammarText {
 	g := &grammarText{}
 	lines := splitLines(doc)
 	var fence string // the open fence, or "" outside a block
-	isEBNF, blocks, linesInBlock := false, 0, 0
+	isGrammar, blocks, linesInBlock := false, 0, 0
 	lastEnd := [2]int{1, 1}
 	var opened [2]int
 	newline := func() {
@@ -107,9 +108,9 @@ func extractEBNF(doc string) *grammarText {
 				continue
 			}
 			fence = m[1]
-			isEBNF = info == "ebnf"
+			isGrammar = info == "jbogenbau"
 			opened = [2]int{n + 1, runeColumn(line, 0)}
-			if isEBNF {
+			if isGrammar {
 				if blocks > 0 {
 					newline()
 				}
@@ -122,7 +123,7 @@ func extractEBNF(doc string) *grammarText {
 			fence = ""
 			continue
 		}
-		if !isEBNF {
+		if !isGrammar {
 			continue
 		}
 		if linesInBlock > 0 {
@@ -138,9 +139,9 @@ func extractEBNF(doc string) *grammarText {
 		lastEnd = [2]int{n + 1, col}
 	}
 	g.pos = append(g.pos, lastEnd)
-	if fence != "" && isEBNF {
+	if fence != "" && isGrammar {
 		// Another unclosed block runs to the end, as in CommonMark; an
-		// ebnf block is an error at its fence (§8).
+		// jbogenbau block is an error at its fence (§8).
 		g.unclosed = &opened
 	}
 	return g

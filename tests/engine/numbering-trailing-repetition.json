@@ -1,6 +1,6 @@
 {
   "description": "A trailing repetition's ... has no helper: it is lowered into the rule's own productions (engine §3, Numbering), so y's production is number 4 in the witness.",
-  "grammar": "text ≔ x | y ; x ≔ A ... ; y ≔ A ;",
+  "grammar": "%rule text x | y\n%rule x A ...\n%rule y A",
   "tokens": [
     {
       "text": "a",

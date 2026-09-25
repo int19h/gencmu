@@ -5,57 +5,48 @@ import { loadDialectSources, audit } from "../src/node.js";
 
 const dialect = (rules) => loadDialectSources({
   "p.md": "## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n",
-  "g.md": "```ebnf\n%ambiguity-resolution greedy ;\n" + rules + "\n```\n",
+  "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n" + rules + "\n```\n",
 }, "p.md");
 
 test("the audit reaches rules only through what a reachable alternative can use", () => {
-  // A condition naming a capture no alternative has never runs, so the rule
-  // it names is not reached through it.
-  const [idle] = audit(dialect("text ≔ A : matches($x, helper) ; helper ≔ B ;"));
-  assert.deepEqual(idle.unreachable, ["helper"]);
-  assert.equal(idle.idleConditions.length, 1);
+  // A condition that applies to no alternative is an error of the grammar.
+  assert.throws(() => dialect("%rule text $y(A) %conditions matches($x, helper)\n%rule helper B"), /\$x is captured by no alternative/);
+  assert.throws(() => dialect("%rule text $y(A) | B %conditions $y ⟹ matches($x, helper)\n%rule helper B"), /\$x is captured by no alternative/);
   // The free-modifier rule is reached through a reachable #, and only so.
-  const [unused] = audit(dialect("text ≔ A ; other ≔ B # ; # ≔ [free ...] ; free ≔ C ;"));
+  const [unused] = audit(dialect("%rule text A %rule other B # %rule # [free ...] %rule free C"));
   assert.deepEqual(unused.unreachable, ["#", "free", "other"]);
-  const [used] = audit(dialect("text ≔ A # ; # ≔ [free ...] ; free ≔ C ;"));
+  const [used] = audit(dialect("%rule text A # %rule # [free ...] %rule free C"));
   assert.deepEqual(used.unreachable, []);
   // A condition that applies reaches the rule it names.
-  const [applies] = audit(dialect("text ≔ $x(A) : matches($x, helper) ; helper ≔ A ;"));
+  const [applies] = audit(dialect("%rule text $x(A) %conditions matches($x, helper) %rule helper A"));
   assert.deepEqual(applies.unreachable, []);
-  // An alternative's own tags replace the rule's, so a rule the rule-level
-  // tags name is not reached through an alternative that has its own.
-  const [overridden] = audit(dialect("text <tags($x, ghost)> ≔ $x(A) <\"T\"> ; ghost ≔ A ;"));
-  assert.deepEqual(overridden.unreachable, ["ghost"]);
+  // A condition reaches the rule it names only through the alternatives it
+  // applies to.
+  const [partly] = audit(dialect("%rule text $a(A) | B %conditions matches($a, ghost) %rule ghost A"));
+  assert.deepEqual(partly.unreachable, []);
 });
 
-test("the audit finds an erasure that could change nothing", () => {
-  // Nothing under x emits, and x is inside no emitted token: erasing it says nothing.
-  const [idle] = audit(dialect("text ≔ x ; x ≔ A ⇒ $ <> ;"));
-  assert.deepEqual(idle.idleErasures.map((e) => [e.rule, e.erased]), [["x", "$"]]);
+test("the audit finds a silent item that could change nothing", () => {
+  const idle = (rules) => audit(dialect(rules))[0].idleErasures.map((e) => [e.rule, e.erased]);
+  // Nothing under x emits, and x is inside no emitted token.
+  assert.deepEqual(idle("%rule text x %rule x A %emits $ <>"), [["x", "$"]]);
   // Something under x emits.
-  const [emits] = audit(dialect("text ≔ x ; x ≔ w ⇒ $ <> ; w ≔ A ⇒ $ ;"));
-  assert.deepEqual(emits.idleErasures, []);
+  assert.deepEqual(idle("%rule text x %rule x w %emits $ <> %rule w A %emits $"), []);
   // x is inside a token text emits, whose phonemes would include it.
-  const [sounds] = audit(dialect("text ≔ y ⇒ $ ; y ≔ x B ; x ≔ A ⇒ $ <> ;"));
-  assert.deepEqual(sounds.idleErasures, []);
+  assert.deepEqual(idle("%rule text y %emits $ %rule y x B %rule x A %emits $ <>"), []);
   // A token whose tags name its phoneme does not sound like what is under it.
-  const [fixed] = audit(dialect("text ≔ x ⇒ $ </a/> ; x ≔ A ⇒ $ <> ;"));
-  assert.deepEqual(fixed.idleErasures.map((e) => [e.rule, e.erased]), [["x", "$"]]);
+  assert.deepEqual(idle("%rule text x %emits $ </a/> %rule x A %emits $ <>"), [["x", "$"]]);
   // Not inside a token an ancestor emits, whose phonemes come from what lies
   // under it.
-  const [inside] = audit(dialect("text ≔ y ⇒ $ ; y ≔ x ⇒ $ </a/> ; x ≔ B ⇒ $ <> ;"));
-  assert.deepEqual(inside.idleErasures, []);
-  // Not when that tag term is dropped for the alternative, for naming a
-  // capture it lacks.
-  const [dropped] = audit(dialect("text <\"/a/\" ∪ tags($x)> ≔ $x(A) | y ⇒ $ ; y ≔ B ⇒ $ <> ;"));
-  assert.deepEqual(dropped.idleErasures, []);
-  // A capture erased by name is judged the same way.
-  const [named] = audit(dialect("text ≔ $a(A) $b(w) ⇒ $a <>, $b ; w ≔ B ;"));
-  assert.deepEqual(named.idleErasures.map((e) => [e.rule, e.erased]), [["text", "$a"]]);
+  assert.deepEqual(idle("%rule text y %emits $ %rule y x %emits $ </a/> %rule x B %emits $ <>"), []);
+  // %tags counts for the alternatives it serves, guarded or not.
+  assert.deepEqual(idle("%rule text $x(A) | y %tags \"/a/\" ∪ ($x ⟹ tags($x)) %emits $ %rule y B %emits $ <>"), [["y", "$"]]);
+  // A capture made silent by name is judged the same way.
+  assert.deepEqual(idle("%rule text $a(A) $b(w) %emits $a <>, $b %rule w B"), [["text", "$a"]]);
 });
 
 test("a defect in a condition is reported although the lookahead skips its production", async () => {
-  const d = dialect("text ≔ good | bad ; good ≔ A ; bad ≔ B : ∅ ∈ ∅ ;");
+  const d = dialect("%rule text good | bad %rule good A %rule bad B %conditions ∅ ∈ ∅");
   const { Token } = await import("../src/node.js");
   const result = d.parse("", { tokens: [new Token(new Map([["A", true]]), [0, 1], [0, 1], "a", null, undefined)] });
   assert.equal(result.ok, false);

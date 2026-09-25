@@ -538,6 +538,15 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         .collect(),
                 )
             }
+            // `t` is evaluated only where the guard holds (§10).
+            LTerm::If(cond, then) => {
+                if self.condition(cond, frame, tokens, base)? {
+                    let value = self.term(then, frame, tokens, base)?;
+                    Value::Set(self.as_set(value))
+                } else {
+                    Value::Set(TagList::new())
+                }
+            }
             LTerm::Words(span) => {
                 let (start, end, _) = span_bounds(span, frame);
                 Value::List(
@@ -573,6 +582,10 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     }
                 }
                 true
+            }
+            // The consequent is evaluated only where the antecedent holds.
+            LCond::If(antecedent, consequent) => {
+                !self.condition(antecedent, frame, tokens, base)? || self.condition(consequent, frame, tokens, base)?
             }
             LCond::Matches(span, rule) => {
                 let (start, end, _) = span_bounds(span, frame);

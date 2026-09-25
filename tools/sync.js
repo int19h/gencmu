@@ -83,7 +83,7 @@ const documents = {};
 for (const file of grammarFiles()) {
   if (!file.endsWith(".md") || file.startsWith("dialects/")) continue;
   const text = fs.readFileSync(path.join(grammars, file), "utf8");
-  if (!text.includes("```ebnf") && !text.includes("~~~ebnf")) continue;
+  if (!text.includes("```jbogenbau") && !text.includes("~~~jbogenbau")) continue;
   documents[file] = { hash: fnv1a64(text), dom: loader.readDocument(text, file) };
 }
 const compiled = { format: DOM_FORMAT, bootstrap: loader.bootstrapHash, documents };

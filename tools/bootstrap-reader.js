@@ -8,8 +8,11 @@
 
 import { extractGrammarText } from "../js/src/markdown.js";
 
-const SYMBOLS = ["|≔", "...", "≔", "|", "&", "(", ")", "[", "]", "<", ">", "#", "ε", "⇒", ":", ";", ",",
-  "∧", "∨", "¬", "?", "=", "≠", "∈", "∉", "⊆", "∪", "∩", "∅"];
+const SYMBOLS = ["...", "|", "&", "(", ")", "[", "]", "<", ">", "#", "ε", ",", "∧", "∨", "¬", "⟹", "?", "=", "≠",
+  "∈", "∉", "⊆", "∪", "∩", "∅"];
+
+const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%tags", "%conditions", "%emits",
+  "%ambiguity-resolution", "%elidable"]);
 
 function fail(message, token) {
   const error = new Error(message);
@@ -60,8 +63,10 @@ function lex(text, positions) {
       // `$` alone is the whole constituent; every other sigil needs a name.
       if (!isLetter(chars[i] || "") && c !== "$") fail(`a name after ${c}`, { at: at(start) });
       while (i < chars.length && isNameChar(chars[i])) i++;
-      const kind = c === "$" ? "capture" : c === "%" ? "directive" : "guard";
-      tokens.push({ kind, text: chars.slice(start, i).join(""), at: at(start), name: chars.slice(nameStart, i).join("") });
+      const text = chars.slice(start, i).join("");
+      if (c === "%" && !KEYWORDS.has(text)) fail(`an unknown keyword ${text}`, { at: at(start) });
+      const kind = c === "$" ? "capture" : c === "%" ? text : "guard";
+      tokens.push({ kind, text, at: at(start), name: chars.slice(nameStart, i).join("") });
       continue;
     }
     const symbol = SYMBOLS.find((s) => chars.slice(i, i + [...s].length).join("") === s);
@@ -91,6 +96,9 @@ export function decodeString(text, token) {
   return result;
 }
 
+const RULE_KEYWORDS = { "%rule": "define", "%redefine-rule": "redefine", "%extend-rule": "extend" };
+const COMPARATORS = ["=", "≠", "∈", "∉", "⊆"];
+
 class Parser {
   constructor(tokens) {
     this.tokens = tokens;
@@ -110,47 +118,38 @@ class Parser {
     const rules = [];
     const directives = [];
     while (this.peek()) {
-      if (this.is("directive")) {
-        const token = this.take("directive");
+      const token = this.peek();
+      if (token.kind === "%ambiguity-resolution" || token.kind === "%elidable") {
+        this.index++;
         const args = [];
         while (this.is("identifier")) args.push(this.take().text);
-        this.take(";");
         directives.push({ name: token.name, args, at: token.at });
-      } else {
+      } else if (RULE_KEYWORDS[token.kind]) {
         rules.push(this.rule());
+      } else {
+        fail("expected a rule or a directive", token);
       }
     }
-    return { format: 2, rules, directives };
+    return { format: 3, rules, directives };
   }
 
   rule() {
+    const keyword = this.take();
     const name = this.is("#") ? this.take("#") : this.take("identifier");
-    const rule = { name: name.text, op: "define" };
-    if (this.is("<")) rule.tags = this.angleTerm();
-    if (this.accept("|≔")) rule.op = "extend";
-    else this.take("≔");
-    rule.alternatives = this.body();
-    rule.conditions = [];
-    for (;;) {
-      if (this.is("⇒")) {
-        const token = this.take();
-        if (rule.emit) fail("a rule may have one ⇒ clause", token);
-        rule.emit = this.emission(token);
-      } else if (this.accept(":")) {
-        // The conditions joined by ∧ at the top are the rule's conditions,
-        // each applying where its captures are (engine §9).
-        const top = this.anyOf();
-        rule.conditions.push(...(top.all || [top]));
-      } else break;
+    const rule = { name: name.text, op: RULE_KEYWORDS[keyword.kind] };
+    const alternatives = this.body();
+    if (this.accept("%tags")) rule.tags = this.term();
+    rule.alternatives = alternatives;
+    const conditions = [];
+    if (this.accept("%conditions")) {
+      this.accept(",");
+      conditions.push(this.implication());
+      while (this.accept(",")) conditions.push(this.implication());
     }
-    this.take(";");
-    const ordered = { name: rule.name, op: rule.op };
-    if (rule.tags) ordered.tags = rule.tags;
-    ordered.alternatives = rule.alternatives;
-    if (rule.emit) ordered.emit = rule.emit;
-    ordered.conditions = rule.conditions;
-    ordered.at = name.at;
-    return ordered;
+    if (this.accept("%emits")) rule.emit = this.emission(keyword);
+    rule.conditions = conditions;
+    rule.at = keyword.at;
+    return rule;
   }
 
   body() {
@@ -237,8 +236,8 @@ class Parser {
     this.accept(",");
     const items = [this.emitItem()];
     while (this.accept(",")) items.push(this.emitItem());
-    if (items.some((item) => item.capture === "") && !items.every((item) => item.capture === "")) fail("⇒ $ goes with no item but another $", at);
-    if (items.some((item) => item.capture === "" && item.erase) && items.length !== 1) fail("⇒ $ <> stands alone", at);
+    if (items.some((item) => item.capture === "") && !items.every((item) => item.capture === "")) fail("$ goes with no item but another $", at);
+    if (items.some((item) => item.capture === "" && item.silent) && items.length !== 1) fail("$ <> stands alone", at);
     return { items };
   }
 
@@ -248,11 +247,11 @@ class Parser {
     if (token.kind === "capture") item = { capture: token.name };
     else if (token.kind === "string") item = { insert: decodeString(token.text, token) };
     else if (token.kind === "phoneme") item = { insert: token.text };
-    else fail("expected a capture or a tag after ⇒", token);
+    else fail("expected a capture or a tag after %emits", token);
     if (this.is("<") && this.is(">", 1)) {
       if (item.insert !== undefined) fail("an inserted tag takes no tags of its own", token);
       this.index += 2;
-      item.erase = true;
+      item.silent = true;
     } else if (this.is("<")) {
       if (item.insert !== undefined) fail("an inserted tag takes no tags of its own", token);
       item.tags = this.angleTerm();
@@ -260,18 +259,38 @@ class Parser {
     return item;
   }
 
+  // Tries a parse, and rewinds if it fails.
+  attempt(parse) {
+    const saved = this.index;
+    try {
+      return parse();
+    } catch (error) {
+      void error;
+      this.index = saved;
+      return undefined;
+    }
+  }
+
+  implication() {
+    const left = this.anyOf();
+    if (!this.accept("⟹")) return left;
+    return { if: left, then: this.implication() };
+  }
+
   anyOf() {
     this.accept("∨");
     const items = [this.allOf()];
     while (this.accept("∨")) items.push(this.allOf());
-    return items.length === 1 ? items[0] : { any: items };
+    const flat = items.flatMap((item) => (item.any ? item.any : [item]));
+    return flat.length === 1 ? flat[0] : { any: flat };
   }
 
   allOf() {
     this.accept("∧");
     const items = [this.condition()];
     while (this.accept("∧")) items.push(this.condition());
-    return items.length === 1 ? items[0] : { all: items };
+    const flat = items.flatMap((item) => (item.all ? item.all : [item]));
+    return flat.length === 1 ? flat[0] : { all: flat };
   }
 
   condition() {
@@ -279,16 +298,17 @@ class Parser {
     if (this.is("(")) {
       // Conditions in parentheses, or a comparison whose first term is in
       // parentheses: only one of the two reads on to a whole condition.
-      const saved = this.index;
-      try {
+      const grouped = this.attempt(() => {
         this.take("(");
-        const inner = this.anyOf();
+        const inner = this.implication();
         this.take(")");
+        if (this.startsComparator() || this.is("∪") || this.is("∩")) fail("a term, not a condition", this.peek());
         return inner;
-      } catch (error) {
-        void error;
-        this.index = saved;
-      }
+      });
+      if (grouped) return grouped;
+    }
+    if (this.is("capture") && !this.startsComparator(1) && !this.is("∪", 1) && !this.is("∩", 1)) {
+      return { captured: this.take().name };
     }
     if (this.is("identifier") && this.peek().text === "matches" && this.is("(", 1)) {
       const saved = this.index;
@@ -299,18 +319,28 @@ class Parser {
       }
       this.index = saved;
     }
-    const left = this.term();
+    const left = this.union();
     const op = this.take();
-    if (!["=", "≠", "∈", "∉", "⊆"].includes(op.kind)) fail("expected a comparison", op);
-    const right = this.term();
+    if (!COMPARATORS.includes(op.kind)) fail("expected a comparison", op);
+    const right = this.union();
     return { op: op.kind, left, right };
   }
 
-  startsComparator() {
-    return ["=", "≠", "∈", "∉", "⊆"].includes((this.peek() || {}).kind);
+  startsComparator(offset = 0) {
+    return COMPARATORS.includes((this.peek(offset) || {}).kind);
   }
 
+  // A whole tag term: a union, or a condition guarding a term.
   term() {
+    const guarded = this.attempt(() => {
+      const condition = this.anyOf();
+      this.take("⟹");
+      return { if: condition, then: this.term() };
+    });
+    return guarded || this.union();
+  }
+
+  union() {
     this.accept("∪");
     const items = [this.intersection()];
     while (this.accept("∪")) items.push(this.intersection());
@@ -350,7 +380,7 @@ class Parser {
 
   argument() {
     if (this.is("identifier") && !this.is("(", 1)) return { rule: this.take().text };
-    return this.term();
+    return this.union();
   }
 }
 

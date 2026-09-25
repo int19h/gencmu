@@ -65,8 +65,8 @@ export function runEngineCase(testCase) {
   let documents = testCase.documents || {};
   let pipeline = testCase.pipeline;
   if (testCase.grammar !== undefined) {
-    const rules = testCase.grammar.includes("%ambiguity-resolution") ? testCase.grammar : `%ambiguity-resolution greedy ;\n${testCase.grammar}`;
-    documents = { "main.md": "```ebnf\n" + rules + "\n```\n", "pipeline.md": "## Main <?stage main?>\n\n- [main](main.md) <?grammar?>\n" };
+    const rules = testCase.grammar.includes("%ambiguity-resolution") ? testCase.grammar : `%ambiguity-resolution greedy\n${testCase.grammar}`;
+    documents = { "main.md": "```jbogenbau\n" + rules + "\n```\n", "pipeline.md": "## Main <?stage main?>\n\n- [main](main.md) <?grammar?>\n" };
     pipeline = "pipeline.md";
   }
   let dialect;

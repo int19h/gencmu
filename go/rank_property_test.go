@@ -148,7 +148,7 @@ func exprText(e *domExpr) string {
 
 func domText(d *domDoc) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%%ambiguity-resolution %s ;\n", d.Directives[0].Args[0])
+	fmt.Fprintf(&b, "%%ambiguity-resolution %s\n", d.Directives[0].Args[0])
 	for _, r := range d.Rules {
 		var alts []string
 		for _, a := range r.Alternatives {
@@ -160,7 +160,7 @@ func domText(d *domDoc) string {
 			}
 			alts = append(alts, text)
 		}
-		fmt.Fprintf(&b, "%s ≔ %s ;\n", r.Name, strings.Join(alts, " | "))
+		fmt.Fprintf(&b, "%%rule %s\n  %s\n", r.Name, strings.Join(alts, " | "))
 	}
 	return b.String()
 }

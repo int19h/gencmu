@@ -24,7 +24,7 @@ Everything a stage reads and writes is a sequence of tokens. A token has:
 - `phonemes`: what the token sounds like (§5);
 - `insertedBy`: for a token an emission clause inserted from a quoted tag
   or a phoneme tag (§11), the rule whose clause it is; otherwise absent,
-  even for a token of `⇒ $` over an empty constituent.
+  even for a token of an emission `$` over an empty constituent.
 
 The input of the first stage is the text's characters, one token per code
 point `c` at position `i`: `span` and `source` are `[i, i+1)`, `text` is `c`,
@@ -49,35 +49,26 @@ tags of the first that are in the second, with the first's strength.
 
 ## 2. Grammars
 
-A grammar is the stitching of one or more documents (§8, §9) into a set of
-rules and directives. A rule has a name and alternatives; an alternative has
-guards, an expression, and optionally tags; a rule optionally has rule-level
-tags, an emission clause and conditions. The grammar DOM, in
-`docs/output.md`, is the exact data.
+A grammar is the stitching of one or more documents (§8, §9) into a set of rules and directives. A rule has a name and alternatives; an alternative has guards, an expression, and optionally tags; a rule optionally has rule-level tags, conditions and an emission clause. The grammar DOM, in `docs/output.md`, is the exact data.
 
-**Stitching.** Documents are read in order, and each document's rules in
-order. A rule defined with `≔` replaces any rule of that name from an
-earlier document; defining a name with `≔` twice in one document is an
-error. A rule written with `|≔` appends its alternatives to the rule of that
-name defined before it, in an earlier document or earlier in the same one,
-keeping its own clauses separately (below); if none was defined before it,
-that is an error. The loader records every replacement and extension.
+**Stitching.** Documents are read in order, and each document's rules in order. Each rule is stated one of three ways, and each is an error in the case given:
 
-When `|≔` extends a rule, each appended alternative carries the extending
-document's rule-level tags, emission and conditions, which apply to it
-alone; the earlier alternatives keep theirs. So a script document can add
-letters to a rule without restating its clauses, and its own clauses do not
-leak into the base rule.
+- `%rule` (`define`) defines a rule: an error if a rule of that name was defined before it, in an earlier document or earlier in the same one.
+- `%redefine-rule` (`redefine`) replaces the rule of that name an earlier document defined, whose alternatives are then gone: an error if no earlier document defined one, or if a `%rule` or `%redefine-rule` of that name stands before it in the same document. An `%extend-rule` before it in the same document does not count: its alternatives are replaced with the rest.
+- `%extend-rule` (`extend`) appends its alternatives to the rule of that name defined before it, in an earlier document or earlier in the same one: an error if none was.
+
+When `%extend-rule` extends a rule, each appended alternative carries the extension's own clauses, its rule-level tags, conditions and emission, which apply to it alone, and the base rule's clauses do not apply to it; the earlier alternatives keep theirs. So a script document can add letters to a rule without restating its clauses, and its own clauses do not leak into the base rule. A **definition** is a `%rule`, `%redefine-rule` or `%extend-rule` statement: its alternatives and the clauses written with them. The loader records every replacement and extension.
 
 **Directives** are collected from all the stage's documents:
 
-- `%ambiguity-resolution L [elision-only]`, `L` being `greedy` or `lazy`:
-  exactly one per stage, or it is an error naming the stage.
+- `%ambiguity-resolution L [elision-only]`, `L` being `greedy` or `lazy`: exactly one per stage, or it is an error naming the stage.
 - `%elidable T...`: the elidable terminators; repeated directives add up.
 
 **Names.** A name whose first character is `A` to `Z` is a terminal; the DOM writes both kinds as `ref`, and lowering tells them apart by that first letter. Any other name is a rule reference, and must be defined in the stage, or it is an error. `#`, the free-modifier slot, is a rule's name like any other. A quoted string or a phoneme tag is a terminal.
 
 ## 3. Lowering
+
+Productions are written here `lhs → symbols`, which is not jbogenbau but the context-free grammar a jbogenbau grammar is lowered to.
 
 A grammar is lowered to a context-free grammar of productions, given the set
 of enabled features. The lowered grammar is what the parser runs; lowering
@@ -86,8 +77,8 @@ decides nothing a user can observe except through §4-§6.
 1. An alternative whose guards do not all hold is dropped. `@f` holds when
    `f` is enabled, `@¬f` when it is not.
 2. Each remaining alternative is expanded into sequences of symbols. `(a |
-   b)` expands to both, in written order. `[x]` is a helper `h ≔ ε | x`.
-   `x ...` is a helper `h ≔ x | h x`; `[x] ...` is `h ≔ ε | h x`.
+   b)` expands to both, in written order. `[x]` is a helper `h → ε | x`.
+   `x ...` is a helper `h → x | h x`; `[x] ...` is `h → ε | h x`.
    `A₁ & … & Aₙ`, with at most 16 items (more is an error of the document,
    §9, since the expansions number 2ⁿ−1), expands to every non-empty
    subsequence that keeps their order, in the order of the binary numbers 1 to 2ⁿ−1, `A₁` being the
@@ -97,10 +88,10 @@ decides nothing a user can observe except through §4-§6.
 3. **Trailing repetition.** An alternative that is the only alternative of
    its rule left after step 1, and whose expression is `x ...` or `[x] ...`
    or a sequence ending in one, is lowered as left recursion on
-   the rule itself: `r ≔ p x ...` becomes `r ≔ p x | r x`, and `r ≔ p [x] ...`
-   becomes `r ≔ p | r x`. Its intermediate prefixes are then constituents of
+   the rule itself: `r → p x ...` becomes `r → p x | r x`, and `r → p [x] ...`
+   becomes `r → p | r x`. Its intermediate prefixes are then constituents of
    `r`, which the ranking sees (§6); this is how CLL's YACC grammar realizes
-   `...`, and CLL says left grouping is implied.
+   `...`, and CLL says left grouping is implied. The recursive productions have none of the alternative's captures, whose parts lie inside the inner `r`, so an alternative lowered this way that captures anything is an error of the grammar, found when the grammar is lowered for features that leave the alternative alone in its rule.
 4. Helpers are named by the engine; their names are never shown. A helper
    is a production whose left side is a helper name.
 5. A capture `$x(s)` must wrap a single symbol `s` in a sequence at the top
@@ -109,21 +100,11 @@ decides nothing a user can observe except through §4-§6.
    alternative. `$`, the whole constituent, is a capture of every
    production that no alternative writes: its span runs from the item's
    origin to its end, and its tags are the constituent's (§4).
-6. Conditions, tags and emission attach to the production an alternative
-   lowers to, or each production if it expands to several. A condition
-   applies to a production only if the production has every capture the
-   condition mentions, `$` included, which every production has; otherwise
-   it is dropped for that production. Tags
-   likewise: the alternative's own tags if it has them, else the rule-level
-   tags, and if either mentions a capture the production lacks, the
-   production has default tags (§4). An emission item naming a capture the
-   production lacks is dropped from that production's emission, and an
-   item's tag term that names one is dropped from the item, which then
-   carries its own tags.
-7. A production with one symbol and no tags has the tags of that symbol's
-   constituent; one with several symbols and no tags has none. This is
-   stated in §4; lowering makes it explicit by treating the single symbol as
-   captured.
+6. Conditions, tags and emission attach to the production an alternative lowers to, or each production if it expands to several, with the clauses of the alternative's definition (§2). A production **has** a capture if its alternative captures it; every production has `$`. Before a clause is attached, it is **simplified** for the production: each presence test `$x` (§10) becomes true or false as the production has `x` or not; `A ⟹ B` becomes `B` where `A` is then true, and true, as a condition, or the empty set, as a term, where `A` is false; a condition `A ⟹ B` whose `B` is then true becomes true, and one whose `B` is false becomes `¬A`; `¬`, `∧` and `∨` over a true or false part are reduced as logic says; and a term's empty set, written `∅` or left by a guard, is dropped from a union, a union of nothing but empty sets is the empty set, as is an intersection with one, and a guarded term whose term is the empty set is the empty set. Since a reduced part is never evaluated, the reduction is part of the order of evaluation (§10). A capture that is still mentioned after simplification is **used** by the clause.
+   - A condition applies to a production if it has not simplified to true and the production has every capture it uses; otherwise it is dropped for that production. A condition that simplifies to false applies, and removes the production: `%conditions $x` keeps the alternatives that capture `x` and removes the others.
+   - An emission item naming a capture the production lacks is dropped from that production's emission.
+   - A tag term, the alternative's own or the definition's `%tags`, that uses a capture the production lacks is an error of the document.
+7. A production's tags are the union of its alternative's own tag term and its definition's `%tags` term, where either is written. A production with neither has the tags of its symbol's constituent if it has one symbol, and none if it has several; lowering makes this explicit by treating the single symbol as captured.
 8. An optional `[x]` is **elidable** when `x` is a symbol, or a sequence
    whose first item is, recursively, one, and that symbol is an `%elidable`
    terminal; an optional whose content is a choice or an `&` is never
@@ -132,9 +113,8 @@ decides nothing a user can observe except through §4-§6.
    elidable optional made mandatory: its helper loses `ε`.
 
 **Numbering.** Productions are numbered from 0, and the number is the
-tie-break of §6. Rules are taken in the order they were first defined after
-stitching: a rule replaced with `≔` keeps the place of the rule it
-replaces, and alternatives added with `|≔` follow the rule's own. Within a
+tie-break of §6. A production that a condition false for it removes (§3.6) takes no number, though the helpers of its alternative still do. Rules are taken in the order they were first defined after
+stitching: a rule replaced with `%redefine-rule` keeps the place of the rule it replaces, and alternatives added with `%extend-rule` follow the rule's own. Within a
 rule its remaining alternatives are taken in order, and each alternative
 contributes, in this order:
 
@@ -172,14 +152,12 @@ left-recursive rule over captured parts stays linear in the input.
 **Terminals.** A terminal `T` matches a token whose tags contain `T`,
 strong or weak.
 
-**Tags of a constituent.** When an item completes, its constituent's tags
-are its production's tag term evaluated over its captured parts (§10), or,
-for a production with no term, as in §3.7. A completed item has exactly one
+**Tags of a constituent.** When an item completes, its constituent's tags are its production's tag terms evaluated over its captured parts (§10) and joined as §3.7 says. A completed item has exactly one
 tag set; derivations of the same production over the same span with
 different tag sets are different items (they differ in a captured part) or
 have equal tag sets.
 
-**Conditions.** A condition is evaluated as soon as the item has read the last capture it mentions, and one that mentions `$` as soon as the item is complete, when `$` spans from the item's origin to the set it completes in and has the tags its production's tag term gives it. If it fails, the advanced item is not produced. A condition that mentions no capture is evaluated when the item is predicted, as is one that mentions only `$` in a production with no symbols, over the empty span there.
+**Conditions.** A condition, as simplified for its production (§3.6), is evaluated as soon as the item has read the last capture it uses, and one that uses `$` as soon as the item is complete, when `$` spans from the item's origin to the set it completes in and has the tags its production's tag term gives it. If it fails, the advanced item is not produced. A condition that uses no capture is evaluated when the item is predicted, as is one that uses only `$` in a production with no symbols, over the empty span there.
 
 **Nested parses.** `matches(span, rule)` and `tags(span, rule)` parse the
 span's tokens alone with `rule` as the start rule, over the same lowered
@@ -198,9 +176,7 @@ and the whole parse fails with it.
 
 **Derivations** are finite trees, and a derivation in which a constituent
 has, anywhere below it, a constituent of the same rule over the same span is
-not counted, since such a derivation could repeat without end: `a ≔ b ; b
-≔ a | A ;` has one derivation of `A` as `a`, not infinitely many, and so
-does `t ≔ u | ε ; u ≔ t ;` of the empty text as `t`.
+not counted, since such a derivation could repeat without end: with `a → b` and `b → a | A`, `A` has one derivation as `a`, not infinitely many, and so does the empty text as `t` with `t → u | ε` and `u → t`.
 
 **Acceptance.** The input is accepted when an item of the start rule `text`
 spans the whole input and has at least one derivation that is counted. An
@@ -217,10 +193,7 @@ A token's `phonemes`:
   pause, `/./`, is a space; two strong phoneme tags on one token are an error of the grammar
   that emitted it. A phoneme tag is a tag of exactly three code points, the
   first and last `/`;
-- otherwise, the concatenation of the phonemes of the tokens it was emitted
-  from, omitting every token inside an erased constituent (§11), the token's
-  own constituent included when its rule erases it and a parent emits it as a
-  capture, with leading and trailing spaces removed;
+- otherwise, the concatenation of the phonemes of the tokens it was emitted from, omitting every token inside a silent constituent (§11), the token's own constituent included when its own rule makes it silent and a parent emits it as a capture, with leading and trailing spaces, U+0020, removed;
 - a character token has none.
 
 An emitted token always has phonemes, possibly the empty string; only the
@@ -281,8 +254,8 @@ whatever the verdict.
 
 Nothing beats `m`, since whatever beats a derivation precedes it in *T*.
 So an undominated derivation other than `m` is **tied with `m`**: its first
-difference with `m` is a tie. The converse does not hold. In `text ≔ A X |
-B X | B Y ;`, over a token tagged `A` and `B` and one tagged `Y` and weakly
+difference with `m` is a tie. The converse does not hold. In `text → A X |
+B X | B Y`, over a token tagged `A` and `B` and one tagged `Y` and weakly
 `X`, `m` is `A X`, and `B X` is tied with it but loses to `B Y`.
 
 Of the derivations tied with `m`, the **tied** derivation reported beside
@@ -346,25 +319,11 @@ A caller may also switch the check off for a stage that declares it.
 
 ## 8. Reading grammar documents
 
-A grammar document is Markdown. Its grammar text is the content of every
-fenced code block whose info string is `ebnf`, in order: a fence is a line
-of three or more backticks or tildes, optionally indented up to three
-spaces, followed by the info string; a backtick fence whose info string
-holds a backtick is not a fence, as in CommonMark. The info string is
-`ebnf` when it is exactly that once leading and trailing whitespace is
-removed. A block ends at a line holding only a fence of the same character
-at least as long, indented up to three spaces and followed by nothing but
-whitespace. An `ebnf` block that is never closed is an error of the
-document, reported at its opening fence; any other unclosed block runs to
-the end of the document, as in CommonMark. Every character of the grammar text
-keeps its line and column in the document, and the blocks are joined with a
-newline between them.
+A grammar document is Markdown. Its grammar text is the content of every fenced code block whose info string is `jbogenbau`, in order: a fence is a line of three or more backticks or tildes, optionally indented up to three spaces, followed by the info string; a backtick fence whose info string holds a backtick is not a fence, as in CommonMark. The info string is `jbogenbau` when it is exactly that once leading and trailing whitespace is removed. A block ends at a line holding only a fence of the same character at least as long, indented up to three spaces and followed by nothing but whitespace. A `jbogenbau` block that is never closed is an error of the document, reported at its opening fence; any other unclosed block runs to the end of the document, as in CommonMark. Every character of the grammar text keeps its line and column in the document, and the blocks are joined with a newline between them.
 
 The grammar text is parsed with the notation dialect,
 `grammars/dialects/notation.md`, whose DOM ships as
-`grammars/notation/bootstrap.json`. The first bootstrap is produced by the
-JavaScript library's pull request, which also adds the fixpoint check that
-every library then runs. The tree it produces is turned into the
+`grammars/notation/bootstrap.json`. The tree it produces is turned into the
 document's DOM by the rules in §9. An implementation reads the bootstrap
 DOM, not the notation documents, to parse any grammar, the notation
 documents included; reading the notation documents with the bootstrap must
@@ -385,8 +344,8 @@ its children taken in order.
 
 | rule | DOM |
 | --- | --- |
-| `directive-statement` | a directive: name from the `directive` token without `%`, arguments from its `argument-word`s |
-| `rule` | a rule: name from its first token, a name or `#`, `define` or `extend` from its `definer`, tags from `rule-tags`, alternatives from `body`, and its `clause`s |
+| `directive` | a directive: name from its `directive-name` without `%`, arguments from its `argument-word`s |
+| `rule` | a rule: `define`, `redefine` or `extend` from its `definer`, `%rule`, `%redefine-rule` or `%extend-rule`; name from its `rule-name`, a name or `#`; alternatives from its `body`; tags from its `tags-clause`; conditions from its `conditions-clause`; emission from its `emits-clause` |
 | `alternative` | guards from its `guard`s (`@f` or `@¬f`), expression from its `conjunction`, tags from `alternative-tags` |
 | `choice` | `choice` of its `conjunction`s, or the one conjunction itself |
 | `conjunction` | `and` of its `sequence`s, or the one sequence itself |
@@ -399,15 +358,20 @@ its children taken in order.
 | `group` | its `choice` |
 | `optional` | `optional` of its `choice` |
 | `empty` | `empty` |
-| `emission` | `items`: a capture, `""` for `$`, with the term of its `emit-tags` or with `erase` for an `erase`; or an inserted tag from a string or phoneme |
-| `conditions` | its `any-of`, read as a condition: if that is an `all`, each of its conditions is appended to the rule's conditions on its own, and otherwise it is appended; since parentheses make no node, `: (a ∧ b)` is two conditions, as `: a ∧ b` is, and `: (a ∧ b) ∧ c` three |
+| `tags-clause` | its `term` |
+| `conditions-clause` | its `implication`s, each one condition of the list, in order |
+| `emits-clause` | `items` of its `emit-item`s: a capture, `""` for `$`, with the term of its `emit-tags` or with `silent` for a `silent`; or an inserted tag from a string or phoneme |
+| `implication` | `if` of its `any-of` and the `implication` after `⟹`, or the one `any-of` itself |
 | `any-of` | `any` of its `all-of`s, or the one `all-of` itself; an `all-of` that is itself an `any` gives its conditions in its place |
 | `all-of` | `all` of its `condition`s, or the one condition itself; a `condition` that is itself an `all` gives its conditions in its place |
-| `condition` | its comparison, call or negation, or the `any-of` between its parentheses, which makes no node of its own |
+| `condition` | its comparison, call, negation or presence, or the `implication` between its parentheses, which makes no node of its own |
 | `comparison` | the comparator and its two terms |
 | `negation` | `not` of its condition |
+| `presence` | `captured`, the name without `$`, `""` for `$` |
 | `call` in a condition | `matches`, which is the only function a condition calls directly |
-| `term`, `intersection` | `union`, `intersection` of the parts, or the one part itself |
+| `term` | its `union` or its `guarded-term` |
+| `guarded-term` | `if` of its `any-of` and its `term` |
+| `union`, `intersection` | `union`, `intersection` of the parts, or the one part itself |
 | `weak`, `empty-set`, `capture-reference` | `weak`, `emptySet`, a span `capture`, `""` for `$` |
 | `call` in a term | `call` with its arguments; a bare name as the second argument of `tags` or `matches` is a rule name |
 
@@ -431,17 +395,21 @@ document, reported at the first token of the offending construct:
   DOM (docs/output.md), no node of one may lie below more than 256 compound
   nodes of it, a compound node being one of `optional`, `repeat`, `and`,
   `choice`, `seq` and `capture` in an expression; `union`,
-  `intersection` and `call` in a term; `any`, `all`, `not`, `matches` and a
-  comparison in a condition. `( )` makes no node, so it adds nothing;
+  `intersection`, `if` and `call` in a term; `any`, `all`, `not`, `if`, `matches` and a
+  comparison in a condition. The condition of a guarded term counts on from the term's depth, as a comparison's terms count on from the condition's. `( )` makes no node, so it adds nothing;
   256 nested `[ ]` around a symbol are allowed, and 257 are not;
-- `$` with items other than `$`; `$ <>` with any other item; tags or `<>`
-  on an inserted tag; `∅` as an item's tags, which is a token no terminal
-  reads; a capture other than `$` listed twice in one emission; a second
-  `⇒` clause in one rule;
+- `$` with items other than `$`; `$ <>` with any other item; tags or `<>` on an inserted tag; `∅` as an item's tags, which is a token no terminal reads; a capture other than `$` listed twice in one emission;
 - a rule's or an alternative's tag term that reads the tags it defines:
   `$`, `tags($)` or `classes($)` in it; `tags(head($))` and the like read the
   tokens' tags, not the constituent's, and are allowed, as is `tags($, R)`;
-- an unknown directive.
+- an unknown directive, which the syntax grammar already refuses.
+
+A definition (§2) is checked as a whole once it is read, and these are errors of the document too, reported at the definition:
+
+- a capture, in any clause, `$x` presence tests included, that no alternative of the definition captures;
+- a condition that applies (§3.6) to no alternative of the definition, whatever features are enabled;
+- a tag term that uses (§3.6) a capture that an alternative it serves lacks: an alternative's own tags serve that alternative, `%tags` every alternative of the definition, and an emission item's tags every alternative in which the item is not dropped;
+- in an emission, captures listed in an order other than the one in which some alternative that has them captures them; an inserted tag whose anchor, the capture listed next after it, is one that some alternative of the definition lacks; or an alternative for which every item is dropped, so that it would emit nothing although the rule says what to emit.
 
 A string's decoding: the quotes are removed, `\\` is `\`, `\"` is `"`, and
 `\u{h...}` is the code point with that hexadecimal value; any other `\` is
@@ -462,6 +430,7 @@ empty if the span is.
 | `?"s"` | the tag set of one weak tag |
 | `∅` | the empty tag set |
 | `a ∪ b`, `a ∩ b` | union, intersection; `∩` binds tighter |
+| `A ⟹ t` | `t` where the condition `A` holds, else `∅` |
 | `phonemes(s)`, `text(s)` | strings (§5) |
 | `lowercase(t)` | `t` with each code point replaced by its simple lowercase mapping, the `lower` entries of `grammars/unicode.txt` |
 | `tags(s)` | the captured part's constituent tags if `s` is a whole capture, else the union of the span's tokens' tags |
@@ -474,27 +443,28 @@ A string used where a tag set is needed is the set of that one strong tag.
 **Conditions.** `a = b` and `a ≠ b` compare two strings, or two tag sets by
 their tags alone, ignoring strength. `a ∈ b` and `a ∉ b` test a string in a
 list or a tag set. `a ⊆ b` tests that every tag of `a` is in `b`.
-`matches(s, R)` holds when the span parses as `R`. `¬c` negates. Conditions joined by `∨` hold when any does, and those joined by `∧` when all do; `∧` binds tighter, and parentheses group.
+`matches(s, R)` holds when the span parses as `R`. `$x`, as a condition, holds when the production has the capture `x` (§3.6), and `$` always. `¬c` negates. Conditions joined by `∨` hold when any does, and those joined by `∧` when all do. `A ⟹ B`, a condition, holds when `A` does not or `B` does; `⟹` binds looser than `∨`, which binds looser than `∧`, it groups to the right, and parentheses group.
+
+**Order of evaluation.** Evaluating a condition may run a nested parse, which may fail with an error of the grammar (§4), so which parts are evaluated is observable. Conditions joined by `∧` or `∨` are evaluated from left to right, and evaluation stops at the first that decides the whole: a false one for `∧`, a true one for `∨`. `A ⟹ B` evaluates `A` first, and `B` only if `A` holds; a guarded term `A ⟹ t` likewise evaluates `t` only if `A` holds.
+
+**Guarded terms.** `A ⟹ t`, where `A` is a condition, is the value of `t` as a tag set where `A` holds, and the empty tag set where it does not. A guarded term binds looser than `∪` and `∩`, so it stands in parentheses inside either.
 
 ## 11. Emission
 
-Every stage that accepts its input emits tokens by walking its chosen tree from the left, the last stage included, whose tokens are its output (`docs/output.md`), though no stage reads them:
+Every stage that accepts its input emits tokens by walking its chosen tree from the left, the last stage included, whose tokens are its output (`docs/output.md`), though no stage reads them.
 
-- A constituent whose production has `⇒ $ <>` is **erased**: it emits nothing, and nothing inside it is walked.
-- A constituent whose production has `⇒ $` emits one token covering the constituent, with the constituent's tags, or with the tags of the item's term if it has one. `⇒ $ <t>, $ <u>` emits one such token per item, in the order listed, all with the same span and source: a digit that stands for a two-phoneme word is two tokens over one character.
-- `⇒ $a <t>, "x", $b` emits, in text order, one token per named capture, with the given tags or the captured constituent's own, and one inserted token per quoted tag or phoneme tag, with that one strong tag and empty span; a capture named with `<>` is erased; captured parts not named, and other children, are walked in turn. An inserted tag goes immediately before the token of the first capture listed after it, or where that capture's token would be if it is erased, and one with no capture listed after it goes after the constituent's last child. Captures are emitted in text order whatever order the list names them in.
-- A constituent whose production's emission names no capture it has, as when every item names a capture of another alternative (§3.6), is walked, and the emission's inserted tags, if any, are emitted after its last child.
-- A constituent with no emission clause is walked: its children in order.
-- A token read directly by a production with no emission clause emits nothing.
+- A constituent whose production has no emission is walked: its children in order. A token read directly by it emits nothing.
+- A constituent whose production has an emission emits exactly the items of the emission, as dropped for its production (§3.6), in the order they are listed, and nothing inside it is walked:
+  - a `$` item emits one token covering the constituent, with the constituent's tags, or with the tags of the item's term if it has one; `$ <t>, $ <u>` emits one such token per item, in order, all with the same span and source, as a digit that stands for a two-phoneme word is two tokens over one character;
+  - a capture item emits one token covering the captured part, with the part's own tags, or with the tags of the item's term;
+  - an inserted tag, a string or phoneme tag, emits a token with that one strong tag and an empty span;
+  - a `silent` item emits nothing.
+
+A constituent is **silent** when its production's emission is `$ <>`, or when its parent's emission names it with `<>`. A silent constituent emits nothing, and nothing inside it is heard in the phonemes of a token that covers it (§5). A part that an emission merely does not list is not emitted, but is heard.
 
 An item's tag term that gives the empty set is an error of the grammar, found while parsing: no terminal could read the token.
 
-An emitted token's span is the range of the stage's input tokens its
-constituent covers; its `source` runs from the source start of the first of
-them to the source end of the last; its phonemes are as in §5. An inserted
-token's span is empty at the index of the next input token, and its source
-is empty at the source end of the input token before it, or at the source
-start of the constituent if nothing of the constituent precedes it.
+An emitted token's span is the range of the stage's input tokens its constituent covers; its `source` runs from the source start of the first of them to the source end of the last; its phonemes are as in §5. An inserted token's span is empty at the start of the part of the capture listed next after it, silent or not, or at the end of the constituent if no capture is listed after it; its source is empty at the source end of the input token before that position, or at the source start of the constituent if the position is the constituent's start.
 
 **Ties.** A stage whose verdict is `tie` emits its chosen derivation, and
 the tie is reported, at whichever stage it is. A tie is a property of the

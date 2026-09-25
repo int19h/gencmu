@@ -1,10 +1,10 @@
 {
-  "description": "⇒ $ may be listed several times, but not with a capture or an inserted tag (engine §9).",
-  "document": "```ebnf\na ≔ $x(A) ⇒ $, $x ;\n```\n",
+  "description": "$ may be listed several times after %emits, but not with a capture or an inserted tag (engine §9); the error is at %emits.",
+  "document": "```jbogenbau\n%rule a $x(A) %emits $, $x\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 11
+      "column": 15
     }
   }
 }

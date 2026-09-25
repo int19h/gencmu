@@ -1,6 +1,6 @@
 {
-  "description": "|≔ with nothing to extend is an error (engine §2).",
-  "grammar": "text ≔ A ; y |≔ B ;",
+  "description": "%extend-rule with nothing to extend is an error (engine §2).",
+  "grammar": "%rule text A\n%extend-rule y B",
   "tokens": [
     {
       "text": "a",

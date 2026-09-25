@@ -1,10 +1,10 @@
 // The two things read from Markdown by code rather than by grammar: the
-// `ebnf` blocks of a grammar document (engine §8), and the stages of a
+// `jbogenbau` blocks of a grammar document (engine §8), and the stages of a
 // pipeline document (design, "Pipelines").
 
 import { GencmuError } from "./errors.js";
 
-// The grammar text of a document: its `ebnf` blocks joined with a newline,
+// The grammar text of a document: its `jbogenbau` blocks joined with a newline,
 // with the line and column of every code point in the document.
 /**
  * @param {string} markdown
@@ -26,10 +26,10 @@ export function extractGrammarText(markdown, path) {
     if (inside === null) {
       // A fence and its info string; a backtick fence's info string has no
       // backtick, or the line is not a fence (CommonMark). Only an info
-      // string that is exactly `ebnf` makes a grammar block.
+      // string that is exactly `jbogenbau` makes a grammar block.
       const fence = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
       const open = fence && !(fence[1][0] === "`" && fence[2].includes("`")) ? [fence[0], fence[1], fence[2].trim()] : null;
-      if (open && open[2] === "ebnf") {
+      if (open && open[2] === "jbogenbau") {
         inside = open[1];
         openedAt = number + 1;
         if (!first) {
@@ -59,7 +59,7 @@ export function extractGrammarText(markdown, path) {
   }
   if (inside !== null && typeof inside === "string") {
     const column = lines[openedAt - 1].indexOf(inside[0]) + 1;
-    throw new GencmuError("grammar", `${path}:${openedAt}:${column}: an ebnf block that is never closed`, { document: path, line: openedAt, column });
+    throw new GencmuError("grammar", `${path}:${openedAt}:${column}: a jbogenbau block that is never closed`, { document: path, line: openedAt, column });
   }
   return { text: chars.join(""), positions };
 }

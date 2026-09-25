@@ -11,7 +11,7 @@ Each file is one case:
 ```
 {
   "description": "what the case pins down, and which section of docs/engine.md",
-  "grammar": "text ≔ A B ;",
+  "grammar": "%rule text A B",
   "documents": {"path.md": "Markdown text"},
   "pipeline": "path.md",
   "tokens": [{"text": "a", "tags": ["A"]}, {"text": "b", "tags": ["B", "?C"]}],
@@ -22,8 +22,8 @@ Each file is one case:
 ```
 
 The grammar comes from either `grammar`, rule text for a single stage named
-`main` whose document is those rules in one `ebnf` block with
-`%ambiguity-resolution greedy ;` prepended unless the text has its own
+`main` whose document is those rules in one `jbogenbau` block with
+`%ambiguity-resolution greedy` on a line of its own before them, unless the text has its own
 `%ambiguity-resolution`, or from `documents` and `pipeline`, a pipeline
 document among `documents`.
 

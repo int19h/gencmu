@@ -1,0 +1,65 @@
+{
+  "description": "A part an emission does not list is not emitted, but is still heard in the phonemes of a token that covers it; a silent part is not (engine §5, §11).",
+  "documents": {
+    "p.md": "## s <?stage first?>\n\n- [g](g.md) <?grammar?>\n\n## t <?stage second?>\n\n- [h](h.md) <?grammar?>\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text z w\n%rule z inner\n%emits $ <\"Z\">\n%rule w inner-silent\n%emits $ <\"W\">\n%rule inner $a(A) B\n%emits $a\n%rule inner-silent $a(A) $b(B)\n%emits $a, $b <>\n```\n",
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text Z W\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "b"
+    },
+    {
+      "text": "c",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "c"
+    },
+    {
+      "text": "d",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "d"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "phonemes": "ab",
+              "tags": {
+                "Z": true
+              }
+            },
+            {
+              "phonemes": "c",
+              "tags": {
+                "W": true
+              }
+            }
+          ]
+        },
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

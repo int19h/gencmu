@@ -673,6 +673,7 @@
    */
   function evaluate(context, term, scope) {
     if ("literal" in term) return { string: term.literal };
+    if ("if" in term) return holds(context, term.if, scope) ? evaluate(context, term.then, scope) : { tags: tagSet() };
     if ("weak" in term) return { tags: weakTag(term.weak) };
     if ("emptySet" in term) return { tags: tagSet() };
     if ("union" in term) return { tags: term.union.reduce((acc, item) => tagUnion(acc, asTagSet(evaluate(context, item, scope))), tagSet()) };
@@ -764,7 +765,11 @@
   function holds(context, condition, scope) {
     if ("any" in condition) return condition.any.some((item) => holds(context, item, scope));
     if ("all" in condition) return condition.all.every((item) => holds(context, item, scope));
+    // The consequent is evaluated only where the antecedent holds (engine §10).
+    if ("if" in condition) return !holds(context, condition.if, scope) || holds(context, /** @type {Condition} */ (condition.then), scope);
     if ("not" in condition) return !holds(context, condition.not, scope);
+    // A presence test is decided when the grammar is lowered (engine §3.6).
+    if ("captured" in condition) throw new GencmuError("grammar", "a presence test outlived lowering");
     if ("matches" in condition) {
       const span = spanOf(context, condition.matches, scope);
       return nestedMatches(context, condition.rule, span.start, span.end);
@@ -1433,525 +1438,436 @@
   }
 
 
-  // ---- grammar.js
-  // A stage's grammar: its documents stitched together (engine §2) and
-  // lowered to productions for one set of features (engine §3).
+  // ---- dom.js
+  // Checks that a grammar DOM that did not come from reading a document, the
+  // bootstrap's or a precompiled one from compiled.json, has the shape the
+  // reader would have given it (docs/output.md, "The DOM"), so that a corrupt
+  // or hand-made one is refused rather than failing somewhere inside a parse.
 
+  /** @import { Argument, GrammarDom, Term } from "./types.js" */
 
+  const DOM_FUNCTIONS = new Set(["phonemes", "text", "lowercase", "tags", "classes", "words", "head", "tail", "last", "matches"]);
+  const DOM_COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆"]);
+  const DOM_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
+  // The nesting the notation allows (engine §9): deeper than any grammar a
+  // person writes, and shallow enough for the recursive walks over a DOM.
+  const DOM_MAX_DEPTH = 256;
 
-  /**
-   * @import { Condition, DomAlternative, Emission, ErrorLocation, Expr, GrammarDom, Guard, LoweredGrammar, Production, Resolution, Term } from "./types.js"
-   */
-
-  /**
-   * A rule body's alternative as stitched: its own parts, its rule's clauses
-   * and the document it came from.
-   * @typedef {DomAlternative & {clauses: RuleClauses, document: string}} StitchedAlternative
-   */
-
-  /**
-   * @typedef {object} RuleClauses
-   * @property {Term | undefined} tags
-   * @property {Emission | undefined} emit
-   * @property {Condition[]} conditions
-   */
+  // The version of the DOM's shape (docs/output.md), part of every cache key.
+  const DOM_FORMAT = 3;
 
   /**
-   * A rule of the stitched grammar.
-   * @typedef {object} StitchedRule
-   * @property {string} name
-   * @property {string} document
-   * @property {ErrorLocation} at
-   * @property {StitchedAlternative[]} alternatives
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
    */
-
-  /**
-   * How a later document changed a rule an earlier one defined.
-   * @typedef {object} RuleChange
-   * @property {"replaced" | "extended"} kind
-   * @property {string} rule
-   * @property {string} document
-   * @property {string} previous
-   */
-
-  /**
-   * A symbol of an expanded sequence, and the capture that names it.
-   * @typedef {{symbol: import("./types.js").GrammarSymbol, capture?: string}} SequenceItem
-   */
-
-  /**
-   * Where an expansion happens: the rule, and the helpers still to lower.
-   * @typedef {{rule: StitchedRule, pending: PendingHelper[]}} Where
-   */
-
-  /**
-   * @typedef {object} PendingHelper
-   * @property {string} name
-   * @property {(where: Where) => SequenceItem[][]} build
-   * @property {string | null} elided
-   */
-
-  const MAX_CAPTURES = 4;
-
-  // Stitches documents, each { path, dom }, into one grammar.
-  class Grammar {
-    /**
-     * @param {string} stageName
-     * @param {{path: string, dom: GrammarDom}[]} documents
-     */
-    constructor(stageName, documents) {
-      this.stageName = stageName;
-      /** @type {Map<string, StitchedRule>} */
-      this.rules = new Map();
-      /** @type {RuleChange[]} */
-      this.changes = [];
-      /** @type {Set<string>} */
-      this.elidable = new Set();
-      /** @type {Resolution | null} */
-      this.resolution = null;
-      for (const { path, dom } of documents) this.addDocument(path, dom);
-      if (!this.resolution) {
-        throw new GencmuError("grammar", `stage ${stageName} has no %ambiguity-resolution`, { stage: stageName });
-      }
-      this.checkReferences();
-      /** @type {Map<string, LoweredGrammar>} */
-      this.lowered = new Map();
-    }
-
-    /**
-     * @param {string} path
-     * @param {GrammarDom} dom
-     */
-    addDocument(path, dom) {
-      const definedHere = new Set();
-      for (const rule of dom.rules) {
-        const at = { document: path, line: rule.at[0], column: rule.at[1] };
-        const clauses = { tags: rule.tags, emit: rule.emit, conditions: rule.conditions || [] };
-        const alternatives = rule.alternatives.map((alternative) => ({ ...alternative, clauses, document: path }));
-        if (rule.op === "define") {
-          if (definedHere.has(rule.name)) {
-            throw new GencmuError("grammar", `${path}:${at.line}: ${rule.name} is defined twice with ≔`, at);
-          }
-          definedHere.add(rule.name);
-          const previous = this.rules.get(rule.name);
-          if (previous) {
-            this.changes.push({ kind: "replaced", rule: rule.name, document: path, previous: previous.document });
-          }
-          this.rules.set(rule.name, { name: rule.name, document: path, at, alternatives });
-        } else {
-          const base = this.rules.get(rule.name);
-          if (!base) {
-            throw new GencmuError("grammar", `${path}:${at.line}: ${rule.name} |≔ extends a rule that is not defined before it`, at);
-          }
-          this.changes.push({ kind: "extended", rule: rule.name, document: path, previous: base.document });
-          base.alternatives = base.alternatives.concat(alternatives);
-        }
-      }
-      for (const directive of dom.directives) {
-        const at = { document: path, line: directive.at[0], column: directive.at[1] };
-        switch (directive.name) {
-          case "ambiguity-resolution": {
-            if (this.resolution) {
-              throw new GencmuError("grammar", `${path}:${at.line}: stage ${this.stageName} has a second %ambiguity-resolution`, at);
-            }
-            const [lean, ...rest] = directive.args;
-            if ((lean !== "greedy" && lean !== "lazy") || rest.some((word) => word !== "elision-only") || rest.length > 1) {
-              throw new GencmuError("grammar", `${path}:${at.line}: %ambiguity-resolution takes greedy or lazy, then optionally elision-only`, at);
-            }
-            this.resolution = { lean, elisionOnly: rest.length === 1 };
-            break;
-          }
-          case "elidable":
-            for (const terminal of directive.args) this.elidable.add(terminal);
-            break;
-          default:
-            throw new GencmuError("grammar", `${path}:${at.line}: unknown directive %${directive.name}`, at);
-        }
-      }
-    }
-
-    checkReferences() {
-      /** @type {(expr: Expr, rule: StitchedRule) => void} */
-      const visit = (expr, rule) => {
-        if ("ref" in expr && !isTerminalName(expr.ref) && !this.rules.has(expr.ref)) {
-          throw new GencmuError("grammar", `${rule.document}: ${rule.name} refers to ${expr.ref}, which is not defined`, rule.at);
-        }
-        for (const child of childExpressions(expr)) visit(child, rule);
-      };
-      for (const rule of this.rules.values()) {
-        for (const alternative of rule.alternatives) {
-          visit(alternative.expr, rule);
-          const top = "seq" in alternative.expr ? alternative.expr.seq : [alternative.expr];
-          const names = top.flatMap((item) => ("capture" in item ? [item.capture] : []));
-          const twice = names.find((name, index) => names.indexOf(name) !== index);
-          if (twice !== undefined) {
-            throw new GencmuError("grammar", `${rule.document}: an alternative of ${rule.name} captures $${twice} twice`, rule.at);
-          }
-        }
-      }
-      if (!this.rules.has("text")) throw new GencmuError("grammar", `stage ${this.stageName} has no rule text`, { stage: this.stageName });
-    }
-
-    /**
-     * The productions for a set of enabled features; `strict` makes elidable
-     * optionals mandatory (engine §3.8).
-     * @param {Set<string>} features
-     * @param {boolean} strict
-     * @returns {LoweredGrammar}
-     */
-    lower(features, strict) {
-      const key = [...features].sort().join(",") + (strict ? "|strict" : "");
-      let lowered = this.lowered.get(key);
-      if (!lowered) this.lowered.set(key, (lowered = new Lowering(this, features, strict).run()));
-      return lowered;
-    }
+  function isDomObject(value) {
+    return value !== null && typeof value === "object" && !Array.isArray(value);
   }
 
   /**
-   * @param {string} name
+   * @param {unknown} value
    * @returns {boolean}
    */
-  function isTerminalName(name) {
-    const first = name.codePointAt(0);
-    return first !== undefined && first >= 0x41 && first <= 0x5a;
+  function isDomPosition(value) {
+    return Array.isArray(value) && value.length === 2 && value.every((n) => Number.isInteger(n));
+  }
+
+  const DOM_SPANS = new Set(["head", "tail", "last"]);
+
+  /**
+   * Whether a term is a span: a capture, or head, tail or last of one.
+   * @param {unknown} value
+   * @returns {boolean}
+   */
+  function isDomSpan(value) {
+    return isDomObject(value) && (typeof value.capture === "string" || (typeof value.call === "string" && DOM_SPANS.has(value.call)));
   }
 
   /**
-   * @param {Expr} expr
-   * @returns {Expr[]}
+   * Whether a term is a string: a literal, or phonemes, text or lowercase of
+   * something.
+   * @param {unknown} value
+   * @returns {boolean}
    */
-  function childExpressions(expr) {
-    if ("seq" in expr) return expr.seq;
-    if ("choice" in expr) return expr.choice;
-    if ("and" in expr) return expr.and;
-    if ("optional" in expr) return [expr.optional];
-    if ("repeat" in expr) return [expr.repeat];
-    if ("capture" in expr) return [expr.expr];
-    return [];
+  function isDomString(value) {
+    return isDomObject(value) && (typeof value.literal === "string" ||
+      (typeof value.call === "string" && ["phonemes", "text", "lowercase"].includes(value.call)));
   }
 
-  // The lowered grammar: productions, numbered as engine §3 says.
-  class Lowering {
-    /**
-     * @param {Grammar} grammar
-     * @param {Set<string>} features
-     * @param {boolean} strict
-     */
-    constructor(grammar, features, strict) {
-      this.grammar = grammar;
-      this.features = features;
-      this.strict = strict;
-      /** @type {Production[]} */
-      this.productions = [];
-      /** @type {Map<string, Production[]>} */
-      this.byLhs = new Map();
-      this.helperCount = 0;
+  /**
+   * Why a value is not a grammar DOM, or null when it is one.
+   * @param {unknown} dom
+   * @returns {string | null}
+   */
+  function domProblem(dom) {
+    if (!isDomObject(dom) || dom.format !== DOM_FORMAT || !Array.isArray(dom.rules) || !Array.isArray(dom.directives)) return `not a DOM of format ${DOM_FORMAT}`;
+    for (const directive of dom.directives) {
+      if (!isDomObject(directive) || typeof directive.name !== "string" || !Array.isArray(directive.args) ||
+          !directive.args.every((arg) => typeof arg === "string") || !isDomPosition(directive.at)) return "a malformed directive";
     }
-
-    /** @returns {LoweredGrammar} */
-    run() {
-      for (const rule of this.grammar.rules.values()) {
-        const enabled = rule.alternatives.filter((alternative) => alternative.guards.every(
-          (guard) => this.features.has(guard.feature) !== guard.negated));
-        for (const alternative of enabled) this.lowerAlternative(rule, alternative, enabled.length === 1);
+    /** @type {{kind: string, value: unknown, depth: number}[]} */
+    const pending = [];
+    for (const rule of dom.rules) {
+      if (!isDomObject(rule) || typeof rule.name !== "string" || !(DOM_NAME.test(rule.name) || rule.name === "#") || !["define", "redefine", "extend"].includes(/** @type {string} */ (rule.op)) ||
+          !Array.isArray(rule.alternatives) || rule.alternatives.length === 0 || !Array.isArray(rule.conditions) || !isDomPosition(rule.at)) {
+        return "a malformed rule";
       }
-      return {
-        productions: this.productions,
-        byLhs: this.byLhs,
-        elidable: this.grammar.elidable,
-        resolution: /** @type {Resolution} */ (this.grammar.resolution),
-      };
+      if (rule.tags !== undefined) pending.push({ kind: "constituent-tags", value: rule.tags, depth: 0 });
+      if (rule.emit !== undefined) pending.push({ kind: "emission", value: rule.emit, depth: 0 });
+      for (const condition of rule.conditions) pending.push({ kind: "condition", value: condition, depth: 0 });
+      for (const alternative of rule.alternatives) {
+        if (!isDomObject(alternative) || !Array.isArray(alternative.guards) ||
+            !alternative.guards.every((guard) => isDomObject(guard) && typeof guard.feature === "string" && typeof guard.negated === "boolean")) {
+          return "a malformed alternative";
+        }
+        // A capture stands only at the top level of an alternative: the
+        // expression itself or an item of its sequence (engine §3.5).
+        // Depth counts the compound nodes above a node (engine §9): the
+        // items of a top-level sequence are below one, the sequence.
+        const expr = alternative.expr;
+        const isSeq = isDomObject(expr) && Array.isArray(expr.seq);
+        const top = isSeq ? /** @type {unknown[]} */ (expr.seq) : [expr];
+        for (const item of top) {
+          if (isDomObject(item) && "capture" in item) pending.push({ kind: "top-capture", value: item, depth: isSeq ? 1 : 0 });
+          else pending.push({ kind: "expr", value: item, depth: isSeq ? 1 : 0 });
+        }
+        if (isDomObject(expr) && Array.isArray(expr.seq) && expr.seq.length < 2) return "a malformed expression";
+        const names = top.flatMap((item) => (isDomObject(item) && typeof item.capture === "string" ? [item.capture] : []));
+        if (new Set(names).size !== names.length) return "a capture name used twice in an alternative";
+        if (names.length > 4) return "more than four captures in an alternative";
+        if (names.includes("")) return "a capture that wraps a symbol has a name";
+        if (alternative.tags !== undefined) pending.push({ kind: "constituent-tags", value: alternative.tags, depth: 0 });
+      }
     }
-
-    /**
-     * Numbers a production and adds it.
-     * @param {Omit<Production, "id">} fields
-     * @returns {Production}
-     */
-    addProduction(fields) {
-      /** @type {Production} */
-      const production = { ...fields, id: this.productions.length };
-      this.productions.push(production);
-      let same = this.byLhs.get(production.lhs);
-      if (!same) this.byLhs.set(production.lhs, (same = []));
-      same.push(production);
-      return production;
-    }
-
-    /**
-     * @param {StitchedRule} rule
-     * @param {StitchedAlternative} alternative
-     * @param {boolean} only whether it is the rule's only enabled alternative
-     */
-    lowerAlternative(rule, alternative, only) {
-      /** @type {PendingHelper[]} */
-      const pending = [];
-      const trailing = only ? trailingRepetition(alternative.expr) : null;
-      /** @type {Where} */
-      const where = { rule, pending };
-      /** @type {SequenceItem[][]} */
-      let sequences;
-      /** @type {SequenceItem[][] | null} */
-      let recursive = null;
-      if (trailing) {
-        const prefixes = this.expandSequence(trailing.prefix, where);
-        const items = this.expand(trailing.item, where);
-        sequences = trailing.min === 1 ? product(prefixes, items) : prefixes;
-        recursive = items.map((sequence) => [{ symbol: { name: rule.name, terminal: false } }, ...sequence]);
+    for (let task = pending.pop(); task !== undefined; task = pending.pop()) {
+      const { kind, value, depth } = task;
+      // A function's argument is a term where a span may stand.
+      const argument = kind === "argument";
+      if (depth > DOM_MAX_DEPTH) return "nested too deeply";
+      if (!isDomObject(value)) return `a malformed ${kind}`;
+      const next = depth + 1;
+      /** @type {(kind: string, value: unknown) => void} */
+      const push = (childKind, child) => pending.push({ kind: childKind, value: child, depth: next });
+      /** @type {(list: unknown, least: number, most?: number) => boolean} */
+      const list = (items, least, most = Infinity) => Array.isArray(items) && items.length >= least && items.length <= most;
+      if (kind === "expr") {
+        if ("choice" in value || "seq" in value) {
+          const items = "choice" in value ? value.choice : value.seq;
+          if (!list(items, 2)) return "a malformed expression";
+          for (const item of /** @type {unknown[]} */ (items)) push("expr", item);
+        } else if ("and" in value) {
+          if (!list(value.and, 2, 16)) return "a malformed expression";
+          for (const item of /** @type {unknown[]} */ (value.and)) push("expr", item);
+        } else if ("repeat" in value) {
+          if (value.min !== 0 && value.min !== 1) return "a malformed expression";
+          push("expr", value.repeat);
+        } else if ("optional" in value) {
+          push("expr", value.optional);
+        } else if ("capture" in value) {
+          return "a capture below the top level of an alternative";
+        } else if (!(typeof value.ref === "string" || typeof value.terminal === "string" || value.empty === true)) {
+          return "a malformed expression";
+        }
+      } else if (kind === "top-capture") {
+        const inner = value.expr;
+        if (typeof value.capture !== "string" || !isDomObject(inner) ||
+            !(typeof inner.ref === "string" || typeof inner.terminal === "string")) return "a malformed capture";
+      } else if (kind === "constituent-tags") {
+        // A constituent's tags cannot be made of its own (engine §9).
+        if (readsOwnTags(value)) return "a constituent's tags made of its own";
+        pending.push({ kind: "term", value, depth });
+      } else if (kind === "emission") {
+        // The reader's rules (engine §9): $ only with $, $ <> alone, a capture
+        // listed once, no tags on an inserted tag, silent only on a capture.
+        if (!list(value.items, 1) || Object.keys(value).length !== 1) return "a malformed emission";
+        const items = /** @type {unknown[]} */ (value.items);
+        if (!items.every((item) => isDomObject(item) && (typeof item.capture === "string") !== (typeof item.insert === "string"))) return "a malformed emission";
+        const records = /** @type {Record<string, unknown>[]} */ (items);
+        const whole = records.filter((item) => item.capture === "");
+        if (whole.length && whole.length !== records.length) return "a malformed emission";
+        if (whole.some((item) => item.silent === true) && records.length !== 1) return "a malformed emission";
+        const captures = records.flatMap((item) => (typeof item.capture === "string" && item.capture !== "" ? [item.capture] : []));
+        if (new Set(captures).size !== captures.length) return "a malformed emission";
+        for (const item of records) {
+          if (item.silent !== undefined && (item.silent !== true || item.tags !== undefined || typeof item.insert === "string")) return "a malformed emission";
+          if (item.tags === undefined) continue;
+          if (typeof item.insert === "string") return "a malformed emission";
+          if (isDomObject(item.tags) && item.tags.emptySet === true) return "a malformed emission";
+          // An emission is not a compound node (engine §9): its items' tag
+          // terms stand at its own depth.
+          pending.push({ kind: "term", value: item.tags, depth });
+        }
+      } else if (kind === "condition") {
+        if ("any" in value || "all" in value) {
+          const items = value.any ?? value.all;
+          if (!list(items, 2)) return "a malformed condition";
+          for (const item of /** @type {unknown[]} */ (items)) push("condition", item);
+        } else if ("not" in value) {
+          push("condition", value.not);
+        } else if ("captured" in value) {
+          if (typeof value.captured !== "string" || Object.keys(value).length !== 1) return "a malformed condition";
+        } else if ("if" in value) {
+          if (Object.keys(value).length !== 2 || !("then" in value)) return "a malformed condition";
+          push("condition", value.if);
+          push("condition", value.then);
+        } else if ("matches" in value) {
+          if (typeof value.rule !== "string" || !isDomSpan(value.matches)) return "a malformed condition";
+          pending.push({ kind: "argument", value: value.matches, depth: next });
+        } else {
+          if (typeof value.op !== "string" || !DOM_COMPARATORS.has(value.op)) return "a malformed condition";
+          push("term", value.left);
+          push("term", value.right);
+        }
       } else {
-        sequences = this.expand(alternative.expr, where);
-      }
-      for (const sequence of sequences) this.addRuleProduction(rule, alternative, sequence, false);
-      for (const sequence of recursive || []) this.addRuleProduction(rule, alternative, sequence, true);
-      this.flushHelpers(pending, rule);
-    }
-
-    /**
-     * @param {PendingHelper[]} pending
-     * @param {StitchedRule} rule
-     */
-    flushHelpers(pending, rule) {
-      for (let helper = pending.shift(); helper !== undefined; helper = pending.shift()) {
-        /** @type {PendingHelper[]} */
-        const nested = [];
-        for (const sequence of helper.build({ rule, pending: nested })) {
-          // A helper with one symbol has that symbol's tags, like any
-          // production (engine §3.7).
-          const single = sequence.length === 1;
-          this.addProduction({
-            lhs: helper.name,
-            rhs: sequence.map((item) => item.symbol),
-            helper: true,
-            owner: rule.name,
-            elided: helper.elided,
-            captures: single ? [{ name: "\u0000child", index: 0 }] : [],
-            conditions: [],
-            tags: single ? { call: "tags", args: [{ capture: "\u0000child" }] } : null,
-            emit: null,
-            recursivePrefix: false,
-          });
+        if ("if" in value) {
+          if (Object.keys(value).length !== 2 || !("then" in value)) return "a malformed term";
+          push("condition", value.if);
+          push("term", value.then);
+        } else if ("union" in value || "intersection" in value) {
+          const items = value.union ?? value.intersection;
+          if (!list(items, 2)) return "a malformed term";
+          for (const item of /** @type {unknown[]} */ (items)) push("term", item);
+        } else if ("call" in value) {
+          // The reader's signatures (engine §9), with a span where one is due.
+          const args = /** @type {unknown[]} */ (Array.isArray(value.args) ? value.args : []);
+          const isRule = (/** @type {unknown} */ arg) => isDomObject(arg) && typeof arg.rule === "string" && Object.keys(arg).length === 1;
+          const call = value.call;
+          let ok;
+          if (typeof call !== "string" || !DOM_FUNCTIONS.has(call) || call === "matches") ok = false;
+          else if (call === "tags") ok = (args.length === 1 && isDomSpan(args[0])) || (args.length === 2 && isDomSpan(args[0]) && isRule(args[1]));
+          else if (call === "lowercase") ok = args.length === 1 && isDomString(args[0]);
+          else ok = args.length === 1 && isDomSpan(args[0]);
+          if (!ok || (!argument && DOM_SPANS.has(/** @type {string} */ (call)))) return "a malformed term";
+          for (const arg of args) if (!isRule(arg)) pending.push({ kind: "argument", value: arg, depth: next });
+        } else if (!(typeof value.literal === "string" || typeof value.weak === "string" || value.emptySet === true || typeof value.capture === "string")) {
+          return "a malformed term";
         }
-        pending.unshift(...nested);
       }
     }
-
-    /**
-     * @param {StitchedRule} rule
-     * @param {StitchedAlternative} alternative
-     * @param {SequenceItem[]} sequence
-     * @param {boolean} recursivePrefix
-     */
-    addRuleProduction(rule, alternative, sequence, recursivePrefix) {
-      /** @type {import("./types.js").Capture[]} */
-      const captures = [];
-      sequence.forEach((item, index) => {
-        if (item.capture) captures.push({ name: item.capture, index });
-      });
-      if (captures.length > MAX_CAPTURES) {
-        throw new GencmuError("grammar", `${alternative.document}: an alternative of ${rule.name} has more than ${MAX_CAPTURES} captures`, rule.at);
-      }
-      // `$`, the whole constituent, is a capture every production has.
-      const names = new Set(["", ...captures.map((capture) => capture.name)]);
-      const clauses = alternative.clauses;
-      /** @type {Term | null} */
-      let tags = alternative.tags || clauses.tags || null;
-      if (tags && !termVariables(tags).every((name) => names.has(name))) tags = null;
-      if (!tags && sequence.length === 1) {
-        // A production with one symbol has that symbol's tags (engine §3.7),
-        // whether or not the author captured it.
-        if (captures.length === 0) {
-          captures.push({ name: "\u0000child", index: 0 });
-          names.add("\u0000child");
-        }
-        tags = { call: "tags", args: [{ capture: captures[0].name }] };
-      }
-      /** @type {import("./types.js").ReadyCondition[]} */
-      const conditions = [];
-      for (const condition of clauses.conditions) {
-        const variables = conditionVariables(condition);
-        if (!variables.every((name) => names.has(name))) continue;
-        // A condition is ready once its last capture is read, and one that
-        // reads `$` once the constituent is complete (engine §4).
-        const readyAt = Math.max(-1, ...variables.map((name) => (name === "" ? sequence.length - 1
-          : /** @type {import("./types.js").Capture} */ (captures.find((capture) => capture.name === name)).index)));
-        conditions.push({ condition, readyAt });
-      }
-      let emit = clauses.emit || null;
-      if (emit && "items" in emit) {
-        // An item naming a capture the production lacks is dropped, and so is
-        // a tag term naming one: the item keeps its own tags (engine §3.6).
-        emit = {
-          items: emit.items.filter((item) => item.capture === undefined || names.has(item.capture)).map((item) =>
-            item.tags && !termVariables(item.tags).every((name) => names.has(name)) ? { ...item, tags: undefined } : item),
-        };
-      }
-      this.addProduction({
-        lhs: rule.name,
-        rhs: sequence.map((item) => item.symbol),
-        helper: false,
-        owner: rule.name,
-        elided: null,
-        captures,
-        conditions,
-        tags,
-        emit,
-        recursivePrefix,
-      });
-    }
-
-    /**
-     * The sequences of symbols an expression expands to.
-     * @param {Expr} expr
-     * @param {Where} where
-     * @returns {SequenceItem[][]}
-     */
-    expand(expr, where) {
-      if ("seq" in expr) return this.expandSequence(expr.seq, where);
-      if ("choice" in expr) return expr.choice.flatMap((item) => this.expand(item, where));
-      if ("and" in expr) {
-        const parts = expr.and.map((item) => this.expand(item, where));
-        /** @type {SequenceItem[][]} */
-        const result = [];
-        for (let mask = 1; mask < 1 << parts.length; mask++) {
-          /** @type {SequenceItem[][]} */
-          let sequences = [[]];
-          parts.forEach((part, index) => {
-            if (mask & (1 << index)) sequences = product(sequences, part);
-          });
-          result.push(...sequences);
-        }
-        return result;
-      }
-      if ("optional" in expr) {
-        const inner = expr.optional;
-        const elided = this.elidedTerminal(inner, where);
-        const mandatory = this.strict && elided !== null;
-        const name = this.helper(where, (context) => {
-          const expansions = this.expand(inner, context);
-          return mandatory ? expansions : [/** @type {SequenceItem[]} */ ([]), ...expansions];
-        }, elided);
-        return [[{ symbol: { name, terminal: false } }]];
-      }
-      if ("repeat" in expr) {
-        const inner = expr.repeat;
-        const min = expr.min;
-        const name = this.helper(where, (context) => {
-          const expansions = this.expand(inner, context);
-          /** @type {SequenceItem} */
-          const self = { symbol: { name, terminal: false } };
-          const recursive = expansions.map((sequence) => [self, ...sequence]);
-          return min === 1 ? [...expansions, ...recursive] : [/** @type {SequenceItem[]} */ ([]), ...recursive];
-        }, null);
-        return [[{ symbol: { name, terminal: false } }]];
-      }
-      if ("empty" in expr) return [[]];
-      if ("ref" in expr) return [[{ symbol: { name: expr.ref, terminal: isTerminalName(expr.ref) } }]];
-      if ("terminal" in expr) return [[{ symbol: { name: expr.terminal, terminal: true } }]];
-      if ("capture" in expr) {
-        const inner = this.expand(expr.expr, where);
-        if (inner.length !== 1 || inner[0].length !== 1) {
-          throw new GencmuError("grammar", `${where.rule.document}: a capture in ${where.rule.name} must wrap one symbol`, where.rule.at);
-        }
-        return [[{ symbol: inner[0][0].symbol, capture: expr.capture }]];
-      }
-      throw new GencmuError("grammar", `${where.rule.document}: an unknown expression in ${where.rule.name}`, where.rule.at);
-    }
-
-    /**
-     * @param {Expr[]} items
-     * @param {Where} where
-     * @returns {SequenceItem[][]}
-     */
-    expandSequence(items, where) {
-      /** @type {SequenceItem[][]} */
-      let sequences = [[]];
-      for (const item of items) sequences = product(sequences, this.expand(item, where));
-      return sequences;
-    }
-
-    /**
-     * Names a helper rule, to be lowered when the alternative is done.
-     * @param {Where} where
-     * @param {(where: Where) => SequenceItem[][]} build
-     * @param {string | null} elided
-     * @returns {string}
-     */
-    helper(where, build, elided) {
-      const name = `${where.rule.name}·${this.helperCount++}`;
-      where.pending.push({ name, build, elided });
-      return name;
-    }
-
-    /**
-     * The elidable terminal an optional begins with, if any (engine §12).
-     * @param {Expr} expr
-     * @param {Where} where
-     * @returns {string | null}
-     */
-    elidedTerminal(expr, where) {
-      void where;
-      let first = expr;
-      while ("seq" in first) first = first.seq[0];
-      const name = "ref" in first ? first.ref : "terminal" in first ? first.terminal : undefined;
-      return name !== undefined && this.grammar.elidable.has(name) ? name : null;
-    }
-  }
-
-  /**
-   * @param {SequenceItem[][]} left
-   * @param {SequenceItem[][]} right
-   * @returns {SequenceItem[][]}
-   */
-  function product(left, right) {
-    /** @type {SequenceItem[][]} */
-    const result = [];
-    for (const a of left) for (const b of right) result.push([...a, ...b]);
-    return result;
-  }
-
-  /**
-   * A body ending in a repetition, split into what comes before it and what
-   * repeats.
-   * @param {Expr} expr
-   * @returns {{prefix: Expr[], item: Expr, min: number} | null}
-   */
-  function trailingRepetition(expr) {
-    if ("repeat" in expr) return { prefix: [], item: expr.repeat, min: expr.min };
-    if ("seq" in expr) {
-      const last = expr.seq[expr.seq.length - 1];
-      if ("repeat" in last) return { prefix: expr.seq.slice(0, -1), item: last.repeat, min: last.min };
+    // A definition the reader would refuse (engine §9).
+    for (const rule of /** @type {unknown[]} */ (dom.rules)) {
+      const problem = definitionProblem(rule);
+      if (problem) return problem;
     }
     return null;
   }
 
   /**
-   * The captures a term or condition names.
-   * @param {Term | Condition} term
+   * Whether a value is a grammar DOM.
+   * @param {unknown} dom
+   * @returns {dom is GrammarDom}
+   */
+  function isDom(dom) {
+    return domProblem(dom) === null;
+  }
+
+  /**
+   * Whether a term, or a condition inside one, reads the tags of `$`, the
+   * constituent whose tags it may be defining: `$` as a value, `tags($)` or
+   * `classes($)`. A span argument such as `phonemes($)` reads tokens, not tags.
+   * The DOM's shape need not have been checked: anything malformed reads
+   * nothing, and the check of its shape refuses it.
+   * @param {unknown} node
+   * @returns {boolean}
+   */
+  function readsOwnTags(node) {
+    if (!isDomObject(node)) return false;
+    if (node.capture === "" && Object.keys(node).length === 1) return true;
+    if (typeof node.call === "string") {
+      if (!Array.isArray(node.args)) return false;
+      if ((node.call === "tags" || node.call === "classes") && node.args.length === 1) {
+        const span = node.args[0];
+        return isDomObject(span) && span.capture === "";
+      }
+      return node.args.some((argument) => isDomObject(argument) && typeof argument.call === "string" && readsOwnTags(argument));
+    }
+    if ("matches" in node) return false;
+    for (const key of ["union", "intersection", "any", "all"]) {
+      const items = node[key];
+      if (Array.isArray(items)) return items.some(readsOwnTags);
+    }
+    return ["left", "right", "not", "if", "then"].some((key) => readsOwnTags(node[key]));
+  }
+
+  // ---- Clauses against the captures of alternatives (engine §3.6, §9) ----
+
+  /** A condition that simplifies to true or false for a production. */
+  const DOM_TRUE = Object.freeze({ constant: true });
+  const DOM_FALSE = Object.freeze({ constant: false });
+  /** A term that simplifies to the empty set. */
+  const DOM_EMPTY = Object.freeze({ emptySet: true });
+
+  /**
+   * A clause simplified for a production that has the captures `has`: each
+   * presence test becomes true or false, and guards and logic over them are
+   * reduced (engine §3.6). A condition may become DOM_TRUE or DOM_FALSE; a term may
+   * become the empty set.
+   * @param {any} node a condition or a term
+   * @param {(name: string) => boolean} has
+   * @returns {any}
+   */
+  function simplify(node, has) {
+    if (!isDomObject(node)) return node;
+    if (typeof node.captured === "string") return has(node.captured) ? DOM_TRUE : DOM_FALSE;
+    if ("not" in node) {
+      const inner = simplify(node.not, has);
+      return inner === DOM_TRUE ? DOM_FALSE : inner === DOM_FALSE ? DOM_TRUE : { not: inner };
+    }
+    if (Array.isArray(node.all)) {
+      const items = node.all.map((item) => simplify(item, has));
+      if (items.includes(DOM_FALSE)) return DOM_FALSE;
+      const left = items.filter((item) => item !== DOM_TRUE);
+      return left.length === 0 ? DOM_TRUE : left.length === 1 ? left[0] : { all: left };
+    }
+    if (Array.isArray(node.any)) {
+      const items = node.any.map((item) => simplify(item, has));
+      if (items.includes(DOM_TRUE)) return DOM_TRUE;
+      const left = items.filter((item) => item !== DOM_FALSE);
+      return left.length === 0 ? DOM_FALSE : left.length === 1 ? left[0] : { any: left };
+    }
+    if ("if" in node) {
+      const antecedent = simplify(node.if, has);
+      const isTerm = !isCondition(node.then);
+      if (antecedent === DOM_FALSE) return isTerm ? DOM_EMPTY : DOM_TRUE;
+      const consequent = simplify(node.then, has);
+      if (antecedent === DOM_TRUE) return consequent;
+      if (isTerm && isEmptySet(consequent)) return DOM_EMPTY;
+      if (!isTerm && consequent === DOM_TRUE) return DOM_TRUE;
+      if (!isTerm && consequent === DOM_FALSE) return { not: antecedent };
+      return { if: antecedent, then: consequent };
+    }
+    if (Array.isArray(node.union)) {
+      const items = node.union.map((item) => simplify(item, has)).filter((item) => !isEmptySet(item));
+      return items.length === 0 ? DOM_EMPTY : items.length === 1 ? items[0] : { union: items };
+    }
+    if (Array.isArray(node.intersection)) {
+      const items = node.intersection.map((item) => simplify(item, has));
+      return items.some(isEmptySet) ? DOM_EMPTY : { intersection: items };
+    }
+    if (typeof node.op === "string") return { op: node.op, left: simplify(node.left, has), right: simplify(node.right, has) };
+    if (typeof node.call === "string" && Array.isArray(node.args)) return { call: node.call, args: node.args.map((argument) => simplify(argument, has)) };
+    return node;
+  }
+
+  /**
+   * Whether a term is the empty set, written or left by a guard.
+   * @param {any} node
+   * @returns {boolean}
+   */
+  function isEmptySet(node) {
+    return isDomObject(node) && node.emptySet === true && Object.keys(node).length === 1;
+  }
+
+  /**
+   * Whether a DOM node is a condition rather than a term.
+   * @param {any} node
+   * @returns {boolean}
+   */
+  function isCondition(node) {
+    return isDomObject(node) && (typeof node.op === "string" || "not" in node || "all" in node || "any" in node ||
+      "matches" in node || "captured" in node || ("if" in node && isCondition(node.then)) || "constant" in node);
+  }
+
+  /**
+   * The captures a clause uses as values or spans, presence tests aside.
+   * @param {unknown} node
    * @returns {string[]}
    */
-  function termVariables(term) {
+  function capturesUsed(node) {
     /** @type {string[]} */
     const names = [];
-    /** @type {(node: unknown) => void} */
-    const visit = (node) => {
-      if (!node || typeof node !== "object") return;
-      const record = /** @type {Record<string, unknown>} */ (node);
-      if (typeof record.capture === "string" && Object.keys(record).length === 1) names.push(record.capture);
-      for (const value of Object.values(record)) {
-        if (Array.isArray(value)) value.forEach(visit);
-        else if (value && typeof value === "object") visit(value);
-      }
-    };
-    visit(term);
+    const stack = [node];
+    for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
+      if (!isDomObject(current) && !Array.isArray(current)) continue;
+      if (isDomObject(current) && typeof current.capture === "string" && Object.keys(current).length === 1) names.push(current.capture);
+      for (const value of Object.values(current)) if (value && typeof value === "object") stack.push(value);
+    }
     return names;
   }
 
   /**
-   * @param {Condition} condition
+   * The captures a clause mentions at all, presence tests included.
+   * @param {unknown} node
    * @returns {string[]}
    */
-  function conditionVariables(condition) {
-    return termVariables(condition);
+  function capturesMentioned(node) {
+    const names = capturesUsed(node);
+    const stack = [node];
+    for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
+      if (!isDomObject(current) && !Array.isArray(current)) continue;
+      if (isDomObject(current) && typeof current.captured === "string") names.push(current.captured);
+      for (const value of Object.values(current)) if (value && typeof value === "object") stack.push(value);
+    }
+    return names;
+  }
+
+  /**
+   * The captures of an alternative's top level, name to position.
+   * @param {any} alternative
+   * @returns {Map<string, number>}
+   */
+  function alternativeCaptures(alternative) {
+    const top = isDomObject(alternative.expr) && Array.isArray(alternative.expr.seq) ? alternative.expr.seq : [alternative.expr];
+    /** @type {Map<string, number>} */
+    const captures = new Map([["", -1]]);
+    top.forEach((/** @type {any} */ item, /** @type {number} */ index) => {
+      if (isDomObject(item) && typeof item.capture === "string") captures.set(item.capture, index);
+    });
+    return captures;
+  }
+
+  /**
+   * Why a definition, a rule's alternatives with its own clauses, cannot be
+   * read (engine §9), or null. The DOM's shape must already be checked.
+   * @param {any} rule
+   * @returns {string | null}
+   */
+  function definitionProblem(rule) {
+    const alternatives = rule.alternatives.map(alternativeCaptures);
+    const anyHas = (/** @type {string} */ name) => alternatives.some((/** @type {Map<string, number>} */ captures) => captures.has(name));
+    const items = rule.emit ? rule.emit.items : [];
+    const clauses = [rule.tags, ...rule.conditions, ...rule.alternatives.map((/** @type {any} */ a) => a.tags), ...items];
+    // An emission item mentions its own capture, whatever else it says.
+    const named = items.flatMap((/** @type {any} */ item) => (typeof item.capture === "string" ? [item.capture] : []));
+    for (const name of [...named, ...clauses.flatMap(capturesMentioned)]) {
+      if (!anyHas(name)) return `$${name} is captured by no alternative of ${rule.name}`;
+    }
+    for (const condition of rule.conditions) {
+      const applies = alternatives.some((/** @type {Map<string, number>} */ captures) => {
+        const simple = simplify(condition, (name) => captures.has(name));
+        return simple !== DOM_TRUE && capturesUsed(simple).every((name) => captures.has(name));
+      });
+      if (!applies) return `a condition of ${rule.name} applies to no alternative`;
+    }
+    for (let index = 0; index < alternatives.length; index++) {
+      const captures = alternatives[index];
+      const has = (/** @type {string} */ name) => captures.has(name);
+      for (const term of [rule.tags, rule.alternatives[index].tags]) {
+        if (term === undefined) continue;
+        const missing = capturesUsed(simplify(term, has)).find((name) => !has(name));
+        if (missing !== undefined) return `a tag term of ${rule.name} uses $${missing}, which an alternative lacks; guard it with $${missing} ⟹`;
+      }
+      if (!rule.emit) continue;
+      const present = items.filter((/** @type {any} */ item) => item.capture === undefined || has(item.capture));
+      if (present.length === 0) return `%emits of ${rule.name} leaves an alternative nothing to emit`;
+      const positions = present.flatMap((/** @type {any} */ item) => (item.capture ? [/** @type {number} */ (captures.get(item.capture))] : []));
+      if (positions.some((/** @type {number} */ position, /** @type {number} */ at) => at > 0 && position < positions[at - 1])) {
+        return `%emits of ${rule.name} lists captures out of the order they stand in`;
+      }
+      for (const item of present) {
+        if (!item.tags) continue;
+        const missing = capturesUsed(simplify(item.tags, has)).find((name) => !has(name));
+        if (missing !== undefined) return `a tag term of ${rule.name} uses $${missing}, which an alternative lacks; guard it with $${missing} ⟹`;
+      }
+    }
+    for (let index = 0; index < items.length; index++) {
+      if (items[index].insert === undefined) continue;
+      const next = items.slice(index + 1).find((/** @type {any} */ item) => item.capture !== undefined);
+      if (next && next.capture !== "" && !alternatives.every((/** @type {Map<string, number>} */ captures) => captures.has(next.capture))) {
+        return `%emits of ${rule.name} inserts a tag before $${next.capture}, which an alternative lacks`;
+      }
+    }
+    return null;
   }
 
   // ---- diagnostics.js
@@ -2178,6 +2094,7 @@
     if ("union" in term) return term.union.map(formatTerm).join(" ∪ ");
     if ("intersection" in term) return term.intersection.map((item) => ("union" in item ? `(${formatTerm(item)})` : formatTerm(item))).join(" ∩ ");
     if ("call" in term) return `${term.call}(${term.args.map(formatTerm).join(", ")})`;
+    if ("if" in term) return `(${formatCondition(term.if)} ⟹ ${formatTerm(term.then)})`;
     return `$${term.capture}`;
   }
 
@@ -2189,6 +2106,8 @@
     if ("any" in condition) return condition.any.map(formatCondition).join(" ∨ ");
     if ("all" in condition) return condition.all.map((item) => ("any" in item ? `(${formatCondition(item)})` : formatCondition(item))).join(" ∧ ");
     if ("not" in condition) return `¬(${formatCondition(condition.not)})`;
+    if ("captured" in condition) return `$${condition.captured}`;
+    if ("if" in condition) return `(${formatCondition(condition.if)} ⟹ ${formatCondition(/** @type {Condition} */ (condition.then))})`;
     if ("matches" in condition) return `matches(${formatTerm(condition.matches)}, ${condition.rule})`;
     return `${formatTerm(condition.left)} ${condition.op} ${formatTerm(condition.right)}`;
   }
@@ -2252,10 +2171,8 @@
    * @property {number} rules
    * @property {string[]} unreachable rules no derivation of `text` can reach
    * @property {{kind: string, rule: string, document: string, previous: string}[]} changes
-   * @property {{rule: string, document: string, condition: string}[]} idleConditions conditions no
-   *   alternative of their definition captures every part of
-   * @property {{rule: string, document: string, erased: string}[]} idleErasures erasures, `$ <>` or
-   *   `$x <>`, of what could never emit anything anyway and never lies inside an emitted token
+   * @property {{rule: string, document: string, erased: string}[]} idleErasures silent items, `$ <>`
+   *   or `$x <>`, of what could never emit anything and never sounds inside an emitted token
    */
 
   /**
@@ -2268,9 +2185,43 @@
   }
 
   /**
-   * Which rules of a stage could emit a token when walked (engine §11): one
-   * with an alternative that emits something itself, or walks a part that
-   * could.
+   * Whether an alternative has a capture; every alternative has `$`.
+   * @param {StitchedAlternative} alternative
+   * @returns {(name: string) => boolean}
+   */
+  function capturesOf(alternative) {
+    const captured = new Set(["", ...topItems(alternative.expr).flatMap((item) => ("capture" in item ? [item.capture] : []))]);
+    return (name) => captured.has(name);
+  }
+
+  /**
+   * An alternative's emission items, less those naming captures it lacks
+   * (engine §3.6), with their tag terms simplified for it.
+   * @param {StitchedAlternative} alternative
+   * @returns {import("./types.js").EmitItem[]}
+   */
+  function effectiveItems(alternative) {
+    const has = capturesOf(alternative);
+    return (alternative.clauses.emit ? alternative.clauses.emit.items : [])
+      .filter((item) => item.capture === undefined || has(item.capture))
+      .map((item) => (item.tags ? { ...item, tags: simplify(item.tags, has) } : item));
+  }
+
+  /**
+   * The tag terms of an alternative's constituent, simplified for it: its own
+   * and its definition's %tags (engine §3.7).
+   * @param {StitchedAlternative} alternative
+   * @returns {Term[]}
+   */
+  function constituentTerms(alternative) {
+    const has = capturesOf(alternative);
+    return [alternative.tags, alternative.clauses.tags].filter((term) => term !== undefined).map((term) => simplify(term, has));
+  }
+
+  /**
+   * Which rules of a stage could emit a token (engine §11): one with an
+   * alternative whose emission lists something that is not silent, or that
+   * has no emission and walks a part that could.
    * @param {Map<string, StitchedAlternative[]>} alternativesByRule
    * @returns {Set<string>}
    */
@@ -2290,21 +2241,24 @@
   }
 
   /**
-   * An alternative's emission items, less those naming captures it lacks
-   * (engine §3.6).
+   * Whether an alternative could emit a token, given the rules that could.
    * @param {StitchedAlternative} alternative
-   * @returns {import("./types.js").EmitItem[]}
+   * @param {Set<string>} emitting
+   * @returns {boolean}
    */
-  function effectiveItems(alternative) {
-    const captured = new Set(topItems(alternative.expr).flatMap((item) => ("capture" in item ? [item.capture] : [])));
-    return (alternative.clauses.emit ? alternative.clauses.emit.items : [])
-      .filter((item) => item.capture === undefined || item.capture === "" || captured.has(item.capture));
+  function alternativeEmits(alternative, emitting) {
+    if (alternative.clauses.emit) return effectiveItems(alternative).some((item) => item.insert !== undefined || !item.silent);
+    /** @type {Set<string>} */
+    const walked = new Set();
+    for (const part of topItems(alternative.expr)) referencedRules(part, walked);
+    return [...walked].some((name) => emitting.has(name));
   }
 
   /**
-   * Which rules could lie inside an emitted token, where what they read is
-   * part of the token's phonemes unless they are erased (engine §5): those
-   * under a part emitted as a token, through everything not erased.
+   * Which rules could sound inside an emitted token, where what they read is
+   * part of the token's phonemes unless it is silent (engine §5): those under
+   * a part emitted as a token whose tags do not name its phoneme, and all
+   * that lies under them but what is silent.
    * @param {Map<string, StitchedAlternative[]>} alternativesByRule
    * @returns {Set<string>}
    */
@@ -2324,45 +2278,31 @@
         }
       }
     };
-    /** @type {(alternative: StitchedAlternative, all: boolean) => void} */
-    const reachParts = (alternative, all) => {
-      const items = effectiveItems(alternative);
-      if (items.length > 0 && items[0].capture === "") {
-        // A token whose tags name its phoneme sounds as that phoneme, whatever
-        // lies under it (engine §5).
-        const fixed = items.every((item) => namesPhoneme(effectiveTerm(item.tags, alternative) || effectiveTerm(alternative.tags || alternative.clauses.tags, alternative)));
-        // Inside a token an ancestor emits, the ancestor's phonemes come from
-        // what lies under it, whatever this token's tags say.
-        if (!items[0].erase && (all || !fixed)) topItems(alternative.expr).forEach(reach);
-        return;
+    // Where tokens are emitted: a token whose tags name its phoneme sounds as
+    // that phoneme, whatever lies under it.
+    for (const alternatives of alternativesByRule.values()) {
+      for (const alternative of alternatives) {
+        const items = effectiveItems(alternative);
+        if (items.length > 0 && items[0].capture === "") {
+          const fixed = items.every((item) => namesPhoneme(item.tags) || (!item.tags && constituentTerms(alternative).some(namesPhoneme)));
+          if (!items[0].silent && !fixed) topItems(alternative.expr).forEach(reach);
+          continue;
+        }
+        const emitted = new Set(items.flatMap((item) => (!item.silent && item.capture && !namesPhoneme(item.tags) ? [item.capture] : [])));
+        for (const part of topItems(alternative.expr)) if ("capture" in part && emitted.has(part.capture)) reach(part);
       }
-      const erased = new Set(items.flatMap((item) => (item.erase && item.capture ? [item.capture] : [])));
-      const emitted = new Set(items.flatMap((item) => (!item.erase && item.capture ? [item.capture] : [])));
-      const fixed = new Set(items.flatMap((item) => (!item.erase && item.capture && namesPhoneme(effectiveTerm(item.tags, alternative)) ? [item.capture] : [])));
-      for (const part of topItems(alternative.expr)) {
-        const name = "capture" in part ? part.capture : null;
-        if (name !== null && (erased.has(name) || (!all && fixed.has(name)))) continue;
-        if (all || (name !== null && emitted.has(name))) reach(part);
-      }
-    };
-    for (const alternatives of alternativesByRule.values()) for (const alternative of alternatives) reachParts(alternative, false);
+    }
+    // Inside a token, everything is heard but what is silent, whatever any
+    // token under it says of its own phonemes.
     for (let name = pending.pop(); name !== undefined; name = pending.pop()) {
-      for (const alternative of alternativesByRule.get(name) || []) reachParts(alternative, true);
+      for (const alternative of alternativesByRule.get(name) || []) {
+        const items = effectiveItems(alternative);
+        if (items.length > 0 && items[0].capture === "" && items[0].silent) continue;
+        const silent = new Set(items.flatMap((item) => (item.silent && item.capture ? [item.capture] : [])));
+        for (const part of topItems(alternative.expr)) if (!("capture" in part && silent.has(part.capture))) reach(part);
+      }
     }
     return inside;
-  }
-
-  /**
-   * A tag term as it applies to an alternative: none if it names a capture
-   * the alternative lacks, since lowering then drops it (engine §3.6).
-   * @param {Term | undefined} term
-   * @param {StitchedAlternative} alternative
-   * @returns {Term | undefined}
-   */
-  function effectiveTerm(term, alternative) {
-    if (!term) return undefined;
-    const captured = new Set(["", ...topItems(alternative.expr).flatMap((item) => ("capture" in item ? [item.capture] : []))]);
-    return termVariables(term).every((name) => captured.has(name)) ? term : undefined;
   }
 
   /**
@@ -2379,27 +2319,9 @@
   }
 
   /**
-   * Whether an alternative could emit a token, given the rules that could.
-   * @param {StitchedAlternative} alternative
-   * @param {Set<string>} emitting
-   * @returns {boolean}
-   */
-  function alternativeEmits(alternative, emitting) {
-    const top = topItems(alternative.expr);
-    const items = effectiveItems(alternative);
-    if (items.length > 0 && items[0].capture === "") return !items[0].erase;
-    if (items.some((item) => item.insert !== undefined || (item.capture !== undefined && !item.erase))) return true;
-    const erased = new Set(items.flatMap((item) => (item.erase && item.capture ? [item.capture] : [])));
-    /** @type {Set<string>} */
-    const walked = new Set();
-    for (const item of top) if (!("capture" in item && erased.has(item.capture))) referencedRules(item, walked);
-    return [...walked].some((name) => emitting.has(name));
-  }
-
-  /**
    * What a grammar author should know about a dialect's grammars: per stage,
    * the rules nothing reaches, every rule a later document replaced or
-   * extended, and conditions that never apply.
+   * extended, and silent items that change nothing.
    * @param {Dialect} dialect
    * @returns {StageAudit[]}
    */
@@ -2416,16 +2338,12 @@
         for (const alternative of rule.alternatives) {
           referencedRules(alternative.expr, found);
           // Rules named in clauses count only where the clause applies to the
-          // alternative: a condition that names a capture the alternative
-          // lacks never runs for it (engine §3.6).
-          const top = "seq" in alternative.expr ? alternative.expr.seq : [alternative.expr];
-          const captured = new Set(["", ...top.flatMap((item) => ("capture" in item ? [item.capture] : []))]);
-          /** @type {(clause: unknown) => boolean} */
-          const applies = (clause) => termVariables(/** @type {Condition} */ (clause)).every((variable) => captured.has(variable));
+          // alternative (engine §3.6).
+          const has = capturesOf(alternative);
           const clauses = alternative.clauses;
-          // An alternative's own tags replace the rule's (engine §3.6).
-          const tags = alternative.tags || clauses.tags;
-          namedRules([tags, clauses.emit, ...clauses.conditions].filter((clause) => clause && applies(clause)), found);
+          const conditions = clauses.conditions.map((condition) => simplify(condition, has))
+            .filter((condition) => condition !== DOM_TRUE && capturesUsed(condition).every(has));
+          namedRules([...constituentTerms(alternative), ...effectiveItems(alternative), ...conditions], found);
         }
         for (const next of found) {
           if (!reachable.has(next) && grammar.rules.has(next)) {
@@ -2434,31 +2352,8 @@
           }
         }
       }
-      /** @type {{rule: string, document: string, condition: string}[]} */
-      const idleConditions = [];
-      for (const rule of grammar.rules.values()) {
-        /** @type {Map<object, StitchedAlternative[]>} */
-        const byDefinition = new Map();
-        for (const alternative of rule.alternatives) {
-          if (!byDefinition.has(alternative.clauses)) byDefinition.set(alternative.clauses, []);
-          /** @type {StitchedAlternative[]} */ (byDefinition.get(alternative.clauses)).push(alternative);
-        }
-        for (const [clauses, alternatives] of byDefinition) {
-          const captured = alternatives.map((alternative) => {
-            const top = "seq" in alternative.expr ? alternative.expr.seq : [alternative.expr];
-            return new Set(["", ...top.flatMap((item) => ("capture" in item ? [item.capture] : []))]);
-          });
-          for (const condition of /** @type {{conditions: Condition[]}} */ (clauses).conditions) {
-            const needs = termVariables(condition);
-            if (!captured.some((names) => needs.every((name) => names.has(name)))) {
-              idleConditions.push({ rule: rule.name, document: alternatives[0].document, condition: formatCondition(condition) });
-            }
-          }
-        }
-      }
-      // An erasure says nothing if what it erases could never emit and never
-      // lies inside an emitted token, whose phonemes it would leave out
-      // (engine §5, §11).
+      // A silent item says nothing if what it silences could never emit and
+      // never sounds inside an emitted token (engine §5, §11).
       const byRule = new Map([...grammar.rules].map(([name, rule]) => [name, rule.alternatives]));
       const emitting = emittingRules(byRule);
       const sounding = soundingRules(byRule);
@@ -2473,7 +2368,7 @@
           const siblings = rule.alternatives.filter((other) => other.clauses === alternative.clauses);
           seen.add(alternative.clauses);
           for (const item of emit.items) {
-            if (!item.erase || item.capture === undefined) continue;
+            if (!item.silent || item.capture === undefined) continue;
             /** @type {Set<string>} */
             const reached = new Set();
             for (const sibling of siblings) {
@@ -2493,7 +2388,6 @@
         rules: grammar.rules.size,
         unreachable: [...grammar.rules.keys()].filter((name) => !reachable.has(name)).sort(compareCodePoints),
         changes: grammar.changes.slice(),
-        idleConditions,
         idleErasures,
       };
     });
@@ -2510,8 +2404,7 @@
       const lines = [`${stage.name}: ${stage.rules} rules, ${stage.resolution}`];
       if (stage.unreachable.length) lines.push(`  unreachable from text: ${stage.unreachable.join(", ")}`);
       for (const change of stage.changes) lines.push(`  ${change.rule} ${change.kind} by ${change.document} (defined in ${change.previous})`);
-      for (const idle of stage.idleConditions) lines.push(`  a condition of ${idle.rule} in ${idle.document} applies to no alternative: ${idle.condition}`);
-      for (const idle of stage.idleErasures) lines.push(`  ${idle.rule} in ${idle.document} erases ${idle.erased}, which could never emit anything or sound inside a token`);
+      for (const idle of stage.idleErasures) lines.push(`  ${idle.rule} in ${idle.document} makes ${idle.erased} silent, which could never emit anything or sound inside a token`);
       if (lines.length === 1) lines.push("  nothing to report");
       blocks.push(lines.join("\n"));
     }
@@ -2589,6 +2482,547 @@
       lines.push("could read nothing next");
     }
     return lines.join("\n");
+  }
+
+  // ---- grammar.js
+  // A stage's grammar: its documents stitched together (engine §2) and
+  // lowered to productions for one set of features (engine §3).
+
+
+
+
+  /**
+   * @import { Condition, DomAlternative, Emission, ErrorLocation, Expr, GrammarDom, Guard, LoweredGrammar, Production, Resolution, Term } from "./types.js"
+   */
+
+  /**
+   * A rule body's alternative as stitched: its own parts, its rule's clauses
+   * and the document it came from.
+   * @typedef {DomAlternative & {clauses: RuleClauses, document: string}} StitchedAlternative
+   */
+
+  /**
+   * @typedef {object} RuleClauses
+   * @property {Term | undefined} tags
+   * @property {Emission | undefined} emit
+   * @property {Condition[]} conditions
+   */
+
+  /**
+   * A rule of the stitched grammar.
+   * @typedef {object} StitchedRule
+   * @property {string} name
+   * @property {string} document
+   * @property {ErrorLocation} at
+   * @property {StitchedAlternative[]} alternatives
+   */
+
+  /**
+   * How a later document changed a rule an earlier one defined.
+   * @typedef {object} RuleChange
+   * @property {"replaced" | "extended"} kind
+   * @property {string} rule
+   * @property {string} document
+   * @property {string} previous
+   */
+
+  /**
+   * A symbol of an expanded sequence, and the capture that names it.
+   * @typedef {{symbol: import("./types.js").GrammarSymbol, capture?: string}} SequenceItem
+   */
+
+  /**
+   * Where an expansion happens: the rule, and the helpers still to lower.
+   * @typedef {{rule: StitchedRule, pending: PendingHelper[]}} Where
+   */
+
+  /**
+   * @typedef {object} PendingHelper
+   * @property {string} name
+   * @property {(where: Where) => SequenceItem[][]} build
+   * @property {string | null} elided
+   */
+
+  const MAX_CAPTURES = 4;
+
+  // Stitches documents, each { path, dom }, into one grammar.
+  class Grammar {
+    /**
+     * @param {string} stageName
+     * @param {{path: string, dom: GrammarDom}[]} documents
+     */
+    constructor(stageName, documents) {
+      this.stageName = stageName;
+      /** @type {Map<string, StitchedRule>} */
+      this.rules = new Map();
+      /** @type {RuleChange[]} */
+      this.changes = [];
+      /** @type {Set<string>} */
+      this.elidable = new Set();
+      /** @type {Resolution | null} */
+      this.resolution = null;
+      for (const { path, dom } of documents) this.addDocument(path, dom);
+      if (!this.resolution) {
+        throw new GencmuError("grammar", `stage ${stageName} has no %ambiguity-resolution`, { stage: stageName });
+      }
+      this.checkReferences();
+      /** @type {Map<string, LoweredGrammar>} */
+      this.lowered = new Map();
+    }
+
+    /**
+     * @param {string} path
+     * @param {GrammarDom} dom
+     */
+    addDocument(path, dom) {
+      const definedHere = new Set();
+      for (const rule of dom.rules) {
+        const at = { document: path, line: rule.at[0], column: rule.at[1] };
+        const clauses = { tags: rule.tags, emit: rule.emit, conditions: rule.conditions || [] };
+        const alternatives = rule.alternatives.map((alternative) => ({ ...alternative, clauses, document: path }));
+        const previous = this.rules.get(rule.name);
+        if (rule.op === "define") {
+          if (previous) {
+            throw new GencmuError("grammar", `${path}:${at.line}: %rule ${rule.name} is already defined, in ${previous.document}; %redefine-rule replaces a rule`, at);
+          }
+          definedHere.add(rule.name);
+          this.rules.set(rule.name, { name: rule.name, document: path, at, alternatives });
+        } else if (rule.op === "redefine") {
+          if (!previous || definedHere.has(rule.name)) {
+            throw new GencmuError("grammar", `${path}:${at.line}: %redefine-rule ${rule.name} replaces no rule of an earlier document`, at);
+          }
+          definedHere.add(rule.name);
+          this.changes.push({ kind: "replaced", rule: rule.name, document: path, previous: previous.document });
+          this.rules.set(rule.name, { name: rule.name, document: path, at, alternatives });
+        } else {
+          const base = previous;
+          if (!base) {
+            throw new GencmuError("grammar", `${path}:${at.line}: %extend-rule ${rule.name} extends a rule that is not defined before it`, at);
+          }
+          this.changes.push({ kind: "extended", rule: rule.name, document: path, previous: base.document });
+          base.alternatives = base.alternatives.concat(alternatives);
+        }
+      }
+      for (const directive of dom.directives) {
+        const at = { document: path, line: directive.at[0], column: directive.at[1] };
+        switch (directive.name) {
+          case "ambiguity-resolution": {
+            if (this.resolution) {
+              throw new GencmuError("grammar", `${path}:${at.line}: stage ${this.stageName} has a second %ambiguity-resolution`, at);
+            }
+            const [lean, ...rest] = directive.args;
+            if ((lean !== "greedy" && lean !== "lazy") || rest.some((word) => word !== "elision-only") || rest.length > 1) {
+              throw new GencmuError("grammar", `${path}:${at.line}: %ambiguity-resolution takes greedy or lazy, then optionally elision-only`, at);
+            }
+            this.resolution = { lean, elisionOnly: rest.length === 1 };
+            break;
+          }
+          case "elidable":
+            for (const terminal of directive.args) this.elidable.add(terminal);
+            break;
+          default:
+            throw new GencmuError("grammar", `${path}:${at.line}: unknown directive %${directive.name}`, at);
+        }
+      }
+    }
+
+    checkReferences() {
+      /** @type {(expr: Expr, rule: StitchedRule) => void} */
+      const visit = (expr, rule) => {
+        if ("ref" in expr && !isTerminalName(expr.ref) && !this.rules.has(expr.ref)) {
+          throw new GencmuError("grammar", `${rule.document}: ${rule.name} refers to ${expr.ref}, which is not defined`, rule.at);
+        }
+        for (const child of childExpressions(expr)) visit(child, rule);
+      };
+      for (const rule of this.rules.values()) {
+        for (const alternative of rule.alternatives) {
+          visit(alternative.expr, rule);
+          const top = "seq" in alternative.expr ? alternative.expr.seq : [alternative.expr];
+          const names = top.flatMap((item) => ("capture" in item ? [item.capture] : []));
+          const twice = names.find((name, index) => names.indexOf(name) !== index);
+          if (twice !== undefined) {
+            throw new GencmuError("grammar", `${rule.document}: an alternative of ${rule.name} captures $${twice} twice`, rule.at);
+          }
+        }
+      }
+      if (!this.rules.has("text")) throw new GencmuError("grammar", `stage ${this.stageName} has no rule text`, { stage: this.stageName });
+    }
+
+    /**
+     * The productions for a set of enabled features; `strict` makes elidable
+     * optionals mandatory (engine §3.8).
+     * @param {Set<string>} features
+     * @param {boolean} strict
+     * @returns {LoweredGrammar}
+     */
+    lower(features, strict) {
+      const key = [...features].sort().join(",") + (strict ? "|strict" : "");
+      let lowered = this.lowered.get(key);
+      if (!lowered) this.lowered.set(key, (lowered = new Lowering(this, features, strict).run()));
+      return lowered;
+    }
+  }
+
+  /**
+   * @param {string} name
+   * @returns {boolean}
+   */
+  function isTerminalName(name) {
+    const first = name.codePointAt(0);
+    return first !== undefined && first >= 0x41 && first <= 0x5a;
+  }
+
+  /**
+   * @param {Expr} expr
+   * @returns {Expr[]}
+   */
+  function childExpressions(expr) {
+    if ("seq" in expr) return expr.seq;
+    if ("choice" in expr) return expr.choice;
+    if ("and" in expr) return expr.and;
+    if ("optional" in expr) return [expr.optional];
+    if ("repeat" in expr) return [expr.repeat];
+    if ("capture" in expr) return [expr.expr];
+    return [];
+  }
+
+  // The lowered grammar: productions, numbered as engine §3 says.
+  class Lowering {
+    /**
+     * @param {Grammar} grammar
+     * @param {Set<string>} features
+     * @param {boolean} strict
+     */
+    constructor(grammar, features, strict) {
+      this.grammar = grammar;
+      this.features = features;
+      this.strict = strict;
+      /** @type {Production[]} */
+      this.productions = [];
+      /** @type {Map<string, Production[]>} */
+      this.byLhs = new Map();
+      this.helperCount = 0;
+    }
+
+    /** @returns {LoweredGrammar} */
+    run() {
+      for (const rule of this.grammar.rules.values()) {
+        const enabled = rule.alternatives.filter((alternative) => alternative.guards.every(
+          (guard) => this.features.has(guard.feature) !== guard.negated));
+        for (const alternative of enabled) this.lowerAlternative(rule, alternative, enabled.length === 1);
+      }
+      return {
+        productions: this.productions,
+        byLhs: this.byLhs,
+        elidable: this.grammar.elidable,
+        resolution: /** @type {Resolution} */ (this.grammar.resolution),
+      };
+    }
+
+    /**
+     * Numbers a production and adds it.
+     * @param {Omit<Production, "id">} fields
+     * @returns {Production}
+     */
+    addProduction(fields) {
+      /** @type {Production} */
+      const production = { ...fields, id: this.productions.length };
+      this.productions.push(production);
+      let same = this.byLhs.get(production.lhs);
+      if (!same) this.byLhs.set(production.lhs, (same = []));
+      same.push(production);
+      return production;
+    }
+
+    /**
+     * @param {StitchedRule} rule
+     * @param {StitchedAlternative} alternative
+     * @param {boolean} only whether it is the rule's only enabled alternative
+     */
+    lowerAlternative(rule, alternative, only) {
+      /** @type {PendingHelper[]} */
+      const pending = [];
+      const trailing = only ? trailingRepetition(alternative.expr) : null;
+      // A trailing repetition's recursive productions could not have its
+      // captures, whose parts lie inside the inner constituent (engine §3.3).
+      if (trailing && ("seq" in alternative.expr ? alternative.expr.seq : [alternative.expr]).some((item) => "capture" in item)) {
+        throw new GencmuError("grammar", `${alternative.document}: an alternative of ${rule.name} captures a part, and is lowered as a trailing repetition`, rule.at);
+      }
+      /** @type {Where} */
+      const where = { rule, pending };
+      /** @type {SequenceItem[][]} */
+      let sequences;
+      /** @type {SequenceItem[][] | null} */
+      let recursive = null;
+      if (trailing) {
+        const prefixes = this.expandSequence(trailing.prefix, where);
+        const items = this.expand(trailing.item, where);
+        sequences = trailing.min === 1 ? product(prefixes, items) : prefixes;
+        recursive = items.map((sequence) => [{ symbol: { name: rule.name, terminal: false } }, ...sequence]);
+      } else {
+        sequences = this.expand(alternative.expr, where);
+      }
+      for (const sequence of sequences) this.addRuleProduction(rule, alternative, sequence, false);
+      for (const sequence of recursive || []) this.addRuleProduction(rule, alternative, sequence, true);
+      this.flushHelpers(pending, rule);
+    }
+
+    /**
+     * @param {PendingHelper[]} pending
+     * @param {StitchedRule} rule
+     */
+    flushHelpers(pending, rule) {
+      for (let helper = pending.shift(); helper !== undefined; helper = pending.shift()) {
+        /** @type {PendingHelper[]} */
+        const nested = [];
+        for (const sequence of helper.build({ rule, pending: nested })) {
+          // A helper with one symbol has that symbol's tags, like any
+          // production (engine §3.7).
+          const single = sequence.length === 1;
+          this.addProduction({
+            lhs: helper.name,
+            rhs: sequence.map((item) => item.symbol),
+            helper: true,
+            owner: rule.name,
+            elided: helper.elided,
+            captures: single ? [{ name: "\u0000child", index: 0 }] : [],
+            conditions: [],
+            tags: single ? { call: "tags", args: [{ capture: "\u0000child" }] } : null,
+            emit: null,
+            recursivePrefix: false,
+          });
+        }
+        pending.unshift(...nested);
+      }
+    }
+
+    /**
+     * @param {StitchedRule} rule
+     * @param {StitchedAlternative} alternative
+     * @param {SequenceItem[]} sequence
+     * @param {boolean} recursivePrefix
+     */
+    addRuleProduction(rule, alternative, sequence, recursivePrefix) {
+      /** @type {import("./types.js").Capture[]} */
+      const captures = [];
+      sequence.forEach((item, index) => {
+        if (item.capture) captures.push({ name: item.capture, index });
+      });
+      if (captures.length > MAX_CAPTURES) {
+        throw new GencmuError("grammar", `${alternative.document}: an alternative of ${rule.name} has more than ${MAX_CAPTURES} captures`, rule.at);
+      }
+      // `$`, the whole constituent, is a capture every production has.
+      const names = new Set(["", ...captures.map((capture) => capture.name)]);
+      const clauses = alternative.clauses;
+      // The clauses simplified for this production: presence tests and the
+      // guards over them decided (engine §3.6).
+      /** @type {(name: string) => boolean} */
+      const has = (name) => names.has(name);
+      // The union of the alternative's own tags and the rule's (engine §3.7);
+      // the reader has made sure neither uses a capture this production lacks.
+      const written = [alternative.tags, clauses.tags].filter((term) => term !== undefined).map((term) => simplify(term, has));
+      /** @type {Term | null} */
+      let tags = written.length === 0 ? null : written.length === 1 ? written[0] : { union: written };
+      if (!tags && sequence.length === 1) {
+        // A production with one symbol has that symbol's tags (engine §3.7),
+        // whether or not the author captured it.
+        if (captures.length === 0) {
+          captures.push({ name: "\u0000child", index: 0 });
+          names.add("\u0000child");
+        }
+        tags = { call: "tags", args: [{ capture: captures[0].name }] };
+      }
+      /** @type {import("./types.js").ReadyCondition[]} */
+      const conditions = [];
+      for (const written of clauses.conditions) {
+        const condition = simplify(written, has);
+        if (condition === DOM_TRUE) continue;
+        // A condition false for this production removes it (engine §3.6).
+        if (condition === DOM_FALSE) return;
+        const variables = conditionVariables(condition);
+        if (!variables.every((name) => names.has(name))) continue;
+        // A condition is ready once its last capture is read, and one that
+        // reads `$` once the constituent is complete (engine §4).
+        const readyAt = Math.max(-1, ...variables.map((name) => (name === "" ? sequence.length - 1
+          : /** @type {import("./types.js").Capture} */ (captures.find((capture) => capture.name === name)).index)));
+        conditions.push({ condition, readyAt });
+      }
+      let emit = clauses.emit || null;
+      if (emit) {
+        // An item naming a capture the production lacks is dropped (engine
+        // §3.6); the reader has made sure the tags of those left use none.
+        emit = {
+          items: emit.items.filter((item) => item.capture === undefined || names.has(item.capture))
+            .map((item) => (item.tags ? { ...item, tags: simplify(item.tags, has) } : item)),
+        };
+      }
+      this.addProduction({
+        lhs: rule.name,
+        rhs: sequence.map((item) => item.symbol),
+        helper: false,
+        owner: rule.name,
+        elided: null,
+        captures,
+        conditions,
+        tags,
+        emit,
+        recursivePrefix,
+      });
+    }
+
+    /**
+     * The sequences of symbols an expression expands to.
+     * @param {Expr} expr
+     * @param {Where} where
+     * @returns {SequenceItem[][]}
+     */
+    expand(expr, where) {
+      if ("seq" in expr) return this.expandSequence(expr.seq, where);
+      if ("choice" in expr) return expr.choice.flatMap((item) => this.expand(item, where));
+      if ("and" in expr) {
+        const parts = expr.and.map((item) => this.expand(item, where));
+        /** @type {SequenceItem[][]} */
+        const result = [];
+        for (let mask = 1; mask < 1 << parts.length; mask++) {
+          /** @type {SequenceItem[][]} */
+          let sequences = [[]];
+          parts.forEach((part, index) => {
+            if (mask & (1 << index)) sequences = product(sequences, part);
+          });
+          result.push(...sequences);
+        }
+        return result;
+      }
+      if ("optional" in expr) {
+        const inner = expr.optional;
+        const elided = this.elidedTerminal(inner, where);
+        const mandatory = this.strict && elided !== null;
+        const name = this.helper(where, (context) => {
+          const expansions = this.expand(inner, context);
+          return mandatory ? expansions : [/** @type {SequenceItem[]} */ ([]), ...expansions];
+        }, elided);
+        return [[{ symbol: { name, terminal: false } }]];
+      }
+      if ("repeat" in expr) {
+        const inner = expr.repeat;
+        const min = expr.min;
+        const name = this.helper(where, (context) => {
+          const expansions = this.expand(inner, context);
+          /** @type {SequenceItem} */
+          const self = { symbol: { name, terminal: false } };
+          const recursive = expansions.map((sequence) => [self, ...sequence]);
+          return min === 1 ? [...expansions, ...recursive] : [/** @type {SequenceItem[]} */ ([]), ...recursive];
+        }, null);
+        return [[{ symbol: { name, terminal: false } }]];
+      }
+      if ("empty" in expr) return [[]];
+      if ("ref" in expr) return [[{ symbol: { name: expr.ref, terminal: isTerminalName(expr.ref) } }]];
+      if ("terminal" in expr) return [[{ symbol: { name: expr.terminal, terminal: true } }]];
+      if ("capture" in expr) {
+        const inner = this.expand(expr.expr, where);
+        if (inner.length !== 1 || inner[0].length !== 1) {
+          throw new GencmuError("grammar", `${where.rule.document}: a capture in ${where.rule.name} must wrap one symbol`, where.rule.at);
+        }
+        return [[{ symbol: inner[0][0].symbol, capture: expr.capture }]];
+      }
+      throw new GencmuError("grammar", `${where.rule.document}: an unknown expression in ${where.rule.name}`, where.rule.at);
+    }
+
+    /**
+     * @param {Expr[]} items
+     * @param {Where} where
+     * @returns {SequenceItem[][]}
+     */
+    expandSequence(items, where) {
+      /** @type {SequenceItem[][]} */
+      let sequences = [[]];
+      for (const item of items) sequences = product(sequences, this.expand(item, where));
+      return sequences;
+    }
+
+    /**
+     * Names a helper rule, to be lowered when the alternative is done.
+     * @param {Where} where
+     * @param {(where: Where) => SequenceItem[][]} build
+     * @param {string | null} elided
+     * @returns {string}
+     */
+    helper(where, build, elided) {
+      const name = `${where.rule.name}·${this.helperCount++}`;
+      where.pending.push({ name, build, elided });
+      return name;
+    }
+
+    /**
+     * The elidable terminal an optional begins with, if any (engine §12).
+     * @param {Expr} expr
+     * @param {Where} where
+     * @returns {string | null}
+     */
+    elidedTerminal(expr, where) {
+      void where;
+      let first = expr;
+      while ("seq" in first) first = first.seq[0];
+      const name = "ref" in first ? first.ref : "terminal" in first ? first.terminal : undefined;
+      return name !== undefined && this.grammar.elidable.has(name) ? name : null;
+    }
+  }
+
+  /**
+   * @param {SequenceItem[][]} left
+   * @param {SequenceItem[][]} right
+   * @returns {SequenceItem[][]}
+   */
+  function product(left, right) {
+    /** @type {SequenceItem[][]} */
+    const result = [];
+    for (const a of left) for (const b of right) result.push([...a, ...b]);
+    return result;
+  }
+
+  /**
+   * A body ending in a repetition, split into what comes before it and what
+   * repeats.
+   * @param {Expr} expr
+   * @returns {{prefix: Expr[], item: Expr, min: number} | null}
+   */
+  function trailingRepetition(expr) {
+    if ("repeat" in expr) return { prefix: [], item: expr.repeat, min: expr.min };
+    if ("seq" in expr) {
+      const last = expr.seq[expr.seq.length - 1];
+      if ("repeat" in last) return { prefix: expr.seq.slice(0, -1), item: last.repeat, min: last.min };
+    }
+    return null;
+  }
+
+  /**
+   * The captures a term or condition names.
+   * @param {Term | Condition} term
+   * @returns {string[]}
+   */
+  function termVariables(term) {
+    /** @type {string[]} */
+    const names = [];
+    /** @type {(node: unknown) => void} */
+    const visit = (node) => {
+      if (!node || typeof node !== "object") return;
+      const record = /** @type {Record<string, unknown>} */ (node);
+      if (typeof record.capture === "string" && Object.keys(record).length === 1) names.push(record.capture);
+      for (const value of Object.values(record)) {
+        if (Array.isArray(value)) value.forEach(visit);
+        else if (value && typeof value === "object") visit(value);
+      }
+    };
+    visit(term);
+    return names;
+  }
+
+  /**
+   * @param {Condition} condition
+   * @returns {string[]}
+   */
+  function conditionVariables(condition) {
+    return termVariables(condition);
   }
 
   // ---- rank.js
@@ -3453,13 +3887,17 @@
      */
     run(tokens, sourceText, unicode, options) {
       const features = options.features;
-      const lowered = this.grammar.lower(features, false);
-      const context = new ParseContext(lowered, tokens, sourceText, unicode);
       /** @type {StageReport} */
       const report = { name: this.name, verdict: null, witness: null, output: null, tree: null, error: null };
+      let lowered;
+      let context;
       let chart;
       let roots;
       try {
+        // Lowering for these features may itself find an error of the grammar
+        // (engine §3.3), which is a result like any found while parsing.
+        lowered = this.grammar.lower(features, false);
+        context = new ParseContext(lowered, tokens, sourceText, unicode);
         chart = recognize(context, "text", 0, tokens.length);
         roots = rootItems(chart, "text");
       } catch (error) {
@@ -3778,7 +4216,7 @@
     return phoneme === "." ? " " : phoneme;
   }
 
-  // What a node says: its tokens' phonemes, less every part that is erased
+  // What a node says: its tokens' phonemes, less every part that is silent
   // (engine §5).
   /**
    * @param {Derivation} node
@@ -3807,18 +4245,18 @@
   const ERASE_NONE = new Set();
 
   /**
-   * Which children of a production's constituent its emission erases: ERASE_ALL
+   * Which children of a production's constituent its emission makes silent: ERASE_ALL
    * for `⇒ $ <>`, else the captures named with `<>` (engine §11).
    * @param {import("./types.js").Production} production
    * @returns {Set<number>}
    */
   function erasedChildren(production) {
     const emission = production.emit;
-    if (!emission || !emission.items.some((item) => item.erase)) return ERASE_NONE;
+    if (!emission || !emission.items.some((item) => item.silent)) return ERASE_NONE;
     if (emission.items[0].capture === "") return ERASE_ALL;
     const erased = new Set();
     for (const item of emission.items) {
-      if (!item.erase) continue;
+      if (!item.silent) continue;
       const capture = production.captures.find((entry) => entry.name === item.capture);
       if (capture) erased.add(capture.index);
     }
@@ -3890,60 +4328,35 @@
         if (!item.tags) return fallback;
         const tags = asTags(evaluate(context, item.tags, scope));
         // A token no terminal can read is a mistake; <> is how a grammar
-        // erases a part (engine §11).
+        // makes a part silent (engine §11).
         if (tags.size === 0) throw new GencmuError("grammar", `${production.owner} emits a token with no tags`);
         return tags;
       };
-      // An emission whose items all name captures this production lacks
-      // leaves the constituent to be walked (engine §3.6).
       if (clause.items.length > 0 && clause.items[0].capture === "") {
-        if (clause.items[0].erase) continue;
+        if (clause.items[0].silent) continue;
         // One token covering the constituent per `$`: a digit that is two
         // phonemes is emitted as two tokens over the same character.
         for (const item of clause.items) out.push(makeToken(node, valueTags(item, nodeTags(node, context)), context));
         continue;
       }
-      /** @type {Map<number, EmitItem>} */
-      const named = new Map();
-      for (const item of clause.items) {
-        if (item.capture !== undefined) {
-          const capture = /** @type {import("./types.js").Capture} */ (production.captures.find((entry) => entry.name === item.capture));
-          named.set(capture.index, item);
-        }
-      }
-      // Each inserted tag goes just before the first capture listed after it,
-      // or after the last child if none is (engine §11); the captures go in
-      // text order, whatever order the list names them in.
-      /** @type {Map<EmitItem, string[]>} */
-      const insertsBefore = new Map();
-      /** @type {string[]} */
-      let waiting = [];
-      for (const item of clause.items) {
-        if (item.insert !== undefined) waiting.push(item.insert);
-        else if (item.capture !== undefined) {
-          insertsBefore.set(item, waiting);
-          waiting = [];
-        }
-      }
-      // The node's tasks in text order, then pushed in reverse.
+      // The items, in the order listed, and nothing else of the constituent
+      // (engine §11). An inserted tag's position is the start of the part of
+      // the capture listed next after it, or the constituent's end.
+      /** @type {(name: string) => Derivation} */
+      const part = (name) => node.children[/** @type {import("./types.js").Capture} */ (production.captures.find((entry) => entry.name === name)).index];
       /** @type {EmitTask[]} */
       const ordered = [];
-      /** @type {(inserts: string[], at: number) => void} */
-      const insertAll = (inserts, at) => {
-        for (const insert of inserts) ordered.push({ token: () => insertedToken(insert, at, node, context, production.owner) });
-      };
-      let cursor = node.start;
-      node.children.forEach((child, index) => {
-        const item = named.get(index);
-        if (item) {
-          insertAll(insertsBefore.get(item) || [], cursor);
-          if (!item.erase) ordered.push({ token: () => makeToken(child, valueTags(item, nodeTags(child, context)), context) });
-        } else {
-          ordered.push({ walk: child });
+      clause.items.forEach((item, index) => {
+        if (item.insert !== undefined) {
+          const insert = item.insert;
+          const next = clause.items.slice(index + 1).find((later) => later.capture !== undefined);
+          const at = next && next.capture !== undefined ? part(next.capture).start : node.end;
+          ordered.push({ token: () => insertedToken(insert, at, node, context, production.owner) });
+        } else if (item.capture !== undefined && !item.silent) {
+          const child = part(item.capture);
+          ordered.push({ token: () => makeToken(child, valueTags(item, nodeTags(child, context)), context) });
         }
-        cursor = child.end;
       });
-      insertAll(waiting, cursor);
       for (let index = ordered.length - 1; index >= 0; index--) tasks.push(ordered[index]);
     }
     return out;
@@ -3957,258 +4370,6 @@
     if ("tags" in value) return value.tags;
     if ("string" in value) return strongTag(value.string);
     return tagSet(value.list.map((item) => [item, true]));
-  }
-
-  // ---- dom.js
-  // Checks that a grammar DOM that did not come from reading a document, the
-  // bootstrap's or a precompiled one from compiled.json, has the shape the
-  // reader would have given it (docs/output.md, "The DOM"), so that a corrupt
-  // or hand-made one is refused rather than failing somewhere inside a parse.
-
-  /** @import { Argument, GrammarDom, Term } from "./types.js" */
-
-  const DOM_FUNCTIONS = new Set(["phonemes", "text", "lowercase", "tags", "classes", "words", "head", "tail", "last", "matches"]);
-  const DOM_COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆"]);
-  const DOM_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
-  // The nesting the notation allows (engine §9): deeper than any grammar a
-  // person writes, and shallow enough for the recursive walks over a DOM.
-  const DOM_MAX_DEPTH = 256;
-
-  // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 2;
-
-  /**
-   * @param {unknown} value
-   * @returns {value is Record<string, unknown>}
-   */
-  function isDomObject(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-  }
-
-  /**
-   * @param {unknown} value
-   * @returns {boolean}
-   */
-  function isDomPosition(value) {
-    return Array.isArray(value) && value.length === 2 && value.every((n) => Number.isInteger(n));
-  }
-
-  const DOM_SPANS = new Set(["head", "tail", "last"]);
-
-  /**
-   * Whether a term is a span: a capture, or head, tail or last of one.
-   * @param {unknown} value
-   * @returns {boolean}
-   */
-  function isDomSpan(value) {
-    return isDomObject(value) && (typeof value.capture === "string" || (typeof value.call === "string" && DOM_SPANS.has(value.call)));
-  }
-
-  /**
-   * Whether a term is a string: a literal, or phonemes, text or lowercase of
-   * something.
-   * @param {unknown} value
-   * @returns {boolean}
-   */
-  function isDomString(value) {
-    return isDomObject(value) && (typeof value.literal === "string" ||
-      (typeof value.call === "string" && ["phonemes", "text", "lowercase"].includes(value.call)));
-  }
-
-  /**
-   * Why a value is not a grammar DOM, or null when it is one.
-   * @param {unknown} dom
-   * @returns {string | null}
-   */
-  function domProblem(dom) {
-    if (!isDomObject(dom) || dom.format !== DOM_FORMAT || !Array.isArray(dom.rules) || !Array.isArray(dom.directives)) return `not a DOM of format ${DOM_FORMAT}`;
-    for (const directive of dom.directives) {
-      if (!isDomObject(directive) || typeof directive.name !== "string" || !Array.isArray(directive.args) ||
-          !directive.args.every((arg) => typeof arg === "string") || !isDomPosition(directive.at)) return "a malformed directive";
-    }
-    /** @type {{kind: string, value: unknown, depth: number}[]} */
-    const pending = [];
-    for (const rule of dom.rules) {
-      if (!isDomObject(rule) || typeof rule.name !== "string" || !(DOM_NAME.test(rule.name) || rule.name === "#") || (rule.op !== "define" && rule.op !== "extend") ||
-          !Array.isArray(rule.alternatives) || rule.alternatives.length === 0 || !Array.isArray(rule.conditions) || !isDomPosition(rule.at)) {
-        return "a malformed rule";
-      }
-      if (rule.tags !== undefined) pending.push({ kind: "constituent-tags", value: rule.tags, depth: 0 });
-      if (rule.emit !== undefined) pending.push({ kind: "emission", value: rule.emit, depth: 0 });
-      for (const condition of rule.conditions) pending.push({ kind: "condition", value: condition, depth: 0 });
-      for (const alternative of rule.alternatives) {
-        if (!isDomObject(alternative) || !Array.isArray(alternative.guards) ||
-            !alternative.guards.every((guard) => isDomObject(guard) && typeof guard.feature === "string" && typeof guard.negated === "boolean")) {
-          return "a malformed alternative";
-        }
-        // A capture stands only at the top level of an alternative: the
-        // expression itself or an item of its sequence (engine §3.5).
-        // Depth counts the compound nodes above a node (engine §9): the
-        // items of a top-level sequence are below one, the sequence.
-        const expr = alternative.expr;
-        const isSeq = isDomObject(expr) && Array.isArray(expr.seq);
-        const top = isSeq ? /** @type {unknown[]} */ (expr.seq) : [expr];
-        for (const item of top) {
-          if (isDomObject(item) && "capture" in item) pending.push({ kind: "top-capture", value: item, depth: isSeq ? 1 : 0 });
-          else pending.push({ kind: "expr", value: item, depth: isSeq ? 1 : 0 });
-        }
-        if (isDomObject(expr) && Array.isArray(expr.seq) && expr.seq.length < 2) return "a malformed expression";
-        const names = top.flatMap((item) => (isDomObject(item) && typeof item.capture === "string" ? [item.capture] : []));
-        if (new Set(names).size !== names.length) return "a capture name used twice in an alternative";
-        if (names.length > 4) return "more than four captures in an alternative";
-        if (names.includes("")) return "a capture that wraps a symbol has a name";
-        if (alternative.tags !== undefined) pending.push({ kind: "constituent-tags", value: alternative.tags, depth: 0 });
-      }
-    }
-    for (let task = pending.pop(); task !== undefined; task = pending.pop()) {
-      const { kind, value, depth } = task;
-      // A function's argument is a term where a span may stand.
-      const argument = kind === "argument";
-      if (depth > DOM_MAX_DEPTH) return "nested too deeply";
-      if (!isDomObject(value)) return `a malformed ${kind}`;
-      const next = depth + 1;
-      /** @type {(kind: string, value: unknown) => void} */
-      const push = (childKind, child) => pending.push({ kind: childKind, value: child, depth: next });
-      /** @type {(list: unknown, least: number, most?: number) => boolean} */
-      const list = (items, least, most = Infinity) => Array.isArray(items) && items.length >= least && items.length <= most;
-      if (kind === "expr") {
-        if ("choice" in value || "seq" in value) {
-          const items = "choice" in value ? value.choice : value.seq;
-          if (!list(items, 2)) return "a malformed expression";
-          for (const item of /** @type {unknown[]} */ (items)) push("expr", item);
-        } else if ("and" in value) {
-          if (!list(value.and, 2, 16)) return "a malformed expression";
-          for (const item of /** @type {unknown[]} */ (value.and)) push("expr", item);
-        } else if ("repeat" in value) {
-          if (value.min !== 0 && value.min !== 1) return "a malformed expression";
-          push("expr", value.repeat);
-        } else if ("optional" in value) {
-          push("expr", value.optional);
-        } else if ("capture" in value) {
-          return "a capture below the top level of an alternative";
-        } else if (!(typeof value.ref === "string" || typeof value.terminal === "string" || value.empty === true)) {
-          return "a malformed expression";
-        }
-      } else if (kind === "top-capture") {
-        const inner = value.expr;
-        if (typeof value.capture !== "string" || !isDomObject(inner) ||
-            !(typeof inner.ref === "string" || typeof inner.terminal === "string")) return "a malformed capture";
-      } else if (kind === "constituent-tags") {
-        // A constituent's tags cannot be made of its own (engine §9).
-        if (domReadsOwnTags(value)) return "a constituent's tags made of its own";
-        pending.push({ kind: "term", value, depth });
-      } else if (kind === "emission") {
-        // The reader's rules (engine §9): $ only with $, $ <> alone, a capture
-        // listed once, no tags on an inserted tag, <> only on a capture.
-        if (!list(value.items, 1) || Object.keys(value).length !== 1) return "a malformed emission";
-        const items = /** @type {unknown[]} */ (value.items);
-        if (!items.every((item) => isDomObject(item) && (typeof item.capture === "string") !== (typeof item.insert === "string"))) return "a malformed emission";
-        const records = /** @type {Record<string, unknown>[]} */ (items);
-        const whole = records.filter((item) => item.capture === "");
-        if (whole.length && whole.length !== records.length) return "a malformed emission";
-        if (whole.some((item) => item.erase === true) && records.length !== 1) return "a malformed emission";
-        const captures = records.flatMap((item) => (typeof item.capture === "string" && item.capture !== "" ? [item.capture] : []));
-        if (new Set(captures).size !== captures.length) return "a malformed emission";
-        for (const item of records) {
-          if (item.erase !== undefined && (item.erase !== true || item.tags !== undefined || typeof item.insert === "string")) return "a malformed emission";
-          if (item.tags === undefined) continue;
-          if (typeof item.insert === "string") return "a malformed emission";
-          if (isDomObject(item.tags) && item.tags.emptySet === true) return "a malformed emission";
-          // An emission is not a compound node (engine §9): its items' tag
-          // terms stand at its own depth.
-          pending.push({ kind: "term", value: item.tags, depth });
-        }
-      } else if (kind === "condition") {
-        if ("any" in value || "all" in value) {
-          const items = value.any ?? value.all;
-          if (!list(items, 2)) return "a malformed condition";
-          for (const item of /** @type {unknown[]} */ (items)) push("condition", item);
-        } else if ("not" in value) {
-          push("condition", value.not);
-        } else if ("matches" in value) {
-          if (typeof value.rule !== "string" || !isDomSpan(value.matches)) return "a malformed condition";
-          pending.push({ kind: "argument", value: value.matches, depth: next });
-        } else {
-          if (typeof value.op !== "string" || !DOM_COMPARATORS.has(value.op)) return "a malformed condition";
-          push("term", value.left);
-          push("term", value.right);
-        }
-      } else {
-        if ("union" in value || "intersection" in value) {
-          const items = value.union ?? value.intersection;
-          if (!list(items, 2)) return "a malformed term";
-          for (const item of /** @type {unknown[]} */ (items)) push("term", item);
-        } else if ("call" in value) {
-          // The reader's signatures (engine §9), with a span where one is due.
-          const args = /** @type {unknown[]} */ (Array.isArray(value.args) ? value.args : []);
-          const isRule = (/** @type {unknown} */ arg) => isDomObject(arg) && typeof arg.rule === "string" && Object.keys(arg).length === 1;
-          const call = value.call;
-          let ok;
-          if (typeof call !== "string" || !DOM_FUNCTIONS.has(call) || call === "matches") ok = false;
-          else if (call === "tags") ok = (args.length === 1 && isDomSpan(args[0])) || (args.length === 2 && isDomSpan(args[0]) && isRule(args[1]));
-          else if (call === "lowercase") ok = args.length === 1 && isDomString(args[0]);
-          else ok = args.length === 1 && isDomSpan(args[0]);
-          if (!ok || (!argument && DOM_SPANS.has(/** @type {string} */ (call)))) return "a malformed term";
-          for (const arg of args) if (!isRule(arg)) pending.push({ kind: "argument", value: arg, depth: next });
-        } else if (!(typeof value.literal === "string" || typeof value.weak === "string" || value.emptySet === true || typeof value.capture === "string")) {
-          return "a malformed term";
-        }
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Whether a value is a grammar DOM.
-   * @param {unknown} dom
-   * @returns {dom is GrammarDom}
-   */
-  function isDom(dom) {
-    return domProblem(dom) === null;
-  }
-
-  /**
-   * Whether a term reads the tags of `$`, the constituent whose tags it may
-   * be defining.
-   * @param {Argument} term
-   * @returns {boolean}
-   */
-  function readsOwnTags(term) {
-    if ("capture" in term) return term.capture === "";
-    if ("union" in term) return term.union.some(readsOwnTags);
-    if ("intersection" in term) return term.intersection.some(readsOwnTags);
-    if ("call" in term) {
-      if ((term.call === "tags" || term.call === "classes") && term.args.length === 1) {
-        const span = term.args[0];
-        return "capture" in span && span.capture === "";
-      }
-      return term.args.some((argument) => "call" in argument && readsOwnTags(argument));
-    }
-    return false;
-  }
-
-  /**
-   * readsOwnTags for a term whose shape is not yet checked: anything that is
-   * not a well-formed term reads nothing, and the check of its shape refuses
-   * it.
-   * @param {unknown} term
-   * @returns {boolean}
-   */
-  function domReadsOwnTags(term) {
-    if (!isDomObject(term)) return false;
-    if (term.capture === "") return true;
-    for (const key of ["union", "intersection"]) {
-      const items = term[key];
-      if (Array.isArray(items)) return items.some(domReadsOwnTags);
-    }
-    if (typeof term.call === "string" && Array.isArray(term.args)) {
-      if ((term.call === "tags" || term.call === "classes") && term.args.length === 1) {
-        const span = term.args[0];
-        return isDomObject(span) && span.capture === "";
-      }
-      return term.args.some((argument) => isDomObject(argument) && typeof argument.call === "string" && domReadsOwnTags(argument));
-    }
-    return false;
   }
 
   // ---- reader.js
@@ -4274,7 +4435,7 @@
     /** @type {DomDirective[]} */
     const directives = [];
     for (const item of parts(tree)) {
-      if (ruleOf(item) === "directive-statement") {
+      if (ruleOf(item) === "directive") {
         const [directiveToken, ...rest] = parts(item);
         directives.push({
           name: text(directiveToken).slice(1),
@@ -4293,32 +4454,21 @@
      */
     function readRule(node) {
       const children = parts(node);
-      const name = text(children[0]);
-      const definer = only(node, "definer");
+      const keyword = tokenText(parts(only(node, "definer"))[0]);
       /** @type {Partial<DomRule>} */
-      const rule = { name, op: tokenText(parts(definer)[0]) === "|≔" ? "extend" : "define" };
-      const tags = one(node, "rule-tags");
+      const rule = { name: text(children[1]), op: keyword === "%extend-rule" ? "extend" : keyword === "%redefine-rule" ? "redefine" : "define" };
+      const tags = one(node, "tags-clause");
       if (tags) rule.tags = readConstituentTags(tags);
       rule.alternatives = ofRule(only(node, "body"), "alternative").map(readAlternative);
-      /** @type {Condition[]} */
-      const conditions = [];
-      /** @type {Emission | undefined} */
-      let emit;
-      for (const clause of ofRule(node, "clause")) {
-        const inner = parts(clause)[0];
-        if (ruleOf(inner) === "emission") {
-          if (emit) fail("a rule may have one ⇒ clause", inner);
-          emit = readEmission(inner);
-        } else {
-          // The conditions joined by ∧ at the top are the rule's conditions,
-          // each applying where its captures are (engine §3.6).
-          const top = readAnyOf(only(inner, "any-of"));
-          conditions.push(...("all" in top ? top.all : [top]));
-        }
-      }
-      if (emit) rule.emit = emit;
-      rule.conditions = conditions;
+      const emits = one(node, "emits-clause");
+      if (emits) rule.emit = readEmission(emits);
+      // Each condition of the list is one condition, applying where its
+      // captures are (engine §3.6).
+      const conditions = one(node, "conditions-clause");
+      rule.conditions = conditions ? ofRule(conditions, "implication").map(readImplication) : [];
       rule.at = at(node);
+      const problem = definitionProblem(rule);
+      if (problem) fail(problem, node);
       return /** @type {DomRule} */ (rule);
     }
 
@@ -4414,22 +4564,22 @@
         if (kind === "capture") item = { capture: text(target).slice(1) };
         else if (kind === "string") item = { insert: decode(target) };
         else if (kind === "phoneme") item = { insert: text(target) };
-        else fail("expected a capture or a tag after ⇒", itemNode);
+        else fail("expected a capture or a tag after %emits", itemNode);
         const tags = one(itemNode, "emit-tags");
         if (tags && item.insert !== undefined) fail("an inserted tag takes no tags of its own", itemNode);
-        if (tags && one(tags, "erase")) item.erase = true;
+        if (tags && one(tags, "silent")) item.silent = true;
         else if (tags) {
           item.tags = readTerm(only(tags, "term"));
-          if ("emptySet" in item.tags) fail("<∅> emits a token no terminal can read; <> erases", itemNode);
+          if ("emptySet" in item.tags) fail("<∅> emits a token no terminal can read; <> makes a part silent", itemNode);
         }
         return item;
       });
       if (items.some((item) => item.capture === "") && !items.every((item) => item.capture === "")) {
-        fail("⇒ $ goes with no item but another $", node);
+        fail("$ goes with no item but another $", node);
       }
-      if (items.some((item) => item.capture === "" && item.erase) && items.length !== 1) fail("⇒ $ <> stands alone", node);
+      if (items.some((item) => item.capture === "" && item.silent) && items.length !== 1) fail("$ <> stands alone", node);
       const named = items.flatMap((item) => (item.capture !== undefined && item.capture !== "" ? [item.capture] : []));
-      if (named.some((name, index) => named.indexOf(name) !== index)) fail("⇒ lists a capture twice", node);
+      if (named.some((name, index) => named.indexOf(name) !== index)) fail("%emits lists a capture twice", node);
       return { items };
     }
 
@@ -4446,7 +4596,19 @@
     }
 
     /**
-     * Conditions joined by ∨, each several joined by ∧.
+     * A condition, or conditions joined by ⟹, grouping to the right.
+     * @param {ResultNode} node
+     * @returns {Condition}
+     */
+    function readImplication(node) {
+      const antecedent = readAnyOf(only(node, "any-of"));
+      const consequent = one(node, "implication");
+      return consequent ? { if: antecedent, then: readImplication(consequent) } : antecedent;
+    }
+
+    /**
+     * Conditions joined by ∨, each several joined by ∧; a parenthesized group
+     * of the same connective is part of the one around it (engine §9).
      * @param {ResultNode} node
      * @returns {Condition}
      */
@@ -4468,8 +4630,10 @@
     function readCondition(node) {
       const inner = /** @type {ResultNode} */ (parts(node).find((child) => child.kind === "rule"));
       switch (ruleOf(inner)) {
-        case "any-of":
-          return readAnyOf(inner);
+        case "implication":
+          return readImplication(inner);
+        case "presence":
+          return { captured: text(parts(inner)[0]).slice(1) };
         case "comparison": {
           const [left, comparator, right] = parts(inner);
           return { op: /** @type {Comparator} */ (text(parts(comparator)[0])), left: readTerm(left), right: readTerm(right) };
@@ -4497,6 +4661,13 @@
      */
     function readTerm(node, argument = false) {
       if (ruleOf(node) === "term") {
+        const inner = /** @type {ResultNode} */ (parts(node).find((child) => child.kind === "rule"));
+        return readTerm(inner, argument);
+      }
+      if (ruleOf(node) === "guarded-term") {
+        return { if: readAnyOf(only(node, "any-of")), then: readTerm(only(node, "term")) };
+      }
+      if (ruleOf(node) === "union") {
         const found = ofRule(node, "intersection");
         const items = found.map((item) => readTerm(item, argument && found.length === 1));
         return items.length === 1 ? items[0] : { union: items };
@@ -4601,11 +4772,12 @@
   // The rules of the notation's syntax grammar that the reader reads; every
   // other rule is transparent.
   const NAMED = new Set([
-    "directive-statement", "argument-word", "rule", "rule-tags", "definer", "body", "alternative", "guard",
-    "alternative-tags", "conjunction", "sequence", "element", "primary", "reference", "string", "phoneme",
-    "capture", "group", "optional", "choice", "empty", "clause", "emission", "emit-item", "emit-target",
-    "emit-tags", "erase", "conditions", "any-of", "all-of", "condition", "comparison", "comparator", "negation", "term",
-    "intersection", "term-atom", "weak", "empty-set", "call", "argument", "capture-reference",
+    "directive", "argument-word", "rule", "definer", "body", "alternative", "guard", "alternative-tags",
+    "conjunction", "sequence", "element", "primary", "reference", "string", "phoneme", "capture", "group", "optional",
+    "choice", "empty", "tags-clause", "conditions-clause", "emits-clause", "emit-item", "emit-target", "emit-tags",
+    "silent", "implication", "any-of", "all-of", "condition", "comparison", "comparator", "negation", "presence",
+    "term", "guarded-term", "union", "intersection", "term-atom", "weak", "empty-set", "call", "argument",
+    "capture-reference",
   ]);
 
   /**
@@ -4628,12 +4800,12 @@
 
   // ---- markdown.js
   // The two things read from Markdown by code rather than by grammar: the
-  // `ebnf` blocks of a grammar document (engine §8), and the stages of a
+  // `jbogenbau` blocks of a grammar document (engine §8), and the stages of a
   // pipeline document (design, "Pipelines").
 
 
 
-  // The grammar text of a document: its `ebnf` blocks joined with a newline,
+  // The grammar text of a document: its `jbogenbau` blocks joined with a newline,
   // with the line and column of every code point in the document.
   /**
    * @param {string} markdown
@@ -4655,10 +4827,10 @@
       if (inside === null) {
         // A fence and its info string; a backtick fence's info string has no
         // backtick, or the line is not a fence (CommonMark). Only an info
-        // string that is exactly `ebnf` makes a grammar block.
+        // string that is exactly `jbogenbau` makes a grammar block.
         const fence = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
         const open = fence && !(fence[1][0] === "`" && fence[2].includes("`")) ? [fence[0], fence[1], fence[2].trim()] : null;
-        if (open && open[2] === "ebnf") {
+        if (open && open[2] === "jbogenbau") {
           inside = open[1];
           openedAt = number + 1;
           if (!first) {
@@ -4688,7 +4860,7 @@
     }
     if (inside !== null && typeof inside === "string") {
       const column = lines[openedAt - 1].indexOf(inside[0]) + 1;
-      throw new GencmuError("grammar", `${path}:${openedAt}:${column}: an ebnf block that is never closed`, { document: path, line: openedAt, column });
+      throw new GencmuError("grammar", `${path}:${openedAt}:${column}: a jbogenbau block that is never closed`, { document: path, line: openedAt, column });
     }
     return { text: chars.join(""), positions };
   }
@@ -5415,7 +5587,7 @@
   /**
    * @typedef {object} DomRule
    * @property {string} name
-   * @property {"define" | "extend"} op
+   * @property {"define" | "redefine" | "extend"} op
    * @property {Term} [tags]
    * @property {DomAlternative[]} alternatives
    * @property {Emission} [emit]
@@ -5450,12 +5622,12 @@
 
   /**
    * One item of an emission clause: a capture, `""` for `$`, the whole
-   * constituent, with the tags to give it or erased; or an inserted token.
+   * constituent, with the tags to give it or silent; or an inserted token.
    * @typedef {object} EmitItem
    * @property {string} [capture]
    * @property {string} [insert]
    * @property {Term} [tags]
-   * @property {true} [erase]
+   * @property {true} [silent]
    */
 
   /**
@@ -5464,13 +5636,14 @@
 
   /**
    * A condition.
-   * @typedef {{any: Condition[]} | {all: Condition[]} | {not: Condition} | {matches: Term, rule: string}
+   * @typedef {{any: Condition[]} | {all: Condition[]} | {not: Condition} | {captured: string}
+   *   | {if: Condition, then: Condition} | {matches: Term, rule: string}
    *   | {op: Comparator, left: Term, right: Term}} Condition
    */
 
   /**
    * A term of a condition or a tags clause.
-   * @typedef {{literal: string} | {weak: string} | {emptySet: true} | {union: Term[]}
+   * @typedef {{literal: string} | {weak: string} | {emptySet: true} | {union: Term[]} | {if: Condition, then: Term}
    *   | {intersection: Term[]} | {call: string, args: Argument[]} | {capture: string}} Term
    */
 

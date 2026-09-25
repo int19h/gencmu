@@ -1,0 +1,20 @@
+{
+  "description": "%rule for a name an earlier document defined is an error: replacing a rule takes %redefine-rule (engine §2).",
+  "documents": {
+    "p.md": "## s <?stage main?>\n\n- [g](g.md) <?grammar?>\n- [h](h.md) <?grammar?>\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text x\n%rule x A\n```\n",
+    "h.md": "```jbogenbau\n%rule x B\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

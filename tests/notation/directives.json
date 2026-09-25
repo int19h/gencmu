@@ -1,6 +1,6 @@
 {
   "description": "Directives and their arguments (engine §9).",
-  "document": "# A document\n\nSome prose.\n\n```ebnf\n%ambiguity-resolution greedy elision-only ;\n%elidable KU KEI ;\n```\n",
+  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%ambiguity-resolution greedy elision-only\n%elidable KU KEI\n```\n",
   "expect": {
     "dom": {
       "rules": [],
