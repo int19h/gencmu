@@ -16,7 +16,7 @@ from ._grammar import Grammar, Lowered, lower, stitch
 from ._hash import fnv1a64
 from ._markdown import Pipeline, jbogenbau_text, read_pipeline
 from ._model import ParseError, ParseResult, Stage, Token
-from ._stage import DChild, DRead, StageOutcome, StageRunner, constituent_phonemes
+from ._stage import DChild, DRead, StageOutcome, StageRunner
 from ._unicode import UnicodeTable
 from ._validate import FORMAT, MAX_DEPTH, TOO_DEEP, dom_problem
 
@@ -413,7 +413,9 @@ class Dialect:
     @staticmethod
     def _reads_sa_su(stage: Stage, outcome: StageOutcome) -> bool:
         """Whether the chosen tree has a constituent of the rule word whose
-        phonemes are sa or su, whether it counts or not (engine §13)."""
+        phonemes, those of the tokens it covers joined as ``phonemes()``
+        joins them, with nothing left out, collapsed or trimmed, are sa or
+        su (engine §13)."""
         root = outcome.derivation
         if root is None:
             return False
@@ -423,7 +425,7 @@ class Dialect:
             if isinstance(node, DRead):
                 continue
             if not node.production.helper and node.production.rule_name == "word":
-                if constituent_phonemes(stage.input, node) in ("sa", "su"):
+                if "".join(token.phonemes or "" for token in stage.input[node.start : node.end]) in ("sa", "su"):
                     return True
             stack.extend(node.children)
         return False
