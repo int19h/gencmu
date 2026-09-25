@@ -57,6 +57,9 @@ pub(crate) struct StageGrammar {
     pub index: HashMap<String, usize>,
     pub lean: Lean,
     pub elision_only: bool,
+    /// Whether an elided terminator is forbidden where its constituent
+    /// could have been longer (engine §4).
+    pub maximal: bool,
     pub elidable: Vec<String>,
     pub changes: Vec<Change>,
 }
@@ -81,6 +84,7 @@ pub(crate) fn stitch(stage: &str, documents: &[(Arc<str>, Arc<Dom>)]) -> Result<
         index: HashMap::new(),
         lean: Lean::Greedy,
         elision_only: false,
+        maximal: false,
         elidable: Vec::new(),
         changes: Vec::new(),
     };
@@ -164,18 +168,24 @@ pub(crate) fn stitch(stage: &str, documents: &[(Arc<str>, Arc<Dom>)]) -> Result<
                     if resolution.is_some() {
                         return Err(here(format!("stage {stage} has two %ambiguity-resolution directives")));
                     }
-                    grammar.lean = match directive.args.first().map(String::as_str) {
+                    let refused = || {
+                        here(
+                            "%ambiguity-resolution takes greedy or lazy, then optionally elision-only, then optionally maximal"
+                                .to_string(),
+                        )
+                    };
+                    let mut args = directive.args.iter().map(String::as_str).peekable();
+                    grammar.lean = match args.next() {
                         Some("greedy") => Lean::Greedy,
                         Some("lazy") => Lean::Lazy,
-                        _ => return Err(here("%ambiguity-resolution takes greedy or lazy".to_string())),
+                        _ => return Err(refused()),
                     };
-                    grammar.elision_only = match directive.args.get(1).map(String::as_str) {
-                        None => false,
-                        Some("elision-only") => true,
-                        Some(other) => return Err(here(format!("%ambiguity-resolution does not take {other:?}"))),
-                    };
-                    if directive.args.len() > 2 {
-                        return Err(here("%ambiguity-resolution takes at most two arguments".to_string()));
+                    // Each optional word in its place, and nothing after
+                    // them (engine §2).
+                    grammar.elision_only = args.next_if_eq(&"elision-only").is_some();
+                    grammar.maximal = args.next_if_eq(&"maximal").is_some();
+                    if args.next().is_some() {
+                        return Err(refused());
                     }
                     resolution = Some((document.clone(), directive.at));
                 }

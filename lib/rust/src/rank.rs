@@ -17,6 +17,7 @@ use std::cmp::Ordering;
 use crate::earley::{Chart, Item, Tok};
 use crate::grammar::Lean;
 use crate::lower::{Lowered, Sym};
+use crate::maximal::Maximal;
 use crate::tags::Tags;
 
 pub(crate) const EMPTY: u32 = 0;
@@ -84,6 +85,18 @@ struct Entry {
 struct NodeResult {
     entries: Vec<Entry>,
     count: u8,
+    /// Under `maximal` (§4, §6), for an item whose next symbol is an
+    /// elidable optional: the entries and count of only its derivations an
+    /// elided terminator may follow; `None` where those are all of them.
+    allowed: Option<Box<NodeResult>>,
+}
+
+impl NodeResult {
+    /// The entries and count of the derivations an elided terminator may
+    /// follow.
+    fn allowed(&self) -> &NodeResult {
+        self.allowed.as_deref().unwrap_or(self)
+    }
 }
 
 enum Deps {
@@ -127,7 +140,7 @@ pub(crate) struct Ranking {
 /// A derivation DAG, with what comparing its derivations needs.
 pub(crate) struct Dag<'c> {
     g: &'c Lowered,
-    chart: &'c mut Chart,
+    chart: &'c Chart,
     tokens: &'c [Tok],
     tags: &'c Tags,
     term_tags: &'c [u32],
@@ -143,6 +156,8 @@ pub(crate) struct Ranker<'c> {
     results: Vec<NodeResult>,
     fsets: Vec<Vec<u32>>,
     fset_index: FxMap<Vec<u32>, u32>,
+    /// The resolution's `maximal`, if it has it (§4).
+    maximal: Option<&'c Maximal<'c>>,
 }
 
 impl<'c> Dag<'c> {
@@ -489,11 +504,12 @@ impl<'c> Dag<'c> {
 impl<'c> Ranker<'c> {
     pub(crate) fn new(
         g: &'c Lowered,
-        chart: &'c mut Chart,
+        chart: &'c Chart,
         tokens: &'c [Tok],
         tags: &'c Tags,
         term_tags: &'c [u32],
         lean: Lean,
+        maximal: Option<&'c Maximal<'c>>,
     ) -> Ranker<'c> {
         let mut dag =
             Dag { g, chart, tokens, tags, term_tags, lean, arena: Vec::new(), vlen: Vec::new(), flen: Vec::new() };
@@ -504,6 +520,7 @@ impl<'c> Ranker<'c> {
             results: Vec::new(),
             fsets: vec![Vec::new()],
             fset_index: FxMap::default(),
+            maximal,
         };
         ranker.fset_index.insert(Vec::new(), 0);
         ranker
@@ -662,25 +679,52 @@ impl<'c> Ranker<'c> {
                     let list = self.dag.tags.list(self.dag.tokens[tok as usize].tags);
                     let strong = list.binary_search_by_key(&tag, |&(id, _)| id).map(|at| list[at].1).unwrap_or(false);
                     let x = self.dag.push(DNode::Read { tok, terminal, strong }, 1, 1);
-                    NodeResult { entries: vec![Entry { x, comps: Vec::new() }], count: 1 }
+                    NodeResult { entries: vec![Entry { x, comps: Vec::new() }], count: 1, allowed: None }
                 }
-                _ => NodeResult { entries: vec![Entry { x: EMPTY, comps: Vec::new() }], count: 1 },
+                _ => NodeResult { entries: vec![Entry { x: EMPTY, comps: Vec::new() }], count: 1, allowed: None },
             },
             Deps::Links(links) => {
-                let mut list = Vec::new();
-                let mut count = 0u8;
+                // Under `maximal` (§4, §6), an item whose next symbol is an
+                // elidable optional keeps its entries and count twice: over
+                // all its links, and over only those whose last symbol's
+                // node `maximal` does not forbid, which an elided terminator
+                // may follow. A link over an elided terminator takes the
+                // second of the item before it.
+                let Node::Item { set, index } = node else { unreachable!("an item") };
+                let maximal = self.maximal;
+                let guarded = maximal.is_some_and(|maximal| maximal.guards(&self.item(set, index)));
+                let mut all = NodeResult::default();
+                let mut allowed = NodeResult::default();
                 for (pred, child) in links {
+                    let (elided, permitted) = match (maximal, child.0) {
+                        (Some(maximal), Node::Group { rule, origin, set: end, .. }) => {
+                            (maximal.elided(rule, origin, end), !guarded || !maximal.forbids(rule, origin, end))
+                        }
+                        _ => (false, true),
+                    };
                     let left = &self.results[self.memo[&pred] as usize];
+                    let left = if elided { left.allowed() } else { left };
                     let right = &self.results[self.memo[&child] as usize];
-                    count = count.saturating_add(left.count.saturating_mul(right.count)).min(2);
+                    let ways = left.count.saturating_mul(right.count);
+                    let kept = guarded && permitted;
+                    all.count = all.count.saturating_add(ways).min(2);
+                    if kept {
+                        allowed.count = allowed.count.saturating_add(ways).min(2);
+                    }
                     for first in &left.entries {
                         for second in &right.entries {
                             let entry = self.dag.product(first, second);
-                            self.dag.add_entry(&mut list, entry);
+                            if kept {
+                                self.dag.add_entry(&mut allowed.entries, entry.clone());
+                            }
+                            self.dag.add_entry(&mut all.entries, entry);
                         }
                     }
                 }
-                NodeResult { entries: list, count }
+                if guarded {
+                    all.allowed = Some(Box::new(allowed));
+                }
+                all
             }
             Deps::Close(None) => NodeResult::default(),
             Deps::Close(Some(inner)) => {
@@ -696,7 +740,7 @@ impl<'c> Ranker<'c> {
                         .collect();
                     self.dag.add_entry(&mut list, Entry { x, comps });
                 }
-                NodeResult { entries: list, count: body.count }
+                NodeResult { entries: list, count: body.count, allowed: None }
             }
             Deps::Group(members) => {
                 let mut list = Vec::new();
@@ -708,7 +752,7 @@ impl<'c> Ranker<'c> {
                         self.dag.add_entry(&mut list, entry.clone());
                     }
                 }
-                NodeResult { entries: list, count }
+                NodeResult { entries: list, count, allowed: None }
             }
         }
     }
