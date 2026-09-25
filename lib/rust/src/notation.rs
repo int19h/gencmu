@@ -416,10 +416,18 @@ impl<'a> Reader<'a> {
             "call" => {
                 let name_token = Self::tokens_of(inner).next().expect("a function name");
                 let name = self.text(name_token);
-                if name != "matches" {
-                    return Err(self.error(name_token, format!("{name}() is not a condition; only matches() is")));
-                }
                 let args: Vec<&Node> = Self::rules(inner, "argument").collect();
+                if name == "initial" {
+                    let wrong = || self.error(name_token, "initial() takes one span");
+                    if args.len() != 1 {
+                        return Err(wrong());
+                    }
+                    return Ok(Cond::Initial(self.span_argument(args[0], depth).map_err(|_| wrong())?));
+                }
+                if name != "matches" {
+                    let message = format!("{name}() is not a condition; only matches() and initial() are");
+                    return Err(self.error(name_token, message));
+                }
                 if args.len() != 2 {
                     return Err(self.error(name_token, "matches() takes a span and a rule"));
                 }
@@ -566,7 +574,9 @@ impl<'a> Reader<'a> {
             ("phonemes" | "text" | "classes" | "words" | "head" | "tail" | "last" | "tags" | "lowercase", _) => {
                 return Err(wrong())
             }
-            ("matches", _) => return Err(self.error(name_token, "matches() is a condition, not a value")),
+            ("matches" | "initial", _) => {
+                return Err(self.error(name_token, format!("{name}() is a condition, not a term")))
+            }
             _ => return Err(self.error(name_token, format!("an unknown function {name}()"))),
         };
         Ok(Term::Call(name, built))
@@ -611,6 +621,6 @@ fn cond_reads_own_tags(cond: &Cond) -> bool {
         Cond::Not(inner) => cond_reads_own_tags(inner),
         Cond::Any(items) | Cond::All(items) => items.iter().any(cond_reads_own_tags),
         Cond::If(antecedent, consequent) => cond_reads_own_tags(antecedent) || cond_reads_own_tags(consequent),
-        Cond::Matches(..) | Cond::Captured(_) => false,
+        Cond::Matches(..) | Cond::Initial(_) | Cond::Captured(_) => false,
     }
 }

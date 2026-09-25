@@ -584,6 +584,10 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 let (start, end, _) = span_bounds(span, frame);
                 self.nested(tokens, base, start, end, *rule)?.0
             }
+            // Where the input of the parse that reads the condition begins
+            // (§10). Positions count from the start of the tokens that parse
+            // reads, a nested parse's own span included, so that is 0.
+            LCond::Initial(span) => span_bounds(span, frame).0 == 0,
             LCond::Cmp(op, left, right) => {
                 let left = self.term(left, frame, tokens, base)?;
                 let right = self.term(right, frame, tokens, base)?;

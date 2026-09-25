@@ -74,7 +74,7 @@ pub(crate) fn simplify_cond(cond: &Cond, has: &dyn Fn(&str) -> bool) -> Simple {
         Cond::Compare(op, left, right) => {
             Simple::Cond(Cond::Compare(op.clone(), simplify_value(left, has), simplify_value(right, has)))
         }
-        Cond::Matches(..) => Simple::Cond(cond.clone()),
+        Cond::Matches(..) | Cond::Initial(_) => Simple::Cond(cond.clone()),
     }
 }
 
@@ -139,7 +139,7 @@ fn cond_captures<'a>(cond: &'a Cond, out: &mut Vec<&'a str>) {
             term_captures(left, out);
             term_captures(right, out);
         }
-        Cond::Matches(span, _) => term_captures(span, out),
+        Cond::Matches(span, _) | Cond::Initial(span) => term_captures(span, out),
         Cond::Not(inner) => cond_captures(inner, out),
         Cond::Any(items) | Cond::All(items) => items.iter().for_each(|item| cond_captures(item, out)),
         Cond::If(antecedent, consequent) => {
@@ -188,7 +188,7 @@ fn cond_presences<'a>(cond: &'a Cond, out: &mut Vec<&'a str>) {
             cond_presences(antecedent, out);
             cond_presences(consequent, out);
         }
-        Cond::Matches(..) => {}
+        Cond::Matches(..) | Cond::Initial(_) => {}
     }
 }
 

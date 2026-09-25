@@ -98,6 +98,8 @@ pub(crate) enum Arg {
 pub(crate) enum Cond {
     Compare(String, Term, Term),
     Matches(Term, String),
+    /// `initial(s)`: whether the span begins where the parse's input does.
+    Initial(Term),
     Not(Box<Cond>),
     Any(Vec<Cond>),
     All(Vec<Cond>),
@@ -275,6 +277,7 @@ fn cond_from_json(value: &Json) -> R<Cond> {
             term_from_json(field(value, "right")?)?,
         ),
         "matches" => Cond::Matches(term_from_json(field(value, "matches")?)?, string(value, "rule")?),
+        "initial" => Cond::Initial(term_from_json(field(value, "initial")?)?),
         "not" => Cond::Not(Box::new(cond_from_json(field(value, "not")?)?)),
         "any" => Cond::Any(array(value, "any")?.iter().map(cond_from_json).collect::<R<Vec<_>>>()?),
         "all" => Cond::All(array(value, "all")?.iter().map(cond_from_json).collect::<R<Vec<_>>>()?),
@@ -617,6 +620,11 @@ pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
                         return Some("a malformed condition");
                     }
                     pending.push((Kind::Argument, span, next));
+                } else if let Some(span) = value.get("initial") {
+                    if value.as_object().map_or(0, <[_]>::len) != 1 || !is_span_json(span) {
+                        return Some("a malformed condition");
+                    }
+                    pending.push((Kind::Argument, span, next));
                 } else {
                     if !matches!(value.get("op").and_then(Json::as_str), Some("=" | "≠" | "∈" | "∉" | "⊆")) {
                         return Some("a malformed condition");
@@ -663,7 +671,7 @@ pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
                         Some("phonemes" | "text" | "classes" | "words" | "head" | "tail" | "last") => {
                             matches!(args, [span] if is_span_json(span))
                         }
-                        // `matches` is a condition, never a term.
+                        // `matches` and `initial` are conditions, never terms.
                         _ => false,
                     };
                     let span_call = matches!(call, Some("head" | "tail" | "last"));
@@ -911,6 +919,11 @@ fn write_cond(out: &mut String, cond: &Cond) {
             write_term(out, span);
             out.push_str(",\"rule\":");
             write_str(out, rule);
+            out.push('}');
+        }
+        Cond::Initial(span) => {
+            out.push_str("{\"initial\":");
+            write_term(out, span);
             out.push('}');
         }
         Cond::Not(inner) => {
