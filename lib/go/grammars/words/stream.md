@@ -21,26 +21,28 @@ The stage is lazy: where two parses differ, it takes the one that closes a const
   | ε | PAUSE
   | [PAUSE] body | [PAUSE] body PAUSE
   | [PAUSE] $b(body) PAUSE hesitation | [PAUSE] $b(body) PAUSE hesitation PAUSE
-  | [PAUSE] faho-group | [PAUSE] body PAUSE faho-group
+  | [PAUSE] faho-group | [PAUSE] $f(body) $g(gap) faho-group
 %conditions
-  "stream-end" ∉ tags($b)
+  "stream-end" ∉ tags($b),
+  "continued" ∈ tags($f) ∨ phonemes($g) = "."
 
 %rule body
   | $t(body-tail) <tags($t)>
-  | stray-si
-  | $y(stray-si) $g(gap) $z(body-tail) <"stream-end" ∩ tags($z)>
+  | stray-si <"continued">
+  | $y(stray-si) $g(gap) $z(body-tail) <("stream-end" ∪ "continued") ∩ tags($z)>
 %conditions
   "first-onset" ∈ tags($z) ∨ phonemes($g) = ".",
   "first-cy" ∉ tags($z) ∨ phonemes($g) = "."
 
 %rule body-tail
-  | $a(stream) <("first-onset" ∪ "first-cy") ∩ tags($a) ∪ "stream-end">
-  | @sa-su? sa-run <"first-onset">
-  | @sa-su? $b(wiped) <("first-onset" ∪ "first-cy") ∩ tags($b)>
-  | @sa-su? $w(wiped) $g(gap) $v(stream) <("first-onset" ∪ "first-cy") ∩ tags($w) ∪ "stream-end">
-  | @sa-su? $s(stream) $h(gap) sa-run <("first-onset" ∪ "first-cy") ∩ tags($s)>
-  | @sa-su? $x(wiped) $h(gap) sa-run <("first-onset" ∪ "first-cy") ∩ tags($x)>
-  | @sa-su? $w(wiped) $g(gap) $v(stream) $h(gap) sa-run <("first-onset" ∪ "first-cy") ∩ tags($w)>
+  | $a(stream) <("first-onset" ∪ "first-cy" ∪ "continued") ∩ tags($a) ∪ "stream-end">
+  | @sa-su? sa-run <"first-onset" ∪ "continued">
+  | @sa-su? $b(wiped) <("first-onset" ∪ "first-cy" ∪ "continued") ∩ tags($b)>
+  | @sa-su? $w(wiped) $g(gap) $v(stream)
+      <("first-onset" ∪ "first-cy") ∩ tags($w) ∪ "continued" ∩ tags($v) ∪ "stream-end">
+  | @sa-su? $s(stream) $h(gap) sa-run <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ "continued">
+  | @sa-su? $x(wiped) $h(gap) sa-run <("first-onset" ∪ "first-cy") ∩ tags($x) ∪ "continued">
+  | @sa-su? $w(wiped) $g(gap) $v(stream) $h(gap) sa-run <("first-onset" ∪ "first-cy") ∩ tags($w) ∪ "continued">
 %conditions
   "continued" ∈ tags($w) ∨ phonemes($g) = ".",
   "first-onset" ∈ tags($v) ∨ phonemes($g) = ".",
@@ -140,11 +142,11 @@ A `y` here is either phoneme of the letter, plain or stressed, since hesitation 
   /y/ | /Y/
 ```
 
-`fa'o` ends the text (CLL 19.15): whatever follows it is not read and is not handed on, so the group emits nothing.
+`fa'o` ends the text (CLL 19.15): whatever follows it is not read and is not handed on, so the group emits nothing. Since nothing after it is read, nothing after it needs a pause, as the Magic Words proposal says, "No words are read to the right of FAhO, unconditionally": `fa'omi` and `fa'obu` are `fa'o` alone. Before it, the pause rules of the stream hold, so `mifa'o` is `mi fa'o`.
 
 ```jbogenbau
 %rule faho-group
-  faho-word | faho-word PAUSE | faho-word PAUSE zoi-body
+  faho-word | faho-word zoi-body
 
 %rule faho-word
   $q(magic-body)
