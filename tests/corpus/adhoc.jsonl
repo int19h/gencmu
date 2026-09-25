@@ -435,3 +435,8 @@
 {"id":"adhoc.warnings.fihoi-adverbial","text":"mi klama fi'oi broda","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","klama","fi'oi","broda"],"brackets":"(mi [klama {fi'oi broda}])"}
 {"id":"adhoc.warnings.standard-no-warning","text":"mi klama","dialect":"cll","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
 {"id":"adhoc.warnings.zohoi-quote","text":"mi tavla zo'oi broda","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","tavla","zo'oi","broda"],"brackets":"(mi [tavla {zo'oi broda}])"}
+{"id":"adhoc.syntax.yacc-repair-i-nioho","text":".i ni'o mi klama","dialect":"cll","expect":"accept","verdict":"unique","words":["i","ni'o","mi","klama"],"brackets":"(i ni'o [mi klama])"}
+{"id":"adhoc.syntax.yacc-repair-i-i-nioho","text":".i .i ni'o mi klama","dialect":"cll","expect":"accept","verdict":"unique","words":["i","i","ni'o","mi","klama"],"brackets":"(i i ni'o [mi klama])"}
+{"id":"adhoc.syntax.yacc-repair-empty-lohu","text":"mi cusku lo'u le'u","dialect":"cll","expect":"accept","verdict":"unique","words":["mi","cusku","lo'u","le'u"],"brackets":"(mi [cusku {lo'u le'u}])"}
+{"id":"adhoc.syntax.yacc-repair-free-after-elided-lihu","text":"mi cusku lu cy. to ti toi","dialect":"cll","expect":"accept","verdict":"unique","words":["mi","cusku","lu","cy","to","ti","toi"],"brackets":"(mi [cusku {lu cy (to ti toi)}])"}
+{"id":"adhoc.syntax.yacc-repair-free-inside-lu","text":"mi cusku lu mi klama to ti toi li'u","dialect":"cll","expect":"accept","verdict":"unique","words":["mi","cusku","lu","mi","klama","to","ti","toi","li'u"],"brackets":"(mi [cusku {lu (mi [klama {to ti toi}]) li'u}])"}
