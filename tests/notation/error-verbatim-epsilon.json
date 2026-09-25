@@ -1,0 +1,10 @@
+{
+  "description": "%verbatim with %emits ε is an error of the document, reported at the definition (engine §9).",
+  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule g A\n%emits ε\n%verbatim\n```\n",
+  "expect": {
+    "error": {
+      "line": 6,
+      "column": 1
+    }
+  }
+}

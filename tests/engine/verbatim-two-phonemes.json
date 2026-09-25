@@ -1,0 +1,15 @@
+{
+  "description": "Two strong phoneme tags on one emitted token are an error of the grammar, even on a verbatim token (engine §5).",
+  "grammar": "%rule text word\n%rule word \"a\"\n%emits $ </a/ ∪ /b/>\n%verbatim",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "grammar",
+        "stage": "main"
+      }
+    },
+    "error": "grammar"
+  }
+}

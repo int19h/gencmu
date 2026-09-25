@@ -1,0 +1,21 @@
+{
+  "description": "%verbatim is the last clause of a rule, and the DOM marks the rule with it (engine §9).",
+  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule g A\n%emits $ <\"F\">\n%verbatim\n\n%rule h B\n%verbatim\n\n%rule k C\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "g",
+          "verbatim": true
+        },
+        {
+          "name": "h",
+          "verbatim": true
+        },
+        {
+          "name": "k"
+        }
+      ]
+    }
+  }
+}

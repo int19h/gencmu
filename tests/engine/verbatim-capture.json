@@ -1,0 +1,74 @@
+{
+  "description": "A capture item whose part is a verbatim constituent emits a verbatim token, whose source runs from the end of the input token before it to the start of the one after it; a $ item over a constituent that merely holds a verbatim one is not verbatim (engine §5, §11).",
+  "grammar": "%rule text q p\n%rule q Q $b(body)\n%emits $b <\"B\">\n%rule p P body\n%emits $ <\"C\">\n%rule body X | body X\n%verbatim",
+  "tokens": [
+    {
+      "text": "q",
+      "tags": [
+        "Q"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "a"
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "a"
+    },
+    {
+      "text": "p",
+      "tags": [
+        "P"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "a"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "text": " x x ",
+              "phonemes": " x x ",
+              "span": [
+                1,
+                3
+              ],
+              "source": [
+                1,
+                6
+              ]
+            },
+            {
+              "text": "p x",
+              "phonemes": "a",
+              "span": [
+                3,
+                5
+              ],
+              "source": [
+                6,
+                9
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

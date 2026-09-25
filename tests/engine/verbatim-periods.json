@@ -1,0 +1,52 @@
+{
+  "description": "A token over a verbatim token keeps the verbatim token's periods: runs of pauses are made one by token, not by character, and a pause token at either end is left out (engine §5).",
+  "documents": {
+    "p.md": "## s <?stage first?>\n\n- [g](g.md) <?grammar?>\n\n## t <?stage second?>\n\n- [h](h.md) <?grammar?>\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [part] ...\n%rule part v | pause | y\n%rule v \"a\" \".\" \".\" \"b\"\n%emits $ <\"V\">\n%verbatim\n%rule pause \"-\"\n%emits $ <\"P\" ∪ /./>\n%rule y \"y\"\n%emits $ <\"Y\" ∪ /y/>\n```\n",
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text all\n%emits $ <\"Z\">\n%rule all [any] ...\n%rule any V | P | Y\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "-a..b--y-",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "phonemes": "."
+            },
+            {
+              "text": "a..b",
+              "phonemes": "a..b",
+              "source": [
+                1,
+                5
+              ]
+            },
+            {
+              "phonemes": "."
+            },
+            {
+              "phonemes": "."
+            },
+            {
+              "phonemes": "y"
+            },
+            {
+              "phonemes": "."
+            }
+          ]
+        },
+        {
+          "output": [
+            {
+              "text": "-a..b--y-",
+              "phonemes": "a..b.y"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
