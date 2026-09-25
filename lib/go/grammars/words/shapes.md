@@ -229,10 +229,10 @@ A brivla is a gismu, a lujvo built from rafsi, or a borrowing. CLL 4.7: a lone C
 
 ```jbogenbau
 %rule brivla-with-onset
-  word-initial-core | first-rafsi brivla-core | first-rafsi initial-rafsi-sequence brivla-core
+  word-initial-core | first-rafsi lujvo-tail
 
-%rule initial-rafsi-sequence
-  initial-rafsi | initial-rafsi initial-rafsi-sequence
+%rule lujvo-tail
+  brivla-core | initial-rafsi lujvo-tail
 
 %rule brivla-core
   bare-brivla-core | cvv-final-rafsi
@@ -494,7 +494,7 @@ A nucleus is a vowel or a diphthong; `y` is not a nucleus here, since inside a w
 
 ## Vowels
 
-The plain vowels are the unmarked letters, which a position that may not bear stress accepts. A position that may bear stress accepts the marked letters as well, and a position whose stress is free, in a cmavo or a cmevla, accepts either. The four falling diphthongs of CLL 3.4 follow the same three-way division; a free diphthong may also be written in capitals throughout, as a name's may be. The `any-` rules are what the lexicon documents spell their words with, since a cmavo's stress is free.
+The plain vowels are the unmarked letters, which a position that may not bear stress accepts. A position that may bear stress accepts the marked letters as well, and a position whose stress is free, in a cmavo or a cmevla, accepts either. The four falling diphthongs of CLL 3.4 follow the same three-way division; a free diphthong may also have a capital as its second letter, or be written in capitals throughout, as a name's may be. The `any-` rules are what the lexicon documents spell their words with, since a cmavo's stress is free.
 
 ```jbogenbau
 %rule plain-vowel
@@ -513,7 +513,7 @@ The plain vowels are the unmarked letters, which a position that may not bear st
   plain-diphthong | /A/ /i/ | /A/ /u/ | /E/ /i/ | /O/ /i/
 
 %rule free-diphthong
-  stressed-diphthong | /A/ /I/ | /A/ /U/ | /E/ /I/ | /O/ /I/
+  stressed-diphthong | /A/ /I/ | /A/ /U/ | /E/ /I/ | /O/ /I/ | /a/ /I/ | /a/ /U/ | /e/ /I/ | /o/ /I/
 
 %rule any-a
   /a/ | /A/

@@ -718,3 +718,37 @@
 {"id":"adhoc.words.cll-forms.two-vowels-not-a-diphthong.bpfk","text":"zo ae","dialect":"bpfk","expect":"reject","stage":"words"}
 {"id":"adhoc.words.cll-forms.on-glide-diphthong-cmavo","text":"zo .ia","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo","ia"],"brackets":"(zo ia)"}
 {"id":"adhoc.words.cll-forms.on-glide-diphthong-cmavo.bpfk","text":"zo .ia","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zo","ia"],"brackets":"(zo ia)"}
+{"id":"adhoc.words.bpfk-forms.brivla-rafsi-two-syllables","text":"klama'ybroda","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"adhoc.words.bpfk-forms.brivla-rafsi-two-syllables.bpfk","text":"klama'ybroda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["klama'ybroda"],"brackets":"klama'ybroda"}
+{"id":"adhoc.words.bpfk-forms.brivla-rafsi-three-syllables","text":"spageti'ybroda","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"adhoc.words.bpfk-forms.brivla-rafsi-three-syllables.bpfk","text":"spageti'ybroda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["spageti'ybroda"],"brackets":"spageti'ybroda"}
+{"id":"adhoc.words.bpfk-forms.stressed-brivla-rafsi","text":"blanU'ybla","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"adhoc.words.bpfk-forms.stressed-brivla-rafsi.bpfk","text":"blanU'ybla","dialect":"bpfk","expect":"accept","verdict":"unique","words":["blanU'ybla"],"brackets":"blanU'ybla"}
+{"id":"adhoc.words.bpfk-forms.no-one-syllable-brivla-rafsi","text":"bai'ybroda","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"adhoc.words.bpfk-forms.no-one-syllable-brivla-rafsi.bpfk","text":"bai'ybroda","dialect":"bpfk","expect":"reject","stage":"syntax","words":["bai'y","broda"]}
+{"id":"adhoc.words.bpfk-forms.no-vowel-pair-in-brivla-rafsi","text":"paa'ybroda","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"adhoc.words.bpfk-forms.no-vowel-pair-in-brivla-rafsi.bpfk","text":"paa'ybroda","dialect":"bpfk","expect":"reject","stage":"words"}
+{"id":"adhoc.words.bpfk-forms.rafsi-before-borrowing-is-one-borrowing","text":"selspageti","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["selspageti"],"brackets":"selspageti"}
+{"id":"adhoc.words.bpfk-forms.rafsi-before-borrowing-is-one-borrowing.bpfk","text":"selspageti","dialect":"bpfk","expect":"accept","verdict":"unique","words":["selspageti"],"brackets":"selspageti"}
+{"id":"adhoc.words.bpfk-forms.rafsi-string-is-no-borrowing-head","text":"pairkamnycmi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["pairkamnycmi"],"brackets":"pairkamnycmi"}
+{"id":"adhoc.words.bpfk-forms.rafsi-string-is-no-borrowing-head.bpfk","text":"pairkamnycmi","dialect":"bpfk","expect":"accept","verdict":"unique","words":["pairkamnycmi"],"brackets":"pairkamnycmi"}
+{"id":"adhoc.words.bpfk-forms.capital-second-letter-of-diphthong","text":"zo baI","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo","baI"],"brackets":"(zo baI)"}
+{"id":"adhoc.words.bpfk-forms.capital-second-letter-of-diphthong.bpfk","text":"zo baI","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zo","baI"],"brackets":"(zo baI)"}
+{"id":"adhoc.words.bpfk-forms.no-glide-after-consonant-at-joint","text":"nuniispa","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["nu","niispa"],"brackets":"(nu niispa)"}
+{"id":"adhoc.words.bpfk-forms.no-glide-after-consonant-at-joint.bpfk","text":"nuniispa","dialect":"bpfk","expect":"reject","stage":"words"}
+{"id":"adhoc.words.bpfk-forms.glide-before-glide-is-a-vowel","text":"bluueta","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["bluueta"],"brackets":"bluueta"}
+{"id":"adhoc.words.bpfk-forms.glide-before-glide-is-a-vowel.bpfk","text":"bluueta","dialect":"bpfk","expect":"accept","verdict":"unique","words":["bluueta"],"brackets":"bluueta"}
+{"id":"adhoc.words.bpfk-forms.iy-cmavo","text":"zo .iy","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"adhoc.words.bpfk-forms.iy-cmavo.bpfk","text":"zo .iy","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zo","iy"],"brackets":"(zo iy)"}
+{"id":"adhoc.words.bpfk-forms.fuhivla-rafsi-with-glide-onset","text":"spageiybroda","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"adhoc.words.bpfk-forms.fuhivla-rafsi-with-glide-onset.bpfk","text":"spageiybroda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["spageiybroda"],"brackets":"spageiybroda"}
+{"id":"adhoc.words.bpfk-forms.stressed-fuhivla-rafsi-without-head","text":"baiybla","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"adhoc.words.bpfk-forms.stressed-fuhivla-rafsi-without-head.bpfk","text":"baiybla","dialect":"bpfk","expect":"accept","verdict":"unique","words":["baiybla"],"brackets":"baiybla"}
+{"id":"adhoc.words.bpfk-forms.stressed-fuhivla-rafsi-without-onset","text":"aiybla","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"adhoc.words.bpfk-forms.stressed-fuhivla-rafsi-without-onset.bpfk","text":"aiybla","dialect":"bpfk","expect":"accept","verdict":"unique","words":["aiybla"],"brackets":"aiybla"}
+{"id":"adhoc.words.bpfk-forms.lujvo-without-onset-needs-pause","text":"miaiybla","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"adhoc.words.bpfk-forms.lujvo-without-onset-needs-pause.bpfk","text":"miaiybla","dialect":"bpfk","expect":"reject","stage":"words"}
+{"id":"adhoc.words.bpfk-forms.vowel-before-glide-begins-lujvo","text":"uiybla","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"adhoc.words.bpfk-forms.vowel-before-glide-begins-lujvo.bpfk","text":"uiybla","dialect":"bpfk","expect":"accept","verdict":"unique","words":["uiybla"],"brackets":"uiybla"}
+{"id":"adhoc.words.bpfk-forms.glide-after-consonant-before-glide","text":"miuiybla","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"adhoc.words.bpfk-forms.glide-after-consonant-before-glide.bpfk","text":"miuiybla","dialect":"bpfk","expect":"reject","stage":"words"}
