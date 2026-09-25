@@ -23,7 +23,7 @@ jobs:
         with:
           node-version: 24
       - name: Every corpus case
-        working-directory: js
+        working-directory: lib/js
         env:
           GENCMU_CORPUS: full
           # A book chapter takes about 1.5 GB in JavaScript; the runner has 16.
@@ -40,7 +40,7 @@ jobs:
         with:
           python-version: "3.x"
       - name: Every corpus case
-        working-directory: python
+        working-directory: lib/python
         env:
           GENCMU_CORPUS: full
           GENCMU_CORPUS_WORKERS: "4"
@@ -56,7 +56,7 @@ jobs:
         with:
           go-version: stable
       - name: Every corpus case
-        working-directory: go
+        working-directory: lib/go
         env:
           GENCMU_CORPUS: full
           GENCMU_CORPUS_WORKERS: "3"
@@ -72,7 +72,7 @@ jobs:
         with:
           toolchain: stable
       - name: Every corpus case
-        working-directory: rust
+        working-directory: lib/rust
         env:
           GENCMU_CORPUS: full
         run: cargo test --release --test corpus -- --nocapture
