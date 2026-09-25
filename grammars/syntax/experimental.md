@@ -202,13 +202,14 @@ A tagged term whose tag is a bare `fa` has its free modifiers after the `fa`. It
 
 ## Sumti
 
-Sumti connectives are ek, joik or VUhU (`sumti-connective`). After `vu'o`, a connected sumti can follow the relative clauses or replace them. Under `cbm` a cmevla is a selbri word, so the `la CMEVLA` name form is removed and `la .alis.` is a description. The new sumti are these:
+Sumti connectives are ek, joik, jek or VUhU (`sumti-connective`). After `vu'o`, a connected sumti can follow the relative clauses or replace them. Under `cbm` a cmevla is a selbri word, so the `la CMEVLA` name form is removed and `la .alis.` is a description. The new sumti are these:
 
 - `na'e sumti lu'u`, without `bo`
-- `la'e` or `na'e bo` around a tagged sumti
-- a description whose two descriptors are joined by a jek (`lo je le broda`)
+- `la'e`, `na'e bo` or `na'e` around a term that is not a sumti, such as a tagged sumti or `na ku` (`la'e na ku lu'u broda`)
 - `lo'oi subsentence ku'au`, a description of a subsentence
 - the single-word quotes `zo'oi`, `la'oi` and `ra'oi`, whose bodies the word stage delimits
+
+A `na'e` alone does not take a tagged term, since `na'e pu` is then a tag. The inner sumti of a description can be any sumti, a connected one too (`lo mi .e do broda`). It does not begin with a quantifier, since camxes-exp reads a quantifier there as the CLL form `quantifier sumti` first: `lo re mi broda` is `lo re mi` and the selbri `broda`. `quantifier-head` lists the selma'o that can begin a quantifier. A description, and a quantifier without a descriptor, can take a forethought sentence in place of a selbri (`le ga mi klama gi do klama ku`, `re ga mi klama gi do klama ku`). These are camxes-exp's `sumti_tail` and `sumti_5`.
 
 ```jbogenbau
 %redefine-rule sumti
@@ -227,17 +228,16 @@ Sumti connectives are ek, joik or VUhU (`sumti-connective`). After `vu'o`, a con
   ek # | joik # | jek # | VUhU #
 
 %redefine-rule sumti-5
-  [quantifier] sumti-6 [relative-clauses] | quantifier selbri [KU] # [relative-clauses]
+  [quantifier] sumti-6 [relative-clauses] | quantifier (selbri | gek-sentence) [KU] # [relative-clauses]
 
 %redefine-rule sumti-6
-  | (LAhE # | NAhE BO #) [relative-clauses] sumti [LUhU] #
-  | NAhE # sumti [LUhU] #
-  | (LAhE # | NAhE BO #) (tag | FA #) sumti [LUhU] #
+  | (LAhE # | NAhE BO # | NAhE #) [relative-clauses] sumti [LUhU] #
+  | (LAhE # | NAhE BO #) $t(term) [LUhU] #
+  | NAhE # $u(term) [LUhU] #
   | KOhA #
   | lerfu-string free-after-elided-boi
   | @¬cbm? LA # [relative-clauses] CMEVLA ... #
   | (LA | LE) # sumti-tail [KU] #
-  | (LA | LE) # jek (LA | LE) # sumti-tail [KU] #
   | LOhOI # subsentence [KUhAU] #
   | LI # mex [LOhO] #
   | ZO any-word #
@@ -245,6 +245,21 @@ Sumti connectives are ek, joik or VUhU (`sumti-connective`). After `vu'o`, a con
   | LOhU [any-word ...] LEhU #
   | ZOI any-word anything any-word #
   | ZOhOI anything #
+%conditions
+  ¬matches($t, sumti),
+  ¬matches($u, sumti),
+  ¬matches($u, tagged-term)
+
+%redefine-rule sumti-tail
+  | $s(sumti) sumti-tail-1
+  | sumti-tail-1
+  | relative-clauses sumti-tail-1
+  | gek-sentence
+%conditions
+  ¬matches(head($s), quantifier-head)
+
+%rule quantifier-head
+  PA | VEI | NIhE | MOhE | PEhO | FUhA
 ```
 
 ## Relative clauses
