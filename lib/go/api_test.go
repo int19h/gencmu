@@ -255,10 +255,10 @@ func TestBracketsPause(t *testing.T) {
 	}
 }
 
-// Two lists of words compare as the sets of their words (engine §10), each
-// word whole: a word may hold a space, and ["a b", "c"] is not ["a", "b c"].
-func TestWordsCompareAsSets(t *testing.T) {
-	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text $x(A) $y(A)\n%conditions words($x) ≠ words($y)"))
+// words() is the set of the words between pauses (engine §5), each word
+// whole: a word may hold a space, so {"a b", "c"} is not {"a", "b c"}.
+func TestWordsKeepSpaces(t *testing.T) {
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text $x(A) $y(A)\n%conditions words($x) ≠ words($y), \"a b\" ∈ words($x), \"a\" ∉ words($x)"))
 	toks := []Token{{Text: "x", Tags: map[string]bool{"A": true}, Phonemes: "a b.c", Span: [2]int{0, 1}, Source: [2]int{0, 1}}, {Text: "y", Tags: map[string]bool{"A": true}, Phonemes: "a.b c", Span: [2]int{1, 2}, Source: [2]int{1, 2}}}
 	if res, err := d.ParseTokens("xy", toks, ParseOptions{}); err != nil || !res.OK {
 		t.Fatalf("%v %+v", err, res)
