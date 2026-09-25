@@ -324,8 +324,12 @@ class DomBuilder:
             return {"captured": self.text(self.kids(node)[0])[1:]}
         if node.rule == "call":
             name, args = self.call_parts(node)
+            if name == "initial":
+                if len(args) != 1:
+                    raise self.fail(node, "initial() takes one span")
+                return {"initial": (yield self._span(args[0], node))}
             if name != "matches":
-                raise self.fail(node, f"a condition calls matches(), not {name}()")
+                raise self.fail(node, f"a condition calls matches() or initial(), not {name}()")
             if len(args) != 2 or args[1].kind != "token":
                 raise self.fail(node, "matches() takes a span and a rule name")
             return {"matches": (yield self._span(args[0], node)), "rule": self.text(args[1])}
@@ -406,7 +410,7 @@ class DomBuilder:
                 if not ("literal" in dom or dom.get("call") in ("phonemes", "text", "lowercase")):
                     raise self.fail(node, "lowercase() takes a string")
                 return {"call": name, "args": [dom]}
-            if name == "matches":
-                raise self.fail(node, "matches() is a condition, not a term")
+            if name in ("matches", "initial"):
+                raise self.fail(node, f"{name}() is a condition, not a term")
             raise self.fail(node, f"an unknown function {name}()")
         raise self.fail(node, f"unexpected {rule} in a term")

@@ -22,11 +22,11 @@ MAX_DEPTH = 256
 this many compound nodes of it (engine §9). A node's depth here is the
 number of compound nodes above it, since only compound nodes have children:
 optional, repeat, and, choice, seq and capture; union, intersection, if and
-call; any, all, not, if, matches and a comparison."""
+call; any, all, not, if, matches, initial and a comparison."""
 
 TOO_DEEP = "nested too deeply"
 
-_FUNCTIONS = {"phonemes", "text", "lowercase", "tags", "classes", "words", "head", "tail", "last", "matches"}
+_FUNCTIONS = {"phonemes", "text", "lowercase", "tags", "classes", "words", "head", "tail", "last", "matches", "initial"}
 _COMPARATORS = {"=", "≠", "∈", "∉", "⊆"}
 _SPANS = {"head", "tail", "last"}
 _NAME = re.compile(r"[A-Za-z][A-Za-z0-9-]*")
@@ -111,9 +111,9 @@ def term_reads_own_tags(term: Any) -> bool:
             return True
         if isinstance(value, dict):
             for key, inner in value.items():
-                # A call's arguments and a matches() are spans, where $ is
-                # the constituent's tokens and not its tags.
-                spans = key in ("args", "matches")
+                # A call's arguments, a matches() and an initial() are
+                # spans, where $ is the constituent's tokens and not its tags.
+                spans = key in ("args", "matches", "initial")
                 if isinstance(inner, list):
                     stack.extend((item, spans) for item in inner)
                 elif isinstance(inner, dict):
@@ -299,6 +299,10 @@ def _walk(pending: list[tuple[str, Any, int, bool]]) -> str | None:
                 if not isinstance(value.get("rule"), str) or not _is_span(value["matches"]):
                     return "a malformed condition"
                 pending.append(("argument", value["matches"], below, own))
+            elif "initial" in value:
+                if len(value) != 1 or not _is_span(value["initial"]):
+                    return "a malformed condition"
+                pending.append(("argument", value["initial"], below, own))
             else:
                 if not _is_one_of(value.get("op"), _COMPARATORS):
                     return "a malformed condition"
@@ -323,7 +327,7 @@ def _walk(pending: list[tuple[str, Any, int, bool]]) -> str | None:
                 # The reader's signatures (engine §9), with a span where one is due.
                 args = value.get("args") if isinstance(value.get("args"), list) else []
                 call = value["call"]
-                if not _is_one_of(call, _FUNCTIONS) or call == "matches":
+                if not _is_one_of(call, _FUNCTIONS) or call in ("matches", "initial"):
                     ok = False
                 elif call == "tags":
                     ok = (len(args) == 1 and _is_span(args[0])) or (

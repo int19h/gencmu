@@ -116,6 +116,8 @@ class Evaluator:
 
     def __init__(self, context: StageContext, base: int) -> None:
         self.context = context
+        # Where the parse's input begins, in the stage's tokens: the captures
+        # count from here, and initial() holds here (engine §10).
         self.base = base
 
     def bind(
@@ -253,6 +255,11 @@ class Evaluator:
         if "matches" in dom:
             start, end, _ = yield self._span(dom["matches"], bound)
             return self.context.nested(dom["rule"], start, end).accepted
+        if "initial" in dom:
+            # Where the input of the parse that reads the condition begins:
+            # the stage's, or a nested parse's span (engine §10).
+            start, _, _ = yield self._span(dom["initial"], bound)
+            return start == self.base
         if "not" in dom:
             return not (yield self._condition(dom["not"], bound))
         if "if" in dom:
