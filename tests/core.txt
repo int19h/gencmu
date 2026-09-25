@@ -465,3 +465,6 @@ adhoc.words.magic-rules.unmatched-sa-word-erased-then-bare-bu
 adhoc.words.magic-rules.su-stops-at-word-left-by-unmatched-sa
 adhoc.words.magic-rules.su-stops-at-word-left-by-unmatched-sa.bpfk
 adhoc.words.magic-rules.name-before-si-needs-pause
+adhoc.words.magic-rules.unmatched-sa-word-joins-cy
+adhoc.words.magic-rules.unmatched-sa-word-joins-cy.bpfk
+adhoc.words.magic-rules.unmatched-sa-word-joins-y-letter

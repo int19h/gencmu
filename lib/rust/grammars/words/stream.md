@@ -35,14 +35,14 @@ The stage is lazy: where two parses differ, it takes the one that closes a const
   "first-cy" ∉ tags($z) ∨ phonemes($g) = "."
 
 %rule body-tail
-  | $a(body-stream) <("first-onset" ∪ "first-cy" ∪ "continued") ∩ tags($a) ∪ "stream-end">
+  | $a(stream) <("first-onset" ∪ "first-cy" ∪ "continued") ∩ tags($a) ∪ "stream-end">
   | @sa-su? sa-run <"first-onset" ∪ "continued">
   | @sa-su? $b(wiped) <("first-onset" ∪ "first-cy" ∪ "continued") ∩ tags($b)>
-  | @sa-su? $w(wiped) $g(gap) $v(body-stream)
+  | @sa-su? $w(wiped) $g(gap) $v(stream)
       <("first-onset" ∪ "first-cy") ∩ tags($w) ∪ "continued" ∩ tags($v) ∪ "stream-end">
-  | @sa-su? $s(body-stream) $h(gap) sa-run <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ "continued">
+  | @sa-su? $s(stream) $h(gap) sa-run <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ "continued">
   | @sa-su? $x(wiped) $h(gap) sa-run <("first-onset" ∪ "first-cy") ∩ tags($x) ∪ "continued">
-  | @sa-su? $w(wiped) $g(gap) $v(body-stream) $h(gap) sa-run <("first-onset" ∪ "first-cy") ∩ tags($w) ∪ "continued">
+  | @sa-su? $w(wiped) $g(gap) $v(stream) $h(gap) sa-run <("first-onset" ∪ "first-cy") ∩ tags($w) ∪ "continued">
 %conditions
   "continued" ∈ tags($w) ∨ phonemes($g) = ".",
   "first-onset" ∈ tags($v) ∨ phonemes($g) = ".",
@@ -54,25 +54,12 @@ The stage is lazy: where two parses differ, it takes the one that closes a const
 %rule gap
   ε | PAUSE
 
-%rule body-stream
-  | $s(stream) <tags($s)>
-  | @sa-su? $l(element) <tags($l) ∪ ("onset" ∈ tags($l) ⟹ "first-onset") ∪ "first-cy" ∩ tags($l)>
-  | @sa-su? $m(element) $g(gap) $n(stream)
-      <("onset" ∈ tags($m) ⟹ "first-onset") ∪ "first-cy" ∩ tags($m) ∪ classes($m) ∪ classes($n)
-        ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "cvcy") ∩ tags($n)>
-%conditions
-  "wipes-all" ∈ tags($l),
-  "wipes-all" ∈ tags($m),
-  "continued" ∈ tags($m) ∨ phonemes($g) = ".",
-  "first-onset" ∈ tags($n) ∨ phonemes($g) = ".",
-  "first-cy" ∉ tags($n) ∨ phonemes($g) = "."
-
 %rule stream
   | $o(opener) <tags($o) ∪ ("cy" ∈ tags($o) ⟹ "continued")>
   | $s(stream) PAUSE $e(element)
-      <tags($e) ∪ classes($s) ∪ ("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("cy" ∈ tags($e) ⟹ "continued")>
+      <tags($e) ∪ classes($s) ∪ ("first-onset" ∪ "first-cy" ∪ "first-wipes") ∩ tags($s) ∪ ("cy" ∈ tags($e) ⟹ "continued")>
   | $t(stream) $f(element)
-      <tags($f) ∪ classes($t) ∪ ("first-onset" ∪ "first-cy") ∩ tags($t)
+      <tags($f) ∪ classes($t) ∪ ("first-onset" ∪ "first-cy" ∪ "first-wipes") ∩ tags($t)
         ∪ ("cv" ∈ tags($t) ∧ "y-letter" ∈ tags($f) ⟹ "cvcy")>
 %conditions
   "wipes-all" ∉ tags($e),
@@ -87,6 +74,7 @@ The stage is lazy: where two parses differ, it takes the one that closes a const
   | $o(element) <tags($o) ∪ "first-onset">
   | $k(element) <tags($k) ∪ "first-onset" ∪ "first-cy">
   | $p(element) <tags($p)>
+  | @sa-su? $w(element) <tags($w) ∪ ("onset" ∈ tags($w) ⟹ "first-onset") ∪ "first-cy" ∩ tags($w) ∪ "first-wipes">
 %conditions
   "onset" ∈ tags($o),
   ("cy" ∪ "y-letter") ∩ tags($o) = ∅,
@@ -95,7 +83,8 @@ The stage is lazy: where two parses differ, it takes the one that closes a const
   "onset" ∉ tags($p),
   "wipes-all" ∉ tags($o),
   "wipes-all" ∉ tags($k),
-  "wipes-all" ∉ tags($p)
+  "wipes-all" ∉ tags($p),
+  "wipes-all" ∈ tags($w)
 
 %rule element
   unit | erasure | hesitation
@@ -105,7 +94,7 @@ The stage is lazy: where two parses differ, it takes the one that closes a const
   | @sa-su? sa-erasure | @sa-su? sa-wiped | @sa-su? @su-boundary? su-erasure
 ```
 
-`body-stream` is a stream that can open with an element that erases the whole text before it. "Erasure by `sa` and `su`" explains such elements.
+A stream can open with an element that erases the whole text before it, tagged `wipes-all`. The opener then tags the stream `first-wipes`, and each join passes that tag on. "Erasure by `sa` and `su`" explains such elements.
 
 Hesitation after a final pause belongs to the stream when the body ends in one, since an element may always follow a pause; the text's own `PAUSE hesitation` is for a body that ends in an erasure, which is not a stream. `stream-end` is the tag that tells the two apart, so that a trailing `.y.` has one reading.
 
@@ -325,6 +314,8 @@ Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL
 
 %rule lehu-reach
   $s(stream) <tags($s)>
+%conditions
+  "first-wipes" ∉ tags($s)
 %emits
   ε
 
@@ -442,6 +433,8 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
 
 %rule bu-reach
   $s(stream) <tags($s)>
+%conditions
+  "first-wipes" ∉ tags($s)
 %emits
   ε
 
@@ -655,6 +648,7 @@ With `su-boundary`, `su` erases back to a boundary word, which survives, or to t
         ∪ ("cv" ∈ tags($t) ∧ "y-letter" ∈ tags($f) ⟹ "cvcy")>
 %conditions
   classes($first) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅,
+  "first-wipes" ∉ tags($first),
   classes($e) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅,
   classes($f) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅,
   "wipes-all" ∉ tags($e),
@@ -677,7 +671,7 @@ With `su-boundary`, `su` erases back to a boundary word, which survives, or to t
 
 A `su` with no boundary before it, or any `su` without `su-boundary`, erases everything back to the start of the text. So does a `sa` whose following word matches nothing before it, but the word after the `sa` stays. A run of `sa` that matches nothing is one unmatched `sa`. So is a run with fewer matches before it than it has `sa`: the reaches that did match are followed by more `sa` than there are reaches, in `sa-wipe-core`, and nothing before the furthest match has the selma'o the run looks for, so `mi klama sa sa do` is `do`. A `sa` at the end of the text, with no word after it, has no selma'o to look for and erases nothing, so `.i sa` is `.i`. The text rule accepts it after the stream.
 
-What an unmatched `su` erases is a wiped stretch, which the text rule accepts before its stream. An unmatched `sa`, with what it erases and the word it leaves, is the unit `sa-wiped`. So a `bu`, a `zei` or a `si` after that word acts on it, as on any other unit: `mi sa a bu` is the letter word `.abu`. Such a unit erases the whole text before it. It is tagged `wipes-all`, and so is every unit or erasure built on it. Only `body-stream` accepts an element with that tag, as the first element of the text or after a wiped stretch. Every other rule that joins an element to what stands before it refuses the tag.
+What an unmatched `su` erases is a wiped stretch, which the text rule accepts before its stream. An unmatched `sa`, with what it erases and the word it leaves, is the unit `sa-wiped`. So a `bu`, a `zei` or a `si` after that word acts on it, as on any other unit: `mi sa a bu` is the letter word `.abu`. Such a unit erases the whole text before it. It is tagged `wipes-all`, and so is every unit or erasure built on it. Only `opener` accepts an element with that tag, and it tags the stream `first-wipes`. Every rule that joins an element to what stands before it refuses the tag. A stream that opens with such an element can stand first in the text or after a wiped stretch, and the rules for a stream that stands after other text refuse `first-wipes`: the reach of `sa bu` or `sa le'u`, the reach of a `su` after its boundary, and the stream after a bare `bu`.
 
 ```jbogenbau
 %rule wiped
@@ -723,7 +717,7 @@ What an unmatched `su` erases is a wiped stretch, which the text rule accepts be
   "onset" ∈ tags($n) ∨ phonemes($h) ≠ ""
 
 %rule wiped-reach
-  | $s(body-stream) <tags($s)>
+  | $s(stream) <tags($s)>
   | bu-word <"first-onset" ∪ "continued">
   | bu-word $g(gap) $t(stream) <"first-onset" ∪ "continued" ∩ tags($t) ∪ classes($t)>
   | $l(erasures) gap bu-word <("onset" ∈ tags($l) ⟹ "first-onset") ∪ "continued">
@@ -732,8 +726,10 @@ What an unmatched `su` erases is a wiped stretch, which the text rule accepts be
 %conditions
   "first-onset" ∈ tags($t) ∨ phonemes($g) = ".",
   "first-cy" ∉ tags($t) ∨ phonemes($g) = ".",
+  "first-wipes" ∉ tags($t),
   "first-onset" ∈ tags($u) ∨ phonemes($h) = ".",
-  "first-cy" ∉ tags($u) ∨ phonemes($h) = "."
+  "first-cy" ∉ tags($u) ∨ phonemes($h) = ".",
+  "first-wipes" ∉ tags($u)
 %emits
   ε
 ```

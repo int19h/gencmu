@@ -650,3 +650,7 @@
 {"id":"adhoc.words.magic-rules.su-stops-at-word-left-by-unmatched-sa.bpfk","text":"mi sa ni'o do su","dialect":"bpfk","expect":"accept","verdict":"unique","words":["ni'o"],"brackets":"ni'o"}
 {"id":"adhoc.words.magic-rules.name-before-si-needs-pause","text":"sa rafsi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["rafsi"],"brackets":"rafsi"}
 {"id":"adhoc.words.magic-rules.name-before-si-needs-pause.bpfk","text":"sa rafsi","dialect":"bpfk","expect":"accept","verdict":"unique","words":["rafsi"],"brackets":"rafsi"}
+{"id":"adhoc.words.magic-rules.unmatched-sa-word-joins-cy","text":"mi sa cycy","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["cy","cy"],"brackets":"(cy cy)"}
+{"id":"adhoc.words.magic-rules.unmatched-sa-word-joins-cy.bpfk","text":"mi sa cycy","dialect":"bpfk","expect":"accept","verdict":"unique","words":["cy","cy"],"brackets":"(cy cy)"}
+{"id":"adhoc.words.magic-rules.unmatched-sa-word-joins-y-letter","text":"mi sa bajy","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["ba","jy"],"brackets":"(ba jy)"}
+{"id":"adhoc.words.magic-rules.unmatched-sa-word-joins-y-letter.bpfk","text":"mi sa bajy","dialect":"bpfk","expect":"accept","verdict":"resolved","words":["ba","jy"],"brackets":"(ba jy)"}
