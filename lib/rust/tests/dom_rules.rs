@@ -112,6 +112,14 @@ fn a_well_formed_dom_is_used() {
     // `initial` of a span, and of `$` in a guard inside a tag term (§9).
     assert!(!document_was_read(&with_condition(r#"{"initial":{"call":"tail","args":[{"capture":"w"}]}}"#)));
     assert!(!document_was_read(&with_tags(r#"{"if":{"initial":{"capture":""}},"then":{"literal":"T"}}"#)));
+    // `begins` of `from` and `after` of a span, and those spans as a
+    // term's argument (§9).
+    let begins = r#"{"begins":{"call":"after","args":[{"capture":"w"}]},"rule":"text"}"#;
+    assert!(!document_was_read(&with_condition(begins)));
+    let not_begins =
+        r#"{"not":{"begins":{"call":"from","args":[{"call":"tail","args":[{"capture":"w"}]}]},"rule":"x"}}"#;
+    assert!(!document_was_read(&with_condition(not_begins)));
+    assert!(!document_was_read(&with_tags(r#"{"call":"tags","args":[{"call":"from","args":[{"capture":"x"}]}]}"#)));
     // A condition and an emission that serve some alternatives only.
     let some = r#"{"name":"x","op":"define","alternatives":[{"guards":[],"expr":{"capture":"w","expr":{"terminal":"b"}}},{"guards":[],"expr":{"terminal":"c"}}],"emit":{"items":[{"capture":"w"},{"capture":""}]},"conditions":[{"op":"=","left":{"call":"text","args":[{"capture":"w"}]},"right":{"literal":"b"}}],"at":[4,1]}"#;
     assert!(document_was_read(&with_rule(some)), "$ with a capture is malformed");
@@ -233,11 +241,20 @@ fn every_malformed_dom_is_a_cache_miss() {
         ("matches of a value", with_condition(r#"{"matches":{"literal":"b"},"rule":"text"}"#)),
         ("initial of a value", with_condition(r#"{"initial":{"literal":"b"}}"#)),
         ("initial with a rule", with_condition(r#"{"initial":{"capture":"w"},"rule":"text"}"#)),
+        ("begins of a value", with_condition(r#"{"begins":{"literal":"b"},"rule":"text"}"#)),
+        ("begins without a rule", with_condition(r#"{"begins":{"capture":"w"}}"#)),
+        (
+            "matches and begins in one condition",
+            with_condition(r#"{"matches":{"capture":"w"},"begins":{"capture":"w"},"rule":"text"}"#),
+        ),
         ("an unknown comparison", with_condition(r#"{"op":"<","left":{"literal":"a"},"right":{"literal":"b"}}"#)),
         ("an unknown function", with_tags(r#"{"call":"uppercase","args":[{"capture":"x"}]}"#)),
         ("matches as a term", with_tags(r#"{"call":"matches","args":[{"capture":"x"},{"rule":"text"}]}"#)),
         ("initial as a term", with_tags(r#"{"call":"initial","args":[{"capture":"x"}]}"#)),
+        ("begins as a term", with_tags(r#"{"call":"begins","args":[{"capture":"x"},{"rule":"text"}]}"#)),
         ("head as a value", with_tags(r#"{"call":"head","args":[{"capture":"x"}]}"#)),
+        ("after as a value", with_tags(r#"{"call":"after","args":[{"capture":"x"}]}"#)),
+        ("from of a value", with_tags(r#"{"call":"text","args":[{"call":"from","args":[{"literal":"x"}]}]}"#)),
         ("lowercase of a weak tag", with_tags(r#"{"call":"lowercase","args":[{"weak":"x"}]}"#)),
         ("lowercase of a span", with_tags(r#"{"call":"lowercase","args":[{"capture":"x"}]}"#)),
         ("phonemes of two spans", with_tags(r#"{"call":"phonemes","args":[{"capture":"x"},{"capture":"x"}]}"#)),

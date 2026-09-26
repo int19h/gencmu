@@ -1,0 +1,38 @@
+{
+  "description": "A lookahead after a part reads past the constituent: begins(after($), bc) sees the B C that follow x (engine §4, §10).",
+  "grammar": "%rule text x B C | y B D\n%rule x A %conditions begins(after($), bc)\n%rule y A %conditions ¬begins(after($), bc)\n%rule bc B C",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "rule": "x"
+          },
+          {},
+          {}
+        ]
+      }
+    }
+  }
+}

@@ -84,9 +84,9 @@ What reading a grammar document produces (engine §8, §9), and what `bootstrap.
 
 `terminal` holds a name, a decoded string, or a phoneme tag `/p/`.
 
-**Term**: `{"literal":"s"}`, `{"weak":"s"}`, `{"emptySet":true}`, `{"union":[TERM...]}`, `{"intersection":[TERM...]}`, `{"if":COND,"then":TERM}`, `{"call":"phonemes","args":[ARG...]}` where an argument is a span or a term or, for `tags` and `matches`, a rule name `{"rule":"lexicon"}`; a span is `{"capture":"x"}`, `{"capture":""}` for `$`, or `{"call":"head","args":[SPAN]}` and likewise `tail`, `last`.
+**Term**: `{"literal":"s"}`, `{"weak":"s"}`, `{"emptySet":true}`, `{"union":[TERM...]}`, `{"intersection":[TERM...]}`, `{"if":COND,"then":TERM}`, `{"call":"phonemes","args":[ARG...]}` where an argument is a span or a term or, for `tags`, `matches` and `begins`, a rule name `{"rule":"lexicon"}`; a span is `{"capture":"x"}`, `{"capture":""}` for `$`, or `{"call":"head","args":[SPAN]}` and likewise `tail`, `last`, `from`, `after`.
 
-**Condition**: `{"op":"=","left":TERM,"right":TERM}` with `op` one of `=`, `≠`, `∈`, `∉`, `⊆`; `{"matches":SPAN,"rule":"r"}`; `{"initial":SPAN}`; `{"not":COND}`; `{"any":[COND...]}`; `{"all":[COND...]}`; `{"captured":"x"}`, `""` for `$`; `{"if":COND,"then":COND}`.
+**Condition**: `{"op":"=","left":TERM,"right":TERM}` with `op` one of `=`, `≠`, `∈`, `∉`, `⊆`; `{"matches":SPAN,"rule":"r"}`; `{"begins":SPAN,"rule":"r"}`; `{"initial":SPAN}`; `{"not":COND}`; `{"any":[COND...]}`; `{"all":[COND...]}`; `{"captured":"x"}`, `""` for `$`; `{"if":COND,"then":COND}`.
 
 **Emission**: `{"items":[ITEM...]}`, an item being `{"capture":"x","tags":TERM}`, `tags` optional, or `{"insert":"h"}`, and no items for `ε`; `"capture":""` is `$`.
 

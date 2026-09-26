@@ -1,0 +1,21 @@
+{
+  "description": "A condition asking, inside a nested parse, whether that parse's own span begins with the same rule is a grammar error (engine §4).",
+  "grammar": "%rule text $a(x) %conditions ¬begins(from($a), text)\n%rule x A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "grammar"
+      }
+    },
+    "error": "grammar"
+  }
+}

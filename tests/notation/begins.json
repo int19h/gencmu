@@ -1,0 +1,43 @@
+{
+  "description": "begins(span, rule) is a condition, and from and after are spans (engine §9, §10).",
+  "document": "# A document\n\n```jbogenbau\n%rule g $a(A) %conditions begins(after($a), g), ¬begins(from(tail($a)), g)\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "conditions": [
+            {
+              "begins": {
+                "call": "after",
+                "args": [
+                  {
+                    "capture": "a"
+                  }
+                ]
+              },
+              "rule": "g"
+            },
+            {
+              "not": {
+                "begins": {
+                  "call": "from",
+                  "args": [
+                    {
+                      "call": "tail",
+                      "args": [
+                        {
+                          "capture": "a"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "rule": "g"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

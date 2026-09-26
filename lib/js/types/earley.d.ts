@@ -5,7 +5,15 @@ export type Chart = {
     sets: ChartSet[];
     start: number;
     end: number;
+    /**
+     * reads a set without
+     * making it: a set the recognizer never reached is empty
+     */
     setAt: (position: number) => ChartSet;
+    /**
+     * the last position whose set holds an item
+     */
+    furthest: number;
     context: ParseContext;
 };
 /**
@@ -19,7 +27,9 @@ export type Chart = {
  * @property {ChartSet[]} sets
  * @property {number} start
  * @property {number} end
- * @property {(position: number) => ChartSet} setAt
+ * @property {(position: number) => ChartSet} setAt reads a set without
+ *   making it: a set the recognizer never reached is empty
+ * @property {number} furthest the last position whose set holds an item
  * @property {ParseContext} context
  */
 export declare class TagInterner {
@@ -52,6 +62,8 @@ export declare class ParseContext {
     inProgress: Set<string>;
     /** Where the input of the recognition now running begins. */
     inputStart: number;
+    /** Where it ends. */
+    inputEnd: number;
     /**
      * When set, the recognizer records what happens at one position of the
      * top-level parse, for diagnostics (see diagnostics.js, trace).

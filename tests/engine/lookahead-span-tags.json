@@ -1,0 +1,23 @@
+{
+  "description": "from and after give spans of tokens: tags of one is the union of its tokens' tags, not a constituent's (engine §10).",
+  "grammar": "%rule text $x(y) B %conditions \"Z\" ∉ tags(from($x)), \"A\" ∈ tags(from($x)), \"B\" ∈ tags(from($x)), \"A\" ∉ tags(after($x))\n%rule y A <\"Z\">",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -233,7 +233,7 @@ func (g *stageGrammar) checkAlt(a *sAlt) *Error {
 				return err
 			}
 			return checkTerm(c.Right)
-		case cdMatches:
+		case cdMatches, cdBegins:
 			if g.byName[c.Rule] == nil {
 				return fail("%s is not a rule of stage %s", c.Rule, g.name)
 			}

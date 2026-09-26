@@ -20,8 +20,8 @@ _MAPPED = frozenset(
     intersection weak empty-set capture-reference""".split()
 )
 _DEFINERS = {"%rule": "define", "%redefine-rule": "redefine", "%extend-rule": "extend"}
-_SPAN_FUNCTIONS = frozenset(["head", "tail", "last"])
-_ONE_SPAN = frozenset(["phonemes", "text", "classes", "words", "head", "tail", "last"])
+_SPAN_FUNCTIONS = frozenset(["head", "tail", "last", "from", "after"])
+_ONE_SPAN = frozenset(["phonemes", "text", "classes", "words", "head", "tail", "last", "from", "after"])
 
 
 def decode_string(text: str) -> str | None:
@@ -334,11 +334,11 @@ class DomBuilder:
                 if len(args) != 1:
                     raise self.fail(node, "initial() takes one span")
                 return {"initial": (yield self._span(args[0], node))}
-            if name != "matches":
-                raise self.fail(node, f"a condition calls matches() or initial(), not {name}()")
+            if name not in ("matches", "begins"):
+                raise self.fail(node, f"a condition calls matches(), begins() or initial(), not {name}()")
             if len(args) != 2 or args[1].kind != "token":
-                raise self.fail(node, "matches() takes a span and a rule name")
-            return {"matches": (yield self._span(args[0], node)), "rule": self.text(args[1])}
+                raise self.fail(node, f"{name}() takes a span and a rule name")
+            return {name: (yield self._span(args[0], node)), "rule": self.text(args[1])}
         raise self.fail(node, f"unexpected {node.rule} in a condition")
 
     # -- terms
@@ -358,7 +358,7 @@ class DomBuilder:
             raise self.fail(at or node, "a span is needed here, not a name")
         dom = yield self._term(node)
         if not _is_span(dom):
-            raise self.fail(at or node, "a span is needed here: a capture, or head(), tail() or last() of one")
+            raise self.fail(at or node, "a span is needed here: a capture, or head(), tail(), last(), from() or after() of one")
         return dom
 
     def _value(self, node: Node) -> Walk:
@@ -416,7 +416,7 @@ class DomBuilder:
                 if not ("literal" in dom or dom.get("call") in ("phonemes", "text", "lowercase")):
                     raise self.fail(node, "lowercase() takes a string")
                 return {"call": name, "args": [dom]}
-            if name in ("matches", "initial"):
+            if name in ("matches", "begins", "initial"):
                 raise self.fail(node, f"{name}() is a condition, not a term")
             raise self.fail(node, f"an unknown function {name}()")
         raise self.fail(node, f"unexpected {rule} in a term")

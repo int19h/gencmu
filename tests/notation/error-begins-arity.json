@@ -1,0 +1,10 @@
+{
+  "description": "begins takes a span and a rule name (engine §9).",
+  "document": "```jbogenbau\n%rule g $a(A) %conditions begins($a)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 27
+    }
+  }
+}

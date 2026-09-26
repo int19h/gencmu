@@ -1,0 +1,23 @@
+{
+  "description": "The empty prefix counts: a rule that derives ε begins every span, the empty span at the end of the input included (engine §10).",
+  "grammar": "%rule text A $b(B) %conditions begins(after($b), nothing)\n%rule nothing ε",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

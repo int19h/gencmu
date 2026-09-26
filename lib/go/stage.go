@@ -13,11 +13,14 @@ type parseState struct {
 	in         *interner
 	text       []rune
 	lineStarts []int
+	// nested holds the answers of nested parses, and inProgress those now
+	// running (terms.go).
 	nested     map[nestedKey]*nestedResult
+	inProgress map[spanKey]bool
 }
 
 func newParseState(uni *unicodeTable, text []rune) *parseState {
-	ps := &parseState{uni: uni, in: newInterner(), text: text, nested: map[nestedKey]*nestedResult{}}
+	ps := &parseState{uni: uni, in: newInterner(), text: text, nested: map[nestedKey]*nestedResult{}, inProgress: map[spanKey]bool{}}
 	ps.lineStarts = []int{0}
 	for i := 0; i < len(text); i++ {
 		switch text[i] {
@@ -57,12 +60,13 @@ type stageRun struct {
 	grammar *stageGrammar
 	toks    []Token
 	tagsets []*tagset
-	// inputStart is where the input of the recognition now running begins.
-	inputStart int
+	// inputStart and inputEnd are where the input of the recognition now
+	// running begins and ends; outside one, the stage's input.
+	inputStart, inputEnd int
 }
 
 func (ps *parseState) newRun(name string, grammar *stageGrammar, toks []Token) *stageRun {
-	run := &stageRun{ps: ps, name: name, grammar: grammar, toks: toks, tagsets: make([]*tagset, len(toks))}
+	run := &stageRun{ps: ps, name: name, grammar: grammar, toks: toks, tagsets: make([]*tagset, len(toks)), inputEnd: len(toks)}
 	for i := range toks {
 		run.tagsets[i] = ps.in.fromMap(toks[i].Tags)
 	}

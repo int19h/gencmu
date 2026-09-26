@@ -443,7 +443,7 @@ impl Dialect {
             }
         };
         let n = input.len();
-        let accepted = chart.sets[n].completed.contains_key(&(lowered.start, 0));
+        let accepted = chart.accepts(lowered.start, n);
         let lean = grammar.lean;
         let maximal = grammar.maximal.then(|| Maximal::new(&lowered, &chart));
         let ranked = if accepted {
@@ -634,7 +634,7 @@ impl Dialect {
         };
         shared.next_stage();
         let chart = chart?;
-        if !chart.sets[tokens.len()].completed.contains_key(&(lowered.start, 0)) {
+        if !chart.accepts(lowered.start, tokens.len()) {
             return Ok(None);
         }
         // `maximal` does not apply here: the check's parse has no elided
@@ -670,7 +670,7 @@ impl Dialect {
 /// reached, and the terminals the items there could have read next, each
 /// with the rules those items belong to.
 fn rejection_of(g: &Lowered, chart: &Chart) -> (usize, Vec<Expected>) {
-    let furthest = (0..chart.sets.len()).rev().find(|&e| !chart.sets[e].items.is_empty()).unwrap_or(0);
+    let furthest = chart.reached;
     let mut expected: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     let mut expect = |production: &Prod, dot: usize| {
         if let Some(Sym::T(terminal)) = production.syms.get(dot) {

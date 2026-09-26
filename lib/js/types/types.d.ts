@@ -253,6 +253,9 @@ export type Condition = {
     matches: Term;
     rule: string;
 } | {
+    begins: Term;
+    rule: string;
+} | {
     initial: Term;
 } | {
     op: Comparator;
@@ -628,7 +631,7 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * A condition.
  * @typedef {{any: Condition[]} | {all: Condition[]} | {not: Condition} | {captured: string}
- *   | {if: Condition, then: Condition} | {matches: Term, rule: string} | {initial: Term}
+ *   | {if: Condition, then: Condition} | {matches: Term, rule: string} | {begins: Term, rule: string} | {initial: Term}
  *   | {op: Comparator, left: Term, right: Term}} Condition
  */
 /**

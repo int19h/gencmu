@@ -70,12 +70,12 @@ func (r *recognizer) set(k int) *eset {
 }
 
 // recognize runs the recognizer over tokens [base, base+n) of the stage with
-// start as the start rule. While it runs, the input that initial() tests
-// begins at base, and a nested recognition sets its own.
+// start as the start rule. While it runs, the input that initial(), from()
+// and after() see is [base, base+n), and a nested recognition sets its own.
 func (run *stageRun) recognize(g *lowered, start int32, base, n int) *recognizer {
-	outer := run.inputStart
-	run.inputStart = base
-	defer func() { run.inputStart = outer }()
+	outerStart, outerEnd := run.inputStart, run.inputEnd
+	run.inputStart, run.inputEnd = base, base+n
+	defer func() { run.inputStart, run.inputEnd = outerStart, outerEnd }()
 	r := &recognizer{run: run, g: g, base: base, n: n}
 	s0 := r.set(0)
 	r.predict(s0, 0, start)
@@ -281,6 +281,20 @@ func (r *recognizer) accepted(start int32) []*symNode {
 	}
 	sortSyms(out)
 	return out
+}
+
+// begun says whether a start-rule constituent begins at the start of the
+// input, in any set: whether a prefix of the input, the empty one included,
+// parses as the start rule.
+func (r *recognizer) begun(start int32) bool {
+	for _, s := range r.sets {
+		for key := range s.syms {
+			if key.rule == start && key.origin == 0 {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func sortSyms(s []*symNode) {

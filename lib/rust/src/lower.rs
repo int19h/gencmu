@@ -24,6 +24,10 @@ pub(crate) enum Span {
     Head(Box<Span>),
     Tail(Box<Span>),
     Last(Box<Span>),
+    /// From the start of the span to the end of the parse's input.
+    From(Box<Span>),
+    /// From the end of the span to the end of the parse's input.
+    After(Box<Span>),
 }
 
 #[derive(Debug, Clone)]
@@ -57,6 +61,9 @@ pub(crate) enum CmpOp {
 pub(crate) enum LCond {
     Cmp(CmpOp, LTerm, LTerm),
     Matches(Span, u32),
+    /// `begins(s, R)`: whether a prefix of the span, possibly empty, parses
+    /// as `R`.
+    Begins(Span, u32),
     /// `initial(s)`: whether the span begins where the parse's input does.
     Initial(Span),
     Not(Box<LCond>),
@@ -334,6 +341,8 @@ impl<'a> Scope<'a> {
                     "head" => Ok(Span::Head(inner)),
                     "tail" => Ok(Span::Tail(inner)),
                     "last" => Ok(Span::Last(inner)),
+                    "from" => Ok(Span::From(inner)),
+                    "after" => Ok(Span::After(inner)),
                     _ => Err(Missing),
                 }
             }
@@ -385,6 +394,7 @@ impl<'a> Scope<'a> {
                 LCond::Cmp(op, self.term(left)?, self.term(right)?)
             }
             Cond::Matches(span, rule) => LCond::Matches(self.span(span)?, self.rule(rule)?),
+            Cond::Begins(span, rule) => LCond::Begins(self.span(span)?, self.rule(rule)?),
             Cond::Initial(span) => LCond::Initial(self.span(span)?),
             Cond::Not(inner) => LCond::Not(Box::new(self.cond(inner)?)),
             Cond::Any(items) => LCond::Any(items.iter().map(|item| self.cond(item)).collect::<Result<Vec<_>, _>>()?),

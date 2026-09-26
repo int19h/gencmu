@@ -1,0 +1,23 @@
+{
+  "description": "A condition that uses only $ in a production with no symbols is evaluated at prediction, over the empty span there, and after($) runs to the end of the input (engine §4, §10).",
+  "grammar": "%rule text A B end\n%rule end ε %conditions matches(after($), nothing)\n%rule nothing ε",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "description": "begins is a condition, not a term (engine §9).",
+  "document": "```jbogenbau\n%rule g $a(A) %tags begins($a, g)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 21
+    }
+  }
+}

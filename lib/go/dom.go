@@ -62,8 +62,9 @@ type domExpr struct {
 }
 
 // Term kinds. A span is a term of kind tmCapture, "" for $, the whole
-// constituent, or a tmCall of head, tail or last; a rule argument is tmRule.
-// A guarded term, A ⟹ t, is tmIf: Cond is A, and Items holds t alone.
+// constituent, or a tmCall of head, tail, last, from or after; a rule
+// argument is tmRule. A guarded term, A ⟹ t, is tmIf: Cond is A, and Items
+// holds t alone.
 const (
 	tmLiteral      = "literal"
 	tmWeak         = "weak"
@@ -83,11 +84,21 @@ type domTerm struct {
 	Cond  *domCond   // if: its condition
 }
 
+// isSpanFunction says whether a function gives a span (engine §10).
+func isSpanFunction(name string) bool {
+	switch name {
+	case "head", "tail", "last", "from", "after":
+		return true
+	}
+	return false
+}
+
 // Condition kinds. A presence test $x is cdCaptured, its name in Rule, ""
 // for $; A ⟹ B is cdIf, its Items A and B.
 const (
 	cdCompare  = "compare"
 	cdMatches  = "matches"
+	cdBegins   = "begins"
 	cdInitial  = "initial"
 	cdNot      = "not"
 	cdAny      = "any"
@@ -100,8 +111,8 @@ type domCond struct {
 	Kind        string
 	Op          string
 	Left, Right *domTerm
-	Span        *domTerm // matches, initial
-	Rule        string   // matches; captured: the capture's name
+	Span        *domTerm // matches, begins, initial
+	Rule        string   // matches, begins; captured: the capture's name
 	Inner       *domCond
 	Items       []*domCond
 }
@@ -316,8 +327,10 @@ func (c *domCond) writeJSON(w *jsonWriter) {
 		w.raw(`,"right":`)
 		c.Right.writeJSON(w)
 		w.raw("}")
-	case cdMatches:
-		w.raw(`{"matches":`)
+	case cdMatches, cdBegins:
+		w.raw("{")
+		w.str(c.Kind)
+		w.raw(":")
 		c.Span.writeJSON(w)
 		w.raw(`,"rule":`)
 		w.str(c.Rule)
@@ -658,13 +671,19 @@ func decodeCond(raw json.RawMessage) (*domCond, error) {
 		c.Right, err = decodeTerm(o["right"])
 		return c, err
 	}
-	if v, ok := o["matches"]; ok {
-		c := &domCond{Kind: cdMatches}
-		if c.Span, err = decodeTerm(v); err != nil {
-			return nil, err
+	for _, k := range []string{cdMatches, cdBegins} {
+		if v, ok := o[k]; ok {
+			// A span and a rule, of one of the two.
+			if o[cdMatches] != nil && o[cdBegins] != nil {
+				return nil, fmt.Errorf("a malformed condition")
+			}
+			c := &domCond{Kind: k}
+			if c.Span, err = decodeTerm(v); err != nil {
+				return nil, err
+			}
+			c.Rule, err = decodeString(o["rule"])
+			return c, err
 		}
-		c.Rule, err = decodeString(o["rule"])
-		return c, err
 	}
 	if v, ok := o["initial"]; ok {
 		// Its span, and nothing else.

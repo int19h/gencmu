@@ -75,9 +75,9 @@ pub(crate) enum Expr {
     Empty,
 }
 
-/// A term, or a span: `{"capture":"x"}` and the calls `head`, `tail` and
-/// `last` are spans, and appear only where a span is expected. The capture
-/// named `""` is `$`, the whole constituent.
+/// A term, or a span: `{"capture":"x"}` and the calls `head`, `tail`,
+/// `last`, `from` and `after` are spans, and appear only where a span is
+/// expected. The capture named `""` is `$`, the whole constituent.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Term {
     Literal(String),
@@ -101,6 +101,9 @@ pub(crate) enum Arg {
 pub(crate) enum Cond {
     Compare(String, Term, Term),
     Matches(Term, String),
+    /// `begins(s, R)`: whether a prefix of the span, possibly empty, parses
+    /// as `R`.
+    Begins(Term, String),
     /// `initial(s)`: whether the span begins where the parse's input does.
     Initial(Term),
     Not(Box<Cond>),
@@ -281,6 +284,7 @@ fn cond_from_json(value: &Json) -> R<Cond> {
             term_from_json(field(value, "right")?)?,
         ),
         "matches" => Cond::Matches(term_from_json(field(value, "matches")?)?, string(value, "rule")?),
+        "begins" => Cond::Begins(term_from_json(field(value, "begins")?)?, string(value, "rule")?),
         "initial" => Cond::Initial(term_from_json(field(value, "initial")?)?),
         "not" => Cond::Not(Box::new(cond_from_json(field(value, "not")?)?)),
         "any" => Cond::Any(array(value, "any")?.iter().map(cond_from_json).collect::<R<Vec<_>>>()?),
@@ -348,11 +352,12 @@ fn is_whole(value: &Json) -> bool {
     matches!(value.as_object(), Some([(key, Json::Str(name))]) if key == "capture" && name.is_empty())
 }
 
-/// A span: a capture, or `head`, `tail` or `last` of something.
+/// A span: a capture, or `head`, `tail`, `last`, `from` or `after` of
+/// something.
 fn is_span_json(value: &Json) -> bool {
     is_object(value)
         && (is_str(value.get("capture"))
-            || matches!(value.get("call").and_then(Json::as_str), Some("head" | "tail" | "last")))
+            || matches!(value.get("call").and_then(Json::as_str), Some("head" | "tail" | "last" | "from" | "after")))
 }
 
 /// A string: a literal, or `phonemes`, `text` or `lowercase` of something.
@@ -621,8 +626,9 @@ pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
                     };
                     pending.push((conditions, inner, next));
                     pending.push((conditions, then, next));
-                } else if let Some(span) = value.get("matches") {
-                    if !is_str(value.get("rule")) || !is_span_json(span) {
+                } else if let Some(span) = value.get("matches").or_else(|| value.get("begins")) {
+                    let both = has(value, "matches") && has(value, "begins");
+                    if !is_str(value.get("rule")) || !is_span_json(span) || both {
                         return Some("a malformed condition");
                     }
                     pending.push((Kind::Argument, span, next));
@@ -674,13 +680,14 @@ pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
                             _ => false,
                         },
                         Some("lowercase") => matches!(args, [string] if is_string_json(string)),
-                        Some("phonemes" | "text" | "classes" | "words" | "head" | "tail" | "last") => {
-                            matches!(args, [span] if is_span_json(span))
-                        }
-                        // `matches` and `initial` are conditions, never terms.
+                        Some(
+                            "phonemes" | "text" | "classes" | "words" | "head" | "tail" | "last" | "from" | "after",
+                        ) => matches!(args, [span] if is_span_json(span)),
+                        // `matches`, `begins` and `initial` are conditions,
+                        // never terms.
                         _ => false,
                     };
-                    let span_call = matches!(call, Some("head" | "tail" | "last"));
+                    let span_call = matches!(call, Some("head" | "tail" | "last" | "from" | "after"));
                     if !ok || (kind != Kind::Argument && span_call) {
                         return Some("a malformed term");
                     }
@@ -926,6 +933,13 @@ fn write_cond(out: &mut String, cond: &Cond) {
         }
         Cond::Matches(span, rule) => {
             out.push_str("{\"matches\":");
+            write_term(out, span);
+            out.push_str(",\"rule\":");
+            write_str(out, rule);
+            out.push('}');
+        }
+        Cond::Begins(span, rule) => {
+            out.push_str("{\"begins\":");
             write_term(out, span);
             out.push_str(",\"rule\":");
             write_str(out, rule);
