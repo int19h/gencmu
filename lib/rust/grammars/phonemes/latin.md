@@ -14,7 +14,7 @@ Most conventions here read text that CLL does not. Two of them instead change ho
 
 The approved grammar reads the question mark and the exclamation mark as pauses, like the period and whitespace (`space_char` in its PEG). This grammar also reads as a pause any other character that is neither a letter of some script, a digit nor a mark. That is a rule of gencmu. Texts on the web put quotation marks, brackets and dashes around words. The approved grammar rejects `mi "klama"`, and this grammar reads it as `mi klama`.
 
-A pause token covers its core, from its first to its last whitespace character or period, with any punctuation inside it. Other punctuation at either end of a pause belongs to no token. So a `zoi` body keeps the quotation marks in `zoi gy. "Hello!" .gy.`. The body takes in the text next to it that no token covers, as [the notation](../../docs/notation.md) says under "Verbatim text". Punctuation between two letters, with no whitespace, is a pause token of its own, as in `klama!do`. So is a text of nothing but punctuation. Punctuation next to the first or the last word of the text belongs to no token.
+A pause token covers its core, from its first to its last whitespace character or period, with any punctuation inside it. Other punctuation at either end of a pause belongs to no token. So a `zoi` body keeps the quotation marks in `zoi gy. "Hello!" .gy.`. The body takes in the text next to it that no token covers, as [the notation](../../docs/notation.md) says under "Verbatim text". Punctuation between two letters, with no whitespace, is a pause token of its own, as in `klama!do`. So is a text of nothing but punctuation. Commas can stand inside such a pause and at its edges. The token runs from the first punctuation character of the pause to the last. A comma at an edge belongs to no token, as next to a pause of whitespace. So `jy?,sai` is `jy` and `sai`. The approved grammar reads it so too, since each of its letter rules skips the commas before the letter. Punctuation next to the first or the last word of the text belongs to no token.
 
 The phoneme stage cannot know that a pause stands in a quote. So punctuation between two whitespace characters is part of a pause even there, and `zoi gy. !!! .gy.` quotes nothing. camxes-std reads it so too, since it reads `!` as a space.
 
@@ -23,9 +23,12 @@ The phoneme stage cannot know that a pause stands in a quote. So punctuation bet
   spaced-pause | punctuation-pause
 
 %rule punctuation-pause
-  punctuation
+  | $c(punctuation)
+  | commas $c(punctuation)
+  | $c(punctuation) commas
+  | commas $c(punctuation) commas
 %emits
-  $ <"PAUSE" ∪ /./>
+  $c <"PAUSE" ∪ /./>
 
 %redefine-rule pause-edge
   edge-char | pause-edge edge-char
@@ -34,7 +37,7 @@ The phoneme stage cannot know that a pause stands in a quote. So punctuation bet
   comma | punctuation-char
 
 %rule punctuation
-  punctuation-char | punctuation punctuation-char
+  punctuation-char | punctuation punctuation-char | punctuation commas punctuation-char
 
 %rule punctuation-char
   $c("other")

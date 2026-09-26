@@ -23,7 +23,7 @@ The text is pauses and runs. CLL 3.1 writes a pause as a period. This grammar al
 
 ```jbogenbau
 %rule text
-  ε | pause | items | edge-pause items | items edge-pause | edge-pause items edge-pause
+  ε | pause | commas | items | edge-pause items | items edge-pause | edge-pause items edge-pause
 
 %rule edge-pause
   spaced-pause | pause-edge
@@ -35,7 +35,7 @@ The text is pauses and runs. CLL 3.1 writes a pause as a period. This grammar al
   ordinary-run | foreign-run
 ```
 
-A pause is one token. Its core is a run of whitespace characters and periods, with any commas inside it. A comma next to the core is part of the pause, but it belongs to no token. So `mi , klama` has one pause between its two words, and a quote body next to such a comma takes it in. CLL 3.3 says that a comma "cannot be pronounced as a pause", so a comma alone between two words is no pause. A comma at the start or the end of the text belongs to no token.
+A pause is one token. Its core is a run of whitespace characters and periods, with any commas inside it. A comma next to the core is part of the pause, but it belongs to no token. So `mi , klama` has one pause between its two words, and a quote body next to such a comma takes it in. CLL 3.3 says that a comma "cannot be pronounced as a pause", so a comma alone between two words is no pause. A comma at the start or the end of the text belongs to no token. A text of nothing but commas is an empty text.
 
 ```jbogenbau
 %rule pause
