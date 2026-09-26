@@ -261,13 +261,14 @@ func (run *stageRun) phonemes(s spanVal) string {
 	return b.String()
 }
 
-// spanText is text(span): the original text from the start of the first
-// token's source to the end of the last's.
+// spanText is text(span): the original text over the source of the span's
+// tokens (§1).
 func (run *stageRun) spanText(s spanVal) string {
 	if s.b <= s.a {
 		return ""
 	}
-	return string(run.ps.text[run.toks[s.a].Source[0]:run.toks[s.b-1].Source[1]])
+	src := run.spanSource(s.a, s.b)
+	return string(run.ps.text[src[0]:src[1]])
 }
 
 // contentKeyLimit is the longest span whose nested parses are remembered by
@@ -332,17 +333,11 @@ func (run *stageRun) spanContent(s spanVal) string {
 		key.WriteByte(':')
 		key.WriteString(v)
 	}
-	// The text runs from the least source start to the greatest source end,
-	// which an inserted token or an empty part can put before the first
-	// token's start or after the last's.
+	// The text over the source of the span's tokens (§1).
 	low, high := 0, 0
 	if s.a < s.b {
-		low = run.toks[s.a].Source[0]
-		high = low
-	}
-	for i := s.a; i < s.b; i++ {
-		low = min(low, run.toks[i].Source[0])
-		high = max(high, run.toks[i].Source[1])
+		src := run.spanSource(s.a, s.b)
+		low, high = src[0], src[1]
 	}
 	field(string(run.ps.text[low:high]))
 	for i := s.a; i < s.b; i++ {

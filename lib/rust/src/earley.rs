@@ -439,9 +439,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         if end - start > CONTENT_KEY_LIMIT {
             return NestedKey::Place((rule, base + start, base + end));
         }
-        // The text runs from the least source start to the greatest source
-        // end, which an inserted token or an empty part can put before the
-        // first token's start or after the last's.
+        // The text over the source of the span's tokens (§1).
         let span = &tokens[start..end];
         let low = span.iter().map(|token| token.source.0).min().unwrap_or(0);
         let high = span.iter().map(|token| token.source.1).max().unwrap_or(0);
@@ -543,11 +541,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         tokens[start..end].iter().filter_map(|token| token.phonemes.as_deref()).collect()
     }
 
+    /// The text over the source of the span's tokens (§1). The scan costs
+    /// no more than the copy of the text.
     fn text(&self, tokens: &[Tok], start: usize, end: usize) -> String {
-        if start < end && tokens[start].source.0 <= tokens[end - 1].source.1 {
-            self.shared.source_text(tokens[start].source.0, tokens[end - 1].source.1)
-        } else {
-            String::new()
+        let span = &tokens[start..end];
+        match (span.iter().map(|token| token.source.0).min(), span.iter().map(|token| token.source.1).max()) {
+            (Some(low), Some(high)) => self.shared.source_text(low, high),
+            _ => String::new(),
         }
     }
 

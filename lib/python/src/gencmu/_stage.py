@@ -6,7 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable, Union
 
-from ._earley import Evaluator, Forest, Parser, StageContext
+from ._earley import Evaluator, Forest, Parser, Sources, StageContext
 from ._errors import _GrammarFault
 from ._grammar import Lowered, Production
 from ._markdown import line_column
@@ -64,10 +64,12 @@ def derivation(forest: Forest, rope: Rope | None) -> DNode:
     return stack[0]
 
 
-def _range_source(tokens: list[Token], start: int, end: int) -> Range | None:
+def _range_source(sources: Sources, start: int, end: int) -> Range:
+    """Where tokens start..end stand in the text: their source (engine
+    §1), or, for an empty span, the point where it stands (engine §12)."""
     if start < end:
-        return (tokens[start].source[0], tokens[end - 1].source[1])
-    return None
+        return sources.of(start, end)
+    return _empty_source(sources.tokens, start)
 
 
 def _empty_source(tokens: list[Token], position: int) -> Range:
@@ -85,8 +87,9 @@ class Tree:
     """The result tree of a derivation (engine §12), and where each closed
     production of the derivation stands in the text."""
 
-    def __init__(self, root: DNode, tokens: list[Token], tagtab: Any) -> None:
-        self.tokens = tokens
+    def __init__(self, root: DNode, sources: Sources, tagtab: Any) -> None:
+        self.sources = sources
+        self.tokens = sources.tokens
         self.root = self.build(root, tagtab)
 
     def build(self, root: DNode, tagtab: Any) -> Node:
@@ -138,12 +141,12 @@ class Tree:
         while stack:
             node = stack.pop()
             if node.kind != "token":
-                node.source = _range_source(tokens, node.span[0], node.span[1]) or _empty_source(tokens, node.span[0])
+                node.source = _range_source(self.sources, node.span[0], node.span[1])
             stack.extend(node.children)
         return top
 
     def source_of(self, node: DNode) -> Range:
-        return _range_source(self.tokens, node.start, node.end) or _empty_source(self.tokens, node.start)
+        return _range_source(self.sources, node.start, node.end)
 
 
 def warnings_of(root: DNode, tree: Tree, features: frozenset[str], stage: str) -> list[ParseWarning]:
@@ -307,14 +310,14 @@ class Emitter:
     def widened_source(self, start: int, end: int) -> Range:
         """Where a widened token stands in the text (engine §11). It takes in
         the text next to it that no input token covers, but not text that a
-        widened token before it has taken. It always holds its own tokens'
-        sources, which the tokens next to it can share. Over an empty span it
-        takes in nothing."""
+        widened token before it has taken. It always holds the source of its
+        own tokens (engine §1), which the tokens next to it can share. Over an
+        empty span it takes in nothing."""
         tokens = self.tokens
         before = tokens[start - 1].source[1] if start > 0 else 0
         if start == end:
             return (before, before)
-        own = (tokens[start].source[0], tokens[end - 1].source[1])
+        own = self.context.sources.of(start, end)
         after = tokens[end].source[0] if end < len(tokens) else len(self.context.text)
         first = own[0] if start in self.widened_ends else min(own[0], before)
         self.widened_ends.add(end)
@@ -491,14 +494,14 @@ class StageRunner:
                     forbidden = forbidden_terminator(forest, Ranker(forest, lowered.lean).rank(forest.roots), maximal)
             return StageOutcome(error=self.rejection(forest, forbidden))
         root = derivation(forest, ranking.chosen)
-        tree = Tree(root, self.tokens, context.tagtab)
+        tree = Tree(root, context.sources, context.tagtab)
         outcome = StageOutcome(verdict=ranking.verdict, tree=tree.root, derivation=root)
         outcome.warnings = warnings_of(root, tree, self.features, self.name)
         outcome.chosen_actions = list(actions(ranking.chosen))
         if ranking.verdict == "tie":
             assert ranking.witness is not None and ranking.witness[0] is not None and ranking.witness[1] is not None
             outcome.witness = (_action(ranking.witness[0], lowered), _action(ranking.witness[1], lowered))
-            outcome.tied = Tree(derivation(forest, ranking.tied), self.tokens, context.tagtab).root
+            outcome.tied = Tree(derivation(forest, ranking.tied), context.sources, context.tagtab).root
             outcome.tied_actions = list(actions(ranking.tied))
         emitter = Emitter(context, forest, tree, root)
         outcome.uncounted = emitter.uncounted
@@ -550,9 +553,10 @@ class StageRunner:
         if ranking is None or ranking.verdict != "tie":
             return None
         readings = []
+        original = Sources(tokens)
         for rope in (ranking.chosen, ranking.tied):
-            reading = Tree(derivation(forest, rope), new_tokens, context.tagtab).root
-            readings.append(_map_back(reading, synthetic, boundary))
+            reading = Tree(derivation(forest, rope), context.sources, context.tagtab).root
+            readings.append(_map_back(reading, synthetic, boundary, original))
         return ParseError(
             "ambiguous",
             f"stage {self.name} is ambiguous even with every elided terminator written out",
@@ -561,9 +565,11 @@ class StageRunner:
         )
 
 
-def _map_back(tree: Node, synthetic: list[bool], boundary: list[int]) -> Node:
+def _map_back(tree: Node, synthetic: list[bool], boundary: list[int], original: Sources) -> Node:
     """A tree over the tokens with terminators written back, shown over the
-    original tokens: a written-back terminator is an elided node."""
+    original tokens: a written-back terminator is an elided node, and every
+    other node has the span and the source it has over the original tokens
+    (engine §7), since the written-back terminators have sources too."""
     stack = [tree]
     while stack:
         node = stack.pop()
@@ -577,5 +583,6 @@ def _map_back(tree: Node, synthetic: list[bool], boundary: list[int]) -> Node:
             node.span = (node.token, node.token + 1)
         else:
             node.span = (boundary[node.span[0]], boundary[node.span[1]])
+            node.source = _range_source(original, node.span[0], node.span[1])
         stack.extend(node.children)
     return tree

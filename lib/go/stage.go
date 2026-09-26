@@ -63,6 +63,10 @@ type stageRun struct {
 	// inputStart and inputEnd are where the input of the recognition now
 	// running begins and ends; outside one, the stage's input.
 	inputStart, inputEnd int
+	// sources answers where a run of toks lies in the text, made at the
+	// first question (see spanSource); nil when toks are in order.
+	sources     *sourceTable
+	sourcesMade bool
 }
 
 func (ps *parseState) newRun(name string, grammar *stageGrammar, toks []Token) *stageRun {

@@ -1,0 +1,38 @@
+{
+  "description": "A token emitted over tokens out of text order has their source, from the least source start among them to the greatest source end, and the text over it (engine §1, §11). The second stage emits X[1,1) Y[0,0) Z[1,1) for `a` and X[2,2) Y[1,1) Z[2,2) for `b`, so X Y ends before it starts. A token over X Y has the source [0,1) and the text `a`, and then [1,2) and `b`.",
+  "documents": {
+    "p.md": "## Letters <?stage letters?>\n\n- [a](a.md) <?grammar?>\n\n## Pairs <?stage pairs?>\n\n- [b](b.md) <?grammar?>\n\n## Triples <?stage triples?>\n\n- [c](c.md) <?grammar?>\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text letter letter\n%rule letter char %emits $ <\"A\">, $ <\"A\">\n%rule char \"a\" | \"b\"\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text pair pair\n%rule pair prefix edge\n%rule prefix A %emits \"X\"\n%rule edge $n(nothing) A %emits \"Y\", $n <\"Z\">\n%rule nothing ε\n```\n",
+    "c.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text triple triple\n%rule triple $q(xy) Z %emits $q <\"Q\">\n%rule xy X Y\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "ab",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {
+          "output": [
+            {
+              "text": "a",
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "text": "b",
+              "source": [
+                1,
+                2
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

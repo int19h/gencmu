@@ -1,0 +1,141 @@
+{
+  "description": "The readings of an ambiguity that elision-only finds have the spans and sources of the original input: a node that covers a written-back terminator does not take that terminator's source (engine §7). The second stage emits X[1,1) Y[0,0) Z[1,1) for `a` and X[2,2) Y[1,1) Z[2,2) for `b`, so X Y ends before it starts. In both readings, s covers only the first Y, so its source is [0,0), and the elided KU is at [1,1).",
+  "documents": {
+    "p.md": "## Letters <?stage letters?>\n\n- [a](a.md) <?grammar?>\n\n## Pairs <?stage pairs?>\n\n- [b](b.md) <?grammar?>\n\n## Triples <?stage triples?>\n\n- [c](c.md) <?grammar?>\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text letter letter\n%rule letter char %emits $ <\"A\">, $ <\"A\">\n%rule char \"a\" | \"b\"\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text pair pair\n%rule pair prefix edge\n%rule prefix A %emits \"X\"\n%rule edge $n(nothing) A %emits \"Y\", $n <\"Z\">\n%rule nothing ε\n```\n",
+    "c.md": "```jbogenbau\n%ambiguity-resolution greedy elision-only\n%elidable KU\n%rule text X s Z triple\n%rule s [KU] Y | [KU] q\n%rule q Y\n%rule triple X Y Z\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "ab",
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "ambiguous",
+        "readings": [
+          {
+            "span": [
+              0,
+              6
+            ],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "X",
+                "span": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "rule": "s",
+                "span": [
+                  1,
+                  2
+                ],
+                "source": [
+                  0,
+                  0
+                ],
+                "children": [
+                  {
+                    "kind": "elided",
+                    "terminal": "KU",
+                    "span": [
+                      1,
+                      1
+                    ],
+                    "source": [
+                      1,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "Y",
+                    "span": [
+                      1,
+                      2
+                    ],
+                    "source": [
+                      0,
+                      0
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "Z"
+              },
+              {
+                "rule": "triple"
+              }
+            ]
+          },
+          {
+            "span": [
+              0,
+              6
+            ],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "X",
+                "span": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "rule": "s",
+                "span": [
+                  1,
+                  2
+                ],
+                "source": [
+                  0,
+                  0
+                ],
+                "children": [
+                  {
+                    "kind": "elided",
+                    "terminal": "KU",
+                    "span": [
+                      1,
+                      1
+                    ],
+                    "source": [
+                      1,
+                      1
+                    ]
+                  },
+                  {
+                    "rule": "q",
+                    "span": [
+                      1,
+                      2
+                    ],
+                    "source": [
+                      0,
+                      0
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "Z"
+              },
+              {
+                "rule": "triple"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "error": "ambiguous"
+  }
+}

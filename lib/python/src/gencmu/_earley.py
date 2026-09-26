@@ -10,7 +10,7 @@ from typing import Any, Callable
 from ._clauses import WHOLE
 from ._errors import _GrammarFault
 from ._grammar import Lowered, Production
-from ._model import Tags, Token
+from ._model import Range, Tags, Token
 from ._tags import PAUSE, TagTable, intersection, union
 from ._trampoline import Walk, run
 from ._unicode import UnicodeTable
@@ -52,6 +52,56 @@ class NestedAnswer:
     tags: Tags
 
 
+class Sources:
+    """The source of a run of tokens (engine §1): from the least source
+    start among them to the greatest source end. Tokens usually lie in the
+    order of their sources, and then that is the first token's start and
+    the last token's end. Otherwise a table of the least start and the
+    greatest end of every run of a power of two tokens answers without a
+    scan, so that the nested nodes of a long left-recursive rule cost no
+    more than its tokens."""
+
+    def __init__(self, tokens: list[Token]) -> None:
+        self.tokens = tokens
+        self.made = False
+        # lows[k][i] is the least source start of tokens i..i + 2**k, and
+        # highs[k][i] the greatest end; empty when the tokens are in order.
+        self.lows: list[list[int]] = []
+        self.highs: list[list[int]] = []
+
+    def of(self, start: int, end: int) -> Range:
+        """The source of tokens start..end, which must not be empty."""
+        if not self.made:
+            self.make()
+        if not self.lows:
+            return (self.tokens[start].source[0], self.tokens[end - 1].source[1])
+        # Two runs of a power of two tokens cover the span between them.
+        level = (end - start).bit_length() - 1
+        other = end - (1 << level)
+        lows, highs = self.lows[level], self.highs[level]
+        return (min(lows[start], lows[other]), max(highs[start], highs[other]))
+
+    def make(self) -> None:
+        self.made = True
+        tokens = self.tokens
+        if all(
+            before.source[0] <= after.source[0] and before.source[1] <= after.source[1]
+            for before, after in zip(tokens, tokens[1:])
+        ):
+            return
+        low = [token.source[0] for token in tokens]
+        high = [token.source[1] for token in tokens]
+        self.lows, self.highs = [low], [high]
+        width = 1
+        while 2 * width <= len(tokens):
+            count = len(tokens) - 2 * width + 1
+            low = [min(low[index], low[index + width]) for index in range(count)]
+            high = [max(high[index], high[index + width]) for index in range(count)]
+            self.lows.append(low)
+            self.highs.append(high)
+            width *= 2
+
+
 @dataclass
 class StageContext:
     """What every parse of one stage run shares: the stage's input tokens,
@@ -71,14 +121,18 @@ class StageContext:
     running: set[tuple[str, int, int]] = field(default_factory=set)
     token_tags: list[int] = field(default_factory=list)
     count: Callable[[Forest, list[int]], list[int]] | None = None
+    # Where each run of the tokens lies in the text (engine §1).
+    sources: Sources = field(init=False)
 
     def __post_init__(self) -> None:
         self.token_tags = [self.tagtab.intern(token.tags) for token in self.tokens]
+        self.sources = Sources(self.tokens)
 
     def span_text(self, start: int, end: int) -> str:
         if start >= end:
             return ""
-        return self.text[self.tokens[start].source[0] : self.tokens[end - 1].source[1]]
+        source = self.sources.of(start, end)
+        return self.text[source[0] : source[1]]
 
     def nested_key(self, rule: str, start: int, end: int) -> tuple[Any, ...]:
         """The key of a nested parse's answer, which fixes everything the
@@ -90,14 +144,10 @@ class StageContext:
         holds numbers where the other holds text."""
         if end - start > CONTENT_KEY_LIMIT:
             return (rule, start, end)
-        # The text runs from the least source start to the greatest source
-        # end, which an inserted token or an empty part can put before the
-        # first token's start or after the last's; and where each token
+        # The text over the span's source (engine §1), and where each token
         # begins and ends in that text, which text() of a part of the span
         # reads.
-        sources = [self.tokens[index].source for index in range(start, end)]
-        low = min((source[0] for source in sources), default=0)
-        high = max((source[1] for source in sources), default=0)
+        low, high = self.sources.of(start, end) if start < end else (0, 0)
         return (
             rule,
             self.text[low:high],
