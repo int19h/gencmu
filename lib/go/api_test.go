@@ -167,14 +167,14 @@ func TestLoweringFault(t *testing.T) {
 	}
 }
 
-// A words stage whose word is sa: auto features run the parse again with
-// sa-su (engine §13).
+// A words stage whose word has the class SA: auto features run the parse
+// again with sa-su (engine §13).
 func TestAutoFeatures(t *testing.T) {
 	d := mustLoad(t, map[string]string{
 		"p.md": "## Sounds <?stage sounds?>\n\n- [g](g.md) <?grammar?>\n\n## Words <?stage words?>\n\n- [h](h.md) <?grammar?>\n\n## Syntax <?stage syntax?>\n\n- [s](s.md) <?grammar?>\n",
 		"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [c] ...\n%rule c \"s\" </s/> | \"a\" </a/> | \"u\" </u/> | @sa-su? \"x\" </x/>\n%emits $\n```\n",
-		"h.md": "```jbogenbau\n%ambiguity-resolution lazy\n%rule text [word] ...\n%rule word @¬sa-su? /s/ /a/ <\"W\"> | @sa-su? /s/ /a/ <\"SA\"> | /u/ <\"W\"> | /x/ <\"W\">\n%emits $\n```\n",
-		"s.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [W | SA] ...\n```\n",
+		"h.md": "```jbogenbau\n%ambiguity-resolution lazy\n%rule text [word] ...\n%rule word @¬sa-su? /s/ /a/ <\"SA\"> | @sa-su? /s/ /a/ <\"E\"> | /u/ <\"W\"> | /x/ <\"W\">\n%emits $\n```\n",
+		"s.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [W | SA | E] ...\n```\n",
 	})
 	tags := func(res *ParseResult) string {
 		var out []string
@@ -186,11 +186,11 @@ func TestAutoFeatures(t *testing.T) {
 		return strings.Join(out, " ")
 	}
 	res, _ := d.Parse("sa", ParseOptions{})
-	if !res.OK || tags(res) != "SA" {
+	if !res.OK || tags(res) != "E" {
 		t.Fatalf("auto features did not add sa-su: %q", tags(res))
 	}
 	res, _ = d.Parse("sa", ParseOptions{NoAutoFeatures: true})
-	if !res.OK || tags(res) != "W" {
+	if !res.OK || tags(res) != "SA" {
 		t.Fatalf("sa-su was added with auto features off: %q", tags(res))
 	}
 	res, _ = d.Parse("u", ParseOptions{})

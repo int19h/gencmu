@@ -57,7 +57,7 @@ WORDS = """# Words
   ε
 
 %rule word
-  /s/ /a/ | /m/ /i/
+  /s/ /a/ <"SA"> | /m/ /i/
 %emits
   $ <"WORD">
 ```

@@ -669,3 +669,6 @@ adhoc.words.zei.hesitation-before-zei
 adhoc.words.zei.hesitation-after-zei
 adhoc.camxes-exp.words.hesitation-before-zei.experimental
 adhoc.camxes-exp.words.hesitation-before-zei.zantufa
+adhoc.words.sa-su.stressed-su-turns-on-sa-su
+adhoc.words.sa-su.stressed-su-turns-on-sa-su.bpfk
+adhoc.words.sa-su.stressed-sa-turns-on-sa-su

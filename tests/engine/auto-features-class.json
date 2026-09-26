@@ -1,17 +1,17 @@
 {
-  "description": "When auto features run the parse again with sa-su, the first run's warnings are discarded: only the second run's chosen trees give warnings (engine §13).",
+  "description": "Auto features add sa-su for a word of SU whatever its phonemes, since the lexicon decides which words erase: here the word is li'oi (engine §13).",
   "documents": {
     "p.md": "# A dialect\n\n## Words <?stage words?>\n\n- [g](g.md) <?grammar?>\n",
-    "g.md": "```jbogenbau\n%ambiguity-resolution lazy\n%rule text @¬sa-su? @w! word | @sa-su? word\n%rule word\n  A <\"SA\">\n```\n"
+    "g.md": "```jbogenbau\n%ambiguity-resolution lazy\n%rule text @¬sa-su? @w! word | @sa-su? word\n%rule word\n  A <\"SU\">\n```\n"
   },
   "pipeline": "p.md",
   "tokens": [
     {
-      "text": "sa",
+      "text": "li'oi",
       "tags": [
         "A"
       ],
-      "phonemes": "sa"
+      "phonemes": "li'oi"
     }
   ],
   "options": {
@@ -31,6 +31,6 @@
       ]
     },
     "warnings": [],
-    "brackets": "sa"
+    "brackets": "li'oi"
   }
 }
