@@ -974,3 +974,4 @@
 {"id":"adhoc.camxes-exp.tags.tense-with-free-modifier-on-selbri.zantufa","text":"mi pu sei do klama se'u klama","dialect":"zantufa","expect":"accept","verdict":"resolved","words":["mi","pu","sei","do","klama","se'u","klama"],"brackets":"(mi [{pu (sei [do klama] se'u)} klama])"}
 {"id":"adhoc.camxes-exp.tags.connected-bare-tag-before-selbri-rejected.experimental","text":"ta .o vi cmima","dialect":"experimental","expect":"reject","stage":"syntax","words":["ta","o","vi","cmima"]}
 {"id":"adhoc.camxes-exp.descriptions.gek-quantifier-sumti-before-selbri.experimental","text":"lo ge pa gi re mi broda","dialect":"experimental","expect":"accept","verdict":"unique","words":["lo","ge","pa","gi","re","mi","broda"],"brackets":"([lo {(ge pa gi re) mi}] broda)"}
+{"id":"adhoc.camxes-exp.tags.bare-fa-after-jai.experimental","text":"jai fa broda","dialect":"experimental","expect":"accept","verdict":"unique","words":["jai","fa","broda"],"brackets":"(jai fa broda)"}

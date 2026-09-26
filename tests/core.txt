@@ -744,3 +744,4 @@ adhoc.camxes-exp.tags.tense-with-free-modifier-on-selbri.experimental
 adhoc.camxes-exp.tags.tense-with-free-modifier-on-selbri.zantufa
 adhoc.camxes-exp.tags.connected-bare-tag-before-selbri-rejected.experimental
 adhoc.camxes-exp.descriptions.gek-quantifier-sumti-before-selbri.experimental
+adhoc.camxes-exp.tags.bare-fa-after-jai.experimental

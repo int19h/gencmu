@@ -335,7 +335,7 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | mex MOI #
   | NUhA # operator
   | SE # tanru-unit-2
-  | JAI # [tag] tanru-unit-2
+  | JAI # [tag | FA #] tanru-unit-2
   | any-word (ZEI any-word) ...
   | NAhE # tanru-unit-2
   | NU [NAI] # [joik-jek NU [NAI] #] ... subsentence [KEI] #
@@ -356,7 +356,7 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | mex MOI #
   | NUhA # operator
   | SE # tanru-unit-2
-  | JAI # [tag] tanru-unit-2
+  | JAI # [tag | FA #] tanru-unit-2
   | any-word (ZEI any-word) ...
   | NAhE # tanru-unit-2
   | NU [NAI] # [joik-jek NU [NAI] #] ... subsentence [KEI] #
@@ -480,7 +480,7 @@ A tag is a run of atoms, as in camxes-exp (`tense_modal`): `pu ba vi ca`, `ki ba
 - a word of TAhE or ZAhO, with an optional `fe'e` before it
 - `fi'o` with a selbri
 
-Tags are connected by a joik, jek, ek or VUhU. A stag is a tag, as in camxes-exp. So a stag can be a run of atoms (`ko'a .e pu ba bo ko'e broda`). It can also be a `fi'o` selbri (`mi klama .i fi'o broda fe'u bo do klama`). `fa` is an atom too. So a place tag can be converted like a modal (`se fa`) or joined to other atoms (`mi fa pu klama`). But a bare `fa` alone is not a tag. It is a stag. It tags a term or a selbri by the rules of "Terms" and "Selbri and tanru", which would otherwise compete with the tag.
+Tags are connected by a joik, jek, ek or VUhU. A stag is a tag, as in camxes-exp. So a stag can be a run of atoms (`ko'a .e pu ba bo ko'e broda`). It can also be a `fi'o` selbri (`mi klama .i fi'o broda fe'u bo do klama`). `fa` is an atom too. So a place tag can be converted like a modal (`se fa`) or joined to other atoms (`mi fa pu klama`). But a bare `fa` alone is not a tag. It is a stag. It tags a term or a selbri by the rules of "Terms" and "Selbri and tanru", which would otherwise compete with the tag, and `jai` takes it as it takes a tag (`jai fa broda`).
 
 ```jbogenbau
 %redefine-rule tag
