@@ -25,12 +25,18 @@ If the layer declared `elision-only`, each of those texts would be an error. `%e
 
 ## The text and its paragraphs
 
-The layer changes the text in three ways. The connective after a text-leading `.i` can be an ek, as in `.i .e do klama`, because camxes-exp's joik takes the words of A. The tense before `bo` in a text-leading `.i` can be a full `tag` and not only a `stag`. And `.i ni'o` can follow a `ni'o`, which is how usage writes a new topic inside a reply. At the start of a text, the CLL grammar's `text-1` already reads `.i ni'o`, as the repair of the printed grammar that it lists says. So `text-1` takes the form after a first run of `ni'o`, and `paragraphs` takes it after a later one.
+The layer changes the text in four ways. A `nai` at the start of a text is an indicator, as the indicator stage of the experimental dialect reads it. So `indicators` takes it, like the indicators of camxes-exp, and a separate `nai` stands only before a run of names. The connective after a text-leading `.i` can be an ek, as in `.i .e do klama`, because camxes-exp's joik takes the words of A. The tense before `bo` in a text-leading `.i` can be a full `tag` and not only a `stag`. And `.i ni'o` can follow a `ni'o`, which is how usage writes a new topic inside a reply. At the start of a text, the CLL grammar's `text-1` already reads `.i ni'o`, as the repair of the printed grammar that it lists says. So `text-1` takes the form after a first run of `ni'o`, and `paragraphs` takes it after a later one.
 
 ```jbogenbau
 %redefine-rule text
-  | @¬cbm? [NAI ...] [CMEVLA ... # | (indicators & free ...)] [joik-jek] text-1
-  | @cbm? [NAI ...] [indicators & free ...] [joik-jek] text-1
+  | @¬cbm? [NAI ...] CMEVLA ... # [joik-jek] text-1
+  | [indicators & free ...] [joik-jek] text-1
+
+%redefine-rule indicators
+  ([FUhE] indicator) ...
+
+%redefine-rule indicator
+  UI | CAI | NAI | Y | DAhO | FUhO
 
 %redefine-rule text-1
   [(I [jek | joik | ek] [[tag] BO] #) ...] [NIhO ... # [I # NIhO ... #]] [paragraphs]

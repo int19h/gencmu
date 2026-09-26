@@ -14,8 +14,10 @@ if (!pegPath || !documentPath) {
 }
 
 // These classes attach to the word before them, so the lexicon tags them as
-// indicators for the indicator stage.
-const INDICATORS = new Set(["UI", "CAI", "Y", "DAhO", "FUhE", "FUhO"]);
+// indicators for the indicator stage. camxes-exp's `indicator` rule takes UI,
+// CAI, a bare NAI, DAhO and FUhO, its `indicators` rule takes FUhE before
+// them, and Y is part of its spaces.
+const INDICATORS = new Set(["UI", "CAI", "NAI", "Y", "DAhO", "FUhE", "FUhO"]);
 
 const words = new Map();
 const peg = fs.readFileSync(pegPath, "utf8");
