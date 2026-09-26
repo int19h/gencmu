@@ -321,10 +321,8 @@ impl Dialect {
             self.stages_between(&mut shared, &mut run, &features, 0, words, options.elision_only);
             let reached = run.stages.len() == words + 1;
             // Unless `words` accepted, for whatever reason, and read no
-            // `sa` or `su`, the parse is run again with `sa-su`.
-            let needs = !reached
-                || run.error.is_some()
-                || run.tree.as_ref().is_some_and(|tree| has_sa_su(tree, &run.stages[words].input));
+            // word of SA or SU, the parse is run again with `sa-su`.
+            let needs = !reached || run.error.is_some() || run.tree.as_ref().is_some_and(has_sa_su);
             if needs {
                 // From the first stage again, the first run's stages and
                 // warnings discarded.
@@ -765,17 +763,16 @@ fn action(g: &Lowered, act: Act) -> Action {
     }
 }
 
-/// Whether a tree has a constituent of the rule `word` whose phonemes are
-/// `sa` or `su` (engine §13).
-fn has_sa_su(tree: &Node, input: &[Token]) -> bool {
+/// Whether a tree has a constituent of the rule `word` whose tag set has
+/// `SA` or `SU` (engine §13).
+fn has_sa_su(tree: &Node) -> bool {
     let mut stack = vec![tree];
     while let Some(node) = stack.pop() {
-        if node.kind == NodeKind::Rule && node.rule.as_deref() == Some("word") {
-            let phonemes: String =
-                input[node.span.clone()].iter().filter_map(|token| token.phonemes.as_deref()).collect();
-            if phonemes == "sa" || phonemes == "su" {
-                return true;
-            }
+        if node.kind == NodeKind::Rule
+            && node.rule.as_deref() == Some("word")
+            && (node.tags.contains_key("SA") || node.tags.contains_key("SU"))
+        {
+            return true;
         }
         stack.extend(node.children.iter());
     }

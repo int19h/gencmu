@@ -1,8 +1,8 @@
 {
-  "description": "When auto features run the parse again with sa-su, the first run's warnings are discarded: only the second run's chosen trees give warnings (engine §13).",
+  "description": "Auto features do not add sa-su for a word spelled sa that has neither SA nor SU, so the first run stands with its warning (engine §13).",
   "documents": {
     "p.md": "# A dialect\n\n## Words <?stage words?>\n\n- [g](g.md) <?grammar?>\n",
-    "g.md": "```jbogenbau\n%ambiguity-resolution lazy\n%rule text @¬sa-su? @w! word | @sa-su? word\n%rule word\n  A <\"SA\">\n```\n"
+    "g.md": "```jbogenbau\n%ambiguity-resolution lazy\n%rule text @¬sa-su? @w! word | @sa-su? word\n%rule word\n  A\n```\n"
   },
   "pipeline": "p.md",
   "tokens": [
@@ -30,7 +30,21 @@
         }
       ]
     },
-    "warnings": [],
+    "warnings": [
+      {
+        "stage": "words",
+        "feature": "w",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          2
+        ]
+      }
+    ],
     "brackets": "sa"
   }
 }

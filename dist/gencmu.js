@@ -5528,7 +5528,7 @@
       if (options.autoFeatures !== false && gated && !features.has("sa-su") && !off.has("sa-su") && wordsAt >= 0 && untilAt >= wordsAt) {
         const probe = this.run(text, { ...options, features, until: "words" }, null);
         const words = probe.stages[probe.stages.length - 1];
-        const needs = !words || words.name !== "words" || words.error || containsWord(words.tree, words.input, ["sa", "su"]);
+        const needs = !words || words.name !== "words" || words.error || containsEraser(words.tree);
         if (needs) features = new Set([...features, "sa-su"]);
         else if (options.until === "words") return probe;
         else return this.run(text, { ...options, features }, probe);
@@ -5579,19 +5579,14 @@
   }
 
   /**
-   * @param {ResultNode | null} tree
-   * @param {Token[] | undefined} tokens
-   * @param {string[]} words
+   * Whether a tree has a constituent of the rule `word` whose tag set has SA
+   * or SU (engine §13).
+   * @param {ResultNode | null | undefined} tree
    * @returns {boolean}
    */
-  function containsWord(tree, tokens, words) {
-    if (!tree || !tokens) return false;
-    return someNode(tree, (node) => {
-      if (node.kind !== "rule" || node.rule !== "word") return false;
-      let phonemes = "";
-      for (let index = node.span[0]; index < node.span[1]; index++) phonemes += tokens[index].phonemes || "";
-      return words.includes(phonemes);
-    });
+  function containsEraser(tree) {
+    if (!tree) return false;
+    return someNode(tree, (node) => node.kind === "rule" && node.rule === "word" && (node.tags.has("SA") || node.tags.has("SU")));
   }
 
   // Adds the line and column of an error's source position.

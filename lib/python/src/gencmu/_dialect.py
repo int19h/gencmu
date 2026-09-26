@@ -15,8 +15,8 @@ from ._errors import GencmuError
 from ._grammar import Grammar, Lowered, lower, stitch
 from ._hash import fnv1a64
 from ._markdown import Pipeline, jbogenbau_text, read_pipeline
-from ._model import Feature, ParseError, ParseResult, ParseWarning, Stage, Token
-from ._stage import DChild, DRead, StageOutcome, StageRunner
+from ._model import Feature, Node, ParseError, ParseResult, ParseWarning, Stage, Token
+from ._stage import StageOutcome, StageRunner
 from ._unicode import UnicodeTable
 from ._validate import FORMAT, MAX_DEPTH, TOO_DEEP, dom_problem
 
@@ -436,7 +436,7 @@ class Dialect:
         if auto_features and gated and "sa-su" not in enabled and "sa-su" not in off and "words" in names and names.index("words") <= last:
             words = names.index("words")
             probe, outcomes = self._run(text, tokens, enabled, 0, words, elision_only, None)
-            if not probe.ok or self._reads_sa_su(probe.stages[words], outcomes[words]):
+            if not probe.ok or self._reads_sa_su(outcomes[words]):
                 # The parse runs again from the first stage, and the probe's
                 # stages and warnings are discarded.
                 return self._run(text, tokens, enabled | {"sa-su"}, 0, last, elision_only, None)[0]
@@ -448,23 +448,18 @@ class Dialect:
         return self._run(text, tokens, enabled, 0, last, elision_only, None)[0]
 
     @staticmethod
-    def _reads_sa_su(stage: Stage, outcome: StageOutcome) -> bool:
+    def _reads_sa_su(outcome: StageOutcome) -> bool:
         """Whether the chosen tree has a constituent of the rule word whose
-        phonemes, those of the tokens it covers joined as ``phonemes()``
-        joins them, with nothing left out, collapsed or trimmed, are sa or
-        su (engine §13)."""
-        root = outcome.derivation
+        tag set has SA or SU (engine §13)."""
+        root = outcome.tree
         if root is None:
             return False
-        stack: list[DChild] = [root]
+        stack: list[Node] = [root]
         while stack:
             node = stack.pop()
-            if isinstance(node, DRead):
-                continue
-            if not node.production.helper and node.production.rule_name == "word":
-                if "".join(token.phonemes or "" for token in stage.input[node.start : node.end]) in ("sa", "su"):
-                    return True
-            stack.extend(node.children)
+            if node.kind == "rule" and node.rule == "word" and node.tags is not None and ("SA" in node.tags or "SU" in node.tags):
+                return True
+            stack.extend(node.children or ())
         return False
 
     def _run(

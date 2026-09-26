@@ -444,8 +444,8 @@ func (d *Dialect) parse(text []rune, tokens []Token, options ParseOptions) (res 
 		outcomes = d.runStages(ps, features, options, tokens, 0, words)
 		probe := outcomes[len(outcomes)-1]
 		// Rerun with sa-su unless the probe ends with words accepting, or if
-		// words read sa or su (§13). A rerun discards the probe's stages and
-		// warnings.
+		// words read a word of SA or SU (§13). A rerun discards the probe's
+		// stages and warnings.
 		if len(outcomes) != words+1 || probe.err != nil || hasSaSu(probe) {
 			features["sa-su"] = true
 			ps = newParseState(d.uni, text)
@@ -493,8 +493,8 @@ func (d *Dialect) runStages(ps *parseState, features map[string]bool, options Pa
 	return out
 }
 
-// hasSaSu says whether a words stage's tree has a word whose phonemes are
-// sa or su (engine §13).
+// hasSaSu says whether a words stage's tree has a constituent of the rule
+// word whose tag set has SA or SU (engine §13).
 func hasSaSu(o stageOutcome) bool {
 	if o.tree == nil {
 		return false
@@ -507,13 +507,10 @@ func hasSaSu(o stageOutcome) bool {
 			continue
 		}
 		if n.Rule == "word" {
-			var b strings.Builder
-			for i := n.Span[0]; i < n.Span[1]; i++ {
-				b.WriteString(o.stage.Input[i].Phonemes)
+			if _, ok := n.Tags["SA"]; ok {
+				return true
 			}
-			// Joined as phonemes() joins them, nothing left out,
-			// collapsed or trimmed.
-			if p := b.String(); p == "sa" || p == "su" {
+			if _, ok := n.Tags["SU"]; ok {
 				return true
 			}
 		}
