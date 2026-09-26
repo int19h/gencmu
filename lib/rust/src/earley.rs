@@ -651,15 +651,15 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     Value::Set(TagList::new())
                 }
             }
-            // The words between pauses, each a strong tag, never the empty
+            // The runs between pauses, each a strong tag, never the empty
             // string (§5).
-            LTerm::Words(span) => {
+            LTerm::Runs(span) => {
                 let (start, end, _) = span_bounds(span, frame, tokens.len());
                 let phonemes = Self::phonemes(tokens, start, end);
                 let mut list: TagList = phonemes
                     .split('.')
-                    .filter(|word| !word.is_empty())
-                    .map(|word| (self.shared.tags.tag(word), true))
+                    .filter(|run| !run.is_empty())
+                    .map(|run| (self.shared.tags.tag(run), true))
                     .collect();
                 list.sort_unstable();
                 list.dedup();

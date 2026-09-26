@@ -132,16 +132,16 @@ func (ev *evaluator) term(t *domTerm) value {
 			return value{kind: vString, s: ev.run.phonemes(ev.span(t.Items[0]))}
 		case "text":
 			return value{kind: vString, s: ev.run.spanText(ev.span(t.Items[0]))}
-		case "words":
-			// The set of the words between pauses, ., each a strong tag,
+		case "runs":
+			// The set of the runs between pauses, ., each a strong tag,
 			// the empty string never among them (engine §5).
-			words := map[string]bool{}
-			for _, word := range strings.Split(ev.run.phonemes(ev.span(t.Items[0])), ".") {
-				if word != "" {
-					words[word] = true
+			runs := map[string]bool{}
+			for _, run := range strings.Split(ev.run.phonemes(ev.span(t.Items[0])), ".") {
+				if run != "" {
+					runs[run] = true
 				}
 			}
-			return value{kind: vSet, set: ev.in().fromMap(words)}
+			return value{kind: vSet, set: ev.in().fromMap(runs)}
 		case "lowercase":
 			v := ev.term(t.Items[0])
 			if v.kind != vString {

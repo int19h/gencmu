@@ -43,7 +43,7 @@ pub(crate) enum LTerm {
     Tags(Span),
     TagsRule(Span, u32),
     Classes(Span),
-    Words(Span),
+    Runs(Span),
     /// `A ⟹ t`: `t` where the condition holds, else the empty set.
     If(Box<LCond>, Box<LTerm>),
 }
@@ -371,7 +371,7 @@ impl<'a> Scope<'a> {
                 ("phonemes", [Arg::Term(span)]) => LTerm::Phonemes(self.span(span)?),
                 ("text", [Arg::Term(span)]) => LTerm::Text(self.span(span)?),
                 ("classes", [Arg::Term(span)]) => LTerm::Classes(self.span(span)?),
-                ("words", [Arg::Term(span)]) => LTerm::Words(self.span(span)?),
+                ("runs", [Arg::Term(span)]) => LTerm::Runs(self.span(span)?),
                 ("tags", [Arg::Term(span)]) => LTerm::Tags(self.span(span)?),
                 ("tags", [Arg::Term(span), Arg::Rule(rule)]) => LTerm::TagsRule(self.span(span)?, self.rule(rule)?),
                 ("lowercase", [Arg::Term(inner)]) => LTerm::Lower(Box::new(self.term(inner)?)),

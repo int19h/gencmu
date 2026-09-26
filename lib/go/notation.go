@@ -538,7 +538,7 @@ func (b *domBuilder) call(n *Node, inCondition bool) *domTerm {
 		return &domTerm{Kind: tmCall, Str: name, Items: args}
 	}
 	switch name {
-	case "phonemes", "text", "words", "classes", "head", "tail", "last", "from", "after":
+	case "phonemes", "text", "runs", "classes", "head", "tail", "last", "from", "after":
 		shape(len(args) == 1 && span(0))
 	case "tags":
 		shape((len(args) == 1 && span(0)) || (len(args) == 2 && span(0) && rule(1)))

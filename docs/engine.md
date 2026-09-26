@@ -109,7 +109,7 @@ A token's `phonemes`:
 
 An emitted token always has phonemes, possibly the empty string; only the character tokens of the first stage have none. Two strong phoneme tags on one emitted token are an error of the grammar that emitted it, whether or not the token is verbatim.
 
-`phonemes(span)` in a condition is the concatenation of the span's tokens' phonemes. `text(span)` is the original text over the source of the span's tokens (§1), and the empty string for an empty span. `words(span)` is the tag set of the words of `phonemes(span)`, the strings between its pauses, `.`, each a strong tag, the empty string never among them.
+`phonemes(span)` in a condition is the concatenation of the span's tokens' phonemes. `text(span)` is the original text over the source of the span's tokens (§1), and the empty string for an empty span. `runs(span)` is the tag set of the runs of `phonemes(span)`, the strings between its pauses, `.`, each a strong tag, the empty string never among them.
 
 ## 6. Choosing a parse
 
@@ -197,7 +197,7 @@ The notation's syntax grammar names its constituents so that the DOM can be read
 A rule with any other name is transparent: its children are read in its place. Every restriction the grammar does not state is an error of the document, reported at the first token of the offending construct:
 
 - a capture wrapping anything but a reference, a string or a phoneme, `$x((B))` included; `$` wrapping anything; or a capture name used twice in one alternative;
-- a function that does not exist, or called with the wrong arguments: `phonemes`, `text`, `words`, `classes`, `head`, `tail`, `last`, `from` and `after` take one span, `lowercase` one string, `tags` a span and optionally a rule name, `matches` and `begins` a span and a rule name, and `initial` one span. A span is a capture or `head`, `tail`, `last`, `from` or `after` of one; a string is a quoted string, a phoneme tag, or `phonemes`, `text` or `lowercase` of something;
+- a function that does not exist, or called with the wrong arguments: `phonemes`, `text`, `runs`, `classes`, `head`, `tail`, `last`, `from` and `after` take one span, `lowercase` one string, `tags` a span and optionally a rule name, `matches` and `begins` a span and a rule name, and `initial` one span. A span is a capture or `head`, `tail`, `last`, `from` or `after` of one; a string is a quoted string, a phoneme tag, or `phonemes`, `text` or `lowercase` of something;
 - `head`, `tail`, `last`, `from` or `after` where a value is needed, and `matches`, `begins` or `initial` as a term;
 - an `&` of more than 16 items;
 - an expression, a term or a condition nested more than 256 deep: in the DOM (docs/output.md), no node of one may lie below more than 256 compound nodes of it, a compound node being one of `optional`, `repeat`, `and`, `choice`, `seq` and `capture` in an expression; `union`, `intersection`, `if` and `call` in a term; `any`, `all`, `not`, `if`, `matches`, `begins`, `initial` and a comparison in a condition. The condition of a guarded term counts on from the term's depth, as a comparison's terms count on from the condition's. `( )` makes no node, so it adds nothing; 256 nested `[ ]` around a symbol are allowed, and 257 are not;
@@ -234,7 +234,7 @@ A string's decoding: the quotes are removed, `\\` is `\`, `\"` is `"`, and `\u{h
 | `tags(s)` | the captured part's constituent tags if `s` is a whole capture, else the union of the span's tokens' tags |
 | `tags(s, R)` | the union of the tags of every derivation of the span as `R`, empty if none |
 | `classes(s)` | the tags of `tags(s)` whose first character is `A` to `Z` |
-| `words(s)` | a tag set (§5) |
+| `runs(s)` | a tag set (§5) |
 
 A string used where a tag set is needed is the set of that one strong tag.
 

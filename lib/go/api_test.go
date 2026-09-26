@@ -342,10 +342,10 @@ func TestBracketsPause(t *testing.T) {
 	}
 }
 
-// words() is the set of the words between pauses (engine §5), each word
-// whole: a word may hold a space, so {"a b", "c"} is not {"a", "b c"}.
-func TestWordsKeepSpaces(t *testing.T) {
-	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text $x(A) $y(A)\n%conditions words($x) ≠ words($y), \"a b\" ∈ words($x), \"a\" ∉ words($x)"))
+// runs() is the set of the runs between pauses (engine §5), each run
+// whole: a run may hold a space, so {"a b", "c"} is not {"a", "b c"}.
+func TestRunsKeepSpaces(t *testing.T) {
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text $x(A) $y(A)\n%conditions runs($x) ≠ runs($y), \"a b\" ∈ runs($x), \"a\" ∉ runs($x)"))
 	toks := []Token{{Text: "x", Tags: map[string]bool{"A": true}, Phonemes: "a b.c", Span: [2]int{0, 1}, Source: [2]int{0, 1}}, {Text: "y", Tags: map[string]bool{"A": true}, Phonemes: "a.b c", Span: [2]int{1, 2}, Source: [2]int{1, 2}}}
 	if res, err := d.ParseTokens("xy", toks, ParseOptions{}); err != nil || !res.OK {
 		t.Fatalf("%v %+v", err, res)

@@ -862,9 +862,9 @@
           const inner = evaluate(context, args[0], scope);
           return { string: context.unicode.lowercase(asString(inner)) };
         }
-        case "words": {
+        case "runs": {
           const span = spanOf(context, args[0], scope);
-          return { tags: tagSet(phonemesOf(context.tokens, span.start, span.end).split(".").filter((word) => word !== "").map((word) => [word, true])) };
+          return { tags: tagSet(phonemesOf(context.tokens, span.start, span.end).split(".").filter((run) => run !== "").map((run) => [run, true])) };
         }
         case "tags": {
           const span = spanOf(context, args[0], scope);
@@ -1667,7 +1667,7 @@
 
   /** @import { Argument, GrammarDom, Term } from "./types.js" */
 
-  const DOM_FUNCTIONS = new Set(["phonemes", "text", "lowercase", "tags", "classes", "words", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]);
+  const DOM_FUNCTIONS = new Set(["phonemes", "text", "lowercase", "tags", "classes", "runs", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]);
   const DOM_COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆"]);
   const DOM_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
   // The nesting the notation allows (engine §9): deeper than any grammar a
@@ -1675,7 +1675,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 6;
+  const DOM_FORMAT = 7;
 
   /**
    * @param {unknown} value
@@ -5177,7 +5177,7 @@
     }
   }
 
-  const FUNCTIONS = new Set(["phonemes", "text", "lowercase", "tags", "classes", "words", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]);
+  const FUNCTIONS = new Set(["phonemes", "text", "lowercase", "tags", "classes", "runs", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]);
 
   // The functions whose value is a span, and those whose value is a string.
   const SPANS = new Set(["head", "tail", "last", "from", "after"]);

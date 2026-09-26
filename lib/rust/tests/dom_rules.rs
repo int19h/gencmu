@@ -23,16 +23,16 @@ fn dom(text_alternative: &str, text_extra: &str, rule: &str, format: u32, direct
 const B: &str = r#"{"guards":[],"expr":{"terminal":"b"}}"#;
 
 fn with_rule(rule: &str) -> String {
-    dom(B, "", rule, 6, r#""greedy""#)
+    dom(B, "", rule, 7, r#""greedy""#)
 }
 
 fn with_alternative(alternative: &str) -> String {
-    dom(alternative, "", "", 6, r#""greedy""#)
+    dom(alternative, "", "", 7, r#""greedy""#)
 }
 
 fn with_emission(emission: &str) -> String {
     let alternative = r#"{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"terminal":"b"}},{"capture":"y","expr":{"terminal":"c"}}]}}"#;
-    dom(alternative, &format!(r#","emit":{emission}"#), "", 6, r#""greedy""#)
+    dom(alternative, &format!(r#","emit":{emission}"#), "", 7, r#""greedy""#)
 }
 
 fn with_condition(condition: &str) -> String {
@@ -49,7 +49,7 @@ fn with_tags(term: &str) -> String {
 /// Parses "a" with a dialect whose `compiled.json` holds `dom` for the
 /// document: true when the document itself was read.
 fn document_was_read(dom: &str) -> bool {
-    document_was_read_from(6, dom)
+    document_was_read_from(7, dom)
 }
 
 /// The same, with a `compiled.json` of the given format.
@@ -140,7 +140,8 @@ fn a_well_formed_dom_is_used() {
 
 #[test]
 fn a_cache_of_another_format_is_a_miss() {
-    assert!(!document_was_read_from(6, &with_rule("")));
+    assert!(!document_was_read_from(7, &with_rule("")));
+    assert!(document_was_read_from(6, &with_rule("")), "a format-6 cache is never used");
     assert!(document_was_read_from(5, &with_rule("")), "a format-5 cache is never used");
     assert!(document_was_read_from(4, &with_rule("")), "a format-4 cache is never used");
     assert!(document_was_read_from(3, &with_rule("")), "a format-3 cache is never used");
@@ -342,7 +343,7 @@ fn every_malformed_dom_is_a_cache_miss() {
 #[test]
 fn a_malformed_bootstrap_is_an_error() {
     let bootstrap = format!(
-        r#"{{"format":6,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
+        r#"{{"format":7,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
         with_emission(r#"{"items":[{"capture":""},{"insert":"X"}]}"#)
     );
     let sources = [

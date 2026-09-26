@@ -14,7 +14,7 @@ from typing import Any
 
 from ._clauses import definition_problem
 
-FORMAT = 6
+FORMAT = 7
 """The version of the DOM's shape (docs/output.md)."""
 
 MAX_DEPTH = 256
@@ -26,7 +26,7 @@ call; any, all, not, if, matches, begins, initial and a comparison."""
 
 TOO_DEEP = "nested too deeply"
 
-_FUNCTIONS = {"phonemes", "text", "lowercase", "tags", "classes", "words", "head", "tail", "last", "from", "after", "matches", "begins", "initial"}
+_FUNCTIONS = {"phonemes", "text", "lowercase", "tags", "classes", "runs", "head", "tail", "last", "from", "after", "matches", "begins", "initial"}
 _COMPARATORS = {"=", "≠", "∈", "∉", "⊆"}
 _SPANS = {"head", "tail", "last", "from", "after"}
 _NAME = re.compile(r"[A-Za-z][A-Za-z0-9-]*")

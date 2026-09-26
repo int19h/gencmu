@@ -64,7 +64,7 @@ A token node's `token` is the index of the stage-input token it read.
 What reading a grammar document produces (engine §8, §9), and what `bootstrap.json` and the precompiled DOMs hold.
 
 ```
-{"format":6,"rules":[RULE...],"directives":[DIRECTIVE...]}
+{"format":7,"rules":[RULE...],"directives":[DIRECTIVE...]}
 ```
 
 `format` is the DOM's version, which changes whenever its shape does: a cached DOM of another version is never used.

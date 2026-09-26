@@ -549,7 +549,7 @@ impl<'a> Reader<'a> {
         let args: Vec<&Node> = Self::rules(node, "argument").collect();
         let wrong = || self.error(name_token, format!("{name}() is called with the wrong arguments"));
         let built = match (name.as_str(), args.len()) {
-            ("phonemes" | "text" | "classes" | "words" | "head" | "tail" | "last" | "from" | "after", 1) => {
+            ("phonemes" | "text" | "classes" | "runs" | "head" | "tail" | "last" | "from" | "after", 1) => {
                 vec![Arg::Term(self.span_argument(args[0], depth).map_err(|_| wrong())?)]
             }
             ("tags", 1 | 2) => {
@@ -575,7 +575,7 @@ impl<'a> Reader<'a> {
                 vec![Arg::Term(term)]
             }
             (
-                "phonemes" | "text" | "classes" | "words" | "head" | "tail" | "last" | "from" | "after" | "tags"
+                "phonemes" | "text" | "classes" | "runs" | "head" | "tail" | "last" | "from" | "after" | "tags"
                 | "lowercase",
                 _,
             ) => return Err(wrong()),

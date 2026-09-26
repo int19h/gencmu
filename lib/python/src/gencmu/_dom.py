@@ -21,7 +21,7 @@ _MAPPED = frozenset(
 )
 _DEFINERS = {"%rule": "define", "%redefine-rule": "redefine", "%extend-rule": "extend"}
 _SPAN_FUNCTIONS = frozenset(["head", "tail", "last", "from", "after"])
-_ONE_SPAN = frozenset(["phonemes", "text", "classes", "words", "head", "tail", "last", "from", "after"])
+_ONE_SPAN = frozenset(["phonemes", "text", "classes", "runs", "head", "tail", "last", "from", "after"])
 
 
 def decode_string(text: str) -> str | None:
