@@ -1,6 +1,6 @@
 # The CLL dialect, by its printed grammar <?features cll-cyrillic?>
 
-Lojban as *The Complete Lojban Language* describes it: the grammar printed in its chapter 21, the word forms of its chapter 4, and the selma'o its dictionary gives each cmavo. The printed grammar is normative here, with the repairs [the CLL grammar](../syntax/cll.md) lists: any parse it admits counts, and a text is accepted when it has one reading. Each stage is a grammar over the tokens the stage before it emitted; `docs/notation.md` explains the notation.
+Lojban as *The Complete Lojban Language* describes it: the grammar printed in its chapter 21, the word forms of its chapters 3 and 4, and the selma'o its dictionary gives each cmavo. The printed grammar is normative here, with the repairs [the CLL grammar](../syntax/cll.md) lists: any parse it admits counts, and a text is accepted when it has one reading. Each stage is a grammar over the tokens the stage before it emitted; `docs/notation.md` explains the notation.
 
 ## Stage 1: phonemes <?stage phonemes?>
 
@@ -12,11 +12,11 @@ The stage receives the text's characters and hands on one token per phoneme, wha
 ## Stage 2: words <?stage words?>
 
 - [The word stream](../words/stream.md): words, and the magic words that act on the stream left to right: quotes, `bu` and `zei` compounds, the erasers `si`, `sa` and `su`, hesitation and `fa'o` <?grammar?>
-- [Word shapes](../words/shapes.md): the shapes every family of word forms shares <?grammar?>
-- [CLL word forms](../words/cll.md): what chapter 4 allows beyond the shared shapes <?grammar?>
+- [Word shapes](../words/shapes.md): the sounds of CLL's words: consonant pairs, vowels, diphthongs and stress <?grammar?>
+- [CLL word forms](../words/cll.md): the cmavo, gismu, lujvo, borrowings and names of CLL chapters 3 and 4 <?grammar?>
 - [The CLL lexicon](../words/lexicon-cll.md): each cmavo's selma'o <?grammar?>
 
-The stage receives phonemes and hands on words, each tagged with its class and, for a cmavo, its selma'o. A word ends as early as it can, which is CLL's tosmabru rule, so the stage is lazy. `sa` and `su` are behind the feature `sa-su`, which the libraries turn on for a text only when it needs it.
+The stage receives phonemes and hands on words, each tagged with its class and, for a cmavo, its selma'o. The word forms divide a text into words in at most one way, so the choice among parses never decides where a word ends. The stage is lazy for the magic words: each acts on what exists when it is read. The warning `y-cmavo` reports a cmavo that uses `y` as a vowel beyond the forms CLL gives, such as `ka'y`. `sa` and `su` are behind the feature `sa-su`, which the libraries turn on for a text only when it needs it.
 
 ## Stage 3: indicators <?stage indicators?>
 
