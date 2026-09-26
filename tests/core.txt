@@ -737,4 +737,10 @@ adhoc.camxes-exp.smaller.vuho-ends-sumti.zantufa
 adhoc.camxes-exp.smaller.niho-ends-text.experimental
 adhoc.camxes-exp.smaller.niho-ends-text.zantufa
 adhoc.camxes-exp.smaller.fa-selbri-after-gihek.experimental
-adhoc.camxes-exp.smaller.fa-selbri-after-gihek.zantufa
+adhoc.camxes-exp.tags.bare-fa-atom-in-a-run.experimental
+adhoc.camxes-exp.tags.bare-fa-atom-in-a-run.zantufa
+adhoc.camxes-exp.tags.bare-fa-atom-after-jai.experimental
+adhoc.camxes-exp.tags.tense-with-free-modifier-on-selbri.experimental
+adhoc.camxes-exp.tags.tense-with-free-modifier-on-selbri.zantufa
+adhoc.camxes-exp.tags.connected-bare-tag-before-selbri-rejected.experimental
+adhoc.camxes-exp.descriptions.gek-quantifier-sumti-before-selbri.experimental

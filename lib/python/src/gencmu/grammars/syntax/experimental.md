@@ -27,7 +27,7 @@ If the layer declared `elision-only`, each of those texts would be an error. `%e
 
 The layer changes the text in four ways. A `nai` at the start of a text is an indicator, as the indicator stage of the experimental dialect reads it. So `indicators` takes it, like the indicators of camxes-exp, and a separate `nai` stands only before a run of names. The connective after a text-leading `.i` can be an ek, as in `.i .e do klama`, because camxes-exp's joik takes the words of A. The tense before `bo` in a text-leading `.i` can be a full `tag` and not only a `stag`. And `.i ni'o` can follow a `ni'o`, which is how usage writes a new topic inside a reply. At the start of a text, the CLL grammar's `text-1` already reads `.i ni'o`, as the repair of the printed grammar that it lists says. So `text-1` takes the form after a first run of `ni'o`, and `paragraphs` takes it after a later one. A run of `ni'o` can also end the text (`mi klama ni'o`), as in camxes-exp.
 
-The layer keeps the CLL grammar's connective before the first `.i` of a text (`je mi klama`). camxes-exp has it too, but its `paragraphs` can be empty, so its `(!text_1 joik_jek)?` can never match and it rejects such a text. That is an accident of the PEG, and gencmu reads the text as CLL does.
+The layer keeps the CLL grammar's connective before the first `.i` of a text (`je mi klama`). camxes-exp has it too. But its `paragraphs` can be empty, so its `(!text_1 joik_jek)?` never matches, and it rejects such a text. That is an accident of the PEG, and gencmu reads the text as CLL does.
 
 ```jbogenbau
 %redefine-rule text
@@ -75,9 +75,11 @@ CLL's `na` fragment is gone. A bare `na` is a term (see "Terms"), so `na` and `n
 
 ## Sentences and bridi-tails
 
-A bridi-tail can have terms before its selbri, as in camxes-exp (JACU). The terms and `cu` before a selbri are a `bridi-tail-head`, in which runs of terms and single `cu` words alternate: `mi cu do klama`, `cu mi klama`. A head can stand before the first bridi-tail of a sentence, and after each connective between bridi-tails: `mi klama je do tavla`, `mi klama gi'e cu do tavla`. A head does not end in a tag whose `ku` is elided, since camxes-exp does not read a tag as a term where a selbri follows it (its `!selbri`). So `mi pu klama` has the tense `pu` on its selbri. `bare-tag-end` lists the selma'o that can end such a tag.
+A bridi-tail can have terms before its selbri, as in camxes-exp (JACU). The terms and `cu` before a selbri are a `bridi-tail-head`. In a head, runs of terms and single `cu` words alternate: `mi cu do klama`, `cu mi klama`. A head can stand before the first bridi-tail of a sentence, and after each connective between bridi-tails. Examples are `mi klama je do tavla` and `mi klama gi'e cu do tavla`.
 
-The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or VUhU (`bridi-tail-connective`). Each of them can also open a `bo` or `ke` grouping of bridi-tails, and so can a bare `gi` with a stag, as in `mi klama gi ba bo tavla`. After a plain connective, a bridi-tail without a head does not begin with `ke`, and a head is not a bare stag, such as a tense whose `ku` is elided. Without these limits, `gi'e ke` and `gi'e ba ke` would each open two constructs. camxes-exp states the same limits as a lookahead after its gihek.
+A head does not end in a tag whose `ku` is elided. camxes-exp does not read a tag as a term where a selbri follows it (its `!selbri`). So `mi pu klama` has the tense `pu` on its selbri, and so does `mi pu sei do klama se'u klama`. `head-ending-in-bare-tag` states the form that a head cannot have.
+
+The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or VUhU (`bridi-tail-connective`). Each of them can also open a `bo` or `ke` grouping of bridi-tails. So can a bare `gi` with a stag, as in `mi klama gi ba bo tavla`. After a plain connective, a bridi-tail without a head does not begin with `ke`. And a head there is not a bare stag, such as a tense whose `ku` is elided. Without these limits, `gi'e ke` and `gi'e ba ke` would each open two constructs. camxes-exp states the same limits as a lookahead after its gihek.
 
 ```jbogenbau
 %redefine-rule sentence
@@ -91,16 +93,19 @@ The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or
   | $h(bridi-tail-head) bridi-tail
   | bridi-tail
 %conditions
-  ¬matches(last($h), bare-tag-end)
+  ¬matches($h, head-ending-in-bare-tag)
 
 %rule headed-bridi-tail-2
   | $h(bridi-tail-head) bridi-tail-2
   | bridi-tail-2
 %conditions
-  ¬matches(last($h), bare-tag-end)
+  ¬matches($h, head-ending-in-bare-tag)
 
-%rule bare-tag-end
-  BAI | CAhA | CUhE | KI | ZI | PU | VA | FAhA | ZEhA | VEhA | VIhA | ROI | TAhE | ZAhO | FA | FEhU | NAI
+%rule head-ending-in-bare-tag
+  [bridi-tail-head] [(term-3 bare-tag-joiner) ...] (tag | FA) #
+
+%rule bare-tag-joiner
+  term-connective | (joik # | ek #) BO # | CEhE # | PEhE # statement-connective
 
 %redefine-rule bridi-tail
   bridi-tail-1 [(bridi-tail-connective [stag] | GI stag) KE # headed-bridi-tail [KEhE] # tail-terms]
@@ -113,7 +118,7 @@ The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or
   | bridi-tail-2-not-starting-with-ke
 %conditions
   ¬matches($h, stag),
-  ¬matches(last($h), bare-tag-end)
+  ¬matches($h, head-ending-in-bare-tag)
 
 %redefine-rule bridi-tail-2
   bridi-tail-3 [(bridi-tail-connective [stag] | GI stag) BO # headed-bridi-tail-2 tail-terms]
@@ -207,11 +212,11 @@ A tagged term whose tag is a bare `fa` has its free modifiers after the `fa`. It
 Sumti connectives are ek, joik, jek or VUhU (`sumti-connective`). After `vu'o`, a connected sumti can follow the relative clauses or replace them, and `vu'o` can also end the sumti (`mi vu'o`). Under `cbm` a cmevla is a selbri word, so the `la CMEVLA` name form is removed and `la .alis.` is a description. The new sumti are these:
 
 - `na'e sumti lu'u`, without `bo`
-- `la'e`, `na'e bo` or `na'e` around a term that is not a sumti, such as a tagged sumti or `na ku` (`la'e na ku lu'u broda`)
+- `la'e`, `na'e bo` or `na'e` around a term that is not a sumti, such as `na ku` or a tagged sumti
 - `lo'oi subsentence ku'au`, a description of a subsentence
 - the single-word quotes `zo'oi`, `la'oi` and `ra'oi`, whose bodies the word stage delimits
 
-A `na'e` alone does not take a tagged term, since `na'e pu` is then a tag. The inner sumti of a description can be any sumti, a connected one too (`lo mi .e do broda`). It does not begin with a quantifier, since camxes-exp reads a quantifier there as the CLL form `quantifier sumti` first: `lo re mi broda` is `lo re mi` and the selbri `broda`. `quantifier-head` lists the selma'o that can begin a quantifier. A description, and a quantifier without a descriptor, can take a forethought sentence in place of a selbri (`le ga mi klama gi do klama ku`, `re ga mi klama gi do klama ku`). These are camxes-exp's `sumti_tail` and `sumti_5`.
+A `na'e` alone does not take a tagged term, since `na'e pu` is then a tag. The inner sumti of a description can be any sumti, a connected one too (`lo mi .e do broda`). It does not begin with a quantifier. camxes-exp reads a quantifier there as the CLL form `quantifier sumti` first, so `lo re mi broda` is `lo re mi` and the selbri `broda`. `quantifier-head` lists the selma'o that can begin a quantifier. A quantifier can also begin with a forethought connective, as in `lo ge pa gi re mi broda`. `quantified-sumti` excludes such an inner sumti as a whole. A description can take a forethought sentence in place of a selbri, and so can a quantifier without a descriptor. Examples are `le ga mi klama gi do klama ku` and `re ga mi klama gi do klama ku`. These are camxes-exp's `sumti_tail` and `sumti_5`.
 
 ```jbogenbau
 %redefine-rule sumti
@@ -258,7 +263,11 @@ A `na'e` alone does not take a tagged term, since `na'e pu` is then a tag. The i
   | relative-clauses sumti-tail-1
   | gek-sentence
 %conditions
-  ¬matches(head($s), quantifier-head)
+  ¬matches(head($s), quantifier-head),
+  ¬matches($s, quantified-sumti)
+
+%rule quantified-sumti
+  quantifier sumti-6 [relative-clauses]
 
 %rule quantifier-head
   PA | VEI | NIhE | MOhE | PEhO | FUhA
@@ -266,7 +275,7 @@ A `na'e` alone does not take a tagged term, since `na'e pu` is then a tag. The i
 
 ## Relative clauses
 
-Consecutive relative clauses can be joined by a joik, a jek or an ek, as well as by `zi'e`, and two groups of them can be connected in forethought (`ge poi broda gi poi brode`).
+Consecutive relative clauses can be joined by a joik, a jek or an ek, as well as by `zi'e`. Two groups of them can be connected in forethought (`ge poi broda gi poi brode`).
 
 ```jbogenbau
 %redefine-rule relative-clauses
@@ -279,7 +288,7 @@ Consecutive relative clauses can be joined by a joik, a jek or an ek, as well as
 
 ## Selbri and tanru
 
-Selbri and tanru-unit connectives are joik, jek, ek or VUhU (`selbri-connective`). A selbri can be tagged by a bare `fa`. The term after `be` or `bei` can be absent. The new tanru units are a cmevla, under `cbm`, preposed linked arguments (`lo be mi broda`), and `me'oi` with the word that it quotes (`le me'oi klama cu broda`).
+Selbri and tanru-unit connectives are joik, jek, ek or VUhU (`selbri-connective`). A selbri can be tagged by a bare `fa`. The term after `be` or `bei` can be absent. The new tanru units are a cmevla, under `cbm`, and preposed linked arguments (`lo be mi broda`). `me'oi` with the word that it quotes is a tanru unit too (`le me'oi klama cu broda`).
 
 A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in which `ke'a` refers to the selbri (`mi klama no'oi bajra`). They are joined as relative clauses are: by `zi'e`, a joik, a jek or an ek, or two groups of them in forethought.
 
@@ -373,10 +382,10 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
 camxes-exp replaces CLL's mekso with its own, and the layer follows it (camxes-exp.peg, `quantifier` to `lerfu_string`):
 
 - A number is a run of PA words, `ni'e` selbri and `mo'e` sumti, with no lerfu word in it. A lerfu string is a run of lerfu words, with no PA word in it. So `li pa by` is two terms, and `mi viska cy no` is not a text.
-- An operand of a mekso is `mex-2`: a number, a lerfu string, a `vei` group, a forethought connection, a `la'e` or `na'e` reference, a `pe'o` forethought expression or a reverse Polish expression. The operands `ni'e` and `mo'e` are inside numbers.
+- An operand of a mekso is `mex-2`: a number or a lerfu string, a `vei` group, a forethought connection, or a `la'e` or `na'e` reference. It can also be a `pe'o` forethought expression or a reverse Polish expression. The operands `ni'e` and `mo'e` are inside numbers.
 - `bo` after an operator, with an optional tag, groups two operands tighter (`li pa su'i bo re`). There is no `bi'e`, and a forethought operator needs `pe'o`.
 - An operator can be a connective, a joik, jek or ek.
-- A quantifier is a whole mekso, `pa su'i re broda`. It cannot begin with a lerfu word, `la'e` or `na'e`, since there camxes-exp reads a sumti (its `!sumti_6`). camxes-exp also refuses a quantifier where a selbri begins (`!selbri`). The greedy choice among parses already reads `pa re moi broda` as the selbri `pa re moi broda`, so the layer needs no rule for that.
+- A quantifier is a whole mekso, `pa su'i re broda`. It cannot begin with a lerfu word, `la'e` or `na'e`, since there camxes-exp reads a sumti (its `!sumti_6`). camxes-exp also refuses a quantifier where a selbri begins (`!selbri`). The greedy choice among parses already reads `pa re moi broda` as the selbri `pa re moi broda`. So the layer needs no rule for that.
 - `me` takes a mekso as well as a sumti, a whole mekso takes `moi`, and `nu'a` takes a whole operator.
 
 After an elided `boi`, a number or lerfu string is followed by `free-after-elided-boi`, defined under "Free modifiers", and not by a plain `#`.
@@ -437,7 +446,7 @@ After an elided `boi`, a number or lerfu string is followed by `free-after-elide
 
 camxes-exp's joik takes `na` before a word of JOI, as its jek and ek do. So `mi na joi do klama` has one term, `mi na joi do`. The greedy rule settles this against the bare `na` term.
 
-A forethought connective can be `ga` or `gu` followed by a joik, jek, ek or VUhU, as in `ga je lo mlatu gi lo gerku`. With `ga`, it is a gek. With `gu`, it is a guhek, as in `mi gu je melbi gi kargydu'e`. camxes-exp allows only these two words here, so `ge je` and `gu'e je` are not connectives. The connective before `gi` in a gek can be a jek or an ek as well as a joik (`je gi mi broda gi mi brode`). A gihek can be `gi` followed by a word of JOI, JA or A (`mi klama gi je tavla`).
+A forethought connective can be `ga` or `gu` followed by a joik, jek, ek or VUhU, as in `ga je lo mlatu gi lo gerku`. With `ga`, it is a gek. With `gu`, it is a guhek, as in `mi gu je melbi gi kargydu'e`. camxes-exp allows only these two words here, so `ge je` and `gu'e je` are not connectives. The connective before `gi` in a gek can also be a jek or an ek (`je gi mi broda gi mi brode`). A gihek can be `gi` followed by a word of JOI, JA or A (`mi klama gi je tavla`).
 
 ```jbogenbau
 %redefine-rule joik
@@ -467,14 +476,23 @@ A tag is a run of atoms, as in camxes-exp (`tense_modal`): `pu ba vi ca`, `ki ba
 
 - a word of BAI, CAhA, CUhE, KI, ZI, PU, VA, ZEhA, VEhA or VIhA
 - a word of FAhA, with an optional `mo'i` before it
-- a word of ROI after a number or a `vei` group, or a word of TAhE or ZAhO, each with an optional `fe'e` before it
+- a word of ROI after a number or a `vei` group, with an optional `fe'e` before them
+- a word of TAhE or ZAhO, with an optional `fe'e` before it
 - `fi'o` with a selbri
 
-Tags are connected by a joik, jek, ek or VUhU. A stag is a tag, as in camxes-exp, so a stag can be a run of atoms or a `fi'o` selbri: `ko'a .e pu ba bo ko'e broda`, `mi klama .i fi'o broda fe'u bo do klama`. `fa` is an atom only after `na'e` or `se`, so that a place tag can be converted like a modal. A bare `fa` is a stag, and it tags a term or a selbri by the rules of "Terms" and "Selbri and tanru".
+Tags are connected by a joik, jek, ek or VUhU. A stag is a tag, as in camxes-exp. So a stag can be a run of atoms (`ko'a .e pu ba bo ko'e broda`). It can also be a `fi'o` selbri (`mi klama .i fi'o broda fe'u bo do klama`). `fa` is an atom too. So a place tag can be converted like a modal (`se fa`) or joined to other atoms (`mi fa pu klama`). But a bare `fa` alone is not a tag. It is a stag. It tags a term or a selbri by the rules of "Terms" and "Selbri and tanru", which would otherwise compete with the tag.
 
 ```jbogenbau
 %redefine-rule tag
+  $t(tense-modals)
+%conditions
+  ¬matches($t, bare-fa)
+
+%rule tense-modals
   tense-modal [tag-connective tense-modal] ...
+
+%rule bare-fa
+  FA #
 
 %redefine-rule stag
   tag | FA
@@ -489,13 +507,12 @@ Tags are connected by a joik, jek, ek or VUhU. A stag is a tag, as in camxes-exp
   | [NAhE] [SE] (BAI | CAhA | CUhE | KI | ZI | PU | VA | [MOhI] FAhA | ZEhA | VEhA | VIhA) #
   | [NAhE] [SE] [FEhE] ((number | VEI # mex [VEhO] #) ROI | TAhE | ZAhO) #
   | [NAhE] [SE] FIhO # selbri [FEhU] #
-  | NAhE [SE] FA #
-  | SE FA #
+  | [NAhE] [SE] FA #
 ```
 
 ## Free modifiers, vocatives and indicators
 
-The text replacement forms of camxes-exp are free modifiers: up to two runs of words, each opened by a word of LOhAI (`lo'ai` or `sa'ai`), and then `le'ai`. `soi` is not a free modifier here, as it is not in camxes-exp. Under `cbm` the `vocative CMEVLA ...` form is removed, since a cmevla is then a selbri word. If both forms stood, their two readings would tie. `free-after-elided-boi` is what follows a number or lerfu string whose `boi` is elided. It is either the spoken `boi` with its slot, or free modifiers that do not begin with a number or lerfu string. So `pa so mo'o` is the number `pa so`, and not `pa` followed by the ordinal `so mo'o`. `free-not-starting-with-number` is `free` without the MAI form.
+The text replacement forms of camxes-exp are free modifiers. Each has up to two runs of words, each opened by a word of LOhAI (`lo'ai` or `sa'ai`), and then `le'ai`. `soi` is not a free modifier here, as it is not in camxes-exp. Under `cbm` the `vocative CMEVLA ...` form is removed, since a cmevla is then a selbri word. If both forms stood, their two readings would tie. `free-after-elided-boi` is what follows a number or lerfu string whose `boi` is elided. It is either the spoken `boi` with its slot, or free modifiers that do not begin with a number or lerfu string. So `pa so mo'o` is the number `pa so`, and not `pa` followed by the ordinal `so mo'o`. `free-not-starting-with-number` is `free` without the MAI form.
 
 ```jbogenbau
 %redefine-rule free
