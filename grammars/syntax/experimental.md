@@ -102,7 +102,7 @@ The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or
   ¬matches($h, head-ending-in-bare-tag)
 
 %rule head-ending-in-bare-tag
-  [bridi-tail-head] [(term-3 bare-tag-joiner) ...] (tag | FA) #
+  [bridi-tail-head] [(term-3 bare-tag-joiner) ...] tag #
 
 %rule bare-tag-joiner
   term-connective | (joik # | ek #) BO # | CEhE # | PEhE # statement-connective
@@ -172,7 +172,7 @@ The first term inside `nu'i ... nu'u` cannot itself be a bare forethought termse
   SOI # subsentence [SEhU] #
 
 %rule tagged-term
-  tag (sumti | [KU] #) | FA # (sumti | [KU #])
+  tag (sumti | [KU] #)
 
 %redefine-rule termset
   | [NUhI #] gek terms [NUhU] # gik terms [NUhU] #
@@ -204,8 +204,6 @@ The first term inside `nu'i ... nu'u` cannot itself be a bare forethought termse
   | NUhI # gek terms [NUhU] # gik terms [NUhU] #
   | NUhI # terms-not-starting-with-bare-gek [NUhU] #
 ```
-
-A tagged term whose tag is a bare `fa` has its free modifiers after the `fa`. It also has them after the `ku`, when the `ku` is written: `FA # [KU #]`. If the `ku` is elided, the two slots stand side by side, and a free modifier can sit in either. So the elided `ku` takes its slot with it here, as the CLL grammar's terminators do.
 
 ## Sumti
 
@@ -288,13 +286,13 @@ Consecutive relative clauses can be joined by a joik, a jek or an ek, as well as
 
 ## Selbri and tanru
 
-Selbri and tanru-unit connectives are joik, jek, ek or VUhU (`selbri-connective`). A selbri can be tagged by a bare `fa`. The term after `be` or `bei` can be absent. The new tanru units are a cmevla, under `cbm`, and preposed linked arguments (`lo be mi broda`). `me'oi` with the word that it quotes is a tanru unit too (`le me'oi klama cu broda`).
+Selbri and tanru-unit connectives are joik, jek, ek or VUhU (`selbri-connective`). A selbri can be tagged by a bare `fa`, which is a tag. The term after `be` or `bei` can be absent. The new tanru units are a cmevla, under `cbm`, and preposed linked arguments (`lo be mi broda`). `me'oi` with the word that it quotes is a tanru unit too (`le me'oi klama cu broda`).
 
 A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in which `ke'a` refers to the selbri (`mi klama no'oi bajra`). They are joined as relative clauses are: by `zi'e`, a joik, a jek or an ek, or two groups of them in forethought.
 
 ```jbogenbau
 %redefine-rule selbri
-  [tag | FA #] selbri-1
+  [tag] selbri-1
 
 %redefine-rule selbri-4
   selbri-5 [selbri-connective selbri-5 | joik [stag] KE # selbri-3 [KEhE] #] ...
@@ -303,7 +301,7 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   selbri-6 [selbri-connective [stag] BO # selbri-5]
 
 %rule selbri-not-starting-with-ke
-  [tag | FA #] selbri-1-not-starting-with-ke
+  [tag] selbri-1-not-starting-with-ke
 
 %rule selbri-1-not-starting-with-ke
   selbri-2-not-starting-with-ke | NA # selbri
@@ -331,16 +329,19 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | BRIVLA #
   | @cbm? CMEVLA #
   | GOhA [RAhO] #
-  | ME # (sumti | mex) [MEhU] # [MOI #]
+  | ME # sumti [MEhU] # [MOI #]
+  | ME # $x(mex) [MEhU] # [MOI #]
   | mex MOI #
   | NUhA # operator
   | SE # tanru-unit-2
-  | JAI # [tag | FA #] tanru-unit-2
+  | JAI # [tag] tanru-unit-2
   | any-word (ZEI any-word) ...
   | NAhE # tanru-unit-2
   | NU [NAI] # [joik-jek NU [NAI] #] ... subsentence [KEI] #
   | linkargs tanru-unit-2
   | MEhOI anything #
+%conditions
+  ¬matches($x, sumti)
 
 %rule tanru-unit-not-starting-with-ke
   tanru-unit-1-not-starting-with-ke [CEI # tanru-unit-1] ... [selbri-relative-clauses]
@@ -352,16 +353,19 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | BRIVLA #
   | @cbm? CMEVLA #
   | GOhA [RAhO] #
-  | ME # (sumti | mex) [MEhU] # [MOI #]
+  | ME # sumti [MEhU] # [MOI #]
+  | ME # $x(mex) [MEhU] # [MOI #]
   | mex MOI #
   | NUhA # operator
   | SE # tanru-unit-2
-  | JAI # [tag | FA #] tanru-unit-2
+  | JAI # [tag] tanru-unit-2
   | any-word (ZEI any-word) ...
   | NAhE # tanru-unit-2
   | NU [NAI] # [joik-jek NU [NAI] #] ... subsentence [KEI] #
   | linkargs tanru-unit-2
   | MEhOI anything #
+%conditions
+  ¬matches($x, sumti)
 
 %rule selbri-relative-clauses
   | selbri-relative-clause [(ZIhE # | joik # | jek # | ek #) selbri-relative-clause] ...
@@ -386,7 +390,7 @@ camxes-exp replaces CLL's mekso with its own, and the layer follows it (camxes-e
 - `bo` after an operator, with an optional tag, groups two operands tighter (`li pa su'i bo re`). There is no `bi'e`, and a forethought operator needs `pe'o`.
 - An operator can be a connective, a joik, jek or ek.
 - A quantifier is a whole mekso, `pa su'i re broda`. It cannot begin with a lerfu word, `la'e` or `na'e`, since there camxes-exp reads a sumti (its `!sumti_6`). camxes-exp also refuses a quantifier where a selbri begins (`!selbri`). The greedy choice among parses already reads `pa re moi broda` as the selbri `pa re moi broda`. So the layer needs no rule for that.
-- `me` takes a mekso as well as a sumti, a whole mekso takes `moi`, and `nu'a` takes a whole operator.
+- `me` takes a mekso as well as a sumti, a whole mekso takes `moi`, and `nu'a` takes a whole operator. After `me`, a lerfu string is a sumti and not a mekso, since camxes-exp tries the sumti first (`me my`). The layer settles that tie as camxes-exp does. It does not copy the rejections of camxes-exp's PEG, which keeps a sumti once one matches: `me my su'i pa` is the mekso `my su'i pa`, although camxes-exp rejects the text.
 
 After an elided `boi`, a number or lerfu string is followed by `free-after-elided-boi`, defined under "Free modifiers", and not by a plain `#`.
 
@@ -480,22 +484,14 @@ A tag is a run of atoms, as in camxes-exp (`tense_modal`): `pu ba vi ca`, `ki ba
 - a word of TAhE or ZAhO, with an optional `fe'e` before it
 - `fi'o` with a selbri
 
-Tags are connected by a joik, jek, ek or VUhU. A stag is a tag, as in camxes-exp. So a stag can be a run of atoms (`ko'a .e pu ba bo ko'e broda`). It can also be a `fi'o` selbri (`mi klama .i fi'o broda fe'u bo do klama`). `fa` is an atom too. So a place tag can be converted like a modal (`se fa`) or joined to other atoms (`mi fa pu klama`). But a bare `fa` alone is not a tag. It is a stag. It tags a term or a selbri by the rules of "Terms" and "Selbri and tanru", which would otherwise compete with the tag, and `jai` takes it as it takes a tag (`jai fa broda`).
+Tags are connected by a joik, jek, ek or VUhU. A stag is a tag, as in camxes-exp. So a stag can be a run of atoms (`ko'a .e pu ba bo ko'e broda`). It can also be a `fi'o` selbri (`mi klama .i fi'o broda fe'u bo do klama`). `fa` is an atom too, as in camxes-exp, and it is the only way a place tag enters the grammar. So `fa` alone is a tag wherever a tag can stand: before a sumti (`fa mi`), a selbri (`mi fa klama`) or `bo`, and after `jai` (`jai fa broda`). It can be converted like a modal (`se fa`) or joined to other atoms (`mi fa pu klama`).
 
 ```jbogenbau
 %redefine-rule tag
-  $t(tense-modals)
-%conditions
-  ¬matches($t, bare-fa)
-
-%rule tense-modals
   tense-modal [tag-connective tense-modal] ...
 
-%rule bare-fa
-  FA #
-
 %redefine-rule stag
-  tag | FA
+  tag
 
 %rule tag-connective
   joik # | jek # | ek # | VUhU #
