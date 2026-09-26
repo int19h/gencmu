@@ -95,7 +95,7 @@ A forethought termset may take further `gi` branches and end in `gi'i` (`zantufa
 
 A forethought sumti connection may take further `gi` branches and end in `gi'i` (`zantufa-connectives`), and `ra'oi` quotes a single word as a sumti, delimited by the word stage; the quote is unguarded.
 
-The experimental grammar reads descriptions as camxes-exp does, with a connected sumti or a forethought sentence inside. Zantufa's descriptions differ from those, and until the Zantufa dialect takes them from Zantufa 1.9999, this layer restates `sumti-5` and `sumti-tail` as they were.
+The experimental grammar reads descriptions as camxes-exp does, with a connected sumti or a forethought sentence inside. Zantufa's descriptions differ from those, and until the Zantufa dialect takes them from Zantufa 1.9999, this layer restates `sumti-5` and `sumti-tail` as they were. It restates `sumti` too, since Zantufa does not end a sumti with a bare `vu'o`.
 
 ```jbogenbau
 %redefine-rule sumti-4
@@ -123,6 +123,9 @@ The experimental grammar reads descriptions as camxes-exp does, with a connected
   | LAhOI anything #
   | MEhOI anything #
   | RAhOI anything #
+
+%redefine-rule sumti
+  sumti-1 [VUhO # (relative-clauses [sumti-connective sumti] | sumti-connective sumti)]
 
 %redefine-rule sumti-5
   [quantifier] sumti-6 [relative-clauses] | quantifier selbri [KU] # [relative-clauses]

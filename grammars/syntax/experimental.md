@@ -25,7 +25,9 @@ If the layer declared `elision-only`, each of those texts would be an error. `%e
 
 ## The text and its paragraphs
 
-The layer changes the text in four ways. A `nai` at the start of a text is an indicator, as the indicator stage of the experimental dialect reads it. So `indicators` takes it, like the indicators of camxes-exp, and a separate `nai` stands only before a run of names. The connective after a text-leading `.i` can be an ek, as in `.i .e do klama`, because camxes-exp's joik takes the words of A. The tense before `bo` in a text-leading `.i` can be a full `tag` and not only a `stag`. And `.i ni'o` can follow a `ni'o`, which is how usage writes a new topic inside a reply. At the start of a text, the CLL grammar's `text-1` already reads `.i ni'o`, as the repair of the printed grammar that it lists says. So `text-1` takes the form after a first run of `ni'o`, and `paragraphs` takes it after a later one.
+The layer changes the text in four ways. A `nai` at the start of a text is an indicator, as the indicator stage of the experimental dialect reads it. So `indicators` takes it, like the indicators of camxes-exp, and a separate `nai` stands only before a run of names. The connective after a text-leading `.i` can be an ek, as in `.i .e do klama`, because camxes-exp's joik takes the words of A. The tense before `bo` in a text-leading `.i` can be a full `tag` and not only a `stag`. And `.i ni'o` can follow a `ni'o`, which is how usage writes a new topic inside a reply. At the start of a text, the CLL grammar's `text-1` already reads `.i ni'o`, as the repair of the printed grammar that it lists says. So `text-1` takes the form after a first run of `ni'o`, and `paragraphs` takes it after a later one. A run of `ni'o` can also end the text (`mi klama ni'o`), as in camxes-exp.
+
+The layer keeps the CLL grammar's connective before the first `.i` of a text (`je mi klama`). camxes-exp has it too, but its `paragraphs` can be empty, so its `(!text_1 joik_jek)?` can never match and it rejects such a text. That is an accident of the PEG, and gencmu reads the text as CLL does.
 
 ```jbogenbau
 %redefine-rule text
@@ -42,7 +44,7 @@ The layer changes the text in four ways. A `nai` at the start of a text is an in
   [(I [jek | joik | ek] [[tag] BO] #) ...] [NIhO ... # [I # NIhO ... #]] [paragraphs]
 
 %redefine-rule paragraphs
-  paragraph [NIhO ... # (paragraphs | I # NIhO ... # [paragraphs])]
+  paragraph [NIhO ... # [paragraphs | I # NIhO ... # [paragraphs]]]
 ```
 
 ## Statements and fragments
@@ -202,7 +204,7 @@ A tagged term whose tag is a bare `fa` has its free modifiers after the `fa`. It
 
 ## Sumti
 
-Sumti connectives are ek, joik, jek or VUhU (`sumti-connective`). After `vu'o`, a connected sumti can follow the relative clauses or replace them. Under `cbm` a cmevla is a selbri word, so the `la CMEVLA` name form is removed and `la .alis.` is a description. The new sumti are these:
+Sumti connectives are ek, joik, jek or VUhU (`sumti-connective`). After `vu'o`, a connected sumti can follow the relative clauses or replace them, and `vu'o` can also end the sumti (`mi vu'o`). Under `cbm` a cmevla is a selbri word, so the `la CMEVLA` name form is removed and `la .alis.` is a description. The new sumti are these:
 
 - `na'e sumti lu'u`, without `bo`
 - `la'e`, `na'e bo` or `na'e` around a term that is not a sumti, such as a tagged sumti or `na ku` (`la'e na ku lu'u broda`)
@@ -213,7 +215,7 @@ A `na'e` alone does not take a tagged term, since `na'e pu` is then a tag. The i
 
 ```jbogenbau
 %redefine-rule sumti
-  sumti-1 [VUhO # (relative-clauses [sumti-connective sumti] | sumti-connective sumti)]
+  sumti-1 [VUhO # [relative-clauses [sumti-connective sumti] | sumti-connective sumti]]
 
 %redefine-rule sumti-1
   sumti-2 [sumti-connective [stag] KE # sumti [KEhE] #]
@@ -292,7 +294,7 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   selbri-6 [selbri-connective [stag] BO # selbri-5]
 
 %rule selbri-not-starting-with-ke
-  [tag] selbri-1-not-starting-with-ke
+  [tag | FA #] selbri-1-not-starting-with-ke
 
 %rule selbri-1-not-starting-with-ke
   selbri-2-not-starting-with-ke | NA # selbri

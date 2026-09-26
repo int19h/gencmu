@@ -732,3 +732,9 @@ adhoc.camxes-exp.descriptions.nahe-pu-is-a-tag.zantufa
 adhoc.camxes-exp.descriptions.quantifier-sumti-before-selbri.experimental
 adhoc.camxes-exp.descriptions.quantifier-sumti-before-selbri.zantufa
 adhoc.camxes-exp.descriptions.jek-joined-descriptors-rejected.experimental
+adhoc.camxes-exp.smaller.vuho-ends-sumti.experimental
+adhoc.camxes-exp.smaller.vuho-ends-sumti.zantufa
+adhoc.camxes-exp.smaller.niho-ends-text.experimental
+adhoc.camxes-exp.smaller.niho-ends-text.zantufa
+adhoc.camxes-exp.smaller.fa-selbri-after-gihek.experimental
+adhoc.camxes-exp.smaller.fa-selbri-after-gihek.zantufa
