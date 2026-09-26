@@ -121,10 +121,10 @@ type ObservedToken = (SetId, String, Option<String>, bool, usize, usize);
 /// What a nested parse's answer is remembered by (§4).
 #[derive(Clone, PartialEq, Eq, Hash)]
 enum NestedKey {
-    /// A short span: its rule, the original text it covers, and each
-    /// token's tags, text, phonemes, whether it is verbatim, and where its
-    /// source begins and ends from the span's start, which `text` of a part
-    /// of the span reads: everything its parse can observe.
+    /// A short span: its rule, the original text that holds its tokens'
+    /// sources, and each token's tags, text, phonemes, whether it is
+    /// verbatim, and where its source begins and ends in that text, which
+    /// `text` of a part of the span reads: everything its parse can observe.
     Content(u32, String, Vec<ObservedToken>),
     /// A long span: its place.
     Place(Place),
@@ -439,15 +439,20 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         if end - start > CONTENT_KEY_LIMIT {
             return NestedKey::Place((rule, base + start, base + end));
         }
-        let origin = if start < end { tokens[start].source.0 } else { 0 };
-        let observed = tokens[start..end]
+        // The text runs from the least source start to the greatest source
+        // end, which an inserted token or an empty part can put before the
+        // first token's start or after the last's.
+        let span = &tokens[start..end];
+        let low = span.iter().map(|token| token.source.0).min().unwrap_or(0);
+        let high = span.iter().map(|token| token.source.1).max().unwrap_or(0);
+        let observed = span
             .iter()
             .map(|token| {
                 let (from, to) = token.source;
-                (token.tags, token.text.clone(), token.phonemes.clone(), token.verbatim, from - origin, to - origin)
+                (token.tags, token.text.clone(), token.phonemes.clone(), token.verbatim, from - low, to - low)
             })
             .collect();
-        NestedKey::Content(rule, self.text(tokens, start, end), observed)
+        NestedKey::Content(rule, self.shared.source_text(low, high), observed)
     }
 
     /// Parses `tokens[start..end]` alone as `rule`: whether it is accepted,

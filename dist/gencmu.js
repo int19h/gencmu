@@ -863,14 +863,23 @@
    */
   function nestedKey(context, kind, rule, start, end) {
     if (end - start > CONTENT_KEY_LIMIT) return JSON.stringify(["at", kind, rule, start, end]);
-    // The span's text, and each token's tags, text, phonemes, and where it
-    // begins and ends in that text, which text() of a part of the span reads.
-    const base = start < end ? context.tokens[start].source[0] : 0;
+    // The text that holds every token's source, from the least start to the
+    // greatest end, which an inserted token or an empty part can put before
+    // the first token's start or after the last's; and each token's tags,
+    // text, phonemes, and where it begins and ends in that text, which text()
+    // of a part of the span reads.
+    let low = start < end ? context.tokens[start].source[0] : 0;
+    let high = low;
+    for (let index = start; index < end; index++) {
+      const [from, to] = context.tokens[index].source;
+      low = Math.min(low, from);
+      high = Math.max(high, to);
+    }
     /** @type {(string | number)[]} */
-    const key = ["of", kind, rule, textOf(context, start, end)];
+    const key = ["of", kind, rule, context.sourceText.slice(low, high).join("")];
     for (let index = start; index < end; index++) {
       const token = context.tokens[index];
-      key.push(tagKey(token.tags), token.text, token.phonemes || "", token.source[0] - base, token.source[1] - base);
+      key.push(tagKey(token.tags), token.text, token.phonemes || "", token.source[0] - low, token.source[1] - low);
     }
     return JSON.stringify(key);
   }

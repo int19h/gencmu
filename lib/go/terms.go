@@ -321,8 +321,8 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *ta
 }
 
 // spanContent is everything a nested parse of a span can observe: the
-// original text it covers, and each token's text, phonemes, and tags with
-// their strengths.
+// original text that holds its tokens' sources, and each token's text,
+// phonemes, tags with their strengths, and source.
 func (run *stageRun) spanContent(s spanVal) string {
 	var key strings.Builder
 	// Each field is written with its length before it, so that no two
@@ -332,20 +332,28 @@ func (run *stageRun) spanContent(s spanVal) string {
 		key.WriteByte(':')
 		key.WriteString(v)
 	}
-	field(run.spanText(s))
-	base := 0
+	// The text runs from the least source start to the greatest source end,
+	// which an inserted token or an empty part can put before the first
+	// token's start or after the last's.
+	low, high := 0, 0
 	if s.a < s.b {
-		base = run.toks[s.a].Source[0]
+		low = run.toks[s.a].Source[0]
+		high = low
 	}
+	for i := s.a; i < s.b; i++ {
+		low = min(low, run.toks[i].Source[0])
+		high = max(high, run.toks[i].Source[1])
+	}
+	field(string(run.ps.text[low:high]))
 	for i := s.a; i < s.b; i++ {
 		t := &run.toks[i]
 		field(t.Text)
 		field(t.Phonemes)
 		field(run.tagsets[i].key)
-		// Where the token begins and ends, from the span's start, which
-		// text() of a part of the span reads.
-		field(strconv.Itoa(t.Source[0] - base))
-		field(strconv.Itoa(t.Source[1] - base))
+		// Where the token begins and ends in that text, which text() of a
+		// part of the span reads.
+		field(strconv.Itoa(t.Source[0] - low))
+		field(strconv.Itoa(t.Source[1] - low))
 	}
 	return key.String()
 }

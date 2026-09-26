@@ -90,19 +90,24 @@ class StageContext:
         holds numbers where the other holds text."""
         if end - start > CONTENT_KEY_LIMIT:
             return (rule, start, end)
-        # Where each token begins and ends, from the span's start, which
-        # text() of a part of the span reads.
-        base = self.tokens[start].source[0] if start < end else 0
+        # The text runs from the least source start to the greatest source
+        # end, which an inserted token or an empty part can put before the
+        # first token's start or after the last's; and where each token
+        # begins and ends in that text, which text() of a part of the span
+        # reads.
+        sources = [self.tokens[index].source for index in range(start, end)]
+        low = min((source[0] for source in sources), default=0)
+        high = max((source[1] for source in sources), default=0)
         return (
             rule,
-            self.span_text(start, end),
+            self.text[low:high],
             tuple(
                 (
                     self.token_tags[index],
                     self.tokens[index].text,
                     self.tokens[index].phonemes,
-                    self.tokens[index].source[0] - base,
-                    self.tokens[index].source[1] - base,
+                    self.tokens[index].source[0] - low,
+                    self.tokens[index].source[1] - low,
                 )
                 for index in range(start, end)
             ),
