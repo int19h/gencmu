@@ -1,0 +1,24 @@
+{
+  "description": "Two tag sets are different whatever characters their tags hold: a token tagged with the one tag \"a\\u0001b\" and a token tagged \"a\" and \"b\" are told apart (engine §1).",
+  "grammar": "%rule text \"a\\u{1}b\" \"b\"",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "a\u0001b"
+      ]
+    },
+    {
+      "text": "y",
+      "tags": [
+        "a",
+        "b"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}
