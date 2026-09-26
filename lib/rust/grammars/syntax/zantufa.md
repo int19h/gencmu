@@ -95,6 +95,8 @@ A forethought termset may take further `gi` branches and end in `gi'i` (`zantufa
 
 A forethought sumti connection may take further `gi` branches and end in `gi'i` (`zantufa-connectives`), and `ra'oi` quotes a single word as a sumti, delimited by the word stage; the quote is unguarded.
 
+The experimental grammar reads descriptions as camxes-exp does, with a connected sumti or a forethought sentence inside. Zantufa's descriptions differ from those, and until the Zantufa dialect takes them from Zantufa 1.9999, this layer restates `sumti-5` and `sumti-tail` as they were. It restates `sumti` too, since Zantufa does not end a sumti with a bare `vu'o`.
+
 ```jbogenbau
 %redefine-rule sumti-4
   | sumti-5
@@ -121,6 +123,15 @@ A forethought sumti connection may take further `gi` branches and end in `gi'i` 
   | LAhOI anything #
   | MEhOI anything #
   | RAhOI anything #
+
+%redefine-rule sumti
+  sumti-1 [VUhO # (relative-clauses [sumti-connective sumti] | sumti-connective sumti)]
+
+%redefine-rule sumti-5
+  [quantifier] sumti-6 [relative-clauses] | quantifier selbri [KU] # [relative-clauses]
+
+%redefine-rule sumti-tail
+  [sumti-6 [relative-clauses]] sumti-tail-1 | relative-clauses sumti-tail-1
 
 %redefine-rule sumti-connective
   ek # | jehi # | joik # | VUhU #
@@ -245,7 +256,7 @@ A `sei` discursive contains a statement rather than a bare selbri (`zantufa-term
 
 A jek before `gi` is a gek, and `bo` may follow any `gi` gek, both unguarded; under `zantufa-connectives` the connective may come after `gi`, `gi je broda gi brode`.
 
-A tag may carry any sequence of two or more `na'e` and `se` prefixes before a simple tense atom, `se se pu`, `na'e na'e ca` (`zantufa-tags`). `zantufa-tag-prefixes` is defined so as not to overlap the flat `[NAhE] [SE]` forms of the experimental grammar, which keeps the two readings from competing.
+The experimental grammar reads a tag as camxes-exp does, as a flat run of atoms. Zantufa's tags differ from those. Until the Zantufa dialect takes them from Zantufa 1.9999, this layer restates the tags as they were, CLL's with these changes. `na'e [se] fa` and `se fa` are tags, and `fa` alone is a stag. `se` can prefix a time, space or CAhA tense, and a ROI word can follow a `vei` group. After a gihek, a selbri is not tagged by a bare `fa`. A tag may carry any sequence of two or more `na'e` and `se` prefixes before a simple tense atom (`zantufa-tags`): `se se pu`, `na'e na'e ca`. `zantufa-tag-prefixes` is defined so as not to overlap the flat `[NAhE] [SE]` forms, which keeps the two readings from competing.
 
 ```jbogenbau
 %redefine-rule gek
@@ -254,6 +265,29 @@ A tag may carry any sequence of two or more `na'e` and `se` prefixes before a si
   | jek GI # [BO #]
   | stag gik [BO #]
   | @zantufa-connectives? GI (joik | jek) # [BO #]
+
+%redefine-rule tag
+  tense-modal [joik-jek tense-modal] ...
+
+%redefine-rule stag
+  simple-tense-modal [(jek | joik) simple-tense-modal] ... | FA
+
+%redefine-rule tense-modal
+  simple-tense-modal # | FIhO # selbri [FEhU] #
+
+%redefine-rule simple-tense-modal
+  | [NAhE] [SE] BAI [NAI] [KI]
+  | [NAhE] [SE] ((time [space] | space [time]) & CAhA) [KI]
+  | NAhE [SE] FA
+  | SE FA
+  | KI
+  | CUhE
+
+%redefine-rule selbri-not-starting-with-ke
+  [tag] selbri-1-not-starting-with-ke
+
+%redefine-rule interval-property
+  (number | VEI # mex [VEhO] #) ROI [NAI] | TAhE [NAI] | ZAhO [NAI]
 
 %extend-rule simple-tense-modal
   @zantufa-tags? zantufa-tag-prefixes zantufa-tag-atom
@@ -268,7 +302,7 @@ A tag may carry any sequence of two or more `na'e` and `se` prefixes before a si
   FA | PU | ZI | ZEhA | VA | FAhA | VEhA | VIhA | CAhA | ZAhO | CUhE | KI
 ```
 
-Zantufa does not have four connective forms of the experimental grammar, and these rules restate them without those forms. An ek cannot follow a text-leading `.i`. `gu` followed by a joik or jek is not a guhek. `gi` followed by a word of JOI, JA or A is not a gihek. And `gi` with a stag cannot join bridi-tails before `bo` or `ke`.
+Zantufa does not have five forms of the experimental grammar, and these rules restate the grammar without them. An ek cannot follow a text-leading `.i`. `gu` followed by a joik or jek is not a guhek. `gi` followed by a word of JOI, JA or A is not a gihek. `gi` with a stag cannot join bridi-tails before `bo` or `ke`. And a bridi-tail after a connective has no terms before its selbri, since Zantufa has no JACU.
 
 ```jbogenbau
 %redefine-rule text-1
@@ -280,8 +314,14 @@ Zantufa does not have four connective forms of the experimental grammar, and the
 %redefine-rule gihek
   [NA] [SE] GIhA [NAI]
 
+%redefine-rule sentence
+  [terms] [CU # [terms]] bridi-tail
+
 %redefine-rule bridi-tail
   bridi-tail-1 [gihek [stag] KE # bridi-tail [KEhE] # tail-terms]
+
+%redefine-rule bridi-tail-1
+  bridi-tail-2 [bridi-tail-connective [CU #] bridi-tail-2-not-starting-with-ke tail-terms] ...
 
 %redefine-rule bridi-tail-2
   bridi-tail-3 [bridi-tail-connective [stag] BO # [CU #] bridi-tail-2 tail-terms]
