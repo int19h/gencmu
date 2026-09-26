@@ -862,13 +862,17 @@
    * @returns {string}
    */
   function nestedKey(context, kind, rule, start, end) {
-    if (end - start > CONTENT_KEY_LIMIT) return kind + "\u0001" + rule + "\u0001@" + start + "\u0001" + end;
-    let key = kind + "\u0001" + rule + "\u0001" + textOf(context, start, end);
+    if (end - start > CONTENT_KEY_LIMIT) return JSON.stringify(["at", kind, rule, start, end]);
+    // The span's text, and each token's tags, text, phonemes, and where it
+    // begins and ends in that text, which text() of a part of the span reads.
+    const base = start < end ? context.tokens[start].source[0] : 0;
+    /** @type {(string | number)[]} */
+    const key = ["of", kind, rule, textOf(context, start, end)];
     for (let index = start; index < end; index++) {
       const token = context.tokens[index];
-      key += "\u0001" + tagKey(token.tags) + "\u0002" + token.text + "\u0002" + (token.phonemes || "");
+      key.push(tagKey(token.tags), token.text, token.phonemes || "", token.source[0] - base, token.source[1] - base);
     }
-    return key;
+    return JSON.stringify(key);
   }
 
   /**

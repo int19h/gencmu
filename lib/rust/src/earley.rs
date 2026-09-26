@@ -115,12 +115,17 @@ type Place = (u32, usize, usize);
 /// input (§4).
 const CONTENT_KEY_LIMIT: usize = 64;
 
+/// What a nested parse can observe of one token of its span.
+type ObservedToken = (SetId, String, Option<String>, bool, usize, usize);
+
 /// What a nested parse's answer is remembered by (§4).
 #[derive(Clone, PartialEq, Eq, Hash)]
 enum NestedKey {
     /// A short span: its rule, the original text it covers, and each
-    /// token's tags, text and phonemes, everything its parse can observe.
-    Content(u32, String, Vec<(SetId, String, Option<String>)>),
+    /// token's tags, text, phonemes, whether it is verbatim, and where its
+    /// source begins and ends from the span's start, which `text` of a part
+    /// of the span reads: everything its parse can observe.
+    Content(u32, String, Vec<ObservedToken>),
     /// A long span: its place.
     Place(Place),
 }
@@ -434,8 +439,14 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         if end - start > CONTENT_KEY_LIMIT {
             return NestedKey::Place((rule, base + start, base + end));
         }
-        let observed =
-            tokens[start..end].iter().map(|token| (token.tags, token.text.clone(), token.phonemes.clone())).collect();
+        let origin = if start < end { tokens[start].source.0 } else { 0 };
+        let observed = tokens[start..end]
+            .iter()
+            .map(|token| {
+                let (from, to) = token.source;
+                (token.tags, token.text.clone(), token.phonemes.clone(), token.verbatim, from - origin, to - origin)
+            })
+            .collect();
         NestedKey::Content(rule, self.text(tokens, start, end), observed)
     }
 

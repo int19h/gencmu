@@ -1,6 +1,7 @@
 package gencmu
 
 import (
+	"strconv"
 	"strings"
 )
 
@@ -324,15 +325,27 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *ta
 // their strengths.
 func (run *stageRun) spanContent(s spanVal) string {
 	var key strings.Builder
-	key.WriteString(run.spanText(s))
+	// Each field is written with its length before it, so that no two
+	// contents give the same key, whatever characters the fields hold.
+	field := func(v string) {
+		key.WriteString(strconv.Itoa(len(v)))
+		key.WriteByte(':')
+		key.WriteString(v)
+	}
+	field(run.spanText(s))
+	base := 0
+	if s.a < s.b {
+		base = run.toks[s.a].Source[0]
+	}
 	for i := s.a; i < s.b; i++ {
 		t := &run.toks[i]
-		key.WriteByte(0)
-		key.WriteString(t.Text)
-		key.WriteByte(1)
-		key.WriteString(t.Phonemes)
-		key.WriteByte(1)
-		key.WriteString(run.tagsets[i].key)
+		field(t.Text)
+		field(t.Phonemes)
+		field(run.tagsets[i].key)
+		// Where the token begins and ends, from the span's start, which
+		// text() of a part of the span reads.
+		field(strconv.Itoa(t.Source[0] - base))
+		field(strconv.Itoa(t.Source[1] - base))
 	}
 	return key.String()
 }

@@ -90,10 +90,22 @@ class StageContext:
         holds numbers where the other holds text."""
         if end - start > CONTENT_KEY_LIMIT:
             return (rule, start, end)
+        # Where each token begins and ends, from the span's start, which
+        # text() of a part of the span reads.
+        base = self.tokens[start].source[0] if start < end else 0
         return (
             rule,
             self.span_text(start, end),
-            tuple((self.token_tags[index], self.tokens[index].text, self.tokens[index].phonemes) for index in range(start, end)),
+            tuple(
+                (
+                    self.token_tags[index],
+                    self.tokens[index].text,
+                    self.tokens[index].phonemes,
+                    self.tokens[index].source[0] - base,
+                    self.tokens[index].source[1] - base,
+                )
+                for index in range(start, end)
+            ),
         )
 
     def nested(self, rule: str, start: int, end: int) -> NestedAnswer:
