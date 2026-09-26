@@ -1,6 +1,6 @@
 # The CLL dialect, by its printed grammar <?features cll-cyrillic?>
 
-Lojban as *The Complete Lojban Language* describes it: the grammar printed in its chapter 21, the word forms of its chapters 3 and 4, and the selma'o its dictionary gives each cmavo. The printed grammar is normative here, with the repairs [the CLL grammar](../syntax/cll.md) lists: any parse it admits counts, and a text is accepted when it has one reading. Each stage is a grammar over the tokens the stage before it emitted; `docs/notation.md` explains the notation.
+Lojban as *The Complete Lojban Language* describes it. The dialect reads the grammar printed in its chapter 21 and the word forms of its chapters 3 and 4. It gives each cmavo the selma'o of the book's dictionary. The printed grammar is normative here, with the repairs [the CLL grammar](../syntax/cll.md) lists: any parse it admits counts, and a text is accepted when it has one reading. Each stage is a grammar over the tokens the stage before it emitted; `docs/notation.md` explains the notation.
 
 ## Stage 1: phonemes <?stage phonemes?>
 

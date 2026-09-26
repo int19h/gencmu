@@ -6,7 +6,7 @@ The rules state CLL 1.1's word forms precisely enough to implement them twice, a
 
 ## Consonants
 
-CLL 3.6 lists the permissible consonant pairs. A pair is never the same consonant twice, never a voiced and an unvoiced consonant together, and never two of `c j s z`. The pairs `cx`, `kx`, `xc`, `xk` and `mz` are forbidden too. The voiced consonants are `b d g v j z`, the unvoiced ones are `p t k f c s x`, and `l m n r` are neither. The `after-x` table for each consonant lists the consonants that may follow it, 179 pairs in all. CLL 3.7 lists the 48 pairs that may begin a word. A longer cluster may begin a borrowing if each adjacent pair in it is one of the 48 (CLL 4.7): `spraile` is a borrowing, but not `ktraile` or `trkaile`. `long-initial-run` is every such cluster of three consonants or more. CLL 3.7 forbids the triples `ndj ndz ntc nts`, except in a name.
+CLL 3.6 lists the permissible consonant pairs. A pair is never the same consonant twice, never a voiced and an unvoiced consonant together, and never two of `c j s z`. The pairs `cx`, `kx`, `xc`, `xk` and `mz` are forbidden too. The voiced consonants are `b d g v j z`, and the unvoiced ones are `p t k f c s x`. `l m n r` are neither. The `after-x` table for each consonant lists the consonants that may follow it, 179 pairs in all. CLL 3.7 lists the 48 pairs that may begin a word. A longer cluster may begin a borrowing if each adjacent pair in it is one of the 48 (CLL 4.7). So `spraile` is a borrowing, but not `ktraile` or `trkaile`. `long-initial-run` is every such cluster of three consonants or more. CLL 3.7 forbids the triples `ndj ndz ntc nts`, except in a name.
 
 ```jbogenbau
 %rule consonant
@@ -113,7 +113,7 @@ CLL 3.6 lists the permissible consonant pairs. A pair is never the same consonan
   [consonants] n-affricate [consonants]
 ```
 
-A permissible run is a run of consonants whose adjacent pairs are all permissible. A name may have such a run anywhere (CLL 3.7), and so may the middle of a borrowing (CLL 4.7). A run that ends in a consonant `x` is `x` alone, or a run that ends in a consonant that may precede `x`, followed by `x`. So `.tlaiv.` and `.ekstcat.` are names, but `.djeimz.` and `.bobb.` are not.
+A permissible run is a run of consonants whose adjacent pairs are all permissible. A name may have such a run anywhere (CLL 3.7), and so may the middle of a borrowing (CLL 4.7). A run that ends in a consonant `x` is `x` alone. Or it is a run that ends in a consonant that may precede `x`, followed by `x`. So `.tlaiv.` and `.ekstcat.` are names, but `.djeimz.` and `.bobb.` are not.
 
 ```jbogenbau
 %rule permissible-run
@@ -476,7 +476,7 @@ A permissible run is a run of consonants whose adjacent pairs are all permissibl
 
 ## Vowels
 
-A vowel of a word form is one of `a e i o u`, in either case. `y` is not one of them: it is a hyphen in a lujvo, a vowel of a name, a letter of a few cmavo, and hesitation. A capital vowel marks stress, and nothing else about the word changes with the case of a letter. The diphthongs of CLL 3.4 are the falling `ai ei oi au` and the rising `ia ie ii io iu ua ue ui uo uu`. The rising ones may stand only in names and borrowings, and in a cmavo only as the whole word. A name may also have `iy` and `uy`. A diphthong may have a capital on either letter or on both, and it then marks one stressed syllable.
+A vowel of a word form is one of `a e i o u`, in either case. `y` is not one of them. It is a hyphen in a lujvo, a vowel of a name, a letter of a few cmavo, and hesitation. A capital vowel marks stress, and nothing else about the word changes with the case of a letter. The diphthongs of CLL 3.4 are the falling `ai ei oi au` and the rising `ia ie ii io iu ua ue ui uo uu`. The rising ones may stand only in names and borrowings, and in a cmavo only as the whole word. A name may also have `iy` and `uy`. A diphthong may have a capital on either letter or on both, and it then marks one stressed syllable.
 
 ```jbogenbau
 %rule vowel
@@ -518,11 +518,11 @@ A vowel of a word form is one of `a e i o u`, in either case. `y` is not one of 
 
 ## Syllables and stress
 
-A run of vowels with no apostrophe or comma in it is grouped into syllables from the left (CLL 3.5). At each point, the next two vowels are one syllable if they form a diphthong that the word allows, and otherwise the next vowel is a syllable alone. So `briau` is `bria-u`, and `.meiin.` is `mei-in`. A name or a borrowing may have two vowels that form no diphthong, each its own syllable, as in `korea`.
+A run of vowels with no apostrophe or comma in it is grouped into syllables from the left (CLL 3.5). At each point, the next two vowels are one syllable if they form a diphthong that the word allows. Otherwise the next vowel is a syllable alone. So `briau` is `bria-u`, and `.meiin.` is `mei-in`. A name or a borrowing may have two vowels that form no diphthong, each its own syllable, as in `korea`.
 
 The stress of a word depends on its syllables. CLL 3.9 counts the syllables of `a e i o u` and their diphthongs. It does not count a syllable of `y`, `iy` or `uy`, or of a syllabic consonant. A syllabic consonant is still a consonant here, so it adds no syllable at all. A brivla is stressed on its penultimate counted syllable. If a capital vowel marks the stress, every capital vowel of the brivla must be in that syllable, and exactly one counted syllable follows it. So `BAjykla` is right, since the `y` is not counted, and `bAIkla` is right, since `aI` is one syllable. A capital `Y` never stands in a brivla.
 
-`brivla-scan` reads the letters of a brivla one syllable nucleus at a time, from the left, and it carries tags that say where the stress is. A nucleus is a vowel or a diphthong of a brivla, and a vowel may stand alone before another vowel only if the two form no diphthong. So the reading is unique, and it is CLL's grouping. The tags are:
+`brivla-scan` reads the letters of a brivla one syllable nucleus at a time, from the left. Its tags say where the stress is. A nucleus is a vowel or a diphthong of a brivla. A vowel may stand alone before another vowel only if the two form no diphthong. So the reading is unique, and it is CLL's grouping. The tags are:
 
 - `s0` while no capital vowel has been read, `s1` after the one marked nucleus, and `s2` after the marked nucleus and one more counted nucleus. A second marked nucleus, or a second counted nucleus after the marked one, leaves no `s` tag.
 - `n0`, `n1`, `n2` and `n3`, for no counted nucleus, one, two, and three or more.
@@ -566,7 +566,7 @@ So a brivla with marked stress has `s2`, and one without any capital vowel has `
   falling-diphthong | rising-diphthong
 ```
 
-A cmavo or a name may have capital vowels on any of its syllables, `Y` included (CLL 3.9 lets their stress fall anywhere). A name with no capital vowel is stressed on its penultimate counted syllable if it has two or more, on its only counted syllable if it has one, and nowhere if it has none. `name-scan` reads a name as `brivla-scan` reads a brivla, with the diphthongs a name allows. A `y` is a nucleus of its own, and never the first letter of a diphthong. Its tags are:
+A cmavo or a name may have capital vowels on any of its syllables, `Y` included (CLL 3.9 lets their stress fall anywhere). A name with no capital vowel is stressed on its penultimate counted syllable if it has two or more. It is stressed on its only counted syllable if it has one, and nowhere if it has none. `name-scan` reads a name as `brivla-scan` reads a brivla, with the diphthongs a name allows. A `y` is a nucleus of its own, and never the first letter of a diphthong. Its tags are:
 
 - `n0` to `n3`, as above.
 - `first-counted`, when the first nucleus is counted, and `first-marked`, when it has a capital vowel.
