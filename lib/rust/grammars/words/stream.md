@@ -5,7 +5,7 @@ This document opens the word stage, the second stage of every Lojban dialect: [C
 What a word looks like is not decided here. Other documents are stitched into the word stage with this one:
 
 - The word forms of one family, which define the three shapes this grammar reads, `cmavo-shape`, `brivla-shape` and `cmevla-shape`, and tag each with its pause properties. The CLL dialect stitches [shapes.md](shapes.md) and [cll.md](cll.md), which give the word forms of chapter 4 of *The Complete Lojban Language* as printed. The other dialects stitch [bpfk.md](bpfk.md), the definition effort's approved word-form grammar.
-- In the experimental and Zantufa dialects, [experimental.md](experimental.md) after `bpfk.md`. It changes the approved word forms as camxes-exp does.
+- In the experimental dialect, [experimental.md](experimental.md) after `bpfk.md`. It changes the approved word forms as camxes-exp does. In the Zantufa dialect, [zantufa.md](zantufa.md) after `bpfk.md`, which adds the pair `mz` as Zantufa does.
 - One lexicon, [lexicon-cll.md](lexicon-cll.md) or [lexicon-experimental.md](lexicon-experimental.md), which gives each cmavo its selma'o.
 
 The notation is explained in [the notation document](../../docs/notation.md). The stage's choice among parses, at the end of this document, is the mirror of the syntax stage's.
