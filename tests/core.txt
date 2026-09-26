@@ -749,3 +749,9 @@ adhoc.camxes-exp.mekso.lerfu-after-me-is-a-sumti.experimental
 adhoc.camxes-exp.mekso.lerfu-after-me-is-a-sumti.zantufa
 adhoc.camxes-exp.mekso.connected-lerfu-sumti-after-me.experimental
 adhoc.camxes-exp.mekso.connected-lerfu-sumti-after-me.zantufa
+adhoc.camxes-exp.tags.bare-fa-before-tuhe.experimental
+adhoc.camxes-exp.tags.bare-fa-before-tuhe.zantufa
+adhoc.camxes-exp.tags.bare-fa-before-bo-after-i.experimental
+adhoc.camxes-exp.tags.bare-fa-before-bo-after-i.zantufa
+adhoc.camxes-exp.tags.bare-fa-term-with-free-modifier.experimental
+adhoc.camxes-exp.tags.bare-fa-term-with-free-modifier.zantufa

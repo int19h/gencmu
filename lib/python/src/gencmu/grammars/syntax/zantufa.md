@@ -256,7 +256,7 @@ A `sei` discursive contains a statement rather than a bare selbri (`zantufa-term
 
 A jek before `gi` is a gek, and `bo` may follow any `gi` gek, both unguarded; under `zantufa-connectives` the connective may come after `gi`, `gi je broda gi brode`.
 
-The experimental grammar reads a tag as camxes-exp does, as a flat run of atoms. Zantufa's tags differ from those. Until the Zantufa dialect takes them from Zantufa 1.9999, this layer restates the tags as they were, CLL's with these changes. `na'e [se] fa` and `se fa` are tags, and `fa` alone is a stag. `se` can prefix a time, space or CAhA tense, and a ROI word can follow a `vei` group. After a gihek, a selbri is not tagged by a bare `fa`. A tag may carry any sequence of two or more `na'e` and `se` prefixes before a simple tense atom (`zantufa-tags`): `se se pu`, `na'e na'e ca`. `zantufa-tag-prefixes` is defined so as not to overlap the flat `[NAhE] [SE]` forms, which keeps the two readings from competing.
+The experimental grammar reads a tag as camxes-exp does, as a flat run of atoms. Zantufa's tags differ from those. Until the Zantufa dialect takes them from Zantufa 1.9999, this layer restates the tags as they were, CLL's with these changes. `na'e [se] fa` and `se fa` are tags, and `fa` alone is a stag. `se` can prefix a time, space or CAhA tense, and a ROI word can follow a `vei` group. A bare `fa` is not a tag here, so the layer also restates the rules that take it beside a tag: a tagged term, and a selbri, which a bare `fa` can tag except after a gihek. A tag may carry any sequence of two or more `na'e` and `se` prefixes before a simple tense atom (`zantufa-tags`): `se se pu`, `na'e na'e ca`. `zantufa-tag-prefixes` is defined so as not to overlap the flat `[NAhE] [SE]` forms, which keeps the two readings from competing.
 
 ```jbogenbau
 %redefine-rule gek
@@ -282,6 +282,12 @@ The experimental grammar reads a tag as camxes-exp does, as a flat run of atoms.
   | SE FA
   | KI
   | CUhE
+
+%redefine-rule tagged-term
+  tag (sumti | [KU] #) | FA # (sumti | [KU #])
+
+%redefine-rule selbri
+  [tag | FA #] selbri-1
 
 %redefine-rule selbri-not-starting-with-ke
   [tag] selbri-1-not-starting-with-ke

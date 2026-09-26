@@ -31,3 +31,16 @@ The dialect turns on two features, as camxes-exp always has them: `cbm`, the cme
 - [The experimental grammar](../syntax/experimental.md): what camxes-exp changes in it <?grammar?>
 
 The experimental grammar is greedy like CLL's but does not declare `elision-only`: it has ambiguities that are not about terminators, such as a bare `na` term beside a negated selbri, and those are settled by the greedy rule.
+
+## Where it reads texts differently from camxes-exp
+
+camxes-exp is the baseline of this dialect, not its limit. gencmu considers every parse that its grammars allow, and a PEG gives up the alternatives it does not backtrack into. So the dialect accepts texts that camxes-exp rejects only because its PEG committed to a first match. An example is `sei la alis cusku`, where camxes-exp reads `la alis cusku` as one description and has no selbri left. Where the grammar has two parses of a text, the layer settles the tie as camxes-exp's ordered choice does. Where camxes-exp states a lookahead, such as `!selbri` after a tag, the layer follows it.
+
+`sa` is the one construct that the dialect reads by a different rule. The word stage erases with `sa` left to right, as the Magic Words proposal says ([`../words/stream.md`](../words/stream.md)). A `sa` erases back to the last word of the selma'o of the word after it, or to the start of the text. camxes-exp tries to do the same inside its syntax grammar, with one `_sa` rule for each kind of construct, and it reads some texts differently:
+
+- `mi broda le brode sa ti` is `ti`, since `mi` is the last word of KOhA before the `sa`. camxes-exp reads `mi broda ti`.
+- `lo broda sa broda` is `lo broda`, and `mi broda sa brode` is `mi brode`. camxes-exp rejects both.
+- `mi broda gi'e klama da de di sa na gi'e prami` is rejected. No word of NA comes before the `sa`, so it erases back to the start of the text. What is left, `na gi'e prami`, is not a text. camxes-exp accepts the text.
+- `le le broda ku brode le broda sa sa le brodi` is rejected. The two `sa` words erase back to the second `le` before them, which leaves `le le brodi`. camxes-exp accepts the text.
+
+Among the corpus texts, 166 with `sa` are accepted here and rejected by camxes-exp, and 3 are rejected here and accepted by camxes-exp.
