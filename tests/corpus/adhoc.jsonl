@@ -973,3 +973,5 @@
 {"id":"adhoc.camxes-exp.tags.bare-fa-after-jai.experimental","text":"jai fa broda","dialect":"experimental","expect":"accept","verdict":"unique","words":["jai","fa","broda"],"brackets":"(jai fa broda)"}
 {"id":"adhoc.camxes-exp.mekso.lerfu-after-me-is-a-sumti.experimental","text":"mi me my","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","me","my"],"brackets":"(mi [me my])"}
 {"id":"adhoc.camxes-exp.mekso.lerfu-after-me-is-a-sumti.zantufa","text":"mi me my","dialect":"zantufa","expect":"accept","verdict":"unique","words":["mi","me","my"],"brackets":"(mi [me my])"}
+{"id":"adhoc.camxes-exp.mekso.connected-lerfu-sumti-after-me.experimental","text":"mi me my su'i ny me'u","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","me","my","su'i","ny","me'u"],"brackets":"(mi [me {my su'i ny} me'u])"}
+{"id":"adhoc.camxes-exp.mekso.connected-lerfu-sumti-after-me.zantufa","text":"mi me my su'i ny me'u","dialect":"zantufa","expect":"accept","verdict":"unique","words":["mi","me","my","su'i","ny","me'u"],"brackets":"(mi [me {my su'i ny} me'u])"}

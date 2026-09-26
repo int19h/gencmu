@@ -392,7 +392,7 @@ camxes-exp replaces CLL's mekso with its own, and the layer follows it (camxes-e
 - `bo` after an operator, with an optional tag, groups two operands tighter (`li pa su'i bo re`). There is no `bi'e`, and a forethought operator needs `pe'o`.
 - An operator can be a connective, a joik, jek or ek.
 - A quantifier is a whole mekso, `pa su'i re broda`. It cannot begin with a lerfu word, `la'e` or `na'e`, since there camxes-exp reads a sumti (its `!sumti_6`). camxes-exp also refuses a quantifier where a selbri begins (`!selbri`). The greedy choice among parses already reads `pa re moi broda` as the selbri `pa re moi broda`. So the layer needs no rule for that.
-- `me` takes a mekso as well as a sumti, a whole mekso takes `moi`, and `nu'a` takes a whole operator. After `me`, a lerfu string is a sumti and not a mekso, since camxes-exp tries the sumti first (`me my`).
+- `me` takes a mekso as well as a sumti, a whole mekso takes `moi`, and `nu'a` takes a whole operator. After `me`, a lerfu string is a sumti and not a mekso, since camxes-exp tries the sumti first (`me my`). The layer settles that tie as camxes-exp does. It does not copy the rejections of camxes-exp's PEG, which keeps a sumti once one matches: `me my su'i pa` is the mekso `my su'i pa`, although camxes-exp rejects the text.
 
 After an elided `boi`, a number or lerfu string is followed by `free-after-elided-boi`, defined under "Free modifiers", and not by a plain `#`.
 
