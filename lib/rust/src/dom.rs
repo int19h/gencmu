@@ -5,7 +5,7 @@
 use crate::json::{write_str, Json};
 
 /// The DOM format version (`docs/output.md`).
-pub(crate) const DOM_FORMAT: i64 = 6;
+pub(crate) const DOM_FORMAT: i64 = 7;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Dom {
@@ -397,7 +397,7 @@ pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
         || dom.get("rules").and_then(Json::as_array).is_none()
         || dom.get("directives").and_then(Json::as_array).is_none()
     {
-        return Some("not a DOM of format 6");
+        return Some("not a DOM of format 7");
     }
     for directive in dom.get("directives").and_then(Json::as_array).unwrap_or(&[]) {
         let args = directive.get("args").and_then(Json::as_array);
@@ -681,7 +681,7 @@ pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
                         },
                         Some("lowercase") => matches!(args, [string] if is_string_json(string)),
                         Some(
-                            "phonemes" | "text" | "classes" | "words" | "head" | "tail" | "last" | "from" | "after",
+                            "phonemes" | "text" | "classes" | "runs" | "head" | "tail" | "last" | "from" | "after",
                         ) => matches!(args, [span] if is_span_json(span)),
                         // `matches`, `begins` and `initial` are conditions,
                         // never terms.

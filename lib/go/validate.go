@@ -200,7 +200,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		isRule := func(a *domTerm) bool { return a != nil && a.Kind == tmRule && a.Str != "" }
 		var ok bool
 		switch t.Str {
-		case "phonemes", "text", "words", "classes", "head", "tail", "last", "from", "after":
+		case "phonemes", "text", "runs", "classes", "head", "tail", "last", "from", "after":
 			ok = len(args) == 1 && isSpanShape(args[0])
 		case "tags":
 			ok = (len(args) == 1 && isSpanShape(args[0])) || (len(args) == 2 && isSpanShape(args[0]) && isRule(args[1]))

@@ -230,7 +230,7 @@ CLL 19.10 to 19.13. A quote is decided at this stage because the words inside it
 %conditions
   "onset" ∈ tags($w),
   "onset" ∉ tags($v),
-  words($g) = ∅ ∨ "BU" ∉ tags($w, lexicon)
+  runs($g) = ∅ ∨ "BU" ∉ tags($w, lexicon)
 %emits
   $m, $w <"word">, $v <"word">, $n <"word">
 
@@ -266,10 +266,10 @@ CLL 19.10 to 19.13. A quote is decided at this stage because the words inside it
   tags($m) ∪ "onset"
 %conditions
   phonemes($open) = phonemes($close),
-  phonemes($open) ∉ words($content),
+  phonemes($open) ∉ runs($content),
   "onset" ∈ tags($open),
   phonemes($o) = phonemes($close),
-  phonemes($o) ∉ words($content),
+  phonemes($o) ∉ runs($content),
   "onset" ∉ tags($o)
 %emits
   $m, $open <"word">, $o <"word">, $content <"foreign-text">, $close <"word">

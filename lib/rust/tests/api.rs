@@ -443,11 +443,11 @@ fn an_and_of_more_than_sixteen_items_is_an_error() {
     let mut sources = single("%ambiguity-resolution greedy\n%rule text A");
     let refs: Vec<String> = (0..64).map(|index| format!("{{\"ref\":\"A{index}\"}}")).collect();
     let dom = format!(
-        "{{\"format\":6,\"rules\":[{{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{{\"guards\":[],\"expr\":{{\"and\":[{}]}}}}],\"conditions\":[],\"at\":[4,1]}}],\"directives\":[{{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[3,1]}}]}}",
+        "{{\"format\":7,\"rules\":[{{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{{\"guards\":[],\"expr\":{{\"and\":[{}]}}}}],\"conditions\":[],\"at\":[4,1]}}],\"directives\":[{{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[3,1]}}]}}",
         refs.join(",")
     );
     let compiled = format!(
-        "{{\"format\":6,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
+        "{{\"format\":7,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
         gencmu::tools::bootstrap_hash(),
         gencmu::tools::fnv1a64(&sources["g.md"])
     );
@@ -467,11 +467,11 @@ fn a_corrupt_cache_is_a_miss_not_an_abort() {
         for compiled in [
             format!("{}{}", "[".repeat(10_000), "]".repeat(10_000)),
             format!(
-                "{{\"format\":6,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{deep_dom}}}}}}}",
+                "{{\"format\":7,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{deep_dom}}}}}}}",
                 gencmu::tools::bootstrap_hash()
             ),
             format!(
-                "{{\"format\":6,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{{\"rules\":7}}}}}}}}",
+                "{{\"format\":7,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{{\"rules\":7}}}}}}}}",
                 gencmu::tools::bootstrap_hash()
             ),
             "not JSON".to_string(),

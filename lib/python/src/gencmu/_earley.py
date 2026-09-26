@@ -336,9 +336,9 @@ class Evaluator:
                 return self.phonemes(span[0], span[1])
             if name == "text":
                 return self.context.span_text(span[0], span[1])
-            if name == "words":
-                # The words between pauses, each a strong tag (engine §5).
-                return {word: True for word in self.phonemes(span[0], span[1]).split(PAUSE) if word}
+            if name == "runs":
+                # The runs between pauses, each a strong tag (engine §5).
+                return {run: True for run in self.phonemes(span[0], span[1]).split(PAUSE) if run}
             if name == "tags":
                 return dict(self.span_tags(span))
             if name == "classes":
