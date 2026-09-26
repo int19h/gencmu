@@ -1,3 +1,4 @@
+import { Sources } from "./tokens.js";
 import type { Argument, Condition, Edge, Expectation, LoweredGrammar, Production, Scope, Slot, TagSet, TermValue } from "./types.js";
 import type { Token } from "./tokens.js";
 import type { UnicodeTable } from "./unicode.js";
@@ -52,6 +53,8 @@ export declare class TagInterner {
 export declare class ParseContext {
     lowered: LoweredGrammar;
     tokens: Token[];
+    /** Where each run of the tokens lies in the text (engine §1). */
+    sources: Sources;
     sourceText: string[];
     unicode: UnicodeTable;
     interner: TagInterner;

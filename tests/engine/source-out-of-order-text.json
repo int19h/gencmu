@@ -1,0 +1,16 @@
+{
+  "description": "text() of a span whose tokens are out of text order is the text over their source, from the least source start among them to the greatest source end (engine §1, §10). The second stage emits X[1,1) Y[0,0) Z[1,1) for `a` and X[2,2) Y[1,1) Z[2,2) for `b`, so X Y ends before it starts. text() of X Y is `a` in the first triple and `b` in the second.",
+  "documents": {
+    "p.md": "## Letters <?stage letters?>\n\n- [a](a.md) <?grammar?>\n\n## Pairs <?stage pairs?>\n\n- [b](b.md) <?grammar?>\n\n## Triples <?stage triples?>\n\n- [c](c.md) <?grammar?>\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text letter letter\n%rule letter char %emits $ <\"A\">, $ <\"A\">\n%rule char \"a\" | \"b\"\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text pair pair\n%rule pair prefix edge\n%rule prefix A %emits \"X\"\n%rule edge $n(nothing) A %emits \"Y\", $n <\"Z\">\n%rule nothing ε\n```\n",
+    "c.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text first second\n%rule first $q(xy) Z\n%conditions text($q) = \"a\"\n%rule second $q(xy) Z\n%conditions text($q) = \"b\"\n%rule xy X Y\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "ab",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -22,6 +22,26 @@ export declare class Token {
      */
     constructor(tags: TagSet, span: Span, source: Span, text: string, phonemes: string | null, insertedBy: string | undefined, verbatim?: boolean);
 }
+export declare class Sources {
+    tokens: Token[];
+    /**
+     * Made at the first question: null when the tokens are in order.
+     * @type {{lows: number[][], highs: number[][]} | null | undefined}
+     */
+    table: {
+        lows: number[][];
+        highs: number[][];
+    } | null | undefined;
+    /** @param {Token[]} tokens */
+    constructor(tokens: Token[]);
+    /**
+     * The source of tokens [start, end), which must not be empty.
+     * @param {number} start
+     * @param {number} end
+     * @returns {Span}
+     */
+    of(start: number, end: number): Span;
+}
 /**
  * @param {string} text
  * @param {UnicodeTable} unicode

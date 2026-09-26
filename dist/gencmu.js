@@ -131,9 +131,137 @@
     return result;
   }
 
+  // ---- tokens.js
+  // Tokens (engine §1): what every stage reads and writes.
+
+
+
+  /** @import { TagSet, Span } from "./types.js" */
+  /** @import { UnicodeTable } from "./unicode.js" */
+
+  class Token {
+    /**
+     * @param {TagSet} tags
+     * @param {Span} span the tokens of the stage before it this token covers
+     * @param {Span} source the code points of the text it covers
+     * @param {string} text the text it covers, as written
+     * @param {string | null} phonemes what it sounds like
+     * @param {string | undefined} insertedBy the rule that inserted it, for a
+     *   token no text stands for
+     * @param {boolean} [verbatim] whether it sounds like its text (engine §11)
+     */
+    constructor(tags, span, source, text, phonemes, insertedBy, verbatim = false) {
+      this.tags = tags;
+      this.span = span;
+      this.source = source;
+      this.text = text;
+      this.phonemes = phonemes;
+      this.insertedBy = insertedBy;
+      this.verbatim = verbatim;
+    }
+  }
+
+  // The source of a run of tokens (engine §1): from the least source start
+  // among them to the greatest source end. Tokens usually lie in the order of
+  // their sources, and then that is the first token's start and the last
+  // token's end. Otherwise a table of the least start and the greatest end of
+  // every run of a power of two tokens answers without a scan, so that the
+  // nested nodes of a long left-recursive rule cost no more than its tokens.
+  class Sources {
+    /** @param {Token[]} tokens */
+    constructor(tokens) {
+      this.tokens = tokens;
+      /**
+       * Made at the first question: null when the tokens are in order.
+       * @type {{lows: number[][], highs: number[][]} | null | undefined}
+       */
+      this.table = undefined;
+    }
+
+    /**
+     * The source of tokens [start, end), which must not be empty.
+     * @param {number} start
+     * @param {number} end
+     * @returns {Span}
+     */
+    of(start, end) {
+      if (this.table === undefined) this.table = sourceTable(this.tokens);
+      if (this.table === null) return [this.tokens[start].source[0], this.tokens[end - 1].source[1]];
+      // Two runs of a power of two tokens cover the span between them.
+      const level = 31 - Math.clz32(end - start);
+      const other = end - (1 << level);
+      const lows = this.table.lows[level];
+      const highs = this.table.highs[level];
+      return [Math.min(lows[start], lows[other]), Math.max(highs[start], highs[other])];
+    }
+  }
+
+  /**
+   * @param {Token[]} tokens
+   * @returns {{lows: number[][], highs: number[][]} | null}
+   */
+  function sourceTable(tokens) {
+    let ordered = true;
+    for (let index = 1; index < tokens.length && ordered; index++) {
+      const before = tokens[index - 1].source;
+      const after = tokens[index].source;
+      ordered = before[0] <= after[0] && before[1] <= after[1];
+    }
+    if (ordered) return null;
+    // lows[k][i] is the least start of tokens [i, i + 2^k), and highs[k][i]
+    // the greatest end.
+    const lows = [tokens.map((token) => token.source[0])];
+    const highs = [tokens.map((token) => token.source[1])];
+    for (let width = 1; 2 * width <= tokens.length; width *= 2) {
+      const low = lows[lows.length - 1];
+      const high = highs[highs.length - 1];
+      /** @type {number[]} */
+      const nextLow = [];
+      /** @type {number[]} */
+      const nextHigh = [];
+      for (let index = 0; index + 2 * width <= tokens.length; index++) {
+        nextLow.push(Math.min(low[index], low[index + width]));
+        nextHigh.push(Math.max(high[index], high[index + width]));
+      }
+      lows.push(nextLow);
+      highs.push(nextHigh);
+    }
+    return { lows, highs };
+  }
+
+  // The first stage's input: one token per code point, tagged with the
+  // character, strong, and its class, weak.
+  /**
+   * @param {string} text
+   * @param {UnicodeTable} unicode
+   * @returns {Token[]}
+   */
+  function characterTokens(text, unicode) {
+    const tokens = [];
+    let index = 0;
+    for (const character of text) {
+      const tags = tagSet([[character, true]]);
+      const kind = unicode.classOf(/** @type {number} */ (character.codePointAt(0)));
+      if (!tags.has(kind)) tags.set(kind, false);
+      tokens.push(new Token(tags, [index, index + 1], [index, index + 1], character, null, undefined));
+      index++;
+    }
+    return tokens;
+  }
+
+  // A text's code points, for slicing by code point positions.
+  /**
+   * @param {string} text
+   * @returns {string[]}
+   */
+  function codePoints(text) {
+    return [...text];
+  }
+
   // ---- earley.js
   // Recognition (engine §4) and the terms and conditions it evaluates
   // (engine §10).
+
 
 
 
@@ -198,6 +326,8 @@
     constructor(lowered, tokens, sourceText, unicode) {
       this.lowered = lowered;
       this.tokens = tokens;
+      /** Where each run of the tokens lies in the text (engine §1). */
+      this.sources = new Sources(tokens);
       this.sourceText = sourceText;
       this.unicode = unicode;
       this.interner = new TagInterner();
@@ -685,8 +815,7 @@
    */
   function textOf(context, start, end) {
     if (start >= end) return "";
-    const from = context.tokens[start].source[0];
-    const to = context.tokens[end - 1].source[1];
+    const [from, to] = context.sources.of(start, end);
     return context.sourceText.slice(from, to).join("");
   }
 
@@ -863,18 +992,10 @@
    */
   function nestedKey(context, kind, rule, start, end) {
     if (end - start > CONTENT_KEY_LIMIT) return JSON.stringify(["at", kind, rule, start, end]);
-    // The text that holds every token's source, from the least start to the
-    // greatest end, which an inserted token or an empty part can put before
-    // the first token's start or after the last's; and each token's tags,
+    // The text over the span's source (engine §1), and each token's tags,
     // text, phonemes, and where it begins and ends in that text, which text()
     // of a part of the span reads.
-    let low = start < end ? context.tokens[start].source[0] : 0;
-    let high = low;
-    for (let index = start; index < end; index++) {
-      const [from, to] = context.tokens[index].source;
-      low = Math.min(low, from);
-      high = Math.max(high, to);
-    }
+    const [low, high] = start < end ? context.sources.of(start, end) : [0, 0];
     /** @type {(string | number)[]} */
     const key = ["of", kind, rule, context.sourceText.slice(low, high).join("")];
     for (let index = start; index < end; index++) {
@@ -4022,65 +4143,6 @@
     };
   }
 
-  // ---- tokens.js
-  // Tokens (engine §1): what every stage reads and writes.
-
-
-
-  /** @import { TagSet, Span } from "./types.js" */
-  /** @import { UnicodeTable } from "./unicode.js" */
-
-  class Token {
-    /**
-     * @param {TagSet} tags
-     * @param {Span} span the tokens of the stage before it this token covers
-     * @param {Span} source the code points of the text it covers
-     * @param {string} text the text it covers, as written
-     * @param {string | null} phonemes what it sounds like
-     * @param {string | undefined} insertedBy the rule that inserted it, for a
-     *   token no text stands for
-     * @param {boolean} [verbatim] whether it sounds like its text (engine §11)
-     */
-    constructor(tags, span, source, text, phonemes, insertedBy, verbatim = false) {
-      this.tags = tags;
-      this.span = span;
-      this.source = source;
-      this.text = text;
-      this.phonemes = phonemes;
-      this.insertedBy = insertedBy;
-      this.verbatim = verbatim;
-    }
-  }
-
-  // The first stage's input: one token per code point, tagged with the
-  // character, strong, and its class, weak.
-  /**
-   * @param {string} text
-   * @param {UnicodeTable} unicode
-   * @returns {Token[]}
-   */
-  function characterTokens(text, unicode) {
-    const tokens = [];
-    let index = 0;
-    for (const character of text) {
-      const tags = tagSet([[character, true]]);
-      const kind = unicode.classOf(/** @type {number} */ (character.codePointAt(0)));
-      if (!tags.has(kind)) tags.set(kind, false);
-      tokens.push(new Token(tags, [index, index + 1], [index, index + 1], character, null, undefined));
-      index++;
-    }
-    return tokens;
-  }
-
-  // A text's code points, for slicing by code point positions.
-  /**
-   * @param {string} text
-   * @returns {string[]}
-   */
-  function codePoints(text) {
-    return [...text];
-  }
-
   // ---- stage.js
   // Running one stage: recognition, the choice of a parse, the result tree
   // (engine §12), emission (engine §11) and elision-only (engine §7).
@@ -4269,6 +4331,9 @@
       const isSynthetic = new Set(synthetic);
       /** @type {(index: number) => number} */
       const toOriginal = (index) => index - synthetic.filter((position) => position < index).length;
+      // A node's source is taken again over the original input, since the
+      // synthetic terminators have sources too.
+      const original = new Sources(tokens);
       /** @type {(node: ResultNode) => ResultNode} */
       const remap = (root) => foldTree(root,
         /** @returns {ResultNode} */
@@ -4278,10 +4343,15 @@
             return { kind: "elided", terminal: node.terminal, span: [at, at], source: node.source };
           }
           if (node.kind === "token") return { ...node, token: toOriginal(node.token), span: [toOriginal(node.span[0]), toOriginal(node.span[0]) + 1] };
-          return { ...node, span: [toOriginal(node.span[0]), toOriginal(node.span[0])] };
+          const at = toOriginal(node.span[0]);
+          return { ...node, span: [at, at], source: sourceOf(original, at, at) };
         },
         /** @returns {ResultNode} */
-        (node, children) => ({ ...node, span: [toOriginal(node.span[0]), toOriginal(node.span[1])], children }));
+        (node, children) => {
+          const start = toOriginal(node.span[0]);
+          const end = toOriginal(node.span[1]);
+          return { ...node, span: [start, end], source: sourceOf(original, start, end), children };
+        });
       return [ranking.chosen, /** @type {import("./types.js").Rope} */ (ranking.second)].map((rope) => remap(resultTree(derivationTree(rope), context)[0]));
     }
   }
@@ -4308,18 +4378,20 @@
     return tokens.length ? tokens[0].source[0] : 0;
   }
 
+  // The source of tokens [start, end): the source of the tokens (engine §1),
+  // or, for an empty span, the point where it lies (engine §12).
   /**
-   * @param {Token[]} tokens
+   * @param {Sources} sources
    * @param {number} start
    * @param {number} end
    * @returns {Span}
    */
-  function sourceOf(tokens, start, end) {
+  function sourceOf(sources, start, end) {
     if (start >= end) {
-      const position = emptySource(tokens, start);
+      const position = emptySource(sources.tokens, start);
       return [position, position];
     }
-    return [tokens[start].source[0], tokens[end - 1].source[1]];
+    return sources.of(start, end);
   }
 
   /**
@@ -4388,7 +4460,6 @@
    * @returns {import("./types.js").ParseWarning[]}
    */
   function warningsOf(root, context, features, stage) {
-    const tokens = context.tokens;
     /** @type {import("./types.js").ParseWarning[]} */
     const warnings = [];
     /** @type {Derivation[]} */
@@ -4399,7 +4470,7 @@
       if (!production.helper) {
         for (const feature of production.warnings) {
           if (features.has(feature)) {
-            warnings.push({ stage, feature, rule: production.lhs, span: [node.start, node.end], source: sourceOf(tokens, node.start, node.end) });
+            warnings.push({ stage, feature, rule: production.lhs, span: [node.start, node.end], source: sourceOf(context.sources, node.start, node.end) });
           }
         }
       }
@@ -4475,7 +4546,7 @@
       const frame = stack[stack.length - 1];
       const node = frame.node;
       if ("read" in node) {
-        finish([{ kind: "token", terminal: node.read.terminal, token: node.read.token, span: [node.start, node.end], source: sourceOf(tokens, node.start, node.end) }]);
+        finish([{ kind: "token", terminal: node.read.terminal, token: node.read.token, span: [node.start, node.end], source: sourceOf(context.sources, node.start, node.end) }]);
         continue;
       }
       const production = node.production;
@@ -4499,7 +4570,7 @@
         kind: "rule",
         rule: production.lhs,
         span: [node.start, node.end],
-        source: sourceOf(tokens, node.start, node.end),
+        source: sourceOf(context.sources, node.start, node.end),
         tags: nodeTags(node, context),
         children: frame.out,
       }]);
@@ -4600,7 +4671,7 @@
       if (node.start === node.end) return new Token(tags, [node.start, node.end], [before, before], "", "", undefined, true);
       // It always holds its own tokens' sources, which the tokens next to it
       // may share.
-      const own = sourceOf(tokens, node.start, node.end);
+      const own = sourceOf(context.sources, node.start, node.end);
       const start = widenedEnds.has(node.start) ? own[0] : Math.min(own[0], before);
       const after = node.end < tokens.length ? tokens[node.end].source[0] : context.sourceText.length;
       const end = Math.max(own[1], after);
@@ -4613,7 +4684,7 @@
       const only = tokens[node.start];
       return new Token(tags, [node.start, node.end], [only.source[0], only.source[1]], only.text, only.text, undefined, true);
     }
-    const source = sourceOf(tokens, node.start, node.end);
+    const source = sourceOf(context.sources, node.start, node.end);
     const phonemes = phoneme !== null ? phoneme : spoken(node, context);
     return new Token(tags, [node.start, node.end], source, context.sourceText.slice(source[0], source[1]).join(""), phonemes, undefined);
   }
@@ -4628,7 +4699,7 @@
    */
   function insertedToken(tag, at, node, context, owner) {
     const tokens = context.tokens;
-    const position = at > node.start ? tokens[at - 1].source[1] : sourceOf(tokens, node.start, node.end)[0];
+    const position = at > node.start ? tokens[at - 1].source[1] : sourceOf(context.sources, node.start, node.end)[0];
     const tags = strongTag(tag);
     const phoneme = phonemeTag(tags);
     return new Token(tags, [at, at], [position, position], "", phoneme !== null ? phoneme : "", owner);

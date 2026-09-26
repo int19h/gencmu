@@ -1,0 +1,139 @@
+{
+  "description": "A node and a warning over tokens out of text order have the tokens' source, from the least source start among them to the greatest source end (engine §1, §12). The second stage emits X[1,1) Y[0,0) Z[1,1) for `a` and X[2,2) Y[1,1) Z[2,2) for `b`, so X Y ends before it starts.",
+  "documents": {
+    "p.md": "## Letters <?stage letters?>\n\n- [a](a.md) <?grammar?>\n\n## Pairs <?stage pairs?>\n\n- [b](b.md) <?grammar?>\n\n## Triples <?stage triples?>\n\n- [c](c.md) <?grammar?>\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text letter letter\n%rule letter char %emits $ <\"A\">, $ <\"A\">\n%rule char \"a\" | \"b\"\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text pair pair\n%rule pair prefix edge\n%rule prefix A %emits \"X\"\n%rule edge $n(nothing) A %emits \"Y\", $n <\"Z\">\n%rule nothing ε\n```\n",
+    "c.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text triple triple\n%rule triple xy Z\n%rule xy @w! X Y\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "ab",
+  "options": {
+    "features": [
+      "w"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          6
+        ],
+        "source": [
+          0,
+          2
+        ],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "triple",
+            "span": [
+              0,
+              3
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "xy",
+                "span": [
+                  0,
+                  2
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "Z",
+                "span": [
+                  2,
+                  3
+                ],
+                "source": [
+                  1,
+                  1
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "triple",
+            "span": [
+              3,
+              6
+            ],
+            "source": [
+              1,
+              2
+            ],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "xy",
+                "span": [
+                  3,
+                  5
+                ],
+                "source": [
+                  1,
+                  2
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "Z",
+                "span": [
+                  5,
+                  6
+                ],
+                "source": [
+                  2,
+                  2
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "warnings": [
+      {
+        "stage": "triples",
+        "feature": "w",
+        "rule": "xy",
+        "span": [
+          0,
+          2
+        ],
+        "source": [
+          0,
+          1
+        ]
+      },
+      {
+        "stage": "triples",
+        "feature": "w",
+        "rule": "xy",
+        "span": [
+          3,
+          5
+        ],
+        "source": [
+          1,
+          2
+        ]
+      }
+    ]
+  }
+}

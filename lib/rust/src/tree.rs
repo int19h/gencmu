@@ -98,13 +98,78 @@ impl<'a> TreeContext<'a> {
     }
 }
 
-/// The source range of a span of tokens: from the first's start to the
-/// last's end, or, for an empty span, empty at the end of the token before.
-pub(crate) fn source_of(tokens: &[&Tok], start: usize, end: usize) -> std::ops::Range<usize> {
+/// Where runs of tokens lie in the text. The source of a run is from the
+/// least source start among its tokens to the greatest source end (§1).
+/// Tokens usually lie in the order of their sources, and then that is the
+/// first token's start and the last token's end. Otherwise a table of the
+/// least start and the greatest end of every run of a power of two tokens
+/// answers without a scan, so that the nested nodes of a long
+/// left-recursive rule cost no more than its tokens.
+pub(crate) struct Sources {
+    /// Each token's source.
+    pairs: Vec<(usize, usize)>,
+    /// `lows[k][i]` is the least source start of tokens `i..i + 2^k`, and
+    /// `highs[k][i]` the greatest end; both are empty when the tokens are
+    /// in order.
+    lows: Vec<Vec<usize>>,
+    highs: Vec<Vec<usize>>,
+}
+
+impl Sources {
+    pub(crate) fn new<'t>(tokens: impl IntoIterator<Item = &'t Tok>) -> Sources {
+        let pairs: Vec<(usize, usize)> = tokens.into_iter().map(|token| token.source).collect();
+        let mut sources = Sources { pairs, lows: Vec::new(), highs: Vec::new() };
+        let pairs = &sources.pairs;
+        if pairs.windows(2).all(|two| two[0].0 <= two[1].0 && two[0].1 <= two[1].1) {
+            return sources;
+        }
+        let mut low: Vec<usize> = pairs.iter().map(|pair| pair.0).collect();
+        let mut high: Vec<usize> = pairs.iter().map(|pair| pair.1).collect();
+        let mut width = 1;
+        while 2 * width <= pairs.len() {
+            let count = pairs.len() - 2 * width + 1;
+            let next_low = (0..count).map(|index| low[index].min(low[index + width])).collect();
+            let next_high = (0..count).map(|index| high[index].max(high[index + width])).collect();
+            sources.lows.push(std::mem::replace(&mut low, next_low));
+            sources.highs.push(std::mem::replace(&mut high, next_high));
+            width *= 2;
+        }
+        sources.lows.push(low);
+        sources.highs.push(high);
+        sources
+    }
+
+    /// The source of tokens `start..end`, which must not be empty.
+    pub(crate) fn of(&self, start: usize, end: usize) -> (usize, usize) {
+        if self.lows.is_empty() {
+            return (self.pairs[start].0, self.pairs[end - 1].1);
+        }
+        // Two runs of a power of two tokens cover the span between them.
+        let level = (usize::BITS - 1 - (end - start).leading_zeros()) as usize;
+        let other = end - (1 << level);
+        let (lows, highs) = (&self.lows[level], &self.highs[level]);
+        (lows[start].min(lows[other]), highs[start].max(highs[other]))
+    }
+
+    /// Where an empty span at token index `at` lies: the source end of the
+    /// token before it, or the source start of the first token (§12).
+    pub(crate) fn empty(&self, at: usize) -> usize {
+        if at > 0 {
+            self.pairs[at - 1].1
+        } else {
+            self.pairs.first().map_or(0, |pair| pair.0)
+        }
+    }
+}
+
+/// The source range of a span of tokens: their source (§1), or, for an
+/// empty span, empty where it lies (§12).
+pub(crate) fn source_of(sources: &Sources, start: usize, end: usize) -> std::ops::Range<usize> {
     if start < end {
-        tokens[start].source.0..tokens[end - 1].source.1
+        let (from, to) = sources.of(start, end);
+        from..to
     } else {
-        let at = if start > 0 { tokens[start - 1].source.1 } else { tokens.first().map_or(0, |token| token.source.0) };
+        let at = sources.empty(start);
         at..at
     }
 }
@@ -112,7 +177,7 @@ pub(crate) fn source_of(tokens: &[&Tok], start: usize, end: usize) -> std::ops::
 /// Builds the result's tree (§12): helpers and the prefixes of trailing
 /// repetitions spliced out, absent elidable optionals as elided nodes.
 pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
-    let originals = context.original_tokens();
+    let originals = Sources::new(context.original_tokens());
     let mut fragments: Vec<Vec<Node>> = (0..tree.nodes.len()).map(|_| Vec::new()).collect();
     for index in (0..tree.nodes.len()).rev() {
         let node = &tree.nodes[index];
@@ -195,7 +260,7 @@ pub(crate) fn warnings_of(
     features: &BTreeSet<String>,
     stage: &str,
 ) -> Vec<Warning> {
-    let tokens: Vec<&Tok> = tokens.iter().collect();
+    let sources = Sources::new(tokens);
     let mut warnings = Vec::new();
     // Each node with whether the tree splices it out as a prefix.
     let mut stack = vec![(0u32, false)];
@@ -213,7 +278,7 @@ pub(crate) fn warnings_of(
                     feature: feature.clone(),
                     rule: g.rules[production.rule as usize].name.clone(),
                     span: start as usize..end as usize,
-                    source: source_of(&tokens, start as usize, end as usize),
+                    source: source_of(&sources, start as usize, end as usize),
                 });
             }
         }
@@ -302,22 +367,13 @@ fn spoken(g: &Lowered, tree: &ITree, tokens: &[Tok], root: u32) -> String {
     pieces.concat()
 }
 
-/// The source position of an empty span at the token index `at`: the
-/// source end of the token before it, or the source start of the first.
-fn empty_source(tokens: &[Tok], at: u32) -> usize {
-    if at > 0 {
-        tokens[at as usize - 1].source.1
-    } else {
-        tokens.first().map_or(0, |token| token.source.0)
-    }
-}
-
 /// The token that covers node `index` with the given tags (§5, §11).
 /// `widened_ends` holds where the widened tokens emitted before it end.
 fn cover(
     recognizer: &Recognizer,
     tree: &ITree,
     tokens: &[Tok],
+    sources: &Sources,
     index: u32,
     tags: SetId,
     widened_ends: &mut FxSet<u32>,
@@ -336,9 +392,9 @@ fn cover(
             let source = if start == end {
                 (before, before)
             } else {
-                // It always holds its own tokens' sources, which the tokens
-                // next to it can share.
-                let own = (tokens[span.0].source.0, tokens[span.1 - 1].source.1);
+                // It always holds the source of its own tokens (§1), which
+                // the tokens next to it can share.
+                let own = sources.of(span.0, span.1);
                 let from = if widened_ends.contains(&start) { own.0 } else { own.0.min(before) };
                 let after = tokens.get(span.1).map_or(text.len(), |token| token.source.0);
                 widened_ends.insert(end);
@@ -355,9 +411,9 @@ fn cover(
         return Ok(Emitted { span, source: only.source, tags, phonemes, verbatim: true, inserted_by: None });
     }
     let source = if start < end {
-        (tokens[span.0].source.0, tokens[span.1 - 1].source.1)
+        sources.of(span.0, span.1)
     } else {
-        let at = empty_source(tokens, start);
+        let at = sources.empty(span.0);
         (at, at)
     };
     let phonemes = phoneme.unwrap_or_else(|| spoken(recognizer.g, tree, tokens, index));
@@ -383,6 +439,7 @@ fn item_tags(recognizer: &mut Recognizer, term: &LTerm, frame: &Frame, tokens: &
 /// (§11).
 pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) -> Result<Vec<Emitted>, EngineError> {
     let g = recognizer.g;
+    let sources = Sources::new(tokens);
     let mut out = Vec::new();
     // Where the widened tokens emitted so far end (§11).
     let mut widened_ends: FxSet<u32> = FxSet::default();
@@ -443,16 +500,18 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                 }
             }
             Work::Cover(index, tags) => {
-                out.push(cover(recognizer, tree, tokens, index, tags, &mut widened_ends)?);
+                out.push(cover(recognizer, tree, tokens, &sources, index, tags, &mut widened_ends)?);
             }
             Work::Insert { tag, at, node } => {
                 let (start, end) = span_of(tree, node);
+                // At the source end of the token before, or at the start of
+                // the constituent's source if `at` is its start.
                 let source = if at > start {
                     tokens[at as usize - 1].source.1
                 } else if start < end {
-                    tokens[start as usize].source.0
+                    sources.of(start as usize, end as usize).0
                 } else {
-                    empty_source(tokens, start)
+                    sources.empty(start as usize)
                 };
                 let IKind::Close { prod, .. } = &tree.nodes[node as usize].kind else { unreachable!("a close") };
                 let owner = g.prods[*prod as usize].owner;
