@@ -425,17 +425,18 @@ impl<'a> Reader<'a> {
                     }
                     return Ok(Cond::Initial(self.span_argument(args[0], depth).map_err(|_| wrong())?));
                 }
-                if name != "matches" {
-                    let message = format!("{name}() is not a condition; only matches() and initial() are");
+                if name != "matches" && name != "begins" {
+                    let message = format!("{name}() is not a condition; only matches(), begins() and initial() are");
                     return Err(self.error(name_token, message));
                 }
                 if args.len() != 2 {
-                    return Err(self.error(name_token, "matches() takes a span and a rule"));
+                    return Err(self.error(name_token, format!("{name}() takes a span and a rule")));
                 }
                 let span = self.span_argument(args[0], depth)?;
-                let rule =
-                    self.rule_argument(args[1]).ok_or_else(|| self.error(args[1], "matches() takes a rule name"))?;
-                Ok(Cond::Matches(span, rule))
+                let rule = self
+                    .rule_argument(args[1])
+                    .ok_or_else(|| self.error(args[1], format!("{name}() takes a rule name")))?;
+                Ok(if name == "begins" { Cond::Begins(span, rule) } else { Cond::Matches(span, rule) })
             }
             other => panic!("an unknown condition {other}"),
         }
@@ -461,7 +462,8 @@ impl<'a> Reader<'a> {
     }
 
     /// A `union` where a value is needed: a bare capture is its tags, but
-    /// `head`, `tail` and `last` give spans, which are not values.
+    /// `head`, `tail`, `last`, `from` and `after` give spans, which are not
+    /// values.
     fn checked_value(&self, node: &'a Node, depth: usize) -> R<Term> {
         let term = self.union(node, depth)?;
         if is_derived_span(&term) {
@@ -547,7 +549,7 @@ impl<'a> Reader<'a> {
         let args: Vec<&Node> = Self::rules(node, "argument").collect();
         let wrong = || self.error(name_token, format!("{name}() is called with the wrong arguments"));
         let built = match (name.as_str(), args.len()) {
-            ("phonemes" | "text" | "classes" | "words" | "head" | "tail" | "last", 1) => {
+            ("phonemes" | "text" | "classes" | "words" | "head" | "tail" | "last" | "from" | "after", 1) => {
                 vec![Arg::Term(self.span_argument(args[0], depth).map_err(|_| wrong())?)]
             }
             ("tags", 1 | 2) => {
@@ -572,10 +574,12 @@ impl<'a> Reader<'a> {
                 }
                 vec![Arg::Term(term)]
             }
-            ("phonemes" | "text" | "classes" | "words" | "head" | "tail" | "last" | "tags" | "lowercase", _) => {
-                return Err(wrong())
-            }
-            ("matches" | "initial", _) => {
+            (
+                "phonemes" | "text" | "classes" | "words" | "head" | "tail" | "last" | "from" | "after" | "tags"
+                | "lowercase",
+                _,
+            ) => return Err(wrong()),
+            ("matches" | "begins" | "initial", _) => {
                 return Err(self.error(name_token, format!("{name}() is a condition, not a term")))
             }
             _ => return Err(self.error(name_token, format!("an unknown function {name}()"))),
@@ -584,17 +588,18 @@ impl<'a> Reader<'a> {
     }
 }
 
-/// Whether a term is `head`, `tail` or `last` of a span, which is a span
-/// and never a value.
+/// Whether a term is `head`, `tail`, `last`, `from` or `after` of a span,
+/// which is a span and never a value.
 fn is_derived_span(term: &Term) -> bool {
-    matches!(term, Term::Call(name, _) if matches!(name.as_str(), "head" | "tail" | "last"))
+    matches!(term, Term::Call(name, _) if matches!(name.as_str(), "head" | "tail" | "last" | "from" | "after"))
 }
 
-/// Whether a term is a span: a capture, or `head`, `tail` or `last` of one.
+/// Whether a term is a span: a capture, or `head`, `tail`, `last`, `from`
+/// or `after` of one.
 fn is_span(term: &Term) -> bool {
     match term {
         Term::Capture(_) => true,
-        Term::Call(name, _) => matches!(name.as_str(), "head" | "tail" | "last"),
+        Term::Call(name, _) => matches!(name.as_str(), "head" | "tail" | "last" | "from" | "after"),
         _ => false,
     }
 }
@@ -622,6 +627,6 @@ fn cond_reads_own_tags(cond: &Cond) -> bool {
         Cond::Not(inner) => cond_reads_own_tags(inner),
         Cond::Any(items) | Cond::All(items) => items.iter().any(cond_reads_own_tags),
         Cond::If(antecedent, consequent) => cond_reads_own_tags(antecedent) || cond_reads_own_tags(consequent),
-        Cond::Matches(..) | Cond::Initial(_) | Cond::Captured(_) => false,
+        Cond::Matches(..) | Cond::Begins(..) | Cond::Initial(_) | Cond::Captured(_) => false,
     }
 }

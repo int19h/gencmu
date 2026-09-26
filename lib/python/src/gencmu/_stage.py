@@ -273,7 +273,7 @@ class Emitter:
         self.tokens = context.tokens
         self.tree = tree
         self.root = root
-        self.evaluator = Evaluator(context, 0)
+        self.evaluator = Evaluator(context, 0, len(context.tokens))
         self.uncounted = uncounted_tokens(root, len(self.tokens))
         self.output: list[Token] = []
         # Where the widened tokens emitted so far end (engine §11).

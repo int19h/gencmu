@@ -1,0 +1,16 @@
+{
+  "description": "A span's tokens need not lie in their text's order: an inserted token and an empty capture can have their sources before the first token's or after the last's. Here each triple X Y Z has empty text from X's source to Z's, but text() of Y Z is \"a\" in the first and \"b\" in the second, so the two triples do not share an answer (engine §4, nested parses).",
+  "documents": {
+    "p.md": "## Letters <?stage letters?>\n\n- [a](a.md) <?grammar?>\n\n## Pairs <?stage pairs?>\n\n- [b](b.md) <?grammar?>\n\n## Triples <?stage triples?>\n\n- [c](c.md) <?grammar?>\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text letter letter\n%rule letter char %emits $ <\"A\">, $ <\"A\">\n%rule char \"a\" | \"b\"\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text pair pair\n%rule pair prefix edge\n%rule prefix A %emits \"X\"\n%rule edge $n(nothing) A %emits \"Y\", $n <\"Z\">\n%rule nothing ε\n```\n",
+    "c.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $x(triple) $y(triple)\n%conditions matches($x, probe), ¬matches($y, probe)\n%rule triple X Y Z\n%rule probe X $p(pair)\n%conditions text($p) = \"a\"\n%rule pair Y Z\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "ab",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

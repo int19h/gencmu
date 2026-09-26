@@ -1,0 +1,38 @@
+{
+  "description": "A negative lookahead after a part: y is read where no bc follows it, and x is not (engine §4, §10).",
+  "grammar": "%rule text x B C | y B D\n%rule x A %conditions begins(after($), bc)\n%rule y A %conditions ¬begins(after($), bc)\n%rule bc B C",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "d",
+      "tags": [
+        "D"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "rule": "y"
+          },
+          {},
+          {}
+        ]
+      }
+    }
+  }
+}

@@ -296,11 +296,13 @@ fn check_expr(grammar: &StageGrammar, expr: &Expr, top: bool) -> Result<(), Stri
 fn check_span(term: &Term) -> Result<(), String> {
     match term {
         Term::Capture(_) => Ok(()),
-        Term::Call(name, args) if matches!(name.as_str(), "head" | "tail" | "last") => match &args[..] {
-            [Arg::Term(inner)] => check_span(inner),
-            _ => Err(format!("{name}() takes one span")),
-        },
-        _ => Err("a span must be a capture, or head(), tail() or last() of one".to_string()),
+        Term::Call(name, args) if matches!(name.as_str(), "head" | "tail" | "last" | "from" | "after") => {
+            match &args[..] {
+                [Arg::Term(inner)] => check_span(inner),
+                _ => Err(format!("{name}() takes one span")),
+            }
+        }
+        _ => Err("a span must be a capture, or head(), tail(), last(), from() or after() of one".to_string()),
     }
 }
 
@@ -325,10 +327,11 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
                 check_rule(grammar, rule)
             }
             ("lowercase", [Arg::Term(inner)]) => check_term(grammar, inner),
-            ("head" | "tail" | "last", _) => Err(format!("{name}() is a span, not a value")),
-            ("phonemes" | "text" | "classes" | "words" | "tags" | "lowercase" | "matches" | "initial", _) => {
-                Err(format!("{name}() is called with the wrong arguments"))
-            }
+            ("head" | "tail" | "last" | "from" | "after", _) => Err(format!("{name}() is a span, not a value")),
+            (
+                "phonemes" | "text" | "classes" | "words" | "tags" | "lowercase" | "matches" | "begins" | "initial",
+                _,
+            ) => Err(format!("{name}() is called with the wrong arguments")),
             _ => Err(format!("an unknown function {name}()")),
         },
     }
@@ -343,7 +346,7 @@ fn check_cond(grammar: &StageGrammar, cond: &Cond) -> Result<(), String> {
             check_term(grammar, left)?;
             check_term(grammar, right)
         }
-        Cond::Matches(span, rule) => {
+        Cond::Matches(span, rule) | Cond::Begins(span, rule) => {
             check_span(span)?;
             check_rule(grammar, rule)
         }

@@ -1,6 +1,7 @@
 package gencmu
 
 import (
+	"strconv"
 	"strings"
 )
 
@@ -63,6 +64,14 @@ func (ev *evaluator) span(t *domTerm) spanVal {
 				if s.b > s.a {
 					s.a = s.b - 1
 				}
+				return s
+			case "from", "after":
+				// To the end of the input of the parse that evaluates the
+				// condition (§10).
+				if t.Str == "after" {
+					s.a = s.b
+				}
+				s.b = ev.run.inputEnd
 				return s
 			}
 		}
@@ -142,7 +151,8 @@ func (ev *evaluator) term(t *domTerm) value {
 		case "tags":
 			s := ev.span(t.Items[0])
 			if len(t.Items) == 2 {
-				_, tags := ev.run.nested(ev.g, t.Items[1].Str, s)
+				// The same parse, and the same answer, as matches().
+				_, tags := ev.run.nested(ev.g, cdMatches, t.Items[1].Str, s)
 				return value{kind: vSet, set: tags}
 			}
 			return value{kind: vSet, set: ev.spanTags(s)}
@@ -156,7 +166,7 @@ func (ev *evaluator) term(t *domTerm) value {
 				}
 			}
 			return value{kind: vSet, set: in.make(names, strong)}
-		case "head", "tail", "last":
+		case "head", "tail", "last", "from", "after":
 			return value{kind: vSet, set: ev.spanTags(ev.span(t))}
 		}
 	case tmIf:
@@ -199,8 +209,8 @@ func (ev *evaluator) cond(c *domCond) bool {
 		case "⊆":
 			return subset(ev.toSet(l), ev.toSet(r))
 		}
-	case cdMatches:
-		ok, _ := ev.run.nested(ev.g, c.Rule, ev.span(c.Span))
+	case cdMatches, cdBegins:
+		ok, _ := ev.run.nested(ev.g, c.Kind, c.Rule, ev.span(c.Span))
 		return ok
 	case cdInitial:
 		// Where the input of the parse that reads the condition begins (§10).
@@ -260,59 +270,117 @@ func (run *stageRun) spanText(s spanVal) string {
 	return string(run.ps.text[run.toks[s.a].Source[0]:run.toks[s.b-1].Source[1]])
 }
 
-// nested parses tokens [s.a, s.b) alone as rule (engine §4, nested parses),
-// remembering the answer for the whole parse by everything such a parse can
-// observe.
-func (run *stageRun) nested(g *lowered, rule string, s spanVal) (bool, *tagset) {
+// contentKeyLimit is the longest span whose nested parses are remembered by
+// content, so that a word repeated at many places is parsed once; a longer
+// span is remembered by position, since a key of content costs as much as
+// the span is long, and the span of from() or after() runs to the end of
+// the input (engine §4).
+const contentKeyLimit = 64
+
+// nested parses tokens [s.a, s.b) alone as rule (engine §4, nested parses)
+// for a query of one kind: cdMatches, which also gives the tags of
+// tags(span, rule), or cdBegins, whether a prefix of the span, the empty one
+// included, parses as rule. The answer is remembered for the whole parse.
+func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *tagset) {
+	ps := run.ps
+	start := g.byName[rule]
+	k := nestedKey{g: g, kind: kind, rule: start, a: s.a, b: s.b}
+	if s.b-s.a <= contentKeyLimit {
+		k.content, k.a, k.b = run.spanContent(s), -1, -1
+	}
+	if r, ok := ps.nested[k]; ok {
+		return r.holds, r.tags
+	}
+	at := spanKey{g: g, rule: start, a: s.a, b: s.b}
+	// A query about the span as the rule from inside its own parse, of any
+	// kind, negated or not, defines the rule in terms of itself.
+	if ps.inProgress[at] {
+		panic(&parseFailure{
+			message:  "a condition asks whether its own span parses as " + rule + ", which defines " + rule + " in terms of itself over the same text",
+			token:    s.a,
+			hasToken: true,
+			tokenEnd: s.b,
+			rule:     rule,
+		})
+	}
+	ps.inProgress[at] = true
+	defer delete(ps.inProgress, at)
+	rec := run.recognize(g, start, s.a, s.b-s.a)
+	res := &nestedResult{}
+	if kind == cdBegins {
+		res.holds = rec.begun(start)
+	} else {
+		acc := rec.accepted(start)
+		res.holds, res.tags = len(acc) > 0, ps.in.empty()
+		for _, c := range acc {
+			res.tags = ps.in.union(res.tags, c.tags)
+		}
+	}
+	ps.nested[k] = res
+	return res.holds, res.tags
+}
+
+// spanContent is everything a nested parse of a span can observe: the
+// original text that holds its tokens' sources, and each token's text,
+// phonemes, tags with their strengths, and source.
+func (run *stageRun) spanContent(s spanVal) string {
 	var key strings.Builder
-	key.WriteString(rule)
-	key.WriteByte(0)
-	key.WriteString(run.spanText(s))
+	// Each field is written with its length before it, so that no two
+	// contents give the same key, whatever characters the fields hold.
+	field := func(v string) {
+		key.WriteString(strconv.Itoa(len(v)))
+		key.WriteByte(':')
+		key.WriteString(v)
+	}
+	// The text runs from the least source start to the greatest source end,
+	// which an inserted token or an empty part can put before the first
+	// token's start or after the last's.
+	low, high := 0, 0
+	if s.a < s.b {
+		low = run.toks[s.a].Source[0]
+		high = low
+	}
+	for i := s.a; i < s.b; i++ {
+		low = min(low, run.toks[i].Source[0])
+		high = max(high, run.toks[i].Source[1])
+	}
+	field(string(run.ps.text[low:high]))
 	for i := s.a; i < s.b; i++ {
 		t := &run.toks[i]
-		key.WriteByte(0)
-		key.WriteString(t.Text)
-		key.WriteByte(1)
-		key.WriteString(t.Phonemes)
-		key.WriteByte(1)
-		key.WriteString(run.tagsets[i].key)
+		field(t.Text)
+		field(t.Phonemes)
+		field(run.tagsets[i].key)
+		// Where the token begins and ends in that text, which text() of a
+		// part of the span reads.
+		field(strconv.Itoa(t.Source[0] - low))
+		field(strconv.Itoa(t.Source[1] - low))
 	}
-	k := nestedKey{g: g, key: key.String()}
-	ps := run.ps
-	if r, ok := ps.nested[k]; ok {
-		if !r.done {
-			panic(&parseFailure{
-				message:  "a condition asks whether its own span parses as " + rule + ", which defines " + rule + " by its own negation",
-				token:    s.a,
-				hasToken: true,
-				tokenEnd: s.b,
-				rule:     rule,
-			})
-		}
-		return r.accepted, r.tags
-	}
-	res := &nestedResult{}
-	ps.nested[k] = res
-	start := g.byName[rule]
-	rec := run.recognize(g, start, s.a, s.b-s.a)
-	tags := ps.in.empty()
-	acc := rec.accepted(start)
-	for _, c := range acc {
-		tags = ps.in.union(tags, c.tags)
-	}
-	res.done, res.accepted, res.tags = true, len(acc) > 0, tags
-	return res.accepted, res.tags
+	return key.String()
 }
 
+// spanKey is a parse of tokens [a, b) as a rule, by position. The tokens of
+// a lowered grammar's stage do not change within one parse: the reparse of
+// elision-only, over other tokens, has a lowered grammar of its own.
+type spanKey struct {
+	g    *lowered
+	rule int32
+	a, b int
+}
+
+// nestedKey is what the answer of one kind of query about a span as a rule
+// is remembered by: a short span's content, or a long span's position.
 type nestedKey struct {
-	g   *lowered
-	key string
+	g       *lowered
+	kind    string
+	rule    int32
+	content string // a short span's content, or ""
+	a, b    int    // a long span's position, or -1 where content keys it
 }
 
+// nestedResult is whether a query holds, and for matches, the tags.
 type nestedResult struct {
-	done     bool
-	accepted bool
-	tags     *tagset
+	holds bool
+	tags  *tagset
 }
 
 // parseFailure is a grammar error found while parsing: it ends the whole

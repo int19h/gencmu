@@ -1,0 +1,15 @@
+{
+  "description": "A nested parse's answer depends on where each token of the span begins and ends in the original text, since text() of a part of the span reads it; two spans with the same whole text and the same tokens but different boundaries inside do not share an answer (engine §4, nested parses).",
+  "documents": {
+    "p.md": "## Letters <?stage letters?>\n\n- [a](a.md) <?grammar?>\n\n## Triples <?stage triples?>\n\n- [b](b.md) <?grammar?>\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"L\" first \"R\" second\n%rule first $a(\"a\") $b(\"a\") \"a\" $d(\"a\")\n%emits $a <\"A\">, $b <\"A\">, $d <\"A\">\n%rule second $a(\"a\") \"a\" $c(\"a\") $d(\"a\")\n%emits $a <\"A\">, $c <\"A\">, $d <\"A\">\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $x(triple) $y(triple)\n%conditions matches($x, probe), ¬matches($y, probe)\n%rule triple A A A\n%rule probe $p(pair) A\n%conditions text($p) = \"aa\"\n%rule pair A A\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "LaaaaRaaaa",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

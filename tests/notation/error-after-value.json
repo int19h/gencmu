@@ -1,0 +1,10 @@
+{
+  "description": "from and after give spans, which are not values (engine §9).",
+  "document": "```jbogenbau\n%rule a $x(B) %conditions after($x) = \"b\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 27
+    }
+  }
+}

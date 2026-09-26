@@ -1,0 +1,29 @@
+{
+  "description": "Inside a nested parse over a captured span, from and after end where that span ends, not where the stage's input ends (engine §4, §10).",
+  "grammar": "%rule text $w(word) C %conditions matches($w, probe)\n%rule word A B\n%rule probe $a(A) B %conditions matches(after($a), justb)\n%rule justb B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

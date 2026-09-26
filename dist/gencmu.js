@@ -150,7 +150,9 @@
    * @property {ChartSet[]} sets
    * @property {number} start
    * @property {number} end
-   * @property {(position: number) => ChartSet} setAt
+   * @property {(position: number) => ChartSet} setAt reads a set without
+   *   making it: a set the recognizer never reached is empty
+   * @property {number} furthest the last position whose set holds an item
    * @property {ParseContext} context
    */
 
@@ -208,6 +210,8 @@
       this.inProgress = new Set();
       /** Where the input of the recognition now running begins. */
       this.inputStart = 0;
+      /** Where it ends. */
+      this.inputEnd = tokens.length;
       /**
        * When set, the recognizer records what happens at one position of the
        * top-level parse, for diagnostics (see diagnostics.js, trace).
@@ -312,11 +316,14 @@
    */
   function recognize(context, rule, start, end) {
     const outer = context.inputStart;
+    const outerEnd = context.inputEnd;
     context.inputStart = start;
+    context.inputEnd = end;
     try {
       return recognizeFrom(context, rule, start, end);
     } finally {
       context.inputStart = outer;
+      context.inputEnd = outerEnd;
     }
   }
 
@@ -331,9 +338,11 @@
     const { lowered, tokens } = context;
     /** @type {ChartSet[]} */
     const sets = [];
-    for (let position = start; position <= end; position++) sets.push(new ChartSet(position));
+    // A set is made when something first looks at it: once a set is empty,
+    // every later one is, and a nested parse over the rest of a long text
+    // stops there.
     /** @type {(position: number) => ChartSet} */
-    const setAt = (position) => sets[position - start];
+    const setAt = (position) => sets[position - start] || (sets[position - start] = new ChartSet(position));
     const dots = context.dots;
     const width = end - start + 1;
 
@@ -440,8 +449,11 @@
     };
 
     predict(setAt(start), rule);
+    let furthest = start;
     for (let position = start; position <= end; position++) {
       const set = setAt(position);
+      if (position > start && set.items.length === 0) break;
+      furthest = position;
       if (position > start) {
         // Nothing is added to a set once the next one is being built: its
         // index, queue and predictions can go, which a long text needs, and
@@ -483,7 +495,9 @@
         }
       }
     }
-    return { sets, start, end, setAt, context };
+    /** @type {(position: number) => ChartSet} */
+    const peek = (position) => sets[position - start] || new ChartSet(position);
+    return { sets, start, end, setAt: peek, furthest, context };
   }
 
   /** @type {Edge} */
@@ -644,6 +658,10 @@
       if (span.call === "tail") return { start: Math.min(start + 1, end), end };
       return { start: Math.max(end - 1, start), end };
     }
+    if ("call" in span && (span.call === "from" || span.call === "after")) {
+      const inner = spanOf(context, span.args[0], scope);
+      return { start: span.call === "from" ? inner.start : inner.end, end: context.inputEnd };
+    }
     throw new GencmuError("grammar", `expected a span, found ${JSON.stringify(span)}`);
   }
 
@@ -792,6 +810,10 @@
       const span = spanOf(context, condition.matches, scope);
       return nestedMatches(context, condition.rule, span.start, span.end);
     }
+    if ("begins" in condition) {
+      const span = spanOf(context, condition.begins, scope);
+      return nestedBegins(context, condition.rule, span.start, span.end);
+    }
     // Where the input of the parse that reads the condition begins (engine §10).
     if ("initial" in condition) return spanOf(context, condition.initial, scope).start === context.inputStart;
     const left = evaluate(context, condition.left, scope);
@@ -823,7 +845,13 @@
     }
   }
 
-  // The key under which a nested parse's answer is remembered: everything a
+  // The longest span whose answers are remembered by content, so that a word
+  // repeated at many places is looked up once; a longer span is remembered by
+  // position, since a key of content costs as much as the span is long, and the
+  // span of `from` or `after` runs to the end of the input (engine §4).
+  const CONTENT_KEY_LIMIT = 64;
+
+  // The key under which a nested parse's answer is remembered: everything the
   // nested parse can observe (engine §4).
   /**
    * @param {ParseContext} context
@@ -834,12 +862,26 @@
    * @returns {string}
    */
   function nestedKey(context, kind, rule, start, end) {
-    let key = kind + "\u0001" + rule + "\u0001" + textOf(context, start, end);
+    if (end - start > CONTENT_KEY_LIMIT) return JSON.stringify(["at", kind, rule, start, end]);
+    // The text that holds every token's source, from the least start to the
+    // greatest end, which an inserted token or an empty part can put before
+    // the first token's start or after the last's; and each token's tags,
+    // text, phonemes, and where it begins and ends in that text, which text()
+    // of a part of the span reads.
+    let low = start < end ? context.tokens[start].source[0] : 0;
+    let high = low;
+    for (let index = start; index < end; index++) {
+      const [from, to] = context.tokens[index].source;
+      low = Math.min(low, from);
+      high = Math.max(high, to);
+    }
+    /** @type {(string | number)[]} */
+    const key = ["of", kind, rule, context.sourceText.slice(low, high).join("")];
     for (let index = start; index < end; index++) {
       const token = context.tokens[index];
-      key += "\u0001" + tagKey(token.tags) + "\u0002" + token.text + "\u0002" + (token.phonemes || "");
+      key.push(tagKey(token.tags), token.text, token.phonemes || "", token.source[0] - low, token.source[1] - low);
     }
-    return key;
+    return JSON.stringify(key);
   }
 
   /**
@@ -855,11 +897,14 @@
   function nested(context, kind, rule, start, end, compute) {
     const key = nestedKey(context, kind, rule, start, end);
     if (context.nested.has(key)) return /** @type {T} */ (context.nested.get(key));
-    const circular = nestedKey(context, "parse", rule, start, end);
+    // A parse in progress is known by its rule and span, whatever the kind of
+    // query, so that alternating kinds cannot hide a query about a span from
+    // inside its own parse (engine §4).
+    const circular = "parse\u0001" + rule + "\u0001" + start + "\u0001" + end;
     if (context.inProgress.has(circular)) {
       throw new GencmuError("grammar",
         `a condition asks whether ${JSON.stringify(textOf(context, start, end))} parses as ${rule} from inside the parse of that span as ${rule}: ` +
-        `the grammar defines ${rule} by its own negation over the same text`, { rule });
+        `the grammar defines ${rule} in terms of itself over the same text`, { rule });
     }
     context.inProgress.add(circular);
     if (context.trace) context.trace.depth++;
@@ -886,6 +931,20 @@
   }
 
   /**
+   * Whether a prefix of [start, end) parses as `rule`: a completed item of it
+   * has its origin at `start`, in any set (engine §4).
+   * @param {ParseContext} context
+   * @param {string} rule
+   * @param {number} start
+   * @param {number} end
+   * @returns {boolean}
+   */
+  function nestedBegins(context, rule, start, end) {
+    return nested(context, "begins", rule, start, end, (chart) => chart.sets.some((set) =>
+      set !== undefined && set.items.some((item) => item.complete && item.origin === start && item.production.lhs === rule)));
+  }
+
+  /**
    * @param {ParseContext} context
    * @param {string} rule
    * @param {number} start
@@ -904,8 +963,7 @@
    * @returns {{position: number, expected: Expectation[]}}
    */
   function rejectionOf(chart) {
-    let position = chart.end;
-    while (position > chart.start && chart.setAt(position).items.length === 0) position--;
+    const position = chart.furthest;
     return { position, expected: expectedAt(chart, position) };
   }
 
@@ -1488,7 +1546,7 @@
 
   /** @import { Argument, GrammarDom, Term } from "./types.js" */
 
-  const DOM_FUNCTIONS = new Set(["phonemes", "text", "lowercase", "tags", "classes", "words", "head", "tail", "last", "matches", "initial"]);
+  const DOM_FUNCTIONS = new Set(["phonemes", "text", "lowercase", "tags", "classes", "words", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]);
   const DOM_COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆"]);
   const DOM_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
   // The nesting the notation allows (engine §9): deeper than any grammar a
@@ -1514,7 +1572,7 @@
     return Array.isArray(value) && value.length === 2 && value.every((n) => Number.isInteger(n));
   }
 
-  const DOM_SPANS = new Set(["head", "tail", "last"]);
+  const DOM_SPANS = new Set(["head", "tail", "last", "from", "after"]);
 
   /**
    * Whether a term is a span: a capture, or head, tail or last of one.
@@ -1653,9 +1711,10 @@
           if (Object.keys(value).length !== 2 || !("then" in value)) return "a malformed condition";
           push("condition", value.if);
           push("condition", value.then);
-        } else if ("matches" in value) {
-          if (typeof value.rule !== "string" || !isDomSpan(value.matches)) return "a malformed condition";
-          pending.push({ kind: "argument", value: value.matches, depth: next });
+        } else if ("matches" in value || "begins" in value) {
+          const span = "matches" in value ? value.matches : value.begins;
+          if (typeof value.rule !== "string" || !isDomSpan(span) || ("matches" in value && "begins" in value)) return "a malformed condition";
+          pending.push({ kind: "argument", value: span, depth: next });
         } else if ("initial" in value) {
           if (Object.keys(value).length !== 1 || !isDomSpan(value.initial)) return "a malformed condition";
           pending.push({ kind: "argument", value: value.initial, depth: next });
@@ -1679,7 +1738,7 @@
           const isRule = (/** @type {unknown} */ arg) => isDomObject(arg) && typeof arg.rule === "string" && Object.keys(arg).length === 1;
           const call = value.call;
           let ok;
-          if (typeof call !== "string" || !DOM_FUNCTIONS.has(call) || call === "matches" || call === "initial") ok = false;
+          if (typeof call !== "string" || !DOM_FUNCTIONS.has(call) || call === "matches" || call === "begins" || call === "initial") ok = false;
           else if (call === "tags") ok = (args.length === 1 && isDomSpan(args[0])) || (args.length === 2 && isDomSpan(args[0]) && isRule(args[1]));
           else if (call === "lowercase") ok = args.length === 1 && isDomString(args[0]);
           else ok = args.length === 1 && isDomSpan(args[0]);
@@ -1727,7 +1786,7 @@
       }
       return node.args.some((argument) => isDomObject(argument) && typeof argument.call === "string" && readsOwnTags(argument));
     }
-    if ("matches" in node || "initial" in node) return false;
+    if ("matches" in node || "begins" in node || "initial" in node) return false;
     for (const key of ["union", "intersection", "any", "all"]) {
       const items = node[key];
       if (Array.isArray(items)) return items.some(readsOwnTags);
@@ -1811,7 +1870,7 @@
    */
   function isCondition(node) {
     return isDomObject(node) && (typeof node.op === "string" || "not" in node || "all" in node || "any" in node ||
-      "matches" in node || "initial" in node || "captured" in node || ("if" in node && isCondition(node.then)) || "constant" in node);
+      "matches" in node || "begins" in node || "initial" in node || "captured" in node || ("if" in node && isCondition(node.then)) || "constant" in node);
   }
 
   /**
@@ -2170,6 +2229,7 @@
     if ("captured" in condition) return `$${condition.captured}`;
     if ("if" in condition) return `(${formatCondition(condition.if)} ⟹ ${formatCondition(/** @type {Condition} */ (condition.then))})`;
     if ("matches" in condition) return `matches(${formatTerm(condition.matches)}, ${condition.rule})`;
+    if ("begins" in condition) return `begins(${formatTerm(condition.begins)}, ${condition.rule})`;
     if ("initial" in condition) return `initial(${formatTerm(condition.initial)})`;
     return `${formatTerm(condition.left)} ${condition.op} ${formatTerm(condition.right)}`;
   }
@@ -3935,6 +3995,7 @@
       if (furthest) return furthest;
       furthest = new Map();
       for (const set of chart.sets) {
+        if (!set) continue;
         for (const item of set.items) {
           if (item.dot !== item.production.rhs.length) continue;
           let byOrigin = furthest.get(item.production.lhs);
@@ -4931,9 +4992,10 @@
           const call = readCall(inner);
           const [span, rule] = call.args;
           if (call.call === "initial" && call.args.length === 1 && !("rule" in span)) return { initial: span };
-          if (call.call !== "matches" || call.args.length !== 2 || !("rule" in rule) || "rule" in span) {
-            return fail("a condition calls only matches(span, rule) or initial(span)", inner);
+          if ((call.call !== "matches" && call.call !== "begins") || call.args.length !== 2 || !("rule" in rule) || "rule" in span) {
+            return fail("a condition calls only matches(span, rule), begins(span, rule) or initial(span)", inner);
           }
+          if (call.call === "begins") return { begins: span, rule: rule.rule };
           return { matches: span, rule: rule.rule };
         }
         default:
@@ -4971,7 +5033,7 @@
         if (ruleOf(inner) === "call") {
           const call = readCall(inner);
           if (!argument && SPANS.has(call.call)) fail(`${call.call} gives a span, which is not a value`, inner);
-          if (call.call === "matches" || call.call === "initial") fail(`${call.call} is a condition, not a term`, inner);
+          if (call.call === "matches" || call.call === "begins" || call.call === "initial") fail(`${call.call} is a condition, not a term`, inner);
           return call;
         }
         return readTerm(inner);
@@ -5008,7 +5070,7 @@
       const isString = (argument) => argument !== undefined && ("literal" in argument || ("call" in argument && STRINGS.has(argument.call)));
       let ok;
       if (name === "tags") ok = (args.length === 1 && isSpan(args[0])) || (args.length === 2 && isSpan(args[0]) && isRule(args[1]));
-      else if (name === "matches") ok = args.length === 2 && isSpan(args[0]) && isRule(args[1]);
+      else if (name === "matches" || name === "begins") ok = args.length === 2 && isSpan(args[0]) && isRule(args[1]);
       else if (name === "lowercase") ok = args.length === 1 && isString(args[0]);
       else ok = args.length === 1 && isSpan(args[0]);
       if (!ok) fail(`${name} takes ${SIGNATURES[name]}`, node);
@@ -5044,17 +5106,17 @@
     }
   }
 
-  const FUNCTIONS = new Set(["phonemes", "text", "lowercase", "tags", "classes", "words", "head", "tail", "last", "matches", "initial"]);
+  const FUNCTIONS = new Set(["phonemes", "text", "lowercase", "tags", "classes", "words", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]);
 
   // The functions whose value is a span, and those whose value is a string.
-  const SPANS = new Set(["head", "tail", "last"]);
+  const SPANS = new Set(["head", "tail", "last", "from", "after"]);
   const STRINGS = new Set(["phonemes", "text", "lowercase"]);
 
   /** @type {Record<string, string>} */
   const SIGNATURES = {
     phonemes: "one span", text: "one span", words: "one span", classes: "one span",
-    head: "one span", tail: "one span", last: "one span", initial: "one span",
-    lowercase: "one string", tags: "a span, and optionally a rule", matches: "a span and a rule",
+    head: "one span", tail: "one span", last: "one span", from: "one span", after: "one span", initial: "one span",
+    lowercase: "one string", tags: "a span, and optionally a rule", matches: "a span and a rule", begins: "a span and a rule",
   };
 
   // The rules of the notation's syntax grammar that the reader reads; every
@@ -5988,7 +6050,7 @@
   /**
    * A condition.
    * @typedef {{any: Condition[]} | {all: Condition[]} | {not: Condition} | {captured: string}
-   *   | {if: Condition, then: Condition} | {matches: Term, rule: string} | {initial: Term}
+   *   | {if: Condition, then: Condition} | {matches: Term, rule: string} | {begins: Term, rule: string} | {initial: Term}
    *   | {op: Comparator, left: Term, right: Term}} Condition
    */
 

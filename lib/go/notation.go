@@ -477,11 +477,11 @@ func (b *domBuilder) term(n *Node) *domTerm {
 	return nil
 }
 
-// value reads a term where a value is needed: head, tail and last give
-// spans, which are not values (§9).
+// value reads a term where a value is needed: head, tail, last, from and
+// after give spans, which are not values (§9).
 func (b *domBuilder) value(n *Node) *domTerm {
 	t := b.term(n)
-	if t.Kind == tmCall && (t.Str == "head" || t.Str == "tail" || t.Str == "last") {
+	if t.Kind == tmCall && isSpanFunction(t.Str) {
 		b.fail(n, "%s() gives a span, which is not a value", t.Str)
 	}
 	return t
@@ -494,10 +494,11 @@ func isStringTerm(t *domTerm) bool {
 }
 
 func isSpanTerm(t *domTerm) bool {
-	return t.Kind == tmCapture || (t.Kind == tmCall && (t.Str == "head" || t.Str == "tail" || t.Str == "last"))
+	return t.Kind == tmCapture || (t.Kind == tmCall && isSpanFunction(t.Str))
 }
 
-// call reads a call in a term, or, in a condition, matches() or initial().
+// call reads a call in a term, or, in a condition, matches(), begins() or
+// initial().
 func (b *domBuilder) call(n *Node, inCondition bool) *domTerm {
 	ps := parts(n)
 	name := b.text(ps[0])
@@ -521,29 +522,29 @@ func (b *domBuilder) call(n *Node, inCondition bool) *domTerm {
 	span := func(i int) bool { return i < len(args) && isSpanTerm(args[i]) }
 	rule := func(i int) bool { return i < len(args) && args[i].Kind == tmRule }
 	for i, a := range args {
-		if a.Kind == tmRule && !(i == 1 && (name == "tags" || name == "matches")) {
-			b.fail(argNodes[i], "a bare name is an argument only as the rule of tags() or matches()")
+		if a.Kind == tmRule && !(i == 1 && (name == "tags" || name == "matches" || name == "begins")) {
+			b.fail(argNodes[i], "a bare name is an argument only as the rule of tags(), matches() or begins()")
 		}
 	}
 	if inCondition {
 		switch name {
-		case "matches":
+		case "matches", "begins":
 			shape(len(args) == 2 && span(0) && rule(1))
 		case "initial":
 			shape(len(args) == 1 && span(0))
 		default:
-			b.fail(ps[0], "a condition calls only matches() or initial(); %s() is a term", name)
+			b.fail(ps[0], "a condition calls only matches(), begins() or initial(); %s() is a term", name)
 		}
 		return &domTerm{Kind: tmCall, Str: name, Items: args}
 	}
 	switch name {
-	case "phonemes", "text", "words", "classes", "head", "tail", "last":
+	case "phonemes", "text", "words", "classes", "head", "tail", "last", "from", "after":
 		shape(len(args) == 1 && span(0))
 	case "tags":
 		shape((len(args) == 1 && span(0)) || (len(args) == 2 && span(0) && rule(1)))
 	case "lowercase":
 		shape(len(args) == 1 && isStringTerm(args[0]))
-	case "matches", "initial":
+	case "matches", "begins", "initial":
 		b.fail(ps[0], "%s() is a condition, not a term", name)
 	default:
 		b.fail(ps[0], "%s() is not a function of the notation", name)
@@ -602,7 +603,11 @@ func (b *domBuilder) condition(n *Node) *domCond {
 		if t.Str == "initial" {
 			return &domCond{Kind: cdInitial, Span: t.Items[0]}
 		}
-		return &domCond{Kind: cdMatches, Span: t.Items[0], Rule: t.Items[1].Str}
+		kind := cdMatches
+		if t.Str == "begins" {
+			kind = cdBegins
+		}
+		return &domCond{Kind: kind, Span: t.Items[0], Rule: t.Items[1].Str}
 	case "presence":
 		return &domCond{Kind: cdCaptured, Rule: strings.TrimPrefix(b.text(n), "$")}
 	case "implication":

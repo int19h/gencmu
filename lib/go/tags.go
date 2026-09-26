@@ -2,6 +2,7 @@ package gencmu
 
 import (
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -40,8 +41,12 @@ func newInterner() *interner {
 }
 
 func (in *interner) make(names []string, strong []bool) *tagset {
+	// Each name is written with its length before it, so that no two tag
+	// sets share a key, whatever characters their names hold.
 	var b strings.Builder
 	for i, n := range names {
+		b.WriteString(strconv.Itoa(len(n)))
+		b.WriteByte(':')
 		b.WriteString(n)
 		if strong[i] {
 			b.WriteByte(1)

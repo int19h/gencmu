@@ -189,7 +189,7 @@ func condCaptures(c *domCond, into map[string]bool) {
 	case cdCompare:
 		termCaptures(c.Left, into)
 		termCaptures(c.Right, into)
-	case cdMatches, cdInitial:
+	case cdMatches, cdBegins, cdInitial:
 		termCaptures(c.Span, into)
 	case cdNot:
 		condCaptures(c.Inner, into)
@@ -223,7 +223,7 @@ func condMentions(c *domCond, into map[string]bool) {
 	case cdCompare:
 		termMentions(c.Left, into)
 		termMentions(c.Right, into)
-	case cdMatches, cdInitial:
+	case cdMatches, cdBegins, cdInitial:
 		termMentions(c.Span, into)
 	case cdNot:
 		condMentions(c.Inner, into)

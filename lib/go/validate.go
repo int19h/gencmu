@@ -167,10 +167,9 @@ func (c *domChecker) expr(e *domExpr, depth int, top bool) {
 	}
 }
 
-// isSpanShape: a capture, or head, tail or last of a span.
+// isSpanShape: a capture, or head, tail, last, from or after of a span.
 func isSpanShape(t *domTerm) bool {
-	return t != nil && (t.Kind == tmCapture ||
-		(t.Kind == tmCall && (t.Str == "head" || t.Str == "tail" || t.Str == "last")))
+	return t != nil && (t.Kind == tmCapture || (t.Kind == tmCall && isSpanFunction(t.Str)))
 }
 
 // term checks a term; argument says it is a function's argument, where a
@@ -195,20 +194,20 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		}
 	case tmCall:
 		// The reader's signatures (engine §9), with a span where one is due;
-		// head, tail and last only where a span may stand, and matches and
-		// initial never as terms.
+		// head, tail, last, from and after only where a span may stand, and
+		// matches, begins and initial never as terms.
 		args := t.Items
 		isRule := func(a *domTerm) bool { return a != nil && a.Kind == tmRule && a.Str != "" }
 		var ok bool
 		switch t.Str {
-		case "phonemes", "text", "words", "classes", "head", "tail", "last":
+		case "phonemes", "text", "words", "classes", "head", "tail", "last", "from", "after":
 			ok = len(args) == 1 && isSpanShape(args[0])
 		case "tags":
 			ok = (len(args) == 1 && isSpanShape(args[0])) || (len(args) == 2 && isSpanShape(args[0]) && isRule(args[1]))
 		case "lowercase":
 			ok = len(args) == 1 && isStringTerm(args[0])
 		}
-		if !ok || (!argument && (t.Str == "head" || t.Str == "tail" || t.Str == "last")) {
+		if !ok || (!argument && isSpanFunction(t.Str)) {
 			c.fail("a malformed call of %q", t.Str)
 			return
 		}
@@ -254,9 +253,9 @@ func (c *domChecker) condition(d *domCond, depth int) {
 		}
 		c.term(d.Left, depth+1, false)
 		c.term(d.Right, depth+1, false)
-	case cdMatches:
+	case cdMatches, cdBegins:
 		if !isSpanShape(d.Span) || d.Rule == "" {
-			c.fail("a malformed matches()")
+			c.fail("a malformed %s()", d.Kind)
 			return
 		}
 		c.term(d.Span, depth+1, true)
@@ -337,9 +336,9 @@ func readsOwnTags(t *domTerm) bool {
 	return false
 }
 
-// condReadsOwnTags is readsOwnTags of a guard's condition: matches() parses
-// the tokens again, initial() reads where they begin, and a presence test
-// reads no tags.
+// condReadsOwnTags is readsOwnTags of a guard's condition: matches() and
+// begins() parse the tokens again, initial() reads where they begin, and a
+// presence test reads no tags.
 func condReadsOwnTags(c *domCond) bool {
 	if c == nil {
 		return false
