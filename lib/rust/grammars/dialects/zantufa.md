@@ -13,7 +13,6 @@ The experimental dialect ([`experimental.md`](experimental.md)) with the constru
 ## Stage 2: words <?stage words?>
 
 - [The word stream](../words/stream.md) <?grammar?>
-- [Word shapes](../words/shapes.md) <?grammar?>
 - [Approved word forms](../words/bpfk.md) <?grammar?>
 - [Experimental word forms](../words/experimental.md) <?grammar?>
 - [The Zantufa lexicon](../words/lexicon-zantufa.md) <?grammar?>

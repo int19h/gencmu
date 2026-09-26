@@ -4,9 +4,8 @@ This document opens the word stage, the second stage of every Lojban dialect: [C
 
 What a word looks like is not decided here. Other documents are stitched into the word stage with this one:
 
-- [shapes.md](shapes.md), the word shapes that every family shares.
-- One family document, which defines the three shapes this grammar reads, `cmavo-shape`, `brivla-shape` and `cmevla-shape`, and tags each with its pause properties. [cll.md](cll.md) gives the word forms of chapter 4 of *The Complete Lojban Language* as printed, and [bpfk.md](bpfk.md) gives the definition effort's approved word-form grammar.
-- In the experimental and Zantufa dialects, [experimental.md](experimental.md) after `bpfk.md`. It adds the consonant pair `mz`.
+- The word forms of one family, which define the three shapes this grammar reads, `cmavo-shape`, `brivla-shape` and `cmevla-shape`, and tag each with its pause properties. The CLL dialect stitches [shapes.md](shapes.md) and [cll.md](cll.md), which give the word forms of chapter 4 of *The Complete Lojban Language* as printed. The other dialects stitch [bpfk.md](bpfk.md), the definition effort's approved word-form grammar.
+- In the experimental and Zantufa dialects, [experimental.md](experimental.md) after `bpfk.md`. It changes the approved word forms as camxes-exp does.
 - One lexicon, [lexicon-cll.md](lexicon-cll.md) or [lexicon-experimental.md](lexicon-experimental.md), which gives each cmavo its selma'o.
 
 The notation is explained in [the notation document](../../docs/notation.md). The stage's choice among parses, at the end of this document, is the mirror of the syntax stage's.
@@ -15,7 +14,7 @@ The notation is explained in [the notation document](../../docs/notation.md). Th
 
 The text is a stream of elements, an element being a word, a quote package, a `bu` or `zei` compound, an erasure, or hesitation, and the pauses between them. CLL 4.9 gives the rules for pauses, which this section states as properties every element carries as tags, decided by the word shapes of the family document. An element has `onset` when it may follow another element without a pause: it begins with a consonant, and is not a cmevla, which rule 4 surrounds with pauses. An element is `continued` when another element may follow it without a pause: a cmavo, a compound, a brivla whose stress is marked, but not an unmarked brivla, which by 3.9 reaches the next pause, nor a cmevla, nor a quote that ends in a delimiter. The stream is left-recursive and carries the tags of its last element, so each rule below joins one more element to what precedes it.
 
-Two families state one more rule each through tags of their own. Under CLL, a `Cy` letter cmavo is `cy` rather than `continued`: rule 6 lets only another `Cy` follow it directly, which is what keeps `desygau` one lujvo and not `de sy gau`, and makes `fyno` no text: `fy no` needs a pause, `fy.no`. Under the definition effort's grammar a `Cy` is an ordinary continued cmavo, and instead an unstressed CV cmavo, tagged `cv`, directly followed by a `Cy`, tagged `y-letter`, and then directly by a brivla is read as one lujvo with a y-hyphen, `bajykla`, never as `ba jy kla`: the stream after such a pair is tagged `cvcy`, and neither a brivla nor a short final rafsi such as the `bau` of `lobybau` may follow it without a pause. A family that uses neither rule tags nothing, and the alternatives that mention those tags never apply.
+The CLL family states one more rule through a tag of its own. Under CLL, a `Cy` letter cmavo is `cy` rather than `continued`: rule 6 lets only another `Cy` follow it directly, which is what keeps `desygau` one lujvo and not `de sy gau`, and makes `fyno` no text: `fy no` needs a pause, `fy.no`. The approved word forms need no tag of this kind. Their rules look past the end of a word, so they decide themselves which words can stand together without a pause, and they give every word `continued`, and `onset` where no nucleus begins it. A family that does not use `cy` tags nothing with it, and the alternatives that mention it never apply.
 
 The stage is lazy: where two parses differ, it takes the one that closes a constituent over the one that reads the next phoneme, so a word ends as early as the grammar allows, which is CLL's tosmabru rule. "Choosing among parses" at the end of this document says why.
 
@@ -66,17 +65,15 @@ The stage is lazy: where two parses differ, it takes the one that closes a const
   | $s(stream) PAUSE $e(element)
       <tags($e) ∪ classes($s) ∪ ("first-onset" ∪ "first-cy" ∪ "first-wipes") ∩ tags($s)>
   | $t(stream) $f(element)
-      <tags($f) ∪ classes($t) ∪ ("first-onset" ∪ "first-cy" ∪ "first-wipes") ∩ tags($t)
-        ∪ ("cv" ∈ tags($t) ∧ "y-letter" ∈ tags($f) ⟹ "cvcy")>
+      <tags($f) ∪ classes($t) ∪ ("first-onset" ∪ "first-cy" ∪ "first-wipes") ∩ tags($t)>
 %conditions
   "wipes-all" ∉ tags($e),
   "wipes-all" ∉ tags($f),
-  ("continued" ∪ "cy" ∪ "cvcy" ∪ "name-intro") ∩ tags($t) ≠ ∅,
+  ("continued" ∪ "cy" ∪ "name-intro") ∩ tags($t) ≠ ∅,
   "cy" ∈ tags($t) ∧ "cy" ∈ tags($f)
     ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f)
-      ∧ ("cv" ∈ tags($t) ∨ "cvcy" ∉ tags($t) ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f)))
+      ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f))
       ∧ ("final-stress" ∉ tags($t) ∨ "stress-guard" ∉ tags($f))
-    ∨ "cvcy" ∈ tags($t) ∧ "onset" ∈ tags($f) ∧ "BRIVLA" ∉ tags($f) ∧ ¬matches($f, lujvo-final-shape)
     ∨ "name-intro" ∈ tags($t) ∧ "name-onset" ∈ tags($f)
 
 %rule opener
@@ -86,9 +83,9 @@ The stage is lazy: where two parses differ, it takes the one that closes a const
   | @sa-su? $w(element) <tags($w) ∪ ("onset" ∈ tags($w) ⟹ "first-onset") ∪ "first-cy" ∩ tags($w) ∪ "first-wipes">
 %conditions
   "onset" ∈ tags($o),
-  ("cy" ∪ "y-letter") ∩ tags($o) = ∅,
+  "cy" ∉ tags($o),
   "onset" ∈ tags($k),
-  ("cy" ∪ "y-letter") ∩ tags($k) ≠ ∅,
+  "cy" ∈ tags($k),
   "onset" ∉ tags($p),
   "wipes-all" ∉ tags($o),
   "wipes-all" ∉ tags($k),
@@ -109,7 +106,7 @@ Hesitation after a final pause belongs to the stream when the body ends in one, 
 
 The joins are stated so that no two apply to the same pair: two `Cy` letter words side by side are joined by the `Cy` rule alone, which is why the general join, a continued element followed by an onset, leaves that case to it. Two joins that both applied would be two parses of one text that differ in nothing the next stage sees, and the stage would report them as a tie.
 
-Besides the tags of its last element, the stream carries what a rule reaching back over it needs: `first-onset`, when its first element may follow another without a pause, which is what joins a reach to the element before it; `first-cy`, when that element is a `Cy` letter, which under CLL may follow another word directly only if another `Cy` follows it and under the definition effort's grammar would make a lujvo with a CV word before it, so that a join without a pause refuses it and `sutyterjvi` stays one lujvo in both; and the union of the selma'o of every element in it, which is what tells a `sa` that nothing in its reach matches. `gap` is an optional pause; where the rules below join two parts across one, the condition says that either the pause is there or the two parts may stand together without it.
+Besides the tags of its last element, the stream carries what a rule reaching back over it needs: `first-onset`, when its first element may follow another without a pause, which is what joins a reach to the element before it; `first-cy`, when that element is a CLL `Cy` letter, which may follow another word directly only if another `Cy` follows it, so that a join without a pause refuses it and `sutyterjvi` stays one lujvo; and the union of the selma'o of every element in it, which is what tells a `sa` that nothing in its reach matches. `gap` is an optional pause; where the rules below join two parts across one, the condition says that either the pause is there or the two parts may stand together without it.
 
 A `si` with nothing before it erases nothing (CLL 19.13 says what `si` erases, not that there must be something to erase), and so does a run of them, whether at the start of the text, after hesitation there, after an erasure that has already taken everything before it, or after an unmatched `sa` or `su` that has. A `sa` directly before a `si` is one of those: it looks for a word of `si`'s selma'o, which no word before it has, since every `si` has acted, so it erases back to the start of the text, and the `si` then has nothing to erase. A `bu` with no word before it to bind to may stand there too, erased by the first `si`: the proposal says that `bu` and `le'u` "are never grammatical by themselves, but are grammatical as part of an utterance erased by sa, si, or su", so `bu si` is nothing, as is `mi si bu si`.
 
@@ -130,22 +127,37 @@ A `si` with nothing before it erases nothing (CLL 19.13 says what `si` erases, n
   si-word | si-run [si-gap] si-word
 ```
 
-Hesitation, `y` however long, has no grammatical meaning (CLL 19.14). As the Magic Words proposal has it, hesitation is not a word at all, which is the fourth of the departures from CLL 19. It is dropped, except directly before `bu`, where it is the base of the letter word `.y bu`. It begins with a vowel, so a pause precedes it (CLL 4.9 rule 3), and it may be followed by a word directly.
+Hesitation, `y` however long, has no grammatical meaning (CLL 19.14). As the Magic Words proposal has it, hesitation is not a word at all, which is the fourth of the departures from CLL 19. It is dropped, except directly before `bu`, where it is the base of the letter word `.y bu`. It begins with a vowel, so a pause precedes it (CLL 4.9 rule 3), unless the family gives the run the tag `onset`: the approved word forms read `kyyykerlo` as `ky`, `yy` and `kerlo`, since the first `y` of `yy` is not a nucleus there. It may be followed by a word directly.
 
 ```jbogenbau
 %rule hesitation
-  y-run <"continued">
+  $h(y-run) <"continued" ∪ "onset" ∩ tags($h)>
 %emits
   ε
 
 %rule y-run
-  y | y y-run
+  any-y | any-y y-run
 ```
 
-A `y` here is either phoneme of the letter, plain or stressed, since hesitation and the letter word `y bu` may be written with either.
+A `y` here is either phoneme of the letter, plain or stressed, since hesitation and the letter word `y bu` may be written with either. The same holds of every vowel letter in a cmavo, whose stress is free (CLL 3.9), and the lexicon documents spell their words with these rules.
 
 ```jbogenbau
-%rule y
+%rule any-a
+  /a/ | /A/
+
+%rule any-e
+  /e/ | /E/
+
+%rule any-i
+  /i/ | /I/
+
+%rule any-o
+  /o/ | /O/
+
+%rule any-u
+  /u/ | /U/
+
+%rule any-y
   /y/ | /Y/
 ```
 
@@ -201,9 +213,9 @@ CLL 19.10 to 19.13. A quote is decided at this stage because the words inside it
 ```jbogenbau
 %rule quoted-word
   | $m(word-quote-marker) $g(quote-gap) $w(quotable-word)
-      <tags($m) ∪ "onset" ∪ ("continued" ∪ "cy" ∪ "y-letter" ∪ "cv" ∪ "final-stress") ∩ tags($w)>
+      <tags($m) ∪ "onset" ∪ ("continued" ∪ "cy" ∪ "final-stress") ∩ tags($w)>
   | $m(word-quote-marker) pause-gap $v(quotable-word)
-      <tags($m) ∪ "onset" ∪ ("continued" ∪ "cy" ∪ "y-letter" ∪ "cv" ∪ "final-stress") ∩ tags($v)>
+      <tags($m) ∪ "onset" ∪ ("continued" ∪ "cy" ∪ "final-stress") ∩ tags($v)>
   | $m(word-quote-marker) pause-gap $n(cmevla-shape) <tags($m) ∪ "onset">
 %conditions
   "onset" ∈ tags($w),
@@ -277,7 +289,7 @@ CLL 19.10 to 19.13. A quote is decided at this stage because the words inside it
   "ZOI" ∈ classes($q)
 ```
 
-Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL 4.9, but no quote marker opens anything and no eraser erases, so a `lo'u` stretch is a stream of bare word shapes joined by the same rules as the stream of the text, and it joins `lo'u` and `le'u` by them too, so that `lo'umi le'u` and `lo'u mile'u` need no pause; the quote ends at the first `le'u`, even after a `zo`, which is the fifth of the departures from CLL 19, and it may be empty, `lo'u le'u`, as a `zoi` quote may. The words inside are handed on as bare words, and the markers as `LOhU` and `LEhU`; the closing marker is handed on as `LEhU` alone, not also as a word, so that the syntax cannot read it as one more quoted word and look for a later `le'u`. For `sa`, the quote has the selma'o of both its markers, as the Magic Words proposal says. `sa lo'u` erases back to the start of the last quote and opens a new one. `sa le'u` "destroys everything since the end of the last LOhU...LEhU quote, replacing the terminating LEhU with a new LEhU (i.e. not changing the quote at all)": `lehu-close` reads such a stretch as the quote's closing, so that `lo'u co le'u broda sa le'u` is the quote `lo'u co le'u`, and the ordinary erasure by `sa` does not take a `le'u` after it. The stretch, `lehu-reach`, is stated as the reach of a `sa` is: it is left-recursive and checks each element, so that it ends at the first element with the selma'o of either marker. A stretch stated as a stream would run on from every `le'u` to the end of the text.
+Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL 4.9, but no quote marker opens anything and no eraser erases, so a `lo'u` stretch is a stream of bare word shapes joined by the same rules as the stream of the text, and it joins `lo'u` and `le'u` by them too, so that `lo'umi le'u` and `lo'u mile'u` need no pause; the quote ends at the first `le'u`, even after a `zo`, which is the fifth of the departures from CLL 19, and it may be empty, `lo'u le'u`, as a `zoi` quote may. Hesitation inside the quote is dropped, as it is everywhere (the fourth of the departures from CLL 19), so `lo'u .y. le'u` quotes nothing, as camxes-std reads it. `.y. bu` inside the quote is the letter word, which the proposal forms before anything else: `lohu-word` reads it, and a join refuses a hesitation directly before a quoted `bu`, with or without a pause between them, so that the hesitation is read with that `bu` rather than dropped before it. The words inside are handed on as bare words, and the markers as `LOhU` and `LEhU`; the closing marker is handed on as `LEhU` alone, not also as a word, so that the syntax cannot read it as one more quoted word and look for a later `le'u`. For `sa`, the quote has the selma'o of both its markers, as the Magic Words proposal says. `sa lo'u` erases back to the start of the last quote and opens a new one. `sa le'u` "destroys everything since the end of the last LOhU...LEhU quote, replacing the terminating LEhU with a new LEhU (i.e. not changing the quote at all)": `lehu-close` reads such a stretch as the quote's closing, so that `lo'u co le'u broda sa le'u` is the quote `lo'u co le'u`, and the ordinary erasure by `sa` does not take a `le'u` after it. The stretch, `lehu-reach`, is stated as the reach of a `sa` is: it is left-recursive and checks each element, so that it ends at the first element with the selma'o of either marker. A stretch stated as a stream would run on from every `le'u` to the end of the text.
 
 ```jbogenbau
 %rule lohu-quote
@@ -322,12 +334,11 @@ Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL
 
 %rule lehu-reach
   | $first(opener)
-      <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($first)>
+      <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro") ∩ tags($first)>
   | $s(lehu-reach) PAUSE $e(element)
-      <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($e)>
+      <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro") ∩ tags($e)>
   | $t(lehu-reach) $f(element)
-      <("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($f)
-        ∪ ("cv" ∈ tags($t) ∧ "y-letter" ∈ tags($f) ⟹ "cvcy")>
+      <("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro") ∩ tags($f)>
 %conditions
   classes($first) ∩ ("LOhU" ∪ "LEhU") = ∅,
   "first-wipes" ∉ tags($first),
@@ -335,45 +346,49 @@ Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL
   classes($f) ∩ ("LOhU" ∪ "LEhU") = ∅,
   "wipes-all" ∉ tags($e),
   "wipes-all" ∉ tags($f),
-  ("continued" ∪ "cy" ∪ "cvcy" ∪ "name-intro") ∩ tags($t) ≠ ∅,
+  ("continued" ∪ "cy" ∪ "name-intro") ∩ tags($t) ≠ ∅,
   "cy" ∈ tags($t) ∧ "cy" ∈ tags($f)
     ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f)
-      ∧ ("cv" ∈ tags($t) ∨ "cvcy" ∉ tags($t) ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f)))
+      ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f))
       ∧ ("final-stress" ∉ tags($t) ∨ "stress-guard" ∉ tags($f))
-    ∨ "cvcy" ∈ tags($t) ∧ "onset" ∈ tags($f) ∧ "BRIVLA" ∉ tags($f) ∧ ¬matches($f, lujvo-final-shape)
     ∨ "name-intro" ∈ tags($t) ∧ "name-onset" ∈ tags($f)
 %emits
   ε
 
 %rule lohu-stream
-  | $o(lohu-word)
+  | $o(lohu-element)
       <tags($o) ∪ ("onset" ∈ tags($o) ⟹ "first-onset")
-        ∪ ("onset" ∈ tags($o) ∧ ("cy" ∪ "y-letter") ∩ tags($o) ≠ ∅ ⟹ "first-cy")>
-  | $s(lohu-stream) PAUSE $e(lohu-word)
+        ∪ ("onset" ∈ tags($o) ∧ "cy" ∈ tags($o) ⟹ "first-cy")>
+  | $s(lohu-stream) PAUSE $e(lohu-element)
       <tags($e) ∪ ("first-onset" ∪ "first-cy") ∩ tags($s)>
-  | $t(lohu-stream) $f(lohu-word)
-      <tags($f) ∪ ("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("cv" ∈ tags($t) ∧ "y-letter" ∈ tags($f) ⟹ "cvcy")>
+  | $t(lohu-stream) $f(lohu-element)
+      <tags($f) ∪ ("first-onset" ∪ "first-cy") ∩ tags($t)>
 %conditions
-  ("continued" ∪ "cy" ∪ "cvcy" ∪ "name-intro") ∩ tags($t) ≠ ∅,
+  ("continued" ∪ "cy" ∪ "name-intro") ∩ tags($t) ≠ ∅,
   "cy" ∈ tags($t) ∧ "cy" ∈ tags($f)
     ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f)
-      ∧ ("cv" ∈ tags($t) ∨ "cvcy" ∉ tags($t) ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f)))
+      ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f))
       ∧ ("final-stress" ∉ tags($t) ∨ "stress-guard" ∉ tags($f))
-    ∨ "cvcy" ∈ tags($t) ∧ "onset" ∈ tags($f) ∧ "BRIVLA" ∉ tags($f) ∧ ¬matches($f, lujvo-final-shape)
-    ∨ "name-intro" ∈ tags($t) ∧ "name-onset" ∈ tags($f)
+    ∨ "name-intro" ∈ tags($t) ∧ "name-onset" ∈ tags($f),
+  "hesitation" ∉ tags($s) ∨ "BU" ∉ tags($e, lexicon),
+  "hesitation" ∉ tags($t) ∨ "BU" ∉ tags($f, lexicon)
+
+%rule lohu-element
+  | lohu-word
+  | $h(hesitation) <tags($h) ∪ "hesitation">
 
 %rule lohu-word
   | $c(cmavo-shape) <tags($c)>
   | $b(brivla-shape) <tags($b) ∪ "BRIVLA">
   | $n(cmevla-shape) <tags($n)>
-  | y-run <"continued">
+  | y-bu-word <"continued">
 %conditions
   "LEhU" ∉ tags($c, lexicon)
 %emits
   $ <"word">
 ```
 
-The gap between a marker and its word is an optional pause, with hesitation allowed inside it; a word that begins with a vowel needs the pause. A quoted body is any run of phonemes, pauses included, which is where a character that is not Lojban at all may appear; the phonemes are listed here, since the body is the one place a grammar reads them without regard to what they spell.
+The gap between a marker and its word is an optional pause, with hesitation allowed inside it, as runs of `y` separated by pauses or, where a run has `onset`, by nothing: the approved word forms read `yyy` as `y` and `yy`; a word that begins with a vowel needs the pause. A quoted body is any run of phonemes, pauses included, which is where a character that is not Lojban at all may appear; the phonemes are listed here, since the body is the one place a grammar reads them without regard to what they spell.
 
 ```jbogenbau
 %rule quote-gap
@@ -383,7 +398,11 @@ The gap between a marker and its word is an optional pause, with hesitation allo
   PAUSE | [PAUSE] hesitations PAUSE
 
 %rule hesitations
-  y-run | hesitations PAUSE y-run
+  | y-run
+  | hesitations PAUSE y-run
+  | hesitations $y(y-run)
+%conditions
+  "onset" ∈ tags($y)
 
 %rule zoi-body
   any-char | zoi-body any-char
@@ -397,7 +416,7 @@ The gap between a marker and its word is an optional pause, with hesitation allo
   non-pause-char | PAUSE
 
 %rule non-pause-char
-  | /a/ | /e/ | /i/ | /o/ | /u/ | /A/ | /E/ | /I/ | /O/ | /U/ | y | /'/ | /,/ | FOREIGN
+  | /a/ | /e/ | /i/ | /o/ | /u/ | /A/ | /E/ | /I/ | /O/ | /U/ | any-y | /'/ | /,/ | FOREIGN
   | /b/
   | /c/
   | /d/
@@ -442,7 +461,9 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
   "BU" ∈ classes($q)
 
 %rule bu-part
-  | bu-word
+  bu-word | bu-replacement
+
+%rule bu-replacement
   | @sa-su? bu-erased [PAUSE] sa-word sa-gap bu-word
   | @sa-su? bu-erased $g(gap) $r(bu-reach) $h(gap) sa-word sa-gap bu-word
 %conditions
@@ -459,12 +480,11 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
 
 %rule bu-reach
   | $first(opener)
-      <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($first)>
+      <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro") ∩ tags($first)>
   | $s(bu-reach) PAUSE $e(element)
-      <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($e)>
+      <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro") ∩ tags($e)>
   | $t(bu-reach) $f(element)
-      <("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($f)
-        ∪ ("cv" ∈ tags($t) ∧ "y-letter" ∈ tags($f) ⟹ "cvcy")>
+      <("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro") ∩ tags($f)>
 %conditions
   classes($first) ∩ ("BY") = ∅,
   "first-wipes" ∉ tags($first),
@@ -472,29 +492,28 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
   classes($f) ∩ ("BY") = ∅,
   "wipes-all" ∉ tags($e),
   "wipes-all" ∉ tags($f),
-  ("continued" ∪ "cy" ∪ "cvcy" ∪ "name-intro") ∩ tags($t) ≠ ∅,
+  ("continued" ∪ "cy" ∪ "name-intro") ∩ tags($t) ≠ ∅,
   "cy" ∈ tags($t) ∧ "cy" ∈ tags($f)
     ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f)
-      ∧ ("cv" ∈ tags($t) ∨ "cvcy" ∉ tags($t) ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f)))
+      ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f))
       ∧ ("final-stress" ∉ tags($t) ∨ "stress-guard" ∉ tags($f))
-    ∨ "cvcy" ∈ tags($t) ∧ "onset" ∈ tags($f) ∧ "BRIVLA" ∉ tags($f) ∧ ¬matches($f, lujvo-final-shape)
     ∨ "name-intro" ∈ tags($t) ∧ "name-onset" ∈ tags($f)
 %emits
   ε
 
 %rule zei-compound
   | $l(unit) $z(zei-word) $r(zei-right)
-      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($l) ∪ ("continued" ∪ "cy" ∪ "y-letter" ∪ "final-stress") ∩ tags($r)>
+      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($l) ∪ ("continued" ∪ "cy" ∪ "final-stress") ∩ tags($r)>
   | $k(unit) zei-before-gap $z(zei-word) $r(zei-right)
-      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($k) ∪ ("continued" ∪ "cy" ∪ "y-letter" ∪ "final-stress") ∩ tags($r)>
+      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($k) ∪ ("continued" ∪ "cy" ∪ "final-stress") ∩ tags($r)>
   | $l(unit) zei-word $j(zei-after-gap) $p(zei-right)
-      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($l) ∪ ("continued" ∪ "cy" ∪ "y-letter" ∪ "final-stress") ∩ tags($p)>
+      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($l) ∪ ("continued" ∪ "cy" ∪ "final-stress") ∩ tags($p)>
   | $k(unit) zei-before-gap zei-word $j(zei-after-gap) $p(zei-right)
-      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($k) ∪ ("continued" ∪ "cy" ∪ "y-letter" ∪ "final-stress") ∩ tags($p)>
+      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($k) ∪ ("continued" ∪ "cy" ∪ "final-stress") ∩ tags($p)>
   | $l(unit) $g(gap-erasures) $z(zei-word) $r(zei-right)
-      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($l) ∪ ("continued" ∪ "cy" ∪ "y-letter" ∪ "final-stress") ∩ tags($r)>
+      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($l) ∪ ("continued" ∪ "cy" ∪ "final-stress") ∩ tags($r)>
   | $k(unit) zei-before-gap $h(gap-erasures) $z(zei-word) $r(zei-right)
-      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($k) ∪ ("continued" ∪ "cy" ∪ "y-letter" ∪ "final-stress") ∩ tags($r)>
+      <"word" ∪ "BRIVLA" ∪ ("onset" ∪ "wipes-all") ∩ tags($k) ∪ ("continued" ∪ "cy" ∪ "final-stress") ∩ tags($r)>
 %conditions
   "continued" ∈ tags($l),
   "onset" ∈ tags($r),
@@ -582,14 +601,14 @@ These two erasers are behind the feature `sa-su`. They are the most expensive pa
 
 CLL 19.13: `sa` erases back to the most recent word of the same selma'o as the word after it, that word included, and leaves the word after it standing; `su` "erases the entire text". The Magic Words proposal and camxes-std stop `su` sooner, at the most recent `ni'o`, `no'i`, `lu`, `tu'e` or `to`, which survives, as step 2g of the YACC preamble also does. The feature `su-boundary` gives that reading: the approved word forms, experimental and Zantufa dialects turn it on, and the CLL dialect leaves it off, so that there `su` erases the whole text before it. Both are resolved here, in the same left-to-right pass as the quotes, the compounds and `si`, because they act in that order: in `mi le brodi sa le si la brodo` the `sa` takes `le brodi` before the `si` erases the `le` that follows it, and `mi brodi .i sa mi zei co mi` compounds `mi zei co` only after the `sa` has taken `mi brodi .i`.
 
-The reach of a `sa` is stated from its far end: `sa-open` is an element, which has some selma'o, and the elements after it, none of which has a class of the first one's, so the `sa` that follows finds the nearest match. It is left-recursive and checks the class at every step, so that a reach dies at the first element that would match; that keeps the chart linear in the length of the text, which a reach stated as an element followed by a whole stream does not, since a stream may start anywhere and cannot know which class it is keeping clear of. Each step restates the stream's join in three lines: without a pause, the element before must be continued or both must be `Cy` letters; after a pause, anything may follow, and a `Cy` after a pause counts as continued. The definition effort's `CVCy` guard is not restated, since the reach is erased text and the guard only chooses between two readings of text that parses either way. The match is by selma'o: the first element's classes and the classes of the word after `sa` must share one. Hesitation may stand between a `sa` and the word after it, as between a word and its `si`. What the `sa` leaves is the word after it, a word or a quote and never a compound, since the `sa` acts before a `bu` or `zei` after that word does, and the compound is then built on what the `sa` left; the erasure carries the classes of that word, so that a later `sa` may match it in turn; the erasure may follow the element before it without a pause exactly when its first element may. Several `sa` in a row reach back to successively further matches, "one for each SA", as the Magic Words proposal says: two `sa` erase back to the second-nearest match, three to the third, and so on. The erased text is then as many reaches as there are `sa`, each beginning at a match, followed by the `sa` themselves, which `sa-nest` pairs from the inside out: the innermost reach with the first `sa`, the next reach back with the second. A reach also carries whether its first element may follow the element before it without a pause, `first-onset`, and joins its elements by the same condition as the stream.
+The reach of a `sa` is stated from its far end: `sa-open` is an element, which has some selma'o, and the elements after it, none of which has a class of the first one's, so the `sa` that follows finds the nearest match. It is left-recursive and checks the class at every step, so that a reach dies at the first element that would match; that keeps the chart linear in the length of the text, which a reach stated as an element followed by a whole stream does not, since a stream may start anywhere and cannot know which class it is keeping clear of. Each step restates the stream's join in three lines: without a pause, the element before must be continued or both must be `Cy` letters; after a pause, anything may follow, and a `Cy` after a pause counts as continued. The match is by selma'o: the first element's classes and the classes of the word after `sa` must share one. Hesitation may stand between a `sa` and the word after it, as between a word and its `si`. What the `sa` leaves is the word after it, a word or a quote and never a compound, since the `sa` acts before a `bu` or `zei` after that word does, and the compound is then built on what the `sa` left; the erasure carries the classes of that word, so that a later `sa` may match it in turn; the erasure may follow the element before it without a pause exactly when its first element may. Several `sa` in a row reach back to successively further matches, "one for each SA", as the Magic Words proposal says: two `sa` erase back to the second-nearest match, three to the third, and so on. The erased text is then as many reaches as there are `sa`, each beginning at a match, followed by the `sa` themselves, which `sa-nest` pairs from the inside out: the innermost reach with the first `sa`, the next reach back with the second. A reach also carries whether its first element may follow the element before it without a pause, `first-onset`, and joins its elements by the same condition as the stream.
 
 ```jbogenbau
 %rule sa-erasure
   $first(sa-nest) $h(sa-gap) $next(sa-next)
 %tags
   ("first-onset" ∈ tags($first) ⟹ "onset") ∪ "wipes-all" ∩ tags($first)
-    ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($next) ∪ classes($next)
+    ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro") ∩ tags($next) ∪ classes($next)
 %conditions
   classes($first) ∩ classes($next) ≠ ∅,
   "LEhU" ∉ classes($next) ∨ "LOhU" ∈ classes($next),
@@ -610,26 +629,24 @@ The reach of a `sa` is stated from its far end: `sa-open` is an element, which h
 
 %rule sa-open
   | $first(element)
-      <classes($first) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "wipes-all") ∩ tags($first)
+      <classes($first) ∪ ("continued" ∪ "cy" ∪ "wipes-all") ∩ tags($first)
         ∪ ("onset" ∈ tags($first) ⟹ "first-onset")
-        ∪ ("onset" ∈ tags($first) ∧ ("cy" ∪ "y-letter") ∩ tags($first) ≠ ∅ ⟹ "first-cy")>
+        ∪ ("onset" ∈ tags($first) ∧ "cy" ∈ tags($first) ⟹ "first-cy")>
   | $s(sa-open) PAUSE $e(element)
-      <classes($s) ∪ ("first-onset" ∪ "first-cy" ∪ "wipes-all") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($e)>
+      <classes($s) ∪ ("first-onset" ∪ "first-cy" ∪ "wipes-all") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro") ∩ tags($e)>
   | $t(sa-open) $f(element)
-      <classes($t) ∪ ("first-onset" ∪ "first-cy" ∪ "wipes-all") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($f)
-        ∪ ("cv" ∈ tags($t) ∧ "y-letter" ∈ tags($f) ⟹ "cvcy")>
+      <classes($t) ∪ ("first-onset" ∪ "first-cy" ∪ "wipes-all") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro") ∩ tags($f)>
 %conditions
   classes($first) ≠ ∅,
   "wipes-all" ∉ tags($e),
   "wipes-all" ∉ tags($f),
   classes($s) ∩ classes($e) = ∅,
   classes($t) ∩ classes($f) = ∅,
-  ("continued" ∪ "cy" ∪ "cvcy" ∪ "name-intro") ∩ tags($t) ≠ ∅,
+  ("continued" ∪ "cy" ∪ "name-intro") ∩ tags($t) ≠ ∅,
   "cy" ∈ tags($t) ∧ "cy" ∈ tags($f)
     ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f)
-      ∧ ("cv" ∈ tags($t) ∨ "cvcy" ∉ tags($t) ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f)))
+      ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f))
       ∧ ("final-stress" ∉ tags($t) ∨ "stress-guard" ∉ tags($f))
-    ∨ "cvcy" ∈ tags($t) ∧ "onset" ∈ tags($f) ∧ "BRIVLA" ∉ tags($f) ∧ ¬matches($f, lujvo-final-shape)
     ∨ "name-intro" ∈ tags($t) ∧ "name-onset" ∈ tags($f)
 %emits
   ε
@@ -697,12 +714,11 @@ With `su-boundary`, `su` erases back to a boundary word, which survives, or to t
 
 %rule su-reach
   | $first(opener)
-      <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($first)>
+      <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro") ∩ tags($first)>
   | $s(su-reach) PAUSE $e(element)
-      <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($e)>
+      <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro") ∩ tags($e)>
   | $t(su-reach) $f(element)
-      <("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($f)
-        ∪ ("cv" ∈ tags($t) ∧ "y-letter" ∈ tags($f) ⟹ "cvcy")>
+      <("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro") ∩ tags($f)>
 %conditions
   classes($first) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅,
   "first-wipes" ∉ tags($first),
@@ -710,12 +726,11 @@ With `su-boundary`, `su` erases back to a boundary word, which survives, or to t
   classes($f) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅,
   "wipes-all" ∉ tags($e),
   "wipes-all" ∉ tags($f),
-  ("continued" ∪ "cy" ∪ "cvcy" ∪ "name-intro") ∩ tags($t) ≠ ∅,
+  ("continued" ∪ "cy" ∪ "name-intro") ∩ tags($t) ≠ ∅,
   "cy" ∈ tags($t) ∧ "cy" ∈ tags($f)
     ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f)
-      ∧ ("cv" ∈ tags($t) ∨ "cvcy" ∉ tags($t) ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f)))
+      ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f))
       ∧ ("final-stress" ∉ tags($t) ∨ "stress-guard" ∉ tags($f))
-    ∨ "cvcy" ∈ tags($t) ∧ "onset" ∈ tags($f) ∧ "BRIVLA" ∉ tags($f) ∧ ¬matches($f, lujvo-final-shape)
     ∨ "name-intro" ∈ tags($t) ∧ "name-onset" ∈ tags($f)
 %emits
   ε
@@ -762,13 +777,13 @@ What an unmatched `su` erases is a wiped stretch, which the text rule accepts be
 
 %rule sa-wiped
   | sa-run $h(sa-gap) $n(sa-next)
-      <"onset" ∪ "wipes-all" ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($n) ∪ classes($n)>
+      <"onset" ∪ "wipes-all" ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro") ∩ tags($n) ∪ classes($n)>
   | $r(wiped-reach) $g(gap) sa-run $h(sa-gap) $n(sa-next)
       <("first-onset" ∈ tags($r) ⟹ "onset") ∪ "first-cy" ∩ tags($r) ∪ "wipes-all"
-        ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($n) ∪ classes($n)>
+        ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro") ∩ tags($n) ∪ classes($n)>
   | $w(sa-wipe) $h(sa-gap) $n(sa-next)
       <("first-onset" ∈ tags($w) ⟹ "onset") ∪ "first-cy" ∩ tags($w) ∪ "wipes-all"
-        ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($n) ∪ classes($n)>
+        ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro") ∩ tags($n) ∪ classes($n)>
 %conditions
   classes($r) ∩ classes($n) = ∅,
   classes($w) ∩ classes($n) ≠ ∅,
@@ -843,4 +858,4 @@ The stage declares `%ambiguity-resolution lazy`: where the grammar admits more t
 
 ## Known gaps
 
-Cyrillic and zbalermorna are read by the phoneme stage, so this grammar never sees them; what it does not read is a `zoi` quote whose delimiters are not set off by pauses.
+Cyrillic and zbalermorna are read by the phoneme stage, so this grammar never sees them; what it does not read is a `zoi` quote whose delimiters are not set off by pauses. In the approved word forms, a `sa` whose replacement begins with the letter word `.y bu` cannot have that letter word's `bu` replaced by a second `sa`: `sa ybu sa bu` is rejected, although `sa a bu sa bu` is `a bu`. The letter word is one word there, and the one rule that reaches its `bu` is an alternative of `lerfu-word`, which cannot stand after a `sa`.

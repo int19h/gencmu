@@ -15,7 +15,7 @@ A cmavo that begins with a consonant can follow a word without a pause. A pause 
   | $c(plain-cmavo-body)
       <"onset" ∪ "continued" ∪ (matches($c, final-stressed) ⟹ "final-stress") ∪ (matches($c, name-intro-cmavo) ⟹ "name-intro")>
   | $v(cmavo-nuclei) word-end <"continued" ∪ (matches($v, final-stressed) ⟹ "final-stress")>
-  | y /'/ y <"continued">
+  | any-y /'/ any-y <"continued">
   | letter-cmavo <"onset" ∪ "cy">
 
 %rule plain-cmavo-body
@@ -37,7 +37,7 @@ A cmavo that begins with a consonant can follow a word without a pause. A pause 
   (any-i | any-u) (any-a | any-e | any-i | any-o | any-u)
 
 %rule letter-cmavo
-  consonant y
+  consonant any-y
 
 %rule name-intro-cmavo
   /l/ any-a | /l/ any-a any-i | /l/ any-a /'/ any-i | /d/ any-o any-i
@@ -47,7 +47,7 @@ Two rules of CLL about pauses need tags of their own. CLL 4.9 rule 5 says: "If t
 
 CLL 4.9 rule 4 says that a name needs a pause before it "unless the immediately preceding word is one of the cmavo la, lai, la'i, or doi". So those four words are tagged `name-intro`, and a name that begins with a consonant is tagged `name-onset`. The join rules let that pair stand together without a pause, so `ladjan.` is `la djan.`.
 
-A lexicon spells each cmavo in phoneme tags, the apostrophe as `/'/`, and each vowel with an `any-` rule of [shapes.md](shapes.md), which matches either the plain or the stressed phoneme, since a cmavo's stress is free.
+A lexicon spells each cmavo in phoneme tags, the apostrophe as `/'/`, and each vowel with an `any-` rule of [stream.md](stream.md), which matches either the plain or the stressed phoneme, since a cmavo's stress is free.
 
 ## Brivla
 
@@ -210,13 +210,13 @@ CLL 4.7 rule 1 lets a borrowing begin with "a longer cluster such that each pair
 Inside a borrowing, CLL 4.7 says that clusters "can be quite flexible, as long as all consonant pairs are permissible", and gives `bang,r,blgaria` and `kuln,r,kore,a`. That is the exception it makes to CLL 3.6 and 3.7, which limit clusters to three consonants and a medial triple to one that ends in an initial pair. So in this family a cluster between two vowels of a borrowing is any run of consonants, and the check of a whole word, `bad-joint`, holds each pair to the table and refuses an `n` before an affricate, as CLL 4.7's `lerldjamo` shows. A syllabic consonant is one more consonant of such a run.
 
 ```jbogenbau
-%redefine-rule initial-triple
+%rule initial-triple
   long-initial-run
 
-%redefine-rule consonant-cluster
+%rule consonant-cluster
   consonant consonant-run
 
-%redefine-rule long-cluster
+%rule long-cluster
   consonant consonant consonant-run
 
 %rule consonant-run

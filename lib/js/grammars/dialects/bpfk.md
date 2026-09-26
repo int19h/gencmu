@@ -1,6 +1,6 @@
 # The approved word forms <?features su-boundary?>
 
-The CLL dialect with the word-form grammar the definition effort approved, appendix A2 of the 1.3 editions of *The Complete Lojban Language*, in place of chapter 4's. [`../words/bpfk.md`](../words/bpfk.md) lists how the two differ. Its syntax is the CLL grammar, read as the PEG grammars that the definition effort adopted read elided terminators ([`../syntax/bpfk.md`](../syntax/bpfk.md)). Its phoneme stage reads the conventions of [`../phonemes/latin.md`](../phonemes/latin.md) beyond CLL's orthography, which the approved grammar reads too in part, and gencmu's Cyrillic and zbalermorna. Its indicator stage is the [cll-ebnf](cll-ebnf.md) dialect's. It turns on the feature `su-boundary`, so that `su` erases back to the last `ni'o`, `no'i`, `lu`, `tu'e` or `to`, as the Magic Words proposal and camxes-std have it, rather than the whole text, as CLL 19.13 does.
+The CLL dialect with the word-form grammar the definition effort approved, appendix A2 of the 1.3 editions of *The Complete Lojban Language*, in place of chapter 4's. [`../words/bpfk.md`](../words/bpfk.md) translates that grammar rule by rule. Among its differences from chapter 4, it has the extended rafsi, which shorten a borrowing with a hyphen, and a `Cy` letter word can stand before another word without a pause: `fyno` is `fy no`, where CLL 4.9 rule 6 asks for a pause. Its syntax is the CLL grammar, read as the PEG grammars that the definition effort adopted read elided terminators ([`../syntax/bpfk.md`](../syntax/bpfk.md)). Its phoneme stage reads the conventions of [`../phonemes/latin.md`](../phonemes/latin.md) beyond CLL's orthography, which the approved grammar reads too in part, and gencmu's Cyrillic and zbalermorna. Its indicator stage is the [cll-ebnf](cll-ebnf.md) dialect's. It turns on the feature `su-boundary`, so that `su` erases back to the last `ni'o`, `no'i`, `lu`, `tu'e` or `to`, as the Magic Words proposal and camxes-std have it, rather than the whole text, as CLL 19.13 does.
 
 ## Stage 1: phonemes <?stage phonemes?>
 
@@ -13,7 +13,6 @@ The CLL dialect with the word-form grammar the definition effort approved, appen
 ## Stage 2: words <?stage words?>
 
 - [The word stream](../words/stream.md) <?grammar?>
-- [Word shapes](../words/shapes.md) <?grammar?>
 - [Approved word forms](../words/bpfk.md) <?grammar?>
 - [The CLL lexicon](../words/lexicon-cll.md) <?grammar?>
 
