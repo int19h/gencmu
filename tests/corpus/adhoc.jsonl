@@ -1157,3 +1157,19 @@
 {"id":"adhoc.words.peg.jy-q-comma-sai.bpfk","text":"jy?,sai","dialect":"bpfk","expect":"accept","verdict":"unique","words":["jy","sai"],"brackets":"jy"}
 {"id":"adhoc.words.peg.mi-q-x-do","text":"mi?!do","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"adhoc.words.peg.mi-q-x-do.bpfk","text":"mi?!do","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","do"],"brackets":"(mi do)"}
+{"id":"adhoc.camxes-exp.word-forms.hy-rafsi-after-rafsi.experimental","text":"kerlybai'ybroda","dialect":"experimental","expect":"accept","verdict":"unique","words":["kerlybai'ybroda"],"brackets":"kerlybai'ybroda"}
+{"id":"adhoc.camxes-exp.word-forms.hy-rafsi-after-rafsi.zantufa","text":"kerlybai'ybroda","dialect":"zantufa","expect":"reject","stage":"words"}
+{"id":"adhoc.camxes-exp.word-forms.ccv-hy-rafsi-after-rafsi.experimental","text":"kerlybla'ykla","dialect":"experimental","expect":"accept","verdict":"unique","words":["kerlybla'ykla"],"brackets":"kerlybla'ykla"}
+{"id":"adhoc.camxes-exp.word-forms.ccv-hy-rafsi-after-rafsi.zantufa","text":"kerlybla'ykla","dialect":"zantufa","expect":"reject","stage":"words"}
+{"id":"adhoc.camxes-exp.word-forms.slihykru.experimental","text":"bla'ykla","dialect":"experimental","expect":"reject","stage":"words"}
+{"id":"adhoc.camxes-exp.word-forms.slihykru.zantufa","text":"bla'ykla","dialect":"zantufa","expect":"reject","stage":"words"}
+{"id":"adhoc.camxes-exp.word-forms.long-rafsi-hy-rafsi.experimental","text":"klama'ybroda","dialect":"experimental","expect":"accept","verdict":"unique","words":["klama'ybroda"],"brackets":"klama'ybroda"}
+{"id":"adhoc.camxes-exp.word-forms.long-rafsi-hy-rafsi.zantufa","text":"klama'ybroda","dialect":"zantufa","expect":"accept","verdict":"unique","words":["klama'ybroda"],"brackets":"klama'ybroda"}
+{"id":"adhoc.camxes-exp.word-forms.fuhivla-rafsi-apostrophe-onset.experimental","text":"kerlyfa'u'yiismu","dialect":"experimental","expect":"accept","verdict":"unique","words":["kerlyfa'u'yiismu"],"brackets":"kerlyfa'u'yiismu"}
+{"id":"adhoc.camxes-exp.word-forms.fuhivla-rafsi-apostrophe-onset.zantufa","text":"kerlyfa'u'yiismu","dialect":"zantufa","expect":"reject","stage":"words"}
+{"id":"adhoc.camxes-exp.word-forms.cmavo-before-fuhivla.experimental","text":"fa'u'yiismu","dialect":"experimental","expect":"reject","stage":"syntax","words":["fa'u'y","iismu"]}
+{"id":"adhoc.camxes-exp.word-forms.cmavo-before-fuhivla.zantufa","text":"fa'u'yiismu","dialect":"zantufa","expect":"reject","stage":"syntax","words":["fa'u'y","iismu"]}
+{"id":"adhoc.camxes-exp.word-forms.mz-in-gismu.experimental","text":"kamzi","dialect":"experimental","expect":"accept","verdict":"unique","words":["kamzi"],"brackets":"kamzi"}
+{"id":"adhoc.camxes-exp.word-forms.mz-in-gismu.zantufa","text":"kamzi","dialect":"zantufa","expect":"accept","verdict":"unique","words":["kamzi"],"brackets":"kamzi"}
+{"id":"adhoc.camxes-exp.word-forms.mz-in-lujvo.experimental","text":"bamzda","dialect":"experimental","expect":"accept","verdict":"unique","words":["bamzda"],"brackets":"bamzda"}
+{"id":"adhoc.camxes-exp.word-forms.mz-in-lujvo.zantufa","text":"bamzda","dialect":"zantufa","expect":"accept","verdict":"unique","words":["bamzda"],"brackets":"bamzda"}
