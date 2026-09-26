@@ -15,7 +15,7 @@ The notation is explained in [the notation document](../../docs/notation.md). Th
 
 The text is a stream of elements, an element being a word, a quote package, a `bu` or `zei` compound, an erasure, or hesitation, and the pauses between them. CLL 4.9 gives the rules for pauses, which this section states as properties every element carries as tags, decided by the word shapes of the family document. An element has `onset` when it may follow another element without a pause: it begins with a consonant, and is not a cmevla, which rule 4 surrounds with pauses. An element is `continued` when another element may follow it without a pause: a cmavo, a compound, a brivla whose stress is marked, but not an unmarked brivla, which by 3.9 reaches the next pause, nor a cmevla, nor a quote that ends in a delimiter. The stream is left-recursive and carries the tags of its last element, so each rule below joins one more element to what precedes it.
 
-Two families state one more rule each through tags of their own. Under CLL, a `Cy` letter cmavo is `cy` rather than `continued`: rule 6 lets only another `Cy` follow it directly, which is what keeps `desygau` one lujvo and not `de sy gau`; written usage has `fyno` for `fy no` often enough that a `Cy` beginning its stretch after a pause is treated as continued. Under the definition effort's grammar a `Cy` is an ordinary continued cmavo, and instead an unstressed CV cmavo, tagged `cv`, directly followed by a `Cy`, tagged `y-letter`, and then directly by a brivla is read as one lujvo with a y-hyphen, `bajykla`, never as `ba jy kla`: the stream after such a pair is tagged `cvcy`, and neither a brivla nor a short final rafsi such as the `bau` of `lobybau` may follow it without a pause. A family that uses neither rule tags nothing, and the alternatives that mention those tags never apply.
+Two families state one more rule each through tags of their own. Under CLL, a `Cy` letter cmavo is `cy` rather than `continued`: rule 6 lets only another `Cy` follow it directly, which is what keeps `desygau` one lujvo and not `de sy gau`, and makes `fyno` no text: `fy no` needs a pause, `fy.no`. Under the definition effort's grammar a `Cy` is an ordinary continued cmavo, and instead an unstressed CV cmavo, tagged `cv`, directly followed by a `Cy`, tagged `y-letter`, and then directly by a brivla is read as one lujvo with a y-hyphen, `bajykla`, never as `ba jy kla`: the stream after such a pair is tagged `cvcy`, and neither a brivla nor a short final rafsi such as the `bau` of `lobybau` may follow it without a pause. A family that uses neither rule tags nothing, and the alternatives that mention those tags never apply.
 
 The stage is lazy: where two parses differ, it takes the one that closes a constituent over the one that reads the next phoneme, so a word ends as early as the grammar allows, which is CLL's tosmabru rule. "Choosing among parses" at the end of this document says why.
 
@@ -62,9 +62,9 @@ The stage is lazy: where two parses differ, it takes the one that closes a const
   ε | PAUSE
 
 %rule stream
-  | $o(opener) <tags($o) ∪ ("cy" ∈ tags($o) ⟹ "continued")>
+  | $o(opener) <tags($o)>
   | $s(stream) PAUSE $e(element)
-      <tags($e) ∪ classes($s) ∪ ("first-onset" ∪ "first-cy" ∪ "first-wipes") ∩ tags($s) ∪ ("cy" ∈ tags($e) ⟹ "continued")>
+      <tags($e) ∪ classes($s) ∪ ("first-onset" ∪ "first-cy" ∪ "first-wipes") ∩ tags($s)>
   | $t(stream) $f(element)
       <tags($f) ∪ classes($t) ∪ ("first-onset" ∪ "first-cy" ∪ "first-wipes") ∩ tags($t)
         ∪ ("cv" ∈ tags($t) ∧ "y-letter" ∈ tags($f) ⟹ "cvcy")>
@@ -322,11 +322,9 @@ Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL
 
 %rule lehu-reach
   | $first(opener)
-      <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($first)
-        ∪ ("cy" ∈ tags($first) ⟹ "continued")>
+      <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($first)>
   | $s(lehu-reach) PAUSE $e(element)
-      <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($e)
-        ∪ ("cy" ∈ tags($e) ⟹ "continued")>
+      <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($e)>
   | $t(lehu-reach) $f(element)
       <("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($f)
         ∪ ("cv" ∈ tags($t) ∧ "y-letter" ∈ tags($f) ⟹ "cvcy")>
@@ -349,10 +347,10 @@ Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL
 
 %rule lohu-stream
   | $o(lohu-word)
-      <tags($o) ∪ ("cy" ∈ tags($o) ⟹ "continued") ∪ ("onset" ∈ tags($o) ⟹ "first-onset")
+      <tags($o) ∪ ("onset" ∈ tags($o) ⟹ "first-onset")
         ∪ ("onset" ∈ tags($o) ∧ ("cy" ∪ "y-letter") ∩ tags($o) ≠ ∅ ⟹ "first-cy")>
   | $s(lohu-stream) PAUSE $e(lohu-word)
-      <tags($e) ∪ ("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("cy" ∈ tags($e) ⟹ "continued")>
+      <tags($e) ∪ ("first-onset" ∪ "first-cy") ∩ tags($s)>
   | $t(lohu-stream) $f(lohu-word)
       <tags($f) ∪ ("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("cv" ∈ tags($t) ∧ "y-letter" ∈ tags($f) ⟹ "cvcy")>
 %conditions
@@ -430,16 +428,13 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
   | $v(unit) PAUSE bu-part <"word" ∪ "BY" ∪ "continued" ∪ ("onset" ∪ "wipes-all") ∩ tags($v)>
   | $u(unit) $g(gap-erasures) bu-part <"word" ∪ "BY" ∪ "continued" ∪ ("onset" ∪ "wipes-all") ∩ tags($u)>
   | $v(unit) PAUSE $h(gap-erasures) bu-part <"word" ∪ "BY" ∪ "continued" ∪ ("onset" ∪ "wipes-all") ∩ tags($v)>
-  | $y(y-base) [PAUSE] bu-part <"word" ∪ "BY" ∪ "continued">
+  | y-run [PAUSE] bu-part <"word" ∪ "BY" ∪ "continued">
 %conditions
   "continued" ∈ tags($u),
   "cy" ∈ tags($c),
   "onset" ∈ tags($g)
 %emits
   $
-
-%rule y-base
-  y-run
 
 %rule bu-word
   $q(magic-body)
@@ -464,11 +459,9 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
 
 %rule bu-reach
   | $first(opener)
-      <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($first)
-        ∪ ("cy" ∈ tags($first) ⟹ "continued")>
+      <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($first)>
   | $s(bu-reach) PAUSE $e(element)
-      <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($e)
-        ∪ ("cy" ∈ tags($e) ⟹ "continued")>
+      <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($e)>
   | $t(bu-reach) $f(element)
       <("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($f)
         ∪ ("cv" ∈ tags($t) ∧ "y-letter" ∈ tags($f) ⟹ "cvcy")>
@@ -621,8 +614,7 @@ The reach of a `sa` is stated from its far end: `sa-open` is an element, which h
         ∪ ("onset" ∈ tags($first) ⟹ "first-onset")
         ∪ ("onset" ∈ tags($first) ∧ ("cy" ∪ "y-letter") ∩ tags($first) ≠ ∅ ⟹ "first-cy")>
   | $s(sa-open) PAUSE $e(element)
-      <classes($s) ∪ ("first-onset" ∪ "first-cy" ∪ "wipes-all") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($e)
-        ∪ ("cy" ∈ tags($e) ⟹ "continued")>
+      <classes($s) ∪ ("first-onset" ∪ "first-cy" ∪ "wipes-all") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($e)>
   | $t(sa-open) $f(element)
       <classes($t) ∪ ("first-onset" ∪ "first-cy" ∪ "wipes-all") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($f)
         ∪ ("cv" ∈ tags($t) ∧ "y-letter" ∈ tags($f) ⟹ "cvcy")>
@@ -705,11 +697,9 @@ With `su-boundary`, `su` erases back to a boundary word, which survives, or to t
 
 %rule su-reach
   | $first(opener)
-      <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($first)
-        ∪ ("cy" ∈ tags($first) ⟹ "continued")>
+      <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($first)>
   | $s(su-reach) PAUSE $e(element)
-      <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($e)
-        ∪ ("cy" ∈ tags($e) ⟹ "continued")>
+      <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($e)>
   | $t(su-reach) $f(element)
       <("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "cv" ∪ "y-letter" ∪ "final-stress" ∪ "name-intro") ∩ tags($f)
         ∪ ("cv" ∈ tags($t) ∧ "y-letter" ∈ tags($f) ⟹ "cvcy")>
