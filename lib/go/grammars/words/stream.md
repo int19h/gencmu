@@ -16,7 +16,9 @@ The text is a stream of elements, an element being a word, a quote package, a `b
 
 The CLL family states one more rule through a tag of its own. Under CLL, a `Cy` letter cmavo is `cy` rather than `continued`. Rule 6 lets only another `Cy` follow it directly. That keeps `desygau` one lujvo and not `de sy gau`, and it makes `fyno` no text: `fy no` needs a pause, `fy.no`. The approved word forms need no tag of this kind. Their rules look past the end of a word, so they decide themselves which words can stand together without a pause. They give every word `continued`, and `onset` where no nucleus begins it. A family that does not use `cy` tags nothing with it, and the alternatives that mention it never apply.
 
-The stage is lazy: where two parses differ, it takes the one that closes a constituent over the one that reads the next phoneme, so a word ends as early as the grammar allows, which is CLL's tosmabru rule. "Choosing among parses" at the end of this document says why.
+The CLL family states the other rules of CLL 4.9 and 4.2 through tags as well, and [cll.md](cll.md) says which words carry them. `final-stress` marks a word whose last syllable is stressed. A pause must separate it from a following word tagged `initial-stress`, whose first syllable is stressed (4.2). A pause must also separate it from a following brivla, tagged `stress-guard` (rule 5). `name-intro` marks `la`, `lai`, `la'i` and `doi`, which a name tagged `name-onset` may follow directly (rule 4). A brivla whose stress is not marked is `open-stress` instead of `continued`. CLL 3.9 puts its stress on its penultimate syllable, counted to the next pause. So only words tagged `uncounted`, which have no counted syllable, may follow it without a pause, and the stream carries `open-stress` on through them. The approved word forms set none of these tags.
+
+The stage is lazy: where two parses differ, it takes the one that closes a constituent over the one that reads the next phoneme. "Choosing among parses" at the end of this document says why.
 
 ```jbogenbau
 %ambiguity-resolution lazy
@@ -65,16 +67,18 @@ The stage is lazy: where two parses differ, it takes the one that closes a const
   | $s(stream) PAUSE $e(element)
       <tags($e) ∪ classes($s) ∪ ("first-onset" ∪ "first-cy" ∪ "first-wipes") ∩ tags($s)>
   | $t(stream) $f(element)
-      <tags($f) ∪ classes($t) ∪ ("first-onset" ∪ "first-cy" ∪ "first-wipes") ∩ tags($t)>
+      <tags($f) ∪ classes($t) ∪ ("first-onset" ∪ "first-cy" ∪ "first-wipes") ∩ tags($t)
+       ∪ ("uncounted" ∈ tags($f) ⟹ "open-stress" ∩ tags($t))>
 %conditions
   "wipes-all" ∉ tags($e),
   "wipes-all" ∉ tags($f),
-  ("continued" ∪ "cy" ∪ "name-intro") ∩ tags($t) ≠ ∅,
+  ("continued" ∪ "cy" ∪ "name-intro" ∪ "open-stress") ∩ tags($t) ≠ ∅,
   "cy" ∈ tags($t) ∧ "cy" ∈ tags($f)
-    ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f)
-      ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f))
-      ∧ ("final-stress" ∉ tags($t) ∨ "stress-guard" ∉ tags($f))
+    ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f) ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f))
     ∨ "name-intro" ∈ tags($t) ∧ "name-onset" ∈ tags($f)
+    ∨ "open-stress" ∈ tags($t) ∧ "cy" ∉ tags($t) ∧ "onset" ∈ tags($f),
+  "final-stress" ∉ tags($t) ∨ ("stress-guard" ∪ "initial-stress") ∩ tags($f) = ∅,
+  "open-stress" ∉ tags($t) ∨ "uncounted" ∈ tags($f)
 
 %rule opener
   | $o(element) <tags($o) ∪ "first-onset">
@@ -142,10 +146,10 @@ Hesitation, `y` however long, has no grammatical meaning (CLL 19.14). As the Mag
   ε
 
 %rule y-run
-  any-y | any-y y-run
+  any-y | any-y y-run | any-y /,/ y-run
 ```
 
-A `y` here is either phoneme of the letter, plain or stressed, since hesitation and the letter word `y bu` may be written with either. The same holds of every vowel letter in a cmavo, whose stress is free (CLL 3.9). The lexicon documents spell their words with these rules.
+A `y` here is either phoneme of the letter, plain or stressed, since hesitation and the letter word `y bu` may be written with either. Two letters `y` never form one syllable, so a comma between them changes nothing, and `y,y` is hesitation as `yy` is (CLL 3.3). The same holds of every vowel letter in a cmavo, whose stress is free (CLL 3.9). The lexicon documents spell their words with these rules.
 
 ```jbogenbau
 %rule any-a
@@ -340,11 +344,12 @@ Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL
 
 %rule lehu-reach
   | $first(opener)
-      <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro") ∩ tags($first)>
+      <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro" ∪ "open-stress") ∩ tags($first)>
   | $s(lehu-reach) PAUSE $e(element)
-      <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro") ∩ tags($e)>
+      <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro" ∪ "open-stress") ∩ tags($e)>
   | $t(lehu-reach) $f(element)
-      <("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro") ∩ tags($f)>
+      <("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro" ∪ "open-stress") ∩ tags($f)
+        ∪ ("uncounted" ∈ tags($f) ⟹ "open-stress" ∩ tags($t))>
 %conditions
   classes($first) ∩ ("LOhU" ∪ "LEhU") = ∅,
   "first-wipes" ∉ tags($first),
@@ -352,12 +357,13 @@ Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL
   classes($f) ∩ ("LOhU" ∪ "LEhU") = ∅,
   "wipes-all" ∉ tags($e),
   "wipes-all" ∉ tags($f),
-  ("continued" ∪ "cy" ∪ "name-intro") ∩ tags($t) ≠ ∅,
+  ("continued" ∪ "cy" ∪ "name-intro" ∪ "open-stress") ∩ tags($t) ≠ ∅,
   "cy" ∈ tags($t) ∧ "cy" ∈ tags($f)
-    ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f)
-      ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f))
-      ∧ ("final-stress" ∉ tags($t) ∨ "stress-guard" ∉ tags($f))
+    ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f) ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f))
     ∨ "name-intro" ∈ tags($t) ∧ "name-onset" ∈ tags($f)
+    ∨ "open-stress" ∈ tags($t) ∧ "cy" ∉ tags($t) ∧ "onset" ∈ tags($f),
+  "final-stress" ∉ tags($t) ∨ ("stress-guard" ∪ "initial-stress") ∩ tags($f) = ∅,
+  "open-stress" ∉ tags($t) ∨ "uncounted" ∈ tags($f)
 %emits
   ε
 
@@ -368,14 +374,15 @@ Inside `lo'u ... le'u` the words are ordinary words under the pause rules of CLL
   | $s(lohu-stream) PAUSE $e(lohu-element)
       <tags($e) ∪ ("first-onset" ∪ "first-cy") ∩ tags($s)>
   | $t(lohu-stream) $f(lohu-element)
-      <tags($f) ∪ ("first-onset" ∪ "first-cy") ∩ tags($t)>
+      <tags($f) ∪ ("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("uncounted" ∈ tags($f) ⟹ "open-stress" ∩ tags($t))>
 %conditions
-  ("continued" ∪ "cy" ∪ "name-intro") ∩ tags($t) ≠ ∅,
+  ("continued" ∪ "cy" ∪ "name-intro" ∪ "open-stress") ∩ tags($t) ≠ ∅,
   "cy" ∈ tags($t) ∧ "cy" ∈ tags($f)
-    ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f)
-      ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f))
-      ∧ ("final-stress" ∉ tags($t) ∨ "stress-guard" ∉ tags($f))
-    ∨ "name-intro" ∈ tags($t) ∧ "name-onset" ∈ tags($f),
+    ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f) ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f))
+    ∨ "name-intro" ∈ tags($t) ∧ "name-onset" ∈ tags($f)
+    ∨ "open-stress" ∈ tags($t) ∧ "cy" ∉ tags($t) ∧ "onset" ∈ tags($f),
+  "final-stress" ∉ tags($t) ∨ ("stress-guard" ∪ "initial-stress") ∩ tags($f) = ∅,
+  "open-stress" ∉ tags($t) ∨ "uncounted" ∈ tags($f),
   "hesitation" ∉ tags($s) ∨ "BU" ∉ tags($e, lexicon),
   "hesitation" ∉ tags($t) ∨ "BU" ∉ tags($f, lexicon)
 
@@ -486,11 +493,12 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
 
 %rule bu-reach
   | $first(opener)
-      <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro") ∩ tags($first)>
+      <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro" ∪ "open-stress") ∩ tags($first)>
   | $s(bu-reach) PAUSE $e(element)
-      <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro") ∩ tags($e)>
+      <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro" ∪ "open-stress") ∩ tags($e)>
   | $t(bu-reach) $f(element)
-      <("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro") ∩ tags($f)>
+      <("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro" ∪ "open-stress") ∩ tags($f)
+        ∪ ("uncounted" ∈ tags($f) ⟹ "open-stress" ∩ tags($t))>
 %conditions
   classes($first) ∩ ("BY") = ∅,
   "first-wipes" ∉ tags($first),
@@ -498,12 +506,13 @@ CLL 17.4 and 4.6: any word followed by `bu` is a letter word, which counts as a 
   classes($f) ∩ ("BY") = ∅,
   "wipes-all" ∉ tags($e),
   "wipes-all" ∉ tags($f),
-  ("continued" ∪ "cy" ∪ "name-intro") ∩ tags($t) ≠ ∅,
+  ("continued" ∪ "cy" ∪ "name-intro" ∪ "open-stress") ∩ tags($t) ≠ ∅,
   "cy" ∈ tags($t) ∧ "cy" ∈ tags($f)
-    ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f)
-      ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f))
-      ∧ ("final-stress" ∉ tags($t) ∨ "stress-guard" ∉ tags($f))
+    ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f) ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f))
     ∨ "name-intro" ∈ tags($t) ∧ "name-onset" ∈ tags($f)
+    ∨ "open-stress" ∈ tags($t) ∧ "cy" ∉ tags($t) ∧ "onset" ∈ tags($f),
+  "final-stress" ∉ tags($t) ∨ ("stress-guard" ∪ "initial-stress") ∩ tags($f) = ∅,
+  "open-stress" ∉ tags($t) ∨ "uncounted" ∈ tags($f)
 %emits
   ε
 
@@ -607,7 +616,7 @@ These two erasers are behind the feature `sa-su`. They are the most expensive pa
 
 CLL 19.13: `sa` erases back to the most recent word of the same selma'o as the word after it, that word included, and leaves the word after it standing; `su` "erases the entire text". The Magic Words proposal and camxes-std stop `su` sooner, at the most recent `ni'o`, `no'i`, `lu`, `tu'e` or `to`, which survives, as step 2g of the YACC preamble also does. The feature `su-boundary` gives that reading: the approved word forms, experimental and Zantufa dialects turn it on, and the CLL dialect leaves it off, so that there `su` erases the whole text before it. Both are resolved here, in the same left-to-right pass as the quotes, the compounds and `si`, because they act in that order: in `mi le brodi sa le si la brodo` the `sa` takes `le brodi` before the `si` erases the `le` that follows it, and `mi brodi .i sa mi zei co mi` compounds `mi zei co` only after the `sa` has taken `mi brodi .i`.
 
-The reach of a `sa` is stated from its far end: `sa-open` is an element, which has some selma'o, and the elements after it, none of which has a class of the first one's, so the `sa` that follows finds the nearest match. It is left-recursive and checks the class at every step, so that a reach dies at the first element that would match; that keeps the chart linear in the length of the text, which a reach stated as an element followed by a whole stream does not, since a stream may start anywhere and cannot know which class it is keeping clear of. Each step restates the stream's join in three lines: without a pause, the element before must be continued or both must be `Cy` letters; after a pause, anything may follow, and a `Cy` after a pause counts as continued. The match is by selma'o: the first element's classes and the classes of the word after `sa` must share one. Hesitation may stand between a `sa` and the word after it, as between a word and its `si`. What the `sa` leaves is the word after it, a word or a quote and never a compound, since the `sa` acts before a `bu` or `zei` after that word does, and the compound is then built on what the `sa` left; the erasure carries the classes of that word, so that a later `sa` may match it in turn; the erasure may follow the element before it without a pause exactly when its first element may. Several `sa` in a row reach back to successively further matches, "one for each SA", as the Magic Words proposal says: two `sa` erase back to the second-nearest match, three to the third, and so on. The erased text is then as many reaches as there are `sa`, each beginning at a match, followed by the `sa` themselves, which `sa-nest` pairs from the inside out: the innermost reach with the first `sa`, the next reach back with the second. A reach also carries whether its first element may follow the element before it without a pause, `first-onset`, and joins its elements by the same condition as the stream.
+The reach of a `sa` is stated from its far end: `sa-open` is an element, which has some selma'o, and the elements after it, none of which has a class of the first one's, so the `sa` that follows finds the nearest match. It is left-recursive and checks the class at every step, so that a reach dies at the first element that would match; that keeps the chart linear in the length of the text, which a reach stated as an element followed by a whole stream does not, since a stream may start anywhere and cannot know which class it is keeping clear of. Each step restates the stream's join. Without a pause, the two elements must be able to stand together as they may in the stream. After a pause, anything may follow, and a `Cy` after a pause counts as continued. The match is by selma'o: the first element's classes and the classes of the word after `sa` must share one. Hesitation may stand between a `sa` and the word after it, as between a word and its `si`. What the `sa` leaves is the word after it, a word or a quote and never a compound, since the `sa` acts before a `bu` or `zei` after that word does, and the compound is then built on what the `sa` left; the erasure carries the classes of that word, so that a later `sa` may match it in turn; the erasure may follow the element before it without a pause exactly when its first element may. Several `sa` in a row reach back to successively further matches, "one for each SA", as the Magic Words proposal says: two `sa` erase back to the second-nearest match, three to the third, and so on. The erased text is then as many reaches as there are `sa`, each beginning at a match, followed by the `sa` themselves, which `sa-nest` pairs from the inside out: the innermost reach with the first `sa`, the next reach back with the second. A reach also carries whether its first element may follow the element before it without a pause, `first-onset`, and joins its elements by the same condition as the stream.
 
 ```jbogenbau
 %rule sa-erasure
@@ -635,25 +644,27 @@ The reach of a `sa` is stated from its far end: `sa-open` is an element, which h
 
 %rule sa-open
   | $first(element)
-      <classes($first) ∪ ("continued" ∪ "cy" ∪ "wipes-all") ∩ tags($first)
+      <classes($first) ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro" ∪ "open-stress" ∪ "wipes-all") ∩ tags($first)
         ∪ ("onset" ∈ tags($first) ⟹ "first-onset")
         ∪ ("onset" ∈ tags($first) ∧ "cy" ∈ tags($first) ⟹ "first-cy")>
   | $s(sa-open) PAUSE $e(element)
-      <classes($s) ∪ ("first-onset" ∪ "first-cy" ∪ "wipes-all") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro") ∩ tags($e)>
+      <classes($s) ∪ ("first-onset" ∪ "first-cy" ∪ "wipes-all") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro" ∪ "open-stress") ∩ tags($e)>
   | $t(sa-open) $f(element)
-      <classes($t) ∪ ("first-onset" ∪ "first-cy" ∪ "wipes-all") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro") ∩ tags($f)>
+      <classes($t) ∪ ("first-onset" ∪ "first-cy" ∪ "wipes-all") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro" ∪ "open-stress") ∩ tags($f)
+        ∪ ("uncounted" ∈ tags($f) ⟹ "open-stress" ∩ tags($t))>
 %conditions
   classes($first) ≠ ∅,
   "wipes-all" ∉ tags($e),
   "wipes-all" ∉ tags($f),
   classes($s) ∩ classes($e) = ∅,
   classes($t) ∩ classes($f) = ∅,
-  ("continued" ∪ "cy" ∪ "name-intro") ∩ tags($t) ≠ ∅,
+  ("continued" ∪ "cy" ∪ "name-intro" ∪ "open-stress") ∩ tags($t) ≠ ∅,
   "cy" ∈ tags($t) ∧ "cy" ∈ tags($f)
-    ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f)
-      ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f))
-      ∧ ("final-stress" ∉ tags($t) ∨ "stress-guard" ∉ tags($f))
+    ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f) ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f))
     ∨ "name-intro" ∈ tags($t) ∧ "name-onset" ∈ tags($f)
+    ∨ "open-stress" ∈ tags($t) ∧ "cy" ∉ tags($t) ∧ "onset" ∈ tags($f),
+  "final-stress" ∉ tags($t) ∨ ("stress-guard" ∪ "initial-stress") ∩ tags($f) = ∅,
+  "open-stress" ∉ tags($t) ∨ "uncounted" ∈ tags($f)
 %emits
   ε
 
@@ -720,11 +731,12 @@ With `su-boundary`, `su` erases back to a boundary word, which survives, or to t
 
 %rule su-reach
   | $first(opener)
-      <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro") ∩ tags($first)>
+      <("first-onset" ∪ "first-cy" ∪ "continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro" ∪ "open-stress") ∩ tags($first)>
   | $s(su-reach) PAUSE $e(element)
-      <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro") ∩ tags($e)>
+      <("first-onset" ∪ "first-cy") ∩ tags($s) ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro" ∪ "open-stress") ∩ tags($e)>
   | $t(su-reach) $f(element)
-      <("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro") ∩ tags($f)>
+      <("first-onset" ∪ "first-cy") ∩ tags($t) ∪ ("continued" ∪ "cy" ∪ "final-stress" ∪ "name-intro" ∪ "open-stress") ∩ tags($f)
+        ∪ ("uncounted" ∈ tags($f) ⟹ "open-stress" ∩ tags($t))>
 %conditions
   classes($first) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅,
   "first-wipes" ∉ tags($first),
@@ -732,12 +744,13 @@ With `su-boundary`, `su` erases back to a boundary word, which survives, or to t
   classes($f) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅,
   "wipes-all" ∉ tags($e),
   "wipes-all" ∉ tags($f),
-  ("continued" ∪ "cy" ∪ "name-intro") ∩ tags($t) ≠ ∅,
+  ("continued" ∪ "cy" ∪ "name-intro" ∪ "open-stress") ∩ tags($t) ≠ ∅,
   "cy" ∈ tags($t) ∧ "cy" ∈ tags($f)
-    ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f)
-      ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f))
-      ∧ ("final-stress" ∉ tags($t) ∨ "stress-guard" ∉ tags($f))
+    ∨ "continued" ∈ tags($t) ∧ "onset" ∈ tags($f) ∧ ("cy" ∉ tags($t) ∨ "cy" ∉ tags($f))
     ∨ "name-intro" ∈ tags($t) ∧ "name-onset" ∈ tags($f)
+    ∨ "open-stress" ∈ tags($t) ∧ "cy" ∉ tags($t) ∧ "onset" ∈ tags($f),
+  "final-stress" ∉ tags($t) ∨ ("stress-guard" ∪ "initial-stress") ∩ tags($f) = ∅,
+  "open-stress" ∉ tags($t) ∨ "uncounted" ∈ tags($f)
 %emits
   ε
 
@@ -860,7 +873,7 @@ What `su` erases is not in this list, because there the dialects differ. The fea
 
 ## Choosing among parses
 
-The stage declares `%ambiguity-resolution lazy`: where the grammar admits more than one parse of a text, the stage takes, at the first difference, the parse that closes a constituent over the one that reads the next phoneme; [the notation document](../../docs/notation.md), under "Ambiguity", states the rule. This is the mirror of the syntax stage, which is greedy, and the reason is CLL 4.6's tosmabru test: a word ends as early as the grammar allows, so `tosmabru` is `to smabru` and `lemiklama` is `le mi klama`, while `spageti` and `toirbroda` are one word each because the grammar allows no earlier end. It also says that an operator acts on what exists when it is read: `mi si si` erases `mi` and then nothing, rather than waiting to see whether more will be erased.
+The stage declares `%ambiguity-resolution lazy`. Where the grammar admits more than one parse of a text, the stage looks at the first difference. There it takes the parse that closes a constituent over the one that reads the next phoneme. [The notation document](../../docs/notation.md) states the rule, under "Ambiguity". The choice never decides where a word ends, since the word forms of both families divide a text into words in at most one way. CLL's word forms state its breakup rules, such as the tosmabru test. The approved word forms translate a PEG, which reads a text in one way only. What the choice decides is how the magic words act. An operator acts on what exists when it is read. So `mi si si` erases `mi` and then nothing, rather than waiting to see whether more will be erased. This is the mirror of the syntax stage, which is greedy.
 
 ## Known gaps
 
