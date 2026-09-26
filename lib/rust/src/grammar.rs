@@ -328,10 +328,9 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
             }
             ("lowercase", [Arg::Term(inner)]) => check_term(grammar, inner),
             ("head" | "tail" | "last" | "from" | "after", _) => Err(format!("{name}() is a span, not a value")),
-            (
-                "phonemes" | "text" | "classes" | "runs" | "tags" | "lowercase" | "matches" | "begins" | "initial",
-                _,
-            ) => Err(format!("{name}() is called with the wrong arguments")),
+            ("phonemes" | "text" | "classes" | "runs" | "tags" | "lowercase" | "matches" | "begins" | "initial", _) => {
+                Err(format!("{name}() is called with the wrong arguments"))
+            }
             _ => Err(format!("an unknown function {name}()")),
         },
     }
