@@ -17,7 +17,7 @@ CLL 3.6 forbids the consonant pair `mz`, and so does the approved grammar: its l
 
 ## Extended rafsi
 
-The approved grammar has two kinds of extended rafsi, which shorten a word before a y-hyphen. A `brivla_rafsi` is the head of a brivla of two syllables or more, followed by `'y`, as in `klama'ybroda`. A `fuhivla_rafsi` is the head of a borrowing, followed by an onset and `y`, as in `spageiybroda`. camxes-exp replaces the first kind with `hy_rafsi`, which the approved grammar has only in its slinku'i test. A `hy_rafsi` is a long rafsi and an unstressed vowel, a CCV rafsi, or a CVV rafsi, followed by `'y`. So `klama'ybroda` is one word in both grammars, but only camxes-exp reads `kerlybai'ybroda` as one word.
+The approved grammar has two kinds of extended rafsi, which shorten a word before a y-hyphen. A `brivla_rafsi` is the head of a brivla of two syllables or more, followed by `'y`, as in `klama'ybroda`. A `fuhivla_rafsi` is the head of a borrowing, followed by an onset and `y`, as in `spageiybroda`. camxes-exp replaces the first kind with `hy_rafsi`, which the approved grammar uses only in lookaheads. A `hy_rafsi` is a long rafsi and an unstressed vowel, a CCV rafsi, or a CVV rafsi, followed by `'y`. So `klama'ybroda` is one word in both grammars, but only camxes-exp reads `kerlybai'ybroda` as one word.
 
 ```jbogenbau
 %redefine-rule extended-rafsi (* extended_rafsi <- hy_rafsi / fuhivla_rafsi *)
@@ -81,4 +81,4 @@ A short rafsi without a y-hyphen may not stand where an extended rafsi or a borr
 
 ## Glides
 
-camxes-exp also adds `!glide` to its rule `glide <- (i / u) &nucleus`. That changes no reading, so this document leaves the rule as [bpfk.md](bpfk.md) has it. An `i` or `u` is a glide only where a nucleus follows it. It is a vowel, and so a nucleus, only where no nucleus follows it. So the nucleus after a glide never begins with another glide. camxes-exp gives the same parse trees with the lookahead and without it, on every string of up to six letters from `i`, `u`, `a`, `e`, `o`, `y`, `'`, `k`, `s` and a period.
+camxes-exp also adds `!glide` to its rule `glide <- (i / u) &nucleus`. That changes no reading, so this document leaves the rule as [bpfk.md](bpfk.md) has it. An `i` or `u` is a glide only where a nucleus follows it. It is a vowel, and so a nucleus, only where no nucleus follows it. So the nucleus after a glide never begins with another glide. camxes-exp gives the same parse trees with the lookahead and without it. That holds on every string of up to six letters from `i`, `u`, `a`, `e`, `o`, `y`, `'`, `k`, `s` and a period.
