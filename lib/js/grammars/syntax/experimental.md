@@ -331,7 +331,8 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | BRIVLA #
   | @cbm? CMEVLA #
   | GOhA [RAhO] #
-  | ME # (sumti | mex) [MEhU] # [MOI #]
+  | ME # sumti [MEhU] # [MOI #]
+  | ME # $x(mex) [MEhU] # [MOI #]
   | mex MOI #
   | NUhA # operator
   | SE # tanru-unit-2
@@ -341,6 +342,8 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | NU [NAI] # [joik-jek NU [NAI] #] ... subsentence [KEI] #
   | linkargs tanru-unit-2
   | MEhOI anything #
+%conditions
+  ¬matches($x, sumti)
 
 %rule tanru-unit-not-starting-with-ke
   tanru-unit-1-not-starting-with-ke [CEI # tanru-unit-1] ... [selbri-relative-clauses]
@@ -352,7 +355,8 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | BRIVLA #
   | @cbm? CMEVLA #
   | GOhA [RAhO] #
-  | ME # (sumti | mex) [MEhU] # [MOI #]
+  | ME # sumti [MEhU] # [MOI #]
+  | ME # $x(mex) [MEhU] # [MOI #]
   | mex MOI #
   | NUhA # operator
   | SE # tanru-unit-2
@@ -362,6 +366,8 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | NU [NAI] # [joik-jek NU [NAI] #] ... subsentence [KEI] #
   | linkargs tanru-unit-2
   | MEhOI anything #
+%conditions
+  ¬matches($x, sumti)
 
 %rule selbri-relative-clauses
   | selbri-relative-clause [(ZIhE # | joik # | jek # | ek #) selbri-relative-clause] ...
@@ -386,7 +392,7 @@ camxes-exp replaces CLL's mekso with its own, and the layer follows it (camxes-e
 - `bo` after an operator, with an optional tag, groups two operands tighter (`li pa su'i bo re`). There is no `bi'e`, and a forethought operator needs `pe'o`.
 - An operator can be a connective, a joik, jek or ek.
 - A quantifier is a whole mekso, `pa su'i re broda`. It cannot begin with a lerfu word, `la'e` or `na'e`, since there camxes-exp reads a sumti (its `!sumti_6`). camxes-exp also refuses a quantifier where a selbri begins (`!selbri`). The greedy choice among parses already reads `pa re moi broda` as the selbri `pa re moi broda`. So the layer needs no rule for that.
-- `me` takes a mekso as well as a sumti, a whole mekso takes `moi`, and `nu'a` takes a whole operator.
+- `me` takes a mekso as well as a sumti, a whole mekso takes `moi`, and `nu'a` takes a whole operator. After `me`, a lerfu string is a sumti and not a mekso, since camxes-exp tries the sumti first (`me my`).
 
 After an elided `boi`, a number or lerfu string is followed by `free-after-elided-boi`, defined under "Free modifiers", and not by a plain `#`.
 

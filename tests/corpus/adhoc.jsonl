@@ -971,3 +971,5 @@
 {"id":"adhoc.camxes-exp.tags.connected-bare-tag-before-selbri-rejected.experimental","text":"ta .o vi cmima","dialect":"experimental","expect":"reject","stage":"syntax","words":["ta","o","vi","cmima"]}
 {"id":"adhoc.camxes-exp.descriptions.gek-quantifier-sumti-before-selbri.experimental","text":"lo ge pa gi re mi broda","dialect":"experimental","expect":"accept","verdict":"unique","words":["lo","ge","pa","gi","re","mi","broda"],"brackets":"([lo {(ge pa gi re) mi}] broda)"}
 {"id":"adhoc.camxes-exp.tags.bare-fa-after-jai.experimental","text":"jai fa broda","dialect":"experimental","expect":"accept","verdict":"unique","words":["jai","fa","broda"],"brackets":"(jai fa broda)"}
+{"id":"adhoc.camxes-exp.mekso.lerfu-after-me-is-a-sumti.experimental","text":"mi me my","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","me","my"],"brackets":"(mi [me my])"}
+{"id":"adhoc.camxes-exp.mekso.lerfu-after-me-is-a-sumti.zantufa","text":"mi me my","dialect":"zantufa","expect":"accept","verdict":"unique","words":["mi","me","my"],"brackets":"(mi [me my])"}
