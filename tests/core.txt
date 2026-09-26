@@ -755,3 +755,6 @@ adhoc.camxes-exp.tags.bare-fa-before-bo-after-i.experimental
 adhoc.camxes-exp.tags.bare-fa-before-bo-after-i.zantufa
 adhoc.camxes-exp.tags.bare-fa-term-with-free-modifier.experimental
 adhoc.camxes-exp.tags.bare-fa-term-with-free-modifier.zantufa
+adhoc.words.cy.cy-before-number-needs-pause
+adhoc.words.cy.cy-before-number-needs-pause.bpfk
+adhoc.words.cy.cy-before-number-with-pause

@@ -981,3 +981,7 @@
 {"id":"adhoc.camxes-exp.tags.bare-fa-before-bo-after-i.zantufa","text":"mi klama .i fa bo do klama","dialect":"zantufa","expect":"accept","verdict":"unique","words":["mi","klama","i","fa","bo","do","klama"],"brackets":"([mi klama] i fa bo [do klama])"}
 {"id":"adhoc.camxes-exp.tags.bare-fa-term-with-free-modifier.experimental","text":"fa sei broda se'u mi klama","dialect":"experimental","expect":"accept","verdict":"resolved","words":["fa","sei","broda","se'u","mi","klama"],"brackets":"([{fa (sei broda se'u)} mi] klama)"}
 {"id":"adhoc.camxes-exp.tags.bare-fa-term-with-free-modifier.zantufa","text":"fa sei broda se'u mi klama","dialect":"zantufa","expect":"accept","verdict":"resolved","words":["fa","sei","broda","se'u","mi","klama"],"brackets":"([fa {sei broda se'u} mi] klama)"}
+{"id":"adhoc.words.cy.cy-before-number-needs-pause","text":"fyno","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"adhoc.words.cy.cy-before-number-needs-pause.bpfk","text":"fyno","dialect":"bpfk","expect":"accept","verdict":"unique","words":["fy","no"],"brackets":"(fy no)"}
+{"id":"adhoc.words.cy.cy-before-number-with-pause","text":"fy.no","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["fy","no"],"brackets":"(fy no)"}
+{"id":"adhoc.words.cy.cy-before-number-with-pause.bpfk","text":"fy.no","dialect":"bpfk","expect":"accept","verdict":"unique","words":["fy","no"],"brackets":"(fy no)"}
