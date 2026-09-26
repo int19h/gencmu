@@ -2,27 +2,27 @@
 
 This document is the family part of the word stage in the [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) dialects. It is stitched in after [stream.md](stream.md). The experimental and Zantufa dialects stitch [experimental.md](experimental.md) after it. The notation is explained in [the notation document](../../docs/notation.md).
 
-The document gives the word-form grammar that the definition effort of the Logical Language Group approved. That grammar is a parsing expression grammar (PEG), the morphology part of `camxes.peg` in the ilmentufa repository, at commit 778ea13. The 1.3 editions of *The Complete Lojban Language* print the same grammar as appendix A2. This document translates the PEG rule by rule. Each rule here has the name of the PEG rule that it translates, in lower case and with hyphens for underscores, and a comment gives the PEG rule. A rule that the PEG does not have is a part of a PEG rule that needs a name of its own here, or a rule that a condition tests, and its comment says which.
+The document gives the word-form grammar that the definition effort of the Logical Language Group approved. That grammar is a parsing expression grammar (PEG), the morphology part of `camxes.peg` in the ilmentufa repository, at commit 778ea13. The 1.3 editions of *The Complete Lojban Language* print the same grammar as appendix A2. This document translates the PEG rule by rule. Each rule here has the name of the PEG rule that it translates, in lower case and with hyphens for underscores. A comment gives the PEG rule. A rule that the PEG does not have is one of two kinds. It is a part of a PEG rule that needs a name of its own here, or a rule that a condition tests. Its comment says which.
 
 ## How the PEG is written here
 
 A PEG reads the text from left to right and never goes back. It differs from a jbogenbau grammar in three ways, and each has a fixed translation:
 
 1. A choice `A / B` tries `A` first. It tries `B` only if `A` does not begin at that point. Here the choice is two alternatives, and the second has the condition that the first does not begin where the second begins: `¬begins(from($b), a)`.
-2. A repetition `A*` reads `A` for as long as it can, and stops only where `A` does not begin. Here it is a rule of its own, such as `unstressed-syllables`, with two alternatives: `A` followed by the rule, or `nothing` where `A` does not begin. An optional `A?` is a rule such as `h-opt`, with the alternatives `A`, or `nothing` where `A` does not begin.
-3. A lookahead `&A` or `!A` tests whether `A` begins at a point, and reads nothing. Here it is a condition `begins(from($x), a)` or `begins(after($x), a)`, which looks at the text from the start or from the end of the part `$x`. A lookahead can look past the end of the word, into the words after it. The PEG reads a pause only inside the letter word `y bu`, so a lookahead looks no further than the next pause that is not inside such a word.
+2. A repetition `A*` reads `A` for as long as it can, and stops only where `A` does not begin. Here it is a rule of its own, such as `unstressed-syllables`. The rule has two alternatives: `A` followed by the rule, or `nothing` where `A` does not begin. An optional `A?` is a rule such as `h-opt`, with the alternatives `A`, or `nothing` where `A` does not begin.
+3. A lookahead `&A` or `!A` tests whether `A` begins at a point, and reads nothing. Here it is a condition `begins(from($x), a)` or `begins(after($x), a)`, which looks at the text from the start or from the end of the part `$x`. A lookahead can look past the end of the word, into the words after it. The PEG reads a pause only inside the letter word `y bu`. So a lookahead looks no further than the next pause that is not inside such a word.
 
 So each rule here derives exactly what the PEG rule reads, at exactly the points where the PEG rule begins, and in one way only. The rules that the PEG uses only in lookaheads are the one exception, as the next paragraph says: for them only whether they begin matters.
 
 The translation leaves out a condition in two cases, where the condition cannot change the result:
 
-- No two alternatives of a choice can both begin at the same point, because each pair of them reads different letters at some position: for example, a consonant in one and a vowel in the other. No alternative of such a choice can be empty. The comment on the rule names the positions.
-- The PEG uses the rule only in lookaheads, directly or at the end of another such rule. A lookahead asks only whether the rule begins, not where it ends. So a choice that ends such a rule needs no order, since the rule begins if any of its alternatives begins, and a part at its end that can only make it longer, such as the second and later consonants of `cluster`, can be left out. The comment says "only a lookahead".
+- No two alternatives of a choice can both begin at the same point, because each pair of them reads different letters at some position. For example, one reads a consonant where the other reads a vowel. No alternative of such a choice can be empty. The comment on the rule names the positions.
+- The PEG uses the rule only in lookaheads, directly or at the end of another such rule. A lookahead asks only whether the rule begins, not where it ends. So a choice that ends such a rule needs no order, since the rule begins if any of its alternatives begins. And a part at its end that can only make it longer can be left out, such as the second and later consonants of `cluster`. The comment says "only a lookahead".
 
 The phoneme stage reads the text before this stage does. It changes what the PEG would read in four ways:
 
 - The PEG reads a digit as a cmavo, and lets a digit stand in a name (its rule `digit`). The phoneme stage reads each digit as the letters of its number word, so `2` is `re`. So this translation has no rule `digit`. `.b1b.` is not a name, and `.dj2n.` is the name `djren`.
-- The PEG ignores a comma before any letter (`comma*` in each letter rule). The phoneme stage drops every comma, so the translation leaves out `comma*`, with the same result, except in one place. The PEG's letter word `ybu` reads pause characters between the `y` and the `bu`, but no comma, unless the comma stands directly before the `bu`. So the PEG reads `y, bu` and `y , bu` as two words, `y` and `bu`, where this document reads the one letter word, while both read `y ,bu` as one word.
+- The PEG ignores a comma before any letter (`comma*` in each letter rule). The phoneme stage drops every comma, so the translation leaves out `comma*`, with the same result, except in one place. The PEG's letter word `ybu` reads pause characters between the `y` and the `bu`, but no comma, unless the comma stands directly before the `bu`. So the PEG reads `y, bu` and `y , bu` as two words, `y` and `bu`, where this document reads the one letter word. Both read `y ,bu` as one word.
 - The PEG reads `h` as an apostrophe, and a consonant in either case. The phoneme stage emits both apostrophes as `'` and every consonant in lower case, so the translation reads only those. A capital vowel is a stressed vowel for both. The phoneme stage also reads an accent as stress, and it reads a run written all in capitals as a run without stress marks. The PEG reads neither.
 - The PEG's pauses are whitespace and the characters `.`, `?` and `!`. The phoneme stage reads other punctuation as a pause too, and it emits a run of pause characters as one `PAUSE`.
 
@@ -30,7 +30,7 @@ The phoneme stage reads the text before this stage does. It changes what the PEG
 
 The stream reads three word shapes, `cmevla-shape`, `cmavo-shape` and `brivla-shape`, in the order of the PEG's `lojban_word`: a cmevla, then a cmavo, then a brivla. [stream.md](stream.md) says what a word is and how words join. The PEG's lookaheads decide where each word ends and which words can stand together without a pause. So every word here is `continued`: the rules of the word decide whether another word can follow it without a pause. A word has `onset` when it does not begin with a nucleus, since the PEG's `post_word` lets only such a word follow another word directly.
 
-The PEG's `CMAVO` is a list of the selma'o, each a set of spellings, followed by `cmavo` for every other cmavo. Each selma'o rule begins with `&cmavo` and ends with `&post_word`. So every spelling but one reads exactly what `cmavo` reads, and the lexicon gives each cmavo its selma'o. The exception is the first spelling of `BY`, the rule `ybu <- Y space_char* BU`, which reads a run of `y`, any pause, and `bu` as one letter word: `ybu`, `y bu` and `yyybu` are each one word. That is the letter word `.y bu`, which the Magic Words proposal forms "before any other processing of any kind". `cmavo-word` is the PEG's `CMAVO`: it reads `ybu` where it begins, and otherwise `cmavo`. A cmavo made only of `y` letters is hesitation, which the stream reads as `y-run` and drops. The stream reads a run of `y` in several places, so this document redefines `y-run` as that cmavo. A `y` is a nucleus exactly where no nucleus follows it, so the first `y` of a run is a nucleus exactly when the run has an odd number of letters. A run with an even number can follow a word directly: `kyyykerlo` is `ky yy kerlo`, but `bayyy` is no text. So a run of `y` has `onset` where no nucleus begins it.
+The PEG's `CMAVO` is a list of the selma'o, each a set of spellings, followed by `cmavo` for every other cmavo. Each selma'o rule begins with `&cmavo` and ends with `&post_word`. So every spelling but one reads exactly what `cmavo` reads, and the lexicon gives each cmavo its selma'o. The exception is the first spelling of `BY`, the rule `ybu <- Y space_char* BU`. It reads a run of `y`, any pause, and `bu` as one letter word: `ybu`, `y bu` and `yyybu` are each one word. That is the letter word `.y bu`, which the Magic Words proposal forms "before any other processing of any kind". `cmavo-word` is the PEG's `CMAVO`: it reads `ybu` where it begins, and otherwise `cmavo`. A cmavo made only of `y` letters is hesitation, which the stream reads as `y-run` and drops. The stream reads a run of `y` in several places, so this document redefines `y-run` as that cmavo. A `y` is a nucleus exactly where no nucleus follows it. So the first `y` of a run is a nucleus exactly when the run has an odd number of letters. A run with an even number can follow a word directly: `kyyykerlo` is `ky yy kerlo`, but `bayyy` is no text. So a run of `y` has `onset` where no nucleus begins it.
 
 ```jbogenbau
 %rule cmevla-shape            (* CMEVLA <- cmevla *)
@@ -91,7 +91,7 @@ The PEG's `CMAVO` is a list of the selma'o, each a set of spellings, followed by
   begins(after($u), post-word)
 ```
 
-`sa bu` can replace the `bu` of a letter word: with the feature `sa-su`, `.y bu sa bu` is the letter word `.y bu`. [stream.md](stream.md) reads that replacement in `bu-replacement`. Here `.y bu` is one word, so the stream cannot reach its `bu`, and this document adds the replacement to `lerfu-word`: the `y` of a `ybu`, then the replacement of its `bu`.
+`sa bu` can replace the `bu` of a letter word: with the feature `sa-su`, `.y bu sa bu` is the letter word `.y bu`. [stream.md](stream.md) reads that replacement in `bu-replacement`. Here `.y bu` is one word, and the stream cannot reach its `bu`. So this document adds the replacement to `lerfu-word`: the `y` of a `ybu`, then the replacement of its `bu`.
 
 ```jbogenbau
 %extend-rule lerfu-word       (* the y of a ybu, and a sa that replaces its bu *)
@@ -385,7 +385,7 @@ An extended rafsi shortens a borrowing or a brivla with a y-hyphen. A `brivla_ra
   ¬begins(from($c), rafsi-string)
 ```
 
-A string of rafsi is what the slinku'i test and a borrowing's head look for: any number of rafsi without a y-hyphen, and then a part that can end a lujvo or that has a y-hyphen. The PEG uses it only in lookaheads.
+The slinku'i test and a borrowing's head look for a string of rafsi. That is any number of rafsi without a y-hyphen, and then a part that can end a lujvo or that has a y-hyphen. The PEG uses it only in lookaheads.
 
 ```jbogenbau
 %rule rafsi-string            (* rafsi_string <- y_less_rafsi* (...); only a lookahead *)
@@ -550,7 +550,7 @@ A rafsi followed by `'y` is a `hy_rafsi`. The PEG uses it only to end a string o
 
 ## Syllables and stress
 
-A vowel, diphthong or syllable is stressed when the letter after its onset is a capital vowel (`stressed`), or when one more syllable follows it before a pause (`stress`). It is unstressed when it is neither. A capital glide, or a capital second letter of a diphthong, marks nothing. So an unmarked brivla is stressed on its penultimate syllable, and it must be followed by a pause. A brivla whose stress is marked can be followed by another word directly.
+A vowel, diphthong or syllable is stressed in two cases. In one, the letter after its onset is a capital vowel (`stressed`). In the other, one more syllable follows it before a pause (`stress`). It is unstressed when it is neither. A capital glide, or a capital second letter of a diphthong, marks nothing. So an unmarked brivla is stressed on its penultimate syllable, and it must be followed by a pause. A brivla whose stress is marked can be followed by another word directly.
 
 ```jbogenbau
 %rule final-syllable          (* final_syllable <- onset !y !stressed nucleus !cmevla &post_word *)

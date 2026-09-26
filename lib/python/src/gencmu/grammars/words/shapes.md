@@ -1,6 +1,6 @@
 # Word shapes
 
-This document is part of the word stage in the [CLL](../dialects/cll-ebnf.md) dialect. It holds the core of CLL's word forms: the shapes of gismu, lujvo and borrowings, the body of a name, the syllable structure, the vowels, and the consonant pairs and clusters of CLL chapter 3. It is stitched into the stage after [stream.md](stream.md) and before [cll.md](cll.md), which defines the three word shapes that the stream reads, `cmavo-shape`, `brivla-shape` and `cmevla-shape`, and adds what CLL allows beyond these shapes, such as a glide after a consonant and the longer clusters of a borrowing. The other dialects read the approved word forms of [bpfk.md](bpfk.md) instead, which translate their own grammar rule by rule and use nothing here. The notation is explained in [the notation document](../../docs/notation.md).
+This document is part of the word stage in the [CLL](../dialects/cll-ebnf.md) dialect. It holds the core of CLL's word forms. These are the shapes of gismu, lujvo and borrowings, and the body of a name. They also include the syllable structure, the vowels, and the consonant pairs and clusters of CLL chapter 3. It is stitched into the stage after [stream.md](stream.md) and before [cll.md](cll.md). That document defines the three word shapes that the stream reads, `cmavo-shape`, `brivla-shape` and `cmevla-shape`. It also adds what CLL allows beyond these shapes, such as a glide after a consonant and the longer clusters of a borrowing. The other dialects read the approved word forms of [bpfk.md](bpfk.md) instead, which translate their own grammar rule by rule and use nothing here. The notation is explained in [the notation document](../../docs/notation.md).
 
 ## Cmevla
 
@@ -38,7 +38,7 @@ A run of consonants inside or at the end of a name, `cmevla-run`, is held to the
   permissible-run
 ```
 
-A permissible run is built from the pairs of CLL 3.6: a run ending in a consonant is that consonant alone, or a run ending in one of the consonants that may precede it, followed by it. The `after-x` tables under "Consonants" list the same pairs from the other side.
+A permissible run is built from the pairs of CLL 3.6. A run that ends in a consonant `x` is `x` alone. Or it is a run that ends in a consonant that may precede `x`, followed by `x`. The `after-x` tables under "Consonants" list the same pairs from the other side.
 
 ```jbogenbau
 %rule permissible-run
@@ -225,7 +225,7 @@ A permissible run is built from the pairs of CLL 3.6: a run ending in a consonan
 
 ## Brivla
 
-A brivla is a gismu, a lujvo built from rafsi, or a borrowing. CLL 4.7: a lone CVV word is a cmavo, so a CVV final rafsi is a brivla core only when some rafsi precedes it. CLL 4.6: a lujvo that begins with a CVV rafsi takes an r-hyphen, precisely so that the word cannot be read as a CVV cmavo followed by a brivla, as `zo'ecusku` would be. The one exception is a two-part lujvo whose second rafsi is CCV, such as `je'atru`: its rest is no word, so it cannot fall apart. The hyphen is therefore part of the rule for the first rafsi, and optional for any rafsi after it. The `basic` rafsi are the ones of CLL 4.5 and 4.6; `first-rafsi` and `initial-rafsi` are what a lujvo is built from. `rafsi-string`, the string that the slinku'i test and the borrowing rules look for, is built from the same rafsi, and takes any of them first, hyphen or no hyphen: the test asks whether the letters look like rafsi, not whether they make a well-formed lujvo, so that `camri'ojvebla` is a lujvo and not `ca` before a borrowing.
+A brivla is a gismu, a lujvo built from rafsi, or a borrowing. CLL 4.7: a lone CVV word is a cmavo, so a CVV final rafsi is a brivla core only when some rafsi precedes it. CLL 4.6: a lujvo that begins with a CVV rafsi takes an r-hyphen, precisely so that the word cannot be read as a CVV cmavo followed by a brivla, as `zo'ecusku` would be. The one exception is a two-part lujvo whose second rafsi is CCV, such as `je'atru`: its rest is no word, so it cannot fall apart. The hyphen is therefore part of the rule for the first rafsi, and optional for any rafsi after it. The `basic` rafsi are the ones of CLL 4.5 and 4.6. A lujvo is built from `first-rafsi` and `initial-rafsi`. The slinku'i test and the borrowing rules look for `rafsi-string`, which is built from the same rafsi. It takes any of them first, with a hyphen or without one. The test asks whether the letters look like rafsi, not whether they make a well-formed lujvo. So `camri'ojvebla` is a lujvo, and not `ca` before a borrowing.
 
 ```jbogenbau
 %rule brivla-with-onset
@@ -417,7 +417,7 @@ A two-syllable borrowing whose consonant pair may begin a word, `maikro`, is a C
 
 ## Checks on a whole word
 
-Some rules are easier to state over a whole word than inside its structure, and [cll.md](cll.md) applies them to its brivla. `bad-joint` finds two consonants side by side that are not a permissible pair of CLL 3.6, at a joint between rafsi as well as inside a borrowing, and an `n` followed by `tc`, `ts`, `dj` or `dz`, which CLL 3.7 forbids in a triple. So `kabkla`, `patta'a` and `kallxa` are not words. A `y` between two consonants separates them, so `bisycla` has no such pair. `stress-marked` finds a capital vowel, which marks the stress. A capital `Y` does not mark stress, since `y` is never stressed (CLL 3.9). `final-stressed` finds a word whose last syllable is stressed: a capital vowel at its end, or before the last letter of a falling diphthong.
+Some rules are easier to state over a whole word than inside its structure, and [cll.md](cll.md) applies them to its brivla. `bad-joint` finds two consonants side by side that are not a permissible pair of CLL 3.6. It finds them at a joint between rafsi as well as inside a borrowing. It also finds an `n` followed by `tc`, `ts`, `dj` or `dz`, which CLL 3.7 forbids in a triple. So `kabkla`, `patta'a` and `kallxa` are not words. A `y` between two consonants separates them, so `bisycla` has no such pair. `stress-marked` finds a capital vowel, which marks the stress. A capital `Y` does not mark stress, since `y` is never stressed (CLL 3.9). `final-stressed` finds a word whose last syllable is stressed: a capital vowel at its end, or before the last letter of a falling diphthong.
 
 ```jbogenbau
 %rule bad-joint
@@ -450,7 +450,7 @@ Some rules are easier to state over a whole word than inside its structure, and 
 
 ## Nuclei and syllable structure
 
-A nucleus is a vowel or a diphthong; `y` is not a nucleus here, since inside a word it appears only as a lujvo hyphen or in a name, never as the vowel of an ordinary syllable. A glide begins a syllable just as a consonant does, as in the name `nuiork`. CLL 3.4 also admits the on-glide diphthongs after a consonant or a cluster in names and borrowings, as in `kuarka`, and [cll.md](cll.md) adds those alternatives. The consonants between two nuclei are one consonant, a glide, or a cluster. CLL 4.7 lets a cluster in a borrowing be longer than CLL 3.7 allows elsewhere, and [cll.md](cll.md) says what a cluster is: any run of two consonants or more, whose adjacent pairs the check of the whole word holds to the table. CLL 3.4 lets `l`, `m`, `n` and `r` be syllabic between consonants, as in `.rubnstain.` and `cidjrpitsa`; such a consonant is one more consonant of the run.
+A nucleus is a vowel or a diphthong; `y` is not a nucleus here, since inside a word it appears only as a lujvo hyphen or in a name, never as the vowel of an ordinary syllable. A glide begins a syllable just as a consonant does, as in the name `nuiork`. CLL 3.4 also admits the on-glide diphthongs after a consonant or a cluster in names and borrowings, as in `kuarka`, and [cll.md](cll.md) adds those alternatives. The consonants between two nuclei are one consonant, a glide, or a cluster. CLL 4.7 lets a cluster in a borrowing be longer than CLL 3.7 allows elsewhere. [cll.md](cll.md) says what a cluster is: any run of two consonants or more. The check of the whole word holds its adjacent pairs to the table. CLL 3.4 lets `l`, `m`, `n` and `r` be syllabic between consonants, as in `.rubnstain.` and `cidjrpitsa`. Such a consonant is one more consonant of the run.
 
 ```jbogenbau
 %rule stressed-nucleus
@@ -494,7 +494,7 @@ A cmavo's diphthong and a brivla's are one constituent: `free-diphthong` is buil
 
 ## Consonants
 
-The 48 permissible initial pairs of CLL 3.7 may begin a word or a syllable, and so may a longer run in which each adjacent pair is an initial pair (CLL 4.7), as in `ctremna`, which [cll.md](cll.md) defines as `initial-triple`. The permissible adjacent pairs of CLL 3.6 may stand anywhere inside a brivla: never the same consonant twice, never a voiced and an unvoiced consonant together, and never one of the listed exceptions, which is what the `after-x` table for each consonant says.
+The 48 permissible initial pairs of CLL 3.7 may begin a word or a syllable. So may a longer run in which each adjacent pair is an initial pair (CLL 4.7), as in `ctremna`. [cll.md](cll.md) defines such a run as `initial-triple`. The permissible adjacent pairs of CLL 3.6 may stand anywhere inside a brivla. A pair is never the same consonant twice, never a voiced and an unvoiced consonant together, and never one of the listed exceptions. The `after-x` table for each consonant says which pairs these are.
 
 ```jbogenbau
 %rule consonant

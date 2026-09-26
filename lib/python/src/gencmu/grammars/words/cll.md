@@ -47,7 +47,7 @@ Two rules of CLL about pauses need tags of their own. CLL 4.9 rule 5 says: "If t
 
 CLL 4.9 rule 4 says that a name needs a pause before it "unless the immediately preceding word is one of the cmavo la, lai, la'i, or doi". So those four words are tagged `name-intro`, and a name that begins with a consonant is tagged `name-onset`. The join rules let that pair stand together without a pause, so `ladjan.` is `la djan.`.
 
-A lexicon spells each cmavo in phoneme tags, the apostrophe as `/'/`, and each vowel with an `any-` rule of [stream.md](stream.md), which matches either the plain or the stressed phoneme, since a cmavo's stress is free.
+A lexicon spells each cmavo in phoneme tags, the apostrophe as `/'/`. It spells each vowel with an `any-` rule of [stream.md](stream.md), which matches either the plain or the stressed phoneme, since a cmavo's stress is free.
 
 ## Brivla
 
