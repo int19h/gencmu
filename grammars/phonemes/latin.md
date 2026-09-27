@@ -6,6 +6,7 @@ Most conventions here read text that CLL does not. Two of them instead change ho
 
 - punctuation other than the period is a pause
 - a comma between two vowels is nothing, as it is elsewhere
+- `h` writes the apostrophe
 - a run written all in capitals carries no stress mark
 - an accent marks stress, and a breve marks a glide
 - a digit stands for its number word
@@ -54,11 +55,36 @@ The phoneme stage cannot know that a pause stands in a quote. So punctuation bet
 
 ## The comma
 
-The approved grammar ignores a comma before a letter (`comma*` in each letter rule of its PEG). So a comma between two vowels is no syllable break here: it is nothing, as a comma is between other letters. `me,iin` is `meiin`.
+The approved grammar ignores a comma before a letter (`comma*` in each letter rule of its PEG). So a comma between two vowels is no syllable break here: it is nothing, as a comma is between other letters. The vowels on either side are one vowel group, as if they stood side by side. `me,iin` is `meiin`, and the Cyrillic `ма,и` is `ma'i`, as `маи` is.
 
 ```jbogenbau
-%redefine-rule syllable-break
-  commas
+%redefine-rule letters-after-vowel
+  | vowel-group
+  | letters-after-consonant [commas] vowel-group
+
+%extend-rule vowel-group-plain
+  | $g(vowel-group) commas $v(vowel) <tags($v)> | $h(vowel-group) commas $w(vowel) <tags($w)>
+%conditions
+  "syllabic" ∉ tags($g),
+  "syllabic" ∈ tags($h),
+  "syllabic" ∉ tags($w)
+
+%extend-rule vowel-group-joined
+  $g(vowel-group) commas $v(joined-vowel) <tags($v)>
+%conditions
+  "syllabic" ∈ tags($g),
+  "syllabic" ∈ tags($v)
+```
+
+## The apostrophe
+
+Texts write the apostrophe as the letter `h`, which CLL does not use. The names of selma'o, such as KOhA, write it so, and the approved grammar reads it so (`h <- comma* ['h] &nucleus` in its PEG).
+
+```jbogenbau
+%extend-rule apostrophe
+  "h" | "H"
+%emits
+  $ </'/>
 ```
 
 ## Capital runs
@@ -91,11 +117,14 @@ A run in which every vowel is a capital carries no stress mark, and its vowels a
   capital-shape
 
 %rule capital-shape
-  [capital-consonants] capital-groups [capital-consonants]
+  [capital-consonants [commas]] capital-groups [[commas] capital-consonants]
 
 %rule capital-groups
-  | folded-vowel-group capital-consonants folded-vowel-group
-  | capital-groups capital-consonants folded-vowel-group
+  | folded-vowel-group capital-gap folded-vowel-group
+  | capital-groups capital-gap folded-vowel-group
+
+%rule capital-gap
+  [commas] capital-consonants [commas]
 
 %rule capital-consonants
   capital-non-vowel | capital-consonants capital-non-vowel | capital-consonants commas capital-non-vowel
@@ -107,15 +136,15 @@ A run in which every vowel is a capital carries no stress mark, and its vowels a
   folded-vowel | folded-vowel-group-plain | folded-vowel-group-joined
 
 %rule folded-vowel-group-plain
-  | $g(folded-vowel-group) $v(folded-vowel) <tags($v)>
-  | $h(folded-vowel-group) $w(folded-vowel) <tags($w)>
+  | $g(folded-vowel-group) [commas] $v(folded-vowel) <tags($v)>
+  | $h(folded-vowel-group) [commas] $w(folded-vowel) <tags($w)>
 %conditions
   "syllabic" ∉ tags($g),
   "syllabic" ∈ tags($h),
   "syllabic" ∉ tags($w)
 
 %rule folded-vowel-group-joined
-  $g(folded-vowel-group) $v(joined-folded-vowel) <tags($v)>
+  $g(folded-vowel-group) [commas] $v(joined-folded-vowel) <tags($v)>
 %conditions
   "syllabic" ∈ tags($g),
   "syllabic" ∈ tags($v)
