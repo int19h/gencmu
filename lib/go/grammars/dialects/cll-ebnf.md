@@ -20,7 +20,7 @@ The stage receives phonemes and hands on the source words of each run, each tagg
 
 ## Stage 3: words <?stage words?>
 
-- [The word stream](../words/stream.md): the magic words that act on the stream left to right: quotes, `bu` and `zei` compounds, the erasers `si`, `sa` and `su`, hesitation and `fa'o` <?grammar?>
+- [The word stream](../words/stream.md): the magic words, which act on the stream left to right. They are quotes, `bu` and `zei` compounds, the erasers `si`, `sa` and `su`, hesitation and `fa'o` <?grammar?>
 - [The CLL word stream](../words/cll-stream.md): the warning for a cmavo that uses `y` as a vowel <?grammar?>
 
 The stage receives the source words and hands on the words of the text. It rejects a foreign run outside a foreign quote. The stage is lazy for the magic words: each acts on what exists when it is read. The warning `y-cmavo` reports a cmavo that uses `y` as a vowel beyond the forms CLL gives, such as `ka'y`. `sa` and `su` are behind the feature `sa-su`, which the libraries turn on for a text only when it needs it.

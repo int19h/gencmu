@@ -74,7 +74,7 @@
     { label: "The eraser sa, with auto features", text: "mi klama sa do", dialect: "cll-ebnf" },
     { label: "Cyrillic orthography", text: "ми клама ле зарши", dialect: "cll-ebnf" },
     { label: "An elided terminator the PEG reading forbids (BPFK)", text: "le lojbo se farvi le loglo gi'enai mintu ja dunli le logla", dialect: "bpfk" },
-    { label: "A tie in the words stage (BPFK)", text: "ko na krici fi locesyselmanci", dialect: "bpfk" },
+    { label: "A tie in the syntax stage", text: "mi bevri le dakli gi'eke bevri le gerku gi'a bevri le mlatu", dialect: "cll-ebnf" },
     { label: "Ambiguous beyond elision (experimental, elision-only on)", text: "la olivian na klama", dialect: "experimental", elision: "on" },
     { label: "A rule in jbogenbau", text: "%rule sumti-tail\n  [sumti-6 [relative-clauses]] sumti-tail-1 | relative-clauses sumti-tail-1", dialect: "notation" },
   ];
