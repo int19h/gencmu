@@ -100,7 +100,7 @@ func caseDialect(c *engineCase, noCache bool) (*Dialect, error) {
 			g = "%ambiguity-resolution greedy\n" + g
 		}
 		return loadSources(map[string]string{
-			"p.md": "## main <?stage main?>\n\n- [g](g.md) <?grammar?>\n",
+			"p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n",
 			"g.md": "```jbogenbau\n" + g + "\n```\n",
 		}, "p.md", noCache)
 	}

@@ -20,9 +20,14 @@ func mustLoad(t *testing.T, sources map[string]string) *Dialect {
 	return d
 }
 
+// block is a jbogenbau block of the given lines.
+func block(lines ...string) string {
+	return "```jbogenbau\n" + strings.Join(lines, "\n") + "\n```\n"
+}
+
 func oneStage(grammar string) map[string]string {
 	return map[string]string{
-		"p.md": "# A dialect\n\n## Main <?stage main?>\n\n- [the grammar](g.md) <?grammar?>\n",
+		"p.md": "# A dialect\n\n- [The grammar](g.md)\n  " + strings.ReplaceAll(block("%stage main", `%include "g.md"`), "\n", "\n  "),
 		"g.md": "# A grammar\n\n```jbogenbau\n" + grammar + "\n```\n",
 	}
 }
@@ -56,7 +61,7 @@ func TestLoadDialectFile(t *testing.T) {
 	dir := t.TempDir()
 	os.MkdirAll(filepath.Join(dir, "dialects"), 0o755)
 	os.MkdirAll(filepath.Join(dir, "syntax"), 0o755)
-	os.WriteFile(filepath.Join(dir, "dialects", "mine.md"), []byte("## Main <?stage main?>\n\n- [g](../syntax/g.md) <?grammar?>\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "dialects", "mine.md"), []byte(block("%stage main", `%include "../syntax/g.md"`)), 0o644)
 	os.WriteFile(filepath.Join(dir, "syntax", "g.md"), []byte("```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\" ...\n```\n"), 0o644)
 	d, err := LoadDialectFile(filepath.Join(dir, "dialects", "mine.md"))
 	if err != nil {
@@ -66,10 +71,11 @@ func TestLoadDialectFile(t *testing.T) {
 	if !res.OK || Brackets(res, BracketOptions{}) != "(a a a)" {
 		t.Fatalf("%+v %q", res.Error, Brackets(res, BracketOptions{}))
 	}
-	os.WriteFile(filepath.Join(dir, "dialects", "broken.md"), []byte("## Main <?stage main?>\n\n- [g](../syntax/missing.md) <?grammar?>\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "dialects", "broken.md"), []byte(block("%stage main", `%include "../syntax/missing.md"`)), 0o644)
 	_, err = LoadDialectFile(filepath.Join(dir, "dialects", "broken.md"))
 	var e *Error
-	if !errors.As(err, &e) || !strings.HasSuffix(e.Document, "syntax/missing.md") || e.Stage != "main" {
+	// At the %include, naming the document it did not find.
+	if !errors.As(err, &e) || !strings.HasSuffix(e.Document, "dialects/broken.md") || e.Line != 3 || e.Column != 1 || !strings.Contains(e.Message, "syntax/missing.md") {
 		t.Fatalf("unexpected error %#v", err)
 	}
 }
@@ -81,17 +87,23 @@ func TestLoadErrors(t *testing.T) {
 		column  int
 		doc     string
 	}{
-		"syntax":         {oneStage("%ambiguity-resolution greedy\n%rule text A ) B"), 5, 14, "g.md"},
-		"keyword":        {oneStage("%ambiguity-resolution greedy\n%rule text A\n  %emit $"), 6, 3, "g.md"},
-		"escape":         {oneStage("%ambiguity-resolution greedy\n%rule text \"\\q\""), 5, 12, "g.md"},
-		"undefined":      {oneStage("%ambiguity-resolution greedy\n%rule text nowhere"), 5, 1, "g.md"},
-		"defined twice":  {oneStage("%ambiguity-resolution greedy\n%rule text A\n%rule text B"), 6, 1, "g.md"},
-		"definition":     {oneStage("%ambiguity-resolution greedy\n%rule text $a(A) | B\n%emits $a"), 5, 1, "g.md"},
-		"missing":        {map[string]string{"p.md": "## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n"}, 0, 0, "g.md"},
-		"no link":        {map[string]string{"p.md": "## Main <?stage main?>\n\n- g.md <?grammar?>\n"}, 3, 8, "p.md"},
-		"two stages":     {map[string]string{"p.md": "## A <?stage x?>\n## B <?stage x?>\n"}, 2, 6, "p.md"},
-		"bad feature":    {map[string]string{"p.md": "# D <?features 9x?>\n## A <?stage x?>\n"}, 1, 5, "p.md"},
-		"empty features": {map[string]string{"p.md": "# D <?features ?>\n## A <?stage x?>\n"}, 1, 5, "p.md"},
+		"syntax":        {oneStage("%ambiguity-resolution greedy\n%rule text A ) B"), 5, 14, "g.md"},
+		"keyword":       {oneStage("%ambiguity-resolution greedy\n%rule text A\n  %emit $"), 6, 3, "g.md"},
+		"escape":        {oneStage("%ambiguity-resolution greedy\n%rule text \"\\q\""), 5, 12, "g.md"},
+		"undefined":     {oneStage("%ambiguity-resolution greedy\n%rule text nowhere"), 5, 1, "g.md"},
+		"defined twice": {oneStage("%ambiguity-resolution greedy\n%rule text A\n%rule text B"), 6, 1, "g.md"},
+		"definition":    {oneStage("%ambiguity-resolution greedy\n%rule text $a(A) | B\n%emits $a"), 5, 1, "g.md"},
+		// The pipeline (engine §13): the errors of splicing, at the item.
+		"missing":        {map[string]string{"p.md": block("%stage main", `%include "g.md"`)}, 3, 1, "p.md"},
+		"cycle":          {map[string]string{"p.md": block("%stage main", `%include "a.md"`), "a.md": block(`%include "p.md"`)}, 2, 1, "a.md"},
+		"two stages":     {map[string]string{"p.md": block("%stage x", "%ambiguity-resolution greedy", "%rule text A", "%stage x")}, 5, 1, "p.md"},
+		"before a stage": {map[string]string{"p.md": block("%rule text A", "%stage x")}, 2, 1, "p.md"},
+		"no rules":       {map[string]string{"p.md": block("%stage x", "%ambiguity-resolution greedy", "%stage y", "%ambiguity-resolution greedy", "%rule text A")}, 2, 1, "p.md"},
+		"no stage":       {map[string]string{"p.md": block("%features f")}, 0, 0, "p.md"},
+		// The operands of the directives, when the document is read.
+		"include a name": {map[string]string{"p.md": block("%stage x", "%include g")}, 3, 1, "p.md"},
+		"bad feature":    {map[string]string{"p.md": block("%features 9x", "%stage x")}, 2, 11, "p.md"},
+		"empty features": {map[string]string{"p.md": block("%features", "%stage x")}, 2, 1, "p.md"},
 		// At the rule of the guard that disagrees with the first (§13).
 		"gate and warning": {oneStage("%ambiguity-resolution greedy\n%rule text @f? A | B\n%rule a @f! A"), 6, 1, "g.md"},
 	}
@@ -110,7 +122,7 @@ func TestLoadErrors(t *testing.T) {
 
 func TestParseOptions(t *testing.T) {
 	d := mustLoad(t, map[string]string{
-		"p.md": "# D <?features base?>\n\n## One <?stage one?>\n\n- [g](g.md) <?grammar?>\n\n## Two <?stage two?>\n\n- [h](h.md) <?grammar?>\n",
+		"p.md": block("%features base", "%stage one", `%include "g.md"`, "%stage two", `%include "h.md"`),
 		"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [w] ...\n%rule w @base? \"a\" <\"A\"> | @extra? \"b\" <\"B\">\n%emits $\n```\n",
 		"h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text s | s B\n%rule s A [B]\n```\n",
 	})
@@ -171,7 +183,7 @@ func TestLoweringFault(t *testing.T) {
 // again with sa-su (engine §13).
 func TestAutoFeatures(t *testing.T) {
 	d := mustLoad(t, map[string]string{
-		"p.md": "## Sounds <?stage sounds?>\n\n- [g](g.md) <?grammar?>\n\n## Words <?stage words?>\n\n- [h](h.md) <?grammar?>\n\n## Syntax <?stage syntax?>\n\n- [s](s.md) <?grammar?>\n",
+		"p.md": block("%stage sounds", `%include "g.md"`, "%stage words", `%include "h.md"`, "%stage syntax", `%include "s.md"`),
 		"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [c] ...\n%rule c \"s\" </s/> | \"a\" </a/> | \"u\" </u/> | @sa-su? \"x\" </x/>\n%emits $\n```\n",
 		"h.md": "```jbogenbau\n%ambiguity-resolution lazy\n%rule text [word] ...\n%rule word @¬sa-su? /s/ /a/ <\"SA\"> | @sa-su? /s/ /a/ <\"E\"> | /u/ <\"W\"> | /x/ <\"W\">\n%emits $\n```\n",
 		"s.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [W | SA | E] ...\n```\n",
@@ -397,7 +409,7 @@ func TestConcurrentParses(t *testing.T) {
 // gates and warnings on and off; run it with -race.
 func TestConcurrentFeatures(t *testing.T) {
 	d := mustLoad(t, map[string]string{
-		"p.md": "# D <?features g?>\n\n## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n",
+		"p.md": block("%features g", "%stage main", `%include "g.md"`),
 		"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [item] ...\n%rule item @g? @w! \"a\" | @¬g? \"a\" <\"A\"> | @v! \"b\"\n```\n",
 	})
 	options := []ParseOptions{

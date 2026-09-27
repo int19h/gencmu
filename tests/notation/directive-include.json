@@ -1,0 +1,20 @@
+{
+  "description": "%include takes one string, decoded as a string of a rule is (engine §9).",
+  "document": "```jbogenbau\n%include \"../a \\u{62}\\\\c.md\"\n```\n",
+  "expect": {
+    "dom": {
+      "directives": [
+        {
+          "name": "include",
+          "args": [
+            "../a b\\c.md"
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ]
+    }
+  }
+}

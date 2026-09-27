@@ -1,4 +1,5 @@
 export { Loader, Dialect, fnv1a64 } from "./dialect.js";
+export { stitchText } from "./pipeline.js";
 export { GencmuError } from "./errors.js";
 export { Token } from "./tokens.js";
 export { resultJson, toJson, compactJson, toBrackets, toTree, displayValue, prettyJson, nodeBrackets, nodeTree } from "./output.js";

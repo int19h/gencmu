@@ -77,7 +77,8 @@ fn located(message: String, document: &str, at: (usize, usize)) -> Error {
     Error::grammar(message).in_document(document).at(at.0, at.1)
 }
 
-/// Stitches the documents of one stage, in order.
+/// Stitches the runs of items of one stage, in order: each a document's
+/// path and a DOM of consecutive items of it.
 pub(crate) fn stitch(stage: &str, documents: &[(Arc<str>, Arc<Dom>)]) -> Result<StageGrammar, Error> {
     let mut grammar = StageGrammar {
         name: stage.to_string(),
@@ -91,8 +92,6 @@ pub(crate) fn stitch(stage: &str, documents: &[(Arc<str>, Arc<Dom>)]) -> Result<
     };
     let mut resolution: Option<(Arc<str>, (usize, usize))> = None;
     for (document, dom) in documents {
-        // The rules this document defined or redefined (engine §2).
-        let mut defined_here: HashMap<&str, ()> = HashMap::new();
         for rule in &dom.rules {
             let alternatives: Vec<StitchedAlternative> = rule
                 .alternatives
@@ -117,25 +116,19 @@ pub(crate) fn stitch(stage: &str, documents: &[(Arc<str>, Arc<Dom>)]) -> Result<
                 Op::Define => {
                     if grammar.index.contains_key(&rule.name) {
                         return error(format!(
-                            "%rule {} is already defined; %redefine-rule replaces a rule an earlier document defined",
+                            "%rule {} is already defined; %redefine-rule replaces a rule",
                             rule.name
                         ));
                     }
-                    defined_here.insert(&rule.name, ());
                     grammar.index.insert(rule.name.clone(), grammar.rules.len());
                     grammar.rules.push(stitched());
                 }
                 Op::Redefine => {
-                    let index = match grammar.index.get(&rule.name) {
-                        Some(&index) if !defined_here.contains_key(rule.name.as_str()) => index,
-                        _ => {
-                            return error(format!(
-                                "%redefine-rule {} replaces no rule of an earlier document",
-                                rule.name
-                            ))
-                        }
+                    // Any earlier item of the stage, in this document or
+                    // another, may have defined it (engine §2).
+                    let Some(&index) = grammar.index.get(&rule.name) else {
+                        return error(format!("%redefine-rule {} replaces no rule defined before it", rule.name));
                     };
-                    defined_here.insert(&rule.name, ());
                     // The replacement keeps the place of the rule it
                     // replaces (§3, "Numbering").
                     grammar.rules[index] = stitched();

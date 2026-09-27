@@ -134,7 +134,8 @@ var domRules = map[string]bool{
 	"any-of": true, "all-of": true, "comparison": true, "negation": true,
 	"presence": true, "call": true, "term": true, "guarded-term": true, "union": true,
 	"intersection": true, "weak": true, "empty-set": true, "capture-reference": true,
-	"alternative-tags": true, "argument-word": true, "guard": true, "comparator": true,
+	"alternative-tags": true, "argument-word": true, "argument-string": true, "guard": true,
+	"comparator": true,
 }
 
 func (b *domBuilder) at(n *Node) [2]int {
@@ -211,10 +212,23 @@ func (b *domBuilder) document(root *Node) *domDoc {
 		case "directive":
 			ps := parts(c)
 			dir := &domDirective{Name: strings.TrimPrefix(b.text(ps[0]), "%"), Args: []string{}, At: b.at(ps[0])}
+			var isString []bool
 			for _, p := range ps {
-				if p.Kind == KindRule && p.Rule == "argument-word" {
-					dir.Args = append(dir.Args, b.text(p))
+				if p.Kind != KindRule {
+					continue
 				}
+				switch p.Rule {
+				case "argument-word":
+					dir.Args = append(dir.Args, b.text(p))
+					isString = append(isString, false)
+				case "argument-string":
+					// A string operand is decoded, as a string of a rule is.
+					dir.Args = append(dir.Args, b.decode(parts(p)[0]))
+					isString = append(isString, true)
+				}
+			}
+			if problem := operandProblem(dir.Name, isString); problem != "" {
+				b.fail(ps[0], "%s", problem)
 			}
 			d.Directives = append(d.Directives, dir)
 		}
@@ -665,4 +679,34 @@ func (b *domBuilder) emission(n *Node) *domEmit {
 		b.fail(first, "$ is used with items other than $")
 	}
 	return e
+}
+
+// operandProblem says what is wrong with a directive's operands, given
+// whether each is a string rather than a name, or "" (engine §9).
+func operandProblem(name string, isString []bool) string {
+	names := true
+	for _, s := range isString {
+		if s {
+			names = false
+		}
+	}
+	switch name {
+	case "stage":
+		if len(isString) != 1 || !names {
+			return "%stage takes one name"
+		}
+	case "include":
+		if len(isString) != 1 || !isString[0] {
+			return "%include takes one string"
+		}
+	case "features":
+		if len(isString) == 0 || !names {
+			return "%features takes one or more names"
+		}
+	default:
+		if !names {
+			return "%" + name + " takes names, not strings"
+		}
+	}
+	return ""
 }

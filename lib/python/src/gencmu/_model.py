@@ -142,7 +142,7 @@ class ParseResult:
 class Feature:
     """One of a dialect's features (engine §13): its ``name``, its ``kind``,
     ``"gate"`` or ``"warning"``, and whether the pipeline's
-    ``<?features?>`` turns it on by ``default``."""
+    ``%features`` turns it on by ``default``."""
 
     name: str
     kind: str

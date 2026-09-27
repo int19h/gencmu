@@ -22,7 +22,7 @@ use crate::unicode::Unicode;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseOptions {
     /// Features to turn on for every stage, besides those the pipeline's
-    /// `<?features?>` turns on.
+    /// `%features` turns on.
     pub features: Vec<String>,
     /// Features to turn off for every stage, among them any that the
     /// pipeline turns on. A name also in `features` is a usage error.
@@ -58,7 +58,7 @@ pub struct Feature {
     pub name: String,
     /// Whether it is a gate or a warning.
     pub kind: FeatureKind,
-    /// Whether the pipeline's `<?features?>` turns it on.
+    /// Whether the pipeline's `%features` turns it on.
     pub default: bool,
 }
 
@@ -87,7 +87,7 @@ type LoweredResult = Result<Arc<Lowered>, EngineError>;
 /// of features are kept behind a mutex and shared by later parses.
 pub struct Dialect {
     pub(crate) stages: Vec<StageGrammar>,
-    /// The features the pipeline's `<?features?>` turns on.
+    /// The features the pipeline's `%features` turns on.
     pub(crate) declared: Vec<String>,
     pub(crate) features: Vec<Feature>,
     pub(crate) unicode: Arc<Unicode>,
@@ -113,10 +113,10 @@ struct Run {
 }
 
 /// A dialect's features (engine §13): every name a guard of a stage's
-/// stitched rules uses, and every name the pipeline's `<?features?>`
+/// stitched rules uses, and every name the pipeline's `%features`
 /// declares, in code point order. A name that one guard uses as a gate and
 /// another as a warning is an error of the dialect; one that only
-/// `<?features?>` declares is a gate.
+/// `%features` declares is a gate.
 fn dialect_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec<Feature>, Error> {
     let mut kinds: BTreeMap<&str, FeatureKind> = BTreeMap::new();
     for stage in stages {
@@ -167,7 +167,7 @@ pub(crate) fn line_column(text: &[char], offset: usize) -> (usize, usize) {
 }
 
 impl Dialect {
-    /// A dialect of stitched stages, whose pipeline's `<?features?>` turns
+    /// A dialect of stitched stages, whose pipeline's `%features` turns
     /// on `declared`; a feature used both as a gate and as a warning is an
     /// error of the dialect (engine §13).
     pub(crate) fn new(

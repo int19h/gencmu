@@ -90,7 +90,9 @@ What reading a grammar document produces (engine §8, §9), and what `bootstrap.
 
 **Emission**: `{"items":[ITEM...]}`, an item being `{"capture":"x","tags":TERM}`, `tags` optional, or `{"insert":"h"}`, and no items for `ε`; `"capture":""` is `$`.
 
-**Directive**: `{"name":"elidable","args":["KU","KEI"],"at":[line,column]}`.
+**Directive**: `{"name":"elidable","args":["KU","KEI"],"at":[line,column]}`. The name is the keyword without `%`: `ambiguity-resolution`, `elidable`, `stage`, `include` or `features`. An argument is a name, or, for `include`, the decoded string: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`.
+
+`rules` and `directives` each keep the order in which the document has them. `at` is the line and column of an item's first token. So the order of all of a document's items is the order of their positions. No two items of a DOM share a position (engine §9).
 
 ### Precompiled DOMs
 

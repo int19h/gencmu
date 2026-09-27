@@ -8,17 +8,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readDocument } from "./bootstrap-reader.js";
-import { readPipeline, resolvePath } from "../lib/js/src/markdown.js";
+import { splicePipeline } from "../lib/js/src/pipeline.js";
 import { DOM_FORMAT } from "../lib/js/src/dom.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "grammars");
-const pipelinePath = "dialects/notation.md";
-const stages = readPipeline(fs.readFileSync(path.join(root, pipelinePath), "utf8"), pipelinePath).stages.map((stage) => ({
-  name: stage.name,
-  documents: stage.documents.map((relative) => {
-    const documentPath = resolvePath(pipelinePath, relative);
-    return { path: documentPath, dom: readDocument(fs.readFileSync(path.join(root, documentPath), "utf8"), documentPath) };
-  }),
-}));
-fs.writeFileSync(path.join(root, "notation", "bootstrap.json"), JSON.stringify({ format: DOM_FORMAT, stages }) + "\n");
+// The notation's pipeline, spliced from DOMs that the hand-written reader
+// makes.
+const { stages } = splicePipeline("dialects/notation.md", (documentPath) => {
+  const file = path.join(root, documentPath);
+  return fs.existsSync(file) ? readDocument(fs.readFileSync(file, "utf8"), documentPath) : undefined;
+});
+fs.writeFileSync(path.join(root, "notation", "bootstrap.json"), JSON.stringify({ format: DOM_FORMAT, stages: stages.map((stage) => ({ name: stage.name, documents: stage.documents })) }) + "\n");
 console.log("wrote grammars/notation/bootstrap.json");

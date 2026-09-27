@@ -1,7 +1,7 @@
 {
   "description": "A feature's kind comes from the rules after stitching: a warning that %redefine-rule replaced with a gate of the same name is not a conflict (engine §13).",
   "documents": {
-    "p.md": "# A dialect\n\n## Main <?stage main?>\n\n- [a](a.md) <?grammar?>\n- [b](b.md) <?grammar?>\n",
+    "p.md": "# A dialect\n\n## Main\n\n```jbogenbau\n%stage main\n```\n\n- [a](a.md)\n  ```jbogenbau\n  %include \"a.md\"\n  ```\n- [b](b.md)\n  ```jbogenbau\n  %include \"b.md\"\n  ```\n",
     "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text @f! A | B\n```\n",
     "b.md": "```jbogenbau\n%redefine-rule text @f? A | B\n```\n"
   },

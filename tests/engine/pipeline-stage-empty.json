@@ -1,0 +1,19 @@
+{
+  "description": "A stage with no rules is an error (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%stage main\n%include \"g.md\"\n```\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

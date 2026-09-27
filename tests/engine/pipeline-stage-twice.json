@@ -1,0 +1,20 @@
+{
+  "description": "Two %stage directives with one name are an error, even when the second comes from an included document (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n%include \"s.md\"\n```\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n```\n",
+    "s.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text B\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

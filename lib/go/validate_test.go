@@ -15,13 +15,17 @@ func TestDOMRules(t *testing.T) {
 	const good = `{"seq":[{"terminal":"a"},{"terminal":"b"}]}`
 	format := `"format":` + strconv.Itoa(domFormat)
 	rule := func(fields string) string {
-		return `{` + format + `,"rules":[{"name":"text","op":"define",` + fields + `,"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[1,1]}]}`
+		return `{` + format + `,"rules":[{"name":"text","op":"define",` + fields + `,"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}]}`
 	}
 	guarded := func(guard string) string {
 		return rule(`"alternatives":[{"guards":[` + guard + `],"expr":` + good + `}],"conditions":[]`)
 	}
 	alt := func(expr string) string {
 		return rule(`"alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[]`)
+	}
+	// A second directive after the first.
+	directive := func(dir string) string {
+		return strings.Replace(alt(good), `"at":[2,1]}]}`, `"at":[2,1]},`+dir+`]}`, 1)
 	}
 	tagged := func(tags string) string {
 		return rule(`"alternatives":[{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"terminal":"a"}},{"terminal":"b"}]},"tags":` + tags + `}],"conditions":[]`)
@@ -145,7 +149,18 @@ func TestDOMRules(t *testing.T) {
 		{"initial counts toward the nesting", cond(strings.Repeat(`{"not":`, 256) + `{"initial":{"capture":"x"}}` + strings.Repeat(`}`, 256))},
 		{"nesting at most 256", alt(nested(256))},
 		{"a directive has arguments", strings.Replace(alt(good), `"args":["greedy"],`, ``, 1)},
-		{"a directive has a position", strings.Replace(alt(good), `"args":["greedy"],"at":[1,1]`, `"args":["greedy"],"at":[1,1,1]`, 1)},
+		{"a directive has a position", strings.Replace(alt(good), `"args":["greedy"],"at":[2,1]`, `"args":["greedy"],"at":[2,1,1]`, 1)},
+		// The pipeline directives' operands (engine §9).
+		{"a stage has a name", directive(`{"name":"stage","args":[],"at":[3,1]}`)},
+		{"a stage has one name", directive(`{"name":"stage","args":["a","b"],"at":[3,1]}`)},
+		{"a stage's name is a name", directive(`{"name":"stage","args":["9a"],"at":[3,1]}`)},
+		{"an include has a path", directive(`{"name":"include","args":[],"at":[3,1]}`)},
+		{"an include has one path", directive(`{"name":"include","args":["a.md","b.md"],"at":[3,1]}`)},
+		{"features names a feature", directive(`{"name":"features","args":[],"at":[3,1]}`)},
+		{"features names only names", directive(`{"name":"features","args":["a","b c"],"at":[3,1]}`)},
+		// The order of items is the order of their positions (engine §9).
+		{"two directives at one position", directive(`{"name":"elidable","args":["A"],"at":[2,1]}`)},
+		{"a rule and a directive at one position", strings.Replace(alt(good), `"at":[2,1]`, `"at":[1,1]`, 1)},
 	}
 	// Each variation's well-formed twin decodes, so that the refusals are
 	// the rule's and not the test's.
@@ -157,6 +172,10 @@ func TestDOMRules(t *testing.T) {
 		alt(`{"seq":[` + strings.Repeat(`{"seq":[{"terminal":"a"},`, 254) + `{"capture":"x","expr":{"terminal":"b"}}` + strings.Repeat(`]}`, 254) + `,{"terminal":"b"}]}`),
 		tagged(unions(256)),
 		strings.Replace(alt(good), `"name":"text"`, `"name":"#"`, 1),
+		// The pipeline directives with their operands; an include's path
+		// is any string.
+		directive(`{"name":"stage","args":["a-1"],"at":[3,1]}`), directive(`{"name":"include","args":["../a b\\\"c.md"],"at":[3,1]}`),
+		directive(`{"name":"features","args":["a","b-c"],"at":[3,1]}`),
 		// An emission and its items are not compound: an item's term counts
 		// from the top.
 		emit(`{"items":[{"capture":"","tags":` + unions(256) + `}]}`),

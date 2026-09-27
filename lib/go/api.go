@@ -115,34 +115,16 @@ func (l *loader) dialect(pipelinePath string) (d *Dialect, err error) {
 }
 
 func (l *loader) load(pipelinePath string) (*Dialect, error) {
-	text, ok := l.read(pipelinePath)
-	if !ok {
-		return nil, &Error{Kind: ErrorGrammar, Document: pipelinePath, Message: "the pipeline document is missing"}
-	}
-	p, perr := readPipeline(text, pipelinePath)
+	p, perr := l.pipeline(pipelinePath)
 	if perr != nil {
 		return nil, perr
 	}
 	d := &Dialect{uni: l.uni, declared: p.features, lowered: map[lowerKey]*lowered{}}
-	doms := map[string]*domDoc{}
 	for _, s := range p.stages {
-		var docs []docDOM
-		for _, dp := range s.documents {
-			dom := doms[dp]
-			if dom == nil {
-				var err *Error
-				if dom, err = l.document(dp); err != nil {
-					err.Stage = s.name
-					return nil, err
-				}
-				doms[dp] = dom
-			}
-			docs = append(docs, docDOM{path: dp, dom: dom})
-		}
-		g, err := stitch(s.name, docs)
+		g, err := stitch(s.name, s.documents)
 		if err != nil {
 			if err.Document == "" {
-				err.Document = pipelinePath
+				err.Document = s.doc
 				err.Line, err.Column = s.at[0], s.at[1]
 			}
 			return nil, err
@@ -157,10 +139,31 @@ func (l *loader) load(pipelinePath string) (*Dialect, error) {
 	return d, nil
 }
 
+// pipeline splices the pipeline document at pipelinePath: its stages, each
+// a list of runs of one document's items, and the features it turns on
+// (engine §13). A document included more than once is read once.
+func (l *loader) pipeline(pipelinePath string) (*splicedPipeline, *Error) {
+	doms := map[string]*domDoc{}
+	return splicePipeline(pipelinePath, func(p string) (*domDoc, *Error) {
+		if dom, ok := doms[p]; ok {
+			return dom, nil
+		}
+		if _, ok := l.read(p); !ok {
+			return nil, nil
+		}
+		dom, err := l.document(p)
+		if err != nil {
+			return nil, err
+		}
+		doms[p] = dom
+		return dom, nil
+	})
+}
+
 // dialectFeatures lists a dialect's features (engine §13): every name that a
 // guard of a stage's stitched rules uses, whatever features are on, and
-// every name the pipeline's <?features?> declares, in code point order. A
-// name only <?features?> declares is a gate; a name that one guard uses as a
+// every name the pipeline's %features declares, in code point order. A
+// name only %features declares is a gate; a name that one guard uses as a
 // gate and another as a warning is an error of the dialect.
 func dialectFeatures(stages []*stageGrammar, declared []string) ([]Feature, *Error) {
 	kinds := map[string]string{}
@@ -285,7 +288,7 @@ func loadSources(sources map[string]string, pipeline string, noCache bool) (d *D
 // lowered for a set of features are cached under a mutex.
 type Dialect struct {
 	stages   []*stageGrammar
-	declared []string  // the features the pipeline's <?features?> turns on
+	declared []string  // the features the pipeline's %features turns on
 	features []Feature // every feature, with its kind and default (§13)
 	uni      *unicodeTable
 	mu       sync.Mutex
@@ -327,7 +330,7 @@ func (d *Dialect) StageNames() []string {
 
 // Features lists the dialect's features in code point order of their names
 // (engine §13): each a gate or a warning, and on by default when the
-// pipeline's <?features?> turns it on.
+// pipeline's %features turns it on.
 func (d *Dialect) Features() []Feature {
 	return append([]Feature{}, d.features...)
 }

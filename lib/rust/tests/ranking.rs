@@ -791,7 +791,7 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
     );
     let sources = [
         ("main.md".to_string(), document),
-        ("p.md".to_string(), "## main <?stage main?>\n\n- [main](main.md) <?grammar?>\n".to_string()),
+        ("p.md".to_string(), "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
         ("compiled.json".to_string(), compiled),
     ];
     let dialect = gencmu::load_dialect_sources(sources, "p.md").map_err(|error| format!("load: {error}"))?;

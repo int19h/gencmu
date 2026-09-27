@@ -1,7 +1,7 @@
 {
   "description": "The pause, /./, is `.`: a token tagged with it has `.` as its phonemes; phonemes() of a span joins its tokens' phonemes as they are, and runs() splits that at pauses, dropping the empty strings between two of them (engine §5, §10).",
   "documents": {
-    "p.md": "## s <?stage sounds?>\n\n- [g](g.md) <?grammar?>\n\n## t <?stage words?>\n\n- [h](h.md) <?grammar?>\n",
+    "p.md": "## s\n\n```jbogenbau\n%stage sounds\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage words\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [c] ...\n%rule c \"a\" </a/> | \"space\" </./> %emits $\n```\n",
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w(run) %conditions phonemes($w) = \"a..a\", \"a\" ∈ runs($w), \"\" ∉ runs($w)\n%rule run /a/ /./ /./ /a/\n```\n"
   },

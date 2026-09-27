@@ -1,6 +1,6 @@
-//! Loading a dialect (docs/api.md): its pipeline document, the grammar
-//! documents it names, read through the notation or taken from the DOM
-//! cache, stitched stage by stage.
+//! Loading a dialect (docs/api.md): its pipeline document and the documents
+//! it includes, read through the notation or taken from the DOM cache,
+//! spliced into stages and stitched stage by stage.
 
 use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
@@ -11,8 +11,9 @@ use crate::dom::{dom_from_json, dom_problem, dom_to_json, Dom, DOM_FORMAT};
 use crate::error::{Error, ErrorKind};
 use crate::grammar::stitch;
 use crate::json::{self, fnv1a64, Json};
-use crate::markdown::{grammar_text, pipeline, resolve};
+use crate::markdown::{grammar_text, resolve};
 use crate::notation::Reader;
+use crate::pipeline::{splice, Documents, Spliced};
 use crate::result::ParseErrorKind;
 use crate::unicode::Unicode;
 
@@ -196,7 +197,8 @@ fn check_read(dom: &Dom) -> Result<(), Error> {
 
 /// Where a loader finds its documents.
 trait Sources {
-    fn read(&self, path: &str) -> Result<String, Error>;
+    /// The text of the document at `path`, or `None` when there is none.
+    fn read(&self, path: &str) -> Result<Option<String>, Error>;
     fn resolve(&self, base: &str, target: &str) -> Option<String>;
 }
 
@@ -205,11 +207,8 @@ struct MapSources {
 }
 
 impl Sources for MapSources {
-    fn read(&self, path: &str) -> Result<String, Error> {
-        self.map
-            .get(path)
-            .cloned()
-            .ok_or_else(|| Error::grammar(format!("the document {path} is missing")).in_document(path))
+    fn read(&self, path: &str) -> Result<Option<String>, Error> {
+        Ok(self.map.get(path).cloned())
     }
 
     fn resolve(&self, base: &str, target: &str) -> Option<String> {
@@ -245,9 +244,12 @@ fn normalize(path: &Path) -> PathBuf {
 }
 
 impl Sources for DiskSources {
-    fn read(&self, path: &str) -> Result<String, Error> {
-        std::fs::read_to_string(path)
-            .map_err(|error| Error::new(ErrorKind::Io, format!("cannot read {path}: {error}")).in_document(path))
+    fn read(&self, path: &str) -> Result<Option<String>, Error> {
+        match std::fs::read_to_string(path) {
+            Ok(text) => Ok(Some(text)),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(error) => Err(Error::new(ErrorKind::Io, format!("cannot read {path}: {error}")).in_document(path)),
+        }
     }
 
     fn resolve(&self, base: &str, target: &str) -> Option<String> {
@@ -259,22 +261,42 @@ impl Sources for DiskSources {
     }
 }
 
-fn load(context: &Context, sources: &dyn Sources, pipeline_path: &str) -> Result<Dialect, Error> {
-    let text = sources.read(pipeline_path)?;
-    let pipeline = pipeline(&text).map_err(|error| error.in_document(pipeline_path))?;
-    let mut stages = Vec::new();
-    for stage in &pipeline.stages {
-        let mut documents = Vec::new();
-        for (target, line) in &stage.documents {
-            let located =
-                |message: String| Error::grammar(message).in_document(pipeline_path).at(*line, 1).in_stage(&stage.name);
-            let path = sources
-                .resolve(pipeline_path, target)
-                .ok_or_else(|| located(format!("the document path {target} leaves the grammars")))?;
-            let text = sources.read(&path).map_err(|error| located(error.message))?;
-            let dom = context.document(&path, &text).map_err(|error| error.in_stage(&stage.name))?;
-            documents.push((Arc::<str>::from(path.as_str()), Arc::new(dom)));
+/// The documents of a splice: each read once, through the context.
+struct Reading<'a> {
+    context: &'a Context,
+    sources: &'a dyn Sources,
+    read: HashMap<String, Arc<Dom>>,
+}
+
+impl Documents for Reading<'_> {
+    fn dom(&mut self, path: &str) -> Result<Option<Arc<Dom>>, Error> {
+        if let Some(dom) = self.read.get(path) {
+            return Ok(Some(dom.clone()));
         }
+        let Some(text) = self.sources.read(path)? else {
+            return Ok(None);
+        };
+        let dom = Arc::new(self.context.document(path, &text)?);
+        self.read.insert(path.to_string(), dom.clone());
+        Ok(Some(dom))
+    }
+
+    fn resolve(&self, base: &str, target: &str) -> Option<String> {
+        self.sources.resolve(base, target)
+    }
+}
+
+/// Splices the pipeline document at `path` (engine §13).
+fn splice_pipeline(context: &Context, sources: &dyn Sources, path: &str) -> Result<Spliced, Error> {
+    splice(path, &mut Reading { context, sources, read: HashMap::new() })
+}
+
+fn load(context: &Context, sources: &dyn Sources, pipeline_path: &str) -> Result<Dialect, Error> {
+    let pipeline = splice_pipeline(context, sources, pipeline_path)?;
+    let mut stages = Vec::new();
+    for stage in pipeline.stages {
+        let documents: Vec<(Arc<str>, Arc<Dom>)> =
+            stage.documents.into_iter().map(|(path, dom)| (path, Arc::new(dom))).collect();
         stages.push(stitch(&stage.name, &documents).map_err(|error| error.in_stage(&stage.name))?);
     }
     // A name used both as a gate and as a warning, in any of the stages, is
@@ -294,8 +316,9 @@ pub fn load_dialect(name: &str) -> Result<Dialect, Error> {
     load(&context, &MapSources { map }, &pipeline)
 }
 
-/// Loads a dialect from a pipeline document on disk. Its grammar documents
-/// are found relative to it; the character table and the notation's
+/// Loads a dialect from a pipeline document on disk. Each document it
+/// includes is found relative to the document that includes it; the
+/// character table and the notation's
 /// bootstrap come from the bundled grammars.
 pub fn load_dialect_file(path: impl AsRef<Path>) -> Result<Dialect, Error> {
     let context = Context::bundled()?;
@@ -335,6 +358,58 @@ where
 pub fn read_grammar_document(text: &str) -> Result<String, Error> {
     let context = Context::bundled()?;
     read_document(&context.notation, text).map(|dom| dom_to_json(&dom))
+}
+
+/// Splices a bundled pipeline document (engine §13) and returns the result
+/// as JSON, `{"format":7,"stages":[{"name":...,"documents":[{"path":...,
+/// "dom":...}]}],"features":[...]}`: each stage's runs of one document's
+/// items, in the shape of `bootstrap.json`, and the features. With `cached`
+/// false, every document is read through the notation, bypassing
+/// `compiled.json`. For tests and tools.
+pub fn splice_bundled_pipeline(path: &str, cached: bool) -> Result<String, Error> {
+    let bundled_context = Context::bundled()?;
+    let uncached;
+    let context = if cached {
+        &*bundled_context
+    } else {
+        uncached = Context {
+            unicode: bundled_context.unicode.clone(),
+            notation: bundled_context.notation.clone(),
+            compiled: Compiled::default(),
+        };
+        &uncached
+    };
+    let map = bundled::BUNDLED.iter().map(|(path, text)| (path.to_string(), text.to_string())).collect();
+    let spliced = splice_pipeline(context, &MapSources { map }, path)?;
+    let mut out = format!("{{\"format\":{DOM_FORMAT},\"stages\":[");
+    for (index, stage) in spliced.stages.iter().enumerate() {
+        if index > 0 {
+            out.push(',');
+        }
+        out.push_str("{\"name\":");
+        json::write_str(&mut out, &stage.name);
+        out.push_str(",\"documents\":[");
+        for (index, (path, dom)) in stage.documents.iter().enumerate() {
+            if index > 0 {
+                out.push(',');
+            }
+            out.push_str("{\"path\":");
+            json::write_str(&mut out, path);
+            out.push_str(",\"dom\":");
+            out.push_str(&dom_to_json(dom));
+            out.push('}');
+        }
+        out.push_str("]}");
+    }
+    out.push_str("],\"features\":[");
+    for (index, feature) in spliced.features.iter().enumerate() {
+        if index > 0 {
+            out.push(',');
+        }
+        json::write_str(&mut out, feature);
+    }
+    out.push_str("]}");
+    Ok(out)
 }
 
 /// The FNV-1a hash of the bundled `notation/bootstrap.json` (engine §8).

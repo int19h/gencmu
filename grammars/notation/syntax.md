@@ -14,7 +14,7 @@ Every rule and directive begins with a keyword, and a keyword begins nothing els
 
 ## Documents
 
-A grammar text is a sequence of rules and directives. A directive is its keyword and any number of words.
+A grammar text is a sequence of rules and directives. A directive is its keyword and any number of operands, each a name or a string. Which operands each directive takes is checked when the tree is read into a DOM, so that an error names the directive (`../../docs/engine.md`, §9).
 
 ```jbogenbau
 %rule text
@@ -24,13 +24,16 @@ A grammar text is a sequence of rules and directives. A directive is its keyword
   rule | directive
 
 %rule directive
-  directive-name [argument-word] ...
+  directive-name [argument-word | argument-string] ...
 
 %rule directive-name
-  "%ambiguity-resolution" | "%elidable"
+  "%ambiguity-resolution" | "%elidable" | "%stage" | "%include" | "%features"
 
 %rule argument-word
   "identifier"
+
+%rule argument-string
+  "string"
 ```
 
 ## Rules

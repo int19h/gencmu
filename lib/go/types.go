@@ -141,8 +141,8 @@ const (
 )
 
 // Feature is one of a dialect's features (engine §13): a name its guards
-// use or its pipeline's <?features?> declares, its kind, and whether
-// <?features?> turns it on by default.
+// use or its pipeline's %features declares, its kind, and whether
+// %features turns it on by default.
 type Feature struct {
 	Name    string
 	Kind    string

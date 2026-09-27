@@ -14,7 +14,7 @@ gencmu.to_brackets(result, show_elided=True)
 
 ## Loading a dialect
 
-A dialect is a pipeline document and the grammar documents it names.
+A dialect is a pipeline document and the documents it includes. The pipeline declares its stages with `%stage`, the grammar documents of each with `%include`, and the features it turns on with `%features` (`docs/notation.md`, "Pipelines").
 
 - `load_dialect(name)`: a dialect of the bundled grammars, by the name of its pipeline document under `grammars/dialects/` without `.md`.
 - `load_dialect_file(path)`: a pipeline document on disk; its grammar documents are found relative to it, and the Unicode table and the notation's bootstrap come from the bundled grammars.
@@ -28,7 +28,7 @@ A grammar document is read through the notation only when the precompiled DOMs, 
 result = dialect.parse(text, features=(), without_features=(), auto_features=True, until=None, elision_only=None)
 ```
 
-- `features`: feature names to turn on in every stage, besides those the pipeline turns on with `<?features?>`.
+- `features`: feature names to turn on in every stage, besides those the pipeline turns on with `%features`.
 - `without_features`: feature names to turn off in every stage, the pipeline's among them. A name in both lists raises `GencmuError` with `kind` `"usage"`.
 - `auto_features`: add `sa-su` only where the text needs it, by parsing up to the stage named `words` without it first; only in a dialect where `sa-su` is a gate, and not when `without_features` names it.
 - `until`: the name of the last stage to run; an unknown name raises `GencmuError` with `kind` `"usage"`.

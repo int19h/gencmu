@@ -30,6 +30,15 @@ fn with_alternative(alternative: &str) -> String {
     dom(alternative, "", "", 7, r#""greedy""#)
 }
 
+/// A DOM like the document's, but accepting "b", with `directive` added
+/// after its `%ambiguity-resolution`.
+fn with_directive(directive: &str) -> String {
+    let rule = r#"{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"terminal":"b"}}],"conditions":[],"at":[3,1]}"#;
+    format!(
+        r#"{{"format":7,"rules":[{rule}],"directives":[{{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}},{directive}]}}"#
+    )
+}
+
 fn with_emission(emission: &str) -> String {
     let alternative = r#"{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"terminal":"b"}},{"capture":"y","expr":{"terminal":"c"}}]}}"#;
     dom(alternative, &format!(r#","emit":{emission}"#), "", 7, r#""greedy""#)
@@ -60,7 +69,7 @@ fn document_was_read_from(format: u32, dom: &str) -> bool {
         gencmu::tools::fnv1a64(DOCUMENT)
     );
     let sources = [
-        ("p.md", "## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n".to_string()),
+        ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
         ("g.md", DOCUMENT.to_string()),
         ("compiled.json", compiled),
     ];
@@ -96,6 +105,8 @@ fn a_well_formed_dom_is_used() {
         r##"{"name":"#","op":"define","alternatives":[{"guards":[],"expr":{"empty":true}}],"conditions":[],"at":[4,1]}"##,
     );
     assert!(!document_was_read(&hash));
+    // The pipeline directives with their operands (§9).
+    assert!(!document_was_read(&with_directive(r#"{"name":"features","args":["f","g-2"],"at":[2,30]}"#)));
     let whole = r#"{"op":"∈","left":{"literal":"T"},"right":{"call":"tags","args":[{"capture":""}]}}"#;
     let both = format!(r#"{{"all":[{whole},{{"not":{whole}}}]}}"#);
     assert!(!document_was_read(&with_condition(whole)));
@@ -330,6 +341,24 @@ fn every_malformed_dom_is_a_cache_miss() {
             with_emission(r#"{"items":[{"capture":"x","tags":{"call":"tags","args":[{"capture":"z"}]}}]}"#),
         ),
         ("a term that is not an object", with_tags(r#""T""#)),
+        ("%stage without a name", with_directive(r#"{"name":"stage","args":[],"at":[4,1]}"#)),
+        ("%stage with two names", with_directive(r#"{"name":"stage","args":["a","b"],"at":[4,1]}"#)),
+        ("%stage with a name that is not a name", with_directive(r#"{"name":"stage","args":["9a"],"at":[4,1]}"#)),
+        ("%include without a path", with_directive(r#"{"name":"include","args":[],"at":[4,1]}"#)),
+        ("%include with two paths", with_directive(r#"{"name":"include","args":["a.md","b.md"],"at":[4,1]}"#)),
+        ("%features without a name", with_directive(r#"{"name":"features","args":[],"at":[4,1]}"#)),
+        (
+            "%features with a name that is not a name",
+            with_directive(r#"{"name":"features","args":["f g"],"at":[4,1]}"#),
+        ),
+        ("a directive at a rule's position", with_directive(r#"{"name":"elidable","args":["X"],"at":[3,1]}"#)),
+        ("two directives at one position", with_directive(r#"{"name":"elidable","args":["X"],"at":[2,1]}"#)),
+        (
+            "two rules at one position",
+            with_rule(
+                r#"{"name":"x","op":"define","alternatives":[{"guards":[],"expr":{"terminal":"b"}}],"conditions":[],"at":[3,1]}"#,
+            ),
+        ),
     ];
     let mut used = Vec::new();
     for (rule, dom) in &cases {
@@ -347,7 +376,7 @@ fn a_malformed_bootstrap_is_an_error() {
         with_emission(r#"{"items":[{"capture":""},{"insert":"X"}]}"#)
     );
     let sources = [
-        ("p.md", "## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n".to_string()),
+        ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
         ("g.md", DOCUMENT.to_string()),
         ("notation/bootstrap.json", bootstrap),
     ];

@@ -1,0 +1,20 @@
+{
+  "description": "An %include of a document that is already being included is an error: a.md includes b.md, which includes a.md (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"a.md\"\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n%include \"b.md\"\n```\n",
+    "b.md": "```jbogenbau\n%include \"a.md\"\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

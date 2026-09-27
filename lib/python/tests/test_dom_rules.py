@@ -23,7 +23,7 @@ DOCUMENT = """```jbogenbau
 %emits $x
 ```
 """
-PIPELINE = "## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n\n## Next <?stage next?>\n\n- [h](h.md) <?grammar?>\n"
+PIPELINE = '```jbogenbau\n%stage main\n%include "g.md"\n%stage next\n%include "h.md"\n```\n'
 NEXT = "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [\"a\"] [\"Y\"]\n```\n"
 
 Dom = dict[str, Any]

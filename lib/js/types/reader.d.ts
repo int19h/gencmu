@@ -15,3 +15,11 @@ import type { Token } from "./tokens.js";
  * @returns {GrammarDom}
  */
 export declare function treeToDom(tree: ResultNode, tokens: Token[], positionOf: (token: Token) => Position, path: string): GrammarDom;
+/**
+ * What is wrong with a directive's operands, each a name or a string, or
+ * null (engine §9).
+ * @param {string} name
+ * @param {("name" | "string")[]} kinds
+ * @returns {string | null}
+ */
+export declare function operandProblem(name: string, kinds: ("name" | "string")[]): string | null;

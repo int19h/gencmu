@@ -1,7 +1,7 @@
 {
   "description": "Text that no input token covers, between two verbatim tokens, belongs to the first of them (engine §11).",
   "documents": {
-    "p.md": "## s <?stage letters?>\n\n- [g](g.md) <?grammar?>\n\n## t <?stage bodies?>\n\n- [h](h.md) <?grammar?>\n",
+    "p.md": "## s\n\n```jbogenbau\n%stage letters\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage bodies\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [part] ...\n%rule part letter | comma\n%rule letter \"a\" | \"b\"\n%emits $ <\"L\">\n%rule comma \",\"\n```\n",
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $a(v) $b(v)\n%emits $a <\"A\">, $b <\"B\">\n%rule v L\n%verbatim\n```\n"
   },

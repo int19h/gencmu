@@ -4,13 +4,13 @@ Every gencmu library offers the same operations on the same data, spelled the wa
 
 ## What every library offers
 
-**Loading a dialect.** A dialect is a pipeline document and the grammar documents it names. A library loads one in three ways:
+**Loading a dialect.** A dialect is a pipeline document and the grammar documents it includes. A library loads one in three ways:
 
 - by name, from the grammars bundled in the package: the name is a pipeline document's file name under `grammars/dialects/` without `.md`, so `cll-ebnf`, `bpfk`, `experimental`, `zantufa` and `notation`;
 - from a pipeline document on disk, whose grammar documents are found relative to it, and whose `unicode.txt` and `notation/bootstrap.json` come from the bundled grammars;
 - from documents held in memory: a map from `/`-separated path to text, and the path of the pipeline document in it. The map may supply its own `unicode.txt`, `notation/bootstrap.json` and `compiled.json`; any it lacks come from the bundled grammars, except in the portable JavaScript entry point, which has no bundle to read and needs the map to hold the first two (see "JavaScript").
 
-Paths inside a pipeline resolve against the pipeline document's own path, with `.` and `..` normalized (engine §8). A document is read through the notation only when `compiled.json` has no entry for it with the same text hash, the same bootstrap hash and the same DOM format.
+The path of an `%include` resolves against the document that holds it, with `.` and `..` normalized (engine §13). A document is read through the notation only when `compiled.json` has no entry for it that matches. An entry matches when it has the same text hash, the same bootstrap hash and the same DOM format.
 
 A dialect that cannot be loaded, because a document is missing, does not parse as the notation, or does not stitch into a valid grammar, is an error: an exception in JavaScript and Python, a returned error in Go and Rust. It carries a message with the document, line and column where known.
 
@@ -18,8 +18,8 @@ A dialect that cannot be loaded, because a document is missing, does not parse a
 
 | option | default | meaning |
 | --- | --- | --- |
-| features | none | feature names to turn on for every stage, besides those the pipeline's `<?features?>` turns on |
-| without features | none | feature names to turn off for every stage, among them any that the pipeline's `<?features?>` turns on; a name in both lists is a usage error |
+| features | none | feature names to turn on for every stage, besides those the pipeline's `%features` turns on |
+| without features | none | feature names to turn off for every stage, among them any that the pipeline's `%features` turns on; a name in both lists is a usage error |
 | auto features | on | add `sa-su` only where the text needs it (design, "Expensive constructs behind features"), unless `without features` names it; ignored for a dialect with no stage named `words` |
 | until | the last stage | the name of the last stage to run; an unknown name is an error |
 | elision-only | the grammar's own | on or off for every stage that runs, overriding `%ambiguity-resolution ... elision-only` |

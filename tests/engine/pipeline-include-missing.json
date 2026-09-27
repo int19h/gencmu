@@ -1,0 +1,19 @@
+{
+  "description": "An %include of a document that does not exist is an error of the dialect (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n%include \"missing.md\"\n```\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

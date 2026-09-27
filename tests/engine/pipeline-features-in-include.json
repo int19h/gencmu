@@ -1,0 +1,28 @@
+{
+  "description": "%features in an included document turns its features on for the dialect (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n",
+    "g.md": "```jbogenbau\n%features f\n%ambiguity-resolution greedy\n%rule text @f? B | @¬f? A\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "b"
+  }
+}

@@ -1,4 +1,4 @@
-# The experimental dialect <?features cbm soi-clause su-boundary?>
+# The experimental dialect
 
 This dialect extends CLL with constructs that entered use after CLL appeared in print. Examples are `cu` before a bare selbri, connected sumti with `je`, and the experimental cmavo. The syntax is [`../syntax/experimental.md`](../syntax/experimental.md), which says what it adds to CLL's.
 
@@ -6,34 +6,100 @@ The phoneme stage is the approved word forms' ([`bpfk.md`](bpfk.md)). The word s
 
 The dialect turns on two features of the syntax, as camxes-exp always has them. `cbm` is the cmevla-brivla merger. `soi-clause` makes `soi` a term that takes a subsentence, in place of CLL's free modifier of reciprocity. A caller can turn either off to read the CLL form.
 
-## Stage 1: phonemes <?stage phonemes?>
+```jbogenbau
+%features cbm soi-clause su-boundary
+```
 
-- [The Latin orthography of CLL](../phonemes/latin-strict.md) <?grammar?>
-- [Latin conventions](../phonemes/latin.md): punctuation, capital runs, accents and digits <?grammar?>
-- [Cyrillic orthography](../phonemes/cyrillic.md): gencmu's Cyrillic, the default <?grammar?>
-- [The Cyrillic orthography of CLL](../phonemes/cyrillic-cll.md): CLL 3.12's Cyrillic, which a caller chooses with the feature `cll-cyrillic` <?grammar?>
-- [zbalermorna](../phonemes/zbalermorna.md) <?grammar?>
+## Stage 1: phonemes
 
-## Stage 2: forms <?stage forms?>
+```jbogenbau
+%stage phonemes
+```
 
-- [Word forms](../words/forms.md) <?grammar?>
-- [Approved word forms](../words/bpfk.md) <?grammar?>
-- [Experimental word forms](../words/experimental.md) <?grammar?>
-- [The experimental lexicon](../words/lexicon-experimental.md) <?grammar?>
+- [The Latin orthography of CLL](../phonemes/latin-strict.md)
+  ```jbogenbau
+  %include "../phonemes/latin-strict.md"
+  ```
+- [Latin conventions](../phonemes/latin.md): punctuation, capital runs, accents and digits
+  ```jbogenbau
+  %include "../phonemes/latin.md"
+  ```
+- [Cyrillic orthography](../phonemes/cyrillic.md): gencmu's Cyrillic, the default
+  ```jbogenbau
+  %include "../phonemes/cyrillic.md"
+  ```
+- [The Cyrillic orthography of CLL](../phonemes/cyrillic-cll.md): CLL 3.12's Cyrillic, which a caller chooses with the feature `cll-cyrillic`
+  ```jbogenbau
+  %include "../phonemes/cyrillic-cll.md"
+  ```
+- [zbalermorna](../phonemes/zbalermorna.md)
+  ```jbogenbau
+  %include "../phonemes/zbalermorna.md"
+  ```
 
-## Stage 3: words <?stage words?>
+## Stage 2: forms
 
-- [The word stream](../words/stream.md) <?grammar?>
+```jbogenbau
+%stage forms
+```
 
-## Stage 4: indicators <?stage indicators?>
+- [Word forms](../words/forms.md)
+  ```jbogenbau
+  %include "../words/forms.md"
+  ```
+- [Approved word forms](../words/bpfk.md)
+  ```jbogenbau
+  %include "../words/bpfk.md"
+  ```
+- [Experimental word forms](../words/experimental.md)
+  ```jbogenbau
+  %include "../words/experimental.md"
+  ```
+- [The experimental lexicon](../words/lexicon-experimental.md)
+  ```jbogenbau
+  %include "../words/lexicon-experimental.md"
+  ```
 
-- [Indicators and ba'e](../indicators/cll.md) <?grammar?>
-- [The indicators of camxes-exp](../indicators/experimental.md): a bare `nai` is an indicator <?grammar?>
+## Stage 3: words
 
-## Stage 5: syntax <?stage syntax?>
+```jbogenbau
+%stage words
+```
 
-- [The CLL grammar](../syntax/cll.md) <?grammar?>
-- [The experimental grammar](../syntax/experimental.md): what camxes-exp changes in it <?grammar?>
+- [The word stream](../words/stream.md)
+  ```jbogenbau
+  %include "../words/stream.md"
+  ```
+
+## Stage 4: indicators
+
+```jbogenbau
+%stage indicators
+```
+
+- [Indicators and ba'e](../indicators/cll.md)
+  ```jbogenbau
+  %include "../indicators/cll.md"
+  ```
+- [The indicators of camxes-exp](../indicators/experimental.md): a bare `nai` is an indicator
+  ```jbogenbau
+  %include "../indicators/experimental.md"
+  ```
+
+## Stage 5: syntax
+
+```jbogenbau
+%stage syntax
+```
+
+- [The CLL grammar](../syntax/cll.md)
+  ```jbogenbau
+  %include "../syntax/cll.md"
+  ```
+- [The experimental grammar](../syntax/experimental.md): what camxes-exp changes in it
+  ```jbogenbau
+  %include "../syntax/experimental.md"
+  ```
 
 The experimental grammar is greedy like CLL's, but it does not declare `elision-only`. It has ambiguities that are not about terminators, such as a bare `na` term beside a negated selbri. The greedy rule settles them.
 

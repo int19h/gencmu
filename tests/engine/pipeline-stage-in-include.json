@@ -1,0 +1,28 @@
+{
+  "description": "A %stage inside an included document starts a stage, and the items after the %include continue in it, as they would in text: the pipeline's %extend-rule extends the text of s.md (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%include \"s.md\"\n%extend-rule text B\n```\n",
+    "s.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text A\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "b"
+  }
+}

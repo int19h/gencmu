@@ -259,7 +259,7 @@ pub fn case_documents(case: &Value) -> (BTreeMap<String, String>, String) {
         text.push_str(grammar);
         documents.insert("main.md".to_string(), format!("```jbogenbau\n{text}\n```\n"));
         documents
-            .insert("pipeline.md".to_string(), "## main <?stage main?>\n\n- [main](main.md) <?grammar?>\n".to_string());
+            .insert("pipeline.md".to_string(), "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string());
         return (documents, "pipeline.md".to_string());
     }
     for (path, text) in case.get("documents").map(Value::object).unwrap_or(&[]) {

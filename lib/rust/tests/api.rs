@@ -11,7 +11,7 @@ fn grammar(rules: &str) -> String {
 
 fn single(rules: &str) -> BTreeMap<String, String> {
     let mut sources = BTreeMap::new();
-    sources.insert("p.md".to_string(), "## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n".to_string());
+    sources.insert("p.md".to_string(), "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string());
     sources.insert("g.md".to_string(), grammar(rules));
     sources
 }
@@ -48,7 +48,7 @@ fn a_dialect_loads_from_disk() {
     std::fs::create_dir_all(directory.join("grammars")).unwrap();
     std::fs::write(
         directory.join("dialects/mine.md"),
-        "# Mine\n\n## Only <?stage only?>\n\n- [the grammar](../grammars/g.md) <?grammar?>\n",
+        "```jbogenbau\n%stage only\n%include \"../grammars/g.md\"\n```\n",
     )
     .unwrap();
     std::fs::write(directory.join("grammars/g.md"), grammar("%ambiguity-resolution greedy\n%rule text \"a\" ..."))
@@ -60,7 +60,7 @@ fn a_dialect_loads_from_disk() {
 
     std::fs::write(
         directory.join("dialects/broken.md"),
-        "## Only <?stage only?>\n\n- [gone](../grammars/gone.md) <?grammar?>\n",
+        "```jbogenbau\n%stage only\n%include \"../grammars/gone.md\"\n```\n",
     )
     .unwrap();
     let error = gencmu::load_dialect_file(directory.join("dialects/broken.md")).expect_err("a missing document");
@@ -115,8 +115,7 @@ fn until_features_and_elision_only() {
     let mut sources = BTreeMap::new();
     sources.insert(
         "p.md".to_string(),
-        "# D <?features f?>\n\n## One <?stage one?>\n\n- [g](g.md) <?grammar?>\n\n## Two <?stage two?>\n\n- [h](h.md) <?grammar?>\n"
-            .to_string(),
+        "```jbogenbau\n%features f\n%stage one\n%include \"g.md\"\n%stage two\n%include \"h.md\"\n```\n".to_string(),
     );
     sources.insert(
         "g.md".to_string(),
@@ -170,7 +169,7 @@ fn words_dialect() -> gencmu::Dialect {
     let mut sources = BTreeMap::new();
     sources.insert(
         "p.md".to_string(),
-        "## Sounds <?stage sounds?>\n\n- [s](s.md) <?grammar?>\n\n## Words <?stage words?>\n\n- [w](w.md) <?grammar?>\n".to_string(),
+        "```jbogenbau\n%stage sounds\n%include \"s.md\"\n%stage words\n%include \"w.md\"\n```\n".to_string(),
     );
     sources.insert(
         "s.md".to_string(),
@@ -210,10 +209,7 @@ fn auto_features_add_sa_su_only_where_needed() {
 #[test]
 fn gates_turn_off_and_warnings_follow_the_chosen_tree() {
     let mut sources = BTreeMap::new();
-    sources.insert(
-        "p.md".to_string(),
-        "# D <?features f?>\n\n## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n".to_string(),
-    );
+    sources.insert("p.md".to_string(), "```jbogenbau\n%features f\n%stage main\n%include \"g.md\"\n```\n".to_string());
     sources.insert(
         "g.md".to_string(),
         grammar("%ambiguity-resolution greedy\n%rule text @f? \"a\" | @¬f? @w! part ...\n%rule part @w! \"b\" | \"c\""),
@@ -255,8 +251,7 @@ fn gates_turn_off_and_warnings_follow_the_chosen_tree() {
     // A name is a gate or a warning across every stage of a dialect.
     sources.insert(
         "q.md".to_string(),
-        "## One <?stage one?>\n\n- [g](g.md) <?grammar?>\n\n## Two <?stage two?>\n\n- [h](h.md) <?grammar?>\n"
-            .to_string(),
+        "```jbogenbau\n%stage one\n%include \"g.md\"\n%stage two\n%include \"h.md\"\n```\n".to_string(),
     );
     sources.insert("h.md".to_string(), grammar("%ambiguity-resolution greedy\n%rule text @w? X"));
     let error = gencmu::load_dialect_sources(sources, "q.md").expect_err("w a warning in one stage, a gate in another");
@@ -268,7 +263,7 @@ fn parts_that_emit_epsilon_are_neither_emitted_nor_counted() {
     let mut sources = BTreeMap::new();
     sources.insert(
         "p.md".to_string(),
-        "## One <?stage one?>\n\n- [f](f.md) <?grammar?>\n\n## Two <?stage two?>\n\n- [g](g.md) <?grammar?>\n\n## Three <?stage three?>\n\n- [h](h.md) <?grammar?>\n"
+        "```jbogenbau\n%stage one\n%include \"f.md\"\n%stage two\n%include \"g.md\"\n%stage three\n%include \"h.md\"\n```\n"
             .to_string(),
     );
     sources.insert(

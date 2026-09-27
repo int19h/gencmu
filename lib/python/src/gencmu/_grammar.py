@@ -84,7 +84,6 @@ def stitch(stage: str, documents: list[tuple[str, Dom]]) -> Grammar:
     resolutions: list[tuple[list[str], str, Any]] = []
     elidable: set[str] = set()
     for path, dom in documents:
-        defined_here: set[str] = set()
         for rule in dom.get("rules", []):
             name = rule["name"]
             at: tuple[int, int] = (int(rule.get("at", (0, 0))[0]), int(rule.get("at", (0, 0))[1]))
@@ -110,9 +109,8 @@ def stitch(stage: str, documents: list[tuple[str, Dom]]) -> Grammar:
                 previous.alternatives.extend(alternatives)
                 changes.append(Change("extend", name, path, previous.document))
             elif op == "redefine":
-                if previous is None or name in defined_here:
-                    raise _error(f"%redefine-rule {name} replaces no rule of an earlier document", path, at, stage)
-                defined_here.add(name)
+                if previous is None:
+                    raise _error(f"%redefine-rule {name} replaces no rule defined before it", path, at, stage)
                 changes.append(Change("replace", name, path, previous.document))
                 # The rule keeps its place (engine §3, "Numbering").
                 rules[name] = Rule(name, alternatives, path, at)
@@ -124,7 +122,6 @@ def stitch(stage: str, documents: list[tuple[str, Dom]]) -> Grammar:
                         at,
                         stage,
                     )
-                defined_here.add(name)
                 rules[name] = Rule(name, alternatives, path, at)
         for directive in dom.get("directives", []):
             name = directive["name"]

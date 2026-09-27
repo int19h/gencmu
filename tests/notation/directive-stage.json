@@ -1,0 +1,20 @@
+{
+  "description": "%stage takes one name (engine §9).",
+  "document": "```jbogenbau\n%stage phonemes\n```\n",
+  "expect": {
+    "dom": {
+      "directives": [
+        {
+          "name": "stage",
+          "args": [
+            "phonemes"
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ]
+    }
+  }
+}

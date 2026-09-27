@@ -1,7 +1,7 @@
 {
   "description": "Auto features do not add sa-su for a word spelled sa that has neither SA nor SU, so the first run stands with its warning (engine §13).",
   "documents": {
-    "p.md": "# A dialect\n\n## Words <?stage words?>\n\n- [g](g.md) <?grammar?>\n",
+    "p.md": "# A dialect\n\n## Words\n\n```jbogenbau\n%stage words\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution lazy\n%rule text @¬sa-su? @w! word | @sa-su? word\n%rule word\n  A\n```\n"
   },
   "pipeline": "p.md",

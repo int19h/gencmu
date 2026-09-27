@@ -26,7 +26,7 @@ Or open `index.html` in a browser, from the clone or from GitHub Pages: the play
 | `experimental` | CLL with the experimental constructs in use since |
 | `zantufa` | Guskant's Zantufa 1.9999, translated rule by rule |
 
-Each is a document under [`grammars/dialects/`](grammars/dialects), which links the grammar documents of its stages.
+Each is a document under [`grammars/dialects/`](grammars/dialects), which includes the grammar documents of its stages and links to each. `node lib/js/cli.js stitch --dialect NAME` prints a dialect as one jbogenbau text.
 
 ## The libraries
 

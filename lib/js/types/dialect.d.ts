@@ -62,6 +62,17 @@ export declare class Loader {
      * @returns {Dialect}
      */
     dialect(path: string): Dialect;
+    /**
+     * The stages of the pipeline document at `path`, each a list of runs of
+     * one document's items, and the features the pipeline turns on (engine
+     * §13).
+     * @param {string} path
+     * @returns {{stages: import("./pipeline.js").SplicedStage[], features: string[]}}
+     */
+    pipeline(path: string): {
+        stages: import("./pipeline.js").SplicedStage[];
+        features: string[];
+    };
 }
 export declare class Dialect {
     path: string;

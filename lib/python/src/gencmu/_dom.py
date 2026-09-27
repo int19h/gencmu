@@ -14,7 +14,7 @@ from ._validate import FORMAT, term_reads_own_tags
 Dom = dict[str, Any]
 
 _MAPPED = frozenset(
-    """directive rule alternative alternative-tags choice conjunction sequence element reference string
+    """directive argument-string rule alternative alternative-tags choice conjunction sequence element reference string
     phoneme capture group optional empty tags-clause conditions-clause emits-clause verbatim-clause emit-item emit-tags
     implication any-of all-of comparison negation presence call term guarded-term union
     intersection weak empty-set capture-reference""".split()
@@ -119,7 +119,13 @@ class DomBuilder:
     def directive(self, node: Node) -> Dom:
         kids = self.kids(node)
         name = self.text(kids[0])[1:]
-        args = [self.text(kid) for kid in kids[1:] if kid.kind == "token"]
+        operands = [kid for kid in kids[1:] if kid.kind == "token" or kid.rule == "argument-string"]
+        problem = operand_problem(name, [kid.kind != "token" for kid in operands])
+        if problem:
+            raise self.fail(node, problem)
+        # A name operand is its text; a string operand is decoded, as a
+        # string of a rule is.
+        args = [self.text(kid) if kid.kind == "token" else self.decode(self.kids(kid)[0]) for kid in operands]
         return {"name": name, "args": args, "at": list(self.position(node))}
 
     def rule(self, node: Node) -> Dom:
@@ -420,3 +426,16 @@ class DomBuilder:
                 raise self.fail(node, f"{name}() is a condition, not a term")
             raise self.fail(node, f"an unknown function {name}()")
         raise self.fail(node, f"unexpected {rule} in a term")
+
+
+def operand_problem(name: str, strings: list[bool]) -> str | None:
+    """What is wrong with a directive's operands, given whether each is a
+    string rather than a name, or None (engine §9)."""
+    names = not any(strings)
+    if name == "stage":
+        return None if len(strings) == 1 and names else "%stage takes one name"
+    if name == "include":
+        return None if strings == [True] else "%include takes one string"
+    if name == "features":
+        return None if strings and names else "%features takes one or more names"
+    return None if names else f"%{name} takes names, not strings"
