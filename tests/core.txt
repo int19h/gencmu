@@ -1072,3 +1072,15 @@ adhoc.words.cll-exact.eo
 adhoc.words.cll-exact.eu
 adhoc.words.cll-exact.ou
 adhoc.words.cll-exact.seiha
+adhoc.words.split.c13.miklama-bu
+adhoc.words.split.c13.klamaby-bu
+adhoc.words.split.d7.ladjan-bu
+adhoc.words.split.d7.ladjan-sa-djim-bu
+adhoc.words.split.faho.fahoxxx
+adhoc.words.split.ybu.yyybu-sa-bu.bpfk
+adhoc.words.split.hes.coyysi.bpfk
+adhoc.words.split.zohoi.attached-hesitation.experimental
+adhoc.words.split.zoi.letter-word-delimiter
+adhoc.words.split.gap.si-zei
+adhoc.words.split.hes.before-wiped-erasures
+adhoc.words.cll-exact.zobroda

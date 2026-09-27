@@ -1,6 +1,6 @@
 # Word shapes
 
-This document is part of the word stage in the [CLL](../dialects/cll-ebnf.md) dialect. It holds the sounds that CLL's word forms are made of. These are the consonants and their pairs, the vowels and diphthongs, and the stress. It is stitched into the stage after [stream.md](stream.md) and before [cll.md](cll.md), which builds the words from these parts. The other dialects read the approved word forms of [bpfk.md](bpfk.md) instead, and use nothing here. The notation is explained in [the notation document](../../docs/notation.md).
+This document is part of the forms stage in the [CLL](../dialects/cll-ebnf.md) dialect. It holds the sounds that CLL's word forms are made of. These are the consonants and their pairs, the vowels and diphthongs, and the stress. It is stitched into the stage after [forms.md](forms.md) and before [cll.md](cll.md), which builds the words from these parts. The other dialects read the approved word forms of [bpfk.md](bpfk.md) instead, and use nothing here. The notation is explained in [the notation document](../../docs/notation.md).
 
 The rules state CLL 1.1's word forms precisely enough to implement them twice, and an independent implementation of the same rules agrees with this grammar. The phoneme stage has already folded consonants to lowercase and written every apostrophe as `/'/`. The only capital tokens are the stressed vowels `/A/ /E/ /I/ /O/ /U/ /Y/`. A comma reaches this stage only where it stands between two vowels, as the syllable break `/,/`.
 

@@ -1,12 +1,12 @@
 # CLL word forms
 
-This document is the family part of the word stage in the [CLL](../dialects/cll-ebnf.md) dialect. It gives the word forms of chapters 3 and 4 of *The Complete Lojban Language*, version 1.1. It is stitched in after [stream.md](stream.md) and [shapes.md](shapes.md), whose sounds it builds words from. It defines the three shapes that the stream reads, `cmavo-shape`, `brivla-shape` and `cmevla-shape`. It tags each with what the pause rules of CLL 4.9 need to know about the word. The family of the definition effort is [bpfk.md](bpfk.md). The notation is explained in [the notation document](../../docs/notation.md).
+This document is the family part of the forms stage in the [CLL](../dialects/cll-ebnf.md) dialect. It gives the word forms of chapters 3 and 4 of *The Complete Lojban Language*, version 1.1. It is stitched into the forms stage after [forms.md](forms.md) and [shapes.md](shapes.md), whose sounds it builds words from. It defines the three shapes that the forms stage reads, `cmavo-shape`, `brivla-shape` and `cmevla-shape`. It tags each with what the pause rules of CLL 4.9 need to know about the word. The family of the definition effort is [bpfk.md](bpfk.md). The notation is explained in [the notation document](../../docs/notation.md).
 
 The rules state CLL 1.1's word forms precisely enough to implement them twice, and an independent implementation of the same rules agrees with this grammar. Under these rules a text divides into words in at most one way. So the stage's lazy choice among parses never decides where a word ends.
 
 ## Pause tags
 
-The stream joins two words without a pause only if CLL 4.9 and 4.2 allow it. It reads these tags on the word before and the word after:
+The forms stage joins two words without a pause only if CLL 4.9 and 4.2 allow it. It reads these tags on the word before and the word after:
 
 - `onset`: the word begins with a consonant and is not a name. Only such a word may follow another word without a pause (rules 3 and 4), apart from a name after `la`, below.
 - `continued`: another word may follow this one without a pause. Every cmavo but a `Cy` letter has it, and so does a brivla whose stress is marked.
@@ -19,7 +19,7 @@ The stream joins two words without a pause only if CLL 4.9 and 4.2 allow it. It 
 
 A cmavo is an optional consonant followed by vowel units joined by apostrophes. A unit is a vowel or a falling diphthong (CLL 4.1, 4.2). So `sei'a` is a cmavo, but `seia`, `baiu` and `miui` are not: their vowels do not form units. One or two vowels make the forms V, VV, CV and CVV. Three or more are the experimental cmavo of CLL 4.2, such as `ku'a'e` and `bai'ai`. The ten rising diphthongs, such as `ia` and `ui`, are cmavo as whole words. A consonant never comes before one, so `kie` and `mui` are no cmavo. A comma never stands in a cmavo: `ma,i` is neither one cmavo nor `ma .i`, since a comma is no pause.
 
-A consonant followed by `y` is a letter cmavo (CLL 4.2, 17). So is `y'y`, the letter for the apostrophe. The ten pairs `a'y e'y i'y o'y u'y y'a y'e y'i y'o y'u` are cmavo too. Beyond these, a cmavo may use `y` as one more unit, as `ka'y`, `ky'a`, `cy'y` and `y'y'y` do. These are read under the warning `y-cmavo`: they are always words, and a caller who turns the feature on gets a warning for each one. Such a word has at least two units. A `y` alone, or a run of `y`, is hesitation, which the stream reads.
+A consonant followed by `y` is a letter cmavo (CLL 4.2, 17). So is `y'y`, the letter for the apostrophe. The ten pairs `a'y e'y i'y o'y u'y y'a y'e y'i y'o y'u` are cmavo too. Beyond these, a cmavo may use `y` as one more unit, as `ka'y`, `ky'a`, `cy'y` and `y'y'y` do. They are always words. Each is tagged `cmavo-warning`, and the word stage reads it under the warning `y-cmavo` ([cll-stream.md](cll-stream.md)). A caller who turns the feature on gets a warning for each one that is read as a Lojban word. Such a word has at least two units. A `y` alone, or a run of `y`, is hesitation, which [forms.md](forms.md) reads.
 
 A cmavo's stress is free (CLL 3.9), so any of its vowels may be a capital. Its first or last syllable is stressed if its first or last unit has a capital vowel.
 
@@ -37,7 +37,7 @@ A cmavo's stress is free (CLL 3.9), so any of its vowels may be a capital. Its f
   | $p(y-pair-cmavo)
       <"continued" ∪ (matches($p, y-letters) ⟹ "uncounted")
        ∪ (matches($p, first-marked-cmavo) ⟹ "initial-stress") ∪ (matches($p, last-marked-cmavo) ⟹ "final-stress")>
-  | @y-cmavo! $w(warned-cmavo)
+  | $w(warned-cmavo)
       <"continued" ∪ "cmavo-warning" ∪ (matches(head($w), consonant) ⟹ "onset") ∪ (matches($w, y-letters) ⟹ "uncounted")
        ∪ (matches($w, first-marked-cmavo) ⟹ "initial-stress") ∪ (matches($w, last-marked-cmavo) ⟹ "final-stress")>
 
@@ -102,7 +102,7 @@ A cmavo's stress is free (CLL 3.9), so any of its vowels may be a capital. Its f
   /l/ any-a | /l/ any-a any-i | /l/ any-a /'/ any-i | /d/ any-o any-i
 ```
 
-A lexicon spells each cmavo in phoneme tags, the apostrophe as `/'/`. It spells each vowel with an `any-` rule of [stream.md](stream.md), which matches either the plain or the stressed phoneme.
+A lexicon spells each cmavo in phoneme tags, the apostrophe as `/'/`. It spells each vowel with an `any-` rule of [forms.md](forms.md), which matches either the plain or the stressed phoneme.
 
 ## Brivla
 
