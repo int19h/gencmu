@@ -138,7 +138,9 @@ A word is a cmavo, a brivla or a cmevla, as the forms stage read it. It is emitt
   classes($c) ∩ ("ZO" ∪ "ZOI" ∪ "LOhU" ∪ "ZOhOI" ∪ "LAhOI" ∪ "RAhOI" ∪ "MEhOI" ∪ "GOhOI" ∪ "ZEhOI" ∪ "TAhAI" ∪ "BOhEI" ∪
     "FAhO" ∪ "BU" ∪ "ZEI" ∪ "SI" ∪ "SA" ∪ "SU") = ∅,
   classes($e) ∩ ("ZO" ∪ "ZOI" ∪ "LOhU" ∪ "ZOhOI" ∪ "LAhOI" ∪ "RAhOI" ∪ "MEhOI" ∪ "GOhOI" ∪ "ZEhOI" ∪ "TAhAI" ∪ "BOhEI" ∪
-    "FAhO" ∪ "BU" ∪ "ZEI" ∪ "SI") = ∅
+    "FAhO" ∪ "BU" ∪ "ZEI" ∪ "SI") = ∅,
+  ¬begins(from($c), quote),
+  ¬begins(from($e), quote)
 %emits
   $
 
