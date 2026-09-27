@@ -71,6 +71,8 @@ a, .link { color: var(--accent); }
   background: var(--panel);
 }
 .masthead h1 { margin: 0; font-size: 1.35rem; }
+.masthead h1 a { color: inherit; text-decoration: none; }
+.masthead h1 a:hover, .masthead h1 a:focus-visible { text-decoration: underline; }
 .subtitle { font-weight: 400; color: var(--muted); }
 .tagline { margin: 2px 0 0; color: var(--muted); font-size: 0.9rem; }
 .status {
