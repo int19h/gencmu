@@ -314,7 +314,7 @@ A termset with `nu'i` is read as `nu'i` with a forethought form wherever it can 
 
 ## Sumti
 
-Sumti connectives are ek, joik, jek or VUhU (`sumti-connective`). This change and the new mekso below leave the CLL rule `joik-ek` unused. After `vu'o`, a connected sumti can follow the relative clauses or replace them, and `vu'o` can also end the sumti (`mi vu'o`). Under `cbm` a cmevla is a selbri word, so the `la CMEVLA` name form is removed and `la .alis.` is a description. The new sumti are these:
+Sumti connectives are ek, joik, jek or VUhU (`sumti-connective`). This change and the new mekso below leave the CLL rule `joik-ek` unused. After `vu'o`, a connected sumti can follow the relative clauses or replace them, and `vu'o` can also end the sumti (`mi vu'o`). Under `cbm` a cmevla is a selbri word, so the `la CMEVLA` name form is removed and `la .alis.` is a description. That form begins with `la`, `lai` or `la'i`, which are words of LE here, and `name-marker` names them by their spelling. The new sumti are these:
 
 - `na'e sumti lu'u`, without `bo`
 - `la'e`, `na'e bo` or `na'e` around a term that is not a sumti, such as `na ku` or a tagged sumti
@@ -559,7 +559,7 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
 
 camxes-exp's joik takes `na` before a word of JOI, as its jek and ek do. So `mi na joi do klama` has one term, `mi na joi do`. The greedy rule settles this against the bare `na` term.
 
-A forethought connective can be `ga` or `gu` followed by a joik, jek, ek or VUhU, as in `ga je lo mlatu gi lo gerku`. With `ga`, it is a gek. With `gu`, it is a guhek, as in `mi gu je melbi gi kargydu'e`. camxes-exp allows only these two words here, so `ge je` and `gu'e je` are not connectives. The connective before `gi` in a gek can also be a jek or an ek (`je gi mi broda gi mi brode`). A gihek can be `gi` followed by a word of JOI, JA or A (`mi klama gi je tavla`).
+A forethought connective can be `ga` or `gu` followed by a joik, jek, ek or VUhU, as in `ga je lo mlatu gi lo gerku`. With `ga`, it is a gek. With `gu`, it is a guhek, as in `mi gu je melbi gi kargydu'e`. camxes-exp allows only these two words here, so `ge je` and `gu'e je` are not connectives. The rules name the two words by their spelling, ``GA`ga` `` and ``GA`gu` ``, which ignores stress. They keep the class GA, since a word that `zo` quotes has the spelling but not the class. The connective before `gi` in a gek can also be a jek or an ek (`je gi mi broda gi mi brode`). A gihek can be `gi` followed by a word of JOI, JA or A (`mi klama gi je tavla`).
 
 ```jbogenbau
 %redefine-rule joik
@@ -567,17 +567,13 @@ A forethought connective can be `ga` or `gu` followed by a joik, jek, ek or VUhU
 
 %redefine-rule gek
   | [SE] GA [NAI] #
-  | $g(GA) [NAI] # (joik # | jek # | ek # | VUhU #)
+  | GA`ga` [NAI] # (joik # | jek # | ek # | VUhU #)
   | (joik | jek | ek) GI #
   | stag gik
-%conditions
-  lowercase(phonemes($g)) = "ga"
 
 %redefine-rule guhek
   | [SE] GUhA [NAI] #
-  | $g(GA) [NAI] # (joik # | jek # | ek # | VUhU #)
-%conditions
-  lowercase(phonemes($g)) = "gu"
+  | GA`gu` [NAI] # (joik # | jek # | ek # | VUhU #)
 
 %redefine-rule gihek
   [NA] [SE] (GIhA | GI (JOI | JA | A)) [NAI]
@@ -639,9 +635,7 @@ So `pa so mo'o` is the number `pa so`, and not `pa` followed by the ordinal `so 
   | @¬soi-clause? SOI # sumti [sumti] [SEhU]
 
 %rule name-marker
-  $l(LE)
-%conditions
-  lowercase(phonemes($l)) = "la" ∨ lowercase(phonemes($l)) = "lai" ∨ lowercase(phonemes($l)) = "la'i"
+  LE`la` | LE`lai` | LE`la'i`
 
 %rule free-after-number
   (* number BOI_elidible free*: after an elided boi, the number has read every number part *)
