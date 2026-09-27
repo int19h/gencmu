@@ -21,6 +21,13 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
+      # Playwright is a development dependency of lib/js only; the playground
+      # itself loads nothing but files in the repository.
+      - name: Install Playwright and its ${{ matrix.browser }}
+        working-directory: lib/js
+        run: |
+          npm ci
+          npx playwright install --with-deps ${{ matrix.browser == 'chrome' && 'chromium' || 'firefox' }}
       - name: Open index.html from file:// in a headless browser
         run: node tools/smoke-playground.js --browser ${{ matrix.browser }}
 
