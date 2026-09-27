@@ -40,7 +40,11 @@ The first rules below read the consonant radicals. U+ED89 is the radical for the
   "\u{ED9A}" | "\u{ED8C}" | "\u{ED99}" | "\u{ED9B}"
 ```
 
-A vowel diacritic and its full-vowel form are the same phoneme; the stress mark U+ED98 after either, or after a diphthong diacritic, makes it stressed, and a repeated mark is one mark. The glide radicals U+EDAA and U+EDAB are `i` and `u` before a vowel. A diphthong diacritic is two phonemes and stands where a vowel stands; the shorthand U+ED8B followed by a vowel is that vowel and an apostrophe, which the rule emits as a token with no span of its own, and it stands where a non-vowel stands, since the apostrophe closes the vowel group.
+A vowel diacritic and its full-vowel form are the same phoneme. The stress mark U+ED98 after either, or after a diphthong diacritic, makes it stressed, and a repeated mark is one mark. The glide radicals U+EDAA and U+EDAB are `i` and `u` before a vowel. A diphthong diacritic is two phonemes and stands where a vowel stands.
+
+The shorthand U+ED8B followed by a vowel, plain or stressed, is that vowel and an apostrophe. The rule emits the apostrophe as a token with no span of its own. The shorthand stands where a non-vowel stands, since the apostrophe closes the vowel group. It does not stand before a diphthong.
+
+A stress mark or a shorthand is a character of the script, so it is never punctuation. But one that no letter takes makes its run foreign. So `foreign-char` takes each of them, and a run that the script reads whole is still no foreign run.
 
 ```jbogenbau
 %extend-rule plain-vowel
@@ -73,7 +77,13 @@ A vowel diacritic and its full-vowel form are the same phoneme; the stress mark 
   zbalermorna-shorthand
 
 %extend-rule any-lojban-char
-  zbalermorna-diphthong | zbalermorna-shorthand-mark | zbalermorna-stress
+  zbalermorna-diphthong | zbalermorna-shorthand-mark | zbalermorna-stress-mark
+
+%extend-rule foreign-char
+  zbalermorna-shorthand-mark | zbalermorna-stress-mark
+
+%rule zbalermorna-stress-mark
+  "\u{ED98}"
 
 %rule zbalermorna-diphthong
   zbalermorna-ai | zbalermorna-ei | zbalermorna-oi | zbalermorna-au
@@ -125,9 +135,12 @@ A vowel diacritic and its full-vowel form are the same phoneme; the stress mark 
   $ </A/>, $ </u/>
 
 %rule zbalermorna-shorthand
-  zbalermorna-shorthand-mark $v(plain-vowel)
+  zbalermorna-shorthand-mark $v(zbalermorna-shorthand-vowel)
 %emits
   $v, /'/
+
+%rule zbalermorna-shorthand-vowel
+  plain-vowel | stressed-vowel
 
 %rule zbalermorna-shorthand-mark
   "\u{ED8B}"
