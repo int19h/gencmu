@@ -67,7 +67,7 @@ A run's words are read from the left. Each word after the first may follow the w
 - `final-stress`, `initial-stress` and `stress-guard`: the word's last or first syllable is stressed, or the word is a brivla. A word with `final-stress` may not be followed directly by a word with either of the other two (4.2, rule 5).
 - `open-stress` and `uncounted`: a brivla whose stress is not marked, and a word with no counted syllable. CLL 3.9 counts a brivla's syllables to the next pause, so only words with no counted syllable may follow it in its run. The run carries `open-stress` on through them.
 
-The approved word forms set only `onset` and `continued`. Their words look past their own ends, as the PEG's do, and decide the rest themselves.
+The approved word forms set only `onset` and `continued`, with the PEG's meaning. Every word is `continued`, and a word that does not begin with a nucleus is `onset`, a name included. Their words look past their own ends, as the PEG's do, and decide the rest themselves.
 
 ```jbogenbau
 %rule run-words

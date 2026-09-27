@@ -113,7 +113,7 @@ CLL 3.6 lists the permissible consonant pairs. A pair is never the same consonan
   [consonants] n-affricate [consonants]
 ```
 
-A permissible run is a run of consonants whose adjacent pairs are all permissible. A name may have such a run anywhere (CLL 3.7), and so may the middle of a borrowing (CLL 4.7). A run that ends in a consonant `x` is `x` alone. Or it is a run that ends in a consonant that may precede `x`, followed by `x`. So `.tlaiv.` and `.ekstcat.` are names, but `.djeimz.` and `.bobb.` are not.
+A permissible run is a run of consonants whose adjacent pairs are all permissible. A name may have such a run anywhere (CLL 3.7), and so may the middle of a borrowing (CLL 4.7). A run that ends in a consonant C is C alone. Or it is a run that ends in a consonant that can precede C, followed by C. So `.tlaiv.` and `.ekstcat.` are names, but `.djeimz.` and `.bobb.` are not.
 
 ```jbogenbau
 %rule permissible-run
@@ -385,27 +385,6 @@ A permissible run is a run of consonants whose adjacent pairs are all permissibl
   | initial-run-c /k/
   | initial-run-s /k/
 
-%rule initial-run-l
-  | /b/ /l/
-  | /c/ /l/
-  | /f/ /l/
-  | /g/ /l/
-  | /k/ /l/
-  | /m/ /l/
-  | /p/ /l/
-  | /s/ /l/
-  | /v/ /l/
-  | /x/ /l/
-  | initial-run-b /l/
-  | initial-run-c /l/
-  | initial-run-f /l/
-  | initial-run-g /l/
-  | initial-run-k /l/
-  | initial-run-m /l/
-  | initial-run-p /l/
-  | initial-run-s /l/
-  | initial-run-v /l/
-
 %rule initial-run-m
   | /c/ /m/
   | /j/ /m/
@@ -416,42 +395,11 @@ A permissible run is a run of consonants whose adjacent pairs are all permissibl
   | initial-run-s /m/
   | initial-run-z /m/
 
-%rule initial-run-n
-  | /c/ /n/
-  | /s/ /n/
-  | initial-run-c /n/
-  | initial-run-s /n/
-
 %rule initial-run-p
   | /c/ /p/
   | /s/ /p/
   | initial-run-c /p/
   | initial-run-s /p/
-
-%rule initial-run-r
-  | /b/ /r/
-  | /c/ /r/
-  | /d/ /r/
-  | /f/ /r/
-  | /g/ /r/
-  | /k/ /r/
-  | /m/ /r/
-  | /p/ /r/
-  | /s/ /r/
-  | /t/ /r/
-  | /v/ /r/
-  | /x/ /r/
-  | initial-run-b /r/
-  | initial-run-c /r/
-  | initial-run-d /r/
-  | initial-run-f /r/
-  | initial-run-g /r/
-  | initial-run-k /r/
-  | initial-run-m /r/
-  | initial-run-p /r/
-  | initial-run-s /r/
-  | initial-run-t /r/
-  | initial-run-v /r/
 
 %rule initial-run-s
   | /t/ /s/
@@ -518,7 +466,7 @@ A vowel of a word form is one of `a e i o u`, in either case. `y` is not one of 
 
 ## Syllables and stress
 
-A run of vowels with no apostrophe or comma in it is grouped into syllables from the left (CLL 3.5). At each point, the next two vowels are one syllable if they form a diphthong that the word allows. Otherwise the next vowel is a syllable alone. So `briau` is `bria-u`, and `.meiin.` is `mei-in`. A name or a borrowing may have two vowels that form no diphthong, each its own syllable, as in `korea`.
+A run of vowels with no apostrophe or comma in it is grouped into syllables from the left (CLL 3.5). At each point, the next two vowels are one syllable if they form a diphthong that the word allows. Otherwise the next vowel is a syllable alone. So `briau` is `bria-u`, and `.meiin.` is `mei-in`. A name or a borrowing can have two vowels that form no diphthong, each its own syllable, as in the `korea` of `bangrkorea`.
 
 The stress of a word depends on its syllables. CLL 3.9 counts the syllables of `a e i o u` and their diphthongs. It does not count a syllable of `y`, `iy` or `uy`, or of a syllabic consonant. A syllabic consonant is still a consonant here, so it adds no syllable at all. A brivla is stressed on its penultimate counted syllable. If a capital vowel marks the stress, every capital vowel of the brivla must be in that syllable, and exactly one counted syllable follows it. So `BAjykla` is right, since the `y` is not counted, and `bAIkla` is right, since `aI` is one syllable. A capital `Y` never stands in a brivla.
 
@@ -568,7 +516,8 @@ So a brivla with marked stress has `s2`, and one without any capital vowel has `
 
 A cmavo or a name may have capital vowels on any of its syllables, `Y` included (CLL 3.9 lets their stress fall anywhere). A name with no capital vowel is stressed on its penultimate counted syllable if it has two or more. It is stressed on its only counted syllable if it has one, and nowhere if it has none. `name-scan` reads a name as `brivla-scan` reads a brivla, with the diphthongs a name allows. A `y` is a nucleus of its own, and never the first letter of a diphthong. Its tags are:
 
-- `n0` to `n3`, as above.
+- `n0` to `n3` and `single-end`, as above.
+- `v0` before the scan reads a nucleus, and `v1` after the first nucleus.
 - `first-counted`, when the first nucleus is counted, and `first-marked`, when it has a capital vowel.
 - `any-marked`, when some nucleus has a capital vowel.
 

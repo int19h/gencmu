@@ -6,7 +6,7 @@ The document gives the word-form grammar that the definition effort of the Logic
 
 ## How the PEG is written here
 
-A PEG reads the text from left to right and never goes back. It differs from a jbogenbau grammar in three ways, and each has a fixed translation:
+A PEG reads the text from left to right. When an alternative fails, the PEG goes back to where that alternative began and tries the next one. But once a choice or a repetition succeeds, a later failure never reopens it. A PEG differs from a jbogenbau grammar in three ways, and each has a fixed translation:
 
 1. A choice `A / B` tries `A` first. It tries `B` only if `A` does not begin at that point. Here the choice is two alternatives, and the second has the condition that the first does not begin where the second begins: `¬begins(from($b), a)`.
 2. A repetition `A*` reads `A` for as long as it can, and stops only where `A` does not begin. Here it is a rule of its own, such as `unstressed-syllables`. The rule has two alternatives: `A` followed by the rule, or `nothing` where `A` does not begin. An optional `A?` is a rule such as `h-opt`, with the alternatives `A`, or `nothing` where `A` does not begin.

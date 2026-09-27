@@ -13,7 +13,7 @@ gencmu ships:
 - one command-line tool and one web playground, both in JavaScript, both runnable from a clone with no install step;
 - one test corpus, shared by all four libraries, whose expectations are what gencmu itself is meant to produce.
 
-What it does not ship: research notes, comparisons with other parsers, the scripts that produced the corpus. Those stay in the prototype repository.
+What it does not ship: research notes, comparisons with other parsers, the scripts that produced the corpus. Those stay in the repository of the prototype, the earlier research parser that gencmu came from.
 
 ## Repository layout
 
@@ -22,11 +22,11 @@ index.html                 web playground, which GitHub Pages can serve from the
 playground/                playground scripts and styles, relative paths only
 grammars/                  the grammar documents, the single source of truth
   phonemes/                characters to phonemes: latin-strict, latin, cyrillic, cyrillic-cll, zbalermorna
-  words/                   phonemes to words: stream, shapes, families, lexicons
+  words/                   phonemes to words: forms, shapes, families, lexicons, stream
   indicators/              the non-formal indicator and ba'e rule
   syntax/                  the syntax grammars
   notation/                the grammar of the notation itself, and its bootstrap
-  dialects/                pipeline documents: cll, bpfk, experimental, zantufa, notation
+  dialects/                pipeline documents: cll-ebnf, bpfk, experimental, zantufa, notation
 docs/
   notation.md              the grammar notation, for grammar authors
   engine.md                the engine specification, for implementers
@@ -60,7 +60,7 @@ The four libraries implement one specification, `docs/engine.md`, written first 
 5. **Emission** of the next stage's tokens, each with its text, its phonemes and its source range.
 6. **The pipeline**: stages in order, stopping at the first rejection.
 
-The specification is tested by `tests/engine/`: each case is a small grammar, an input, and the complete expected result in the canonical JSON of `docs/output.md`, so a fifth implementation can be checked without the Lojban grammars at all. The cases are written together with the specification, one or more per rule of it, and they settle the edge cases that decide which parse comes out, before the Lojban corpus can become the specification by accident:
+`tests/engine/` tests the specification. Each case is a small grammar, an input, and a pattern that the canonical result JSON of `docs/output.md` must match. So a fifth implementation can be checked without the Lojban grammars at all. The cases are written together with the specification, one or more per rule of it, and they settle the edge cases that decide which parse comes out, before the Lojban corpus can become the specification by accident:
 
 - **Ties.** A tie is a successful parse (`ok` is true) with the verdict `tie`, a witness and the tied tree. The chosen tree is the least in a total order that breaks the ranking's ties by canonical keys, and the tied tree is the derivation tied with it that diverges from it earliest (engine §6). The tie is never silent: every surface shows it.
 - **Emission from a tie.** A non-final stage emits the chosen derivation, and its tie stands even when every tied derivation would emit the same tokens: the stage is ambiguous as written, and saying so is what lets a grammar author fix it. The engine cases include a three-way tie and a tie whose derivations emit the same tokens.
@@ -96,9 +96,11 @@ gencmu's grammars are written in jbogenbau, a notation of its own. `docs/notatio
 
 Every binary operator may also stand first, as a no-op, so that a list can put one item on each line: `|` and `&` in bodies, `∪` and `∩` in tag terms, `∧` and `∨` in conditions.
 
-**Stitching.** A stage is several documents read in order. `%rule` defines a rule and is an error if one of that name exists; `%redefine-rule` replaces a rule an earlier document defined and is an error if none did; `%extend-rule` adds alternatives to a rule defined before it and is an error if none was. So neither a misspelt name nor an accidental override passes silently, and a replacement says so where it is made. The loader also reports every replacement and extension, which document changed which rule, so a dialect's effect on its base can be read off in one place. Removing a single alternative is not supported: a rule is small enough to restate, and restating it reads better than a list of deletions.
+**Stitching.** A stage is several documents read in order. `%rule` defines a rule and is an error if one of that name exists; `%redefine-rule` replaces a rule an earlier document defined and is an error if none did; `%extend-rule` adds alternatives to a rule defined before it and is an error if none was.
 
-This is what the dialects need. A script document adds its letters to the phoneme grammar's rules with `%extend-rule`; a word family adds the syllables its morphology allows. The experimental syntax is a layer over the CLL syntax: it restates 45 CLL rules, extends 1 and adds 30. The Zantufa syntax is a grammar of its own. Zantufa 1.9999 restates almost every rule of camxes, so the grammar translates its rules one by one, with small rules for the conditions that state the reference's lookaheads and ordered choices.
+So an accidental override never passes silently, and a replacement says so where it is made. A misspelled name in a replacement, an extension or a reference is an error. A misspelled `%rule` defines a rule that nothing reads, and the audit reports it. The loader also reports every replacement and extension, which document changed which rule, so a dialect's effect on its base can be read off in one place. Removing a single alternative is not supported: a rule is small enough to restate, and restating it reads better than a list of deletions.
+
+This is what the dialects need. A script document adds its letters to the phoneme grammar's rules with `%extend-rule`; a word family adds the syllables its morphology allows. The experimental syntax is a layer over the CLL syntax. It restates the CLL rules that it changes and adds rules of its own. The Zantufa syntax is a grammar of its own. Zantufa 1.9999 restates almost every rule of camxes, so the grammar translates its rules one by one, with small rules for the conditions that state the reference's lookaheads and ordered choices.
 
 **Terminals.** A name in upper case is a terminal that matches a token carrying that tag. A string in straight quotes, `"а"`, `"word"`, is a terminal whose tag the name syntax cannot spell. A phoneme between slashes, `/a/`, `/'/`, `/./` for a pause, is a phoneme tag: it matches like any tag, and it also says what a token carrying it sounds like, which is what `phonemes()` reads. Slashes mean nothing else.
 
@@ -108,7 +110,7 @@ This is what the dialects need. A script document adds its letters to the phonem
 
 **Directives** are keywords too, and may stand in any block:
 
-- `%ambiguity-resolution greedy`, `lazy`, optionally followed by `elision-only`: how the stage chooses among parses (see "Ambiguity"). Every stage must have exactly one, in any of its documents; a stage with none or two is a load error that names the stage.
+- `%ambiguity-resolution greedy`, `lazy`, optionally followed by `elision-only` and then by `maximal`: how the stage chooses among parses (see "Ambiguity"). Every stage must have exactly one, in any of its documents; a stage with none or two is a load error that names the stage.
 - `%elidable KU KEI VAU ...`: the terminators that may be elided. An absent optional whose first symbol is one of them appears in the tree as that terminator, elided at that point, and `elision-only` restores them.
 
 By convention a directive stands in a block of its own, after prose that says why the grammar needs it; the reader does not enforce the convention.
@@ -160,7 +162,7 @@ A grammar admits every parse its rules allow. Where a text has more than one, ea
 - if one reads and the other closes, `%ambiguity-resolution` decides: `greedy` takes the one that reads, so a constituent ends as late as the grammar allows; `lazy` takes the one that closes, so it ends as early as the grammar allows;
 - if both close different constituents, the text is ambiguous for this grammar and the result is a tie, with its witness.
 
-The preference is like greedy and lazy quantifiers in a backtracking regular expression engine, not like PEG's greed: it orders parses the grammar already admits and never commits, so it cannot reject a text; the earliest difference dominates; and it applies to every constituent of the stage, not to one quantifier. The syntax grammars are greedy, which is how an elided terminator is placed; the word grammar is lazy, which is CLL's tosmabru rule, a word ending as early as it can.
+The preference is like greedy and lazy quantifiers in a backtracking regular expression engine, not like PEG's greed: it orders parses the grammar already admits and never commits, so it cannot reject a text; the earliest difference dominates; and it applies to every constituent of the stage, not to one quantifier. The syntax grammars are greedy, which is how an elided terminator is placed. The forms and words stages are lazy. The word forms divide a run in one way only, so the choice matters only in the words stage. There a magic word acts on what exists when it is read.
 
 CLL's own rule is narrower. It says only that a terminator may be elided if no ambiguity results, and says nothing of the other ambiguities its EBNF has. `elision-only` applies that rule literally, to the stage whose grammar declares it, and only when that stage's ranking was not `unique`:
 
@@ -178,13 +180,15 @@ A weak tag is exactly how a dialect marks a reading it admits second, which is w
 - CLL's official parser reads one lexeme ahead and never goes back. It elides a terminator only through its grammar's error recovery, where the next lexeme cannot continue what it is reading. CLL's own explanations of elision describe this, which is why CLL 14.14 says that `le nanmu ku joi le ninmu` needs its `ku`.
 - The PEG grammars that replaced the YACC grammar commit too, but in another way: what a PEG has read before an elided terminator runs as far as it can be read, so `le nanmu joi le ninmu` parses and the `le lojbo` text does not.
 
-The notation offers the third as `maximal` (engine §4), a condition on which parses count, stated over the recognizer's items. It does not order the alternatives of a rule, so a grammar stays a description of its language. The bpfk dialect reads elided terminators this way, since the definition effort that approved its word forms also adopted the PEG. The cll-ebnf dialect takes the printed grammar as normative and keeps the literal reading, and so do the experimental and Zantufa dialects, which accept the most. Each dialect of the CLL grammar names its reading in a document of one directive stitched after the grammar, since a stage states its `%ambiguity-resolution` exactly once.
+The notation offers the third as `maximal` (engine §4), a condition on which parses count, stated over the recognizer's items. It does not order the alternatives of a rule, so a grammar stays a description of its language. The bpfk dialect reads elided terminators this way, since the definition effort that approved its word forms also adopted the PEG. The cll-ebnf dialect takes the printed grammar as normative and keeps the literal reading, and so do the experimental and Zantufa dialects, which accept the most. The cll-ebnf and bpfk dialects each name their reading in a document of one directive, stitched after the CLL grammar. A stage states its `%ambiguity-resolution` exactly once, so the experimental layer over the CLL grammar states its own.
 
-Measured over the 24,552 CLL cases of the corpus, `maximal` rejects 68 texts that the literal reading accepts, and camxes-std, the reference PEG, rejects 66 of them. It changes the chosen reading of no text it accepts: in 2,892 texts it removes only parses that the greedy ranking had already beaten, so their verdict becomes `unique` instead of `resolved`. camxes-std reads one of the other two as a forethought termset without `nu'i`, which the CLL grammar does not have. In the other, `maximal` sees a longer constituent that splits the number `paso` in two, which a PEG never does, since its number is greedy as well.
+A measurement at the time `maximal` was specified used the 24,552 CLL cases that the corpus then held. There `maximal` rejects 68 texts that the literal reading accepts, and camxes-std, the reference PEG, rejects 66 of them. It changes the chosen reading of no text it accepts: in 2,892 texts it removes only parses that the greedy ranking had already beaten, so their verdict becomes `unique` instead of `resolved`. camxes-std reads one of the other two as a forethought termset without `nu'i`, which the CLL grammar does not have. In the other, `maximal` sees a longer constituent that splits the number `paso` in two, which a PEG never does, since its number is greedy as well.
 
 The official parser's reading is not in the notation. Its lookahead is a lexeme, not a word: step 5 of its preamble joins runs of words, such as the connective `na ja` or a number followed by `moi`, into one lexeme before its grammar sees them. A rule that reads one word ahead over a stage's tokens sees the `na` of `le nanla na vrude` as the start of `na ja`; tried word by word, such a rule rejected 369 texts of the corpus that the official parser accepts. A dialect that reads as the official parser does needs that preparser as a stage of its own ([issue 28](https://github.com/int19h/gencmu/issues/28)). The same preparser settles ambiguities that the printed grammar leaves open, such as a gihek or joik directly before `ke`, which the dialects here leave as the printed grammar has them: `mi broda joi ke brode ke'e` has two readings that differ in more than a terminator, which `elision-only` reports.
 
-Measured on the prototype's corpus, `elision-only` costs the CLL grammar nothing: every one of its 8,853 ambiguous texts becomes unambiguous with its terminators written out. The extended grammars are another matter: 63 experimental and 74 Zantufa texts stay ambiguous, through a bare `na` term (`la olivian na klama` is both "Olivian doesn't go" and "Olivian, not-term, goes"), a name that is also a selbri under `cbm`, `bo` connection under `term-hierarchy`, and Zantufa's mekso. So the dialects of the CLL syntax grammar declare `%ambiguity-resolution greedy elision-only`, with `maximal` in the bpfk dialect, and the extended ones `greedy`, each with prose citing these reasons. A parse option overrides `elision-only` either way, to check an extension for overlaps or to loosen the CLL dialect; the lean itself cannot be overridden, since a lazy syntax or a greedy word grammar is a different language, not a variation.
+Measured on the prototype's corpus, `elision-only` cost the CLL grammar nothing: every one of its 8,853 ambiguous texts became unambiguous with its terminators written out. The extended grammars were another matter: 63 experimental and 74 Zantufa texts stayed ambiguous, some of the Zantufa ones through its mekso.
+
+In the experimental grammar today, a bare `na` term causes such an ambiguity. So `la .alis. na klama` is both "Alice doesn't go" and "Alice, not-term, goes". Two sumti joined by a connective and `bo` cause another, as in `mi .e bo do klama`. So the dialects of the CLL syntax grammar declare `%ambiguity-resolution greedy elision-only`, with `maximal` in the bpfk dialect, and the extended ones `greedy`, each with prose citing these reasons. A parse option overrides `elision-only` either way, to check an extension for overlaps or to loosen the CLL dialect; the lean itself cannot be overridden, since a lazy syntax or a greedy word grammar is a different language, not a variation.
 
 ## The result, and why it has no types
 
@@ -196,6 +200,7 @@ ParseResult
   stages        per stage: name, input tokens, output tokens, verdict, tie witness, rejection
   tree          the last stage's chosen tree, or none
   error         the first rejection, with source position and what was expected
+  warnings      per warning: stage, feature, rule and range, for each place the chosen tree uses a warning's alternative
 
 Node
   kind          "rule", "token", or "elided" (a terminator elided at this point)
@@ -220,7 +225,7 @@ The same shape in every language, spelled idiomatically:
 dialect = load_dialect("cll-ebnf")                 # a bundled dialect by name
 dialect = load_dialect_file("my/pipeline.md") # or a pipeline document on disk
 dialect = load_dialect_sources({path: text})  # or documents held in memory, for the browser
-result  = dialect.parse(text, features={"jacu"}, without_features={"cbm"},
+result  = dialect.parse(text, features={"y-cmavo"}, without_features={"cll-cyrillic"},
                         auto_features=True, until="words", elision_only=None)
 result.ok; result.tree; result.error.describe(); result.warnings
 dialect.features                              # each feature: name, gate or warning, on by default or not
@@ -240,11 +245,11 @@ These are the product, not an afterthought:
 - **Ties** show the two derivations side by side from the first difference.
 - **Stage inspection**: the tokens every stage emitted, with their tags.
 - **Trace**: for one position, which items were predicted, completed and dropped, and which condition dropped them. This is the tool for "why does my grammar not accept this".
-- **Audit**: undefined and unreachable rules, every rule a later document replaced or extended, stages without an `%ambiguity-resolution`, and `%emits ε` that changes nothing, over text that could never emit a token or be covered by one; a condition that applies to no alternative is not an audit finding but an error of the grammar.
+- **Audit**: undefined and unreachable rules, every rule a later document replaced or extended, and `%emits ε` that changes nothing. Such an `%emits ε` is over text that can never emit a token or be covered by one. A condition that applies to no alternative is not an audit finding. It is an error of the grammar.
 
 ## CLI and playground
 
-The CLI is `node lib/js/cli.js` (and `npx gencmu` once published): `parse` with `--dialect`, `--feature` and `--no-feature`, `--until`, `--format brackets|tree|json|tokens`, `--trace`, printing any warning on standard error as it prints a tie; `features` to list a dialect's features; `audit`; `stitch` to print a dialect's pipeline as one jbogenbau text; `test` to run a test file against a dialect. It needs Node and nothing else.
+The CLI is `node lib/js/cli.js` (and `npx gencmu` once published): `parse` with `--dialect`, `--feature` and `--no-feature`, `--until`, `--format brackets|tree|json|canonical|tokens`, `--trace`, printing any warning on standard error as it prints a tie; `features` to list a dialect's features; `audit`; `stitch` to print a dialect's pipeline as one jbogenbau text; `test` to run a test file against a dialect. It needs Node and nothing else.
 
 The playground is `index.html` with `dist/gencmu.js` and `dist/grammars.js` loaded as classic scripts. So it works from `file://`, where browsers refuse ES modules, and from GitHub Pages alike. Nothing is fetched: the grammars are a JavaScript object in `dist/grammars.js`. The page builds the worker from a `Blob` whose text is the library source and the grammar object. So the worker fetches nothing either.
 
@@ -259,7 +264,7 @@ The playground has these parts:
 - the text;
 - the dialect, and a switch for each of the dialect's features, set to its default;
 - the warnings of the parse;
-- the output in the three formats, and the tokens of each stage;
+- the output in the four formats, and the tokens of each stage;
 - the diagnostics above;
 - an editor for the grammar documents, whose edits parse the text again at once and can be downloaded.
 
@@ -271,17 +276,19 @@ Defined exactly in `docs/output.md`, implemented in JavaScript for the CLI and t
 
 - **brackets**: the tree as nested groups, cycling `( ) [ ] { }` by depth, groups of one child collapsed, leaves as their phonemes with stress shown, elided terminators shown in angle brackets, `⟨ku⟩`, or hidden, by option;
 - **tree**: an indented listing, one node per line, rule name and text;
-- **json**: the canonical JSON, pretty-printed so that a node with one field stays on one line with its parent, `{"sumti": {"text": "lo mlatu"}}`, which keeps deep trees readable.
+- **json**: the display JSON, a projection of the tree for reading. It is pretty-printed so that a node with one child stays on one line with its parent, as in `{"tanru-unit-2": {"BRIVLA": "mlatu"}}`. This keeps deep trees readable.
+- `canonical`: the canonical JSON of the whole result, which the shared tests compare.
 
 ## Tests
 
-Two kinds of shared test, both run by every library:
+Three kinds of shared test, all run by every library:
 
-- `tests/engine/`: the engine specification's cases, each checked against the complete canonical result JSON, stages, tokens, tags, verdicts, witnesses, errors and coordinates included.
+- `tests/engine/`: the engine specification's cases. Each case gives a pattern that the canonical result JSON must match. A pattern can pin stages, tokens, tags, verdicts, witnesses, errors and coordinates.
+- `tests/notation/`: small grammar documents with their expected DOMs and errors.
 - `tests/corpus/*.jsonl`: Lojban texts, one case per line:
 
   ```
-  {"id": "cll-10-183", "text": "puzu", "dialect": "cll-ebnf", "features": [],
+  {"id": "cll.10.183.c10e24d5", "text": "puzu", "dialect": "cll-ebnf",
    "expect": "accept", "verdict": "resolved", "words": ["pu", "zu"],
    "brackets": "(pu zu)"}
   ```
@@ -290,7 +297,7 @@ Two kinds of shared test, both run by every library:
 
 The corpus is seeded once from the prototype's fixtures and their verdicts. Where gencmu is meant to differ from the verdict a case was seeded with, the case says so in its own terms: `"seeded": "reject", "reason": "..."`, the reason stated in terms of gencmu's grammars, such as "`sa bu` backs up to the `bu` of the last letter word, as the unique cases of the Magic Words proposal say". Those two fields make every departure from the seed visible in review, and a script lists them. A change to a case's expected `words` or `brackets` needs no field of its own: it is a change to what gencmu produces, made in the same commit as the grammar change that causes it and explained in that commit's message. After seeding, the corpus is ours: a change that alters an expectation updates the file in the same commit.
 
-Every library runs the whole corpus. On a pull request, a sampled core of a few hundred cases (`tests/core.txt`) runs in every language, plus the whole corpus in Rust and JavaScript; the whole corpus runs in all four languages nightly and before a release, sharded if Python needs it. No language is permanently exempt.
+Every library runs the whole corpus. On a pull request, a sampled core of about 1,100 cases (`tests/core.txt`) runs in every language. Rust and JavaScript also run the whole corpus there. All four languages run the whole corpus nightly and before a release, sharded if Python needs it. No language is permanently exempt.
 
 ## CI
 
@@ -305,7 +312,7 @@ Third-party actions are pinned by commit hash. GitHub Pages can serve `main` fro
 
 ## Standard library only
 
-This holds for every target. JavaScript needs nothing beyond the language and, for the CLI, Node's `fs`. Python's standard library has everything, `json` included. Go's has `embed` and `encoding/json`. Rust's has no JSON reader, so the Rust tests carry a small one, and the library writes JSON by hand; that is a few hundred lines, and the one real cost of the rule.
+This holds for every target. JavaScript needs nothing beyond the language and, for the CLI, Node's `fs`. Python's standard library has everything, `json` included. Go's has `embed` and `encoding/json`. Rust's has no JSON reader, so the Rust library carries a small one for the files it ships, and it writes JSON by hand. That is a few hundred lines, and the one real cost of the rule.
 
 The rule is about what building and running needs, not what checking does. The JavaScript sources carry JSDoc type annotations, and TypeScript checks them in CI, with `strict` on; it is a development dependency of the package, with Node's type definitions for the Node entry point, and nothing runs it to build, test or use the library. The declarations TypeScript writes from the annotations, `lib/js/types/`, are checked in, verified fresh in CI like the other generated files, and published with the package, so a client in TypeScript or an editor gets the library's types without gencmu having a build step. Playwright is also a development dependency of the package: it drives the playground's smoke test in a browser, and nothing else.
 
@@ -313,7 +320,7 @@ The rule is about what building and running needs, not what checking does. The J
 
 A dialect that extends another makes two kinds of change. Most are additions: texts that the base grammar rejects and the dialect accepts, such as `cu` before a bare selbri in the experimental dialect. Some change how the dialect reads a text that the base grammar accepts, such as the cmevla-brivla merger, under which `la .alis. klama` is one description. The notation has a kind of feature guard for each.
 
-An addition is a warning, `@name!`. Its alternative is there whether the feature is on or off, so turning the feature on changes no verdict and no tree. It only adds a warning to the result for each place the chosen tree uses the alternative, naming the feature and the text. The dialect turns none of its warnings on, so its texts parse without warnings by default, and a reader who wants to know which additions a text relies on turns them on. A warning is on the chosen tree only: an addition that a tied or losing reading would have used is not reported. The idea comes from jbotci, which warns where an experimental construct makes a text parse that the standard grammar rejects. The bundled grammars do not mark their additions yet: the experimental dialect's documents are to be restated as a layer over the CLL grammar, and that change gives each addition its warning.
+An addition is a warning, `@name!`. Its alternative is there whether the feature is on or off, so turning the feature on changes no verdict and no tree. It only adds a warning to the result for each place the chosen tree uses the alternative, naming the feature and the text. The dialect turns none of its warnings on, so its texts parse without warnings by default, and a reader who wants to know which additions a text relies on turns them on. A warning is on the chosen tree only: an addition that a tied or losing reading would have used is not reported. The idea comes from jbotci, another Lojban parser, which warns where an experimental construct makes a text parse that the standard grammar rejects. The experimental syntax is already a layer over the CLL grammar, but its additions are not warnings yet. The one bundled warning is `y-cmavo`, in the word stage of the cll-ebnf dialect.
 
 A change of reading is a gate, `@name?`, with the old form under `@¬name?`, so that exactly one of the two is live. A warning cannot express it, because the base reading would be gone even with the feature off. A dialect that makes such a change turns its gate on by default, and a caller who wants the base reading turns it off. Gates are also how a grammar keeps an expensive construct out of the parses that do not need it (see below).
 
@@ -327,4 +334,4 @@ The erasers `sa` and `su` reach back over any number of words, so the parser kee
 
 ## What came from the prototype
 
-The grammar documents, rewritten where they referred to the prototype, other parsers or research notes, and converted to the notation above; the notation document; and the fixture corpus, converted to the format above, about 26,000 cases and 8 MB with words and brackets, kept whole in the repository. Nothing else: no code, no scripts, no notes. The lexicon that was derived from another parser's word table is a document of its own, maintained by hand, and the Zantufa grammar is a document of replacements and additions, as above.
+The grammar documents, rewritten where they referred to the prototype, other parsers or research notes, and converted to the notation above; the notation document; and the fixture corpus, converted to the format above, about 26,000 cases and 8 MB with words and brackets, kept whole in the repository. Nothing else: no code, no scripts, no notes. The lexicon that was derived from another parser's word table is a document of its own, maintained by hand. The Zantufa grammar is a grammar of its own, as above.

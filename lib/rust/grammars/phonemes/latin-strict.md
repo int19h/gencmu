@@ -1,8 +1,8 @@
 # The Latin orthography of CLL
 
-This document opens the phoneme stage, the first stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The stage reads the characters of a text and hands the word stage the phonemes they stand for. This document reads the Latin orthography of CLL chapter 3 and no more. The CLL dialect uses it as it is. The other dialects add the conventions of [latin.md](latin.md), such as digits and accents, and the scripts of [cyrillic.md](cyrillic.md) and [zbalermorna.md](zbalermorna.md). The notation is explained in [the notation document](../../docs/notation.md).
+This document opens the phoneme stage, the first stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The stage reads the characters of a text and hands the forms stage the phonemes they stand for. This document reads the Latin orthography of CLL chapter 3 and no more. The CLL dialect uses it as it is. The other dialects add the conventions of [latin.md](latin.md), such as digits and accents, and the scripts of [cyrillic.md](cyrillic.md) and [zbalermorna.md](zbalermorna.md). The notation is explained in [the notation document](../../docs/notation.md).
 
-The terminals of the stage are characters, each written in straight quotes. Every character token also carries its class, `alpha`, `digit`, `space`, `mark` or `other`. The stage emits one token per phoneme, and each token carries that phoneme's tag. So the word grammar never sees a character, and it reads every script alike.
+The terminals of the stage are characters, each written in straight quotes. Every character token also carries its class, `alpha`, `digit`, `space`, `mark` or `other`. The stage emits one token per phoneme, and each token carries that phoneme's tag. So the later stages never see a character, and they read every script alike.
 
 The phonemes are the letters of CLL chapter 3, each written as a phoneme tag:
 
@@ -11,7 +11,7 @@ The phonemes are the letters of CLL chapter 3, each written as a phoneme tag:
 - the apostrophe `/'/`
 - the syllable break `/,/`, which a comma between two vowels writes.
 
-A stressed vowel is a phoneme of its own, so stress is a position in the word grammar and not a mark it tests. Two tags stand for what is not a letter. `PAUSE` is a pause of any length, and it also carries the phoneme tag `/./`, whose phoneme is `.`. `FOREIGN` is a run of text that is not Lojban at all, which the word grammar admits only inside a foreign quote.
+A stressed vowel is a phoneme of its own, so stress is a position in the word grammar and not a mark it tests. Two tags stand for what is not a letter. `PAUSE` is a pause of any length, and it also carries the phoneme tag `/./`, whose phoneme is `.`. `FOREIGN` is a run of text that is not Lojban at all. The forms stage passes it on, and the words stage admits it only inside a foreign quote.
 
 ## The text and its runs
 
@@ -121,7 +121,7 @@ A comma stands only between two letters of a run. Between two vowels it is the s
   consonant | plain-vowel | stressed-vowel | apostrophe | comma
 ```
 
-A run that is not an ordinary run is foreign. It has a letter, a digit, a mark or any other character that this orthography does not read, as `mi klama?` has. A foreign run is emitted as one `FOREIGN` token. Its phonemes are its text, since the rule is `%verbatim`. So a `zoi` delimiter matches the word `gqy` in a body only if it is `gqy` itself. A foreign run has at least one character that no letter rule of any script reads by itself. A run without one is always read by `letters`. So only a run with one is tested, and a long run of letters costs nothing more. A run neither begins nor ends with a comma, which is part of the pause next to it.
+A run that is not an ordinary run is foreign. It has a letter, a digit, a mark or any other character that this orthography does not read, as `mi klama?` has. A foreign run is emitted as one `FOREIGN` token. Its phonemes are its text, since the rule is `%verbatim`. So the `zoi` check compares a delimiter with the exact text of such a run. A foreign run has at least one character that no letter rule of any script reads by itself. A run without one is always read by `letters`. So only a run with one is tested, and a long run of letters costs nothing more. A run neither begins nor ends with a comma, which is part of the pause next to it.
 
 ```jbogenbau
 %rule foreign-run

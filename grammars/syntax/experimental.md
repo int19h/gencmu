@@ -2,9 +2,9 @@
 
 This document is a layer over [the CLL grammar](cll.md), the grammar printed in chapter 21 of *The Complete Lojban Language*. The [experimental](../dialects/experimental.md) dialect stitches it after that grammar. The layer adds the experimental constructs that have grown up in use since CLL was printed. The grammar always accepts some of them, and a feature guards others. Their reference is camxes-exp, the experimental PEG grammar.
 
-The layer restates each CLL rule that it changes with `%redefine-rule`. It adds alternatives to a CLL rule with `%extend-rule`, and states its own rules with `%rule`. Each section below says what the layer changes in that part of the grammar. A rule that this document does not name is the CLL grammar's, as that document explains it.
+The layer restates each CLL rule that it changes with `%redefine-rule`. It states its own rules with `%rule`. Each section below says what the layer changes in that part of the grammar. A rule that this document does not name is the CLL grammar's, as that document explains it.
 
-[The experimental lexicon](../words/lexicon-experimental.md) gives each cmavo the one selma'o that camxes-exp gives it. For example, `mi'ai` is KOhA, `la` is LE, `fi'oi` is SOI, `ma'oi` is ZO and `la'oi` is ZOhOI. `no'oi` and `po'oi` are NOhOI, with the terminator `ku'oi`. Some selma'o exist only here: `LOhOI`, `NOhOI` and `KUhOI`, and the single-word terminals `KUhAU`, `LOhAI`, `LEhAI`, `ZOhOI` and `MEhOI`. A class of the CLL grammar that camxes-exp does not have, such as LA, is never read here.
+[The experimental lexicon](../words/lexicon-experimental.md) gives each cmavo the one selma'o that camxes-exp gives it. For example, `mi'ai` is KOhA, `la` is LE, `fi'oi` is SOI, `ma'oi` is ZO and `la'oi` is ZOhOI. `no'oi` and `po'oi` are NOhOI, with the terminator `ku'oi`. Some selma'o exist only here: `LOhOI`, `NOhOI`, `KUhOI`, `KUhAU`, `LOhAI`, `LEhAI`, `ZOhOI` and `MEhOI`. A class of the CLL grammar that camxes-exp does not have, such as LA, is never read here.
 
 The notation is explained in [the notation document](../../docs/notation.md). The terminals are selma'o, and `any-word` and `anything` are the tags `word` and `foreign-text` that the word stage puts on the material of a quote. The layer uses two feature guards. `cbm` is the cmevla-brivla merger. `soi-clause` makes `soi` a term that takes a subsentence, where CLL has a free modifier of reciprocity. The experimental dialect turns both on, as camxes-exp always has them, and a caller can turn either off.
 
@@ -13,7 +13,6 @@ Unlike the CLL grammar, this layer writes the free-modifier slot after an elidab
 Two directives set the layer up. `%ambiguity-resolution greedy` says how the stage chooses among parses. At the first difference between two parses, it takes the one that reads the next word. So an elided terminator is absent for as long as the grammar allows, as in the CLL dialect. The layer does not declare `elision-only`, because it has real ambiguities that are not about terminators. The greedy rule settles them:
 
 - a bare `na` is a term, beside the `na` that negates a selbri and the `na` that starts a connective
-- under `cbm`, a name is also a selbri
 - two sumti joined by a connective and `bo` are also two terms joined that way, and the ranking keeps the sumti
 
 If the layer declared `elision-only`, each of those texts would be an error. `%elidable` adds the experimental terminators `ku'au` and `ku'oi` to CLL's.
@@ -75,7 +74,7 @@ CLL's `na` fragment is gone. A bare `na` is a term (see "Terms"), so `na` and `n
 
 ## Sentences and bridi-tails
 
-A bridi-tail can have terms before its selbri, as in camxes-exp (JACU). The terms and `cu` before a selbri are a `bridi-tail-head`. In a head, runs of terms and single `cu` words alternate: `mi cu do klama`, `cu mi klama`. A head can stand before the first bridi-tail of a sentence, and after each connective between bridi-tails. Examples are `mi klama je do tavla` and `mi klama gi'e cu do tavla`.
+A bridi-tail can have terms before its selbri, as in camxes-exp. camxes-exp names this part of its grammar JACU, after a proposal for a simpler system of connectives. The terms and `cu` before a selbri are a `bridi-tail-head`. In a head, runs of terms and single `cu` words alternate: `mi cu do klama`, `cu mi klama`. A head can stand before the first bridi-tail of a sentence, and after each connective between bridi-tails. Examples are `mi klama je do tavla` and `mi klama gi'e cu do tavla`.
 
 A head does not end in a tag whose `ku` is elided. camxes-exp does not read a tag as a term where a selbri follows it (its `!selbri`). So `mi pu klama` has the tense `pu` on its selbri, and so does `mi pu sei do klama se'u klama`. `head-ending-in-bare-tag` states the form that a head cannot have.
 
@@ -253,7 +252,7 @@ The first term inside `nu'i ... nu'u` cannot itself be a bare forethought termse
 
 ## Sumti
 
-Sumti connectives are ek, joik, jek or VUhU (`sumti-connective`). After `vu'o`, a connected sumti can follow the relative clauses or replace them, and `vu'o` can also end the sumti (`mi vu'o`). Under `cbm` a cmevla is a selbri word, so the `la CMEVLA` name form is removed and `la .alis.` is a description. The new sumti are these:
+Sumti connectives are ek, joik, jek or VUhU (`sumti-connective`). This change and the new mekso below leave the CLL rule `joik-ek` unused. After `vu'o`, a connected sumti can follow the relative clauses or replace them, and `vu'o` can also end the sumti (`mi vu'o`). Under `cbm` a cmevla is a selbri word, so the `la CMEVLA` name form is removed and `la .alis.` is a description. The new sumti are these:
 
 - `na'e sumti lu'u`, without `bo`
 - `la'e`, `na'e bo` or `na'e` around a term that is not a sumti, such as `na ku` or a tagged sumti
@@ -429,7 +428,7 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
 
 ## Numbers, lerfu strings and mekso
 
-camxes-exp replaces CLL's mekso with its own, and the layer follows it (camxes-exp.peg, `quantifier` to `lerfu_string`):
+camxes-exp replaces CLL's mekso with its own, and the layer follows it (camxes-exp.peg, `quantifier` to `lerfu_string`). So nothing reads the CLL rules `operand`, `operand-1` to `operand-3` and `rp-operand`. These are the changes:
 
 - A number is a run of PA words, `ni'e` selbri and `mo'e` sumti, with no lerfu word in it. A lerfu string is a run of lerfu words, with no PA word in it. So `li pa by` is two terms, and `mi viska cy no` is not a text.
 - An operand of a mekso is `mex-2`: a number or a lerfu string, a `vei` group, a forethought connection, or a `la'e` or `na'e` reference. It can also be a `pe'o` forethought expression or a reverse Polish expression. The operands `ni'e` and `mo'e` are inside numbers.
@@ -522,7 +521,7 @@ A forethought connective can be `ga` or `gu` followed by a joik, jek, ek or VUhU
 
 ## Tenses and modals
 
-A tag is a run of atoms, as in camxes-exp (`tense_modal`): `pu ba vi ca`, `ki ba`. Each atom can have `na'e` and `se` before it, and free modifiers after it: `na'e pu na'e ca`, `jai se ki broda`. An atom is one of these:
+A tag is a run of atoms, as in camxes-exp (`tense_modal`): `pu ba vi ca`, `ki ba`. So nothing reads the CLL rules `simple-tense-modal`, `time`, `time-offset`, `space`, `space-offset`, `space-interval`, `space-int-props` and `interval-property`. Each atom can have `na'e` and `se` before it, and free modifiers after it: `na'e pu na'e ca`, `jai se ki broda`. An atom is one of these:
 
 - a word of BAI, CAhA, CUhE, KI, ZI, PU, VA, ZEhA, VEhA or VIhA
 - a word of FAhA, with an optional `mo'i` before it

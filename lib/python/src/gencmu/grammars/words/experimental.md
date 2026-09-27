@@ -17,7 +17,9 @@ CLL 3.6 forbids the consonant pair `mz`, and so does the approved grammar: its l
 
 ## Extended rafsi
 
-The approved grammar has two kinds of extended rafsi, which shorten a word before a y-hyphen. A `brivla_rafsi` is the head of a brivla of two syllables or more, followed by `'y`, as in `klama'ybroda`. A `fuhivla_rafsi` is the head of a borrowing, followed by an onset and `y`, as in `spageiybroda`. camxes-exp replaces the first kind with `hy_rafsi`, which the approved grammar uses only in lookaheads. A `hy_rafsi` is a long rafsi and an unstressed vowel, a CCV rafsi, or a CVV rafsi, followed by `'y`. So `klama'ybroda` is one word in both grammars, but only camxes-exp reads `kerlybai'ybroda` as one word.
+The approved grammar has two kinds of extended rafsi, which shorten a word before a y-hyphen. A `brivla_rafsi` is the head of a brivla of two syllables or more, followed by `'y`, as in `klama'ybroda`. A `fuhivla_rafsi` is the head of a borrowing, followed by an onset and `y`, as in `spageiybroda`.
+
+camxes-exp replaces the first kind with `hy_rafsi`, which the approved grammar uses only in lookaheads. A `hy_rafsi` is a long rafsi and an unstressed vowel, a CCV rafsi, or a CVV rafsi, followed by `'y`. So `klama'ybroda` is one word in both grammars, but only camxes-exp reads `kerlybai'ybroda` as one word. After these redefinitions, nothing reads the rules `brivla-rafsi`, `stressed-brivla-rafsi` and `two-syllables` of bpfk.md.
 
 ```jbogenbau
 %redefine-rule extended-rafsi (* extended_rafsi <- hy_rafsi / fuhivla_rafsi *)
@@ -61,7 +63,7 @@ In camxes-exp, the onset after the head of a borrowing's rafsi may be an apostro
   fuhivla-head stressed-syllable consonantal-syllables onset y
 ```
 
-A short rafsi without a y-hyphen may not stand where an extended rafsi or a borrowing begins, nor just before one, in the approved grammar. In camxes-exp, it may not stand where a borrowing or the rafsi of a borrowing begins, nor just before one.
+A short rafsi without a y-hyphen may not stand where an extended rafsi or a borrowing begins, nor just before one, in the approved grammar. In camxes-exp, it may not stand where a borrowing or the rafsi of a borrowing begins, nor just before one. After this redefinition, nothing reads the rule `any-extended-rafsi` of bpfk.md.
 
 ```jbogenbau
 %redefine-rule initial-rafsi  (* initial_rafsi <- extended_rafsi / y_rafsi / !any_fuhivla_rafsi y_less_rafsi !any_fuhivla_rafsi *)
