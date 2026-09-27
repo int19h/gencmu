@@ -79,10 +79,11 @@ gencmu's grammars are written in jbogenbau, a notation of its own. `docs/notatio
 **Rules.** A rule is a keyword, its name and its body, followed by its clauses, each a keyword and what it says; a rule ends where the next keyword that begins a rule or a directive stands, so no terminator is needed and nothing is recognized by its position on a line:
 
 ```jbogenbau
-%rule term-not-starting-with-bare-gek
-  | term-3-not-starting-with-bare-gek [term-connective term-3] ...
-  | tagged-term (joik # | ek #) BO # tagged-term
-  | @term-hierarchy? term-3-not-starting-with-bare-gek (joik # | ek #) BO # term-3
+%rule term-connective
+  | joik #
+  | jek #
+  | ek #
+  | VUhU #
 
 %rule vowel-group-joined
   $g(vowel-group) $v(vowel) <tags($v)>

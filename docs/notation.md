@@ -16,10 +16,11 @@ A grammar is a sequence of rules and directives, each beginning with a keyword, 
 Line breaks and indentation mean nothing, so a long list of alternatives may put each on a line of its own, and every `|` may also stand first. By convention the body is indented by two spaces under the keyword:
 
 ```jbogenbau
-%rule term-not-starting-with-bare-gek
-  | term-3-not-starting-with-bare-gek [term-connective term-3] ...
-  | tagged-term (joik # | ek #) BO # tagged-term
-  | @term-hierarchy? term-3-not-starting-with-bare-gek (joik # | ek #) BO # term-3
+%rule term-connective
+  | joik #
+  | jek #
+  | ek #
+  | VUhU #
 ```
 
 The same is true of every separator the notation has: `&` in bodies, `∪` and `∩` in tag terms, `∧` and `∨` in conditions, and the commas of a clause's list.
