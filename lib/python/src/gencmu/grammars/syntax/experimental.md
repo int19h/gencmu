@@ -1,12 +1,12 @@
 # The experimental grammar
 
-This document is a layer over [the CLL grammar](cll.md), the grammar printed in chapter 21 of *The Complete Lojban Language*. The [experimental](../dialects/experimental.md) dialect stitches it after that grammar. The [Zantufa](../dialects/zantufa.md) dialect stitches [zantufa.md](zantufa.md) after both. The layer adds the experimental constructs that have grown up in use since CLL was printed. The grammar always accepts some of them, and a feature that is not specific to Zantufa guards others. Their reference is camxes-exp, the experimental PEG grammar.
+This document is a layer over [the CLL grammar](cll.md), the grammar printed in chapter 21 of *The Complete Lojban Language*. The [experimental](../dialects/experimental.md) dialect stitches it after that grammar. The layer adds the experimental constructs that have grown up in use since CLL was printed. The grammar always accepts some of them, and a feature guards others. Their reference is camxes-exp, the experimental PEG grammar.
 
 The layer restates each CLL rule that it changes with `%redefine-rule`. It adds alternatives to a CLL rule with `%extend-rule`, and states its own rules with `%rule`. Each section below says what the layer changes in that part of the grammar. A rule that this document does not name is the CLL grammar's, as that document explains it.
 
 [The experimental lexicon](../words/lexicon-experimental.md) gives each cmavo the one selma'o that camxes-exp gives it. For example, `mi'ai` is KOhA, `la` is LE, `fi'oi` is SOI, `ma'oi` is ZO and `la'oi` is ZOhOI. `no'oi` and `po'oi` are NOhOI, with the terminator `ku'oi`. Some selma'o exist only here: `LOhOI`, `NOhOI` and `KUhOI`, and the single-word terminals `KUhAU`, `LOhAI`, `LEhAI`, `ZOhOI` and `MEhOI`. A class of the CLL grammar that camxes-exp does not have, such as LA, is never read here.
 
-The notation is explained in [the notation document](../../docs/notation.md). The terminals are selma'o, and `any-word` and `anything` are the tags `word` and `foreign-text` that the word stage puts on the material of a quote. The layer uses two feature guards: `cbm`, the cmevla-brivla merger, and `term-hierarchy`. The experimental and Zantufa dialects turn both on, as camxes-exp always has them, and a caller can turn either off.
+The notation is explained in [the notation document](../../docs/notation.md). The terminals are selma'o, and `any-word` and `anything` are the tags `word` and `foreign-text` that the word stage puts on the material of a quote. The layer uses two feature guards: `cbm`, the cmevla-brivla merger, and `term-hierarchy`. The experimental dialect turns both on, as camxes-exp always has them, and a caller can turn either off.
 
 Unlike the CLL grammar, this layer writes the free-modifier slot after an elidable terminator outside its brackets: `[X] #` where CLL has `[X #]`. So free modifiers can follow an elided terminator. Many rules below are restated for that alone. A number or lerfu string is kept maximal by `free-after-elided-boi`, which excludes a following free modifier that itself starts with a number or lerfu string.
 
@@ -546,7 +546,7 @@ The text replacement forms of camxes-exp are free modifiers. Each has up to two 
 
 Where a text has more than one parse, the stage chooses by the rule of [the notation document](../../docs/notation.md) under "Ambiguity". The layer declares the `greedy` resolution. At the first difference between two parses:
 
-- a reading of a word under a weak tag loses to one under a strong tag. The experimental lexicon gives no weak tags, but the Zantufa lexicon does.
+- a reading of a word under a weak tag loses to one under a strong tag. The experimental lexicon gives no weak tags.
 - a parse that reads the next word wins over one that closes a constituent, so a constituent ends as late as the grammar allows
 - two parses that close different constituents at the same point tie, and the tie is reported
 

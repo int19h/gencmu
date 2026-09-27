@@ -1094,3 +1094,17 @@ cll.19.50.c19e10d3
 cll.19.77.c19e13d3
 cll.19.79.c19e13d5
 cll.19.83.c19e13d9
+adhoc.zantufa.i1.iau-before-terms
+adhoc.zantufa.i2.zei-erases
+adhoc.zantufa.i2.sa-is-ui
+adhoc.zantufa.i3.relative-on-selbri
+adhoc.zantufa.i4.jacu
+adhoc.zantufa.i5.roi-selbri
+adhoc.zantufa.i6.me-operator-then-moi
+adhoc.zantufa.i7.gohoi-one-word
+adhoc.zantufa.i12.cehe-is-bo
+adhoc.zantufa.free.ui-post-number
+adhoc.zantufa.zoi.stress-in-delimiter
+adhoc.zantufa.lohai.si
+adhoc.zantufa.su.inside-free
+adhoc.zantufa.y.ieho-hesitation
