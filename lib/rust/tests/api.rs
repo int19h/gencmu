@@ -312,6 +312,51 @@ fn rejections_say_where_and_what() {
 }
 
 #[test]
+fn references_are_checked_inside_a_spelled_symbol() {
+    // A spelled reference to a rule that does not exist is an error of the
+    // grammar, captured or not; one to a rule that does is not.
+    for rules in ["%rule text ghost`a`", "%rule text $g(ghost`a`) B"] {
+        let error = gencmu::load_dialect_sources(single(&format!("%ambiguity-resolution greedy\n{rules}")), "p.md")
+            .expect_err("a spelled reference to no rule");
+        assert_eq!(error.kind, ErrorKind::Grammar);
+        assert!(error.message.contains("ghost"), "{error}");
+    }
+    let rules = "%ambiguity-resolution greedy\n%rule text $s(sumti`lonu`) [other`x`]\n%rule sumti A B\n%rule other C";
+    assert!(gencmu::load_dialect_sources(single(rules), "p.md").is_ok());
+}
+
+#[test]
+fn a_rejection_writes_a_spelled_terminal_with_its_spelling() {
+    // Characters to sounds, sounds to words, so that the words have
+    // phonemes.
+    let block = |text: &str| format!("```jbogenbau\n%ambiguity-resolution greedy\n{text}\n```\n");
+    let mut sources = BTreeMap::new();
+    sources.insert(
+        "p.md".to_string(),
+        "```jbogenbau\n%stage sounds\n%include \"s.md\"\n%stage words\n%include \"w.md\"\n%stage main\n%include \"g.md\"\n```\n"
+            .to_string(),
+    );
+    sources.insert(
+        "s.md".to_string(),
+        block("%rule text [sound] ...\n%rule sound \"l\" </l/> | \"a\" </a/> | \"i\" </i/> | \"d\" </d/> | \" \" </./> %emits $"),
+    );
+    sources.insert(
+        "w.md".to_string(),
+        block("%rule text [word] ...\n%rule word le | d | \"/./\"\n%rule le \"/l/\" \"/a/\" [\"/i/\"] %emits $ <\"LE\">\n%rule d \"/d/\" %emits $ <\"D\">"),
+    );
+    sources.insert("g.md".to_string(), block("%rule text LE`la` D D | LE`lai` C"));
+    let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
+    let error = dialect.parse("lai d", &no_auto()).unwrap().error.expect("a rejection");
+    let expected: Vec<(&str, Vec<String>)> =
+        error.expected.iter().map(|expected| (expected.terminal.as_str(), expected.rules.clone())).collect();
+    assert_eq!(expected, [("C", vec!["text".to_string()])]);
+    let error = dialect.parse("d", &no_auto()).unwrap().error.expect("a rejection");
+    let expected: Vec<&str> = error.expected.iter().map(|expected| expected.terminal.as_str()).collect();
+    assert_eq!(expected, ["LE`la`", "LE`lai`"]);
+    assert!(error.message.ends_with("it expected LE`la`, LE`lai`"), "{}", error.message);
+}
+
+#[test]
 fn positions_are_code_points() {
     let dialect = gencmu::load_dialect_sources(
         single("%ambiguity-resolution greedy\n%rule text [c] ... %rule c \"other\" | \"alpha\" %emits $"),
@@ -438,11 +483,11 @@ fn an_and_of_more_than_sixteen_items_is_an_error() {
     let mut sources = single("%ambiguity-resolution greedy\n%rule text A");
     let refs: Vec<String> = (0..64).map(|index| format!("{{\"ref\":\"A{index}\"}}")).collect();
     let dom = format!(
-        "{{\"format\":7,\"rules\":[{{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{{\"guards\":[],\"expr\":{{\"and\":[{}]}}}}],\"conditions\":[],\"at\":[4,1]}}],\"directives\":[{{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[3,1]}}]}}",
+        "{{\"format\":8,\"rules\":[{{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{{\"guards\":[],\"expr\":{{\"and\":[{}]}}}}],\"conditions\":[],\"at\":[4,1]}}],\"directives\":[{{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[3,1]}}]}}",
         refs.join(",")
     );
     let compiled = format!(
-        "{{\"format\":7,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
+        "{{\"format\":8,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
         gencmu::tools::bootstrap_hash(),
         gencmu::tools::fnv1a64(&sources["g.md"])
     );
@@ -462,11 +507,11 @@ fn a_corrupt_cache_is_a_miss_not_an_abort() {
         for compiled in [
             format!("{}{}", "[".repeat(10_000), "]".repeat(10_000)),
             format!(
-                "{{\"format\":7,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{deep_dom}}}}}}}",
+                "{{\"format\":8,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{deep_dom}}}}}}}",
                 gencmu::tools::bootstrap_hash()
             ),
             format!(
-                "{{\"format\":7,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{{\"rules\":7}}}}}}}}",
+                "{{\"format\":8,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{{\"rules\":7}}}}}}}}",
                 gencmu::tools::bootstrap_hash()
             ),
             "not JSON".to_string(),

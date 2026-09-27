@@ -23,11 +23,11 @@ fn dom(text_alternative: &str, text_extra: &str, rule: &str, format: u32, direct
 const B: &str = r#"{"guards":[],"expr":{"terminal":"b"}}"#;
 
 fn with_rule(rule: &str) -> String {
-    dom(B, "", rule, 7, r#""greedy""#)
+    dom(B, "", rule, 8, r#""greedy""#)
 }
 
 fn with_alternative(alternative: &str) -> String {
-    dom(alternative, "", "", 7, r#""greedy""#)
+    dom(alternative, "", "", 8, r#""greedy""#)
 }
 
 /// A DOM like the document's, but accepting "b", with `directive` added
@@ -35,13 +35,13 @@ fn with_alternative(alternative: &str) -> String {
 fn with_directive(directive: &str) -> String {
     let rule = r#"{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"terminal":"b"}}],"conditions":[],"at":[3,1]}"#;
     format!(
-        r#"{{"format":7,"rules":[{rule}],"directives":[{{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}},{directive}]}}"#
+        r#"{{"format":8,"rules":[{rule}],"directives":[{{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}},{directive}]}}"#
     )
 }
 
 fn with_emission(emission: &str) -> String {
     let alternative = r#"{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"terminal":"b"}},{"capture":"y","expr":{"terminal":"c"}}]}}"#;
-    dom(alternative, &format!(r#","emit":{emission}"#), "", 7, r#""greedy""#)
+    dom(alternative, &format!(r#","emit":{emission}"#), "", 8, r#""greedy""#)
 }
 
 fn with_condition(condition: &str) -> String {
@@ -58,7 +58,7 @@ fn with_tags(term: &str) -> String {
 /// Parses "a" with a dialect whose `compiled.json` holds `dom` for the
 /// document: true when the document itself was read.
 fn document_was_read(dom: &str) -> bool {
-    document_was_read_from(7, dom)
+    document_was_read_from(8, dom)
 }
 
 /// The same, with a `compiled.json` of the given format.
@@ -136,6 +136,17 @@ fn a_well_formed_dom_is_used() {
     assert!(document_was_read(&with_rule(some)), "$ with a capture is malformed");
     let some = r#"{"name":"x","op":"define","alternatives":[{"guards":[],"expr":{"seq":[{"capture":"w","expr":{"terminal":"b"}},{"terminal":"c"}]}},{"guards":[],"expr":{"terminal":"c"}}],"emit":{"items":[{"capture":"w"},{"insert":"T"}]},"conditions":[{"op":"=","left":{"call":"text","args":[{"capture":"w"}]},"right":{"literal":"b"}}],"at":[4,1]}"#;
     assert!(!document_was_read(&with_rule(some)));
+    // A spelled reference, string or phoneme tag, captured or not, and a
+    // spelled symbol below 255 compound nodes, itself a compound node (§9).
+    let spelled = |expr: &str| with_alternative(&format!(r#"{{"guards":[],"expr":{expr}}}"#));
+    assert!(!document_was_read(&spelled(r#"{"spelling":"b","expr":{"terminal":"b"}}"#)));
+    assert!(!document_was_read(&spelled(r#"{"capture":"x","expr":{"spelling":"b'i.","expr":{"terminal":"b"}}}"#)));
+    let optionals = format!(
+        "{}{{\"spelling\":\"b\",\"expr\":{{\"terminal\":\"b\"}}}}{}",
+        "{\"optional\":".repeat(255),
+        "}".repeat(255)
+    );
+    assert!(!document_was_read(&spelled(&optionals)));
     // Four captures, and nodes below exactly 256 compound nodes, are allowed.
     let four = with_alternative(
         r#"{"guards":[],"expr":{"seq":[{"capture":"w","expr":{"terminal":"b"}},{"capture":"x","expr":{"terminal":"c"}},{"capture":"y","expr":{"terminal":"c"}},{"capture":"z","expr":{"terminal":"c"}}]}}"#,
@@ -151,7 +162,8 @@ fn a_well_formed_dom_is_used() {
 
 #[test]
 fn a_cache_of_another_format_is_a_miss() {
-    assert!(!document_was_read_from(7, &with_rule("")));
+    assert!(!document_was_read_from(8, &with_rule("")));
+    assert!(document_was_read_from(7, &with_rule("")), "a format-7 cache is never used");
     assert!(document_was_read_from(6, &with_rule("")), "a format-6 cache is never used");
     assert!(document_was_read_from(5, &with_rule("")), "a format-5 cache is never used");
     assert!(document_was_read_from(4, &with_rule("")), "a format-4 cache is never used");
@@ -163,9 +175,31 @@ fn a_cache_of_another_format_is_a_miss() {
 #[test]
 fn every_malformed_dom_is_a_cache_miss() {
     let nested = format!("{}{{\"terminal\":\"b\"}}{}", "{\"optional\":".repeat(257), "}".repeat(257));
+    let spelled = |expr: &str| with_alternative(&format!(r#"{{"guards":[],"expr":{expr}}}"#));
+    let spelled_nested = format!(
+        "{}{{\"spelling\":\"b\",\"expr\":{{\"terminal\":\"b\"}}}}{}",
+        "{\"optional\":".repeat(256),
+        "}".repeat(256)
+    );
     let cases: Vec<(&str, String)> = vec![
         ("format 5", dom(B, "", "", 5, r#""greedy""#)),
-        ("a directive argument that is not a string", dom(B, "", "", 6, "7")),
+        ("an empty spelling", spelled(r#"{"spelling":"","expr":{"terminal":"b"}}"#)),
+        ("a spelling that is not a string", spelled(r#"{"spelling":7,"expr":{"terminal":"b"}}"#)),
+        ("a spelling in upper case", spelled(r#"{"spelling":"B","expr":{"terminal":"b"}}"#)),
+        (
+            "a captured spelling in upper case",
+            spelled(r#"{"capture":"x","expr":{"spelling":"Б","expr":{"terminal":"b"}}}"#),
+        ),
+        ("a spelling of #", spelled(r##"{"spelling":"b","expr":{"ref":"#"}}"##)),
+        ("a spelling of an optional", spelled(r#"{"spelling":"b","expr":{"optional":{"terminal":"b"}}}"#)),
+        (
+            "a spelling of a spelled symbol",
+            spelled(r#"{"spelling":"b","expr":{"spelling":"b","expr":{"terminal":"b"}}}"#),
+        ),
+        ("a spelling of a capture", spelled(r#"{"spelling":"b","expr":{"capture":"x","expr":{"terminal":"b"}}}"#)),
+        ("a spelling with no expression", spelled(r#"{"spelling":"b"}"#)),
+        ("a spelled symbol nested too deeply", spelled(&spelled_nested)),
+        ("a directive argument that is not a string", dom(B, "", "", 8, "7")),
         (
             "a rule name that is not a name",
             with_rule(
@@ -372,7 +406,7 @@ fn every_malformed_dom_is_a_cache_miss() {
 #[test]
 fn a_malformed_bootstrap_is_an_error() {
     let bootstrap = format!(
-        r#"{{"format":7,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
+        r#"{{"format":8,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
         with_emission(r#"{"items":[{"capture":""},{"insert":"X"}]}"#)
     );
     let sources = [

@@ -55,12 +55,12 @@ impl Compiled {
         Ok(compiled)
     }
 
-    fn lookup(&self, path: &str, hash: &str) -> Option<Dom> {
+    fn lookup(&self, path: &str, hash: &str, unicode: &Unicode) -> Option<Dom> {
         let dom = match self.by_path.get(path) {
             Some((known, dom)) if known == hash => Some(dom),
             _ => self.by_hash.get(hash),
         }?;
-        dom_from_json(dom).ok()
+        dom_from_json(dom, unicode).ok()
     }
 }
 
@@ -91,7 +91,7 @@ fn notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dialect, E
                 .get("dom")
                 .ok_or_else(|| grammar_error("bootstrap.json: a document without a DOM".to_string()))
                 .and_then(|dom| {
-                    dom_from_json(dom).map_err(|message| grammar_error(format!("bootstrap.json: {message}")))
+                    dom_from_json(dom, &unicode).map_err(|message| grammar_error(format!("bootstrap.json: {message}")))
                 })?;
             documents.push((path, Arc::new(dom)));
         }
@@ -125,7 +125,7 @@ impl Context {
     }
 
     fn document(&self, path: &str, text: &str) -> Result<Dom, Error> {
-        if let Some(dom) = self.compiled.lookup(path, &fnv1a64(text)) {
+        if let Some(dom) = self.compiled.lookup(path, &fnv1a64(text), &self.unicode) {
             return Ok(dom);
         }
         read_document(&self.notation, text).map_err(|error| error.in_document(path))
@@ -160,9 +160,14 @@ pub(crate) fn read_document(notation: &Dialect, text: &str) -> Result<Dom, Error
             .stack_size(256 << 20)
             .spawn_scoped(scope, move || {
                 let position = |index: usize| grammar.position(index);
-                let reader = Reader { tokens: &stage.input, captures: Default::default(), position: &position };
+                let reader = Reader {
+                    tokens: &stage.input,
+                    captures: Default::default(),
+                    position: &position,
+                    unicode: &notation.unicode,
+                };
                 let dom = reader.document(tree)?;
-                check_read(&dom)?;
+                check_read(&dom, &notation.unicode)?;
                 Ok(dom)
             })
             .map_err(|error| Error::grammar(format!("cannot start a thread to read the document: {error}")))?
@@ -174,16 +179,16 @@ pub(crate) fn read_document(notation: &Dialect, text: &str) -> Result<Dom, Error
 /// Holds a DOM just read to the rules a precompiled one is held to, the
 /// bound on nesting among them (engine §9), reported at the first rule
 /// that breaks one.
-fn check_read(dom: &Dom) -> Result<(), Error> {
+fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
     let whole = json::parse(&dom_to_json(dom)).map_err(|message| Error::grammar(format!("the DOM: {message}")))?;
-    let Some(problem) = dom_problem(&whole) else {
+    let Some(problem) = dom_problem(&whole, unicode) else {
         return Ok(());
     };
     for rule in &dom.rules {
         let single = Dom { rules: vec![rule.clone()], directives: Vec::new() };
         let json =
             json::parse(&dom_to_json(&single)).map_err(|message| Error::grammar(format!("the DOM: {message}")))?;
-        if let Some(problem) = dom_problem(&json) {
+        if let Some(problem) = dom_problem(&json, unicode) {
             let problem = if problem == "nested too deeply" {
                 "an expression, term or condition is nested more than 256 deep"
             } else {
@@ -361,7 +366,7 @@ pub fn read_grammar_document(text: &str) -> Result<String, Error> {
 }
 
 /// Splices a bundled pipeline document (engine §13) and returns the result
-/// as JSON, `{"format":7,"stages":[{"name":...,"documents":[{"path":...,
+/// as JSON, `{"format":8,"stages":[{"name":...,"documents":[{"path":...,
 /// "dom":...}]}],"features":[...]}`: each stage's runs of one document's
 /// items, in the shape of `bootstrap.json`, and the features. With `cached`
 /// false, every document is read through the notation, bypassing

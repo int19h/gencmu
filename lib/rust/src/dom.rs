@@ -3,9 +3,10 @@
 //! stitching and lowering read.
 
 use crate::json::{write_str, Json};
+use crate::unicode::Unicode;
 
 /// The DOM format version (`docs/output.md`).
-pub(crate) const DOM_FORMAT: i64 = 7;
+pub(crate) const DOM_FORMAT: i64 = 8;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Dom {
@@ -72,6 +73,9 @@ pub(crate) enum Expr {
     Ref(String),
     Terminal(String),
     Capture(String, Box<Expr>),
+    /// A spelled symbol, ``X`s` ``: a `Ref` other than `#`, or a
+    /// `Terminal`, whose span must sound like the spelling (engine §4).
+    Spelled(String, Box<Expr>),
     Empty,
 }
 
@@ -156,8 +160,8 @@ fn position(value: &Json) -> R<(usize, usize)> {
     }
 }
 
-pub(crate) fn dom_from_json(value: &Json) -> R<Dom> {
-    if let Some(problem) = dom_problem(value) {
+pub(crate) fn dom_from_json(value: &Json, unicode: &Unicode) -> R<Dom> {
+    if let Some(problem) = dom_problem(value, unicode) {
         return Err(problem.to_string());
     }
     let rules = array(value, "rules")?.iter().map(rule_from_json).collect::<R<Vec<_>>>()?;
@@ -245,6 +249,7 @@ fn expr_from_json(value: &Json) -> R<Expr> {
         "ref" => Expr::Ref(string(value, "ref")?),
         "terminal" => Expr::Terminal(string(value, "terminal")?),
         "capture" => Expr::Capture(string(value, "capture")?, Box::new(expr_from_json(field(value, "expr")?)?)),
+        "spelling" => Expr::Spelled(string(value, "spelling")?, Box::new(expr_from_json(field(value, "expr")?)?)),
         "empty" => Expr::Empty,
         other => return Err(format!("an unknown expression {other:?}")),
     })
@@ -371,6 +376,30 @@ fn is_rule_arg(value: &Json) -> bool {
     matches!(value.as_object(), Some([(key, Json::Str(_))]) if key == "rule")
 }
 
+/// What is wrong with a spelling of a symbol (engine §9), or `None`: an
+/// empty spelling, one of anything but a reference, a string or a phoneme
+/// tag, `#` included, or one that the lowercase mapping would change, since
+/// the match ignores stress. `symbol` is whether the spelled expression is
+/// a reference other than `#` or a terminal.
+pub(crate) fn spelling_problem(spelling: &str, symbol: bool, unicode: &Unicode) -> Option<&'static str> {
+    if spelling.is_empty() {
+        Some("a spelling is empty")
+    } else if !symbol {
+        Some("a spelling follows only a reference, a string or a phoneme tag, not #")
+    } else if unicode.lowercase(spelling) != spelling {
+        Some("a spelling is not in lower case")
+    } else {
+        None
+    }
+}
+
+/// Whether a JSON expression is one a spelling may follow: a reference
+/// other than `#`, or a terminal.
+fn is_spellable_json(value: &Json) -> bool {
+    is_object(value)
+        && (value.get("ref").and_then(Json::as_str).is_some_and(|name| name != "#") || is_str(value.get("terminal")))
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Kind {
     Expr,
@@ -391,13 +420,15 @@ enum Kind {
 /// §9, docs/output.md "A grammar DOM"), or `None` when it is one. A DOM
 /// from the bootstrap or from `compiled.json` is held to every rule the
 /// reader enforces, so that no cache entry can change a result.
-pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
+/// Spellings are checked against `unicode`'s lowercase mapping, the one
+/// the match uses.
+pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
     if !is_object(dom)
         || dom.get("format").and_then(Json::as_int) != Some(DOM_FORMAT)
         || dom.get("rules").and_then(Json::as_array).is_none()
         || dom.get("directives").and_then(Json::as_array).is_none()
     {
-        return Some("not a DOM of format 7");
+        return Some("not a DOM of format 8");
     }
     for directive in dom.get("directives").and_then(Json::as_array).unwrap_or(&[]) {
         let args = directive.get("args").and_then(Json::as_array);
@@ -555,12 +586,30 @@ pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
                 } else if has(value, "capture") {
                     let inner = value.get("expr");
                     let wraps_symbol = inner.is_some_and(|inner| {
-                        is_object(inner) && (is_str(inner.get("ref")) || is_str(inner.get("terminal")))
+                        is_object(inner)
+                            && (is_str(inner.get("ref")) || is_str(inner.get("terminal")) || has(inner, "spelling"))
                     });
                     // `$` is the whole constituent and wraps nothing.
                     let named = value.get("capture").and_then(Json::as_str).is_some_and(|name| !name.is_empty());
                     if !named || !wraps_symbol {
                         return Some("a malformed capture");
+                    }
+                    // A capture is a compound node; a spelled symbol below it
+                    // is checked as any expression is.
+                    if let Some(inner) = inner.filter(|inner| has(inner, "spelling")) {
+                        pending.push((Kind::Expr, inner, next));
+                    }
+                } else if let Some(spelling) = value.get("spelling") {
+                    // A compound node (engine §9) over one symbol.
+                    let Json::Str(spelling) = spelling else {
+                        return Some("a malformed spelling");
+                    };
+                    let inner = value.get("expr");
+                    if let Some(problem) = spelling_problem(spelling, inner.is_some_and(is_spellable_json), unicode) {
+                        return Some(problem);
+                    }
+                    if let Some(inner) = inner {
+                        pending.push((Kind::Expr, inner, next));
                     }
                 } else if !(is_str(value.get("ref")) || is_str(value.get("terminal")) || is_true(value.get("empty"))) {
                     return Some("a malformed expression");
@@ -888,6 +937,13 @@ fn write_expr(out: &mut String, expr: &Expr) {
         Expr::Capture(name, inner) => {
             out.push_str("{\"capture\":");
             write_str(out, name);
+            out.push_str(",\"expr\":");
+            write_expr(out, inner);
+            out.push('}');
+        }
+        Expr::Spelled(spelling, inner) => {
+            out.push_str("{\"spelling\":");
+            write_str(out, spelling);
             out.push_str(",\"expr\":");
             write_expr(out, inner);
             out.push('}');

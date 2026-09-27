@@ -104,6 +104,9 @@ pub(crate) struct Prod {
     pub syms: Vec<Sym>,
     /// For each position, its capture slot.
     pub cap_at: Vec<Option<u8>>,
+    /// For each position, the spelling its symbol's span must sound like
+    /// (engine §4); empty when no symbol of the production is spelled.
+    pub spell: Vec<Option<Arc<str>>>,
     /// For each capture slot, its position.
     pub cap_pos: Vec<u16>,
     pub tags: Option<LTerm>,
@@ -132,6 +135,17 @@ pub(crate) struct LRule {
     /// For the helper of an optional that begins with an elidable
     /// terminator: that terminator (§12).
     pub elided: Option<String>,
+    /// That terminator's spelling, if it is spelled, which a restored
+    /// token sounds like (engine §7).
+    pub elided_spelling: Option<Arc<str>>,
+}
+
+impl Prod {
+    /// The spelling of the symbol at `dot`, if it has one.
+    #[inline]
+    pub(crate) fn spelling(&self, dot: usize) -> Option<&str> {
+        self.spell.get(dot).and_then(|spelling| spelling.as_deref())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -147,13 +161,14 @@ pub(crate) struct Lowered {
     pub cyclic: Vec<bool>,
 }
 
-type Item = (Sym, Option<String>);
+/// A symbol, its capture name and its spelling.
+type Item = (Sym, Option<String>, Option<Arc<str>>);
 type Sequence = Vec<Item>;
 
 struct HelperDef {
     owner: u32,
     prods: Vec<Sequence>,
-    elided: Option<String>,
+    elided: Option<(String, Option<Arc<str>>)>,
     /// The helpers of the places written inside this one, in order.
     children: Vec<usize>,
 }
@@ -194,7 +209,7 @@ impl<'a> Lowerer<'a> {
     }
 
     /// Makes the helper of a place whose inside `enter` began.
-    fn helper(&mut self, prods: Vec<Sequence>, elided: Option<String>) -> Sym {
+    fn helper(&mut self, prods: Vec<Sequence>, elided: Option<(String, Option<Arc<str>>)>) -> Sym {
         let id = (self.grammar.rules.len() + self.helpers.len()) as u32;
         let children = self.places.pop().expect("a place entered");
         self.places.last_mut().expect("an alternative").push(self.helpers.len());
@@ -225,7 +240,7 @@ impl<'a> Lowerer<'a> {
             prods.extend(body.iter().cloned());
         }
         for sequence in &body {
-            let mut step = vec![(Sym::N(id), None)];
+            let mut step = vec![(Sym::N(id), None, None)];
             step.extend(sequence.iter().cloned());
             prods.push(step);
         }
@@ -270,19 +285,32 @@ impl<'a> Lowerer<'a> {
                 let body = self.expand(inner);
                 // An optional of a symbol, or of a sequence that begins with
                 // one, is elidable when that symbol is an elidable
-                // terminal; one of a choice or an `&` never is (§3.8).
-                let elided = elidable_terminal(inner).filter(|name| self.grammar.elidable.contains(name));
+                // terminal, spelled or not; one of a choice or an `&` never
+                // is (§3.8).
+                let elided = elidable_terminal(inner).filter(|(name, _)| self.grammar.elidable.contains(name));
                 let mut prods = Vec::new();
                 if !(self.mandatory && elided.is_some()) {
                     prods.push(Vec::new());
                 }
                 prods.extend(body);
                 let sym = self.helper(prods, elided);
-                vec![vec![(sym, None)]]
+                vec![vec![(sym, None, None)]]
             }
-            Expr::Repeat(inner, min) => vec![vec![(self.repeat(inner, *min), None)]],
-            Expr::Ref(name) => vec![vec![(self.symbol(name, true), None)]],
-            Expr::Terminal(name) => vec![vec![(self.symbol(name, false), None)]],
+            Expr::Repeat(inner, min) => vec![vec![(self.repeat(inner, *min), None, None)]],
+            Expr::Ref(name) => vec![vec![(self.symbol(name, true), None, None)]],
+            Expr::Terminal(name) => vec![vec![(self.symbol(name, false), None, None)]],
+            // A spelled symbol lowers to its symbol with the spelling, and
+            // adds no helper (§3).
+            Expr::Spelled(spelling, inner) => {
+                let mut out = self.expand(inner);
+                let spelling: Arc<str> = spelling.as_str().into();
+                for sequence in &mut out {
+                    if let Some(item) = sequence.first_mut() {
+                        item.2 = Some(spelling.clone());
+                    }
+                }
+                out
+            }
             Expr::Capture(name, inner) => {
                 let mut out = self.expand(inner);
                 for sequence in &mut out {
@@ -298,11 +326,15 @@ impl<'a> Lowerer<'a> {
 }
 
 /// The terminal an optional's content begins with, if it is a symbol or a
-/// sequence that begins, recursively, with one.
-fn elidable_terminal(expr: &Expr) -> Option<String> {
+/// sequence that begins, recursively, with one, and its spelling, if it is
+/// spelled.
+fn elidable_terminal(expr: &Expr) -> Option<(String, Option<Arc<str>>)> {
     match expr {
-        Expr::Ref(name) if is_terminal_name(name) => Some(name.clone()),
-        Expr::Terminal(name) => Some(name.clone()),
+        Expr::Ref(name) if is_terminal_name(name) => Some((name.clone(), None)),
+        Expr::Terminal(name) => Some((name.clone(), None)),
+        Expr::Spelled(spelling, inner) => {
+            elidable_terminal(inner).map(|(name, _)| (name, Some(spelling.as_str().into())))
+        }
         Expr::Seq(items) => items.first().and_then(elidable_terminal),
         _ => None,
     }
@@ -504,7 +536,7 @@ pub(crate) fn lower(
                     slots.push(own(sequence, false));
                 }
                 for sequence in body {
-                    let mut step = vec![(Sym::N(index as u32), None)];
+                    let mut step = vec![(Sym::N(index as u32), None, None)];
                     step.extend(sequence);
                     slots.push(own(step, true));
                 }
@@ -527,14 +559,21 @@ pub(crate) fn lower(
     let mut rules: Vec<LRule> = grammar
         .rules
         .iter()
-        .map(|rule| LRule { name: rule.name.clone(), helper: false, prods: Vec::new(), elided: None })
+        .map(|rule| LRule {
+            name: rule.name.clone(),
+            helper: false,
+            prods: Vec::new(),
+            elided: None,
+            elided_spelling: None,
+        })
         .collect();
     for helper in &lowerer.helpers {
         rules.push(LRule {
             name: grammar.rules[helper.owner as usize].name.clone(),
             helper: true,
             prods: Vec::new(),
-            elided: helper.elided.clone(),
+            elided: helper.elided.as_ref().map(|(name, _)| name.clone()),
+            elided_spelling: helper.elided.as_ref().and_then(|(_, spelling)| spelling.clone()),
         });
     }
     let mut order: Vec<Pending> = Vec::new();
@@ -557,11 +596,16 @@ pub(crate) fn lower(
     let terminals = std::mem::take(&mut lowerer.terminals);
     let mut prods = Vec::with_capacity(order.len());
     'productions: for pending in order {
-        let syms: Vec<Sym> = pending.sequence.iter().map(|(sym, _)| *sym).collect();
+        let syms: Vec<Sym> = pending.sequence.iter().map(|(sym, _, _)| *sym).collect();
+        let spell: Vec<Option<Arc<str>>> = if pending.sequence.iter().any(|(_, _, spelling)| spelling.is_some()) {
+            pending.sequence.iter().map(|(_, _, spelling)| spelling.clone()).collect()
+        } else {
+            Vec::new()
+        };
         let mut cap_at = vec![None; syms.len()];
         let mut cap_pos = Vec::new();
         let mut names = FxMap::default();
-        for (position, (_, name)) in pending.sequence.iter().enumerate() {
+        for (position, (_, name, _)) in pending.sequence.iter().enumerate() {
             if let Some(name) = name {
                 cap_at[position] = Some(cap_pos.len() as u8);
                 names.insert(name.clone(), cap_pos.len() as u8);
@@ -577,6 +621,7 @@ pub(crate) fn lower(
             syms,
             cap_at,
             cap_pos,
+            spell,
             tags: None,
             emit: LEmit::None,
             verbatim: false,
