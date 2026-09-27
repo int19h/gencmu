@@ -3,21 +3,55 @@
 The CLL dialect with the experimental constructs that have grown up in use since CLL was printed, such as `cu` before a bare selbri, connected sumti with `je`, and the experimental cmavo. The word stage reads the approved word forms of the definition effort ([`../words/bpfk.md`](../words/bpfk.md)). camxes-exp, the experimental PEG grammar, reads the same word forms with a few changes, such as the consonant pair `mz`, which [`../words/experimental.md`](../words/experimental.md) makes. A lexicon gives the experimental cmavo their selma'o. The feature `su-boundary` is on, so that `su` erases back to the last `ni'o`, `no'i`, `lu`, `tu'e` or `to`, as camxes-exp's does. The phoneme stage is the approved word forms' ([`bpfk.md`](bpfk.md)). The indicator stage is the cll-ebnf dialect's ([`cll-ebnf.md`](cll-ebnf.md)) with a layer that reads indicators as camxes-exp does. The syntax is [`../syntax/experimental.md`](../syntax/experimental.md), which says what it adds to CLL's.
 
 The dialect turns on two features, as camxes-exp always has them: `cbm`, the cmevla-brivla merger, and `term-hierarchy`. A caller can turn either off to read the CLL form.
+```jbogenbau
+%features cbm term-hierarchy su-boundary
+```
 
-## Stage 1: phonemes <?stage phonemes?>
+## Stage 1: phonemes
+```jbogenbau
+%stage phonemes
+```
+- [The Latin orthography of CLL](../phonemes/latin-strict.md)
+  ```jbogenbau
+  %include "../phonemes/latin-strict.md"
+  ```
+- [Latin conventions](../phonemes/latin.md): punctuation, capital runs, accents and digits
+  ```jbogenbau
+  %include "../phonemes/latin.md"
+  ```
+- [Cyrillic orthography](../phonemes/cyrillic.md): gencmu's Cyrillic, the default
+  ```jbogenbau
+  %include "../phonemes/cyrillic.md"
+  ```  
+- [The Cyrillic orthography of CLL](../phonemes/cyrillic-cll.md): CLL 3.12's Cyrillic, which a caller chooses with the feature `cll-cyrillic`
+  ```jbogenbau
+  %include "../phonemes/cyrillic-cll.md"
+  ```    
+- [zbalermorna](../phonemes/zbalermorna.md)
+  ```jbogenbau
+  %include "../phonemes/zbalermorna.md"
+  ```    
 
-- [The Latin orthography of CLL](../phonemes/latin-strict.md) <?grammar?>
-- [Latin conventions](../phonemes/latin.md): punctuation, capital runs, accents and digits <?grammar?>
-- [Cyrillic orthography](../phonemes/cyrillic.md): gencmu's Cyrillic, the default <?grammar?>
-- [The Cyrillic orthography of CLL](../phonemes/cyrillic-cll.md): CLL 3.12's Cyrillic, which a caller chooses with the feature `cll-cyrillic` <?grammar?>
-- [zbalermorna](../phonemes/zbalermorna.md) <?grammar?>
-
-## Stage 2: forms <?stage forms?>
-
-- [Word forms](../words/forms.md) <?grammar?>
-- [Approved word forms](../words/bpfk.md) <?grammar?>
-- [Experimental word forms](../words/experimental.md) <?grammar?>
-- [The experimental lexicon](../words/lexicon-experimental.md) <?grammar?>
+## Stage 2: word forms
+```jbogenbau
+%stage forms
+```
+- [Word forms](../words/forms.md)
+  ```jbogenbau
+  %include "../words/forms.md"
+  ```  
+- [Approved word forms](../words/bpfk.md)
+  ```jbogenbau
+  %include "../words/bpfk.md"
+  ```  
+- [Experimental word forms](../words/experimental.md)
+  ```jbogenbau
+  %include "../words/experimental.md"
+  ```  
+- [The experimental lexicon](../words/lexicon-experimental.md)
+    ```jbogenbau
+  %include "../words/lexicon-experimental.md"
+  ```  
 
 ## Stage 3: words <?stage words?>
 
