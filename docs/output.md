@@ -43,10 +43,10 @@ A token node's `token` is the index of the stage-input token it read.
 **Warning**:
 
 ```
-{"stage":"syntax","feature":"jacu","rule":"bridi-tail-3","span":[2,5],"source":[6,17]}
+{"stage":"words","feature":"y-cmavo","rule":"cmavo-token","span":[2,3],"source":[3,7]}
 ```
 
-`span` counts the stage's input tokens, and `source` the original text's code points, as a node's do.
+`span` counts the stage's input tokens, and `source` the original text's code points, as a node's do. The example is the warning for `ka'y` in `mi ka'y` in the cll-ebnf dialect.
 
 **Action**, in a witness: `{"read":{"token":4,"terminal":"KOhA"}}` or `{"close":{"rule":"sumti","production":57,"span":[2,5]}}`, the production numbered from 0 as in engine §3; for a helper's production, `rule` is the rule whose alternative introduced the helper.
 
@@ -71,7 +71,7 @@ What reading a grammar document produces (engine §8, §9), and what `bootstrap.
 
 **Rule**: `{"name":"sumti","op":"define","tags":TERM,"alternatives":[ALT...],"emit":EMIT,"conditions":[COND...],"verbatim":true,"at":[line,column]}`, `op` being `define`, `redefine` or `extend`, and `tags`, `emit` and `verbatim` optional; `verbatim` is present, and `true`, only for a rule that has `%verbatim`. A rule's name is a name, or `#`.
 
-**Alternative**: `{"guards":[GUARD...],"expr":EXPR,"tags":TERM}`, `tags` optional. A guard is `{"feature":"cbm","kind":"gate","negated":false}` for `@cbm?`, with `"negated":true` for `@¬cbm?`, or `{"feature":"jacu","kind":"warning","negated":false}` for `@jacu!`.
+**Alternative**: `{"guards":[GUARD...],"expr":EXPR,"tags":TERM}`, `tags` optional. A guard is `{"feature":"cbm","kind":"gate","negated":false}` for `@cbm?`, with `"negated":true` for `@¬cbm?`, or `{"feature":"y-cmavo","kind":"warning","negated":false}` for `@y-cmavo!`.
 
 **Expression**: one of
 

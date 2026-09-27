@@ -70,10 +70,12 @@ An alternative with several guards exists when all its gates hold. A name is a g
   | @cbm? CMEVLA #
   | ...
 
-%rule sumti-tail
-  | [sumti-6 [relative-clauses]] sumti-tail-1
-  | relative-clauses sumti-tail-1
-  | @inner-sumti! sumti sumti-tail-1
+%redefine-rule cmavo-token
+  | $c("cmavo") <tags($c)>
+  | @y-cmavo! $w("cmavo") <tags($w)>
+%conditions
+  "cmavo-warning" ∉ tags($c),
+  "cmavo-warning" ∈ tags($w)
 ```
 
 A dialect that extends another uses the two kinds for two kinds of change. An addition, a text the base grammar rejects and the dialect accepts, is a warning, so that a reader can learn which additions a text relies on. The dialect turns none of its warnings on, so that its texts parse without warnings unless the caller asks. A change to how the dialect reads a text of the base cannot be a warning, since the base reading would be gone. It is a gate, with the old form under `@¬name?` beside it, and the dialect turns it on; a caller who wants the base reading turns it off.
@@ -97,7 +99,7 @@ A stage of a pipeline is the rules and directives of several documents, read in 
   | [indicators & free ...] [joik-jek] text-1
 ```
 
-So a misspelt name can neither quietly start a new rule nor quietly replace one. The alternatives an extension adds carry the extension's own clauses, not the base rule's, and the base rule's clauses do not apply to them, so an extension says everything about what it adds. The loader reports every replacement and extension, which document changed which rule, so a dialect's effect on its base can be read off in one place.
+So `%rule` never quietly replaces a rule. A misspelled name in `%redefine-rule` or `%extend-rule` is an error, and so is a reference to a rule that no document defines. A misspelled `%rule` defines a new rule that nothing reads, and the audit reports it as unreachable. The alternatives an extension adds carry the extension's own clauses, not the base rule's, and the base rule's clauses do not apply to them, so an extension says everything about what it adds. The loader reports every replacement and extension, which document changed which rule, so a dialect's effect on its base can be read off in one place.
 
 Removing a single alternative is not possible: a rule is small enough to restate, and restating it reads better than a list of deletions.
 
@@ -110,7 +112,7 @@ The clauses of a rule serve all its alternatives, which need not capture the sam
 - a condition, or an item of `%emits`, that uses a capture an alternative lacks does not apply to that alternative: a condition about a part that is not there holds, and a part that is not there is not emitted;
 - a tag term that uses a capture an alternative it serves lacks is an error, unless the use is guarded by `⟹` (below), since a tag term has no value that could mean "nothing to say". An alternative's own tags serve that alternative, `%tags` every alternative, and an emitted item's tags every alternative that has the item.
 
-A capture that no alternative of the rule, or of the extension, captures is an error wherever it is mentioned, and so is a condition or an item of `%emits` that applies to no alternative: each is a mistake, such as a misspelt name.
+A capture that no alternative of the rule, or of the extension, captures is an error wherever it is mentioned, and so is a condition or an item of `%emits` that applies to no alternative: each is a mistake, such as a misspelled name.
 
 `$x`, standing as a condition, says whether the alternative captured `x`, which is also known when the grammar is read; `$` alone is always true. A presence test is decided for each alternative before anything else, so it is not a use of the capture: `%conditions $x` applies to every alternative, and removes those that do not capture `x`. `A ⟹ B`, where `A` is a condition, is `B` where `A` holds: as a condition, `B` or true; as a tag term, the tags of `B` or none. So a tag term that should apply only to the alternatives with a certain capture says so:
 
@@ -141,7 +143,7 @@ The terms of a condition have three types.
 
 **Spans.** A capture `$x` is a span, the tokens the captured part covers, and `$` the tokens the whole constituent covers. `head($x)` is its first token, `tail($x)` the rest, `last($x)` the last. `from($x)` is the tokens from the start of `$x` to the end of the input, and `after($x)` the tokens after `$x` to the end of the input. These two reach past the constituent, to the text that follows it.
 
-**Strings.** `phonemes(span)` is what a span sounds like: the phonemes of its tokens, joined. A token's phonemes are fixed when its stage emits it. A token over a verbatim constituent sounds like its text (see "Verbatim text"). Any other token sounds like the phoneme its `/x/` tag names, if it has one. Otherwise it sounds like the tokens of that stage's input that it covers, joined in order. That leaves out the tokens inside a rule that emits `ε` (see "Emission"). It also makes each run of pause tokens one, and removes a pause token at either end. A pause is `.`, so `klama bu` sounds as `klama.bu`; the renderings for people write it as a space. `text(span)` is the original text the span covers. `lowercase(string)` folds capitals, so `phonemes($m) ≠ lowercase(phonemes($m))` says that `$m` carries a stress mark. A string in quotes, or a phoneme tag, is a literal.
+**Strings.** `phonemes(span)` is what a span sounds like: the phonemes of its tokens, joined. A token's phonemes are fixed when its stage emits it. A token over a verbatim constituent sounds like its text (see "Verbatim text"). Any other token sounds like the phoneme that its strong `/x/` tag names, if it has one. Two strong phoneme tags on one token are an error of the grammar. Otherwise it sounds like the tokens of that stage's input that it covers, joined in order. That leaves out the tokens inside a rule that emits `ε` (see "Emission"). It also makes each run of pause tokens one, and removes a pause token at either end. A pause is `.`, so `klama bu` sounds as `klama.bu`; the renderings for people write it as a space. `text(span)` is the original text the span covers. `lowercase(string)` folds capitals, so `phonemes($m) ≠ lowercase(phonemes($m))` says that `$m` carries a stress mark. A string in quotes, or a phoneme tag, is a literal.
 
 **Sets of tags.** `tags(span)` is the tag set of the captured part. `tags(span, rule)` is the tag set the span has when parsed as `rule`, unioned over every parse, and empty when it does not parse; this is how a word looks itself up in a lexicon that is itself a set of rules. `classes(span)` keeps only the tags that begin with a capital. `"KOhA"` is the set with that one tag, so `"UI" ∪ "CAI"` is the set of both; `∅` is empty; `∪` and `∩` are union and intersection, `∩` binding tighter. `runs(span)` is the set of the runs of a span's phonemes, the strings between its pauses, so `phonemes($open) ∉ runs($content)` says that the word `$open` is not one of the runs of `$content`. A run can hold several words: a text writes `lemiklama` as one run.
 
@@ -177,7 +179,7 @@ Every token and every constituent carries a set of tags. A terminal matches a to
 
 With no tags written at all, neither after the alternative nor after `%tags`, a constituent built from one symbol has that symbol's tags, and one built from several has none. So a rule `word` whose body is `cmavo | brivla | cmevla` needs no tags: a `mi` arrives at the next stage tagged by the chain of rules that built it. A tag term says what a constituent's tags are, so it cannot be made of them: `$`, `tags($)` and `classes($)` are errors there, while `tags($, lexicon)`, which parses the constituent's tokens again, is not.
 
-A tag may be weak, `?"KOhA"`. A reading of a token under a weak tag loses, at the first difference between two parses, to a reading under a strong one. Weak tags are how a lexicon records a membership a dialect admits with a warning: the word may be read that way, but never in preference to its standard class.
+A tag may be weak, `?"KOhA"`. A reading of a token under a weak tag loses, at the first difference between two parses, to a reading under a strong one. Weak tags are how a lexicon records a membership that a dialect admits as a second choice. The word can be read that way, but never in preference to its standard class. A warning comes only from a feature guard of the form `@name!`.
 
 ## Emission
 
@@ -275,7 +277,7 @@ A grammar admits every parse its rules allow. Where a text has more than one, ea
 
 Constituents with a single symbol, and the ones the notation's sugar creates, are transparent to the comparison: two parses that differ only in such a relabelling have not yet diverged.
 
-The preference is like greedy and lazy quantifiers in a backtracking regular expression engine, and unlike the greed of a PEG parser: it orders the parses the grammar already admits, never commits early, and so cannot reject a text; the earliest difference decides; and it applies to every constituent of the stage, not to one quantifier. The syntax grammars are greedy: an elided terminator sits as late as the grammar allows. The word grammar is lazy: a word ends as early as it can, which is CLL's tosmabru rule, so `lemiklama` is `le mi klama`.
+The preference is like greedy and lazy quantifiers in a backtracking regular expression engine, and unlike the greed of a PEG parser: it orders the parses the grammar already admits, never commits early, and so cannot reject a text; the earliest difference decides; and it applies to every constituent of the stage, not to one quantifier. The syntax grammars are greedy: an elided terminator sits as late as the grammar allows. The forms and words stages are lazy. The word forms divide a run in one way only, so there the choice never decides where a word ends. In the words stage, the choice makes a magic word act on what exists when it is read. So `mi si si` erases `mi` and then nothing.
 
 ## Elided terminators
 
@@ -289,4 +291,4 @@ By default, the constituent of an elided terminator may end wherever a parse of 
 
 `maximal` only removes parses. It never chooses among the parses that remain, and a text that is still ambiguous is chosen or reported as before. It does not order the alternatives of a rule, as a PEG does: a stage that declares `maximal` still sees every parse its rules allow, apart from those it removes. A text that it leaves with no parse is an error at the first terminator it forbids in the parse the stage would otherwise have chosen; writing that terminator out ends its constituent there.
 
-CLL's own rule is narrower: a terminator may be elided only if no ambiguity results, and CLL says nothing of its EBNF's other ambiguities. `elision-only` applies that rule literally. After choosing a parse, the chosen parse's elided terminators are written back into the input and it is parsed again with no terminator elidable; if it is still ambiguous, except for choices strong and weak tags settle, the ambiguity is not about terminators, and the parse is an error that shows both readings. For the CLL grammar this changes nothing: every ambiguous text of the corpus is about terminators. The grammars that extend CLL are really ambiguous in places, such as a bare `na` term beside a negated selbri, and declare only `greedy`. A caller can switch `elision-only` on or off for a parse, to check an extension for overlaps or to loosen a grammar that declares it.
+CLL's own rule is narrower: a terminator may be elided only if no ambiguity results, and CLL says nothing of its EBNF's other ambiguities. `elision-only` applies that rule literally. After choosing a parse, the chosen parse's elided terminators are written back into the input and it is parsed again with no terminator elidable; if it is still ambiguous, except for choices strong and weak tags settle, the ambiguity is not about terminators, and the parse is an error that shows both readings. For the CLL grammar, it rejects only the few texts that the printed grammar leaves ambiguous in more than a terminator, such as `mi broda joi ke brode ke'e`. The grammars that extend CLL are really ambiguous in places, such as a bare `na` term beside a negated selbri, and declare only `greedy`. A caller can switch `elision-only` on or off for a parse, to check an extension for overlaps or to loosen a grammar that declares it.

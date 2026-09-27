@@ -9,7 +9,7 @@ The consonants are those of CLL 3.12: `ш` for `c`, `ж` for `j`, `х` for `x`, 
 - `ы` and `ә` for `y`
 - `щ` for `c`
 - `ґ` for `g`
-- `ј` for `й`
+- `ј` for the glide `i`, as `й`
 - `һ` as an explicit apostrophe
 - the palochka `ӏ` as a period
 
@@ -64,12 +64,12 @@ So a full vowel letter carries the tag `syllabic`, which the frame's vowel-group
 %rule cyrillic-stressed-vowel
   | "А" </A/ ∪ "syllabic"> | "а" stress-mark </A/ ∪ "syllabic">
   | "Е" </E/ ∪ "syllabic"> | "Э" </E/ ∪ "syllabic"> | "Є" </E/ ∪ "syllabic">
-| "е" stress-mark </E/ ∪ "syllabic">
+  | "е" stress-mark </E/ ∪ "syllabic">
   | "И" </I/ ∪ "syllabic"> | "І" </I/ ∪ "syllabic"> | "и" stress-mark </I/ ∪ "syllabic">
   | "О" </O/ ∪ "syllabic"> | "о" stress-mark </O/ ∪ "syllabic">
   | "У" </U/ ∪ "syllabic"> | "у" stress-mark </U/ ∪ "syllabic">
   | "Ъ" </Y/ ∪ "syllabic"> | "Ы" </Y/ ∪ "syllabic"> | "Ә" </Y/ ∪ "syllabic">
-| "ъ" stress-mark </Y/ ∪ "syllabic">
+  | "ъ" stress-mark </Y/ ∪ "syllabic">
 %emits
   $
 

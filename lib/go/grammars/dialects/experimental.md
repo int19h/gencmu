@@ -2,7 +2,7 @@
 
 This dialect extends CLL with constructs that entered use after CLL appeared in print. Examples are `cu` before a bare selbri, connected sumti with `je`, and the experimental cmavo. The syntax is [`../syntax/experimental.md`](../syntax/experimental.md), which says what it adds to CLL's.
 
-The phoneme stage is the approved word forms' ([`bpfk.md`](bpfk.md)). The word stage reads the approved word forms of the definition effort ([`../words/bpfk.md`](../words/bpfk.md)). camxes-exp, the experimental PEG grammar, reads the same word forms with a few changes, such as the consonant pair `mz`, which [`../words/experimental.md`](../words/experimental.md) makes. A lexicon gives the experimental cmavo their selma'o. The feature `su-boundary` is on, so that `su` erases back to the last `ni'o`, `no'i`, `lu`, `tu'e` or `to`, as camxes-exp's does. The indicator stage is the cll-ebnf dialect's ([`cll-ebnf.md`](cll-ebnf.md)) with a layer that reads indicators as camxes-exp does.
+The phoneme stage is the phoneme stage of the approved-word-forms dialect ([`bpfk.md`](bpfk.md)). The forms stage reads the approved word forms of the definition effort ([`../words/bpfk.md`](../words/bpfk.md)). camxes-exp, the experimental PEG grammar, reads the same word forms with a few changes, such as the consonant pair `mz`, which [`../words/experimental.md`](../words/experimental.md) makes. A lexicon gives the experimental cmavo their selma'o. The feature `su-boundary` is on, so that `su` erases back to the last `ni'o`, `no'i`, `lu`, `tu'e` or `to`, as camxes-exp's does. The indicator stage is the cll-ebnf dialect's ([`cll-ebnf.md`](cll-ebnf.md)) with a layer that reads indicators as camxes-exp does.
 
 The dialect turns on two features of the syntax, as camxes-exp always has them. `cbm` is the cmevla-brivla merger. `soi-clause` makes `soi` a term that takes a subsentence, in place of CLL's free modifier of reciprocity. A caller can turn either off to read the CLL form.
 
@@ -109,7 +109,7 @@ camxes-exp is the baseline of this dialect, not its limit. gencmu considers ever
 
 The dialect also accepts one construct by choice, which camxes-exp rejects. In a sentence's own terms, camxes-exp requires a stag between a connective and `bo` (`abs_term_2`). This grammar does not, so `fa mi .e bo fe do klama` parses here, as it did before the grammar took camxes-exp's two levels of terms.
 
-When the grammar took those two levels, the feature `term-hierarchy` was removed, and one reading changed with no feature to restore it. `fa mi .e bo fe do .a fi mi klama` was two terms, `fa mi .e bo fe` and `do .a fi mi`, and it is now one connected term under the new term levels.
+In `fa mi .e bo fe do .a fi mi klama`, one connected term precedes `klama`. Within that term, `bo` binds tighter than `.a`.
 
 The dialect also reads `sa` by a different rule. The word stage erases with `sa` left to right, as the Magic Words proposal says ([`../words/stream.md`](../words/stream.md)). A `sa` erases back to the last word of the selma'o of the word after it, or to the start of the text. camxes-exp tries to do the same inside its syntax grammar, with one `_sa` rule for each kind of construct, and it reads some texts differently:
 

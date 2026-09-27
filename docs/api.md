@@ -20,11 +20,13 @@ A dialect that cannot be loaded, because a document is missing, does not parse a
 | --- | --- | --- |
 | features | none | feature names to turn on for every stage, besides those the pipeline's `%features` turns on |
 | without features | none | feature names to turn off for every stage, among them any that the pipeline's `%features` turns on; a name in both lists is a usage error |
-| auto features | on | add `sa-su` only where the text needs it (design, "Expensive constructs behind features"), unless `without features` names it; ignored for a dialect with no stage named `words` |
+| auto features | on | add `sa-su` only where the text needs it (design, "Expensive constructs behind features"). It does nothing when `without features` names `sa-su` or `sa-su` is already on. It also does nothing when the dialect has no gate `sa-su`, or when the run does not reach a stage named `words` (engine §13). |
 | until | the last stage | the name of the last stage to run; an unknown name is an error |
 | elision-only | the grammar's own | on or off for every stage that runs, overriding `%ambiguity-resolution ... elision-only` |
 
 A text that does not parse is not an error but a result whose `ok` is false and whose `error` says why (`rejected`, `ambiguous`, or `grammar` for a defect found only while parsing, such as a nested parse asked about its own span). Parsing is synchronous, and a loaded dialect may be used for any number of parses. In Python, Go and Rust one dialect may be shared by any number of threads parsing at once; JavaScript has one thread, and the playground's worker has its own dialects.
+
+Some entry points exist for tests and tools. They are outside the common API, and each language spells them its own way. Each library can feed pre-built tokens to the first stage in place of the characters of a text. This is the `tokens` option in JavaScript, `Dialect.parse_tokens(tokens, text, ...)` in Python, `(*Dialect).ParseTokens(text, tokens, options)` in Go, and `Dialect::parse_tokens(tokens, options)` in Rust. The Python loaders also take `use_cache=False`, which reads every document through the notation.
 
 **The dialect's features.** A loaded dialect lists its features (engine §13), each with its name, its kind, `gate` or `warning`, and whether the pipeline turns it on by default, in code point order of the names. The CLI and the playground use the list to offer the features by name.
 
@@ -43,9 +45,12 @@ import { loadDialect, loadDialectFile } from "gencmu/node";
 import { loadDialectSources, toJson, toBrackets } from "gencmu";
 
 const dialect = loadDialect("cll-ebnf");
-const result = dialect.parse("mi klama", { features: ["cbm"], until: "words" });
+const result = dialect.parse("mi klama", { features: ["y-cmavo"], until: "words" });
 result.ok; result.tree; result.error; result.warnings;
-dialect.features; // [{ name: "sa-su", kind: "gate", default: false }]
+dialect.features; // [{ name: "cll-cyrillic", kind: "gate", default: true },
+                  //  { name: "sa-su", kind: "gate", default: false },
+                  //  { name: "su-boundary", kind: "gate", default: false },
+                  //  { name: "y-cmavo", kind: "warning", default: false }]
 toJson(result); toBrackets(result, { showElided: true });
 ```
 
@@ -64,9 +69,12 @@ The types are in the package's declarations (`lib/js/types/`).
 import gencmu
 
 dialect = gencmu.load_dialect("cll-ebnf")
-result = dialect.parse("mi klama", features={"cbm"}, until="words")
+result = dialect.parse("mi klama", features={"y-cmavo"}, until="words")
 result.ok, result.tree, result.error, result.warnings
-dialect.features  # (Feature(name="sa-su", kind="gate", default=False),)
+dialect.features  # (Feature(name="cll-cyrillic", kind="gate", default=True),
+                  #  Feature(name="sa-su", kind="gate", default=False),
+                  #  Feature(name="su-boundary", kind="gate", default=False),
+                  #  Feature(name="y-cmavo", kind="warning", default=False))
 gencmu.to_json(result)
 gencmu.to_brackets(result, show_elided=True)
 ```
@@ -86,9 +94,12 @@ Python 3.10 and later; the package is pure Python with no dependencies.
 import gencmu "github.com/int19h/gencmu/lib/go"
 
 dialect, err := gencmu.LoadDialect("cll-ebnf")
-result, err := dialect.Parse("mi klama", gencmu.ParseOptions{Features: []string{"cbm"}, Until: "words"})
+result, err := dialect.Parse("mi klama", gencmu.ParseOptions{Features: []string{"y-cmavo"}, Until: "words"})
 result.OK; result.Tree; result.Error; result.Warnings
-dialect.Features() // []gencmu.Feature{{Name: "sa-su", Kind: "gate", Default: false}}
+dialect.Features() // []gencmu.Feature{{Name: "cll-cyrillic", Kind: "gate", Default: true},
+                   //   {Name: "sa-su", Kind: "gate", Default: false},
+                   //   {Name: "su-boundary", Kind: "gate", Default: false},
+                   //   {Name: "y-cmavo", Kind: "warning", Default: false}}
 data, err := gencmu.MarshalResult(result)
 gencmu.Brackets(result, gencmu.BracketOptions{ShowElided: true})
 ```
@@ -104,7 +115,7 @@ gencmu.Brackets(result, gencmu.BracketOptions{ShowElided: true})
 ```rust
 let dialect = gencmu::load_dialect("cll-ebnf")?;
 let result = dialect.parse("mi klama", &gencmu::ParseOptions {
-    features: vec!["cbm".into()],
+    features: vec!["y-cmavo".into()],
     until: Some("words".into()),
     ..Default::default()
 })?;

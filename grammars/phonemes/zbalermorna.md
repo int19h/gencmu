@@ -4,6 +4,8 @@ This document adds the zbalermorna script to the phoneme stage of the dialects o
 
 Each zbalermorna symbol is a radical, a consonant, with a diacritic above it for the vowel that follows; a vowel with no consonant before it stands on the radical for the period, which the script uses as a null onset, and a word-initial vowel is written on it likewise. The script has a full-vowel form used in names and borrowings, four diphthong diacritics, a stress mark placed after the vowel, an "attitudinal shorthand" that stands for a vowel and the apostrophe after it, and glide radicals for `i` and `u` before a vowel. The code points are those of the font's private-use block; each is written here as an escape so that the rule can be read without the font.
 
+The first rules below read the consonant radicals. U+ED89 is the radical for the period, and U+ED8A is the apostrophe. U+ED9A is the comma. U+ED8C, U+ED99 and U+ED9B are marks that jbotci, another Lojban parser, reads as nothing. This document reads them as a comma.
+
 ```jbogenbau
 %extend-rule consonant
   | "\u{ED80}" </p/>

@@ -25,6 +25,7 @@ Or open `index.html` in a browser, from the clone or from GitHub Pages: the play
 | `bpfk` | CLL with the word forms the definition effort approved, elided terminators read as its PEG grammars read them |
 | `experimental` | CLL with the experimental constructs in use since |
 | `zantufa` | Guskant's Zantufa 1.9999, translated rule by rule |
+| `notation` | jbogenbau, gencmu's grammar notation, in which gencmu reads its own grammar documents |
 
 Each is a document under [`grammars/dialects/`](grammars/dialects), which includes the grammar documents of its stages and links to each. `node lib/js/cli.js stitch --dialect NAME` prints a dialect as one jbogenbau text.
 

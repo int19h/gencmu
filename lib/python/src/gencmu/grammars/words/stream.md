@@ -84,8 +84,6 @@ A `si` with nothing before it erases nothing (CLL 19.13 says what `si` erases, n
   | @sa-su? wiped [si-gap] stray-run
   | @sa-su? sa-run [si-gap] si-run
   | @sa-su? wiped-reach gap sa-run [si-gap] si-run
-%emits
-  ε
 
 %rule stray-run
   si-run | bu-word [si-gap] si-run
@@ -150,7 +148,7 @@ A word is a cmavo, a brivla or a cmevla, as the forms stage read it. It is emitt
 
 Every rule that reads a cmavo as a Lojban word reads it as `cmavo-token`, so that a dialect can add to what that means. The CLL dialect warns there for a cmavo that uses `y` as a vowel beyond the forms CLL gives ([cll-stream.md](cll-stream.md)).
 
-The rules below know a magic word by the selma'o the lexicon gives it, not by its spelling. A cmavo's stress is free (CLL 3.9), and the lexicon reads a stressed vowel as the plain one. So `zO` quotes as `zo` does. Also, the dialect's lexicon decides which words are magic. So `ma'oi` and `zo'oi`, which CLL does not have, are quote words only where the experimental lexicon gives them their classes.
+The rules below know a magic word by the selma'o the lexicon gives it, not by its spelling. A cmavo's stress is free (CLL 3.9), and the lexicon reads a stressed vowel as the plain one. So `zO` quotes as `zo` does. Also, the dialect's lexicon decides which words are magic. So `ma'oi` and `zo'oi`, which CLL does not have, are quote words only where the dialect's lexicon gives them their classes. The experimental lexicon does so for both, and the Zantufa lexicon for `ma'oi`.
 
 ```jbogenbau
 %rule magic-body
@@ -159,7 +157,7 @@ The rules below know a magic word by the selma'o the lexicon gives it, not by it
 
 ## Quotes
 
-CLL 19.10 to 19.13. A quote is decided at this stage because the words inside it are not read as words. For example, `zo si` quotes `si`, and a `zoi` body is not Lojban at all. Each quote hands the syntax stage its marker and its contents. The marker carries the selma'o the lexicon gives it and nothing else. So a marker which is also an attitudinal in a lexicon is never taken for an indicator. `zo'oi` is such a marker in the experimental lexicon. The contents are bare words or one stretch of `foreign-text`, which is what the syntax grammar's `any-word` and `anything` read.
+CLL 19.10 to 19.13. A quote is decided at this stage because the words inside it are not read as words. For example, `zo si` quotes `si`, and a `zoi` body is not Lojban at all. Each quote hands the syntax stage its marker and its contents. The marker carries the tags `word` and `cmavo` and the selma'o the lexicon gives it, but not the tag `indicator`. So a marker which is also an attitudinal in a lexicon is never taken for an indicator. The contents are bare words or one stretch of `foreign-text`, which is what the syntax grammar's `any-word` and `anything` read.
 
 ```jbogenbau
 %rule quote
@@ -458,7 +456,9 @@ CLL 19.13: `si` erases the word before it. As in the Magic Words proposal, a com
 
 These two erasers are behind the feature `sa-su`. They are the most expensive part of the word grammar. A `sa` may reach back to any earlier word, so the parser keeps a possible reach open from the most recent word of each selma'o, not knowing whether a `sa` will come. That multiplies the work for each word by the number of selma'o in use. They are also rare in written text. Without the feature, `sa` and `su` are ordinary cmavo of SA and SU, which the syntax grammars do not accept, so a text that uses them is rejected at the word where they stand rather than misread.
 
-CLL 19.13: `sa` erases back to the most recent word of the same selma'o as the word after it, that word included, and leaves the word after it standing; `su` "erases the entire text". The Magic Words proposal and camxes-std stop `su` sooner, at the most recent `ni'o`, `no'i`, `lu`, `tu'e` or `to`, which survives, as step 2g of the YACC preamble also does. The feature `su-boundary` gives that reading: the approved word forms, experimental and Zantufa dialects turn it on, and the CLL dialect leaves it off, so that there `su` erases the whole text before it. Both are resolved here, in the same left-to-right pass as the quotes, the compounds and `si`, because they act in that order: in `mi le brodi sa le si la brodo` the `sa` takes `le brodi` before the `si` erases the `le` that follows it, and `mi brodi .i sa mi zei co mi` compounds `mi zei co` only after the `sa` has taken `mi brodi .i`.
+CLL 19.13: `sa` erases back to the most recent word of the same selma'o as the word after it, that word included, and leaves the word after it standing; `su` "erases the entire text". The Magic Words proposal and camxes-std stop `su` sooner, at the most recent `ni'o`, `no'i`, `lu`, `tu'e` or `to`, which survives. The YACC grammar in CLL chapter 21 opens with the steps that a parser takes before the grammar. Its step 2g also stops `su` at `ni'o`, `no'i`, `lu`, `tu'e` or `to`, but it erases that word too.
+
+The feature `su-boundary` gives the reading of the proposal. The approved word forms and experimental dialects turn it on. The CLL and Zantufa dialects leave it off, so there `su` erases the whole text before it. Both are resolved here, in the same left-to-right pass as the quotes, the compounds and `si`, because they act in that order: in `mi le brodi sa le si la brodo` the `sa` takes `le brodi` before the `si` erases the `le` that follows it, and `mi brodi .i sa mi zei co mi` compounds `mi zei co` only after the `sa` has taken `mi brodi .i`.
 
 The reach of a `sa` is stated from its far end. `sa-open` is an element, which has some selma'o, and the elements after it. None of those elements has a class of the first one's, so the `sa` that follows finds the nearest match. It is left-recursive and checks the class at every step, so that a reach dies at the first element that would match. That keeps the chart linear in the length of the text. A reach stated as an element followed by a whole stream does not keep it linear. This is because a stream may start anywhere and cannot know which class it is keeping clear of. The match is by selma'o: the first element's classes and the classes of the word after `sa` must share one. Hesitation may stand between a `sa` and the word after it, as between a word and its `si`. What the `sa` leaves is the word after it: a word, a quote, or the letter word `.y. bu`, which the proposal forms before anything else. It is never another compound, since the `sa` acts before a `bu` or `zei` after that word does. The compound is then built on what the `sa` left. The erasure carries the classes of that word, so that a later `sa` may match it in turn. It also carries whether that word began its run, for a `bu` after it. Several `sa` in a row reach back to successively further matches, "one for each SA", as the Magic Words proposal says. So two `sa` erase back to the second-nearest match, three to the third, and so on. The erased text is then as many reaches as there are `sa`, each beginning at a match. The reaches are followed by the `sa` themselves, which `sa-nest` pairs from the inside out. It pairs the innermost reach with the first `sa`, and the next reach back with the second.
 
@@ -580,8 +580,6 @@ What an unmatched `su` erases is a wiped stretch, which the text rule accepts be
 
 %rule wiped-prefix
   $w(wiped) <tags($w)>
-%emits
-  ε
 
 %rule wiped-item
   | su-word <∅>

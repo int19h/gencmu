@@ -116,7 +116,7 @@ A replacement quote is one unit, as in Zantufa's `si_word`. It is up to two runs
   $
 ```
 
-Zantufa reads `y` and `ie'o` as space only after a pause or at the start of the text, since its `spaces` begins with `!Y`. A hesitation attached to the word before it, with no pause between them, is a word of class Y there. So `zoie'o mi` quotes `ie'o` and leaves `mi`, while `zo ie'o mi` quotes `mi`. Such a word has no place in the syntax except in a quote, so `coyysi` is rejected, as Zantufa rejects it. Before `bu`, hesitation stays the base of a letter word.
+Zantufa reads `y` and `ie'o` as space only after a pause or at the start of the text, since its `spaces` begins with `!Y`. A hesitation attached to the word before it, with no pause between them, is a word of class Y there. So `zoie'o mi` quotes `ie'o` and leaves `mi`, while `zo ie'o mi` quotes `mi`. Such a word has no place in the syntax except in a quote, so `mi cuyy klama` is rejected, as Zantufa rejects it. Before `bu`, hesitation stays the base of a letter word.
 
 ```jbogenbau
 %redefine-rule hesitation
