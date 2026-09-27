@@ -53,6 +53,7 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
   lowercase(phonemes($open)) = lowercase(phonemes($close)),
   phonemes($open) ∉ runs($content),
   lowercase(phonemes($open)) ∉ runs($content),
+  "run-final" ∉ tags(head($content)) ∨ lowercase(phonemes(head($content))) ≠ lowercase(phonemes($open)),
   "run-final" ∈ tags($close)
 %emits
   $m, $open <"word">, $content <"foreign-text">, $close <"word">
@@ -200,6 +201,16 @@ A magic word is never a plain word. The stream's list of them lacks MUhOI, LOhAI
 %conditions
   "opener-space" ∈ tags($h),
   ¬begins(after($h), bu-next)
+```
+
+The forms stage hands on the form after `ra'oi` as a `rafsi-form` token, even where that `ra'oi` opens no quote. So a `zoi` body, a `zoi` delimiter and the text after `fa'o` take that token as they take any other word. `fa'o ra'oi broda` is `fa'o` and what it ignores, and `zoi broda ra'oi broda` quotes `ra'oi`, as in Zantufa.
+
+```jbogenbau
+%extend-rule payload-token
+  "rafsi-form"
+
+%extend-rule delimiter
+  "rafsi-form"
 ```
 
 A quote word that opens no quote is an ordinary word in Zantufa, which `si` erases. Zantufa's `si_word` tries the quotes first, and then reads any cmavo but `bu`, a word of SI or SU, and `fa'o`. So `zoi si broda` is `broda`, and `lo'u si` is nothing. Such a marker is a unit only before its `si`, and only where no quote begins at it, since Zantufa tries the quote first. `zo` and the words of GOhOI always quote the next word, so they are never bare.

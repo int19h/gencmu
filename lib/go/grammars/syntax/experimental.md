@@ -8,7 +8,7 @@ The layer restates each CLL rule that it changes with `%redefine-rule`. It state
 
 The notation is explained in [the notation document](../../docs/notation.md). The terminals are selma'o, and `any-word` and `anything` are the tags `word` and `foreign-text` that the word stage puts on the material of a quote. The layer uses two feature guards. `cbm` is the cmevla-brivla merger. `soi-clause` makes `soi` a term that takes a subsentence, where CLL has a free modifier of reciprocity. The experimental dialect turns both on, as camxes-exp always has them, and a caller can turn either off.
 
-Unlike the CLL grammar, this layer writes the free-modifier slot after an elidable terminator outside its brackets: `[X] #` where CLL has `[X #]`. So free modifiers can follow an elided terminator. Many rules below are restated for that alone. A number or lerfu string is kept maximal by `free-after-elided-boi`, which excludes a following free modifier that itself starts with a number or lerfu string.
+Unlike the CLL grammar, this layer writes the free-modifier slot after an elidable terminator outside its brackets: `[X] #` where CLL has `[X #]`. So free modifiers can follow an elided terminator. Many rules below are restated for that alone. A number or lerfu string is kept maximal by `free-after-number` and `free-after-lerfu-string`. After an elided `boi`, they exclude a first free modifier that starts with a word the number or string can read.
 
 Two directives set the layer up. `%ambiguity-resolution greedy` says how the stage chooses among parses. At the first difference between two parses, it takes the one that reads the next word. So an elided terminator is absent for as long as the grammar allows, as in the CLL dialect. The layer does not declare `elision-only`, because it has real ambiguities that are not about terminators. The greedy rule settles them:
 
@@ -76,7 +76,7 @@ CLL's `na` fragment is gone. A bare `na` is a term (see "Terms"), so `na` and `n
 
 A bridi-tail can have terms before its selbri, as in camxes-exp. camxes-exp names this part of its grammar JACU, after a proposal for a simpler system of connectives. The terms and `cu` before a selbri are a `bridi-tail-head`. In a head, runs of terms and single `cu` words alternate: `mi cu do klama`, `cu mi klama`. A head can stand before the first bridi-tail of a sentence, and after each connective between bridi-tails. Examples are `mi klama je do tavla` and `mi klama gi'e cu do tavla`.
 
-A head does not end in a tag whose `ku` is elided. camxes-exp does not read a tag as a term where a selbri follows it (its `!selbri`). So `mi pu klama` has the tense `pu` on its selbri, and so does `mi pu sei do klama se'u klama`. `head-ending-in-bare-tag` states the form that a head cannot have.
+A term in a head is a term of a list. There a tag or a bare `na` is not a term where a selbri follows it ("Terms" below). So `mi pu klama` has the tense `pu` on its selbri, and so does `mi pu sei do klama se'u klama`. And `mi na klama` negates its selbri.
 
 The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or VUhU (`bridi-tail-connective`). Each of them can also open a `bo` or `ke` grouping of bridi-tails. So can a bare `gi` with a stag, as in `mi klama gi ba bo tavla`. After a plain connective, a bridi-tail without a head does not begin with `ke`. And a head there is not a bare stag, such as a tense whose `ku` is elided. Without these limits, `gi'e ke` and `gi'e ba ke` would each open two constructs. camxes-exp states the same limits as a lookahead after its gihek.
 
@@ -93,22 +93,10 @@ The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or
   | CU # [terms [(CU # terms) ...] [CU #]]
 
 %rule headed-bridi-tail
-  | $h(bridi-tail-head) bridi-tail
-  | bridi-tail
-%conditions
-  ¬matches($h, head-ending-in-bare-tag)
+  [bridi-tail-head] bridi-tail
 
 %rule headed-bridi-tail-2
-  | $h(bridi-tail-head) bridi-tail-2
-  | bridi-tail-2
-%conditions
-  ¬matches($h, head-ending-in-bare-tag)
-
-%rule head-ending-in-bare-tag
-  [bridi-tail-head] [(term-3 bare-tag-joiner) ...] tag #
-
-%rule bare-tag-joiner
-  term-connective | term-connective [stag] BO # | CEhE # | PEhE # statement-connective
+  [bridi-tail-head] bridi-tail-2
 
 %redefine-rule bridi-tail
   bridi-tail-1 [(bridi-tail-connective [stag] | GI stag) KE # headed-bridi-tail [KEhE] # tail-terms]
@@ -120,8 +108,7 @@ The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or
   | $h(bridi-tail-head) bridi-tail-2
   | bridi-tail-2-not-starting-with-ke
 %conditions
-  ¬matches($h, stag),
-  ¬matches($h, head-ending-in-bare-tag)
+  ¬matches($h, stag)
 
 %redefine-rule bridi-tail-2
   bridi-tail-3 [(bridi-tail-connective [stag] | GI stag) BO # headed-bridi-tail-2 tail-terms]
@@ -149,6 +136,10 @@ The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or
 
 Terms are joined at two levels, as camxes-exp's `term_1` and `term_2` join them. A connective, an optional stag and `bo` join terms of any kind into a group, `term-bo-group`, and a plain connective joins such groups (`term-link`). So `bo` binds tighter than a plain connective: `broda be na ku .e bo na ku .a na ku` is `(na ku .e bo na ku) .a na ku`. The connectives are a joik, jek, ek or VUhU (`term-connective`), so `mi joi do klama` has one term before its selbri. camxes-exp's joik takes the words of JOI, JA and A, and so these four sets are its `joik_ek` and `joik_jek`.
 
+camxes-exp reads a term in one of two ways, and so does this layer. A term in a list of terms (`listed-term`) stands in a sentence's head or tail terms, a prenex, a fragment or a `nu'i` termset. A tag there is not a term where a selbri or a gek-sentence follows it and its free modifiers (camxes-exp's `abs_tag_term`). A bare `na` there is not a term where a selbri, a gek-sentence or a connective begins at it. A term in a place that takes one term (`term`) follows `be`, `bei`, GOI, LAhE or NAhE.
+
+A term in a branch of a bare forethought termset (`gek-terms`) is such a term too. Neither has a `!selbri` or `!gek_sentence` lookahead, as camxes-exp's `tag_term` has none. So `mi pe na klama` has a bare `na` after `pe`.
+
 camxes-exp's two lookaheads apply after a plain connective. The next group does not begin with a stag and `bo` or `ke` before a selbri. Nor does it begin with a stag, `bo` and `.i`. So those forms stay connections of bridi-tails and of sentences.
 
 camxes-exp requires the stag before `bo` in a sentence's own terms (`abs_term_2`), and this grammar does not. So `fa mi .e bo fe do klama` parses here, as it did before this layer took the two levels, and camxes-exp rejects it. Where both terms are plain sumti, the sumti level reads the connection first, and the ranking keeps it: `mi .e bo do klama` joins two sumti.
@@ -157,11 +148,15 @@ camxes-exp requires the stag before `bo` in a sentence's own terms (`abs_term_2`
 
 A forethought termset needs no `nu'i`, and its two branches can hold different numbers of terms, as in CLL. So the same words can often be read as a gek sumti or as a termset, and camxes-exp reads the sumti first. The ranking does the same, because the first branch of a termset is a rule of its own, `termset-branch`. Its close comes where the sumti reads `gi`, and the greedy rule prefers the read. So `ge mi gi do ce'e ti` is the sumti `ge mi gi do` followed by `ce'e ti`. But `broda be ge mi gi do ce'e ti be'o` has a termset, since the single argument of `be` cannot continue with `ce'e ti`.
 
-The first term inside `nu'i ... nu'u` cannot itself be a bare forethought termset. If it could, it would repeat the `nu'i gek` form. The `-not-starting-with-bare-gek` chain states that restriction: it repeats the term rules with only the first term restricted.
+A termset with `nu'i` is read as `nu'i` with a forethought form wherever it can be, as camxes-exp tries that form first. So `nu'i ge mi gi do nu'u` is a termset of two branches, and not `nu'i` around the sumti `ge mi gi do`. The first term inside `nu'i ... nu'u` cannot itself be a bare forethought termset. If it could, it would repeat the `nu'i gek` form. The `-not-starting-with-bare-gek` chain states that restriction: it repeats the term rules with only the first term restricted.
 
 ```jbogenbau
 %redefine-rule terms-1
   terms-2 [PEhE # statement-connective terms-2] ...
+
+%redefine-rule terms-2
+  (* terms_2 <- abs_term (cehe_sa* CEhE_clause free* abs_term)* *)
+  listed-term [CEhE # listed-term] ...
 
 %redefine-rule term
   (* term_1 <- term_2 (joik_ek !tag_bo_ke_bridi_tail !tag_bo_subsentence term_2)* *)
@@ -196,8 +191,8 @@ The first term inside `nu'i ... nu'u` cannot itself be a bare forethought termse
   | sumti
   | tagged-term
   | termset
-  | NA KU #
-  | $n(bare-na)
+  | NA # KU #
+  | bare-na
   | @soi-clause? soi-term
 
 %rule bare-na
@@ -213,14 +208,79 @@ The first term inside `nu'i ... nu'u` cannot itself be a bare forethought termse
   SOI # subsentence [SEhU] #
 
 %rule tagged-term
-  tag (sumti | [KU] #)
+  (* tag_term: !gek tag free* followed by a sumti or KU_elidible free* *)
+  $g(tag) (sumti | [KU] #)
+%conditions
+  ¬begins(from($g), gek)
+
+%rule listed-term
+  (* abs_term_1 <- abs_term_2 (joik_ek !tag_bo_ke_bridi_tail !tag_bo_subsentence abs_term_2)* *)
+  listed-term-bo-group [listed-term-link] ...
+
+%rule listed-term-bo-group
+  (* abs_term_2 <- abs_term_3 (joik_ek stag BO_clause abs_term_3)*, with the stag optional *)
+  listed-term-3 [listed-term-bo-link] ...
+
+%rule listed-term-bo-link
+  term-connective [stag] BO # listed-term-3
+
+%rule listed-term-link
+  $c(term-connective) listed-term-bo-group
+%conditions
+  ¬begins(after($c), tag-bo-ke-bridi-tail),
+  ¬begins(after($c), tag-bo-subsentence)
+
+%rule listed-term-3
+  (* abs_term_3 <- sumti / abs_tag_term / termset *)
+  | sumti
+  | listed-tagged-term
+  | termset
+  | NA # KU #
+  | listed-bare-na
+  | @soi-clause? soi-term
+
+%rule listed-tagged-term
+  (* abs_tag_term: !gek tag free* !selbri !gek_sentence, then a sumti or an elided KU *)
+  $g(tag) (sumti | [KU] #)
+%conditions
+  ¬begins(from($g), gek),
+  ¬begins(after($g), selbri-after-tag)
+
+%rule selbri-after-tag
+  # (selbri | gek-sentence)
+
+%rule listed-bare-na
+  (* !selbri !gek_sentence !ek !joik_jek !gihek NA_clause free* KU_elidible free* *)
+  $n(NA) #
+%conditions
+  ¬begins(from($n), listed-na-follower)
+
+%rule listed-na-follower
+  selbri | gek-sentence | ek | jek | joik | gihek
 
 %redefine-rule termset
-  | [NUhI #] gek termset-branch gik terms [NUhU] #
-  | NUhI # terms-not-starting-with-bare-gek [NUhU] #
+  (* termset <- gek_termset / NUhI_clause free* gek terms NUhU_elidible free* gik terms NUhU_elidible free* / NUhI_clause free* terms NUhU_elidible free* *)
+  | gek termset-branch gik gek-terms [NUhU] #
+  | NUhI # gek terms [NUhU] # gik terms [NUhU] #
+  | NUhI # $t(terms-not-starting-with-bare-gek) [NUhU] #
+%conditions
+  ¬matches($t, gek-termset-body)
+
+%rule gek-termset-body
+  (* NUhI_clause free* gek terms NUhU_elidible free* gik terms: tried before NUhI_clause free* terms *)
+  gek terms [NUhU] # gik terms
 
 %rule termset-branch
-  terms [NUhU] #
+  gek-terms [NUhU] #
+
+%rule gek-terms
+  gek-terms-1 ...
+
+%rule gek-terms-1
+  gek-terms-2 [PEhE # statement-connective gek-terms-2] ...
+
+%rule gek-terms-2
+  term [CEhE # term] ...
 
 %rule terms-not-starting-with-bare-gek
   terms-1-not-starting-with-bare-gek [terms-1] ...
@@ -229,25 +289,27 @@ The first term inside `nu'i ... nu'u` cannot itself be a bare forethought termse
   terms-2-not-starting-with-bare-gek [PEhE # statement-connective terms-2] ...
 
 %rule terms-2-not-starting-with-bare-gek
-  term-not-starting-with-bare-gek [CEhE # term] ...
+  listed-term-not-starting-with-bare-gek [CEhE # listed-term] ...
 
-%rule term-not-starting-with-bare-gek
-  term-bo-group-not-starting-with-bare-gek [term-link] ...
+%rule listed-term-not-starting-with-bare-gek
+  listed-term-bo-group-not-starting-with-bare-gek [listed-term-link] ...
 
-%rule term-bo-group-not-starting-with-bare-gek
-  term-3-not-starting-with-bare-gek [term-bo-link] ...
+%rule listed-term-bo-group-not-starting-with-bare-gek
+  listed-term-3-not-starting-with-bare-gek [listed-term-bo-link] ...
 
-%rule term-3-not-starting-with-bare-gek
+%rule listed-term-3-not-starting-with-bare-gek
   | sumti
-  | tagged-term
+  | listed-tagged-term
   | termset-with-nuhi
-  | NA KU #
-  | bare-na
+  | NA # KU #
+  | listed-bare-na
   | @soi-clause? soi-term
 
 %rule termset-with-nuhi
   | NUhI # gek terms [NUhU] # gik terms [NUhU] #
-  | NUhI # terms-not-starting-with-bare-gek [NUhU] #
+  | NUhI # $t(terms-not-starting-with-bare-gek) [NUhU] #
+%conditions
+  ¬matches($t, gek-termset-body)
 ```
 
 ## Sumti
@@ -285,8 +347,8 @@ A `na'e` alone does not take a tagged term, since `na'e pu` is then a tag. The i
   | (LAhE # | NAhE BO #) $t(term) [LUhU] #
   | NAhE # $u(term) [LUhU] #
   | KOhA #
-  | lerfu-string free-after-elided-boi
-  | @¬cbm? LA # [relative-clauses] CMEVLA ... #
+  | lerfu-string free-after-lerfu-string
+  | @¬cbm? name-marker # [relative-clauses] CMEVLA ... #
   | (LA | LE) # sumti-tail [KU] #
   | LOhOI # subsentence [KUhAU] #
   | LI # mex [LOhO] #
@@ -437,7 +499,7 @@ camxes-exp replaces CLL's mekso with its own, and the layer follows it (camxes-e
 - A quantifier is a whole mekso, `pa su'i re broda`. It cannot begin with a lerfu word, `la'e` or `na'e`, since there camxes-exp reads a sumti (its `!sumti_6`). camxes-exp also refuses a quantifier where a selbri begins (`!selbri`). The greedy choice among parses already reads `pa re moi broda` as the selbri `pa re moi broda`. So the layer needs no rule for that.
 - `me` takes a mekso as well as a sumti, a whole mekso takes `moi`, and `nu'a` takes a whole operator. After `me`, a lerfu string is a sumti and not a mekso, since camxes-exp tries the sumti first (`me my`). The layer settles that tie as camxes-exp does. It does not copy the rejections of camxes-exp's PEG, which keeps a sumti once one matches: `me my su'i pa` is the mekso `my su'i pa`, although camxes-exp rejects the text.
 
-After an elided `boi`, a number or lerfu string is followed by `free-after-elided-boi`, defined under "Free modifiers", and not by a plain `#`.
+A number is followed by `free-after-number`, and a lerfu string by `free-after-lerfu-string`, defined under "Free modifiers", and not by a plain `#`.
 
 ```jbogenbau
 %redefine-rule quantifier
@@ -455,8 +517,8 @@ After an elided `boi`, a number or lerfu string is followed by `free-after-elide
   mex-2 [operator [stag] BO # mex-1]
 
 %redefine-rule mex-2
-  | number free-after-elided-boi
-  | lerfu-string free-after-elided-boi
+  | number free-after-number
+  | lerfu-string free-after-lerfu-string
   | VEI # mex [VEhO] #
   | gek mex gik mex-2
   | (LAhE # | NAhE # [BO #]) mex [LUhU] #
@@ -553,7 +615,11 @@ Tags are connected by a joik, jek, ek or VUhU. A stag is a tag, as in camxes-exp
 
 ## Free modifiers, vocatives and indicators
 
-The text replacement forms of camxes-exp are free modifiers. Each has up to two runs of words, each opened by a word of LOhAI (`lo'ai` or `sa'ai`), and then `le'ai`. `soi` is a free modifier here only without `soi-clause`, as CLL has it. camxes-exp makes it a term. Under `cbm` the `vocative CMEVLA ...` form is removed, since a cmevla is then a selbri word. If both forms stood, their two readings would tie. `free-after-elided-boi` is what follows a number or lerfu string whose `boi` is elided. It is either the spoken `boi` with its slot, or free modifiers that do not begin with a number or lerfu string. So `pa so mo'o` is the number `pa so`, and not `pa` followed by the ordinal `so mo'o`. `free-not-starting-with-number` is `free` without the MAI form.
+The text replacement forms of camxes-exp are free modifiers. Each has up to two runs of words, each opened by a word of LOhAI (`lo'ai` or `sa'ai`), and then `le'ai`. `soi` is a free modifier here only without `soi-clause`, as CLL has it. camxes-exp makes it a term. Under `cbm` the `vocative CMEVLA ...` form is removed, since a cmevla is then a selbri word. If both forms stood, their two readings would tie.
+
+`free-after-number` and `free-after-lerfu-string` follow a number or a lerfu string. Each is an optional `boi` and the free-modifier slot. Where the `boi` is elided, the first free modifier does not begin with a word that the number or the string can read. After a number, that is a number part. After a lerfu string, it is a letter. camxes-exp's `number` and `lerfu_string` read as far as they can.
+
+So `pa so mo'o` is the number `pa so`, and not `pa` followed by the ordinal `so mo'o`. But `li pa by mai lo'o` has the free modifier `by mai`. The elided `boi` is an elided node of the tree, as in CLL.
 
 ```jbogenbau
 %redefine-rule free
@@ -568,25 +634,31 @@ The text replacement forms of camxes-exp are free modifiers. Each has up to two 
   | LEhAI
   | @¬soi-clause? SOI # sumti [sumti] [SEhU]
 
-%rule free-after-elided-boi
-  BOI # | [free-not-starting-with-number ...]
+%rule name-marker
+  $l(LE)
+%conditions
+  lowercase(phonemes($l)) = "la" ∨ lowercase(phonemes($l)) = "lai" ∨ lowercase(phonemes($l)) = "la'i"
+
+%rule free-after-number
+  (* number BOI_elidible free*: after an elided boi, the number has read every number part *)
+  [BOI] $f(#)
+%conditions
+  begins($, spoken-boi) ∨ ¬begins($f, number-part)
+
+%rule free-after-lerfu-string
+  (* lerfu_string BOI_elidible free*: after an elided boi, the string has read every letter *)
+  [BOI] $f(#)
+%conditions
+  begins($, spoken-boi) ∨ ¬begins($f, lerfu-word)
+
+%rule spoken-boi
+  BOI
 
 %rule lohai-word
   $w("word")
 %conditions
   "LOhAI" ∉ tags($w),
   "LEhAI" ∉ tags($w)
-
-%rule free-not-starting-with-number
-  | SEI # [terms [CU #]] selbri [SEhU]
-  | vocative [relative-clauses] selbri [relative-clauses] [DOhU]
-  | @¬cbm? vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
-  | vocative [sumti] [DOhU]
-  | TO text [TOI]
-  | XI # mex-2
-  | LOhAI [lohai-word ...] [LOhAI [lohai-word ...]] LEhAI
-  | LEhAI
-  | @¬soi-clause? SOI # sumti [sumti] [SEhU]
 ```
 
 ## Choosing among parses
