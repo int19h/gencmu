@@ -16,7 +16,7 @@ import (
 // are exactly those whose visible sequences are prefixes of one another,
 // since the order of those depends on what follows. With each candidate it
 // keeps the derivations tied with it that diverge from it earliest (engine
-// §6, "Computing it"): all at one divergence, again only those that are
+// §6, on computing m and t): all at one divergence, again only those that are
 // visible prefixes of one another.
 
 const (
