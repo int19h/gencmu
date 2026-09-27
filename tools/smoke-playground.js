@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // Opens the playground in a headless browser and checks that it works: its
 // parser worker starts, parses a sentence under the CLL dialect into the
-// expected brackets, and explains a text it rejects. With no URL the page is
+// expected brackets, and explains a text it rejects; that "gencmu" in its
+// heading links to the repository; and that it never shows an out-of-date
+// answer as current. With no URL the page is
 // opened from file://, as someone who cloned the repository would; given a
 // URL, that URL is checked instead, which is how a GitHub Pages deployment is
 // tested.

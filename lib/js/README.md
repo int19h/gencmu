@@ -34,12 +34,12 @@ CI fails if `types/` is not what `npm run types` writes.
 
 ## The playground's smoke test
 
-`tools/smoke-playground.js` opens the playground in headless Chromium or Firefox and checks that it parses, explains a rejection and never shows an out-of-date answer. It drives the browser with Playwright, the package's other development dependency, which nothing needs to run, test or use the library or the playground.
+`tools/smoke-playground.js` opens the playground in headless Chromium or Firefox and checks that it parses, explains a rejection and never shows an out-of-date answer. It drives the browser with Playwright, also a development dependency, which nothing needs to run, test or use the library or the playground.
 
 ```sh
 npm ci                                      # installs Playwright
 npx playwright install chromium firefox     # its browsers, once
 node ../../tools/smoke-playground.js                     # index.html from file:// in Chromium
 node ../../tools/smoke-playground.js --browser firefox   # in Firefox
-node ../../tools/smoke-playground.js URL                  # a deployment, such as GitHub Pages
+node ../../tools/smoke-playground.js URL                 # a deployment, such as GitHub Pages
 ```
