@@ -569,7 +569,7 @@ func TestEmptyStringTerminal(t *testing.T) {
 				t.Fatal(err)
 			}
 			sources["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(sources["g.md"]) + `","dom":` + string(dom.json()) + `}}}`
-			if _, err := decodeDOM(dom.json()); err != nil {
+			if _, err := decodeDOM(dom.json(), bundled.uni); err != nil {
 				t.Fatalf("the reader's DOM is refused: %v", err)
 			}
 		}

@@ -6,7 +6,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 7
+const domFormat = 8
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
@@ -50,15 +50,16 @@ const (
 	exRef      = "ref"
 	exTerminal = "terminal"
 	exCapture  = "capture"
+	exSpelling = "spelling"
 	exEmpty    = "empty"
 )
 
 type domExpr struct {
 	Kind  string
 	Items []*domExpr // seq, choice, and
-	Inner *domExpr   // optional, repeat, capture
+	Inner *domExpr   // optional, repeat, capture, spelling (its symbol)
 	Min   int        // repeat
-	Name  string     // ref, terminal, capture
+	Name  string     // ref, terminal, capture; spelling: the spelling
 }
 
 // Term kinds. A span is a term of kind tmCapture, "" for $, the whole
@@ -271,6 +272,12 @@ func (e *domExpr) writeJSON(w *jsonWriter) {
 		w.raw(`,"expr":`)
 		e.Inner.writeJSON(w)
 		w.raw("}")
+	case exSpelling:
+		w.raw(`{"spelling":`)
+		w.str(e.Name)
+		w.raw(`,"expr":`)
+		e.Inner.writeJSON(w)
+		w.raw("}")
 	case exEmpty:
 		w.raw(`{"empty":true}`)
 	}
@@ -411,7 +418,10 @@ func decodeObj(raw json.RawMessage) (jobj, error) {
 	return o, nil
 }
 
-func decodeDOM(raw json.RawMessage) (*domDoc, error) {
+// decodeDOM reads a DOM that did not come from reading its document and
+// validates it; uni is the lowercase mapping that its spellings are checked
+// against (engine §9).
+func decodeDOM(raw json.RawMessage, uni *unicodeTable) (*domDoc, error) {
 	o, err := decodeObj(raw)
 	if err != nil {
 		return nil, err
@@ -452,7 +462,7 @@ func decodeDOM(raw json.RawMessage) (*domDoc, error) {
 		}
 		d.Directives = append(d.Directives, &domDirective{Name: *dir.Name, Args: dir.Args, At: [2]int{dir.At[0], dir.At[1]}})
 	}
-	if err := validateDOM(d); err != nil {
+	if err := validateDOM(d, uni); err != nil {
 		return nil, err
 	}
 	return d, nil
@@ -603,6 +613,14 @@ func decodeExpr(raw json.RawMessage) (*domExpr, error) {
 		}
 		inner, err := decodeExpr(o["expr"])
 		return &domExpr{Kind: exCapture, Name: name, Inner: inner}, err
+	}
+	if v, ok := o["spelling"]; ok {
+		spelling, err := decodeString(v)
+		if err != nil {
+			return nil, err
+		}
+		inner, err := decodeExpr(o["expr"])
+		return &domExpr{Kind: exSpelling, Name: spelling, Inner: inner}, err
 	}
 	for _, k := range []string{exRef, exTerminal} {
 		if v, ok := o[k]; ok {

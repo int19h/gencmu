@@ -38,7 +38,7 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (*notationReader, er
 	for _, s := range b.Stages {
 		var docs []docDOM
 		for _, d := range s.Documents {
-			dom, err := decodeDOM(d.Dom)
+			dom, err := decodeDOM(d.Dom, uni)
 			if err != nil {
 				return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "cannot read the bootstrap's DOM of " + d.Path + ": " + err.Error()}
 			}
@@ -93,7 +93,7 @@ func (nr *notationReader) read(text, docPath string) (dom *domDoc, err *Error) {
 			toks = out.stage.Output
 		}
 	}
-	b := &domBuilder{toks: toks, gt: gt, doc: docPath}
+	b := &domBuilder{toks: toks, gt: gt, doc: docPath, uni: nr.uni}
 	defer func() {
 		if x := recover(); x != nil {
 			if e, ok := x.(*Error); ok {
@@ -106,7 +106,7 @@ func (nr *notationReader) read(text, docPath string) (dom *domDoc, err *Error) {
 	dom = b.document(out.tree)
 	// What the notation's grammar cannot state and the walk does not see:
 	// nesting deeper than 256 (§9), reported at the rule.
-	if p := checkDOM(dom); p != nil {
+	if p := checkDOM(dom, nr.uni); p != nil {
 		e := &Error{Kind: ErrorGrammar, Document: docPath, Message: p.message}
 		if p.rule != nil {
 			e.Line, e.Column = p.rule.At[0], p.rule.At[1]
@@ -122,13 +122,14 @@ type domBuilder struct {
 	toks     []Token
 	gt       *grammarText
 	doc      string
+	uni      *unicodeTable // the lowercase mapping spellings are checked against
 }
 
 // The rules the reader looks at by name; every other rule is transparent.
 var domRules = map[string]bool{
 	"directive": true, "rule": true, "definer": true, "alternative": true, "choice": true,
 	"conjunction": true, "sequence": true, "element": true, "reference": true,
-	"string": true, "phoneme": true, "capture": true, "group": true, "optional": true,
+	"string": true, "phoneme": true, "spelled": true, "capture": true, "group": true, "optional": true,
 	"empty": true, "tags-clause": true, "conditions-clause": true, "emits-clause": true,
 	"verbatim-clause": true, "emit-item": true, "emit-tags": true, "implication": true,
 	"any-of": true, "all-of": true, "comparison": true, "negation": true,
@@ -367,14 +368,34 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 		return &domExpr{Kind: exTerminal, Name: b.decode(n)}
 	case "phoneme":
 		return &domExpr{Kind: exTerminal, Name: b.text(n)}
+	case "spelled":
+		// A reference, a string or a phoneme tag and its spelling, which the
+		// syntax grammar gives nothing else; the spelling is the text between
+		// the backticks (engine §9).
+		ps := parts(n)
+		var symbol, token *Node
+		for _, p := range ps {
+			if p.Kind == KindRule {
+				symbol = p
+			} else {
+				token = p
+			}
+		}
+		inner := b.expr(symbol)
+		rs := []rune(b.text(token))
+		spelling := string(rs[1 : len(rs)-1])
+		if msg := spellingProblem(spelling, inner, b.uni); msg != "" {
+			b.fail(token, "%s", msg)
+		}
+		return &domExpr{Kind: exSpelling, Name: spelling, Inner: inner}
 	case "capture":
 		ps := parts(n)
 		inner := ruleParts(n)
 		if b.text(ps[0]) == "$" {
 			b.fail(ps[0], "$ is the whole constituent and wraps nothing")
 		}
-		if len(inner) != 1 || (inner[0].Rule != "reference" && inner[0].Rule != "string" && inner[0].Rule != "phoneme") {
-			b.fail(ps[0], "a capture wraps a single symbol: a name, a string or a phoneme tag")
+		if len(inner) != 1 || (inner[0].Rule != "reference" && inner[0].Rule != "string" && inner[0].Rule != "phoneme" && inner[0].Rule != "spelled") {
+			b.fail(ps[0], "a capture wraps a single symbol: a name, a string or a phoneme tag, spelled or not")
 		}
 		name := strings.TrimPrefix(b.text(ps[0]), "$")
 		if b.inner > 0 {

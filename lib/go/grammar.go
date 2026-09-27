@@ -178,9 +178,12 @@ func (g *stageGrammar) checkAlt(a *sAlt) *Error {
 			if len(captures) > 4 {
 				return fail("an alternative has at most four captures")
 			}
-			if e.Inner.Kind != exRef && e.Inner.Kind != exTerminal {
+			if e.Inner.Kind != exRef && e.Inner.Kind != exTerminal && e.Inner.Kind != exSpelling {
 				return fail("a capture wraps a single symbol")
 			}
+			return walk(e.Inner, false)
+		case exSpelling:
+			// A spelled symbol refers to what its symbol does.
 			return walk(e.Inner, false)
 		case exSeq:
 			for _, it := range e.Items {

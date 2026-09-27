@@ -31,14 +31,16 @@ type domProblem struct {
 
 func (p *domProblem) Error() string { return p.message }
 
-func validateDOM(d *domDoc) error {
-	if p := checkDOM(d); p != nil {
+func validateDOM(d *domDoc, uni *unicodeTable) error {
+	if p := checkDOM(d, uni); p != nil {
 		return p
 	}
 	return nil
 }
 
-func checkDOM(d *domDoc) *domProblem {
+// checkDOM checks a DOM; uni is the lowercase mapping that spellings are
+// checked against, or nil not to check that.
+func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 	for _, dir := range d.Directives {
 		if dir == nil || dir.Args == nil || !directiveOperandsOK(dir) {
 			return &domProblem{message: "a malformed directive"}
@@ -66,7 +68,7 @@ func checkDOM(d *domDoc) *domProblem {
 		if r == nil || !(domName.MatchString(r.Name) || r.Name == "#") || (r.Op != "define" && r.Op != "redefine" && r.Op != "extend") || len(r.Alternatives) == 0 {
 			return &domProblem{message: "a malformed rule"}
 		}
-		c := &domChecker{rule: r}
+		c := &domChecker{rule: r, uni: uni}
 		c.constituentTags(r.Tags)
 		c.emission(r.Emit)
 		for _, cond := range r.Conditions {
@@ -123,6 +125,7 @@ func directiveOperandsOK(dir *domDirective) bool {
 
 type domChecker struct {
 	rule     *domRule
+	uni      *unicodeTable
 	captures map[string]bool
 	problem  *domProblem
 }
@@ -182,8 +185,8 @@ func (c *domChecker) expr(e *domExpr, depth int, top bool) {
 			c.fail("$ wraps a symbol")
 			return
 		}
-		if e.Inner == nil || (e.Inner.Kind != exRef && e.Inner.Kind != exTerminal) || (e.Inner.Kind == exRef && e.Inner.Name == "") {
-			c.fail("a capture of something other than a reference or a terminal")
+		if e.Inner == nil || (e.Inner.Kind != exRef && e.Inner.Kind != exTerminal && e.Inner.Kind != exSpelling) || (e.Inner.Kind == exRef && e.Inner.Name == "") {
+			c.fail("a capture of something other than a reference, a terminal or a spelled one of these")
 			return
 		}
 		if c.captures[e.Name] {
@@ -194,6 +197,17 @@ func (c *domChecker) expr(e *domExpr, depth int, top bool) {
 			c.fail("an alternative has at most four captures")
 		}
 		// A capture is a compound node: its symbol lies below it.
+		if e.Inner.Kind == exSpelling {
+			c.expr(e.Inner, depth+1, false)
+		} else {
+			c.deep(depth + 1)
+		}
+	case exSpelling:
+		if msg := spellingProblem(e.Name, e.Inner, c.uni); msg != "" {
+			c.fail("%s", msg)
+			return
+		}
+		// A spelled symbol is a compound node over its symbol.
 		c.deep(depth + 1)
 	case exRef:
 		if e.Name == "" {
@@ -205,6 +219,24 @@ func (c *domChecker) expr(e *domExpr, depth int, top bool) {
 	default:
 		c.fail("an unknown expression %q", e.Kind)
 	}
+}
+
+// spellingProblem is what is wrong with a spelling of a symbol (engine §9),
+// or "": an empty spelling, one that the lowercase mapping would change,
+// since the match ignores stress, or one of anything but a reference, a
+// string or a phoneme tag, # included. Without a table, the lowercase
+// mapping is not checked.
+func spellingProblem(spelling string, inner *domExpr, uni *unicodeTable) string {
+	if spelling == "" {
+		return "a spelling is empty"
+	}
+	if inner == nil || !((inner.Kind == exRef && inner.Name != "" && inner.Name != "#") || inner.Kind == exTerminal) {
+		return "a spelling follows only a reference, a string or a phoneme tag, not #"
+	}
+	if uni != nil && uni.lowercase(spelling) != spelling {
+		return fmt.Sprintf("the spelling %s is not in lower case", spelling)
+	}
+	return ""
 }
 
 // isSpanShape: a capture, or head, tail, last, from or after of a span.

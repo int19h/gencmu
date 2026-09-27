@@ -36,6 +36,10 @@ type Node struct {
 	Source   [2]int
 	Tags     map[string]bool
 	Children []*Node
+	// spelling is an elided node's terminator's spelling, if it is spelled,
+	// which elision-only gives the restored token as its phonemes (engine
+	// §7, §12); the output does not show it.
+	spelling string
 }
 
 // Action is one step of a derivation read bottom-up: a read of a token as a

@@ -14,6 +14,7 @@ type production struct {
 	num          int
 	lhs          int32
 	rhs          []symbol
+	spelling     []string // per position: the spelling its symbol's span must sound like, or ""; nil when none is spelled (§4)
 	capName      []string // per position: the capture's name, or ""
 	capSlot      []int8   // per position: the item's capture slot, or -1
 	nslots       int
@@ -28,6 +29,7 @@ type production struct {
 	transparent  bool
 	helper       bool
 	elided       string // for the ε production of an optional beginning with an elidable terminal
+	elidedSpell  string // the spelling of that terminal, if it is spelled, which a restored token sounds like (§7)
 	repeatPrefix bool   // r → r x of a trailing repetition: the first child is spliced out (§12)
 	ruleName     string // the rule the author wrote (for a helper, the one it serves)
 	doc          string
@@ -74,8 +76,17 @@ type lowered struct {
 }
 
 type slot struct {
-	sym     symbol
-	capture string
+	sym      symbol
+	capture  string
+	spelling string // "" for a symbol without a spelling
+}
+
+// spellingAt is the spelling of a production's symbol at a position, or "".
+func (p *production) spellingAt(i int) string {
+	if p.spelling == nil {
+		return ""
+	}
+	return p.spelling[i]
 }
 
 type lowerer struct {
@@ -94,6 +105,7 @@ type helperNode struct {
 	rule     int32
 	bodies   [][]slot
 	elide    string
+	elideSp  string // the spelling of the elidable terminal, or ""
 	owner    *sAlt
 	children []*helperNode
 }
@@ -208,6 +220,7 @@ func (lw *lowerer) lowerRule(r *sRule) {
 					p.doc, p.at = h.owner.doc, h.owner.at
 					if len(b) == 0 && h.elide != "" {
 						p.elided = h.elide
+						p.elidedSpell = h.elideSp
 					}
 				}
 				number(h.children)
@@ -244,6 +257,13 @@ func (lw *lowerer) newProduction(lhs int32, body []slot) *production {
 	for i, s := range body {
 		p.rhs = append(p.rhs, s.sym)
 		p.capSlot[i] = -1
+		if s.spelling != "" {
+			// A spelled symbol is the symbol, and carries its spelling (§3).
+			if p.spelling == nil {
+				p.spelling = make([]string, len(body))
+			}
+			p.spelling[i] = s.spelling
+		}
 	}
 	if len(body) == 1 {
 		// One symbol and no tags: the symbol's tags (§3.7), read as captured.
@@ -371,15 +391,20 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt, repeatPrefix b
 }
 
 // elidableTerminal is the symbol an optional's content is, or begins with
-// as a sequence, recursively (§3.8); a choice or an & begins with none.
-func elidableTerminal(e *domExpr) string {
+// as a sequence, recursively (§3.8), and its spelling, if it is spelled; a
+// choice or an & begins with none. A spelled terminal is elidable when its
+// terminal is.
+func elidableTerminal(e *domExpr) (string, string) {
 	switch e.Kind {
 	case exSeq:
 		return elidableTerminal(e.Items[0])
+	case exSpelling:
+		name, _ := elidableTerminal(e.Inner)
+		return name, e.Name
 	case exRef, exTerminal:
-		return e.Name
+		return e.Name, ""
 	}
-	return ""
+	return "", ""
 }
 
 func (lw *lowerer) expandSeq(items []*domExpr, a *sAlt, ruleName string) [][]slot {
@@ -408,9 +433,9 @@ func (lw *lowerer) expand(e *domExpr, a *sAlt, ruleName string) [][]slot {
 
 // helper makes the helper of one place, its bodies expanded at once so that
 // the helpers inside it follow it.
-func (lw *lowerer) helper(a *sAlt, ruleName, elide string, bodies func(h int32) [][]slot) [][]slot {
+func (lw *lowerer) helper(a *sAlt, ruleName, elide, elideSp string, bodies func(h int32) [][]slot) [][]slot {
 	h := lw.newHelper(a, ruleName)
-	node := &helperNode{rule: h, elide: elide, owner: a}
+	node := &helperNode{rule: h, elide: elide, elideSp: elideSp, owner: a}
 	*lw.into = append(*lw.into, node)
 	outer := lw.into
 	lw.into = &node.children
@@ -444,12 +469,14 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 		return out
 	case exOptional:
 		inner := e.Inner
-		elide := ""
-		if t := elidableTerminal(inner); t != "" && lw.g.elidable[t] {
-			elide = t
+		elide, elideSp := "", ""
+		if t, sp := elidableTerminal(inner); t != "" && lw.g.elidable[t] {
+			elide, elideSp = t, sp
 		}
+		// A spelled elidable terminal stays spelled when its optional is
+		// made mandatory (§3.8).
 		mandatory := elide != "" && lw.mandatory
-		return lw.helper(a, ruleName, elide, func(int32) [][]slot {
+		return lw.helper(a, ruleName, elide, elideSp, func(int32) [][]slot {
 			var out [][]slot
 			if !mandatory {
 				out = append(out, []slot{})
@@ -458,7 +485,7 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 		})
 	case exRepeat:
 		inner, min := e.Inner, e.Min
-		return lw.helper(a, ruleName, "", func(h int32) [][]slot {
+		return lw.helper(a, ruleName, "", "", func(h int32) [][]slot {
 			xs := lw.expand(inner, a, ruleName)
 			var out [][]slot
 			if min == 0 {
@@ -486,6 +513,13 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 			out = append(out, c)
 		}
 		return out
+	case exSpelling:
+		// A spelled symbol lowers to its symbol with the spelling, and adds
+		// no helper (§3).
+		x := lw.expand(e.Inner, a, ruleName)
+		c := concat(nil, x[0])
+		c[0].spelling = e.Name
+		return [][]slot{c}
 	case exEmpty:
 		return [][]slot{{}}
 	}

@@ -108,6 +108,16 @@ func TestDOMRules(t *testing.T) {
 		{"an item has only capture, insert and tags", emit(`{"items":[{"capture":"x","tags":{"literal":"X"},"what":true}]}`)},
 		{"no ∅ as an item's tags", emit(`{"items":[{"capture":"x","tags":{"emptySet":true}}]}`)},
 		{"a capture listed once", emit(`{"items":[{"capture":"x"},{"capture":"x"}]}`)},
+		// Spellings (engine §9).
+		{"a spelling is not empty", alt(`{"seq":[{"terminal":"a"},{"spelling":"","expr":{"ref":"B"}}]}`)},
+		{"a spelling is in lower case", alt(`{"seq":[{"terminal":"a"},{"spelling":"lA","expr":{"ref":"B"}}]}`)},
+		{"a spelling is in lower case (Cyrillic)", alt(`{"seq":[{"terminal":"a"},{"spelling":"Ла","expr":{"ref":"B"}}]}`)},
+		{"a spelling does not follow #", alt(`{"seq":[{"terminal":"a"},{"spelling":"b","expr":{"ref":"#"}}]}`)},
+		{"a spelling does not follow a group", alt(`{"seq":[{"terminal":"a"},{"spelling":"b","expr":{"seq":[{"ref":"B"},{"ref":"C"}]}}]}`)},
+		{"a spelling does not follow a spelling", alt(`{"seq":[{"terminal":"a"},{"spelling":"b","expr":{"spelling":"b","expr":{"ref":"B"}}}]}`)},
+		{"a spelling is a string", alt(`{"seq":[{"terminal":"a"},{"spelling":1,"expr":{"ref":"B"}}]}`)},
+		{"a capture of a spelled symbol is checked", alt(`{"seq":[{"terminal":"a"},{"capture":"x","expr":{"spelling":"B","expr":{"ref":"B"}}}]}`)},
+		{"a spelled symbol counts toward the nesting", alt(`{"seq":[` + strings.Repeat(`{"seq":[{"terminal":"a"},`, 255) + `{"spelling":"b","expr":{"terminal":"b"}}` + strings.Repeat(`]}`, 255) + `,{"terminal":"b"}]}`)},
 		{"no tags on an inserted tag", emit(`{"items":[{"capture":"x"},{"insert":"y","tags":{"literal":"Z"}}]}`)},
 		{"an emission's items are a list", emit(`{"items":null}`)},
 		{"a function exists", tagged(`{"call":"size","args":[{"capture":"x"}]}`)},
@@ -193,6 +203,9 @@ func TestDOMRules(t *testing.T) {
 		cond(strings.Repeat(`{"not":`, 254) + `{"begins":{"call":"after","args":[{"capture":"x"}]},"rule":"text"}` + strings.Repeat(`}`, 254)),
 		cond(`{"begins":{"call":"from","args":[{"call":"tail","args":[{"capture":""}]}]},"rule":"text"}`),
 		tagged(`{"call":"tags","args":[{"call":"from","args":[{"capture":""}]}]}`),
+		// Spelled symbols, captured or not, and at the bound of the nesting.
+		alt(`{"seq":[{"capture":"x","expr":{"spelling":"la'i","expr":{"ref":"LE"}}},{"spelling":"a","expr":{"terminal":"/a/"}}]}`),
+		alt(`{"seq":[` + strings.Repeat(`{"seq":[{"terminal":"a"},`, 254) + `{"spelling":"b","expr":{"terminal":"b"}}` + strings.Repeat(`]}`, 254) + `,{"terminal":"b"}]}`),
 		strings.Replace(alt(good), `"define"`, `"redefine"`, 1),
 		strings.Replace(alt(good), `"conditions":[]`, `"conditions":[],"verbatim":true`, 1), emit(`{"items":[{"capture":"x"}]},"verbatim":true`),
 		// Clauses that serve alternatives with different captures.
@@ -200,13 +213,13 @@ func TestDOMRules(t *testing.T) {
 		two(`"conditions":[{"captured":"x"},{"if":{"captured":"z"},"then":{"matches":{"capture":"z"},"rule":"text"}}]`),
 		two(`"emit":{"items":[{"capture":"x"},{"insert":"T"}]},"conditions":[]`),
 		two(`"emit":{"items":[{"capture":"x","tags":{"call":"tags","args":[{"capture":"z"}]}},{"capture":"z"},{"insert":"T"}]},"conditions":[]`)} {
-		if _, err := decodeDOM(json.RawMessage(ok)); err != nil {
+		if _, err := decodeDOM(json.RawMessage(ok), bundled.uni); err != nil {
 			t.Fatalf("a well-formed DOM is refused: %v\n%s", err, ok)
 		}
 	}
 	sources := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
 	for _, c := range cases {
-		if _, err := decodeDOM(json.RawMessage(c.dom)); err == nil {
+		if _, err := decodeDOM(json.RawMessage(c.dom), bundled.uni); err == nil {
 			t.Errorf("%s: a DOM breaking it decodes", c.rule)
 			continue
 		}

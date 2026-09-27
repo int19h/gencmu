@@ -93,7 +93,7 @@ func (l *loader) document(p string) (*domDoc, *Error) {
 	}
 	if !l.noCache {
 		if raw, ok := l.compiled[fnv1a64(text)]; ok {
-			if dom, err := decodeDOM(raw); err == nil {
+			if dom, err := decodeDOM(raw, l.uni); err == nil {
 				return dom, nil
 			}
 		}
