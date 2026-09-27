@@ -33,6 +33,7 @@ export type PendingHelper = {
     name: string;
     build: (where: Where) => SequenceItem[][];
     elided: string | null;
+    elidedSpelling: string | null;
 };
 export declare class Grammar {
     stageName: string;

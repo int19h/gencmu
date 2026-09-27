@@ -1,0 +1,10 @@
+{
+  "description": "Two backticks with nothing between them are not a spelling. The lexical stage reads the second backtick as a character that no spelling may hold, so the furthest position reached is just after it (engine §4, §9).",
+  "document": "```jbogenbau\n%rule text LE``\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 16
+    }
+  }
+}

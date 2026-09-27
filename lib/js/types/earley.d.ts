@@ -58,6 +58,12 @@ export declare class ParseContext {
     sourceText: string[];
     unicode: UnicodeTable;
     interner: TagInterner;
+    /**
+     * Each token's phonemes lowercased, for the spellings of symbols,
+     * computed when a spelling first looks at the token (engine §4).
+     * @type {(string | undefined)[]}
+     */
+    sounds: (string | undefined)[];
     dots: number;
     /** @type {Map<string, boolean | TagSet>} */
     nested: Map<string, boolean | TagSet>;
@@ -97,6 +103,11 @@ export type TraceEvent = {
      * for a drop, the condition that failed
      */
     condition?: Condition;
+    /**
+     * for a drop, the spelling of the symbol the
+     * item would have advanced over, which its span did not match
+     */
+    spelling?: string;
 };
 /**
  * Something the recognizer did at the traced position: an item predicted,
@@ -107,6 +118,8 @@ export type TraceEvent = {
  * @property {number} dot the dot of the item made, or of the item refused
  * @property {number} origin
  * @property {Condition} [condition] for a drop, the condition that failed
+ * @property {string} [spelling] for a drop, the spelling of the symbol the
+ *   item would have advanced over, which its span did not match
  */
 export declare class Item {
     production: Production;
@@ -170,6 +183,28 @@ export declare class ChartSet {
  * @returns {Chart}
  */
 export declare function recognize(context: ParseContext, rule: string, start: number, end: number): Chart;
+/**
+ * A symbol as the diagnostics write it: its name, followed by its spelling
+ * in backticks if it has one, such as LE`la` (docs/output.md).
+ * @param {{name: string, spelling?: string}} symbol
+ * @returns {string}
+ */
+export declare function writtenSymbol(symbol: {
+    name: string;
+    spelling?: string;
+}): string;
+/**
+ * Whether the tokens [from, to) sound like a spelling: their phonemes,
+ * joined and lowercased, are exactly it (engine §4). A token with no
+ * phonemes adds nothing, and a spelling is never empty, so neither such a
+ * token alone nor an empty span matches.
+ * @param {ParseContext} context
+ * @param {string} spelling
+ * @param {number} from
+ * @param {number} to
+ * @returns {boolean}
+ */
+export declare function spellingMatches(context: ParseContext, spelling: string, from: number, to: number): boolean;
 /**
  * The completed items of `rule` spanning [start, end).
  * @param {Chart} chart

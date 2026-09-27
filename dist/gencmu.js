@@ -331,6 +331,12 @@
       this.sourceText = sourceText;
       this.unicode = unicode;
       this.interner = new TagInterner();
+      /**
+       * Each token's phonemes lowercased, for the spellings of symbols,
+       * computed when a spelling first looks at the token (engine §4).
+       * @type {(string | undefined)[]}
+       */
+      this.sounds = new Array(tokens.length);
       // The most places a dot can be in one production, for numbering the
       // items of a set (see itemKey).
       this.dots = lowered.productions.reduce((most, production) => Math.max(most, production.rhs.length + 1), 1);
@@ -360,6 +366,8 @@
    * @property {number} dot the dot of the item made, or of the item refused
    * @property {number} origin
    * @property {Condition} [condition] for a drop, the condition that failed
+   * @property {string} [spelling] for a drop, the spelling of the symbol the
+   *   item would have advanced over, which its span did not match
    */
 
   // A chart item: a production with a dot, its origin, and its captured
@@ -558,6 +566,16 @@
     /** @type {(item: Item, from: number, to: number, child: Item | null) => {dot: number, slots: Slot[], tagId: number} | null} */
     const advance = (item, from, to, child) => {
       const production = item.production;
+      // A spelled symbol's span must sound like its spelling, which is checked
+      // before any condition the advance makes ready (engine §4).
+      const spelling = production.rhs[item.dot].spelling;
+      if (spelling !== undefined && !spellingMatches(context, spelling, from, to)) {
+        const trace = context.trace;
+        if (trace && trace.depth === 0 && to === trace.position) {
+          trace.events.push({ kind: "dropped", production, dot: item.dot, origin: item.origin, spelling });
+        }
+        return null;
+      }
       let slots = item.slots;
       const captureIndex = production.captures.findIndex((capture) => capture.index === item.dot);
       if (captureIndex >= 0) {
@@ -632,6 +650,38 @@
 
   /** @type {Edge} */
   const SEED = { kind: "seed" };
+
+  /**
+   * A symbol as the diagnostics write it: its name, followed by its spelling
+   * in backticks if it has one, such as LE`la` (docs/output.md).
+   * @param {{name: string, spelling?: string}} symbol
+   * @returns {string}
+   */
+  function writtenSymbol(symbol) {
+    return symbol.spelling === undefined ? symbol.name : `${symbol.name}\`${symbol.spelling}\``;
+  }
+
+  /**
+   * Whether the tokens [from, to) sound like a spelling: their phonemes,
+   * joined and lowercased, are exactly it (engine §4). A token with no
+   * phonemes adds nothing, and a spelling is never empty, so neither such a
+   * token alone nor an empty span matches.
+   * @param {ParseContext} context
+   * @param {string} spelling
+   * @param {number} from
+   * @param {number} to
+   * @returns {boolean}
+   */
+  function spellingMatches(context, spelling, from, to) {
+    let offset = 0;
+    for (let index = from; index < to; index++) {
+      let sound = context.sounds[index];
+      if (sound === undefined) sound = context.sounds[index] = context.unicode.lowercase(context.tokens[index].phonemes || "");
+      if (!spelling.startsWith(sound, offset)) return false;
+      offset += sound.length;
+    }
+    return offset === spelling.length;
+  }
 
   // One token of lookahead: an item whose first symbol is a terminal the next
   // token lacks could never advance, so a prediction of it is not made.
@@ -1108,7 +1158,7 @@
     };
     for (const item of set.items) {
       const next = item.production.rhs[item.dot];
-      if (next && next.terminal) note(next.name, item.production.owner);
+      if (next && next.terminal) note(writtenSymbol(next), item.production.owner);
     }
     // A skipped prediction passed its conditions before it was skipped. Those
     // it checked then use no captures, so they hold again now.
@@ -1117,7 +1167,7 @@
     for (const rule of set.skipped) {
       for (const production of context.lowered.byLhs.get(rule) || []) {
         if (!lookaheadSkips(production, next) || failedCondition(context, production, -1, emptySlots(production), position, position)) continue;
-        note(production.rhs[0].name, production.owner);
+        note(writtenSymbol(production.rhs[0]), production.owner);
       }
     }
     return [...expected].sort((left, right) => compareCodePoints(left[0], right[0])).map(([terminal, rules]) => ({
@@ -1677,7 +1727,28 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 7;
+  const DOM_FORMAT = 8;
+
+  /**
+   * What is wrong with a spelling of a symbol (engine §9), or null: an empty
+   * spelling, one that the lowercase mapping would change, since the match
+   * ignores stress, or one of anything but a reference, a string or a
+   * phoneme tag, `#` included. Without a table, the lowercase mapping is not
+   * checked.
+   * @param {unknown} spelling
+   * @param {unknown} expr the spelled expression
+   * @param {{lowercase(text: string): string}} [unicode]
+   * @returns {string | null}
+   */
+  function spellingProblem(spelling, expr, unicode) {
+    if (typeof spelling !== "string") return "a malformed spelling";
+    if (spelling === "") return "a spelling is empty";
+    if (!isDomObject(expr) || !((typeof expr.ref === "string" && expr.ref !== "#") || typeof expr.terminal === "string")) {
+      return "a spelling follows only a reference, a string or a phoneme tag, not #";
+    }
+    if (unicode && unicode.lowercase(spelling) !== spelling) return `the spelling ${spelling} is not in lower case`;
+    return null;
+  }
 
   /**
    * @param {unknown} value
@@ -1718,11 +1789,13 @@
   }
 
   /**
-   * Why a value is not a grammar DOM, or null when it is one.
+   * Why a value is not a grammar DOM, or null when it is one. `unicode` is
+   * the lowercase mapping that spellings are checked against.
    * @param {unknown} dom
+   * @param {{lowercase(text: string): string}} [unicode]
    * @returns {string | null}
    */
-  function domProblem(dom) {
+  function domProblem(dom, unicode) {
     if (!isDomObject(dom) || dom.format !== DOM_FORMAT || !Array.isArray(dom.rules) || !Array.isArray(dom.directives)) return `not a DOM of format ${DOM_FORMAT}`;
     for (const directive of dom.directives) {
       if (!isDomObject(directive) || typeof directive.name !== "string" || !Array.isArray(directive.args) ||
@@ -1795,13 +1868,21 @@
           push("expr", value.optional);
         } else if ("capture" in value) {
           return "a capture below the top level of an alternative";
+        } else if ("spelling" in value) {
+          // A compound node (engine §9) over one symbol.
+          const problem = spellingProblem(value.spelling, value.expr, unicode);
+          if (problem) return problem;
+          push("expr", value.expr);
         } else if (!(typeof value.ref === "string" || typeof value.terminal === "string" || value.empty === true)) {
           return "a malformed expression";
         }
       } else if (kind === "top-capture") {
         const inner = value.expr;
         if (typeof value.capture !== "string" || !isDomObject(inner) ||
-            !(typeof inner.ref === "string" || typeof inner.terminal === "string")) return "a malformed capture";
+            !(typeof inner.ref === "string" || typeof inner.terminal === "string" || "spelling" in inner)) return "a malformed capture";
+        // A capture is a compound node; a spelled symbol below it is checked
+        // as any expression is.
+        if ("spelling" in inner) push("expr", inner);
       } else if (kind === "constituent-tags") {
         // A constituent's tags cannot be made of its own (engine §9).
         if (readsOwnTags(value)) return "a constituent's tags made of its own";
@@ -1896,10 +1977,11 @@
   /**
    * Whether a value is a grammar DOM.
    * @param {unknown} dom
+   * @param {{lowercase(text: string): string}} [unicode]
    * @returns {dom is GrammarDom}
    */
-  function isDom(dom) {
-    return domProblem(dom) === null;
+  function isDom(dom, unicode) {
+    return domProblem(dom, unicode) === null;
   }
 
   /**
@@ -2379,7 +2461,7 @@
    */
   function formatItem(production, dot) {
     const symbols = production.rhs.map((symbol, index) => {
-      const name = symbol.name.includes("·") ? `‹${symbol.name.split("·")[0]} part›` : symbol.name;
+      const name = symbol.name.includes("·") ? `‹${symbol.name.split("·")[0]} part›` : writtenSymbol(symbol);
       const capture = production.captures.find((entry) => entry.index === index && !entry.name.startsWith("\u0000"));
       return capture ? `$${capture.name}(${name})` : name;
     });
@@ -2404,7 +2486,7 @@
       else if ("and" in current) stack.push(...current.and);
       else if ("optional" in current) stack.push(current.optional);
       else if ("repeat" in current) stack.push(current.repeat);
-      else if ("capture" in current) stack.push(current.expr);
+      else if ("capture" in current || "spelling" in current) stack.push(current.expr);
     }
   }
 
@@ -2723,7 +2805,9 @@
       for (const event of events) {
         const item = formatItem(event.production, event.kind === "dropped" ? event.dot + 1 : event.dot);
         const span = event.kind === "dropped" ? "" : `  [${event.origin}..${position}]`;
-        lines.push(`  ${item}${span}${event.condition ? `\n      refused: ${formatCondition(event.condition)}` : ""}`);
+        const refused = event.spelling !== undefined ? `\n      refused: what it spans does not sound like \`${event.spelling}\``
+          : event.condition ? `\n      refused: ${formatCondition(event.condition)}` : "";
+        lines.push(`  ${item}${span}${refused}`);
       }
     }
     if (traced.expected.length) {
@@ -2793,6 +2877,7 @@
    * @property {string} name
    * @property {(where: Where) => SequenceItem[][]} build
    * @property {string | null} elided
+   * @property {string | null} elidedSpelling
    */
 
   const MAX_CAPTURES = 4;
@@ -2935,7 +3020,7 @@
     if ("and" in expr) return expr.and;
     if ("optional" in expr) return [expr.optional];
     if ("repeat" in expr) return [expr.repeat];
-    if ("capture" in expr) return [expr.expr];
+    if ("capture" in expr || "spelling" in expr) return [expr.expr];
     return [];
   }
 
@@ -3039,6 +3124,7 @@
             helper: true,
             owner: rule.name,
             elided: helper.elided,
+            elidedSpelling: helper.elidedSpelling,
             captures: single ? [{ name: "\u0000child", index: 0 }] : [],
             conditions: [],
             tags: single ? { call: "tags", args: [{ capture: "\u0000child" }] } : null,
@@ -3118,6 +3204,7 @@
         helper: false,
         owner: rule.name,
         elided: null,
+        elidedSpelling: null,
         captures,
         conditions,
         tags,
@@ -3174,6 +3261,12 @@
         return [[{ symbol: { name, terminal: false } }]];
       }
       if ("empty" in expr) return [[]];
+      if ("spelling" in expr) {
+        // A spelled symbol lowers to its symbol with the spelling, and adds
+        // no helper (engine §3).
+        const inner = this.expand(expr.expr, where);
+        return [[{ symbol: { ...inner[0][0].symbol, spelling: expr.spelling } }]];
+      }
       if ("ref" in expr) return [[{ symbol: { name: expr.ref, terminal: isTerminalName(expr.ref) } }]];
       if ("terminal" in expr) return [[{ symbol: { name: expr.terminal, terminal: true } }]];
       if ("capture" in expr) {
@@ -3202,27 +3295,31 @@
      * Names a helper rule, to be lowered when the alternative is done.
      * @param {Where} where
      * @param {(where: Where) => SequenceItem[][]} build
-     * @param {string | null} elided
+     * @param {{terminal: string, spelling: string | null} | null} elided
      * @returns {string}
      */
     helper(where, build, elided) {
       const name = `${where.rule.name}·${this.helperCount++}`;
-      where.pending.push({ name, build, elided });
+      where.pending.push({ name, build, elided: elided ? elided.terminal : null, elidedSpelling: elided ? elided.spelling : null });
       return name;
     }
 
     /**
-     * The elidable terminal an optional begins with, if any (engine §12).
+     * The elidable terminal an optional begins with, if any, and its
+     * spelling: a spelled terminal is elidable when its terminal is (engine
+     * §3.8, §12).
      * @param {Expr} expr
      * @param {Where} where
-     * @returns {string | null}
+     * @returns {{terminal: string, spelling: string | null} | null}
      */
     elidedTerminal(expr, where) {
       void where;
       let first = expr;
       while ("seq" in first) first = first.seq[0];
+      const spelling = "spelling" in first ? first.spelling : null;
+      if ("spelling" in first) first = first.expr;
       const name = "ref" in first ? first.ref : "terminal" in first ? first.terminal : undefined;
-      return name !== undefined && this.grammar.elidable.has(name) ? name : null;
+      return name !== undefined && this.grammar.elidable.has(name) ? { terminal: name, spelling } : null;
     }
   }
 
@@ -3698,7 +3795,7 @@
                 produced.push(entry);
               }
             }
-            if (guarded) permitted = !(/** @type {Maximal} */ (maximal)).forbids(edge.child);
+            if (guarded) permitted = !(/** @type {Maximal} */ (maximal)).forbids(edge.child, current.production.rhs[current.dot - 1].spelling);
           }
           for (const entry of produced) {
             all = this.keep(all, entry);
@@ -3852,7 +3949,7 @@
             ways = (maximal !== null && maximal.elided(edge.child) ? before.allowed : before.all) * dependency(edge.child).all;
           }
           all = Math.min(2, all + ways);
-          if (guarded && (edge.kind !== "complete" || !(/** @type {Maximal} */ (maximal)).forbids(edge.child))) allowed = Math.min(2, allowed + ways);
+          if (guarded && (edge.kind !== "complete" || !(/** @type {Maximal} */ (maximal)).forbids(edge.child, current.production.rhs[current.dot - 1].spelling))) allowed = Math.min(2, allowed + ways);
           if (all === 2 && (!guarded || allowed === 2)) break;
         }
         return { all, allowed: guarded ? allowed : all };
@@ -4095,6 +4192,8 @@
    * @import { Chart } from "./earley.js"
    */
 
+
+
   /**
    * What the ranking asks of maximal.
    * @typedef {object} Maximal
@@ -4104,8 +4203,9 @@
    *   is an elidable optional whose elision the node before it can forbid:
    *   not at the start of a production, and not after a production's first
    *   symbol when that is its own rule, what a repetition has read so far
-   * @property {(item: Item) => boolean} forbids whether an elided terminator
-   *   may not follow the completed item, its constituent
+   * @property {(item: Item, spelling?: string) => boolean} forbids whether an
+   *   elided terminator may not follow the completed item, its constituent,
+   *   which stands for a symbol with the given spelling, if it has one
    */
 
   /**
@@ -4139,6 +4239,27 @@
       }
       return furthest;
     };
+    // For a spelled symbol, every end of a completed item of each symbol from
+    // each origin, since a longer constituent counts only where its span
+    // sounds like the spelling too (engine §4).
+    /** @type {Map<string, Map<number, number[]>> | null} */
+    let ends = null;
+    const allEnds = () => {
+      if (ends) return ends;
+      ends = new Map();
+      for (const set of chart.sets) {
+        if (!set) continue;
+        for (const item of set.items) {
+          if (item.dot !== item.production.rhs.length) continue;
+          let byOrigin = ends.get(item.production.lhs);
+          if (!byOrigin) ends.set(item.production.lhs, (byOrigin = new Map()));
+          const list = byOrigin.get(item.origin);
+          if (!list) byOrigin.set(item.origin, [set.position]);
+          else if (list[list.length - 1] !== set.position) list.push(set.position);
+        }
+      }
+      return ends;
+    };
     return {
       elided: (item) => item.production.helper && item.production.elided !== null && item.production.rhs.length === 0,
       guards: (item) => {
@@ -4147,7 +4268,12 @@
         if (next === undefined || next.terminal || !elidable.has(next.name)) return false;
         return !(item.dot === 1 && !rhs[0].terminal && rhs[0].name === item.production.lhs);
       },
-      forbids: (item) => {
+      forbids: (item, spelling) => {
+        if (spelling !== undefined) {
+          const byOrigin = allEnds().get(item.production.lhs);
+          const list = byOrigin === undefined ? undefined : byOrigin.get(item.origin);
+          return list !== undefined && list.some((end) => end > item.end && spellingMatches(chart.context, spelling, item.origin, end));
+        }
         const byOrigin = longest().get(item.production.lhs);
         const end = byOrigin === undefined ? undefined : byOrigin.get(item.origin);
         return end !== undefined && end > item.end;
@@ -4327,7 +4453,9 @@
           const node = elided[next++];
           const position = node.source[0];
           synthetic.push(restored.length);
-          restored.push(new Token(strongTag(node.terminal), [restored.length, restored.length], [position, position], "", null, undefined));
+          // A restored spelled terminator sounds like its spelling, so that it
+          // matches its own terminator in the stricter grammar (engine §7).
+          restored.push(new Token(strongTag(node.terminal), [restored.length, restored.length], [position, position], "", node.spelling ?? null, undefined));
         }
         if (index < tokens.length) restored.push(tokens[index]);
       }
@@ -4518,9 +4646,11 @@
         const rhs = node.production.rhs;
         const own = index === 1 && !rhs[0].terminal && rhs[0].name === node.production.lhs;
         const before = index > 0 && !own ? node.children[index - 1] : null;
-        if (before && !("read" in before) && maximal.forbids(before.item)) {
+        if (before && !("read" in before) && maximal.forbids(before.item, rhs[index - 1].spelling)) {
           const production = child.production;
-          return { position: child.start, expected: [{ terminal: /** @type {string} */ (production.elided), rules: [production.owner] }] };
+          const terminal = /** @type {string} */ (production.elided);
+          const written = production.elidedSpelling ? writtenSymbol({ name: terminal, spelling: production.elidedSpelling }) : terminal;
+          return { position: child.start, expected: [{ terminal: written, rules: [production.owner] }] };
         }
       }
       stack.push({ node: child, next: 0 });
@@ -4565,7 +4695,12 @@
       if (frame.children === null) {
         if (production.helper && production.elided && node.children.length === 0) {
           const position = emptySource(tokens, node.start);
-          finish([{ kind: "elided", terminal: production.elided, span: [node.start, node.start], source: [position, position] }]);
+          /** @type {ElidedNode} */
+          const elided = { kind: "elided", terminal: production.elided, span: [node.start, node.start], source: [position, position] };
+          // The spelling is kept for elision-only's restored token; the output
+          // does not show it (engine §7).
+          if (production.elidedSpelling) elided.spelling = production.elidedSpelling;
+          finish([elided]);
           continue;
         }
         frame.children = orderedChildren(node);
@@ -4817,9 +4952,11 @@
    * @param {Token[]} tokens
    * @param {(token: Token) => Position} positionOf
    * @param {string} path
+   * @param {{lowercase(text: string): string}} unicode the lowercase mapping
+   *   that spellings are checked against (engine §9, §10)
    * @returns {GrammarDom}
    */
-  function treeToDom(tree, tokens, positionOf, path) {
+  function treeToDom(tree, tokens, positionOf, path, unicode) {
     /** @type {(node: ResultNode) => string} */
     const text = (node) => tokens[/** @type {import("./types.js").TokenNode} */ (node).token].text;
     /** @type {(node: ResultNode) => Position} */
@@ -4970,13 +5107,23 @@
         case "reference": return { ref: text(parts(node)[0]) };
         case "string": return { terminal: decode(parts(node)[0]) };
         case "phoneme": return { terminal: text(parts(node)[0]) };
+        case "spelled": {
+          // A reference, a string or a phoneme tag and its spelling, which
+          // the syntax grammar gives nothing else (engine §9).
+          const [symbol, spellingToken] = parts(node);
+          const expr = readPrimary(symbol);
+          const spelling = [...text(spellingToken)].slice(1, -1).join("");
+          const problem = spellingProblem(spelling, expr, unicode);
+          if (problem) fail(problem, spellingToken);
+          return { spelling, expr: /** @type {import("./types.js").SpelledSymbol} */ (expr) };
+        }
         case "capture": {
           if (!top) fail("a capture stands at the top level of an alternative, not inside [ ], ( ), ..., & or a choice", node);
           const [captureToken, , inner] = parts(node);
           if (text(captureToken) === "$") fail("$ is the whole constituent and wraps nothing", node);
           const wrapped = parts(inner)[0];
           const kind = ruleOf(wrapped);
-          if (kind !== "reference" && kind !== "string" && kind !== "phoneme") fail("a capture wraps one symbol", node);
+          if (kind !== "reference" && kind !== "string" && kind !== "phoneme" && kind !== "spelled") fail("a capture wraps one symbol", node);
           const expr = readPrimary(wrapped);
           return { capture: text(captureToken).slice(1), expr };
         }
@@ -5230,7 +5377,7 @@
   // other rule is transparent.
   const NAMED = new Set([
     "directive", "argument-word", "argument-string", "rule", "definer", "body", "alternative", "guard", "alternative-tags",
-    "conjunction", "sequence", "element", "primary", "reference", "string", "phoneme", "capture", "group", "optional",
+    "conjunction", "sequence", "element", "primary", "reference", "string", "phoneme", "spelled", "capture", "group", "optional",
     "choice", "empty", "tags-clause", "conditions-clause", "emits-clause", "verbatim-clause", "emit-item", "emit-target", "emit-tags",
     "implication", "any-of", "all-of", "condition", "comparison", "comparator", "negation", "presence",
     "term", "guarded-term", "union", "intersection", "term-atom", "weak", "empty-set", "call", "argument",
@@ -5631,7 +5778,7 @@
     constructor(read) {
       this.read = read;
       this.unicode = new UnicodeTable(this.need("unicode.txt"));
-      const bootstrap = readBootstrap(this.need("notation/bootstrap.json"));
+      const bootstrap = readBootstrap(this.need("notation/bootstrap.json"), this.unicode);
       this.bootstrapHash = fnv1a64(this.need("notation/bootstrap.json"));
       this.notation = new Dialect("dialects/notation.md", bootstrap.stages.map((stage) =>
         new Stage(stage.name, new Grammar(stage.name, stage.documents.map((document) => ({ path: document.path, dom: document.dom }))))), this);
@@ -5649,7 +5796,7 @@
         }
         if (data && data.format === DOM_FORMAT && data.bootstrap === this.bootstrapHash && data.documents && typeof data.documents === "object") {
           for (const [path, entry] of Object.entries(data.documents)) {
-            if (entry && typeof entry.hash === "string" && isDom(entry.dom)) this.compiled.set(path, entry);
+            if (entry && typeof entry.hash === "string" && isDom(entry.dom, this.unicode)) this.compiled.set(path, entry);
           }
         }
       }
@@ -5709,7 +5856,7 @@
       /** @type {GrammarDom} */
       let dom;
       try {
-        dom = treeToDom(/** @type {ResultNode} */ (syntax.tree), syntax.input || [], positionOf, path);
+        dom = treeToDom(/** @type {ResultNode} */ (syntax.tree), syntax.input || [], positionOf, path, this.unicode);
       } catch (error) {
         if (error instanceof RangeError) throw new GencmuError("grammar", `${path}: nested too deeply`, { document: path });
         throw error;
@@ -5882,9 +6029,10 @@
    * The notation dialect's DOM from bootstrap.json, or a grammar error saying
    * what is wrong with it.
    * @param {string} text
+   * @param {UnicodeTable} unicode
    * @returns {{stages: {name: string, documents: {path: string, dom: GrammarDom}[]}[]}}
    */
-  function readBootstrap(text) {
+  function readBootstrap(text, unicode) {
     let data;
     try {
       data = JSON.parse(text);
@@ -5898,7 +6046,7 @@
         throw new GencmuError("grammar", "notation/bootstrap.json has a malformed stage", { document: "notation/bootstrap.json" });
       }
       for (const document of stage.documents) {
-        const problem = document && typeof document.path === "string" ? domProblem(document.dom) : "a document without a path";
+        const problem = document && typeof document.path === "string" ? domProblem(document.dom, unicode) : "a document without a path";
         if (problem) throw new GencmuError("grammar", `notation/bootstrap.json: ${problem}`, { document: "notation/bootstrap.json" });
       }
     }
@@ -6065,6 +6213,8 @@
    * @property {string} terminal
    * @property {Span} span
    * @property {Span} source
+   * @property {string} [spelling] the terminator's spelling, if it is spelled,
+   *   which the output does not show
    */
 
   /**
@@ -6253,7 +6403,13 @@
    * A rule body expression.
    * @typedef {{choice: Expr[]} | {and: Expr[]} | {seq: Expr[]} | {repeat: Expr, min: number}
    *   | {optional: Expr} | {capture: string, expr: Expr} | {ref: string} | {terminal: string}
-   *   | {empty: true}} Expr
+   *   | {spelling: string, expr: SpelledSymbol} | {empty: true}} Expr
+   */
+
+  /**
+   * What a spelling follows: a reference, or a terminal, a string or a
+   * phoneme tag.
+   * @typedef {{ref: string} | {terminal: string}} SpelledSymbol
    */
 
   /**
@@ -6298,6 +6454,8 @@
    * @typedef {object} GrammarSymbol
    * @property {string} name
    * @property {boolean} terminal
+   * @property {string} [spelling] what the symbol's span must sound like,
+   *   lowercased; not part of the terminal's identity (engine §4)
    */
 
   /**
@@ -6323,6 +6481,8 @@
    * @property {boolean} helper
    * @property {string} owner the rule the production was lowered from
    * @property {string | null} elided the terminator an empty helper stands for
+   * @property {string | null} elidedSpelling the spelling of that terminator,
+   *   if it is spelled, which a restored token sounds like (engine §7)
    * @property {Capture[]} captures
    * @property {ReadyCondition[]} conditions
    * @property {Term | null} tags

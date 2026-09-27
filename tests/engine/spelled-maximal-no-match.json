@@ -1,0 +1,75 @@
+{
+  "description": "Under maximal, a longer constituent of a spelled symbol counts only if its span also matches the spelling: y could have been a b, but that sounds ab, not a, so it does not forbid the elided terminator after y`a` (engine §4).",
+  "grammar": "%ambiguity-resolution greedy maximal\n%elidable T\n%rule text x B C\n%rule x y`a` [T]\n%rule y A | A B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "b"
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ],
+      "phonemes": "c"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "x",
+            "span": [
+              0,
+              1
+            ],
+            "children": [
+              {
+                "rule": "y",
+                "span": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "kind": "elided",
+                "terminal": "T",
+                "span": [
+                  1,
+                  1
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "B"
+          },
+          {
+            "kind": "token",
+            "terminal": "C"
+          }
+        ]
+      }
+    },
+    "brackets": "(a b c)"
+  }
+}

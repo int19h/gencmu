@@ -1,0 +1,57 @@
+{
+  "description": "A capture can wrap a spelled symbol, and captures the symbol's span and tags (engine §3.5, §4).",
+  "grammar": "%rule text $l(LE`la`) B <tags($l) ∪ \"named\"> | LE`lai` B",
+  "tokens": [
+    {
+      "text": "la",
+      "tags": [
+        "LE"
+      ],
+      "phonemes": "la"
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "b"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "tags": {
+          "LE": true,
+          "named": true
+        },
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "LE",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "B",
+            "token": 1,
+            "span": [
+              1,
+              2
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,6 +1,6 @@
 # jbogenbau: from characters to tokens
 
-This is the first stage of the notation dialect, `../dialects/notation.md`. It reads the text of a grammar document's `jbogenbau` blocks, one token per character, and hands the second stage, `syntax.md`, the notation's tokens: names, strings, phoneme tags, captures, guards, keywords and symbols. It drops what carries no meaning, the spaces between tokens and the comments. The notation is explained in `../../docs/notation.md`; this document and `syntax.md` define it.
+This is the first stage of the notation dialect, `../dialects/notation.md`. It reads the text of a grammar document's `jbogenbau` blocks, one token per character, and hands the second stage, `syntax.md`, the notation's tokens: names, strings, phoneme tags, spellings, captures, guards, keywords and symbols. It drops what carries no meaning, the spaces between tokens and the comments. The notation is explained in `../../docs/notation.md`; this document and `syntax.md` define it.
 
 A character reaches this grammar tagged with itself, `"a"`, and, weakly, with its class, `"alpha"`, `"digit"`, `"space"`, `"mark"` or `"other"`. Every token this stage emits is one run of characters, so a token's text is exactly what the author wrote.
 
@@ -21,7 +21,7 @@ A text is any number of pieces, each a token or layout.
   [piece] ...
 
 %rule piece
-  word | string | phoneme | capture | guard | keyword | symbol | layout
+  word | string | phoneme | spelling | capture | guard | keyword | symbol | layout
 ```
 
 ## Names
@@ -80,6 +80,24 @@ A string is written in straight double quotes. Inside it, a backslash escapes th
 
 %rule character
   "alpha" | "digit" | "space" | "mark" | "other"
+```
+
+## Spellings
+
+A spelling says what a symbol must sound like, as in ``LE`la` ``. It is one or more characters between backticks. It has no escapes, so it cannot hold a backtick, and two backticks with nothing between them are not a token. The second stage's reader refuses a spelling that lowercasing would change (`../../docs/engine.md`, §9); this stage only has to find where the spelling ends.
+
+```jbogenbau
+%rule spelling
+  "`" spelling-part ... "`"
+%tags
+  "spelling"
+%emits
+  $
+
+%rule spelling-part
+  $c(character)
+%conditions
+  text($c) ≠ "`"
 ```
 
 ## Captures, guards and keywords
