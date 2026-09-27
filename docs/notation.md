@@ -31,11 +31,11 @@ A body may be followed by clauses, each a keyword and what it says, at most one 
 
 ## Names and terminals
 
-A name is a letter followed by letters, digits and hyphens. A name that begins with a lower-case letter is a rule, and must be defined in the stage. A name that begins with an upper-case letter is a terminal: it matches a token of the input that carries that name as a tag, as `KOhA` matches a word the lexicon tagged KOhA.
+A name is an ASCII letter followed by ASCII letters, digits and hyphens. A name that begins with a lower-case letter is a rule, and must be defined in the stage. A name that begins with an upper-case letter is a terminal: it matches a token of the input that carries that name as a tag, as `KOhA` matches a word the lexicon tagged KOhA.
 
 Two other kinds of terminal spell tags a name cannot:
 
-- a string in straight double quotes, `"а"`, `"word"`, `"≔"`; inside it, `\\` is a backslash, `\"` a quote, and `\u{ED80}` the code point with that hexadecimal value;
+- a string in straight double quotes, `"а"`, `"word"`, `"≔"`. Inside it, `\\` is a backslash and `\"` a quote. `\u{ED80}` is the character with that hexadecimal value. The value has one to six digits. It is at most `10FFFF`, and it is not a surrogate, `D800` to `DFFF`.
 - a phoneme between slashes, `/a/`, `/'/`, and `/./` for a pause. It is a phoneme tag: it matches like any tag, and it also says what a token carrying it sounds like, which is what `phonemes()` reads.
 
 ## Operators

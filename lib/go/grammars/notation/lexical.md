@@ -26,7 +26,7 @@ A text is any number of pieces, each a token or layout.
 
 ## Names
 
-A name is a letter followed by letters, digits and hyphens. Whether it names a rule or a terminal is decided later, by its first letter; here every name is an `identifier`.
+A name is an ASCII letter followed by ASCII letters, digits and hyphens. Whether it names a rule or a terminal is decided later, by its first letter; here every name is an `identifier`.
 
 ```jbogenbau
 %rule word
@@ -54,7 +54,7 @@ A name is a letter followed by letters, digits and hyphens. Whether it names a r
 
 ## Strings and phoneme tags
 
-A string is written in straight double quotes. Inside it, a backslash escapes the next character; the second stage's reader decodes `\\`, `\"` and `\u{h…}` and rejects any other escape, so this stage only has to find where the string ends. A phoneme tag is one character between slashes, `/a/`, and `/./` is the pause.
+A string is written in straight double quotes. Inside it, a backslash escapes the next character; the second stage's reader decodes `\\`, `\"` and `\u{h…}` and rejects any other escape (`../../docs/engine.md`, §9), so this stage only has to find where the string ends. A phoneme tag is one character between slashes, `/a/`, and `/./` is the pause.
 
 ```jbogenbau
 %rule string

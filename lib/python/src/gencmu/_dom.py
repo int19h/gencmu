@@ -44,9 +44,10 @@ def decode_string(text: str) -> str | None:
         if following == "u" and body[index + 2 : index + 3] == "{":
             close = body.find("}", index + 3)
             digits = body[index + 3 : close] if close >= 0 else ""
-            if digits and all(c in "0123456789abcdefABCDEF" for c in digits):
+            # One to six hexadecimal digits of a Unicode scalar value (engine §9).
+            if digits and len(digits) <= 6 and all(c in "0123456789abcdefABCDEF" for c in digits):
                 value = int(digits, 16)
-                if value <= 0x10FFFF:
+                if value <= 0x10FFFF and not 0xD800 <= value <= 0xDFFF:
                     out.append(chr(value))
                     index = close + 1
                     continue

@@ -20,7 +20,7 @@ Canonical JSON is UTF-8 JSON with integers only. Optional members that are absen
 {"name":"words","verdict":"tie","witness":[ACTION,ACTION],"tied":NODE,"output":[TOKEN...]}
 ```
 
-`verdict` is `unique`, `resolved`, `tie`, or `null` for a stage that rejected; `witness` and `tied` are present only for `tie`: the witness, and the tree of the tied derivation reported beside the chosen one, the one diverging from it earliest (engine §6); `output` is the emitted tokens, present for every accepted stage, the last included.
+`verdict` is `unique`, `resolved`, `tie`, or `null` for a stage that rejected. `witness` and `tied` are present only for `tie`. They are the witness, and the tree of the tied derivation reported beside the chosen one, the one that diverges from it earliest (engine §6). `output` is the emitted tokens of an accepted stage, the last stage included. It is absent where the stage's emission fails (engine §11), and where the reparse of `elision-only` meets an error of the grammar (engine §7).
 
 **Token**:
 

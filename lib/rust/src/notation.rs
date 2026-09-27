@@ -311,7 +311,9 @@ impl<'a> Reader<'a> {
                     }
                     let close = body[index + 3..].iter().position(|&c| c == '}').ok_or_else(bad)? + index + 3;
                     let digits: String = body[index + 3..close].iter().collect();
-                    if digits.is_empty() || !digits.chars().all(|c| c.is_ascii_hexdigit()) {
+                    // One to six hexadecimal digits of a Unicode scalar value
+                    // (engine §9); char::from_u32 refuses the rest.
+                    if digits.is_empty() || digits.len() > 6 || !digits.chars().all(|c| c.is_ascii_hexdigit()) {
                         return Err(bad());
                     }
                     let code = u32::from_str_radix(&digits, 16).map_err(|_| bad())?;
