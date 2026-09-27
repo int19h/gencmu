@@ -1,6 +1,6 @@
 # gencmu for JavaScript
 
-The JavaScript library of gencmu, a Lojban parser whose grammars are literate documents loaded at runtime. It needs nothing beyond the language, and Node's `fs` for loading grammars from disk.
+This is the JavaScript library of gencmu, a Lojban parser whose grammars are literate documents loaded at runtime. It needs nothing beyond the language, and Node's `fs` for loading grammars from disk.
 
 ```js
 import { loadDialect } from "gencmu/node";
@@ -11,17 +11,21 @@ const result = dialect.parse("mi klama le zarci");
 console.log(result.ok, toBrackets(result));
 ```
 
-`gencmu` works anywhere JavaScript runs, with grammars from memory through `loadDialectSources`; `gencmu/node` adds `loadDialect`, for the grammars shipped with the package, and `loadDialectFile`, for a pipeline document on disk.
+`gencmu` works anywhere JavaScript runs, and it loads grammars from memory through `loadDialectSources`. `gencmu/node` adds `loadDialect`, for the grammars shipped with the package, and `loadDialectFile`, for a pipeline document on disk.
 
 ## The command line
 
-`node cli.js` (or `npx gencmu` once published) parses texts, audits grammars and runs test files; `node cli.js help` lists the commands. A parse prints its result on standard output and explains any tie or error on standard error: a rejection shows the line with a caret under the word the stage could not read and what could have come there, by rule; a tie shows where the two readings first differ and both trees side by side; `--trace STAGE:POSITION` shows the items a stage predicted, completed and dropped at one position, with the condition that dropped each.
+`node cli.js` parses texts, audits grammars and runs test files. Once the package is published, `npx gencmu` does the same. `node cli.js help` lists the commands.
+
+A parse prints its result on standard output. It explains any tie or error on standard error. A rejection shows the line, with a caret under the word that the stage failed to read. It also shows, by rule, what can come there. A tie shows where the two readings first differ, and both trees side by side.
+
+`--trace STAGE:POSITION` prints a trace on standard output. The trace shows the items that a stage predicted, completed and dropped at one position. It also shows the condition that dropped each item.
 
 The same explanations are functions of the library, for tools of your own: `explainError`, `explainTies`, `tokenTable`, `audit` with `formatAudit`, and `trace` with `formatTrace`.
 
 ## Types
 
-The sources are plain JavaScript with JSDoc type annotations. TypeScript checks them and writes the declarations in `types/`, which are checked in and published, so TypeScript clients and editors see the library's types. TypeScript is a development dependency only: nothing needs it to run, test or use the library.
+The sources are plain JavaScript with JSDoc type annotations. TypeScript makes sure that their types agree, and it writes the declarations in `types/`. The repository holds the declarations, and the package publishes them. So TypeScript clients and editors see the types of the library. TypeScript is a development dependency only. Nothing needs it to run, test or use the library.
 
 ```sh
 npm test                # the tests; no install needed
@@ -34,7 +38,7 @@ CI fails if `types/` is not what `npm run types` writes.
 
 ## The playground's smoke test
 
-`tools/smoke-playground.js` opens the playground in headless Chromium or Firefox and checks that it parses, explains a rejection and never shows an out-of-date answer. It drives the browser with Playwright, also a development dependency, which nothing needs to run, test or use the library or the playground.
+`tools/smoke-playground.js` opens the playground in headless Chromium or Firefox. It makes sure that the playground parses, explains a rejection and never shows an out-of-date answer. It drives the browser with Playwright. Playwright is also a development dependency only. Nothing needs it to run, test or use the library or the playground.
 
 ```sh
 npm ci                                      # installs Playwright
