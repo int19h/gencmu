@@ -44,7 +44,7 @@ A node has one of these forms:
 {"kind":"elided","terminal":"KU","span":[3,3],"source":[9,9]}
 ```
 
-A token node's `token` is the index of the stage-input token it read.
+A token node's `token` is the index of the stage-input token it read. An elided node of a spelled terminator is written the same way. The output does not show its spelling.
 
 A warning has this form:
 
@@ -71,14 +71,16 @@ An error has this form:
 
 A mistake of the caller is not a result. It is an error of kind `usage` (engine §13).
 
-`line` and `column` count from 1, in code points. Lines end at `\n`, `\r\n` or `\r`. `expected` lists terminals in code point order. Each terminal comes with the rules whose items can read it at that position, also in code point order. `message` is the description for people, and the shared tests do not compare its wording.
+`line` and `column` count from 1, in code points. Lines end at `\n`, `\r\n` or `\r`.
+
+`expected` lists terminals in code point order. The library writes a spelled terminal as the terminal followed by its spelling in backticks, as in ``LE`la` ``, and sorts it by that text. So `LE` comes before ``LE`la` ``, which comes before `LEhU`. Each terminal comes with the rules whose items can read it at that position, also in code point order. `message` is the description for people, and the shared tests do not compare its wording.
 
 ### A grammar DOM
 
 A grammar DOM (document object model) is the data that a library makes when it reads a grammar document (engine §8, §9). `bootstrap.json` and the precompiled DOMs hold the same data.
 
 ```
-{"format":7,"rules":[RULE...],"directives":[DIRECTIVE...]}
+{"format":8,"rules":[RULE...],"directives":[DIRECTIVE...]}
 ```
 
 `format` is the version of the DOM. It changes whenever the shape of the DOM changes. A library never uses a cached DOM of another version.
@@ -93,10 +95,11 @@ An expression is one of these forms:
 {"seq":[EXPR...]}  {"choice":[EXPR...]}  {"and":[EXPR...]}
 {"optional":EXPR}  {"repeat":EXPR,"min":1}
 {"ref":"sumti"}    {"terminal":"KOhA"}    {"capture":"x","expr":EXPR}
+{"spelling":"la","expr":EXPR}
 {"empty":true}
 ```
 
-`terminal` holds a name, a decoded string, or a phoneme tag `/p/`.
+`terminal` holds a name, a decoded string, or a phoneme tag `/p/`. A spelled symbol's `expr` is a `ref` other than `#`, or a `terminal`. Its `spelling` is the text between the backticks. The spelling is never empty, and `lowercase` does not change it (engine §9). A capture's `expr` is a `ref`, a `terminal` or a spelled symbol.
 
 A term is `{"literal":"s"}`, `{"weak":"s"}`, `{"emptySet":true}`, `{"union":[TERM...]}`, `{"intersection":[TERM...]}`, `{"if":COND,"then":TERM}` or `{"call":"phonemes","args":[ARG...]}`. An argument is a span or a term. For `tags`, `matches` and `begins`, an argument can also be a rule name, `{"rule":"lexicon"}`. A span is `{"capture":"x"}`, `{"capture":""}` for `$`, or `{"call":"head","args":[SPAN]}`. `tail`, `last`, `from` and `after` have the same form as `head`.
 
@@ -120,7 +123,7 @@ A directive is `{"name":"elidable","args":["KU","KEI"],"at":[line,column]}`. The
 
 ### Precompiled DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":7,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
+`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":8,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
 
 ## Renderings
 

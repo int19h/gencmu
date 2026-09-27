@@ -49,6 +49,14 @@ Two other kinds of terminal can spell tags that a name cannot spell:
 - A string in straight double quotes, `"а"`, `"word"`, `"≔"`. Inside it, `\\` is a backslash and `\"` a quote. `\u{ED80}` is the character with that hexadecimal value. The value has one to six digits. It is at most `10FFFF`, and it is not a surrogate, `D800` to `DFFF`.
 - A phoneme between slashes, `/a/`, `/'/`, and `/./` for a pause. It is a phoneme tag. It matches like any tag, and it also says what a token that carries it sounds like. `phonemes()` reads that sound.
 
+A reference, a string or a phoneme tag can be followed by a spelling. A spelling is text between backticks, as in ``LE`la` ``. The symbol then matches only where what it spans sounds like the spelling. That is, the phonemes of its tokens, joined with no separator and lowercased, are the spelling. So a stressed `lA`, a Cyrillic `ла` and a zbalermorna `la` all match ``LE`la` ``.
+
+A rule reference sounds like its whole span, so ``sumti`lonu` `` matches `lo nu`. Each token keeps its own periods. For example, `broda bu` is one `BY` word that sounds `broda.bu`. The spelling is written in phonemes, in lower case, with `'` for the apostrophe. An empty spelling is an error, as is one in capitals or one after `#`. Spaces and comments can stand between a symbol and its spelling, but the grammars write them together.
+
+A symbol with a spelling is a spelled symbol. The spelling binds tighter than `...`, so every repetition of ``UI`ui` ...`` must sound like `ui`. A capture can wrap a spelled symbol, as in ``$l(LE`la`)``. An optional can hold one, as in ``[KU`ku`]``, which can be elided (left out) when `[KU]` can. A group, an optional, a capture or `ε` cannot take a spelling, so ``(LE NU)`lonu` `` is an error. A spelled symbol never matches an empty span.
+
+A spelling does not replace a class. `zo la` quotes a word that sounds `la` but has only the tag `word`, so ``LE`la` `` does not match it.
+
 ## Operators
 
 The operators of a body are those of CLL:
@@ -164,7 +172,7 @@ The second type is the string. `phonemes(span)` is what a span sounds like: the 
 
 A token of neither kind sounds like the tokens of its stage's input that it covers, joined in order. That leaves out the tokens inside a rule that emits `ε` (see "Emission"). It also makes each run of pause tokens into one pause token, and removes a pause token at either end. A pause is `.`, so `klama bu` sounds as `klama.bu`. The renderings for people write a pause as a space.
 
-`text(span)` is the original text that the span covers. `lowercase(string)` folds capitals. So `phonemes($m) ≠ lowercase(phonemes($m))` says that `$m` carries a stress mark. A string in quotes, or a phoneme tag, is a literal.
+`text(span)` is the original text that the span covers. `lowercase(string)` folds capitals. So `phonemes($m) ≠ lowercase(phonemes($m))` says that `$m` carries a stress mark. Where a condition compares one word's phonemes with a constant, as in `lowercase(phonemes($l)) = "la"`, a spelling says it in the body: ``LE`la` ``. A string in quotes, or a phoneme tag, is a literal.
 
 The third type is the set of tags. `tags(span)` is the tag set of the captured part. `tags(span, rule)` is the tag set that the span has when parsed as `rule`, unioned over every parse. It is empty when the span does not parse as `rule`. This is how a word looks itself up in a lexicon that is itself a set of rules. `classes(span)` keeps only the tags that begin with a capital.
 
@@ -336,7 +344,9 @@ An elided terminator ends the part of its alternative that is written just befor
 
 By default, the constituent of an elided terminator can end wherever a parse of the whole text needs it to end. The ranking above chooses among the parses. So `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses. The `sumti-tail` of `le lojbo` ends before `se farvi`, which becomes the selbri (the main predicate). A parse with the longer `sumti-tail` `lojbo se farvi` leaves the sentence without a selbri.
 
-`maximal` forbids an elided terminator where its constituent can be longer. That is what a PEG's greedy repetition does: once a PEG reads a constituent, it never gives back what it read. `le nanmu joi le ninmu cu klama` parses, because no longer `sumti-tail` begins at `nanmu`. `joi` can continue a tanru (a compound predicate), but `le` cannot follow it. The `le lojbo` text is an error, because `lojbo se farvi` is a longer `sumti-tail`. The longer constituent need not fit into a parse of the whole text, and that is what makes `maximal` commit as a PEG does.
+`maximal` forbids an elided terminator where its constituent can be longer. If the constituent is a spelled symbol, the longer one must sound like the spelling too. That is what a PEG's greedy repetition does: once a PEG reads a constituent, it never gives back what it read.
+
+`le nanmu joi le ninmu cu klama` parses, because no longer `sumti-tail` begins at `nanmu`. `joi` can continue a tanru (a compound predicate), but `le` cannot follow it. The `le lojbo` text is an error, because `lojbo se farvi` is a longer `sumti-tail`. The longer constituent need not fit into a parse of the whole text, and that is what makes `maximal` commit as a PEG does.
 
 `maximal` only removes parses, and never chooses among the parses that remain. A text that is still ambiguous is chosen or reported as before. `maximal` does not order the alternatives of a rule, as a PEG does. A stage that declares `maximal` still sees every parse that its rules allow, apart from those that `maximal` removes.
 
@@ -344,6 +354,6 @@ If `maximal` leaves a text with no parse, the text is an error. The error is at 
 
 CLL's own rule is narrower: a terminator can be elided only if no ambiguity results. CLL says nothing of the other ambiguities of its EBNF. `elision-only` applies that rule literally.
 
-With `elision-only`, after the stage chooses a parse, it writes the elided terminators of that parse back into the input. Then it parses the input again, with no terminator elidable. If the input is still ambiguous, apart from choices that strong and weak tags settle, the ambiguity is not about terminators. The parse is then an error that shows both readings. For the CLL grammar, `elision-only` rejects only the few texts that the printed grammar leaves ambiguous in more than a terminator, such as `mi broda joi ke brode ke'e`.
+With `elision-only`, after the stage chooses a parse, it writes the elided terminators of that parse back into the input. A spelled terminator that it writes back sounds like its spelling. Then it parses the input again, with no terminator elidable. If the input is still ambiguous, apart from choices that strong and weak tags settle, the ambiguity is not about terminators. The parse is then an error that shows both readings. For the CLL grammar, `elision-only` rejects only the few texts that the printed grammar leaves ambiguous in more than a terminator, such as `mi broda joi ke brode ke'e`.
 
 The grammars that extend CLL are really ambiguous in places, such as a bare `na` term beside a negated selbri. They declare only `greedy`. A caller can switch `elision-only` on for a parse, to look for overlaps in the text that it supplies. A caller can also switch it off, to loosen a grammar that declares it.
