@@ -70,6 +70,10 @@ The syntax is [`../syntax/zantufa.md`](../syntax/zantufa.md), a grammar of its o
   ```jbogenbau
   %include "../words/stream.md"
   ```
+- [Replacement quotes](../words/lohai.md): `lo'ai ... le'ai` as one unit of raw words
+  ```jbogenbau
+  %include "../words/lohai.md"
+  ```
 - [The Zantufa word stream](../words/zantufa-stream.md)
   ```jbogenbau
   %include "../words/zantufa-stream.md"

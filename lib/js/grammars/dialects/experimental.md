@@ -70,6 +70,10 @@ The dialect turns on two features of the syntax, as camxes-exp always has them. 
   ```jbogenbau
   %include "../words/stream.md"
   ```
+- [Replacement quotes](../words/lohai.md): `lo'ai ... le'ai` as one unit of raw words
+  ```jbogenbau
+  %include "../words/lohai.md"
+  ```
 
 ## Stage 4: indicators
 
@@ -126,6 +130,14 @@ Two other differences come from what the grammars allow:
 
 - After `vu'o`, a connected sumti can follow without relative clauses here. So `mi viska ko'a vu'o .e ko'e` joins two sumti after `vu'o`. camxes-exp takes a connected sumti there only after relative clauses, so it joins two terms.
 - camxes-exp's selbri has a form with an ek, a tag and `ke` (`.e ba ke`), which this grammar does not have yet. So camxes-exp accepts `le dakli .e ba ke bevri ke'e ku`, and the dialect rejects it. And in `mi bevri le dakli .ebake bevri le gerku`, camxes-exp reads one tanru inside the description, where the dialect joins two bridi-tails.
+
+A replacement quote is one unit of raw words in the word stage (`../words/lohai.md`), as in camxes-exp. A magic word after the quote acts on all of it, as the left-to-right rule requires. Zantufa also accepts all four texts below. camxes-exp rejects them:
+
+- `mi lo'ai do le'ai si klama` is `mi klama`, and camxes-exp rejects it.
+- `lo'ai mi le'ai bu` is a letter word, and `lo'ai mi le'ai zei broda` a compound. camxes-exp rejects both.
+- `mi lo'ai lu le'ai su klama` is `klama`, since the `lu` inside the quote is no boundary for `su`. camxes-exp rejects it.
+
+`ba'e` is not a magic word, as the Magic Words proposal says. So the word stage removes `fa'o` and what follows it first, and `mi ba'e fa'o` leaves a `ba'e` with nothing to mark. The proposal calls that an error, and the dialect rejects it. camxes-exp accepts it.
 
 The dialect cannot yet settle two kinds of text, and it reports a tie for each. A quote or a parenthesis whose terminator is elided can hold a fragment of terms or a whole sentence: `to mi klama` holds `mi` or `mi klama`. camxes-exp reads the sentence. A forethought connective before a number can connect two sumti or make a quantifier: `ge nai abu gi no drata`. camxes-exp reads the quantifier.
 

@@ -69,54 +69,6 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
   $m, $open <"word">, "foreign-text", $close <"word">
 ```
 
-A replacement quote is one unit, as in Zantufa's `si_word`. It is up to two runs of words, each opened by a word of LOhAI (`lo'ai` or `sa'ai`), and then `le'ai`. The words inside are plain words, so no `si` erases inside it, and a `si` after it erases all of it: `lo'ai mi le'ai si` is nothing. The syntax reads it as a free modifier.
-
-```jbogenbau
-%extend-rule quote
-  (* LOhAI_pre <- pre_clause (LOhAI spaces? (!LOhAI !LEhAI any_word)* )? (LOhAI spaces? (!LOhAI !LEhAI any_word)* )? LEhAI spaces? *)
-  lohai-quote
-
-%rule lohai-quote
-  | lehai-marker
-  | lohai-run gap lehai-marker
-  | lohai-run gap lohai-run gap lehai-marker
-
-%rule lohai-run
-  lohai-marker | lohai-marker gap lohai-stream
-
-%rule lohai-stream
-  | lohai-element
-  | lohai-stream PAUSE lohai-element
-  | lohai-stream lohai-element
-
-%rule lohai-element
-  lohai-word | hesitation
-
-%rule lohai-word
-  | $c(cmavo-token)
-  | BRIVLA
-  | CMEVLA
-  | y-bu-word
-%conditions
-  classes($c) ∩ ("LOhAI" ∪ "LEhAI") = ∅
-%emits
-  $ <"word">
-
-%rule lohai-marker
-  $q(magic-body) <"word" ∪ "cmavo" ∪ classes($q)>
-%conditions
-  "LOhAI" ∈ classes($q)
-%emits
-  $
-
-%rule lehai-marker
-  $q(magic-body) <"word" ∪ "cmavo" ∪ classes($q)>
-%conditions
-  "LEhAI" ∈ classes($q)
-%emits
-  $
-```
-
 Zantufa reads `y` and `ie'o` as space only after a pause or at the start of the text, since its `spaces` begins with `!Y`. A hesitation attached to the word before it, with no pause between them, is a word of class Y there. So `zoie'o mi` quotes `ie'o` and leaves `mi`, while `zo ie'o mi` quotes `mi`. Such a word has no place in the syntax except in a quote, so `mi cuyy klama` is rejected, as Zantufa rejects it. Before `bu`, hesitation stays the base of a letter word.
 
 ```jbogenbau
