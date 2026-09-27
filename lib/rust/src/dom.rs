@@ -385,7 +385,7 @@ pub(crate) fn spelling_problem(spelling: &str, symbol: bool, unicode: &Unicode) 
     if spelling.is_empty() {
         Some("a spelling is empty")
     } else if !symbol {
-        Some("a spelling follows only a reference, a string or a phoneme tag, not #")
+        Some("a spelling follows only a reference other than #, a string or a phoneme tag")
     } else if unicode.lowercase(spelling) != spelling {
         Some("a spelling is not in lower case")
     } else {

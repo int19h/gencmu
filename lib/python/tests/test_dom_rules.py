@@ -355,8 +355,8 @@ class PrecompiledDomRules(unittest.TestCase):
             ("a spelling that is no string", {"capture": "x", "expr": spelled(7)}, "a malformed spelling"),
             ("a spelling in capitals", {"capture": "x", "expr": spelled("La")}, "the spelling La is not in lower case"),
             ("a Cyrillic capital", {"capture": "x", "expr": spelled("Ла")}, "the spelling Ла is not in lower case"),
-            ("a spelling of #", {"seq": [{"capture": "x", "expr": A}, spelled("a", {"ref": "#"})]}, "a spelling follows only a reference, a string or a phoneme tag, not #"),
-            ("a spelling of a spelling", {"capture": "x", "expr": spelled("a", spelled("a"))}, "a spelling follows only a reference, a string or a phoneme tag, not #"),
+            ("a spelling of #", {"seq": [{"capture": "x", "expr": A}, spelled("a", {"ref": "#"})]}, "a spelling follows only a reference other than #, a string or a phoneme tag"),
+            ("a spelling of a spelling", {"capture": "x", "expr": spelled("a", spelled("a"))}, "a spelling follows only a reference other than #, a string or a phoneme tag"),
         ):
             with self.subTest(what=name):
                 dom = copy.deepcopy(self.dom)

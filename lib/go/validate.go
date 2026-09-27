@@ -231,7 +231,7 @@ func spellingProblem(spelling string, inner *domExpr, uni *unicodeTable) string 
 		return "a spelling is empty"
 	}
 	if inner == nil || !((inner.Kind == exRef && inner.Name != "" && inner.Name != "#") || inner.Kind == exTerminal) {
-		return "a spelling follows only a reference, a string or a phoneme tag, not #"
+		return "a spelling follows only a reference other than #, a string or a phoneme tag"
 	}
 	if uni != nil && uni.lowercase(spelling) != spelling {
 		return fmt.Sprintf("the spelling %s is not in lower case", spelling)

@@ -144,7 +144,7 @@ def spelling_problem(spelling: Any, expr: Any, unicode: Lowercase | None) -> str
     if not isinstance(expr, dict) or not (
         (isinstance(expr.get("ref"), str) and expr["ref"] != "#") or isinstance(expr.get("terminal"), str)
     ):
-        return "a spelling follows only a reference, a string or a phoneme tag, not #"
+        return "a spelling follows only a reference other than #, a string or a phoneme tag"
     if unicode is not None and unicode.lowercase(spelling) != spelling:
         return f"the spelling {spelling} is not in lower case"
     return None
