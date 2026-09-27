@@ -1,0 +1,10 @@
+{
+  "description": "A \\u{...} escape has one to six hexadecimal digits: seven are an error, even with leading zeros (engine §9).",
+  "document": "```jbogenbau\n%rule a \"\\u{0000041}\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  }
+}

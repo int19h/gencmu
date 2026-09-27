@@ -436,7 +436,8 @@ func (b *domBuilder) decode(n *Node) string {
 				b.fail(n, "\\u must be followed by {hex}")
 			}
 			v, err := strconv.ParseUint(string(rs[i+2:end]), 16, 32)
-			if err != nil || end == i+2 || v > 0x10FFFF || (v >= 0xD800 && v <= 0xDFFF) {
+			// One to six hexadecimal digits of a Unicode scalar value (engine §9).
+			if err != nil || end == i+2 || end-(i+2) > 6 || v > 0x10FFFF || (v >= 0xD800 && v <= 0xDFFF) {
 				b.fail(n, "\\u{%s} is not a code point", string(rs[i+2:end]))
 			}
 			out.WriteRune(rune(v))

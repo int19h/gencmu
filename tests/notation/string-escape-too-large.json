@@ -1,0 +1,10 @@
+{
+  "description": "A \\u{...} escape names a Unicode scalar value: one above 10FFFF is an error, at the string (engine §9).",
+  "document": "```jbogenbau\n%rule a \"\\u{110000}\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  }
+}

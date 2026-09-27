@@ -1500,7 +1500,9 @@
         chain.push(label(current));
       }
       let line = " ".repeat(indent) + chain.join(" › ");
-      if (current.kind === "rule" && current.children.every((child) => child.kind !== "rule")) {
+      // A rule with only tokens below it is one line; an elided terminator is
+      // a line of its own (docs/output.md).
+      if (current.kind === "rule" && current.children.every((child) => child.kind === "token")) {
         const words = current.children.flatMap((child) => (child.kind === "token" ? [leafLabel(child, tokens)] : []));
         if (words.length) line += " · " + words.join(" ");
         lines.push(line);
@@ -5181,8 +5183,12 @@
           let end = index + 2;
           let hex = "";
           while (end < spelled.length && spelled[end] !== "}") hex += spelled[end++];
-          if (end >= spelled.length || !/^[0-9A-Fa-f]{1,6}$/.test(hex)) fail("a bad \\u{...} escape", tokenNode);
-          result += String.fromCodePoint(parseInt(hex, 16));
+          // One to six hexadecimal digits of a Unicode scalar value (engine §9).
+          const value = parseInt(hex, 16);
+          if (end >= spelled.length || !/^[0-9A-Fa-f]{1,6}$/.test(hex) || value > 0x10ffff || (value >= 0xd800 && value <= 0xdfff)) {
+            fail("a bad \\u{...} escape", tokenNode);
+          }
+          result += String.fromCodePoint(value);
           index = end;
         } else {
           fail(`an unknown escape \\${next || ""}`, tokenNode);

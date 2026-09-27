@@ -1,0 +1,20 @@
+{
+  "description": "A \\u{...} escape can name any Unicode scalar value, the largest included (engine §9).",
+  "document": "```jbogenbau\n%rule a \"\\u{10FFFF}\\u{41}\"\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "a",
+          "alternatives": [
+            {
+              "expr": {
+                "terminal": "􏿿A"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

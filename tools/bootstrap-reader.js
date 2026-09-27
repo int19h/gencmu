@@ -98,8 +98,9 @@ export function decodeString(text, token) {
       let j = i + 2;
       let hex = "";
       while (j < inner.length && inner[j] !== "}") hex += inner[j++];
-      if (!/^[0-9A-Fa-f]{1,6}$/.test(hex) || j >= inner.length) fail("a bad \\u{...} escape", token);
-      result += String.fromCodePoint(parseInt(hex, 16));
+      const value = parseInt(hex, 16);
+      if (!/^[0-9A-Fa-f]{1,6}$/.test(hex) || j >= inner.length || value > 0x10ffff || (value >= 0xd800 && value <= 0xdfff)) fail("a bad \\u{...} escape", token);
+      result += String.fromCodePoint(value);
       i = j;
     } else fail(`an unknown escape \\${next || ""}`, token);
   }

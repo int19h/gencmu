@@ -16,7 +16,9 @@ Everything a stage reads and writes is a sequence of tokens. A token has:
 - `verbatim`: true for a verbatim token (§11), whose phonemes are its text; otherwise false;
 - `insertedBy`: for a token an emission clause inserted from a quoted tag or a phoneme tag (§11), the rule whose clause it is; otherwise absent, even for a token of an emission `$` over an empty constituent.
 
-The source of one token or more runs from the least source start among them to the greatest source end. An empty source counts as the point where it lies. Tokens usually lie in the order of their sources, and then this source runs from the first token's source start to the last token's source end. But they need not: an emission lists its items in any order (§11), and an inserted token, or a token over a part that read nothing, can have its source before the token ahead of it or after the token behind it. An empty span of tokens has no such source: its source is given where it is used (§11, §12).
+The source of one token or more runs from the least source start among them to the greatest source end. An empty source counts as the point where it lies. Tokens usually lie in the order of their sources, and then this source runs from the first token's source start to the last token's source end.
+
+But they need not. An emission lists its captures in the order in which they stand (§9, §11). But an inserted token can have its source before the token ahead of it, or after the token behind it. So can a token over a part that read nothing. An empty span of tokens has no such source: its source is given where it is used (§11, §12).
 
 The input of the first stage is the text's characters, one token per code point `c` at position `i`: `span` and `source` are `[i, i+1)`, `text` is `c`, and `tags` are `c` itself, strong, and one class tag, weak, the first that applies of:
 
@@ -220,7 +222,7 @@ A definition (§2) is checked as a whole once it is read, and these are errors o
 
 A document's items are its rules and directives. The DOM keeps them in two lists, each in the order written. Every item has the position of its first token, so the order of all of a document's items is the order of their positions. A DOM in which two items share a position is malformed, whether it is read, cached or in the bootstrap. So is a DOM with a `stage`, `include` or `features` directive whose operands the reader refuses.
 
-A string's decoding: the quotes are removed, `\\` is `\`, `\"` is `"`, and `\u{h...}` is the code point with that hexadecimal value; any other `\` is an error.
+A string's decoding: the quotes are removed, `\\` is `\`, `\"` is `"`, and `\u{h...}` is the character with that hexadecimal value. The value has one to six hexadecimal digits and is a Unicode scalar value: at most `10FFFF`, and not a surrogate, `D800` to `DFFF`. Any other `\`, and a `\u{...}` that breaks these limits, is an error of the document, reported at the string.
 
 ## 10. Terms and conditions
 
@@ -239,7 +241,7 @@ A string's decoding: the quotes are removed, `\\` is `\`, `\"` is `"`, and `\u{h
 | `phonemes(s)`, `text(s)` | strings (§5) |
 | `lowercase(t)` | `t` with each code point replaced by its simple lowercase mapping, the `lower` entries of `grammars/unicode.txt` |
 | `tags(s)` | the captured part's constituent tags if `s` is a whole capture, else the union of the span's tokens' tags |
-| `tags(s, R)` | the union of the tags of every derivation of the span as `R`, empty if none |
+| `tags(s, R)` | the union of the tag sets of the completed items of `R` that span `s`, as `matches` reads them (§4), empty if there are none |
 | `classes(s)` | the tags of `tags(s)` whose first character is `A` to `Z` |
 | `runs(s)` | a tag set (§5) |
 
