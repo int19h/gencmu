@@ -504,7 +504,7 @@
 {"id":"adhoc.words.magic-table.broda-bahe-da-si-da.bpfk","text":"broda ba'e da si da","dialect":"bpfk","expect":"accept","verdict":"unique","words":["broda","ba'e","da"],"brackets":"(broda da)"}
 {"id":"adhoc.words.magic-table.zo-da-bu","text":"zo da bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo.da.bu"],"brackets":"zo da bu"}
 {"id":"adhoc.words.magic-table.zo-da-bu.bpfk","text":"zo da bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zo.da.bu"],"brackets":"zo da bu"}
-{"id":"adhoc.words.magic-table.zoi-zoi-at-sign-zoi-bu","text":"zoi zoi That letter that you use between a user id and a host name in an e-mail address zoi bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zoi.zoi.t'at.letter.t'at.you.use.between.a.user.id.and.a.'ost.name.in.an.e-mail.address.zoi.bu"],"brackets":"zoi zoi t'at letter t'at you use between a user id and a 'ost name in an e-mail address zoi bu"}
+{"id":"adhoc.words.magic-table.zoi-zoi-at-sign-zoi-bu","text":"zoi zoi That letter that you use between a user id and a host name in an e-mail address zoi bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zoi.zoi.That.letter.that.you.use.between.a.user.id.and.a.host.name.in.an.e-mail.address.zoi.bu"],"brackets":"zoi zoi That letter that you use between a user id and a host name in an e-mail address zoi bu"}
 {"id":"adhoc.words.magic-table.zoi-zoi-at-sign-zoi-bu.bpfk","text":"zoi zoi That letter that you use between a user id and a host name in an e-mail address zoi bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi.zoi.t'at.letter.t'at.you.use.between.a.user.id.and.a.'ost.name.in.an.e.mail.address.zoi.bu"],"brackets":"zoi zoi t'at letter t'at you use between a user id and a 'ost name in an e mail address zoi bu"}
 {"id":"adhoc.words.magic-table.broda-brode-si-bu","text":"broda brode si bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["broda.bu"],"brackets":"broda bu"}
 {"id":"adhoc.words.magic-table.broda-brode-si-bu.bpfk","text":"broda brode si bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["broda.bu"],"brackets":"broda bu"}
@@ -806,6 +806,11 @@
 {"id":"adhoc.words.orthography.zbalermorna.lone-stress-mark-in-zoi","text":"zoi gy.  .gy.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi","gy","","gy"],"brackets":"(zoi gy  gy)"}
 {"id":"adhoc.words.orthography.zbalermorna.lone-shorthand-in-zoi","text":"zoi gy.  .gy.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi","gy","","gy"],"brackets":"(zoi gy  gy)"}
 {"id":"adhoc.words.orthography.zbalermorna.shorthand-before-stressed-vowel","text":"","dialect":"experimental","expect":"accept","verdict":"unique","words":["A'a"],"brackets":"A'a"}
+{"id":"adhoc.words.orthography.comma.cyrillic-vowels","text":"ми ма,и","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","ma'i"],"brackets":"(mi ma'i)"}
+{"id":"adhoc.words.orthography.comma.capital-run","text":"MI KLA,MA","dialect":"experimental","expect":"accept","verdict":"unique","words":["mI","klama"],"brackets":"(mI klama)"}
+{"id":"adhoc.words.orthography.apostrophe.h","text":"mi coho","dialect":"experimental","expect":"accept","verdict":"resolved","words":["mi","co'o"],"brackets":"(mi co'o)"}
+{"id":"adhoc.words.orthography.apostrophe.h-not-cll","text":"mi coho","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"adhoc.words.orthography.apostrophe.typographic","text":"co’o","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["co'o"],"brackets":"co'o"}
 {"id":"adhoc.syntax.i-je-niho-at-text-start.experimental","text":".i je ni'o mi klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["i","je","ni'o","mi","klama"],"brackets":"(i je ni'o [mi klama])"}
 {"id":"adhoc.syntax.i-je-niho-at-text-start.zantufa","text":".i je ni'o mi klama","dialect":"zantufa","expect":"accept","verdict":"unique","words":["i","je","ni'o","mi","klama"],"brackets":"([i je] ni'o [mi klama])"}
 {"id":"adhoc.syntax.niho-i-niho-at-text-start.experimental","text":"ni'o .i ni'o mi klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["ni'o","i","ni'o","mi","klama"],"brackets":"(ni'o i ni'o [mi klama])"}
@@ -1125,7 +1130,7 @@
 {"id":"adhoc.words.peg.spaahgageiybla.bpfk","text":"spaa'gageiybla","dialect":"bpfk","expect":"reject","stage":"words"}
 {"id":"adhoc.words.peg.spagaiiismu-stressed","text":"spAgaiiismu","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"adhoc.words.peg.spagaiiismu-stressed.bpfk","text":"spAgaiiismu","dialect":"bpfk","expect":"reject","stage":"words"}
-{"id":"adhoc.words.peg.fahu","text":"fahu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["fa'u"],"brackets":"fa'u"}
+{"id":"adhoc.words.peg.fahu","text":"fahu","dialect":"cll-ebnf","expect":"reject","stage":"words","seeded":"accept","reason":"CLL 3.1 omits the letter h from the alphabet. CLL 3.3 says that h does not write the apostrophe. So the CLL dialect reads no h (phonemes/latin-strict.md, Letters). The approved word forms read h as the apostrophe (phonemes/latin.md)."}
 {"id":"adhoc.words.peg.fahu.bpfk","text":"fahu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["fa'u"],"brackets":"fa'u"}
 {"id":"adhoc.words.peg.y-bu","text":"y bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["y.bu"],"brackets":"y bu"}
 {"id":"adhoc.words.peg.y-bu.bpfk","text":"y bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["y.bu"],"brackets":"y bu"}

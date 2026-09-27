@@ -163,7 +163,9 @@ A run that is not an ordinary run is foreign. It has a letter, a digit, a mark o
 
 ## Letters
 
-A consonant is emitted as itself whatever its case. CLL 3.9 writes a stressed syllable of a name in capitals, but only the capital vowel marks the stress. A capital vowel is the stressed phoneme. The apostrophe is the phoneme `/'/`. The letter `h` is the same phoneme: it is the capital apostrophe in every dialect here. The typographic forms of the apostrophe are the same phoneme too, since they are the same character in another font.
+A consonant is emitted as itself whatever its case. CLL 3.9 writes a stressed syllable of a name in capitals, but only the capital vowel marks the stress. A capital vowel is the stressed phoneme. The apostrophe is the phoneme `/'/`. The typographic forms of the apostrophe are the same phoneme, since they are the same character in another font.
+
+CLL 3.1 omits `h` from the alphabet. CLL 3.3 says that `h` does not write the apostrophe. This stage treats `h` as foreign text. [latin.md](latin.md) reads `h` as the apostrophe.
 
 ```jbogenbau
 %rule consonant
@@ -198,7 +200,7 @@ A consonant is emitted as itself whatever its case. CLL 3.9 writes a stressed sy
   $
 
 %rule apostrophe
-  "'" | "’" | "‘" | "h" | "H" | "ʼ"
+  "'" | "’" | "‘" | "ʼ"
 %emits
   $ </'/>
 
