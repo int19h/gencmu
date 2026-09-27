@@ -20,10 +20,12 @@ type notationReader struct {
 func newNotationReader(bootstrap string, uni *unicodeTable) (*notationReader, error) {
 	var b struct {
 		Format int
+		// A stage's name and a document's path are strings: null and
+		// absent are refused, as the other libraries refuse them.
 		Stages []struct {
-			Name      string
+			Name      *string
 			Documents []struct {
-				Path string
+				Path *string
 				Dom  json.RawMessage
 			}
 		}
@@ -36,21 +38,27 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (*notationReader, er
 	}
 	nr := &notationReader{uni: uni, hash: fnv1a64(bootstrap)}
 	for _, s := range b.Stages {
+		if s.Name == nil {
+			return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "a stage of the bootstrap has no name"}
+		}
 		var docs []docDOM
 		for _, d := range s.Documents {
+			if d.Path == nil {
+				return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "a document of the bootstrap has no path"}
+			}
 			dom, err := decodeDOM(d.Dom, uni)
 			if err != nil {
-				return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "cannot read the bootstrap's DOM of " + d.Path + ": " + err.Error()}
+				return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "cannot read the bootstrap's DOM of " + *d.Path + ": " + err.Error()}
 			}
-			docs = append(docs, docDOM{path: d.Path, dom: dom})
+			docs = append(docs, docDOM{path: *d.Path, dom: dom})
 		}
-		g, gerr := stitch(s.Name, docs)
+		g, gerr := stitch(*s.Name, docs)
 		if gerr != nil {
 			return nil, gerr
 		}
 		l := lower(g, nil, false)
 		if l.fault != "" {
-			return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Stage: s.Name, Message: l.fault}
+			return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Stage: *s.Name, Message: l.fault}
 		}
 		nr.stages = append(nr.stages, g)
 		nr.lowered = append(nr.lowered, l)

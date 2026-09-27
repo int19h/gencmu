@@ -1755,6 +1755,17 @@
   }
 
   /**
+   * Whether an expression node has a spelling but is not exactly a spelled
+   * symbol: its spelling and its symbol, and no other key that lowering
+   * could read in its place.
+   * @param {Record<string, unknown>} value
+   * @returns {boolean}
+   */
+  function isMisshapenSpelling(value) {
+    return "spelling" in value && (Object.keys(value).length !== 2 || !("expr" in value));
+  }
+
+  /**
    * @param {unknown} value
    * @returns {value is Record<string, unknown>}
    */
@@ -1832,6 +1843,8 @@
         // Depth counts the compound nodes above a node (engine §9): the
         // items of a top-level sequence are below one, the sequence.
         const expr = alternative.expr;
+        // The expression itself is checked before its sequence is split.
+        if (isDomObject(expr) && isMisshapenSpelling(expr)) return "a malformed expression";
         const isSeq = isDomObject(expr) && Array.isArray(expr.seq);
         const top = isSeq ? /** @type {unknown[]} */ (expr.seq) : [expr];
         for (const item of top) {
@@ -1857,11 +1870,7 @@
       const push = (childKind, child) => pending.push({ kind: childKind, value: child, depth: next });
       /** @type {(list: unknown, least: number, most?: number) => boolean} */
       const list = (items, least, most = Infinity) => Array.isArray(items) && items.length >= least && items.length <= most;
-      // A spelled symbol has its spelling and its symbol, and no other key
-      // that lowering could read in its place.
-      if ((kind === "expr" || kind === "top-capture") && "spelling" in value && (Object.keys(value).length !== 2 || !("expr" in value))) {
-        return "a malformed expression";
-      }
+      if ((kind === "expr" || kind === "top-capture") && isMisshapenSpelling(value)) return "a malformed expression";
       if (kind === "expr") {
         if ("choice" in value || "seq" in value) {
           const items = "choice" in value ? value.choice : value.seq;

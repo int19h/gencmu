@@ -224,6 +224,7 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("a spelled symbol that is also empty", set_expr({"capture": "x", "expr": {"spelling": "a", "expr": A, "empty": True}})),
     ("a spelled symbol that is also a reference", set_expr({"seq": [{"capture": "x", "expr": A}, {"spelling": "a", "expr": A, "ref": "text"}]})),
     ("a spelled symbol that is also a capture", set_expr({"capture": "x", "spelling": "a`b", "expr": A})),
+    ("a top-level sequence that is also a spelled symbol", set_expr({"seq": [{"capture": "x", "expr": A}, A], "spelling": "a", "expr": A})),
     ("a spelled symbol that is also an optional", set_expr({"seq": [{"capture": "x", "expr": A}, {"optional": A, "spelling": "a", "expr": {"ref": "#"}}]})),
 ]
 

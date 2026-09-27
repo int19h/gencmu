@@ -207,6 +207,10 @@ fn every_malformed_dom_is_a_cache_miss() {
             spelled(r#"{"capture":"x","spelling":"B","expr":{"terminal":"b"}}"#),
         ),
         (
+            "a top-level sequence that is also a spelled symbol",
+            spelled(r#"{"seq":[{"terminal":"b"},{"terminal":"b"}],"spelling":"b","expr":{"terminal":"b"}}"#),
+        ),
+        (
             "a spelled symbol that is also an optional",
             spelled(r##"{"optional":{"terminal":"b"},"spelling":"b","expr":{"ref":"#"}}"##),
         ),

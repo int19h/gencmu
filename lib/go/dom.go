@@ -1,6 +1,7 @@
 package gencmu
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 )
@@ -427,14 +428,14 @@ func decodeDOM(raw json.RawMessage, uni *unicodeTable) (*domDoc, error) {
 		return nil, err
 	}
 	var format int
-	if err := json.Unmarshal(o["format"], &format); err != nil || format != domFormat {
+	if err := unmarshal(o["format"], &format); err != nil || format != domFormat {
 		return nil, fmt.Errorf("unsupported DOM format")
 	}
 	var rules, dirs []json.RawMessage
-	if err := json.Unmarshal(o["rules"], &rules); err != nil {
+	if err := unmarshal(o["rules"], &rules); err != nil {
 		return nil, err
 	}
-	if err := json.Unmarshal(o["directives"], &dirs); err != nil {
+	if err := unmarshal(o["directives"], &dirs); err != nil {
 		return nil, err
 	}
 	d := &domDoc{}
@@ -446,21 +447,23 @@ func decodeDOM(raw json.RawMessage, uni *unicodeTable) (*domDoc, error) {
 		d.Rules = append(d.Rules, rule)
 	}
 	for _, r := range dirs {
-		if string(r) == "null" {
-			return nil, fmt.Errorf("a null directive")
-		}
-		var dir struct {
-			Name *string
-			Args []string
-			At   []int
-		}
-		if err := json.Unmarshal(r, &dir); err != nil {
+		o, err := decodeObj(r)
+		if err != nil {
 			return nil, err
 		}
-		if dir.Name == nil || dir.Args == nil || len(dir.At) != 2 {
+		name, err := decodeString(o["name"])
+		if err != nil {
 			return nil, fmt.Errorf("a malformed directive")
 		}
-		d.Directives = append(d.Directives, &domDirective{Name: *dir.Name, Args: dir.Args, At: [2]int{dir.At[0], dir.At[1]}})
+		args, err := decodeList(o["args"], decodeString)
+		if err != nil {
+			return nil, fmt.Errorf("a malformed directive")
+		}
+		at, err := decodePosition(o["at"])
+		if err != nil {
+			return nil, fmt.Errorf("a malformed directive")
+		}
+		d.Directives = append(d.Directives, &domDirective{Name: name, Args: args, At: at})
 	}
 	if err := validateDOM(d, uni); err != nil {
 		return nil, err
@@ -474,17 +477,15 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 		return nil, err
 	}
 	r := &domRule{}
-	if err := json.Unmarshal(o["name"], &r.Name); err != nil {
+	if r.Name, err = decodeString(o["name"]); err != nil {
 		return nil, err
 	}
-	if err := json.Unmarshal(o["op"], &r.Op); err != nil {
+	if r.Op, err = decodeString(o["op"]); err != nil {
 		return nil, err
 	}
-	var at []int
-	if err := json.Unmarshal(o["at"], &at); err != nil || len(at) != 2 {
+	if r.At, err = decodePosition(o["at"]); err != nil {
 		return nil, fmt.Errorf("a malformed rule")
 	}
-	r.At = [2]int{at[0], at[1]}
 	if _, ok := o["conditions"]; !ok {
 		return nil, fmt.Errorf("a malformed rule")
 	}
@@ -506,11 +507,11 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 		r.Verbatim = true
 	}
 	var alts, conds []json.RawMessage
-	if err := json.Unmarshal(o["alternatives"], &alts); err != nil {
+	if err := unmarshal(o["alternatives"], &alts); err != nil {
 		return nil, err
 	}
 	if c, ok := o["conditions"]; ok {
-		if err := json.Unmarshal(c, &conds); err != nil {
+		if err := unmarshal(c, &conds); err != nil {
 			return nil, err
 		}
 	}
@@ -562,7 +563,7 @@ func isTrue(raw json.RawMessage) bool {
 
 func decodeList[T any](raw json.RawMessage, each func(json.RawMessage) (T, error)) ([]T, error) {
 	var items []json.RawMessage
-	if err := json.Unmarshal(raw, &items); err != nil {
+	if err := unmarshal(raw, &items); err != nil {
 		return nil, err
 	}
 	out := make([]T, 0, len(items))
@@ -576,10 +577,33 @@ func decodeList[T any](raw json.RawMessage, each func(json.RawMessage) (T, error
 	return out, nil
 }
 
+// unmarshal is json.Unmarshal, but refuses null. json.Unmarshal reads null
+// into a string, a number or a list as its zero value, with no error, where
+// the other libraries refuse the DOM.
+func unmarshal(raw json.RawMessage, v any) error {
+	if bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+		return fmt.Errorf("a null where the DOM holds a value")
+	}
+	return json.Unmarshal(raw, v)
+}
+
 func decodeString(raw json.RawMessage) (string, error) {
 	var s string
-	err := json.Unmarshal(raw, &s)
+	err := unmarshal(raw, &s)
 	return s, err
+}
+
+// decodePosition reads a [line, column] pair, each an integer.
+func decodePosition(raw json.RawMessage) ([2]int, error) {
+	at, err := decodeList(raw, func(r json.RawMessage) (int, error) {
+		var n int
+		err := unmarshal(r, &n)
+		return n, err
+	})
+	if err != nil || len(at) != 2 {
+		return [2]int{}, fmt.Errorf("a malformed position")
+	}
+	return [2]int{at[0], at[1]}, nil
 }
 
 func decodeExpr(raw json.RawMessage) (*domExpr, error) {
@@ -607,7 +631,7 @@ func decodeExpr(raw json.RawMessage) (*domExpr, error) {
 			return nil, err
 		}
 		e := &domExpr{Kind: exRepeat, Inner: inner}
-		err = json.Unmarshal(o["min"], &e.Min)
+		err = unmarshal(o["min"], &e.Min)
 		return e, err
 	}
 	if v, ok := o["capture"]; ok {
