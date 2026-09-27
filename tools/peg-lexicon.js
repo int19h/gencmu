@@ -4,20 +4,21 @@
 // `NAME <- &cmavo ( w o r d / ... ) &post_word`, whose letters spell the
 // words, `h` being the apostrophe. The tool keeps the prose of the document
 // before its first `jbogenbau` block and replaces every block after it.
-// Usage: node tools/peg-lexicon.js PEG LEXICON.md
+// Usage: node tools/peg-lexicon.js PEG LEXICON.md [CLASS,...]
+// The optional list names the classes that the lexicon tags as indicators.
 import fs from "node:fs";
 
-const [pegPath, documentPath] = process.argv.slice(2);
+const [pegPath, documentPath, indicatorList] = process.argv.slice(2);
 if (!pegPath || !documentPath) {
-  console.error("usage: node tools/peg-lexicon.js PEG LEXICON.md");
+  console.error("usage: node tools/peg-lexicon.js PEG LEXICON.md [CLASS,...]");
   process.exit(2);
 }
 
 // These classes attach to the word before them, so the lexicon tags them as
-// indicators for the indicator stage. camxes-exp's `indicator` rule takes UI,
-// CAI, a bare NAI, DAhO and FUhO, its `indicators` rule takes FUhE before
-// them, and Y is part of its spaces.
-const INDICATORS = new Set(["UI", "CAI", "NAI", "Y", "DAhO", "FUhE", "FUhO"]);
+// indicators for the indicator stage. By default they are camxes-exp's: its
+// `indicator` rule takes UI, CAI, a bare NAI, DAhO and FUhO, its `indicators`
+// rule takes FUhE before them, and Y is part of its spaces.
+const INDICATORS = new Set(indicatorList !== undefined ? indicatorList.split(",").filter(Boolean) : ["UI", "CAI", "NAI", "Y", "DAhO", "FUhE", "FUhO"]);
 
 const words = new Map();
 const peg = fs.readFileSync(pegPath, "utf8");

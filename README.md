@@ -24,7 +24,7 @@ Or open `index.html` in a browser, from the clone or from GitHub Pages: the play
 | `cll-ebnf` | Lojban as *The Complete Lojban Language* describes it, its printed grammar taken as normative |
 | `bpfk` | CLL with the word forms the definition effort approved, elided terminators read as its PEG grammars read them |
 | `experimental` | CLL with the experimental constructs in use since |
-| `zantufa` | the experimental dialect with Guskant's Zantufa constructs |
+| `zantufa` | Guskant's Zantufa 1.9999, translated rule by rule |
 
 Each is a document under [`grammars/dialects/`](grammars/dialects), which links the grammar documents of its stages.
 

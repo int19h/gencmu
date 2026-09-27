@@ -1,437 +1,741 @@
-# The Zantufa constructs
+# The Zantufa grammar
 
-This document is the Zantufa dialect's addition to the experimental syntax grammar, [`experimental.md`](experimental.md): the constructs of Guskant's Zantufa grammar, version 1.9999, that go beyond it. It is stitched after that grammar in the syntax stage of the Zantufa dialect, [`../dialects/zantufa.md`](../dialects/zantufa.md), so every rule here either is new, adds alternatives to a rule of the experimental grammar with `%extend-rule`, or restates one with `%redefine-rule`, replacing it. The notation is explained in [the notation document](../../docs/notation.md).
+This document is the syntax of the [Zantufa](../dialects/zantufa.md) dialect. Its reference is Guskant's Zantufa 1.9999, `zantufa-1.9999.peg` in the `gerna_cipra` repository. It is a grammar of its own, and it translates the reference rule by rule. Each rule's comment gives the rule of the reference that it translates. A rule has the reference's name, written with hyphens. The other rules state the reference's lookaheads and ordered choices as conditions.
 
-Most of the constructs are behind features, which the Zantufa dialect enables: `zantufa-connectives`, `zantufa-terms`, `zantufa-tags` and `zantufa-mex`, each named in its section. A few are unguarded: they extend the experimental grammar over text it rejects, so they cannot change a reading it already has. Where a Zantufa form generalizes an older form over the same text, the rule is restated with the two under complementary guards, `@¬feature?` on the old one and `@feature?` on the new, so that the two never compete; that is why most changes here replace a rule rather than extend it.
+[The Zantufa lexicon](../words/lexicon-zantufa.md) gives each cmavo the selma'o that Zantufa gives it. For example, every tense word is BAI, `ca'a` and `ka'e` are NA, `je` is JOI, `la` is LE, `ce'e` is BO, and `nai` and `sa` are UI. The indicator stage absorbs `ba'e` and the other words of BAhE, so this grammar does not read them. It reads every other word, the attitudinals included.
 
-The Zantufa cmavo, `mu'ei` in ROI, `xe'u`, `no'oi` in NOhOI and the others, come from the experimental lexicon and need no grammar change.
+Zantufa lets free modifiers follow every word (`post_clause`), with a few exceptions. These are `bu`, `fa'o`, a word of SI or BAhE, and the words inside a quote. So the translation writes `#` after each terminal and after each quote. An elidable terminator keeps its slot inside its brackets, `[KU #]`, as the reference's `KU_elidible <- KU_clause?` does. After a PA word, the free modifiers do not begin with a number (`number_post_clause`). After a BY word they do not begin with a lerfu string, and after a COI word they do not begin with a vocative.
 
-Two more terminators are elidable here:
+The magic words are the word stage's. `zei` is SI there and erases a word, `sa` is an attitudinal, and `su` erases the whole text before it. "Differences from Zantufa 1.9999" says where the last differs from Zantufa.
+
+The notation is explained in [the notation document](../../docs/notation.md). A lookahead of the reference, such as `!terms`, is a condition with `begins`. The terminals are selma'o, and `any-word` and `anything` are the tags `word` and `foreign-text` that the word stage puts on the words and the foreign text of a quote.
+
+The stage is greedy: at the first difference between two parses, it takes the one that reads the next word. A PEG's repetition is greedy too, and the two usually agree. Where two alternatives of an ordered choice can read the same words, the later one has a condition that removes that reading. The terminators that the reference writes with `_elidible` are elidable here.
 
 ```jbogenbau
-%elidable FIhAU GIhI LIhAU
+%ambiguity-resolution greedy
+
+%elidable
+  BEhO BOI CU DOhU FEhU GEhU GIhI IAU KEI KEhE KU KUhAU KUhE
+  KUhO LIhAU LIhU LOhO LUhU MEhU SEhU TEhU TOI TUhU VAU VEhO
+
+%rule #
+  [free ...]
+
+%rule any-word
+  "word"
+
+%rule anything
+  "foreign-text"
 ```
 
-## Statements
+## The text and its paragraphs
 
-A statement may be a forethought connection of statements, `ga broda gi brode gi brodi gi'i`, with any number of `gi` branches and an optional closing `gi'i` (`zantufa-connectives`); under that feature the statement-level `bo` and `ke` continuations are disabled, since the forethought form takes their place. A statement may be followed by terms, optionally introduced by `i'au`, which supply arguments after the bridi is complete (`zantufa-terms`).
+A text is free modifiers and then paragraphs, which `ni'o` and `no'i` separate. A run of `ni'o` can stand alone, or join two paragraphs with a connective, or with a connective or tag and `bo`. A paragraph is statements and fragments, separated by `.i`. A text inside `lu`, `to` or `lu'ei` begins with its paragraphs (`inner-text`). The word before it takes the leading free modifiers.
 
 ```jbogenbau
-%redefine-rule paragraph
-  | @¬zantufa-terms? (statement | fragment) [I # [statement | fragment]] ...
-  | @zantufa-terms? (statement | fragment | statement (IhAU # [terms] | terms))
-      [I # [statement | fragment | statement (IhAU # [terms] | terms)]] ...
+%rule text
+  (* text <- intro_null free* paragraphs? si_clause? SI_clause* faho_clause EOF? *)
+  # [paragraphs]
 
-%redefine-rule statement-3
-  | @¬zantufa-connectives? sentence
-      [ bridi-tail-connective [stag] BO # subsentence
-      | selbri-connective [stag] KE # subsentence [KEhE] #
-      ] ...
-  | @zantufa-connectives? sentence
-  | [tag] TUhE # text-1 [TUhU] #
-  | @zantufa-connectives? gek statement gik statement [(gik statement) ...] [GIhI] #
+%rule inner-text
+  (* text <- intro_null free* paragraphs? ...: in a nested text, the word before it has already read the free modifiers *)
+  [paragraphs]
+
+%rule paragraphs
+  (* paragraphs <- (NIhO_clause+ paragraphs_1?)+ / paragraphs_1 (NIhO_clause+ paragraphs_1?)* *)
+  (NIhO #) ... [paragraphs-tail] | paragraphs-tail
+
+%rule paragraphs-tail
+  paragraphs-1 [(NIhO #) ... [paragraphs-tail]]
+
+%rule paragraphs-1
+  (* paragraphs_1 <- paragraphs_2 (NIhO_clause+ joik paragraphs_2)* *)
+  paragraphs-2 [(NIhO #) ... joik paragraphs-2] ...
+
+%rule paragraphs-2
+  (* paragraphs_2 <- paragraph (NIhO_clause+ joik? tag? BO_clause paragraph)* *)
+  paragraph [(NIhO #) ... [joik] [tag] BO # paragraph] ...
+
+%rule paragraph
+  (* paragraph <- (I_clause (statement_terms / fragment)?)+
+                / (statement_terms / fragment) (I_clause (statement_terms / fragment)?)* *)
+  | (I # [statement-terms | fragment]) ...
+  | (statement-terms | fragment) [I # [statement-terms | fragment]] ...
 ```
 
-## Bridi-tails
+## Statements and fragments
 
-A forethought `gek-sentence` may take further `gi` branches and end in `gi'i` (`zantufa-connectives`), and `ke bridi-tail ke'e` followed by tail terms is a bridi-tail (`zantufa-terms`), so that a group of connected tails can share arguments.
+A statement can take terms after it, which `i'au` can introduce (`statement-terms`). A forethought connection of statements has any number of `gi` branches and an optional `gi'i`. `.i` with a connective, or with a connective or tag and `bo`, joins a statement to the one before it, so a text cannot begin that way. The lookaheads of the reference's fragments are conditions: a `gek` or `joik` fragment does not begin terms, a `na` fragment has no terms or `ku` after it, and a terms fragment has no mekso after it.
 
 ```jbogenbau
-%redefine-rule gek-sentence
-  | @¬zantufa-connectives? gek subsentence gik subsentence tail-terms
-  | @zantufa-connectives? gek subsentence gik subsentence [(gik subsentence) ...] [GIhI] # tail-terms
-  | [tag] KE # gek-sentence [KEhE] #
-  | NA # gek-sentence
+%rule statement-terms
+  (* statement_terms <- statement IAU_elidible terms? *)
+  statement [IAU #] [terms]
 
-%extend-rule bridi-tail-3
-  @zantufa-terms? KE # bridi-tail [KEhE] # tail-terms
+%rule statement
+  (* statement <- statement_1 / prenex statement *)
+  statement-1 | prenex statement
+
+%rule statement-1
+  (* statement_1 <- statement_2 (I_clause joik statement_2)* *)
+  statement-2 [I # joik statement-2] ...
+
+%rule statement-2
+  (* statement_2 <- statement_3 (I_clause joik? tag? BO_clause statement_3)* *)
+  statement-3 [I # [joik] [tag] BO # statement-3] ...
+
+%rule statement-3
+  (* statement_3 <- sentence / tag? TUhE_clause paragraphs TUhU_elidible / gek_statement *)
+  sentence | [tag] TUhE # paragraphs [TUhU #] | gek-statement
+
+%rule gek-statement
+  (* gek_statement <- gek statement (gik statement)+ GIhI_elidible *)
+  gek $a(gek-branches) gik $l(statement) [GIhI #]
+%conditions
+  ¬matches($a, sentence-branches) ∨ ¬matches($l, sentence-continued)
+
+%rule gek-branches
+  (* statement (gik statement)*: every branch but the last. Zantufa's sentence comes first in statement_3, and it
+     succeeds where each of these is a sentence and the last branch is a sentence, perhaps with the .i links of
+     statement_1 and statement_2 after it, which then continue the statement outside the forethought *)
+  statement [gik statement] ...
+
+%rule sentence-branches
+  sentence [gik sentence] ...
+
+%rule sentence-continued
+  sentence [statement-link] ...
+
+%rule statement-link
+  I # joik statement-2 | I # [joik] [tag] BO # statement-3
+
+%rule fragment
+  (* fragment <- prenex / !terms gek / !terms joik / ek / gihek / NA_clause !terms !KU
+               / terms VAU_elidible !mex / mex / relative_clauses / links / linkargs *)
+  | prenex
+  | $g(gek)
+  | $j(joik)
+  | ek
+  | gihek
+  | $n(na-clause)
+  | $t(terms-vau)
+  | $m(mex)
+  | relative-clauses
+  | links
+  | linkargs
+%conditions
+  ¬begins(from($g), terms),
+  ¬begins(from($j), terms),
+  ¬begins(after($n), terms),
+  ¬begins(after($n), ku-word),
+  ¬begins(after($t), mex),
+  ¬matches($t, na-clause),
+  ¬matches($m, terms-vau),
+  ¬begins(after($m), sumti-5),
+  ¬begins(after($m), selbri)
+
+%rule prenex
+  (* prenex <- terms ZOhU_clause *)
+  terms ZOhU #
+
+%rule na-clause
+  NA #
+
+%rule terms-vau
+  terms [VAU #]
+
+%rule ku-word
+  KU
+```
+
+## Sentences and bridi-tails
+
+A sentence is terms, an optional `cu` and a bridi-tail, or a forethought connection of sentences. Terms stand only before the first bridi-tail, since Zantufa has no JACU. Bridi-tails connect at three levels, as in camxes. The outer level takes a connective only where the inner one cannot, before a tag and `ke` or a tag and `cu`, which is what the reference's lookaheads leave to it. After `ke`, the words are a group of bridi-tails, unless a selbri ends with `ke'e` there, and then they are a tanru.
+
+```jbogenbau
+%rule sentence
+  (* sentence <- terms? CU_elidible bridi_tail / terms? gek sentence (gik sentence)+ GIhI_elidible tail_terms *)
+  | [terms] [CU #] bridi-tail
+  | [terms] gek sentence (gik sentence) ... [GIhI #] tail-terms
+
+%rule bridi-tail
+  (* bridi_tail <- bridi_tail_1 (joik_gihek tag? CU_elidible bridi_tail_1)* *)
+  bridi-tail-1 [bridi-tail-link] ...
+
+%rule bridi-tail-link
+  | $j(joik-gihek) tag [CU #] bridi-tail-1
+  | $j(joik-gihek) CU # bridi-tail-1
+  | $j(joik-gihek) $b(bridi-tail-1)
+%conditions
+  begins(after($j), tag-ke) ∨ begins(after($j), tag-cu),
+  ¬begins(from($b), tag)
+
+%rule tag-cu
+  tag CU
+
+%rule bridi-tail-1
+  (* bridi_tail_1 <- bridi_tail_2 (joik_gihek !(tag? BO_clause) !(tag? KE_clause) CU_elidible bridi_tail_2 tail_terms)* *)
+  bridi-tail-2 [bridi-tail-1-link] ...
+
+%rule bridi-tail-1-link
+  $j(joik-gihek) [CU #] bridi-tail-2 tail-terms
+%conditions
+  ¬begins(after($j), tag-bo),
+  ¬begins(after($j), tag-ke)
+
+%rule tag-bo
+  [tag] BO
+
+%rule tag-ke
+  [tag] KE
+
+%rule bridi-tail-2
+  (* bridi_tail_2 <- bridi_tail_3 ((tag / joik_gihek tag?) BO_clause CU_elidible bridi_tail_3 tail_terms)* *)
+  bridi-tail-3 [(tag | joik-gihek [tag]) BO # [CU #] bridi-tail-3 tail-terms] ...
+
+%rule bridi-tail-3
+  (* bridi_tail_3 <- KE_clause !(selbri_2 KEhE) bridi_tail KEhE_elidible tail_terms / selbri tail_terms / gek_bridi_tail *)
+  | $k(ke-clause) bridi-tail [KEhE #] tail-terms
+  | $s(selbri) tail-terms
+  | gek-bridi-tail
+%conditions
+  ¬begins(after($k), selbri-2-kehe),
+  ¬begins(from($s), ke-word) ∨ begins(from($s), ke-selbri-2-kehe)
+
+%rule ke-selbri-2-kehe
+  KE # selbri-2 KEhE
+
+%rule ke-clause
+  KE #
+
+%rule selbri-2-kehe
+  selbri-2 KEhE
+
+%rule gek-bridi-tail
+  (* gek_bridi_tail <- gek bridi_tail (gik bridi_tail)+ !(gik (term / CU)) GIhI_elidible tail_terms
+                     / tag* KE_clause gek_bridi_tail KEhE_elidible / NA_clause gek_bridi_tail *)
+  | gek bridi-tail $g(gik-bridi-tails) [GIhI #] tail-terms
+  | [tag ...] KE # gek-bridi-tail [KEhE #]
+  | NA # gek-bridi-tail
+%conditions
+  ¬begins(after($g), gik-term)
+
+%rule gik-bridi-tails
+  (gik bridi-tail) ...
+
+%rule gik-term
+  gik (term | CU)
+
+%rule tail-terms
+  (* tail_terms <- term* VAU_elidible *)
+  [term ...] [VAU #]
 ```
 
 ## Terms
 
-A forethought termset may take further `gi` branches and end in `gi'i` (`zantufa-connectives`); `jai [tag] sumti` is a term (`zantufa-tags`), the argument-raising `jai` applied to a sumti rather than to a selbri; and `noi'a selbri ku` is the briga'i form of the selbri relative term, unguarded.
+Zantufa has no termsets. A term is a `xoi` clause, a `ke` group of terms, a tag with its sumti, a sumti, a briga'i form (`noi'a` with a selbri, or a bare `na`), or a forethought connection of terms. A tag term does not stand before a selbri, a forethought bridi-tail or `bo`, as the reference's lookaheads say. A sumti comes before a forethought term over the same words, as in the reference's ordered choice.
 
 ```jbogenbau
-%redefine-rule termset
-  | @¬zantufa-connectives? [NUhI #] gek terms [NUhU] # gik terms [NUhU] #
-  | @zantufa-connectives? [NUhI #] gek terms [NUhU] # gik terms [NUhU] # [(gik terms [NUhU] #) ...]
-      [GIhI] #
-  | NUhI # terms-not-starting-with-bare-gek [NUhU] #
-  | KE # terms [KEhE] #
+%rule terms
+  (* terms <- term+ *)
+  term ...
 
-%redefine-rule termset-with-nuhi
-  | @¬zantufa-connectives? NUhI # gek terms [NUhU] # gik terms [NUhU] #
-  | @zantufa-connectives? NUhI # gek terms [NUhU] # gik terms [NUhU] # [(gik terms [NUhU] #) ...]
-      [GIhI] #
-  | NUhI # terms-not-starting-with-bare-gek [NUhU] #
-  | KE # terms [KEhE] #
+%rule term
+  (* term <- term_1 (!(joik tag BO_clause? CU) joik_ek term_1)* *)
+  term-1 [term-link] ...
 
-%redefine-rule term-3
-  | sumti
-  | tagged-term
-  | termset
-  | NA KU #
-  | NA #
-  | NOIhA # selbri [FEhU] #
-  | FIhOI # statement [FIhAU] #
-  | SOI # statement [SEhU] #
-  | NOIhA # selbri KU #
-  | @zantufa-tags? JAI # [tag] sumti
+%rule term-link
+  $j(joik-ek) term-1
+%conditions
+  ¬begins(from($j), joik-tag-cu)
 
-%redefine-rule term-3-not-starting-with-bare-gek
-  | sumti
-  | tagged-term
-  | termset-with-nuhi
-  | NA KU #
-  | NA #
-  | NOIhA # selbri [FEhU] #
-  | FIhOI # statement [FIhAU] #
-  | SOI # statement [SEhU] #
-  | NOIhA # selbri KU #
-  | @zantufa-tags? JAI # [tag] sumti
+%rule joik-tag-cu
+  joik tag [BO #] CU
+
+%rule term-1
+  (* term_1 <- term_2 (joik_ek? BO_clause term_2)* *)
+  term-2 [[joik-ek] BO # term-2] ...
+
+%rule term-2
+  (* term_2 <- XOI_clause statement SEhU_elidible / KE_clause !(sumti KEhE) term+ KEhE_elidible
+              / tag_term / !tag sumti / brigahi / gek_term *)
+  | XOI # statement [SEhU #]
+  | $k(ke-clause) term ... [KEhE #]
+  | tag-term
+  | $s(sumti)
+  | brigahi
+  | $g(gek-term)
+%conditions
+  ¬begins(from($g), sumti) ∨ begins(from($g), tag),
+  ¬begins(after($k), sumti-kehe),
+  ¬begins(from($s), tag)
+
+%rule sumti-kehe
+  sumti KEhE
+
+%rule brigahi
+  (* brigahi <- (POIhA_clause free* selbri / NA_clause !bridi_tail !joik_gihek) KU_elidible *)
+  | POIhA # selbri [KU #]
+  | $n(na-clause) [KU #]
+%conditions
+  ¬begins(after($n), bridi-tail),
+  ¬begins(after($n), joik-gihek)
+
+%rule tag-term
+  (* tag_term <- !gek (tag !(!tag selbri) !gek_bridi_tail !BO
+                      / (FA_clause (joik FA_clause)* / JAI_clause tag?) !tanru_unit_1) (sumti / KU_elidible) *)
+  | $t(tag) tag-term-argument
+  | $f(fa-jai) tag-term-argument
+%conditions
+  ¬begins(from($t), gek),
+  ¬begins(after($t), selbri) ∨ begins(after($t), tag),
+  ¬begins(after($t), gek-bridi-tail),
+  ¬begins(after($t), bo-word),
+  ¬begins(after($f), tanru-unit-1)
+
+%rule tag-term-argument
+  sumti | [KU #]
+
+%rule fa-jai
+  FA # [joik FA #] ... | JAI # [tag]
+
+%rule bo-word
+  BO
+
+%rule gek-term
+  (* gek_term <- gek term+ (gik term+)+ GIhI_elidible *)
+  gek term ... (gik term ...) ... [GIhI #]
 ```
 
 ## Sumti
 
-A forethought sumti connection may take further `gi` branches and end in `gi'i` (`zantufa-connectives`), and `ra'oi` quotes a single word as a sumti, delimited by the word stage; the quote is unguarded.
-
-The experimental grammar reads descriptions as camxes-exp does, with a connected sumti or a forethought sentence inside. Zantufa's descriptions differ from those, and until the Zantufa dialect takes them from Zantufa 1.9999, this layer restates `sumti-5` and `sumti-tail` as they were. It restates `sumti` too, since Zantufa does not end a sumti with a bare `vu'o`.
+A sumti can be a `ra'oi`, `zo`, `zoi` or `lo'u` quote, a lerfu string, a `lu` quote, a `la'e` form, a pro-sumti, a `lo'oi` abstraction over a statement, a description, a `li` mekso, or `na'e` with a sumti. A lerfu string is a sumti only where no mekso operator follows it, as the reference's two lookaheads say. The inner sumti of a description does not begin with a quantifier.
 
 ```jbogenbau
-%redefine-rule sumti-4
-  | sumti-5
-  | @¬zantufa-connectives? gek sumti gik sumti-4
-  | @zantufa-connectives? gek sumti gik sumti-4 [(gik sumti-4) ...] [GIhI] #
+%rule sumti
+  (* sumti <- sumti_1 (VUhO_clause relative_clauses)? *)
+  sumti-1 [VUhO # relative-clauses]
 
-%redefine-rule sumti-6
-  | (LAhE # | NAhE BO #) [relative-clauses] sumti [LUhU] #
-  | NAhE # sumti [LUhU] #
-  | (LAhE # | NAhE BO #) (tag | FA #) sumti [LUhU] #
-  | KOhA #
-  | lerfu-string free-after-elided-boi
-  | @¬cbm? LA # [relative-clauses] CMEVLA ... #
-  | (LA | LE) # sumti-tail [KU] #
-  | (LA | LE) # jek (LA | LE) # sumti-tail [KU] #
-  | LOhOI # [(joik # | jek #) LOhOI #] ... statement [KUhAU] #
-  | LI # mex [LOhO] #
-  | ZO any-word #
-  | MAhOI any-word #
-  | LU text [LIhU] #
-  | LOhU [any-word ...] LEhU #
-  | ZOI any-word anything any-word #
-  | ZOhOI anything #
-  | LAhOI anything #
-  | MEhOI anything #
+%rule sumti-1
+  (* sumti_1 <- sumti_2 (joik_ek sumti_2)* *)
+  sumti-2 [joik-ek sumti-2] ...
+
+%rule sumti-2
+  (* sumti_2 <- sumti_3 (joik_ek? tag? BO_clause sumti_3)* *)
+  sumti-3 [[joik-ek] [tag] BO # sumti-3] ...
+
+%rule sumti-3
+  (* sumti_3 <- (KE_clause sumti KEhE_elidible / sumti_4 / gek sumti (gik sumti)+ GIhI_elidible) relative_clauses? *)
+  (KE # sumti [KEhE #] | sumti-4 | gek sumti (gik sumti) ... [GIhI #]) [relative-clauses]
+
+%rule sumti-4
+  (* sumti_4 <- quantifier? sumti_5 / quantifier selbri KU_elidible *)
+  [quantifier] sumti-5 | quantifier selbri [KU #]
+
+%rule sumti-5
+  (* sumti_5 <- RAhOI_clause / ZO_clause / ZOI_clause / LOhU_clause
+              / lerfu_string BOI_elidible !(BO_clause* operand* !(joik_ek (sumti / relative_clause)) operator) !(operand KEhE)
+              / LU_clause text LIhU_elidible / (LAhE_clause / NAhE_clause BO_clause) relative_clauses? sumti LUhU_elidible
+              / KOhA_clause / LOhOI_clause (joik LOhOI_clause)* statement KUhAU_elidible / LE_clause sumti_tail KU_elidible
+              / li_clause / NAhE_clause sumti_3 *)
   | RAhOI anything #
+  | ZO any-word #
+  | ZOI any-word anything any-word #
+  | LOhU [any-word ...] LEhU #
+  | $l(lerfu-boi)
+  | LU # inner-text [LIhU #]
+  | (LAhE # | NAhE # BO #) [relative-clauses] sumti [LUhU #]
+  | KOhA #
+  | LOhOI # [joik LOhOI #] ... statement [KUhAU #]
+  | LE # sumti-tail [KU #]
+  | LI # mex [LOhO #]
+  | NAhE # sumti-3
+%conditions
+  ¬begins(after($l), lerfu-operator),
+  ¬begins(after($l), operand-kehe)
 
-%redefine-rule sumti
-  sumti-1 [VUhO # (relative-clauses [sumti-connective sumti] | sumti-connective sumti)]
+%rule lerfu-boi
+  lerfu-string [BOI #]
 
-%redefine-rule sumti-5
-  [quantifier] sumti-6 [relative-clauses] | quantifier selbri [KU] # [relative-clauses]
+%rule lerfu-operator
+  [(BO #) ...] [operand ...] $o(operator)
+%conditions
+  ¬begins(from($o), joik-ek-sumti)
 
-%redefine-rule sumti-tail
-  [sumti-6 [relative-clauses]] sumti-tail-1 | relative-clauses sumti-tail-1
+%rule joik-ek-sumti
+  joik-ek (sumti | relative-clause)
 
-%redefine-rule sumti-connective
-  ek # | jehi # | joik # | VUhU #
+%rule operand-kehe
+  operand KEhE
 
-%rule jehi
-  [NA] [SE] JEhI [NAI]
+%rule sumti-tail
+  (* sumti_tail <- relative_clauses? (!quantifier sumti)? sumti_tail_1 *)
+  | [relative-clauses] sumti-tail-1
+  | [relative-clauses] $s(sumti) sumti-tail-1
+%conditions
+  ¬begins(from($s), quantifier)
+
+%rule sumti-tail-1
+  (* sumti_tail_1 <- tag? quantifier? selbri / quantifier sumti *)
+  | tag quantifier selbri
+  | $t(tag) $u(selbri)
+  | quantifier selbri
+  | $s(selbri)
+  | quantifier sumti
+%conditions
+  ¬begins(from($u), tcita-selci),
+  ¬begins(from($s), tag)
 ```
 
 ## Relative clauses
 
-A `noi` relative clause contains a statement rather than a subsentence, so it may hold connected sentences, `poi broda .i je brode` (`zantufa-terms`).
+Relative clauses can stand side by side, joined by a joik or by nothing. They follow a sumti, and they can follow a selbri too (see "Selbri and tanru").
 
 ```jbogenbau
-%redefine-rule relative-clause
-  | GOI # term [GEhU] #
-  | @¬zantufa-terms? NOI # subsentence [KUhO] #
-  | @zantufa-terms? NOI # statement [KUhO] #
+%rule relative-clauses
+  (* relative_clauses <- relative_clause (joik? relative_clause)* *)
+  relative-clause [[joik] relative-clause] ...
+
+%rule relative-clause
+  (* relative_clause <- GOI_clause term GEhU_elidible / NOI_clause statement KUhO_elidible *)
+  GOI # term [GEhU #] | NOI # statement [KUhO #]
 ```
 
-## Selbri
+## Selbri and tanru
 
-A forethought guhek connection may take further `gi` branches and end in `gi'i` (`zantufa-connectives`), and an abstraction contains a statement rather than a subsentence (`zantufa-terms`). Four tanru units are unguarded: `mu'oi` delimited quotes and `lu'ei text li'au` as selbri, `me` around a raw mekso, a run of operators or a tag, and a raw mekso before MOI.
+A selbri can take a tag or `na` before it, and relative clauses and `cei` after it. A tanru unit can be a name, as Zantufa reads a name as a selbri, a `go'oi`, `mu'oi` or `lu'ei` quote, `me` with a sumti, operators, a mekso or a tag, or a mekso with `moi`. The alternatives of `me` are tried in that order, as the reference's ordered choice has them, so `me su'i pa moi` is two tanru units, `me su'i` and `pa moi`. A mekso after `me` is not followed by what would make it a quantifier. And a tanru unit after the first does not begin with a joik and a `selbri_5`, since the tanru unit before it has read them as its connection.
 
 ```jbogenbau
-%redefine-rule selbri-6
-  | tanru-unit [[stag] BO # selbri-6]
-  | @¬zantufa-connectives? [NAhE #] guhek selbri gik selbri-6
-  | @zantufa-connectives? [NAhE #] guhek selbri gik selbri-6 [(gik selbri-6) ...] [GIhI] #
+%rule selbri
+  (* selbri <- selbri_1 / tag selbri / NA_clause selbri *)
+  selbri-1 | tag $s(selbri) | NA # selbri
+%conditions
+  ¬begins(from($s), tcita-selci)
 
-%redefine-rule selbri-6-not-starting-with-ke
-  | tanru-unit-not-starting-with-ke [[stag] BO # selbri-6]
-  | @¬zantufa-connectives? [NAhE #] guhek selbri gik selbri-6
-  | @zantufa-connectives? [NAhE #] guhek selbri gik selbri-6 [(gik selbri-6) ...] [GIhI] #
+%rule selbri-1
+  (* selbri_1 <- (!KE selbri_2 KEhE_clause linkargs / selbri_2) relative_clauses? (CEI_clause selbri)* *)
+  | $s(selbri-2) KEhE # linkargs [relative-clauses] [CEI # selbri] ...
+  | selbri-2 [relative-clauses] [CEI # selbri] ...
+%conditions
+  ¬begins(from($s), ke-word)
 
-%redefine-rule tanru-unit-2
-  | KE # selbri-3 [KEhE] #
+%rule ke-word
+  KE
+
+%rule selbri-2
+  (* selbri_2 <- selbri_3 (CO_clause selbri_3)* *)
+  selbri-3 [CO # selbri-3] ...
+
+%rule selbri-3
+  (* selbri_3 <- selbri_4+ *)
+  selbri-4 [later-selbri-4] ...
+
+%rule later-selbri-4
+  (* selbri_4's (joik selbri_5)* reads a joik and a selbri_5 before the next selbri_4 can begin with them *)
+  $x(selbri-4)
+%conditions
+  ¬begins(from($x), joik-selbri-5)
+
+%rule joik-selbri-5
+  joik selbri-5
+
+%rule selbri-4
+  (* selbri_4 <- selbri_5 (joik selbri_5)* *)
+  selbri-5 [joik selbri-5] ...
+
+%rule selbri-5
+  (* selbri_5 <- selbri_6 (joik tag? BO_clause selbri_6)* *)
+  selbri-6 [joik [tag] BO # selbri-6] ...
+
+%rule selbri-6
+  (* selbri_6 <- tanru_unit (BO_clause tanru_unit)* *)
+  tanru-unit [BO # tanru-unit] ...
+
+%rule tanru-unit
+  (* tanru_unit <- tanru_unit_1 linkargs? *)
+  tanru-unit-1 [linkargs]
+
+%rule tanru-unit-1
+  (* tanru_unit_1 <- CMEVLA_clause / BRIVLA_clause / GOhA_clause / KE_clause selbri_2 KEhE_elidible
+                   / NAhE_clause? gek selbri_2 (gik selbri_2)+ !(gik? (term / CU)) GIhI_elidible
+                   / MUhOI_clause / GOhOI_clause / LUhEI_clause text LIhAU_elidible
+                   / ME_clause (sumti / operator+ / mex / tag) MEhU_elidible MOI_clause? / mex MOI_clause
+                   / (FA_clause (joik FA_clause)* / SE_clause) tanru_unit_1 / JAI_clause tag? tanru_unit_1
+                   / NAhE_clause tanru_unit_1 / NU_clause (joik NU_clause)* statement KEI_elidible *)
+  | CMEVLA #
   | BRIVLA #
-  | @cbm? CMEVLA #
-  | GOhA [RAhO] #
-  | ME # sumti [MEhU] # [MOI #]
-  | (number | lerfu-string) MOI #
-  | NUhA # mex-operator
-  | SE # tanru-unit-2
-  | JAI # [tag] tanru-unit-2
-  | any-word (ZEI any-word) ...
-  | NAhE # tanru-unit-2
-  | @¬zantufa-terms? NU [NAI] # [joik-jek NU [NAI] #] ... subsentence [KEI] #
-  | @zantufa-terms? NU [NAI] # [joik-jek NU [NAI] #] ... statement [KEI] #
-  | linkargs tanru-unit-2
-  | XOhI # tag
-  | GOhOI anything #
-  | ZEhOI anything #
-  | TAhAI anything #
-  | BOhEI anything #
+  | GOhA #
+  | KE # selbri-2 [KEhE #]
+  | [NAhE #] gek selbri-2 $g(gik-selbris) [GIhI #]
   | MUhOI any-word anything any-word #
-  | LUhEI # text [LIhAU] #
-  | ME # (zantufa-raw-mex | mex-operator ... | tag) [MEhU] # [MOI #]
-  | zantufa-raw-mex MOI #
+  | GOhOI any-word #
+  | LUhEI # inner-text [LIhAU #]
+  | ME # sumti [MEhU #] [MOI #]
+  | ME # operator ... [MEhU #] [MOI #]
+  | ME # $m(mex) [MEhU #] [MOI #]
+  | ME # $t(tag) [MEhU #] [MOI #]
+  | mex MOI #
+  | (FA # [joik FA #] ... | SE #) tanru-unit-1
+  | JAI # [tag] tanru-unit-1
+  | NAhE # $n(tanru-unit-1)
+  | NU # [joik NU #] ... statement [KEI #]
+%conditions
+  ¬begins(after($g), gik-term-or-cu),
+  ¬matches($m, sumti),
+  ¬begins(after($m), sumti-5),
+  ¬begins(after($m), selbri),
+  ¬begins(from($m), operator),
+  ¬matches($t, sumti),
+  ¬begins(from($t), operator),
+  ¬matches($t, mex),
+  $n ⟹ ¬matches($, mex-moi)
 
-%redefine-rule tanru-unit-2-not-starting-with-ke
-  | BRIVLA #
-  | @cbm? CMEVLA #
-  | GOhA [RAhO] #
-  | ME # sumti [MEhU] # [MOI #]
-  | (number | lerfu-string) MOI #
-  | NUhA # mex-operator
-  | SE # tanru-unit-2
-  | JAI # [tag] tanru-unit-2
-  | any-word (ZEI any-word) ...
-  | NAhE # tanru-unit-2
-  | @¬zantufa-terms? NU [NAI] # [joik-jek NU [NAI] #] ... subsentence [KEI] #
-  | @zantufa-terms? NU [NAI] # [joik-jek NU [NAI] #] ... statement [KEI] #
-  | linkargs tanru-unit-2
-  | XOhI # tag
-  | GOhOI anything #
-  | ZEhOI anything #
-  | TAhAI anything #
-  | BOhEI anything #
-  | MUhOI any-word anything any-word #
-  | LUhEI # text [LIhAU] #
-  | ME # (zantufa-raw-mex | mex-operator ... | tag) [MEhU] # [MOI #]
-  | zantufa-raw-mex MOI #
-```
+%rule mex-moi
+  mex MOI #
 
-## Free modifiers
+%rule gik-selbris
+  (gik selbri-2) ...
 
-A `sei` discursive contains a statement rather than a bare selbri (`zantufa-terms`), and a raw mekso before `mai` is an utterance ordinal (`zantufa-mex`).
+%rule gik-term-or-cu
+  [gik] (term | CU)
 
-```jbogenbau
-%redefine-rule free
-  | @¬zantufa-terms? SEI # [terms [CU #]] selbri [SEhU]
-  | @zantufa-terms? SEI # statement [SEhU]
-  | SOI # sumti [sumti] [SEhU]
-  | vocative [relative-clauses] selbri [relative-clauses] [DOhU]
-  | @¬cbm? vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
-  | vocative [sumti] [DOhU]
-  | (number | lerfu-string) MAI
-  | TO text [TOI]
-  | XI # (number | lerfu-string) [BOI]
-  | XI # VEI # mex [VEhO]
-  | LOhAI [any-word ...] [SAhAI [any-word ...]] LEhAI
-  | SAhAI [any-word ...] LEhAI
-  | LEhAI
-  | @zantufa-mex? zantufa-raw-mex MAI
+%rule linkargs
+  (* linkargs <- BE_clause term links? BEhO_elidible *)
+  BE # term [links] [BEhO #]
 
-%redefine-rule free-not-starting-with-number
-  | @¬zantufa-terms? SEI # [terms [CU #]] selbri [SEhU]
-  | @zantufa-terms? SEI # statement [SEhU]
-  | SOI # sumti [sumti] [SEhU]
-  | vocative [relative-clauses] selbri [relative-clauses] [DOhU]
-  | @¬cbm? vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
-  | vocative [sumti] [DOhU]
-  | TO text [TOI]
-  | XI # (number | lerfu-string) [BOI]
-  | XI # VEI # mex [VEhO]
-  | LOhAI [any-word ...] [SAhAI [any-word ...]] LEhAI
-  | SAhAI [any-word ...] LEhAI
-  | LEhAI
-```
-
-## Connectives and tags
-
-A jek before `gi` is a gek, and `bo` may follow any `gi` gek, both unguarded; under `zantufa-connectives` the connective may come after `gi`, `gi je broda gi brode`.
-
-The experimental grammar reads a tag as camxes-exp does, as a flat run of atoms. Zantufa's tags differ from those. Until the Zantufa dialect takes them from Zantufa 1.9999, this layer restates the tags as they were, CLL's with these changes. `na'e [se] fa` and `se fa` are tags, and `fa` alone is a stag. `se` can prefix a time, space or CAhA tense, and a ROI word can follow a `vei` group. A bare `fa` is not a tag here, so the layer also restates the rules that take it beside a tag: a tagged term, and a selbri, which a bare `fa` can tag except after a gihek. A tag may carry any sequence of two or more `na'e` and `se` prefixes before a simple tense atom (`zantufa-tags`): `se se pu`, `na'e na'e ca`. `zantufa-tag-prefixes` is defined so as not to overlap the flat `[NAhE] [SE]` forms, which keeps the two readings from competing.
-
-```jbogenbau
-%redefine-rule gek
-  | [SE] GA [NAI] #
-  | joik GI # [BO #]
-  | jek GI # [BO #]
-  | stag gik [BO #]
-  | @zantufa-connectives? GI (joik | jek) # [BO #]
-
-%redefine-rule tag
-  tense-modal [joik-jek tense-modal] ...
-
-%redefine-rule stag
-  simple-tense-modal [(jek | joik) simple-tense-modal] ... | FA
-
-%redefine-rule tense-modal
-  simple-tense-modal # | FIhO # selbri [FEhU] #
-
-%redefine-rule simple-tense-modal
-  | [NAhE] [SE] BAI [NAI] [KI]
-  | [NAhE] [SE] ((time [space] | space [time]) & CAhA) [KI]
-  | NAhE [SE] FA
-  | SE FA
-  | KI
-  | CUhE
-
-%redefine-rule tagged-term
-  tag (sumti | [KU] #) | FA # (sumti | [KU #])
-
-%redefine-rule selbri
-  [tag | FA #] selbri-1
-
-%redefine-rule selbri-not-starting-with-ke
-  [tag] selbri-1-not-starting-with-ke
-
-%redefine-rule interval-property
-  (number | VEI # mex [VEhO] #) ROI [NAI] | TAhE [NAI] | ZAhO [NAI]
-
-%extend-rule simple-tense-modal
-  @zantufa-tags? zantufa-tag-prefixes zantufa-tag-atom
-
-%rule zantufa-tag-prefixes
-  | SE SE [NAhE | SE] ...
-  | SE NAhE [NAhE | SE] ...
-  | NAhE NAhE [NAhE | SE] ...
-  | NAhE SE (NAhE | SE) [NAhE | SE] ...
-
-%rule zantufa-tag-atom
-  FA | PU | ZI | ZEhA | VA | FAhA | VEhA | VIhA | CAhA | ZAhO | CUhE | KI
-```
-
-Zantufa does not have five forms of the experimental grammar, and these rules restate the grammar without them. An ek cannot follow a text-leading `.i`. `gu` followed by a joik or jek is not a guhek. `gi` followed by a word of JOI, JA or A is not a gihek. `gi` with a stag cannot join bridi-tails before `bo` or `ke`. And a bridi-tail after a connective has no terms before its selbri, since Zantufa has no JACU.
-
-```jbogenbau
-%redefine-rule text-1
-  [(I [jek | joik] [[tag] BO] #) ...] [NIhO ... # [I # NIhO ... #]] [paragraphs]
-
-%redefine-rule guhek
-  [SE] GUhA [NAI] #
-
-%redefine-rule gihek
-  [NA] [SE] GIhA [NAI]
-
-%redefine-rule sentence
-  [terms] [CU # [terms]] bridi-tail
-
-%redefine-rule bridi-tail
-  bridi-tail-1 [gihek [stag] KE # bridi-tail [KEhE] # tail-terms]
-
-%redefine-rule bridi-tail-1
-  bridi-tail-2 [bridi-tail-connective [CU #] bridi-tail-2-not-starting-with-ke tail-terms] ...
-
-%redefine-rule bridi-tail-2
-  bridi-tail-3 [bridi-tail-connective [stag] BO # [CU #] bridi-tail-2 tail-terms]
-
-%redefine-rule bridi-tail-2-not-starting-with-ke
-  bridi-tail-3-not-starting-with-ke [bridi-tail-connective [stag] BO # [CU #] bridi-tail-2 tail-terms]
+%rule links
+  (* links <- BEI_clause term links? *)
+  BEI # term [links]
 ```
 
 ## Mekso
 
-Under `zantufa-mex`, a raw mekso, one written without `li` or `vei`, is a quantifier as Zantufa reads it. Without the feature, the quantifier is the experimental grammar's mekso. In both cases, a bare mekso is a fragment. Infix mekso may chain several operators and omit a trailing operand (`pa su'i`); reverse Polish mekso takes trailing operator groups; `bo` and `ke ... ke'e` group operands; `ma'o selbri` and `ma'o sumti` are operators; `na'e operand` and `mo'e selbri` are operands. A `jo'i` vector is an operand, as in the CLL grammar, although camxes-exp does not have it. Where a Zantufa form generalizes a CLL form over the same text, the feature replaces the older alternative.
+Zantufa's mekso is flat: operands and runs of operators alternate, `bo` and `ke` group them, and `bi'e` raises the precedence of the operators after it. Reverse Polish takes `fu'a`, and forethought takes `pe'o` or a bare operator. A run of operators is read whole. A quantifier is a mekso that begins no sumti and no selbri, as the reference's lookaheads say. These are prefix tests, as a PEG's are.
 
 ```jbogenbau
-%redefine-rule quantifier
-  | @¬zantufa-mex? $m(mex)
-  | @zantufa-mex? number free-after-elided-boi
-  | @zantufa-mex? VEI # mex [VEhO] #
-  | @zantufa-mex? zantufa-raw-mex
+%rule quantifier
+  (* quantifier <- !sumti_5 !selbri mex relative_clauses? *)
+  $m(mex) [relative-clauses]
 %conditions
-  ¬matches(head($m), quantifier-barrier)
+  ¬begins(from($m), sumti-5),
+  ¬begins(from($m), selbri)
 
-%redefine-rule mex
-  | @¬zantufa-mex? mex-1 [operator mex-1] ...
-  | @zantufa-mex? mex-1 [operator ... [mex-1]] ...
-  | @¬zantufa-mex? FUhA # rp-expression
-  | @zantufa-mex? FUhA # mex-2 ... operator [(mex-2 ... operator) | (operator)] ... [KUhE] #
+%rule mex
+  (* mex <- mex_1 (operator+ mex_1?)* *)
+  mex-1 [mex-link] ...
 
-%extend-rule mex-2
-  | JOhI # mex-2 ... [TEhU] #
-  | @zantufa-mex? operand (BO # operand) ...
-  | @zantufa-mex? KE # operand ... [KEhE] #
+%rule mex-link
+  operator ... | operator ... $x(mex-1)
+%conditions
+  ¬begins(from($x), operator)
 
-%extend-rule mex-operator
-  @zantufa-mex? MAhO # selbri [TEhU] # | @zantufa-mex? MAhO # sumti [TEhU] #
+%rule mex-1
+  (* mex_1 <- (KE_clause mex_2+ KEhE_elidible / mex_2 (BO_clause mex_2)* )
+              (BIhE_clause operator+ (KE_clause mex_2+ KEhE_elidible / mex_2 (BO_clause mex_2)* )?)* *)
+  mex-group [bihe-link] ...
 
-%redefine-rule operand-1
-  @¬zantufa-mex? operand-2 [joik-ek operand-2 | jek # operand-2] ... | @zantufa-mex? operand-2
+%rule bihe-link
+  BIhE # operator ... | BIhE # operator ... $x(mex-group)
+%conditions
+  ¬begins(from($x), operator)
 
-%redefine-rule operand-3
-  | number free-after-elided-boi
-  | VEI # mex [VEhO] #
-  | lerfu-string free-after-elided-boi
-  | JOhI # mex-2 ... [TEhU] #
-  | gek operand gik operand-3
-  | (LAhE # | NAhE BO #) operand [LUhU] #
-  | @zantufa-mex? NAhE # operand-3
-  | @zantufa-mex? MOhE # selbri [TEhU] #
+%rule mex-group
+  KE # mex-2 ... [KEhE #] | mex-2 [BO # mex-2] ...
+
+%rule mex-2
+  (* mex_2 <- operand / mex_rp / mex_forethought *)
+  operand | mex-rp | mex-forethought
+
+%rule mex-rp
+  (* mex_rp <- FUhA_clause mex_2+ operator (mex_2* operator)* KUhE_elidible *)
+  FUhA # mex-2 ... operator [[mex-2 ...] operator] ... [KUhE #]
+
+%rule mex-forethought
+  (* mex_forethought <- !(lerfu_string BOI_elidible) operator mex_2+ mex_forethought? KUhE_elidible
+                      / PEhO_clause operator mex_2+ mex_forethought? KUhE_elidible *)
+  [PEhO #] operator mex-2 ... [KUhE #]
+
+%rule operator
+  (* operator <- SE_clause operator / NAhE_clause operator / MAhO_clause (mex / selbri / sumti) TEhU_elidible
+               / VUhU_clause / joik_ek !CU *)
+  | SE # operator
+  | NAhE # operator
+  | MAhO # $m(mex) [TEhU #]
+  | MAhO # $s(selbri) [TEhU #]
+  | MAhO # $u(sumti) [TEhU #]
+  | VUhU #
+  | $j(joik-ek)
+%conditions
+  ¬begins(after($j), cu-word),
+  ¬matches($j, se-operator),
+  ¬matches($s, mex),
+  ¬matches($u, mex),
+  ¬matches($u, selbri)
+
+%rule cu-word
+  CU
+
+%rule se-operator
+  SE # operator
+
+%rule operand
+  (* operand <- number BOI_elidible / lerfu_string BOI_elidible / VEI_clause mex VEhO_elidible
+              / MOhE_clause (selbri / sumti) TEhU_elidible / (LAhE_clause / NAhE_clause BO_clause) mex LUhU_elidible
+              / NAhE_clause operand *)
+  | number [BOI #]
+  | lerfu-string [BOI #]
+  | VEI # mex [VEhO #]
+  | MOhE # selbri [TEhU #]
+  | MOhE # $u(sumti) [TEhU #]
+  | (LAhE # | NAhE # BO #) mex [LUhU #]
+  | NAhE # operand
+%conditions
+  ¬matches($u, selbri)
+
+%rule number
+  (* number <- PA_clause+;  PA_post <- number_post_clause *)
+  (PA number-post) ...
+
+%rule lerfu-string
+  (* lerfu_string <- lerfu_word+ *)
+  lerfu-word ...
+
+%rule lerfu-word
+  (* lerfu_word <- BY_clause / LAU_clause lerfu_word / TEI_clause lerfu_string FOI_clause;  BY_post <- lerfu_post_clause *)
+  BY lerfu-post | LAU # lerfu-word | TEI # lerfu-string FOI #
 ```
 
-A raw mekso quantifier may not be a plain number, and may not begin with a lerfu string, `la'e`, `na'e`, `se` or `ke`. Without that restriction `my jo'u gy` would tie between a connected sumti and the mekso `my jo'u` quantifying `gy`. The `zantufa-raw-*` rules state it: they repeat the left spine of the mekso rules and constrain only the leftmost symbol. The restriction also applies to the first operand after a `gek`, so that `ge nai abu gi no drata` is a forethought sumti connection rather than the quantifier `ge nai abu gi no` before the selbri `drata`. Inside a mekso operand, `quantifier` is spelled out as `number` or `vei mex ve'o`, so that the raw-mekso quantifier does not re-enter itself.
+## Connectives
+
+`je`, `ja`, `jo` and `ju` are JOI, so a joik covers what CLL's jek does, and `ga'o` or `ke'i` can stand on either side of it. A gek is a word of GA, `gi` with a joik or tag, or a joik or tag with `gi`, and it can take `bo`.
 
 ```jbogenbau
-%rule zantufa-raw-mex
-  | zantufa-raw-mex-1 (operator ... [mex-1]) ...
-  | zantufa-raw-mex-2 BIhE # operator mex-1
-  | zantufa-raw-operand
-  | PEhO # operator mex-2 ... [KUhE] #
-  | zantufa-raw-operator mex-2 ... [KUhE] #
-  | FUhA # rp-expression
+%rule ek
+  (* ek <- NA_clause? SE_clause? A_clause *)
+  [NA #] [SE #] A #
 
-%rule zantufa-raw-mex-1
-  zantufa-raw-mex-2 [BIhE # operator mex-1]
+%rule gihek
+  (* gihek <- NA_clause? SE_clause? GIhA_clause *)
+  [NA #] [SE #] GIhA #
 
-%rule zantufa-raw-mex-2
-  | zantufa-raw-operand-0
-  | PEhO # operator mex-2 ... [KUhE] #
-  | zantufa-raw-operator mex-2 ... [KUhE] #
-  | @zantufa-mex? zantufa-raw-operand-0 (BO # operand) ...
+%rule joik
+  (* joik <- GAhO_clause? NA_clause? SE_clause? JOI_clause GAhO_clause? *)
+  [GAhO #] [NA #] [SE #] JOI # [GAhO #]
 
-%rule zantufa-raw-operand
-  | MOhE # selbri [TEhU] #
-  | JOhI # mex-2 ... [TEhU] #
-  | gek zantufa-raw-operand-0 gik operand-3
+%rule joik-ek
+  (* joik_ek <- joik / ek *)
+  joik | ek
 
-%rule zantufa-raw-operator
-  zantufa-raw-operator-1 [joik-jek operator-1 | joik [stag] KE # operator [KEhE] #] ...
+%rule joik-gihek
+  (* joik_gihek <- joik / gihek *)
+  joik | gihek
 
-%rule zantufa-raw-operator-1
-  | zantufa-raw-mex-operator
-  | guhek operator-1 gik operator-2
-  | zantufa-raw-mex-operator (jek | joik) [stag] BO # operator-1
+%rule gek
+  (* gek <- (SE_clause? GA_clause / GI_clause (joik / tag) / (joik / tag) GI_clause) BO_clause? *)
+  ([SE #] GA # | GI # (joik | tag) | (joik | tag) GI #) [BO #]
 
-%rule zantufa-raw-mex-operator
-  | MAhO # mex [TEhU] #
-  | NAhU # selbri [TEhU] #
-  | VUhU #
-  | @zantufa-mex? MAhO # selbri [TEhU] #
-  | @zantufa-mex? MAhO # sumti [TEhU] #
-  | @zantufa-mex? joik-ek
-
-%rule zantufa-raw-operand-0
-  zantufa-raw-operand-1 [(ek | joik) [stag] KE # operand [KEhE] #]
-
-%rule zantufa-raw-operand-1
-  | @¬zantufa-mex? zantufa-raw-operand-2 [joik-ek operand-2 | jek # operand-2] ...
-  | @zantufa-mex? zantufa-raw-operand-2
-
-%rule zantufa-raw-operand-2
-  zantufa-raw-operand-3 [(ek | joik) [stag] BO # operand-2]
-
-%rule zantufa-raw-operand-3
-  | number free-after-elided-boi
-  | VEI # mex [VEhO] #
-  | JOhI # mex-2 ... [TEhU] #
-  | gek zantufa-raw-operand-0 gik operand-3
-  | @zantufa-mex? MOhE # selbri [TEhU] #
+%rule gik
+  (* gik <- GI_clause *)
+  GI #
 ```
+
+## Tags
+
+A tag is a run of `tcita-selci` joined by joiks. Each is a modal, a ROI word with an optional mekso before it, `fi'o` with a selbri, or one of these after `na'e` or `se`. A tag is read whole: another `tcita-selci` comes before a joik, and a tag before a selbri never leaves a `tcita-selci` for the selbri.
+
+```jbogenbau
+%rule tag
+  (* tag <- tcita_selci+ (joik tcita_selci+)* *)
+  tcita-selci ... [tag-link] ...
+
+%rule tag-link
+  $j(joik) tcita-selcis
+%conditions
+  ¬begins(from($j), tcita-selci)
+
+%rule tcita-selcis
+  tcita-selci ...
+
+%rule tcita-selci
+  (* tcita_selci <- (NAhE_clause / SE_clause) tcita_selci / BAI_clause / mex? ROI_clause / FIhO_clause selbri FEhU_elidible *)
+  | (NAhE # | SE #) tcita-selci
+  | BAI #
+  | ROI #
+  | $m(mex) ROI #
+  | FIhO # selbri [FEhU #]
+%conditions
+  $m ⟹ ¬matches($, nahe-se-tcita-selci)
+
+%rule nahe-se-tcita-selci
+  (NAhE # | SE #) tcita-selci
+```
+
+## Free modifiers
+
+A free modifier is a `sei` clause over a statement, a vocative, a mekso with `mai`, a `to` parenthesis, a subscript, a replacement quote, or an attitudinal with its own free modifiers after it. A vocative takes a selbri or a sumti.
+
+```jbogenbau
+%rule free
+  (* free <- SEI_clause statement SEhU_elidible / vocative relative_clauses? selbri DOhU_elidible
+           / vocative sumti? DOhU_elidible / mex_2 MAI_clause / TO_clause text TOI_elidible / xi_clause
+           / LOhAI_clause / (UI_clause !BU_clause)+ *)
+  | SEI # statement [SEhU #]
+  | vocative [relative-clauses] selbri [DOhU #]
+  | vocative [sumti] [DOhU #]
+  | mex-2 MAI #
+  | TO # inner-text [TOI #]
+  | XI # mex-2
+  | [LOhAI [lohai-word ...] [LOhAI [lohai-word ...]]] LEhAI #
+  | UI #
+
+%rule vocative
+  (* vocative <- COI_clause+;  COI_post <- vocative_post_clause *)
+  (COI vocative-post) ...
+
+%rule number-post
+  (* number_post_clause <- spaces? !BU_clause (!number free)* *)
+  [free-not-number ...]
+
+%rule lohai-word
+  $w("word")
+%conditions
+  "LOhAI" ∉ tags($w),
+  "LEhAI" ∉ tags($w)
+
+%rule free-not-number
+  $f(free)
+%conditions
+  ¬begins(from($f), number)
+
+%rule lerfu-post
+  (* lerfu_post_clause <- spaces? !BU_clause (!lerfu_string free)* *)
+  [free-not-lerfu ...]
+
+%rule free-not-lerfu
+  $f(free)
+%conditions
+  ¬begins(from($f), lerfu-string)
+
+%rule vocative-post
+  (* vocative_post_clause <- spaces? !BU_clause (!vocative free)* *)
+  [free-not-vocative ...]
+
+%rule free-not-vocative
+  $f(free)
+%conditions
+  ¬begins(from($f), vocative)
+```
+
+## Differences from Zantufa 1.9999
+
+The dialect reads some texts differently from Zantufa 1.9999. The policy of the dialect page accounts for most of them:
+
+- A PEG commits to the first alternative that matches, and a repetition reads as far as it can. So Zantufa rejects some texts that its rules allow, and the dialect accepts them. In `are`, Zantufa reads `a` as a whole fragment, and `re` is left over. In `le vi'ofagri`, the vocative after `le` takes `fagri`, and the description has no selbri. In `la poi ke'a barda .djan.`, the relative clause takes the name. Each of these parses here.
+- Where a PEG's greed gives a reading that the ranking of this stage does not choose, the dialect keeps its own reading. In `mi klama pamai le zarci .e remai le zdani`, Zantufa's `.e` takes `re mai` as its own free modifier. Here the free modifier is the mekso `.e re` with `mai`, after `zarci`. `mi me my su'i ny me'u` is another example.
+- A lookahead here sees the words that the syntax reads, after erasure and without `ba'e`. Zantufa erases and reads `ba'e` inside its grammar, so its lookaheads see those words. So Zantufa accepts `li pa je ba'e cu broda`, `li pa je brode si cu broda` and `ba'e ke broda ke'e ke'e be mi`, and the dialect rejects them. And Zantufa reads `ke mi ba'e ke'e` as a group of terms, and the dialect as a grouped sumti.
+- The word stage reads a stray `si` or `bu` at the start of a text as the Magic Words proposal does, so `si mi` is `mi` and `bu si` is nothing. Zantufa rejects both, since its `si` and `bu` need a word before them there.
+- `su` erases the whole text before it. Zantufa scans for `su` from the start of each text. The scan passes a letter word, or a `su`, together with the free modifiers after it. A parenthesis among those free modifiers, or a quote inside one, holds a text with its own start, and a `su` inside that text erases only back to its start. So Zantufa reads `mi bu to mi su do toi broda` and `su to mi su do toi broda` with the inner `su` erasing only `mi`. Here it erases back to the start of the whole text, and the `toi` is left without its `to`.
+- A `zoi` or `mu'oi` quote closes with a delimiter that equals the opener once both are in lower case, as in Zantufa. But a run of the body is kept out of the quote only where it is the opener as written or in lower case. Zantufa keeps out every run that equals the opener in lower case. The two differ where a run of the body has stress and the opener has none. There Zantufa must close at that run, but this stage may also read past it, and it chooses the later close. So Zantufa reads `zoi ko x kO broda ko` as the quote `x` and the words `broda ko`, and the dialect as the quote `x kO broda`. The notation compares the opener with the set of the body's runs, and it cannot fold the stress of each run.
+- The forms stage reads the rafsi or gismu form after `ra'oi` before the word stage knows whether that `ra'oi` opens a quote. So where `ra'oi` is itself quoted, as in `zo ra'oi broda`, `lo'u ra'oi broda le'u` and `zoi gy ra'oi broda gy`, the letters after it are still divided as the form of a `ra'oi` quote, and the text is rejected. Zantufa reads them as ordinary words there.
+- The phoneme stage reads the comma of CLL 3.3 and the Latin conventions of `phonemes/latin.md`, such as digits and punctuation. Zantufa reads neither.

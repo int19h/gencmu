@@ -91,10 +91,9 @@ A stage of a pipeline is several documents read in order, and a later one may ch
 %emits
   $
 
-%redefine-rule relative-clause
-  | GOI # term [GEhU #]
-  | @¬zantufa-terms? NOI # subsentence [KUhO #]
-  | @zantufa-terms? NOI # statement [KUhO #]
+%redefine-rule text
+  | @¬cbm? [NAI ...] CMEVLA ... # [joik-jek] text-1
+  | [indicators & free ...] [joik-jek] text-1
 ```
 
 So a misspelt name can neither quietly start a new rule nor quietly replace one. The alternatives an extension adds carry the extension's own clauses, not the base rule's, and the base rule's clauses do not apply to them, so an extension says everything about what it adds. The loader reports every replacement and extension, which document changed which rule, so a dialect's effect on its base can be read off in one place.
