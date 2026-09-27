@@ -1,6 +1,6 @@
 # The experimental lexicon
 
-This document is the lexicon of the word stage in the [experimental](../dialects/experimental.md) dialect. It gives each cmavo the selma'o that camxes-exp, the experimental PEG grammar, gives it: the cmavo of CLL and the experimental cmavo that camxes-exp reads. `tools/peg-lexicon.js` writes the rules below from the selma'o lists of `camxes-exp.peg` in ilmentufa, as of commit 7cf6cab, and a change to the lexicon is made by running it again.
+This document is the lexicon of the forms stage in the [experimental](../dialects/experimental.md) dialect. It gives each cmavo the selma'o that camxes-exp, the experimental PEG grammar, gives it: the cmavo of CLL and the experimental cmavo that camxes-exp reads. `tools/peg-lexicon.js` writes the rules below from the selma'o lists of `camxes-exp.peg` in ilmentufa, as of commit 7cf6cab, and a change to the lexicon is made by running it again.
 
 Each alternative spells one word in the phonemes of the word grammar, as [lexicon-cll.md](lexicon-cll.md) explains, and carries the word's selma'o. camxes-exp gives each word one selma'o. It gives three CLL words another class than CLL does: `la`, `lai` and `la'i` are LE, since camxes-exp reads a name as a selbri. An attitudinal, a CAI word, a NAI word, `y`, `da'o`, `fu'e` and `fu'o` also carry the tag `indicator`, which the indicator stage reads. camxes-exp reads a bare NAI as an indicator.
 

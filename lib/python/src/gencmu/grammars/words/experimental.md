@@ -1,6 +1,6 @@
 # Experimental word forms
 
-This document is part of the word stage in the [experimental](../dialects/experimental.md) dialect. It is stitched in after [bpfk.md](bpfk.md). camxes-exp, the experimental PEG grammar, reads the word forms of the definition effort with a few changes. This document makes the same changes to the translation in [bpfk.md](bpfk.md). Each rule here has the name of the camxes-exp rule that it translates, and its comment gives that rule, as in bpfk.md. The [Zantufa](../dialects/zantufa.md) dialect makes only the first change, in [zantufa.md](zantufa.md). The notation is explained in [the notation document](../../docs/notation.md).
+This document is part of the forms stage in the [experimental](../dialects/experimental.md) dialect. It is stitched in after [bpfk.md](bpfk.md). camxes-exp, the experimental PEG grammar, reads the word forms of the definition effort with a few changes. This document makes the same changes to the translation in [bpfk.md](bpfk.md). Each rule here has the name of the camxes-exp rule that it translates, and its comment gives that rule, as in bpfk.md. The [Zantufa](../dialects/zantufa.md) dialect makes only the first change, in [zantufa.md](zantufa.md). The notation is explained in [the notation document](../../docs/notation.md).
 
 ## The pair mz
 
