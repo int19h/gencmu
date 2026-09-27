@@ -58,12 +58,12 @@ function lex(text, positions) {
       tokens.push({ kind: "string", text: chars.slice(start, i).join(""), at: at(start) });
       continue;
     }
-    // A spelling: one or more characters other than a backtick, between
-    // backticks.
+    // A spelling: the characters between two backticks, which the parser
+    // refuses if there are none.
     if (c === "`") {
       i++;
       while (i < chars.length && chars[i] !== "`") i++;
-      if (i >= chars.length || i === start + 1) fail("a spelling is one or more characters between backticks", { at: at(start) });
+      if (i >= chars.length) fail("an unclosed spelling", { at: at(start) });
       i++;
       tokens.push({ kind: "spelling", text: chars.slice(start, i).join(""), at: at(start) });
       continue;
