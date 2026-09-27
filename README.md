@@ -1,10 +1,10 @@
 # gencmu
 
-A Lojban parser whose grammar is data. Every layer of the language, from characters to phonemes, phonemes to words, words to a parse tree, is a literate grammar document in jbogenbau, gencmu's grammar notation, loaded at runtime. A dialect is a pipeline document that lists the stages and the grammars of each. Change a grammar and you change the language the parser reads; nothing is compiled.
+gencmu is a Lojban parser whose grammar is data. Every layer of the language is a literate grammar document in jbogenbau, the grammar notation of gencmu. The layers go from characters to phonemes, from phonemes to words, and from words to a parse tree. A literate grammar document mixes prose with the grammar rules, and gencmu loads it at runtime. A dialect is a pipeline document that lists the stages and the grammars of each. If you change a grammar, you change the language that the parser reads, and nothing is compiled.
 
 ## Try it
 
-From a clone, with Node 20 or later and nothing installed:
+You need Node 20 or later, and nothing else installed. Run these commands in a clone:
 
 ```sh
 node lib/js/cli.js parse mi klama le zarci
@@ -15,7 +15,14 @@ node lib/js/cli.js audit --dialect zantufa
 node lib/js/cli.js help
 ```
 
-Or open `index.html` in a browser, from the clone or from GitHub Pages: the playground runs the same library in the page, with nothing fetched. It parses as you type under any dialect and set of features, shows the brackets, the tree, the JSON and every stage's tokens, explains a rejection or a tie, traces a stage at a position, audits the dialect, and has an editor for the grammar documents: change one and the text is parsed again at once, and download what you changed.
+Or open `index.html` in a browser, from the clone or from GitHub Pages. This page is the playground. It runs the same library in the page and fetches nothing. The playground does these things:
+
+- It parses the text as you type, under any dialect and set of features.
+- It shows the brackets, the tree, the JSON and the tokens of every stage.
+- It explains a rejection or a tie.
+- It traces a stage at a position.
+- It audits the dialect.
+- It has an editor for the grammar documents. When you change a document, the playground parses the text again at once. You can download what you changed.
 
 ## The dialects
 
@@ -27,16 +34,16 @@ Or open `index.html` in a browser, from the clone or from GitHub Pages: the play
 | `zantufa` | Guskant's Zantufa 1.9999, translated rule by rule |
 | `notation` | jbogenbau, gencmu's grammar notation, in which gencmu reads its own grammar documents |
 
-Each is a document under [`grammars/dialects/`](grammars/dialects), which includes the grammar documents of its stages and links to each. `node lib/js/cli.js stitch --dialect NAME` prints a dialect as one jbogenbau text.
+Each dialect is a document under [`grammars/dialects/`](grammars/dialects), which includes the grammar documents of its stages and links to each. `node lib/js/cli.js stitch --dialect NAME` prints a dialect as one jbogenbau text.
 
 ## The libraries
 
-Four libraries implement one specification, each with no dependency beyond its language's standard library, and each passes the same shared tests:
+Four libraries implement one specification. Each library has no dependency beyond the standard library of its language. Each library passes the same shared tests. The libraries are:
 
-- JavaScript: [`lib/js/`](lib/js), the npm package `gencmu`, with the CLI;
-- Python: [`lib/python/`](lib/python), the package `gencmu`;
-- Go: [`lib/go/`](lib/go), the module `github.com/int19h/gencmu/lib/go`;
-- Rust: [`lib/rust/`](lib/rust), the crate `gencmu`.
+- JavaScript: [`lib/js/`](lib/js), the npm package `gencmu`, with the CLI
+- Python: [`lib/python/`](lib/python), the package `gencmu`
+- Go: [`lib/go/`](lib/go), the module `github.com/int19h/gencmu/lib/go`
+- Rust: [`lib/rust/`](lib/rust), the crate `gencmu`
 
 ```js
 import { loadDialect, toBrackets } from "gencmu/node";
@@ -52,6 +59,6 @@ console.log(toBrackets(loadDialect("cll-ebnf").parse("mi klama")));
 - [`docs/design.md`](docs/design.md): why gencmu is the way it is.
 - [`tests/README.md`](tests/README.md): the shared tests, the Lojban corpus among them.
 
-## Licence
+## License
 
-MIT; see [`LICENSE`](LICENSE). Each package carries a copy.
+gencmu uses the MIT License. See [`LICENSE`](LICENSE). Each package carries a copy.
