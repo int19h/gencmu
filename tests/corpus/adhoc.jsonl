@@ -800,6 +800,12 @@
 {"id":"adhoc.words.orthography.cll-cyrillic-vowel-pair-is-a-diphthong.bpfk","text":"ла маи","dialect":"bpfk","expect":"reject","stage":"syntax","words":["la","ma'i"]}
 {"id":"adhoc.words.orthography.all-capitals","text":"MI KLAMA","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"adhoc.words.orthography.all-capitals.bpfk","text":"MI KLAMA","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mI","klama"],"brackets":"(mI klama)"}
+{"id":"adhoc.words.orthography.cyrillic.accent-after-e-variant","text":"ми кла́ма лэ́ зарши","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","klAma","lE","zarci"],"brackets":"(mi [klAma {lE zarci}])"}
+{"id":"adhoc.words.orthography.cyrillic.accent-after-i-variant","text":"мі́ клама","dialect":"experimental","expect":"accept","verdict":"unique","words":["mI","klama"],"brackets":"(mI klama)"}
+{"id":"adhoc.words.orthography.cyrillic.folded-glide","text":"ПА МАЙКЛАМА","dialect":"experimental","expect":"accept","verdict":"unique","words":["pA","mai","klama"],"brackets":"([pA mai] klama)"}
+{"id":"adhoc.words.orthography.zbalermorna.lone-stress-mark-in-zoi","text":"zoi gy.  .gy.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi","gy","","gy"],"brackets":"(zoi gy  gy)"}
+{"id":"adhoc.words.orthography.zbalermorna.lone-shorthand-in-zoi","text":"zoi gy.  .gy.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi","gy","","gy"],"brackets":"(zoi gy  gy)"}
+{"id":"adhoc.words.orthography.zbalermorna.shorthand-before-stressed-vowel","text":"","dialect":"experimental","expect":"accept","verdict":"unique","words":["A'a"],"brackets":"A'a"}
 {"id":"adhoc.syntax.i-je-niho-at-text-start.experimental","text":".i je ni'o mi klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["i","je","ni'o","mi","klama"],"brackets":"(i je ni'o [mi klama])"}
 {"id":"adhoc.syntax.i-je-niho-at-text-start.zantufa","text":".i je ni'o mi klama","dialect":"zantufa","expect":"accept","verdict":"unique","words":["i","je","ni'o","mi","klama"],"brackets":"([i je] ni'o [mi klama])"}
 {"id":"adhoc.syntax.niho-i-niho-at-text-start.experimental","text":"ni'o .i ni'o mi klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["ni'o","i","ni'o","mi","klama"],"brackets":"(ni'o i ni'o [mi klama])"}

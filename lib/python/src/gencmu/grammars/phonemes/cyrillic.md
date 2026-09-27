@@ -46,7 +46,7 @@ The consonants are those of CLL 3.12: `ш` for `c`, `ж` for `j`, `х` for `x`, 
 
 The orthography has no apostrophe between vowels. Two adjacent vowel letters are two syllables, so `аи` is `a'i`. A diphthong is written with the short forms `й` and `ў`, so `ай` is `ai`. This is where the orthography differs from CLL 3.12, which writes a diphthong as a vowel pair, as the Latin orthography does.
 
-So a full vowel letter carries the tag `syllabic`, which the frame's vowel-group rules read. Two adjacent syllabic vowels get an apostrophe between them. `й` and `ў`, the glides, carry no such tag, and they join the vowel beside them into a diphthong. A capital vowel or a combining acute after a vowel marks stress, as in Latin. Inside an all-capital run a capital vowel is folded.
+So a full vowel letter carries the tag `syllabic`, which the frame's vowel-group rules read. Two adjacent syllabic vowels get an apostrophe between them. `й` and `ў`, the glides, carry no such tag, and they join the vowel beside them into a diphthong. A capital vowel, or a combining accent after any vowel letter, marks stress, as in Latin. Inside an all-capital run a capital vowel or glide is folded.
 
 ```jbogenbau
 %rule cyrillic-plain-vowel
@@ -62,14 +62,14 @@ So a full vowel letter carries the tag `syllabic`, which the frame's vowel-group
   $
 
 %rule cyrillic-stressed-vowel
-  | "А" </A/ ∪ "syllabic"> | "а" stress-mark </A/ ∪ "syllabic">
+  | "А" </A/ ∪ "syllabic"> | ("а" | "А") stress-mark </A/ ∪ "syllabic">
   | "Е" </E/ ∪ "syllabic"> | "Э" </E/ ∪ "syllabic"> | "Є" </E/ ∪ "syllabic">
-  | "е" stress-mark </E/ ∪ "syllabic">
-  | "И" </I/ ∪ "syllabic"> | "І" </I/ ∪ "syllabic"> | "и" stress-mark </I/ ∪ "syllabic">
-  | "О" </O/ ∪ "syllabic"> | "о" stress-mark </O/ ∪ "syllabic">
-  | "У" </U/ ∪ "syllabic"> | "у" stress-mark </U/ ∪ "syllabic">
+  | ("е" | "э" | "є" | "Е" | "Э" | "Є") stress-mark </E/ ∪ "syllabic">
+  | "И" </I/ ∪ "syllabic"> | "І" </I/ ∪ "syllabic"> | ("и" | "і" | "И" | "І") stress-mark </I/ ∪ "syllabic">
+  | "О" </O/ ∪ "syllabic"> | ("о" | "О") stress-mark </O/ ∪ "syllabic">
+  | "У" </U/ ∪ "syllabic"> | ("у" | "У") stress-mark </U/ ∪ "syllabic">
   | "Ъ" </Y/ ∪ "syllabic"> | "Ы" </Y/ ∪ "syllabic"> | "Ә" </Y/ ∪ "syllabic">
-  | "ъ" stress-mark </Y/ ∪ "syllabic">
+  | ("ъ" | "ы" | "ә" | "Ъ" | "Ы" | "Ә") stress-mark </Y/ ∪ "syllabic">
 %emits
   $
 
@@ -80,6 +80,8 @@ So a full vowel letter carries the tag `syllabic`, which the frame's vowel-group
   | "О" </o/ ∪ "syllabic">
   | "У" </u/ ∪ "syllabic">
   | "Ъ" </y/ ∪ "syllabic"> | "Ы" </y/ ∪ "syllabic"> | "Ә" </y/ ∪ "syllabic">
+  | "Й" </i/> | "Ј" </i/>
+  | "Ў" </u/>
 %emits
   $
 ```
