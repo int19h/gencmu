@@ -218,6 +218,13 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("a spelling of a spelling", set_expr({"capture": "x", "expr": {"spelling": "a", "expr": {"spelling": "a", "expr": A}}})),
     ("a spelling of a capture", set_expr({"spelling": "a", "expr": {"capture": "x", "expr": A}})),
     ("a spelling without its symbol", set_expr({"capture": "x", "expr": {"spelling": "a"}})),
+    ("a spelling with a backtick", set_expr({"capture": "x", "expr": {"spelling": "a`b", "expr": A}})),
+    ("a spelling of an empty terminal", set_expr({"capture": "x", "expr": {"spelling": "a", "expr": {"empty": True, "terminal": "a"}}})),
+    ("a spelling of a reference and a terminal", set_expr({"capture": "x", "expr": {"spelling": "a", "expr": {"ref": "text", "terminal": "a"}}})),
+    ("a spelled symbol that is also empty", set_expr({"capture": "x", "expr": {"spelling": "a", "expr": A, "empty": True}})),
+    ("a spelled symbol that is also a reference", set_expr({"seq": [{"capture": "x", "expr": A}, {"spelling": "a", "expr": A, "ref": "text"}]})),
+    ("a spelled symbol that is also a capture", set_expr({"capture": "x", "spelling": "a`b", "expr": A})),
+    ("a spelled symbol that is also an optional", set_expr({"seq": [{"capture": "x", "expr": A}, {"optional": A, "spelling": "a", "expr": {"ref": "#"}}]})),
 ]
 
 
@@ -291,6 +298,43 @@ class PrecompiledDomRules(unittest.TestCase):
         with self.assertRaises(gencmu.GencmuError):
             gencmu.load_dialect_sources(sources, "p.md", use_cache=False)
 
+    def test_a_refused_bootstrap_spelling_is_an_error(self) -> None:
+        """A spelling in the bootstrap that the reader would refuse is a
+        GencmuError, not a failure inside lowering."""
+
+        def spell(spelled: Callable[[Dom], Dom]) -> str:
+            # Spell the first plain reference of the bootstrap.
+            bootstrap = json.loads(bundled_text("notation/bootstrap.json") or "{}")
+            stack: list[Any] = [bootstrap]
+            while stack:
+                node = stack.pop()
+                keys = range(len(node)) if isinstance(node, list) else list(node) if isinstance(node, dict) else []
+                for key in keys:
+                    value = node[key]
+                    if isinstance(value, dict) and len(value) == 1 and isinstance(value.get("ref"), str) and value["ref"] != "#":
+                        node[key] = spelled(value)
+                        return json.dumps(bootstrap)
+                    stack.append(value)
+            raise AssertionError("the bootstrap has no plain reference")
+
+        def refused(bootstrap: str) -> bool:
+            """Whether the bootstrap itself is refused. The notation it
+            gives may still fail to read the document."""
+            sources = {"p.md": PIPELINE, "g.md": DOCUMENT, "h.md": NEXT, "notation/bootstrap.json": bootstrap}
+            try:
+                gencmu.load_dialect_sources(sources, "p.md", use_cache=False)
+            except gencmu.GencmuError as error:
+                return error.document == "notation/bootstrap.json"
+            return False
+
+        self.assertFalse(refused(spell(lambda ref: {"spelling": "a", "expr": ref})))
+        for name, spelled in (
+            ("a backtick", lambda ref: {"spelling": "a`b", "expr": ref}),
+            ("an empty reference", lambda ref: {"spelling": "a", "expr": {**ref, "empty": True}}),
+        ):
+            with self.subTest(what=name):
+                self.assertTrue(refused(spell(spelled)))
+
     def test_nesting_bound(self) -> None:
         """No node may lie below more than 256 compound nodes of its
         expression, term or condition (engine §9); an emission is none."""
@@ -357,6 +401,10 @@ class PrecompiledDomRules(unittest.TestCase):
             ("a Cyrillic capital", {"capture": "x", "expr": spelled("Ла")}, "the spelling Ла is not in lower case"),
             ("a spelling of #", {"seq": [{"capture": "x", "expr": A}, spelled("a", {"ref": "#"})]}, "a spelling follows only a reference other than #, a string or a phoneme tag"),
             ("a spelling of a spelling", {"capture": "x", "expr": spelled("a", spelled("a"))}, "a spelling follows only a reference other than #, a string or a phoneme tag"),
+            ("a spelling with a backtick", {"capture": "x", "expr": spelled("a`b")}, "a spelling holds a backtick"),
+            ("a spelling of an empty terminal", {"capture": "x", "expr": spelled("a", {"empty": True, "terminal": "a"})}, "a spelling follows only a reference other than #, a string or a phoneme tag"),
+            ("a spelling of a reference and a terminal", {"capture": "x", "expr": spelled("a", {"ref": "text", "terminal": "a"})}, "a spelling follows only a reference other than #, a string or a phoneme tag"),
+            ("a spelled symbol that is also empty", {"capture": "x", "expr": {**spelled("a"), "empty": True}}, "a malformed expression"),
         ):
             with self.subTest(what=name):
                 dom = copy.deepcopy(self.dom)
@@ -380,6 +428,20 @@ class PrecompiledDomRules(unittest.TestCase):
             rule(dom).pop("emit", None)
             alt(dom).pop("tags", None)
             self.assertEqual(dom_problem(dom, unicode) is None, allowed, dom_problem(dom, unicode))
+
+    def test_the_unicode_table_keys_the_cache(self) -> None:
+        """A document read once with one Unicode table is read again with
+        another, since the table decides which spellings are allowed
+        (engine §9)."""
+        pipeline = '```jbogenbau\n%stage main\n%include "g.md"\n```\n'
+        sources = {"p.md": pipeline, "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A`a`\n```\n"}
+        gencmu.load_dialect_sources(sources, "p.md")
+        # With a in capitals, the spelling a is no longer in lower case.
+        table = (bundled_text("unicode.txt") or "").rstrip("\n") + "\nlower 0061 0062\n"
+        for use_cache in (False, True):
+            with self.subTest(use_cache=use_cache), self.assertRaises(gencmu.GencmuError) as caught:
+                gencmu.load_dialect_sources({**sources, "unicode.txt": table}, "p.md", use_cache=use_cache)
+            self.assertIn("lower case", str(caught.exception))
 
     def test_four_captures_are_allowed(self) -> None:
         dom = copy.deepcopy(self.dom)

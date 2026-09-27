@@ -65,7 +65,7 @@ A rule is a keyword that says whether it defines, redefines or extends the rule,
 
 ## Expressions
 
-`&` joins sequences, and a sequence is one or more elements. An element is a primary, followed by `...` for one or more of it; an optional followed by `...` is zero or more. Parentheses group a choice, whose alternatives carry neither guards nor tags. A reference, a string or a phoneme tag may be followed by a spelling, as in ``LE`la` ``: it then matches only where what it spans sounds like the spelling. Nothing else takes a spelling, so a group or an optional followed by one is not a primary, and the spelling binds tighter than `...`.
+`&` joins sequences, and a sequence is one or more elements. An element is a primary, followed by `...` for one or more of it; an optional followed by `...` is zero or more. Parentheses group a choice, whose alternatives carry neither guards nor tags. A reference, a string or a phoneme tag can carry a spelling, as in ``LE`la` ``. It matches only where its span sounds like the spelling. Nothing else takes a spelling, so a group or an optional followed by one is not a primary, and the spelling binds tighter than `...`.
 
 ```jbogenbau
 %rule conjunction

@@ -490,6 +490,13 @@ func TestMalformedPrecompiled(t *testing.T) {
 		`{"seq":[]}`, `{"choice":[]}`, `{"and":[]}`, `{"seq":[null]}`, `{"optional":null}`,
 		`{"repeat":{"ref":"A"},"min":5}`, `{"capture":"x","expr":{"seq":[{"ref":"A"},{"ref":"B"}]}}`,
 		`{"ref":""}`, `{"what":1}`, `null`, `[]`,
+		// Spellings the reader never writes: one with a backtick, and a
+		// spelled node or symbol with a second kind of key.
+		"{\"seq\":[{\"terminal\":\"a\"},{\"spelling\":\"b`c\",\"expr\":{\"terminal\":\"b\"}}]}",
+		`{"seq":[{"terminal":"a"},{"spelling":"b","expr":{"empty":true,"ref":"B"}}]}`,
+		`{"seq":[{"terminal":"a"},{"spelling":"b","expr":{"ref":"B","terminal":"b"}}]}`,
+		`{"seq":[{"terminal":"a"},{"spelling":"b","expr":{"terminal":"b"},"empty":true}]}`,
+		`{"seq":[{"terminal":"a"},{"capture":"x","expr":{"spelling":"b","expr":{"terminal":"b"},"ref":"B"}}]}`,
 	}
 	// Terms the reader never builds, in an otherwise good alternative.
 	badTags := []string{

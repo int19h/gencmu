@@ -133,15 +133,19 @@ def term_reads_own_tags(term: Any) -> bool:
 
 def spelling_problem(spelling: Any, expr: Any, unicode: Lowercase | None) -> str | None:
     """What is wrong with a spelling of a symbol (engine §9), or None: an
-    empty spelling, one that the lowercase mapping would change, since the
-    match ignores stress, or one of anything but a reference, a string or a
-    phoneme tag, ``#`` included. Without a table, the lowercase mapping is
-    not checked."""
+    empty spelling, one with a backtick, which the notation cannot write,
+    one that the lowercase mapping would change, since the match ignores
+    stress, or one of anything but a reference, a string or a phoneme tag,
+    ``#`` included. The spelled symbol is exactly one reference or one
+    terminal, so that no node is read one way here and another way when
+    lowered. Without a table, the lowercase mapping is not checked."""
     if not isinstance(spelling, str):
         return "a malformed spelling"
     if spelling == "":
         return "a spelling is empty"
-    if not isinstance(expr, dict) or not (
+    if "`" in spelling:
+        return "a spelling holds a backtick"
+    if not isinstance(expr, dict) or len(expr) != 1 or not (
         (isinstance(expr.get("ref"), str) and expr["ref"] != "#") or isinstance(expr.get("terminal"), str)
     ):
         return "a spelling follows only a reference other than #, a string or a phoneme tag"
@@ -255,6 +259,10 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase | None) 
             return f"a malformed {'expression' if kind in ('top', 'item') else kind}"
         below = depth + 1
         if kind in ("expr", "top", "item"):
+            # A spelled symbol has its spelling and its symbol, and no other
+            # key that lowering could read in its place.
+            if "spelling" in value and value.keys() != {"spelling", "expr"}:
+                return "a malformed expression"
             if "choice" in value or "seq" in value:
                 items = value["choice"] if "choice" in value else value["seq"]
                 if not _items(items, 2):

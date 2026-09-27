@@ -198,6 +198,18 @@ fn every_malformed_dom_is_a_cache_miss() {
         ),
         ("a spelling of a capture", spelled(r#"{"spelling":"b","expr":{"capture":"x","expr":{"terminal":"b"}}}"#)),
         ("a spelling with no expression", spelled(r#"{"spelling":"b"}"#)),
+        ("a spelling with a backtick", spelled(r#"{"spelling":"b`c","expr":{"terminal":"b"}}"#)),
+        ("a spelling of an empty terminal", spelled(r#"{"spelling":"b","expr":{"empty":true,"terminal":"b"}}"#)),
+        ("a spelling of a reference and a terminal", spelled(r#"{"spelling":"b","expr":{"ref":"B","terminal":"b"}}"#)),
+        ("a spelled symbol that is also empty", spelled(r#"{"spelling":"b","expr":{"terminal":"b"},"empty":true}"#)),
+        (
+            "a spelled symbol that is also a capture",
+            spelled(r#"{"capture":"x","spelling":"B","expr":{"terminal":"b"}}"#),
+        ),
+        (
+            "a spelled symbol that is also an optional",
+            spelled(r##"{"optional":{"terminal":"b"},"spelling":"b","expr":{"ref":"#"}}"##),
+        ),
         ("a spelled symbol nested too deeply", spelled(&spelled_nested)),
         ("a directive argument that is not a string", dom(B, "", "", 8, "7")),
         (
@@ -416,6 +428,41 @@ fn a_malformed_bootstrap_is_an_error() {
     ];
     let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("a malformed bootstrap");
     assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
+}
+
+/// A spelling in the bootstrap that the reader would refuse is an error of
+/// the grammar, not a failure inside lowering.
+#[test]
+fn a_refused_bootstrap_spelling_is_an_error() {
+    let refusal = |expr: &str| {
+        let alternative = format!(r#"{{"guards":[],"expr":{expr}}}"#);
+        let bootstrap = format!(
+            r#"{{"format":8,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
+            with_alternative(&alternative)
+        );
+        let sources = [
+            ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+            ("g.md", DOCUMENT.to_string()),
+            ("notation/bootstrap.json", bootstrap),
+        ];
+        let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("a notation that cannot read g.md");
+        assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
+        error.message.strip_prefix("bootstrap.json: ").map(str::to_string)
+    };
+    // A bootstrap that is read, whose notation then fails on g.md.
+    assert_eq!(refusal(r#"{"spelling":"b","expr":{"terminal":"b"}}"#), None);
+    assert_eq!(
+        refusal(r#"{"spelling":"b`c","expr":{"terminal":"b"}}"#).as_deref(),
+        Some("a spelling holds a backtick")
+    );
+    assert_eq!(
+        refusal(r#"{"spelling":"b","expr":{"empty":true,"terminal":"b"}}"#).as_deref(),
+        Some("a spelling follows only a reference other than #, a string or a phoneme tag")
+    );
+    assert_eq!(
+        refusal(r#"{"spelling":"b","expr":{"terminal":"b"},"empty":true}"#).as_deref(),
+        Some("a malformed expression")
+    );
 }
 
 #[test]

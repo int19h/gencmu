@@ -3,10 +3,12 @@ export declare const DOM_MAX_DEPTH = 256;
 export declare const DOM_FORMAT = 8;
 /**
  * What is wrong with a spelling of a symbol (engine §9), or null: an empty
- * spelling, one that the lowercase mapping would change, since the match
- * ignores stress, or one of anything but a reference, a string or a
- * phoneme tag, `#` included. Without a table, the lowercase mapping is not
- * checked.
+ * spelling, one with a backtick, which the notation cannot write, one that
+ * the lowercase mapping would change, since the match ignores stress, or
+ * one of anything but a reference, a string or a phoneme tag, `#` included.
+ * The spelled symbol is exactly one reference or one terminal, so that no
+ * node is read one way here and another way when lowered. Without a table,
+ * the lowercase mapping is not checked.
  * @param {unknown} spelling
  * @param {unknown} expr the spelled expression
  * @param {{lowercase(text: string): string}} [unicode]

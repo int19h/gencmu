@@ -3,6 +3,7 @@ package gencmu
 import (
 	"fmt"
 	"regexp"
+	"strings"
 )
 
 // The DOM of a grammar document, when it did not come from reading the
@@ -222,13 +223,16 @@ func (c *domChecker) expr(e *domExpr, depth int, top bool) {
 }
 
 // spellingProblem is what is wrong with a spelling of a symbol (engine §9),
-// or "": an empty spelling, one that the lowercase mapping would change,
-// since the match ignores stress, or one of anything but a reference, a
-// string or a phoneme tag, # included. Without a table, the lowercase
-// mapping is not checked.
+// or "": an empty spelling, one with a backtick, which the notation cannot
+// write, one that the lowercase mapping would change, since the match
+// ignores stress, or one of anything but a reference, a string or a phoneme
+// tag, # included. Without a table, the lowercase mapping is not checked.
 func spellingProblem(spelling string, inner *domExpr, uni *unicodeTable) string {
 	if spelling == "" {
 		return "a spelling is empty"
+	}
+	if strings.Contains(spelling, "`") {
+		return "a spelling holds a backtick"
 	}
 	if inner == nil || !((inner.Kind == exRef && inner.Name != "" && inner.Name != "#") || inner.Kind == exTerminal) {
 		return "a spelling follows only a reference other than #, a string or a phoneme tag"

@@ -51,7 +51,7 @@ Two other kinds of terminal can spell tags that a name cannot spell:
 
 A reference, a string or a phoneme tag can be followed by a spelling. A spelling is text between backticks, as in ``LE`la` ``. The symbol then matches only where what it spans sounds like the spelling. That is, the phonemes of its tokens, joined with no separator and lowercased, are the spelling. So a stressed `lA`, a Cyrillic `ла` and a zbalermorna `la` all match ``LE`la` ``.
 
-A rule reference sounds like its whole span, so ``sumti`lonu` `` matches `lo nu`. Each token keeps its own periods. For example, `broda bu` is one `BY` word that sounds `broda.bu`. The spelling is written in phonemes, in lower case, with `'` for the apostrophe. An empty spelling is an error, as is one in capitals or one after `#`. Spaces and comments can stand between a symbol and its spelling, but the grammars write them together.
+A rule reference sounds like its whole span, so ``sumti`lomlatu` `` matches `lo mlatu`. Each token keeps its own periods. For example, `broda bu` is one `BY` word that sounds `broda.bu`. The spelling is written in phonemes, in lower case, with `'` for the apostrophe. An empty spelling is an error, as is one in capitals or one after `#`. Spaces and comments can stand between a symbol and its spelling, but the grammars write them together.
 
 A symbol with a spelling is a spelled symbol. The spelling binds tighter than `...`, so every repetition of ``UI`ui` ...`` must sound like `ui`. A capture can wrap a spelled symbol, as in ``$l(LE`la`)``. An optional can hold one, as in ``[KU`ku`]``, which can be elided (left out) when `[KU]` can. A group, an optional, a capture or `ε` cannot take a spelling, so ``(LE NU)`lonu` `` is an error. A spelled symbol never matches an empty span.
 

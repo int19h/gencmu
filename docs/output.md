@@ -99,7 +99,7 @@ An expression is one of these forms:
 {"empty":true}
 ```
 
-`terminal` holds a name, a decoded string, or a phoneme tag `/p/`. A spelled symbol's `expr` is a `ref` other than `#`, or a `terminal`. Its `spelling` is the text between the backticks. The spelling is never empty, and `lowercase` does not change it (engine §9). A capture's `expr` is a `ref`, a `terminal` or a spelled symbol.
+`terminal` holds a name, a decoded string, or a phoneme tag `/p/`. A spelled symbol has no member but `spelling` and `expr`. Its `expr` is a `ref` other than `#`, or a `terminal`, with no other member. Its `spelling` is the text between the backticks, so it holds no backtick. The spelling is never empty, and `lowercase` does not change it (engine §9). A capture's `expr` is a `ref`, a `terminal` or a spelled symbol.
 
 A term is `{"literal":"s"}`, `{"weak":"s"}`, `{"emptySet":true}`, `{"union":[TERM...]}`, `{"intersection":[TERM...]}`, `{"if":COND,"then":TERM}` or `{"call":"phonemes","args":[ARG...]}`. An argument is a span or a term. For `tags`, `matches` and `begins`, an argument can also be a rule name, `{"rule":"lexicon"}`. A span is `{"capture":"x"}`, `{"capture":""}` for `$`, or `{"call":"head","args":[SPAN]}`. `tail`, `last`, `from` and `after` have the same form as `head`.
 

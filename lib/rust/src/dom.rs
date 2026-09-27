@@ -377,13 +377,16 @@ fn is_rule_arg(value: &Json) -> bool {
 }
 
 /// What is wrong with a spelling of a symbol (engine §9), or `None`: an
-/// empty spelling, one of anything but a reference, a string or a phoneme
-/// tag, `#` included, or one that the lowercase mapping would change, since
-/// the match ignores stress. `symbol` is whether the spelled expression is
-/// a reference other than `#` or a terminal.
+/// empty spelling, one with a backtick, which the notation cannot write,
+/// one of anything but a reference, a string or a phoneme tag, `#`
+/// included, or one that the lowercase mapping would change, since the
+/// match ignores stress. `symbol` is whether the spelled expression is a
+/// reference other than `#` or a terminal.
 pub(crate) fn spelling_problem(spelling: &str, symbol: bool, unicode: &Unicode) -> Option<&'static str> {
     if spelling.is_empty() {
         Some("a spelling is empty")
+    } else if spelling.contains('`') {
+        Some("a spelling holds a backtick")
     } else if !symbol {
         Some("a spelling follows only a reference other than #, a string or a phoneme tag")
     } else if unicode.lowercase(spelling) != spelling {
@@ -394,10 +397,13 @@ pub(crate) fn spelling_problem(spelling: &str, symbol: bool, unicode: &Unicode) 
 }
 
 /// Whether a JSON expression is one a spelling may follow: a reference
-/// other than `#`, or a terminal.
+/// other than `#`, or a terminal, with no other key, so that no node is
+/// read one way here and another way when it is built.
 fn is_spellable_json(value: &Json) -> bool {
-    is_object(value)
-        && (value.get("ref").and_then(Json::as_str).is_some_and(|name| name != "#") || is_str(value.get("terminal")))
+    match value.as_object() {
+        Some([(key, Json::Str(name))]) => (key == "ref" && name != "#") || key == "terminal",
+        _ => false,
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -556,6 +562,11 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
         let next = depth + 1;
         match kind {
             Kind::Expr => {
+                // A spelled symbol has its spelling and its symbol, and no
+                // other key that building it could read in its place.
+                if has(value, "spelling") && (value.as_object().map_or(0, <[_]>::len) != 2 || !has(value, "expr")) {
+                    return Some("a malformed expression");
+                }
                 if has(value, "choice") || has(value, "seq") {
                     let items = value.get("choice").or_else(|| value.get("seq"));
                     if !list(items, 2, usize::MAX) {

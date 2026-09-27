@@ -587,6 +587,10 @@ func decodeExpr(raw json.RawMessage) (*domExpr, error) {
 	if err != nil {
 		return nil, err
 	}
+	// A spelled symbol has its spelling and its symbol, and nothing else.
+	if _, ok := o["spelling"]; ok && (len(o) != 2 || o["expr"] == nil) {
+		return nil, fmt.Errorf("a malformed expression")
+	}
 	for _, k := range []string{exSeq, exChoice, exAnd} {
 		if v, ok := o[k]; ok {
 			items, err := decodeList(v, decodeExpr)
@@ -615,9 +619,14 @@ func decodeExpr(raw json.RawMessage) (*domExpr, error) {
 		return &domExpr{Kind: exCapture, Name: name, Inner: inner}, err
 	}
 	if v, ok := o["spelling"]; ok {
+		// The symbol is one reference or one terminal alone, so that no
+		// node reads two ways.
 		spelling, err := decodeString(v)
 		if err != nil {
 			return nil, err
+		}
+		if io, err := decodeObj(o["expr"]); err != nil || len(io) != 1 {
+			return nil, fmt.Errorf("a spelling follows only a reference other than #, a string or a phoneme tag")
 		}
 		inner, err := decodeExpr(o["expr"])
 		return &domExpr{Kind: exSpelling, Name: spelling, Inner: inner}, err

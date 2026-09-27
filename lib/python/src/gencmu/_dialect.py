@@ -64,7 +64,7 @@ _lock = threading.Lock()
 _unicode_tables: dict[str, UnicodeTable] = {}
 _readers: dict[tuple[str, str], NotationReader] = {}
 _compiled_indexes: dict[tuple[str, str, str], dict[str, Dom]] = {}
-_dom_cache: dict[tuple[str, str, int], Dom] = {}
+_dom_cache: dict[tuple[str, str, str, int], Dom] = {}
 
 
 def _unicode_table(text: str) -> UnicodeTable:
@@ -242,7 +242,9 @@ class _Loader:
     def dom(self, path: str) -> Dom:
         text = self.text(path)
         text_hash = fnv1a64(text)
-        key = (text_hash, self.reader.hash, DOM_FORMAT)
+        # The Unicode table is part of the key: a spelling that one table
+        # accepts another may refuse (engine §9).
+        key = (text_hash, self.reader.hash, self.resources.unicode, DOM_FORMAT)
         if self.use_cache:
             found = self.compiled.get(text_hash)
             if found is not None:

@@ -84,7 +84,7 @@ A string is written in straight double quotes. Inside it, a backslash escapes th
 
 ## Spellings
 
-A spelling says what a symbol must sound like, as in ``LE`la` ``. It is the characters between two backticks. It has no escapes, so it cannot hold a backtick. The second stage's reader refuses a spelling that is empty or that lowercasing would change (`../../docs/engine.md`, §9); this stage only has to find where the spelling ends. So two backticks with nothing between them are still one token, which the reader reports.
+A spelling says what a symbol must sound like, as in ``LE`la` ``. It is the characters between two backticks. It has no escapes, so it cannot hold a backtick. The second stage's reader rejects empty spellings and spellings that lowercasing changes (`../../docs/engine.md`, §9). This stage only finds the spelling's end. So two backticks with nothing between them are still one token, which the reader reports.
 
 ```jbogenbau
 %rule spelling
