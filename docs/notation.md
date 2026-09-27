@@ -1,19 +1,23 @@
 # jbogenbau, the grammar notation
 
-Every grammar in gencmu is a Markdown document whose fenced `jbogenbau` blocks, read in order, are one grammar, and whose prose between the blocks explains it. This document explains jbogenbau, the notation those blocks use. The grammars only say what they are about and refer here for the rest. jbogenbau is defined by two grammars written in itself, `grammars/notation/lexical.md` and `grammars/notation/syntax.md`; this document explains it, and those define it.
+Every grammar in gencmu is a Markdown document. Its fenced `jbogenbau` blocks, read in order, are one grammar, and the prose between the blocks explains it. This document explains jbogenbau, the notation that those blocks use. The grammars only say what they are about, and refer here for the rest. Two grammars written in jbogenbau itself define it: `grammars/notation/lexical.md` and `grammars/notation/syntax.md`. This document explains the notation, and those two grammars define it.
 
-A jbogenbau grammar is an attribute grammar with EBNF rule bodies. Each rule's body is EBNF in the dialect *The Complete Lojban Language* prints in chapter 21. Each constituent carries one attribute, its set of tags, computed bottom-up from its parts. Conditions over the parts, including whether a part also parses as another rule, restrict which parses exist, which takes the grammar beyond context-free in the way Boolean grammars do. And each rule may say what its constituents hand to the next stage, so that a grammar is a transducer from one sequence of tokens to the next, and a dialect is a pipeline of them. A grammar is unordered: alternatives are not ranked, and where a text has more than one parse the choice is made afterwards by one rule, described under "Ambiguity".
+A jbogenbau grammar is an attribute grammar with EBNF rule bodies. An attribute grammar is a grammar whose constituents carry computed values. A constituent is a part of the text that one rule matched. EBNF (Extended Backus-Naur Form) is a common notation for the bodies of grammar rules. Each rule body is EBNF in the form that *The Complete Lojban Language* (CLL) prints in chapter 21. Each constituent carries one attribute, its set of tags (labels such as `KOhA`), computed bottom-up from its parts.
+
+Conditions over the parts restrict which parses exist. A condition can also ask whether a part parses as another rule. This takes the grammar beyond context-free grammars, whose rules only combine symbols. It goes beyond them in the way that Boolean grammars do. In a Boolean grammar, a rule can also require that the same text matches, or does not match, another rule.
+
+Each rule can also say what its constituents hand to the next stage. So a grammar is a transducer: it reads one sequence of tokens (units such as characters or words) and writes the next sequence. A dialect is a pipeline of these grammars. A grammar is unordered: its alternatives are not ranked. Where a text has more than one parse, one rule makes the choice afterwards. The section "Ambiguity" describes that rule.
 
 ## Rules
 
-A grammar is a sequence of rules and directives, each beginning with a keyword, a word after `%`, and ending where the next begins. A rule is `%rule`, its name, and its body:
+A grammar is a sequence of rules and directives (see "Directives"). Each one begins with a keyword, which is a word after `%`, and ends where the next one begins. A rule is `%rule`, its name, and its body:
 
 ```jbogenbau
 %rule sumti-tail
   [sumti-6 [relative-clauses]] sumti-tail-1 | relative-clauses sumti-tail-1
 ```
 
-Line breaks and indentation mean nothing, so a long list of alternatives may put each on a line of its own, and every `|` may also stand first. By convention the body is indented by two spaces under the keyword:
+Line breaks and indentation mean nothing. So a long list of alternatives can put each alternative on a line of its own, and every `|` can also stand first. By convention, authors indent the body by two spaces under the keyword:
 
 ```jbogenbau
 %rule term-connective
@@ -23,46 +27,53 @@ Line breaks and indentation mean nothing, so a long list of alternatives may put
   | VUhU #
 ```
 
-The same is true of every separator the notation has: `&` in bodies, `∪` and `∩` in tag terms, `∧` and `∨` in conditions, and the commas of a clause's list.
+The same is true of every other separator of the notation. These are `&` in bodies, `∪` and `∩` in tag terms, `∧` and `∨` in conditions, and the commas of a clause's list. A tag term is an expression that gives a set of tags.
 
-A body may be followed by clauses, each a keyword and what it says, at most one of each and in this order: `%tags`, the tags every alternative's constituent carries; `%conditions`, what must hold of the parts; `%emits`, what the constituent hands to the next stage; and `%verbatim`, which says that the constituent's text is not read as sounds. The sections below explain each.
+A body can be followed by clauses. A clause is a keyword and what it says. A body has at most one clause of each kind, and the clauses come in this order:
+
+- `%tags`: the tags that the constituent of every alternative carries.
+- `%conditions`: what must hold of the parts.
+- `%emits`: what the constituent hands to the next stage.
+- `%verbatim`: the constituent's text is not read as sounds.
+
+The sections below explain each clause.
 
 `(* ... *)` is a comment, anywhere in a block.
 
 ## Names and terminals
 
-A name is an ASCII letter followed by ASCII letters, digits and hyphens. A name that begins with a lower-case letter is a rule, and must be defined in the stage. A name that begins with an upper-case letter is a terminal: it matches a token of the input that carries that name as a tag, as `KOhA` matches a word the lexicon tagged KOhA.
+A name is an ASCII letter followed by ASCII letters, digits and hyphens. A name that begins with a lower-case letter is a rule, and must be defined in the stage. A name that begins with an upper-case letter is a terminal. A terminal matches a token of the input that carries that name as a tag. For example, `KOhA` matches a word that the lexicon tagged KOhA.
 
-Two other kinds of terminal spell tags a name cannot:
+Two other kinds of terminal can spell tags that a name cannot spell:
 
-- a string in straight double quotes, `"а"`, `"word"`, `"≔"`. Inside it, `\\` is a backslash and `\"` a quote. `\u{ED80}` is the character with that hexadecimal value. The value has one to six digits. It is at most `10FFFF`, and it is not a surrogate, `D800` to `DFFF`.
-- a phoneme between slashes, `/a/`, `/'/`, and `/./` for a pause. It is a phoneme tag: it matches like any tag, and it also says what a token carrying it sounds like, which is what `phonemes()` reads.
+- A string in straight double quotes, `"а"`, `"word"`, `"≔"`. Inside it, `\\` is a backslash and `\"` a quote. `\u{ED80}` is the character with that hexadecimal value. The value has one to six digits. It is at most `10FFFF`, and it is not a surrogate, `D800` to `DFFF`.
+- A phoneme between slashes, `/a/`, `/'/`, and `/./` for a pause. It is a phoneme tag. It matches like any tag, and it also says what a token that carries it sounds like. `phonemes()` reads that sound.
 
 ## Operators
 
 The operators of a body are those of CLL:
 
-- juxtaposition is sequence;
-- `[x]` is optional;
-- `x ...` is one or more of `x`, and `[x] ...` zero or more; left grouping is implied;
-- `A & B` is and/or: `A`, `B` or `A B`, but not `B A`, and `A & B & C` is any non-empty subsequence in that order;
-- `( )` groups;
+- Juxtaposition is sequence.
+- `[x]` is optional.
+- `x ...` is one or more of `x`, and `[x] ...` is zero or more. Left grouping is implied.
+- `A & B` is and/or: `A`, `B` or `A B`, but not `B A`. `A & B & C` is any non-empty subsequence in that order.
+- `( )` groups.
 - `ε` is the empty sequence.
 
 `...` binds tighter than `&`, which binds tighter than `|`.
 
-`#` is the free-modifier slot, which CLL writes after almost every word. It is not an operator but a rule, whose name is `#` rather than a word, and the grammar defines it like any other: the syntax grammars define it as `[free ...]`, zero or more free modifiers, as CLL's own EBNF does. Its constituent is a node of the tree like any rule's, so the free modifiers in one slot are grouped under it.
+`#` is the free-modifier slot, which CLL writes after almost every word. A free modifier is a word or phrase, such as a vocative, that can stand almost anywhere. `#` is not an operator but a rule, whose name is `#` and not a word. The grammar defines it like any other rule. The syntax grammars define it as `[free ...]`, zero or more free modifiers, as CLL's own EBNF does. Its constituent is a node of the tree like that of any rule, so the free modifiers in one slot are grouped under it.
 
-CLL writes an elidable terminator between slashes, `/KU/`, and `/KU#/` for a terminator whose free-modifier slot goes with it. In this notation both are optionals, `[KU]` and `[KU #]`, and which terminators are elidable is declared once for the grammar (see "Directives"). Slashes are for phonemes.
+A terminator is a word that closes a construct, such as `ku`. CLL writes a terminator that can be elided (left out) between slashes, `/KU/`. It writes `/KU#/` for such a terminator whose free-modifier slot goes with it. In this notation, both are optionals: `[KU]` and `[KU #]`. The grammar declares once which terminators are elidable (see "Directives"). Here, slashes are for phonemes.
 
 ## Feature guards
 
-A feature is a name that is on or off for a parse, the same for every stage of it. The dialect's pipeline turns some features on (see "Pipelines"), and the caller can turn others on and any of those off. An alternative may begin with guards, which make it depend on features. There are two kinds:
+A feature is a name that is on or off for a parse. It has the same value in every stage of that parse. The pipeline of the dialect turns some features on (see "Pipelines"). The caller, the program or person that asks for the parse, can turn other features on, and can turn any of the dialect's features off. An alternative can begin with guards, which make it depend on features. There are two kinds:
 
 - A gate, `@name?`, keeps the alternative only while the feature `name` is on, and `@¬name?` keeps it only while the feature is off. A gate changes what the grammar accepts.
-- A warning, `@name!`, keeps the alternative whether the feature is on or off. While the feature is on, a parse whose chosen tree uses the alternative carries a warning that names the feature and the text the alternative's constituent covers. A warning changes nothing that the grammar accepts or chooses. It reports where a text relies on an addition to a base grammar.
+- A warning, `@name!`, keeps the alternative whether the feature is on or off. While the feature is on, a parse whose chosen tree uses the alternative carries a warning. The warning names the feature and the text that the alternative's constituent covers. A warning changes nothing that the grammar accepts or chooses. It reports where a text relies on an addition to a base grammar.
 
-An alternative with several guards exists when all its gates hold. A name is a gate or a warning, not both: a name that one guard uses as a gate and another as a warning, in any stage of a dialect, is an error of the dialect. A warning has no negated form, since it keeps its alternative either way.
+An alternative with several guards exists when all its gates hold. A name is a gate or a warning, not both. If one guard uses a name as a gate and another guard uses it as a warning, the dialect has an error. The two guards can be in any stages of the dialect. A warning has no negated form, because it keeps its alternative either way.
 
 ```jbogenbau
 %rule tanru-unit-2
@@ -78,15 +89,17 @@ An alternative with several guards exists when all its gates hold. A name is a g
   "cmavo-warning" ∈ tags($w)
 ```
 
-A dialect that extends another uses the two kinds for two kinds of change. An addition, a text the base grammar rejects and the dialect accepts, is a warning, so that a reader can learn which additions a text relies on. The dialect turns none of its warnings on, so that its texts parse without warnings unless the caller asks. A change to how the dialect reads a text of the base cannot be a warning, since the base reading would be gone. It is a gate, with the old form under `@¬name?` beside it, and the dialect turns it on; a caller who wants the base reading turns it off.
+A dialect that extends another dialect uses the two kinds for two kinds of change. An addition is a text that the base grammar rejects and the dialect accepts. An addition is a warning, so that a reader can learn which additions a text relies on. The dialect turns none of its warnings on, so its texts parse without warnings unless the caller asks for them.
+
+A change to how the dialect reads a text of the base cannot be a warning. The change removes the base reading, and a warning changes nothing that the grammar accepts or chooses. So the change is a gate, with the old form under `@¬name?` beside it. The dialect turns the gate on. A caller who wants the base reading turns it off.
 
 ## Stitching documents
 
 A stage of a pipeline is the rules and directives of several documents, read in order. A later rule can change what an earlier one said. Only the order of the rules in the stage matters, not the document where each was written. There are three ways to state a rule, and each says what it expects to be there already:
 
-- `%rule` defines a rule, and it is an error if one of that name was defined before it in the stage;
-- `%redefine-rule` replaces a rule defined before it in the stage, and it is an error if none was: the earlier alternatives are gone;
-- `%extend-rule` adds alternatives to a rule defined before it in the stage, and it is an error if none was.
+- `%rule` defines a rule. It is an error if a rule of that name was defined before it in the stage.
+- `%redefine-rule` replaces a rule defined before it in the stage. It is an error if none was. The earlier alternatives are gone.
+- `%extend-rule` adds alternatives to a rule defined before it in the stage. It is an error if none was.
 
 ```jbogenbau
 %extend-rule consonant
@@ -99,22 +112,26 @@ A stage of a pipeline is the rules and directives of several documents, read in 
   | [indicators & free ...] [joik-jek] text-1
 ```
 
-So `%rule` never quietly replaces a rule. A misspelled name in `%redefine-rule` or `%extend-rule` is an error, and so is a reference to a rule that no document defines. A misspelled `%rule` defines a new rule that nothing reads, and the audit reports it as unreachable. The alternatives an extension adds carry the extension's own clauses, not the base rule's, and the base rule's clauses do not apply to them, so an extension says everything about what it adds. The loader reports every replacement and extension, which document changed which rule, so a dialect's effect on its base can be read off in one place.
+So `%rule` never quietly replaces a rule. A misspelled name in `%redefine-rule` or `%extend-rule` is an error. So is a reference to a rule that no document defines. A misspelled `%rule` defines a new rule that nothing reads, and the audit (gencmu's report on a grammar) reports it as unreachable.
 
-Removing a single alternative is not possible: a rule is small enough to restate, and restating it reads better than a list of deletions.
+The alternatives that an extension adds carry the extension's own clauses, not those of the base rule. The clauses of the base rule do not apply to them. So an extension says everything about what it adds. The loader, the part of gencmu that reads the documents, reports every replacement and extension: which document changed which rule. So a reader can see the effect of a dialect on its base in one place.
+
+The notation has no way to remove a single alternative. A rule is small enough to restate, and a restated rule reads better than a list of deletions.
 
 ## Captures
 
-A symbol of a rule's body may be captured by writing `$name(symbol)` around it. A capture wraps one symbol at the top level of an alternative, not inside `[ ]`, `...`, `( )` or `&`, so an alternative either reads that symbol or does not exist; an alternative has at most four. `$` alone is the whole constituent, a capture every alternative has without writing it.
+Writing `$name(symbol)` around a symbol of a rule's body captures that symbol. A capture gives a part of the constituent a name that the clauses of the rule can use. A capture wraps one symbol at the top level of an alternative, not inside `[ ]`, `...`, `( )` or `&`. So an alternative either reads that symbol or does not exist. An alternative has at most four captures. `$` alone is the whole constituent, a capture that every alternative has without writing it.
 
-The clauses of a rule serve all its alternatives, which need not capture the same parts. Whether an alternative captured a part is known when the grammar is read, and a clause refers to a capture an alternative lacks in one of two ways, depending on what the clause is:
+The clauses of a rule serve all its alternatives, and the alternatives need not capture the same parts. gencmu knows whether an alternative captured a part when it reads the grammar. A clause can refer to a capture that an alternative lacks. What happens then depends on the kind of clause:
 
-- a condition, or an item of `%emits`, that uses a capture an alternative lacks does not apply to that alternative: a condition about a part that is not there holds, and a part that is not there is not emitted;
-- a tag term that uses a capture an alternative it serves lacks is an error, unless the use is guarded by `⟹` (below), since a tag term has no value that could mean "nothing to say". An alternative's own tags serve that alternative, `%tags` every alternative, and an emitted item's tags every alternative that has the item.
+- A condition or an item of `%emits` that uses a capture that an alternative lacks does not apply to that alternative. A condition about a part that is not there holds. A part that is not there is not emitted.
+- A tag term that uses a capture that one of its alternatives lacks is an error, unless `⟹` (below) guards the use. The reason is that a tag term has no value that can mean "nothing to say". An alternative's own tags serve that alternative. The tags after `%tags` serve every alternative. The tags of an emitted item serve every alternative that has the item.
 
-A capture that no alternative of the rule, or of the extension, captures is an error wherever it is mentioned, and so is a condition or an item of `%emits` that applies to no alternative: each is a mistake, such as a misspelled name.
+It is an error to mention a capture that no alternative of the rule, or of the extension, captures. It is also an error to write a condition or an item of `%emits` that applies to no alternative. Each of these is a mistake, such as a misspelled name.
 
-`$x`, standing as a condition, says whether the alternative captured `x`, which is also known when the grammar is read; `$` alone is always true. A presence test is decided for each alternative before anything else, so it is not a use of the capture: `%conditions $x` applies to every alternative, and removes those that do not capture `x`. `A ⟹ B`, where `A` is a condition, is `B` where `A` holds: as a condition, `B` or true; as a tag term, the tags of `B` or none. So a tag term that should apply only to the alternatives with a certain capture says so:
+`$x`, standing as a condition, is a presence test: it says whether the alternative captured `x`. gencmu also knows this when it reads the grammar. `$` alone is always true. gencmu decides a presence test for each alternative before anything else, so it is not a use of the capture. So `%conditions $x` applies to every alternative, and removes those that do not capture `x`.
+
+`A ⟹ B`, where `A` is a condition, is `B` where `A` holds. As a condition, it is `B` where `A` holds, and true elsewhere. As a tag term, it is the tags of `B` where `A` holds, and no tags elsewhere. So a tag term that is only for the alternatives with a certain capture says so:
 
 ```jbogenbau
 %rule word
@@ -126,7 +143,7 @@ A capture that no alternative of the rule, or of the extension, captures is an e
 
 ## Conditions
 
-`%conditions` lists what must hold of a rule's captured parts, separated by commas. A parse in which a condition fails does not exist: the parser checks each condition the moment it has read the last capture the condition mentions, and one that mentions `$` when the constituent is complete. Each condition of the list applies to the alternatives that capture everything it mentions, and to no other, so one rule can state a condition for the alternatives that have a quote body and none for the one that has not:
+`%conditions` lists what must hold of a rule's captured parts, separated by commas. A parse in which a condition fails does not exist. The parser evaluates each condition as soon as it reads the last capture that the condition mentions. It evaluates a condition that mentions `$` when the constituent is complete. Each condition of the list applies to the alternatives that capture everything it mentions, and to no other alternative. So one rule can state a condition for the alternatives that have a quote body, and none for the alternative that does not:
 
 ```jbogenbau
 %rule zoi-quote
@@ -137,21 +154,43 @@ A capture that no alternative of the rule, or of the extension, captures is an e
   phonemes($open) ∉ runs($content)
 ```
 
-Within one condition of the list, `∧` and `∨` join conditions, `∧` binding tighter, `⟹` binds looser than both and groups to the right, parentheses group, and `¬` negates the condition after it. A condition joined with `∧` is checked only once all its parts can be, so two conditions about different parts are better written as two items of the list, each checked as early as it can be.
+Within one condition of the list, `∧` and `∨` join conditions, and `∧` binds tighter. `⟹` binds looser than both, and groups to the right. Parentheses group, and `¬` negates the condition after it. The parser evaluates a condition joined with `∧` only when it can evaluate all its parts. So two conditions about different parts are better as two items of the list. The parser then evaluates each one as early as it can.
 
-The terms of a condition have three types.
+The terms of a condition have three types: spans, strings and sets of tags.
 
-**Spans.** A capture `$x` is a span, the tokens the captured part covers, and `$` the tokens the whole constituent covers. `head($x)` is its first token, `tail($x)` the rest, `last($x)` the last. `from($x)` is the tokens from the start of `$x` to the end of the input, and `after($x)` the tokens after `$x` to the end of the input. These two reach past the constituent, to the text that follows it.
+A span is a sequence of tokens. A capture `$x` is a span, the tokens that the captured part covers, and `$` is the tokens that the whole constituent covers. `head($x)` is its first token, `tail($x)` the rest, and `last($x)` the last. `from($x)` is the tokens from the start of `$x` to the end of the input. `after($x)` is the tokens after `$x`, to the end of the input. These two reach past the constituent, to the text that follows it.
 
-**Strings.** `phonemes(span)` is what a span sounds like: the phonemes of its tokens, joined. A token's phonemes are fixed when its stage emits it. A token over a verbatim constituent sounds like its text (see "Verbatim text"). Any other token sounds like the phoneme that its strong `/x/` tag names, if it has one. Two strong phoneme tags on one token are an error of the grammar. Otherwise it sounds like the tokens of that stage's input that it covers, joined in order. That leaves out the tokens inside a rule that emits `ε` (see "Emission"). It also makes each run of pause tokens one, and removes a pause token at either end. A pause is `.`, so `klama bu` sounds as `klama.bu`; the renderings for people write it as a space. `text(span)` is the original text the span covers. `lowercase(string)` folds capitals, so `phonemes($m) ≠ lowercase(phonemes($m))` says that `$m` carries a stress mark. A string in quotes, or a phoneme tag, is a literal.
+The second type is the string. `phonemes(span)` is what a span sounds like: the phonemes of its tokens, joined. A token's phonemes are fixed when its stage emits it. A token over a verbatim constituent sounds like its text (see "Verbatim text"). Any other token sounds like the phoneme that its strong `/x/` tag names, if it has one. Two strong phoneme tags on one token are an error of the grammar.
 
-**Sets of tags.** `tags(span)` is the tag set of the captured part. `tags(span, rule)` is the tag set the span has when parsed as `rule`, unioned over every parse, and empty when it does not parse; this is how a word looks itself up in a lexicon that is itself a set of rules. `classes(span)` keeps only the tags that begin with a capital. `"KOhA"` is the set with that one tag, so `"UI" ∪ "CAI"` is the set of both; `∅` is empty; `∪` and `∩` are union and intersection, `∩` binding tighter. `runs(span)` is the set of the runs of a span's phonemes, the strings between its pauses, so `phonemes($open) ∉ runs($content)` says that the word `$open` is not one of the runs of `$content`. A run can hold several words: a text writes `lemiklama` as one run.
+A token of neither kind sounds like the tokens of its stage's input that it covers, joined in order. That leaves out the tokens inside a rule that emits `ε` (see "Emission"). It also makes each run of pause tokens into one pause token, and removes a pause token at either end. A pause is `.`, so `klama bu` sounds as `klama.bu`. The renderings for people write a pause as a space.
 
-The predicates are `=` and `≠` on two strings or two tag sets, `∈` and `∉` of a string in a tag set, `⊆` of one tag set in another, `$x` of a capture, `matches(span, rule)`, true when the span parses as the named rule, `begins(span, rule)`, true when some prefix of the span parses as the rule, the empty prefix included, and `initial(span)`, true when the span begins where the parser's input begins. `matches` and `tags(span, rule)` parse the captured span alone, as the named rule, with the same grammar, which is how CLL's slinku'i test is stated. No CV cmavo put before a borrowing may make a lujvo. That is `¬matches($f, lujvo-after-cv)`, since the rule is the part of a lujvo after its first two letters. A condition that asks, inside such a parse, about the very span being parsed as the same rule defines the rule in terms of itself over the same text, negated or not; the parser reports it as an error of the grammar.
+`text(span)` is the original text that the span covers. `lowercase(string)` folds capitals. So `phonemes($m) ≠ lowercase(phonemes($m))` says that `$m` carries a stress mark. A string in quotes, or a phoneme tag, is a literal.
 
-`begins` with `from` or `after` is a lookahead, as a parsing expression grammar has one: it asks whether a rule could be read at a point, without reading it. `begins(after($f), post-word)` says that what follows `$f` begins with a `post-word`, which may lie in the words after the constituent. `¬begins(from($f), cmevla)` says that no `cmevla` begins where `$f` begins, as a PEG's `!cmevla` before `$f` does. The approved word forms use these to translate their PEG rule by rule. The nested parse of `begins` reads only as far as the rule can, so a lookahead costs what reading the rule costs, however long the rest of the input is.
+The third type is the set of tags. `tags(span)` is the tag set of the captured part. `tags(span, rule)` is the tag set that the span has when parsed as `rule`, unioned over every parse. It is empty when the span does not parse as `rule`. This is how a word looks itself up in a lexicon that is itself a set of rules. `classes(span)` keeps only the tags that begin with a capital.
 
-`initial` lets a rule begin only at the start of the input. The rule below matches nothing, and its condition holds only where the input begins, so an alternative that starts with `text-start` is read there and nowhere else. The parser checks the condition before it looks further, so such an alternative costs nothing at the other positions. In a nested parse, the input is the span being parsed, so `initial` holds at the span's start.
+`"KOhA"` is the set with that one tag, so `"UI" ∪ "CAI"` is the set of both. `∅` is the empty set. `∪` and `∩` are union and intersection, and `∩` binds tighter.
+
+`runs(span)` is the set of the runs of a span's phonemes. The runs are the strings between its pauses. So `phonemes($open) ∉ runs($content)` says that the word `$open` is not one of the runs of `$content`. A run can hold several words: a text writes `lemiklama` as one run.
+
+The predicates are:
+
+- `=` and `≠`, on two strings or two tag sets.
+- `∈` and `∉`, of a string in a tag set.
+- `⊆`, of one tag set in another.
+- `$x`, of a capture.
+- `matches(span, rule)`, true when the span parses as the named rule.
+- `begins(span, rule)`, true when some prefix of the span parses as the rule. The empty prefix counts.
+- `initial(span)`, true when the span begins where the parser's input begins.
+
+`matches` and `tags(span, rule)` parse the captured span alone, as the named rule, with the same grammar. This is how gencmu states CLL's slinku'i test for borrowings. The test says that a CV cmavo (a particle of one consonant and one vowel) put before a borrowing must not make a lujvo (a compound word). That is `¬matches($f, lujvo-after-cv)`, because the rule is the part of a lujvo after its first two letters.
+
+Inside such a parse, a condition can ask about the very span that is being parsed, as the same rule. Such a condition defines the rule in terms of itself over the same text, negated or not. The parser reports it as an error of the grammar.
+
+`begins` with `from` or `after` is a lookahead, like the lookahead of a parsing expression grammar (PEG). A PEG is a kind of grammar that tries the alternatives of a rule in order. A lookahead asks whether a rule can be read at a point, without reading it. `begins(after($f), post-word)` says that what follows `$f` begins with a `post-word`. That `post-word` can lie in the words after the constituent. `¬begins(from($f), cmevla)` says that no `cmevla` begins where `$f` begins, as a PEG's `!cmevla` before `$f` does.
+
+The approved word forms, the word grammar of the `bpfk` dialect, use these to translate their PEG rule by rule. The nested parse of `begins` reads only as far as the rule can read. So a lookahead costs what reading the rule costs, however long the rest of the input is.
+
+`initial` lets a rule begin only at the start of the input. The rule below matches nothing, and its condition holds only where the input begins. So an alternative that starts with `text-start` is read there and nowhere else. The parser evaluates the condition before it looks further, so such an alternative costs nothing at the other positions. In a nested parse, the input is the span being parsed, so `initial` holds at the span's start.
 
 ```jbogenbau
 %rule text-start
@@ -162,7 +201,7 @@ The predicates are `=` and `≠` on two strings or two tag sets, `∈` and `∉`
 
 ## Tags
 
-Every token and every constituent carries a set of tags. A terminal matches a token by tag, so the tags a grammar gives its constituents are the terminals of the grammar of the next stage. A rule says what tags its constituents carry with tag terms: in angle brackets after an alternative, for that alternative, and after `%tags`, for every alternative. A constituent's tags are the union of the two, where both are written:
+Every token and every constituent carries a set of tags, and a terminal matches a token by tag. So the tags that a grammar gives its constituents are the terminals of the grammar of the next stage. A rule uses tag terms to say what tags its constituents carry. A tag term in angle brackets after an alternative is for that alternative. A tag term after `%tags` is for every alternative. Where both are written, a constituent's tags are the union of the two:
 
 ```jbogenbau
 %rule cmevla
@@ -177,17 +216,23 @@ Every token and every constituent carries a set of tags. A terminal matches a to
   "cmavo" ∪ tags($w, lexicon)
 ```
 
-With no tags written at all, neither after the alternative nor after `%tags`, a constituent built from one symbol has that symbol's tags, and one built from several has none. So a rule `word` whose body is `cmavo | brivla | cmevla` needs no tags: a `mi` arrives at the next stage tagged by the chain of rules that built it. A tag term says what a constituent's tags are, so it cannot be made of them: `$`, `tags($)` and `classes($)` are errors there, while `tags($, lexicon)`, which parses the constituent's tokens again, is not.
+Sometimes no tags are written at all, neither after the alternative nor after `%tags`. Then a constituent built from one symbol has that symbol's tags, and a constituent built from several symbols has none. So a rule `word` whose body is `cmavo | brivla | cmevla` needs no tags. A `mi` arrives at the next stage tagged by the chain of rules that built it.
 
-A tag may be weak, `?"KOhA"`. A reading of a token under a weak tag loses, at the first difference between two parses, to a reading under a strong one. Weak tags are how a lexicon records a membership that a dialect admits as a second choice. The word can be read that way, but never in preference to its standard class. A warning comes only from a feature guard of the form `@name!`.
+A tag term that defines a constituent's tags cannot be made of those tags. So `$`, `tags($)` and `classes($)` are errors in a tag term after an alternative or after `%tags`. `tags($, lexicon)` is not an error there, because it parses the constituent's tokens again. The tag term of an emitted item does not define the constituent's tags, so it can use `$`, `tags($)` and `classes($)`.
+
+A tag can be weak, as in `?"KOhA"`. A tag that is not weak is strong. A reading of a token under a weak tag loses, at the first difference between two parses, to a reading under a strong one. Weak tags are how a lexicon records a membership that a dialect admits as a second choice. The word can be read that way, but never in preference to its standard class. A warning comes only from a feature guard of the form `@name!`.
 
 ## Emission
 
-A rule with no `%emits` is walked: what it hands to the next stage is what its parts hand on, in order, and a token it reads directly hands on nothing. A rule with `%emits` hands on exactly what the list says, in the order it says it, and nothing else of the constituent is walked.
+The stage walks a rule with no `%emits`. What it hands to the next stage is what its parts hand on, in order. A token that it reads directly hands on nothing. A rule with `%emits` hands on exactly what the list says, in the order that the list says it. The stage walks nothing else of the constituent.
 
-An item of the list is a capture, handed on as one token with the constituent's tags or with those of a tag term after it in angle brackets, or a string or phoneme tag, handed on as a token with that one tag and no text of its own. The captures must be listed in the order they stand in the text. `$` is the whole constituent, and a list of `$` items hands on one token over the whole constituent for each: `%emits $ </n/>, $ </o/>` is how the digit `0` becomes the phonemes of `no`. An inserted tag stands where it is listed: `%emits $g, /'/, $v` hands on an apostrophe between two vowels for a script that writes none. A tag term that gives no tags when the parse is made is an error of the grammar, since no terminal could read the token.
+An item of the list can be a capture. The stage hands a capture on as one token. The token has the constituent's tags, or the tags of a tag term after the capture in angle brackets. An item can also be a string or a phoneme tag. The stage hands it on as a token with that one tag and no text of its own. The author must list the captures in the order they stand in the text.
 
-`%emits ε` hands on nothing, and more: the constituent does not count, so none of it is part of what a token over it sounds like. That is what an erased stretch of text is. `broda brode si bu` hands on the letter word `broda bu`, whose token covers `brode si` too, since a `si` erasure may stand between a word and its `bu`, but does not sound like it. A part a rule's list merely does not name is not handed on, but it still counts: a pause inside a quote is part of what a compound over the quote sounds like. A rule with no `%emits` that happens to hand on nothing, as a gap does, counts as well; only `ε` says that text does not count.
+`$` is the whole constituent. A list of `$` items hands on one token over the whole constituent for each item. For example, `%emits $ </n/>, $ </o/>` is how the digit `0` becomes the phonemes of `no`. An inserted tag stands where it is listed. So `%emits $g, /'/, $v` hands on an apostrophe between two vowels, for a script that writes none. A tag term that gives no tags when the parse is made is an error of the grammar, because no terminal can read the token.
+
+`%emits ε` hands on nothing, and it does more: the constituent does not count. So nothing in it is part of what a token over it sounds like. That is what an erased stretch of text is. `broda brode si bu` hands on the letter word `broda bu` (`si` erases the word before it). Its token covers `brode si` too, because a `si` erasure can stand between a word and its `bu`. But the token does not sound like `brode si`.
+
+A part that the list of a rule merely does not name is not handed on, but it still counts. For example, a pause inside a quote is part of what a compound over the quote sounds like. A rule with no `%emits` that happens to hand on nothing, as a gap does, counts as well. Only `ε` says that text does not count.
 
 ```jbogenbau
 %rule plain-word
@@ -216,14 +261,16 @@ An item of the list is a capture, handed on as one token with the constituent's 
 %verbatim
 ```
 
-The token also takes in the text next to it that no token of the stage's input covers. An example is punctuation that the stage before read as part of a pause but did not emit. So its text starts at the end of the input token before it, or at the start of the text. It ends at the start of the input token after it, or at the end of the text. Text between two such tokens of one stage belongs to the first of them. A token of a later stage that covers only one verbatim token is verbatim too, so a quote body stays verbatim to the end of the pipeline. The renderings for people show a verbatim token's text as it is, and do not write its periods as spaces. A rule cannot have both `%verbatim` and `%emits ε`, since a constituent that does not count cannot sound like its text.
+The token also takes in the text next to it that no token of the stage's input covers. An example is punctuation that the stage before read as part of a pause but did not emit. So its text starts at the end of the input token before it, or at the start of the text. It ends at the start of the input token after it, or at the end of the text. Text between two such tokens of one stage belongs to the first of them.
+
+A token of a later stage that covers only one verbatim token is verbatim too. So a quote body stays verbatim to the end of the pipeline. The renderings for people show a verbatim token's text as it is, and do not write its periods as spaces. A rule cannot have both `%verbatim` and `%emits ε`, because a constituent that does not count cannot sound like its text.
 
 ## Directives
 
 A directive is a keyword and its operands. By convention each stands in a block of its own, after prose that says why the grammar needs it. Two directives can share a line.
 
 - `%ambiguity-resolution greedy` or `lazy`, optionally followed by `elision-only`, and then optionally by `maximal`: how the stage chooses among parses, explained under "Ambiguity" and "Elided terminators". Every stage must say it exactly once, in any of its documents.
-- `%elidable KU KEI VAU ...`: the terminators that may be elided. An absent optional whose first symbol is one of them shows in the parse tree as that terminator, elided at that point, and `elision-only` writes them back.
+- `%elidable KU KEI VAU ...`: the terminators that can be elided. An absent optional whose first symbol is one of them shows in the parse tree as that terminator, elided at that point. `elision-only` writes these terminators back.
 - `%stage NAME`, `%include "PATH"` and `%features NAME ...` build a pipeline, as the next section says.
 
 ## Pipelines
@@ -254,10 +301,10 @@ A dialect is a pipeline document, which is Markdown too. Each stage is a heading
 ````
 
 - `%stage NAME` starts a stage called `NAME`. The rules and directives after it, up to the next `%stage`, are the stage's. Stages run in the order they start, and every stage's start rule is `text`.
-- `%include "PATH"` stands for the rules and directives of the document at `PATH`. The path is resolved against the directory of the document that holds the `%include`. It works as if their text stood in its place, so an included document can include others and can hold `%stage` and `%features` too. Each document must still be complete rules and directives on its own. A document can be included in several stages. A document that includes itself, directly or through others, is an error.
+- `%include "PATH"` stands for the rules and directives of the document at `PATH`. The loader resolves the path against the directory of the document that holds the `%include`. It works as if their text stood in its place, so an included document can include others and can hold `%stage` and `%features` too. Each document must still be complete rules and directives on its own. A document can be included in several stages. A document that includes itself, directly or through others, is an error.
 - `%features NAME ...` names features the dialect turns on for every parse, wherever it stands. A caller can turn other features on, and can turn any of these off.
 
-Rules can also stand in the pipeline document itself, between its `%include` blocks, and are stitched in their places. A rule or a stage-level directive before the first `%stage` is an error. So are two stages of one name and a stage with no rules.
+Rules can also stand in the pipeline document itself, between its `%include` blocks. The loader stitches them in their places. A rule or a stage-level directive before the first `%stage` is an error. So are two stages of one name and a stage with no rules.
 
 By convention, each document keeps its link in the prose, and its `%include` follows in a block of its own, in the same list item. So the pipeline reads as hyperlinked prose. A block's fence can be indented by up to three spaces, so a block can stand under a list item, indented by two. The reader knows no other Markdown container.
 
@@ -265,30 +312,38 @@ The layout is a matter of style, and the notation does not require it. An `%incl
 
 The first stage reads the text's characters, each a token tagged with the character itself and, weakly, its class. Every later stage reads what the stage before it emitted.
 
-`gencmu stitch --dialect NAME` prints a dialect's pipeline as one jbogenbau text. Every `%include` is replaced by what it stands for, and the dialect's features are in one `%features` at the top. Each run of rules from one document follows a comment naming it.
+`gencmu stitch --dialect NAME` prints a dialect's pipeline as one jbogenbau text. The command replaces every `%include` with what it stands for, and puts the dialect's features in one `%features` at the top. Each run of rules from one document follows a comment naming it.
 
 ## Ambiguity
 
-A grammar admits every parse its rules allow. Where a text has more than one, each parse is read as the sequence of steps a bottom-up reader takes, reading the next token or closing a constituent, and at the first step where two differ:
+A grammar admits every parse that its rules allow. Where a text has more than one parse, each parse is seen as the sequence of steps that a bottom-up reader takes. A step reads the next token or closes a constituent. The parses are compared at the first step where two of them differ:
 
-- if both read the same token under two tags, a strong tag beats a weak one;
-- if one reads and the other closes, the grammar's `%ambiguity-resolution` decides: `greedy` takes the one that reads, so a constituent ends as late as the grammar allows, and `lazy` takes the one that closes, so it ends as early as the grammar allows;
-- if both close different constituents, the text is ambiguous for this grammar, and the result is a tie, reported with the two steps as its witness.
+- If both read the same token under two tags, a strong tag beats a weak one.
+- If one reads and the other closes, the grammar's `%ambiguity-resolution` decides. `greedy` takes the one that reads, so a constituent ends as late as the grammar allows. `lazy` takes the one that closes, so a constituent ends as early as the grammar allows.
+- If both close different constituents, the text is ambiguous for this grammar. The result is a tie, reported with the two steps as its witness.
 
-Constituents with a single symbol, and the ones the notation's sugar creates, are transparent to the comparison: two parses that differ only in such a relabelling have not yet diverged.
+Constituents with a single symbol, and the helper constituents that the notation creates for `[ ]` and `...`, are transparent to the comparison. So two parses that differ only in such a relabeling do not differ yet.
 
-The preference is like greedy and lazy quantifiers in a backtracking regular expression engine, and unlike the greed of a PEG parser: it orders the parses the grammar already admits, never commits early, and so cannot reject a text; the earliest difference decides; and it applies to every constituent of the stage, not to one quantifier. The syntax grammars are greedy: an elided terminator sits as late as the grammar allows. The forms and words stages are lazy. The word forms divide a run in one way only, so there the choice never decides where a word ends. In the words stage, the choice makes a magic word act on what exists when it is read. So `mi si si` erases `mi` and then nothing.
+The preference is like greedy and lazy quantifiers in a backtracking regular-expression engine. It is unlike the greed of a PEG parser. The preference orders the parses that the grammar already admits, and never commits early, so it cannot reject a text. The earliest difference decides. And it applies to every constituent of the stage, not to one quantifier.
+
+The syntax grammars are greedy: an elided terminator sits as late as the grammar allows. The forms and words stages are lazy. The word forms divide a run in one way only, so in the forms stage the choice never decides where a word ends. In the words stage, the choice makes a magic word act on what exists when it is read. A magic word is a word, such as `si`, that acts on other words. So `mi si si` erases `mi` and then nothing.
 
 ## Elided terminators
 
-CLL permits eliding a terminator "if no grammatical ambiguity results", and says no more about how a parser decides that. By default a stage decides it from the whole text; a stage that declares `maximal` decides it as a PEG does.
+CLL permits eliding a terminator "if no grammatical ambiguity results", and says no more about how a parser decides that. By default, a stage decides it from the whole text. A stage that declares `maximal` decides it as a PEG does.
 
-An elided terminator ends the part of its alternative written just before it, its *constituent*: a rule, an optional or a repetition, once parentheses are spelled out. In `le nanmu joi le ninmu`, the `ku` elided after `nanmu` ends the `sumti-tail` of `LE sumti-tail [KU #]`, which is `nanmu`. A terminator elided after a single word, at the start of its alternative, or at the start of a repeated item, where what the repetition has read so far stands before it, has no constituent.
+An elided terminator ends the part of its alternative that is written just before it. That part is its *constituent*: a rule, an optional or a repetition, once parentheses are spelled out. In `le nanmu joi le ninmu`, the `ku` elided after `nanmu` ends the `sumti-tail` of `LE sumti-tail [KU #]`, which is `nanmu`. Some elided terminators have no constituent. These are the terminators elided after a single word, at the start of their alternative, or at the start of a repeated item. At the start of a repeated item, what the repetition read so far stands before the terminator.
 
-By default, the constituent of an elided terminator may end wherever a parse of the whole text needs it to end, and the ranking above chooses among the parses. So `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses: the `sumti-tail` of `le lojbo` ends before `se farvi`, which becomes the selbri, since the longer `sumti-tail` `lojbo se farvi` would leave the sentence without one.
+By default, the constituent of an elided terminator can end wherever a parse of the whole text needs it to end. The ranking above chooses among the parses. So `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses. The `sumti-tail` of `le lojbo` ends before `se farvi`, which becomes the selbri (the main predicate). A parse with the longer `sumti-tail` `lojbo se farvi` leaves the sentence without a selbri.
 
-`maximal` forbids an elided terminator where its constituent could have been longer. That is what a PEG's greedy repetition does: once a PEG has read a constituent, it never gives back what it read. `le nanmu joi le ninmu cu klama` parses, since no longer `sumti-tail` begins at `nanmu`: `joi` may continue a tanru, but `le` may not follow it. The `le lojbo` text is an error, since `lojbo se farvi` is a longer `sumti-tail`. The longer constituent need not fit into a parse of the whole text, which is what makes `maximal` commit as a PEG does.
+`maximal` forbids an elided terminator where its constituent can be longer. That is what a PEG's greedy repetition does: once a PEG reads a constituent, it never gives back what it read. `le nanmu joi le ninmu cu klama` parses, because no longer `sumti-tail` begins at `nanmu`. `joi` can continue a tanru (a compound predicate), but `le` cannot follow it. The `le lojbo` text is an error, because `lojbo se farvi` is a longer `sumti-tail`. The longer constituent need not fit into a parse of the whole text, and that is what makes `maximal` commit as a PEG does.
 
-`maximal` only removes parses. It never chooses among the parses that remain, and a text that is still ambiguous is chosen or reported as before. It does not order the alternatives of a rule, as a PEG does: a stage that declares `maximal` still sees every parse its rules allow, apart from those it removes. A text that it leaves with no parse is an error at the first terminator it forbids in the parse the stage would otherwise have chosen; writing that terminator out ends its constituent there.
+`maximal` only removes parses, and never chooses among the parses that remain. A text that is still ambiguous is chosen or reported as before. `maximal` does not order the alternatives of a rule, as a PEG does. A stage that declares `maximal` still sees every parse that its rules allow, apart from those that `maximal` removes.
 
-CLL's own rule is narrower: a terminator may be elided only if no ambiguity results, and CLL says nothing of its EBNF's other ambiguities. `elision-only` applies that rule literally. After choosing a parse, the chosen parse's elided terminators are written back into the input and it is parsed again with no terminator elidable; if it is still ambiguous, except for choices strong and weak tags settle, the ambiguity is not about terminators, and the parse is an error that shows both readings. For the CLL grammar, it rejects only the few texts that the printed grammar leaves ambiguous in more than a terminator, such as `mi broda joi ke brode ke'e`. The grammars that extend CLL are really ambiguous in places, such as a bare `na` term beside a negated selbri, and declare only `greedy`. A caller can switch `elision-only` on or off for a parse, to check an extension for overlaps or to loosen a grammar that declares it.
+If `maximal` leaves a text with no parse, the text is an error. The error is at the first terminator that `maximal` forbids in the parse that the stage chooses without `maximal`. Writing that terminator out ends its constituent there.
+
+CLL's own rule is narrower: a terminator can be elided only if no ambiguity results. CLL says nothing of the other ambiguities of its EBNF. `elision-only` applies that rule literally.
+
+With `elision-only`, after the stage chooses a parse, it writes the elided terminators of that parse back into the input. Then it parses the input again, with no terminator elidable. If the input is still ambiguous, apart from choices that strong and weak tags settle, the ambiguity is not about terminators. The parse is then an error that shows both readings. For the CLL grammar, `elision-only` rejects only the few texts that the printed grammar leaves ambiguous in more than a terminator, such as `mi broda joi ke brode ke'e`.
+
+The grammars that extend CLL are really ambiguous in places, such as a bare `na` term beside a negated selbri. They declare only `greedy`. A caller can switch `elision-only` on for a parse, to look for overlaps in the text that it supplies. A caller can also switch it off, to loosen a grammar that declares it.
