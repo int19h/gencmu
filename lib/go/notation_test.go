@@ -64,8 +64,10 @@ func TestNotationCases(t *testing.T) {
 	}
 }
 
-// TestFixpoint reads the notation's documents with the bootstrap and
-// compares the result with the bootstrap itself (engine §8).
+// TestFixpoint loads the notation's pipeline, dialects/notation.md, with
+// the bootstrap, splices it, and compares the stages with the bootstrap
+// itself (engine §8): the same names, and the same runs of documents with
+// the same DOMs.
 func TestFixpoint(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
@@ -82,31 +84,44 @@ func TestFixpoint(t *testing.T) {
 	if err := json.Unmarshal([]byte(bundled.sources["notation/bootstrap.json"]), &b); err != nil {
 		t.Fatal(err)
 	}
-	n := 0
-	for _, s := range b.Stages {
-		for _, d := range s.Documents {
-			text, err := os.ReadFile(filepath.Join("..", "..", "grammars", d.Path))
-			if err != nil {
-				t.Fatal(err)
+	// The repository's documents, each read with the bootstrap.
+	l := &loader{
+		read: func(p string) (string, bool) {
+			text, err := os.ReadFile(filepath.Join("..", "..", "grammars", filepath.FromSlash(p)))
+			return string(text), err == nil
+		},
+		uni:     bundled.uni,
+		reader:  bundled.reader,
+		noCache: true,
+	}
+	p, err := l.pipeline("dialects/notation.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.stages) != len(b.Stages) || len(p.stages) == 0 {
+		t.Fatalf("the pipeline has %d stages, the bootstrap %d", len(p.stages), len(b.Stages))
+	}
+	for i, s := range p.stages {
+		want := b.Stages[i]
+		if s.name != want.Name || len(s.documents) != len(want.Documents) {
+			t.Errorf("stage %d: %s of %d runs, the bootstrap's %s of %d", i, s.name, len(s.documents), want.Name, len(want.Documents))
+			continue
+		}
+		for j, d := range s.documents {
+			if d.path != want.Documents[j].Path {
+				t.Errorf("stage %s, run %d: %s, the bootstrap's %s", s.name, j, d.path, want.Documents[j].Path)
+				continue
 			}
-			dom, rerr := bundled.reader.read(string(text), d.Path)
-			if rerr != nil {
-				t.Fatalf("%s: %v", d.Path, rerr)
-			}
-			var want any
-			json.Unmarshal(d.Dom, &want)
-			if got := domValue(t, dom); !reflect.DeepEqual(got, want) {
-				t.Errorf("%s: reading it with the bootstrap does not reproduce the bootstrap\n got %s", d.Path, dom.json())
+			var wantDOM any
+			json.Unmarshal(want.Documents[j].Dom, &wantDOM)
+			if got := domValue(t, d.dom); !reflect.DeepEqual(got, wantDOM) {
+				t.Errorf("%s: reading it with the bootstrap does not reproduce the bootstrap\n got %s", d.path, d.dom.json())
 			}
 			// The DOM also writes byte for byte as the bootstrap holds it.
-			if string(dom.json()) != string(d.Dom) {
-				t.Errorf("%s: the DOM's canonical JSON differs from the bootstrap's text", d.Path)
+			if string(d.dom.json()) != string(want.Documents[j].Dom) {
+				t.Errorf("%s: the DOM's canonical JSON differs from the bootstrap's text", d.path)
 			}
-			n++
 		}
-	}
-	if n == 0 {
-		t.Fatal("the bootstrap has no documents")
 	}
 }
 
@@ -194,4 +209,98 @@ func TestCacheUsedAndBypassed(t *testing.T) {
 	if got := readCompiled(bundled.sources["compiled.json"], "0000000000000000"); len(got) != 0 {
 		t.Error("compiled.json was used with another bootstrap")
 	}
+}
+
+// TestBundledCacheSameStages loads each bundled dialect with the precompiled
+// DOMs and without them, and the two give the same stages and features.
+func TestBundledCacheSameStages(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	if len(bundled.compiled) == 0 {
+		t.Fatal("compiled.json holds no DOMs for this bootstrap")
+	}
+	var names []string
+	for p := range bundled.sources {
+		if strings.HasPrefix(p, "dialects/") && strings.HasSuffix(p, ".md") {
+			names = append(names, p)
+		}
+	}
+	if len(names) == 0 {
+		t.Fatal("no bundled dialects")
+	}
+	for _, name := range names {
+		var loaded [2]*Dialect
+		for i, noCache := range []bool{false, true} {
+			l, err := bundledLoader()
+			if err != nil {
+				t.Fatal(err)
+			}
+			l.noCache = noCache
+			if loaded[i], err = l.dialect(name); err != nil {
+				t.Fatalf("%s (cache bypassed: %v): %v", name, noCache, err)
+			}
+		}
+		if !reflect.DeepEqual(loaded[0].Features(), loaded[1].Features()) {
+			t.Errorf("%s: the features differ: %+v and %+v", name, loaded[0].Features(), loaded[1].Features())
+		}
+		if !sameValue(reflect.ValueOf(loaded[0].stages), reflect.ValueOf(loaded[1].stages)) {
+			t.Errorf("%s: the stages differ", name)
+		}
+	}
+}
+
+// sameValue is reflect.DeepEqual for values with no cycles, but a nil slice
+// or map equals an empty one: a decoded DOM leaves an empty list nil where
+// the reader makes it empty.
+func sameValue(a, b reflect.Value) bool {
+	if a.Kind() != b.Kind() {
+		return false
+	}
+	switch a.Kind() {
+	case reflect.Pointer, reflect.Interface:
+		if a.IsNil() || b.IsNil() {
+			return a.IsNil() == b.IsNil()
+		}
+		return sameValue(a.Elem(), b.Elem())
+	case reflect.Struct:
+		for i := 0; i < a.NumField(); i++ {
+			if !sameValue(a.Field(i), b.Field(i)) {
+				return false
+			}
+		}
+		return true
+	case reflect.Slice, reflect.Array:
+		if a.Len() != b.Len() {
+			return false
+		}
+		for i := 0; i < a.Len(); i++ {
+			if !sameValue(a.Index(i), b.Index(i)) {
+				return false
+			}
+		}
+		return true
+	case reflect.Map:
+		if a.Len() != b.Len() {
+			return false
+		}
+		for _, k := range a.MapKeys() {
+			v := b.MapIndex(k)
+			if !v.IsValid() || !sameValue(a.MapIndex(k), v) {
+				return false
+			}
+		}
+		return true
+	case reflect.String:
+		return a.String() == b.String()
+	case reflect.Bool:
+		return a.Bool() == b.Bool()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return a.Int() == b.Int()
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return a.Uint() == b.Uint()
+	case reflect.Float32, reflect.Float64:
+		return a.Float() == b.Float()
+	}
+	panic("sameValue: cannot compare a " + a.Kind().String())
 }

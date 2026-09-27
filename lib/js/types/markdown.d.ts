@@ -13,18 +13,6 @@ export declare function extractGrammarText(markdown: string, path: string): {
  */
 export declare function splitLines(text: string): string[];
 /**
- * @param {string} markdown
- * @param {string} path
- * @returns {{stages: {name: string, documents: string[]}[], features: string[]}}
- */
-export declare function readPipeline(markdown: string, path: string): {
-    stages: {
-        name: string;
-        documents: string[];
-    }[];
-    features: string[];
-};
-/**
  * @param {string} from
  * @param {string} relative
  * @returns {string}

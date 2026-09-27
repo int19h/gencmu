@@ -54,7 +54,7 @@ def case_sources(case: dict[str, Any]) -> tuple[dict[str, str], str]:
             grammar = "%ambiguity-resolution greedy\n" + grammar
         return (
             {
-                "p.md": "## Main <?stage main?>\n\n- [main](main.md) <?grammar?>\n",
+                "p.md": '```jbogenbau\n%stage main\n%include "main.md"\n```\n',
                 "main.md": "```jbogenbau\n" + grammar + "\n```\n",
             },
             "p.md",

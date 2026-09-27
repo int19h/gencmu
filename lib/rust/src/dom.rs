@@ -408,6 +408,19 @@ pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
         {
             return Some("a malformed directive");
         }
+        // The operands the notation's syntax allows these directives
+        // (engine §9).
+        let args: Vec<&str> = args.unwrap_or(&[]).iter().filter_map(Json::as_str).collect();
+        let is_name = |arg: &&str| *arg != "#" && is_rule_name(arg);
+        let operands_ok = match directive.get("name").and_then(Json::as_str) {
+            Some("stage") => args.len() == 1 && args.iter().all(is_name),
+            Some("include") => args.len() == 1,
+            Some("features") => !args.is_empty() && args.iter().all(is_name),
+            _ => true,
+        };
+        if !operands_ok {
+            return Some("a malformed directive");
+        }
     }
     let mut pending: Vec<(Kind, &Json, usize)> = Vec::new();
     for rule in dom.get("rules").and_then(Json::as_array).unwrap_or(&[]) {
@@ -705,6 +718,18 @@ pub(crate) fn dom_problem(dom: &Json) -> Option<&'static str> {
                     || is_str(value.get("capture")))
                 {
                     return Some("a malformed term");
+                }
+            }
+        }
+    }
+    // The order of a document's items is the order of their positions, so
+    // no two items share one (engine §9).
+    let mut positions = std::collections::HashSet::new();
+    for kind in ["rules", "directives"] {
+        for item in dom.get(kind).and_then(Json::as_array).unwrap_or(&[]) {
+            if let Some([Json::Int(line), Json::Int(column)]) = item.get("at").and_then(Json::as_array) {
+                if !positions.insert((*line, *column)) {
+                    return Some("two items at one position");
                 }
             }
         }

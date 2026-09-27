@@ -15,6 +15,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Loader, fnv1a64 } from "../lib/js/src/node.js";
 import { DOM_FORMAT } from "../lib/js/src/dom.js";
+import { includeIsLinked } from "./links.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const grammars = path.join(root, "grammars");
@@ -44,8 +45,8 @@ function grammarFiles(directory = grammars, prefix = "") {
   return files;
 }
 
-// The bootstrap: the notation's own documents read with the bootstrap, until
-// reading them again changes nothing (docs/design.md, "Self-hosting"). A
+// The bootstrap: the notation's own pipeline read with the bootstrap, until
+// reading it again changes nothing (docs/design.md, "Self-hosting"). A
 // change to the notation that the current bootstrap cannot read needs
 // tools/write-bootstrap.js first.
 const bootstrapPath = path.join(grammars, "notation", "bootstrap.json");
@@ -59,18 +60,9 @@ const loaderWith = (bootstrap) => new Loader((relative) => {
   return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : undefined;
 });
 for (let round = 0; ; round++) {
-  const reader = loaderWith(bootstrapText);
-  const current = JSON.parse(bootstrapText);
-  const next = {
-    format: DOM_FORMAT,
-    stages: current.stages.map((stage) => ({
-      name: stage.name,
-      documents: stage.documents.map((document) => ({
-        path: document.path,
-        dom: reader.readDocument(fs.readFileSync(path.join(grammars, document.path), "utf8"), document.path),
-      })),
-    })),
-  };
+  // The notation's own pipeline, spliced with the current bootstrap.
+  const { stages } = loaderWith(bootstrapText).pipeline("dialects/notation.md");
+  const next = { format: DOM_FORMAT, stages: stages.map((stage) => ({ name: stage.name, documents: stage.documents })) };
   const nextText = JSON.stringify(next) + "\n";
   if (nextText === bootstrapText) break;
   if (round === 3) throw new Error("the notation does not reach a fixpoint");
@@ -82,12 +74,27 @@ write("grammars/notation/bootstrap.json", bootstrapText);
 const loader = loaderWith(bootstrapText);
 const documents = {};
 for (const file of grammarFiles()) {
-  if (!file.endsWith(".md") || file.startsWith("dialects/")) continue;
+  if (!file.endsWith(".md")) continue;
   const text = fs.readFileSync(path.join(grammars, file), "utf8");
   if (!text.includes("```jbogenbau") && !text.includes("~~~jbogenbau")) continue;
   documents[file] = { hash: fnv1a64(text), dom: loader.readDocument(text, file) };
 }
 const compiled = { format: DOM_FORMAT, bootstrap: loader.bootstrapHash, documents };
+
+// Every %include of a document follows, in the same list item, a link to the
+// same path, so that the prose and the blocks name the same documents
+// (docs/design.md, "Pipelines").
+const unlinked = [];
+for (const [file, { dom }] of Object.entries(documents)) {
+  const text = fs.readFileSync(path.join(grammars, file), "utf8");
+  for (const directive of dom.directives) {
+    if (directive.name === "include" && !includeIsLinked(text, directive.at[0], directive.args[0])) unlinked.push(`${file}:${directive.at[0]}: %include "${directive.args[0]}" does not follow a list item with a link [text](${directive.args[0]})`);
+  }
+}
+if (unlinked.length) {
+  console.error(unlinked.join("\n"));
+  process.exit(1);
+}
 write("grammars/compiled.json", JSON.stringify(compiled) + "\n");
 
 // The licence, which every package ships beside its code.

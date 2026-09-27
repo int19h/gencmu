@@ -99,11 +99,29 @@ impl<'a> Reader<'a> {
     }
 
     fn directive(&self, node: &'a Node) -> R<Directive> {
-        let token = Self::tokens_of(self.one(node, "directive-name")).next().expect("a directive keyword");
+        let keyword = Self::rules(node, "directive-name").next().unwrap_or(node);
+        let token = Self::tokens_of(keyword).next().expect("a directive keyword");
         let name = self.text(token).trim_start_matches('%').to_string();
-        let args = Self::rules(node, "argument-word")
-            .map(|word| self.text(Self::tokens_of(word).next().expect("an argument")).to_string())
-            .collect();
+        let mut args = Vec::new();
+        let mut strings = Vec::new();
+        for child in node.children.iter().filter(|child| child.kind == NodeKind::Rule) {
+            let operand = || Self::tokens_of(child).next().expect("an argument");
+            match rule_name(child) {
+                "argument-word" => {
+                    args.push(self.text(operand()).to_string());
+                    strings.push(false);
+                }
+                // A string operand is decoded, as a string of a rule is.
+                "argument-string" => {
+                    args.push(self.decode(operand())?);
+                    strings.push(true);
+                }
+                _ => {}
+            }
+        }
+        if let Some(problem) = operand_problem(&name, &strings) {
+            return Err(self.error(node, problem));
+        }
         Ok(Directive { name, args, at: self.at(token) })
     }
 
@@ -629,4 +647,25 @@ fn cond_reads_own_tags(cond: &Cond) -> bool {
         Cond::If(antecedent, consequent) => cond_reads_own_tags(antecedent) || cond_reads_own_tags(consequent),
         Cond::Matches(..) | Cond::Begins(..) | Cond::Initial(_) | Cond::Captured(_) => false,
     }
+}
+
+/// What is wrong with a directive's operands, given whether each is a
+/// string rather than a name (engine §9).
+fn operand_problem(name: &str, strings: &[bool]) -> Option<String> {
+    let names = strings.iter().all(|string| !string);
+    let ok = match name {
+        "stage" => strings.len() == 1 && names,
+        "include" => strings == [true],
+        "features" => !strings.is_empty() && names,
+        _ => names,
+    };
+    if ok {
+        return None;
+    }
+    Some(match name {
+        "stage" => "%stage takes one name".to_string(),
+        "include" => "%include takes one string".to_string(),
+        "features" => "%features takes one or more names".to_string(),
+        _ => format!("%{name} takes names, not strings"),
+    })
 }

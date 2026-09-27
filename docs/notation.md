@@ -80,11 +80,11 @@ A dialect that extends another uses the two kinds for two kinds of change. An ad
 
 ## Stitching documents
 
-A stage of a pipeline is several documents read in order, and a later one may change what an earlier one said. There are three ways to state a rule, and each says what it expects to be there already:
+A stage of a pipeline is the rules and directives of several documents, read in order. A later rule can change what an earlier one said. Only the order of the rules in the stage matters, not the document where each was written. There are three ways to state a rule, and each says what it expects to be there already:
 
-- `%rule` defines a rule, and it is an error if one of that name was defined before it, in an earlier document of the stage or earlier in the same one;
-- `%redefine-rule` replaces a rule an earlier document defined, and it is an error if none did: the earlier alternatives are gone;
-- `%extend-rule` adds alternatives to a rule defined before it, in an earlier document or earlier in the same one, and it is an error if none was.
+- `%rule` defines a rule, and it is an error if one of that name was defined before it in the stage;
+- `%redefine-rule` replaces a rule defined before it in the stage, and it is an error if none was: the earlier alternatives are gone;
+- `%extend-rule` adds alternatives to a rule defined before it in the stage, and it is an error if none was.
 
 ```jbogenbau
 %extend-rule consonant
@@ -218,26 +218,52 @@ The token also takes in the text next to it that no token of the stage's input c
 
 ## Directives
 
-A directive is a keyword and its words. By convention each stands in a block of its own, after prose that says why the grammar needs it.
+A directive is a keyword and its operands. By convention each stands in a block of its own, after prose that says why the grammar needs it. Two directives can share a line.
 
 - `%ambiguity-resolution greedy` or `lazy`, optionally followed by `elision-only`, and then optionally by `maximal`: how the stage chooses among parses, explained under "Ambiguity" and "Elided terminators". Every stage must say it exactly once, in any of its documents.
 - `%elidable KU KEI VAU ...`: the terminators that may be elided. An absent optional whose first symbol is one of them shows in the parse tree as that terminator, elided at that point, and `elision-only` writes them back.
+- `%stage NAME`, `%include "PATH"` and `%features NAME ...` build a pipeline, as the next section says.
 
 ## Pipelines
 
-A dialect is a pipeline document, which is Markdown too: each stage is a heading, followed by the list of documents stitched into it and prose saying what the stage receives, does and hands on. The machine-readable parts are processing instructions at the end of a line, which GitHub does not show, so the document reads as plain hyperlinked prose there:
+A dialect is a pipeline document, which is Markdown too. Each stage is a heading, followed by the list of its documents. Prose then says what the stage receives, does and hands on. Three directives in `jbogenbau` blocks say what the pipeline is made of:
 
+````markdown
+# The experimental dialect
+
+... what the dialect is ...
+
+```jbogenbau
+%features cbm soi-clause su-boundary
 ```
-## Stage 1: phonemes <?stage phonemes?>
 
-- [Latin orthography](../phonemes/latin.md) <?grammar?>
-  ... what this document contributes ...
-- [Cyrillic orthography](../phonemes/cyrillic.md) <?grammar?>
+## Stage 1: phonemes
+
+```jbogenbau
+%stage phonemes
+```
+
+- [Latin orthography](../phonemes/latin.md): what this document contributes
+  ```jbogenbau
+  %include "../phonemes/latin.md"
+  ```
 
 ... what the stage receives, does and hands on ...
-```
+````
 
-`<?stage NAME?>` at the end of a heading starts a stage called `NAME`. `<?grammar?>` at the end of a line makes the link on that line a document of the stage; the link must be written `[text](path)` with no spaces, parentheses or backslashes in the path. Stages run in document order, and documents are stitched in list order, which matters since a later document may redefine or extend a rule. Every stage's start rule is `text`. `<?features NAME ...?>` at the end of any line names features the dialect turns on for every parse. A caller can turn other features on, and can turn any of these off. The first stage reads the text's characters, each a token tagged with the character itself and, weakly, its class; every later stage reads what the stage before it emitted.
+- `%stage NAME` starts a stage called `NAME`. The rules and directives after it, up to the next `%stage`, are the stage's. Stages run in the order they start, and every stage's start rule is `text`.
+- `%include "PATH"` stands for the rules and directives of the document at `PATH`. The path is resolved against the directory of the document that holds the `%include`. It works as if their text stood in its place, so an included document can include others and can hold `%stage` and `%features` too. Each document must still be complete rules and directives on its own. A document can be included in several stages. A document that includes itself, directly or through others, is an error.
+- `%features NAME ...` names features the dialect turns on for every parse, wherever it stands. A caller can turn other features on, and can turn any of these off.
+
+Rules can also stand in the pipeline document itself, between its `%include` blocks, and are stitched in their places. A rule or a stage-level directive before the first `%stage` is an error. So are two stages of one name and a stage with no rules.
+
+By convention, each document keeps its link in the prose, and its `%include` follows in a block of its own, in the same list item. So the pipeline reads as hyperlinked prose. A block's fence can be indented by up to three spaces, so a block can stand under a list item, indented by two. The reader knows no other Markdown container.
+
+The layout is a matter of style, and the notation does not require it. An `%include` can stand in any block, between any two rules or directives. `tools/sync.js --check` makes sure that the bundled pipelines keep the style.
+
+The first stage reads the text's characters, each a token tagged with the character itself and, weakly, its class. Every later stage reads what the stage before it emitted.
+
+`gencmu stitch --dialect NAME` prints a dialect's pipeline as one jbogenbau text. Every `%include` is replaced by what it stands for, and the dialect's features are in one `%features` at the top. Each run of rules from one document follows a comment naming it.
 
 ## Ambiguity
 

@@ -23,42 +23,14 @@
 
   // ---- Documents and dialects ---------------------------------------------
 
-  // The first heading of a Markdown document, without a processing
-  // instruction at its end.
+  // The first heading of a Markdown document.
   function firstHeading(markdown) {
     const match = /^#\s+(.*)$/m.exec(markdown || "");
-    return match ? match[1].replace(/\s*<\?.*\?>\s*$/, "").trim() : "";
+    return match ? match[1].trim() : "";
   }
 
-  // A path relative to a document, resolved and normalized, as the library
-  // resolves a pipeline's links.
-  function resolvePath(from, relative) {
-    const parts = from.split("/").slice(0, -1);
-    for (const part of relative.split("/")) {
-      if (part === "" || part === ".") continue;
-      if (part === "..") parts.pop();
-      else parts.push(part);
-    }
-    return parts.join("/");
-  }
-
-  // The stages of a pipeline document and their documents' paths: the same
-  // reading as the library's (design, "Pipelines"), but forgiving, so that
-  // the editor can list the documents of a pipeline that has an error.
-  function pipelineStages(path, markdown) {
-    const stages = [];
-    for (const raw of (markdown || "").split(/\r\n|\r|\n/)) {
-      const line = raw.replace(/\s+$/, "");
-      const marker = /<\?([a-z]+)(?:\s+([^?]*?))?\s*\?>$/.exec(line);
-      if (!marker) continue;
-      if (marker[1] === "stage") stages.push({ name: (marker[2] || "").trim() || "?", documents: [] });
-      else if (marker[1] === "grammar" && stages.length) {
-        const link = /\[[^\]]*\]\(([^\s()\\]+)\)/.exec(line.slice(0, marker.index));
-        if (link) stages[stages.length - 1].documents.push(resolvePath(path, link[1]));
-      }
-    }
-    return stages;
-  }
+  // The documents of a pipeline, stage by stage (playground/pipeline.js).
+  const pipelineOf = (path) => self.gencmuPipeline.pipelineStages(path, (document) => client.text(document));
 
   const DIALECT_ORDER = ["cll-ebnf", "bpfk", "experimental", "zantufa", "notation"];
   const dialectName = (path) => path.replace(/^dialects\//, "").replace(/\.md$/, "");
@@ -244,7 +216,7 @@
 
   // The documents a run of the selected dialect reads.
   function neededDocuments() {
-    return new Set([state.dialect, ...pipelineStages(state.dialect, client.text(state.dialect)).flatMap((stage) => stage.documents)]);
+    return new Set(pipelineOf(state.dialect).documents);
   }
 
   // A run whose answer is no longer wanted goes on if it is reading a
@@ -735,7 +707,7 @@
   // The documents of the selected dialect, stage by stage, and the edited
   // documents of other dialects.
   function renderDocuments() {
-    const stages = pipelineStages(state.dialect, client.text(state.dialect));
+    const { before, stages, documents } = pipelineOf(state.dialect);
     const error = shown && shown.loadError && shown.dialect === state.dialect ? shown.loadError.document : null;
     const button = (path) => {
       const classes = ["doc"];
@@ -751,12 +723,12 @@
         onclick: () => openDocument(path, 0, 1),
       }, path.replace(/\.md$/, ""));
     };
-    const groups = [element("div", { class: "doc-group" }, element("span", { class: "doc-stage", text: "pipeline" }), button(state.dialect))];
+    const groups = [element("div", { class: "doc-group" }, element("span", { class: "doc-stage", text: "pipeline" }), [state.dialect, ...before].map(button))];
     for (const stage of stages) {
       groups.push(element("div", { class: "doc-group" }, element("span", { class: "doc-stage", text: stage.name }), stage.documents.map(button)));
     }
     $("documents").replaceChildren(...groups);
-    const listed = new Set([state.dialect, ...stages.flatMap((stage) => stage.documents)]);
+    const listed = new Set(documents);
     const elsewhere = [...client.edits.keys()].filter((path) => !listed.has(path));
     const note = $("edited-elsewhere");
     note.hidden = !elsewhere.length;

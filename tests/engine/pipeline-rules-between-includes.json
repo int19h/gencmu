@@ -1,0 +1,29 @@
+{
+  "description": "Rules written in the pipeline document between its includes take their places in the stage: the pipeline replaces text, which g.md defined, and h.md then extends the replacement (engine §2, §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n%redefine-rule text B\n%include \"h.md\"\n```\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n```\n",
+    "h.md": "```jbogenbau\n%extend-rule text C\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "b"
+  }
+}

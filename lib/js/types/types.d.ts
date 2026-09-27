@@ -117,7 +117,7 @@ export type Feature = {
     name: string;
     kind: "gate" | "warning";
     /**
-     * whether the pipeline's `<?features?>` turns it on
+     * whether the pipeline's `%features` turns it on
      */
     default: boolean;
 };
@@ -542,7 +542,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} Feature
  * @property {string} name
  * @property {"gate" | "warning"} kind
- * @property {boolean} default whether the pipeline's `<?features?>` turns it on
+ * @property {boolean} default whether the pipeline's `%features` turns it on
  */
 /**
  * The result of parsing a text.

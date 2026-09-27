@@ -1,0 +1,31 @@
+{
+  "description": "%features takes one or more names, and two directives may share a line (engine §9).",
+  "document": "```jbogenbau\n%features cbm su-boundary %stage main\n```\n",
+  "expect": {
+    "dom": {
+      "directives": [
+        {
+          "name": "features",
+          "args": [
+            "cbm",
+            "su-boundary"
+          ],
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "name": "stage",
+          "args": [
+            "main"
+          ],
+          "at": [
+            2,
+            27
+          ]
+        }
+      ]
+    }
+  }
+}

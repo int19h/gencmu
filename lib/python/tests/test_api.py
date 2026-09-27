@@ -12,17 +12,38 @@ from gencmu._dialect import DOM_FORMAT, bundled_text
 
 PIPELINE = """# A test dialect
 
-## Sounds <?stage sounds?>
+## Sounds
 
-- [Sounds](sounds.md) <?grammar?>
+```jbogenbau
+%stage sounds
+```
 
-## Words <?stage words?>
+- [Sounds](sounds.md)
+  ```jbogenbau
+  %include "sounds.md"
+  ```
 
-- [Words](words.md) <?grammar?>
+## Words
 
-## Syntax <?stage syntax?>
+```jbogenbau
+%stage words
+```
 
-- [Syntax](syntax.md) <?grammar?>
+- [Words](words.md)
+  ```jbogenbau
+  %include "words.md"
+  ```
+
+## Syntax
+
+```jbogenbau
+%stage syntax
+```
+
+- [Syntax](syntax.md)
+  ```jbogenbau
+  %include "syntax.md"
+  ```
 """
 
 SOUNDS = """# Sounds
@@ -76,7 +97,7 @@ SYNTAX = """# Syntax
 SOURCES = {"dialect.md": PIPELINE, "sounds.md": SOUNDS, "words.md": WORDS, "syntax.md": SYNTAX}
 
 ELIDING = {
-    "p.md": "## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n",
+    "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy elision-only\n%elidable KU\n%rule text s [KU] | s B [KU]\n%rule s A [B]\n```\n",
 }
 
@@ -113,7 +134,7 @@ class Loaders(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "dialects").mkdir()
-            (root / "dialects" / "test.md").write_text(PIPELINE.replace("](", "](../grammars/"), encoding="utf-8")
+            (root / "dialects" / "test.md").write_text(PIPELINE.replace("](", "](../grammars/").replace('%include "', '%include "../grammars/'), encoding="utf-8")
             (root / "grammars").mkdir()
             for name in ("sounds.md", "words.md", "syntax.md"):
                 (root / "grammars" / name).write_text(SOURCES[name], encoding="utf-8")
@@ -137,7 +158,10 @@ class Loaders(unittest.TestCase):
         del sources["words.md"]
         with self.assertRaises(gencmu.GencmuError) as caught:
             gencmu.load_dialect_sources(sources, "dialect.md")
-        self.assertEqual(caught.exception.document, "words.md")
+        # The error stands at the %include of the missing document.
+        error = caught.exception
+        self.assertEqual((error.document, error.line, error.column), ("dialect.md", 22, 3))
+        self.assertIn("words.md", error.message)
 
     def test_grammar_error_position(self) -> None:
         sources = dict(SOURCES)
@@ -151,11 +175,15 @@ class Loaders(unittest.TestCase):
 
     def test_pipeline_errors(self) -> None:
         for pipeline in (
-            "- [g](g.md) <?grammar?>\n",
-            "## A <?stage a?>\n\n- g.md <?grammar?>\n",
-            "## A <?stage a?>\n## B <?stage a?>\n",
-            "# D <?features?>\n## A <?stage a?>\n",
-            "# D <?features 9x?>\n## A <?stage a?>\n",
+            "# No stage\n",
+            '```jbogenbau\n%include "g.md"\n```\n',
+            '```jbogenbau\n%stage a\n%include "missing.md"\n```\n',
+            '```jbogenbau\n%stage a\n%include g.md\n```\n',
+            '```jbogenbau\n%stage a\n%include "p.md"\n```\n',
+            '```jbogenbau\n%stage a\n%include "g.md"\n%stage a\n```\n',
+            '```jbogenbau\n%stage a\n%stage b\n%include "g.md"\n```\n',
+            '```jbogenbau\n%features\n%stage a\n%include "g.md"\n```\n',
+            '```jbogenbau\n%features 9x\n%stage a\n%include "g.md"\n```\n',
         ):
             with self.subTest(pipeline=pipeline):
                 with self.assertRaises(gencmu.GencmuError):
@@ -187,7 +215,7 @@ class Options(unittest.TestCase):
 
     def test_pipeline_features(self) -> None:
         sources = dict(SOURCES)
-        sources["dialect.md"] = PIPELINE.replace("# A test dialect", "# A test dialect <?features sa-su?>")
+        sources["dialect.md"] = PIPELINE.replace("# A test dialect", "# A test dialect\n\n```jbogenbau\n%features sa-su\n```")
         dialect = gencmu.load_dialect_sources(sources, "dialect.md")
         self.assertEqual(dialect.features, (gencmu.Feature("sa-su", "gate", True),))
         self.assertTrue(self.erasing(dialect.parse("mi mi", auto_features=False)))
@@ -276,7 +304,7 @@ class Output(unittest.TestCase):
 
     def test_brackets_depth(self) -> None:
         sources = {
-            "p.md": "## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n",
+            "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
             "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A s %rule s A t %rule t A u %rule u A A\n```\n",
         }
         dialect = gencmu.load_dialect_sources(sources, "p.md")
@@ -289,7 +317,7 @@ class Output(unittest.TestCase):
         token with no phonemes, or a verbatim token, is labelled with its
         text as it is (docs/output.md)."""
         sources = {
-            "p.md": "## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n",
+            "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
             "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A A A\n```\n",
         }
         dialect = gencmu.load_dialect_sources(sources, "p.md")
@@ -305,7 +333,7 @@ class Output(unittest.TestCase):
 class Warnings(unittest.TestCase):
     def dialect(self, rules: str) -> gencmu.Dialect:
         sources = {
-            "p.md": "## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n",
+            "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
             "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n" + rules + "\n```\n",
         }
         return gencmu.load_dialect_sources(sources, "p.md")
@@ -356,7 +384,7 @@ class Robustness(unittest.TestCase):
     """Malformed support files, and grammars and trees deeper than the call
     stack."""
 
-    MAIN = "## Main <?stage main?>\n\n- [g](g.md) <?grammar?>\n"
+    MAIN = '```jbogenbau\n%stage main\n%include "g.md"\n```\n'
 
     def grammar(self, rules: str) -> dict[str, str]:
         return {"p.md": self.MAIN, "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n" + rules + "\n```\n"}

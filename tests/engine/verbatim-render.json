@@ -1,7 +1,7 @@
 {
   "description": "A token emitted over exactly one verbatim input token is verbatim, with that token's source; the output marks it, and the brackets show its text, periods included (engine §11, docs/output.md).",
   "documents": {
-    "p.md": "## s <?stage first?>\n\n- [g](g.md) <?grammar?>\n\n## t <?stage second?>\n\n- [h](h.md) <?grammar?>\n\n## u <?stage third?>\n\n- [k](k.md) <?grammar?>\n",
+    "p.md": "## s\n\n```jbogenbau\n%stage first\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage second\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n\n## u\n\n```jbogenbau\n%stage third\n```\n\n- [k](k.md)\n  ```jbogenbau\n  %include \"k.md\"\n  ```\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [part] ...\n%rule part v | pause\n%rule v \"a\" \".\" \".\" \"b\"\n%emits $ <\"V\">\n%verbatim\n%rule pause \"-\"\n%emits $ <\"P\" ∪ /./>\n```\n",
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [item] ...\n%rule item word | P\n%rule word $w(V)\n%emits $w <\"W\">\n```\n",
     "k.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [x] ...\n%rule x W\n```\n"

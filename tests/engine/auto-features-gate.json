@@ -1,7 +1,7 @@
 {
   "description": "Auto features add sa-su when the words stage rejects the text without it (engine §13).",
   "documents": {
-    "p.md": "# A dialect\n\n## Words <?stage words?>\n\n- [g](g.md) <?grammar?>\n",
+    "p.md": "# A dialect\n\n## Words\n\n```jbogenbau\n%stage words\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution lazy\n%rule text @sa-su? A | B\n```\n"
   },
   "pipeline": "p.md",

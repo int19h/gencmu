@@ -1,8 +1,9 @@
 // Package gencmu is a Lojban parser whose grammars are data: literate
 // Markdown documents, loaded at runtime, whose fenced jbogenbau blocks are
 // read by the notation's own grammar. A dialect is a pipeline document
-// naming the stages a text passes through, from characters to phonemes,
-// words and a parse tree, and the grammar documents stitched into each.
+// whose %stage and %include directives name the stages a text passes
+// through, from characters to phonemes, words and a parse tree, and the
+// grammar documents stitched into each.
 //
 // This package is one of four clean-room implementations of one
 // specification, docs/engine.md in the gencmu repository, with the results

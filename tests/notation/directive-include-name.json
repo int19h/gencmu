@@ -1,0 +1,10 @@
+{
+  "description": "%include takes a string, not a name; the error is at the directive (engine §9).",
+  "document": "```jbogenbau\n%rule a A\n%include a\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 1
+    }
+  }
+}

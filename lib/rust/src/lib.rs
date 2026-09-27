@@ -51,6 +51,7 @@ mod markdown;
 mod maximal;
 mod notation;
 mod output;
+mod pipeline;
 mod rank;
 mod result;
 mod tags;
@@ -68,10 +69,11 @@ pub use result::{
 };
 
 /// Helpers for tests and tools: reading one grammar document to its DOM,
-/// and the hashes the DOM cache is keyed by (engine §8).
+/// splicing a bundled pipeline into its stages, and the hashes the DOM
+/// cache is keyed by (engine §8).
 pub mod tools {
     pub use crate::json::fnv1a64;
-    pub use crate::loader::{bootstrap_hash, read_grammar_document};
+    pub use crate::loader::{bootstrap_hash, read_grammar_document, splice_bundled_pipeline};
 }
 
 #[cfg(test)]

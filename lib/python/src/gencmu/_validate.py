@@ -141,6 +141,14 @@ def dom_problem(dom: Any) -> str | None:
             or not _is_position(directive.get("at"))
         ):
             return "a malformed directive"
+        # The operands the notation's syntax allows these directives (engine §9).
+        name, args = directive["name"], directive["args"]
+        if (
+            (name == "stage" and not (len(args) == 1 and _NAME.fullmatch(args[0])))
+            or (name == "include" and len(args) != 1)
+            or (name == "features" and not (args and all(_NAME.fullmatch(arg) for arg in args)))
+        ):
+            return "a malformed directive"
     # Each entry is a node to check, its kind, its depth, and whether it
     # lies in a rule's or an alternative's tag term, which may not read
     # the tags it defines.
@@ -193,6 +201,14 @@ def dom_problem(dom: Any) -> str | None:
         problem = definition_problem(rule)
         if problem is not None:
             return problem
+    # The order of a document's items is the order of their positions, so no
+    # two items share one (engine §9).
+    positions: set[tuple[int, int]] = set()
+    for item in [*dom["rules"], *dom["directives"]]:
+        at = (item["at"][0], item["at"][1])
+        if at in positions:
+            return "two items at one position"
+        positions.add(at)
     return None
 
 

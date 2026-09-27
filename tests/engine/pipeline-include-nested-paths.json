@@ -1,0 +1,29 @@
+{
+  "description": "An %include's path is relative to the document that holds it: dialects/p.md includes ../grammars/a.md, which includes b.md, grammars/b.md (engine §13).",
+  "documents": {
+    "dialects/p.md": "```jbogenbau\n%stage main\n%include \"../grammars/a.md\"\n```\n",
+    "grammars/a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text x\n%include \"b.md\"\n```\n",
+    "grammars/b.md": "```jbogenbau\n%rule x B\n```\n"
+  },
+  "pipeline": "dialects/p.md",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "b"
+  }
+}

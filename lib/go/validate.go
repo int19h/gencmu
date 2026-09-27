@@ -40,9 +40,27 @@ func validateDOM(d *domDoc) error {
 
 func checkDOM(d *domDoc) *domProblem {
 	for _, dir := range d.Directives {
-		if dir == nil || dir.Args == nil {
+		if dir == nil || dir.Args == nil || !directiveOperandsOK(dir) {
 			return &domProblem{message: "a malformed directive"}
 		}
+	}
+	// The order of a document's items is the order of their positions, so
+	// no two items share one (engine §9).
+	positions := map[[2]int]bool{}
+	for _, r := range d.Rules {
+		if r == nil {
+			continue
+		}
+		if positions[r.At] {
+			return &domProblem{message: "two items at one position"}
+		}
+		positions[r.At] = true
+	}
+	for _, dir := range d.Directives {
+		if positions[dir.At] {
+			return &domProblem{message: "two items at one position"}
+		}
+		positions[dir.At] = true
 	}
 	for _, r := range d.Rules {
 		if r == nil || !(domName.MatchString(r.Name) || r.Name == "#") || (r.Op != "define" && r.Op != "redefine" && r.Op != "extend") || len(r.Alternatives) == 0 {
@@ -79,6 +97,28 @@ func checkDOM(d *domDoc) *domProblem {
 		}
 	}
 	return nil
+}
+
+// directiveOperandsOK checks the operands the notation's syntax allows the
+// pipeline directives (engine §9): %stage one name, %include one string, and
+// %features one or more names.
+func directiveOperandsOK(dir *domDirective) bool {
+	switch dir.Name {
+	case "stage":
+		return len(dir.Args) == 1 && domName.MatchString(dir.Args[0])
+	case "include":
+		return len(dir.Args) == 1
+	case "features":
+		if len(dir.Args) == 0 {
+			return false
+		}
+		for _, a := range dir.Args {
+			if !domName.MatchString(a) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 type domChecker struct {

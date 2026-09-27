@@ -32,17 +32,17 @@ A tag set is a map from tag to strength. The union of two sets holds every tag o
 
 ## 2. Grammars
 
-A grammar is the stitching of one or more documents (§8, §9) into a set of rules and directives. A rule has a name and alternatives; an alternative has guards, an expression, and optionally tags; a rule optionally has rule-level tags, conditions and an emission clause. The grammar DOM, in `docs/output.md`, is the exact data.
+A grammar is the stitching of the items of one stage of a pipeline (§13) into a set of rules and directives. An item is a rule or a directive, read from a document (§8, §9). A rule has a name and alternatives, and optionally rule-level tags, conditions and an emission clause. An alternative has guards, an expression, and optionally tags. The grammar DOM, in `docs/output.md`, is the exact data.
 
-**Stitching.** Documents are read in order, and each document's rules in order. Each rule is stated one of three ways, and each is an error in the case given:
+**Stitching.** The stage's items are read in order, whatever documents they come from. Each rule is stated one of three ways, and each is an error in the case given:
 
-- `%rule` (`define`) defines a rule: an error if a rule of that name was defined before it, in an earlier document or earlier in the same one.
-- `%redefine-rule` (`redefine`) replaces the rule of that name an earlier document defined, whose alternatives are then gone: an error if no earlier document defined one, or if a `%rule` or `%redefine-rule` of that name stands before it in the same document. An `%extend-rule` before it in the same document does not count: its alternatives are replaced with the rest.
-- `%extend-rule` (`extend`) appends its alternatives to the rule of that name defined before it, in an earlier document or earlier in the same one: an error if none was.
+- `%rule` (`define`) defines a rule: an error if a rule of that name was defined before it in the stage.
+- `%redefine-rule` (`redefine`) replaces the rule of that name defined before it in the stage: an error if none was. The earlier alternatives are then gone, those of any `%extend-rule` of the rule included.
+- `%extend-rule` (`extend`) appends its alternatives to the rule of that name defined before it in the stage: an error if none was.
 
 When `%extend-rule` extends a rule, each appended alternative carries the extension's own clauses, its rule-level tags, conditions and emission, which apply to it alone, and the base rule's clauses do not apply to it; the earlier alternatives keep theirs. So a script document can add letters to a rule without restating its clauses, and its own clauses do not leak into the base rule. A **definition** is a `%rule`, `%redefine-rule` or `%extend-rule` statement: its alternatives and the clauses written with them. The loader records every replacement and extension.
 
-**Directives** are collected from all the stage's documents:
+**Directives** are collected from all the stage's items. `%stage`, `%include` and `%features` shape the pipeline (§13) and are not a stage's; the others are:
 
 - `%ambiguity-resolution L [elision-only] [maximal]`, `L` being `greedy` or `lazy`, with `elision-only` (§7) and `maximal` (§4) in that order if both are written: exactly one per stage, or it is an error naming the stage.
 - `%elidable T...`: the elidable terminators; repeated directives add up.
@@ -153,9 +153,13 @@ A caller may also switch the check off for a stage that declares it.
 
 ## 8. Reading grammar documents
 
-A grammar document is Markdown. Its grammar text is the content of every fenced code block whose info string is `jbogenbau`, in order: a fence is a line of three or more backticks or tildes, optionally indented up to three spaces, followed by the info string; a backtick fence whose info string holds a backtick is not a fence, as in CommonMark. The info string is `jbogenbau` when it is exactly that once leading and trailing whitespace is removed. A block ends at a line holding only a fence of the same character at least as long, indented up to three spaces and followed by nothing but whitespace. A `jbogenbau` block that is never closed is an error of the document, reported at its opening fence; any other unclosed block runs to the end of the document, as in CommonMark. Every character of the grammar text keeps its line and column in the document, and the blocks are joined with a newline between them.
+A grammar document is Markdown. Its grammar text is the content of every fenced code block whose info string is `jbogenbau`, in order. A fence is a line of three or more backticks or tildes, indented by up to three spaces, followed by the info string. A backtick fence whose info string holds a backtick is not a fence, as in CommonMark. The reader knows no other Markdown container. So a block can stand under a list item indented by two spaces, as a pipeline's `%include` blocks do, but not deeper.
 
-The grammar text is parsed with the notation dialect, `grammars/dialects/notation.md`, whose DOM ships as `grammars/notation/bootstrap.json`. The tree it produces is turned into the document's DOM by the rules in §9. An implementation reads the bootstrap DOM, not the notation documents, to parse any grammar, the notation documents included; reading the notation documents with the bootstrap must reproduce the bootstrap exactly (the fixpoint). An implementation may keep DOMs it has already built, keyed by the document's text hash, the bootstrap's hash and the DOM format version (`docs/output.md`), and must treat a mismatch of any of the three as a miss. The hash is 64-bit FNV-1a over the text's UTF-8 bytes, written as 16 lower-case hexadecimal digits. Every package ships `compiled.json` beside its grammars, holding the DOM of each bundled grammar document in this way.
+The info string is `jbogenbau` when it is exactly that once leading and trailing whitespace is removed. A block ends at a line that holds only a fence of the same character, at least as long. The fence is indented by up to three spaces, and only whitespace follows it. A `jbogenbau` block that is never closed is an error of the document, reported at its opening fence. Any other unclosed block runs to the end of the document, as in CommonMark. The blocks are joined with a newline between them, and every character of the grammar text keeps its line and column in the document.
+
+The grammar text is parsed with the notation dialect, `grammars/dialects/notation.md`, whose DOM ships as `grammars/notation/bootstrap.json`. The tree it produces is turned into the document's DOM by the rules in §9. An implementation reads the bootstrap DOM, not the notation documents, to parse any grammar, the notation documents included. Splicing the notation's pipeline (§13) with the bootstrap must reproduce the bootstrap exactly (the fixpoint). The bootstrap holds each stage as its name and its runs of items. A run is a path and a DOM that holds consecutive items of that one document.
+
+An implementation can keep the DOMs it has already built. It keys each DOM by the document's text hash, the bootstrap's hash and the DOM format version (`docs/output.md`). It treats a mismatch in any of the three as a miss. The hash is 64-bit FNV-1a over the text's UTF-8 bytes, written as 16 lower-case hexadecimal digits. Every package ships `compiled.json` beside its grammars, holding the DOM of each bundled grammar document in this way.
 
 ## 9. From notation tree to DOM
 
@@ -163,7 +167,7 @@ The notation's syntax grammar names its constituents so that the DOM can be read
 
 | rule | DOM |
 | --- | --- |
-| `directive` | a directive: name from its `directive-name` without `%`, arguments from its `argument-word`s |
+| `directive` | a directive: name from its keyword without `%`, arguments from its `argument-word`s, each the name, and its `argument-string`, the decoded string, in order |
 | `rule` | a rule: `define`, `redefine` or `extend` from its `definer`, `%rule`, `%redefine-rule` or `%extend-rule`; name from its `rule-name`, a name or `#`; alternatives from its `body`; tags from its `tags-clause`; conditions from its `conditions-clause`; emission from its `emits-clause`; `verbatim` true if it has a `verbatim-clause` |
 | `alternative` | guards from its `guard`s: a gate from `@f?` or `@¬f?`, a warning from `@f!`; expression from its `conjunction`, tags from `alternative-tags` |
 | `choice` | `choice` of its `conjunction`s, or the one conjunction itself |
@@ -203,7 +207,8 @@ A rule with any other name is transparent: its children are read in its place. E
 - an expression, a term or a condition nested more than 256 deep: in the DOM (docs/output.md), no node of one may lie below more than 256 compound nodes of it, a compound node being one of `optional`, `repeat`, `and`, `choice`, `seq` and `capture` in an expression; `union`, `intersection`, `if` and `call` in a term; `any`, `all`, `not`, `if`, `matches`, `begins`, `initial` and a comparison in a condition. The condition of a guarded term counts on from the term's depth, as a comparison's terms count on from the condition's. `( )` makes no node, so it adds nothing; 256 nested `[ ]` around a symbol are allowed, and 257 are not;
 - `$` with items other than `$`; tags on an inserted tag; `∅` as an item's tags, which is a token no terminal reads; a capture other than `$` listed twice in one emission;
 - a rule's or an alternative's tag term that reads the tags it defines: `$`, `tags($)` or `classes($)` in it; `tags(head($))` and the like read the tokens' tags, not the constituent's, and are allowed, as is `tags($, R)`;
-- an unknown directive, which the syntax grammar already refuses.
+- an unknown directive, which the syntax grammar already refuses;
+- a directive with the wrong operands, reported at the directive. `%stage` takes one name, `%include` one string, and `%features` one or more names. The other directives take names only.
 
 A definition (§2) is checked as a whole once it is read, and these are errors of the document too, reported at the definition:
 
@@ -212,6 +217,8 @@ A definition (§2) is checked as a whole once it is read, and these are errors o
 - a tag term that uses (§3.6) a capture that an alternative it serves lacks: an alternative's own tags serve that alternative, `%tags` every alternative of the definition, and an emission item's tags every alternative in which the item is not dropped;
 - `%verbatim` in a definition whose emission is `ε`, since a constituent that does not count cannot sound like its text;
 - in an emission, captures listed in an order other than the one in which some alternative that has them captures them; an inserted tag whose anchor, the capture listed next after it, is one that some alternative of the definition lacks; or an alternative for which every item is dropped, so that it would emit nothing although the rule lists what to emit; a rule that emits nothing says so with `ε`.
+
+A document's items are its rules and directives. The DOM keeps them in two lists, each in the order written. Every item has the position of its first token, so the order of all of a document's items is the order of their positions. A DOM in which two items share a position is malformed, whether it is read, cached or in the bootstrap. So is a DOM with a `stage`, `include` or `features` directive whose operands the reader refuses.
 
 A string's decoding: the quotes are removed, `\\` is `\`, `\"` is `"`, and `\u{h...}` is the code point with that hexadecimal value; any other `\` is an error.
 
@@ -291,9 +298,28 @@ A node with a nonempty span has the source of its tokens (§1). A node with an e
 
 ## 13. The pipeline
 
-A dialect is a pipeline document (`docs/design.md`, "Pipelines"). The first stage reads the character tokens of §1; each later stage reads the tokens the one before emitted. The features on for every stage are those the pipeline declares with `<?features?>`, together with those the caller turns on, less those the caller turns off. A caller who names one feature both to turn on and to turn off makes a usage error. Naming a feature that no guard of the dialect uses is not an error: the feature is simply on or off. A stage that rejects its input ends the run with that rejection; an `ambiguous` error (§7) ends it likewise. The result's `ok` is true when every stage run accepted without an error. The result's warnings are those of every stage that ran (§12), in stage order, and they are kept whether or not the result is `ok`.
+A dialect is a pipeline document (`docs/design.md`, "Pipelines"), read into stages as follows.
 
-**Kinds of feature.** A dialect's features are the names its guards use in any stage and the names its `<?features?>` declares. The guards counted are those of each stage's rules after stitching (§2), so an alternative that `%redefine-rule` replaced no longer counts, and before any gate drops an alternative (§3.1), whatever features are on. Each name is a gate, if a guard uses it as `@f?` or `@¬f?`, or a warning, if a guard uses it as `@f!`. A name that one guard uses as a gate and another as a warning is an error of the dialect, found when it is loaded. A name that only `<?features?>` declares is a gate. A dialect lists its features, each with its kind and whether `<?features?>` turns it on.
+**Splicing.** The loader reads the pipeline document's items (§9) in order. It replaces each `%include "PATH"` with the items of the document at `PATH`, read in the same way. `PATH` is resolved against the directory of the document that holds the `%include`. The stream of items that results is split at each `%stage NAME`. The items after it, up to the next `%stage`, are that stage's, whatever documents they come from. So a `%stage` inside an included document starts a stage like any other, and the items after the `%include` go on in it.
+
+The names of every `%features` of the stream are the features the pipeline turns on. Each stage's other items are stitched in order (§2). Each of these is an error of the dialect, reported at the item named:
+
+- an `%include` of a document that does not exist, at the `%include`, naming the documents that included it;
+- an `%include` of a document that is already being included, which is a cycle, at the `%include`, naming the documents that included it;
+- a rule, or an `%ambiguity-resolution` or `%elidable`, before the first `%stage`;
+- a `%stage` with the name of an earlier one;
+- a stage with no rules, at its `%stage`;
+- a pipeline with no `%stage`.
+
+A document can be included more than once, in one stage or in several. Its items are read again each time.
+
+**Running.** The first stage reads the character tokens of §1, and each later stage reads the tokens the one before emitted. The features on for every stage are those that the pipeline or the caller turns on, less those that the caller turns off. A caller who names one feature both to turn on and to turn off makes a usage error. Naming a feature that no guard of the dialect uses is not an error: the feature is simply on or off. A stage that rejects its input ends the run with that rejection, and an `ambiguous` error (§7) ends it likewise.
+
+The result's `ok` is true when every stage run accepted without an error. The result's warnings are those of every stage that ran (§12), in stage order, and they are kept whether or not the result is `ok`.
+
+**Kinds of feature.** A dialect's features are the names its guards use in any stage and the names its `%features` declare. The guards counted are those of each stage's rules after stitching (§2), so an alternative that `%redefine-rule` replaced no longer counts. They are counted before any gate drops an alternative (§3.1), whatever features are on.
+
+Each name is a gate, if a guard uses it as `@f?` or `@¬f?`, or a warning, if a guard uses it as `@f!`. A name that one guard uses as a gate and another as a warning is an error of the dialect, found when it is loaded. A name that only `%features` declares is a gate. A dialect lists its features, each with its kind and whether `%features` turns it on.
 
 **Auto features.** When the caller asks for auto features, the dialect has `sa-su` as a gate, `sa-su` is not already on, the caller has not turned it off, and the run reaches a stage named `words` (it has one, and `until`, if given, names it or a later stage), the stages up to and including the one named `words` are run once without it. If that run does not end with the `words` stage accepting, for any reason, a rejection or an error in it or in a stage before it, or if its chosen tree has a constituent of the rule `word` whose tag set has `SA` or `SU`, the parse is run again from the first stage with `sa-su` added, and the first run's stages and warnings are discarded; otherwise that first run's stages are the parse's, with their warnings, continued to the end. The test is on the class and not on the spelling, because the lexicon decides which words erase: `li'oi` is SU in the experimental lexicon, and a stressed `sA` is `sa`.
 

@@ -8,12 +8,13 @@
 
 import { extractGrammarText } from "../lib/js/src/markdown.js";
 import { DOM_FORMAT } from "../lib/js/src/dom.js";
+import { operandProblem } from "../lib/js/src/reader.js";
 
 const SYMBOLS = ["...", "|", "&", "(", ")", "[", "]", "<", ">", "#", "ε", ",", "∧", "∨", "¬", "⟹", "?", "=", "≠",
   "∈", "∉", "⊆", "∪", "∩", "∅"];
 
 const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%tags", "%conditions", "%emits",
-  "%ambiguity-resolution", "%elidable"]);
+  "%ambiguity-resolution", "%elidable", "%stage", "%include", "%features"]);
 
 function fail(message, token) {
   const error = new Error(message);
@@ -105,6 +106,7 @@ export function decodeString(text, token) {
   return result;
 }
 
+const DIRECTIVES = new Set(["%ambiguity-resolution", "%elidable", "%stage", "%include", "%features"]);
 const RULE_KEYWORDS = { "%rule": "define", "%redefine-rule": "redefine", "%extend-rule": "extend" };
 const COMPARATORS = ["=", "≠", "∈", "∉", "⊆"];
 
@@ -128,10 +130,17 @@ class Parser {
     const directives = [];
     while (this.peek()) {
       const token = this.peek();
-      if (token.kind === "%ambiguity-resolution" || token.kind === "%elidable") {
+      if (DIRECTIVES.has(token.kind)) {
         this.index++;
         const args = [];
-        while (this.is("identifier")) args.push(this.take().text);
+        const kinds = [];
+        while (this.is("identifier") || this.is("string")) {
+          const operand = this.take();
+          kinds.push(operand.kind === "identifier" ? "name" : "string");
+          args.push(operand.kind === "identifier" ? operand.text : decodeString(operand.text, operand));
+        }
+        const problem = operandProblem(token.name, kinds);
+        if (problem) fail(problem, token);
         directives.push({ name: token.name, args, at: token.at });
       } else if (RULE_KEYWORDS[token.kind]) {
         rules.push(this.rule());

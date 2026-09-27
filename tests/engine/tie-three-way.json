@@ -1,7 +1,7 @@
 {
   "description": "A three-way tie at a non-final stage stays a tie, whatever the derivations emit (engine §6, §11).",
   "documents": {
-    "p.md": "## s <?stage first?>\n\n- [g](g.md) <?grammar?>\n\n## t <?stage second?>\n\n- [h](h.md) <?grammar?>\n",
+    "p.md": "## s\n\n```jbogenbau\n%stage first\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage second\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text p | q | r\n%rule p A B <\"A\"> %emits $\n%rule q A B <\"A\"> %emits $\n%rule r $a(A) $b(B) %emits $a, $b\n```\n",
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [A] [B]\n```\n"
   },

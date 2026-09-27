@@ -14,25 +14,57 @@ fn read(path: &str) -> String {
     std::fs::read_to_string(grammars().join(path)).unwrap_or_else(|error| panic!("{path}: {error}"))
 }
 
-/// Reading the notation's own documents with the bootstrap reproduces the
-/// bootstrap exactly.
+/// Loading the notation's pipeline with the bootstrap, every document read
+/// through the notation, reproduces the bootstrap's stages exactly: their
+/// names and their runs of one document's items (engine §8).
 #[test]
 fn bootstrap_is_a_fixpoint() {
     let bootstrap = parse_json(&read("notation/bootstrap.json")).expect("bootstrap.json");
-    let mut documents = 0;
-    for stage in bootstrap.get("stages").expect("stages").array() {
-        for document in stage.get("documents").expect("documents").array() {
-            let path = document.get("path").and_then(Value::str).expect("a path");
-            let started = std::time::Instant::now();
-            let json =
-                gencmu::tools::read_grammar_document(&read(path)).unwrap_or_else(|error| panic!("{path}: {error}"));
-            eprintln!("read {path} through the notation in {:?}", started.elapsed());
-            let fresh = parse_json(&json).expect("a DOM");
-            assert!(&fresh == document.get("dom").expect("a DOM"), "{path} does not reproduce the bootstrap:\n{json}");
-            documents += 1;
-        }
-    }
+    let started = std::time::Instant::now();
+    let json = gencmu::tools::splice_bundled_pipeline("dialects/notation.md", false)
+        .unwrap_or_else(|error| panic!("dialects/notation.md: {error}"));
+    eprintln!("spliced the notation's pipeline through the notation in {:?}", started.elapsed());
+    let spliced = parse_json(&json).expect("the spliced pipeline");
+    assert_eq!(spliced.get("format"), bootstrap.get("format"));
+    let stages = spliced.get("stages").expect("stages");
+    assert!(
+        stages == bootstrap.get("stages").expect("stages"),
+        "the notation does not reproduce the bootstrap:\n{json}"
+    );
+    let documents: usize =
+        stages.array().iter().map(|stage| stage.get("documents").expect("documents").array().len()).sum();
     assert_eq!(documents, 2);
+}
+
+/// Every bundled dialect splices to the same stages and features with the
+/// precompiled DOMs of `compiled.json` and without them.
+#[test]
+fn dialects_splice_the_same_with_and_without_the_cache() {
+    let mut names: Vec<String> = std::fs::read_dir(grammars().join("dialects"))
+        .expect("the bundled dialects")
+        .filter_map(|entry| entry.ok()?.file_name().into_string().ok())
+        .filter_map(|name| name.strip_suffix(".md").map(str::to_string))
+        .collect();
+    names.sort();
+    assert!(names.len() >= 5, "{names:?}");
+    // Each dialect on a thread of its own: reading the Lojban grammars
+    // through the notation is slow.
+    let threads: Vec<_> = names
+        .into_iter()
+        .map(|name| {
+            std::thread::spawn(move || {
+                let path = format!("dialects/{name}.md");
+                let cached = gencmu::tools::splice_bundled_pipeline(&path, true).expect("a cached splice");
+                let fresh = gencmu::tools::splice_bundled_pipeline(&path, false).expect("a fresh splice");
+                assert!(cached == fresh, "{path} splices differently without compiled.json");
+                let spliced = parse_json(&cached).expect("JSON");
+                assert!(!spliced.get("stages").expect("stages").array().is_empty(), "{path}");
+            })
+        })
+        .collect();
+    for thread in threads {
+        thread.join().expect("a dialect splices the same");
+    }
 }
 
 /// The crate's grammars are the repository's, as `tools/sync.js` copies them.

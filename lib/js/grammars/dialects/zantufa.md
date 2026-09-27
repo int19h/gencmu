@@ -10,30 +10,89 @@ The indicator stage is the cll-ebnf dialect's. No word of the Zantufa lexicon is
 
 The syntax is [`../syntax/zantufa.md`](../syntax/zantufa.md), a grammar of its own that translates Zantufa's rules one by one. It says where the dialect reads a text differently from Zantufa 1.9999.
 
-## Stage 1: phonemes <?stage phonemes?>
+## Stage 1: phonemes
 
-- [The Latin orthography of CLL](../phonemes/latin-strict.md) <?grammar?>
-- [Latin conventions](../phonemes/latin.md): punctuation, capital runs, accents and digits <?grammar?>
-- [Cyrillic orthography](../phonemes/cyrillic.md): gencmu's Cyrillic, the default <?grammar?>
-- [The Cyrillic orthography of CLL](../phonemes/cyrillic-cll.md): CLL 3.12's Cyrillic, which a caller chooses with the feature `cll-cyrillic` <?grammar?>
-- [zbalermorna](../phonemes/zbalermorna.md) <?grammar?>
+```jbogenbau
+%stage phonemes
+```
 
-## Stage 2: forms <?stage forms?>
+- [The Latin orthography of CLL](../phonemes/latin-strict.md)
+  ```jbogenbau
+  %include "../phonemes/latin-strict.md"
+  ```
+- [Latin conventions](../phonemes/latin.md): punctuation, capital runs, accents and digits
+  ```jbogenbau
+  %include "../phonemes/latin.md"
+  ```
+- [Cyrillic orthography](../phonemes/cyrillic.md): gencmu's Cyrillic, the default
+  ```jbogenbau
+  %include "../phonemes/cyrillic.md"
+  ```
+- [The Cyrillic orthography of CLL](../phonemes/cyrillic-cll.md): CLL 3.12's Cyrillic, which a caller chooses with the feature `cll-cyrillic`
+  ```jbogenbau
+  %include "../phonemes/cyrillic-cll.md"
+  ```
+- [zbalermorna](../phonemes/zbalermorna.md)
+  ```jbogenbau
+  %include "../phonemes/zbalermorna.md"
+  ```
 
-- [Word forms](../words/forms.md) <?grammar?>
-- [Approved word forms](../words/bpfk.md) <?grammar?>
-- [Zantufa word forms](../words/zantufa.md) <?grammar?>
-- [The Zantufa lexicon](../words/lexicon-zantufa.md) <?grammar?>
+## Stage 2: forms
 
-## Stage 3: words <?stage words?>
+```jbogenbau
+%stage forms
+```
 
-- [The word stream](../words/stream.md) <?grammar?>
-- [The Zantufa word stream](../words/zantufa-stream.md) <?grammar?>
+- [Word forms](../words/forms.md)
+  ```jbogenbau
+  %include "../words/forms.md"
+  ```
+- [Approved word forms](../words/bpfk.md)
+  ```jbogenbau
+  %include "../words/bpfk.md"
+  ```
+- [Zantufa word forms](../words/zantufa.md)
+  ```jbogenbau
+  %include "../words/zantufa.md"
+  ```
+- [The Zantufa lexicon](../words/lexicon-zantufa.md)
+  ```jbogenbau
+  %include "../words/lexicon-zantufa.md"
+  ```
 
-## Stage 4: indicators <?stage indicators?>
+## Stage 3: words
 
-- [Indicators and ba'e](../indicators/cll.md) <?grammar?>
+```jbogenbau
+%stage words
+```
 
-## Stage 5: syntax <?stage syntax?>
+- [The word stream](../words/stream.md)
+  ```jbogenbau
+  %include "../words/stream.md"
+  ```
+- [The Zantufa word stream](../words/zantufa-stream.md)
+  ```jbogenbau
+  %include "../words/zantufa-stream.md"
+  ```
 
-- [The Zantufa grammar](../syntax/zantufa.md): Zantufa's rules <?grammar?>
+## Stage 4: indicators
+
+```jbogenbau
+%stage indicators
+```
+
+- [Indicators and ba'e](../indicators/cll.md)
+  ```jbogenbau
+  %include "../indicators/cll.md"
+  ```
+
+## Stage 5: syntax
+
+```jbogenbau
+%stage syntax
+```
+
+- [The Zantufa grammar](../syntax/zantufa.md): Zantufa's rules
+  ```jbogenbau
+  %include "../syntax/zantufa.md"
+  ```

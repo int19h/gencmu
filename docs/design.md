@@ -53,7 +53,7 @@ tools/sync.js              regenerates every generated file below
 
 The four libraries implement one specification, `docs/engine.md`, written first and precisely enough that two implementations cannot legitimately differ. It covers:
 
-1. **Reading documents.** The fenced `jbogenbau` blocks of a Markdown document, read by the notation's own grammar (see "The notation" below) into a grammar DOM; pipeline documents, read as described under "Pipelines"; stitching several documents into one grammar. Errors carry file, line and column.
+1. **Reading documents.** The notation's own grammar reads the fenced `jbogenbau` blocks of a Markdown document into a grammar DOM (see "The notation" below). Pipeline documents are spliced as "Pipelines" says, and each stage's rules are stitched into one grammar. Errors carry file, line and column.
 2. **Lowering** to a context-free grammar with named helper rules for the sugar, which diagnostics hide.
 3. **Recognition.** An Earley parser whose items record, for each captured part, its span and the identity of its tag set, and which evaluates conditions the moment their last capture is read. Nested parses for `matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` share their memo with the parse that started them, keyed by the kind of query, the rule, and a short span's content or a long span's position; a nested parse asked about its own span is a grammar error. With `from` and `after`, a condition can look past its constituent to the end of the input, as a PEG's lookahead does.
 4. **Choosing a parse.** The first-difference order over bottom-up action sequences, with strong-over-weak tags and the grammar's declared `%ambiguity-resolution`; the verdicts unique, resolved, tie; the tie witness; the `elision-only` check (see "Ambiguity" below).
@@ -119,25 +119,38 @@ Grammar authors get the same diagnostics for a malformed grammar as for a malfor
 
 ## Pipelines
 
-A pipeline document is Markdown too, and literate: each stage is a heading, followed by the list of documents stitched into it and by prose saying what the stage receives from the one before, what it does, and what it hands on. The machine-readable parts are processing instructions at the end of a line, which GitHub's renderer drops, so the document reads as plain hyperlinked prose there:
+A pipeline document is Markdown too, and literate. Each stage is a heading, followed by the list of documents stitched into it. Prose then says what the stage receives from the one before, what it does, and what it hands on. The machine-readable parts are three directives in `jbogenbau` blocks. The notation reads them like any other directives, so no library reads Markdown structure beyond finding the blocks:
 
-```
+````markdown
 # The CLL dialect
 
 ... what the dialect is ...
 
-## Stage 1: phonemes <?stage phonemes?>
+## Stage 1: phonemes
 
-- [Latin orthography](../phonemes/latin.md) <?grammar?>
-  ... what this document contributes ...
-- [Cyrillic orthography](../phonemes/cyrillic.md) <?grammar?>
-
-... what the stage receives, does and hands on ...
+```jbogenbau
+%stage phonemes
 ```
 
-`<?stage NAME?>` at the end of a heading line starts a stage; `NAME` is what the API, the CLI's `--until` and diagnostics call it, independent of the heading's wording, and two stages with one name are an error. `<?grammar?>` at the end of a line makes the first link on that line a document of the current stage; the line may end in trailing whitespace. The pipeline reader is not a Markdown parser, and accepts one form of link only, so that four implementations agree: `[` text `](` target `)`, where the target has no spaces, parentheses or backslashes; a `<?grammar?>` line without such a link is an error. Stages run in document order, documents stitch in list order, and since a later document may redefine or extend a rule, that order matters. A link without a marker is ordinary prose: a pipeline may link to CLL or to other dialects freely. Every stage's start rule is `text`.
+- [Latin orthography](../phonemes/latin.md): what this document contributes
+  ```jbogenbau
+  %include "../phonemes/latin.md"
+  ```
 
-`<?features NAME ...?>` at the end of any line of a pipeline, a heading included, names features the dialect turns on for every parse, separated by spaces; there may be several, and their names are unioned. A caller can turn further features on and any of them off, so a feature on by default is a choice the caller can undo. A dialect that is its base with its own documents added is a pipeline of its own, as the experimental dialect is the CLL documents plus its own. Link targets are relative to the pipeline document, and resolve the same way on disk, in memory and on GitHub. A line holds at most one processing instruction: a second is an error, so that a stage and its features cannot share a heading and lose one of them. An instruction counts only at the end of its line; elsewhere it is prose. An instruction the reader does not know is ignored, and `<?stage?>` is conventionally, not necessarily, at the end of a heading.
+... what the stage receives, does and hands on ...
+````
+
+`%stage NAME` starts a stage. `NAME` is what the API, the CLI's `--until` and diagnostics call it, whatever the heading says, and two stages with one name are an error. `%include "PATH"` stands for the rules and directives of another document, as if the text of its blocks stood there. `%features NAME ...` names features the dialect turns on for every parse, wherever it stands, and the names of every `%features` are unioned. A caller can turn further features on and any of them off, so a feature on by default is a choice the caller can undo.
+
+The link to each included document stays in the prose, so the pipeline reads as hyperlinked prose on GitHub. The bundled grammars keep a style for this. The block of each `%include` stands under a list item, indented to the item's text. The item's line has an inline link `[text](PATH)` to the same path. The style is not part of jbogenbau, which accepts an `%include` in any block. Only `tools/sync.js --check` enforces it, and only for the bundled grammars.
+
+A link without an `%include` is ordinary prose, so a pipeline can link to CLL or to other dialects freely.
+
+A library reads each document into its DOM on its own, as it reads any grammar. So every document must be complete rules and directives, and its DOM is cached as any other. The library then splices (engine §13). It reads the pipeline's items in order and recursively replaces each `%include` with the included items. It splits the stream at each `%stage`. Every item keeps the document it came from, so errors and the audit still name the document and line that an author wrote.
+
+The result is what textual inclusion gives. Stitching looks only at the order of a stage's rules, never at the documents that hold them (engine §2). A later rule can redefine or extend an earlier one wherever each was written. Stages run in the order they start, and every stage's start rule is `text`. Paths resolve against the including document, in the same way on disk, in memory and on GitHub.
+
+A document can be included in several stages, and an included document can hold `%stage` and `%features` too. So several pipelines can share a stage by including one document that holds it. A stage cannot be reopened: a second `%stage` of one name is an error. That leaves `%extend-stage` and `%redefine-stage` free if a dialect ever needs them.
 
 ## Ambiguity
 
@@ -231,9 +244,26 @@ These are the product, not an afterthought:
 
 ## CLI and playground
 
-The CLI is `node lib/js/cli.js` (and `npx gencmu` once published): `parse` with `--dialect`, `--feature` and `--no-feature`, `--until`, `--format brackets|tree|json|tokens`, `--trace`, printing any warning on standard error as it prints a tie; `features` to list a dialect's features; `audit`; `test` to run a test file against a dialect. It needs Node and nothing else.
+The CLI is `node lib/js/cli.js` (and `npx gencmu` once published): `parse` with `--dialect`, `--feature` and `--no-feature`, `--until`, `--format brackets|tree|json|tokens`, `--trace`, printing any warning on standard error as it prints a tie; `features` to list a dialect's features; `audit`; `stitch` to print a dialect's pipeline as one jbogenbau text; `test` to run a test file against a dialect. It needs Node and nothing else.
 
-The playground is `index.html` with `dist/gencmu.js` and `dist/grammars.js` loaded as classic scripts, so it works from `file://`, where browsers refuse ES modules, and from GitHub Pages alike. Nothing is fetched: the grammars are a JavaScript object in `dist/grammars.js`, and the worker is built from a `Blob` whose text is the library source plus the grammar object, passed from the page, so the worker fetches nothing either. This is the riskiest part of the design, so it is proved first, before the library exists, with a stub parser: a page that starts a blob worker from `file://` and gets an answer, checked in current Chrome and Firefox. `tools/smoke-playground.js` checks the playground in headless Chromium and Firefox, driven by Playwright, in CI and locally: `npm ci` and `npx playwright install chromium firefox` in `lib/js`, then `node tools/smoke-playground.js [--browser chrome|firefox] [URL]` from the root. Playwright's own browsers are used because a browser installed as a snap cannot read a checkout outside the home directory; Playwright is a development dependency of `lib/js` only, never of the libraries or the playground. With no URL the smoke test opens `index.html` from `file://`; given a URL, it checks a deployment, such as GitHub Pages, for an absolute path. The playground has: the text; the dialect, and a switch for each of the dialect's features, set to its default; the warnings of the parse; the output in the three formats and the per-stage tokens; the diagnostics above; and an editor for the grammar documents, whose edits reparse the text at once and can be downloaded. Parsing runs in a worker (a `Blob` worker, which also works from `file://`), so a long text does not freeze the page.
+The playground is `index.html` with `dist/gencmu.js` and `dist/grammars.js` loaded as classic scripts. So it works from `file://`, where browsers refuse ES modules, and from GitHub Pages alike. Nothing is fetched: the grammars are a JavaScript object in `dist/grammars.js`. The page builds the worker from a `Blob` whose text is the library source and the grammar object. So the worker fetches nothing either.
+
+This was the riskiest part of the design, so it was proved first, with a stub parser. A page started a blob worker from `file://` and got an answer, in current Chrome and Firefox.
+
+`tools/smoke-playground.js` checks the playground in headless Chromium and Firefox, driven by Playwright, in CI and locally. To run it locally, run `npm ci` and `npx playwright install chromium firefox` in `lib/js`. Then run `node tools/smoke-playground.js [--browser chrome|firefox] [URL]` from the root.
+
+The test uses Playwright's own browsers, because a browser installed as a snap cannot read a checkout outside the home directory. Playwright is a development dependency of `lib/js` only, never of the libraries or the playground. With no URL, the smoke test opens `index.html` from `file://`. Given a URL, it checks a deployment, such as GitHub Pages, for an absolute path.
+
+The playground has these parts:
+
+- the text;
+- the dialect, and a switch for each of the dialect's features, set to its default;
+- the warnings of the parse;
+- the output in the three formats, and the tokens of each stage;
+- the diagnostics above;
+- an editor for the grammar documents, whose edits parse the text again at once and can be downloaded.
+
+The editor lists a dialect's documents stage by stage. A forgiving scan of the `%stage` and `%include` directives finds them (`playground/pipeline.js`). So a pipeline with an error, a missing document or a cycle still shows every document it reaches. Parsing runs in a worker (a `Blob` worker, which also works from `file://`), so a long text does not freeze the page.
 
 ## Output formats
 

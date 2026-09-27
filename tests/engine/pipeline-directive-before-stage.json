@@ -1,0 +1,18 @@
+{
+  "description": "An %ambiguity-resolution before the first %stage of the stream is an error (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%ambiguity-resolution greedy\n%stage main\n%rule text A\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

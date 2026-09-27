@@ -1,7 +1,7 @@
 {
   "description": "A widened token starts from the source of its own input tokens, from the least source start among them to the greatest source end, before it takes in the text next to it (engine §1, §11). The second stage emits X[1,1) Y[0,0) Z[1,1) for `a` and X[2,2) Y[1,1) Z[2,2) for `b`, so X Y ends before it starts. W over the second X Y starts where a widened token ends, so it does not start earlier, and it holds `b`, the source of its tokens.",
   "documents": {
-    "p.md": "## Letters <?stage letters?>\n\n- [a](a.md) <?grammar?>\n\n## Pairs <?stage pairs?>\n\n- [b](b.md) <?grammar?>\n\n## Triples <?stage triples?>\n\n- [c](c.md) <?grammar?>\n",
+    "p.md": "## Letters\n\n```jbogenbau\n%stage letters\n```\n\n- [a](a.md)\n  ```jbogenbau\n  %include \"a.md\"\n  ```\n\n## Pairs\n\n```jbogenbau\n%stage pairs\n```\n\n- [b](b.md)\n  ```jbogenbau\n  %include \"b.md\"\n  ```\n\n## Triples\n\n```jbogenbau\n%stage triples\n```\n\n- [c](c.md)\n  ```jbogenbau\n  %include \"c.md\"\n  ```\n",
     "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text letter letter\n%rule letter char %emits $ <\"A\">, $ <\"A\">\n%rule char \"a\" | \"b\"\n```\n",
     "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text pair pair\n%rule pair prefix edge\n%rule prefix A %emits \"X\"\n%rule edge $n(nothing) A %emits \"Y\", $n <\"Z\">\n%rule nothing ε\n```\n",
     "c.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $u(u) $w(w) $z(z)\n%emits $u <\"U\">, $w <\"W\">, $z <\"V\">\n%rule u X Y Z\n%verbatim\n%rule w X Y\n%verbatim\n%rule z Z\n%verbatim\n```\n"

@@ -14,8 +14,9 @@ from ._dom import DomBuilder
 from ._errors import GencmuError
 from ._grammar import Grammar, Lowered, lower, stitch
 from ._hash import fnv1a64
-from ._markdown import Pipeline, jbogenbau_text, read_pipeline
+from ._markdown import jbogenbau_text
 from ._model import Feature, Node, ParseError, ParseResult, ParseWarning, Stage, Token
+from ._pipeline import Pipeline, splice_pipeline
 from ._stage import StageOutcome, StageRunner
 from ._unicode import UnicodeTable
 from ._validate import FORMAT, MAX_DEPTH, TOO_DEEP, dom_problem
@@ -252,13 +253,18 @@ class _Loader:
             _dom_cache[key] = dom
         return dom
 
+    def pipeline(self, pipeline_path: str) -> Pipeline:
+        """The stages of the pipeline document at ``pipeline_path``, each a
+        list of runs of one document's items, and the features the pipeline
+        turns on (engine §13)."""
+        return splice_pipeline(pipeline_path, lambda path: None if self.lookup(path) is None else self.dom(path))
+
     def load(self, pipeline_path: str) -> Dialect:
-        pipeline = read_pipeline(self.text(pipeline_path), pipeline_path)
+        pipeline = self.pipeline(pipeline_path)
         stages: list[Grammar] = []
         for stage in pipeline.stages:
-            documents = [(path, self.dom(path)) for path in stage.documents]
             try:
-                stages.append(stitch(stage.name, documents))
+                stages.append(stitch(stage.name, stage.documents))
             except GencmuError as error:
                 if error.stage is None:
                     error.stage = stage.name
@@ -316,7 +322,7 @@ def load_dialect_sources(sources: Mapping[str, str], pipeline: str, *, use_cache
 
 def _dialect_features(path: str, grammars: list[Grammar], declared: frozenset[str]) -> tuple[Feature, ...]:
     """A dialect's features (engine §13): every name a guard of a stage's
-    stitched rules uses, and every name the pipeline's ``<?features?>``
+    stitched rules uses, and every name the pipeline's ``%features``
     declares, in code point order. Each is a gate or a warning as its guards
     use it, and a gate if only declared; a name used both ways is an error
     of the dialect."""

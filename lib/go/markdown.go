@@ -161,108 +161,12 @@ func isClosingFence(line, fence string) bool {
 	return n >= len(fence) && strings.TrimRight(t[n:], " \t") == ""
 }
 
-// A pipeline document (design, "Pipelines"): stages, the documents stitched
-// into each, and the features the dialect enables.
-type pipelineStage struct {
-	name      string
-	documents []string // resolved paths
-	at        [2]int
-}
-
-type pipeline struct {
-	stages   []pipelineStage
-	features []string
-}
-
-var (
-	instruction = regexp.MustCompile(`<\?([A-Za-z][A-Za-z0-9-]*)((?:\s[^?]*)?)\?>`)
-	linkStart   = regexp.MustCompile(`\[[^\]]*\]\(`)
-	featureName = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9-]*$`)
-)
-
 func runeColumn(line string, byteOffset int) int {
 	return utf8.RuneCountInString(line[:byteOffset]) + 1
 }
 
-// readPipeline reads a pipeline document's processing instructions, one per
-// line at most, each at the end of its line.
-func readPipeline(text, docPath string) (*pipeline, *Error) {
-	p := &pipeline{}
-	seen := map[string]bool{}
-	features := map[string]bool{}
-	for n, line := range splitLines(text) {
-		found := instruction.FindAllStringSubmatchIndex(line, -1)
-		if len(found) == 0 {
-			continue
-		}
-		at := [2]int{n + 1, runeColumn(line, found[0][0])}
-		if len(found) > 1 {
-			second := [2]int{n + 1, runeColumn(line, found[1][0])}
-			return nil, grammarError(docPath, second, "a line of a pipeline holds at most one processing instruction")
-		}
-		m := found[0]
-		if strings.TrimSpace(line[m[1]:]) != "" {
-			continue // not at the end of the line: prose
-		}
-		name, args := line[m[2]:m[3]], strings.TrimSpace(line[m[4]:m[5]])
-		switch name {
-		case "stage":
-			if args == "" || strings.ContainsAny(args, " \t") {
-				return nil, grammarError(docPath, at, "<?stage?> needs one stage name")
-			}
-			if seen[args] {
-				return nil, grammarError(docPath, at, "two stages are named %s", args)
-			}
-			seen[args] = true
-			p.stages = append(p.stages, pipelineStage{name: args, at: at})
-		case "grammar":
-			if args != "" {
-				return nil, grammarError(docPath, at, "<?grammar?> takes no arguments")
-			}
-			if len(p.stages) == 0 {
-				return nil, grammarError(docPath, at, "a <?grammar?> line comes before any stage")
-			}
-			l := linkStart.FindStringIndex(line[:m[0]])
-			if l == nil {
-				return nil, grammarError(docPath, at, "a <?grammar?> line needs a link [text](path)")
-			}
-			rest := line[l[1]:m[0]]
-			end := strings.IndexByte(rest, ')')
-			target := ""
-			if end >= 0 {
-				target = rest[:end]
-			}
-			if end < 0 || target == "" || strings.ContainsAny(target, " \t()\\") {
-				return nil, grammarError(docPath, [2]int{n + 1, runeColumn(line, l[0])}, "a <?grammar?> link must be [text](path) with no spaces, parentheses or backslashes in the path")
-			}
-			s := &p.stages[len(p.stages)-1]
-			s.documents = append(s.documents, resolvePath(docPath, target))
-		case "features":
-			names := strings.Fields(args)
-			if len(names) == 0 {
-				return nil, grammarError(docPath, at, "<?features?> names no feature")
-			}
-			for _, f := range names {
-				if !featureName.MatchString(f) {
-					return nil, grammarError(docPath, at, "%q is not a feature name", f)
-				}
-				if !features[f] {
-					features[f] = true
-					p.features = append(p.features, f)
-				}
-			}
-		default:
-			// Another tool's instruction: not the engine's to read.
-		}
-	}
-	if len(p.stages) == 0 {
-		return nil, grammarError(docPath, [2]int{}, "the pipeline has no <?stage?>")
-	}
-	return p, nil
-}
-
-// resolvePath resolves a link target against the document holding it, with
-// . and .. normalized.
+// resolvePath resolves an %include's path against the document holding it,
+// with . and .. normalized.
 func resolvePath(from, target string) string {
 	return path.Clean(path.Join(path.Dir(from), target))
 }

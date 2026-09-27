@@ -13,7 +13,8 @@ type stageGrammar struct {
 	changes     []stitchChange
 }
 
-// stitchChange records a rule a later document replaced or extended.
+// stitchChange records a rule a later item of the stage replaced or
+// extended.
 type stitchChange struct {
 	rule, document, op string
 }
@@ -59,7 +60,6 @@ func stitch(stageName string, docs []docDOM) (*stageGrammar, *Error) {
 	}
 	var ambiguity []*domDirective
 	for _, d := range docs {
-		defined := map[string]bool{}
 		for _, r := range d.dom.Rules {
 			alts := make([]*sAlt, len(r.Alternatives))
 			for i, a := range r.Alternatives {
@@ -73,15 +73,15 @@ func stitch(stageName string, docs []docDOM) (*stageGrammar, *Error) {
 				if existing != nil {
 					return nil, fail(d.path, r.At, "%%rule %s is already defined, in %s; %%redefine-rule replaces a rule", r.Name, existing.doc)
 				}
-				defined[r.Name] = true
 				nr := &sRule{name: r.Name, alts: alts, doc: d.path, at: r.At}
 				g.rules = append(g.rules, nr)
 				g.byName[r.Name] = nr
 			case "redefine":
-				if existing == nil || defined[r.Name] {
-					return nil, fail(d.path, r.At, "%%redefine-rule %s replaces no rule of an earlier document", r.Name)
+				// It replaces the rule of that name any earlier item of the
+				// stage defined, in this document or another (engine §2).
+				if existing == nil {
+					return nil, fail(d.path, r.At, "%%redefine-rule %s replaces no rule defined before it", r.Name)
 				}
-				defined[r.Name] = true
 				// The replacement keeps the place of the rule it replaces.
 				g.changes = append(g.changes, stitchChange{r.Name, d.path, "replace"})
 				existing.alts, existing.doc, existing.at = alts, d.path, r.At
