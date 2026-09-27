@@ -747,6 +747,224 @@
 {"id":"cll.18.146.c18e22d2","text":"li vo pi'i reno su'i ze","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["li","vo","pi'i","re","no","su'i","ze"],"brackets":"(li [vo pi'i {re no} su'i ze])"}
 {"id":"cll.18.147.c18e22d3","text":"li mo'e voboi renomei te'u su'i ze","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["li","mo'e","vo","boi","re","no","mei","te'u","su'i","ze"],"brackets":"(li [{mo'e ([vo boi] [{re no} mei]) te'u} su'i ze])"}
 {"id":"cll.18.148.c18e22d4","text":"li vo pi'e ze ju'u reno","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["li","vo","pi'e","ze","ju'u","re","no"],"brackets":"(li [{vo pi'e ze} ju'u {re no}])"}
+{"id":"cll.19.1.c19e2d1","text":"mi klama le zarci .i do cadzu le bisli","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","klama","le","zarci","i","do","cadzu","le","bisli"],"brackets":"([mi {klama (le zarci)}] i [do {cadzu (le bisli)}])"}
+{"id":"cll.19.10.c19e4d9","text":"loi jdini zo'u tu'e do ponse .inaja do djica tu'u","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["loi","jdini","zo'u","tu'e","do","ponse","i","na","ja","do","djica","tu'u"],"brackets":"([{loi jdini} zo'u] [tu'e {(do ponse) i (na ja) (do djica)} tu'u])"}
+{"id":"cll.19.11.c19e4d10","text":"do ponse loi jdini .inaja do djica ri","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["do","ponse","loi","jdini","i","na","ja","do","djica","ri"],"brackets":"([do {ponse (loi jdini)}] i [na ja] [do {djica ri}])"}
+{"id":"cll.19.12.c19e4d11","text":"do ponse loi jdini .inaja do djica tu'a ri","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["do","ponse","loi","jdini","i","na","ja","do","djica","tu'a","ri"],"brackets":"([do {ponse (loi jdini)}] i [na ja] [do {djica (tu'a ri)}])"}
+{"id":"cll.19.13.c19e5d1","text":"xu do klama le zarci","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["xu","do","klama","le","zarci"],"brackets":"(xu [do {klama (le zarci)}])"}
+{"id":"cll.19.14.c19e5d2","text":"ma klama le zarci","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ma","klama","le","zarci"],"brackets":"(ma [klama {le zarci}])"}
+{"id":"cll.19.15.c19e5d3","text":"do klama ma","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["do","klama","ma"],"brackets":"(do [klama ma])"}
+{"id":"cll.19.16.c19e5d4","text":"le zarci","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["le","zarci"],"brackets":"(le zarci)"}
+{"id":"cll.19.17.c19e5d5","text":"ma klama ma","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ma","klama","ma"],"brackets":"(ma [klama ma])"}
+{"id":"cll.19.18.c19e5d6","text":"mi le zarci","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","le","zarci"],"brackets":"(mi [le zarci])"}
+{"id":"cll.19.19.c19e5d7","text":"ma fa'u ma klama ma fa'u ma","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ma","fa'u","ma","klama","ma","fa'u","ma"],"brackets":"([ma fa'u ma] [klama {ma fa'u ma}])"}
+{"id":"cll.19.2.c19e4d1","text":"mi klama le zarci","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","klama","le","zarci"],"brackets":"(mi [klama {le zarci}])"}
+{"id":"cll.19.20.c19e5d8","text":"la djan. la marcas. le zarci le briju","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["la","djan","la","marcas","le","zarci","le","briju"],"brackets":"([la djan] [la marcas] [le zarci] [le briju])"}
+{"id":"cll.19.21.c19e5d9","text":"la lojban. mo","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["la","lojban","mo"],"brackets":"([la lojban] mo)"}
+{"id":"cll.19.22.c19e5d10","text":"do viska xo prenu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["do","viska","xo","prenu"],"brackets":"(do [viska {xo prenu}])"}
+{"id":"cll.19.23.c19e5d11","text":"vomu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["vo","mu"],"brackets":"(vo mu)"}
+{"id":"cll.19.24.c19e6d1","text":"mi cu klama le zarci le zdani le dargu le karce","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","cu","klama","le","zarci","le","zdani","le","dargu","le","karce"],"brackets":"(mi cu [klama {(le zarci) (le zdani) (le dargu) (le karce)}])"}
+{"id":"cll.19.25.c19e6d2","text":"le karce cu xe klama le zarci le zdani le dargu mi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["le","karce","cu","xe","klama","le","zarci","le","zdani","le","dargu","mi"],"brackets":"([le karce] cu [{xe klama} {(le zarci) (le zdani) (le dargu) mi}])"}
+{"id":"cll.19.26.c19e6d3","text":"fo le dargu fi le zdani fa mi fe le zarci fu le karce cu klama","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["fo","le","dargu","fi","le","zdani","fa","mi","fe","le","zarci","fu","le","karce","cu","klama"],"brackets":"([{fo (le dargu)} {fi (le zdani)} {fa mi} {fe (le zarci)} {fu (le karce)}] cu klama)"}
+{"id":"cll.19.27.c19e6d4","text":"la'e di'u cu nunkla mi le zarci le zdani le dargu le karce","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["la'e","di'u","cu","nunkla","mi","le","zarci","le","zdani","le","dargu","le","karce"],"brackets":"([la'e di'u] cu [nunkla {mi (le zarci) (le zdani) (le dargu) (le karce)}])"}
+{"id":"cll.19.28.c19e6d5","text":"le karce cu sexixa nunkla mi le zarci le zdani le dargu la'edi'u","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["le","karce","cu","se","xi","xa","nunkla","mi","le","zarci","le","zdani","le","dargu","la'e","di'u"],"brackets":"([le karce] cu [{se (xi xa) nunkla} {mi (le zarci) (le zdani) (le dargu) (la'e di'u)}])"}
+{"id":"cll.19.29.c19e6d6","text":"fu le dargu fo le zdani fe mi fa la'edi'u fi le zarci faxixa le karce cu nunkla","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["fu","le","dargu","fo","le","zdani","fe","mi","fa","la'e","di'u","fi","le","zarci","fa","xi","xa","le","karce","cu","nunkla"],"brackets":"([{fu (le dargu)} {fo (le zdani)} {fe mi} {fa (la'e di'u)} {fi (le zarci)} {fa (xi xa) (le karce)}] cu nunkla)"}
+{"id":"cll.19.30.c19e6d7","text":"da xi vo","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["da","xi","vo"],"brackets":"(da [xi vo])"}
+{"id":"cll.19.31.c19e6d8","text":"ko'i xi paso","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ko'i","xi","pa","so"],"brackets":"(ko'i [xi {pa so}])"}
+{"id":"cll.19.32.c19e6d9","text":"li xy.boixipa du li xy.boixire su'i xy.boixici","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["li","xy","boi","xi","pa","du","li","xy","boi","xi","re","su'i","xy","boi","xi","ci"],"brackets":"([li {xy boi (xi pa)}] [du {li ([xy boi {xi re}] su'i [xy boi {xi ci}])}])"}
+{"id":"cll.19.33.c19e6d10","text":"la djan. xipa cusku lu mi'enai do li'u la djan. xire","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["la","djan","xi","pa","cusku","lu","mi'e","nai","do","li'u","la","djan","xi","re"],"brackets":"([la djan {xi pa}] [cusku {(lu [{mi'e nai} do] li'u) (la djan [xi re])}])"}
+{"id":"cll.19.34.c19e6d11","text":"li pimu jei mi ganra","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["li","pi","mu","jei","mi","ganra"],"brackets":"([li {pi mu}] [jei {mi ganra}])"}
+{"id":"cll.19.35.c19e6d12","text":"mi ja'a xipimu ganra","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","ja'a","xi","pi","mu","ganra"],"brackets":"(mi [ja'a {xi (pi mu)} ganra])"}
+{"id":"cll.19.36.c19e7d1","text":"mi klama pamai le zarci .e remai le zdani","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","klama","pa","mai","le","zarci","e","re","mai","le","zdani"],"brackets":"(mi [{klama (pa mai)} {(le zarci) (e [re mai]) (le zdani)}])"}
+{"id":"cll.19.37.c19e8d1","text":"mi viska le blanu .ia zdani ku","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","viska","le","blanu","ia","zdani","ku"],"brackets":"(mi [viska {le (blanu zdani) ku}])"}
+{"id":"cll.19.38.c19e8d2","text":"mi viska le blanu zdani .ia ku","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","viska","le","blanu","zdani","ia","ku"],"brackets":"(mi [viska {le (blanu zdani) ku}])"}
+{"id":"cll.19.39.c19e8d3","text":"mi viska le .ia blanu zdani ku","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","viska","le","ia","blanu","zdani","ku"],"brackets":"(mi [viska {le (blanu zdani) ku}])"}
+{"id":"cll.19.4.c19e4d3","text":"le nuzba zo'u mi ba'o djuno","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["le","nuzba","zo'u","mi","ba'o","djuno"],"brackets":"([{le nuzba} zo'u] [mi {ba'o djuno}])"}
+{"id":"cll.19.40.c19e8d4","text":"mi viska le blanu zdani ku .ia","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","viska","le","blanu","zdani","ku","ia"],"brackets":"(mi [viska {le (blanu zdani) ku}])"}
+{"id":"cll.19.41.c19e8d5","text":".i .ia mi viska le blanu zdani","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["i","ia","mi","viska","le","blanu","zdani"],"brackets":"(i [mi {viska (le [blanu zdani])}])"}
+{"id":"cll.19.42.c19e8d6","text":"mi viska le fu'e .ia blanu zdani fu'o ponse","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","viska","le","fu'e","ia","blanu","zdani","fu'o","ponse"],"brackets":"(mi [viska {le (blanu zdani ponse)}])"}
+{"id":"cll.19.43.c19e9d1","text":"mi pu cusku lu mi'e .djan. li'u","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["mi","pu","cusku","lu","mi'e","djan","li'u"],"brackets":"(mi [{pu cusku} {lu (mi'e djan) li'u}])"}
+{"id":"cll.19.44.c19e9d2","text":"lo'u mi du do du la djan. le'u na tergerna la lojban.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["lo'u","mi","du","do","du","la","djan","le'u","na","tergerna","la","lojban"],"brackets":"([lo'u mi du do du la djan le'u] [{na tergerna} {la lojban}])"}
+{"id":"cll.19.45.c19e9d3","text":"lu le mlatu cu viska le finpe li'u zo'u lo'u viska le le'u cu selbasti .ei lo'u viska lo le'u","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["lu","le","mlatu","cu","viska","le","finpe","li'u","zo'u","lo'u","viska","le","le'u","cu","selbasti","ei","lo'u","viska","lo","le'u"],"brackets":"([{lu ([le mlatu] cu [viska {le finpe}]) li'u} zo'u] [{lo'u viska le le'u} cu {selbasti (lo'u viska lo le'u)}])"}
+{"id":"cll.19.46.c19e9d4","text":"la tcarlis. cusku lu le ninmu cu morsi li'u .iku'i ri jmive","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["la","tcarlis","cusku","lu","le","ninmu","cu","morsi","li'u","i","ku'i","ri","jmive"],"brackets":"([{la tcarlis} {cusku (lu [{le ninmu} cu morsi] li'u)}] i [ri jmive])"}
+{"id":"cll.19.47.c19e9d5","text":"la tcarlis. cusku lo'u le ninmu cu morsi le'u .iku'i ri jmive","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["la","tcarlis","cusku","lo'u","le","ninmu","cu","morsi","le'u","i","ku'i","ri","jmive"],"brackets":"([{la tcarlis} {cusku (lo'u le ninmu cu morsi le'u)}] i [ri jmive])"}
+{"id":"cll.19.48.c19e10d1","text":"zo si cu lojbo valsi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo","si","cu","lojbo","valsi"],"brackets":"([zo si] cu [lojbo valsi])"}
+{"id":"cll.19.49.c19e10d2","text":"zoi gy. John is a man .gy. cu glico jufra","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zoi","gy","John is a man","gy","cu","glico","jufra"],"brackets":"([zoi gy John is a man gy] cu [glico jufra])"}
+{"id":"cll.19.5.c19e4d4","text":"mi ba'o djuno le nuzba","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["mi","ba'o","djuno","le","nuzba"],"brackets":"(mi [{ba'o djuno} {le nuzba}])"}
+{"id":"cll.19.50.c19e10d3","text":"mi djuno fi le valsi po'u zoi gy. gyrations .gy.","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["mi","djuno","fi","le","valsi","po'u","zoi","gy","gyrations","gy"],"brackets":"(mi [djuno {fi (le [valsi {po'u (zoi gy gyrations gy)}])}])","seeded":"reject","reason":"CLL 19.10 calls this text ungrammatical as written, because the delimiter gy appears in the written word gyrations. Here, as in the Magic Words proposal and camxes-std, the delimiter is compared as a whole word, and gyrations is not the word gy, so the quote is read (words/stream.md, Departures from CLL 19)."}
+{"id":"cll.19.51.c19e10d4","text":"mi djuno fi le valsi po'u zoi jai. gyrations .jai","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["mi","djuno","fi","le","valsi","po'u","zoi","jai","gyrations","jai"],"brackets":"(mi [djuno {fi (le [valsi {po'u (zoi jai gyrations jai)}])}])"}
+{"id":"cll.19.52.c19e10d5","text":"zoi ry. sku .ry. cu rafsi zo cusku","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zoi","ry","sku","ry","cu","rafsi","zo","cusku"],"brackets":"([zoi ry sku ry] cu [rafsi {zo cusku}])"}
+{"id":"cll.19.53.c19e10d6","text":"zo .bab. cmene la bab.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo","bab","cmene","la","bab"],"brackets":"([zo bab] [cmene {la bab}])"}
+{"id":"cll.19.54.c19e10d7","text":"zo .bab. cmene la'e zo .bab.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo","bab","cmene","la'e","zo","bab"],"brackets":"([zo bab] [cmene {la'e (zo bab)}])"}
+{"id":"cll.19.55.c19e10d8","text":"lu'e la bab. cmene la bab.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["lu'e","la","bab","cmene","la","bab"],"brackets":"([lu'e {la bab}] [cmene {la bab}])"}
+{"id":"cll.19.56.c19e10d9","text":"la bab. cmene la bab.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["la","bab","cmene","la","bab"],"brackets":"([la bab] [cmene {la bab}])"}
+{"id":"cll.19.57.c19e10d10","text":"la'o dy. Goethe .dy. cu me la'o ly. Homo sapiens .ly.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["la'o","dy","Goethe","dy","cu","me","la'o","ly","Homo sapiens","ly"],"brackets":"([la'o dy Goethe dy] cu [me {la'o ly Homo sapiens ly}])"}
+{"id":"cll.19.6.c19e4d5","text":"le finpe zo'u citka","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["le","finpe","zo'u","citka"],"brackets":"([{le finpe} zo'u] citka)"}
+{"id":"cll.19.61.c19e11d4","text":"mi viska la ba'e .djordj.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","viska","la","ba'e","djordj"],"brackets":"(mi [viska {la djordj}])"}
+{"id":"cll.19.62.c19e11d5","text":"mi viska ba'e la djordj.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","viska","ba'e","la","djordj"],"brackets":"(mi [viska {la djordj}])"}
+{"id":"cll.19.63.c19e11d6","text":"ba'e mi viska la djordj.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ba'e","mi","viska","la","djordj"],"brackets":"(mi [viska {la djordj}])"}
+{"id":"cll.19.64.c19e11d7","text":"mi ba'e viska la djordj.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","ba'e","viska","la","djordj"],"brackets":"(mi [viska {la djordj}])"}
+{"id":"cll.19.65.c19e11d8","text":"mi klama la za'e .albeinias.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","klama","la","za'e","albeinias"],"brackets":"(mi [klama {la albeinias}])"}
+{"id":"cll.19.66.c19e12d1","text":"doi lisas. mi djica le nu to doi frank. ko sisti toi do viska le mlatu","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["doi","lisas","mi","djica","le","nu","to","doi","frank","ko","sisti","toi","do","viska","le","mlatu"],"brackets":"([doi lisas] [mi {djica (le [nu {to ([doi frank] [ko sisti]) toi} {do (viska [le mlatu])}])}])"}
+{"id":"cll.19.67.c19e12d2","text":"la frank. cusku lu mi prami do to'isa'a do du la djein. toi li'u","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["la","frank","cusku","lu","mi","prami","do","to'i","sa'a","do","du","la","djein","toi","li'u"],"brackets":"([la frank] [cusku {lu (mi [prami {do (to'i [do {du (la djein)}] toi)}]) li'u}])"}
+{"id":"cll.19.68.c19e12d3","text":"la frank. prami sei la frank. gleki la djein.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["la","frank","prami","sei","la","frank","gleki","la","djein"],"brackets":"([la frank] [{prami (sei [la frank] gleki)} {la djein}])"}
+{"id":"cll.19.69.c19e12d4","text":"la frank. prami sei gleki la djein.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["la","frank","prami","sei","gleki","la","djein"],"brackets":"([la frank] [{prami (sei gleki)} {la djein}])"}
+{"id":"cll.19.70.c19e12d5","text":"la frank. prami sei gleki be fa la suzn. la djein.","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["la","frank","prami","sei","gleki","be","fa","la","suzn","la","djein"],"brackets":"([la frank] [{prami (sei [gleki {be (fa [la suzn])}])} {la djein}])"}
+{"id":"cll.19.71.c19e12d6","text":"la djan. cusku lu mi klama le zarci li'u","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["la","djan","cusku","lu","mi","klama","le","zarci","li'u"],"brackets":"([la djan] [cusku {lu (mi [klama {le zarci}]) li'u}])"}
+{"id":"cll.19.72.c19e12d7","text":"lu mi klama le zarci seisa'a la djan. cusku be dei li'u","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["lu","mi","klama","le","zarci","sei","sa'a","la","djan","cusku","be","dei","li'u"],"brackets":"(lu [mi {klama (le [zarci {sei (la djan) (cusku [be dei])}])}] li'u)"}
+{"id":"cll.19.73.c19e12d8","text":"lu seisa'a la djan. cusku be dei mi klama le zarci","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["lu","sei","sa'a","la","djan","cusku","be","dei","mi","klama","le","zarci"],"brackets":"(lu [{sei (la djan) (cusku [be dei])} {mi (klama [le zarci])}])"}
+{"id":"cll.19.74.c19e12d9","text":"lu mi klama seisa'a la djan cusku le zarci","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["lu","mi","klama","sei","sa'a","la","djan","cusku","le","zarci"],"brackets":"(lu [mi {(klama [sei {la djan} cusku]) (le zarci)}])"}
+{"id":"cll.19.75.c19e13d1","text":"ti gerku si mlatu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ti","mlatu"],"brackets":"(ti mlatu)"}
+{"id":"cll.19.76.c19e13d2","text":"ta blanu zdani si si xekri zdani","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ta","xekri","zdani"],"brackets":"(ta [xekri zdani])"}
+{"id":"cll.19.77.c19e13d3","text":"zo .bab. se cmene zo si si si la bab.","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["zo","bab","se","la","bab"],"seeded":"accept","reason":"CLL 19.13 counts zo and its word as two words, so three si erase zo si. Here, as in the Magic Words proposal, zo and its word are one word: zo quotes the first si, the second si erases zo si, and the third erases cmene. What is left, zo .bab. se la bab., is not a text (words/stream.md, Departures from CLL 19)."}
+{"id":"cll.19.78.c19e13d4","text":"mi tavla fo la .esperanto si si .esperanton.","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["mi","tavla","fo","la","esperanton"],"brackets":"(mi [tavla {fo (la esperanton)}])"}
+{"id":"cll.19.79.c19e13d5","text":"mi cusku zoi fy. gy. .fy. si si si si zo .djan","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo","djan"],"brackets":"(zo djan)"}
+{"id":"cll.19.8.c19e4d7","text":"ro da poi prenu ku'o su'o de zo'u de patfu da","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ro","da","poi","prenu","ku'o","su'o","de","zo'u","de","patfu","da"],"brackets":"([{(ro da [poi prenu ku'o]) (su'o de)} zo'u] [de {patfu da}])"}
+{"id":"cll.19.80.c19e13d6","text":"mi se cmene zo .djan. si si zo .djordj.","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["mi","se","zo","djordj"],"seeded":"accept","reason":"CLL 19.13 counts zo and its word as two words, so two si erase zo .djan. Here, as in the Magic Words proposal, zo and its word are one word: the first si erases zo .djan., and the second erases cmene. What is left, mi se zo .djordj., is not a text (words/stream.md, Departures from CLL 19)."}
+{"id":"cll.19.81.c19e13d7","text":"mi viska le sa .i mi cusku zo .djan.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["i","mi","cusku","zo","djan"],"brackets":"(i [mi {cusku (zo djan)}])"}
+{"id":"cll.19.82.c19e13d8","text":"mi cusku zo .djan.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","cusku","zo","djan"],"brackets":"(mi [cusku {zo djan}])"}
+{"id":"cll.19.83.c19e13d9","text":"mi viska le blanu .zdan. sa le xekri zdani","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","viska","le","xekri","zdani"],"brackets":"(mi [viska {le (xekri zdani)}])"}
+{"id":"cll.19.9.c19e4d8","text":"loi patfu ro da poi prenu ku'o su'o de zo'u de patfu da","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["loi","patfu","ro","da","poi","prenu","ku'o","su'o","de","zo'u","de","patfu","da"],"brackets":"([{(loi patfu) (ro da [poi prenu ku'o]) (su'o de)} zo'u] [de {patfu da}])"}
+{"id":"cll.3.1.c3e3d1","text":".i.ai.i.ai.o","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["i","ai","i","ai","o"],"brackets":"(i i o)"}
+{"id":"cll.3.10.c3e8d2","text":".AMsterdam.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["Amsterdam"],"brackets":"Amsterdam"}
+{"id":"cll.3.11.c3e8d3","text":"klama","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["klama"],"brackets":"klama"}
+{"id":"cll.3.12.c3e8d4","text":"xapcke","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["xapcke"],"brackets":"xapcke"}
+{"id":"cll.3.13.c3e8d5","text":"ponyni'u","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ponyni'u"],"brackets":"ponyni'u"}
+{"id":"cll.3.14.c3e8d6","text":"bongynanba","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["bongynanba"],"brackets":"bongynanba"}
+{"id":"cll.3.15.c3e8d7","text":"bongnanba","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["bongnanba"],"brackets":"bongnanba"}
+{"id":"cll.3.18.c3e9d1","text":"pujenaicajeba","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["pu","je","nai","ca","je","ba"],"brackets":"(pu [je nai] ca je ba)"}
+{"id":"cll.3.18.c3e9d1.2","text":"pu,je,nai,ca,je,ba","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["pu","je","nai","ca","je","ba"],"brackets":"(pu [je nai] ca je ba)"}
+{"id":"cll.3.19.c3e9d2","text":"ninmu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ninmu"],"brackets":"ninmu"}
+{"id":"cll.3.19.c3e9d2.2","text":"nin,mu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ninmu"],"brackets":"ninmu"}
+{"id":"cll.3.2.c3e3d2","text":".i,ai,i,ai,on.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["i,ai,i,ai,on"],"brackets":"i,ai,i,ai,on"}
+{"id":"cll.3.20.c3e9d3","text":"fitpri","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["fitpri"],"brackets":"fitpri"}
+{"id":"cll.3.20.c3e9d3.2","text":"fit,pri","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["fitpri"],"brackets":"fitpri"}
+{"id":"cll.3.21.c3e9d4","text":"sairgoi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["sairgoi"],"brackets":"sairgoi"}
+{"id":"cll.3.21.c3e9d4.2","text":"sair,goi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["sairgoi"],"brackets":"sairgoi"}
+{"id":"cll.3.21.c3e9d4.3","text":"sai,r,goi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["sairgoi"],"brackets":"sairgoi"}
+{"id":"cll.3.22.c3e9d5","text":"klezba","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["klezba"],"brackets":"klezba"}
+{"id":"cll.3.22.c3e9d5.2","text":"klez,ba","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["klezba"],"brackets":"klezba"}
+{"id":"cll.3.22.c3e9d5.3","text":"kle,zba","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["klezba"],"brackets":"klezba"}
+{"id":"cll.3.23.c3e9d6","text":"dikyjvo","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["dikyjvo"],"brackets":"dikyjvo"}
+{"id":"cll.3.23.c3e9d6.2","text":"DI,ky,jvo","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["dIkyjvo"],"brackets":"dIkyjvo"}
+{"id":"cll.3.24.c3e9d7","text":".armstrong.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["armstrong"],"brackets":"armstrong"}
+{"id":"cll.3.24.c3e9d7.2","text":".ARM,strong.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["Armstrong"],"brackets":"Armstrong"}
+{"id":"cll.3.27.c3e9d10","text":".ARMstron.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["Armstron"],"brackets":"Armstron"}
+{"id":"cll.3.28.c3e9d11","text":"bisydja","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["bisydja"],"brackets":"bisydja"}
+{"id":"cll.3.28.c3e9d11.2","text":"BI,sy,dja","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["bIsydja"],"brackets":"bIsydja"}
+{"id":"cll.3.28.c3e9d11.3","text":"BI,syd,ja","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["bIsydja"],"brackets":"bIsydja"}
+{"id":"cll.3.29.c3e9d12","text":"da'udja","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["da'udja"],"brackets":"da'udja"}
+{"id":"cll.3.29.c3e9d12.2","text":"da'UD,ja","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["da'Udja"],"brackets":"da'Udja"}
+{"id":"cll.3.29.c3e9d12.3","text":"da'U,dja","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["da'Udja"],"brackets":"da'Udja"}
+{"id":"cll.3.3.c3e3d3","text":".i,iai,ii,iai,ion.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["i,iai,ii,iai,ion"],"brackets":"i,iai,ii,iai,ion"}
+{"id":"cll.3.30.c3e9d13","text":"e'u bridi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["e'u","bridi"],"brackets":"(e'u bridi)"}
+{"id":"cll.3.30.c3e9d13.2","text":"e'u BRI,di","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["e'u","brIdi"],"brackets":"(e'u brIdi)"}
+{"id":"cll.3.30.c3e9d13.3","text":"E'u BRI,di","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["E'u","brIdi"],"brackets":"(E'u brIdi)"}
+{"id":"cll.3.30.c3e9d13.4","text":"e'U.BRI,di","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["e'U","brIdi"],"brackets":"(e'U brIdi)"}
+{"id":"cll.3.31.c3e9d14","text":"le re nobli prenu","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["le","re","nobli","prenu"],"brackets":"(le [re {nobli prenu}])"}
+{"id":"cll.3.31.c3e9d14.2","text":"le re NObli PREnu","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["le","re","nObli","prEnu"],"brackets":"(le [re {nObli prEnu}])"}
+{"id":"cll.3.32.c3e9d15","text":"le re no bliprenu","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["le","re","no","bliprenu"],"brackets":"(le [{re no} bliprenu])"}
+{"id":"cll.3.32.c3e9d15.2","text":"le re no bliPREnu","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["le","re","no","bliprEnu"],"brackets":"(le [{re no} bliprEnu])"}
+{"id":"cll.3.4.c3e3d4","text":".i'ai'i'ai'on.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["i'ai'i'ai'on"],"brackets":"i'ai'i'ai'on"}
+{"id":"cll.3.5.c3e4d1","text":"brlgan.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["brlgan"],"brackets":"brlgan"}
+{"id":"cll.3.6.c3e5d1","text":"meiin.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["meiin"],"brackets":"meiin"}
+{"id":"cll.3.6.c3e5d1.2","text":"mei,in.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mei,in"],"brackets":"mei,in"}
+{"id":"cll.3.7.c3e5d2","text":"me,iin.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["me,iin"],"brackets":"me,iin"}
+{"id":"cll.3.8.c3e6d1","text":"djeimyz.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["djeimyz"],"brackets":"djeimyz"}
+{"id":"cll.3.9.c3e8d1","text":"vrusi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["vrusi"],"brackets":"vrusi"}
+{"id":"cll.4.1.c4e2d1","text":".iseci'i","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["i","se","ci'i"]}
+{"id":"cll.4.1.c4e2d1.2","text":".i se ci'i","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["i","se","ci'i"]}
+{"id":"cll.4.10.c4e2d10","text":"le re NANmu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["le","re","nAnmu"],"brackets":"(le [re nAnmu])"}
+{"id":"cll.4.11.c4e4d1","text":"creka","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["creka"],"brackets":"creka"}
+{"id":"cll.4.12.c4e4d2","text":"lijda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["lijda"],"brackets":"lijda"}
+{"id":"cll.4.13.c4e4d3","text":"blanu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["blanu"],"brackets":"blanu"}
+{"id":"cll.4.14.c4e4d4","text":"mamta","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mamta"],"brackets":"mamta"}
+{"id":"cll.4.15.c4e4d5","text":"cukta","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["cukta"],"brackets":"cukta"}
+{"id":"cll.4.16.c4e4d6","text":"patfu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["patfu"],"brackets":"patfu"}
+{"id":"cll.4.17.c4e4d7","text":"nanmu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["nanmu"],"brackets":"nanmu"}
+{"id":"cll.4.18.c4e4d8","text":"ninmu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ninmu"],"brackets":"ninmu"}
+{"id":"cll.4.19.c4e5d1","text":"skami pilno","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["skami","pilno"],"brackets":"(skami pilno)"}
+{"id":"cll.4.2.c4e2d2","text":"punaijecanai","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["pu","nai","je","ca","nai"],"brackets":"([pu nai] je [ca nai])"}
+{"id":"cll.4.2.c4e2d2.2","text":"pu nai je ca nai","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["pu","nai","je","ca","nai"],"brackets":"([pu nai] je [ca nai])"}
+{"id":"cll.4.20.c4e5d2","text":"barda bloti","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["barda","bloti"],"brackets":"(barda bloti)"}
+{"id":"cll.4.21.c4e5d3","text":"patfu mamta","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["patfu","mamta"],"brackets":"(patfu mamta)"}
+{"id":"cll.4.22.c4e5d4","text":"mamta patfu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mamta","patfu"],"brackets":"(mamta patfu)"}
+{"id":"cll.4.23.c4e5d5","text":"sampli","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["sampli"],"brackets":"sampli"}
+{"id":"cll.4.24.c4e5d6","text":"bralo'i","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["bralo'i"],"brackets":"bralo'i"}
+{"id":"cll.4.25.c4e5d7","text":"mampa'u","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mampa'u"],"brackets":"mampa'u"}
+{"id":"cll.4.26.c4e5d8","text":"soirsai","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["soirsai"],"brackets":"soirsai"}
+{"id":"cll.4.27.c4e6d1","text":"mamtypatfu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mamtypatfu"],"brackets":"mamtypatfu"}
+{"id":"cll.4.28.c4e6d2","text":"lerfyliste","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["lerfyliste"],"brackets":"lerfyliste"}
+{"id":"cll.4.29.c4e6d3","text":"nancyprali","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["nancyprali"],"brackets":"nancyprali"}
+{"id":"cll.4.3.c4e2d3","text":"ki'e.u'e","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ki'e","u'e"],"brackets":"ki'e"}
+{"id":"cll.4.3.c4e2d3.2","text":"ki'e .u'e","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ki'e","u'e"],"brackets":"ki'e"}
+{"id":"cll.4.30.c4e6d4","text":"prunyplipe","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["prunyplipe"],"brackets":"prunyplipe"}
+{"id":"cll.4.31.c4e6d5","text":"vancysanmi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["vancysanmi"],"brackets":"vancysanmi"}
+{"id":"cll.4.32.c4e6d6","text":"cumfri","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["cumfri"],"brackets":"cumfri"}
+{"id":"cll.4.33.c4e6d7","text":"klezba","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["klezba"],"brackets":"klezba"}
+{"id":"cll.4.34.c4e6d8","text":"kixta'a","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["kixta'a"],"brackets":"kixta'a"}
+{"id":"cll.4.35.c4e6d9","text":"sniju'o","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["sniju'o"],"brackets":"sniju'o"}
+{"id":"cll.4.36.c4e6d10","text":"mampa'u","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mampa'u"],"brackets":"mampa'u"}
+{"id":"cll.4.37.c4e6d11","text":"lerste","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["lerste"],"brackets":"lerste"}
+{"id":"cll.4.38.c4e6d12","text":"bridi zei valsi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["bridi.zei.valsi"],"brackets":"bridi zei valsi"}
+{"id":"cll.4.39.c4e6d13","text":"xy. zei kantu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["xy.zei.kantu"],"brackets":"xy zei kantu"}
+{"id":"cll.4.4.c4e2d4","text":"ki'e'u'e","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["ki'e'u'e"]}
+{"id":"cll.4.40.c4e6d14","text":"kulnr,farsi zei lolgai","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["kulnrfarsi.zei.lolgai"],"brackets":"kulnrfarsi zei lolgai"}
+{"id":"cll.4.41.c4e6d15","text":"na'e zei .a zei na'e zei by. livgyterbilma","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["na'e.zei.a.zei.na'e.zei.by","livgyterbilma"],"brackets":"(na'e zei a zei na'e zei by livgyterbilma)"}
+{"id":"cll.4.42.c4e6d16","text":".cerman. zei jamkarce","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["cerman.zei.jamkarce"],"brackets":"cerman zei jamkarce"}
+{"id":"cll.4.43.c4e6d17","text":"na'e zei .a zei na'e zei by. zei livgyterbilma","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["na'e.zei.a.zei.na'e.zei.by.zei.livgyterbilma"],"brackets":"na'e zei a zei na'e zei by zei livgyterbilma"}
+{"id":"cll.4.44.c4e7d1","text":"me la'o ly. spaghetti .ly.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["me","la'o","ly","spaghetti","ly"],"brackets":"(me [la'o ly spaghetti ly])"}
+{"id":"cll.4.45.c4e7d2","text":"me la spagetis.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["me","la","spagetis"],"brackets":"(me [la spagetis])"}
+{"id":"cll.4.46.c4e7d3","text":"spageti","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["spageti"],"brackets":"spageti"}
+{"id":"cll.4.46.c4e7d3.2","text":"cidj,r,spageti","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["cidjrspageti"],"brackets":"cidjrspageti"}
+{"id":"cll.4.46.c4e7d3.3","text":"dja,r,spageti","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["djarspageti"],"brackets":"djarspageti"}
+{"id":"cll.4.47.c4e7d4","text":"acer","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["acer"],"brackets":"acer"}
+{"id":"cll.4.47.c4e7d4.2","text":"xaceru","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["xa","ce","ru"]}
+{"id":"cll.4.47.c4e7d4.3","text":"tric,r,xaceru","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tricrxaceru"],"brackets":"tricrxaceru"}
+{"id":"cll.4.47.c4e7d4.4","text":"ric,r,xaceru","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ricrxaceru"],"brackets":"ricrxaceru"}
+{"id":"cll.4.48.c4e7d5","text":"bri","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"cll.4.48.c4e7d5.2","text":"cirl,r,bri","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["cirlrbri"],"brackets":"cirlrbri"}
+{"id":"cll.4.49.c4e7d6","text":"kobra","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["kobra"],"brackets":"kobra"}
+{"id":"cll.4.49.c4e7d6.2","text":"sinc,r,kobra","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["sincrkobra"],"brackets":"sincrkobra"}
+{"id":"cll.4.5.c4e2d5","text":"cy.ibu.abu","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["cy","ibu","abu"],"brackets":"(cy ibu abu)"}
+{"id":"cll.4.5.c4e2d5.2","text":"cy. .ibu .abu","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["cy","ibu","abu"],"brackets":"(cy ibu abu)"}
+{"id":"cll.4.50.c4e7d7","text":"kuark","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["kuark"],"brackets":"kuark"}
+{"id":"cll.4.50.c4e7d7.2","text":"kuarka","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["kuarka"],"brackets":"kuarka"}
+{"id":"cll.4.50.c4e7d7.3","text":"sask,r,kuarka","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["saskrkuarka"],"brackets":"saskrkuarka"}
+{"id":"cll.4.51.c4e7d8","text":"djamo","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["djamo"],"brackets":"djamo"}
+{"id":"cll.4.51.c4e7d8.2","text":"lerf,r,djamo","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["lerfrdjamo"],"brackets":"lerfrdjamo"}
+{"id":"cll.4.51.c4e7d8.3","text":"ler,l,djamo","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["lerldjamo"],"brackets":"lerldjamo"}
+{"id":"cll.4.52.c4e7d9","text":"bang,r,blgaria","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["bangrblgaria"],"brackets":"bangrblgaria"}
+{"id":"cll.4.53.c4e7d10","text":"kuln,r,blgaria","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["kulnrblgaria"],"brackets":"kulnrblgaria"}
+{"id":"cll.4.54.c4e7d11","text":"gugd,r,blgaria","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["gugdrblgaria"],"brackets":"gugdrblgaria"}
+{"id":"cll.4.55.c4e7d12","text":"bang,r,kore,a","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["bangrkore,a"],"brackets":"bangrkore,a"}
+{"id":"cll.4.56.c4e7d13","text":"kuln,r,kore,a","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["kulnrkore,a"],"brackets":"kulnrkore,a"}
+{"id":"cll.4.57.c4e8d1","text":"djim.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["djim"],"brackets":"djim"}
+{"id":"cll.4.58.c4e8d2","text":"djein.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["djein"],"brackets":"djein"}
+{"id":"cll.4.59.c4e8d3","text":".arnold.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["arnold"],"brackets":"arnold"}
+{"id":"cll.4.6.c4e2d6","text":".e'o ko ko kurji","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["e'o","ko","ko","kurji"],"brackets":"(e'o [{ko ko} kurji])"}
+{"id":"cll.4.6.c4e2d6.2","text":".E'o ko ko KURji","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["E'o","ko","ko","kUrji"],"brackets":"(E'o [{ko ko} kUrji])"}
+{"id":"cll.4.60.c4e8d4","text":"pit.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["pit"],"brackets":"pit"}
+{"id":"cll.4.61.c4e8d5","text":"katrinas.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["katrinas"],"brackets":"katrinas"}
+{"id":"cll.4.62.c4e8d6","text":"kat,r,in.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["katrin"],"brackets":"katrin"}
+{"id":"cll.4.63.c4e8d7","text":"katis.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["katis"],"brackets":"katis"}
+{"id":"cll.4.64.c4e8d8","text":"keit.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["keit"],"brackets":"keit"}
+{"id":"cll.4.65.c4e8d9","text":"djan. braun.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["djan","braun"],"brackets":"(djan braun)"}
+{"id":"cll.4.66.c4e8d10","text":"djanbraun.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["djanbraun"],"brackets":"djanbraun"}
+{"id":"cll.4.67.c4e8d11","text":"pav.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["pav"],"brackets":"pav"}
+{"id":"cll.4.68.c4e8d12","text":"sol.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["sol"],"brackets":"sol"}
+{"id":"cll.4.69.c4e8d13","text":"ralj.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ralj"],"brackets":"ralj"}
+{"id":"cll.4.7.c4e2d7","text":"le re nanmu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["le","re","nanmu"],"brackets":"(le [re nanmu])"}
+{"id":"cll.4.70.c4e8d14","text":"nol.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["nol"],"brackets":"nol"}
+{"id":"cll.4.71.c4e12d1","text":"zbasai","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zbasai"],"brackets":"zbasai"}
+{"id":"cll.4.72.c4e12d2","text":"nunynau","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["nunynau"],"brackets":"nunynau"}
+{"id":"cll.4.73.c4e12d3","text":"sairzbata'u","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["sairzbata'u"],"brackets":"sairzbata'u"}
+{"id":"cll.4.74.c4e12d4","text":"zbazbasysarji","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zbazbasysarji"],"brackets":"zbazbasysarji"}
+{"id":"cll.4.75.c4e16d1","text":"tci'ile","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tci'ile"],"brackets":"tci'ile"}
+{"id":"cll.4.76.c4e16d2","text":"tci'ile ke canre tutra","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["tci'ile","ke","canre","tutra"],"brackets":"(tci'ile [ke {canre tutra}])"}
+{"id":"cll.4.77.c4e16d3","text":"tci'ilykemcantutra","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"cll.4.8.c4e2d8","text":"le RE. NANmu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["le","rE","nAnmu"],"brackets":"(le [rE nAnmu])"}
+{"id":"cll.4.9.c4e2d9","text":"LE re NANmu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["lE","re","nAnmu"],"brackets":"(lE [re nAnmu])"}
 {"id":"cll.5.1.c5e1d1","text":"do mamta mi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["do","mamta","mi"],"brackets":"(do [mamta mi])"}
 {"id":"cll.5.100.c5e10d3","text":"la .kaspar. cu me le ci nolraitru","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["la","kaspar","cu","me","le","ci","nolraitru"],"brackets":"([la kaspar] cu [me {le (ci nolraitru)}])"}
 {"id":"cll.5.101.c5e10d4","text":"la .melxiior. cu me le ci nolraitru","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["la","melxiior","cu","me","le","ci","nolraitru"],"brackets":"([la melxiior] cu [me {le (ci nolraitru)}])"}
