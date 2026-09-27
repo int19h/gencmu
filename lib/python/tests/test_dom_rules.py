@@ -12,7 +12,7 @@ import unittest
 from typing import Any, Callable
 
 import gencmu
-from gencmu._dialect import DOM_FORMAT, bundled_text, read_document
+from gencmu._dialect import DOM_FORMAT, _unicode_table, bundled_text, read_document
 from gencmu._hash import fnv1a64
 from gencmu._validate import dom_problem
 
@@ -210,6 +210,14 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("an inserted tag anchored on a missing capture", with_bare_alternative(set_emit({"items": [{"insert": "Y"}, {"capture": "x"}]}))),
     ("an emission that leaves an alternative nothing", with_bare_alternative(set_emit({"items": [{"capture": "x"}]}))),
     ("verbatim with ε", lambda dom: (rule(dom).update(verbatim=True), set_emit({"items": []})(dom))),
+    # Spellings (engine §9).
+    ("an empty spelling", set_expr({"capture": "x", "expr": {"spelling": "", "expr": A}})),
+    ("a spelling that is no string", set_expr({"capture": "x", "expr": {"spelling": 7, "expr": A}})),
+    ("a spelling of #", set_expr({"seq": [{"capture": "x", "expr": A}, {"spelling": "a", "expr": {"ref": "#"}}]})),
+    ("a spelling of an optional", set_expr({"seq": [{"capture": "x", "expr": A}, {"spelling": "a", "expr": {"optional": A}}]})),
+    ("a spelling of a spelling", set_expr({"capture": "x", "expr": {"spelling": "a", "expr": {"spelling": "a", "expr": A}}})),
+    ("a spelling of a capture", set_expr({"spelling": "a", "expr": {"capture": "x", "expr": A}})),
+    ("a spelling without its symbol", set_expr({"capture": "x", "expr": {"spelling": "a"}})),
 ]
 
 
@@ -330,6 +338,48 @@ class PrecompiledDomRules(unittest.TestCase):
                 dom = copy.deepcopy(self.dom)
                 change(dom)
                 self.assertIsNone(dom_problem(dom))
+
+    def test_spellings(self) -> None:
+        """A spelling in a precompiled DOM is checked as the reader checks
+        it, with the lowercase mapping that the match uses (engine §9)."""
+        unicode = _unicode_table(bundled_text("unicode.txt") or "")
+
+        def spelled(spelling: Any, expr: Any = A) -> Dom:
+            return {"spelling": spelling, "expr": expr}
+
+        for name, expr, problem in (
+            ("a spelled terminal", {"capture": "x", "expr": spelled("a")}, None),
+            ("a spelled reference", {"seq": [{"capture": "x", "expr": A}, spelled("la", {"ref": "text"})]}, None),
+            ("a repeated spelled symbol", {"seq": [{"capture": "x", "expr": A}, {"repeat": spelled("a"), "min": 1}]}, None),
+            ("an empty spelling", {"capture": "x", "expr": spelled("")}, "a spelling is empty"),
+            ("a spelling that is no string", {"capture": "x", "expr": spelled(7)}, "a malformed spelling"),
+            ("a spelling in capitals", {"capture": "x", "expr": spelled("La")}, "the spelling La is not in lower case"),
+            ("a Cyrillic capital", {"capture": "x", "expr": spelled("Ла")}, "the spelling Ла is not in lower case"),
+            ("a spelling of #", {"seq": [{"capture": "x", "expr": A}, spelled("a", {"ref": "#"})]}, "a spelling follows only a reference, a string or a phoneme tag, not #"),
+            ("a spelling of a spelling", {"capture": "x", "expr": spelled("a", spelled("a"))}, "a spelling follows only a reference, a string or a phoneme tag, not #"),
+        ):
+            with self.subTest(what=name):
+                dom = copy.deepcopy(self.dom)
+                set_expr(expr)(dom)
+                self.assertEqual(dom_problem(dom, unicode), problem)
+        # Without a table, the case is not checked.
+        dom = copy.deepcopy(self.dom)
+        set_expr({"capture": "x", "expr": spelled("La")})(dom)
+        self.assertIsNone(dom_problem(dom))
+        # An entry with a spelling in capitals is a miss: the document is read afresh.
+        self.assertEqual(self.parse(dom), self.parse(None))
+        # A spelled symbol is a compound node (engine §9), below a capture too.
+        for depth, allowed in ((255, True), (256, False)):
+            dom = copy.deepcopy(self.dom)
+            deep: Any = spelled("a")
+            for _ in range(depth):
+                deep = {"optional": deep}
+            set_expr(deep)(dom)
+            rule(dom)["conditions"] = []
+            rule(dom).pop("tags", None)
+            rule(dom).pop("emit", None)
+            alt(dom).pop("tags", None)
+            self.assertEqual(dom_problem(dom, unicode) is None, allowed, dom_problem(dom, unicode))
 
     def test_four_captures_are_allowed(self) -> None:
         dom = copy.deepcopy(self.dom)

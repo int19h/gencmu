@@ -63,7 +63,7 @@ _lock = threading.Lock()
 # read once is found again at no cost.
 _unicode_tables: dict[str, UnicodeTable] = {}
 _readers: dict[tuple[str, str], NotationReader] = {}
-_compiled_indexes: dict[tuple[str, str], dict[str, Dom]] = {}
+_compiled_indexes: dict[tuple[str, str, str], dict[str, Dom]] = {}
 _dom_cache: dict[tuple[str, str, int], Dom] = {}
 
 
@@ -114,7 +114,7 @@ class NotationReader:
             for document in documents:
                 if not isinstance(document, dict) or not isinstance(document.get("path"), str):
                     raise GencmuError("a document of the bootstrap has a path and a DOM", document=where)
-                problem = dom_problem(document.get("dom"))
+                problem = dom_problem(document.get("dom"), unicode)
                 if problem is not None:
                     raise GencmuError(f"the bootstrap's DOM of {document['path']} is malformed: {problem}", document=where)
                 pairs.append((document["path"], document["dom"]))
@@ -150,7 +150,7 @@ class NotationReader:
                 tokens = outcome.output
         assert tree is not None
         try:
-            dom = DomBuilder(tokens, grammar_text, path).document_dom(tree)
+            dom = DomBuilder(tokens, grammar_text, path, self.unicode).document_dom(tree)
         except GencmuError:
             raise
         except (LookupError, TypeError, ValueError, AttributeError, AssertionError) as error:
@@ -184,22 +184,25 @@ def _reader(bootstrap: str, unicode_text: str) -> NotationReader:
     return reader
 
 
-def _compiled_index(compiled: str | None, bootstrap_hash: str) -> dict[str, Dom]:
-    """The precompiled DOMs usable with this bootstrap, by text hash."""
+def _compiled_index(compiled: str | None, bootstrap_hash: str, unicode_text: str) -> dict[str, Dom]:
+    """The precompiled DOMs usable with this bootstrap, by text hash. Their
+    spellings are checked with the lowercase mapping that the match uses
+    (engine §9)."""
     if not compiled:
         return {}
-    key = (compiled, bootstrap_hash)
+    key = (compiled, bootstrap_hash, unicode_text)
     with _lock:
         found = _compiled_indexes.get(key)
     if found is not None:
         return found
     index: dict[str, Dom] = {}
+    unicode = _unicode_table(unicode_text)
     try:
         data = json.loads(compiled)
         if data.get("format") == DOM_FORMAT and data.get("bootstrap") == bootstrap_hash:
             for entry in data.get("documents", {}).values():
                 # A malformed entry is a miss: its document is read afresh.
-                if isinstance(entry, dict) and isinstance(entry.get("hash"), str) and dom_problem(entry.get("dom")) is None:
+                if isinstance(entry, dict) and isinstance(entry.get("hash"), str) and dom_problem(entry.get("dom"), unicode) is None:
                     index[entry["hash"]] = entry["dom"]
     except (ValueError, AttributeError, KeyError, TypeError, RecursionError):
         # An unreadable compiled.json, one nested deeper than json.loads can
@@ -228,7 +231,7 @@ class _Loader:
         self.use_cache = use_cache
         self.unicode = _unicode_table(found.unicode)
         self.reader = _reader(found.bootstrap, found.unicode)
-        self.compiled = _compiled_index(found.compiled, self.reader.hash) if use_cache else {}
+        self.compiled = _compiled_index(found.compiled, self.reader.hash, found.unicode) if use_cache else {}
 
     def text(self, path: str) -> str:
         text = self.lookup(path)

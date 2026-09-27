@@ -9,7 +9,7 @@ from typing import Any, Callable
 
 from ._clauses import WHOLE
 from ._errors import _GrammarFault
-from ._grammar import Lowered, Production
+from ._grammar import Lowered, Production, written_symbol
 from ._model import Range, Tags, Token
 from ._tags import PAUSE, TagTable, intersection, union
 from ._trampoline import Walk, run
@@ -123,10 +123,30 @@ class StageContext:
     count: Callable[[Forest, list[int]], list[int]] | None = None
     # Where each run of the tokens lies in the text (engine §1).
     sources: Sources = field(init=False)
+    # Each token's phonemes lowercased, for the spellings of symbols,
+    # computed when a spelling first looks at the token (engine §4).
+    sounds: list[str | None] = field(init=False)
 
     def __post_init__(self) -> None:
         self.token_tags = [self.tagtab.intern(token.tags) for token in self.tokens]
         self.sources = Sources(self.tokens)
+        self.sounds = [None] * len(self.tokens)
+
+    def spelling_matches(self, spelling: str, start: int, end: int) -> bool:
+        """Whether tokens start..end sound like a spelling: their phonemes,
+        joined and lowercased, are exactly it (engine §4). A token with no
+        phonemes adds nothing, and a spelling is never empty, so neither
+        such a token alone nor an empty span matches."""
+        sounds = self.sounds
+        offset = 0
+        for index in range(start, end):
+            sound = sounds[index]
+            if sound is None:
+                sound = sounds[index] = self.unicode.lowercase(self.tokens[index].phonemes or "")
+            if not spelling.startswith(sound, offset):
+                return False
+            offset += len(sound)
+        return offset == len(spelling)
 
     def span_text(self, start: int, end: int) -> str:
         if start >= end:
@@ -483,6 +503,13 @@ class Parser:
         def advance(item: int, part: tuple[int, int, int], at: int, edge: tuple[Any, ...]) -> None:
             production = productions[prod[item]]
             position = dot[item]
+            # A spelled symbol's span must sound like its spelling, which is
+            # checked before any condition the advance makes ready (engine §4).
+            spellings = production.spellings
+            if spellings is not None:
+                spelling = spellings[position]
+                if spelling is not None and not context.spelling_matches(spelling, base + part[0], base + part[1]):
+                    return
             captured = caps[item]
             if production.slots[position] >= 0:
                 captured = captured + (part,)
@@ -593,10 +620,15 @@ class Parser:
                 if terminal in here:
                     continue
                 for number in numbers:
-                    if allowed(productions[number], furthest):
-                        expected.setdefault(terminal, set()).add(productions[number].rule_name)
+                    production = productions[number]
+                    if allowed(production, furthest):
+                        written = written_symbol(terminal, production.spellings[0] if production.spellings else None)
+                        expected.setdefault(written, set()).add(production.rule_name)
         for terminal, waiters in scanning[furthest].items():
-            expected.setdefault(terminal, set()).update(productions[prod[waiter]].rule_name for waiter in waiters)
+            for waiter in waiters:
+                production = productions[prod[waiter]]
+                spelling = production.spellings[dot[waiter]] if production.spellings else None
+                expected.setdefault(written_symbol(terminal, spelling), set()).add(production.rule_name)
         # The forest's tokens are those the parse read, before its furthest
         # set.
         return Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected)

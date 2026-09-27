@@ -8,7 +8,7 @@ from typing import Any, Callable, Union
 
 from ._earley import Evaluator, Forest, Parser, Sources, StageContext
 from ._errors import _GrammarFault
-from ._grammar import Lowered, Production
+from ._grammar import Lowered, Production, written_symbol
 from ._markdown import line_column
 from ._maximal import Maximal
 from ._model import Action, Expected, Node, ParseError, ParseWarning, Range, Tags, Token
@@ -118,7 +118,15 @@ class Tree:
                     )
                 elif child.production.helper:
                     if child.production.elided is not None and child.start == child.end:
-                        parent.children.append(Node("elided", (child.start, child.start), (0, 0), terminal=child.production.elided))
+                        parent.children.append(
+                            Node(
+                                "elided",
+                                (child.start, child.start),
+                                (0, 0),
+                                terminal=child.production.elided,
+                                spelling=child.production.elided_spelling,
+                            )
+                        )
                     else:
                         work.append(("kids", (child, False)))
                 else:
@@ -193,10 +201,12 @@ def forbidden_terminator(forest: Forest, ranking: Ranking | None, maximal: Maxim
             production = parent.production
             own = index == 1 and not production.terminal[0] and production.rhs[0] == production.lhs
             before = parent.children[index - 1]
-            if not own and isinstance(before, DNode) and maximal.forbids(before.item):
+            spelling = production.spellings[index - 1] if production.spellings else None
+            if not own and isinstance(before, DNode) and maximal.forbids(before.item, spelling):
                 terminal = node.production.elided
                 assert terminal is not None
-                return (node.start, [Expected(terminal, [node.production.rule_name])])
+                written = written_symbol(terminal, node.production.elided_spelling)
+                return (node.start, [Expected(written, [node.production.rule_name])])
         children = node.children
         for position in range(len(children) - 1, -1, -1):
             stack.append((children[position], node, position))
@@ -480,7 +490,7 @@ class StageRunner:
         context = self.context(lowered, self.tokens)
         start = lowered.rule_ids["text"]
         forest = Parser(context).parse(start)
-        maximal = Maximal(forest) if lowered.grammar.maximal else None
+        maximal = Maximal(forest, context) if lowered.grammar.maximal else None
         ranking = Ranker(forest, lowered.lean, maximal).rank(forest.roots) if forest.roots else None
         if ranking is None:
             forbidden = None
@@ -537,7 +547,10 @@ class StageRunner:
         for index in range(len(tokens) + 1):
             while pending < len(inserted) and inserted[pending].span[0] == index:
                 node = inserted[pending]
-                new_tokens.append(Token("", {node.terminal or "": True}, (index, index), node.source))
+                # A restored spelled terminator sounds like its spelling, so
+                # that it matches its own terminator in the stricter grammar
+                # (engine §7).
+                new_tokens.append(Token("", {node.terminal or "": True}, (index, index), node.source, node.spelling))
                 synthetic.append(True)
                 pending += 1
             if index < len(tokens):

@@ -10,19 +10,28 @@ same walk bounds the nesting of a document that was read (engine §9).
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import Any, Protocol
 
 from ._clauses import definition_problem
 
-FORMAT = 7
+
+class Lowercase(Protocol):
+    """What spellings are checked against: the lowercase mapping of the
+    library's Unicode table (engine §10)."""
+
+    def lowercase(self, text: str) -> str: ...
+
+
+FORMAT = 8
 """The version of the DOM's shape (docs/output.md)."""
 
 MAX_DEPTH = 256
 """No node of an expression, a term or a condition may lie below more than
 this many compound nodes of it (engine §9). A node's depth here is the
 number of compound nodes above it, since only compound nodes have children:
-optional, repeat, and, choice, seq and capture; union, intersection, if and
-call; any, all, not, if, matches, begins, initial and a comparison."""
+optional, repeat, and, choice, seq, capture and spelling; union,
+intersection, if and call; any, all, not, if, matches, begins, initial and a
+comparison."""
 
 TOO_DEEP = "nested too deeply"
 
@@ -122,9 +131,29 @@ def term_reads_own_tags(term: Any) -> bool:
     return False
 
 
-def dom_problem(dom: Any) -> str | None:
+def spelling_problem(spelling: Any, expr: Any, unicode: Lowercase | None) -> str | None:
+    """What is wrong with a spelling of a symbol (engine §9), or None: an
+    empty spelling, one that the lowercase mapping would change, since the
+    match ignores stress, or one of anything but a reference, a string or a
+    phoneme tag, ``#`` included. Without a table, the lowercase mapping is
+    not checked."""
+    if not isinstance(spelling, str):
+        return "a malformed spelling"
+    if spelling == "":
+        return "a spelling is empty"
+    if not isinstance(expr, dict) or not (
+        (isinstance(expr.get("ref"), str) and expr["ref"] != "#") or isinstance(expr.get("terminal"), str)
+    ):
+        return "a spelling follows only a reference, a string or a phoneme tag, not #"
+    if unicode is not None and unicode.lowercase(spelling) != spelling:
+        return f"the spelling {spelling} is not in lower case"
+    return None
+
+
+def dom_problem(dom: Any, unicode: Lowercase | None = None) -> str | None:
     """Why a value is not a grammar DOM the reader could have written, or
-    None when it is one."""
+    None when it is one. ``unicode`` is the lowercase mapping that spellings
+    are checked against."""
     if (
         not isinstance(dom, dict)
         or dom.get("format") != FORMAT
@@ -192,7 +221,7 @@ def dom_problem(dom: Any) -> str | None:
             pending.append(("top", expr, 0, False))
             if "tags" in alternative:
                 pending.append(("term", alternative["tags"], 0, True))
-    problem = _walk(pending)
+    problem = _walk(pending, unicode)
     if problem is not None:
         return problem
     # A definition is checked as a whole (engine §9), once its clauses are
@@ -212,7 +241,7 @@ def dom_problem(dom: Any) -> str | None:
     return None
 
 
-def _walk(pending: list[tuple[str, Any, int, bool]]) -> str | None:
+def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase | None) -> str | None:
     """Check the nodes of expressions, emissions, conditions and terms, each
     entry a node, its kind, its depth, and whether it lies in a rule's or an
     alternative's tag term, which may not read the tags it defines."""
@@ -250,9 +279,19 @@ def _walk(pending: list[tuple[str, Any, int, bool]]) -> str | None:
                     not isinstance(value["capture"], str)
                     or value["capture"] == _WHOLE
                     or not isinstance(inner, dict)
-                    or not (isinstance(inner.get("ref"), str) or isinstance(inner.get("terminal"), str))
+                    or not (isinstance(inner.get("ref"), str) or isinstance(inner.get("terminal"), str) or "spelling" in inner)
                 ):
                     return "a malformed capture"
+                # A capture is a compound node; a spelled symbol below it is
+                # checked as any expression is.
+                if "spelling" in inner:
+                    pending.append(("expr", inner, below, False))
+            elif "spelling" in value:
+                # A compound node (engine §9) over one symbol.
+                problem = spelling_problem(value["spelling"], value.get("expr"), unicode)
+                if problem is not None:
+                    return problem
+                pending.append(("expr", value["expr"], below, False))
             elif not (
                 isinstance(value.get("ref"), str)
                 or isinstance(value.get("terminal"), str)

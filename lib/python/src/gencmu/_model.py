@@ -40,7 +40,9 @@ class Node:
     ``kind`` is ``"rule"``, ``"token"`` or ``"elided"``. A rule node has
     ``rule``, ``tags`` and ``children``; a token node has ``terminal`` and
     ``token``, the index of the stage-input token it read; an elided node
-    has ``terminal``, the terminator it stands for.
+    has ``terminal``, the terminator it stands for, and ``spelling``, the
+    terminator's spelling if it is spelled, which elision-only's restored
+    token sounds like (engine §7) and the output does not show.
     """
 
     kind: str
@@ -51,6 +53,7 @@ class Node:
     token: int | None = None
     tags: Tags | None = None
     children: list[Node] = field(default_factory=list)
+    spelling: str | None = None
 
 
 @dataclass
