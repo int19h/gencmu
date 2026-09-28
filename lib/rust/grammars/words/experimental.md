@@ -1,10 +1,12 @@
 # Experimental word forms
 
-This document is part of the forms stage in the [experimental](../dialects/experimental.md) dialect. It is stitched in after [bpfk.md](bpfk.md). camxes-exp, the experimental PEG grammar, reads the word forms of the definition effort with a few changes. This document makes the same changes to the translation in [bpfk.md](bpfk.md). Each rule here has the name of the camxes-exp rule that it translates, and its comment gives that rule, as in bpfk.md. The [Zantufa](../dialects/zantufa.md) dialect makes only the first change, in [zantufa.md](zantufa.md). The notation is explained in [the notation document](../../docs/notation.md).
+This document is part of the forms stage in the [experimental](../dialects/experimental.md) dialect. The forms stage is the second grammar in the chain. It divides the phonemes of the text into words. The loader stitches this document into the stage after [bpfk.md](bpfk.md). camxes-exp, the experimental PEG (parsing expression grammar), reads the word forms that the definition effort of the Logical Language Group approved, with a few changes. This document makes the same changes to the translation in [bpfk.md](bpfk.md).
+
+Each rule here has the name of the camxes-exp rule that it translates, and its comment gives that rule, as in bpfk.md. The [Zantufa](../dialects/zantufa.md) dialect makes only the first change, in [zantufa.md](zantufa.md). [The notation document](../../docs/notation.md) explains the notation.
 
 ## The pair mz
 
-CLL 3.6 forbids the consonant pair `mz`, and so does the approved grammar: its letter rule for `m` refuses a following `z`. The letter rule for `m` in camxes-exp refuses only another `m` among the consonants. So camxes-exp accepts `mz` wherever a permissible pair can stand. Examples are the gismu `kamzi`, the lujvo `bamzda` and the name `.djeimz.`.
+CLL 3.6 forbids the consonant pair `mz`. The approved grammar, the word-form grammar that bpfk.md translates, forbids it too: its letter rule for `m` refuses a following `z`. The letter rule for `m` in camxes-exp refuses only another `m` among the consonants. So camxes-exp accepts `mz` wherever a permissible pair can stand. Examples are the gismu `kamzi`, the lujvo `bamzda` and the name `.djeimz.`.
 
 ```jbogenbau
 %redefine-rule m              (* m <- comma* [mM] !h !glide !m *)
@@ -38,7 +40,7 @@ camxes-exp replaces the first kind with `hy_rafsi`, which the approved grammar u
   long-rafsi unstressed-vowel
 ```
 
-A `hy_rafsi` could also begin a brivla with a CCV rafsi, `'y` and the next rafsi. camxes-exp refuses that start, which it calls `slihykru`. So camxes-exp reads `kerlybla'ykla` as one word, but not `bla'ykla`, which the approved grammar rejects too. The rule is used only in that test. Its first choice needs no order, since a CCV rafsi has an unstressed vowel and a stressed CCV rafsi a stressed one.
+By itself, a `hy_rafsi` can also begin a brivla with a CCV rafsi, `'y` and the next rafsi. camxes-exp refuses that start, which it calls `slihykru`. So camxes-exp reads `kerlybla'ykla` as one word, but not `bla'ykla`, which the approved grammar rejects too. Only that test uses the rule. Its first choice needs no order, because a CCV rafsi has an unstressed vowel and a stressed CCV rafsi a stressed one.
 
 ```jbogenbau
 %redefine-rule brivla         (* brivla <- !cmavo !slihykru initial_rafsi* brivla_core *)
@@ -51,7 +53,7 @@ A `hy_rafsi` could also begin a brivla with a CCV rafsi, `'y` and the next rafsi
   (ccv-rafsi | stressed-ccv-rafsi) h y onset
 ```
 
-In camxes-exp, the onset after the head of a borrowing's rafsi may be an apostrophe. So `kerlyfa'u'yiismu` is one word: the rafsi `kerly` and `fa'u'y`, and the borrowing `iismu`. The approved grammar rejects it.
+In camxes-exp, the onset after the head of the rafsi of a borrowing can be an apostrophe. So `kerlyfa'u'yiismu` is one word: the rafsi `kerly` and `fa'u'y`, and the borrowing `iismu`. The approved grammar rejects it.
 
 ```jbogenbau
 %redefine-rule fuhivla-rafsi  (* fuhivla_rafsi <- &unstressed_syllable fuhivla_head onset y h? *)
@@ -63,7 +65,7 @@ In camxes-exp, the onset after the head of a borrowing's rafsi may be an apostro
   fuhivla-head stressed-syllable consonantal-syllables onset y
 ```
 
-A short rafsi without a y-hyphen may not stand where an extended rafsi or a borrowing begins, nor just before one, in the approved grammar. In camxes-exp, it may not stand where a borrowing or the rafsi of a borrowing begins, nor just before one. After this redefinition, nothing reads the rule `any-extended-rafsi` of bpfk.md.
+In the approved grammar, a short rafsi without a y-hyphen cannot stand where an extended rafsi or a borrowing begins, or directly before one. In camxes-exp, it cannot stand where a borrowing or the rafsi of a borrowing begins, or directly before one. After this redefinition, nothing reads the rule `any-extended-rafsi` of bpfk.md.
 
 ```jbogenbau
 %redefine-rule initial-rafsi  (* initial_rafsi <- extended_rafsi / y_rafsi / !any_fuhivla_rafsi y_less_rafsi !any_fuhivla_rafsi *)
@@ -83,4 +85,6 @@ A short rafsi without a y-hyphen may not stand where an extended rafsi or a borr
 
 ## Glides
 
-camxes-exp also adds `!glide` to its rule `glide <- (i / u) &nucleus`. That changes no reading, so this document leaves the rule as [bpfk.md](bpfk.md) has it. An `i` or `u` is a glide only where a nucleus follows it. It is a vowel, and so a nucleus, only where no nucleus follows it. So the nucleus after a glide never begins with another glide. camxes-exp gives the same parse trees with the lookahead and without it. That holds on every string of up to six letters from `i`, `u`, `a`, `e`, `o`, `y`, `'`, `k`, `s` and a period.
+camxes-exp also adds `!glide` to its rule `glide <- (i / u) &nucleus`. That changes no reading, so this document leaves the rule as [bpfk.md](bpfk.md) has it. An `i` or `u` is a glide only where a nucleus follows it. It is a vowel, and so a nucleus, only where no nucleus follows it. So the nucleus after a glide never begins with another glide.
+
+camxes-exp gives the same parse trees with the lookahead and without it. That holds on every string of up to six letters from `i`, `u`, `a`, `e`, `o`, `y`, `'`, `k`, `s` and a period.

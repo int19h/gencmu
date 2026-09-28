@@ -1,8 +1,18 @@
 # zbalermorna
 
-This document adds the zbalermorna script to the phoneme stage of the dialects of the [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). Lojbanists made the script after CLL. CLL 3.12 describes an orthography in Tolkien's Tengwar, which is a different script, so the [CLL](../dialects/cll-ebnf.md) dialect does not read this one. The script is read as the code points of the private-use block its fonts assign it. The document adds alternatives to the rules of [latin-strict.md](latin-strict.md) and [latin.md](latin.md) with `%extend-rule` and defines no frame of its own. The notation is explained in [the notation document](../../docs/notation.md).
+This document adds the zbalermorna script to the phoneme stage of the dialects of the [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). Lojbanists made the script after CLL (*The Complete Lojban Language*). CLL 3.12 describes an orthography in Tolkien's Tengwar, which is a different script, so the [CLL](../dialects/cll-ebnf.md) dialect does not read this one. The stage reads the script as the code points of the private-use block that its fonts assign it.
 
-Each zbalermorna symbol is a radical, a consonant, with a diacritic above it for the vowel that follows; a vowel with no consonant before it stands on the radical for the period, which the script uses as a null onset, and a word-initial vowel is written on it likewise. The script has a full-vowel form used in names and borrowings, four diphthong diacritics, a stress mark placed after the vowel, an "attitudinal shorthand" that stands for a vowel and the apostrophe after it, and glide radicals for `i` and `u` before a vowel. The code points are those of the font's private-use block; each is written here as an escape so that the rule can be read without the font.
+The phoneme stage is the first grammar in the chain. The document adds alternatives to the rules of [latin-strict.md](latin-strict.md) and [latin.md](latin.md) with `%extend-rule`. It defines no frame of its own. It uses the shared text, pause and run rules. [The notation document](../../docs/notation.md) explains the notation.
+
+Each zbalermorna symbol is a radical, a consonant, with a diacritic above it for the vowel that follows. A vowel with no consonant before it stands on the radical for the period, which the script uses as a null onset. The script writes a word-initial vowel on that radical too. The script also has these forms:
+
+- A full-vowel form, used in names and borrowings
+- Four diphthong diacritics
+- A stress mark, placed after the vowel
+- An "attitudinal shorthand" that stands for a vowel and the apostrophe after it
+- Glide radicals for `i` and `u` before a vowel
+
+The code points are those of the private-use block of the font. This document writes each code point as an escape, so that a reader can read the rule without the font.
 
 The first rules below read the consonant radicals. U+ED89 is the radical for the period, and U+ED8A is the apostrophe. U+ED9A is the comma. U+ED8C, U+ED99 and U+ED9B are marks that jbotci, another Lojban parser, reads as nothing. This document reads them as a comma.
 
@@ -42,7 +52,7 @@ The first rules below read the consonant radicals. U+ED89 is the radical for the
 
 A vowel diacritic and its full-vowel form are the same phoneme. The stress mark U+ED98 after either, or after a diphthong diacritic, makes it stressed, and a repeated mark is one mark. The glide radicals U+EDAA and U+EDAB are `i` and `u` before a vowel. A diphthong diacritic is two phonemes and stands where a vowel stands.
 
-The shorthand U+ED8B followed by a vowel, plain or stressed, is that vowel and an apostrophe. The rule emits the apostrophe as a token with no span of its own. The shorthand stands where a non-vowel stands, since the apostrophe closes the vowel group. It does not stand before a diphthong.
+The shorthand U+ED8B followed by a vowel, plain or stressed, is that vowel and an apostrophe. The rule emits the apostrophe as a token with no span of its own. A token is one unit that a stage reads or emits. The shorthand stands where a non-vowel stands, because the apostrophe closes the vowel group. It does not stand before a diphthong.
 
 A stress mark or a shorthand is a character of the script, so it is never punctuation. But one that no letter takes makes its run foreign. So `foreign-char` takes each of them, and a run that the script reads whole is still no foreign run.
 

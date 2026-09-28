@@ -1,10 +1,14 @@
 # The experimental lexicon
 
-This document is the lexicon of the forms stage in the [experimental](../dialects/experimental.md) dialect. It gives each cmavo the selma'o that camxes-exp, the experimental PEG grammar, gives it: the cmavo of CLL and the experimental cmavo that camxes-exp reads. `tools/peg-lexicon.js` writes the rules below from the selma'o lists of `camxes-exp.peg` in ilmentufa, as of commit 7cf6cab. A change to the lexicon is made by running it again.
+This document is the lexicon of the forms stage in the [experimental](../dialects/experimental.md) dialect. A lexicon is a list of words, each with its classes. The forms stage is the second grammar in the chain. It divides the phonemes of the text into words.
 
-Each alternative spells one word in the phonemes of the word grammar, as [lexicon-cll.md](lexicon-cll.md) explains, and carries the word's selma'o. camxes-exp gives each word one selma'o. It gives three CLL words another class than CLL does: `la`, `lai` and `la'i` are LE, since camxes-exp reads a name as a selbri. An attitudinal, a CAI word, a NAI word, `y`, `da'o`, `fu'e` and `fu'o` also carry the tag `indicator`, which the indicator stage reads. camxes-exp reads a bare NAI as an indicator.
+The lexicon gives each cmavo the selma'o that camxes-exp, the experimental PEG (parsing expression grammar), gives it. It holds the cmavo of CLL (*The Complete Lojban Language*) and the experimental cmavo that camxes-exp reads. `tools/peg-lexicon.js` writes the rules below from the selma'o lists of `camxes-exp.peg` in ilmentufa, as of commit 7cf6cab. A maintainer changes the lexicon by running the tool again.
 
-The notation is explained in [the notation document](../../docs/notation.md).
+Each alternative spells one word in the phonemes of the word grammar, as [lexicon-cll.md](lexicon-cll.md) explains. It also carries the selma'o of the word. A tag is a label on a word. camxes-exp gives each word one selma'o. It gives three CLL words another class than CLL does: `la`, `lai` and `la'i` are LE, because camxes-exp reads a name as a selbri.
+
+Some words also carry the tag `indicator`, which the indicator stage reads. They are an attitudinal, a CAI word, a NAI word, `y`, `da'o`, `fu'e` and `fu'o`. camxes-exp reads a bare NAI as an indicator.
+
+[The notation document](../../docs/notation.md) explains the notation.
 
 ```jbogenbau
 %rule lexicon

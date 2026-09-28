@@ -1,21 +1,27 @@
 # The Latin orthography of CLL
 
-This document opens the phoneme stage, the first stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The stage reads the characters of a text and hands the forms stage the phonemes they stand for. This document reads the Latin orthography of CLL chapter 3 and no more. The CLL dialect uses it as it is. The other dialects add the conventions of [latin.md](latin.md), such as digits and accents, and the scripts of [cyrillic.md](cyrillic.md) and [zbalermorna.md](zbalermorna.md). The notation is explained in [the notation document](../../docs/notation.md).
+This document opens the phoneme stage. A stage is one grammar in a chain, and each stage reads what the stage before it emits. The phoneme stage is the first stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). CLL is *The Complete Lojban Language*, the reference grammar of Lojban. The stage reads the characters of a text and hands the forms stage the phonemes they stand for.
 
-The terminals of the stage are characters, each written in straight quotes. Every character token also carries its class, `alpha`, `digit`, `space`, `mark` or `other`. The stage emits one token per phoneme, and each token carries that phoneme's tag. So the later stages never see a character, and they read every script alike.
+This document reads the Latin orthography of CLL chapter 3 and no more. The CLL dialect uses it as it is. The other dialects add the conventions of [latin.md](latin.md), such as digits and accents, and the scripts of [cyrillic.md](cyrillic.md) and [zbalermorna.md](zbalermorna.md). [The notation document](../../docs/notation.md) explains the notation.
+
+The terminals of the stage are characters, each written in straight quotes. A token is one unit that a stage reads or emits. A terminal matches one input token by tag. Every character token also carries its class, `alpha`, `digit`, `space`, `mark` or `other`.
+
+The stage emits one token per phoneme, and each token carries the tag of that phoneme. A tag is a label on a token. So the later stages never see a character, and they read every script alike.
 
 The phonemes are the letters of CLL chapter 3, each written as a phoneme tag:
 
-- the consonants `/b/`, `/c/`, `/d/` and so on through `/z/`
-- the vowels `/a/ /e/ /i/ /o/ /u/ /y/`, and the stressed vowels `/A/ /E/ /I/ /O/ /U/ /Y/`
-- the apostrophe `/'/`
-- the syllable break `/,/`, which a comma between two vowels writes.
+- The consonants `/b/`, `/c/`, `/d/` and so on through `/z/`
+- The vowels `/a/ /e/ /i/ /o/ /u/ /y/`, and the stressed vowels `/A/ /E/ /I/ /O/ /U/ /Y/`
+- The apostrophe `/'/`
+- The syllable break `/,/`, which a comma between two vowels writes
 
-A stressed vowel is a phoneme of its own, so stress is a position in the word grammar and not a mark it tests. Two tags stand for what is not a letter. `PAUSE` is a pause of any length, and it also carries the phoneme tag `/./`, whose phoneme is `.`. `FOREIGN` is a run of text that is not Lojban at all. The forms stage passes it on, and the words stage admits it only inside a foreign quote.
+A stressed vowel is a phoneme of its own. So stress is a position in the word grammar and not a mark that the word grammar tests. Two tags stand for what is not a letter. `PAUSE` is a pause of any length, and it also carries the phoneme tag `/./`, whose phoneme is `.`. `FOREIGN` is a run of text that is not Lojban at all. The forms stage passes it on, and the words stage admits it only inside a foreign quote.
 
 ## The text and its runs
 
-The text is pauses and runs. CLL 3.1 writes a pause as a period. This grammar also reads whitespace as a pause, since a text writes a space between two words. That is a rule of gencmu, not of CLL, which never says what a space is. Its cost is small: a space always ends a word, and no word of CLL has a space inside it. A run is what stands between two pauses. It is an ordinary run of letters, or a foreign run. The stage is greedy: where two parses differ, it takes the one that reads the next character over the one that closes a constituent. So a run is never cut short where a rule would let it continue.
+The text is pauses and runs. CLL 3.1 writes a pause as a period. This grammar also reads whitespace as a pause, because a text writes a space between two words. That is a rule of gencmu, not of CLL, which never says what a space is. Its cost is small: a space always ends a word, and no word of CLL has a space inside it.
+
+A run is what stands between two pauses. It is an ordinary run of letters, or a foreign run. The stage is greedy. Where two parses differ, the stage takes the one that reads the next character over the one that closes a constituent. A constituent is a part of the text that one rule matched. So the stage never cuts a run short where a rule lets it continue.
 
 ```jbogenbau
 %ambiguity-resolution greedy
@@ -35,7 +41,9 @@ The text is pauses and runs. CLL 3.1 writes a pause as a period. This grammar al
   ordinary-run | foreign-run
 ```
 
-A pause is one token. Its core is a run of whitespace characters and periods, with any commas inside it. A comma next to the core is part of the pause, but it belongs to no token. So `mi , klama` has one pause between its two words, and a quote body next to such a comma takes it in. CLL 3.3 says that a comma "cannot be pronounced as a pause", so a comma alone between two words is no pause. A comma at the start or the end of the text belongs to no token. A text of nothing but commas is an empty text.
+A pause is one token. Its core is a run of whitespace characters and periods, with any commas inside it. A comma next to the core is part of the pause, but it belongs to no token. So `mi , klama` has one pause between its two words, and a quote body next to such a comma takes it in.
+
+CLL 3.3 says that a comma "cannot be pronounced as a pause", so a comma alone between two words is no pause. A comma at the start or the end of the text belongs to no token. A text of nothing but commas is an empty text.
 
 ```jbogenbau
 %rule pause
@@ -62,7 +70,9 @@ A pause is one token. Its core is a run of whitespace characters and periods, wi
   comma | commas comma
 ```
 
-An ordinary run is letters. A run of adjacent vowel letters is one vowel group, and a group carries the tags of its last vowel. In the Latin orthography a group is simply its vowels, one phoneme each. A script that writes no apostrophe tags its full vowel letters `syllabic`. Two adjacent syllabic vowels are two syllables with the apostrophe between them, which `joined-vowel` emits as a `/'/` token with no text of its own. That is the one thing the frame knows about such scripts, and [cyrillic.md](cyrillic.md) is the one that uses it. Each vowel of a group is its own token, so a group of three vowels keeps all three. The group rules keep adjacent vowels in one group, and every pair falls under exactly one of the three cases. So a run has one parse.
+An ordinary run is letters. A run of adjacent vowel letters is one vowel group, and a group carries the tags of its last vowel. In the Latin orthography, a group is its vowels, one phoneme each.
+
+A script that writes no apostrophe tags its full vowel letters `syllabic`. Two adjacent syllabic vowels are two syllables with the apostrophe between them, which `joined-vowel` emits as a `/'/` token with no text of its own. That is the one thing that the rules of this document know about such scripts, and [cyrillic.md](cyrillic.md) is the one script that uses it. Each vowel of a group is its own token, so a group of three vowels keeps all three. The group rules keep adjacent vowels in one group, and every pair falls under exactly one of the three cases. So a run has one parse.
 
 A comma stands only between two letters of a run. Between two vowels it is the syllable break of CLL 3.3, the phoneme `/,/`. So `kore,a` is `e` and `a` in two syllables. CLL 4.8 writes it so "because ea is not a valid diphthong". Anywhere else it is nothing, so `ban,gu` is `bangu`.
 
@@ -121,7 +131,9 @@ A comma stands only between two letters of a run. Between two vowels it is the s
   consonant | plain-vowel | stressed-vowel | apostrophe | comma
 ```
 
-A run that is not an ordinary run is foreign. It has a letter, a digit, a mark or any other character that this orthography does not read, as `mi klama?` has. A foreign run is emitted as one `FOREIGN` token. Its phonemes are its text, since the rule is `%verbatim`. So the `zoi` check compares a delimiter with the exact text of such a run. A foreign run has at least one character that no letter rule of any script reads by itself. A run without one is always read by `letters`. So only a run with one is tested, and a long run of letters costs nothing more. A run neither begins nor ends with a comma, which is part of the pause next to it.
+A run that is not an ordinary run is foreign. It has a letter, a digit, a mark or any other character that this orthography does not read, as `mi klama?` has. The stage emits a foreign run as one `FOREIGN` token. Its phonemes are its text, because the rule is `%verbatim`. So the `zoi` check compares a delimiter with the exact text of such a run.
+
+A foreign run has at least one character that no letter rule of any script reads by itself. The rule `letters` always reads a run without one. So the stage tests only a run with one, and a long run of letters costs nothing more. A run neither begins nor ends with a comma, which is part of the pause next to it.
 
 ```jbogenbau
 %rule foreign-run
@@ -163,7 +175,7 @@ A run that is not an ordinary run is foreign. It has a letter, a digit, a mark o
 
 ## Letters
 
-A consonant is emitted as itself whatever its case. CLL 3.9 writes a stressed syllable of a name in capitals, but only the capital vowel marks the stress. A capital vowel is the stressed phoneme. The apostrophe is the phoneme `/'/`. The typographic forms of the apostrophe are the same phoneme, since they are the same character in another font.
+The stage emits a consonant as itself, whatever its case. CLL 3.9 writes a stressed syllable of a name in capitals, but only the capital vowel marks the stress. A capital vowel is the stressed phoneme. The apostrophe is the phoneme `/'/`. The typographic forms of the apostrophe are the same phoneme, because they are the same character in another font.
 
 CLL 3.1 omits `h` from the alphabet. CLL 3.3 says that `h` does not write the apostrophe. This stage treats `h` as foreign text. [latin.md](latin.md) reads `h` as the apostrophe.
 

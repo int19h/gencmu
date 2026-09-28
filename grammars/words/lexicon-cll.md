@@ -1,12 +1,16 @@
 # The CLL lexicon
 
-This document is the lexicon of the forms stage in the [CLL](../dialects/cll-ebnf.md) and [approved word forms](../dialects/bpfk.md) dialects. It holds the cmavo of *The Complete Lojban Language*, 598 words, each with the selma'o CLL's dictionary gives it. The dictionary's numbered subclasses (`UI3a`, `KOhA7`) are collapsed to the selma'o the syntax grammar names. It is maintained by hand in this repository.
+This document is the lexicon of the forms stage in the [CLL](../dialects/cll-ebnf.md) and [approved word forms](../dialects/bpfk.md) dialects. A lexicon is a list of words, each with its classes. The forms stage is the second grammar in the chain. It divides the phonemes of the text into words.
 
-The forms stage looks a cmavo up with `tags($c, lexicon)`. This parses the cmavo's phonemes against the rule `lexicon` below and unions the tags of every alternative that matches. Each alternative spells one word in phoneme tags: a consonant is `/b/`, the apostrophe `/'/`, and a vowel `any-a` and the like, since a cmavo's stress is free and the phoneme stage marks a stressed vowel with a capital. A word of several classes would carry them all, and the syntax stage would read it under each; none of CLL's has more than one. A word with an attitudinal class, UI, CAI, Y, DAhO, FUhO or FUhE, is also tagged `indicator`, which the indicator stage uses to attach a run of indicators to the word before it as CLL's non-formal `word` rule says.
+This lexicon holds the cmavo of *The Complete Lojban Language* (CLL), 598 words, each with the selma'o that the dictionary of CLL gives it. This document collapses the numbered subclasses of the dictionary (`UI3a`, `KOhA7`) to the selma'o that the syntax grammar names. Its maintainers edit it by hand in this repository.
+
+The forms stage looks a cmavo up with `tags($c, lexicon)`. This call parses the phonemes of the cmavo against the rule `lexicon` below, and unions the tags of every alternative that matches. A tag is a label on a word. Each alternative spells one word in phoneme tags. A consonant is `/b/`, the apostrophe is `/'/`, and a vowel is `any-a` and the like. The lexicon spells a vowel this way because cmavo stress is free, and the phoneme stage marks a stressed vowel with a capital.
+
+If a word has several classes, it carries them all, and the syntax stage reads it under each class. No word of CLL has more than one. A word with an attitudinal class (UI, CAI, Y, DAhO, FUhO or FUhE) also has the tag `indicator`. The indicator stage uses this tag to attach a run of indicators to the word before it, as the non-formal `word` rule of CLL says.
 
 The entry for `y` never applies. The forms stage reads a run of `y` as hesitation, which is not a cmavo, so it never looks `y` up.
 
-The notation is explained in [the notation document](../../docs/notation.md).
+[The notation document](../../docs/notation.md) explains the notation.
 
 ```jbogenbau
 %rule lexicon
