@@ -1,23 +1,27 @@
 # Latin conventions
 
-This document adds to [latin-strict.md](latin-strict.md) the conventions that Lojban texts use beyond CLL chapter 3. The dialects of the [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) read them, after the frame of latin-strict.md. The [CLL](../dialects/cll-ebnf.md) dialect does not. The notation is explained in [the notation document](../../docs/notation.md).
+This document adds to [latin-strict.md](latin-strict.md) the conventions that Lojban texts use beyond CLL chapter 3. CLL is *The Complete Lojban Language*. Both documents belong to the phoneme stage, the first grammar in the chain. The dialects of the [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) read them, after the rules of latin-strict.md. The [CLL](../dialects/cll-ebnf.md) dialect does not. [The notation document](../../docs/notation.md) explains the notation.
 
-Most conventions here read text that CLL does not. Two of them instead change how a text that latin-strict.md reads is read: the comma between two vowels, which the approved grammar ignores, and a run written all in capitals. The conventions are these:
+Most conventions here read text that CLL does not. Two of them instead change how the stage reads a text that latin-strict.md also reads. These two are the comma between two vowels, which the approved grammar ignores, and a run written all in capitals. The approved grammar is the word-form grammar that the Lojban definition effort approved. The conventions are these:
 
-- punctuation other than the period is a pause
-- a comma between two vowels is nothing, as it is elsewhere
-- `h` writes the apostrophe
-- a run written all in capitals carries no stress mark
-- an accent marks stress, and a breve marks a glide
-- a digit stands for its number word
+- Punctuation other than the period is a pause.
+- A comma between two vowels is nothing, as it is elsewhere.
+- `h` writes the apostrophe.
+- A run written all in capitals carries no stress mark.
+- An accent marks stress, and a breve marks a glide.
+- A digit stands for its number word.
 
 ## Punctuation
 
-The approved grammar reads the question mark and the exclamation mark as pauses, like the period and whitespace (`space_char` in its PEG). This grammar also reads as a pause any other character that is neither a letter of some script, a digit nor a mark. That is a rule of gencmu. Texts on the web put quotation marks, brackets and dashes around words. The approved grammar rejects `mi "klama"`, and this grammar reads it as `mi klama`.
+The approved grammar reads the question mark and the exclamation mark as pauses, like the period and whitespace (`space_char` in its PEG, or parsing expression grammar). This grammar also reads as a pause any other character that is neither a letter of some script, a digit nor a mark. That is a rule of gencmu. Texts on the web put quotation marks, brackets and dashes around words. The approved grammar rejects `mi "klama"`, and this grammar reads it as `mi klama`.
 
-A pause token covers its core, from its first to its last whitespace character or period, with any punctuation inside it. Other punctuation at either end of a pause belongs to no token. So a `zoi` body keeps the quotation marks in `zoi gy. "Hello!" .gy.`. The body takes in the text next to it that no token covers, as [the notation](../../docs/notation.md) says under "Verbatim text". Punctuation between two letters, with no whitespace, is a pause token of its own, as in `klama!do`. So is a text of nothing but punctuation. Commas can stand inside such a pause and at its edges. The token runs from the first punctuation character of the pause to the last. A comma at an edge belongs to no token, as next to a pause of whitespace. So `jy?,sai` is `jy` and `sai`. The approved grammar reads it so too, since each of its letter rules skips the commas before the letter. Punctuation next to the first or the last word of the text belongs to no token.
+A pause token covers its core, from its first to its last whitespace character or period, with any punctuation inside it. A token is one unit that a stage reads or emits. Other punctuation at either end of a pause belongs to no token. So a `zoi` body keeps the quotation marks in `zoi gy. "Hello!" .gy.`. The body takes in the text next to it that no token covers, as [the notation](../../docs/notation.md) says under "Verbatim text".
 
-The phoneme stage cannot know that a pause stands in a quote. So punctuation between two whitespace characters is part of a pause even there, and `zoi gy. !!! .gy.` quotes nothing. camxes-std reads it so too, since it reads `!` as a space.
+Punctuation between two letters, with no whitespace, is a pause token of its own, as in `klama!do`. So is a text of nothing but punctuation. Commas can stand inside such a pause and at its edges. The token runs from the first punctuation character of the pause to the last. A comma at an edge belongs to no token, as next to a pause of whitespace. So `jy?,sai` is `jy` and `sai`.
+
+The approved grammar reads `jy?,sai` so too, because each of its letter rules skips the commas before the letter. Punctuation next to the first or the last word of the text belongs to no token.
+
+The phoneme stage cannot know that a pause stands in a quote. So punctuation between two whitespace characters is part of a pause even there, and `zoi gy. !!! .gy.` quotes nothing. camxes-std (the reference PEG parser) reads it so too, because it reads `!` as a space.
 
 ```jbogenbau
 %redefine-rule pause
@@ -89,9 +93,9 @@ Texts write the apostrophe as the letter `h`, which CLL does not use. The names 
 
 ## Capital runs
 
-A run in which every vowel is a capital carries no stress mark, and its vowels are read as plain vowels. That is a rule of gencmu, not of CLL. A title or a shout is often written all in capitals, and its capitals do not mark stress. The run must have at least two vowel groups. So a name with one stressed syllable in capitals keeps its stress mark: `.DJORdj.` keeps its stress on `o`. The cost is that a word of one vowel group, written in capitals, is read as stressed: in the text `MI KLAMA`, `MI` is `mI`.
+A run in which every vowel is a capital carries no stress mark, and the stage reads its vowels as plain vowels. That is a rule of gencmu, not of CLL. A title or a shout is often written all in capitals, and its capitals do not mark stress. The run must have at least two vowel groups. So a name with one stressed syllable in capitals keeps its stress mark: `.DJORdj.` keeps its stress on `o`. The cost is that the stage reads a word of one vowel group, written in capitals, as stressed: in the text `MI KLAMA`, `MI` is `mI`.
 
-`capital-shape` is that shape: its consonants and digits and its capital vowels, written out so that two groups are required. Consonants stand between every two groups, so a group of adjacent vowels is never split in two. `capital-run` reads it with every vowel folded. An ordinary run is any other run of letters, which the condition states by exclusion. In it a capital vowel marks stress. A foreign run is now also a run that is not a capital run.
+`capital-shape` is that shape: its consonants and digits and its capital vowels, written out so that two groups are required. Consonants stand between every two groups, so the rules never split adjacent vowels into separate groups. `capital-run` reads it with every vowel folded. An ordinary run is any other run of letters, which the condition states by exclusion. In an ordinary run, a capital vowel marks stress. A foreign run is now also a run that is not a capital run.
 
 ```jbogenbau
 %extend-rule run
@@ -162,7 +166,7 @@ A run in which every vowel is a capital carries no stress mark, and its vowels a
 
 ## Accents and breves
 
-A vowel with an acute or a grave accent, precomposed or combining, is the stressed phoneme, as a capital vowel is. Many texts mark stress this way, and CLL does not. A breve on `i` or `u` marks a glide in some texts. The word grammar finds a glide by its position, so the letter is emitted plain. A combining mark that no letter rule takes makes its run foreign, as the precomposed letter already is. So `i` followed by U+0308 is read as `ï` is.
+A vowel with an acute or a grave accent, precomposed or combining, is the stressed phoneme, as a capital vowel is. Many texts mark stress this way, and CLL does not. A breve on `i` or `u` marks a glide in some texts. The word grammar finds a glide by its position, so the stage emits the letter plain. A combining mark that no letter rule takes makes its run foreign, as the precomposed letter already is. So the stage reads `i` followed by U+0308 as it reads `ï`.
 
 ```jbogenbau
 %extend-rule plain-vowel

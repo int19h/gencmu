@@ -1,20 +1,22 @@
 # The Zantufa lexicon
 
-This document is the lexicon of the forms stage in the [Zantufa](../dialects/zantufa.md) dialect. It gives each cmavo the selma'o that Zantufa 1.9999 gives it. `tools/peg-lexicon.js` writes the rules below from the selma'o lists of `zantufa-1.9999.peg`. That file is in Guskant's `gerna_cipra` repository, as of commit d5a5065. The tool tags no class as an indicator here. A change to the lexicon is made by running it again.
+This document is the lexicon of the forms stage in the [Zantufa](../dialects/zantufa.md) dialect. A lexicon is a list of words, each with its classes. The forms stage is the second grammar in the chain. It divides the phonemes of the text into words.
 
-Each alternative spells one word in the phonemes of the word grammar, as [lexicon-cll.md](lexicon-cll.md) explains, and carries the word's selma'o. Zantufa gives each word one selma'o, and its classes differ from CLL's in many places. For example:
+The lexicon gives each cmavo the selma'o that Zantufa 1.9999 gives it. `tools/peg-lexicon.js` writes the rules below from the selma'o lists of `zantufa-1.9999.peg`. That file is in Guskant's `gerna_cipra` repository, as of commit d5a5065. The tool tags no class as an indicator here. A tag is a label on a word. A maintainer changes the lexicon by running the tool again.
+
+Each alternative spells one word in the phonemes of the word grammar, as [lexicon-cll.md](lexicon-cll.md) explains. It also carries the selma'o of the word. Zantufa gives each word one selma'o, and its classes differ from those of CLL (*The Complete Lojban Language*) in many places. For example:
 
 - Every tense word is BAI, `mo'i` and `fe'e` are NAhE, and the CAhA words, such as `ca'a` and `ka'e`, are NA.
-- `je`, `ja`, `jo` and `ju` are JOI, since Zantufa has no JA.
-- `la`, `lai` and `la'i` are LE, since Zantufa reads a name as a selbri.
-- `ce'e` is BO, `nu'i` and `nu'u` are KE and KEhE, and `pe'e` is BAhE, since Zantufa has no termsets.
+- `je`, `ja`, `jo` and `ju` are JOI, because Zantufa has no JA.
+- `la`, `lai` and `la'i` are LE, because Zantufa reads a name as a selbri.
+- `ce'e` is BO, `nu'i` and `nu'u` are KE and KEhE, and `pe'e` is BAhE, because Zantufa has no termsets.
 - `zei`, `ze'ei` and `si'u'i` are SI, so each erases a word, as `si` does.
 - `sa`, `nai`, `cai`, `da'o`, `fu'e` and `fu'o` are UI, and `ie'o` is Y, as `y` is.
 - `soi` is SEI, and `xoi` and `fi'oi` are XOI.
 
-No word is tagged `indicator`, since Zantufa reads an attitudinal as a free modifier, which can follow any word. So the indicator stage attaches no word to the word before it, and it only absorbs the words of BAhE. The syntax reads every word of UI.
+The lexicon tags no word `indicator`, because Zantufa reads an attitudinal as a free modifier, which can follow any word. So the indicator stage attaches no word to the word before it, and it only absorbs the words of BAhE. The syntax reads every word of UI.
 
-The notation is explained in [the notation document](../../docs/notation.md).
+[The notation document](../../docs/notation.md) explains the notation.
 
 ```jbogenbau
 %rule lexicon
