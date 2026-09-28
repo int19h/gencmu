@@ -2,11 +2,11 @@
 // Opens the playground in a headless browser and checks that it works: its
 // parser worker starts, parses a sentence under the CLL dialect into the
 // expected brackets, and explains a text it rejects; that "gencmu" in its
-// heading links to the repository; and that it never shows an out-of-date
-// answer as current. With no URL the page is
-// opened from file://, as someone who cloned the repository would; given a
-// URL, that URL is checked instead, which is how a GitHub Pages deployment is
-// tested.
+// heading links to the repository; that it lists the features a parse used
+// by name; and that it never shows an out-of-date answer as current. With no
+// URL the page is opened from file://, as someone who cloned the repository
+// would; given a URL, that URL is checked instead, which is how a GitHub
+// Pages deployment is tested.
 //
 //   node tools/smoke-playground.js [--browser chrome|firefox] [URL]
 //
@@ -186,6 +186,23 @@ async function main() {
     // lexicon's being there means the switch waited for it.
     if (other.read) throw new Error("switching to a dialect that does not read the edited lexicon waited for it to be read");
     if (!other.output || !other.output.includes("klama")) throw new Error(`no brackets under experimental: ${JSON.stringify(other)}`);
+    await stale();
+
+    // The features a parse used are listed by name, each in its own code
+    // element, and never as the text of an array.
+    const featured = "je lu «lo nu spoja pu lakne je cu xoi ro da pacna na fasnu» li'u";
+    await type(featured);
+    const listed = await answerFor(featured);
+    if (listed.error) throw new Error(`the playground failed: ${listed.error}`);
+    const features = await run(() => {
+      const line = document.querySelector("#summary .features-used");
+      return line ? { text: line.textContent, codes: [...line.querySelectorAll("code")].map((code) => code.textContent) } : null;
+    });
+    const escaped = (name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const named = features && features.codes.map((name) => `${escaped(name)}(?: \\(auto\\))?`).join(", ");
+    if (!features || !features.codes.length || !new RegExp(`^Features: ${named}$`).test(features.text)) {
+      throw new Error(`the features used were not listed by name: ${JSON.stringify(features)}`);
+    }
     await stale();
     console.log(`playground works in ${browser} at ${target}, ${version}`);
   } finally {
