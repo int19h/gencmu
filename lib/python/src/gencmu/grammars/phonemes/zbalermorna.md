@@ -2,9 +2,9 @@
 
 This document adds the zbalermorna script to the phoneme stage of the dialects of the [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). Lojbanists made the script after CLL (*The Complete Lojban Language*). CLL 3.12 describes an orthography in Tolkien's Tengwar, which is a different script, so the [CLL](../dialects/cll-ebnf.md) dialect does not read this one. The stage reads the script as the code points of the private-use block that its fonts assign it.
 
-The phoneme stage is the first grammar in the chain. The document adds alternatives to the rules of [latin-strict.md](latin-strict.md) and [latin.md](latin.md) with `%extend-rule`. It defines no frame of its own. It uses the shared text, pause and run rules. [The notation document](../../docs/notation.md) explains the notation.
+The phoneme stage is the first stage of the pipeline. The document adds alternatives to the rules of [latin-strict.md](latin-strict.md) and [latin.md](latin.md) with `%extend-rule`. It defines no frame of its own. It uses the shared text, pause and run rules. [The notation document](../../docs/notation.md) explains the notation.
 
-Each zbalermorna symbol is a radical, a consonant, with a diacritic above it for the vowel that follows. A vowel with no consonant before it stands on the radical for the period, which the script uses as a null onset. The script writes a word-initial vowel on that radical too. The script also has these forms:
+A diacritic is a mark on another symbol. Each zbalermorna symbol is a radical, a consonant, with a diacritic above it for the vowel that follows. A vowel with no consonant before it stands on the radical for the period, which the script uses as a null onset. A null onset marks a syllable with no consonant before its vowel. The script writes a word-initial vowel on that radical too. The script also has these forms:
 
 - A full-vowel form, used in names and borrowings
 - Four diphthong diacritics

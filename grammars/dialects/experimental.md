@@ -1,8 +1,8 @@
 # The experimental dialect
 
-This dialect extends the Lojban of *The Complete Lojban Language* (CLL) with constructs that entered use after CLL appeared in print. Examples are `cu` before a bare selbri, connected sumti with `je`, and the experimental cmavo. The syntax is [`../syntax/experimental.md`](../syntax/experimental.md), which says what it adds to CLL's.
+This dialect extends the Lojban of *The Complete Lojban Language* (CLL) with constructs that entered use after CLL appeared in print. A selbri is the predicate of a sentence. A sumti is an argument of a predicate. A cmavo is a particle, a short structure word. Examples of such constructs are `cu` before a bare selbri, connected sumti with `je`, and the experimental cmavo. The syntax is [`../syntax/experimental.md`](../syntax/experimental.md), which says what it adds to CLL's.
 
-The dialect reads a text in stages. A stage is one step of the reading, with its own grammar. The phoneme stage is the phoneme stage of the approved-word-forms dialect ([`bpfk.md`](bpfk.md)). The forms stage reads the approved word forms of the definition effort ([`../words/bpfk.md`](../words/bpfk.md)). A lexicon gives the experimental cmavo their selma'o.
+A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. The phoneme stage is the phoneme stage of the approved-word-forms dialect ([`bpfk.md`](bpfk.md)). The forms stage reads the approved word forms of the definition effort ([`../words/bpfk.md`](../words/bpfk.md)). A selma'o is a word class of cmavo. A lexicon gives the experimental cmavo their selma'o.
 
 camxes-exp is the experimental PEG grammar. A PEG commits to the first matching alternative. camxes-exp reads the same word forms with a few changes, such as the consonant pair `mz`, which [`../words/experimental.md`](../words/experimental.md) makes. The indicator stage is the cll-ebnf dialect's ([`cll-ebnf.md`](cll-ebnf.md)) with a layer that reads indicators as camxes-exp does. A layer is a document that changes earlier rules.
 
@@ -109,7 +109,7 @@ The dialect also turns on two features of the syntax, as camxes-exp always has t
   %include "../syntax/experimental.md"
   ```
 
-The experimental grammar is greedy like CLL's: it ends each constituent as late as the grammar allows. But it does not declare `elision-only`, the rule that a terminator can be elided only if no ambiguity results. The grammar has ambiguities that are not about terminators, such as a bare `na` term beside a negated selbri. The greedy rule settles them.
+The experimental grammar is greedy like CLL's: it ends each constituent as late as the grammar allows. But it does not declare `elision-only`, the rule that a terminator can be elided only if no ambiguity results. The grammar has ambiguities that are not about terminators. For example, two sumti joined by an afterthought connective are also two terms joined in the same way, as in `mi .e do klama`. The greedy rule settles them.
 
 ## Where it reads texts differently from camxes-exp
 
@@ -137,7 +137,7 @@ Two other differences come from what the grammars allow. First, after `vu'o`, a 
 
 Second, camxes-exp's selbri has a form with an ek, a tag and `ke` (`.e ba ke`), which this grammar does not have yet. So camxes-exp accepts `le dakli .e ba ke bevri ke'e ku`, and the dialect rejects it. And in `mi bevri le dakli .ebake bevri le gerku`, camxes-exp reads one tanru inside the description, where the dialect joins two bridi-tails.
 
-A replacement quote is one unit of raw words in the word stage (`../words/lohai.md`), as in camxes-exp. A magic word is a word, such as `si`, that acts on other words. A magic word after the quote acts on all of it, as the left-to-right rule requires. Zantufa also accepts all four texts below. camxes-exp rejects them:
+A replacement quote is one unit of raw words in the word stage (`../words/lohai.md`), as in camxes-exp. A magic word is a word, such as `si`, that acts on other words. A magic word after the quote acts on all of it, as the left-to-right rule requires. Zantufa also accepts all four texts below, but its `zei` erases, so it reads the compound as `broda`. camxes-exp rejects them:
 
 - `mi lo'ai do le'ai si klama` is `mi klama`, and camxes-exp rejects it.
 - `lo'ai mi le'ai bu` is a letter word, and `lo'ai mi le'ai zei broda` a compound. camxes-exp rejects both.

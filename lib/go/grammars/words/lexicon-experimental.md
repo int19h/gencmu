@@ -1,6 +1,6 @@
 # The experimental lexicon
 
-This document is the lexicon of the forms stage in the [experimental](../dialects/experimental.md) dialect. A lexicon is a list of words, each with its classes. The forms stage is the second grammar in the chain. It divides the phonemes of the text into words.
+This document is the lexicon of the forms stage in the [experimental](../dialects/experimental.md) dialect. A lexicon is a list of words, each with its classes. The forms stage is the second stage of the pipeline. It divides the phonemes of the text into words.
 
 The lexicon gives each cmavo the selma'o that camxes-exp, the experimental PEG (parsing expression grammar), gives it. It holds the cmavo of CLL (*The Complete Lojban Language*) and the experimental cmavo that camxes-exp reads. `tools/peg-lexicon.js` writes the rules below from the selma'o lists of `camxes-exp.peg` in ilmentufa, as of commit 7cf6cab. A maintainer changes the lexicon by running the tool again.
 

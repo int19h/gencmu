@@ -1,6 +1,6 @@
 # The Latin orthography of CLL
 
-This document opens the phoneme stage. A stage is one grammar in a chain, and each stage reads what the stage before it emits. The phoneme stage is the first stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). CLL is *The Complete Lojban Language*, the reference grammar of Lojban. The stage reads the characters of a text and hands the forms stage the phonemes they stand for.
+This document opens the phoneme stage. A stage is one step of a pipeline, with its own grammar. Each stage reads what the stage before it emits. The phoneme stage is the first stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). CLL is *The Complete Lojban Language*, the reference grammar of Lojban. The stage reads the characters of a text and hands the forms stage the phonemes they stand for.
 
 This document reads the Latin orthography of CLL chapter 3 and no more. The CLL dialect uses it as it is. The other dialects add the conventions of [latin.md](latin.md), such as digits and accents, and the scripts of [cyrillic.md](cyrillic.md) and [zbalermorna.md](zbalermorna.md). [The notation document](../../docs/notation.md) explains the notation.
 
@@ -74,7 +74,7 @@ An ordinary run is letters. A run of adjacent vowel letters is one vowel group, 
 
 A script that writes no apostrophe tags its full vowel letters `syllabic`. Two adjacent syllabic vowels are two syllables with the apostrophe between them, which `joined-vowel` emits as a `/'/` token with no text of its own. That is the one thing that the rules of this document know about such scripts, and [cyrillic.md](cyrillic.md) is the one script that uses it. Each vowel of a group is its own token, so a group of three vowels keeps all three. The group rules keep adjacent vowels in one group, and every pair falls under exactly one of the three cases. So a run has one parse.
 
-A comma stands only between two letters of a run. Between two vowels it is the syllable break of CLL 3.3, the phoneme `/,/`. So `kore,a` is `e` and `a` in two syllables. CLL 4.8 writes it so "because ea is not a valid diphthong". Anywhere else it is nothing, so `ban,gu` is `bangu`.
+A comma stands only between two letters of a run. Between two vowels it is the syllable break of CLL 3.3, the phoneme `/,/`. So `kore,a` is `e` and `a` in two syllables. CLL 4.7 writes it so "because ea is not a valid diphthong". Anywhere else it is nothing, so `ban,gu` is `bangu`.
 
 ```jbogenbau
 %rule ordinary-run
@@ -175,7 +175,7 @@ A foreign run has at least one character that no letter rule of any script reads
 
 ## Letters
 
-The stage emits a consonant as itself, whatever its case. CLL 3.9 writes a stressed syllable of a name in capitals, but only the capital vowel marks the stress. A capital vowel is the stressed phoneme. The apostrophe is the phoneme `/'/`. The typographic forms of the apostrophe are the same phoneme, because they are the same character in another font.
+The stage emits a consonant as itself, whatever its case. CLL 3.9 writes a stressed syllable of a name in capitals, but only the capital vowel marks the stress. A capital vowel is the stressed phoneme. The apostrophe is the phoneme `/'/`. The stage reads each apostrophe character that the rule `apostrophe` lists as that same phoneme.
 
 CLL 3.1 omits `h` from the alphabet. CLL 3.3 says that `h` does not write the apostrophe. This stage treats `h` as foreign text. [latin.md](latin.md) reads `h` as the apostrophe.
 

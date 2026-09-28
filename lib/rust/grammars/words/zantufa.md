@@ -1,6 +1,6 @@
 # Zantufa word forms
 
-This document is part of the forms stage in the [Zantufa](../dialects/zantufa.md) dialect. The forms stage is the second grammar in the chain. It divides the phonemes of the text into words. The loader stitches this document into the stage after [bpfk.md](bpfk.md). Zantufa 1.9999 reads the word forms that the definition effort of the Logical Language Group approved, with one change, and this document makes that change.
+This document is part of the forms stage in the [Zantufa](../dialects/zantufa.md) dialect. The forms stage is the second stage of the pipeline. It divides the phonemes of the text into words. The loader stitches this document into the stage after [bpfk.md](bpfk.md). Zantufa 1.9999 reads the word forms that the definition effort of the Logical Language Group approved, with one change, and this document makes that change.
 
 The rule here has the name of the Zantufa rule that it translates, and its comment gives that rule, as in bpfk.md. [The notation document](../../docs/notation.md) explains the notation.
 

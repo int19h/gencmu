@@ -1,6 +1,6 @@
 # CLL word forms
 
-This document is the family part of the forms stage in the [CLL](../dialects/cll-ebnf.md) dialect. A stage is one step with its own grammar ([engine §1](../../docs/engine.md#1-tokens)). A family is a set of word forms that dialects use. This family gives the word forms of chapters 3 and 4 of *The Complete Lojban Language*, version 1.1. The loader stitches it into the forms stage after [forms.md](forms.md) and [shapes.md](shapes.md), whose sounds it builds words from.
+This document is the family part of the forms stage in the [CLL](../dialects/cll-ebnf.md) dialect. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)). A family is a set of word forms that dialects use. This family gives the word forms of chapters 3 and 4 of *The Complete Lojban Language*, version 1.1. The loader stitches it into the forms stage after [forms.md](forms.md) and [shapes.md](shapes.md), whose sounds it builds words from.
 
 This document defines the three shapes that the forms stage reads, `cmavo-shape`, `brivla-shape` and `cmevla-shape`. It tags each such word with what the pause rules of CLL 4.9 need to know about the word. A tag is a label on a token. A token is one unit that a stage reads or writes. The family of the definition effort is [bpfk.md](bpfk.md). [The notation document](../../docs/notation.md) explains the notation.
 
@@ -145,10 +145,10 @@ A gismu is CVCCV with a permissible pair, or CCVCV with an initial pair (CLL 4.4
 
 A lujvo is exactly what the algorithm of CLL 4.11 makes from two rafsi or more. Every rafsi but the last is CVC, CCV, CVV, CVCC or CCVC, and the last is CVV, CCV or a gismu form. CVV is a falling diphthong, or two vowels with an apostrophe between them. The algorithm puts a hyphen at a joint only where one is required:
 
-- A `y` after a four-letter rafsi, CVCC or CCVC
+- A `y` goes after a four-letter rafsi, CVCC or CCVC.
 - A `y` goes between two consonants that form no permissible pair. A `y` also goes between `n` and a following `tc`, `ts`, `dj` or `dz`. Without the `y`, they make a triple that CLL 3.7 forbids. CLL 4.11 has no rule for that triple, and this is the completion that `junydji` needs.
 - An `r` goes after a first CVV rafsi, unless the lujvo has two rafsi and the second is CCV, as in `saicli`. The hyphen is `n` before an `r`, as in `ro'inre'o`.
-- One more `y`, from the tosmabru test below
+- The tosmabru test below can add one more `y`.
 
 "It is illegal to add a hyphen at a place that is not required by this algorithm", so `rokyre'o` and `basykla` are not lujvo. With its needless `r` hyphen, `saircli` is no lujvo either, and it reads as a borrowing. Without the hyphen, `saicli` is a lujvo.
 
@@ -383,7 +383,7 @@ A name is a nonempty run of letters that ends in a consonant (CLL 4.8), so `.rl.
 
 CLL 4.8: "Names are not permitted to have the sequences la, lai, or doi embedded in them, unless the sequence is immediately preceded by a consonant". The reason is that a name after one of those words can follow it without a pause. So `.laplas.` and `.ilanas.` are not names, but `.nederlants.` is one.
 
-Pauses surround a name (rule 4), so its shape carries neither `onset` nor `continued`. The grammar tags a name that begins with a consonant `name-onset`. Its first syllable is stressed if its first nucleus has a capital vowel. If no vowel is a capital, the stress falls where [shapes.md](shapes.md) says, which can be the first syllable. `.djan.` has one syllable, and it is stressed.
+Pauses surround a name (rules 2 and 4), so its shape carries neither `onset` nor `continued`. The grammar tags a name that begins with a consonant `name-onset`. Its first syllable is stressed if its first nucleus has a capital vowel. If no vowel is a capital, the stress falls where [shapes.md](shapes.md) says, which can be the first syllable. `.djan.` has one syllable, and it is stressed.
 
 ```jbogenbau
 %rule cmevla-shape

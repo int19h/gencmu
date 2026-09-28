@@ -1,6 +1,6 @@
 # The word stream
 
-This document is the word stage, the third stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). A stage is one grammar in a dialect's pipeline. A token is a unit such as a phoneme or a word. Each stage reads the tokens that the stage before it emitted, and emits new tokens.
+This document is the word stage, the third stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). A stage is one step of a pipeline, with its own grammar. A token is a unit such as a phoneme or a word. Each stage reads the tokens that the stage before it emitted, and emits new tokens.
 
 The stage reads the source words that the forms stage divided ([forms.md](forms.md)). It hands the indicator stage the words of the text, each tagged with its class. A tag is a label that a token carries. The tags are `word` on every word, `cmavo`, `BRIVLA` or `CMEVLA` by its shape, and every selma'o the lexicon gave it.
 
@@ -10,7 +10,7 @@ For example, `merko zei zo` is a `zei` compound whose second word is `zo`, becau
 
 The forms stage, before this stage, decides where the words are and where the pauses between them are needed. A run of the text is a stretch with no pause in it. The forms stage divides each run into words, under the pause rules of the dialect's word forms, or makes the run one `FOREIGN` token. Every pause rule of those word forms holds within one run, so the division never depends on the magic words.
 
-This stage reads the words by their tags. This stage makes sure that the magic words have the pauses they need. These are the pauses around a `zoi` body, the end of a `zo'oi` quote, and the pauses around a name that `bu` takes. It applies no other pause requirements.
+This stage reads the words by their tags. This stage makes sure that the magic words have the pauses they need. These are the pauses around a `zoi` body and the end of a `zo'oi` quote. In the CLL dialect, [cll-stream.md](cll-stream.md) also makes sure that a name that `bu` takes has pauses around it. The stage applies no other pause requirements.
 
 [The notation document](../../docs/notation.md) explains the notation. The stage's choice among parses, at the end of this document, is the mirror of the syntax stage's.
 
@@ -175,7 +175,7 @@ The rules below know a magic word by the selma'o the lexicon gives it, not by it
 
 ## Quotes
 
-CLL 19.10 to 19.13. This stage decides each quote, because the words inside a quote do not count as words. For example, `zo si` quotes `si`, and a `zoi` body is not Lojban at all.
+CLL 19.9 and 19.10 describe the quotes. This stage decides each quote, because the words inside a quote do not count as words. For example, `zo si` quotes `si`, and a `zoi` body is not Lojban at all.
 
 Each quote hands the syntax stage its marker and its contents. The marker carries the tags `word` and `cmavo` and the selma'o the lexicon gives it, but not the tag `indicator`. So no later stage takes a marker for an indicator, even where a lexicon also makes the marker an attitudinal. The contents are bare words or one stretch of `foreign-text`, which is what the syntax grammar's `any-word` and `anything` read.
 
@@ -204,11 +204,11 @@ Each quote hands the syntax stage its marker and its contents. The marker carrie
   y-base [PAUSE] bu-word
 ```
 
-`zo'oi` and its relatives quote the next run of characters up to a pause. A quote attached to its marker, with no pause between them, takes the rest of the marker's run, whatever it holds.
+`zo'oi` and its relatives quote the next run of characters up to a pause. A quote attached to its marker, with no pause between them, takes the rest of the marker's run. The forms stage must divide that whole run into source words. Otherwise it makes the run one foreign token, with no marker in it. So `zo'oiklama` quotes `klama`, but the word stage rejects `zo'oixxx`. After a pause, the quote can take foreign text, as in `zo'oi xxx`.
 
 After a pause, the quote skips hesitation, as camxes-exp skips it in its `spaces`. Then the quote takes the next token and the rest of that token's run. So `zo'oiyymibroda` quotes `yymibroda`, `zo'oi yy mibroda` and `zo'oi yymibroda` quote `mibroda`, and `zo'oi yy` has nothing to quote. The quote ends where its run ends, `run-final` on its last token. Otherwise the lazy choice of the stage quotes only `mi` of `zo'oi mibroda`.
 
-`zoi`, `la'o` and `mu'oi` quote a body between two delimiter words. The two delimiters must be the same word. That word must not occur as a word of the body, so the quote ends at its first occurrence. The delimiter can occur inside a word of the body.
+`zoi`, `la'o` and `mu'oi` quote a body between two delimiter words. The two delimiters must be the same word. That word must not be a whole run of the body, so the quote ends at the first run that is that word. The delimiter can occur inside a longer run of the body.
 
 The stage compares the two delimiters exactly, stress included, which is the sixth of the departures from CLL 19. That is the condition the captures state, and the parser makes sure that it holds as the parse advances. So a candidate close that is not the opener never opens a continuation of the text. CLL 4.9 puts a pause before and after the body, and after the closing delimiter: the closing delimiter is the last word of its run. A quote whose delimiters stand side by side quotes nothing. It hands the syntax an empty stretch of foreign text, so that its shape is the same as any other's.
 
@@ -467,7 +467,7 @@ CLL 19.13: `si` erases the word before it. As in the Magic Words proposal, a com
 
 Hesitation is not a word, so it can stand between the word and its `si`: `co .y. si` erases `co`. An erased stretch emits nothing. What a `sa` or `su` leaves standing is a unit, so a following `si` erases it.
 
-An eraser acts when the stage reads it, as the Magic Words proposal has it. So a `si` never erases a `sa` or `su` as though it were a word. For example, `mi ni'o do su si` erases back to the `ni'o` first, and the `si` then erases that.
+An eraser acts when the stage reads it, as the Magic Words proposal has it. So a `si` never erases a `sa` or `su` as though it were a word. For example, under the feature `su-boundary`, `mi ni'o do su si` erases back to the `ni'o` first, and the `si` then erases that.
 
 ```jbogenbau
 %rule erasure
@@ -502,7 +502,9 @@ These two erasers are behind the feature `sa-su`. They are the most expensive pa
 
 Without the feature, `sa` and `su` are ordinary cmavo of SA and SU, which the syntax grammars do not accept. The syntax rejects a token of SA or SU that is still there after this stage, but another magic word can act on it first.
 
-CLL 19.13: `sa` erases back to the most recent word of the same selma'o as the word after it, that word included. It leaves the word after it standing. In CLL 19.13, `su` "erases the entire text". The Magic Words proposal and camxes-std stop `su` sooner, at the most recent `ni'o`, `no'i`, `lu`, `tu'e` or `to`, which survives. The YACC grammar (a grammar for the parser generator YACC) in CLL chapter 21 opens with the steps that a parser takes before the grammar. Its step 2g also stops `su` at `ni'o`, `no'i`, `lu`, `tu'e` or `to`, but it erases that word too.
+CLL 19.13: `sa` erases back to the most recent word of the same selma'o as the word after it, that word included. It leaves the word after it standing.
+
+In CLL 19.13, `su` "erases the entire text". The Magic Words proposal and camxes-std stop `su` sooner, at the most recent `ni'o`, `no'i`, `lu`, `tu'e` or `to`, which survives. CLL 1.0 prints a YACC grammar (a grammar for the parser generator YACC) in its chapter 21. That grammar opens with the steps that a parser takes before the grammar. Its step 2g also stops `su` at `ni'o`, `no'i`, `lu`, `tu'e` or `to`, but it erases that word too.
 
 The feature `su-boundary` gives the reading of the proposal. The approved word forms and experimental dialects turn it on. The CLL and Zantufa dialects leave it off, so there `su` erases the whole text before it. The stage resolves both erasers here, in the same left-to-right pass as the quotes, the compounds and `si`, because they act in that order. For example, in `mi le brodi sa le si la brodo` the `sa` takes `le brodi` before the `si` erases the `le` that follows it. And `mi brodi .i sa mi zei co mi` compounds `mi zei co` only after the `sa` took `mi brodi .i`.
 
@@ -707,7 +709,7 @@ camxes-std, the PEG grammar (parsing expression grammar) of the definition effor
 
 camxes-std also applies its rule unevenly. It accepts `broda sa broda`, but it rejects `lo broda sa broda`, where the description is the construct that the words after the `sa` continue. The proposal reads the two alike: `broda` and `lo broda`.
 
-The proposal reads six kinds of text differently from CLL 19, and every dialect follows the proposal in each of them:
+The proposal reads six kinds of text differently from CLL 19. The Zantufa dialect departs from three of them ([zantufa-stream.md](zantufa-stream.md)). Its `zei` erases a word and joins nothing (item 2). A hesitation attached to the word before it is a word of class Y there (item 4). Its `zoi` delimiters match without their stress (item 6). Every other dialect follows the proposal in all six:
 
 1. `si` erases a quote or a compound as one word. The proposal makes one word of each quote and each compound, and "SI erases the preceding word". CLL counts `zo` and its word as two words (Example 19.77) and a `zoi` quote as four (Example 19.79). A `lo'u` quote counts as its words and its two markers: 19.13 erases a stray `lo'u` with `fy. le'u si si si`. So every dialect rejects Examples 19.77 and 19.80, `zo .bab. se cmene zo si si si la bab.` and `mi se cmene zo .djan. si si zo .djordj.`.
 
@@ -716,7 +718,7 @@ The proposal reads six kinds of text differently from CLL 19, and every dialect 
 3. `bu` makes a letter word of `ba'e` and `za'e`. CLL 17.4 says that these two words "may not have bu attached", and 19.16 says the same of every BAhE cmavo. The proposal's table reads `ba'e bu` as a letter word, and the proposal says that "BAhE cannot be used to mark BU; BU wins".
 4. Hesitation is not a word. The proposal treats `.y.` as whitespace, which is its third meta-rule. CLL makes `.y.` a cmavo of selma'o Y (19.14), and 19.16 says that `zo` quotes the following word "no matter what it is". Here, `zo .y. co` quotes `co`, the grammar rejects `zo .y.`, and `co .y. si` erases `co`. The one exception is `.y. bu`, the letter word for `y`. The proposal forms it "before any other processing of any kind", which is its first meta-rule, so `zo .y. bu` quotes that letter word.
 5. A `lo'u` quote ends at the first `le'u`. CLL 19.16 says that `lo'u` quotes all following words "up to a le'u (but not a zo le'u)", and 19.10 says that a `zoi` quote of non-Lojban text can appear inside `lo'u ... le'u`. The proposal's `lo'u` takes "all following Lojban words" through the next `le'u`, and its table rejects `lo'u co co zo le'u co le'u`. Here, `zo` and `zoi` are plain words inside the quote. So every dialect rejects `lo'u zo le'u le'u`, and also `lo'u zoi gy. with .gy. le'u`, because `with` is not a Lojban word. CLL 19.10 agrees that a `le'u` inside such a `zoi` quote ends the `lo'u` quote.
-6. The grammar compares a `zoi` delimiter as a whole word. CLL 19.10 says that the delimiter "may not appear" in the written text, so Example 19.50, `mi djuno fi le valsi po'u zoi gy. gyrations .gy.`, is "ungrammatical as written". Here, the delimiter must not be a word of the body, and `gyrations` is not the word `gy`, so the grammar accepts the example. The proposal and camxes-std read it in the same way. The comparison is exact: the closing delimiter must have the same phonemes as the opening one. A stressed vowel does not match a plain one, so `zoi .kO. mi .ko.` is not a quote.
+6. The grammar compares a `zoi` delimiter as a whole word. CLL 19.10 says that the delimiter "may not appear" in the written text, so Example 19.50, `mi djuno fi le valsi po'u zoi gy. gyrations .gy.`, is "ungrammatical as written". Here, the delimiter must not be a whole run of the body, and the run `gyrations` is not `gy`, so the grammar accepts the example. The proposal and camxes-std read it in the same way. The comparison is exact: the closing delimiter must have the same phonemes as the opening one. A stressed vowel does not match a plain one, so `zoi .kO. mi .ko.` is not a quote.
 
 What `su` erases is not in this list, because there the dialects differ. The feature `su-boundary` chooses between the reading of CLL 19.13 and the reading of the proposal, as "Erasure by `sa` and `su`" explains.
 

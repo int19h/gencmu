@@ -1,6 +1,6 @@
 # The CLL word stream
 
-This document is part of the word stage in the [CLL](../dialects/cll-ebnf.md) dialect. A stage is one grammar in a dialect's pipeline. A token is a unit such as a phoneme or a word. Each stage reads the tokens that the stage before it emitted, and emits new tokens. The dialect includes this document after [stream.md](stream.md). [The notation document](../../docs/notation.md) explains the notation.
+This document is part of the word stage in the [CLL](../dialects/cll-ebnf.md) dialect. A stage is one step of a pipeline, with its own grammar. A token is a unit such as a phoneme or a word. Each stage reads the tokens that the stage before it emitted, and emits new tokens. The dialect includes this document after [stream.md](stream.md). [The notation document](../../docs/notation.md) explains the notation.
 
 This document adds the two rules of CLL that the approved word forms do not have. One is a warning for a cmavo that uses `y` as a vowel. The other is the pauses around a name that `bu` takes.
 
@@ -19,7 +19,7 @@ The stage gives the warning where it reads the word as a Lojban word. That is, t
   "cmavo-warning" ∈ tags($w)
 ```
 
-A name that `bu` takes needs a pause on both sides of it in the source (CLL 17.4). The forms stage puts one after every name, because CLL 4.9 rule 4 needs one there. It tags the first word of each run `run-initial`. A run is a stretch with no internal pause. In CLL, a name that is not the first word of its run follows `la`, `lai`, `la'i` or `doi` directly, with no pause before it. So the name must be the first word of its run: `ladjan.bu` and `ladjan.mi si bu` are no texts, and `la.djan.bu` is `la` and a letter word.
+A name that `bu` takes needs a pause on both sides of it in the source (CLL 17.4). The forms stage puts one after every name, because CLL 4.9 rule 2 needs one there. It tags the first word of each run `run-initial`. A run is a stretch with no internal pause. In CLL, a name that is not the first word of its run follows `la`, `lai`, `la'i` or `doi` directly, with no pause before it. So the name must be the first word of its run: `ladjan.bu` and `ladjan.mi si bu` are no texts, and `la.djan.bu` is `la` and a letter word.
 
 A `sa` that leaves a name standing passes the tag on, so `ladjan. sa .djim. bu` is `la djim.bu`. A name inside a compound is not the operand: `ladjan. zei mi bu` makes a letter word of the compound. Inside `lo'u ... le'u`, where `bu` does nothing, `lo'u ladjan.bu le'u` is valid.
 

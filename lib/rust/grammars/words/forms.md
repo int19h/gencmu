@@ -1,6 +1,6 @@
 # Word forms
 
-This document opens the forms stage. A stage is one step of the pipeline that reads a text, and each stage has its own grammar ([engine §1](../../docs/engine.md#1-tokens)). The forms stage is the second stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The stage reads the phonemes that the phoneme stage emitted.
+This document opens the forms stage. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)). The forms stage is the second stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The stage reads the phonemes that the phoneme stage emitted.
 
 The stage divides the text into its source words and tags each word with its class. A token is one unit that a stage reads or writes. A tag is a label on a token. The stage hands the words to the word stage ([stream.md](stream.md)), where the magic words act on them. [The notation document](../../docs/notation.md) explains the notation.
 
@@ -61,7 +61,9 @@ A run that divides into words divides in one way only. The word forms of each fa
   | /b/ | /c/ | /d/ | /f/ | /g/ | /j/ | /k/ | /l/ | /m/ | /n/ | /p/ | /r/ | /s/ | /t/ | /v/ | /x/ | /z/
 ```
 
-The stage hands on every token of the input. It hands on a pause, and a foreign run of the phoneme stage, as they are. Such a run keeps its text as its phonemes. A run of letters that divides into no words becomes one `FOREIGN` token, which sounds like its letters. So a `zoi` delimiter compares with it exactly as with the same letters read as words. The text of the token is what the author wrote.
+The stage covers every input token. It passes pauses and foreign runs through, and combines letters into words or foreign runs. A foreign run of the phoneme stage keeps its text as its phonemes.
+
+A run of letters that divides into no words becomes one `FOREIGN` token, which sounds like its letters. So a `zoi` delimiter compares with it exactly as with the same letters read as words. The text of the token is what the author wrote.
 
 The stage tests whether the run divides only for the whole run, because a letter follows a part of a run. The stage tests the run alone. This gives the same answer as a test in place, because no rule of this stage reads past the end of a run.
 
@@ -70,7 +72,7 @@ The stage tests whether the run divides only for the whole run, because a letter
 The stage reads the words of a run from the left. Each word after the first can follow the word before it only if the pause rules let the two stand together with no pause. The family tags each word with the properties that these rules test. The run carries the tags of its last word, so the condition sees the word before and the word after:
 
 - `onset`: the word can follow another word directly. It begins with a consonant and is not a name (rules 3 and 4).
-- `continued`: another word can follow this one directly. A name never has it (rule 4), nor a `Cy` letter, nor a brivla whose stress is not marked.
+- `continued`: another word can follow this one directly. A name never has it (rule 2), nor a `Cy` letter, nor a brivla whose stress is not marked.
 - `name-intro` and `name-onset`: `name-intro` marks `la`, `lai`, `la'i` and `doi`, and `name-onset` marks a name that begins with a consonant. The name can follow the cmavo directly (rule 4).
 - `cy`: a `Cy` letter, which only another `Cy` letter can follow directly (rule 6)
 - `final-stress`, `initial-stress` and `stress-guard`: the word's last or first syllable is stressed, or the word is a brivla. A word with either of the other two cannot directly follow a word with `final-stress` (4.2, rule 5).

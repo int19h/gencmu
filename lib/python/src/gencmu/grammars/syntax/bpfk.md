@@ -1,6 +1,6 @@
 # The approved grammar's readings
 
-This document completes the syntax stage of the [bpfk](../dialects/bpfk.md) dialect, after [the CLL grammar](cll.md). A dialect is a sequence of parsing stages. A stage is one parsing step with its own grammar. This document says how the stage chooses among parses, which the CLL grammar leaves to each dialect that uses it.
+This document completes the syntax stage of the [bpfk](../dialects/bpfk.md) dialect, after [the CLL grammar](cll.md). A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. This document says how the stage chooses among parses, which the CLL grammar leaves to each dialect that uses it.
 
 The definition effort replaced the YACC grammar of the official parser with a PEG (parsing expression grammar). The bpfk dialect reads elided terminators as the PEG grammars do, camxes-std among them. A PEG never gives back what it read. So the part of a rule before an elided terminator runs as far as the words after it can extend it.
 
