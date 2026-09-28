@@ -1,8 +1,10 @@
 # Approved word forms
 
-This document is the family part of the forms stage in the [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) dialects. It is stitched in after [forms.md](forms.md). The experimental dialect stitches [experimental.md](experimental.md) after it, and the Zantufa dialect [zantufa.md](zantufa.md). The notation is explained in [the notation document](../../docs/notation.md).
+This document is the family part of the forms stage in the [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) dialects. A stage is one step with its own grammar ([engine §1](../../docs/engine.md#1-tokens)). A family is a set of word forms that dialects use. The loader stitches this document in after [forms.md](forms.md). The experimental dialect stitches [experimental.md](experimental.md) after it, and the Zantufa dialect stitches [zantufa.md](zantufa.md). [The notation document](../../docs/notation.md) explains jbogenbau, the notation of these grammars.
 
-The document gives the word-form grammar that the definition effort of the Logical Language Group approved. That grammar is a parsing expression grammar (PEG), the morphology part of `camxes.peg` in the ilmentufa repository, at commit 778ea13. The 1.3 editions of *The Complete Lojban Language* print the same grammar as appendix A2. This document translates the PEG rule by rule. Each rule here has the name of the PEG rule that it translates, in lower case and with hyphens for underscores. A comment gives the PEG rule. A rule that the PEG does not have is one of two kinds. It is a part of a PEG rule that needs a name of its own here, or a rule that a condition tests. Its comment says which.
+The document gives the word-form grammar that the definition effort of the Logical Language Group approved. That grammar is a parsing expression grammar (PEG), the morphology part of `camxes.peg` in the ilmentufa repository, at commit 778ea13. The 1.3 editions of *The Complete Lojban Language* print the same grammar as appendix A2.
+
+This document translates the PEG rule by rule. Each rule here has the name of the PEG rule that it translates, in lower case and with hyphens for underscores. A comment gives the PEG rule. A rule that the PEG does not have is one of two kinds. It is a part of a PEG rule that needs a name of its own here, or a rule that a condition tests. Its comment says which.
 
 ## How the PEG is written here
 
@@ -14,12 +16,13 @@ A PEG reads the text from left to right. When an alternative fails, the PEG goes
 
 So each rule here derives exactly what the PEG rule reads, at exactly the points where the PEG rule begins, and in one way only. The rules that the PEG uses only in lookaheads are the one exception, as the next paragraph says: for them only whether they begin matters.
 
-The translation leaves out a condition in two cases, where the condition cannot change the result:
+The translation leaves out a condition in two cases, where the condition cannot change the result.
 
-- No two alternatives of a choice can both begin at the same point, because each pair of them reads different letters at some position. For example, one reads a consonant where the other reads a vowel. No alternative of such a choice can be empty. The comment on the rule names the positions.
-- The PEG uses the rule only in lookaheads, directly or at the end of another such rule. A lookahead asks only whether the rule begins, not where it ends. So a choice that ends such a rule needs no order, since the rule begins if any of its alternatives begins. And a part at its end that can only make it longer can be left out, such as the second and later consonants of `cluster`. The comment says "only a lookahead".
+In the first case, no two alternatives of a choice can both begin at the same point. This is because each pair of them reads different letters at some position. For example, one reads a consonant where the other reads a vowel. No alternative of such a choice can be empty. The comment on the rule names the positions.
 
-The phoneme stage reads the text before this stage does. It changes what the PEG would read in four ways:
+In the second case, the PEG uses the rule only in lookaheads, directly or at the end of another such rule. A lookahead asks only whether the rule begins, not where it ends. So a choice that ends such a rule needs no order, because the rule begins if any of its alternatives begins. And the translation can leave out a part at its end that can only make it longer. The second and later consonants of `cluster` are such a part. The comment says "only a lookahead".
+
+The phoneme stage reads the text before this stage does. In four ways, the text that this stage reads differs from the text that the PEG reads:
 
 - The PEG reads a digit as a cmavo, and lets a digit stand in a name (its rule `digit`). The phoneme stage reads each digit as the letters of its number word, so `2` is `re`. So this translation has no rule `digit`. `.b1b.` is not a name, and `.dj2n.` is the name `djren`.
 - The PEG ignores a comma before any letter (`comma*` in each letter rule). The phoneme stage drops every comma, so the translation leaves out `comma*`, with the same result, except in one place. The PEG's letter word `ybu` reads pause characters between the `y` and the `bu`, but no comma, unless the comma stands directly before the `bu`. So the PEG reads `y, bu` and `y , bu` as two words, `y` and `bu`, where the word stage reads the one letter word (below). Both read `y ,bu` as one word.
@@ -28,9 +31,19 @@ The phoneme stage reads the text before this stage does. It changes what the PEG
 
 ## Words
 
-The forms stage reads three word shapes, `cmevla-shape`, `cmavo-shape` and `brivla-shape`. It reads them in the order of the PEG's `lojban_word`: a cmevla, then a cmavo, then a brivla. The document [forms.md](forms.md) says what a word is and how words join. The PEG's lookaheads decide where each word ends and which words can stand together without a pause. So every word here is `continued`: the rules of the word decide whether another word can follow it without a pause. A word has `onset` when it does not begin with a nucleus, since the PEG's `post_word` lets only such a word follow another word directly.
+The forms stage reads three word shapes, `cmevla-shape`, `cmavo-shape` and `brivla-shape`. It reads them in the order of the PEG's `lojban_word`: a cmevla, then a cmavo, then a brivla. The document [forms.md](forms.md) says what a word is and how words join. The PEG's lookaheads decide where each word ends and which words can stand together without a pause. So every word here is `continued`: the rules of the word decide whether another word can follow it without a pause. A word has `onset` when it does not begin with a nucleus, because the PEG's `post_word` lets only such a word follow another word directly.
 
-The PEG's `CMAVO` is a list of the selma'o, each a set of spellings, followed by `cmavo` for every other cmavo. Each selma'o rule begins with `&cmavo` and ends with `&post_word`. So every spelling but one reads exactly what `cmavo` reads, and the lexicon gives each cmavo its selma'o. The exception is the first spelling of `BY`, the rule `ybu <- Y space_char* BU`. It reads a run of `y`, any pause, and `bu` as one letter word: `ybu`, `y bu` and `yyybu` are each one word. That is the letter word `.y bu`, which the Magic Words proposal forms "before any other processing of any kind". This stage reads each run on its own, so it reads the `y` and the `bu` as two words. The word stage forms the letter word from them ([stream.md](stream.md)). Where the PEG's `ybu` begins, `cmavo` reads its run of `y` as one word in two cases. The run may have one letter, or it may have an even number of them. When it has an odd number, three or more, `cmavo` reads the first `y` alone and then the rest as one word. This is because `cmavo_form` reads first a single `y` that is a nucleus. So `yyybu` is `y`, `yy` and `bu`. `cmavo` then reads the `bu`, with the conditions of the PEG's `BU`. So the division is the PEG's, with each `ybu` split into its hesitation words and its `bu`. The word stage builds the letter word on all of them. `cmavo-shape` reads `cmavo`. A cmavo made only of `y` letters is hesitation, which [forms.md](forms.md) reads as `y-run`, so this document redefines `y-run` as that cmavo. A `y` is a nucleus exactly where no nucleus follows it. So the first `y` of a run is a nucleus exactly when the run has an odd number of letters. A run with an even number can follow a word directly: `kyyykerlo` is `ky yy kerlo`, but `bayyy` is no text. So a run of `y` has `onset` where no nucleus begins it.
+The PEG's `CMAVO` is a list of the selma'o, each a set of spellings, followed by `cmavo` for every other cmavo. Each selma'o rule begins with `&cmavo` and ends with `&post_word`. So every spelling but one reads exactly what `cmavo` reads, and the lexicon gives each cmavo its selma'o.
+
+The exception is the first spelling of `BY`, the rule `ybu <- Y space_char* BU`. It reads a run of `y`, any pause, and `bu` as one letter word: `ybu`, `y bu` and `yyybu` are each one word. That is the letter word `.y bu`, which the Magic Words proposal forms "before any other processing of any kind". This stage reads each run on its own, so it reads the `y` and the `bu` as two words. The word stage forms the letter word from them ([stream.md](stream.md)).
+
+Where the PEG's `ybu` begins, `cmavo` reads its run of `y` as one word in two cases. The run has one letter, or it has an even number of them. When it has an odd number, three or more, `cmavo` reads the first `y` alone and then the rest as one word. This is because `cmavo_form` reads first a single `y` that is a nucleus. So `yyybu` is `y`, `yy` and `bu`. `cmavo` then reads the `bu`, with the conditions of the PEG's `BU`.
+
+So the division is the PEG's, with each `ybu` split into its hesitation words and its `bu`. The word stage builds the letter word on all of them.
+
+`cmavo-shape` reads `cmavo`. A cmavo made only of `y` letters is hesitation, which [forms.md](forms.md) reads as `y-run`, so this document redefines `y-run` as that cmavo.
+
+A `y` is a nucleus exactly where no nucleus follows it. So the first `y` of a run is a nucleus exactly when the run has an odd number of letters. A run with an even number can follow a word directly: `kyyykerlo` is `ky yy kerlo`, but `bayyy` is no text. So a run of `y` has `onset` where no nucleus begins it.
 
 ```jbogenbau
 %rule cmevla-shape            (* CMEVLA <- cmevla *)
@@ -501,7 +514,9 @@ A rafsi followed by `'y` is a `hy_rafsi`. The PEG uses it only to end a string o
 
 ## Syllables and stress
 
-A vowel, diphthong or syllable is stressed in two cases. In one, the letter after its onset is a capital vowel (`stressed`). In the other, one more syllable follows it before a pause (`stress`). It is unstressed when it is neither. A capital glide, or a capital second letter of a diphthong, marks nothing. So an unmarked brivla is stressed on its penultimate syllable, and it must be followed by a pause. A brivla whose stress is marked can be followed by another word directly.
+A vowel, diphthong or syllable is stressed in two cases. In one, the letter after its onset is a capital vowel (`stressed`). In the other, one more syllable follows it before a pause (`stress`). It is unstressed when it is neither. A capital glide, or a capital second letter of a diphthong, marks nothing.
+
+So an unmarked brivla is stressed on its penultimate syllable, and a pause must follow it. Another word can directly follow a brivla whose stress is marked.
 
 ```jbogenbau
 %rule final-syllable          (* final_syllable <- onset !y !stressed nucleus !cmevla &post_word *)
