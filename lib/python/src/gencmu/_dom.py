@@ -343,6 +343,9 @@ class DomBuilder:
             op = next(self.text(kid) for kid in kids if kid.kind == "token")
             left = yield self._value(terms[0])
             right = yield self._value(terms[1])
+            # Membership tests a string; a tag set on the left is ⊆'s (engine §9).
+            if op in ("∈", "∉") and not ("literal" in left or left.get("call") in ("phonemes", "text", "lowercase")):
+                raise self.fail(node, f"the left side of {op} is a string")
             return {"op": op, "left": left, "right": right}
         if node.rule == "negation":
             inner = [kid for kid in self.kids(node) if kid.kind == "rule"]

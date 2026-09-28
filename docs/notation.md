@@ -183,7 +183,7 @@ The third type is the set of tags. `tags(span)` is the tag set of the captured p
 The predicates are:
 
 - `=` and `≠`, on two strings or two tag sets.
-- `∈` and `∉`, of a string in a tag set.
+- `∈` and `∉`, of a string in a tag set. The left side must be a string, so a tag set there is an error. `⊆` tests a set.
 - `⊆`, of one tag set in another.
 - `$x`, of a capture.
 - `matches(span, rule)`, true when the span parses as the named rule.

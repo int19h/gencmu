@@ -639,7 +639,12 @@ func (b *domBuilder) condition(n *Node) *domCond {
 	switch n.Rule {
 	case "comparison":
 		ps := ruleParts(n)
-		return &domCond{Kind: cdCompare, Left: b.value(ps[0]), Op: b.text(ps[1]), Right: b.value(ps[2])}
+		d := &domCond{Kind: cdCompare, Left: b.value(ps[0]), Op: b.text(ps[1]), Right: b.value(ps[2])}
+		// Membership tests a string; a tag set on the left is ⊆'s (§9).
+		if (d.Op == "∈" || d.Op == "∉") && !isStringTerm(d.Left) {
+			b.fail(n, "the left side of %s is a string", d.Op)
+		}
+		return d
 	case "negation":
 		return &domCond{Kind: cdNot, Inner: b.condition(ruleParts(n)[0])}
 	case "call":

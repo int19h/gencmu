@@ -1,0 +1,10 @@
+{
+  "description": "tags() on the left of ∉ is a tag set, not a string, so the comparison is an error of the document even where the right side is a string (engine §9, §10).",
+  "document": "```jbogenbau\n%rule a $x(B) %conditions tags($x) ∉ \"b\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 27
+    }
+  }
+}

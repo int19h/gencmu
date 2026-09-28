@@ -372,6 +372,8 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase | None) 
             else:
                 if not _is_one_of(value.get("op"), _COMPARATORS):
                     return "a malformed condition"
+                if value["op"] in ("∈", "∉") and not _is_string(value.get("left")):
+                    return "a malformed condition"
                 pending.append(("term", value.get("left"), below, own))
                 pending.append(("term", value.get("right"), below, own))
         else:

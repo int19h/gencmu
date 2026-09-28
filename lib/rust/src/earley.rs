@@ -760,10 +760,12 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                             (Value::Str(a), Value::Set(b)) => {
                                 self.shared.tags.lookup(&a).is_some_and(|id| b.iter().any(|&(tag, _)| tag == id))
                             }
-                            (a, b) => {
-                                let a = self.as_set(a);
-                                let b = self.as_set(b);
-                                a.iter().all(|&(id, _)| b.iter().any(|&(tag, _)| tag == id))
+                            // The reader refuses any other left side (§9).
+                            (Value::Set(_), _) => {
+                                return Err(EngineError {
+                                    message: "the left side of ∈ or ∉ is a string".to_string(),
+                                    rule: None,
+                                });
                             }
                         };
                         inside == (*op == CmpOp::In)

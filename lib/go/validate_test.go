@@ -132,6 +132,8 @@ func TestDOMRules(t *testing.T) {
 		{"text takes a span", tagged(`{"call":"text","args":[{"literal":"x"}]}`)},
 		{"tags takes a span and a rule name", tagged(`{"call":"tags","args":[{"capture":"x"},{"literal":"r"}]}`)},
 		{"lowercase takes a string", tagged(`{"call":"lowercase","args":[{"weak":"X"}]}`)},
+		{"a capture is not on the left of ∈", cond(`{"op":"∈","left":{"capture":"x"},"right":{"capture":"x"}}`)},
+		{"tags() is not on the left of ∉", cond(`{"op":"∉","left":{"call":"tags","args":[{"capture":"x"}]},"right":{"literal":"b"}}`)},
 		{"head is a span, not a value", tagged(`{"call":"head","args":[{"capture":"x"}]}`)},
 		{"head takes a span", tagged(`{"call":"tags","args":[{"call":"head","args":[{"literal":"x"}]}]}`)},
 		{"matches is never a term", tagged(`{"call":"matches","args":[{"capture":"x"},{"rule":"text"}]}`)},

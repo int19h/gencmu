@@ -335,6 +335,9 @@ fn check_cond(grammar: &StageGrammar, cond: &Cond) -> Result<(), String> {
             if !matches!(op.as_str(), "=" | "≠" | "∈" | "∉" | "⊆") {
                 return Err(format!("an unknown comparison {op}"));
             }
+            if matches!(op.as_str(), "∈" | "∉") && !left.is_string() {
+                return Err(format!("the left side of {op} is a string"));
+            }
             check_term(grammar, left)?;
             check_term(grammar, right)
         }

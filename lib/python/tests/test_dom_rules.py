@@ -164,6 +164,8 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("from of a literal", set_tags({"call": "tags", "args": [{"call": "from", "args": [LIT]}]})),
     ("lowercase of a weak tag", set_tags({"call": "lowercase", "args": [{"weak": "b"}]})),
     ("lowercase of a span", set_tags({"call": "lowercase", "args": [X]})),
+    ("a capture on the left of ∈", set_condition({"op": "∈", "left": X, "right": X})),
+    ("tags on the left of ∉", set_condition({"op": "∉", "left": {"call": "tags", "args": [X]}, "right": LIT})),
     ("phonemes of two spans", set_tags({"call": "phonemes", "args": [X, X]})),
     ("phonemes of a literal", set_tags({"call": "phonemes", "args": [LIT]})),
     ("tags with a term for a rule", set_tags({"call": "tags", "args": [X, LIT]})),

@@ -460,6 +460,10 @@ impl<'a> Reader<'a> {
                 let op = self.text(Self::tokens_of(comparator).next().expect("a comparator")).to_string();
                 let left = self.checked_value(operands[0], depth)?;
                 let right = self.checked_value(operands[1], depth)?;
+                // Membership tests a string; a tag set on the left is ⊆'s (§9).
+                if matches!(op.as_str(), "∈" | "∉") && !left.is_string() {
+                    return Err(self.error(inner, format!("the left side of {op} is a string")));
+                }
                 Ok(Cond::Compare(op, left, right))
             }
             "negation" => Ok(Cond::Not(Box::new(self.condition(self.one(inner, "condition"), depth)?))),
@@ -617,12 +621,7 @@ impl<'a> Reader<'a> {
                     return Err(wrong());
                 }
                 let term = self.checked_value(self.one(args[0], "union"), depth)?;
-                let string = match &term {
-                    Term::Literal(_) => true,
-                    Term::Call(name, _) => matches!(name.as_str(), "phonemes" | "text" | "lowercase"),
-                    _ => false,
-                };
-                if !string {
+                if !term.is_string() {
                     return Err(wrong());
                 }
                 vec![Arg::Term(term)]
