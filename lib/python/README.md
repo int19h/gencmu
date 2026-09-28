@@ -16,7 +16,7 @@ gencmu.to_brackets(result, show_elided=True)
 
 A dialect is a pipeline document and the documents that it includes. The pipeline declares its stages with `%stage`, and the grammar documents of each stage with `%include`. It declares the features that it turns on with `%features` (`docs/notation.md`, "Pipelines").
 
-- `load_dialect(name)`: a dialect of the bundled grammars, by the name of its pipeline document under `grammars/dialects/` without `.md`.
+- `load_dialect(name)` loads a dialect of the bundled grammars. `name` is the name of its pipeline document under `grammars/dialects/` without `.md`.
 - `load_dialect_file(path)`: a pipeline document on disk. The loader finds its grammar documents relative to it. The Unicode table and the bootstrap of the notation come from the bundled grammars.
 - `load_dialect_sources(sources, pipeline)`: documents held in memory, a mapping from `/`-separated path to text, and the path of the pipeline document in it. The mapping can hold its own `unicode.txt`, `notation/bootstrap.json` and `compiled.json`. The bundled ones fill in what it lacks.
 
@@ -32,7 +32,7 @@ result = dialect.parse(text, features=(), without_features=(), auto_features=Tru
 
 - `features`: feature names to turn on in every stage, besides those the pipeline turns on with `%features`.
 - `without_features`: feature names to turn off in every stage, including those that the pipeline turns on. A name in both lists raises `GencmuError` with `kind` `"usage"`.
-- `auto_features`: add `sa-su` only where the text needs it. To find out, the parser first parses up to the stage named `words` without `sa-su`. This works only in a dialect where `sa-su` is a gate, and not when `without_features` names it.
+- `auto_features`: add `sa-su` only where the text needs it. To find out, the parser first parses up to the stage named `words` without `sa-su`. This works only in a dialect that has `sa-su` as a gate and a stage named `words`. It does nothing if `sa-su` is already on, if `without_features` names it, or if `until` names a stage before `words`.
 - `until`: the name of the last stage to run. An unknown name raises `GencmuError` with `kind` `"usage"`.
 - `elision_only`: `True` or `False` to override the grammars' `%ambiguity-resolution ... elision-only`.
 
