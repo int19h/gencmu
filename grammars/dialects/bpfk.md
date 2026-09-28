@@ -1,6 +1,14 @@
 # The approved word forms
 
-The CLL dialect with the word-form grammar that the definition effort approved, in place of chapter 4's. The 1.3 editions of *The Complete Lojban Language* print that grammar as appendix A2. [`../words/bpfk.md`](../words/bpfk.md) translates that grammar rule by rule. It differs from chapter 4 in several ways. For example, it has the extended rafsi, which shorten a borrowing with a hyphen. It also lets a `Cy` letter word stand before another word without a pause, so `fyno` is `fy no`. CLL 4.9 rule 6 asks for a pause there. Its syntax is the CLL grammar, read as the PEG grammars that the definition effort adopted read elided terminators ([`../syntax/bpfk.md`](../syntax/bpfk.md)). Its phoneme stage reads the conventions of [`../phonemes/latin.md`](../phonemes/latin.md) beyond CLL's orthography, which the approved grammar reads too in part, and gencmu's Cyrillic and zbalermorna. Its indicator stage is the [cll-ebnf](cll-ebnf.md) dialect's. It turns on the feature `su-boundary`, so that `su` erases back to the last `ni'o`, `no'i`, `lu`, `tu'e` or `to`. The Magic Words proposal and camxes-std have it so. Under CLL 19.13, `su` erases the whole text.
+This dialect is the CLL dialect with the word-form grammar that the definition effort (the BPFK, a committee of the Lojban community) approved. That grammar replaces the grammar of chapter 4. The 1.3 editions of *The Complete Lojban Language* (CLL) print that grammar as appendix A2. [`../words/bpfk.md`](../words/bpfk.md) translates that grammar rule by rule.
+
+The approved grammar differs from chapter 4 in several ways. For example, it has the extended rafsi, which shorten a borrowing with a hyphen. It also lets a `Cy` letter word stand before another word without a pause, so `fyno` is `fy no`. CLL 4.9 rule 6 asks for a pause there.
+
+The syntax of the dialect is the CLL grammar. The dialect reads elided terminators as the PEG grammars that the definition effort adopted read them ([`../syntax/bpfk.md`](../syntax/bpfk.md)). A PEG commits to the first matching alternative.
+
+The dialect reads a text in stages. A stage is one step of the reading, with its own grammar. Beyond CLL's orthography, the phoneme stage reads the conventions of [`../phonemes/latin.md`](../phonemes/latin.md). The approved grammar reads part of these conventions too. The phoneme stage also reads gencmu's Cyrillic and zbalermorna. The indicator stage is the indicator stage of the [cll-ebnf](cll-ebnf.md) dialect.
+
+A feature is a named switch that the grammars test. The dialect turns on the feature `su-boundary`, so that `su` erases back to the last `ni'o`, `no'i`, `lu`, `tu'e` or `to`. The Magic Words proposal and camxes-std (the reference PEG parser) read `su` in this way. Under CLL 19.13, `su` erases the whole text.
 
 ```jbogenbau
 %features su-boundary

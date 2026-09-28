@@ -1,6 +1,8 @@
 # The CLL dialect, by its printed grammar
 
-Lojban as *The Complete Lojban Language* describes it. The dialect reads the grammar printed in its chapter 21 and the word forms of its chapters 3 and 4. It gives each cmavo the selma'o of the book's dictionary. The printed grammar is normative here, with the repairs [the CLL grammar](../syntax/cll.md) lists: any parse it admits counts, and a text is accepted when it has one reading. Each stage is a grammar over the tokens the stage before it emitted; `docs/notation.md` explains the notation.
+This dialect is Lojban as *The Complete Lojban Language* (CLL) describes it. The dialect reads the grammar printed in chapter 21 of the book, and the word forms of its chapters 3 and 4. It gives each cmavo the selma'o of the book's dictionary. The printed grammar is normative here, with the repairs that [the CLL grammar](../syntax/cll.md) lists. Any parse that the printed grammar admits counts, and the dialect accepts a text when the text has one reading.
+
+The dialect reads a text in stages. A stage is one step of the reading, with its own grammar. Each stage reads the tokens (units such as phonemes or words) that the stage before it emitted. `docs/notation.md` explains the notation. A feature is a named switch that the grammars test. This dialect turns on the feature `cll-cyrillic`.
 
 ```jbogenbau
 %features cll-cyrillic
@@ -21,7 +23,9 @@ Lojban as *The Complete Lojban Language* describes it. The dialect reads the gra
   %include "../phonemes/cyrillic-cll.md"
   ```
 
-The stage receives the text's characters and hands on one token per phoneme, whatever the script, and a `PAUSE` wherever the text pauses. It reads the orthography of CLL chapter 3 and no more. A digit, an accent or a question mark is foreign to it, so a text with one outside a quote is rejected. The feature `cll-cyrillic`, which the dialect turns on, reads the Cyrillic of CLL 3.12. gencmu's own Cyrillic is not CLL's, so this dialect does not offer it: with the feature off, it reads no Cyrillic. A run of letters is one stretch until a pause says otherwise, so the stage is greedy.
+The stage receives the text's characters. It hands on one token per phoneme, whatever the script, and a `PAUSE` wherever the text pauses. It reads the orthography of CLL chapter 3 and no more. A digit, an accent or a question mark is foreign to the stage, so the word stage rejects a text with one outside a quote. A run of letters is one stretch until a pause says otherwise. So the stage is greedy: it ends each constituent as late as the grammar allows.
+
+The feature `cll-cyrillic`, which the dialect turns on, reads the Cyrillic of CLL 3.12. gencmu's own Cyrillic is not CLL's, so this dialect does not offer it. With the feature off, the stage reads no Cyrillic.
 
 ## Stage 2: forms
 
@@ -46,7 +50,7 @@ The stage receives the text's characters and hands on one token per phoneme, wha
   %include "../words/lexicon-cll.md"
   ```
 
-The stage receives phonemes and hands on the source words of each run, each tagged with its class and, for a cmavo, its selma'o. A run that divides into no words is handed on as one foreign token. The word forms divide a run into words in at most one way, so the choice among parses never decides where a word ends.
+The stage receives phonemes. A run is a stretch with no internal pause. The stage hands on the source words of each run. It gives each word a tag (a label that the next grammar reads) for its class and, for a cmavo, a tag for its selma'o. If a run divides into no words, the stage hands the run on as one foreign token. The word forms divide a run into words in at most one way, so the choice among parses never decides where a word ends.
 
 ## Stage 3: words
 
@@ -63,7 +67,9 @@ The stage receives phonemes and hands on the source words of each run, each tagg
   %include "../words/cll-stream.md"
   ```
 
-The stage receives the source words and hands on the words of the text. It rejects a foreign run outside a foreign quote. The stage is lazy for the magic words: each acts on what exists when it is read. The warning `y-cmavo` reports a cmavo that uses `y` as a vowel beyond the forms CLL gives, such as `ka'y`. `sa` and `su` are behind the feature `sa-su`, which the libraries turn on for a text only when it needs it.
+The stage receives the source words and hands on the words of the text. It rejects a foreign run outside a foreign quote. For the magic words, the stage is lazy: it ends each constituent as early as the grammar allows. So each magic word acts on what exists when the stage reads it.
+
+The warning `y-cmavo` reports a cmavo that uses `y` as a vowel beyond the forms that CLL gives, such as `ka'y`. The feature `sa-su` controls `sa` and `su`. The libraries turn this feature on for a text only when the text needs it.
 
 ## Stage 4: indicators
 
@@ -76,7 +82,7 @@ The stage receives the source words and hands on the words of the text. It rejec
   %include "../indicators/cll.md"
   ```
 
-The stage applies CLL's non-formal rule `word = [BAhE] any-word [indicators]`: a run of indicators attaches to the word before it, and `ba'e` to the word after it. It hands on the words the syntax reads.
+The stage applies CLL's non-formal rule `word = [BAhE] any-word [indicators]`. A run of indicators attaches to the word before it, and `ba'e` attaches to the word after it. The stage hands on the words that the syntax reads.
 
 ## Stage 5: syntax
 
@@ -93,4 +99,4 @@ The stage applies CLL's non-formal rule `word = [BAhE] any-word [indicators]`: a
   %include "../syntax/cll-ebnf.md"
   ```
 
-The grammar of chapter 21 over selma'o. An elided terminator is absent for as long as the grammar allows, so the stage is greedy; a terminator may be elided wherever a parse of the whole text needs it; and a text still ambiguous with its terminators written back is an error, with `elision-only`.
+The stage is the grammar of chapter 21, with selma'o as its terminals. An elided terminator is absent for as long as the grammar allows, so the stage is greedy. A terminator can be elided wherever a parse of the whole text needs it. With `elision-only`, the stage applies CLL's rule that a terminator can be elided only if no ambiguity results. So a text that is still ambiguous with its terminators written back is an error.

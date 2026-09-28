@@ -1,10 +1,14 @@
 # The experimental dialect
 
-This dialect extends CLL with constructs that entered use after CLL appeared in print. Examples are `cu` before a bare selbri, connected sumti with `je`, and the experimental cmavo. The syntax is [`../syntax/experimental.md`](../syntax/experimental.md), which says what it adds to CLL's.
+This dialect extends the Lojban of *The Complete Lojban Language* (CLL) with constructs that entered use after CLL appeared in print. Examples are `cu` before a bare selbri, connected sumti with `je`, and the experimental cmavo. The syntax is [`../syntax/experimental.md`](../syntax/experimental.md), which says what it adds to CLL's.
 
-The phoneme stage is the phoneme stage of the approved-word-forms dialect ([`bpfk.md`](bpfk.md)). The forms stage reads the approved word forms of the definition effort ([`../words/bpfk.md`](../words/bpfk.md)). camxes-exp, the experimental PEG grammar, reads the same word forms with a few changes, such as the consonant pair `mz`, which [`../words/experimental.md`](../words/experimental.md) makes. A lexicon gives the experimental cmavo their selma'o. The feature `su-boundary` is on, so that `su` erases back to the last `ni'o`, `no'i`, `lu`, `tu'e` or `to`, as camxes-exp's does. The indicator stage is the cll-ebnf dialect's ([`cll-ebnf.md`](cll-ebnf.md)) with a layer that reads indicators as camxes-exp does.
+The dialect reads a text in stages. A stage is one step of the reading, with its own grammar. The phoneme stage is the phoneme stage of the approved-word-forms dialect ([`bpfk.md`](bpfk.md)). The forms stage reads the approved word forms of the definition effort ([`../words/bpfk.md`](../words/bpfk.md)). A lexicon gives the experimental cmavo their selma'o.
 
-The dialect turns on two features of the syntax, as camxes-exp always has them. `cbm` is the cmevla-brivla merger. `soi-clause` makes `soi` a term that takes a subsentence, in place of CLL's free modifier of reciprocity. A caller can turn either off to read the CLL form.
+camxes-exp is the experimental PEG grammar. A PEG commits to the first matching alternative. camxes-exp reads the same word forms with a few changes, such as the consonant pair `mz`, which [`../words/experimental.md`](../words/experimental.md) makes. The indicator stage is the cll-ebnf dialect's ([`cll-ebnf.md`](cll-ebnf.md)) with a layer that reads indicators as camxes-exp does. A layer is a document that changes earlier rules.
+
+A feature is a named switch that the grammars test. The dialect turns on the feature `su-boundary`, so that `su` erases back to the last `ni'o`, `no'i`, `lu`, `tu'e` or `to`, as camxes-exp's does.
+
+The dialect also turns on two features of the syntax, as camxes-exp always has them. `cbm` is the cmevla-brivla merger. `soi-clause` makes `soi` a term that takes a subsentence, in place of CLL's free modifier of reciprocity. A caller (the program or person that asks for a parse) can turn either off to read the CLL form.
 
 ```jbogenbau
 %features cbm soi-clause su-boundary
@@ -105,7 +109,7 @@ The dialect turns on two features of the syntax, as camxes-exp always has them. 
   %include "../syntax/experimental.md"
   ```
 
-The experimental grammar is greedy like CLL's, but it does not declare `elision-only`. It has ambiguities that are not about terminators, such as a bare `na` term beside a negated selbri. The greedy rule settles them.
+The experimental grammar is greedy like CLL's: it ends each constituent as late as the grammar allows. But it does not declare `elision-only`, the rule that a terminator can be elided only if no ambiguity results. The grammar has ambiguities that are not about terminators, such as a bare `na` term beside a negated selbri. The greedy rule settles them.
 
 ## Where it reads texts differently from camxes-exp
 
@@ -113,7 +117,9 @@ camxes-exp is the baseline of this dialect, not its limit. gencmu considers ever
 
 PEG commitment also changes readings of accepted texts. In `le mlatu na mu'o pinxe le ri ladru`, camxes-exp's vocative includes `pinxe`. The dialect reads a negated sentence.
 
-The layer follows camxes-exp's ordered choice where that choice decides what a text means. Where camxes-exp states a lookahead, such as `!selbri` after a tag, the layer follows it. The exceptions, and the ties that remain, are listed below.
+A PEG has ordered choice. Ordered choice keeps the first matching alternative. The alternatives have a fixed order.
+
+The layer follows camxes-exp's ordered choice where that choice decides what a text means. Where camxes-exp states a lookahead (a test of the words that follow), such as `!selbri` after a tag, the layer follows it. The paragraphs below list the exceptions, and the ties that remain. A tie has more than one winning reading.
 
 The dialect also accepts two constructs by choice, which camxes-exp rejects. In a sentence's own terms, camxes-exp requires a stag between a connective and `bo` (`abs_term_2`). This grammar does not, so `fa mi .e bo fe do klama` parses here, as it did before the grammar took camxes-exp's two levels of terms.
 
@@ -121,17 +127,17 @@ In `fa mi .e bo fe do .a fi mi klama`, one connected term precedes `klama`. With
 
 The grammar also allows the two branches of a bare forethought termset to hold different numbers of terms, as CLL's termset with `nu'i` does. camxes-exp's `gek_termset` pairs the terms of its branches one to one. So `ge mi do gi ti klama` parses here, and camxes-exp rejects it.
 
-Some readings differ where camxes-exp's ordered choice picks a reading that the grammar does not prefer. This dialect follows camxes-exp where its choice decides what a text means. It keeps its own reading where camxes-exp's choice only follows from the order in which a PEG tries its rules:
+Some readings differ where camxes-exp's ordered choice picks a reading that the grammar does not prefer. This dialect follows camxes-exp where its choice decides what a text means. It keeps its own reading where camxes-exp's choice only follows from the order in which a PEG tries its rules. Two texts show this.
 
-- `la djonz. cu na'e pamoi cusku` has `na'e` on the selbri `pa moi`. camxes-exp reads the number `na'e pa` before `moi`, since its `mex MOI` form comes first.
-- In `mi nelci le su'u delno .enai le su'u stero delno`, the elided terminators fall as late as the grammar allows. So `.enai` joins two bridi-tails inside the first abstraction. camxes-exp joins the two descriptions.
+First, `la djonz. cu na'e pamoi cusku` has `na'e` on the selbri `pa moi`. camxes-exp reads the number `na'e pa` before `moi`, since its `mex MOI` form comes first.
 
-Two other differences come from what the grammars allow:
+Second, in `mi nelci le su'u delno .enai le su'u stero delno`, the elided terminators fall as late as the grammar allows. So `.enai` joins two bridi-tails inside the first abstraction. camxes-exp joins the two descriptions.
 
-- After `vu'o`, a connected sumti can follow without relative clauses here. So `mi viska ko'a vu'o .e ko'e` joins two sumti after `vu'o`. camxes-exp takes a connected sumti there only after relative clauses, so it joins two terms.
-- camxes-exp's selbri has a form with an ek, a tag and `ke` (`.e ba ke`), which this grammar does not have yet. So camxes-exp accepts `le dakli .e ba ke bevri ke'e ku`, and the dialect rejects it. And in `mi bevri le dakli .ebake bevri le gerku`, camxes-exp reads one tanru inside the description, where the dialect joins two bridi-tails.
+Two other differences come from what the grammars allow. First, after `vu'o`, a connected sumti can follow without relative clauses here. So `mi viska ko'a vu'o .e ko'e` joins two sumti after `vu'o`. camxes-exp takes a connected sumti there only after relative clauses, so it joins two terms.
 
-A replacement quote is one unit of raw words in the word stage (`../words/lohai.md`), as in camxes-exp. A magic word after the quote acts on all of it, as the left-to-right rule requires. Zantufa also accepts all four texts below. camxes-exp rejects them:
+Second, camxes-exp's selbri has a form with an ek, a tag and `ke` (`.e ba ke`), which this grammar does not have yet. So camxes-exp accepts `le dakli .e ba ke bevri ke'e ku`, and the dialect rejects it. And in `mi bevri le dakli .ebake bevri le gerku`, camxes-exp reads one tanru inside the description, where the dialect joins two bridi-tails.
+
+A replacement quote is one unit of raw words in the word stage (`../words/lohai.md`), as in camxes-exp. A magic word is a word, such as `si`, that acts on other words. A magic word after the quote acts on all of it, as the left-to-right rule requires. Zantufa also accepts all four texts below. camxes-exp rejects them:
 
 - `mi lo'ai do le'ai si klama` is `mi klama`, and camxes-exp rejects it.
 - `lo'ai mi le'ai bu` is a letter word, and `lo'ai mi le'ai zei broda` a compound. camxes-exp rejects both.
@@ -145,7 +151,7 @@ The dialect also reads `sa` by a different rule. The word stage erases with `sa`
 
 - `mi broda le brode sa ti` is `ti`, since `mi` is the last word of KOhA before the `sa`. camxes-exp reads `mi broda ti`.
 - `lo broda sa broda` is `lo broda`, and `mi broda sa brode` is `mi brode`. camxes-exp rejects both.
-- `mi broda gi'e klama da de di sa na gi'e prami` is rejected. No word of NA comes before the `sa`, so it erases back to the start of the text. What is left, `na gi'e prami`, is not a text. camxes-exp accepts the text.
-- `le le broda ku brode le broda sa sa le brodi` is rejected. The two `sa` words erase back to the second `le` before them, which leaves `le le brodi`. camxes-exp accepts the text.
+- The dialect rejects `mi broda gi'e klama da de di sa na gi'e prami`. No word of NA comes before the `sa`, so it erases back to the start of the text. What is left, `na gi'e prami`, is not a text. camxes-exp accepts the text.
+- The dialect rejects `le le broda ku brode le broda sa sa le brodi`. The two `sa` words erase back to the second `le` before them, which leaves `le le brodi`. camxes-exp accepts the text.
 
-Among the corpus texts, 166 with `sa` are accepted here and rejected by camxes-exp, and 3 are rejected here and accepted by camxes-exp.
+The corpus is the collection of Lojban test texts. Among its texts with `sa`, the dialect accepts 166 that camxes-exp rejects. It rejects 3 that camxes-exp accepts.

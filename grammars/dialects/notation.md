@@ -1,8 +1,10 @@
 # The notation dialect
 
-The dialect in which gencmu reads its own grammar documents. It is an ordinary dialect, run by the same engine as the Lojban ones. So the notation's definition is the same kind of thing as any grammar it defines. The libraries do not read these documents to start: they read the DOM of this dialect from `../notation/bootstrap.json`. A check in every library's tests loads this pipeline with that DOM and compares the result with the bootstrap itself.
+This is the dialect in which gencmu reads its own grammar documents. A dialect is a pipeline: a sequence of stages, each with its own grammar. This dialect is an ordinary one, and the same engine runs it as runs the Lojban ones. So the notation's definition is the same kind of thing as any grammar it defines.
 
-The input is the text of a grammar document's `jbogenbau` blocks, joined with a newline between blocks; finding the blocks in the Markdown is the one part of reading a grammar that is not itself a grammar.
+The libraries do not read these documents to start. Instead, they read the DOM of this dialect from `../notation/bootstrap.json`. A DOM holds the parsed rules and directives. A test in every library loads this pipeline with that DOM. The test compares the result with the bootstrap itself.
+
+The input is the text of a grammar document's `jbogenbau` blocks, joined with a newline between blocks. Only one part of the reading of a grammar is not itself a grammar: the step that finds the blocks in the Markdown.
 
 ## Stage 1: tokens
 
@@ -15,7 +17,7 @@ The input is the text of a grammar document's `jbogenbau` blocks, joined with a 
   %include "../notation/lexical.md"
   ```
 
-The stage receives one token per character and hands on the notation's tokens: names, strings, phoneme tags, captures, guards, directives and symbols, each a run of the characters the author wrote. Spaces and comments are dropped.
+The stage receives one token (a unit of input) per character. It hands on the notation's tokens: names, strings, phoneme tags, captures, guards, directives and symbols. Each of these tokens is a run of the characters that the author wrote. The stage drops spaces and comments.
 
 ## Stage 2: the document
 
@@ -28,4 +30,4 @@ The stage receives one token per character and hands on the notation's tokens: n
   %include "../notation/syntax.md"
   ```
 
-The stage receives those tokens and builds the tree of rules and directives from which a library reads the grammar.
+The stage receives those tokens. It builds the tree of rules and directives from which a library reads the grammar.
