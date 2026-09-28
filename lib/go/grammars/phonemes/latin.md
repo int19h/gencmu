@@ -1,19 +1,19 @@
 # Latin conventions
 
-This document adds to [latin-strict.md](latin-strict.md) the conventions that Lojban texts use beyond CLL chapter 3. CLL is *The Complete Lojban Language*. Both documents belong to the phoneme stage, the first grammar in the chain. The dialects of the [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) read them, after the rules of latin-strict.md. The [CLL](../dialects/cll-ebnf.md) dialect does not. [The notation document](../../docs/notation.md) explains the notation.
+This document adds to [latin-strict.md](latin-strict.md) the conventions that Lojban texts use beyond CLL chapter 3. CLL is *The Complete Lojban Language*. Both documents belong to the phoneme stage, the first stage of the pipeline. The dialects of the [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) read them, after the rules of latin-strict.md. The [CLL](../dialects/cll-ebnf.md) dialect does not. [The notation document](../../docs/notation.md) explains the notation.
 
-Most conventions here read text that CLL does not. Two of them instead change how the stage reads a text that latin-strict.md also reads. These two are the comma between two vowels, which the approved grammar ignores, and a run written all in capitals. The approved grammar is the word-form grammar that the Lojban definition effort approved. The conventions are these:
+Most conventions here read text that CLL does not. Two of them instead change how the stage reads a text that latin-strict.md also reads. These two are the comma between two vowels, which the approved grammar ignores, and a capital run. A capital run has multiple vowel groups with only capital vowels. The approved grammar is the word-form grammar that the Lojban definition effort approved. The conventions are these:
 
 - Punctuation other than the period is a pause.
 - A comma between two vowels is nothing, as it is elsewhere.
 - `h` writes the apostrophe.
-- A run written all in capitals carries no stress mark.
+- A capital run carries no stress mark.
 - An accent marks stress, and a breve marks a glide.
 - A digit stands for its number word.
 
 ## Punctuation
 
-The approved grammar reads the question mark and the exclamation mark as pauses, like the period and whitespace (`space_char` in its PEG, or parsing expression grammar). This grammar also reads as a pause any other character that is neither a letter of some script, a digit nor a mark. That is a rule of gencmu. Texts on the web put quotation marks, brackets and dashes around words. The approved grammar rejects `mi "klama"`, and this grammar reads it as `mi klama`.
+The approved grammar reads the question mark and the exclamation mark as pauses, like the period and whitespace. Its PEG, or parsing expression grammar, calls them `space_char`. This grammar also reads as a pause any other character that is neither a letter of some script, a digit nor a mark. That is a rule of gencmu. Texts on the web put quotation marks, brackets and dashes around words. The approved grammar rejects `mi "klama"`, and this grammar reads it as `mi klama`.
 
 A pause token covers its core, from its first to its last whitespace character or period, with any punctuation inside it. A token is one unit that a stage reads or emits. Other punctuation at either end of a pause belongs to no token. So a `zoi` body keeps the quotation marks in `zoi gy. "Hello!" .gy.`. The body takes in the text next to it that no token covers, as [the notation](../../docs/notation.md) says under "Verbatim text".
 

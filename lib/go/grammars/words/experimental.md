@@ -1,6 +1,6 @@
 # Experimental word forms
 
-This document is part of the forms stage in the [experimental](../dialects/experimental.md) dialect. The forms stage is the second grammar in the chain. It divides the phonemes of the text into words. The loader stitches this document into the stage after [bpfk.md](bpfk.md). camxes-exp, the experimental PEG (parsing expression grammar), reads the word forms that the definition effort of the Logical Language Group approved, with a few changes. This document makes the same changes to the translation in [bpfk.md](bpfk.md).
+This document is part of the forms stage in the [experimental](../dialects/experimental.md) dialect. The forms stage is the second stage of the pipeline. It divides the phonemes of the text into words. The loader stitches this document into the stage after [bpfk.md](bpfk.md). camxes-exp, the experimental PEG (parsing expression grammar), reads the word forms that the definition effort of the Logical Language Group approved, with a few changes. This document makes the same changes to the translation in [bpfk.md](bpfk.md).
 
 Each rule here has the name of the camxes-exp rule that it translates, and its comment gives that rule, as in bpfk.md. The [Zantufa](../dialects/zantufa.md) dialect makes only the first change, in [zantufa.md](zantufa.md). [The notation document](../../docs/notation.md) explains the notation.
 

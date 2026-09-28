@@ -1,6 +1,6 @@
 # The CLL grammar
 
-This document is the syntax stage, the last stage of the [CLL](../dialects/cll-ebnf.md) and [approved word forms](../dialects/bpfk.md) dialects. A dialect is a sequence of parsing stages. A stage is one parsing step with its own grammar.
+This document opens the syntax stage, the last stage of the [CLL](../dialects/cll-ebnf.md) and [approved word forms](../dialects/bpfk.md) dialects. It is also the base of the syntax of the [experimental](../dialects/experimental.md) dialect. A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar.
 
 This document is the grammar of Lojban as chapter 21 of *The Complete Lojban Language* (CLL) prints it, in the notation that the book uses. That notation is EBNF (Extended Backus-Naur Form). This grammar departs from the printed one where "Differences from the printed CLL grammar" at the end says. Its terminals are selma'o. A terminal matches an input token by tag. A tag is a label that an earlier stage gives a token.
 
@@ -28,14 +28,14 @@ A directive and a rule set the grammar up. This document does not say how the st
 
 A text is what one speaker or writer produces, from the first word to the last (CLL 19.1). A text can open with these forms:
 
-- `nai`, which here means a text-level negation of what follows
+- `nai`, a vague negation that CLL allows at the start of a text (CLL 19.5)
 - A run of names, a form of address without a vocative
 - Indicators or free modifiers that belong to the whole text
 - A connective, `joik-jek`, that joins this text to a previous one in afterthought, as an answer joins a question (CLL 19.5)
 
 After that come the paragraphs. `text-1` lets the text begin with `.i` sentence separators, then with `ni'o` topic markers, or with either alone. Each `.i` can carry its own afterthought connective and a `bo`-grouped tense. A text takes these forms when it continues the text of another speaker or starts a fresh topic (CLL 19.3). One or more `ni'o` separate the paragraphs, and each `ni'o` beyond the first marks a larger break. A paragraph is a sequence of statements or fragments, separated by `.i`.
 
-This grammar writes every unbounded sequence with a trailing `...`, which the parser reads left-recursively. So a paragraph of a thousand sentences costs a thousand steps, not a thousand squared.
+This grammar writes most unbounded sequences with a trailing `...`, which the parser reads left-recursively. So a paragraph of a thousand sentences costs a thousand steps, not a thousand squared. A few rules, such as `paragraphs` and `links`, recurse on the right instead.
 
 ```jbogenbau
 %rule text
@@ -103,7 +103,7 @@ This grammar follows the printed one. The two parses differ only in where `ke'e`
 
 A joik directly before `ke`, in a tanru or between operators, has two parses in the same way. But these parses still differ with every terminator written, so `mi broda joi ke brode ke'e` is an error that shows both. The official parser reads it as a group joined by `joi`, through its lexer token `JOIK_KE`.
 
-A `gek-sentence` is the forethought form. It joins two subsentences before either is spoken: `ga A gi B`, or `pu gi A gi B` with a tense in the gek. A tag (a tense or modal, see "Tenses and modals"), `ke` for grouping, or `na` can come before it (CLL 14.5, 14.10). Its tail terms follow the whole connection and apply to both sides.
+A `gek-sentence` is the forethought form. It joins two subsentences before either is spoken: `ga A gi B`, or `pu gi A gi B` with a tense in the gek. A tense or modal (the rule `tag`, see "Tenses and modals"), `ke` for grouping, or `na` can come before it (CLL 14.5, 14.10). Its tail terms follow the whole connection and apply to both sides.
 
 ```jbogenbau
 %rule sentence
@@ -134,14 +134,14 @@ A `gek-sentence` is the forethought form. It joins two subsentences before eithe
 
 ## Terms
 
-A term is one argument of a bridi, or one tag standing on its own (CLL 9.3, 10.13, 15.2). It is one of these:
+A term is one argument of a bridi, or one tense or modal standing on its own (CLL 9.3, 10.13, 15.2). It is one of these:
 
 - A sumti
-- A sumti or an elided `ku` after a tag or a place marker `fa`, `fe`, ... (`ca lo nu broda`, `fi mi`, `pu ku`)
+- A sumti or an elided `ku` after a tense, a modal or a place marker `fa`, `fe`, ... (`ca lo nu broda`, `fi mi`, `pu ku`)
 - A termset
 - `na ku`, the sentence-level negation written as a term
 
-A tag with nothing after it takes `ku`, so that it does not swallow the next sumti. The `ku` can be elided when what follows cannot be a sumti. When what follows can be a sumti, "Choosing among parses" says which reading wins.
+A tense or modal with nothing after it takes `ku`, so that it does not swallow the next sumti. The `ku` can be elided when what follows cannot be a sumti. When what follows can be a sumti, "Choosing among parses" says which reading wins.
 
 The three levels of `terms` state the termset connectives (CLL 14.11 and 16.7). `terms-2` joins terms with `ce'e` into a termset, `mi ce'e do`. `terms-1` joins termsets with `pe'e` followed by a jek or joik, the afterthought form that connects two sets of arguments at once. `terms` is a sequence of those, and it is left-recursive so that the parser builds the terms of a long sentence one at a time. A termset in forethought is `nu'i gek terms nu'u gik terms nu'u`. `nu'i terms nu'u` alone brackets several terms into one so that a connective or a tense applies to all of them.
 
@@ -235,14 +235,16 @@ A relative clause attaches to a sumti and restricts or comments on it (CLL 8). `
 
 ## Selbri and tanru
 
-A selbri is the predicate of a bridi (CLL 5). A tag can come before it. That is how a tense or modal attaches to the whole bridi when it is not written as a term (`mi pu klama`). The levels below state the tanru grouping. `selbri-1` allows `na` before a selbri, the contradictory negation (CLL 15.2).
+A selbri is the predicate of a bridi (CLL 5). A tense or modal can come before it. That is how the tense or modal attaches to the whole bridi when it is not written as a term (`mi pu klama`). The levels below state the tanru grouping. `selbri-1` allows `na` before a selbri, the contradictory negation (CLL 15.2).
 
-`selbri-2` is the `co` inversion, `sutra co tavla`. It swaps the order of modifier and modified and groups to the right, so everything after `co` is the modifier's argument structure (CLL 5.8). `selbri-3` is a plain tanru: a sequence of `selbri-4` with no connective between them. It groups to the left, so `barda gerku zdani` is `(barda gerku) zdani`.
+`selbri-2` is the `co` inversion, `sutra co tavla`. It swaps the order of modifier and modified, so the part after `co` is the modifier (CLL 5.8). The whole selbri keeps the place structure of the part before `co`. Sumti after the selbri fill the places of the modifier, from its x2 on. `co` groups to the right.
+
+`selbri-3` is a plain tanru: a sequence of `selbri-4` with no connective between them. It groups to the left, so `barda gerku zdani` is `(barda gerku) zdani`.
 
 `selbri-4` joins units by a jek or joik in afterthought, `barda je melbi`, or by a joik followed by `ke ... ke'e`. `selbri-5` joins units by a jek or joik with `bo`, which binds more tightly than plain juxtaposition, as in `melbi je bo cmalu nixli`. `selbri-6` is a tanru unit, optionally followed by `bo` and a further `selbri-6`, as in `melbi cmalu bo nixli`. It can also be a forethought connection with a guhek, `gu'e barda gi melbi`, optionally negated by `na'e` (CLL 5.6, 14.12).
 
 
-A tanru unit is one brick of the selbri. `tanru-unit` allows `cei` to assign the unit to a pro-bridi (`broda cei klama`). `tanru-unit-1` attaches linked arguments, `be ... bei ... be'o`, which fill the places of that one unit rather than of the whole bridi (CLL 5.7). `tanru-unit-2` lists the simple units:
+A tanru unit is one brick of the selbri. `tanru-unit` allows `cei` to assign the unit to a pro-bridi (`klama cei broda`). `tanru-unit-1` attaches linked arguments, `be ... bei ... be'o`, which fill the places of that one unit rather than of the whole bridi (CLL 5.7). `tanru-unit-2` lists the simple units:
 
 - A brivla
 - A pro-bridi `go'i` with optional `ra'o`
@@ -251,12 +253,12 @@ A tanru unit is one brick of the selbri. `tanru-unit` allows `cei` to assign the
 - A number or lerfu string with `moi`, `mei` or the others of MOI
 - `nu'a` before an operator
 - A conversion `se`, `te`, ...
-- `jai` with an optional tag
+- `jai` with an optional tense or modal
 - A `zei` compound of any words
 - A scalar negation `na'e`
-- An abstraction has `nu`, `ka`, `du'u` or another word of NU before a subsentence, and `kei` closes it. Jek or joik can connect several abstraction words (`nu je ka`).
+- An abstraction: `nu`, `ka`, `du'u` or another word of NU before a subsentence, closed by `kei`
 
-The `SE`, `JAI` and `NAhE` forms refer back to `tanru-unit-2`, so `se se broda` and `na'e se broda` are single units. The word stage builds each `zei` compound and hands on one `BRIVLA`, so the `ZEI` alternative never matches. This grammar keeps that alternative as CLL prints it.
+The `SE`, `JAI` and `NAhE` forms refer back to `tanru-unit-2`, so `se se broda` and `na'e se broda` are single units. A jek or joik can connect several abstraction words (`nu je ka`). The word stage builds each `zei` compound and hands on one `BRIVLA`, so the `ZEI` alternative never matches. This grammar keeps that alternative as CLL prints it.
 
 ```jbogenbau
 %rule selbri
@@ -434,9 +436,16 @@ A gek is a forethought logical connective, a joik used in forethought with `gi`,
 
 ## Tenses and modals
 
-A tag turns a sumti into a modal or tense term (CLL 9 and 10). It also marks a selbri or a whole sentence with a tense. `tag` is one or more tense-modals joined by jek or joik, `pu je ca`. `stag` is the restricted form that is allowed inside connectives before `bo` and `ke`, and in a gek. If `stag` includes a free-modifier slot there, the grammar becomes ambiguous.
+A tense or modal (the rule `tag`) turns a sumti into a modal or tense term (CLL 9 and 10). It also marks a selbri or a whole sentence with a tense. `tag` is one or more tense-modals joined by jek or joik, `pu je ca`. `stag` is the restricted form that is allowed inside connectives before `bo` and `ke`, and in a gek. If `stag` includes a free-modifier slot there, the grammar becomes ambiguous.
 
-A `tense-modal` is a simple tense-modal with a free-modifier slot, or `fi'o selbri fe'u`, which makes a modal from any selbri (CLL 9.5). A `simple-tense-modal` is a BAI modal, a tense built from time and space, the tense shorthand `ki`, or the question word `cu'e`. `ki` sets a reference point (CLL 10.13). `se` can convert a BAI modal. `na'e` can negate a BAI modal or a tense, and `ki` can follow either.
+A `tense-modal` is a simple tense-modal with a free-modifier slot, or `fi'o selbri fe'u`, which makes a modal from any selbri (CLL 9.5). A `simple-tense-modal` is one of these:
+
+- A BAI modal
+- A time or space tense, a CAhA word such as `ka'e`, or the two in that order (`pu`, `ka'e`, `pu ka'e`)
+- The sticky tense `ki`
+- The question word `cu'e`
+
+`ki` sets a reference point (CLL 10.13). `se` can convert a BAI modal. `na'e` can negate a BAI modal or a tense, and `ki` can follow either.
 
 A time tense is any combination of these, in this order (CLL 10.4 to 10.9):
 
@@ -445,7 +454,7 @@ A time tense is any combination of these, in this order (CLL 10.4 to 10.9):
 - An interval `ze'a` with an optional direction
 - Interval properties
 
-A space tense is likewise a `va` distance, `fa'a`-family offsets, a space interval, and a `mo'i` movement. A space interval is `ve'a` or `vi'a` or both, with a direction. `fe'e` before an interval property applies that property to space rather than time. An interval property is `roi` with a number, `ta'e` and the others of TAhE, or a ZAhO event contour. Each can take `nai`.
+A space tense is likewise a `va` distance, `fa'a`-family offsets, a space interval, and a `mo'i` movement. A space interval is `ve'a` or `vi'a` or both, with an optional direction, and then interval properties. Either of those two parts can stand alone, as in `mi ve'a klama` and `mi fe'e ta'e klama`. `fe'e` before an interval property applies that property to space rather than time. An interval property is `roi` with a number, `ta'e` and the others of TAhE, or a ZAhO event contour. Each can take `nai`.
 
 ```jbogenbau
 %rule tag
@@ -563,7 +572,7 @@ This grammar departs from the EBNF printed in CLL in five places. The first sett
 
 The fifth follows the prose of CLL 19.8, which allows more than the EBNF. Apart from these, this grammar spells the printed grammar's `CMENE` as `CMEVLA`, the class that the word stage gives a name.
 
-1. In `simple-tense-modal`, the printed text reads `[NAhE] (time [space] | space [time]) & CAhA [KI]`. By the stated precedence of `&`, that attaches `[NAhE]` only to the time/space branch and `[KI]` only to the `CAhA` branch. This grammar reads `[NAhE] ((time [space] | space [time]) & CAhA) [KI]`, so that `ba za ki` is one tag and `na'e ka'e` is a tag.
+1. In `simple-tense-modal`, the printed text reads `[NAhE] (time [space] | space [time]) & CAhA [KI]`. By the stated precedence of `&`, that attaches `[NAhE]` only to the time/space branch and `[KI]` only to the `CAhA` branch. This grammar reads `[NAhE] ((time [space] | space [time]) & CAhA) [KI]`, so that `ba za ki` is one `simple-tense-modal`, and so is `na'e ka'e`.
 2. A text can begin with `.i` separators followed by `ni'o` markers, as in `.i ni'o mi klama`. The printed `text-1` makes the two alternatives. YACC rule 2 (`text_B_2`) lets any number of `.i` forms precede a `ni'o` run. The camxes grammars call the printed form "a bug in the BNF".
 3. A `lo'u ... le'u` quote can be empty, `lo'u le'u`. The printed `sumti-6` requires at least one word. YACC rule 436 reads the body of the quote as one token that can be empty.
 4. The free-modifier slot after a `lu ... li'u` quote follows the quote whether or not `li'u` is written, so `lu cy. to toi` is a quote followed by a parenthesis. The printed `sumti-6` writes `/LIhU#/`, which drops the slot with the elided `li'u`. YACC rule 432 (`quote_arg`) attaches free modifiers to the whole quote, and its `LIhU` gap carries none. Every other elidable terminator keeps its slot as printed.

@@ -1,6 +1,6 @@
 # jbogenbau: from tokens to a grammar
 
-This is the second stage of the notation dialect, `../dialects/notation.md`. A stage is one parsing step with its own grammar. The stage reads the tokens (units of input) that `lexical.md` emitted. It builds the tree from which a library reads the grammar's rules and directives. Its rule names matter to that reader: the table in `../../docs/engine.md`, §9, says what each named constituent becomes. `../../docs/notation.md` explains the notation for authors.
+This is the second stage of the notation dialect, `../dialects/notation.md`. A stage is one step of a pipeline, with its own grammar. The stage reads the tokens (units of input) that `lexical.md` emitted. It builds the tree from which a library reads the grammar's rules and directives. Its rule names matter to that reader: the table in `../../docs/engine.md`, §9, says what each named constituent becomes. `../../docs/notation.md` explains the notation for authors.
 
 The tokens arrive with tags (labels that the grammar reads). The lexical stage tags a token `identifier`, `string`, `phoneme`, `spelling`, `capture` or `guard`. Instead, it tags a keyword such as `"%rule"`, or a symbol such as `"|"` or `"..."`, with its own spelling.
 

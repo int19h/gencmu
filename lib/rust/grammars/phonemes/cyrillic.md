@@ -1,8 +1,8 @@
 # Cyrillic orthography
 
-This document adds gencmu's Cyrillic orthography to the phoneme stage, the first grammar in the chain. It is the default Cyrillic of the dialects of the [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). It has no frame of its own. It uses the shared text, pause and run rules. It adds its letters to the rules of [latin-strict.md](latin-strict.md) and [latin.md](latin.md), so a text can mix scripts.
+This document adds gencmu's Cyrillic orthography to the phoneme stage, the first stage of the pipeline. It is the default Cyrillic of the dialects of the [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). It has no frame of its own. It uses the shared text, pause and run rules. It adds its letters to the rules of [latin-strict.md](latin-strict.md) and [latin.md](latin.md), so a text can mix scripts.
 
-A dialect that does not list this document reads a Cyrillic letter as foreign. [The notation document](../../docs/notation.md) explains the notation.
+A dialect that lists neither this document nor [cyrillic-cll.md](cyrillic-cll.md) reads a Cyrillic letter as foreign. [The notation document](../../docs/notation.md) explains the notation.
 
 The consonants are those of CLL 3.12: `ш` for `c`, `ж` for `j`, `х` for `x`, and the others in the obvious ways. `ъ`, the Bulgarian hard sign, is `y`. This document also reads letters that other Cyrillic alphabets use for the same or nearly the same sounds. CLL 3.12 does not name them, but a writer at home in one of those alphabets reaches for them:
 
@@ -13,7 +13,7 @@ The consonants are those of CLL 3.12: `ш` for `c`, `ж` for `j`, `х` for `x`, 
 - `ґ` for `g`
 - `ј` for the glide `i`, as `й`
 - `һ` as an explicit apostrophe
-- the palochka `ӏ` as a period
+- The palochka `ӏ` as a period
 
 ```jbogenbau
 %rule cyrillic-consonant
@@ -48,7 +48,7 @@ The consonants are those of CLL 3.12: `ш` for `c`, `ж` for `j`, `х` for `x`, 
 
 The orthography has no apostrophe between vowels. Two adjacent vowel letters are two syllables, so `аи` is `a'i`. The orthography writes a diphthong with the short forms `й` and `ў`, so `ай` is `ai`. This is where the orthography differs from CLL 3.12, which writes a diphthong as a vowel pair, as the Latin orthography does.
 
-So a full vowel letter carries the tag `syllabic`, which the vowel-group rules of [latin-strict.md](latin-strict.md) read. Two adjacent syllabic vowels get an apostrophe between them. `й` and `ў`, the glides, carry no such tag, and they join the vowel beside them into a diphthong. A capital vowel, or a combining accent after any vowel letter, marks stress, as in Latin. Inside an all-capital run, the stage folds a capital vowel or glide, that is, it reads the letter as plain.
+So a full vowel letter carries the tag `syllabic`, which the vowel-group rules of [latin-strict.md](latin-strict.md) read. The stage inserts an apostrophe between adjacent syllabic vowels. `й` and `ў`, the glides, carry no such tag, and they join the vowel beside them into a diphthong. A capital vowel, or a combining accent after any vowel letter, marks stress, as in Latin. Inside an all-capital run, the stage folds a capital vowel or glide, that is, it reads the letter as plain.
 
 ```jbogenbau
 %rule cyrillic-plain-vowel

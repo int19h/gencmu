@@ -1,6 +1,6 @@
 # jbogenbau: from characters to tokens
 
-This is the first stage of the notation dialect, `../dialects/notation.md`. A stage is one parsing step with its own grammar. The stage reads the text of a grammar document's `jbogenbau` blocks, one token (a unit of input) per character. It hands the notation's tokens to the second stage, `syntax.md`. These tokens are names, strings, phoneme tags, spellings, captures, guards, keywords and symbols. The stage drops what carries no meaning: the spaces between tokens, and the comments.
+This is the first stage of the notation dialect, `../dialects/notation.md`. A stage is one step of a pipeline, with its own grammar. The stage reads the text of a grammar document's `jbogenbau` blocks, one token (a unit of input) per character. It hands the notation's tokens to the second stage, `syntax.md`. These tokens are names, strings, phoneme tags, spellings, captures, guards, keywords and symbols. The stage drops what carries no meaning: the spaces between tokens, and the comments.
 
 `../../docs/notation.md` explains the notation. This document and `syntax.md` define it.
 
