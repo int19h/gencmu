@@ -27,9 +27,9 @@ The greedy rule settles these ambiguities. One of them is the connection of two 
 
 ## The text and its paragraphs
 
-The layer changes the text in four ways. A `nai` at the start of a text is an indicator, as the indicator stage of the experimental dialect reads it. So `indicators` takes it, like the indicators of camxes-exp, and a separate `nai` stands only before a run of names. The connective after a text-leading `.i` can be an ek, as in `.i .e do klama`, because camxes-exp's joik takes the words of A. The tense before `bo` in a text-leading `.i` can be a full `tag` and not only a `stag`.
+The layer changes the text in three ways. A `nai` at the start of a text is an indicator, as the indicator stage of the experimental dialect reads it. So `indicators` takes it, like the indicators of camxes-exp, and a separate `nai` stands only before a run of names. The connective after a text-leading `.i` can be an ek, as in `.i .e do klama`, because camxes-exp's joik takes the words of A. The rule writes the tense before `bo` in a text-leading `.i` as a `tag`. A `stag` is a `tag` in this dialect (see "Tenses and modals"), so the name changes nothing.
 
-The fourth change is that `.i ni'o` can follow a `ni'o`. Usage writes a new topic inside a reply in that way. At the start of a text, the CLL grammar's `text-1` already reads `.i ni'o`, as the repair of the printed grammar that it lists says. So `text-1` takes the form after a first run of `ni'o`, and `paragraphs` takes it after a later one. A run of `ni'o` can also end the text (`mi klama ni'o`), as in camxes-exp.
+The third change is that `.i ni'o` can follow a `ni'o`. Usage writes a new topic inside a reply in that way. At the start of a text, the CLL grammar's `text-1` already reads `.i ni'o`, as the repair of the printed grammar that it lists says. So `text-1` takes the form after a first run of `ni'o`, and `paragraphs` takes it after a later one. A run of `ni'o` can also end the text (`mi klama ni'o`), as in camxes-exp.
 
 The layer keeps CLL's run of names at the start of a text only with `cbm` off. Under `cbm`, a cmevla is a selbri word, so the dialect rejects `.djan. mi klama`. camxes-exp has no such form.
 
@@ -55,7 +55,7 @@ The layer keeps the CLL grammar's connective before the first `.i` of a text (`j
 
 ## Statements and fragments
 
-The connective after `.i` can be an ek or a VUhU as well as a joik or jek. A statement connective can also precede `.i`, as in `mi klama joi .i do klama`. Both are `statement-connective`. Before `bo` after `.i`, the connective can be an ek as well, and the tag is a `stag`, as in camxes-exp. A connective with an optional stag and `bo` can also precede `.i` inside a sentence, with a subsentence after it, as camxes-exp's sentence allows: `mi klama .e pu bo .i do klama`. A prenex can have no terms (`zo'u mi klama`).
+The connective after `.i` can be an ek or a VUhU as well as a joik or jek. A statement connective can also precede `.i`, as in `mi klama joi .i do klama`. Both are `statement-connective`. Before `bo` after `.i`, the connective can also be an ek, and the tense is a `stag`, which is a `tag` here, as in camxes-exp. A connective with an optional stag and `bo` can also precede `.i` inside a sentence, with a subsentence after it, as camxes-exp's sentence allows: `mi klama .e pu bo .i do klama`. A prenex can have no terms (`zo'u mi klama`).
 
 The layer removes CLL's `na` fragment. A bare `na` is a term (see "Terms"), so `na` and `na na` are terms fragments. Only in this way do the two readings not compete.
 
@@ -408,12 +408,11 @@ Consecutive relative clauses can be joined by a joik, a jek or an ek, as well as
 
 Selbri and tanru-unit connectives are joik, jek, ek or VUhU (`selbri-connective`). A bare `fa`, which matches the rule `tag`, can come before a selbri. The term after `be` or `bei` can be absent. The new tanru units are a cmevla, under `cbm`, and preposed linked arguments (`lo be mi broda`). `me'oi` with the word that it quotes is a tanru unit too (`le me'oi klama cu broda`).
 
+A group of preposed linked arguments comes before a whole `tanru-unit-1`, as in camxes-exp. So `be mi klama be do be ti` parses: `be do` belongs to `klama`, and `be ti` to the whole unit. In `be mi klama be do`, `be do` can belong to `klama` or to the whole unit, and camxes-exp gives it to `klama`. This grammar keeps that reading, but the ranking alone does not remove the other one. So both forms of `tanru-unit-1` refuse a trailing group where their whole span is also a `linkargs-around-unit`. That rule is the other shape: optional `se`, `jai` or `na'e` prefixes, a group, a unit and a group.
+
 A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in which `ke'a` refers to the selbri (`mi klama no'oi bajra`). They are joined as relative clauses are: by `zi'e`, a joik, a jek or an ek, or two groups of them in forethought.
 
 ```jbogenbau
-%redefine-rule selbri
-  [tag] selbri-1
-
 %redefine-rule selbri-4
   selbri-5 [selbri-connective selbri-5 | joik [stag] KE # selbri-3 [KEhE] #] ...
 
@@ -444,6 +443,12 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
 %redefine-rule tanru-unit
   tanru-unit-1 [CEI # tanru-unit-1] ... [selbri-relative-clauses]
 
+%redefine-rule tanru-unit-1
+  | tanru-unit-2
+  | tanru-unit-2 $l(linkargs)
+%conditions
+  $l ⟹ ¬matches($, linkargs-around-unit)
+
 %redefine-rule tanru-unit-2
   | KE # selbri-3 [KEhE] #
   | BRIVLA #
@@ -458,7 +463,7 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | any-word (ZEI any-word) ...
   | NAhE # tanru-unit-2
   | NU [NAI] # [joik-jek NU [NAI] #] ... subsentence [KEI] #
-  | linkargs tanru-unit-2
+  | linkargs tanru-unit-1
   | MEhOI anything #
 %conditions
   ¬matches($x, sumti)
@@ -467,7 +472,10 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   tanru-unit-1-not-starting-with-ke [CEI # tanru-unit-1] ... [selbri-relative-clauses]
 
 %rule tanru-unit-1-not-starting-with-ke
-  tanru-unit-2-not-starting-with-ke [linkargs]
+  | tanru-unit-2-not-starting-with-ke
+  | tanru-unit-2-not-starting-with-ke $l(linkargs)
+%conditions
+  $l ⟹ ¬matches($, linkargs-around-unit)
 
 %rule tanru-unit-2-not-starting-with-ke
   | BRIVLA #
@@ -482,10 +490,16 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | any-word (ZEI any-word) ...
   | NAhE # tanru-unit-2
   | NU [NAI] # [joik-jek NU [NAI] #] ... subsentence [KEI] #
-  | linkargs tanru-unit-2
+  | linkargs tanru-unit-1
   | MEhOI anything #
 %conditions
   ¬matches($x, sumti)
+
+%rule linkargs-around-unit
+  | SE # linkargs-around-unit
+  | JAI # [tag] linkargs-around-unit
+  | NAhE # linkargs-around-unit
+  | linkargs tanru-unit-2 linkargs
 
 %rule selbri-relative-clauses
   | selbri-relative-clause [(ZIhE # | joik # | jek # | ek #) selbri-relative-clause] ...
@@ -508,7 +522,7 @@ camxes-exp replaces CLL's mekso with its own, and the layer follows it (camxes-e
 - A number is a run of PA words, `ni'e` selbri and `mo'e` sumti, with no lerfu word in it. A lerfu string is a run of lerfu words, with no PA word in it. So `li pa by` is two terms, and `mi viska cy no` is not a text.
 - An operand of a mekso is `mex-2`: a number or a lerfu string, a `vei` group, a forethought connection, or a `la'e` or `na'e` reference. It can also be a `pe'o` forethought expression or a reverse Polish expression. The operands `ni'e` and `mo'e` are inside numbers.
 - `bo` after an operator, with an optional tense or modal, groups two operands tighter (`li pa su'i bo re`). There is no `bi'e`, and a forethought operator needs `pe'o`.
-- An operator can be a connective, a joik, jek or ek.
+- An operator can be a connective, a joik, jek or ek. A joik or jek operator has one slot of free modifiers, the one at the end of `joik-jek`. The PEG of camxes-exp never reads its second `free*` there.
 - A quantifier is a whole mekso, `pa su'i re broda`. It cannot begin with a lerfu word, `la'e` or `na'e`, because camxes-exp reads a sumti there (its `!sumti_6`). camxes-exp also refuses a quantifier where a selbri begins (`!selbri`), and so does the layer. So in `mi piso'umei jimpe`, `pi so'u mei jimpe` is the selbri, and not a quantifier of a description.
 - `me` takes a mekso as well as a sumti, a whole mekso takes `moi`, and `nu'a` takes a whole operator.
 - After `me`, a lerfu string is a sumti and not a mekso, because camxes-exp tries the sumti first (`me my`). The layer settles that tie as camxes-exp does. Before `moi`, the layer differs: in `me my moi`, camxes-exp's `sumti_6` does not read `my` where a selbri begins (`!selbri`), so `my` is a mekso there. The layer reads a sumti. It does not copy the rejections of camxes-exp's PEG, which keeps a sumti once one matches. For example, `me my su'i pa` is the mekso `my su'i pa`, although camxes-exp rejects the text.
@@ -556,7 +570,7 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   | MAhO # mex [TEhU] #
   | NAhU # selbri [TEhU] #
   | VUhU #
-  | joik-jek #
+  | joik-jek
   | ek #
 
 %redefine-rule number

@@ -95,7 +95,9 @@ Texts write the apostrophe as the letter `h`, which CLL does not use. The names 
 
 A run in which every vowel is a capital carries no stress mark, and the stage reads its vowels as plain vowels. That is a rule of gencmu, not of CLL. A title or a shout is often written all in capitals, and its capitals do not mark stress. The run must have at least two vowel groups. So a name with one stressed syllable in capitals keeps its stress mark: `.DJORdj.` keeps its stress on `o`. The cost is that the stage reads a word of one vowel group, written in capitals, as stressed: in the text `MI KLAMA`, `MI` is `mI`.
 
-`capital-shape` is that shape: its consonants and digits and its capital vowels, written out so that two groups are required. Consonants stand between every two groups, so the rules never split adjacent vowels into separate groups. `capital-run` reads it with every vowel folded. An ordinary run is any other run of letters, which the condition states by exclusion. In an ordinary run, a capital vowel marks stress. A foreign run is now also a run that is not a capital run.
+`capital-shape` is that shape: its consonants and digits and its capital vowels, written out so that two groups are required. Consonants stand between every two groups, so the rules never split adjacent vowels into separate groups. `capital-consonants` reads a decimal point between two digits, as `non-vowels` does in an ordinary run (see "Digits"). So `MI2.3KLAMA` is a capital run. `capital-consonants` does not reuse `non-vowels`, because other scripts extend `non-vowel` with forms that hold a vowel. Forms such as the zbalermorna shorthand keep a run from folding.
+
+`capital-run` reads that shape with every vowel folded. An ordinary run is any other run of letters, which the condition states by exclusion. In an ordinary run, a capital vowel marks stress. A foreign run is now also a run that is not a capital run.
 
 ```jbogenbau
 %extend-rule run
@@ -131,7 +133,12 @@ A run in which every vowel is a capital carries no stress mark, and the stage re
   [commas] capital-consonants [commas]
 
 %rule capital-consonants
-  capital-non-vowel | capital-consonants capital-non-vowel | capital-consonants commas capital-non-vowel
+  | capital-non-vowel
+  | capital-consonants capital-non-vowel
+  | capital-consonants commas capital-non-vowel
+  | $c(capital-consonants) decimal-point digit
+%conditions
+  matches(last($c), digit)
 
 %rule capital-non-vowel
   consonant | digit | apostrophe
