@@ -387,7 +387,7 @@ A time tense is any combination, in order, of a `zi` distance, offsets `pu`, `ca
 
 A free modifier may stand wherever the grammar writes `#`, which is after almost every word (CLL 19.12). The forms are: a `sei ... se'u` discursive bridi, `sei mi cusku`; a `soi ... se'u` reciprocity marker; a vocative phrase, `coi` or `doi` and their kin, followed by a selbri, by names, or by a sumti, and closed by `do'u`; an utterance ordinal `pa mai`; a parenthetical text `to ... toi`; and a subscript `xi` with a number, lerfu string or bracketed mekso. The `se'u`, `do'u`, `toi`, `boi` and `ve'o` here are elidable, but they are written without `#`, since the slot that follows a free modifier is the one it sits in.
 
-A vocative is a run of COI words, each with an optional `nai`, or `doi`, or both in that order. Indicators are the attitudinals and discursives, `UI` and `CAI` with an optional `nai`, the hesitation `y`, the cancel `da'o`, and `fu'o`, which closes a scope opened by `fu'e`. The `Y` alternative never applies here: the word stage reads `.y.` as hesitation and drops it, as the Magic Words proposal treats it as whitespace, so no `Y` reaches this grammar. A run of indicators attaches to the word before it, as CLL's non-formal rule below says, which is why `indicators` appears only at the start of a text.
+A vocative is a run of COI words, each with an optional `nai`, or `doi`, or both in that order. Indicators are the attitudinals and discursives, `UI` and `CAI` with an optional `nai`, the hesitation `y`, the cancel `da'o`, and `fu'o`, which closes a scope opened by `fu'e`. The `Y` alternative never applies here: the word stage reads `.y.` as hesitation and drops it, as the Magic Words proposal treats it as whitespace, so no `Y` reaches this grammar. A run of indicators attaches to the word before it, as CLL's non-formal rule below says, which is why `indicators` appears only at the start of a text. CLL prints `indicators` as `[FUhE] indicator ...`, which lets only the first indicator of a run take `fu'e`. This grammar lets each indicator take its own `fu'e`, as after a word, since CLL 19.8 allows several `fu'e` scopes at once.
 
 ```jbogenbau
 %rule free
@@ -405,7 +405,7 @@ A vocative is a run of COI words, each with an optional `nai`, or `doi`, or both
   (COI [NAI]) ... & DOI
 
 %rule indicators
-  [FUhE] indicator ...
+  ([FUhE] indicator) ...
 
 %rule indicator
   (UI | CAI) [NAI] | Y | DAhO | FUhO
@@ -440,11 +440,14 @@ Example. `le sutra tavla` has two parses: a statement with the description `le s
 
 ## Differences from the printed CLL grammar
 
-This grammar departs from the EBNF printed in CLL in four places. The first settles a precedence that the printed text states in a way that cannot be meant. The other three are repairs of the EBNF's copy of the YACC grammar, the machine grammar from which the EBNF was transcribed and whose rule numbers it cites: in each, the EBNF lost a path that the YACC grammar has, and the official parser built from the YACC grammar accepts the text. Apart from these, the printed grammar's `CMENE` is spelled `CMEVLA` here, the class the word stage gives a name.
+This grammar departs from the EBNF printed in CLL in five places. The first settles a precedence that the printed text states in a way that cannot be meant. The next three repair the EBNF's copy of the YACC grammar. The EBNF uses that grammar as its source and cites its rule numbers. In each case, the YACC grammar has a path that the EBNF omits. The official parser accepts the text.
+
+The fifth follows the prose of CLL 19.8, which allows more than the EBNF. Apart from these, the printed grammar's `CMENE` is spelled `CMEVLA` here, the class the word stage gives a name.
 
 1. In `simple-tense-modal`, the printed text reads `[NAhE] (time [space] | space [time]) & CAhA [KI]`, which by the stated precedence of `&` attaches `[NAhE]` only to the time/space branch and `[KI]` only to the `CAhA` branch. This grammar reads `[NAhE] ((time [space] | space [time]) & CAhA) [KI]`, so that `ba za ki` is one tag and `na'e ka'e` is a tag.
 2. A text may begin with `.i` separators followed by `ni'o` markers, as in `.i ni'o mi klama`. The printed `text-1` makes the two alternatives; YACC rule 2 (`text_B_2`) lets any number of `.i` forms precede a `ni'o` run, and the camxes grammars call the printed form "a bug in the BNF".
 3. A `lo'u ... le'u` quote may be empty, `lo'u le'u`. The printed `sumti-6` requires at least one word; YACC rule 436 reads the quote's body as one token that may be empty.
 4. The free-modifier slot after a `lu ... li'u` quote follows the quote whether or not `li'u` is written, so `lu cy. to toi` is a quote followed by a parenthesis. The printed `sumti-6` writes `/LIhU#/`, which drops the slot with the elided `li'u`; YACC rule 432 (`quote_arg`) attaches free modifiers to the whole quote, and its `LIhU` gap carries none. Every other elidable terminator keeps its slot as printed.
+5. A run of indicators can hold several groups, each with its own `fu'e`, as in `ui fu'e ia mi klama`. The printed `indicators` reads `[FUhE] indicator ...`, one group. CLL 19.8 lets a local attitudinal stand beside the ones that `fu'e` marks. The indicator stage reads the run after a word the same way.
 
 The free-modifier slot after an elided terminator is kept as printed: an elided `[X #]` leaves no slot. So a free modifier cannot follow an elided `boi`, and where CLL example 17.38 writes `xy. xi ky.`, this grammar requires `xy. boi xi ky.`.
