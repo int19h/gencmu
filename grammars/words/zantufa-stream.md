@@ -73,6 +73,8 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
 
 Zantufa reads `y` and `ie'o` as space only after a pause or at the start of the text, because its `spaces` begins with `!Y`. A hesitation attached to the word before it, with no pause between them, is a word of class Y there. So `zoie'o mi` quotes `ie'o` and leaves `mi`, while `zo ie'o mi` quotes `mi`. Such a word has no place in the syntax except in a quote, so the dialect rejects `mi cuyy klama`, as Zantufa does. Before `bu`, hesitation stays the base of a letter word.
 
+In a `lo'u` or `lo'ai` quote, such a word is tagged `word` only, as the other words of the quote are. An extension does not take the clauses of its base rule, so the two extensions state that emission again.
+
 ```jbogenbau
 %redefine-rule hesitation
   (* spaces <- !Y initial_spaces *)
@@ -99,9 +101,13 @@ Zantufa reads `y` and `ie'o` as space only after a pause or at the start of the 
 
 %extend-rule lohu-word
   attached-y
+%emits
+  $ <"word">
 
 %extend-rule lohai-word
   attached-y
+%emits
+  $ <"word">
 
 %redefine-rule bu-next
   (* ybu <- Y space_char* BU: one Y word, which may be several pieces of one run of y *)

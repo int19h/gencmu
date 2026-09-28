@@ -171,7 +171,6 @@ A sentence is terms, an optional `cu` and a bridi-tail, or a forethought connect
 
 %rule bridi-tail-link
   | $j(joik-gihek) tag [CU #] bridi-tail-1
-  | $j(joik-gihek) CU # bridi-tail-1
   | $j(joik-gihek) $b(bridi-tail-1)
 %conditions
   begins(after($j), tag-ke) ∨ begins(after($j), tag-cu),
