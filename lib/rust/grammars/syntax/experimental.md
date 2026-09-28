@@ -1,21 +1,20 @@
 # The experimental grammar
 
-This document is a layer over [the CLL grammar](cll.md), the grammar printed in chapter 21 of *The Complete Lojban Language*. The [experimental](../dialects/experimental.md) dialect stitches it after that grammar. The layer adds the experimental constructs that have grown up in use since CLL was printed. The grammar always accepts some of them, and a feature guards others. Their reference is camxes-exp, the experimental PEG grammar.
+This document is a layer over [the CLL grammar](cll.md), the grammar printed in chapter 21 of *The Complete Lojban Language*. A layer is a document that changes earlier rules. The [experimental](../dialects/experimental.md) dialect (a named set of grammars) stitches it after that grammar, that is, combines their rules into one grammar. The layer adds the experimental constructs that grew up in use after CLL was printed. The grammar always accepts some of them, and a feature (a named switch that the grammars test) guards others. Their reference is camxes-exp, the experimental PEG (parsing expression grammar).
 
 The layer restates each CLL rule that it changes with `%redefine-rule`. It states its own rules with `%rule`. Each section below says what the layer changes in that part of the grammar. A rule that this document does not name is the CLL grammar's, as that document explains it.
 
-[The experimental lexicon](../words/lexicon-experimental.md) gives each cmavo the one selma'o that camxes-exp gives it. For example, `mi'ai` is KOhA, `la` is LE, `fi'oi` is SOI, `ma'oi` is ZO and `la'oi` is ZOhOI. `no'oi` and `po'oi` are NOhOI, with the terminator `ku'oi`. Some selma'o exist only here: `LOhOI`, `NOhOI`, `KUhOI`, `KUhAU`, `LOhAI`, `LEhAI`, `ZOhOI` and `MEhOI`. A class of the CLL grammar that camxes-exp does not have, such as LA, is never read here.
+[The experimental lexicon](../words/lexicon-experimental.md) gives each cmavo the one selma'o that camxes-exp gives it. For example, `mi'ai` is KOhA, `la` is LE, `fi'oi` is SOI, `ma'oi` is ZO and `la'oi` is ZOhOI. `no'oi` and `po'oi` are NOhOI, with the terminator `ku'oi`. Some selma'o exist only here: `LOhOI`, `NOhOI`, `KUhOI`, `KUhAU`, `LOhAI`, `LEhAI`, `ZOhOI` and `MEhOI`. This grammar never reads a CLL class that camxes-exp does not have, such as LA.
 
-The notation is explained in [the notation document](../../docs/notation.md). The terminals are selma'o, and `any-word` and `anything` are the tags `word` and `foreign-text` that the word stage puts on the material of a quote. The layer uses two feature guards. `cbm` is the cmevla-brivla merger. `soi-clause` makes `soi` a term that takes a subsentence, where CLL has a free modifier of reciprocity. The experimental dialect turns both on, as camxes-exp always has them, and a caller can turn either off.
+[The notation document](../../docs/notation.md) explains the notation. The terminals of this grammar (the symbols that each match one input token) are selma'o. `any-word` and `anything` are the tags (labels on a token) `word` and `foreign-text`. A stage is one step of the pipeline, and it reads its input with one grammar. The pipeline is the sequence of stages that reads a text. The word stage, an earlier stage, puts these two tags on the material of a quote.
 
-Unlike the CLL grammar, this layer writes the free-modifier slot after an elidable terminator outside its brackets: `[X] #` where CLL has `[X #]`. So free modifiers can follow an elided terminator. Many rules below are restated for that alone. A number or lerfu string is kept maximal by `free-after-number` and `free-after-lerfu-string`. After an elided `boi`, they exclude a first free modifier that starts with a word the number or string can read.
+The layer uses two feature guards, which make a part of a rule depend on a feature. `cbm` is the cmevla-brivla merger. `soi-clause` makes `soi` a term that takes a subsentence, where CLL has a free modifier of reciprocity. The experimental dialect turns both on, as camxes-exp always has them, and a caller can turn either off.
 
-Two directives set the layer up. `%ambiguity-resolution greedy` says how the stage chooses among parses. At the first difference between two parses, it takes the one that reads the next word. So an elided terminator is absent for as long as the grammar allows, as in the CLL dialect. The layer does not declare `elision-only`, because it has real ambiguities that are not about terminators. The greedy rule settles them:
+Unlike the CLL grammar, this layer writes the free-modifier slot after an elidable terminator outside its brackets: `[X] #` where CLL has `[X #]`. So free modifiers can follow an elided terminator. The layer restates many rules below for that reason alone. `free-after-number` and `free-after-lerfu-string` keep a number or lerfu string maximal. After an elided `boi`, they exclude a first free modifier that starts with a word that the number or string can read.
 
-- a bare `na` is a term, beside the `na` that negates a selbri and the `na` that starts a connective
-- two sumti joined by a connective and `bo` are also two terms joined that way, and the ranking keeps the sumti
+Two directives set up the layer. `%ambiguity-resolution greedy` says how the stage chooses among parses. At the first difference between two parses, the stage takes the one that reads the next word. So an elided terminator is absent for as long as the grammar allows, as in the CLL dialect. The layer does not declare `elision-only`, the option that applies CLL's rule that a terminator can be elided only where no ambiguity results. The layer has real ambiguities that are not about terminators.
 
-If the layer declared `elision-only`, each of those texts would be an error. `%elidable` adds the experimental terminators `ku'au` and `ku'oi` to CLL's.
+The greedy rule settles these ambiguities. In one, a bare `na` is a term, beside the `na` that negates a selbri and the `na` that starts a connective. In the other, two sumti joined by a connective and `bo` are also two terms joined that way. The ranking of parses keeps the sumti. With `elision-only`, each of those texts is an error. `%elidable` adds the experimental terminators `ku'au` and `ku'oi` to CLL's.
 
 ```jbogenbau
 %ambiguity-resolution greedy
@@ -24,7 +23,9 @@ If the layer declared `elision-only`, each of those texts would be an error. `%e
 
 ## The text and its paragraphs
 
-The layer changes the text in four ways. A `nai` at the start of a text is an indicator, as the indicator stage of the experimental dialect reads it. So `indicators` takes it, like the indicators of camxes-exp, and a separate `nai` stands only before a run of names. The connective after a text-leading `.i` can be an ek, as in `.i .e do klama`, because camxes-exp's joik takes the words of A. The tense before `bo` in a text-leading `.i` can be a full `tag` and not only a `stag`. And `.i ni'o` can follow a `ni'o`, which is how usage writes a new topic inside a reply. At the start of a text, the CLL grammar's `text-1` already reads `.i ni'o`, as the repair of the printed grammar that it lists says. So `text-1` takes the form after a first run of `ni'o`, and `paragraphs` takes it after a later one. A run of `ni'o` can also end the text (`mi klama ni'o`), as in camxes-exp.
+The layer changes the text in four ways. A `nai` at the start of a text is an indicator, as the indicator stage of the experimental dialect reads it. So `indicators` takes it, like the indicators of camxes-exp, and a separate `nai` stands only before a run of names. The connective after a text-leading `.i` can be an ek, as in `.i .e do klama`, because camxes-exp's joik takes the words of A. The tense before `bo` in a text-leading `.i` can be a full `tag` and not only a `stag`.
+
+The fourth change is that `.i ni'o` can follow a `ni'o`. Usage writes a new topic inside a reply in that way. At the start of a text, the CLL grammar's `text-1` already reads `.i ni'o`, as the repair of the printed grammar that it lists says. So `text-1` takes the form after a first run of `ni'o`, and `paragraphs` takes it after a later one. A run of `ni'o` can also end the text (`mi klama ni'o`), as in camxes-exp.
 
 The layer keeps the CLL grammar's connective before the first `.i` of a text (`je mi klama`). camxes-exp has it too. But its `paragraphs` can be empty, so its `(!text_1 joik_jek)?` never matches, and it rejects such a text. That is an accident of the PEG, and gencmu reads the text as CLL does.
 
@@ -50,7 +51,7 @@ The layer keeps the CLL grammar's connective before the first `.i` of a text (`j
 
 The connective after `.i` can be an ek or a VUhU as well as a joik or jek. A statement connective can also precede `.i`, as in `mi klama joi .i do klama`. Both are `statement-connective`. Before `bo` after `.i`, the connective can be an ek as well, and the tag is a `stag`, as in camxes-exp. A connective with an optional stag and `bo` can also precede `.i` inside a sentence, with a subsentence after it, as camxes-exp's sentence allows: `mi klama .e pu bo .i do klama`. A prenex can have no terms (`zo'u mi klama`).
 
-CLL's `na` fragment is gone. A bare `na` is a term (see "Terms"), so `na` and `na na` are terms fragments. Only so do the two readings not compete.
+The layer removes CLL's `na` fragment. A bare `na` is a term (see "Terms"), so `na` and `na na` are terms fragments. Only in this way do the two readings not compete.
 
 ```jbogenbau
 %redefine-rule statement-1
@@ -78,7 +79,9 @@ A bridi-tail can have terms before its selbri, as in camxes-exp. camxes-exp name
 
 A term in a head is a term of a list. There a tag or a bare `na` is not a term where a selbri follows it ("Terms" below). So `mi pu klama` has the tense `pu` on its selbri, and so does `mi pu sei do klama se'u klama`. And `mi na klama` negates its selbri.
 
-The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or VUhU (`bridi-tail-connective`). Each of them can also open a `bo` or `ke` grouping of bridi-tails. So can a bare `gi` with a stag, as in `mi klama gi ba bo tavla`. After a plain connective, a bridi-tail without a head does not begin with `ke`. And a head there is not a bare stag, such as a tense whose `ku` is elided. Without these limits, `gi'e ke` and `gi'e ba ke` would each open two constructs. camxes-exp states the same limits as a lookahead after its gihek.
+The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or VUhU (`bridi-tail-connective`). Each of them can also open a `bo` or `ke` grouping of bridi-tails. So can a bare `gi` with a stag, as in `mi klama gi ba bo tavla`.
+
+After a plain connective, a bridi-tail without a head does not begin with `ke`. And a head there is not a bare stag, such as a tense whose `ku` is elided. Without these limits, `gi'e ke` and `gi'e ba ke` can each open two constructs. camxes-exp states the same limits as a lookahead (a test of the words that follow) after its gihek.
 
 ```jbogenbau
 %redefine-rule sentence
@@ -134,7 +137,7 @@ The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or
 
 ## Terms
 
-Terms are joined at two levels, as camxes-exp's `term_1` and `term_2` join them. A connective, an optional stag and `bo` join terms of any kind into a group, `term-bo-group`, and a plain connective joins such groups (`term-link`). So `bo` binds tighter than a plain connective: `broda be na ku .e bo na ku .a na ku` is `(na ku .e bo na ku) .a na ku`. The connectives are a joik, jek, ek or VUhU (`term-connective`), so `mi joi do klama` has one term before its selbri. camxes-exp's joik takes the words of JOI, JA and A, and so these four sets are its `joik_ek` and `joik_jek`.
+The layer joins terms at two levels, as camxes-exp's `term_1` and `term_2` join them. A connective, an optional stag and `bo` join terms of any kind into a group, `term-bo-group`, and a plain connective joins such groups (`term-link`). So `bo` binds tighter than a plain connective: `broda be na ku .e bo na ku .a na ku` is `(na ku .e bo na ku) .a na ku`. The connectives are a joik, jek, ek or VUhU (`term-connective`), so `mi joi do klama` has one term before its selbri. camxes-exp's joik takes the words of JOI, JA and A, and so these four sets are its `joik_ek` and `joik_jek`.
 
 camxes-exp reads a term in one of two ways, and so does this layer. A term in a list of terms (`listed-term`) stands in a sentence's head or tail terms, a prenex, a fragment or a `nu'i` termset. A tag there is not a term where a selbri or a gek-sentence follows it and its free modifiers (camxes-exp's `abs_tag_term`). A bare `na` there is not a term where a selbri, a gek-sentence or a connective begins at it. A term in a place that takes one term (`term`) follows `be`, `bei`, GOI, LAhE or NAhE.
 
@@ -146,9 +149,9 @@ camxes-exp requires the stag before `bo` in a sentence's own terms (`abs_term_2`
 
 `pe'e` takes any statement connective. The new terms are a bare `na`, and, under `soi-clause`, `soi subsentence se'u` as camxes-exp reads it. `fi'oi` and `xoi` are members of SOI.
 
-A forethought termset needs no `nu'i`, and its two branches can hold different numbers of terms, as in CLL. So the same words can often be read as a gek sumti or as a termset, and camxes-exp reads the sumti first. The ranking does the same, because the first branch of a termset is a rule of its own, `termset-branch`. Its close comes where the sumti reads `gi`, and the greedy rule prefers the read. So `ge mi gi do ce'e ti` is the sumti `ge mi gi do` followed by `ce'e ti`. But `broda be ge mi gi do ce'e ti be'o` has a termset, since the single argument of `be` cannot continue with `ce'e ti`.
+A forethought termset needs no `nu'i`, and its two branches can hold different numbers of terms, as in CLL. So the same words can often be read as a gek sumti or as a termset, and camxes-exp reads the sumti first. The ranking does the same, because the first branch of a termset is a rule of its own, `termset-branch`. Its close comes where the sumti reads `gi`, and the greedy rule prefers the read. So `ge mi gi do ce'e ti` is the sumti `ge mi gi do` followed by `ce'e ti`. But `broda be ge mi gi do ce'e ti be'o` has a termset, because the single argument of `be` cannot continue with `ce'e ti`.
 
-A termset with `nu'i` is read as `nu'i` with a forethought form wherever it can be, as camxes-exp tries that form first. So `nu'i ge mi gi do nu'u` is a termset of two branches, and not `nu'i` around the sumti `ge mi gi do`. The first term inside `nu'i ... nu'u` cannot itself be a bare forethought termset. If it could, it would repeat the `nu'i gek` form. The `-not-starting-with-bare-gek` chain states that restriction: it repeats the term rules with only the first term restricted.
+The layer reads a termset with `nu'i` as `nu'i` with a forethought form wherever it can, as camxes-exp tries that form first. So `nu'i ge mi gi do nu'u` is a termset of two branches, and not `nu'i` around the sumti `ge mi gi do`. The first term inside `nu'i ... nu'u` cannot itself be a bare forethought termset. A bare forethought termset there repeats the `nu'i gek` form. The `-not-starting-with-bare-gek` chain states that restriction: it repeats the term rules with only the first term restricted.
 
 ```jbogenbau
 %redefine-rule terms-1
@@ -314,14 +317,18 @@ A termset with `nu'i` is read as `nu'i` with a forethought form wherever it can 
 
 ## Sumti
 
-Sumti connectives are ek, joik, jek or VUhU (`sumti-connective`). This change and the new mekso below leave the CLL rule `joik-ek` unused. After `vu'o`, a connected sumti can follow the relative clauses or replace them, and `vu'o` can also end the sumti (`mi vu'o`). Under `cbm` a cmevla is a selbri word, so the `la CMEVLA` name form is removed and `la .alis.` is a description. That form begins with `la`, `lai` or `la'i`, which are words of LE here, and `name-marker` names them by their spelling. The new sumti are these:
+Sumti connectives are ek, joik, jek or VUhU (`sumti-connective`). This change and the new mekso below leave the CLL rule `joik-ek` unused. After `vu'o`, a connected sumti can follow the relative clauses or replace them, and `vu'o` can also end the sumti (`mi vu'o`). Under `cbm` a cmevla is a selbri word, so the layer removes the `la CMEVLA` name form, and `la .alis.` is a description. That form begins with `la`, `lai` or `la'i`, which are words of LE here, and `name-marker` names them by their spelling. The new sumti are these:
 
 - `na'e sumti lu'u`, without `bo`
 - `la'e`, `na'e bo` or `na'e` around a term that is not a sumti, such as `na ku` or a tagged sumti
 - `lo'oi subsentence ku'au`, a description of a subsentence
-- the single-word quotes `zo'oi`, `la'oi` and `ra'oi`, whose bodies the word stage delimits
+- The single-word quotes `zo'oi`, `la'oi` and `ra'oi`, whose bodies the word stage delimits
 
-A `na'e` alone does not take a tagged term, since `na'e pu` is then a tag. The inner sumti of a description can be any sumti, a connected one too (`lo mi .e do broda`). It does not begin with a quantifier. camxes-exp reads a quantifier there as the CLL form `quantifier sumti` first, so `lo re mi broda` is `lo re mi` and the selbri `broda`. `quantifier-head` lists the selma'o that can begin a quantifier. A quantifier can also begin with a forethought connective, as in `lo ge pa gi re mi broda`. `quantified-sumti` excludes such an inner sumti as a whole. A description can take a forethought sentence in place of a selbri, and so can a quantifier without a descriptor. Examples are `le ga mi klama gi do klama ku` and `re ga mi klama gi do klama ku`. These are camxes-exp's `sumti_tail` and `sumti_5`.
+A `na'e` alone does not take a tagged term, because `na'e pu` is then a tag. The inner sumti of a description can be any sumti, a connected one too (`lo mi .e do broda`). It does not begin with a quantifier. camxes-exp reads a quantifier there as the CLL form `quantifier sumti` first, so `lo re mi broda` is `lo re mi` and the selbri `broda`.
+
+`quantifier-head` lists the selma'o that can begin a quantifier. A quantifier can also begin with a forethought connective, as in `lo ge pa gi re mi broda`. `quantified-sumti` excludes such an inner sumti as a whole.
+
+A description can take a forethought sentence in place of a selbri, and so can a quantifier without a descriptor. Examples are `le ga mi klama gi do klama ku` and `re ga mi klama gi do klama ku`. These are camxes-exp's `sumti_tail` and `sumti_5`.
 
 ```jbogenbau
 %redefine-rule sumti
@@ -496,8 +503,9 @@ camxes-exp replaces CLL's mekso with its own, and the layer follows it (camxes-e
 - An operand of a mekso is `mex-2`: a number or a lerfu string, a `vei` group, a forethought connection, or a `la'e` or `na'e` reference. It can also be a `pe'o` forethought expression or a reverse Polish expression. The operands `ni'e` and `mo'e` are inside numbers.
 - `bo` after an operator, with an optional tag, groups two operands tighter (`li pa su'i bo re`). There is no `bi'e`, and a forethought operator needs `pe'o`.
 - An operator can be a connective, a joik, jek or ek.
-- A quantifier is a whole mekso, `pa su'i re broda`. It cannot begin with a lerfu word, `la'e` or `na'e`, since there camxes-exp reads a sumti (its `!sumti_6`). camxes-exp also refuses a quantifier where a selbri begins (`!selbri`), and so does the layer. So in `mi piso'umei jimpe`, `pi so'u mei jimpe` is the selbri, and not a quantifier of a description.
-- `me` takes a mekso as well as a sumti, a whole mekso takes `moi`, and `nu'a` takes a whole operator. After `me`, a lerfu string is a sumti and not a mekso, since camxes-exp tries the sumti first (`me my`). The layer settles that tie as camxes-exp does. Before `moi` it differs: in `me my moi`, camxes-exp's `sumti_6` does not read `my` where a selbri begins (`!selbri`), so `my` is a mekso there. The layer reads a sumti. It does not copy the rejections of camxes-exp's PEG, which keeps a sumti once one matches: `me my su'i pa` is the mekso `my su'i pa`, although camxes-exp rejects the text.
+- A quantifier is a whole mekso, `pa su'i re broda`. It cannot begin with a lerfu word, `la'e` or `na'e`, because camxes-exp reads a sumti there (its `!sumti_6`). camxes-exp also refuses a quantifier where a selbri begins (`!selbri`), and so does the layer. So in `mi piso'umei jimpe`, `pi so'u mei jimpe` is the selbri, and not a quantifier of a description.
+- `me` takes a mekso as well as a sumti, a whole mekso takes `moi`, and `nu'a` takes a whole operator.
+- After `me`, a lerfu string is a sumti and not a mekso, because camxes-exp tries the sumti first (`me my`). The layer settles that tie as camxes-exp does. Before `moi`, the layer differs: in `me my moi`, camxes-exp's `sumti_6` does not read `my` where a selbri begins (`!selbri`), so `my` is a mekso there. The layer reads a sumti. It does not copy the rejections of camxes-exp's PEG, which keeps a sumti once one matches. For example, `me my su'i pa` is the mekso `my su'i pa`, although camxes-exp rejects the text.
 
 A number is followed by `free-after-number`, and a lerfu string by `free-after-lerfu-string`, defined under "Free modifiers", and not by a plain `#`.
 
@@ -561,7 +569,7 @@ camxes-exp's joik takes `na` before a word of JOI, as its jek and ek do. So `mi 
 
 A forethought connective can be `ga` or `gu` followed by a joik, jek, ek or VUhU, as in `ga je lo mlatu gi lo gerku`. With `ga`, it is a gek. With `gu`, it is a guhek, as in `mi gu je melbi gi kargydu'e`. camxes-exp allows only these two words here, so `ge je` and `gu'e je` are not connectives. The connective before `gi` in a gek can also be a jek or an ek (`je gi mi broda gi mi brode`). A gihek can be `gi` followed by a word of JOI, JA or A (`mi klama gi je tavla`).
 
-The rules name the two words by their spelling, ``GA`ga` `` and ``GA`gu` ``, which ignores stress. They keep the class GA, since a word that `zo` quotes has the spelling but not the class.
+The rules name the two words by their spelling, ``GA`ga` `` and ``GA`gu` ``, which ignores stress. They keep the class GA, because a word that `zo` quotes has the spelling but not the class.
 
 ```jbogenbau
 %redefine-rule joik
@@ -585,13 +593,15 @@ The rules name the two words by their spelling, ``GA`ga` `` and ``GA`gu` ``, whi
 
 A tag is a run of atoms, as in camxes-exp (`tense_modal`): `pu ba vi ca`, `ki ba`. So nothing reads the CLL rules `simple-tense-modal`, `time`, `time-offset`, `space`, `space-offset`, `space-interval`, `space-int-props` and `interval-property`. Each atom can have `na'e` and `se` before it, and free modifiers after it: `na'e pu na'e ca`, `jai se ki broda`. An atom is one of these:
 
-- a word of BAI, CAhA, CUhE, KI, ZI, PU, VA, ZEhA, VEhA or VIhA
-- a word of FAhA, with an optional `mo'i` before it
-- a word of ROI after a number or a `vei` group, with an optional `fe'e` before them
-- a word of TAhE or ZAhO, with an optional `fe'e` before it
+- A word of BAI, CAhA, CUhE, KI, ZI, PU, VA, ZEhA, VEhA or VIhA
+- A word of FAhA, with an optional `mo'i` before it
+- A word of ROI after a number or a `vei` group, with an optional `fe'e` before them
+- A word of TAhE or ZAhO, with an optional `fe'e` before it
 - `fi'o` with a selbri
 
-Tags are connected by a joik, jek, ek or VUhU. A stag is a tag, as in camxes-exp. So a stag can be a run of atoms (`ko'a .e pu ba bo ko'e broda`). It can also be a `fi'o` selbri (`mi klama .i fi'o broda fe'u bo do klama`). `fa` is an atom too, as in camxes-exp, and it is the only way a place tag enters the grammar. So `fa` alone is a tag wherever a tag can stand: before a sumti (`fa mi`), a selbri (`mi fa klama`) or `bo`, and after `jai` (`jai fa broda`). It can be converted like a modal (`se fa`) or joined to other atoms (`mi fa pu klama`).
+A joik, jek, ek or VUhU connects tags. A stag is a tag, as in camxes-exp. So a stag can be a run of atoms (`ko'a .e pu ba bo ko'e broda`). It can also be a `fi'o` selbri (`mi klama .i fi'o broda fe'u bo do klama`).
+
+`fa` is an atom too, as in camxes-exp, and it is the only way a place tag enters the grammar. So `fa` alone is a tag wherever a tag can stand: before a sumti (`fa mi`), a selbri (`mi fa klama`) or `bo`, and after `jai` (`jai fa broda`). It can be converted like a modal (`se fa`) or joined to other atoms (`mi fa pu klama`).
 
 ```jbogenbau
 %redefine-rule tag
@@ -617,7 +627,7 @@ Tags are connected by a joik, jek, ek or VUhU. A stag is a tag, as in camxes-exp
 
 The text replacement forms of camxes-exp are free modifiers. Each has up to two runs of words, each opened by a word of LOhAI (`lo'ai` or `sa'ai`), and then `le'ai`. The word stage reads the words inside as raw words ([`../words/lohai.md`](../words/lohai.md)).
 
-`soi` is a free modifier here only without `soi-clause`, as CLL has it. camxes-exp makes it a term. Under `cbm` the `vocative CMEVLA ...` form is removed, since a cmevla is then a selbri word. If both forms stood, their two readings would tie.
+`soi` is a free modifier here only without `soi-clause`, as CLL has it. camxes-exp makes it a term. Under `cbm`, the layer removes the `vocative CMEVLA ...` form, because a cmevla is then a selbri word. With both forms, their two readings tie.
 
 `free-after-number` and `free-after-lerfu-string` follow a number or a lerfu string. Each is an optional `boi` and the free-modifier slot. Where the `boi` is elided, the first free modifier does not begin with a word that the number or the string can read. After a number, that is a number part. After a lerfu string, it is a letter. camxes-exp's `number` and `lerfu_string` read as far as they can.
 
@@ -665,8 +675,8 @@ So `pa so mo'o` is the number `pa so`, and not `pa` followed by the ordinal `so 
 
 Where a text has more than one parse, the stage chooses by the rule of [the notation document](../../docs/notation.md) under "Ambiguity". The layer declares the `greedy` resolution. At the first difference between two parses:
 
-- a reading of a word under a weak tag loses to one under a strong tag. The experimental lexicon gives no weak tags.
-- a parse that reads the next word wins over one that closes a constituent, so a constituent ends as late as the grammar allows
-- two parses that close different constituents at the same point tie, and the tie is reported
+- A reading of a word under a weak tag (a tag for a second-choice class) loses to one under a strong tag. The experimental lexicon gives no weak tags.
+- A parse that reads the next word wins over one that closes a constituent, so a constituent ends as late as the grammar allows.
+- Two parses that close different constituents at the same point tie, and the stage reports the tie.
 
-Example. `le sutra tavla` has two parses. One is a statement with the description `le sutra`, whose `ku` is elided before `tavla`, and the selbri `tavla`. The other is a fragment, the single description `le sutra tavla`. At the word `tavla`, the statement closes the description's tanru, while the fragment reads `tavla` into it. The greedy rule takes the fragment, as in the CLL grammar.
+For example, `le sutra tavla` has two parses. One is a statement with the description `le sutra`, whose `ku` is elided before `tavla`, and the selbri `tavla`. The other is a fragment, the single description `le sutra tavla`. At the word `tavla`, the statement closes the description's tanru, while the fragment reads `tavla` into it. The greedy rule takes the fragment, as in the CLL grammar.
