@@ -1,12 +1,12 @@
 # jbogenbau: from tokens to a grammar
 
-This is the second stage of the notation dialect, `../dialects/notation.md`. It reads the tokens `lexical.md` emitted and builds the tree from which a library reads the grammar's rules and directives. Its rule names matter to that reader: the table in `../../docs/engine.md`, §9, says what each named constituent becomes. The notation is explained for authors in `../../docs/notation.md`.
+This is the second stage of the notation dialect, `../dialects/notation.md`. A stage is one parsing step with its own grammar. The stage reads the tokens (units of input) that `lexical.md` emitted. It builds the tree from which a library reads the grammar's rules and directives. Its rule names matter to that reader: the table in `../../docs/engine.md`, §9, says what each named constituent becomes. `../../docs/notation.md` explains the notation for authors.
 
-The tokens arrive tagged `identifier`, `string`, `phoneme`, `spelling`, `capture` or `guard`, with their own spelling for a keyword such as `"%rule"`, or with their own spelling for a symbol such as `"|"` or `"..."`.
+The tokens arrive with tags (labels that the grammar reads). The lexical stage tags a token `identifier`, `string`, `phoneme`, `spelling`, `capture` or `guard`. Instead, it tags a keyword such as `"%rule"`, or a symbol such as `"|"` or `"..."`, with its own spelling.
 
 ## Choosing among parses
 
-Every rule and directive begins with a keyword, and a keyword begins nothing else, so where one ends is never in doubt, and the grammar is unambiguous except where a list could end earlier or later; the greedy reading takes the longer list.
+Every rule and directive begins with a keyword, and a keyword begins nothing else. So where one ends is never in doubt. The grammar is unambiguous except where a list can end earlier or later. There, the greedy reading takes the longer list: it ends each constituent as late as the grammar allows.
 
 ```jbogenbau
 %ambiguity-resolution greedy
@@ -14,7 +14,7 @@ Every rule and directive begins with a keyword, and a keyword begins nothing els
 
 ## Documents
 
-A grammar text is a sequence of rules and directives. A directive is its keyword and any number of operands, each a name or a string. Which operands each directive takes is checked when the tree is read into a DOM, so that an error names the directive (`../../docs/engine.md`, §9).
+A grammar text is a sequence of rules and directives. A directive is its keyword and any number of operands, each a name or a string. A library reads the tree into a DOM (document object model), its own form of the grammar. At that point, the library makes sure that each directive has the operands that it takes, so that an error names the directive (`../../docs/engine.md`, §9).
 
 ```jbogenbau
 %rule text
@@ -38,7 +38,7 @@ A grammar text is a sequence of rules and directives. A directive is its keyword
 
 ## Rules
 
-A rule is a keyword that says whether it defines, redefines or extends the rule, its name, its alternatives, and its clauses, at most one of each and in a fixed order. A rule's name is a name, or `#`, the free-modifier slot. Every list separator may also stand first, so an author can put each alternative on a line of its own starting with `|`.
+A rule is a keyword, its name, its alternatives and its clauses, in this order. The keyword says whether the rule defines, redefines or extends the rule. A rule has at most one clause of each kind, and the clauses come in a fixed order. A rule's name is a name, or `#`, the free-modifier slot. Every list separator can also stand first, so an author can put each alternative on a line of its own that starts with `|`.
 
 ```jbogenbau
 %rule rule
@@ -65,7 +65,9 @@ A rule is a keyword that says whether it defines, redefines or extends the rule,
 
 ## Expressions
 
-`&` joins sequences, and a sequence is one or more elements. An element is a primary, followed by `...` for one or more of it; an optional followed by `...` is zero or more. Parentheses group a choice, whose alternatives carry neither guards nor tags. A reference, a string or a phoneme tag can carry a spelling, as in ``LE`la` ``. It matches only where its span sounds like the spelling. Nothing else takes a spelling, so a group or an optional followed by one is not a primary, and the spelling binds tighter than `...`.
+`&` joins sequences, and a sequence is one or more elements. An element is a primary, followed by `...` for one or more of it. An optional followed by `...` is zero or more. Parentheses group a choice, whose alternatives carry neither guards nor tags.
+
+A reference, a string or a phoneme tag can carry a spelling, as in ``LE`la` ``. It matches only where its span sounds like the spelling. Nothing else takes a spelling, so a group or an optional followed by one is not a primary, and the spelling binds tighter than `...`.
 
 ```jbogenbau
 %rule conjunction
@@ -110,7 +112,9 @@ A rule is a keyword that says whether it defines, redefines or extends the rule,
 
 ## Clauses
 
-`%tags` says what tags every alternative's constituent carries. `%conditions` lists what must hold of the captured parts. `%emits` says what the constituent hands on. That is a list of items, each a capture, with tags of its own between `<` and `>`, or an inserted tag. It can also be `ε`, nothing, which also makes the constituent not count. `%verbatim` is a keyword alone. It says that a token over the constituent sounds like its text.
+`%tags` says what tags every alternative's constituent carries. `%conditions` lists what must hold of the captured parts. `%emits` says what the constituent hands on. That is a list of items. Each item is a capture, with tags of its own between `<` and `>`, or an inserted tag. The clause can also be `ε`, nothing, which also makes the constituent not count.
+
+`%verbatim` is a keyword alone. It says that a token over the constituent sounds like its text.
 
 ```jbogenbau
 %rule tags-clause
@@ -135,7 +139,7 @@ A rule is a keyword that says whether it defines, redefines or extends the rule,
   "<" term ">"
 ```
 
-A condition joins others with `∧`, `∨` and `⟹`, binding in that order, `⟹` grouping to the right; parentheses group, and `¬` negates the condition after it. A capture alone is a condition, true where the alternative has it.
+A condition joins others with `∧`, `∨` and `⟹`. These operators bind in that order, and `⟹` groups to the right. Parentheses group, and `¬` negates the condition after it. A capture alone is a condition, true where the alternative has it.
 
 ```jbogenbau
 %rule implication
@@ -165,7 +169,7 @@ A condition joins others with `∧`, `∨` and `⟹`, binding in that order, `�
 
 ## Terms
 
-A term is a string or a tag set. `∩` binds tighter than `∪`. A term guarded by a condition, `A ⟹ t`, is `t` where `A` holds and nothing where it does not; it binds looser than `∪` and `∩`, so it stands in parentheses inside a larger term, and only a whole tag term may be one without them.
+A term is a string or a tag set. `∩` binds tighter than `∪`. A term guarded by a condition, `A ⟹ t`, is `t` where `A` holds and nothing where it does not. It binds looser than `∪` and `∩`, so it stands in parentheses inside a larger term. Only a whole tag term can be a guarded term without parentheses.
 
 ```jbogenbau
 %rule term

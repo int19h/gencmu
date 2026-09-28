@@ -1,8 +1,10 @@
 # jbogenbau: from characters to tokens
 
-This is the first stage of the notation dialect, `../dialects/notation.md`. It reads the text of a grammar document's `jbogenbau` blocks, one token per character, and hands the second stage, `syntax.md`, the notation's tokens: names, strings, phoneme tags, spellings, captures, guards, keywords and symbols. It drops what carries no meaning, the spaces between tokens and the comments. The notation is explained in `../../docs/notation.md`; this document and `syntax.md` define it.
+This is the first stage of the notation dialect, `../dialects/notation.md`. A stage is one parsing step with its own grammar. The stage reads the text of a grammar document's `jbogenbau` blocks, one token (a unit of input) per character. It hands the notation's tokens to the second stage, `syntax.md`. These tokens are names, strings, phoneme tags, spellings, captures, guards, keywords and symbols. The stage drops what carries no meaning: the spaces between tokens, and the comments.
 
-A character reaches this grammar tagged with itself, `"a"`, and, weakly, with its class, `"alpha"`, `"digit"`, `"space"`, `"mark"` or `"other"`. Every token this stage emits is one run of characters, so a token's text is exactly what the author wrote.
+`../../docs/notation.md` explains the notation. This document and `syntax.md` define it.
+
+A character reaches this grammar with two tags (labels that the grammar reads). The first tag is the character itself, `"a"`. The second tag is its class, `"alpha"`, `"digit"`, `"space"`, `"mark"` or `"other"`, and this tag is weak. At their first differing visible action, if both readings read one token under different tags, a strong tag beats a weak one. Every token that this stage emits is one run of characters. So a token's text is exactly what the author wrote.
 
 ## Choosing among readings
 
@@ -26,7 +28,7 @@ A text is any number of pieces, each a token or layout.
 
 ## Names
 
-A name is an ASCII letter followed by ASCII letters, digits and hyphens. Whether it names a rule or a terminal is decided later, by its first letter; here every name is an `identifier`.
+A name is an ASCII letter followed by ASCII letters, digits and hyphens. Its first letter decides later whether it names a rule or a terminal. Here, every name is an `identifier`.
 
 ```jbogenbau
 %rule word
@@ -54,7 +56,7 @@ A name is an ASCII letter followed by ASCII letters, digits and hyphens. Whether
 
 ## Strings and phoneme tags
 
-A string is written in straight double quotes. Inside it, a backslash escapes the next character; the second stage's reader decodes `\\`, `\"` and `\u{h…}` and rejects any other escape (`../../docs/engine.md`, §9), so this stage only has to find where the string ends. A phoneme tag is one character between slashes, `/a/`, and `/./` is the pause.
+The grammar author writes a string in straight double quotes. Inside it, a backslash escapes the next character. The second stage's reader decodes `\\`, `\"` and `\u{h…}`, and rejects any other escape (`../../docs/engine.md`, §9). So this stage only has to find where the string ends. A phoneme tag is one character between slashes, `/a/`, and `/./` is the pause.
 
 ```jbogenbau
 %rule string
@@ -102,7 +104,9 @@ A spelling says what a symbol must sound like, as in ``LE`la` ``. It is the char
 
 ## Captures, guards and keywords
 
-A capture is `$` and a name, or `$` alone for the whole constituent; a feature guard is a gate, `@` or `@¬`, a name and `?`, or a warning, `@`, a name and `!`; a keyword is `%` and a name, tagged with its own spelling, `%rule`, so that the second stage names each keyword it knows and has no other. Each is one token, so the second stage sees `$first` as one thing.
+A capture is `$` and a name, or `$` alone for the whole constituent. A feature guard tests a feature. A feature is a named switch that the grammars test. A guard is either a gate or a warning. A gate is `@` or `@¬`, a name and `?`. A warning is `@`, a name and `!`.
+
+A keyword is `%` and a name. The stage tags a keyword with its own spelling, `%rule`, so that the second stage names each keyword it knows and has no other. Each capture, guard and keyword is one token, so the second stage sees `$first` as one thing.
 
 ```jbogenbau
 %rule capture
@@ -128,7 +132,7 @@ A capture is `$` and a name, or `$` alone for the whole constituent; a feature g
 
 ## Symbols
 
-Every other token is a symbol, tagged with its own spelling. Most are one character, which already carries its spelling as a tag; `...` says its own.
+Every other token is a symbol, tagged with its own spelling. Most symbols are one character, which already carries its spelling as a tag. The rule for `...` states its own tag.
 
 ```jbogenbau
 %rule symbol
@@ -141,7 +145,7 @@ Every other token is a symbol, tagged with its own spelling. Most are one charac
 
 ## Layout
 
-Spaces, tabs and line breaks separate tokens and mean nothing else. A comment runs from `(*` to the first `*)` after it and means nothing at all. Neither is emitted: the rules below have no `%emits`, and nothing under them has one.
+Spaces, tabs and line breaks separate tokens and mean nothing else. A comment runs from `(*` to the first `*)` after it and means nothing at all. The stage emits neither: the rules below have no `%emits`, and nothing under them has one.
 
 ```jbogenbau
 %rule layout
