@@ -30,7 +30,7 @@ grammars/                  the grammar documents, the single source of truth
   indicators/              the non-formal indicator and ba'e rule
   syntax/                  the syntax grammars
   notation/                the grammar of the notation itself, and its bootstrap
-  dialects/                pipeline documents: cll-ebnf, bpfk, experimental, zantufa, notation
+  dialects/                pipeline documents: cll-ebnf, bpfk, experimental, zantufa, date-words, notation
 docs/
   notation.md              the grammar notation, for grammar authors
   engine.md                the engine specification, for implementers

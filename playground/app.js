@@ -32,7 +32,7 @@
   // The documents of a pipeline, stage by stage (playground/pipeline.js).
   const pipelineOf = (path) => self.gencmuPipeline.pipelineStages(path, (document) => client.text(document));
 
-  const DIALECT_ORDER = ["cll-ebnf", "bpfk", "experimental", "zantufa", "notation"];
+  const DIALECT_ORDER = ["cll-ebnf", "bpfk", "experimental", "zantufa", "date-words", "notation"];
   const dialectName = (path) => path.replace(/^dialects\//, "").replace(/\.md$/, "");
   const dialectPaths = Object.keys(bundled).filter((path) => /^dialects\/[^/]+\.md$/.test(path)).sort((a, b) => {
     const rank = (path) => { const index = DIALECT_ORDER.indexOf(dialectName(path)); return index < 0 ? DIALECT_ORDER.length : index; };
@@ -48,6 +48,7 @@
     { label: "An elided terminator the PEG reading forbids (BPFK)", text: "le lojbo se farvi le loglo gi'enai mintu ja dunli le logla", dialect: "bpfk" },
     { label: "A tie in the syntax stage", text: "mi bevri le dakli gi'eke bevri le gerku gi'a bevri le mlatu", dialect: "cll-ebnf" },
     { label: "Ambiguous beyond elision (experimental, elision-only on)", text: "la olivian na klama", dialect: "experimental", elision: "on" },
+    { label: "A dialect for a proposal: the date words", text: "co'a na'a 2011 ba'o kulmulbi'o fa 40 tadni", dialect: "date-words" },
     { label: "A rule in jbogenbau", text: "%rule sumti-tail\n  [sumti-6 [relative-clauses]] sumti-tail-1 | relative-clauses sumti-tail-1", dialect: "notation" },
   ];
 

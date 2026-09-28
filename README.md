@@ -32,6 +32,7 @@ Or open `index.html` in a browser, from the clone or from GitHub Pages. This pag
 | `bpfk` | CLL with the word forms the definition effort approved, elided terminators read as its PEG grammars read them |
 | `experimental` | CLL with the experimental constructs in use since |
 | `zantufa` | Guskant's Zantufa 1.9999, translated rule by rule |
+| `date-words` | the experimental dialect with mati's proposal for the date words `de'i`, `na'a` and `ti'u`, an example of a dialect for a proposal |
 | `notation` | jbogenbau, gencmu's grammar notation, in which gencmu reads its own grammar documents |
 
 Each dialect is a document under [`grammars/dialects/`](grammars/dialects), which includes the grammar documents of its stages and links to each. `node lib/js/cli.js stitch --dialect NAME` prints a dialect as one jbogenbau text.
