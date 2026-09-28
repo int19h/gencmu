@@ -1,14 +1,16 @@
 # The Zantufa grammar
 
-This document is the syntax of the [Zantufa](../dialects/zantufa.md) dialect. Its reference is Guskant's Zantufa 1.9999, `zantufa-1.9999.peg` in the `gerna_cipra` repository. It is a grammar of its own, and it translates the reference rule by rule. Each rule's comment gives the rule of the reference that it translates. A rule has the reference's name, written with hyphens. The other rules state the reference's lookaheads and ordered choices as conditions.
+This document is the syntax of the [Zantufa](../dialects/zantufa.md) dialect (a named sequence of parsing stages). Its reference is Guskant's Zantufa 1.9999, `zantufa-1.9999.peg` in the `gerna_cipra` repository, a PEG (parsing expression grammar). It is a grammar of its own, and it translates the reference rule by rule. Each rule's comment gives the rule of the reference that it translates. A rule has the reference's name, written with hyphens. The other rules state the reference's lookaheads (tests of the words that follow) and ordered choices (alternatives tried in order) as conditions.
 
-[The Zantufa lexicon](../words/lexicon-zantufa.md) gives each cmavo the selma'o that Zantufa gives it. For example, every tense word is BAI, `ca'a` and `ka'e` are NA, `je` is JOI, `la` is LE, `ce'e` is BO, and `nai` and `sa` are UI. The indicator stage absorbs `ba'e` and the other words of BAhE, so this grammar does not read them. It reads every other word, the attitudinals included.
+[The Zantufa lexicon](../words/lexicon-zantufa.md) gives each cmavo the selma'o that Zantufa gives it. For example, every tense word is BAI, `ca'a` and `ka'e` are NA, and `je` is JOI. Also, `la` is LE, `ce'e` is BO, and `nai` and `sa` are UI.
 
-Zantufa lets free modifiers follow every word (`post_clause`), with a few exceptions. These are `bu`, `fa'o`, a word of SI or BAhE, and the words inside a quote. So the translation writes `#` after each terminal and after each quote. An elidable terminator keeps its slot inside its brackets, `[KU #]`, as the reference's `KU_elidible <- KU_clause?` does. After a PA word, the free modifiers do not begin with a number (`number_post_clause`). After a BY word they do not begin with a lerfu string, and after a COI word they do not begin with a vocative.
+A stage is one step of the pipeline, and it reads its input with one grammar. The pipeline is the sequence of stages that reads a text. The indicator stage absorbs `ba'e` and the other words of BAhE, so this grammar does not read them. It reads every other word, the attitudinals included.
 
-The magic words are the word stage's. `zei` is SI there and erases a word, `sa` is an attitudinal, and `su` erases the whole text before it. "Differences from Zantufa 1.9999" says where the last differs from Zantufa.
+Zantufa lets free modifiers follow every word (`post_clause`), with a few exceptions. These are `bu`, `fa'o`, a word of SI or BAhE, and the words inside a quote. So the translation writes `#`, the slot for free modifiers, after each terminal and after each quote. An elidable terminator keeps its slot inside its brackets, `[KU #]`, as the reference's `KU_elidible <- KU_clause?` does. After a PA word, the free modifiers do not begin with a number (`number_post_clause`). After a BY word they do not begin with a lerfu string, and after a COI word they do not begin with a vocative.
 
-The notation is explained in [the notation document](../../docs/notation.md). A lookahead of the reference, such as `!terms`, is a condition with `begins`. The terminals are selma'o, and `any-word` and `anything` are the tags `word` and `foreign-text` that the word stage puts on the words and the foreign text of a quote.
+The word stage reads the magic words, the words such as `si` that act on other words. `zei` is SI there and erases a word, `sa` is an attitudinal, and `su` erases the whole text before it. "Differences from Zantufa 1.9999" says where the last differs from Zantufa.
+
+[The notation document](../../docs/notation.md) explains the notation. A lookahead of the reference, such as `!terms`, is a condition with `begins`. The terminals of this grammar (the symbols that each match one input token) are selma'o. `any-word` and `anything` are the tags (labels on a token) `word` and `foreign-text`. The word stage puts these tags on the words and the foreign text of a quote.
 
 The stage is greedy: at the first difference between two parses, it takes the one that reads the next word. A PEG's repetition is greedy too, and the two usually agree. Where two alternatives of an ordered choice can read the same words, the later one has a condition that removes that reading. The terminators that the reference writes with `_elidible` are elidable here.
 
@@ -66,7 +68,9 @@ A text is free modifiers and then paragraphs, which `ni'o` and `no'i` separate. 
 
 ## Statements and fragments
 
-A statement can take terms after it, which `i'au` can introduce (`statement-terms`). A forethought connection of statements has any number of `gi` branches and an optional `gi'i`. `.i` with a connective, or with a connective or tag and `bo`, joins a statement to the one before it, so a text cannot begin that way. The lookaheads of the reference's fragments are conditions: a `gek` or `joik` fragment does not begin terms, a `na` fragment has no terms or `ku` after it, and a terms fragment has no mekso after it.
+A statement can take terms after it, which `i'au` can introduce (`statement-terms`). A forethought connection of statements has any number of `gi` branches and an optional `gi'i`. `.i` with a connective, or with a connective or tag and `bo`, joins a statement to the one before it. So a text cannot begin that way.
+
+The lookaheads of the reference's fragments are conditions here. A `gek` or `joik` fragment does not begin terms. A `na` fragment has no terms or `ku` after it. And a terms fragment has no mekso after it.
 
 ```jbogenbau
 %rule statement-terms
@@ -151,7 +155,7 @@ A statement can take terms after it, which `i'au` can introduce (`statement-term
 
 ## Sentences and bridi-tails
 
-A sentence is terms, an optional `cu` and a bridi-tail, or a forethought connection of sentences. Terms stand only before the first bridi-tail, since Zantufa has no JACU. Bridi-tails connect at three levels, as in camxes. The outer level takes a connective only where the inner one cannot, before a tag and `ke` or a tag and `cu`, which is what the reference's lookaheads leave to it. After `ke`, the words are a group of bridi-tails, unless a selbri ends with `ke'e` there, and then they are a tanru.
+A sentence is terms, an optional `cu` and a bridi-tail, or a forethought connection of sentences. Terms stand only before the first bridi-tail, because Zantufa has no JACU (a proposal for a simpler system of connectives). Bridi-tails connect at three levels, as in camxes. The outer level takes a connective only where the inner one cannot, before a tag and `ke` or a tag and `cu`. The reference's lookaheads leave these forms to the outer level. After `ke`, the words are a group of bridi-tails, unless a selbri ends with `ke'e` there, and then they are a tanru.
 
 ```jbogenbau
 %rule sentence
@@ -234,7 +238,7 @@ A sentence is terms, an optional `cu` and a bridi-tail, or a forethought connect
 
 ## Terms
 
-Zantufa has no termsets. A term is a `xoi` clause, a `ke` group of terms, a tag with its sumti, a sumti, a briga'i form (`noi'a` with a selbri, or a bare `na`), or a forethought connection of terms. A tag term does not stand before a selbri, a forethought bridi-tail or `bo`, as the reference's lookaheads say. A sumti comes before a forethought term over the same words, as in the reference's ordered choice.
+Zantufa has no termsets. A term is a `xoi` clause, a `ke` group of terms, a tag with its sumti, or a sumti. It can also be a briga'i form (`noi'a` with a selbri, or a bare `na`), or a forethought connection of terms. A tag term does not stand before a selbri, a forethought bridi-tail or `bo`, as the reference's lookaheads say. A sumti comes before a forethought term over the same words, as in the reference's ordered choice.
 
 ```jbogenbau
 %rule terms
@@ -310,7 +314,7 @@ Zantufa has no termsets. A term is a `xoi` clause, a `ke` group of terms, a tag 
 
 ## Sumti
 
-A sumti can be a `ra'oi`, `zo`, `zoi` or `lo'u` quote, a lerfu string, a `lu` quote, a `la'e` form, a pro-sumti, a `lo'oi` abstraction over a statement, a description, a `li` mekso, or `na'e` with a sumti. A lerfu string is a sumti only where no mekso operator follows it, as the reference's two lookaheads say. The inner sumti of a description does not begin with a quantifier.
+A sumti can be a `ra'oi`, `zo`, `zoi` or `lo'u` quote, a lerfu string, a `lu` quote, a `la'e` form, or a pro-sumti. It can also be a `lo'oi` abstraction over a statement, a description, a `li` mekso, or `na'e` with a sumti. A lerfu string is a sumti only where no mekso operator follows it, as the reference's two lookaheads say. The inner sumti of a description does not begin with a quantifier.
 
 ```jbogenbau
 %rule sumti
@@ -404,7 +408,9 @@ Relative clauses can stand side by side, joined by a joik or by nothing. They fo
 
 ## Selbri and tanru
 
-A selbri can take a tag or `na` before it, and relative clauses and `cei` after it. A tanru unit can be a name, as Zantufa reads a name as a selbri, a `go'oi`, `mu'oi` or `lu'ei` quote, `me` with a sumti, operators, a mekso or a tag, or a mekso with `moi`. The alternatives of `me` are tried in that order, as the reference's ordered choice has them, so `me su'i pa moi` is two tanru units, `me su'i` and `pa moi`. A mekso after `me` is not followed by what would make it a quantifier. And a tanru unit after the first does not begin with a joik and a `selbri_5`, since the tanru unit before it has read them as its connection.
+A selbri can take a tag or `na` before it, and relative clauses and `cei` after it. A tanru unit can be a name, because Zantufa reads a name as a selbri. It can also be a `go'oi`, `mu'oi` or `lu'ei` quote, `me` with a sumti, operators, a mekso or a tag, or a mekso with `moi`.
+
+The conditions give these alternatives the reference's order of preference. So `me su'i pa moi` is two tanru units, `me su'i` and `pa moi`. A mekso after `me` is not followed by words that can make it a quantifier. And a tanru unit after the first does not begin with a joik and a `selbri_5`. Those words belong to the tanru unit before it, which reads them as its connection.
 
 ```jbogenbau
 %rule selbri
@@ -511,7 +517,7 @@ A selbri can take a tag or `na` before it, and relative clauses and `cei` after 
 
 ## Mekso
 
-Zantufa's mekso is flat: operands and runs of operators alternate, `bo` and `ke` group them, and `bi'e` raises the precedence of the operators after it. Reverse Polish takes `fu'a`, and forethought takes `pe'o` or a bare operator. A run of operators is read whole. A quantifier is a mekso that begins no sumti and no selbri, as the reference's lookaheads say. These are prefix tests, as a PEG's are.
+Zantufa's mekso is flat: operands and runs of operators alternate, `bo` and `ke` group them, and `bi'e` raises the precedence of the operators after it. Reverse Polish takes `fu'a`, and forethought takes `pe'o` or a bare operator. The grammar reads a run of operators whole. A quantifier is a mekso that begins no sumti and no selbri, as the reference's lookaheads say. These are prefix tests, as a PEG's are.
 
 ```jbogenbau
 %rule quantifier
@@ -608,7 +614,7 @@ Zantufa's mekso is flat: operands and runs of operators alternate, `bo` and `ke`
 
 ## Connectives
 
-`je`, `ja`, `jo` and `ju` are JOI, so a joik covers what CLL's jek does, and `ga'o` or `ke'i` can stand on either side of it. A gek is a word of GA, `gi` with a joik or tag, or a joik or tag with `gi`, and it can take `bo`.
+`je`, `ja`, `jo` and `ju` are JOI, so a joik covers what CLL's jek does. `ga'o` or `ke'i` can stand on either side of a joik. A gek is a word of GA, `gi` with a joik or tag, or a joik or tag with `gi`, and it can take `bo`.
 
 ```jbogenbau
 %rule ek
@@ -642,7 +648,7 @@ Zantufa's mekso is flat: operands and runs of operators alternate, `bo` and `ke`
 
 ## Tags
 
-A tag is a run of `tcita-selci` joined by joiks. Each is a modal, a ROI word with an optional mekso before it, `fi'o` with a selbri, or one of these after `na'e` or `se`. A tag is read whole: another `tcita-selci` comes before a joik, and a tag before a selbri never leaves a `tcita-selci` for the selbri.
+A tag is a run of `tcita-selci` joined by joiks. Each is a modal, a ROI word with an optional mekso before it, `fi'o` with a selbri, or one of these after `na'e` or `se`. The grammar reads a tag whole: another `tcita-selci` comes before a joik, and a tag before a selbri never leaves a `tcita-selci` for the selbri.
 
 ```jbogenbau
 %rule tag
@@ -673,7 +679,7 @@ A tag is a run of `tcita-selci` joined by joiks. Each is a modal, a ROI word wit
 
 ## Free modifiers
 
-A free modifier is a `sei` clause over a statement, a vocative, a mekso with `mai`, a `to` parenthesis, a subscript, a replacement quote, or an attitudinal with its own free modifiers after it. A vocative takes a selbri or a sumti.
+A free modifier is a `sei` clause over a statement, a vocative, a mekso with `mai`, or a `to` parenthesis. It can also be a subscript, a replacement quote, or an attitudinal with its own free modifiers after it. A vocative takes a selbri or a sumti.
 
 ```jbogenbau
 %rule free
@@ -732,14 +738,16 @@ A free modifier is a `sei` clause over a statement, a vocative, a mekso with `ma
 The dialect reads some texts differently from Zantufa 1.9999. The policy of the dialect page accounts for most of them:
 
 - A PEG commits to the first alternative that matches, and a repetition reads as far as it can. So Zantufa rejects some texts that its rules allow, and the dialect accepts them. In `are`, Zantufa reads `a` as a whole fragment, and `re` is left over. In `le vi'ofagri`, the vocative after `le` takes `fagri`, and the description has no selbri. In `la poi ke'a barda .djan.`, the relative clause takes the name. Each of these parses here.
-- Where a PEG's greed gives a reading that the ranking of this stage does not choose, the dialect keeps its own reading. In `mi klama pamai le zarci .e remai le zdani`, Zantufa's `.e` takes `re mai` as its own free modifier. Here the free modifier is the mekso `.e re` with `mai`, after `zarci`. `mi me my su'i ny me'u` is another example.
+- Where a PEG's greed gives a reading that the ranking of this stage does not choose, the dialect keeps its own reading. The ranking is the order of preference of the stage among parses. In `mi klama pamai le zarci .e remai le zdani`, Zantufa's `.e` takes `re mai` as its own free modifier. Here the free modifier is the mekso `.e re` with `mai`, after `zarci`. `mi me my su'i ny me'u` is another example.
 - A lookahead here sees the words that the syntax reads, after erasure and without `ba'e`. Zantufa erases and reads `ba'e` inside its grammar, so its lookaheads see those words. So Zantufa accepts `li pa je ba'e cu broda`, `li pa je brode si cu broda` and `ba'e ke broda ke'e ke'e be mi`, and the dialect rejects them. And Zantufa reads `ke mi ba'e ke'e` as a group of terms, and the dialect as a grouped sumti.
-- The word stage reads a stray `si` or `bu` at the start of a text as the Magic Words proposal does, so `si mi` is `mi` and `bu si` is nothing. Zantufa rejects both, since its `si` and `bu` need a word before them there.
-- `su` erases the whole text before it. Zantufa scans for `su` from the start of each text. The scan passes a letter word, or a `su`, together with the free modifiers after it. A parenthesis among those free modifiers, or a quote inside one, holds a text with its own start, and a `su` inside that text erases only back to its start. So Zantufa reads `mi bu to mi su do toi broda` and `su to mi su do toi broda` with the inner `su` erasing only `mi`. Here it erases back to the start of the whole text, and the `toi` is left without its `to`.
-- A `zoi` or `mu'oi` quote closes with a delimiter that equals the opener once both are in lower case, as in Zantufa. But a run of the body is kept out of the quote only where it is the opener as written or in lower case. Zantufa keeps out every run that equals the opener in lower case. The two differ where a run of the body has stress and the opener has none. There Zantufa must close at that run, but this stage can also read past it, and it chooses the later close. So Zantufa reads `zoi ko x kO broda ko` as the quote `x` and the words `broda ko`, and the dialect as the quote `x kO broda`.
+- The word stage reads a stray `si` or `bu` at the start of a text as the Magic Words proposal does. So `si mi` is `mi`, and `bu si` is nothing. Zantufa rejects both, because its `si` and `bu` need a word before them there.
+- `su` erases the whole text before it. Zantufa scans for `su` from the start of each text. The scan passes a letter word, or a `su`, together with the free modifiers after it. A parenthesis among those free modifiers, or a quote inside one, holds a text with its own start. A `su` inside that text erases only back to that start.
+
+  So Zantufa reads `mi bu to mi su do toi broda` and `su to mi su do toi broda` with the inner `su` erasing only `mi`. Here it erases back to the start of the whole text, and the `toi` is left without its `to`.
+- A `zoi` or `mu'oi` quote closes with a delimiter that equals the opener once both are in lower case, as in Zantufa. But the dialect keeps a run of the body out of the quote only where it is the opener as written or in lower case. Zantufa keeps out every run that equals the opener in lower case. The two differ where a run of the body has stress and the opener has none. There Zantufa must close at that run, but this stage can also read past it, and it chooses the later close. So Zantufa reads `zoi ko x kO broda ko` as the quote `x` and the words `broda ko`, and the dialect as the quote `x kO broda`.
 
   A body never begins with such a run, so `zoi .ko. kO .ko.` is an empty quote and the word `ko`, as in Zantufa. The notation compares the opener with the set of the body's runs, and it cannot fold the stress of each run.
-- The forms stage reads the rafsi or gismu form after `ra'oi` before the word stage knows whether that `ra'oi` opens a quote. So where `ra'oi` is itself quoted or is a `zoi` delimiter, the letters after it are still divided as the form of a `ra'oi` quote. There Zantufa reads them as ordinary words, and the dialect rejects the text: `zo ra'oi broda`, `go'oi ra'oi broda`, `lo'u ra'oi broda le'u`, `lo'ai ra'oi broda le'ai` and `zoi ra'oi x ra'oi broda`. A `zoi` body, a closing `zoi` delimiter and the text after `fa'o` take the form as it is. So `zoi gy ra'oi broda gy`, `zoi broda ra'oi broda` and `fa'o ra'oi broda` read as in Zantufa.
-- Here, `su` cannot erase a quote word that opens no quote. So `zoi su mi` and `mi lo'ai su klama` are rejected here. Zantufa's `su` passes such a word with its `any_word` fallback, and accepts both.
+- The forms stage reads the rafsi or gismu form after `ra'oi` before the word stage knows whether that `ra'oi` opens a quote. So where `ra'oi` is itself quoted or is a `zoi` delimiter, the forms stage still divides the letters after it. It divides them as the form of a `ra'oi` quote. There Zantufa reads them as ordinary words, and the dialect rejects the text: `zo ra'oi broda`, `go'oi ra'oi broda`, `lo'u ra'oi broda le'u`, `lo'ai ra'oi broda le'ai` and `zoi ra'oi x ra'oi broda`. A `zoi` body, a closing `zoi` delimiter and the text after `fa'o` take the form as it is. So `zoi gy ra'oi broda gy`, `zoi broda ra'oi broda` and `fa'o ra'oi broda` read as in Zantufa.
+- Here, `su` cannot erase a quote word that opens no quote. So the dialect rejects `zoi su mi` and `mi lo'ai su klama`. Zantufa's `su` passes such a word with its `any_word` fallback, and accepts both.
 - `ba'e` is not a magic word, as the Magic Words proposal says. The word stage first removes `fa'o` and what follows it. So `mi ba'e fa'o` leaves a `ba'e` with nothing to mark. The proposal calls this an error. Zantufa reads `ba'e` inside its grammar, and accepts the text.
 - The phoneme stage reads the comma of CLL 3.3 and the Latin conventions of `phonemes/latin.md`, such as digits and punctuation. Zantufa reads neither.
