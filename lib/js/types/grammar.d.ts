@@ -2,6 +2,7 @@ import type { Condition, DomAlternative, Emission, ErrorLocation, GrammarDom, Lo
 export type StitchedAlternative = DomAlternative & {
     clauses: RuleClauses;
     document: string;
+    at: ErrorLocation;
 };
 export type RuleClauses = {
     tags: Term | undefined;

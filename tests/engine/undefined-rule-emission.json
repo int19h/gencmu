@@ -1,0 +1,15 @@
+{
+  "description": "A rule named in the tags of an emitted token must be a rule of the stage (engine §2).",
+  "grammar": "%rule text $a(A) %emits $a <\"E\" ∪ tags($a, absent)>",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

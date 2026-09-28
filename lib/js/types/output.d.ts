@@ -205,12 +205,15 @@ export declare function toTree(result: ParseResult): string;
  */
 export declare function withoutHollowNodes(root: ResultNode): ResultNode;
 /**
- * The tree rendering of any tree over the tokens its nodes index.
+ * The tree rendering of any tree over the tokens its nodes index. `text` is
+ * the text that the tokens' sources index. Without it, only the labels
+ * decide whether a rule's tokens fit on its line.
  * @param {ResultNode} root
  * @param {Token[]} tokens
+ * @param {string} [text]
  * @returns {string}
  */
-export declare function nodeTree(root: ResultNode, tokens: Token[]): string;
+export declare function nodeTree(root: ResultNode, tokens: Token[], text?: string): string;
 /**
  * @param {ParseResult} result
  * @returns {DisplayValue | null}

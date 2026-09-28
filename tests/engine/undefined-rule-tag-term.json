@@ -1,0 +1,15 @@
+{
+  "description": "A rule named in the tag term tags(span, rule) must be a rule of the stage (engine §2).",
+  "grammar": "%rule text $a(A) <tags($a, absent)>",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

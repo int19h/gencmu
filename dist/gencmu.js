@@ -1505,7 +1505,7 @@
    */
   function toTree(result) {
     if (!result.tree) return "";
-    return nodeTree(result.tree, finalInput(result));
+    return nodeTree(result.tree, finalInput(result), result.text);
   }
 
   /**
@@ -1524,15 +1524,39 @@
   }
 
   /**
-   * The tree rendering of any tree over the tokens its nodes index.
+   * The tree rendering of any tree over the tokens its nodes index. `text` is
+   * the text that the tokens' sources index. Without it, only the labels
+   * decide whether a rule's tokens fit on its line.
    * @param {ResultNode} root
    * @param {Token[]} tokens
+   * @param {string} [text]
    * @returns {string}
    */
-  function nodeTree(root, tokens) {
+  function nodeTree(root, tokens, text) {
     /** @type {string[]} */
     const lines = [];
     root = withoutHollowNodes(root);
+    const characters = text === undefined ? undefined : [...text];
+    // Whether a summary of tokens stays on one line: no label holds a line
+    // break, and, when the text is known, no line break, `\n` or `\r`, lies
+    // between the least start and the greatest end of their sources, which
+    // need not be in text order (engine §1, docs/output.md).
+    /** @type {(children: import("./types.js").TokenNode[]) => boolean} */
+    const oneLine = (children) => {
+      if (children.some((child) => /[\n\r]/.test(leafLabel(child, tokens)))) return false;
+      if (characters === undefined) return true;
+      let start = Infinity;
+      let end = -Infinity;
+      for (const child of children) {
+        const [from, to] = tokens[child.token].source;
+        start = Math.min(start, from);
+        end = Math.max(end, to);
+      }
+      for (let index = start; index < end && index < characters.length; index++) {
+        if (characters[index] === "\n" || characters[index] === "\r") return false;
+      }
+      return true;
+    };
     /** @type {(node: ResultNode) => string} */
     const label = (node) => {
       if (node.kind === "token") return `${node.terminal} ${JSON.stringify(leafLabel(node, tokens))}`;
@@ -1550,11 +1574,11 @@
         chain.push(label(current));
       }
       let line = " ".repeat(indent) + chain.join(" › ");
-      // A rule with only tokens below it is one line; an elided terminator is
-      // a line of its own (docs/output.md).
-      if (current.kind === "rule" && current.children.every((child) => child.kind === "token")) {
-        const words = current.children.flatMap((child) => (child.kind === "token" ? [leafLabel(child, tokens)] : []));
-        if (words.length) line += " · " + words.join(" ");
+      // A rule with only tokens below it, all on one line of source, is one
+      // line; an elided terminator is a line of its own (docs/output.md).
+      const leaves = current.kind === "rule" ? current.children.flatMap((child) => (child.kind === "token" ? [child] : [])) : [];
+      if (current.kind === "rule" && leaves.length === current.children.length && (leaves.length === 0 || oneLine(leaves))) {
+        if (leaves.length) line += " · " + leaves.map((child) => leafLabel(child, tokens)).join(" ");
         lines.push(line);
         continue;
       }
@@ -2381,7 +2405,7 @@
         lines.push(`  chosen: ${nodeBrackets(stage.tree, tokens, { showElided: true })}`);
         lines.push(`  other:  ${nodeBrackets(stage.tied, tokens, { showElided: true })}`);
         lines.push("");
-        lines.push(sideBySide(nodeTree(stage.tree, tokens), nodeTree(stage.tied, tokens), "chosen", "other"));
+        lines.push(sideBySide(nodeTree(stage.tree, tokens, result.text), nodeTree(stage.tied, tokens, result.text), "chosen", "other"));
       }
       lines.push("The grammar should say which reading it means; until it does, the first in the canonical order is used.");
       blocks.push(lines.join("\n"));
@@ -2850,9 +2874,9 @@
    */
 
   /**
-   * A rule body's alternative as stitched: its own parts, its rule's clauses
-   * and the document it came from.
-   * @typedef {DomAlternative & {clauses: RuleClauses, document: string}} StitchedAlternative
+   * A rule body's alternative as stitched: its own parts, its rule's clauses,
+   * and the document and position of the definition that wrote it.
+   * @typedef {DomAlternative & {clauses: RuleClauses, document: string, at: ErrorLocation}} StitchedAlternative
    */
 
   /**
@@ -2934,7 +2958,7 @@
       for (const rule of dom.rules) {
         const at = { document: path, line: rule.at[0], column: rule.at[1] };
         const clauses = { tags: rule.tags, emit: rule.emit, conditions: rule.conditions || [], verbatim: rule.verbatim === true };
-        const alternatives = rule.alternatives.map((alternative) => ({ ...alternative, clauses, document: path }));
+        const alternatives = rule.alternatives.map((alternative) => ({ ...alternative, clauses, document: path, at }));
         const previous = this.rules.get(rule.name);
         if (rule.op === "define") {
           if (previous) {
@@ -2984,21 +3008,31 @@
     }
 
     checkReferences() {
-      /** @type {(expr: Expr, rule: StitchedRule) => void} */
-      const visit = (expr, rule) => {
-        if ("ref" in expr && !isTerminalName(expr.ref) && !this.rules.has(expr.ref)) {
-          throw new GencmuError("grammar", `${rule.document}: ${rule.name} refers to ${expr.ref}, which is not defined`, rule.at);
+      // A rule named anywhere must be defined: in a body, and in a clause as the
+      // rule of matches, begins or tags (engine §2). The error stands at the
+      // definition that wrote the alternative.
+      /** @type {(name: string, rule: StitchedRule, alternative: StitchedAlternative) => void} */
+      const check = (name, rule, alternative) => {
+        if (!this.rules.has(name)) {
+          throw new GencmuError("grammar", `${alternative.document}: ${rule.name} refers to ${name}, which is not defined`, alternative.at);
         }
-        for (const child of childExpressions(expr)) visit(child, rule);
+      };
+      /** @type {(expr: Expr, rule: StitchedRule, alternative: StitchedAlternative) => void} */
+      const visit = (expr, rule, alternative) => {
+        if ("ref" in expr && !isTerminalName(expr.ref)) check(expr.ref, rule, alternative);
+        for (const child of childExpressions(expr)) visit(child, rule, alternative);
       };
       for (const rule of this.rules.values()) {
         for (const alternative of rule.alternatives) {
-          visit(alternative.expr, rule);
+          visit(alternative.expr, rule, alternative);
+          const { tags, conditions, emit } = alternative.clauses;
+          const clauses = [alternative.tags, tags, conditions, emit ? emit.items.map((item) => item.tags) : []];
+          for (const name of clauseRules(clauses)) check(name, rule, alternative);
           const top = "seq" in alternative.expr ? alternative.expr.seq : [alternative.expr];
           const names = top.flatMap((item) => ("capture" in item ? [item.capture] : []));
           const twice = names.find((name, index) => names.indexOf(name) !== index);
           if (twice !== undefined) {
-            throw new GencmuError("grammar", `${rule.document}: an alternative of ${rule.name} captures $${twice} twice`, rule.at);
+            throw new GencmuError("grammar", `${alternative.document}: an alternative of ${rule.name} captures $${twice} twice`, alternative.at);
           }
         }
       }
@@ -3027,6 +3061,23 @@
   function isTerminalName(name) {
     const first = name.codePointAt(0);
     return first !== undefined && first >= 0x41 && first <= 0x5a;
+  }
+
+  /**
+   * The rules that terms and conditions name: the rule of a matches or begins
+   * condition, and the rule argument of a call such as tags(span, rule).
+   * @param {unknown} value
+   * @returns {Generator<string>}
+   */
+  function* clauseRules(value) {
+    if (Array.isArray(value)) {
+      for (const item of value) yield* clauseRules(item);
+    } else if (value !== null && typeof value === "object") {
+      for (const [key, child] of Object.entries(value)) {
+        if (key === "rule" && typeof child === "string") yield child;
+        else yield* clauseRules(child);
+      }
+    }
   }
 
   /**
@@ -3104,7 +3155,7 @@
       // A trailing repetition's recursive productions could not have its
       // captures, whose parts lie inside the inner constituent (engine §3.3).
       if (trailing && ("seq" in alternative.expr ? alternative.expr.seq : [alternative.expr]).some((item) => "capture" in item)) {
-        throw new GencmuError("grammar", `${alternative.document}: an alternative of ${rule.name} captures a part, and is lowered as a trailing repetition`, rule.at);
+        throw new GencmuError("grammar", `${alternative.document}: an alternative of ${rule.name} captures a part, and is lowered as a trailing repetition`, alternative.at);
       }
       /** @type {Where} */
       const where = { rule, pending };
@@ -3170,7 +3221,7 @@
         if (item.capture) captures.push({ name: item.capture, index });
       });
       if (captures.length > MAX_CAPTURES) {
-        throw new GencmuError("grammar", `${alternative.document}: an alternative of ${rule.name} has more than ${MAX_CAPTURES} captures`, rule.at);
+        throw new GencmuError("grammar", `${alternative.document}: an alternative of ${rule.name} has more than ${MAX_CAPTURES} captures`, alternative.at);
       }
       // `$`, the whole constituent, is a capture every production has.
       const names = new Set(["", ...captures.map((capture) => capture.name)]);
