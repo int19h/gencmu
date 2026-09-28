@@ -187,6 +187,21 @@ async function main() {
     if (other.read) throw new Error("switching to a dialect that does not read the edited lexicon waited for it to be read");
     if (!other.output || !other.output.includes("klama")) throw new Error(`no brackets under experimental: ${JSON.stringify(other)}`);
     await stale();
+
+    // The features a parse used are listed by name, each in its own code
+    // element, and never as the text of an array.
+    const featured = "je lu «lo nu spoja pu lakne je cu xoi ro da pacna na fasnu» li'u";
+    await type(featured);
+    const listed = await answerFor(featured);
+    if (listed.error) throw new Error(`the playground failed: ${listed.error}`);
+    const features = await run(() => {
+      const line = document.querySelector("#summary .features-used");
+      return line ? { text: line.textContent, codes: [...line.querySelectorAll("code")].map((code) => code.textContent) } : null;
+    });
+    const named = features && features.codes.map((name) => `${name}(?: \\(auto\\))?`).join(", ");
+    if (!features || !features.codes.length || !new RegExp(`^Features: ${named}$`).test(features.text)) {
+      throw new Error(`the features used were not listed by name: ${JSON.stringify(features)}`);
+    }
     console.log(`playground works in ${browser} at ${target}, ${version}`);
   } finally {
     await instance.close();

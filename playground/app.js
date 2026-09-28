@@ -318,7 +318,8 @@
       else if (name.startsWith("on")) node.addEventListener(name.slice(2), value);
       else node.setAttribute(name, value === true ? "" : value);
     }
-    for (const child of children.flat()) if (child !== null && child !== undefined && child !== false) node.append(child);
+    // Children may nest arrays at any depth; each is spread in place.
+    for (const child of children.flat(Infinity)) if (child !== null && child !== undefined && child !== false) node.append(child);
     return node;
   }
 
