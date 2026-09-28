@@ -176,8 +176,8 @@
         advice: end < 0 ? "" : text.slice(end + 1),
         chosen: stage.tree ? gencmu.nodeBrackets(stage.tree, tokens, { showElided: true }) : "",
         other: stage.tied ? gencmu.nodeBrackets(stage.tied, tokens, { showElided: true }) : "",
-        chosenTree: stage.tree ? gencmu.nodeTree(stage.tree, tokens) : "",
-        otherTree: stage.tied ? gencmu.nodeTree(stage.tied, tokens) : "",
+        chosenTree: stage.tree ? gencmu.nodeTree(stage.tree, tokens, result.text) : "",
+        otherTree: stage.tied ? gencmu.nodeTree(stage.tied, tokens, result.text) : "",
       };
     }
 

@@ -1,0 +1,15 @@
+{
+  "description": "A rule named in a condition must be a rule of the stage, as in a body: matches($, absent) with no rule absent is an error (engine §2).",
+  "grammar": "%rule text A %conditions ¬matches($, absent)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}
