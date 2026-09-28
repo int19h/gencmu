@@ -1,10 +1,12 @@
 # The Zantufa word stream
 
-This document is part of the word stage in the [Zantufa](../dialects/zantufa.md) dialect. It is stitched in after [the word stream](stream.md), and it changes what the Zantufa lexicon's classes alone do not. The reference is Zantufa 1.9999, whose rules the comments give. The notation is explained in [the notation document](../../docs/notation.md).
+This document is part of the word stage in the [Zantufa](../dialects/zantufa.md) dialect. A stage is one grammar in a dialect's pipeline. A token is a unit such as a phoneme or a word. Each stage reads the tokens that the stage before it emitted, and emits new tokens.
 
-Most of Zantufa's magic words follow from its lexicon. SI is `si`, `zei`, `ze'ei` and `si'u'i`, so each erases the word before it, and no word joins two words into a lujvo. `sa` is an attitudinal. ZO is `zo`, `ma'oi` and `ra'ai`, LOhU is `lo'u` and `la'ai`, and ZOI is `zoi` and `la'o`.
+The dialect includes this document after [the word stream](stream.md). The document changes what the Zantufa lexicon's classes alone do not. The reference is Zantufa 1.9999, whose rules the comments give. [The notation document](../../docs/notation.md) explains the notation.
 
-A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban word, as `zo` does. It does not quote the rest of a run, so `go'oi mido` quotes `mi` and leaves `do`.
+Magic words act on other words. Examples are quotes and erasers. Most of Zantufa's magic words follow from its lexicon. SI is `si`, `zei`, `ze'ei` and `si'u'i`, so each erases the word before it, and no word joins two words into a lujvo. `sa` is an attitudinal. ZO is `zo`, `ma'oi` and `ra'ai`, LOhU is `lo'u` and `la'ai`, and ZOI is `zoi` and `la'o`.
+
+A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban word, as `zo` does. It does not quote the rest of a run (a stretch with no internal pause), so `go'oi mido` quotes `mi` and leaves `do`.
 
 ```jbogenbau
 %redefine-rule word-quote-marker
@@ -69,7 +71,7 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
   $m, $open <"word">, "foreign-text", $close <"word">
 ```
 
-Zantufa reads `y` and `ie'o` as space only after a pause or at the start of the text, since its `spaces` begins with `!Y`. A hesitation attached to the word before it, with no pause between them, is a word of class Y there. So `zoie'o mi` quotes `ie'o` and leaves `mi`, while `zo ie'o mi` quotes `mi`. Such a word has no place in the syntax except in a quote, so `mi cuyy klama` is rejected, as Zantufa rejects it. Before `bu`, hesitation stays the base of a letter word.
+Zantufa reads `y` and `ie'o` as space only after a pause or at the start of the text, because its `spaces` begins with `!Y`. A hesitation attached to the word before it, with no pause between them, is a word of class Y there. So `zoie'o mi` quotes `ie'o` and leaves `mi`, while `zo ie'o mi` quotes `mi`. Such a word has no place in the syntax except in a quote, so the dialect rejects `mi cuyy klama`, as Zantufa does. Before `bu`, hesitation stays the base of a letter word.
 
 ```jbogenbau
 %redefine-rule hesitation
@@ -115,7 +117,7 @@ Zantufa reads `y` and `ie'o` as space only after a pause or at the start of the 
   "after-hesitation" ∈ tags($h)
 ```
 
-A magic word is never a plain word. The stream's list of them lacks MUhOI, LOhAI and LEhAI, which only Zantufa reads so. A word of LU, TO or LUhEI that is read as a word, and not quoted, opens a text of its own. So the hesitation that the forms stage tagged `opener-space` after it is space, and the word takes it with it. Inside a quote, such a hesitation is an attached Y word, as in `zo luyy si`, which erases the `yy` and keeps `zo lu`.
+A magic word is never a plain word. The stream's list of them lacks MUhOI, LOhAI and LEhAI, which only Zantufa reads so. A word of LU, TO or LUhEI that this stage reads as an unquoted word opens a text of its own. The forms stage gives the tag (a label on a token) `opener-space` to the hesitation after such a word. So that hesitation is space, and the word takes it with it. Inside a quote, such a hesitation is an attached Y word, as in `zo luyy si`, which erases the `yy` and keeps `zo lu`.
 
 ```jbogenbau
 %redefine-rule word
@@ -165,7 +167,7 @@ The forms stage hands on the form after `ra'oi` as a `rafsi-form` token, even wh
   "rafsi-form"
 ```
 
-A quote word that opens no quote is an ordinary word in Zantufa, which `si` erases. Zantufa's `si_word` tries the quotes first, and then reads any cmavo but `bu`, a word of SI or SU, and `fa'o`. So `zoi si broda` is `broda`, and `lo'u si` is nothing. Such a marker is a unit only before its `si`, and only where no quote begins at it, since Zantufa tries the quote first. `zo` and the words of GOhOI always quote the next word, so they are never bare.
+A quote word that opens no quote is an ordinary word in Zantufa, which `si` erases. Zantufa's `si_word` tries the quotes first, and then reads any cmavo but `bu`, a word of SI or SU, and `fa'o`. So `zoi si broda` is `broda`, and `lo'u si` is nothing. Such a marker is a unit only before its `si`, and only where no quote begins at it, because Zantufa tries the quote first. `zo` and the words of GOhOI always quote the next word, so they are never bare.
 
 ```jbogenbau
 %extend-rule erasure
@@ -186,7 +188,7 @@ A quote word that opens no quote is an ordinary word in Zantufa, which `si` eras
   classes($q) ∩ ("ZOI" ∪ "MUhOI" ∪ "LOhU" ∪ "LOhAI" ∪ "ZOhOI" ∪ "LAhOI" ∪ "RAhOI" ∪ "MEhOI" ∪ "ZEhOI" ∪ "TAhAI" ∪ "BOhEI") ≠ ∅
 ```
 
-A `bu` makes a letter word of such a marker too, and of `su`, as Zantufa's `bu_clause` does. So `zoi bu`, `lo'u bu` and `su bu` are letter words, and `mi su bu si` is `mi`. A `su` before `bu` erases nothing, since Zantufa's `SU_clause` does not stand before `bu`.
+A `bu` makes a letter word of such a marker too, and of `su`, as Zantufa's `bu_clause` does. So `zoi bu`, `lo'u bu` and `su bu` are letter words, and `mi su bu si` is `mi`. A `su` before `bu` erases nothing, because Zantufa's `SU_clause` does not stand before `bu`.
 
 ```jbogenbau
 %extend-rule lerfu-word
