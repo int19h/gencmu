@@ -53,7 +53,7 @@ Every library runs these tests:
 - `tests/engine/`
 - `tests/notation/`
 - The fixpoint of the bootstrap: a reading of `grammars/notation/*.md` with the bootstrap reproduces the bootstrap.
-- A comparison of `compiled.json` with a fresh reading, with the cache both used and bypassed.
+- A comparison of `compiled.json` with a fresh reading, with the cache both used and bypassed
 
 ## JavaScript
 
@@ -98,7 +98,7 @@ gencmu.to_json(result)
 gencmu.to_brackets(result, show_elided=True)
 ```
 
-- `load_dialect(name)`, `load_dialect_file(path)`, `load_dialect_sources(sources, pipeline)` where `sources` is a mapping from path to text.
+- `load_dialect(name)`, `load_dialect_file(path)` and `load_dialect_sources(sources, pipeline)` load a dialect. `sources` is a mapping from path to text.
 - `Dialect.parse(text, *, features=(), without_features=(), auto_features=True, until=None, elision_only=None) -> ParseResult`.
 - `Dialect.features` is a tuple of `Feature`, a dataclass with `name`, `kind` and `default`.
 - `ParseResult`, `Stage`, `Node`, `Token`, `ParseWarning` and `ParseError` are dataclasses. Tags are `dict[str, bool]`. The warning class is not called `Warning`, because `Warning` is a built-in exception.
@@ -125,7 +125,7 @@ gencmu.Brackets(result, gencmu.BracketOptions{ShowElided: true})
 
 - `LoadDialect(name)`, `LoadDialectFile(path)` and `LoadDialectSources(sources map[string]string, pipeline string)` each return `(*Dialect, error)`. A load error is a `*gencmu.Error`.
 - `(*Dialect).Parse(text string, options ParseOptions) (*ParseResult, error)`. The error is for a mistake of the caller, such as an unknown stage name. A text that does not parse is a result. `ParseOptions` has `Features []string`, `WithoutFeatures []string`, `NoAutoFeatures bool`, `Until string` and `ElisionOnly *bool`. Auto features are on unless `NoAutoFeatures` is set.
-- `(*Dialect).Features() []Feature`, where `Feature` has `Name`, `Kind` and `Default`.
+- `(*Dialect).Features() []Feature` lists the features. Each `Feature` has `Name`, `Kind` and `Default`.
 - `MarshalResult(result) ([]byte, error)` writes the canonical JSON.
 - A `*Dialect` is safe for concurrent use by any number of goroutines.
 
@@ -145,8 +145,8 @@ gencmu::to_brackets(&result, true);
 ```
 
 - `load_dialect(name)`, `load_dialect_file(path)` and `load_dialect_sources(sources, pipeline)` each return `Result<Dialect, gencmu::Error>`.
-- `Dialect::parse(&self, text: &str, options: &ParseOptions) -> Result<ParseResult, Error>`. `ParseOptions` has `features` and `without_features`, and `ParseOptions::default()` has auto features on.
-- `Dialect::features(&self) -> &[Feature]`, where `Feature` has `name`, `kind` and `default`.
+- `Dialect::parse(&self, text: &str, options: &ParseOptions) -> Result<ParseResult, Error>`. `ParseOptions` has `features`, `without_features`, `auto_features`, `until` and `elision_only`, and `ParseOptions::default()` has auto features on.
+- `Dialect::features(&self) -> &[Feature]` lists the features. Each `Feature` has `name`, `kind` and `default`.
 - `to_json(&ParseResult) -> String`.
 - `to_brackets(&ParseResult, show_elided: bool) -> String`.
 - A result owns its data (`String`, `Vec`) and borrows neither the text nor the dialect. So it outlives both.

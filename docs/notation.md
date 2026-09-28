@@ -6,7 +6,9 @@ A jbogenbau grammar is an attribute grammar with EBNF rule bodies. An attribute 
 
 Conditions over the parts restrict which parses exist. A condition can also ask whether a part parses as another rule. This takes the grammar beyond context-free grammars, whose rules only combine symbols. It goes beyond them in the way that Boolean grammars do. In a Boolean grammar, a rule can also require that the same text matches, or does not match, another rule.
 
-Each rule can also say what its constituents hand to the next stage. So a grammar is a transducer: it reads one sequence of tokens (units such as characters or words) and writes the next sequence. A dialect is a pipeline of these grammars. A grammar is unordered: its alternatives are not ranked. Where a text has more than one parse, one rule makes the choice afterwards. The section "Ambiguity" describes that rule.
+A token is one unit of text. Examples are characters and words. A transducer reads tokens and emits another sequence. Each rule can also say what its constituents hand to the next stage. So a grammar is a transducer. A dialect is a pipeline of these grammars.
+
+A grammar is unordered: its alternatives are not ranked. Where a text has more than one parse, one rule makes the choice afterwards. The section "Ambiguity" describes that rule.
 
 ## Rules
 
@@ -44,10 +46,9 @@ The sections below explain each clause.
 
 A name is an ASCII letter followed by ASCII letters, digits and hyphens. A name that begins with a lower-case letter is a rule, and must be defined in the stage. A name that begins with an upper-case letter is a terminal. A terminal matches a token of the input that carries that name as a tag. For example, `KOhA` matches a word that the lexicon tagged KOhA.
 
-Two other kinds of terminal can spell tags that a name cannot spell:
+Two other kinds of terminal can spell tags that a name cannot spell. The first is a string in straight double quotes, `"а"`, `"word"`, `"≔"`. Inside it, `\\` is a backslash and `\"` a quote. `\u{ED80}` is the character with that hexadecimal value. The value has one to six digits. It is at most `10FFFF`, and it is not a surrogate, `D800` to `DFFF`.
 
-- A string in straight double quotes, `"а"`, `"word"`, `"≔"`. Inside it, `\\` is a backslash and `\"` a quote. `\u{ED80}` is the character with that hexadecimal value. The value has one to six digits. It is at most `10FFFF`, and it is not a surrogate, `D800` to `DFFF`.
-- A phoneme between slashes, `/a/`, `/'/`, and `/./` for a pause. It is a phoneme tag. It matches like any tag, and it also says what a token that carries it sounds like. `phonemes()` reads that sound.
+The second is a phoneme between slashes, `/a/`, `/'/`, and `/./` for a pause. It is a phoneme tag. It matches like any tag, and it also says what a token that carries it sounds like. `phonemes()` reads that sound.
 
 A reference, a string or a phoneme tag can be followed by a spelling. A spelling is text between backticks, as in ``LE`la` ``. The symbol then matches only where what it spans sounds like the spelling. That is, the phonemes of its tokens, joined with no separator and lowercased, are the spelling. So a stressed `lA`, a Cyrillic `ла` and a zbalermorna `la` all match ``LE`la` ``.
 
@@ -70,16 +71,19 @@ The operators of a body are those of CLL:
 
 `...` binds tighter than `&`, which binds tighter than `|`.
 
-`#` is the free-modifier slot, which CLL writes after almost every word. A free modifier is a word or phrase, such as a vocative, that can stand almost anywhere. `#` is not an operator but a rule, whose name is `#` and not a word. The grammar defines it like any other rule. The syntax grammars define it as `[free ...]`, zero or more free modifiers, as CLL's own EBNF does. Its constituent is a node of the tree like that of any rule, so the free modifiers in one slot are grouped under it.
+`#` is the free-modifier slot, which CLL writes after almost every word. A free modifier is a word or phrase that stands almost anywhere. A vocative is an example.
+
+`#` is not an operator but a rule, whose name is `#` and not a word. The grammar defines it like any other rule. The syntax grammars define it as `[free ...]`, zero or more free modifiers, as CLL's own EBNF does. Its constituent is a node of the tree like that of any rule, so the free modifiers in one slot are grouped under it.
 
 A terminator is a word that closes a construct, such as `ku`. CLL writes a terminator that can be elided (left out) between slashes, `/KU/`. It writes `/KU#/` for such a terminator whose free-modifier slot goes with it. In this notation, both are optionals: `[KU]` and `[KU #]`. The grammar declares once which terminators are elidable (see "Directives"). Here, slashes are for phonemes.
 
 ## Feature guards
 
-A feature is a name that is on or off for a parse. It has the same value in every stage of that parse. The pipeline of the dialect turns some features on (see "Pipelines"). The caller, the program or person that asks for the parse, can turn other features on, and can turn any of the dialect's features off. An alternative can begin with guards, which make it depend on features. There are two kinds:
+A feature is a name that is on or off for a parse. It has the same value in every stage of that parse. The pipeline of the dialect turns some features on (see "Pipelines"). The caller, the program or person that asks for the parse, can turn other features on, and can turn any of the dialect's features off. An alternative can begin with guards, which make it depend on features. There are two kinds of guard, gates and warnings.
 
-- A gate, `@name?`, keeps the alternative only while the feature `name` is on, and `@¬name?` keeps it only while the feature is off. A gate changes what the grammar accepts.
-- A warning, `@name!`, keeps the alternative whether the feature is on or off. While the feature is on, a parse whose chosen tree uses the alternative carries a warning. The warning names the feature and the text that the alternative's constituent covers. A warning changes nothing that the grammar accepts or chooses. It reports where a text relies on an addition to a base grammar.
+A gate, `@name?`, keeps the alternative only while the feature `name` is on, and `@¬name?` keeps it only while the feature is off. A gate changes what the grammar accepts.
+
+A warning, `@name!`, keeps the alternative whether the feature is on or off. While the feature is on, a parse whose chosen tree uses the alternative carries a warning. The warning names the feature and the text that the alternative's constituent covers. A warning changes nothing that the grammar accepts or chooses. It reports where a text relies on an addition to a base grammar.
 
 An alternative with several guards exists when all its gates hold. A name is a gate or a warning, not both. If one guard uses a name as a gate and another guard uses it as a warning, the dialect has an error. The two guards can be in any stages of the dialect. A warning has no negated form, because it keeps its alternative either way.
 
@@ -97,9 +101,11 @@ An alternative with several guards exists when all its gates hold. A name is a g
   "cmavo-warning" ∈ tags($w)
 ```
 
-A dialect that extends another dialect uses the two kinds for two kinds of change. An addition is a text that the base grammar rejects and the dialect accepts. An addition is a warning, so that a reader can learn which additions a text relies on. The dialect turns none of its warnings on, so its texts parse without warnings unless the caller asks for them.
+A dialect that extends another dialect can use the two kinds for two kinds of change. An addition is a text that the base grammar rejects and the dialect accepts. A warning can mark an addition, so that a reader can learn which additions a text relies on. The bundled dialects turn none of their warnings on, so their texts parse without warnings unless the caller asks for them.
 
-A change to how the dialect reads a text of the base cannot be a warning. The change removes the base reading, and a warning changes nothing that the grammar accepts or chooses. So the change is a gate, with the old form under `@¬name?` beside it. The dialect turns the gate on. A caller who wants the base reading turns it off.
+A change to how the dialect reads a text of the base cannot be a warning. The change removes the base reading, and a warning changes nothing that the grammar accepts or chooses. So a gate can guard such a change, with the old form under `@¬name?` beside it. The dialect then turns the gate on, and a caller who wants the base reading turns it off.
+
+The bundled dialects do not guard every change. The only bundled warning is `y-cmavo`, in the CLL dialect, so the additions of the experimental dialect carry no warning yet. A dialect also makes a change without a guard where a feature needs a convoluted grammar to keep the change separate. The documents of the dialect then say so.
 
 ## Stitching documents
 
@@ -130,10 +136,13 @@ The notation has no way to remove a single alternative. A rule is small enough t
 
 Writing `$name(symbol)` around a symbol of a rule's body captures that symbol. A capture gives a part of the constituent a name that the clauses of the rule can use. A capture wraps one symbol at the top level of an alternative, not inside `[ ]`, `...`, `( )` or `&`. So an alternative either reads that symbol or does not exist. An alternative has at most four captures. `$` alone is the whole constituent, a capture that every alternative has without writing it.
 
-The clauses of a rule serve all its alternatives, and the alternatives need not capture the same parts. gencmu knows whether an alternative captured a part when it reads the grammar. A clause can refer to a capture that an alternative lacks. What happens then depends on the kind of clause:
+The gates can leave one alternative in a rule. If that alternative ends in `...`, an explicit capture in its body is an error. gencmu turns such an alternative into left recursion on its rule, and the recursive part has no place for the capture (engine §3). To capture a part there, move the repetition into a rule of its own.
 
-- A condition or an item of `%emits` that uses a capture that an alternative lacks does not apply to that alternative. A condition about a part that is not there holds. A part that is not there is not emitted.
-- A tag term that uses a capture that one of its alternatives lacks is an error, unless `⟹` (below) guards the use. The reason is that a tag term has no value that can mean "nothing to say". An alternative's own tags serve that alternative. The tags after `%tags` serve every alternative. The tags of an emitted item serve every alternative that has the item.
+The clauses of a rule serve all its alternatives, and the alternatives need not capture the same parts. gencmu knows whether an alternative captured a part when it reads the grammar. A clause can refer to a capture that an alternative lacks. What happens then depends on the kind of clause.
+
+A condition or an item of `%emits` that uses a capture that an alternative lacks does not apply to that alternative. A condition about a part that is not there holds. A part that is not there is not emitted.
+
+A tag term that uses a capture that one of its alternatives lacks is an error, unless `⟹` (below) guards the use. The reason is that a tag term has no value that can mean "nothing to say". An alternative's own tags serve that alternative. The tags after `%tags` serve every alternative. The tags of an emitted item serve every alternative that has the item.
 
 It is an error to mention a capture that no alternative of the rule, or of the extension, captures. It is also an error to write a condition or an item of `%emits` that applies to no alternative. Each of these is a mistake, such as a misspelled name.
 
@@ -190,11 +199,13 @@ The predicates are:
 - `begins(span, rule)`, true when some prefix of the span parses as the rule. The empty prefix counts.
 - `initial(span)`, true when the span begins where the parser's input begins.
 
-`matches` and `tags(span, rule)` parse the captured span alone, as the named rule, with the same grammar. This is how gencmu states CLL's slinku'i test for borrowings. The test says that a CV cmavo (a particle of one consonant and one vowel) put before a borrowing must not make a lujvo (a compound word). That is `¬matches($f, lujvo-after-cv)`, because the rule is the part of a lujvo after its first two letters.
+`matches` and `tags(span, rule)` parse the captured span alone, as the named rule, with the same grammar. This is how gencmu states CLL's slinku'i test for borrowings. A CV cmavo is a particle of one consonant and one vowel. The test says that such a cmavo before a borrowing must not make a lujvo, a compound word. That is `¬matches($f, lujvo-after-cv)`, because the rule is the part of a lujvo after its first two letters.
 
 Inside such a parse, a condition can ask about the very span that is being parsed, as the same rule. Such a condition defines the rule in terms of itself over the same text, negated or not. The parser reports it as an error of the grammar.
 
-`begins` with `from` or `after` is a lookahead, like the lookahead of a parsing expression grammar (PEG). A PEG is a kind of grammar that tries the alternatives of a rule in order. A lookahead asks whether a rule can be read at a point, without reading it. `begins(after($f), post-word)` says that what follows `$f` begins with a `post-word`. That `post-word` can lie in the words after the constituent. `¬begins(from($f), cmevla)` says that no `cmevla` begins where `$f` begins, as a PEG's `!cmevla` before `$f` does.
+A lookahead tests a rule without reading the input. A PEG is a grammar that tries alternatives in order. PEG is short for parsing expression grammar. `begins` with `from` or `after` is a lookahead, like the lookahead of a PEG.
+
+`begins(after($f), post-word)` says that what follows `$f` begins with a `post-word`. That `post-word` can lie in the words after the constituent. `¬begins(from($f), cmevla)` says that no `cmevla` begins where `$f` begins, as a PEG's `!cmevla` before `$f` does.
 
 The approved word forms, the word grammar of the `bpfk` dialect, use these to translate their PEG rule by rule. The nested parse of `begins` reads only as far as the rule can read. So a lookahead costs what reading the rule costs, however long the rest of the input is.
 
@@ -324,7 +335,7 @@ The first stage reads the text's characters, each a token tagged with the charac
 
 ## Ambiguity
 
-A grammar admits every parse that its rules allow. Where a text has more than one parse, each parse is seen as the sequence of steps that a bottom-up reader takes. A step reads the next token or closes a constituent. The parses are compared at the first step where two of them differ:
+A grammar admits every parse that its rules allow. Where a text has more than one parse, gencmu treats each parse as the sequence of steps that a bottom-up reader takes. A step reads the next token or closes a constituent. gencmu compares the parses at the first step where two of them differ:
 
 - If both read the same token under two tags, a strong tag beats a weak one.
 - If one reads and the other closes, the grammar's `%ambiguity-resolution` decides. `greedy` takes the one that reads, so a constituent ends as late as the grammar allows. `lazy` takes the one that closes, so a constituent ends as early as the grammar allows.
@@ -334,7 +345,7 @@ Constituents with a single symbol, and the helper constituents that the notation
 
 The preference is like greedy and lazy quantifiers in a backtracking regular-expression engine. It is unlike the greed of a PEG parser. The preference orders the parses that the grammar already admits, and never commits early, so it cannot reject a text. The earliest difference decides. And it applies to every constituent of the stage, not to one quantifier.
 
-The syntax grammars are greedy: an elided terminator sits as late as the grammar allows. The forms and words stages are lazy. The word forms divide a run in one way only, so in the forms stage the choice never decides where a word ends. In the words stage, the choice makes a magic word act on what exists when it is read. A magic word is a word, such as `si`, that acts on other words. So `mi si si` erases `mi` and then nothing.
+The syntax grammars are greedy: an elided terminator sits as late as the grammar allows. The forms and words stages are lazy. The word forms divide a run in one way only, so in the forms stage the choice never decides where a word ends. A magic word, such as `si`, acts on other words. In the words stage, the choice makes a magic word act on what exists when it is read. So `mi si si` erases `mi` and then nothing.
 
 ## Elided terminators
 
@@ -356,4 +367,6 @@ CLL's own rule is narrower: a terminator can be elided only if no ambiguity resu
 
 With `elision-only`, after the stage chooses a parse, it writes the elided terminators of that parse back into the input. A spelled terminator that it writes back sounds like its spelling. Then it parses the input again, with no terminator elidable. If the input is still ambiguous, apart from choices that strong and weak tags settle, the ambiguity is not about terminators. The parse is then an error that shows both readings. For the CLL grammar, `elision-only` rejects only the few texts that the printed grammar leaves ambiguous in more than a terminator, such as `mi broda joi ke brode ke'e`.
 
-The grammars that extend CLL are really ambiguous in places, such as a bare `na` term beside a negated selbri. They declare only `greedy`. A caller can switch `elision-only` on for a parse, to look for overlaps in the text that it supplies. A caller can also switch it off, to loosen a grammar that declares it.
+The grammars that extend CLL are really ambiguous in places. A sumti is an argument of the selbri. A term is a wider kind of argument that includes the sumti. In the experimental grammar, the `mi .e do` of `mi .e do klama` is two sumti joined by `.e`, or two terms joined by it.
+
+These grammars declare only `greedy`. A caller can switch `elision-only` on for a parse, to look for overlaps in the text that it supplies. A caller can also switch it off, to loosen a grammar that declares it.

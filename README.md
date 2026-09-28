@@ -52,12 +52,12 @@ console.log(toBrackets(loadDialect("cll-ebnf").parse("mi klama")));
 
 ## Documents
 
-- [`docs/notation.md`](docs/notation.md): jbogenbau, the grammar notation, for grammar authors.
-- [`docs/engine.md`](docs/engine.md): the engine specification, for implementers.
-- [`docs/api.md`](docs/api.md): the library API in each language.
-- [`docs/output.md`](docs/output.md): the output formats.
-- [`docs/design.md`](docs/design.md): why gencmu is the way it is.
-- [`tests/README.md`](tests/README.md): the shared tests, the Lojban corpus among them.
+- [`docs/notation.md`](docs/notation.md): jbogenbau, the grammar notation, for grammar authors
+- [`docs/engine.md`](docs/engine.md): the engine specification, for implementers
+- [`docs/api.md`](docs/api.md): the library API in each language
+- [`docs/output.md`](docs/output.md): the output formats
+- [`docs/design.md`](docs/design.md): why gencmu is the way it is
+- [`tests/README.md`](tests/README.md): the shared tests, the Lojban corpus among them
 
 ## License
 

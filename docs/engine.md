@@ -44,10 +44,9 @@ To stitch a stage's items, the loader reads them in order, whatever documents th
 
 When `%extend-rule` extends a rule, each appended alternative carries the extension's own clauses: its rule-level tags, conditions and emission. These clauses apply to the appended alternatives alone, and the base rule's clauses do not apply to them. The earlier alternatives keep their own clauses. So a script document can add letters to a rule without restating its clauses, and its own clauses do not leak into the base rule. A definition is a `%rule`, `%redefine-rule` or `%extend-rule` statement: its alternatives and the clauses written with them. The loader records every replacement and extension.
 
-The loader collects directives from all the stage's items. `%stage`, `%include` and `%features` shape the pipeline (§13) and do not belong to a stage. The others belong to the stage:
+The loader collects directives from all the stage's items. `%stage`, `%include` and `%features` shape the pipeline (§13) and do not belong to a stage. The other two directives belong to the stage.
 
-- `%ambiguity-resolution L [elision-only] [maximal]`: exactly one per stage, or it is an error naming the stage. `L` is `greedy` or `lazy`. If both `elision-only` (§7) and `maximal` (§4) are written, they stand in that order.
-- `%elidable T...`: the elidable terminators. Repeated directives add up.
+A stage has exactly one `%ambiguity-resolution L [elision-only] [maximal]`, or it is an error naming the stage. `L` is `greedy` or `lazy`. If both `elision-only` (§7) and `maximal` (§4) are written, they stand in that order. `%elidable T...` names the elidable terminators, and repeated directives add up.
 
 A name whose first character is `A` to `Z` is a terminal. The DOM writes both kinds of name as `ref`, and lowering (§3) tells them apart by that first letter. Any other name is a rule reference, and must be defined in the stage, or it is an error. `#`, the free-modifier slot, is a rule's name like any other. A quoted string or a phoneme tag is a terminal.
 
@@ -88,10 +87,13 @@ Lowering turns a grammar, given the set of enabled features, into a context-free
 7. A production's tags are the union of its alternative's own tag term and its definition's `%tags` term, where either is written. A production with neither has the tags of its symbol's constituent if it has one symbol, and none if it has several. Lowering makes this explicit: it treats the single symbol as captured.
 8. An optional `[x]` is elidable when two things hold. `x` is a symbol, or a sequence whose first item is, recursively, one. That symbol is an `%elidable` terminal, spelled or not. An optional whose content is a choice or an `&` is never elidable, even if every branch begins with an elidable terminal. The `elision-only` check (§7) lowers the grammar a second time with every elidable optional made mandatory: its helper loses `ε`. A spelled elidable terminal stays spelled when its optional is made mandatory.
 
-Lowering numbers the productions from 0. This numbering is the tie-break of §6. A production that a condition false for it removes (§3.6) takes no number, though the helpers of its alternative still do. Lowering takes the rules in the order in which they were first defined after stitching. A rule replaced with `%redefine-rule` keeps the place of the rule that it replaces, and alternatives added with `%extend-rule` follow the rule's own alternatives. Within a rule, lowering takes its remaining alternatives in order, and each alternative contributes these, in this order:
+Lowering numbers the productions from 0. This numbering is the tie-break of §6. A production that a condition false for it removes (§3.6) takes no number, though the helpers of its alternative still do. Lowering takes the rules in the order in which they were first defined after stitching. A rule replaced with `%redefine-rule` keeps the place of the rule that it replaces, and alternatives added with `%extend-rule` follow the rule's own alternatives.
 
-- Its own productions, in the order of its expansions (step 2). For a trailing repetition, the non-recursive productions come first and then the recursive ones.
-- Then its helpers, one for each place in the alternative where `[ ]` or `...` is written. They come in the order in which those places are written, left to right. The helpers of the places written inside a helper follow that helper's productions at once, depth first, before the next helper of the alternative. The `...` of a trailing repetition (step 3) has no helper: it is lowered into the rule's own productions. But the `[ ]` and `...` inside its item have helpers, as anywhere else.
+Within a rule, lowering takes its remaining alternatives in order. Each alternative contributes its own productions first, and then its helpers. Its own productions come in the order of its expansions (step 2). For a trailing repetition, the non-recursive productions come first and then the recursive ones.
+
+Its helpers come one for each place in the alternative where `[ ]` or `...` is written. They come in the order in which those places are written, left to right. The helpers of the places written inside a helper follow that helper's productions at once, depth first, before the next helper of the alternative.
+
+The `...` of a trailing repetition (step 3) has no helper: it is lowered into the rule's own productions. But the `[ ]` and `...` inside its item have helpers, as anywhere else.
 
 A repetition whose item can match nothing is allowed: its derivations that repeat nothing are cyclic (§4) and are not counted.
 
@@ -101,7 +103,9 @@ Every expansion of the alternative that goes through a helper's place shares tha
 
 The parser is an Earley recognizer, a parser for any context-free grammar, over the lowered grammar. The set of items that it produces specifies it, and any algorithm that produces that set is correct. The recognizer builds one set of items for each position in the input.
 
-An item is a production, a dot position, an origin (the position where the item began), and, for each capture before the dot, the captured part's span and tag set. Two items equal in all of these are one item. Two items that differ in a captured part's tag set are two items, even over the same span. So derivations that differ in nothing that a condition or tag clause can see share an item. A left-recursive rule over captured parts therefore stays linear in the input.
+An item has a production, a dot position and an origin, the position where the item began. For each capture before the dot, it also has the captured part's span and tag set. Two items equal in all of these are one item. Two items that differ in a captured part's tag set are two items, even over the same span. So derivations that differ in nothing that a condition or tag clause can see share an item.
+
+Take one production, dot position, origin and input position, and one tag set for each captured part. Then the captures add items only where the span of a captured part can vary. For example, with `t → $l(t) $r(t) | A`, a completed item over one span exists once for each position where `$l` can end. Without the captures, it exists once.
 
 A terminal `T` matches a token whose tags contain `T`, strong or weak.
 
@@ -113,7 +117,7 @@ The recognizer applies the spelling before any condition that the advance makes 
 
 The spelling is not part of the terminal's identity. A spelled terminal ``T`s` `` is the terminal `T` for tag strength and for the actions of §6. It is also `T` in the tree's token nodes (§12) and in the witness. The spelling only removes matches.
 
-When an item completes, its constituent's tags are its production's tag terms evaluated over its captured parts (§10) and joined as §3.7 says. A completed item has exactly one tag set. Derivations of the same production over the same span with different tag sets are different items (they differ in a captured part) or have equal tag sets.
+When an item completes, its constituent's tags are its production's tag terms evaluated over its captured parts (§10) and joined as §3.7 says. A completed item has exactly one tag set. So two derivations of one production over one span that are one item have equal tag sets. Two such derivations with different tag sets differ in a captured part, so they are two items.
 
 The recognizer evaluates a condition, as simplified for its production (§3.6), as soon as the item reads the last capture that it uses. It evaluates a condition that uses `$` as soon as the item is complete. At that point, `$` spans from the item's origin to the set that the item completes in. It has the tags that its production's tag term gives it. If the condition fails, the recognizer does not produce the advanced item.
 
@@ -127,10 +131,9 @@ The recognizer evaluates a condition that uses no capture when it predicts the i
 
 `begins` is one recognition over the whole span, not a separate parse of each prefix. The reason is that the conditions inside `rule` see the end of the span as the end of their input. A recognizer can stop at a set that holds no item, since no later set can then hold one. Otherwise it reads as far as it can. An error of the grammar that it meets is an error, even after `rule` completed once.
 
-An implementation can remember the answers for the whole parse of a stage, in a memo. A memo stores answers from earlier nested parses. This is recommended, but not required. Two queries can share an answer when the nested parse observes the same things in both. That is, the two queries are of the same kind and ask about the same rule, and they have one of these in common:
+An implementation can remember the answers for the whole parse of a stage, in a memo. A memo stores answers from earlier nested parses. This is recommended, but not required. Two queries can share an answer when the nested parse observes the same things in both. That is, the two queries are of the same kind and ask about the same rule. They also have the same span or the same content.
 
-- The same span, by its start and end in the stage's input. Within one parse, the span fixes the tokens and the lowered grammar.
-- The same content. The content is the original text over the source of the span's tokens (§1). It also holds, for each of the span's tokens, its tags with their strengths, its text and its phonemes. Last, it holds where each token's source begins and ends, counted from the start of the source of the span's tokens.
+The same span is the same start and end in the stage's input. Within one parse, the span fixes the tokens and the lowered grammar. The content is the original text over the source of the span's tokens (§1). It also holds, for each of the span's tokens, its tags with their strengths, its text and its phonemes. Last, it holds where each token's source begins and ends, counted from the start of the source of the span's tokens.
 
 Tags alone are not enough, since a condition can read `text()`, which includes what lies between the tokens. Also, the source of each token decides what `text()` of a part of the span is. A key of content must keep its fields apart, so that no two different contents give the same key, whatever characters the fields hold. A key of content lets equal spans at different positions share an answer, and repeated words make this worth having. But such a key costs time in proportion to the span, and the span of `from` or `after` runs to the end of the input. So a key of content suits short spans, and a key of position suits long ones.
 
@@ -323,7 +326,14 @@ Once the reader reads a definition (§2), it makes sure that the whole definitio
 - In an emission, an inserted tag whose anchor, the capture listed next after it, is one that some alternative of the definition lacks.
 - In an emission, an alternative for which every item is dropped, so that it emits nothing although the rule lists what to emit. A rule that emits nothing says so with `ε`.
 
-A document's items are its rules and directives. The DOM keeps them in two lists, each in the order written. Every item has the position of its first token, so the order of all of a document's items is the order of their positions. A DOM in which two items share a position is malformed, whether it is read, cached or in the bootstrap. So is a DOM with a `stage`, `include` or `features` directive whose operands the reader refuses. So is a DOM with a spelling that the reader refuses, by the same `lowercase` mapping that the match uses. So is a DOM with `∈` or `∉` whose left side is not a string.
+A document's items are its rules and directives. The DOM keeps them in two lists, each in the order written. Every item has the position of its first token, so the order of all of a document's items is the order of their positions.
+
+A DOM is malformed in each of these cases, whether it is read, cached or in the bootstrap:
+
+- Two of its items share a position.
+- It has a `stage`, `include` or `features` directive whose operands the reader refuses.
+- It has a spelling that the reader refuses, by the same `lowercase` mapping that the match uses.
+- It has `∈` or `∉` whose left side is not a string.
 
 To decode a string, the reader removes the quotes. In the decoded string, `\\` is `\`, `\"` is `"`, and `\u{h...}` is the character with that hexadecimal value. The value has one to six hexadecimal digits and is a Unicode scalar value: at most `10FFFF`, and not a surrogate, `D800` to `DFFF`. Any other `\`, and a `\u{...}` that breaks these limits, is an error of the document, and the reader reports it at the string.
 
@@ -379,15 +389,13 @@ An emitted token's span is the range of the stage's input tokens that its consti
 
 An inserted token's span is empty at the start of the part of the capture listed next after it. If no capture is listed after it, the span is empty at the end of the constituent. Its source is empty at the source end of the input token before that position. If the position is the constituent's start, its source is empty at the start of the constituent's source.
 
-A token is verbatim in two cases:
+A token is verbatim in two cases. In the first case, a `$` item or a capture item emits the token over a constituent whose production has `%verbatim`. Such a token is widened: it takes in the text next to it that no input token covers, as the next paragraph says.
 
-- A `$` item of a production with `%verbatim` emits it, or a capture item emits it for a part whose production has `%verbatim`. Such a token is widened: it takes in the text next to it that no input token covers, as the next paragraph says.
-- Otherwise, a `$` item or a capture item emits it over exactly one input token, and that input token is verbatim. Such a token has that input token's source. So a quote body stays verbatim through the stages after the one that read it.
+In the second case, the first case does not apply. A `$` item or a capture item emits the token over exactly one input token, which is verbatim. Such a token has that input token's source. So a quote body stays verbatim through the stages after the one that read it.
 
-The text between two adjacent input tokens belongs to the widened token with a non-empty span that ends there, if one does. Otherwise it belongs to the one that starts there. The text before the first input token belongs to a widened token that starts there. The text after the last input token belongs to one that ends there. So a widened token's source always holds the source of its own input tokens (§1), and more:
+The text between two adjacent input tokens belongs to the widened token with a non-empty span that ends there, if one does. Otherwise it belongs to the one that starts there. The text before the first input token belongs to a widened token that starts there. The text after the last input token belongs to one that ends there. So a widened token's source always holds the source of its own input tokens (§1), and more.
 
-- It starts earlier: at the source end of the input token just before its span, if that is earlier. If there is no such token, it starts at the start of the text. It does not start earlier if another widened token with a non-empty span ends where this one starts.
-- It ends later: at the source start of the input token just after its span, if that is later. If there is no such token, it ends at the end of the text.
+A widened token's source starts at the source end of the input token just before its span, if that is earlier. If there is no such token, it starts at the start of the text. It does not start earlier if another widened token with a non-empty span ends where this one starts. The source ends at the source start of the input token just after its span, if that is later. If there is no such token, it ends at the end of the text.
 
 A widened token over an empty span takes in no text. Its source is empty, at the source end of the input token before the span. If there is no such token, its source is empty at the start of the text.
 
@@ -446,11 +454,8 @@ When all of these hold, the engine runs the stages up to and including the one n
 - The caller did not turn `sa-su` off.
 - The run reaches a stage named `words`: the dialect has one, and `until`, if given, names it or a later stage.
 
-If one of these holds, the engine then runs the parse again from the first stage with `sa-su` added:
+The engine then runs the parse again from the first stage with `sa-su` added, in two cases. In the first case, that first run does not end with the `words` stage accepting. Any reason counts: a rejection or an error in it or in a stage before it. In the second case, the chosen tree of the `words` stage has a constituent of the rule `word` whose tag set has `SA` or `SU`.
 
-- That first run does not end with the `words` stage accepting. Any reason counts: a rejection or an error in it or in a stage before it.
-- The chosen tree of the `words` stage has a constituent of the rule `word` whose tag set has `SA` or `SU`.
-
-In that case, the engine discards the first run's stages and warnings. Otherwise that first run's stages are the parse's, with their warnings, continued to the end. The test is on the class and not on the spelling, because the lexicon decides which words erase. For example, `li'oi` is SU in the experimental lexicon, and a stressed `sA` is `sa`.
+In either case, the engine discards the first run's stages and warnings. Otherwise that first run's stages are the parse's, with their warnings, continued to the end. The test is on the class and not on the spelling, because the lexicon decides which words erase. For example, `li'oi` is SU in the experimental lexicon, and a stressed `sA` is `sa`.
 
 Mistakes of the caller, such as an `until` that names no stage, are errors of kind `usage`. They are raised or returned as a load error is, and they are not results. A grammar error found while parsing, such as a nested parse asked about its own span, is a result. Its error has kind `grammar`, the `stage` that it arose in and a message, and no position.

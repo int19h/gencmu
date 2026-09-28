@@ -500,7 +500,7 @@ An eraser acts when the stage reads it, as the Magic Words proposal has it. So a
 
 These two erasers are behind the feature `sa-su`. They are the most expensive part of the word grammar. A `sa` can reach back to any earlier word. The parser does not know whether a `sa` will come, so it keeps a possible reach open from the most recent word of each selma'o. That multiplies the work for each word by the number of selma'o in use. They are also rare in written text.
 
-Without the feature, `sa` and `su` are ordinary cmavo of SA and SU, which the syntax grammars do not accept. So the parser rejects a text that uses them at the word where they stand, and does not misread it.
+Without the feature, `sa` and `su` are ordinary cmavo of SA and SU, which the syntax grammars do not accept. The syntax rejects a token of SA or SU that is still there after this stage, but another magic word can act on it first.
 
 CLL 19.13: `sa` erases back to the most recent word of the same selma'o as the word after it, that word included. It leaves the word after it standing. In CLL 19.13, `su` "erases the entire text". The Magic Words proposal and camxes-std stop `su` sooner, at the most recent `ni'o`, `no'i`, `lu`, `tu'e` or `to`, which survives. The YACC grammar (a grammar for the parser generator YACC) in CLL chapter 21 opens with the steps that a parser takes before the grammar. Its step 2g also stops `su` at `ni'o`, `no'i`, `lu`, `tu'e` or `to`, but it erases that word too.
 

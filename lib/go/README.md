@@ -22,7 +22,7 @@ data, _ := gencmu.MarshalResult(result) // canonical JSON, docs/output.md
 
 ## API
 
-- `LoadDialect(name)`: a bundled dialect, the name of a pipeline document under `grammars/dialects/` without `.md`.
+- `LoadDialect(name)` loads a bundled dialect. `name` is the name of a pipeline document under `grammars/dialects/` without `.md`.
 - `LoadDialectFile(path)`: a pipeline document on disk. The loader finds its grammar documents relative to it.
 - `LoadDialectSources(sources, pipeline)`: documents held in memory, a map from `/`-separated path to text. The map can hold its own `unicode.txt`, `notation/bootstrap.json` and `compiled.json`. The bundled ones fill in the rest.
 - `(*Dialect).Parse(text, ParseOptions{Features, WithoutFeatures, NoAutoFeatures, Until, ElisionOnly})` parses a text. For tests and tools, `(*Dialect).ParseTokens(text, tokens, options)` feeds pre-built tokens to the first stage. The `Warnings` of a result are those of the warning features that are turned on.
