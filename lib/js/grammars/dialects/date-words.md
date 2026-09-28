@@ -54,7 +54,7 @@ A note of the proposal says that the date words are always numbers, with no lett
 
 A date word reads its mekso as far as the grammar allows, as `li` does. So a number that follows a date can join it. In `mi klama ca na'a 2011 ci lo prenu`, the year is 20113, and `lo prenu` is a term of its own. `boi` ends the number, and `lo'o` ends the whole sumti: `mi klama ca na'a 2011 boi ci lo prenu` has the year 2011 and the term `ci lo prenu`. The grammar ends the date earlier only if the longer date leaves no reading of the whole text. So `ca na'a 2011 ci tadni cu kulmulbi'o` has the year 2011.
 
-A date word with no tense before it is a sumti like any other. So it fills the next place of the selbri, with no error. In `mi jbena de'i 17`, the date is the x2 of `jbena`. A day and a time of day need a tense each, as in `mi klama ca de'i 17 ca ti'u 16`. In `mi klama ca de'i 17 ti'u 16`, the time fills the x2 of `klama`. The proposal does not say how to join a day and a time in one sumti.
+A date word with no tag before it is a sumti like any other. So it fills the next place of the selbri, with no error. In `mi jbena de'i 17`, the date is the x2 of `jbena`. A day and a time of day need a tense each, as in `mi klama ca de'i 17 ca ti'u 16`. In `mi klama ca de'i 17 ti'u 16`, the time fills the x2 of `klama`. The proposal does not say how to join a day and a time in one sumti.
 
 ## Texts that this dialect reads differently
 
@@ -65,7 +65,7 @@ The change removes readings of the experimental dialect. These texts of the expe
 - `mi klama se de'i do` converts the modal, and `de'i ku` is the modal with no sumti. A word of LI has neither form.
 - `mi viska na'a` has the letter word `na'a` as a sumti. A word of LI is not a sumti by itself.
 
-The Lojban texts of the test corpus, in `corpus.jsonl`, `muplis.jsonl` and `cll.jsonl`, include 29 different texts that use one of the three words. The experimental dialect accepts 19 of them, and this dialect rejects all 19. Most of them use `de'i` or `ti'u` as a modal before a sumti, such as `li rexa`, `ma` or `le prulamdei`.
+The test corpus in `tests/corpus/` has 29 different texts that use one of the three words, in `corpus.jsonl`, `muplis.jsonl` and `cll.jsonl`. The experimental dialect accepts 19 of them, and this dialect rejects all 19. Most of them use `de'i` or `ti'u` as a modal before a sumti, such as `li rexa`, `ma` or `le prulamdei`.
 
 These texts have a reading in both dialects, but not the same one:
 
@@ -73,7 +73,7 @@ These texts have a reading in both dialects, but not the same one:
 - In the experimental dialect, `do cliva de'i ny` has the modal term `de'i ny`. Here, `de'i ny` is a sumti with no tag, and it fills the x2 of `cliva`. The brackets of the two readings are the same, but the trees are not.
 - In the experimental dialect, `mi viska ny na'a by` has one lerfu string, `ny na'a by`, as the x2. Here, `na'a` ends the string. So `ny` is the x2, and the date `na'a by` is the x3.
 
-The first text is the reason that the date words leave BAI and BY, and do not keep them as a second class. With both BAI and LI, `de'i` gives that text both readings, and the syntax stage reports a tie. A tie is a text with more than one winning reading.
+The tie on the first text is the reason that the date words leave their old classes. With both BAI and LI, `de'i` gives that text two readings, and the syntax stage reports a tie. A tie is a text with more than one winning reading. `na'a` with both BY and LI does the same in `ca na'a 1989 la .berlin. bitmu cu se daspo`.
 
 ## The date modals of Guskant
 
