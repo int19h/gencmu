@@ -1,10 +1,10 @@
-# The date-word proposal
+# The date-words dialect
 
 This dialect is the [experimental](experimental.md) dialect with the date words of mati's proposal, ["how to fix Lojban's date words"](https://tcima.jbobau.org/3mwkeyyuf4c2d). It also shows how a proposal for a change to Lojban becomes a gencmu dialect. The dialect adds one document to the pipeline of the experimental dialect, and it changes no rule of the syntax.
 
-The dialect reads a text in stages. A stage is one step of the reading, with its own grammar. Every stage is the stage of the experimental dialect. The forms stage has one more document, [`../words/lexicon-date-words.md`](../words/lexicon-date-words.md), which moves three cmavo into LI.
+The dialect reads a text in stages. A stage is one step of the reading, with its own grammar. Each stage has the documents of the same stage in the experimental dialect. The forms stage also has one more document, [`../words/lexicon-date-words.md`](../words/lexicon-date-words.md), which moves three cmavo into LI.
 
-A feature is a named switch that the grammars test. The dialect turns on the features of the experimental dialect, and one more: the gate `date-li`, which makes the date words LI. A caller, the program or person that asks for a parse, can turn `date-li` off. The dialect then reads every text as the experimental dialect does.
+A feature is a named switch that the grammars test. The dialect turns on the features of the experimental dialect, and one more, `date-li`. A gate is a feature that keeps or removes alternatives of the grammar. `date-li` is a gate, and it makes the date words LI. A caller, the program or person that asks for a parse, can turn `date-li` off. The dialect then reads every text as the experimental dialect does.
 
 ```jbogenbau
 %features cbm soi-clause su-boundary date-li
@@ -22,7 +22,7 @@ The proposal moves `de'i` and `ti'u` into LI, the selma'o of `li` and `me'o`. It
 
 The three words give the units of a date in different orders. `de'i` gives the day first, then the month and the year. `na'a` gives the year first, then the month and the day. `ti'u` gives a time of day, from the hour to the second. `pi'e`, the separator of a compound base (CLL 18.10), joins the units. The order is part of the meaning of each word, and no rule reads it.
 
-The proposal first puts `de'i` in LA'E, before `me'o`, as in `de'i me'o re pi'e pa ci`. It then puts `de'i` in LI in place of LA'E, so `me'o` is no longer needed. This dialect follows the second choice. So `de'i me'o re pi'e pa ci` is an error.
+The proposal first puts `de'i` in LA'E, before `me'o`, as in `de'i me'o re pi'e pa ci`. It then puts `de'i` in LI in place of LA'E, so the date word no longer needs `me'o` after it. This dialect follows the second choice. So `de'i me'o re pi'e pa ci` is an error.
 
 ## The examples of the proposal
 
@@ -30,14 +30,16 @@ These are the examples of the proposal, as this dialect reads them. Each is a ca
 
 - `ca na'a 1989 la .berlin. bitmu cu se daspo`: "The Berlin Wall fell in 1989."
 - `mi jbena ca na'a 2006`: "I was born in 2006."
-- `co'a na'a 2011 ba'o kulmulbi'o fa 40 tadni`: "Since 2011, forty students graduated."
-- `mi ba klama le frasygu'e ca de'i 17`: "I am going to France on the 17th."
+- `co'a na'a 2011 ba'o kulmulbi'o fa 40 tadni`: "Forty students graduated in the years since 2011."
+- `mi ba klama le frasygu'e ca de'i 17`: "I will go to France on the 17th."
 - `de'i 13 pi'e 2 cu mabla djedi`: "February 13th was a bad day."
 - `de'i 20 pe lo pavma'i`: "the 20th of January", which is `de'i 20 pi'e 1`.
 - `lo pavma'i be ca na'a 2030`: "January 2030"
-- `mi nitcu lo ka zvati lo jajysfi ca ti'u 16`: "I need to be at the party at four o'clock."
+- `mi nitcu lo ka zvati lo jajysfi ca ti'u 16`: "I need to be at the party at 16:00."
 
-The proposal writes the digits of a date with hyphens, as in `de'i 17-9-2027`. The hyphen stands for `pi'e`. But the phoneme stage reads a hyphen as a pause, so the digits join into one number. `de'i 17-9-2027` parses, but as the date 1792027, with no error. So the examples here write `pi'e` in full: `de'i 17 pi'e 9 pi'e 2027`. [Issue 80](https://github.com/int19h/gencmu/issues/80) proposes that every dialect read a hyphen or a colon between two digits as `pi'e`.
+The proposal writes the digits of a date with hyphens, as in `de'i 17-9-2027`. The hyphen stands for `pi'e`. But the phoneme stage reads a hyphen as a pause, so the digits join into one number. `de'i 17-9-2027` parses, but as the date 1792027, with no error.
+
+A colon has the same result, so `ti'u 16:30` is the hour 1630. The examples here write `pi'e` in full: `de'i 17 pi'e 9 pi'e 2027` and `ti'u 16 pi'e 30`. [Issue 80](https://github.com/int19h/gencmu/issues/80) proposes that every dialect read a hyphen or a colon between two digits as `pi'e`.
 
 ## What the date words take
 
@@ -48,9 +50,11 @@ The syntax of the experimental dialect already has a rule for LI. It is the alte
 - A relative clause can follow the sumti, as in `de'i 20 pe lo pavma'i`.
 - A quantifier can come before it, as in `ro de'i 15`.
 
-A note of the proposal says that the date words are always numbers, with no letters. The note argues that the date words belong in LI if LI and ME'O are ever split. The experimental dialect does not split them, since `li` and `me'o` are both LI. So the dialect gives the date words the whole grammar of `li`, letters included.
+A note of the proposal says that the date words are always numbers, with no letters. The note argues that the date words belong in LI if LI and ME'O are ever split. The experimental dialect does not split them, because `li` and `me'o` are both LI. So the dialect gives the date words the whole grammar of `li`, letters included.
 
 A date word reads its mekso as far as the grammar allows, as `li` does. So a number that follows a date can join it. In `mi klama ca na'a 2011 ci lo prenu`, the year is 20113, and `lo prenu` is a term of its own. `boi` ends the number, and `lo'o` ends the whole sumti: `mi klama ca na'a 2011 boi ci lo prenu` has the year 2011 and the term `ci lo prenu`. The grammar ends the date earlier only if the longer date leaves no reading of the whole text. So `ca na'a 2011 ci tadni cu kulmulbi'o` has the year 2011.
+
+A date word with no tense before it is a sumti like any other. So it fills the next place of the selbri, with no error. In `mi jbena de'i 17`, the date is the x2 of `jbena`. A day and a time of day need a tense each, as in `mi klama ca de'i 17 ca ti'u 16`. In `mi klama ca de'i 17 ti'u 16`, the time fills the x2 of `klama`. The proposal does not say how to join a day and a time in one sumti.
 
 ## Texts that this dialect reads differently
 
@@ -58,16 +62,22 @@ The change removes readings of the experimental dialect. These texts of the expe
 
 - `mi klama de'i li 1989` has a date word before `li`. A mekso cannot begin with `li`. The proposal writes `mi klama ca na'a 1989`.
 - `do cliva de'i ma` and `mi xabju lo barda zdani de'i da` have a date word before a sumti that is not a mekso. The proposal uses `ca` before such a sumti: `do cliva ca ma`. `ca de'i xo` asks for the day of the month.
-- `lo se de'i` converts the modal, and `de'i ku` is the modal with no sumti. A word of LI has neither form.
-- `na'a` alone was a letter word. A word of LI is not a sumti by itself.
+- `mi klama se de'i do` converts the modal, and `de'i ku` is the modal with no sumti. A word of LI has neither form.
+- `mi viska na'a` has the letter word `na'a` as a sumti. A word of LI is not a sumti by itself.
 
-Other texts have a reading in both dialects, but not the same one. In the experimental dialect, `ca de'i 1989 la .berlin. bitmu cu se daspo` has the tag `ca de'i` and the quantified sumti "1989 of the Berlin Wall". Here, it has the tagged sumti `ca de'i 1989` and the sumti `la .berlin. bitmu`.
+The Lojban texts of the test corpus, in `corpus.jsonl`, `muplis.jsonl` and `cll.jsonl`, include 29 different texts that use one of the three words. The experimental dialect accepts 19 of them, and this dialect rejects all 19. Most of them use `de'i` or `ti'u` as a modal before a sumti, such as `li rexa`, `ma` or `le prulamdei`.
 
-This is why the date words leave BAI and BY, and do not keep them as a second class. With both BAI and LI, `de'i` gives the text above both readings, and the syntax stage reports a tie. A tie is a text with more than one winning reading.
+These texts have a reading in both dialects, but not the same one:
 
-## The date modals of guskant
+- In the experimental dialect, `ca de'i 1989 la .berlin. bitmu cu se daspo` has the tag `ca de'i` and the quantified sumti "1989 of the Berlin Wall". Here, it has the tagged sumti `ca de'i 1989` and the sumti `la .berlin. bitmu`.
+- In the experimental dialect, `do cliva de'i ny` has the modal term `de'i ny`. Here, `de'i ny` is a sumti with no tag, and it fills the x2 of `cliva`. The brackets of the two readings are the same, but the trees are not.
+- In the experimental dialect, `mi viska ny na'a by` has one lerfu string, `ny na'a by`, as the x2. Here, `na'a` ends the string. So `ny` is the x2, and the date `na'a by` is the x3.
 
-The experimental lexicon has five date modals, which guskant proposed. They are all BAI:
+The first text is the reason that the date words leave BAI and BY, and do not keep them as a second class. With both BAI and LI, `de'i` gives that text both readings, and the syntax stage reports a tie. A tie is a text with more than one winning reading.
+
+## The date modals of Guskant
+
+The experimental lexicon has five date modals, which Guskant proposed. They are all BAI:
 
 - `de'i'a`: in the century N
 - `de'i'e`: in the year N
@@ -84,11 +94,11 @@ The dialect keeps them as they are. But they do not solve the problems of the pr
 
 ## What the grammar leaves to the proposal
 
-Some questions are about meaning, and the grammar does not answer them. The dialect accepts each of these texts, and the proposal gives their meaning:
+Some questions are about meaning, and the grammar does not answer them. The dialect accepts the texts that they are about, and the questions stay with the proposal:
 
-- The order of the units after each word, as the section "The proposal" says.
-- A year with two digits, as in `na'a 17`. The proposal reads it as a short form of a year such as 2017. `na'a 0017` is the year 17.
-- `ro de'i 15`, for "every 15th of the month". The proposal does not say what a date word refers to when a quantifier comes before it.
+- The order of the units after each word is part of the meaning of the word.
+- A year can have two digits, as in `na'a 17`. The proposal reads it as the year 17 or as a short form, such as 2017. `na'a 0017` is only the year 17.
+- `ro de'i 15` can mean "every 15th of the month". The proposal does not say what a date word refers to when a quantifier comes before it.
 
 ## Stage 1: phonemes
 

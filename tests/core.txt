@@ -1143,3 +1143,15 @@ adhoc.date-words.gate-off-berlin-wall-dehi
 adhoc.date-words.gate-off-modal-with-li
 adhoc.date-words.gate-off-naha-letter
 adhoc.date-words.gate-off-naha-year
+adhoc.date-words.gate-off-se-dehi
+adhoc.date-words.gate-off-lerfu-string
+adhoc.date-words.reject-tihu-modal-with-li
+adhoc.date-words.gate-off-tihu-modal-with-li
+adhoc.date-words.lerfu-string-fills-a-place
+adhoc.date-words.naha-ends-a-lerfu-string
+adhoc.date-words.gate-off-naha-in-a-lerfu-string
+adhoc.date-words.date-fills-a-place
+adhoc.date-words.day-and-time
+adhoc.date-words.time-fills-a-place
+adhoc.date-words.colon-is-a-pause
+adhoc.date-words.time-with-pihe

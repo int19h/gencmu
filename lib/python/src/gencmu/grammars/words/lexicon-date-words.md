@@ -10,7 +10,7 @@ The document moves three cmavo into LI, the selma'o of `li` and `me'o`. The move
 | `na'a` | BY | LI | the year, then the month and the day |
 | `ti'u` | BAI | LI | the hour, then the minutes and the seconds |
 
-The order of the units is part of the meaning of each word. No rule reads it. `pi'e`, the separator of a compound base (CLL 18.10), joins the units: `de'i pa ze pi'e so` is the 17th of September. CLL is *The Complete Lojban Language*.
+The order of the units is part of the meaning of each word. No rule reads it. `pi'e`, the separator of a compound base (*The Complete Lojban Language*, or CLL, section 18.10), joins the units. So `de'i pa ze pi'e so` is the 17th of September.
 
 ## How the document changes the lexicon
 
@@ -22,13 +22,13 @@ The dialect turns `date-li` on. A caller, the program or person that asks for a 
 
 The change is a gate and not a warning, because it removes readings of the experimental dialect. `mi klama de'i li 1989` is a text of that dialect, and this dialect rejects it. [The notation document](../../docs/notation.md) says under "Feature guards" that such a change is a gate.
 
-A word cannot be both BAI and LI. With both classes, the syntax stage reads `ca de'i 1989 la .berlin. bitmu cu se daspo` in two ways and reports a tie. A tie is a text with more than one winning reading. The dialect document shows the two readings.
+The dialect does not give a word both BAI and LI. With both classes, the syntax stage reads `ca de'i 1989 la .berlin. bitmu cu se daspo` in two ways and reports a tie. A tie is a text with more than one winning reading. The dialect document shows the two readings.
 
 ## de'i
 
 In CLL, `de'i` is BAI, the modal of `detri` (date). A modal tags a sumti and makes a term of it: `de'i li 1989`. Here, `de'i` is LI. So it takes a mekso (a mathematical expression) directly, as `li` does: `de'i pa ze` is "the 17th".
 
-The line with the comment `(* de'i *)` is the change. The experimental lexicon also has five longer words that begin with `de'i`: `de'i'a`, `de'i'e`, `de'i'i`, `de'i'o` and `de'i'u`. They are the date modals of guskant. Each is one cmavo with a line of its own, and they stay BAI. The dialect document explains why they do not solve the problems of the proposal.
+The line with the comment `(* de'i *)` is the change. The experimental lexicon also has five longer words that begin with `de'i`: `de'i'a`, `de'i'e`, `de'i'i`, `de'i'o` and `de'i'u`. They are the date modals of Guskant. Each is one cmavo with a line of its own, and they stay BAI. The dialect document explains why they do not solve the problems of the proposal.
 
 ```jbogenbau
 %redefine-rule lexicon-d
@@ -79,9 +79,9 @@ The line with the comment `(* de'i *)` is the change. The experimental lexicon a
 
 ## na'a
 
-In CLL, `na'a` is BY. It cancels all letteral shifts, a use that texts almost never have. The proposal takes the word for the year, from `nanca` (year). Here, `na'a` is LI, and it is no longer a letter word. So `na'a` alone is not a sumti in this dialect.
+In CLL, `na'a` is BY. It cancels all letteral shifts. A letteral shift changes the alphabet of later letter words. Texts almost never use one. The proposal takes the word for the year, from `nanca` (year).
 
-The line with the comment `(* na'a *)` is the change.
+Here, `na'a` is LI, and it is no longer a letter word. So `na'a` alone is not a sumti in this dialect, and `na'a` ends a lerfu string. The line with the comment `(* na'a *)` is the change.
 
 ```jbogenbau
 %redefine-rule lexicon-n
@@ -127,7 +127,7 @@ The line with the comment `(* na'a *)` is the change.
 
 ## ti'u
 
-In CLL, `ti'u` is BAI, the modal of `tcika` (time of day). Here, `ti'u` is LI, as `de'i` is: `ti'u pa xa` is "at 16 o'clock".
+In CLL, `ti'u` is BAI, the modal of `tcika` (time of day). Here, `ti'u` is LI, as `de'i` is: `ti'u pa xa` is the time 16:00.
 
 The line with the comment `(* ti'u *)` is the change.
 
