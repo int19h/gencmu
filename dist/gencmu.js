@@ -550,7 +550,7 @@
           continue;
         }
         // The conditions above run first, as they did when every prediction
-        // was made an item, so that a defect in one is reported all the same.
+        // was made an item, so that a trace shows the production as dropped.
         if (lookaheadSkips(production, next)) {
           skipped = true;
           continue;

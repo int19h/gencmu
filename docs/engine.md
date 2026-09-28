@@ -298,7 +298,7 @@ A rule with any other name makes no node of the DOM. The reader reads its childr
 - A function that does not exist, or one called with the wrong arguments. `phonemes`, `text`, `runs`, `classes`, `head`, `tail`, `last`, `from` and `after` take one span. `lowercase` takes one string. `tags` takes a span and optionally a rule name. `matches` and `begins` take a span and a rule name, and `initial` takes one span.
 
   In these signatures, a span is a capture or `head`, `tail`, `last`, `from` or `after` of one. A string is a quoted string, a phoneme tag, or `phonemes`, `text` or `lowercase` of something.
-- `∈` or `∉` whose left side is not a string, as the signatures above define one. So `$x ∈ $y` and `tags($x) ∉ "a"` are errors: a tag set on the left is `⊆`'s to test (§10).
+- `∈` or `∉` whose left side is not a string, as the signatures above define one. So `$x ∈ $y` and `tags($x) ∉ "a"` are errors: to test a tag set, use `⊆` (§10).
 - `head`, `tail`, `last`, `from` or `after` where a value is needed.
 - `matches`, `begins` or `initial` as a term.
 - An `&` of more than 16 items.

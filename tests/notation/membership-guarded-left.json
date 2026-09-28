@@ -1,0 +1,10 @@
+{
+  "description": "A guarded term on the left of ∈ is a tag set, even where its term is a string, so the comparison is an error of the document (engine §9, §10).",
+  "document": "```jbogenbau\n%rule a $x(B) %conditions ($x ⟹ \"a\") ∈ $x\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 27
+    }
+  }
+}
