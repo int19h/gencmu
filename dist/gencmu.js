@@ -550,7 +550,7 @@
           continue;
         }
         // The conditions above run first, as they did when every prediction
-        // was made an item, so that a defect in one is reported all the same.
+        // was made an item, so that a trace shows the production as dropped.
         if (lookaheadSkips(production, next)) {
           skipped = true;
           continue;
@@ -1947,6 +1947,7 @@
           pending.push({ kind: "argument", value: value.initial, depth: next });
         } else {
           if (typeof value.op !== "string" || !DOM_COMPARATORS.has(value.op)) return "a malformed condition";
+          if ((value.op === "∈" || value.op === "∉") && !isDomString(value.left)) return "a malformed condition";
           push("term", value.left);
           push("term", value.right);
         }
@@ -5237,7 +5238,11 @@
           return { captured: text(parts(inner)[0]).slice(1) };
         case "comparison": {
           const [left, comparator, right] = parts(inner);
-          return { op: /** @type {Comparator} */ (text(parts(comparator)[0])), left: readTerm(left), right: readTerm(right) };
+          const op = /** @type {Comparator} */ (text(parts(comparator)[0]));
+          const condition = { op, left: readTerm(left), right: readTerm(right) };
+          // Membership tests a string; a tag set on the left is ⊆'s (engine §9).
+          if ((op === "∈" || op === "∉") && !isStringTerm(condition.left)) fail(`the left side of ${op} is a string`, inner);
+          return condition;
         }
         case "negation":
           return { not: readCondition(only(inner, "condition")) };
@@ -5320,7 +5325,7 @@
       /** @type {(argument: Argument | undefined) => boolean} */
       const isRule = (argument) => argument !== undefined && "rule" in argument;
       /** @type {(argument: Argument | undefined) => boolean} */
-      const isString = (argument) => argument !== undefined && ("literal" in argument || ("call" in argument && STRINGS.has(argument.call)));
+      const isString = (argument) => argument !== undefined && isStringTerm(argument);
       let ok;
       if (name === "tags") ok = (args.length === 1 && isSpan(args[0])) || (args.length === 2 && isSpan(args[0]) && isRule(args[1]));
       else if (name === "matches" || name === "begins") ok = args.length === 2 && isSpan(args[0]) && isRule(args[1]);
@@ -5383,6 +5388,16 @@
   // The functions whose value is a span, and those whose value is a string.
   const SPANS = new Set(["head", "tail", "last", "from", "after"]);
   const STRINGS = new Set(["phonemes", "text", "lowercase"]);
+
+  /**
+   * Whether a term is a string: a literal, or phonemes, text or lowercase of
+   * something (engine §9).
+   * @param {Argument} term
+   * @returns {boolean}
+   */
+  function isStringTerm(term) {
+    return "literal" in term || ("call" in term && STRINGS.has(term.call));
+  }
 
   /** @type {Record<string, string>} */
   const SIGNATURES = {

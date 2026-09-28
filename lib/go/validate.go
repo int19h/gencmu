@@ -327,6 +327,10 @@ func (c *domChecker) condition(d *domCond, depth int) {
 			c.fail("a comparison without two terms")
 			return
 		}
+		if (d.Op == "∈" || d.Op == "∉") && !isStringTerm(d.Left) {
+			c.fail("a %s whose left side is not a string", d.Op)
+			return
+		}
 		c.term(d.Left, depth+1, false)
 		c.term(d.Right, depth+1, false)
 	case cdMatches, cdBegins:

@@ -298,6 +298,7 @@ A rule with any other name makes no node of the DOM. The reader reads its childr
 - A function that does not exist, or one called with the wrong arguments. `phonemes`, `text`, `runs`, `classes`, `head`, `tail`, `last`, `from` and `after` take one span. `lowercase` takes one string. `tags` takes a span and optionally a rule name. `matches` and `begins` take a span and a rule name, and `initial` takes one span.
 
   In these signatures, a span is a capture or `head`, `tail`, `last`, `from` or `after` of one. A string is a quoted string, a phoneme tag, or `phonemes`, `text` or `lowercase` of something.
+- `∈` or `∉` whose left side is not a string, as the signatures above define one. So `$x ∈ $y` and `tags($x) ∉ "a"` are errors: to test a tag set, use `⊆` (§10).
 - `head`, `tail`, `last`, `from` or `after` where a value is needed.
 - `matches`, `begins` or `initial` as a term.
 - An `&` of more than 16 items.
@@ -322,7 +323,7 @@ Once the reader reads a definition (§2), it makes sure that the whole definitio
 - In an emission, an inserted tag whose anchor, the capture listed next after it, is one that some alternative of the definition lacks.
 - In an emission, an alternative for which every item is dropped, so that it emits nothing although the rule lists what to emit. A rule that emits nothing says so with `ε`.
 
-A document's items are its rules and directives. The DOM keeps them in two lists, each in the order written. Every item has the position of its first token, so the order of all of a document's items is the order of their positions. A DOM in which two items share a position is malformed, whether it is read, cached or in the bootstrap. So is a DOM with a `stage`, `include` or `features` directive whose operands the reader refuses. So is a DOM with a spelling that the reader refuses, by the same `lowercase` mapping that the match uses.
+A document's items are its rules and directives. The DOM keeps them in two lists, each in the order written. Every item has the position of its first token, so the order of all of a document's items is the order of their positions. A DOM in which two items share a position is malformed, whether it is read, cached or in the bootstrap. So is a DOM with a `stage`, `include` or `features` directive whose operands the reader refuses. So is a DOM with a spelling that the reader refuses, by the same `lowercase` mapping that the match uses. So is a DOM with `∈` or `∉` whose left side is not a string.
 
 To decode a string, the reader removes the quotes. In the decoded string, `\\` is `\`, `\"` is `"`, and `\u{h...}` is the character with that hexadecimal value. The value has one to six hexadecimal digits and is a Unicode scalar value: at most `10FFFF`, and not a surrogate, `D800` to `DFFF`. Any other `\`, and a `\u{...}` that breaks these limits, is an error of the document, and the reader reports it at the string.
 
@@ -351,7 +352,7 @@ A term is a string or a tag set:
 
 A string used where a tag set is needed is the set of that one strong tag.
 
-`a = b` and `a ≠ b` compare two strings, or two tag sets by their tags alone and not by strength. `a ∈ b` and `a ∉ b` test a string in a tag set. `a ⊆ b` tests that every tag of `a` is in `b`. `matches(s, R)` holds when the span parses as `R`, and `begins(s, R)` when a prefix of it does, the empty prefix included.
+`a = b` and `a ≠ b` compare two strings, or two tag sets by their tags alone and not by strength. `a ∈ b` and `a ∉ b` test a string in a tag set. Their left side is always a string, since any other is an error of the document (§9). `a ⊆ b` tests that every tag of `a` is in `b`. `matches(s, R)` holds when the span parses as `R`, and `begins(s, R)` when a prefix of it does, the empty prefix included.
 
 `initial(s)` holds when the span begins where the input of the parse that evaluates the condition begins. That is the start of the stage's input, or, in a nested parse (§4), the start of the span that the parse reads. `$x`, as a condition, holds when the production has the capture `x` (§3.6), and `$` always holds. `¬c` negates. Conditions joined by `∨` hold when any does, and those joined by `∧` when all do.
 

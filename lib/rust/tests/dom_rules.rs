@@ -319,6 +319,11 @@ fn every_malformed_dom_is_a_cache_miss() {
         ("from of a value", with_tags(r#"{"call":"text","args":[{"call":"from","args":[{"literal":"x"}]}]}"#)),
         ("lowercase of a weak tag", with_tags(r#"{"call":"lowercase","args":[{"weak":"x"}]}"#)),
         ("lowercase of a span", with_tags(r#"{"call":"lowercase","args":[{"capture":"x"}]}"#)),
+        ("a capture on the left of ∈", with_condition(r#"{"op":"∈","left":{"capture":"w"},"right":{"capture":"w"}}"#)),
+        (
+            "tags on the left of ∉",
+            with_condition(r#"{"op":"∉","left":{"call":"tags","args":[{"capture":"w"}]},"right":{"literal":"b"}}"#),
+        ),
         ("phonemes of two spans", with_tags(r#"{"call":"phonemes","args":[{"capture":"x"},{"capture":"x"}]}"#)),
         ("phonemes of a value", with_tags(r#"{"call":"phonemes","args":[{"literal":"x"}]}"#)),
         ("tags with a value for a rule", with_tags(r#"{"call":"tags","args":[{"capture":"x"},{"literal":"text"}]}"#)),

@@ -1,0 +1,10 @@
+{
+  "description": "A capture on the left of ∈ is a tag set, not a string, so the comparison is an error of the document, reported at its first token (engine §9, §10).",
+  "document": "```jbogenbau\n%rule a $x(B) %conditions $x ∈ $x\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 27
+    }
+  }
+}

@@ -95,6 +95,18 @@ pub(crate) enum Term {
     If(Box<Cond>, Box<Term>),
 }
 
+impl Term {
+    /// A string: a literal, or `phonemes`, `text` or `lowercase` of
+    /// something (§9).
+    pub(crate) fn is_string(&self) -> bool {
+        match self {
+            Term::Literal(_) => true,
+            Term::Call(name, _) => matches!(name.as_str(), "phonemes" | "text" | "lowercase"),
+            _ => false,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Arg {
     Term(Term),
@@ -712,6 +724,12 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                     pending.push((Kind::Argument, span, next));
                 } else {
                     if !matches!(value.get("op").and_then(Json::as_str), Some("=" | "≠" | "∈" | "∉" | "⊆")) {
+                        return Some("a malformed condition");
+                    }
+                    // Membership tests a string; a tag set on the left is ⊆'s (§9).
+                    if matches!(value.get("op").and_then(Json::as_str), Some("∈" | "∉"))
+                        && !value.get("left").is_some_and(is_string_json)
+                    {
                         return Some("a malformed condition");
                     }
                     match (value.get("left"), value.get("right")) {

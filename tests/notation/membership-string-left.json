@@ -1,0 +1,75 @@
+{
+  "description": "The left side of ∈ and ∉ is a string: a quoted string, a phoneme tag, or phonemes, text or lowercase of something (engine §9, §10).",
+  "document": "```jbogenbau\n%rule a $x(B) %conditions \"b\" ∈ tags($x), /b/ ∉ $x, phonemes($x) ∈ runs($x), lowercase(text($x)) ∉ \"c\"\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "conditions": [
+            {
+              "op": "∈",
+              "left": {
+                "literal": "b"
+              },
+              "right": {
+                "call": "tags",
+                "args": [
+                  {
+                    "capture": "x"
+                  }
+                ]
+              }
+            },
+            {
+              "op": "∉",
+              "left": {
+                "literal": "/b/"
+              },
+              "right": {
+                "capture": "x"
+              }
+            },
+            {
+              "op": "∈",
+              "left": {
+                "call": "phonemes",
+                "args": [
+                  {
+                    "capture": "x"
+                  }
+                ]
+              },
+              "right": {
+                "call": "runs",
+                "args": [
+                  {
+                    "capture": "x"
+                  }
+                ]
+              }
+            },
+            {
+              "op": "∉",
+              "left": {
+                "call": "lowercase",
+                "args": [
+                  {
+                    "call": "text",
+                    "args": [
+                      {
+                        "capture": "x"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "right": {
+                "literal": "c"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

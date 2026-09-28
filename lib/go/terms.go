@@ -194,16 +194,16 @@ func (ev *evaluator) cond(c *domCond) bool {
 			}
 			return eq == (c.Op == "=")
 		case "∈", "∉":
+			// The reader refuses any other left side (§9).
+			if l.kind != vString {
+				panic(&parseFailure{message: "the left side of " + c.Op + " is a string"})
+			}
 			var member bool
-			if l.kind == vString {
-				switch r.kind {
-				case vSet:
-					_, member = r.set.has(l.s)
-				default:
-					member = l.s == r.s
-				}
-			} else {
-				member = subset(ev.toSet(l), ev.toSet(r))
+			switch r.kind {
+			case vSet:
+				_, member = r.set.has(l.s)
+			default:
+				member = l.s == r.s
 			}
 			return member == (c.Op == "∈")
 		case "⊆":

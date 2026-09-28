@@ -105,7 +105,7 @@ A term is `{"literal":"s"}`, `{"weak":"s"}`, `{"emptySet":true}`, `{"union":[TER
 
 A condition is one of these forms:
 
-- `{"op":"=","left":TERM,"right":TERM}`, with `op` one of `=`, `≠`, `∈`, `∉`, `⊆`
+- `{"op":"=","left":TERM,"right":TERM}`, with `op` one of `=`, `≠`, `∈`, `∉`, `⊆`. For `∈` and `∉`, `left` is a string: a `literal`, or a `call` of `phonemes`, `text` or `lowercase` (engine §9)
 - `{"matches":SPAN,"rule":"r"}`
 - `{"begins":SPAN,"rule":"r"}`
 - `{"initial":SPAN}`
