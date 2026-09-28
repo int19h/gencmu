@@ -1,17 +1,24 @@
 # Word forms
 
-This document opens the forms stage, the second stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The stage reads the phonemes that the phoneme stage emitted. It divides the text into its source words, each tagged with its class. It hands them to the word stage ([stream.md](stream.md)), where the magic words act on them. The notation is explained in [the notation document](../../docs/notation.md).
+This document opens the forms stage. A stage is one step of the pipeline that reads a text, and each stage has its own grammar ([engine §1](../../docs/engine.md#1-tokens)). The forms stage is the second stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The stage reads the phonemes that the phoneme stage emitted.
 
-What a word looks like is not decided here. Other documents are stitched into the stage with this one:
+The stage divides the text into its source words and tags each word with its class. A token is one unit that a stage reads or writes. A tag is a label on a token. The stage hands the words to the word stage ([stream.md](stream.md)), where the magic words act on them. [The notation document](../../docs/notation.md) explains the notation.
 
-- The word forms of one family. They define the three shapes this grammar reads, `cmavo-shape`, `brivla-shape` and `cmevla-shape`. They tag each with the pause properties below. The CLL dialect stitches [shapes.md](shapes.md) and [cll.md](cll.md). The other dialects stitch [bpfk.md](bpfk.md), with [experimental.md](experimental.md) or [zantufa.md](zantufa.md) after it.
-- One lexicon, [lexicon-cll.md](lexicon-cll.md), [lexicon-experimental.md](lexicon-experimental.md) or [lexicon-zantufa.md](lexicon-zantufa.md), which gives each cmavo its selma'o.
+This document does not decide what a word looks like. The loader stitches other documents into the stage with this one: the word forms of one family, and one lexicon. A family is a set of word forms that dialects use. The family defines the three shapes this grammar reads, `cmavo-shape`, `brivla-shape` and `cmevla-shape`. It tags each with the pause properties below.
+
+The CLL dialect stitches [shapes.md](shapes.md) and [cll.md](cll.md) as its family. The other dialects stitch [bpfk.md](bpfk.md), with [experimental.md](experimental.md) or [zantufa.md](zantufa.md) after it. The lexicon is [lexicon-cll.md](lexicon-cll.md), [lexicon-experimental.md](lexicon-experimental.md) or [lexicon-zantufa.md](lexicon-zantufa.md), and it gives each cmavo its selma'o.
 
 ## Runs
 
-The text is runs and pauses. A run is a stretch of the text with no pause inside it, and the phoneme stage emits each pause as one `PAUSE` token. What counts as a pause is the phoneme stage's business. It is a space or a period in CLL's orthography. It is other punctuation too in the conventions that the other dialects read. Every pause rule of CLL 4.9 and 4.2 holds within one run. A pause satisfies each of them, so two words with a pause between them never constrain each other. The approved word forms look past the end of a word only as far as the next pause. So this stage reads each run on its own.
+The text is runs and pauses. A run is a stretch of text with no pause inside. The phoneme stage emits each pause as one `PAUSE` token. The phoneme stage decides what counts as a pause. In CLL's orthography, a pause is a space or a period. In the conventions that the other dialects read, other punctuation is a pause too.
 
-A run is a sequence of words, or it is foreign text. That holds for a run that the phoneme stage already found foreign, because it has a character no script reads. It also holds for a run of letters that divides into no words. Foreign text is not an error here. Whether it may stand where it does is the word stage's question. Inside a `zoi` quote it is the quote's body, and elsewhere the word stage rejects it. So this stage never rejects a text. A run that divides into words divides in one way only, which the word forms of each family ensure. So the stage's choice among parses never decides anything here.
+Every pause rule of CLL 4.9 and 4.2 holds within one run. A pause satisfies each of them, so two words with a pause between them never constrain each other. The approved word forms look past the end of a word only as far as the next pause. So this stage reads each run on its own.
+
+A run is a sequence of words, or it is foreign text. A run is foreign text when the phoneme stage already found it foreign, because it has a character that no script reads. A run of letters that divides into no words is also foreign text.
+
+Foreign text is not an error here. The word stage decides whether foreign text can stand where it is. Inside a `zoi` quote, it is the body of the quote, and elsewhere the word stage rejects it. So this stage never rejects a text.
+
+A run that divides into words divides in one way only. The word forms of each family make sure of that. So the choice of the stage among parses never decides anything here.
 
 ```jbogenbau
 %ambiguity-resolution lazy
@@ -54,20 +61,22 @@ A run is a sequence of words, or it is foreign text. That holds for a run that t
   | /b/ | /c/ | /d/ | /f/ | /g/ | /j/ | /k/ | /l/ | /m/ | /n/ | /p/ | /r/ | /s/ | /t/ | /v/ | /x/ | /z/
 ```
 
-Every token of the input is handed on. A pause, and a foreign run of the phoneme stage, are handed on as they are. Such a run keeps its text as its phonemes. A run of letters that divides into no words becomes one `FOREIGN` token, which sounds like its letters. So a `zoi` delimiter compares with it exactly as with the same letters read as words. Its text is what the author wrote. The stage tests whether the run divides only for the whole run: a part of a run is followed by a letter. It tests the run alone, which gives the answer it would give in place. This is because no rule of this stage reads past the end of a run.
+The stage hands on every token of the input. It hands on a pause, and a foreign run of the phoneme stage, as they are. Such a run keeps its text as its phonemes. A run of letters that divides into no words becomes one `FOREIGN` token, which sounds like its letters. So a `zoi` delimiter compares with it exactly as with the same letters read as words. The text of the token is what the author wrote.
+
+The stage tests whether the run divides only for the whole run, because a letter follows a part of a run. The stage tests the run alone. This gives the same answer as a test in place, because no rule of this stage reads past the end of a run.
 
 ## Words in a run
 
-A run's words are read from the left. Each word after the first may follow the word before it only if the pause rules allow the two to stand together with no pause. The family tags each word with the properties that these rules test. The run carries the tags of its last word, so the condition sees the word before and the word after:
+The stage reads the words of a run from the left. Each word after the first can follow the word before it only if the pause rules let the two stand together with no pause. The family tags each word with the properties that these rules test. The run carries the tags of its last word, so the condition sees the word before and the word after:
 
-- `onset`: the word may follow another word directly. It begins with a consonant and is not a name (rules 3 and 4).
-- `continued`: another word may follow this one directly. A name never has it (rule 4), nor a `Cy` letter, nor a brivla whose stress is not marked.
-- `name-intro` and `name-onset`: `la`, `lai`, `la'i` and `doi`, and a name that begins with a consonant. The name may follow the cmavo directly (rule 4).
-- `cy`: a `Cy` letter, which only another `Cy` letter may follow directly (rule 6).
-- `final-stress`, `initial-stress` and `stress-guard`: the word's last or first syllable is stressed, or the word is a brivla. A word with `final-stress` may not be followed directly by a word with either of the other two (4.2, rule 5).
-- `open-stress` and `uncounted`: a brivla whose stress is not marked, and a word with no counted syllable. CLL 3.9 counts a brivla's syllables to the next pause, so only words with no counted syllable may follow it in its run. The run carries `open-stress` on through them.
+- `onset`: the word can follow another word directly. It begins with a consonant and is not a name (rules 3 and 4).
+- `continued`: another word can follow this one directly. A name never has it (rule 4), nor a `Cy` letter, nor a brivla whose stress is not marked.
+- `name-intro` and `name-onset`: `name-intro` marks `la`, `lai`, `la'i` and `doi`, and `name-onset` marks a name that begins with a consonant. The name can follow the cmavo directly (rule 4).
+- `cy`: a `Cy` letter, which only another `Cy` letter can follow directly (rule 6)
+- `final-stress`, `initial-stress` and `stress-guard`: the word's last or first syllable is stressed, or the word is a brivla. A word with either of the other two cannot directly follow a word with `final-stress` (4.2, rule 5).
+- `open-stress` and `uncounted`: `open-stress` marks a brivla whose stress is not marked, and `uncounted` marks a word with no counted syllable. CLL 3.9 counts a brivla's syllables to the next pause, so only words with no counted syllable can follow it in its run. The run carries `open-stress` on through them.
 
-The approved word forms set only `onset` and `continued`, with the PEG's meaning. Every word is `continued`, and a word that does not begin with a nucleus is `onset`, a name included. Their words look past their own ends, as the PEG's do, and decide the rest themselves.
+The approved word forms set only `onset` and `continued`, with the meaning that the PEG gives them. The PEG is the parsing expression grammar of the approved forms. [bpfk.md](bpfk.md) translates it. Every word is `continued`, and a word that does not begin with a nucleus is `onset`, a name included. Their words look past their own ends, as the words of the PEG do, and decide the rest themselves.
 
 ```jbogenbau
 %rule run-words
@@ -84,9 +93,9 @@ The approved word forms set only `onset` and `continued`, with the PEG's meaning
   "open-stress" ∉ tags($r) ∨ "uncounted" ∈ tags($v)
 ```
 
-The joins are stated so that no two apply to the same pair. For example, two `Cy` letter words side by side are joined by the `Cy` rule alone. That is why the general join, a continued word followed by an onset, leaves that case to it.
+A join permits two words without a pause. This document states the joins so that no two joins apply to the same pair. For example, only the `Cy` rule joins two `Cy` letter words side by side. That is why the general join, a continued word followed by an onset, leaves that case to the `Cy` rule.
 
-The word stage needs to know where a run begins and ends. A name that `bu` takes needs a pause before it (CLL 17.4). A `zoi` quote and a `zo'oi` quote end at the end of a run. So the first word of each run is tagged `run-initial`, and the last `run-final`.
+The word stage needs to know where a run begins and ends. A name that `bu` takes needs a pause before it (CLL 17.4). A `zoi` quote and a `zo'oi` quote end at the end of a run. So this stage tags the first word of each run `run-initial`, and the last word `run-final`.
 
 ```jbogenbau
 %rule first-word
@@ -102,7 +111,7 @@ The word stage needs to know where a run begins and ends. A name that `bu` takes
 
 ## Words
 
-A source word is a cmavo, a brivla, a name, or hesitation. It is handed on with its kind: `word` and `cmavo`, `BRIVLA` or `CMEVLA` for a word, and `hesitation` for hesitation. A cmavo also carries the selma'o that the lexicon gives it: `tags($c, lexicon)` parses the cmavo's phonemes against the lexicon rules. A cmavo unknown to the lexicon is still a word, of no class.
+A source word is a cmavo, a brivla, a name, or hesitation. The stage hands it on with its kind: `word` and `cmavo`, `BRIVLA` or `CMEVLA` for a word, and `hesitation` for hesitation. A cmavo also carries the selma'o that the lexicon gives it: `tags($c, lexicon)` parses the cmavo's phonemes against the lexicon rules. A cmavo unknown to the lexicon is still a word, of no class.
 
 ```jbogenbau
 %rule source-word
@@ -112,7 +121,9 @@ A source word is a cmavo, a brivla, a name, or hesitation. It is handed on with 
   | $h(hesitation-shape) <"hesitation" ∪ tags($h)>
 ```
 
-Hesitation, `y` however long, is a source word of its own here, since the pause rules hold for it as for any word. It begins with a vowel, so a pause comes before it, unless the family gives it `onset`. The approved word forms read `kyyykerlo` as `ky`, `yy` and `kerlo`, since the first `y` of `yy` is not a nucleus there. Hesitation needs no pause after it, as the Magic Words proposal has it. The word stage drops it, or reads it as the base of the letter word `.y bu`. Two letters `y` never form one syllable, so a comma between them changes nothing, and `y,y` is hesitation as `yy` is (CLL 3.3).
+Hesitation is `y` of any length. It is a source word of its own here, because the pause rules hold for it as for any word. It begins with a vowel, so a pause comes before it, unless the family gives it `onset`. The approved word forms read `kyyykerlo` as `ky`, `yy` and `kerlo`, because the first `y` of `yy` is not a nucleus there.
+
+Hesitation needs no pause after it, as the Magic Words proposal says. The word stage drops it, or reads it as the base of the letter word `.y bu`. Two letters `y` never form one syllable, so a comma between them changes nothing, and `y,y` is hesitation as `yy` is (CLL 3.3).
 
 ```jbogenbau
 %rule hesitation-shape
@@ -122,7 +133,7 @@ Hesitation, `y` however long, is a source word of its own here, since the pause 
   any-y | any-y y-run | any-y /,/ y-run
 ```
 
-A `y` here is either phoneme of the letter, plain or stressed. The same holds of every vowel letter in a cmavo, whose stress is free (CLL 3.9). The lexicon documents spell their words with these rules.
+A `y` here is either phoneme of the letter, plain or stressed. The same holds for every vowel letter in a cmavo, whose stress is free (CLL 3.9). The lexicon documents spell their words with these rules.
 
 ```jbogenbau
 %rule any-a
