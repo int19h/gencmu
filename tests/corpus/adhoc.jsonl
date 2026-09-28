@@ -454,6 +454,32 @@
 {"id":"adhoc.syntax.yacc-repair-free-inside-lu","text":"mi cusku lu mi klama to ti toi li'u","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","cusku","lu","mi","klama","to","ti","toi","li'u"],"brackets":"(mi [cusku {lu (mi [klama {to ti toi}]) li'u}])"}
 {"id":"adhoc.syntax.maximal-joi","text":"le nanmu joi le ninmu cu klama","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["le","nanmu","joi","le","ninmu","cu","klama"],"brackets":"([{le nanmu} joi {le ninmu}] cu klama)"}
 {"id":"adhoc.syntax.maximal-joi.bpfk","text":"le nanmu joi le ninmu cu klama","dialect":"bpfk","expect":"accept","verdict":"unique","words":["le","nanmu","joi","le","ninmu","cu","klama"],"brackets":"([{le nanmu} joi {le ninmu}] cu klama)"}
+{"id":"adhoc.indicators.fuhe.without-indicator","text":"mi fu'e klama","dialect":"cll-ebnf","expect":"reject","stage":"indicators","words":["mi","fu'e","klama"]}
+{"id":"adhoc.indicators.fuhe.without-indicator.bpfk","text":"mi fu'e klama","dialect":"bpfk","expect":"reject","stage":"indicators","words":["mi","fu'e","klama"]}
+{"id":"adhoc.indicators.fuhe.after-indicator-without-indicator","text":"mi ui fu'e klama","dialect":"cll-ebnf","expect":"reject","stage":"indicators","words":["mi","ui","fu'e","klama"]}
+{"id":"adhoc.indicators.fuhe.after-indicator-without-indicator.bpfk","text":"mi ui fu'e klama","dialect":"bpfk","expect":"reject","stage":"indicators","words":["mi","ui","fu'e","klama"]}
+{"id":"adhoc.indicators.fuhe.two-fuhe-one-indicator","text":"mi fu'e fu'e ui klama","dialect":"cll-ebnf","expect":"reject","stage":"indicators","words":["mi","fu'e","fu'e","ui","klama"]}
+{"id":"adhoc.indicators.fuhe.two-fuhe-one-indicator.bpfk","text":"mi fu'e fu'e ui klama","dialect":"bpfk","expect":"reject","stage":"indicators","words":["mi","fu'e","fu'e","ui","klama"]}
+{"id":"adhoc.indicators.fuhe.hesitation-not-indicator","text":"mi fu'e y klama","dialect":"cll-ebnf","expect":"reject","stage":"indicators","words":["mi","fu'e","klama"]}
+{"id":"adhoc.indicators.fuhe.hesitation-not-indicator.bpfk","text":"mi fu'e y klama","dialect":"bpfk","expect":"reject","stage":"indicators","words":["mi","fu'e","klama"]}
+{"id":"adhoc.indicators.fuhe.text-start-without-indicator","text":"fu'e mi klama","dialect":"cll-ebnf","expect":"reject","stage":"indicators","words":["fu'e","mi","klama"]}
+{"id":"adhoc.indicators.fuhe.text-start-without-indicator.bpfk","text":"fu'e mi klama","dialect":"bpfk","expect":"reject","stage":"indicators","words":["fu'e","mi","klama"]}
+{"id":"adhoc.indicators.fuhe.with-indicator","text":"mi fu'e ui klama","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","fu'e","ui","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.indicators.fuhe.with-indicator.bpfk","text":"mi fu'e ui klama","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","fu'e","ui","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.indicators.fuhe.with-attitudinal-nai","text":"mi fu'e ui nai klama","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","fu'e","ui","nai","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.indicators.fuhe.with-attitudinal-nai.bpfk","text":"mi fu'e ui nai klama","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","fu'e","ui","nai","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.indicators.fuhe.second-group","text":"mi ui fu'e ia klama","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","ui","fu'e","ia","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.indicators.fuhe.second-group.bpfk","text":"mi ui fu'e ia klama","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","ui","fu'e","ia","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.indicators.fuhe.fuho-closes-scope","text":"mi viska le fu'e .ia blanu zdani fu'o ponse","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","viska","le","fu'e","ia","blanu","zdani","fu'o","ponse"],"brackets":"(mi [viska {le (blanu zdani ponse)}])"}
+{"id":"adhoc.indicators.fuhe.fuho-closes-scope.bpfk","text":"mi viska le fu'e .ia blanu zdani fu'o ponse","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","viska","le","fu'e","ia","blanu","zdani","fu'o","ponse"],"brackets":"(mi [viska {le (blanu zdani ponse)}])"}
+{"id":"adhoc.indicators.fuhe.bahe-before-word","text":"ba'e mi fu'e ui klama","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ba'e","mi","fu'e","ui","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.indicators.fuhe.bahe-before-word.bpfk","text":"ba'e mi fu'e ui klama","dialect":"bpfk","expect":"accept","verdict":"unique","words":["ba'e","mi","fu'e","ui","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.indicators.fuhe.bahe-before-fuhe","text":"mi ba'e fu'e ui klama","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","ba'e","fu'e","ui","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.indicators.fuhe.bahe-before-fuhe.bpfk","text":"mi ba'e fu'e ui klama","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","ba'e","fu'e","ui","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.indicators.fuhe.text-start","text":"fu'e ui mi klama","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["fu'e","ui","mi","klama"],"brackets":"([fu'e ui] [mi klama])"}
+{"id":"adhoc.indicators.fuhe.text-start.bpfk","text":"fu'e ui mi klama","dialect":"bpfk","expect":"accept","verdict":"unique","words":["fu'e","ui","mi","klama"],"brackets":"([fu'e ui] [mi klama])"}
+{"id":"adhoc.indicators.fuhe.text-start-second-group","text":"ui fu'e ia mi klama","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ui","fu'e","ia","mi","klama"],"brackets":"([ui fu'e ia] [mi klama])"}
+{"id":"adhoc.indicators.fuhe.text-start-second-group.bpfk","text":"ui fu'e ia mi klama","dialect":"bpfk","expect":"accept","verdict":"unique","words":["ui","fu'e","ia","mi","klama"],"brackets":"([ui fu'e ia] [mi klama])"}
 {"id":"adhoc.words.magic-table.lohu-co-co-co-lehu-si","text":"lo'u co co co le'u si","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.words.magic-table.lohu-co-co-co-lehu-si.bpfk","text":"lo'u co co co le'u si","dialect":"bpfk","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.words.magic-table.lohu-co-co-lehu-sa-lohu-si","text":"lo'u co co le'u sa lo'u si","dialect":"cll-ebnf","expect":"reject","stage":"words"}
@@ -895,6 +921,7 @@
 {"id":"adhoc.camxes-exp.indicators.fuhe-with-indicator.zantufa","text":"mi fu'e ui klama","dialect":"zantufa","expect":"accept","verdict":"resolved","words":["mi","fu'e","ui","klama"],"brackets":"([mi {fu'e ui}] klama)"}
 {"id":"adhoc.camxes-exp.indicators.fuhe-without-indicator-rejected.experimental","text":"mi fu'e klama","dialect":"experimental","expect":"reject","stage":"indicators","words":["mi","fu'e","klama"]}
 {"id":"adhoc.camxes-exp.indicators.fuhe-without-indicator-rejected.zantufa","text":"mi fu'e klama","dialect":"zantufa","expect":"accept","verdict":"unique","words":["mi","fu'e","klama"],"brackets":"([mi fu'e] klama)"}
+{"id":"adhoc.camxes-exp.indicators.fuhe-second-group.experimental","text":"mi ui fu'e ia klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","ui","fu'e","ia","klama"],"brackets":"(mi klama)"}
 {"id":"adhoc.camxes-exp.indicators.indicator-after-lu-begins-quote.experimental","text":"lu ui li'u","dialect":"experimental","expect":"accept","verdict":"unique","words":["lu","ui","li'u"],"brackets":"(lu ui li'u)"}
 {"id":"adhoc.camxes-exp.indicators.indicator-after-lu-begins-quote.zantufa","text":"lu ui li'u","dialect":"zantufa","expect":"accept","verdict":"unique","words":["lu","ui","li'u"],"brackets":"(lu ui li'u)"}
 {"id":"adhoc.camxes-exp.indicators.nai-after-lu-begins-quote.experimental","text":"lu nai mi klama li'u","dialect":"experimental","expect":"accept","verdict":"unique","words":["lu","nai","mi","klama","li'u"],"brackets":"(lu [nai {mi klama}] li'u)"}

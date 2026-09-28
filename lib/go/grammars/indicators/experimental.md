@@ -1,12 +1,12 @@
 # The indicators of camxes-exp
 
-This document is a layer over [the indicator stage of CLL](cll.md), and the [experimental](../dialects/experimental.md) dialect stitches it after that document. It changes three things, so that the stage reads indicators as camxes-exp does. The notation is explained in [the notation document](../../docs/notation.md).
+This document is a layer over [the indicator stage of CLL](cll.md), and the [experimental](../dialects/experimental.md) dialect stitches it after that document. It changes two things, so that the stage reads indicators as camxes-exp does. The notation is explained in [the notation document](../../docs/notation.md).
 
 A bare `nai` is an indicator, since camxes-exp's `indicator` rule takes a NAI word alone. [The experimental lexicon](../words/lexicon-experimental.md) tags the NAI words `indicator`. So a `nai` after any word attaches to it: `mi nai klama` is `mi klama`, and `je nai` is `je` with the indicator `nai`. The syntax sees a `nai` only where no word stands before it, at the start of a text or of a quote. An attitudinal takes its `nai` as any word does, so the CLL document's `attitudinal nai` form is not used here.
 
-Two readings of `ui nai` would otherwise tie. Nothing reads that document's rules `attitudinal` and `nai`.
+With that form, two readings of `ui nai` tie. So this document restates `indicator-run` without that form. Nothing reads that document's rules `attitudinal` and `nai`.
 
-A `fu'e` must have an indicator after it, as in camxes-exp's `indicators` rule. So `mi fu'e ui klama` is a text, and `mi fu'e klama` is not.
+The CLL document already reads `fu'e` as camxes-exp's `indicators` rule does. A `fu'e` must have an indicator after it, so `mi fu'e ui klama` is a text, and `mi fu'e klama` is not. The restated `indicator-run` lets each indicator take its own `fu'e`.
 
 Indicators do not attach to `lu`, since camxes-exp's `LU_post` takes none. They stay in the stream, where they begin the quoted text: `lu ui li'u` quotes the text `ui`.
 
@@ -34,23 +34,4 @@ Indicators do not attach to `lu`, since camxes-exp's `LU_post` takes none. They 
 
 %redefine-rule indicator-run
   [fuhe] indicator | indicator-run [fuhe] indicator
-
-%redefine-rule indicator
-  | $i("word") | absorbed-bahe $i("word")
-%tags
-  tags($i)
-%conditions
-  "indicator" ∈ tags($i),
-  "FUhE" ∉ classes($i)
-%emits
-  $
-
-%rule fuhe
-  | $i("word") | absorbed-bahe $i("word")
-%tags
-  tags($i)
-%conditions
-  "FUhE" ∈ classes($i)
-%emits
-  $
 ```
