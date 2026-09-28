@@ -1,8 +1,8 @@
 # The indicators of camxes-exp
 
-This document is a layer over [the indicator stage of CLL](cll.md), and the [experimental](../dialects/experimental.md) dialect stitches it after that document. It changes two things, so that the stage reads indicators as camxes-exp does. The notation is explained in [the notation document](../../docs/notation.md).
+This document is a layer (a document that changes earlier rules) over [the indicator stage of CLL](cll.md). A stage is one parsing step with its own grammar. A dialect is a sequence of parsing stages. The [experimental](../dialects/experimental.md) dialect stitches this layer after the CLL document, that is, it reads the two as one grammar. This layer changes two things, so that the stage reads indicators as camxes-exp does. [The notation document](../../docs/notation.md) explains the notation.
 
-A bare `nai` is an indicator, since camxes-exp's `indicator` rule takes a NAI word alone. [The experimental lexicon](../words/lexicon-experimental.md) tags the NAI words `indicator`. So a `nai` after any word attaches to it: `mi nai klama` is `mi klama`, and `je nai` is `je` with the indicator `nai`. The syntax sees a `nai` only where no word stands before it, at the start of a text or of a quote. An attitudinal takes its `nai` as any word does, so the CLL document's `attitudinal nai` form is not used here.
+A bare `nai` is an indicator, since camxes-exp's `indicator` rule takes a NAI word alone. [The experimental lexicon](../words/lexicon-experimental.md) tags the NAI words `indicator`. So a `nai` after any word attaches to it: `mi nai klama` is `mi klama`, and `je nai` is `je` with the indicator `nai`. The syntax sees a `nai` only where no word stands before it, at the start of a text or of a quote. An attitudinal takes its `nai` as any word does, so this layer does not use the `attitudinal nai` form of the CLL document.
 
 With that form, two readings of `ui nai` tie. So this document restates `indicator-run` without that form. Nothing reads that document's rules `attitudinal` and `nai`.
 
