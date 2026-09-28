@@ -1,0 +1,61 @@
+{
+  "description": "An expected list writes a spelled terminal as the terminal followed by its spelling in backticks, and sorts by that text in code point order with the other terminals: LE before LE`la`, which is before LE`lai` and before LEhU, since ` is U+0060 and h U+0068 (docs/output.md, engine §4).",
+  "grammar": "%rule text LE`lai` | LEhU | LE`la` | LE | KOhA | LE`la` B | spelled\n%rule spelled \"x\"`x`",
+  "tokens": [
+    {
+      "text": "zo",
+      "tags": [
+        "ZO"
+      ],
+      "phonemes": "zo"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "token": 0,
+        "expected": [
+          {
+            "terminal": "KOhA",
+            "rules": [
+              "text"
+            ]
+          },
+          {
+            "terminal": "LE",
+            "rules": [
+              "text"
+            ]
+          },
+          {
+            "terminal": "LE`la`",
+            "rules": [
+              "text"
+            ]
+          },
+          {
+            "terminal": "LE`lai`",
+            "rules": [
+              "text"
+            ]
+          },
+          {
+            "terminal": "LEhU",
+            "rules": [
+              "text"
+            ]
+          },
+          {
+            "terminal": "x`x`",
+            "rules": [
+              "spelled"
+            ]
+          }
+        ]
+      }
+    },
+    "error": "rejected"
+  }
+}

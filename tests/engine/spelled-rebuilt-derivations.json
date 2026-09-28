@@ -1,0 +1,57 @@
+{
+  "description": "Derivations are made only of advances that the spelling allowed. Only the body over Y sounds y, so [X] must read X, and the derivation that reads [X] as empty and body over X Y is not counted, not even by a library that rebuilds derivations from completed spans (engine §4).",
+  "grammar": "%rule text [X] body`y`\n%rule body X Y | Y",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "x"
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ],
+      "phonemes": "y"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "span": [
+          0,
+          2
+        ],
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "X",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "body",
+            "span": [
+              1,
+              2
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "(x y)"
+  }
+}

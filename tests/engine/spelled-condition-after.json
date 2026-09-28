@@ -1,0 +1,23 @@
+{
+  "description": "Where the spelling holds, the condition the advance makes ready is evaluated, here one that ends the parse with an error of the grammar: matches($x, text) parses the span as text, and the same condition, inside that parse, asks about the same span and rule again (engine §4, §10).",
+  "grammar": "%rule text $x(A`a`) %conditions matches($x, text)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "grammar",
+        "stage": "main"
+      }
+    },
+    "error": "grammar"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "description": "A spelling that is empty is an error of the document, reported at the spelling (engine §9).",
+  "document": "```jbogenbau\n%rule text LE``\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 14
+    }
+  }
+}

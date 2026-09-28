@@ -123,6 +123,8 @@ The Zantufa syntax is a grammar of its own. Zantufa 1.9999 restates almost every
 
 A name in upper case is a terminal that matches a token carrying that tag. A string in straight quotes, `"а"`, `"word"`, is a terminal whose tag the name syntax cannot spell. A phoneme between slashes, `/a/`, `/'/`, `/./` for a pause, is a phoneme tag. It matches like any tag, and it also says what a token that carries it sounds like, which `phonemes()` reads. Slashes mean nothing else.
 
+A reference, a string or a phoneme tag can carry a spelling, the text between backticks after it, as in ``LE`la` ``. The symbol then matches only where its span sounds like the spelling, whatever the stress or the script. So a rule can name a word by its sound in its body, and not in a condition. A spelling does not replace a class, since a word that `zo` quotes has the sound but not the class.
+
 The operators of a body are those of CLL:
 
 - Juxtaposition is sequence.

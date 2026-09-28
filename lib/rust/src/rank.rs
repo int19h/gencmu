@@ -14,11 +14,12 @@
 use crate::fxhash::FxMap;
 use std::cmp::Ordering;
 
-use crate::earley::{Chart, Item, Tok};
+use crate::earley::{sounds_like, Chart, Item, Shared, Tok};
 use crate::grammar::Lean;
 use crate::lower::{Lowered, Sym};
 use crate::maximal::Maximal;
 use crate::tags::Tags;
+use crate::unicode::Unicode;
 
 pub(crate) const EMPTY: u32 = 0;
 const INF: u32 = u32::MAX;
@@ -142,6 +143,8 @@ pub(crate) struct Dag<'c> {
     g: &'c Lowered,
     chart: &'c Chart,
     tokens: &'c [Tok],
+    /// The lowercase mapping that spellings are matched with (§4).
+    unicode: &'c Unicode,
     tags: &'c Tags,
     term_tags: &'c [u32],
     lean: Lean,
@@ -506,13 +509,23 @@ impl<'c> Ranker<'c> {
         g: &'c Lowered,
         chart: &'c Chart,
         tokens: &'c [Tok],
-        tags: &'c Tags,
+        shared: &'c Shared<'c>,
         term_tags: &'c [u32],
         lean: Lean,
         maximal: Option<&'c Maximal<'c>>,
     ) -> Ranker<'c> {
-        let mut dag =
-            Dag { g, chart, tokens, tags, term_tags, lean, arena: Vec::new(), vlen: Vec::new(), flen: Vec::new() };
+        let mut dag = Dag {
+            g,
+            chart,
+            tokens,
+            unicode: shared.unicode,
+            tags: &shared.tags,
+            term_tags,
+            lean,
+            arena: Vec::new(),
+            vlen: Vec::new(),
+            flen: Vec::new(),
+        };
         dag.push(DNode::Empty, 0, 0);
         let mut ranker = Ranker {
             dag,
@@ -574,10 +587,19 @@ impl<'c> Ranker<'c> {
                 let pred = Item { prod: item.prod, dot: item.dot - 1, origin: item.origin, caps: previous };
                 let mut links = Vec::new();
                 let same = |m: u32, fset: u32| if m == set { fset } else { 0 };
+                // The predecessors are rebuilt from completed spans, so a
+                // spelled symbol's span is matched with its spelling again:
+                // a derivation is made only of advances the spelling
+                // allowed (§4).
+                let spelling = production.spelling(position);
+                let (tokens, unicode) = (self.dag.tokens, self.dag.unicode);
+                let sounds = |m: u32| {
+                    spelling.map_or(true, |spelling| sounds_like(&tokens[m as usize..set as usize], unicode, spelling))
+                };
                 match production.syms[position] {
                     Sym::T(terminal) => {
                         let m = set - 1;
-                        if let Some(p) = self.dag.chart.sets[m as usize].find(&pred) {
+                        if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| sounds(m)) {
                             links.push(((Node::Item { set: m, index: p }, 0), (Node::Read { tok: m, terminal }, 0)));
                         }
                     }
@@ -585,7 +607,7 @@ impl<'c> Ranker<'c> {
                         if captured {
                             let cap = caps[caps.len() - 1];
                             let m = cap.start;
-                            if let Some(p) = self.dag.chart.sets[m as usize].find(&pred) {
+                            if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| sounds(m)) {
                                 let child = Node::Group { rule, origin: m, set, tags: cap.tags };
                                 let child_fset = if m == item.origin { fset } else { 0 };
                                 links.push(((Node::Item { set: m, index: p }, same(m, fset)), (child, child_fset)));
@@ -598,7 +620,7 @@ impl<'c> Ranker<'c> {
                                 .unwrap_or_default();
                             origins.sort_unstable();
                             for m in origins {
-                                if let Some(p) = self.dag.chart.sets[m as usize].find(&pred) {
+                                if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| sounds(m)) {
                                     let child = Node::Group { rule, origin: m, set, tags: ANY };
                                     let child_fset = if m == item.origin { fset } else { 0 };
                                     links.push(((Node::Item { set: m, index: p }, same(m, fset)), (child, child_fset)));
@@ -692,14 +714,20 @@ impl<'c> Ranker<'c> {
                 // second of the item before it.
                 let Node::Item { set, index } = node else { unreachable!("an item") };
                 let maximal = self.maximal;
-                let guarded = maximal.is_some_and(|maximal| maximal.guards(&self.item(set, index)));
+                let item = self.item(set, index);
+                let guarded = maximal.is_some_and(|maximal| maximal.guards(&item));
+                // The spelling of the symbol whose constituent the elided
+                // terminator follows, if it is spelled (§4).
+                let spelling =
+                    if guarded { self.dag.g.prods[item.prod as usize].spelling(item.dot as usize - 1) } else { None };
                 let mut all = NodeResult::default();
                 let mut allowed = NodeResult::default();
                 for (pred, child) in links {
                     let (elided, permitted) = match (maximal, child.0) {
-                        (Some(maximal), Node::Group { rule, origin, set: end, .. }) => {
-                            (maximal.elided(rule, origin, end), !guarded || !maximal.forbids(rule, origin, end))
-                        }
+                        (Some(maximal), Node::Group { rule, origin, set: end, .. }) => (
+                            maximal.elided(rule, origin, end),
+                            !guarded || !maximal.forbids(rule, origin, end, spelling),
+                        ),
                         _ => (false, true),
                     };
                     let left = &self.results[self.memo[&pred] as usize];

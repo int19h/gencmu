@@ -12,9 +12,13 @@ import type { Token } from "./tokens.js";
  * @param {Token[]} tokens
  * @param {(token: Token) => Position} positionOf
  * @param {string} path
+ * @param {{lowercase(text: string): string}} unicode the lowercase mapping
+ *   that spellings are checked against (engine §9, §10)
  * @returns {GrammarDom}
  */
-export declare function treeToDom(tree: ResultNode, tokens: Token[], positionOf: (token: Token) => Position, path: string): GrammarDom;
+export declare function treeToDom(tree: ResultNode, tokens: Token[], positionOf: (token: Token) => Position, path: string, unicode: {
+    lowercase(text: string): string;
+}): GrammarDom;
 /**
  * What is wrong with a directive's operands, each a name or a string, or
  * null (engine §9).

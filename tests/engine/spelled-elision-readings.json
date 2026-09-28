@@ -1,0 +1,84 @@
+{
+  "description": "The ambiguity that restored terminators leave is still found when the terminator is spelled: the synthetic token of a restored KU`ku` sounds ku, so it matches its own terminator (engine §3.8, §7). The readings show the elided nodes as for a terminator without a spelling.",
+  "grammar": "%ambiguity-resolution greedy elision-only\n%elidable KU\n%rule text s [KU`ku`] | s B [KU`ku`]\n%rule s A [B]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "ambiguous",
+        "readings": [
+          {
+            "span": [
+              0,
+              2
+            ],
+            "children": [
+              {
+                "rule": "s",
+                "span": [
+                  0,
+                  2
+                ]
+              },
+              {
+                "kind": "elided",
+                "terminal": "KU",
+                "span": [
+                  2,
+                  2
+                ]
+              }
+            ]
+          },
+          {
+            "span": [
+              0,
+              2
+            ],
+            "children": [
+              {
+                "rule": "s",
+                "span": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "B",
+                "token": 1,
+                "span": [
+                  1,
+                  2
+                ]
+              },
+              {
+                "kind": "elided",
+                "terminal": "KU",
+                "span": [
+                  2,
+                  2
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "error": "ambiguous"
+  }
+}

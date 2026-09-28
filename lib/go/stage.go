@@ -67,6 +67,39 @@ type stageRun struct {
 	// first question (see spanSource); nil when toks are in order.
 	sources     *sourceTable
 	sourcesMade bool
+	// sounds holds each token's phonemes lowercased, for the spellings of
+	// symbols, computed when a spelling first looks at the token (§4).
+	sounds     []string
+	soundsMade []bool
+}
+
+// sound is a token's phonemes, lowercased.
+func (run *stageRun) sound(i int) string {
+	if run.sounds == nil {
+		run.sounds = make([]string, len(run.toks))
+		run.soundsMade = make([]bool, len(run.toks))
+	}
+	if !run.soundsMade[i] {
+		run.sounds[i] = run.ps.uni.lowercase(run.toks[i].Phonemes)
+		run.soundsMade[i] = true
+	}
+	return run.sounds[i]
+}
+
+// spellingMatches says whether the tokens [a, b) sound like a spelling:
+// their phonemes, joined and lowercased, are exactly it (§4). A token with
+// no phonemes adds nothing, and a spelling is never empty, so neither such a
+// token alone nor an empty span matches.
+func (run *stageRun) spellingMatches(spelling string, a, b int) bool {
+	offset := 0
+	for i := a; i < b; i++ {
+		s := run.sound(i)
+		if !strings.HasPrefix(spelling[offset:], s) {
+			return false
+		}
+		offset += len(s)
+	}
+	return offset == len(spelling)
 }
 
 func (ps *parseState) newRun(name string, grammar *stageGrammar, toks []Token) *stageRun {
@@ -178,7 +211,8 @@ func (run *stageRun) rejection(rec *recognizer) *ParseError {
 	rules := map[string]map[string]bool{}
 	expect := func(p *production, pos int) {
 		if pos < len(p.rhs) && p.rhs[pos].term {
-			t := rec.g.terminals[p.rhs[pos].id]
+			// A spelled terminal is written with its spelling (docs/output.md).
+			t := writtenSymbol(rec.g.terminals[p.rhs[pos].id], p.spellingAt(pos))
 			if rules[t] == nil {
 				rules[t] = map[string]bool{}
 			}
@@ -242,8 +276,8 @@ func (run *stageRun) forbiddenTerminator(rec *recognizer, d *dn, mx *maximal) *P
 			// read so far.
 			rhs := f.prod.rhs
 			own := i == 1 && !rhs[0].term && rhs[0].id == f.prod.lhs
-			if b := f.kids[i-1]; !own && b.kind == dClose && mx.forbids(b.prod.lhs, b.start, b.end) {
-				expected := []Expected{{Terminal: mx.elides[k.prod.lhs], Rules: []string{k.prod.ruleName}}}
+			if b := f.kids[i-1]; !own && b.kind == dClose && mx.forbids(b.prod.lhs, b.start, b.end, f.prod.spellingAt(i-1)) {
+				expected := []Expected{{Terminal: writtenSymbol(mx.elides[k.prod.lhs], k.prod.elidedSpell), Rules: []string{k.prod.ruleName}}}
 				return run.rejectedAt(rec.base+int(k.start), expected)
 			}
 		}
@@ -304,7 +338,9 @@ func (run *stageRun) checkElision(tree *Node, g *lowered) *ParseError {
 	for i := 0; i <= len(run.toks); i++ {
 		for e < len(elided) && elided[e].Span[0] == i {
 			src := run.emptySource(i)
-			toks = append(toks, Token{Tags: map[string]bool{elided[e].Terminal: true}, Span: [2]int{i, i}, Source: src})
+			// A restored spelled terminator sounds like its spelling, so that
+			// it matches its own terminator in the stricter grammar (§7).
+			toks = append(toks, Token{Tags: map[string]bool{elided[e].Terminal: true}, Phonemes: elided[e].spelling, Span: [2]int{i, i}, Source: src})
 			orig = append(orig, -1)
 			terms = append(terms, elided[e].Terminal)
 			e++
@@ -359,4 +395,14 @@ func (run *stageRun) checkElision(tree *Node, g *lowered) *ParseError {
 	readings := []*Node{mapTree(run2.buildTree(rec, res.chosen)), mapTree(run2.buildTree(rec, res.tied))}
 	return &ParseError{Kind: ErrorAmbiguous, Stage: run.name, Readings: readings,
 		Message: "stage " + run.name + ": the text is ambiguous even with every elided terminator written"}
+}
+
+// writtenSymbol is a terminal as the diagnostics write it: its name,
+// followed by its spelling in backticks if it has one, such as LE`la`
+// (docs/output.md).
+func writtenSymbol(name, spelling string) string {
+	if spelling == "" {
+		return name
+	}
+	return name + "`" + spelling + "`"
 }

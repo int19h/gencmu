@@ -1,18 +1,41 @@
 import type { GrammarDom } from "./types.js";
 export declare const DOM_MAX_DEPTH = 256;
-export declare const DOM_FORMAT = 7;
+export declare const DOM_FORMAT = 8;
 /**
- * Why a value is not a grammar DOM, or null when it is one.
- * @param {unknown} dom
+ * What is wrong with a spelling of a symbol (engine §9), or null: an empty
+ * spelling, one with a backtick, which the notation cannot write, one that
+ * the lowercase mapping would change, since the match ignores stress, or
+ * one of anything but a reference, a string or a phoneme tag, `#` included.
+ * The spelled symbol is exactly one reference or one terminal, so that no
+ * node is read one way here and another way when lowered. Without a table,
+ * the lowercase mapping is not checked.
+ * @param {unknown} spelling
+ * @param {unknown} expr the spelled expression
+ * @param {{lowercase(text: string): string}} [unicode]
  * @returns {string | null}
  */
-export declare function domProblem(dom: unknown): string | null;
+export declare function spellingProblem(spelling: unknown, expr: unknown, unicode?: {
+    lowercase(text: string): string;
+}): string | null;
+/**
+ * Why a value is not a grammar DOM, or null when it is one. `unicode` is
+ * the lowercase mapping that spellings are checked against.
+ * @param {unknown} dom
+ * @param {{lowercase(text: string): string}} [unicode]
+ * @returns {string | null}
+ */
+export declare function domProblem(dom: unknown, unicode?: {
+    lowercase(text: string): string;
+}): string | null;
 /**
  * Whether a value is a grammar DOM.
  * @param {unknown} dom
+ * @param {{lowercase(text: string): string}} [unicode]
  * @returns {dom is GrammarDom}
  */
-export declare function isDom(dom: unknown): dom is GrammarDom;
+export declare function isDom(dom: unknown, unicode?: {
+    lowercase(text: string): string;
+}): dom is GrammarDom;
 /**
  * Whether a term, or a condition inside one, reads the tags of `$`, the
  * constituent whose tags it may be defining: `$` as a value, `tags($)` or

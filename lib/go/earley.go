@@ -210,11 +210,17 @@ func (r *recognizer) process(k int, it *item) {
 }
 
 // advance moves an item over its next symbol, read over cv, into set k,
-// unless a condition triggered there fails.
+// unless the span does not match the symbol's spelling or a condition
+// triggered there fails.
 func (r *recognizer) advance(it *item, k int, cv capVal, l link) {
 	p := it.prod
 	key := it.itemKey
 	pos := int(key.dot)
+	// A spelled symbol's span must sound like its spelling, which is checked
+	// before any condition the advance makes ready (§4).
+	if sp := p.spellingAt(pos); sp != "" && !r.run.spellingMatches(sp, r.base+int(cv.start), r.base+int(cv.end)) {
+		return
+	}
 	if slot := p.capSlot[pos]; slot >= 0 {
 		key.caps[slot] = cv
 	}

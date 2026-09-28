@@ -1,0 +1,31 @@
+{
+  "description": "A spelled reference never matches a constituent that completed empty, since a spelling is never empty (engine §4).",
+  "grammar": "%rule text opt`a` B\n%rule opt [A]",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "b"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "token": 0,
+        "expected": [
+          {
+            "terminal": "A",
+            "rules": [
+              "opt"
+            ]
+          }
+        ]
+      }
+    },
+    "error": "rejected"
+  }
+}

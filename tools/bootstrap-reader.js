@@ -6,9 +6,14 @@
 // grammars/notation/*.md and docs/engine.md §9, and must produce exactly
 // the DOM the self-hosted reader does; the fixpoint check compares them.
 
+import fs from "node:fs";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
-import { DOM_FORMAT } from "../lib/js/src/dom.js";
+import { DOM_FORMAT, spellingProblem } from "../lib/js/src/dom.js";
 import { operandProblem } from "../lib/js/src/reader.js";
+import { UnicodeTable } from "../lib/js/src/unicode.js";
+
+// The lowercase mapping that a spelling is checked against (engine §9).
+const unicode = new UnicodeTable(fs.readFileSync(new URL("../grammars/unicode.txt", import.meta.url), "utf8"));
 
 const SYMBOLS = ["...", "|", "&", "(", ")", "[", "]", "<", ">", "#", "ε", ",", "∧", "∨", "¬", "⟹", "?", "=", "≠",
   "∈", "∉", "⊆", "∪", "∩", "∅"];
@@ -51,6 +56,16 @@ function lex(text, positions) {
       if (i >= chars.length) fail("an unclosed string", { at: at(start) });
       i++;
       tokens.push({ kind: "string", text: chars.slice(start, i).join(""), at: at(start) });
+      continue;
+    }
+    // A spelling: the characters between two backticks, which the parser
+    // refuses if there are none.
+    if (c === "`") {
+      i++;
+      while (i < chars.length && chars[i] !== "`") i++;
+      if (i >= chars.length) fail("an unclosed spelling", { at: at(start) });
+      i++;
+      tokens.push({ kind: "spelling", text: chars.slice(start, i).join(""), at: at(start) });
       continue;
     }
     if (c === "/" && chars[i + 2] === "/") {
@@ -215,6 +230,20 @@ class Parser {
 
   primary() {
     const token = this.peek();
+    const expr = this.symbol();
+    // A reference, a string or a phoneme tag may take a spelling; the reader
+    // refuses one after # (engine §9).
+    if (!this.is("spelling")) return expr;
+    if (!["identifier", "string", "phoneme", "#"].includes(token.kind)) fail("expected a rule or a directive", this.peek());
+    const spellingToken = this.take("spelling");
+    const spelling = [...spellingToken.text].slice(1, -1).join("");
+    const problem = spellingProblem(spelling, expr, unicode);
+    if (problem) fail(problem, spellingToken);
+    return { spelling, expr };
+  }
+
+  symbol() {
+    const token = this.peek();
     if (!token) fail("expected an expression", { at: this.endAt });
     switch (token.kind) {
       case "identifier": this.index++; return { ref: token.text };
@@ -226,7 +255,7 @@ class Parser {
         this.take("(");
         const inner = this.primary();
         this.take(")");
-        if (inner.ref === undefined && inner.terminal === undefined) fail("a capture wraps one symbol", token);
+        if (inner.ref === undefined && inner.terminal === undefined && inner.spelling === undefined) fail("a capture wraps one symbol", token);
         return { capture: token.name, expr: inner };
       }
       case "(": { this.index++; const inner = this.choice(); this.take(")"); return inner; }

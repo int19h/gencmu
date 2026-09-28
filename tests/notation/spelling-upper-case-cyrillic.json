@@ -1,0 +1,10 @@
+{
+  "description": "The lowercase mapping of grammars/unicode.txt decides what is lower case, beyond ASCII (engine §9, §10).",
+  "document": "```jbogenbau\n%rule text LE `Ла`\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 15
+    }
+  }
+}

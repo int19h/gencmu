@@ -479,6 +479,25 @@ func TestDeepDerivations(t *testing.T) {
 	}
 }
 
+// A bootstrap stage's name and a document's path are strings, and null is
+// refused as the other libraries refuse it.
+func TestBootstrapNulls(t *testing.T) {
+	loadBundled()
+	bootstrap := bundled.sources["notation/bootstrap.json"]
+	for _, change := range [][2]string{{`"name":"lexical"`, `"name":null`}, {`"path":"notation/lexical.md"`, `"path":null`}} {
+		if !strings.Contains(bootstrap, change[0]) {
+			t.Fatalf("no %s in the bootstrap", change[0])
+		}
+		src := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
+		src["notation/bootstrap.json"] = strings.Replace(bootstrap, change[0], change[1], 1)
+		_, err := LoadDialectSources(src, "p.md")
+		var e *Error
+		if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "notation/bootstrap.json" {
+			t.Errorf("%s: expected an error of the bootstrap, got %v", change[1], err)
+		}
+	}
+}
+
 // Malformed precompiled DOMs: a bad compiled.json entry is a miss, read
 // from the document instead, and a bad bootstrap is a load error; neither
 // panics (review of PR #8).
@@ -490,6 +509,24 @@ func TestMalformedPrecompiled(t *testing.T) {
 		`{"seq":[]}`, `{"choice":[]}`, `{"and":[]}`, `{"seq":[null]}`, `{"optional":null}`,
 		`{"repeat":{"ref":"A"},"min":5}`, `{"capture":"x","expr":{"seq":[{"ref":"A"},{"ref":"B"}]}}`,
 		`{"ref":""}`, `{"what":1}`, `null`, `[]`,
+		// Spellings the reader never writes: one with a backtick, and a
+		// spelled node or symbol with a second kind of key.
+		"{\"seq\":[{\"terminal\":\"a\"},{\"spelling\":\"b`c\",\"expr\":{\"terminal\":\"b\"}}]}",
+		`{"seq":[{"terminal":"a"},{"spelling":"b","expr":{"empty":true,"ref":"B"}}]}`,
+		`{"seq":[{"terminal":"a"},{"spelling":"b","expr":{"ref":"B","terminal":"b"}}]}`,
+		`{"seq":[{"terminal":"a"},{"spelling":"b","expr":{"terminal":"b"},"empty":true}]}`,
+		`{"seq":[{"terminal":"a"},{"capture":"x","expr":{"spelling":"b","expr":{"terminal":"b"},"ref":"B"}}]}`,
+		// A top-level sequence that is also a spelled symbol.
+		`{"seq":[{"terminal":"a"},{"terminal":"b"}],"spelling":"a","expr":{"terminal":"a"}}`,
+		// Null where the DOM holds a string or a number, which Go would
+		// otherwise read as "" or 0.
+		`{"seq":[{"terminal":"a"},{"spelling":"b","expr":{"terminal":null}}]}`,
+		`{"seq":[{"terminal":"a"},{"spelling":"b","expr":{"ref":null}}]}`,
+		`{"seq":[{"terminal":"a"},{"spelling":null,"expr":{"terminal":"b"}}]}`,
+		`{"seq":[{"terminal":null},{"terminal":"b"}]}`,
+		`{"seq":[{"capture":null,"expr":{"terminal":"a"}},{"terminal":"b"}]}`,
+		`{"seq":[{"terminal":"a"},{"repeat":{"terminal":"b"},"min":null}]}`,
+		`{"seq":[{"terminal":"a"},{"terminal":"b"}]},"tags":{"literal":null}`,
 	}
 	// Terms the reader never builds, in an otherwise good alternative.
 	badTags := []string{
@@ -502,8 +539,31 @@ func TestMalformedPrecompiled(t *testing.T) {
 		bad = append(bad, `{"seq":[{"terminal":"a"},{"terminal":"b"}]},"tags":`+tags)
 	}
 	format := strconv.Itoa(domFormat)
+	var doms []string
 	for _, expr := range bad {
-		dom := `{"format":` + format + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[1,1]}]}`
+		doms = append(doms, `{"format":`+format+`,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":`+expr+`}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}]}`)
+	}
+	// Null in the rest of the DOM, where the other libraries refuse it too.
+	good := doms[0][:strings.Index(doms[0], `"expr":`)] + `"expr":{"seq":[{"terminal":"a"},{"terminal":"b"}]}}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}]}`
+	if _, err := decodeDOM([]byte(good), bundled.uni); err != nil {
+		t.Fatalf("the DOM the null cases change is refused: %v", err)
+	}
+	for _, change := range [][2]string{
+		{`"name":"text"`, `"name":null`}, {`"op":"define"`, `"op":null`}, {`"conditions":[]`, `"conditions":null`},
+		{`"conditions":[],"at":[1,1]`, `"conditions":[],"at":[null,1]`}, {`"args":["greedy"]`, `"args":[null]`},
+		{`"args":["greedy"],"at":[2,1]`, `"args":["greedy"],"at":[2,null]`}, {`"directives":[{`, `"directives":null,"x":[{`},
+		{`"rules":[{`, `"rules":null,"x":[{`},
+	} {
+		if !strings.Contains(good, change[0]) {
+			t.Fatalf("no %s in %s", change[0], good)
+		}
+		doms = append(doms, strings.Replace(good, change[0], change[1], 1))
+	}
+	for _, dom := range doms {
+		expr := dom
+		if _, err := decodeDOM([]byte(dom), bundled.uni); err == nil {
+			t.Fatalf("a malformed DOM decodes: %s", dom)
+		}
 		// In compiled.json, with every hash matching: a miss.
 		src := map[string]string{}
 		for k, v := range sources {
@@ -569,7 +629,7 @@ func TestEmptyStringTerminal(t *testing.T) {
 				t.Fatal(err)
 			}
 			sources["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(sources["g.md"]) + `","dom":` + string(dom.json()) + `}}}`
-			if _, err := decodeDOM(dom.json()); err != nil {
+			if _, err := decodeDOM(dom.json(), bundled.uni); err != nil {
 				t.Fatalf("the reader's DOM is refused: %v", err)
 			}
 		}

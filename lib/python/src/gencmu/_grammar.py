@@ -187,6 +187,13 @@ class Production:
     helper: bool
     rep_splice: bool = False
     elided: str | None = None
+    # The spelling of that terminator, if it is spelled, which a restored
+    # token sounds like (engine §7).
+    elided_spelling: str | None = None
+    # What each symbol's span must sound like, lowercased, or None for a
+    # symbol without a spelling (engine §4); None when no symbol has one.
+    # The spelling is not part of the symbol's identity.
+    spellings: tuple[str | None, ...] | None = None
     captures: dict[str, int] = field(default_factory=dict)
     slots: tuple[int, ...] = ()
     conds_predict: list[Dom] = field(default_factory=list)
@@ -235,8 +242,15 @@ class Lowered:
                 self.not_terminal_first[production.lhs].append(production.id)
 
 
-# A symbol of an expansion: ("t", tag) or ("n", rule id), and its capture.
-_Sym = tuple[tuple[str, Any], Union[str, None]]
+# A symbol of an expansion: ("t", tag) or ("n", rule id), with a third
+# element, its spelling, for a spelled symbol; and its capture.
+_Sym = tuple[tuple[Any, ...], Union[str, None]]
+
+
+def written_symbol(name: str, spelling: str | None) -> str:
+    """A terminal as the diagnostics write it: its name, followed by its
+    spelling in backticks if it has one, such as LE`la` (docs/output.md)."""
+    return name if spelling is None else f"{name}`{spelling}`"
 
 
 class _Lowerer:
@@ -248,7 +262,7 @@ class _Lowerer:
         self.rule_ids = {name: index for index, name in enumerate(self.rule_names)}
         self.rule_display: list[str] = list(self.rule_names)
         self.helper_expansions: dict[int, list[list[_Sym]]] = {}
-        self.helper_elided: dict[int, str] = {}
+        self.helper_elided: dict[int, tuple[str, str | None]] = {}
         self.emitted_helpers: set[int] = set()
         self.productions: list[Production] = []
         self.current: Rule | None = None
@@ -263,7 +277,7 @@ class _Lowerer:
 
     # -- expansions
 
-    def new_helper(self, expansions: list[list[_Sym]], elided: str | None = None) -> int:
+    def new_helper(self, expansions: list[list[_Sym]], elided: tuple[str, str | None] | None = None) -> int:
         number = len(self.rule_names)
         owner = self.current.name if self.current else "?"
         self.rule_names.append(f"\u0000{owner}\u0000{number}")
@@ -273,19 +287,27 @@ class _Lowerer:
             self.helper_elided[number] = elided
         return number
 
-    def first_terminal(self, expr: Dom) -> str | None:
+    def first_terminal(self, expr: Dom) -> tuple[str, str | None] | None:
+        """The terminal an expression begins with, if any, and its
+        spelling: a spelled terminal is elidable when its terminal is
+        (engine §3.8)."""
+        spelling: str | None = None
         while True:
             if "seq" in expr:
                 if not expr["seq"]:
                     return None
                 expr = expr["seq"][0]
                 continue
+            if "spelling" in expr:
+                spelling = expr["spelling"]
+                expr = expr["expr"]
+                continue
             if "ref" in expr:
                 name: str = expr["ref"]
-                return name if is_terminal_name(name) else None
+                return (name, spelling) if is_terminal_name(name) else None
             if "terminal" in expr:
                 terminal: str = expr["terminal"]
-                return terminal
+                return (terminal, spelling)
             return None
 
     def symbol(self, name: str) -> tuple[str, Any]:
@@ -327,7 +349,7 @@ class _Lowerer:
             inner = expr["optional"]
             body = yield self._expand(inner)
             first = self.first_terminal(inner)
-            elidable = first is not None and first in self.grammar.elidable
+            elidable = first is not None and first[0] in self.grammar.elidable
             if elidable and self.elision:
                 return [[(("n", self.new_helper(body)), None)]]
             helper = self.new_helper([[]] + body, first if elidable else None)
@@ -341,16 +363,28 @@ class _Lowerer:
             return [[(self.symbol(expr["ref"]), None)]]
         if "terminal" in expr:
             return [[(("t", expr["terminal"]), None)]]
+        if "spelling" in expr:
+            # A spelled symbol lowers to its symbol with the spelling, and
+            # adds no helper (engine §3).
+            spelled = yield self._expand(expr["expr"])
+            kind, name = spelled[0][0][0][:2]
+            return [[((kind, name, expr["spelling"]), None)]]
         if "capture" in expr:
             if not top:
                 raise self.fail(f"the capture ${expr['capture']} is not at the top level of its alternative")
             inner = expr.get("expr", {})
+            spelling = inner.get("spelling")
+            if spelling is not None:
+                inner = inner.get("expr", {})
+            symbol: tuple[Any, ...]
             if "ref" in inner:
                 symbol = self.symbol(inner["ref"])
             elif "terminal" in inner:
                 symbol = ("t", inner["terminal"])
             else:
                 raise self.fail(f"the capture ${expr['capture']} does not wrap one symbol")
+            if spelling is not None:
+                symbol = (symbol[0], symbol[1], spelling)
             return [[(symbol, expr["capture"])]]
         raise self.fail(f"an unknown expression {sorted(expr)}")
 
@@ -364,9 +398,12 @@ class _Lowerer:
 
     # -- productions
 
-    def add(self, lhs: int, expansion: list[_Sym], alt: Alternative | None, rep_splice: bool = False, elided: str | None = None) -> None:
+    def add(
+        self, lhs: int, expansion: list[_Sym], alt: Alternative | None, rep_splice: bool = False, elided: tuple[str, str | None] | None = None
+    ) -> None:
         rhs = tuple(sym[1] for sym, _ in expansion)
         terminal = tuple(sym[0] == "t" for sym, _ in expansion)
+        spellings = tuple(sym[2] if len(sym) > 2 else None for sym, _ in expansion)
         captures: dict[str, int] = {}
         for position, (_, name) in enumerate(expansion):
             if name is not None:
@@ -381,7 +418,9 @@ class _Lowerer:
             rule_name=self.rule_display[lhs],
             helper=alt is None,
             rep_splice=rep_splice,
-            elided=elided,
+            elided=elided[0] if elided is not None else None,
+            elided_spelling=elided[1] if elided is not None else None,
+            spellings=spellings if any(spelling is not None for spelling in spellings) else None,
             captures=captures,
         )
         if alt is not None:
@@ -478,6 +517,9 @@ class _Lowerer:
             if "capture" in item and "expr" in item:
                 count += 1
                 inner = item["expr"]
+                # A capture may wrap a spelled symbol (engine §3.5).
+                if isinstance(inner, dict) and "spelling" in inner:
+                    inner = inner.get("expr")
                 if not isinstance(inner, dict) or not ("ref" in inner or "terminal" in inner):
                     raise self.fail(f"the capture ${item['capture']} does not wrap one symbol")
             else:

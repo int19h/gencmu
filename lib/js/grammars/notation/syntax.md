@@ -2,7 +2,7 @@
 
 This is the second stage of the notation dialect, `../dialects/notation.md`. It reads the tokens `lexical.md` emitted and builds the tree from which a library reads the grammar's rules and directives. Its rule names matter to that reader: the table in `../../docs/engine.md`, §9, says what each named constituent becomes. The notation is explained for authors in `../../docs/notation.md`.
 
-The tokens arrive tagged `identifier`, `string`, `phoneme`, `capture` or `guard`, with their own spelling for a keyword such as `"%rule"`, or with their own spelling for a symbol such as `"|"` or `"..."`.
+The tokens arrive tagged `identifier`, `string`, `phoneme`, `spelling`, `capture` or `guard`, with their own spelling for a keyword such as `"%rule"`, or with their own spelling for a symbol such as `"|"` or `"..."`.
 
 ## Choosing among parses
 
@@ -65,7 +65,7 @@ A rule is a keyword that says whether it defines, redefines or extends the rule,
 
 ## Expressions
 
-`&` joins sequences, and a sequence is one or more elements. An element is a primary, followed by `...` for one or more of it; an optional followed by `...` is zero or more. Parentheses group a choice, whose alternatives carry neither guards nor tags.
+`&` joins sequences, and a sequence is one or more elements. An element is a primary, followed by `...` for one or more of it; an optional followed by `...` is zero or more. Parentheses group a choice, whose alternatives carry neither guards nor tags. A reference, a string or a phoneme tag can carry a spelling, as in ``LE`la` ``. It matches only where its span sounds like the spelling. Nothing else takes a spelling, so a group or an optional followed by one is not a primary, and the spelling binds tighter than `...`.
 
 ```jbogenbau
 %rule conjunction
@@ -78,7 +78,10 @@ A rule is a keyword that says whether it defines, redefines or extends the rule,
   primary ["..."]
 
 %rule primary
-  reference | string | phoneme | capture | group | optional | empty
+  reference | string | phoneme | spelled | capture | group | optional | empty
+
+%rule spelled
+  (reference | string | phoneme) "spelling"
 
 %rule reference
   "identifier" | "#"

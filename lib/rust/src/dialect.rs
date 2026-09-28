@@ -240,7 +240,14 @@ impl Dialect {
                     verbatim: false,
                     inserted_by: None,
                 });
-                input.push(Tok { text, tags: set, phonemes: None, source: (index, index + 1), verbatim: false });
+                input.push(Tok {
+                    text,
+                    tags: set,
+                    phonemes: None,
+                    source: (index, index + 1),
+                    verbatim: false,
+                    sound: Default::default(),
+                });
             }
             (input, public)
         })
@@ -274,6 +281,7 @@ impl Dialect {
                     phonemes: token.phonemes.clone(),
                     source: (at, at + length),
                     verbatim: false,
+                    sound: Default::default(),
                 });
                 at += length + 1;
             }
@@ -445,9 +453,9 @@ impl Dialect {
         let n = input.len();
         let accepted = chart.accepts(lowered.start, n);
         let lean = grammar.lean;
-        let maximal = grammar.maximal.then(|| Maximal::new(&lowered, &chart));
+        let maximal = grammar.maximal.then(|| Maximal::new(&lowered, &chart, &input, shared.unicode));
         let ranked = if accepted {
-            let mut ranker = Ranker::new(&lowered, &chart, &input, &shared.tags, &term_tags, lean, maximal.as_ref());
+            let mut ranker = Ranker::new(&lowered, &chart, &input, shared, &term_tags, lean, maximal.as_ref());
             ranker.rank().map(|ranking| {
                 let chosen = build(&ranker, ranking.chosen);
                 let tied = ranking.tied.map(|tied| build(&ranker, tied));
@@ -462,7 +470,7 @@ impl Dialect {
             // would otherwise have chosen (§4).
             let forbidden = match &maximal {
                 Some(maximal) if accepted => {
-                    let mut ranker = Ranker::new(&lowered, &chart, &input, &shared.tags, &term_tags, lean, None);
+                    let mut ranker = Ranker::new(&lowered, &chart, &input, shared, &term_tags, lean, None);
                     ranker
                         .rank()
                         .and_then(|ranking| forbidden_terminator(&build(&ranker, ranking.chosen), &lowered, maximal))
@@ -494,7 +502,7 @@ impl Dialect {
         let check = elision.unwrap_or(grammar.elision_only);
         let mut ambiguous = None;
         if check && ranking.verdict != RankVerdict::Unique {
-            match self.elision_check(index, shared, &input, &tree, features) {
+            match self.elision_check(index, shared, &input, &chosen, &lowered, features) {
                 Ok(found) => ambiguous = found,
                 Err(error) => {
                     let error = self.grammar_error(index, error);
@@ -534,6 +542,7 @@ impl Dialect {
                 phonemes: token.phonemes,
                 source: token.source,
                 verbatim: token.verbatim,
+                sound: Default::default(),
             });
         }
         stage.output = Some(public.clone());
@@ -590,14 +599,22 @@ impl Dialect {
         index: usize,
         shared: &mut Shared,
         input: &[Tok],
-        tree: &Node,
+        chosen: &ITree,
+        g: &Lowered,
         features: &BTreeSet<String>,
     ) -> Result<Option<ParseError>, EngineError> {
-        let mut elided: Vec<(usize, String)> = Vec::new();
-        let mut stack = vec![tree];
-        while let Some(node) = stack.pop() {
-            if node.kind == NodeKind::Elided {
-                elided.push((node.span.start, node.terminal.clone().unwrap_or_default()));
+        // The chosen tree's elided terminators in the order of its leaves,
+        // each with its position and its spelling, if it is spelled.
+        let mut elided: Vec<(usize, &str, Option<&str>)> = Vec::new();
+        let mut stack = vec![0u32];
+        while let Some(index) = stack.pop() {
+            let node = &chosen.nodes[index as usize];
+            if let IKind::Close { prod, start, .. } = node.kind {
+                let production = &g.prods[prod as usize];
+                let rule = &g.rules[production.rule as usize];
+                if let (true, Some(terminal), true) = (rule.helper, &rule.elided, production.syms.is_empty()) {
+                    elided.push((start as usize, terminal, rule.elided_spelling.as_deref()));
+                }
             }
             stack.extend(node.children.iter().rev());
         }
@@ -605,18 +622,22 @@ impl Dialect {
         let mut synthetic = Vec::with_capacity(input.len() + elided.len());
         let mut next = elided.iter().peekable();
         for position in 0..=input.len() {
-            while let Some((_, terminal)) = next.next_if(|(at, _)| *at == position) {
+            while let Some((_, terminal, spelling)) = next.next_if(|(at, _, _)| *at == position) {
                 let at = if position > 0 {
                     input[position - 1].source.1
                 } else {
                     input.first().map_or(0, |token| token.source.0)
                 };
+                // A restored spelled terminator sounds like its spelling, so
+                // that it matches its own terminator in the stricter grammar
+                // (§7).
                 tokens.push(Tok {
                     text: String::new(),
-                    tags: shared.tags.set_of([(terminal.as_str(), true)]),
-                    phonemes: None,
+                    tags: shared.tags.set_of([(*terminal, true)]),
+                    phonemes: spelling.map(str::to_string),
                     source: (at, at),
                     verbatim: false,
+                    sound: Default::default(),
                 });
                 synthetic.push(true);
             }
@@ -639,7 +660,7 @@ impl Dialect {
         }
         // `maximal` does not apply here: the check's parse has no elided
         // terminator (§4).
-        let mut ranker = Ranker::new(&lowered, &chart, &tokens, &shared.tags, &term_tags, Lean::TagsOnly, None);
+        let mut ranker = Ranker::new(&lowered, &chart, &tokens, shared, &term_tags, Lean::TagsOnly, None);
         let Some(Ranking { verdict: RankVerdict::Tie, chosen, tied: Some(tied), .. }) = ranker.rank() else {
             return Ok(None);
         };
@@ -674,8 +695,10 @@ fn rejection_of(g: &Lowered, chart: &Chart) -> (usize, Vec<Expected>) {
     let mut expected: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     let mut expect = |production: &Prod, dot: usize| {
         if let Some(Sym::T(terminal)) = production.syms.get(dot) {
+            // A spelled terminal is written with its spelling, and sorts by
+            // that text (docs/output.md).
             expected
-                .entry(g.terminals[*terminal as usize].clone())
+                .entry(written_symbol(&g.terminals[*terminal as usize], production.spelling(dot)))
                 .or_default()
                 .insert(g.rules[production.owner as usize].name.clone());
         }
@@ -725,8 +748,11 @@ fn forbidden_terminator(tree: &ITree, g: &Lowered, maximal: &Maximal) -> Option<
             if maximal.elided(helper.rule, start, end) && position > 0 && !own {
                 let before = &tree.nodes[node.children[position - 1] as usize];
                 if let IKind::Close { prod: constituent, start: from, end: to, .. } = before.kind {
-                    if maximal.forbids(g.prods[constituent as usize].rule, from, to) {
-                        let terminal = g.rules[helper.rule as usize].elided.clone().expect("an elidable terminator");
+                    let spelling = production.spelling(position - 1);
+                    if maximal.forbids(g.prods[constituent as usize].rule, from, to, spelling) {
+                        let elided = &g.rules[helper.rule as usize];
+                        let terminal = elided.elided.as_deref().expect("an elidable terminator");
+                        let terminal = written_symbol(terminal, elided.elided_spelling.as_deref());
                         let rule = g.rules[helper.owner as usize].name.clone();
                         return Some((start as usize, vec![Expected { terminal, rules: vec![rule] }]));
                     }
@@ -736,6 +762,15 @@ fn forbidden_terminator(tree: &ITree, g: &Lowered, maximal: &Maximal) -> Option<
         stack.push((child, 0));
     }
     None
+}
+
+/// A terminal as the diagnostics write it: its name, followed by its
+/// spelling in backticks if it has one, such as LE`la` (docs/output.md).
+fn written_symbol(name: &str, spelling: Option<&str>) -> String {
+    match spelling {
+        None => name.to_string(),
+        Some(spelling) => format!("{name}`{spelling}`"),
+    }
 }
 
 /// The source range of the token at `index`, or an empty range at the end

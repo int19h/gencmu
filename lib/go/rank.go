@@ -754,7 +754,7 @@ func (rk *ranker) itemVal(it *item, f forbidden) *entry {
 		count += prev.count * child.count
 		cands = rk.extend(prev.cands, child.cands, cands)
 		if guarded {
-			if l.sym != nil && mx.forbids(l.sym.rule, l.sym.start, l.sym.end) {
+			if l.sym != nil && mx.forbids(l.sym.rule, l.sym.start, l.sym.end, it.prod.spellingAt(int(it.dot)-1)) {
 				forbade = true
 			} else {
 				permittedCount += prev.count * child.count

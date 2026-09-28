@@ -3,14 +3,16 @@ where its constituent, the node before it, could have been longer."""
 
 from __future__ import annotations
 
-from ._earley import Forest
+from ._earley import Forest, StageContext
 
 
 class Maximal:
     """What the ranking asks of maximal about one parse's items."""
 
-    def __init__(self, forest: Forest) -> None:
+    def __init__(self, forest: Forest, context: StageContext) -> None:
         self.forest = forest
+        # The parse's stage, whose tokens a spelling is checked against.
+        self.context = context
         self.productions = forest.lowered.productions
         # The helpers of the elidable optionals: an empty production of one
         # is an elided terminator.
@@ -18,6 +20,7 @@ class Maximal:
             production.lhs for production in self.productions if production.helper and production.elided is not None
         )
         self.furthest: dict[tuple[int, int], int] | None = None
+        self.ends: dict[tuple[int, int], list[int]] | None = None
 
     def elided(self, item: int) -> bool:
         """Whether a completed item is an elided terminator: the empty
@@ -37,13 +40,40 @@ class Maximal:
             return False
         return not (dot == 1 and not production.terminal[0] and production.rhs[0] == production.lhs)
 
-    def forbids(self, item: int) -> bool:
+    def forbids(self, item: int, spelling: str | None = None) -> bool:
         """Whether an elided terminator may not follow the completed item,
-        its constituent: its symbol completes from its origin in a later
-        set."""
+        its constituent, which stands for a symbol with the given spelling,
+        if it has one: its symbol completes from its origin in a later set,
+        over a span that also sounds like the spelling (engine §4)."""
         forest = self.forest
-        end = self.longest().get((self.productions[forest.prod[item]].lhs, forest.origin[item]))
-        return end is not None and end > forest.end[item]
+        key = (self.productions[forest.prod[item]].lhs, forest.origin[item])
+        if spelling is not None:
+            origin, end = forest.origin[item], forest.end[item]
+            return any(
+                later > end and self.context.spelling_matches(spelling, origin, later) for later in self.all_ends().get(key, ())
+            )
+        furthest = self.longest().get(key)
+        return furthest is not None and furthest > forest.end[item]
+
+    def all_ends(self) -> dict[tuple[int, int], list[int]]:
+        """For a spelled symbol, every end of a completed item of each
+        symbol from each origin, since a longer constituent counts only
+        where its span sounds like the spelling too. Found once, when first
+        asked for."""
+        ends = self.ends
+        if ends is not None:
+            return ends
+        forest = self.forest
+        productions = self.productions
+        ends = self.ends = {}
+        for item, number in enumerate(forest.prod):
+            production = productions[number]
+            if forest.dot[item] != len(production.rhs):
+                continue
+            found = ends.setdefault((production.lhs, forest.origin[item]), [])
+            if forest.end[item] not in found:
+                found.append(forest.end[item])
+        return ends
 
     def longest(self) -> dict[tuple[int, int], int]:
         """Whether a constituent could have been longer depends only on its

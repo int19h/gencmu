@@ -265,7 +265,7 @@ fn check_expr(grammar: &StageGrammar, expr: &Expr, top: bool) -> Result<(), Stri
             }
             Ok(())
         }
-        Expr::Optional(inner) | Expr::Repeat(inner, _) => check_expr(grammar, inner, false),
+        Expr::Optional(inner) | Expr::Repeat(inner, _) | Expr::Spelled(_, inner) => check_expr(grammar, inner, false),
         Expr::Ref(name) => {
             if is_terminal_name(name) {
                 Ok(())
@@ -279,7 +279,7 @@ fn check_expr(grammar: &StageGrammar, expr: &Expr, top: bool) -> Result<(), Stri
                 return Err(format!("the capture ${name} is not at the top level of its alternative"));
             }
             match inner.as_ref() {
-                Expr::Ref(_) | Expr::Terminal(_) => check_expr(grammar, inner, false),
+                Expr::Ref(_) | Expr::Terminal(_) | Expr::Spelled(..) => check_expr(grammar, inner, false),
                 _ => Err(format!("the capture ${name} does not wrap a single symbol")),
             }
         }

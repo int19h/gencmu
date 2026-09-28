@@ -25,7 +25,7 @@ func FuzzPrecompiledDOM(f *testing.F) {
 	// Warnings on a trailing repetition and on the rule below it, and gates.
 	f.Add(format+`,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[{"feature":"w","kind":"warning","negated":false}],"expr":{"seq":[{"ref":"a"},{"repeat":{"terminal":"b"},"min":1}]}}],"conditions":[],"at":[1,1]},{"name":"a","op":"define","alternatives":[{"guards":[{"feature":"v","kind":"warning","negated":false},{"feature":"g","kind":"gate","negated":true}],"expr":{"terminal":"a"}},{"guards":[{"feature":"g","kind":"gate","negated":false}],"expr":{"terminal":"a"}}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[1,1]}]}`, "abb")
 	f.Fuzz(func(t *testing.T, domJSON, text string) {
-		dom, err := decodeDOM(json.RawMessage(domJSON))
+		dom, err := decodeDOM(json.RawMessage(domJSON), bundled.uni)
 		if err != nil {
 			return
 		}

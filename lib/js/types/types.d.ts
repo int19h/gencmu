@@ -28,6 +28,11 @@ export type ElidedNode = {
     terminal: string;
     span: Span;
     source: Span;
+    /**
+     * the terminator's spelling, if it is spelled,
+     * which the output does not show
+     */
+    spelling?: string;
 };
 export type RuleNode = {
     kind: "rule";
@@ -227,7 +232,15 @@ export type Expr = {
 } | {
     terminal: string;
 } | {
+    spelling: string;
+    expr: SpelledSymbol;
+} | {
     empty: true;
+};
+export type SpelledSymbol = {
+    ref: string;
+} | {
+    terminal: string;
 };
 export type Emission = {
     items: EmitItem[];
@@ -287,6 +300,11 @@ export type Argument = Term | {
 export type GrammarSymbol = {
     name: string;
     terminal: boolean;
+    /**
+     * what the symbol's span must sound like,
+     * lowercased; not part of the terminal's identity (engine §4)
+     */
+    spelling?: string;
 };
 export type Capture = {
     name: string;
@@ -312,6 +330,11 @@ export type Production = {
      * the terminator an empty helper stands for
      */
     elided: string | null;
+    /**
+     * the spelling of that terminator,
+     * if it is spelled, which a restored token sounds like (engine §7)
+     */
+    elidedSpelling: string | null;
     captures: Capture[];
     conditions: ReadyCondition[];
     tags: Term | null;
@@ -447,6 +470,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {string} terminal
  * @property {Span} span
  * @property {Span} source
+ * @property {string} [spelling] the terminator's spelling, if it is spelled,
+ *   which the output does not show
  */
 /**
  * A result tree node for a rule.
@@ -611,7 +636,12 @@ export type ParseContext = import("./earley.js").ParseContext;
  * A rule body expression.
  * @typedef {{choice: Expr[]} | {and: Expr[]} | {seq: Expr[]} | {repeat: Expr, min: number}
  *   | {optional: Expr} | {capture: string, expr: Expr} | {ref: string} | {terminal: string}
- *   | {empty: true}} Expr
+ *   | {spelling: string, expr: SpelledSymbol} | {empty: true}} Expr
+ */
+/**
+ * What a spelling follows: a reference, or a terminal, a string or a
+ * phoneme tag.
+ * @typedef {{ref: string} | {terminal: string}} SpelledSymbol
  */
 /**
  * An emission clause.
@@ -647,6 +677,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} GrammarSymbol
  * @property {string} name
  * @property {boolean} terminal
+ * @property {string} [spelling] what the symbol's span must sound like,
+ *   lowercased; not part of the terminal's identity (engine §4)
  */
 /**
  * @typedef {object} Capture
@@ -669,6 +701,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {boolean} helper
  * @property {string} owner the rule the production was lowered from
  * @property {string | null} elided the terminator an empty helper stands for
+ * @property {string | null} elidedSpelling the spelling of that terminator,
+ *   if it is spelled, which a restored token sounds like (engine §7)
  * @property {Capture[]} captures
  * @property {ReadyCondition[]} conditions
  * @property {Term | null} tags

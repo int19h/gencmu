@@ -14,15 +14,12 @@ export type Maximal = {
      */
     guards: (item: Item) => boolean;
     /**
-     * whether an elided terminator
-     * may not follow the completed item, its constituent
+     * whether an
+     * elided terminator may not follow the completed item, its constituent,
+     * which stands for a symbol with the given spelling, if it has one
      */
-    forbids: (item: Item) => boolean;
+    forbids: (item: Item, spelling?: string) => boolean;
 };
-/**
- * @import { Item, LoweredGrammar } from "./types.js"
- * @import { Chart } from "./earley.js"
- */
 /**
  * What the ranking asks of maximal.
  * @typedef {object} Maximal
@@ -32,8 +29,9 @@ export type Maximal = {
  *   is an elidable optional whose elision the node before it can forbid:
  *   not at the start of a production, and not after a production's first
  *   symbol when that is its own rule, what a repetition has read so far
- * @property {(item: Item) => boolean} forbids whether an elided terminator
- *   may not follow the completed item, its constituent
+ * @property {(item: Item, spelling?: string) => boolean} forbids whether an
+ *   elided terminator may not follow the completed item, its constituent,
+ *   which stands for a symbol with the given spelling, if it has one
  */
 /**
  * @param {Chart} chart

@@ -17,6 +17,31 @@ pub(crate) struct Tok {
     pub source: (usize, usize),
     /// Whether its phonemes are its text (§11).
     pub verbatim: bool,
+    /// Its phonemes lowercased, for the spellings of symbols, computed when
+    /// a spelling first looks at the token (§4).
+    pub sound: std::cell::OnceCell<Box<str>>,
+}
+
+impl Tok {
+    /// The token's phonemes lowercased, or nothing if it has none (§4).
+    pub(crate) fn sound(&self, unicode: &Unicode) -> &str {
+        self.sound.get_or_init(|| unicode.lowercase(self.phonemes.as_deref().unwrap_or("")).into())
+    }
+}
+
+/// Whether `tokens` sound like a spelling: their phonemes, joined and
+/// lowercased, are exactly it (§4). A token with no phonemes adds nothing,
+/// and a spelling is never empty, so neither such a token alone nor an
+/// empty span matches.
+pub(crate) fn sounds_like(tokens: &[Tok], unicode: &Unicode, spelling: &str) -> bool {
+    let mut rest = spelling;
+    for token in tokens {
+        match rest.strip_prefix(token.sound(unicode)) {
+            Some(after) => rest = after,
+            None => return false,
+        }
+    }
+    rest.is_empty() && !spelling.is_empty()
 }
 
 /// A captured part: its span, relative to the parse's tokens, and its tag set.
@@ -360,6 +385,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     ) -> Result<(), EngineError> {
         let g = self.g;
         let production = &g.prods[item.prod as usize];
+        // A spelled symbol's span must sound like its spelling, which is
+        // checked before any condition the advance makes ready (§4).
+        if let Some(spelling) = production.spelling(item.dot as usize) {
+            if !sounds_like(&tokens[cap.start as usize..cap.end as usize], self.shared.unicode, spelling) {
+                return Ok(());
+            }
+        }
         let caps = if production.cap_at[item.dot as usize].is_some() {
             let mut caps = chart.caps(item.caps).to_vec();
             caps.push(cap);

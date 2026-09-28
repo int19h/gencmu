@@ -1,8 +1,11 @@
 //! From the notation's document tree to a grammar DOM (engine §9).
 
-use crate::dom::{Alternative, Arg, Cond, Directive, Dom, EmitItem, Expr, FeatureKind, Guard, Op, RuleDef, Term};
+use crate::dom::{
+    spelling_problem, Alternative, Arg, Cond, Directive, Dom, EmitItem, Expr, FeatureKind, Guard, Op, RuleDef, Term,
+};
 use crate::error::Error;
 use crate::result::{Node, NodeKind, Token};
+use crate::unicode::Unicode;
 
 /// How deeply constructs may nest before the reader gives up, so that a
 /// pathological document cannot exhaust the stack of the thread that reads
@@ -17,6 +20,9 @@ pub(crate) struct Reader<'a> {
     pub captures: std::cell::RefCell<Vec<String>>,
     /// The document position of a grammar-text index.
     pub position: &'a dyn Fn(usize) -> (usize, usize),
+    /// The lowercase mapping that spellings are checked against (engine
+    /// §9, §10).
+    pub unicode: &'a Unicode,
 }
 
 type R<T> = Result<T, Error>;
@@ -254,9 +260,25 @@ impl<'a> Reader<'a> {
         let inner = Self::inner(node);
         let token = || Self::tokens_of(inner).next().expect("a token");
         Ok(match rule_name(inner) {
-            "reference" => Expr::Ref(self.text(token()).to_string()),
-            "string" => Expr::Terminal(self.decode(token())?),
-            "phoneme" => Expr::Terminal(self.text(token()).to_string()),
+            "reference" | "string" | "phoneme" => self.symbol(inner)?,
+            "spelled" => {
+                // A reference, a string or a phoneme tag and its spelling,
+                // which the syntax grammar gives nothing else (engine §9).
+                let expr = self.symbol(Self::inner(inner))?;
+                let spelling_token = token();
+                let text: Vec<char> = self.text(spelling_token).chars().collect();
+                let spelling: String = text[1.min(text.len())..text.len().saturating_sub(1).max(1)].iter().collect();
+                let spellable = matches!(&expr, Expr::Ref(name) if name != "#") || matches!(expr, Expr::Terminal(_));
+                if let Some(problem) = spelling_problem(&spelling, spellable, self.unicode) {
+                    let message = if problem == "a spelling is not in lower case" {
+                        format!("the spelling {spelling} is not in lower case")
+                    } else {
+                        problem.to_string()
+                    };
+                    return Err(self.error(spelling_token, message));
+                }
+                Expr::Spelled(spelling, Box::new(expr))
+            }
             "capture" => {
                 let capture = token();
                 if self.text(capture) == "$" {
@@ -264,7 +286,7 @@ impl<'a> Reader<'a> {
                 }
                 let primary = self.one(inner, "primary");
                 let wrapped = Self::inner(primary);
-                if !matches!(rule_name(wrapped), "reference" | "string" | "phoneme") {
+                if !matches!(rule_name(wrapped), "reference" | "string" | "phoneme" | "spelled") {
                     return Err(self.error(capture, "a capture must wrap a single symbol"));
                 }
                 if !top {
@@ -284,6 +306,17 @@ impl<'a> Reader<'a> {
             "optional" => Expr::Optional(Box::new(self.choice(self.one(inner, "choice"), depth)?)),
             "empty" => Expr::Empty,
             other => panic!("an unknown primary {other}"),
+        })
+    }
+
+    /// A reference, a string or a phoneme tag.
+    fn symbol(&self, node: &'a Node) -> R<Expr> {
+        let token = Self::tokens_of(node).next().expect("a token");
+        Ok(match rule_name(node) {
+            "reference" => Expr::Ref(self.text(token).to_string()),
+            "string" => Expr::Terminal(self.decode(token)?),
+            "phoneme" => Expr::Terminal(self.text(token).to_string()),
+            other => panic!("an unknown symbol {other}"),
         })
     }
 

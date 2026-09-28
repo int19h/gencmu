@@ -9,13 +9,13 @@ from ._errors import GencmuError
 from ._markdown import GrammarText
 from ._model import Node, Token
 from ._trampoline import Walk, run
-from ._validate import FORMAT, term_reads_own_tags
+from ._validate import FORMAT, Lowercase, spelling_problem, term_reads_own_tags
 
 Dom = dict[str, Any]
 
 _MAPPED = frozenset(
     """directive argument-string rule alternative alternative-tags choice conjunction sequence element reference string
-    phoneme capture group optional empty tags-clause conditions-clause emits-clause verbatim-clause emit-item emit-tags
+    phoneme spelled capture group optional empty tags-clause conditions-clause emits-clause verbatim-clause emit-item emit-tags
     implication any-of all-of comparison negation presence call term guarded-term union
     intersection weak empty-set capture-reference""".split()
 )
@@ -62,10 +62,12 @@ def _is_span(dom: Any) -> bool:
 class DomBuilder:
     """Reads the DOM off a document tree, rule by rule of the §9 table."""
 
-    def __init__(self, tokens: list[Token], grammar_text: GrammarText, document: str) -> None:
+    def __init__(self, tokens: list[Token], grammar_text: GrammarText, document: str, unicode: Lowercase) -> None:
         self.tokens = tokens
         self.grammar_text = grammar_text
         self.document = document
+        # The lowercase mapping that spellings are checked against (engine §9, §10).
+        self.unicode = unicode
 
     # -- positions and errors
 
@@ -231,14 +233,26 @@ class DomBuilder:
             return {"terminal": self.decode(self.kids(node)[0])}
         if rule == "phoneme":
             return {"terminal": self.text(self.kids(node)[0])}
+        if rule == "spelled":
+            # A reference, a string or a phoneme tag and its spelling, which
+            # the syntax grammar gives nothing else (engine §9).
+            kids = self.kids(node)
+            symbol = next(kid for kid in kids if kid.kind == "rule")
+            spelling_token = kids[-1]
+            expr = yield self._expr(symbol)
+            spelling = self.text(spelling_token)[1:-1]
+            problem = spelling_problem(spelling, expr, self.unicode)
+            if problem is not None:
+                raise self.fail(spelling_token, problem)
+            return {"spelling": spelling, "expr": expr}
         if rule == "capture":
             kids = self.kids(node)
             name = self.text(kids[0])[1:]
             if not name:
                 raise self.fail(node, "$ is the whole constituent and wraps nothing")
             inner = [kid for kid in kids[1:] if kid.kind == "rule"]
-            if len(inner) != 1 or inner[0].rule not in ("reference", "string", "phoneme"):
-                raise self.fail(node, f"the capture ${name} must wrap one name, string or phoneme")
+            if len(inner) != 1 or inner[0].rule not in ("reference", "string", "phoneme", "spelled"):
+                raise self.fail(node, f"the capture ${name} must wrap one name, string or phoneme, spelled or not")
             if not top:
                 raise self.fail(node, f"the capture ${name} is not at the top level of its alternative")
             if name in self.captures:
