@@ -4,13 +4,27 @@ productions (engine §3)."""
 from __future__ import annotations
 
 import itertools
+import json
 from dataclasses import dataclass, field
 from typing import Any, Union
 
 from ._clauses import WHOLE, applies, captures_in, simplify_term
 from ._errors import GencmuError
-from ._tags import code_of_character_tag, property_name, range_name
+from ._tags import (
+    EMPTY,
+    Marks,
+    code_of_character_tag,
+    difference,
+    intersection,
+    is_name,
+    property_name,
+    range_name,
+    range_tags,
+    split_string,
+    union,
+)
 from ._trampoline import Walk, run
+from ._types import TermType, constant_value_type, constants_in, rule_type_fault, type_name
 
 Dom = dict[str, Any]
 
@@ -78,14 +92,211 @@ def _error(message: str, document: str, at: Any = None, stage: str | None = None
     return GencmuError(message, document=document, line=line, column=column, stage=stage)
 
 
-def stitch(stage: str, documents: list[tuple[str, Dom]]) -> Grammar:
-    """Stitch a stage's documents, in order, into one grammar."""
+@dataclass
+class _Constant:
+    """A constant of a stage (engine §2): its value and type now, and the
+    document of its last definition."""
+
+    value: Any
+    type: TermType
+    document: str
+
+
+class _Constants:
+    """The constants of a stage as the loader stitches it (engine §2): each
+    definition takes the values of the constants at its point of the
+    stitching order, and the rules take their final values."""
+
+    def __init__(self, stage: str, unicode: Marks) -> None:
+        self.stage = stage
+        self.unicode = unicode
+        self.values: dict[str, _Constant] = {}
+        # The definitions of rules that use constants, which the loader
+        # checks once the constants have their final values.
+        self.users: list[tuple[str, Dom]] = []
+
+    def type_of(self, name: str) -> TermType:
+        return self.values[name].type
+
+    def fault_error(self, path: str, node: Any, item: Any, problem: str) -> GencmuError:
+        """The error for a construct whose types disagree, or whose value
+        is refused: at its first constant, which the loader alone could
+        type, or else at the item (engine §9)."""
+        found = constants_in(node)
+        return _error(problem, path, found[0]["at"] if found else item, self.stage)
+
+    def add(self, path: str, constant: Dom) -> None:
+        """Defines or redefines a constant, with the value its term has at
+        this point of the stage (engine §2)."""
+        name, op, value, at = constant["name"], constant["op"], constant["value"], constant["at"]
+        previous = self.values.get(name)
+        if op == "define" and previous is not None:
+            raise _error(
+                f"%const ${name} is already defined in stage {self.stage}, in {previous.document}; "
+                "%redefine-const gives it a new value",
+                path,
+                at,
+                self.stage,
+            )
+        if op == "redefine" and previous is None:
+            raise _error(f"%redefine-const ${name} gives a value to no constant defined before it in stage {self.stage}", path, at, self.stage)
+        # A reference sees the constants defined before this point (engine §2).
+        for reference in constants_in(value):
+            if reference["const"] not in self.values:
+                raise _error(
+                    f"${reference['const']} is not defined before this point of stage {self.stage}", path, reference["at"], self.stage
+                )
+        kind, fault = constant_value_type(value, op == "redefine", self.type_of)
+        if fault is not None:
+            raise self.fault_error(path, fault[1], at, fault[0])
+        if previous is not None:
+            # A redefinition keeps the type, which gives ∅ its kind.
+            if kind == "set" and previous.type in ("strings", "tags"):
+                kind = previous.type
+            if kind != previous.type:
+                raise _error(
+                    f"%redefine-const ${name} keeps the type of the constant, and cannot make it {type_name(kind)}",  # type: ignore[arg-type]
+                    path,
+                    at,
+                    self.stage,
+                )
+        self.values[name] = _Constant(run(self._closed(path, value, at)), kind, path)  # type: ignore[arg-type]
+
+    def _closed(self, path: str, term: Dom, item: Any) -> Walk:
+        """The value of a closed term, with the constants' values now
+        (engine §2, §10). An empty delimiter or a tag's string that is not a
+        name comes from a constant here, since the reader refuses a literal
+        one, and the error stands at that constant."""
+        if "string" in term:
+            return term["string"]
+        if "tag" in term:
+            return frozenset((term["tag"],))
+        if "range" in term:
+            return range_tags(term["range"], self.unicode)
+        if "emptySet" in term:
+            return EMPTY
+        if "const" in term:
+            return self.values[term["const"]].value
+        if "union" in term:
+            result: Any = EMPTY
+            for part in term["union"]:
+                result = union(result, _set((yield self._closed(path, part, item))))
+            return result
+        if "intersection" in term:
+            parts = term["intersection"]
+            result = _set((yield self._closed(path, parts[0], item)))
+            for part in parts[1:]:
+                result = intersection(result, _set((yield self._closed(path, part, item))))
+            return result
+        if "difference" in term:
+            left = _set((yield self._closed(path, term["difference"][0], item)))
+            return difference(left, _set((yield self._closed(path, term["difference"][1], item))))
+        if term.get("call") == "split":
+            text, delimiter = term["args"]
+            seen = _string((yield self._closed(path, delimiter, item)))
+            if seen == "":
+                raise self.fault_error(path, delimiter, item, "split has an empty delimiter")
+            return split_string(_string((yield self._closed(path, text, item))), seen)
+        if term.get("call") == "tag":
+            name = _string((yield self._closed(path, term["args"][0], item)))
+            if not is_name(name):
+                raise self.fault_error(path, term["args"][0], item, f"tag({json.dumps(name, ensure_ascii=False)}): the string is not a name")
+            return frozenset((name,))
+        raise _error("a constant's value is not a closed term", path, item, self.stage)
+
+    def check(self) -> None:
+        """Checks what the reader could not in each rule that uses a
+        constant: that each is defined, that the types agree, and that a
+        constant that split or tag reads directly is a delimiter that is
+        not empty, or a name (engine §2, §9, §10)."""
+        for path, rule in self.users:
+            for reference in constants_in(rule):
+                if reference["const"] not in self.values:
+                    raise _error(f"${reference['const']} is not defined in stage {self.stage}", path, reference["at"], self.stage)
+            fault = rule_type_fault(rule, self.type_of)
+            if fault is not None:
+                raise self.fault_error(path, fault[1], rule["at"], fault[0])
+            for call in _calls_in(rule):
+                argument = call["args"][1] if call["call"] == "split" else call["args"][0]
+                if not isinstance(argument, dict) or "const" not in argument:
+                    continue
+                value = self.values[argument["const"]].value
+                seen = value if isinstance(value, str) else ""
+                if call["call"] == "split" and seen == "":
+                    raise _error("split has an empty delimiter", path, argument["at"], self.stage)
+                if call["call"] == "tag" and not is_name(seen):
+                    raise _error(
+                        f"tag({json.dumps(seen, ensure_ascii=False)}): the string is not a name", path, argument["at"], self.stage
+                    )
+
+    def resolve(self, rules: dict[str, Rule]) -> None:
+        """Gives every reference to a constant in the stitched rules its
+        final value, in copies of the clauses: the documents' DOMs are
+        shared by every stage and dialect that includes them. Clauses that
+        alternatives share stay shared."""
+        if not self.users:
+            return
+        copies: dict[int, Any] = {}
+
+        def resolve(node: Any) -> Any:
+            if not isinstance(node, (dict, list)) or not constants_in(node):
+                return node
+            done = copies.get(id(node))
+            if done is not None:
+                return done
+            copy: Any
+            if isinstance(node, list):
+                copy = [resolve(item) for item in node]
+            elif isinstance(node.get("const"), str):
+                copy = {"const": node["const"], "at": node["at"], "value": self.values[node["const"]].value}
+            else:
+                copy = {key: resolve(value) for key, value in node.items()}
+            copies[id(node)] = copy
+            return copy
+
+        for rule in rules.values():
+            for alternative in rule.alternatives:
+                alternative.tags = resolve(alternative.tags)
+                alternative.rule_tags = resolve(alternative.rule_tags)
+                alternative.emit = resolve(alternative.emit)
+                alternative.conditions = resolve(alternative.conditions)
+
+
+def _set(value: Any) -> Any:
+    return value if isinstance(value, frozenset) else EMPTY
+
+
+def _string(value: Any) -> str:
+    return value if isinstance(value, str) else ""
+
+
+def _calls_in(node: Any) -> list[Dom]:
+    """The calls of split and tag in a rule's clauses."""
+    found: list[Dom] = []
+    stack: list[Any] = [node]
+    while stack:
+        current = stack.pop()
+        if isinstance(current, list):
+            stack.extend(reversed(current))
+        elif isinstance(current, dict):
+            if current.get("call") in ("split", "tag") and isinstance(current.get("args"), list):
+                found.append(current)
+            stack.extend(reversed(list(current.values())))
+    return found
+
+
+def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Grammar:
+    """Stitch a stage's documents, in order, into one grammar. ``unicode``
+    is the loader's table, for the tags of a range in a constant's value."""
     rules: dict[str, Rule] = {}
+    constants = _Constants(stage, unicode)
     changes: list[Change] = []
     resolutions: list[tuple[list[str], str, Any]] = []
     elidable: set[str] = set()
     for path, dom in documents:
         for rule in dom.get("rules", []):
+            if constants_in(rule):
+                constants.users.append((path, rule))
             name = rule["name"]
             at: tuple[int, int] = (int(rule.get("at", (0, 0))[0]), int(rule.get("at", (0, 0))[1]))
             alternatives = [
@@ -134,6 +345,10 @@ def stitch(stage: str, documents: list[tuple[str, Dom]]) -> Grammar:
                 elidable.update(args)
             else:
                 raise _error(f"an unknown directive %{name}", path, at, stage)
+        for constant in dom.get("constants", []):
+            constants.add(path, constant)
+    constants.check()
+    constants.resolve(rules)
     if not resolutions:
         raise GencmuError(f"stage {stage} has no %ambiguity-resolution", stage=stage)
     if len(resolutions) > 1:
@@ -191,8 +406,8 @@ class Production:
     # The spelling of that terminator, if it is spelled, which a restored
     # token sounds like (engine §7).
     elided_spelling: str | None = None
-    # What each symbol's span must sound like, lowercased, or None for a
-    # symbol without a spelling (engine §4); None when no symbol has one.
+    # What each symbol's span must sound like, its canonical sound (engine
+    # §5), or None for a symbol without a spelling (engine §4); None when no symbol has one.
     # The spelling is not part of the symbol's identity.
     spellings: tuple[str | None, ...] | None = None
     captures: dict[str, int] = field(default_factory=dict)

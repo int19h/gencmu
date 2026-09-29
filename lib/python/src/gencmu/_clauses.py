@@ -117,7 +117,15 @@ def _condition(dom: Dom, present: AbstractSet[str]) -> Walk:
 
 
 def is_empty_set(dom: Any) -> bool:
-    return isinstance(dom, dict) and dom.get("emptySet") is True
+    """Whether a term is the empty set: ``∅``, or a constant whose value is
+    empty, since a constant is its value here, once the loader has given it
+    one (engine §3.6)."""
+    if not isinstance(dom, dict):
+        return False
+    if dom.get("emptySet") is True:
+        return True
+    value = dom.get("value")
+    return isinstance(dom.get("const"), str) and isinstance(value, frozenset) and not value
 
 
 def _term(dom: Any, present: AbstractSet[str]) -> Walk:

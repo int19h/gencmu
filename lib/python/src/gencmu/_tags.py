@@ -60,6 +60,13 @@ def is_phoneme_tag(tag: str) -> bool:
     return phoneme_of(tag) is not None
 
 
+def split_string(string: str, delimiter: str) -> Tags:
+    """The value of split(string, delimiter) (engine §10): the pieces
+    between the occurrences of the delimiter, found from the left without
+    overlap, with the empty pieces dropped. The delimiter is not empty."""
+    return frozenset(piece for piece in string.split(delimiter) if piece)
+
+
 _NAME = re.compile(r"[A-Za-z][A-Za-z0-9-]*")
 
 

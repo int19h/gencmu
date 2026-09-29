@@ -4,60 +4,91 @@ A term is a string, a set of strings, a tag set or a span, and no value turns
 into another. The reader gives every term its type and refuses one whose
 parts do not agree (engine §9); a DOM from elsewhere is held to the same
 rules. ``set`` is a set whose kind nothing has given yet, such as ``∅``.
+``any`` is a constant whose type the reader cannot know, which fits any
+type but a span; the loader checks it again once the stage is stitched
+(engine §2, §9).
 """
 
 from __future__ import annotations
 
-from typing import Any, Union
+from typing import Any, Callable, Optional, Union
 
 TermType = str
-"""``"string"``, ``"strings"``, ``"tags"``, ``"span"`` or ``"set"``."""
+"""``"string"``, ``"strings"``, ``"tags"``, ``"span"``, ``"set"`` or ``"any"``."""
 
 Found = Union[tuple[TermType, None], tuple[None, str]]
 """A type and no problem, or no type and why the parts do not agree."""
 
+Fault = tuple[str, Any]
+"""Why the parts of a term or a condition do not agree, and the smallest
+construct that holds the disagreement."""
+
+FoundFault = Union[tuple[TermType, None], tuple[None, Fault]]
+"""A type and no fault, or no type and the fault."""
+
+ConstantTypes = Callable[[str], TermType]
+"""The type of each constant by its name, where the loader knows it; the
+reader knows none, and gives every constant the type ``any``."""
+
 _SET_KINDS = frozenset(["strings", "tags", "set"])
-_NAMES = {"string": "a string", "strings": "a set of strings", "tags": "a tag set", "span": "a span", "set": "a set"}
+_NAMES = {"string": "a string", "strings": "a set of strings", "tags": "a tag set", "span": "a span", "set": "a set", "any": "a value"}
 SPAN_NOT_VALUE = "a span is not a value: tags($x) is the tag set of $x"
 
 
+def type_name(kind: TermType) -> str:
+    """A type as the messages write it, such as ``a tag set``."""
+    return _NAMES[kind]
+
+
+def _unknown_constants(name: str) -> TermType:
+    return "any"
+
+
 def _call_type(call: str) -> TermType:
-    if call in ("phonemes", "text", "lowercase"):
+    if call in ("phonemes", "text"):
         return "string"
-    if call == "runs":
+    if call == "split":
         return "strings"
-    if call in ("tags", "classes"):
+    if call in ("tags", "classes", "tag"):
         return "tags"
     return "span"
 
 
 def joined_type(types: list[TermType], operator: str) -> Found:
     """The kind of sets joined by ∪, ∩ or ∖, or why they cannot be joined:
-    each is a set, and all whose kind is known have one kind."""
+    each is a set, and all whose kind is known have one kind. A constant
+    whose type is not known yet fits any set."""
     if "span" in types:
         return None, SPAN_NOT_VALUE
-    for kind in types:
+    known = [kind for kind in types if kind != "any"]
+    for kind in known:
         if kind not in _SET_KINDS:
             return None, f"{operator} joins sets, not {_NAMES[kind]}"
-    kinds = {kind for kind in types if kind != "set"}
+    kinds = {kind for kind in known if kind != "set"}
     if len(kinds) > 1:
         return None, f"{operator} joins two sets of one kind, not a set of strings and a tag set"
-    return (next(iter(kinds)) if kinds else "set"), None
+    if kinds:
+        return next(iter(kinds)), None
+    return ("any" if len(known) < len(types) else "set"), None
 
 
 def comparison_problem(op: str, left: TermType, right: TermType) -> str | None:
-    """Why a comparison's two sides do not fit its comparator, or None."""
+    """Why a comparison's two sides do not fit its comparator, or None. A
+    side of type ``any`` fits, and the loader checks it again."""
     if left == "span" or right == "span":
         return SPAN_NOT_VALUE
     if op in ("∈", "∉"):
-        if left != "string":
+        if left not in ("string", "any"):
             return f"{op} tests a string, not {_NAMES[left]}, in a set of strings; ⊆ and ⊈ compare two sets"
-        if right not in ("strings", "set"):
+        if right not in ("strings", "set", "any"):
             return f"{op} tests a string in a set of strings, not in {_NAMES[right]}"
         return None
-    if op in ("=", "≠") and (left == "string" or right == "string"):
-        # = and ≠ compare two values of one type.
-        return None if left == right else f"{op} compares two values of one type, not {_NAMES[left]} and {_NAMES[right]}"
+    if op in ("=", "≠"):
+        if left == "any" or right == "any":
+            return None
+        if left == "string" or right == "string":
+            # = and ≠ compare two values of one type.
+            return None if left == right else f"{op} compares two values of one type, not {_NAMES[left]} and {_NAMES[right]}"
     kind, problem = joined_type([left, right], op)
     if problem is not None:
         return problem
@@ -67,17 +98,18 @@ def comparison_problem(op: str, left: TermType, right: TermType) -> str | None:
 def expected_problem(kind: TermType, expected: TermType) -> str | None:
     """Why a term of type ``kind`` cannot stand where ``expected``, a string
     or a tag set, is needed, or None. A set of open kind takes the kind it
-    is given."""
-    if kind == expected or (kind == "set" and expected == "tags"):
+    is given, and a constant of unknown type fits."""
+    if kind == expected or kind == "any" or (kind == "set" and expected == "tags"):
         return None
     if kind == "span":
         return SPAN_NOT_VALUE
     return f"{_NAMES[expected]} is needed here, not {_NAMES[kind]}"
 
 
-def term_type(term: Any) -> Found:
-    """The type of a term, or why its parts do not agree. The term's shape
-    must already be checked."""
+def term_type_fault(term: Any, constants: ConstantTypes = _unknown_constants) -> FoundFault:
+    """The type of a term, or why its parts do not agree with the smallest
+    construct that disagrees. The term's shape must already be checked.
+    ``constants`` gives the type of each constant."""
     if isinstance(term.get("string"), str):
         return "string", None
     if isinstance(term.get("tag"), str) or "range" in term:
@@ -86,89 +118,187 @@ def term_type(term: Any) -> Found:
         return "set", None
     if isinstance(term.get("capture"), str):
         return "span", None
+    if isinstance(term.get("const"), str):
+        return constants(term["const"]), None
     for key, operator in (("union", "∪"), ("intersection", "∩"), ("difference", "∖")):
         items = term.get(key)
         if not isinstance(items, list):
             continue
         types: list[TermType] = []
         for item in items:
-            kind, problem = term_type(item)
-            if problem is not None:
-                return None, problem
+            kind, fault = term_type_fault(item, constants)
+            if fault is not None:
+                return None, fault
             types.append(kind)  # type: ignore[arg-type]
-        return joined_type(types, operator)
+        joined, problem = joined_type(types, operator)
+        return (None, (problem, term)) if problem is not None else (joined, None)  # type: ignore[return-value]
     if "if" in term:
-        problem = condition_type_problem(term["if"])
-        if problem is not None:
-            return None, problem
-        kind, problem = term_type(term["then"])
-        if problem is not None:
-            return None, problem
+        fault = condition_type_fault(term["if"], constants)
+        if fault is not None:
+            return None, fault
+        kind, fault = term_type_fault(term["then"], constants)
+        if fault is not None:
+            return None, fault
         problem = expected_problem(kind, "tags")  # type: ignore[arg-type]
-        return (None, problem) if problem is not None else ("tags", None)
+        return (None, (problem, term)) if problem is not None else ("tags", None)
     call = term.get("call")
     if isinstance(call, str):
         for argument in term.get("args", []):
             if "rule" in argument:
                 continue
-            kind, problem = term_type(argument)
-            if problem is not None:
-                return None, problem
-            if call == "lowercase":
+            kind, fault = term_type_fault(argument, constants)
+            if fault is not None:
+                return None, fault
+            if call in ("split", "tag"):
                 problem = expected_problem(kind, "string")  # type: ignore[arg-type]
                 if problem is not None:
-                    return None, f"lowercase takes one string: {problem}"
+                    signature = "two strings" if call == "split" else "one string"
+                    return None, (f"{call} takes {signature}: {problem}", term)
         return _call_type(call), None
-    return None, "a malformed term"
+    return None, ("a malformed term", term)
+
+
+def term_type(term: Any, constants: ConstantTypes = _unknown_constants) -> Found:
+    """The type of a term, or why its parts do not agree."""
+    kind, fault = term_type_fault(term, constants)
+    return (None, fault[0]) if fault is not None else (kind, None)  # type: ignore[return-value]
+
+
+def condition_type_fault(condition: Any, constants: ConstantTypes = _unknown_constants) -> Optional[Fault]:
+    """Why a condition's terms do not agree in type, with the smallest
+    construct that disagrees, or None."""
+    items = condition.get("any", condition.get("all"))
+    if isinstance(items, list):
+        for item in items:
+            fault = condition_type_fault(item, constants)
+            if fault is not None:
+                return fault
+        return None
+    if "not" in condition:
+        return condition_type_fault(condition["not"], constants)
+    if "if" in condition:
+        return condition_type_fault(condition["if"], constants) or condition_type_fault(condition["then"], constants)
+    if isinstance(condition.get("op"), str):
+        left, fault = term_type_fault(condition["left"], constants)
+        if fault is not None:
+            return fault
+        right, fault = term_type_fault(condition["right"], constants)
+        if fault is not None:
+            return fault
+        problem = comparison_problem(condition["op"], left, right)  # type: ignore[arg-type]
+        return (problem, condition) if problem is not None else None
+    return None
 
 
 def condition_type_problem(condition: Any) -> str | None:
     """Why a condition's terms do not agree in type, or None."""
-    items = condition.get("any", condition.get("all"))
-    if isinstance(items, list):
-        for item in items:
-            problem = condition_type_problem(item)
-            if problem is not None:
-                return problem
-        return None
-    if "not" in condition:
-        return condition_type_problem(condition["not"])
-    if "if" in condition:
-        return condition_type_problem(condition["if"]) or condition_type_problem(condition["then"])
-    if isinstance(condition.get("op"), str):
-        left, problem = term_type(condition["left"])
-        if problem is not None:
-            return problem
-        right, problem = term_type(condition["right"])
-        if problem is not None:
-            return problem
-        return comparison_problem(condition["op"], left, right)  # type: ignore[arg-type]
-    return None
+    fault = condition_type_fault(condition)
+    return fault[0] if fault is not None else None
+
+
+def tag_term_fault(term: Any, constants: ConstantTypes = _unknown_constants) -> Optional[Fault]:
+    """Why a term that must be a tag set, a constituent's or an item's, is
+    not one, with the construct at fault, or None."""
+    kind, fault = term_type_fault(term, constants)
+    if fault is not None:
+        return fault
+    problem = expected_problem(kind, "tags")  # type: ignore[arg-type]
+    return (problem, term) if problem is not None else None
 
 
 def tag_term_problem(term: Any) -> str | None:
-    """Why a term that must be a tag set, a constituent's or an item's, is
-    not one, or None."""
-    kind, problem = term_type(term)
-    if problem is not None:
-        return problem
-    return expected_problem(kind, "tags")  # type: ignore[arg-type]
+    """Why a term that must be a tag set is not one, or None."""
+    fault = tag_term_fault(term)
+    return fault[0] if fault is not None else None
 
 
-def rule_type_problem(rule: Any) -> str | None:
+def rule_type_fault(rule: Any, constants: ConstantTypes = _unknown_constants) -> Optional[Fault]:
     """Why a well-formed rule's terms and conditions do not agree in type,
-    or None."""
+    with the construct at fault, or None."""
     terms = [rule.get("tags"), *(alternative.get("tags") for alternative in rule["alternatives"])]
     if "emit" in rule:
         terms.extend(item.get("tags") for item in rule["emit"]["items"])
     for term in terms:
         if term is None:
             continue
-        problem = tag_term_problem(term)
-        if problem is not None:
-            return problem
+        fault = tag_term_fault(term, constants)
+        if fault is not None:
+            return fault
     for condition in rule["conditions"]:
-        problem = condition_type_problem(condition)
-        if problem is not None:
-            return problem
+        fault = condition_type_fault(condition, constants)
+        if fault is not None:
+            return fault
     return None
+
+
+def rule_type_problem(rule: Any) -> str | None:
+    """Why a well-formed rule's terms and conditions do not agree in type,
+    or None."""
+    fault = rule_type_fault(rule)
+    return fault[0] if fault is not None else None
+
+
+def constant_value_type(value: Any, redefine: bool, constants: ConstantTypes = _unknown_constants) -> FoundFault:
+    """The type of a constant's value, or why it cannot be one (engine §2,
+    §10): a string, a set of strings or a tag set. A redefinition keeps the
+    constant's type, which gives ``∅`` its kind, so its value can be of
+    open kind."""
+    kind, fault = term_type_fault(value, constants)
+    if fault is not None:
+        return None, fault
+    if kind == "span":
+        return None, ("a constant's value is a string or a set, never a span", value)
+    if kind == "set" and not redefine:
+        return None, ("the kind of the set that the constant holds is not given", value)
+    return kind, None
+
+
+def constant_value_problem(value: Any, redefine: bool) -> str | None:
+    """Why a constant's value cannot be one, or None."""
+    _, fault = constant_value_type(value, redefine)
+    return fault[0] if fault is not None else None
+
+
+def open_part(term: Any) -> Any:
+    """The first part of a term that is not closed (engine §10), or None: a
+    capture, a guarded term, or a call of anything but split and tag. The
+    shape of the term need not be checked."""
+    if not isinstance(term, dict):
+        return None
+    if "capture" in term or "if" in term:
+        return term
+    if isinstance(term.get("call"), str):
+        if term["call"] not in ("split", "tag"):
+            return term
+        args = term.get("args")
+        for argument in args if isinstance(args, list) else []:
+            found = open_part(argument)
+            if found is not None:
+                return found
+        return None
+    for key in ("union", "intersection", "difference"):
+        items = term.get(key)
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            found = open_part(item)
+            if found is not None:
+                return found
+    return None
+
+
+def constants_in(node: Any) -> list[dict[str, Any]]:
+    """The references to constants in a term, a condition, a rule or any
+    part of a DOM, in the order written."""
+    found: list[dict[str, Any]] = []
+    stack: list[Any] = [node]
+    while stack:
+        current = stack.pop()
+        if isinstance(current, list):
+            stack.extend(reversed(current))
+        elif isinstance(current, dict):
+            if isinstance(current.get("const"), str):
+                found.append(current)
+            else:
+                stack.extend(reversed(list(current.values())))
+    return found

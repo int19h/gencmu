@@ -34,10 +34,14 @@ class Pipeline:
 
 
 def items_in_order(dom: Dom) -> list[tuple[str, Dom]]:
-    """A document's rules and directives, each tagged ``"rule"`` or
-    ``"directive"``, in the order they were written, which is the order of
-    their positions (engine §9)."""
-    items = [("rule", rule) for rule in dom["rules"]] + [("directive", directive) for directive in dom["directives"]]
+    """A document's rules, directives and constant definitions, each tagged
+    ``"rule"``, ``"directive"`` or ``"constant"``, in the order they were
+    written, which is the order of their positions (engine §9)."""
+    items = (
+        [("rule", rule) for rule in dom["rules"]]
+        + [("directive", directive) for directive in dom["directives"]]
+        + [("constant", constant) for constant in dom.get("constants", [])]
+    )
     items.sort(key=lambda item: (item[1]["at"][0], item[1]["at"][1]))
     return items
 
@@ -84,12 +88,17 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None]) -> Pipeline:
                 run = None
             else:
                 if not stages:
-                    what = f"the rule {item['name']}" if kind == "rule" else f"%{name}"
+                    if kind == "rule":
+                        what = f"the rule {item['name']}"
+                    elif kind == "constant":
+                        what = f"the constant ${item['name']}"
+                    else:
+                        what = f"%{name}"
                     raise fail(f"{what} stands before the first %stage")
                 if run is None or run[0] != document:
-                    run = (document, {"format": dom["format"], "rules": [], "directives": []})
+                    run = (document, {"format": dom["format"], "rules": [], "directives": [], "constants": []})
                     stages[-1].documents.append(run)
-                run[1]["rules" if kind == "rule" else "directives"].append(item)
+                run[1]["rules" if kind == "rule" else "constants" if kind == "constant" else "directives"].append(item)
 
     top = dom_of(path)
     if top is None:

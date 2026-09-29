@@ -11,11 +11,12 @@ from ._markdown import GrammarText
 from ._model import Node, Token
 from ._tags import character_tag
 from ._trampoline import Walk, run
-from ._types import comparison_problem, condition_type_problem, joined_type, tag_term_problem, term_type
+from ._types import comparison_problem, condition_type_problem, constant_value_type, joined_type, tag_term_problem, term_type
 from ._validate import (
     CAPTURE_NAME,
     FORMAT,
     Lowercase,
+    literal_call_problem,
     property_problem,
     range_problem,
     spelling_problem,
@@ -28,7 +29,8 @@ _MAPPED = frozenset(
     """directive argument-string argument-tag rule alternative alternative-tags choice conjunction sequence element
     reference string tag character phoneme name spelled capture group optional empty tags-clause conditions-clause
     emits-clause verbatim-clause emit-item emit-tags implication any-of all-of comparison negation presence call term
-    guarded-term union intersection empty-set capture-reference range property""".split()
+    guarded-term union intersection empty-set capture-reference range property constant-definition constant-definer
+    constant-reference""".split()
 )
 _PROPERTY = re.compile(r"'\\p\{([^}]*)\}'")
 _SYMBOLS = frozenset(["reference", "tag", "character", "phoneme", "range", "property", "spelled"])
@@ -36,24 +38,29 @@ _SYMBOLS = frozenset(["reference", "tag", "character", "phoneme", "range", "prop
 _DEFINERS = {"%rule": "define", "%redefine-rule": "redefine", "%extend-rule": "extend"}
 _SPAN_FUNCTIONS = frozenset(["head", "tail", "last", "from", "after"])
 _FUNCTIONS = frozenset(
-    ["phonemes", "text", "lowercase", "tags", "classes", "runs", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]
+    ["phonemes", "text", "split", "tag", "tags", "classes", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]
 )
 _SIGNATURES = {
     "phonemes": "one span",
     "text": "one span",
     "classes": "one span",
-    "runs": "one span",
     "head": "one span",
     "tail": "one span",
     "last": "one span",
     "from": "one span",
     "after": "one span",
     "initial": "one span",
-    "lowercase": "one string",
+    "split": "two strings",
+    "tag": "one string",
     "tags": "a span, and optionally a rule",
     "matches": "a span and a rule",
     "begins": "a span and a rule",
 }
+
+
+_CONSTANT_IN_BODY = (
+    "a constant cannot stand in a body: a body names a class of tokens with a rule, such as %rule digit '0'..'9'"
+)
 
 
 def decode_string(text: str) -> str | None:
@@ -106,8 +113,11 @@ class DomBuilder:
         self.tokens = tokens
         self.grammar_text = grammar_text
         self.document = document
-        # The lowercase mapping that spellings are checked against (engine §9, §10).
+        # The lowercase mapping that spellings are checked against (engine §5, §9).
         self.unicode = unicode
+        # Whether the reader is reading a constant's value, a closed term
+        # (engine §9, §10).
+        self.in_constant = False
 
     # -- positions and errors
 
@@ -152,12 +162,34 @@ class DomBuilder:
     def document_dom(self, root: Node) -> Dom:
         rules: list[Dom] = []
         directives: list[Dom] = []
+        constants: list[Dom] = []
         for kid in self.kids(root):
             if kid.kind == "rule" and kid.rule == "rule":
                 rules.append(self.rule(kid))
             elif kid.kind == "rule" and kid.rule == "directive":
                 directives.append(self.directive(kid))
-        return {"format": FORMAT, "rules": rules, "directives": directives}
+            elif kid.kind == "rule" and kid.rule == "constant-definition":
+                constants.append(self.constant(kid))
+        return {"format": FORMAT, "rules": rules, "directives": directives, "constants": constants}
+
+    def constant(self, node: Node) -> Dom:
+        """A constant's definition: its name without ``$``, and its value, a
+        closed term of a type that a constant can have (engine §2, §9,
+        §10)."""
+        definer = self.rules(node, "constant-definer")[0]
+        keyword = self.text(self.kids(definer)[0])
+        name = self.text(self.kids(self.rules(node, "constant-reference")[0])[0])[1:]
+        value_node = self.rules(node, "term")[0]
+        self.in_constant = True
+        try:
+            value = self.value(value_node)
+        finally:
+            self.in_constant = False
+        op = "redefine" if keyword == "%redefine-const" else "define"
+        _, fault = constant_value_type(value, op == "redefine")
+        if fault is not None:
+            raise self.fail(value_node, fault[0])
+        return {"name": name, "op": op, "value": value, "at": list(self.position(node))}
 
     def directive(self, node: Node) -> Dom:
         kids = self.kids(node)
@@ -329,6 +361,8 @@ class DomBuilder:
             if not CAPTURE_NAME.fullmatch(name):
                 raise self.fail(node, f"the capture ${name} has a capital; a capture's name is all lower case")
             inner = [kid for kid in kids[1:] if kid.kind == "rule"]
+            if len(inner) == 1 and inner[0].rule == "constant-reference":
+                raise self.fail(inner[0], _CONSTANT_IN_BODY)
             if len(inner) != 1 or inner[0].rule not in _SYMBOLS:
                 raise self.fail(node, f"the capture ${name} must wrap one reference or terminal, spelled or not")
             if not top:
@@ -339,6 +373,8 @@ class DomBuilder:
             if len(self.captures) > 4:
                 raise self.fail(node, "an alternative has at most four captures")
             return {"capture": name, "expr": (yield self._expr(inner[0]))}
+        if rule == "constant-reference":
+            raise self.fail(node, _CONSTANT_IN_BODY)
         if rule == "group":
             return (yield self._expr(self.rules(node, "choice")[0]))
         if rule == "optional":
@@ -501,6 +537,8 @@ class DomBuilder:
         name = self.text(kids[0])
         if name not in _FUNCTIONS:
             raise self.fail(node, f"an unknown function {name}()")
+        if self.in_constant and name not in ("split", "tag"):
+            raise self.fail(node, f"a constant's value is a closed term, and {name} reads a span")
         args: list[Dom] = []
         for kid in kids[1:]:
             if kid.kind == "rule":
@@ -510,7 +548,9 @@ class DomBuilder:
             if "rule" in argument:
                 return False
             kind, problem = term_type(argument)
-            return problem is None and kind == "string"
+            # A constant's type is known only when the loader stitches the
+            # stage.
+            return problem is None and kind in ("string", "any")
 
         def is_rule(argument: Dom) -> bool:
             return "rule" in argument
@@ -519,13 +559,19 @@ class DomBuilder:
             ok = (len(args) == 1 and _is_span(args[0])) or (len(args) == 2 and _is_span(args[0]) and is_rule(args[1]))
         elif name in ("matches", "begins"):
             ok = len(args) == 2 and _is_span(args[0]) and is_rule(args[1])
-        elif name == "lowercase":
+        elif name == "split":
+            ok = len(args) == 2 and all(is_string(argument) for argument in args)
+        elif name == "tag":
             ok = len(args) == 1 and is_string(args[0])
         else:
             ok = len(args) == 1 and _is_span(args[0])
         # A rule stands only as the second argument.
         if not ok or any(is_rule(argument) and index != 1 for index, argument in enumerate(args)):
             raise self.fail(node, f"{name}() takes {_SIGNATURES[name]}")
+        # An empty delimiter or a tag's name that the reader sees (engine §9).
+        seen = literal_call_problem(name, args)
+        if seen is not None:
+            raise self.fail(node, seen)
         return {"call": name, "args": args}
 
     def _joined(self, node: Node, items: list[Dom], operator: str) -> None:
@@ -548,6 +594,8 @@ class DomBuilder:
         if rule == "term":
             return (yield self._term([kid for kid in self.kids(node) if kid.kind == "rule"][0], argument))
         if rule == "guarded-term":
+            if self.in_constant:
+                raise self.fail(node, "a constant's value is a closed term, and holds no guarded term")
             parts = [kid for kid in self.kids(node) if kid.kind == "rule"]
             condition = yield self._condition(parts[0])
             problem = condition_type_problem(condition)
@@ -614,9 +662,13 @@ class DomBuilder:
             return {"emptySet": True}
         if rule == "capture-reference":
             capture = self.text(self.kids(node)[0])[1:]
+            if self.in_constant:
+                raise self.fail(node, "a constant's value is a closed term, and holds no capture")
             if not argument:
                 raise self.fail(node, f"a span is not a value: tags(${capture}) is the tag set of ${capture}")
             return {"capture": capture}
+        if rule == "constant-reference":
+            return {"const": self.text(self.kids(node)[0])[1:], "at": list(self.position(node))}
         if rule == "call":
             call = yield self._call(node)
             # A span is not a value: the error stands at the span (engine §9).
