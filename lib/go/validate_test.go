@@ -280,6 +280,12 @@ func TestDOMRules(t *testing.T) {
 		{"a classifier has no other member", classified(`{"name":"lex","entries":[],"at":[3,1],"x":true}`, "")},
 		{"a classifier's entries are a list", classified(`{"name":"lex","entries":null,"at":[3,1]}`, "")},
 		{"an entry takes no warning", entry(`{"guards":[{"feature":"f","kind":"warning","negated":false}],"keys":["mi"],"op":"∈","class":"KOhA","at":[3,3]}`)},
+		{"a rule's gate is not empty", guarded(`{"feature":"","kind":"gate","negated":false}`)},
+		{"a rule's gate is not a mark", guarded(`{"feature":"!","kind":"gate","negated":false}`)},
+		{"a rule's gate has no space", guarded(`{"feature":"bad name","kind":"gate","negated":true}`)},
+		{"a warning is not empty", guarded(`{"feature":"","kind":"warning","negated":false}`)},
+		{"a warning is not a mark", guarded(`{"feature":"!","kind":"warning","negated":false}`)},
+		{"a warning has no space", guarded(`{"feature":"bad name","kind":"warning","negated":false}`)},
 		{"a gate's feature is not empty", entry(`{"guards":[{"feature":"","kind":"gate","negated":false}],"keys":["mi"],"op":"∈","class":"KOhA","at":[3,3]}`)},
 		{"a gate's feature is not a mark", entry(`{"guards":[{"feature":"!","kind":"gate","negated":false}],"keys":["mi"],"op":"∈","class":"KOhA","at":[3,3]}`)},
 		{"a gate's feature has no space", entry(`{"guards":[{"feature":"bad name","kind":"gate","negated":false}],"keys":["mi"],"op":"∈","class":"KOhA","at":[3,3]}`)},
@@ -595,40 +601,64 @@ func TestCachedClauseWaitsForConstant(t *testing.T) {
 	}
 }
 
-// A gate of a classifier's entry follows the notation's name syntax (engine
-// §9). A cached entry with another feature is a miss, so it never changes
-// the dialect's features, and a bootstrap with one is an error of the
-// grammar.
-func TestClassifierGateName(t *testing.T) {
+// A gate of a classifier's entry and a guard of a rule's alternative follow
+// the notation's name syntax (engine §9). A cached entry with another
+// feature is a miss, so it never changes the dialect's features, and a
+// bootstrap with one is an error of the grammar.
+func TestGuardFeatureName(t *testing.T) {
 	loadBundled()
-	classifier := func(feature string, line int) string {
+	format := `"format":` + strconv.Itoa(domFormat)
+	classifier := func(guard string, line int) string {
 		at := strconv.Itoa(line)
-		return `{"name":"lex","entries":[{"guards":[{"feature":"` + feature + `","kind":"gate","negated":false}],"keys":["mi"],"op":"∈","class":"KOhA","at":[` + at + `,3]}],"at":[` + at + `,1]}`
+		return `{"name":"lex","entries":[{"guards":[` + guard + `],"keys":["mi"],"op":"∈","class":"KOhA","at":[` + at + `,3]}],"at":[` + at + `,1]}`
 	}
-	features := func(feature string) []string {
+	rule := func(guard, name string, line int) string {
+		return `{"name":"` + name + `","op":"define","alternatives":[{"guards":[` + guard + `],"expr":{"seq":[{"terminal":"a"},{"terminal":"b"}]}}],"conditions":[],"at":[` + strconv.Itoa(line) + `,1]}`
+	}
+	// features is the dialect's features, each as name:kind, when its
+	// compiled.json holds a DOM of the document with rules and classifiers.
+	features := func(rules, classifiers string) []string {
 		src := oneStage("%ambiguity-resolution greedy\n%rule text 'a' 'b'")
-		dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"seq":[{"terminal":"a"},{"terminal":"b"}]}}],"conditions":[],"at":[4,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[3,1]}],"constants":[],"classifiers":[` + classifier(feature, 5) + `],"implications":[]}`
-		src["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + dom + `}}}`
+		dom := `{` + format + `,"rules":[` + rules + `],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[3,1]}],"constants":[],"classifiers":[` + classifiers + `],"implications":[]}`
+		src["compiled.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + dom + `}}}`
 		d, err := LoadDialectSources(src, "p.md")
 		if err != nil {
-			t.Fatalf("%q: %v", feature, err)
+			t.Fatalf("%s %s: %v", rules, classifiers, err)
 		}
 		var names []string
 		for _, f := range d.Features() {
-			names = append(names, f.Name)
+			names = append(names, f.Name+":"+string(f.Kind))
 		}
 		return names
 	}
-	if got := features("f"); len(got) != 1 || got[0] != "f" {
-		t.Fatalf("the control: expected the feature f, got %v", got)
-	}
-	if err := bootstrapError(t, "classifiers", classifier("f", 9999)); err != nil {
-		t.Fatalf("the control: a well-formed bootstrap classifier: %v", err)
-	}
-	for _, feature := range []string{"", "!", "bad name"} {
-		if got := features(feature); len(got) != 0 {
-			t.Errorf("%q: the cache entry was used, with the features %v", feature, got)
+	for _, c := range []struct{ kind, where, problem string }{
+		{"gate", "classifier", "a gate's feature is a name"},
+		{"gate", "rule", "a guard's feature is a name"},
+		{"warning", "rule", "a guard's feature is a name"},
+	} {
+		guard := func(feature string) string {
+			return `{"feature":"` + feature + `","kind":"` + c.kind + `","negated":false}`
 		}
-		assertGrammarError(t, bootstrapError(t, "classifiers", classifier(feature, 9999)), "a gate's feature is a name")
+		// The DOM's items, and the bootstrap's list and item, for a guard.
+		items := func(feature string) (string, string, string, string) {
+			if c.where == "classifier" {
+				return rule("", "text", 4), classifier(guard(feature), 5), "classifiers", classifier(guard(feature), 9999)
+			}
+			return rule(guard(feature), "text", 4), "", "rules", rule(guard(feature), "misnamed-feature", 9999)
+		}
+		rules, classifiers, list, item := items("f")
+		if got := features(rules, classifiers); len(got) != 1 || got[0] != "f:"+c.kind {
+			t.Fatalf("%s %s, the control: expected the feature f, got %v", c.where, c.kind, got)
+		}
+		if err := bootstrapError(t, list, item); err != nil {
+			t.Fatalf("%s %s, the control: a well-formed bootstrap item: %v", c.where, c.kind, err)
+		}
+		for _, feature := range []string{"", "!", "bad name"} {
+			rules, classifiers, list, item := items(feature)
+			if got := features(rules, classifiers); len(got) != 0 {
+				t.Errorf("%s %s %q: the cache entry was used, with the features %v", c.where, c.kind, feature, got)
+			}
+			assertGrammarError(t, bootstrapError(t, list, item), c.problem)
+		}
 	}
 }

@@ -461,6 +461,7 @@ A document's items are its rules, its directives, its constant definitions, its 
 A DOM is malformed in each of these cases, whether it is read, cached or in the bootstrap:
 
 - Two of its items share a position.
+- It has a guard of an alternative whose feature is not a name.
 - It has a `stage`, `include`, `features` or `elidable` directive whose operands the reader refuses.
 - It has a test that the reader refuses. That is a test after anything but a reference other than `#` or a terminal, or an unknown comparator. It is also a value that is not a closed term of the right type. It is also a string that holds a comma or that the lowercase mapping of the canonical sound changes.
 - It has a `terminal`, a `tag` or an inserted tag that is not a tag in its canonical spelling (§1).

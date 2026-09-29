@@ -127,10 +127,13 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 				continue
 			}
 			// A guard is a gate or a warning, and a warning has no negated
-			// form (§9).
+			// form. Its feature is a name (§9).
 			for _, g := range a.Guards {
 				if g.Kind != FeatureGate && (g.Kind != FeatureWarning || g.Negated) {
 					c.fail("a malformed guard")
+				}
+				if !domName.MatchString(g.Feature) {
+					c.fail("a malformed guard: a guard's feature is a name")
 				}
 			}
 			c.captures = map[string]bool{}

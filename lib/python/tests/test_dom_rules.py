@@ -1041,24 +1041,40 @@ class Classifiers(unittest.TestCase):
             return {"feature": feature, "kind": "gate", "negated": False}
 
         refused = [gate(""), gate("!"), gate("bad name")]
-        self.assert_refused(gate("f"), refused, "a malformed entry of a classifier", guard=True)
+        self.assert_refused(gate("f"), refused, "a malformed entry of a classifier", slot="entry")
 
-    def assert_refused(self, well_formed: Dom, refused: list[Dom], problem: str, *, guard: bool = False) -> None:
+    def test_a_guard_of_an_alternative_names_a_feature(self) -> None:
+        """A guard of a rule's alternative, a gate or a warning, follows the
+        notation's name syntax (engine §9). A cached entry with another
+        feature is a miss, so it never changes the dialect's features."""
+        for kind in ("gate", "warning"):
+
+            def guard(feature: str) -> Dom:
+                return {"feature": feature, "kind": kind, "negated": False}
+
+            with self.subTest(kind=kind):
+                refused = [guard(""), guard("!"), guard("bad name")]
+                self.assert_refused(guard("f"), refused, "a malformed alternative", slot="alternative")
+
+    def assert_refused(self, well_formed: Dom, refused: list[Dom], problem: str, *, slot: str = "condition") -> None:
         """Each of ``refused`` is refused by the check, makes a cached entry a
         miss, and makes a bootstrap an error of the grammar. ``well_formed``
-        passes the check. Each is a condition of the rule ``text``, or, with
-        ``guard``, a gate of an entry of its classifier."""
+        passes the check. Each stands in ``slot``: a condition of the rule
+        ``text``, a guard of its alternative, or a gate of an entry of its
+        classifier."""
+        guard = slot != "condition"
         sources = {"p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n', "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n```\n"}
         bootstrap_hash = fnv1a64(bundled_text("notation/bootstrap.json") or "")
         token = gencmu.Token("a", frozenset({"A"}), (0, 1), (0, 1))
 
         def text_rule(part: Dom, name: str = "text", at: list[int] | None = None) -> Dom:
-            alternative = {"guards": [], "expr": {"capture": "x", "expr": {"ref": "A"}}}
-            conditions = [] if guard else [part]
+            guards = [part] if slot == "alternative" else []
+            alternative = {"guards": guards, "expr": {"capture": "x", "expr": {"ref": "A"}}}
+            conditions = [part] if slot == "condition" else []
             return {"name": name, "op": "define", "alternatives": [alternative], "conditions": conditions, "at": at or [3, 1]}
 
         def classifier(part: Dom, at: list[int]) -> Dom:
-            guards = [part] if guard else []
+            guards = [part] if slot == "entry" else []
             entry = {"guards": guards, "keys": ["mi"], "op": "∈", "class": "KOhA", "at": [at[0], 3]}
             return {"name": "lex", "entries": [entry], "at": at}
 
@@ -1079,9 +1095,10 @@ class Classifiers(unittest.TestCase):
 
         self.assertIsNone(dom_problem(dom(well_formed)))
         if guard:
-            # The control: the well-formed entry is used, and its gate is a
+            # The control: the well-formed entry is used, and its guard is a
             # feature of the dialect.
-            self.assertEqual([feature.name for feature in cached(well_formed).features], [well_formed["feature"]])
+            features = [(feature.name, feature.kind) for feature in cached(well_formed).features]
+            self.assertEqual(features, [(well_formed["feature"], well_formed["kind"])])
         for part in refused:
             with self.subTest(refused=json.dumps(part, ensure_ascii=False)):
                 found = dom_problem(dom(part)) or ""
@@ -1091,10 +1108,10 @@ class Classifiers(unittest.TestCase):
                 self.assertEqual(dialect.features, (), "no feature of the refused entry")
                 bootstrap = json.loads(bundled_text("notation/bootstrap.json") or "{}")
                 first = bootstrap["stages"][0]["documents"][0]["dom"]
-                if guard:
+                if slot == "entry":
                     first["classifiers"].append(classifier(part, [9999, 1]))
                 else:
-                    first["rules"].append(text_rule(part, "misplaced-classifier", [9999, 1]))
+                    first["rules"].append(text_rule(part, "refused-part", [9999, 1]))
                 with self.assertRaises(gencmu.GencmuError) as caught:
                     gencmu.load_dialect_sources({**sources, "notation/bootstrap.json": json.dumps(bootstrap)}, "p.md", use_cache=False)
                 self.assertEqual(caught.exception.kind, "grammar")

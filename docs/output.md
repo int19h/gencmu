@@ -91,7 +91,7 @@ A grammar DOM (document object model) is the data that a library makes when it r
 
 A rule is `{"name":"sumti","op":"define","tags":TERM,"alternatives":[ALT...],"emit":EMIT,"conditions":[COND...],"verbatim":true,"at":[line,column]}`. `op` is `define`, `redefine` or `extend`. `tags`, `emit` and `verbatim` are optional. `verbatim` is present, and `true`, only for a rule that has `%verbatim`. The name of a rule is a name, or `#`.
 
-An alternative is `{"guards":[GUARD...],"expr":EXPR,"tags":TERM}`, with `tags` optional. A guard is `{"feature":"cbm","kind":"gate","negated":false}` for `cbm?`, with `"negated":true` for `¬cbm?`, or `{"feature":"y-cmavo","kind":"warning","negated":false}` for `y-cmavo!`.
+An alternative is `{"guards":[GUARD...],"expr":EXPR,"tags":TERM}`, with `tags` optional. A guard is `{"feature":"cbm","kind":"gate","negated":false}` for `cbm?`, with `"negated":true` for `¬cbm?`, or `{"feature":"y-cmavo","kind":"warning","negated":false}` for `y-cmavo!`. A guard's feature is a name.
 
 An expression is one of these forms:
 
@@ -132,7 +132,7 @@ A constant definition is `{"name":"SU-STOPS","op":"define","value":TERM,"at":[li
 
 A classifier is `{"name":"lexicon","entries":[ENTRY...],"at":[line,column]}`. Its name begins with `a` to `z`. `entries` can be empty, for a `%classifier` with no entry.
 
-An entry is `{"guards":[GUARD...],"keys":["mi","do"],"op":"∈","class":"KOhA","at":[line,column]}`. Its guards are gates, never warnings, and each gate's feature is a name. `keys` holds one or more decoded strings, each a canonical sound (engine §9). `op` is `∈` or `∉`. `class` is a name that begins with `A` to `Z`. An entry's `at` is the line and column of its first token, where the loader reports an error of the entry (engine §2).
+An entry is `{"guards":[GUARD...],"keys":["mi","do"],"op":"∈","class":"KOhA","at":[line,column]}`. Its guards are gates, never warnings. `keys` holds one or more decoded strings, each a canonical sound (engine §9). `op` is `∈` or `∉`. `class` is a name that begins with `A` to `Z`. An entry's `at` is the line and column of its first token, where the loader reports an error of the entry (engine §2).
 
 An implication is `{"if":TERM,"then":TERM,"at":[line,column]}`, for `%implies A ⟹ B`. `if` is `A`, and `then` is `B`. Each is a closed term (engine §10) whose type is a tag set.
 

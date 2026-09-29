@@ -1164,22 +1164,45 @@ fn a_gate_of_an_entry_names_a_feature() {
     let refused = ["", "!", "bad name"].map(gated);
     assert_refused(&gated("f"), &refused, "a malformed entry of a classifier");
     // The control's gate is a feature of the dialect, and no refused one is.
-    let features = |dom: &str| {
-        let compiled = format!(
-            r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","documents":{{"g.md":{{"hash":"{}","dom":{dom}}}}}}}"#,
-            gencmu::tools::bootstrap_hash(),
-            gencmu::tools::fnv1a64(DOCUMENT)
-        );
-        let sources = [
-            ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
-            ("g.md", DOCUMENT.to_string()),
-            ("compiled.json", compiled),
-        ];
-        let dialect = gencmu::load_dialect_sources(sources, "p.md").expect("a dialect");
-        dialect.features().iter().map(|feature| feature.name.clone()).collect::<Vec<_>>()
-    };
-    assert_eq!(features(&gated("f")), ["f"]);
+    assert_eq!(cached_features(&gated("f")), [("f".to_string(), gencmu::FeatureKind::Gate)]);
     for dom in &refused {
-        assert!(features(dom).is_empty(), "{dom}");
+        assert!(cached_features(dom).is_empty(), "{dom}");
+    }
+}
+
+/// The features of a dialect whose `compiled.json` holds `dom` for the
+/// document, each with its kind.
+fn cached_features(dom: &str) -> Vec<(String, gencmu::FeatureKind)> {
+    let compiled = format!(
+        r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","documents":{{"g.md":{{"hash":"{}","dom":{dom}}}}}}}"#,
+        gencmu::tools::bootstrap_hash(),
+        gencmu::tools::fnv1a64(DOCUMENT)
+    );
+    let sources = [
+        ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+        ("g.md", DOCUMENT.to_string()),
+        ("compiled.json", compiled),
+    ];
+    let dialect = gencmu::load_dialect_sources(sources, "p.md").expect("a dialect");
+    dialect.features().iter().map(|feature| (feature.name.clone(), feature.kind)).collect()
+}
+
+/// A guard of a rule's alternative, a gate or a warning, follows the
+/// notation's name syntax (engine §9). A cached entry with another feature
+/// is a miss, so it never changes the dialect's features.
+#[test]
+fn a_guard_of_an_alternative_names_a_feature() {
+    for (kind, feature_kind) in [("gate", gencmu::FeatureKind::Gate), ("warning", gencmu::FeatureKind::Warning)] {
+        let guarded = |feature: &str| {
+            with_alternative(&format!(
+                r#"{{"guards":[{{"feature":"{feature}","kind":"{kind}","negated":false}}],"expr":{{"terminal":"b"}}}}"#
+            ))
+        };
+        let refused = ["", "!", "bad name"].map(guarded);
+        assert_refused(&guarded("f"), &refused, "a malformed alternative");
+        assert_eq!(cached_features(&guarded("f")), [("f".to_string(), feature_kind)]);
+        for dom in &refused {
+            assert!(cached_features(dom).is_empty(), "{dom}");
+        }
     }
 }

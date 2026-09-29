@@ -834,12 +834,12 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
         }
         for alternative in alternatives.unwrap_or(&[]) {
             // A guard is a gate, negated or not, or a warning, which never
-            // is (§9).
+            // is, of a feature that is a name (§9).
             let guards = alternative.get("guards").and_then(Json::as_array);
             let guards_ok = guards.is_some_and(|guards| {
                 guards.iter().all(|guard| {
                     is_object(guard)
-                        && is_str(guard.get("feature"))
+                        && guard.get("feature").and_then(Json::as_str).is_some_and(is_name)
                         && match (guard.get("kind").and_then(Json::as_str), guard.get("negated")) {
                             (Some("gate"), Some(Json::Bool(_))) => true,
                             (Some("warning"), Some(Json::Bool(negated))) => !negated,
