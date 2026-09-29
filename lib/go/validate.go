@@ -29,10 +29,11 @@ var captureName = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
 // domProblem is why a DOM is malformed; tooDeep marks the nesting limit,
 // the one problem a DOM the reader built can have.
 type domProblem struct {
-	message  string
-	rule     *domRule
-	constant *domConst
-	tooDeep  bool
+	message     string
+	rule        *domRule
+	constant    *domConst
+	implication *domImplication
+	tooDeep     bool
 }
 
 func (p *domProblem) Error() string { return p.message }
@@ -79,6 +80,36 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 			return &domProblem{message: "two items at one position"}
 		}
 		positions[dir.At] = true
+	}
+	for _, c := range d.Classifiers {
+		if c == nil {
+			return &domProblem{message: "a malformed classifier"}
+		}
+		if positions[c.At] {
+			return &domProblem{message: "two items at one position"}
+		}
+		positions[c.At] = true
+	}
+	for _, m := range d.Implications {
+		if m == nil {
+			return &domProblem{message: "a malformed implication"}
+		}
+		if positions[m.At] {
+			return &domProblem{message: "two items at one position"}
+		}
+		positions[m.At] = true
+	}
+	// A classifier: its name, and entries of gates, canonical keys, an
+	// operator and a class (engine §2, §9).
+	for _, c := range d.Classifiers {
+		if !classifierName.MatchString(c.Name) || c.Entries == nil {
+			return &domProblem{message: "a malformed classifier"}
+		}
+		for _, e := range c.Entries {
+			if p := entryProblem(e, uni); p != "" {
+				return &domProblem{message: fmt.Sprintf("classifier %s: %s", c.Name, p)}
+			}
+		}
 	}
 	for _, r := range d.Rules {
 		if r == nil || !(domName.MatchString(r.Name) || r.Name == "#") || (r.Op != "define" && r.Op != "redefine" && r.Op != "extend") || len(r.Alternatives) == 0 {
@@ -144,6 +175,79 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 			return &domProblem{message: fmt.Sprintf("constant $%s: %s", k.Name, f.problem), constant: k}
 		}
 	}
+	// An implication: two closed terms whose type is a tag set, checked
+	// once the nesting is bounded (engine §2, §9).
+	for _, m := range d.Implications {
+		c := &domChecker{implication: m, label: "an implication", uni: uni}
+		for _, side := range []*domTerm{m.If, m.Then} {
+			if side == nil {
+				return &domProblem{message: "a malformed implication", implication: m}
+			}
+			c.term(side, 0, false)
+		}
+		if c.problem != nil {
+			return c.problem
+		}
+		for _, side := range []*domTerm{m.If, m.Then} {
+			if msg := implicationSideProblem(side, nil); msg != "" {
+				return &domProblem{message: "an implication: " + msg, implication: m}
+			}
+		}
+	}
+	return nil
+}
+
+// classifierName is the syntax of a classifier's name, which begins with a
+// lower-case letter, and className that of a class, which begins with a
+// capital (engine §2, §9).
+var (
+	classifierName = regexp.MustCompile(`^[a-z][A-Za-z0-9-]*$`)
+	className      = regexp.MustCompile(`^[A-Z][A-Za-z0-9-]*$`)
+)
+
+// entryProblem is what is wrong with an entry of a classifier (engine §9),
+// or "": its guards are gates, it has one or more keys, each a canonical
+// sound, its operator is ∈ or ∉, and its class a name with a capital.
+func entryProblem(e *domEntry, uni *unicodeTable) string {
+	if e == nil || e.Guards == nil || (e.Op != "∈" && e.Op != "∉") || !className.MatchString(e.Class) || len(e.Keys) == 0 {
+		return "a malformed entry of a classifier"
+	}
+	for _, g := range e.Guards {
+		if g.Kind != FeatureGate {
+			return "a malformed entry of a classifier: an entry takes gates only, not a warning"
+		}
+	}
+	for _, key := range e.Keys {
+		if msg := soundProblem(key, uni); msg != "" {
+			return "a malformed entry of a classifier: a key is a canonical sound: " + msg
+		}
+	}
+	return ""
+}
+
+// implicationSideProblem is why a side of an implication is not a closed
+// term whose type is a tag set, or "" (engine §2, §9, §10); ct gives each
+// constant's type, where the loader knows it.
+func implicationSideProblem(side *domTerm, ct constTypes) string {
+	if openPart(side) != nil {
+		return "a side of an implication is not a closed term"
+	}
+	if f := implicationSideFault(side, ct); f != nil {
+		return f.problem
+	}
+	return ""
+}
+
+// implicationSideFault is why a side of an implication is not a tag set,
+// with the construct at fault, or nil.
+func implicationSideFault(side *domTerm, ct constTypes) *typeFault {
+	ty, f := termTypeIn(side, ct)
+	if f != nil {
+		return &typeFault{"a side of an implication is a tag set: " + f.problem, f.node}
+	}
+	if problem := expectedProblem(ty, tyTags); problem != "" {
+		return &typeFault{"a side of an implication is a tag set: " + problem, side}
+	}
 	return nil
 }
 
@@ -171,25 +275,26 @@ func directiveOperandsOK(dir *domDirective) bool {
 }
 
 type domChecker struct {
-	rule     *domRule  // the rule checked, or nil
-	constant *domConst // the constant checked, or nil
-	label    string    // what the problems name: rule r or constant $C
-	uni      *unicodeTable
-	captures map[string]bool
-	tests    []*domExpr // the tested symbols seen, whose values are checked once the nesting is bounded
-	problem  *domProblem
+	rule        *domRule        // the rule checked, or nil
+	constant    *domConst       // the constant checked, or nil
+	implication *domImplication // the implication checked, or nil
+	label       string          // what the problems name: rule r, constant $C or an implication
+	uni         *unicodeTable
+	captures    map[string]bool
+	tests       []*domExpr // the tested symbols seen, whose values are checked once the nesting is bounded
+	problem     *domProblem
 }
 
 func (c *domChecker) fail(format string, args ...any) {
 	if c.problem == nil {
-		c.problem = &domProblem{message: c.label + ": " + fmt.Sprintf(format, args...), rule: c.rule, constant: c.constant}
+		c.problem = &domProblem{message: c.label + ": " + fmt.Sprintf(format, args...), rule: c.rule, constant: c.constant, implication: c.implication}
 	}
 }
 
 func (c *domChecker) deep(depth int) bool {
 	if depth > maxDOMDepth {
 		if c.problem == nil {
-			c.problem = &domProblem{message: fmt.Sprintf("%s: an expression, term or condition is nested more than %d deep", c.label, maxDOMDepth), rule: c.rule, constant: c.constant, tooDeep: true}
+			c.problem = &domProblem{message: fmt.Sprintf("%s: an expression, term or condition is nested more than %d deep", c.label, maxDOMDepth), rule: c.rule, constant: c.constant, implication: c.implication, tooDeep: true}
 		}
 		return true
 	}
@@ -483,6 +588,9 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		// matches, begins and initial never as terms.
 		args := t.Items
 		isRule := func(a *domTerm) bool { return a != nil && a.Kind == tmRule && a.Str != "" }
+		isClassifier := func(a *domTerm) bool {
+			return a != nil && a.Kind == tmClassifier && classifierName.MatchString(a.Str)
+		}
 		var ok bool
 		switch t.Str {
 		case "phonemes", "text", "classes", "head", "tail", "last", "from", "after":
@@ -494,8 +602,11 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			// rule's (engine §10).
 			ok = len(args) == map[string]int{"split": 2, "tag": 1}[t.Str]
 			for _, a := range args {
-				ok = ok && a != nil && !isRule(a) && !isSpanShape(a)
+				ok = ok && a != nil && !isRule(a) && !isClassifier(a) && !isSpanShape(a)
 			}
+		case "classify":
+			// A string, and the name of a classifier (engine §9).
+			ok = len(args) == 2 && args[0] != nil && !isRule(args[0]) && !isClassifier(args[0]) && !isSpanShape(args[0]) && isClassifier(args[1])
 		}
 		if !ok || (!argument && isSpanFunction(t.Str)) {
 			c.fail("a malformed call of %q", t.Str)
@@ -506,8 +617,8 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			return
 		}
 		for _, a := range args {
-			if isRule(a) {
-				c.deep(depth + 1) // a rule name is a node below the call
+			if isRule(a) || isClassifier(a) {
+				c.deep(depth + 1) // a rule's or a classifier's name is a node below the call
 			} else {
 				c.term(a, depth+1, true)
 			}
@@ -737,6 +848,9 @@ type typeFault struct {
 
 func isSetType(t termType) bool { return t == tyStrings || t == tyTags || t == tySet }
 
+// callStrings says what the functions that take strings take.
+var callStrings = map[string]string{"split": "two strings", "tag": "one string", "classify": "a string and a classifier's name"}
+
 // callType is the type of the value a function gives.
 func callType(name string) termType {
 	switch name {
@@ -744,7 +858,7 @@ func callType(name string) termType {
 		return tyString
 	case "split":
 		return tyStrings
-	case "tags", "classes", "tag":
+	case "tags", "classes", "tag", "classify":
 		return tyTags
 	}
 	return tySpan
@@ -888,16 +1002,16 @@ func termTypeIn(t *domTerm, ct constTypes) (termType, *typeFault) {
 		return tyTags, nil
 	case tmCall:
 		for _, a := range t.Items {
-			if a.Kind == tmRule {
+			if a.Kind == tmRule || a.Kind == tmClassifier {
 				continue
 			}
 			ty, f := termTypeIn(a, ct)
 			if f != nil {
 				return 0, f
 			}
-			if t.Str == "split" || t.Str == "tag" {
+			if t.Str == "split" || t.Str == "tag" || t.Str == "classify" {
 				if problem := expectedProblem(ty, tyString); problem != "" {
-					return 0, &typeFault{t.Str + " takes " + map[string]string{"split": "two strings", "tag": "one string"}[t.Str] + ": " + problem, t}
+					return 0, &typeFault{t.Str + " takes " + callStrings[t.Str] + ": " + problem, t}
 				}
 			}
 		}

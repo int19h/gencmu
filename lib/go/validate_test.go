@@ -16,7 +16,7 @@ func TestDOMRules(t *testing.T) {
 	const good = `{"seq":[{"terminal":"a"},{"terminal":"b"}]}`
 	format := `"format":` + strconv.Itoa(domFormat)
 	rule := func(fields string) string {
-		return `{` + format + `,"rules":[{"name":"text","op":"define",` + fields + `,"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[]}`
+		return `{` + format + `,"rules":[{"name":"text","op":"define",` + fields + `,"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`
 	}
 	guarded := func(guard string) string {
 		return rule(`"alternatives":[{"guards":[` + guard + `],"expr":` + good + `}],"conditions":[]`)
@@ -32,6 +32,14 @@ func TestDOMRules(t *testing.T) {
 	constant := func(k string) string {
 		return strings.Replace(alt(good), `"constants":[]`, `"constants":[`+k+`]`, 1)
 	}
+	// A document with classifiers and implications.
+	classified := func(classifiers, implications string) string {
+		return strings.Replace(alt(good), `"classifiers":[],"implications":[]`, `"classifiers":[`+classifiers+`],"implications":[`+implications+`]`, 1)
+	}
+	entry := func(e string) string {
+		return classified(`{"name":"lex","entries":[`+e+`],"at":[3,1]}`, "")
+	}
+	implies := func(m string) string { return classified("", m) }
 	runs := `{"call":"split","args":[{"call":"phonemes","args":[{"capture":"x"}]},{"string":"."}]}`
 	tagged := func(tags string) string {
 		return rule(`"alternatives":[{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"terminal":"a"}},{"terminal":"b"}]},"tags":` + tags + `}],"conditions":[]`)
@@ -264,6 +272,39 @@ func TestDOMRules(t *testing.T) {
 		{"a property is not a term", tagged(`{"property":"L"}`)},
 		{"a range in a term starts at or below its end", tagged(`{"range":["'z'","'a'"]}`)},
 		{"an inserted range is not one tag", emit(`{"items":[{"insert":"'a'..'z'"},{"capture":"x"}]}`)},
+		// Classifiers, implications and classify (engine §2, §9).
+		{"a DOM has classifiers", strings.Replace(alt(good), `,"classifiers":[]`, ``, 1)},
+		{"implications are a list", strings.Replace(alt(good), `"implications":[]`, `"implications":null`, 1)},
+		{"a classifier's name begins with a lower-case letter", classified(`{"name":"Lex","entries":[],"at":[3,1]}`, "")},
+		{"a classifier has a position", classified(`{"name":"lex","entries":[],"at":null}`, "")},
+		{"a classifier has no other member", classified(`{"name":"lex","entries":[],"at":[3,1],"x":true}`, "")},
+		{"a classifier's entries are a list", classified(`{"name":"lex","entries":null,"at":[3,1]}`, "")},
+		{"an entry takes no warning", entry(`{"guards":[{"feature":"f","kind":"warning","negated":false}],"keys":["mi"],"op":"∈","class":"KOhA","at":[3,3]}`)},
+		{"an entry's guard has no other member", entry(`{"guards":[{"feature":"f","kind":"gate","negated":false,"x":1}],"keys":["mi"],"op":"∈","class":"KOhA","at":[3,3]}`)},
+		{"an entry has a key", entry(`{"guards":[],"keys":[],"op":"∈","class":"KOhA","at":[3,3]}`)},
+		{"a key is in lower case", entry(`{"guards":[],"keys":["Mi"],"op":"∈","class":"KOhA","at":[3,3]}`)},
+		{"a key has no comma", entry(`{"guards":[],"keys":["m,i"],"op":"∈","class":"KOhA","at":[3,3]}`)},
+		{"a key is a string", entry(`{"guards":[],"keys":[1],"op":"∈","class":"KOhA","at":[3,3]}`)},
+		{"an entry's operator is ∈ or ∉", entry(`{"guards":[],"keys":["mi"],"op":"=","class":"KOhA","at":[3,3]}`)},
+		{"a class begins with a capital", entry(`{"guards":[],"keys":["mi"],"op":"∈","class":"koha","at":[3,3]}`)},
+		{"a class is a name", entry(`{"guards":[],"keys":["mi"],"op":"∈","class":"/a/","at":[3,3]}`)},
+		{"an entry has no other member", entry(`{"guards":[],"keys":["mi"],"op":"∈","class":"KOhA","at":[3,3],"x":true}`)},
+		{"an implication has a position", implies(`{"if":{"tag":"UI"},"then":{"tag":"m"},"at":null}`)},
+		{"an implication has no other member", implies(`{"if":{"tag":"UI"},"then":{"tag":"m"},"at":[3,1],"x":true}`)},
+		{"an implication has two sides", implies(`{"if":{"tag":"UI"},"at":[3,1]}`)},
+		{"a side of an implication is closed", implies(`{"if":{"tag":"UI"},"then":{"call":"tags","args":[{"capture":"x"}]},"at":[3,1]}`)},
+		{"a side of an implication calls no classify", implies(`{"if":{"call":"classify","args":[{"string":"mi"},{"classifier":"lex"}]},"then":{"tag":"m"},"at":[3,1]}`)},
+		{"a side of an implication is a tag set", implies(`{"if":{"tag":"UI"},"then":{"string":"a"},"at":[3,1]}`)},
+		{"an implication and a rule at one position", implies(`{"if":{"tag":"UI"},"then":{"tag":"m"},"at":[1,1]}`)},
+		{"a classifier and an implication at one position", classified(`{"name":"lex","entries":[],"at":[3,1]}`, `{"if":{"tag":"UI"},"then":{"tag":"m"},"at":[3,1]}`)},
+		{"classify names a classifier, not a rule", tagged(`{"call":"classify","args":[{"call":"phonemes","args":[{"capture":"x"}]},{"rule":"lex"}]}`)},
+		{"a classifier's name in classify begins with a lower-case letter", tagged(`{"call":"classify","args":[{"call":"phonemes","args":[{"capture":"x"}]},{"classifier":"Lex"}]}`)},
+		{"classify takes a string, not a span", tagged(`{"call":"classify","args":[{"capture":"x"},{"classifier":"lex"}]}`)},
+		{"classify takes a string, not a tag set", tagged(`{"call":"classify","args":[{"tag":"x"},{"classifier":"lex"}]}`)},
+		{"classify takes two arguments", tagged(`{"call":"classify","args":[{"call":"phonemes","args":[{"capture":"x"}]}]}`)},
+		{"a classifier is not a term", tagged(`{"classifier":"lex"}`)},
+		{"split takes no classifier", cond(`{"op":"∈","left":{"string":"a"},"right":{"call":"split","args":[{"string":"a"},{"classifier":"lex"}]}}`)},
+		{"a constant's value calls no classify", constant(`{"name":"A","op":"define","value":{"call":"classify","args":[{"string":"mi"},{"classifier":"lex"}]},"at":[3,1]}`)},
 	}
 	// Each variation's well-formed twin decodes, so that the refusals are
 	// the rule's and not the test's.
@@ -272,6 +313,10 @@ func TestDOMRules(t *testing.T) {
 		alt(`{"range":["'a'","'z'"]}`), alt(`{"property":"White_Space"}`),
 		alt(`{"seq":[{"capture":"c","expr":{"range":["'\\u{300}'","'\\u{36F}'"]}},{"capture":"d","expr":{"property":"Cs"}}]}`),
 		tagged(`{"union":[{"range":["'a'","'c'"]},{"tag":"'x'"}]}`),
+		// Classifiers, entries, implications and classify.
+		classified(`{"name":"lex","entries":[{"guards":[],"keys":["mi","do"],"op":"∈","class":"KOhA","at":[3,3]},{"guards":[{"feature":"f","kind":"gate","negated":true}],"keys":["u'i"],"op":"∉","class":"UI","at":[4,3]}],"at":[3,1]},{"name":"empty","entries":[],"at":[5,1]}`,
+			`{"if":{"union":[{"tag":"UI"},{"const":"K","at":[6,15]}]},"then":{"tag":"indicator"},"at":[6,1]},{"if":{"range":["'a'","'c'"]},"then":{"union":[{"tag":"early"},{"tag":"/a/"}]},"at":[7,1]}`),
+		tagged(`{"union":[{"tag":"T"},{"call":"classify","args":[{"call":"phonemes","args":[{"capture":"x"}]},{"classifier":"lex"}]}]}`),
 		// A gate, negated or not, and a warning.
 		guarded(`{"feature":"f","kind":"gate","negated":true}`), guarded(`{"feature":"f","kind":"gate","negated":false},{"feature":"g","kind":"warning","negated":false}`),
 		alt(`{"seq":[{"capture":"a","expr":{"terminal":"a"}},{"capture":"b","expr":{"terminal":"b"}},{"capture":"c","expr":{"ref":"C"}},{"capture":"d","expr":{"ref":"D"}}]}`),
@@ -372,6 +417,48 @@ func TestReaderNesting(t *testing.T) {
 	}
 }
 
+// The reader holds an implication to the nesting limit too, at the
+// implication (engine §9).
+func TestReaderImplicationNesting(t *testing.T) {
+	loadBundled()
+	// n differences, each of a tag and the next in parentheses: the
+	// innermost tag lies below n compound nodes.
+	doc := func(n int) string {
+		return "```jbogenbau\n\n%implies " + strings.Repeat("A ∖ (", n) + "B" + strings.Repeat(")", n) + " ⟹ ~m\n```\n"
+	}
+	if _, err := bundled.reader.read(doc(256), "g.md"); err != nil {
+		t.Fatalf("256 deep: %v", err)
+	}
+	_, err := bundled.reader.read(doc(257), "g.md")
+	if err == nil || err.Line != 3 || err.Column != 1 || !strings.Contains(err.Message, "nested more than 256 deep") {
+		t.Fatalf("257 deep: expected an error at the implication, 3:1, got %v", err)
+	}
+}
+
+// A bootstrap with a malformed classifier is an error of the grammar
+// (engine §9).
+func TestBootstrapMalformedClassifier(t *testing.T) {
+	loadBundled()
+	src := oneStage("%ambiguity-resolution greedy\n%rule text 'a' 'b'")
+	bootstrap := bundled.sources["notation/bootstrap.json"]
+	i := strings.Index(bootstrap, `"classifiers":[`)
+	if i < 0 {
+		t.Fatal("no classifiers in the bootstrap")
+	}
+	i += len(`"classifiers":[`)
+	sep := ","
+	if bootstrap[i] == ']' {
+		sep = ""
+	}
+	bad := `{"name":"lex","entries":[{"guards":[],"keys":["Mi"],"op":"∈","class":"KOhA","at":[9999,3]}],"at":[9999,1]}`
+	src["notation/bootstrap.json"] = bootstrap[:i] + bad + sep + bootstrap[i:]
+	_, err := LoadDialectSources(src, "p.md")
+	var e *Error
+	if !errors.As(err, &e) || e.Kind != ErrorGrammar || !strings.Contains(e.Message, "canonical sound") {
+		t.Fatalf("expected an error of the grammar, got %v", err)
+	}
+}
+
 // A constant nested too deeply is refused before any walk that recurses
 // (engine §9): a compiled.json entry is a miss, and a bootstrap is an error
 // of the grammar.
@@ -380,7 +467,7 @@ func TestDeepConstant(t *testing.T) {
 	deep := strings.Repeat(`{"union":[`, 2000) + `{"tag":"a"}` + strings.Repeat(`,{"tag":"B"}]}`, 2000)
 	k := `{"name":"K","op":"define","value":` + deep + `,"at":[9999,1]}`
 	src := oneStage("%ambiguity-resolution greedy\n%rule text 'a' 'b'")
-	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"seq":[{"terminal":"a"},{"terminal":"b"}]}}],"conditions":[],"at":[4,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[3,1]}],"constants":[` + k + `]}`
+	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"seq":[{"terminal":"a"},{"terminal":"b"}]}}],"conditions":[],"at":[4,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[3,1]}],"constants":[` + k + `],"classifiers":[],"implications":[]}`
 	if _, err := decodeDOM(json.RawMessage(dom), bundled.uni); err == nil || !strings.Contains(err.Error(), "nested more than 256 deep") {
 		t.Fatalf("a deep constant: expected the nesting error, got %v", err)
 	}

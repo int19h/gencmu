@@ -338,17 +338,31 @@ func (run *stageRun) inserted(tag string, at, start, end int, rule string) emitT
 	} else {
 		src = [2]int{src[0], src[0]}
 	}
-	tok := &Token{Text: "", Tags: []string{tag}, Span: [2]int{at, at}, Source: src, InsertedBy: rule}
-	if ph, ok := phonemeTag(tag); ok {
-		tok.Phonemes = ph
+	// The stage's implications apply before the phonemes (§11).
+	tags := run.implied(run.ps.in.single(tag))
+	tok := &Token{Text: "", Tags: tags.list(), Span: [2]int{at, at}, Source: src, InsertedBy: rule}
+	var phonemes []string
+	for _, name := range tags.names {
+		if ph, ok := phonemeTag(name); ok {
+			phonemes = append(phonemes, ph)
+		}
+	}
+	if len(phonemes) > 1 {
+		panic(&parseFailure{message: "an emitted token has two phoneme tags", token: start, tokenEnd: end, hasToken: true})
+	}
+	if len(phonemes) == 1 {
+		tok.Phonemes = phonemes[0]
 	}
 	return emitTask{tok: tok}
 }
 
-// emitted is the token a constituent emits, with the given tags.
-// widenedEnds holds where the widened tokens emitted before it end.
-func (run *stageRun) emitted(rec *recognizer, n *dn, tags *tagset, widenedEnds map[int]bool) Token {
+// emitted is the token a constituent emits, with the given explicit tags
+// and those its stage's implications add to them. widenedEnds holds where
+// the widened tokens emitted before it end.
+func (run *stageRun) emitted(rec *recognizer, n *dn, explicit *tagset, widenedEnds map[int]bool) Token {
 	a, b, _ := run.kidSpan(rec, n)
+	// The stage's implications apply before the phonemes (§11).
+	tags := run.implied(explicit)
 	// Two phoneme tags are an error on any token, verbatim or not (§5).
 	var phonemes []string
 	for _, name := range tags.names {

@@ -456,6 +456,56 @@ func TestConcurrentFeatures(t *testing.T) {
 	}
 }
 
+// TestConcurrentClassifiers shares one dialect among goroutines whose
+// parses resolve its classifier for different features, one of which makes
+// an entry an error of the grammar (engine §2); run it with -race.
+func TestConcurrentClassifiers(t *testing.T) {
+	d := mustLoad(t, map[string]string{
+		"p.md": block("%stage main", `%include "g.md"`),
+		"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%classifier lex\n  \"a\" ∈ A\n  f? \"a\" ∉ A\n  f? \"b\" ∈ A\n  g? \"a\" ∈ A\n" +
+			"%implies A ⟹ ~m\n%rule text [item] ...\n%rule item $c(letter) <~i ∪ classify(text($c), lex)>\n%emits\n  $\n%rule letter 'a' | 'b'\n```\n",
+	})
+	options := []ParseOptions{{}, {Features: []string{"f"}}, {Features: []string{"g"}}, {Features: []string{"f", "g"}}}
+	want := make([]string, len(options))
+	for i, o := range options {
+		res, err := d.Parse("ab", o)
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, _ := MarshalResult(res)
+		want[i] = string(data)
+	}
+	// With f, b is in A and a is not; with g alone, a is in A twice.
+	if !strings.Contains(want[0], `"tags":["A","i","m"]`) || !strings.Contains(want[1], `"tags":["A","i","m"]`) ||
+		!strings.Contains(want[2], `"kind":"grammar"`) || strings.Contains(want[3], `"kind":"grammar"`) {
+		t.Fatalf("unexpected results:\n%s", strings.Join(want, "\n"))
+	}
+	var wg sync.WaitGroup
+	errs := make(chan string, 64)
+	for g := 0; g < 16; g++ {
+		wg.Add(1)
+		go func(g int) {
+			defer wg.Done()
+			for i := range options {
+				k := (i + g) % len(options)
+				res, err := d.Parse("ab", options[k])
+				if err != nil {
+					errs <- err.Error()
+					return
+				}
+				if data, _ := MarshalResult(res); string(data) != want[k] {
+					errs <- "a concurrent parse differs"
+				}
+			}
+		}(g)
+	}
+	wg.Wait()
+	close(errs)
+	for e := range errs {
+		t.Fatal(e)
+	}
+}
+
 // TestDeepDerivations parses long inputs whose derivations nest as deep as
 // the input is long, to the left and, shorter since right recursion costs
 // an Earley recognizer quadratic time, to the right.
@@ -567,10 +617,10 @@ func TestMalformedPrecompiled(t *testing.T) {
 	format := strconv.Itoa(domFormat)
 	var doms []string
 	for _, expr := range bad {
-		doms = append(doms, `{"format":`+format+`,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":`+expr+`}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[]}`)
+		doms = append(doms, `{"format":`+format+`,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":`+expr+`}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`)
 	}
 	// Null in the rest of the DOM, where the other libraries refuse it too.
-	good := doms[0][:strings.Index(doms[0], `"expr":`)] + `"expr":{"seq":[{"terminal":"a"},{"terminal":"b"}]}}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[{"name":"K","op":"define","value":{"tag":"X"},"at":[3,1]}]}`
+	good := doms[0][:strings.Index(doms[0], `"expr":`)] + `"expr":{"seq":[{"terminal":"a"},{"terminal":"b"}]}}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[{"name":"K","op":"define","value":{"tag":"X"},"at":[3,1]}],"classifiers":[],"implications":[]}`
 	if _, err := decodeDOM([]byte(good), bundled.uni); err != nil {
 		t.Fatalf("the DOM the null cases change is refused: %v", err)
 	}
@@ -630,7 +680,7 @@ func TestMalformedCharacterClasses(t *testing.T) {
 	gText := sources["g.md"]
 	format := strconv.Itoa(domFormat)
 	dom := func(expr string) string {
-		return `{"format":` + format + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[3,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[]}`
+		return `{"format":` + format + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[3,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`
 	}
 	compiled := func(dom string) map[string]string {
 		src := map[string]string{}
@@ -841,7 +891,7 @@ func TestEmptyCharacterTag(t *testing.T) {
 		t.Fatalf("expected an error at 5:12, got %v", err)
 	}
 	loadBundled()
-	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"terminal":""}}],"conditions":[],"at":[1,1]}],"directives":[],"constants":[]}`
+	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"terminal":""}}],"conditions":[],"at":[1,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
 	if _, err := decodeDOM([]byte(dom), bundled.uni); err == nil {
 		t.Fatal("a DOM with the terminal \"\" is accepted")
 	}

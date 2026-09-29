@@ -9,12 +9,14 @@ import (
 // by the items of the document it names, split into stages at each %stage
 // (engine §13).
 
-// docItem is an item of a document: a rule, a directive or a constant's
-// definition.
+// docItem is an item of a document: a rule, a directive, a constant's
+// definition, a classifier or an implication.
 type docItem struct {
-	rule     *domRule
-	dir      *domDirective
-	constant *domConst
+	rule        *domRule
+	dir         *domDirective
+	constant    *domConst
+	classifier  *domClassifier
+	implication *domImplication
 }
 
 func (it docItem) at() [2]int {
@@ -23,15 +25,19 @@ func (it docItem) at() [2]int {
 		return it.rule.At
 	case it.constant != nil:
 		return it.constant.At
+	case it.classifier != nil:
+		return it.classifier.At
+	case it.implication != nil:
+		return it.implication.At
 	}
 	return it.dir.At
 }
 
-// itemsInOrder lists a document's rules, directives and constants in the
-// order they were written, which is the order of their positions (engine
-// §9).
+// itemsInOrder lists a document's rules, directives, constants,
+// classifiers and implications in the order they were written, which is
+// the order of their positions (engine §9).
 func itemsInOrder(dom *domDoc) []docItem {
-	items := make([]docItem, 0, len(dom.Rules)+len(dom.Directives)+len(dom.Constants))
+	items := make([]docItem, 0, len(dom.Rules)+len(dom.Directives)+len(dom.Constants)+len(dom.Classifiers)+len(dom.Implications))
 	for _, r := range dom.Rules {
 		items = append(items, docItem{rule: r})
 	}
@@ -40,6 +46,12 @@ func itemsInOrder(dom *domDoc) []docItem {
 	}
 	for _, k := range dom.Constants {
 		items = append(items, docItem{constant: k})
+	}
+	for _, c := range dom.Classifiers {
+		items = append(items, docItem{classifier: c})
+	}
+	for _, m := range dom.Implications {
+		items = append(items, docItem{implication: m})
 	}
 	sort.SliceStable(items, func(i, j int) bool {
 		a, b := items[i].at(), items[j].at()
@@ -132,10 +144,16 @@ func splicePipeline(pipelinePath string, domOf func(p string) (*domDoc, *Error))
 					if item.constant != nil {
 						return grammarError(docPath, at, "the constant $%s stands before the first %%stage", item.constant.Name)
 					}
+					if item.classifier != nil {
+						return grammarError(docPath, at, "the classifier %s stands before the first %%stage", item.classifier.Name)
+					}
+					if item.implication != nil {
+						return grammarError(docPath, at, "%%implies stands before the first %%stage")
+					}
 					return grammarError(docPath, at, "%%%s stands before the first %%stage", item.dir.Name)
 				}
 				if run == nil || runPath != docPath {
-					run, runPath = &domDoc{Rules: []*domRule{}, Directives: []*domDirective{}, Constants: []*domConst{}}, docPath
+					run, runPath = &domDoc{Rules: []*domRule{}, Directives: []*domDirective{}, Constants: []*domConst{}, Classifiers: []*domClassifier{}, Implications: []*domImplication{}}, docPath
 					s.documents = append(s.documents, docDOM{path: docPath, dom: run})
 				}
 				switch {
@@ -143,6 +161,10 @@ func splicePipeline(pipelinePath string, domOf func(p string) (*domDoc, *Error))
 					run.Rules = append(run.Rules, item.rule)
 				case item.constant != nil:
 					run.Constants = append(run.Constants, item.constant)
+				case item.classifier != nil:
+					run.Classifiers = append(run.Classifiers, item.classifier)
+				case item.implication != nil:
+					run.Implications = append(run.Implications, item.implication)
 				default:
 					run.Directives = append(run.Directives, item.dir)
 				}

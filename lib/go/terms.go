@@ -188,6 +188,20 @@ func (ev *evaluator) term(t *domTerm) value {
 				return value{kind: vSet, set: tags}
 			}
 			return value{kind: vSet, set: ev.spanTags(s)}
+		case "classify":
+			// The classes that the classifier gives the string, for the
+			// features of the parse, or none for an unknown key (§10).
+			classes := ev.g.classifiers[t.Items[1].Str][ev.str(t.Items[0])]
+			if classes == nil {
+				return value{kind: vSet, set: in.empty()}
+			}
+			ps := ev.run.ps
+			set := ps.consts[classes]
+			if set == nil {
+				set = in.make(classes.names)
+				ps.consts[classes] = set
+			}
+			return value{kind: vSet, set: set}
 		case "classes":
 			all := ev.spanTags(ev.span(t.Items[0]))
 			var names []string
