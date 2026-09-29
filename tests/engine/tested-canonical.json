@@ -1,0 +1,18 @@
+{
+  "description": "A sound test compares its string with the canonical sound of its span, so a comma and a capital in the token's phonemes do not count (engine §4, §5).",
+  "grammar": "%rule text A=\"koa\"",
+  "tokens": [
+    {
+      "text": "ko,A",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "ko,A"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

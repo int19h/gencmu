@@ -1,6 +1,6 @@
 # jbogenbau: from characters to tokens
 
-This is the first stage of the notation dialect, `../dialects/notation.md`. A stage is one step of a pipeline, with its own grammar. The stage reads the text of a grammar document's `jbogenbau` blocks, one token (a unit of input) per character. It hands the notation's tokens to the second stage, `syntax.md`. These tokens are names, strings, tag literals, phoneme tags, character tags, properties, spellings, captures, constants, guards, keywords and symbols. The stage drops what carries no meaning: the spaces between tokens, and the comments.
+This is the first stage of the notation dialect, `../dialects/notation.md`. A stage is one step of a pipeline, with its own grammar. The stage reads the text of a grammar document's `jbogenbau` blocks, one token (a unit of input) per character. It hands the notation's tokens to the second stage, `syntax.md`. These tokens are names, strings, tag literals, phoneme tags, character tags, properties, captures, constants, guards, keywords and symbols. The stage drops what carries no meaning: the spaces between tokens, and the comments.
 
 `../../docs/notation.md` explains the notation. This document and `syntax.md` define it.
 
@@ -23,7 +23,7 @@ A text is any number of pieces, each a token or layout.
   [piece] ...
 
 %rule piece
-  | word | string | tag-literal | phoneme | character-tag | property | spelling
+  | word | string | tag-literal | phoneme | character-tag | property
   | capture | constant | guard | keyword | symbol | negation | layout
 ```
 
@@ -128,24 +128,6 @@ A property is a quote, `\p`, and anything up to the next quote that no backslash
   '\p{Any}'
 ```
 
-## Spellings
-
-A spelling says what a symbol must sound like, as in ``LE`la` ``. It is the characters between two backticks. It has no escapes, so it cannot hold a backtick. The second stage's reader rejects empty spellings and spellings that lowercasing changes (`../../docs/engine.md`, §9). This stage only finds the spelling's end. So two backticks with nothing between them are still one token, which the reader reports.
-
-```jbogenbau
-%rule spelling
-  '`' [spelling-part] ... '`'
-%tags
-  ~spelling
-%emits
-  $
-
-%rule spelling-part
-  $c(character)
-%conditions
-  text($c) ≠ "`"
-```
-
 ## Captures, constants, guards and keywords
 
 A capture is `$` and a name that begins with a lower-case letter, or `$` alone for the whole constituent. A constant is `$` and a name that begins with a capital, such as `$SU-STOPS`. The stage tags it `constant`.
@@ -230,12 +212,12 @@ A keyword is `%` and a name. The stage tags each keyword that the notation knows
 
 ## Symbols
 
-Every other token is a symbol. A symbol of one character keeps the character tag of its one character, such as `'|'`. The rule for `...` tags it `ellipsis`, and `..`, which joins the two ends of a range, is `double-dot`.
+Every other token is a symbol. A symbol of one character keeps the character tag of its one character, such as `'|'`. `⊇` and `⊉` stand only in a test in a body, such as `UI⊇~indicator`. The rule for `...` tags it `ellipsis`, and `..`, which joins the two ends of a range, is `double-dot`.
 
 ```jbogenbau
 %rule symbol
   | '|' | '&' | '(' | ')' | '[' | ']' | '<' | '>' | '#' | 'ε' | ',' | '∧' | '∨' | '⟹'
-  | '=' | '≠' | '∈' | '∉' | '⊆' | '⊈' | '∪' | '∩' | '∖' | '∅'
+  | '=' | '≠' | '∈' | '∉' | '⊆' | '⊈' | '⊇' | '⊉' | '∪' | '∩' | '∖' | '∅'
   | '.' '.' '.' <~ellipsis>
   | '.' '.' <~double-dot>
 %emits

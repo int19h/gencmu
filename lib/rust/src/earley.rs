@@ -4,7 +4,7 @@
 
 use crate::fxhash::{FxMap, FxSet};
 
-use crate::lower::{Characters, CmpOp, LCond, LTerm, Lowered, Span, Sym};
+use crate::lower::{Characters, CmpOp, LCond, LTerm, Lowered, Span, Sym, SymbolTest, TestOp};
 use crate::tags::{character_tag, difference, intersection, is_name, is_subset, union, SetId, TagId, TagList, Tags};
 use crate::unicode::Unicode;
 
@@ -37,7 +37,7 @@ pub(crate) struct Tok {
     pub source: (usize, usize),
     /// Whether its phonemes are its text (§11).
     pub verbatim: bool,
-    /// Its phonemes in canonical form, for the spellings of symbols and for
+    /// Its phonemes in canonical form, for the sound tests of symbols and for
     /// `phonemes()`, computed when one first looks at the token (§4, §5).
     pub sound: std::cell::OnceCell<Box<str>>,
 }
@@ -52,18 +52,34 @@ impl Tok {
     }
 }
 
-/// Whether `tokens` sound like a spelling: their canonical sound is exactly
-/// it (§4, §5). A token with no phonemes adds nothing, and a spelling is
-/// never empty, so neither such a token alone nor an empty span matches.
-pub(crate) fn sounds_like(tokens: &[Tok], unicode: &Unicode, spelling: &str) -> bool {
-    let mut rest = spelling;
+/// Whether `tokens` sound like a string: their canonical sound is exactly
+/// it (§4, §5). A token with no phonemes adds nothing, so an empty span
+/// sounds like the empty string.
+fn sounds_like(tokens: &[Tok], unicode: &Unicode, sound: &str) -> bool {
+    let mut rest = sound;
     for token in tokens {
         match rest.strip_prefix(token.sound(unicode)) {
             Some(after) => rest = after,
             None => return false,
         }
     }
-    rest.is_empty() && !spelling.is_empty()
+    rest.is_empty()
+}
+
+/// Whether a test holds of a symbol's own span, `tokens`, and its own tags,
+/// `set`: a token's for a terminal, the completed item's for a reference
+/// (§4). A tag the table has never seen is in no set.
+pub(crate) fn test_holds(test: &SymbolTest, tokens: &[Tok], unicode: &Unicode, tags: &Tags, set: SetId) -> bool {
+    let has = |tag: &String| tags.lookup(tag).is_some_and(|tag| tags.contains(set, tag));
+    match test.op {
+        TestOp::Is | TestOp::IsNot => {
+            sounds_like(tokens, unicode, test.sound.as_deref().unwrap_or("")) == (test.op == TestOp::Is)
+        }
+        TestOp::Superset => test.tags.iter().all(has),
+        TestOp::NotSuperset => !test.tags.iter().all(has),
+        TestOp::Disjoint => !test.tags.iter().any(has),
+        TestOp::Meets => test.tags.iter().any(has),
+    }
 }
 
 /// A captured part: its span, relative to the parse's tokens, and its tag set.
@@ -444,10 +460,11 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     ) -> Result<(), EngineError> {
         let g = self.g;
         let production = &g.prods[item.prod as usize];
-        // A spelled symbol's span must sound like its spelling, which is
-        // checked before any condition the advance makes ready (§4).
-        if let Some(spelling) = production.spelling(item.dot as usize) {
-            if !sounds_like(&tokens[cap.start as usize..cap.end as usize], self.shared.unicode, spelling) {
+        // A tested symbol's test must hold of its own span and tags, which
+        // is checked before any condition the advance makes ready (§4).
+        if let Some(test) = g.test(item.prod, item.dot as usize) {
+            let span = &tokens[cap.start as usize..cap.end as usize];
+            if !test_holds(test, span, self.shared.unicode, &self.shared.tags, cap.tags) {
                 return Ok(());
             }
         }

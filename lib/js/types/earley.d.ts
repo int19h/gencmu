@@ -1,5 +1,5 @@
 import { Sources } from "./tokens.js";
-import type { Argument, Condition, Edge, Expectation, LoweredGrammar, Production, Scope, Slot, TagSet, TermValue } from "./types.js";
+import type { Argument, Condition, Edge, Expectation, LoweredGrammar, Production, Scope, Slot, SymbolTest, TagSet, TermValue } from "./types.js";
 import type { Token } from "./tokens.js";
 import type { UnicodeTable } from "./unicode.js";
 export type Chart = {
@@ -18,7 +18,7 @@ export type Chart = {
     context: ParseContext;
 };
 /**
- * @import { Argument, CharacterClass, Condition, Edge, Expectation, GrammarSymbol, LoweredGrammar, Production, Scope, Slot, SpanValue, TagSet, Term, TermValue } from "./types.js"
+ * @import { Argument, CharacterClass, Condition, Edge, Expectation, GrammarSymbol, LoweredGrammar, Production, Scope, Slot, SpanValue, SymbolTest, TagSet, Term, TermValue } from "./types.js"
  * @import { Token } from "./tokens.js"
  * @import { UnicodeTable } from "./unicode.js"
  */
@@ -59,7 +59,7 @@ export declare class ParseContext {
     unicode: UnicodeTable;
     interner: TagInterner;
     /**
-     * Each token's phonemes in canonical form, for the spellings of
+     * Each token's phonemes in canonical form, for the sound tests of
      * symbols and for phonemes(), computed when one first looks at the
      * token (engine §4, §5).
      * @type {(string | undefined)[]}
@@ -105,10 +105,10 @@ export type TraceEvent = {
      */
     condition?: Condition;
     /**
-     * for a drop, the spelling of the symbol the
-     * item would have advanced over, which its span did not match
+     * for a drop, the test of the symbol the item
+     * would have advanced over, which did not hold
      */
-    spelling?: string;
+    test?: SymbolTest;
 };
 /**
  * Something the recognizer did at the traced position: an item predicted,
@@ -119,8 +119,8 @@ export type TraceEvent = {
  * @property {number} dot the dot of the item made, or of the item refused
  * @property {number} origin
  * @property {Condition} [condition] for a drop, the condition that failed
- * @property {string} [spelling] for a drop, the spelling of the symbol the
- *   item would have advanced over, which its span did not match
+ * @property {SymbolTest} [test] for a drop, the test of the symbol the item
+ *   would have advanced over, which did not hold
  */
 export declare class Item {
     production: Production;
@@ -185,27 +185,27 @@ export declare class ChartSet {
  */
 export declare function recognize(context: ParseContext, rule: string, start: number, end: number): Chart;
 /**
- * A symbol as the diagnostics write it: its name, followed by its spelling
- * in backticks if it has one, such as LE`la` (docs/output.md).
- * @param {{name: string, spelling?: string}} symbol
+ * A symbol as the diagnostics write it: its name, followed by its test if
+ * it has one, such as LE="la" (docs/output.md).
+ * @param {{name: string, test?: SymbolTest | null}} symbol
  * @returns {string}
  */
 export declare function writtenSymbol(symbol: {
     name: string;
-    spelling?: string;
+    test?: SymbolTest | null;
 }): string;
 /**
- * Whether the tokens [from, to) sound like a spelling: their canonical
- * sound is exactly it (engine §4, §5). A token with no
- * phonemes adds nothing, and a spelling is never empty, so neither such a
- * token alone nor an empty span matches.
+ * Whether a test holds of a symbol's own span, the tokens [from, to), and
+ * its own tags (engine §4): a token's for a terminal, the completed item's
+ * for a reference. An empty span sounds like the empty string.
  * @param {ParseContext} context
- * @param {string} spelling
+ * @param {SymbolTest} test
  * @param {number} from
  * @param {number} to
+ * @param {TagSet} tags
  * @returns {boolean}
  */
-export declare function spellingMatches(context: ParseContext, spelling: string, from: number, to: number): boolean;
+export declare function testHolds(context: ParseContext, test: SymbolTest, from: number, to: number, tags: TagSet): boolean;
 /**
  * The completed items of `rule` spanning [start, end).
  * @param {Chart} chart

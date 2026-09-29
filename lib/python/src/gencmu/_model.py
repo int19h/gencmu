@@ -44,9 +44,9 @@ class Node:
     ``token``, the index of the stage-input token it read. That terminal is
     a tag, or the written form of a range or a property, such as
     ``'a'..'z'`` or ``'\\p{L}'`` (engine §4). An elided node
-    has ``terminal``, the terminator it stands for, and ``spelling``, the
-    terminator's spelling if it is spelled, which elision-only's restored
-    token sounds like (engine §7) and the output does not show.
+    has ``terminal``, the terminator it stands for, and ``sound``, the
+    string of the terminator's ``=`` test if it has one, which elision-only's
+    restored token sounds like (engine §7) and the output does not show.
     """
 
     kind: str
@@ -57,7 +57,7 @@ class Node:
     token: int | None = None
     tags: Tags | None = None
     children: list[Node] = field(default_factory=list)
-    spelling: str | None = None
+    sound: str | None = None
 
 
 @dataclass

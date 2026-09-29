@@ -1,0 +1,21 @@
+{
+  "description": "A string constant in a sound test must be a canonical sound. The loader checks it when it stitches the stage, and the error of the document stands at the reference to the constant (engine §2, §9).",
+  "grammar": "%const $LA \"La\"\n%rule text LE=$LA",
+  "tokens": [
+    {
+      "text": "la",
+      "tags": [
+        "LE"
+      ],
+      "phonemes": "la"
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 15
+    }
+  }
+}

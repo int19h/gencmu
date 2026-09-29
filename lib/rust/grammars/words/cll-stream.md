@@ -12,11 +12,8 @@ The stage gives the warning where it reads the word as a Lojban word. That is, t
 
 ```jbogenbau
 %redefine-rule cmavo-token
-  | $c(~cmavo) <tags($c)>
-  | y-cmavo! $w(~cmavo) <tags($w)>
-%conditions
-  ~cmavo-warning ⊈ tags($c),
-  ~cmavo-warning ⊆ tags($w)
+  | ~cmavo⊉~cmavo-warning
+  | y-cmavo! ~cmavo⊇~cmavo-warning
 ```
 
 A name that `bu` takes needs a pause on both sides of it in the source (CLL 17.4). The forms stage puts one after every name, because CLL 4.9 rule 2 needs one there. It tags the first word of each run `run-initial`. A run is a stretch with no internal pause. In CLL, a name that is not the first word of its run follows `la`, `lai`, `la'i` or `doi` directly, with no pause before it. So the name must be the first word of its run: `ladjan.bu` and `ladjan.mi si bu` are no texts, and `la.djan.bu` is `la` and a letter word.

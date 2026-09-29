@@ -51,11 +51,9 @@ A word of LU, TO or LUhEI opens a text of its own. The hesitation after such a w
   RAhOI ⊆ tags($q)
 
 %extend-rule run
-  $w(run-words) $s(rahoi-rest)
+  run-words⊇RAhOI $s(rahoi-rest)
 %tags
   tags($s)
-%conditions
-  RAhOI ⊆ tags($w)
 
 %redefine-rule run-words
   | $f(first-word) <tags($f) ∪ (~hesitation ⊆ tags($f) ⟹ ~spacing)>
@@ -109,34 +107,25 @@ A word of LU, TO or LUhEI opens a text of its own. The hesitation after such a w
 
 %rule space-hesitation
   (* initial_spaces <- (space_char / !ybu Y)+ EOF? / EOF: after space, every Y word is space *)
-  $w(source-word)
-%conditions
-  ~hesitation ⊆ tags($w)
+  $w(source-word⊇~hesitation)
 %emits
   $ <tags($w) ∪ ~spacing ∪ (¬begins(after($w), letter) ⟹ ~run-final)>
 
 %rule opener-space
   (* a hesitation after lu, to or lu'ei, or after such a hesitation: space if that word opens a text *)
-  $w(source-word)
-%conditions
-  ~hesitation ⊆ tags($w)
+  $w(source-word⊇~hesitation)
 %emits
   $ <tags($w) ∪ ~opener-space ∪ (¬begins(after($w), letter) ⟹ ~run-final)>
 
 %rule space-piece
   (* the next piece of one run of y letters inside space *)
-  $w(source-word)
-%conditions
-  ~y-letters ⊆ tags($w)
+  $w(source-word⊇~y-letters)
 %emits
   $ <tags($w) ∪ ~spacing ∪ ~after-hesitation ∪ (¬begins(after($w), letter) ⟹ ~run-final)>
 
 %rule only-hesitation
   (* spaces? after RAhOI: a run that is only hesitation, which passes RAhOI on to the run after it *)
-  $y(first-word) | only-hesitation $z(later-word) | only-hesitation joined-hesitation
-%conditions
-  ~hesitation ⊆ tags($y),
-  ~hesitation ⊆ tags($z)
+  first-word⊇~hesitation | only-hesitation later-word⊇~hesitation | only-hesitation joined-hesitation
 
 %rule rahoi-form
   (* RAhOI_pre <- pre_clause RAhOI spaces? (y_rafsi / long_rafsi / y_less_rafsi / gismu) spaces? *)
@@ -163,9 +152,7 @@ The stage tags `opener-space` a hesitation directly after `lu`, `to` or `lu'ei`,
 ```jbogenbau
 %rule joined-hesitation
   (* Y <- &cmavo ( y+ / ie'o ) &post_word *)
-  $w(source-word)
-%conditions
-  ~y-letters ⊆ tags($w)
+  $w(source-word⊇~y-letters)
 %emits
   $ <tags($w) ∪ ~after-hesitation ∪ (¬begins(after($w), letter) ⟹ ~run-final)>
 ```

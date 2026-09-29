@@ -1,0 +1,10 @@
+{
+  "description": "A constant cannot stand in a body, with a test or without one. The error is at the constant (engine §9).",
+  "document": "```jbogenbau\n%rule a B $A=\"a\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 11
+    }
+  }
+}

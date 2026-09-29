@@ -114,6 +114,101 @@ pub(crate) enum LEmit {
     Items(Vec<LEmitItem>),
 }
 
+/// The comparator of a test in a body (engine §2, §4).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum TestOp {
+    /// `X="s"`: the canonical sound of the span is `s`.
+    Is,
+    /// `X≠"s"`.
+    IsNot,
+    /// `X⊇t`: the own tags include every tag of `t`.
+    Superset,
+    /// `X⊉t`.
+    NotSuperset,
+    /// `X∩t=∅`: the own tags include no tag of `t`.
+    Disjoint,
+    /// `X∩t≠∅`.
+    Meets,
+}
+
+/// A test of a lowered symbol, with its value: a string for a sound test
+/// and a tag set for a tag test, and the test as an expected list writes
+/// it after its terminal (docs/output.md).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct SymbolTest {
+    pub op: TestOp,
+    /// The string of a sound test.
+    pub sound: Option<String>,
+    /// The tags of a tag test, in code point order.
+    pub tags: Vec<String>,
+    pub written: String,
+}
+
+/// The id of no test, in a production's `tests`.
+pub(crate) const NO_TEST: u32 = u32::MAX;
+
+impl SymbolTest {
+    /// A test from its comparator and its value, which stitching has made a
+    /// string, `∅`, a tag or a union of tags (engine §2).
+    fn new(op: &str, value: &Term) -> SymbolTest {
+        let op = match op {
+            "=" => TestOp::Is,
+            "≠" => TestOp::IsNot,
+            "⊇" => TestOp::Superset,
+            "⊉" => TestOp::NotSuperset,
+            "∩=∅" => TestOp::Disjoint,
+            _ => TestOp::Meets,
+        };
+        let (sound, tags) = match value {
+            Term::Str(text) => (Some(text.clone()), Vec::new()),
+            Term::Tag(tag) => (None, vec![tag.clone()]),
+            Term::Union(items) => {
+                let mut tags: Vec<String> = items
+                    .iter()
+                    .filter_map(|item| match item {
+                        Term::Tag(tag) => Some(tag.clone()),
+                        _ => None,
+                    })
+                    .collect();
+                tags.sort();
+                tags.dedup();
+                (None, tags)
+            }
+            _ => (None, Vec::new()),
+        };
+        // The value in canonical form: a string between double quotes, a
+        // backslash before each `\` and `"`; a tag set as `∅`, its one tag,
+        // or its tags joined by ` ∪ ` in parentheses.
+        let value = match &sound {
+            Some(text) => {
+                let mut written = String::from("\"");
+                for c in text.chars() {
+                    if c == '\\' || c == '"' {
+                        written.push('\\');
+                    }
+                    written.push(c);
+                }
+                written.push('"');
+                written
+            }
+            None => match &tags[..] {
+                [] => "∅".to_string(),
+                [tag] => tag.clone(),
+                tags => format!("({})", tags.join(" ∪ ")),
+            },
+        };
+        let written = match op {
+            TestOp::Is => format!("={value}"),
+            TestOp::IsNot => format!("≠{value}"),
+            TestOp::Superset => format!("⊇{value}"),
+            TestOp::NotSuperset => format!("⊉{value}"),
+            TestOp::Disjoint => format!("∩{value}=∅"),
+            TestOp::Meets => format!("∩{value}≠∅"),
+        };
+        SymbolTest { op, sound, tags, written }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct Prod {
     /// The nonterminal this production defines.
@@ -124,9 +219,10 @@ pub(crate) struct Prod {
     pub syms: Vec<Sym>,
     /// For each position, its capture slot.
     pub cap_at: Vec<Option<u8>>,
-    /// For each position, the spelling its symbol's span must sound like
-    /// (engine §4); empty when no symbol of the production is spelled.
-    pub spell: Vec<Option<Arc<str>>>,
+    /// For each position, the id of its symbol's test in the grammar's
+    /// `tests`, or `NO_TEST` (engine §4); empty when no symbol of the
+    /// production is tested.
+    pub tests: Vec<u32>,
     /// For each capture slot, its position.
     pub cap_pos: Vec<u16>,
     pub tags: Option<LTerm>,
@@ -155,16 +251,16 @@ pub(crate) struct LRule {
     /// For the helper of an optional that begins with an elidable
     /// terminator: that terminator (§12).
     pub elided: Option<String>,
-    /// That terminator's spelling, if it is spelled, which a restored
-    /// token sounds like (engine §7).
-    pub elided_spelling: Option<Arc<str>>,
+    /// The id of that terminator's test, if it has one: an `=` test,
+    /// whose string a restored token sounds like (engine §7).
+    pub elided_test: Option<u32>,
 }
 
 impl Prod {
-    /// The spelling of the symbol at `dot`, if it has one.
+    /// The id of the test of the symbol at `dot`, if it has one.
     #[inline]
-    pub(crate) fn spelling(&self, dot: usize) -> Option<&str> {
-        self.spell.get(dot).and_then(|spelling| spelling.as_deref())
+    pub(crate) fn test(&self, dot: usize) -> Option<u32> {
+        self.tests.get(dot).copied().filter(|&test| test != NO_TEST)
     }
 }
 
@@ -173,6 +269,8 @@ pub(crate) struct Lowered {
     pub rules: Vec<LRule>,
     pub prods: Vec<Prod>,
     pub terminals: Vec<String>,
+    /// The tests of the grammar's symbols, by id (engine §4).
+    pub tests: Vec<SymbolTest>,
     /// For each terminal, the characters it matches if it is a range or a
     /// property, whose name is then its written form (engine §4).
     pub characters: Vec<Option<Characters>>,
@@ -184,14 +282,22 @@ pub(crate) struct Lowered {
     pub cyclic: Vec<bool>,
 }
 
-/// A symbol, its capture name and its spelling.
-type Item = (Sym, Option<String>, Option<Arc<str>>);
+impl Lowered {
+    /// The test of the symbol at `dot` of a production, if it has one.
+    #[inline]
+    pub(crate) fn test(&self, prod: u32, dot: usize) -> Option<&SymbolTest> {
+        self.prods[prod as usize].test(dot).map(|test| &self.tests[test as usize])
+    }
+}
+
+/// A symbol, its capture name and the id of its test.
+type Item = (Sym, Option<String>, Option<u32>);
 type Sequence = Vec<Item>;
 
 struct HelperDef {
     owner: u32,
     prods: Vec<Sequence>,
-    elided: Option<(String, Option<Arc<str>>)>,
+    elided: Option<(String, Option<u32>)>,
     /// The helpers of the places written inside this one, in order.
     children: Vec<usize>,
 }
@@ -202,6 +308,7 @@ struct Lowerer<'a> {
     terminals: Vec<String>,
     characters: Vec<Option<Characters>>,
     terminal_index: FxMap<String, u32>,
+    tests: Vec<SymbolTest>,
     helpers: Vec<HelperDef>,
     owner: u32,
     /// For each place of sugar being expanded, and the alternative itself at
@@ -235,8 +342,37 @@ impl<'a> Lowerer<'a> {
         id
     }
 
+    /// A test's id: one test for each comparator and value.
+    fn test(&mut self, op: &str, value: &Term) -> u32 {
+        let test = SymbolTest::new(op, value);
+        match self.tests.iter().position(|known| *known == test) {
+            Some(id) => id as u32,
+            None => {
+                self.tests.push(test);
+                (self.tests.len() - 1) as u32
+            }
+        }
+    }
+
+    /// The terminal an optional's content begins with, if it is a symbol or
+    /// a sequence that begins, recursively, with one, and the id of its
+    /// test, if it is tested.
+    fn elidable_terminal(&mut self, expr: &Expr) -> Option<(String, Option<u32>)> {
+        match expr {
+            Expr::Ref(name) if is_terminal_name(name) => Some((name.clone(), None)),
+            Expr::Terminal(name) => Some((name.clone(), None)),
+            Expr::Tested(op, value, inner) => match inner.as_ref() {
+                Expr::Ref(name) if is_terminal_name(name) => Some((name.clone(), Some(self.test(op, value)))),
+                Expr::Terminal(name) => Some((name.clone(), Some(self.test(op, value)))),
+                _ => None,
+            },
+            Expr::Seq(items) => items.first().and_then(|first| self.elidable_terminal(first)),
+            _ => None,
+        }
+    }
+
     /// Makes the helper of a place whose inside `enter` began.
-    fn helper(&mut self, prods: Vec<Sequence>, elided: Option<(String, Option<Arc<str>>)>) -> Sym {
+    fn helper(&mut self, prods: Vec<Sequence>, elided: Option<(String, Option<u32>)>) -> Sym {
         let id = (self.grammar.rules.len() + self.helpers.len()) as u32;
         let children = self.places.pop().expect("a place entered");
         self.places.last_mut().expect("an alternative").push(self.helpers.len());
@@ -312,9 +448,9 @@ impl<'a> Lowerer<'a> {
                 let body = self.expand(inner);
                 // An optional of a symbol, or of a sequence that begins with
                 // one, is elidable when that symbol is an elidable
-                // terminal, spelled or not; one of a choice or an `&` never
+                // terminal, tested or not; one of a choice or an `&` never
                 // is (§3.8).
-                let elided = elidable_terminal(inner).filter(|(name, _)| self.grammar.elidable.contains(name));
+                let elided = self.elidable_terminal(inner).filter(|(name, _)| self.grammar.elidable.contains(name));
                 let mut prods = Vec::new();
                 if !(self.mandatory && elided.is_some()) {
                     prods.push(Vec::new());
@@ -340,14 +476,14 @@ impl<'a> Lowerer<'a> {
                 let terminal = self.terminal(&property_name(name), Some(Characters::Property(property)));
                 vec![vec![(Sym::T(terminal), None, None)]]
             }
-            // A spelled symbol lowers to its symbol with the spelling, and
-            // adds no helper (§3).
-            Expr::Spelled(spelling, inner) => {
+            // A tested symbol lowers to its symbol with the test, and adds
+            // no helper (§3).
+            Expr::Tested(op, value, inner) => {
+                let test = self.test(op, value);
                 let mut out = self.expand(inner);
-                let spelling: Arc<str> = spelling.as_str().into();
                 for sequence in &mut out {
                     if let Some(item) = sequence.first_mut() {
-                        item.2 = Some(spelling.clone());
+                        item.2 = Some(test);
                     }
                 }
                 out
@@ -363,21 +499,6 @@ impl<'a> Lowerer<'a> {
             }
             Expr::Empty => vec![Vec::new()],
         }
-    }
-}
-
-/// The terminal an optional's content begins with, if it is a symbol or a
-/// sequence that begins, recursively, with one, and its spelling, if it is
-/// spelled.
-fn elidable_terminal(expr: &Expr) -> Option<(String, Option<Arc<str>>)> {
-    match expr {
-        Expr::Ref(name) if is_terminal_name(name) => Some((name.clone(), None)),
-        Expr::Terminal(name) => Some((name.clone(), None)),
-        Expr::Spelled(spelling, inner) => {
-            elidable_terminal(inner).map(|(name, _)| (name, Some(spelling.as_str().into())))
-        }
-        Expr::Seq(items) => items.first().and_then(elidable_terminal),
-        _ => None,
     }
 }
 
@@ -531,6 +652,7 @@ pub(crate) fn lower(
         terminals: Vec::new(),
         characters: Vec::new(),
         terminal_index: FxMap::default(),
+        tests: Vec::new(),
         helpers: Vec::new(),
         owner: 0,
         places: Vec::new(),
@@ -616,7 +738,7 @@ pub(crate) fn lower(
             helper: false,
             prods: Vec::new(),
             elided: None,
-            elided_spelling: None,
+            elided_test: None,
         })
         .collect();
     for helper in &lowerer.helpers {
@@ -625,7 +747,7 @@ pub(crate) fn lower(
             helper: true,
             prods: Vec::new(),
             elided: helper.elided.as_ref().map(|(name, _)| name.clone()),
-            elided_spelling: helper.elided.as_ref().and_then(|(_, spelling)| spelling.clone()),
+            elided_test: helper.elided.as_ref().and_then(|(_, test)| *test),
         });
     }
     let mut order: Vec<Pending> = Vec::new();
@@ -650,8 +772,8 @@ pub(crate) fn lower(
     let mut prods = Vec::with_capacity(order.len());
     'productions: for pending in order {
         let syms: Vec<Sym> = pending.sequence.iter().map(|(sym, _, _)| *sym).collect();
-        let spell: Vec<Option<Arc<str>>> = if pending.sequence.iter().any(|(_, _, spelling)| spelling.is_some()) {
-            pending.sequence.iter().map(|(_, _, spelling)| spelling.clone()).collect()
+        let tests: Vec<u32> = if pending.sequence.iter().any(|(_, _, test)| test.is_some()) {
+            pending.sequence.iter().map(|(_, _, test)| test.unwrap_or(NO_TEST)).collect()
         } else {
             Vec::new()
         };
@@ -674,7 +796,7 @@ pub(crate) fn lower(
             syms,
             cap_at,
             cap_pos,
-            spell,
+            tests,
             tags: None,
             emit: LEmit::None,
             verbatim: false,
@@ -800,7 +922,8 @@ pub(crate) fn lower(
     }
 
     let cyclic = cyclic_rules(&rules, &prods);
-    Ok(Lowered { start: grammar.index["text"] as u32, rules, prods, terminals, characters, cyclic })
+    let tests = std::mem::take(&mut lowerer.tests);
+    Ok(Lowered { start: grammar.index["text"] as u32, rules, prods, terminals, tests, characters, cyclic })
 }
 
 /// The nonterminals that lie on a cycle of the unit graph.

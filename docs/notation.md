@@ -62,17 +62,29 @@ A range, `'a'..'z'`, is the character tags from `'a'` to `'z'`, by scalar value.
 
 A property, `'\p{L}'`, is the characters that have a property in the Unicode data of `grammars/unicode.txt`. Its name is a General_Category value in its short form, such as `Lu` or `Nd`. It can also name a group of values by their first letter, such as `L`. `White_Space` and `Any`, every character, are the two other names. The case of a name counts, and no long name or alias is a property, so `'\p{lu}'` and `'\p{Letter}'` are errors. The engine documentation lists every name (`docs/engine.md`, §1).
 
-A range and a property are terminals in a body. Each matches a token that carries one of its characters, once, with one reading. A capture can wrap either one, as in `$c('0'..'9')`. Neither takes a spelling, and `%elidable` and `%emits` take neither. In the expected terminals and the tree, each stands as its written form, such as `'a'..'z'`.
+A range and a property are terminals in a body. Each matches a token that carries one of its characters, once, with one reading. A capture can wrap either one, as in `$c('0'..'9')`. Either one can take a test (see "Tests"). `%elidable` and `%emits` take neither. In the expected terminals and the tree, each stands as its written form, such as `'a'..'z'`.
 
-A string is text in straight double quotes, such as `"la"`. It is a value in a condition, and never a tag or a terminal. Inside it, `\\` is a backslash and `\"` a quote, and `\u{h...}` is as in a character tag.
+A string is text in straight double quotes, such as `"la"`. It is a value in a condition or a test, and never a tag or a terminal. Inside it, `\\` is a backslash and `\"` a quote, and `\u{h...}` is as in a character tag.
 
-A reference, a tag literal, a phoneme tag or a character tag can be followed by a spelling. A spelling is text between backticks, as in ``LE`la` ``. The symbol then matches only where what it spans sounds like the spelling. That is, the canonical sound of its span, `phonemes()` (see "Conditions"), is the spelling. So a stressed `lA`, a Cyrillic `ла` and a zbalermorna `la` all match ``LE`la` ``.
+## Tests
 
-A rule reference sounds like its whole span, so ``sumti`lomlatu` `` matches `lo mlatu`. Each token keeps its own periods. For example, `broda bu` is one `BY` word that sounds `broda.bu`. The spelling is written in phonemes, in lower case, with `'` for the apostrophe. An empty spelling is an error, as is one in capitals, one with a comma or one after `#`. Spaces and comments can stand between a symbol and its spelling, but the grammars write them together.
+A reference or a terminal in a body can carry one test on its own span. Here, `X` stands for the symbol:
 
-A symbol with a spelling is a spelled symbol. The spelling binds tighter than `...`, so every repetition of ``UI`ui` ...`` must sound like `ui`. A capture can wrap a spelled symbol, as in ``$l(LE`la`)``. An optional can hold one, as in ``[KU`ku`]``, which can be elided (left out) when `[KU]` can. A group, an optional, a capture or `ε` cannot take a spelling, so ``(LE NU)`lonu` `` is an error. A spelled symbol never matches an empty span.
+- `X="s"` holds where the canonical sound of the span, `phonemes()` (see "Conditions"), is `s`. `X≠"s"` holds where it is not.
+- `X⊇t` holds where the symbol's own tags include every tag of `t`. `X⊉t` holds where they lack one at least.
+- `X∩t=∅` holds where the symbol's own tags include no tag of `t`. `X∩t≠∅` holds where they include one at least.
 
-A spelling does not replace a class. `zo la` quotes a word that sounds `la` but has only the tag `word`, so ``LE`la` `` does not match it.
+A terminal's own tags are the tags of the token that it reads. A reference's own tags are the tags of its constituent (see "Tags"). A symbol with a test is a tested symbol. The symbol matches only where its test holds.
+
+So a stressed `lA`, a Cyrillic `ла` and a zbalermorna `la` all match `LE="la"`. A reference sounds like its whole span, so `sumti="lomlatu"` matches `lo mlatu`. Each token keeps its own periods. For example, `broda bu` is one `BY` word that sounds `broda.bu`.
+
+`s` is a string or a constant whose value is a string. The string is in phonemes, in lower case, with `'` for the apostrophe and no comma. So `LE="La"` and `LE="l,a"` are errors. `t` is a tag set: a tag literal, a range, `∅`, a constant, or a term in parentheses, such as `(UI ∪ CAI)`. It holds no capture, and no function that reads a span. A property is not a tag set, so it cannot be `t`.
+
+The test binds tighter than `...`, so every repetition of `UI="ui" ...` must sound like `ui`. A capture can wrap a tested symbol, as in `$l(LE="la")`. A test follows only a reference other than `#`, or a terminal. So a test after a group, an optional, a capture, `ε`, `#` or another test is an error, such as `(LE NU)="lonu"`. Spaces and comments can stand between a symbol and its test, and inside the test. The grammars write a test without them.
+
+A test holds or fails as a condition does, and a span with no tokens is no exception. So `X=""` and `X≠"la"` hold for a rule that matches no tokens, and `X⊇∅` always holds. An optional that can be elided can hold its terminator with an `=` test, as in `[KU="ku"]`. Any other test on that terminator is an error (see "Elided terminators").
+
+A test does not replace a class. `zo la` quotes a word that sounds `la` but has only the tag `word`, so `LE="la"` does not match it. A condition that only compares one capture's tags with a set can often be a test in the body. For example, `$c(cmavo)` with the condition `tags($c) ∩ UI = ∅` says what `cmavo∩UI=∅` says.
 
 ## Operators
 
@@ -110,11 +122,8 @@ An alternative with several guards exists when all its gates hold. A name is a g
   | ...
 
 %redefine-rule cmavo-token
-  | $c(~cmavo) <tags($c)>
-  | y-cmavo! $w(~cmavo) <tags($w)>
-%conditions
-  ~cmavo-warning ⊈ tags($c),
-  ~cmavo-warning ⊆ tags($w)
+  | ~cmavo⊉~cmavo-warning
+  | y-cmavo! ~cmavo⊇~cmavo-warning
 ```
 
 A dialect that extends another dialect can use the two kinds for two kinds of change. An addition is a text that the base grammar rejects and the dialect accepts. A warning can mark an addition, so that a reader can learn which additions a text relies on. The bundled dialects turn none of their warnings on, so their texts parse without warnings unless the caller asks for them.
@@ -228,7 +237,7 @@ A token's own phonemes are fixed when its stage emits it, and they keep their ca
 
 A token of neither kind sounds like the tokens of its stage's input that it covers, joined in order. That leaves out the tokens inside a rule that emits `ε` (see "Emission"). It also makes each run of pause tokens into one pause token, and removes a pause token at either end. A pause is `.`, so `klama bu` sounds as `klama.bu`. The renderings for people write a pause as a space.
 
-`text(span)` is the original text that the span covers. A string in double quotes, such as `"la"`, is a string literal. Where a condition compares one word's sound with a literal, as in `phonemes($l) = "la"`, a spelling says it in the body: ``LE`la` ``.
+`text(span)` is the original text that the span covers. A string in double quotes, such as `"la"`, is a string literal. Where a condition compares one word's sound with a literal, as in `phonemes($l) = "la"`, a test says it in the body: `LE="la"`.
 
 The third type is the set of strings. `split(string, delimiter)` is the set of the pieces of the string between the occurrences of the delimiter. It reads the string from the left, and two occurrences never overlap. It drops the empty pieces.
 
@@ -410,7 +419,7 @@ An elided terminator ends the part of its alternative that is written just befor
 
 By default, the constituent of an elided terminator can end wherever a parse of the whole text needs it to end. The ranking above chooses among the parses. So `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses. The `sumti-tail` of `le lojbo` ends before `se farvi`, which becomes the selbri (the main predicate). A parse with the longer `sumti-tail` `lojbo se farvi` leaves the sentence without a selbri.
 
-`maximal` forbids an elided terminator where its constituent can be longer. If the constituent is a spelled symbol, the longer one must sound like the spelling too. That is what a PEG's greedy repetition does: once a PEG reads a constituent, it never gives back what it read.
+`maximal` forbids an elided terminator where its constituent can be longer. If the constituent is a tested symbol, the test must hold of the longer one too. That is what a PEG's greedy repetition does: once a PEG reads a constituent, it never gives back what it read.
 
 `le nanmu joi le ninmu cu klama` parses, because no longer `sumti-tail` begins at `nanmu`. `joi` can continue a tanru (a compound predicate), but `le` cannot follow it. The `le lojbo` text is an error, because `lojbo se farvi` is a longer `sumti-tail`. The longer constituent need not fit into a parse of the whole text, and that is what makes `maximal` commit as a PEG does.
 
@@ -420,7 +429,7 @@ If `maximal` leaves a text with no parse, the text is an error. The error is at 
 
 CLL's own rule is narrower: a terminator can be elided only if no ambiguity results. CLL says nothing of the other ambiguities of its EBNF. `elision-only` applies that rule literally.
 
-With `elision-only`, after the stage chooses a parse, it writes the elided terminators of that parse back into the input. A spelled terminator that it writes back sounds like its spelling. Then it parses the input again, with no terminator elidable.
+With `elision-only`, after the stage chooses a parse, it writes the elided terminators of that parse back into the input. A terminator with an `=` test sounds like the test's string there. Then the stage parses the input again, with no terminator elidable. So an elidable terminator has no test or an `=` test. Any other test on it is an error of the grammar, which the loader reports.
 
 If that parse has exactly one derivation, the check passes. If it has none, the check passes too, because no two readings exist to show. With two or more, the ambiguity is not about terminators. The parse is then an error that shows two readings. For the CLL grammar, `elision-only` rejects only the few texts that the printed grammar leaves ambiguous in more than a terminator, such as `mi broda joi ke brode ke'e`.
 

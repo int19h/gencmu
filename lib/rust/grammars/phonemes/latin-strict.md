@@ -113,17 +113,10 @@ A comma stands only between two letters of a run. Between two vowels it is the s
   vowel | vowel-group-plain | vowel-group-joined
 
 %rule vowel-group-plain
-  | $g(vowel-group) $v(vowel) <tags($v)> | $h(vowel-group) $w(vowel) <tags($w)>
-%conditions
-  ~syllabic ⊈ tags($g),
-  ~syllabic ⊆ tags($h),
-  ~syllabic ⊈ tags($w)
+  | vowel-group⊉~syllabic $v(vowel) <tags($v)> | vowel-group⊇~syllabic $w(vowel⊉~syllabic) <tags($w)>
 
 %rule vowel-group-joined
-  $g(vowel-group) $v(joined-vowel) <tags($v)>
-%conditions
-  ~syllabic ⊆ tags($g),
-  ~syllabic ⊆ tags($v)
+  vowel-group⊇~syllabic $v(joined-vowel⊇~syllabic) <tags($v)>
 
 %rule joined-vowel
   $v(vowel) <tags($v)>

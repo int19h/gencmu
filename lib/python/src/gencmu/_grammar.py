@@ -12,7 +12,6 @@ from ._clauses import WHOLE, applies, captures_in, definition_problem, simplify_
 from ._errors import GencmuError
 from ._tags import (
     EMPTY,
-    Marks,
     code_of_character_tag,
     difference,
     intersection,
@@ -22,9 +21,11 @@ from ._tags import (
     range_tags,
     split_string,
     union,
+    written_test,
 )
 from ._trampoline import Walk, run
-from ._types import TermType, constant_value_type, constants_in, rule_type_fault, type_name
+from ._types import TermType, constant_value_type, constants_in, is_sound_test, rule_type_fault, tests_in, type_name
+from ._validate import Lowercase, sound_problem
 
 Dom = dict[str, Any]
 
@@ -70,6 +71,36 @@ class Change:
     previous: str
 
 
+@dataclass(frozen=True)
+class SymbolTest:
+    """A test of a body with its value, from the constants' final values
+    (engine §2, §4): its comparator, and the string of a sound test or the
+    tag set of a tag test. ``written`` is the test as an expected list
+    writes it after its terminal (docs/output.md)."""
+
+    op: str
+    sound: str | None
+    tags: frozenset[str] | None
+    written: str
+
+    def holds(self, sound: str, tags: frozenset[str]) -> bool:
+        """Whether the test holds of a span that sounds like ``sound`` and
+        a symbol whose own tags are ``tags`` (engine §4)."""
+        op = self.op
+        if op == "=":
+            return sound == self.sound
+        if op == "≠":
+            return sound != self.sound
+        wanted = self.tags if self.tags is not None else EMPTY
+        if op == "⊇":
+            return wanted <= tags
+        if op == "⊉":
+            return not wanted <= tags
+        if op == "∩=∅":
+            return tags.isdisjoint(wanted)
+        return not tags.isdisjoint(wanted)
+
+
 @dataclass
 class Grammar:
     """A stage's stitched grammar and its directives."""
@@ -107,7 +138,7 @@ class _Constants:
     definition takes the values of the constants at its point of the
     stitching order, and the rules take their final values."""
 
-    def __init__(self, stage: str, unicode: Marks) -> None:
+    def __init__(self, stage: str, unicode: Lowercase) -> None:
         self.stage = stage
         self.unicode = unicode
         self.values: dict[str, _Constant] = {}
@@ -223,6 +254,17 @@ class _Constants:
             problem = definition_problem(run(self.with_values(rule)))
             if problem is not None:
                 raise _error(problem, path, rule["at"], self.stage)
+            # A string constant in a sound test must be a canonical sound
+            # (engine §2, §9); the error stands at the constant.
+            for alternative in rule["alternatives"]:
+                for test in tests_in(alternative["expr"]):
+                    found = constants_in(test["value"])
+                    if not is_sound_test(test["test"]) or not found:
+                        continue
+                    value = run(self._closed(path, test["value"], rule["at"]))
+                    wrong = sound_problem(value if isinstance(value, str) else "", self.unicode)
+                    if wrong is not None:
+                        raise _error(wrong, path, found[0]["at"], self.stage)
             for call in _calls_in(rule):
                 argument = call["args"][1] if call["call"] == "split" else call["args"][0]
                 if not isinstance(argument, dict) or "const" not in argument:
@@ -235,6 +277,15 @@ class _Constants:
                     raise _error(
                         f"tag({json.dumps(seen, ensure_ascii=False)}): the string is not a name", path, argument["at"], self.stage
                     )
+
+    def test(self, path: str, test: Dom, at: Any) -> SymbolTest:
+        """A test of a body with its value, from the constants' final
+        values (engine §2, §4)."""
+        value = run(self._closed(path, test["value"], at))
+        written = written_test(test["test"], value)
+        if isinstance(value, str):
+            return SymbolTest(test["test"], value, None, written)
+        return SymbolTest(test["test"], None, _set(value), written)
 
     def with_values(self, node: Any) -> Walk:
         """A copy of a DOM node in which each reference to a constant holds
@@ -309,9 +360,10 @@ def _calls_in(node: Any) -> list[Dom]:
     return found
 
 
-def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Grammar:
+def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> Grammar:
     """Stitch a stage's documents, in order, into one grammar. ``unicode``
-    is the loader's table, for the tags of a range in a constant's value."""
+    is the loader's table, for the tags of a range in a constant's value and
+    the canonical sound of a string constant in a test."""
     rules: dict[str, Rule] = {}
     constants = _Constants(stage, unicode)
     changes: list[Change] = []
@@ -373,6 +425,8 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
             constants.add(path, constant)
     constants.check()
     constants.resolve(rules)
+    _resolve_tests(rules, constants)
+    _check_elidable_tests(stage, rules, elidable)
     if not resolutions:
         raise GencmuError(f"stage {stage} has no %ambiguity-resolution", stage=stage)
     if len(resolutions) > 1:
@@ -411,6 +465,82 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
     return Grammar(stage, rules, args[0], elision_only, maximal, frozenset(elidable), changes)
 
 
+RESOLVED = "resolved"
+"""The member of a tested symbol, in a stitched grammar's copy of an
+expression, that holds its test with its value (engine §2, §4)."""
+
+
+def _resolve_tests(rules: dict[str, Rule], constants: _Constants) -> None:
+    """Gives every test of a body in the stitched rules its value, from the
+    constants' final values, made once for every lowering. The documents'
+    DOMs are shared by every stage and dialect that includes them, so the
+    tests go into copies of the expressions that hold them."""
+    copies: dict[int, Any] = {}
+
+    def resolve(node: Any, alt: Alternative) -> Any:
+        if not isinstance(node, dict) or not tests_in(node):
+            return node
+        done = copies.get(id(node))
+        if done is not None:
+            return done
+        copy: dict[str, Any] = {}
+        for key, value in node.items():
+            if isinstance(value, list):
+                copy[key] = [resolve(item, alt) for item in value]
+            elif key in ("optional", "repeat", "expr"):
+                copy[key] = resolve(value, alt)
+            else:
+                copy[key] = value
+        if isinstance(node.get("test"), str):
+            copy[RESOLVED] = constants.test(alt.document, node, alt.at)
+        copies[id(node)] = copy
+        return copy
+
+    for rule in rules.values():
+        for alt in rule.alternatives:
+            alt.expr = resolve(alt.expr, alt)
+
+
+def _check_elidable_tests(stage: str, rules: dict[str, Rule], elidable: set[str]) -> None:
+    """The terminal of an elidable optional has no test or an ``=`` test,
+    since elision-only restores it with a sound (engine §3.8). The check
+    runs once the stage is stitched, since a later %elidable can make an
+    optional elidable, over every alternative whatever the features."""
+    for rule in rules.values():
+        for alt in rule.alternatives:
+            stack: list[Any] = [alt.expr]
+            while stack:
+                expr = stack.pop()
+                if not isinstance(expr, dict):
+                    continue
+                if "optional" in expr:
+                    first = expr["optional"]
+                    while "seq" in first:
+                        first = first["seq"][0]
+                    if "test" in first and first["test"] != "=":
+                        # A reference in lower case names a rule, which is
+                        # never a terminator, even where an identifier tag
+                        # of %elidable shares its name.
+                        inner = first["expr"]
+                        name = inner.get("terminal")
+                        if name is None and is_terminal_name(inner.get("ref", "")):
+                            name = inner["ref"]
+                        if name is not None and name in elidable:
+                            raise _error(
+                                f"{rule.name} can elide {name}, whose test {first['test']} gives it no sound to restore;"
+                                " an elidable terminator has no test or an = test",
+                                alt.document,
+                                alt.at,
+                                stage,
+                            )
+                for key in ("seq", "choice", "and"):
+                    if isinstance(expr.get(key), list):
+                        stack.extend(expr[key])
+                for key in ("optional", "repeat", "expr"):
+                    if key in expr:
+                        stack.append(expr[key])
+
+
 # ---------------------------------------------------------------------------
 # Lowering
 
@@ -427,13 +557,13 @@ class Production:
     helper: bool
     rep_splice: bool = False
     elided: str | None = None
-    # The spelling of that terminator, if it is spelled, which a restored
-    # token sounds like (engine §7).
-    elided_spelling: str | None = None
-    # What each symbol's span must sound like, its canonical sound (engine
-    # §5), or None for a symbol without a spelling (engine §4); None when no symbol has one.
-    # The spelling is not part of the symbol's identity.
-    spellings: tuple[str | None, ...] | None = None
+    # The test of that terminator, if it is tested; a restored token
+    # sounds like the string of its = test (engine §7).
+    elided_test: SymbolTest | None = None
+    # The test of each symbol, which reads its own span and its own tags,
+    # or None for a symbol without one (engine §4); None when no symbol has
+    # one. The test is not part of the symbol's identity.
+    tests: tuple[SymbolTest | None, ...] | None = None
     captures: dict[str, int] = field(default_factory=dict)
     slots: tuple[int, ...] = ()
     conds_predict: list[Dom] = field(default_factory=list)
@@ -498,14 +628,14 @@ values, or a property's name."""
 
 
 # A symbol of an expansion: ("t", tag) or ("n", rule id), with a third
-# element, its spelling, for a spelled symbol; and its capture.
+# element, its test, for a tested symbol; and its capture.
 _Sym = tuple[tuple[Any, ...], Union[str, None]]
 
 
-def written_symbol(name: str, spelling: str | None) -> str:
+def written_symbol(name: str, test: SymbolTest | None) -> str:
     """A terminal as the diagnostics write it: its name, followed by its
-    spelling in backticks if it has one, such as LE`la` (docs/output.md)."""
-    return name if spelling is None else f"{name}`{spelling}`"
+    test if it has one, such as LE="la" (docs/output.md)."""
+    return name if test is None else f"{name}{test.written}"
 
 
 class _Lowerer:
@@ -517,7 +647,7 @@ class _Lowerer:
         self.rule_ids = {name: index for index, name in enumerate(self.rule_names)}
         self.rule_display: list[str] = list(self.rule_names)
         self.helper_expansions: dict[int, list[list[_Sym]]] = {}
-        self.helper_elided: dict[int, tuple[str, str | None]] = {}
+        self.helper_elided: dict[int, tuple[str, SymbolTest | None]] = {}
         self.emitted_helpers: set[int] = set()
         self.productions: list[Production] = []
         self.current: Rule | None = None
@@ -533,7 +663,7 @@ class _Lowerer:
 
     # -- expansions
 
-    def new_helper(self, expansions: list[list[_Sym]], elided: tuple[str, str | None] | None = None) -> int:
+    def new_helper(self, expansions: list[list[_Sym]], elided: tuple[str, SymbolTest | None] | None = None) -> int:
         number = len(self.rule_names)
         owner = self.current.name if self.current else "?"
         self.rule_names.append(f"\u0000{owner}\u0000{number}")
@@ -543,27 +673,26 @@ class _Lowerer:
             self.helper_elided[number] = elided
         return number
 
-    def first_terminal(self, expr: Dom) -> tuple[str, str | None] | None:
-        """The terminal an expression begins with, if any, and its
-        spelling: a spelled terminal is elidable when its terminal is
-        (engine §3.8)."""
-        spelling: str | None = None
+    def first_terminal(self, expr: Dom) -> tuple[str, SymbolTest | None] | None:
+        """The terminal an expression begins with, if any, and its test: a
+        tested terminal is elidable when its terminal is (engine §3.8)."""
+        test: SymbolTest | None = None
         while True:
             if "seq" in expr:
                 if not expr["seq"]:
                     return None
                 expr = expr["seq"][0]
                 continue
-            if "spelling" in expr:
-                spelling = expr["spelling"]
+            if "test" in expr:
+                test = expr[RESOLVED]
                 expr = expr["expr"]
                 continue
             if "ref" in expr:
                 name: str = expr["ref"]
-                return (name, spelling) if is_terminal_name(name) else None
+                return (name, test) if is_terminal_name(name) else None
             if "terminal" in expr:
                 terminal: str = expr["terminal"]
-                return (terminal, spelling)
+                return (terminal, test)
             return None
 
     def character_class(self, expr: Dom) -> tuple[str, Any] | None:
@@ -636,18 +765,18 @@ class _Lowerer:
             return [[(("t", expr["terminal"]), None)]]
         if "range" in expr or "property" in expr:
             return [[(self.character_class(expr), None)]]
-        if "spelling" in expr:
-            # A spelled symbol lowers to its symbol with the spelling, and
-            # adds no helper (engine §3).
-            spelled = yield self._expand(expr["expr"])
-            kind, name = spelled[0][0][0][:2]
-            return [[((kind, name, expr["spelling"]), None)]]
+        if "test" in expr:
+            # A tested symbol lowers to its symbol with the test, and adds
+            # no helper (engine §3).
+            tested = yield self._expand(expr["expr"])
+            kind, name = tested[0][0][0][:2]
+            return [[((kind, name, expr[RESOLVED]), None)]]
         if "capture" in expr:
             if not top:
                 raise self.fail(f"the capture ${expr['capture']} is not at the top level of its alternative")
             inner = expr.get("expr", {})
-            spelling = inner.get("spelling")
-            if spelling is not None:
+            test = inner[RESOLVED] if "test" in inner else None
+            if test is not None:
                 inner = inner.get("expr", {})
             symbol: tuple[Any, ...]
             if "ref" in inner:
@@ -658,8 +787,8 @@ class _Lowerer:
                 symbol = self.character_class(inner)  # type: ignore[assignment]
             else:
                 raise self.fail(f"the capture ${expr['capture']} does not wrap one symbol")
-            if spelling is not None:
-                symbol = (symbol[0], symbol[1], spelling)
+            if test is not None:
+                symbol = (symbol[0], symbol[1], test)
             return [[(symbol, expr["capture"])]]
         raise self.fail(f"an unknown expression {sorted(expr)}")
 
@@ -674,11 +803,11 @@ class _Lowerer:
     # -- productions
 
     def add(
-        self, lhs: int, expansion: list[_Sym], alt: Alternative | None, rep_splice: bool = False, elided: tuple[str, str | None] | None = None
+        self, lhs: int, expansion: list[_Sym], alt: Alternative | None, rep_splice: bool = False, elided: tuple[str, SymbolTest | None] | None = None
     ) -> None:
         rhs = tuple(sym[1] for sym, _ in expansion)
         terminal = tuple(sym[0] == "t" for sym, _ in expansion)
-        spellings = tuple(sym[2] if len(sym) > 2 else None for sym, _ in expansion)
+        tests = tuple(sym[2] if len(sym) > 2 else None for sym, _ in expansion)
         captures: dict[str, int] = {}
         for position, (_, name) in enumerate(expansion):
             if name is not None:
@@ -694,8 +823,8 @@ class _Lowerer:
             helper=alt is None,
             rep_splice=rep_splice,
             elided=elided[0] if elided is not None else None,
-            elided_spelling=elided[1] if elided is not None else None,
-            spellings=spellings if any(spelling is not None for spelling in spellings) else None,
+            elided_test=elided[1] if elided is not None else None,
+            tests=tests if any(test is not None for test in tests) else None,
             captures=captures,
         )
         if alt is not None:
@@ -792,8 +921,8 @@ class _Lowerer:
             if "capture" in item and "expr" in item:
                 count += 1
                 inner = item["expr"]
-                # A capture may wrap a spelled symbol (engine §3.5).
-                if isinstance(inner, dict) and "spelling" in inner:
+                # A capture may wrap a tested symbol (engine §3.5).
+                if isinstance(inner, dict) and "test" in inner:
                     inner = inner.get("expr")
                 if not isinstance(inner, dict) or not ("ref" in inner or "terminal" in inner or "range" in inner or "property" in inner):
                     raise self.fail(f"the capture ${item['capture']} does not wrap one symbol")

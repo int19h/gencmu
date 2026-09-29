@@ -28,12 +28,9 @@ The stage is lazy: where two parses differ, it takes the one that closes a const
 %rule text
   | ε | PAUSE
   | [PAUSE] body | [PAUSE] body PAUSE
-  | [PAUSE] $c(body) gap hesitations [PAUSE]
+  | [PAUSE] body⊇~sa-end gap hesitations [PAUSE]
   | [PAUSE] faho-group | [PAUSE] body gap faho-group
-  | [PAUSE] $d(body) gap hesitations gap faho-group
-%conditions
-  ~sa-end ⊆ tags($c),
-  ~sa-end ⊆ tags($d)
+  | [PAUSE] body⊇~sa-end gap hesitations gap faho-group
 
 %rule body
   | $t(body-tail) <tags($t)>
@@ -57,18 +54,12 @@ The stage is lazy: where two parses differ, it takes the one that closes a const
 
 %rule stream
   | $o(opener) <tags($o)>
-  | $s(stream) PAUSE $e(element) <tags($e) ∪ classes($s) ∪ ~first-wipes ∩ tags($s)>
-  | $t(stream) $f(element) <tags($f) ∪ classes($t) ∪ ~first-wipes ∩ tags($t)>
-%conditions
-  ~wipes-all ⊈ tags($e),
-  ~wipes-all ⊈ tags($f)
+  | $s(stream) PAUSE $e(element⊉~wipes-all) <tags($e) ∪ classes($s) ∪ ~first-wipes ∩ tags($s)>
+  | $t(stream) $f(element⊉~wipes-all) <tags($f) ∪ classes($t) ∪ ~first-wipes ∩ tags($t)>
 
 %rule opener
-  | $o(element) <tags($o)>
-  | sa-su? $w(element) <tags($w) ∪ ~first-wipes>
-%conditions
-  ~wipes-all ⊈ tags($o),
-  ~wipes-all ⊆ tags($w)
+  | $o(element⊉~wipes-all) <tags($o)>
+  | sa-su? $w(element⊇~wipes-all) <tags($w) ∪ ~first-wipes>
 
 %rule element
   unit | erasure | hesitation
@@ -458,10 +449,8 @@ The forms stage tags the first word of each run `run-initial`, and a `sa` that l
   [PAUSE] [skipped-hesitations [PAUSE]] gap-erasures [PAUSE]
 
 %rule gap-erasures
-  | $e(erasure)
-  | gap-erasures wide-gap $e(erasure)
-%conditions
-  ~wipes-all ⊈ tags($e)
+  | erasure⊉~wipes-all
+  | gap-erasures wide-gap erasure⊉~wipes-all
 ```
 
 `sa bu` "backs up to the last BU, pulling an already constructed pseudo-word apart", as the proposal puts it among its unique cases. It erases back to the `bu` of the last letter word, and the new `bu` binds to that letter word's base again. So `.abu sa bu` is `.abu`. `bu-part` reads such a stretch as the letter word's `bu`. Nothing between can be a letter word, because the `bu` of that letter word is then the last `bu`. So the grammar states `bu-reach` as it states the reach of a `sa`, and `bu-reach` ends at the first letter word.
@@ -480,19 +469,15 @@ An eraser acts when the stage reads it, as the Magic Words proposal has it. So a
 %rule erasure
   | $u(unit) si-word <~wipes-all ∩ tags($u)>
   | $u(unit) si-gap si-word <~wipes-all ∩ tags($u)>
-  | $u(unit) $e(erasures) [si-gap] si-word <~wipes-all ∩ tags($u)>
-  | $u(unit) si-gap $e(erasures) [si-gap] si-word <~wipes-all ∩ tags($u)>
-%conditions
-  ~wipes-all ⊈ tags($e)
+  | $u(unit) erasures⊉~wipes-all [si-gap] si-word <~wipes-all ∩ tags($u)>
+  | $u(unit) si-gap erasures⊉~wipes-all [si-gap] si-word <~wipes-all ∩ tags($u)>
 %emits
   ε
 
 %rule erasures
   | $d(erasure) <tags($d)>
-  | $r(erasures) si-gap $e(erasure) <tags($r)>
-  | $r(erasures) $e(erasure) <tags($r)>
-%conditions
-  ~wipes-all ⊈ tags($e)
+  | $r(erasures) si-gap erasure⊉~wipes-all <tags($r)>
+  | $r(erasures) erasure⊉~wipes-all <tags($r)>
 
 %rule si-gap
   PAUSE | [PAUSE] hesitations [PAUSE]
@@ -696,15 +681,11 @@ Only `opener` accepts an element with that tag, and it tags the stream `first-wi
 %rule reach-core
   | $s(stream) <tags($s)>
   | bu-word <∅>
-  | bu-word gap $t(stream) <classes($t)>
+  | bu-word gap $t(stream⊉~first-wipes) <classes($t)>
   | erasures gap bu-word <∅>
-  | erasures gap bu-word gap $u(stream) <classes($u)>
-  | hesitations [PAUSE] $h(erasures) gap bu-word <∅>
-  | hesitations [PAUSE] $h(erasures) gap bu-word gap $u(stream) <classes($u)>
-%conditions
-  ~first-wipes ⊈ tags($t),
-  ~first-wipes ⊈ tags($u),
-  ~wipes-all ⊈ tags($h)
+  | erasures gap bu-word gap $u(stream⊉~first-wipes) <classes($u)>
+  | hesitations [PAUSE] erasures⊉~wipes-all gap bu-word <∅>
+  | hesitations [PAUSE] erasures⊉~wipes-all gap bu-word gap $u(stream⊉~first-wipes) <classes($u)>
 %emits
   ε
 ```

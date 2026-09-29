@@ -1,0 +1,84 @@
+{
+  "description": "X⊇t holds where the token's tags include every tag of t, and X⊉t where they lack one at least. A constant can stand for t (engine §2, §4).",
+  "grammar": "%const $AB A ∪ B\n%rule text [p] ...\n%rule p hit | miss\n%rule hit X⊇$AB\n%rule miss X⊉$AB",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "X"
+      ]
+    },
+    {
+      "text": "ab",
+      "tags": [
+        "A",
+        "B",
+        "X"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B",
+        "X"
+      ]
+    },
+    {
+      "text": "abc",
+      "tags": [
+        "A",
+        "B",
+        "C",
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "p",
+            "children": [
+              {
+                "rule": "miss"
+              }
+            ]
+          },
+          {
+            "rule": "p",
+            "children": [
+              {
+                "rule": "hit"
+              }
+            ]
+          },
+          {
+            "rule": "p",
+            "children": [
+              {
+                "rule": "miss"
+              }
+            ]
+          },
+          {
+            "rule": "p",
+            "children": [
+              {
+                "rule": "hit"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

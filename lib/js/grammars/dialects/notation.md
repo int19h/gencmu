@@ -17,7 +17,7 @@ The input is the text of a grammar document's `jbogenbau` blocks, joined with a 
   %include "../notation/lexical.md"
   ```
 
-The stage receives one token (a unit of input) per character. It hands on the notation's tokens: names, strings, phoneme tags, spellings, captures, guards, keywords and symbols. Each of these tokens is a run of the characters that the author wrote. The stage drops spaces and comments.
+The stage receives one token (a unit of input) per character. It hands on the notation's tokens: names, strings, phoneme tags, captures, guards, keywords and symbols. Each of these tokens is a run of the characters that the author wrote. The stage drops spaces and comments.
 
 ## Stage 2: the document
 

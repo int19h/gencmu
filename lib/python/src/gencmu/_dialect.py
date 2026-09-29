@@ -230,7 +230,7 @@ def _reader(bootstrap: str, unicode_text: str) -> NotationReader:
 
 def _compiled_index(compiled: str | None, bootstrap_hash: str, unicode_text: str) -> dict[str, Dom]:
     """The precompiled DOMs usable with this bootstrap, by text hash. Their
-    spellings are checked with the lowercase mapping that the match uses
+    sound tests are checked with the lowercase mapping that the match uses
     (engine §9)."""
     if not compiled:
         return {}
@@ -290,7 +290,7 @@ class _Loader:
         if problem is not None:
             raise GencmuError(f"the document is not a sequence of Unicode scalar values: {problem}", kind="usage", document=path)
         text_hash = fnv1a64(text)
-        # The Unicode table is part of the key: a spelling that one table
+        # The Unicode table is part of the key: a sound test that one table
         # accepts another may refuse (engine §9).
         key = (text_hash, self.reader.hash, self.resources.unicode, DOM_FORMAT)
         if self.use_cache:

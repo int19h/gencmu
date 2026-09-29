@@ -52,7 +52,9 @@ You can use a dialect for any number of parses, and you can share it between thr
 
 ## The result
 
-`ParseResult`, `Stage`, `Node`, `Token`, `ParseError`, `ParseWarning`, `Action` and `Expected` are dataclasses. A tag set is a `frozenset[str]` of tags, each in its canonical spelling, such as `KOhA`, `/a/` or `'a'` (`docs/engine.md`, §1). A character token of the first stage carries one tag, its character tag. A terminal in a token node, witness or expected list is a tag, range or property. A range or property uses its written form, such as `'a'..'z'` or `'\p{L}'` (`docs/engine.md`, §4). Spans are `(start, end)` tuples, and source ranges are in code points.
+`ParseResult`, `Stage`, `Node`, `Token`, `ParseError`, `ParseWarning`, `Action` and `Expected` are dataclasses. A tag set is a `frozenset[str]` of tags, each in its canonical spelling, such as `KOhA`, `/a/` or `'a'` (`docs/engine.md`, §1). A character token of the first stage carries one tag, its character tag.
+
+A terminal in a token node, witness or expected list is a tag, range or property. A range or property uses its written form, such as `'a'..'z'` or `'\p{L}'` (`docs/engine.md`, §4). An expected list writes a terminal that carries a test in a body with its test, such as `LE="la"` or `KOhA∩UI=∅` (`docs/output.md`). Spans are `(start, end)` tuples, and source ranges are in code points.
 
 `result.warnings` lists the warnings of the nodes of the chosen tree of each stage. A node has one `ParseWarning` for each warning guard `f!` of its alternative whose feature `f` is on. The warnings come in stage order and then in tree order. Each has its `stage`, `feature`, `rule`, `span` and `source`. The list is empty when there are no warnings.
 

@@ -1,0 +1,10 @@
+{
+  "description": "A string in a sound test with a code point that lowercase changes is an error of the document, reported at the string, since the match ignores stress (engine §9).",
+  "document": "```jbogenbau\n%rule text LE=\"lA\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 15
+    }
+  }
+}

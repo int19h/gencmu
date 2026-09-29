@@ -1,0 +1,111 @@
+{
+  "description": "The four tag tests, ⊇, ⊉, ∩ with =∅ and ∩ with ≠∅, and a sound test with a constant. The operand is a tag literal, a constant, a term in parentheses, a range, ∅ or a string. Layout and comments can stand between a symbol and its test and inside the test (engine §2, §9).",
+  "document": "```jbogenbau\n%rule text A⊇B w⊉$C A∩(B ∪ ~c)=∅ A (* c *) ∩ 'a' .. 'z' ≠ ∅ w⊇∅ /a/⊇/a/ 'x'≠\"x\" X=$S\n```\n",
+  "expect": {
+    "dom": {
+      "format": 12,
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "seq": [
+                  {
+                    "test": "⊇",
+                    "value": {
+                      "tag": "B"
+                    },
+                    "expr": {
+                      "ref": "A"
+                    }
+                  },
+                  {
+                    "test": "⊉",
+                    "value": {
+                      "const": "C",
+                      "at": [
+                        2,
+                        18
+                      ]
+                    },
+                    "expr": {
+                      "ref": "w"
+                    }
+                  },
+                  {
+                    "test": "∩=∅",
+                    "value": {
+                      "union": [
+                        {
+                          "tag": "B"
+                        },
+                        {
+                          "tag": "c"
+                        }
+                      ]
+                    },
+                    "expr": {
+                      "ref": "A"
+                    }
+                  },
+                  {
+                    "test": "∩≠∅",
+                    "value": {
+                      "range": [
+                        "'a'",
+                        "'z'"
+                      ]
+                    },
+                    "expr": {
+                      "ref": "A"
+                    }
+                  },
+                  {
+                    "test": "⊇",
+                    "value": {
+                      "emptySet": true
+                    },
+                    "expr": {
+                      "ref": "w"
+                    }
+                  },
+                  {
+                    "test": "⊇",
+                    "value": {
+                      "tag": "/a/"
+                    },
+                    "expr": {
+                      "terminal": "/a/"
+                    }
+                  },
+                  {
+                    "test": "≠",
+                    "value": {
+                      "string": "x"
+                    },
+                    "expr": {
+                      "terminal": "'x'"
+                    }
+                  },
+                  {
+                    "test": "=",
+                    "value": {
+                      "const": "S",
+                      "at": [
+                        2,
+                        83
+                      ]
+                    },
+                    "expr": {
+                      "ref": "X"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

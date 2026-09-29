@@ -1,0 +1,10 @@
+{
+  "description": "The operand of a tag test is a tag set, not a string. The error is at the operand (engine §9).",
+  "document": "```jbogenbau\n%rule a LE⊇\"la\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 12
+    }
+  }
+}

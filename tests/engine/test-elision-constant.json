@@ -1,0 +1,84 @@
+{
+  "description": "A string constant can stand for the string of an = test on an elidable terminator, and the restored token sounds like its value: the restored KU matches KU=$KU in the parse of elision-only, and the ambiguity is found (engine §2, §3.8, §7).",
+  "grammar": "%ambiguity-resolution greedy elision-only\n%elidable KU\n%const $KU \"ku\"\n%rule text s [KU=$KU] | s B [KU=$KU]\n%rule s A [B]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "ambiguous",
+        "readings": [
+          {
+            "span": [
+              0,
+              2
+            ],
+            "children": [
+              {
+                "rule": "s",
+                "span": [
+                  0,
+                  2
+                ]
+              },
+              {
+                "kind": "elided",
+                "terminal": "KU",
+                "span": [
+                  2,
+                  2
+                ]
+              }
+            ]
+          },
+          {
+            "span": [
+              0,
+              2
+            ],
+            "children": [
+              {
+                "rule": "s",
+                "span": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "B",
+                "token": 1,
+                "span": [
+                  1,
+                  2
+                ]
+              },
+              {
+                "kind": "elided",
+                "terminal": "KU",
+                "span": [
+                  2,
+                  2
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "error": "ambiguous"
+  }
+}

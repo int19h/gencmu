@@ -1,5 +1,5 @@
 import { GencmuError } from "./errors.js";
-import type { Condition, DomAlternative, DomConstant, DomRule, Emission, ErrorLocation, GrammarDom, LoweredGrammar, Resolution, Term, TermValue } from "./types.js";
+import type { Condition, DomAlternative, DomConstant, DomRule, Emission, ErrorLocation, GrammarDom, LoweredGrammar, Resolution, SymbolTest, Term, TermValue, TestOp } from "./types.js";
 import type { TermType } from "./dom.js";
 export type StageConstant = {
     value: TermValue;
@@ -41,12 +41,13 @@ export type PendingHelper = {
     name: string;
     build: (where: Where) => SequenceItem[][];
     elided: string | null;
-    elidedSpelling: string | null;
+    elidedTest: SymbolTest | null;
 };
 export declare class Grammar {
     stageName: string;
     unicode: {
         isMark(code: number): boolean;
+        lowercase(text: string): string;
     };
     /** @type {Map<string, StageConstant>} */
     constants: Map<string, StageConstant>;
@@ -67,19 +68,26 @@ export declare class Grammar {
     elidable: Set<string>;
     /** @type {Resolution | null} */
     resolution: Resolution | null;
+    /**
+     * Each test of a body with its value, made once for every lowering.
+     * @type {WeakMap<object, SymbolTest>}
+     */
+    tests: WeakMap<object, SymbolTest>;
     /** @type {Map<string, LoweredGrammar>} */
     lowered: Map<string, LoweredGrammar>;
     /**
      * @param {string} stageName
      * @param {{path: string, dom: GrammarDom}[]} documents
-     * @param {{isMark(code: number): boolean}} unicode the loader's table, for
-     *   the tags of a range in a constant's value
+     * @param {{isMark(code: number): boolean, lowercase(text: string): string}} unicode
+     *   the loader's table, for the tags of a range in a constant's value and
+     *   the canonical sound of a string constant in a test
      */
     constructor(stageName: string, documents: {
         path: string;
         dom: GrammarDom;
     }[], unicode: {
         isMark(code: number): boolean;
+        lowercase(text: string): string;
     });
     /**
      * @param {string} path
@@ -130,6 +138,25 @@ export declare class Grammar {
      * §10).
      */
     resolveConstants(): void;
+    /**
+     * The terminal of an elidable optional has no test or an `=` test, since
+     * elision-only restores it with a sound (engine §3.8). The check runs once
+     * the stage is stitched, since a later %elidable can make an optional
+     * elidable, over every alternative whatever the features.
+     */
+    checkElidableTests(): void;
+    /**
+     * A test of a body with its value, from the constants' final values
+     * (engine §2, §4).
+     * @param {{test: TestOp, value: Term}} test
+     * @param {string} path
+     * @param {ErrorLocation} at
+     * @returns {SymbolTest}
+     */
+    symbolTest(test: {
+        test: TestOp;
+        value: Term;
+    }, path: string, at: ErrorLocation): SymbolTest;
     checkReferences(): void;
     /**
      * The productions for a set of enabled features; `strict` makes elidable

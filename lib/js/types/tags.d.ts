@@ -142,3 +142,17 @@ export declare function propertyName(name: string): string;
 export declare function rangeTags(range: [string, string], unicode: {
     isMark(code: number): boolean;
 }): TagSet;
+/**
+ * A test as an expected list writes it after its terminal (docs/output.md):
+ * its comparator and its value in canonical form. A string stands between
+ * double quotes, a backslash before each `\` and `"`. A tag set is `∅`, its
+ * one tag, or its tags in code point order joined by ` ∪ ` in parentheses.
+ * @param {string} op
+ * @param {{string: string} | {set: Set<string>}} value
+ * @returns {string}
+ */
+export declare function writtenTest(op: string, value: {
+    string: string;
+} | {
+    set: Set<string>;
+}): string;

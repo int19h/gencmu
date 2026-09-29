@@ -165,10 +165,10 @@ type domBuilder struct {
 	toks     []Token
 	gt       *grammarText
 	doc      string
-	uni      *unicodeTable // the lowercase mapping spellings are checked against
-	// inConstant says the reader is reading a constant's value, a closed
-	// term (§9, §10).
-	inConstant bool
+	uni      *unicodeTable // the lowercase mapping the strings of sound tests are checked against
+	// closedFor is what the reader is reading as a closed term, a
+	// constant's value or a test's operand, or "" (§9, §10).
+	closedFor string
 }
 
 // The rules the reader looks at by name; every other rule is transparent.
@@ -176,7 +176,7 @@ var domRules = map[string]bool{
 	"directive": true, "rule": true, "definer": true, "alternative": true, "choice": true,
 	"conjunction": true, "sequence": true, "element": true, "reference": true,
 	"string": true, "tag": true, "character": true, "phoneme": true, "name": true,
-	"spelled": true, "capture": true, "group": true, "optional": true,
+	"tested": true, "test": true, "test-operand": true, "capture": true, "group": true, "optional": true,
 	"empty": true, "tags-clause": true, "conditions-clause": true, "emits-clause": true,
 	"verbatim-clause": true, "emit-item": true, "emit-tags": true, "implication": true,
 	"any-of": true, "all-of": true, "comparison": true, "negation": true,
@@ -311,9 +311,9 @@ func (b *domBuilder) constant(n *Node) *domConst {
 	if b.text(ps[0]) == "%redefine-const" {
 		k.Op = "redefine"
 	}
-	b.inConstant = true
+	b.closedFor = "a constant's value"
 	k.Value = b.value(ps[2])
-	b.inConstant = false
+	b.closedFor = ""
 	if _, f := constantValueType(k.Value, k.Op == "redefine", nil); f != nil {
 		b.fail(ps[2], "%s", f.problem)
 	}
@@ -466,29 +466,55 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 		return &domExpr{Kind: exRange, Range: b.readRange(n)}
 	case "property":
 		return &domExpr{Kind: exProperty, Name: b.readProperty(parts(n)[0])}
-	case "spelled":
-		// A reference or a terminal and its spelling, which the syntax
-		// grammar gives nothing else; the spelling is the text between the
-		// backticks (engine §9).
-		ps := parts(n)
-		var symbol, token *Node
-		for _, p := range ps {
-			if p.Kind == KindRule {
-				symbol = p
-			} else {
-				token = p
-			}
+	case "tested":
+		// A reference other than # or a terminal, and one test on its own
+		// span (engine §2, §9). The syntax grammar reads a test after any
+		// primary, so that the reader can name the reason.
+		ps := ruleParts(n)
+		symbol, testNode := ps[0], ps[1]
+		switch symbol.Rule {
+		case "constant-reference":
+			b.fail(symbol, "%s", constantInBody)
+		case "reference", "tag", "character", "phoneme", "range", "property":
+		default:
+			b.fail(testNode, "a test follows only a reference other than # or a terminal, not a group, an optional, a capture, ε, # or another test")
+		}
+		if symbol.Rule == "reference" && b.text(symbol) == "#" {
+			b.fail(testNode, "a test follows only a reference other than # or a terminal, not a group, an optional, a capture, ε, # or another test")
 		}
 		inner := b.expr(symbol)
-		if inner.Kind == exRange || inner.Kind == exProperty {
-			b.fail(token, "a range or a property takes no spelling")
+		// The comparator is the test's tokens: =, ≠, ⊇ or ⊉, or ∩ and =∅
+		// or ≠∅ around the operand.
+		var op strings.Builder
+		var operand *Node
+		for _, p := range parts(testNode) {
+			if p.Kind == KindToken {
+				op.WriteString(b.text(p))
+			} else if p.Rule == "test-operand" {
+				operand = p
+			}
 		}
-		rs := []rune(b.text(token))
-		spelling := string(rs[1 : len(rs)-1])
-		if msg := spellingProblem(spelling, inner, b.uni); msg != "" {
-			b.fail(token, "%s", msg)
+		test := op.String()
+		b.closedFor = "a test's operand"
+		value := b.term(operand)
+		b.closedFor = ""
+		ty, problem := typeOf(value)
+		if problem == "" {
+			problem = testTypeProblem(test, ty)
 		}
-		return &domExpr{Kind: exSpelling, Name: spelling, Inner: inner}
+		if problem != "" {
+			b.fail(operand, "%s", problem)
+		}
+		if isSoundTest(test) && value.Kind == tmString {
+			if msg := soundProblem(value.Str, b.uni); msg != "" {
+				at := firstOfRule(operand, "string")
+				if at == nil {
+					at = operand
+				}
+				b.fail(at, "%s", msg)
+			}
+		}
+		return &domExpr{Kind: exTest, Op: test, Value: value, Inner: inner}
 	case "capture":
 		ps := parts(n)
 		inner := ruleParts(n)
@@ -503,7 +529,7 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 			b.fail(inner[0], "%s", constantInBody)
 		}
 		if len(inner) != 1 || !capturedRules[inner[0].Rule] {
-			b.fail(ps[0], "a capture wraps a single symbol: a name, a tag literal, a character tag, a phoneme tag, a range or a property, or a spelled one")
+			b.fail(ps[0], "a capture wraps a single symbol: a name, a tag literal, a character tag, a phoneme tag, a range or a property, or a tested one")
 		}
 		if b.inner > 0 {
 			b.fail(ps[0], "a capture stands only at the top level of an alternative, not inside [ ], ( ), ..., & or a choice")
@@ -532,7 +558,21 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 
 // capturedRules are the rules of the symbols a capture can wrap (engine §9).
 var capturedRules = map[string]bool{
-	"reference": true, "tag": true, "character": true, "phoneme": true, "range": true, "property": true, "spelled": true,
+	"reference": true, "tag": true, "character": true, "phoneme": true, "range": true, "property": true, "tested": true,
+}
+
+// firstOfRule is the first node of a rule at or below a node, in the order
+// written, or nil.
+func firstOfRule(n *Node, name string) *Node {
+	if n.Kind == KindRule && n.Rule == name {
+		return n
+	}
+	for _, c := range parts(n) {
+		if found := firstOfRule(c, name); found != nil {
+			return found
+		}
+	}
+	return nil
 }
 
 // readRange reads a range's two ends, each a character tag in its canonical
@@ -642,11 +682,15 @@ func (b *domBuilder) termIn(n *Node, argument bool) *domTerm {
 	switch n.Rule {
 	case "term":
 		return b.termIn(ruleParts(n)[0], argument)
+	case "test-operand":
+		// One term: a string, a tag, a range, ∅, a constant, or a term in
+		// parentheses (§9).
+		return b.termIn(ruleParts(n)[0], argument)
 	case "guarded-term":
 		// A ⟹ t: its condition, and its term, which must be a tag set
 		// (§10).
-		if b.inConstant {
-			b.fail(n, "a constant's value is a closed term, and holds no guarded term")
+		if b.closedFor != "" {
+			b.fail(n, "%s is a closed term, and holds no guarded term", b.closedFor)
 		}
 		ps := ruleParts(n)
 		cond := b.anyOf(ps[0])
@@ -725,8 +769,8 @@ func (b *domBuilder) termIn(n *Node, argument bool) *domTerm {
 		return &domTerm{Kind: tmConst, Str: strings.TrimPrefix(b.text(n), "$"), At: b.at(n)}
 	case "capture-reference":
 		name := strings.TrimPrefix(b.text(n), "$")
-		if b.inConstant {
-			b.fail(n, "a constant's value is a closed term, and holds no capture")
+		if b.closedFor != "" {
+			b.fail(n, "%s is a closed term, and holds no capture", b.closedFor)
 		}
 		if !argument {
 			b.fail(n, "a span is not a value: tags($%s) is the tag set of $%s", name, name)
@@ -794,13 +838,13 @@ func isStringTerm(t *domTerm) bool {
 func (b *domBuilder) call(n *Node, inCondition bool) *domTerm {
 	ps := parts(n)
 	name := b.text(ps[0])
-	// A constant's value calls only split and tag, the closed functions
-	// (§9, §10).
-	if b.inConstant && name != "split" && name != "tag" {
+	// A closed term calls only split and tag, the closed functions (§9,
+	// §10).
+	if b.closedFor != "" && name != "split" && name != "tag" {
 		if !notationFunctions[name] {
 			b.fail(ps[0], "%s() is not a function of the notation", name)
 		}
-		b.fail(ps[0], "a constant's value is a closed term, and %s() is not closed", name)
+		b.fail(ps[0], "%s is a closed term, and %s() is not closed", b.closedFor, name)
 	}
 	var args []*domTerm
 	var argNodes []*Node

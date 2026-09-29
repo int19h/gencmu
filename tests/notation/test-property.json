@@ -1,0 +1,41 @@
+{
+  "description": "A property is a terminal, so it takes a test, and so does a range (engine §2, §9).",
+  "document": "```jbogenbau\n%rule a '\\p{L}'=\"a\" 'a'..'z'⊇'b'\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "seq": [
+                  {
+                    "test": "=",
+                    "value": {
+                      "string": "a"
+                    },
+                    "expr": {
+                      "property": "L"
+                    }
+                  },
+                  {
+                    "test": "⊇",
+                    "value": {
+                      "tag": "'b'"
+                    },
+                    "expr": {
+                      "range": [
+                        "'a'",
+                        "'z'"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

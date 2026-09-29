@@ -1,0 +1,10 @@
+{
+  "description": "A capture takes no test; the test goes inside it. The error is at the test (engine §9).",
+  "document": "```jbogenbau\n%rule text $l(LE)=\"la\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 18
+    }
+  }
+}

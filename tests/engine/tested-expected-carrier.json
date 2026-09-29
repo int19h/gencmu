@@ -1,0 +1,31 @@
+{
+  "description": "A token that carries the terminal but fails its test still leaves the tested terminal in the expected list. The token carries LE but sounds lo, so the error expects LE=\"la\" at that token (engine §4, docs/output.md).",
+  "grammar": "%rule text LE=\"la\"",
+  "tokens": [
+    {
+      "text": "lo",
+      "tags": [
+        "LE"
+      ],
+      "phonemes": "lo"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "token": 0,
+        "expected": [
+          {
+            "terminal": "LE=\"la\"",
+            "rules": [
+              "text"
+            ]
+          }
+        ]
+      }
+    },
+    "error": "rejected"
+  }
+}

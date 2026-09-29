@@ -510,20 +510,24 @@ func TestMalformedPrecompiled(t *testing.T) {
 		`{"seq":[]}`, `{"choice":[]}`, `{"and":[]}`, `{"seq":[null]}`, `{"optional":null}`,
 		`{"repeat":{"ref":"A"},"min":5}`, `{"capture":"x","expr":{"seq":[{"ref":"A"},{"ref":"B"}]}}`,
 		`{"ref":""}`, `{"what":1}`, `null`, `[]`,
-		// Spellings the reader never writes: one with a backtick, and a
-		// spelled node or symbol with a second kind of key.
-		"{\"seq\":[{\"terminal\":\"a\"},{\"spelling\":\"b`c\",\"expr\":{\"terminal\":\"b\"}}]}",
-		`{"seq":[{"terminal":"a"},{"spelling":"b","expr":{"empty":true,"ref":"B"}}]}`,
-		`{"seq":[{"terminal":"a"},{"spelling":"b","expr":{"ref":"B","terminal":"b"}}]}`,
-		`{"seq":[{"terminal":"a"},{"spelling":"b","expr":{"terminal":"b"},"empty":true}]}`,
-		`{"seq":[{"terminal":"a"},{"capture":"x","expr":{"spelling":"b","expr":{"terminal":"b"},"ref":"B"}}]}`,
-		// A top-level sequence that is also a spelled symbol.
-		`{"seq":[{"terminal":"a"},{"terminal":"b"}],"spelling":"a","expr":{"terminal":"a"}}`,
+		// Tests the reader never writes: a string with a comma, a value of
+		// the wrong type, and a tested node or symbol with a second kind of
+		// key.
+		`{"seq":[{"terminal":"a"},{"test":"=","value":{"string":"b,c"},"expr":{"terminal":"b"}}]}`,
+		`{"seq":[{"terminal":"a"},{"test":"=","value":{"tag":"B"},"expr":{"terminal":"b"}}]}`,
+		`{"seq":[{"terminal":"a"},{"test":"⊇","value":{"string":"b"},"expr":{"terminal":"b"}}]}`,
+		`{"seq":[{"terminal":"a"},{"test":"=","value":{"string":"b"},"expr":{"empty":true,"ref":"B"}}]}`,
+		`{"seq":[{"terminal":"a"},{"test":"=","value":{"string":"b"},"expr":{"ref":"B","terminal":"b"}}]}`,
+		`{"seq":[{"terminal":"a"},{"test":"=","value":{"string":"b"},"expr":{"terminal":"b"},"empty":true}]}`,
+		`{"seq":[{"terminal":"a"},{"capture":"x","expr":{"test":"=","value":{"string":"b"},"expr":{"terminal":"b"},"ref":"B"}}]}`,
+		// A top-level sequence that is also a tested symbol.
+		`{"seq":[{"terminal":"a"},{"terminal":"b"}],"test":"=","value":{"string":"a"},"expr":{"terminal":"a"}}`,
 		// Null where the DOM holds a string or a number, which Go would
 		// otherwise read as "" or 0.
-		`{"seq":[{"terminal":"a"},{"spelling":"b","expr":{"terminal":null}}]}`,
-		`{"seq":[{"terminal":"a"},{"spelling":"b","expr":{"ref":null}}]}`,
-		`{"seq":[{"terminal":"a"},{"spelling":null,"expr":{"terminal":"b"}}]}`,
+		`{"seq":[{"terminal":"a"},{"test":"=","value":{"string":"b"},"expr":{"terminal":null}}]}`,
+		`{"seq":[{"terminal":"a"},{"test":"=","value":{"string":"b"},"expr":{"ref":null}}]}`,
+		`{"seq":[{"terminal":"a"},{"test":null,"value":{"string":"b"},"expr":{"terminal":"b"}}]}`,
+		`{"seq":[{"terminal":"a"},{"test":"=","value":{"string":null},"expr":{"terminal":"b"}}]}`,
 		`{"seq":[{"terminal":null},{"terminal":"b"}]}`,
 		`{"seq":[{"capture":null,"expr":{"terminal":"a"}},{"terminal":"b"}]}`,
 		`{"seq":[{"terminal":"a"},{"repeat":{"terminal":"b"},"min":null}]}`,

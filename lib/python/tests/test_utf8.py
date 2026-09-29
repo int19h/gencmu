@@ -14,6 +14,7 @@ from unittest import mock
 
 import gencmu
 from gencmu import _dialect
+from gencmu._validate import FORMAT
 
 PIPELINE = '# A dialect\n\n```jbogenbau\n%stage main\n%include "g.md"\n```\n'
 
@@ -114,7 +115,7 @@ class UndecodableCache(unittest.TestCase):
 
     def test_valid_documents_load_with_a_cache_that_does_not_decode(self) -> None:
         sources = {"p.md": PIPELINE, "g.md": grammar("%rule text 'a'")}
-        for cache in (b"\xff", b'{"format":11,"documents":{"\xff":{}}}'):
+        for cache in (b"\xff", b'{"format":' + str(FORMAT).encode() + b',"documents":{"\xff":{}}}'):
             root = self.bundle(compiled_json=cache)
             for use_cache in (True, False):
                 with self.subTest(cache=cache, use_cache=use_cache):

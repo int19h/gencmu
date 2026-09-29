@@ -1,0 +1,25 @@
+{
+  "description": "The loader checks the tests of elidable optionals after it stitches the stage, since an %elidable in a later document can make an optional elidable. The error stands at the definition in the earlier document (engine §3.8).",
+  "documents": {
+    "p.md": "# A dialect\n\n## Main\n\n```jbogenbau\n%stage main\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A [KU⊉~ku]\n```\n",
+    "h.md": "```jbogenbau\n%elidable KU\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "g.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

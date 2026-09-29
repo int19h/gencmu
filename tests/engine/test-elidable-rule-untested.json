@@ -1,0 +1,39 @@
+{
+  "description": "An optional of a rule reference is never elidable, even where %elidable names an identifier tag that shares the rule's name. [x] holds the rule x, not the terminal ~x, so an absent [x] is no elided node, while an absent [~x] is one (engine §2, §3.8).",
+  "grammar": "%elidable ~x\n%rule text [x] [~x] B\n%rule x A",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "kind": "elided",
+            "terminal": "x",
+            "span": [
+              0,
+              0
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "B"
+          }
+        ]
+      }
+    }
+  }
+}

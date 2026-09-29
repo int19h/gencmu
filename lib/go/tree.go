@@ -149,7 +149,7 @@ func (run *stageRun) buildTree(rec *recognizer, d *dn) *Node {
 			f.node.Children = append(f.node.Children, &Node{Kind: KindToken, Terminal: g.terminals[n.term], Token: i, Span: [2]int{i, i + 1}, Source: run.toks[i].Source})
 		case n.prod.helper && n.a == nil && n.prod.elided != "":
 			p := base + int(n.start)
-			f.node.Children = append(f.node.Children, &Node{Kind: KindElided, Terminal: n.prod.elided, Span: [2]int{p, p}, Source: run.emptySource(p), spelling: n.prod.elidedSpell})
+			f.node.Children = append(f.node.Children, &Node{Kind: KindElided, Terminal: n.prod.elided, Span: [2]int{p, p}, Source: run.emptySource(p), sound: elidedSound(n.prod.elidedTest)})
 		case n.prod.helper || k.splice:
 			f.pending = pushKids(f.pending, n, k.splice)
 		default:

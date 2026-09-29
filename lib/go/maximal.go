@@ -12,9 +12,10 @@ type maximal struct {
 	// furthest is the furthest set holding a completed item of each rule from
 	// each origin, found when first asked for.
 	furthest map[ruleOrigin]int32
-	// ends lists, for a spelled symbol, every set holding a completed item
-	// of each rule from each origin, in order, found when first asked for.
-	ends map[ruleOrigin][]int32
+	// completed lists, for a tested symbol, every completed constituent of
+	// each rule from each origin, with its end and its tags, found when
+	// first asked for.
+	completed map[ruleOrigin][]*symNode
 }
 
 type ruleOrigin struct{ rule, origin int32 }
@@ -51,25 +52,24 @@ func (mx *maximal) guards(it *item) bool {
 }
 
 // forbids says whether an elided terminator may not follow a constituent of
-// a rule over [start, end), which stands for a symbol with the given
-// spelling, or "": whether the rule completes from start in a later set,
-// over a span that also sounds like the spelling if there is one (§4).
-func (mx *maximal) forbids(rule, start, end int32, spelling string) bool {
-	if spelling != "" {
-		if mx.ends == nil {
-			mx.ends = map[ruleOrigin][]int32{}
-			for k, s := range mx.rec.sets {
-				for key := range s.syms {
+// a rule over [start, end), which stands for a symbol with the given test,
+// or nil: whether the rule completes from start in a later set, where the
+// test, if there is one, holds of that longer constituent too, with its own
+// span and tags (§4).
+func (mx *maximal) forbids(rule, start, end int32, t *symTest) bool {
+	if t != nil {
+		if mx.completed == nil {
+			mx.completed = map[ruleOrigin][]*symNode{}
+			for _, s := range mx.rec.sets {
+				for key, c := range s.syms {
 					ro := ruleOrigin{key.rule, key.origin}
-					if list := mx.ends[ro]; len(list) == 0 || list[len(list)-1] != int32(k) {
-						mx.ends[ro] = append(list, int32(k))
-					}
+					mx.completed[ro] = append(mx.completed[ro], c)
 				}
 			}
 		}
 		base := mx.rec.base
-		for _, e := range mx.ends[ruleOrigin{rule, start}] {
-			if e > end && mx.rec.run.spellingMatches(spelling, base+int(start), base+int(e)) {
+		for _, c := range mx.completed[ruleOrigin{rule, start}] {
+			if c.end > end && mx.rec.run.testHolds(t, base+int(start), base+int(c.end), c.tags) {
 				return true
 			}
 		}

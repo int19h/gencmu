@@ -7,8 +7,8 @@ use std::sync::Arc;
 
 use crate::clauses::definition_problem;
 use crate::dom::{
-    constant_value_type, constants_in_rule, constants_in_term, rule_type_fault, Alternative, Arg, Cond, ConstDef, Dom,
-    EmitItem, Expr, Fault, Op, RuleDef, Term, Type,
+    constant_value_type, constants_in_rule, constants_in_term, is_sound_test, rule_type_fault, sound_problem, tests_in,
+    Alternative, Arg, Cond, ConstDef, Dom, EmitItem, Expr, Fault, Op, RuleDef, Term, Type,
 };
 use crate::error::Error;
 use crate::tags::{character_tag, code_of_character_tag, is_name};
@@ -220,6 +220,8 @@ pub(crate) fn stitch(
         }
     }
     constants.resolve(&mut grammar, &users)?;
+    constants.evaluate_tests(&mut grammar)?;
+    check_elidable_tests(&grammar)?;
     if resolution.is_none() {
         return Err(Error::grammar(format!("stage {stage} has no %ambiguity-resolution directive")).in_stage(stage));
     }
@@ -445,6 +447,21 @@ impl Constants<'_> {
             if let Some(problem) = definition_problem(&self.substitute_rule(rule)) {
                 return Err(located(problem, document, rule.at));
             }
+            // A string constant in a sound test must be a canonical sound
+            // (§2, §9); the error stands at the constant.
+            for alternative in &rule.alternatives {
+                for (op, value, _) in tests_in(&alternative.expr) {
+                    let Some(first) = first_constant(value).filter(|_| is_sound_test(op)) else { continue };
+                    let sound = self.evaluate(value, document, rule.at)?.string();
+                    if let Some(problem) = sound_problem(&sound, self.unicode) {
+                        return Err(located(
+                            problem.replacen("the string", &format!("the string {sound:?}"), 1),
+                            document,
+                            first,
+                        ));
+                    }
+                }
+            }
             let mut calls = Vec::new();
             calls_in_rule(rule, &mut calls);
             for (call, args) in calls {
@@ -483,6 +500,31 @@ impl Constants<'_> {
                 }
                 for cond in &mut alternative.conditions {
                     self.substitute_cond(cond);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Gives every test of a body its value, a string or a tag set, from
+    /// the constants' final values (§2, §4). Each value is then a string,
+    /// `∅`, a tag or a union of tags, in code point order.
+    fn evaluate_tests(&self, grammar: &mut StageGrammar) -> Result<(), Error> {
+        for rule in &mut grammar.rules {
+            for alternative in &mut rule.alternatives {
+                let mut stack = vec![&mut alternative.alternative.expr];
+                while let Some(expr) = stack.pop() {
+                    match expr {
+                        Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => stack.extend(items.iter_mut()),
+                        Expr::Optional(inner) | Expr::Repeat(inner, _) | Expr::Capture(_, inner) => {
+                            stack.push(inner);
+                        }
+                        Expr::Tested(_, value, inner) => {
+                            *value = self.evaluate(value, &alternative.document, alternative.at)?.term();
+                            stack.push(inner);
+                        }
+                        Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => {}
+                    }
                 }
             }
         }
@@ -603,6 +645,7 @@ fn calls_in_rule<'r>(rule: &'r RuleDef, out: &mut Vec<(&'r str, &'r [Arg])>) {
     }
     rule.tags.iter().for_each(|t| term(t, out));
     for alternative in &rule.alternatives {
+        tests_in(&alternative.expr).into_iter().for_each(|(_, t, _)| term(t, out));
         alternative.tags.iter().for_each(|t| term(t, out));
     }
     for item in rule.emit.iter().flatten() {
@@ -611,6 +654,57 @@ fn calls_in_rule<'r>(rule: &'r RuleDef, out: &mut Vec<(&'r str, &'r [Arg])>) {
         }
     }
     rule.conditions.iter().for_each(|c| cond(c, out));
+}
+
+/// The terminal of an elidable optional has no test or an `=` test, since
+/// elision-only restores it with a sound (§3.8). The check runs once the
+/// stage is stitched, since a later `%elidable` can make an optional
+/// elidable, over every alternative whatever the features. The error
+/// stands at the definition that wrote the alternative.
+fn check_elidable_tests(grammar: &StageGrammar) -> Result<(), Error> {
+    for rule in &grammar.rules {
+        for alternative in &rule.alternatives {
+            let mut stack = vec![&alternative.alternative.expr];
+            while let Some(expr) = stack.pop() {
+                if let Expr::Optional(inner) = expr {
+                    let mut first = inner.as_ref();
+                    while let Expr::Seq(items) = first {
+                        first = &items[0];
+                    }
+                    if let Expr::Tested(op, _, symbol) = first {
+                        // A reference in lower case names a rule, which is
+                        // never a terminator, even where an identifier tag
+                        // of %elidable shares its name.
+                        let name = match symbol.as_ref() {
+                            Expr::Ref(name) if is_terminal_name(name) => Some(name),
+                            Expr::Terminal(name) => Some(name),
+                            _ => None,
+                        };
+                        if let Some(name) = name.filter(|name| op != "=" && grammar.elidable.contains(name)) {
+                            return Err(located(
+                                format!(
+                                    "{} can elide {name}, whose test {op} gives it no sound to restore; \
+                                     an elidable terminator has no test or an = test",
+                                    rule.name
+                                ),
+                                &alternative.document,
+                                alternative.at,
+                            ));
+                        }
+                    }
+                }
+                match expr {
+                    Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => stack.extend(items.iter()),
+                    Expr::Optional(inner)
+                    | Expr::Repeat(inner, _)
+                    | Expr::Capture(_, inner)
+                    | Expr::Tested(_, _, inner) => stack.push(inner),
+                    Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => {}
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 fn check_alternative(grammar: &StageGrammar, alternative: &StitchedAlternative) -> Result<(), String> {
@@ -667,7 +761,7 @@ fn check_expr(grammar: &StageGrammar, expr: &Expr, top: bool) -> Result<(), Stri
             }
             Ok(())
         }
-        Expr::Optional(inner) | Expr::Repeat(inner, _) | Expr::Spelled(_, inner) => check_expr(grammar, inner, false),
+        Expr::Optional(inner) | Expr::Repeat(inner, _) | Expr::Tested(_, _, inner) => check_expr(grammar, inner, false),
         Expr::Ref(name) => {
             if is_terminal_name(name) {
                 Ok(())
@@ -681,7 +775,7 @@ fn check_expr(grammar: &StageGrammar, expr: &Expr, top: bool) -> Result<(), Stri
                 return Err(format!("the capture ${name} is not at the top level of its alternative"));
             }
             match inner.as_ref() {
-                Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Spelled(..) => {
+                Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Tested(..) => {
                     check_expr(grammar, inner, false)
                 }
                 _ => Err(format!("the capture ${name} does not wrap a single symbol")),

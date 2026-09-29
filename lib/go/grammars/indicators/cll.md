@@ -35,11 +35,7 @@ The stage reads an indicator run as far as it goes, so the stage is greedy. Wher
   $w
 
 %rule unit
-  | $w(~word) | ~foreign-text | LEhU
-%conditions
-  ~indicator ⊈ tags($w),
-  BAhE ⊈ tags($w),
-  LEhU ⊈ tags($w)
+  | ~word∩(~indicator ∪ BAhE ∪ LEhU)=∅ | ~foreign-text | LEhU
 
 %rule absorbed
   indicator-run
@@ -55,9 +51,7 @@ The stage reads an indicator run as far as it goes, so the stage is greedy. Wher
   bahe | bahe-run bahe
 
 %rule bahe
-  $b(~word) <tags($b)>
-%conditions
-  BAhE ⊆ tags($b)
+  ~word⊇BAhE
 %emits
   $
 
@@ -95,11 +89,8 @@ The stage reads an indicator run as far as it goes, so the stage is greedy. Wher
   $
 
 %rule nai
-  | $n(~word) <tags($n)>
-  | absorbed-bahe $m(~word) <tags($m)>
-%conditions
-  NAI ⊆ tags($n),
-  NAI ⊆ tags($m)
+  | ~word⊇NAI
+  | absorbed-bahe $m(~word⊇NAI) <tags($m)>
 %emits
   $
 ```

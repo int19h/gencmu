@@ -1,0 +1,80 @@
+{
+  "description": "X∩t=∅ holds where the token's tags include no tag of t, and X∩t≠∅ where they include one at least. t can be a term in parentheses (engine §2, §4).",
+  "grammar": "%rule text [p] ...\n%rule p hit | miss\n%rule hit X∩(A ∪ B)=∅\n%rule miss X∩(A ∪ B)≠∅",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "X"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B",
+        "X"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C",
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "p",
+            "children": [
+              {
+                "rule": "hit"
+              }
+            ]
+          },
+          {
+            "rule": "p",
+            "children": [
+              {
+                "rule": "miss"
+              }
+            ]
+          },
+          {
+            "rule": "p",
+            "children": [
+              {
+                "rule": "miss"
+              }
+            ]
+          },
+          {
+            "rule": "p",
+            "children": [
+              {
+                "rule": "hit"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

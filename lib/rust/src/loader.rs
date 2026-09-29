@@ -165,7 +165,7 @@ pub(crate) fn read_document(notation: &Dialect, text: &str) -> Result<Dom, Error
                     captures: Default::default(),
                     position: &position,
                     unicode: &notation.unicode,
-                    in_constant: Default::default(),
+                    closed_for: Default::default(),
                 };
                 let dom = reader.document(tree)?;
                 check_read(&dom, &notation.unicode)?;

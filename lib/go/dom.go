@@ -7,7 +7,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 11
+const domFormat = 12
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
@@ -62,7 +62,7 @@ const (
 	exRef      = "ref"
 	exTerminal = "terminal"
 	exCapture  = "capture"
-	exSpelling = "spelling"
+	exTest     = "test"
 	exEmpty    = "empty"
 	exRange    = "range"
 	exProperty = "property"
@@ -71,10 +71,23 @@ const (
 type domExpr struct {
 	Kind  string
 	Items []*domExpr // seq, choice, and
-	Inner *domExpr   // optional, repeat, capture, spelling (its symbol)
+	Inner *domExpr   // optional, repeat, capture, test (its symbol)
 	Min   int        // repeat
-	Name  string     // ref, terminal (a tag in its canonical spelling), capture, property (its name); spelling: the spelling
+	Name  string     // ref, terminal (a tag in its canonical spelling), capture, property (its name)
 	Range [2]string  // range: its two ends, character tags in their canonical spelling
+	Op    string     // test: its comparator, one of testOps
+	Value *domTerm   // test: its value, a closed term
+}
+
+// testOps are the comparators of a test in a body (engine §2): the two
+// sound tests and the four tag tests.
+var testOps = map[string]bool{"=": true, "≠": true, "⊇": true, "⊉": true, "∩=∅": true, "∩≠∅": true}
+
+// isSoundTest says whether a test's comparator is a sound test, whose
+// value is a string, rather than a tag test, whose value is a tag set
+// (engine §2).
+func isSoundTest(op string) bool {
+	return op == "=" || op == "≠"
 }
 
 // Term kinds. A string is tmString, and a tag literal tmTag, the tag in its
@@ -313,9 +326,11 @@ func (e *domExpr) writeJSON(w *jsonWriter) {
 		w.raw(`,"expr":`)
 		e.Inner.writeJSON(w)
 		w.raw("}")
-	case exSpelling:
-		w.raw(`{"spelling":`)
-		w.str(e.Name)
+	case exTest:
+		w.raw(`{"test":`)
+		w.str(e.Op)
+		w.raw(`,"value":`)
+		e.Value.writeJSON(w)
 		w.raw(`,"expr":`)
 		e.Inner.writeJSON(w)
 		w.raw("}")
@@ -484,8 +499,8 @@ func decodeObj(raw json.RawMessage) (jobj, error) {
 }
 
 // decodeDOM reads a DOM that did not come from reading its document and
-// validates it; uni is the lowercase mapping that its spellings are checked
-// against (engine §9).
+// validates it; uni is the lowercase mapping that the strings of its sound
+// tests are checked against (engine §9).
 func decodeDOM(raw json.RawMessage, uni *unicodeTable) (*domDoc, error) {
 	o, err := decodeObj(raw)
 	if err != nil {
@@ -710,8 +725,9 @@ func decodeExpr(raw json.RawMessage) (*domExpr, error) {
 	if err != nil {
 		return nil, err
 	}
-	// A spelled symbol has its spelling and its symbol, and nothing else.
-	if _, ok := o["spelling"]; ok && (len(o) != 2 || o["expr"] == nil) {
+	// A tested symbol has its comparator, its value and its symbol, and
+	// nothing else.
+	if _, ok := o["test"]; ok && (len(o) != 3 || o["expr"] == nil || o["value"] == nil) {
 		return nil, fmt.Errorf("a malformed expression")
 	}
 	// A range or a property has no member but its own.
@@ -756,18 +772,22 @@ func decodeExpr(raw json.RawMessage) (*domExpr, error) {
 		inner, err := decodeExpr(o["expr"])
 		return &domExpr{Kind: exCapture, Name: name, Inner: inner}, err
 	}
-	if v, ok := o["spelling"]; ok {
-		// The symbol is one reference or one terminal alone, so that no
-		// node reads two ways.
-		spelling, err := decodeString(v)
+	if v, ok := o["test"]; ok {
+		// The symbol is one reference, terminal, range or property alone,
+		// so that no node reads two ways.
+		op, err := decodeString(v)
+		if err != nil {
+			return nil, fmt.Errorf("a malformed test")
+		}
+		if io, err := decodeObj(o["expr"]); err != nil || len(io) != 1 {
+			return nil, fmt.Errorf("a test follows only a reference other than # or a terminal")
+		}
+		inner, err := decodeExpr(o["expr"])
 		if err != nil {
 			return nil, err
 		}
-		if io, err := decodeObj(o["expr"]); err != nil || len(io) != 1 {
-			return nil, fmt.Errorf("a spelling follows only a reference other than # or a terminal")
-		}
-		inner, err := decodeExpr(o["expr"])
-		return &domExpr{Kind: exSpelling, Name: spelling, Inner: inner}, err
+		value, err := decodeTerm(o["value"])
+		return &domExpr{Kind: exTest, Op: op, Inner: inner, Value: value}, err
 	}
 	for _, k := range []string{exRef, exTerminal} {
 		if v, ok := o[k]; ok {

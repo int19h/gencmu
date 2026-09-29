@@ -1,0 +1,20 @@
+{
+  "description": "A tag test on the terminal of an elidable optional is an error of the grammar too (engine §3.8).",
+  "grammar": "%elidable KU\n%rule text A\n%rule other B [KU⊇~ku]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 1
+    }
+  }
+}

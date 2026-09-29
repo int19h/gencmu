@@ -1,26 +1,44 @@
 import type { GrammarDom } from "./types.js";
 export declare const CAPTURE_NAME: RegExp;
 export declare const DOM_MAX_DEPTH = 256;
-export declare const DOM_FORMAT = 11;
+export declare const DOM_FORMAT = 12;
 export declare const CONSTANT_NAME: RegExp;
+export declare const TEST_OPS: Set<string>;
 /**
- * What is wrong with a spelling of a symbol (engine §9), or null: an empty
- * spelling, one with a backtick, which the notation cannot write, one that
- * no canonical sound can be, with a comma or a code point that the
- * lowercase mapping would change, or one of anything but a reference or a
- * terminal, `#` included.
- * The spelled symbol is exactly one reference or one terminal, so that no
- * node is read one way here and another way when lowered. Without a table,
- * the lowercase mapping is not checked.
- * @param {unknown} spelling
- * @param {unknown} expr the spelled expression
- * @param {{lowercase(text: string): string, isMark(code: number): boolean}} [unicode]
+ * Whether a test's comparator is a sound test, whose value is a string,
+ * rather than a tag test, whose value is a tag set (engine §2).
+ * @param {string} op
+ * @returns {boolean}
+ */
+export declare function isSoundTest(op: string): boolean;
+/**
+ * What is wrong with the string of a sound test (engine §9), or null: one
+ * that no canonical sound can be, with a comma or a code point that the
+ * lowercase mapping would change. Without a table, the lowercase mapping is
+ * not checked.
+ * @param {string} sound
+ * @param {{lowercase(text: string): string}} [unicode]
  * @returns {string | null}
  */
-export declare function spellingProblem(spelling: unknown, expr: unknown, unicode?: {
+export declare function soundProblem(sound: string, unicode?: {
     lowercase(text: string): string;
-    isMark(code: number): boolean;
 }): string | null;
+/**
+ * What is wrong with a test's value (engine §9), or null: it must be a
+ * closed term, of type string for a sound test and tag set for a tag test,
+ * and a string literal of a sound test must be a canonical sound. The shape
+ * of the value must already be checked, and its nesting bounded.
+ * @param {string} op
+ * @param {any} value
+ * @param {{lowercase(text: string): string}} [unicode]
+ * @returns {{problem: string, node: any} | null}
+ */
+export declare function testValueFault(op: string, value: any, unicode?: {
+    lowercase(text: string): string;
+}): {
+    problem: string;
+    node: any;
+} | null;
 /**
  * What is wrong with a range (engine §1, §9), or null: its ends must be two
  * character tags in their canonical spelling by the table, which says which
@@ -40,8 +58,8 @@ export declare function rangeProblem(range: unknown, unicode: {
 export declare function propertyProblem(name: unknown): string | null;
 /**
  * Why a value is not a grammar DOM, or null when it is one. `unicode` is
- * the loader's table: the lowercase mapping that spellings are checked
- * against, and the marks that decide a character tag's canonical spelling.
+ * the loader's table: the lowercase mapping that the strings of sound
+ * tests are checked against, and the marks that decide a character tag's canonical spelling.
  * @param {unknown} dom
  * @param {{lowercase(text: string): string, isMark(code: number): boolean}} unicode
  * @returns {string | null}
@@ -191,6 +209,16 @@ export declare function conditionTypeProblem(condition: any): string | null;
  * @returns {TypeFault | null}
  */
 export declare function ruleTypeFault(rule: any, constants?: ConstantTypes): TypeFault | null;
+/**
+ * The tested symbols of an expression, in the order written.
+ * @param {any} expr
+ * @returns {{test: string, value: any, expr: any}[]}
+ */
+export declare function testsIn(expr: any): {
+    test: string;
+    value: any;
+    expr: any;
+}[];
 /**
  * The type of a constant's value, or why it cannot be one (engine §2,
  * §10): a string, a set of strings or a tag set. A redefinition keeps the

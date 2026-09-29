@@ -1,0 +1,63 @@
+{
+  "description": "X∩t=∅ and X∩t≠∅ on a reference read the tags of its completed constituent (engine §2, §4).",
+  "grammar": "%rule text [p] ...\n%rule p hit | miss\n%rule hit w∩(~a ∪ ~c)=∅\n%rule miss w∩(~a ∪ ~c)≠∅\n%rule w X <~a> | Y <~b> | Z <~b ∪ ~c>",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    },
+    {
+      "text": "z",
+      "tags": [
+        "Z"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "p",
+            "children": [
+              {
+                "rule": "miss"
+              }
+            ]
+          },
+          {
+            "rule": "p",
+            "children": [
+              {
+                "rule": "hit"
+              }
+            ]
+          },
+          {
+            "rule": "p",
+            "children": [
+              {
+                "rule": "miss"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

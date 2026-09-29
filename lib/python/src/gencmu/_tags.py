@@ -206,3 +206,19 @@ class TagTable:
 
     def get(self, number: int) -> Tags:
         return self._sets[number]
+
+
+def written_test(op: str, value: str | Tags) -> str:
+    """A test as an expected list writes it after its terminal
+    (docs/output.md): its comparator and its value in canonical form. A
+    string stands between double quotes, a backslash before each ``\\`` and
+    ``"``. A tag set is ``∅``, its one tag, or its tags in code point order
+    joined by `` ∪ `` in parentheses."""
+    if isinstance(value, str):
+        written = '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    else:
+        tags = sorted_tags(value)
+        written = "∅" if not tags else tags[0] if len(tags) == 1 else f"({' ∪ '.join(tags)})"
+    if op in ("∩=∅", "∩≠∅"):
+        return f"∩{written}{op[1:]}"
+    return f"{op}{written}"

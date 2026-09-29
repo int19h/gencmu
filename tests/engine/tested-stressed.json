@@ -1,0 +1,31 @@
+{
+  "description": "A sound test compares with the lowercased phonemes, so a stressed word passes it (engine §4, §10).",
+  "grammar": "%rule text LE=\"lai\" B",
+  "tokens": [
+    {
+      "text": "lAi",
+      "tags": [
+        "LE"
+      ],
+      "phonemes": "lAi"
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "b"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "(lAi b)"
+  }
+}

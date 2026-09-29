@@ -3,30 +3,43 @@
 
 use std::cell::OnceCell;
 
-use crate::earley::{sounds_like, Chart, Item, Tok};
+use crate::earley::{test_holds, Chart, Item, Tok};
 use crate::fxhash::FxMap;
-use crate::lower::{Lowered, Sym};
+use crate::lower::{Lowered, Sym, SymbolTest};
+use crate::tags::{SetId, Tags};
 use crate::unicode::Unicode;
+
+/// Every completed item of each symbol from each origin, by (symbol,
+/// origin), as its set and its tag set, in order.
+type Completed = FxMap<(u32, u32), Vec<(u32, SetId)>>;
 
 /// What the ranking and the stage ask of `maximal`, over one stage's chart.
 pub(crate) struct Maximal<'c> {
     g: &'c Lowered,
     chart: &'c Chart,
-    /// The tokens the chart was made over, and the table of their canonical
-    /// sound, for the spellings of symbols (§4, §5).
+    /// The tokens the chart was made over, the table of their canonical
+    /// sound and the tag table, for the tests of symbols (§4, §5).
     tokens: &'c [Tok],
     unicode: &'c Unicode,
+    tags: &'c Tags,
     /// The furthest set in which each symbol completes from each origin,
     /// found the first time it is asked for.
     furthest: OnceCell<FxMap<(u32, u32), u32>>,
-    /// Every set in which each symbol completes from each origin, in order,
-    /// found the first time a spelled symbol asks for it.
-    ends: OnceCell<FxMap<(u32, u32), Vec<u32>>>,
+    /// Every completed item of each symbol from each origin, as its set and
+    /// its tag set, in order, found the first time a tested symbol asks for
+    /// it.
+    completed: OnceCell<Completed>,
 }
 
 impl<'c> Maximal<'c> {
-    pub(crate) fn new(g: &'c Lowered, chart: &'c Chart, tokens: &'c [Tok], unicode: &'c Unicode) -> Maximal<'c> {
-        Maximal { g, chart, tokens, unicode, furthest: OnceCell::new(), ends: OnceCell::new() }
+    pub(crate) fn new(
+        g: &'c Lowered,
+        chart: &'c Chart,
+        tokens: &'c [Tok],
+        unicode: &'c Unicode,
+        tags: &'c Tags,
+    ) -> Maximal<'c> {
+        Maximal { g, chart, tokens, unicode, tags, furthest: OnceCell::new(), completed: OnceCell::new() }
     }
 
     /// Whether a constituent of `rule` from `origin` to `end` is an elided
@@ -52,22 +65,30 @@ impl<'c> Maximal<'c> {
     }
 
     /// Whether an elided terminator may not follow a constituent of `rule`
-    /// from `origin` to `end`, which stands for a symbol with the given
-    /// spelling, if it has one: one of the same rule from the same origin
-    /// completes in a later set, and its span also sounds like the spelling.
-    pub(crate) fn forbids(&self, rule: u32, origin: u32, end: u32, spelling: Option<&str>) -> bool {
-        match spelling {
+    /// from `origin` to `end`, which stands for a symbol with the given test,
+    /// if it has one: one of the same rule from the same origin completes in
+    /// a later set, and the test also holds of it, with its own span and its
+    /// own tags.
+    pub(crate) fn forbids(&self, rule: u32, origin: u32, end: u32, test: Option<&SymbolTest>) -> bool {
+        match test {
             None => self.furthest().get(&(rule, origin)).is_some_and(|&furthest| furthest > end),
-            Some(spelling) => self.ends().get(&(rule, origin)).is_some_and(|ends| {
-                ends.iter().any(|&later| {
-                    later > end && sounds_like(&self.tokens[origin as usize..later as usize], self.unicode, spelling)
+            Some(test) => self.completed().get(&(rule, origin)).is_some_and(|completed| {
+                completed.iter().any(|&(later, tags)| {
+                    later > end
+                        && test_holds(
+                            test,
+                            &self.tokens[origin as usize..later as usize],
+                            self.unicode,
+                            self.tags,
+                            tags,
+                        )
                 })
             }),
         }
     }
 
     // Whether a constituent could have been longer depends only on its
-    // symbol, its spelling, its origin and its end: without a spelling, the
+    // symbol, its test, its origin and its end: without a test, the
     // furthest set holding a completed item of each symbol from each origin
     // decides it.
     fn furthest(&self) -> &FxMap<(u32, u32), u32> {
@@ -84,15 +105,18 @@ impl<'c> Maximal<'c> {
         })
     }
 
-    fn ends(&self) -> &FxMap<(u32, u32), Vec<u32>> {
-        self.ends.get_or_init(|| {
-            let mut ends: FxMap<(u32, u32), Vec<u32>> = FxMap::default();
+    fn completed(&self) -> &Completed {
+        self.completed.get_or_init(|| {
+            let mut completed = Completed::default();
             for (set, eset) in self.chart.sets.iter().enumerate() {
-                for &key in eset.completed.keys() {
-                    ends.entry(key).or_default().push(set as u32);
+                for (&key, items) in &eset.completed {
+                    let list = completed.entry(key).or_default();
+                    for &index in items {
+                        list.push((set as u32, eset.tagset[index as usize]));
+                    }
                 }
             }
-            ends
+            completed
         })
     }
 }
