@@ -13,8 +13,9 @@ import type { Token } from "./tokens.js";
  * @param {(token: Token) => Position} positionOf
  * @param {string} path
  * @param {{lowercase(text: string): string, isMark(code: number): boolean}} unicode
- *   the lowercase mapping that spellings are checked against (engine §9,
- *   §10), and the marks that a character tag escapes (engine §1)
+ *   the lowercase mapping that the strings of sound tests are checked
+ *   against (engine §9, §10), and the marks that a character tag escapes
+ *   (engine §1)
  * @returns {GrammarDom}
  */
 export declare function treeToDom(tree: ResultNode, tokens: Token[], positionOf: (token: Token) => Position, path: string, unicode: {

@@ -86,17 +86,10 @@ The approved grammar ignores a comma before a letter (`comma*` in each letter ru
   | letters-after-consonant [commas] vowel-group
 
 %extend-rule vowel-group-plain
-  | $g(vowel-group) commas $v(vowel) <tags($v)> | $h(vowel-group) commas $w(vowel) <tags($w)>
-%conditions
-  ~syllabic ⊈ tags($g),
-  ~syllabic ⊆ tags($h),
-  ~syllabic ⊈ tags($w)
+  | vowel-group⊉~syllabic commas $v(vowel) <tags($v)> | vowel-group⊇~syllabic commas $w(vowel⊉~syllabic) <tags($w)>
 
 %extend-rule vowel-group-joined
-  $g(vowel-group) commas $v(joined-vowel) <tags($v)>
-%conditions
-  ~syllabic ⊆ tags($g),
-  ~syllabic ⊆ tags($v)
+  vowel-group⊇~syllabic commas $v(joined-vowel⊇~syllabic) <tags($v)>
 ```
 
 ## The apostrophe
@@ -166,18 +159,11 @@ A run in which every vowel is a capital carries no stress mark, and the stage re
   folded-vowel | folded-vowel-group-plain | folded-vowel-group-joined
 
 %rule folded-vowel-group-plain
-  | $g(folded-vowel-group) [commas] $v(folded-vowel) <tags($v)>
-  | $h(folded-vowel-group) [commas] $w(folded-vowel) <tags($w)>
-%conditions
-  ~syllabic ⊈ tags($g),
-  ~syllabic ⊆ tags($h),
-  ~syllabic ⊈ tags($w)
+  | folded-vowel-group⊉~syllabic [commas] $v(folded-vowel) <tags($v)>
+  | folded-vowel-group⊇~syllabic [commas] $w(folded-vowel⊉~syllabic) <tags($w)>
 
 %rule folded-vowel-group-joined
-  $g(folded-vowel-group) [commas] $v(joined-folded-vowel) <tags($v)>
-%conditions
-  ~syllabic ⊆ tags($g),
-  ~syllabic ⊆ tags($v)
+  folded-vowel-group⊇~syllabic [commas] $v(joined-folded-vowel⊇~syllabic) <tags($v)>
 
 %rule joined-folded-vowel
   $v(folded-vowel) <tags($v)>

@@ -1,0 +1,71 @@
+{
+  "description": "Under maximal, a longer constituent of a tested symbol counts only where the tag test holds of it, with its own tags: the y over A B carries b and not a, so it does not forbid the elided terminator after y⊇~a (engine §4).",
+  "grammar": "%ambiguity-resolution greedy maximal\n%elidable T\n%rule text x B C\n%rule x y⊇~a [T]\n%rule y A <~a> | A B <~b>",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "x",
+            "span": [
+              0,
+              1
+            ],
+            "children": [
+              {
+                "rule": "y",
+                "span": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "kind": "elided",
+                "terminal": "T",
+                "span": [
+                  1,
+                  1
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "B"
+          },
+          {
+            "kind": "token",
+            "terminal": "C"
+          }
+        ]
+      }
+    }
+  }
+}

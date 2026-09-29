@@ -1,0 +1,24 @@
+{
+  "description": "A test is an ordinary predicate, and holds or fails for a constituent that completed empty too: e=\"\", e≠\"la\", e⊇∅ and e∩~x=∅ all hold of the empty e (engine §4).",
+  "grammar": "%rule text e=\"\" e≠\"la\" e⊇∅ e∩~x=∅ B\n%rule e [A]",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "b"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "b"
+  }
+}

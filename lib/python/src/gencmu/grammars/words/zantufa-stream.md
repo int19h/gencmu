@@ -89,15 +89,11 @@ In a `lo'u` or `lo'ai` quote, such a word is tagged `word` only, as the other wo
 %redefine-rule bu-next
   (* ybu <- Y space_char* BU: one Y word, which may be several pieces of one run of y *)
   | [PAUSE] BU
-  | $h(~hesitation) bu-next
-%conditions
-  ~after-hesitation ⊆ tags($h)
+  | ~hesitation⊇~after-hesitation bu-next
 
 %redefine-rule y-base
   | y-run
-  | $b(y-base) $h(y-run) <tags($h)>
-%conditions
-  ~after-hesitation ⊆ tags($h)
+  | $b(y-base) $h(y-run⊇~after-hesitation) <tags($h)>
 ```
 
 A magic word is never a plain word. The stream's list of them, `$MAGIC-WORDS`, lacks MUhOI, LOhAI and LEhAI, which only Zantufa reads so, and this document adds them. A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads as an unquoted word opens a text of its own. The forms stage gives the tag (a label on a token) `opener-space` to the hesitation after such a word. So that hesitation is space, and the word takes it with it. Inside a quote, such a hesitation is an attached Y word, as in `zo luyy si`, which erases the `yy` and keeps `zo lu`.

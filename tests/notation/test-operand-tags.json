@@ -1,0 +1,10 @@
+{
+  "description": "The operand of a sound test is a string, not a tag set. The error is at the operand (engine §9).",
+  "document": "```jbogenbau\n%rule a LE=KOhA\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 12
+    }
+  }
+}

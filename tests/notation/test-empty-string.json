@@ -1,0 +1,38 @@
+{
+  "description": "A sound test can compare with the empty string, which the canonical sound of an empty span is (engine §4, §9).",
+  "document": "```jbogenbau\n%rule text LE=\"\" A≠\"\"\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "seq": [
+                  {
+                    "test": "=",
+                    "value": {
+                      "string": ""
+                    },
+                    "expr": {
+                      "ref": "LE"
+                    }
+                  },
+                  {
+                    "test": "≠",
+                    "value": {
+                      "string": ""
+                    },
+                    "expr": {
+                      "ref": "A"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "description": "The loader checks the type of a constant in a test: a tag test takes a tag set, not a string. The error stands at the reference to the constant (engine §2, §9).",
+  "grammar": "%const $LA \"la\"\n%rule text LE⊇$LA",
+  "tokens": [
+    {
+      "text": "la",
+      "tags": [
+        "LE"
+      ],
+      "phonemes": "la"
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 15
+    }
+  }
+}

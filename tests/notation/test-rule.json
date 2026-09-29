@@ -1,0 +1,44 @@
+{
+  "description": "A rule reference takes a test as a terminal does, and a capture can wrap a tested tag literal (engine §9).",
+  "document": "```jbogenbau\n%rule text $s(~la=\"la\") sumti=\"lonu\"\n%rule sumti LE NU\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "seq": [
+                  {
+                    "capture": "s",
+                    "expr": {
+                      "test": "=",
+                      "value": {
+                        "string": "la"
+                      },
+                      "expr": {
+                        "terminal": "la"
+                      }
+                    }
+                  },
+                  {
+                    "test": "=",
+                    "value": {
+                      "string": "lonu"
+                    },
+                    "expr": {
+                      "ref": "sumti"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "sumti"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "description": "A sound test on a reference compares the canonical sound of its constituent's whole span: w=\"lai\" holds for the w over la and i, and w≠\"lai\" for the w over lo and i (engine §2, §4).",
+  "grammar": "%rule text [p] ...\n%rule p hit | miss\n%rule hit w=\"lai\"\n%rule miss w≠\"lai\"\n%rule w X Y",
+  "tokens": [
+    {
+      "text": "la",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "la"
+    },
+    {
+      "text": "i",
+      "tags": [
+        "Y"
+      ],
+      "phonemes": "i"
+    },
+    {
+      "text": "lo",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "lo"
+    },
+    {
+      "text": "i",
+      "tags": [
+        "Y"
+      ],
+      "phonemes": "i"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "p",
+            "children": [
+              {
+                "rule": "hit"
+              }
+            ]
+          },
+          {
+            "rule": "p",
+            "children": [
+              {
+                "rule": "miss"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

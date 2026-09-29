@@ -2,7 +2,7 @@
 
 This is the second stage of the notation dialect, `../dialects/notation.md`. A stage is one step of a pipeline, with its own grammar. The stage reads the tokens (units of input) that `lexical.md` emitted. It builds the tree from which a library reads the grammar's rules and directives. Its rule names matter to that reader: the table in `../../docs/engine.md`, §9, says what each named constituent becomes. `../../docs/notation.md` explains the notation for authors.
 
-The tokens arrive with tags (labels that the grammar reads). The lexical stage tags a token `~identifier`, `~string`, `~tag`, `~phoneme`, `~character`, `~property`, `~spelling`, `~capture`, `~constant` or `~guard`. It tags a keyword that the notation knows with its own identifier, such as `~keyword-rule` for `%rule`, `...` with `~ellipsis`, and `..` with `~double-dot`. Any other symbol is one character, which keeps its character tag, such as `'|'`.
+The tokens arrive with tags (labels that the grammar reads). The lexical stage tags a token `~identifier`, `~string`, `~tag`, `~phoneme`, `~character`, `~property`, `~capture`, `~constant` or `~guard`. It tags a keyword that the notation knows with its own identifier, such as `~keyword-rule` for `%rule`, `...` with `~ellipsis`, and `..` with `~double-dot`. Any other symbol is one character, which keeps its character tag, such as `'|'`.
 
 ## Choosing among parses
 
@@ -77,9 +77,11 @@ A rule is a keyword, its name, its alternatives and its clauses, in this order. 
 
 `&` joins sequences, and a sequence is one or more elements. An element is a primary, followed by `...` for one or more of it. An optional followed by `...` is zero or more. Parentheses group a choice, whose alternatives carry neither guards nor tags.
 
-A terminal is a name, a tag literal, a character tag, a phoneme tag, a range or a property. A string is not a terminal. A range is two character tags joined by `..`, such as `'a'..'z'`. A reference or a terminal can carry a spelling, as in ``LE`la` ``. It matches only where its span sounds like the spelling. Nothing else takes a spelling, so a group or an optional followed by one is not a primary, and the spelling binds tighter than `...`.
+A terminal is a name, a tag literal, a character tag, a phoneme tag, a range or a property. A string is not a terminal. A range is two character tags joined by `..`, such as `'a'..'z'`.
 
-The grammar also reads a spelling on a range or a property, and a constant as a primary. The reader refuses each of them, and names the reason.
+A reference or a terminal can carry a test on its own span, such as `LE="la"` or `cmavo∩UI=∅`. A test is `=`, `≠`, `⊇` or `⊉` and an operand, or `∩`, an operand, and `=∅` or `≠∅`. The operand is one term: a string, a tag, a range, `∅`, a constant, or a term in parentheses. So `UI⊇(A ∪ B)` needs its parentheses. The test binds tighter than `...`.
+
+The grammar reads a test after any primary, and a constant as a primary. The reader refuses a test after a group, an optional, a capture, `ε`, `#` or another test. It also refuses a constant in a body, and an operand that is not a closed term of the right type. It names the reason for each.
 
 ```jbogenbau
 %rule conjunction
@@ -92,11 +94,25 @@ The grammar also reads a spelling on a range or a property, and a constant as a 
   primary [~ellipsis]
 
 %rule primary
-  | reference | tag | character | phoneme | range | property | spelled | capture | group | optional | empty
+  | reference | tag | character | phoneme | range | property | tested | capture | group | optional | empty
   | constant-reference
 
-%rule spelled
-  (reference | tag | character | phoneme | range | property) ~spelling
+%rule tested
+  primary test
+
+%rule test
+  | test-comparator test-operand
+  | '∩' test-operand test-emptiness
+
+%rule test-comparator
+  '=' | '≠' | '⊇' | '⊉'
+
+%rule test-emptiness
+  ('=' | '≠') '∅'
+
+%rule test-operand
+  | string | tag | character | phoneme | range | property | name | empty-set
+  | '(' term ')' | constant-reference
 
 %rule reference
   ~identifier | '#'

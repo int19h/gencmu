@@ -1,0 +1,30 @@
+{
+  "description": "X⊉∅ never holds, since every tag set includes every tag of ∅ (engine §2, §4).",
+  "grammar": "%rule text X⊉∅",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "token": 0,
+        "expected": [
+          {
+            "terminal": "X⊉∅",
+            "rules": [
+              "text"
+            ]
+          }
+        ]
+      }
+    },
+    "error": "rejected"
+  }
+}

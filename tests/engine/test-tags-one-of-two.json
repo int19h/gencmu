@@ -1,0 +1,33 @@
+{
+  "description": "Two completed items of w over one span differ in their tags. The tag test lets the item advance over the one tagged a and not over the other, so the parse is unique, where it would be a tie without the test (engine §4).",
+  "grammar": "%rule text w⊇~a\n%rule w X <~a> | X <~b>",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "w",
+            "tags": [
+              "a"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

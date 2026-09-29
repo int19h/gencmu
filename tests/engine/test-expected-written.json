@@ -1,0 +1,60 @@
+{
+  "description": "An expected list writes each test as the notation does, with its value in canonical form: a string in quotes with \\ and \" escaped, a tag set as ∅, its one tag or its tags in code point order in parentheses, and a constant as its value. The list is in code point order: ∩ is U+2229, ≠ U+2260, ⊇ U+2287 and ⊉ U+2289 (docs/output.md).",
+  "grammar": "%const $AB B ∪ ~a ∪ A\n%rule text X⊇$AB | X∩'b'≠∅ | X≠\"a\\\"b\\\\\" | X⊉∅ | X∩~w=∅ | X⊇(A ∪ A)",
+  "tokens": [
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "token": 0,
+        "expected": [
+          {
+            "terminal": "X∩'b'≠∅",
+            "rules": [
+              "text"
+            ]
+          },
+          {
+            "terminal": "X∩w=∅",
+            "rules": [
+              "text"
+            ]
+          },
+          {
+            "terminal": "X≠\"a\\\"b\\\\\"",
+            "rules": [
+              "text"
+            ]
+          },
+          {
+            "terminal": "X⊇(A ∪ B ∪ a)",
+            "rules": [
+              "text"
+            ]
+          },
+          {
+            "terminal": "X⊇A",
+            "rules": [
+              "text"
+            ]
+          },
+          {
+            "terminal": "X⊉∅",
+            "rules": [
+              "text"
+            ]
+          }
+        ]
+      }
+    },
+    "error": "rejected"
+  }
+}

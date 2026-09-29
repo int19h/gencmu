@@ -1,0 +1,31 @@
+{
+  "description": "A sound test whose string is not empty never holds of a constituent that completed empty, whose canonical sound is the empty string (engine §4).",
+  "grammar": "%rule text opt=\"a\" B\n%rule opt [A]",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "b"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "token": 0,
+        "expected": [
+          {
+            "terminal": "A",
+            "rules": [
+              "opt"
+            ]
+          }
+        ]
+      }
+    },
+    "error": "rejected"
+  }
+}

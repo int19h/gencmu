@@ -1,0 +1,10 @@
+{
+  "description": "A bare name with a lower-case letter names a rule, which is not a value, so it cannot be the operand of a test (engine §9).",
+  "document": "```jbogenbau\n%rule a LE⊇foo (B)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 12
+    }
+  }
+}

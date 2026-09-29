@@ -1,0 +1,81 @@
+{
+  "description": "X=\"s\" holds where the canonical sound of the token is s, and X≠\"s\" exactly where it is not: each token is read by one of the two, so the parse is unique. A stressed lA sounds la (engine §2, §4).",
+  "grammar": "%rule text [p] ...\n%rule p hit | miss\n%rule hit X=\"la\"\n%rule miss X≠\"la\"",
+  "tokens": [
+    {
+      "text": "la",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "la"
+    },
+    {
+      "text": "lo",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "lo"
+    },
+    {
+      "text": "lA",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "lA"
+    },
+    {
+      "text": "lai",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "lai"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "p",
+            "children": [
+              {
+                "rule": "hit"
+              }
+            ]
+          },
+          {
+            "rule": "p",
+            "children": [
+              {
+                "rule": "miss"
+              }
+            ]
+          },
+          {
+            "rule": "p",
+            "children": [
+              {
+                "rule": "hit"
+              }
+            ]
+          },
+          {
+            "rule": "p",
+            "children": [
+              {
+                "rule": "miss"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

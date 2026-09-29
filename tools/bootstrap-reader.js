@@ -8,16 +8,17 @@
 
 import fs from "node:fs";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
-import { DOM_FORMAT, propertyProblem, rangeProblem, spellingProblem } from "../lib/js/src/dom.js";
+import { DOM_FORMAT, propertyProblem, rangeProblem, testValueFault } from "../lib/js/src/dom.js";
 import { operandProblem } from "../lib/js/src/reader.js";
 import { UnicodeTable } from "../lib/js/src/unicode.js";
 import { characterTag } from "../lib/js/src/tags.js";
 
-// The lowercase mapping that a spelling is checked against (engine §9).
+// The lowercase mapping that the string of a sound test is checked against
+// (engine §9).
 const unicode = new UnicodeTable(fs.readFileSync(new URL("../grammars/unicode.txt", import.meta.url), "utf8"));
 
 const SYMBOLS = ["...", "..", "|", "&", "(", ")", "[", "]", "<", ">", "#", "ε", ",", "∧", "∨", "¬", "⟹", "=", "≠",
-  "∈", "∉", "⊆", "⊈", "∪", "∩", "∖", "∅"];
+  "∈", "∉", "⊆", "⊈", "⊇", "⊉", "∪", "∩", "∖", "∅"];
 
 const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%tags", "%conditions", "%emits", "%verbatim",
   "%ambiguity-resolution", "%elidable", "%stage", "%include", "%features", "%const", "%redefine-const"]);
@@ -96,16 +97,6 @@ function lex(text, positions) {
       if (i >= chars.length) fail("an unclosed string", { at: at(start) });
       i++;
       tokens.push({ kind: "string", text: chars.slice(start, i).join(""), at: at(start) });
-      continue;
-    }
-    // A spelling: the characters between two backticks, which the parser
-    // refuses if there are none.
-    if (c === "`") {
-      i++;
-      while (i < chars.length && chars[i] !== "`") i++;
-      if (i >= chars.length) fail("an unclosed spelling", { at: at(start) });
-      i++;
-      tokens.push({ kind: "spelling", text: chars.slice(start, i).join(""), at: at(start) });
       continue;
     }
     if (c === "/" && chars[i + 2] === "/") {
@@ -311,17 +302,42 @@ class Parser {
 
   primary() {
     const token = this.peek();
-    const expr = this.symbol();
-    // A reference, a string or a phoneme tag may take a spelling; the reader
-    // refuses one after # (engine §9).
-    if (!this.is("spelling")) return expr;
-    if (!["identifier", "tag", "character", "property", "phoneme", "#"].includes(token.kind)) fail("expected a rule or a directive", this.peek());
-    const spellingToken = this.take("spelling");
-    if (expr.range !== undefined || expr.property !== undefined) fail("a range or a property takes no spelling", spellingToken);
-    const spelling = [...spellingToken.text].slice(1, -1).join("");
-    const problem = spellingProblem(spelling, expr, unicode);
-    if (problem) fail(problem, spellingToken);
-    return { spelling, expr };
+    let expr = this.symbol();
+    // A reference other than # or a terminal may take one test on its own
+    // span; the reader refuses a test after anything else (engine §2, §9).
+    while (this.startsTest()) {
+      const testToken = this.peek();
+      const testable = ["identifier", "tag", "character", "property", "phoneme"].includes(token.kind) && expr.test === undefined;
+      if (!testable) fail("a test follows only a reference other than # or a terminal, not a group, an optional, a capture, ε, # or another test", testToken);
+      let test = this.take().kind;
+      const operandToken = this.peek();
+      const value = this.testOperand();
+      if (test === "∩") {
+        const emptiness = this.accept("=") ? "=" : (this.take("≠"), "≠");
+        this.take("∅");
+        test = `∩${emptiness}∅`;
+      }
+      const fault = testValueFault(test, value, unicode);
+      if (fault) fail(fault.problem, operandToken);
+      expr = { test, value, expr };
+    }
+    return expr;
+  }
+
+  startsTest() {
+    return ["=", "≠", "⊇", "⊉", "∩"].includes((this.peek() || {}).kind);
+  }
+
+  // A test's operand: one term, a bare name never a call (engine §9).
+  testOperand() {
+    const token = this.peek();
+    if (token && token.kind === "identifier") {
+      if (!isCapital(token.text)) fail("a rule is not a value", token);
+      this.index++;
+      return { tag: token.text };
+    }
+    if (token && token.kind === "capture") fail("expected a term", token);
+    return this.termAtom();
   }
 
   symbol() {
@@ -341,7 +357,7 @@ class Parser {
         this.take("(");
         const inner = this.primary();
         this.take(")");
-        if (inner.ref === undefined && inner.terminal === undefined && inner.spelling === undefined && inner.range === undefined && inner.property === undefined) fail("a capture wraps one symbol", token);
+        if (inner.ref === undefined && inner.terminal === undefined && inner.test === undefined && inner.range === undefined && inner.property === undefined) fail("a capture wraps one symbol", token);
         return { capture: token.name, expr: inner };
       }
       case "(": { this.index++; const inner = this.choice(); this.take(")"); return inner; }

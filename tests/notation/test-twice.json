@@ -1,0 +1,10 @@
+{
+  "description": "A tested symbol takes no second test. The error is at the second test (engine §9).",
+  "document": "```jbogenbau\n%rule text LE=\"la\"=\"lai\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 19
+    }
+  }
+}

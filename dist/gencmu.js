@@ -280,6 +280,27 @@
     return result;
   }
 
+  /**
+   * A test as an expected list writes it after its terminal (docs/output.md):
+   * its comparator and its value in canonical form. A string stands between
+   * double quotes, a backslash before each `\` and `"`. A tag set is `∅`, its
+   * one tag, or its tags in code point order joined by ` ∪ ` in parentheses.
+   * @param {string} op
+   * @param {{string: string} | {set: Set<string>}} value
+   * @returns {string}
+   */
+  function writtenTest(op, value) {
+    let written;
+    if ("string" in value) {
+      written = `"${value.string.replace(/[\\"]/g, (character) => `\\${character}`)}"`;
+    } else {
+      const tags = sortedTags(value.set);
+      written = tags.length === 0 ? "∅" : tags.length === 1 ? tags[0] : `(${tags.join(" ∪ ")})`;
+    }
+    if (op === "∩=∅" || op === "∩≠∅") return `∩${written}${op.slice(1)}`;
+    return `${op}${written}`;
+  }
+
   // ---- tokens.js
   // Tokens (engine §1): what every stage reads and writes.
 
@@ -415,7 +436,7 @@
 
 
   /**
-   * @import { Argument, CharacterClass, Condition, Edge, Expectation, GrammarSymbol, LoweredGrammar, Production, Scope, Slot, SpanValue, TagSet, Term, TermValue } from "./types.js"
+   * @import { Argument, CharacterClass, Condition, Edge, Expectation, GrammarSymbol, LoweredGrammar, Production, Scope, Slot, SpanValue, SymbolTest, TagSet, Term, TermValue } from "./types.js"
    * @import { Token } from "./tokens.js"
    * @import { UnicodeTable } from "./unicode.js"
    */
@@ -480,7 +501,7 @@
       this.unicode = unicode;
       this.interner = new TagInterner();
       /**
-       * Each token's phonemes in canonical form, for the spellings of
+       * Each token's phonemes in canonical form, for the sound tests of
        * symbols and for phonemes(), computed when one first looks at the
        * token (engine §4, §5).
        * @type {(string | undefined)[]}
@@ -515,8 +536,8 @@
    * @property {number} dot the dot of the item made, or of the item refused
    * @property {number} origin
    * @property {Condition} [condition] for a drop, the condition that failed
-   * @property {string} [spelling] for a drop, the spelling of the symbol the
-   *   item would have advanced over, which its span did not match
+   * @property {SymbolTest} [test] for a drop, the test of the symbol the item
+   *   would have advanced over, which did not hold
    */
 
   // A chart item: a production with a dot, its origin, and its captured
@@ -715,13 +736,13 @@
     /** @type {(item: Item, from: number, to: number, child: Item | null) => {dot: number, slots: Slot[], tagId: number} | null} */
     const advance = (item, from, to, child) => {
       const production = item.production;
-      // A spelled symbol's span must sound like its spelling, which is checked
-      // before any condition the advance makes ready (engine §4).
-      const spelling = production.rhs[item.dot].spelling;
-      if (spelling !== undefined && !spellingMatches(context, spelling, from, to)) {
+      // A tested symbol's test must hold of its own span and tags, which is
+      // checked before any condition the advance makes ready (engine §4).
+      const test = production.rhs[item.dot].test;
+      if (test !== undefined && !testHolds(context, test, from, to, child ? context.interner.get(child.tagId) : tokens[from].tags)) {
         const trace = context.trace;
         if (trace && trace.depth === 0 && to === trace.position) {
-          trace.events.push({ kind: "dropped", production, dot: item.dot, origin: item.origin, spelling });
+          trace.events.push({ kind: "dropped", production, dot: item.dot, origin: item.origin, test });
         }
         return null;
       }
@@ -801,34 +822,64 @@
   const SEED = { kind: "seed" };
 
   /**
-   * A symbol as the diagnostics write it: its name, followed by its spelling
-   * in backticks if it has one, such as LE`la` (docs/output.md).
-   * @param {{name: string, spelling?: string}} symbol
+   * A symbol as the diagnostics write it: its name, followed by its test if
+   * it has one, such as LE="la" (docs/output.md).
+   * @param {{name: string, test?: SymbolTest | null}} symbol
    * @returns {string}
    */
   function writtenSymbol(symbol) {
-    return symbol.spelling === undefined ? symbol.name : `${symbol.name}\`${symbol.spelling}\``;
+    return symbol.test ? symbol.name + symbol.test.written : symbol.name;
   }
 
   /**
-   * Whether the tokens [from, to) sound like a spelling: their canonical
-   * sound is exactly it (engine §4, §5). A token with no
-   * phonemes adds nothing, and a spelling is never empty, so neither such a
-   * token alone nor an empty span matches.
+   * Whether a test holds of a symbol's own span, the tokens [from, to), and
+   * its own tags (engine §4): a token's for a terminal, the completed item's
+   * for a reference. An empty span sounds like the empty string.
    * @param {ParseContext} context
-   * @param {string} spelling
+   * @param {SymbolTest} test
+   * @param {number} from
+   * @param {number} to
+   * @param {TagSet} tags
+   * @returns {boolean}
+   */
+  function testHolds(context, test, from, to, tags) {
+    switch (test.op) {
+      case "=":
+      case "≠":
+        return soundIs(context, /** @type {string} */ (test.sound), from, to) === (test.op === "=");
+      case "⊇":
+      case "⊉":
+        return isSubset(/** @type {TagSet} */ (test.tags), tags) === (test.op === "⊇");
+      default: {
+        let meets = false;
+        for (const tag of /** @type {TagSet} */ (test.tags)) {
+          if (tags.has(tag)) {
+            meets = true;
+            break;
+          }
+        }
+        return meets === (test.op === "∩≠∅");
+      }
+    }
+  }
+
+  /**
+   * Whether the tokens [from, to) sound like a string: their canonical sound
+   * is exactly it (engine §4, §5). A token with no phonemes adds nothing.
+   * @param {ParseContext} context
+   * @param {string} sound
    * @param {number} from
    * @param {number} to
    * @returns {boolean}
    */
-  function spellingMatches(context, spelling, from, to) {
+  function soundIs(context, sound, from, to) {
     let offset = 0;
     for (let index = from; index < to; index++) {
-      const sound = canonicalSound(context, index);
-      if (!spelling.startsWith(sound, offset)) return false;
-      offset += sound.length;
+      const part = canonicalSound(context, index);
+      if (!sound.startsWith(part, offset)) return false;
+      offset += part.length;
     }
-    return offset === spelling.length;
+    return offset === sound.length;
   }
 
   /**
@@ -2077,34 +2128,72 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 11;
+  const DOM_FORMAT = 12;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9-]*$/;
 
+  // The comparators of a test in a body (engine §2): the two sound tests and
+  // the four tag tests.
+  const TEST_OPS = new Set(["=", "≠", "⊇", "⊉", "∩=∅", "∩≠∅"]);
+
   /**
-   * What is wrong with a spelling of a symbol (engine §9), or null: an empty
-   * spelling, one with a backtick, which the notation cannot write, one that
-   * no canonical sound can be, with a comma or a code point that the
-   * lowercase mapping would change, or one of anything but a reference or a
-   * terminal, `#` included.
-   * The spelled symbol is exactly one reference or one terminal, so that no
-   * node is read one way here and another way when lowered. Without a table,
-   * the lowercase mapping is not checked.
-   * @param {unknown} spelling
-   * @param {unknown} expr the spelled expression
-   * @param {{lowercase(text: string): string, isMark(code: number): boolean}} [unicode]
+   * Whether a test's comparator is a sound test, whose value is a string,
+   * rather than a tag test, whose value is a tag set (engine §2).
+   * @param {string} op
+   * @returns {boolean}
+   */
+  function isSoundTest(op) {
+    return op === "=" || op === "≠";
+  }
+
+  /**
+   * What is wrong with the string of a sound test (engine §9), or null: one
+   * that no canonical sound can be, with a comma or a code point that the
+   * lowercase mapping would change. Without a table, the lowercase mapping is
+   * not checked.
+   * @param {string} sound
+   * @param {{lowercase(text: string): string}} [unicode]
    * @returns {string | null}
    */
-  function spellingProblem(spelling, expr, unicode) {
-    if (typeof spelling !== "string") return "a malformed spelling";
-    if (spelling === "") return "a spelling is empty";
-    if (spelling.includes("`")) return "a spelling holds a backtick";
-    if (!isDomObject(expr) || Object.keys(expr).length !== 1 ||
-        !((typeof expr.ref === "string" && expr.ref !== "#") || typeof expr.terminal === "string")) {
-      return "a spelling follows only a reference other than # or a terminal";
+  function soundProblem(sound, unicode) {
+    if (sound.includes(",")) return `the string ${JSON.stringify(sound)} holds a comma, which no canonical sound holds`;
+    if (unicode && unicode.lowercase(sound) !== sound) return `the string ${JSON.stringify(sound)} is not in lower case, which every canonical sound is`;
+    return null;
+  }
+
+  /**
+   * Whether an expression can carry a test (engine §2): a reference other
+   * than `#`, a terminal, a range or a property, with no other member.
+   * @param {unknown} expr
+   * @param {{isMark(code: number): boolean}} unicode
+   * @returns {boolean}
+   */
+  function isTestable(expr, unicode) {
+    if (!isDomObject(expr) || Object.keys(expr).length !== 1) return false;
+    return (typeof expr.ref === "string" && expr.ref !== "#") || isTag(expr.terminal, unicode) || isCharacterClass(expr, unicode);
+  }
+
+  /**
+   * What is wrong with a test's value (engine §9), or null: it must be a
+   * closed term, of type string for a sound test and tag set for a tag test,
+   * and a string literal of a sound test must be a canonical sound. The shape
+   * of the value must already be checked, and its nesting bounded.
+   * @param {string} op
+   * @param {any} value
+   * @param {{lowercase(text: string): string}} [unicode]
+   * @returns {{problem: string, node: any} | null}
+   */
+  function testValueFault(op, value, unicode) {
+    const open = openPart(value);
+    if (open) return { problem: "a test's operand is a closed term, and reads no capture or span", node: open };
+    const found = termType(value);
+    if ("problem" in found) return found;
+    const problem = expectedProblem(found.type, isSoundTest(op) ? "string" : "tags");
+    if (problem) return { problem: `${op} tests ${isSoundTest(op) ? "a string" : "a tag set"}: ${problem}`, node: value };
+    if (isSoundTest(op) && typeof value.string === "string") {
+      const wrong = soundProblem(value.string, unicode);
+      if (wrong) return { problem: wrong, node: value };
     }
-    if (spelling.includes(",")) return `the spelling ${spelling} holds a comma, which no canonical sound holds`;
-    if (unicode && unicode.lowercase(spelling) !== spelling) return `the spelling ${spelling} is not in lower case`;
     return null;
   }
 
@@ -2149,14 +2238,14 @@
   }
 
   /**
-   * Whether an expression node has a spelling but is not exactly a spelled
-   * symbol: its spelling and its symbol, and no other key that lowering
-   * could read in its place.
+   * Whether an expression node has a test but is not exactly a tested
+   * symbol: its comparator, its value and its symbol, and no other key that
+   * lowering could read in its place.
    * @param {Record<string, unknown>} value
    * @returns {boolean}
    */
-  function isMisshapenSpelling(value) {
-    return "spelling" in value && (Object.keys(value).length !== 2 || !("expr" in value));
+  function isMisshapenTest(value) {
+    return "test" in value && (Object.keys(value).length !== 3 || !("expr" in value) || !("value" in value));
   }
 
   /**
@@ -2205,8 +2294,8 @@
 
   /**
    * Why a value is not a grammar DOM, or null when it is one. `unicode` is
-   * the loader's table: the lowercase mapping that spellings are checked
-   * against, and the marks that decide a character tag's canonical spelling.
+   * the loader's table: the lowercase mapping that the strings of sound
+   * tests are checked against, and the marks that decide a character tag's canonical spelling.
    * @param {unknown} dom
    * @param {{lowercase(text: string): string, isMark(code: number): boolean}} unicode
    * @returns {string | null}
@@ -2225,6 +2314,10 @@
     }
     /** @type {{kind: string, value: unknown, depth: number}[]} */
     const pending = [];
+    // The tested symbols, whose values are checked once the nesting is
+    // bounded.
+    /** @type {Record<string, any>[]} */
+    const tests = [];
     // A constant's definition: its name, its op, its position and a value
     // that is a closed term (engine §2, §10).
     for (const constant of dom.constants) {
@@ -2254,9 +2347,9 @@
         // items of a top-level sequence are below one, the sequence.
         const expr = alternative.expr;
         // The expression itself is checked before its sequence is split, so
-        // that a member beside `seq` is never left unread: a spelling, or a
+        // that a member beside `seq` is never left unread: a test, or a
         // range or a property, which has no member but its own.
-        if (isDomObject(expr) && isMisshapenSpelling(expr)) return "a malformed expression";
+        if (isDomObject(expr) && isMisshapenTest(expr)) return "a malformed expression";
         if (isDomObject(expr) && ("range" in expr || "property" in expr) && !isCharacterClass(expr, unicode)) return "a malformed expression";
         const isSeq = isDomObject(expr) && Array.isArray(expr.seq);
         const top = isSeq ? /** @type {unknown[]} */ (expr.seq) : [expr];
@@ -2284,7 +2377,7 @@
       const push = (childKind, child) => pending.push({ kind: childKind, value: child, depth: next });
       /** @type {(list: unknown, least: number, most?: number) => boolean} */
       const list = (items, least, most = Infinity) => Array.isArray(items) && items.length >= least && items.length <= most;
-      if ((kind === "expr" || kind === "top-capture") && isMisshapenSpelling(value)) return "a malformed expression";
+      if ((kind === "expr" || kind === "top-capture") && isMisshapenTest(value)) return "a malformed expression";
       if (kind === "expr") {
         // A range or a property has no member but its own.
         if (("range" in value || "property" in value) && !isCharacterClass(value, unicode)) return "a malformed expression";
@@ -2302,22 +2395,25 @@
           push("expr", value.optional);
         } else if ("capture" in value) {
           return "a capture below the top level of an alternative";
-        } else if ("spelling" in value) {
-          // A compound node (engine §9) over one symbol.
-          const problem = spellingProblem(value.spelling, value.expr, unicode);
-          if (problem) return problem;
+        } else if ("test" in value) {
+          // A compound node (engine §9) over one symbol; its value counts on
+          // from its depth, and is checked once the nesting is bounded.
+          if (typeof value.test !== "string" || !TEST_OPS.has(value.test)) return "a malformed test";
+          if (!isTestable(value.expr, unicode)) return "a test follows only a reference other than # or a terminal";
           push("expr", value.expr);
+          push("term", value.value);
+          tests.push(value);
         } else if (!(typeof value.ref === "string" || isTag(value.terminal, unicode) || value.empty === true || isCharacterClass(value, unicode))) {
           return "a malformed expression";
         }
       } else if (kind === "top-capture") {
         const inner = value.expr;
         if (typeof value.capture !== "string" || !isDomObject(inner) ||
-            !(typeof inner.ref === "string" || isTag(inner.terminal, unicode) || "spelling" in inner || isCharacterClass(inner, unicode)) ||
+            !(typeof inner.ref === "string" || isTag(inner.terminal, unicode) || "test" in inner || isCharacterClass(inner, unicode)) ||
             (("range" in inner || "property" in inner) && !isCharacterClass(inner, unicode))) return "a malformed capture";
-        // A capture is a compound node; a spelled symbol below it is checked
+        // A capture is a compound node; a tested symbol below it is checked
         // as any expression is.
-        if ("spelling" in inner) push("expr", inner);
+        if ("test" in inner) push("expr", inner);
       } else if (kind === "constituent-tags") {
         // A constituent's tags cannot be made of its own (engine §9).
         if (readsOwnTags(value)) return "a constituent's tags made of its own";
@@ -2414,6 +2510,10 @@
     // The walks below recurse, so they run only once the nesting is bounded.
     for (const constant of /** @type {any[]} */ (dom.constants)) {
       if (openPart(constant.value) !== null) return "a constant's value is not a closed term";
+    }
+    for (const test of tests) {
+      const fault = testValueFault(test.test, test.value, unicode);
+      if (fault) return fault.problem;
     }
     for (const constant of /** @type {any[]} */ (dom.constants)) {
       const problem = valueTypeProblem(constant.value, constant.op === "redefine");
@@ -2903,7 +3003,38 @@
       const fault = conditionTypeFault(condition, constants);
       if (fault) return fault;
     }
+    // A test's value is a string for a sound test and a tag set for a tag
+    // test (engine §9, §10).
+    for (const alternative of rule.alternatives) {
+      for (const test of testsIn(alternative.expr)) {
+        const found = termType(test.value, constants);
+        if ("problem" in found) return found;
+        const problem = expectedProblem(found.type, isSoundTest(test.test) ? "string" : "tags");
+        if (problem) return { problem: `${test.test} tests ${isSoundTest(test.test) ? "a string" : "a tag set"}: ${problem}`, node: test.value };
+      }
+    }
     return null;
+  }
+
+  /**
+   * The tested symbols of an expression, in the order written.
+   * @param {any} expr
+   * @returns {{test: string, value: any, expr: any}[]}
+   */
+  function testsIn(expr) {
+    /** @type {{test: string, value: any, expr: any}[]} */
+    const found = [];
+    const stack = [expr];
+    for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
+      if (!isDomObject(current)) continue;
+      if (typeof current.test === "string") found.push(/** @type {any} */ (current));
+      for (const key of ["choice", "and", "seq"]) {
+        const items = current[key];
+        if (Array.isArray(items)) for (let index = items.length - 1; index >= 0; index--) stack.push(items[index]);
+      }
+      for (const key of ["optional", "repeat", "expr"]) if (key in current) stack.push(current[key]);
+    }
+    return found;
   }
 
   /**
@@ -3296,7 +3427,7 @@
       else if ("and" in current) stack.push(...current.and);
       else if ("optional" in current) stack.push(current.optional);
       else if ("repeat" in current) stack.push(current.repeat);
-      else if ("capture" in current || "spelling" in current) stack.push(current.expr);
+      else if ("capture" in current || "test" in current) stack.push(current.expr);
     }
   }
 
@@ -3616,7 +3747,7 @@
       for (const event of events) {
         const item = formatItem(event.production, event.kind === "dropped" ? event.dot + 1 : event.dot);
         const span = event.kind === "dropped" ? "" : `  [${event.origin}..${position}]`;
-        const refused = event.spelling !== undefined ? `\n      refused: what it spans does not sound like \`${event.spelling}\``
+        const refused = event.test !== undefined ? `\n      refused: the test of ${writtenSymbol(event.production.rhs[event.dot])} does not hold of what it spans`
           : event.condition ? `\n      refused: ${formatCondition(event.condition)}` : "";
         lines.push(`  ${item}${span}${refused}`);
       }
@@ -3639,7 +3770,7 @@
 
 
   /**
-   * @import { Condition, ConstantTerm, DomAlternative, DomConstant, DomRule, Emission, ErrorLocation, Expr, GrammarDom, Guard, LoweredGrammar, Production, Resolution, Term, TermValue } from "./types.js"
+   * @import { Condition, ConstantTerm, DomAlternative, DomConstant, DomRule, Emission, ErrorLocation, Expr, GrammarDom, Guard, LoweredGrammar, Production, Resolution, SymbolTest, Term, TermValue, TestOp } from "./types.js"
    * @import { TermType } from "./dom.js"
    */
 
@@ -3699,7 +3830,7 @@
    * @property {string} name
    * @property {(where: Where) => SequenceItem[][]} build
    * @property {string | null} elided
-   * @property {string | null} elidedSpelling
+   * @property {SymbolTest | null} elidedTest
    */
 
   const MAX_CAPTURES = 4;
@@ -3709,8 +3840,9 @@
     /**
      * @param {string} stageName
      * @param {{path: string, dom: GrammarDom}[]} documents
-     * @param {{isMark(code: number): boolean}} unicode the loader's table, for
-     *   the tags of a range in a constant's value
+     * @param {{isMark(code: number): boolean, lowercase(text: string): string}} unicode
+     *   the loader's table, for the tags of a range in a constant's value and
+     *   the canonical sound of a string constant in a test
      */
     constructor(stageName, documents, unicode) {
       this.stageName = stageName;
@@ -3733,6 +3865,12 @@
       this.resolution = null;
       for (const { path, dom } of documents) this.addDocument(path, dom);
       this.resolveConstants();
+      /**
+       * Each test of a body with its value, made once for every lowering.
+       * @type {WeakMap<object, SymbolTest>}
+       */
+      this.tests = new WeakMap();
+      this.checkElidableTests();
       if (!this.resolution) {
         throw new GencmuError("grammar", `stage ${stageName} has no %ambiguity-resolution`, { stage: stageName });
       }
@@ -3930,6 +4068,17 @@
         // the loader, now with the constants' values (engine §9).
         const problem = definitionProblem(resolveNode(rule, this.constants));
         if (problem) throw this.documentError(path, rule.at, problem);
+        // A string constant in a sound test must be a canonical sound (engine
+        // §2, §9); the error stands at the constant.
+        for (const alternative of rule.alternatives) {
+          for (const test of testsIn(alternative.expr)) {
+            const first = constantsIn(test.value)[0];
+            if (!isSoundTest(test.test) || !first) continue;
+            const value = this.evaluateClosed(path, test.value, rule.at);
+            const wrong = soundProblem("string" in value ? value.string : "", this.unicode);
+            if (wrong) throw this.documentError(path, first.at, wrong);
+          }
+        }
         for (const call of callsIn(rule)) {
           const argument = call.call === "split" ? call.args[1] : call.call === "tag" ? call.args[0] : undefined;
           if (!argument || !("const" in argument)) continue;
@@ -3958,6 +4107,52 @@
           return { ...alternative, tags: resolve(alternative.tags), clauses: shared };
         });
       }
+    }
+
+    /**
+     * The terminal of an elidable optional has no test or an `=` test, since
+     * elision-only restores it with a sound (engine §3.8). The check runs once
+     * the stage is stitched, since a later %elidable can make an optional
+     * elidable, over every alternative whatever the features.
+     */
+    checkElidableTests() {
+      for (const rule of this.rules.values()) {
+        for (const alternative of rule.alternatives) {
+          const stack = [alternative.expr];
+          for (let expr = stack.pop(); expr !== undefined; expr = stack.pop()) {
+            if ("optional" in expr) {
+              let first = expr.optional;
+              while ("seq" in first) first = first.seq[0];
+              if ("test" in first && first.test !== "=") {
+                const name = "ref" in first.expr ? first.expr.ref : "terminal" in first.expr ? first.expr.terminal : undefined;
+                if (name !== undefined && this.elidable.has(name)) {
+                  throw new GencmuError("grammar", `${alternative.document}: ${rule.name} can elide ${name}, whose test ${first.test} gives it no sound to restore; an elidable terminator has no test or an = test`, alternative.at);
+                }
+              }
+            }
+            stack.push(...childExpressions(expr));
+          }
+        }
+      }
+    }
+
+    /**
+     * A test of a body with its value, from the constants' final values
+     * (engine §2, §4).
+     * @param {{test: TestOp, value: Term}} test
+     * @param {string} path
+     * @param {ErrorLocation} at
+     * @returns {SymbolTest}
+     */
+    symbolTest(test, path, at) {
+      let found = this.tests.get(test);
+      if (!found) {
+        const value = this.evaluateClosed(path, test.value, [at.line ?? 0, at.column ?? 0]);
+        const written = writtenTest(test.test, value);
+        found = "string" in value ? { op: test.test, sound: value.string, written } : { op: test.test, tags: "set" in value ? value.set : tagSet(), written };
+        this.tests.set(test, found);
+      }
+      return found;
     }
 
     checkReferences() {
@@ -4089,7 +4284,7 @@
     if ("and" in expr) return expr.and;
     if ("optional" in expr) return [expr.optional];
     if ("repeat" in expr) return [expr.repeat];
-    if ("capture" in expr || "spelling" in expr) return [expr.expr];
+    if ("capture" in expr || "test" in expr) return [expr.expr];
     return [];
   }
 
@@ -4193,7 +4388,7 @@
             helper: true,
             owner: rule.name,
             elided: helper.elided,
-            elidedSpelling: helper.elidedSpelling,
+            elidedTest: helper.elidedTest,
             captures: single ? [{ name: "\u0000child", index: 0 }] : [],
             conditions: [],
             tags: single ? { call: "tags", args: [{ capture: "\u0000child" }] } : null,
@@ -4273,7 +4468,7 @@
         helper: false,
         owner: rule.name,
         elided: null,
-        elidedSpelling: null,
+        elidedTest: null,
         captures,
         conditions,
         tags,
@@ -4330,11 +4525,12 @@
         return [[{ symbol: { name, terminal: false } }]];
       }
       if ("empty" in expr) return [[]];
-      if ("spelling" in expr) {
-        // A spelled symbol lowers to its symbol with the spelling, and adds
-        // no helper (engine §3).
+      if ("test" in expr) {
+        // A tested symbol lowers to its symbol with the test, and adds no
+        // helper (engine §3).
         const inner = this.expand(expr.expr, where);
-        return [[{ symbol: { ...inner[0][0].symbol, spelling: expr.spelling } }]];
+        const test = this.grammar.symbolTest(expr, where.rule.document, where.rule.at);
+        return [[{ symbol: { ...inner[0][0].symbol, test } }]];
       }
       if ("ref" in expr) return [[{ symbol: { name: expr.ref, terminal: isTerminalName(expr.ref) } }]];
       if ("terminal" in expr) return [[{ symbol: { name: expr.terminal, terminal: true } }]];
@@ -4371,31 +4567,30 @@
      * Names a helper rule, to be lowered when the alternative is done.
      * @param {Where} where
      * @param {(where: Where) => SequenceItem[][]} build
-     * @param {{terminal: string, spelling: string | null} | null} elided
+     * @param {{terminal: string, test: SymbolTest | null} | null} elided
      * @returns {string}
      */
     helper(where, build, elided) {
       const name = `${where.rule.name}·${this.helperCount++}`;
-      where.pending.push({ name, build, elided: elided ? elided.terminal : null, elidedSpelling: elided ? elided.spelling : null });
+      where.pending.push({ name, build, elided: elided ? elided.terminal : null, elidedTest: elided ? elided.test : null });
       return name;
     }
 
     /**
-     * The elidable terminal an optional begins with, if any, and its
-     * spelling: a spelled terminal is elidable when its terminal is (engine
-     * §3.8, §12).
+     * The elidable terminal an optional begins with, if any, and its test: a
+     * tested terminal is elidable when its terminal is (engine §3.8, §12).
      * @param {Expr} expr
      * @param {Where} where
-     * @returns {{terminal: string, spelling: string | null} | null}
+     * @returns {{terminal: string, test: SymbolTest | null} | null}
      */
     elidedTerminal(expr, where) {
-      void where;
       let first = expr;
       while ("seq" in first) first = first.seq[0];
-      const spelling = "spelling" in first ? first.spelling : null;
-      if ("spelling" in first) first = first.expr;
+      const tested = "test" in first ? first : null;
+      if (tested) first = tested.expr;
       const name = "ref" in first ? first.ref : "terminal" in first ? first.terminal : undefined;
-      return name !== undefined && this.grammar.elidable.has(name) ? { terminal: name, spelling } : null;
+      if (name === undefined || !this.grammar.elidable.has(name)) return null;
+      return { terminal: name, test: tested ? this.grammar.symbolTest(tested, where.rule.document, where.rule.at) : null };
     }
   }
 
@@ -4867,7 +5062,7 @@
                 produced.push(entry);
               }
             }
-            if (guarded) permitted = !(/** @type {Maximal} */ (maximal)).forbids(edge.child, current.production.rhs[current.dot - 1].spelling);
+            if (guarded) permitted = !(/** @type {Maximal} */ (maximal)).forbids(edge.child, current.production.rhs[current.dot - 1].test);
           }
           for (const entry of produced) {
             all = this.keep(all, entry);
@@ -5020,7 +5215,7 @@
             ways = (maximal !== null && maximal.elided(edge.child) ? before.allowed : before.all) * dependency(edge.child).all;
           }
           all = Math.min(2, all + ways);
-          if (guarded && (edge.kind !== "complete" || !(/** @type {Maximal} */ (maximal)).forbids(edge.child, current.production.rhs[current.dot - 1].spelling))) allowed = Math.min(2, allowed + ways);
+          if (guarded && (edge.kind !== "complete" || !(/** @type {Maximal} */ (maximal)).forbids(edge.child, current.production.rhs[current.dot - 1].test))) allowed = Math.min(2, allowed + ways);
           if (all === 2 && (!guarded || allowed === 2)) break;
         }
         return { all, allowed: guarded ? allowed : all };
@@ -5259,7 +5454,7 @@
   // where its constituent, the node before it, could have been longer.
 
   /**
-   * @import { Item, LoweredGrammar } from "./types.js"
+   * @import { Item, LoweredGrammar, SymbolTest } from "./types.js"
    * @import { Chart } from "./earley.js"
    */
 
@@ -5274,9 +5469,9 @@
    *   is an elidable optional whose elision the node before it can forbid:
    *   not at the start of a production, and not after a production's first
    *   symbol when that is its own rule, what a repetition has read so far
-   * @property {(item: Item, spelling?: string) => boolean} forbids whether an
+   * @property {(item: Item, test?: SymbolTest) => boolean} forbids whether an
    *   elided terminator may not follow the completed item, its constituent,
-   *   which stands for a symbol with the given spelling, if it has one
+   *   which stands for a symbol with the given test, if it has one
    */
 
   /**
@@ -5310,26 +5505,26 @@
       }
       return furthest;
     };
-    // For a spelled symbol, every end of a completed item of each symbol from
-    // each origin, since a longer constituent counts only where its span
-    // sounds like the spelling too (engine §4).
-    /** @type {Map<string, Map<number, number[]>> | null} */
-    let ends = null;
-    const allEnds = () => {
-      if (ends) return ends;
-      ends = new Map();
+    // For a tested symbol, every completed item of each symbol from each
+    // origin, since a longer constituent counts only where the test holds of
+    // it too, with its own span and tags (engine §4).
+    /** @type {Map<string, Map<number, Item[]>> | null} */
+    let completed = null;
+    const allCompleted = () => {
+      if (completed) return completed;
+      completed = new Map();
       for (const set of chart.sets) {
         if (!set) continue;
         for (const item of set.items) {
           if (item.dot !== item.production.rhs.length) continue;
-          let byOrigin = ends.get(item.production.lhs);
-          if (!byOrigin) ends.set(item.production.lhs, (byOrigin = new Map()));
+          let byOrigin = completed.get(item.production.lhs);
+          if (!byOrigin) completed.set(item.production.lhs, (byOrigin = new Map()));
           const list = byOrigin.get(item.origin);
-          if (!list) byOrigin.set(item.origin, [set.position]);
-          else if (list[list.length - 1] !== set.position) list.push(set.position);
+          if (!list) byOrigin.set(item.origin, [item]);
+          else list.push(item);
         }
       }
-      return ends;
+      return completed;
     };
     return {
       elided: (item) => item.production.helper && item.production.elided !== null && item.production.rhs.length === 0,
@@ -5339,11 +5534,13 @@
         if (next === undefined || next.terminal || !elidable.has(next.name)) return false;
         return !(item.dot === 1 && !rhs[0].terminal && rhs[0].name === item.production.lhs);
       },
-      forbids: (item, spelling) => {
-        if (spelling !== undefined) {
-          const byOrigin = allEnds().get(item.production.lhs);
+      forbids: (item, test) => {
+        if (test !== undefined) {
+          const byOrigin = allCompleted().get(item.production.lhs);
           const list = byOrigin === undefined ? undefined : byOrigin.get(item.origin);
-          return list !== undefined && list.some((end) => end > item.end && spellingMatches(chart.context, spelling, item.origin, end));
+          const context = chart.context;
+          return list !== undefined && list.some((longer) => longer.end > item.end &&
+            testHolds(context, test, item.origin, longer.end, context.interner.get(longer.tagId)));
         }
         const byOrigin = longest().get(item.production.lhs);
         const end = byOrigin === undefined ? undefined : byOrigin.get(item.origin);
@@ -5524,9 +5721,10 @@
           const node = elided[next++];
           const position = node.source[0];
           synthetic.push(restored.length);
-          // A restored spelled terminator sounds like its spelling, so that it
-          // matches its own terminator in the stricter grammar (engine §7).
-          restored.push(new Token(tagSet([node.terminal]), [restored.length, restored.length], [position, position], "", node.spelling ?? null, undefined));
+          // A restored terminator with an `=` test sounds like the test's
+          // string, so that it matches its own terminator in the stricter
+          // grammar (engine §7).
+          restored.push(new Token(tagSet([node.terminal]), [restored.length, restored.length], [position, position], "", node.sound ?? null, undefined));
         }
         if (index < tokens.length) restored.push(tokens[index]);
       }
@@ -5717,10 +5915,10 @@
         const rhs = node.production.rhs;
         const own = index === 1 && !rhs[0].terminal && rhs[0].name === node.production.lhs;
         const before = index > 0 && !own ? node.children[index - 1] : null;
-        if (before && !("read" in before) && maximal.forbids(before.item, rhs[index - 1].spelling)) {
+        if (before && !("read" in before) && maximal.forbids(before.item, rhs[index - 1].test)) {
           const production = child.production;
           const terminal = /** @type {string} */ (production.elided);
-          const written = production.elidedSpelling ? writtenSymbol({ name: terminal, spelling: production.elidedSpelling }) : terminal;
+          const written = writtenSymbol({ name: terminal, test: production.elidedTest });
           return { position: child.start, expected: [{ terminal: written, rules: [production.owner] }] };
         }
       }
@@ -5768,9 +5966,9 @@
           const position = emptySource(tokens, node.start);
           /** @type {ElidedNode} */
           const elided = { kind: "elided", terminal: production.elided, span: [node.start, node.start], source: [position, position] };
-          // The spelling is kept for elision-only's restored token; the output
-          // does not show it (engine §7).
-          if (production.elidedSpelling) elided.spelling = production.elidedSpelling;
+          // The string of an `=` test is kept for elision-only's restored
+          // token; the output does not show it (engine §7).
+          if (production.elidedTest && production.elidedTest.sound !== undefined) elided.sound = production.elidedTest.sound;
           finish([elided]);
           continue;
         }
@@ -6016,8 +6214,9 @@
    * @param {(token: Token) => Position} positionOf
    * @param {string} path
    * @param {{lowercase(text: string): string, isMark(code: number): boolean}} unicode
-   *   the lowercase mapping that spellings are checked against (engine §9,
-   *   §10), and the marks that a character tag escapes (engine §1)
+   *   the lowercase mapping that the strings of sound tests are checked
+   *   against (engine §9, §10), and the marks that a character tag escapes
+   *   (engine §1)
    * @returns {GrammarDom}
    */
   function treeToDom(tree, tokens, positionOf, path, unicode) {
@@ -6056,6 +6255,16 @@
     };
     /** @type {(node: ResultNode) => string | undefined} */
     const ruleOf = (node) => (node.kind === "rule" ? node.rule : undefined);
+    // The first node of a rule at or below a node, in the order written.
+    /** @type {(node: ResultNode, name: string) => ResultNode | null} */
+    const firstOfRule = (node, name) => {
+      if (ruleOf(node) === name) return node;
+      for (const child of parts(node)) {
+        const found = firstOfRule(child, name);
+        if (found) return found;
+      }
+      return null;
+    };
 
     /** @type {DomRule[]} */
     const rules = [];
@@ -6063,9 +6272,10 @@
     const directives = [];
     /** @type {DomConstant[]} */
     const constants = [];
-    // Whether the reader is reading a constant's value, a closed term (engine
-    // §9, §10).
-    let inConstant = false;
+    // What the reader is reading as a closed term, a constant's value or a
+    // test's operand, or null (engine §9, §10).
+    /** @type {string | null} */
+    let closedFor = null;
     for (const item of parts(tree)) {
       if (ruleOf(item) === "directive") {
         const [directiveToken, ...rest] = parts(item);
@@ -6104,9 +6314,9 @@
       const keyword = tokenText(parts(only(node, "constant-definer"))[0]);
       const name = text(parts(only(node, "constant-reference"))[0]).slice(1);
       const valueNode = only(node, "term");
-      inConstant = true;
+      closedFor = "a constant's value";
       const value = readTerm(valueNode);
-      inConstant = false;
+      closedFor = null;
       const op = keyword === "%redefine-const" ? "redefine" : "define";
       const found = constantValueType(value, op === "redefine");
       if ("problem" in found) fail(found.problem, valueNode);
@@ -6206,16 +6416,34 @@
         case "tag": case "character": case "phoneme": return { terminal: tagOf(parts(node)[0]) };
         case "range": return { range: readRange(node) };
         case "property": return { property: readProperty(parts(node)[0]) };
-        case "spelled": {
-          // A reference or a terminal and its spelling, which the syntax
-          // grammar gives nothing else (engine §9).
-          const [symbol, spellingToken] = parts(node);
-          const expr = readPrimary(symbol);
-          if ("range" in expr || "property" in expr) fail("a range or a property takes no spelling", spellingToken);
-          const spelling = [...text(spellingToken)].slice(1, -1).join("");
-          const problem = spellingProblem(spelling, expr, unicode);
-          if (problem) fail(problem, spellingToken);
-          return { spelling, expr: /** @type {import("./types.js").SpelledSymbol} */ (expr) };
+        case "tested": {
+          // A reference other than # or a terminal, and one test on its own
+          // span (engine §2, §9). The syntax grammar reads a test after any
+          // primary, so that the reader can name the reason.
+          const [primary, testNode] = parts(node);
+          const symbol = parts(primary)[0];
+          const kind = ruleOf(symbol);
+          if (kind === "constant-reference") fail(CONSTANT_IN_BODY, symbol);
+          if (!["reference", "tag", "character", "phoneme", "range", "property"].includes(/** @type {string} */ (kind)) ||
+              (kind === "reference" && text(parts(symbol)[0]) === "#")) {
+            fail("a test follows only a reference other than # or a terminal, not a group, an optional, a capture, ε, # or another test", testNode);
+          }
+          const expr = /** @type {import("./types.js").TestedSymbol} */ (readPrimary(symbol));
+          // The comparator is the test's tokens: `=`, `≠`, `⊇` or `⊉`, or
+          // `∩` and `=∅` or `≠∅` around the operand.
+          const test = /** @type {import("./types.js").TestOp} */ (parts(testNode).flatMap((child) => (child.kind === "token" ? [text(child)] : [])).join(""));
+          const operand = only(testNode, "test-operand");
+          closedFor = "a test's operand";
+          const value = readTerm(operand);
+          closedFor = null;
+          const found = termType(value);
+          const problem = "problem" in found ? found.problem : expectedProblem(found.type, isSoundTest(test) ? "string" : "tags");
+          if (problem) fail(`${test} tests ${isSoundTest(test) ? "a string" : "a tag set"}: ${problem}`, operand);
+          if (isSoundTest(test) && "string" in value) {
+            const wrong = soundProblem(value.string, unicode);
+            if (wrong) fail(wrong, firstOfRule(operand, "string") || operand);
+          }
+          return { test, value, expr };
         }
         case "capture": {
           if (!top) fail("a capture stands at the top level of an alternative, not inside [ ], ( ), ..., & or a choice", node);
@@ -6225,7 +6453,7 @@
           const wrapped = parts(inner)[0];
           const kind = ruleOf(wrapped);
           if (kind === "constant-reference") fail(CONSTANT_IN_BODY, wrapped);
-          if (!["reference", "tag", "character", "phoneme", "range", "property", "spelled"].includes(/** @type {string} */ (kind))) fail("a capture wraps one symbol", node);
+          if (!["reference", "tag", "character", "phoneme", "range", "property", "tested"].includes(/** @type {string} */ (kind))) fail("a capture wraps one symbol", node);
           const expr = readPrimary(wrapped);
           return { capture: text(captureToken).slice(1), expr };
         }
@@ -6377,7 +6605,7 @@
         return readTerm(inner, argument);
       }
       if (ruleOf(node) === "guarded-term") {
-        if (inConstant) fail("a constant's value is a closed term, and holds no guarded term", node);
+        if (closedFor) fail(`${closedFor} is a closed term, and holds no guarded term`, node);
         const condition = readAnyOf(only(node, "any-of"));
         const conditionProblem = conditionTypeProblem(condition);
         if (conditionProblem) fail(conditionProblem, node);
@@ -6433,7 +6661,7 @@
         if ("problem" in joined) fail(joined.problem, node);
         return { intersection: items };
       }
-      if (ruleOf(node) === "term-atom") {
+      if (ruleOf(node) === "term-atom" || ruleOf(node) === "test-operand") {
         const inner = parts(node).find((child) => child.kind === "rule");
         if (!inner) return fail("expected a term", node);
         if (ruleOf(inner) === "call") {
@@ -6462,7 +6690,7 @@
         case "constant-reference": return { const: text(parts(node)[0]).slice(1), at: at(node) };
         case "capture-reference": {
           const capture = text(parts(node)[0]).slice(1);
-          if (inConstant) fail("a constant's value is a closed term, and holds no capture", node);
+          if (closedFor) fail(`${closedFor} is a closed term, and holds no capture`, node);
           if (!argument) fail(`a span is not a value: tags($${capture}) is the tag set of $${capture}`, node);
           return { capture };
         }
@@ -6477,7 +6705,7 @@
     function readCall(node) {
       const name = text(parts(node)[0]);
       if (!FUNCTIONS.has(name)) fail(`unknown function ${name}`, node);
-      if (inConstant && name !== "split" && name !== "tag") fail(`a constant's value is a closed term, and ${name} reads a span`, node);
+      if (closedFor && name !== "split" && name !== "tag") fail(`${closedFor} is a closed term, and ${name} reads a span`, node);
       /** @type {Argument[]} */
       const args = ofRule(node, "argument").map((argument) => readTerm(parts(argument)[0], true));
       /** @type {(argument: Argument | undefined) => boolean} */
@@ -6651,7 +6879,7 @@
   // other rule is transparent.
   const NAMED = new Set([
     "directive", "argument-word", "argument-string", "rule", "definer", "body", "alternative", "guard", "alternative-tags",
-    "conjunction", "sequence", "element", "primary", "reference", "string", "phoneme", "spelled", "capture", "group", "optional",
+    "conjunction", "sequence", "element", "primary", "reference", "string", "phoneme", "tested", "test", "test-operand", "capture", "group", "optional",
     "choice", "empty", "tags-clause", "conditions-clause", "emits-clause", "verbatim-clause", "emit-item", "emit-target", "emit-tags",
     "implication", "any-of", "all-of", "condition", "comparison", "comparator", "negation", "presence",
     "term", "guarded-term", "union", "intersection", "term-atom", "tag", "character", "name", "empty-set", "call", "argument",
@@ -7448,8 +7676,9 @@
    * @property {string} terminal
    * @property {Span} span
    * @property {Span} source
-   * @property {string} [spelling] the terminator's spelling, if it is spelled,
-   *   which the output does not show
+   * @property {string} [sound] the string of the terminator's `=` test, if it
+   *   has one, which a restored token sounds like and the output does not
+   *   show (engine §7)
    */
 
   /**
@@ -7649,13 +7878,17 @@
    * @typedef {{choice: Expr[]} | {and: Expr[]} | {seq: Expr[]} | {repeat: Expr, min: number}
    *   | {optional: Expr} | {capture: string, expr: Expr} | {ref: string} | {terminal: string}
    *   | {range: [string, string]} | {property: string}
-   *   | {spelling: string, expr: SpelledSymbol} | {empty: true}} Expr
+   *   | {test: TestOp, value: Term, expr: TestedSymbol} | {empty: true}} Expr
    */
 
   /**
-   * What a spelling follows: a reference, or a terminal, a string or a
-   * phoneme tag.
-   * @typedef {{ref: string} | {terminal: string}} SpelledSymbol
+   * The comparator of a test in a body (engine §2).
+   * @typedef {"=" | "≠" | "⊇" | "⊉" | "∩=∅" | "∩≠∅"} TestOp
+   */
+
+  /**
+   * What a test follows: a reference other than `#`, or a terminal.
+   * @typedef {{ref: string} | {terminal: string} | {range: [string, string]} | {property: string}} TestedSymbol
    */
 
   /**
@@ -7709,10 +7942,21 @@
    * @typedef {object} GrammarSymbol
    * @property {string} name
    * @property {boolean} terminal
-   * @property {string} [spelling] what the symbol's span must sound like,
-   *   lowercased; not part of the terminal's identity (engine §4)
+   * @property {SymbolTest} [test] the test on the symbol's own span; not part
+   *   of the terminal's identity (engine §4)
    * @property {CharacterClass} [characters] for a range or a property, the
    *   characters it matches; its name is then its written form (engine §4)
+   */
+
+  /**
+   * A test of a lowered symbol, with its value: a string for a sound test and
+   * a tag set for a tag test, and the test as an expected list writes it
+   * (docs/output.md).
+   * @typedef {object} SymbolTest
+   * @property {TestOp} op
+   * @property {string} [sound]
+   * @property {TagSet} [tags]
+   * @property {string} written
    */
 
   /**
@@ -7744,8 +7988,8 @@
    * @property {boolean} helper
    * @property {string} owner the rule the production was lowered from
    * @property {string | null} elided the terminator an empty helper stands for
-   * @property {string | null} elidedSpelling the spelling of that terminator,
-   *   if it is spelled, which a restored token sounds like (engine §7)
+   * @property {SymbolTest | null} elidedTest the test of that terminator, an
+   *   `=` test whose string a restored token sounds like, or null (engine §7)
    * @property {Capture[]} captures
    * @property {ReadyCondition[]} conditions
    * @property {Term | null} tags

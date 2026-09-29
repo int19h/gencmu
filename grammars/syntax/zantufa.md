@@ -705,10 +705,7 @@ A free modifier is a `sei` clause over a statement, a vocative, a mekso with `ma
   [free-not-number ...]
 
 %rule lohai-word
-  $w(~word)
-%conditions
-  LOhAI ⊈ tags($w),
-  LEhAI ⊈ tags($w)
+  ~word∩(LOhAI ∪ LEhAI)=∅
 
 %rule free-not-number
   $f(free)

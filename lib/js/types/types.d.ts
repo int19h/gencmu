@@ -29,10 +29,11 @@ export type ElidedNode = {
     span: Span;
     source: Span;
     /**
-     * the terminator's spelling, if it is spelled,
-     * which the output does not show
+     * the string of the terminator's `=` test, if it
+     * has one, which a restored token sounds like and the output does not
+     * show (engine §7)
      */
-    spelling?: string;
+    sound?: string;
 };
 export type RuleNode = {
     kind: "rule";
@@ -242,15 +243,21 @@ export type Expr = {
 } | {
     property: string;
 } | {
-    spelling: string;
-    expr: SpelledSymbol;
+    test: TestOp;
+    value: Term;
+    expr: TestedSymbol;
 } | {
     empty: true;
 };
-export type SpelledSymbol = {
+export type TestOp = "=" | "≠" | "⊇" | "⊉" | "∩=∅" | "∩≠∅";
+export type TestedSymbol = {
     ref: string;
 } | {
     terminal: string;
+} | {
+    range: [string, string];
+} | {
+    property: string;
 };
 export type Emission = {
     items: EmitItem[];
@@ -320,15 +327,21 @@ export type GrammarSymbol = {
     name: string;
     terminal: boolean;
     /**
-     * what the symbol's span must sound like,
-     * lowercased; not part of the terminal's identity (engine §4)
+     * the test on the symbol's own span; not part
+     * of the terminal's identity (engine §4)
      */
-    spelling?: string;
+    test?: SymbolTest;
     /**
      * for a range or a property, the
      * characters it matches; its name is then its written form (engine §4)
      */
     characters?: CharacterClass;
+};
+export type SymbolTest = {
+    op: TestOp;
+    sound?: string;
+    tags?: TagSet;
+    written: string;
 };
 export type CharacterClass = {
     from: number;
@@ -361,10 +374,10 @@ export type Production = {
      */
     elided: string | null;
     /**
-     * the spelling of that terminator,
-     * if it is spelled, which a restored token sounds like (engine §7)
+     * the test of that terminator, an
+     * `=` test whose string a restored token sounds like, or null (engine §7)
      */
-    elidedSpelling: string | null;
+    elidedTest: SymbolTest | null;
     captures: Capture[];
     conditions: ReadyCondition[];
     tags: Term | null;
@@ -500,8 +513,9 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {string} terminal
  * @property {Span} span
  * @property {Span} source
- * @property {string} [spelling] the terminator's spelling, if it is spelled,
- *   which the output does not show
+ * @property {string} [sound] the string of the terminator's `=` test, if it
+ *   has one, which a restored token sounds like and the output does not
+ *   show (engine §7)
  */
 /**
  * A result tree node for a rule.
@@ -676,12 +690,15 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {{choice: Expr[]} | {and: Expr[]} | {seq: Expr[]} | {repeat: Expr, min: number}
  *   | {optional: Expr} | {capture: string, expr: Expr} | {ref: string} | {terminal: string}
  *   | {range: [string, string]} | {property: string}
- *   | {spelling: string, expr: SpelledSymbol} | {empty: true}} Expr
+ *   | {test: TestOp, value: Term, expr: TestedSymbol} | {empty: true}} Expr
  */
 /**
- * What a spelling follows: a reference, or a terminal, a string or a
- * phoneme tag.
- * @typedef {{ref: string} | {terminal: string}} SpelledSymbol
+ * The comparator of a test in a body (engine §2).
+ * @typedef {"=" | "≠" | "⊇" | "⊉" | "∩=∅" | "∩≠∅"} TestOp
+ */
+/**
+ * What a test follows: a reference other than `#`, or a terminal.
+ * @typedef {{ref: string} | {terminal: string} | {range: [string, string]} | {property: string}} TestedSymbol
  */
 /**
  * An emission clause.
@@ -725,10 +742,20 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} GrammarSymbol
  * @property {string} name
  * @property {boolean} terminal
- * @property {string} [spelling] what the symbol's span must sound like,
- *   lowercased; not part of the terminal's identity (engine §4)
+ * @property {SymbolTest} [test] the test on the symbol's own span; not part
+ *   of the terminal's identity (engine §4)
  * @property {CharacterClass} [characters] for a range or a property, the
  *   characters it matches; its name is then its written form (engine §4)
+ */
+/**
+ * A test of a lowered symbol, with its value: a string for a sound test and
+ * a tag set for a tag test, and the test as an expected list writes it
+ * (docs/output.md).
+ * @typedef {object} SymbolTest
+ * @property {TestOp} op
+ * @property {string} [sound]
+ * @property {TagSet} [tags]
+ * @property {string} written
  */
 /**
  * The characters a range or a property matches: a range's first and last
@@ -756,8 +783,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {boolean} helper
  * @property {string} owner the rule the production was lowered from
  * @property {string | null} elided the terminator an empty helper stands for
- * @property {string | null} elidedSpelling the spelling of that terminator,
- *   if it is spelled, which a restored token sounds like (engine §7)
+ * @property {SymbolTest | null} elidedTest the test of that terminator, an
+ *   `=` test whose string a restored token sounds like, or null (engine §7)
  * @property {Capture[]} captures
  * @property {ReadyCondition[]} conditions
  * @property {Term | null} tags
