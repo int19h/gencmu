@@ -216,6 +216,9 @@ func entryProblem(e *domEntry, uni *unicodeTable) string {
 		if g.Kind != FeatureGate {
 			return "a malformed entry of a classifier: an entry takes gates only, not a warning"
 		}
+		if !domName.MatchString(g.Feature) {
+			return "a malformed entry of a classifier: a gate's feature is a name"
+		}
 	}
 	for _, key := range e.Keys {
 		if msg := soundProblem(key, uni); msg != "" {

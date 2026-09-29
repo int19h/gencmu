@@ -1149,3 +1149,37 @@ fn a_classifier_name_stands_only_in_classify() {
     ];
     assert_refused(&split(r#"{"string":"a.b"}"#, r#"{"string":"."}"#), &refused, "a malformed term");
 }
+
+/// A gate of a classifier's entry follows the notation's name syntax
+/// (engine §9). A cached entry with another feature is a miss, so it never
+/// changes the dialect's features.
+#[test]
+fn a_gate_of_an_entry_names_a_feature() {
+    let gated = |feature: &str| {
+        let entry = format!(
+            r#"{{"guards":[{{"feature":"{feature}","kind":"gate","negated":false}}],"keys":["mi"],"op":"∈","class":"KOhA","at":[5,3]}}"#
+        );
+        with_classifiers("", &format!(r#"{{"name":"lex","entries":[{entry}],"at":[5,1]}}"#), "")
+    };
+    let refused = ["", "!", "bad name"].map(gated);
+    assert_refused(&gated("f"), &refused, "a malformed entry of a classifier");
+    // The control's gate is a feature of the dialect, and no refused one is.
+    let features = |dom: &str| {
+        let compiled = format!(
+            r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","documents":{{"g.md":{{"hash":"{}","dom":{dom}}}}}}}"#,
+            gencmu::tools::bootstrap_hash(),
+            gencmu::tools::fnv1a64(DOCUMENT)
+        );
+        let sources = [
+            ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+            ("g.md", DOCUMENT.to_string()),
+            ("compiled.json", compiled),
+        ];
+        let dialect = gencmu::load_dialect_sources(sources, "p.md").expect("a dialect");
+        dialect.features().iter().map(|feature| feature.name.clone()).collect::<Vec<_>>()
+    };
+    assert_eq!(features(&gated("f")), ["f"]);
+    for dom in &refused {
+        assert!(features(dom).is_empty(), "{dom}");
+    }
+}

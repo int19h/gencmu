@@ -469,7 +469,7 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - It has a constant definition or a `const` term whose name is not a name that begins with `A` to `Z`.
 - It has a constant whose value is not a closed term, or a `split` or a `tag` that the reader refuses.
 - It has a term or a condition whose types do not agree (§10).
-- It has a classifier whose name does not begin with `a` to `z`. It has an entry with a warning, with no key, or with a key that the reader refuses. It has an entry whose operator is not `∈` or `∉`, or whose class is not a name that begins with `A` to `Z`.
+- It has a classifier whose name does not begin with `a` to `z`. It has an entry with a warning, or with a gate whose feature is not a name. It has an entry with no key, or with a key that the reader refuses. It has an entry whose operator is not `∈` or `∉`, or whose class is not a name that begins with `A` to `Z`.
 - It has an implication whose sides are not closed terms of type tag set.
 - It has a `classify` whose second argument is not the name of a classifier. It has the name of a classifier as any other argument.
 

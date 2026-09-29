@@ -1032,6 +1032,17 @@ class Classifiers(unittest.TestCase):
         well_formed = {"op": "∈", "left": {"string": "a"}, "right": {"call": "split", "args": [{"string": "a.b"}, {"string": "."}]}}
         self.assert_refused(well_formed, misplaced, "a malformed term")
 
+    def test_a_gate_of_an_entry_names_a_feature(self) -> None:
+        """A gate of a classifier's entry follows the notation's name syntax
+        (engine §9). A cached entry with another feature is a miss, so it
+        never changes the dialect's features."""
+
+        def gate(feature: str) -> Dom:
+            return {"feature": feature, "kind": "gate", "negated": False}
+
+        refused = [gate(""), gate("!"), gate("bad name")]
+        self.assert_refused(gate("f"), refused, "a malformed entry of a classifier", guard=True)
+
     def assert_refused(self, well_formed: Dom, refused: list[Dom], problem: str, *, guard: bool = False) -> None:
         """Each of ``refused`` is refused by the check, makes a cached entry a
         miss, and makes a bootstrap an error of the grammar. ``well_formed``
@@ -1061,14 +1072,21 @@ class Classifiers(unittest.TestCase):
                 "implications": [],
             }
 
+        def cached(part: Dom) -> gencmu.Dialect:
+            documents = {"g.md": {"hash": fnv1a64(sources["g.md"]), "dom": dom(part)}}
+            compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "documents": documents})
+            return gencmu.load_dialect_sources({**sources, "compiled.json": compiled}, "p.md")
+
         self.assertIsNone(dom_problem(dom(well_formed)))
+        if guard:
+            # The control: the well-formed entry is used, and its gate is a
+            # feature of the dialect.
+            self.assertEqual([feature.name for feature in cached(well_formed).features], [well_formed["feature"]])
         for part in refused:
             with self.subTest(refused=json.dumps(part, ensure_ascii=False)):
                 found = dom_problem(dom(part)) or ""
                 self.assertIn(problem, found)
-                documents = {"g.md": {"hash": fnv1a64(sources["g.md"]), "dom": dom(part)}}
-                compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "documents": documents})
-                dialect = gencmu.load_dialect_sources({**sources, "compiled.json": compiled}, "p.md")
+                dialect = cached(part)
                 self.assertTrue(dialect.parse_tokens([token], "a", auto_features=False).ok, "the document was read instead")
                 self.assertEqual(dialect.features, (), "no feature of the refused entry")
                 bootstrap = json.loads(bundled_text("notation/bootstrap.json") or "{}")

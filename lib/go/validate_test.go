@@ -280,6 +280,9 @@ func TestDOMRules(t *testing.T) {
 		{"a classifier has no other member", classified(`{"name":"lex","entries":[],"at":[3,1],"x":true}`, "")},
 		{"a classifier's entries are a list", classified(`{"name":"lex","entries":null,"at":[3,1]}`, "")},
 		{"an entry takes no warning", entry(`{"guards":[{"feature":"f","kind":"warning","negated":false}],"keys":["mi"],"op":"∈","class":"KOhA","at":[3,3]}`)},
+		{"a gate's feature is not empty", entry(`{"guards":[{"feature":"","kind":"gate","negated":false}],"keys":["mi"],"op":"∈","class":"KOhA","at":[3,3]}`)},
+		{"a gate's feature is not a mark", entry(`{"guards":[{"feature":"!","kind":"gate","negated":false}],"keys":["mi"],"op":"∈","class":"KOhA","at":[3,3]}`)},
+		{"a gate's feature has no space", entry(`{"guards":[{"feature":"bad name","kind":"gate","negated":false}],"keys":["mi"],"op":"∈","class":"KOhA","at":[3,3]}`)},
 		{"an entry's guard has no other member", entry(`{"guards":[{"feature":"f","kind":"gate","negated":false,"x":1}],"keys":["mi"],"op":"∈","class":"KOhA","at":[3,3]}`)},
 		{"an entry has a key", entry(`{"guards":[],"keys":[],"op":"∈","class":"KOhA","at":[3,3]}`)},
 		{"a key is in lower case", entry(`{"guards":[],"keys":["Mi"],"op":"∈","class":"KOhA","at":[3,3]}`)},
@@ -589,5 +592,43 @@ func TestCachedClauseWaitsForConstant(t *testing.T) {
 		if got := outcome(full, entry); got != "error at 6:1" {
 			t.Errorf("a constant that is not empty, cached %v: %s", entry != "", got)
 		}
+	}
+}
+
+// A gate of a classifier's entry follows the notation's name syntax (engine
+// §9). A cached entry with another feature is a miss, so it never changes
+// the dialect's features, and a bootstrap with one is an error of the
+// grammar.
+func TestClassifierGateName(t *testing.T) {
+	loadBundled()
+	classifier := func(feature string, line int) string {
+		at := strconv.Itoa(line)
+		return `{"name":"lex","entries":[{"guards":[{"feature":"` + feature + `","kind":"gate","negated":false}],"keys":["mi"],"op":"∈","class":"KOhA","at":[` + at + `,3]}],"at":[` + at + `,1]}`
+	}
+	features := func(feature string) []string {
+		src := oneStage("%ambiguity-resolution greedy\n%rule text 'a' 'b'")
+		dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"seq":[{"terminal":"a"},{"terminal":"b"}]}}],"conditions":[],"at":[4,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[3,1]}],"constants":[],"classifiers":[` + classifier(feature, 5) + `],"implications":[]}`
+		src["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + dom + `}}}`
+		d, err := LoadDialectSources(src, "p.md")
+		if err != nil {
+			t.Fatalf("%q: %v", feature, err)
+		}
+		var names []string
+		for _, f := range d.Features() {
+			names = append(names, f.Name)
+		}
+		return names
+	}
+	if got := features("f"); len(got) != 1 || got[0] != "f" {
+		t.Fatalf("the control: expected the feature f, got %v", got)
+	}
+	if err := bootstrapError(t, "classifiers", classifier("f", 9999)); err != nil {
+		t.Fatalf("the control: a well-formed bootstrap classifier: %v", err)
+	}
+	for _, feature := range []string{"", "!", "bad name"} {
+		if got := features(feature); len(got) != 0 {
+			t.Errorf("%q: the cache entry was used, with the features %v", feature, got)
+		}
+		assertGrammarError(t, bootstrapError(t, "classifiers", classifier(feature, 9999)), "a gate's feature is a name")
 	}
 }

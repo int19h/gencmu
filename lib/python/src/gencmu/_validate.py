@@ -119,6 +119,7 @@ def _is_entry(entry: Any, unicode: Lowercase) -> bool:
             isinstance(guard, dict)
             and len(guard) == 3
             and isinstance(guard.get("feature"), str)
+            and _NAME.fullmatch(guard["feature"]) is not None
             and guard.get("kind") == "gate"
             and isinstance(guard.get("negated"), bool)
             for guard in entry["guards"]

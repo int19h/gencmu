@@ -777,7 +777,7 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
             let gates_ok = entry.get("guards").and_then(Json::as_array).is_some_and(|guards| {
                 guards.iter().all(|guard| {
                     guard.as_object().is_some_and(|members| members.len() == 3)
-                        && is_str(guard.get("feature"))
+                        && guard.get("feature").and_then(Json::as_str).is_some_and(is_name)
                         && guard.get("kind").and_then(Json::as_str) == Some("gate")
                         && matches!(guard.get("negated"), Some(Json::Bool(_)))
                 })
