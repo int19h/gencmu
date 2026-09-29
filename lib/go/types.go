@@ -7,7 +7,12 @@ package gencmu
 // Label is what the token shows to people (engine §5). A character token and
 // a token that a caller supplies have their text as their label.
 // InsertedBy names the rule whose emission clause inserted a token with an
-// empty span.
+// empty span. Before and After are the token's attachments (engine §11):
+// tokens that belong to it and that no later stage reads, nil when there
+// are none. An attached token has no span, since its span would count the
+// input of the stage that attached it: its Span is zero, and the output
+// leaves it out. Its Source is in the original text, as any token's.
+// A caller of ParseTokens cannot supply attachments.
 type Token struct {
 	Text       string
 	Phonemes   string
@@ -16,6 +21,8 @@ type Token struct {
 	Span       [2]int
 	Source     [2]int
 	InsertedBy string
+	Before     []Token
+	After      []Token
 }
 
 // Node kinds.

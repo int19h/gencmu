@@ -408,15 +408,28 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt, repeatPrefix b
 		}
 	}
 	if a.emit != nil {
-		// An item naming a capture the production lacks is dropped (§3.6).
+		// An item whose carrier the production lacks is dropped, and so is
+		// each attachment capture it lacks (§3.6).
 		e := &domEmit{}
+		present := func(names []string) []string {
+			var out []string
+			for _, name := range names {
+				if has(name) {
+					out = append(out, name)
+				}
+			}
+			return out
+		}
 		for _, it := range a.emit.Items {
 			if !it.IsInsert && !has(it.Capture) {
 				continue
 			}
-			if it.Tags != nil {
+			if it.Tags != nil || len(it.Before)+len(it.After) > 0 {
 				kept := *it
-				kept.Tags = simplifyTerm(it.Tags, has)
+				if it.Tags != nil {
+					kept.Tags = simplifyTerm(it.Tags, has)
+				}
+				kept.Before, kept.After = present(it.Before), present(it.After)
 				it = &kept
 			}
 			e.Items = append(e.Items, it)

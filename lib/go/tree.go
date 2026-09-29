@@ -212,13 +212,27 @@ func elidedNodes(root *Node) []*Node {
 // lies inside a foreign part (§11). The ranking can share one node among
 // several places of the chosen derivation, and only some of them can lie
 // inside a foreign part. So the walk carries this with each place, and the
-// node does not.
+// node does not. A token's tags are evaluated when the task runs, so that
+// the errors of a stage's emission come in the order of evaluation (§10,
+// §11). before and after are the parts whose tokens a carrier takes as its
+// attachments.
 type emitTask struct {
-	walk   *dn
-	emit   *dn
-	tags   *tagset
-	tok    *Token
-	inside bool
+	walk          *dn
+	emit          *dn
+	tags          func() *tagset
+	tok           *Token
+	inside        bool
+	before, after []*dn
+}
+
+// emitter is what one derivation's emission shares: its foreign parts,
+// whether any input token has attachments to forward, and the input tokens
+// whose attachments a token of this emission has inherited (§11).
+type emitter struct {
+	rec       *recognizer
+	foreign   map[*dn]*foreignPart
+	forwards  bool
+	inherited map[int]bool
 }
 
 func (run *stageRun) kidSpan(rec *recognizer, k *dn) (int, int, *tagset) {
@@ -232,10 +246,25 @@ func (run *stageRun) kidSpan(rec *recognizer, k *dn) (int, int, *tagset) {
 // emit walks the chosen derivation from the left and returns the tokens of
 // the next stage.
 func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
-	out := []Token{}
 	// The foreign parts and their texts, fixed before any token (§11).
-	foreign := run.foreignParts(rec, d)
-	stack := []emitTask{{walk: d}}
+	em := &emitter{rec: rec, foreign: run.foreignParts(rec, d), inherited: map[int]bool{}}
+	for i := range run.toks {
+		if hasAttachments(&run.toks[i]) {
+			em.forwards = true
+			break
+		}
+	}
+	return run.emitWalk(em, d, false)
+}
+
+// emitWalk is what a constituent emits in its place in the derivation
+// (§11): the stage's output from the root, or an attachment from a
+// captured part. inside says whether the constituent lies inside a foreign
+// part.
+func (run *stageRun) emitWalk(em *emitter, d *dn, inside bool) []Token {
+	rec := em.rec
+	out := []Token{}
+	stack := []emitTask{{walk: d, inside: inside}}
 	for len(stack) > 0 {
 		t := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
@@ -243,7 +272,24 @@ func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 		case t.tok != nil:
 			out = append(out, *t.tok)
 		case t.emit != nil:
-			out = append(out, run.emitted(rec, t.emit, t.tags, foreign, t.inside))
+			// Before-attachments, then the carrier with its tag term, then
+			// after-attachments; the first error ends the emission. New
+			// attachments are outer to inherited ones (§11).
+			var before, after []Token
+			for _, k := range t.before {
+				before = append(before, attached(run.emitWalk(em, k, t.inside))...)
+			}
+			tok := run.emitted(em, t.emit, t.tags(), t.inside)
+			for _, k := range t.after {
+				after = append(after, attached(run.emitWalk(em, k, t.inside))...)
+			}
+			if len(before) > 0 {
+				tok.Before = append(before, tok.Before...)
+			}
+			if len(after) > 0 {
+				tok.After = append(tok.After[:len(tok.After):len(tok.After)], after...)
+			}
+			out = append(out, tok)
 		case t.walk != nil:
 			n := t.walk
 			if n.kind == dRead {
@@ -256,6 +302,20 @@ func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 		}
 	}
 	return out
+}
+
+// hasAttachments says whether a token has attachments (§11).
+func hasAttachments(t *Token) bool {
+	return len(t.Before) > 0 || len(t.After) > 0
+}
+
+// attached is tokens as attachments: the same tokens without their spans,
+// since a span counts the input of the stage that attached them (§11).
+func attached(toks []Token) []Token {
+	for i := range toks {
+		toks[i].Span = [2]int{}
+	}
+	return toks
 }
 
 // plan is what one constituent's emission clause does, in order. inside
@@ -290,17 +350,20 @@ func (run *stageRun) plan(rec *recognizer, n *dn, inside bool) []emitTask {
 	})
 	// An item's tag term that gives no tags is an error of the grammar: no
 	// terminal could read the token (§11).
-	itemTags := func(it *domEmitItem, own *tagset) *tagset {
-		if it.Tags == nil {
-			return own
+	itemTags := func(it *domEmitItem, own *tagset) func() *tagset {
+		return func() *tagset {
+			if it.Tags == nil {
+				return own
+			}
+			tags := ev.tagsOf(it.Tags)
+			if len(tags.names) == 0 {
+				panic(&parseFailure{message: p.ruleName + " emits a token with no tags"})
+			}
+			return tags
 		}
-		tags := ev.tagsOf(it.Tags)
-		if len(tags.names) == 0 {
-			panic(&parseFailure{message: p.ruleName + " emits a token with no tags"})
-		}
-		return tags
 	}
-	// The items as listed, and nothing else of the constituent (§11).
+	// The items as listed, and nothing else of the constituent but their
+	// attachments (§11).
 	part := func(name string) *dn {
 		for i, c := range p.capName {
 			if c == name {
@@ -309,16 +372,28 @@ func (run *stageRun) plan(rec *recognizer, n *dn, inside bool) []emitTask {
 		}
 		return nil
 	}
+	parts := func(names []string) []*dn {
+		out := make([]*dn, 0, len(names))
+		for _, name := range names {
+			out = append(out, part(name))
+		}
+		return out
+	}
 	var plan []emitTask
 	for i, it := range p.emit.Items {
 		switch {
 		case it.IsInsert:
-			// Its span is empty at the start of the part of the capture
-			// listed next after it, or at the constituent's end.
+			// Its span is empty at the start of its anchor, the first
+			// written part of the capture item listed next after it, or at
+			// the constituent's end.
 			at := end
 			for _, next := range p.emit.Items[i+1:] {
 				if !next.IsInsert {
-					if k := part(next.Capture); k != nil {
+					anchor := next.Capture
+					if len(next.Before) > 0 {
+						anchor = next.Before[0]
+					}
+					if k := part(anchor); k != nil {
 						at, _, _ = run.kidSpan(rec, k)
 					}
 					break
@@ -330,7 +405,7 @@ func (run *stageRun) plan(rec *recognizer, n *dn, inside bool) []emitTask {
 		default:
 			k := part(it.Capture)
 			_, _, own := run.kidSpan(rec, k)
-			plan = append(plan, emitTask{emit: k, tags: itemTags(it, own), inside: within})
+			plan = append(plan, emitTask{emit: k, tags: itemTags(it, own), inside: within, before: parts(it.Before), after: parts(it.After)})
 		}
 	}
 	return plan
@@ -362,10 +437,11 @@ func (run *stageRun) inserted(tag string, at, start, end int, rule string) emitT
 }
 
 // emitted is the token a constituent emits, with the given explicit tags
-// and those its stage's implications add to them. foreign holds the sources
-// and the texts of the derivation's foreign parts, and inside says whether
-// the constituent lies inside a foreign part (§11).
-func (run *stageRun) emitted(rec *recognizer, n *dn, explicit *tagset, foreign map[*dn]*foreignPart, inside bool) Token {
+// and those its stage's implications add to them. The emitter holds the
+// sources and the texts of the derivation's foreign parts, and inside says
+// whether the constituent lies inside a foreign part (§11).
+func (run *stageRun) emitted(em *emitter, n *dn, explicit *tagset, inside bool) Token {
+	rec, foreign := em.rec, em.foreign
 	a, b, _ := run.kidSpan(rec, n)
 	// The stage's implications apply before the phonemes and the label
 	// (§11).
@@ -387,7 +463,95 @@ func (run *stageRun) emitted(rec *recognizer, n *dn, explicit *tagset, foreign m
 	} else {
 		tok.Phonemes, tok.Label = run.spoken(rec, n, foreign, inside)
 	}
+	// The parts decide the attachments too, after the phoneme tags are
+	// checked (§11).
+	if em.forwards {
+		if from := run.forwarded(rec, n, inside); from >= 0 {
+			// Attachments belong to one token: an input token that is the
+			// one part of a second token is an error of the grammar.
+			if em.inherited[from] {
+				panic(&parseFailure{message: "a token with attachments is the one part of two emitted tokens, and its attachments cannot belong to both"})
+			}
+			em.inherited[from] = true
+			in := &run.toks[from]
+			tok.Before, tok.After = in.Before[:len(in.Before):len(in.Before)], in.After[:len(in.After):len(in.After)]
+		}
+	}
 	return tok
+}
+
+// forwarded is the input token whose attachments a token over n inherits,
+// or -1 (§11). The parts are those of the join (§5): a read input token, or
+// a foreign part as one piece, and nothing inside a constituent that emits
+// ε. A token with attachments among other parts, or a foreign part that
+// holds one, is an error of the grammar.
+func (run *stageRun) forwarded(rec *recognizer, n *dn, inside bool) int {
+	parts, found := 0, -1
+	stack := []*dn{n}
+	for len(stack) > 0 {
+		x := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		switch x.kind {
+		case dRead:
+			parts++
+			if i := rec.base + int(x.tok); hasAttachments(&run.toks[i]) {
+				found = i
+			}
+		case dClose:
+			if x.prod.nothing {
+				continue
+			}
+			if x.prod.foreign && !inside {
+				parts++
+				if run.holdsAttachments(rec, x) {
+					panic(&parseFailure{message: x.prod.ruleName + " is a foreign part over a token with attachments, which a token over it cannot place"})
+				}
+				continue
+			}
+			if x.a != nil {
+				stack = append(stack, x.a)
+			}
+		case dPart:
+			stack = append(stack, x.b)
+			if x.a != nil {
+				stack = append(stack, x.a)
+			}
+		}
+	}
+	if found >= 0 && parts > 1 {
+		panic(&parseFailure{message: "a token over a token with attachments and another part cannot say which part each attachment belongs to"})
+	}
+	return found
+}
+
+// holdsAttachments says whether a foreign part holds an input token with
+// attachments: one that it reads outside any constituent that emits ε
+// (§11).
+func (run *stageRun) holdsAttachments(rec *recognizer, n *dn) bool {
+	stack := []*dn{n}
+	for len(stack) > 0 {
+		x := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		switch x.kind {
+		case dRead:
+			if hasAttachments(&run.toks[rec.base+int(x.tok)]) {
+				return true
+			}
+		case dClose:
+			if x.prod.nothing {
+				continue
+			}
+			if x.a != nil {
+				stack = append(stack, x.a)
+			}
+		case dPart:
+			stack = append(stack, x.b)
+			if x.a != nil {
+				stack = append(stack, x.a)
+			}
+		}
+	}
+	return false
 }
 
 // phonemeOf is the phoneme of the one phoneme tag among tags, if there is

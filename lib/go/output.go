@@ -6,7 +6,7 @@ import (
 )
 
 // resultFormat is the version of docs/output.md.
-const resultFormat = 5
+const resultFormat = 6
 
 // MarshalResult writes the canonical JSON of a result (docs/output.md).
 func MarshalResult(result *ParseResult) ([]byte, error) {
@@ -105,7 +105,14 @@ func writeTags(w *jsonWriter, tags []string) {
 	w.raw("]")
 }
 
+// writeToken writes a token of a stage's output. An attached token has no
+// span, and a list of attachments is present only when it is not empty
+// (docs/output.md).
 func writeToken(w *jsonWriter, t *Token) {
+	writeTokenAs(w, t, false)
+}
+
+func writeTokenAs(w *jsonWriter, t *Token, isAttached bool) {
 	w.raw(`{"text":`)
 	w.str(t.Text)
 	w.raw(`,"phonemes":`)
@@ -114,13 +121,31 @@ func writeToken(w *jsonWriter, t *Token) {
 	w.str(t.Label)
 	w.raw(`,"tags":`)
 	writeTags(w, t.Tags)
-	w.raw(`,"span":`)
-	w.pair(t.Span)
+	if !isAttached {
+		w.raw(`,"span":`)
+		w.pair(t.Span)
+	}
 	w.raw(`,"source":`)
 	w.pair(t.Source)
 	if t.InsertedBy != "" {
 		w.raw(`,"insertedBy":`)
 		w.str(t.InsertedBy)
+	}
+	for _, side := range [...]struct {
+		key  string
+		list []Token
+	}{{"before", t.Before}, {"after", t.After}} {
+		if len(side.list) == 0 {
+			continue
+		}
+		w.raw(`,"` + side.key + `":[`)
+		for i := range side.list {
+			if i > 0 {
+				w.raw(",")
+			}
+			writeTokenAs(w, &side.list[i], true)
+		}
+		w.raw("]")
 	}
 	w.raw("}")
 }
@@ -294,13 +319,30 @@ func Brackets(result *ParseResult, options BracketOptions) string {
 		n    *Node
 		kids []*rendered
 	}
+	var tokenRendered func(t *Token) *rendered
+	tokenRendered = func(t *Token) *rendered {
+		if !hasAttachments(t) {
+			return &rendered{leaf: t.Label}
+		}
+		group := make([]*rendered, 0, len(t.Before)+1+len(t.After))
+		for i := range t.Before {
+			group = append(group, tokenRendered(&t.Before[i]))
+		}
+		group = append(group, &rendered{leaf: t.Label})
+		for i := range t.After {
+			group = append(group, tokenRendered(&t.After[i]))
+		}
+		return &rendered{group: group}
+	}
 	var result2 *rendered
 	stack := []*frame{{n: result.Tree}}
 	finish := func(f *frame) *rendered {
 		switch f.n.Kind {
 		case KindToken:
-			// Every rendering shows a token by its label (docs/output.md).
-			return &rendered{leaf: input[f.n.Token].Label}
+			// Every rendering shows a token by its label (docs/output.md),
+			// and a token with attachments as a group of its
+			// before-attachments, its label and its after-attachments.
+			return tokenRendered(&input[f.n.Token])
 		case KindElided:
 			if options.ShowElided {
 				return &rendered{leaf: "⟨" + strings.ToLower(f.n.Terminal) + "⟩"}

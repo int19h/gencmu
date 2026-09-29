@@ -7,7 +7,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 14
+const domFormat = 15
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
@@ -195,11 +195,29 @@ type domEmit struct {
 }
 
 // domEmitItem is a capture, "" for $, with its tags, or an inserted tag.
+// A named capture, the item's carrier, can name attachment captures before
+// it and after it (engine §11).
 type domEmitItem struct {
 	Capture  string
 	IsInsert bool
 	Insert   string
 	Tags     *domTerm
+	Before   []string
+	After    []string
+}
+
+// captures lists a named capture item's captures in written order: its
+// before-attachments, its carrier and its after-attachments.
+func (it *domEmitItem) captures() []string {
+	out := make([]string, 0, len(it.Before)+1+len(it.After))
+	out = append(out, it.Before...)
+	out = append(out, it.Capture)
+	return append(out, it.After...)
+}
+
+// attachments lists an item's attachment captures, before and after.
+func (it *domEmitItem) attachments() []string {
+	return append(append([]string(nil), it.Before...), it.After...)
 }
 
 // whole says the emission is of $, the whole constituent: every item is $.
@@ -557,6 +575,22 @@ func (e *domEmit) writeJSON(w *jsonWriter) {
 		if it.Tags != nil {
 			w.raw(`,"tags":`)
 			it.Tags.writeJSON(w)
+		}
+		for _, side := range []struct {
+			key   string
+			names []string
+		}{{"before", it.Before}, {"after", it.After}} {
+			if len(side.names) == 0 {
+				continue
+			}
+			w.raw(`,"` + side.key + `":[`)
+			for j, name := range side.names {
+				if j > 0 {
+					w.raw(",")
+				}
+				w.str(name)
+			}
+			w.raw("]")
 		}
 		w.raw("}")
 	}
@@ -1164,9 +1198,9 @@ func decodeEmit(raw json.RawMessage) (*domEmit, error) {
 		}
 		it := &domEmitItem{}
 		// An item is a capture or an inserted tag, and has no other member
-		// than its tags.
+		// than its tags and its attachments.
 		for k := range io {
-			if k != "capture" && k != "insert" && k != "tags" {
+			if k != "capture" && k != "insert" && k != "tags" && k != "before" && k != "after" {
 				return nil, fmt.Errorf("a malformed emission item")
 			}
 		}
@@ -1181,6 +1215,19 @@ func decodeEmit(raw json.RawMessage) (*domEmit, error) {
 		}
 		if err == nil && io["tags"] != nil {
 			it.Tags, err = decodeTerm(io["tags"])
+		}
+		// A list of attachments is present only when it is not empty.
+		for _, side := range []struct {
+			key  string
+			into *[]string
+		}{{"before", &it.Before}, {"after", &it.After}} {
+			if err != nil || io[side.key] == nil {
+				continue
+			}
+			*side.into, err = decodeList(io[side.key], decodeString)
+			if err == nil && len(*side.into) == 0 {
+				err = fmt.Errorf("a malformed emission item: an empty list of attachments")
+			}
 		}
 		return it, err
 	})
