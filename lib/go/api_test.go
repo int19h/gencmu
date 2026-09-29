@@ -262,7 +262,7 @@ func TestMarshalResult(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"format":4,"ok":true,"stages":[{"name":"main","verdict":"unique","output":[]}],"tree":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":[],"children":[{"kind":"token","terminal":"'é'","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"KU","span":[1,1],"source":[1,1]}]},"error":null}`
+	want := `{"format":5,"ok":true,"stages":[{"name":"main","verdict":"unique","output":[]}],"tree":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":[],"children":[{"kind":"token","terminal":"'é'","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"KU","span":[1,1],"source":[1,1]}]},"error":null}`
 	if string(data) != want {
 		t.Fatalf("got  %s\nwant %s", data, want)
 	}
@@ -274,7 +274,7 @@ func TestMarshalResult(t *testing.T) {
 	}
 	res, _ = d.Parse("x", ParseOptions{})
 	data, _ = MarshalResult(res)
-	if !strings.HasPrefix(string(data), `{"format":4,"ok":false,"stages":[{"name":"main","verdict":null}],"tree":null,"error":{"kind":"rejected","stage":"main","token":0,"source":[0,1],"line":1,"column":1,"expected":[{"terminal":"'é'","rules":["text"]}],"message":`) {
+	if !strings.HasPrefix(string(data), `{"format":5,"ok":false,"stages":[{"name":"main","verdict":null}],"tree":null,"error":{"kind":"rejected","stage":"main","token":0,"source":[0,1],"line":1,"column":1,"expected":[{"terminal":"'é'","rules":["text"]}],"message":`) {
 		t.Fatalf("%s", data)
 	}
 	// The warnings follow the error, only when there is one; the result's
@@ -289,11 +289,12 @@ func TestMarshalResult(t *testing.T) {
 	if !strings.HasSuffix(string(data), `,"error":null,"warnings":[{"stage":"main","feature":"w","rule":"text","span":[0,2],"source":[0,2]}]}`) {
 		t.Fatalf("%s", data)
 	}
-	// "verbatim":true follows source, only on a verbatim token.
-	d = mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text w 'x'\n%rule w 'é'\n%emits $ <W>\n%verbatim"))
+	// "label" follows "phonemes" on every token. A foreign part sounds ?
+	// and shows its text, and nothing marks it.
+	d = mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text w 'x'\n%rule w 'é'\n%emits $ <W>\n%foreign"))
 	res, _ = d.Parse("éx", ParseOptions{})
 	data, _ = MarshalResult(res)
-	if !strings.Contains(string(data), `"output":[{"text":"é","phonemes":"é","tags":["W"],"span":[0,1],"source":[0,1],"verbatim":true}]}`) {
+	if !strings.Contains(string(data), `"output":[{"text":"é","phonemes":"?","label":"é","tags":["W"],"span":[0,1],"source":[0,1]}]}`) {
 		t.Fatalf("%s", data)
 	}
 }
@@ -337,20 +338,25 @@ func TestBracketsDepth(t *testing.T) {
 	}
 }
 
-// Brackets write each pause in a token's phonemes as a space; the token
-// keeps its . (docs/output.md, "Brackets").
-func TestBracketsPause(t *testing.T) {
+// Brackets show each token by its label (docs/output.md, "Brackets"). A
+// token that a caller supplies has its text as its label, whatever its
+// phonemes or its Label say, and keeps its phonemes (engine §5, docs/api.md).
+// ParseTokens leaves the caller's tokens as they are.
+func TestBracketsLabel(t *testing.T) {
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text A A"))
-	toks := []Token{{Text: "x", Tags: []string{"A"}, Phonemes: "a.b", Span: [2]int{0, 1}, Source: [2]int{0, 1}}, {Text: "y", Tags: []string{"A"}, Phonemes: "c", Span: [2]int{1, 2}, Source: [2]int{1, 2}}}
+	toks := []Token{{Text: "x", Tags: []string{"A"}, Phonemes: "a.b", Label: "z", Span: [2]int{0, 1}, Source: [2]int{0, 1}}, {Text: "y", Tags: []string{"A"}, Phonemes: "c", Span: [2]int{1, 2}, Source: [2]int{1, 2}}}
 	res, err := d.ParseTokens("xy", toks, ParseOptions{})
 	if err != nil || !res.OK {
 		t.Fatalf("%v %+v", err, res)
 	}
-	if b := Brackets(res, BracketOptions{}); b != "(a b c)" {
+	if b := Brackets(res, BracketOptions{}); b != "(x y)" {
 		t.Fatalf("brackets %q", b)
 	}
-	if p := res.Stages[0].Input[0].Phonemes; p != "a.b" {
-		t.Fatalf("the token's phonemes are %q", p)
+	if in := res.Stages[0].Input[0]; in.Phonemes != "a.b" || in.Label != "x" {
+		t.Fatalf("the token's phonemes are %q and its label %q", in.Phonemes, in.Label)
+	}
+	if toks[0].Label != "z" || toks[1].Label != "" {
+		t.Fatalf("the caller's tokens changed: %+v", toks)
 	}
 }
 
@@ -899,13 +905,13 @@ func TestEmptyCharacterTag(t *testing.T) {
 
 // A defect of a grammar found while parsing is an error with the stage and
 // no position (engine §13, docs/output.md): two phoneme tags on a token that
-// a constituent emits, on a verbatim token and on an inserted one, a token
-// with no tags, and a condition that asks about its own span.
+// a constituent emits, on a token over a foreign part and on an inserted
+// one, a token with no tags, and a condition that asks about its own span.
 func TestGrammarFaultHasNoPosition(t *testing.T) {
 	const twoPhonemes = "stage main: an emitted token has two phoneme tags"
 	for _, c := range []struct{ grammar, message string }{
 		{"%implies A ⟹ /o/\n%rule text [word] ...\n%rule word $w(W) <A ∪ /e/>\n%emits\n  $", twoPhonemes},
-		{"%rule text [word] ...\n%rule word $w(W) </e/ ∪ /o/>\n%emits\n  $\n%verbatim", twoPhonemes},
+		{"%rule text [word] ...\n%rule word $w(W) </e/ ∪ /o/>\n%emits\n  $\n%foreign", twoPhonemes},
 		{"%implies /e/ ⟹ /o/\n%rule text [word] ...\n%rule word $w(W)\n%emits\n  $w, /e/", twoPhonemes},
 		{"%rule text $a(W) %emits $a <tags($a) ∩ Z>", "stage main: text emits a token with no tags"},
 		{"%rule text $a(x) %conditions ¬matches($a, text)\n%rule x W",

@@ -4,16 +4,17 @@ package gencmu
 // each in its canonical spelling, in code point order and each once; a tag
 // has no strength. Span is the range of the previous stage's tokens it
 // covers, Source the range of the original text, in code points. Phonemes is empty for a token that has none.
-// Verbatim marks a verbatim token, whose phonemes are its text (engine §11).
+// Label is what the token shows to people (engine §5). A character token and
+// a token that a caller supplies have their text as their label.
 // InsertedBy names the rule whose emission clause inserted a token with an
 // empty span.
 type Token struct {
 	Text       string
 	Phonemes   string
+	Label      string
 	Tags       []string
 	Span       [2]int
 	Source     [2]int
-	Verbatim   bool
 	InsertedBy string
 }
 
