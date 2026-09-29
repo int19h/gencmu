@@ -304,6 +304,8 @@ func TestDOMRules(t *testing.T) {
 		{"classify takes two arguments", tagged(`{"call":"classify","args":[{"call":"phonemes","args":[{"capture":"x"}]}]}`)},
 		{"a classifier is not a term", tagged(`{"classifier":"lex"}`)},
 		{"split takes no classifier", cond(`{"op":"∈","left":{"string":"a"},"right":{"call":"split","args":[{"string":"a"},{"classifier":"lex"}]}}`)},
+		{"split takes no classifier first", cond(`{"op":"∈","left":{"string":"a"},"right":{"call":"split","args":[{"classifier":"lex"},{"string":"."}]}}`)},
+		{"tag takes no classifier", cond(`{"op":"⊆","left":{"call":"tag","args":[{"classifier":"lex"}]},"right":{"tag":"a"}}`)},
 		{"a constant's value calls no classify", constant(`{"name":"A","op":"define","value":{"call":"classify","args":[{"string":"mi"},{"classifier":"lex"}]},"at":[3,1]}`)},
 	}
 	// Each variation's well-formed twin decodes, so that the refusals are
@@ -435,27 +437,59 @@ func TestReaderImplicationNesting(t *testing.T) {
 	}
 }
 
-// A bootstrap with a malformed classifier is an error of the grammar
-// (engine §9).
-func TestBootstrapMalformedClassifier(t *testing.T) {
+// bootstrapError loads a dialect whose bootstrap has item first in the
+// list of the given name of its first document, and gives the error.
+func bootstrapError(t *testing.T, list, item string) error {
+	t.Helper()
 	loadBundled()
 	src := oneStage("%ambiguity-resolution greedy\n%rule text 'a' 'b'")
 	bootstrap := bundled.sources["notation/bootstrap.json"]
-	i := strings.Index(bootstrap, `"classifiers":[`)
+	i := strings.Index(bootstrap, `"`+list+`":[`)
 	if i < 0 {
-		t.Fatal("no classifiers in the bootstrap")
+		t.Fatalf("no %s in the bootstrap", list)
 	}
-	i += len(`"classifiers":[`)
+	i += len(`"` + list + `":[`)
 	sep := ","
 	if bootstrap[i] == ']' {
 		sep = ""
 	}
-	bad := `{"name":"lex","entries":[{"guards":[],"keys":["Mi"],"op":"∈","class":"KOhA","at":[9999,3]}],"at":[9999,1]}`
-	src["notation/bootstrap.json"] = bootstrap[:i] + bad + sep + bootstrap[i:]
+	src["notation/bootstrap.json"] = bootstrap[:i] + item + sep + bootstrap[i:]
 	_, err := LoadDialectSources(src, "p.md")
+	return err
+}
+
+// assertGrammarError fails unless err is an error of the grammar whose
+// message holds want.
+func assertGrammarError(t *testing.T, err error, want string) {
+	t.Helper()
 	var e *Error
-	if !errors.As(err, &e) || e.Kind != ErrorGrammar || !strings.Contains(e.Message, "canonical sound") {
-		t.Fatalf("expected an error of the grammar, got %v", err)
+	if !errors.As(err, &e) || e.Kind != ErrorGrammar || !strings.Contains(e.Message, want) {
+		t.Errorf("expected an error of the grammar with %q, got %v", want, err)
+	}
+}
+
+// A bootstrap with a malformed classifier is an error of the grammar
+// (engine §9).
+func TestBootstrapMalformedClassifier(t *testing.T) {
+	bad := `{"name":"lex","entries":[{"guards":[],"keys":["Mi"],"op":"∈","class":"KOhA","at":[9999,3]}],"at":[9999,1]}`
+	assertGrammarError(t, bootstrapError(t, "classifiers", bad), "canonical sound")
+}
+
+// A classifier's name stands only as the second argument of classify
+// (engine §9). Elsewhere a bootstrap is an error of the grammar.
+func TestBootstrapMisplacedClassifier(t *testing.T) {
+	rule := func(condition string) string {
+		return `{"name":"misplaced-classifier","op":"define","alternatives":[{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}}],"conditions":[` + condition + `],"at":[9999,1]}`
+	}
+	if err := bootstrapError(t, "rules", rule(`{"op":"∈","left":{"string":"a"},"right":{"call":"split","args":[{"string":"a.b"},{"string":"."}]}}`)); err != nil {
+		t.Fatalf("a well-formed rule: %v", err)
+	}
+	for _, condition := range []string{
+		`{"op":"⊆","left":{"call":"tag","args":[{"classifier":"lex"}]},"right":{"tag":"a"}}`,
+		`{"op":"∈","left":{"string":"a"},"right":{"call":"split","args":[{"classifier":"lex"},{"string":"."}]}}`,
+		`{"op":"∈","left":{"string":"a"},"right":{"call":"split","args":[{"string":"a.b"},{"classifier":"lex"}]}}`,
+	} {
+		assertGrammarError(t, bootstrapError(t, "rules", rule(condition)), "a malformed call")
 	}
 }
 

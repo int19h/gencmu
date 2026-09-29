@@ -569,6 +569,12 @@ fn is_classifier_arg(value: &Json) -> bool {
     matches!(value.as_object(), Some([(key, Json::Str(name))]) if key == "classifier" && is_classifier_name(name))
 }
 
+/// An argument that stands for a value: neither a rule's name, nor a
+/// classifier's, nor a span (engine §9).
+fn is_value_arg(value: &Json) -> bool {
+    !is_rule_arg(value) && !is_classifier_arg(value) && !is_span_json(value)
+}
+
 /// The comparators of a test in a body (engine §2): the two sound tests
 /// and the four tag tests.
 pub(crate) const TEST_OPS: [&str; 6] = ["=", "≠", "⊇", "⊉", "∩=∅", "∩≠∅"];
@@ -1131,12 +1137,12 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                         },
                         // Their arguments' types are checked with the others'.
                         Some("split") => {
-                            matches!(args, [a, b] if [a, b].iter().all(|arg| !is_rule_arg(arg) && !is_span_json(arg)))
+                            matches!(args, [a, b] if [a, b].iter().all(|arg| is_value_arg(arg)))
                         }
-                        Some("tag") => matches!(args, [string] if !is_rule_arg(string) && !is_span_json(string)),
-                        Some("classify") => matches!(args, [string, classifier]
-                            if !is_rule_arg(string) && !is_classifier_arg(string) && !is_span_json(string)
-                                && is_classifier_arg(classifier)),
+                        Some("tag") => matches!(args, [string] if is_value_arg(string)),
+                        Some("classify") => {
+                            matches!(args, [string, classifier] if is_value_arg(string) && is_classifier_arg(classifier))
+                        }
                         Some("phonemes" | "text" | "classes" | "head" | "tail" | "last" | "from" | "after") => {
                             matches!(args, [span] if is_span_json(span))
                         }

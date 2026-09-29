@@ -1105,3 +1105,47 @@ fn a_bootstrap_with_a_malformed_classifier_is_an_error() {
     assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
     assert!(error.message.contains("a malformed entry of a classifier"), "{}", error.message);
 }
+
+/// The problem that makes a bootstrap of the one document `dom` an error of
+/// the grammar, or `None` when the bootstrap is read.
+fn bootstrap_refusal(dom: &str) -> Option<String> {
+    let bootstrap = format!(
+        r#"{{"format":{DOM_FORMAT},"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{dom}}}]}}]}}"#
+    );
+    let sources = [
+        ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+        ("g.md", DOCUMENT.to_string()),
+        ("notation/bootstrap.json", bootstrap),
+    ];
+    let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("a notation that cannot read g.md");
+    assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
+    error.message.strip_prefix("bootstrap.json: ").map(str::to_string)
+}
+
+/// `well_formed` is used from the cache and read from the bootstrap. Each
+/// of `refused` is a cache miss and an error of a bootstrap, for `problem`.
+fn assert_refused(well_formed: &str, refused: &[String], problem: &str) {
+    assert!(!document_was_read(well_formed), "the cache entry should be used: {well_formed}");
+    assert_eq!(bootstrap_refusal(well_formed), None, "the bootstrap should be read: {well_formed}");
+    for dom in refused {
+        assert!(document_was_read(dom), "a malformed DOM was used: {dom}");
+        let refusal = bootstrap_refusal(dom).unwrap_or_default();
+        assert!(refusal.contains(problem), "{refusal}: {dom}");
+    }
+}
+
+/// A classifier's name stands only as the second argument of `classify`
+/// (engine §9), and not as an argument of `tag` or of `split`.
+#[test]
+fn a_classifier_name_stands_only_in_classify() {
+    let split = |a: &str, b: &str| {
+        with_condition(&format!(r#"{{"op":"∈","left":{{"string":"a"}},"right":{{"call":"split","args":[{a},{b}]}}}}"#))
+    };
+    let classifier = r#"{"classifier":"lex"}"#;
+    let refused = [
+        with_condition(&format!(r#"{{"op":"⊆","left":{{"call":"tag","args":[{classifier}]}},"right":{{"tag":"a"}}}}"#)),
+        split(classifier, r#"{"string":"."}"#),
+        split(r#"{"string":"a.b"}"#, classifier),
+    ];
+    assert_refused(&split(r#"{"string":"a.b"}"#, r#"{"string":"."}"#), &refused, "a malformed term");
+}

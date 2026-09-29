@@ -1020,6 +1020,68 @@ class Classifiers(unittest.TestCase):
         self.assertEqual(caught.exception.kind, "grammar")
         self.assertIn("malformed entry of a classifier", str(caught.exception))
 
+    def test_a_classifier_name_stands_only_in_classify(self) -> None:
+        """A classifier's name is only the second argument of classify
+        (engine §9). Elsewhere it makes a cached entry a miss and a bootstrap
+        an error of the grammar."""
+        misplaced = [
+            {"op": "⊆", "left": {"call": "tag", "args": [{"classifier": "lex"}]}, "right": {"tag": "a"}},
+            {"op": "∈", "left": {"string": "a"}, "right": {"call": "split", "args": [{"classifier": "lex"}, {"string": "."}]}},
+            {"op": "∈", "left": {"string": "a"}, "right": {"call": "split", "args": [{"string": "a.b"}, {"classifier": "lex"}]}},
+        ]
+        well_formed = {"op": "∈", "left": {"string": "a"}, "right": {"call": "split", "args": [{"string": "a.b"}, {"string": "."}]}}
+        self.assert_refused(well_formed, misplaced, "a malformed term")
+
+    def assert_refused(self, well_formed: Dom, refused: list[Dom], problem: str, *, guard: bool = False) -> None:
+        """Each of ``refused`` is refused by the check, makes a cached entry a
+        miss, and makes a bootstrap an error of the grammar. ``well_formed``
+        passes the check. Each is a condition of the rule ``text``, or, with
+        ``guard``, a gate of an entry of its classifier."""
+        sources = {"p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n', "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n```\n"}
+        bootstrap_hash = fnv1a64(bundled_text("notation/bootstrap.json") or "")
+        token = gencmu.Token("a", frozenset({"A"}), (0, 1), (0, 1))
+
+        def text_rule(part: Dom, name: str = "text", at: list[int] | None = None) -> Dom:
+            alternative = {"guards": [], "expr": {"capture": "x", "expr": {"ref": "A"}}}
+            conditions = [] if guard else [part]
+            return {"name": name, "op": "define", "alternatives": [alternative], "conditions": conditions, "at": at or [3, 1]}
+
+        def classifier(part: Dom, at: list[int]) -> Dom:
+            guards = [part] if guard else []
+            entry = {"guards": guards, "keys": ["mi"], "op": "∈", "class": "KOhA", "at": [at[0], 3]}
+            return {"name": "lex", "entries": [entry], "at": at}
+
+        def dom(part: Dom) -> Dom:
+            return {
+                "format": DOM_FORMAT,
+                "rules": [text_rule(part)],
+                "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [2, 1]}],
+                "constants": [],
+                "classifiers": [classifier(part, [4, 1])],
+                "implications": [],
+            }
+
+        self.assertIsNone(dom_problem(dom(well_formed)))
+        for part in refused:
+            with self.subTest(refused=json.dumps(part, ensure_ascii=False)):
+                found = dom_problem(dom(part)) or ""
+                self.assertIn(problem, found)
+                documents = {"g.md": {"hash": fnv1a64(sources["g.md"]), "dom": dom(part)}}
+                compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "documents": documents})
+                dialect = gencmu.load_dialect_sources({**sources, "compiled.json": compiled}, "p.md")
+                self.assertTrue(dialect.parse_tokens([token], "a", auto_features=False).ok, "the document was read instead")
+                self.assertEqual(dialect.features, (), "no feature of the refused entry")
+                bootstrap = json.loads(bundled_text("notation/bootstrap.json") or "{}")
+                first = bootstrap["stages"][0]["documents"][0]["dom"]
+                if guard:
+                    first["classifiers"].append(classifier(part, [9999, 1]))
+                else:
+                    first["rules"].append(text_rule(part, "misplaced-classifier", [9999, 1]))
+                with self.assertRaises(gencmu.GencmuError) as caught:
+                    gencmu.load_dialect_sources({**sources, "notation/bootstrap.json": json.dumps(bootstrap)}, "p.md", use_cache=False)
+                self.assertEqual(caught.exception.kind, "grammar")
+                self.assertIn(problem, str(caught.exception))
+
     def test_lexical_tokens(self) -> None:
         """The notation's lexical stage tags the keywords of classifiers and
         implications (grammars/notation/lexical.md)."""

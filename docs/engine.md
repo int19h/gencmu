@@ -471,7 +471,7 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - It has a term or a condition whose types do not agree (§10).
 - It has a classifier whose name does not begin with `a` to `z`. It has an entry with a warning, with no key, or with a key that the reader refuses. It has an entry whose operator is not `∈` or `∉`, or whose class is not a name that begins with `A` to `Z`.
 - It has an implication whose sides are not closed terms of type tag set.
-- It has a `classify` whose second argument is not the name of a classifier.
+- It has a `classify` whose second argument is not the name of a classifier. It has the name of a classifier as any other argument.
 
 To decode a string, the reader removes the quotes. In the decoded string, `\\` is `\`, `\"` is `"`, and `\u{h...}` is the character with that hexadecimal value. The value has one to six hexadecimal digits and is a Unicode scalar value: at most `10FFFF`, and not a surrogate, `D800` to `DFFF`. Any other `\`, and a `\u{...}` that breaks these limits, is an error of the document, and the reader reports it at the string.
 

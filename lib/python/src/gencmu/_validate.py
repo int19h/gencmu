@@ -641,9 +641,16 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase, tests: 
                     )
                 elif call == "split":
                     # Its arguments' types are checked with the rule's types.
-                    ok = len(args) == 2 and all(not _is_rule_name(arg) and not _is_span(arg) for arg in args)
+                    ok = len(args) == 2 and all(
+                        not _is_rule_name(arg) and not _is_classifier_name(arg) and not _is_span(arg) for arg in args
+                    )
                 elif call == "tag":
-                    ok = len(args) == 1 and not _is_rule_name(args[0]) and not _is_span(args[0])
+                    ok = (
+                        len(args) == 1
+                        and not _is_rule_name(args[0])
+                        and not _is_classifier_name(args[0])
+                        and not _is_span(args[0])
+                    )
                 elif call == "classify":
                     # A string's term, and a classifier's name (engine §9).
                     ok = (
