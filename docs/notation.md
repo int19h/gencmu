@@ -29,6 +29,8 @@ Line breaks and indentation mean nothing. So a long list of alternatives can put
   | VUhU #
 ```
 
+The bundled grammars keep one more convention. When every alternative of a rule is a single symbol, the alternatives share lines. They stand on one line if it holds 100 characters or fewer. Otherwise, they stand on the fewest lines of even length that fit, and each line begins with `|`. `tools/sync.js --check` makes sure that the bundled grammars keep this layout.
+
 The same is true of every other separator of the notation. These are `&` in bodies, `∪` and `∩` in terms, `∧` and `∨` in conditions, and the commas of a clause's list. `∖` in terms is not a separator, so it cannot stand first. A tag term is a term that gives a set of tags.
 
 A body can be followed by clauses. A clause is a keyword and what it says. A body has at most one clause of each kind, and the clauses come in this order:

@@ -95,6 +95,45 @@ if (unlinked.length) {
   console.error(unlinked.join("\n"));
   process.exit(1);
 }
+
+// A rule whose every alternative is one symbol lists them on shared lines:
+// one line when it fits in 100 characters, and otherwise the fewest lines of
+// even length that fit, each beginning with `|` (docs/notation.md).
+const SYMBOL = /^  (?:\| )?('(?:\\.|[^'\\])+'|\/[^/\s]+\/|[~$]?[A-Za-z0-9#][A-Za-z0-9'#-]*|ε)$/u;
+const RULE_HEAD = /^%(?:rule|redefine-rule|extend-rule) \S+$/;
+function compactAlternatives(names) {
+  const one = `  ${names.join(" | ")}`;
+  if (one.length <= 100) return [one];
+  for (let lines = 2; ; lines++) {
+    const per = Math.ceil(names.length / lines);
+    const result = [];
+    for (let at = 0; at < names.length; at += per) result.push(`  | ${names.slice(at, at + per).join(" | ")}`);
+    if (result.every((line) => line.length <= 100)) return result;
+  }
+}
+const sprawling = [];
+for (const file of Object.keys(documents)) {
+  const lines = fs.readFileSync(path.join(grammars, file), "utf8").split("\n");
+  let inBlock = false;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].startsWith("```")) {
+      inBlock = inBlock ? false : lines[i].trim() === "```jbogenbau";
+      continue;
+    }
+    if (!inBlock || !RULE_HEAD.test(lines[i])) continue;
+    let end = i + 1;
+    while (end < lines.length && lines[end].startsWith("  ")) end++;
+    const body = lines.slice(i + 1, end);
+    const names = body.map((line) => SYMBOL.exec(line)?.[1]);
+    if (body.length < 2 || names.some((name) => name === undefined)) continue;
+    const want = compactAlternatives(/** @type {string[]} */ (names));
+    if (want.join("\n") !== body.join("\n")) sprawling.push(`${file}:${i + 1}: ${lines[i]} lists single-symbol alternatives on ${body.length} lines; write:\n${want.join("\n")}`);
+  }
+}
+if (sprawling.length) {
+  console.error(sprawling.join("\n"));
+  process.exit(1);
+}
 write("grammars/compiled.json", JSON.stringify(compiled) + "\n");
 
 // The licence, which every package ships beside its code.
