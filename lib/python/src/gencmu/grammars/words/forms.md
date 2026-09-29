@@ -14,7 +14,7 @@ The text is runs and pauses. A run is a stretch of text with no pause inside. Th
 
 Every pause rule of CLL 4.9 and 4.2 holds within one run. A pause satisfies each of them, so two words with a pause between them never constrain each other. The approved word forms look past the end of a word only as far as the next pause. So this stage reads each run on its own.
 
-A run is a sequence of words, or it is foreign text. A run is foreign text when the phoneme stage already found it foreign, because it has a character that no script reads. A run of letters that divides into no words is also foreign text.
+A run is a sequence of words, or it is foreign text. A run is foreign text when the phoneme stage already found it foreign, because it has a character that no script reads. A run of phonemes that divides into no words is also foreign text.
 
 Foreign text is not an error here. The word stage decides whether foreign text can stand where it is. Inside a `zoi` quote, it is the body of the quote, and elsewhere the word stage rejects it. So this stage never rejects a text.
 
@@ -46,26 +46,26 @@ A run that divides into words divides in one way only. The word forms of each fa
   $ <tags($f) ∪ ~run-initial ∪ ~run-final>
 
 %rule unread-run
-  $f(letters)
+  $f(phoneme-run)
 %conditions
-  ¬begins(after($f), letter),
+  ¬begins(after($f), nonpause-phoneme),
   ¬matches($f, run-words)
 %emits
   $ <FOREIGN ∪ ~run-initial ∪ ~run-final>
 
-%rule letters
-  letter | letters letter
+%rule phoneme-run
+  nonpause-phoneme | phoneme-run nonpause-phoneme
 
-%rule letter
+%rule nonpause-phoneme
   | /a/ | /e/ | /i/ | /o/ | /u/ | /A/ | /E/ | /I/ | /O/ | /U/ | /y/ | /Y/ | /'/ | /,/
   | /b/ | /c/ | /d/ | /f/ | /g/ | /j/ | /k/ | /l/ | /m/ | /n/ | /p/ | /r/ | /s/ | /t/ | /v/ | /x/ | /z/
 ```
 
-The stage covers every input token. It passes pauses and foreign runs through, and combines letters into words or foreign runs. A foreign run of the phoneme stage keeps its phonemes, `?`, and its label, which is its text.
+The stage covers every input token. It passes pauses and foreign runs through, and combines phonemes into words or foreign runs. A foreign run of the phoneme stage keeps its phonemes, `?`, and its label, which is its text.
 
-A run of letters that divides into no words becomes one `FOREIGN` token, which sounds like its letters. So a `zoi` delimiter compares with it exactly as with the same letters read as words. The text of the token is what the author wrote.
+A run of phonemes that divides into no words becomes one `FOREIGN` token, which sounds like its phonemes. So a `zoi` delimiter compares with it exactly as with the same phonemes read as words. The text of the token is what the author wrote.
 
-The stage tests whether the run divides only for the whole run, because a letter follows a part of a run. The stage tests the run alone. This gives the same answer as a test in place, because no rule of this stage reads past the end of a run.
+The stage tests whether the run divides only for the whole run, because a phoneme follows a part of a run. The stage tests the run alone. This gives the same answer as a test in place, because no rule of this stage reads past the end of a run.
 
 ## Words in a run
 
@@ -103,12 +103,12 @@ The word stage needs to know where a run begins and ends. A name that `bu` takes
 %rule first-word
   $w(source-word)
 %emits
-  $ <tags($w) ∪ ~run-initial ∪ (¬begins(after($w), letter) ⟹ ~run-final)>
+  $ <tags($w) ∪ ~run-initial ∪ (¬begins(after($w), nonpause-phoneme) ⟹ ~run-final)>
 
 %rule later-word
   $w(source-word)
 %emits
-  $ <tags($w) ∪ (¬begins(after($w), letter) ⟹ ~run-final)>
+  $ <tags($w) ∪ (¬begins(after($w), nonpause-phoneme) ⟹ ~run-final)>
 ```
 
 ## Words
