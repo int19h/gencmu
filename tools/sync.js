@@ -15,7 +15,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Loader, fnv1a64 } from "../lib/js/src/node.js";
 import { DOM_FORMAT } from "../lib/js/src/dom.js";
+import { extractGrammarText } from "../lib/js/src/markdown.js";
 import { includeIsLinked } from "./links.js";
+import { layoutProblems } from "./alternatives.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const grammars = path.join(root, "grammars");
@@ -76,7 +78,8 @@ const documents = {};
 for (const file of grammarFiles()) {
   if (!file.endsWith(".md")) continue;
   const text = fs.readFileSync(path.join(grammars, file), "utf8");
-  if (!text.includes("```jbogenbau") && !text.includes("~~~jbogenbau")) continue;
+  // A document holds grammar when the reader finds a block in it.
+  if (extractGrammarText(text, file).blocks === 0) continue;
   documents[file] = { hash: fnv1a64(text), dom: loader.readDocument(text, file) };
 }
 const compiled = { format: DOM_FORMAT, bootstrap: loader.bootstrapHash, documents };
@@ -93,6 +96,18 @@ for (const [file, { dom }] of Object.entries(documents)) {
 }
 if (unlinked.length) {
   console.error(unlinked.join("\n"));
+  process.exit(1);
+}
+
+// A rule whose alternatives are single symbols does not put one on each of
+// its lines, and no line of its body holds more than 100 characters
+// (docs/notation.md, "Rules"; tools/alternatives.js).
+const sprawling = [];
+for (const [file, { dom }] of Object.entries(documents)) {
+  sprawling.push(...layoutProblems(fs.readFileSync(path.join(grammars, file), "utf8"), dom, file));
+}
+if (sprawling.length) {
+  console.error(sprawling.join("\n"));
   process.exit(1);
 }
 write("grammars/compiled.json", JSON.stringify(compiled) + "\n");

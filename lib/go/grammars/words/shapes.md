@@ -12,23 +12,8 @@ CLL 3.7 lists the 48 pairs that can begin a word. A longer cluster can begin a b
 
 ```jbogenbau
 %rule consonant
-  | /b/
-  | /c/
-  | /d/
-  | /f/
-  | /g/
-  | /j/
-  | /k/
-  | /l/
-  | /m/
-  | /n/
-  | /p/
-  | /r/
-  | /s/
-  | /t/
-  | /v/
-  | /x/
-  | /z/
+  | /b/ | /c/ | /d/ | /f/ | /g/ | /j/ | /k/ | /l/ | /m/
+  | /n/ | /p/ | /r/ | /s/ | /t/ | /v/ | /x/ | /z/
 
 %rule initial-pair
   | /b/ /l/ | /b/ /r/
@@ -119,23 +104,8 @@ A permissible run is a run of consonants whose adjacent pairs are all permissibl
 
 ```jbogenbau
 %rule permissible-run
-  | run-b
-  | run-c
-  | run-d
-  | run-f
-  | run-g
-  | run-j
-  | run-k
-  | run-l
-  | run-m
-  | run-n
-  | run-p
-  | run-r
-  | run-s
-  | run-t
-  | run-v
-  | run-x
-  | run-z
+  | run-b | run-c | run-d | run-f | run-g | run-j | run-k | run-l | run-m
+  | run-n | run-p | run-r | run-s | run-t | run-v | run-x | run-z
 
 %rule run-b
   /b/ | run-before-b /b/
@@ -210,79 +180,23 @@ A permissible run is a run of consonants whose adjacent pairs are all permissibl
   run-c | run-f | run-l | run-m | run-n | run-p | run-r | run-s | run-t
 
 %rule run-before-l
-  | run-b
-  | run-c
-  | run-d
-  | run-f
-  | run-g
-  | run-j
-  | run-k
-  | run-m
-  | run-n
-  | run-p
-  | run-r
-  | run-s
-  | run-t
-  | run-v
-  | run-x
-  | run-z
+  | run-b | run-c | run-d | run-f | run-g | run-j | run-k | run-m
+  | run-n | run-p | run-r | run-s | run-t | run-v | run-x | run-z
 
 %rule run-before-m
-  | run-b
-  | run-c
-  | run-d
-  | run-f
-  | run-g
-  | run-j
-  | run-k
-  | run-l
-  | run-n
-  | run-p
-  | run-r
-  | run-s
-  | run-t
-  | run-v
-  | run-x
-  | run-z
+  | run-b | run-c | run-d | run-f | run-g | run-j | run-k | run-l
+  | run-n | run-p | run-r | run-s | run-t | run-v | run-x | run-z
 
 %rule run-before-n
-  | run-b
-  | run-c
-  | run-d
-  | run-f
-  | run-g
-  | run-j
-  | run-k
-  | run-l
-  | run-m
-  | run-p
-  | run-r
-  | run-s
-  | run-t
-  | run-v
-  | run-x
-  | run-z
+  | run-b | run-c | run-d | run-f | run-g | run-j | run-k | run-l
+  | run-m | run-p | run-r | run-s | run-t | run-v | run-x | run-z
 
 %rule run-before-p
   run-c | run-f | run-k | run-l | run-m | run-n | run-r | run-s | run-t | run-x
 
 %rule run-before-r
-  | run-b
-  | run-c
-  | run-d
-  | run-f
-  | run-g
-  | run-j
-  | run-k
-  | run-l
-  | run-m
-  | run-n
-  | run-p
-  | run-s
-  | run-t
-  | run-v
-  | run-x
-  | run-z
+  | run-b | run-c | run-d | run-f | run-g | run-j | run-k | run-l
+  | run-m | run-n | run-p | run-s | run-t | run-v | run-x | run-z
 
 %rule run-before-s
   run-f | run-k | run-l | run-m | run-n | run-p | run-r | run-t | run-x

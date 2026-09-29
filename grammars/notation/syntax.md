@@ -123,7 +123,8 @@ The grammar reads a test after any primary, and a constant as a primary. The rea
   primary [~ellipsis]
 
 %rule primary
-  | reference | tag | character | phoneme | range | property | tested | capture | group | optional | empty
+  | reference | tag | character | phoneme | range | property
+  | tested | capture | group | optional | empty
   | constant-reference
 
 %rule tested

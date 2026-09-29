@@ -119,10 +119,8 @@ A stress mark or a shorthand is a character of the script, so it is never punctu
   $ </a/>, $ </u/>
 
 %rule zbalermorna-stressed-diphthong
-  | zbalermorna-stressed-ai
-  | zbalermorna-stressed-ei
-  | zbalermorna-stressed-oi
-  | zbalermorna-stressed-au
+  | zbalermorna-stressed-ai | zbalermorna-stressed-ei
+  | zbalermorna-stressed-oi | zbalermorna-stressed-au
 
 %rule zbalermorna-stressed-ai
   '\u{EDA6}' zbalermorna-stress

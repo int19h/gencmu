@@ -58,7 +58,8 @@ A run that divides into words divides in one way only. The word forms of each fa
 
 %rule nonpause-phoneme
   | /a/ | /e/ | /i/ | /o/ | /u/ | /A/ | /E/ | /I/ | /O/ | /U/ | /y/ | /Y/ | /'/ | /,/
-  | /b/ | /c/ | /d/ | /f/ | /g/ | /j/ | /k/ | /l/ | /m/ | /n/ | /p/ | /r/ | /s/ | /t/ | /v/ | /x/ | /z/
+  | /b/ | /c/ | /d/ | /f/ | /g/ | /j/ | /k/ | /l/ | /m/
+  | /n/ | /p/ | /r/ | /s/ | /t/ | /v/ | /x/ | /z/
 ```
 
 The stage covers every input token. It passes pauses and foreign runs through, and combines phonemes into words or foreign runs. A foreign run of the phoneme stage keeps its phonemes, `?`, and its label, which is its text.
