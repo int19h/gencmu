@@ -309,6 +309,17 @@
   /** @import { TagSet, Span } from "./types.js" */
   /** @import { UnicodeTable } from "./unicode.js" */
 
+  /**
+   * A token attached to another (engine §11): a token with no span, since its
+   * span counts the input of the stage that attached it.
+   * @typedef {Omit<Token, "span">} AttachedToken
+   */
+
+  // The attachments of a token that has none: one frozen list, shared, so that
+  // a character token costs no lists of its own.
+  /** @type {AttachedToken[]} */
+  const NO_ATTACHMENTS = /** @type {AttachedToken[]} */ (/** @type {unknown} */ (Object.freeze([])));
+
   class Token {
     /**
      * @param {TagSet} tags
@@ -329,7 +340,37 @@
       this.phonemes = phonemes;
       this.insertedBy = insertedBy;
       this.label = label;
+      /**
+       * The tokens attached before this one (engine §11), none by default.
+       * @type {AttachedToken[]}
+       */
+      this.before = NO_ATTACHMENTS;
+      /**
+       * The tokens attached after this one (engine §11), none by default.
+       * @type {AttachedToken[]}
+       */
+      this.after = NO_ATTACHMENTS;
     }
+  }
+
+  /**
+   * Whether a token has attachments (engine §11).
+   * @param {AttachedToken} token
+   * @returns {boolean}
+   */
+  function hasAttachments(token) {
+    return token.before.length > 0 || token.after.length > 0;
+  }
+
+  /**
+   * A token as an attachment: the same token without its span (engine §11).
+   * @param {Token} token
+   * @returns {AttachedToken}
+   */
+  function attached(token) {
+    const { span, ...rest } = token;
+    void span;
+    return rest;
   }
 
   // The source of a run of tokens (engine §1): from the least source start
@@ -1503,7 +1544,7 @@
 
 
   /** @import { Action, ParseError, ParseResult, ResultNode, Span } from "./types.js" */
-  /** @import { Token } from "./tokens.js" */
+  /** @import { AttachedToken, Token } from "./tokens.js" */
 
   /**
    * A token in the result JSON.
@@ -1512,9 +1553,11 @@
    * @property {string} phonemes
    * @property {string} label
    * @property {string[]} tags
-   * @property {Span} span
+   * @property {Span} [span] absent for an attached token
    * @property {Span} source
    * @property {string} [insertedBy]
+   * @property {TokenJson[]} [before] present only when not empty
+   * @property {TokenJson[]} [after] present only when not empty
    */
 
   /**
@@ -1579,13 +1622,15 @@
   /**
    * The display JSON projection of a tree: each node an object with one
    * member, its rule or terminal.
-   * @typedef {{[name: string]: DisplayValue | DisplayValue[] | string | null}} DisplayValue
+   * @typedef {{[name: string]: DisplayValue | DisplayValue[] | string | string[] | null}} DisplayValue
    */
 
-  const RESULT_FORMAT = 5;
+  const RESULT_FORMAT = 6;
 
   /**
-   * @param {Token} token
+   * A token in the result JSON. An attached token has no span, and a list of
+   * attachments is present only when it is not empty (docs/output.md).
+   * @param {Token | AttachedToken} token
    * @returns {TokenJson}
    */
   function tokenJson(token) {
@@ -1595,10 +1640,12 @@
       phonemes: token.phonemes || "",
       label: token.label,
       tags: sortedTags(token.tags),
-      span: [token.span[0], token.span[1]],
+      ...("span" in token ? { span: /** @type {Span} */ ([token.span[0], token.span[1]]) } : {}),
       source: [token.source[0], token.source[1]],
     };
     if (token.insertedBy !== undefined) result.insertedBy = token.insertedBy;
+    if (token.before.length > 0) result.before = token.before.map(tokenJson);
+    if (token.after.length > 0) result.after = token.after.map(tokenJson);
     return result;
   }
 
@@ -1686,6 +1733,46 @@
     return tokens[node.token].label;
   }
 
+  /**
+   * A token's classes, its tags that begin with a capital, in code point
+   * order: how the renderings name an attached token (docs/output.md).
+   * @param {AttachedToken} token
+   * @returns {string[]}
+   */
+  function classesOf(token) {
+    return sortedTags(token.tags).filter((tag) => /^[A-Z]/.test(tag));
+  }
+
+  /**
+   * A token's attachments on one line, for the token tables: `◂ ` before a
+   * before-attachment and `▸ ` before an after-attachment, each with its
+   * classes and its label, and its own attachments after it in parentheses.
+   * The empty string for a token with none.
+   * @param {AttachedToken} token
+   * @returns {string}
+   */
+  function attachmentText(token) {
+    /** @type {string[]} */
+    const parts = [];
+    for (const [mark, list] of /** @type {[string, AttachedToken[]][]} */ ([["◂ ", token.before], ["▸ ", token.after]])) {
+      for (const attachment of list) {
+        const classes = classesOf(attachment);
+        const inner = attachmentText(attachment);
+        parts.push(mark + (classes.length ? classes.join(" ∪ ") + " " : "") + JSON.stringify(attachment.label) + (inner ? ` (${inner})` : ""));
+      }
+    }
+    return parts.join(", ");
+  }
+
+  /**
+   * Whether a token or any of its attachments has a label with a line break.
+   * @param {AttachedToken} token
+   * @returns {boolean}
+   */
+  function breaksLine(token) {
+    return /[\n\r]/.test(token.label) || [...token.before, ...token.after].some(breaksLine);
+  }
+
   // The bracket rendering (docs/output.md): nested groups cycling ( [ {.
   /**
    * @typedef {{leaf: string} | {group: Flat[]}} Flat
@@ -1711,9 +1798,14 @@
    * @returns {string}
    */
   function nodeBrackets(root, tokens, options = {}) {
+    // A token with attachments is a group of its before-attachments, its
+    // label and its after-attachments, each rendered the same way.
+    /** @type {(token: AttachedToken) => Flat} */
+    const tokenFlat = (token) => (token.before.length === 0 && token.after.length === 0 ? { leaf: token.label }
+      : { group: [...token.before.map(tokenFlat), { leaf: token.label }, ...token.after.map(tokenFlat)] });
     const flat = foldTree(root,
       /** @returns {Flat | null} */
-      (leaf) => (leaf.kind === "token" ? { leaf: leafLabel(leaf, tokens) }
+      (leaf) => (leaf.kind === "token" ? tokenFlat(tokens[leaf.token])
         : options.showElided ? { leaf: `⟨${leaf.terminal.toLowerCase()}⟩` } : null),
       /** @returns {Flat | null} */
       (rule, values) => {
@@ -1796,7 +1888,10 @@
     // need not be in text order (engine §1, docs/output.md).
     /** @type {(children: import("./types.js").TokenNode[]) => boolean} */
     const oneLine = (children) => {
-      if (children.some((child) => /[\n\r]/.test(leafLabel(child, tokens)))) return false;
+      // A token with attachments shows them on lines of its own, so its rule
+      // is never one line (docs/output.md).
+      if (children.some((child) => tokens[child.token].before.length > 0 || tokens[child.token].after.length > 0)) return false;
+      if (children.some((child) => breaksLine(tokens[child.token]))) return false;
       if (characters === undefined) return true;
       let start = Infinity;
       let end = -Infinity;
@@ -1815,6 +1910,19 @@
       if (node.kind === "token") return `${node.terminal} ${JSON.stringify(leafLabel(node, tokens))}`;
       if (node.kind === "elided") return `⟨${node.terminal}⟩`;
       return node.rule;
+    };
+    // A token's attachments, each on a line of its own under it: `◂ ` before a
+    // before-attachment and `▸ ` before an after-attachment, with its classes
+    // and its label, and its own attachments under it (docs/output.md).
+    /** @type {(token: AttachedToken, indent: number) => void} */
+    const attachmentLines = (token, indent) => {
+      for (const [mark, list] of /** @type {[string, AttachedToken[]][]} */ ([["◂ ", token.before], ["▸ ", token.after]])) {
+        for (const attachment of list) {
+          const classes = classesOf(attachment);
+          lines.push(" ".repeat(indent) + mark + (classes.length ? classes.join(" ∪ ") + " " : "") + JSON.stringify(attachment.label));
+          attachmentLines(attachment, indent + 2);
+        }
+      }
     };
     /** @type {{node: ResultNode, indent: number}[]} */
     const stack = [{ node: root, indent: 0 }];
@@ -1836,6 +1944,7 @@
         continue;
       }
       lines.push(line);
+      if (current.kind === "token") attachmentLines(tokens[current.token], indent + 2);
       if (current.kind === "rule") {
         for (let index = current.children.length - 1; index >= 0; index--) stack.push({ node: current.children[index], indent: indent + 2 });
       }
@@ -1851,9 +1960,27 @@
   function displayValue(result) {
     if (!result.tree) return null;
     const tokens = finalInput(result);
+    // An attachment: its classes, its label and its own attachments, each
+    // list left out when it is empty (docs/output.md).
+    /** @type {(token: AttachedToken) => DisplayValue} */
+    const attachment = (token) => {
+      const classes = classesOf(token);
+      return { ...(classes.length ? { classes } : {}), label: token.label, ...attachmentsOf(token) };
+    };
+    /** @type {(token: AttachedToken) => DisplayValue} */
+    const attachmentsOf = (token) => ({
+      ...(token.before.length ? { before: token.before.map(attachment) } : {}),
+      ...(token.after.length ? { after: token.after.map(attachment) } : {}),
+    });
+    /** @type {(leaf: import("./types.js").TokenNode) => DisplayValue} */
+    const tokenValue = (leaf) => {
+      const token = tokens[leaf.token];
+      if (token.before.length === 0 && token.after.length === 0) return { [leaf.terminal]: token.label };
+      return { terminal: leaf.terminal, label: token.label, ...attachmentsOf(token) };
+    };
     return foldTree(withoutHollowNodes(result.tree),
       /** @returns {DisplayValue} */
-      (leaf) => (leaf.kind === "token" ? { [leaf.terminal]: leafLabel(leaf, tokens) } : { [leaf.terminal]: null }),
+      (leaf) => (leaf.kind === "token" ? tokenValue(leaf) : { [leaf.terminal]: null }),
       /** @returns {DisplayValue} */
       (rule, children) => ({ [rule.rule]: children.length === 1 ? children[0] : children }));
   }
@@ -2134,7 +2261,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 14;
+  const DOM_FORMAT = 15;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9-]*$/;
   // A classifier's name begins with a lower-case letter, and a class with a
@@ -2453,17 +2580,27 @@
         pending.push({ kind: "term", value, depth });
       } else if (kind === "emission") {
         // The reader's rules (engine §9): $ only with $, a capture listed once,
-        // no tags on an inserted tag; no items at all is `ε`.
+        // no tags on an inserted tag; no items at all is `ε`. Attachments are
+        // lists of named captures, present only when not empty, and only on a
+        // named capture.
         if (!list(value.items, 0) || Object.keys(value).length !== 1) return "a malformed emission";
         const items = /** @type {unknown[]} */ (value.items);
-        const known = (/** @type {string} */ key) => key === "capture" || key === "insert" || key === "tags";
+        const known = (/** @type {string} */ key) => key === "capture" || key === "insert" || key === "tags" || key === "before" || key === "after";
         if (!items.every((item) => isDomObject(item) && (typeof item.capture === "string") !== (typeof item.insert === "string") && Object.keys(item).every(known))) return "a malformed emission";
         // An inserted item is one tag (engine §9).
         if (!items.every((item) => /** @type {Record<string, unknown>} */ (item).insert === undefined || isTag(/** @type {Record<string, unknown>} */ (item).insert, unicode))) return "a malformed emission";
         const records = /** @type {Record<string, unknown>[]} */ (items);
         const whole = records.filter((item) => item.capture === "");
         if (whole.length && whole.length !== records.length) return "a malformed emission";
-        const captures = records.flatMap((item) => (typeof item.capture === "string" && item.capture !== "" ? [item.capture] : []));
+        for (const item of records) {
+          for (const side of [item.before, item.after]) {
+            if (side === undefined) continue;
+            if (typeof item.capture !== "string" || item.capture === "" || !list(side, 1) ||
+                !(/** @type {unknown[]} */ (side)).every((name) => typeof name === "string" && CAPTURE_NAME.test(name))) return "a malformed emission";
+          }
+        }
+        const captures = records.flatMap((item) => (typeof item.capture === "string" && item.capture !== ""
+          ? [item.capture, ...(/** @type {string[]} */ (item.before ?? [])), ...(/** @type {string[]} */ (item.after ?? []))] : []));
         if (new Set(captures).size !== captures.length) return "a malformed emission";
         for (const item of records) {
           if (item.tags === undefined) continue;
@@ -2787,8 +2924,9 @@
     // A constituent that does not count is never a foreign part (engine §9).
     if (rule.foreign && rule.emit && items.length === 0) return `${rule.name} is foreign and emits ε`;
     const clauses = [rule.tags, ...rule.conditions, ...rule.alternatives.map((/** @type {any} */ a) => a.tags), ...items];
-    // An emission item mentions its own capture, whatever else it says.
-    const named = items.flatMap((/** @type {any} */ item) => (typeof item.capture === "string" ? [item.capture] : []));
+    // An emission item mentions its own capture and its attachments,
+    // whatever else it says.
+    const named = items.flatMap((/** @type {any} */ item) => (typeof item.capture === "string" ? [item.capture, ...attachmentsOf(item)] : []));
     for (const name of [...named, ...clauses.flatMap(capturesMentioned)]) {
       if (!anyHas(name)) return `$${name} is captured by no alternative of ${rule.name}`;
     }
@@ -2811,7 +2949,17 @@
       if (!rule.emit) continue;
       const present = items.filter((/** @type {any} */ item) => item.capture === undefined || has(item.capture));
       if (items.length > 0 && present.length === 0) return `%emits of ${rule.name} leaves an alternative nothing to emit`;
-      const positions = present.flatMap((/** @type {any} */ item) => (item.capture ? [/** @type {number} */ (captures.get(item.capture))] : []));
+      // An alternative without an item's carrier lacks its attachments too
+      // (engine §9).
+      for (const item of items) {
+        if (item.capture === undefined || has(item.capture)) continue;
+        const stray = attachmentsOf(item).find(has);
+        if (stray !== undefined) return `%emits of ${rule.name} attaches $${stray} in an alternative without its carrier $${item.capture}`;
+      }
+      // The written order of the captures, attachments included, is the order
+      // they stand in (engine §9).
+      const written = present.flatMap((/** @type {any} */ item) => (item.capture ? [...(item.before ?? []), item.capture, ...(item.after ?? [])] : []));
+      const positions = written.filter(has).map((/** @type {string} */ name) => /** @type {number} */ (captures.get(name)));
       if (positions.some((/** @type {number} */ position, /** @type {number} */ at) => at > 0 && position < positions[at - 1])) {
         return `%emits of ${rule.name} lists captures out of the order they stand in`;
       }
@@ -2829,6 +2977,15 @@
       }
     }
     return null;
+  }
+
+  /**
+   * An emission item's attachment captures, before and after it, in order.
+   * @param {any} item
+   * @returns {string[]}
+   */
+  function attachmentsOf(item) {
+    return [...(item.before ?? []), ...(item.after ?? [])];
   }
 
   // ---- Types (engine §10) -------------------------------------------------
@@ -3390,7 +3547,8 @@
         continue;
       }
       const rows = stage.output.map((token, index) => [String(index), quoted(token.text), quoted(token.phonemes || ""), quoted(token.label),
-        `${token.span[0]}-${token.span[1]}`, `${token.source[0]}-${token.source[1]}`, tagList(token.tags) + (token.insertedBy ? `  (inserted by ${token.insertedBy})` : "")]);
+        `${token.span[0]}-${token.span[1]}`, `${token.source[0]}-${token.source[1]}`, tagList(token.tags) + (token.insertedBy ? `  (inserted by ${token.insertedBy})` : "") +
+          (attachmentText(token) ? `  (attached: ${attachmentText(token)})` : "")]);
       const header = ["#", "text", "phonemes", "label", "span", "source", "tags"];
       const widths = header.map((title, column) => Math.max([...title].length, ...rows.map((row) => [...row[column]].length)));
       /** @type {(row: string[]) => string} */
@@ -4683,11 +4841,22 @@
       }
       let emit = clauses.emit || null;
       if (emit) {
-        // An item naming a capture the production lacks is dropped (engine
-        // §3.6); the reader has made sure the tags of those left use none.
+        // An item whose carrier the production lacks is dropped, and so is
+        // each attachment capture it lacks (engine §3.6); the reader has made
+        // sure the tags of those left use none.
         emit = {
           items: emit.items.filter((item) => item.capture === undefined || names.has(item.capture))
-            .map((item) => (item.tags ? { ...item, tags: simplify(item.tags, has) } : item)),
+            .map((item) => {
+              /** @type {import("./types.js").EmitItem} */
+              const kept = item.tags ? { ...item, tags: simplify(item.tags, has) } : { ...item };
+              const before = (item.before ?? []).filter(has);
+              const after = (item.after ?? []).filter(has);
+              if (before.length) kept.before = before;
+              else delete kept.before;
+              if (after.length) kept.after = after;
+              else delete kept.after;
+              return kept;
+            }),
         };
       }
       this.addProduction({
@@ -6390,14 +6559,25 @@
   }
 
   /**
+   * What one derivation's emission needs: the parse, its foreign parts, and
+   * whether any input token has attachments to forward (engine §11).
+   * @typedef {object} Emitter
+   * @property {ParseContext} context
+   * @property {Map<Derivation, ForeignPart>} foreign the derivation's foreign
+   *   parts
+   * @property {boolean} forwards whether any input token has attachments
+   * @property {Set<import("./tokens.js").AttachedToken>} inherited the input
+   *   tokens whose attachments a token of this emission has inherited
+   */
+
+  /**
    * @param {Derivation} node
    * @param {TagSet} explicit the tags that the emission gives the token
-   * @param {ParseContext} context
-   * @param {Map<Derivation, ForeignPart>} foreign the derivation's foreign
-   *   parts
+   * @param {Emitter} emitter
    * @returns {Token}
    */
-  function makeToken(node, explicit, context, foreign) {
+  function makeToken(node, explicit, emitter) {
+    const { context, foreign } = emitter;
     // The stage's implications apply before the phonemes and the label
     // (engine §11).
     const tags = implied(explicit, context.lowered.implications);
@@ -6409,7 +6589,80 @@
     const text = part ? part.text : context.sourceText.slice(source[0], source[1]).join("");
     // A phoneme tag decides the sound and the label, over `?` (engine §5).
     const said = phoneme !== null ? sounded(phoneme) : spoken(node, context, foreign);
-    return new Token(tags, [node.start, node.end], source, text, said.phonemes, undefined, said.label);
+    const token = new Token(tags, [node.start, node.end], source, text, said.phonemes, undefined, said.label);
+    // The parts decide the attachments too, after the phoneme tags are
+    // checked (engine §11).
+    const from = emitter.forwards ? forwarded(node, context, foreign) : null;
+    if (from) {
+      // Attachments belong to one token: an input token that is the one part
+      // of a second token is an error of the grammar (engine §11).
+      if (emitter.inherited.has(from)) {
+        throw new GencmuError("grammar", "a token with attachments is the one part of two emitted tokens, and its attachments cannot belong to both");
+      }
+      emitter.inherited.add(from);
+      token.before = from.before;
+      token.after = from.after;
+    }
+    return token;
+  }
+
+  /**
+   * The one input token whose attachments a token over `node` inherits, or
+   * null (engine §11). The parts are those of the join (engine §5): a read
+   * input token, or a foreign part as one piece, and nothing inside a
+   * constituent that emits `ε`. A token with attachments among other parts,
+   * or a foreign part that holds one, is an error of the grammar.
+   * @param {Derivation} node
+   * @param {ParseContext} context
+   * @param {Map<Derivation, ForeignPart>} foreign
+   * @returns {import("./tokens.js").AttachedToken | null}
+   */
+  function forwarded(node, context, foreign) {
+    let parts = 0;
+    /** @type {import("./tokens.js").AttachedToken | null} */
+    let found = null;
+    const stack = [node];
+    for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
+      if ("read" in current) {
+        parts++;
+        const token = context.tokens[current.read.token];
+        if (hasAttachments(token)) found = token;
+        continue;
+      }
+      if (countsForNothing(current.production)) continue;
+      if (foreign.has(current)) {
+        parts++;
+        if (holdsAttachments(current, context)) {
+          throw new GencmuError("grammar", `${current.production.owner} is a foreign part over a token with attachments, which a token over it cannot place`);
+        }
+        continue;
+      }
+      for (let index = current.children.length - 1; index >= 0; index--) stack.push(current.children[index]);
+    }
+    if (found && parts > 1) {
+      throw new GencmuError("grammar", "a token over a token with attachments and another part cannot say which part each attachment belongs to");
+    }
+    return found;
+  }
+
+  /**
+   * Whether a foreign part holds an input token with attachments: one that it
+   * reads outside any constituent that emits `ε` (engine §11).
+   * @param {Derivation} node
+   * @param {ParseContext} context
+   * @returns {boolean}
+   */
+  function holdsAttachments(node, context) {
+    const stack = [node];
+    for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
+      if ("read" in current) {
+        if (hasAttachments(context.tokens[current.read.token])) return true;
+        continue;
+      }
+      if (countsForNothing(current.production)) continue;
+      for (let index = current.children.length - 1; index >= 0; index--) stack.push(current.children[index]);
+    }
+    return false;
   }
 
   /**
@@ -6475,10 +6728,23 @@
    * @returns {Token[]}
    */
   function emit(root, context) {
-    /** @type {Token[]} */
-    const out = [];
     // The foreign parts and their texts, fixed before any token (engine §11).
     const foreign = foreignParts(root, context);
+    return emitted(root, { context, foreign, forwards: context.tokens.some(hasAttachments), inherited: new Set() });
+  }
+
+  /**
+   * The tokens a constituent emits in its place in the derivation (engine
+   * §11): the stage's output from the root, or an attachment from a captured
+   * part.
+   * @param {Derivation} root
+   * @param {Emitter} emitter
+   * @returns {Token[]}
+   */
+  function emitted(root, emitter) {
+    const { context, foreign } = emitter;
+    /** @type {Token[]} */
+    const out = [];
     /** @type {EmitTask[]} */
     const tasks = [{ walk: root }];
     for (let task = tasks.pop(); task !== undefined; task = tasks.pop()) {
@@ -6508,25 +6774,40 @@
       if (clause.items[0].capture === "") {
         // One token covering the constituent per `$`: a digit that is two
         // phonemes is emitted as two tokens over the same character.
-        for (const item of clause.items) out.push(makeToken(node, valueTags(item, nodeTags(node, context)), context, foreign));
+        for (const item of clause.items) out.push(makeToken(node, valueTags(item, nodeTags(node, context)), emitter));
         continue;
       }
       // The items, in the order listed, and nothing else of the constituent
-      // (engine §11). An inserted tag's position is the start of the part of
-      // the capture listed next after it, or the constituent's end.
+      // but their attachments (engine §11). An inserted tag's position is the
+      // start of its anchor, the first written part of the capture item listed
+      // next after it, or the constituent's end.
       /** @type {(name: string) => Derivation} */
       const part = (name) => node.children[/** @type {import("./types.js").Capture} */ (production.captures.find((entry) => entry.name === name)).index];
+      // An attachment: what its captured part emits in its place, each token
+      // without its span (engine §11).
+      /** @type {(names: string[] | undefined) => import("./tokens.js").AttachedToken[]} */
+      const attachments = (names) => (names ?? []).flatMap((name) => emitted(part(name), emitter).map(attached));
       /** @type {EmitTask[]} */
       const ordered = [];
       clause.items.forEach((item, index) => {
         if (item.insert !== undefined) {
           const insert = item.insert;
           const next = clause.items.slice(index + 1).find((later) => later.capture !== undefined);
-          const at = next && next.capture !== undefined ? part(next.capture).start : node.end;
+          const at = next && next.capture !== undefined ? part(next.before?.[0] ?? next.capture).start : node.end;
           ordered.push({ token: () => insertedToken(insert, at, node, context, production.owner) });
         } else if (item.capture !== undefined) {
           const child = part(item.capture);
-          ordered.push({ token: () => makeToken(child, valueTags(item, nodeTags(child, context)), context, foreign) });
+          ordered.push({ token: () => {
+            // Before-attachments, then the carrier with its tag term, then
+            // after-attachments; the first error ends the emission. New
+            // attachments are outer to inherited ones (engine §11).
+            const before = attachments(item.before);
+            const token = makeToken(child, valueTags(item, nodeTags(child, context)), emitter);
+            const after = attachments(item.after);
+            if (before.length) token.before = [...before, ...token.before];
+            if (after.length) token.after = [...token.after, ...after];
+            return token;
+          } });
         }
       });
       for (let index = ordered.length - 1; index >= 0; index--) tasks.push(ordered[index]);
@@ -6901,14 +7182,35 @@
           item.tags = readTagTerm(only(tags, "term"));
           if ("emptySet" in item.tags) fail("<∅> emits a token no terminal can read; %emits ε emits nothing", itemNode);
         }
+        // Attachments: named captures in parentheses, before the item and
+        // after it, carried only by a named capture (engine §9, §11).
+        const before = ofRule(itemNode, "emit-before").map(readAttachment);
+        const after = ofRule(itemNode, "emit-after").map(readAttachment);
+        if ((before.length || after.length) && item.capture === undefined) fail("an inserted tag carries no attachments", itemNode);
+        if ((before.length || after.length) && item.capture === "") fail("$ carries no attachments; name a capture", itemNode);
+        if (before.length) item.before = before;
+        if (after.length) item.after = after;
         return item;
       });
       if (items.some((item) => item.capture === "") && !items.every((item) => item.capture === "")) {
         fail("$ goes with no item but another $", node);
       }
-      const named = items.flatMap((item) => (item.capture !== undefined && item.capture !== "" ? [item.capture] : []));
+      // A capture stands once in an emission, as an item or as an attachment.
+      const named = items.flatMap((item) => (item.capture !== undefined && item.capture !== "" ? [item.capture, ...(item.before || []), ...(item.after || [])] : []));
       if (named.some((name, index) => named.indexOf(name) !== index)) fail("%emits lists a capture twice", node);
       return { items };
+    }
+
+    /**
+     * An attachment's capture, by its name without `$`: never `$` itself.
+     * @param {RuleNode} node
+     * @returns {string}
+     */
+    function readAttachment(node) {
+      const capture = parts(node).find((child) => child.kind === "token" && text(child).startsWith("$"));
+      const name = capture ? text(capture).slice(1) : "";
+      if (name === "") fail("an attachment holds a named capture, not $", node);
+      return name;
     }
 
     /**
@@ -7298,7 +7600,7 @@
   const NAMED = new Set([
     "directive", "argument-word", "argument-string", "rule", "definer", "body", "alternative", "guard", "alternative-tags",
     "conjunction", "sequence", "element", "primary", "reference", "string", "phoneme", "tested", "test", "test-operand", "capture", "group", "optional",
-    "choice", "empty", "tags-clause", "conditions-clause", "emits-clause", "foreign-clause", "emit-item", "emit-target", "emit-tags",
+    "choice", "empty", "tags-clause", "conditions-clause", "emits-clause", "foreign-clause", "emit-item", "emit-target", "emit-tags", "emit-before", "emit-after",
     "implication", "any-of", "all-of", "condition", "comparison", "comparator", "negation", "presence",
     "term", "guarded-term", "union", "intersection", "term-atom", "tag", "character", "name", "empty-set", "call", "argument",
     "capture-reference", "argument-tag", "range", "property", "constant-definition", "constant-definer", "constant-reference",
@@ -7829,8 +8131,15 @@
         throw new GencmuError("usage", `the text is not a sequence of Unicode scalar values: a lone surrogate U+${surrogate.code.toString(16).toUpperCase()} at code point ${surrogate.at}`);
       }
       // A token that the caller supplies has its text as its label (engine §5).
-      // The parse copies each one, so the caller's objects stay as they are.
+      // It has no attachments: a list that is not empty is the caller's
+      // mistake, and an empty one is dropped (docs/api.md). The parse copies
+      // each token, so the caller's objects stay as they are.
       if (options.tokens) {
+        options.tokens.forEach((token, index) => {
+          if ((token.before && token.before.length > 0) || (token.after && token.after.length > 0)) {
+            throw new GencmuError("usage", `token ${index} has attachments, which a caller cannot supply`);
+          }
+        });
         options = { ...options, tokens: options.tokens.map((token) =>
           new Token(token.tags, token.span, token.source, token.text, token.phonemes, token.insertedBy)) };
       }
@@ -8369,11 +8678,14 @@
   /**
    * One item of an emission clause: a capture, `""` for `$`, the whole
    * constituent, with the tags to give it; or an inserted token, whose one
-   * tag `insert` is.
+   * tag `insert` is. A named capture, the item's carrier, can name
+   * attachment captures before it and after it (engine §11).
    * @typedef {object} EmitItem
    * @property {string} [capture]
    * @property {string} [insert]
    * @property {Term} [tags]
+   * @property {string[]} [before]
+   * @property {string[]} [after]
    */
 
   /**
@@ -8568,7 +8880,7 @@
 
 
 
-    return { version: "0.1.0", Loader, Dialect, fnv1a64, stitchText, GencmuError, Token, resultJson, toJson, compactJson, toBrackets, toTree, displayValue, prettyJson, nodeBrackets, nodeTree, explainError, explainTies, explainWarnings, tokenTable, audit, formatAudit, trace, formatTrace, sourceExcerpt, formatCondition, formatTerm, formatItem, loadDialectSources, loaderFromSources };
+    return { version: "0.1.0", Loader, Dialect, fnv1a64, stitchText, GencmuError, Token, resultJson, toJson, compactJson, toBrackets, toTree, displayValue, prettyJson, nodeBrackets, nodeTree, attachmentText, explainError, explainTies, explainWarnings, tokenTable, audit, formatAudit, trace, formatTrace, sourceExcerpt, formatCondition, formatTerm, formatItem, loadDialectSources, loaderFromSources };
   }
   root.gencmuFactory = gencmuFactory;
   root.gencmu = gencmuFactory();

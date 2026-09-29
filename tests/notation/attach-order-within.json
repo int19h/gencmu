@@ -1,0 +1,10 @@
+{
+  "description": "A before-attachment stands before its carrier in the body (engine §9).",
+  "document": "```jbogenbau\n%rule a $w(W) $a(A) %emits ($a) $w\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  }
+}

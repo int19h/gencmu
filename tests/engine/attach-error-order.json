@@ -1,0 +1,26 @@
+{
+  "description": "A before-attachment is produced before the carrier's tag term. Here both fail, and the first error, the attachment's two phoneme tags, ends the emission (engine §11).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $b(bad) $w(word)\n%emits\n  ($b) $w <tag(text($w))>\n%rule word\n  '1'\n%rule bad\n  'b'\n%emits\n  $ </a/ ∪ /e/>\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "b1",
+  "expect": {
+    "result": {
+      "format": 6,
+      "ok": false,
+      "stages": [
+        {
+          "name": "a",
+          "verdict": "unique"
+        }
+      ],
+      "error": {
+        "kind": "grammar",
+        "stage": "a"
+      }
+    },
+    "error": "grammar"
+  }
+}

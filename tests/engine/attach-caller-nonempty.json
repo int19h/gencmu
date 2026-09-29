@@ -1,0 +1,23 @@
+{
+  "description": "A caller cannot supply attachments: a token whose before or after is not empty is a usage error (docs/api.md). Rust skips this case (tests/README.md).",
+  "grammar": "%rule text $a(A)\n%emits $a",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "after": [
+        {
+          "text": "i",
+          "tags": [
+            "I"
+          ]
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "error": "usage"
+  }
+}

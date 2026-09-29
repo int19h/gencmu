@@ -1,0 +1,10 @@
+{
+  "description": "An inserted tag carries no attachments; the error is at the item, whose first part is the attachment (engine §9).",
+  "document": "```jbogenbau\n%rule a $a(A) $w(W) %emits ($a) X, $w\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 28
+    }
+  }
+}

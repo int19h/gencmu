@@ -1,0 +1,10 @@
+{
+  "description": "The written order of captures runs through every item's attachments and carrier, so ($a) $c, $b is out of order over $a $b $c; the error is at the rule (engine §9).",
+  "document": "```jbogenbau\n%rule a $a(A) $b(B) $c(C) %emits ($a) $c, $b\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  }
+}

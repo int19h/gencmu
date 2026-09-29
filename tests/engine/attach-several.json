@@ -1,0 +1,86 @@
+{
+  "description": "Several attachment captures on one side stand in the order written (engine §11).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text item ...\n%rule item\n  | $w(word) | $b(bb) $c(cc) $w(word) $a(ii)\n%emits\n  ($b) ($c) $w ($a)\n%rule word\n  'w' <W>\n%rule bb\n  'b' <B>\n%emits\n  $\n%rule cc\n  'c' <C>\n%emits\n  $\n%rule ii\n  'i' <I>\n%emits\n  $\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text W ...\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "bcwi",
+  "expect": {
+    "result": {
+      "format": 6,
+      "ok": true,
+      "stages": [
+        {
+          "name": "a",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "w",
+              "phonemes": "",
+              "label": "w",
+              "tags": [
+                "W"
+              ],
+              "span": [
+                2,
+                3
+              ],
+              "source": [
+                2,
+                3
+              ],
+              "before": [
+                {
+                  "text": "b",
+                  "phonemes": "",
+                  "label": "b",
+                  "tags": [
+                    "B"
+                  ],
+                  "source": [
+                    0,
+                    1
+                  ]
+                },
+                {
+                  "text": "c",
+                  "phonemes": "",
+                  "label": "c",
+                  "tags": [
+                    "C"
+                  ],
+                  "source": [
+                    1,
+                    2
+                  ]
+                }
+              ],
+              "after": [
+                {
+                  "text": "i",
+                  "phonemes": "",
+                  "label": "i",
+                  "tags": [
+                    "I"
+                  ],
+                  "source": [
+                    3,
+                    4
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "b",
+          "verdict": "unique",
+          "output": []
+        }
+      ]
+    },
+    "brackets": "(b c w i)"
+  }
+}

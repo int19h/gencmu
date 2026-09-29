@@ -1,0 +1,110 @@
+{
+  "description": "An inserted tag before an item stands before its first before-attachment where the alternative has it, and before its carrier where it does not (engine §11).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text item ...\n%rule item\n  | $b(bb) $w(word) | $w(word)\n%emits\n  X, ($b) $w\n%rule word\n  'w' <W>\n%rule bb\n  'b' <B>\n%emits\n  $\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text (X W) ...\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "bww",
+  "expect": {
+    "result": {
+      "format": 6,
+      "ok": true,
+      "stages": [
+        {
+          "name": "a",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "",
+              "phonemes": "",
+              "label": "",
+              "tags": [
+                "X"
+              ],
+              "span": [
+                0,
+                0
+              ],
+              "source": [
+                0,
+                0
+              ],
+              "insertedBy": "item"
+            },
+            {
+              "text": "w",
+              "phonemes": "",
+              "label": "w",
+              "tags": [
+                "W"
+              ],
+              "span": [
+                1,
+                2
+              ],
+              "source": [
+                1,
+                2
+              ],
+              "before": [
+                {
+                  "text": "b",
+                  "phonemes": "",
+                  "label": "b",
+                  "tags": [
+                    "B"
+                  ],
+                  "source": [
+                    0,
+                    1
+                  ]
+                }
+              ]
+            },
+            {
+              "text": "",
+              "phonemes": "",
+              "label": "",
+              "tags": [
+                "X"
+              ],
+              "span": [
+                2,
+                2
+              ],
+              "source": [
+                2,
+                2
+              ],
+              "insertedBy": "item"
+            },
+            {
+              "text": "w",
+              "phonemes": "",
+              "label": "w",
+              "tags": [
+                "W"
+              ],
+              "span": [
+                2,
+                3
+              ],
+              "source": [
+                2,
+                3
+              ]
+            }
+          ]
+        },
+        {
+          "name": "b",
+          "verdict": "unique",
+          "output": []
+        }
+      ]
+    },
+    "brackets": "( [b w]  w)"
+  }
+}

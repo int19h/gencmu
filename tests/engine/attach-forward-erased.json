@@ -1,0 +1,115 @@
+{
+  "description": "An erased input token does not count as a part, so its attachments go with it: a token over the erasing constituent inherits nothing (engine §11).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n%stage c\n%include \"c.md\"\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text item ...\n%rule item\n  | $w(word) | $b(bb) $w(word) | $w(word) $a(ii) | $b(bb) $w(word) $a(ii)\n%emits\n  ($b) $w ($a)\n%rule word\n  | 'w' <W> | 'z' <Z>\n%rule bb\n  'b' <B>\n%emits\n  $\n%rule ii\n  'i' <I>\n%emits\n  $\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $g(gone) $z(Z)\n%emits\n  $g <X>, $z\n%rule gone\n  W\n%emits\n  ε\n```\n",
+    "c.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text X Z\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "wiz",
+  "expect": {
+    "result": {
+      "format": 6,
+      "ok": true,
+      "stages": [
+        {
+          "name": "a",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "w",
+              "phonemes": "",
+              "label": "w",
+              "tags": [
+                "W"
+              ],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ],
+              "after": [
+                {
+                  "text": "i",
+                  "phonemes": "",
+                  "label": "i",
+                  "tags": [
+                    "I"
+                  ],
+                  "source": [
+                    1,
+                    2
+                  ]
+                }
+              ]
+            },
+            {
+              "text": "z",
+              "phonemes": "",
+              "label": "z",
+              "tags": [
+                "Z"
+              ],
+              "span": [
+                2,
+                3
+              ],
+              "source": [
+                2,
+                3
+              ]
+            }
+          ]
+        },
+        {
+          "name": "b",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "w",
+              "phonemes": "",
+              "label": "",
+              "tags": [
+                "X"
+              ],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "text": "z",
+              "phonemes": "",
+              "label": "z",
+              "tags": [
+                "Z"
+              ],
+              "span": [
+                1,
+                2
+              ],
+              "source": [
+                2,
+                3
+              ]
+            }
+          ]
+        },
+        {
+          "name": "c",
+          "verdict": "unique",
+          "output": []
+        }
+      ]
+    },
+    "brackets": "( z)"
+  }
+}

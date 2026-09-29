@@ -1,0 +1,122 @@
+{
+  "description": "A branching rule over a token with attachments: the brackets group the token with its attachments at the depth of its node (docs/output.md).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text item ...\n%rule item\n  | $w(word) | $b(bb) $w(word) | $w(word) $a(ii) | $b(bb) $w(word) $a(ii)\n%emits\n  ($b) $w ($a)\n%rule word\n  | 'w' <W> | 'z' <Z>\n%rule bb\n  'b' <B>\n%emits\n  $\n%rule ii\n  'i' <I>\n%emits\n  $\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text pair ...\n%rule pair W Z\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "wizbwz",
+  "expect": {
+    "result": {
+      "format": 6,
+      "ok": true,
+      "stages": [
+        {
+          "name": "a",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "w",
+              "phonemes": "",
+              "label": "w",
+              "tags": [
+                "W"
+              ],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ],
+              "after": [
+                {
+                  "text": "i",
+                  "phonemes": "",
+                  "label": "i",
+                  "tags": [
+                    "I"
+                  ],
+                  "source": [
+                    1,
+                    2
+                  ]
+                }
+              ]
+            },
+            {
+              "text": "z",
+              "phonemes": "",
+              "label": "z",
+              "tags": [
+                "Z"
+              ],
+              "span": [
+                2,
+                3
+              ],
+              "source": [
+                2,
+                3
+              ]
+            },
+            {
+              "text": "w",
+              "phonemes": "",
+              "label": "w",
+              "tags": [
+                "W"
+              ],
+              "span": [
+                4,
+                5
+              ],
+              "source": [
+                4,
+                5
+              ],
+              "before": [
+                {
+                  "text": "b",
+                  "phonemes": "",
+                  "label": "b",
+                  "tags": [
+                    "B"
+                  ],
+                  "source": [
+                    3,
+                    4
+                  ]
+                }
+              ]
+            },
+            {
+              "text": "z",
+              "phonemes": "",
+              "label": "z",
+              "tags": [
+                "Z"
+              ],
+              "span": [
+                5,
+                6
+              ],
+              "source": [
+                5,
+                6
+              ]
+            }
+          ]
+        },
+        {
+          "name": "b",
+          "verdict": "unique",
+          "output": []
+        }
+      ]
+    },
+    "brackets": "([{w i} z] [{b w} z])"
+  }
+}

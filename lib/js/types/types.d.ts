@@ -294,6 +294,8 @@ export type EmitItem = {
     capture?: string;
     insert?: string;
     tags?: Term;
+    before?: string[];
+    after?: string[];
 };
 export type Comparator = "=" | "≠" | "∈" | "∉" | "⊆" | "⊈";
 export type Condition = {
@@ -779,11 +781,14 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * One item of an emission clause: a capture, `""` for `$`, the whole
  * constituent, with the tags to give it; or an inserted token, whose one
- * tag `insert` is.
+ * tag `insert` is. A named capture, the item's carrier, can name
+ * attachment captures before it and after it (engine §11).
  * @typedef {object} EmitItem
  * @property {string} [capture]
  * @property {string} [insert]
  * @property {Term} [tags]
+ * @property {string[]} [before]
+ * @property {string[]} [after]
  */
 /**
  * @typedef {"=" | "≠" | "∈" | "∉" | "⊆" | "⊈"} Comparator

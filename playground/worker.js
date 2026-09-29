@@ -219,6 +219,7 @@
             // A list, since a character tag can hold a space.
             tags: [...token.tags].sort(),
             insertedBy: token.insertedBy || "",
+            attachments: gencmu.attachmentText(token),
           }));
           output = {
             format: "tokens", stages, stage: stage ? stage.name : null, rows, total: tokens.length,

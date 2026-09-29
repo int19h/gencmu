@@ -1,0 +1,10 @@
+{
+  "description": "Parentheses in an emission hold a capture, so a tag there is a syntax error at the tag (engine §9).",
+  "document": "```jbogenbau\n%rule a $w(W) %emits $w (~x)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 26
+    }
+  }
+}
