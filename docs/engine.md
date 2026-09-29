@@ -15,6 +15,7 @@ A stage is one step of a pipeline (§13), with its own grammar. Everything a sta
 - `phonemes`: what the token sounds like (§5).
 - `label`: what the token shows to people (§5).
 - `insertedBy`: for a token that an emission clause inserted from a tag literal (§11), the rule that the clause belongs to. For any other token it is absent, even for a token that an emission `$` makes over an empty constituent.
+- `before` and `after`: the token's attachments (§11). These are two lists of tokens that belong to the token and that no later stage reads. Both are empty unless an emission gives the token attachments. An attached token has no `span`.
 
 The source of one token or more runs from the least source start among them to the greatest source end. An empty source counts as the point where it lies. Tokens usually lie in the order of their sources. Then this source runs from the source start of the first token to the source end of the last token.
 
@@ -157,7 +158,7 @@ Lowering turns a grammar, given the set of enabled features, into a context-free
    Since the engine never evaluates a reduced part, the reduction is part of the order of evaluation (§10). A capture that is still mentioned after simplification is used by the clause. Then the simplified clauses attach as follows:
 
    - A condition applies to a production if it did not simplify to true and the production has every capture that it uses. Otherwise lowering drops it for that production. A condition that simplifies to false applies, and removes the production. So `%conditions $x` keeps the alternatives that capture `x` and removes the others.
-   - Lowering drops an emission item that names a capture the production lacks from that production's emission.
+   - Lowering drops an emission item whose carrier (§11) the production lacks from that production's emission. It also drops each attachment capture that the production lacks from its item.
    - A tag term, the alternative's own or the definition's `%tags`, that uses a capture the production lacks is an error of the document.
 7. A production's tags are the union of its alternative's own tag term and its definition's `%tags` term, where either is written. A production with neither has the tags of its symbol's constituent if it has one symbol, and none if it has several. Lowering makes this explicit: it treats the single symbol as captured.
 8. An optional `[x]` is elidable when two things hold. `x` is a symbol, or a sequence whose first item is, recursively, one. That symbol is an `%elidable` terminal, tested or not. An optional whose content is a choice or an `&` is never elidable, even if every branch begins with an elidable terminal. The `elision-only` check (§7) lowers the grammar a second time with every elidable optional made mandatory: its helper loses `ε`. A tested elidable terminal keeps its test when its optional is made mandatory.
@@ -258,7 +259,7 @@ A token's `phonemes` say what it sounds like, and its `label` is what it shows t
 
 - The token's tag set holds a phoneme tag `/p/` (§1). Then its phonemes are `p`, and its label is `p`. The pause, `/./`, is the one exception: its phonemes are `.`, and its label is a space.
 - Any other token that the stage emits joins the phonemes and the labels of its parts (§11). A read input token gives its own phonemes and its own label. A foreign part gives the phonemes `?`, and its text as its label. So a token whose constituent is a foreign part sounds `?`.
-- A character token has no phonemes, and its label is its text. A token that a caller supplies in place of the characters has its text as its label (`docs/api.md`).
+- A character token has no phonemes, and its label is its text. A token that a caller supplies in place of the characters has its text as its label (`docs/api.md`). It has no attachments.
 
 The phonemes join the phonemes of the parts in order, and the label joins their labels in the same way. Each join leaves out a part whose own string is empty: its phonemes for the phonemes, and its label for the label. A pause part is a part whose phonemes are exactly the pause, `.`. Of each run of adjacent pause parts that remain, the join keeps only the first. It also leaves out a pause part at either end. A part with no phonemes, such as a character token, counts as one with empty phonemes.
 
@@ -326,7 +327,7 @@ So nothing needs to be enumerated, and the number of derivations, which can be e
 
 When the stage's directive has `elision-only`, or the caller asks for it, and the verdict is not `unique`:
 
-1. Take the chosen tree's elided terminators (§12) in text order, inner before outer where several are at one position. Before the input token at each one's position, insert a synthetic token. Its tags are that terminal alone, and its span and source are empty at that position. If the terminator has an `=` test, the token's phonemes are the test's string. Otherwise the token has no phonemes. So a restored `KU="ku"` matches its own terminator in the parse of step 2.
+1. Take the chosen tree's elided terminators (§12) in text order, inner before outer where several are at one position. Before the input token at each one's position, insert a synthetic token. Its tags are that terminal alone, and its span and source are empty at that position. It has no attachments, and the parse of step 2 reads no attachments, as no parse does (§11). If the terminator has an `=` test, the token's phonemes are the test's string. Otherwise the token has no phonemes. So a restored `KU="ku"` matches its own terminator in the parse of step 2.
 2. Parse the new token sequence with the grammar lowered as in §3.8.
 3. Rank that forest with no lean: any two derivations that differ are tied. If the forest has exactly one derivation, the check passes and the result is the original one.
 
@@ -381,7 +382,7 @@ The notation's syntax grammar names its constituents so that the reader can read
 | `empty` | `empty` |
 | `tags-clause` | its `term` |
 | `conditions-clause` | its `implication`s, each one condition of the list, in order |
-| `emits-clause` | `items` of its `emit-item`s. Each item is a capture, `""` for `$`, with the term of its `emit-tags` if it has one. Or it is `insert`, the tag of its `~name`, bare name, character tag or phoneme tag. No items for `ε` |
+| `emits-clause` | `items` of its `emit-item`s. Each item is a capture, `""` for `$`, with the term of its `emit-tags` if it has one. `before` holds the captures of its `emit-before`s, and `after` those of its `emit-after`s, each the name without `$`, in order. Each list is present only if it is not empty. Or the item is `insert`, the tag of its `~name`, bare name, character tag or phoneme tag. No items for `ε` |
 | `implication` | `if` of its `any-of` and the `implication` after `⟹`, or the one `any-of` itself |
 | `any-of` | `any` of its `all-of`s, or the one `all-of` itself. An `all-of` that is itself an `any` gives its conditions in its place |
 | `all-of` | `all` of its `condition`s, or the one condition itself. A `condition` that is itself an `all` gives its conditions in its place |
@@ -446,7 +447,9 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - An inserted bare name that does not begin with a capital, which names a rule and not a tag.
 - An inserted range or property, which is not one tag.
 - `∅` as an item's tags, which is a token no terminal reads.
-- A capture other than `$` listed twice in one emission.
+- An attachment (§11) that holds `$`, reported at the attachment. An attachment holds a named capture.
+- An attachment on a `$` item or on an inserted tag, reported at the item. Only a named capture carries attachments. So a constituent never attaches to itself.
+- A capture other than `$` named twice in one emission, as an item or as an attachment. So an attachment capture is never an item of its own.
 - A rule's or an alternative's tag term that reads the tags that it defines: `tags($)` or `classes($)` in it. `tags(head($))` and the like read the tokens' tags, not the constituent's, and are allowed, as is `tags($, R)`.
 - An unknown directive or keyword, which the syntax grammar already refuses.
 - A directive with the wrong operands, reported at the directive. `%stage` takes one name, `%include` one string, and `%features` one or more names. `%elidable` takes identifier tags: names that begin with a capital, or `~name`. A range or a property there is an error, as a phoneme tag or a character tag is. `%ambiguity-resolution` takes names only.
@@ -457,8 +460,9 @@ Once the reader reads a definition (§2), it makes sure that the whole definitio
 - A condition that applies (§3.6) to no alternative of the definition, whatever features are enabled.
 - A tag term that uses (§3.6) a capture that an alternative it serves lacks. An alternative's own tags serve that alternative, and `%tags` serves every alternative of the definition. An emission item's tags serve every alternative in which the item is not dropped.
 - `%foreign` in a definition whose emission is `ε`. A constituent that does not count gives no part, so it is never a foreign part (§11).
-- In an emission, captures listed in an order other than the one in which some alternative that has them captures them.
-- In an emission, an inserted tag whose anchor, the capture listed next after it, is one that some alternative of the definition lacks.
+- In an emission, captures written in an order other than the one in which some alternative that has them captures them. The written order runs item after item. Within an item, it runs through the before-attachments, the carrier and the after-attachments. Each alternative checks the captures that it has. So `%emits ($a) $c, $b` is an error when the body has `$a`, `$b` and `$c` in that order.
+- In an emission, an attachment capture in an alternative that lacks the carrier of its item.
+- In an emission, an inserted tag before a capture item whose carrier some alternative of the definition lacks. The capture item is the first one listed after the inserted tag.
 - In an emission, an alternative for which every item is dropped, so that it emits nothing although the rule lists what to emit. A rule that emits nothing says so with `ε`.
 
 Two of these checks depend on simplification (§3.6). They are the check that a condition applies to an alternative, and the check of the captures that a tag term uses. In simplification, a constant is its value, and the reader does not know that value. So the reader leaves these two checks to the loader for each clause that holds a constant. The loader makes them after it gives the constants their values (§2), and it reports an error at the definition. The check that some alternative captures each mentioned capture does not depend on a value, so the reader makes it for every clause.
@@ -546,9 +550,9 @@ Within a term, the engine evaluates the parts from left to right. So it evaluate
 Every stage that accepts its input emits tokens by walking its chosen tree from the left. This includes the last stage, whose tokens are its output (`docs/output.md`), though no stage reads them.
 
 - The stage walks a constituent whose production has no emission: its children in order. A token that the constituent reads directly emits nothing.
-- A constituent whose production has an emission emits exactly the items of the emission, as dropped for its production (§3.6). It emits them in the order in which the emission lists them, and the stage walks nothing inside it:
+- A constituent whose production has an emission emits exactly the items of the emission, as dropped for its production (§3.6). It emits them in the order in which the emission lists them. The stage walks nothing inside it but the attachment captures of its items (below):
   - A `$` item emits one token covering the constituent, with the constituent's tags, or with the tags of the item's term if it has one. `$ <t>, $ <u>` emits one such token per item, in order, all with the same span and source. This is how a digit that stands for a two-phoneme word is two tokens over one character.
-  - A capture item emits one token covering the captured part, with the part's own tags, or with the tags of the item's term.
+  - A capture item emits one token covering the captured part, with the part's own tags, or with the tags of the item's term. The token takes the attachments that its item names (below).
   - An inserted tag, a tag literal, emits a token with that one tag and an empty span.
 - A constituent whose production's emission is `ε`, no items, emits nothing and does not count. Nothing inside it is part of the phonemes or the label of a token that covers it (§5). It is how a grammar erases text. The text is still there, and still covered by the tokens around it, but counts for nothing. A part that an emission merely does not list is not emitted, but counts.
 
@@ -560,7 +564,9 @@ An item's tag term that gives the empty set is an error of the grammar, found wh
 
 The constituent of a token is the constituent that its `$` item covers, or the part that its capture item captures. An emitted token's span is the range of the stage's input tokens that its constituent covers. Its `source` is the source of those tokens (§1), or, if there are none, empty where a node with an empty span has it (§12). A token whose constituent is a foreign part is the one exception, as below. Its phonemes and its label are as in §5.
 
-An inserted token's span is empty at the start of the part of the capture listed next after it. If no capture is listed after it, the span is empty at the end of the constituent. Its source is empty at the source end of the input token before that position. If the position is the constituent's start, its source is empty at the start of the constituent's source.
+An inserted token's span is empty at the start of its anchor. The anchor is the first written part of the capture item listed next after it, among the parts that the production has. That part is the item's first before-attachment capture that the production has, or else its carrier. So in `%emits X, ($b) $w`, `X` stands before `$b` where the production has `$b`, and before `$w` where it does not.
+
+If no capture is listed after an inserted token, the span is empty at the end of the constituent. Its source is empty at the source end of the input token before that position. If the position is the constituent's start, its source is empty at the start of the constituent's source.
 
 A rule with `%foreign` says that its constituents are foreign text, such as the body of a `zoi` quote. Before the stage emits anything, it finds the foreign parts of its chosen derivation. A foreign part is a constituent whose production has `%foreign`, with two exceptions. A constituent inside a constituent that emits `ε` is not a foreign part. A constituent inside a foreign part is not a foreign part either. Here, inside means below in the derivation, so the outer constituent of a recursive foreign rule is the one foreign part.
 
@@ -586,6 +592,30 @@ The parts of an emitted token are what its phonemes and its label join (§5). Th
 
 So three rules decide what a foreign part gives, over the chosen derivation. A part inside a constituent that emits `ε` gives nothing, foreign or not. A foreign part inside another gives nothing of its own, because the outer one counts once. A token with its own phoneme tag sounds like that phoneme and has it as its label, whatever foreign parts it covers (§5). The tag can come from the token's own stage, or from a later stage that emits a token over it.
 
+A token can carry attachments. These are other tokens that belong to it, and no later stage reads them. A token has two lists of attachments, `before` and `after`. No grammar operation sees a token's attachments: not a terminal, a test, a condition or a function.
+
+A capture item can name attachment captures in parentheses, any number before it and any number after it. An example is `($b) $w <tags($w)> ($a)`. The item's own capture, `$w` here, is its carrier. The carrier is always a named capture (§9). Each attachment capture is a capture of the rule, and it stands in no other item.
+
+The carrier emits its token over its captured part, as any capture item does. It does not run the emission of that part. So the item keeps a structure inside the carrier's part only if it captures that structure separately. The captures of one production are disjoint. So the carrier's phonemes, label, text and source are its own, as for any capture item.
+
+The attachment of a capture is the sequence of tokens that the captured constituent emits, in its own place in the derivation. The stage finds these tokens as it finds the tokens of a constituent that it walks. So the foreign parts, the empty sources and the `ε` of this section apply to them. A constituent that emits nothing gives no attachment. A bare terminal with no emission above it is an example.
+
+The tokens of an attachment are not tokens of the stage's output. Each of them is an emitted token, so the stage applies its implications to it and checks its phoneme tags (§5). A constituent above the item can emit one token over the span of the attachments. That token treats their parts as ordinary parts of its span.
+
+Within one item, the stage first produces the before-attachments in written order. Then it produces the carrier's token with its tag term, and then the after-attachments in written order. The carrier's token takes the tokens of its before-attachment captures, in order, as its `before`. It takes those of its after-attachment captures as its `after`. The first error of the grammar ends the stage's emission, as an empty tag term does.
+
+An attached token has no span, since its span counts the input of the stage that attached it. Its `source` stays in the coordinates of the original text.
+
+The parts of a token (above) also decide its attachments. An input token inside a constituent that emits `ε` is not a part, and its attachments go with it. A foreign part is one part.
+
+If a token has exactly one part, and that part is an input token with attachments, the token inherits those attachments. This holds whatever tags its item gives the token. The token's own attachments from its item are outer. So its new before-attachments come before the inherited ones, and its new after-attachments come after them.
+
+A token can have an input token with attachments among its parts together with another part. That other part can be an input token, with attachments or without, or a foreign part. This is an error of the grammar. A token whose parts hold a foreign part that holds an input token with attachments is an error of the grammar too. A foreign part holds each input token that it reads, except one inside a constituent that emits `ε`.
+
+The reason is that a token over several parts cannot say which part each attachment belongs to. The stage checks a token's parts in this way after it checks the token's phoneme tags. No bundled dialect has a stage that makes such a token.
+
+The attachment lists follow the order of the derivation and of the emission. That is the order of the text when the sources lie in order. The engine does not promise that order for sources out of order.
+
 A stage whose verdict is `tie` emits its chosen derivation, and the tie is reported, at whichever stage it is. A tie is a property of the grammar, and the grammar is the place to settle it. The engine does not hide a tie, even where the tied derivations emit the same tokens.
 
 ## 12. The tree
@@ -597,6 +627,8 @@ The engine builds the result's tree from the chosen derivation, as follows:
 - The engine splices out helper productions: their children take their place.
 - The engine splices out the prefixes of a trailing repetition (§3.3), so the rule is one node whose children are its items in order.
 - An elidable optional (§3.8) that is absent becomes an `elided` node for its terminal `T`. The node has an empty span at the position where the optional is empty. The node of a terminator with an `=` test records the test's string, for the synthetic token of §7. The output does not show it (`docs/output.md`).
+
+The input token of a token node can carry attachments (§11). The node does not hold them, and the renderings take them from the token (`docs/output.md`). A tied tree reads the same input tokens, so it shows the same attachments.
 
 A node with a nonempty span has the source of its tokens (§1). A node with an empty span is an `elided` node or a rule that read nothing. Such a node has an empty source at the source end of the input token before its position. At position 0, its empty source is at the source start of the first input token, or at 0 if there is no input token.
 
@@ -643,4 +675,6 @@ The engine then runs the parse again from the first stage with `sa-su` added, in
 
 In either case, the engine discards the first run's stages and warnings. Otherwise that first run's stages are the parse's, with their warnings, continued to the end. The engine checks the class and not the sound, because the lexicon decides which words erase. For example, `li'oi` is SU in the experimental lexicon, and a stressed `sA` is `sa`.
 
-Mistakes of the caller are errors of kind `usage`. Two examples are an `until` that names no stage and a text that is not a sequence of scalar values (§1). They are raised or returned as a load error is, and they are not results. A grammar error found while parsing is a result. Examples are a nested parse asked about its own span and a `split` with an empty delimiter. Its error has kind `grammar`, the `stage` that it arose in and a message, and no position.
+Mistakes of the caller are errors of kind `usage`. Two examples are an `until` that names no stage and a text that is not a sequence of scalar values (§1). A token that the caller supplies with attachments is a third (`docs/api.md`). They are raised or returned as a load error is, and they are not results.
+
+A grammar error found while parsing is a result. Examples are a nested parse asked about its own span and a `split` with an empty delimiter. Its error has kind `grammar`, the `stage` that it arose in and a message, and no position.

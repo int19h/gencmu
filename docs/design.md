@@ -65,7 +65,7 @@ The four libraries implement one specification, `docs/engine.md`. It was written
 
    Nested parses for `matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` share their memo (a cache of answers) with the parse that started them. The memo key is the kind of query, the rule, and either the content of a short span or the position of a long span. A nested parse asked about its own span is a grammar error.
 4. The engine chooses a parse. It orders the parses by their first difference, as sequences of bottom-up actions. The order uses the grammar's declared `%ambiguity-resolution`. This part also covers the verdicts unique, resolved and tie, the tie witness, and the `elision-only` check (see "Ambiguity" below).
-5. The stage emits the tokens of the next stage. Each token has its text, its phonemes, its label and its source range. The label is what the renderings for people show.
+5. The stage emits the tokens of the next stage. Each token has its text, its phonemes, its label and its source range. The label is what the renderings for people show. A token can also carry attachments, tokens that belong to it and that no later stage reads.
 6. The pipeline runs the stages in order, and stops at the first rejection.
 
 `tests/engine/` tests the specification. Each case is a small grammar, an input, and a pattern that the canonical result JSON of `docs/output.md` must match. So a fifth implementation can run the cases to make sure that it follows the specification, without the Lojban grammars at all. The cases are written together with the specification, one or more for each of its rules. They settle the edge cases that decide which parse comes out, so that the Lojban corpus does not become the specification by accident:
@@ -153,6 +153,8 @@ CLL writes `/KU/` for an elidable terminator, a closing word that the speaker ca
 `%conditions` lists conditions over the captured parts. Each condition applies to the alternatives that capture what it mentions. The recognizer evaluates it as early as it can. Within one condition, `∧`, `∨` and `⟹` are logic, in that order of precedence, grouped with parentheses.
 
 `%emits` lists exactly what the constituent hands to the next stage, in order, each capture with its own tags. `%emits ε` hands on nothing and makes the constituent not count. That is how a grammar leaves erased text out of what the words around it sound like.
+
+A captured item can also carry attachments, captures in parentheses before or after it, as in `($b) $w ($a)`. The tokens of an attachment belong to the item's token, and no later stage reads them. So the indicator stage keeps `ui` and `ba'e` visible on the word that they modify, without an indicator slot after every word of the syntax. A later stage forwards the attachments with the token, and the renderings show them.
 
 `%foreign` says that the constituent is foreign text, such as the body of a `zoi` quote. A token over it sounds `?`, and its label is the text as the author wrote it. So a comparison of sounds never mistakes foreign text for Lojban, and the renderings still show that text. The text of a foreign part also takes in punctuation next to it that no token covers.
 
