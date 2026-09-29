@@ -301,7 +301,7 @@ class Output(unittest.TestCase):
         result = dialect.parse("mi", until="words", auto_features=False)
         text = gencmu.to_json(result)
         self.assertEqual(json.loads(text), gencmu.result_json(result))
-        self.assertTrue(text.startswith('{"format":4,"ok":true,"stages":[{"name":"sounds","verdict":"unique","output":[{"text":"m","phonemes":"m","tags":["/m/"],"span":[0,1],"source":[0,1]}'), text)
+        self.assertTrue(text.startswith('{"format":5,"ok":true,"stages":[{"name":"sounds","verdict":"unique","output":[{"text":"m","phonemes":"m","label":"m","tags":["/m/"],"span":[0,1],"source":[0,1]}'), text)
         self.assertIn(
             '"tree":{"kind":"rule","rule":"text","span":[0,2],"source":[0,2],"tags":[],"children":[{"kind":"rule","rule":"piece"',
             text,
@@ -337,10 +337,10 @@ class Output(unittest.TestCase):
         result = dialect.parse_tokens(tokens, "0 1 2 3 4")
         self.assertEqual(gencmu.to_brackets(result), "(0 [1 {2 (3 4)}])")
 
-    def test_brackets_pause(self) -> None:
-        """A label writes each pause in a token's phonemes as a space, and a
-        token with no phonemes, or a verbatim token, is labelled with its
-        text as it is (docs/output.md)."""
+    def test_brackets_labels(self) -> None:
+        """Brackets show each token by its label, not its phonemes. A token
+        that a caller supplies has its text as its label by default (engine
+        §5, docs/output.md)."""
         sources = {
             "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
             "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A A A\n```\n",
@@ -349,9 +349,10 @@ class Output(unittest.TestCase):
         tokens = [
             gencmu.Token("klama bu", frozenset({"A"}), (0, 1), (0, 8), "klama.bu"),
             gencmu.Token("x.y", frozenset({"A"}), (1, 2), (9, 12), ""),
-            gencmu.Token("a..b", frozenset({"A"}), (2, 3), (13, 17), "a..b", verbatim=True),
+            gencmu.Token("ab", frozenset({"A"}), (2, 3), (13, 15), "ab", label="a..b"),
         ]
-        result = dialect.parse_tokens(tokens, "klama bu x.y a..b")
+        self.assertEqual([token.label for token in tokens], ["klama bu", "x.y", "a..b"])
+        result = dialect.parse_tokens(tokens, "klama bu x.y ab")
         self.assertEqual(gencmu.to_brackets(result), "(klama bu x.y a..b)")
 
 
@@ -366,7 +367,7 @@ class GrammarFaults(unittest.TestCase):
         )
         for grammar, message in [
             ("%implies A ⟹ /o/\n%rule text [word] ...\n%rule word $w(W) <A ∪ /e/>\n%emits\n  $", "an emitted token has two phoneme tags: /e/, /o/"),
-            ("%rule text [word] ...\n%rule word $w(W) </e/ ∪ /o/>\n%emits\n  $\n%verbatim", "an emitted token has two phoneme tags: /e/, /o/"),
+            ("%rule text [word] ...\n%rule word $w(W) </e/ ∪ /o/>\n%emits\n  $\n%foreign", "an emitted token has two phoneme tags: /e/, /o/"),
             ("%implies /e/ ⟹ /o/\n%rule text [word] ...\n%rule word $w(W)\n%emits\n  $w, /e/", "an emitted token has two phoneme tags: /e/, /o/"),
             ("%rule text $a(W) %emits $a <tags($a) ∩ Z>", "text emits a token with no tags; a rule that emits nothing says %emits ε"),
             ("%rule text $a(x) %conditions ¬matches($a, text)\n%rule x W", own_span),

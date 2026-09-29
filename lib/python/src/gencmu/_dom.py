@@ -39,7 +39,7 @@ Dom = dict[str, Any]
 _MAPPED = frozenset(
     """directive argument-string argument-tag rule alternative alternative-tags choice conjunction sequence element
     reference string tag character phoneme name tested test test-operand capture group optional empty tags-clause conditions-clause
-    emits-clause verbatim-clause emit-item emit-tags implication any-of all-of comparison negation presence call term
+    emits-clause foreign-clause emit-item emit-tags implication any-of all-of comparison negation presence call term
     guarded-term union intersection empty-set capture-reference range property constant-definition constant-definer
     constant-reference classifier classifier-name classifier-entry classifier-key classifier-operator classifier-class
     implication-declaration""".split()
@@ -321,7 +321,7 @@ class DomBuilder:
         tags: Dom | None = None
         alternatives: list[Dom] = []
         emit: Dom | None = None
-        verbatim = False
+        foreign = False
         conditions: list[Dom] = []
         for kid in kids[2:]:
             if kid.kind == "token":
@@ -334,8 +334,8 @@ class DomBuilder:
                 conditions.extend(run(self._condition(item)) for item in self.rules(kid, "implication"))
             elif kid.rule == "emits-clause":
                 emit = self.emission(kid)
-            elif kid.rule == "verbatim-clause":
-                verbatim = True
+            elif kid.rule == "foreign-clause":
+                foreign = True
         dom: Dom = {"name": name, "op": op}
         if tags is not None:
             dom["tags"] = tags
@@ -343,9 +343,9 @@ class DomBuilder:
         if emit is not None:
             dom["emit"] = emit
         dom["conditions"] = conditions
-        # Present only for a rule that has %verbatim (docs/output.md).
-        if verbatim:
-            dom["verbatim"] = True
+        # Present only for a rule that has %foreign (docs/output.md).
+        if foreign:
+            dom["foreign"] = True
         dom["at"] = list(self.position(node))
         problem = definition_problem(dom)
         if problem is not None:
