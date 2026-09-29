@@ -15,12 +15,12 @@ from typing import Any, Protocol
 
 from ._clauses import definition_problem
 from ._tags import character_of_tag, is_tag
-from ._types import constant_value_problem, open_part, rule_type_problem
+from ._types import constant_value_problem, is_sound_test, open_part, rule_type_problem, term_type, test_type_problem
 from ._unicode import PROPERTY_NAMES
 
 
 class Lowercase(Protocol):
-    """What spellings are checked against: the lowercase mapping of the
+    """What the strings of sound tests are checked against: the lowercase mapping of the
     library's Unicode table, which the canonical sound uses (engine §5, §9),
     and the marks that a character tag escapes (engine §1)."""
 
@@ -29,7 +29,7 @@ class Lowercase(Protocol):
     def is_mark(self, code: int) -> bool: ...
 
 
-FORMAT = 11
+FORMAT = 12
 """The version of the DOM's shape (docs/output.md)."""
 
 CONSTANT_NAME = re.compile(r"[A-Z][A-Za-z0-9-]*")
@@ -39,7 +39,7 @@ MAX_DEPTH = 256
 """No node of an expression, a term or a condition may lie below more than
 this many compound nodes of it (engine §9). A node's depth here is the
 number of compound nodes above it, since only compound nodes have children:
-optional, repeat, and, choice, seq, capture and spelling; union,
+optional, repeat, and, choice, seq, capture and test; union,
 intersection, difference, if and call; any, all, not, if, matches, begins, initial and a
 comparison."""
 
@@ -163,29 +163,63 @@ def term_reads_own_tags(term: Any) -> bool:
     return False
 
 
-def spelling_problem(spelling: Any, expr: Any, unicode: Lowercase | None) -> str | None:
-    """What is wrong with a spelling of a symbol (engine §9), or None: an
-    empty spelling, one with a backtick, which the notation cannot write,
+TEST_OPS = frozenset(["=", "≠", "⊇", "⊉", "∩=∅", "∩≠∅"])
+"""The comparators of a test in a body (engine §2): the two sound tests and
+the four tag tests."""
+
+
+def sound_problem(sound: str, unicode: Lowercase | None) -> str | None:
+    """What is wrong with the string of a sound test (engine §9), or None:
     one that no canonical sound can be, with a comma or a code point that
-    the lowercase mapping would change, or one of anything but a reference
-    or a terminal, ``#`` included. The spelled symbol is exactly one reference or one
-    terminal, so that no node is read one way here and another way when
-    lowered. Without a table, the lowercase mapping is not checked."""
-    if not isinstance(spelling, str):
-        return "a malformed spelling"
-    if spelling == "":
-        return "a spelling is empty"
-    if "`" in spelling:
-        return "a spelling holds a backtick"
-    if not isinstance(expr, dict) or len(expr) != 1 or not (
-        (isinstance(expr.get("ref"), str) and expr["ref"] != "#") or isinstance(expr.get("terminal"), str)
-    ):
-        return "a spelling follows only a reference other than # or a terminal"
-    if "," in spelling:
-        return f"the spelling {spelling} holds a comma, which no canonical sound holds"
-    if unicode is not None and unicode.lowercase(spelling) != spelling:
-        return f"the spelling {spelling} is not in lower case"
+    the lowercase mapping would change. Without a table, the lowercase
+    mapping is not checked."""
+    if "," in sound:
+        return f"the string {json.dumps(sound, ensure_ascii=False)} holds a comma, which no canonical sound holds"
+    if unicode is not None and unicode.lowercase(sound) != sound:
+        return f"the string {json.dumps(sound, ensure_ascii=False)} is not in lower case, which every canonical sound is"
     return None
+
+
+def _is_testable(expr: Any, unicode: Lowercase) -> bool:
+    """Whether an expression can carry a test (engine §2): a reference
+    other than ``#``, a terminal, a range or a property, with no other
+    member."""
+    if not isinstance(expr, dict) or len(expr) != 1:
+        return False
+    return (
+        (isinstance(expr.get("ref"), str) and expr["ref"] != "#")
+        or is_tag(expr.get("terminal"), unicode)
+        or _is_character_class(expr, unicode)
+    )
+
+
+def test_value_fault(op: str, value: Any, unicode: Lowercase | None) -> tuple[str, Any] | None:
+    """What is wrong with a test's value (engine §9), with the node at
+    fault, or None: it must be a closed term, of type string for a sound
+    test and tag set for a tag test, and a string literal of a sound test
+    must be a canonical sound. The shape of the value must already be
+    checked, and its nesting bounded."""
+    open_node = open_part(value)
+    if open_node is not None:
+        return "a test's operand is a closed term, and reads no capture or span", open_node
+    kind, problem = term_type(value)
+    if problem is not None:
+        return problem, value
+    problem = test_type_problem(op, kind)  # type: ignore[arg-type]
+    if problem is not None:
+        return problem, value
+    if is_sound_test(op) and isinstance(value.get("string"), str):
+        wrong = sound_problem(value["string"], unicode)
+        if wrong is not None:
+            return wrong, value
+    return None
+
+
+def _is_misshapen_test(value: dict[str, Any]) -> bool:
+    """Whether an expression node has a test but is not exactly a tested
+    symbol: its comparator, its value and its symbol, and no other key that
+    lowering could read in its place."""
+    return "test" in value and value.keys() != {"test", "value", "expr"}
 
 
 def range_problem(range_: Any, unicode: Lowercase) -> str | None:
@@ -227,7 +261,7 @@ def _is_character_class(value: dict[str, Any], unicode: Lowercase) -> bool:
 def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
     """Why a value is not a grammar DOM the reader could have written, or
     None when it is one. ``unicode`` is the loader's table: the lowercase
-    mapping that spellings are checked against, and the marks that decide a
+    mapping that the strings of sound tests are checked against, and the marks that decide a
     character tag's canonical spelling."""
     if (
         not isinstance(dom, dict)
@@ -314,13 +348,20 @@ def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
             pending.append(("top", expr, 0, False))
             if "tags" in alternative:
                 pending.append(("term", alternative["tags"], 0, True))
-    problem = _walk(pending, unicode)
+    # The tested symbols, whose values are checked once the nesting is
+    # bounded.
+    tests: list[dict[str, Any]] = []
+    problem = _walk(pending, unicode, tests)
     if problem is not None:
         return problem
     # The walks below recurse, so they run only once the nesting is bounded.
     for constant in dom["constants"]:
         if open_part(constant["value"]) is not None:
             return "a constant's value is not a closed term"
+    for test in tests:
+        fault = test_value_fault(test["test"], test["value"], unicode)
+        if fault is not None:
+            return fault[0]
     # A definition is checked as a whole (engine §9), once its clauses are
     # known to be well formed, and so are the types of its terms and
     # conditions (engine §10).
@@ -343,10 +384,12 @@ def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
     return None
 
 
-def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase) -> str | None:
+def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase, tests: list[dict[str, Any]]) -> str | None:
     """Check the nodes of expressions, emissions, conditions and terms, each
     entry a node, its kind, its depth, and whether it lies in a rule's or an
-    alternative's tag term, which may not read the tags it defines."""
+    alternative's tag term, which may not read the tags it defines. The
+    tested symbols go into ``tests``, whose values the caller checks once
+    the nesting is bounded."""
     items: Any
     args: Any
     while pending:
@@ -357,9 +400,9 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase) -> str 
             return f"a malformed {'expression' if kind in ('top', 'item') else kind}"
         below = depth + 1
         if kind in ("expr", "top", "item"):
-            # A spelled symbol has its spelling and its symbol, and no other
-            # key that lowering could read in its place.
-            if "spelling" in value and value.keys() != {"spelling", "expr"}:
+            # A tested symbol has its comparator, its value and its symbol,
+            # and no other key that lowering could read in its place.
+            if _is_misshapen_test(value):
                 return "a malformed expression"
             # A range or a property has no member but its own.
             if ("range" in value or "property" in value) and not _is_character_class(value, unicode):
@@ -391,22 +434,27 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase) -> str 
                     or not (
                         isinstance(inner.get("ref"), str)
                         or is_tag(inner.get("terminal"), unicode)
-                        or "spelling" in inner
+                        or "test" in inner
                         or _is_character_class(inner, unicode)
                     )
                     or (("range" in inner or "property" in inner) and not _is_character_class(inner, unicode))
                 ):
                     return "a malformed capture"
-                # A capture is a compound node; a spelled symbol below it is
+                # A capture is a compound node; a tested symbol below it is
                 # checked as any expression is.
-                if "spelling" in inner:
+                if "test" in inner:
                     pending.append(("expr", inner, below, False))
-            elif "spelling" in value:
-                # A compound node (engine §9) over one symbol.
-                problem = spelling_problem(value["spelling"], value.get("expr"), unicode)
-                if problem is not None:
-                    return problem
+            elif "test" in value:
+                # A compound node (engine §9) over one symbol; its value
+                # counts on from its depth, and is checked once the nesting
+                # is bounded.
+                if not _is_one_of(value["test"], set(TEST_OPS)):
+                    return "a malformed test"
+                if not _is_testable(value["expr"], unicode):
+                    return "a test follows only a reference other than # or a terminal"
                 pending.append(("expr", value["expr"], below, False))
+                pending.append(("term", value["value"], below, False))
+                tests.append(value)
             elif not (
                 isinstance(value.get("ref"), str)
                 or is_tag(value.get("terminal"), unicode)

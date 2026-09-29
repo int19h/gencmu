@@ -11,7 +11,7 @@ from typing import Any, Callable
 
 from ._clauses import WHOLE
 from ._errors import _GrammarFault
-from ._grammar import Lowered, Production, written_symbol
+from ._grammar import Lowered, Production, SymbolTest, written_symbol
 from ._model import Range, Tags, Token
 from ._tags import EMPTY, TagTable, code_of_character_tag, difference, intersection, is_class, is_name, range_tags, split_string, union
 from ._trampoline import Walk, run
@@ -125,8 +125,8 @@ class StageContext:
     count: Callable[[Forest, list[int]], list[int]] | None = None
     # Where each run of the tokens lies in the text (engine §1).
     sources: Sources = field(init=False)
-    # Each token's phonemes in canonical form, for the spellings of symbols
-    # and for phonemes(), computed when one first looks at the token
+    # Each token's phonemes in canonical form, for the sound tests of
+    # symbols and for phonemes(), computed when one first looks at the token
     # (engine §4, §5).
     sounds: list[str | None] = field(init=False)
     # Whether a range or a property matches a tag set, by the terminal's
@@ -181,18 +181,26 @@ class StageContext:
             sound = self.sounds[index] = self.unicode.canonical(self.tokens[index].phonemes or "")
         return sound
 
-    def spelling_matches(self, spelling: str, start: int, end: int) -> bool:
-        """Whether tokens start..end sound like a spelling: their canonical
+    def test_holds(self, test: SymbolTest, start: int, end: int, tag_id: int) -> bool:
+        """Whether a test holds of a symbol's own span, tokens start..end,
+        and its own tags, the tag set numbered ``tag_id``: a token's for a
+        terminal, the completed item's for a reference (engine §4). An empty
+        span sounds like the empty string."""
+        if test.sound is not None:
+            return self.sound_is(test.sound, start, end) == (test.op == "=")
+        return test.holds("", self.tagtab.get(tag_id))
+
+    def sound_is(self, sound: str, start: int, end: int) -> bool:
+        """Whether tokens start..end sound like a string: their canonical
         sound is exactly it (engine §4, §5). A token with no phonemes adds
-        nothing, and a spelling is never empty, so neither such a token
-        alone nor an empty span matches."""
+        nothing."""
         offset = 0
         for index in range(start, end):
-            sound = self.sound(index)
-            if not spelling.startswith(sound, offset):
+            part = self.sound(index)
+            if not sound.startswith(part, offset):
                 return False
-            offset += len(sound)
-        return offset == len(spelling)
+            offset += len(part)
+        return offset == len(sound)
 
     def span_text(self, start: int, end: int) -> str:
         if start >= end:
@@ -573,12 +581,13 @@ class Parser:
         def advance(item: int, part: tuple[int, int, int], at: int, edge: tuple[Any, ...]) -> None:
             production = productions[prod[item]]
             position = dot[item]
-            # A spelled symbol's span must sound like its spelling, which is
-            # checked before any condition the advance makes ready (engine §4).
-            spellings = production.spellings
-            if spellings is not None:
-                spelling = spellings[position]
-                if spelling is not None and not context.spelling_matches(spelling, base + part[0], base + part[1]):
+            # A tested symbol's test must hold of its own span and tags, which
+            # is checked before any condition the advance makes ready (engine
+            # §4).
+            tests = production.tests
+            if tests is not None:
+                test = tests[position]
+                if test is not None and not context.test_holds(test, base + part[0], base + part[1], part[2]):
                     return
             captured = caps[item]
             if production.slots[position] >= 0:
@@ -707,13 +716,13 @@ class Parser:
                 for number in numbers:
                     production = productions[number]
                     if allowed(production, furthest):
-                        written = written_symbol(terminal, production.spellings[0] if production.spellings else None)
+                        written = written_symbol(terminal, production.tests[0] if production.tests else None)
                         expected.setdefault(written, set()).add(production.rule_name)
         for terminal, waiters in scanning[furthest].items():
             for waiter in waiters:
                 production = productions[prod[waiter]]
-                spelling = production.spellings[dot[waiter]] if production.spellings else None
-                expected.setdefault(written_symbol(terminal, spelling), set()).add(production.rule_name)
+                test = production.tests[dot[waiter]] if production.tests else None
+                expected.setdefault(written_symbol(terminal, test), set()).add(production.rule_name)
         # The forest's tokens are those the parse read, before its furthest
         # set.
         return Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected)

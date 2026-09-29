@@ -425,9 +425,9 @@ class Ranker:
                         if maximal.elided(a):
                             earlier = pred_value[1]
                         if guarded:
-                            spellings = self.productions[forest.prod[item]].spellings
-                            spelling = spellings[forest.dot[item] - 1] if spellings else None
-                            permitted = not maximal.forbids(a, spelling)
+                            tests = self.productions[forest.prod[item]].tests
+                            test = tests[forest.dot[item] - 1] if tests else None
+                            permitted = not maximal.forbids(a, test)
                 if not self.entries:
                     ways = earlier * (1 if child_value is None else child_value)
                 elif edge_kind == 1:

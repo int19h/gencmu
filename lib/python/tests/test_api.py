@@ -262,27 +262,28 @@ class Options(unittest.TestCase):
         self.assertTrue(plain.parse_tokens(tokens, text).ok)
         self.assertFalse(plain.parse_tokens(tokens, text, elision_only=True).ok)
 
-    def test_spelled_terminator(self) -> None:
-        """An elided spelled terminator keeps its spelling inside, and its
-        output is that of any elided node (engine §7, §12)."""
-        grammar = "```jbogenbau\n%ambiguity-resolution greedy\n%elidable KU\n%rule text A [KU`ku`]\n```\n"
+    def test_tested_terminator(self) -> None:
+        """An elided terminator with an = test keeps the test's string
+        inside, and its output is that of any elided node (engine §7,
+        §12)."""
+        grammar = '```jbogenbau\n%ambiguity-resolution greedy\n%elidable KU\n%rule text A [KU="ku"]\n```\n'
         dialect = gencmu.load_dialect_sources({"p.md": ELIDING["p.md"], "g.md": grammar}, "p.md")
         result = dialect.parse_tokens([gencmu.Token("a", frozenset({"A"}), (0, 1), (0, 1), "a")], "a")
         assert result.tree is not None
         elided = result.tree.children[1]
-        self.assertEqual((elided.kind, elided.terminal, elided.spelling), ("elided", "KU", "ku"))
+        self.assertEqual((elided.kind, elided.terminal, elided.sound), ("elided", "KU", "ku"))
         value = gencmu.result_json(result)
         self.assertEqual(sorted(value["tree"]["children"][1]), ["kind", "source", "span", "terminal"])
 
-    def test_spelled_expected(self) -> None:
-        """The message of a rejection writes a spelled terminal with its
-        spelling, as the expected list does (docs/output.md)."""
-        grammar = "```jbogenbau\n%ambiguity-resolution greedy\n%rule text LE`la` | LE`lai` C\n```\n"
+    def test_tested_expected(self) -> None:
+        """The message of a rejection writes a tested terminal with its
+        test, as the expected list does (docs/output.md)."""
+        grammar = '```jbogenbau\n%ambiguity-resolution greedy\n%rule text LE="la" | LE="lai" C | LE∩(~D ∪ C)≠∅ D\n```\n'
         dialect = gencmu.load_dialect_sources({"p.md": ELIDING["p.md"], "g.md": grammar}, "p.md")
         result = dialect.parse_tokens([gencmu.Token("lo", frozenset({"LE"}), (0, 2), (0, 2), "lo")], "lo")
         assert result.error is not None
-        self.assertEqual([entry.terminal for entry in result.error.expected or []], ["LE`la`", "LE`lai`"])
-        self.assertIn("it expected LE`la` (text), LE`lai` (text)", result.error.message)
+        self.assertEqual([entry.terminal for entry in result.error.expected or []], ['LE="la"', 'LE="lai"', "LE∩(C ∪ D)≠∅"])
+        self.assertIn('it expected LE="la" (text), LE="lai" (text), LE∩(C ∪ D)≠∅ (text)', result.error.message)
 
     def test_rejection(self) -> None:
         result = self.dialect.parse("mi xa")

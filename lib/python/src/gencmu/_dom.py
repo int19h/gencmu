@@ -11,7 +11,16 @@ from ._markdown import GrammarText
 from ._model import Node, Token
 from ._tags import character_tag
 from ._trampoline import Walk, run
-from ._types import comparison_problem, condition_type_problem, constant_value_type, joined_type, tag_term_problem, term_type
+from ._types import (
+    comparison_problem,
+    condition_type_problem,
+    constant_value_type,
+    is_sound_test,
+    joined_type,
+    tag_term_problem,
+    term_type,
+    test_type_problem,
+)
 from ._validate import (
     CAPTURE_NAME,
     FORMAT,
@@ -19,7 +28,7 @@ from ._validate import (
     literal_call_problem,
     property_problem,
     range_problem,
-    spelling_problem,
+    sound_problem,
     term_reads_own_tags,
 )
 
@@ -27,13 +36,13 @@ Dom = dict[str, Any]
 
 _MAPPED = frozenset(
     """directive argument-string argument-tag rule alternative alternative-tags choice conjunction sequence element
-    reference string tag character phoneme name spelled capture group optional empty tags-clause conditions-clause
+    reference string tag character phoneme name tested test test-operand capture group optional empty tags-clause conditions-clause
     emits-clause verbatim-clause emit-item emit-tags implication any-of all-of comparison negation presence call term
     guarded-term union intersection empty-set capture-reference range property constant-definition constant-definer
     constant-reference""".split()
 )
 _PROPERTY = re.compile(r"'\\p\{([^}]*)\}'")
-_SYMBOLS = frozenset(["reference", "tag", "character", "phoneme", "range", "property", "spelled"])
+_SYMBOLS = frozenset(["reference", "tag", "character", "phoneme", "range", "property", "tested"])
 """What a capture can wrap: one symbol (engine §9)."""
 _DEFINERS = {"%rule": "define", "%redefine-rule": "redefine", "%extend-rule": "extend"}
 _SPAN_FUNCTIONS = frozenset(["head", "tail", "last", "from", "after"])
@@ -113,11 +122,12 @@ class DomBuilder:
         self.tokens = tokens
         self.grammar_text = grammar_text
         self.document = document
-        # The lowercase mapping that spellings are checked against (engine §5, §9).
+        # The lowercase mapping that the strings of sound tests are checked
+        # against (engine §5, §9).
         self.unicode = unicode
-        # Whether the reader is reading a constant's value, a closed term
-        # (engine §9, §10).
-        self.in_constant = False
+        # What the reader is reading as a closed term, a constant's value or
+        # a test's operand, or None (engine §9, §10).
+        self.closed_for: str | None = None
 
     # -- positions and errors
 
@@ -180,11 +190,11 @@ class DomBuilder:
         keyword = self.text(self.kids(definer)[0])
         name = self.text(self.kids(self.rules(node, "constant-reference")[0])[0])[1:]
         value_node = self.rules(node, "term")[0]
-        self.in_constant = True
+        self.closed_for = "a constant's value"
         try:
             value = self.value(value_node)
         finally:
-            self.in_constant = False
+            self.closed_for = None
         op = "redefine" if keyword == "%redefine-const" else "define"
         _, fault = constant_value_type(value, op == "redefine")
         if fault is not None:
@@ -275,7 +285,7 @@ class DomBuilder:
         self.captures: set[str] = set()
         for kid in self.kids(node):
             if kid.kind == "token":
-                # A guard's token is its spelling: f? or ¬f? for a gate, f!
+                # A guard's token is its text: f? or ¬f? for a gate, f!
                 # for a warning (engine §9).
                 text = self.text(kid)
                 negated = text.startswith("¬")
@@ -339,20 +349,43 @@ class DomBuilder:
             return {"range": self.range_of(node)}
         if rule == "property":
             return {"property": self.property_of(self.kids(node)[0])}
-        if rule == "spelled":
-            # A reference or a terminal and its spelling, which the syntax
-            # grammar gives nothing else (engine §9).
+        if rule == "tested":
+            # A reference other than # or a terminal, and one test on its
+            # own span (engine §2, §9). The syntax grammar reads a test after
+            # any primary, so that the reader can name the reason.
             kids = self.kids(node)
-            symbol = next(kid for kid in kids if kid.kind == "rule")
-            spelling_token = kids[-1]
+            symbol, test_node = kids[0], kids[-1]
+            kind = symbol.rule if symbol.kind == "rule" else None
+            if kind == "constant-reference":
+                raise self.fail(symbol, _CONSTANT_IN_BODY)
+            if kind not in ("reference", "tag", "character", "phoneme", "range", "property") or (
+                kind == "reference" and self.text(self.kids(symbol)[0]) == "#"
+            ):
+                raise self.fail(
+                    test_node,
+                    "a test follows only a reference other than # or a terminal, not a group, an optional, a capture, ε, # or another test",
+                )
             expr = yield self._expr(symbol)
-            if "range" in expr or "property" in expr:
-                raise self.fail(spelling_token, "a range or a property takes no spelling")
-            spelling = self.text(spelling_token)[1:-1]
-            problem = spelling_problem(spelling, expr, self.unicode)
+            # The comparator is the test's tokens: =, ≠, ⊇ or ⊉, or ∩ and
+            # =∅ or ≠∅ around the operand.
+            test_kids = self.kids(test_node)
+            op = "".join(self.text(kid) for kid in test_kids if kid.kind == "token")
+            operand = next(kid for kid in test_kids if kid.kind == "rule" and kid.rule == "test-operand")
+            self.closed_for = "a test's operand"
+            try:
+                value = self.value(operand)
+            finally:
+                self.closed_for = None
+            found, problem = term_type(value)
+            if problem is None:
+                problem = test_type_problem(op, found)  # type: ignore[arg-type]
             if problem is not None:
-                raise self.fail(spelling_token, problem)
-            return {"spelling": spelling, "expr": expr}
+                raise self.fail(operand, problem)
+            if is_sound_test(op) and "string" in value:
+                wrong = sound_problem(value["string"], self.unicode)
+                if wrong is not None:
+                    raise self.fail(self._first_of_rule(operand, "string") or operand, wrong)
+            return {"test": op, "value": value, "expr": expr}
         if rule == "capture":
             kids = self.kids(node)
             name = self.text(kids[0])[1:]
@@ -364,7 +397,7 @@ class DomBuilder:
             if len(inner) == 1 and inner[0].rule == "constant-reference":
                 raise self.fail(inner[0], _CONSTANT_IN_BODY)
             if len(inner) != 1 or inner[0].rule not in _SYMBOLS:
-                raise self.fail(node, f"the capture ${name} must wrap one reference or terminal, spelled or not")
+                raise self.fail(node, f"the capture ${name} must wrap one reference or terminal, tested or not")
             if not top:
                 raise self.fail(node, f"the capture ${name} is not at the top level of its alternative")
             if name in self.captures:
@@ -382,6 +415,17 @@ class DomBuilder:
         if rule == "empty":
             return {"empty": True}
         raise self.fail(node, f"unexpected {rule} in an expression")
+
+    def _first_of_rule(self, node: Node, name: str) -> Node | None:
+        """The first node of a rule at or below a node, in the order
+        written."""
+        stack = [node]
+        while stack:
+            current = stack.pop()
+            if current.kind == "rule" and current.rule == name:
+                return current
+            stack.extend(reversed(current.children))
+        return None
 
     def decode(self, token: Node) -> str:
         value = decode_string(self.text(token))
@@ -537,8 +581,8 @@ class DomBuilder:
         name = self.text(kids[0])
         if name not in _FUNCTIONS:
             raise self.fail(node, f"an unknown function {name}()")
-        if self.in_constant and name not in ("split", "tag"):
-            raise self.fail(node, f"a constant's value is a closed term, and {name} reads a span")
+        if self.closed_for and name not in ("split", "tag"):
+            raise self.fail(node, f"{self.closed_for} is a closed term, and {name} reads a span")
         args: list[Dom] = []
         for kid in kids[1:]:
             if kid.kind == "rule":
@@ -591,11 +635,17 @@ class DomBuilder:
         """A term; ``argument`` says it is a function's argument, where a
         span or a rule may stand."""
         rule = node.rule
+        if rule == "test-operand":
+            # One term, as a term-atom reads it.
+            inner = [kid for kid in self.kids(node) if kid.kind == "rule"]
+            if not inner:
+                raise self.fail(node, "expected a term")
+            return (yield self._term(inner[0], argument))
         if rule == "term":
             return (yield self._term([kid for kid in self.kids(node) if kid.kind == "rule"][0], argument))
         if rule == "guarded-term":
-            if self.in_constant:
-                raise self.fail(node, "a constant's value is a closed term, and holds no guarded term")
+            if self.closed_for:
+                raise self.fail(node, f"{self.closed_for} is a closed term, and holds no guarded term")
             parts = [kid for kid in self.kids(node) if kid.kind == "rule"]
             condition = yield self._condition(parts[0])
             problem = condition_type_problem(condition)
@@ -662,8 +712,8 @@ class DomBuilder:
             return {"emptySet": True}
         if rule == "capture-reference":
             capture = self.text(self.kids(node)[0])[1:]
-            if self.in_constant:
-                raise self.fail(node, "a constant's value is a closed term, and holds no capture")
+            if self.closed_for:
+                raise self.fail(node, f"{self.closed_for} is a closed term, and holds no capture")
             if not argument:
                 raise self.fail(node, f"a span is not a value: tags(${capture}) is the tag set of ${capture}")
             return {"capture": capture}

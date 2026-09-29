@@ -106,6 +106,23 @@ def expected_problem(kind: TermType, expected: TermType) -> str | None:
     return f"{_NAMES[expected]} is needed here, not {_NAMES[kind]}"
 
 
+def is_sound_test(op: str) -> bool:
+    """Whether a test's comparator is a sound test, whose value is a string,
+    rather than a tag test, whose value is a tag set (engine §2)."""
+    return op in ("=", "≠")
+
+
+def test_type_problem(op: str, kind: TermType) -> str | None:
+    """Why a test's value of type ``kind`` does not fit its comparator, or
+    None: a string for a sound test, a tag set for a tag test (engine §9,
+    §10)."""
+    sound = is_sound_test(op)
+    problem = expected_problem(kind, "string" if sound else "tags")
+    if problem is None:
+        return None
+    return f"{op} tests {'a string' if sound else 'a tag set'}: {problem}"
+
+
 def term_type_fault(term: Any, constants: ConstantTypes = _unknown_constants) -> FoundFault:
     """The type of a term, or why its parts do not agree with the smallest
     construct that disagrees. The term's shape must already be checked.
@@ -228,7 +245,37 @@ def rule_type_fault(rule: Any, constants: ConstantTypes = _unknown_constants) ->
         fault = condition_type_fault(condition, constants)
         if fault is not None:
             return fault
+    # A test's value is a string for a sound test and a tag set for a tag
+    # test (engine §9, §10).
+    for alternative in rule["alternatives"]:
+        for test in tests_in(alternative["expr"]):
+            kind, fault = term_type_fault(test["value"], constants)
+            if fault is not None:
+                return fault
+            problem = test_type_problem(test["test"], kind)  # type: ignore[arg-type]
+            if problem is not None:
+                return problem, test["value"]
     return None
+
+
+def tests_in(expr: Any) -> list[dict[str, Any]]:
+    """The tested symbols of an expression, in the order written."""
+    found: list[dict[str, Any]] = []
+    stack: list[Any] = [expr]
+    while stack:
+        current = stack.pop()
+        if not isinstance(current, dict):
+            continue
+        if isinstance(current.get("test"), str):
+            found.append(current)
+        for key in ("choice", "and", "seq"):
+            items = current.get(key)
+            if isinstance(items, list):
+                stack.extend(reversed(items))
+        for key in ("optional", "repeat", "expr"):
+            if key in current:
+                stack.append(current[key])
+    return found
 
 
 def rule_type_problem(rule: Any) -> str | None:

@@ -8,7 +8,7 @@ from typing import Any, Callable, Union
 
 from ._earley import Evaluator, Forest, Parser, Sources, StageContext
 from ._errors import _GrammarFault
-from ._grammar import Lowered, Production, written_symbol
+from ._grammar import Lowered, Production, SymbolTest, written_symbol
 from ._markdown import line_column
 from ._maximal import Maximal
 from ._model import Action, Expected, Node, ParseError, ParseWarning, Range, Tags, Token
@@ -62,6 +62,12 @@ def derivation(forest: Forest, rope: Rope | None) -> DNode:
         stack.append(DNode(act.item, production, act.start, act.end, children, forest.tag[act.item]))
     assert len(stack) == 1 and isinstance(stack[0], DNode)
     return stack[0]
+
+
+def _restored_sound(test: SymbolTest | None) -> str | None:
+    """What a restored terminator sounds like: the string of its = test,
+    or nothing (engine §7)."""
+    return test.sound if test is not None and test.op == "=" else None
 
 
 def _range_source(sources: Sources, start: int, end: int) -> Range:
@@ -124,7 +130,10 @@ class Tree:
                                 (child.start, child.start),
                                 (0, 0),
                                 terminal=child.production.elided,
-                                spelling=child.production.elided_spelling,
+                                # The string of an = test is kept for
+                                # elision-only's restored token; the output
+                                # does not show it (engine §7).
+                                sound=_restored_sound(child.production.elided_test),
                             )
                         )
                     else:
@@ -201,11 +210,11 @@ def forbidden_terminator(forest: Forest, ranking: Ranking | None, maximal: Maxim
             production = parent.production
             own = index == 1 and not production.terminal[0] and production.rhs[0] == production.lhs
             before = parent.children[index - 1]
-            spelling = production.spellings[index - 1] if production.spellings else None
-            if not own and isinstance(before, DNode) and maximal.forbids(before.item, spelling):
+            test = production.tests[index - 1] if production.tests else None
+            if not own and isinstance(before, DNode) and maximal.forbids(before.item, test):
                 terminal = node.production.elided
                 assert terminal is not None
-                written = written_symbol(terminal, node.production.elided_spelling)
+                written = written_symbol(terminal, node.production.elided_test)
                 return (node.start, [Expected(written, [node.production.rule_name])])
         children = node.children
         for position in range(len(children) - 1, -1, -1):
@@ -549,10 +558,10 @@ class StageRunner:
         for index in range(len(tokens) + 1):
             while pending < len(inserted) and inserted[pending].span[0] == index:
                 node = inserted[pending]
-                # A restored spelled terminator sounds like its spelling, so
-                # that it matches its own terminator in the stricter grammar
-                # (engine §7).
-                new_tokens.append(Token("", frozenset((node.terminal or "",)), (index, index), node.source, node.spelling))
+                # A restored terminator with an = test sounds like the
+                # test's string, so that it matches its own terminator in the
+                # stricter grammar (engine §7).
+                new_tokens.append(Token("", frozenset((node.terminal or "",)), (index, index), node.source, node.sound))
                 synthetic.append(True)
                 pending += 1
             if index < len(tokens):

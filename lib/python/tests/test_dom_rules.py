@@ -273,22 +273,27 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("an inserted tag anchored on a missing capture", with_bare_alternative(set_emit({"items": [{"insert": "Y"}, {"capture": "x"}]}))),
     ("an emission that leaves an alternative nothing", with_bare_alternative(set_emit({"items": [{"capture": "x"}]}))),
     ("verbatim with ε", lambda dom: (rule(dom).update(verbatim=True), set_emit({"items": []})(dom))),
-    # Spellings (engine §9).
-    ("an empty spelling", set_expr({"capture": "x", "expr": {"spelling": "", "expr": A}})),
-    ("a spelling that is no string", set_expr({"capture": "x", "expr": {"spelling": 7, "expr": A}})),
-    ("a spelling of #", set_expr({"seq": [{"capture": "x", "expr": A}, {"spelling": "a", "expr": {"ref": "#"}}]})),
-    ("a spelling of an optional", set_expr({"seq": [{"capture": "x", "expr": A}, {"spelling": "a", "expr": {"optional": A}}]})),
-    ("a spelling of a spelling", set_expr({"capture": "x", "expr": {"spelling": "a", "expr": {"spelling": "a", "expr": A}}})),
-    ("a spelling of a capture", set_expr({"spelling": "a", "expr": {"capture": "x", "expr": A}})),
-    ("a spelling without its symbol", set_expr({"capture": "x", "expr": {"spelling": "a"}})),
-    ("a spelling with a backtick", set_expr({"capture": "x", "expr": {"spelling": "a`b", "expr": A}})),
-    ("a spelling of an empty terminal", set_expr({"capture": "x", "expr": {"spelling": "a", "expr": {"empty": True, "terminal": "a"}}})),
-    ("a spelling of a reference and a terminal", set_expr({"capture": "x", "expr": {"spelling": "a", "expr": {"ref": "text", "terminal": "a"}}})),
-    ("a spelled symbol that is also empty", set_expr({"capture": "x", "expr": {"spelling": "a", "expr": A, "empty": True}})),
-    ("a spelled symbol that is also a reference", set_expr({"seq": [{"capture": "x", "expr": A}, {"spelling": "a", "expr": A, "ref": "text"}]})),
-    ("a spelled symbol that is also a capture", set_expr({"capture": "x", "spelling": "a`b", "expr": A})),
-    ("a top-level sequence that is also a spelled symbol", set_expr({"seq": [{"capture": "x", "expr": A}, A], "spelling": "a", "expr": A})),
-    ("a spelled symbol that is also an optional", set_expr({"seq": [{"capture": "x", "expr": A}, {"optional": A, "spelling": "a", "expr": {"ref": "#"}}]})),
+    # Tests in a body (engine §2, §9).
+    ("a test with an unknown comparator", set_expr({"capture": "x", "expr": {"test": "==", "value": {"string": "a"}, "expr": A}})),
+    ("a test whose comparator is no string", set_expr({"capture": "x", "expr": {"test": 7, "value": {"string": "a"}, "expr": A}})),
+    ("a test of #", set_expr({"seq": [{"capture": "x", "expr": A}, {"test": "=", "value": {"string": "a"}, "expr": {"ref": "#"}}]})),
+    ("a test of an optional", set_expr({"seq": [{"capture": "x", "expr": A}, {"test": "=", "value": {"string": "a"}, "expr": {"optional": A}}]})),
+    ("a test of a test", set_expr({"capture": "x", "expr": {"test": "=", "value": {"string": "a"}, "expr": {"test": "=", "value": {"string": "a"}, "expr": A}}})),
+    ("a test of a capture", set_expr({"test": "=", "value": {"string": "a"}, "expr": {"capture": "x", "expr": A}})),
+    ("a test of ε", set_expr({"seq": [{"capture": "x", "expr": A}, {"test": "=", "value": {"string": "a"}, "expr": {"empty": True}}]})),
+    ("a test without its symbol", set_expr({"capture": "x", "expr": {"test": "=", "value": {"string": "a"}}})),
+    ("a test without its value", set_expr({"capture": "x", "expr": {"test": "=", "expr": A}})),
+    ("a test whose string has a comma", set_expr({"capture": "x", "expr": {"test": "=", "value": {"string": "a,b"}, "expr": A}})),
+    ("a sound test of a tag set", set_expr({"capture": "x", "expr": {"test": "=", "value": {"tag": "A"}, "expr": A}})),
+    ("a tag test of a string", set_expr({"capture": "x", "expr": {"test": "⊇", "value": {"string": "a"}, "expr": A}})),
+    ("a test whose value reads a span", set_expr({"capture": "x", "expr": {"test": "⊇", "value": TAGS_X, "expr": A}})),
+    ("a test of an empty terminal", set_expr({"capture": "x", "expr": {"test": "=", "value": {"string": "a"}, "expr": {"empty": True, "terminal": "a"}}})),
+    ("a test of a reference and a terminal", set_expr({"capture": "x", "expr": {"test": "=", "value": {"string": "a"}, "expr": {"ref": "text", "terminal": "a"}}})),
+    ("a tested symbol that is also empty", set_expr({"capture": "x", "expr": {"test": "=", "value": {"string": "a"}, "expr": A, "empty": True}})),
+    ("a tested symbol that is also a reference", set_expr({"seq": [{"capture": "x", "expr": A}, {"test": "=", "value": {"string": "a"}, "expr": A, "ref": "text"}]})),
+    ("a tested symbol that is also a capture", set_expr({"capture": "x", "test": "=", "value": {"string": "a"}, "expr": A})),
+    ("a top-level sequence that is also a tested symbol", set_expr({"seq": [{"capture": "x", "expr": A}, A], "test": "=", "value": {"string": "a"}, "expr": A})),
+    ("a tested symbol that is also an optional", set_expr({"seq": [{"capture": "x", "expr": A}, {"optional": A, "test": "=", "value": {"string": "a"}, "expr": {"ref": "#"}}]})),
 ]
 
 
@@ -393,12 +398,12 @@ class PrecompiledDomRules(unittest.TestCase):
             with self.subTest(term=term):
                 self.assertTrue(refused(tagged(term)))
 
-    def test_a_refused_bootstrap_spelling_is_an_error(self) -> None:
-        """A spelling in the bootstrap that the reader would refuse is a
+    def test_a_refused_bootstrap_test_is_an_error(self) -> None:
+        """A test in the bootstrap that the reader would refuse is a
         GencmuError, not a failure inside lowering."""
 
-        def spell(spelled: Callable[[Dom], Dom]) -> str:
-            # Spell the first plain reference of the bootstrap.
+        def wrap(tested: Callable[[Dom], Dom]) -> str:
+            # Test the first plain reference of the bootstrap.
             bootstrap = json.loads(bundled_text("notation/bootstrap.json") or "{}")
             stack: list[Any] = [bootstrap]
             while stack:
@@ -407,7 +412,7 @@ class PrecompiledDomRules(unittest.TestCase):
                 for key in keys:
                     value = node[key]
                     if isinstance(value, dict) and len(value) == 1 and isinstance(value.get("ref"), str) and value["ref"] != "#":
-                        node[key] = spelled(value)
+                        node[key] = tested(value)
                         return json.dumps(bootstrap)
                     stack.append(value)
             raise AssertionError("the bootstrap has no plain reference")
@@ -422,13 +427,15 @@ class PrecompiledDomRules(unittest.TestCase):
                 return error.document == "notation/bootstrap.json"
             return False
 
-        self.assertFalse(refused(spell(lambda ref: {"spelling": "a", "expr": ref})))
-        for name, spelled in (
-            ("a backtick", lambda ref: {"spelling": "a`b", "expr": ref}),
-            ("an empty reference", lambda ref: {"spelling": "a", "expr": {**ref, "empty": True}}),
+        value = {"string": "a"}
+        self.assertFalse(refused(wrap(lambda ref: {"test": "=", "value": value, "expr": ref})))
+        for name, tested in (
+            ("a comma", lambda ref: {"test": "=", "value": {"string": "a,b"}, "expr": ref}),
+            ("an empty reference", lambda ref: {"test": "=", "value": value, "expr": {**ref, "empty": True}}),
+            ("a sequence that is also a test", lambda ref: {"seq": [ref, ref], "test": "=", "value": value, "expr": ref}),
         ):
             with self.subTest(what=name):
-                self.assertTrue(refused(spell(spelled)))
+                self.assertTrue(refused(wrap(tested)))
 
     def test_nesting_bound(self) -> None:
         """No node may lie below more than 256 compound nodes of its
@@ -492,59 +499,84 @@ class PrecompiledDomRules(unittest.TestCase):
                 change(dom)
                 self.assertIsNone(dom_problem(dom))
 
-    def test_spellings(self) -> None:
-        """A spelling in a precompiled DOM is checked as the reader checks
-        it, with the lowercase mapping that the match uses (engine §9)."""
+    def test_tests(self) -> None:
+        """A test in a precompiled DOM is checked as the reader checks it,
+        with the lowercase mapping that the match uses (engine §9)."""
         unicode = _unicode_table(bundled_text("unicode.txt") or "")
 
-        def spelled(spelling: Any, expr: Any = A) -> Dom:
-            return {"spelling": spelling, "expr": expr}
+        def tested(value: Any, expr: Any = A, op: Any = "=") -> Dom:
+            return {"test": op, "value": {"string": value} if isinstance(value, str) else value, "expr": expr}
 
+        refusal = "a test follows only a reference other than # or a terminal"
         for name, expr, problem in (
-            ("a spelled terminal", {"capture": "x", "expr": spelled("a")}, None),
-            ("a spelled reference", {"seq": [{"capture": "x", "expr": A}, spelled("la", {"ref": "text"})]}, None),
-            ("a repeated spelled symbol", {"seq": [{"capture": "x", "expr": A}, {"repeat": spelled("a"), "min": 1}]}, None),
-            ("an empty spelling", {"capture": "x", "expr": spelled("")}, "a spelling is empty"),
-            ("a spelling that is no string", {"capture": "x", "expr": spelled(7)}, "a malformed spelling"),
-            ("a spelling in capitals", {"capture": "x", "expr": spelled("La")}, "the spelling La is not in lower case"),
-            ("a Cyrillic capital", {"capture": "x", "expr": spelled("Ла")}, "the spelling Ла is not in lower case"),
-            ("a spelling of #", {"seq": [{"capture": "x", "expr": A}, spelled("a", {"ref": "#"})]}, "a spelling follows only a reference other than # or a terminal"),
-            ("a spelling of a spelling", {"capture": "x", "expr": spelled("a", spelled("a"))}, "a spelling follows only a reference other than # or a terminal"),
-            ("a spelling with a backtick", {"capture": "x", "expr": spelled("a`b")}, "a spelling holds a backtick"),
-            ("a spelling with a comma", {"capture": "x", "expr": spelled("ko,a")}, "the spelling ko,a holds a comma, which no canonical sound holds"),
-            ("a spelling of an empty terminal", {"capture": "x", "expr": spelled("a", {"empty": True, "terminal": "a"})}, "a spelling follows only a reference other than # or a terminal"),
-            ("a spelling of a reference and a terminal", {"capture": "x", "expr": spelled("a", {"ref": "text", "terminal": "a"})}, "a spelling follows only a reference other than # or a terminal"),
-            ("a spelled symbol that is also empty", {"capture": "x", "expr": {**spelled("a"), "empty": True}}, "a malformed expression"),
+            ("a tested terminal", {"capture": "x", "expr": tested("a")}, None),
+            ("a tested reference", {"seq": [{"capture": "x", "expr": A}, tested("la", {"ref": "text"})]}, None),
+            ("a repeated tested symbol", {"seq": [{"capture": "x", "expr": A}, {"repeat": tested("a"), "min": 1}]}, None),
+            ("an empty string", {"capture": "x", "expr": tested("")}, None),
+            ("≠", {"capture": "x", "expr": tested("a", A, "≠")}, None),
+            ("∩=∅ of a tag", {"capture": "x", "expr": tested({"tag": "UI"}, A, "∩=∅")}, None),
+            ("⊇ of a union with a range, on a range", {"capture": "x", "expr": tested({"union": [{"tag": "UI"}, {"range": ["'a'", "'c'"]}]}, {"range": ["'a'", "'z'"]}, "⊇")}, None),
+            ("⊉ of ∅ on a property", {"capture": "x", "expr": tested({"emptySet": True}, {"property": "L"}, "⊉")}, None),
+            ("∩≠∅ of a constant", {"capture": "x", "expr": tested({"const": "A", "at": [1, 1]}, A, "∩≠∅")}, None),
+            # A string constant is checked by the loader, which knows its value.
+            ("= of a constant", {"capture": "x", "expr": tested({"const": "A", "at": [1, 1]})}, None),
+            ("an unknown comparator", {"capture": "x", "expr": tested("a", A, "==")}, "a malformed test"),
+            ("a comparator that is no string", {"capture": "x", "expr": tested("a", A, 7)}, "a malformed test"),
+            ("a string in capitals", {"capture": "x", "expr": tested("La")}, 'the string "La" is not in lower case, which every canonical sound is'),
+            ("a Cyrillic capital", {"capture": "x", "expr": tested("Ла")}, 'the string "Ла" is not in lower case, which every canonical sound is'),
+            ("a string with a comma", {"capture": "x", "expr": tested("ko,a")}, 'the string "ko,a" holds a comma, which no canonical sound holds'),
+            ("a test of #", {"seq": [{"capture": "x", "expr": A}, tested("a", {"ref": "#"})]}, refusal),
+            ("a test of a test", {"capture": "x", "expr": tested("a", tested("a"))}, refusal),
+            ("a test of ε", {"seq": [{"capture": "x", "expr": A}, tested("a", {"empty": True})]}, refusal),
+            ("a test of an empty terminal", {"capture": "x", "expr": tested("a", {"empty": True, "terminal": "a"})}, refusal),
+            ("a test of a reference and a terminal", {"capture": "x", "expr": tested("a", {"ref": "text", "terminal": "a"})}, refusal),
+            ("a tested symbol that is also empty", {"capture": "x", "expr": {**tested("a"), "empty": True}}, "a malformed expression"),
+            ("a test without its value", {"capture": "x", "expr": {"test": "=", "expr": A}}, "a malformed expression"),
         ):
             with self.subTest(what=name):
                 dom = copy.deepcopy(self.dom)
                 set_expr(expr)(dom)
                 self.assertEqual(dom_problem(dom, unicode), problem)
+        # A value of the wrong type, or one that is not closed.
+        for name, expr in (
+            ("= of a tag", tested({"tag": "UI"})),
+            ("⊇ of a string", tested("la", A, "⊇")),
+            ("⊇ of tags($)", tested({"call": "tags", "args": [{"capture": ""}]}, A, "⊇")),
+            ("= of phonemes($)", tested({"call": "phonemes", "args": [{"capture": ""}]})),
+            ("= of a capture", tested({"capture": "x"})),
+        ):
+            with self.subTest(refused=name):
+                dom = copy.deepcopy(self.dom)
+                set_expr({"capture": "x", "expr": expr})(dom)
+                self.assertIsNotNone(dom_problem(dom, unicode))
         dom = copy.deepcopy(self.dom)
-        set_expr({"capture": "x", "expr": spelled("La")})(dom)
-        # An entry with a spelling in capitals is a miss: the document is read afresh.
+        set_expr({"capture": "x", "expr": tested("La")})(dom)
+        # An entry with a string in capitals is a miss: the document is read afresh.
         self.assertEqual(self.parse(dom), self.parse(None))
-        # A spelled symbol is a compound node (engine §9), below a capture too.
-        for depth, allowed in ((255, True), (256, False)):
-            dom = copy.deepcopy(self.dom)
-            deep: Any = spelled("a")
-            for _ in range(depth):
-                deep = {"optional": deep}
-            set_expr(deep)(dom)
-            rule(dom)["conditions"] = []
-            rule(dom).pop("tags", None)
-            rule(dom).pop("emit", None)
-            alt(dom).pop("tags", None)
-            self.assertEqual(dom_problem(dom, unicode) is None, allowed, dom_problem(dom, unicode))
+        # A tested symbol is a compound node (engine §9), and its value
+        # counts on from its depth.
+        for value, most in (("a", 255), ({"union": [{"tag": "A"}, {"tag": "B"}]}, 254)):
+            for depth, allowed in ((most, True), (most + 1, False)):
+                with self.subTest(value=value, depth=depth):
+                    dom = copy.deepcopy(self.dom)
+                    deep: Any = tested(value, A, "=" if isinstance(value, str) else "⊇")
+                    for _ in range(depth):
+                        deep = {"optional": deep}
+                    set_expr(deep)(dom)
+                    rule(dom)["conditions"] = []
+                    rule(dom).pop("tags", None)
+                    rule(dom).pop("emit", None)
+                    alt(dom).pop("tags", None)
+                    self.assertEqual(dom_problem(dom, unicode) is None, allowed, dom_problem(dom, unicode))
 
     def test_the_unicode_table_keys_the_cache(self) -> None:
         """A document read once with one Unicode table is read again with
-        another, since the table decides which spellings are allowed
-        (engine §9)."""
+        another, since the table decides which strings of sound tests are
+        allowed (engine §9)."""
         pipeline = '```jbogenbau\n%stage main\n%include "g.md"\n```\n'
-        sources = {"p.md": pipeline, "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A`a`\n```\n"}
+        sources = {"p.md": pipeline, "g.md": '```jbogenbau\n%ambiguity-resolution greedy\n%rule text A="a"\n```\n'}
         gencmu.load_dialect_sources(sources, "p.md")
-        # With a in capitals, the spelling a is no longer in lower case.
+        # With a in capitals, the string "a" is no longer in lower case.
         table = (bundled_text("unicode.txt") or "").rstrip("\n") + "\nlower 0061 0062\n"
         for use_cache in (False, True):
             with self.subTest(use_cache=use_cache), self.assertRaises(gencmu.GencmuError) as caught:
@@ -559,6 +591,9 @@ class PrecompiledDomRules(unittest.TestCase):
             ("a property", {"property": "White_Space"}, None),
             ("captured", {"seq": [{"capture": "c", "expr": {"range": ["'\\u{300}'", "'\\u{36F}'"]}}, {"capture": "d", "expr": {"property": "Cs"}}]}, None),
             ("a range in a term", {"ref": "A"}, {"union": [{"range": ["'a'", "'c'"]}, {"tag": "'x'"}]}),
+            # A range or a property is a terminal, and takes a test (engine §2).
+            ("a tested range", {"test": "=", "value": {"string": "a"}, "expr": {"range": ["'a'", "'z'"]}}, None),
+            ("a tested property", {"test": "∩≠∅", "value": {"tag": "'a'"}, "expr": {"property": "L"}}, None),
         ):
             with self.subTest(allowed=name):
                 dom = copy.deepcopy(self.dom)
@@ -579,8 +614,8 @@ class PrecompiledDomRules(unittest.TestCase):
             ("a long property name", {"property": "Letter"}, None),
             ("a property name in other case", {"property": "lu"}, None),
             ("a property that is also a range", {"property": "L", "range": ["'a'", "'z'"]}, None),
-            ("a spelled range", {"spelling": "a", "expr": {"range": ["'a'", "'z'"]}}, None),
-            ("a spelled property", {"spelling": "a", "expr": {"property": "L"}}, None),
+            ("a tested reversed range", {"test": "⊇", "value": {"tag": "'a'"}, "expr": {"range": ["'z'", "'a'"]}}, None),
+            ("a tested long property name", {"test": "=", "value": {"string": "a"}, "expr": {"property": "Letter"}}, None),
             ("a property in a term", {"ref": "A"}, {"property": "L"}),
             ("a reversed range in a term", {"ref": "A"}, {"range": ["'z'", "'a'"]}),
         ):
