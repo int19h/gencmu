@@ -1,0 +1,70 @@
+{
+  "description": "U+FFFD, the replacement character, is a character like any other. It is one tag, written itself or as \\u{FFFD}. That is so in a terminal, a tag term and an inserted tag. The output writes it as itself (engine §1, docs/output.md).",
+  "grammar": "%rule text $x(c) $y('�') '\\u{FFFD}' %emits '�', '\\u{FFFD}', $x, $y <'\\u{FFFD}' ∪ '�'>\n%rule c '\\u{FFFD}' <'�' ∪ '\\u{FFFD}'>",
+  "input": "���",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "",
+              "tags": [
+                "'�'"
+              ],
+              "insertedBy": "text"
+            },
+            {
+              "text": "",
+              "tags": [
+                "'�'"
+              ],
+              "insertedBy": "text"
+            },
+            {
+              "text": "�",
+              "tags": [
+                "'�'"
+              ]
+            },
+            {
+              "text": "�",
+              "tags": [
+                "'�'"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "c",
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "'�'",
+                "token": 0
+              }
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "'�'",
+            "token": 1
+          },
+          {
+            "kind": "token",
+            "terminal": "'�'",
+            "token": 2
+          }
+        ]
+      }
+    }
+  }
+}

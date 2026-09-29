@@ -445,6 +445,40 @@ fn every_malformed_dom_is_a_cache_miss() {
             with_emission(r#"{"items":[{"capture":"x","tags":{"call":"tags","args":[{"capture":"z"}]}}]}"#),
         ),
         ("a term that is not an object", with_tags(r#""T""#)),
+        // A term has exactly the members of one form, in either order.
+        ("a tag that is also a string", with_tags(r#"{"tag":"T","string":"b"}"#)),
+        ("a string that is also a tag", with_tags(r#"{"string":"b","tag":"T"}"#)),
+        ("a tag of ! that is also a string", with_tags(r#"{"tag":"!","string":"x"}"#)),
+        ("a string that is also a tag of !", with_tags(r#"{"string":"x","tag":"!"}"#)),
+        (
+            "a compared tag that is also a string",
+            with_condition(
+                r#"{"op":"=","left":{"call":"text","args":[{"capture":"w"}]},"right":{"tag":"Bad","string":"b"}}"#,
+            ),
+        ),
+        (
+            "a compared string that is also a tag",
+            with_condition(
+                r#"{"op":"=","left":{"call":"text","args":[{"capture":"w"}]},"right":{"string":"b","tag":"Bad"}}"#,
+            ),
+        ),
+        (
+            "a difference that is also a union",
+            with_tags(r#"{"difference":[{"tag":"T"},{"tag":"U"}],"union":[{"tag":"T"},{"tag":"U"}]}"#),
+        ),
+        (
+            "a union that is also a difference",
+            with_tags(r#"{"union":[{"tag":"T"},{"tag":"U"}],"difference":[{"tag":"T"},{"tag":"U"}]}"#),
+        ),
+        (
+            "a difference that is also an intersection",
+            with_tags(r#"{"difference":[{"tag":"T"},{"tag":"U"}],"intersection":[{"tag":"T"},{"tag":"U"}]}"#),
+        ),
+        ("a difference that is also a tag", with_tags(r#"{"difference":[{"tag":"T"},{"tag":"U"}],"tag":"T"}"#)),
+        ("a tag that is also a difference", with_tags(r#"{"tag":"T","difference":[{"tag":"T"},{"tag":"U"}]}"#)),
+        ("a difference of one part", with_tags(r#"{"difference":[{"tag":"T"}]}"#)),
+        ("a difference of three parts", with_tags(r#"{"difference":[{"tag":"T"},{"tag":"U"},{"tag":"V"}]}"#)),
+        ("a span that is also a tag", with_tags(r#"{"call":"tags","args":[{"capture":"x","tag":"T"}]}"#)),
         ("%stage without a name", with_directive(r#"{"name":"stage","args":[],"at":[4,1]}"#)),
         ("%stage with two names", with_directive(r#"{"name":"stage","args":["a","b"],"at":[4,1]}"#)),
         ("%stage with a name that is not a name", with_directive(r#"{"name":"stage","args":["9a"],"at":[4,1]}"#)),
@@ -521,6 +555,41 @@ fn a_refused_bootstrap_spelling_is_an_error() {
         refusal(r#"{"spelling":"b","expr":{"terminal":"b"},"empty":true}"#).as_deref(),
         Some("a malformed expression")
     );
+}
+
+/// A term in the bootstrap that joins the members of two forms, or a
+/// malformed difference, is an error of the grammar.
+#[test]
+fn a_bootstrap_term_of_two_forms_is_an_error() {
+    let refusal = |term: &str| {
+        let bootstrap = format!(
+            r#"{{"format":9,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
+            with_tags(term)
+        );
+        let sources = [
+            ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+            ("g.md", DOCUMENT.to_string()),
+            ("notation/bootstrap.json", bootstrap),
+        ];
+        let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("a notation that cannot read g.md");
+        assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
+        error.message.strip_prefix("bootstrap.json: ").map(str::to_string)
+    };
+    // A bootstrap that is read, whose notation then fails on g.md.
+    assert_eq!(refusal(r#"{"tag":"T"}"#), None);
+    assert_eq!(refusal(r#"{"difference":[{"tag":"T"},{"tag":"U"}]}"#), None);
+    for term in [
+        r#"{"tag":"!","string":"x"}"#,
+        r#"{"string":"x","tag":"!"}"#,
+        r#"{"tag":"T","string":"b"}"#,
+        r#"{"string":"b","tag":"T"}"#,
+        r#"{"difference":[{"tag":"T"},{"tag":"U"}],"union":[{"tag":"T"},{"tag":"U"}]}"#,
+        r#"{"union":[{"tag":"T"},{"tag":"U"}],"difference":[{"tag":"T"},{"tag":"U"}]}"#,
+        r#"{"difference":[{"tag":"T"},{"tag":"U"}],"tag":"T"}"#,
+        r#"{"difference":[{"tag":"T"}]}"#,
+    ] {
+        assert_eq!(refusal(term).as_deref(), Some("a malformed term"), "{term}");
+    }
 }
 
 #[test]

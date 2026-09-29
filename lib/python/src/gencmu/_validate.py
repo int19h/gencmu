@@ -83,6 +83,30 @@ def _is_rule_name(value: Any) -> bool:
     return isinstance(value, dict) and isinstance(value.get("rule"), str) and len(value) == 1
 
 
+# The forms of a term, each as its members (docs/output.md). The first
+# member names the form.
+_TERM_FORMS = (
+    ("union",),
+    ("intersection",),
+    ("difference",),
+    ("if", "then"),
+    ("call", "args"),
+    ("string",),
+    ("tag",),
+    ("emptySet",),
+    ("capture",),
+)
+
+
+def _is_term_shape(value: dict[str, Any]) -> bool:
+    """Whether a term has exactly the members of one form. So a node that
+    joins two forms, such as ``{"tag":…,"string":…}``, is refused before it
+    is read, and no library reads it one way where another reads it
+    another way."""
+    form = next((members for members in _TERM_FORMS if members[0] in value), None)
+    return form is not None and len(value) == len(form) and all(member in value for member in form)
+
+
 def _items(value: Any, least: int, most: float = float("inf")) -> bool:
     return isinstance(value, list) and least <= len(value) <= most
 
@@ -382,6 +406,8 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase | None) 
                 pending.append(("term", value.get("right"), below, own))
         else:
             # A term; an argument is a term where a span may stand.
+            if not _is_term_shape(value):
+                return "a malformed term"
             if own and reads_own_tags(value, kind == "argument"):
                 return "a tag term that reads the tags it defines"
             if "union" in value or "intersection" in value or "difference" in value:

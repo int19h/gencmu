@@ -538,6 +538,19 @@ func TestMalformedPrecompiled(t *testing.T) {
 		`{"call":"lowercase","args":[{"emptySet":true}]}`,
 		`{"call":"head","args":[{"tag":"x"}]}`,
 		`{"union":[]}`,
+		// A term has exactly the members of one form, in either order.
+		`{"tag":"T","string":"b"}`,
+		`{"string":"b","tag":"T"}`,
+		`{"tag":"!","string":"x"}`,
+		`{"string":"x","tag":"!"}`,
+		`{"difference":[{"tag":"X"},{"tag":"Y"}],"union":[{"tag":"X"},{"tag":"Y"}]}`,
+		`{"union":[{"tag":"X"},{"tag":"Y"}],"difference":[{"tag":"X"},{"tag":"Y"}]}`,
+		`{"difference":[{"tag":"X"},{"tag":"Y"}],"intersection":[{"tag":"X"},{"tag":"Y"}]}`,
+		`{"difference":[{"tag":"X"},{"tag":"Y"}],"tag":"X"}`,
+		`{"tag":"X","difference":[{"tag":"X"},{"tag":"Y"}]}`,
+		`{"difference":[{"tag":"X"}]}`,
+		`{"call":"tags","args":[{"call":"head","args":[{"capture":""}],"tag":"X"}]}`,
+		`{"if":{"captured":""},"then":{"tag":"X"},"tag":"X"}`,
 	}
 	for _, tags := range badTags {
 		bad = append(bad, `{"seq":[{"terminal":"a"},{"terminal":"b"}]},"tags":`+tags)

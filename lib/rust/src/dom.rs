@@ -342,6 +342,33 @@ fn has(value: &Json, key: &str) -> bool {
     value.get(key).is_some()
 }
 
+/// The forms of a term, each as its members (docs/output.md). The first
+/// member names the form.
+const TERM_FORMS: [&[&str]; 9] = [
+    &["union"],
+    &["intersection"],
+    &["difference"],
+    &["if", "then"],
+    &["call", "args"],
+    &["string"],
+    &["tag"],
+    &["emptySet"],
+    &["capture"],
+];
+
+/// Whether a term has exactly the members of one form, and no other. So a
+/// node that joins two forms, such as `{"tag":…,"string":…}`, is refused
+/// before it is read, whatever the order of its members.
+fn is_term_shape(value: &Json) -> bool {
+    let Some(members) = value.as_object() else {
+        return false;
+    };
+    TERM_FORMS
+        .iter()
+        .find(|form| has(value, form[0]))
+        .is_some_and(|form| members.len() == form.len() && form.iter().all(|member| has(value, member)))
+}
+
 fn is_str(value: Option<&Json>) -> bool {
     matches!(value, Some(Json::Str(_)))
 }
@@ -748,6 +775,11 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                 }
             }
             Kind::Term | Kind::TagTerm | Kind::Argument => {
+                // A term has exactly the members of one form, so that no
+                // node is read as one form here and another elsewhere.
+                if !is_term_shape(value) {
+                    return Some("a malformed term");
+                }
                 let own = kind == Kind::TagTerm;
                 if own && is_whole(value) {
                     return Some("a tag term that reads the tags it defines");

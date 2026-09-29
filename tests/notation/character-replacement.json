@@ -1,0 +1,80 @@
+{
+  "description": "The DOM holds U+FFFD, the replacement character, as itself, whether it is written itself or as \\u{FFFD}. That is so in a terminal, a tag term and an inserted tag (engine §1, §9).",
+  "document": "```jbogenbau\n%rule text $x(c) $y('�') '\\u{FFFD}' %emits '�', '\\u{FFFD}', $x, $y <'\\u{FFFD}' ∪ '�'>\n%rule c '\\u{FFFD}' <'�' ∪ '\\u{FFFD}'>\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "seq": [
+                  {
+                    "capture": "x",
+                    "expr": {
+                      "ref": "c"
+                    }
+                  },
+                  {
+                    "capture": "y",
+                    "expr": {
+                      "terminal": "'�'"
+                    }
+                  },
+                  {
+                    "terminal": "'�'"
+                  }
+                ]
+              }
+            }
+          ],
+          "emit": {
+            "items": [
+              {
+                "insert": "'�'"
+              },
+              {
+                "insert": "'�'"
+              },
+              {
+                "capture": "x"
+              },
+              {
+                "capture": "y",
+                "tags": {
+                  "union": [
+                    {
+                      "tag": "'�'"
+                    },
+                    {
+                      "tag": "'�'"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "terminal": "'�'"
+              },
+              "tags": {
+                "union": [
+                  {
+                    "tag": "'�'"
+                  },
+                  {
+                    "tag": "'�'"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

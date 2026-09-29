@@ -119,7 +119,7 @@ A terminal is a name, a tag literal, a character tag or a phoneme tag. A string 
 
 ## Clauses
 
-`%tags` says what tags every alternative's constituent carries. `%conditions` lists what must hold of the captured parts. `%emits` says what the constituent hands on. That is a list of items. Each item is a capture, with tags of its own between `<` and `>`, or an inserted tag: a name, a tag literal, a character tag or a phoneme tag. The clause can also be `ε`, nothing, which also makes the constituent not count.
+`%tags` says what tags every alternative's constituent carries. `%conditions` lists what must hold of the captured parts. `%emits` says what the constituent hands on. That is a list of items. An item is a capture, with tags of its own between `<` and `>`, or an inserted tag. An inserted tag is a capital-initial name, a tag literal, a character tag or a phoneme tag. The clause can also be `ε`, nothing, which also makes the constituent not count.
 
 `%verbatim` is a keyword alone. It says that a token over the constituent sounds like its text.
 

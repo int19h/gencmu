@@ -29,7 +29,7 @@ Line breaks and indentation mean nothing. So a long list of alternatives can put
   | VUhU #
 ```
 
-The same is true of every other separator of the notation. These are `&` in bodies, `∪`, `∩` and `∖` in terms, `∧` and `∨` in conditions, and the commas of a clause's list. A tag term is a term that gives a set of tags.
+The same is true of every other separator of the notation. These are `&` in bodies, `∪` and `∩` in terms, `∧` and `∨` in conditions, and the commas of a clause's list. `∖` in terms is not a separator, so it cannot stand first. A tag term is a term that gives a set of tags.
 
 A body can be followed by clauses. A clause is a keyword and what it says. A body has at most one clause of each kind, and the clauses come in this order:
 
@@ -144,7 +144,9 @@ The notation has no way to remove a single alternative. A rule is small enough t
 
 ## Captures
 
-Writing `$name(symbol)` around a symbol of a rule's body captures that symbol. A capture gives a part of the constituent a name that the clauses of the rule can use. A capture's name is all lower case. A capture wraps one symbol at the top level of an alternative, not inside `[ ]`, `...`, `( )` or `&`. So an alternative either reads that symbol or does not exist. An alternative has at most four captures. `$` alone is the whole constituent, a capture that every alternative has without writing it.
+Writing `$name(symbol)` around a symbol of a rule's body captures that symbol. A capture gives a part of the constituent a name that the clauses of the rule can use. A capture's name is all lower case.
+
+A capture wraps one symbol at the top level of an alternative, not inside `[ ]`, `...`, `( )` or `&`. So an alternative either reads that symbol or does not exist. An alternative has at most four captures. `$` alone is the whole constituent, a capture that every alternative has without writing it.
 
 The gates can leave one alternative in a rule. If that alternative ends in `...`, an explicit capture in its body is an error. gencmu turns such an alternative into left recursion on its rule, and the recursive part has no place for the capture (engine §3). To capture a part there, move the repetition into a rule of its own.
 
@@ -185,7 +187,9 @@ Within one condition of the list, `∧` and `∨` join conditions, and `∧` bin
 
 A term of a condition has one of four types: a span, a string, a set of strings or a tag set. No value turns into another. So a string is never a tag, and a span never stands for its tags.
 
-The first type is the span, a sequence of tokens. A capture `$x` is a span, the tokens that the captured part covers, and `$` is the tokens that the whole constituent covers. `head($x)` is its first token, `tail($x)` the rest, and `last($x)` the last. `from($x)` is the tokens from the start of `$x` to the end of the input. `after($x)` is the tokens after `$x`, to the end of the input. These two reach past the constituent, to the text that follows it. A span is only an argument of a function, such as `tags($x)`, and never a value of its own.
+The first type is the span, a sequence of tokens. A capture `$x` is a span, the tokens that the captured part covers, and `$` is the tokens that the whole constituent covers. `head($x)` is its first token, `tail($x)` the rest, and `last($x)` the last.
+
+`from($x)` is the tokens from the start of `$x` to the end of the input. `after($x)` is the tokens after `$x`, to the end of the input. These two reach past the constituent, to the text that follows it. A span is only an argument of a function, such as `tags($x)`, and never a value of its own.
 
 The second type is the string. `phonemes(span)` is what a span sounds like: the phonemes of its tokens, joined. A token's phonemes are fixed when its stage emits it. A token over a verbatim constituent sounds like its text (see "Verbatim text"). Any other token sounds like the phoneme that its `/x/` tag names, if it has one. Two phoneme tags on one token are an error of the grammar.
 
@@ -195,7 +199,9 @@ A token of neither kind sounds like the tokens of its stage's input that it cove
 
 The third type is the set of strings. `runs(span)` is the set of the runs of a span's phonemes. The runs are the strings between its pauses. So `phonemes($open) ∉ runs($content)` says that the word `$open` is not one of the runs of `$content`. A run can hold several words: a text writes `lemiklama` as one run.
 
-The fourth type is the tag set. A tag literal is the set with that one tag, so `UI ∪ CAI` is the set of both, and `~indicator` is the set of the mark. `tags(span)` is the tag set of the captured part. `tags(span, rule)` is the tag set that the span has when parsed as `rule`, unioned over every parse. It is empty when the span does not parse as `rule`. This is how a word looks itself up in a lexicon that is itself a set of rules. `classes(span)` keeps only the tags that begin with a capital.
+The fourth type is the tag set. A tag literal is the set with that one tag, so `UI ∪ CAI` is the set of both, and `~indicator` is the set of the mark.
+
+`tags(span)` is the tag set of the captured part. `tags(span, rule)` is the tag set that the span has when parsed as `rule`, unioned over every parse. It is empty when the span does not parse as `rule`. This is how a word looks itself up in a lexicon that is itself a set of rules. `classes(span)` keeps only the tags that begin with a capital.
 
 `∪`, `∩` and `∖` are union, intersection and difference. Each applies to two sets of one kind: two sets of strings, or two tag sets. `∩` binds tighter than `∪` and `∖`. Those two bind equally and group from the left, so `A ∖ B ∪ C` is `(A ∖ B) ∪ C`. `∅` is the empty set, and its context gives its kind. An expression whose kind nothing gives, such as `∅ = ∅`, is an error.
 

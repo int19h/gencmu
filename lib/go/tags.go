@@ -201,8 +201,10 @@ func characterOfTag(tag string, isMark func(rune) bool) (rune, bool) {
 		}
 		c = rune(v)
 	} else {
+		// An invalid byte decodes as RuneError with size 1. A correctly
+		// encoded U+FFFD decodes as RuneError with size 3 and is valid.
 		r, size := utf8.DecodeRuneInString(inner)
-		if size != len(inner) || r == utf8.RuneError {
+		if size != len(inner) || (r == utf8.RuneError && size < 3) {
 			return 0, false
 		}
 		c = r

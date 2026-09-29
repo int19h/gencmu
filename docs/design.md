@@ -109,7 +109,7 @@ A rule is a keyword, its name and its body, followed by its clauses. Each clause
   $g, /'/, $v
 ```
 
-Every binary operator can also stand first, as a no-op, so that a list can put one item on each line. The binary operators are `|` and `&` in bodies, `∪` and `∩` in terms, and `∧` and `∨` in conditions.
+Every binary operator except the difference, `∖`, can also stand first, as a no-op, so that a list can put one item on each line. These operators are `|` and `&` in bodies, `∪` and `∩` in terms, and `∧` and `∨` in conditions.
 
 A stage is several documents, read in order and stitched into one grammar. `%rule` defines a rule, and is an error if a rule of that name exists. `%redefine-rule` replaces a rule that an earlier document defined, and is an error if none did. `%extend-rule` adds alternatives to a rule defined before it, and is an error if none was.
 
@@ -121,7 +121,7 @@ This is what the dialects need. A script document adds its letters to the rules 
 
 The Zantufa syntax is a grammar of its own. Zantufa 1.9999 restates almost every rule of camxes, a PEG grammar of Lojban. So the gencmu grammar translates the Zantufa rules one by one. It uses small rules for the conditions that state the lookaheads and ordered choices of the reference.
 
-A name in upper case is a terminal that matches a token carrying that tag. A string in straight quotes, `"а"`, `"word"`, is a terminal whose tag the name syntax cannot spell. A phoneme between slashes, `/a/`, `/'/`, `/./` for a pause, is a phoneme tag. It matches like any tag, and it also says what a token that carries it sounds like, which `phonemes()` reads. Slashes mean nothing else.
+A name in upper case is a terminal that matches a token carrying that tag. A character between single quotes, `'а'`, is a character tag, which matches that character of the text. `~name` is the identifier tag `name`, for a tag that does not begin with a capital, such as `~cmavo`. A phoneme between slashes, `/a/`, `/'/`, `/./` for a pause, is a phoneme tag. It matches like any tag, and it also says what a token that carries it sounds like, which `phonemes()` reads. Slashes mean nothing else.
 
 A reference, a tag literal, a phoneme tag or a character tag can carry a spelling, the text between backticks after it, as in ``LE`la` ``. The symbol then matches only where its span sounds like the spelling, whatever the stress or the script. So a rule can name a word by its sound in its body, and not in a condition. A spelling does not replace a class, since a word that `zo` quotes has the sound but not the class.
 
@@ -235,7 +235,9 @@ CLL's own rule is narrower. It says only that a terminator can be elided if no a
 
 1. Take the `elided` nodes of the chosen tree in text order. Where several stand at one point, take the inner before the outer. For each node, insert a synthetic token before the stage-input token at the node's position. The synthetic token carries only the tag of that terminator, and is marked synthetic.
 2. Lower the same grammar again, and make mandatory every optional whose first symbol is an `%elidable` terminator. Parse the new token sequence.
-3. Build the ranking of that forest (the set of all its parses) with no lean to greedy or lazy. If the forest has exactly one derivation, the check passes. It also passes if the forest has none, since then no two restored readings exist to report. In that case, every other reading of the original input needed a terminator elided where the chosen reading did not. CLL's rule forbids that elision, because it made the text ambiguous. Otherwise, the ambiguity is not about terminators, and the result is an error of kind `ambiguous`. `ok` is false, and the error carries the two readings that the ranking reports, the chosen and the tied, shown over the original input.
+3. Build the ranking of that forest (the set of all its parses) with no lean to greedy or lazy. If the forest has exactly one derivation, the check passes. It also passes if the forest has none, since then no two restored readings exist to report. In that case, every other reading of the original input needed a terminator elided where the chosen reading did not. CLL's rule forbids that elision, because it made the text ambiguous.
+
+   Otherwise, the ambiguity is not about terminators, and the result is an error of kind `ambiguous`. `ok` is false, and the error carries the two readings that the ranking reports, the chosen and the tied, shown over the original input.
 
 The engine cases pin the definition with these cases:
 

@@ -1904,6 +1904,22 @@
 
 
   /**
+   * The forms of a term, each as its members (docs/output.md). The first
+   * member names the form.
+   */
+  const TERM_FORMS = [["union"], ["intersection"], ["difference"], ["if", "then"], ["call", "args"], ["string"], ["tag"], ["emptySet"], ["capture"]];
+
+  /**
+   * Whether a term node has exactly the members of one form, and no other.
+   * @param {Record<string, unknown>} value
+   * @returns {boolean}
+   */
+  function isTermShape(value) {
+    const form = TERM_FORMS.find((members) => members[0] in value);
+    return form !== undefined && Object.keys(value).length === form.length && form.every((member) => member in value);
+  }
+
+  /**
    * Why a value is not a grammar DOM, or null when it is one. `unicode` is
    * the lowercase mapping that spellings are checked against.
    * @param {unknown} dom
@@ -2055,6 +2071,11 @@
           push("term", value.right);
         }
       } else {
+        // A term has exactly the members of one form (docs/output.md). So a
+        // node that joins two forms, such as {"tag":…,"string":…}, is refused
+        // before it is read, and no library reads it one way where another
+        // reads it another way.
+        if (!isTermShape(value)) return "a malformed term";
         if ("if" in value) {
           if (Object.keys(value).length !== 2 || !("then" in value)) return "a malformed term";
           push("condition", value.if);

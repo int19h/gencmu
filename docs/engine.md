@@ -40,7 +40,7 @@ The input of the first stage is the characters of the text, one token for each c
 
 `tools/unicode-table.py` generates `grammars/unicode.txt` from one version of the Unicode Character Database, and the file names that version. Every library uses this file, not the Unicode data of its platform, so that the four libraries agree on every character. A character token has no phonemes.
 
-A tag set is a set of tags. A tag has no strength: a set holds it or not. The union of two sets holds every tag of either, the intersection the tags of both, and the difference the tags of the first that are not in the second.
+A tag set is a set of tags. A tag has no strength: a set holds it or not. The union holds every tag of either set. The intersection holds their shared tags. The difference holds the first set's tags that the second lacks.
 
 ## 2. Grammars
 
@@ -87,7 +87,7 @@ Lowering turns a grammar, given the set of enabled features, into a context-free
    - `A ⟹ B` becomes `B` where `A` is then true. Where `A` is false, it becomes true, as a condition, or the empty set, as a term.
    - A condition `A ⟹ B` whose `B` is then true becomes true, and one whose `B` is false becomes `¬A`.
    - Lowering reduces `¬`, `∧` and `∨` over a true or false part as logic says.
-   - Lowering drops a term's empty set, written `∅` or left by a guard, from a union. A union of nothing but empty sets is the empty set, as is an intersection with one. A difference whose first part is the empty set is the empty set, and one whose second part is the empty set is its first part. A guarded term whose term is the empty set is the empty set.
+   - Lowering drops a term's empty set, written `∅` or left by a guard, from a union. A union of nothing but empty sets is the empty set, as is an intersection with one. A difference whose first part is empty is empty. If its second part is empty, the difference is its first part. A guarded term whose term is the empty set is the empty set.
 
    Since the engine never evaluates a reduced part, the reduction is part of the order of evaluation (§10). A capture that is still mentioned after simplification is used by the clause. Then the simplified clauses attach as follows:
 
@@ -220,7 +220,9 @@ The stage puts the derivations in a canonical order, *T*, and it chooses the fir
 
 *T* is lexicographic on the visible sequences and then on the whole ones, so it is a total order. The chosen derivation, `m`, is its least element, whatever the verdict.
 
-Nothing beats `m`, since whatever beats a derivation precedes it in *T*. A derivation is undominated when no derivation beats it. So an undominated derivation other than `m` is tied with `m`: its first difference with `m` is a tie. The converse does not hold. For example, take `text → A C D | p D | B q`, `p → B C` and `q → C D`, over the tokens `A B`, `C` and `D`. Under `greedy`, `m` reads the first token as `A`. The derivation through `p` is tied with it, but loses to the one through `q`, which reads `D` where it closes `p`.
+Nothing beats `m`, since whatever beats a derivation precedes it in *T*. A derivation is undominated when no derivation beats it. So an undominated derivation other than `m` is tied with `m`: its first difference with `m` is a tie. The converse does not hold.
+
+For example, take `text → A C D | p D | B q`, `p → B C` and `q → C D`, over the tokens `A B`, `C` and `D`. Under `greedy`, `m` reads the first token as `A`. The derivation through `p` is tied with it, but loses to the one through `q`, which reads `D` where it closes `p`.
 
 Of the derivations tied with `m`, the tied derivation reported beside `m` is the one that diverges from `m` earliest. It has the fewest visible actions before its first visible difference with `m`. A derivation whose visible sequence is a proper prefix or an extension of `m`'s diverges where the shorter ends. One whose visible sequence equals `m`'s diverges last. Several that diverge at the same point are ordered by *T*. That derivation, `t`, is undominated.
 
@@ -309,18 +311,18 @@ A rule with any other name makes no node of the DOM. The reader reads its childr
 - A capture whose name has a capital. Capture names are all lower case.
 - `$` wrapping anything.
 - A capture name used twice in one alternative.
-- A spelling after `#`, reported at the spelling. The syntax grammar gives a spelling to nothing but a reference, a tag literal, a character tag or a phoneme tag, and `#` is a reference there.
+- A spelling after `#`, reported at the spelling. The syntax grammar permits a spelling on a reference, a tag literal, a character tag or a phoneme tag. There, `#` is a reference.
 - A spelling with a code point that `lowercase` (§10) changes, reported at the spelling. The match ignores stress, so ``LE`La` `` is an error.
 - A spelling that is empty, reported at the spelling.
 - A function that does not exist, or one called with the wrong arguments. `phonemes`, `text`, `runs`, `classes`, `head`, `tail`, `last`, `from` and `after` take one span. `lowercase` takes one string. `tags` takes a span and optionally a rule name. `matches` and `begins` take a span and a rule name, and `initial` takes one span.
 
   In these signatures, a span is a capture or `head`, `tail`, `last`, `from` or `after` of one. A string is a term whose type is string (§10).
-- A term or a condition whose types do not agree, as §10 gives them. So `"a" ∈ tags($x)` and `phonemes($x) = ~a` are errors, and so is `∅ = ∅`, whose kind nothing gives. The reader reports the error at the smallest construct whose parts disagree. That is a union with its differences, an intersection, a guarded term, a call or a comparison, or else the whole tag term of a clause or an item.
+- A term or a condition whose types do not agree, as §10 gives them. So `"a" ∈ tags($x)` and `phonemes($x) = ~a` are errors, and so is `∅ = ∅`, whose kind nothing gives. The reader reports the error at the smallest construct whose parts disagree. That construct is a union with its differences, an intersection, a guarded term, a call or a comparison. Otherwise, it is the whole tag term of a clause or an item.
 - A span where a value is needed: a capture, `$`, or `head`, `tail`, `last`, `from` or `after`. The reader reports it at the span.
 - A bare name that does not begin with a capital, where a value is needed. Such a name is a rule, and a rule is only the second argument of `tags`, `matches` or `begins`.
 - `matches`, `begins` or `initial` as a term.
 - An `&` of more than 16 items.
-- An expression, a term or a condition nested more than 256 deep. That is, in the DOM (docs/output.md), a node of one lies below more than 256 compound nodes of it. In an expression, the compound nodes are `optional`, `repeat`, `and`, `choice`, `seq`, `capture` and `spelling`. In a term, they are `union`, `intersection`, `if` and `call`. In a condition, they are `any`, `all`, `not`, `if`, `matches`, `begins`, `initial` and a comparison.
+- An expression, a term or a condition nested more than 256 deep. That is, in the DOM (docs/output.md), a node of one lies below more than 256 compound nodes of it. In an expression, the compound nodes are `optional`, `repeat`, `and`, `choice`, `seq`, `capture` and `spelling`. In a term, they are `union`, `intersection`, `difference`, `if` and `call`. In a condition, they are `any`, `all`, `not`, `if`, `matches`, `begins`, `initial` and a comparison.
 
   The condition of a guarded term counts on from the term's depth, as a comparison's terms count on from the condition's. `( )` makes no node, so it adds nothing. So 256 nested `[ ]` around a symbol are allowed, and 257 are not.
 - `$` with items other than `$`.
@@ -379,7 +381,7 @@ A term has one of four types: a string, a set of strings, a tag set or a span. N
 | `runs(s)` | set of strings | §5 |
 | `$x`, `$`, `head(s)` and the other span functions | span | the argument of a function, never a value |
 
-`∩` binds tighter than `∪` and `∖`. Those two bind equally and group from the left, so `a ∖ b ∪ c` is `(a ∖ b) ∪ c`. `∅` takes its kind from the other side of its operator or comparison, or from the tag set that a tag term, a guarded term or an emission item needs. An expression whose kind nothing gives is an error of the document.
+`∩` binds tighter than `∪` and `∖`. Those two bind equally and group from the left, so `a ∖ b ∪ c` is `(a ∖ b) ∪ c`. `∅` takes its kind from the other side of its operator or comparison. A tag term, guarded term or emission item also gives it the required tag-set type. An expression whose kind nothing gives is an error of the document.
 
 `a = b` and `a ≠ b` compare two strings, two sets of strings or two tag sets. Any other pair is an error of the document. `a ∈ b` and `a ∉ b` test a string in a set of strings. `a ⊆ b` tests that every member of `a` is in `b`, and `a ⊈ b` that one is not. Both sides are sets of one kind. `matches(s, R)` holds when the span parses as `R`, and `begins(s, R)` when a prefix of it does, the empty prefix included.
 

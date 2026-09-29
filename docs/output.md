@@ -34,7 +34,9 @@ A token has this form:
 {"text":"mi","phonemes":"mi","tags":["KOhA","UI","word"],"span":[0,2],"source":[0,2]}
 ```
 
-`tags` lists every tag once, in code point order. A tag is written in its canonical spelling (engine §1), so a character tag is `'a'`, and a combining acute accent is `'\u{301}'`. `phonemes` is always present, the empty string for a token with none (engine §5). `"verbatim":true` follows `source` for a verbatim token, and is absent for any other (engine §11). The phonemes of a verbatim token are its text, which can hold any character. `insertedBy` follows `source` for a token that was inserted from a tag literal (engine §1). Its value is the name of the rule that inserted the token.
+`tags` lists every tag once, in code point order. A tag is written in its canonical spelling (engine §1), so a character tag is `'a'`, and a combining acute accent is `'\u{301}'`. `phonemes` is always present, the empty string for a token with none (engine §5). `"verbatim":true` follows `source` for a verbatim token, and is absent for any other (engine §11). The phonemes of a verbatim token are its text, which can hold any character.
+
+`insertedBy` follows `source` for a token that was inserted from a tag literal (engine §1). Its value is the name of the rule that inserted the token.
 
 A node has one of these forms:
 
@@ -99,9 +101,13 @@ An expression is one of these forms:
 {"empty":true}
 ```
 
-`terminal` holds a tag in its canonical spelling (engine §1): a name from `~name`, a phoneme tag `/p/`, or a character tag such as `'a'`. A bare name is a `ref`, whether it names a rule or, with a capital, a terminal. A spelled symbol has no member but `spelling` and `expr`. Its `expr` is a `ref` other than `#`, or a `terminal`, with no other member. Its `spelling` is the text between the backticks, so it holds no backtick. The spelling is never empty, and `lowercase` does not change it (engine §9). A capture's `expr` is a `ref`, a `terminal` or a spelled symbol.
+`terminal` holds a tag in its canonical spelling (engine §1): a name from `~name`, a phoneme tag `/p/`, or a character tag such as `'a'`. A bare name is a `ref`, whether it names a rule or, with a capital, a terminal.
 
-A term is `{"string":"s"}`, `{"tag":"KOhA"}`, `{"emptySet":true}`, `{"union":[TERM...]}`, `{"intersection":[TERM...]}`, `{"difference":[TERM,TERM]}`, `{"if":COND,"then":TERM}` or `{"call":"phonemes","args":[ARG...]}`. `string` holds the decoded string. `tag` holds one tag in its canonical spelling, from a tag literal, a bare name with a capital, a phoneme tag or a character tag. `difference` has exactly two parts, and `a ∖ b ∖ c` nests the first difference in the second. An argument is a span or a term. For `tags`, `matches` and `begins`, an argument can also be a rule name, `{"rule":"lexicon"}`. A span is `{"capture":"x"}`, `{"capture":""}` for `$`, or `{"call":"head","args":[SPAN]}`. `tail`, `last`, `from` and `after` have the same form as `head`.
+A spelled symbol has no member but `spelling` and `expr`. Its `expr` is a `ref` other than `#`, or a `terminal`, with no other member. Its `spelling` is the text between the backticks, so it holds no backtick. The spelling is never empty, and `lowercase` does not change it (engine §9). A capture's `expr` is a `ref`, a `terminal` or a spelled symbol.
+
+A term is `{"string":"s"}`, `{"tag":"KOhA"}`, `{"emptySet":true}`, `{"union":[TERM...]}`, `{"intersection":[TERM...]}`, `{"difference":[TERM,TERM]}`, `{"if":COND,"then":TERM}` or `{"call":"phonemes","args":[ARG...]}`. `string` holds the decoded string. `tag` holds one tag in its canonical spelling, from a tag literal, a bare name with a capital, a phoneme tag or a character tag. `difference` has exactly two parts, and `a ∖ b ∖ c` nests the first difference in the second. A term has no member but those of its one form.
+
+An argument is a span or a term. For `tags`, `matches` and `begins`, an argument can also be a rule name, `{"rule":"lexicon"}`. A span is `{"capture":"x"}`, `{"capture":""}` for `$`, or `{"call":"head","args":[SPAN]}`. `tail`, `last`, `from` and `after` have the same form as `head`.
 
 A condition is one of these forms:
 

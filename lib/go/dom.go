@@ -669,10 +669,42 @@ func decodeExpr(raw json.RawMessage) (*domExpr, error) {
 	return nil, fmt.Errorf("unknown expression %s", string(raw))
 }
 
+// termForms are the forms of a term, each as its members (docs/output.md).
+// The first member names the form. A rule argument is one too.
+var termForms = [][]string{
+	{tmUnion}, {tmIntersection}, {tmDifference}, {tmIf, "then"}, {tmCall, "args"},
+	{tmString}, {tmTag}, {tmEmptySet}, {tmCapture}, {tmRule},
+}
+
+// isTermShape says whether a term has exactly the members of one form, and
+// no other. So a node that joins two forms, such as {"tag":…,"string":…},
+// is refused before it is read, and no library reads it one way where
+// another reads it another way.
+func isTermShape(o jobj) bool {
+	for _, form := range termForms {
+		if _, ok := o[form[0]]; !ok {
+			continue
+		}
+		if len(o) != len(form) {
+			return false
+		}
+		for _, member := range form {
+			if _, ok := o[member]; !ok {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
 func decodeTerm(raw json.RawMessage) (*domTerm, error) {
 	o, err := decodeObj(raw)
 	if err != nil {
 		return nil, err
+	}
+	if !isTermShape(o) {
+		return nil, fmt.Errorf("a malformed term")
 	}
 	for _, k := range []string{tmString, tmTag, tmCapture, tmRule} {
 		if v, ok := o[k]; ok {

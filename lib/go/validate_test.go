@@ -55,6 +55,12 @@ func TestDOMRules(t *testing.T) {
 		{"a rule's name is a name", strings.Replace(alt(good), `"name":"text"`, `"name":"9x"`, 1)},
 		{"a rule's name is a name or #", strings.Replace(alt(good), `"name":"text"`, `"name":"##"`, 1)},
 		{"op is define, redefine or extend", strings.Replace(alt(good), `"define"`, `"replace"`, 1)},
+		// A compared term has exactly the members of one form, in either
+		// order: read as the string, either would reject "ab".
+		{"a compared tag that is also a string", cond(`{"op":"=","left":{"call":"text","args":[{"capture":"x"}]},"right":{"tag":"Bad","string":"wrong"}}`)},
+		{"a compared string that is also a tag", cond(`{"op":"=","left":{"call":"text","args":[{"capture":"x"}]},"right":{"string":"wrong","tag":"Bad"}}`)},
+		{"a difference that is also a union", tagged(`{"difference":[{"tag":"X"},{"tag":"Y"}],"union":[{"tag":"X"},{"tag":"Y"}]}`)},
+		{"a union that is also a difference", tagged(`{"union":[{"tag":"X"},{"tag":"Y"}],"difference":[{"tag":"X"},{"tag":"Y"}]}`)},
 		// A definition as a whole (engine §9, the end).
 		{"a mentioned capture is captured", cond(`{"matches":{"capture":"z"},"rule":"text"}`)},
 		{"a tested capture is captured", cond(`{"captured":"z"}`)},
@@ -221,6 +227,7 @@ func TestDOMRules(t *testing.T) {
 		directive(`{"name":"elidable","args":["KU","ku"],"at":[3,1]}`),
 		// Terms of each type where they agree, and canonical tags.
 		tagged(`{"difference":[{"tag":"X"},{"tag":"Y"}]}`), tagged(`{"tag":"'\\u{5C}'"}`),
+		cond(`{"op":"=","left":{"call":"text","args":[{"capture":"x"}]},"right":{"string":"wrong"}}`),
 		alt(`{"seq":[{"terminal":"'é'"},{"terminal":"'\\u{301}'"}]}`), emit(`{"items":[{"insert":"'a'"},{"capture":"x"}]}`),
 		cond(`{"op":"∈","left":{"call":"text","args":[{"capture":"x"}]},"right":{"call":"runs","args":[{"capture":"x"}]}}`),
 		cond(`{"op":"⊈","left":{"tag":"a"},"right":{"call":"tags","args":[{"capture":"x"}]}}`),

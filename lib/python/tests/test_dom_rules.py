@@ -185,6 +185,20 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("a difference of three parts", set_tags({"difference": [TAG, TAG, TAG]})),
     ("a difference of one part", set_tags({"difference": [TAG]})),
     ("a character tag not in its canonical spelling", set_tags({"tag": "'\\'"})),
+    # A term has exactly the members of one form, in either order.
+    ("a string that is also a tag", set_condition({"op": "=", "left": {"call": "phonemes", "args": [X]}, "right": {"string": "wrong", "tag": "Bad"}})),
+    ("a tag that is also a string", set_condition({"op": "=", "left": {"call": "phonemes", "args": [X]}, "right": {"tag": "Bad", "string": "wrong"}})),
+    ("a tag of ! that is also a string", set_tags({"tag": "!", "string": "x"})),
+    ("a string that is also a tag of !", set_tags({"string": "x", "tag": "!"})),
+    ("a difference that is also a union", set_tags({"difference": [TAG, TAG], "union": [TAG, TAG]})),
+    ("a union that is also a difference", set_tags({"union": [TAG, TAG], "difference": [TAG, TAG]})),
+    ("a difference that is also an intersection", set_tags({"difference": [TAG, TAG], "intersection": [TAG, TAG]})),
+    ("a difference that is also a tag", set_tags({"difference": [TAG, TAG], "tag": "b"})),
+    ("a tag that is also a difference", set_tags({"tag": "b", "difference": [TAG, TAG]})),
+    ("a span that is also a tag", set_tags({"call": "tags", "args": [{"capture": "x", "tag": "b"}]})),
+    ("a call that is also a string", set_condition({"op": "=", "left": {"call": "phonemes", "args": [X], "string": "a"}, "right": STR})),
+    ("a guarded term that is also a tag", set_tags({"if": SAME, "then": TAG, "tag": "b"})),
+    ("an empty set that is also a tag", set_tags({"union": [{"emptySet": True, "tag": "b"}, TAG]})),
     ("a terminal that is no tag", set_expr({"capture": "x", "expr": {"terminal": "é"}})),
     ("a terminal of two characters", set_expr({"capture": "x", "expr": {"terminal": "'ab'"}})),
     ("a capture name with a capital", set_expr({"capture": "X", "expr": A})),
@@ -323,6 +337,37 @@ class PrecompiledDomRules(unittest.TestCase):
         sources = {"p.md": PIPELINE, "g.md": DOCUMENT, "h.md": NEXT, "notation/bootstrap.json": json.dumps(bootstrap)}
         with self.assertRaises(gencmu.GencmuError):
             gencmu.load_dialect_sources(sources, "p.md", use_cache=False)
+
+    def test_a_bootstrap_term_of_two_forms_is_an_error(self) -> None:
+        """A term in the bootstrap that joins the members of two forms, or
+        a malformed difference, is a GencmuError."""
+
+        def tagged(term: Any) -> str:
+            # Give the first alternative of the bootstrap a tag term.
+            bootstrap = json.loads(bundled_text("notation/bootstrap.json") or "{}")
+            bootstrap["stages"][0]["documents"][0]["dom"]["rules"][0]["alternatives"][0]["tags"] = term
+            return json.dumps(bootstrap)
+
+        def refused(bootstrap: str) -> bool:
+            sources = {"p.md": PIPELINE, "g.md": DOCUMENT, "h.md": NEXT, "notation/bootstrap.json": bootstrap}
+            try:
+                gencmu.load_dialect_sources(sources, "p.md", use_cache=False)
+            except gencmu.GencmuError as error:
+                return error.document == "notation/bootstrap.json"
+            return False
+
+        self.assertFalse(refused(tagged({"tag": "B"})))
+        self.assertFalse(refused(tagged({"difference": [{"tag": "B"}, {"tag": "C"}]})))
+        for term in (
+            {"tag": "!", "string": "x"},
+            {"string": "x", "tag": "!"},
+            {"difference": [{"tag": "B"}, {"tag": "C"}], "union": [{"tag": "B"}, {"tag": "C"}]},
+            {"union": [{"tag": "B"}, {"tag": "C"}], "difference": [{"tag": "B"}, {"tag": "C"}]},
+            {"difference": [{"tag": "B"}, {"tag": "C"}], "tag": "B"},
+            {"difference": [{"tag": "B"}]},
+        ):
+            with self.subTest(term=term):
+                self.assertTrue(refused(tagged(term)))
 
     def test_a_refused_bootstrap_spelling_is_an_error(self) -> None:
         """A spelling in the bootstrap that the reader would refuse is a
