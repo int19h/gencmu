@@ -98,10 +98,12 @@ pub(crate) enum LCond {
 
 #[derive(Debug, Clone)]
 pub(crate) enum LEmitItem {
-    /// A capture, emitted over its part with the item's tags or the part's.
-    Cap(u8, Option<LTerm>),
-    /// An inserted tag, anchored at the start of the part of the capture
-    /// listed next after it, or at the constituent's end if none is.
+    /// A capture, emitted over its part with the item's tags or the part's,
+    /// with the captures of its attachments before it and after it (§11).
+    Cap(u8, Option<LTerm>, Box<[u8]>, Box<[u8]>),
+    /// An inserted tag, anchored at the start of the first written part of
+    /// the capture item listed next after it, or at the constituent's end
+    /// if none is.
     Insert(String, Option<u8>),
 }
 
@@ -869,12 +871,13 @@ pub(crate) fn lower(
             production.emit = match &alternative.emit {
                 None => LEmit::None,
                 Some(items) => {
-                    // An item naming a capture the production lacks is
-                    // dropped (§3.6).
+                    // An item whose carrier the production lacks is
+                    // dropped, and so is each attachment capture it lacks
+                    // (§3.6).
                     let items: Vec<&EmitItem> = items
                         .iter()
                         .filter(|item| match item {
-                            EmitItem::Capture(name, _) => has(name),
+                            EmitItem::Capture(name, ..) => has(name),
                             EmitItem::Insert(_) => true,
                         })
                         .collect();
@@ -882,7 +885,7 @@ pub(crate) fn lower(
                         term.as_ref().and_then(|term| scope.term(&simplify_value(term, &has)).ok())
                     };
                     let whole = |item: &&EmitItem| match item {
-                        EmitItem::Capture(name, _) => name.is_empty(),
+                        EmitItem::Capture(name, ..) => name.is_empty(),
                         EmitItem::Insert(_) => false,
                     };
                     if items.is_empty() {
@@ -892,7 +895,7 @@ pub(crate) fn lower(
                             items
                                 .iter()
                                 .map(|item| match item {
-                                    EmitItem::Capture(_, tags) => item_tags(tags),
+                                    EmitItem::Capture(_, tags, ..) => item_tags(tags),
                                     _ => None,
                                 })
                                 .collect(),
@@ -902,14 +905,25 @@ pub(crate) fn lower(
                         let mut lowered = Vec::with_capacity(items.len());
                         for (index, item) in items.iter().enumerate() {
                             lowered.push(match item {
-                                EmitItem::Capture(name, tags) => {
-                                    LEmitItem::Cap(slot(name).expect("a capture the production has"), item_tags(tags))
+                                EmitItem::Capture(name, tags, attachments) => {
+                                    let slots = |names: &[String]| names.iter().filter_map(|name| slot(name)).collect();
+                                    LEmitItem::Cap(
+                                        slot(name).expect("a capture the production has"),
+                                        item_tags(tags),
+                                        slots(&attachments.before),
+                                        slots(&attachments.after),
+                                    )
                                 }
                                 EmitItem::Insert(tag) => {
-                                    // The anchor is the capture listed next
-                                    // after the tag (§11).
+                                    // The anchor is the first written part
+                                    // of the capture item listed next after
+                                    // the tag: its first before-attachment
+                                    // that the production has, or else its
+                                    // carrier (§11).
                                     let anchor = items[index + 1..].iter().find_map(|item| match item {
-                                        EmitItem::Capture(name, _) => slot(name),
+                                        EmitItem::Capture(name, _, attachments) => {
+                                            attachments.before.iter().find_map(|name| slot(name)).or_else(|| slot(name))
+                                        }
                                         EmitItem::Insert(_) => None,
                                     });
                                     LEmitItem::Insert(tag.clone(), anchor)

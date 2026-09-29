@@ -1,0 +1,22 @@
+{
+  "description": "An inserted token is made when its item's turn comes, after the items before it and their attachments. Here the attachment's tag term fails, and so does the inserted /a/, which an implication gives a second phoneme tag. The attachment's error comes first and ends the emission (engine §11).",
+  "grammar": "%implies /a/ ⟹ /e/\n%rule text $b(bad) $w(word)\n%emits\n  ($b) $w, /a/\n%rule word\n  '1'\n%rule bad\n  '?'\n%emits\n  $ <tag(text($))>",
+  "input": "?1",
+  "expect": {
+    "error": "grammar",
+    "result": {
+      "format": 6,
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "error": {
+        "kind": "grammar",
+        "stage": "main"
+      }
+    }
+  }
+}

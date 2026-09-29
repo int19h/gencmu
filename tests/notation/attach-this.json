@@ -1,0 +1,10 @@
+{
+  "description": "An attachment holds a named capture, never $; the error is at the attachment (engine §9).",
+  "document": "```jbogenbau\n%rule a $w(W) %emits ($) $w\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 22
+    }
+  }
+}

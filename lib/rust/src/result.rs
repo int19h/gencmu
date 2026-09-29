@@ -28,6 +28,125 @@ pub struct Token {
     pub source: Range<usize>,
     /// For a token an emission clause inserted, the rule whose clause it is.
     pub inserted_by: Option<String>,
+    /// The tokens attached before this one (engine §11), which no later
+    /// stage reads. Empty unless an emission gave the token attachments.
+    pub before: Vec<Attachment>,
+    /// The tokens attached after this one (engine §11).
+    pub after: Vec<Attachment>,
+}
+
+/// A token attached to another (engine §11). It is a token without a span,
+/// since its span would count the input of the stage that attached it.
+///
+/// Attachments can nest as deep as a text is long, so dropping, cloning,
+/// comparing and showing one never recurse.
+pub struct Attachment {
+    /// The original text over [`source`](Attachment::source).
+    pub text: String,
+    /// What the token sounds like (engine §5), if anything.
+    pub phonemes: Option<String>,
+    /// What the token shows to people (engine §5).
+    pub label: String,
+    /// The token's tags.
+    pub tags: Tags,
+    /// The range of the original text this token covers, in code points.
+    pub source: Range<usize>,
+    /// For a token an emission clause inserted, the rule whose clause it is.
+    pub inserted_by: Option<String>,
+    /// The tokens attached before this one.
+    pub before: Vec<Attachment>,
+    /// The tokens attached after this one.
+    pub after: Vec<Attachment>,
+}
+
+impl Attachment {
+    fn shallow(&self) -> Attachment {
+        Attachment {
+            text: self.text.clone(),
+            phonemes: self.phonemes.clone(),
+            label: self.label.clone(),
+            tags: self.tags.clone(),
+            source: self.source.clone(),
+            inserted_by: self.inserted_by.clone(),
+            before: Vec::new(),
+            after: Vec::new(),
+        }
+    }
+
+    fn same_shallow(&self, other: &Attachment) -> bool {
+        self.text == other.text
+            && self.phonemes == other.phonemes
+            && self.label == other.label
+            && self.tags == other.tags
+            && self.source == other.source
+            && self.inserted_by == other.inserted_by
+            && self.before.len() == other.before.len()
+            && self.after.len() == other.after.len()
+    }
+}
+
+impl Drop for Attachment {
+    fn drop(&mut self) {
+        let mut stack = std::mem::take(&mut self.before);
+        stack.append(&mut self.after);
+        while let Some(mut attachment) = stack.pop() {
+            stack.append(&mut attachment.before);
+            stack.append(&mut attachment.after);
+        }
+    }
+}
+
+impl Clone for Attachment {
+    fn clone(&self) -> Attachment {
+        // Copy each attachment once its own attachments are copied: a
+        // copy's attachments are the last copies made, in order.
+        enum Step<'a> {
+            Enter(&'a Attachment),
+            Leave(&'a Attachment),
+        }
+        let mut steps = vec![Step::Enter(self)];
+        let mut copies: Vec<Attachment> = Vec::new();
+        while let Some(step) = steps.pop() {
+            match step {
+                Step::Enter(attachment) => {
+                    steps.push(Step::Leave(attachment));
+                    steps.extend(attachment.before.iter().chain(&attachment.after).rev().map(Step::Enter));
+                }
+                Step::Leave(attachment) => {
+                    let mut copy = attachment.shallow();
+                    copy.after = copies.split_off(copies.len() - attachment.after.len());
+                    copy.before = copies.split_off(copies.len() - attachment.before.len());
+                    copies.push(copy);
+                }
+            }
+        }
+        copies.pop().expect("the copy")
+    }
+}
+
+impl PartialEq for Attachment {
+    fn eq(&self, other: &Attachment) -> bool {
+        let mut stack = vec![(self, other)];
+        while let Some((a, b)) = stack.pop() {
+            if !a.same_shallow(b) {
+                return false;
+            }
+            stack.extend(a.before.iter().zip(&b.before).chain(a.after.iter().zip(&b.after)));
+        }
+        true
+    }
+}
+
+impl Eq for Attachment {}
+
+impl fmt::Debug for Attachment {
+    /// Writes the attachment as its canonical JSON, which needs no
+    /// recursion.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut out = String::new();
+        crate::output::write_attachment(&mut out, self);
+        f.write_str(&out)
+    }
 }
 
 /// What kind of node a [`Node`] is.

@@ -1,0 +1,10 @@
+{
+  "description": "An alternative has at most four captures (engine §3.5, §9); the error is at the fifth capture.",
+  "document": "```jbogenbau\n%rule a $a(A) $b(B) $c(C) $d(D) $e(E)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 33
+    }
+  }
+}

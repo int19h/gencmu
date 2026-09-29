@@ -5,6 +5,7 @@
 use crate::fxhash::{FxMap, FxSet};
 
 use crate::lower::{Characters, CmpOp, LCond, LTerm, Lowered, Span, Sym, SymbolTest, TestOp};
+use crate::result::Attachment;
 use crate::tags::{character_tag, difference, intersection, is_name, is_subset, union, SetId, TagId, TagList, Tags};
 use crate::unicode::Unicode;
 
@@ -40,6 +41,17 @@ pub(crate) struct Tok {
     /// Its phonemes in canonical form, for the sound tests of symbols and for
     /// `phonemes()`, computed when one first looks at the token (§4, §5).
     pub sound: std::cell::OnceCell<Box<str>>,
+    /// The tokens attached before it and after it (§11), which no grammar
+    /// operation sees: only emission forwards them.
+    pub before: Vec<Attachment>,
+    pub after: Vec<Attachment>,
+}
+
+impl Tok {
+    /// Whether the token has attachments (§11).
+    pub(crate) fn has_attachments(&self) -> bool {
+        !self.before.is_empty() || !self.after.is_empty()
+    }
 }
 
 impl Tok {

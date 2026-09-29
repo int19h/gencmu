@@ -1,7 +1,15 @@
 import type { TagSet, Span } from "./types.js";
 import type { UnicodeTable } from "./unicode.js";
+export type AttachedToken = Omit<Token, "span">;
 /** @import { TagSet, Span } from "./types.js" */
 /** @import { UnicodeTable } from "./unicode.js" */
+/**
+ * A token attached to another (engine §11): a token with no span, since its
+ * span counts the input of the stage that attached it.
+ * @typedef {Omit<Token, "span">} AttachedToken
+ */
+/** @type {AttachedToken[]} */
+export declare const NO_ATTACHMENTS: AttachedToken[];
 export declare class Token {
     tags: TagSet;
     span: Span;
@@ -10,6 +18,16 @@ export declare class Token {
     phonemes: string | null;
     insertedBy: string | undefined;
     label: string;
+    /**
+     * The tokens attached before this one (engine §11), none by default.
+     * @type {AttachedToken[]}
+     */
+    before: AttachedToken[];
+    /**
+     * The tokens attached after this one (engine §11), none by default.
+     * @type {AttachedToken[]}
+     */
+    after: AttachedToken[];
     /**
      * @param {TagSet} tags
      * @param {Span} span the tokens of the stage before it this token covers
@@ -23,6 +41,18 @@ export declare class Token {
      */
     constructor(tags: TagSet, span: Span, source: Span, text: string, phonemes: string | null, insertedBy: string | undefined, label?: string);
 }
+/**
+ * Whether a token has attachments (engine §11).
+ * @param {AttachedToken} token
+ * @returns {boolean}
+ */
+export declare function hasAttachments(token: AttachedToken): boolean;
+/**
+ * A token as an attachment: the same token without its span (engine §11).
+ * @param {Token} token
+ * @returns {AttachedToken}
+ */
+export declare function attached(token: Token): AttachedToken;
 export declare class Sources {
     tokens: Token[];
     /**

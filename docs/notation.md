@@ -369,6 +369,25 @@ An item can also be a single tag literal: an identifier tag, a phoneme tag or a 
 
 `%emits ε` hands on nothing, and it does more: the constituent does not count. So nothing in it is part of what a token over it sounds like. That is what an erased stretch of text is. `broda brode si bu` hands on the letter word `broda bu` (`si` erases the word before it). Its token covers `brode si` too, because a `si` erasure can stand between a word and its `bu`. But the token does not sound like `brode si`.
 
+A capture item can carry attachments: other tokens that belong to its token, which no later stage reads. Each attachment is a capture in parentheses, before the item or after it, and an item can have any number on each side. The item's own capture is its carrier, and it must be a named capture. Neither a `$` item nor an inserted tag can name attachment captures. `($)` is an error.
+
+```jbogenbau
+%rule item
+  | $w(unit) | $b(bahe-run) $w(unit) | $w(unit) $a(indicator-run) | $b(bahe-run) $w(unit) $a(indicator-run)
+%tags
+  tags($w)
+%emits
+  ($b) $w ($a)
+```
+
+The carrier's token covers its own capture only. An attachment is the list of tokens that its captured part hands on, as if the stage walked that part. So `mi ui klama` hands on `mi` with `ui` attached after it, and the next stage reads `mi klama`. The carrier does not run the emission of its own part. So a structure inside the carrier's part stays only where the item captures it separately.
+
+An attachment capture stands in exactly one item, and never as an item of its own. An alternative without the carrier emits nothing for the item, and it must also lack the item's attachment captures. The captures of an emission, attachments included, must be written in the order that they stand in the text. Where an alternative lacks an attachment capture, the item has one attachment fewer.
+
+A token that the next stage forwards keeps its attachments. A token over exactly one input token with attachments inherits them, whatever tags it gets. A token over an input token with attachments and any other part that counts is an error. Such a token cannot say which part each attachment belongs to. An input token with attachments under two tokens, as under `$ <t>, $ <u>`, is an error too.
+
+No condition, test or function sees attachments, and neither does a terminal. The renderings show them with their token.
+
 A part that the list of a rule merely does not name is not handed on, but it still counts. For example, a pause inside a quote is part of what a compound over the quote sounds like. A rule with no `%emits` that happens to hand on nothing, as a gap does, counts as well. Only `ε` says that text does not count.
 
 ```jbogenbau

@@ -1,0 +1,76 @@
+{
+  "description": "A terminal can be named before: the brackets show the token's attachments as for any terminal (docs/output.md).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text item ...\n%rule item\n  | $w(word) | $w(word) $a(ii)\n%emits\n  $w ($a)\n%rule word\n  'w' <~before>\n%rule ii\n  'i' <I>\n%emits\n  $\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ~before ...\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "wiw",
+  "expect": {
+    "result": {
+      "format": 6,
+      "ok": true,
+      "stages": [
+        {
+          "name": "a",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "w",
+              "phonemes": "",
+              "label": "w",
+              "tags": [
+                "before"
+              ],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ],
+              "after": [
+                {
+                  "text": "i",
+                  "phonemes": "",
+                  "label": "i",
+                  "tags": [
+                    "I"
+                  ],
+                  "source": [
+                    1,
+                    2
+                  ]
+                }
+              ]
+            },
+            {
+              "text": "w",
+              "phonemes": "",
+              "label": "w",
+              "tags": [
+                "before"
+              ],
+              "span": [
+                2,
+                3
+              ],
+              "source": [
+                2,
+                3
+              ]
+            }
+          ]
+        },
+        {
+          "name": "b",
+          "verdict": "unique",
+          "output": []
+        }
+      ]
+    },
+    "brackets": "([w i] w)"
+  }
+}

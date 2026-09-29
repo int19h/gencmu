@@ -431,10 +431,20 @@ func (d *Dialect) Parse(text string, options ParseOptions) (*ParseResult, error)
 // Source ranges index, in code points.
 // Each token's Source must lie within the text, in order: a token may not
 // start before the one before it ends. A token that the caller supplies has
-// its Text as its label (engine §5), whatever its Label says.
+// its Text as its label (engine §5), whatever its Label says. It cannot
+// supply attachments: a token with a non-empty Before or After is a usage
+// error, and empty ones are dropped (docs/api.md). The parse copies the
+// tokens and leaves the caller's unchanged.
 func (d *Dialect) ParseTokens(text string, tokens []Token, options ParseOptions) (*ParseResult, error) {
 	if err := textProblem(text); err != nil {
 		return nil, err
+	}
+	// A caller cannot supply attachments: a list that is not empty is the
+	// caller's mistake, and an empty one is dropped (docs/api.md).
+	for i := range tokens {
+		if hasAttachments(&tokens[i]) {
+			return nil, &Error{Kind: ErrorUsage, Message: fmt.Sprintf("token %d has attachments, which a caller cannot supply", i)}
+		}
 	}
 	runes := []rune(text)
 	end := 0
@@ -449,6 +459,7 @@ func (d *Dialect) ParseTokens(text string, tokens []Token, options ParseOptions)
 	own := make([]Token, len(tokens))
 	for i, t := range tokens {
 		t.Label = t.Text
+		t.Before, t.After = nil, nil
 		own[i] = t
 	}
 	return d.parse(runes, own, options)

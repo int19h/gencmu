@@ -390,7 +390,7 @@ fn results_outlive_the_dialect_and_cross_threads() {
         dialect.parse(&text, &ParseOptions::default()).unwrap()
     };
     let json = std::thread::spawn(move || gencmu::to_json(&result)).join().unwrap();
-    assert!(json.starts_with("{\"format\":5,\"ok\":true"));
+    assert!(json.starts_with("{\"format\":6,\"ok\":true"));
 
     let dialect = std::sync::Arc::new(gencmu::load_dialect("notation").unwrap());
     let threads: Vec<_> = (0..4)
@@ -464,6 +464,51 @@ fn deep_tokens_and_ties_do_not_overflow() {
         assert_eq!(result.stages[0].verdict, Some(Verdict::Tie));
         assert!(result.stages[0].tied.is_some());
         let _ = gencmu::to_json(&result);
+    });
+}
+
+#[test]
+fn deep_attachments_do_not_overflow() {
+    small_stack(|| {
+        // Each w carries the rest of the text as its after-attachment, so
+        // the attachments nest as deep as the text is long.
+        let mut sources = BTreeMap::new();
+        sources.insert(
+            "p.md".to_string(),
+            "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n".to_string(),
+        );
+        sources.insert(
+            "a.md".to_string(),
+            grammar("%ambiguity-resolution greedy\n%rule text\n  | $w(word) | $w(word) $a(text)\n%emits\n  $w ($a)\n%rule word\n  'w' <W>"),
+        );
+        sources.insert("b.md".to_string(), grammar("%ambiguity-resolution greedy\n%rule text W"));
+        let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
+        let count = 1500;
+        let result = dialect.parse(&"w".repeat(count), &no_auto()).unwrap();
+        assert!(result.ok, "{:?}", result.error);
+        let output = result.stages[0].output.as_ref().unwrap();
+        assert_eq!(output.len(), 1);
+        let mut depth = 0;
+        let mut attachments = &output[0].after;
+        while let Some(first) = attachments.first() {
+            depth += 1;
+            attachments = &first.after;
+        }
+        assert_eq!(depth, count - 1);
+        let copy = result.clone();
+        assert!(copy == result);
+        let json = gencmu::to_json(&result);
+        assert!(json.len() > count * 50);
+        let brackets = gencmu::to_brackets(&result, false);
+        assert!(
+            brackets.starts_with("(w [w {w (w") && brackets.trim_end_matches([')', ']', '}']).ends_with("[w w"),
+            "{}",
+            &brackets[..40]
+        );
+        assert_eq!(brackets.matches('w').count(), count);
+        let shown = format!("{:?}", output[0]);
+        assert!(shown.len() > count * 50);
+        drop(copy);
     });
 }
 
@@ -586,4 +631,32 @@ fn an_implication_error_stands_at_its_constant() {
     };
     assert_eq!(error("%implies A ∪ $X ⟹ ~m"), ("g.md".to_string(), Some(6), Some(14)));
     assert_eq!(error("%const $S \"s\"\n%implies A ⟹ ~m ∪ $S"), ("g.md".to_string(), Some(7), Some(19)));
+}
+
+/// The indicator stage attaches indicators and `ba'e` to their word, and
+/// the syntax reads the word alone (engine §11, docs/output.md).
+#[test]
+fn attachments_follow_their_token_into_the_result_and_the_brackets() {
+    let dialect = gencmu::load_dialect("cll-ebnf").expect("the CLL dialect");
+    let options = ParseOptions::default();
+    let brackets = |text: &str| {
+        let result = dialect.parse(text, &options).expect("a result");
+        assert!(result.ok, "{text}: {:?}", result.error);
+        gencmu::to_brackets(&result, false)
+    };
+    assert_eq!(brackets("mi ui klama"), "([mi ui] klama)");
+    assert_eq!(brackets("ba'e mi klama"), "([ba'e mi] klama)");
+    assert_eq!(brackets("mi ui nai klama"), "([mi {ui nai}] klama)");
+    let result = dialect.parse("mi ui nai klama", &options).expect("a result");
+    let syntax = result.stages.last().expect("a stage");
+    let mi = &syntax.input[0];
+    assert_eq!((mi.label.as_str(), mi.before.len(), mi.after.len()), ("mi", 0, 1));
+    let ui = &mi.after[0];
+    assert_eq!((ui.label.as_str(), ui.source.clone()), ("ui", 3..5));
+    assert_eq!(ui.after.iter().map(|nai| nai.label.as_str()).collect::<Vec<_>>(), ["nai"]);
+    // An attached token has no span, and its lists are written only when
+    // they are not empty (docs/output.md).
+    let json = gencmu::to_json(&result);
+    assert!(json.contains(r#""source":[0,2],"after":[{"text":"ui","phonemes":"ui","label":"ui","tags":["#), "{json}");
+    assert!(json.contains(r#""source":[3,5],"after":[{"text":"nai""#), "{json}");
 }

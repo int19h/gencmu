@@ -1,0 +1,221 @@
+{
+  "description": "elision-only over input tokens with attachments: the parse with the elided terminators written back reads no attachments, the check passes, and the stage forwards the attachments (engine §7, §11).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text item ...\n%rule item\n  | $w(word) | $w(word) $a(ii)\n%emits\n  $w ($a)\n%rule word\n  | 'l' <LE> | 'b' <BRIVLA> | 'c' <BRIVLA> | 'a' <A> | 'd' <B> | 'w' <W>\n%rule ii\n  'i' <I>\n%emits\n  $\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy elision-only\n%elidable KU\n%rule text d BRIVLA | d\n%rule d\n  $l(LE) $b(BRIVLA) [BRIVLA] [KU]\n%emits\n  $l, $b\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "lbic",
+  "expect": {
+    "result": {
+      "format": 6,
+      "ok": true,
+      "stages": [
+        {
+          "name": "a",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "l",
+              "phonemes": "",
+              "label": "l",
+              "tags": [
+                "LE"
+              ],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "text": "b",
+              "phonemes": "",
+              "label": "b",
+              "tags": [
+                "BRIVLA"
+              ],
+              "span": [
+                1,
+                2
+              ],
+              "source": [
+                1,
+                2
+              ],
+              "after": [
+                {
+                  "text": "i",
+                  "phonemes": "",
+                  "label": "i",
+                  "tags": [
+                    "I"
+                  ],
+                  "source": [
+                    2,
+                    3
+                  ]
+                }
+              ]
+            },
+            {
+              "text": "c",
+              "phonemes": "",
+              "label": "c",
+              "tags": [
+                "BRIVLA"
+              ],
+              "span": [
+                3,
+                4
+              ],
+              "source": [
+                3,
+                4
+              ]
+            }
+          ]
+        },
+        {
+          "name": "b",
+          "verdict": "resolved",
+          "output": [
+            {
+              "text": "l",
+              "phonemes": "",
+              "label": "l",
+              "tags": [
+                "LE"
+              ],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "text": "b",
+              "phonemes": "",
+              "label": "b",
+              "tags": [
+                "BRIVLA"
+              ],
+              "span": [
+                1,
+                2
+              ],
+              "source": [
+                1,
+                2
+              ],
+              "after": [
+                {
+                  "text": "i",
+                  "phonemes": "",
+                  "label": "i",
+                  "tags": [
+                    "I"
+                  ],
+                  "source": [
+                    2,
+                    3
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          3
+        ],
+        "source": [
+          0,
+          4
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "d",
+            "span": [
+              0,
+              3
+            ],
+            "source": [
+              0,
+              4
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "LE",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "BRIVLA",
+                "token": 1,
+                "span": [
+                  1,
+                  2
+                ],
+                "source": [
+                  1,
+                  2
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "BRIVLA",
+                "token": 2,
+                "span": [
+                  2,
+                  3
+                ],
+                "source": [
+                  3,
+                  4
+                ]
+              },
+              {
+                "kind": "elided",
+                "terminal": "KU",
+                "span": [
+                  3,
+                  3
+                ],
+                "source": [
+                  4,
+                  4
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "error": null
+    },
+    "brackets": "(l [b i] c)"
+  }
+}

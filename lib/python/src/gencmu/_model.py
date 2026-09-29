@@ -25,15 +25,21 @@ class Token:
     an empty span. ``label`` is what the token shows to people (engine §5).
     It defaults to the token's text, which is the label of a character
     token and of a token that a caller supplies.
+    ``before`` and ``after`` are the token's attachments (engine §11):
+    tokens that belong to it and that no later stage reads. A caller cannot
+    supply them. An attached token has no span, so its ``span`` is
+    ``None``; its ``source`` stays in the coordinates of the original text.
     """
 
     text: str
     tags: Tags
-    span: Range
+    span: Range | None
     source: Range
     phonemes: str | None = None
     inserted_by: str | None = None
     label: str = None  # type: ignore[assignment]
+    before: list[Token] = field(default_factory=list)
+    after: list[Token] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if self.label is None:

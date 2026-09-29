@@ -1,0 +1,10 @@
+{
+  "description": "$ carries no attachments; the error is at the item (engine §9).",
+  "document": "```jbogenbau\n%rule a $a(A) %emits $ ($a)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 22
+    }
+  }
+}

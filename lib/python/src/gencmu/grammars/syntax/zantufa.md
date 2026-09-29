@@ -6,7 +6,7 @@ Each rule's comment gives the rule of the reference that it translates. A rule h
 
 [The Zantufa lexicon](../words/lexicon-zantufa.md) gives each cmavo the selma'o that Zantufa gives it. For example, every tense word is BAI, `ca'a` and `ka'e` are NA, and `je` is JOI. Also, `la` is LE, `ce'e` is BO, and `nai` and `sa` are UI.
 
-A stage is one step of a pipeline, with its own grammar. The pipeline is the sequence of stages that reads a text. The indicator stage absorbs `ba'e` and the other words of BAhE, so this grammar does not read them. It reads every other word, the attitudinals included.
+A stage is one step of a pipeline, with its own grammar. The pipeline is the sequence of stages that reads a text. The indicator stage attaches `ba'e` and the other words of BAhE to the word after them, so this grammar does not read them. It reads every other word, the attitudinals included.
 
 Zantufa lets free modifiers follow every word (`post_clause`), with a few exceptions. These are `bu`, `fa'o`, a word of SI or BAhE, and the words inside a quote. So the translation writes `#`, the slot for free modifiers, after each terminal and after each quote. An elidable terminator keeps its slot inside its brackets, `[KU #]`, as the reference's `KU_elidible <- KU_clause?` does. After a PA word, the free modifiers do not begin with a number (`number_post_clause`). After a BY word they do not begin with a lerfu string, and after a COI word they do not begin with a vocative.
 
@@ -35,16 +35,14 @@ The stage is greedy: at the first difference between two parses, it takes the on
 
 ## The text and its paragraphs
 
-A text is free modifiers and then paragraphs, which `ni'o` and `no'i` separate. A run of `ni'o` can stand alone, or join two paragraphs with a connective, or with a connective or a tense or modal and `bo`. A paragraph is statements and fragments, separated by `.i`. A text inside `lu`, `to` or `lu'ei` begins with its paragraphs (`inner-text`). The word before it takes the leading free modifiers.
+A text is free modifiers and then paragraphs, which `ni'o` and `no'i` separate. A run of `ni'o` can stand alone, or join two paragraphs with a connective, or with a connective or a tense or modal and `bo`. A paragraph is statements and fragments, separated by `.i`.
+
+A text inside `lu`, `to` or `lu'ei` is a `text` too. It begins with its own free modifiers, and the opener takes none. So in `lu ui mi klama li'u`, the `ui` belongs to the quote, and in `lu doi djan. mi klama li'u` so does the vocative. The dialect departs from Zantufa here (see "Differences from Zantufa 1.9999").
 
 ```jbogenbau
 %rule text
   (* text <- intro_null free* paragraphs? si_clause? SI_clause* faho_clause EOF? *)
   # [paragraphs]
-
-%rule inner-text
-  (* text <- intro_null free* paragraphs? ...: in a nested text, the word before it has already read the free modifiers *)
-  [paragraphs]
 
 %rule paragraphs
   (* paragraphs <- (NIhO_clause+ paragraphs_1?)+ / paragraphs_1 (NIhO_clause+ paragraphs_1?)* *)
@@ -349,7 +347,7 @@ A sumti can be a `ra'oi`, `zo`, `zoi` or `lo'u` quote, a lerfu string, a `lu` qu
   | ZOI any-word anything any-word #
   | LOhU [any-word ...] LEhU #
   | $l(lerfu-boi)
-  | LU # inner-text [LIhU #]
+  | LU text [LIhU #]
   | (LAhE # | NAhE # BO #) [relative-clauses] sumti [LUhU #]
   | KOhA #
   | LOhOI # [joik LOhOI #] ... statement [KUhAU #]
@@ -477,7 +475,7 @@ The conditions give these alternatives the reference's order of preference. So `
   | [NAhE #] gek selbri-2 $g(gik-selbris) [GIhI #]
   | MUhOI any-word anything any-word #
   | GOhOI any-word #
-  | LUhEI # inner-text [LIhAU #]
+  | LUhEI text [LIhAU #]
   | ME # sumti [MEhU #] [MOI #]
   | ME # operator ... [MEhU #] [MOI #]
   | ME # $m(mex) [MEhU #] [MOI #]
@@ -691,7 +689,7 @@ A free modifier is a `sei` clause over a statement, a vocative, a mekso with `ma
   | vocative [relative-clauses] selbri [DOhU #]
   | vocative [sumti] [DOhU #]
   | mex-2 MAI #
-  | TO # inner-text [TOI #]
+  | TO text [TOI #]
   | XI # mex-2
   | [LOhAI [lohai-word ...] [LOhAI [lohai-word ...]]] LEhAI #
   | UI #
@@ -738,6 +736,7 @@ The dialect reads some texts differently from Zantufa 1.9999. The policy of the 
 - A PEG commits to the first alternative that matches, and a repetition reads as far as it can. So Zantufa rejects some texts that its rules allow, and the dialect accepts them. In `are`, Zantufa reads `a` as a whole fragment, and `re` is left over. In `le vi'ofagri`, the vocative after `le` takes `fagri`, and the description has no selbri. In `la poi ke'a barda .djan.`, the relative clause takes the name. Each of these parses here.
 - Where a PEG's greed gives a reading that the ranking of this stage does not choose, the dialect keeps its own reading. The ranking is the order of preference of the stage among parses. In `mi klama pamai le zarci .e remai le zdani`, Zantufa's `.e` takes `re mai` as its own free modifier. Here the free modifier is the mekso `.e re` with `mai`, after `zarci`. `mi me my su'i ny me'u` is another example.
 - A lookahead here sees the words that the syntax reads, after erasure and without `ba'e`. Zantufa erases and reads `ba'e` inside its grammar, so its lookaheads see those words. So Zantufa accepts `li pa je ba'e cu broda`, `li pa je brode si cu broda` and `ba'e ke broda ke'e ke'e be mi`, and the dialect rejects them. And Zantufa reads `ke mi ba'e ke'e` as a group of terms, and the dialect as a grouped sumti.
+- A nested text takes its own leading free modifiers: those after `lu`, `lu'ei` and `to`. Zantufa's `LU_clause`, `LUhEI_clause` and `TO_clause` take them as the free modifiers of the opener, before the text begins. The dialect follows the principle of every dialect's indicator stage, that a text begins with its own indicators. It applies that principle to every free modifier, so that one boundary separates the opener from its text. So `lu ui li'u` quotes the text `ui`, and a vocative at the start of a quote belongs to the quote.
 - The word stage reads a stray `si` or `bu` at the start of a text as the Magic Words proposal does. So `si mi` is `mi`, and `bu si` is nothing. Zantufa rejects both, because its `si` and `bu` need a word before them there.
 - `su` erases the whole text before it. Zantufa scans for `su` from the start of each text. The scan passes a letter word, or a `su`, together with the free modifiers after it. A parenthesis among those free modifiers, or a quote inside one, holds a text with its own start. A `su` inside that text erases only back to that start.
 

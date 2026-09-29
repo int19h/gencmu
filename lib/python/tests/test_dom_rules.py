@@ -639,6 +639,38 @@ class PrecompiledDomRules(unittest.TestCase):
         set_expr({"seq": [{"capture": name, "expr": A} for name in "xyzv"]})(dom)
         self.assertIsNone(dom_problem(dom))
 
+    def test_attachments(self) -> None:
+        """Attachments are named captures of the rule, on a named capture,
+        each once in the emission, in written order, and present only when
+        not empty (engine §9, §11)."""
+
+        def attached(items: list[Dom]) -> Dom:
+            body = {"seq": [{"capture": "b", "expr": {"ref": "B"}}, {"capture": "x", "expr": {"ref": "A"}}, {"capture": "a", "expr": {"ref": "C"}}]}
+            return {
+                "format": DOM_FORMAT,
+                "rules": [{"name": "text", "op": "define", "alternatives": [{"guards": [], "expr": body}], "emit": {"items": items}, "conditions": [], "at": [1, 1]}],
+                "directives": [],
+                "constants": [],
+                "classifiers": [],
+                "implications": [],
+            }
+
+        self.assertIsNone(dom_problem(attached([{"capture": "x", "before": ["b"], "after": ["a"]}])))
+        for items in (
+            [{"capture": "x", "before": []}],
+            [{"capture": "x", "after": ["a", ""]}],
+            [{"capture": "x", "after": ["A"]}],
+            [{"capture": "x", "after": "a"}],
+            [{"capture": "", "after": ["a"]}],
+            [{"insert": "Y", "before": ["b"]}, {"capture": "x"}],
+            [{"capture": "x", "after": ["a"]}, {"capture": "a"}],
+            [{"capture": "x", "before": ["b", "b"]}],
+        ):
+            with self.subTest(items=items):
+                self.assertEqual(dom_problem(attached(items)), "a malformed emission")
+        self.assertEqual(dom_problem(attached([{"capture": "x", "before": ["a"]}])), "%emits of text lists captures out of the order they stand in the text")
+        self.assertEqual(dom_problem(attached([{"capture": "x", "after": ["z"]}])), "$z is captured by no alternative of text")
+
     def test_each_broken_rule_is_a_miss(self) -> None:
         fresh = self.parse(None)
         for name, change in CASES:

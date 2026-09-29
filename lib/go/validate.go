@@ -769,8 +769,9 @@ func condReadsOwnTags(c *domCond) bool {
 	return false
 }
 
-// emission: $ only with $; a capture other than $ listed once; no tags on
-// an inserted tag; no ∅ as an item's tags. No items is ε.
+// emission: $ only with $; a capture other than $ listed once, as an item
+// or as an attachment; attachments only on a named capture; no tags on an
+// inserted tag; no ∅ as an item's tags. No items is ε.
 func (c *domChecker) emission(e *domEmit) {
 	if e == nil {
 		return
@@ -796,11 +797,26 @@ func (c *domChecker) emission(e *domEmit) {
 		case it.Capture == "":
 			whole++
 		default:
-			if listed[it.Capture] {
-				c.fail("$%s is listed twice in an emission", it.Capture)
-				return
+			// A capture stands once in an emission, as an item or as an
+			// attachment, and an attachment is a named capture (engine §9).
+			for _, name := range it.attachments() {
+				if !captureName.MatchString(name) {
+					c.fail("a malformed attachment %q", name)
+					return
+				}
 			}
-			listed[it.Capture] = true
+			for _, name := range it.captures() {
+				if listed[name] {
+					c.fail("$%s is listed twice in an emission", name)
+					return
+				}
+				listed[name] = true
+			}
+		}
+		// Only a named capture carries attachments (engine §9).
+		if (it.IsInsert || it.Capture == "") && len(it.Before)+len(it.After) > 0 {
+			c.fail("attachments on an item that is not a named capture")
+			return
 		}
 		if it.Tags != nil && it.Tags.Kind == tmEmptySet {
 			c.fail("∅ as an emitted item's tags")

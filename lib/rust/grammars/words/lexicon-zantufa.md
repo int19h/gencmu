@@ -14,7 +14,7 @@ Each entry lists words by their canonical sound and gives them one selma'o, as [
 - `sa`, `nai`, `cai`, `da'o`, `fu'e` and `fu'o` are UI, and `ie'o` is Y, as `y` is.
 - `soi` is SEI, and `xoi` and `fi'oi` are XOI.
 
-The lexicon marks no word `indicator`, because Zantufa reads an attitudinal as a free modifier, which can follow any word. So the indicator stage attaches no word to the word before it, and it only absorbs the words of BAhE. The syntax reads every word of UI.
+The lexicon marks no word `indicator`, because Zantufa reads an attitudinal as a free modifier, which can follow any word. So the indicator stage attaches no word to the word before it. It attaches only the words of BAhE, to the word after them. The syntax reads every word of UI.
 
 [The notation document](../../docs/notation.md) explains the notation.
 

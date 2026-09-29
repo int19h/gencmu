@@ -1,0 +1,90 @@
+{
+  "description": "An attachment's own token can carry attachments, which the brackets nest one group deeper (engine §11, docs/output.md).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text item ...\n%rule item\n  | $w(word) | $w(word) $a(ind)\n%emits\n  $w ($a)\n%rule word\n  'w' <W>\n%rule ind\n  | $u(uu) | $u(uu) $n(nn)\n%emits\n  $u ($n)\n%rule uu\n  'u' <U>\n%rule nn\n  'n' <N>\n%emits\n  $\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text W ...\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "wunw",
+  "expect": {
+    "result": {
+      "format": 6,
+      "ok": true,
+      "stages": [
+        {
+          "name": "a",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "w",
+              "phonemes": "",
+              "label": "w",
+              "tags": [
+                "W"
+              ],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ],
+              "after": [
+                {
+                  "text": "u",
+                  "phonemes": "",
+                  "label": "u",
+                  "tags": [
+                    "U"
+                  ],
+                  "source": [
+                    1,
+                    2
+                  ],
+                  "after": [
+                    {
+                      "text": "n",
+                      "phonemes": "",
+                      "label": "n",
+                      "tags": [
+                        "N"
+                      ],
+                      "source": [
+                        2,
+                        3
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "text": "w",
+              "phonemes": "",
+              "label": "w",
+              "tags": [
+                "W"
+              ],
+              "span": [
+                3,
+                4
+              ],
+              "source": [
+                3,
+                4
+              ]
+            }
+          ]
+        },
+        {
+          "name": "b",
+          "verdict": "unique",
+          "output": []
+        }
+      ]
+    },
+    "brackets": "([w {u n}] w)"
+  }
+}

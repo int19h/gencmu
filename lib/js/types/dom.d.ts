@@ -1,7 +1,7 @@
 import type { GrammarDom } from "./types.js";
 export declare const CAPTURE_NAME: RegExp;
 export declare const DOM_MAX_DEPTH = 256;
-export declare const DOM_FORMAT = 14;
+export declare const DOM_FORMAT = 15;
 export declare const CONSTANT_NAME: RegExp;
 export declare const CLASSIFIER_NAME: RegExp;
 export declare const TEST_OPS: Set<string>;
@@ -136,6 +136,12 @@ export declare function alternativeCaptures(alternative: any): Map<string, numbe
  * @returns {string | null}
  */
 export declare function definitionProblem(rule: any): string | null;
+/**
+ * An emission item's attachment captures, before and after it, in order.
+ * @param {any} item
+ * @returns {string[]}
+ */
+export declare function attachmentsOf(item: any): string[];
 export type TermType = "string" | "strings" | "tags" | "span" | "set" | "any";
 export type ConstantTypes = (name: string) => TermType;
 /**

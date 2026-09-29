@@ -1,0 +1,10 @@
+{
+  "description": "An attachment capture is a capture of the rule (engine §9).",
+  "document": "```jbogenbau\n%rule a $w(W) %emits $w ($z)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  }
+}

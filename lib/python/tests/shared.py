@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 import json
 from pathlib import Path
 from typing import Any
@@ -67,6 +68,11 @@ def case_tokens(case: dict[str, Any]) -> tuple[list[Token], str]:
     tokens: list[Token] = []
     position = 0
     for index, spec in enumerate(case["tokens"]):
+        # Attachments, which a caller cannot supply, go to the library as
+        # they stand, so that it refuses them or drops empty ones
+        # (tests/README.md).
+        before = [replace(token, span=None) for token in case_tokens({"tokens": spec["before"]})[0]] if "before" in spec else []
+        after = [replace(token, span=None) for token in case_tokens({"tokens": spec["after"]})[0]] if "after" in spec else []
         # Each tag in its canonical spelling, as the output writes it
         # (tests/README.md).
         for tag in spec["tags"]:
@@ -74,7 +80,9 @@ def case_tokens(case: dict[str, Any]) -> tuple[list[Token], str]:
                 raise ValueError(f"a case token's tag {tag} is not a tag")
         tags = frozenset(spec["tags"])
         text = spec["text"]
-        tokens.append(Token(text, tags, (index, index + 1), (position, position + len(text)), spec.get("phonemes")))
+        tokens.append(
+            Token(text, tags, (index, index + 1), (position, position + len(text)), spec.get("phonemes"), before=before, after=after)
+        )
         position += len(text) + 1
     return tokens, " ".join(spec["text"] for spec in case["tokens"])
 

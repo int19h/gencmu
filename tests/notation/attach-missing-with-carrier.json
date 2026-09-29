@@ -1,0 +1,22 @@
+{
+  "description": "An alternative with the carrier can lack an attachment capture: the item has one attachment fewer there (engine §3.6, §9).",
+  "document": "```jbogenbau\n%rule a | $w(W) $a(A) | $w(W) %emits $w ($a)\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "emit": {
+            "items": [
+              {
+                "capture": "w",
+                "after": [
+                  "a"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

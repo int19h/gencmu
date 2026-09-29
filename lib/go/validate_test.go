@@ -128,6 +128,20 @@ func TestDOMRules(t *testing.T) {
 		{"an item has only capture, insert and tags", emit(`{"items":[{"capture":"x","tags":{"tag":"X"},"what":true}]}`)},
 		{"no ∅ as an item's tags", emit(`{"items":[{"capture":"x","tags":{"emptySet":true}}]}`)},
 		{"a capture listed once", emit(`{"items":[{"capture":"x"},{"capture":"x"}]}`)},
+		// Attachments are named captures of the rule, on a named capture,
+		// each once in the emission, in the order they stand, and present
+		// only when not empty (engine §9, §11).
+		{"a list of attachments is not empty", emit(`{"items":[{"capture":"x","after":[]}]}`)},
+		{"a list of attachments is a list", emit(`{"items":[{"capture":"x","after":"y"}]}`)},
+		{"an attachment is a capture's name", emit(`{"items":[{"capture":"x","after":["Y"]}]}`)},
+		{"an attachment is not $", emit(`{"items":[{"capture":"x","after":[""]}]}`)},
+		{"$ carries no attachments", emit(`{"items":[{"capture":"","after":["y"]}]}`)},
+		{"an inserted tag carries no attachments", emit(`{"items":[{"insert":"T","before":["x"]},{"capture":"y"}]}`)},
+		{"an attachment is not also an item", emit(`{"items":[{"capture":"x","after":["y"]},{"capture":"y"}]}`)},
+		{"an attachment is listed once", emit(`{"items":[{"capture":"x","after":["y","y"]}]}`)},
+		{"attachments stand in the order of the captures", emit(`{"items":[{"capture":"x","before":["y"]}]}`)},
+		{"an attachment is a capture of the rule", emit(`{"items":[{"capture":"x","after":["z"]}]}`)},
+		{"an alternative without the carrier lacks its attachments", rule(`"alternatives":[{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"terminal":"a"}},{"capture":"y","expr":{"terminal":"b"}}]}},{"guards":[],"expr":{"seq":[{"terminal":"a"},{"capture":"y","expr":{"terminal":"b"}}]}}],"emit":{"items":[{"capture":"x","after":["y"]}]},"conditions":[]`)},
 		// Tests in a body (engine §2, §9).
 		{"a test's comparator is known", alt(`{"seq":[{"terminal":"a"},{"test":"==","value":{"string":"b"},"expr":{"ref":"B"}}]}`)},
 		{"a test's comparator is a string", alt(`{"seq":[{"terminal":"a"},{"test":7,"value":{"string":"b"},"expr":{"ref":"B"}}]}`)},
@@ -386,6 +400,10 @@ func TestDOMRules(t *testing.T) {
 		two(`"tags":{"union":[{"tag":"T"},{"if":{"captured":"x"},"then":{"call":"tags","args":[{"capture":"x"}]}}]},"conditions":[]`),
 		two(`"conditions":[{"captured":"x"},{"if":{"captured":"z"},"then":{"matches":{"capture":"z"},"rule":"text"}}]`),
 		two(`"emit":{"items":[{"capture":"x"},{"insert":"T"}]},"conditions":[]`),
+		// Attachments before and after a carrier, and one that an
+		// alternative with the carrier lacks.
+		emit(`{"items":[{"capture":"y","before":["x"]}]}`), emit(`{"items":[{"capture":"x","after":["y"]}]}`),
+		rule(`"alternatives":[{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"terminal":"a"}},{"capture":"y","expr":{"terminal":"b"}}]}},{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"terminal":"a"}},{"terminal":"b"}]}}],"emit":{"items":[{"insert":"T"},{"capture":"x","after":["y"]}]},"conditions":[]`),
 		two(`"emit":{"items":[{"capture":"x","tags":{"call":"tags","args":[{"capture":"z"}]}},{"capture":"z"},{"insert":"T"}]},"conditions":[]`)} {
 		if _, err := decodeDOM(json.RawMessage(ok), bundled.uni); err != nil {
 			t.Fatalf("a well-formed DOM is refused: %v\n%s", err, ok)

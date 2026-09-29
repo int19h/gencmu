@@ -262,7 +262,7 @@ func TestMarshalResult(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"format":5,"ok":true,"stages":[{"name":"main","verdict":"unique","output":[]}],"tree":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":[],"children":[{"kind":"token","terminal":"'é'","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"KU","span":[1,1],"source":[1,1]}]},"error":null}`
+	want := `{"format":6,"ok":true,"stages":[{"name":"main","verdict":"unique","output":[]}],"tree":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":[],"children":[{"kind":"token","terminal":"'é'","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"KU","span":[1,1],"source":[1,1]}]},"error":null}`
 	if string(data) != want {
 		t.Fatalf("got  %s\nwant %s", data, want)
 	}
@@ -274,7 +274,7 @@ func TestMarshalResult(t *testing.T) {
 	}
 	res, _ = d.Parse("x", ParseOptions{})
 	data, _ = MarshalResult(res)
-	if !strings.HasPrefix(string(data), `{"format":5,"ok":false,"stages":[{"name":"main","verdict":null}],"tree":null,"error":{"kind":"rejected","stage":"main","token":0,"source":[0,1],"line":1,"column":1,"expected":[{"terminal":"'é'","rules":["text"]}],"message":`) {
+	if !strings.HasPrefix(string(data), `{"format":6,"ok":false,"stages":[{"name":"main","verdict":null}],"tree":null,"error":{"kind":"rejected","stage":"main","token":0,"source":[0,1],"line":1,"column":1,"expected":[{"terminal":"'é'","rules":["text"]}],"message":`) {
 		t.Fatalf("%s", data)
 	}
 	// The warnings follow the error, only when there is one; the result's
@@ -936,5 +936,92 @@ func TestGrammarFaultHasNoPosition(t *testing.T) {
 		if res.Error.Token != nil || res.Error.Source != nil || res.Error.Line != 0 || res.Error.Column != 0 {
 			t.Errorf("%s: expected no position, got %+v", c.grammar, res.Error)
 		}
+	}
+}
+
+// A caller cannot supply attachments: a token with a non-empty Before or
+// After is a usage error, and empty ones are accepted and dropped. The
+// caller's tokens stay as they are (docs/api.md).
+func TestCallerAttachments(t *testing.T) {
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text A"))
+	inner := []Token{{Text: "i", Tags: []string{"I"}, Source: [2]int{0, 1}}}
+	for _, tok := range []Token{
+		{Text: "a", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}, After: inner},
+		{Text: "a", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}, Before: inner},
+	} {
+		res, err := d.ParseTokens("a", []Token{tok}, ParseOptions{})
+		var e *Error
+		if res != nil || !errors.As(err, &e) || e.Kind != ErrorUsage {
+			t.Fatalf("expected a usage error, got %v %v", res, err)
+		}
+	}
+	toks := []Token{{Text: "a", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}, Before: []Token{}, After: []Token{}}}
+	res, err := d.ParseTokens("a", toks, ParseOptions{})
+	if err != nil || !res.OK {
+		t.Fatalf("%v %+v", err, res)
+	}
+	if in := res.Stages[0].Input[0]; in.Before != nil || in.After != nil {
+		t.Fatalf("the empty attachments were kept: %+v", in)
+	}
+	if toks[0].Before == nil || toks[0].After == nil {
+		t.Fatalf("the caller's tokens changed: %+v", toks)
+	}
+}
+
+// The brackets show a token with attachments as a group of its
+// before-attachments, its label and its after-attachments, and the
+// canonical JSON writes an attached token without its span
+// (docs/output.md).
+func TestAttachmentsRendered(t *testing.T) {
+	d, err := LoadDialect("cll-ebnf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for text, want := range map[string]string{
+		"mi ui klama":     "([mi ui] klama)",
+		"ba'e mi klama":   "([ba'e mi] klama)",
+		"mi ui nai klama": "([mi {ui nai}] klama)",
+	} {
+		res, err := d.Parse(text, ParseOptions{})
+		if err != nil || !res.OK {
+			t.Fatalf("%s: %v %+v", text, err, res.Error)
+		}
+		if b := Brackets(res, BracketOptions{}); b != want {
+			t.Errorf("%s: brackets %q, not %q", text, b, want)
+		}
+	}
+	res, _ := d.Parse("mi ui nai klama", ParseOptions{})
+	data, _ := MarshalResult(res)
+	want := `"span":[0,1],"source":[0,2],"after":[{"text":"ui","phonemes":"ui","label":"ui","tags":["UI","cmavo","continued","indicator","run-final","run-initial","word"],"source":[3,5],"after":[{"text":"nai","phonemes":"nai","label":"nai","tags":["NAI","cmavo","continued","onset","run-final","run-initial","word"],"source":[6,9]}]}]}`
+	if !strings.Contains(string(data), want) {
+		t.Fatalf("no token %s in\n%s", want, data)
+	}
+}
+
+// Within one item, the before-attachments come before the carrier's tag
+// term, so of two errors the attachment's ends the emission (engine §11).
+func TestAttachmentErrorOrder(t *testing.T) {
+	c := loadCase(t, "../../tests/engine/attach-error-order.json")
+	d, err := caseDialect(c, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := runCase(d, c, &c.Options)
+	if err != nil || res.Error == nil || !strings.Contains(res.Error.Message, "two phoneme tags") {
+		t.Fatalf("%v %+v", err, res)
+	}
+}
+
+// An inserted token is made when its item's turn comes, so the error of an
+// earlier item's attachment comes before the inserted token's (engine §11).
+func TestInsertedAfterAttachmentErrorOrder(t *testing.T) {
+	c := loadCase(t, "../../tests/engine/attach-error-insert-order.json")
+	d, err := caseDialect(c, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := runCase(d, c, &c.Options)
+	if err != nil || res.Error == nil || !strings.Contains(res.Error.Message, `tag("?")`) {
+		t.Fatalf("%v %+v", err, res.Error)
 	}
 }

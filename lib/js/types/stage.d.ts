@@ -66,13 +66,30 @@ export type ForeignPart = {
     source: Span;
     text: string;
 };
+export type Emitter = {
+    context: ParseContext;
+    /**
+     * the derivation's foreign
+     * parts
+     */
+    foreign: Map<Derivation, ForeignPart>;
+    /**
+     * whether any input token has attachments
+     */
+    forwards: boolean;
+    /**
+     * the input
+     * tokens whose attachments a token of this emission has inherited
+     */
+    inherited: Set<import("./tokens.js").AttachedToken>;
+};
 export type EmitTask = {
     walk: Derivation;
 } | {
-    token: () => Token;
+    run: () => void;
 };
 /**
- * @typedef {{walk: Derivation} | {token: () => Token}} EmitTask
+ * @typedef {{walk: Derivation} | {run: () => void}} EmitTask
  */
 /**
  * @param {Derivation} root

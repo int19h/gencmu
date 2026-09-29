@@ -1,0 +1,10 @@
+{
+  "description": "A capture stands in one item's attachments at most once in an emission (engine §9).",
+  "document": "```jbogenbau\n%rule a $w(W) $a(A) $v(V) %emits $w ($a), $v ($a)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 27
+    }
+  }
+}

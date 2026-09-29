@@ -315,9 +315,14 @@ func definitionProblem(r *domRule) string {
 	for _, a := range r.Alternatives {
 		termMentions(a.Tags, mentioned)
 	}
+	// An emission item mentions its own capture and its attachments,
+	// whatever else it says.
 	for _, it := range items {
 		if !it.IsInsert {
 			mentioned[it.Capture] = true
+			for _, name := range it.attachments() {
+				mentioned[name] = true
+			}
 		}
 		termMentions(it.Tags, mentioned)
 	}
@@ -386,29 +391,50 @@ func definitionProblem(r *domRule) string {
 		// What is left of the emission for this alternative: something, in
 		// the order its captures stand, each item's tags using only what it
 		// has.
-		last, left := -2, 0
+		var present []*domEmitItem
 		for _, it := range items {
-			if !it.IsInsert && !has(it.Capture) {
+			if it.IsInsert || has(it.Capture) {
+				present = append(present, it)
+			}
+		}
+		// Only a rule that lists items can leave nothing; ε lists none.
+		if len(present) == 0 && len(items) > 0 {
+			return fmt.Sprintf("%%emits of %s leaves an alternative nothing to emit; a rule that emits nothing says %%emits ε", r.Name)
+		}
+		// An alternative without an item's carrier lacks its attachments
+		// too (engine §9).
+		for _, it := range items {
+			if it.IsInsert || has(it.Capture) {
 				continue
 			}
-			left++
-			if it.IsInsert {
+			for _, name := range it.attachments() {
+				if has(name) {
+					return fmt.Sprintf("%%emits of %s attaches $%s in an alternative without its carrier $%s", r.Name, name, it.Capture)
+				}
+			}
+		}
+		// The written order of the captures, attachments included, is the
+		// order they stand in (engine §9).
+		last := -2
+		for _, it := range present {
+			if it.IsInsert || it.Capture == "" {
 				continue
 			}
-			if it.Capture != "" {
-				at := caps[it.Capture]
+			for _, name := range it.captures() {
+				at, ok := caps[name]
+				if !ok {
+					continue
+				}
 				if at < last {
 					return fmt.Sprintf("%%emits of %s lists captures out of the order they stand in", r.Name)
 				}
 				last = at
 			}
+		}
+		for _, it := range present {
 			if msg := unguarded(it.Tags, has); msg != "" {
 				return msg
 			}
-		}
-		// Only a rule that lists items can leave nothing; ε lists none.
-		if left == 0 && len(items) > 0 {
-			return fmt.Sprintf("%%emits of %s leaves an alternative nothing to emit; a rule that emits nothing says %%emits ε", r.Name)
 		}
 	}
 	// An inserted tag's anchor, the capture listed next after it, is one

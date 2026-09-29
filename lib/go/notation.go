@@ -183,7 +183,7 @@ var domRules = map[string]bool{
 	"string": true, "tag": true, "character": true, "phoneme": true, "name": true,
 	"tested": true, "test": true, "test-operand": true, "capture": true, "group": true, "optional": true,
 	"empty": true, "tags-clause": true, "conditions-clause": true, "emits-clause": true,
-	"foreign-clause": true, "emit-item": true, "emit-tags": true, "implication": true,
+	"foreign-clause": true, "emit-item": true, "emit-tags": true, "emit-before": true, "emit-after": true, "implication": true,
 	"any-of": true, "all-of": true, "comparison": true, "negation": true,
 	"presence": true, "call": true, "term": true, "guarded-term": true, "union": true,
 	"intersection": true, "empty-set": true, "capture-reference": true,
@@ -620,6 +620,9 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 			b.fail(ps[0], "$%s is captured twice in one alternative", name)
 		}
 		b.captures[name] = true
+		if len(b.captures) > 4 {
+			b.fail(ps[0], "an alternative has at most four captures")
+		}
 		return &domExpr{Kind: exCapture, Name: name, Inner: b.expr(inner[0])}
 	case "group", "optional":
 		b.inner++
@@ -1069,30 +1072,32 @@ func (b *domBuilder) emission(n *Node) *domEmit {
 	first := parts(n)[0]
 	e := &domEmit{}
 	whole := 0
-	listed := map[string]bool{}
 	for _, item := range ruleParts(n) {
-		ps := parts(item)
-		target := ps[0]
 		it := &domEmitItem{}
-		var tagsNode *Node
-		for _, p := range ps[1:] {
-			if p.Kind == KindRule && p.Rule == "emit-tags" {
+		var target, tagsNode *Node
+		var before, after []*Node
+		for _, p := range parts(item) {
+			switch {
+			case p.Kind == KindRule && p.Rule == "emit-before":
+				before = append(before, p)
+			case p.Kind == KindRule && p.Rule == "emit-after":
+				after = append(after, p)
+			case p.Kind == KindRule && p.Rule == "emit-tags":
 				tagsNode = p
+			case target == nil:
+				target = p
 			}
 		}
+		// Errors of the item stand at the item, whose first part can be an
+		// attachment (engine §9).
 		text := b.text(target)
 		switch {
 		case target.Kind == KindRule && (target.Rule == "range" || target.Rule == "property"):
-			b.fail(target, "an inserted item is one tag, not a range or a property")
+			b.fail(item, "an inserted item is one tag, not a range or a property")
 		case strings.HasPrefix(text, "$"):
 			it.Capture = text[1:]
 			if it.Capture == "" {
 				whole++
-			} else {
-				if listed[it.Capture] {
-					b.fail(first, "an emission lists $%s twice", it.Capture)
-				}
-				listed[it.Capture] = true
 			}
 		case strings.HasPrefix(text, "~"), strings.HasPrefix(text, "/"), strings.HasPrefix(text, "'"):
 			// An inserted tag is a single tag literal (§9).
@@ -1100,15 +1105,31 @@ func (b *domBuilder) emission(n *Node) *domEmit {
 		case isCapital(text):
 			it.IsInsert, it.Insert = true, text
 		default:
-			b.fail(target, "%s names a rule; an inserted tag is a tag literal, such as ~%s", text, text)
+			b.fail(item, "%s names a rule; an inserted tag is a tag literal, such as ~%s", text, text)
 		}
 		if tagsNode != nil {
 			if it.IsInsert {
-				b.fail(target, "an inserted tag takes no tags")
+				b.fail(item, "an inserted tag takes no tags")
 			}
 			it.Tags = b.tagTerm(ruleParts(tagsNode)[0])
 			if it.Tags.Kind == tmEmptySet {
-				b.fail(target, "<∅> emits a token no terminal can read; %%emits ε emits nothing")
+				b.fail(item, "<∅> emits a token no terminal can read; %%emits ε emits nothing")
+			}
+		}
+		// Attachments: named captures in parentheses, before the item and
+		// after it, carried only by a named capture (engine §9, §11).
+		for _, a := range before {
+			it.Before = append(it.Before, b.attachment(a))
+		}
+		for _, a := range after {
+			it.After = append(it.After, b.attachment(a))
+		}
+		if len(it.Before)+len(it.After) > 0 {
+			if it.IsInsert {
+				b.fail(item, "an inserted tag carries no attachments")
+			}
+			if it.Capture == "" {
+				b.fail(item, "$ carries no attachments; name a capture")
 			}
 		}
 		e.Items = append(e.Items, it)
@@ -1116,7 +1137,37 @@ func (b *domBuilder) emission(n *Node) *domEmit {
 	if whole > 0 && whole != len(e.Items) {
 		b.fail(first, "$ is used with items other than $")
 	}
+	// A capture stands once in an emission, as an item or as an attachment.
+	listed := map[string]bool{}
+	for _, it := range e.Items {
+		if it.IsInsert || it.Capture == "" {
+			continue
+		}
+		for _, name := range it.captures() {
+			if listed[name] {
+				b.fail(first, "an emission lists $%s twice", name)
+			}
+			listed[name] = true
+		}
+	}
 	return e
+}
+
+// attachment is an attachment's capture, by its name without $: never $
+// itself (engine §9).
+func (b *domBuilder) attachment(n *Node) string {
+	for _, p := range parts(n) {
+		if p.Kind == KindToken {
+			if text := b.text(p); strings.HasPrefix(text, "$") {
+				if text == "$" {
+					break
+				}
+				return text[1:]
+			}
+		}
+	}
+	b.fail(n, "an attachment holds a named capture, not $")
+	return ""
 }
 
 // The kinds of a directive's operand: a bare name, lower case or with a

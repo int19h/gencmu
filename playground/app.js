@@ -563,7 +563,8 @@
       element("td", { class: "num", text: row.source }),
       element("td", { class: "tags" },
         row.tags.map((tag) => element("span", { class: "tag", text: tag })),
-        row.insertedBy ? element("span", { class: "muted", text: ` inserted by ${row.insertedBy}` }) : null)));
+        row.insertedBy ? element("span", { class: "muted", text: ` inserted by ${row.insertedBy}` }) : null,
+        row.attachments ? element("span", { class: "muted", text: ` attached: ${row.attachments}` }) : null)));
     const note = result.total > result.rows.length ? element("p", { class: "hint", text: `The first ${result.rows.length} of ${result.total} tokens.` }) : null;
     $("output").replaceChildren(...[
       element("p", { class: "hint", text: `What the ${result.stage} stage handed on.` }),

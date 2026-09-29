@@ -29,7 +29,7 @@ class Lowercase(Protocol):
     def is_mark(self, code: int) -> bool: ...
 
 
-FORMAT = 14
+FORMAT = 15
 """The version of the DOM's shape (docs/output.md)."""
 
 CONSTANT_NAME = re.compile(r"[A-Z][A-Za-z0-9-]*")
@@ -546,8 +546,9 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase, tests: 
             ):
                 return "a malformed expression"
         elif kind == "emission":
-            # No items for ε; otherwise items of the keys capture, insert and
-            # tags alone, $ only with $, a capture other than $ listed once,
+            # No items for ε; otherwise items of the keys capture, insert,
+            # tags, before and after alone, attachments only on a named
+            # capture, each a non-empty list of capture names, $ only with $, a capture other than $ listed once,
             # no tags on an inserted tag, no ∅ as an item's tags (engine §9).
             items = value.get("items")
             if not _items(items, 0):
@@ -560,10 +561,12 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase, tests: 
                     # An inserted item is one tag (engine §9).
                     kinds.append("insert" if item.keys() == {"insert"} and is_tag(item["insert"], unicode) else None)
                 elif isinstance(item.get("capture"), str):
-                    if not item.keys() <= {"capture", "tags"}:
+                    if not item.keys() <= {"capture", "tags", "before", "after"}:
                         kinds.append(None)
                     elif item["capture"] == _WHOLE:
-                        kinds.append("whole")
+                        kinds.append("whole" if item.keys() <= {"capture", "tags"} else None)
+                    elif not all(_is_attachment_list(item[side]) for side in ("before", "after") if side in item):
+                        kinds.append(None)
                     else:
                         kinds.append("capture")
                 else:
@@ -572,7 +575,13 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase, tests: 
                 return "a malformed emission"
             if "whole" in kinds and any(k != "whole" for k in kinds):
                 return "a malformed emission"
-            captures = [item["capture"] for item, k in zip(items, kinds) if k == "capture"]
+            # A capture stands once, as an item or as an attachment.
+            captures = [
+                name
+                for item, k in zip(items, kinds)
+                if k == "capture"
+                for name in (*item.get("before", ()), item["capture"], *item.get("after", ()))
+            ]
             if len(set(captures)) != len(captures):
                 return "a malformed emission"
             for item in items:
@@ -687,6 +696,16 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase, tests: 
             ):
                 return "a malformed term"
     return None
+
+
+def _is_attachment_list(value: Any) -> bool:
+    """Whether an item's ``before`` or ``after`` is a list of capture names
+    that is not empty (docs/output.md)."""
+    return (
+        isinstance(value, list)
+        and len(value) > 0
+        and all(isinstance(name, str) and CAPTURE_NAME.fullmatch(name) is not None for name in value)
+    )
 
 
 def literal_call_problem(call: str, args: list[Any]) -> str | None:

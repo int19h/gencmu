@@ -1,0 +1,10 @@
+{
+  "description": "An alternative captures a name once (engine §3.5, §9); the error is at the second capture of the name.",
+  "document": "```jbogenbau\n%rule a $a(A) $a(B)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 15
+    }
+  }
+}

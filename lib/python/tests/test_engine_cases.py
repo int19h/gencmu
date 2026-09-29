@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 import unittest
 from typing import Any
 
@@ -13,6 +14,14 @@ from .shared import case_features, cases, load_case, load_case_dialect, mismatch
 
 class EngineCases(unittest.TestCase):
     def test_cases(self) -> None:
+        # A canonical result nests as deep as a case's attachments do
+        # (attach-deep.json). The library needs no recursion for that, and
+        # test_api tests it at the default limit. But json and == recurse
+        # over the result here, and before Python 3.12 they count against
+        # the recursion limit.
+        limit = sys.getrecursionlimit()
+        sys.setrecursionlimit(max(limit, 10_000))
+        self.addCleanup(sys.setrecursionlimit, limit)
         paths = cases("engine")
         self.assertTrue(paths, "no engine cases found")
         for path in paths:

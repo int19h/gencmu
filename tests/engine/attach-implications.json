@@ -1,0 +1,62 @@
+{
+  "description": "The stage applies its implications to an attached token and finds its phonemes after them (engine §11).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text item ...\n%rule item\n  | $w(word) | $b(bb) $w(word) | $w(word) $a(ii) | $b(bb) $w(word) $a(ii)\n%emits\n  ($b) $w ($a)\n%rule word\n  | 'w' <W> | 'z' <Z>\n%rule bb\n  'b' <B>\n%emits\n  $\n%rule ii\n  'i' <I>\n%emits\n  $\n%implies I ⟹ ~mark ∪ /i/\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [W | Z] ...\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "wi",
+  "expect": {
+    "result": {
+      "format": 6,
+      "ok": true,
+      "stages": [
+        {
+          "name": "a",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "w",
+              "phonemes": "",
+              "label": "w",
+              "tags": [
+                "W"
+              ],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ],
+              "after": [
+                {
+                  "text": "i",
+                  "phonemes": "i",
+                  "label": "i",
+                  "tags": [
+                    "/i/",
+                    "I",
+                    "mark"
+                  ],
+                  "source": [
+                    1,
+                    2
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "b",
+          "verdict": "unique",
+          "output": []
+        }
+      ]
+    },
+    "brackets": "(w i)"
+  }
+}

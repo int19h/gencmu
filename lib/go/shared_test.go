@@ -18,14 +18,10 @@ type engineCase struct {
 	Grammar     *string
 	Documents   map[string]string
 	Pipeline    string
-	Tokens      []struct {
-		Text     string
-		Tags     []string
-		Phonemes *string
-	}
-	Input   *string
-	Options caseOptions
-	Expect  caseExpect
+	Tokens      []caseToken
+	Input       *string
+	Options     caseOptions
+	Expect      caseExpect
 	// Parses, when present, parses the input several times with the one
 	// loaded dialect, each with its own options and expectation, in place
 	// of the case's (tests/README.md).
@@ -33,6 +29,17 @@ type engineCase struct {
 		Options caseOptions
 		Expect  caseExpect
 	}
+}
+
+// caseToken is a token that a case supplies (tests/README.md). Its before
+// and after, which a caller cannot supply, go to the library as they
+// stand, so that it refuses them or drops empty ones.
+type caseToken struct {
+	Text     string
+	Tags     []string
+	Phonemes *string
+	Before   []caseToken
+	After    []caseToken
 }
 
 type caseOptions struct {
@@ -137,15 +144,26 @@ func runCase(d *Dialect, c *engineCase, o *caseOptions) (*ParseResult, error) {
 	if c.Input != nil {
 		return d.Parse(*c.Input, opts)
 	}
+	toks, text, err := caseTokens(c.Tokens)
+	if err != nil {
+		return nil, err
+	}
+	return d.ParseTokens(text, toks, opts)
+}
+
+// caseTokens makes a case's tokens and the text they index
+// (tests/README.md). An empty list of attachments stays an empty list, not
+// nil, as a caller could give it.
+func caseTokens(specs []caseToken) ([]Token, string, error) {
 	var texts []string
-	toks := make([]Token, 0, len(c.Tokens))
+	toks := make([]Token, 0, len(specs))
 	pos := 0
-	for i, tk := range c.Tokens {
+	for i, tk := range specs {
 		// Each tag in its canonical spelling, as the output writes it
 		// (tests/README.md).
 		for _, tag := range tk.Tags {
 			if !isTag(tag, bundled.uni) {
-				return nil, fmt.Errorf("a case token's tag %s is not a tag", tag)
+				return nil, "", fmt.Errorf("a case token's tag %s is not a tag", tag)
 			}
 		}
 		n := len([]rune(tk.Text))
@@ -153,11 +171,24 @@ func runCase(d *Dialect, c *engineCase, o *caseOptions) (*ParseResult, error) {
 		if tk.Phonemes != nil {
 			tok.Phonemes = *tk.Phonemes
 		}
+		for _, side := range []struct {
+			specs []caseToken
+			into  *[]Token
+		}{{tk.Before, &tok.Before}, {tk.After, &tok.After}} {
+			if side.specs == nil {
+				continue
+			}
+			inner, _, err := caseTokens(side.specs)
+			if err != nil {
+				return nil, "", err
+			}
+			*side.into = attached(inner)
+		}
 		toks = append(toks, tok)
 		texts = append(texts, tk.Text)
 		pos += n + 1
 	}
-	return d.ParseTokens(strings.Join(texts, " "), toks, opts)
+	return toks, strings.Join(texts, " "), nil
 }
 
 func checkCase(c *engineCase, noCache bool) error {

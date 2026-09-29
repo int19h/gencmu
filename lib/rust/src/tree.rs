@@ -8,7 +8,7 @@ use crate::earley::{Cap, EngineError, Frame, Recognizer, Tok};
 use crate::fxhash::{FxMap, FxSet};
 use crate::lower::{LEmit, LEmitItem, LTerm, Lowered};
 use crate::rank::{DNode, Ranker};
-use crate::result::{Node, NodeKind, Warning};
+use crate::result::{Attachment, Node, NodeKind, Warning};
 use crate::tags::{phoneme_of, union, SetId, TagList, Tags};
 
 #[derive(Debug, Clone)]
@@ -299,18 +299,42 @@ pub(crate) struct Emitted {
     /// What it shows to people (§5).
     pub label: String,
     pub inserted_by: Option<String>,
+    /// The tokens attached before it and after it (§11).
+    pub before: Vec<Attachment>,
+    pub after: Vec<Attachment>,
 }
 
-enum Work {
+enum Work<'g> {
     Visit(u32),
-    /// A token covering node `node` with the given tags.
-    Cover(u32, SetId),
+    /// A token covering node `node`. Its tags are those of an item's term,
+    /// evaluated in the frame of the constituent `owner` when the token is
+    /// made (§10, §11), or else `tags`.
+    Cover {
+        node: u32,
+        owner: u32,
+        term: Option<&'g LTerm>,
+        tags: SetId,
+    },
     /// An inserted token with one tag, at a token index, in a node.
     Insert {
         tag: String,
         at: u32,
         node: u32,
     },
+    /// Where an item's before-attachments begin in the output, or where its
+    /// carrier stands.
+    Mark,
+    /// Moves the tokens since the item's two marks into its carrier's
+    /// attachments (§11).
+    Attach,
+}
+
+/// What forwarding needs across one emission (§11): whether any input
+/// token has attachments, and the input tokens whose attachments a token of
+/// this emission has inherited.
+struct Forwarding {
+    on: bool,
+    inherited: FxSet<u32>,
 }
 
 fn span_of(tree: &ITree, index: u32) -> (u32, u32) {
@@ -468,12 +492,14 @@ fn spoken(g: &Lowered, tree: &ITree, tokens: &[Tok], foreign: &FxMap<u32, Foreig
 }
 
 /// The token that covers node `index` with the given tags (§5, §11).
+#[allow(clippy::too_many_arguments)]
 fn cover(
     recognizer: &Recognizer,
     tree: &ITree,
     tokens: &[Tok],
     sources: &Sources,
     foreign: &FxMap<u32, ForeignPart>,
+    forwarding: &mut Forwarding,
     index: u32,
     tags: SetId,
 ) -> Result<Emitted, EngineError> {
@@ -495,7 +521,126 @@ fn cover(
         Some(phoneme) => sounded(phoneme),
         None => spoken(recognizer.g, tree, tokens, foreign, index),
     };
-    Ok(Emitted { span, source, tags, phonemes: Some(phonemes), label, inserted_by: None })
+    let mut token = Emitted {
+        span,
+        source,
+        tags,
+        phonemes: Some(phonemes),
+        label,
+        inserted_by: None,
+        before: Vec::new(),
+        after: Vec::new(),
+    };
+    // The parts decide the attachments too, after the phoneme tags are
+    // checked (§11).
+    if forwarding.on {
+        if let Some(from) = forwarded(recognizer.g, tree, tokens, foreign, index)? {
+            // Attachments belong to one token: an input token that is the
+            // one part of a second token is an error of the grammar.
+            if !forwarding.inherited.insert(from) {
+                return Err(EngineError {
+                    message: "a token with attachments is the one part of two emitted tokens, and its attachments \
+                              cannot belong to both"
+                        .to_string(),
+                    rule: None,
+                });
+            }
+            token.before = tokens[from as usize].before.clone();
+            token.after = tokens[from as usize].after.clone();
+        }
+    }
+    Ok(token)
+}
+
+/// The one input token whose attachments a token over node `root` inherits,
+/// or `None` (§11). The parts are those of the join (§5): a read input
+/// token, or a foreign part as one piece, and nothing inside a constituent
+/// that emits ε. A token with attachments among other parts, or a foreign
+/// part that holds one, is an error of the grammar.
+fn forwarded(
+    g: &Lowered,
+    tree: &ITree,
+    tokens: &[Tok],
+    foreign: &FxMap<u32, ForeignPart>,
+    root: u32,
+) -> Result<Option<u32>, EngineError> {
+    let mut parts = 0usize;
+    let mut found = None;
+    let mut stack = vec![root];
+    while let Some(index) = stack.pop() {
+        let node = &tree.nodes[index as usize];
+        match node.kind {
+            IKind::Read { tok, .. } => {
+                parts += 1;
+                if tokens[tok as usize].has_attachments() {
+                    found = Some(tok);
+                }
+            }
+            IKind::Close { prod, .. } => {
+                if counts_for_nothing(g, prod) {
+                    continue;
+                }
+                if foreign.contains_key(&index) {
+                    parts += 1;
+                    if holds_attachments(g, tree, tokens, index) {
+                        return Err(EngineError {
+                            message: "a foreign part over a token with attachments, which a token over it cannot place"
+                                .to_string(),
+                            rule: Some(g.prods[prod as usize].owner),
+                        });
+                    }
+                    continue;
+                }
+                stack.extend(node.children.iter().rev());
+            }
+        }
+    }
+    if found.is_some() && parts > 1 {
+        return Err(EngineError {
+            message: "a token over a token with attachments and another part cannot say which part each attachment \
+                      belongs to"
+                .to_string(),
+            rule: None,
+        });
+    }
+    Ok(found)
+}
+
+/// Whether a foreign part holds an input token with attachments: one that
+/// it reads outside any constituent that emits ε (§11).
+fn holds_attachments(g: &Lowered, tree: &ITree, tokens: &[Tok], root: u32) -> bool {
+    let mut stack = vec![root];
+    while let Some(index) = stack.pop() {
+        let node = &tree.nodes[index as usize];
+        match node.kind {
+            IKind::Read { tok, .. } => {
+                if tokens[tok as usize].has_attachments() {
+                    return true;
+                }
+            }
+            IKind::Close { prod, .. } => {
+                if !counts_for_nothing(g, prod) {
+                    stack.extend(node.children.iter().rev());
+                }
+            }
+        }
+    }
+    false
+}
+
+/// An emitted token as an attachment: the same token without its span
+/// (§11), with its tags and its text as the result has them.
+fn attachment(recognizer: &Recognizer, token: Emitted) -> Attachment {
+    Attachment {
+        text: recognizer.shared.source_text(token.source.0, token.source.1),
+        phonemes: token.phonemes,
+        label: token.label,
+        tags: recognizer.shared.tags.to_set(token.tags),
+        source: token.source.0..token.source.1,
+        inserted_by: token.inserted_by,
+        before: token.before,
+        after: token.after,
+    }
 }
 
 /// The tags an emission item's term gives a token (§11): a term that gives
@@ -564,19 +709,20 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
             (side(&implication.antecedent), side(&implication.consequent))
         })
         .collect();
-    let mut out = Vec::new();
+    let mut out: Vec<Emitted> = Vec::new();
     // The foreign parts and their texts, fixed before any token (§11).
     let foreign = foreign_parts(g, tree, tokens, &sources, recognizer.shared.text);
+    let mut forwarding = Forwarding { on: tokens.iter().any(Tok::has_attachments), inherited: FxSet::default() };
+    // The output positions of the marks of the items being emitted.
+    let mut marks: Vec<usize> = Vec::new();
     let mut stack = vec![Work::Visit(0)];
     while let Some(work) = stack.pop() {
         match work {
             Work::Visit(index) => {
                 let node = &tree.nodes[index as usize];
-                let IKind::Close { prod, start, end, tags, caps } = &node.kind else {
+                let IKind::Close { prod, tags, caps, .. } = &node.kind else {
                     continue;
                 };
-                let (tags, caps) = (*tags, caps.clone());
-                let frame = Frame { caps: &caps, prod: *prod, origin: *start, end: *end, tags: Some(tags) };
                 let production = &g.prods[*prod as usize];
                 match &production.emit {
                     LEmit::Nothing => {}
@@ -586,34 +732,48 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                         }
                     }
                     LEmit::This(items) => {
-                        let mut covers = Vec::new();
-                        for term in items {
-                            let set = match term {
-                                Some(term) => item_tags(recognizer, term, &frame, tokens)?,
-                                None => tags,
-                            };
-                            covers.push(Work::Cover(index, set));
+                        // One token over the constituent per `$`, each with
+                        // its term evaluated when it is made.
+                        for term in items.iter().rev() {
+                            stack.push(Work::Cover { node: index, owner: index, term: term.as_ref(), tags: *tags });
                         }
-                        stack.extend(covers.into_iter().rev());
                     }
                     LEmit::Items(items) => {
                         // Exactly the items, in the order listed; nothing
-                        // inside the constituent is walked (§11).
+                        // inside the constituent is walked but their
+                        // attachments (§11).
                         let (_, end) = span_of(tree, index);
                         let child = |slot: u8| node.children[production.cap_pos[slot as usize] as usize];
                         let mut sequence = Vec::with_capacity(items.len());
                         for item in items {
                             match item {
-                                LEmitItem::Cap(slot, term) => {
-                                    let set = match term {
-                                        Some(term) => item_tags(recognizer, term, &frame, tokens)?,
-                                        None => caps[*slot as usize].tags,
+                                LEmitItem::Cap(slot, term, before, after) => {
+                                    let carrier = Work::Cover {
+                                        node: child(*slot),
+                                        owner: index,
+                                        term: term.as_ref(),
+                                        tags: caps[*slot as usize].tags,
                                     };
-                                    sequence.push(Work::Cover(child(*slot), set));
+                                    if before.is_empty() && after.is_empty() {
+                                        sequence.push(carrier);
+                                        continue;
+                                    }
+                                    // Before-attachments, then the carrier
+                                    // with its tag term, then
+                                    // after-attachments: each the tokens
+                                    // that its captured part emits in its
+                                    // place (§11).
+                                    sequence.push(Work::Mark);
+                                    sequence.extend(before.iter().map(|&slot| Work::Visit(child(slot))));
+                                    sequence.push(Work::Mark);
+                                    sequence.push(carrier);
+                                    sequence.extend(after.iter().map(|&slot| Work::Visit(child(slot))));
+                                    sequence.push(Work::Attach);
                                 }
                                 LEmitItem::Insert(tag, anchor) => {
-                                    // At the start of the part of the capture
-                                    // listed next, or at the constituent's end.
+                                    // At the start of the first written part
+                                    // of the capture item listed next, or at
+                                    // the constituent's end.
                                     let at = anchor.map_or(end, |slot| span_of(tree, child(slot)).0);
                                     sequence.push(Work::Insert { tag: tag.clone(), at, node: index });
                                 }
@@ -623,9 +783,36 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                     }
                 }
             }
-            Work::Cover(index, tags) => {
+            Work::Cover { node, owner, term, tags } => {
+                let tags = match term {
+                    Some(term) => {
+                        let IKind::Close { prod, start, end, tags, caps } = &tree.nodes[owner as usize].kind else {
+                            unreachable!("an emission's constituent")
+                        };
+                        let frame = Frame { caps, prod: *prod, origin: *start, end: *end, tags: Some(*tags) };
+                        item_tags(recognizer, term, &frame, tokens)?
+                    }
+                    None => tags,
+                };
                 let tags = implied(&mut recognizer.shared.tags, tags, &implications);
-                out.push(cover(recognizer, tree, tokens, &sources, &foreign, index, tags)?);
+                out.push(cover(recognizer, tree, tokens, &sources, &foreign, &mut forwarding, node, tags)?);
+            }
+            Work::Mark => marks.push(out.len()),
+            Work::Attach => {
+                // New attachments are outer to inherited ones (§11).
+                let at = marks.pop().expect("a carrier's mark");
+                let first = marks.pop().expect("an item's mark");
+                let after: Vec<Emitted> = out.drain(at + 1..).collect();
+                let mut carrier = out.pop().expect("a carrier");
+                let before: Vec<Emitted> = out.drain(first..).collect();
+                if !before.is_empty() {
+                    let mut all: Vec<Attachment> =
+                        before.into_iter().map(|token| attachment(recognizer, token)).collect();
+                    all.append(&mut carrier.before);
+                    carrier.before = all;
+                }
+                carrier.after.extend(after.into_iter().map(|token| attachment(recognizer, token)));
+                out.push(carrier);
             }
             Work::Insert { tag, at, node } => {
                 let (start, end) = span_of(tree, node);
@@ -654,6 +841,8 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                     phonemes: Some(phonemes),
                     label,
                     inserted_by: Some(g.rules[owner as usize].name.clone()),
+                    before: Vec::new(),
+                    after: Vec::new(),
                 });
             }
         }

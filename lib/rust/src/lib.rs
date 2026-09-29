@@ -65,7 +65,8 @@ pub use grammar::Change;
 pub use loader::{load_dialect, load_dialect_file, load_dialect_sources};
 pub use output::{node_to_json, to_brackets, to_json};
 pub use result::{
-    Action, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Stage, Tags, Token, Verdict, Warning,
+    Action, Attachment, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Stage, Tags, Token, Verdict,
+    Warning,
 };
 
 /// Helpers for tests and tools: reading one grammar document to its DOM,

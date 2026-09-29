@@ -1,0 +1,10 @@
+{
+  "description": "An attachment capture is not an item of its own (engine §9).",
+  "document": "```jbogenbau\n%rule a $w(W) $a(A) %emits $w ($a), $a\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 21
+    }
+  }
+}

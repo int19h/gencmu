@@ -1,0 +1,60 @@
+{
+  "description": "A carrier emits one token over its captured part and does not run that part's own emission, so the part's inner structure is not kept (engine §11).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $b(bb) $w(wrap)\n%emits\n  ($b) $w\n%rule wrap\n  $x(xx) $y(yy)\n%tags\n  ~V\n%emits\n  $x, $y\n%rule xx\n  'x' <X>\n%rule yy\n  'y' <Y>\n%rule bb\n  'b' <B>\n%emits\n  $\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text V\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "bxy",
+  "expect": {
+    "result": {
+      "format": 6,
+      "ok": true,
+      "stages": [
+        {
+          "name": "a",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "xy",
+              "phonemes": "",
+              "label": "xy",
+              "tags": [
+                "V"
+              ],
+              "span": [
+                1,
+                3
+              ],
+              "source": [
+                1,
+                3
+              ],
+              "before": [
+                {
+                  "text": "b",
+                  "phonemes": "",
+                  "label": "b",
+                  "tags": [
+                    "B"
+                  ],
+                  "source": [
+                    0,
+                    1
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "b",
+          "verdict": "unique",
+          "output": []
+        }
+      ]
+    },
+    "brackets": "(b xy)"
+  }
+}

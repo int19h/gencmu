@@ -1,0 +1,10 @@
+{
+  "description": "An alternative that lacks an item's carrier lacks its attachment captures too (engine §9).",
+  "document": "```jbogenbau\n%rule a | $w(W) $a(A) | $a(A) $v(V) %emits $w ($a), $v\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "description": "An error of the grammar inside an attachment ends the stage's emission: the stage keeps its verdict and has no output (engine §11).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text item ...\n%rule item\n  | $w(word) | $w(word) $a(ii)\n%emits\n  $w ($a)\n%rule word\n  'w' <W>\n%rule ii\n  $x('i')\n%emits\n  $x <tags($x) ∩ ~nothing>\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "wi",
+  "expect": {
+    "result": {
+      "format": 6,
+      "ok": false,
+      "stages": [
+        {
+          "name": "a",
+          "verdict": "unique"
+        }
+      ],
+      "error": {
+        "kind": "grammar",
+        "stage": "a"
+      }
+    },
+    "error": "grammar"
+  }
+}

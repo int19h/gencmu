@@ -1,0 +1,45 @@
+{
+  "description": "A caller's token with empty attachment lists is accepted, and the lists are dropped (docs/api.md). Rust skips this case (tests/README.md).",
+  "grammar": "%rule text $a(A)\n%emits $a",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "before": [],
+      "after": []
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 6,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "a",
+              "phonemes": "",
+              "label": "a",
+              "tags": [
+                "A"
+              ],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "brackets": "a"
+  }
+}

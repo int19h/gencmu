@@ -1,13 +1,24 @@
 import type { ParseError, ParseResult, ResultNode, Span } from "./types.js";
-import type { Token } from "./tokens.js";
+import type { AttachedToken, Token } from "./tokens.js";
 export type TokenJson = {
     text: string;
     phonemes: string;
     label: string;
     tags: string[];
-    span: Span;
+    /**
+     * absent for an attached token
+     */
+    span?: Span;
     source: Span;
     insertedBy?: string;
+    /**
+     * present only when not empty
+     */
+    before?: TokenJson[];
+    /**
+     * present only when not empty
+     */
+    after?: TokenJson[];
 };
 export type NodeJson = {
     kind: "token";
@@ -78,10 +89,10 @@ export type WarningJson = {
     source: [number, number];
 };
 export type DisplayValue = {
-    [name: string]: DisplayValue | DisplayValue[] | string | null;
+    [name: string]: DisplayValue | DisplayValue[] | string | string[] | null;
 };
 /** @import { Action, ParseError, ParseResult, ResultNode, Span } from "./types.js" */
-/** @import { Token } from "./tokens.js" */
+/** @import { AttachedToken, Token } from "./tokens.js" */
 /**
  * A token in the result JSON.
  * @typedef {object} TokenJson
@@ -89,9 +100,11 @@ export type DisplayValue = {
  * @property {string} phonemes
  * @property {string} label
  * @property {string[]} tags
- * @property {Span} span
+ * @property {Span} [span] absent for an attached token
  * @property {Span} source
  * @property {string} [insertedBy]
+ * @property {TokenJson[]} [before] present only when not empty
+ * @property {TokenJson[]} [after] present only when not empty
  */
 /**
  * A result tree node in the result JSON.
@@ -149,9 +162,9 @@ export type DisplayValue = {
 /**
  * The display JSON projection of a tree: each node an object with one
  * member, its rule or terminal.
- * @typedef {{[name: string]: DisplayValue | DisplayValue[] | string | null}} DisplayValue
+ * @typedef {{[name: string]: DisplayValue | DisplayValue[] | string | string[] | null}} DisplayValue
  */
-export declare const RESULT_FORMAT = 5;
+export declare const RESULT_FORMAT = 6;
 /**
  * @param {ResultNode} node
  * @returns {NodeJson}
@@ -163,6 +176,15 @@ export declare function nodeJson(node: ResultNode): NodeJson;
  * @returns {ResultJson}
  */
 export declare function resultJson(result: ParseResult): ResultJson;
+/**
+ * A token's attachments on one line, for the token tables: `◂ ` before a
+ * before-attachment and `▸ ` before an after-attachment, each with its
+ * classes and its label, and its own attachments after it in parentheses.
+ * The empty string for a token with none.
+ * @param {AttachedToken} token
+ * @returns {string}
+ */
+export declare function attachmentText(token: AttachedToken): string;
 export type Flat = {
     leaf: string;
 } | {

@@ -10,6 +10,8 @@ from pathlib import Path
 import gencmu
 from gencmu._dialect import DOM_FORMAT, bundled_text
 
+from .shared import case_sources
+
 PIPELINE = """# A test dialect
 
 ## Sounds
@@ -287,6 +289,27 @@ class Options(unittest.TestCase):
         self.assertEqual(gencmu.to_brackets(result), "a")
         self.assertEqual(token.label, "CUSTOM", "the caller's token changed")
 
+    def test_caller_attachments(self) -> None:
+        """A caller cannot supply attachments: a token with a list that is
+        not empty is a usage error, and empty lists are dropped. The
+        caller's tokens stay as they are (docs/api.md)."""
+        grammar = "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $a(A)\n%emits $a\n```\n"
+        dialect = gencmu.load_dialect_sources({"p.md": ELIDING["p.md"], "g.md": grammar}, "p.md")
+        attached = gencmu.Token("i", frozenset({"I"}), None, (2, 3))
+        for side in ("before", "after"):
+            with self.subTest(side=side):
+                token = gencmu.Token("a", frozenset({"A"}), (0, 1), (0, 1), **{side: [attached]})
+                with self.assertRaises(gencmu.GencmuError) as caught:
+                    dialect.parse_tokens([token], "a i", auto_features=False)
+                self.assertEqual(caught.exception.kind, "usage")
+                self.assertEqual(getattr(token, side), [attached], "the caller's token changed")
+        empty: list[gencmu.Token] = []
+        token = gencmu.Token("a", frozenset({"A"}), (0, 1), (0, 1), before=empty, after=[])
+        result = dialect.parse_tokens([token], "a", auto_features=False)
+        self.assertTrue(result.ok, result.error)
+        self.assertIsNot(result.stages[0].input[0].before, empty)
+        self.assertNotIn("before", gencmu.result_json(result)["stages"][0]["output"][0])
+
     def test_tested_expected(self) -> None:
         """The message of a rejection writes a tested terminal with its
         test, as the expected list does (docs/output.md)."""
@@ -313,7 +336,7 @@ class Output(unittest.TestCase):
         result = dialect.parse("mi", until="words", auto_features=False)
         text = gencmu.to_json(result)
         self.assertEqual(json.loads(text), gencmu.result_json(result))
-        self.assertTrue(text.startswith('{"format":5,"ok":true,"stages":[{"name":"sounds","verdict":"unique","output":[{"text":"m","phonemes":"m","label":"m","tags":["/m/"],"span":[0,1],"source":[0,1]}'), text)
+        self.assertTrue(text.startswith('{"format":6,"ok":true,"stages":[{"name":"sounds","verdict":"unique","output":[{"text":"m","phonemes":"m","label":"m","tags":["/m/"],"span":[0,1],"source":[0,1]}'), text)
         self.assertIn(
             '"tree":{"kind":"rule","rule":"text","span":[0,2],"source":[0,2],"tags":[],"children":[{"kind":"rule","rule":"piece"',
             text,
@@ -366,6 +389,81 @@ class Output(unittest.TestCase):
         self.assertEqual([token.label for token in tokens], ["klama bu", "x.y", "a..b"])
         result = dialect.parse_tokens(tokens, "klama bu x.y ab")
         self.assertEqual(gencmu.to_brackets(result), "(klama bu x.y ab)")
+
+
+# A two-stage pipeline whose first stage attaches ``b`` before a word and
+# ``i``, with ``n`` after it, after the word (engine §11).
+ATTACHING = {
+    "p.md": '```jbogenbau\n%stage a\n%include "a.md"\n%stage b\n%include "b.md"\n```\n',
+    "a.md": """```jbogenbau
+%ambiguity-resolution greedy
+%rule text item ...
+%rule item | $w(word) | $b(bb) $w(word) | $w(word) $a(ind) | $b(bb) $w(word) $a(ind)
+%emits ($b) $w ($a)
+%rule word 'w' <W> | 'z' <Z>
+%rule bb 'b' <B>
+%emits $
+%rule ind | $u(uu) | $u(uu) $n(nn)
+%emits $u ($n)
+%rule uu 'i' <I ∪ UI>
+%rule nn 'n'
+%emits $ <~low>
+```
+""",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text pair ...\n%rule pair W Z\n```\n",
+}
+
+
+class Attachments(unittest.TestCase):
+    """Attachments in the result and the brackets (engine §11,
+    docs/output.md)."""
+
+    def test_attached_tokens(self) -> None:
+        dialect = gencmu.load_dialect_sources(ATTACHING, "p.md")
+        result = dialect.parse("bwinz", auto_features=False)
+        self.assertTrue(result.ok, result.error)
+        word = (result.stages[0].output or [])[0]
+        self.assertEqual([token.label for token in word.before], ["b"])
+        self.assertEqual([token.label for token in word.after], ["i"])
+        self.assertEqual([token.label for token in word.after[0].after], ["n"])
+        # An attached token has no span, and its source is in the text.
+        self.assertIsNone(word.before[0].span)
+        self.assertEqual(word.after[0].after[0].source, (3, 4))
+        # The token that the next stage reads keeps them.
+        self.assertIs(result.stages[1].input[0], word)
+        value = gencmu.result_json(result)["stages"][0]["output"][0]
+        self.assertEqual(list(value), ["text", "phonemes", "label", "tags", "span", "source", "before", "after"])
+        self.assertEqual(value["after"][0]["after"], [{"text": "n", "phonemes": "", "label": "n", "tags": ["low"], "source": [3, 4]}])
+        self.assertEqual(gencmu.to_brackets(result), "([b w {i n}] z)")
+
+    def test_error_order(self) -> None:
+        """Of two errors in one item, the before-attachment's comes first
+        (engine §11)."""
+        case = json.loads((Path(__file__).resolve().parents[3] / "tests" / "engine" / "attach-error-order.json").read_text("utf-8"))
+        dialect = gencmu.load_dialect_sources(case["documents"], case["pipeline"])
+        result = dialect.parse(case["input"], auto_features=False)
+        assert result.error is not None
+        self.assertIn("two phoneme tags", result.error.message)
+
+    def test_inserted_error_order(self) -> None:
+        """An inserted token's error comes after an earlier attachment's
+        (engine §11)."""
+        case = json.loads((Path(__file__).resolve().parents[3] / "tests" / "engine" / "attach-error-insert-order.json").read_text("utf-8"))
+        dialect = gencmu.load_dialect_sources(*case_sources(case))
+        result = dialect.parse(case["input"], auto_features=False)
+        assert result.error is not None
+        self.assertIn('tag("?")', result.error.message)
+
+    def test_deep_nesting(self) -> None:
+        """Attachments as deep as the text is long need no recursion."""
+        grammar = "```jbogenbau\n%ambiguity-resolution greedy\n%rule text | $w(W) | $w(W) $a(text)\n%emits $w ($a)\n```\n"
+        dialect = gencmu.load_dialect_sources({"p.md": ELIDING["p.md"], "g.md": grammar}, "p.md")
+        count = 1500
+        tokens = [gencmu.Token("w", frozenset({"W"}), (n, n + 1), (2 * n, 2 * n + 1)) for n in range(count)]
+        result = dialect.parse_tokens(tokens, " ".join(["w"] * count), auto_features=False)
+        self.assertTrue(result.ok, result.error)
+        self.assertEqual(len(result.stages[0].output or []), 1)
+        self.assertTrue(gencmu.to_json(result))
 
 
 class GrammarFaults(unittest.TestCase):

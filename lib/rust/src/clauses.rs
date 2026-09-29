@@ -269,8 +269,10 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
     }
     for item in items {
         match item {
-            EmitItem::Capture(name, tags) => {
+            EmitItem::Capture(name, tags, attachments) => {
+                // An item mentions its own capture and its attachments.
                 mentioned.push(name);
+                mentioned.extend(attachments.names());
                 if let Some(term) = tags {
                     term_captures(term, &mut mentioned);
                     term_presences(term, &mut mentioned);
@@ -318,7 +320,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
         let present: Vec<&EmitItem> = items
             .iter()
             .filter(|item| match item {
-                EmitItem::Capture(name, _) => has(name),
+                EmitItem::Capture(name, ..) => has(name),
                 EmitItem::Insert(_) => true,
             })
             .collect();
@@ -327,20 +329,44 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
         if present.is_empty() && !items.is_empty() {
             return Some(format!("%emits of {} leaves an alternative nothing to emit", rule.name));
         }
+        // An alternative without an item's carrier lacks its attachments
+        // too (§9).
+        for item in items {
+            if let EmitItem::Capture(carrier, _, attachments) = item {
+                if has(carrier) {
+                    continue;
+                }
+                if let Some(stray) = attachments.names().find(|name| has(name)) {
+                    return Some(format!(
+                        "%emits of {} attaches ${stray} in an alternative without its carrier ${carrier}",
+                        rule.name
+                    ));
+                }
+            }
+        }
+        // The written order of the captures, attachments included, is the
+        // order they stand in (§9).
         let positions: Vec<usize> = present
             .iter()
-            .filter_map(|item| match item {
-                EmitItem::Capture(name, _) if !name.is_empty() => {
-                    alternatives[index].iter().find(|(captured, _)| captured == name).map(|(_, position)| *position)
-                }
-                _ => None,
+            .flat_map(|item| match item {
+                EmitItem::Capture(name, _, attachments) if !name.is_empty() => attachments
+                    .before
+                    .iter()
+                    .chain(std::iter::once(name))
+                    .chain(&attachments.after)
+                    .map(String::as_str)
+                    .collect(),
+                _ => Vec::new(),
+            })
+            .filter_map(|name| {
+                alternatives[index].iter().find(|(captured, _)| *captured == name).map(|(_, position)| *position)
             })
             .collect();
         if positions.windows(2).any(|pair| pair[1] < pair[0]) {
             return Some(format!("%emits of {} lists captures out of the order they stand in", rule.name));
         }
         for item in &present {
-            if let EmitItem::Capture(_, Some(term)) = item {
+            if let EmitItem::Capture(_, Some(term), ..) = item {
                 if term_waits(term) {
                     continue;
                 }
@@ -360,7 +386,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
             continue;
         }
         let anchor = items[index + 1..].iter().find_map(|item| match item {
-            EmitItem::Capture(name, _) => Some(name.as_str()),
+            EmitItem::Capture(name, ..) => Some(name.as_str()),
             EmitItem::Insert(_) => None,
         });
         if let Some(anchor) = anchor {

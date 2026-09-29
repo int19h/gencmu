@@ -30,6 +30,7 @@ The input is `input` or `tokens`. `input` is a string of characters, read as eng
 - Its label is its text.
 - Its span is `[i, i+1]`.
 - Its source is the position of its text in the texts joined with single spaces.
+- Its attachments are its `before` and `after` members, when present, each a list of tokens in this same form. A caller cannot supply attachments. So a list that is not empty is a `usage` error, and the library drops an empty one (`docs/api.md`). The Rust library, whose input tokens have no attachments, skips a case whose tokens have either member.
 
 Auto features (engine §13) are off for a case unless its options say `"autoFeatures": true`.
 

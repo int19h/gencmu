@@ -11,10 +11,10 @@ Libraries write object keys in the order that this document gives. They write no
 ### A parse result
 
 ```
-{"format":5,"ok":true,"stages":[STAGE...],"tree":NODE,"error":ERROR,"warnings":[WARNING...]}
+{"format":6,"ok":true,"stages":[STAGE...],"tree":NODE,"error":ERROR,"warnings":[WARNING...]}
 ```
 
-`format` is the version of the shape of the result, 5. `tree` is the chosen tree of the last stage, or `null`. `error` is `null` when `ok` is true. `warnings` is present only when there is at least one warning (engine §12, §13).
+`format` is the version of the shape of the result, 6. `tree` is the chosen tree of the last stage, or `null`. `error` is `null` when `ok` is true. `warnings` is present only when there is at least one warning (engine §12, §13).
 
 A stage has this form:
 
@@ -39,6 +39,13 @@ A token has this form:
 `label` is always present too, and it can be empty (engine §5). A label can hold any character, a line break included.
 
 `insertedBy` follows `source` for a token that was inserted from a tag literal (engine §1). Its value is the name of the rule that inserted the token.
+
+`before` and `after` follow `insertedBy` for a token with attachments (engine §11). Each is an array of tokens in this form, and each is present only when it is not empty. An attached token has no `span`, so its object leaves it out:
+
+```
+{"text":"mi","phonemes":"mi","label":"mi","tags":["KOhA"],"span":[0,1],"source":[0,2],
+ "after":[{"text":"ui","phonemes":"ui","label":"ui","tags":["UI","indicator"],"source":[3,5]}]}
+```
 
 A node has one of these forms:
 
@@ -86,7 +93,7 @@ The test uses notation operators and canonical output tags, with spaces only aro
 A grammar DOM (document object model) is the data that a library makes when it reads a grammar document (engine §8, §9). `bootstrap.json` and the precompiled DOMs hold the same data.
 
 ```
-{"format":14,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}
+{"format":15,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}
 ```
 
 `format` is the version of the DOM. It changes whenever the shape of the DOM changes. A library never uses a cached DOM of another version.
@@ -128,7 +135,9 @@ A condition is one of these forms:
 - `{"captured":"x"}`, with `""` for `$`
 - `{"if":COND,"then":COND}`
 
-An emission is `{"items":[ITEM...]}`. An item is `{"capture":"x","tags":TERM}`, with `tags` optional, or `{"insert":"/h/"}`, whose value is one tag in its canonical spelling. For `ε`, there are no items. `"capture":""` is `$`.
+An emission is `{"items":[ITEM...]}`. An item is `{"capture":"x","tags":TERM,"before":["b"],"after":["a"]}`, or `{"insert":"/h/"}`, whose value is one tag in its canonical spelling. For `ε`, there are no items. `"capture":""` is `$`.
+
+An item's `tags` is optional. `before` and `after` list the item's attachment captures (engine §11), each by its name without `$`, in the order written. Each is present only when it is not empty, and only for a named capture.
 
 A constant definition is `{"name":"SU-STOPS","op":"define","value":TERM,"at":[line,column]}`. `op` is `define` for `%const` and `redefine` for `%redefine-const`. The name has no `$`. The value is a closed term (engine §10), which can hold `const` terms but never a value that the loader gives them.
 
@@ -146,13 +155,15 @@ A directive is `{"name":"elidable","args":["KU","KEI"],"at":[line,column]}`. An 
 
 ### Precompiled DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":14,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
+`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":15,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
 
 A precompiled DOM holds the document's constants, classifiers and implications as the document writes them. The loader gives the constants their values when it stitches a stage, and a stage resolves a classifier for the features of a parse. So one precompiled DOM serves every stage, dialect and set of features that uses the document (engine §2, §8).
 
 ## Renderings
 
 The renderings are for people. The CLI and the playground implement all three renderings. Every library implements brackets, and the corpus tests compare brackets. Every rendering shows a token by its label.
+
+A token node reads an input token of the last stage, and that token can have attachments (engine §11). Every rendering shows them with the token node. The tied tree and the readings of an `ambiguous` error read the same tokens, so they show the same attachments.
 
 A hollow rule node, such as an empty slot for a free modifier, has no token and no elided node below it. No rendering shows a hollow rule node. Brackets drop it as an empty node, and the tree and the display JSON leave it out. But the root is always shown. So a text whose tree is hollow, such as the empty text, renders in the tree as the rule name of the root alone. In the display JSON, it renders as `{"text":[]}`.
 
@@ -161,24 +172,38 @@ A hollow rule node, such as an empty slot for a free modifier, has no token and 
 Brackets write the tree of the final stage as nested groups:
 
 1. The label of a token node is the label of its token (engine §5). So a pause shows as a space, and a foreign part shows its text. A label can itself be empty, as for a `zoi` quote of nothing, and the renderer keeps it. The label of an elided node is empty, unless elided terminators are shown. In that case, the label is the terminal in lower case between `⟨` and `⟩`.
-2. The renderer renders the children of a rule node and drops the empty ones. An empty child is an elided node that is not shown, or a rule node that renders nothing. A token node is never empty. If no child is left, the node is empty. If one child is left, the node is that child. Otherwise, the node is a group.
-3. The depth *d* of a group counts groups only: a child group of a group at depth *d* is at *d*+1. A group is written between `(` `)` when *d* mod 3 is 0, `[` `]` when 1, and `{` `}` when 2. One space separates its members.
+2. A token node whose token has attachments renders as a group. Its members are the token's before-attachments, the token's label, and its after-attachments, in that order. Each attachment renders in the same way: as its label, or as a group if it has attachments of its own.
+3. The renderer renders the children of a rule node and drops the empty ones. An empty child is an elided node that is not shown, or a rule node that renders nothing. A token node is never empty. If no child is left, the node is empty. If one child is left, the node is that child. Otherwise, the node is a group.
+4. The depth *d* of a group counts groups only: a child group of a group at depth *d* is at *d*+1. A group is written between `(` `)` when *d* mod 3 is 0, `[` `]` when 1, and `{` `}` when 2. One space separates its members.
 
-So `lo mlatu cu citka le finpe` is `([lo mlatu] cu [citka {le finpe}])`.
+So `lo mlatu cu citka le finpe` is `([lo mlatu] cu [citka {le finpe}])`. In the CLL dialect, `mi ui klama` is `([mi ui] klama)`, `ba'e mi klama` is `([ba'e mi] klama)`, and `mi ui nai klama` is `([mi {ui nai}] klama)`.
 
 ### Tree
 
 The tree has one node per line, and children are indented two spaces under their parent. Each kind of node is written as follows:
 
-- A rule node is its name. If the node has only token descendants on one line of source, ` · ` and its text follow the name. They do not if the label of any of those tokens holds a line break.
+- A rule node is its name. If the node has only token descendants on one line of source, ` · ` and its text follow the name. They do not if any of those tokens has attachments. They also do not if the label of any of those tokens, or of their attachments, holds a line break.
 - A token node is its terminal, then its label from above in quotes. The quoted label is escaped as a JSON string, so a line break in it is written `\n`.
+- The attachments of a token node follow it, each on a line of its own, indented two spaces more than the node. The before-attachments come first, each after `◂ `, and then the after-attachments, each after `▸ `. These marks differ from the ` › ` that joins a chain of rule nodes.
+
+  An attachment is its classes, then its label in quotes. Its classes are its tags that begin with `A` to `Z`, in code point order, joined by ` ∪ `. An attachment with no class is its label alone. Its own attachments follow it in the same way, indented two spaces more.
 - An elided node is its terminal in angle brackets.
 
-Chains of rule nodes with one child are written on one line, joined by ` › `.
+Chains of rule nodes with one child are written on one line, joined by ` › `. So in the CLL dialect, the token node of `mi` in `mi ui nai klama` has these lines, at the indentation of the node:
+
+```
+KOhA "mi"
+  ▸ UI "ui"
+    ▸ NAI "nai"
+```
 
 ### Display JSON
 
-The display JSON is the tree projected for reading, and it is not the canonical form. A rule node is an object with one member, its rule name. If the node has one child, the value of this member is the projection of that child. Otherwise, the value is the array of the projections of its children. A token node is `{"TERMINAL":"label"}`, and an elided node is `{"TERMINAL":null}`. The display JSON is pretty-printed so that nesting costs no indentation where nothing is gained:
+The display JSON is the tree projected for reading, and it is not the canonical form. A rule node is an object with one member, its rule name. If the node has one child, the value of this member is the projection of that child. Otherwise, the value is the array of the projections of its children. A token node is `{"TERMINAL":"label"}`, and an elided node is `{"TERMINAL":null}`.
+
+A token node whose token has attachments is `{"terminal":"T","label":"L","before":[...],"after":[...]}` instead. An attachment in those arrays is `{"classes":["C",...],"label":"L","before":[...],"after":[...]}`, with its classes in code point order. Each of these objects leaves out an empty array. The terminal is a value there and not a key, so no terminal can collide with a member of the object.
+
+The display JSON is pretty-printed so that nesting costs no indentation where nothing is gained:
 
 - A scalar is written as JSON.
 - An empty array is `[]`. A non-empty array is `[`, a newline, each item, a newline, and `]` at the indentation of the array. Each item is indented two more spaces than the array, and each item except the last is followed by `,`.

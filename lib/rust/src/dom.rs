@@ -7,7 +7,7 @@ use crate::tags::{character_code, is_name, is_tag};
 use crate::unicode::{is_property_name, Unicode};
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 14;
+pub const DOM_FORMAT: i64 = 15;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -198,11 +198,28 @@ pub(crate) enum Cond {
 }
 
 /// An item of an emission clause. A capture named `""` is `$`, the whole
-/// constituent. An emission of no items is `%emits ε` (§11).
+/// constituent. An emission of no items is `%emits ε` (§11). A named
+/// capture, the item's carrier, can name attachment captures before it and
+/// after it (§11).
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum EmitItem {
-    Capture(String, Option<Term>),
+    Capture(String, Option<Term>, Attachments),
     Insert(String),
+}
+
+/// An emission item's attachment captures (§11): the names, without `$`,
+/// before its carrier and after it, in the order written.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub(crate) struct Attachments {
+    pub before: Vec<String>,
+    pub after: Vec<String>,
+}
+
+impl Attachments {
+    /// Every attachment capture, before ones first, in order.
+    pub(crate) fn names(&self) -> impl Iterator<Item = &str> {
+        self.before.iter().chain(&self.after).map(String::as_str)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -461,7 +478,21 @@ fn emit_from_json(value: &Json) -> R<Vec<EmitItem>> {
         .map(|item| {
             let tags = item.get("tags").map(term_from_json).transpose()?;
             if let Some(Json::Str(name)) = item.get("capture") {
-                Ok(EmitItem::Capture(name.clone(), tags))
+                let names = |key: &str| -> R<Vec<String>> {
+                    match item.get(key) {
+                        None => Ok(Vec::new()),
+                        Some(list) => list
+                            .as_array()
+                            .ok_or_else(|| "a malformed attachment".to_string())?
+                            .iter()
+                            .map(|name| {
+                                name.as_str().map(str::to_string).ok_or_else(|| "a malformed attachment".to_string())
+                            })
+                            .collect(),
+                    }
+                };
+                let attachments = Attachments { before: names("before")?, after: names("after")? };
+                Ok(EmitItem::Capture(name.clone(), tags, attachments))
             } else if let Some(Json::Str(tag)) = item.get("insert") {
                 Ok(EmitItem::Insert(tag.clone()))
             } else {
@@ -1002,7 +1033,9 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
             Kind::Emission => {
                 // `$` only with `$`, a capture other than `$` listed once,
                 // tags only on a capture, never `<∅>`, and no member but
-                // those; no items is `ε` (§9).
+                // those; no items is `ε` (§9). Attachments are lists of
+                // named captures, present only when not empty, and only on
+                // a named capture, and they count as listed.
                 if !list(value.get("items"), 0, usize::MAX) {
                     return Some("a malformed emission");
                 }
@@ -1011,7 +1044,9 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                 let mut captures: Vec<&str> = Vec::new();
                 for item in items {
                     let known = item.as_object().is_some_and(|members| {
-                        members.iter().all(|(key, _)| matches!(key.as_str(), "capture" | "insert" | "tags"))
+                        members
+                            .iter()
+                            .all(|(key, _)| matches!(key.as_str(), "capture" | "insert" | "tags" | "before" | "after"))
                     });
                     if !known {
                         return Some("a malformed emission");
@@ -1020,15 +1055,33 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                         if has(item, "insert") {
                             return Some("a malformed emission");
                         }
+                        let sides = [item.get("before"), item.get("after")];
                         if name.is_empty() {
+                            if sides.iter().any(Option::is_some) {
+                                return Some("a malformed emission");
+                            }
                             whole += 1;
-                        } else if captures.contains(&name) {
-                            return Some("a malformed emission");
-                        } else {
+                        }
+                        let mut named = if name.is_empty() { Vec::new() } else { vec![name] };
+                        for side in sides.into_iter().flatten() {
+                            if !list(Some(side), 1, usize::MAX) {
+                                return Some("a malformed emission");
+                            }
+                            for attachment in side.as_array().unwrap_or(&[]) {
+                                match attachment.as_str() {
+                                    Some(attachment) if is_capture_name(attachment) => named.push(attachment),
+                                    _ => return Some("a malformed emission"),
+                                }
+                            }
+                        }
+                        for name in named {
+                            if captures.contains(&name) {
+                                return Some("a malformed emission");
+                            }
                             captures.push(name);
                         }
                     } else if is_tag_json(item.get("insert"), unicode) {
-                        if has(item, "tags") {
+                        if has(item, "tags") || has(item, "before") || has(item, "after") {
                             return Some("a malformed emission");
                         }
                     } else {
@@ -1414,12 +1467,24 @@ fn write_rule(out: &mut String, rule: &RuleDef) {
                 out.push(',');
             }
             match item {
-                EmitItem::Capture(name, tags) => {
+                EmitItem::Capture(name, tags, attachments) => {
                     out.push_str("{\"capture\":");
                     write_str(out, name);
                     if let Some(tags) = tags {
                         out.push_str(",\"tags\":");
                         write_term(out, tags);
+                    }
+                    for (key, names) in [("before", &attachments.before), ("after", &attachments.after)] {
+                        if !names.is_empty() {
+                            out.push_str(&format!(",\"{key}\":["));
+                            for (index, name) in names.iter().enumerate() {
+                                if index > 0 {
+                                    out.push(',');
+                                }
+                                write_str(out, name);
+                            }
+                            out.push(']');
+                        }
                     }
                 }
                 EmitItem::Insert(tag) => {
@@ -1770,7 +1835,7 @@ pub(crate) fn constants_in_rule(rule: &RuleDef) -> Vec<(&str, (usize, usize))> {
         alternative.tags.iter().for_each(|term| constants_in_term(term, &mut out));
     }
     for item in rule.emit.iter().flatten() {
-        if let EmitItem::Capture(_, Some(term)) = item {
+        if let EmitItem::Capture(_, Some(term), ..) = item {
             constants_in_term(term, &mut out);
         }
     }
@@ -1981,7 +2046,7 @@ pub(crate) fn rule_type_problem(rule: &RuleDef) -> Option<String> {
 /// smallest construct that disagrees, or `None`.
 pub(crate) fn rule_type_fault(rule: &RuleDef, constants: ConstantTypes) -> Option<Fault> {
     let items = rule.emit.iter().flatten().filter_map(|item| match item {
-        EmitItem::Capture(_, tags) => tags.as_ref(),
+        EmitItem::Capture(_, tags, ..) => tags.as_ref(),
         EmitItem::Insert(_) => None,
     });
     rule.tags

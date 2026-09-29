@@ -1,0 +1,153 @@
+{
+  "description": "A token over exactly one input token with attachments inherits them, whatever tags its item gives it. Its own new attachments are outer: new after-attachments follow the inherited ones (engine §11).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n%stage c\n%include \"c.md\"\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text item ...\n%rule item\n  | $w(word) | $b(bb) $w(word) | $w(word) $a(ii) | $b(bb) $w(word) $a(ii)\n%emits\n  ($b) $w ($a)\n%rule word\n  | 'w' <W> | 'z' <Z>\n%rule bb\n  'b' <B>\n%emits\n  $\n%rule ii\n  'i' <I>\n%emits\n  $\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w(W) $z(zz)\n%emits\n  $w <Y> ($z)\n%rule zz\n  Z\n%emits\n  $\n```\n",
+    "c.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text Y\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "bwiz",
+  "expect": {
+    "result": {
+      "format": 6,
+      "ok": true,
+      "stages": [
+        {
+          "name": "a",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "w",
+              "phonemes": "",
+              "label": "w",
+              "tags": [
+                "W"
+              ],
+              "span": [
+                1,
+                2
+              ],
+              "source": [
+                1,
+                2
+              ],
+              "before": [
+                {
+                  "text": "b",
+                  "phonemes": "",
+                  "label": "b",
+                  "tags": [
+                    "B"
+                  ],
+                  "source": [
+                    0,
+                    1
+                  ]
+                }
+              ],
+              "after": [
+                {
+                  "text": "i",
+                  "phonemes": "",
+                  "label": "i",
+                  "tags": [
+                    "I"
+                  ],
+                  "source": [
+                    2,
+                    3
+                  ]
+                }
+              ]
+            },
+            {
+              "text": "z",
+              "phonemes": "",
+              "label": "z",
+              "tags": [
+                "Z"
+              ],
+              "span": [
+                3,
+                4
+              ],
+              "source": [
+                3,
+                4
+              ]
+            }
+          ]
+        },
+        {
+          "name": "b",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "w",
+              "phonemes": "",
+              "label": "w",
+              "tags": [
+                "Y"
+              ],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                1,
+                2
+              ],
+              "before": [
+                {
+                  "text": "b",
+                  "phonemes": "",
+                  "label": "b",
+                  "tags": [
+                    "B"
+                  ],
+                  "source": [
+                    0,
+                    1
+                  ]
+                }
+              ],
+              "after": [
+                {
+                  "text": "i",
+                  "phonemes": "",
+                  "label": "i",
+                  "tags": [
+                    "I"
+                  ],
+                  "source": [
+                    2,
+                    3
+                  ]
+                },
+                {
+                  "text": "z",
+                  "phonemes": "",
+                  "label": "z",
+                  "tags": [
+                    "Z"
+                  ],
+                  "source": [
+                    3,
+                    4
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "c",
+          "verdict": "unique",
+          "output": []
+        }
+      ]
+    },
+    "brackets": "(b w i z)"
+  }
+}

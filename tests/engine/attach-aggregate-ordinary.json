@@ -1,0 +1,79 @@
+{
+  "description": "A token over an input token with attachments and another input token is an error of the grammar (engine §11).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text item ...\n%rule item\n  | $w(word) | $b(bb) $w(word) | $w(word) $a(ii) | $b(bb) $w(word) $a(ii)\n%emits\n  ($b) $w ($a)\n%rule word\n  | 'w' <W> | 'z' <Z>\n%rule bb\n  'b' <B>\n%emits\n  $\n%rule ii\n  'i' <I>\n%emits\n  $\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $x(pair)\n%emits\n  $x\n%rule pair\n  W Z\n%tags\n  ~P\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "wiz",
+  "expect": {
+    "result": {
+      "format": 6,
+      "ok": false,
+      "stages": [
+        {
+          "name": "a",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "w",
+              "phonemes": "",
+              "label": "w",
+              "tags": [
+                "W"
+              ],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ],
+              "after": [
+                {
+                  "text": "i",
+                  "phonemes": "",
+                  "label": "i",
+                  "tags": [
+                    "I"
+                  ],
+                  "source": [
+                    1,
+                    2
+                  ]
+                }
+              ]
+            },
+            {
+              "text": "z",
+              "phonemes": "",
+              "label": "z",
+              "tags": [
+                "Z"
+              ],
+              "span": [
+                2,
+                3
+              ],
+              "source": [
+                2,
+                3
+              ]
+            }
+          ]
+        },
+        {
+          "name": "b",
+          "verdict": "unique"
+        }
+      ],
+      "error": {
+        "kind": "grammar",
+        "stage": "b"
+      }
+    },
+    "error": "grammar"
+  }
+}

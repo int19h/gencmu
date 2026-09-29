@@ -444,10 +444,26 @@ class Parser {
     const items = [this.emitItem()];
     while (this.accept(",")) items.push(this.emitItem());
     if (items.some((item) => item.capture === "") && !items.every((item) => item.capture === "")) fail("$ goes with no item but another $", at);
+    // A capture stands once in an emission, as an item or as an attachment
+    // (engine §9).
+    const named = items.flatMap((item) => (item.capture ? [item.capture, ...(item.before || []), ...(item.after || [])] : []));
+    if (named.some((name, index) => named.indexOf(name) !== index)) fail("%emits lists a capture twice", at);
     return { items };
   }
 
+  // An attachment: a named capture in parentheses (engine §9, §11).
+  attachment() {
+    const open = this.take("(");
+    const capture = this.take("capture");
+    if (capture.name === "") fail("an attachment holds a named capture, not $", open);
+    this.take(")");
+    return capture.name;
+  }
+
   emitItem() {
+    const first = this.peek();
+    const before = [];
+    while (this.is("(")) before.push(this.attachment());
     const token = this.take();
     let item;
     if (token.kind === "capture") item = { capture: token.name };
@@ -459,6 +475,12 @@ class Parser {
       if (item.insert !== undefined) fail("an inserted tag takes no tags of its own", token);
       item.tags = this.angleTerm();
     }
+    const after = [];
+    while (this.is("(")) after.push(this.attachment());
+    if ((before.length || after.length) && item.capture === undefined) fail("an inserted tag carries no attachments", first);
+    if ((before.length || after.length) && item.capture === "") fail("$ carries no attachments; name a capture", first);
+    if (before.length) item.before = before;
+    if (after.length) item.after = after;
     return item;
   }
 

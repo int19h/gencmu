@@ -184,6 +184,8 @@ The grammar reads a test after any primary, and a constant as a primary. The rea
 
 `%emits` says what the constituent hands on. That is a list of items. An item is a capture, with tags of its own between `<` and `>`, or an inserted tag. An inserted tag is a capital-initial name, a tag literal, a character tag or a phoneme tag. The grammar also reads a range or a property there, so that the reader can refuse it by name. The clause can also be `ε`, nothing, which also makes the constituent not count.
 
+An item can have attachments: captures in parentheses, any number before its target and any number after its tags. The grammar reads them on any item, and around `$` too. The reader refuses them where the item is not a named capture, and it refuses `($)`.
+
 `%foreign` is a keyword alone. It says that the constituent is foreign text, which sounds `?` and shows its text.
 
 ```jbogenbau
@@ -200,7 +202,13 @@ The grammar reads a test after any primary, and a constant as a primary. The rea
   ~keyword-foreign
 
 %rule emit-item
-  emit-target [emit-tags]
+  [emit-before] ... emit-target [emit-tags] [emit-after] ...
+
+%rule emit-before
+  '(' ~capture ')'
+
+%rule emit-after
+  '(' ~capture ')'
 
 %rule emit-target
   ~capture | ~identifier | ~tag | ~character | ~phoneme | range | property

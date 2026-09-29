@@ -1,0 +1,23 @@
+{
+  "description": "Several attachments before a carrier stand in the order written (engine §9).",
+  "document": "```jbogenbau\n%rule a $x(X) $y(Y) $w(W) %emits ($x) ($y) $w\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "emit": {
+            "items": [
+              {
+                "capture": "w",
+                "before": [
+                  "x",
+                  "y"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
