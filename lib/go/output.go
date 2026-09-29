@@ -6,7 +6,7 @@ import (
 )
 
 // resultFormat is the version of docs/output.md.
-const resultFormat = 4
+const resultFormat = 5
 
 // MarshalResult writes the canonical JSON of a result (docs/output.md).
 func MarshalResult(result *ParseResult) ([]byte, error) {
@@ -110,15 +110,14 @@ func writeToken(w *jsonWriter, t *Token) {
 	w.str(t.Text)
 	w.raw(`,"phonemes":`)
 	w.str(t.Phonemes)
+	w.raw(`,"label":`)
+	w.str(t.Label)
 	w.raw(`,"tags":`)
 	writeTags(w, t.Tags)
 	w.raw(`,"span":`)
 	w.pair(t.Span)
 	w.raw(`,"source":`)
 	w.pair(t.Source)
-	if t.Verbatim {
-		w.raw(`,"verbatim":true`)
-	}
 	if t.InsertedBy != "" {
 		w.raw(`,"insertedBy":`)
 		w.str(t.InsertedBy)
@@ -300,16 +299,8 @@ func Brackets(result *ParseResult, options BracketOptions) string {
 	finish := func(f *frame) *rendered {
 		switch f.n.Kind {
 		case KindToken:
-			t := input[f.n.Token]
-			// The label of a verbatim token is its text as written. Other
-			// labels write each pause, ., as a space (docs/output.md).
-			if t.Verbatim {
-				return &rendered{leaf: t.Text}
-			}
-			if t.Phonemes != "" {
-				return &rendered{leaf: strings.ReplaceAll(t.Phonemes, ".", " ")}
-			}
-			return &rendered{leaf: t.Text}
+			// Every rendering shows a token by its label (docs/output.md).
+			return &rendered{leaf: input[f.n.Token].Label}
 		case KindElided:
 			if options.ShowElided {
 				return &rendered{leaf: "⟨" + strings.ToLower(f.n.Terminal) + "⟩"}

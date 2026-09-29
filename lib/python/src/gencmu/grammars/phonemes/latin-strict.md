@@ -6,7 +6,7 @@ This document reads the Latin orthography of CLL chapter 3 and no more. The CLL 
 
 The terminals of the stage are characters, each written as a character tag in single quotes, such as `'a'`. A token is one unit that a stage reads or emits. A terminal matches one input token by tag. A character token carries only its character tag. So a class of characters is a range, such as `'0'..'9'`, or a Unicode property, such as `'\p{White_Space}'`.
 
-The stage emits one token per phoneme, and each token carries the tag of that phoneme. A tag is a label on a token. So the later stages never see a character, and they read every script alike.
+The stage emits one token per phoneme, and each token carries the tag of that phoneme. A tag is a name on a token. So the later stages never see a character, and they read every script alike.
 
 The phonemes are the letters of CLL chapter 3, each written as a phoneme tag:
 
@@ -127,7 +127,7 @@ A comma stands only between two letters of a run. Between two vowels it is the s
   consonant | plain-vowel | stressed-vowel | apostrophe | comma
 ```
 
-A run that is not an ordinary run is foreign. It has a letter, a digit, a mark or any other character that this orthography does not read, as `mi klama?` has. The stage emits a foreign run as one `FOREIGN` token. Its phonemes are its text, because the rule is `%verbatim`. So the `zoi` check compares a delimiter with the exact text of such a run.
+A run that is not an ordinary run is foreign. It has a letter, a digit, a mark or any other character that this orthography does not read, as `mi klama?` has. The stage emits a foreign run as one `FOREIGN` token. The rule is `%foreign`, so the token sounds `?`, and its label is its text. A `zoi` delimiter is a word, which never sounds `?`. So no delimiter matches such a run.
 
 A foreign run has at least one character that no letter rule of any script reads by itself. The rule `letters` always reads a run without one. So the stage tests only a run with one, and a long run of letters costs nothing more. A run neither begins nor ends with a comma, which is part of the pause next to it. A run character is any character but whitespace and the period.
 
@@ -140,7 +140,7 @@ A foreign run has at least one character that no letter rule of any script reads
   ¬matches(last($r), comma)
 %emits
   $ <FOREIGN>
-%verbatim
+%foreign
 
 %rule foreign-chars
   | foreign-char

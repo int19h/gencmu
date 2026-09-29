@@ -1,0 +1,100 @@
+{
+  "description": "The foreign parts are chosen over the whole derivation, and a %foreign constituent that the choice leaves out is ordinary, even when a token is emitted over it (engine §11). The first `inner` lies inside the foreign part `outer`, whose rule has no emission clause. So the walk reaches it and its own emission runs. The second lies inside the foreign part `held`, whose capture item emits a token over it. Each token has the source of its input token and sounds `b`, not `?`. `skipped` lies inside `gone`, which emits ε, so the walk does not reach it, and it emits nothing. It is no foreign part, so it takes in no text, and `tail`, the next foreign part, takes the space before it.",
+  "grammar": "%rule text outer held gone tail\n%rule outer A inner\n%foreign\n%rule held $i(inner)\n%emits $i <J>\n%foreign\n%rule inner B\n%emits $ <I>\n%foreign\n%rule gone skipped\n%emits ε\n%rule skipped C\n%emits $ <S>\n%foreign\n%rule tail D\n%emits $ <T>\n%foreign",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "b"
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "b"
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ],
+      "phonemes": "c"
+    },
+    {
+      "text": "d",
+      "tags": [
+        "D"
+      ],
+      "phonemes": "d"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "text": "b",
+              "phonemes": "b",
+              "label": "b",
+              "tags": [
+                "I"
+              ],
+              "span": [
+                1,
+                2
+              ],
+              "source": [
+                2,
+                3
+              ]
+            },
+            {
+              "text": "b",
+              "phonemes": "b",
+              "label": "b",
+              "tags": [
+                "J"
+              ],
+              "span": [
+                2,
+                3
+              ],
+              "source": [
+                4,
+                5
+              ]
+            },
+            {
+              "text": " d",
+              "phonemes": "?",
+              "label": " d",
+              "tags": [
+                "T"
+              ],
+              "span": [
+                4,
+                5
+              ],
+              "source": [
+                7,
+                9
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

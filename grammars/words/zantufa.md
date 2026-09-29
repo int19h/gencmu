@@ -32,7 +32,7 @@ Zantufa's Y is `y` and `ie'o`, and its `spaces` read both as space. So `ie'o` is
 
 `ra'oi` quotes a rafsi or gismu form from the letters after it, and the stage reads the rest of the run as words. The stage tries the forms in the order of Zantufa: `y_rafsi / long_rafsi / y_less_rafsi / gismu`. The forms decide with their stress. So `ra'oi broda` quotes the gismu `broda`, because its `o` is stressed before the pause, but `ra'oi brodami` quotes the rafsi `brod` and leaves `a` and `mi`. The form can follow `ra'oi` directly, as in `ra'oibroda`, or after a pause and any hesitation, as in `ra'oi .y. broda`. A run can hold several such quotes, as `ra'oi brodyra'oibroda` does.
 
-The stage hands the form on as one token, tagged `rafsi-form`, and the word stage makes the quote. A token is one unit that a stage reads or emits. A tag is a label on a token. Where no such form follows, `ra'oi` is an ordinary word, as in Zantufa's `si_word`, so `ra'oi bu` is a letter word. The word stage rejects `ra'oi do`.
+The stage hands the form on as one token, tagged `rafsi-form`, and the word stage makes the quote. A token is one unit that a stage reads or emits. A tag is a name on a token. Where no such form follows, `ra'oi` is an ordinary word, as in Zantufa's `si_word`, so `ra'oi bu` is a letter word. The word stage rejects `ra'oi do`.
 
 A word of LU, TO or LUhEI opens a text of its own. The hesitation after such a word can be space, which the stage tags `opener-space` below. The constant `$TEXT-OPENERS` lists these classes. The word stage defines the same constant, because a constant belongs to its stage ([zantufa-stream.md](zantufa-stream.md)).
 

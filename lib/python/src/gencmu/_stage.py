@@ -241,45 +241,78 @@ def emits_nothing(production: Production) -> bool:
     return production.emit is not None and not production.emit
 
 
-def uncounted_tokens(root: DNode, size: int) -> list[bool]:
-    """Which input tokens lie inside a constituent that does not count."""
-    uncounted = [False] * size
+def foreign_parts(root: DNode, tokens: list[Token], sources: Sources, text: str) -> dict[int, Range]:
+    """The foreign parts of a chosen derivation, each with its source,
+    keyed by the ``id`` of its node (engine §11). A foreign part is the
+    constituent of a ``%foreign`` production inside no constituent that
+    emits ``ε`` and no other foreign part. The stage fixes them before it
+    emits anything, so that every token over a part holds the same text."""
+    parts: list[DNode] = []
     stack: list[DChild] = [root]
     while stack:
         node = stack.pop()
-        if isinstance(node, DRead):
+        if isinstance(node, DRead) or emits_nothing(node.production):
             continue
-        if emits_nothing(node.production):
-            for index in range(node.start, node.end):
-                uncounted[index] = True
+        if node.production.foreign:
+            parts.append(node)
             continue
-        stack.extend(node.children)
-    return uncounted
-
-
-def joined_phonemes(parts: list[str]) -> str:
-    """The tokens' phonemes joined in order, with each run of pause tokens
-    made one and a pause token at either end left out (engine §5). The
-    pauses are counted by token, so that a verbatim token keeps its
-    periods."""
-    pieces: list[str] = []
+        stack.extend(reversed(node.children))
+    # Text between two input tokens belongs to the part with a non-empty
+    # span that ends there, before one that starts there.
+    ends = {part.end for part in parts if part.start < part.end}
+    result: dict[int, Range] = {}
     for part in parts:
-        if not part or part == PAUSE and (not pieces or pieces[-1] == PAUSE):
+        if part.start == part.end:
+            # An empty part takes in no text. Its source is that of an empty
+            # node (engine §12).
+            result[id(part)] = _empty_source(tokens, part.start)
             continue
-        pieces.append(part)
-    if pieces and pieces[-1] == PAUSE:
-        pieces.pop()
-    return "".join(pieces)
+        before = tokens[part.start - 1].source[1] if part.start > 0 else 0
+        # It always holds its own tokens' sources, which the tokens next to
+        # it can share, and takes in the text next to it that no input token
+        # covers.
+        own = sources.of(part.start, part.end)
+        first = own[0] if part.start in ends else min(own[0], before)
+        after = tokens[part.end].source[0] if part.end < len(tokens) else len(text)
+        result[id(part)] = (first, max(own[1], after))
+    return result
 
 
-def span_phonemes(tokens: list[Token], uncounted: list[bool], start: int, end: int) -> str:
-    return joined_phonemes([tokens[index].phonemes or "" for index in range(start, end) if not uncounted[index]])
+class Join:
+    """A join of the phonemes or of the labels of a token's parts (engine
+    §5): a part with an empty string is left out, of each run of adjacent
+    pause parts only the first is kept, and a pause part at either end is
+    left out. Pauses are counted by part, so a part keeps its own periods
+    and spaces."""
+
+    __slots__ = ("pieces", "pause")
+
+    def __init__(self) -> None:
+        self.pieces: list[str] = []
+        self.pause = False
+
+    def add(self, piece: str, pause: bool) -> None:
+        if not piece or pause and (not self.pieces or self.pause):
+            return
+        self.pieces.append(piece)
+        self.pause = pause
+
+    def result(self) -> str:
+        if self.pause:
+            self.pieces.pop()
+        return "".join(self.pieces)
+
+
+def sounded(phoneme: str) -> tuple[str, str]:
+    """The phonemes and the label of a phoneme tag ``/p/`` (engine §5):
+    ``p`` and ``p``, but a space for the label of the pause."""
+    return phoneme, " " if phoneme == PAUSE else phoneme
 
 
 def phoneme_tag(tags: Tags) -> str | None:
     """The phonemes of an emitted token's phoneme tag, or ``None`` if
-    it has none. Two are an error of the grammar on any emitted token,
-    verbatim or not (engine §5)."""
+    it has none. Two are an error of the grammar on any emitted token
+    (engine §5)."""
     found = sorted(tag for tag in tags if phoneme_of(tag) is not None)
     if len(found) > 1:
         raise _GrammarFault(f"an emitted token has two phoneme tags: {', '.join(found)}")
@@ -311,53 +344,55 @@ class Emitter:
         self.tree = tree
         self.root = root
         self.evaluator = Evaluator(context, 0, len(context.tokens))
-        self.uncounted = uncounted_tokens(root, len(self.tokens))
         self.output: list[Token] = []
-        # Where the widened tokens emitted so far end (engine §11).
-        self.widened_ends: set[int] = set()
+        # The foreign parts and their sources, fixed before any token
+        # (engine §11).
+        self.foreign = foreign_parts(root, self.tokens, context.sources, context.text)
 
-    def token(self, start: int, end: int, tags: Tags, source: Range, inserted_by: str | None) -> Token:
-        phoneme = phoneme_tag(tags)
-        phonemes = phoneme if phoneme is not None else span_phonemes(self.tokens, self.uncounted, start, end)
-        text = self.context.text[source[0] : source[1]]
-        return Token(text, tags, (start, end), source, phonemes, inserted_by)
+    def spoken(self, part: DChild) -> tuple[str, str]:
+        """What a part says and shows: the phonemes and the labels of its
+        parts, joined (engine §5, §11). A part is a read input token or a
+        foreign part. Nothing inside a constituent that does not count is a
+        part, and the walk does not enter a foreign part."""
+        phonemes = Join()
+        label = Join()
+        stack: list[DChild] = [part]
+        while stack:
+            node = stack.pop()
+            if isinstance(node, DRead):
+                token = self.tokens[node.token]
+                sound = token.phonemes or ""
+                phonemes.add(sound, sound == PAUSE)
+                label.add(token.label, sound == PAUSE)
+                continue
+            if emits_nothing(node.production):
+                continue
+            source = self.foreign.get(id(node))
+            if source is not None:
+                phonemes.add("?", False)
+                label.add(self.context.text[source[0] : source[1]], False)
+                continue
+            stack.extend(reversed(node.children))
+        return phonemes.result(), label.result()
 
     def part_token(self, part: DChild, explicit: Tags) -> Token:
         """The token a ``$`` item or a capture item emits over a part, with
         the tags that the emission gives it (engine §11)."""
-        # The stage's implications apply before the phonemes (engine §11).
+        # The stage's implications apply before the phonemes and the label
+        # (engine §11).
         tags = implied(explicit, self.context.lowered.implications)
-        tokens = self.tokens
-        span = (part.start, part.end)
-        if isinstance(part, DNode) and part.production.verbatim:
-            # A widened token sounds like its text (engine §5), but two
-            # phoneme tags are still an error on it.
-            phoneme_tag(tags)
-            source = self.widened_source(part.start, part.end)
-            text = self.context.text[source[0] : source[1]]
-            return Token(text, tags, span, source, text, verbatim=True)
-        if part.end - part.start == 1 and tokens[part.start].verbatim:
-            # A token over one verbatim token is verbatim, with its source.
-            phoneme_tag(tags)
-            only = tokens[part.start]
-            return Token(only.text, tags, span, only.source, only.text, verbatim=True)
-        return self.token(part.start, part.end, tags, self.part_source(part), None)
-
-    def widened_source(self, start: int, end: int) -> Range:
-        """Where a widened token stands in the text (engine §11). It takes in
-        the text next to it that no input token covers, but not text that a
-        widened token before it has taken. It always holds the source of its
-        own tokens (engine §1), which the tokens next to it can share. Over an
-        empty span it takes in nothing."""
-        tokens = self.tokens
-        before = tokens[start - 1].source[1] if start > 0 else 0
-        if start == end:
-            return (before, before)
-        own = self.context.sources.of(start, end)
-        after = tokens[end].source[0] if end < len(tokens) else len(self.context.text)
-        first = own[0] if start in self.widened_ends else min(own[0], before)
-        self.widened_ends.add(end)
-        return (first, max(own[1], after))
+        # Two phoneme tags are an error on any token (engine §5).
+        phoneme = phoneme_tag(tags)
+        # A token over a foreign part has the part's source and text (engine
+        # §11).
+        source = self.foreign.get(id(part)) if isinstance(part, DNode) else None
+        if source is None:
+            source = self.part_source(part)
+        text = self.context.text[source[0] : source[1]]
+        # A phoneme tag decides the sound and the label, over ``?`` (engine
+        # §5).
+        phonemes, label = sounded(phoneme) if phoneme is not None else self.spoken(part)
+        return Token(text, tags, (part.start, part.end), source, phonemes, None, label)
 
     def part_source(self, part: DChild) -> Range:
         if isinstance(part, DRead):
@@ -408,7 +443,11 @@ class Emitter:
             else:
                 at = self.tree.source_of(node)[0]
             tags = implied(frozenset((tag,)), self.context.lowered.implications)
-            self.output.append(self.token(boundary, boundary, tags, (at, at), node.production.rule_name))
+            # An inserted token has no parts: a phoneme tag gives its phonemes
+            # and its label, or both are empty (engine §5).
+            phoneme = phoneme_tag(tags)
+            phonemes, label = sounded(phoneme) if phoneme is not None else ("", "")
+            self.output.append(Token("", tags, (boundary, boundary), (at, at), phonemes, node.production.rule_name, label))
 
     def context_caps(self, node: DNode) -> Any:
         return self.forest.caps[node.item]
@@ -435,7 +474,6 @@ class StageOutcome:
     witness: tuple[Action, Action] | None = None
     tied: Node | None = None
     error: ParseError | None = None
-    uncounted: list[bool] | None = None
     chosen_actions: list[Act] | None = None
     tied_actions: list[Act] | None = None
     warnings: list[ParseWarning] = field(default_factory=list)
@@ -541,7 +579,6 @@ class StageRunner:
             outcome.tied = Tree(derivation(forest, ranking.tied), context.sources, context.tagtab).root
             outcome.tied_actions = list(actions(ranking.tied))
         emitter = Emitter(context, forest, tree, root)
-        outcome.uncounted = emitter.uncounted
         try:
             if self.emit:
                 outcome.output = emitter.emit()

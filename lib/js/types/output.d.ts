@@ -3,10 +3,10 @@ import type { Token } from "./tokens.js";
 export type TokenJson = {
     text: string;
     phonemes: string;
+    label: string;
     tags: string[];
     span: Span;
     source: Span;
-    verbatim?: true;
     insertedBy?: string;
 };
 export type NodeJson = {
@@ -87,10 +87,10 @@ export type DisplayValue = {
  * @typedef {object} TokenJson
  * @property {string} text
  * @property {string} phonemes
+ * @property {string} label
  * @property {string[]} tags
  * @property {Span} span
  * @property {Span} source
- * @property {true} [verbatim]
  * @property {string} [insertedBy]
  */
 /**
@@ -151,7 +151,7 @@ export type DisplayValue = {
  * member, its rule or terminal.
  * @typedef {{[name: string]: DisplayValue | DisplayValue[] | string | null}} DisplayValue
  */
-export declare const RESULT_FORMAT = 4;
+export declare const RESULT_FORMAT = 5;
 /**
  * @param {ResultNode} node
  * @returns {NodeJson}

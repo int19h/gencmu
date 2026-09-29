@@ -38,7 +38,13 @@
 // grammar defect showed while parsing. Parse returns an error only for a
 // caller's mistake, such as an unknown stage in ParseOptions.Until.
 // ParseTokens feeds pre-built tokens to the first stage in place of the
-// text's characters; it is for tests and tools.
+// text's characters; it is for tests and tools. Each of those tokens has
+// its text as its label.
+//
+// A token has its phonemes, what it sounds like, and its label, what it
+// shows to people (engine §5). A token over a foreign part, such as the
+// body of a zoi quote, sounds ? and has the part's text as its label.
+// Brackets shows each token by its label.
 //
 // Every position in a result counts Unicode code points of the text, not
 // bytes: Go's UTF-8 is converted at the edge. The tags of a token or a

@@ -493,7 +493,7 @@ The stress of a word depends on its syllables. CLL 3.9 counts the syllables of `
 
 A brivla is stressed on its penultimate counted syllable. If a capital vowel marks the stress, every capital vowel of the brivla must be in that syllable, and exactly one counted syllable follows it. So `BAjykla` is right, because CLL 3.9 does not count the `y`, and `bAIkla` is right, because `aI` is one syllable. A capital `Y` never stands in a brivla.
 
-`brivla-scan` reads the letters of a brivla one syllable nucleus at a time, from the left. Its tags, the labels that it puts on what it reads, say where the stress is. A nucleus is a vowel or a diphthong of a brivla. A vowel can stand alone before another vowel only if the two form no diphthong. So the reading is unique, and it is CLL's grouping. The tags are:
+`brivla-scan` reads the letters of a brivla one syllable nucleus at a time, from the left. Its tags, the names that it puts on what it reads, say where the stress is. A nucleus is a vowel or a diphthong of a brivla. A vowel can stand alone before another vowel only if the two form no diphthong. So the reading is unique, and it is CLL's grouping. The tags are:
 
 - `s0`, `s1` and `s2` track the marked nucleus. `s0` holds before the scan reads a capital vowel, and `s1` after the one marked nucleus. `s2` holds after the marked nucleus and one more counted nucleus. A second marked nucleus, or a second counted nucleus after the marked one, leaves no `s` tag.
 - `n0`, `n1`, `n2` and `n3`, for no counted nucleus, one, two, and three or more

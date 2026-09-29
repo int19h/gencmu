@@ -2,7 +2,7 @@
 
 Every grammar in gencmu is a Markdown document. Its fenced `jbogenbau` blocks, read in order, are one grammar, and the prose between the blocks explains it. This document explains jbogenbau, the notation that those blocks use. The grammars only say what they are about, and refer here for the rest. Two grammars written in jbogenbau itself define it: `grammars/notation/lexical.md` and `grammars/notation/syntax.md`. This document explains the notation, and those two grammars define it.
 
-A jbogenbau grammar is an attribute grammar with EBNF rule bodies. An attribute grammar is a grammar whose constituents carry computed values. A constituent is a part of the text that one rule matched. EBNF (Extended Backus-Naur Form) is a common notation for the bodies of grammar rules. Each rule body is EBNF in the form that *The Complete Lojban Language* (CLL) prints in chapter 21. Each constituent carries one attribute, its set of tags (labels such as `KOhA`), computed bottom-up from its parts.
+A jbogenbau grammar is an attribute grammar with EBNF rule bodies. An attribute grammar is a grammar whose constituents carry computed values. A constituent is a part of the text that one rule matched. EBNF (Extended Backus-Naur Form) is a common notation for the bodies of grammar rules. Each rule body is EBNF in the form that *The Complete Lojban Language* (CLL) prints in chapter 21. Each constituent carries one attribute, its set of tags (names such as `KOhA`), computed bottom-up from its parts.
 
 Conditions over the parts restrict which parses exist. A condition can also ask whether a part parses as another rule. This takes the grammar beyond context-free grammars, whose rules only combine symbols. It goes beyond them in the way that Boolean grammars do. In a Boolean grammar, a rule can also require that the same text matches, or does not match, another rule.
 
@@ -36,7 +36,7 @@ A body can be followed by clauses. A clause is a keyword and what it says. A bod
 - `%tags`: the tags that the constituent of every alternative carries.
 - `%conditions`: what must hold of the parts.
 - `%emits`: what the constituent hands to the next stage.
-- `%verbatim`: the constituent's text is not read as sounds.
+- `%foreign`: the constituent is foreign text, which sounds `?` and shows its text.
 
 The sections below explain each clause.
 
@@ -281,9 +281,9 @@ The first type is the span, a sequence of tokens. A capture `$x` is a span, the 
 
 The second type is the string. `phonemes(span)` is the canonical sound of a span. That is the phonemes of its tokens, joined, in lower case and without commas. A comma is the syllable break of CLL 3.3, which changes no word. So `phonemes()` ignores stress and syllable breaks. It keeps every pause, and adds none between the tokens.
 
-A token's own phonemes are fixed when its stage emits it, and they keep their capitals and commas. A token over a verbatim constituent sounds like its text (see "Verbatim text"). Any other token sounds like the phoneme that its `/x/` tag names, if it has one. Such a tag can come from an implication (see "Implications"). Two phoneme tags on one token are an error of the grammar.
+A token's own phonemes are fixed when its stage emits it, and they keep their capitals and commas. A token sounds like the phoneme that its `/x/` tag names, if it has one. Such a tag can come from an implication (see "Implications"). Two phoneme tags on one token are an error of the grammar.
 
-A token of neither kind sounds like the tokens of its stage's input that it covers, joined in order. That leaves out the tokens inside a rule that emits `ε` (see "Emission"). It also makes each run of pause tokens into one pause token, and removes a pause token at either end. A pause is `.`, so `klama bu` sounds as `klama.bu`. The renderings for people write a pause as a space.
+A token without such a tag sounds like the tokens of its stage's input that it covers, joined in order. That leaves out the tokens inside a rule that emits `ε` (see "Emission"). A foreign part inside the token sounds `?` (see "Foreign text"). The join also makes each run of pause tokens into one pause token, and removes a pause token at either end. A pause is `.`, so `klama bu` sounds as `klama.bu`. `?` is an ordinary character in a comparison.
 
 `text(span)` is the original text that the span covers. A string in double quotes, such as `"la"`, is a string literal. Where a condition compares one word's sound with a literal, as in `phonemes($l) = "la"`, a test says it in the body: `LE="la"`.
 
@@ -384,19 +384,29 @@ A part that the list of a rule merely does not name is not handed on, but it sti
   ε
 ```
 
-## Verbatim text
+## Foreign text
 
-`%verbatim` says that a rule's constituents are text that is not Lojban. Examples are the body of a `zoi` quote and a run of letters that no script reads. A token over such a constituent sounds like what the author wrote: its phonemes are its text, whatever tags it carries. This is true whether the constituent emits the token with `$` or a parent emits it as a capture. So `zoi gy. John is a man .gy.` hands on the body as `John is a man`. The stage before emitted the phonemes `jo'n.is.a.man` for it.
+`%foreign` says that a rule's constituents are foreign text, which is not Lojban. Examples are the body of a `zoi` quote and a run of letters that no script reads. Each constituent of such a rule is a foreign part. A foreign part sounds `?`, whatever it holds, and it shows its text to people. This is true whether the constituent emits a token with `$` or a parent emits a token over it.
 
 ```jbogenbau
 %rule zoi-body
   zoi-part | zoi-body zoi-part
-%verbatim
+%foreign
 ```
 
-The token also takes in the text next to it that no token of the stage's input covers. An example is punctuation that the stage before read as part of a pause but did not emit. So its text starts at the end of the input token before it, or at the start of the text. It ends at the start of the input token after it, or at the end of the text. Text between two such tokens of one stage belongs to the first of them.
+So `zoi gy. John is a man .gy.` hands on the body as a token that sounds `?`. The stage before emitted the phonemes `jo'n.is.a.man` for it. The label of the token is `John is a man`. The label is what the renderings for people show (see "Labels").
 
-A token of a later stage that covers only one verbatim token is verbatim too. So a quote body stays verbatim to the end of the pipeline. The renderings for people show a verbatim token's text as it is, and do not write its periods as spaces. A rule cannot have both `%verbatim` and `%emits ε`, because a constituent that does not count cannot sound like its text.
+The text of a foreign part also takes in the text next to it that no token of the stage's input covers. An example is punctuation that the stage before read as part of a pause but did not emit. So the text starts at the end of the input token before it, or at the start of the text. It ends at the start of the input token after it, or at the end of the text. Text between two foreign parts belongs to the first of them. An empty foreign part sounds `?` and has no text.
+
+Three rules settle what a foreign part gives. A foreign part inside a rule that emits `ε` gives nothing, as any part there does. A foreign part inside another gives nothing of its own, because the outer one counts once. So a recursive rule such as `zoi-body` is one part. A token with a phoneme tag sounds like that phoneme, and a foreign part inside it does not change that. A rule cannot have both `%foreign` and `%emits ε`, because a constituent that does not count holds no foreign part.
+
+A later stage that forwards a token keeps its text and its source. So a quote body sounds `?` and shows its text to the end of the pipeline.
+
+## Labels
+
+Every token has a label, which is what the renderings for people show. The stage gives a token its label when it emits the token, from the same parts as its phonemes. A foreign part gives its text, and a pause gives a space. A token with a phoneme tag has that phoneme as its label. Any other part gives its own label. A character token, the input of the first stage, has its text as its label.
+
+An inserted token with a phoneme tag has that phoneme as its label. So the apostrophe that the zbalermorna shorthand inserts stays in the label of `u'i`. An inserted token without a phoneme tag has an empty label.
 
 ## Directives
 

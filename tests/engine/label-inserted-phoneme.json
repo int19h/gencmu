@@ -1,0 +1,78 @@
+{
+  "description": "An inserted token with a phoneme tag has that phoneme as its label, so the apostrophe that the zbalermorna shorthand U+ED8B inserts stays in the label of the word U+ED8B U+EDA4 U+EDA2, `u'i` (engine §5, §11).",
+  "documents": {
+    "p.md": "## phonemes\n\n```jbogenbau\n%stage phonemes\n```\n\n- [g.md](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## words\n\n```jbogenbau\n%stage words\n```\n\n- [h.md](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [part] ...\n%rule part vowel | shorthand\n%rule vowel '\\u{EDA4}' </u/> | '\\u{EDA2}' </i/>\n%emits $\n%rule shorthand '\\u{ED8B}' $v(vowel)\n%emits $v, /'/\n```\n",
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w(word)\n%emits $w <W>\n%rule word [phoneme] ...\n%rule phoneme /u/ | /i/ | /'/\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "text": "",
+              "phonemes": "u",
+              "label": "u",
+              "span": [
+                1,
+                2
+              ],
+              "source": [
+                1,
+                2
+              ]
+            },
+            {
+              "text": "",
+              "phonemes": "'",
+              "label": "'",
+              "span": [
+                2,
+                2
+              ],
+              "source": [
+                2,
+                2
+              ],
+              "insertedBy": "shorthand"
+            },
+            {
+              "text": "",
+              "phonemes": "i",
+              "label": "i",
+              "span": [
+                2,
+                3
+              ],
+              "source": [
+                2,
+                3
+              ]
+            }
+          ]
+        },
+        {
+          "output": [
+            {
+              "text": "",
+              "phonemes": "u'i",
+              "label": "u'i",
+              "span": [
+                0,
+                3
+              ],
+              "source": [
+                1,
+                3
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

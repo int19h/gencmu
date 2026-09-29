@@ -5,7 +5,7 @@
 use std::collections::BTreeSet;
 
 use crate::earley::{Cap, EngineError, Frame, Recognizer, Tok};
-use crate::fxhash::FxSet;
+use crate::fxhash::{FxMap, FxSet};
 use crate::lower::{LEmit, LEmitItem, LTerm, Lowered};
 use crate::rank::{DNode, Ranker};
 use crate::result::{Node, NodeKind, Warning};
@@ -296,8 +296,8 @@ pub(crate) struct Emitted {
     pub source: (usize, usize),
     pub tags: SetId,
     pub phonemes: Option<String>,
-    /// Whether its phonemes are its text (§11).
-    pub verbatim: bool,
+    /// What it shows to people (§5).
+    pub label: String,
     pub inserted_by: Option<String>,
 }
 
@@ -321,7 +321,7 @@ fn span_of(tree: &ITree, index: u32) -> (u32, u32) {
 }
 
 /// The phoneme of a token's phoneme tag, if it has one (§5). Two such
-/// tags are an error of the grammar on any token, verbatim or not.
+/// tags are an error of the grammar on any token.
 fn phoneme_tag(recognizer: &Recognizer, tags: SetId) -> Result<Option<String>, EngineError> {
     let mut own: Option<&str> = None;
     for &id in recognizer.shared.tags.list(tags) {
@@ -335,89 +335,167 @@ fn phoneme_tag(recognizer: &Recognizer, tags: SetId) -> Result<Option<String>, E
     Ok(own.map(str::to_string))
 }
 
-/// What a node says (§5): the phonemes of the tokens below it, skipping
-/// every constituent that emits ε, the node's own included. It keeps only
-/// the first of each run of pause tokens, and leaves out a pause token at
-/// either end. It counts pauses by token, so a verbatim token keeps its
-/// periods.
-fn spoken(g: &Lowered, tree: &ITree, tokens: &[Tok], root: u32) -> String {
-    let mut pieces: Vec<&str> = Vec::new();
+/// The phonemes and the label of a phoneme tag `/p/` (§5): `p` and `p`,
+/// but a space for the label of the pause.
+fn sounded(phoneme: String) -> (String, String) {
+    let label = if phoneme == "." { " ".to_string() } else { phoneme.clone() };
+    (phoneme, label)
+}
+
+/// The source and the text of a foreign part (§11).
+struct ForeignPart {
+    source: (usize, usize),
+    text: String,
+}
+
+/// Whether a production's constituent emits ε and so does not count (§11).
+fn counts_for_nothing(g: &Lowered, prod: u32) -> bool {
+    matches!(g.prods[prod as usize].emit, LEmit::Nothing)
+}
+
+/// The foreign parts of the chosen derivation, with their sources and
+/// texts (§11): the constituents of `%foreign` productions inside no
+/// constituent that emits ε and no other foreign part. The stage fixes them
+/// before it emits anything, so that every token over a part holds the same
+/// text.
+fn foreign_parts(
+    g: &Lowered,
+    tree: &ITree,
+    tokens: &[Tok],
+    sources: &Sources,
+    text: &[char],
+) -> FxMap<u32, ForeignPart> {
+    let mut parts: Vec<(u32, u32, u32)> = Vec::new();
+    let mut stack = vec![0u32];
+    while let Some(index) = stack.pop() {
+        let node = &tree.nodes[index as usize];
+        let IKind::Close { prod, start, end, .. } = node.kind else {
+            continue;
+        };
+        if counts_for_nothing(g, prod) {
+            continue;
+        }
+        if g.prods[prod as usize].foreign {
+            parts.push((index, start, end));
+            continue;
+        }
+        stack.extend(node.children.iter().rev());
+    }
+    // Text between two input tokens belongs to the part with a non-empty
+    // span that ends there, before one that starts there.
+    let ends: FxSet<u32> = parts.iter().filter(|(_, start, end)| start < end).map(|&(_, _, end)| end).collect();
+    let mut result = FxMap::default();
+    for (index, start, end) in parts {
+        let source = if start == end {
+            // An empty part takes in no text. Its source is that of an
+            // empty node (§12).
+            let at = sources.empty(start as usize);
+            (at, at)
+        } else {
+            let before = if start > 0 { tokens[start as usize - 1].source.1 } else { 0 };
+            // It always holds the source of its own tokens (§1), which the
+            // tokens next to it can share, and takes in the text next to it
+            // that no input token covers.
+            let own = sources.of(start as usize, end as usize);
+            let from = if ends.contains(&start) { own.0 } else { own.0.min(before) };
+            let after = tokens.get(end as usize).map_or(text.len(), |token| token.source.0);
+            (from, own.1.max(after))
+        };
+        result.insert(index, ForeignPart { source, text: text[source.0..source.1].iter().collect() });
+    }
+    result
+}
+
+/// A join of the phonemes or of the labels of a token's parts (§5): a part
+/// with an empty string is left out, of each run of adjacent pause parts
+/// only the first is kept, and a pause part at either end is left out.
+/// Pauses are counted by part, so a part keeps its own periods and spaces.
+#[derive(Default)]
+struct Join {
+    joined: String,
+    /// Whether the last piece kept is a pause part, and where it starts.
+    pause: Option<usize>,
+}
+
+impl Join {
+    fn add(&mut self, piece: &str, pause: bool) {
+        if piece.is_empty() || (pause && (self.joined.is_empty() || self.pause.is_some())) {
+            return;
+        }
+        self.pause = pause.then_some(self.joined.len());
+        self.joined.push_str(piece);
+    }
+
+    fn result(mut self) -> String {
+        if let Some(at) = self.pause {
+            self.joined.truncate(at);
+        }
+        self.joined
+    }
+}
+
+/// What a node says and shows (§5, §11): the phonemes and the labels of its
+/// parts, joined. A part is a read input token or a foreign part. Nothing
+/// inside a constituent that emits ε is a part, the node's own included,
+/// and the walk does not enter a foreign part.
+fn spoken(g: &Lowered, tree: &ITree, tokens: &[Tok], foreign: &FxMap<u32, ForeignPart>, root: u32) -> (String, String) {
+    let mut phonemes = Join::default();
+    let mut label = Join::default();
     let mut stack = vec![root];
     while let Some(index) = stack.pop() {
         let node = &tree.nodes[index as usize];
         match node.kind {
             IKind::Read { tok, .. } => {
-                let phonemes = tokens[tok as usize].phonemes.as_deref().unwrap_or("");
-                let repeated = phonemes == "." && matches!(pieces.last(), None | Some(&"."));
-                if !phonemes.is_empty() && !repeated {
-                    pieces.push(phonemes);
-                }
+                let token = &tokens[tok as usize];
+                let sound = token.phonemes.as_deref().unwrap_or("");
+                phonemes.add(sound, sound == ".");
+                label.add(&token.label, sound == ".");
             }
             IKind::Close { prod, .. } => {
-                // A constituent that emits ε does not count (§11).
-                if !matches!(g.prods[prod as usize].emit, LEmit::Nothing) {
-                    stack.extend(node.children.iter().rev());
+                if counts_for_nothing(g, prod) {
+                    continue;
                 }
+                if let Some(part) = foreign.get(&index) {
+                    phonemes.add("?", false);
+                    label.add(&part.text, false);
+                    continue;
+                }
+                stack.extend(node.children.iter().rev());
             }
         }
     }
-    if pieces.last() == Some(&".") {
-        pieces.pop();
-    }
-    pieces.concat()
+    (phonemes.result(), label.result())
 }
 
 /// The token that covers node `index` with the given tags (§5, §11).
-/// `widened_ends` holds where the widened tokens emitted before it end.
 fn cover(
     recognizer: &Recognizer,
     tree: &ITree,
     tokens: &[Tok],
     sources: &Sources,
+    foreign: &FxMap<u32, ForeignPart>,
     index: u32,
     tags: SetId,
-    widened_ends: &mut FxSet<u32>,
 ) -> Result<Emitted, EngineError> {
     let (start, end) = span_of(tree, index);
     let span = (start as usize, end as usize);
-    // Two phoneme tags are an error on any token, verbatim or not (§5).
+    // Two phoneme tags are an error on any token (§5).
     let phoneme = phoneme_tag(recognizer, tags)?;
-    let text = recognizer.shared.text;
-    if let IKind::Close { prod, .. } = tree.nodes[index as usize].kind {
-        if recognizer.g.prods[prod as usize].verbatim {
-            // A widened token takes in the text next to it that no input
-            // token covers, but not text that a widened token before it
-            // took. It sounds like its text.
-            let before = if start > 0 { tokens[span.0 - 1].source.1 } else { 0 };
-            let source = if start == end {
-                (before, before)
-            } else {
-                // It always holds the source of its own tokens (§1), which
-                // the tokens next to it can share.
-                let own = sources.of(span.0, span.1);
-                let from = if widened_ends.contains(&start) { own.0 } else { own.0.min(before) };
-                let after = tokens.get(span.1).map_or(text.len(), |token| token.source.0);
-                widened_ends.insert(end);
-                (from, own.1.max(after))
-            };
-            let phonemes = text[source.0..source.1].iter().collect();
-            return Ok(Emitted { span, source, tags, phonemes: Some(phonemes), verbatim: true, inserted_by: None });
-        }
-    }
-    if end - start == 1 && tokens[span.0].verbatim {
-        // A token over one verbatim token is verbatim, with its source.
-        let only = &tokens[span.0];
-        let phonemes = Some(only.text.clone());
-        return Ok(Emitted { span, source: only.source, tags, phonemes, verbatim: true, inserted_by: None });
-    }
-    let source = if start < end {
+    // A token over a foreign part has the part's source (§11).
+    let source = if let Some(part) = foreign.get(&index) {
+        part.source
+    } else if start < end {
         sources.of(span.0, span.1)
     } else {
         let at = sources.empty(span.0);
         (at, at)
     };
-    let phonemes = phoneme.unwrap_or_else(|| spoken(recognizer.g, tree, tokens, index));
-    Ok(Emitted { span, source, tags, phonemes: Some(phonemes), verbatim: false, inserted_by: None })
+    // A phoneme tag decides the sound and the label, over `?` (§5).
+    let (phonemes, label) = match phoneme {
+        Some(phoneme) => sounded(phoneme),
+        None => spoken(recognizer.g, tree, tokens, foreign, index),
+    };
+    Ok(Emitted { span, source, tags, phonemes: Some(phonemes), label, inserted_by: None })
 }
 
 /// The tags an emission item's term gives a token (§11): a term that gives
@@ -487,8 +565,8 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
         })
         .collect();
     let mut out = Vec::new();
-    // Where the widened tokens emitted so far end (§11).
-    let mut widened_ends: FxSet<u32> = FxSet::default();
+    // The foreign parts and their texts, fixed before any token (§11).
+    let foreign = foreign_parts(g, tree, tokens, &sources, recognizer.shared.text);
     let mut stack = vec![Work::Visit(0)];
     while let Some(work) = stack.pop() {
         match work {
@@ -547,7 +625,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
             }
             Work::Cover(index, tags) => {
                 let tags = implied(&mut recognizer.shared.tags, tags, &implications);
-                out.push(cover(recognizer, tree, tokens, &sources, index, tags, &mut widened_ends)?);
+                out.push(cover(recognizer, tree, tokens, &sources, &foreign, index, tags)?);
             }
             Work::Insert { tag, at, node } => {
                 let (start, end) = span_of(tree, node);
@@ -565,14 +643,16 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                 let set = recognizer.shared.tags.set_of([tag.as_str()]);
                 let set = implied(&mut recognizer.shared.tags, set, &implications);
                 // Two phoneme tags are an error here too, where an
-                // implication added one (§5).
-                let phonemes = phoneme_tag(recognizer, set)?.unwrap_or_default();
+                // implication added one (§5). An inserted token has no
+                // parts: a phoneme tag gives its phonemes and its label, or
+                // both are empty.
+                let (phonemes, label) = phoneme_tag(recognizer, set)?.map(sounded).unwrap_or_default();
                 out.push(Emitted {
                     span: (at as usize, at as usize),
                     source: (source, source),
                     tags: set,
                     phonemes: Some(phonemes),
-                    verbatim: false,
+                    label,
                     inserted_by: Some(g.rules[owner as usize].name.clone()),
                 });
             }

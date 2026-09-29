@@ -207,11 +207,18 @@ func elidedNodes(root *Node) []*Node {
 
 // ---- emission
 
+// An emitTask walks a constituent, emits a token over one, or adds a token
+// made already. inside says whether the constituent that it walks or emits
+// lies inside a foreign part (§11). The ranking can share one node among
+// several places of the chosen derivation, and only some of them can lie
+// inside a foreign part. So the walk carries this with each place, and the
+// node does not.
 type emitTask struct {
-	walk *dn
-	emit *dn
-	tags *tagset
-	tok  *Token
+	walk   *dn
+	emit   *dn
+	tags   *tagset
+	tok    *Token
+	inside bool
 }
 
 func (run *stageRun) kidSpan(rec *recognizer, k *dn) (int, int, *tagset) {
@@ -226,8 +233,8 @@ func (run *stageRun) kidSpan(rec *recognizer, k *dn) (int, int, *tagset) {
 // the next stage.
 func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 	out := []Token{}
-	// Where the widened tokens emitted so far end (§11).
-	widenedEnds := map[int]bool{}
+	// The foreign parts and their texts, fixed before any token (§11).
+	foreign := run.foreignParts(rec, d)
 	stack := []emitTask{{walk: d}}
 	for len(stack) > 0 {
 		t := stack[len(stack)-1]
@@ -236,13 +243,13 @@ func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 		case t.tok != nil:
 			out = append(out, *t.tok)
 		case t.emit != nil:
-			out = append(out, run.emitted(rec, t.emit, t.tags, widenedEnds))
+			out = append(out, run.emitted(rec, t.emit, t.tags, foreign, t.inside))
 		case t.walk != nil:
 			n := t.walk
 			if n.kind == dRead {
 				continue
 			}
-			plan := run.plan(rec, n)
+			plan := run.plan(rec, n, t.inside)
 			for i := len(plan) - 1; i >= 0; i-- {
 				stack = append(stack, plan[i])
 			}
@@ -251,14 +258,17 @@ func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 	return out
 }
 
-// plan is what one constituent's emission clause does, in order.
-func (run *stageRun) plan(rec *recognizer, n *dn) []emitTask {
+// plan is what one constituent's emission clause does, in order. inside
+// says whether the constituent lies inside a foreign part.
+func (run *stageRun) plan(rec *recognizer, n *dn, inside bool) []emitTask {
 	p := n.prod
 	kids := flattenKids(n.a)
+	// Its children lie inside a foreign part if it is one or lies inside one.
+	within := inside || p.foreign
 	if p.emit == nil {
 		plan := make([]emitTask, len(kids))
 		for i, k := range kids {
-			plan[i] = emitTask{walk: k}
+			plan[i] = emitTask{walk: k, inside: within}
 		}
 		return plan
 	}
@@ -316,11 +326,11 @@ func (run *stageRun) plan(rec *recognizer, n *dn) []emitTask {
 			}
 			plan = append(plan, run.inserted(it.Insert, at, start, end, p.ruleName))
 		case it.Capture == "":
-			plan = append(plan, emitTask{emit: n, tags: itemTags(it, n.tags)})
+			plan = append(plan, emitTask{emit: n, tags: itemTags(it, n.tags), inside: inside})
 		default:
 			k := part(it.Capture)
 			_, _, own := run.kidSpan(rec, k)
-			plan = append(plan, emitTask{emit: k, tags: itemTags(it, own)})
+			plan = append(plan, emitTask{emit: k, tags: itemTags(it, own), inside: within})
 		}
 	}
 	return plan
@@ -338,87 +348,107 @@ func (run *stageRun) inserted(tag string, at, start, end int, rule string) emitT
 	} else {
 		src = [2]int{src[0], src[0]}
 	}
-	// The stage's implications apply before the phonemes (§11).
+	// The stage's implications apply before the phonemes and the label
+	// (§11).
 	tags := run.implied(run.ps.in.single(tag))
 	tok := &Token{Text: "", Tags: tags.list(), Span: [2]int{at, at}, Source: src, InsertedBy: rule}
-	var phonemes []string
-	for _, name := range tags.names {
-		if ph, ok := phonemeTag(name); ok {
-			phonemes = append(phonemes, ph)
-		}
-	}
-	// An inserted token reads no input, so the error has no input position
-	// (§13, docs/output.md).
-	if len(phonemes) > 1 {
-		panic(&parseFailure{message: "an emitted token has two phoneme tags"})
-	}
-	if len(phonemes) == 1 {
-		tok.Phonemes = phonemes[0]
+	// An inserted token has no parts: a phoneme tag gives its phonemes and
+	// its label, or both are empty (§5). It reads no input, so the error of
+	// two phoneme tags has no input position (§13, docs/output.md).
+	if phoneme, ok := run.phonemeOf(tags); ok {
+		tok.Phonemes, tok.Label = sounded(phoneme)
 	}
 	return emitTask{tok: tok}
 }
 
 // emitted is the token a constituent emits, with the given explicit tags
-// and those its stage's implications add to them. widenedEnds holds where
-// the widened tokens emitted before it end.
-func (run *stageRun) emitted(rec *recognizer, n *dn, explicit *tagset, widenedEnds map[int]bool) Token {
+// and those its stage's implications add to them. foreign holds the sources
+// and the texts of the derivation's foreign parts, and inside says whether
+// the constituent lies inside a foreign part (§11).
+func (run *stageRun) emitted(rec *recognizer, n *dn, explicit *tagset, foreign map[*dn]*foreignPart, inside bool) Token {
 	a, b, _ := run.kidSpan(rec, n)
-	// The stage's implications apply before the phonemes (§11).
+	// The stage's implications apply before the phonemes and the label
+	// (§11).
 	tags := run.implied(explicit)
-	// Two phoneme tags are an error on any token, verbatim or not (§5).
+	// Two phoneme tags are an error on any token (§5).
+	phoneme, ok := run.phonemeOf(tags)
+	// A token over a foreign part has the part's source and text (§11).
+	var tok Token
+	if n.kind == dClose && n.prod.foreign && !inside {
+		part := foreign[n]
+		tok = Token{Text: part.text, Tags: tags.list(), Span: [2]int{a, b}, Source: part.source}
+	} else {
+		src := run.spanSource(a, b)
+		tok = Token{Text: string(run.ps.text[src[0]:src[1]]), Tags: tags.list(), Span: [2]int{a, b}, Source: src}
+	}
+	// A phoneme tag decides the sound and the label, over ? (§5).
+	if ok {
+		tok.Phonemes, tok.Label = sounded(phoneme)
+	} else {
+		tok.Phonemes, tok.Label = run.spoken(rec, n, foreign, inside)
+	}
+	return tok
+}
+
+// phonemeOf is the phoneme of the one phoneme tag among tags, if there is
+// one. Two phoneme tags on one emitted token are an error of the grammar,
+// found while parsing, so it has no position (§5, §13, docs/output.md).
+func (run *stageRun) phonemeOf(tags *tagset) (string, bool) {
 	var phonemes []string
 	for _, name := range tags.names {
 		if ph, ok := phonemeTag(name); ok {
 			phonemes = append(phonemes, ph)
 		}
 	}
-	// A defect found while parsing has no position (§13, docs/output.md).
 	if len(phonemes) > 1 {
 		panic(&parseFailure{message: "an emitted token has two phoneme tags"})
 	}
-	if n.kind == dClose && n.prod.verbatim {
-		return run.widened(a, b, tags, widenedEnds)
-	}
-	if b-a == 1 && run.toks[a].Verbatim {
-		// A token over one verbatim token is verbatim, with its source (§11).
-		only := run.toks[a]
-		return Token{Text: only.Text, Phonemes: only.Text, Tags: tags.list(), Span: [2]int{a, b}, Source: only.Source, Verbatim: true}
-	}
-	src := run.spanSource(a, b)
-	tok := Token{Text: string(run.ps.text[src[0]:src[1]]), Tags: tags.list(), Span: [2]int{a, b}, Source: src}
 	if len(phonemes) == 1 {
-		tok.Phonemes = phonemes[0]
-		return tok
+		return phonemes[0], true
 	}
-	// The phonemes of the tokens it covers, joined. The join leaves out every
-	// token inside a constituent that does not count, its own included, and
-	// every token with no phonemes. Of each run of pause tokens it keeps one,
-	// and it leaves out a pause token at either end. It counts the pauses by
-	// token, so a verbatim token keeps its periods (§5).
-	var sb strings.Builder
-	pause := false
+	return "", false
+}
+
+// sounded is the phonemes and the label of a phoneme tag /p/: p and p, but
+// a space for the label of the pause (§5).
+func sounded(phoneme string) (string, string) {
+	if phoneme == "." {
+		return ".", " "
+	}
+	return phoneme, phoneme
+}
+
+// spoken is what a constituent says and shows: the phonemes and the labels
+// of its parts, joined (§5, §11). A part is a read input token or a foreign
+// part. Nothing inside a constituent that does not count is a part, and the
+// walk does not enter a foreign part. inside says whether the constituent
+// lies inside a foreign part. Then nothing in it is a foreign part.
+// Otherwise the walk stops at the first %foreign constituent on each path,
+// so no constituent that it reaches lies inside a foreign part.
+func (run *stageRun) spoken(rec *recognizer, n *dn, foreign map[*dn]*foreignPart, inside bool) (string, string) {
+	var phonemes, label join
 	stack := []*dn{n}
 	for len(stack) > 0 {
 		x := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 		switch x.kind {
 		case dRead:
-			switch ph := run.toks[rec.base+int(x.tok)].Phonemes; ph {
-			case "":
-			case ".":
-				pause = sb.Len() > 0
-			default:
-				if pause {
-					sb.WriteByte('.')
-					pause = false
-				}
-				sb.WriteString(ph)
-			}
+			t := &run.toks[rec.base+int(x.tok)]
+			pause := t.Phonemes == "."
+			phonemes.add(t.Phonemes, pause)
+			label.add(t.Label, pause)
 		case dClose:
-			if x.prod.nothing || x.a == nil {
+			if x.prod.nothing {
 				continue
 			}
-			stack = append(stack, x.a)
+			if x.prod.foreign && !inside {
+				phonemes.add("?", false)
+				label.add(foreign[x].text, false)
+				continue
+			}
+			if x.a != nil {
+				stack = append(stack, x.a)
+			}
 		case dPart:
 			stack = append(stack, x.b)
 			if x.a != nil {
@@ -426,40 +456,118 @@ func (run *stageRun) emitted(rec *recognizer, n *dn, explicit *tagset, widenedEn
 			}
 		}
 	}
-	tok.Phonemes = sb.String()
-	return tok
+	return phonemes.sb.String(), label.sb.String()
 }
 
-// widened is the token of a verbatim constituent over [a, b) (§11). It
-// takes in the text next to it that no input token covers, but not the text
-// that a widened token before it took. It sounds like its text (§5).
-func (run *stageRun) widened(a, b int, tags *tagset, widenedEnds map[int]bool) Token {
-	before := 0
-	if a > 0 {
-		before = run.toks[a-1].Source[1]
+// join is a join of the phonemes or of the labels of a token's parts (§5).
+// It leaves out a part whose string is empty. Of each run of adjacent pause
+// parts it keeps only the first, and it leaves out a pause part at either
+// end. It counts the pauses by part, so a part keeps its own periods and
+// spaces.
+type join struct {
+	sb strings.Builder
+	// pending is the string of a pause part that follows the parts written
+	// so far, written only if a part that is not a pause comes after it.
+	pending string
+}
+
+func (j *join) add(piece string, pause bool) {
+	switch {
+	case piece == "":
+	case pause:
+		if j.sb.Len() > 0 && j.pending == "" {
+			j.pending = piece
+		}
+	default:
+		j.sb.WriteString(j.pending)
+		j.pending = ""
+		j.sb.WriteString(piece)
 	}
-	tok := Token{Tags: tags.list(), Span: [2]int{a, b}, Source: [2]int{before, before}, Verbatim: true}
-	// Over an empty span it takes in no text.
-	if a == b {
-		return tok
+}
+
+// foreignPart is the source and the text of a foreign part (§11).
+type foreignPart struct {
+	source [2]int
+	text   string
+}
+
+// foreignParts finds the foreign parts of a chosen derivation, with their
+// sources and texts (§11): the constituents of %foreign productions inside
+// no constituent that emits ε and no other foreign part. The stage fixes
+// them before it emits anything, so that every token over a part holds the
+// same text.
+//
+// The map holds the source and the text of each node that is a foreign part
+// in some place of the derivation. It does not say which places those are,
+// because a node can be shared by several places, and only some of them can
+// be foreign parts. The emission walk decides that for each place. The
+// source and the text depend only on the node's span, so they are the same
+// in each place where the node is a foreign part.
+func (run *stageRun) foreignParts(rec *recognizer, root *dn) map[*dn]*foreignPart {
+	var parts []*dn
+	stack := []*dn{root}
+	for len(stack) > 0 {
+		x := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		switch x.kind {
+		case dClose:
+			if x.prod.nothing {
+				continue
+			}
+			if x.prod.foreign {
+				parts = append(parts, x)
+				continue
+			}
+			if x.a != nil {
+				stack = append(stack, x.a)
+			}
+		case dPart:
+			stack = append(stack, x.b)
+			if x.a != nil {
+				stack = append(stack, x.a)
+			}
+		}
 	}
-	// It always holds its own tokens' sources. The tokens next to it can
-	// share them.
-	own := run.spanSource(a, b)
-	start, end := own[0], own[1]
-	if !widenedEnds[a] && before < start {
-		start = before
+	if len(parts) == 0 {
+		return nil
 	}
-	after := len(run.ps.text)
-	if b < len(run.toks) {
-		after = run.toks[b].Source[0]
+	// Text between two input tokens belongs to the part with a non-empty
+	// span that ends there, before one that starts there.
+	ends := map[int]bool{}
+	for _, x := range parts {
+		if x.start < x.end {
+			ends[rec.base+int(x.end)] = true
+		}
 	}
-	if after > end {
-		end = after
+	out := make(map[*dn]*foreignPart, len(parts))
+	for _, x := range parts {
+		a, b := rec.base+int(x.start), rec.base+int(x.end)
+		// An empty part takes in no text. Its source is that of an empty
+		// node (§12).
+		if a == b {
+			out[x] = &foreignPart{source: run.emptySource(a)}
+			continue
+		}
+		before := 0
+		if a > 0 {
+			before = run.toks[a-1].Source[1]
+		}
+		// It always holds its own tokens' sources, which the tokens next to
+		// it can share, and takes in the text next to it that no input token
+		// covers.
+		own := run.spanSource(a, b)
+		start, end := own[0], own[1]
+		if !ends[a] && before < start {
+			start = before
+		}
+		after := len(run.ps.text)
+		if b < len(run.toks) {
+			after = run.toks[b].Source[0]
+		}
+		if after > end {
+			end = after
+		}
+		out[x] = &foreignPart{source: [2]int{start, end}, text: string(run.ps.text[start:end])}
 	}
-	widenedEnds[b] = true
-	tok.Source = [2]int{start, end}
-	tok.Text = string(run.ps.text[start:end])
-	tok.Phonemes = tok.Text
-	return tok
+	return out
 }

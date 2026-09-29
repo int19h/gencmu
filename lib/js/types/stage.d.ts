@@ -1,6 +1,6 @@
 import { ParseContext } from "./earley.js";
 import { Token } from "./tokens.js";
-import type { Derivation, ResultNode, StageReport } from "./types.js";
+import type { Derivation, ResultNode, Span, StageReport } from "./types.js";
 import type { Grammar } from "./grammar.js";
 import type { UnicodeTable } from "./unicode.js";
 export type StageOptions = {
@@ -62,6 +62,10 @@ export declare class Stage {
  * @returns {ResultNode[]}
  */
 export declare function resultTree(root: Derivation, context: ParseContext): ResultNode[];
+export type ForeignPart = {
+    source: Span;
+    text: string;
+};
 export type EmitTask = {
     walk: Derivation;
 } | {

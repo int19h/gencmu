@@ -16,6 +16,9 @@ pub struct Token {
     pub text: String,
     /// What the token sounds like (engine §5), if anything.
     pub phonemes: Option<String>,
+    /// What the token shows to people (engine §5): for a character token
+    /// or one that a caller supplies, its text.
+    pub label: String,
     /// The token's tags.
     pub tags: Tags,
     /// The range of the previous stage's tokens this token covers; for the
@@ -23,9 +26,6 @@ pub struct Token {
     pub span: Range<usize>,
     /// The range of the original text this token covers, in code points.
     pub source: Range<usize>,
-    /// Whether the token is verbatim (engine §11): its phonemes are its
-    /// text.
-    pub verbatim: bool,
     /// For a token an emission clause inserted, the rule whose clause it is.
     pub inserted_by: Option<String>,
 }

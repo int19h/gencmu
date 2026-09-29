@@ -98,13 +98,10 @@ func corpusOutcome(d *Dialect, c *corpusCase) (map[string]any, error) {
 			ties = append(ties, s.Name)
 		}
 		if s.Name == "words" && s.Output != nil {
+			// A case writes each word as its label (tests/README.md).
 			words := make([]any, len(s.Output))
 			for i, tok := range s.Output {
-				if tok.Phonemes != "" {
-					words[i] = tok.Phonemes
-				} else {
-					words[i] = tok.Text
-				}
+				words[i] = tok.Label
 			}
 			got["words"] = words
 		}

@@ -1,6 +1,6 @@
 {
-  "description": "A token that a verbatim rule emits with $ sounds like its text, even if it carries a phoneme tag (engine §5, §11).",
-  "grammar": "%rule text [piece] ...\n%rule piece word | '\\p{White_Space}'\n%rule word 'a' | word 'a'\n%emits $ <W ∪ /a/>\n%verbatim",
+  "description": "A token with its own phoneme tag sounds like that phoneme and has it as its label, even over a foreign part. The part still gives the token its source and text (engine §5, §11).",
+  "grammar": "%rule text [piece] ...\n%rule piece word | '\\p{White_Space}'\n%rule word 'a' | word 'a'\n%emits $ <W ∪ /a/>\n%foreign",
   "input": "aa aaa",
   "expect": {
     "result": {
@@ -10,7 +10,8 @@
           "output": [
             {
               "text": "aa",
-              "phonemes": "aa",
+              "phonemes": "a",
+              "label": "a",
               "span": [
                 0,
                 2
@@ -22,7 +23,8 @@
             },
             {
               "text": "aaa",
-              "phonemes": "aaa",
+              "phonemes": "a",
+              "label": "a",
               "span": [
                 3,
                 6

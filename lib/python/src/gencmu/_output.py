@@ -6,20 +6,19 @@ import json
 from typing import Any
 
 from ._model import Action, Node, ParseError, ParseResult, ParseWarning, Stage, Token
-from ._tags import PAUSE, sorted_tags
+from ._tags import sorted_tags
 
-FORMAT = 4
+FORMAT = 5
 
 
 def token_json(token: Token) -> dict[str, Any]:
     value: dict[str, Any] = {"text": token.text}
     if token.phonemes is not None:
         value["phonemes"] = token.phonemes
+    value["label"] = token.label
     value["tags"] = sorted_tags(token.tags)
     value["span"] = list(token.span)
     value["source"] = list(token.source)
-    if token.verbatim:
-        value["verbatim"] = True
     if token.inserted_by is not None:
         value["insertedBy"] = token.inserted_by
     return value
@@ -163,14 +162,6 @@ def to_json(result: ParseResult) -> str:
     return compact_json(result_json(result))
 
 
-def _label(token: Token) -> str:
-    """A token node's label (docs/output.md, "Brackets"). A pause is written
-    as a space, but a verbatim token is shown as it is written."""
-    if token.verbatim:
-        return token.text
-    return token.phonemes.replace(PAUSE, " ") if token.phonemes else token.text
-
-
 class _Group:
     __slots__ = ("members",)
 
@@ -192,7 +183,8 @@ def to_brackets(result: ParseResult, *, show_elided: bool = False) -> str:
             token = tokens[node.token] if node.token is not None and node.token < len(tokens) else None
             # A token is a member even when its label is empty, as an empty
             # quotation's text is; only empty rule nodes are dropped.
-            rendered[id(node)] = _label(token) if token is not None else ""
+            # Every rendering shows a token by its label (docs/output.md).
+            rendered[id(node)] = token.label if token is not None else ""
         elif node.kind == "elided":
             rendered[id(node)] = f"⟨{(node.terminal or '').lower()}⟩" if show_elided else None
         elif not done:

@@ -430,13 +430,11 @@ func (d *Dialect) Parse(text string, options ParseOptions) (*ParseResult, error)
 // character tokens, for tests and tools: text is the original text their
 // Source ranges index, in code points.
 // Each token's Source must lie within the text, in order: a token may not
-// start before the one before it ends.
+// start before the one before it ends. A token that the caller supplies has
+// its Text as its label (engine §5), whatever its Label says.
 func (d *Dialect) ParseTokens(text string, tokens []Token, options ParseOptions) (*ParseResult, error) {
 	if err := textProblem(text); err != nil {
 		return nil, err
-	}
-	if tokens == nil {
-		tokens = []Token{}
 	}
 	runes := []rune(text)
 	end := 0
@@ -447,7 +445,13 @@ func (d *Dialect) ParseTokens(text string, tokens []Token, options ParseOptions)
 		}
 		end = s[1]
 	}
-	return d.parse(runes, tokens, options)
+	// A copy, so that the caller's tokens stay as they are.
+	own := make([]Token, len(tokens))
+	for i, t := range tokens {
+		t.Label = t.Text
+		own[i] = t
+	}
+	return d.parse(runes, own, options)
 }
 
 // textProblem is the usage error of a text that is not valid UTF-8, which

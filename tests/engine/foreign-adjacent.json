@@ -1,9 +1,9 @@
 {
-  "description": "Text that no input token covers, between two verbatim tokens, belongs to the first of them (engine §11).",
+  "description": "Text that no input token covers, between two adjacent foreign parts, belongs to the first of them: `a,b` gives `a,` and `b`. Each part sounds `?` and has its text as its label (engine §5, §11).",
   "documents": {
     "p.md": "## s\n\n```jbogenbau\n%stage letters\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage bodies\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [part] ...\n%rule part letter | comma\n%rule letter 'a' | 'b'\n%emits $ <L>\n%rule comma ','\n```\n",
-    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $a(v) $b(v)\n%emits $a <A>, $b <B>\n%rule v L\n%verbatim\n```\n"
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $a(v) $b(v)\n%emits $a <A>, $b <B>\n%rule v L\n%foreign\n```\n"
   },
   "pipeline": "p.md",
   "input": "a,b",
@@ -33,7 +33,8 @@
           "output": [
             {
               "text": "a,",
-              "phonemes": "a,",
+              "phonemes": "?",
+              "label": "a,",
               "span": [
                 0,
                 1
@@ -41,12 +42,12 @@
               "source": [
                 0,
                 2
-              ],
-              "verbatim": true
+              ]
             },
             {
               "text": "b",
-              "phonemes": "b",
+              "phonemes": "?",
+              "label": "b",
               "span": [
                 1,
                 2
@@ -54,8 +55,7 @@
               "source": [
                 2,
                 3
-              ],
-              "verbatim": true
+              ]
             }
           ]
         }

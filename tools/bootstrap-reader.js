@@ -20,7 +20,7 @@ const unicode = new UnicodeTable(fs.readFileSync(new URL("../grammars/unicode.tx
 const SYMBOLS = ["...", "..", "|", "&", "(", ")", "[", "]", "<", ">", "#", "ε", ",", "∧", "∨", "¬", "⟹", "=", "≠",
   "∈", "∉", "⊆", "⊈", "⊇", "⊉", "∪", "∩", "∖", "∅"];
 
-const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%tags", "%conditions", "%emits", "%verbatim",
+const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%tags", "%conditions", "%emits", "%foreign",
   "%ambiguity-resolution", "%elidable", "%stage", "%include", "%features", "%const", "%redefine-const", "%classifier", "%implies"]);
 
 function fail(message, token) {
@@ -305,6 +305,11 @@ class Parser {
     }
     if (this.accept("%emits")) rule.emit = this.emission(keyword);
     rule.conditions = conditions;
+    if (this.accept("%foreign")) {
+      // A constituent that does not count is never a foreign part (engine §9).
+      if (rule.emit && rule.emit.items.length === 0) fail(`${rule.name} is foreign and emits ε`, keyword);
+      rule.foreign = true;
+    }
     rule.at = keyword.at;
     return rule;
   }
@@ -514,6 +519,15 @@ class Parser {
       if (!this.startsComparator()) {
         if (call.args.length !== 2 || call.args[1].rule === undefined) fail(`${call.call} takes a span and a rule`, this.tokens[saved]);
         return call.call === "matches" ? { matches: call.args[0], rule: call.args[1].rule } : { begins: call.args[0], rule: call.args[1].rule };
+      }
+      this.index = saved;
+    }
+    if (this.is("identifier") && this.peek().text === "initial" && this.is("(", 1)) {
+      const saved = this.index;
+      const call = this.call();
+      if (!this.startsComparator()) {
+        if (call.args.length !== 1) fail("initial takes a span", this.tokens[saved]);
+        return { initial: call.args[0] };
       }
       this.index = saved;
     }

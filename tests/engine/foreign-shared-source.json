@@ -1,9 +1,9 @@
 {
-  "description": "A widened token's source always holds the sources of its own input tokens, even where the input token before it shares its source (engine §11).",
+  "description": "A foreign part's source always holds the sources of its own input tokens, even where the input token before it shares its source (engine §11).",
   "documents": {
     "p.md": "## s\n\n```jbogenbau\n%stage first\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage second\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text d\n%rule d 'a'\n%emits $ <X>, $ <Y>\n```\n",
-    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text X $y(v)\n%emits $y <V>\n%rule v Y\n%verbatim\n```\n"
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text X $y(v)\n%emits $y <V>\n%rule v Y\n%foreign\n```\n"
   },
   "pipeline": "p.md",
   "input": "a",
@@ -33,7 +33,8 @@
           "output": [
             {
               "text": "a",
-              "phonemes": "a",
+              "phonemes": "?",
+              "label": "a",
               "span": [
                 1,
                 2
@@ -41,8 +42,7 @@
               "source": [
                 0,
                 1
-              ],
-              "verbatim": true
+              ]
             }
           ]
         }

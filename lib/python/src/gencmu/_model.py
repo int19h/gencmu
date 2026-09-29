@@ -22,8 +22,9 @@ class Token:
     is ``None`` for a token that has none, such as a character, whose only
     tag is its character tag.
     ``inserted_by`` names the rule whose emission clause made a token with
-    an empty span. ``verbatim`` is true for a verbatim token, whose
-    phonemes are its text (engine §11).
+    an empty span. ``label`` is what the token shows to people (engine §5).
+    It defaults to the token's text, which is the label of a character
+    token and of a token that a caller supplies.
     """
 
     text: str
@@ -32,7 +33,11 @@ class Token:
     source: Range
     phonemes: str | None = None
     inserted_by: str | None = None
-    verbatim: bool = False
+    label: str = None  # type: ignore[assignment]
+
+    def __post_init__(self) -> None:
+        if self.label is None:
+            self.label = self.text
 
 
 @dataclass

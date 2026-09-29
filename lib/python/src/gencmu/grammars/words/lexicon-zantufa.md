@@ -2,7 +2,7 @@
 
 This document is the lexicon of the forms stage in the [Zantufa](../dialects/zantufa.md) dialect. A lexicon is a list of words, each with its classes. The forms stage is the second stage of the pipeline. It divides the phonemes of the text into words.
 
-The lexicon gives each cmavo the selma'o that Zantufa 1.9999 gives it. `tools/peg-lexicon.js` writes the classifier below from the selma'o lists of `zantufa-1.9999.peg`. That file is in Guskant's `gerna_cipra` repository, as of commit d5a5065. The tool marks no class as an indicator here, so it writes no implication. A tag is a label on a word. A maintainer changes the lexicon by running the tool again.
+The lexicon gives each cmavo the selma'o that Zantufa 1.9999 gives it. `tools/peg-lexicon.js` writes the classifier below from the selma'o lists of `zantufa-1.9999.peg`. That file is in Guskant's `gerna_cipra` repository, as of commit d5a5065. The tool marks no class as an indicator here, so it writes no implication. A tag is a name on a word. A maintainer changes the lexicon by running the tool again.
 
 Each entry lists words by their canonical sound and gives them one selma'o, as [lexicon-cll.md](lexicon-cll.md) explains. Zantufa gives each word one selma'o, and its classes differ from those of CLL (*The Complete Lojban Language*) in many places. For example:
 

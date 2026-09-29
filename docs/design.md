@@ -65,7 +65,7 @@ The four libraries implement one specification, `docs/engine.md`. It was written
 
    Nested parses for `matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` share their memo (a cache of answers) with the parse that started them. The memo key is the kind of query, the rule, and either the content of a short span or the position of a long span. A nested parse asked about its own span is a grammar error.
 4. The engine chooses a parse. It orders the parses by their first difference, as sequences of bottom-up actions. The order uses the grammar's declared `%ambiguity-resolution`. This part also covers the verdicts unique, resolved and tie, the tie witness, and the `elision-only` check (see "Ambiguity" below).
-5. The stage emits the tokens of the next stage. Each token has its text, its phonemes and its source range.
+5. The stage emits the tokens of the next stage. Each token has its text, its phonemes, its label and its source range. The label is what the renderings for people show.
 6. The pipeline runs the stages in order, and stops at the first rejection.
 
 `tests/engine/` tests the specification. Each case is a small grammar, an input, and a pattern that the canonical result JSON of `docs/output.md` must match. So a fifth implementation can run the cases to make sure that it follows the specification, without the Lojban grammars at all. The cases are written together with the specification, one or more for each of its rules. They settle the edge cases that decide which parse comes out, so that the Lojban corpus does not become the specification by accident:
@@ -77,7 +77,7 @@ The four libraries implement one specification, `docs/engine.md`. It was written
 
 Every position in a result is a half-open range of coordinates: the range holds its start but not its end. Source positions count Unicode code points, not bytes or UTF-16 units, so that the four languages agree on non-ASCII text. Each library converts at its edge (JavaScript from UTF-16, Go and Rust from UTF-8). The libraries derive line and column in diagnostics from code points. Lines split at `\n`, `\r\n` and `\r`.
 
-A token's `span` is a range of the previous stage's tokens. Its `source` is the smallest range of the original text that holds the sources of those tokens. So the source is contiguous even when some of those tokens emitted nothing, as an erased word inside a compound does. A token inserted by an emission clause has an empty span, and an empty source range at the position where it was inserted. Its provenance is that emission: it records the rule whose clause inserted it.
+A token's `span` is a range of the previous stage's tokens. Its `source` is the smallest range of the original text that holds the sources of those tokens. So the source is contiguous even when some of those tokens emitted nothing, as an erased word inside a compound does. A token inserted by an emission clause has an empty span, and an empty source range at the position where it was inserted. Its provenance is that emission: it records the rule whose clause inserted it. A token over a foreign part also takes in the text next to it that no token covers.
 
 Following `span` from stage to stage, or `inserted-by` where a token has no span, explains any token. The chain ends at the characters or at the rule that made the token.
 
@@ -153,6 +153,8 @@ CLL writes `/KU/` for an elidable terminator, a closing word that the speaker ca
 `%conditions` lists conditions over the captured parts. Each condition applies to the alternatives that capture what it mentions. The recognizer evaluates it as early as it can. Within one condition, `∧`, `∨` and `⟹` are logic, in that order of precedence, grouped with parentheses.
 
 `%emits` lists exactly what the constituent hands to the next stage, in order, each capture with its own tags. `%emits ε` hands on nothing and makes the constituent not count. That is how a grammar leaves erased text out of what the words around it sound like.
+
+`%foreign` says that the constituent is foreign text, such as the body of a `zoi` quote. A token over it sounds `?`, and its label is the text as the author wrote it. So a comparison of sounds never mistakes foreign text for Lojban, and the renderings still show that text. The text of a foreign part also takes in punctuation next to it that no token covers.
 
 A clause can refer to a capture that some alternative lacks. Lowering decides such a clause before the recognizer reads any text. A condition or an emitted item then does not apply to that alternative. A tag term is an error unless it is guarded, as in `($c ⟹ classify(phonemes($c), lexicon))`. The reason is that a tag term has no value that can mean "nothing to say". A clause that applies to no alternative, or a capture that no alternative captures, is an error.
 

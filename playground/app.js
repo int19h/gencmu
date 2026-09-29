@@ -553,11 +553,12 @@
       $("output").replaceChildren(element("p", { class: "empty", text: `The ${result.stage} stage handed on no tokens${result.error ? ` (${result.error})` : ""}.` }));
       return;
     }
-    const header = element("tr", {}, ["#", "text", "phonemes", "span", "source", "tags"].map((title) => element("th", { scope: "col", text: title })));
+    const header = element("tr", {}, ["#", "text", "phonemes", "label", "span", "source", "tags"].map((title) => element("th", { scope: "col", text: title })));
     const rows = result.rows.map((row) => element("tr", {},
       element("td", { class: "num", text: String(row.index) }),
       element("td", {}, element("code", { text: JSON.stringify(row.text) })),
       element("td", {}, element("code", { text: row.phonemes })),
+      element("td", {}, element("code", { text: JSON.stringify(row.label) })),
       element("td", { class: "num", text: row.span }),
       element("td", { class: "num", text: row.source }),
       element("td", { class: "tags" },

@@ -79,8 +79,8 @@
 {"id":"adhoc.v0.morphology.basic.adjacent-zo-quotes-following","text":"zomimi klama","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo","mi","mi","klama"],"brackets":"([{zo mi} mi] klama)"}
 {"id":"adhoc.v0.morphology.basic.bahe-preserved","text":"ba'e mi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ba'e","mi"],"brackets":"mi"}
 {"id":"adhoc.v0.morphology.basic.breve-input-a","text":"ŭa","dialect":"cll-ebnf","expect":"reject","stage":"words","seeded":"accept","reason":"The CLL dialect reads only the orthography of CLL chapter 3 (phonemes/latin-strict.md). A digit, an accent, a question mark or other punctuation but the period and the comma is foreign there, so a text with one outside a quote is not Lojban in that dialect."}
-{"id":"adhoc.v0.morphology.basic.bu-after-brivla","text":"klama bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["klama.bu"],"brackets":"klama bu"}
-{"id":"adhoc.v0.morphology.basic.bu-creates-lerfu","text":"mi bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi.bu"],"brackets":"mi bu"}
+{"id":"adhoc.v0.morphology.basic.bu-after-brivla","text":"klama bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["klama bu"],"brackets":"klama bu"}
+{"id":"adhoc.v0.morphology.basic.bu-creates-lerfu","text":"mi bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi bu"],"brackets":"mi bu"}
 {"id":"adhoc.v0.morphology.basic.cmavo-before-brivla","text":"dotavla","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["do","tavla"],"brackets":"(do tavla)"}
 {"id":"adhoc.v0.morphology.basic.cmavo-brivla","text":"mi klama","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
 {"id":"adhoc.v0.morphology.basic.cmevla-keeps-grave-stressed-y","text":".finỳks.","dialect":"cll-ebnf","expect":"reject","stage":"words","seeded":"accept","reason":"The CLL dialect reads only the orthography of CLL chapter 3 (phonemes/latin-strict.md). A digit, an accent, a question mark or other punctuation but the period and the comma is foreign there, so a text with one outside a quote is not Lojban in that dialect."}
@@ -130,8 +130,8 @@
 {"id":"adhoc.v0.morphology.basic.ui-after-brivla","text":"klama .ui","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["klama","ui"],"brackets":"klama"}
 {"id":"adhoc.v0.morphology.basic.ui-preserved","text":"mi .ui","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","ui"],"brackets":"mi"}
 {"id":"adhoc.v0.morphology.basic.zahe-preserved","text":"za'e mi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["za'e","mi"],"brackets":"mi"}
-{"id":"adhoc.v0.morphology.basic.zei-creates-brivla","text":"mi zei do","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi.zei.do"],"brackets":"mi zei do"}
-{"id":"adhoc.v0.morphology.basic.zei-with-bu-suffix","text":"mi zei bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi.zei.bu"],"brackets":"mi zei bu"}
+{"id":"adhoc.v0.morphology.basic.zei-creates-brivla","text":"mi zei do","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi zei do"],"brackets":"mi zei do"}
+{"id":"adhoc.v0.morphology.basic.zei-with-bu-suffix","text":"mi zei bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi zei bu"],"brackets":"mi zei bu"}
 {"id":"adhoc.v0.morphology.basic.zo-quotes-brivla","text":"zo klama","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo","klama"],"brackets":"(zo klama)"}
 {"id":"adhoc.v0.morphology.basic.zo-quotes-cmevla","text":"zo djan","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo","djan"],"brackets":"(zo djan)"}
 {"id":"adhoc.v0.morphology.basic.zo-quotes-following","text":"zo si","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo","si"],"brackets":"(zo si)"}
@@ -484,24 +484,24 @@
 {"id":"adhoc.words.magic-table.lohu-co-co-co-lehu-si.bpfk","text":"lo'u co co co le'u si","dialect":"bpfk","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.words.magic-table.lohu-co-co-lehu-sa-lohu-si","text":"lo'u co co le'u sa lo'u si","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"adhoc.words.magic-table.lohu-co-co-lehu-sa-lohu-si.bpfk","text":"lo'u co co le'u sa lo'u si","dialect":"bpfk","expect":"reject","stage":"words"}
-{"id":"adhoc.words.magic-table.lohu-co-co-co-lehu-bu","text":"lo'u co co co le'u bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["lo'u.co.co.co.le'u.bu"],"brackets":"lo'u co co co le'u bu"}
-{"id":"adhoc.words.magic-table.lohu-co-co-co-lehu-bu.bpfk","text":"lo'u co co co le'u bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["lo'u.co.co.co.le'u.bu"],"brackets":"lo'u co co co le'u bu"}
-{"id":"adhoc.words.magic-table.lohu-co-co-lehu-bu-co-lehu","text":"lo'u co co le'u bu co le'u","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["lo'u.co.co.le'u.bu","co","le'u"]}
-{"id":"adhoc.words.magic-table.lohu-co-co-lehu-bu-co-lehu.bpfk","text":"lo'u co co le'u bu co le'u","dialect":"bpfk","expect":"reject","stage":"syntax","words":["lo'u.co.co.le'u.bu","co","le'u"]}
+{"id":"adhoc.words.magic-table.lohu-co-co-co-lehu-bu","text":"lo'u co co co le'u bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["lo'u co co co le'u bu"],"brackets":"lo'u co co co le'u bu"}
+{"id":"adhoc.words.magic-table.lohu-co-co-co-lehu-bu.bpfk","text":"lo'u co co co le'u bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["lo'u co co co le'u bu"],"brackets":"lo'u co co co le'u bu"}
+{"id":"adhoc.words.magic-table.lohu-co-co-lehu-bu-co-lehu","text":"lo'u co co le'u bu co le'u","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["lo'u co co le'u bu","co","le'u"]}
+{"id":"adhoc.words.magic-table.lohu-co-co-lehu-bu-co-lehu.bpfk","text":"lo'u co co le'u bu co le'u","dialect":"bpfk","expect":"reject","stage":"syntax","words":["lo'u co co le'u bu","co","le'u"]}
 {"id":"adhoc.words.magic-table.lohu-co-co-co-lehu-si-bo-lehu","text":"lo'u co co co le'u si bo le'u","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["bo","le'u"]}
 {"id":"adhoc.words.magic-table.lohu-co-co-co-lehu-si-bo-lehu.bpfk","text":"lo'u co co co le'u si bo le'u","dialect":"bpfk","expect":"reject","stage":"syntax","words":["bo","le'u"]}
 {"id":"adhoc.words.magic-table.lohu-co-lehu-si-si-si-lehu","text":"lo'u co le'u si si si le'u","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["le'u"]}
 {"id":"adhoc.words.magic-table.lohu-co-lehu-si-si-si-lehu.bpfk","text":"lo'u co le'u si si si le'u","dialect":"bpfk","expect":"reject","stage":"syntax","words":["le'u"]}
 {"id":"adhoc.words.magic-table.lohu-co-co-zo-lehu-co-lehu","text":"lo'u co co zo le'u co le'u","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["lo'u","co","co","zo","le'u","co","le'u"]}
 {"id":"adhoc.words.magic-table.lohu-co-co-zo-lehu-co-lehu.bpfk","text":"lo'u co co zo le'u co le'u","dialect":"bpfk","expect":"reject","stage":"syntax","words":["lo'u","co","co","zo","le'u","co","le'u"]}
-{"id":"adhoc.words.magic-table.broda-y-bu","text":"broda .y. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["broda","y.bu"],"brackets":"(broda y bu)"}
-{"id":"adhoc.words.magic-table.broda-y-bu.bpfk","text":"broda .y. bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["broda","y.bu"],"brackets":"(broda y bu)"}
+{"id":"adhoc.words.magic-table.broda-y-bu","text":"broda .y. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["broda","y bu"],"brackets":"(broda y bu)"}
+{"id":"adhoc.words.magic-table.broda-y-bu.bpfk","text":"broda .y. bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["broda","y bu"],"brackets":"(broda y bu)"}
 {"id":"adhoc.words.magic-table.zoi-si-stuff-si","text":"zoi si stuff si","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zoi","si","stuff","si"],"brackets":"(zoi si stuff si)"}
 {"id":"adhoc.words.magic-table.zoi-si-stuff-si.bpfk","text":"zoi si stuff si","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","si","stuff","si"],"brackets":"(zoi si stuff si)"}
 {"id":"adhoc.words.magic-table.da-zoi-sa-da-joi-de","text":"da zoi sa da joi de","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"adhoc.words.magic-table.da-zoi-sa-da-joi-de.bpfk","text":"da zoi sa da joi de","dialect":"bpfk","expect":"reject","stage":"words"}
-{"id":"adhoc.words.magic-table.da-zei-faho","text":"da zei fa'o","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["da.zei.fa'o"],"brackets":"da zei fa'o"}
-{"id":"adhoc.words.magic-table.da-zei-faho.bpfk","text":"da zei fa'o","dialect":"bpfk","expect":"accept","verdict":"unique","words":["da.zei.fa'o"],"brackets":"da zei fa'o"}
+{"id":"adhoc.words.magic-table.da-zei-faho","text":"da zei fa'o","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["da zei fa'o"],"brackets":"da zei fa'o"}
+{"id":"adhoc.words.magic-table.da-zei-faho.bpfk","text":"da zei fa'o","dialect":"bpfk","expect":"accept","verdict":"unique","words":["da zei fa'o"],"brackets":"da zei fa'o"}
 {"id":"adhoc.words.magic-table.zoi-si-doi-do","text":"zoi si doi do","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"adhoc.words.magic-table.zoi-si-doi-do.bpfk","text":"zoi si doi do","dialect":"bpfk","expect":"reject","stage":"words"}
 {"id":"adhoc.words.magic-table.zo-da-si","text":"zo da si","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":[],"brackets":""}
@@ -510,30 +510,30 @@
 {"id":"adhoc.words.magic-table.co-zo-da-si-si.bpfk","text":"co zo da si si","dialect":"bpfk","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.words.magic-table.co-co-zo-da-si-si","text":"co co zo da si si","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["co"]}
 {"id":"adhoc.words.magic-table.co-co-zo-da-si-si.bpfk","text":"co co zo da si si","dialect":"bpfk","expect":"reject","stage":"syntax","words":["co"]}
-{"id":"adhoc.words.magic-table.da-zei-de-bu","text":"da zei de bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["da.zei.de.bu"],"brackets":"da zei de bu"}
-{"id":"adhoc.words.magic-table.da-zei-de-bu.bpfk","text":"da zei de bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["da.zei.de.bu"],"brackets":"da zei de bu"}
+{"id":"adhoc.words.magic-table.da-zei-de-bu","text":"da zei de bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["da zei de bu"],"brackets":"da zei de bu"}
+{"id":"adhoc.words.magic-table.da-zei-de-bu.bpfk","text":"da zei de bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["da zei de bu"],"brackets":"da zei de bu"}
 {"id":"adhoc.words.magic-table.bu-zei-de","text":"bu zei de","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"adhoc.words.magic-table.bu-zei-de.bpfk","text":"bu zei de","dialect":"bpfk","expect":"reject","stage":"words"}
-{"id":"adhoc.words.magic-table.zo-bu-zei-de","text":"zo bu zei de","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo.bu.zei.de"],"brackets":"zo bu zei de"}
-{"id":"adhoc.words.magic-table.zo-bu-zei-de.bpfk","text":"zo bu zei de","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zo.bu.zei.de"],"brackets":"zo bu zei de"}
-{"id":"adhoc.words.magic-table.bahe-bu","text":"ba'e bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ba'e.bu"],"brackets":"ba'e bu"}
-{"id":"adhoc.words.magic-table.bahe-bu.bpfk","text":"ba'e bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["ba'e.bu"],"brackets":"ba'e bu"}
+{"id":"adhoc.words.magic-table.zo-bu-zei-de","text":"zo bu zei de","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo bu zei de"],"brackets":"zo bu zei de"}
+{"id":"adhoc.words.magic-table.zo-bu-zei-de.bpfk","text":"zo bu zei de","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zo bu zei de"],"brackets":"zo bu zei de"}
+{"id":"adhoc.words.magic-table.bahe-bu","text":"ba'e bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ba'e bu"],"brackets":"ba'e bu"}
+{"id":"adhoc.words.magic-table.bahe-bu.bpfk","text":"ba'e bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["ba'e bu"],"brackets":"ba'e bu"}
 {"id":"adhoc.words.magic-table.broda-zei-brode-si-brodi","text":"broda zei brode si brodi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["brodi"],"brackets":"brodi"}
 {"id":"adhoc.words.magic-table.broda-zei-brode-si-brodi.bpfk","text":"broda zei brode si brodi","dialect":"bpfk","expect":"accept","verdict":"unique","words":["brodi"],"brackets":"brodi"}
 {"id":"adhoc.words.magic-table.zei-zei-zei","text":"zei zei zei","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"adhoc.words.magic-table.zei-zei-zei.bpfk","text":"zei zei zei","dialect":"bpfk","expect":"reject","stage":"words"}
-{"id":"adhoc.words.magic-table.da-zei-zei","text":"da zei zei","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["da.zei.zei"],"brackets":"da zei zei"}
-{"id":"adhoc.words.magic-table.da-zei-zei.bpfk","text":"da zei zei","dialect":"bpfk","expect":"accept","verdict":"unique","words":["da.zei.zei"],"brackets":"da zei zei"}
+{"id":"adhoc.words.magic-table.da-zei-zei","text":"da zei zei","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["da zei zei"],"brackets":"da zei zei"}
+{"id":"adhoc.words.magic-table.da-zei-zei.bpfk","text":"da zei zei","dialect":"bpfk","expect":"accept","verdict":"unique","words":["da zei zei"],"brackets":"da zei zei"}
 {"id":"adhoc.words.magic-table.broda-bahe-si","text":"broda ba'e si","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
 {"id":"adhoc.words.magic-table.broda-bahe-si.bpfk","text":"broda ba'e si","dialect":"bpfk","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
 {"id":"adhoc.words.magic-table.broda-bahe-da-si-da","text":"broda ba'e da si da","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["broda","ba'e","da"],"brackets":"(broda da)"}
 {"id":"adhoc.words.magic-table.broda-bahe-da-si-da.bpfk","text":"broda ba'e da si da","dialect":"bpfk","expect":"accept","verdict":"unique","words":["broda","ba'e","da"],"brackets":"(broda da)"}
-{"id":"adhoc.words.magic-table.zo-da-bu","text":"zo da bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo.da.bu"],"brackets":"zo da bu"}
-{"id":"adhoc.words.magic-table.zo-da-bu.bpfk","text":"zo da bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zo.da.bu"],"brackets":"zo da bu"}
-{"id":"adhoc.words.magic-table.zoi-zoi-at-sign-zoi-bu","text":"zoi zoi That letter that you use between a user id and a host name in an e-mail address zoi bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zoi.zoi.That.letter.that.you.use.between.a.user.id.and.a.host.name.in.an.e-mail.address.zoi.bu"],"brackets":"zoi zoi That letter that you use between a user id and a host name in an e-mail address zoi bu"}
-{"id":"adhoc.words.magic-table.zoi-zoi-at-sign-zoi-bu.bpfk","text":"zoi zoi That letter that you use between a user id and a host name in an e-mail address zoi bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi.zoi.t'at.letter.t'at.you.use.between.a.user.id.and.a.'ost.name.in.an.e.mail.address.zoi.bu"],"brackets":"zoi zoi t'at letter t'at you use between a user id and a 'ost name in an e mail address zoi bu"}
-{"id":"adhoc.words.magic-table.broda-brode-si-bu","text":"broda brode si bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["broda.bu"],"brackets":"broda bu"}
-{"id":"adhoc.words.magic-table.broda-brode-si-bu.bpfk","text":"broda brode si bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["broda.bu"],"brackets":"broda bu"}
+{"id":"adhoc.words.magic-table.zo-da-bu","text":"zo da bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo da bu"],"brackets":"zo da bu"}
+{"id":"adhoc.words.magic-table.zo-da-bu.bpfk","text":"zo da bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zo da bu"],"brackets":"zo da bu"}
+{"id":"adhoc.words.magic-table.zoi-zoi-at-sign-zoi-bu","text":"zoi zoi That letter that you use between a user id and a host name in an e-mail address zoi bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zoi zoi That letter that you use between a user id and a host name in an e-mail address zoi bu"],"brackets":"zoi zoi That letter that you use between a user id and a host name in an e-mail address zoi bu"}
+{"id":"adhoc.words.magic-table.zoi-zoi-at-sign-zoi-bu.bpfk","text":"zoi zoi That letter that you use between a user id and a host name in an e-mail address zoi bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi zoi That letter that you use between a user id and a host name in an e-mail address zoi bu"],"brackets":"zoi zoi That letter that you use between a user id and a host name in an e-mail address zoi bu"}
+{"id":"adhoc.words.magic-table.broda-brode-si-bu","text":"broda brode si bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["broda bu"],"brackets":"broda bu"}
+{"id":"adhoc.words.magic-table.broda-brode-si-bu.bpfk","text":"broda brode si bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["broda bu"],"brackets":"broda bu"}
 {"id":"adhoc.words.magic-table.zoi-zoi-stuff-zoi-si","text":"zoi zoi stuff zoi si","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.words.magic-table.zoi-zoi-stuff-zoi-si.bpfk","text":"zoi zoi stuff zoi si","dialect":"bpfk","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.words.magic-table.zoi-zoi-lots-of-stuff-zoi-sa-zoi-si","text":"zoi zoi lots of stuff zoi sa zoi si","dialect":"cll-ebnf","expect":"reject","stage":"words"}
@@ -560,24 +560,24 @@
 {"id":"adhoc.words.cll19-departures.one-si-erases-zo-quote.bpfk","text":"mi se cmene zo .djan. si zo .djordj.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","se","cmene","zo","djordj"],"brackets":"(mi [{se cmene} {zo djordj}])"}
 {"id":"adhoc.words.cll19-departures.one-si-erases-lohu-quote","text":"lo'u broda le'u si","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.words.cll19-departures.one-si-erases-lohu-quote.bpfk","text":"lo'u broda le'u si","dialect":"bpfk","expect":"accept","verdict":"unique","words":[],"brackets":""}
-{"id":"adhoc.words.cll19-departures.zei-joins-zo","text":"mi djuno merko zei zo","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","djuno","merko.zei.zo"],"brackets":"(mi [djuno merko zei zo])"}
-{"id":"adhoc.words.cll19-departures.zei-joins-zo.bpfk","text":"mi djuno merko zei zo","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","djuno","merko.zei.zo"],"brackets":"(mi [djuno merko zei zo])"}
+{"id":"adhoc.words.cll19-departures.zei-joins-zo","text":"mi djuno merko zei zo","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","djuno","merko zei zo"],"brackets":"(mi [djuno merko zei zo])"}
+{"id":"adhoc.words.cll19-departures.zei-joins-zo.bpfk","text":"mi djuno merko zei zo","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","djuno","merko zei zo"],"brackets":"(mi [djuno merko zei zo])"}
 {"id":"adhoc.words.cll19-departures.si-erases-zei-zo","text":"merko zei zo si","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.words.cll19-departures.si-erases-zei-zo.bpfk","text":"merko zei zo si","dialect":"bpfk","expect":"accept","verdict":"unique","words":[],"brackets":""}
-{"id":"adhoc.words.cll19-departures.zei-takes-zo-before-it-quotes","text":"da zei zo mi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["da.zei.zo","mi"],"brackets":"(da zei zo mi)"}
-{"id":"adhoc.words.cll19-departures.zei-takes-zo-before-it-quotes.bpfk","text":"da zei zo mi","dialect":"bpfk","expect":"accept","verdict":"unique","words":["da.zei.zo","mi"],"brackets":"(da zei zo mi)"}
-{"id":"adhoc.words.cll19-departures.zahe-bu","text":"za'e bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["za'e.bu"],"brackets":"za'e bu"}
-{"id":"adhoc.words.cll19-departures.zahe-bu.bpfk","text":"za'e bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["za'e.bu"],"brackets":"za'e bu"}
+{"id":"adhoc.words.cll19-departures.zei-takes-zo-before-it-quotes","text":"da zei zo mi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["da zei zo","mi"],"brackets":"(da zei zo mi)"}
+{"id":"adhoc.words.cll19-departures.zei-takes-zo-before-it-quotes.bpfk","text":"da zei zo mi","dialect":"bpfk","expect":"accept","verdict":"unique","words":["da zei zo","mi"],"brackets":"(da zei zo mi)"}
+{"id":"adhoc.words.cll19-departures.zahe-bu","text":"za'e bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["za'e bu"],"brackets":"za'e bu"}
+{"id":"adhoc.words.cll19-departures.zahe-bu.bpfk","text":"za'e bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["za'e bu"],"brackets":"za'e bu"}
 {"id":"adhoc.words.cll19-departures.zo-skips-hesitation","text":"zo .y. cu valsi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo","cu","valsi"],"brackets":"([zo cu] valsi)"}
 {"id":"adhoc.words.cll19-departures.zo-skips-hesitation.bpfk","text":"zo .y. cu valsi","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zo","cu","valsi"],"brackets":"([zo cu] valsi)"}
 {"id":"adhoc.words.cll19-departures.zo-before-hesitation-alone","text":"zo .y.","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"adhoc.words.cll19-departures.zo-before-hesitation-alone.bpfk","text":"zo .y.","dialect":"bpfk","expect":"reject","stage":"words"}
 {"id":"adhoc.words.cll19-departures.si-skips-hesitation","text":"co .y. si","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.words.cll19-departures.si-skips-hesitation.bpfk","text":"co .y. si","dialect":"bpfk","expect":"accept","verdict":"unique","words":[],"brackets":""}
-{"id":"adhoc.words.cll19-departures.zo-quotes-y-bu","text":"zo .y. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo","y.bu"],"brackets":"(zo y bu)"}
-{"id":"adhoc.words.cll19-departures.zo-quotes-y-bu.bpfk","text":"zo .y. bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zo","y.bu"],"brackets":"(zo y bu)"}
-{"id":"adhoc.words.cll19-departures.zei-takes-y-bu","text":"da zei .y. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["da.zei.y.bu"],"brackets":"da zei y bu"}
-{"id":"adhoc.words.cll19-departures.zei-takes-y-bu.bpfk","text":"da zei .y. bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["da.zei.y.bu"],"brackets":"da zei y bu"}
+{"id":"adhoc.words.cll19-departures.zo-quotes-y-bu","text":"zo .y. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo","y bu"],"brackets":"(zo y bu)"}
+{"id":"adhoc.words.cll19-departures.zo-quotes-y-bu.bpfk","text":"zo .y. bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zo","y bu"],"brackets":"(zo y bu)"}
+{"id":"adhoc.words.cll19-departures.zei-takes-y-bu","text":"da zei .y. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["da zei y bu"],"brackets":"da zei y bu"}
+{"id":"adhoc.words.cll19-departures.zei-takes-y-bu.bpfk","text":"da zei .y. bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["da zei y bu"],"brackets":"da zei y bu"}
 {"id":"adhoc.words.cll19-departures.lohu-ends-at-zo-lehu","text":"lo'u zo le'u le'u","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["lo'u","zo","le'u","le'u"]}
 {"id":"adhoc.words.cll19-departures.lohu-ends-at-zo-lehu.bpfk","text":"lo'u zo le'u le'u","dialect":"bpfk","expect":"reject","stage":"syntax","words":["lo'u","zo","le'u","le'u"]}
 {"id":"adhoc.words.cll19-departures.lohu-zoi-foreign-text","text":"lo'u zoi gy. with .gy. le'u","dialect":"cll-ebnf","expect":"reject","stage":"words"}
@@ -606,8 +606,8 @@
 {"id":"adhoc.words.magic-rules.four-sa-fourth-match.bpfk","text":"mi do ko'a ko'e ko'i sa sa sa sa ko'o","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","ko'o"],"brackets":"(mi ko'o)"}
 {"id":"adhoc.words.magic-rules.bahe-nai-after-attitudinal","text":"mi .e .ui ba'e nai do","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","e","ui","ba'e","nai","do"],"brackets":"(mi e do)"}
 {"id":"adhoc.words.magic-rules.bahe-nai-after-attitudinal.bpfk","text":"mi .e .ui ba'e nai do","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","e","ui","ba'e","nai","do"],"brackets":"(mi e do)"}
-{"id":"adhoc.words.magic-rules.sa-bu","text":".abu sa bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["a.bu"],"brackets":"a bu"}
-{"id":"adhoc.words.magic-rules.sa-bu.bpfk","text":".abu sa bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["a.bu"],"brackets":"a bu"}
+{"id":"adhoc.words.magic-rules.sa-bu","text":".abu sa bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["a bu"],"brackets":"a bu"}
+{"id":"adhoc.words.magic-rules.sa-bu.bpfk","text":".abu sa bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["a bu"],"brackets":"a bu"}
 {"id":"adhoc.words.magic-rules.sa-lehu","text":"lo'u co le'u broda sa le'u","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["lo'u","co","le'u"],"brackets":"(lo'u co le'u)"}
 {"id":"adhoc.words.magic-rules.sa-lehu.bpfk","text":"lo'u co le'u broda sa le'u","dialect":"bpfk","expect":"accept","verdict":"unique","words":["lo'u","co","le'u"],"brackets":"(lo'u co le'u)"}
 {"id":"adhoc.words.magic-rules.sa-lehu-two-quoted-words","text":"lo'u co co le'u broda sa le'u","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["lo'u","co","co","le'u"],"brackets":"(lo'u co co le'u)"}
@@ -622,12 +622,12 @@
 {"id":"adhoc.words.magic-rules.sa-su.bpfk","text":"mi klama sa su","dialect":"bpfk","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.words.magic-rules.sa-si-at-start","text":"sa si","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.words.magic-rules.sa-si-at-start.bpfk","text":"sa si","dialect":"bpfk","expect":"accept","verdict":"unique","words":[],"brackets":""}
-{"id":"adhoc.words.magic-rules.mahoi-bu","text":"ma'oi bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ma'oi.bu"],"brackets":"ma'oi bu"}
-{"id":"adhoc.words.magic-rules.mahoi-bu.bpfk","text":"ma'oi bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["ma'oi.bu"],"brackets":"ma'oi bu"}
-{"id":"adhoc.words.magic-rules.zohoi-bu","text":"zo'oi bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo'oi.bu"],"brackets":"zo'oi bu"}
-{"id":"adhoc.words.magic-rules.zohoi-bu.bpfk","text":"zo'oi bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zo'oi.bu"],"brackets":"zo'oi bu"}
-{"id":"adhoc.words.magic-rules.zohoi-zei-broda","text":"zo'oi zei broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo'oi.zei.broda"],"brackets":"zo'oi zei broda"}
-{"id":"adhoc.words.magic-rules.zohoi-zei-broda.bpfk","text":"zo'oi zei broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zo'oi.zei.broda"],"brackets":"zo'oi zei broda"}
+{"id":"adhoc.words.magic-rules.mahoi-bu","text":"ma'oi bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ma'oi bu"],"brackets":"ma'oi bu"}
+{"id":"adhoc.words.magic-rules.mahoi-bu.bpfk","text":"ma'oi bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["ma'oi bu"],"brackets":"ma'oi bu"}
+{"id":"adhoc.words.magic-rules.zohoi-bu","text":"zo'oi bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo'oi bu"],"brackets":"zo'oi bu"}
+{"id":"adhoc.words.magic-rules.zohoi-bu.bpfk","text":"zo'oi bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zo'oi bu"],"brackets":"zo'oi bu"}
+{"id":"adhoc.words.magic-rules.zohoi-zei-broda","text":"zo'oi zei broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo'oi zei broda"],"brackets":"zo'oi zei broda"}
+{"id":"adhoc.words.magic-rules.zohoi-zei-broda.bpfk","text":"zo'oi zei broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zo'oi zei broda"],"brackets":"zo'oi zei broda"}
 {"id":"adhoc.words.magic-rules.mifaho","text":"mifa'o","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi"],"brackets":"mi"}
 {"id":"adhoc.words.magic-rules.mifaho.bpfk","text":"mifa'o","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi"],"brackets":"mi"}
 {"id":"adhoc.words.magic-rules.fahomi","text":"fa'omi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":[],"brackets":""}
@@ -666,10 +666,10 @@
 {"id":"adhoc.words.magic-rules.bare-bu-after-si-erased-by-sa.bpfk","text":"mi si bu sa broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
 {"id":"adhoc.words.magic-rules.bare-bu-after-si-erased-by-su","text":"mi si bu su broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
 {"id":"adhoc.words.magic-rules.bare-bu-after-si-erased-by-su.bpfk","text":"mi si bu su broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
-{"id":"adhoc.words.magic-rules.unmatched-sa-word-takes-bu","text":"mi sa a bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["a.bu"],"brackets":"a bu"}
-{"id":"adhoc.words.magic-rules.unmatched-sa-word-takes-bu.bpfk","text":"mi sa a bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["a.bu"],"brackets":"a bu"}
-{"id":"adhoc.words.magic-rules.unmatched-sa-word-takes-zei","text":"mi sa a zei broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["a.zei.broda"],"brackets":"a zei broda"}
-{"id":"adhoc.words.magic-rules.unmatched-sa-word-takes-zei.bpfk","text":"mi sa a zei broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["a.zei.broda"],"brackets":"a zei broda"}
+{"id":"adhoc.words.magic-rules.unmatched-sa-word-takes-bu","text":"mi sa a bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["a bu"],"brackets":"a bu"}
+{"id":"adhoc.words.magic-rules.unmatched-sa-word-takes-bu.bpfk","text":"mi sa a bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["a bu"],"brackets":"a bu"}
+{"id":"adhoc.words.magic-rules.unmatched-sa-word-takes-zei","text":"mi sa a zei broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["a zei broda"],"brackets":"a zei broda"}
+{"id":"adhoc.words.magic-rules.unmatched-sa-word-takes-zei.bpfk","text":"mi sa a zei broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["a zei broda"],"brackets":"a zei broda"}
 {"id":"adhoc.words.magic-rules.unmatched-sa-word-erased-then-bare-bu","text":"mi sa a si bu su broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
 {"id":"adhoc.words.magic-rules.unmatched-sa-word-erased-then-bare-bu.bpfk","text":"mi sa a si bu su broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
 {"id":"adhoc.words.magic-rules.su-stops-at-word-left-by-unmatched-sa","text":"mi sa ni'o do su","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":[],"brackets":""}
@@ -778,26 +778,31 @@
 {"id":"adhoc.words.bpfk-forms.vowel-before-glide-begins-lujvo.bpfk","text":"uiybla","dialect":"bpfk","expect":"accept","verdict":"unique","words":["uiybla"],"brackets":"uiybla"}
 {"id":"adhoc.words.bpfk-forms.glide-after-consonant-before-glide","text":"miuiybla","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"adhoc.words.bpfk-forms.glide-after-consonant-before-glide.bpfk","text":"miuiybla","dialect":"bpfk","expect":"reject","stage":"words"}
-{"id":"adhoc.words.verbatim.zoi-body-keeps-punctuation","text":"zoi gy. \"Hello!\" .gy.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zoi","gy","\"Hello!\"","gy"],"brackets":"(zoi gy \"Hello!\" gy)"}
-{"id":"adhoc.words.verbatim.zoi-body-keeps-punctuation.bpfk","text":"zoi gy. \"Hello!\" .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy","\"Hello!\"","gy"],"brackets":"(zoi gy \"Hello!\" gy)"}
-{"id":"adhoc.words.verbatim.foreign-run-sounds-like-its-text","text":"zoi gy. gqy .gy.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zoi","gy","gqy","gy"],"brackets":"(zoi gy gqy gy)"}
-{"id":"adhoc.words.verbatim.foreign-run-sounds-like-its-text.bpfk","text":"zoi gy. gqy .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy","gqy","gy"],"brackets":"(zoi gy gqy gy)"}
-{"id":"adhoc.words.verbatim.zoi-body-as-written","text":"zoi gy. John is a man .gy.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zoi","gy","John is a man","gy"],"brackets":"(zoi gy John is a man gy)"}
-{"id":"adhoc.words.verbatim.zoi-body-as-written.bpfk","text":"zoi gy. John is a man .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy","John is a man","gy"],"brackets":"(zoi gy John is a man gy)"}
-{"id":"adhoc.words.verbatim.zoi-body-keeps-periods","text":"zoi gy. a... b .gy.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zoi","gy","a... b","gy"],"brackets":"(zoi gy a... b gy)"}
-{"id":"adhoc.words.verbatim.zoi-body-keeps-periods.bpfk","text":"zoi gy. a... b .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy","a... b","gy"],"brackets":"(zoi gy a... b gy)"}
-{"id":"adhoc.words.verbatim.stray-mark-makes-run-foreign","text":"mï klama","dialect":"cll-ebnf","expect":"reject","stage":"words"}
-{"id":"adhoc.words.verbatim.stray-mark-makes-run-foreign.bpfk","text":"mï klama","dialect":"bpfk","expect":"reject","stage":"words"}
-{"id":"adhoc.words.verbatim.decimal-point-between-digits","text":"li 18.11 cu namcu","dialect":"cll-ebnf","expect":"reject","stage":"words","seeded":"accept","reason":"The CLL dialect reads only the orthography of CLL chapter 3 (phonemes/latin-strict.md). A digit, an accent, a question mark or other punctuation but the period and the comma is foreign there, so a text with one outside a quote is not Lojban in that dialect."}
-{"id":"adhoc.words.verbatim.decimal-point-between-digits.bpfk","text":"li 18.11 cu namcu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["li","pa","bi","pi","pa","pa","cu","namcu"],"brackets":"([li {pa bi pi pa pa}] cu namcu)"}
-{"id":"adhoc.words.verbatim.punctuation-at-pause-edge","text":"mi \"klama\"","dialect":"cll-ebnf","expect":"reject","stage":"words","seeded":"accept","reason":"The CLL dialect reads only the orthography of CLL chapter 3 (phonemes/latin-strict.md). A digit, an accent, a question mark or other punctuation but the period and the comma is foreign there, so a text with one outside a quote is not Lojban in that dialect."}
-{"id":"adhoc.words.verbatim.punctuation-at-pause-edge.bpfk","text":"mi \"klama\"","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
-{"id":"adhoc.words.verbatim.punctuation-between-spaces-in-a-quote","text":"zoi gy. !!! .gy.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zoi","gy","!!!","gy"],"brackets":"(zoi gy !!! gy)"}
-{"id":"adhoc.words.verbatim.punctuation-between-spaces-in-a-quote.bpfk","text":"zoi gy. !!! .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy","","gy"],"brackets":"(zoi gy  gy)"}
-{"id":"adhoc.words.verbatim.punctuation-between-spaces","text":"mi - klama","dialect":"cll-ebnf","expect":"reject","stage":"words","seeded":"accept","reason":"The CLL dialect reads only the orthography of CLL chapter 3 (phonemes/latin-strict.md). A digit, an accent, a question mark or other punctuation but the period and the comma is foreign there, so a text with one outside a quote is not Lojban in that dialect."}
-{"id":"adhoc.words.verbatim.punctuation-between-spaces.bpfk","text":"mi - klama","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
-{"id":"adhoc.words.verbatim.punctuation-at-text-end","text":"mi klama ?","dialect":"cll-ebnf","expect":"reject","stage":"words","seeded":"accept","reason":"The CLL dialect reads only the orthography of CLL chapter 3 (phonemes/latin-strict.md). A digit, an accent, a question mark or other punctuation but the period and the comma is foreign there, so a text with one outside a quote is not Lojban in that dialect."}
-{"id":"adhoc.words.verbatim.punctuation-at-text-end.bpfk","text":"mi klama ?","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.words.foreign.zoi-body-keeps-punctuation","text":"zoi gy. \"Hello!\" .gy.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zoi","gy","\"Hello!\"","gy"],"brackets":"(zoi gy \"Hello!\" gy)"}
+{"id":"adhoc.words.foreign.zoi-body-keeps-punctuation.bpfk","text":"zoi gy. \"Hello!\" .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy","\"Hello!\"","gy"],"brackets":"(zoi gy \"Hello!\" gy)"}
+{"id":"adhoc.words.foreign.foreign-run-shows-its-text","text":"zoi gy. gqy .gy.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zoi","gy","gqy","gy"],"brackets":"(zoi gy gqy gy)"}
+{"id":"adhoc.words.foreign.foreign-run-shows-its-text.bpfk","text":"zoi gy. gqy .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy","gqy","gy"],"brackets":"(zoi gy gqy gy)"}
+{"id":"adhoc.words.foreign.zoi-body-as-written","text":"zoi gy. John is a man .gy.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zoi","gy","John is a man","gy"],"brackets":"(zoi gy John is a man gy)"}
+{"id":"adhoc.words.foreign.zoi-body-as-written.bpfk","text":"zoi gy. John is a man .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy","John is a man","gy"],"brackets":"(zoi gy John is a man gy)"}
+{"id":"adhoc.words.foreign.zoi-body-keeps-periods","text":"zoi gy. a... b .gy.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zoi","gy","a... b","gy"],"brackets":"(zoi gy a... b gy)"}
+{"id":"adhoc.words.foreign.zoi-body-keeps-periods.bpfk","text":"zoi gy. a... b .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy","a... b","gy"],"brackets":"(zoi gy a... b gy)"}
+{"id":"adhoc.words.foreign.stray-mark-makes-run-foreign","text":"mï klama","dialect":"cll-ebnf","expect":"reject","stage":"words"}
+{"id":"adhoc.words.foreign.stray-mark-makes-run-foreign.bpfk","text":"mï klama","dialect":"bpfk","expect":"reject","stage":"words"}
+{"id":"adhoc.words.foreign.decimal-point-between-digits","text":"li 18.11 cu namcu","dialect":"cll-ebnf","expect":"reject","stage":"words","seeded":"accept","reason":"The CLL dialect reads only the orthography of CLL chapter 3 (phonemes/latin-strict.md). A digit, an accent, a question mark or other punctuation but the period and the comma is foreign there, so a text with one outside a quote is not Lojban in that dialect."}
+{"id":"adhoc.words.foreign.decimal-point-between-digits.bpfk","text":"li 18.11 cu namcu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["li","pa","bi","pi","pa","pa","cu","namcu"],"brackets":"([li {pa bi pi pa pa}] cu namcu)"}
+{"id":"adhoc.words.foreign.punctuation-at-pause-edge","text":"mi \"klama\"","dialect":"cll-ebnf","expect":"reject","stage":"words","seeded":"accept","reason":"The CLL dialect reads only the orthography of CLL chapter 3 (phonemes/latin-strict.md). A digit, an accent, a question mark or other punctuation but the period and the comma is foreign there, so a text with one outside a quote is not Lojban in that dialect."}
+{"id":"adhoc.words.foreign.punctuation-at-pause-edge.bpfk","text":"mi \"klama\"","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.words.foreign.punctuation-between-spaces-in-a-quote","text":"zoi gy. !!! .gy.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zoi","gy","!!!","gy"],"brackets":"(zoi gy !!! gy)"}
+{"id":"adhoc.words.foreign.punctuation-between-spaces-in-a-quote.bpfk","text":"zoi gy. !!! .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy","","gy"],"brackets":"(zoi gy  gy)"}
+{"id":"adhoc.words.foreign.punctuation-between-spaces","text":"mi - klama","dialect":"cll-ebnf","expect":"reject","stage":"words","seeded":"accept","reason":"The CLL dialect reads only the orthography of CLL chapter 3 (phonemes/latin-strict.md). A digit, an accent, a question mark or other punctuation but the period and the comma is foreign there, so a text with one outside a quote is not Lojban in that dialect."}
+{"id":"adhoc.words.foreign.punctuation-between-spaces.bpfk","text":"mi - klama","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.words.foreign.punctuation-at-text-end","text":"mi klama ?","dialect":"cll-ebnf","expect":"reject","stage":"words","seeded":"accept","reason":"The CLL dialect reads only the orthography of CLL chapter 3 (phonemes/latin-strict.md). A digit, an accent, a question mark or other punctuation but the period and the comma is foreign there, so a text with one outside a quote is not Lojban in that dialect."}
+{"id":"adhoc.words.foreign.punctuation-at-text-end.bpfk","text":"mi klama ?","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.words.foreign.zoi-body-under-bu","text":"zoi gy. Hello, .gy. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zoi gy Hello, gy bu"],"brackets":"zoi gy Hello, gy bu"}
+{"id":"adhoc.words.foreign.zoi-body-under-bu.bpfk","text":"zoi gy. Hello, .gy. bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi gy Hello, gy bu"],"brackets":"zoi gy Hello, gy bu"}
+{"id":"adhoc.words.foreign.letter-word-over-quote","text":"zoi gy. abc .gy. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zoi gy abc gy bu"],"brackets":"zoi gy abc gy bu"}
+{"id":"adhoc.words.foreign.letter-word-over-quote.bpfk","text":"zoi gy. abc .gy. bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi gy abc gy bu"],"brackets":"zoi gy abc gy bu"}
+{"id":"adhoc.words.foreign.zbalermorna-shorthand-label.bpfk","text":"","dialect":"bpfk","expect":"accept","verdict":"unique","words":["u'i"],"brackets":"u'i"}
 {"id":"adhoc.words.orthography.question-mark-is-no-cll-letter","text":"mi klama?","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"adhoc.words.orthography.question-mark-is-no-cll-letter.bpfk","text":"mi klama?","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
 {"id":"adhoc.words.orthography.accent-is-no-cll-letter","text":"mí klama","dialect":"cll-ebnf","expect":"reject","stage":"words"}
@@ -926,11 +931,11 @@
 {"id":"adhoc.camxes-exp.indicators.indicator-after-lu-begins-quote.zantufa","text":"lu ui li'u","dialect":"zantufa","expect":"accept","verdict":"unique","words":["lu","ui","li'u"],"brackets":"(lu ui li'u)"}
 {"id":"adhoc.camxes-exp.indicators.nai-after-lu-begins-quote.experimental","text":"lu nai mi klama li'u","dialect":"experimental","expect":"accept","verdict":"unique","words":["lu","nai","mi","klama","li'u"],"brackets":"(lu [nai {mi klama}] li'u)"}
 {"id":"adhoc.camxes-exp.indicators.nai-after-lu-begins-quote.zantufa","text":"lu nai mi klama li'u","dialect":"zantufa","expect":"accept","verdict":"unique","words":["lu","nai","mi","klama","li'u"],"brackets":"(lu nai [mi klama] li'u)"}
-{"id":"adhoc.words.zei.hesitation-before-zei","text":"mi .y. zei broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi.zei.broda"],"brackets":"mi zei broda"}
-{"id":"adhoc.words.zei.hesitation-before-zei.bpfk","text":"mi .y. zei broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi.zei.broda"],"brackets":"mi zei broda"}
-{"id":"adhoc.words.zei.hesitation-after-zei","text":"mi zei .y. broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi.zei.broda"],"brackets":"mi zei broda"}
-{"id":"adhoc.words.zei.hesitation-after-zei.bpfk","text":"mi zei .y. broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi.zei.broda"],"brackets":"mi zei broda"}
-{"id":"adhoc.camxes-exp.words.hesitation-before-zei.experimental","text":"mi .y. zei broda","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi.zei.broda"],"brackets":"mi zei broda"}
+{"id":"adhoc.words.zei.hesitation-before-zei","text":"mi .y. zei broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi zei broda"],"brackets":"mi zei broda"}
+{"id":"adhoc.words.zei.hesitation-before-zei.bpfk","text":"mi .y. zei broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi zei broda"],"brackets":"mi zei broda"}
+{"id":"adhoc.words.zei.hesitation-after-zei","text":"mi zei .y. broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi zei broda"],"brackets":"mi zei broda"}
+{"id":"adhoc.words.zei.hesitation-after-zei.bpfk","text":"mi zei .y. broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi zei broda"],"brackets":"mi zei broda"}
+{"id":"adhoc.camxes-exp.words.hesitation-before-zei.experimental","text":"mi .y. zei broda","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi zei broda"],"brackets":"mi zei broda"}
 {"id":"adhoc.camxes-exp.words.hesitation-before-zei.zantufa","text":"mi .y. zei broda","dialect":"zantufa","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
 {"id":"adhoc.words.sa-su.stressed-su-turns-on-sa-su","text":"mi ni'o do sU klama","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["klama"],"brackets":"klama"}
 {"id":"adhoc.words.sa-su.stressed-su-turns-on-sa-su.bpfk","text":"mi ni'o do sU klama","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","ni'o","klama"],"brackets":"(mi ni'o klama)"}
@@ -1159,8 +1164,8 @@
 {"id":"adhoc.words.peg.spagaiiismu-stressed.bpfk","text":"spAgaiiismu","dialect":"bpfk","expect":"reject","stage":"words"}
 {"id":"adhoc.words.peg.fahu","text":"fahu","dialect":"cll-ebnf","expect":"reject","stage":"words","seeded":"accept","reason":"CLL 3.1 omits the letter h from the alphabet. CLL 3.3 says that h does not write the apostrophe. So the CLL dialect reads no h (phonemes/latin-strict.md, Letters). The approved word forms read h as the apostrophe (phonemes/latin.md)."}
 {"id":"adhoc.words.peg.fahu.bpfk","text":"fahu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["fa'u"],"brackets":"fa'u"}
-{"id":"adhoc.words.peg.y-bu","text":"y bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["y.bu"],"brackets":"y bu"}
-{"id":"adhoc.words.peg.y-bu.bpfk","text":"y bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["y.bu"],"brackets":"y bu"}
+{"id":"adhoc.words.peg.y-bu","text":"y bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["y bu"],"brackets":"y bu"}
+{"id":"adhoc.words.peg.y-bu.bpfk","text":"y bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["y bu"],"brackets":"y bu"}
 {"id":"adhoc.words.peg.ybu","text":"ybu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ybu"],"brackets":"ybu"}
 {"id":"adhoc.words.peg.ybu.bpfk","text":"ybu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["ybu"],"brackets":"ybu"}
 {"id":"adhoc.words.peg.yyybu","text":"yyybu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["yyybu"],"brackets":"yyybu"}
@@ -1173,8 +1178,8 @@
 {"id":"adhoc.words.peg.zoyybu-mi.bpfk","text":"zoyybu mi","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zo","yybu","mi"],"brackets":"([zo yybu] mi)"}
 {"id":"adhoc.words.peg.mizeiyybu","text":"mizeiyybu","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"adhoc.words.peg.mizeiyybu.bpfk","text":"mizeiyybu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mizeiyybu"],"brackets":"mizeiyybu"}
-{"id":"adhoc.words.peg.lohu-y-bu-lehu","text":"lo'u y bu le'u","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["lo'u","y.bu","le'u"],"brackets":"(lo'u y bu le'u)"}
-{"id":"adhoc.words.peg.lohu-y-bu-lehu.bpfk","text":"lo'u y bu le'u","dialect":"bpfk","expect":"accept","verdict":"unique","words":["lo'u","y.bu","le'u"],"brackets":"(lo'u y bu le'u)"}
+{"id":"adhoc.words.peg.lohu-y-bu-lehu","text":"lo'u y bu le'u","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["lo'u","y bu","le'u"],"brackets":"(lo'u y bu le'u)"}
+{"id":"adhoc.words.peg.lohu-y-bu-lehu.bpfk","text":"lo'u y bu le'u","dialect":"bpfk","expect":"accept","verdict":"unique","words":["lo'u","y bu","le'u"],"brackets":"(lo'u y bu le'u)"}
 {"id":"adhoc.words.peg.lohu-yyy-lehu","text":"lo'u yyy le'u","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["lo'u","le'u"],"brackets":"(lo'u le'u)"}
 {"id":"adhoc.words.peg.lohu-yyy-lehu.bpfk","text":"lo'u yyy le'u","dialect":"bpfk","expect":"accept","verdict":"unique","words":["lo'u","le'u"],"brackets":"(lo'u le'u)"}
 {"id":"adhoc.words.peg.lohu-y-buha-lehu","text":"lo'u y bu'a le'u","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["lo'u","bu'a","le'u"],"brackets":"(lo'u bu'a le'u)"}
@@ -1183,12 +1188,12 @@
 {"id":"adhoc.words.peg.zo-yyy-mi.bpfk","text":"zo yyy mi","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zo","mi"],"brackets":"(zo mi)"}
 {"id":"adhoc.words.peg.mi-yyy-si","text":"mi yyy si","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.words.peg.mi-yyy-si.bpfk","text":"mi yyy si","dialect":"bpfk","expect":"accept","verdict":"unique","words":[],"brackets":""}
-{"id":"adhoc.words.peg.mi-yyy-zei-do","text":"mi yyy zei do","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi.zei.do"],"brackets":"mi zei do"}
-{"id":"adhoc.words.peg.mi-yyy-zei-do.bpfk","text":"mi yyy zei do","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi.zei.do"],"brackets":"mi zei do"}
-{"id":"adhoc.words.peg.ybu-sa-bu","text":"ybu sa bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["y.bu"],"brackets":"y bu"}
-{"id":"adhoc.words.peg.ybu-sa-bu.bpfk","text":"ybu sa bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["y.bu"],"brackets":"y bu"}
-{"id":"adhoc.words.peg.mi-ybu-sa-bu","text":"mi ybu sa bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","y.bu"],"brackets":"(mi y bu)"}
-{"id":"adhoc.words.peg.mi-ybu-sa-bu.bpfk","text":"mi ybu sa bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","y.bu"],"brackets":"(mi y bu)"}
+{"id":"adhoc.words.peg.mi-yyy-zei-do","text":"mi yyy zei do","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi zei do"],"brackets":"mi zei do"}
+{"id":"adhoc.words.peg.mi-yyy-zei-do.bpfk","text":"mi yyy zei do","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi zei do"],"brackets":"mi zei do"}
+{"id":"adhoc.words.peg.ybu-sa-bu","text":"ybu sa bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["y bu"],"brackets":"y bu"}
+{"id":"adhoc.words.peg.ybu-sa-bu.bpfk","text":"ybu sa bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["y bu"],"brackets":"y bu"}
+{"id":"adhoc.words.peg.mi-ybu-sa-bu","text":"mi ybu sa bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi","y bu"],"brackets":"(mi y bu)"}
+{"id":"adhoc.words.peg.mi-ybu-sa-bu.bpfk","text":"mi ybu sa bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","y bu"],"brackets":"(mi y bu)"}
 {"id":"adhoc.words.peg.k-comma-lamau","text":"k,lamau","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["klamau"],"brackets":"klamau"}
 {"id":"adhoc.words.peg.k-comma-lamau.bpfk","text":"k,lamau","dialect":"bpfk","expect":"accept","verdict":"unique","words":["klamau"],"brackets":"klamau"}
 {"id":"adhoc.words.peg.jy-q-comma-sai","text":"jy?,sai","dialect":"cll-ebnf","expect":"reject","stage":"words"}
@@ -1354,7 +1359,7 @@
 {"id":"adhoc.words.cll11.rohirreho","text":"ro'irre'o","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"adhoc.words.cll11.rokreho","text":"rokre'o","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["rokre'o"],"brackets":"rokre'o"}
 {"id":"adhoc.words.cll11.rokyreho","text":"rokyre'o","dialect":"cll-ebnf","expect":"reject","stage":"words"}
-{"id":"adhoc.words.cll11.cerman-zei-jamkarce","text":".cerman. zei jamkarce","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["cerman.zei.jamkarce"],"brackets":"cerman zei jamkarce"}
+{"id":"adhoc.words.cll11.cerman-zei-jamkarce","text":".cerman. zei jamkarce","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["cerman zei jamkarce"],"brackets":"cerman zei jamkarce"}
 {"id":"adhoc.words.cll11.saskykuarka","text":"saskykuarka","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"adhoc.words.cll11.me-laho-ly-spaghetti-ly","text":"me la'o ly. spaghetti .ly.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["me","la'o","ly","spaghetti","ly"],"brackets":"(me [la'o ly spaghetti ly])"}
 {"id":"adhoc.words.cll11.fukpi-valsi","text":"fukpi valsi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["fukpi","valsi"],"brackets":"(fukpi valsi)"}
@@ -1619,26 +1624,26 @@
 {"id":"adhoc.words.cll11.gahe-abu","text":"ga'e .abu","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["ga'e","abu"],"brackets":"(ga'e abu)"}
 {"id":"adhoc.words.cll11.abubu","text":".abubu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["abubu"],"brackets":"abubu"}
 {"id":"adhoc.words.cll11.joibu","text":"joibu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["joibu"],"brackets":"joibu"}
-{"id":"adhoc.words.cll11.denpa-bu","text":"denpa bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["denpa.bu"],"brackets":"denpa bu"}
+{"id":"adhoc.words.cll11.denpa-bu","text":"denpa bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["denpa bu"],"brackets":"denpa bu"}
 {"id":"adhoc.words.cll11.denpa","text":"denpa","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["denpa"],"brackets":"denpa"}
 {"id":"adhoc.words.cll11.slaka","text":"slaka","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["slaka"],"brackets":"slaka"}
 {"id":"adhoc.words.cll11.denpabu","text":"denpabu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["denpabu"],"brackets":"denpabu"}
 {"id":"adhoc.words.cll11.denpabu-2","text":"denPAbu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["denpAbu"],"brackets":"denpAbu"}
 {"id":"adhoc.words.cll11.denpabu-3","text":"DENpabu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["dEnpabu"],"brackets":"dEnpabu"}
-{"id":"adhoc.words.cll11.alfas-bu","text":".alfas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["alfas.bu"],"brackets":"alfas bu"}
-{"id":"adhoc.words.cll11.yhy-bu","text":".y'y.bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["y'y.bu"],"brackets":"y'y bu"}
-{"id":"adhoc.words.cll11.ky-bu","text":"ky.bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ky.bu"],"brackets":"ky bu"}
+{"id":"adhoc.words.cll11.alfas-bu","text":".alfas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["alfas bu"],"brackets":"alfas bu"}
+{"id":"adhoc.words.cll11.yhy-bu","text":".y'y.bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["y'y bu"],"brackets":"y'y bu"}
+{"id":"adhoc.words.cll11.ky-bu","text":"ky.bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ky bu"],"brackets":"ky bu"}
 {"id":"adhoc.words.cll11.kybu","text":"kybu","dialect":"cll-ebnf","expect":"reject","stage":"words"}
-{"id":"adhoc.words.cll11.vy-bu","text":"vy.bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["vy.bu"],"brackets":"vy bu"}
-{"id":"adhoc.words.cll11.ty-bu","text":"ty.bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ty.bu"],"brackets":"ty bu"}
-{"id":"adhoc.words.cll11.dy-bu","text":"dy.bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["dy.bu"],"brackets":"dy bu"}
-{"id":"adhoc.words.cll11.omikron-bu","text":".Omikron. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["Omikron.bu"],"brackets":"Omikron bu"}
+{"id":"adhoc.words.cll11.vy-bu","text":"vy.bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["vy bu"],"brackets":"vy bu"}
+{"id":"adhoc.words.cll11.ty-bu","text":"ty.bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ty bu"],"brackets":"ty bu"}
+{"id":"adhoc.words.cll11.dy-bu","text":"dy.bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["dy bu"],"brackets":"dy bu"}
+{"id":"adhoc.words.cll11.omikron-bu","text":".Omikron. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["Omikron bu"],"brackets":"Omikron bu"}
 {"id":"adhoc.words.cll11.loha","text":"lo'a","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["lo'a"],"brackets":"lo'a"}
 {"id":"adhoc.words.cll11.geho","text":"ge'o","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ge'o"],"brackets":"ge'o"}
 {"id":"adhoc.words.cll11.jeho","text":"je'o","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["je'o"],"brackets":"je'o"}
 {"id":"adhoc.words.cll11.joho","text":"jo'o","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["jo'o"],"brackets":"jo'o"}
 {"id":"adhoc.words.cll11.ruho","text":"ru'o","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ru'o"],"brackets":"ru'o"}
-{"id":"adhoc.words.cll11.akut-bu","text":"akut. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["akut.bu"],"brackets":"akut bu"}
+{"id":"adhoc.words.cll11.akut-bu","text":"akut. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["akut bu"],"brackets":"akut bu"}
 {"id":"adhoc.words.cll11.la-stivn-mark-djonz-merko","text":"la stivn. mark. djonz. merko","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["la","stivn","mark","djonz","merko"],"brackets":"([la stivn mark djonz] merko)"}
 {"id":"adhoc.words.cll11.i-la-aleksandr-paliitc-kuznietsyf-rusko","text":".i la .aleksandr. paliitc. kuzNIETsyf. rusko","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["i","la","aleksandr","paliitc","kuznIEtsyf","rusko"],"brackets":"(i [{la aleksandr paliitc kuznIEtsyf} rusko])"}
 {"id":"adhoc.words.cll11.i-symyjy-tavla-abupyky-bau-la-lojban","text":".i symyjy. tavla .abupyky. bau la lojban.","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["i","sy","my","jy","tavla","abu","py","ky","bau","la","lojban"],"brackets":"(i [{sy my jy} {tavla ([abu py ky] [bau {la lojban}])}])"}
@@ -1648,9 +1653,9 @@
 {"id":"adhoc.words.cll11.kohe","text":"ko'e","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ko'e"],"brackets":"ko'e"}
 {"id":"adhoc.words.cll11.goi","text":"goi","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["goi"]}
 {"id":"adhoc.words.cll11.boi","text":"boi","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["boi"]}
-{"id":"adhoc.words.cll11.zo-abu-cu-lerfu","text":"zo .abu cu lerfu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo.abu","cu","lerfu"],"brackets":"(zo abu cu lerfu)"}
+{"id":"adhoc.words.cll11.zo-abu-cu-lerfu","text":"zo .abu cu lerfu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo abu","cu","lerfu"],"brackets":"(zo abu cu lerfu)"}
 {"id":"adhoc.words.cll11.meho","text":"me'o","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["me'o"]}
-{"id":"adhoc.words.cll11.y-bu","text":".y.bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["y.bu"],"brackets":"y bu"}
+{"id":"adhoc.words.cll11.y-bu","text":".y.bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["y bu"],"brackets":"y bu"}
 {"id":"adhoc.words.cll11.ny-lo-prenu","text":"ny. lo prenu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ny","lo","prenu"],"brackets":"(ny [lo prenu])"}
 {"id":"adhoc.words.cll11.abu-by-cy","text":".abu by. cy.","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["abu","by","cy"],"brackets":"(abu by cy)"}
 {"id":"adhoc.words.cll11.maho","text":"ma'o","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["ma'o"]}
@@ -1682,166 +1687,166 @@
 {"id":"adhoc.words.cll11.lau","text":"lau","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["lau"]}
 {"id":"adhoc.words.cll11.tei","text":"tei","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["tei"]}
 {"id":"adhoc.words.cll11.foi","text":"foi","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["foi"]}
-{"id":"adhoc.words.cll11.betas-bu","text":".betas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["betas.bu"],"brackets":"betas bu"}
-{"id":"adhoc.words.cll11.gamas-bu","text":".gamas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["gamas.bu"],"brackets":"gamas bu"}
-{"id":"adhoc.words.cll11.deltas-bu","text":".deltas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["deltas.bu"],"brackets":"deltas bu"}
-{"id":"adhoc.words.cll11.epsilon-bu","text":".Epsilon. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["Epsilon.bu"],"brackets":"Epsilon bu"}
-{"id":"adhoc.words.cll11.zetas-bu","text":".zetas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zetas.bu"],"brackets":"zetas bu"}
-{"id":"adhoc.words.cll11.etas-bu","text":".etas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["etas.bu"],"brackets":"etas bu"}
-{"id":"adhoc.words.cll11.tetas-bu","text":".tetas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tetas.bu"],"brackets":"tetas bu"}
-{"id":"adhoc.words.cll11.iotas-bu","text":".iotas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["iotas.bu"],"brackets":"iotas bu"}
-{"id":"adhoc.words.cll11.kapas-bu","text":".kapas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["kapas.bu"],"brackets":"kapas bu"}
-{"id":"adhoc.words.cll11.lymdas-bu","text":".lymdas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["lymdas.bu"],"brackets":"lymdas bu"}
-{"id":"adhoc.words.cll11.mus-bu","text":".mus. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mus.bu"],"brackets":"mus bu"}
-{"id":"adhoc.words.cll11.nus-bu","text":".nus. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["nus.bu"],"brackets":"nus bu"}
-{"id":"adhoc.words.cll11.ksis-bu","text":".ksis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ksis.bu"],"brackets":"ksis bu"}
-{"id":"adhoc.words.cll11.pis-bu","text":".pis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["pis.bu"],"brackets":"pis bu"}
-{"id":"adhoc.words.cll11.ros-bu","text":".ros. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ros.bu"],"brackets":"ros bu"}
-{"id":"adhoc.words.cll11.sigmas-bu","text":".sigmas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["sigmas.bu"],"brackets":"sigmas bu"}
-{"id":"adhoc.words.cll11.taus-bu","text":".taus. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["taus.bu"],"brackets":"taus bu"}
-{"id":"adhoc.words.cll11.upsilon-bu","text":".Upsilon. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["Upsilon.bu"],"brackets":"Upsilon bu"}
-{"id":"adhoc.words.cll11.fis-bu","text":".fis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["fis.bu"],"brackets":"fis bu"}
-{"id":"adhoc.words.cll11.xis-bu","text":".xis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["xis.bu"],"brackets":"xis bu"}
-{"id":"adhoc.words.cll11.psis-bu","text":".psis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["psis.bu"],"brackets":"psis bu"}
-{"id":"adhoc.words.cll11.omegas-bu","text":".omegas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["omegas.bu"],"brackets":"omegas bu"}
-{"id":"adhoc.words.cll11.dasei-as-bu","text":".dasei,as. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["dasei,as.bu"],"brackets":"dasei,as bu"}
-{"id":"adhoc.words.cll11.psiles-bu","text":".psiles. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["psiles.bu"],"brackets":"psiles bu"}
+{"id":"adhoc.words.cll11.betas-bu","text":".betas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["betas bu"],"brackets":"betas bu"}
+{"id":"adhoc.words.cll11.gamas-bu","text":".gamas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["gamas bu"],"brackets":"gamas bu"}
+{"id":"adhoc.words.cll11.deltas-bu","text":".deltas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["deltas bu"],"brackets":"deltas bu"}
+{"id":"adhoc.words.cll11.epsilon-bu","text":".Epsilon. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["Epsilon bu"],"brackets":"Epsilon bu"}
+{"id":"adhoc.words.cll11.zetas-bu","text":".zetas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zetas bu"],"brackets":"zetas bu"}
+{"id":"adhoc.words.cll11.etas-bu","text":".etas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["etas bu"],"brackets":"etas bu"}
+{"id":"adhoc.words.cll11.tetas-bu","text":".tetas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tetas bu"],"brackets":"tetas bu"}
+{"id":"adhoc.words.cll11.iotas-bu","text":".iotas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["iotas bu"],"brackets":"iotas bu"}
+{"id":"adhoc.words.cll11.kapas-bu","text":".kapas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["kapas bu"],"brackets":"kapas bu"}
+{"id":"adhoc.words.cll11.lymdas-bu","text":".lymdas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["lymdas bu"],"brackets":"lymdas bu"}
+{"id":"adhoc.words.cll11.mus-bu","text":".mus. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mus bu"],"brackets":"mus bu"}
+{"id":"adhoc.words.cll11.nus-bu","text":".nus. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["nus bu"],"brackets":"nus bu"}
+{"id":"adhoc.words.cll11.ksis-bu","text":".ksis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ksis bu"],"brackets":"ksis bu"}
+{"id":"adhoc.words.cll11.pis-bu","text":".pis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["pis bu"],"brackets":"pis bu"}
+{"id":"adhoc.words.cll11.ros-bu","text":".ros. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ros bu"],"brackets":"ros bu"}
+{"id":"adhoc.words.cll11.sigmas-bu","text":".sigmas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["sigmas bu"],"brackets":"sigmas bu"}
+{"id":"adhoc.words.cll11.taus-bu","text":".taus. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["taus bu"],"brackets":"taus bu"}
+{"id":"adhoc.words.cll11.upsilon-bu","text":".Upsilon. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["Upsilon bu"],"brackets":"Upsilon bu"}
+{"id":"adhoc.words.cll11.fis-bu","text":".fis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["fis bu"],"brackets":"fis bu"}
+{"id":"adhoc.words.cll11.xis-bu","text":".xis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["xis bu"],"brackets":"xis bu"}
+{"id":"adhoc.words.cll11.psis-bu","text":".psis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["psis bu"],"brackets":"psis bu"}
+{"id":"adhoc.words.cll11.omegas-bu","text":".omegas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["omegas bu"],"brackets":"omegas bu"}
+{"id":"adhoc.words.cll11.dasei-as-bu","text":".dasei,as. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["dasei,as bu"],"brackets":"dasei,as bu"}
+{"id":"adhoc.words.cll11.psiles-bu","text":".psiles. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["psiles bu"],"brackets":"psiles bu"}
 {"id":"adhoc.words.cll11.ehebu","text":".e'ebu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["e'ebu"],"brackets":"e'ebu"}
 {"id":"adhoc.words.cll11.ohobu","text":".o'obu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["o'obu"],"brackets":"o'obu"}
-{"id":"adhoc.words.cll11.ty-bu-2","text":"ty. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ty.bu"],"brackets":"ty bu"}
-{"id":"adhoc.words.cll11.py-bu","text":"py. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["py.bu"],"brackets":"py bu"}
-{"id":"adhoc.words.cll11.ky-bu-2","text":"ky. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ky.bu"],"brackets":"ky bu"}
-{"id":"adhoc.words.cll11.ksis-bu-2","text":"ksis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ksis.bu"],"brackets":"ksis bu"}
-{"id":"adhoc.words.cll11.psis-bu-2","text":"psis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["psis.bu"],"brackets":"psis bu"}
+{"id":"adhoc.words.cll11.ty-bu-2","text":"ty. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ty bu"],"brackets":"ty bu"}
+{"id":"adhoc.words.cll11.py-bu","text":"py. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["py bu"],"brackets":"py bu"}
+{"id":"adhoc.words.cll11.ky-bu-2","text":"ky. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ky bu"],"brackets":"ky bu"}
+{"id":"adhoc.words.cll11.ksis-bu-2","text":"ksis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ksis bu"],"brackets":"ksis bu"}
+{"id":"adhoc.words.cll11.psis-bu-2","text":"psis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["psis bu"],"brackets":"psis bu"}
 {"id":"adhoc.words.cll11.yhy-2","text":".y'y","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["y'y"],"brackets":"y'y"}
-{"id":"adhoc.words.cll11.xutla-bu","text":"xutla bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["xutla.bu"],"brackets":"xutla bu"}
-{"id":"adhoc.words.cll11.azys-bu","text":".azys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["azys.bu"],"brackets":"azys bu"}
-{"id":"adhoc.words.cll11.bukys-bu","text":".bukys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["bukys.bu"],"brackets":"bukys bu"}
-{"id":"adhoc.words.cll11.vedis-bu","text":".vedis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["vedis.bu"],"brackets":"vedis bu"}
-{"id":"adhoc.words.cll11.glagolis-bu","text":".glagolis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["glagolis.bu"],"brackets":"glagolis bu"}
-{"id":"adhoc.words.cll11.dobros-bu","text":".dobros. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["dobros.bu"],"brackets":"dobros bu"}
-{"id":"adhoc.words.cll11.iestys-bu","text":".iestys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["iestys.bu"],"brackets":"iestys bu"}
-{"id":"adhoc.words.cll11.jivet-bu","text":".jivet. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["jivet.bu"],"brackets":"jivet bu"}
-{"id":"adhoc.words.cll11.zemlias-bu","text":".zemlias. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zemlias.bu"],"brackets":"zemlias bu"}
-{"id":"adhoc.words.cll11.ije-is-bu","text":".ije,is. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ije,is.bu"],"brackets":"ije,is bu"}
-{"id":"adhoc.words.cll11.itord-bu","text":".itord. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["itord.bu"],"brackets":"itord bu"}
-{"id":"adhoc.words.cll11.kakos-bu","text":".kakos. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["kakos.bu"],"brackets":"kakos bu"}
-{"id":"adhoc.words.cll11.liudi-ies-bu","text":".liudi,ies. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["liudi,ies.bu"],"brackets":"liudi,ies bu"}
-{"id":"adhoc.words.cll11.myslites-bu","text":".myslites. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["myslites.bu"],"brackets":"myslites bu"}
-{"id":"adhoc.words.cll11.naciys-bu","text":".naciys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["naciys.bu"],"brackets":"naciys bu"}
-{"id":"adhoc.words.cll11.onys-bu","text":".onys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["onys.bu"],"brackets":"onys bu"}
-{"id":"adhoc.words.cll11.pokois-bu","text":".pokois. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["pokois.bu"],"brackets":"pokois bu"}
-{"id":"adhoc.words.cll11.riytsis-bu","text":".riytsis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["riytsis.bu"],"brackets":"riytsis bu"}
-{"id":"adhoc.words.cll11.slovos-bu","text":".slovos. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["slovos.bu"],"brackets":"slovos bu"}
-{"id":"adhoc.words.cll11.tyvriydos-bu","text":".tyvriydos. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tyvriydos.bu"],"brackets":"tyvriydos bu"}
-{"id":"adhoc.words.cll11.ukys-bu","text":".ukys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ukys.bu"],"brackets":"ukys bu"}
-{"id":"adhoc.words.cll11.friytys-bu","text":".friytys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["friytys.bu"],"brackets":"friytys bu"}
-{"id":"adhoc.words.cll11.xerys-bu","text":".xerys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["xerys.bu"],"brackets":"xerys bu"}
-{"id":"adhoc.words.cll11.tsis-bu","text":".tsis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tsis.bu"],"brackets":"tsis bu"}
-{"id":"adhoc.words.cll11.tcriyviys-bu","text":".tcriyviys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tcriyviys.bu"],"brackets":"tcriyviys bu"}
-{"id":"adhoc.words.cll11.cas-bu","text":".cas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["cas.bu"],"brackets":"cas bu"}
-{"id":"adhoc.words.cll11.ctas-bu","text":".ctas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ctas.bu"],"brackets":"ctas bu"}
-{"id":"adhoc.words.cll11.ier-bu","text":".ier. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ier.bu"],"brackets":"ier bu"}
-{"id":"adhoc.words.cll11.ierys-bu","text":".ierys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ierys.bu"],"brackets":"ierys bu"}
-{"id":"adhoc.words.cll11.ieriys-bu","text":".ieriys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ieriys.bu"],"brackets":"ieriys bu"}
-{"id":"adhoc.words.cll11.ecarn-bu","text":".ecarn. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ecarn.bu"],"brackets":"ecarn bu"}
-{"id":"adhoc.words.cll11.ius-bu","text":".ius. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ius.bu"],"brackets":"ius bu"}
-{"id":"adhoc.words.cll11.ias-bu","text":".ias. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ias.bu"],"brackets":"ias bu"}
-{"id":"adhoc.words.cll11.tsys-bu","text":"tsys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tsys.bu"],"brackets":"tsys bu"}
-{"id":"adhoc.words.cll11.tcys-bu","text":"tcys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tcys.bu"],"brackets":"tcys bu"}
-{"id":"adhoc.words.cll11.ctcys-bu","text":"ctcys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ctcys.bu"],"brackets":"ctcys bu"}
-{"id":"adhoc.words.cll11.jdari-bu","text":"jdari bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["jdari.bu"],"brackets":"jdari bu"}
-{"id":"adhoc.words.cll11.ranti-bu","text":"ranti bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ranti.bu"],"brackets":"ranti bu"}
+{"id":"adhoc.words.cll11.xutla-bu","text":"xutla bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["xutla bu"],"brackets":"xutla bu"}
+{"id":"adhoc.words.cll11.azys-bu","text":".azys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["azys bu"],"brackets":"azys bu"}
+{"id":"adhoc.words.cll11.bukys-bu","text":".bukys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["bukys bu"],"brackets":"bukys bu"}
+{"id":"adhoc.words.cll11.vedis-bu","text":".vedis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["vedis bu"],"brackets":"vedis bu"}
+{"id":"adhoc.words.cll11.glagolis-bu","text":".glagolis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["glagolis bu"],"brackets":"glagolis bu"}
+{"id":"adhoc.words.cll11.dobros-bu","text":".dobros. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["dobros bu"],"brackets":"dobros bu"}
+{"id":"adhoc.words.cll11.iestys-bu","text":".iestys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["iestys bu"],"brackets":"iestys bu"}
+{"id":"adhoc.words.cll11.jivet-bu","text":".jivet. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["jivet bu"],"brackets":"jivet bu"}
+{"id":"adhoc.words.cll11.zemlias-bu","text":".zemlias. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zemlias bu"],"brackets":"zemlias bu"}
+{"id":"adhoc.words.cll11.ije-is-bu","text":".ije,is. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ije,is bu"],"brackets":"ije,is bu"}
+{"id":"adhoc.words.cll11.itord-bu","text":".itord. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["itord bu"],"brackets":"itord bu"}
+{"id":"adhoc.words.cll11.kakos-bu","text":".kakos. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["kakos bu"],"brackets":"kakos bu"}
+{"id":"adhoc.words.cll11.liudi-ies-bu","text":".liudi,ies. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["liudi,ies bu"],"brackets":"liudi,ies bu"}
+{"id":"adhoc.words.cll11.myslites-bu","text":".myslites. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["myslites bu"],"brackets":"myslites bu"}
+{"id":"adhoc.words.cll11.naciys-bu","text":".naciys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["naciys bu"],"brackets":"naciys bu"}
+{"id":"adhoc.words.cll11.onys-bu","text":".onys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["onys bu"],"brackets":"onys bu"}
+{"id":"adhoc.words.cll11.pokois-bu","text":".pokois. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["pokois bu"],"brackets":"pokois bu"}
+{"id":"adhoc.words.cll11.riytsis-bu","text":".riytsis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["riytsis bu"],"brackets":"riytsis bu"}
+{"id":"adhoc.words.cll11.slovos-bu","text":".slovos. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["slovos bu"],"brackets":"slovos bu"}
+{"id":"adhoc.words.cll11.tyvriydos-bu","text":".tyvriydos. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tyvriydos bu"],"brackets":"tyvriydos bu"}
+{"id":"adhoc.words.cll11.ukys-bu","text":".ukys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ukys bu"],"brackets":"ukys bu"}
+{"id":"adhoc.words.cll11.friytys-bu","text":".friytys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["friytys bu"],"brackets":"friytys bu"}
+{"id":"adhoc.words.cll11.xerys-bu","text":".xerys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["xerys bu"],"brackets":"xerys bu"}
+{"id":"adhoc.words.cll11.tsis-bu","text":".tsis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tsis bu"],"brackets":"tsis bu"}
+{"id":"adhoc.words.cll11.tcriyviys-bu","text":".tcriyviys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tcriyviys bu"],"brackets":"tcriyviys bu"}
+{"id":"adhoc.words.cll11.cas-bu","text":".cas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["cas bu"],"brackets":"cas bu"}
+{"id":"adhoc.words.cll11.ctas-bu","text":".ctas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ctas bu"],"brackets":"ctas bu"}
+{"id":"adhoc.words.cll11.ier-bu","text":".ier. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ier bu"],"brackets":"ier bu"}
+{"id":"adhoc.words.cll11.ierys-bu","text":".ierys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ierys bu"],"brackets":"ierys bu"}
+{"id":"adhoc.words.cll11.ieriys-bu","text":".ieriys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ieriys bu"],"brackets":"ieriys bu"}
+{"id":"adhoc.words.cll11.ecarn-bu","text":".ecarn. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ecarn bu"],"brackets":"ecarn bu"}
+{"id":"adhoc.words.cll11.ius-bu","text":".ius. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ius bu"],"brackets":"ius bu"}
+{"id":"adhoc.words.cll11.ias-bu","text":".ias. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ias bu"],"brackets":"ias bu"}
+{"id":"adhoc.words.cll11.tsys-bu","text":"tsys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tsys bu"],"brackets":"tsys bu"}
+{"id":"adhoc.words.cll11.tcys-bu","text":"tcys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tcys bu"],"brackets":"tcys bu"}
+{"id":"adhoc.words.cll11.ctcys-bu","text":"ctcys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ctcys bu"],"brackets":"ctcys bu"}
+{"id":"adhoc.words.cll11.jdari-bu","text":"jdari bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["jdari bu"],"brackets":"jdari bu"}
+{"id":"adhoc.words.cll11.ranti-bu","text":"ranti bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ranti bu"],"brackets":"ranti bu"}
 {"id":"adhoc.words.cll11.iubu","text":".iubu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["iubu"],"brackets":"iubu"}
 {"id":"adhoc.words.cll11.iabu","text":".iabu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["iabu"],"brackets":"iabu"}
-{"id":"adhoc.words.cll11.alef-bu","text":".alef. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["alef.bu"],"brackets":"alef bu"}
-{"id":"adhoc.words.cll11.bet-bu","text":".bet. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["bet.bu"],"brackets":"bet bu"}
-{"id":"adhoc.words.cll11.gimel-bu","text":".gimel. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["gimel.bu"],"brackets":"gimel bu"}
-{"id":"adhoc.words.cll11.daled-bu","text":".daled. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["daled.bu"],"brackets":"daled bu"}
-{"id":"adhoc.words.cll11.xex-bu","text":".xex. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["xex.bu"],"brackets":"xex bu"}
-{"id":"adhoc.words.cll11.vav-bu","text":".vav. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["vav.bu"],"brackets":"vav bu"}
-{"id":"adhoc.words.cll11.zai-in-bu","text":".zai,in. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zai,in.bu"],"brackets":"zai,in bu"}
-{"id":"adhoc.words.cll11.xet-bu","text":".xet. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["xet.bu"],"brackets":"xet bu"}
-{"id":"adhoc.words.cll11.tet-bu","text":".tet. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tet.bu"],"brackets":"tet bu"}
-{"id":"adhoc.words.cll11.iud-bu","text":".iud. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["iud.bu"],"brackets":"iud bu"}
-{"id":"adhoc.words.cll11.kaf-bu","text":".kaf. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["kaf.bu"],"brackets":"kaf bu"}
-{"id":"adhoc.words.cll11.lymed-bu","text":".LYmed. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["lYmed.bu"],"brackets":"lYmed bu"}
-{"id":"adhoc.words.cll11.mem-bu","text":".mem. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mem.bu"],"brackets":"mem bu"}
-{"id":"adhoc.words.cll11.nun-bu","text":".nun. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["nun.bu"],"brackets":"nun bu"}
-{"id":"adhoc.words.cll11.samex-bu","text":".samex. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["samex.bu"],"brackets":"samex bu"}
-{"id":"adhoc.words.cll11.ai-in-bu","text":".ai,in. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ai,in.bu"],"brackets":"ai,in bu"}
-{"id":"adhoc.words.cll11.pex-bu","text":".pex. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["pex.bu"],"brackets":"pex bu"}
-{"id":"adhoc.words.cll11.tsadik-bu","text":".tsadik. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tsadik.bu"],"brackets":"tsadik bu"}
-{"id":"adhoc.words.cll11.kuf-bu","text":".kuf. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["kuf.bu"],"brackets":"kuf bu"}
-{"id":"adhoc.words.cll11.rec-bu","text":".rec. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["rec.bu"],"brackets":"rec bu"}
-{"id":"adhoc.words.cll11.cin-bu","text":".cin. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["cin.bu"],"brackets":"cin bu"}
-{"id":"adhoc.words.cll11.sin-bu","text":".sin. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["sin.bu"],"brackets":"sin bu"}
-{"id":"adhoc.words.cll11.taf-bu","text":".taf. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["taf.bu"],"brackets":"taf bu"}
-{"id":"adhoc.words.cll11.dagec-bu","text":".daGEC. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["dagEc.bu"],"brackets":"dagEc bu"}
-{"id":"adhoc.words.cll11.xirik-bu","text":".xirik. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["xirik.bu"],"brackets":"xirik bu"}
-{"id":"adhoc.words.cll11.tseirex-bu","text":".tseirex. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tseirex.bu"],"brackets":"tseirex bu"}
-{"id":"adhoc.words.cll11.segol-bu","text":".seGOL. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["segOl.bu"],"brackets":"segOl bu"}
-{"id":"adhoc.words.cll11.kubuts-bu","text":".kubuts. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["kubuts.bu"],"brackets":"kubuts bu"}
-{"id":"adhoc.words.cll11.kamats-bu","text":".kamats. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["kamats.bu"],"brackets":"kamats bu"}
-{"id":"adhoc.words.cll11.patax-bu","text":".patax. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["patax.bu"],"brackets":"patax bu"}
-{"id":"adhoc.words.cll11.cyvas-bu","text":".cyVAS. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["cyvAs.bu"],"brackets":"cyvAs bu"}
-{"id":"adhoc.words.cll11.xolem-bu","text":".xolem. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["xolem.bu"],"brackets":"xolem bu"}
-{"id":"adhoc.words.cll11.curuk-bu","text":".curuk. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["curuk.bu"],"brackets":"curuk bu"}
-{"id":"adhoc.words.cll11.samex-bu-2","text":"samex. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["samex.bu"],"brackets":"samex bu"}
-{"id":"adhoc.words.cll11.tsadik-bu-2","text":"tsadik. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tsadik.bu"],"brackets":"tsadik bu"}
-{"id":"adhoc.words.cll11.dagec-bu-2","text":"daGEC. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["dagEc.bu"],"brackets":"dagEc bu"}
-{"id":"adhoc.words.cll11.ai-in-bu-2","text":".ai,in bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ai,in.bu"],"brackets":"ai,in bu"}
-{"id":"adhoc.words.cll11.xy-bu","text":"xy. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["xy.bu"],"brackets":"xy bu"}
+{"id":"adhoc.words.cll11.alef-bu","text":".alef. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["alef bu"],"brackets":"alef bu"}
+{"id":"adhoc.words.cll11.bet-bu","text":".bet. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["bet bu"],"brackets":"bet bu"}
+{"id":"adhoc.words.cll11.gimel-bu","text":".gimel. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["gimel bu"],"brackets":"gimel bu"}
+{"id":"adhoc.words.cll11.daled-bu","text":".daled. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["daled bu"],"brackets":"daled bu"}
+{"id":"adhoc.words.cll11.xex-bu","text":".xex. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["xex bu"],"brackets":"xex bu"}
+{"id":"adhoc.words.cll11.vav-bu","text":".vav. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["vav bu"],"brackets":"vav bu"}
+{"id":"adhoc.words.cll11.zai-in-bu","text":".zai,in. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zai,in bu"],"brackets":"zai,in bu"}
+{"id":"adhoc.words.cll11.xet-bu","text":".xet. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["xet bu"],"brackets":"xet bu"}
+{"id":"adhoc.words.cll11.tet-bu","text":".tet. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tet bu"],"brackets":"tet bu"}
+{"id":"adhoc.words.cll11.iud-bu","text":".iud. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["iud bu"],"brackets":"iud bu"}
+{"id":"adhoc.words.cll11.kaf-bu","text":".kaf. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["kaf bu"],"brackets":"kaf bu"}
+{"id":"adhoc.words.cll11.lymed-bu","text":".LYmed. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["lYmed bu"],"brackets":"lYmed bu"}
+{"id":"adhoc.words.cll11.mem-bu","text":".mem. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mem bu"],"brackets":"mem bu"}
+{"id":"adhoc.words.cll11.nun-bu","text":".nun. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["nun bu"],"brackets":"nun bu"}
+{"id":"adhoc.words.cll11.samex-bu","text":".samex. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["samex bu"],"brackets":"samex bu"}
+{"id":"adhoc.words.cll11.ai-in-bu","text":".ai,in. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ai,in bu"],"brackets":"ai,in bu"}
+{"id":"adhoc.words.cll11.pex-bu","text":".pex. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["pex bu"],"brackets":"pex bu"}
+{"id":"adhoc.words.cll11.tsadik-bu","text":".tsadik. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tsadik bu"],"brackets":"tsadik bu"}
+{"id":"adhoc.words.cll11.kuf-bu","text":".kuf. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["kuf bu"],"brackets":"kuf bu"}
+{"id":"adhoc.words.cll11.rec-bu","text":".rec. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["rec bu"],"brackets":"rec bu"}
+{"id":"adhoc.words.cll11.cin-bu","text":".cin. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["cin bu"],"brackets":"cin bu"}
+{"id":"adhoc.words.cll11.sin-bu","text":".sin. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["sin bu"],"brackets":"sin bu"}
+{"id":"adhoc.words.cll11.taf-bu","text":".taf. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["taf bu"],"brackets":"taf bu"}
+{"id":"adhoc.words.cll11.dagec-bu","text":".daGEC. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["dagEc bu"],"brackets":"dagEc bu"}
+{"id":"adhoc.words.cll11.xirik-bu","text":".xirik. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["xirik bu"],"brackets":"xirik bu"}
+{"id":"adhoc.words.cll11.tseirex-bu","text":".tseirex. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tseirex bu"],"brackets":"tseirex bu"}
+{"id":"adhoc.words.cll11.segol-bu","text":".seGOL. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["segOl bu"],"brackets":"segOl bu"}
+{"id":"adhoc.words.cll11.kubuts-bu","text":".kubuts. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["kubuts bu"],"brackets":"kubuts bu"}
+{"id":"adhoc.words.cll11.kamats-bu","text":".kamats. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["kamats bu"],"brackets":"kamats bu"}
+{"id":"adhoc.words.cll11.patax-bu","text":".patax. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["patax bu"],"brackets":"patax bu"}
+{"id":"adhoc.words.cll11.cyvas-bu","text":".cyVAS. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["cyvAs bu"],"brackets":"cyvAs bu"}
+{"id":"adhoc.words.cll11.xolem-bu","text":".xolem. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["xolem bu"],"brackets":"xolem bu"}
+{"id":"adhoc.words.cll11.curuk-bu","text":".curuk. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["curuk bu"],"brackets":"curuk bu"}
+{"id":"adhoc.words.cll11.samex-bu-2","text":"samex. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["samex bu"],"brackets":"samex bu"}
+{"id":"adhoc.words.cll11.tsadik-bu-2","text":"tsadik. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tsadik bu"],"brackets":"tsadik bu"}
+{"id":"adhoc.words.cll11.dagec-bu-2","text":"daGEC. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["dagEc bu"],"brackets":"dagEc bu"}
+{"id":"adhoc.words.cll11.ai-in-bu-2","text":".ai,in bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ai,in bu"],"brackets":"ai,in bu"}
+{"id":"adhoc.words.cll11.xy-bu","text":"xy. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["xy bu"],"brackets":"xy bu"}
 {"id":"adhoc.words.cll11.eibu","text":".eibu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["eibu"],"brackets":"eibu"}
 {"id":"adhoc.words.cll11.ahabu","text":".a'abu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["a'abu"],"brackets":"a'abu"}
 {"id":"adhoc.words.cll11.uhubu","text":".u'ubu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["u'ubu"],"brackets":"u'ubu"}
-{"id":"adhoc.words.cll11.akut-bu-2","text":".akut. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["akut.bu"],"brackets":"akut bu"}
-{"id":"adhoc.words.cll11.pritygal-bu","text":".pritygal. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["pritygal.bu"],"brackets":"pritygal bu"}
-{"id":"adhoc.words.cll11.grav-bu","text":".grav. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["grav.bu"],"brackets":"grav bu"}
-{"id":"adhoc.words.cll11.zulgal-bu","text":".zulgal. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zulgal.bu"],"brackets":"zulgal bu"}
-{"id":"adhoc.words.cll11.cirkumfleks-bu","text":".cirkumfleks. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["cirkumfleks.bu"],"brackets":"cirkumfleks bu"}
-{"id":"adhoc.words.cll11.midgal-bu","text":".midgal. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["midgal.bu"],"brackets":"midgal bu"}
-{"id":"adhoc.words.cll11.tildes-bu","text":".tildes. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tildes.bu"],"brackets":"tildes bu"}
-{"id":"adhoc.words.cll11.makron-bu","text":".makron. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["makron.bu"],"brackets":"makron bu"}
-{"id":"adhoc.words.cll11.brevis-bu","text":".brevis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["brevis.bu"],"brackets":"brevis bu"}
-{"id":"adhoc.words.cll11.gapmoc-bu","text":".gapmoc. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["gapmoc.bu"],"brackets":"gapmoc bu"}
-{"id":"adhoc.words.cll11.relmoc-bu","text":".relmoc. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["relmoc.bu"],"brackets":"relmoc bu"}
-{"id":"adhoc.words.cll11.gapyjin-bu","text":".gapyjin. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["gapyjin.bu"],"brackets":"gapyjin bu"}
-{"id":"adhoc.words.cll11.sedilys-bu","text":".seDIlys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["sedIlys.bu"],"brackets":"sedIlys bu"}
-{"id":"adhoc.words.cll11.rehakut-bu","text":".re'akut. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["re'akut.bu"],"brackets":"re'akut bu"}
-{"id":"adhoc.words.cll11.ogoniek-bu","text":".ogoniek. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ogoniek.bu"],"brackets":"ogoniek bu"}
-{"id":"adhoc.words.cll11.xatcek-bu","text":".xatcek. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["xatcek.bu"],"brackets":"xatcek bu"}
-{"id":"adhoc.words.cll11.akut-bu-3","text":".akut.bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["akut.bu"],"brackets":"akut bu"}
+{"id":"adhoc.words.cll11.akut-bu-2","text":".akut. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["akut bu"],"brackets":"akut bu"}
+{"id":"adhoc.words.cll11.pritygal-bu","text":".pritygal. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["pritygal bu"],"brackets":"pritygal bu"}
+{"id":"adhoc.words.cll11.grav-bu","text":".grav. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["grav bu"],"brackets":"grav bu"}
+{"id":"adhoc.words.cll11.zulgal-bu","text":".zulgal. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zulgal bu"],"brackets":"zulgal bu"}
+{"id":"adhoc.words.cll11.cirkumfleks-bu","text":".cirkumfleks. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["cirkumfleks bu"],"brackets":"cirkumfleks bu"}
+{"id":"adhoc.words.cll11.midgal-bu","text":".midgal. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["midgal bu"],"brackets":"midgal bu"}
+{"id":"adhoc.words.cll11.tildes-bu","text":".tildes. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tildes bu"],"brackets":"tildes bu"}
+{"id":"adhoc.words.cll11.makron-bu","text":".makron. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["makron bu"],"brackets":"makron bu"}
+{"id":"adhoc.words.cll11.brevis-bu","text":".brevis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["brevis bu"],"brackets":"brevis bu"}
+{"id":"adhoc.words.cll11.gapmoc-bu","text":".gapmoc. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["gapmoc bu"],"brackets":"gapmoc bu"}
+{"id":"adhoc.words.cll11.relmoc-bu","text":".relmoc. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["relmoc bu"],"brackets":"relmoc bu"}
+{"id":"adhoc.words.cll11.gapyjin-bu","text":".gapyjin. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["gapyjin bu"],"brackets":"gapyjin bu"}
+{"id":"adhoc.words.cll11.sedilys-bu","text":".seDIlys. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["sedIlys bu"],"brackets":"sedIlys bu"}
+{"id":"adhoc.words.cll11.rehakut-bu","text":".re'akut. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["re'akut bu"],"brackets":"re'akut bu"}
+{"id":"adhoc.words.cll11.ogoniek-bu","text":".ogoniek. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ogoniek bu"],"brackets":"ogoniek bu"}
+{"id":"adhoc.words.cll11.xatcek-bu","text":".xatcek. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["xatcek bu"],"brackets":"xatcek bu"}
+{"id":"adhoc.words.cll11.akut-bu-3","text":".akut.bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["akut bu"],"brackets":"akut bu"}
 {"id":"adhoc.words.cll11.tei-fy-ibu-foi","text":"tei fy. ibu foi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tei","fy","ibu","foi"],"brackets":"(tei [fy ibu] foi)"}
 {"id":"adhoc.words.cll11.tei-abu-ebu-foi","text":"tei .abu .ebu foi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tei","abu","ebu","foi"],"brackets":"(tei [abu ebu] foi)"}
 {"id":"adhoc.words.cll11.tei-ibu-jy-foi","text":"tei .ibu jy. foi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tei","ibu","jy","foi"],"brackets":"(tei [ibu jy] foi)"}
 {"id":"adhoc.words.cll11.tei-sy-zy-foi","text":"tei sy. zy. foi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tei","sy","zy","foi"],"brackets":"(tei [sy zy] foi)"}
-{"id":"adhoc.words.cll11.bravos-bu","text":".bravos. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["bravos.bu"],"brackets":"bravos bu"}
-{"id":"adhoc.words.cll11.carlis-bu","text":".carlis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["carlis.bu"],"brackets":"carlis bu"}
-{"id":"adhoc.words.cll11.ekos-bu","text":".ekos. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ekos.bu"],"brackets":"ekos bu"}
-{"id":"adhoc.words.cll11.fokstrot-bu","text":".fokstrot. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["fokstrot.bu"],"brackets":"fokstrot bu"}
-{"id":"adhoc.words.cll11.golf-bu","text":".golf. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["golf.bu"],"brackets":"golf bu"}
-{"id":"adhoc.words.cll11.xotel-bu","text":".xoTEL. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["xotEl.bu"],"brackets":"xotEl bu"}
-{"id":"adhoc.words.cll11.indias-bu","text":".indias. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["indias.bu"],"brackets":"indias bu"}
-{"id":"adhoc.words.cll11.juliet-bu","text":".juliet. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["juliet.bu"],"brackets":"juliet bu"}
-{"id":"adhoc.words.cll11.kilos-bu","text":".kilos. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["kilos.bu"],"brackets":"kilos bu"}
-{"id":"adhoc.words.cll11.limas-bu","text":".limas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["limas.bu"],"brackets":"limas bu"}
-{"id":"adhoc.words.cll11.maik-bu","text":".maik. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["maik.bu"],"brackets":"maik bu"}
-{"id":"adhoc.words.cll11.novembr-bu","text":".novembr. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["novembr.bu"],"brackets":"novembr bu"}
-{"id":"adhoc.words.cll11.oskar-bu","text":".oskar. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["oskar.bu"],"brackets":"oskar bu"}
-{"id":"adhoc.words.cll11.papas-bu","text":".paPAS. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["papAs.bu"],"brackets":"papAs bu"}
-{"id":"adhoc.words.cll11.kebek-bu","text":".keBEK. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["kebEk.bu"],"brackets":"kebEk bu"}
-{"id":"adhoc.words.cll11.romios-bu","text":".romios. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["romios.bu"],"brackets":"romios bu"}
-{"id":"adhoc.words.cll11.sieras-bu","text":".sieras. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["sieras.bu"],"brackets":"sieras bu"}
-{"id":"adhoc.words.cll11.tangos-bu","text":".tangos. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tangos.bu"],"brackets":"tangos bu"}
-{"id":"adhoc.words.cll11.uniform-bu","text":".Uniform. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["Uniform.bu"],"brackets":"Uniform bu"}
-{"id":"adhoc.words.cll11.viktas-bu","text":".viktas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["viktas.bu"],"brackets":"viktas bu"}
-{"id":"adhoc.words.cll11.uiskis-bu","text":".uiskis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["uiskis.bu"],"brackets":"uiskis bu"}
-{"id":"adhoc.words.cll11.eksreis-bu","text":".eksreis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["eksreis.bu"],"brackets":"eksreis bu"}
-{"id":"adhoc.words.cll11.iankis-bu","text":".iankis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["iankis.bu"],"brackets":"iankis bu"}
-{"id":"adhoc.words.cll11.zulus-bu","text":".zulus. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zulus.bu"],"brackets":"zulus bu"}
-{"id":"adhoc.words.cll11.carlis-bu-2","text":"carlis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["carlis.bu"],"brackets":"carlis bu"}
-{"id":"adhoc.words.cll11.tcarlis-bu","text":"tcarlis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tcarlis.bu"],"brackets":"tcarlis bu"}
+{"id":"adhoc.words.cll11.bravos-bu","text":".bravos. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["bravos bu"],"brackets":"bravos bu"}
+{"id":"adhoc.words.cll11.carlis-bu","text":".carlis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["carlis bu"],"brackets":"carlis bu"}
+{"id":"adhoc.words.cll11.ekos-bu","text":".ekos. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ekos bu"],"brackets":"ekos bu"}
+{"id":"adhoc.words.cll11.fokstrot-bu","text":".fokstrot. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["fokstrot bu"],"brackets":"fokstrot bu"}
+{"id":"adhoc.words.cll11.golf-bu","text":".golf. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["golf bu"],"brackets":"golf bu"}
+{"id":"adhoc.words.cll11.xotel-bu","text":".xoTEL. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["xotEl bu"],"brackets":"xotEl bu"}
+{"id":"adhoc.words.cll11.indias-bu","text":".indias. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["indias bu"],"brackets":"indias bu"}
+{"id":"adhoc.words.cll11.juliet-bu","text":".juliet. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["juliet bu"],"brackets":"juliet bu"}
+{"id":"adhoc.words.cll11.kilos-bu","text":".kilos. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["kilos bu"],"brackets":"kilos bu"}
+{"id":"adhoc.words.cll11.limas-bu","text":".limas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["limas bu"],"brackets":"limas bu"}
+{"id":"adhoc.words.cll11.maik-bu","text":".maik. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["maik bu"],"brackets":"maik bu"}
+{"id":"adhoc.words.cll11.novembr-bu","text":".novembr. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["novembr bu"],"brackets":"novembr bu"}
+{"id":"adhoc.words.cll11.oskar-bu","text":".oskar. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["oskar bu"],"brackets":"oskar bu"}
+{"id":"adhoc.words.cll11.papas-bu","text":".paPAS. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["papAs bu"],"brackets":"papAs bu"}
+{"id":"adhoc.words.cll11.kebek-bu","text":".keBEK. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["kebEk bu"],"brackets":"kebEk bu"}
+{"id":"adhoc.words.cll11.romios-bu","text":".romios. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["romios bu"],"brackets":"romios bu"}
+{"id":"adhoc.words.cll11.sieras-bu","text":".sieras. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["sieras bu"],"brackets":"sieras bu"}
+{"id":"adhoc.words.cll11.tangos-bu","text":".tangos. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tangos bu"],"brackets":"tangos bu"}
+{"id":"adhoc.words.cll11.uniform-bu","text":".Uniform. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["Uniform bu"],"brackets":"Uniform bu"}
+{"id":"adhoc.words.cll11.viktas-bu","text":".viktas. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["viktas bu"],"brackets":"viktas bu"}
+{"id":"adhoc.words.cll11.uiskis-bu","text":".uiskis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["uiskis bu"],"brackets":"uiskis bu"}
+{"id":"adhoc.words.cll11.eksreis-bu","text":".eksreis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["eksreis bu"],"brackets":"eksreis bu"}
+{"id":"adhoc.words.cll11.iankis-bu","text":".iankis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["iankis bu"],"brackets":"iankis bu"}
+{"id":"adhoc.words.cll11.zulus-bu","text":".zulus. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zulus bu"],"brackets":"zulus bu"}
+{"id":"adhoc.words.cll11.carlis-bu-2","text":"carlis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["carlis bu"],"brackets":"carlis bu"}
+{"id":"adhoc.words.cll11.tcarlis-bu","text":"tcarlis. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["tcarlis bu"],"brackets":"tcarlis bu"}
 {"id":"adhoc.words.cll11.nihonihoniho","text":"ni'oni'oni'o","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ni'o","ni'o","ni'o"],"brackets":"(ni'o ni'o ni'o)"}
 {"id":"adhoc.words.cll11.nohinohi","text":"no'ino'i","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["no'i","no'i"],"brackets":"(no'i no'i)"}
 {"id":"adhoc.words.cll11.inaja","text":".inaja","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["i","na","ja"],"brackets":"(i [na ja])"}
@@ -2478,16 +2483,16 @@
 {"id":"adhoc.words.split.c13.kyha-zeibisycla","text":"ky'a.zEibisycla","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"adhoc.words.split.c13.dipnu-buby","text":"dipnu bUbY","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"adhoc.words.split.c13.xony-simei","text":"xOnY simei","dialect":"cll-ebnf","expect":"reject","stage":"words"}
-{"id":"adhoc.words.split.c13.klamaby-bu","text":"klamaby.bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["klama","by.bu"],"brackets":"(klama by bu)"}
-{"id":"adhoc.words.split.d6.ky-bu","text":"ky.bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ky.bu"],"brackets":"ky bu"}
+{"id":"adhoc.words.split.c13.klamaby-bu","text":"klamaby.bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["klama","by bu"],"brackets":"(klama by bu)"}
+{"id":"adhoc.words.split.d6.ky-bu","text":"ky.bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["ky bu"],"brackets":"ky bu"}
 {"id":"adhoc.words.split.d6.pefybu","text":"pefybu","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"adhoc.words.split.d6.vidybu","text":"vidybu","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"adhoc.words.split.d7.ladjan-bu","text":"ladjan.bu","dialect":"cll-ebnf","expect":"reject","stage":"words"}
-{"id":"adhoc.words.split.d7.la-djan-bu","text":"la.djan.bu","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["la","djan.bu"]}
+{"id":"adhoc.words.split.d7.la-djan-bu","text":"la.djan.bu","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["la","djan bu"]}
 {"id":"adhoc.words.split.d7.ladjan-mi-si-bu","text":"ladjan.mi si bu","dialect":"cll-ebnf","expect":"reject","stage":"words"}
-{"id":"adhoc.words.split.d7.la-djan-mi-si-bu","text":"la.djan.mi si bu","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["la","djan.bu"]}
-{"id":"adhoc.words.split.d7.ladjan-zei-mi-bu","text":"ladjan. zei mi bu","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["la","djan.zei.mi.bu"]}
-{"id":"adhoc.words.split.d7.ladjan-sa-djim-bu","text":"ladjan. sa .djim. bu","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["la","djim.bu"]}
+{"id":"adhoc.words.split.d7.la-djan-mi-si-bu","text":"la.djan.mi si bu","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["la","djan bu"]}
+{"id":"adhoc.words.split.d7.ladjan-zei-mi-bu","text":"ladjan. zei mi bu","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["la","djan zei mi bu"]}
+{"id":"adhoc.words.split.d7.ladjan-sa-djim-bu","text":"ladjan. sa .djim. bu","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["la","djim bu"]}
 {"id":"adhoc.words.split.d7.lohu-ladjan-bu","text":"lo'u ladjan.bu le'u","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["lo'u","la","djan","bu","le'u"],"brackets":"(lo'u la djan bu le'u)"}
 {"id":"adhoc.words.split.faho.fahohu","text":"fa'o'u","dialect":"cll-ebnf","expect":"reject","stage":"syntax","words":["fa'o'u"]}
 {"id":"adhoc.words.split.faho.fahorn","text":"fa'orn.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["fa'orn"],"brackets":"fa'orn"}
@@ -2499,42 +2504,42 @@
 {"id":"adhoc.words.split.cy.mi-suby","text":"mi suby","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["by"],"brackets":"by"}
 {"id":"adhoc.words.split.hes.zoy-glovu","text":"zoy glovu","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"adhoc.words.split.d8.mi-sa-ydo-stressed","text":"mi sa .ydO","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["dO"],"brackets":"dO"}
-{"id":"adhoc.words.split.d8.mi-zei-ydo","text":"mi zei .ydo","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi.zei.do"],"brackets":"mi zei do"}
-{"id":"adhoc.words.split.d8.mi-zei-ybroda","text":"mi zei .ybroda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi.zei.broda"],"brackets":"mi zei broda"}
-{"id":"adhoc.words.split.ybu.abu-sa-y-bu","text":".abu sa .y. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["y.bu"],"brackets":"y bu"}
-{"id":"adhoc.words.split.ybu.sa-y-bu","text":"sa .y. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["y.bu"],"brackets":"y bu"}
+{"id":"adhoc.words.split.d8.mi-zei-ydo","text":"mi zei .ydo","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi zei do"],"brackets":"mi zei do"}
+{"id":"adhoc.words.split.d8.mi-zei-ybroda","text":"mi zei .ybroda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["mi zei broda"],"brackets":"mi zei broda"}
+{"id":"adhoc.words.split.ybu.abu-sa-y-bu","text":".abu sa .y. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["y bu"],"brackets":"y bu"}
+{"id":"adhoc.words.split.ybu.sa-y-bu","text":"sa .y. bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["y bu"],"brackets":"y bu"}
 {"id":"adhoc.words.split.zoi.y-bu-delimiter","text":"zoi .y. bu. x .y. bu.","dialect":"cll-ebnf","expect":"reject","stage":"words"}
-{"id":"adhoc.words.split.hes.zo-y-mi-bu","text":"zo .y. mi bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo.mi.bu"],"brackets":"zo mi bu"}
-{"id":"adhoc.words.split.hes.mi-sa-y-do-bu","text":"mi sa .y. do bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["do.bu"],"brackets":"do bu"}
-{"id":"adhoc.words.split.gap.si-zei","text":"do mi si zei broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["do.zei.broda"],"brackets":"do zei broda"}
-{"id":"adhoc.words.split.gap.two-erasures-bu","text":"do mi si ko si bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["do.bu"],"brackets":"do bu"}
+{"id":"adhoc.words.split.hes.zo-y-mi-bu","text":"zo .y. mi bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zo mi bu"],"brackets":"zo mi bu"}
+{"id":"adhoc.words.split.hes.mi-sa-y-do-bu","text":"mi sa .y. do bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["do bu"],"brackets":"do bu"}
+{"id":"adhoc.words.split.gap.si-zei","text":"do mi si zei broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["do zei broda"],"brackets":"do zei broda"}
+{"id":"adhoc.words.split.gap.two-erasures-bu","text":"do mi si ko si bu","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["do bu"],"brackets":"do bu"}
 {"id":"adhoc.words.split.gap.misi","text":"misi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.words.split.gap.sisi","text":"sisi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.words.split.gap.si-y","text":"si .y.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.words.split.ybu.yyybu.bpfk","text":"yyybu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["yyybu"],"brackets":"yyybu"}
-{"id":"adhoc.words.split.ybu.yyybu-sa-bu.bpfk","text":"yyybu sa bU","dialect":"bpfk","expect":"accept","verdict":"unique","words":["yyy.bU"],"brackets":"yyy bU"}
+{"id":"adhoc.words.split.ybu.yyybu-sa-bu.bpfk","text":"yyybu sa bU","dialect":"bpfk","expect":"accept","verdict":"unique","words":["yyy bU"],"brackets":"yyy bU"}
 {"id":"adhoc.words.split.ybu.y-yybu.bpfk","text":"y yybu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["yybu"],"brackets":"yybu"}
-{"id":"adhoc.words.split.ybu.ybu-sa-bu.bpfk","text":"ybu sa bU","dialect":"bpfk","expect":"accept","verdict":"unique","words":["y.bU"],"brackets":"y bU"}
-{"id":"adhoc.words.split.ybu.ybu-stressed-sa-bu.bpfk","text":"ybU sa bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["y.bu"],"brackets":"y bu"}
+{"id":"adhoc.words.split.ybu.ybu-sa-bu.bpfk","text":"ybu sa bU","dialect":"bpfk","expect":"accept","verdict":"unique","words":["y bU"],"brackets":"y bU"}
+{"id":"adhoc.words.split.ybu.ybu-stressed-sa-bu.bpfk","text":"ybU sa bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["y bu"],"brackets":"y bu"}
 {"id":"adhoc.words.split.ybu.sa-ybu-sa-bu.bpfk","text":"sa ybu sa bu","dialect":"bpfk","expect":"reject","stage":"words"}
 {"id":"adhoc.words.split.ybu.kyyybu.bpfk","text":"kyyybu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["ky","yybu"],"brackets":"(ky yybu)"}
 {"id":"adhoc.words.split.ybu.zo-yyybu.bpfk","text":"zo yyybu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zo","yyybu"],"brackets":"(zo yyybu)"}
 {"id":"adhoc.words.split.hes.coyysi.bpfk","text":"coyysi","dialect":"bpfk","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.words.split.hes.yysi.bpfk","text":"yysi","dialect":"bpfk","expect":"accept","verdict":"unique","words":[],"brackets":""}
-{"id":"adhoc.words.split.hes.ysi-doi-bu.bpfk","text":"Ysi doi bU","dialect":"bpfk","expect":"accept","verdict":"unique","words":["doi.bU"],"brackets":"doi bU"}
+{"id":"adhoc.words.split.hes.ysi-doi-bu.bpfk","text":"Ysi doi bU","dialect":"bpfk","expect":"accept","verdict":"unique","words":["doi bU"],"brackets":"doi bU"}
 {"id":"adhoc.words.split.hes.mi-sayydo.bpfk","text":"mi sayydo","dialect":"bpfk","expect":"accept","verdict":"unique","words":["do"],"brackets":"do"}
 {"id":"adhoc.words.split.hes.mi-sa-yydo.bpfk","text":"mi sa yydo","dialect":"bpfk","expect":"accept","verdict":"unique","words":["do"],"brackets":"do"}
-{"id":"adhoc.words.split.hes.miyyzei-broda.bpfk","text":"miyyzei broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mizei.broda"],"brackets":"mizei broda"}
-{"id":"adhoc.words.split.hes.mi-zeiyybroda.bpfk","text":"mi zeiyybroda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi.zeibroda"],"brackets":"mi zeibroda"}
+{"id":"adhoc.words.split.hes.miyyzei-broda.bpfk","text":"miyyzei broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mizei broda"],"brackets":"mizei broda"}
+{"id":"adhoc.words.split.hes.mi-zeiyybroda.bpfk","text":"mi zeiyybroda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi zeibroda"],"brackets":"mi zeibroda"}
 {"id":"adhoc.words.split.hes.mi-klama-sayy.bpfk","text":"mi klama sayy","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
 {"id":"adhoc.words.split.hes.siyy.bpfk","text":"siyy","dialect":"bpfk","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.words.split.hes.y-ysi.bpfk","text":"y Ysi","dialect":"bpfk","expect":"accept","verdict":"unique","words":[],"brackets":""}
-{"id":"adhoc.words.split.d7.yydjan-bu.bpfk","text":"yydjAn..bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["djAn.bu"],"brackets":"djAn bu"}
+{"id":"adhoc.words.split.d7.yydjan-bu.bpfk","text":"yydjAn..bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["djAn bu"],"brackets":"djAn bu"}
 {"id":"adhoc.words.split.faho.faho-broda-h.bpfk","text":"fa'o broda'","dialect":"bpfk","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.words.split.faho.fahobroda-h.bpfk","text":"fa'obroda'","dialect":"bpfk","expect":"reject","stage":"words"}
 {"id":"adhoc.words.split.zoi.y-bu-delimiter.bpfk","text":"zoi y bu. y bu xxx .y bu.","dialect":"bpfk","expect":"reject","stage":"words"}
-{"id":"adhoc.words.split.gap.si-zei.bpfk","text":"do mi si zei broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["do.zei.broda"],"brackets":"do zei broda"}
-{"id":"adhoc.words.split.gap.two-erasures-bu.bpfk","text":"do mi si ko si bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["do.bu"],"brackets":"do bu"}
+{"id":"adhoc.words.split.gap.si-zei.bpfk","text":"do mi si zei broda","dialect":"bpfk","expect":"accept","verdict":"unique","words":["do zei broda"],"brackets":"do zei broda"}
+{"id":"adhoc.words.split.gap.two-erasures-bu.bpfk","text":"do mi si ko si bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["do bu"],"brackets":"do bu"}
 {"id":"adhoc.words.split.zohoi.attached-hesitation.experimental","text":"zo'oiyymibroda","dialect":"experimental","expect":"accept","verdict":"unique","words":["zo'oi","yymibroda"],"brackets":"(zo'oi yymibroda)"}
 {"id":"adhoc.words.split.zohoi.hesitation-attached-payload.experimental","text":"zo'oi yymibroda","dialect":"experimental","expect":"accept","verdict":"unique","words":["zo'oi","mibroda"],"brackets":"(zo'oi mibroda)"}
 {"id":"adhoc.words.split.zohoi.hesitation-payload.experimental","text":"zo'oi yy mibroda","dialect":"experimental","expect":"accept","verdict":"unique","words":["zo'oi","mibroda"],"brackets":"(zo'oi mibroda)"}
@@ -2542,8 +2547,8 @@
 {"id":"adhoc.words.split.zohoi.two-hesitations.experimental","text":"zo'oi .y. .y. mi","dialect":"experimental","expect":"accept","verdict":"unique","words":["zo'oi","mi"],"brackets":"(zo'oi mi)"}
 {"id":"adhoc.words.split.zohoi.yybu.experimental","text":"zo'oiyybu","dialect":"experimental","expect":"accept","verdict":"unique","words":["zo'oi","yybu"],"brackets":"(zo'oi yybu)"}
 {"id":"adhoc.words.split.zohoi.yyybu.experimental","text":"zo'oi yyybu","dialect":"experimental","expect":"accept","verdict":"unique","words":["zo'oi","yyybu"],"brackets":"(zo'oi yyybu)"}
-{"id":"adhoc.words.split.zohoi.yy-bu.experimental","text":"zo'oiyy bu","dialect":"experimental","expect":"accept","verdict":"unique","words":["zo'oiyy.bu"],"brackets":"zo'oiyy bu"}
-{"id":"adhoc.words.split.zohoi.y-bu.experimental","text":"zo'oi .y. bu","dialect":"experimental","expect":"accept","verdict":"unique","words":["zo'oi.y.bu"],"brackets":"zo'oi y bu"}
+{"id":"adhoc.words.split.zohoi.yy-bu.experimental","text":"zo'oiyy bu","dialect":"experimental","expect":"accept","verdict":"unique","words":["zo'oiyy bu"],"brackets":"zo'oiyy bu"}
+{"id":"adhoc.words.split.zohoi.y-bu.experimental","text":"zo'oi .y. bu","dialect":"experimental","expect":"accept","verdict":"unique","words":["zo'oi y bu"],"brackets":"zo'oi y bu"}
 {"id":"adhoc.words.split.zohoi.only-hesitation.experimental","text":"zo'oi yy","dialect":"experimental","expect":"reject","stage":"words"}
 {"id":"adhoc.words.split.zohoi.foreign.experimental","text":"zo'oi ffff","dialect":"experimental","expect":"accept","verdict":"unique","words":["zo'oi","ffff"],"brackets":"(zo'oi ffff)"}
 {"id":"adhoc.words.split.zohoi.foreign-q.experimental","text":"zo'oi qqq","dialect":"experimental","expect":"accept","verdict":"unique","words":["zo'oi","qqq"],"brackets":"(zo'oi qqq)"}
@@ -2553,15 +2558,15 @@
 {"id":"adhoc.words.split.zohoi.paused-foreign.experimental","text":"zo'oi broda'","dialect":"experimental","expect":"accept","verdict":"unique","words":["zo'oi","broda'"],"brackets":"(zo'oi broda')"}
 {"id":"adhoc.words.split.zoi.letter-word-delimiter","text":"zoi .ibu. x .ibu.","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"adhoc.words.split.zoi.letter-word-delimiter.bpfk","text":"zoi .ibu. x .ibu.","dialect":"bpfk","expect":"reject","stage":"words"}
-{"id":"adhoc.words.split.zoi.delimiter-before-bu","text":"zoi mi bu. x .mi bu.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zoi.mi.bu.x.mi.bu"],"brackets":"zoi mi bu x mi bu"}
-{"id":"adhoc.words.split.zoi.delimiter-before-bu.experimental","text":"zoi mi bu. x .mi bu.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi.mi.bu.x.mi.bu"],"brackets":"zoi mi bu x mi bu"}
+{"id":"adhoc.words.split.zoi.delimiter-before-bu","text":"zoi mi bu. x .mi bu.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zoi mi bu. x mi bu"],"brackets":"zoi mi bu. x mi bu"}
+{"id":"adhoc.words.split.zoi.delimiter-before-bu.experimental","text":"zoi mi bu. x .mi bu.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi mi bu. x mi bu"],"brackets":"zoi mi bu. x mi bu"}
 {"id":"adhoc.words.split.hes.trailing-after-sa","text":"sa .y. .y.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.words.split.hes.trailing-odd-after-sa.bpfk","text":"sa yyy","dialect":"bpfk","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.words.split.hes.trailing-after-si","text":"si y","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.words.split.hes.between-sa","text":"sa .y. sa do","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["do"],"brackets":"do"}
 {"id":"adhoc.words.split.hes.sa-su","text":"sa .y. su","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.words.split.hes.sa-faho","text":"sa .y. fa'o","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":[],"brackets":""}
-{"id":"adhoc.words.split.hes.erasure-zei","text":"do mi si .y. zei broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["do.zei.broda"],"brackets":"do zei broda"}
+{"id":"adhoc.words.split.hes.erasure-zei","text":"do mi si .y. zei broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["do zei broda"],"brackets":"do zei broda"}
 {"id":"adhoc.words.split.hes.before-erasure-stray-si","text":".y. mi si si","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.words.split.hes.before-wiped-erasures","text":"y mi si bu sa broda","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["broda"],"brackets":"broda"}
 {"id":"adhoc.words.split.hes.before-wiped-erasures-su","text":".y. mi si bu su","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":[],"brackets":""}
@@ -2645,7 +2650,7 @@
 {"id":"adhoc.zantufa.bare.lohu-si","text":"lo'u si","dialect":"zantufa","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.zantufa.bare.bu-si","text":"bu si","dialect":"zantufa","expect":"accept","verdict":"unique","words":[],"brackets":"","seeded":"reject","reason":"A bu with no word before it may stand in an erased stretch, as the Magic Words proposal lets it (words/stream.md), so bu si is nothing. Zantufa's bu needs a word before it, so Zantufa rejects this text."}
 {"id":"adhoc.zantufa.bare.si-first","text":"si mi","dialect":"zantufa","expect":"accept","verdict":"unique","words":["mi"],"brackets":"mi","seeded":"reject","reason":"A si with nothing before it erases nothing, as the Magic Words proposal has it (words/stream.md). Zantufa's si needs a word before it at the start of a text, so Zantufa rejects this text."}
-{"id":"adhoc.zantufa.lohai.bu","text":"lo'ai mi le'ai bu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["lo'ai.mi.le'ai.bu"],"brackets":"lo'ai mi le'ai bu"}
+{"id":"adhoc.zantufa.lohai.bu","text":"lo'ai mi le'ai bu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["lo'ai mi le'ai bu"],"brackets":"lo'ai mi le'ai bu"}
 {"id":"adhoc.zantufa.lohai.si","text":"lo'ai mi le'ai si","dialect":"zantufa","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.zantufa.lohai.free","text":"mi klama lo'ai do le'ai","dialect":"zantufa","expect":"accept","verdict":"unique","words":["mi","klama","lo'ai","do","le'ai"],"brackets":"(mi [klama {lo'ai do le'ai}])"}
 {"id":"adhoc.zantufa.cu-lookahead.bahe","text":"li pa je ba'e cu broda","dialect":"zantufa","expect":"reject","stage":"syntax","words":["li","pa","je","ba'e","cu","broda"],"seeded":"accept","reason":"The lookahead that keeps a mekso connective from standing before cu sees the words that the syntax reads, without ba'e (syntax/zantufa.md, Differences). Zantufa's !CU sees the source words, so Zantufa accepts this text."}
@@ -2667,14 +2672,14 @@
 {"id":"adhoc.zantufa.order.joik-before-mex-moi","text":"mumoi joi xamoi joi zemoi","dialect":"zantufa","expect":"accept","verdict":"resolved","words":["mu","moi","joi","xa","moi","joi","ze","moi"],"brackets":"([mu moi] joi [xa moi] joi [ze moi])"}
 {"id":"adhoc.zantufa.order.se-operator","text":"li se su'i pa re","dialect":"zantufa","expect":"accept","verdict":"resolved","words":["li","se","su'i","pa","re"],"brackets":"(li [{se su'i} {pa re}])"}
 {"id":"adhoc.zantufa.order.mex-fragment-then-sumti","text":"to so'e le cnino prenu cu cusku","dialect":"zantufa","expect":"accept","verdict":"resolved","words":["to","so'e","le","cnino","prenu","cu","cusku"],"brackets":"(to [{so'e (le [cnino prenu])} cu cusku])"}
-{"id":"adhoc.zantufa.bu.su","text":"su bu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["su.bu"],"brackets":"su bu"}
-{"id":"adhoc.zantufa.bu.su-after-word","text":"mi su bu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["mi","su.bu"],"brackets":"(mi su bu)"}
+{"id":"adhoc.zantufa.bu.su","text":"su bu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["su bu"],"brackets":"su bu"}
+{"id":"adhoc.zantufa.bu.su-after-word","text":"mi su bu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["mi","su bu"],"brackets":"(mi su bu)"}
 {"id":"adhoc.zantufa.bu.su-then-si","text":"mi su bu si","dialect":"zantufa","expect":"accept","verdict":"unique","words":["mi"],"brackets":"mi"}
-{"id":"adhoc.zantufa.bu.zoi","text":"zoi bu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zoi.bu"],"brackets":"zoi bu"}
-{"id":"adhoc.zantufa.bu.lohu","text":"lo'u bu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["lo'u.bu"],"brackets":"lo'u bu"}
-{"id":"adhoc.zantufa.bu.muhoi","text":"mu'oi bu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["mu'oi.bu"],"brackets":"mu'oi bu"}
-{"id":"adhoc.zantufa.bu.lohai","text":"lo'ai bu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["lo'ai.bu"],"brackets":"lo'ai bu"}
-{"id":"adhoc.zantufa.bu.rahoi","text":"ra'oi bu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["ra'oi.bu"],"brackets":"ra'oi bu"}
+{"id":"adhoc.zantufa.bu.zoi","text":"zoi bu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zoi bu"],"brackets":"zoi bu"}
+{"id":"adhoc.zantufa.bu.lohu","text":"lo'u bu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["lo'u bu"],"brackets":"lo'u bu"}
+{"id":"adhoc.zantufa.bu.muhoi","text":"mu'oi bu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["mu'oi bu"],"brackets":"mu'oi bu"}
+{"id":"adhoc.zantufa.bu.lohai","text":"lo'ai bu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["lo'ai bu"],"brackets":"lo'ai bu"}
+{"id":"adhoc.zantufa.bu.rahoi","text":"ra'oi bu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["ra'oi bu"],"brackets":"ra'oi bu"}
 {"id":"adhoc.zantufa.bare.lohai-si","text":"lo'ai si","dialect":"zantufa","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.zantufa.rahoi.gismu-attached","text":"ra'oibroda","dialect":"zantufa","expect":"accept","verdict":"unique","words":["ra'oi","broda"],"brackets":"(ra'oi broda)"}
 {"id":"adhoc.zantufa.rahoi.rafsi-then-word","text":"ra'oi kla mi","dialect":"zantufa","expect":"accept","verdict":"unique","words":["ra'oi","kla","mi"],"brackets":"([ra'oi kla] mi)"}
@@ -2700,8 +2705,8 @@
 {"id":"adhoc.zantufa.y.attached-in-lohai","text":"lo'ai coyy le'ai","dialect":"zantufa","expect":"accept","verdict":"unique","words":["lo'ai","co","yy","le'ai"],"brackets":"(lo'ai co yy le'ai)"}
 {"id":"adhoc.zantufa.y.two-ieho","text":"zoie'oie'o si","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zo","ie'o"],"brackets":"(zo ie'o)"}
 {"id":"adhoc.zantufa.y.ieho-then-letter","text":"zoie'oyybu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zo","ie'o","yybu"],"brackets":"([zo ie'o] yybu)"}
-{"id":"adhoc.zantufa.bu.su-after-erasure","text":"su mi si bu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["su.bu"],"brackets":"su bu"}
-{"id":"adhoc.zantufa.bu.zoi-after-erasure","text":"zoi mi si bu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zoi.bu"],"brackets":"zoi bu"}
+{"id":"adhoc.zantufa.bu.su-after-erasure","text":"su mi si bu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["su bu"],"brackets":"su bu"}
+{"id":"adhoc.zantufa.bu.zoi-after-erasure","text":"zoi mi si bu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zoi bu"],"brackets":"zoi bu"}
 {"id":"adhoc.zantufa.rahoi.hesitation-in-run","text":"ra'oi ybroda","dialect":"zantufa","expect":"accept","verdict":"unique","words":["ra'oi","broda"],"brackets":"(ra'oi broda)"}
 {"id":"adhoc.zantufa.rahoi.ieho-in-run","text":"ra'oi ie'obroda","dialect":"zantufa","expect":"accept","verdict":"unique","words":["ra'oi","broda"],"brackets":"(ra'oi broda)"}
 {"id":"adhoc.zantufa.rahoi.attached-y-after-form","text":"ra'oi brodyy si","dialect":"zantufa","expect":"accept","verdict":"unique","words":["ra'oi","brody"],"brackets":"(ra'oi brody)"}
@@ -2832,13 +2837,13 @@
 {"id":"adhoc.camxes-exp.lohai.su-after","text":"mi lo'ai do le'ai su klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["klama"],"brackets":"klama"}
 {"id":"adhoc.camxes-exp.lohai.indicator-after","text":"mi lo'ai do le'ai ui klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","lo'ai","do","le'ai","ui","klama"],"brackets":"([mi {lo'ai do le'ai}] klama)"}
 {"id":"adhoc.camxes-exp.lohai.si-after","text":"mi lo'ai do le'ai si klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)","seeded":"reject","reason":"A si after a replacement quote erases all of it, as the left-to-right rule and Zantufa 1.9999 read it (words/lohai.md). camxes-exp's post_clause has no si clause without a word before the si, so it rejects the text."}
-{"id":"adhoc.camxes-exp.lohai.bu-after","text":"lo'ai mi le'ai bu","dialect":"experimental","expect":"accept","verdict":"unique","words":["lo'ai.mi.le'ai.bu"],"brackets":"lo'ai mi le'ai bu","seeded":"reject","reason":"bu acts on what exists when it is read, so a replacement quote with bu is a letter word, as in Zantufa 1.9999 (words/lohai.md). camxes-exp's bu_clause has no path through LOhAI_pre, so it rejects the text."}
-{"id":"adhoc.camxes-exp.lohai.zei-after","text":"lo'ai mi le'ai zei broda","dialect":"experimental","expect":"accept","verdict":"unique","words":["lo'ai.mi.le'ai.zei.broda"],"brackets":"lo'ai mi le'ai zei broda","seeded":"reject","reason":"zei acts on what exists when it is read, so a replacement quote with zei broda is a compound (words/lohai.md). camxes-exp's zei_clause has no path through LOhAI_pre, so it rejects the text."}
+{"id":"adhoc.camxes-exp.lohai.bu-after","text":"lo'ai mi le'ai bu","dialect":"experimental","expect":"accept","verdict":"unique","words":["lo'ai mi le'ai bu"],"brackets":"lo'ai mi le'ai bu","seeded":"reject","reason":"bu acts on what exists when it is read, so a replacement quote with bu is a letter word, as in Zantufa 1.9999 (words/lohai.md). camxes-exp's bu_clause has no path through LOhAI_pre, so it rejects the text."}
+{"id":"adhoc.camxes-exp.lohai.zei-after","text":"lo'ai mi le'ai zei broda","dialect":"experimental","expect":"accept","verdict":"unique","words":["lo'ai mi le'ai zei broda"],"brackets":"lo'ai mi le'ai zei broda","seeded":"reject","reason":"zei acts on what exists when it is read, so a replacement quote with zei broda is a compound (words/lohai.md). camxes-exp's zei_clause has no path through LOhAI_pre, so it rejects the text."}
 {"id":"adhoc.camxes-exp.lohai.quoted-lu-no-su-boundary","text":"mi lo'ai lu le'ai su klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["klama"],"brackets":"klama","seeded":"reject","reason":"The lu inside a replacement quote is a body word, so it is no boundary for su, as in Zantufa 1.9999 (words/lohai.md). camxes-exp's su_clause reads the quoted lu and rejects the text."}
 {"id":"adhoc.camxes-exp.lohai.sa-finds-quote","text":"mi lo'ai do le'ai sa lo'ai ti le'ai klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","lo'ai","ti","le'ai","klama"],"brackets":"([mi {lo'ai ti le'ai}] klama)","seeded":"reject","reason":"In the word stage, sa uses the class of the word after it. It erases back to the previous word of that class, here the earlier replacement quote (words/stream.md, words/lohai.md). camxes-exp reads sa in its syntax and rejects the text."}
 {"id":"adhoc.camxes-exp.lohai.bare-marker-si","text":"mi lo'ai si klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
-{"id":"adhoc.camxes-exp.lohai.bare-marker-bu","text":"mi lo'ai bu klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","lo'ai.bu","klama"],"brackets":"([mi lo'ai bu] klama)"}
-{"id":"adhoc.camxes-exp.lohai.bare-marker-zei","text":"mi lo'ai zei broda","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","lo'ai.zei.broda"],"brackets":"(mi lo'ai zei broda)"}
+{"id":"adhoc.camxes-exp.lohai.bare-marker-bu","text":"mi lo'ai bu klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","lo'ai bu","klama"],"brackets":"([mi lo'ai bu] klama)"}
+{"id":"adhoc.camxes-exp.lohai.bare-marker-zei","text":"mi lo'ai zei broda","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","lo'ai zei broda"],"brackets":"(mi lo'ai zei broda)"}
 {"id":"adhoc.camxes-exp.lohai.bare-marker-su","text":"mi lo'ai su klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["klama"],"brackets":"klama"}
 {"id":"adhoc.camxes-exp.lohai.two-runs","text":"mi lo'ai do sa'ai ti le'ai klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","lo'ai","do","sa'ai","ti","le'ai","klama"],"brackets":"([mi {lo'ai do sa'ai ti le'ai}] klama)"}
 {"id":"adhoc.camxes-exp.linkargs.second-trailing-group","text":"be mi klama be do be ti","dialect":"experimental","expect":"accept","verdict":"resolved","words":["be","mi","klama","be","do","be","ti"],"brackets":"([{be mi} {klama (be do)}] [be ti])"}

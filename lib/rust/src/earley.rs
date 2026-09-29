@@ -35,8 +35,8 @@ pub(crate) struct Tok {
     pub tags: SetId,
     pub phonemes: Option<String>,
     pub source: (usize, usize),
-    /// Whether its phonemes are its text (§11).
-    pub verbatim: bool,
+    /// What it shows to people (§5).
+    pub label: String,
     /// Its phonemes in canonical form, for the sound tests of symbols and for
     /// `phonemes()`, computed when one first looks at the token (§4, §5).
     pub sound: std::cell::OnceCell<Box<str>>,
@@ -179,14 +179,14 @@ type Place = (u32, usize, usize);
 const CONTENT_KEY_LIMIT: usize = 64;
 
 /// What a nested parse can observe of one token of its span.
-type ObservedToken = (SetId, String, Option<String>, bool, usize, usize);
+type ObservedToken = (SetId, String, Option<String>, usize, usize);
 
 /// What a nested parse's answer is remembered by (§4).
 #[derive(Clone, PartialEq, Eq, Hash)]
 enum NestedKey {
     /// A short span: its rule, the original text that holds its tokens'
-    /// sources, and each token's tags, text, phonemes, whether it is
-    /// verbatim, and where its source begins and ends in that text, which
+    /// sources, and each token's tags, text, phonemes, and where its
+    /// source begins and ends in that text, which
     /// `text` of a part of the span reads: everything its parse can observe.
     Content(u32, String, Vec<ObservedToken>),
     /// A long span: its place.
@@ -554,7 +554,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             .iter()
             .map(|token| {
                 let (from, to) = token.source;
-                (token.tags, token.text.clone(), token.phonemes.clone(), token.verbatim, from - low, to - low)
+                (token.tags, token.text.clone(), token.phonemes.clone(), from - low, to - low)
             })
             .collect();
         NestedKey::Content(rule, self.shared.source_text(low, high), observed)

@@ -11,10 +11,10 @@ Libraries write object keys in the order that this document gives. They write no
 ### A parse result
 
 ```
-{"format":4,"ok":true,"stages":[STAGE...],"tree":NODE,"error":ERROR,"warnings":[WARNING...]}
+{"format":5,"ok":true,"stages":[STAGE...],"tree":NODE,"error":ERROR,"warnings":[WARNING...]}
 ```
 
-`format` is the version of the shape of the result, 4. `tree` is the chosen tree of the last stage, or `null`. `error` is `null` when `ok` is true. `warnings` is present only when there is at least one warning (engine §12, §13).
+`format` is the version of the shape of the result, 5. `tree` is the chosen tree of the last stage, or `null`. `error` is `null` when `ok` is true. `warnings` is present only when there is at least one warning (engine §12, §13).
 
 A stage has this form:
 
@@ -31,10 +31,12 @@ A stage has this form:
 A token has this form:
 
 ```
-{"text":"mi","phonemes":"mi","tags":["KOhA","UI","word"],"span":[0,2],"source":[0,2]}
+{"text":"mi","phonemes":"mi","label":"mi","tags":["KOhA","UI","word"],"span":[0,2],"source":[0,2]}
 ```
 
-`tags` lists every tag once, in code point order. A tag is written in its canonical spelling (engine §1), so a character tag is `'a'`, and a combining acute accent is `'\u{301}'`. A character token of the first stage has one tag, its character tag. `phonemes` is always present, the empty string for a token with none (engine §5). `"verbatim":true` follows `source` for a verbatim token, and is absent for any other (engine §11). The phonemes of a verbatim token are its text, which can hold any character.
+`tags` lists every tag once, in code point order. A tag is written in its canonical spelling (engine §1), so a character tag is `'a'`, and a combining acute accent is `'\u{301}'`. A character token of the first stage has one tag, its character tag. `phonemes` is always present, the empty string for a token with none (engine §5). A foreign part sounds `?` (engine §11).
+
+`label` is always present too, and it can be empty (engine §5). A label can hold any character, a line break included.
 
 `insertedBy` follows `source` for a token that was inserted from a tag literal (engine §1). Its value is the name of the rule that inserted the token.
 
@@ -84,12 +86,12 @@ The test uses notation operators and canonical output tags, with spaces only aro
 A grammar DOM (document object model) is the data that a library makes when it reads a grammar document (engine §8, §9). `bootstrap.json` and the precompiled DOMs hold the same data.
 
 ```
-{"format":13,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}
+{"format":14,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}
 ```
 
 `format` is the version of the DOM. It changes whenever the shape of the DOM changes. A library never uses a cached DOM of another version.
 
-A rule is `{"name":"sumti","op":"define","tags":TERM,"alternatives":[ALT...],"emit":EMIT,"conditions":[COND...],"verbatim":true,"at":[line,column]}`. `op` is `define`, `redefine` or `extend`. `tags`, `emit` and `verbatim` are optional. `verbatim` is present, and `true`, only for a rule that has `%verbatim`. The name of a rule is a name, or `#`.
+A rule is `{"name":"sumti","op":"define","tags":TERM,"alternatives":[ALT...],"emit":EMIT,"conditions":[COND...],"foreign":true,"at":[line,column]}`. `op` is `define`, `redefine` or `extend`. `tags`, `emit` and `foreign` are optional. `foreign` is present, and `true`, only for a rule that has `%foreign`. The name of a rule is a name, or `#`.
 
 An alternative is `{"guards":[GUARD...],"expr":EXPR,"tags":TERM}`, with `tags` optional. A guard is `{"feature":"cbm","kind":"gate","negated":false}` for `cbm?`, with `"negated":true` for `¬cbm?`, or `{"feature":"y-cmavo","kind":"warning","negated":false}` for `y-cmavo!`. A guard's feature is a name.
 
@@ -144,13 +146,13 @@ A directive is `{"name":"elidable","args":["KU","KEI"],"at":[line,column]}`. An 
 
 ### Precompiled DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":13,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
+`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":14,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
 
 A precompiled DOM holds the document's constants, classifiers and implications as the document writes them. The loader gives the constants their values when it stitches a stage, and a stage resolves a classifier for the features of a parse. So one precompiled DOM serves every stage, dialect and set of features that uses the document (engine §2, §8).
 
 ## Renderings
 
-The renderings are for people. The CLI and the playground implement all three renderings. Every library implements brackets, and the corpus tests compare brackets.
+The renderings are for people. The CLI and the playground implement all three renderings. Every library implements brackets, and the corpus tests compare brackets. Every rendering shows a token by its label.
 
 A hollow rule node, such as an empty slot for a free modifier, has no token and no elided node below it. No rendering shows a hollow rule node. Brackets drop it as an empty node, and the tree and the display JSON leave it out. But the root is always shown. So a text whose tree is hollow, such as the empty text, renders in the tree as the rule name of the root alone. In the display JSON, it renders as `{"text":[]}`.
 
@@ -158,7 +160,7 @@ A hollow rule node, such as an empty slot for a free modifier, has no token and 
 
 Brackets write the tree of the final stage as nested groups:
 
-1. If the token of a token node is verbatim, the label of the node is the text of the token. Otherwise, the label is the phonemes of the token, with each pause, `.`, written as a space. If the phonemes are empty, the label is the text. A label can itself be empty, as for a `zoi` quote of nothing, and the renderer keeps it. The label of an elided node is empty, unless elided terminators are shown. In that case, the label is the terminal in lower case between `⟨` and `⟩`.
+1. The label of a token node is the label of its token (engine §5). So a pause shows as a space, and a foreign part shows its text. A label can itself be empty, as for a `zoi` quote of nothing, and the renderer keeps it. The label of an elided node is empty, unless elided terminators are shown. In that case, the label is the terminal in lower case between `⟨` and `⟩`.
 2. The renderer renders the children of a rule node and drops the empty ones. An empty child is an elided node that is not shown, or a rule node that renders nothing. A token node is never empty. If no child is left, the node is empty. If one child is left, the node is that child. Otherwise, the node is a group.
 3. The depth *d* of a group counts groups only: a child group of a group at depth *d* is at *d*+1. A group is written between `(` `)` when *d* mod 3 is 0, `[` `]` when 1, and `{` `}` when 2. One space separates its members.
 

@@ -217,10 +217,9 @@ def definition_problem(rule: Dom) -> str | None:
     known = set().union(*presents)
     emit = rule.get("emit")
     items: list[Dom] = emit["items"] if emit is not None else []
-    # A constituent that does not count cannot sound like its text (engine
-    # §9).
-    if rule.get("verbatim") and emit is not None and not items:
-        return f"{rule['name']} is verbatim and emits ε"
+    # A constituent that does not count is never a foreign part (engine §9).
+    if rule.get("foreign") and emit is not None and not items:
+        return f"{rule['name']} is foreign and emits ε"
     clauses: list[Any] = [rule.get("tags"), rule["conditions"], items]
     clauses.extend(alternative.get("tags") for alternative in alternatives)
     unknown = sorted(set().union(*(mentioned_in(clause) for clause in clauses)) - known)

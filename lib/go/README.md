@@ -25,12 +25,12 @@ data, _ := gencmu.MarshalResult(result) // canonical JSON, docs/output.md
 - `LoadDialect(name)` loads a bundled dialect. `name` is the name of a pipeline document under `grammars/dialects/` without `.md`.
 - `LoadDialectFile(path)`: a pipeline document on disk. The loader finds its grammar documents relative to it. A document that is not valid UTF-8 is a load error of kind `grammar`.
 - `LoadDialectSources(sources, pipeline)`: documents held in memory, a map from `/`-separated path to text. The map can hold its own `unicode.txt`, `notation/bootstrap.json` and `compiled.json`. The bundled ones fill in the rest. A `unicode.txt` in the map replaces the bundled table entirely, White_Space included (`docs/api.md`).
-- `(*Dialect).Parse(text, ParseOptions{Features, WithoutFeatures, NoAutoFeatures, Until, ElisionOnly})` parses a text. A text that is not valid UTF-8 is a usage error. For tests and tools, `(*Dialect).ParseTokens(text, tokens, options)` feeds pre-built tokens to the first stage. The `Warnings` of a result are those of the warning features that are turned on.
+- `(*Dialect).Parse(text, ParseOptions{Features, WithoutFeatures, NoAutoFeatures, Until, ElisionOnly})` parses a text. A text that is not valid UTF-8 is a usage error. For tests and tools, `(*Dialect).ParseTokens(text, tokens, options)` feeds pre-built tokens to the first stage. Each of those tokens has its `Text` as its label, whatever its `Label` says. The `Warnings` of a result are those of the warning features that are turned on.
 - `(*Dialect).Features()`: the features of the dialect, the gates of its classifiers' entries included. Each is a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`. `Default` says whether the pipeline turns the feature on.
 - `MarshalResult(result)` writes the canonical JSON.
-- `Brackets(result, BracketOptions{ShowElided})` renders the tree as nested groups.
+- `Brackets(result, BracketOptions{ShowElided})` renders the tree as nested groups. It shows each token by its `Label`.
 
-A `*Dialect` is safe for concurrent use. Positions are code points. The `Tags` of a `Token` or a `Node` are a `[]string` in code point order. Each tag appears once in its canonical spelling, such as `KOhA`, `/a/` or `'a'`.
+A `*Dialect` is safe for concurrent use. Positions are code points. The `Tags` of a `Token` or a `Node` are a `[]string` in code point order. Each tag appears once in its canonical spelling, such as `KOhA`, `/a/` or `'a'`. A `Token` has `Phonemes`, what it sounds like, and `Label`, what it shows to people (engine §5). A token over a foreign part, such as the body of a `zoi` quote, sounds `?` and has the part's text as its label.
 
 The module states Go 1.22, and CI tests it on 1.22 and the current stable release. The code needs generics and the `min` builtin (1.21). It is also written for the per-iteration loop variables of 1.22. Long-lived distributions such as Ubuntu 24.04 package 1.22 too. So a floor that old costs nothing, and the users of these distributions can build the module with the toolchain they have.
 

@@ -50,7 +50,7 @@ def outcome(case: dict[str, Any]) -> dict[str, Any]:
         got["ties"] = ties
     words = next((stage for stage in result.stages if stage.name == "words"), None)
     if words is not None and words.output is not None:
-        got["words"] = [token.phonemes or token.text for token in words.output]
+        got["words"] = [token.label for token in words.output]
     if result.ok:
         got["brackets"] = gencmu.to_brackets(result)
     return got

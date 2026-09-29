@@ -19,7 +19,7 @@ export type RuleClauses = {
     tags: Term | undefined;
     emit: Emission | undefined;
     conditions: Condition[];
-    verbatim: boolean;
+    foreign: boolean;
 };
 export type StitchedRule = {
     name: string;

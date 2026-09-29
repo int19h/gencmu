@@ -36,7 +36,9 @@ A text that does not parse is not an error, but a result whose `ok` is false and
 
 Parsing is synchronous, and you can use a loaded dialect for any number of parses. In Python, Go and Rust, any number of threads can share one dialect and parse at once. JavaScript has one thread, and the worker of the playground has its own dialects.
 
-Some entry points exist for tests and tools. They are outside the common API, and each language spells them its own way. Each library can feed pre-built tokens to the first stage in place of the characters of a text. This is the `tokens` option in JavaScript, `Dialect.parse_tokens(tokens, text, ...)` in Python, `(*Dialect).ParseTokens(text, tokens, options)` in Go, and `Dialect::parse_tokens(tokens, options)` in Rust. The Python loaders also take `use_cache=False`. With it, the loader reads every document through the notation.
+Some entry points exist for tests and tools. They are outside the common API, and each language spells them its own way. Each library can feed pre-built tokens to the first stage in place of the characters of a text. This is the `tokens` option in JavaScript, `Dialect.parse_tokens(tokens, text, ...)` in Python, `(*Dialect).ParseTokens(text, tokens, options)` in Go, and `Dialect::parse_tokens(tokens, options)` in Rust. A token that the caller supplies has its text as its label (engine §5).
+
+The Python loaders also take `use_cache=False`. With it, the loader reads every document through the notation.
 
 ### The dialect's features
 
@@ -44,7 +46,7 @@ A loaded dialect lists its features (engine §13), in code point order of the na
 
 ### The result
 
-The result has the fields of `docs/output.md`, in the data types of the language. These fields are `ok`, the stages, the `tree` of the last stage, the `error`, and the `warnings`. `warnings` is an empty list when there are no warnings. A stage has its name, its input and output tokens, its verdict, and for a tie its witness and tied tree.
+The result has the fields of `docs/output.md`, in the data types of the language. These fields are `ok`, the stages, the `tree` of the last stage, the `error`, and the `warnings`. `warnings` is an empty list when there are no warnings. A stage has its name, its input and output tokens, its verdict, and for a tie its witness and tied tree. A token has its text, its phonemes, its label, its tags, its span and its source range. An inserted token also names the rule that inserted it.
 
 A node has its kind (`rule`, `token` or `elided`), its rule or terminal, its span and source range, its tags and its children. A token node also has the index of the token that it read. Tags are a set of tags, each a string in its canonical spelling (engine §1). Positions count code points, whatever the string indexing of the language is.
 
