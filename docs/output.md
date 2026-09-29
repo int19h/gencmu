@@ -77,7 +77,7 @@ A mistake of the caller is not a result. It is an error of kind `usage` (engine 
 
 `expected` lists terminals in code point order. The library writes a tested terminal as the terminal followed by its test, as in `LE="la"`, and sorts it by that text. So `LE` comes before `LE="la"`, which comes before `LEhU`. Each terminal comes with the rules whose items can read it at that position, also in code point order. `message` is the description for people, and the shared tests do not compare its wording.
 
-The test is written as in the notation, with no space but those around ` ∪ `, and with its value in canonical form. A string stands between double quotes, with a backslash before each `\` and `"` in it. A tag set is `∅`, or its one tag, or its tags joined by ` ∪ ` in parentheses. Its tags are in code point order, each in its canonical spelling (engine §1). A constant is written as its value. So `KOhA⊇(UI ∪ word)`, `KOhA∩'a'=∅` and `LE≠"lo"` are written forms.
+The test uses notation operators and canonical output tags, with spaces only around `∪`. A string stands between double quotes, with a backslash before each `\` and `"` in it. A tag set is `∅`, or its one tag, or its tags joined by ` ∪ ` in parentheses. Its tags are in code point order, each in its canonical spelling (engine §1). A constant is written as its value. So `KOhA⊇(UI ∪ word)`, `KOhA∩'a'=∅` and `LE≠"lo"` are written forms.
 
 ### A grammar DOM
 

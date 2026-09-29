@@ -127,7 +127,7 @@ A name in upper case is a terminal that matches a token carrying that tag. A cha
 
 `~name` is the identifier tag `name`, for a tag that does not begin with a capital, such as `~cmavo`. A phoneme between slashes, `/a/`, `/'/`, `/./` for a pause, is a phoneme tag. It matches like any tag, and it also says what a token that carries it sounds like, which `phonemes()` reads. Slashes mean nothing else.
 
-A reference or a terminal can carry a test on its own span, as in `LE="la"`. The symbol then matches only where the test holds. An `=` test compares the sound of the span, whatever the stress or the script. The other tests compare the symbol's own tags with a set, as in `cmavo∩UI=∅`. So a rule can name a word by its sound or its tags in its body, and not in a condition. A test does not replace a class, since a word that `zo` quotes has the sound but not the class.
+A reference or a terminal can carry a test on its own span, as in `LE="la"`. The symbol then matches only where the test holds. The `=` and `≠` tests compare the sound of the span, whatever the stress or the script. The four tag tests compare the symbol's own tags with a set, as in `cmavo∩UI=∅`. So a rule can name a word by its sound or its tags in its body, and not in a condition. A test does not replace a class, since a word that `zo` quotes has the sound but not the class.
 
 The operators of a body are those of CLL:
 

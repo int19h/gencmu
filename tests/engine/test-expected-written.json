@@ -1,5 +1,5 @@
 {
-  "description": "An expected list writes each test as the notation does, with its value in canonical form: a string in quotes with \\ and \" escaped, a tag set as ∅, its one tag or its tags in code point order in parentheses, and a constant as its value. The list is in code point order: ∩ is U+2229, ≠ U+2260, ⊇ U+2287 and ⊉ U+2289 (docs/output.md).",
+  "description": "An expected list writes each test with notation operators and canonical output tags, with spaces only around ∪, and with its value in canonical form: a string in quotes with \\ and \" escaped, a tag set as ∅, its one tag or its tags in code point order in parentheses, and a constant as its value. The list is in code point order: ∩ is U+2229, ≠ U+2260, ⊇ U+2287 and ⊉ U+2289 (docs/output.md).",
   "grammar": "%const $AB B ∪ ~a ∪ A\n%rule text X⊇$AB | X∩'b'≠∅ | X≠\"a\\\"b\\\\\" | X⊉∅ | X∩~w=∅ | X⊇(A ∪ A)",
   "tokens": [
     {
