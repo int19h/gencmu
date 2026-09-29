@@ -431,6 +431,9 @@ impl<'a> Reader<'a> {
                     return Err(self.error(capture, format!("the capture ${name} is used twice in one alternative")));
                 }
                 self.captures.borrow_mut().push(name.clone());
+                if self.captures.borrow().len() > 4 {
+                    return Err(self.error(capture, "an alternative has at most four captures"));
+                }
                 Expr::Capture(name, Box::new(self.primary(primary, depth, false)?))
             }
             "group" => self.choice(self.one(inner, "choice"), depth)?,

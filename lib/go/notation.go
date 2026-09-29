@@ -620,6 +620,9 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 			b.fail(ps[0], "$%s is captured twice in one alternative", name)
 		}
 		b.captures[name] = true
+		if len(b.captures) > 4 {
+			b.fail(ps[0], "an alternative has at most four captures")
+		}
 		return &domExpr{Kind: exCapture, Name: name, Inner: b.expr(inner[0])}
 	case "group", "optional":
 		b.inner++
