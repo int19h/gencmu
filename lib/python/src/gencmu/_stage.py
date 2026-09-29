@@ -345,6 +345,8 @@ class Emitter:
         self.root = root
         self.evaluator = Evaluator(context, 0, len(context.tokens))
         self.output: list[Token] = []
+        self.forwards = False
+        self.inherited: set[int] = set()
         # The foreign parts and their sources, fixed before any token
         # (engine §11).
         self.foreign = foreign_parts(root, self.tokens, context.sources, context.text)
@@ -392,7 +394,70 @@ class Emitter:
         # A phoneme tag decides the sound and the label, over ``?`` (engine
         # §5).
         phonemes, label = sounded(phoneme) if phoneme is not None else self.spoken(part)
-        return Token(text, tags, (part.start, part.end), source, phonemes, None, label)
+        token = Token(text, tags, (part.start, part.end), source, phonemes, None, label)
+        # The parts decide the attachments too, after the phoneme tags are
+        # checked (engine §11).
+        origin = self.forwarded(part) if self.forwards else None
+        if origin is not None:
+            # Attachments belong to one token: an input token that is the one
+            # part of a second token is an error of the grammar (engine §11).
+            if id(origin) in self.inherited:
+                raise _GrammarFault(
+                    "a token with attachments is the one part of two emitted tokens, and its attachments cannot belong to both"
+                )
+            self.inherited.add(id(origin))
+            token.before = list(origin.before)
+            token.after = list(origin.after)
+        return token
+
+    def forwarded(self, part: DChild) -> Token | None:
+        """The one input token whose attachments a token over ``part``
+        inherits, or ``None`` (engine §11). The parts are those of the join
+        (engine §5): a read input token, or a foreign part as one piece, and
+        nothing inside a constituent that emits ``ε``. A token with
+        attachments among other parts, or a foreign part that holds one, is
+        an error of the grammar."""
+        parts = 0
+        found: Token | None = None
+        stack: list[DChild] = [part]
+        while stack:
+            node = stack.pop()
+            if isinstance(node, DRead):
+                parts += 1
+                token = self.tokens[node.token]
+                if token.before or token.after:
+                    found = token
+                continue
+            if emits_nothing(node.production):
+                continue
+            if id(node) in self.foreign:
+                parts += 1
+                if self.holds_attachments(node):
+                    raise _GrammarFault(
+                        f"{node.production.rule_name} is a foreign part over a token with attachments, which a token over it cannot place"
+                    )
+                continue
+            stack.extend(reversed(node.children))
+        if found is not None and parts > 1:
+            raise _GrammarFault("a token over a token with attachments and another part cannot say which part each attachment belongs to")
+        return found
+
+    def holds_attachments(self, part: DNode) -> bool:
+        """Whether a foreign part holds an input token with attachments: one
+        that it reads outside any constituent that emits ``ε`` (engine
+        §11)."""
+        stack: list[DChild] = [part]
+        while stack:
+            node = stack.pop()
+            if isinstance(node, DRead):
+                token = self.tokens[node.token]
+                if token.before or token.after:
+                    return True
+                continue
+            if emits_nothing(node.production):
+                continue
+            stack.extend(node.children)
+        return False
 
     def part_source(self, part: DChild) -> Range:
         if isinstance(part, DRead):
@@ -400,30 +465,79 @@ class Emitter:
         return self.tree.source_of(part)
 
     def emit(self) -> list[Token]:
-        """Walk the chosen tree from the left: a constituent whose production
-        has no emission is walked, and one that has one emits exactly its
-        items, in list order, and nothing inside it is walked (engine §11)."""
-        work: list[DChild] = [self.root]
-        while work:
-            node = work.pop()
-            if isinstance(node, DRead):
-                continue
-            emit = node.production.emit
-            if emit is None:
-                work.extend(reversed(node.children))
-                continue
-            for item in emit:
-                self.emit_item(node, item)
+        """The stage's output: what the root emits (engine §11)."""
+        # Whether any input token has attachments to forward, and the input
+        # tokens whose attachments a token has inherited (engine §11).
+        self.forwards = any(token.before or token.after for token in self.tokens)
+        self.inherited = set()
+        self.output = self.emitted(self.root)
         return self.output
 
-    def emit_item(self, node: DNode, item: tuple[Any, ...]) -> None:
+    def emitted(self, root: DChild) -> list[Token]:
+        """The tokens a constituent emits in its place in the derivation
+        (engine §11): the stage's output from the root, or an attachment
+        from a captured part. Walk the tree from the left: a constituent
+        whose production has no emission is walked, and one that has one
+        emits exactly its items, in list order, and nothing inside it is
+        walked but the attachment captures of its items. Within an item, the
+        before-attachments come first, then the carrier with its tag term,
+        then the after-attachments, and the first error ends the emission.
+        The work is a stack of tasks, so that nesting costs no recursion."""
+        out: list[Token] = []
+        # A task is ("walk", node, into), ("item", node, item, into),
+        # ("carrier", node, item, into), or ("attach", into, before, after),
+        # which gives the last token of ``into`` its new attachments.
+        work: list[tuple[Any, ...]] = [("walk", root, out)]
+        while work:
+            task = work.pop()
+            kind = task[0]
+            if kind == "walk":
+                _, node, into = task
+                if isinstance(node, DRead):
+                    continue
+                emit = node.production.emit
+                if emit is None:
+                    work.extend(("walk", child, into) for child in reversed(node.children))
+                    continue
+                work.extend(("item", node, item, into) for item in reversed(emit))
+            elif kind == "item":
+                _, node, item, into = task
+                if item[0] != "capture" or not (item[3] or item[4]):
+                    self.emit_item(node, item, into)
+                    continue
+                before: list[Token] = []
+                after: list[Token] = []
+                steps: list[tuple[Any, ...]] = [("walk", node.children[position], before) for position in item[3]]
+                steps.append(("carrier", node, item, into))
+                steps.extend(("walk", node.children[position], after) for position in item[4])
+                steps.append(("attach", into, before, after))
+                work.extend(reversed(steps))
+            elif kind == "carrier":
+                _, node, item, into = task
+                self.emit_item(node, item, into)
+            else:
+                # The carrier's token is the last of its list until the
+                # after-attachments are done, since they go to their own
+                # list. New attachments are outer to inherited ones, and an
+                # attached token has no span (engine §11).
+                _, into, before, after = task
+                token = into[-1]
+                for attached in (*before, *after):
+                    attached.span = None
+                if before:
+                    token.before = [*before, *token.before]
+                if after:
+                    token.after = [*token.after, *after]
+        return out
+
+    def emit_item(self, node: DNode, item: tuple[Any, ...], out: list[Token]) -> None:
         tagtab = self.context.tagtab
         if item[0] == "whole":
             _, term = item
             tags = self.item_tags(node, term) if term is not None else tagtab.get(node.tag)
-            self.output.append(self.part_token(node, tags))
+            out.append(self.part_token(node, tags))
         elif item[0] == "capture":
-            _, position, term = item
+            _, position, term, _, _ = item
             part = node.children[position]
             if term is not None:
                 tags = self.item_tags(node, term)
@@ -431,11 +545,11 @@ class Emitter:
                 tags = self.tokens[part.token].tags
             else:
                 tags = tagtab.get(part.tag)
-            self.output.append(self.part_token(part, tags))
+            out.append(self.part_token(part, tags))
         else:
-            # An inserted tag stands, with an empty span, at the start of the
-            # part of the capture listed next after it, or at the end of the
-            # constituent (engine §11).
+            # An inserted tag stands, with an empty span, at the start of its
+            # anchor, the first written part of the capture item listed next
+            # after it, or at the end of the constituent (engine §11).
             _, tag, anchor = item
             boundary = node.children[anchor].start if anchor is not None else node.end
             if boundary > node.start:
@@ -447,7 +561,7 @@ class Emitter:
             # and its label, or both are empty (engine §5).
             phoneme = phoneme_tag(tags)
             phonemes, label = sounded(phoneme) if phoneme is not None else ("", "")
-            self.output.append(Token("", tags, (boundary, boundary), (at, at), phonemes, node.production.rule_name, label))
+            out.append(Token("", tags, (boundary, boundary), (at, at), phonemes, node.production.rule_name, label))
 
     def context_caps(self, node: DNode) -> Any:
         return self.forest.caps[node.item]

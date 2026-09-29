@@ -40,7 +40,7 @@ result = dialect.parse(text, features=(), without_features=(), auto_features=Tru
 
 A `text` with a lone surrogate raises `GencmuError` with `kind` `"usage"`. A text that does not parse is a result whose `ok` is false and whose `error` says why. The kind of that error is `rejected`, `ambiguous` or `grammar`. Here, `grammar` is for a defect of a grammar found only while parsing. An example is a classifier's entry that adds a class that a key already has, under the features of the parse. The message of that error names the document, line and column of the entry.
 
-For tests and tools, `Dialect.parse_tokens(tokens, text, ...)` takes pre-built tokens in place of the characters of the first stage. Such a token has its text as its label, whatever `label` it carries (`docs/engine.md`, §5). The parse copies each token, so your tokens stay as they are.
+For tests and tools, `Dialect.parse_tokens(tokens, text, ...)` takes pre-built tokens in place of the characters of the first stage. Such a token has its text as its label, whatever `label` it carries (`docs/engine.md`, §5). It cannot have attachments. A token whose `before` or `after` is not empty raises `GencmuError` with `kind` `"usage"`, and empty lists are dropped. The parse copies each token, so your tokens stay as they are.
 
 `dialect.features` lists the features of the dialect in code point order of their names, as a tuple of `Feature`. The list includes the gates of the entries of its classifiers. Each `Feature` has these fields:
 
@@ -58,13 +58,15 @@ You can use a dialect for any number of parses, and you can share it between thr
 
 A `Token` has its `text`, `phonemes`, `label`, `tags`, `span` and `source`, and `inserted_by` for a token that an emission inserted. The `label` is what the token shows to people. A pause shows as a space, and a foreign part, such as the body of a `zoi` quote, shows its text as written (`docs/engine.md`, §5 and §11). A character token's label is its text.
 
+A `Token` also has its attachments, `before` and `after`. These are two lists of tokens that belong to it and that no later stage reads, such as the indicators after a word (`docs/engine.md`, §11). Both lists are empty unless an emission gives the token attachments. An attached token has no span, so its `span` is `None`. Its `source` is still a range of the original text.
+
 A terminal in a token node, witness or expected list is a tag, range or property. A range or property uses its written form, such as `'a'..'z'` or `'\p{L}'` (`docs/engine.md`, §4). An expected list writes a terminal that carries a test in a body with its test, such as `LE="la"` or `KOhA∩UI=∅` (`docs/output.md`). Spans are `(start, end)` tuples, and source ranges are in code points.
 
 `result.warnings` lists the warnings of the nodes of the chosen tree of each stage. A node has one `ParseWarning` for each warning guard `f!` of its alternative whose feature `f` is on. The warnings come in stage order and then in tree order. Each has its `stage`, `feature`, `rule`, `span` and `source`. The list is empty when there are no warnings.
 
 - `gencmu.to_json(result)` is the canonical JSON as text, in the key order of `docs/output.md`.
 - `gencmu.result_json(result)` is the same as plain data.
-- `gencmu.to_brackets(result, show_elided=False)` renders the last stage's tree as nested groups, with each token shown by its label.
+- `gencmu.to_brackets(result, show_elided=False)` renders the last stage's tree as nested groups, with each token shown by its label. A token with attachments is a group of its before-attachments, its label and its after-attachments. So in the CLL dialect, `mi ui klama` is `([mi ui] klama)`.
 
 ## Development
 

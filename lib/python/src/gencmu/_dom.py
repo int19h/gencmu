@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from ._clauses import definition_problem
+from ._clauses import attachment_order, definition_problem
 from ._errors import GencmuError
 from ._markdown import GrammarText
 from ._model import Node, Token
@@ -39,7 +39,7 @@ Dom = dict[str, Any]
 _MAPPED = frozenset(
     """directive argument-string argument-tag rule alternative alternative-tags choice conjunction sequence element
     reference string tag character phoneme name tested test test-operand capture group optional empty tags-clause conditions-clause
-    emits-clause foreign-clause emit-item emit-tags implication any-of all-of comparison negation presence call term
+    emits-clause foreign-clause emit-item emit-tags emit-before emit-after implication any-of all-of comparison negation presence call term
     guarded-term union intersection empty-set capture-reference range property constant-definition constant-definer
     constant-reference classifier classifier-name classifier-entry classifier-key classifier-operator classifier-class
     implication-declaration""".split()
@@ -548,14 +548,18 @@ class DomBuilder:
     def emission(self, node: Node) -> Dom:
         """An ``%emits`` clause: its items, each a capture, with a term for
         its own tags if it has one, or an inserted tag; no items for ``ε``
-        (engine §9)."""
+        (engine §9). A named capture, the item's carrier, can have attachment
+        captures in parentheses before it and after it (engine §11). An
+        error of an item stands at the item, whose first part can be an
+        attachment."""
         items: list[Dom] = []
         for item in self.rules(node, "emit-item"):
             kids = self.kids(item)
-            target = kids[0]
+            parts = [kid for kid in kids if not (kid.kind == "rule" and kid.rule in ("emit-before", "emit-after", "emit-tags"))]
+            target = parts[0]
             if target.kind == "rule" and target.rule in ("range", "property"):
                 raise self.fail(item, "an inserted item is one tag, not a range or a property")
-            tag_nodes = [kid for kid in kids[1:] if kid.kind == "rule" and kid.rule == "emit-tags"]
+            tag_nodes = [kid for kid in kids if kid.kind == "rule" and kid.rule == "emit-tags"]
             text = self.text(target)
             tags_of_target = self.tokens[target.token].tags if target.token is not None else frozenset()
             entry: Dom
@@ -565,26 +569,49 @@ class DomBuilder:
                 # An inserted item is one tag literal (engine §9): a bare
                 # lower-case name is a rule, and a string is no tag.
                 if not _is_capital(text):
-                    raise self.fail(target, f"{text} names a rule; an inserted tag is a tag literal, such as ~{text}")
+                    raise self.fail(item, f"{text} names a rule; an inserted tag is a tag literal, such as ~{text}")
                 entry = {"insert": text}
             elif tags_of_target & {"tag", "character", "phoneme"}:
                 entry = {"insert": self.tag_of(target)}
             else:
-                raise self.fail(target, "expected a capture or a tag after %emits")
+                raise self.fail(item, "expected a capture or a tag after %emits")
             if tag_nodes:
                 if "insert" in entry:
-                    raise self.fail(target, "an inserted tag takes no tags of its own")
+                    raise self.fail(item, "an inserted tag takes no tags of its own")
                 entry["tags"] = self.tag_term(self.rules(tag_nodes[0], "term")[0])
                 if entry["tags"].get("emptySet") is True:
-                    raise self.fail(target, "an emitted token's tags cannot be ∅, which no terminal reads; a rule that emits nothing says %emits ε")
+                    raise self.fail(item, "an emitted token's tags cannot be ∅, which no terminal reads; a rule that emits nothing says %emits ε")
+            # Attachments: named captures in parentheses, carried only by a
+            # named capture (engine §9, §11).
+            before = [self.attachment(kid) for kid in self.rules(item, "emit-before")]
+            after = [self.attachment(kid) for kid in self.rules(item, "emit-after")]
+            if before or after:
+                if "insert" in entry:
+                    raise self.fail(item, "an inserted tag carries no attachments")
+                if entry["capture"] == "":
+                    raise self.fail(item, "$ carries no attachments; name a capture")
+            if before:
+                entry["before"] = before
+            if after:
+                entry["after"] = after
             items.append(entry)
         whole = [item for item in items if item.get("capture") == ""]
         if whole and len(whole) != len(items):
             raise self.fail(node, "$ is used with items other than $")
-        named = [item["capture"] for item in items if item.get("capture")]
+        # A capture stands once in an emission, as an item or as an attachment.
+        named = [name for item in items if item.get("capture") for name in attachment_order(item)]
         if len(set(named)) != len(named):
             raise self.fail(node, "%emits lists a capture twice")
         return {"items": items}
+
+    def attachment(self, node: Node) -> str:
+        """An attachment's capture, by its name without ``$``: never ``$``
+        itself (engine §9)."""
+        capture = next(kid for kid in self.kids(node) if kid.kind == "token" and self.text(kid).startswith("$"))
+        name = self.text(capture)[1:]
+        if name == "":
+            raise self.fail(node, "an attachment holds a named capture, not $")
+        return name
 
     # -- conditions
 

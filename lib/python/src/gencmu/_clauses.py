@@ -206,6 +206,18 @@ def waits(clause: Any) -> bool:
     return False
 
 
+def attachments_of(item: Dom) -> list[str]:
+    """An emission item's attachment captures, before it and after it, in
+    order (engine §11)."""
+    return [*item.get("before", ()), *item.get("after", ())]
+
+
+def attachment_order(item: Dom) -> list[str]:
+    """The captures a capture item writes, in written order: its
+    before-attachments, its carrier and its after-attachments (engine §9)."""
+    return [*item.get("before", ()), item["capture"], *item.get("after", ())]
+
+
 def definition_problem(rule: Dom) -> str | None:
     """Why a definition, a well-formed rule of a DOM with its clauses, is an
     error of its document as a whole (engine §9), or None. The checks that
@@ -222,7 +234,9 @@ def definition_problem(rule: Dom) -> str | None:
         return f"{rule['name']} is foreign and emits ε"
     clauses: list[Any] = [rule.get("tags"), rule["conditions"], items]
     clauses.extend(alternative.get("tags") for alternative in alternatives)
-    unknown = sorted(set().union(*(mentioned_in(clause) for clause in clauses)) - known)
+    # An emission item mentions its attachments too.
+    attached = {name for item in items if "capture" in item for name in attachments_of(item)}
+    unknown = sorted(set().union(attached, *(mentioned_in(clause) for clause in clauses)) - known)
     if unknown:
         return f"${unknown[0]} is captured by no alternative of {rule['name']}"
     for condition in rule["conditions"]:
@@ -246,7 +260,18 @@ def definition_problem(rule: Dom) -> str | None:
         for item in kept:
             if "tags" in item and lacks(item["tags"], present):
                 return "the tags of an item of %emits use a capture an alternative lacks; guard the use with ⟹"
-        order = [names.index(item["capture"]) for item in kept if item.get("capture") in names]
+        # An alternative without an item's carrier lacks its attachments too
+        # (engine §9).
+        for item in items:
+            if "capture" not in item or item["capture"] in present:
+                continue
+            stray = next((name for name in attachments_of(item) if name in present), None)
+            if stray is not None:
+                return f"%emits of {rule['name']} attaches ${stray} in an alternative without its carrier ${item['capture']}"
+        # The written order of the captures, attachments included, is the
+        # order they stand in (engine §9).
+        written = [name for item in kept if item.get("capture") for name in attachment_order(item)]
+        order = [names.index(name) for name in written if name in names]
         if order != sorted(order):
             return f"%emits of {rule['name']} lists captures out of the order they stand in the text"
         for index, item in enumerate(items):

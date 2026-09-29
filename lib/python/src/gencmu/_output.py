@@ -8,20 +8,41 @@ from typing import Any
 from ._model import Action, Node, ParseError, ParseResult, ParseWarning, Stage, Token
 from ._tags import sorted_tags
 
-FORMAT = 5
+FORMAT = 6
 
 
 def token_json(token: Token) -> dict[str, Any]:
-    value: dict[str, Any] = {"text": token.text}
-    if token.phonemes is not None:
-        value["phonemes"] = token.phonemes
-    value["label"] = token.label
-    value["tags"] = sorted_tags(token.tags)
-    value["span"] = list(token.span)
-    value["source"] = list(token.source)
-    if token.inserted_by is not None:
-        value["insertedBy"] = token.inserted_by
-    return value
+    """A token in the result JSON. An attached token has no span, and a list
+    of attachments is present only when it is not empty (docs/output.md).
+    Attachments can nest deep, so this is built without recursion."""
+
+    def shallow(current: Token) -> dict[str, Any]:
+        value: dict[str, Any] = {"text": current.text}
+        if current.phonemes is not None:
+            value["phonemes"] = current.phonemes
+        value["label"] = current.label
+        value["tags"] = sorted_tags(current.tags)
+        if current.span is not None:
+            value["span"] = list(current.span)
+        value["source"] = list(current.source)
+        if current.inserted_by is not None:
+            value["insertedBy"] = current.inserted_by
+        if current.before:
+            value["before"] = []
+        if current.after:
+            value["after"] = []
+        return value
+
+    top = shallow(token)
+    stack = [(token, top)]
+    while stack:
+        current, value = stack.pop()
+        for side, attachments in (("before", current.before), ("after", current.after)):
+            for attached in attachments:
+                attached_value = shallow(attached)
+                value[side].append(attached_value)
+                stack.append((attached, attached_value))
+    return top
 
 
 def node_json(node: Node) -> dict[str, Any]:
@@ -169,6 +190,32 @@ class _Group:
         self.members = members
 
 
+def _token_member(token: Token) -> Any:
+    """A token as a member of the brackets: its label, or, with attachments,
+    a group of its before-attachments, its label and its after-attachments,
+    each rendered the same way (docs/output.md). Built without recursion."""
+
+    def shallow(current: Token) -> Any:
+        return current.label if not current.before and not current.after else _Group([])
+
+    top = shallow(token)
+    stack = [(token, top)]
+    while stack:
+        current, member = stack.pop()
+        if not isinstance(member, _Group):
+            continue
+        for attached in current.before:
+            inner = shallow(attached)
+            member.members.append(inner)
+            stack.append((attached, inner))
+        member.members.append(current.label)
+        for attached in current.after:
+            inner = shallow(attached)
+            member.members.append(inner)
+            stack.append((attached, inner))
+    return top
+
+
 def to_brackets(result: ParseResult, *, show_elided: bool = False) -> str:
     """The last stage's tree as nested groups (docs/output.md, "Brackets")."""
     tree = result.tree
@@ -183,8 +230,10 @@ def to_brackets(result: ParseResult, *, show_elided: bool = False) -> str:
             token = tokens[node.token] if node.token is not None and node.token < len(tokens) else None
             # A token is a member even when its label is empty, as an empty
             # quotation's text is; only empty rule nodes are dropped.
-            # Every rendering shows a token by its label (docs/output.md).
-            rendered[id(node)] = token.label if token is not None else ""
+            # Every rendering shows a token by its label (docs/output.md). A
+            # token with attachments is a group of its before-attachments,
+            # its label and its after-attachments, each rendered the same way.
+            rendered[id(node)] = _token_member(token) if token is not None else ""
         elif node.kind == "elided":
             rendered[id(node)] = f"⟨{(node.terminal or '').lower()}⟩" if show_elided else None
         elif not done:

@@ -482,7 +482,9 @@ class Dialect:
     ) -> ParseResult:
         """Parse pre-built tokens in place of the first stage's characters,
         over the original ``text`` their sources point into. For tests and
-        tools; :meth:`parse` is the usual entry point."""
+        tools; :meth:`parse` is the usual entry point. A token with
+        attachments is a usage error, and empty lists are dropped
+        (docs/api.md)."""
         # A text is a sequence of scalar values, so a lone surrogate is the
         # caller's mistake, refused before any character token (engine §1).
         problem = scalar_problem(text)
@@ -506,9 +508,13 @@ class Dialect:
             raise GencmuError(f"the feature {min(on & off)} is named both to turn on and to turn off", kind="usage")
         enabled = (self.declared | on) - off
         # A token that the caller supplies has its text as its label (engine
-        # §5). The parse copies each one, so the caller's objects stay as
-        # they are.
-        tokens = [replace(token, label=token.text) for token in tokens]
+        # §5). It has no attachments: a list that is not empty is the
+        # caller's mistake, and an empty one is dropped (docs/api.md). The
+        # parse copies each token, so the caller's objects stay as they are.
+        for index, token in enumerate(tokens):
+            if token.before or token.after:
+                raise GencmuError(f"token {index} has attachments, which a caller cannot supply", kind="usage")
+        tokens = [replace(token, label=token.text, before=[], after=[]) for token in tokens]
         # Only a dialect that has sa-su as a gate adds it by itself, and not
         # when the caller has turned it off (engine §13).
         gated = any(feature.name == "sa-su" and feature.kind == "gate" for feature in self.features)

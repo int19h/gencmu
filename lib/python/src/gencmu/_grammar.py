@@ -1003,11 +1003,15 @@ class _Lowerer:
 
     def lower_emit(self, emit: Dom | None, captures: dict[str, int]) -> list[tuple[Any, ...]] | None:
         """A production's emission, the items it emits in list order, less
-        those that name a capture the production lacks (engine §3.6, §11):
-        ``("whole", term or None)`` for ``$``, ``("capture", position, term
-        or None)``, and ``("insert", tag, anchor)``, the anchor being the
-        position of the capture listed next after it, or ``None`` for the
-        constituent's end. ``%emits ε`` is the empty list."""
+        those whose carrier the production lacks, and each item less the
+        attachment captures it lacks (engine §3.6, §11): ``("whole", term
+        or None)`` for ``$``, ``("capture", position, term or None,
+        before, after)``, with the positions of the attachment captures
+        before it and after it, and ``("insert", tag, anchor)``, the anchor
+        being the position of the first written part of the capture item
+        listed next after it, its first before-attachment or else its
+        carrier, or ``None`` for the constituent's end. ``%emits ε`` is the
+        empty list."""
         if emit is None:
             return None
         present = captures.keys() | {WHOLE}
@@ -1015,16 +1019,25 @@ class _Lowerer:
         def own(term: Any) -> Any:
             return simplify_term(term, present) if term is not None else None
 
+        def positions(names: Any) -> tuple[int, ...]:
+            return tuple(captures[name] for name in names or () if name in captures)
+
         items = [item for item in emit.get("items", []) if "insert" in item or item["capture"] in present]
         lowered: list[tuple[Any, ...]] = []
         for index, item in enumerate(items):
             if "insert" in item:
-                anchor = next((captures[other["capture"]] for other in items[index + 1 :] if "capture" in other), None)
+                following = next((other for other in items[index + 1 :] if "capture" in other), None)
+                anchor = None
+                if following is not None:
+                    first = positions(following.get("before"))
+                    anchor = first[0] if first else captures[following["capture"]]
                 lowered.append(("insert", item["insert"], anchor))
             elif item["capture"] == WHOLE:
                 lowered.append(("whole", own(item.get("tags"))))
             else:
-                lowered.append(("capture", captures[item["capture"]], own(item.get("tags"))))
+                lowered.append(
+                    ("capture", captures[item["capture"]], own(item.get("tags")), positions(item.get("before")), positions(item.get("after")))
+                )
         return lowered
 
     def check_captures(self, expr: Dom) -> None:
