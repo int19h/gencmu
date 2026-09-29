@@ -37,6 +37,11 @@ type engineCase struct {
 		Warnings json.RawMessage
 		Features json.RawMessage
 		Error    string
+		// Where is where a load error stands (tests/README.md).
+		Where *struct {
+			Document     string
+			Line, Column int
+		}
 	}
 }
 
@@ -99,10 +104,11 @@ func caseDialect(c *engineCase, noCache bool) (*Dialect, error) {
 		if !strings.Contains(g, "%ambiguity-resolution") {
 			g = "%ambiguity-resolution greedy\n" + g
 		}
+		// The grammar is main.md, whose fence is line 1 (tests/README.md).
 		return loadSources(map[string]string{
-			"p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n",
-			"g.md": "```jbogenbau\n" + g + "\n```\n",
-		}, "p.md", noCache)
+			"pipeline.md": "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n",
+			"main.md":     "```jbogenbau\n" + g + "\n```\n",
+		}, "pipeline.md", noCache)
 	}
 	return loadSources(c.Documents, c.Pipeline, noCache)
 }
@@ -150,6 +156,10 @@ func checkCase(c *engineCase, noCache bool) error {
 		}
 		if c.Expect.Error != e.Kind || c.Expect.Result != nil {
 			return fmt.Errorf("unexpected load error: %v", err)
+		}
+		// Where the error stands, in a document of the case.
+		if w := c.Expect.Where; w != nil && (e.Document != w.Document || e.Line != w.Line || e.Column != w.Column) {
+			return fmt.Errorf("the load error stands at %s:%d:%d, not at %s:%d:%d: %v", e.Document, e.Line, e.Column, w.Document, w.Line, w.Column, err)
 		}
 		return nil
 	}

@@ -18,7 +18,11 @@
 // dialect that cannot be loaded is a *Error, carrying the document, line
 // and column where known. A document is read through the notation only
 // when the bundled compiled.json has no DOM for its text under the current
-// bootstrap, so loading a bundled dialect reads no grammar at all.
+// bootstrap, so loading a bundled dialect reads no grammar at all. A DOM
+// holds a document's constants as the document writes them, never their
+// values: the loader gives each constant its value when it stitches a
+// stage, so a document that several stages or dialects include takes the
+// values of each.
 //
 // # Parsing
 //

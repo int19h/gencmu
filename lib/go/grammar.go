@@ -1,9 +1,12 @@
 package gencmu
 
-// A stage's grammar: its documents stitched into one set of rules and
-// directives (engine §2).
+// A stage's grammar: its documents stitched into one set of rules,
+// directives and constants (engine §2).
 type stageGrammar struct {
 	name        string
+	uni         *unicodeTable // the loader's table, for the tags of a range in a constant's value
+	constants   map[string]*stageConst
+	constUsers  []constUser
 	rules       []*sRule
 	byName      map[string]*sRule
 	lean        string // "greedy" or "lazy"
@@ -38,6 +41,14 @@ type sAlt struct {
 	at       [2]int
 }
 
+// constValue is a constant's value (engine §2, §10): a string, or a set of
+// strings or of tags, with its type.
+type constValue struct {
+	ty    termType // tyString, tyStrings or tyTags
+	s     string
+	names []string // a set's members, in code point order, each once
+}
+
 type docDOM struct {
 	path string
 	dom  *domDoc
@@ -51,8 +62,8 @@ func isTerminalName(name string) bool {
 	return name != "" && name[0] >= 'A' && name[0] <= 'Z'
 }
 
-func stitch(stageName string, docs []docDOM) (*stageGrammar, *Error) {
-	g := &stageGrammar{name: stageName, byName: map[string]*sRule{}, elidable: map[string]bool{}}
+func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, *Error) {
+	g := &stageGrammar{name: stageName, uni: uni, constants: map[string]*stageConst{}, byName: map[string]*sRule{}, elidable: map[string]bool{}}
 	fail := func(doc string, at [2]int, format string, args ...any) *Error {
 		e := grammarError(doc, at, format, args...)
 		e.Stage = stageName
@@ -61,6 +72,9 @@ func stitch(stageName string, docs []docDOM) (*stageGrammar, *Error) {
 	var ambiguity []*domDirective
 	for _, d := range docs {
 		for _, r := range d.dom.Rules {
+			if len(constRefs(r)) > 0 {
+				g.constUsers = append(g.constUsers, constUser{doc: d.path, rule: r})
+			}
 			alts := make([]*sAlt, len(r.Alternatives))
 			for i, a := range r.Alternatives {
 				alts[i] = &sAlt{alt: a, ruleTags: r.Tags, emit: r.Emit, conds: r.Conditions, verbatim: r.Verbatim, doc: d.path, at: r.At}
@@ -129,6 +143,14 @@ func stitch(stageName string, docs []docDOM) (*stageGrammar, *Error) {
 				return nil, fail(d.path, dir.At, "unknown directive %%%s", dir.Name)
 			}
 		}
+		for _, k := range d.dom.Constants {
+			if err := g.addConstant(d.path, k); err != nil {
+				return nil, err
+			}
+		}
+	}
+	if err := g.resolveConstants(); err != nil {
+		return nil, err
 	}
 	if len(ambiguity) == 0 {
 		e := &Error{Kind: "grammar", Stage: stageName, Message: "stage " + stageName + " has no %ambiguity-resolution"}

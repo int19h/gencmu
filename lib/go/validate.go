@@ -3,6 +3,7 @@ package gencmu
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -28,9 +29,10 @@ var captureName = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
 // domProblem is why a DOM is malformed; tooDeep marks the nesting limit,
 // the one problem a DOM the reader built can have.
 type domProblem struct {
-	message string
-	rule    *domRule
-	tooDeep bool
+	message  string
+	rule     *domRule
+	constant *domConst
+	tooDeep  bool
 }
 
 func (p *domProblem) Error() string { return p.message }
@@ -54,6 +56,15 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 	// The order of a document's items is the order of their positions, so
 	// no two items share one (engine §9).
 	positions := map[[2]int]bool{}
+	for _, k := range d.Constants {
+		if k == nil {
+			return &domProblem{message: "a malformed constant"}
+		}
+		if positions[k.At] {
+			return &domProblem{message: "two items at one position"}
+		}
+		positions[k.At] = true
+	}
 	for _, r := range d.Rules {
 		if r == nil {
 			continue
@@ -73,7 +84,7 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 		if r == nil || !(domName.MatchString(r.Name) || r.Name == "#") || (r.Op != "define" && r.Op != "redefine" && r.Op != "extend") || len(r.Alternatives) == 0 {
 			return &domProblem{message: "a malformed rule"}
 		}
-		c := &domChecker{rule: r, uni: uni}
+		c := &domChecker{rule: r, label: "rule " + r.Name, uni: uni}
 		c.constituentTags(r.Tags)
 		c.emission(r.Emit)
 		for _, cond := range r.Conditions {
@@ -107,6 +118,24 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 			return &domProblem{message: fmt.Sprintf("rule %s: %s", r.Name, msg), rule: r}
 		}
 	}
+	// A constant's definition: its name, its op, and a value that is a
+	// closed term of a type that a constant can have (engine §2, §10).
+	for _, k := range d.Constants {
+		if !constName.MatchString(k.Name) || (k.Op != "define" && k.Op != "redefine") || k.Value == nil {
+			return &domProblem{message: "a malformed constant", constant: k}
+		}
+		if openPart(k.Value) != nil {
+			return &domProblem{message: fmt.Sprintf("constant $%s: a constant's value is not a closed term", k.Name), constant: k}
+		}
+		c := &domChecker{constant: k, label: "constant $" + k.Name, uni: uni}
+		c.term(k.Value, 0, false)
+		if c.problem != nil {
+			return c.problem
+		}
+		if _, f := constantValueType(k.Value, k.Op == "redefine", nil); f != nil {
+			return &domProblem{message: fmt.Sprintf("constant $%s: %s", k.Name, f.problem), constant: k}
+		}
+	}
 	return nil
 }
 
@@ -134,7 +163,9 @@ func directiveOperandsOK(dir *domDirective) bool {
 }
 
 type domChecker struct {
-	rule     *domRule
+	rule     *domRule  // the rule checked, or nil
+	constant *domConst // the constant checked, or nil
+	label    string    // what the problems name: rule r or constant $C
 	uni      *unicodeTable
 	captures map[string]bool
 	problem  *domProblem
@@ -142,14 +173,14 @@ type domChecker struct {
 
 func (c *domChecker) fail(format string, args ...any) {
 	if c.problem == nil {
-		c.problem = &domProblem{message: fmt.Sprintf("rule %s: ", c.rule.Name) + fmt.Sprintf(format, args...), rule: c.rule}
+		c.problem = &domProblem{message: c.label + ": " + fmt.Sprintf(format, args...), rule: c.rule, constant: c.constant}
 	}
 }
 
 func (c *domChecker) deep(depth int) bool {
 	if depth > maxDOMDepth {
 		if c.problem == nil {
-			c.problem = &domProblem{message: fmt.Sprintf("rule %s: an expression, term or condition is nested more than %d deep", c.rule.Name, maxDOMDepth), rule: c.rule, tooDeep: true}
+			c.problem = &domProblem{message: fmt.Sprintf("%s: an expression, term or condition is nested more than %d deep", c.label, maxDOMDepth), rule: c.rule, constant: c.constant, tooDeep: true}
 		}
 		return true
 	}
@@ -286,9 +317,10 @@ func propertyProblem(name string) string {
 
 // spellingProblem is what is wrong with a spelling of a symbol (engine §9),
 // or "": an empty spelling, one with a backtick, which the notation cannot
-// write, one that the lowercase mapping would change, since the match
-// ignores stress, or one of anything but a reference or a terminal, #
-// included. Without a table, the lowercase mapping is not checked.
+// write, one that no canonical sound can be, with a comma or a code point
+// that the lowercase mapping would change, or one of anything but a
+// reference or a terminal, # included. Without a table, the lowercase
+// mapping is not checked.
 func spellingProblem(spelling string, inner *domExpr, uni *unicodeTable) string {
 	if spelling == "" {
 		return "a spelling is empty"
@@ -299,8 +331,30 @@ func spellingProblem(spelling string, inner *domExpr, uni *unicodeTable) string 
 	if inner == nil || !((inner.Kind == exRef && inner.Name != "" && inner.Name != "#") || inner.Kind == exTerminal) {
 		return "a spelling follows only a reference other than # or a terminal"
 	}
+	if strings.Contains(spelling, ",") {
+		return fmt.Sprintf("the spelling %s holds a comma, which no canonical sound holds", spelling)
+	}
 	if uni != nil && uni.lowercase(spelling) != spelling {
 		return fmt.Sprintf("the spelling %s is not in lower case", spelling)
+	}
+	return ""
+}
+
+// literalCallProblem is what is wrong with a call of split or tag whose
+// argument the reader sees as a string literal (engine §9, §10), or "": an
+// empty delimiter, or a tag's string that is not a name.
+func literalCallProblem(call string, args []*domTerm) string {
+	literal := func(i int) (string, bool) {
+		if i < len(args) && args[i] != nil && args[i].Kind == tmString {
+			return args[i].Str, true
+		}
+		return "", false
+	}
+	if s, ok := literal(1); call == "split" && ok && s == "" {
+		return "split has an empty delimiter"
+	}
+	if s, ok := literal(0); call == "tag" && ok && !isName(s) {
+		return fmt.Sprintf("tag(%s): the string is not a name", strconv.Quote(s))
 	}
 	return ""
 }
@@ -318,6 +372,10 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 	}
 	switch t.Kind {
 	case tmString, tmCapture, tmEmptySet:
+	case tmConst:
+		if !constName.MatchString(t.Str) {
+			c.fail("a malformed constant $%s", t.Str)
+		}
 	case tmTag:
 		if !isTag(t.Str, c.uni) {
 			c.fail("a malformed tag %q", t.Str)
@@ -346,17 +404,24 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		isRule := func(a *domTerm) bool { return a != nil && a.Kind == tmRule && a.Str != "" }
 		var ok bool
 		switch t.Str {
-		case "phonemes", "text", "runs", "classes", "head", "tail", "last", "from", "after":
+		case "phonemes", "text", "classes", "head", "tail", "last", "from", "after":
 			ok = len(args) == 1 && isSpanShape(args[0])
 		case "tags":
 			ok = (len(args) == 1 && isSpanShape(args[0])) || (len(args) == 2 && isSpanShape(args[0]) && isRule(args[1]))
-		case "lowercase":
-			// Its one argument is a value, whose type is checked with the
+		case "split", "tag":
+			// Its arguments are values, whose types are checked with the
 			// rule's (engine §10).
-			ok = len(args) == 1 && args[0] != nil && !isRule(args[0]) && !isSpanShape(args[0])
+			ok = len(args) == map[string]int{"split": 2, "tag": 1}[t.Str]
+			for _, a := range args {
+				ok = ok && a != nil && !isRule(a) && !isSpanShape(a)
+			}
 		}
 		if !ok || (!argument && isSpanFunction(t.Str)) {
 			c.fail("a malformed call of %q", t.Str)
+			return
+		}
+		if msg := literalCallProblem(t.Str, args); msg != "" {
+			c.fail("%s", msg)
 			return
 		}
 		for _, a := range args {
@@ -553,7 +618,8 @@ func (c *domChecker) emission(e *domEmit) {
 // ---- Types (engine §10)
 
 // termType is a term's type: a string, a set of strings, a tag set, a
-// span, or a set whose kind nothing has given yet, such as ∅.
+// span, a set whose kind nothing has given yet, such as ∅, or, for a
+// constant whose type the reader cannot know, any type but a span.
 type termType int
 
 const (
@@ -562,22 +628,42 @@ const (
 	tyTags
 	tySpan
 	tySet
+	tyAny
 )
 
-var typeNames = map[termType]string{tyString: "a string", tyStrings: "a set of strings", tyTags: "a tag set", tySpan: "a span", tySet: "a set"}
+var typeNames = map[termType]string{tyString: "a string", tyStrings: "a set of strings", tyTags: "a tag set", tySpan: "a span", tySet: "a set", tyAny: "a value"}
 
 const spanNotValue = "a span is not a value: tags($x) is the tag set of $x"
+
+// constTypes gives the type of each constant, where the loader knows it
+// (engine §2). The reader knows none: a nil constTypes gives every
+// constant the type tyAny.
+type constTypes func(name string) termType
+
+func (ct constTypes) of(name string) termType {
+	if ct == nil {
+		return tyAny
+	}
+	return ct(name)
+}
+
+// typeFault is a disagreement of types, and the smallest construct that
+// holds it: a *domTerm or a *domCond.
+type typeFault struct {
+	problem string
+	node    any
+}
 
 func isSetType(t termType) bool { return t == tyStrings || t == tyTags || t == tySet }
 
 // callType is the type of the value a function gives.
 func callType(name string) termType {
 	switch name {
-	case "phonemes", "text", "lowercase":
+	case "phonemes", "text":
 		return tyString
-	case "runs":
+	case "split":
 		return tyStrings
-	case "tags", "classes":
+	case "tags", "classes", "tag":
 		return tyTags
 	}
 	return tySpan
@@ -585,7 +671,7 @@ func callType(name string) termType {
 
 // joinedType is the kind of the sets that ∪, ∩, ∖, ⊆ or ⊈ join, or why
 // they cannot be joined: each is a set, and all whose kind is known have
-// one kind.
+// one kind. A constant whose type is not known yet fits any set.
 func joinedType(types []termType, op string) (termType, string) {
 	for _, t := range types {
 		if t == tySpan {
@@ -593,12 +679,16 @@ func joinedType(types []termType, op string) (termType, string) {
 		}
 	}
 	for _, t := range types {
-		if !isSetType(t) {
+		if t != tyAny && !isSetType(t) {
 			return 0, fmt.Sprintf("%s joins sets, not %s", op, typeNames[t])
 		}
 	}
-	kind := tySet
+	kind, unknown := tySet, false
 	for _, t := range types {
+		if t == tyAny {
+			unknown = true
+			continue
+		}
 		if t == tySet {
 			continue
 		}
@@ -607,26 +697,33 @@ func joinedType(types []termType, op string) (termType, string) {
 		}
 		kind = t
 	}
+	if kind == tySet && unknown {
+		return tyAny, ""
+	}
 	return kind, ""
 }
 
 // comparisonProblem is why a comparison's two sides do not fit its
-// comparator, or "".
+// comparator, or "". A side of type tyAny fits, and the loader checks it
+// again (engine §9).
 func comparisonProblem(op string, left, right termType) string {
 	if left == tySpan || right == tySpan {
 		return spanNotValue
 	}
 	switch op {
 	case "∈", "∉":
-		if left != tyString {
+		if left != tyString && left != tyAny {
 			return fmt.Sprintf("%s tests a string, not %s, in a set of strings; ⊆ and ⊈ compare two sets", op, typeNames[left])
 		}
-		if right != tyStrings && right != tySet {
+		if right != tyStrings && right != tySet && right != tyAny {
 			return fmt.Sprintf("%s tests a string in a set of strings, not in %s", op, typeNames[right])
 		}
 		return ""
 	case "=", "≠":
 		// Two values of one type.
+		if left == tyAny || right == tyAny {
+			return ""
+		}
 		if left == tyString || right == tyString {
 			if left == right {
 				return ""
@@ -646,9 +743,9 @@ func comparisonProblem(op string, left, right termType) string {
 
 // expectedProblem is why a term of one type cannot stand where a string or
 // a tag set is needed, or "". A set of open kind takes the kind it is
-// given.
+// given, and a constant of unknown type fits.
 func expectedProblem(t, expected termType) string {
-	if t == expected || (t == tySet && expected == tyTags) {
+	if t == expected || t == tyAny || (t == tySet && expected == tyTags) {
 		return ""
 	}
 	if t == tySpan {
@@ -657,120 +754,279 @@ func expectedProblem(t, expected termType) string {
 	return fmt.Sprintf("%s is needed here, not %s", typeNames[expected], typeNames[t])
 }
 
-// typeOf is a term's type, or why its parts do not agree. The term's shape
-// must already be checked.
+// typeOf is a term's type, or why its parts do not agree, as the reader
+// sees it. The term's shape must already be checked.
 func typeOf(t *domTerm) (termType, string) {
+	ty, f := termTypeIn(t, nil)
+	if f != nil {
+		return 0, f.problem
+	}
+	return ty, ""
+}
+
+// termTypeIn is a term's type, or why its parts do not agree, with the
+// smallest construct whose parts disagree; ct gives each constant's type.
+func termTypeIn(t *domTerm, ct constTypes) (termType, *typeFault) {
 	switch t.Kind {
 	case tmString:
-		return tyString, ""
+		return tyString, nil
 	case tmTag, tmRange:
-		return tyTags, ""
+		return tyTags, nil
 	case tmEmptySet:
-		return tySet, ""
+		return tySet, nil
 	case tmCapture:
-		return tySpan, ""
+		return tySpan, nil
+	case tmConst:
+		return ct.of(t.Str), nil
 	case tmUnion, tmIntersection, tmDifference:
 		op := map[string]string{tmUnion: "∪", tmIntersection: "∩", tmDifference: "∖"}[t.Kind]
 		types := make([]termType, 0, len(t.Items))
 		for _, it := range t.Items {
-			ty, problem := typeOf(it)
-			if problem != "" {
-				return 0, problem
+			ty, f := termTypeIn(it, ct)
+			if f != nil {
+				return 0, f
 			}
 			types = append(types, ty)
 		}
-		return joinedType(types, op)
-	case tmIf:
-		if problem := condTypeProblem(t.Cond); problem != "" {
-			return 0, problem
-		}
-		ty, problem := typeOf(t.Items[0])
+		ty, problem := joinedType(types, op)
 		if problem != "" {
-			return 0, problem
+			return 0, &typeFault{problem, t}
+		}
+		return ty, nil
+	case tmIf:
+		if f := condTypeFault(t.Cond, ct); f != nil {
+			return 0, f
+		}
+		ty, f := termTypeIn(t.Items[0], ct)
+		if f != nil {
+			return 0, f
 		}
 		if problem := expectedProblem(ty, tyTags); problem != "" {
-			return 0, problem
+			return 0, &typeFault{problem, t}
 		}
-		return tyTags, ""
+		return tyTags, nil
 	case tmCall:
 		for _, a := range t.Items {
 			if a.Kind == tmRule {
 				continue
 			}
-			ty, problem := typeOf(a)
-			if problem != "" {
-				return 0, problem
+			ty, f := termTypeIn(a, ct)
+			if f != nil {
+				return 0, f
 			}
-			if t.Str == "lowercase" {
+			if t.Str == "split" || t.Str == "tag" {
 				if problem := expectedProblem(ty, tyString); problem != "" {
-					return 0, "lowercase takes one string: " + problem
+					return 0, &typeFault{t.Str + " takes " + map[string]string{"split": "two strings", "tag": "one string"}[t.Str] + ": " + problem, t}
 				}
 			}
 		}
-		return callType(t.Str), ""
+		return callType(t.Str), nil
 	}
-	return 0, "a malformed term"
+	return 0, &typeFault{"a malformed term", t}
 }
 
 // condTypeProblem is why a condition's terms do not agree in type, or "".
 func condTypeProblem(c *domCond) string {
+	if f := condTypeFault(c, nil); f != nil {
+		return f.problem
+	}
+	return ""
+}
+
+// condTypeFault is why a condition's terms do not agree in type, with the
+// smallest construct that disagrees, or nil.
+func condTypeFault(c *domCond, ct constTypes) *typeFault {
 	switch c.Kind {
 	case cdAny, cdAll, cdIf:
 		for _, it := range c.Items {
-			if problem := condTypeProblem(it); problem != "" {
-				return problem
+			if f := condTypeFault(it, ct); f != nil {
+				return f
 			}
 		}
 	case cdNot:
-		return condTypeProblem(c.Inner)
+		return condTypeFault(c.Inner, ct)
 	case cdCompare:
-		left, problem := typeOf(c.Left)
-		if problem != "" {
-			return problem
+		left, f := termTypeIn(c.Left, ct)
+		if f != nil {
+			return f
 		}
-		right, problem := typeOf(c.Right)
-		if problem != "" {
-			return problem
+		right, f := termTypeIn(c.Right, ct)
+		if f != nil {
+			return f
 		}
-		return comparisonProblem(c.Op, left, right)
+		if problem := comparisonProblem(c.Op, left, right); problem != "" {
+			return &typeFault{problem, c}
+		}
 	}
-	return ""
+	return nil
 }
 
 // tagTermProblem is why a term that must be a tag set, a constituent's or
 // an item's, is not one, or "".
 func tagTermProblem(t *domTerm) string {
-	ty, problem := typeOf(t)
-	if problem != "" {
-		return problem
+	if f := tagTermFault(t, nil); f != nil {
+		return f.problem
 	}
-	return expectedProblem(ty, tyTags)
+	return ""
+}
+
+func tagTermFault(t *domTerm, ct constTypes) *typeFault {
+	ty, f := termTypeIn(t, ct)
+	if f != nil {
+		return f
+	}
+	if problem := expectedProblem(ty, tyTags); problem != "" {
+		return &typeFault{problem, t}
+	}
+	return nil
 }
 
 // ruleTypeProblem is why a rule's terms and conditions do not agree in
 // type, or "".
 func ruleTypeProblem(r *domRule) string {
-	terms := []*domTerm{r.Tags}
-	for _, a := range r.Alternatives {
-		terms = append(terms, a.Tags)
+	if f := ruleTypeFault(r, nil); f != nil {
+		return f.problem
 	}
-	if r.Emit != nil {
-		for _, it := range r.Emit.Items {
-			terms = append(terms, it.Tags)
-		}
-	}
-	for _, t := range terms {
-		if t == nil {
-			continue
-		}
-		if problem := tagTermProblem(t); problem != "" {
-			return problem
+	return ""
+}
+
+// ruleTypeFault is why a rule's terms and conditions do not agree in type,
+// with the construct at fault, or nil.
+func ruleTypeFault(r *domRule, ct constTypes) *typeFault {
+	for _, t := range ruleTagTerms(r) {
+		if f := tagTermFault(t, ct); f != nil {
+			return f
 		}
 	}
 	for _, c := range r.Conditions {
-		if problem := condTypeProblem(c); problem != "" {
-			return problem
+		if f := condTypeFault(c, ct); f != nil {
+			return f
 		}
 	}
-	return ""
+	return nil
+}
+
+// ruleTagTerms lists a rule's tag terms that are written: its %tags, its
+// alternatives' and its emitted items', in that order.
+func ruleTagTerms(r *domRule) []*domTerm {
+	var terms []*domTerm
+	add := func(t *domTerm) {
+		if t != nil {
+			terms = append(terms, t)
+		}
+	}
+	add(r.Tags)
+	for _, a := range r.Alternatives {
+		add(a.Tags)
+	}
+	if r.Emit != nil {
+		for _, it := range r.Emit.Items {
+			add(it.Tags)
+		}
+	}
+	return terms
+}
+
+// constantValueType is the type of a constant's value, or why it cannot be
+// one (engine §2, §10): a string, a set of strings or a tag set. A
+// redefinition keeps the constant's type, which gives ∅ its kind, so its
+// value can be of open kind.
+func constantValueType(value *domTerm, redefine bool, ct constTypes) (termType, *typeFault) {
+	ty, f := termTypeIn(value, ct)
+	if f != nil {
+		return 0, f
+	}
+	if ty == tySpan {
+		return 0, &typeFault{"a constant's value is a string or a set, never a span", value}
+	}
+	if ty == tySet && !redefine {
+		return 0, &typeFault{"the kind of the set that the constant holds is not given", value}
+	}
+	return ty, nil
+}
+
+// ---- Constants (engine §2, §10)
+
+// constName is the syntax of a constant's name, without its $: a name that
+// begins with a capital (engine §2).
+var constName = regexp.MustCompile(`^[A-Z][A-Za-z0-9-]*$`)
+
+// openPart is the first part of a term that is not closed (engine §10), or
+// nil: a capture, a guarded term, or a call of anything but split and tag.
+func openPart(t *domTerm) *domTerm {
+	if t == nil {
+		return nil
+	}
+	switch t.Kind {
+	case tmCapture, tmIf:
+		return t
+	case tmCall:
+		if t.Str != "split" && t.Str != "tag" {
+			return t
+		}
+	case tmUnion, tmIntersection, tmDifference:
+	default:
+		return nil
+	}
+	for _, it := range t.Items {
+		if open := openPart(it); open != nil {
+			return open
+		}
+	}
+	return nil
+}
+
+// constRefs lists the references to constants in terms, conditions, rules
+// and lists of them, in the order written.
+func constRefs(nodes ...any) []*domTerm {
+	var found []*domTerm
+	var term func(t *domTerm)
+	var cond func(c *domCond)
+	term = func(t *domTerm) {
+		if t == nil {
+			return
+		}
+		if t.Kind == tmConst {
+			found = append(found, t)
+			return
+		}
+		if t.Cond != nil {
+			cond(t.Cond)
+		}
+		for _, it := range t.Items {
+			term(it)
+		}
+	}
+	cond = func(c *domCond) {
+		if c == nil {
+			return
+		}
+		term(c.Left)
+		term(c.Right)
+		term(c.Span)
+		cond(c.Inner)
+		for _, it := range c.Items {
+			cond(it)
+		}
+	}
+	for _, n := range nodes {
+		switch x := n.(type) {
+		case *domTerm:
+			term(x)
+		case *domCond:
+			cond(x)
+		case []*domCond:
+			for _, c := range x {
+				cond(c)
+			}
+		case *domRule:
+			for _, t := range ruleTagTerms(x) {
+				term(t)
+			}
+			for _, c := range x.Conditions {
+				cond(c)
+			}
+		}
+	}
+	return found
 }

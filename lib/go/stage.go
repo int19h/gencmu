@@ -20,10 +20,13 @@ type parseState struct {
 	// ranges holds the tag set of each range a term has read, made once
 	// (engine §10).
 	ranges map[[2]string]*tagset
+	// consts holds the tag set of each constant's value a term has read,
+	// made once (engine §2).
+	consts map[*constValue]*tagset
 }
 
 func newParseState(uni *unicodeTable, text []rune) *parseState {
-	ps := &parseState{uni: uni, in: newInterner(), text: text, nested: map[nestedKey]*nestedResult{}, inProgress: map[spanKey]bool{}, ranges: map[[2]string]*tagset{}}
+	ps := &parseState{uni: uni, in: newInterner(), text: text, nested: map[nestedKey]*nestedResult{}, inProgress: map[spanKey]bool{}, ranges: map[[2]string]*tagset{}, consts: map[*constValue]*tagset{}}
 	ps.lineStarts = []int{0}
 	for i := 0; i < len(text); i++ {
 		switch text[i] {
@@ -72,27 +75,30 @@ type stageRun struct {
 	// first question (see spanSource); nil when toks are in order.
 	sources     *sourceTable
 	sourcesMade bool
-	// sounds holds each token's phonemes lowercased, for the spellings of
-	// symbols, computed when a spelling first looks at the token (§4).
+	// sounds holds each token's phonemes in canonical form, for the
+	// spellings of symbols and for phonemes(), computed when one first
+	// looks at the token (§4, §5).
 	sounds     []string
 	soundsMade []bool
 }
 
-// sound is a token's phonemes, lowercased.
+// sound is a token's phonemes in canonical form (§5). The lowercase mapping
+// and the removal of commas act on each code point alone, so the canonical
+// sound of a span is its tokens' joined.
 func (run *stageRun) sound(i int) string {
 	if run.sounds == nil {
 		run.sounds = make([]string, len(run.toks))
 		run.soundsMade = make([]bool, len(run.toks))
 	}
 	if !run.soundsMade[i] {
-		run.sounds[i] = run.ps.uni.lowercase(run.toks[i].Phonemes)
+		run.sounds[i] = run.ps.uni.canonical(run.toks[i].Phonemes)
 		run.soundsMade[i] = true
 	}
 	return run.sounds[i]
 }
 
 // spellingMatches says whether the tokens [a, b) sound like a spelling:
-// their phonemes, joined and lowercased, are exactly it (§4). A token with
+// their canonical sound is exactly it (§4, §5). A token with
 // no phonemes adds nothing, and a spelling is never empty, so neither such a
 // token alone nor an empty span matches.
 func (run *stageRun) spellingMatches(spelling string, a, b int) bool {

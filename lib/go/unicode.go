@@ -9,7 +9,7 @@ import (
 
 // unicodeTable is grammars/unicode.txt: the General_Category of every
 // scalar value, the White_Space property, and the simple lowercase mappings
-// that lowercase() applies (engine §1, §10). Every library reads this table
+// that the canonical sound applies (engine §1, §5). Every library reads this table
 // rather than its platform's Unicode data, so that all of them agree.
 type unicodeTable struct {
 	// The category ranges, in order, for a binary search.
@@ -126,6 +126,14 @@ func (t *unicodeTable) hasProperty(name string, c rune) bool {
 	return t.category(c) == name
 }
 
+// canonical is the canonical form of a sound (engine §5): each code point
+// replaced by its simple lowercase mapping, and every comma, the syllable
+// break, removed.
+func (t *unicodeTable) canonical(s string) string {
+	return strings.ReplaceAll(t.lowercase(s), ",", "")
+}
+
+// lowercase replaces each code point with its simple lowercase mapping.
 func (t *unicodeTable) lowercase(s string) string {
 	var b strings.Builder
 	for _, c := range s {

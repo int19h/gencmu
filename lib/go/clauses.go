@@ -22,6 +22,13 @@ const (
 // reducedEmpty is the empty set a term reduces to.
 var reducedEmpty = &domTerm{Kind: tmEmptySet}
 
+// isEmptySet says whether a term is the empty set as lowering sees it: ∅,
+// or a constant whose value is an empty set, since a constant is its value
+// there (§3.6).
+func isEmptySet(t *domTerm) bool {
+	return t.Kind == tmEmptySet || (t.Kind == tmConst && t.value != nil && t.value.ty != tyString && len(t.value.names) == 0)
+}
+
 // simplifyCond simplifies a condition for a production that has the
 // captures has says it has (engine §3.6): each presence test becomes true
 // or false, A ⟹ B becomes B where A is true and true where A is false, a
@@ -127,7 +134,7 @@ func simplifyTerm(t *domTerm, has func(string) bool) *domTerm {
 			return simplifyTerm(t.Items[0], has)
 		}
 		then := simplifyTerm(t.Items[0], has)
-		if then.Kind == tmEmptySet {
+		if isEmptySet(then) {
 			return reducedEmpty
 		}
 		if cond == t.Cond && then == t.Items[0] {
@@ -137,9 +144,9 @@ func simplifyTerm(t *domTerm, has func(string) bool) *domTerm {
 	case tmDifference:
 		l, r := simplifyTerm(t.Items[0], has), simplifyTerm(t.Items[1], has)
 		switch {
-		case l.Kind == tmEmptySet:
+		case isEmptySet(l):
 			return reducedEmpty
-		case r.Kind == tmEmptySet:
+		case isEmptySet(r):
 			return l
 		case l == t.Items[0] && r == t.Items[1]:
 			return t
@@ -155,7 +162,7 @@ func simplifyTerm(t *domTerm, has func(string) bool) *domTerm {
 			if s != it {
 				changed = true
 			}
-			if s.Kind == tmEmptySet {
+			if isEmptySet(s) {
 				if t.Kind == tmIntersection {
 					return reducedEmpty
 				}

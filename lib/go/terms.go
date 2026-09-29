@@ -90,6 +90,15 @@ func (ev *evaluator) toSet(v value) *tagset {
 
 func (ev *evaluator) tagsOf(t *domTerm) *tagset { return ev.toSet(ev.term(t)) }
 
+// str is the value of a term that is a string.
+func (ev *evaluator) str(t *domTerm) string {
+	v := ev.term(t)
+	if v.kind != vString {
+		panic(&parseFailure{message: "expected a string"})
+	}
+	return v.s
+}
+
 // spanTags is tags(s): the captured part's tags for a whole capture, else
 // the union of its tokens' tags.
 func (ev *evaluator) spanTags(s spanVal) *tagset {
@@ -121,6 +130,22 @@ func (ev *evaluator) term(t *domTerm) value {
 		return value{kind: vSet, set: set}
 	case tmEmptySet:
 		return value{kind: vSet, set: in.empty()}
+	case tmConst:
+		// A constant holds its final value once the stage is stitched (§2).
+		v := t.value
+		if v == nil {
+			panic(&parseFailure{message: "the constant $" + t.Str + " has no value"})
+		}
+		if v.ty == tyString {
+			return value{kind: vString, s: v.s}
+		}
+		ps := ev.run.ps
+		set := ps.consts[v]
+		if set == nil {
+			set = in.make(v.names)
+			ps.consts[v] = set
+		}
+		return value{kind: vSet, set: set}
 	case tmUnion:
 		out := in.empty()
 		for _, it := range t.Items {
@@ -141,22 +166,20 @@ func (ev *evaluator) term(t *domTerm) value {
 			return value{kind: vString, s: ev.run.phonemes(ev.span(t.Items[0]))}
 		case "text":
 			return value{kind: vString, s: ev.run.spanText(ev.span(t.Items[0]))}
-		case "runs":
-			// The set of strings of the runs between pauses, ., the empty
-			// string never among them (engine §5).
-			var runs []string
-			for _, run := range strings.Split(ev.run.phonemes(ev.span(t.Items[0])), ".") {
-				if run != "" {
-					runs = append(runs, run)
-				}
+		case "split":
+			// A set of strings (§10); an empty delimiter that only a parse
+			// sees is an error of the grammar.
+			str, delimiter := ev.str(t.Items[0]), ev.str(t.Items[1])
+			if delimiter == "" {
+				panic(&parseFailure{message: "split has an empty delimiter"})
 			}
-			return value{kind: vSet, set: ev.in().fromList(runs)}
-		case "lowercase":
-			v := ev.term(t.Items[0])
-			if v.kind != vString {
-				panic(&parseFailure{message: "lowercase() takes a string"})
+			return value{kind: vSet, set: in.fromList(splitString(str, delimiter))}
+		case "tag":
+			name := ev.str(t.Items[0])
+			if !isName(name) {
+				panic(&parseFailure{message: "tag(" + strconv.Quote(name) + "): the string is not a name"})
 			}
-			return value{kind: vString, s: ev.run.ps.uni.lowercase(v.s)}
+			return value{kind: vSet, set: in.single(name)}
 		case "tags":
 			s := ev.span(t.Items[0])
 			if len(t.Items) == 2 {
@@ -243,11 +266,12 @@ func (ev *evaluator) cond(c *domCond) bool {
 	panic(&parseFailure{message: "cannot evaluate condition " + c.Kind})
 }
 
-// phonemes(span): the concatenation of the span's tokens' phonemes (§5).
+// phonemes(span): the canonical sound of the span, its tokens' phonemes
+// joined, in lower case and without commas (§5).
 func (run *stageRun) phonemes(s spanVal) string {
 	var b strings.Builder
 	for i := s.a; i < s.b; i++ {
-		b.WriteString(run.toks[i].Phonemes)
+		b.WriteString(run.sound(i))
 	}
 	return b.String()
 }

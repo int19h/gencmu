@@ -354,10 +354,11 @@ func TestBracketsPause(t *testing.T) {
 	}
 }
 
-// runs() is the set of the runs between pauses (engine §5), each run
-// whole: a run may hold a space, so {"a b", "c"} is not {"a", "b c"}.
-func TestRunsKeepSpaces(t *testing.T) {
-	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text $x(A) $y(A)\n%conditions runs($x) ≠ runs($y), \"a b\" ∈ runs($x), \"a\" ∉ runs($x)"))
+// split(phonemes(s), ".") is the set of the runs between pauses (engine
+// §10), each run whole: a run may hold a space, so {"a b", "c"} is not
+// {"a", "b c"}.
+func TestSplitKeepsSpaces(t *testing.T) {
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%const $RUNS \".\"\n%rule text $x(A) $y(A)\n%conditions split(phonemes($x), $RUNS) ≠ split(phonemes($y), \".\"), \"a b\" ∈ split(phonemes($x), $RUNS), \"a\" ∉ split(phonemes($x), \".\")"))
 	toks := []Token{{Text: "x", Tags: []string{"A"}, Phonemes: "a b.c", Span: [2]int{0, 1}, Source: [2]int{0, 1}}, {Text: "y", Tags: []string{"A"}, Phonemes: "a.b c", Span: [2]int{1, 2}, Source: [2]int{1, 2}}}
 	if res, err := d.ParseTokens("xy", toks, ParseOptions{}); err != nil || !res.OK {
 		t.Fatalf("%v %+v", err, res)
@@ -530,12 +531,16 @@ func TestMalformedPrecompiled(t *testing.T) {
 	}
 	// Terms the reader never builds, in an otherwise good alternative.
 	badTags := []string{
-		`{"call":"lowercase","args":[{"tag":"X"}]}`,
+		`{"call":"lowercase","args":[{"string":"X"}]}`,
+		`{"call":"tag","args":[{"tag":"X"}]}`,
+		`{"call":"tag","args":[{"string":"not a name"}]}`,
+		`{"const":"x","at":[1,1]}`,
+		`{"const":"X"}`,
 		`{"weak":"X"}`,
 		`{"literal":"X"}`,
 		`{"difference":[{"tag":"X"},{"tag":"Y"},{"tag":"Z"}]}`,
 		`{"string":"X"}`,
-		`{"call":"lowercase","args":[{"emptySet":true}]}`,
+		`{"call":"tag","args":[{"emptySet":true}]}`,
 		`{"call":"head","args":[{"tag":"x"}]}`,
 		`{"union":[]}`,
 		// A term has exactly the members of one form, in either order.
@@ -558,10 +563,10 @@ func TestMalformedPrecompiled(t *testing.T) {
 	format := strconv.Itoa(domFormat)
 	var doms []string
 	for _, expr := range bad {
-		doms = append(doms, `{"format":`+format+`,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":`+expr+`}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}]}`)
+		doms = append(doms, `{"format":`+format+`,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":`+expr+`}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[]}`)
 	}
 	// Null in the rest of the DOM, where the other libraries refuse it too.
-	good := doms[0][:strings.Index(doms[0], `"expr":`)] + `"expr":{"seq":[{"terminal":"a"},{"terminal":"b"}]}}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}]}`
+	good := doms[0][:strings.Index(doms[0], `"expr":`)] + `"expr":{"seq":[{"terminal":"a"},{"terminal":"b"}]}}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[{"name":"K","op":"define","value":{"tag":"X"},"at":[3,1]}]}`
 	if _, err := decodeDOM([]byte(good), bundled.uni); err != nil {
 		t.Fatalf("the DOM the null cases change is refused: %v", err)
 	}
@@ -569,7 +574,9 @@ func TestMalformedPrecompiled(t *testing.T) {
 		{`"name":"text"`, `"name":null`}, {`"op":"define"`, `"op":null`}, {`"conditions":[]`, `"conditions":null`},
 		{`"conditions":[],"at":[1,1]`, `"conditions":[],"at":[null,1]`}, {`"args":["greedy"]`, `"args":[null]`},
 		{`"args":["greedy"],"at":[2,1]`, `"args":["greedy"],"at":[2,null]`}, {`"directives":[{`, `"directives":null,"x":[{`},
-		{`"rules":[{`, `"rules":null,"x":[{`},
+		{`"rules":[{`, `"rules":null,"x":[{`}, {`"constants":[{`, `"constants":null,"x":[{`},
+		{`"name":"K"`, `"name":null`}, {`"op":"define","value"`, `"op":null,"value"`}, {`"value":{"tag":"X"}`, `"value":null`},
+		{`"value":{"tag":"X"},"at":[3,1]`, `"value":{"tag":"X"},"at":[3,null]`},
 	} {
 		if !strings.Contains(good, change[0]) {
 			t.Fatalf("no %s in %s", change[0], good)
@@ -619,7 +626,7 @@ func TestMalformedCharacterClasses(t *testing.T) {
 	gText := sources["g.md"]
 	format := strconv.Itoa(domFormat)
 	dom := func(expr string) string {
-		return `{"format":` + format + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[3,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}]}`
+		return `{"format":` + format + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[3,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[]}`
 	}
 	compiled := func(dom string) map[string]string {
 		src := map[string]string{}
@@ -830,7 +837,7 @@ func TestEmptyCharacterTag(t *testing.T) {
 		t.Fatalf("expected an error at 5:12, got %v", err)
 	}
 	loadBundled()
-	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"terminal":""}}],"conditions":[],"at":[1,1]}],"directives":[]}`
+	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"terminal":""}}],"conditions":[],"at":[1,1]}],"directives":[],"constants":[]}`
 	if _, err := decodeDOM([]byte(dom), bundled.uni); err == nil {
 		t.Fatal("a DOM with the terminal \"\" is accepted")
 	}
