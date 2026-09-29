@@ -51,9 +51,9 @@ class GencmuError(Exception):
 class _GrammarFault(Exception):
     """A defect of a grammar found while parsing: a nested parse asked about
     its own span, two phoneme tags on one token, a term of the wrong
-    type. It ends the parse with an error of kind ``grammar``."""
+    type. It ends the parse with an error of kind ``grammar``, which has the
+    stage and no position (engine §13)."""
 
-    def __init__(self, message: str, span: tuple[int, int] | None = None) -> None:
+    def __init__(self, message: str) -> None:
         super().__init__(message)
         self.message = message
-        self.span = span

@@ -1,0 +1,10 @@
+{
+  "description": "A key is a canonical sound, so a key with a capital is an error of the document, at the key (engine §9).",
+  "document": "```jbogenbau\n%classifier lex\n  \"mi\" \"Do\" ∈ KOhA\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 8
+    }
+  }
+}

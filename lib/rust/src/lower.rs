@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use crate::clauses::{simplify_cond, simplify_value, Simple};
 use crate::dom::{Arg, Cond, EmitItem, Expr, FeatureKind, Term};
-use crate::grammar::{is_terminal_name, StageGrammar, StitchedAlternative};
+use crate::grammar::{is_terminal_name, ClassifierTables, Implication, StageGrammar, StitchedAlternative};
 use crate::tags::{code_of_character_tag, property_name, range_name};
 use crate::unicode::Property;
 
@@ -63,6 +63,9 @@ pub(crate) enum LTerm {
     Tags(Span),
     TagsRule(Span, u32),
     Classes(Span),
+    /// `classify(a, C)`: the classes that the classifier named `C` gives
+    /// the string `a` (§10).
+    Classify(Box<LTerm>, String),
     /// `A ⟹ t`: `t` where the condition holds, else the empty set.
     If(Box<LCond>, Box<LTerm>),
 }
@@ -280,6 +283,10 @@ pub(crate) struct Lowered {
     /// lead from a rule to a symbol of one of its productions whose other
     /// symbols can all derive the empty text.
     pub cyclic: Vec<bool>,
+    /// The stage's classifiers, resolved for the same features (§2).
+    pub classifiers: Arc<ClassifierTables>,
+    /// The stage's implications, which apply to each token it emits (§11).
+    pub implications: Arc<[Implication]>,
 }
 
 impl Lowered {
@@ -578,6 +585,9 @@ impl<'a> Scope<'a> {
                     LTerm::Split(Box::new(self.term(string)?), Box::new(self.term(delimiter)?))
                 }
                 ("tag", [Arg::Term(name)]) => LTerm::TagOf(Box::new(self.term(name)?)),
+                ("classify", [Arg::Term(string), Arg::Classifier(classifier)]) => {
+                    LTerm::Classify(Box::new(self.term(string)?), classifier.clone())
+                }
                 _ => return Err(Missing),
             },
         })
@@ -645,6 +655,7 @@ pub(crate) fn lower(
     grammar: &StageGrammar,
     features: &BTreeSet<String>,
     mandatory: bool,
+    classifiers: Arc<ClassifierTables>,
 ) -> Result<Lowered, LowerError> {
     let mut lowerer = Lowerer {
         grammar,
@@ -923,7 +934,17 @@ pub(crate) fn lower(
 
     let cyclic = cyclic_rules(&rules, &prods);
     let tests = std::mem::take(&mut lowerer.tests);
-    Ok(Lowered { start: grammar.index["text"] as u32, rules, prods, terminals, tests, characters, cyclic })
+    Ok(Lowered {
+        start: grammar.index["text"] as u32,
+        rules,
+        prods,
+        terminals,
+        tests,
+        characters,
+        cyclic,
+        classifiers,
+        implications: grammar.implications.clone(),
+    })
 }
 
 /// The nonterminals that lie on a cycle of the unit graph.

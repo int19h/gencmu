@@ -280,12 +280,12 @@ class StageContext:
         running = (rule, start, end)
         if running in self.running:
             raise _GrammarFault(
-                f"a condition asks about tokens {start}..{end} as {rule} from inside the parse of that span as {rule}",
-                (start, end),
+                f"a condition asks whether its own span parses as {rule} from inside the parse of that span as {rule}: "
+                f"the grammar defines {rule} in terms of itself over the same text"
             )
         number = self.lowered.rule_ids.get(rule)
         if number is None:
-            raise _GrammarFault(f"{rule} is not a rule of this stage", (start, end))
+            raise _GrammarFault(f"{rule} is not a rule of this stage")
         self.running.add(running)
         try:
             return Parser(self, start, end).parse(number)
@@ -433,6 +433,13 @@ class Evaluator:
                 if not is_name(text):
                     raise _GrammarFault(f"tag({json.dumps(text, ensure_ascii=False)}): the string is not a name")
                 return frozenset((text,))
+            if name == "classify":
+                # The classes that the classifier gives the string, for the
+                # features of the parse, or none for an unknown key (engine
+                # §10).
+                key = _as_string((yield self._value(args[0], bound)))
+                table = self.context.lowered.classifiers.get(args[1]["classifier"])
+                return table.get(key, EMPTY) if table is not None else EMPTY
             if name == "tags" and len(args) == 2:
                 start, end, _ = yield self._span(args[0], bound)
                 return self.context.nested(args[1]["rule"], start, end).tags

@@ -93,6 +93,28 @@ export type StageAudit = {
         rule: string;
         document: string;
     }[];
+    /**
+     * every membership of a key in a class
+     * that an entry of a classifier adds or removes, in the order of the
+     * first entry that touches it
+     */
+    memberships: Membership[];
+};
+export type Membership = {
+    classifier: string;
+    key: string;
+    class: string;
+    /**
+     *   each entry that adds (`∈`) or removes (`∉`) it, in stitching order, with
+     *   its gates as written
+     */
+    changes: {
+        op: "∈" | "∉";
+        gates: string;
+        document: string;
+        line: number;
+        column: number;
+    }[];
 };
 /**
  * What a grammar author should know about a dialect's grammars: per stage,

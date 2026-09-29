@@ -4,15 +4,18 @@
 
 use std::sync::Arc;
 
-use crate::dom::{ConstDef, Directive, Dom, RuleDef};
+use crate::dom::{ClassifierDef, ConstDef, Directive, Dom, ImplicationDef, RuleDef};
 use crate::error::Error;
 
-/// An item of a document: a rule, a directive or a constant's definition.
+/// An item of a document: a rule, a directive, a constant's definition, a
+/// classifier or an implication.
 #[derive(Clone, Copy)]
 pub(crate) enum Item<'a> {
     Rule(&'a RuleDef),
     Directive(&'a Directive),
     Constant(&'a ConstDef),
+    Classifier(&'a ClassifierDef),
+    Implication(&'a ImplicationDef),
 }
 
 impl Item<'_> {
@@ -21,12 +24,15 @@ impl Item<'_> {
             Item::Rule(rule) => rule.at,
             Item::Directive(directive) => directive.at,
             Item::Constant(constant) => constant.at,
+            Item::Classifier(classifier) => classifier.at,
+            Item::Implication(implication) => implication.at,
         }
     }
 }
 
-/// A document's rules, directives and constants in the order they were
-/// written, which is the order of their positions (engine §9).
+/// A document's rules, directives, constants, classifiers and implications
+/// in the order they were written, which is the order of their positions
+/// (engine §9).
 pub(crate) fn items_in_order(dom: &Dom) -> Vec<Item<'_>> {
     let mut items: Vec<Item> = dom
         .rules
@@ -34,6 +40,8 @@ pub(crate) fn items_in_order(dom: &Dom) -> Vec<Item<'_>> {
         .map(Item::Rule)
         .chain(dom.directives.iter().map(Item::Directive))
         .chain(dom.constants.iter().map(Item::Constant))
+        .chain(dom.classifiers.iter().map(Item::Classifier))
+        .chain(dom.implications.iter().map(Item::Implication))
         .collect();
     items.sort_by_key(Item::at);
     items
@@ -139,6 +147,8 @@ impl Splicer<'_> {
                         let what = match item {
                             Item::Rule(rule) => format!("the rule {}", rule.name),
                             Item::Constant(constant) => format!("the constant ${}", constant.name),
+                            Item::Classifier(classifier) => format!("the classifier {}", classifier.name),
+                            Item::Implication(_) => "%implies".to_string(),
                             Item::Directive(directive) => format!("%{}", directive.name),
                         };
                         return Err(here(format!("{what} stands before the first %stage")));
@@ -152,6 +162,8 @@ impl Splicer<'_> {
                     match item {
                         Item::Rule(rule) => run.rules.push(rule.clone()),
                         Item::Constant(constant) => run.constants.push(constant.clone()),
+                        Item::Classifier(classifier) => run.classifiers.push(classifier.clone()),
+                        Item::Implication(implication) => run.implications.push(implication.clone()),
                         Item::Directive(directive) => run.directives.push(directive.clone()),
                     }
                 }

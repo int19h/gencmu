@@ -1,0 +1,104 @@
+{
+  "description": "A %classifier item is a classifier with its entries: gates, decoded keys, ∈ or ∉, and a class, from a bare name or ~name. Line breaks mean nothing, so an entry can span lines and a %classifier can have no entries (engine §9, docs/output.md).",
+  "document": "```jbogenbau\n%classifier lexicon\n  \"mi\" \"do\" ∈ KOhA\n  f? ¬g? \"u\\u{27}i\"\n    ∉ ~UI\n%classifier empty\n%rule text $w(W) <classify(phonemes($w), lexicon)>\n```\n",
+  "expect": {
+    "dom": {
+      "format": 13,
+      "rules": [
+        {
+          "name": "text",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "w",
+                "expr": {
+                  "ref": "W"
+                }
+              },
+              "tags": {
+                "call": "classify",
+                "args": [
+                  {
+                    "call": "phonemes",
+                    "args": [
+                      {
+                        "capture": "w"
+                      }
+                    ]
+                  },
+                  {
+                    "classifier": "lexicon"
+                  }
+                ]
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            7,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [
+        {
+          "name": "lexicon",
+          "entries": [
+            {
+              "guards": [],
+              "keys": [
+                "mi",
+                "do"
+              ],
+              "op": "∈",
+              "class": "KOhA",
+              "at": [
+                3,
+                3
+              ]
+            },
+            {
+              "guards": [
+                {
+                  "feature": "f",
+                  "kind": "gate",
+                  "negated": false
+                },
+                {
+                  "feature": "g",
+                  "kind": "gate",
+                  "negated": true
+                }
+              ],
+              "keys": [
+                "u'i"
+              ],
+              "op": "∉",
+              "class": "UI",
+              "at": [
+                4,
+                3
+              ]
+            }
+          ],
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "name": "empty",
+          "entries": [],
+          "at": [
+            6,
+            1
+          ]
+        }
+      ],
+      "implications": []
+    }
+  }
+}

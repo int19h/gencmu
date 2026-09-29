@@ -24,24 +24,35 @@ type engineCase struct {
 		Phonemes *string
 	}
 	Input   *string
-	Options struct {
-		Features        []string
-		WithoutFeatures []string
-		ElisionOnly     *bool
-		AutoFeatures    *bool
-		Until           string
+	Options caseOptions
+	Expect  caseExpect
+	// Parses, when present, parses the input several times with the one
+	// loaded dialect, each with its own options and expectation, in place
+	// of the case's (tests/README.md).
+	Parses []struct {
+		Options caseOptions
+		Expect  caseExpect
 	}
-	Expect struct {
-		Result   json.RawMessage
-		Brackets *string
-		Warnings json.RawMessage
-		Features json.RawMessage
-		Error    string
-		// Where is where a load error stands (tests/README.md).
-		Where *struct {
-			Document     string
-			Line, Column int
-		}
+}
+
+type caseOptions struct {
+	Features        []string
+	WithoutFeatures []string
+	ElisionOnly     *bool
+	AutoFeatures    *bool
+	Until           string
+}
+
+type caseExpect struct {
+	Result   json.RawMessage
+	Brackets *string
+	Warnings json.RawMessage
+	Features json.RawMessage
+	Error    string
+	// Where is where a load error stands (tests/README.md).
+	Where *struct {
+		Document     string
+		Line, Column int
 	}
 }
 
@@ -113,12 +124,14 @@ func caseDialect(c *engineCase, noCache bool) (*Dialect, error) {
 	return loadSources(c.Documents, c.Pipeline, noCache)
 }
 
-func runCase(d *Dialect, c *engineCase) (*ParseResult, error) {
+// runCase parses a case's input with a loaded dialect, under the options
+// of the case or of one item of its parses.
+func runCase(d *Dialect, c *engineCase, o *caseOptions) (*ParseResult, error) {
 	if err := loadBundled(); err != nil {
 		return nil, err
 	}
-	opts := ParseOptions{Features: c.Options.Features, WithoutFeatures: c.Options.WithoutFeatures, ElisionOnly: c.Options.ElisionOnly, Until: c.Options.Until, NoAutoFeatures: true}
-	if c.Options.AutoFeatures != nil && *c.Options.AutoFeatures {
+	opts := ParseOptions{Features: o.Features, WithoutFeatures: o.WithoutFeatures, ElisionOnly: o.ElisionOnly, Until: o.Until, NoAutoFeatures: true}
+	if o.AutoFeatures != nil && *o.AutoFeatures {
 		opts.NoAutoFeatures = false
 	}
 	if c.Input != nil {
@@ -149,6 +162,19 @@ func runCase(d *Dialect, c *engineCase) (*ParseResult, error) {
 
 func checkCase(c *engineCase, noCache bool) error {
 	d, err := caseDialect(c, noCache)
+	if c.Parses != nil {
+		// One loaded dialect parses the input with each item's options in
+		// order (tests/README.md).
+		if err != nil {
+			return fmt.Errorf("unexpected load error: %v", err)
+		}
+		for i := range c.Parses {
+			if err := checkParse(d, c, &c.Parses[i].Options, &c.Parses[i].Expect); err != nil {
+				return fmt.Errorf("parse %d: %v", i, err)
+			}
+		}
+		return nil
+	}
 	if err != nil {
 		e, ok := err.(*Error)
 		if !ok {
@@ -163,23 +189,29 @@ func checkCase(c *engineCase, noCache bool) error {
 		}
 		return nil
 	}
+	return checkParse(d, c, &c.Options, &c.Expect)
+}
+
+// checkParse parses a case's input with a loaded dialect and matches the
+// result against an expectation.
+func checkParse(d *Dialect, c *engineCase, options *caseOptions, expect *caseExpect) error {
 	// The dialect's features, compared whole.
-	if c.Expect.Features != nil {
+	if expect.Features != nil {
 		var want any
-		json.Unmarshal(c.Expect.Features, &want)
+		json.Unmarshal(expect.Features, &want)
 		have := []any{}
 		for _, f := range d.Features() {
 			have = append(have, map[string]any{"name": f.Name, "kind": f.Kind, "default": f.Default})
 		}
 		if !reflect.DeepEqual(have, want) {
-			return fmt.Errorf("features: expected %s, got %+v", c.Expect.Features, d.Features())
+			return fmt.Errorf("features: expected %s, got %+v", expect.Features, d.Features())
 		}
 	}
-	res, err := runCase(d, c)
+	res, err := runCase(d, c, options)
 	if err != nil {
 		// A mistake of the caller is an error, and there is no result
 		// (engine §13).
-		if e, ok := err.(*Error); ok && e.Kind == ErrorUsage && c.Expect.Error == ErrorUsage {
+		if e, ok := err.(*Error); ok && e.Kind == ErrorUsage && expect.Error == ErrorUsage {
 			return nil
 		}
 		return err
@@ -191,34 +223,34 @@ func checkCase(c *engineCase, noCache bool) error {
 	}
 	// The warnings, compared whole, so [] says that there are none; the
 	// canonical JSON leaves them out then.
-	if c.Expect.Warnings != nil {
+	if expect.Warnings != nil {
 		var want any
-		json.Unmarshal(c.Expect.Warnings, &want)
+		json.Unmarshal(expect.Warnings, &want)
 		have, ok := got.(map[string]any)["warnings"]
 		if !ok {
 			have = []any{}
 		}
 		if !reflect.DeepEqual(have, want) {
-			return fmt.Errorf("warnings: expected %s\n%s", c.Expect.Warnings, data)
+			return fmt.Errorf("warnings: expected %s\n%s", expect.Warnings, data)
 		}
 	}
-	if c.Expect.Result != nil {
+	if expect.Result != nil {
 		var pattern any
-		json.Unmarshal(c.Expect.Result, &pattern)
+		json.Unmarshal(expect.Result, &pattern)
 		if err := match(pattern, got, "result"); err != nil {
 			return fmt.Errorf("%v\n%s", err, data)
 		}
 	}
 	// An error the case expects is a load error or the result's error, as
 	// where the grammar's error is found while lowering it (engine §3.3).
-	if c.Expect.Brackets != nil {
-		if b := Brackets(res, BracketOptions{}); b != *c.Expect.Brackets {
-			return fmt.Errorf("brackets: expected %q, got %q", *c.Expect.Brackets, b)
+	if expect.Brackets != nil {
+		if b := Brackets(res, BracketOptions{}); b != *expect.Brackets {
+			return fmt.Errorf("brackets: expected %q, got %q", *expect.Brackets, b)
 		}
 	}
-	if c.Expect.Error != "" {
-		if res.Error == nil || res.Error.Kind != c.Expect.Error {
-			return fmt.Errorf("expected error %s\n%s", c.Expect.Error, data)
+	if expect.Error != "" {
+		if res.Error == nil || res.Error.Kind != expect.Error {
+			return fmt.Errorf("expected error %s\n%s", expect.Error, data)
 		}
 	} else if res.Error != nil {
 		return fmt.Errorf("unexpected error\n%s", data)

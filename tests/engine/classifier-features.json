@@ -1,0 +1,47 @@
+{
+  "description": "A dialect's features include the gates of its classifiers' entries, negated or not, beside the guards of its rules (engine §13).",
+  "grammar": "%classifier lex\n  g? \"mi\" ∈ KOhA\n  ¬h? \"do\" ∈ KOhA\n%rule text [word] ...\n%rule word v! $w(W) <~w ∪ classify(phonemes($w), lex)>\n%emits\n  $",
+  "tokens": [
+    {
+      "text": "mi",
+      "tags": [
+        "W"
+      ],
+      "phonemes": "mi"
+    }
+  ],
+  "expect": {
+    "features": [
+      {
+        "name": "g",
+        "kind": "gate",
+        "default": false
+      },
+      {
+        "name": "h",
+        "kind": "gate",
+        "default": false
+      },
+      {
+        "name": "v",
+        "kind": "warning",
+        "default": false
+      }
+    ],
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "output": [
+            {
+              "tags": [
+                "w"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

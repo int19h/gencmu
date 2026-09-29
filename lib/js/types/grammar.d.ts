@@ -1,10 +1,14 @@
 import { GencmuError } from "./errors.js";
-import type { Condition, DomAlternative, DomConstant, DomRule, Emission, ErrorLocation, GrammarDom, LoweredGrammar, Resolution, SymbolTest, Term, TermValue, TestOp } from "./types.js";
+import type { Condition, DomAlternative, DomClassifier, DomConstant, DomImplication, DomRule, Emission, ErrorLocation, GrammarDom, LoweredGrammar, Resolution, SymbolTest, TagSet, Term, TermValue, TestOp } from "./types.js";
 import type { TermType } from "./dom.js";
 export type StageConstant = {
     value: TermValue;
     type: TermType;
     document: string;
+};
+export type StageImplication = {
+    if: TagSet;
+    then: TagSet;
 };
 export type StitchedAlternative = DomAlternative & {
     clauses: RuleClauses;
@@ -69,6 +73,28 @@ export declare class Grammar {
     /** @type {Resolution | null} */
     resolution: Resolution | null;
     /**
+     * The stage's `%classifier` items in stitching order, each with its
+     * document (engine §2).
+     * @type {{path: string, classifier: DomClassifier}[]}
+     */
+    classifierItems: {
+        path: string;
+        classifier: DomClassifier;
+    }[];
+    /** @type {{path: string, implication: DomImplication}[]} */
+    implicationItems: {
+        path: string;
+        implication: DomImplication;
+    }[];
+    /** @type {StageImplication[]} */
+    implications: StageImplication[];
+    /**
+     * The classifiers resolved for each set of features, keyed as the
+     * lowered grammars are (engine §2).
+     * @type {Map<string, Map<string, Map<string, TagSet>>>}
+     */
+    classifierTables: Map<string, Map<string, Map<string, TagSet>>>;
+    /**
      * Each test of a body with its value, made once for every lowering.
      * @type {WeakMap<object, SymbolTest>}
      */
@@ -94,6 +120,23 @@ export declare class Grammar {
      * @param {GrammarDom} dom
      */
     addDocument(path: string, dom: GrammarDom): void;
+    /**
+     * An implication's two sides, with the constants' final values: closed
+     * terms whose type is a tag set (engine §2, §9).
+     * @param {string} path
+     * @param {DomImplication} implication
+     * @returns {StageImplication}
+     */
+    resolveImplication(path: string, implication: DomImplication): StageImplication;
+    /**
+     * Each classifier of the stage for one set of features: each key's
+     * classes after every entry whose gates hold, in stitching order (engine
+     * §2). An entry that adds a membership that holds, or removes one that
+     * does not, is an error of the grammar for these features.
+     * @param {Set<string>} features
+     * @returns {Map<string, Map<string, TagSet>>}
+     */
+    classifiers(features: Set<string>): Map<string, Map<string, TagSet>>;
     /**
      * An error of the document at a position of it (engine §2).
      * @param {string} path

@@ -1,0 +1,42 @@
+{
+  "description": "Implications apply to emitted tokens only: not to a constituent's tags, the value of a term or a classifier's classes. So the conditions hold, and the node of word lacks m, which its token carries (engine §11).",
+  "grammar": "%classifier lex\n  \"mi\" ∈ A\n%implies A ⟹ ~m\n%rule text [word] ...\n%rule word $w(W) <classify(phonemes($w), lex)>\n%conditions\n  ~m ⊈ classify(phonemes($w), lex),\n  ~m ⊈ A ∪ tags($w)\n%emits\n  $",
+  "tokens": [
+    {
+      "text": "mi",
+      "tags": [
+        "W"
+      ],
+      "phonemes": "mi"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "word",
+            "tags": [
+              "A"
+            ]
+          }
+        ]
+      },
+      "stages": [
+        {
+          "name": "main",
+          "output": [
+            {
+              "tags": [
+                "A",
+                "m"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

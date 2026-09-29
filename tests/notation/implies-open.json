@@ -1,0 +1,10 @@
+{
+  "description": "A side of an implication is a closed term, so a capture there is an error, at the call (engine §9).",
+  "document": "```jbogenbau\n%implies tags($x) ⟹ ~m\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 10
+    }
+  }
+}

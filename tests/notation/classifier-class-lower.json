@@ -1,0 +1,10 @@
+{
+  "description": "A class is an identifier tag that begins with a capital, so a bare name in lower case is an error of the document, at the class (engine §9).",
+  "document": "```jbogenbau\n%classifier lex\n  \"mi\" ∈ koha\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 10
+    }
+  }
+}

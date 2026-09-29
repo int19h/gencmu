@@ -113,11 +113,11 @@ The word stage needs to know where a run begins and ends. A name that `bu` takes
 
 ## Words
 
-A source word is a cmavo, a brivla, a name, or hesitation. The stage hands it on with its kind: `word` and `cmavo`, `BRIVLA` or `CMEVLA` for a word, and `hesitation` for hesitation. A cmavo also carries the selma'o that the lexicon gives it: `tags($c, lexicon)` parses the cmavo's phonemes against the lexicon rules. A cmavo unknown to the lexicon is still a word, of no class.
+A source word is a cmavo, a brivla, a name, or hesitation. The stage hands it on with its kind: `word` and `cmavo`, `BRIVLA` or `CMEVLA` for a word, and `hesitation` for hesitation. A cmavo also carries the selma'o that the lexicon gives it: `classify(phonemes($c), lexicon)` looks the cmavo's sound up in the lexicon. A cmavo unknown to the lexicon is still a word, of no class.
 
 ```jbogenbau
 %rule source-word
-  | $c(cmavo-shape) <~word ∪ ~cmavo ∪ tags($c) ∪ tags($c, lexicon)>
+  | $c(cmavo-shape) <~word ∪ ~cmavo ∪ tags($c) ∪ classify(phonemes($c), lexicon)>
   | $b(brivla-shape) <~word ∪ BRIVLA ∪ tags($b)>
   | $n(cmevla-shape) <~word ∪ CMEVLA ∪ tags($n)>
   | $h(hesitation-shape) <~hesitation ∪ tags($h)>
@@ -135,24 +135,9 @@ Hesitation needs no pause after it, as the Magic Words proposal says. The word s
   any-y | any-y y-run | any-y /,/ y-run
 ```
 
-A `y` here is either phoneme of the letter, plain or stressed. The same holds for every vowel letter in a cmavo, whose stress is free (CLL 3.9). The lexicon documents spell their words with these rules.
+A `y` here is either phoneme of the letter, plain or stressed.
 
 ```jbogenbau
-%rule any-a
-  /a/ | /A/
-
-%rule any-e
-  /e/ | /E/
-
-%rule any-i
-  /i/ | /I/
-
-%rule any-o
-  /o/ | /O/
-
-%rule any-u
-  /u/ | /U/
-
 %rule any-y
   /y/ | /Y/
 ```

@@ -1,0 +1,10 @@
+{
+  "description": "classify depends on the features, so it is never part of a closed term, and a constant's value cannot hold it (engine §9, §10).",
+  "document": "```jbogenbau\n%const $K classify(\"mi\", lex)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 11
+    }
+  }
+}

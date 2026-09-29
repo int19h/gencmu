@@ -1,0 +1,10 @@
+{
+  "description": "A bare name is an argument of classify only as the second. In the first argument it makes a call with the wrong arguments, so the reader reports it at the call, not at the name (engine §9).",
+  "document": "```jbogenbau\n%rule text $w(W) <classify(lex, \"mi\")>\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 19
+    }
+  }
+}

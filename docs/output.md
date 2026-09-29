@@ -84,14 +84,14 @@ The test uses notation operators and canonical output tags, with spaces only aro
 A grammar DOM (document object model) is the data that a library makes when it reads a grammar document (engine §8, §9). `bootstrap.json` and the precompiled DOMs hold the same data.
 
 ```
-{"format":12,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...]}
+{"format":13,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}
 ```
 
 `format` is the version of the DOM. It changes whenever the shape of the DOM changes. A library never uses a cached DOM of another version.
 
 A rule is `{"name":"sumti","op":"define","tags":TERM,"alternatives":[ALT...],"emit":EMIT,"conditions":[COND...],"verbatim":true,"at":[line,column]}`. `op` is `define`, `redefine` or `extend`. `tags`, `emit` and `verbatim` are optional. `verbatim` is present, and `true`, only for a rule that has `%verbatim`. The name of a rule is a name, or `#`.
 
-An alternative is `{"guards":[GUARD...],"expr":EXPR,"tags":TERM}`, with `tags` optional. A guard is `{"feature":"cbm","kind":"gate","negated":false}` for `cbm?`, with `"negated":true` for `¬cbm?`, or `{"feature":"y-cmavo","kind":"warning","negated":false}` for `y-cmavo!`.
+An alternative is `{"guards":[GUARD...],"expr":EXPR,"tags":TERM}`, with `tags` optional. A guard is `{"feature":"cbm","kind":"gate","negated":false}` for `cbm?`, with `"negated":true` for `¬cbm?`, or `{"feature":"y-cmavo","kind":"warning","negated":false}` for `y-cmavo!`. A guard's feature is a name.
 
 An expression is one of these forms:
 
@@ -112,7 +112,7 @@ A term is `{"string":"s"}`, `{"tag":"KOhA"}`, `{"range":["'a'","'z'"]}`, `{"empt
 
 `const` is a reference to a constant, by its name without `$`. Its `at` is the line and column of the reference, where the loader reports an error of the constant (engine §2). A term has no member but those of its one form.
 
-An argument is a span or a term. For `tags`, `matches` and `begins`, an argument can also be a rule name, `{"rule":"lexicon"}`. A span is `{"capture":"x"}`, `{"capture":""}` for `$`, or `{"call":"head","args":[SPAN]}`. `tail`, `last`, `from` and `after` have the same form as `head`.
+An argument is a span or a term. For `tags`, `matches` and `begins`, an argument can also be a rule name, `{"rule":"brivla-scan"}`. For `classify`, the second argument is a classifier's name, `{"classifier":"lexicon"}`, and the first is a term whose type is a string. A span is `{"capture":"x"}`, `{"capture":""}` for `$`, or `{"call":"head","args":[SPAN]}`. `tail`, `last`, `from` and `after` have the same form as `head`.
 
 A condition is one of these forms:
 
@@ -130,15 +130,23 @@ An emission is `{"items":[ITEM...]}`. An item is `{"capture":"x","tags":TERM}`, 
 
 A constant definition is `{"name":"SU-STOPS","op":"define","value":TERM,"at":[line,column]}`. `op` is `define` for `%const` and `redefine` for `%redefine-const`. The name has no `$`. The value is a closed term (engine §10), which can hold `const` terms but never a value that the loader gives them.
 
+A classifier is `{"name":"lexicon","entries":[ENTRY...],"at":[line,column]}`. Its name begins with `a` to `z`. `entries` can be empty, for a `%classifier` with no entry.
+
+An entry is `{"guards":[GUARD...],"keys":["mi","do"],"op":"∈","class":"KOhA","at":[line,column]}`. Its guards are gates, never warnings. `keys` holds one or more decoded strings, each a canonical sound (engine §9). `op` is `∈` or `∉`. `class` is a name that begins with `A` to `Z`. An entry's `at` is the line and column of its first token, where the loader reports an error of the entry (engine §2).
+
+An implication is `{"if":TERM,"then":TERM,"at":[line,column]}`, for `%implies A ⟹ B`. `if` is `A`, and `then` is `B`. Each is a closed term (engine §10) whose type is a tag set.
+
+A classifier and an implication have no member but those shown.
+
 A directive is `{"name":"elidable","args":["KU","KEI"],"at":[line,column]}`. An operand `~KU` of `%elidable` is the name `KU`. The name is the keyword without `%`: `ambiguity-resolution`, `elidable`, `stage`, `include` or `features`. An argument is a name, or, for `include`, the decoded string: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`.
 
-`rules`, `directives` and `constants` each keep the order in which the document has them. `at` is the line and column of an item's first token. So the order of all of a document's items is the order of their positions. No two items of a DOM share a position (engine §9).
+`rules`, `directives`, `constants`, `classifiers` and `implications` each keep the order in which the document has them. `at` is the line and column of an item's first token. So the order of all of a document's items is the order of their positions. No two items of a DOM share a position (engine §9).
 
 ### Precompiled DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":12,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
+`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":13,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
 
-An entry holds the document's constants as the document writes them. The loader gives them their values when it stitches a stage. So one entry serves every stage and dialect that includes the document (engine §2, §8).
+A precompiled DOM holds the document's constants, classifiers and implications as the document writes them. The loader gives the constants their values when it stitches a stage, and a stage resolves a classifier for the features of a parse. So one precompiled DOM serves every stage, dialect and set of features that uses the document (engine §2, §8).
 
 ## Renderings
 

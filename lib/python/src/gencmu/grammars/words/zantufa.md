@@ -20,14 +20,14 @@ Zantufa's Y is `y` and `ie'o`, and its `spaces` read both as space. So `ie'o` is
 ```jbogenbau
 %redefine-rule source-word
   (* spaces <- !Y initial_spaces;  initial_spaces <- (space_char / !ybu Y)+ EOF? / EOF;  Y <- &cmavo ( y+ / i e h o ) &post_word *)
-  | $c(cmavo-shape) <~word ∪ ~cmavo ∪ tags($c) ∪ tags($c, lexicon)>
+  | $c(cmavo-shape) <~word ∪ ~cmavo ∪ tags($c) ∪ classify(phonemes($c), lexicon)>
   | $y(cmavo-shape) <~hesitation ∪ tags($y)>
   | $b(brivla-shape) <~word ∪ BRIVLA ∪ tags($b)>
   | $n(cmevla-shape) <~word ∪ CMEVLA ∪ tags($n)>
   | $h(hesitation-shape) <~hesitation ∪ ~y-letters ∪ tags($h)>
 %conditions
-  Y ⊈ tags($c, lexicon),
-  Y ⊆ tags($y, lexicon)
+  Y ⊈ classify(phonemes($c), lexicon),
+  Y ⊆ classify(phonemes($y), lexicon)
 ```
 
 `ra'oi` quotes a rafsi or gismu form from the letters after it, and the stage reads the rest of the run as words. The stage tries the forms in the order of Zantufa: `y_rafsi / long_rafsi / y_less_rafsi / gismu`. The forms decide with their stress. So `ra'oi broda` quotes the gismu `broda`, because its `o` is stressed before the pause, but `ra'oi brodami` quotes the rafsi `brod` and leaves `a` and `mi`. The form can follow `ra'oi` directly, as in `ra'oibroda`, or after a pause and any hesitation, as in `ra'oi .y. broda`. A run can hold several such quotes, as `ra'oi brodyra'oibroda` does.

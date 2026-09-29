@@ -15,7 +15,7 @@ from typing import Any, Protocol
 
 from ._clauses import definition_problem
 from ._tags import character_of_tag, is_tag
-from ._types import constant_value_problem, is_sound_test, open_part, rule_type_problem, term_type, test_type_problem
+from ._types import constant_value_problem, expected_problem, is_sound_test, open_part, rule_type_problem, term_type, test_type_problem
 from ._unicode import PROPERTY_NAMES
 
 
@@ -29,11 +29,17 @@ class Lowercase(Protocol):
     def is_mark(self, code: int) -> bool: ...
 
 
-FORMAT = 12
+FORMAT = 13
 """The version of the DOM's shape (docs/output.md)."""
 
 CONSTANT_NAME = re.compile(r"[A-Z][A-Za-z0-9-]*")
 """A constant's name, without its ``$``, begins with a capital (engine §2)."""
+
+CLASSIFIER_NAME = re.compile(r"[a-z][A-Za-z0-9-]*")
+"""A classifier's name begins with a lower-case letter (engine §2, §9)."""
+
+_CLASS_NAME = re.compile(r"[A-Z][A-Za-z0-9-]*")
+"""A class of a classifier's entry is a name with a capital (engine §2, §9)."""
 
 MAX_DEPTH = 256
 """No node of an expression, a term or a condition may lie below more than
@@ -45,7 +51,7 @@ comparison."""
 
 TOO_DEEP = "nested too deeply"
 
-_FUNCTIONS = {"phonemes", "text", "split", "tag", "tags", "classes", "head", "tail", "last", "from", "after", "matches", "begins", "initial"}
+_FUNCTIONS = {"phonemes", "text", "split", "tag", "tags", "classes", "classify", "head", "tail", "last", "from", "after", "matches", "begins", "initial"}
 _COMPARATORS = {"=", "≠", "∈", "∉", "⊆", "⊈"}
 _SPANS = {"head", "tail", "last", "from", "after"}
 _NAME = re.compile(r"[A-Za-z][A-Za-z0-9-]*")
@@ -75,10 +81,12 @@ def _is_span(value: Any) -> bool:
 
 
 def _is_guard(value: Any) -> bool:
-    """A gate, negated or not, or a warning, which never is (engine §9)."""
+    """A gate, negated or not, or a warning, which never is, of a feature
+    that is a name (engine §9)."""
     return (
         isinstance(value, dict)
         and isinstance(value.get("feature"), str)
+        and _NAME.fullmatch(value["feature"]) is not None
         and isinstance(value.get("negated"), bool)
         and (value.get("kind") == "gate" or (value.get("kind") == "warning" and value["negated"] is False))
     )
@@ -86,6 +94,41 @@ def _is_guard(value: Any) -> bool:
 
 def _is_rule_name(value: Any) -> bool:
     return isinstance(value, dict) and isinstance(value.get("rule"), str) and len(value) == 1
+
+
+def _is_classifier_name(value: Any) -> bool:
+    """The second argument of classify: a classifier's name (engine §9)."""
+    return (
+        isinstance(value, dict)
+        and isinstance(value.get("classifier"), str)
+        and CLASSIFIER_NAME.fullmatch(value["classifier"]) is not None
+        and len(value) == 1
+    )
+
+
+def _is_entry(entry: Any, unicode: Lowercase) -> bool:
+    """An entry of a classifier: gates, one or more canonical keys, ``∈`` or
+    ``∉``, and a class (engine §2, §9)."""
+    return (
+        isinstance(entry, dict)
+        and len(entry) == 5
+        and _is_position(entry.get("at"))
+        and _is_one_of(entry.get("op"), {"∈", "∉"})
+        and isinstance(entry.get("class"), str)
+        and _CLASS_NAME.fullmatch(entry["class"]) is not None
+        and isinstance(entry.get("guards"), list)
+        and all(
+            isinstance(guard, dict)
+            and len(guard) == 3
+            and isinstance(guard.get("feature"), str)
+            and _NAME.fullmatch(guard["feature"]) is not None
+            and guard.get("kind") == "gate"
+            and isinstance(guard.get("negated"), bool)
+            for guard in entry["guards"]
+        )
+        and _items(entry.get("keys"), 1)
+        and all(isinstance(key, str) and sound_problem(key, unicode) is None for key in entry["keys"])
+    )
 
 
 # The forms of a term, each as its members (docs/output.md). The first
@@ -269,6 +312,8 @@ def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
         or not isinstance(dom.get("rules"), list)
         or not isinstance(dom.get("directives"), list)
         or not isinstance(dom.get("constants"), list)
+        or not isinstance(dom.get("classifiers"), list)
+        or not isinstance(dom.get("implications"), list)
     ):
         return f"not a DOM of format {FORMAT}"
     for directive in dom["directives"]:
@@ -307,6 +352,33 @@ def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
         ):
             return "a malformed constant"
         pending.append(("term", constant["value"], 0, False))
+    # A classifier: its name, and entries of gates, canonical keys, an
+    # operator and a class (engine §2, §9).
+    for classifier in dom["classifiers"]:
+        if (
+            not isinstance(classifier, dict)
+            or not isinstance(classifier.get("name"), str)
+            or not CLASSIFIER_NAME.fullmatch(classifier["name"])
+            or not isinstance(classifier.get("entries"), list)
+            or not _is_position(classifier.get("at"))
+            or len(classifier) != 3
+        ):
+            return "a malformed classifier"
+        if not all(_is_entry(entry, unicode) for entry in classifier["entries"]):
+            return "a malformed entry of a classifier"
+    # An implication: two closed terms whose type is a tag set, checked once
+    # the nesting is bounded (engine §2, §9).
+    for implication in dom["implications"]:
+        if (
+            not isinstance(implication, dict)
+            or len(implication) != 3
+            or "if" not in implication
+            or "then" not in implication
+            or not _is_position(implication.get("at"))
+        ):
+            return "a malformed implication"
+        pending.append(("term", implication["if"], 0, False))
+        pending.append(("term", implication["then"], 0, False))
     for rule in dom["rules"]:
         if (
             not isinstance(rule, dict)
@@ -358,6 +430,17 @@ def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
     for constant in dom["constants"]:
         if open_part(constant["value"]) is not None:
             return "a constant's value is not a closed term"
+    for implication in dom["implications"]:
+        for side in (implication["if"], implication["then"]):
+            if open_part(side) is not None:
+                return "a side of an implication is not a closed term"
+            kind, problem = term_type(side)
+            if problem is None:
+                problem = expected_problem(kind, "tags")  # type: ignore[arg-type]
+                if problem is not None:
+                    problem = f"a side of an implication is a tag set: {problem}"
+            if problem is not None:
+                return problem
     for test in tests:
         fault = test_value_fault(test["test"], test["value"], unicode)
         if fault is not None:
@@ -376,7 +459,7 @@ def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
     # The order of a document's items is the order of their positions, so no
     # two items share one (engine §9).
     positions: set[tuple[int, int]] = set()
-    for item in [*dom["rules"], *dom["directives"], *dom["constants"]]:
+    for item in [*dom["rules"], *dom["directives"], *dom["constants"], *dom["classifiers"], *dom["implications"]]:
         at = (item["at"][0], item["at"][1])
         if at in positions:
             return "two items at one position"
@@ -561,9 +644,25 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase, tests: 
                     )
                 elif call == "split":
                     # Its arguments' types are checked with the rule's types.
-                    ok = len(args) == 2 and all(not _is_rule_name(arg) and not _is_span(arg) for arg in args)
+                    ok = len(args) == 2 and all(
+                        not _is_rule_name(arg) and not _is_classifier_name(arg) and not _is_span(arg) for arg in args
+                    )
                 elif call == "tag":
-                    ok = len(args) == 1 and not _is_rule_name(args[0]) and not _is_span(args[0])
+                    ok = (
+                        len(args) == 1
+                        and not _is_rule_name(args[0])
+                        and not _is_classifier_name(args[0])
+                        and not _is_span(args[0])
+                    )
+                elif call == "classify":
+                    # A string's term, and a classifier's name (engine §9).
+                    ok = (
+                        len(args) == 2
+                        and not _is_rule_name(args[0])
+                        and not _is_classifier_name(args[0])
+                        and not _is_span(args[0])
+                        and _is_classifier_name(args[1])
+                    )
                 else:
                     ok = len(args) == 1 and _is_span(args[0])
                 if not ok or (kind != "argument" and call in _SPANS):
@@ -571,7 +670,9 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase, tests: 
                 seen = literal_call_problem(call, args)
                 if seen is not None:
                     return seen
-                pending.extend(("argument", arg, below, own) for arg in args if not _is_rule_name(arg))
+                pending.extend(
+                    ("argument", arg, below, own) for arg in args if not _is_rule_name(arg) and not _is_classifier_name(arg)
+                )
             elif not (
                 isinstance(value.get("string"), str)
                 or is_tag(value.get("tag"), unicode)

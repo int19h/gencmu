@@ -1,0 +1,10 @@
+{
+  "description": "classify takes a string and a classifier's name, not a span (engine §9).",
+  "document": "```jbogenbau\n%rule text $w(W) <classify($w, lex)>\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 19
+    }
+  }
+}

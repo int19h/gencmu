@@ -1,0 +1,10 @@
+{
+  "description": "The second argument of classify is a bare name in lower case. A name with a capital is a tag, which is not a classifier (engine §9).",
+  "document": "```jbogenbau\n%rule text $w(W) <classify(phonemes($w), Lex)>\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 19
+    }
+  }
+}

@@ -188,6 +188,20 @@ func (ev *evaluator) term(t *domTerm) value {
 				return value{kind: vSet, set: tags}
 			}
 			return value{kind: vSet, set: ev.spanTags(s)}
+		case "classify":
+			// The classes that the classifier gives the string, for the
+			// features of the parse, or none for an unknown key (§10).
+			classes := ev.g.classifiers[t.Items[1].Str][ev.str(t.Items[0])]
+			if classes == nil {
+				return value{kind: vSet, set: in.empty()}
+			}
+			ps := ev.run.ps
+			set := ps.consts[classes]
+			if set == nil {
+				set = in.make(classes.names)
+				ps.consts[classes] = set
+			}
+			return value{kind: vSet, set: set}
 		case "classes":
 			all := ev.spanTags(ev.span(t.Items[0]))
 			var names []string
@@ -311,13 +325,7 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *ta
 	// A query about the span as the rule from inside its own parse, of any
 	// kind, negated or not, defines the rule in terms of itself.
 	if ps.inProgress[at] {
-		panic(&parseFailure{
-			message:  "a condition asks whether its own span parses as " + rule + ", which defines " + rule + " in terms of itself over the same text",
-			token:    s.a,
-			hasToken: true,
-			tokenEnd: s.b,
-			rule:     rule,
-		})
+		panic(&parseFailure{message: "a condition asks whether its own span parses as " + rule + ", which defines " + rule + " in terms of itself over the same text"})
 	}
 	ps.inProgress[at] = true
 	defer delete(ps.inProgress, at)
@@ -394,11 +402,7 @@ type nestedResult struct {
 }
 
 // parseFailure is a grammar error found while parsing: it ends the whole
-// parse (engine §4, §5).
+// parse (engine §4, §5). It has a message and no position (§13).
 type parseFailure struct {
-	message  string
-	token    int
-	tokenEnd int
-	hasToken bool
-	rule     string
+	message string
 }

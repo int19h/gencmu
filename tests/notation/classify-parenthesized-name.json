@@ -1,0 +1,84 @@
+{
+  "description": "A bare name in parentheses is still a bare name. As the second argument of classify it names a classifier, and as that of tags or matches it names a rule (engine §9).",
+  "document": "```jbogenbau\n%classifier lex\n%rule text $w(W) <classify(\"mi\", (lex)) ∪ classify(phonemes($w), ((lex))) ∪ tags($w, (text))>\n%conditions matches($w, (text))\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "text",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "w",
+                "expr": {
+                  "ref": "W"
+                }
+              },
+              "tags": {
+                "union": [
+                  {
+                    "call": "classify",
+                    "args": [
+                      {
+                        "string": "mi"
+                      },
+                      {
+                        "classifier": "lex"
+                      }
+                    ]
+                  },
+                  {
+                    "call": "classify",
+                    "args": [
+                      {
+                        "call": "phonemes",
+                        "args": [
+                          {
+                            "capture": "w"
+                          }
+                        ]
+                      },
+                      {
+                        "classifier": "lex"
+                      }
+                    ]
+                  },
+                  {
+                    "call": "tags",
+                    "args": [
+                      {
+                        "capture": "w"
+                      },
+                      {
+                        "rule": "text"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "conditions": [
+            {
+              "matches": {
+                "capture": "w"
+              },
+              "rule": "text"
+            }
+          ]
+        }
+      ],
+      "classifiers": [
+        {
+          "name": "lex",
+          "entries": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ]
+    }
+  }
+}

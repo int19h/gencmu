@@ -351,8 +351,19 @@ fn error_where(expect: &Value, error: &gencmu::Error) -> Result<(), String> {
 }
 
 /// Runs one engine case (tests/README.md); the error says what differs.
+/// A case with `parses` loads its dialect once and parses its input with
+/// each item's options in order, each result held to the item's `expect`.
 pub fn run_engine_case(case: &Value) -> Result<(), String> {
     let (documents, pipeline) = case_documents(case);
+    if let Some(parses) = case.get("parses") {
+        let dialect = gencmu::load_dialect_sources(documents, &pipeline)
+            .map_err(|error| format!("the dialect did not load: {error}"))?;
+        for (index, run) in parses.array().iter().enumerate() {
+            let expect = run.get("expect").ok_or("a parse without expect")?;
+            check_parse(&dialect, case, run, expect).map_err(|problem| format!("parse {index}: {problem}"))?;
+        }
+        return Ok(());
+    }
     let expect = case.get("expect").ok_or("a case without expect")?;
     let dialect = match gencmu::load_dialect_sources(documents, &pipeline) {
         Ok(dialect) => dialect,
@@ -363,6 +374,12 @@ pub fn run_engine_case(case: &Value) -> Result<(), String> {
             };
         }
     };
+    check_parse(&dialect, case, case, expect)
+}
+
+/// Parses a case's input with the options of `run`, the case itself or one
+/// item of its `parses`, and holds the result to `expect`.
+fn check_parse(dialect: &gencmu::Dialect, case: &Value, run: &Value, expect: &Value) -> Result<(), String> {
     let mut problems = String::new();
     if let Some(expected) = expect.get("features") {
         let found = Value::Array(dialect.features().iter().map(feature_value).collect());
@@ -370,7 +387,7 @@ pub fn run_engine_case(case: &Value) -> Result<(), String> {
             let _ = writeln!(problems, "{problem}");
         }
     }
-    let options = case_options(case);
+    let options = case_options(run);
     let parsed = match case_tokens(case) {
         Some(tokens) => dialect.parse_tokens(&tokens, &options),
         None => dialect.parse(case.get("input").and_then(Value::str).unwrap_or(""), &options),

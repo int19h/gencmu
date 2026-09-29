@@ -9,7 +9,7 @@ use crate::fxhash::FxSet;
 use crate::lower::{LEmit, LEmitItem, LTerm, Lowered};
 use crate::rank::{DNode, Ranker};
 use crate::result::{Node, NodeKind, Warning};
-use crate::tags::{phoneme_of, SetId};
+use crate::tags::{phoneme_of, union, SetId, TagList, Tags};
 
 #[derive(Debug, Clone)]
 pub(crate) enum IKind {
@@ -435,11 +435,57 @@ fn item_tags(recognizer: &mut Recognizer, term: &LTerm, frame: &Frame, tokens: &
     Ok(set)
 }
 
+/// A token's explicit tags with the tags of the stage's implications, added
+/// until no tag changes (§11). An implication only adds tags, so the loop
+/// ends, also over a cycle.
+fn implied(tags: &mut Tags, set: SetId, implications: &[(TagList, TagList)]) -> SetId {
+    if implications.is_empty() {
+        return set;
+    }
+    let mut list = tags.list(set).clone();
+    let mut grown = false;
+    loop {
+        let mut changed = false;
+        for (antecedent, consequent) in implications {
+            if antecedent.iter().any(|tag| list.binary_search(tag).is_ok()) {
+                let more = union(&list, consequent);
+                if more.len() != list.len() {
+                    list = more;
+                    changed = true;
+                }
+            }
+        }
+        if !changed {
+            break;
+        }
+        grown = true;
+    }
+    if grown {
+        tags.set(list)
+    } else {
+        set
+    }
+}
+
 /// Walks the chosen tree from the left and emits the next stage's tokens
 /// (§11).
 pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) -> Result<Vec<Emitted>, EngineError> {
     let g = recognizer.g;
     let sources = Sources::new(tokens);
+    // The stage's implications, as tag sets of this parse (§11).
+    let tags = &mut recognizer.shared.tags;
+    let implications: Vec<(TagList, TagList)> = g
+        .implications
+        .iter()
+        .map(|implication| {
+            let mut side = |names: &BTreeSet<String>| {
+                let mut list: TagList = names.iter().map(|name| tags.tag(name)).collect();
+                list.sort_unstable();
+                list
+            };
+            (side(&implication.antecedent), side(&implication.consequent))
+        })
+        .collect();
     let mut out = Vec::new();
     // Where the widened tokens emitted so far end (§11).
     let mut widened_ends: FxSet<u32> = FxSet::default();
@@ -500,6 +546,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                 }
             }
             Work::Cover(index, tags) => {
+                let tags = implied(&mut recognizer.shared.tags, tags, &implications);
                 out.push(cover(recognizer, tree, tokens, &sources, index, tags, &mut widened_ends)?);
             }
             Work::Insert { tag, at, node } => {
@@ -516,11 +563,15 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                 let IKind::Close { prod, .. } = &tree.nodes[node as usize].kind else { unreachable!("a close") };
                 let owner = g.prods[*prod as usize].owner;
                 let set = recognizer.shared.tags.set_of([tag.as_str()]);
+                let set = implied(&mut recognizer.shared.tags, set, &implications);
+                // Two phoneme tags are an error here too, where an
+                // implication added one (§5).
+                let phonemes = phoneme_tag(recognizer, set)?.unwrap_or_default();
                 out.push(Emitted {
                     span: (at as usize, at as usize),
                     source: (source, source),
                     tags: set,
-                    phonemes: Some(phoneme_of(&tag).unwrap_or("").to_string()),
+                    phonemes: Some(phonemes),
                     verbatim: false,
                     inserted_by: Some(g.rules[owner as usize].name.clone()),
                 });

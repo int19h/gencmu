@@ -181,6 +181,34 @@ export type GrammarDom = {
     rules: DomRule[];
     directives: DomDirective[];
     constants: DomConstant[];
+    classifiers: DomClassifier[];
+    implications: DomImplication[];
+};
+export type DomClassifier = {
+    name: string;
+    entries: DomEntry[];
+    at: Position;
+};
+export type DomEntry = {
+    /**
+     * gates only
+     */
+    guards: Guard[];
+    /**
+     * each a canonical sound
+     */
+    keys: string[];
+    op: "∈" | "∉";
+    /**
+     * an identifier tag that begins with a capital
+     */
+    class: string;
+    at: Position;
+};
+export type DomImplication = {
+    if: Term;
+    then: Term;
+    at: Position;
 };
 export type DomConstant = {
     name: string;
@@ -322,6 +350,8 @@ export type ConstantTerm = {
 };
 export type Argument = Term | {
     rule: string;
+} | {
+    classifier: string;
 };
 export type GrammarSymbol = {
     name: string;
@@ -408,6 +438,20 @@ export type LoweredGrammar = {
     byLhs: Map<string, Production[]>;
     elidable: Set<string>;
     resolution: Resolution;
+    /**
+     * each classifier
+     * of the stage, resolved for these features: each key's classes (engine
+     * §2)
+     */
+    classifiers: Map<string, Map<string, TagSet>>;
+    /**
+     * the stage's
+     * implications, which its emitted tokens take (engine §11)
+     */
+    implications: {
+        if: TagSet;
+        then: TagSet;
+    }[];
 };
 export type Lean = "greedy" | "lazy" | "none";
 export type Slot = [number, number, number] | null;
@@ -645,6 +689,34 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {DomRule[]} rules
  * @property {DomDirective[]} directives
  * @property {DomConstant[]} constants
+ * @property {DomClassifier[]} classifiers
+ * @property {DomImplication[]} implications
+ */
+/**
+ * A `%classifier` item: the classifier's name and the entries it adds
+ * (engine §2).
+ * @typedef {object} DomClassifier
+ * @property {string} name
+ * @property {DomEntry[]} entries
+ * @property {Position} at
+ */
+/**
+ * An entry of a classifier: its gates, its keys, `∈` or `∉`, and its class
+ * (engine §2).
+ * @typedef {object} DomEntry
+ * @property {Guard[]} guards gates only
+ * @property {string[]} keys each a canonical sound
+ * @property {"∈" | "∉"} op
+ * @property {string} class an identifier tag that begins with a capital
+ * @property {Position} at
+ */
+/**
+ * An implication, `%implies A ⟹ B`: two closed terms whose type is a tag set
+ * (engine §2, §11).
+ * @typedef {object} DomImplication
+ * @property {Term} if
+ * @property {Term} then
+ * @property {Position} at
  */
 /**
  * A constant's definition: `%const` or `%redefine-const`, the name without
@@ -735,8 +807,9 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {{const: string, at: Position, value?: TermValue}} ConstantTerm
  */
 /**
- * A function's argument: a term, or the name of a rule.
- * @typedef {Term | {rule: string}} Argument
+ * A function's argument: a term, the name of a rule, or the name of a
+ * classifier.
+ * @typedef {Term | {rule: string} | {classifier: string}} Argument
  */
 /**
  * @typedef {object} GrammarSymbol
@@ -809,6 +882,11 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Map<string, Production[]>} byLhs
  * @property {Set<string>} elidable
  * @property {Resolution} resolution
+ * @property {Map<string, Map<string, TagSet>>} classifiers each classifier
+ *   of the stage, resolved for these features: each key's classes (engine
+ *   §2)
+ * @property {{if: TagSet, then: TagSet}[]} implications the stage's
+ *   implications, which its emitted tokens take (engine §11)
  */
 /**
  * The lean the ranking uses: the grammar's, or none for elision-only's

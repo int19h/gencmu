@@ -193,7 +193,8 @@ func (l *loader) pipeline(pipelinePath string) (*splicedPipeline, *Error) {
 }
 
 // dialectFeatures lists a dialect's features (engine §13): every name that a
-// guard of a stage's stitched rules uses, whatever features are on, and
+// guard of a stage's stitched rules or a gate of its classifiers' entries
+// uses, whatever features are on, and
 // every name the pipeline's %features declares, in code point order. A
 // name only %features declares is a gate; a name that one guard uses as a
 // gate and another as a warning is an error of the dialect.
@@ -213,6 +214,23 @@ func dialectFeatures(stages []*stageGrammar, declared []string) ([]Feature, *Err
 						e := grammarError(a.doc, a.at, "the feature %s is used as a %s here and as a %s in %s; a feature is a gate or a warning, not both", gd.Feature, gd.Kind, known, firstIn[gd.Feature])
 						e.Stage = g.name
 						return nil, e
+					}
+				}
+			}
+		}
+		// The gates of every classifier's entries count too (§13).
+		for _, it := range g.classifierSet.items {
+			for _, e := range it.classifier.Entries {
+				for _, gd := range e.Guards {
+					known, ok := kinds[gd.Feature]
+					if !ok {
+						kinds[gd.Feature], firstIn[gd.Feature] = gd.Kind, it.doc
+						continue
+					}
+					if known != gd.Kind {
+						err := grammarError(it.doc, e.At, "the feature %s is used as a %s here and as a %s in %s; a feature is a gate or a warning, not both", gd.Feature, gd.Kind, known, firstIn[gd.Feature])
+						err.Stage = g.name
+						return nil, err
 					}
 				}
 			}

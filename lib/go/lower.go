@@ -76,6 +76,9 @@ type lowered struct {
 	fault string
 	// warns says some production gives warnings under these features (§12).
 	warns bool
+	// classifiers holds the stage's classifiers resolved for these
+	// features: for each, each key's classes (§2).
+	classifiers map[string]map[string]*constValue
 }
 
 type slot struct {
@@ -129,6 +132,15 @@ type helperNode struct {
 // every optional that begins with an elidable terminal mandatory (§3.8).
 func lower(g *stageGrammar, features map[string]bool, mandatory bool) *lowered {
 	l := &lowered{stage: g, byName: map[string]int32{}, termID: map[string]int32{}, lean: g.lean, maximal: g.maximal}
+	// The stage resolves its classifiers for the same features, before it
+	// lowers its rules; an error there ends the stage as an error of
+	// lowering does (§2, §3.3).
+	tables := g.classifiers(features)
+	if tables.fault != "" {
+		l.fault = tables.fault
+		return l
+	}
+	l.classifiers = tables.tables
 	lw := &lowerer{g: g, l: l, features: features, mandatory: mandatory}
 	for _, r := range g.rules {
 		l.byName[r.name] = int32(len(l.rules))

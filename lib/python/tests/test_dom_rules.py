@@ -757,6 +757,8 @@ class Constants(unittest.TestCase):
             "rules": [{"name": "text", "op": "define", "alternatives": [{"guards": [], "expr": {"ref": "A"}}], "conditions": conditions or [], "at": [9, 1]}],
             "directives": [],
             "constants": constants,
+            "classifiers": [],
+            "implications": [],
         }
 
     @staticmethod
@@ -930,6 +932,217 @@ class Constants(unittest.TestCase):
             ],
         )
 
+
+
+class Classifiers(unittest.TestCase):
+    """A classifier, an implication and a call of classify in a precompiled
+    or bootstrap DOM are checked as the reader checks them (engine §9)."""
+
+    @staticmethod
+    def dom(classifiers: list[Dom], implications: list[Dom] | None = None) -> Dom:
+        return {
+            "format": DOM_FORMAT,
+            "rules": [],
+            "directives": [],
+            "constants": [],
+            "classifiers": classifiers,
+            "implications": implications or [],
+        }
+
+    @staticmethod
+    def entry(**extra: Any) -> Dom:
+        return {"guards": [], "keys": ["mi"], "op": "∈", "class": "KOhA", "at": [3, 3], **extra}
+
+    @staticmethod
+    def classifier(entries: list[Dom], **extra: Any) -> Dom:
+        return {"name": "lex", "entries": entries, "at": [2, 1], **extra}
+
+    @staticmethod
+    def implication(**extra: Any) -> Dom:
+        return {"if": {"tag": "UI"}, "then": {"tag": "indicator"}, "at": [5, 1], **extra}
+
+    def test_a_precompiled_classifier_is_checked(self) -> None:
+        dom, entry, classifier = self.dom, self.entry, self.classifier
+        negated = entry(guards=[{"feature": "f", "kind": "gate", "negated": True}], op="∉", at=[4, 3])
+        self.assertIsNone(dom_problem(dom([classifier([entry(), negated])])))
+        self.assertIsNone(dom_problem(dom([classifier([])])))
+        self.assertEqual(
+            dom_problem({"format": DOM_FORMAT, "rules": [], "directives": [], "constants": []}), f"not a DOM of format {DOM_FORMAT}"
+        )
+        for bad in [classifier([], name="Lex"), classifier([], at=None), classifier([], extra=True)]:
+            self.assertEqual(dom_problem(dom([bad])), "a malformed classifier", json.dumps(bad))
+        for bad_entry in [
+            entry(guards=[{"feature": "f", "kind": "warning", "negated": False}]),
+            entry(keys=[]),
+            entry(keys=["Mi"]),
+            entry(keys=["m,i"]),
+            entry(keys=[1]),
+            entry(op="="),
+            entry(**{"class": "koha"}),
+            entry(**{"class": "/a/"}),
+            entry(extra=True),
+        ]:
+            self.assertEqual(dom_problem(dom([classifier([bad_entry])])), "a malformed entry of a classifier", json.dumps(bad_entry))
+
+    def test_a_precompiled_implication_is_checked(self) -> None:
+        dom, implication = self.dom, self.implication
+        self.assertIsNone(dom_problem(dom([], [implication(**{"if": {"union": [{"tag": "UI"}, {"const": "K", "at": [5, 15]}]}})])))
+        self.assertEqual(dom_problem(dom([], [implication(at=None)])), "a malformed implication")
+        self.assertEqual(dom_problem(dom([], [implication(extra=True)])), "a malformed implication")
+        self.assertEqual(dom_problem(dom([], [implication(then={"capture": "x"})])), "a side of an implication is not a closed term")
+        classify = {"call": "classify", "args": [{"string": "mi"}, {"classifier": "lex"}]}
+        self.assertEqual(dom_problem(dom([], [implication(**{"if": classify})])), "a side of an implication is not a closed term")
+        self.assertIn("a side of an implication is a tag set", dom_problem(dom([], [implication(then={"string": "a"})])) or "")
+        # Two items at one position, a classifier and an implication among
+        # them.
+        self.assertEqual(dom_problem(dom([self.classifier([])], [implication(at=[2, 1])])), "two items at one position")
+
+    def test_a_precompiled_classify_names_a_classifier(self) -> None:
+        def call(args: list[Dom]) -> Dom:
+            alternative = {"guards": [], "expr": {"capture": "w", "expr": {"ref": "W"}}, "tags": {"call": "classify", "args": args}}
+            return {
+                **self.dom([]),
+                "rules": [{"name": "text", "op": "define", "alternatives": [alternative], "conditions": [], "at": [1, 1]}],
+            }
+
+        sound = {"call": "phonemes", "args": [{"capture": "w"}]}
+        self.assertIsNone(dom_problem(call([sound, {"classifier": "lex"}])))
+        self.assertEqual(dom_problem(call([sound, {"rule": "lex"}])), "a malformed term")
+        self.assertEqual(dom_problem(call([sound, {"classifier": "Lex"}])), "a malformed term")
+        self.assertEqual(dom_problem(call([{"capture": "w"}, {"classifier": "lex"}])), "a malformed term")
+
+    def test_a_bootstrap_with_a_malformed_classifier_is_an_error(self) -> None:
+        bootstrap = json.loads(bundled_text("notation/bootstrap.json") or "{}")
+        bad = {"guards": [], "keys": ["Mi"], "op": "∈", "class": "KOhA", "at": [9999, 3]}
+        bootstrap["stages"][0]["documents"][0]["dom"]["classifiers"].append({"name": "lex", "entries": [bad], "at": [9999, 1]})
+        with self.assertRaises(gencmu.GencmuError) as caught:
+            gencmu.load_dialect_sources({**CONSTANT_SOURCES, "notation/bootstrap.json": json.dumps(bootstrap)}, "p.md", use_cache=False)
+        self.assertEqual(caught.exception.kind, "grammar")
+        self.assertIn("malformed entry of a classifier", str(caught.exception))
+
+    def test_a_classifier_name_stands_only_in_classify(self) -> None:
+        """A classifier's name is only the second argument of classify
+        (engine §9). Elsewhere it makes a cached entry a miss and a bootstrap
+        an error of the grammar."""
+        misplaced = [
+            {"op": "⊆", "left": {"call": "tag", "args": [{"classifier": "lex"}]}, "right": {"tag": "a"}},
+            {"op": "∈", "left": {"string": "a"}, "right": {"call": "split", "args": [{"classifier": "lex"}, {"string": "."}]}},
+            {"op": "∈", "left": {"string": "a"}, "right": {"call": "split", "args": [{"string": "a.b"}, {"classifier": "lex"}]}},
+        ]
+        well_formed = {"op": "∈", "left": {"string": "a"}, "right": {"call": "split", "args": [{"string": "a.b"}, {"string": "."}]}}
+        self.assert_refused(well_formed, misplaced, "a malformed term")
+
+    def test_a_gate_of_an_entry_names_a_feature(self) -> None:
+        """A gate of a classifier's entry follows the notation's name syntax
+        (engine §9). A cached entry with another feature is a miss, so it
+        never changes the dialect's features."""
+
+        def gate(feature: str) -> Dom:
+            return {"feature": feature, "kind": "gate", "negated": False}
+
+        refused = [gate(""), gate("!"), gate("bad name")]
+        self.assert_refused(gate("f"), refused, "a malformed entry of a classifier", slot="entry")
+
+    def test_a_guard_of_an_alternative_names_a_feature(self) -> None:
+        """A guard of a rule's alternative, a gate or a warning, follows the
+        notation's name syntax (engine §9). A cached entry with another
+        feature is a miss, so it never changes the dialect's features."""
+        for kind in ("gate", "warning"):
+
+            def guard(feature: str) -> Dom:
+                return {"feature": feature, "kind": kind, "negated": False}
+
+            with self.subTest(kind=kind):
+                refused = [guard(""), guard("!"), guard("bad name")]
+                self.assert_refused(guard("f"), refused, "a malformed alternative", slot="alternative")
+
+    def assert_refused(self, well_formed: Dom, refused: list[Dom], problem: str, *, slot: str = "condition") -> None:
+        """Each of ``refused`` is refused by the check, makes a cached entry a
+        miss, and makes a bootstrap an error of the grammar. ``well_formed``
+        passes the check. Each stands in ``slot``: a condition of the rule
+        ``text``, a guard of its alternative, or a gate of an entry of its
+        classifier."""
+        guard = slot != "condition"
+        sources = {"p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n', "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n```\n"}
+        bootstrap_hash = fnv1a64(bundled_text("notation/bootstrap.json") or "")
+        token = gencmu.Token("a", frozenset({"A"}), (0, 1), (0, 1))
+
+        def text_rule(part: Dom, name: str = "text", at: list[int] | None = None) -> Dom:
+            guards = [part] if slot == "alternative" else []
+            alternative = {"guards": guards, "expr": {"capture": "x", "expr": {"ref": "A"}}}
+            conditions = [part] if slot == "condition" else []
+            return {"name": name, "op": "define", "alternatives": [alternative], "conditions": conditions, "at": at or [3, 1]}
+
+        def classifier(part: Dom, at: list[int]) -> Dom:
+            guards = [part] if slot == "entry" else []
+            entry = {"guards": guards, "keys": ["mi"], "op": "∈", "class": "KOhA", "at": [at[0], 3]}
+            return {"name": "lex", "entries": [entry], "at": at}
+
+        def dom(part: Dom) -> Dom:
+            return {
+                "format": DOM_FORMAT,
+                "rules": [text_rule(part)],
+                "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [2, 1]}],
+                "constants": [],
+                "classifiers": [classifier(part, [4, 1])],
+                "implications": [],
+            }
+
+        def cached(part: Dom) -> gencmu.Dialect:
+            documents = {"g.md": {"hash": fnv1a64(sources["g.md"]), "dom": dom(part)}}
+            compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "documents": documents})
+            return gencmu.load_dialect_sources({**sources, "compiled.json": compiled}, "p.md")
+
+        self.assertIsNone(dom_problem(dom(well_formed)))
+        if guard:
+            # The control: the well-formed entry is used, and its guard is a
+            # feature of the dialect.
+            features = [(feature.name, feature.kind) for feature in cached(well_formed).features]
+            self.assertEqual(features, [(well_formed["feature"], well_formed["kind"])])
+        for part in refused:
+            with self.subTest(refused=json.dumps(part, ensure_ascii=False)):
+                found = dom_problem(dom(part)) or ""
+                self.assertIn(problem, found)
+                dialect = cached(part)
+                self.assertTrue(dialect.parse_tokens([token], "a", auto_features=False).ok, "the document was read instead")
+                self.assertEqual(dialect.features, (), "no feature of the refused entry")
+                bootstrap = json.loads(bundled_text("notation/bootstrap.json") or "{}")
+                first = bootstrap["stages"][0]["documents"][0]["dom"]
+                if slot == "entry":
+                    first["classifiers"].append(classifier(part, [9999, 1]))
+                else:
+                    first["rules"].append(text_rule(part, "refused-part", [9999, 1]))
+                with self.assertRaises(gencmu.GencmuError) as caught:
+                    gencmu.load_dialect_sources({**sources, "notation/bootstrap.json": json.dumps(bootstrap)}, "p.md", use_cache=False)
+                self.assertEqual(caught.exception.kind, "grammar")
+                self.assertIn(problem, str(caught.exception))
+
+    def test_lexical_tokens(self) -> None:
+        """The notation's lexical stage tags the keywords of classifiers and
+        implications (grammars/notation/lexical.md)."""
+        notation = gencmu.load_dialect("notation")
+        result = notation.parse("%classifier %implies %classifiers", until="lexical", auto_features=False)
+        output = result.stages[0].output
+        assert output is not None
+        self.assertEqual(
+            [(token.text, sorted(token.tags)) for token in output],
+            [("%classifier", ["keyword-classifier"]), ("%implies", ["keyword-implies"]), ("%classifiers", ["keyword"])],
+        )
+
+    def test_the_reader_refuses(self) -> None:
+        """A document that the reader refuses, read fresh or from its DOM."""
+        for refused in [
+            '%classifier Lex "a" ∈ A',
+            '%classifier l f! "a" ∈ A',
+            '%classifier l "A" ∈ A',
+            '%classifier l "a,b" ∈ A',
+            '%classifier l "a" ∈ ~a',
+            '%implies A ⟹ "a"',
+            "%implies tags($x) ⟹ A",
+            '%implies classify("a", l) ⟹ A',
+        ]:
+            with self.subTest(refused=refused), self.assertRaises(gencmu.GencmuError):
+                read_document("```jbogenbau\n" + refused + "\n```\n", "t.md")
 
 if __name__ == "__main__":
     unittest.main()

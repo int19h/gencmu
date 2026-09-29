@@ -18,7 +18,7 @@ fn dom(text_alternative: &str, text_extra: &str, rule: &str, format: i64, direct
         rules.push_str(rule);
     }
     format!(
-        r#"{{"format":{format},"rules":[{rules}],"directives":[{{"name":"ambiguity-resolution","args":[{directive_args}],"at":[2,1]}}],"constants":[]}}"#
+        r#"{{"format":{format},"rules":[{rules}],"directives":[{{"name":"ambiguity-resolution","args":[{directive_args}],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}"#
     )
 }
 
@@ -37,7 +37,7 @@ fn with_alternative(alternative: &str) -> String {
 fn with_directive(directive: &str) -> String {
     let rule = r#"{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"terminal":"b"}}],"conditions":[],"at":[3,1]}"#;
     format!(
-        r#"{{"format":{DOM_FORMAT},"rules":[{rule}],"directives":[{{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}},{directive}],"constants":[]}}"#
+        r#"{{"format":{DOM_FORMAT},"rules":[{rule}],"directives":[{{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}},{directive}],"constants":[],"classifiers":[],"implications":[]}}"#
     )
 }
 
@@ -768,7 +768,7 @@ fn with_constants(constants: &str, condition: &str) -> String {
         r#"{{"name":"text","op":"define","alternatives":[{{"guards":[],"expr":{{"capture":"x","expr":{{"terminal":"b"}}}}}}],"conditions":[{conditions}],"at":[3,1]}}"#
     );
     format!(
-        r#"{{"format":{DOM_FORMAT},"rules":[{rule}],"directives":[{{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}}],"constants":[{constants}]}}"#
+        r#"{{"format":{DOM_FORMAT},"rules":[{rule}],"directives":[{{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}}],"constants":[{constants}],"classifiers":[],"implications":[]}}"#
     )
 }
 
@@ -1003,4 +1003,206 @@ fn a_precompiled_clause_with_a_constant_waits_for_its_value() {
     let read = gencmu::tools::read_grammar_document(&full).expect("the document");
     assert_eq!(outcome(&full, None), Err((4, 1)));
     assert_eq!(outcome(&full, Some(&read)), Err((4, 1)));
+}
+
+/// A DOM like the document's, but accepting "b", with the text rule's tags
+/// as given, and these classifiers and implications (docs/output.md).
+fn with_classifiers(tags: &str, classifiers: &str, implications: &str) -> String {
+    let tags = if tags.is_empty() { String::new() } else { format!(r#","tags":{tags}"#) };
+    let rule = format!(
+        r#"{{"name":"text","op":"define","alternatives":[{{"guards":[],"expr":{{"capture":"x","expr":{{"terminal":"b"}}}}{tags}}}],"conditions":[],"at":[3,1]}}"#
+    );
+    format!(
+        r#"{{"format":{DOM_FORMAT},"rules":[{rule}],"directives":[{{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}}],"constants":[],"classifiers":[{classifiers}],"implications":[{implications}]}}"#
+    )
+}
+
+/// A cached classifier, implication or call of classify is checked as the
+/// reader checks it (engine §9).
+#[test]
+fn a_precompiled_classifier_and_implication_are_checked() {
+    let entry = |extra: &str| {
+        let mut fields = [
+            ("guards", "[]".to_string()),
+            ("keys", r#"["mi"]"#.to_string()),
+            ("op", r#""∈""#.to_string()),
+            ("class", r#""KOhA""#.to_string()),
+            ("at", "[6,3]".to_string()),
+        ];
+        let mut added = String::new();
+        for part in extra.split(';').filter(|part| !part.is_empty()) {
+            let (key, value) = part.split_once('=').expect("key=value");
+            match fields.iter_mut().find(|(name, _)| *name == key) {
+                Some(field) => field.1 = value.to_string(),
+                None => added.push_str(&format!(r#","{key}":{value}"#)),
+            }
+        }
+        let body: Vec<String> = fields.iter().map(|(key, value)| format!(r#""{key}":{value}"#)).collect();
+        format!("{{{}{added}}}", body.join(","))
+    };
+    let classifier = |entries: &str| format!(r#"{{"name":"lex","entries":[{entries}],"at":[5,1]}}"#);
+    let implication = r#"{"if":{"tag":"UI"},"then":{"tag":"indicator"},"at":[7,1]}"#;
+    let classify = r#"{"call":"classify","args":[{"call":"phonemes","args":[{"capture":"x"}]},{"classifier":"lex"}]}"#;
+    // Well formed: gates, a removal, no entries, an implication and a call.
+    let gated = entry(r#"guards=[{"feature":"f","kind":"gate","negated":true}];op="∉";at=[6,9]"#);
+    let good = with_classifiers(classify, &classifier(&format!("{},{gated}", entry(""))), implication);
+    assert!(!document_was_read(&good), "the cache entry should be used");
+    assert!(!document_was_read(&with_classifiers("", &classifier(""), "")));
+    let refused = [
+        with_classifiers("", r#"{"name":"Lex","entries":[],"at":[5,1]}"#, ""),
+        with_classifiers("", r#"{"name":"lex","entries":[],"at":null}"#, ""),
+        with_classifiers("", r#"{"name":"lex","entries":[],"at":[5,1],"extra":true}"#, ""),
+        with_classifiers("", r#"{"name":"lex","at":[5,1]}"#, ""),
+        with_classifiers("", &classifier(&entry(r#"guards=[{"feature":"f","kind":"warning","negated":false}]"#)), ""),
+        with_classifiers("", &classifier(&entry("keys=[]")), ""),
+        with_classifiers("", &classifier(&entry(r#"keys=["Mi"]"#)), ""),
+        with_classifiers("", &classifier(&entry(r#"keys=["m,i"]"#)), ""),
+        with_classifiers("", &classifier(&entry("keys=[1]")), ""),
+        with_classifiers("", &classifier(&entry(r#"op="=""#)), ""),
+        with_classifiers("", &classifier(&entry(r#"class="koha""#)), ""),
+        with_classifiers("", &classifier(&entry(r#"class="/a/""#)), ""),
+        with_classifiers("", &classifier(&entry("extra=true")), ""),
+        with_classifiers("", "", r#"{"if":{"tag":"UI"},"then":{"tag":"indicator"},"at":null}"#),
+        with_classifiers("", "", r#"{"if":{"tag":"UI"},"then":{"tag":"indicator"},"at":[7,1],"extra":true}"#),
+        with_classifiers("", "", r#"{"if":{"tag":"UI"},"at":[7,1]}"#),
+        with_classifiers("", "", r#"{"if":{"tag":"UI"},"then":{"capture":"x"},"at":[7,1]}"#),
+        with_classifiers("", "", r#"{"if":{"tag":"UI"},"then":{"string":"a"},"at":[7,1]}"#),
+        with_classifiers(
+            "",
+            &classifier(&entry("")),
+            r#"{"if":{"call":"classify","args":[{"string":"mi"},{"classifier":"lex"}]},"then":{"tag":"m"},"at":[7,1]}"#,
+        ),
+        // classify names a classifier, in lower case, after a string.
+        with_classifiers(&classify.replace("classifier", "rule"), &classifier(&entry("")), ""),
+        with_classifiers(&classify.replace("\"lex\"", "\"Lex\""), &classifier(&entry("")), ""),
+        with_classifiers(
+            r#"{"call":"classify","args":[{"capture":"x"},{"classifier":"lex"}]}"#,
+            &classifier(&entry("")),
+            "",
+        ),
+        // Two items at one position.
+        with_classifiers("", r#"{"name":"lex","entries":[],"at":[7,1]}"#, implication),
+    ];
+    for dom in refused {
+        assert!(document_was_read(&dom), "a malformed DOM was used: {dom}");
+    }
+}
+
+/// A malformed classifier in the bootstrap is an error of the grammar.
+#[test]
+fn a_bootstrap_with_a_malformed_classifier_is_an_error() {
+    let bad = r#"{"name":"lex","entries":[{"guards":[],"keys":["Mi"],"op":"∈","class":"KOhA","at":[6,3]}],"at":[5,1]}"#;
+    let bootstrap = format!(
+        r#"{{"format":{DOM_FORMAT},"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
+        with_classifiers("", bad, "")
+    );
+    let sources = [
+        ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+        ("g.md", DOCUMENT.to_string()),
+        ("notation/bootstrap.json", bootstrap),
+    ];
+    let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("a malformed bootstrap");
+    assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
+    assert!(error.message.contains("a malformed entry of a classifier"), "{}", error.message);
+}
+
+/// The problem that makes a bootstrap of the one document `dom` an error of
+/// the grammar, or `None` when the bootstrap is read.
+fn bootstrap_refusal(dom: &str) -> Option<String> {
+    let bootstrap = format!(
+        r#"{{"format":{DOM_FORMAT},"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{dom}}}]}}]}}"#
+    );
+    let sources = [
+        ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+        ("g.md", DOCUMENT.to_string()),
+        ("notation/bootstrap.json", bootstrap),
+    ];
+    let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("a notation that cannot read g.md");
+    assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
+    error.message.strip_prefix("bootstrap.json: ").map(str::to_string)
+}
+
+/// `well_formed` is used from the cache and read from the bootstrap. Each
+/// of `refused` is a cache miss and an error of a bootstrap, for `problem`.
+fn assert_refused(well_formed: &str, refused: &[String], problem: &str) {
+    assert!(!document_was_read(well_formed), "the cache entry should be used: {well_formed}");
+    assert_eq!(bootstrap_refusal(well_formed), None, "the bootstrap should be read: {well_formed}");
+    for dom in refused {
+        assert!(document_was_read(dom), "a malformed DOM was used: {dom}");
+        let refusal = bootstrap_refusal(dom).unwrap_or_default();
+        assert!(refusal.contains(problem), "{refusal}: {dom}");
+    }
+}
+
+/// A classifier's name stands only as the second argument of `classify`
+/// (engine §9), and not as an argument of `tag` or of `split`.
+#[test]
+fn a_classifier_name_stands_only_in_classify() {
+    let split = |a: &str, b: &str| {
+        with_condition(&format!(r#"{{"op":"∈","left":{{"string":"a"}},"right":{{"call":"split","args":[{a},{b}]}}}}"#))
+    };
+    let classifier = r#"{"classifier":"lex"}"#;
+    let refused = [
+        with_condition(&format!(r#"{{"op":"⊆","left":{{"call":"tag","args":[{classifier}]}},"right":{{"tag":"a"}}}}"#)),
+        split(classifier, r#"{"string":"."}"#),
+        split(r#"{"string":"a.b"}"#, classifier),
+    ];
+    assert_refused(&split(r#"{"string":"a.b"}"#, r#"{"string":"."}"#), &refused, "a malformed term");
+}
+
+/// A gate of a classifier's entry follows the notation's name syntax
+/// (engine §9). A cached entry with another feature is a miss, so it never
+/// changes the dialect's features.
+#[test]
+fn a_gate_of_an_entry_names_a_feature() {
+    let gated = |feature: &str| {
+        let entry = format!(
+            r#"{{"guards":[{{"feature":"{feature}","kind":"gate","negated":false}}],"keys":["mi"],"op":"∈","class":"KOhA","at":[5,3]}}"#
+        );
+        with_classifiers("", &format!(r#"{{"name":"lex","entries":[{entry}],"at":[5,1]}}"#), "")
+    };
+    let refused = ["", "!", "bad name"].map(gated);
+    assert_refused(&gated("f"), &refused, "a malformed entry of a classifier");
+    // The control's gate is a feature of the dialect, and no refused one is.
+    assert_eq!(cached_features(&gated("f")), [("f".to_string(), gencmu::FeatureKind::Gate)]);
+    for dom in &refused {
+        assert!(cached_features(dom).is_empty(), "{dom}");
+    }
+}
+
+/// The features of a dialect whose `compiled.json` holds `dom` for the
+/// document, each with its kind.
+fn cached_features(dom: &str) -> Vec<(String, gencmu::FeatureKind)> {
+    let compiled = format!(
+        r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","documents":{{"g.md":{{"hash":"{}","dom":{dom}}}}}}}"#,
+        gencmu::tools::bootstrap_hash(),
+        gencmu::tools::fnv1a64(DOCUMENT)
+    );
+    let sources = [
+        ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+        ("g.md", DOCUMENT.to_string()),
+        ("compiled.json", compiled),
+    ];
+    let dialect = gencmu::load_dialect_sources(sources, "p.md").expect("a dialect");
+    dialect.features().iter().map(|feature| (feature.name.clone(), feature.kind)).collect()
+}
+
+/// A guard of a rule's alternative, a gate or a warning, follows the
+/// notation's name syntax (engine §9). A cached entry with another feature
+/// is a miss, so it never changes the dialect's features.
+#[test]
+fn a_guard_of_an_alternative_names_a_feature() {
+    for (kind, feature_kind) in [("gate", gencmu::FeatureKind::Gate), ("warning", gencmu::FeatureKind::Warning)] {
+        let guarded = |feature: &str| {
+            with_alternative(&format!(
+                r#"{{"guards":[{{"feature":"{feature}","kind":"{kind}","negated":false}}],"expr":{{"terminal":"b"}}}}"#
+            ))
+        };
+        let refused = ["", "!", "bad name"].map(guarded);
+        assert_refused(&guarded("f"), &refused, "a malformed alternative");
+        assert_eq!(cached_features(&guarded("f")), [("f".to_string(), feature_kind)]);
+        for dom in &refused {
+            assert!(cached_features(dom).is_empty(), "{dom}");
+        }
+    }
 }

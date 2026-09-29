@@ -1,7 +1,7 @@
 package gencmu
 
 // A stage's grammar: its documents stitched into one set of rules,
-// directives and constants (engine §2).
+// directives, constants, classifiers and implications (engine §2).
 type stageGrammar struct {
 	name        string
 	uni         *unicodeTable // the loader's table, for the tags of a range in a constant's value
@@ -14,6 +14,10 @@ type stageGrammar struct {
 	maximal     bool // no terminator is elided where its constituent could have been longer (engine §4)
 	elidable    map[string]bool
 	changes     []stitchChange
+	// classifierSet holds the stage's classifiers, and implications its
+	// implications with their values (engine §2, §11).
+	classifierSet stageClassifiers
+	implications  []stageImplication
 }
 
 // stitchChange records a rule a later item of the stage replaced or
@@ -67,6 +71,8 @@ func isTerminalName(name string) bool {
 
 func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, *Error) {
 	g := &stageGrammar{name: stageName, uni: uni, constants: map[string]*stageConst{}, byName: map[string]*sRule{}, elidable: map[string]bool{}}
+	g.classifierSet.names = map[string]bool{}
+	var implications []implicationItem
 	fail := func(doc string, at [2]int, format string, args ...any) *Error {
 		e := grammarError(doc, at, format, args...)
 		e.Stage = stageName
@@ -151,8 +157,20 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 				return nil, err
 			}
 		}
+		// Every item of a classifier's name adds to one classifier, in the
+		// stitching order (engine §2).
+		for _, c := range d.dom.Classifiers {
+			g.classifierSet.items = append(g.classifierSet.items, classifierItem{doc: d.path, classifier: c})
+			g.classifierSet.names[c.Name] = true
+		}
+		for _, m := range d.dom.Implications {
+			implications = append(implications, implicationItem{doc: d.path, implication: m})
+		}
 	}
 	if err := g.resolveConstants(); err != nil {
+		return nil, err
+	}
+	if err := g.addImplications(implications); err != nil {
 		return nil, err
 	}
 	if err := g.checkElidableTests(); err != nil {
@@ -304,6 +322,10 @@ func (g *stageGrammar) checkAlt(a *sAlt) *Error {
 		}
 		if t.Kind == tmRule && g.byName[t.Str] == nil {
 			return fail("%s is not a rule of stage %s", t.Str, g.name)
+		}
+		// A classifier that classify names belongs to the stage (§2).
+		if t.Kind == tmClassifier && !g.classifierSet.names[t.Str] {
+			return fail("classify() names %s, which no %%classifier of stage %s names", t.Str, g.name)
 		}
 		if t.Cond != nil {
 			if err := checkCond(t.Cond); err != nil {

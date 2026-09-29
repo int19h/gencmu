@@ -200,12 +200,18 @@ class NotationReader:
             raise GencmuError(f"the notation's tree cannot be read as a grammar ({error!r}); is the bootstrap the notation's?", document=path) from error
         if dom_problem(dom, self.unicode) == TOO_DEEP:
             # The bound on nesting is the same for a document read here as for
-            # a precompiled DOM (engine §9); reported at the first rule too deep.
+            # a precompiled DOM (engine §9); reported at the first item too
+            # deep, a rule, a constant's definition or an implication.
             line, column = 1, 1
-            items = [("rules", rule) for rule in dom["rules"]] + [("constants", constant) for constant in dom["constants"]]
+            items = (
+                [("rules", rule) for rule in dom["rules"]]
+                + [("constants", constant) for constant in dom["constants"]]
+                + [("implications", implication) for implication in dom["implications"]]
+            )
             items.sort(key=lambda item: (item[1]["at"][0], item[1]["at"][1]))
+            empty = {"rules": [], "directives": [], "constants": [], "classifiers": [], "implications": []}
             for key, item in items:
-                if dom_problem({**dom, "rules": [], "directives": [], "constants": [], key: [item]}, self.unicode) == TOO_DEEP:
+                if dom_problem({**dom, **empty, key: [item]}, self.unicode) == TOO_DEEP:
                     line, column = item["at"]
                     break
             raise GencmuError(
@@ -376,19 +382,21 @@ def load_dialect_sources(sources: Mapping[str, str], pipeline: str, *, use_cache
 
 def _dialect_features(path: str, grammars: list[Grammar], declared: frozenset[str]) -> tuple[Feature, ...]:
     """A dialect's features (engine §13): every name a guard of a stage's
-    stitched rules uses, and every name the pipeline's ``%features``
-    declares, in code point order. Each is a gate or a warning as its guards
-    use it, and a gate if only declared; a name used both ways is an error
-    of the dialect."""
+    stitched rules or a gate of its classifiers' entries uses, and every
+    name the pipeline's ``%features`` declares, in code point order. Each is
+    a gate or a warning as its guards use it, and a gate if only declared; a
+    name used both ways is an error of the dialect."""
     kinds: dict[str, str] = {}
     for grammar in grammars:
-        for rule in grammar.rules.values():
-            for alternative in rule.alternatives:
-                for guard in alternative.guards:
-                    name = guard["feature"]
-                    kind = "warning" if guard.get("kind") == "warning" else "gate"
-                    if kinds.setdefault(name, kind) != kind:
-                        raise GencmuError(f"the feature {name} is used both as a gate and as a warning", document=path)
+        guards = [guard for rule in grammar.rules.values() for alternative in rule.alternatives for guard in alternative.guards]
+        for _, classifier in grammar.classifier_items:
+            for entry in classifier["entries"]:
+                guards.extend(entry["guards"])
+        for guard in guards:
+            name = guard["feature"]
+            kind = "warning" if guard.get("kind") == "warning" else "gate"
+            if kinds.setdefault(name, kind) != kind:
+                raise GencmuError(f"the feature {name} is used both as a gate and as a warning", document=path)
     return tuple(Feature(name, kinds.get(name, "gate"), name in declared) for name in sorted(kinds.keys() | declared))
 
 

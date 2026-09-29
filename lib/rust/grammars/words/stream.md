@@ -169,7 +169,7 @@ The rules below know a magic word by the selma'o the lexicon gives it, not by it
 
 CLL 19.9 and 19.10 describe the quotes. This stage decides each quote, because the words inside a quote do not count as words. For example, `zo si` quotes `si`, and a `zoi` body is not Lojban at all.
 
-Each quote hands the syntax stage its marker and its contents. The contents are bare words or one stretch of `foreign-text`, which is what the syntax grammar's `any-word` and `anything` read. The marker keeps its classes, and the tags `word` and `cmavo`: `classes($q) ∪ ~word ∪ ~cmavo`. It drops every other mark, so it never carries `indicator`, even where a lexicon also makes the marker an attitudinal.
+Each quote hands the syntax stage its marker and its contents. The contents are bare words or one stretch of `foreign-text`, which is what the syntax grammar's `any-word` and `anything` read. The marker keeps its classes, and the tags `word` and `cmavo`: `classes($q) ∪ ~word ∪ ~cmavo`. It drops every other mark, so it never carries `indicator`. That holds even where the marker is also an attitudinal, which the forms stage's implication marks `indicator`. The word stage has no implication that adds the mark again.
 
 The reason is the indicator stage, which takes single tokens. It reads a marker with `indicator` as an indicator, and leaves the quoted contents behind with nothing to hold them. For example, take a lexicon that puts `ui` in both ZO and UI. Then `mi ui broda klama` fails if the marker keeps `indicator`. The indicator stage attaches `ui` to `mi`, and the bare word `broda` is left in the text. This lasts until the indicator stage can take a quote as one unit.
 

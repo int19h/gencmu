@@ -26,7 +26,7 @@ data, _ := gencmu.MarshalResult(result) // canonical JSON, docs/output.md
 - `LoadDialectFile(path)`: a pipeline document on disk. The loader finds its grammar documents relative to it. A document that is not valid UTF-8 is a load error of kind `grammar`.
 - `LoadDialectSources(sources, pipeline)`: documents held in memory, a map from `/`-separated path to text. The map can hold its own `unicode.txt`, `notation/bootstrap.json` and `compiled.json`. The bundled ones fill in the rest. A `unicode.txt` in the map replaces the bundled table entirely, White_Space included (`docs/api.md`).
 - `(*Dialect).Parse(text, ParseOptions{Features, WithoutFeatures, NoAutoFeatures, Until, ElisionOnly})` parses a text. A text that is not valid UTF-8 is a usage error. For tests and tools, `(*Dialect).ParseTokens(text, tokens, options)` feeds pre-built tokens to the first stage. The `Warnings` of a result are those of the warning features that are turned on.
-- `(*Dialect).Features()`: the features of the dialect. Each is a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`. `Default` says whether the pipeline turns the feature on.
+- `(*Dialect).Features()`: the features of the dialect, the gates of its classifiers' entries included. Each is a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`. `Default` says whether the pipeline turns the feature on.
 - `MarshalResult(result)` writes the canonical JSON.
 - `Brackets(result, BracketOptions{ShowElided})` renders the tree as nested groups.
 
@@ -46,7 +46,7 @@ go test ./...
 go test -race -run Concurrent ./...
 ```
 
-The tests read the shared cases in `../../tests/`. They run every engine and notation case, the corpus and the fixpoint of the bootstrap. For an engine case whose grammar cannot be loaded, they also compare where the error stands, when the case gives it. They also compare `compiled.json` with a fresh reading, with the cache both used and bypassed.
+The tests read the shared cases in `../../tests/`. They run every engine and notation case, the corpus and the fixpoint of the bootstrap. For an engine case whose grammar cannot be loaded, they also compare where the error stands, when the case gives it. An engine case with `parses` loads its dialect once and parses its input with each item's options in turn. They also compare `compiled.json` with a fresh reading, with the cache both used and bypassed.
 
 `TestCorpus` runs the core sample of the Lojban corpus (`../../tests/core.txt`) on as many goroutines as there are CPUs. The goroutines share one `*Dialect` for each dialect. `GENCMU_CORPUS=full` runs every case of `../../tests/corpus/`, and `GENCMU_CORPUS_WORKERS` sets the number of goroutines.
 

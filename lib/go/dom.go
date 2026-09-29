@@ -7,14 +7,44 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 12
+const domFormat = 13
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
 type domDoc struct {
-	Rules      []*domRule
-	Directives []*domDirective
-	Constants  []*domConst
+	Rules        []*domRule
+	Directives   []*domDirective
+	Constants    []*domConst
+	Classifiers  []*domClassifier
+	Implications []*domImplication
+}
+
+// domClassifier is a %classifier item (engine §2): its name, which begins
+// with a lower-case letter, and its entries as written. The DOM never holds
+// the classifier's value, which depends on the features.
+type domClassifier struct {
+	Name    string
+	Entries []*domEntry
+	At      [2]int
+}
+
+// domEntry is an entry of a classifier: its gates, one or more keys, each a
+// canonical sound, ∈ or ∉, and one class, a name that begins with a
+// capital. At is its first token, where the loader reports an error of the
+// entry.
+type domEntry struct {
+	Guards []domGuard
+	Keys   []string
+	Op     string
+	Class  string
+	At     [2]int
+}
+
+// domImplication is %implies If ⟹ Then (engine §2, §11): two closed terms
+// whose type is a tag set.
+type domImplication struct {
+	If, Then *domTerm
+	At       [2]int
 }
 
 // domConst is a constant's definition (engine §2): %const, "define", or
@@ -93,7 +123,8 @@ func isSoundTest(op string) bool {
 // Term kinds. A string is tmString, and a tag literal tmTag, the tag in its
 // canonical spelling. A span is a term of kind tmCapture, "" for $, the
 // whole constituent, or a tmCall of head, tail, last, from or after; a rule
-// argument is tmRule. A difference, a ∖ b, has exactly two items. A guarded
+// argument is tmRule, and the classifier that classify names is
+// tmClassifier. A difference, a ∖ b, has exactly two items. A guarded
 // term, A ⟹ t, is tmIf: Cond is A, and Items holds t alone. A range,
 // 'a'..'z', is tmRange, its ends in Range. A reference to a constant is
 // tmConst, its name without $ in Str and its position in At.
@@ -107,6 +138,7 @@ const (
 	tmCall         = "call"
 	tmCapture      = "capture"
 	tmRule         = "rule"
+	tmClassifier   = "classifier"
 	tmIf           = "if"
 	tmRange        = "range"
 	tmConst        = "const"
@@ -114,7 +146,7 @@ const (
 
 type domTerm struct {
 	Kind  string
-	Str   string     // string, tag, call (the function), capture, rule
+	Str   string     // string, tag, call (the function), capture, rule, classifier
 	Items []*domTerm // union, intersection, difference, call arguments; if: its term
 	Cond  *domCond   // if: its condition
 	Range [2]string  // range: its two ends
@@ -232,7 +264,72 @@ func (d *domDoc) writeJSON(w *jsonWriter) {
 		w.pair(k.At)
 		w.raw("}")
 	}
+	w.raw(`],"classifiers":[`)
+	for i, c := range d.Classifiers {
+		if i > 0 {
+			w.raw(",")
+		}
+		w.raw(`{"name":`)
+		w.str(c.Name)
+		w.raw(`,"entries":[`)
+		for j, e := range c.Entries {
+			if j > 0 {
+				w.raw(",")
+			}
+			w.raw(`{"guards":`)
+			writeGuards(w, e.Guards)
+			w.raw(`,"keys":[`)
+			for k, key := range e.Keys {
+				if k > 0 {
+					w.raw(",")
+				}
+				w.str(key)
+			}
+			w.raw(`],"op":`)
+			w.str(e.Op)
+			w.raw(`,"class":`)
+			w.str(e.Class)
+			w.raw(`,"at":`)
+			w.pair(e.At)
+			w.raw("}")
+		}
+		w.raw(`],"at":`)
+		w.pair(c.At)
+		w.raw("}")
+	}
+	w.raw(`],"implications":[`)
+	for i, m := range d.Implications {
+		if i > 0 {
+			w.raw(",")
+		}
+		w.raw(`{"if":`)
+		m.If.writeJSON(w)
+		w.raw(`,"then":`)
+		m.Then.writeJSON(w)
+		w.raw(`,"at":`)
+		w.pair(m.At)
+		w.raw("}")
+	}
 	w.raw("]}")
+}
+
+// writeGuards writes a list of guards, as an alternative or an entry of a
+// classifier holds them.
+func writeGuards(w *jsonWriter, guards []domGuard) {
+	w.raw("[")
+	for j, g := range guards {
+		if j > 0 {
+			w.raw(",")
+		}
+		w.raw(`{"feature":`)
+		w.str(g.Feature)
+		w.raw(`,"kind":`)
+		w.str(g.Kind)
+		w.raw(`,"negated":`)
+		w.bool(g.Negated)
+		w.raw("}")
+	}
+	w.raw("]")
 }
 
 func (r *domRule) writeJSON(w *jsonWriter) {
@@ -249,20 +346,9 @@ func (r *domRule) writeJSON(w *jsonWriter) {
 		if i > 0 {
 			w.raw(",")
 		}
-		w.raw(`{"guards":[`)
-		for j, g := range a.Guards {
-			if j > 0 {
-				w.raw(",")
-			}
-			w.raw(`{"feature":`)
-			w.str(g.Feature)
-			w.raw(`,"kind":`)
-			w.str(g.Kind)
-			w.raw(`,"negated":`)
-			w.bool(g.Negated)
-			w.raw("}")
-		}
-		w.raw(`],"expr":`)
+		w.raw(`{"guards":`)
+		writeGuards(w, a.Guards)
+		w.raw(`,"expr":`)
 		a.Expr.writeJSON(w)
 		if a.Tags != nil {
 			w.raw(`,"tags":`)
@@ -357,7 +443,7 @@ func writeRange(w *jsonWriter, r [2]string) {
 
 func (t *domTerm) writeJSON(w *jsonWriter) {
 	switch t.Kind {
-	case tmString, tmTag, tmCapture, tmRule:
+	case tmString, tmTag, tmCapture, tmRule, tmClassifier:
 		w.raw("{")
 		w.str(t.Kind)
 		w.raw(":")
@@ -517,11 +603,25 @@ func decodeDOM(raw json.RawMessage, uni *unicodeTable) (*domDoc, error) {
 	if err := unmarshal(o["directives"], &dirs); err != nil {
 		return nil, err
 	}
-	var consts []json.RawMessage
-	if err := unmarshal(o["constants"], &consts); err != nil {
+	var consts, classifiers, implications []json.RawMessage
+	if unmarshal(o["constants"], &consts) != nil || unmarshal(o["classifiers"], &classifiers) != nil || unmarshal(o["implications"], &implications) != nil {
 		return nil, fmt.Errorf("not a DOM of format %d", domFormat)
 	}
 	d := &domDoc{}
+	for _, c := range classifiers {
+		classifier, err := decodeClassifier(c)
+		if err != nil {
+			return nil, err
+		}
+		d.Classifiers = append(d.Classifiers, classifier)
+	}
+	for _, m := range implications {
+		implication, err := decodeImplication(m)
+		if err != nil {
+			return nil, err
+		}
+		d.Implications = append(d.Implications, implication)
+	}
 	for _, k := range consts {
 		constant, err := decodeConst(k)
 		if err != nil {
@@ -583,6 +683,97 @@ func decodeConst(raw json.RawMessage) (*domConst, error) {
 		return nil, err
 	}
 	return k, nil
+}
+
+// decodeClassifier reads a classifier, which has exactly its name, its
+// entries and its position. Each entry has exactly its guards, its keys,
+// its operator, its class and its position; the checker holds them to the
+// reader's rules.
+func decodeClassifier(raw json.RawMessage) (*domClassifier, error) {
+	o, err := decodeObj(raw)
+	malformed := fmt.Errorf("a malformed classifier")
+	if err != nil || len(o) != 3 {
+		return nil, malformed
+	}
+	c := &domClassifier{}
+	if c.Name, err = decodeString(o["name"]); err != nil {
+		return nil, malformed
+	}
+	if c.At, err = decodePosition(o["at"]); err != nil {
+		return nil, malformed
+	}
+	if c.Entries, err = decodeList(o["entries"], decodeEntry); err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
+func decodeEntry(raw json.RawMessage) (*domEntry, error) {
+	o, err := decodeObj(raw)
+	malformed := fmt.Errorf("a malformed entry of a classifier")
+	if err != nil || len(o) != 5 {
+		return nil, malformed
+	}
+	e := &domEntry{}
+	if e.Guards, err = decodeGuards(o["guards"]); err != nil {
+		return nil, malformed
+	}
+	if e.Keys, err = decodeList(o["keys"], decodeString); err != nil {
+		return nil, malformed
+	}
+	if e.Op, err = decodeString(o["op"]); err != nil {
+		return nil, malformed
+	}
+	if e.Class, err = decodeString(o["class"]); err != nil {
+		return nil, malformed
+	}
+	if e.At, err = decodePosition(o["at"]); err != nil {
+		return nil, malformed
+	}
+	return e, nil
+}
+
+// decodeImplication reads an implication, which has exactly its two sides
+// and its position.
+func decodeImplication(raw json.RawMessage) (*domImplication, error) {
+	o, err := decodeObj(raw)
+	malformed := fmt.Errorf("a malformed implication")
+	if err != nil || len(o) != 3 || o["if"] == nil || o["then"] == nil {
+		return nil, malformed
+	}
+	m := &domImplication{}
+	if m.At, err = decodePosition(o["at"]); err != nil {
+		return nil, malformed
+	}
+	if m.If, err = decodeTerm(o["if"]); err != nil {
+		return nil, err
+	}
+	if m.Then, err = decodeTerm(o["then"]); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// decodeGuards reads a list of guards, each with exactly its feature, its
+// kind and whether it is negated.
+func decodeGuards(raw json.RawMessage) ([]domGuard, error) {
+	var items []json.RawMessage
+	if err := unmarshal(raw, &items); err != nil {
+		return nil, fmt.Errorf("a malformed guard")
+	}
+	guards := []domGuard{}
+	for _, it := range items {
+		o, err := decodeObj(it)
+		if err != nil || len(o) != 3 {
+			return nil, fmt.Errorf("a malformed guard")
+		}
+		var g domGuard
+		if unmarshal(o["feature"], &g.Feature) != nil || unmarshal(o["kind"], &g.Kind) != nil || unmarshal(o["negated"], &g.Negated) != nil {
+			return nil, fmt.Errorf("a malformed guard")
+		}
+		guards = append(guards, g)
+	}
+	return guards, nil
 }
 
 func decodeRule(raw json.RawMessage) (*domRule, error) {
@@ -802,10 +993,11 @@ func decodeExpr(raw json.RawMessage) (*domExpr, error) {
 }
 
 // termForms are the forms of a term, each as its members (docs/output.md).
-// The first member names the form. A rule argument is one too.
+// The first member names the form. A rule argument and a classifier
+// argument are forms too.
 var termForms = [][]string{
 	{tmUnion}, {tmIntersection}, {tmDifference}, {tmIf, "then"}, {tmCall, "args"},
-	{tmString}, {tmTag}, {tmRange}, {tmEmptySet}, {tmCapture}, {tmRule}, {tmConst, "at"},
+	{tmString}, {tmTag}, {tmRange}, {tmEmptySet}, {tmCapture}, {tmRule}, {tmClassifier}, {tmConst, "at"},
 }
 
 // decodeRange decodes a range's two ends, which the checker then holds to
@@ -848,7 +1040,7 @@ func decodeTerm(raw json.RawMessage) (*domTerm, error) {
 	if !isTermShape(o) {
 		return nil, fmt.Errorf("a malformed term")
 	}
-	for _, k := range []string{tmString, tmTag, tmCapture, tmRule} {
+	for _, k := range []string{tmString, tmTag, tmCapture, tmRule, tmClassifier} {
 		if v, ok := o[k]; ok {
 			s, err := decodeString(v)
 			return &domTerm{Kind: k, Str: s}, err

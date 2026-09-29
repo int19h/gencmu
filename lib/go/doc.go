@@ -20,10 +20,11 @@
 // when the bundled compiled.json has no DOM for its text under the current
 // bootstrap, so loading a bundled dialect reads no grammar at all.
 //
-// A DOM holds a document's constants as the document writes them, never
-// their values. The loader gives each constant its value when it stitches
-// a stage. So a document that several stages or dialects include takes the
-// values of each.
+// A DOM holds a document's constants, classifiers and implications as the
+// document writes them, never their values. The loader gives each constant
+// its value when it stitches a stage, and a stage resolves each classifier
+// for the features of a parse. So a document that several stages or
+// dialects include takes the values of each.
 //
 // # Parsing
 //
@@ -53,15 +54,18 @@
 // alternative of a grammar is a gate, f? or ¬f?, which keeps the
 // alternative only while f is on, or off, or a warning, f!, which keeps it
 // either way and, while f is on, adds a Warning to the result for each node
-// of the chosen tree that the alternative built. Dialect.Features lists a
-// dialect's features, each with its kind and whether the pipeline turns it
-// on.
+// of the chosen tree that the alternative built. A gate can also stand
+// before an entry of a classifier, which then applies only while the gate
+// holds. Dialect.Features lists a dialect's features, the gates of its
+// classifiers' entries included, each with its kind and whether the
+// pipeline turns it on.
 //
 // # Concurrency
 //
 // A *Dialect is safe for concurrent use by several goroutines. Each parse
-// keeps its own state; the grammars a dialect lowers for each set of
-// features are cached under a mutex and never change once built.
+// keeps its own state. A dialect caches the lowered grammars and resolved
+// classifiers for each set of features under a mutex. These values never
+// change once built.
 //
 // # Ambiguity
 //

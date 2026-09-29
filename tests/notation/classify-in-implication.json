@@ -1,0 +1,10 @@
+{
+  "description": "The sides of an implication are closed terms, so they cannot hold classify (engine §9, §10).",
+  "document": "```jbogenbau\n%implies classify(\"mi\", lex) ⟹ ~m\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 10
+    }
+  }
+}

@@ -114,9 +114,9 @@ func (nr *notationReader) read(text, docPath string) (dom *domDoc, err *Error) {
 	}()
 	dom = b.document(out.tree)
 	// What the notation's grammar cannot state and the walk does not see:
-	// nesting deeper than 256 (§9), reported at the first item, a rule or a
-	// constant's definition, that nests too deeply, in the order of the
-	// document.
+	// nesting deeper than 256 (§9), reported at the first item, a rule, a
+	// constant's definition or an implication, that nests too deeply, in
+	// the order of the document.
 	if p := checkDOM(dom, nr.uni); p != nil {
 		if p.tooDeep {
 			p = firstTooDeep(dom, nr.uni, p)
@@ -126,6 +126,8 @@ func (nr *notationReader) read(text, docPath string) (dom *domDoc, err *Error) {
 			e.Line, e.Column = p.rule.At[0], p.rule.At[1]
 		} else if p.constant != nil {
 			e.Line, e.Column = p.constant.At[0], p.constant.At[1]
+		} else if p.implication != nil {
+			e.Line, e.Column = p.implication.At[0], p.implication.At[1]
 		}
 		return nil, e
 	}
@@ -146,6 +148,9 @@ func firstTooDeep(dom *domDoc, uni *unicodeTable, found *domProblem) *domProblem
 	}
 	for _, k := range dom.Constants {
 		items = append(items, item{k.At, &domDoc{Constants: []*domConst{k}}})
+	}
+	for _, m := range dom.Implications {
+		items = append(items, item{m.At, &domDoc{Implications: []*domImplication{m}}})
 	}
 	sort.SliceStable(items, func(i, j int) bool {
 		a, b := items[i].at, items[j].at
@@ -185,6 +190,8 @@ var domRules = map[string]bool{
 	"alternative-tags": true, "argument-word": true, "argument-string": true, "argument-tag": true, "guard": true,
 	"comparator": true, "range": true, "property": true,
 	"constant-definition": true, "constant-definer": true, "constant-reference": true,
+	"classifier": true, "classifier-name": true, "classifier-entry": true, "classifier-key": true,
+	"classifier-operator": true, "classifier-class": true, "implication-declaration": true,
 }
 
 func (b *domBuilder) at(n *Node) [2]int {
@@ -245,13 +252,17 @@ func (b *domBuilder) text(n *Node) string {
 }
 
 func (b *domBuilder) document(root *Node) *domDoc {
-	d := &domDoc{Rules: []*domRule{}, Directives: []*domDirective{}, Constants: []*domConst{}}
+	d := &domDoc{Rules: []*domRule{}, Directives: []*domDirective{}, Constants: []*domConst{}, Classifiers: []*domClassifier{}, Implications: []*domImplication{}}
 	for _, c := range ruleParts(root) {
 		switch c.Rule {
 		case "rule":
 			d.Rules = append(d.Rules, b.rule(c))
 		case "constant-definition":
 			d.Constants = append(d.Constants, b.constant(c))
+		case "classifier":
+			d.Classifiers = append(d.Classifiers, b.classifier(c))
+		case "implication-declaration":
+			d.Implications = append(d.Implications, b.implicationDeclaration(c))
 		case "directive":
 			ps := parts(c)
 			dir := &domDirective{Name: strings.TrimPrefix(b.text(ps[0]), "%"), Args: []string{}, At: b.at(ps[0])}
@@ -318,6 +329,77 @@ func (b *domBuilder) constant(n *Node) *domConst {
 		b.fail(ps[2], "%s", f.problem)
 	}
 	return k
+}
+
+// classifier reads a %classifier item: its name, which begins with a
+// lower-case letter, and its entries (engine §2, §9).
+func (b *domBuilder) classifier(n *Node) *domClassifier {
+	c := &domClassifier{Entries: []*domEntry{}, At: b.at(n)}
+	for _, p := range ruleParts(n) {
+		switch p.Rule {
+		case "classifier-name":
+			c.Name = b.text(p)
+			if !classifierName.MatchString(c.Name) {
+				b.fail(p, "%s begins with a capital, so it is a tag; a classifier's name begins with a lower-case letter", c.Name)
+			}
+		case "classifier-entry":
+			c.Entries = append(c.Entries, b.entry(p))
+		}
+	}
+	return c
+}
+
+// entry reads an entry of a classifier: gates, canonical keys, ∈ or ∉, and
+// a class (engine §2, §9).
+func (b *domBuilder) entry(n *Node) *domEntry {
+	e := &domEntry{Guards: []domGuard{}, At: b.at(n)}
+	for _, p := range ruleParts(n) {
+		switch p.Rule {
+		case "guard":
+			g := b.text(p)
+			if strings.HasSuffix(g, "!") {
+				b.fail(p, "an entry of a classifier takes gates only, not a warning")
+			}
+			neg := strings.HasPrefix(g, "¬")
+			e.Guards = append(e.Guards, domGuard{Feature: strings.TrimSuffix(strings.TrimPrefix(g, "¬"), "?"), Kind: FeatureGate, Negated: neg})
+		case "classifier-key":
+			key := b.decode(parts(p)[0])
+			if msg := soundProblem(key, b.uni); msg != "" {
+				b.fail(p, "a key is a canonical sound: %s", msg)
+			}
+			e.Keys = append(e.Keys, key)
+		case "classifier-operator":
+			e.Op = b.text(p)
+		case "classifier-class":
+			written := b.text(p)
+			e.Class = strings.TrimPrefix(written, "~")
+			if !isCapital(e.Class) {
+				b.fail(p, "%s is not a class: a class is an identifier tag that begins with a capital", written)
+			}
+		}
+	}
+	return e
+}
+
+// implicationDeclaration reads %implies A ⟹ B: two closed terms whose type
+// is a tag set (engine §2, §9).
+func (b *domBuilder) implicationDeclaration(n *Node) *domImplication {
+	m := &domImplication{At: b.at(n)}
+	var sides []*domTerm
+	for _, p := range ruleParts(n) {
+		if p.Rule != "union" {
+			continue
+		}
+		b.closedFor = "a side of an implication"
+		t := b.term(p)
+		b.closedFor = ""
+		if f := implicationSideFault(t, nil); f != nil {
+			b.fail(p, "%s", f.problem)
+		}
+		sides = append(sides, t)
+	}
+	m.If, m.Then = sides[0], sides[1]
+	return m
 }
 
 // constantInBody is the error of a constant that stands in a body (§9).
@@ -844,14 +926,15 @@ func (b *domBuilder) call(n *Node, inCondition bool) *domTerm {
 		if !notationFunctions[name] {
 			b.fail(ps[0], "%s() is not a function of the notation", name)
 		}
+		if name == "classify" {
+			b.fail(ps[0], "%s is a closed term, and classify() depends on the features", b.closedFor)
+		}
 		b.fail(ps[0], "%s is a closed term, and %s() is not closed", b.closedFor, name)
 	}
 	var args []*domTerm
-	var argNodes []*Node
 	for _, p := range ps[1:] {
 		if p.Kind == KindRule {
 			args = append(args, b.termIn(p, true))
-			argNodes = append(argNodes, p)
 		}
 	}
 	shape := func(ok bool) {
@@ -861,9 +944,11 @@ func (b *domBuilder) call(n *Node, inCondition bool) *domTerm {
 	}
 	span := func(i int) bool { return i < len(args) && isSpanTerm(args[i]) }
 	rule := func(i int) bool { return i < len(args) && args[i].Kind == tmRule }
+	// A bare name in another slot is a call with the wrong arguments, so
+	// the error is the call's, as for any other signature (§9).
 	for i, a := range args {
-		if a.Kind == tmRule && !(i == 1 && (name == "tags" || name == "matches" || name == "begins")) {
-			b.fail(argNodes[i], "a bare name is an argument only as the rule of tags(), matches() or begins()")
+		if a.Kind == tmRule && !(i == 1 && (name == "tags" || name == "matches" || name == "begins" || name == "classify")) {
+			b.fail(ps[0], "a bare name is an argument only as the rule of tags(), matches() or begins(), or the classifier of classify()")
 		}
 	}
 	if inCondition {
@@ -886,6 +971,11 @@ func (b *domBuilder) call(n *Node, inCondition bool) *domTerm {
 		shape(len(args) == 2 && isStringTerm(args[0]) && isStringTerm(args[1]))
 	case "tag":
 		shape(len(args) == 1 && isStringTerm(args[0]))
+	case "classify":
+		// A string, and a bare name, which names a classifier and not a
+		// rule (§9).
+		shape(len(args) == 2 && isStringTerm(args[0]) && rule(1))
+		return &domTerm{Kind: tmCall, Str: name, Items: []*domTerm{args[0], {Kind: tmClassifier, Str: args[1].Str}}}
 	case "matches", "begins", "initial":
 		b.fail(ps[0], "%s() is a condition, not a term", name)
 	default:
@@ -900,7 +990,7 @@ func (b *domBuilder) call(n *Node, inCondition bool) *domTerm {
 
 // notationFunctions are the functions of the notation (§10).
 var notationFunctions = map[string]bool{
-	"phonemes": true, "text": true, "split": true, "tag": true, "tags": true, "classes": true, "head": true, "tail": true,
+	"phonemes": true, "text": true, "split": true, "tag": true, "tags": true, "classes": true, "classify": true, "head": true, "tail": true,
 	"last": true, "from": true, "after": true, "matches": true, "begins": true, "initial": true,
 }
 

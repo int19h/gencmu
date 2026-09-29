@@ -1,0 +1,10 @@
+{
+  "description": "A phoneme tag is not a class, and the syntax reads none after ∈ (engine §9).",
+  "document": "```jbogenbau\n%classifier lex\n  \"a\" ∈ /a/\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 9
+    }
+  }
+}

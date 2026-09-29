@@ -8,7 +8,7 @@
 
 import fs from "node:fs";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
-import { DOM_FORMAT, propertyProblem, rangeProblem, testValueFault } from "../lib/js/src/dom.js";
+import { DOM_FORMAT, expectedProblem, openPart, propertyProblem, rangeProblem, soundProblem, termType, testValueFault } from "../lib/js/src/dom.js";
 import { operandProblem } from "../lib/js/src/reader.js";
 import { UnicodeTable } from "../lib/js/src/unicode.js";
 import { characterTag } from "../lib/js/src/tags.js";
@@ -21,7 +21,7 @@ const SYMBOLS = ["...", "..", "|", "&", "(", ")", "[", "]", "<", ">", "#", "ε",
   "∈", "∉", "⊆", "⊈", "⊇", "⊉", "∪", "∩", "∖", "∅"];
 
 const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%tags", "%conditions", "%emits", "%verbatim",
-  "%ambiguity-resolution", "%elidable", "%stage", "%include", "%features", "%const", "%redefine-const"]);
+  "%ambiguity-resolution", "%elidable", "%stage", "%include", "%features", "%const", "%redefine-const", "%classifier", "%implies"]);
 
 function fail(message, token) {
   const error = new Error(message);
@@ -205,6 +205,8 @@ class Parser {
     const rules = [];
     const directives = [];
     const constants = [];
+    const classifiers = [];
+    const implications = [];
     while (this.peek()) {
       const token = this.peek();
       if (DIRECTIVES.has(token.kind)) {
@@ -232,11 +234,60 @@ class Parser {
         this.index++;
         const name = this.take("constant");
         constants.push({ name: name.name, op: CONSTANT_KEYWORDS[token.kind], value: this.term(), at: token.at });
+      } else if (token.kind === "%classifier") {
+        classifiers.push(this.classifier());
+      } else if (token.kind === "%implies") {
+        this.index++;
+        const sides = [];
+        for (const last of [false, true]) {
+          const start = this.peek();
+          const side = this.union();
+          const found = openPart(side) === null ? termType(side) : { problem: "a side of an implication is a closed term" };
+          const problem = "problem" in found ? found.problem : expectedProblem(found.type, "tags");
+          if (problem) fail(problem, start);
+          sides.push(side);
+          if (!last) this.take("⟹");
+        }
+        implications.push({ if: sides[0], then: sides[1], at: token.at });
       } else {
         fail("expected a rule or a directive", token);
       }
     }
-    return { format: DOM_FORMAT, rules, directives, constants };
+    return { format: DOM_FORMAT, rules, directives, constants, classifiers, implications };
+  }
+
+  // A classifier: its name, and entries of gates, keys, ∈ or ∉, and a class
+  // (engine §2, §9).
+  classifier() {
+    const keyword = this.take();
+    const name = this.take("identifier");
+    if (!/^[a-z]/.test(name.text)) fail("a classifier's name begins with a lower-case letter", name);
+    const entries = [];
+    while (this.is("guard") || this.is("string")) {
+      const first = this.peek();
+      const guards = [];
+      while (this.is("guard")) {
+        const guard = this.take();
+        if (guard.text.endsWith("!")) fail("an entry of a classifier takes gates only", guard);
+        guards.push({ feature: guard.name, kind: "gate", negated: guard.text.startsWith("¬") });
+      }
+      const keys = [];
+      do {
+        const token = this.take("string");
+        const key = decodeString(token.text, token);
+        const wrong = soundProblem(key, unicode);
+        if (wrong) fail(wrong, token);
+        keys.push(key);
+      } while (this.is("string"));
+      const op = this.take();
+      if (op.kind !== "∈" && op.kind !== "∉") fail("expected ∈ or ∉", op);
+      const written = this.take();
+      if (written.kind !== "identifier" && written.kind !== "tag") fail("expected a class", written);
+      const className = written.kind === "tag" ? written.text.slice(1) : written.text;
+      if (!isCapital(className)) fail("a class begins with a capital", written);
+      entries.push({ guards, keys, op: op.kind, class: className, at: first.at });
+    }
+    return { name: name.text, entries, at: keyword.at };
   }
 
   rule() {
@@ -542,11 +593,31 @@ class Parser {
     const args = [this.argument()];
     while (this.accept(",")) args.push(this.argument());
     this.take(")");
+    // A bare name is only the second argument of tags, matches, begins or
+    // classify. Elsewhere the call has the wrong arguments (engine §9).
+    args.forEach((arg, i) => {
+      if (arg.rule !== undefined && !(i === 1 && ["tags", "matches", "begins", "classify"].includes(name.text))) fail(`${name.text} is called with the wrong arguments`, name);
+    });
+    // The second argument of classify names a classifier (engine §9).
+    if (name.text === "classify" && args.length === 2 && args[1].rule !== undefined) return { call: name.text, args: [args[0], { classifier: args[1].rule }] };
     return { call: name.text, args };
   }
 
+  // A bare name, in any number of parentheses, names a rule or a
+  // classifier, as it does outside them (engine §9).
   argument() {
-    if (this.is("identifier") && !this.is("(", 1)) return { rule: this.take().text };
+    let depth = 0;
+    while (this.is("(", depth)) depth++;
+    if (this.is("identifier", depth) && !this.is("(", depth + 1)) {
+      let closed = 0;
+      while (closed < depth && this.is(")", depth + 1 + closed)) closed++;
+      if (closed === depth) {
+        this.index += depth;
+        const name = this.take().text;
+        for (let i = 0; i < depth; i++) this.take(")");
+        return { rule: name };
+      }
+    }
     return this.union();
   }
 }

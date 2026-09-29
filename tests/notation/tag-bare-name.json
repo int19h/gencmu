@@ -1,0 +1,10 @@
+{
+  "description": "tag takes one string. A bare name there makes a call with the wrong arguments, reported at the call, not at the name (engine §9).",
+  "document": "```jbogenbau\n%rule text $w(W) <tag(lex)>\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 19
+    }
+  }
+}

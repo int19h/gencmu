@@ -108,7 +108,7 @@ A cmavo's stress is free (CLL 3.9), so any of its vowels can be a capital. Its f
   /l/ any-a | /l/ any-a any-i | /l/ any-a /'/ any-i | /d/ any-o any-i
 ```
 
-A lexicon spells each cmavo in phoneme tags, the apostrophe as `/'/`. It spells each vowel with an `any-` rule of [forms.md](forms.md), which matches either the plain or the stressed phoneme.
+These rules spell each vowel with an `any-` rule, which matches either the plain or the stressed phoneme. The lexicon needs no such rule, since it looks a cmavo up by its canonical sound, in which a stressed vowel is plain.
 
 ## Brivla
 

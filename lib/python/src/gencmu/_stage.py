@@ -276,14 +276,29 @@ def span_phonemes(tokens: list[Token], uncounted: list[bool], start: int, end: i
     return joined_phonemes([tokens[index].phonemes or "" for index in range(start, end) if not uncounted[index]])
 
 
-def phoneme_tag(tags: Tags, span: Range) -> str | None:
+def phoneme_tag(tags: Tags) -> str | None:
     """The phonemes of an emitted token's phoneme tag, or ``None`` if
     it has none. Two are an error of the grammar on any emitted token,
     verbatim or not (engine §5)."""
     found = sorted(tag for tag in tags if phoneme_of(tag) is not None)
     if len(found) > 1:
-        raise _GrammarFault(f"an emitted token has two phoneme tags: {', '.join(found)}", span)
+        raise _GrammarFault(f"an emitted token has two phoneme tags: {', '.join(found)}")
     return phoneme_of(found[0]) if found else None
+
+
+def implied(tags: Tags, implications: list[tuple[Tags, Tags]]) -> Tags:
+    """A token's explicit tags with the tags of the stage's implications,
+    added until no tag changes (engine §11). An implication only adds tags,
+    so the loop ends, also over a cycle."""
+    result = tags
+    changed = bool(implications)
+    while changed:
+        changed = False
+        for premise, consequence in implications:
+            if not result.isdisjoint(premise) and not consequence <= result:
+                result = result | consequence
+                changed = True
+    return result
 
 
 class Emitter:
@@ -302,26 +317,28 @@ class Emitter:
         self.widened_ends: set[int] = set()
 
     def token(self, start: int, end: int, tags: Tags, source: Range, inserted_by: str | None) -> Token:
-        phoneme = phoneme_tag(tags, (start, end))
+        phoneme = phoneme_tag(tags)
         phonemes = phoneme if phoneme is not None else span_phonemes(self.tokens, self.uncounted, start, end)
         text = self.context.text[source[0] : source[1]]
         return Token(text, tags, (start, end), source, phonemes, inserted_by)
 
-    def part_token(self, part: DChild, tags: Tags) -> Token:
-        """The token a ``$`` item or a capture item emits over a part
-        (engine §11)."""
+    def part_token(self, part: DChild, explicit: Tags) -> Token:
+        """The token a ``$`` item or a capture item emits over a part, with
+        the tags that the emission gives it (engine §11)."""
+        # The stage's implications apply before the phonemes (engine §11).
+        tags = implied(explicit, self.context.lowered.implications)
         tokens = self.tokens
         span = (part.start, part.end)
         if isinstance(part, DNode) and part.production.verbatim:
             # A widened token sounds like its text (engine §5), but two
             # phoneme tags are still an error on it.
-            phoneme_tag(tags, span)
+            phoneme_tag(tags)
             source = self.widened_source(part.start, part.end)
             text = self.context.text[source[0] : source[1]]
             return Token(text, tags, span, source, text, verbatim=True)
         if part.end - part.start == 1 and tokens[part.start].verbatim:
             # A token over one verbatim token is verbatim, with its source.
-            phoneme_tag(tags, span)
+            phoneme_tag(tags)
             only = tokens[part.start]
             return Token(only.text, tags, span, only.source, only.text, verbatim=True)
         return self.token(part.start, part.end, tags, self.part_source(part), None)
@@ -390,7 +407,8 @@ class Emitter:
                 at = self.tokens[boundary - 1].source[1]
             else:
                 at = self.tree.source_of(node)[0]
-            self.output.append(self.token(boundary, boundary, frozenset((tag,)), (at, at), node.production.rule_name))
+            tags = implied(frozenset((tag,)), self.context.lowered.implications)
+            self.output.append(self.token(boundary, boundary, tags, (at, at), node.production.rule_name))
 
     def context_caps(self, node: DNode) -> Any:
         return self.forest.caps[node.item]
@@ -402,7 +420,7 @@ class Emitter:
         bound = self.evaluator.bind(node.production, self.context_caps(node), (node.start, node.end, node.tag))
         tags = self.evaluator.tags(term, bound)
         if not tags:
-            raise _GrammarFault(f"{node.production.rule_name} emits a token with no tags; a rule that emits nothing says %emits ε", (node.start, node.end))
+            raise _GrammarFault(f"{node.production.rule_name} emits a token with no tags; a rule that emits nothing says %emits ε")
         return tags
 
 
