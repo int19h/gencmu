@@ -1,0 +1,43 @@
+{
+  "description": "Attachments nest as deep as the text is long, here 1500 levels, and emission, the output and the brackets handle them without overflow (engine §11, docs/output.md).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text\n  | $w(word) | $w(word) $a(text)\n%emits\n  $w ($a)\n%rule word\n  'w' <W>\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text W\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "a",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "w",
+              "tags": [
+                "W"
+              ],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ]
+            }
+          ]
+        },
+        {
+          "name": "b",
+          "verdict": "unique",
+          "output": []
+        }
+      ]
+    },
+    "brackets": "(w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w {w (w [w w])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])}])"
+  }
+}

@@ -386,6 +386,21 @@ pub fn run_engine_case(case: &Value) -> Result<(), String> {
     check_parse(&dialect, case, case, expect)
 }
 
+/// Runs `work` on a thread with a deep stack. The canonical result nests
+/// as deep as a text's attachments do, and this small JSON reader and its
+/// values recurse, as the library does not. So the library runs on the
+/// test's own thread, and only the reading of its JSON runs here.
+fn with_deep_stack<T: Send>(work: impl FnOnce() -> T + Send) -> T {
+    std::thread::scope(|scope| {
+        std::thread::Builder::new()
+            .stack_size(256 << 20)
+            .spawn_scoped(scope, work)
+            .expect("a thread")
+            .join()
+            .expect("the work")
+    })
+}
+
 /// Parses a case's input with the options of `run`, the case itself or one
 /// item of its `parses`, and holds the result to `expect`.
 fn check_parse(dialect: &gencmu::Dialect, case: &Value, run: &Value, expect: &Value) -> Result<(), String> {
@@ -413,19 +428,23 @@ fn check_parse(dialect: &gencmu::Dialect, case: &Value, run: &Value, expect: &Va
         }
     };
     let json = gencmu::to_json(&result);
-    let actual = parse_json(&json).map_err(|error| format!("the result is not JSON ({error}): {json}"))?;
-    if let Some(expected) = expect.get("warnings") {
-        // The canonical result has no `warnings` when there are none.
-        let none = Value::Array(Vec::new());
-        if let Err(problem) = same(expected, actual.get("warnings").unwrap_or(&none), "warnings") {
-            let _ = writeln!(problems, "{problem}");
+    problems.push_str(&with_deep_stack(|| {
+        let mut problems = String::new();
+        let actual = parse_json(&json).map_err(|error| format!("the result is not JSON ({error}): {json}"))?;
+        if let Some(expected) = expect.get("warnings") {
+            // The canonical result has no `warnings` when there are none.
+            let none = Value::Array(Vec::new());
+            if let Err(problem) = same(expected, actual.get("warnings").unwrap_or(&none), "warnings") {
+                let _ = writeln!(problems, "{problem}");
+            }
         }
-    }
-    if let Some(pattern) = expect.get("result") {
-        if let Err(problem) = matches(pattern, &actual, "result") {
-            let _ = writeln!(problems, "{problem}");
+        if let Some(pattern) = expect.get("result") {
+            if let Err(problem) = matches(pattern, &actual, "result") {
+                let _ = writeln!(problems, "{problem}");
+            }
         }
-    }
+        Ok::<String, String>(problems)
+    })?);
     if let Some(expected) = expect.get("brackets").and_then(Value::str) {
         let found = gencmu::to_brackets(&result, false);
         if found != expected {
