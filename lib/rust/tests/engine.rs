@@ -2,7 +2,7 @@
 
 mod common;
 
-use common::{case_files, parse_json, run_engine_case};
+use common::{case_files, has_caller_attachments, parse_json, run_engine_case};
 
 #[test]
 fn engine_cases() {
@@ -10,14 +10,23 @@ fn engine_cases() {
     let files = case_files("engine");
     assert!(!files.is_empty(), "no engine cases found");
     let mut failures = Vec::new();
+    let mut skipped = 0;
     for file in &files {
         let text = std::fs::read_to_string(file).expect("a case");
         let case = parse_json(&text).expect("a case is JSON");
+        if has_caller_attachments(&case) {
+            skipped += 1;
+            continue;
+        }
         if let Err(problem) = run_engine_case(&case) {
             failures.push(format!("{}:\n{problem}", file.display()));
         }
     }
-    eprintln!("{} engine cases in {:?}", files.len(), started.elapsed());
+    eprintln!(
+        "{} engine cases in {:?}, {skipped} skipped for caller tokens with attachments",
+        files.len() - skipped,
+        started.elapsed()
+    );
     assert!(
         failures.is_empty(),
         "{} of {} engine cases failed:\n\n{}",

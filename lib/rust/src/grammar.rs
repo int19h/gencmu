@@ -595,7 +595,7 @@ impl Constants<'_> {
             for alternative in &mut rule.alternatives {
                 let terms = alternative.alternative.tags.iter_mut().chain(alternative.rule_tags.iter_mut()).chain(
                     alternative.emit.iter_mut().flatten().filter_map(|item| match item {
-                        EmitItem::Capture(_, tags) => tags.as_mut(),
+                        EmitItem::Capture(_, tags, ..) => tags.as_mut(),
                         EmitItem::Insert(_) => None,
                     }),
                 );
@@ -640,7 +640,7 @@ impl Constants<'_> {
         let mut rule = rule.clone();
         let terms = rule.tags.iter_mut().chain(rule.alternatives.iter_mut().filter_map(|a| a.tags.as_mut())).chain(
             rule.emit.iter_mut().flatten().filter_map(|item| match item {
-                EmitItem::Capture(_, tags) => tags.as_mut(),
+                EmitItem::Capture(_, tags, ..) => tags.as_mut(),
                 EmitItem::Insert(_) => None,
             }),
         );
@@ -753,7 +753,7 @@ fn calls_in_rule<'r>(rule: &'r RuleDef, out: &mut Vec<(&'r str, &'r [Arg])>) {
         alternative.tags.iter().for_each(|t| term(t, out));
     }
     for item in rule.emit.iter().flatten() {
-        if let EmitItem::Capture(_, Some(t)) = item {
+        if let EmitItem::Capture(_, Some(t), ..) = item {
             term(t, out);
         }
     }
@@ -839,7 +839,7 @@ fn check_alternative(grammar: &StageGrammar, alternative: &StitchedAlternative) 
         check_cond(grammar, cond)?;
     }
     for item in alternative.emit.iter().flatten() {
-        if let EmitItem::Capture(_, Some(term)) = item {
+        if let EmitItem::Capture(_, Some(term), ..) = item {
             check_term(grammar, term)?;
         }
     }

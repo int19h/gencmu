@@ -28,6 +28,33 @@ pub struct Token {
     pub source: Range<usize>,
     /// For a token an emission clause inserted, the rule whose clause it is.
     pub inserted_by: Option<String>,
+    /// The tokens attached before this one (engine §11), which no later
+    /// stage reads. Empty unless an emission gave the token attachments.
+    pub before: Vec<Attachment>,
+    /// The tokens attached after this one (engine §11).
+    pub after: Vec<Attachment>,
+}
+
+/// A token attached to another (engine §11). It is a token without a span,
+/// since its span would count the input of the stage that attached it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Attachment {
+    /// The original text over [`source`](Attachment::source).
+    pub text: String,
+    /// What the token sounds like (engine §5), if anything.
+    pub phonemes: Option<String>,
+    /// What the token shows to people (engine §5).
+    pub label: String,
+    /// The token's tags.
+    pub tags: Tags,
+    /// The range of the original text this token covers, in code points.
+    pub source: Range<usize>,
+    /// For a token an emission clause inserted, the rule whose clause it is.
+    pub inserted_by: Option<String>,
+    /// The tokens attached before this one.
+    pub before: Vec<Attachment>,
+    /// The tokens attached after this one.
+    pub after: Vec<Attachment>,
 }
 
 /// What kind of node a [`Node`] is.

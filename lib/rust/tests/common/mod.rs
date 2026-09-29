@@ -289,6 +289,15 @@ pub fn case_options(case: &Value) -> gencmu::ParseOptions {
     }
 }
 
+/// Whether a case's tokens have `before` or `after` members. A caller
+/// cannot supply attachments, and `InputToken` has no such fields, so the
+/// Rust library skips such a case (tests/README.md).
+pub fn has_caller_attachments(case: &Value) -> bool {
+    case.get("tokens").is_some_and(|tokens| {
+        tokens.array().iter().any(|token| token.get("before").is_some() || token.get("after").is_some())
+    })
+}
+
 pub fn case_tokens(case: &Value) -> Option<Vec<gencmu::InputToken>> {
     let tokens = case.get("tokens")?;
     Some(

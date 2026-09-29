@@ -3,8 +3,8 @@
 use crate::dom::{
     comparison_problem, cond_type_problem, constant_value_type, expected_problem, is_capture_name, is_classifier_name,
     is_sound_test, joined_type, literal_call_problem, property_problem, range_problem, sound_problem, tag_term_problem,
-    term_type, test_type_problem, Alternative, Arg, ClassifierDef, Cond, ConstDef, Directive, Dom, EmitItem, Entry,
-    Expr, FeatureKind, Guard, ImplicationDef, Op, RuleDef, Term, Type,
+    term_type, test_type_problem, Alternative, Arg, Attachments, ClassifierDef, Cond, ConstDef, Directive, Dom,
+    EmitItem, Entry, Expr, FeatureKind, Guard, ImplicationDef, Op, RuleDef, Term, Type,
 };
 use crate::error::Error;
 use crate::result::{Node, NodeKind, Token};
@@ -608,16 +608,9 @@ impl<'a> Reader<'a> {
             }
             let tags = Self::rules(item, "emit-tags").next();
             let text = self.text(target);
-            match target.terminal.as_deref().unwrap_or("") {
+            let mut read = match target.terminal.as_deref().unwrap_or("") {
                 "capture" => {
                     let name = text.trim_start_matches('$').to_string();
-                    let listed = items.iter().any(|item| match item {
-                        EmitItem::Capture(other, _) => *other == name,
-                        EmitItem::Insert(_) => false,
-                    });
-                    if listed && !name.is_empty() {
-                        return Err(self.error(arrow, "an emission lists the same capture twice"));
-                    }
                     // `<term>`, the item's own tags.
                     let tags = match tags {
                         Some(tags) => {
@@ -631,7 +624,7 @@ impl<'a> Reader<'a> {
                         }
                         None => None,
                     };
-                    items.push(EmitItem::Capture(name, tags));
+                    EmitItem::Capture(name, tags, Attachments::default())
                 }
                 terminal => {
                     // An inserted tag is one tag literal (engine §9).
@@ -648,16 +641,56 @@ impl<'a> Reader<'a> {
                     if tags.is_some() {
                         return Err(self.error(target, "an inserted tag takes no tags of its own"));
                     }
-                    items.push(EmitItem::Insert(tag));
+                    EmitItem::Insert(tag)
+                }
+            };
+            // Attachments: named captures in parentheses, before the item and
+            // after it, carried only by a named capture (engine §9, §11).
+            let before = Self::rules(item, "emit-before").map(|node| self.attachment(node)).collect::<R<Vec<_>>>()?;
+            let after = Self::rules(item, "emit-after").map(|node| self.attachment(node)).collect::<R<Vec<_>>>()?;
+            if !before.is_empty() || !after.is_empty() {
+                match &mut read {
+                    EmitItem::Insert(_) => return Err(self.error(item, "an inserted tag carries no attachments")),
+                    EmitItem::Capture(name, ..) if name.is_empty() => {
+                        return Err(self.error(item, "$ carries no attachments; name a capture"))
+                    }
+                    EmitItem::Capture(_, _, attachments) => *attachments = Attachments { before, after },
                 }
             }
+            items.push(read);
         }
-        let whole = |item: &EmitItem| matches!(item, EmitItem::Capture(name, _) if name.is_empty());
+        let whole = |item: &EmitItem| matches!(item, EmitItem::Capture(name, ..) if name.is_empty());
         let wholes = items.iter().filter(|item| whole(item)).count();
         if wholes > 0 && wholes < items.len() {
             return Err(self.error(arrow, "$ is used with a capture or an inserted tag"));
         }
+        // A capture stands once in an emission, as an item or as an
+        // attachment (engine §9).
+        let mut named: Vec<&str> = Vec::new();
+        for item in &items {
+            if let EmitItem::Capture(name, _, attachments) = item {
+                for name in std::iter::once(name.as_str()).filter(|name| !name.is_empty()).chain(attachments.names()) {
+                    if named.contains(&name) {
+                        return Err(self.error(arrow, "an emission lists the same capture twice"));
+                    }
+                    named.push(name);
+                }
+            }
+        }
         Ok(items)
+    }
+
+    /// An attachment's capture, by its name without `$`: never `$` itself
+    /// (engine §9).
+    fn attachment(&self, node: &'a Node) -> R<String> {
+        let name = Self::tokens_of(node)
+            .map(|token| self.text(token))
+            .find(|text| text.starts_with('$'))
+            .map_or("", |text| &text[1..]);
+        if name.is_empty() {
+            return Err(self.error(node, "an attachment holds a named capture, not $"));
+        }
+        Ok(name.to_string())
     }
 
     /// `A ⟹ B`, grouping to the right: `if` of its `any-of` and the

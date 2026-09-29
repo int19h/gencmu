@@ -1,6 +1,6 @@
 {
   "description": "An emission item names attachment captures in parentheses, any number before its carrier and after its tags, in order (engine §9, §11).",
-  "document": "```jbogenbau\n%rule a $b(B) $w(W) $x(X) $a(A) $v(V) %emits ($b) $w <tags($w)> ($x) ($a), $v\n```\n",
+  "document": "```jbogenbau\n%rule a | $b(B) $w(W) $x(X) $a(A) | $v(V) %emits ($b) $w <tags($w)> ($x) ($a), $v\n```\n",
   "expect": {
     "dom": {
       "rules": [

@@ -68,7 +68,8 @@ pub struct Feature {
 ///
 /// The original text of such a parse is the tokens' texts joined with
 /// single spaces, and each token's source is its text's place in it. Each
-/// token's label is its text (engine §5).
+/// token's label is its text (engine §5). It has no attachments, since a
+/// caller cannot supply them (engine §11).
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct InputToken {
     /// The token's text.
@@ -279,6 +280,8 @@ impl Dialect {
                     span: index..index + 1,
                     source: index..index + 1,
                     inserted_by: None,
+                    before: Vec::new(),
+                    after: Vec::new(),
                 });
                 input.push(Tok {
                     label: text.clone(),
@@ -287,6 +290,8 @@ impl Dialect {
                     phonemes: None,
                     source: (index, index + 1),
                     sound: Default::default(),
+                    before: Vec::new(),
+                    after: Vec::new(),
                 });
             }
             (input, public)
@@ -316,6 +321,8 @@ impl Dialect {
                     span: index..index + 1,
                     source: at..at + length,
                     inserted_by: None,
+                    before: Vec::new(),
+                    after: Vec::new(),
                 });
                 input.push(Tok {
                     text: token.text.clone(),
@@ -324,6 +331,8 @@ impl Dialect {
                     source: (at, at + length),
                     label: token.text.clone(),
                     sound: Default::default(),
+                    before: Vec::new(),
+                    after: Vec::new(),
                 });
                 at += length + 1;
             }
@@ -577,6 +586,8 @@ impl Dialect {
                 span: token.span.0..token.span.1,
                 source: token.source.0..token.source.1,
                 inserted_by: token.inserted_by,
+                before: token.before.clone(),
+                after: token.after.clone(),
             });
             next.push(Tok {
                 text,
@@ -585,6 +596,8 @@ impl Dialect {
                 source: token.source,
                 label: token.label,
                 sound: Default::default(),
+                before: token.before,
+                after: token.after,
             });
         }
         stage.output = Some(public.clone());
@@ -685,6 +698,8 @@ impl Dialect {
                     source: (at, at),
                     label: String::new(),
                     sound: Default::default(),
+                    before: Vec::new(),
+                    after: Vec::new(),
                 });
                 synthetic.push(true);
             }

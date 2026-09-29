@@ -92,6 +92,9 @@ fn a_well_formed_dom_is_used() {
     assert!(!document_was_read(&span_argument));
     let whole_twice = with_emission(r#"{"items":[{"capture":""},{"capture":"","tags":{"tag":"T"}}]}"#);
     assert!(!document_was_read(&whole_twice));
+    // Attachments before and after a named capture (§11).
+    assert!(!document_was_read(&with_emission(r#"{"items":[{"capture":"y","before":["x"]}]}"#)));
+    assert!(!document_was_read(&with_emission(r#"{"items":[{"capture":"x","after":["y"]}]}"#)));
     // `%emits ε` is no items (§9).
     assert!(!document_was_read(&with_emission(r#"{"items":[]}"#)));
     // `foreign` marks a rule with `%foreign` (docs/output.md).
@@ -441,6 +444,25 @@ fn every_malformed_dom_is_a_cache_miss() {
         ("an unknown member of an item", with_emission(r#"{"items":[{"capture":"x","at":[1,1]}]}"#)),
         ("<∅>", with_emission(r#"{"items":[{"capture":"x","tags":{"emptySet":true}}]}"#)),
         ("an unknown emission item", with_emission(r#"{"items":[{"emit":"x"}]}"#)),
+        // Attachments are lists of named captures, present only when not
+        // empty, only on a named capture, and each capture once in the
+        // emission (§9, §11).
+        ("an empty list of attachments", with_emission(r#"{"items":[{"capture":"y","before":[]}]}"#)),
+        ("an attachment of no name", with_emission(r#"{"items":[{"capture":"x","after":["y",""]}]}"#)),
+        ("an attachment that is no capture name", with_emission(r#"{"items":[{"capture":"x","after":["Y"]}]}"#)),
+        ("attachments that are not a list", with_emission(r#"{"items":[{"capture":"x","after":"y"}]}"#)),
+        ("attachments on $", with_emission(r#"{"items":[{"capture":"","after":["y"]}]}"#)),
+        (
+            "attachments on an inserted tag",
+            with_emission(r#"{"items":[{"insert":"X","before":["x"]},{"capture":"y"}]}"#),
+        ),
+        (
+            "an attachment that is also an item",
+            with_emission(r#"{"items":[{"capture":"x","after":["y"]},{"capture":"y"}]}"#),
+        ),
+        ("an attachment listed twice", with_emission(r#"{"items":[{"capture":"y","before":["x","x"]}]}"#)),
+        ("an attachment out of order", with_emission(r#"{"items":[{"capture":"x","before":["y"]}]}"#)),
+        ("an attachment no alternative has", with_emission(r#"{"items":[{"capture":"x","after":["z"]}]}"#)),
         (
             "any of one condition",
             with_condition(r#"{"any":[{"op":"=","left":{"string":"a"},"right":{"string":"b"}}]}"#),

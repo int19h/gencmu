@@ -5,7 +5,7 @@ use std::ops::Range;
 
 use crate::json::write_str;
 use crate::result::{
-    Action, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Stage, Tags, Token, Verdict, Warning,
+    Action, Attachment, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Stage, Tags, Token, Verdict, Warning,
 };
 
 fn write_range(out: &mut String, range: &Range<usize>) {
@@ -29,23 +29,80 @@ fn write_tags(out: &mut String, tags: &Tags) {
 }
 
 fn write_token(out: &mut String, token: &Token) {
+    write_token_fields(
+        out,
+        &token.text,
+        token.phonemes.as_deref(),
+        &token.label,
+        &token.tags,
+        Some(&token.span),
+        &token.source,
+        token.inserted_by.as_deref(),
+    );
+    write_attachments(out, &token.before, &token.after);
+    out.push('}');
+}
+
+/// A token's members up to `insertedBy`, without the closing brace. An
+/// attached token has no span (docs/output.md).
+#[allow(clippy::too_many_arguments)]
+fn write_token_fields(
+    out: &mut String,
+    text: &str,
+    phonemes: Option<&str>,
+    label: &str,
+    tags: &Tags,
+    span: Option<&Range<usize>>,
+    source: &Range<usize>,
+    inserted_by: Option<&str>,
+) {
     out.push_str("{\"text\":");
-    write_str(out, &token.text);
+    write_str(out, text);
     out.push_str(",\"phonemes\":");
-    write_str(out, token.phonemes.as_deref().unwrap_or(""));
+    write_str(out, phonemes.unwrap_or(""));
     out.push_str(",\"label\":");
-    write_str(out, &token.label);
+    write_str(out, label);
     out.push_str(",\"tags\":");
-    write_tags(out, &token.tags);
-    out.push_str(",\"span\":");
-    write_range(out, &token.span);
+    write_tags(out, tags);
+    if let Some(span) = span {
+        out.push_str(",\"span\":");
+        write_range(out, span);
+    }
     out.push_str(",\"source\":");
-    write_range(out, &token.source);
-    if let Some(rule) = &token.inserted_by {
+    write_range(out, source);
+    if let Some(rule) = inserted_by {
         out.push_str(",\"insertedBy\":");
         write_str(out, rule);
     }
-    out.push('}');
+}
+
+/// A token's `before` and `after`, each present only when it is not empty
+/// (docs/output.md).
+fn write_attachments(out: &mut String, before: &[Attachment], after: &[Attachment]) {
+    for (key, list) in [(",\"before\":[", before), (",\"after\":[", after)] {
+        if list.is_empty() {
+            continue;
+        }
+        out.push_str(key);
+        for (index, attachment) in list.iter().enumerate() {
+            if index > 0 {
+                out.push(',');
+            }
+            write_token_fields(
+                out,
+                &attachment.text,
+                attachment.phonemes.as_deref(),
+                &attachment.label,
+                &attachment.tags,
+                None,
+                &attachment.source,
+                attachment.inserted_by.as_deref(),
+            );
+            write_attachments(out, &attachment.before, &attachment.after);
+            out.push('}');
+        }
+        out.push(']');
+    }
 }
 
 enum Work<'a> {
@@ -248,7 +305,7 @@ fn write_warning(out: &mut String, warning: &Warning) {
 /// documented order, no whitespace, non-ASCII characters as themselves.
 pub fn to_json(result: &ParseResult) -> String {
     let mut out = String::new();
-    out.push_str("{\"format\":5,\"ok\":");
+    out.push_str("{\"format\":6,\"ok\":");
     out.push_str(if result.ok { "true" } else { "false" });
     out.push_str(",\"stages\":[");
     for (index, stage) in result.stages.iter().enumerate() {
@@ -324,8 +381,15 @@ pub(crate) fn brackets(tree: &Node, tokens: &[Token], show_elided: bool) -> Stri
                 // (docs/output.md).
                 let label = token.map_or_else(String::new, |token| token.label.clone());
                 // A token is never an empty node, even when its label is
-                // empty, as an empty zoi quotation's is.
-                Rendered::Leaf(label)
+                // empty, as an empty zoi quotation's is. A token with
+                // attachments is a group of its before-attachments, its
+                // label and its after-attachments.
+                match token {
+                    Some(token) if !token.before.is_empty() || !token.after.is_empty() => {
+                        attached_group(&mut arena, &token.before, label, &token.after)
+                    }
+                    _ => Rendered::Leaf(label),
+                }
             }
             NodeKind::Elided => {
                 if show_elided {
@@ -387,6 +451,28 @@ pub(crate) fn brackets(tree: &Node, tokens: &[Token], show_elided: bool) -> Stri
         }
     }
     out
+}
+
+/// A token with attachments as a bracket group (docs/output.md): its
+/// before-attachments, its label and its after-attachments, each rendered
+/// the same way. The members go at the end of the arena, so they are
+/// never taken for nodes of the tree.
+fn attached_group(arena: &mut Vec<Rendered>, before: &[Attachment], label: String, after: &[Attachment]) -> Rendered {
+    let attachment = |arena: &mut Vec<Rendered>, attachment: &Attachment| {
+        let label = attachment.label.clone();
+        let rendered = if attachment.before.is_empty() && attachment.after.is_empty() {
+            Rendered::Leaf(label)
+        } else {
+            attached_group(arena, &attachment.before, label, &attachment.after)
+        };
+        arena.push(rendered);
+        arena.len() - 1
+    };
+    let mut members: Vec<usize> = before.iter().map(|each| attachment(arena, each)).collect();
+    arena.push(Rendered::Leaf(label));
+    members.push(arena.len() - 1);
+    members.extend(after.iter().map(|each| attachment(arena, each)));
+    Rendered::Group(members)
 }
 
 /// Renders a result's tree as brackets (`docs/output.md`), with elided

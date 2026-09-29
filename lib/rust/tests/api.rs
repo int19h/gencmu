@@ -390,7 +390,7 @@ fn results_outlive_the_dialect_and_cross_threads() {
         dialect.parse(&text, &ParseOptions::default()).unwrap()
     };
     let json = std::thread::spawn(move || gencmu::to_json(&result)).join().unwrap();
-    assert!(json.starts_with("{\"format\":5,\"ok\":true"));
+    assert!(json.starts_with("{\"format\":6,\"ok\":true"));
 
     let dialect = std::sync::Arc::new(gencmu::load_dialect("notation").unwrap());
     let threads: Vec<_> = (0..4)
@@ -586,4 +586,32 @@ fn an_implication_error_stands_at_its_constant() {
     };
     assert_eq!(error("%implies A ∪ $X ⟹ ~m"), ("g.md".to_string(), Some(6), Some(14)));
     assert_eq!(error("%const $S \"s\"\n%implies A ⟹ ~m ∪ $S"), ("g.md".to_string(), Some(7), Some(19)));
+}
+
+/// The indicator stage attaches indicators and `ba'e` to their word, and
+/// the syntax reads the word alone (engine §11, docs/output.md).
+#[test]
+fn attachments_follow_their_token_into_the_result_and_the_brackets() {
+    let dialect = gencmu::load_dialect("cll-ebnf").expect("the CLL dialect");
+    let options = ParseOptions::default();
+    let brackets = |text: &str| {
+        let result = dialect.parse(text, &options).expect("a result");
+        assert!(result.ok, "{text}: {:?}", result.error);
+        gencmu::to_brackets(&result, false)
+    };
+    assert_eq!(brackets("mi ui klama"), "([mi ui] klama)");
+    assert_eq!(brackets("ba'e mi klama"), "([ba'e mi] klama)");
+    assert_eq!(brackets("mi ui nai klama"), "([mi {ui nai}] klama)");
+    let result = dialect.parse("mi ui nai klama", &options).expect("a result");
+    let syntax = result.stages.last().expect("a stage");
+    let mi = &syntax.input[0];
+    assert_eq!((mi.label.as_str(), mi.before.len(), mi.after.len()), ("mi", 0, 1));
+    let ui = &mi.after[0];
+    assert_eq!((ui.label.as_str(), ui.source.clone()), ("ui", 3..5));
+    assert_eq!(ui.after.iter().map(|nai| nai.label.as_str()).collect::<Vec<_>>(), ["nai"]);
+    // An attached token has no span, and its lists are written only when
+    // they are not empty (docs/output.md).
+    let json = gencmu::to_json(&result);
+    assert!(json.contains(r#""source":[0,2],"after":[{"text":"ui","phonemes":"ui","label":"ui","tags":["#), "{json}");
+    assert!(json.contains(r#""source":[3,5],"after":[{"text":"nai""#), "{json}");
 }
