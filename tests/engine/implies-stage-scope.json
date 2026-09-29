@@ -1,0 +1,46 @@
+{
+  "description": "A stage applies only its own implications. The first stage marks A m, and the second stage drops m and has no implication that adds it again (engine §11).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%include \"first.md\"\n%stage second\n%include \"second.md\"\n```\n",
+    "first.md": "```jbogenbau\n%ambiguity-resolution greedy\n%implies A ⟹ ~m\n%rule text [word] ...\n%rule word $w(W) <A>\n%emits\n  $\n```\n",
+    "second.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [word] ...\n%rule word $w(A) <tags($w) ∖ ~m>\n%emits\n  $\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "W"
+      ],
+      "phonemes": "x"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "first",
+          "output": [
+            {
+              "tags": [
+                "A",
+                "m"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "second",
+          "output": [
+            {
+              "tags": [
+                "A"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

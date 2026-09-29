@@ -185,6 +185,8 @@ A keyword is `%` and a name. The stage tags each keyword that the notation knows
   | '%' $features(name) <~keyword-features>
   | '%' $const(name) <~keyword-const>
   | '%' $redefine-const(name) <~keyword-redefine-const>
+  | '%' $classifier(name) <~keyword-classifier>
+  | '%' $implies(name) <~keyword-implies>
   | '%' $other(name) <~keyword>
 %conditions
   text($rule) = "rule",
@@ -201,11 +203,14 @@ A keyword is `%` and a name. The stage tags each keyword that the notation knows
   text($features) = "features",
   text($const) = "const",
   text($redefine-const) = "redefine-const",
+  text($classifier) = "classifier",
+  text($implies) = "implies",
   text($other) ≠ "rule", text($other) ≠ "redefine-rule", text($other) ≠ "extend-rule",
   text($other) ≠ "tags", text($other) ≠ "conditions", text($other) ≠ "emits",
   text($other) ≠ "verbatim", text($other) ≠ "ambiguity-resolution", text($other) ≠ "elidable",
   text($other) ≠ "stage", text($other) ≠ "include", text($other) ≠ "features",
-  text($other) ≠ "const", text($other) ≠ "redefine-const"
+  text($other) ≠ "const", text($other) ≠ "redefine-const",
+  text($other) ≠ "classifier", text($other) ≠ "implies"
 %emits
   $
 ```

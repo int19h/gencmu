@@ -1,0 +1,36 @@
+{
+  "description": "Implications apply to every token that the stage emits, an inserted one included (engine §11).",
+  "grammar": "%implies ~q ⟹ ~r\n%rule text [word] ...\n%rule word $w(W)\n%emits\n  $w, ~q",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "W"
+      ],
+      "phonemes": "x"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "output": [
+            {
+              "tags": [
+                "W"
+              ]
+            },
+            {
+              "tags": [
+                "q",
+                "r"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -430,9 +430,26 @@ A vowel of a word form is one of `a e i o u`, in either case. `y` is not one of 
 
 The diphthongs of CLL 3.4 are the falling `ai ei oi au` and the rising `ia ie ii io iu ua ue ui uo uu`. The rising ones can stand only in names and borrowings, and in a cmavo only as the whole word. A name can also have `iy` and `uy`. A diphthong can have a capital on either letter or on both, and it then marks one stressed syllable.
 
+A vowel letter is either phoneme, plain or stressed, since the stress of a cmavo is free (CLL 3.9). [forms.md](forms.md) reads `any-y` in the same way.
+
 ```jbogenbau
 %rule vowel
   any-a | any-e | any-i | any-o | any-u
+
+%rule any-a
+  /a/ | /A/
+
+%rule any-e
+  /e/ | /E/
+
+%rule any-i
+  /i/ | /I/
+
+%rule any-o
+  /o/ | /O/
+
+%rule any-u
+  /u/ | /U/
 
 %rule capital-vowel
   /A/ | /E/ | /I/ | /O/ | /U/

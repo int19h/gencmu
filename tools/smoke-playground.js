@@ -165,26 +165,27 @@ async function main() {
     if (settled.error || settled.output.trim() !== brackets) throw new Error(`after a burst of changes: ${JSON.stringify(settled)}`);
     await stale();
 
-    // An edited lexicon is read with the notation grammar, which takes a
-    // while; a dialect that does not use it should not wait for that.
+    // An edited document is read with the notation grammar, which takes a
+    // while for a long one such as the CLL word shapes; a dialect that does
+    // not use it should not wait for that.
     await run(() => {
-      [...document.querySelectorAll("button.doc")].find((button) => button.textContent === "words/lexicon-cll").click();
+      [...document.querySelectorAll("button.doc")].find((button) => button.textContent === "words/shapes").click();
       const editor = document.getElementById("doc-text");
       editor.value = editor.value.replace("%rule", "%rule ");
       editor.dispatchEvent(new Event("input"));
     });
-    await until("the edited lexicon to be read", () =>
-      document.getElementById("status").textContent.includes("Reading words/lexicon-cll") ? true : null);
+    await until("the edited word shapes to be read", () =>
+      document.getElementById("status").textContent.includes("Reading words/shapes") ? true : null);
     await choose("dialects/experimental.md");
     const other = await until("an answer under the experimental dialect", () => {
       const status = document.getElementById("status");
       const result = document.getElementById("result");
       return status.dataset.state === "ready" && result.dataset.dialect === "experimental" && !result.hasAttribute("aria-busy")
-        ? { read: self.playground.client.doms.has("words/lexicon-cll.md"), output: (document.querySelector("#output pre") || {}).textContent } : null;
+        ? { read: self.playground.client.doms.has("words/shapes.md"), output: (document.querySelector("#output pre") || {}).textContent } : null;
     });
     // The worker hands the page every document it finishes reading, so the
-    // lexicon's being there means the switch waited for it.
-    if (other.read) throw new Error("switching to a dialect that does not read the edited lexicon waited for it to be read");
+    // document's being there means the switch waited for it.
+    if (other.read) throw new Error("switching to a dialect that does not read the edited word shapes waited for them to be read");
     if (!other.output || !other.output.includes("klama")) throw new Error(`no brackets under experimental: ${JSON.stringify(other)}`);
     await stale();
 

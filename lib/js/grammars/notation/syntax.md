@@ -14,14 +14,14 @@ Every rule and directive begins with a keyword, and a keyword begins nothing els
 
 ## Documents
 
-A grammar text is a sequence of rules, directives and constant definitions. A directive is its keyword and any number of operands, each a name, a string, a tag, a range or a property. A constant definition is `%const` or `%redefine-const`, the constant, and a term, its value. A library reads the tree into a DOM (document object model), its own form of the grammar. At that point, the library makes sure that each directive has the operands that it takes, so that an error names the directive (`../../docs/engine.md`, §9).
+A grammar text is a sequence of rules, directives, constant definitions, classifiers and implications. A directive is its keyword and any number of operands, each a name, a string, a tag, a range or a property. A constant definition is `%const` or `%redefine-const`, the constant, and a term, its value. A library reads the tree into a DOM (document object model), its own form of the grammar. At that point, the library makes sure that each directive has the operands that it takes, so that an error names the directive (`../../docs/engine.md`, §9).
 
 ```jbogenbau
 %rule text
   [statement] ...
 
 %rule statement
-  rule | directive | constant-definition
+  rule | directive | constant-definition | classifier | implication-declaration
 
 %rule constant-definition
   constant-definer constant-reference term
@@ -44,6 +44,35 @@ A grammar text is a sequence of rules, directives and constant definitions. A di
 
 %rule argument-tag
   ~tag | ~phoneme | ~character | range | property
+```
+
+## Classifiers and implications
+
+A classifier is `%classifier`, its name, and any number of entries. An entry is its gates, one or more keys, `∈` or `∉`, and a class. A key is a string, and a class is a name or a tag literal. An entry ends with its class, and the next one begins with a gate or a key, so line breaks are only layout here. The reader refuses a warning on an entry and a key that is not a canonical sound. It also refuses a class that does not begin with a capital (`../../docs/engine.md`, §9).
+
+An implication is `%implies` and two terms joined by `⟹`. Each term is a union, not a guarded term, so its `⟹` is always the one of the implication. The reader makes sure that both are closed terms whose type is a tag set.
+
+```jbogenbau
+%rule classifier
+  ~keyword-classifier classifier-name [classifier-entry] ...
+
+%rule classifier-name
+  ~identifier
+
+%rule classifier-entry
+  [guard] ... classifier-key ... classifier-operator classifier-class
+
+%rule classifier-key
+  ~string
+
+%rule classifier-operator
+  '∈' | '∉'
+
+%rule classifier-class
+  ~identifier | ~tag
+
+%rule implication-declaration
+  ~keyword-implies union '⟹' union
 ```
 
 ## Rules

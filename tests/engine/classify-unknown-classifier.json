@@ -1,0 +1,21 @@
+{
+  "description": "The second argument of classify names a classifier of the stage. A name that no %classifier of the stage uses is an error of the document, even where a rule has that name. The loader reports it at the definition that holds the call (engine §2).",
+  "grammar": "%classifier lex\n  \"mi\" ∈ KOhA\n%rule text [word] ...\n%rule word $w(W) <~w ∪ classify(phonemes($w), text)>",
+  "tokens": [
+    {
+      "text": "mi",
+      "tags": [
+        "W"
+      ],
+      "phonemes": "mi"
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 6,
+      "column": 1
+    }
+  }
+}

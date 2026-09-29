@@ -1,0 +1,10 @@
+{
+  "description": "An entry of a classifier takes gates only. A warning on it is an error of the document, at the warning (engine §9).",
+  "document": "```jbogenbau\n%classifier lex\n  f! \"mi\" ∈ KOhA\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 3
+    }
+  }
+}

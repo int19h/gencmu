@@ -1,0 +1,105 @@
+{
+  "description": "An entry whose gates do not all hold does nothing, and a stage resolves its classifiers for the features of each parse. One loaded dialect parses with f off, on and off again, and each parse gets its own classes (engine §2).",
+  "grammar": "%classifier lex\n  \"mi\" \"do\" ∈ KOhA\n  f? \"mi\" ∉ KOhA\n  f? \"mi\" ∈ UI\n  ¬f? \"do\" ∉ KOhA\n%rule text [word] ...\n%rule word $w(W) <~w ∪ classify(phonemes($w), lex)>\n%emits\n  $",
+  "tokens": [
+    {
+      "text": "mi",
+      "tags": [
+        "W"
+      ],
+      "phonemes": "mi"
+    },
+    {
+      "text": "do",
+      "tags": [
+        "W"
+      ],
+      "phonemes": "do"
+    }
+  ],
+  "parses": [
+    {
+      "options": {},
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {
+              "name": "main",
+              "output": [
+                {
+                  "tags": [
+                    "KOhA",
+                    "w"
+                  ]
+                },
+                {
+                  "tags": [
+                    "w"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "options": {
+        "features": [
+          "f"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {
+              "name": "main",
+              "output": [
+                {
+                  "tags": [
+                    "UI",
+                    "w"
+                  ]
+                },
+                {
+                  "tags": [
+                    "KOhA",
+                    "w"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "options": {},
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {
+              "name": "main",
+              "output": [
+                {
+                  "tags": [
+                    "KOhA",
+                    "w"
+                  ]
+                },
+                {
+                  "tags": [
+                    "w"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

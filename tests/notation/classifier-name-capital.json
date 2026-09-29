@@ -1,0 +1,10 @@
+{
+  "description": "A classifier's name begins with a lower-case letter, since classify reads a bare name with a capital as a tag. The error stands at the name (engine §9).",
+  "document": "```jbogenbau\n%classifier Lex\n  \"mi\" ∈ KOhA\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 13
+    }
+  }
+}

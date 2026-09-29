@@ -1181,6 +1181,14 @@
           if (span.tags && "capture" in args[0]) return { set: span.tags };
           return { set: tokensTags(context.tokens, span.start, span.end) };
         }
+        case "classify": {
+          // The classes that the classifier gives the string, for the
+          // features of the parse, or none for an unknown key (engine §10).
+          const key = asString(evaluate(context, args[0], scope));
+          const name = /** @type {{classifier: string}} */ (args[1]).classifier;
+          const table = context.lowered.classifiers.get(name);
+          return { set: (table && table.get(key)) || tagSet() };
+        }
         case "classes": {
           const span = spanOf(context, args[0], scope);
           const tags = span.tags && "capture" in args[0] ? span.tags : tokensTags(context.tokens, span.start, span.end);
@@ -2118,7 +2126,7 @@
 
   /** @import { Argument, GrammarDom, Term } from "./types.js" */
 
-  const DOM_FUNCTIONS = new Set(["phonemes", "text", "split", "tag", "tags", "classes", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]);
+  const DOM_FUNCTIONS = new Set(["phonemes", "text", "split", "tag", "tags", "classes", "classify", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]);
   const DOM_COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆", "⊈"]);
   const DOM_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
   // A capture's name is all lower case (engine §9).
@@ -2128,9 +2136,13 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 12;
+  const DOM_FORMAT = 13;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9-]*$/;
+  // A classifier's name begins with a lower-case letter, and a class with a
+  // capital (engine §2, §9).
+  const CLASSIFIER_NAME = /^[a-z][A-Za-z0-9-]*$/;
+  const CLASS_NAME = /^[A-Z][A-Za-z0-9-]*$/;
 
   // The comparators of a test in a body (engine §2): the two sound tests and
   // the four tag tests.
@@ -2301,7 +2313,8 @@
    * @returns {string | null}
    */
   function domProblem(dom, unicode) {
-    if (!isDomObject(dom) || dom.format !== DOM_FORMAT || !Array.isArray(dom.rules) || !Array.isArray(dom.directives) || !Array.isArray(dom.constants)) return `not a DOM of format ${DOM_FORMAT}`;
+    if (!isDomObject(dom) || dom.format !== DOM_FORMAT || !Array.isArray(dom.rules) || !Array.isArray(dom.directives) || !Array.isArray(dom.constants) ||
+        !Array.isArray(dom.classifiers) || !Array.isArray(dom.implications)) return `not a DOM of format ${DOM_FORMAT}`;
     for (const directive of dom.directives) {
       if (!isDomObject(directive) || typeof directive.name !== "string" || !Array.isArray(directive.args) ||
           !directive.args.every((arg) => typeof arg === "string") || !isDomPosition(directive.at)) return "a malformed directive";
@@ -2325,6 +2338,28 @@
           (constant.op !== "define" && constant.op !== "redefine") || !isDomPosition(constant.at) || !("value" in constant) ||
           Object.keys(constant).length !== 4) return "a malformed constant";
       pending.push({ kind: "term", value: constant.value, depth: 0 });
+    }
+    // A classifier: its name, and entries of gates, canonical keys, an
+    // operator and a class (engine §2, §9).
+    for (const classifier of dom.classifiers) {
+      if (!isDomObject(classifier) || typeof classifier.name !== "string" || !CLASSIFIER_NAME.test(classifier.name) ||
+          !Array.isArray(classifier.entries) || !isDomPosition(classifier.at) || Object.keys(classifier).length !== 3) return "a malformed classifier";
+      for (const entry of classifier.entries) {
+        if (!isDomObject(entry) || Object.keys(entry).length !== 5 || !isDomPosition(entry.at) || (entry.op !== "∈" && entry.op !== "∉") ||
+            typeof entry.class !== "string" || !CLASS_NAME.test(entry.class) || !Array.isArray(entry.guards) ||
+            !entry.guards.every((guard) => isDomObject(guard) && Object.keys(guard).length === 3 && typeof guard.feature === "string" &&
+              guard.kind === "gate" && typeof guard.negated === "boolean") ||
+            !Array.isArray(entry.keys) || entry.keys.length === 0 ||
+            !entry.keys.every((key) => typeof key === "string" && soundProblem(key, unicode) === null)) return "a malformed entry of a classifier";
+      }
+    }
+    // An implication: two closed terms whose type is a tag set, checked once
+    // the nesting is bounded (engine §2, §9).
+    for (const implication of dom.implications) {
+      if (!isDomObject(implication) || Object.keys(implication).length !== 3 || !("if" in implication) || !("then" in implication) ||
+          !isDomPosition(implication.at)) return "a malformed implication";
+      pending.push({ kind: "term", value: implication.if, depth: 0 });
+      pending.push({ kind: "term", value: implication.then, depth: 0 });
     }
     for (const rule of dom.rules) {
       if (!isDomObject(rule) || typeof rule.name !== "string" || !(DOM_NAME.test(rule.name) || rule.name === "#") || !["define", "redefine", "extend"].includes(/** @type {string} */ (rule.op)) ||
@@ -2483,17 +2518,20 @@
           // The reader's signatures (engine §9), with a span where one is due.
           const args = /** @type {unknown[]} */ (Array.isArray(value.args) ? value.args : []);
           const isRule = (/** @type {unknown} */ arg) => isDomObject(arg) && typeof arg.rule === "string" && Object.keys(arg).length === 1;
+          const isClassifier = (/** @type {unknown} */ arg) => isDomObject(arg) && typeof arg.classifier === "string" &&
+            CLASSIFIER_NAME.test(arg.classifier) && Object.keys(arg).length === 1;
           const call = value.call;
           let ok;
           if (typeof call !== "string" || !DOM_FUNCTIONS.has(call) || call === "matches" || call === "begins" || call === "initial") ok = false;
           else if (call === "tags") ok = (args.length === 1 && isDomSpan(args[0])) || (args.length === 2 && isDomSpan(args[0]) && isRule(args[1]));
           else if (call === "split") ok = args.length === 2 && args.every((arg) => !isRule(arg) && !isDomSpan(arg));
           else if (call === "tag") ok = args.length === 1 && !isRule(args[0]) && !isDomSpan(args[0]);
+          else if (call === "classify") ok = args.length === 2 && !isRule(args[0]) && !isClassifier(args[0]) && !isDomSpan(args[0]) && isClassifier(args[1]);
           else ok = args.length === 1 && isDomSpan(args[0]);
           if (!ok || (!argument && DOM_SPANS.has(/** @type {string} */ (call)))) return "a malformed term";
           const seen = literalCallProblem(/** @type {string} */ (call), args);
           if (seen) return seen;
-          for (const arg of args) if (!isRule(arg)) pending.push({ kind: "argument", value: arg, depth: next });
+          for (const arg of args) if (!isRule(arg) && !isClassifier(arg)) pending.push({ kind: "argument", value: arg, depth: next });
         } else if (!(typeof value.string === "string" || isTag(value.tag, unicode) || value.emptySet === true || typeof value.capture === "string" ||
             ("range" in value && rangeProblem(value.range, unicode) === null) ||
             (typeof value.const === "string" && CONSTANT_NAME.test(value.const) && isDomPosition(value.at)))) {
@@ -2511,6 +2549,15 @@
     for (const constant of /** @type {any[]} */ (dom.constants)) {
       if (openPart(constant.value) !== null) return "a constant's value is not a closed term";
     }
+    for (const implication of /** @type {any[]} */ (dom.implications)) {
+      for (const side of [implication.if, implication.then]) {
+        if (openPart(side) !== null) return "a side of an implication is not a closed term";
+        const found = termType(side);
+        if ("problem" in found) return found.problem;
+        const problem = expectedProblem(found.type, "tags");
+        if (problem) return `a side of an implication is a tag set: ${problem}`;
+      }
+    }
     for (const test of tests) {
       const fault = testValueFault(test.test, test.value, unicode);
       if (fault) return fault.problem;
@@ -2523,7 +2570,8 @@
     // two items share one (engine §9).
     const positions = new Set();
     for (const item of [.../** @type {{at: [number, number]}[]} */ (dom.rules), .../** @type {{at: [number, number]}[]} */ (dom.directives),
-      .../** @type {{at: [number, number]}[]} */ (dom.constants)]) {
+      .../** @type {{at: [number, number]}[]} */ (dom.constants), .../** @type {{at: [number, number]}[]} */ (dom.classifiers),
+      .../** @type {{at: [number, number]}[]} */ (dom.implications)]) {
       const key = `${item.at[0]}:${item.at[1]}`;
       if (positions.has(key)) return "two items at one position";
       positions.add(key);
@@ -2801,6 +2849,8 @@
    */
 
   const SET_KINDS = new Set(["strings", "tags", "set"]);
+  /** @type {Record<string, string>} */
+  const CALL_STRINGS = { split: "two strings", tag: "one string", classify: "a string and a classifier's name" };
   const TYPE_NAMES = { string: "a string", strings: "a set of strings", tags: "a tag set", span: "a span", set: "a set", any: "a value" };
   /** @type {ConstantTypes} */
   const UNKNOWN_CONSTANTS = () => "any";
@@ -2813,7 +2863,7 @@
   function callType(call) {
     if (call === "phonemes" || call === "text") return "string";
     if (call === "split") return "strings";
-    if (call === "tags" || call === "classes" || call === "tag") return "tags";
+    if (call === "tags" || call === "classes" || call === "tag" || call === "classify") return "tags";
     return "span";
   }
 
@@ -2919,12 +2969,12 @@
     }
     if (typeof term.call === "string") {
       for (const argument of term.args) {
-        if ("rule" in argument) continue;
+        if ("rule" in argument || "classifier" in argument) continue;
         const found = termType(argument, constants);
         if ("problem" in found) return found;
-        if (term.call === "split" || term.call === "tag") {
+        if (term.call === "split" || term.call === "tag" || term.call === "classify") {
           const wrong = expectedProblem(found.type, "string");
-          if (wrong) return { problem: `${term.call} takes ${term.call === "split" ? "two strings" : "one string"}: ${wrong}`, node: term };
+          if (wrong) return { problem: `${term.call} takes ${CALL_STRINGS[term.call]}: ${wrong}`, node: term };
         }
       }
       return { type: callType(term.call) };
@@ -3360,6 +3410,7 @@
    */
   function formatTerm(term) {
     if ("rule" in term) return term.rule;
+    if ("classifier" in term) return term.classifier;
     if ("string" in term) return quoted(term.string);
     // An identifier tag is a bare name with a capital, or ~name; a phoneme
     // or character tag is written as it is.
@@ -3454,6 +3505,21 @@
    * @property {{kind: string, rule: string, document: string, previous: string}[]} changes
    * @property {{rule: string, document: string}[]} idleErasures rules that emit `ε` although nothing
    *   under them could emit and no token could cover them
+   * @property {Membership[]} memberships every membership of a key in a class
+   *   that an entry of a classifier adds or removes, in the order of the
+   *   first entry that touches it
+   */
+
+  /**
+   * Where the entries of a classifier add and remove one membership of a key
+   * in a class, whatever the features (engine §2).
+   * @typedef {object} Membership
+   * @property {string} classifier
+   * @property {string} key
+   * @property {string} class
+   * @property {{op: "∈" | "∉", gates: string, document: string, line: number, column: number}[]} changes
+   *   each entry that adds (`∈`) or removes (`∉`) it, in stitching order, with
+   *   its gates as written
    */
 
   /**
@@ -3657,6 +3723,20 @@
           }
         }
       }
+      // Where each membership of each classifier is added and removed.
+      /** @type {Map<string, Membership>} */
+      const memberships = new Map();
+      for (const { path, classifier } of grammar.classifierItems) {
+        for (const entry of classifier.entries) {
+          const gates = entry.guards.map((guard) => `${guard.negated ? "¬" : ""}${guard.feature}?`).join(" ");
+          for (const key of entry.keys) {
+            const id = JSON.stringify([classifier.name, key, entry.class]);
+            let membership = memberships.get(id);
+            if (!membership) memberships.set(id, (membership = { classifier: classifier.name, key, class: entry.class, changes: [] }));
+            membership.changes.push({ op: entry.op, gates, document: path, line: entry.at[0], column: entry.at[1] });
+          }
+        }
+      }
       return {
         name: stage.name,
         resolution: resolution ? `${resolution.lean}${resolution.elisionOnly ? " elision-only" : ""}${resolution.maximal ? " maximal" : ""}` : "none",
@@ -3664,6 +3744,7 @@
         unreachable: [...grammar.rules.keys()].filter((name) => !reachable.has(name)).sort(compareCodePoints),
         changes: grammar.changes.slice(),
         idleErasures,
+        memberships: [...memberships.values()],
       };
     });
   }
@@ -3680,6 +3761,26 @@
       if (stage.unreachable.length) lines.push(`  unreachable from text: ${stage.unreachable.join(", ")}`);
       for (const change of stage.changes) lines.push(`  ${change.rule} ${change.kind} by ${change.document} (defined in ${change.previous})`);
       for (const idle of stage.idleErasures) lines.push(`  ${idle.rule} in ${idle.document} emits ε, although nothing under it could emit and no token could cover it`);
+      // A classifier: how many memberships its entries make, and each one that
+      // a gate guards or that more than one entry touches, with every place
+      // that adds or removes it.
+      /** @type {Map<string, Membership[]>} */
+      const byClassifier = new Map();
+      for (const membership of stage.memberships) {
+        let list = byClassifier.get(membership.classifier);
+        if (!list) byClassifier.set(membership.classifier, (list = []));
+        list.push(membership);
+      }
+      for (const [name, list] of byClassifier) {
+        const keys = new Set(list.map((membership) => membership.key)).size;
+        lines.push(`  classifier ${name}: ${list.length} memberships of ${keys} keys`);
+        for (const membership of list) {
+          if (membership.changes.length === 1 && membership.changes[0].gates === "") continue;
+          const places = membership.changes.map((change) =>
+            `${change.op === "∈" ? "added" : "removed"} ${change.gates ? `under ${change.gates} ` : ""}at ${change.document}:${change.line}:${change.column}`);
+          lines.push(`    ${JSON.stringify(membership.key)} ${membership.class}: ${places.join(", ")}`);
+        }
+      }
       if (lines.length === 1) lines.push("  nothing to report");
       blocks.push(lines.join("\n"));
     }
@@ -3770,7 +3871,7 @@
 
 
   /**
-   * @import { Condition, ConstantTerm, DomAlternative, DomConstant, DomRule, Emission, ErrorLocation, Expr, GrammarDom, Guard, LoweredGrammar, Production, Resolution, SymbolTest, Term, TermValue, TestOp } from "./types.js"
+   * @import { Condition, ConstantTerm, DomAlternative, DomClassifier, DomConstant, DomImplication, DomRule, Emission, ErrorLocation, Expr, GrammarDom, Guard, LoweredGrammar, Production, Resolution, SymbolTest, TagSet, Term, TermValue, TestOp } from "./types.js"
    * @import { TermType } from "./dom.js"
    */
 
@@ -3781,6 +3882,13 @@
    * @property {TermValue} value
    * @property {TermType} type
    * @property {string} document
+   */
+
+  /**
+   * An implication of a stage with its two sides' values (engine §2, §11).
+   * @typedef {object} StageImplication
+   * @property {TagSet} if
+   * @property {TagSet} then
    */
 
   /**
@@ -3863,8 +3971,24 @@
       this.elidable = new Set();
       /** @type {Resolution | null} */
       this.resolution = null;
+      /**
+       * The stage's `%classifier` items in stitching order, each with its
+       * document (engine §2).
+       * @type {{path: string, classifier: DomClassifier}[]}
+       */
+      this.classifierItems = [];
+      /** @type {{path: string, implication: DomImplication}[]} */
+      this.implicationItems = [];
       for (const { path, dom } of documents) this.addDocument(path, dom);
       this.resolveConstants();
+      /** @type {StageImplication[]} */
+      this.implications = this.implicationItems.map(({ path, implication }) => this.resolveImplication(path, implication));
+      /**
+       * The classifiers resolved for each set of features, keyed as the
+       * lowered grammars are (engine §2).
+       * @type {Map<string, Map<string, Map<string, TagSet>>>}
+       */
+      this.classifierTables = new Map();
       /**
        * Each test of a body with its value, made once for every lowering.
        * @type {WeakMap<object, SymbolTest>}
@@ -3936,6 +4060,71 @@
         }
       }
       for (const constant of dom.constants) this.addConstant(path, constant);
+      for (const classifier of dom.classifiers) this.classifierItems.push({ path, classifier });
+      for (const implication of dom.implications) this.implicationItems.push({ path, implication });
+    }
+
+    /**
+     * An implication's two sides, with the constants' final values: closed
+     * terms whose type is a tag set (engine §2, §9).
+     * @param {string} path
+     * @param {DomImplication} implication
+     * @returns {StageImplication}
+     */
+    resolveImplication(path, implication) {
+      /** @type {(name: string) => TermType} */
+      const types = (name) => /** @type {StageConstant} */ (this.constants.get(name)).type;
+      /** @type {TagSet[]} */
+      const sides = [];
+      for (const side of [implication.if, implication.then]) {
+        for (const reference of constantsIn(side)) {
+          if (!this.constants.has(reference.const)) {
+            throw this.documentError(path, reference.at, `$${reference.const} is not defined in stage ${this.stageName}`);
+          }
+        }
+        const found = termType(side, types);
+        const problem = "problem" in found ? found.problem : expectedProblem(found.type, "tags");
+        if (problem) throw this.faultError(path, "problem" in found ? found.node : side, implication.at, `a side of an implication is a tag set: ${problem}`);
+        const value = this.evaluateClosed(path, side, implication.at);
+        sides.push("set" in value ? value.set : tagSet());
+      }
+      return { if: sides[0], then: sides[1] };
+    }
+
+    /**
+     * Each classifier of the stage for one set of features: each key's
+     * classes after every entry whose gates hold, in stitching order (engine
+     * §2). An entry that adds a membership that holds, or removes one that
+     * does not, is an error of the grammar for these features.
+     * @param {Set<string>} features
+     * @returns {Map<string, Map<string, TagSet>>}
+     */
+    classifiers(features) {
+      const key = [...features].sort().join(",");
+      let tables = this.classifierTables.get(key);
+      if (tables) return tables;
+      tables = new Map();
+      for (const { path, classifier } of this.classifierItems) {
+        let table = tables.get(classifier.name);
+        if (!table) tables.set(classifier.name, (table = new Map()));
+        for (const entry of classifier.entries) {
+          if (!entry.guards.every((guard) => features.has(guard.feature) !== guard.negated)) continue;
+          for (const word of entry.keys) {
+            const classes = table.get(word) || tagSet();
+            if ((entry.op === "∈") === classes.has(entry.class)) {
+              const [line, column] = entry.at;
+              const message = entry.op === "∈" ? `${JSON.stringify(word)} is already in ${entry.class}` : `${JSON.stringify(word)} is not in ${entry.class}, so ∉ has nothing to remove`;
+              throw new GencmuError("grammar", `${path}:${line}:${column}: the classifier ${classifier.name}: ${message}`, { document: path, line, column });
+            }
+            const changed = new Set(classes);
+            if (entry.op === "∈") changed.add(entry.class);
+            else changed.delete(entry.class);
+            table.set(word, changed);
+          }
+        }
+      }
+      this.classifierTables.set(key, tables);
+      return tables;
     }
 
     /**
@@ -4176,6 +4365,12 @@
           const { tags, conditions, emit } = alternative.clauses;
           const clauses = [alternative.tags, tags, conditions, emit ? emit.items.map((item) => item.tags) : []];
           for (const name of clauseRules(clauses)) check(name, rule, alternative);
+          // A classifier that classify names belongs to the stage (engine §2).
+          for (const name of clauseClassifiers(clauses)) {
+            if (!this.classifierItems.some((item) => item.classifier.name === name)) {
+              throw new GencmuError("grammar", `${alternative.document}: ${rule.name} classifies with ${name}, which no %classifier of stage ${this.stageName} names`, alternative.at);
+            }
+          }
           const top = "seq" in alternative.expr ? alternative.expr.seq : [alternative.expr];
           const names = top.flatMap((item) => ("capture" in item ? [item.capture] : []));
           const twice = names.find((name, index) => names.indexOf(name) !== index);
@@ -4197,7 +4392,13 @@
     lower(features, strict) {
       const key = [...features].sort().join(",") + (strict ? "|strict" : "");
       let lowered = this.lowered.get(key);
-      if (!lowered) this.lowered.set(key, (lowered = new Lowering(this, features, strict).run()));
+      if (!lowered) {
+        // The stage resolves its classifiers for the same features, before it
+        // lowers its rules (engine §2, §3).
+        const classifiers = this.classifiers(features);
+        lowered = { ...new Lowering(this, features, strict).run(), classifiers, implications: this.implications };
+        this.lowered.set(key, lowered);
+      }
       return lowered;
     }
   }
@@ -4288,6 +4489,22 @@
   }
 
   /**
+   * The classifiers that terms name, as the second argument of classify.
+   * @param {unknown} value
+   * @returns {Generator<string>}
+   */
+  function* clauseClassifiers(value) {
+    if (Array.isArray(value)) {
+      for (const item of value) yield* clauseClassifiers(item);
+    } else if (value !== null && typeof value === "object") {
+      for (const [key, child] of Object.entries(value)) {
+        if (key === "classifier" && typeof child === "string") yield child;
+        else yield* clauseClassifiers(child);
+      }
+    }
+  }
+
+  /**
    * @param {Expr} expr
    * @returns {Expr[]}
    */
@@ -4319,7 +4536,7 @@
       this.helperCount = 0;
     }
 
-    /** @returns {LoweredGrammar} */
+    /** @returns {Omit<LoweredGrammar, "classifiers" | "implications">} */
     run() {
       for (const rule of this.grammar.rules.values()) {
         // Only gates drop an alternative; a warning keeps it (engine §3.1).
@@ -6080,14 +6297,16 @@
 
   /**
    * @param {Derivation} node
-   * @param {TagSet} tags
+   * @param {TagSet} explicit the tags that the emission gives the token
    * @param {ParseContext} context
    * @param {Set<number>} widenedEnds where the widened tokens emitted before
    *   this one end
    * @returns {Token}
    */
-  function makeToken(node, tags, context, widenedEnds) {
+  function makeToken(node, explicit, context, widenedEnds) {
     const tokens = context.tokens;
+    // The stage's implications apply before the phonemes (engine §11).
+    const tags = implied(explicit, context.lowered.implications);
     // Two phoneme tags are an error on any token, verbatim or not (engine §5).
     const phoneme = phonemeTag(tags);
     if ("production" in node && node.production.verbatim) {
@@ -6127,9 +6346,41 @@
   function insertedToken(tag, at, node, context, owner) {
     const tokens = context.tokens;
     const position = at > node.start ? tokens[at - 1].source[1] : sourceOf(context.sources, node.start, node.end)[0];
-    const tags = tagSet([tag]);
+    const tags = implied(tagSet([tag]), context.lowered.implications);
     const phoneme = phonemeTag(tags);
     return new Token(tags, [at, at], [position, position], "", phoneme !== null ? phoneme : "", owner);
+  }
+
+  /**
+   * A token's explicit tags with the tags of the stage's implications, added
+   * until no tag changes (engine §11). An implication only adds tags, so the
+   * loop ends, also over a cycle.
+   * @param {TagSet} tags
+   * @param {{if: TagSet, then: TagSet}[]} implications
+   * @returns {TagSet}
+   */
+  function implied(tags, implications) {
+    let result = tags;
+    for (let changed = implications.length > 0; changed;) {
+      changed = false;
+      for (const implication of implications) {
+        let meets = false;
+        for (const tag of implication.if) {
+          if (result.has(tag)) {
+            meets = true;
+            break;
+          }
+        }
+        if (!meets) continue;
+        for (const tag of implication.then) {
+          if (result.has(tag)) continue;
+          if (result === tags) result = new Set(tags);
+          result.add(tag);
+          changed = true;
+        }
+      }
+    }
+    return result;
   }
 
   // The tokens a derivation emits for the next stage (engine §11). The walk
@@ -6214,7 +6465,7 @@
 
 
   /**
-   * @import { Argument, Comparator, Condition, DomAlternative, DomConstant, DomDirective, DomRule, EmitItem, Emission, Expr, GrammarDom, Position, ResultNode, RuleNode, Term } from "./types.js"
+   * @import { Argument, Comparator, Condition, DomAlternative, DomClassifier, DomConstant, DomDirective, DomEntry, DomImplication, DomRule, EmitItem, Emission, Expr, GrammarDom, Position, ResultNode, RuleNode, Term } from "./types.js"
    * @import { Token } from "./tokens.js"
    */
 
@@ -6285,6 +6536,10 @@
     const directives = [];
     /** @type {DomConstant[]} */
     const constants = [];
+    /** @type {DomClassifier[]} */
+    const classifiers = [];
+    /** @type {DomImplication[]} */
+    const implications = [];
     // What the reader is reading as a closed term, a constant's value or a
     // test's operand, or null (engine §9, §10).
     /** @type {string | null} */
@@ -6313,9 +6568,74 @@
         rules.push(readRule(item));
       } else if (ruleOf(item) === "constant-definition") {
         constants.push(readConstant(item));
+      } else if (ruleOf(item) === "classifier") {
+        classifiers.push(readClassifier(item));
+      } else if (ruleOf(item) === "implication-declaration") {
+        implications.push(readImplicationDeclaration(item));
       }
     }
-    return { format: DOM_FORMAT, rules, directives, constants };
+    return { format: DOM_FORMAT, rules, directives, constants, classifiers, implications };
+
+    /**
+     * A `%classifier` item: its name, which begins with a lower-case letter,
+     * and its entries (engine §2, §9).
+     * @param {ResultNode} node
+     * @returns {DomClassifier}
+     */
+    function readClassifier(node) {
+      const nameNode = only(node, "classifier-name");
+      const name = text(parts(nameNode)[0]);
+      if (!CLASSIFIER_NAME.test(name)) fail(`${name} begins with a capital, so it is a tag; a classifier's name begins with a lower-case letter`, nameNode);
+      return { name, entries: ofRule(node, "classifier-entry").map(readEntry), at: at(node) };
+    }
+
+    /**
+     * An entry of a classifier: gates, canonical keys, `∈` or `∉`, and a class
+     * (engine §2, §9).
+     * @param {ResultNode} node
+     * @returns {DomEntry}
+     */
+    function readEntry(node) {
+      const guards = ofRule(node, "guard").map((guard) => {
+        const spelled = text(parts(guard)[0]);
+        if (spelled.endsWith("!")) fail("an entry of a classifier takes gates only, not a warning", guard);
+        const negated = spelled.startsWith("¬");
+        /** @type {import("./types.js").Guard} */
+        const read = { feature: spelled.slice(negated ? 1 : 0, -1), kind: "gate", negated };
+        return read;
+      });
+      const keys = ofRule(node, "classifier-key").map((keyNode) => {
+        const key = decode(parts(keyNode)[0]);
+        const wrong = soundProblem(key, unicode);
+        if (wrong) fail(`a key is a canonical sound: ${wrong}`, keyNode);
+        return key;
+      });
+      const op = /** @type {"∈" | "∉"} */ (text(parts(only(node, "classifier-operator"))[0]));
+      const classNode = only(node, "classifier-class");
+      const written = text(parts(classNode)[0]);
+      const name = written.startsWith("~") ? written.slice(1) : written;
+      if (!isCapital(name)) fail(`${written} is not a class: a class is an identifier tag that begins with a capital`, classNode);
+      return { guards, keys, op, class: name, at: at(node) };
+    }
+
+    /**
+     * An implication, `%implies A ⟹ B`: two closed terms whose type is a tag
+     * set (engine §2, §9).
+     * @param {ResultNode} node
+     * @returns {DomImplication}
+     */
+    function readImplicationDeclaration(node) {
+      const [antecedent, consequent] = ofRule(node, "union").map((side) => {
+        closedFor = "a side of an implication";
+        const term = readTerm(side);
+        closedFor = null;
+        const found = termType(term);
+        const problem = "problem" in found ? found.problem : expectedProblem(found.type, "tags");
+        if (problem) fail(`a side of an implication is a tag set: ${problem}`, side);
+        return term;
+      });
+      return { if: antecedent, then: consequent, at: at(node) };
+    }
 
     /**
      * A constant's definition: its name without `$`, and its value, a closed
@@ -6594,8 +6914,8 @@
         case "call": {
           const call = readCall(inner);
           const [span, rule] = call.args;
-          if (call.call === "initial" && call.args.length === 1 && !("rule" in span)) return { initial: span };
-          if ((call.call !== "matches" && call.call !== "begins") || call.args.length !== 2 || !("rule" in rule) || "rule" in span) {
+          if (call.call === "initial" && call.args.length === 1 && !("rule" in span) && !("classifier" in span)) return { initial: span };
+          if ((call.call !== "matches" && call.call !== "begins") || call.args.length !== 2 || !("rule" in rule) || "rule" in span || "classifier" in span) {
             return fail("a condition calls only matches(span, rule), begins(span, rule) or initial(span)", inner);
           }
           if (call.call === "begins") return { begins: span, rule: rule.rule };
@@ -6718,6 +7038,7 @@
     function readCall(node) {
       const name = text(parts(node)[0]);
       if (!FUNCTIONS.has(name)) fail(`unknown function ${name}`, node);
+      if (closedFor && name === "classify") fail(`${closedFor} is a closed term, and classify depends on the features`, node);
       if (closedFor && name !== "split" && name !== "tag") fail(`${closedFor} is a closed term, and ${name} reads a span`, node);
       /** @type {Argument[]} */
       const args = ofRule(node, "argument").map((argument) => readTerm(parts(argument)[0], true));
@@ -6737,8 +7058,12 @@
       else if (name === "matches" || name === "begins") ok = args.length === 2 && isSpan(args[0]) && isRule(args[1]);
       else if (name === "split") ok = args.length === 2 && args.every(isString);
       else if (name === "tag") ok = args.length === 1 && isString(args[0]);
+      else if (name === "classify") ok = args.length === 2 && isString(args[0]) && isRule(args[1]);
       else ok = args.length === 1 && isSpan(args[0]);
       if (!ok) fail(`${name} takes ${SIGNATURES[name]}`, node);
+      // The second argument of classify names a classifier, not a rule
+      // (engine §9).
+      if (name === "classify") return { call: name, args: [args[0], { classifier: /** @type {{rule: string}} */ (args[1]).rule }] };
       // A rule stands only as the second argument.
       if (args.some((argument, index) => "rule" in argument && index !== 1)) fail(`${name} takes ${SIGNATURES[name]}`, node);
       // An empty delimiter or a tag's name that the reader sees (engine §9).
@@ -6858,7 +7183,8 @@
    * @typedef {"name" | "class" | "string" | "tag" | "phoneme" | "character" | "range" | "property"} OperandKind
    */
 
-  const FUNCTIONS = new Set(["phonemes", "text", "split", "tag", "tags", "classes", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]);
+  const FUNCTIONS = new Set(["phonemes", "text", "split", "tag", "tags", "classes", "classify", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]);
+
 
   /**
    * What is wrong with a directive's operands, or null (engine §9).
@@ -6885,7 +7211,7 @@
   const SIGNATURES = {
     phonemes: "one span", text: "one span", words: "one span", classes: "one span",
     head: "one span", tail: "one span", last: "one span", from: "one span", after: "one span", initial: "one span",
-    split: "two strings", tag: "one string", tags: "a span, and optionally a rule", matches: "a span and a rule", begins: "a span and a rule",
+    split: "two strings", tag: "one string", tags: "a span, and optionally a rule", classify: "a string and a classifier's name", matches: "a span and a rule", begins: "a span and a rule",
   };
 
   // The rules of the notation's syntax grammar that the reader reads; every
@@ -6897,6 +7223,7 @@
     "implication", "any-of", "all-of", "condition", "comparison", "comparator", "negation", "presence",
     "term", "guarded-term", "union", "intersection", "term-atom", "tag", "character", "name", "empty-set", "call", "argument",
     "capture-reference", "argument-tag", "range", "property", "constant-definition", "constant-definer", "constant-reference",
+    "classifier", "classifier-name", "classifier-entry", "classifier-key", "classifier-operator", "classifier-class", "implication-declaration",
   ]);
 
   /**
@@ -7016,11 +7343,13 @@
 
 
 
-  /** @import { DomConstant, DomDirective, DomRule, GrammarDom } from "./types.js" */
+  /** @import { DomClassifier, DomConstant, DomDirective, DomImplication, DomRule, GrammarDom } from "./types.js" */
 
   /**
-   * An item of a document: a rule, a directive or a constant's definition.
-   * @typedef {{rule: DomRule} | {directive: DomDirective} | {constant: DomConstant}} Item
+   * An item of a document: a rule, a directive, a constant's definition, a
+   * classifier or an implication.
+   * @typedef {{rule: DomRule} | {directive: DomDirective} | {constant: DomConstant} | {classifier: DomClassifier}
+   *   | {implication: DomImplication}} Item
    */
 
   /**
@@ -7031,15 +7360,17 @@
    */
 
   /**
-   * A document's rules, directives and constants in the order they were
-   * written, which is the order of their positions (engine §9).
+   * A document's rules, directives, constants, classifiers and implications
+   * in the order they were written, which is the order of their positions
+   * (engine §9).
    * @param {GrammarDom} dom
    * @returns {Item[]}
    */
   function itemsInOrder(dom) {
     /** @type {Item[]} */
     const items = [...dom.rules.map((rule) => ({ rule })), ...dom.directives.map((directive) => ({ directive })),
-      ...dom.constants.map((constant) => ({ constant }))];
+      ...dom.constants.map((constant) => ({ constant })), ...dom.classifiers.map((classifier) => ({ classifier })),
+      ...dom.implications.map((implication) => ({ implication }))];
     return items.sort((a, b) => itemAt(a)[0] - itemAt(b)[0] || itemAt(a)[1] - itemAt(b)[1]);
   }
 
@@ -7094,15 +7425,18 @@
         } else {
           const stage = stages[stages.length - 1];
           if (!stage) {
-            const what = "rule" in item ? `the rule ${item.rule.name}` : "constant" in item ? `the constant $${item.constant.name}` : `%${item.directive.name}`;
+            const what = "rule" in item ? `the rule ${item.rule.name}` : "constant" in item ? `the constant $${item.constant.name}`
+              : "classifier" in item ? `the classifier ${item.classifier.name}` : "implication" in item ? "%implies" : `%${item.directive.name}`;
             throw new GencmuError("grammar", `${place}: ${what} stands before the first %stage`, at);
           }
           if (run === null || run.path !== documentPath) {
-            run = { path: documentPath, dom: { format: dom.format, rules: [], directives: [], constants: [] } };
+            run = { path: documentPath, dom: { format: dom.format, rules: [], directives: [], constants: [], classifiers: [], implications: [] } };
             stage.documents.push(run);
           }
           if ("rule" in item) run.dom.rules.push(item.rule);
           else if ("constant" in item) run.dom.constants.push(item.constant);
+          else if ("classifier" in item) run.dom.classifiers.push(item.classifier);
+          else if ("implication" in item) run.dom.implications.push(item.implication);
           else run.dom.directives.push(item.directive);
         }
       }
@@ -7176,7 +7510,11 @@
    * @returns {[number, number]}
    */
   function itemAt(item) {
-    return "rule" in item ? item.rule.at : "constant" in item ? item.constant.at : item.directive.at;
+    if ("rule" in item) return item.rule.at;
+    if ("constant" in item) return item.constant.at;
+    if ("classifier" in item) return item.classifier.at;
+    if ("implication" in item) return item.implication.at;
+    return item.directive.at;
   }
 
   // ---- dialect.js
@@ -7312,12 +7650,14 @@
       // The bound on nesting is the same for a document read here as for a
       // precompiled DOM (engine §9).
       if (domProblem(dom, this.unicode) === "nested too deeply") {
-        // Reported at the first item, a rule or a constant's definition, that
+        // Reported at the first item, a rule, a constant's definition or an
+        // implication, that
         // holds it, in the order of the document.
         /** @type {{at: [number, number], alone: GrammarDom}[]} */
         const items = [
-          ...dom.rules.map((rule) => ({ at: rule.at, alone: { ...dom, rules: [rule], directives: [], constants: [] } })),
-          ...dom.constants.map((constant) => ({ at: constant.at, alone: { ...dom, rules: [], directives: [], constants: [constant] } })),
+          ...dom.rules.map((rule) => ({ at: rule.at, alone: { ...dom, rules: [rule], directives: [], constants: [], classifiers: [], implications: [] } })),
+          ...dom.constants.map((constant) => ({ at: constant.at, alone: { ...dom, rules: [], directives: [], constants: [constant], classifiers: [], implications: [] } })),
+          ...dom.implications.map((implication) => ({ at: implication.at, alone: { ...dom, rules: [], directives: [], constants: [], classifiers: [], implications: [implication] } })),
         ].sort((a, b) => a.at[0] - b.at[0] || a.at[1] - b.at[1]);
         const item = items.find((candidate) => domProblem(candidate.alone, this.unicode) === "nested too deeply");
         const [line, column] = item ? item.at : [1, 1];
@@ -7363,16 +7703,16 @@
     /** @type {Map<string, "gate" | "warning">} */
     const kinds = new Map();
     for (const stage of stages) {
-      for (const rule of stage.grammar.rules.values()) {
-        for (const alternative of rule.alternatives) {
-          for (const guard of alternative.guards) {
-            const known = kinds.get(guard.feature);
-            if (known !== undefined && known !== guard.kind) {
-              throw new GencmuError("grammar", `${path}: the feature ${guard.feature} is used both as a gate and as a warning`, { document: path });
-            }
-            kinds.set(guard.feature, guard.kind);
-          }
+      // The guards of the stitched rules, and the gates of every classifier's
+      // entries (engine §13).
+      const guards = [...stage.grammar.rules.values()].flatMap((rule) => rule.alternatives.flatMap((alternative) => alternative.guards));
+      for (const { classifier } of stage.grammar.classifierItems) for (const entry of classifier.entries) guards.push(...entry.guards);
+      for (const guard of guards) {
+        const known = kinds.get(guard.feature);
+        if (known !== undefined && known !== guard.kind) {
+          throw new GencmuError("grammar", `${path}: the feature ${guard.feature} is used both as a gate and as a warning`, { document: path });
         }
+        kinds.set(guard.feature, guard.kind);
       }
     }
     const names = [...new Set([...kinds.keys(), ...declared])].sort(compareCodePoints);
@@ -7840,6 +8180,37 @@
    * @property {DomRule[]} rules
    * @property {DomDirective[]} directives
    * @property {DomConstant[]} constants
+   * @property {DomClassifier[]} classifiers
+   * @property {DomImplication[]} implications
+   */
+
+  /**
+   * A `%classifier` item: the classifier's name and the entries it adds
+   * (engine §2).
+   * @typedef {object} DomClassifier
+   * @property {string} name
+   * @property {DomEntry[]} entries
+   * @property {Position} at
+   */
+
+  /**
+   * An entry of a classifier: its gates, its keys, `∈` or `∉`, and its class
+   * (engine §2).
+   * @typedef {object} DomEntry
+   * @property {Guard[]} guards gates only
+   * @property {string[]} keys each a canonical sound
+   * @property {"∈" | "∉"} op
+   * @property {string} class an identifier tag that begins with a capital
+   * @property {Position} at
+   */
+
+  /**
+   * An implication, `%implies A ⟹ B`: two closed terms whose type is a tag set
+   * (engine §2, §11).
+   * @typedef {object} DomImplication
+   * @property {Term} if
+   * @property {Term} then
+   * @property {Position} at
    */
 
   /**
@@ -7945,8 +8316,9 @@
    */
 
   /**
-   * A function's argument: a term, or the name of a rule.
-   * @typedef {Term | {rule: string}} Argument
+   * A function's argument: a term, the name of a rule, or the name of a
+   * classifier.
+   * @typedef {Term | {rule: string} | {classifier: string}} Argument
    */
 
   // ---- The engine ---------------------------------------------------------
@@ -8029,6 +8401,11 @@
    * @property {Map<string, Production[]>} byLhs
    * @property {Set<string>} elidable
    * @property {Resolution} resolution
+   * @property {Map<string, Map<string, TagSet>>} classifiers each classifier
+   *   of the stage, resolved for these features: each key's classes (engine
+   *   §2)
+   * @property {{if: TagSet, then: TagSet}[]} implications the stage's
+   *   implications, which its emitted tokens take (engine §11)
    */
 
   /**

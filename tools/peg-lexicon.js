@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-// Writes the rules of a lexicon document from the selma'o lists of a PEG
-// grammar of Lojban, such as camxes-exp.peg. Each list is a rule of the form
-// `NAME <- &cmavo ( w o r d / ... ) &post_word`, whose letters spell the
+// Writes the classifier of a lexicon document from the selma'o lists of a
+// PEG grammar of Lojban, such as camxes-exp.peg. Each list is a rule of the
+// form `NAME <- &cmavo ( w o r d / ... ) &post_word`, whose letters spell the
 // words, `h` being the apostrophe. The tool keeps the prose of the document
 // before its first `jbogenbau` block and replaces every block after it.
 // Usage: node tools/peg-lexicon.js PEG LEXICON.md [CLASS,...]
-// The optional list names the classes that the lexicon tags as indicators.
+// The optional list names the classes that the lexicon's implication marks
+// as indicators. An empty list writes no implication.
 import fs from "node:fs";
 
 const [pegPath, documentPath, indicatorList] = process.argv.slice(2);
@@ -14,14 +15,23 @@ if (!pegPath || !documentPath) {
   process.exit(2);
 }
 
-// These classes attach to the word before them, so the lexicon tags them as
-// indicators for the indicator stage. By default they are camxes-exp's: its
-// `indicator` rule takes UI, CAI, a bare NAI, DAhO and FUhO, its `indicators`
-// rule takes FUhE before them, and Y is part of its spaces.
-const INDICATORS = new Set(indicatorList !== undefined ? indicatorList.split(",").filter(Boolean) : ["UI", "CAI", "NAI", "Y", "DAhO", "FUhE", "FUhO"]);
+// These classes attach to the word before them, so the lexicon's
+// implication marks them as indicators for the indicator stage. By default
+// they are camxes-exp's word classes: its `indicator` rule takes UI, CAI,
+// DAhO and FUhO, its `indicators` rule takes FUhE before them, and Y is part
+// of its spaces. Its `indicator` rule also takes a bare NAI, which the
+// experimental word forms (grammars/words/experimental.md) mark apart.
+const INDICATORS = indicatorList !== undefined ? indicatorList.split(",").filter(Boolean) : ["UI", "CAI", "Y", "DAhO", "FUhE", "FUhO"];
 
-const words = new Map();
+// The longest line of keys, so that the Markdown stays readable; a class
+// with more keys takes one entry on each line.
+const WIDTH = 100;
+
+const compare = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+
+const classes = new Map();
 const peg = fs.readFileSync(pegPath, "utf8");
+const words = new Set();
 for (const match of peg.matchAll(/^([A-Z][A-Za-z]*) <- &cmavo \(\s*(.*?)\s*\)\s*&post_word/gm)) {
   for (const alternative of match[2].split("/")) {
     const letters = alternative.trim().split(/\s+/);
@@ -29,39 +39,37 @@ for (const match of peg.matchAll(/^([A-Z][A-Za-z]*) <- &cmavo \(\s*(.*?)\s*\)\s*
     // lexicon lists the one letter.
     const spelled = letters.map((letter) => (letter === "y+" ? "y" : letter));
     if (!spelled.every((letter) => /^[a-z]$/.test(letter))) continue;
-    const word = spelled.join("");
-    if (!words.has(word)) words.set(word, new Set());
-    words.get(word).add(match[1]);
+    // A key is the canonical sound, with `'` for `h`.
+    const word = spelled.map((letter) => (letter === "h" ? "'" : letter)).join("");
+    words.add(word);
+    if (!classes.has(match[1])) classes.set(match[1], new Set());
+    classes.get(match[1]).add(word);
   }
 }
 
-const phoneme = (letter) => {
-  if (letter === "h") return "/'/";
-  if ("aeiouy".includes(letter)) return `any-${letter}`;
-  return `/${letter}/`;
-};
-const spelling = (word) => [...word].map(phoneme).join(" ");
-const classes = (set) => {
-  const all = [...set].sort();
-  // A class is a bare name, and the mark indicator a tag literal.
-  const tags = all.slice();
-  if (all.some((name) => INDICATORS.has(name))) tags.push("~indicator");
-  return tags.join(" ∪ ");
-};
-
-const groups = new Map();
-for (const word of [...words.keys()].sort()) {
-  const letter = word[0];
-  if (!groups.has(letter)) groups.set(letter, []);
-  groups.get(letter).push(`  | ${spelling(word)} <${classes(words.get(word))}>`);
+// One entry for each line of a class's keys, the classes and their keys in
+// code point order.
+const entries = [];
+for (const name of [...classes.keys()].sort(compare)) {
+  const keys = [...classes.get(name)].sort(compare).map((word) => `"${word}"`);
+  const suffix = ` ∈ ${name}`;
+  let line = [];
+  for (const key of keys) {
+    if (line.length && `  ${[...line, key].join(" ")}${suffix}`.length > WIDTH) {
+      entries.push(`  ${line.join(" ")}${suffix}`);
+      line = [];
+    }
+    line.push(key);
+  }
+  entries.push(`  ${line.join(" ")}${suffix}`);
 }
-const letters = [...groups.keys()].sort();
-let rules = "```jbogenbau\n%rule lexicon\n" + letters.map((letter) => `  | lexicon-${letter}`).join("\n") + "\n";
-for (const letter of letters) rules += `\n%rule lexicon-${letter}\n${groups.get(letter).join("\n")}\n`;
-rules += "```\n";
+
+let blocks = "```jbogenbau\n%classifier lexicon\n" + entries.join("\n") + "\n```\n";
+const indicators = INDICATORS.filter((name) => classes.has(name));
+if (indicators.length) blocks += "\n```jbogenbau\n%implies " + indicators.join(" ∪ ") + " ⟹ ~indicator\n```\n";
 
 const document = fs.readFileSync(documentPath, "utf8");
 const first = document.indexOf("```jbogenbau");
 const prose = first < 0 ? document : document.slice(0, first);
-fs.writeFileSync(documentPath, prose.replace(/\n*$/, "\n\n") + rules);
-console.log(`${words.size} words in ${letters.length} rules`);
+fs.writeFileSync(documentPath, prose.replace(/\n*$/, "\n\n") + blocks);
+console.log(`${words.size} words in ${classes.size} classes`);

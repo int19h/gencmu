@@ -1,0 +1,60 @@
+{
+  "description": "%implies A ⟹ B is an implication with its two closed terms, which can hold constants and ranges (engine §9, docs/output.md).",
+  "document": "```jbogenbau\n%implies UI ∪ $MORE ⟹ ~indicator\n%implies 'a'..'c' ⟹ ~early ∪ /a/\n```\n",
+  "expect": {
+    "dom": {
+      "format": 13,
+      "rules": [],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": [
+        {
+          "if": {
+            "union": [
+              {
+                "tag": "UI"
+              },
+              {
+                "const": "MORE",
+                "at": [
+                  2,
+                  15
+                ]
+              }
+            ]
+          },
+          "then": {
+            "tag": "indicator"
+          },
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "if": {
+            "range": [
+              "'a'",
+              "'c'"
+            ]
+          },
+          "then": {
+            "union": [
+              {
+                "tag": "early"
+              },
+              {
+                "tag": "/a/"
+              }
+            ]
+          },
+          "at": [
+            3,
+            1
+          ]
+        }
+      ]
+    }
+  }
+}

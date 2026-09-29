@@ -1,0 +1,10 @@
+{
+  "description": "A side of an implication is a tag set, so a string there is an error, at the side (engine §9).",
+  "document": "```jbogenbau\n%implies A ⟹ \"a\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 14
+    }
+  }
+}

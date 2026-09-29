@@ -1,0 +1,38 @@
+{
+  "description": "classify's value is a tag set in a condition too: an alternative reads a word only where the classifier gives it KOhA, and the other only where it gives it no class (engine §10).",
+  "grammar": "%classifier lex\n  \"mi\" ∈ KOhA\n  \"ui\" ∈ UI\n%rule text [word] ...\n%rule word\n  | $k(W) <~known>\n  | $u(W) <~unknown>\n%conditions\n  KOhA ⊆ classify(phonemes($k), lex),\n  classify(phonemes($u), lex) = ∅\n%emits\n  $",
+  "tokens": [
+    {
+      "text": "mi",
+      "tags": [
+        "W"
+      ],
+      "phonemes": "mi"
+    },
+    {
+      "text": "xu",
+      "tags": [
+        "W"
+      ],
+      "phonemes": "xu"
+    },
+    {
+      "text": "ui",
+      "tags": [
+        "W"
+      ],
+      "phonemes": "ui"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 2
+      }
+    },
+    "error": "rejected"
+  }
+}
