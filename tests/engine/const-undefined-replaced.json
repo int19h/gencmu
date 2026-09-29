@@ -1,0 +1,20 @@
+{
+  "description": "The loader checks the constants of every definition of the stage, one that a later %redefine-rule replaces included. So a replaced definition that names an undefined constant is an error, at the reference (engine §2).",
+  "grammar": "%rule text A <$UNDEFINED>\n%redefine-rule text A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 15
+    }
+  }
+}
