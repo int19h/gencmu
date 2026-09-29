@@ -207,11 +207,18 @@ func elidedNodes(root *Node) []*Node {
 
 // ---- emission
 
+// An emitTask walks a constituent, emits a token over one, or adds a token
+// made already. inside says whether the constituent that it walks or emits
+// lies inside a foreign part (§11). The ranking can share one node among
+// several places of the chosen derivation, and only some of them can lie
+// inside a foreign part. So the walk carries this with each place, and the
+// node does not.
 type emitTask struct {
-	walk *dn
-	emit *dn
-	tags *tagset
-	tok  *Token
+	walk   *dn
+	emit   *dn
+	tags   *tagset
+	tok    *Token
+	inside bool
 }
 
 func (run *stageRun) kidSpan(rec *recognizer, k *dn) (int, int, *tagset) {
@@ -236,13 +243,13 @@ func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 		case t.tok != nil:
 			out = append(out, *t.tok)
 		case t.emit != nil:
-			out = append(out, run.emitted(rec, t.emit, t.tags, foreign))
+			out = append(out, run.emitted(rec, t.emit, t.tags, foreign, t.inside))
 		case t.walk != nil:
 			n := t.walk
 			if n.kind == dRead {
 				continue
 			}
-			plan := run.plan(rec, n)
+			plan := run.plan(rec, n, t.inside)
 			for i := len(plan) - 1; i >= 0; i-- {
 				stack = append(stack, plan[i])
 			}
@@ -251,14 +258,17 @@ func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 	return out
 }
 
-// plan is what one constituent's emission clause does, in order.
-func (run *stageRun) plan(rec *recognizer, n *dn) []emitTask {
+// plan is what one constituent's emission clause does, in order. inside
+// says whether the constituent lies inside a foreign part.
+func (run *stageRun) plan(rec *recognizer, n *dn, inside bool) []emitTask {
 	p := n.prod
 	kids := flattenKids(n.a)
+	// Its children lie inside a foreign part if it is one or lies inside one.
+	within := inside || p.foreign
 	if p.emit == nil {
 		plan := make([]emitTask, len(kids))
 		for i, k := range kids {
-			plan[i] = emitTask{walk: k}
+			plan[i] = emitTask{walk: k, inside: within}
 		}
 		return plan
 	}
@@ -316,11 +326,11 @@ func (run *stageRun) plan(rec *recognizer, n *dn) []emitTask {
 			}
 			plan = append(plan, run.inserted(it.Insert, at, start, end, p.ruleName))
 		case it.Capture == "":
-			plan = append(plan, emitTask{emit: n, tags: itemTags(it, n.tags)})
+			plan = append(plan, emitTask{emit: n, tags: itemTags(it, n.tags), inside: inside})
 		default:
 			k := part(it.Capture)
 			_, _, own := run.kidSpan(rec, k)
-			plan = append(plan, emitTask{emit: k, tags: itemTags(it, own)})
+			plan = append(plan, emitTask{emit: k, tags: itemTags(it, own), inside: within})
 		}
 	}
 	return plan
@@ -352,9 +362,10 @@ func (run *stageRun) inserted(tag string, at, start, end int, rule string) emitT
 }
 
 // emitted is the token a constituent emits, with the given explicit tags
-// and those its stage's implications add to them. foreign holds the
-// derivation's foreign parts (§11).
-func (run *stageRun) emitted(rec *recognizer, n *dn, explicit *tagset, foreign map[*dn]*foreignPart) Token {
+// and those its stage's implications add to them. foreign holds the sources
+// and the texts of the derivation's foreign parts, and inside says whether
+// the constituent lies inside a foreign part (§11).
+func (run *stageRun) emitted(rec *recognizer, n *dn, explicit *tagset, foreign map[*dn]*foreignPart, inside bool) Token {
 	a, b, _ := run.kidSpan(rec, n)
 	// The stage's implications apply before the phonemes and the label
 	// (§11).
@@ -363,7 +374,8 @@ func (run *stageRun) emitted(rec *recognizer, n *dn, explicit *tagset, foreign m
 	phoneme, ok := run.phonemeOf(tags)
 	// A token over a foreign part has the part's source and text (§11).
 	var tok Token
-	if part := foreign[n]; part != nil {
+	if n.kind == dClose && n.prod.foreign && !inside {
+		part := foreign[n]
 		tok = Token{Text: part.text, Tags: tags.list(), Span: [2]int{a, b}, Source: part.source}
 	} else {
 		src := run.spanSource(a, b)
@@ -373,7 +385,7 @@ func (run *stageRun) emitted(rec *recognizer, n *dn, explicit *tagset, foreign m
 	if ok {
 		tok.Phonemes, tok.Label = sounded(phoneme)
 	} else {
-		tok.Phonemes, tok.Label = run.spoken(rec, n, foreign)
+		tok.Phonemes, tok.Label = run.spoken(rec, n, foreign, inside)
 	}
 	return tok
 }
@@ -409,8 +421,11 @@ func sounded(phoneme string) (string, string) {
 // spoken is what a constituent says and shows: the phonemes and the labels
 // of its parts, joined (§5, §11). A part is a read input token or a foreign
 // part. Nothing inside a constituent that does not count is a part, and the
-// walk does not enter a foreign part.
-func (run *stageRun) spoken(rec *recognizer, n *dn, foreign map[*dn]*foreignPart) (string, string) {
+// walk does not enter a foreign part. inside says whether the constituent
+// lies inside a foreign part. Then nothing in it is a foreign part.
+// Otherwise the walk stops at the first %foreign constituent on each path,
+// so no constituent that it reaches lies inside a foreign part.
+func (run *stageRun) spoken(rec *recognizer, n *dn, foreign map[*dn]*foreignPart, inside bool) (string, string) {
 	var phonemes, label join
 	stack := []*dn{n}
 	for len(stack) > 0 {
@@ -426,9 +441,9 @@ func (run *stageRun) spoken(rec *recognizer, n *dn, foreign map[*dn]*foreignPart
 			if x.prod.nothing {
 				continue
 			}
-			if part := foreign[x]; part != nil {
+			if x.prod.foreign && !inside {
 				phonemes.add("?", false)
-				label.add(part.text, false)
+				label.add(foreign[x].text, false)
 				continue
 			}
 			if x.a != nil {
@@ -481,6 +496,13 @@ type foreignPart struct {
 // no constituent that emits ε and no other foreign part. The stage fixes
 // them before it emits anything, so that every token over a part holds the
 // same text.
+//
+// The map holds the source and the text of each node that is a foreign part
+// in some place of the derivation. It does not say which places those are,
+// because a node can be shared by several places, and only some of them can
+// be foreign parts. The emission walk decides that for each place. The
+// source and the text depend only on the node's span, so they are the same
+// in each place where the node is a foreign part.
 func (run *stageRun) foreignParts(rec *recognizer, root *dn) map[*dn]*foreignPart {
 	var parts []*dn
 	stack := []*dn{root}

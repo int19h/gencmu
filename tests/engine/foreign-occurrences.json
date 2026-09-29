@@ -1,0 +1,48 @@
+{
+  "description": "Whether a constituent is a foreign part depends on where it stands in the chosen derivation, not on what it derives. The two `inner` constituents derive the same empty span. The first lies inside the foreign part `outer`, so it is no foreign part, and its token has no parts and sounds ``. The second is a foreign part itself, so its token sounds `?` (engine §5, §11).",
+  "grammar": "%rule text outer inner\n%rule outer inner\n%foreign\n%rule inner ε\n%emits $ <X>\n%foreign",
+  "input": "",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "text": "",
+              "phonemes": "",
+              "label": "",
+              "tags": [
+                "X"
+              ],
+              "span": [
+                0,
+                0
+              ],
+              "source": [
+                0,
+                0
+              ]
+            },
+            {
+              "text": "",
+              "phonemes": "?",
+              "label": "",
+              "tags": [
+                "X"
+              ],
+              "span": [
+                0,
+                0
+              ],
+              "source": [
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
