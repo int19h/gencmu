@@ -4,7 +4,7 @@ This dialect is the CLL dialect with the word-form grammar that the definition e
 
 The approved grammar differs from chapter 4 in several ways. A rafsi is a short form of a word inside a compound. For example, the approved grammar has the extended rafsi, which shorten a borrowing with a hyphen. It also lets a `Cy` letter word stand before another word without a pause, so `fyno` is `fy no`. CLL 4.9 rule 6 asks for a pause there.
 
-The syntax of the dialect is the CLL grammar. The dialect reads elided terminators as the PEG grammars that the definition effort adopted read them ([`../syntax/bpfk.md`](../syntax/bpfk.md)). A PEG commits to the first matching alternative.
+The syntax of the dialect is the CLL grammar. The dialect reads elided terminators as the PEG grammars that the definition effort adopted read them. A PEG commits to the first matching alternative.
 
 A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. Beyond CLL's orthography, the phoneme stage reads the conventions of [`../phonemes/latin.md`](../phonemes/latin.md). The approved grammar reads part of these conventions too. The phoneme stage also reads gencmu's Cyrillic and zbalermorna. The indicator stage is the indicator stage of the [cll-ebnf](cll-ebnf.md) dialect.
 
@@ -92,7 +92,19 @@ A feature is a named switch that the grammars test. The dialect turns on the fea
   ```jbogenbau
   %include "../syntax/cll.md"
   ```
-- [The approved grammar's readings](../syntax/bpfk.md)
-  ```jbogenbau
-  %include "../syntax/bpfk.md"
-  ```
+
+The CLL grammar leaves the choice among parses to each dialect that uses it. This dialect makes the choice here:
+
+```jbogenbau
+%ambiguity-resolution greedy elision-only maximal
+```
+
+The definition effort replaced the YACC grammar of the official parser with a PEG (parsing expression grammar). The bpfk dialect reads elided terminators as the PEG grammars do, camxes-std among them. A PEG never gives back what it read. So the part of a rule before an elided terminator runs as far as the words after it can extend it.
+
+The resolution `maximal` says that. A terminator cannot be elided where the part of its alternative just before it can be longer. So `le nanmu joi le ninmu cu klama` parses, since no `sumti-tail` longer than `nanmu` begins there. But `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` is an error, since `lojbo se farvi` is a longer `sumti-tail`.
+
+A PEG is greedy everywhere, and `maximal` only where a terminator is elided. So `maximal` can find a longer part that a PEG never reads, one that divides the words before the terminator differently.
+
+In `le nu da poi remna li paso nanca kei cu broda`, the tail terms of `remna` are `li paso`, and `vau` is elided before `nanca`. `maximal` forbids that, because the terms can also be `li pa` and `so nanca`. That reading splits the number `paso`, which a PEG reads whole. The design document records this, the one such text of the test corpus.
+
+The stage is also greedy and `elision-only`, as in the cll-ebnf dialect. Unlike a PEG, it does not order the alternatives of a rule. So a text that the printed grammar leaves ambiguous in anything but a terminator is an error that shows both readings. `mi broda joi ke brode ke'e` is such a text.
