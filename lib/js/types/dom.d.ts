@@ -110,7 +110,9 @@ export declare function capturesUsed(node: unknown): string[];
 export declare function alternativeCaptures(alternative: any): Map<string, number>;
 /**
  * Why a definition, a rule's alternatives with its own clauses, cannot be
- * read (engine §9), or null. The DOM's shape must already be checked.
+ * read (engine §9), or null. The DOM's shape must already be checked. The
+ * checks that simplification decides skip a clause that holds a constant
+ * without its value.
  * @param {any} rule
  * @returns {string | null}
  */
