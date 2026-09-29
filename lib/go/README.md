@@ -30,7 +30,7 @@ data, _ := gencmu.MarshalResult(result) // canonical JSON, docs/output.md
 - `MarshalResult(result)` writes the canonical JSON.
 - `Brackets(result, BracketOptions{ShowElided})` renders the tree as nested groups. It shows each token by its `Label`.
 
-A `*Dialect` is safe for concurrent use. Positions are code points. The `Tags` of a `Token` or a `Node` are a `[]string` in code point order. Each tag appears once in its canonical spelling, such as `KOhA`, `/a/` or `'a'`. A `Token` has `Phonemes`, what it sounds like, and `Label`, what it shows to people (engine §5). A token over a foreign part, such as the body of a `zoi` quote, sounds `?` and has the text of the part as its label.
+A `*Dialect` is safe for concurrent use. Positions are code points. The `Tags` of a `Token` or a `Node` are a `[]string` in code point order. Each tag appears once in its canonical spelling, such as `KOhA`, `/a/` or `'a'`. A `Token` has `Phonemes`, what it sounds like, and `Label`, what it shows to people (engine §5). A token over a foreign part, such as the body of a `zoi` quote, sounds `?` and has the part's text as its label.
 
 The module states Go 1.22, and CI tests it on 1.22 and the current stable release. The code needs generics and the `min` builtin (1.21). It is also written for the per-iteration loop variables of 1.22. Long-lived distributions such as Ubuntu 24.04 package 1.22 too. So a floor that old costs nothing, and the users of these distributions can build the module with the toolchain they have.
 

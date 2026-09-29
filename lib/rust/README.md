@@ -21,7 +21,11 @@ println!("{}", gencmu::to_json(&result));
 - `Dialect::features()` lists the features of the dialect in code point order, the gates of its classifiers' entries included. Each is a `Feature` with its `name`, its `kind` (`FeatureKind::Gate` or `FeatureKind::Warning`), and whether the pipeline turns it on by `default`.
 - `to_json(&result)` writes the canonical JSON of `docs/output.md`.
 - `to_brackets(&result, show_elided)` renders the tree as brackets. It shows each token by its label.
-- A `ParseResult` owns its data: the stages, the tree, the error and the warnings. Each stage has its input and output tokens, its verdict and, for a tie, its witness. A token has its text, its phonemes, its label, its tags, its span and its source range. The label is what the renderings for people show. A foreign part, such as the body of a `zoi` quote, sounds `?` and has its text as its label, and a pause has a space as its label. The warnings are those of the warning features that are turned on. Positions are Unicode code points. Tags are a `BTreeSet<String>`, each tag in its canonical spelling, such as `'a'` for a character tag. A character token of the first stage carries only its character tag.
+- A `ParseResult` owns its data: the stages, the tree, the error and the warnings. Each stage has its input and output tokens, its verdict and, for a tie, its witness.
+
+  A token has its text, its phonemes, its label, its tags, its span and its source range. The label is what the renderings for people show. A foreign part, such as the body of a `zoi` quote, sounds `?` and has its text as its label. A pause has a space as its label.
+
+  The warnings are those of the warning features that are turned on. Positions are Unicode code points. Tags are a `BTreeSet<String>`, each tag in its canonical spelling, such as `'a'` for a character tag. A character token of the first stage carries only its character tag.
 - `Dialect` is `Send` and `Sync`, so threads can share one dialect freely.
 - For tests and tools: `Dialect::parse_tokens` feeds tokens straight to the first stage. A token that the caller supplies has its text as its label. A DOM (document object model) is the parsed form of a grammar document. `gencmu::tools` reads one grammar document to its DOM, splices a bundled pipeline into its stages, and computes the hashes of the DOM cache. `gencmu::tools::DOM_FORMAT` is the version of the DOM's shape, which every cache key holds.
 
