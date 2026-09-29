@@ -42,8 +42,9 @@ func validateDOM(d *domDoc, uni *unicodeTable) error {
 	return nil
 }
 
-// checkDOM checks a DOM; uni is the lowercase mapping that spellings are
-// checked against, or nil not to check that.
+// checkDOM checks a DOM; uni is the loader's table, never nil: the
+// lowercase mapping that spellings are checked against, and the marks that
+// decide a character tag's canonical spelling.
 func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 	for _, dir := range d.Directives {
 		if dir == nil || dir.Args == nil || !directiveOperandsOK(dir) {
@@ -256,23 +257,13 @@ func isCapturable(kind string) bool {
 }
 
 // rangeProblem is what is wrong with a range (engine §1, §9), or "": its
-// ends must be two character tags in their canonical spelling, the start
-// not above the end. Without a table, which says which code points are
-// marks, an end passes in either spelling that a table could make
-// canonical.
+// ends must be two character tags in their canonical spelling by the
+// table, which says which code points are marks, the start not above the
+// end.
 func rangeProblem(r [2]string, uni *unicodeTable) string {
 	var codes [2]rune
 	for i, end := range r {
-		if !isTag(end, uni) {
-			return "a range's ends are two character tags"
-		}
-		var c rune
-		var ok bool
-		if uni != nil {
-			c, ok = characterOfTag(end, uni.isMark)
-		} else if c, ok = characterOfTag(end, func(rune) bool { return false }); !ok {
-			c, ok = characterOfTag(end, func(rune) bool { return true })
-		}
+		c, ok := characterOfTag(end, uni.isMark)
 		if !ok {
 			return "a range's ends are two character tags"
 		}

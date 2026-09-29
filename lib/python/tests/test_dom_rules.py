@@ -14,7 +14,8 @@ from typing import Any, Callable
 import gencmu
 from gencmu._dialect import DOM_FORMAT, _unicode_table, bundled_text, read_document
 from gencmu._hash import fnv1a64
-from gencmu._validate import dom_problem
+from gencmu._validate import Lowercase
+from gencmu._validate import dom_problem as _dom_problem
 
 DOCUMENT = """```jbogenbau
 %ambiguity-resolution greedy
@@ -27,6 +28,14 @@ PIPELINE = '```jbogenbau\n%stage main\n%include "g.md"\n%stage next\n%include "h
 NEXT = "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ['a'] [Y]\n```\n"
 
 Dom = dict[str, Any]
+
+BUNDLED_UNICODE = _unicode_table(bundled_text("unicode.txt") or "")
+
+
+def dom_problem(dom: Any, unicode: Lowercase = BUNDLED_UNICODE) -> str | None:
+    """The check, which always has a table: the bundled one, unless a test
+    gives its own."""
+    return _dom_problem(dom, unicode)
 
 
 def rule(dom: Dom) -> Dom:
@@ -488,10 +497,8 @@ class PrecompiledDomRules(unittest.TestCase):
                 dom = copy.deepcopy(self.dom)
                 set_expr(expr)(dom)
                 self.assertEqual(dom_problem(dom, unicode), problem)
-        # Without a table, the case is not checked.
         dom = copy.deepcopy(self.dom)
         set_expr({"capture": "x", "expr": spelled("La")})(dom)
-        self.assertIsNone(dom_problem(dom))
         # An entry with a spelling in capitals is a miss: the document is read afresh.
         self.assertEqual(self.parse(dom), self.parse(None))
         # A spelled symbol is a compound node (engine §9), below a capture too.

@@ -444,12 +444,14 @@ class Robustness(unittest.TestCase):
                 self.assertTrue(dialect.parse("a", auto_features=False).ok)
 
     def test_bundled_doms_are_well_formed(self) -> None:
+        from gencmu._dialect import _unicode_table
         from gencmu._validate import dom_problem
 
+        unicode = _unicode_table(bundled_text("unicode.txt") or "")
         compiled = json.loads(bundled_text("compiled.json") or "{}")
         for path, entry in compiled["documents"].items():
             with self.subTest(document=path):
-                self.assertIsNone(dom_problem(entry["dom"]))
+                self.assertIsNone(dom_problem(entry["dom"], unicode))
 
     def test_deeply_nested_grammar(self) -> None:
         """A grammar nested as deep as engine §9 allows loads and parses."""

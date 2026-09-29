@@ -2069,20 +2069,15 @@
 
   /**
    * What is wrong with a range (engine §1, §9), or null: its ends must be two
-   * character tags in their canonical spelling, the start not above the end.
-   * Without a table, which says which code points are marks, an end passes in
-   * either spelling that a table could make canonical.
+   * character tags in their canonical spelling by the table, which says which
+   * code points are marks, the start not above the end.
    * @param {unknown} range
-   * @param {{isMark(code: number): boolean}} [unicode]
+   * @param {{isMark(code: number): boolean}} unicode
    * @returns {string | null}
    */
   function rangeProblem(range, unicode) {
     if (!Array.isArray(range) || range.length !== 2) return "a malformed range";
-    const codes = range.map((end) => {
-      if (!isTag(end, unicode)) return null;
-      // Canonical in some table: decode it in either spelling.
-      return characterOfTag(end, unicode || { isMark: () => false }) ?? characterOfTag(end, { isMark: () => true });
-    });
+    const codes = range.map((end) => (typeof end === "string" ? characterOfTag(end, unicode) : null));
     if (codes[0] === null || codes[1] === null) return "a range's ends are two character tags";
     if (codes[0] > codes[1]) return `the range ${range[0]}..${range[1]} starts above its end`;
     return null;
@@ -2102,7 +2097,7 @@
    * Whether an expression node is a range or a property that the DOM allows,
    * and has no other member.
    * @param {Record<string, unknown>} value
-   * @param {{isMark(code: number): boolean}} [unicode]
+   * @param {{isMark(code: number): boolean}} unicode
    * @returns {boolean}
    */
   function isCharacterClass(value, unicode) {
@@ -2169,9 +2164,10 @@
 
   /**
    * Why a value is not a grammar DOM, or null when it is one. `unicode` is
-   * the lowercase mapping that spellings are checked against.
+   * the loader's table: the lowercase mapping that spellings are checked
+   * against, and the marks that decide a character tag's canonical spelling.
    * @param {unknown} dom
-   * @param {{lowercase(text: string): string, isMark(code: number): boolean}} [unicode]
+   * @param {{lowercase(text: string): string, isMark(code: number): boolean}} unicode
    * @returns {string | null}
    */
   function domProblem(dom, unicode) {
@@ -2374,9 +2370,9 @@
   }
 
   /**
-   * Whether a value is a grammar DOM.
+   * Whether a value is a grammar DOM, by the loader's table.
    * @param {unknown} dom
-   * @param {{lowercase(text: string): string, isMark(code: number): boolean}} [unicode]
+   * @param {{lowercase(text: string): string, isMark(code: number): boolean}} unicode
    * @returns {dom is GrammarDom}
    */
   function isDom(dom, unicode) {
@@ -6579,9 +6575,9 @@
       }
       // The bound on nesting is the same for a document read here as for a
       // precompiled DOM (engine §9).
-      if (domProblem(dom) === "nested too deeply") {
+      if (domProblem(dom, this.unicode) === "nested too deeply") {
         // Reported at the rule that holds it, the first too deep.
-        const rule = dom.rules.find((candidate) => domProblem({ ...dom, rules: [candidate], directives: [] }) === "nested too deeply");
+        const rule = dom.rules.find((candidate) => domProblem({ ...dom, rules: [candidate], directives: [] }, this.unicode) === "nested too deeply");
         const [line, column] = rule ? rule.at : [1, 1];
         throw new GencmuError("grammar", `${path}:${line}:${column}: an expression, term or condition is nested more than ${DOM_MAX_DEPTH} deep`, { document: path, line, column });
       }

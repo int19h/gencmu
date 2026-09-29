@@ -176,12 +176,12 @@ class NotationReader:
         except (LookupError, TypeError, ValueError, AttributeError, AssertionError) as error:
             # Only a bootstrap that is not the notation's gives such a tree.
             raise GencmuError(f"the notation's tree cannot be read as a grammar ({error!r}); is the bootstrap the notation's?", document=path) from error
-        if dom_problem(dom) == TOO_DEEP:
+        if dom_problem(dom, self.unicode) == TOO_DEEP:
             # The bound on nesting is the same for a document read here as for
             # a precompiled DOM (engine §9); reported at the first rule too deep.
             line, column = 1, 1
             for rule in dom["rules"]:
-                if dom_problem({**dom, "rules": [rule], "directives": []}) == TOO_DEEP:
+                if dom_problem({**dom, "rules": [rule], "directives": []}, self.unicode) == TOO_DEEP:
                     line, column = rule["at"]
                     break
             raise GencmuError(

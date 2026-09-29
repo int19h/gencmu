@@ -21,14 +21,13 @@ export declare function spellingProblem(spelling: unknown, expr: unknown, unicod
 }): string | null;
 /**
  * What is wrong with a range (engine §1, §9), or null: its ends must be two
- * character tags in their canonical spelling, the start not above the end.
- * Without a table, which says which code points are marks, an end passes in
- * either spelling that a table could make canonical.
+ * character tags in their canonical spelling by the table, which says which
+ * code points are marks, the start not above the end.
  * @param {unknown} range
- * @param {{isMark(code: number): boolean}} [unicode]
+ * @param {{isMark(code: number): boolean}} unicode
  * @returns {string | null}
  */
-export declare function rangeProblem(range: unknown, unicode?: {
+export declare function rangeProblem(range: unknown, unicode: {
     isMark(code: number): boolean;
 }): string | null;
 /**
@@ -39,22 +38,23 @@ export declare function rangeProblem(range: unknown, unicode?: {
 export declare function propertyProblem(name: unknown): string | null;
 /**
  * Why a value is not a grammar DOM, or null when it is one. `unicode` is
- * the lowercase mapping that spellings are checked against.
+ * the loader's table: the lowercase mapping that spellings are checked
+ * against, and the marks that decide a character tag's canonical spelling.
  * @param {unknown} dom
- * @param {{lowercase(text: string): string, isMark(code: number): boolean}} [unicode]
+ * @param {{lowercase(text: string): string, isMark(code: number): boolean}} unicode
  * @returns {string | null}
  */
-export declare function domProblem(dom: unknown, unicode?: {
+export declare function domProblem(dom: unknown, unicode: {
     lowercase(text: string): string;
     isMark(code: number): boolean;
 }): string | null;
 /**
- * Whether a value is a grammar DOM.
+ * Whether a value is a grammar DOM, by the loader's table.
  * @param {unknown} dom
- * @param {{lowercase(text: string): string, isMark(code: number): boolean}} [unicode]
+ * @param {{lowercase(text: string): string, isMark(code: number): boolean}} unicode
  * @returns {dom is GrammarDom}
  */
-export declare function isDom(dom: unknown, unicode?: {
+export declare function isDom(dom: unknown, unicode: {
     lowercase(text: string): string;
     isMark(code: number): boolean;
 }): dom is GrammarDom;

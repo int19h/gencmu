@@ -16,8 +16,9 @@ export declare class UnicodeTable {
     /** @param {string} text the contents of unicode.txt */
     constructor(text: string);
     /**
-     * The General_Category of a scalar value, in its short form; `Cs` for a
-     * surrogate, which the file does not list.
+     * The General_Category of a code point, in its short form (engine §1):
+     * `Cs` for a surrogate, which a table does not list, and `Cn` for any
+     * other code point that the table omits.
      * @param {number} code
      * @returns {string}
      */

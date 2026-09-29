@@ -181,31 +181,13 @@ def spelling_problem(spelling: Any, expr: Any, unicode: Lowercase | None) -> str
     return None
 
 
-class _NoMarks:
-    def is_mark(self, code: int) -> bool:
-        return False
-
-
-class _AllMarks:
-    def is_mark(self, code: int) -> bool:
-        return True
-
-
-def range_problem(range_: Any, unicode: Lowercase | None) -> str | None:
+def range_problem(range_: Any, unicode: Lowercase) -> str | None:
     """What is wrong with a range (engine §1, §9), or None: its ends must be
-    two character tags in their canonical spelling, the start not above the
-    end. Without a table, which says which code points are marks, an end
-    passes in either spelling that a table could make canonical."""
+    two character tags in their canonical spelling by the table, which says
+    which code points are marks, the start not above the end."""
     if not isinstance(range_, list) or len(range_) != 2:
         return "a malformed range"
-    codes: list[int | None] = []
-    for end in range_:
-        if not is_tag(end, unicode):
-            codes.append(None)
-            continue
-        code = character_of_tag(end, unicode or _NoMarks())
-        codes.append(code if code is not None else character_of_tag(end, _AllMarks()))
-    first, last = codes
+    first, last = (character_of_tag(end, unicode) if isinstance(end, str) else None for end in range_)
     if first is None or last is None:
         return "a range's ends are two character tags"
     if first > last:
@@ -223,7 +205,7 @@ def property_problem(name: Any) -> str | None:
     return None
 
 
-def _is_character_class(value: dict[str, Any], unicode: Lowercase | None) -> bool:
+def _is_character_class(value: dict[str, Any], unicode: Lowercase) -> bool:
     """Whether an expression node is a range or a property that the DOM
     allows, and has no other member."""
     if len(value) != 1:
@@ -235,10 +217,11 @@ def _is_character_class(value: dict[str, Any], unicode: Lowercase | None) -> boo
     return False
 
 
-def dom_problem(dom: Any, unicode: Lowercase | None = None) -> str | None:
+def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
     """Why a value is not a grammar DOM the reader could have written, or
-    None when it is one. ``unicode`` is the lowercase mapping that spellings
-    are checked against."""
+    None when it is one. ``unicode`` is the loader's table: the lowercase
+    mapping that spellings are checked against, and the marks that decide a
+    character tag's canonical spelling."""
     if (
         not isinstance(dom, dict)
         or dom.get("format") != FORMAT
@@ -330,7 +313,7 @@ def dom_problem(dom: Any, unicode: Lowercase | None = None) -> str | None:
     return None
 
 
-def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase | None) -> str | None:
+def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase) -> str | None:
     """Check the nodes of expressions, emissions, conditions and terms, each
     entry a node, its kind, its depth, and whether it lies in a rule's or an
     alternative's tag term, which may not read the tags it defines."""
