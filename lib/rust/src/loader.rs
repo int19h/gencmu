@@ -178,25 +178,43 @@ pub(crate) fn read_document(notation: &Dialect, text: &str) -> Result<Dom, Error
 }
 
 /// Holds a DOM just read to the rules a precompiled one is held to, the
-/// bound on nesting among them (engine §9), reported at the first rule
+/// bound on nesting among them (engine §9), reported at the first item
 /// that breaks one.
 fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
-    let whole = json::parse(&dom_to_json(dom)).map_err(|message| Error::grammar(format!("the DOM: {message}")))?;
-    let Some(problem) = dom_problem(&whole, unicode) else {
+    const TOO_DEEP: &str = "an expression, term or condition is nested more than 256 deep";
+    // The problem of a DOM, through its JSON. JSON nested deeper than the
+    // parser follows holds a node below far more than 256 compound nodes.
+    let problem_of = |dom: &Dom| -> Option<String> {
+        match json::parse(&dom_to_json(dom)) {
+            Ok(json) => dom_problem(&json, unicode).map(|problem| {
+                if problem == "nested too deeply" {
+                    TOO_DEEP.to_string()
+                } else {
+                    problem.to_string()
+                }
+            }),
+            Err(message) if message.contains("nested too deeply") => Some(TOO_DEEP.to_string()),
+            Err(message) => Some(format!("the DOM: {message}")),
+        }
+    };
+    let Some(problem) = problem_of(dom) else {
         return Ok(());
     };
-    let singles = dom.rules.iter().map(|rule| (Dom { rules: vec![rule.clone()], ..Dom::default() }, rule.at)).chain(
-        dom.constants.iter().map(|constant| (Dom { constants: vec![constant.clone()], ..Dom::default() }, constant.at)),
-    );
+    // Each item alone, a rule or a constant's definition, in the order of
+    // the document.
+    let mut singles: Vec<(Dom, (usize, usize))> = dom
+        .rules
+        .iter()
+        .map(|rule| (Dom { rules: vec![rule.clone()], ..Dom::default() }, rule.at))
+        .chain(
+            dom.constants
+                .iter()
+                .map(|constant| (Dom { constants: vec![constant.clone()], ..Dom::default() }, constant.at)),
+        )
+        .collect();
+    singles.sort_by_key(|(_, at)| *at);
     for (single, at) in singles {
-        let json =
-            json::parse(&dom_to_json(&single)).map_err(|message| Error::grammar(format!("the DOM: {message}")))?;
-        if let Some(problem) = dom_problem(&json, unicode) {
-            let problem = if problem == "nested too deeply" {
-                "an expression, term or condition is nested more than 256 deep"
-            } else {
-                problem
-            };
+        if let Some(problem) = problem_of(&single) {
             return Err(Error::grammar(problem).at(at.0, at.1));
         }
     }

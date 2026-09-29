@@ -1,0 +1,20 @@
+{
+  "description": "A constant's value nested 257 deep after a rule is an error of the document at the constant's definition, not at the rule before it (engine §9).",
+  "grammar": "%rule text A <$K>\n%const $K ~a ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 1
+    }
+  }
+}

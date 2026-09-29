@@ -3,6 +3,7 @@ package gencmu
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -113,8 +114,13 @@ func (nr *notationReader) read(text, docPath string) (dom *domDoc, err *Error) {
 	}()
 	dom = b.document(out.tree)
 	// What the notation's grammar cannot state and the walk does not see:
-	// nesting deeper than 256 (§9), reported at the rule.
+	// nesting deeper than 256 (§9), reported at the first item, a rule or a
+	// constant's definition, that nests too deeply, in the order of the
+	// document.
 	if p := checkDOM(dom, nr.uni); p != nil {
+		if p.tooDeep {
+			p = firstTooDeep(dom, nr.uni, p)
+		}
 		e := &Error{Kind: ErrorGrammar, Document: docPath, Message: p.message}
 		if p.rule != nil {
 			e.Line, e.Column = p.rule.At[0], p.rule.At[1]
@@ -124,6 +130,33 @@ func (nr *notationReader) read(text, docPath string) (dom *domDoc, err *Error) {
 		return nil, e
 	}
 	return dom, nil
+}
+
+// firstTooDeep is the nesting problem of the first item of a document, in
+// the order of its positions, that nests too deeply alone; found, when no
+// item does alone.
+func firstTooDeep(dom *domDoc, uni *unicodeTable, found *domProblem) *domProblem {
+	type item struct {
+		at    [2]int
+		alone *domDoc
+	}
+	var items []item
+	for _, r := range dom.Rules {
+		items = append(items, item{r.At, &domDoc{Rules: []*domRule{r}}})
+	}
+	for _, k := range dom.Constants {
+		items = append(items, item{k.At, &domDoc{Constants: []*domConst{k}}})
+	}
+	sort.SliceStable(items, func(i, j int) bool {
+		a, b := items[i].at, items[j].at
+		return a[0] < b[0] || (a[0] == b[0] && a[1] < b[1])
+	})
+	for _, it := range items {
+		if p := checkDOM(it.alone, uni); p != nil && p.tooDeep {
+			return p
+		}
+	}
+	return found
 }
 
 type domBuilder struct {

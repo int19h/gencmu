@@ -7058,9 +7058,15 @@
       // The bound on nesting is the same for a document read here as for a
       // precompiled DOM (engine §9).
       if (domProblem(dom, this.unicode) === "nested too deeply") {
-        // Reported at the rule that holds it, the first too deep.
-        const rule = dom.rules.find((candidate) => domProblem({ ...dom, rules: [candidate], directives: [] }, this.unicode) === "nested too deeply");
-        const [line, column] = rule ? rule.at : [1, 1];
+        // Reported at the first item, a rule or a constant's definition, that
+        // holds it, in the order of the document.
+        /** @type {{at: [number, number], alone: GrammarDom}[]} */
+        const items = [
+          ...dom.rules.map((rule) => ({ at: rule.at, alone: { ...dom, rules: [rule], directives: [], constants: [] } })),
+          ...dom.constants.map((constant) => ({ at: constant.at, alone: { ...dom, rules: [], directives: [], constants: [constant] } })),
+        ].sort((a, b) => a.at[0] - b.at[0] || a.at[1] - b.at[1]);
+        const item = items.find((candidate) => domProblem(candidate.alone, this.unicode) === "nested too deeply");
+        const [line, column] = item ? item.at : [1, 1];
         throw new GencmuError("grammar", `${path}:${line}:${column}: an expression, term or condition is nested more than ${DOM_MAX_DEPTH} deep`, { document: path, line, column });
       }
       return dom;
