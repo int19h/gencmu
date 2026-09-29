@@ -7,7 +7,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 8
+const domFormat = 9
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
@@ -33,8 +33,8 @@ type domAlt struct {
 	Tags   *domTerm
 }
 
-// domGuard is a gate, @f? or @¬f?, or a warning, @f!, which is never
-// negated (engine §9).
+// domGuard is a gate, f? or ¬f?, or a warning, f!, which is never negated
+// (engine §9).
 type domGuard struct {
 	Feature string
 	Kind    string // FeatureGate or FeatureWarning
@@ -60,19 +60,21 @@ type domExpr struct {
 	Items []*domExpr // seq, choice, and
 	Inner *domExpr   // optional, repeat, capture, spelling (its symbol)
 	Min   int        // repeat
-	Name  string     // ref, terminal, capture; spelling: the spelling
+	Name  string     // ref, terminal (a tag in its canonical spelling), capture; spelling: the spelling
 }
 
-// Term kinds. A span is a term of kind tmCapture, "" for $, the whole
-// constituent, or a tmCall of head, tail, last, from or after; a rule
-// argument is tmRule. A guarded term, A ⟹ t, is tmIf: Cond is A, and Items
-// holds t alone.
+// Term kinds. A string is tmString, and a tag literal tmTag, the tag in its
+// canonical spelling. A span is a term of kind tmCapture, "" for $, the
+// whole constituent, or a tmCall of head, tail, last, from or after; a rule
+// argument is tmRule. A difference, a ∖ b, has exactly two items. A guarded
+// term, A ⟹ t, is tmIf: Cond is A, and Items holds t alone.
 const (
-	tmLiteral      = "literal"
-	tmWeak         = "weak"
+	tmString       = "string"
+	tmTag          = "tag"
 	tmEmptySet     = "emptySet"
 	tmUnion        = "union"
 	tmIntersection = "intersection"
+	tmDifference   = "difference"
 	tmCall         = "call"
 	tmCapture      = "capture"
 	tmRule         = "rule"
@@ -81,8 +83,8 @@ const (
 
 type domTerm struct {
 	Kind  string
-	Str   string     // literal, weak, call (the function), capture, rule
-	Items []*domTerm // union, intersection, call arguments; if: its term
+	Str   string     // string, tag, call (the function), capture, rule
+	Items []*domTerm // union, intersection, difference, call arguments; if: its term
 	Cond  *domCond   // if: its condition
 }
 
@@ -286,7 +288,7 @@ func (e *domExpr) writeJSON(w *jsonWriter) {
 
 func (t *domTerm) writeJSON(w *jsonWriter) {
 	switch t.Kind {
-	case tmLiteral, tmWeak, tmCapture, tmRule:
+	case tmString, tmTag, tmCapture, tmRule:
 		w.raw("{")
 		w.str(t.Kind)
 		w.raw(":")
@@ -294,7 +296,7 @@ func (t *domTerm) writeJSON(w *jsonWriter) {
 		w.raw("}")
 	case tmEmptySet:
 		w.raw(`{"emptySet":true}`)
-	case tmUnion, tmIntersection:
+	case tmUnion, tmIntersection, tmDifference:
 		w.raw("{")
 		w.str(t.Kind)
 		w.raw(":[")
@@ -650,7 +652,7 @@ func decodeExpr(raw json.RawMessage) (*domExpr, error) {
 			return nil, err
 		}
 		if io, err := decodeObj(o["expr"]); err != nil || len(io) != 1 {
-			return nil, fmt.Errorf("a spelling follows only a reference other than #, a string or a phoneme tag")
+			return nil, fmt.Errorf("a spelling follows only a reference other than # or a terminal")
 		}
 		inner, err := decodeExpr(o["expr"])
 		return &domExpr{Kind: exSpelling, Name: spelling, Inner: inner}, err
@@ -672,7 +674,7 @@ func decodeTerm(raw json.RawMessage) (*domTerm, error) {
 	if err != nil {
 		return nil, err
 	}
-	for _, k := range []string{tmLiteral, tmWeak, tmCapture, tmRule} {
+	for _, k := range []string{tmString, tmTag, tmCapture, tmRule} {
 		if v, ok := o[k]; ok {
 			s, err := decodeString(v)
 			return &domTerm{Kind: k, Str: s}, err
@@ -681,7 +683,7 @@ func decodeTerm(raw json.RawMessage) (*domTerm, error) {
 	if isTrue(o["emptySet"]) {
 		return &domTerm{Kind: tmEmptySet}, nil
 	}
-	for _, k := range []string{tmUnion, tmIntersection} {
+	for _, k := range []string{tmUnion, tmIntersection, tmDifference} {
 		if v, ok := o[k]; ok {
 			items, err := decodeList(v, decodeTerm)
 			return &domTerm{Kind: k, Items: items}, err

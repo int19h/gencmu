@@ -22,6 +22,9 @@ const maxDOMDepth = 256
 
 var domName = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9-]*$`)
 
+// captureName is the syntax of a capture's name, all lower case (engine §9).
+var captureName = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
+
 // domProblem is why a DOM is malformed; tooDeep marks the nesting limit,
 // the one problem a DOM the reader built can have.
 type domProblem struct {
@@ -94,25 +97,30 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 		if c.problem != nil {
 			return c.problem
 		}
-		// The definition as a whole (engine §9, the end).
+		// The definition as a whole (engine §9, the end), and the types of
+		// its terms and conditions (engine §10).
 		if msg := definitionProblem(r); msg != "" {
 			return &domProblem{message: msg, rule: r}
+		}
+		if msg := ruleTypeProblem(r); msg != "" {
+			return &domProblem{message: fmt.Sprintf("rule %s: %s", r.Name, msg), rule: r}
 		}
 	}
 	return nil
 }
 
 // directiveOperandsOK checks the operands the notation's syntax allows the
-// pipeline directives (engine §9): %stage one name, %include one string, and
-// %features one or more names.
+// pipeline directives (engine §9): %stage one name, %include one string,
+// %features one or more names, and %elidable names, each the name of an
+// identifier tag.
 func directiveOperandsOK(dir *domDirective) bool {
 	switch dir.Name {
 	case "stage":
 		return len(dir.Args) == 1 && domName.MatchString(dir.Args[0])
 	case "include":
 		return len(dir.Args) == 1
-	case "features":
-		if len(dir.Args) == 0 {
+	case "features", "elidable":
+		if dir.Name == "features" && len(dir.Args) == 0 {
 			return false
 		}
 		for _, a := range dir.Args {
@@ -186,6 +194,10 @@ func (c *domChecker) expr(e *domExpr, depth int, top bool) {
 			c.fail("$ wraps a symbol")
 			return
 		}
+		if !captureName.MatchString(e.Name) {
+			c.fail("a capture name is not all lower case")
+			return
+		}
 		if e.Inner == nil || (e.Inner.Kind != exRef && e.Inner.Kind != exTerminal && e.Inner.Kind != exSpelling) || (e.Inner.Kind == exRef && e.Inner.Name == "") {
 			c.fail("a capture of something other than a reference, a terminal or a spelled one of these")
 			return
@@ -215,7 +227,10 @@ func (c *domChecker) expr(e *domExpr, depth int, top bool) {
 			c.fail("an empty ref")
 		}
 	case exTerminal:
-		// Any string, "" included: the reader decodes "" to one.
+		// A tag in its canonical spelling (engine §1).
+		if !isTag(e.Name, c.uni) {
+			c.fail("a malformed terminal %q", e.Name)
+		}
 	case exEmpty:
 	default:
 		c.fail("an unknown expression %q", e.Kind)
@@ -225,8 +240,8 @@ func (c *domChecker) expr(e *domExpr, depth int, top bool) {
 // spellingProblem is what is wrong with a spelling of a symbol (engine §9),
 // or "": an empty spelling, one with a backtick, which the notation cannot
 // write, one that the lowercase mapping would change, since the match
-// ignores stress, or one of anything but a reference, a string or a phoneme
-// tag, # included. Without a table, the lowercase mapping is not checked.
+// ignores stress, or one of anything but a reference or a terminal, #
+// included. Without a table, the lowercase mapping is not checked.
 func spellingProblem(spelling string, inner *domExpr, uni *unicodeTable) string {
 	if spelling == "" {
 		return "a spelling is empty"
@@ -235,7 +250,7 @@ func spellingProblem(spelling string, inner *domExpr, uni *unicodeTable) string 
 		return "a spelling holds a backtick"
 	}
 	if inner == nil || !((inner.Kind == exRef && inner.Name != "" && inner.Name != "#") || inner.Kind == exTerminal) {
-		return "a spelling follows only a reference other than #, a string or a phoneme tag"
+		return "a spelling follows only a reference other than # or a terminal"
 	}
 	if uni != nil && uni.lowercase(spelling) != spelling {
 		return fmt.Sprintf("the spelling %s is not in lower case", spelling)
@@ -255,9 +270,13 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		return
 	}
 	switch t.Kind {
-	case tmLiteral, tmWeak, tmCapture, tmEmptySet:
-	case tmUnion, tmIntersection:
-		if len(t.Items) < 2 {
+	case tmString, tmCapture, tmEmptySet:
+	case tmTag:
+		if !isTag(t.Str, c.uni) {
+			c.fail("a malformed tag %q", t.Str)
+		}
+	case tmUnion, tmIntersection, tmDifference:
+		if len(t.Items) < 2 || (t.Kind == tmDifference && len(t.Items) != 2) {
 			c.fail("a %s of %d items", t.Kind, len(t.Items))
 			return
 		}
@@ -281,7 +300,9 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		case "tags":
 			ok = (len(args) == 1 && isSpanShape(args[0])) || (len(args) == 2 && isSpanShape(args[0]) && isRule(args[1]))
 		case "lowercase":
-			ok = len(args) == 1 && isStringTerm(args[0])
+			// Its one argument is a value, whose type is checked with the
+			// rule's (engine §10).
+			ok = len(args) == 1 && args[0] != nil && !isRule(args[0]) && !isSpanShape(args[0])
 		}
 		if !ok || (!argument && isSpanFunction(t.Str)) {
 			c.fail("a malformed call of %q", t.Str)
@@ -318,17 +339,13 @@ func (c *domChecker) condition(d *domCond, depth int) {
 	switch d.Kind {
 	case cdCompare:
 		switch d.Op {
-		case "=", "≠", "∈", "∉", "⊆":
+		case "=", "≠", "∈", "∉", "⊆", "⊈":
 		default:
 			c.fail("an unknown comparison %q", d.Op)
 			return
 		}
 		if d.Left == nil || d.Right == nil {
 			c.fail("a comparison without two terms")
-			return
-		}
-		if (d.Op == "∈" || d.Op == "∉") && !isStringTerm(d.Left) {
-			c.fail("a %s whose left side is not a string", d.Op)
 			return
 		}
 		c.term(d.Left, depth+1, false)
@@ -395,7 +412,7 @@ func readsOwnTags(t *domTerm) bool {
 		return t.Str == ""
 	case tmIf:
 		return condReadsOwnTags(t.Cond) || readsOwnTags(t.Items[0])
-	case tmUnion, tmIntersection:
+	case tmUnion, tmIntersection, tmDifference:
 		for _, it := range t.Items {
 			if readsOwnTags(it) {
 				return true
@@ -457,6 +474,11 @@ func (c *domChecker) emission(e *domEmit) {
 				c.fail("tags on an inserted tag")
 				return
 			}
+			// An inserted item is one tag (engine §9).
+			if !isTag(it.Insert, c.uni) {
+				c.fail("a malformed inserted tag %q", it.Insert)
+				return
+			}
 		case it.Capture == "":
 			whole++
 		default:
@@ -475,4 +497,229 @@ func (c *domChecker) emission(e *domEmit) {
 	if whole > 0 && whole != len(e.Items) {
 		c.fail("$ with items other than $")
 	}
+}
+
+// ---- Types (engine §10)
+
+// termType is a term's type: a string, a set of strings, a tag set, a
+// span, or a set whose kind nothing has given yet, such as ∅.
+type termType int
+
+const (
+	tyString termType = iota
+	tyStrings
+	tyTags
+	tySpan
+	tySet
+)
+
+var typeNames = map[termType]string{tyString: "a string", tyStrings: "a set of strings", tyTags: "a tag set", tySpan: "a span", tySet: "a set"}
+
+const spanNotValue = "a span is not a value: tags($x) is the tag set of $x"
+
+func isSetType(t termType) bool { return t == tyStrings || t == tyTags || t == tySet }
+
+// callType is the type of the value a function gives.
+func callType(name string) termType {
+	switch name {
+	case "phonemes", "text", "lowercase":
+		return tyString
+	case "runs":
+		return tyStrings
+	case "tags", "classes":
+		return tyTags
+	}
+	return tySpan
+}
+
+// joinedType is the kind of the sets that ∪, ∩, ∖, ⊆ or ⊈ join, or why
+// they cannot be joined: each is a set, and all whose kind is known have
+// one kind.
+func joinedType(types []termType, op string) (termType, string) {
+	for _, t := range types {
+		if t == tySpan {
+			return 0, spanNotValue
+		}
+	}
+	for _, t := range types {
+		if !isSetType(t) {
+			return 0, fmt.Sprintf("%s joins sets, not %s", op, typeNames[t])
+		}
+	}
+	kind := tySet
+	for _, t := range types {
+		if t == tySet {
+			continue
+		}
+		if kind != tySet && kind != t {
+			return 0, fmt.Sprintf("%s joins two sets of one kind, not a set of strings and a tag set", op)
+		}
+		kind = t
+	}
+	return kind, ""
+}
+
+// comparisonProblem is why a comparison's two sides do not fit its
+// comparator, or "".
+func comparisonProblem(op string, left, right termType) string {
+	if left == tySpan || right == tySpan {
+		return spanNotValue
+	}
+	switch op {
+	case "∈", "∉":
+		if left != tyString {
+			return fmt.Sprintf("%s tests a string, not %s, in a set of strings; ⊆ and ⊈ compare two sets", op, typeNames[left])
+		}
+		if right != tyStrings && right != tySet {
+			return fmt.Sprintf("%s tests a string in a set of strings, not in %s", op, typeNames[right])
+		}
+		return ""
+	case "=", "≠":
+		// Two values of one type.
+		if left == tyString || right == tyString {
+			if left == right {
+				return ""
+			}
+			return fmt.Sprintf("%s compares two values of one type, not %s and %s", op, typeNames[left], typeNames[right])
+		}
+	}
+	kind, problem := joinedType([]termType{left, right}, op)
+	if problem != "" {
+		return problem
+	}
+	if kind == tySet {
+		return fmt.Sprintf("the kind of the sets that %s compares is not given", op)
+	}
+	return ""
+}
+
+// expectedProblem is why a term of one type cannot stand where a string or
+// a tag set is needed, or "". A set of open kind takes the kind it is
+// given.
+func expectedProblem(t, expected termType) string {
+	if t == expected || (t == tySet && expected == tyTags) {
+		return ""
+	}
+	if t == tySpan {
+		return spanNotValue
+	}
+	return fmt.Sprintf("%s is needed here, not %s", typeNames[expected], typeNames[t])
+}
+
+// typeOf is a term's type, or why its parts do not agree. The term's shape
+// must already be checked.
+func typeOf(t *domTerm) (termType, string) {
+	switch t.Kind {
+	case tmString:
+		return tyString, ""
+	case tmTag:
+		return tyTags, ""
+	case tmEmptySet:
+		return tySet, ""
+	case tmCapture:
+		return tySpan, ""
+	case tmUnion, tmIntersection, tmDifference:
+		op := map[string]string{tmUnion: "∪", tmIntersection: "∩", tmDifference: "∖"}[t.Kind]
+		types := make([]termType, 0, len(t.Items))
+		for _, it := range t.Items {
+			ty, problem := typeOf(it)
+			if problem != "" {
+				return 0, problem
+			}
+			types = append(types, ty)
+		}
+		return joinedType(types, op)
+	case tmIf:
+		if problem := condTypeProblem(t.Cond); problem != "" {
+			return 0, problem
+		}
+		ty, problem := typeOf(t.Items[0])
+		if problem != "" {
+			return 0, problem
+		}
+		if problem := expectedProblem(ty, tyTags); problem != "" {
+			return 0, problem
+		}
+		return tyTags, ""
+	case tmCall:
+		for _, a := range t.Items {
+			if a.Kind == tmRule {
+				continue
+			}
+			ty, problem := typeOf(a)
+			if problem != "" {
+				return 0, problem
+			}
+			if t.Str == "lowercase" {
+				if problem := expectedProblem(ty, tyString); problem != "" {
+					return 0, "lowercase takes one string: " + problem
+				}
+			}
+		}
+		return callType(t.Str), ""
+	}
+	return 0, "a malformed term"
+}
+
+// condTypeProblem is why a condition's terms do not agree in type, or "".
+func condTypeProblem(c *domCond) string {
+	switch c.Kind {
+	case cdAny, cdAll, cdIf:
+		for _, it := range c.Items {
+			if problem := condTypeProblem(it); problem != "" {
+				return problem
+			}
+		}
+	case cdNot:
+		return condTypeProblem(c.Inner)
+	case cdCompare:
+		left, problem := typeOf(c.Left)
+		if problem != "" {
+			return problem
+		}
+		right, problem := typeOf(c.Right)
+		if problem != "" {
+			return problem
+		}
+		return comparisonProblem(c.Op, left, right)
+	}
+	return ""
+}
+
+// tagTermProblem is why a term that must be a tag set, a constituent's or
+// an item's, is not one, or "".
+func tagTermProblem(t *domTerm) string {
+	ty, problem := typeOf(t)
+	if problem != "" {
+		return problem
+	}
+	return expectedProblem(ty, tyTags)
+}
+
+// ruleTypeProblem is why a rule's terms and conditions do not agree in
+// type, or "".
+func ruleTypeProblem(r *domRule) string {
+	terms := []*domTerm{r.Tags}
+	for _, a := range r.Alternatives {
+		terms = append(terms, a.Tags)
+	}
+	if r.Emit != nil {
+		for _, it := range r.Emit.Items {
+			terms = append(terms, it.Tags)
+		}
+	}
+	for _, t := range terms {
+		if t == nil {
+			continue
+		}
+		if problem := tagTermProblem(t); problem != "" {
+			return problem
+		}
+	}
+	for _, c := range r.Conditions {
+		if problem := condTypeProblem(c); problem != "" {
+			return problem
+		}
+	}
+	return ""
 }

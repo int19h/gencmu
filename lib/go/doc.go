@@ -35,16 +35,18 @@
 // text's characters; it is for tests and tools.
 //
 // Every position in a result counts Unicode code points of the text, not
-// bytes: Go's UTF-8 is converted at the edge. Tags are maps from tag to
-// strength, true for strong.
+// bytes: Go's UTF-8 is converted at the edge. The tags of a token or a
+// node are a list in code point order, each tag once and in its canonical
+// spelling (engine §1): a name such as KOhA, a phoneme tag such as /a/, or
+// a character tag such as 'a' or '\u{301}'. A tag has no strength.
 //
 // # Features
 //
 // A feature is a name that is on or off for a parse, the same for every
 // stage. The pipeline turns some on; ParseOptions.Features turns others on,
 // and ParseOptions.WithoutFeatures turns any of them off. A guard on an
-// alternative of a grammar is a gate, @f? or @¬f?, which keeps the
-// alternative only while f is on, or off, or a warning, @f!, which keeps it
+// alternative of a grammar is a gate, f? or ¬f?, which keeps the
+// alternative only while f is on, or off, or a warning, f!, which keeps it
 // either way and, while f is on, adds a Warning to the result for each node
 // of the chosen tree that the alternative built. Dialect.Features lists a
 // dialect's features, each with its kind and whether the pipeline turns it

@@ -137,13 +137,14 @@ type domBuilder struct {
 var domRules = map[string]bool{
 	"directive": true, "rule": true, "definer": true, "alternative": true, "choice": true,
 	"conjunction": true, "sequence": true, "element": true, "reference": true,
-	"string": true, "phoneme": true, "spelled": true, "capture": true, "group": true, "optional": true,
+	"string": true, "tag": true, "character": true, "phoneme": true, "name": true,
+	"spelled": true, "capture": true, "group": true, "optional": true,
 	"empty": true, "tags-clause": true, "conditions-clause": true, "emits-clause": true,
 	"verbatim-clause": true, "emit-item": true, "emit-tags": true, "implication": true,
 	"any-of": true, "all-of": true, "comparison": true, "negation": true,
 	"presence": true, "call": true, "term": true, "guarded-term": true, "union": true,
-	"intersection": true, "weak": true, "empty-set": true, "capture-reference": true,
-	"alternative-tags": true, "argument-word": true, "argument-string": true, "guard": true,
+	"intersection": true, "empty-set": true, "capture-reference": true,
+	"alternative-tags": true, "argument-word": true, "argument-string": true, "argument-tag": true, "guard": true,
 	"comparator": true,
 }
 
@@ -204,14 +205,6 @@ func (b *domBuilder) text(n *Node) string {
 	return ""
 }
 
-func (b *domBuilder) isIdentifier(n *Node) bool {
-	if n.Kind != KindToken {
-		return false
-	}
-	_, ok := b.toks[n.Token].Tags["identifier"]
-	return ok
-}
-
 func (b *domBuilder) document(root *Node) *domDoc {
 	d := &domDoc{Rules: []*domRule{}, Directives: []*domDirective{}}
 	for _, c := range ruleParts(root) {
@@ -221,7 +214,7 @@ func (b *domBuilder) document(root *Node) *domDoc {
 		case "directive":
 			ps := parts(c)
 			dir := &domDirective{Name: strings.TrimPrefix(b.text(ps[0]), "%"), Args: []string{}, At: b.at(ps[0])}
-			var isString []bool
+			var kinds []string
 			for _, p := range ps {
 				if p.Kind != KindRule {
 					continue
@@ -229,14 +222,31 @@ func (b *domBuilder) document(root *Node) *domDoc {
 				switch p.Rule {
 				case "argument-word":
 					dir.Args = append(dir.Args, b.text(p))
-					isString = append(isString, false)
+					if isCapital(b.text(p)) {
+						kinds = append(kinds, operandClass)
+					} else {
+						kinds = append(kinds, operandName)
+					}
 				case "argument-string":
 					// A string operand is decoded, as a string of a rule is.
 					dir.Args = append(dir.Args, b.decode(parts(p)[0]))
-					isString = append(isString, true)
+					kinds = append(kinds, operandString)
+				case "argument-tag":
+					// A tag literal is its name; a phoneme or character tag
+					// is refused below.
+					t := parts(p)[0]
+					dir.Args = append(dir.Args, b.tagOf(t))
+					switch b.text(t)[0] {
+					case '~':
+						kinds = append(kinds, operandTag)
+					case '/':
+						kinds = append(kinds, operandPhoneme)
+					default:
+						kinds = append(kinds, operandCharacter)
+					}
 				}
 			}
-			if problem := operandProblem(dir.Name, isString); problem != "" {
+			if problem := operandProblem(dir.Name, kinds); problem != "" {
 				b.fail(ps[0], "%s", problem)
 			}
 			d.Directives = append(d.Directives, dir)
@@ -291,9 +301,9 @@ func (b *domBuilder) alternative(n *Node) *domAlt {
 	for _, p := range ruleParts(n) {
 		switch p.Rule {
 		case "guard":
-			// A guard's token is its spelling: @f? or @¬f? for a gate, @f!
-			// for a warning (§9).
-			g := strings.TrimPrefix(b.text(p), "@")
+			// A guard's token is its spelling: f? or ¬f? for a gate, f! for
+			// a warning (§9).
+			g := b.text(p)
 			kind := FeatureGate
 			if strings.HasSuffix(g, "!") {
 				kind = FeatureWarning
@@ -311,11 +321,21 @@ func (b *domBuilder) alternative(n *Node) *domAlt {
 }
 
 // constituentTags reads a rule's or an alternative's tag term, which cannot
-// be made of the tags it defines: $, tags($) or classes($) (§9).
+// be made of the tags it defines: tags($) or classes($) (§9).
 func (b *domBuilder) constituentTags(n *Node) *domTerm {
-	t := b.value(ruleParts(n)[0])
+	t := b.tagTerm(ruleParts(n)[0])
 	if readsOwnTags(t) {
-		b.fail(n, "a constituent's tags cannot be made of its own: $, tags($) or classes($)")
+		b.fail(n, "a constituent's tags cannot be made of its own tags, tags($) or classes($)")
+	}
+	return t
+}
+
+// tagTerm reads a whole term that must be a tag set: a constituent's or an
+// item's tags (§10). The error stands at the term.
+func (b *domBuilder) tagTerm(n *Node) *domTerm {
+	t := b.value(n)
+	if problem := tagTermProblem(t); problem != "" {
+		b.fail(n, "%s", problem)
 	}
 	return t
 }
@@ -372,14 +392,12 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 		return &domExpr{Kind: exRepeat, Inner: prim, Min: 1}
 	case "reference":
 		return &domExpr{Kind: exRef, Name: b.text(n)}
-	case "string":
-		return &domExpr{Kind: exTerminal, Name: b.decode(n)}
-	case "phoneme":
-		return &domExpr{Kind: exTerminal, Name: b.text(n)}
+	case "tag", "character", "phoneme":
+		return &domExpr{Kind: exTerminal, Name: b.tagOf(parts(n)[0])}
 	case "spelled":
-		// A reference, a string or a phoneme tag and its spelling, which the
-		// syntax grammar gives nothing else; the spelling is the text between
-		// the backticks (engine §9).
+		// A reference or a terminal and its spelling, which the syntax
+		// grammar gives nothing else; the spelling is the text between the
+		// backticks (engine §9).
 		ps := parts(n)
 		var symbol, token *Node
 		for _, p := range ps {
@@ -402,10 +420,13 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 		if b.text(ps[0]) == "$" {
 			b.fail(ps[0], "$ is the whole constituent and wraps nothing")
 		}
-		if len(inner) != 1 || (inner[0].Rule != "reference" && inner[0].Rule != "string" && inner[0].Rule != "phoneme" && inner[0].Rule != "spelled") {
-			b.fail(ps[0], "a capture wraps a single symbol: a name, a string or a phoneme tag, spelled or not")
-		}
 		name := strings.TrimPrefix(b.text(ps[0]), "$")
+		if !captureName.MatchString(name) {
+			b.fail(ps[0], "a capture's name is all lower case")
+		}
+		if len(inner) != 1 || (inner[0].Rule != "reference" && inner[0].Rule != "tag" && inner[0].Rule != "character" && inner[0].Rule != "phoneme" && inner[0].Rule != "spelled") {
+			b.fail(ps[0], "a capture wraps a single symbol: a name, a tag literal, a character tag or a phoneme tag, spelled or not")
+		}
 		if b.inner > 0 {
 			b.fail(ps[0], "a capture stands only at the top level of an alternative, not inside [ ], ( ), ..., & or a choice")
 		}
@@ -429,13 +450,15 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 	return nil
 }
 
-// decode decodes a string token (engine §9).
+// decode decodes a string or a character tag token (engine §9). A string
+// escapes its double quote, and a character tag its quote.
 func (b *domBuilder) decode(n *Node) string {
 	s := b.text(n)
 	rs := []rune(s)
 	if len(rs) < 2 {
 		b.fail(n, "a malformed string")
 	}
+	quote := rs[0]
 	rs = rs[1 : len(rs)-1]
 	var out strings.Builder
 	for i := 0; i < len(rs); i++ {
@@ -449,7 +472,7 @@ func (b *domBuilder) decode(n *Node) string {
 		}
 		i++
 		switch rs[i] {
-		case '\\', '"':
+		case '\\', quote:
 			out.WriteRune(rs[i])
 		case 'u':
 			end := -1
@@ -472,53 +495,146 @@ func (b *domBuilder) decode(n *Node) string {
 			out.WriteRune(rune(v))
 			i = end
 		default:
-			b.fail(n, "\\%c is not an escape; a string knows \\\\, \\\" and \\u{hex}", rs[i])
+			b.fail(n, "\\%c is not an escape; a string knows \\\\, \\\" and \\u{hex}, and a character tag \\\\, \\' and \\u{hex}", rs[i])
 		}
 	}
 	return out.String()
 }
 
-func (b *domBuilder) term(n *Node) *domTerm {
+// tagOf is the tag of a tag literal ~name, a character tag or a phoneme
+// tag token: a character tag in its canonical spelling (engine §1, §9).
+func (b *domBuilder) tagOf(n *Node) string {
+	written := b.text(n)
+	switch {
+	case strings.HasPrefix(written, "~"):
+		return written[1:]
+	case strings.HasPrefix(written, "/"):
+		return written
+	}
+	decoded := []rune(b.decode(n))
+	if len(decoded) != 1 {
+		b.fail(n, "a character tag holds exactly one character")
+	}
+	return characterTag(decoded[0], b.uni.isMark)
+}
+
+func (b *domBuilder) term(n *Node) *domTerm { return b.termIn(n, false) }
+
+// termIn reads a term; argument says it is a function's argument, where a
+// span or a rule may stand (§9, §10).
+func (b *domBuilder) termIn(n *Node, argument bool) *domTerm {
 	switch n.Rule {
 	case "term":
-		return b.term(ruleParts(n)[0])
+		return b.termIn(ruleParts(n)[0], argument)
 	case "guarded-term":
-		// A ⟹ t: its condition, and its term, which must be a value (§10).
+		// A ⟹ t: its condition, and its term, which must be a tag set
+		// (§10).
 		ps := ruleParts(n)
-		return &domTerm{Kind: tmIf, Cond: b.anyOf(ps[0]), Items: []*domTerm{b.value(ps[1])}}
-	case "union", "intersection":
-		kind := tmUnion
-		if n.Rule == "intersection" {
-			kind = tmIntersection
+		cond := b.anyOf(ps[0])
+		if problem := condTypeProblem(cond); problem != "" {
+			b.fail(n, "%s", problem)
 		}
-		var items []*domTerm
-		parts := ruleParts(n)
-		if len(parts) == 1 {
-			return b.term(parts[0])
+		t := &domTerm{Kind: tmIf, Cond: cond, Items: []*domTerm{b.value(ps[1])}}
+		if _, problem := typeOf(t); problem != "" {
+			b.fail(n, "%s", problem)
 		}
-		for _, p := range parts {
-			items = append(items, b.value(p))
+		return t
+	case "union":
+		// Parts joined by ∪ and ∖ group from the left: a run joined by ∪
+		// is one union, and each ∖ takes what stands before it (§9).
+		ps := ruleParts(n)
+		if len(ps) == 1 {
+			return b.termIn(ps[0], argument)
 		}
-		return &domTerm{Kind: kind, Items: items}
-	case "string":
-		return &domTerm{Kind: tmLiteral, Str: b.decode(n)}
-	case "phoneme":
-		return &domTerm{Kind: tmLiteral, Str: b.text(n)}
-	case "weak":
+		var ops []string
 		for _, p := range parts(n) {
-			if p.Kind == KindToken && strings.HasPrefix(b.text(p), "\"") {
-				return &domTerm{Kind: tmWeak, Str: b.decode(p)}
+			if p.Kind == KindToken {
+				if t := b.text(p); t == "∪" || t == "∖" {
+					ops = append(ops, t)
+				}
 			}
 		}
+		// A leading ∪ is a separator, not an operator.
+		for len(ops) >= len(ps) {
+			ops = ops[1:]
+		}
+		items := b.joined(n, ps, ops)
+		result := items[0]
+		open := false
+		for i, op := range ops {
+			next := items[i+1]
+			switch {
+			case op == "∖":
+				result = &domTerm{Kind: tmDifference, Items: []*domTerm{result, next}}
+				open = false
+			case open:
+				result.Items = append(result.Items, next)
+			default:
+				result = &domTerm{Kind: tmUnion, Items: []*domTerm{result, next}}
+				open = true
+			}
+		}
+		return result
+	case "intersection":
+		ps := ruleParts(n)
+		if len(ps) == 1 {
+			return b.termIn(ps[0], argument)
+		}
+		return &domTerm{Kind: tmIntersection, Items: b.joined(n, ps, []string{"∩"})}
+	case "string":
+		return &domTerm{Kind: tmString, Str: b.decode(n)}
+	case "tag", "character", "phoneme":
+		return &domTerm{Kind: tmTag, Str: b.tagOf(parts(n)[0])}
+	case "name":
+		// A bare name is a tag literal if it begins with a capital, and
+		// otherwise a rule, which only a function's argument names.
+		name := b.text(n)
+		switch {
+		case isCapital(name):
+			return &domTerm{Kind: tmTag, Str: name}
+		case argument:
+			return &domTerm{Kind: tmRule, Str: name}
+		}
+		b.fail(n, "%s names a rule, which is not a value; ~%s is the tag", name, name)
 	case "empty-set":
 		return &domTerm{Kind: tmEmptySet}
 	case "capture-reference":
-		return &domTerm{Kind: tmCapture, Str: strings.TrimPrefix(b.text(n), "$")}
+		name := strings.TrimPrefix(b.text(n), "$")
+		if !argument {
+			b.fail(n, "a span is not a value: tags($%s) is the tag set of $%s", name, name)
+		}
+		return &domTerm{Kind: tmCapture, Str: name}
 	case "call":
 		return b.call(n, false)
 	}
 	b.fail(n, "unexpected %s in a term", n.Rule)
 	return nil
+}
+
+// joined reads the parts that ∪, ∩ or ∖ join, which are sets of one kind
+// (§10); the error stands at the node that joins them.
+func (b *domBuilder) joined(n *Node, ps []*Node, ops []string) []*domTerm {
+	items := make([]*domTerm, 0, len(ps))
+	types := make([]termType, 0, len(ps))
+	for _, p := range ps {
+		t := b.value(p)
+		ty, problem := typeOf(t)
+		if problem != "" {
+			b.fail(n, "%s", problem)
+		}
+		items = append(items, t)
+		types = append(types, ty)
+	}
+	op := ops[0]
+	for _, o := range ops {
+		if o == "∖" {
+			op = o
+		}
+	}
+	if _, problem := joinedType(types, op); problem != "" {
+		b.fail(n, "%s", problem)
+	}
+	return items
 }
 
 // value reads a term where a value is needed: head, tail, last, from and
@@ -531,14 +647,17 @@ func (b *domBuilder) value(n *Node) *domTerm {
 	return t
 }
 
-// isStringTerm: a quoted string, a phoneme tag, or phonemes, text or
-// lowercase of something.
-func isStringTerm(t *domTerm) bool {
-	return t.Kind == tmLiteral || (t.Kind == tmCall && (t.Str == "phonemes" || t.Str == "text" || t.Str == "lowercase"))
-}
-
 func isSpanTerm(t *domTerm) bool {
 	return t.Kind == tmCapture || (t.Kind == tmCall && isSpanFunction(t.Str))
+}
+
+// isStringTerm says whether a term, not a rule, is a string (§10).
+func isStringTerm(t *domTerm) bool {
+	if t.Kind == tmRule {
+		return false
+	}
+	ty, problem := typeOf(t)
+	return problem == "" && ty == tyString
 }
 
 // call reads a call in a term, or, in a condition, matches(), begins() or
@@ -549,12 +668,8 @@ func (b *domBuilder) call(n *Node, inCondition bool) *domTerm {
 	var args []*domTerm
 	var argNodes []*Node
 	for _, p := range ps[1:] {
-		switch {
-		case p.Kind == KindRule:
-			args = append(args, b.term(p))
-			argNodes = append(argNodes, p)
-		case b.isIdentifier(p):
-			args = append(args, &domTerm{Kind: tmRule, Str: b.text(p)})
+		if p.Kind == KindRule {
+			args = append(args, b.termIn(p, true))
 			argNodes = append(argNodes, p)
 		}
 	}
@@ -640,9 +755,9 @@ func (b *domBuilder) condition(n *Node) *domCond {
 	case "comparison":
 		ps := ruleParts(n)
 		d := &domCond{Kind: cdCompare, Left: b.value(ps[0]), Op: b.text(ps[1]), Right: b.value(ps[2])}
-		// Membership tests a string; a tag set on the left is ⊆'s (§9).
-		if (d.Op == "∈" || d.Op == "∉") && !isStringTerm(d.Left) {
-			b.fail(n, "the left side of %s is a string", d.Op)
+		// The two sides fit the comparator (§10).
+		if problem := condTypeProblem(d); problem != "" {
+			b.fail(n, "%s", problem)
 		}
 		return d
 	case "negation":
@@ -694,16 +809,19 @@ func (b *domBuilder) emission(n *Node) *domEmit {
 				}
 				listed[it.Capture] = true
 			}
-		case strings.HasPrefix(text, "\""):
-			it.IsInsert, it.Insert = true, b.decode(target)
-		default:
+		case strings.HasPrefix(text, "~"), strings.HasPrefix(text, "/"), strings.HasPrefix(text, "'"):
+			// An inserted tag is a single tag literal (§9).
+			it.IsInsert, it.Insert = true, b.tagOf(target)
+		case isCapital(text):
 			it.IsInsert, it.Insert = true, text
+		default:
+			b.fail(target, "%s names a rule; an inserted tag is a tag literal, such as ~%s", text, text)
 		}
 		if tagsNode != nil {
 			if it.IsInsert {
 				b.fail(target, "an inserted tag takes no tags")
 			}
-			it.Tags = b.value(ruleParts(tagsNode)[0])
+			it.Tags = b.tagTerm(ruleParts(tagsNode)[0])
 			if it.Tags.Kind == tmEmptySet {
 				b.fail(target, "<∅> emits a token no terminal can read; %%emits ε emits nothing")
 			}
@@ -716,31 +834,49 @@ func (b *domBuilder) emission(n *Node) *domEmit {
 	return e
 }
 
-// operandProblem says what is wrong with a directive's operands, given
-// whether each is a string rather than a name, or "" (engine §9).
-func operandProblem(name string, isString []bool) string {
+// The kinds of a directive's operand: a bare name, lower case or with a
+// capital, a string, a tag literal ~name, a phoneme tag or a character tag.
+const (
+	operandName      = "name"
+	operandClass     = "class"
+	operandString    = "string"
+	operandTag       = "tag"
+	operandPhoneme   = "phoneme"
+	operandCharacter = "character"
+)
+
+// operandProblem says what is wrong with a directive's operands, given the
+// kind of each, or "" (engine §9).
+func operandProblem(name string, kinds []string) string {
 	names := true
-	for _, s := range isString {
-		if s {
+	for _, k := range kinds {
+		if k != operandName && k != operandClass {
 			names = false
 		}
 	}
 	switch name {
 	case "stage":
-		if len(isString) != 1 || !names {
+		if len(kinds) != 1 || !names {
 			return "%stage takes one name"
 		}
 	case "include":
-		if len(isString) != 1 || !isString[0] {
+		if len(kinds) != 1 || kinds[0] != operandString {
 			return "%include takes one string"
 		}
 	case "features":
-		if len(isString) == 0 || !names {
+		if len(kinds) == 0 || !names {
 			return "%features takes one or more names"
+		}
+	case "elidable":
+		// Identifier tags: a name with a capital, or ~name.
+		for _, k := range kinds {
+			if k != operandClass && k != operandTag {
+				return "%elidable takes identifier tags: names with a capital, or ~name"
+			}
 		}
 	default:
 		if !names {
-			return "%" + name + " takes names, not strings"
+			return "%" + name + " takes names only"
 		}
 	}
 	return ""

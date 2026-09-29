@@ -1,15 +1,16 @@
 package gencmu
 
-// Token is a token a stage reads or emits (engine §1). Span is the range of
-// the previous stage's tokens it covers, Source the range of the original
-// text, in code points. Phonemes is empty for a token that has none.
+// Token is a token a stage reads or emits (engine §1). Tags are its tags,
+// each in its canonical spelling, in code point order and each once; a tag
+// has no strength. Span is the range of the previous stage's tokens it
+// covers, Source the range of the original text, in code points. Phonemes is empty for a token that has none.
 // Verbatim marks a verbatim token, whose phonemes are its text (engine §11).
 // InsertedBy names the rule whose emission clause inserted a token with an
 // empty span.
 type Token struct {
 	Text       string
 	Phonemes   string
-	Tags       map[string]bool // tag → strong
+	Tags       []string
 	Span       [2]int
 	Source     [2]int
 	Verbatim   bool
@@ -23,8 +24,8 @@ const (
 	KindElided = "elided"
 )
 
-// Node is a node of a parse tree (engine §12). A rule node has Rule, Tags
-// and Children; a token node has Terminal and Token, the index of the
+// Node is a node of a parse tree (engine §12). A rule node has Rule, Tags,
+// in code point order, and Children; a token node has Terminal and Token, the index of the
 // stage-input token it read; an elided node has Terminal, and an empty span
 // where the terminator would have been.
 type Node struct {
@@ -34,7 +35,7 @@ type Node struct {
 	Token    int
 	Span     [2]int
 	Source   [2]int
-	Tags     map[string]bool
+	Tags     []string
 	Children []*Node
 	// spelling is an elided node's terminator's spelling, if it is spelled,
 	// which elision-only gives the restored token as its phonemes (engine
@@ -114,7 +115,7 @@ type ParseError struct {
 }
 
 // Warning reports a rule node of a stage's chosen tree that an alternative
-// with a warning guard, @f!, built while the feature f was on (engine §12).
+// with a warning guard, f!, built while the feature f was on (engine §12).
 // Span counts the stage's input tokens, Source the original text's code
 // points, as a node's do.
 type Warning struct {

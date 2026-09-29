@@ -117,8 +117,7 @@ func (r *recognizer) canRead(k int, term int32) bool {
 	if k >= r.n {
 		return false
 	}
-	_, ok := r.run.tagsets[r.base+k].has(r.g.terminals[term])
-	return ok
+	return r.run.tagsets[r.base+k].has(r.g.terminals[term])
 }
 
 // predictable checks the conditions of a production that mention no
@@ -167,7 +166,7 @@ func (r *recognizer) process(k int, it *item) {
 		if sym.term {
 			if k < r.n {
 				ts := r.run.tagsets[r.base+k]
-				if _, ok := ts.has(r.g.terminals[sym.id]); ok {
+				if ts.has(r.g.terminals[sym.id]) {
 					r.advance(it, k+1, capVal{int32(k), int32(k + 1), ts.id}, link{prev: it, tok: int32(k), term: sym.id})
 				}
 			}

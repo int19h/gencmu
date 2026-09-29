@@ -65,7 +65,7 @@ type lowered struct {
 	terminals  []string
 	termID     map[string]int32
 	prods      []*production
-	lean       string // "greedy", "lazy", or "" for rule 1 only (§7)
+	lean       string // "greedy", "lazy", or "" for no lean (§7)
 	maximal    bool   // no terminator is elided where its constituent could have been longer (§4)
 	sccMembers [][]int32
 	// fault is an error of the grammar that lowering for these features

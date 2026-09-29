@@ -13,7 +13,7 @@ import (
 
 // The ranking checked against its definition (engine §6): small random
 // grammars with ε, left recursion and unary cycles, short random inputs
-// with strong and weak tags, every derivation enumerated by brute force
+// with several tags on a token, every derivation enumerated by brute force
 // (cyclic ones excluded as engine §4 defines them), and the verdict, the
 // chosen derivation, the tied one and the witness computed from the
 // definitions and compared with the library's.
@@ -97,7 +97,7 @@ func (g *genGrammar) grammar() *domDoc {
 			alt := &domAlt{Expr: e}
 			switch g.r.Intn(8) {
 			case 0: // a constant tag term
-				alt.Tags = &domTerm{Kind: tmLiteral, Str: []string{"P", "Q"}[g.r.Intn(2)]}
+				alt.Tags = &domTerm{Kind: tmTag, Str: []string{"P", "Q"}[g.r.Intn(2)]}
 			case 1, 2: // a captured symbol's tags, grown by one, which splits items by tag set
 				target := &alt.Expr
 				if e.Kind == exSeq {
@@ -107,7 +107,7 @@ func (g *genGrammar) grammar() *domDoc {
 					*target = &domExpr{Kind: exCapture, Name: "x", Inner: *target}
 					alt.Tags = &domTerm{Kind: tmUnion, Items: []*domTerm{
 						{Kind: tmCall, Str: "tags", Items: []*domTerm{{Kind: tmCapture, Str: "x"}}},
-						{Kind: tmLiteral, Str: []string{"P", "Q"}[g.r.Intn(2)]},
+						{Kind: tmTag, Str: []string{"P", "Q"}[g.r.Intn(2)]},
 					}}
 				}
 			}
@@ -453,10 +453,16 @@ func TestRankingProperty(t *testing.T) {
 		tagMaps := make([]map[string]bool, n)
 		for i := range toks {
 			tags := map[string]bool{}
+			var list []string
 			for k := 0; k < 1+r.Intn(3); k++ {
-				tags[gen.terms[r.Intn(len(gen.terms))]] = r.Intn(3) != 0
+				tag := gen.terms[r.Intn(len(gen.terms))]
+				if !tags[tag] {
+					list = append(list, tag)
+				}
+				tags[tag] = true
 			}
-			toks[i] = Token{Text: "x", Tags: tags, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
+			sort.Strings(list)
+			toks[i] = Token{Text: "x", Tags: list, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
 			texts = append(texts, "x")
 			tagMaps[i] = tags
 		}
@@ -471,7 +477,7 @@ func TestRankingProperty(t *testing.T) {
 		rec := run.recognize(lg, lg.byName["text"], 0, n)
 		lean := lg.lean
 		if r.Intn(100) < leanNone {
-			lean = "" // rule 1 alone, as elision-only ranks (engine §7)
+			lean = "" // no lean, as elision-only ranks (engine §7)
 		}
 		rk := newRanker(rec, lean, nil)
 		var got *rankResult
@@ -493,10 +499,7 @@ func TestRankingProperty(t *testing.T) {
 			var tags []string
 			for _, m := range tagMaps {
 				var ts []string
-				for k, s := range m {
-					if !s {
-						k = "?" + k
-					}
+				for k := range m {
 					ts = append(ts, k)
 				}
 				sort.Strings(ts)

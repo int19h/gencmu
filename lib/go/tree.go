@@ -125,7 +125,7 @@ func (run *stageRun) buildTree(rec *recognizer, d *dn) *Node {
 	g := rec.g
 	newRule := func(n *dn) *treeFrame {
 		a, b := base+int(n.start), base+int(n.end)
-		node := &Node{Kind: KindRule, Rule: n.prod.ruleName, Span: [2]int{a, b}, Source: run.spanSource(a, b), Tags: n.tags.toMap(), Children: []*Node{}}
+		node := &Node{Kind: KindRule, Rule: n.prod.ruleName, Span: [2]int{a, b}, Source: run.spanSource(a, b), Tags: n.tags.list(), Children: []*Node{}}
 		return &treeFrame{node: node, pending: pushKids(nil, n, true)}
 	}
 	root := newRule(d)
@@ -338,7 +338,7 @@ func (run *stageRun) inserted(tag string, at, start, end int, rule string) emitT
 	} else {
 		src = [2]int{src[0], src[0]}
 	}
-	tok := &Token{Text: "", Tags: map[string]bool{tag: true}, Span: [2]int{at, at}, Source: src, InsertedBy: rule}
+	tok := &Token{Text: "", Tags: []string{tag}, Span: [2]int{at, at}, Source: src, InsertedBy: rule}
 	if ph, ok := phonemeTag(tag); ok {
 		tok.Phonemes = ph
 	}
@@ -349,16 +349,15 @@ func (run *stageRun) inserted(tag string, at, start, end int, rule string) emitT
 // widenedEnds holds where the widened tokens emitted before it end.
 func (run *stageRun) emitted(rec *recognizer, n *dn, tags *tagset, widenedEnds map[int]bool) Token {
 	a, b, _ := run.kidSpan(rec, n)
-	// Two strong phoneme tags are an error on any token, verbatim or not
-	// (§5).
-	var strong []string
-	for i, name := range tags.names {
-		if ph, ok := phonemeTag(name); ok && tags.strong[i] {
-			strong = append(strong, ph)
+	// Two phoneme tags are an error on any token, verbatim or not (§5).
+	var phonemes []string
+	for _, name := range tags.names {
+		if ph, ok := phonemeTag(name); ok {
+			phonemes = append(phonemes, ph)
 		}
 	}
-	if len(strong) > 1 {
-		panic(&parseFailure{message: "an emitted token has two strong phoneme tags", token: a, tokenEnd: b, hasToken: true})
+	if len(phonemes) > 1 {
+		panic(&parseFailure{message: "an emitted token has two phoneme tags", token: a, tokenEnd: b, hasToken: true})
 	}
 	if n.kind == dClose && n.prod.verbatim {
 		return run.widened(a, b, tags, widenedEnds)
@@ -366,12 +365,12 @@ func (run *stageRun) emitted(rec *recognizer, n *dn, tags *tagset, widenedEnds m
 	if b-a == 1 && run.toks[a].Verbatim {
 		// A token over one verbatim token is verbatim, with its source (§11).
 		only := run.toks[a]
-		return Token{Text: only.Text, Phonemes: only.Text, Tags: tags.toMap(), Span: [2]int{a, b}, Source: only.Source, Verbatim: true}
+		return Token{Text: only.Text, Phonemes: only.Text, Tags: tags.list(), Span: [2]int{a, b}, Source: only.Source, Verbatim: true}
 	}
 	src := run.spanSource(a, b)
-	tok := Token{Text: string(run.ps.text[src[0]:src[1]]), Tags: tags.toMap(), Span: [2]int{a, b}, Source: src}
-	if len(strong) == 1 {
-		tok.Phonemes = strong[0]
+	tok := Token{Text: string(run.ps.text[src[0]:src[1]]), Tags: tags.list(), Span: [2]int{a, b}, Source: src}
+	if len(phonemes) == 1 {
+		tok.Phonemes = phonemes[0]
 		return tok
 	}
 	// The phonemes of the tokens it covers, joined. The join leaves out every
@@ -422,7 +421,7 @@ func (run *stageRun) widened(a, b int, tags *tagset, widenedEnds map[int]bool) T
 	if a > 0 {
 		before = run.toks[a-1].Source[1]
 	}
-	tok := Token{Tags: tags.toMap(), Span: [2]int{a, b}, Source: [2]int{before, before}, Verbatim: true}
+	tok := Token{Tags: tags.list(), Span: [2]int{a, b}, Source: [2]int{before, before}, Verbatim: true}
 	// Over an empty span it takes in no text.
 	if a == b {
 		return tok

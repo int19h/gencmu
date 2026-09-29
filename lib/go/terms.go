@@ -13,7 +13,9 @@ type spanVal struct {
 	tags  *tagset // for a whole capture: the captured part's tags
 }
 
-// A term is a string or a tag set (§10).
+// A term's value is a string or a set, of strings or of tags (§10). The
+// reader has checked that the types agree, so a set's kind needs no mark
+// here, and no value turns into another.
 const (
 	vString = iota
 	vSet
@@ -80,9 +82,8 @@ func (ev *evaluator) span(t *domTerm) spanVal {
 }
 
 func (ev *evaluator) toSet(v value) *tagset {
-	switch v.kind {
-	case vString:
-		return ev.in().single(v.s, true)
+	if v.kind != vSet {
+		panic(&parseFailure{message: "expected a set"})
 	}
 	return v.set
 }
@@ -106,10 +107,10 @@ func (ev *evaluator) spanTags(s spanVal) *tagset {
 func (ev *evaluator) term(t *domTerm) value {
 	in := ev.in()
 	switch t.Kind {
-	case tmLiteral:
+	case tmString:
 		return value{kind: vString, s: t.Str}
-	case tmWeak:
-		return value{kind: vSet, set: in.single(t.Str, false)}
+	case tmTag:
+		return value{kind: vSet, set: in.single(t.Str)}
 	case tmEmptySet:
 		return value{kind: vSet, set: in.empty()}
 	case tmUnion:
@@ -124,8 +125,8 @@ func (ev *evaluator) term(t *domTerm) value {
 			out = in.intersection(out, ev.tagsOf(it))
 		}
 		return value{kind: vSet, set: out}
-	case tmCapture:
-		return value{kind: vSet, set: ev.spanTags(ev.span(t))}
+	case tmDifference:
+		return value{kind: vSet, set: in.difference(ev.tagsOf(t.Items[0]), ev.tagsOf(t.Items[1]))}
 	case tmCall:
 		switch t.Str {
 		case "phonemes":
@@ -133,15 +134,15 @@ func (ev *evaluator) term(t *domTerm) value {
 		case "text":
 			return value{kind: vString, s: ev.run.spanText(ev.span(t.Items[0]))}
 		case "runs":
-			// The set of the runs between pauses, ., each a strong tag,
-			// the empty string never among them (engine §5).
-			runs := map[string]bool{}
+			// The set of strings of the runs between pauses, ., the empty
+			// string never among them (engine §5).
+			var runs []string
 			for _, run := range strings.Split(ev.run.phonemes(ev.span(t.Items[0])), ".") {
 				if run != "" {
-					runs[run] = true
+					runs = append(runs, run)
 				}
 			}
-			return value{kind: vSet, set: ev.in().fromMap(runs)}
+			return value{kind: vSet, set: ev.in().fromList(runs)}
 		case "lowercase":
 			v := ev.term(t.Items[0])
 			if v.kind != vString {
@@ -159,15 +160,12 @@ func (ev *evaluator) term(t *domTerm) value {
 		case "classes":
 			all := ev.spanTags(ev.span(t.Items[0]))
 			var names []string
-			var strong []bool
-			for i, n := range all.names {
+			for _, n := range all.names {
 				if isTerminalName(n) {
-					names, strong = append(names, n), append(strong, all.strong[i])
+					names = append(names, n)
 				}
 			}
-			return value{kind: vSet, set: in.make(names, strong)}
-		case "head", "tail", "last", "from", "after":
-			return value{kind: vSet, set: ev.spanTags(ev.span(t))}
+			return value{kind: vSet, set: in.make(names)}
 		}
 	case tmIf:
 		// Its term, evaluated only where its condition holds (§10).
@@ -190,24 +188,18 @@ func (ev *evaluator) cond(c *domCond) bool {
 			case l.kind == vString && r.kind == vString:
 				eq = l.s == r.s
 			default:
-				eq = sameNames(ev.toSet(l), ev.toSet(r))
+				eq = ev.toSet(l).key == ev.toSet(r).key
 			}
 			return eq == (c.Op == "=")
 		case "∈", "∉":
-			// The reader refuses any other left side (§9).
+			// A string in a set of strings; the reader refuses any other
+			// pair (§10).
 			if l.kind != vString {
 				panic(&parseFailure{message: "the left side of " + c.Op + " is a string"})
 			}
-			var member bool
-			switch r.kind {
-			case vSet:
-				_, member = r.set.has(l.s)
-			default:
-				member = l.s == r.s
-			}
-			return member == (c.Op == "∈")
-		case "⊆":
-			return subset(ev.toSet(l), ev.toSet(r))
+			return ev.toSet(r).has(l.s) == (c.Op == "∈")
+		case "⊆", "⊈":
+			return subset(ev.toSet(l), ev.toSet(r)) == (c.Op == "⊆")
 		}
 	case cdMatches, cdBegins:
 		ok, _ := ev.run.nested(ev.g, c.Kind, c.Rule, ev.span(c.Span))
@@ -241,15 +233,6 @@ func (ev *evaluator) cond(c *domCond) bool {
 		return true
 	}
 	panic(&parseFailure{message: "cannot evaluate condition " + c.Kind})
-}
-
-func subset(a, b *tagset) bool {
-	for _, n := range a.names {
-		if _, ok := b.has(n); !ok {
-			return false
-		}
-	}
-	return true
 }
 
 // phonemes(span): the concatenation of the span's tokens' phonemes (§5).
@@ -323,7 +306,7 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *ta
 
 // spanContent is everything a nested parse of a span can observe: the
 // original text that holds its tokens' sources, and each token's text,
-// phonemes, tags with their strengths, and source.
+// phonemes, tags, and source.
 func (run *stageRun) spanContent(s spanVal) string {
 	var key strings.Builder
 	// Each field is written with its length before it, so that no two

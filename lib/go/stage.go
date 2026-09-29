@@ -45,11 +45,14 @@ func (ps *parseState) lineColumn(pos int) (int, int) {
 	return i + 1, pos - ps.lineStarts[i] + 1
 }
 
-// characterTokens is the first stage's input (engine §1).
+// characterTokens is the first stage's input (engine §1): one token per
+// code point, tagged with its character tag and its class.
 func (ps *parseState) characterTokens() []Token {
 	toks := make([]Token, len(ps.text))
 	for i, c := range ps.text {
-		toks[i] = Token{Text: string(c), Tags: map[string]bool{string(c): true, ps.uni.class(c): false}, Span: [2]int{i, i + 1}, Source: [2]int{i, i + 1}}
+		tags := []string{characterTag(c, ps.uni.isMark), ps.uni.class(c)}
+		// A character tag begins with a quote, which sorts before a class.
+		toks[i] = Token{Text: string(c), Tags: tags, Span: [2]int{i, i + 1}, Source: [2]int{i, i + 1}}
 	}
 	return toks
 }
@@ -105,7 +108,7 @@ func (run *stageRun) spellingMatches(spelling string, a, b int) bool {
 func (ps *parseState) newRun(name string, grammar *stageGrammar, toks []Token) *stageRun {
 	run := &stageRun{ps: ps, name: name, grammar: grammar, toks: toks, tagsets: make([]*tagset, len(toks)), inputEnd: len(toks)}
 	for i := range toks {
-		run.tagsets[i] = ps.in.fromMap(toks[i].Tags)
+		run.tagsets[i] = ps.in.fromList(toks[i].Tags)
 	}
 	return run
 }
@@ -328,7 +331,9 @@ func (run *stageRun) failure(f *parseFailure) *ParseError {
 }
 
 // checkElision is engine §7: write the chosen tree's elided terminators back
-// and parse again with none elidable; only strong and weak tags may choose.
+// and parse again with none elidable. The check passes when that parse has
+// one derivation or none, and fails with two readings when it has more:
+// ranked with no lean, any two derivations that differ are tied.
 func (run *stageRun) checkElision(tree *Node, g *lowered) *ParseError {
 	elided := elidedNodes(tree)
 	var toks []Token
@@ -340,7 +345,7 @@ func (run *stageRun) checkElision(tree *Node, g *lowered) *ParseError {
 			src := run.emptySource(i)
 			// A restored spelled terminator sounds like its spelling, so that
 			// it matches its own terminator in the stricter grammar (§7).
-			toks = append(toks, Token{Tags: map[string]bool{elided[e].Terminal: true}, Phonemes: elided[e].spelling, Span: [2]int{i, i}, Source: src})
+			toks = append(toks, Token{Tags: []string{elided[e].Terminal}, Phonemes: elided[e].spelling, Span: [2]int{i, i}, Source: src})
 			orig = append(orig, -1)
 			terms = append(terms, elided[e].Terminal)
 			e++

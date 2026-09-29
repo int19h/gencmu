@@ -304,3 +304,49 @@ func sameValue(a, b reflect.Value) bool {
 	}
 	panic("sameValue: cannot compare a " + a.Kind().String())
 }
+
+// The notation's lexical stage tags keywords, tag literals, character tags
+// and symbols (grammars/notation/lexical.md).
+func TestNotationLexicalTags(t *testing.T) {
+	d, err := LoadDialect("notation")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := d.Parse("%rule a ¬f? ~b 'c' /d/ E ... | g! %tags X %rulex $e ¬h", ParseOptions{Until: "lexical"})
+	if err != nil || !res.OK {
+		t.Fatalf("%v %+v", err, res)
+	}
+	var got [][2]string
+	for _, tok := range res.Stages[0].Output {
+		got = append(got, [2]string{tok.Text, strings.Join(tok.Tags, " ")})
+	}
+	want := [][2]string{
+		{"%rule", "keyword-rule"}, {"a", "identifier"}, {"¬f?", "guard"}, {"~b", "tag"}, {"'c'", "character"},
+		{"/d/", "phoneme"}, {"E", "identifier"}, {"...", "ellipsis"}, {"|", "'|' other"}, {"g!", "guard"},
+		{"%tags", "keyword-tags"}, {"X", "identifier"}, {"%rulex", "keyword"}, {"$e", "capture"}, {"¬", "'¬' other"}, {"h", "identifier"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got  %v\nwant %v", got, want)
+	}
+}
+
+// A character tag is one scalar value in one canonical spelling (engine
+// §1): the escapes of the reader and the engine's spelling agree.
+func TestCharacterTags(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	for c, want := range map[rune]string{'a': "'a'", 0x301: `'\u{301}'`, 0xED80: `'\u{ED80}'`, '\'': `'\u{27}'`, '\\': `'\u{5C}'`, 0x7F: `'\u{7F}'`, 'é': "'é'", 0x10FFFD: `'\u{10FFFD}'`} {
+		if got := characterTag(c, bundled.uni.isMark); got != want {
+			t.Errorf("U+%04X: got %s, want %s", c, got, want)
+		}
+		if back, ok := characterOfTag(want, bundled.uni.isMark); !ok || back != c {
+			t.Errorf("%s: read back as U+%04X, %v", want, back, ok)
+		}
+	}
+	for _, bad := range []string{`'\u{61}'`, `'\u{0301}'`, `'\u{ed80}'`, "'́'", "''", "'ab'", `'\u{D800}'`, `'\u{110000}'`, "'''"} {
+		if isTag(bad, bundled.uni) {
+			t.Errorf("%s is taken for a canonical tag", bad)
+		}
+	}
+}

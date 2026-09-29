@@ -111,7 +111,8 @@ func simplifyCond(c *domCond, has func(string) bool) (*domCond, truth) {
 // condition: a guarded term is its term where its condition is true, and
 // the empty set where it is false or its term is empty; an empty set is
 // dropped from a union, a union of nothing else is empty, and so is an
-// intersection with one.
+// intersection with one. A difference whose first part is empty is empty,
+// and one whose second part is empty is its first part.
 func simplifyTerm(t *domTerm, has func(string) bool) *domTerm {
 	if t == nil {
 		return nil
@@ -133,6 +134,17 @@ func simplifyTerm(t *domTerm, has func(string) bool) *domTerm {
 			return t
 		}
 		return &domTerm{Kind: tmIf, Cond: cond, Items: []*domTerm{then}}
+	case tmDifference:
+		l, r := simplifyTerm(t.Items[0], has), simplifyTerm(t.Items[1], has)
+		switch {
+		case l.Kind == tmEmptySet:
+			return reducedEmpty
+		case r.Kind == tmEmptySet:
+			return l
+		case l == t.Items[0] && r == t.Items[1]:
+			return t
+		}
+		return &domTerm{Kind: tmDifference, Items: []*domTerm{l, r}}
 	case tmUnion, tmIntersection, tmCall:
 		// An empty set, written ∅ or left by a guard, is dropped from a
 		// union and makes an intersection empty.

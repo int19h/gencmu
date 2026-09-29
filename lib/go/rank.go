@@ -195,7 +195,7 @@ func (r cmpRes) flip() cmpRes {
 
 type ranker struct {
 	rec     *recognizer
-	lean    string   // greedy, lazy, or "" for rule 1 alone
+	lean    string   // greedy, lazy, or "" for no lean, where any two differing derivations tie
 	maximal *maximal // the resolution's maximal, if it has it (engine §4)
 	items   map[*item]*itemRank
 	syms    map[*symNode]*itemRank
@@ -248,18 +248,8 @@ func (rk *ranker) canonLess(x, y action) bool {
 
 // decide applies rules 1 to 3 of engine §6 to two differing visible actions.
 func (rk *ranker) decide(x, y action) int {
-	if x.read && y.read {
-		ts := rk.rec.run.tagsets[rk.rec.base+int(x.tok)]
-		sx, _ := ts.has(rk.rec.g.terminals[x.term])
-		sy, _ := ts.has(rk.rec.g.terminals[y.term])
-		switch {
-		case sx && !sy:
-			return oA
-		case sy && !sx:
-			return oB
-		}
-		return oTie
-	}
+	// Two reads of one token as different terminals are tied, and so are
+	// two closes.
 	if x.read != y.read {
 		switch rk.lean {
 		case "greedy":
@@ -426,13 +416,6 @@ type tiedSet struct {
 type cand struct {
 	d    *dn
 	tied tiedSet
-	// closes is the same for the tied derivations whose action where they
-	// diverge is a close. Under rule 1 alone (§7) tying is not an
-	// equivalence: a close ties with a strong read and a weak one alike, so
-	// when a strong read beats a weak one, a close tied with the weak one is
-	// tied with the strong one too, though the best tied derivation, a read,
-	// is not.
-	closes tiedSet
 }
 
 type entry struct {
@@ -455,35 +438,24 @@ func (rk *ranker) addTo(s *tiedSet, d *dn, div int) {
 	s.ds = rk.insertChain(s.ds, d)
 }
 
-// addTied offers a derivation tied with c that diverges from it at div,
-// where its action is a close or not.
-func (rk *ranker) addTied(c *cand, d *dn, div int, close bool) {
+// addTied offers a derivation tied with c that diverges from it at div.
+func (rk *ranker) addTied(c *cand, d *dn, div int) {
 	rk.addTo(&c.tied, d, div)
-	if close {
-		rk.addTo(&c.closes, d, div)
-	}
 }
 
 // inherit offers what of a tied set, with each derivation changed by f, is
 // tied with c at the same divergence.
 func (rk *ranker) inherit(c *cand, z *cand, shift int, f func(*dn) *dn, below int) {
-	for _, set := range []struct {
-		s     tiedSet
-		close bool
-	}{{z.tied, false}, {z.closes, true}} {
-		if len(set.s.ds) == 0 {
-			continue
-		}
-		div := set.s.div
-		if div != inf {
-			div += shift
-		}
-		if set.s.div >= below {
-			continue
-		}
-		for _, t := range set.s.ds {
-			rk.addTied(c, f(t), div, set.close)
-		}
+	s := z.tied
+	if len(s.ds) == 0 || s.div >= below {
+		return
+	}
+	div := s.div
+	if div != inf {
+		div += shift
+	}
+	for _, t := range s.ds {
+		rk.addTied(c, f(t), div)
 	}
 }
 
@@ -516,19 +488,12 @@ func (rk *ranker) contribute(w, z *cand, r cmpRes) {
 	case cVisDiff, cAPrefix, cBPrefix:
 		tie := r.kind != cVisDiff || r.outcome == oTie
 		if tie {
-			rk.addTied(w, z.d, r.pos, r.kind == cVisDiff && !r.vb.read)
+			rk.addTied(w, z.d, r.pos)
 		}
 		rk.inherit(w, z, 0, same, r.pos)
-		if r.kind == cVisDiff && len(z.closes.ds) > 0 && z.closes.div == r.pos {
-			for _, t := range z.closes.ds {
-				if r2 := rk.compare(w.d, t); r2.kind == cVisDiff && r2.outcome == oTie {
-					rk.addTied(w, t, r2.pos, true)
-				}
-			}
-		}
 	case cVisEqual, cIdentical:
 		if r.kind == cVisEqual {
-			rk.addTied(w, z.d, inf, false)
+			rk.addTied(w, z.d, inf)
 		}
 		rk.inherit(w, z, 0, same, inf+1)
 	}
@@ -600,7 +565,7 @@ func (rk *ranker) finish(cands []*cand) *cand {
 // fork copies a candidate for a second list, merged apart from the first:
 // merging changes a candidate's tied sets, never its derivations.
 func (c *cand) fork() *cand {
-	return &cand{d: c.d, tied: c.tied.fork(), closes: c.closes.fork()}
+	return &cand{d: c.d, tied: c.tied.fork()}
 }
 
 func (s tiedSet) fork() tiedSet {
