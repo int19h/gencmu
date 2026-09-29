@@ -1,10 +1,10 @@
 //! From the notation's document tree to a grammar DOM (engine §9).
 
 use crate::dom::{
-    comparison_problem, cond_type_problem, constant_value_type, is_capture_name, is_sound_test, joined_type,
-    literal_call_problem, property_problem, range_problem, sound_problem, tag_term_problem, term_type,
-    test_type_problem, Alternative, Arg, Cond, ConstDef, Directive, Dom, EmitItem, Expr, FeatureKind, Guard, Op,
-    RuleDef, Term, Type,
+    comparison_problem, cond_type_problem, constant_value_type, expected_problem, is_capture_name, is_classifier_name,
+    is_sound_test, joined_type, literal_call_problem, property_problem, range_problem, sound_problem, tag_term_problem,
+    term_type, test_type_problem, Alternative, Arg, ClassifierDef, Cond, ConstDef, Directive, Dom, EmitItem, Entry,
+    Expr, FeatureKind, Guard, ImplicationDef, Op, RuleDef, Term, Type,
 };
 use crate::error::Error;
 use crate::result::{Node, NodeKind, Token};
@@ -109,10 +109,91 @@ impl<'a> Reader<'a> {
                 "rule" => dom.rules.push(self.rule(node)?),
                 "directive" => dom.directives.push(self.directive(node)?),
                 "constant-definition" => dom.constants.push(self.constant(node)?),
+                "classifier" => dom.classifiers.push(self.classifier(node)?),
+                "implication-declaration" => dom.implications.push(self.implication_declaration(node)?),
                 _ => stack.extend(node.children.iter().rev()),
             }
         }
         Ok(dom)
+    }
+
+    /// A `%classifier` item: its name, which begins with a lower-case
+    /// letter, and its entries (engine §2, §9).
+    fn classifier(&self, node: &'a Node) -> R<ClassifierDef> {
+        let name_node = self.one(node, "classifier-name");
+        let name = self.text(Self::tokens_of(name_node).next().expect("a classifier's name")).to_string();
+        if !is_classifier_name(&name) {
+            return Err(self.error(
+                name_node,
+                format!(
+                    "{name} begins with a capital, so it is a tag; a classifier's name begins with a lower-case letter"
+                ),
+            ));
+        }
+        let mut entries = Vec::new();
+        for entry in Self::rules(node, "classifier-entry") {
+            entries.push(self.entry(entry)?);
+        }
+        Ok(ClassifierDef { name, entries, at: self.first(node) })
+    }
+
+    /// An entry of a classifier: gates, canonical keys, `∈` or `∉`, and a
+    /// class (engine §2, §9).
+    fn entry(&self, node: &'a Node) -> R<Entry> {
+        let mut guards = Vec::new();
+        for guard in Self::rules(node, "guard") {
+            let text = self.text(Self::tokens_of(guard).next().expect("a guard token"));
+            if text.ends_with('!') {
+                return Err(self.error(guard, "an entry of a classifier takes gates only, not a warning"));
+            }
+            let text = text.trim_end_matches('?');
+            guards.push(match text.strip_prefix('¬') {
+                Some(feature) => Guard { feature: feature.to_string(), kind: FeatureKind::Gate, negated: true },
+                None => Guard { feature: text.to_string(), kind: FeatureKind::Gate, negated: false },
+            });
+        }
+        let mut keys = Vec::new();
+        for key_node in Self::rules(node, "classifier-key") {
+            let key = self.decode(Self::tokens_of(key_node).next().expect("a key"))?;
+            if let Some(problem) = sound_problem(&key, self.unicode) {
+                return Err(self.error(key_node, format!("a key is a canonical sound: {problem}")));
+            }
+            keys.push(key);
+        }
+        let operator = self.one(node, "classifier-operator");
+        let adds = self.text(Self::tokens_of(operator).next().expect("an operator")) == "∈";
+        let class_node = self.one(node, "classifier-class");
+        let written = self.text(Self::tokens_of(class_node).next().expect("a class"));
+        let class = written.strip_prefix('~').unwrap_or(written);
+        if !is_capital(class) {
+            return Err(self.error(
+                class_node,
+                format!("{written} is not a class: a class is an identifier tag that begins with a capital"),
+            ));
+        }
+        Ok(Entry { guards, keys, adds, class: class.to_string(), at: self.first(node) })
+    }
+
+    /// An implication, `%implies A ⟹ B`: two closed terms whose type is a
+    /// tag set (engine §2, §9).
+    fn implication_declaration(&self, node: &'a Node) -> R<ImplicationDef> {
+        let mut sides = Vec::new();
+        for side in Self::rules(node, "union") {
+            self.closed_for.set(Some("a side of an implication"));
+            let term = self.union(side, 0, false);
+            self.closed_for.set(None);
+            let term = term?;
+            let problem = match term_type(&term) {
+                Err(problem) => Some(problem),
+                Ok(ty) => expected_problem(ty, Type::Tags),
+            };
+            if let Some(problem) = problem {
+                return Err(self.error(side, format!("a side of an implication is a tag set: {problem}")));
+            }
+            sides.push(term);
+        }
+        let [antecedent, consequent] = <[Term; 2]>::try_from(sides).expect("an implication has two sides");
+        Ok(ImplicationDef { antecedent, consequent, at: self.first(node) })
     }
 
     /// A constant's definition: its name without `$`, and its value, a
@@ -856,6 +937,11 @@ impl<'a> Reader<'a> {
         if !FUNCTIONS.contains(&name.as_str()) {
             return Err(self.error(name_token, format!("an unknown function {name}()")));
         }
+        if let Some(closed) = self.closed_for.get().filter(|_| name == "classify") {
+            return Err(
+                self.error(name_token, format!("{closed} is a closed term, and classify depends on the features"))
+            );
+        }
         if let Some(closed) = self.closed_for.get().filter(|_| name != "split" && name != "tag") {
             return Err(self.error(name_token, format!("{closed} is a closed term, and {name}() reads a span")));
         }
@@ -872,7 +958,8 @@ impl<'a> Reader<'a> {
             // stage.
             ("split", [Arg::Term(a), Arg::Term(d)]) => [a, d].iter().all(|term| string_like(term)),
             ("tag", [Arg::Term(term)]) => string_like(term),
-            ("matches" | "begins" | "tags" | "split" | "tag", _) => false,
+            ("classify", [Arg::Term(term), Arg::Rule(_)]) => string_like(term),
+            ("matches" | "begins" | "tags" | "split" | "tag" | "classify", _) => false,
             (_, [first]) => span(first),
             _ => false,
         };
@@ -885,6 +972,12 @@ impl<'a> Reader<'a> {
         // An empty delimiter or a tag's name that the reader sees (§9).
         if let Some(problem) = literal_call_problem(&name, &args) {
             return Err(self.error(name_token, problem));
+        }
+        // The second argument of classify names a classifier, not a rule
+        // (engine §9).
+        if let (true, [_, Arg::Rule(classifier)]) = (name == "classify", &mut args[..]) {
+            let classifier = std::mem::take(classifier);
+            args[1] = Arg::Classifier(classifier);
         }
         Ok(Term::Call(name, args))
     }
@@ -899,9 +992,9 @@ fn first_of_rule<'n>(node: &'n Node, name: &str) -> Option<&'n Node> {
 }
 
 /// The functions of the notation (engine §9).
-const FUNCTIONS: [&str; 14] = [
-    "phonemes", "text", "split", "tag", "tags", "classes", "head", "tail", "last", "from", "after", "matches",
-    "begins", "initial",
+const FUNCTIONS: [&str; 15] = [
+    "phonemes", "text", "split", "tag", "tags", "classes", "classify", "head", "tail", "last", "from", "after",
+    "matches", "begins", "initial",
 ];
 
 /// Whether a term is a string, or a constant that may be one (engine §9).

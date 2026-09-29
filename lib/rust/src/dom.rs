@@ -7,13 +7,53 @@ use crate::tags::{character_code, is_name, is_tag};
 use crate::unicode::{is_property_name, Unicode};
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 12;
+pub const DOM_FORMAT: i64 = 13;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
     pub rules: Vec<RuleDef>,
     pub directives: Vec<Directive>,
     pub constants: Vec<ConstDef>,
+    pub classifiers: Vec<ClassifierDef>,
+    pub implications: Vec<ImplicationDef>,
+}
+
+/// A `%classifier NAME` item (engine §2): its name, which begins with `a`
+/// to `z`, and its entries in the order written. Every item of one name in
+/// a stage adds to one classifier.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct ClassifierDef {
+    pub name: String,
+    pub entries: Vec<Entry>,
+    pub at: (usize, usize),
+}
+
+/// An entry of a classifier (engine §2): its gates, its keys, each a
+/// canonical sound, whether it adds (`∈`) or removes (`∉`) the class, and
+/// the class, a name that begins with `A` to `Z`.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct Entry {
+    pub guards: Vec<Guard>,
+    pub keys: Vec<String>,
+    pub adds: bool,
+    pub class: String,
+    pub at: (usize, usize),
+}
+
+/// An implication `%implies A ⟹ B` (engine §2, §11): two closed terms whose
+/// type is a tag set.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct ImplicationDef {
+    pub antecedent: Term,
+    pub consequent: Term,
+    pub at: (usize, usize),
+}
+
+/// Whether a string is a classifier's name: a name that begins with `a` to
+/// `z` (engine §2, §9).
+pub(crate) fn is_classifier_name(name: &str) -> bool {
+    let mut chars = name.chars();
+    chars.next().is_some_and(|c| c.is_ascii_lowercase()) && chars.all(|c| c.is_ascii_alphanumeric() || c == '-')
 }
 
 /// A constant's definition (engine §2): `%const $NAME t`, or, when
@@ -135,6 +175,8 @@ pub(crate) enum Term {
 pub(crate) enum Arg {
     Term(Term),
     Rule(String),
+    /// The second argument of `classify`, a classifier's name (engine §9).
+    Classifier(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -225,13 +267,59 @@ pub(crate) fn dom_from_json(value: &Json, unicode: &Unicode) -> R<Dom> {
             })
         })
         .collect::<R<Vec<_>>>()?;
+    let classifiers = array(value, "classifiers")?
+        .iter()
+        .map(|classifier| {
+            Ok(ClassifierDef {
+                name: string(classifier, "name")?,
+                entries: array(classifier, "entries")?
+                    .iter()
+                    .map(|entry| {
+                        Ok(Entry {
+                            guards: array(entry, "guards")?.iter().map(guard_from_json).collect::<R<Vec<_>>>()?,
+                            keys: array(entry, "keys")?
+                                .iter()
+                                .map(|key| key.as_str().map(str::to_string).ok_or_else(|| "a bad key".to_string()))
+                                .collect::<R<Vec<_>>>()?,
+                            adds: string(entry, "op")? == "∈",
+                            class: string(entry, "class")?,
+                            at: position(entry)?,
+                        })
+                    })
+                    .collect::<R<Vec<_>>>()?,
+                at: position(classifier)?,
+            })
+        })
+        .collect::<R<Vec<_>>>()?;
+    let implications = array(value, "implications")?
+        .iter()
+        .map(|implication| {
+            Ok(ImplicationDef {
+                antecedent: term_from_json(field(implication, "if")?)?,
+                consequent: term_from_json(field(implication, "then")?)?,
+                at: position(implication)?,
+            })
+        })
+        .collect::<R<Vec<_>>>()?;
     // A definition the reader would refuse (engine §9).
     for rule in &rules {
         if let Some(problem) = crate::clauses::definition_problem(rule) {
             return Err(problem);
         }
     }
-    Ok(Dom { rules, directives, constants })
+    Ok(Dom { rules, directives, constants, classifiers, implications })
+}
+
+fn guard_from_json(guard: &Json) -> R<Guard> {
+    Ok(Guard {
+        feature: string(guard, "feature")?,
+        kind: match string(guard, "kind")?.as_str() {
+            "gate" => FeatureKind::Gate,
+            "warning" => FeatureKind::Warning,
+            _ => return Err("a bad guard".to_string()),
+        },
+        negated: field(guard, "negated")?.as_bool().ok_or("a bad guard")?,
+    })
 }
 
 fn rule_from_json(value: &Json) -> R<RuleDef> {
@@ -249,20 +337,7 @@ fn rule_from_json(value: &Json) -> R<RuleDef> {
             .iter()
             .map(|alternative| {
                 Ok(Alternative {
-                    guards: array(alternative, "guards")?
-                        .iter()
-                        .map(|guard| {
-                            Ok(Guard {
-                                feature: string(guard, "feature")?,
-                                kind: match string(guard, "kind")?.as_str() {
-                                    "gate" => FeatureKind::Gate,
-                                    "warning" => FeatureKind::Warning,
-                                    _ => return Err("a bad guard".to_string()),
-                                },
-                                negated: field(guard, "negated")?.as_bool().ok_or("a bad guard")?,
-                            })
-                        })
-                        .collect::<R<Vec<_>>>()?,
+                    guards: array(alternative, "guards")?.iter().map(guard_from_json).collect::<R<Vec<_>>>()?,
                     expr: expr_from_json(field(alternative, "expr")?)?,
                     tags: alternative.get("tags").map(term_from_json).transpose()?,
                 })
@@ -348,8 +423,9 @@ fn term_from_json(value: &Json) -> R<Term> {
             string(value, "call")?,
             array(value, "args")?
                 .iter()
-                .map(|arg| match arg.get("rule") {
-                    Some(Json::Str(rule)) => Ok(Arg::Rule(rule.clone())),
+                .map(|arg| match (arg.get("rule"), arg.get("classifier")) {
+                    (Some(Json::Str(rule)), _) => Ok(Arg::Rule(rule.clone())),
+                    (_, Some(Json::Str(classifier))) => Ok(Arg::Classifier(classifier.clone())),
                     _ => term_from_json(arg).map(Arg::Term),
                 })
                 .collect::<R<Vec<_>>>()?,
@@ -485,6 +561,12 @@ pub(crate) fn is_capture_name(name: &str) -> bool {
 
 fn is_rule_arg(value: &Json) -> bool {
     matches!(value.as_object(), Some([(key, Json::Str(_))]) if key == "rule")
+}
+
+/// The second argument of `classify`: a classifier's name, and no other
+/// member (engine §9).
+fn is_classifier_arg(value: &Json) -> bool {
+    matches!(value.as_object(), Some([(key, Json::Str(name))]) if key == "classifier" && is_classifier_name(name))
 }
 
 /// The comparators of a test in a body (engine §2): the two sound tests
@@ -626,6 +708,8 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
         || dom.get("rules").and_then(Json::as_array).is_none()
         || dom.get("directives").and_then(Json::as_array).is_none()
         || dom.get("constants").and_then(Json::as_array).is_none()
+        || dom.get("classifiers").and_then(Json::as_array).is_none()
+        || dom.get("implications").and_then(Json::as_array).is_none()
     {
         return Some("not a DOM of this format");
     }
@@ -669,6 +753,55 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
             return Some("a malformed constant");
         };
         pending.push((Kind::Term, value, 0));
+    }
+    // A classifier: its name, and entries of gates, canonical keys, an
+    // operator and a class (engine §2, §9).
+    for classifier in dom.get("classifiers").and_then(Json::as_array).unwrap_or(&[]) {
+        let entries = classifier.get("entries").and_then(Json::as_array);
+        if !classifier.as_object().is_some_and(|members| members.len() == 3)
+            || !classifier.get("name").and_then(Json::as_str).is_some_and(is_classifier_name)
+            || !is_position(classifier.get("at"))
+        {
+            return Some("a malformed classifier");
+        }
+        let Some(entries) = entries else {
+            return Some("a malformed classifier");
+        };
+        for entry in entries {
+            let gates_ok = entry.get("guards").and_then(Json::as_array).is_some_and(|guards| {
+                guards.iter().all(|guard| {
+                    guard.as_object().is_some_and(|members| members.len() == 3)
+                        && is_str(guard.get("feature"))
+                        && guard.get("kind").and_then(Json::as_str) == Some("gate")
+                        && matches!(guard.get("negated"), Some(Json::Bool(_)))
+                })
+            });
+            let keys_ok = entry.get("keys").and_then(Json::as_array).is_some_and(|keys| {
+                !keys.is_empty()
+                    && keys.iter().all(|key| matches!(key, Json::Str(key) if sound_problem(key, unicode).is_none()))
+            });
+            if !entry.as_object().is_some_and(|members| members.len() == 5)
+                || !is_position(entry.get("at"))
+                || !matches!(entry.get("op").and_then(Json::as_str), Some("∈" | "∉"))
+                || !entry.get("class").and_then(Json::as_str).is_some_and(is_constant_name)
+                || !gates_ok
+                || !keys_ok
+            {
+                return Some("a malformed entry of a classifier");
+            }
+        }
+    }
+    // An implication: two closed terms whose type is a tag set, checked
+    // once the nesting is bounded (engine §2, §9).
+    for implication in dom.get("implications").and_then(Json::as_array).unwrap_or(&[]) {
+        let (Some(antecedent), Some(consequent)) = (implication.get("if"), implication.get("then")) else {
+            return Some("a malformed implication");
+        };
+        if !implication.as_object().is_some_and(|members| members.len() == 3) || !is_position(implication.get("at")) {
+            return Some("a malformed implication");
+        }
+        pending.push((Kind::Term, antecedent, 0));
+        pending.push((Kind::Term, consequent, 0));
     }
     for rule in dom.get("rules").and_then(Json::as_array).unwrap_or(&[]) {
         let alternatives = rule.get("alternatives").and_then(Json::as_array);
@@ -1001,6 +1134,9 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                             matches!(args, [a, b] if [a, b].iter().all(|arg| !is_rule_arg(arg) && !is_span_json(arg)))
                         }
                         Some("tag") => matches!(args, [string] if !is_rule_arg(string) && !is_span_json(string)),
+                        Some("classify") => matches!(args, [string, classifier]
+                            if !is_rule_arg(string) && !is_classifier_arg(string) && !is_span_json(string)
+                                && is_classifier_arg(classifier)),
                         Some("phonemes" | "text" | "classes" | "head" | "tail" | "last" | "from" | "after") => {
                             matches!(args, [span] if is_span_json(span))
                         }
@@ -1019,7 +1155,7 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                         return Some(problem);
                     }
                     for arg in args {
-                        if !is_rule_arg(arg) {
+                        if !is_rule_arg(arg) && !is_classifier_arg(arg) {
                             pending.push((Kind::Argument, arg, next));
                         }
                     }
@@ -1041,6 +1177,19 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
     for constant in dom.get("constants").and_then(Json::as_array).unwrap_or(&[]) {
         if !constant.get("value").is_some_and(is_closed_json) {
             return Some("a constant's value is not a closed term");
+        }
+    }
+    for implication in dom.get("implications").and_then(Json::as_array).unwrap_or(&[]) {
+        for side in [implication.get("if"), implication.get("then")].into_iter().flatten() {
+            if !is_closed_json(side) {
+                return Some("a side of an implication is not a closed term");
+            }
+            match term_from_json(side).map(|term| term_type(&term)) {
+                Ok(Ok(ty)) if expected_problem(ty, Type::Tags).is_none() => {}
+                Ok(Ok(_)) => return Some("a side of an implication is not a tag set"),
+                Ok(Err(_)) => return Some("a term or a condition whose types do not agree"),
+                Err(_) => return Some("a malformed implication"),
+            }
         }
     }
     for test in tests {
@@ -1068,7 +1217,7 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
     // The order of a document's items is the order of their positions, so
     // no two items share one (engine §9).
     let mut positions = std::collections::HashSet::new();
-    for kind in ["rules", "directives", "constants"] {
+    for kind in ["rules", "directives", "constants", "classifiers", "implications"] {
         for item in dom.get(kind).and_then(Json::as_array).unwrap_or(&[]) {
             if let Some([Json::Int(line), Json::Int(column)]) = item.get("at").and_then(Json::as_array) {
                 if !positions.insert((*line, *column)) {
@@ -1172,6 +1321,49 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
         write_term(&mut out, &constant.value);
         out.push_str(&format!(",\"at\":[{},{}]}}", constant.at.0, constant.at.1));
     }
+    out.push_str("],\"classifiers\":[");
+    for (index, classifier) in dom.classifiers.iter().enumerate() {
+        if index > 0 {
+            out.push(',');
+        }
+        out.push_str("{\"name\":");
+        write_str(&mut out, &classifier.name);
+        out.push_str(",\"entries\":[");
+        for (index, entry) in classifier.entries.iter().enumerate() {
+            if index > 0 {
+                out.push(',');
+            }
+            out.push_str("{\"guards\":[");
+            for (index, guard) in entry.guards.iter().enumerate() {
+                if index > 0 {
+                    out.push(',');
+                }
+                write_guard(&mut out, guard);
+            }
+            out.push_str("],\"keys\":[");
+            for (index, key) in entry.keys.iter().enumerate() {
+                if index > 0 {
+                    out.push(',');
+                }
+                write_str(&mut out, key);
+            }
+            out.push_str(if entry.adds { "],\"op\":\"∈\",\"class\":" } else { "],\"op\":\"∉\",\"class\":" });
+            write_str(&mut out, &entry.class);
+            out.push_str(&format!(",\"at\":[{},{}]}}", entry.at.0, entry.at.1));
+        }
+        out.push_str(&format!("],\"at\":[{},{}]}}", classifier.at.0, classifier.at.1));
+    }
+    out.push_str("],\"implications\":[");
+    for (index, implication) in dom.implications.iter().enumerate() {
+        if index > 0 {
+            out.push(',');
+        }
+        out.push_str("{\"if\":");
+        write_term(&mut out, &implication.antecedent);
+        out.push_str(",\"then\":");
+        write_term(&mut out, &implication.consequent);
+        out.push_str(&format!(",\"at\":[{},{}]}}", implication.at.0, implication.at.1));
+    }
     out.push_str("]}");
     out
 }
@@ -1198,13 +1390,7 @@ fn write_rule(out: &mut String, rule: &RuleDef) {
             if index > 0 {
                 out.push(',');
             }
-            out.push_str("{\"feature\":");
-            write_str(out, &guard.feature);
-            out.push_str(match guard.kind {
-                FeatureKind::Gate => ",\"kind\":\"gate\"",
-                FeatureKind::Warning => ",\"kind\":\"warning\"",
-            });
-            out.push_str(if guard.negated { ",\"negated\":true}" } else { ",\"negated\":false}" });
+            write_guard(out, guard);
         }
         out.push_str("],\"expr\":");
         write_expr(out, &alternative.expr);
@@ -1251,6 +1437,16 @@ fn write_rule(out: &mut String, rule: &RuleDef) {
         out.push_str(",\"verbatim\":true");
     }
     out.push_str(&format!(",\"at\":[{},{}]}}", rule.at.0, rule.at.1));
+}
+
+fn write_guard(out: &mut String, guard: &Guard) {
+    out.push_str("{\"feature\":");
+    write_str(out, &guard.feature);
+    out.push_str(match guard.kind {
+        FeatureKind::Gate => ",\"kind\":\"gate\"",
+        FeatureKind::Warning => ",\"kind\":\"warning\"",
+    });
+    out.push_str(if guard.negated { ",\"negated\":true}" } else { ",\"negated\":false}" });
 }
 
 fn write_list<T>(out: &mut String, key: &str, items: &[T], write: fn(&mut String, &T)) {
@@ -1378,6 +1574,11 @@ fn write_term(out: &mut String, term: &Term) {
                     Arg::Rule(rule) => {
                         out.push_str("{\"rule\":");
                         write_str(out, rule);
+                        out.push('}');
+                    }
+                    Arg::Classifier(classifier) => {
+                        out.push_str("{\"classifier\":");
+                        write_str(out, classifier);
                         out.push('}');
                     }
                 }
@@ -1590,7 +1791,7 @@ fn call_type(call: &str) -> Type {
     match call {
         "phonemes" | "text" => Type::String,
         "split" => Type::Strings,
-        "tags" | "classes" | "tag" => Type::Tags,
+        "tags" | "classes" | "tag" | "classify" => Type::Tags,
         _ => Type::Span,
     }
 }
@@ -1706,9 +1907,13 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
             for arg in args {
                 if let Arg::Term(arg) = arg {
                     let ty = term_type_in(arg, constants)?;
-                    if call == "split" || call == "tag" {
+                    if call == "split" || call == "tag" || call == "classify" {
                         if let Some(problem) = expected_problem(ty, Type::String) {
-                            let signature = if call == "split" { "two strings" } else { "one string" };
+                            let signature = match call.as_str() {
+                                "split" => "two strings",
+                                "tag" => "one string",
+                                _ => "a string and a classifier's name",
+                            };
                             return Err(Fault::in_term(format!("{call} takes {signature}: {problem}"), term));
                         }
                     }

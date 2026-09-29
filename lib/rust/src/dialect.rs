@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use crate::dom::FeatureKind;
 use crate::earley::{matchers, Chart, EngineError, Recognizer, Shared, Tok};
 use crate::error::Error;
-use crate::grammar::{Change, Lean, StageGrammar};
+use crate::grammar::{Change, ClassifierTables, Lean, StageGrammar};
 use crate::lower::{lower, Lowered, Prod, Sym, SymbolTest, TestOp};
 use crate::maximal::Maximal;
 use crate::rank::{Act, Ranker, Ranking, Verdict as RankVerdict};
@@ -80,12 +80,15 @@ pub struct InputToken {
 
 type LoweredKey = (usize, Vec<String>, bool);
 type LoweredResult = Result<Arc<Lowered>, EngineError>;
+type ClassifiersKey = (usize, Vec<String>);
+type ClassifiersResult = Result<Arc<ClassifierTables>, EngineError>;
 
 /// A loaded dialect: a pipeline of stages, each a stitched grammar.
 ///
 /// A `Dialect` is `Send` and `Sync`: one may be shared between threads and
 /// used for any number of parses at once. The grammars it lowers for a set
-/// of features are kept behind a mutex and shared by later parses.
+/// of features, and the classifiers it resolves for them, are kept behind
+/// a mutex and shared by later parses.
 pub struct Dialect {
     pub(crate) stages: Vec<StageGrammar>,
     /// The features the pipeline's `%features` turns on.
@@ -94,6 +97,8 @@ pub struct Dialect {
     pub(crate) unicode: Arc<Unicode>,
     pub(crate) changes: Vec<Change>,
     lowered: Mutex<FxMap<LoweredKey, LoweredResult>>,
+    /// Each stage's classifiers, resolved for each set of features (§2).
+    classifiers: Mutex<FxMap<ClassifiersKey, ClassifiersResult>>,
 }
 
 impl std::fmt::Debug for Dialect {
@@ -114,21 +119,25 @@ struct Run {
 }
 
 /// A dialect's features (engine §13): every name a guard of a stage's
-/// stitched rules uses, and every name the pipeline's `%features`
-/// declares, in code point order. A name that one guard uses as a gate and
-/// another as a warning is an error of the dialect; one that only
-/// `%features` declares is a gate.
+/// stitched rules uses, every gate of its classifiers' entries, and every
+/// name the pipeline's `%features` declares, in code point order. A name
+/// that one guard uses as a gate and another as a warning is an error of
+/// the dialect; one that only `%features` declares is a gate.
 fn dialect_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec<Feature>, Error> {
     let mut kinds: BTreeMap<&str, FeatureKind> = BTreeMap::new();
     for stage in stages {
-        for rule in &stage.rules {
-            for guard in rule.alternatives.iter().flat_map(|alternative| &alternative.alternative.guards) {
-                if *kinds.entry(&guard.feature).or_insert(guard.kind) != guard.kind {
-                    return Err(Error::grammar(format!(
-                        "the feature {} is used both as a gate and as a warning",
-                        guard.feature
-                    )));
-                }
+        let rules = stage
+            .rules
+            .iter()
+            .flat_map(|rule| &rule.alternatives)
+            .flat_map(|alternative| &alternative.alternative.guards);
+        let entries = stage.classifiers.iter().flat_map(|(_, classifier)| &classifier.entries);
+        for guard in rules.chain(entries.flat_map(|entry| &entry.guards)) {
+            if *kinds.entry(&guard.feature).or_insert(guard.kind) != guard.kind {
+                return Err(Error::grammar(format!(
+                    "the feature {} is used both as a gate and as a warning",
+                    guard.feature
+                )));
             }
         }
     }
@@ -178,7 +187,15 @@ impl Dialect {
     ) -> Result<Dialect, Error> {
         let features = dialect_features(&stages, &declared)?;
         let changes = stages.iter().flat_map(|stage| stage.changes.iter().cloned()).collect();
-        Ok(Dialect { stages, declared, features, unicode, changes, lowered: Mutex::new(FxMap::default()) })
+        Ok(Dialect {
+            stages,
+            declared,
+            features,
+            unicode,
+            changes,
+            lowered: Mutex::new(FxMap::default()),
+            classifiers: Mutex::new(FxMap::default()),
+        })
     }
 
     /// The names of the pipeline's stages, in order.
@@ -188,7 +205,7 @@ impl Dialect {
 
     /// The dialect's features (engine §13), each with its kind and whether
     /// the pipeline turns it on for every parse, in code point order of
-    /// their names.
+    /// their names. The gates of the classifiers' entries are among them.
     pub fn features(&self) -> &[Feature] {
         &self.features
     }
@@ -207,9 +224,29 @@ impl Dialect {
         cache
             .entry(key)
             .or_insert_with(|| {
-                lower(&self.stages[stage], features, mandatory)
+                // The stage resolves its classifiers for the same features,
+                // before it lowers its rules (§2, §3).
+                let classifiers = self.classifiers(stage, features)?;
+                lower(&self.stages[stage], features, mandatory, classifiers)
                     .map(Arc::new)
                     .map_err(|error| EngineError { message: error.message, rule: Some(error.rule) })
+            })
+            .clone()
+    }
+
+    /// The stage's classifiers resolved for a set of features, or the error
+    /// of the grammar that an entry makes for them (§2). Each set of
+    /// features is resolved once.
+    fn classifiers(&self, stage: usize, features: &BTreeSet<String>) -> ClassifiersResult {
+        let key = (stage, features.iter().cloned().collect());
+        let mut cache = self.classifiers.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        cache
+            .entry(key)
+            .or_insert_with(|| {
+                self.stages[stage]
+                    .resolve_classifiers(features)
+                    .map(Arc::new)
+                    .map_err(|message| EngineError { message, rule: None })
             })
             .clone()
     }

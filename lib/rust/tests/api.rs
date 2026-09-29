@@ -548,3 +548,39 @@ fn relative_paths_keep_their_leading_parents() {
         gencmu::load_dialect_file(&relative).unwrap_or_else(|error| panic!("{}: {error}", relative.display()));
     assert!(dialect.parse("%rule a B", &ParseOptions::default()).unwrap().ok);
 }
+
+/// An entry that adds a membership that holds is an error of the grammar
+/// for the features that turn it on, and its message names the entry's
+/// document, line and column (engine §2).
+#[test]
+fn a_classifier_error_names_its_entry() {
+    let rules = "%ambiguity-resolution greedy\n%classifier lex\n  \"mi\" ∈ KOhA\n  f? \"mi\" ∈ KOhA\n%rule text $w(W) <classify(phonemes($w), lex)>\n%emits\n  $";
+    let dialect = gencmu::load_dialect_sources(single(rules), "p.md").expect("a dialect");
+    let tokens = [gencmu::InputToken {
+        text: "mi".to_string(),
+        tags: ["W".to_string()].into(),
+        phonemes: Some("mi".to_string()),
+    }];
+    assert!(dialect.parse_tokens(&tokens, &no_auto()).expect("a parse").ok);
+    let on = ParseOptions { features: vec!["f".to_string()], ..no_auto() };
+    let result = dialect.parse_tokens(&tokens, &on).expect("a parse");
+    let error = result.error.expect("an error of the grammar");
+    assert_eq!(error.kind, ParseErrorKind::Grammar);
+    assert_eq!(error.stage.as_deref(), Some("main"));
+    assert!(error.message.starts_with("g.md:7:3: the classifier lex: \"mi\" is already in KOhA"), "{}", error.message);
+}
+
+/// The loader checks an implication once the constants have their final
+/// values: an undefined constant stands at its reference, and a side that
+/// is not a tag set at its first constant (engine §2, §9).
+#[test]
+fn an_implication_error_stands_at_its_constant() {
+    let error = |rules: &str| {
+        let text = format!("%ambiguity-resolution greedy\n%rule text W\n{rules}");
+        let error = gencmu::load_dialect_sources(single(&text), "p.md").expect_err("an error of the grammar");
+        assert_eq!(error.kind, ErrorKind::Grammar);
+        (error.document.clone().unwrap_or_default(), error.line, error.column)
+    };
+    assert_eq!(error("%implies A ∪ $X ⟹ ~m"), ("g.md".to_string(), Some(6), Some(14)));
+    assert_eq!(error("%const $S \"s\"\n%implies A ⟹ ~m ∪ $S"), ("g.md".to_string(), Some(7), Some(19)));
+}

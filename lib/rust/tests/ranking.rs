@@ -351,7 +351,7 @@ fn grammar_dom(source: &Source) -> String {
         directives.push(format!("{{\"name\":\"elidable\",\"args\":[\"{}\"],\"at\":[3,1]}}", TERMINALS[t]));
     }
     format!(
-        "{{\"format\":{DOM_FORMAT},\"rules\":[{}],\"directives\":[{}],\"constants\":[]}}",
+        "{{\"format\":{DOM_FORMAT},\"rules\":[{}],\"directives\":[{}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}",
         rules.join(","),
         directives.join(",")
     )

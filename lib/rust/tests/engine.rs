@@ -69,4 +69,13 @@ fn harness_detects_a_wrong_expectation() {
     assert!(placed(r#"{"document": "main.md", "line": 4, "column": 1}"#).is_ok());
     assert!(placed(r#"{"document": "main.md", "line": 3, "column": 1}"#).is_err());
     assert!(placed(r#"{"document": "pipeline.md", "line": 4, "column": 1}"#).is_err());
+    // Each item of `parses` is held to its own expectation.
+    let parses = |second: &str| {
+        let case = format!(
+            r#"{{"grammar": "%rule text f? X | ¬f? Y", "tokens": [{{"text": "x", "tags": ["X"]}}], "parses": [{{"options": {{}}, "expect": {{"error": "rejected"}}}}, {{"options": {{"features": ["f"]}}, "expect": {second}}}]}}"#
+        );
+        run_engine_case(&parse_json(&case).unwrap())
+    };
+    assert!(parses(r#"{"brackets": "x"}"#).is_ok());
+    assert!(parses(r#"{"error": "rejected"}"#).is_err());
 }

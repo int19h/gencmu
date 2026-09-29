@@ -786,6 +786,17 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         .collect(),
                 )
             }
+            // The classes that the classifier gives the string, for the
+            // features of the parse, or none for an unknown key (§10).
+            LTerm::Classify(string, classifier) => {
+                let key = self.string_term(string, frame, tokens, base)?;
+                let g = self.g;
+                let classes = g.classifiers.get(classifier).and_then(|table| table.get(&key));
+                let mut list: TagList =
+                    classes.into_iter().flatten().map(|class| self.shared.tags.tag(class)).collect();
+                list.sort_unstable();
+                Value::Set(list)
+            }
             // `t` is evaluated only where the guard holds (§10).
             LTerm::If(cond, then) => {
                 if self.condition(cond, frame, tokens, base)? {

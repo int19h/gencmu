@@ -219,7 +219,8 @@ pub enum ParseErrorKind {
     /// The `elision-only` check failed (engine §7).
     Ambiguous,
     /// A defect of a grammar found while parsing, such as a nested parse
-    /// asked about its own span.
+    /// asked about its own span, or a classifier's entry that adds a class
+    /// twice under the features of the parse.
     Grammar,
 }
 

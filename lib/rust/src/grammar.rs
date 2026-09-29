@@ -7,10 +7,12 @@ use std::sync::Arc;
 
 use crate::clauses::definition_problem;
 use crate::dom::{
-    constant_value_type, constants_in_rule, constants_in_term, is_sound_test, rule_type_fault, sound_problem, tests_in,
-    Alternative, Arg, Cond, ConstDef, Dom, EmitItem, Expr, Fault, Op, RuleDef, Term, Type,
+    constant_value_type, constants_in_rule, constants_in_term, expected_problem, is_sound_test, rule_type_fault,
+    sound_problem, term_type_in, tests_in, Alternative, Arg, ClassifierDef, Cond, ConstDef, Dom, EmitItem, Expr, Fault,
+    FeatureKind, ImplicationDef, Op, RuleDef, Term, Type,
 };
 use crate::error::Error;
+use crate::fxhash::FxMap;
 use crate::tags::{character_tag, code_of_character_tag, is_name};
 use crate::unicode::Unicode;
 
@@ -71,6 +73,70 @@ pub(crate) struct StageGrammar {
     pub maximal: bool,
     pub elidable: Vec<String>,
     pub changes: Vec<Change>,
+    /// The stage's `%classifier` items in stitching order, each with its
+    /// document (engine §2).
+    pub classifiers: Vec<(Arc<str>, ClassifierDef)>,
+    /// The stage's implications, each side with its value (engine §2,
+    /// §11).
+    pub implications: Arc<[Implication]>,
+}
+
+/// An implication of a stage with its two sides' values: the tags of the
+/// antecedent and those that it brings (engine §2, §11).
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct Implication {
+    pub antecedent: BTreeSet<String>,
+    pub consequent: BTreeSet<String>,
+}
+
+/// Each classifier of a stage resolved for one set of features, by name:
+/// each key with its classes (engine §2).
+pub(crate) type ClassifierTables = FxMap<String, FxMap<String, Vec<String>>>;
+
+impl StageGrammar {
+    /// Each classifier of the stage for one set of features: each key's
+    /// classes after every entry whose gates hold, in stitching order
+    /// (engine §2). An entry that adds a membership that holds, or removes
+    /// one that does not, is an error of the grammar for these features,
+    /// whose message names the entry's document, line and column.
+    pub(crate) fn resolve_classifiers(&self, features: &BTreeSet<String>) -> Result<ClassifierTables, String> {
+        let mut tables = ClassifierTables::default();
+        for (document, classifier) in &self.classifiers {
+            let table = tables.entry(classifier.name.clone()).or_default();
+            for entry in &classifier.entries {
+                let on = entry
+                    .guards
+                    .iter()
+                    .all(|guard| guard.kind == FeatureKind::Gate && features.contains(&guard.feature) != guard.negated);
+                if !on {
+                    continue;
+                }
+                for key in &entry.keys {
+                    let classes = table.entry(key.clone()).or_default();
+                    let held = classes.iter().position(|class| *class == entry.class);
+                    match (entry.adds, held) {
+                        (true, None) => classes.push(entry.class.clone()),
+                        (false, Some(index)) => {
+                            classes.remove(index);
+                        }
+                        (adds, _) => {
+                            let problem = if adds {
+                                format!("{key:?} is already in {}", entry.class)
+                            } else {
+                                format!("{key:?} is not in {}, so ∉ has nothing to remove", entry.class)
+                            };
+                            let (line, column) = entry.at;
+                            return Err(format!(
+                                "{document}:{line}:{column}: the classifier {}: {problem}",
+                                classifier.name
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+        Ok(tables)
+    }
 }
 
 /// The most items an `&` may have (engine §3.2): its expansions are every
@@ -102,7 +168,10 @@ pub(crate) fn stitch(
         maximal: false,
         elidable: Vec::new(),
         changes: Vec::new(),
+        classifiers: Vec::new(),
+        implications: Arc::from(Vec::new()),
     };
+    let mut implications: Vec<(&Arc<str>, &ImplicationDef)> = Vec::new();
     let mut resolution: Option<(Arc<str>, (usize, usize))> = None;
     let mut constants = Constants { stage, unicode, values: HashMap::new() };
     // The definitions of rules that use constants, which are checked once
@@ -218,9 +287,16 @@ pub(crate) fn stitch(
         for constant in &dom.constants {
             constants.add(document, constant)?;
         }
+        grammar.classifiers.extend(dom.classifiers.iter().map(|classifier| (document.clone(), classifier.clone())));
+        implications.extend(dom.implications.iter().map(|implication| (document, implication)));
     }
     constants.resolve(&mut grammar, &users)?;
     constants.evaluate_tests(&mut grammar)?;
+    grammar.implications = implications
+        .into_iter()
+        .map(|(document, implication)| constants.implication(document, implication))
+        .collect::<Result<Vec<_>, _>>()?
+        .into();
     check_elidable_tests(&grammar)?;
     if resolution.is_none() {
         return Err(Error::grammar(format!("stage {stage} has no %ambiguity-resolution directive")).in_stage(stage));
@@ -425,6 +501,34 @@ impl Constants<'_> {
                 return Err(located("a constant's value is not a closed term".to_string(), document, item));
             }
         })
+    }
+
+    /// An implication's two sides, with the constants' final values: closed
+    /// terms whose type is a tag set (engine §2, §9). An undefined constant
+    /// stands at its reference, and a side of another type at its first
+    /// constant.
+    fn implication(&self, document: &Arc<str>, implication: &ImplicationDef) -> Result<Implication, Error> {
+        let mut sides = Vec::new();
+        for side in [&implication.antecedent, &implication.consequent] {
+            let mut references = Vec::new();
+            constants_in_term(side, &mut references);
+            for (name, at) in references {
+                if !self.values.contains_key(name) {
+                    return Err(located(format!("${name} is not defined in stage {}", self.stage), document, at));
+                }
+            }
+            let fault = match term_type_in(side, &|name| self.ty(name)) {
+                Err(fault) => Some(fault),
+                Ok(ty) => expected_problem(ty, Type::Tags).map(|problem| Fault { problem, at: first_constant(side) }),
+            };
+            if let Some(Fault { problem, at }) = fault {
+                let fault = Fault { problem: format!("a side of an implication is a tag set: {problem}"), at };
+                return Err(fault_error(fault, document, implication.at));
+            }
+            sides.push(self.evaluate(side, document, implication.at)?.set());
+        }
+        let [antecedent, consequent] = <[BTreeSet<String>; 2]>::try_from(sides).expect("two sides");
+        Ok(Implication { antecedent, consequent })
     }
 
     /// Gives every constant in a rule its final value, once the stage is
@@ -827,10 +931,21 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
                 check_term(grammar, delimiter)
             }
             ("tag", [Arg::Term(inner)]) => check_term(grammar, inner),
-            ("head" | "tail" | "last" | "from" | "after", _) => Err(format!("{name}() is a span, not a value")),
-            ("phonemes" | "text" | "classes" | "tags" | "split" | "tag" | "matches" | "begins" | "initial", _) => {
-                Err(format!("{name}() is called with the wrong arguments"))
+            // A classifier that classify names belongs to the stage (§2).
+            ("classify", [Arg::Term(string), Arg::Classifier(classifier)]) => {
+                check_term(grammar, string)?;
+                if grammar.classifiers.iter().any(|(_, item)| item.name == *classifier) {
+                    Ok(())
+                } else {
+                    Err(format!("classify names {classifier}, which no %classifier of stage {} names", grammar.name))
+                }
             }
+            ("head" | "tail" | "last" | "from" | "after", _) => Err(format!("{name}() is a span, not a value")),
+            (
+                "phonemes" | "text" | "classes" | "tags" | "split" | "tag" | "classify" | "matches" | "begins"
+                | "initial",
+                _,
+            ) => Err(format!("{name}() is called with the wrong arguments")),
             _ => Err(format!("an unknown function {name}()")),
         },
     }

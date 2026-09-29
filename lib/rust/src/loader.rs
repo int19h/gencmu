@@ -200,8 +200,8 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
     let Some(problem) = problem_of(dom) else {
         return Ok(());
     };
-    // Each item alone, a rule or a constant's definition, in the order of
-    // the document.
+    // Each item alone, a rule, a constant's definition or an implication,
+    // in the order of the document.
     let mut singles: Vec<(Dom, (usize, usize))> = dom
         .rules
         .iter()
@@ -210,6 +210,11 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
             dom.constants
                 .iter()
                 .map(|constant| (Dom { constants: vec![constant.clone()], ..Dom::default() }, constant.at)),
+        )
+        .chain(
+            dom.implications
+                .iter()
+                .map(|implication| (Dom { implications: vec![implication.clone()], ..Dom::default() }, implication.at)),
         )
         .collect();
     singles.sort_by_key(|(_, at)| *at);
