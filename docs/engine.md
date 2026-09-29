@@ -26,21 +26,36 @@ A tag is one of three kinds, and its kind shows in its first character:
 - A phoneme tag is exactly three code points, whose first and last are `/`, such as `/a/`.
 - A character tag is one Unicode scalar value between two quotes, `'`, such as `'a'`. The quotes are part of the tag.
 
-A character tag's identity is its scalar value, so a tag has one canonical spelling. Its canonical spelling is the character itself between the quotes, with five exceptions. The engine writes a control character, U+0000 to U+001F or U+007F to U+009F, as `\u{h...}`. It does the same for a nonspacing mark, a `mark` range of `grammars/unicode.txt`, which has no base between the quotes. It also does so for a private-use character: U+E000 to U+F8FF, U+F0000 to U+FFFFD, or U+100000 to U+10FFFD. The quote and the backslash are the last two exceptions.
+A character tag's identity is its scalar value, so a tag has one canonical spelling. Its canonical spelling is the character itself between the quotes, with five exceptions. The engine writes a control character, U+0000 to U+001F or U+007F to U+009F, as `\u{h...}`. It does the same for a nonspacing mark, which has no base between the quotes. The engine also writes a private-use character so: U+E000 to U+F8FF, U+F0000 to U+FFFFD, or U+100000 to U+10FFFD. The quote and the backslash are the last two exceptions.
 
-In `\u{h...}`, the hexadecimal digits are upper case, with no leading zeros. So U+0301 is `'\u{301}'`, U+ED80 is `'\u{ED80}'`, and the quote is `'\u{27}'`. Everywhere in the engine and its output, a tag is a string in this canonical spelling. So two tags are equal exactly when their strings are.
+A nonspacing mark is a character whose General_Category in `grammars/unicode.txt` is `Mn`. In `\u{h...}`, the hexadecimal digits are upper case, with no leading zeros. So U+0301 is `'\u{301}'`, U+ED80 is `'\u{ED80}'`, and the quote is `'\u{27}'`. Everywhere in the engine and its output, a tag is a string in this canonical spelling. So two tags are equal exactly when their strings are.
 
-The input of the first stage is the characters of the text, one token for each code point `c` at position `i`. For this token, `span` and `source` are `[i, i+1)`, and `text` is `c`. Its `tags` are two: the character tag of `c`, and one class tag. The class tag is the first of these that applies:
+The input of the first stage is the characters of the text, one token for each code point `c` at position `i`. For this token, `span` and `source` are `[i, i+1)`, and `text` is `c`. Its `tags` hold one tag, the character tag of `c`, and nothing else. A character token has no phonemes. A grammar reads a class of characters, such as the letters, with a range or a property.
 
-- `space`: U+0009 to U+000D, U+0020, U+0085, U+00A0, U+1680, U+2000 to U+200A, U+2028, U+2029, U+202F, U+205F, U+3000.
-- `digit`: U+0030 to U+0039.
-- `mark`: a `mark` range of `grammars/unicode.txt` (General_Category Mn).
-- `alpha`: an `alpha` range of that file (General_Category Lu, Ll, Lt, Lm or Lo).
-- `other`: anything else.
+`tools/unicode-table.py` generates `grammars/unicode.txt` from one version of the Unicode Character Database. Every library uses this file, not the Unicode data of its platform, so that the four libraries agree on every character. The file holds one entry on each line, with code points in hexadecimal:
 
-`tools/unicode-table.py` generates `grammars/unicode.txt` from one version of the Unicode Character Database, and the file names that version. Every library uses this file, not the Unicode data of its platform, so that the four libraries agree on every character. A character token has no phonemes.
+- `unicode 15.1.0`: the version of the data.
+- `category Lu 0041 005A`: a range of code points whose General_Category is `Lu`. The category is in its short form. Each such range is a longest run of one category, and together they hold every Unicode scalar value once. `Cn`, the unassigned code points, has its ranges too.
+- `white-space 0009 000D`: a range of code points that have the White_Space property.
+- `lower 0041 0061`: a code point and its simple lowercase mapping.
 
 A tag set is a set of tags. A tag has no strength: a set holds it or not. The union holds every tag of either set. The intersection holds their shared tags. The difference holds the first set's tags that the second lacks.
+
+A range, written `'a'..'z'`, is the set of the character tags from its start to its end, by scalar value. Its two ends are character tags. It skips the surrogates, which are not scalar values, so `'\u{D7FF}'..'\u{E000}'` holds two tags. A range whose start is above its end is an error of the document (§9).
+
+A property, written `'\p{Name}'`, holds the scalar values that have a property in `grammars/unicode.txt`. The names are exactly these, and their case counts. Each General_Category value in its short form is a name. So is each group of these values, which holds the values whose short form begins with its letter:
+
+- `L`: `Lu`, `Ll`, `Lt`, `Lm` and `Lo`.
+- `M`: `Mn`, `Mc` and `Me`.
+- `N`: `Nd`, `Nl` and `No`.
+- `P`: `Pc`, `Pd`, `Ps`, `Pe`, `Pi`, `Pf` and `Po`.
+- `S`: `Sm`, `Sc`, `Sk` and `So`.
+- `Z`: `Zs`, `Zl` and `Zp`.
+- `C`: `Cc`, `Cf`, `Cs`, `Co` and `Cn`.
+
+The two other names are `White_Space`, the code points of the `white-space` ranges, and `Any`, every scalar value.
+
+No other name is a property. So `'\p{lu}'` and `'\p{Letter}'` are errors of the document (§9). `'\p{Cs}'` is a property, but no character tag has it, since a character tag is never a surrogate. A property is not a tag set. It stands only as a terminal (§4).
 
 ## 2. Grammars
 
@@ -58,7 +73,9 @@ The loader collects directives from all the stage's items. `%stage`, `%include` 
 
 A stage has exactly one `%ambiguity-resolution L [elision-only] [maximal]`, or it is an error naming the stage. `L` is `greedy` or `lazy`. If both `elision-only` (§7) and `maximal` (§4) are written, they stand in that order. `%elidable T...` names the elidable terminators, and repeated directives add up.
 
-A name whose first character is `A` to `Z` is a terminal, the identifier tag of that name. The DOM writes both kinds of name as `ref`, and lowering (§3) tells them apart by that first letter. Any other name is a rule reference, and must be defined in the stage, or it is an error. `#`, the free-modifier slot, is a rule's name like any other. A tag literal `~name`, a phoneme tag or a character tag is a terminal too. The DOM writes it as `terminal`, the tag.
+A name whose first character is `A` to `Z` is a terminal, the identifier tag of that name. The DOM writes both kinds of name as `ref`, and lowering (§3) tells them apart by that first letter. Any other name is a rule reference, and must be defined in the stage, or it is an error. `#`, the free-modifier slot, is a rule's name like any other.
+
+A tag literal `~name`, a phoneme tag or a character tag is a terminal too. The DOM writes it as `terminal`, the tag. A range and a property (§1) are terminals as well, which the DOM writes as `range` and `property`.
 
 A reference, a tag literal, a phoneme tag or a character tag can carry a spelling: ``LE`la` ``, ``~la`la` ``, ``/a/`a` ``. A spelling is text between backticks after a symbol. It says what the symbol must sound like (§4). A spelled symbol is a symbol with a spelling. The spelling is not part of the name. A terminal with a spelling is the same terminal, and a reference with a spelling refers to the same rule.
 
@@ -117,7 +134,9 @@ An item has a production, a dot position and an origin, the position where the i
 
 Take one production, dot position, origin and input position, and one tag set for each captured part. Then the captures add items only where the span of a captured part can vary. For example, with `t → $l(t) $r(t) | A`, a completed item over one span exists once for each position where `$l` can end. Without the captures, it exists once.
 
-A terminal `T` matches a token whose tags contain `T`.
+A terminal `T` matches a token whose tags contain `T`. A range matches a token that carries at least one character tag of the range. A property matches a token that carries a character tag whose scalar value has the property. Either one matches such a token once, with one reading, however many of its tags qualify.
+
+A range or a property has no tag of its own. As a terminal, its identity is its written form in canonical spelling, such as `'a'..'z'` or `'\p{L}'`. The ends of a range are in their canonical spelling (§1), so `'\u{61}'..'z'` is `'a'..'z'`. This form is the terminal for the ranking and its canonical keys (§6). It is also the terminal in the expected terminals, the tree's token nodes (§12) and the witness.
 
 A spelled symbol ``X`s` `` matches what `X` matches, over a span whose phonemes match the spelling. That is, `phonemes(span)` (§5), lowercased as `lowercase` does (§10), is exactly `s`. So the match ignores stress and script. A token with no phonemes, a character of the first stage, never matches a spelled terminal.
 
@@ -279,8 +298,10 @@ The notation's syntax grammar names its constituents so that the reader can read
 | `tag` in a body | `terminal`, the name after `~` |
 | `character` in a body | `terminal`, the decoded character tag in its canonical spelling (§1) |
 | `phoneme` in a body | `terminal`, the token's text `/p/` |
+| `range` in a body | `range`, its two ends, each decoded as a `character` is: `{"range":["'a'","'z'"]}` |
+| `property` in a body | `property`, the name between the braces: `{"property":"L"}` |
 | `spelled` | `spelling` of its `reference`, `tag`, `character` or `phoneme`, as the table reads that. `spelling` is the text between the backticks: `{"spelling":"la","expr":{"ref":"LE"}}` |
-| `capture` | `capture`, the name without `$`, of its primary, which must be a `reference`, `tag`, `character`, `phoneme` or `spelled` |
+| `capture` | `capture`, the name without `$`, of its primary, which must be a `reference`, `tag`, `character`, `phoneme`, `range`, `property` or `spelled` |
 | `group` | its `choice` |
 | `optional` | `optional` of its `choice` |
 | `empty` | `empty` |
@@ -301,17 +322,25 @@ The notation's syntax grammar names its constituents so that the reader can read
 | `intersection` | `intersection` of the parts, or the one part itself |
 | `string` in a term | `string`, the decoded string |
 | `tag`, `character`, `phoneme` in a term | `tag`, the tag as in a body |
+| `range` in a term | `range`, as in a body |
 | `name` in a term | `tag`, the name, if it begins with a capital. As the second argument of `tags`, `matches` or `begins`, a name that does not is a rule, `{"rule":"r"}` |
 | `empty-set`, `capture-reference` | `emptySet`, a span `capture`, `""` for `$` |
 | `call` in a term | `call` with its arguments |
 
-A rule with any other name makes no node of the DOM. The reader reads its children in its place. The grammar does not state the restrictions below. Each of these is an error of the document, and the reader reports it at the first token of the offending construct:
+A rule with any other name makes no node of the DOM. The reader reads its children in its place.
 
-- A capture wrapping anything but a reference, a tag literal, a character tag, a phoneme tag or a spelled one of these, `$x((B))` included.
+The lexical stage reads the longest symbol. So `...` is always one token, repetition, and never `..` followed by a period. So `'a'...'z'` is not a range. It is `'a'` repeated, then `'z'`. A range is two character tags joined by `..`, with any layout between them.
+
+The grammar does not state the restrictions below. Each of these is an error of the document, and the reader reports it at the first token of the offending construct:
+
+- A capture wrapping anything but one symbol, `$x((B))` included. A symbol is a reference, a tag literal, a character tag, a phoneme tag, a range, a property or a spelled one of these.
 - A capture whose name has a capital. Capture names are all lower case.
 - `$` wrapping anything.
 - A capture name used twice in one alternative.
-- A spelling after `#`, reported at the spelling. The syntax grammar permits a spelling on a reference, a tag literal, a character tag or a phoneme tag. There, `#` is a reference.
+- A spelling after `#`, a range or a property, reported at the spelling. The syntax grammar permits a spelling on any of these, and on a reference, a tag literal, a character tag or a phoneme tag. There, `#` is a reference.
+- A range whose start is above its end, reported at the range.
+- A property whose text is not `'\p{Name}'` with a name of §1, reported at the property. So a long name, such as `Letter`, and a name in other case, such as `lu`, are errors.
+- A property in a term or a condition, reported at the property. A property is not a tag set.
 - A spelling with a code point that `lowercase` (§10) changes, reported at the spelling. The match ignores stress, so ``LE`La` `` is an error.
 - A spelling that is empty, reported at the spelling.
 - A function that does not exist, or one called with the wrong arguments. `phonemes`, `text`, `runs`, `classes`, `head`, `tail`, `last`, `from` and `after` take one span. `lowercase` takes one string. `tags` takes a span and optionally a rule name. `matches` and `begins` take a span and a rule name, and `initial` takes one span.
@@ -328,11 +357,12 @@ A rule with any other name makes no node of the DOM. The reader reads its childr
 - `$` with items other than `$`.
 - Tags on an inserted tag.
 - An inserted bare name that does not begin with a capital, which names a rule and not a tag.
+- An inserted range or property, which is not one tag.
 - `∅` as an item's tags, which is a token no terminal reads.
 - A capture other than `$` listed twice in one emission.
 - A rule's or an alternative's tag term that reads the tags that it defines: `tags($)` or `classes($)` in it. `tags(head($))` and the like read the tokens' tags, not the constituent's, and are allowed, as is `tags($, R)`.
 - An unknown directive, which the syntax grammar already refuses.
-- A directive with the wrong operands, reported at the directive. `%stage` takes one name, `%include` one string, and `%features` one or more names. `%elidable` takes identifier tags: names that begin with a capital, or `~name`. `%ambiguity-resolution` takes names only.
+- A directive with the wrong operands, reported at the directive. `%stage` takes one name, `%include` one string, and `%features` one or more names. `%elidable` takes identifier tags: names that begin with a capital, or `~name`. A range or a property there is an error, as a phoneme tag or a character tag is. `%ambiguity-resolution` takes names only.
 
 Once the reader reads a definition (§2), it makes sure that the whole definition meets its requirements. Each of the following is an error of the document too, and the reader reports it at the definition:
 
@@ -352,11 +382,13 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - It has a `stage`, `include`, `features` or `elidable` directive whose operands the reader refuses.
 - It has a spelling that the reader refuses, by the same `lowercase` mapping that the match uses.
 - It has a `terminal`, a `tag` or an inserted tag that is not a tag in its canonical spelling (§1).
+- It has a `range` whose ends are not two character tags in their canonical spelling, or whose start is above its end.
+- It has a `property` whose name §1 does not list.
 - It has a term or a condition whose types do not agree (§10).
 
 To decode a string, the reader removes the quotes. In the decoded string, `\\` is `\`, `\"` is `"`, and `\u{h...}` is the character with that hexadecimal value. The value has one to six hexadecimal digits and is a Unicode scalar value: at most `10FFFF`, and not a surrogate, `D800` to `DFFF`. Any other `\`, and a `\u{...}` that breaks these limits, is an error of the document, and the reader reports it at the string.
 
-A character tag is decoded in the same way, with `\'` for a quote in place of `\"`. The decoded text must be exactly one code point, or the reader reports an error of the document at the tag. The DOM holds the tag in its canonical spelling (§1), so `'a'` and `'\u{61}'` give the same DOM.
+A character tag is decoded in the same way, with `\'` for a quote in place of `\"`. The decoded text must be exactly one code point, or the reader reports an error of the document at the tag. The DOM holds the tag in its canonical spelling (§1), so `'a'` and `'\u{61}'` give the same DOM. The reader decodes each end of a range in the same way, as one character tag.
 
 ## 10. Terms and conditions
 
@@ -370,6 +402,7 @@ A term has one of four types: a string, a set of strings, a tag set or a span. N
 | --- | --- | --- |
 | `"s"` | string | the string |
 | `~name`, `KOhA`, `/p/`, `'c'` | tag set | the set of that one tag |
+| `'a'..'z'` | tag set | the character tags of the range (§1) |
 | `∅` | a set of the kind its context gives | the empty set |
 | `a ∪ b`, `a ∩ b`, `a ∖ b` | the type of `a` and `b`, two sets of one kind | union, intersection, difference |
 | `A ⟹ t` | tag set | `t` where the condition `A` holds, else `∅` |
@@ -380,6 +413,8 @@ A term has one of four types: a string, a set of strings, a tag set or a span. N
 | `classes(s)` | tag set | the tags of `tags(s)` whose first character is `A` to `Z` |
 | `runs(s)` | set of strings | §5 |
 | `$x`, `$`, `head(s)` and the other span functions | span | the argument of a function, never a value |
+
+`..` binds tighter than every other operator, since its two sides are character tags. So `'a'..'c' ∪ 'x'` is `('a'..'c') ∪ 'x'`.
 
 `∩` binds tighter than `∪` and `∖`. Those two bind equally and group from the left, so `a ∖ b ∪ c` is `(a ∖ b) ∪ c`. `∅` takes its kind from the other side of its operator or comparison. A tag term, guarded term or emission item also gives it the required tag-set type. An expression whose kind nothing gives is an error of the document.
 
