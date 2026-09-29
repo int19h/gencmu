@@ -593,13 +593,31 @@ class Parser {
     const args = [this.argument()];
     while (this.accept(",")) args.push(this.argument());
     this.take(")");
+    // A bare name is only the second argument of tags, matches, begins or
+    // classify. Elsewhere the call has the wrong arguments (engine §9).
+    args.forEach((arg, i) => {
+      if (arg.rule !== undefined && !(i === 1 && ["tags", "matches", "begins", "classify"].includes(name.text))) fail(`${name.text} is called with the wrong arguments`, name);
+    });
     // The second argument of classify names a classifier (engine §9).
     if (name.text === "classify" && args.length === 2 && args[1].rule !== undefined) return { call: name.text, args: [args[0], { classifier: args[1].rule }] };
     return { call: name.text, args };
   }
 
+  // A bare name, in any number of parentheses, names a rule or a
+  // classifier, as it does outside them (engine §9).
   argument() {
-    if (this.is("identifier") && !this.is("(", 1)) return { rule: this.take().text };
+    let depth = 0;
+    while (this.is("(", depth)) depth++;
+    if (this.is("identifier", depth) && !this.is("(", depth + 1)) {
+      let closed = 0;
+      while (closed < depth && this.is(")", depth + 1 + closed)) closed++;
+      if (closed === depth) {
+        this.index += depth;
+        const name = this.take().text;
+        for (let i = 0; i < depth; i++) this.take(")");
+        return { rule: name };
+      }
+    }
     return this.union();
   }
 }
