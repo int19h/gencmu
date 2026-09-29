@@ -5,11 +5,15 @@ found before any hash or compiled DOM."""
 from __future__ import annotations
 
 import os
+import pathlib
+import shutil
 import tempfile
 import unittest
 from typing import Callable
+from unittest import mock
 
 import gencmu
+from gencmu import _dialect
 
 PIPELINE = '# A dialect\n\n```jbogenbau\n%stage main\n%include "g.md"\n```\n'
 
@@ -87,6 +91,45 @@ class StrictUtf8(unittest.TestCase):
         self.assertIn("at least one %stage", str(caught.exception))
         prose = self.directory({"p.md": "﻿" + PIPELINE, "g.md": grammar("%rule text '﻿'")})
         self.assertTrue(gencmu.load_dialect_file(os.path.join(prose, "p.md")).parse("﻿", auto_features=False).ok)
+
+
+class UndecodableCache(unittest.TestCase):
+    """compiled.json is only a cache: bytes of it that do not decode make it
+    absent, and valid documents still load. A required resource that does
+    not decode stays an error."""
+
+    def bundle(self, **replaced: bytes) -> pathlib.Path:
+        """A copy of the bundled resources, with some files replaced."""
+        holder = tempfile.TemporaryDirectory(prefix="gencmu-utf8-")
+        self.addCleanup(holder.cleanup)
+        root = pathlib.Path(holder.name)
+        for name in ("unicode.txt", "notation/bootstrap.json", "compiled.json"):
+            (root / name).parent.mkdir(parents=True, exist_ok=True)
+            data = replaced.get(name.replace("/", "_").replace(".", "_"))
+            if data is None:
+                shutil.copyfile(str(_dialect._bundled_root().joinpath(*name.split("/"))), root / name)
+            else:
+                (root / name).write_bytes(data)
+        return root
+
+    def test_valid_documents_load_with_a_cache_that_does_not_decode(self) -> None:
+        sources = {"p.md": PIPELINE, "g.md": grammar("%rule text 'a'")}
+        for cache in (b"\xff", b'{"format":10,"documents":{"\xff":{}}}'):
+            root = self.bundle(compiled_json=cache)
+            for use_cache in (True, False):
+                with self.subTest(cache=cache, use_cache=use_cache):
+                    with mock.patch.dict(_dialect._bundled, clear=True), mock.patch.object(_dialect, "_bundled_root", lambda: root):
+                        self.assertIsNone(_dialect.bundled_text("compiled.json"))
+                        dialect = gencmu.load_dialect_sources(sources, "p.md", use_cache=use_cache)
+                        self.assertTrue(dialect.parse("a", auto_features=False).ok)
+
+    def test_a_required_resource_that_does_not_decode_is_an_error(self) -> None:
+        root = self.bundle(unicode_txt=b"unicode 15.1.0 \xff\n")
+        with mock.patch.dict(_dialect._bundled, clear=True), mock.patch.object(_dialect, "_bundled_root", lambda: root):
+            with self.assertRaises(gencmu.GencmuError) as caught:
+                gencmu.load_dialect_sources({"p.md": PIPELINE, "g.md": grammar("%rule text 'a'")}, "p.md")
+        self.assertEqual(caught.exception.kind, "grammar")
+        self.assertEqual(caught.exception.document, "unicode.txt")
 
 
 if __name__ == "__main__":

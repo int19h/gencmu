@@ -71,7 +71,15 @@ def _read_bundled(path: str) -> str | None:
         data = node.read_bytes()
     except (FileNotFoundError, IsADirectoryError, NotADirectoryError, OSError):
         return None
-    return _decode(data, path)
+    try:
+        return _decode(data, path)
+    except GencmuError:
+        # compiled.json is only a cache, so bytes of it that do not decode
+        # make it absent, a miss for every document. Anything else that
+        # does not decode stays an error.
+        if path == "compiled.json":
+            return None
+        raise
 
 
 _lock = threading.Lock()
