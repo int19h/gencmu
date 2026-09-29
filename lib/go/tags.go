@@ -324,3 +324,28 @@ func (cc *charClass) carries(uni *unicodeTable, ts *tagset) bool {
 	}
 	return false
 }
+
+// writtenTest is a test as an expected list writes it after its terminal
+// (docs/output.md): its comparator and its value in canonical form. A
+// string stands between double quotes, a backslash before each \ and ". A
+// tag set is ∅, its one tag, or its tags in code point order joined by
+// " ∪ " in parentheses.
+func writtenTest(op string, v *constValue) string {
+	var written string
+	if v.ty == tyString {
+		written = `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(v.s) + `"`
+	} else {
+		switch len(v.names) {
+		case 0:
+			written = "∅"
+		case 1:
+			written = v.names[0]
+		default:
+			written = "(" + strings.Join(v.names, " ∪ ") + ")"
+		}
+	}
+	if rest, ok := strings.CutPrefix(op, "∩"); ok {
+		return "∩" + written + rest
+	}
+	return op + written
+}

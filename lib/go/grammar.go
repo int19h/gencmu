@@ -39,6 +39,9 @@ type sAlt struct {
 	verbatim bool
 	doc      string
 	at       [2]int
+	// tests are the tests of its body with their values, in the order
+	// testsIn lists them, from the constants' final values (engine §2, §4).
+	tests []*symTest
 }
 
 // constValue is a constant's value (engine §2, §10): a string, or a set of
@@ -152,6 +155,9 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 	if err := g.resolveConstants(); err != nil {
 		return nil, err
 	}
+	if err := g.checkElidableTests(); err != nil {
+		return nil, err
+	}
 	if len(ambiguity) == 0 {
 		e := &Error{Kind: "grammar", Stage: stageName, Message: "stage " + stageName + " has no %ambiguity-resolution"}
 		if len(docs) > 0 {
@@ -174,7 +180,67 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 			}
 		}
 	}
+	if err := g.makeTests(); err != nil {
+		return nil, err
+	}
 	return g, nil
+}
+
+// checkElidableTests checks that the terminal of an elidable optional has
+// no test or an = test, since elision-only restores it with a sound (engine
+// §3.8). The check runs once the stage is stitched, since a later
+// %elidable can make an optional elidable, over every alternative whatever
+// the features.
+func (g *stageGrammar) checkElidableTests() *Error {
+	for _, r := range g.rules {
+		for _, a := range r.alts {
+			stack := []*domExpr{a.alt.Expr}
+			for len(stack) > 0 {
+				e := stack[len(stack)-1]
+				stack = stack[:len(stack)-1]
+				if e.Kind == exOptional {
+					first := e.Inner
+					for first.Kind == exSeq {
+						first = first.Items[0]
+					}
+					if first.Kind == exTest && first.Op != "=" && (first.Inner.Kind == exRef || first.Inner.Kind == exTerminal) && g.elidable[first.Inner.Name] {
+						e := grammarError(a.doc, a.at, "%s can elide %s, whose test %s gives it no sound to restore; an elidable terminator has no test or an = test", r.name, first.Inner.Name, first.Op)
+						e.Stage = g.name
+						return e
+					}
+				}
+				stack = append(stack, e.Items...)
+				if e.Inner != nil {
+					stack = append(stack, e.Inner)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// makeTests gives each test of the stitched stage's bodies its value, made
+// once for every lowering.
+func (g *stageGrammar) makeTests() *Error {
+	for _, r := range g.rules {
+		for _, a := range r.alts {
+			for _, t := range testsIn(a.alt.Expr) {
+				v, err := g.evaluateClosed(a.doc, t.Value, a.at)
+				if err != nil {
+					return err
+				}
+				st := &symTest{op: t.Op}
+				if v.ty == tyString {
+					st.sound, st.hasSound = v.s, true
+				} else {
+					st.tags = v.names
+				}
+				st.written = writtenTest(t.Op, v)
+				a.tests = append(a.tests, st)
+			}
+		}
+	}
+	return nil
 }
 
 // checkAlt checks what the notation's grammar cannot state: every rule named
@@ -204,8 +270,8 @@ func (g *stageGrammar) checkAlt(a *sAlt) *Error {
 				return fail("a capture wraps a single symbol")
 			}
 			return walk(e.Inner, false)
-		case exSpelling:
-			// A spelled symbol refers to what its symbol does.
+		case exTest:
+			// A tested symbol refers to what its symbol does.
 			return walk(e.Inner, false)
 		case exSeq:
 			for _, it := range e.Items {

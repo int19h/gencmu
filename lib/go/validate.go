@@ -45,8 +45,8 @@ func validateDOM(d *domDoc, uni *unicodeTable) error {
 }
 
 // checkDOM checks a DOM; uni is the loader's table, never nil: the
-// lowercase mapping that spellings are checked against, and the marks that
-// decide a character tag's canonical spelling.
+// lowercase mapping that the strings of sound tests are checked against,
+// and the marks that decide a character tag's canonical spelling.
 func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 	for _, dir := range d.Directives {
 		if dir == nil || dir.Args == nil || !directiveOperandsOK(dir) {
@@ -109,6 +109,12 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 		if c.problem != nil {
 			return c.problem
 		}
+		// The values of its tests, once the nesting is bounded (engine §9).
+		for _, t := range c.tests {
+			if f := testValueFault(t.Op, t.Value, uni); f != nil {
+				return &domProblem{message: fmt.Sprintf("rule %s: %s", r.Name, f.problem), rule: r}
+			}
+		}
 		// The definition as a whole (engine §9, the end), and the types of
 		// its terms and conditions (engine §10).
 		if msg := definitionProblem(r); msg != "" {
@@ -170,6 +176,7 @@ type domChecker struct {
 	label    string    // what the problems name: rule r or constant $C
 	uni      *unicodeTable
 	captures map[string]bool
+	tests    []*domExpr // the tested symbols seen, whose values are checked once the nesting is bounded
 	problem  *domProblem
 }
 
@@ -233,7 +240,7 @@ func (c *domChecker) expr(e *domExpr, depth int, top bool) {
 			return
 		}
 		if e.Inner == nil || !isCapturable(e.Inner.Kind) || (e.Inner.Kind == exRef && e.Inner.Name == "") {
-			c.fail("a capture of something other than a reference, a terminal, a range, a property or a spelled one of these")
+			c.fail("a capture of something other than a reference, a terminal, a range, a property or a tested one of these")
 			return
 		}
 		if c.captures[e.Name] {
@@ -244,18 +251,29 @@ func (c *domChecker) expr(e *domExpr, depth int, top bool) {
 			c.fail("an alternative has at most four captures")
 		}
 		// A capture is a compound node: its symbol lies below it.
-		if e.Inner.Kind == exSpelling || e.Inner.Kind == exRange || e.Inner.Kind == exProperty {
+		if e.Inner.Kind == exTest || e.Inner.Kind == exRange || e.Inner.Kind == exProperty {
 			c.expr(e.Inner, depth+1, false)
 		} else {
 			c.deep(depth + 1)
 		}
-	case exSpelling:
-		if msg := spellingProblem(e.Name, e.Inner, c.uni); msg != "" {
-			c.fail("%s", msg)
+	case exTest:
+		// A compound node (engine §9) over one symbol; its value counts on
+		// from its depth, and is checked once the nesting is bounded.
+		if !testOps[e.Op] {
+			c.fail("a malformed test")
 			return
 		}
-		// A spelled symbol is a compound node over its symbol.
-		c.deep(depth + 1)
+		if !isTestable(e.Inner) {
+			c.fail("a test follows only a reference other than # or a terminal")
+			return
+		}
+		c.expr(e.Inner, depth+1, false)
+		if e.Value == nil {
+			c.fail("a missing value of a test")
+			return
+		}
+		c.term(e.Value, depth+1, false)
+		c.tests = append(c.tests, e)
 	case exRef:
 		if e.Name == "" {
 			c.fail("an empty ref")
@@ -280,10 +298,25 @@ func (c *domChecker) expr(e *domExpr, depth int, top bool) {
 }
 
 // isCapturable says whether a capture can wrap an expression of a kind: a
-// reference, a terminal, a range, a property or a spelled symbol (engine §9).
+// reference, a terminal, a range, a property or a tested symbol (engine §9).
 func isCapturable(kind string) bool {
 	switch kind {
-	case exRef, exTerminal, exRange, exProperty, exSpelling:
+	case exRef, exTerminal, exRange, exProperty, exTest:
+		return true
+	}
+	return false
+}
+
+// isTestable says whether an expression can carry a test (engine §2): a
+// reference other than #, a terminal, a range or a property.
+func isTestable(e *domExpr) bool {
+	if e == nil {
+		return false
+	}
+	switch e.Kind {
+	case exRef:
+		return e.Name != "" && e.Name != "#"
+	case exTerminal, exRange, exProperty:
 		return true
 	}
 	return false
@@ -317,29 +350,75 @@ func propertyProblem(name string) string {
 	return ""
 }
 
-// spellingProblem is what is wrong with a spelling of a symbol (engine §9),
-// or "": an empty spelling, one with a backtick, which the notation cannot
-// write, one that no canonical sound can be, with a comma or a code point
-// that the lowercase mapping would change, or one of anything but a
-// reference or a terminal, # included. Without a table, the lowercase
-// mapping is not checked.
-func spellingProblem(spelling string, inner *domExpr, uni *unicodeTable) string {
-	if spelling == "" {
-		return "a spelling is empty"
+// soundProblem is what is wrong with the string of a sound test (engine
+// §9), or "": one that no canonical sound can be, with a comma or a code
+// point that the lowercase mapping would change. Without a table, the
+// lowercase mapping is not checked.
+func soundProblem(sound string, uni *unicodeTable) string {
+	if strings.Contains(sound, ",") {
+		return fmt.Sprintf("the string %s holds a comma, which no canonical sound holds", strconv.Quote(sound))
 	}
-	if strings.Contains(spelling, "`") {
-		return "a spelling holds a backtick"
-	}
-	if inner == nil || !((inner.Kind == exRef && inner.Name != "" && inner.Name != "#") || inner.Kind == exTerminal) {
-		return "a spelling follows only a reference other than # or a terminal"
-	}
-	if strings.Contains(spelling, ",") {
-		return fmt.Sprintf("the spelling %s holds a comma, which no canonical sound holds", spelling)
-	}
-	if uni != nil && uni.lowercase(spelling) != spelling {
-		return fmt.Sprintf("the spelling %s is not in lower case", spelling)
+	if uni != nil && uni.lowercase(sound) != sound {
+		return fmt.Sprintf("the string %s is not in lower case, which every canonical sound is", strconv.Quote(sound))
 	}
 	return ""
+}
+
+// testValueFault is what is wrong with a test's value (engine §9), or nil:
+// it must be a closed term, of type string for a sound test and tag set for
+// a tag test, and a string literal of a sound test must be a canonical
+// sound. The shape of the value must already be checked, and its nesting
+// bounded.
+func testValueFault(op string, value *domTerm, uni *unicodeTable) *typeFault {
+	if open := openPart(value); open != nil {
+		return &typeFault{"a test's operand is a closed term, and reads no capture or span", open}
+	}
+	ty, f := termTypeIn(value, nil)
+	if f != nil {
+		return f
+	}
+	if problem := testTypeProblem(op, ty); problem != "" {
+		return &typeFault{problem, value}
+	}
+	if isSoundTest(op) && value.Kind == tmString {
+		if problem := soundProblem(value.Str, uni); problem != "" {
+			return &typeFault{problem, value}
+		}
+	}
+	return nil
+}
+
+// testTypeProblem is why a value of a type cannot be the value of a test,
+// or "": a sound test's is a string, and a tag test's a tag set.
+func testTypeProblem(op string, ty termType) string {
+	expected, name := tyTags, "a tag set"
+	if isSoundTest(op) {
+		expected, name = tyString, "a string"
+	}
+	if problem := expectedProblem(ty, expected); problem != "" {
+		return op + " tests " + name + ": " + problem
+	}
+	return ""
+}
+
+// testsIn lists the tested symbols of an expression, in the order written.
+func testsIn(e *domExpr) []*domExpr {
+	var found []*domExpr
+	var walk func(e *domExpr)
+	walk = func(e *domExpr) {
+		if e == nil {
+			return
+		}
+		if e.Kind == exTest {
+			found = append(found, e)
+		}
+		for _, it := range e.Items {
+			walk(it)
+		}
+		walk(e.Inner)
+	}
+	walk(e)
+	return found
 }
 
 // literalCallProblem is what is wrong with a call of split or tag whose
@@ -905,6 +984,19 @@ func ruleTypeFault(r *domRule, ct constTypes) *typeFault {
 			return f
 		}
 	}
+	// A test's value is a string for a sound test and a tag set for a tag
+	// test (engine §9, §10).
+	for _, a := range r.Alternatives {
+		for _, t := range testsIn(a.Expr) {
+			ty, f := termTypeIn(t.Value, ct)
+			if f != nil {
+				return f
+			}
+			if problem := testTypeProblem(t.Op, ty); problem != "" {
+				return &typeFault{problem, t.Value}
+			}
+		}
+	}
 	return nil
 }
 
@@ -1022,8 +1114,20 @@ func constRefs(nodes ...any) []*domTerm {
 				cond(c)
 			}
 		case *domRule:
-			for _, t := range ruleTagTerms(x) {
-				term(t)
+			// In the order the DOM writes them: the rule's tags, each
+			// alternative's tests and tags, the emission and the
+			// conditions.
+			term(x.Tags)
+			for _, a := range x.Alternatives {
+				for _, t := range testsIn(a.Expr) {
+					term(t.Value)
+				}
+				term(a.Tags)
+			}
+			if x.Emit != nil {
+				for _, it := range x.Emit.Items {
+					term(it.Tags)
+				}
 			}
 			for _, c := range x.Conditions {
 				cond(c)

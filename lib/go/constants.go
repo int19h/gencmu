@@ -186,6 +186,23 @@ func (g *stageGrammar) resolveConstants() *Error {
 		if msg := definitionProblem(newResolver(g.constants).rule(u.rule)); msg != "" {
 			return g.constError(u.doc, u.rule.At, "%s", msg)
 		}
+		// A string constant in a sound test must be a canonical sound (§2,
+		// §9); the error stands at the constant.
+		for _, a := range u.rule.Alternatives {
+			for _, t := range testsIn(a.Expr) {
+				refs := constRefs(t.Value)
+				if !isSoundTest(t.Op) || len(refs) == 0 {
+					continue
+				}
+				v, err := g.evaluateClosed(u.doc, t.Value, u.rule.At)
+				if err != nil {
+					return err
+				}
+				if msg := soundProblem(v.s, g.uni); msg != "" {
+					return g.constError(u.doc, refs[0].At, "%s", msg)
+				}
+			}
+		}
 		for _, call := range closedCalls(u.rule) {
 			arg := call.Items[0]
 			if call.Str == "split" {
@@ -261,8 +278,17 @@ func closedCalls(rule *domRule) []*domTerm {
 			cond(it)
 		}
 	}
-	for _, t := range ruleTagTerms(rule) {
-		term(t)
+	term(rule.Tags)
+	for _, a := range rule.Alternatives {
+		for _, t := range testsIn(a.Expr) {
+			term(t.Value)
+		}
+		term(a.Tags)
+	}
+	if rule.Emit != nil {
+		for _, it := range rule.Emit.Items {
+			term(it.Tags)
+		}
 	}
 	for _, c := range rule.Conditions {
 		cond(c)

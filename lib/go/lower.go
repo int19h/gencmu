@@ -14,9 +14,9 @@ type production struct {
 	num          int
 	lhs          int32
 	rhs          []symbol
-	spelling     []string // per position: the spelling its symbol's span must sound like, or ""; nil when none is spelled (§4)
-	capName      []string // per position: the capture's name, or ""
-	capSlot      []int8   // per position: the item's capture slot, or -1
+	tests        []*symTest // per position: the test its symbol must pass, or nil; nil when no symbol is tested (§4)
+	capName      []string   // per position: the capture's name, or ""
+	capSlot      []int8     // per position: the item's capture slot, or -1
 	nslots       int
 	slotOf       map[string]int8 // capture name → slot
 	tags         *domTerm        // nil: default tags (§4)
@@ -28,10 +28,10 @@ type production struct {
 	verbatim     bool       // %verbatim: a token over the constituent is widened and sounds like its text (§11)
 	transparent  bool
 	helper       bool
-	elided       string // for the ε production of an optional beginning with an elidable terminal
-	elidedSpell  string // the spelling of that terminal, if it is spelled, which a restored token sounds like (§7)
-	repeatPrefix bool   // r → r x of a trailing repetition: the first child is spliced out (§12)
-	ruleName     string // the rule the author wrote (for a helper, the one it serves)
+	elided       string   // for the ε production of an optional beginning with an elidable terminal
+	elidedTest   *symTest // the test of that terminal, if it is tested; a restored token sounds like the string of an = test (§7)
+	repeatPrefix bool     // r → r x of a trailing repetition: the first child is spliced out (§12)
+	ruleName     string   // the rule the author wrote (for a helper, the one it serves)
 	doc          string
 	at           [2]int
 	// warnings are the features of its alternative's warnings that are on,
@@ -79,17 +79,29 @@ type lowered struct {
 }
 
 type slot struct {
-	sym      symbol
-	capture  string
-	spelling string // "" for a symbol without a spelling
+	sym     symbol
+	capture string
+	test    *symTest // nil for a symbol without a test
 }
 
-// spellingAt is the spelling of a production's symbol at a position, or "".
-func (p *production) spellingAt(i int) string {
-	if p.spelling == nil {
-		return ""
+// symTest is a test of a symbol in a body (engine §2, §4) with its value:
+// a string for a sound test, = or ≠, and a tag set for a tag test.
+type symTest struct {
+	op       string
+	sound    string
+	hasSound bool
+	tags     []string // a tag test's tags, in code point order
+	// written is the test as an expected list writes it after its
+	// terminal, such as ="la" (docs/output.md).
+	written string
+}
+
+// testAt is the test of a production's symbol at a position, or nil.
+func (p *production) testAt(i int) *symTest {
+	if p.tests == nil {
+		return nil
 	}
-	return p.spelling[i]
+	return p.tests[i]
 }
 
 type lowerer struct {
@@ -99,6 +111,7 @@ type lowerer struct {
 	mandatory bool
 	helpers   int
 	memo      map[*domExpr][][]slot // expansions of one alternative, by place
+	tests     map[*domExpr]*symTest // the tests of that alternative with their values
 	into      *[]*helperNode        // where a new helper goes
 }
 
@@ -108,7 +121,7 @@ type helperNode struct {
 	rule     int32
 	bodies   [][]slot
 	elide    string
-	elideSp  string // the spelling of the elidable terminal, or ""
+	elideT   *symTest // the test of the elidable terminal, or nil
 	owner    *sAlt
 	children []*helperNode
 }
@@ -173,6 +186,10 @@ func (lw *lowerer) lowerRule(r *sRule) {
 	for _, a := range alts {
 		var helpers []*helperNode
 		lw.memo = map[*domExpr][][]slot{}
+		lw.tests = map[*domExpr]*symTest{}
+		for i, t := range testsIn(a.alt.Expr) {
+			lw.tests[t] = a.tests[i]
+		}
 		lw.into = &helpers
 		e := a.alt.Expr
 		var last *domExpr
@@ -228,7 +245,7 @@ func (lw *lowerer) lowerRule(r *sRule) {
 					p.doc, p.at = h.owner.doc, h.owner.at
 					if len(b) == 0 && h.elide != "" {
 						p.elided = h.elide
-						p.elidedSpell = h.elideSp
+						p.elidedTest = h.elideT
 					}
 				}
 				number(h.children)
@@ -265,12 +282,12 @@ func (lw *lowerer) newProduction(lhs int32, body []slot) *production {
 	for i, s := range body {
 		p.rhs = append(p.rhs, s.sym)
 		p.capSlot[i] = -1
-		if s.spelling != "" {
-			// A spelled symbol is the symbol, and carries its spelling (§3).
-			if p.spelling == nil {
-				p.spelling = make([]string, len(body))
+		if s.test != nil {
+			// A tested symbol is the symbol, and carries its test (§3).
+			if p.tests == nil {
+				p.tests = make([]*symTest, len(body))
 			}
-			p.spelling[i] = s.spelling
+			p.tests[i] = s.test
 		}
 	}
 	if len(body) == 1 {
@@ -399,20 +416,21 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt, repeatPrefix b
 }
 
 // elidableTerminal is the symbol an optional's content is, or begins with
-// as a sequence, recursively (§3.8), and its spelling, if it is spelled; a
-// choice or an & begins with none. A spelled terminal is elidable when its
+// as a sequence, recursively (§3.8), and its tested node, if it is tested;
+// a choice or an & begins with none. A tested terminal is elidable when its
 // terminal is.
-func elidableTerminal(e *domExpr) (string, string) {
+func elidableTerminal(e *domExpr) (string, *domExpr) {
 	switch e.Kind {
 	case exSeq:
 		return elidableTerminal(e.Items[0])
-	case exSpelling:
-		name, _ := elidableTerminal(e.Inner)
-		return name, e.Name
+	case exTest:
+		if e.Inner.Kind == exRef || e.Inner.Kind == exTerminal {
+			return e.Inner.Name, e
+		}
 	case exRef, exTerminal:
-		return e.Name, ""
+		return e.Name, nil
 	}
-	return "", ""
+	return "", nil
 }
 
 func (lw *lowerer) expandSeq(items []*domExpr, a *sAlt, ruleName string) [][]slot {
@@ -441,9 +459,9 @@ func (lw *lowerer) expand(e *domExpr, a *sAlt, ruleName string) [][]slot {
 
 // helper makes the helper of one place, its bodies expanded at once so that
 // the helpers inside it follow it.
-func (lw *lowerer) helper(a *sAlt, ruleName, elide, elideSp string, bodies func(h int32) [][]slot) [][]slot {
+func (lw *lowerer) helper(a *sAlt, ruleName, elide string, elideT *symTest, bodies func(h int32) [][]slot) [][]slot {
 	h := lw.newHelper(a, ruleName)
-	node := &helperNode{rule: h, elide: elide, elideSp: elideSp, owner: a}
+	node := &helperNode{rule: h, elide: elide, elideT: elideT, owner: a}
 	*lw.into = append(*lw.into, node)
 	outer := lw.into
 	lw.into = &node.children
@@ -477,14 +495,18 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 		return out
 	case exOptional:
 		inner := e.Inner
-		elide, elideSp := "", ""
-		if t, sp := elidableTerminal(inner); t != "" && lw.g.elidable[t] {
-			elide, elideSp = t, sp
+		elide := ""
+		var elideT *symTest
+		if t, tested := elidableTerminal(inner); t != "" && lw.g.elidable[t] {
+			elide = t
+			if tested != nil {
+				elideT = lw.tests[tested]
+			}
 		}
-		// A spelled elidable terminal stays spelled when its optional is
+		// A tested elidable terminal keeps its test when its optional is
 		// made mandatory (§3.8).
 		mandatory := elide != "" && lw.mandatory
-		return lw.helper(a, ruleName, elide, elideSp, func(int32) [][]slot {
+		return lw.helper(a, ruleName, elide, elideT, func(int32) [][]slot {
 			var out [][]slot
 			if !mandatory {
 				out = append(out, []slot{})
@@ -493,7 +515,7 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 		})
 	case exRepeat:
 		inner, min := e.Inner, e.Min
-		return lw.helper(a, ruleName, "", "", func(h int32) [][]slot {
+		return lw.helper(a, ruleName, "", nil, func(h int32) [][]slot {
 			xs := lw.expand(inner, a, ruleName)
 			var out [][]slot
 			if min == 0 {
@@ -528,12 +550,12 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 			out = append(out, c)
 		}
 		return out
-	case exSpelling:
-		// A spelled symbol lowers to its symbol with the spelling, and adds
-		// no helper (§3).
+	case exTest:
+		// A tested symbol lowers to its symbol with the test, and adds no
+		// helper (§3).
 		x := lw.expand(e.Inner, a, ruleName)
 		c := concat(nil, x[0])
-		c[0].spelling = e.Name
+		c[0].test = lw.tests[e]
 		return [][]slot{c}
 	case exEmpty:
 		return [][]slot{{}}

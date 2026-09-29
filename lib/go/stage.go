@@ -75,8 +75,8 @@ type stageRun struct {
 	// first question (see spanSource); nil when toks are in order.
 	sources     *sourceTable
 	sourcesMade bool
-	// sounds holds each token's phonemes in canonical form, for the
-	// spellings of symbols and for phonemes(), computed when one first
+	// sounds holds each token's phonemes in canonical form, for the sound
+	// tests of symbols and for phonemes(), computed when one first
 	// looks at the token (§4, §5).
 	sounds     []string
 	soundsMade []bool
@@ -97,20 +97,46 @@ func (run *stageRun) sound(i int) string {
 	return run.sounds[i]
 }
 
-// spellingMatches says whether the tokens [a, b) sound like a spelling:
-// their canonical sound is exactly it (§4, §5). A token with
-// no phonemes adds nothing, and a spelling is never empty, so neither such a
-// token alone nor an empty span matches.
-func (run *stageRun) spellingMatches(spelling string, a, b int) bool {
+// soundIs says whether the tokens [a, b) sound like a string: their
+// canonical sound is exactly it (§4, §5). A token with no phonemes adds
+// nothing, and an empty span sounds like the empty string.
+func (run *stageRun) soundIs(sound string, a, b int) bool {
 	offset := 0
 	for i := a; i < b; i++ {
 		s := run.sound(i)
-		if !strings.HasPrefix(spelling[offset:], s) {
+		if !strings.HasPrefix(sound[offset:], s) {
 			return false
 		}
 		offset += len(s)
 	}
-	return offset == len(spelling)
+	return offset == len(sound)
+}
+
+// testHolds says whether a test holds of a symbol's own span, the tokens
+// [a, b), and its own tags (§4): a token's for a terminal, the completed
+// item's for a reference.
+func (run *stageRun) testHolds(t *symTest, a, b int, tags *tagset) bool {
+	switch t.op {
+	case "=", "≠":
+		return run.soundIs(t.sound, a, b) == (t.op == "=")
+	case "⊇", "⊉":
+		all := true
+		for _, name := range t.tags {
+			if !tags.has(name) {
+				all = false
+				break
+			}
+		}
+		return all == (t.op == "⊇")
+	}
+	meets := false
+	for _, name := range t.tags {
+		if tags.has(name) {
+			meets = true
+			break
+		}
+	}
+	return meets == (t.op == "∩≠∅")
 }
 
 func (ps *parseState) newRun(name string, grammar *stageGrammar, toks []Token) *stageRun {
@@ -222,8 +248,8 @@ func (run *stageRun) rejection(rec *recognizer) *ParseError {
 	rules := map[string]map[string]bool{}
 	expect := func(p *production, pos int) {
 		if pos < len(p.rhs) && p.rhs[pos].term {
-			// A spelled terminal is written with its spelling (docs/output.md).
-			t := writtenSymbol(rec.g.terminals[p.rhs[pos].id], p.spellingAt(pos))
+			// A tested terminal is written with its test (docs/output.md).
+			t := writtenSymbol(rec.g.terminals[p.rhs[pos].id], p.testAt(pos))
 			if rules[t] == nil {
 				rules[t] = map[string]bool{}
 			}
@@ -287,8 +313,8 @@ func (run *stageRun) forbiddenTerminator(rec *recognizer, d *dn, mx *maximal) *P
 			// read so far.
 			rhs := f.prod.rhs
 			own := i == 1 && !rhs[0].term && rhs[0].id == f.prod.lhs
-			if b := f.kids[i-1]; !own && b.kind == dClose && mx.forbids(b.prod.lhs, b.start, b.end, f.prod.spellingAt(i-1)) {
-				expected := []Expected{{Terminal: writtenSymbol(mx.elides[k.prod.lhs], k.prod.elidedSpell), Rules: []string{k.prod.ruleName}}}
+			if b := f.kids[i-1]; !own && b.kind == dClose && mx.forbids(b.prod.lhs, b.start, b.end, f.prod.testAt(i-1)) {
+				expected := []Expected{{Terminal: writtenSymbol(mx.elides[k.prod.lhs], k.prod.elidedTest), Rules: []string{k.prod.ruleName}}}
 				return run.rejectedAt(rec.base+int(k.start), expected)
 			}
 		}
@@ -351,9 +377,10 @@ func (run *stageRun) checkElision(tree *Node, g *lowered) *ParseError {
 	for i := 0; i <= len(run.toks); i++ {
 		for e < len(elided) && elided[e].Span[0] == i {
 			src := run.emptySource(i)
-			// A restored spelled terminator sounds like its spelling, so that
-			// it matches its own terminator in the stricter grammar (§7).
-			toks = append(toks, Token{Tags: []string{elided[e].Terminal}, Phonemes: elided[e].spelling, Span: [2]int{i, i}, Source: src})
+			// A restored terminator with an = test sounds like the test's
+			// string, so that it matches its own terminator in the stricter
+			// grammar (§7).
+			toks = append(toks, Token{Tags: []string{elided[e].Terminal}, Phonemes: elided[e].sound, Span: [2]int{i, i}, Source: src})
 			orig = append(orig, -1)
 			terms = append(terms, elided[e].Terminal)
 			e++
@@ -411,11 +438,19 @@ func (run *stageRun) checkElision(tree *Node, g *lowered) *ParseError {
 }
 
 // writtenSymbol is a terminal as the diagnostics write it: its name,
-// followed by its spelling in backticks if it has one, such as LE`la`
-// (docs/output.md).
-func writtenSymbol(name, spelling string) string {
-	if spelling == "" {
+// followed by its test if it has one, such as LE="la" (docs/output.md).
+func writtenSymbol(name string, t *symTest) string {
+	if t == nil {
 		return name
 	}
-	return name + "`" + spelling + "`"
+	return name + t.written
+}
+
+// elidedSound is the string of an elided terminator's test, which a
+// restored token sounds like (§7), or "".
+func elidedSound(t *symTest) string {
+	if t == nil || !t.hasSound {
+		return ""
+	}
+	return t.sound
 }

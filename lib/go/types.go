@@ -37,10 +37,10 @@ type Node struct {
 	Source   [2]int
 	Tags     []string
 	Children []*Node
-	// spelling is an elided node's terminator's spelling, if it is spelled,
-	// which elision-only gives the restored token as its phonemes (engine
-	// §7, §12); the output does not show it.
-	spelling string
+	// sound is the string of an elided node's terminator's = test, if it
+	// has one, which elision-only gives the restored token as its phonemes
+	// (engine §7, §12); the output does not show it.
+	sound string
 }
 
 // Action is one step of a derivation read bottom-up: a read of a token as a
