@@ -13,7 +13,7 @@ A stage is one step of a pipeline (§13), with its own grammar. Everything a sta
 - `source`: the half-open range of the original text that it covers, in Unicode code points.
 - `text`: the original text over `source`.
 - `phonemes`: what the token sounds like (§5).
-- `verbatim`: true for a verbatim token (§11), whose phonemes are its text, and false for any other token.
+- `label`: what the token shows to people (§5).
 - `insertedBy`: for a token that an emission clause inserted from a tag literal (§11), the rule that the clause belongs to. For any other token it is absent, even for a token that an emission `$` makes over an empty constituent.
 
 The source of one token or more runs from the least source start among them to the greatest source end. An empty source counts as the point where it lies. Tokens usually lie in the order of their sources. Then this source runs from the source start of the first token to the source end of the last token.
@@ -30,7 +30,7 @@ A character tag's identity is its scalar value, so a tag has one canonical spell
 
 A nonspacing mark is a character whose General_Category in `grammars/unicode.txt` is `Mn`. In `\u{h...}`, the hexadecimal digits are upper case, with no leading zeros. So U+0301 is `'\u{301}'`, U+ED80 is `'\u{ED80}'`, and the quote is `'\u{27}'`. Everywhere in the engine and its output, a tag is a string in this canonical spelling. So two tags are equal exactly when their strings are.
 
-The input of the first stage is the characters of the text, one token for each code point `c` at position `i`. For this token, `span` and `source` are `[i, i+1)`, and `text` is `c`. Its `tags` hold one tag, the character tag of `c`, and nothing else. A character token has no phonemes. A grammar reads a class of characters, such as the letters, with a range or a property.
+The input of the first stage is the characters of the text, one token for each code point `c` at position `i`. For this token, `span` and `source` are `[i, i+1)`, and `text` is `c`. Its `tags` hold one tag, the character tag of `c`, and nothing else. A character token has no phonemes, and its label is its text. A grammar reads a class of characters, such as the letters, with a range or a property.
 
 A text is a sequence of Unicode scalar values. A text that is not one is a usage error (§13), and the engine refuses it before it makes any character token. In JavaScript and Python, such a text is a string with a lone surrogate. In Go, it is a string that is not valid UTF-8. A Rust string is always valid. The same holds for a grammar document that the caller supplies as a string.
 
@@ -143,7 +143,7 @@ Lowering turns a grammar, given the set of enabled features, into a context-free
    The intermediate prefixes of such an alternative are then constituents of `r`, and the ranking sees them (§6). This is how the YACC grammar of CLL (The Complete Lojban Language) realizes `...`, and CLL says that left grouping is implied. The recursive productions have none of the alternative's captures, because the captured parts lie inside the inner `r`. So an alternative lowered this way that captures anything is an error of the grammar. Lowering finds this error when it lowers the grammar for features that leave the alternative alone in its rule.
 4. The engine names the helpers, and it never shows their names. A helper is a production whose left side is a helper name.
 5. A capture `$x(s)` must wrap a single symbol `s`, which can be tested, in a sequence at the top level of an alternative. It must not stand inside `[ ]`, `...`, `( )` or `&`. It labels the symbol's position in the production. An alternative has at most four captures. `$`, the whole constituent, is a capture of every production that no alternative writes. Its span runs from the item's origin to its end, and its tags are the constituent's (§4).
-6. Conditions, tags, emission and `%verbatim` attach to the production that an alternative lowers to, or to each production if it expands to several. They attach with the clauses of the alternative's definition (§2). A production has a capture if its alternative captures it, and every production has `$`.
+6. Conditions, tags, emission and `%foreign` attach to the production that an alternative lowers to, or to each production if it expands to several. They attach with the clauses of the alternative's definition (§2). A production has a capture if its alternative captures it, and every production has `$`.
 
    Before lowering attaches a clause, it simplifies the clause for the production, by these rules:
 
@@ -252,22 +252,27 @@ A stage accepts when an item of the start rule `text` spans the whole input and 
 
 An input rejected only because `maximal` forbids an elided terminator in every derivation that is not cyclic reports that terminator instead. The terminator comes from the derivation that the stage chooses (§6) when `maximal` forbids nothing. It is the first elided terminator of that derivation, in the order of the tree's leaves, that `maximal` forbids. Its position is the position reported, and its terminal, with the rule in whose alternative its optional is written, is the one terminal expected there. If that terminator is tested, the stage writes it with its test there too.
 
-## 5. Phonemes and text
+## 5. Phonemes, labels and text
 
-A token's `phonemes` are these:
+A token's `phonemes` say what it sounds like, and its `label` is what it shows to people. The stage fixes both when it emits the token. It takes the first of these cases that applies:
 
-- If it is a verbatim token (§11): its text, whatever tags it carries.
-- Otherwise, if its tag set holds a phoneme tag `/p/` (§1): `p`. So the pause, `/./`, is `.`.
-- Otherwise: the phonemes of the tokens that it covers, the stage's input tokens in its span, joined in order. The join leaves out every token inside a constituent that does not count (§11). That includes the token's own constituent when its own rule does not count and a parent emits it as a capture. The join also leaves out every token whose phonemes are empty.
+- The token's tag set holds a phoneme tag `/p/` (§1). Then its phonemes are `p`, and its label is `p`. The pause, `/./`, is the one exception: its phonemes are `.`, and its label is a space.
+- Any other token that the stage emits joins the phonemes and the labels of its parts (§11). A read input token gives its own phonemes and its own label. A foreign part gives the phonemes `?`, and its text as its label. So a token whose constituent is a foreign part sounds `?`.
+- A character token has no phonemes, and its label is its text. A token that a caller supplies in place of the characters has its text as its label (`docs/api.md`).
 
-  Of each run of adjacent tokens whose phonemes are exactly the pause, `.`, the join keeps only the first. It leaves out such a token at either end. It counts pauses by token, not by character, so it keeps the text of a verbatim token as it is, periods included.
-- A character token has none.
+The phonemes join the phonemes of the parts in order, and the label joins their labels in the same way. Each join leaves out a part whose own string is empty: its phonemes for the phonemes, and its label for the label. A pause part is a part whose phonemes are exactly the pause, `.`. Of each run of adjacent pause parts that remain, the join keeps only the first. It also leaves out a pause part at either end. A part with no phonemes, such as a character token, counts as one with empty phonemes.
 
-An emitted token always has phonemes, possibly the empty string. Only the character tokens of the first stage have none. Two phoneme tags on one emitted token are an error of the grammar that emitted it, whether or not the token is verbatim. The tag set here is the token's tags after the stage's implications (§11).
+The join counts pauses by part, not by character. So it keeps a period or a space inside the string of a part. For example, a foreign part with the text `a... b` keeps that label whole.
+
+An inserted token has no parts. If it has a phoneme tag, it sounds like that phoneme and has it as its label. Otherwise its phonemes and its label are empty. So the inserted apostrophe `/'/` of a script is part of the label of the word around it.
+
+An emitted token always has phonemes, possibly the empty string. Only the character tokens of the first stage have none. Two phoneme tags on one emitted token are an error of the grammar that emitted it, whether or not its constituent is a foreign part. The tag set here is the token's tags after the stage's implications (§11).
 
 `phonemes(span)` in a condition is the canonical sound of the span. It joins the phonemes of the span's tokens in order, with no separator. Then it replaces each code point with its simple lowercase mapping, the `lower` entries of `grammars/unicode.txt`. It also removes every comma, `,`, the syllable break of CLL 3.3.
 
 The canonical sound keeps every pause. It does not merge two pauses, and it does not remove a pause at either end. So a stressed `lA` sounds `la`, and `kore,a` sounds `korea`. A token's own `phonemes`, above and in the output, stay as the token has them.
+
+The canonical sound and every comparison treat `?` as an ordinary character. In the word stage, `zoi gy. abc .gy. bu` is one letter word. It sounds `zoi.gy.?.gy.bu`, and its label is `zoi gy abc gy bu`.
 
 `text(span)` is the original text over the source of the span's tokens (§1), and the empty string for an empty span.
 
@@ -354,7 +359,7 @@ The notation's syntax grammar names its constituents so that the reader can read
 | `classifier-entry` | an entry: gates from its `guard`s, as an alternative reads them. Keys from its `classifier-key`s, each the decoded string, in order. Operator from its `classifier-operator`, `∈` or `∉`. Class from its `classifier-class`: the name, or the name after `~` |
 | `implication-declaration` | an implication: `if` from the `union` before `⟹` and `then` from the `union` after it, each read as a `term` is |
 | `constant-definition` | a constant: `define` or `redefine` from its `constant-definer`, a token tagged `keyword-const` or `keyword-redefine-const`. Name from its `constant-reference` without `$`. Value from its `term` |
-| `rule` | a rule: `define`, `redefine` or `extend` from its `definer`, a token tagged `keyword-rule`, `keyword-redefine-rule` or `keyword-extend-rule`. Name from its `rule-name`, a name or `#`. Alternatives from its `body`. Tags from its `tags-clause`. Conditions from its `conditions-clause`. Emission from its `emits-clause`. `verbatim` true if it has a `verbatim-clause` |
+| `rule` | a rule: `define`, `redefine` or `extend` from its `definer`, a token tagged `keyword-rule`, `keyword-redefine-rule` or `keyword-extend-rule`. Name from its `rule-name`, a name or `#`. Alternatives from its `body`. Tags from its `tags-clause`. Conditions from its `conditions-clause`. Emission from its `emits-clause`. `foreign` true if it has a `foreign-clause` |
 | `alternative` | guards from its `guard`s: a gate from `f?` or `¬f?`, a warning from `f!`. Expression from its `conjunction`, tags from `alternative-tags` |
 | `choice` | `choice` of its `conjunction`s, or the one conjunction itself |
 | `conjunction` | `and` of its `sequence`s, or the one sequence itself |
@@ -449,7 +454,7 @@ Once the reader reads a definition (§2), it makes sure that the whole definitio
 - A capture, in any clause, `$x` presence tests included, that no alternative of the definition captures.
 - A condition that applies (§3.6) to no alternative of the definition, whatever features are enabled.
 - A tag term that uses (§3.6) a capture that an alternative it serves lacks. An alternative's own tags serve that alternative, and `%tags` serves every alternative of the definition. An emission item's tags serve every alternative in which the item is not dropped.
-- `%verbatim` in a definition whose emission is `ε`, since a constituent that does not count cannot sound like its text.
+- `%foreign` in a definition whose emission is `ε`. A constituent that does not count gives no part, so it is never a foreign part (§11).
 - In an emission, captures listed in an order other than the one in which some alternative that has them captures them.
 - In an emission, an inserted tag whose anchor, the capture listed next after it, is one that some alternative of the definition lacks.
 - In an emission, an alternative for which every item is dropped, so that it emits nothing although the rule lists what to emit. A rule that emits nothing says so with `ε`.
@@ -543,29 +548,31 @@ Every stage that accepts its input emits tokens by walking its chosen tree from 
   - A `$` item emits one token covering the constituent, with the constituent's tags, or with the tags of the item's term if it has one. `$ <t>, $ <u>` emits one such token per item, in order, all with the same span and source. This is how a digit that stands for a two-phoneme word is two tokens over one character.
   - A capture item emits one token covering the captured part, with the part's own tags, or with the tags of the item's term.
   - An inserted tag, a tag literal, emits a token with that one tag and an empty span.
-- A constituent whose production's emission is `ε`, no items, emits nothing and does not count. Nothing inside it is part of the phonemes of a token that covers it (§5). It is how a grammar erases text. The text is still there, and still covered by the tokens around it, but counts for nothing. A part that an emission merely does not list is not emitted, but counts.
+- A constituent whose production's emission is `ε`, no items, emits nothing and does not count. Nothing inside it is part of the phonemes or the label of a token that covers it (§5). It is how a grammar erases text. The text is still there, and still covered by the tokens around it, but counts for nothing. A part that an emission merely does not list is not emitted, but counts.
 
-The tags that an item gives its token are the token's explicit tags. The stage then applies its implications (§2) to them. For each implication `A ⟹ B` whose `A` shares a tag with the token's tags, it adds the tags of `B`. It repeats this until no implication adds a tag, so the order of the implications does not matter. An implication only adds tags, so the repetition ends, also where implications form a cycle. Only then does the stage check the token's phoneme tags and find its phonemes (§5).
+The tags that an item gives its token are the token's explicit tags. The stage then applies its implications (§2) to them. For each implication `A ⟹ B` whose `A` shares a tag with the token's tags, it adds the tags of `B`. It repeats this until no implication adds a tag, so the order of the implications does not matter. An implication only adds tags, so the repetition ends, also where implications form a cycle. Only then does the stage check the token's phoneme tags and find its phonemes and its label (§5).
 
 Implications apply to every token that the stage emits, an inserted one included, and to nothing else. They do not change a constituent's tags, the value of a term or classifier, or a token of the stage's input. A later stage applies only its own implications. The synthetic tokens of §7 are not emitted, so no implication applies to them.
 
 An item's tag term that gives the empty set is an error of the grammar, found while parsing. No terminal can read such a token. The stage already accepted its input and chose its tree. So it keeps its verdict, witness, tied tree and warnings (§12), but it has no output, and the error is the result's.
 
-An emitted token's span is the range of the stage's input tokens that its constituent covers. Its `source` is the source of those tokens (§1), or, if there are none, empty where a node with an empty span has it (§12). This does not hold for a verbatim token. Its phonemes are as in §5.
+The constituent of a token is the constituent that its `$` item covers, or the part that its capture item captures. An emitted token's span is the range of the stage's input tokens that its constituent covers. Its `source` is the source of those tokens (§1), or, if there are none, empty where a node with an empty span has it (§12). A token whose constituent is a foreign part is the one exception, as below. Its phonemes and its label are as in §5.
 
 An inserted token's span is empty at the start of the part of the capture listed next after it. If no capture is listed after it, the span is empty at the end of the constituent. Its source is empty at the source end of the input token before that position. If the position is the constituent's start, its source is empty at the start of the constituent's source.
 
-A token is verbatim in two cases. In the first case, a `$` item or a capture item emits the token over a constituent whose production has `%verbatim`. Such a token is widened: it takes in the text next to it that no input token covers, as the next paragraph says.
+A rule with `%foreign` says that its constituents are foreign text, such as the body of a `zoi` quote. Before the stage emits anything, it finds the foreign parts of its chosen derivation. A foreign part is a constituent whose production has `%foreign`, with two exceptions. A constituent inside a constituent that emits `ε` is not a foreign part. A constituent inside a foreign part is not a foreign part either. Here, inside means below in the derivation, so the outer constituent of a recursive foreign rule is the one foreign part.
 
-In the second case, the first case does not apply. A `$` item or a capture item emits the token over exactly one input token, which is verbatim. Such a token has that input token's source. So a quote body stays verbatim through the stages after the one that read it.
+Each foreign part has a source and a text, which the stage also fixes before it emits anything. A foreign part with an empty span takes in no text. Its source is empty at the source end of the input token before the span. With no such token, it is empty at the start of the text. A foreign part with a non-empty span starts from the source of its own input tokens (§1). It then takes in the text next to it that no input token covers, as the next two paragraphs say.
 
-The text between two adjacent input tokens belongs to the widened token with a non-empty span that ends there, if one does. Otherwise it belongs to the one that starts there. The text before the first input token belongs to a widened token that starts there. The text after the last input token belongs to one that ends there. So a widened token's source always holds the source of its own input tokens (§1), and more.
+Two adjacent input tokens can have text between them. If a foreign part with a non-empty span ends between them, that text belongs to it. Otherwise a foreign part that starts there takes the text. A foreign part that starts at the first input token takes the text before it. A foreign part that ends at the last input token takes the text after it. So in `a,b`, where `a` and `b` are two adjacent foreign parts, `a` takes the comma.
 
-A widened token's source starts at the source end of the input token just before its span, if that is earlier. If there is no such token, it starts at the start of the text. It does not start earlier if another widened token with a non-empty span ends where this one starts. The source ends at the source start of the input token just after its span, if that is later. If there is no such token, it ends at the end of the text.
+Where the input token just before its span ends earlier than its own source starts, a foreign part's source starts at that token's source end. With no token before its span, the source starts at the start of the text. Neither applies when another foreign part with a non-empty span ends where this one starts. Where the input token just after its span starts later than its own source ends, the source ends at that token's source start. With no token after its span, the source ends at the end of the text. The text of a foreign part is the original text over its source.
 
-A widened token over an empty span takes in no text. Its source is empty, at the source end of the input token before the span. If there is no such token, its source is empty at the start of the text.
+A token whose constituent is a foreign part has the source and the text of that part. So a capture item of a parent emits the same token as a `$` item of the foreign rule itself. Any other token has the source of its input tokens, as above, even where a foreign part among its parts reaches further. A later stage that forwards a token keeps its source, because a token over one input token has that token's source (§1). So the text of a quote body stays the same to the end of the pipeline, although the tokens next to it can disappear.
 
-A verbatim token's text is the text of its source, and its phonemes are its text (§5). An inserted token is never verbatim. No other token is verbatim, whatever lies inside its constituent.
+The parts of an emitted token are what its phonemes and its label join (§5). The stage finds them by a walk of the token's constituent, in order. A read input token is a part. A foreign part is one part, and the walk does not enter it. A constituent that emits `ε` gives no part, and the walk does not enter it either. The walk enters every other constituent.
+
+So three rules decide what a foreign part gives, over the chosen derivation. A part inside a constituent that emits `ε` gives nothing, foreign or not. A foreign part inside another gives nothing of its own, because the outer one counts once. A token with its own phoneme tag sounds like that phoneme and has it as its label, whatever foreign parts it covers (§5). The tag can come from the token's own stage, or from a later stage that emits a token over it.
 
 A stage whose verdict is `tie` emits its chosen derivation, and the tie is reported, at whichever stage it is. A tie is a property of the grammar, and the grammar is the place to settle it. The engine does not hide a tie, even where the tied derivations emit the same tokens.
 
