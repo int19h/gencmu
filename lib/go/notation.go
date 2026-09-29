@@ -932,11 +932,9 @@ func (b *domBuilder) call(n *Node, inCondition bool) *domTerm {
 		b.fail(ps[0], "%s is a closed term, and %s() is not closed", b.closedFor, name)
 	}
 	var args []*domTerm
-	var argNodes []*Node
 	for _, p := range ps[1:] {
 		if p.Kind == KindRule {
 			args = append(args, b.termIn(p, true))
-			argNodes = append(argNodes, p)
 		}
 	}
 	shape := func(ok bool) {
@@ -946,9 +944,11 @@ func (b *domBuilder) call(n *Node, inCondition bool) *domTerm {
 	}
 	span := func(i int) bool { return i < len(args) && isSpanTerm(args[i]) }
 	rule := func(i int) bool { return i < len(args) && args[i].Kind == tmRule }
+	// A bare name in another slot is a call with the wrong arguments, so
+	// the error is the call's, as for any other signature (§9).
 	for i, a := range args {
 		if a.Kind == tmRule && !(i == 1 && (name == "tags" || name == "matches" || name == "begins" || name == "classify")) {
-			b.fail(argNodes[i], "a bare name is an argument only as the rule of tags(), matches() or begins(), or the classifier of classify()")
+			b.fail(ps[0], "a bare name is an argument only as the rule of tags(), matches() or begins(), or the classifier of classify()")
 		}
 	}
 	if inCondition {

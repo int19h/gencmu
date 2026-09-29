@@ -1,0 +1,10 @@
+{
+  "description": "A bare name in the wrong argument of classify is reported at the call that holds it, not at the term around it or at the name (engine §9).",
+  "document": "```jbogenbau\n%rule text $w(W) <~A ∪ classify(lex, phonemes($w))>\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 24
+    }
+  }
+}

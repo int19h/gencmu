@@ -1,0 +1,10 @@
+{
+  "description": "classify takes two arguments. A third, a bare name, makes a call with the wrong arguments, reported at the call (engine §9).",
+  "document": "```jbogenbau\n%rule text $w(W) <classify(phonemes($w), lex, lex)>\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 19
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "description": "The rule of tags is its second argument. A bare name as the first makes a call with the wrong arguments, reported at the call, not at the name (engine §9).",
+  "document": "```jbogenbau\n%rule text $w(W) <tags(text, $w)>\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 19
+    }
+  }
+}
