@@ -275,6 +275,18 @@ class Options(unittest.TestCase):
         value = gencmu.result_json(result)
         self.assertEqual(sorted(value["tree"]["children"][1]), ["kind", "source", "span", "terminal"])
 
+    def test_caller_label(self) -> None:
+        """A token that a caller supplies has its text as its label, and the
+        caller's token stays as it is (engine §5, docs/api.md)."""
+        grammar = "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $a(A)\n%emits $a <X>\n```\n"
+        dialect = gencmu.load_dialect_sources({"p.md": ELIDING["p.md"], "g.md": grammar}, "p.md")
+        token = gencmu.Token("a", frozenset({"A"}), (0, 1), (0, 1), "a", label="CUSTOM")
+        result = dialect.parse_tokens([token], "a", auto_features=False)
+        self.assertEqual(result.stages[0].input[0].label, "a")
+        self.assertEqual(result.stages[0].output[0].label, "a")
+        self.assertEqual(gencmu.to_brackets(result), "a")
+        self.assertEqual(token.label, "CUSTOM", "the caller's token changed")
+
     def test_tested_expected(self) -> None:
         """The message of a rejection writes a tested terminal with its
         test, as the expected list does (docs/output.md)."""
@@ -339,8 +351,8 @@ class Output(unittest.TestCase):
 
     def test_brackets_labels(self) -> None:
         """Brackets show each token by its label, not its phonemes. A token
-        that a caller supplies has its text as its label by default (engine
-        §5, docs/output.md)."""
+        that a caller supplies has its text as its label, whatever label it
+        carries (engine §5, docs/output.md)."""
         sources = {
             "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
             "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A A A\n```\n",
@@ -353,7 +365,7 @@ class Output(unittest.TestCase):
         ]
         self.assertEqual([token.label for token in tokens], ["klama bu", "x.y", "a..b"])
         result = dialect.parse_tokens(tokens, "klama bu x.y ab")
-        self.assertEqual(gencmu.to_brackets(result), "(klama bu x.y a..b)")
+        self.assertEqual(gencmu.to_brackets(result), "(klama bu x.y ab)")
 
 
 class GrammarFaults(unittest.TestCase):

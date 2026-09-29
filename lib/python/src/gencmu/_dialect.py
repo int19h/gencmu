@@ -7,7 +7,7 @@ import json
 import os
 import re
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from importlib import resources
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
@@ -505,7 +505,10 @@ class Dialect:
         if on & off:
             raise GencmuError(f"the feature {min(on & off)} is named both to turn on and to turn off", kind="usage")
         enabled = (self.declared | on) - off
-        tokens = list(tokens)
+        # A token that the caller supplies has its text as its label (engine
+        # §5). The parse copies each one, so the caller's objects stay as
+        # they are.
+        tokens = [replace(token, label=token.text) for token in tokens]
         # Only a dialect that has sa-su as a gate adds it by itself, and not
         # when the caller has turned it off (engine §13).
         gated = any(feature.name == "sa-su" and feature.kind == "gate" for feature in self.features)
