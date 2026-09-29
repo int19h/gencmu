@@ -109,19 +109,19 @@ A word of LU, TO or LUhEI opens a text of its own. The hesitation after such a w
   (* initial_spaces <- (space_char / !ybu Y)+ EOF? / EOF: after space, every Y word is space *)
   $w(source-word⊇~hesitation)
 %emits
-  $ <tags($w) ∪ ~spacing ∪ (¬begins(after($w), letter) ⟹ ~run-final)>
+  $ <tags($w) ∪ ~spacing ∪ (¬begins(after($w), nonpause-phoneme) ⟹ ~run-final)>
 
 %rule opener-space
   (* a hesitation after lu, to or lu'ei, or after such a hesitation: space if that word opens a text *)
   $w(source-word⊇~hesitation)
 %emits
-  $ <tags($w) ∪ ~opener-space ∪ (¬begins(after($w), letter) ⟹ ~run-final)>
+  $ <tags($w) ∪ ~opener-space ∪ (¬begins(after($w), nonpause-phoneme) ⟹ ~run-final)>
 
 %rule space-piece
   (* the next piece of one run of y letters inside space *)
   $w(source-word⊇~y-letters)
 %emits
-  $ <tags($w) ∪ ~spacing ∪ ~after-hesitation ∪ (¬begins(after($w), letter) ⟹ ~run-final)>
+  $ <tags($w) ∪ ~spacing ∪ ~after-hesitation ∪ (¬begins(after($w), nonpause-phoneme) ⟹ ~run-final)>
 
 %rule only-hesitation
   (* spaces? after RAhOI: a run that is only hesitation, which passes RAhOI on to the run after it *)
@@ -140,7 +140,7 @@ A word of LU, TO or LUhEI opens a text of its own. The hesitation after such a w
   ¬begins(from($g), long-rafsi),
   ¬begins(from($g), y-less-rafsi)
 %emits
-  $ <~rafsi-form ∪ (¬begins(after($), letter) ⟹ ~run-final)>
+  $ <~rafsi-form ∪ (¬begins(after($), nonpause-phoneme) ⟹ ~run-final)>
 ```
 
 The approved word forms read an odd run of three or more `y` as `y` and the rest. Zantufa's `Y` is `y+`, so its `spaces` read the whole run as one stretch of space. So the stage tags `after-hesitation` a run of `y` that directly follows another run of `y`. The word stage joins the two into one letter word before `bu`. Elsewhere, two such runs attached to a word are two Y words, as Zantufa's `cmavo_form` reads them. An `ie'o` is a Y word of its own, and it never joins one.
@@ -154,5 +154,5 @@ The stage tags `opener-space` a hesitation directly after `lu`, `to` or `lu'ei`,
   (* Y <- &cmavo ( y+ / ie'o ) &post_word *)
   $w(source-word⊇~y-letters)
 %emits
-  $ <tags($w) ∪ ~after-hesitation ∪ (¬begins(after($w), letter) ⟹ ~run-final)>
+  $ <tags($w) ∪ ~after-hesitation ∪ (¬begins(after($w), nonpause-phoneme) ⟹ ~run-final)>
 ```
