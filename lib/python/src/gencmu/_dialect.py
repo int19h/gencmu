@@ -278,7 +278,7 @@ class _Loader:
         # A document is a sequence of scalar values, as a text is (engine §1).
         problem = scalar_problem(text)
         if problem is not None:
-            raise GencmuError(f"{path}: the document is not a sequence of Unicode scalar values: {problem}", kind="usage", document=path)
+            raise GencmuError(f"the document is not a sequence of Unicode scalar values: {problem}", kind="usage", document=path)
         text_hash = fnv1a64(text)
         # The Unicode table is part of the key: a spelling that one table
         # accepts another may refuse (engine §9).
