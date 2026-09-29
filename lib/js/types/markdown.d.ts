@@ -1,11 +1,12 @@
 /**
  * @param {string} markdown
  * @param {string} path
- * @returns {{text: string, positions: import("./types.js").Position[]}}
+ * @returns {{text: string, positions: import("./types.js").Position[], blocks: number}}
  */
 export declare function extractGrammarText(markdown: string, path: string): {
     text: string;
     positions: import("./types.js").Position[];
+    blocks: number;
 };
 /**
  * @param {string} text

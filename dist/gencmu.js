@@ -7330,11 +7330,12 @@
 
 
   // The grammar text of a document: its `jbogenbau` blocks joined with a newline,
-  // with the line and column of every code point in the document.
+  // with the line and column of every code point in the document, and the
+  // number of blocks. A document with no block holds no grammar.
   /**
    * @param {string} markdown
    * @param {string} path
-   * @returns {{text: string, positions: import("./types.js").Position[]}}
+   * @returns {{text: string, positions: import("./types.js").Position[], blocks: number}}
    */
   function extractGrammarText(markdown, path) {
     const lines = splitLines(markdown);
@@ -7345,7 +7346,7 @@
     /** @type {string | {skip: string} | null} */
     let inside = null;
     let openedAt = 0;
-    let first = true;
+    let blocks = 0;
     for (let number = 0; number < lines.length; number++) {
       const line = lines[number];
       if (inside === null) {
@@ -7357,11 +7358,11 @@
         if (open && open[2] === "jbogenbau") {
           inside = open[1];
           openedAt = number + 1;
-          if (!first) {
+          if (blocks > 0) {
             chars.push("\n");
             positions.push([number + 1, 1]);
           }
-          first = false;
+          blocks++;
         } else if (open) {
           inside = { skip: open[1] };
         }
@@ -7386,7 +7387,7 @@
       const column = lines[openedAt - 1].indexOf(inside[0]) + 1;
       throw new GencmuError("grammar", `${path}:${openedAt}:${column}: a jbogenbau block that is never closed`, { document: path, line: openedAt, column });
     }
-    return { text: chars.join(""), positions };
+    return { text: chars.join(""), positions, blocks };
   }
 
   /**
