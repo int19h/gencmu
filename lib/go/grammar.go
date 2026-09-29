@@ -231,7 +231,7 @@ func (g *stageGrammar) makeTests() *Error {
 				}
 				st := &symTest{op: t.Op}
 				if v.ty == tyString {
-					st.sound, st.hasSound = v.s, true
+					st.sound = v.s
 				} else {
 					st.tags = v.names
 				}

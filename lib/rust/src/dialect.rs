@@ -9,7 +9,7 @@ use crate::dom::FeatureKind;
 use crate::earley::{matchers, Chart, EngineError, Recognizer, Shared, Tok};
 use crate::error::Error;
 use crate::grammar::{Change, Lean, StageGrammar};
-use crate::lower::{lower, Lowered, Prod, Sym, SymbolTest};
+use crate::lower::{lower, Lowered, Prod, Sym, SymbolTest, TestOp};
 use crate::maximal::Maximal;
 use crate::rank::{Act, Ranker, Ranking, Verdict as RankVerdict};
 use crate::result::{
@@ -615,7 +615,10 @@ impl Dialect {
                 let production = &g.prods[prod as usize];
                 let rule = &g.rules[production.rule as usize];
                 if let (true, Some(terminal), true) = (rule.helper, &rule.elided, production.syms.is_empty()) {
-                    let test = rule.elided_test.map(|test| &g.tests[test as usize]);
+                    // Only the string of an `=` test gives the restored
+                    // token a sound (§7).
+                    let test =
+                        rule.elided_test.map(|test| &g.tests[test as usize]).filter(|test| test.op == TestOp::Is);
                     elided.push((start as usize, terminal, test.and_then(|test| test.sound.as_deref())));
                 }
             }

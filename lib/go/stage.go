@@ -446,10 +446,10 @@ func writtenSymbol(name string, t *symTest) string {
 	return name + t.written
 }
 
-// elidedSound is the string of an elided terminator's test, which a
+// elidedSound is the string of an elided terminator's = test, which a
 // restored token sounds like (§7), or "".
 func elidedSound(t *symTest) string {
-	if t == nil || !t.hasSound {
+	if t == nil || t.op != "=" {
 		return ""
 	}
 	return t.sound
