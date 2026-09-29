@@ -386,11 +386,13 @@ fn foreign_parts(
     let ends: FxSet<u32> = parts.iter().filter(|(_, start, end)| start < end).map(|&(_, _, end)| end).collect();
     let mut result = FxMap::default();
     for (index, start, end) in parts {
-        let before = if start > 0 { tokens[start as usize - 1].source.1 } else { 0 };
         let source = if start == end {
-            // An empty part takes in no text.
-            (before, before)
+            // An empty part takes in no text. Its source is that of an
+            // empty node (§12).
+            let at = sources.empty(start as usize);
+            (at, at)
         } else {
+            let before = if start > 0 { tokens[start as usize - 1].source.1 } else { 0 };
             // It always holds the source of its own tokens (§1), which the
             // tokens next to it can share, and takes in the text next to it
             // that no input token covers.

@@ -542,14 +542,15 @@ func (run *stageRun) foreignParts(rec *recognizer, root *dn) map[*dn]*foreignPar
 	out := make(map[*dn]*foreignPart, len(parts))
 	for _, x := range parts {
 		a, b := rec.base+int(x.start), rec.base+int(x.end)
+		// An empty part takes in no text. Its source is that of an empty
+		// node (§12).
+		if a == b {
+			out[x] = &foreignPart{source: run.emptySource(a)}
+			continue
+		}
 		before := 0
 		if a > 0 {
 			before = run.toks[a-1].Source[1]
-		}
-		// An empty part takes in no text.
-		if a == b {
-			out[x] = &foreignPart{source: [2]int{before, before}}
-			continue
 		}
 		// It always holds its own tokens' sources, which the tokens next to
 		// it can share, and takes in the text next to it that no input token

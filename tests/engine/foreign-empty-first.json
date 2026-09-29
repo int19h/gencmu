@@ -1,5 +1,5 @@
 {
-  "description": "An empty foreign part with no input token before it has an empty source at the start of the text, even where the first input token starts later. An ordinary token over an empty constituent there has the source of a node with an empty span, at the source start of the first input token (engine §11, §12).",
+  "description": "An empty foreign part takes in no text, and its source is that of a node with an empty span. With no input token before it, that is the source start of the first input token, as for an ordinary token over an empty constituent there (engine §11, §12).",
   "documents": {
     "p.md": "## s\n\n```jbogenbau\n%stage letters\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage parts\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [part] ...\n%rule part letter | space\n%rule letter 'a' | 'b'\n%emits $ <L>\n%rule space ' '\n```\n",
@@ -23,8 +23,8 @@
                 0
               ],
               "source": [
-                0,
-                0
+                2,
+                2
               ]
             },
             {

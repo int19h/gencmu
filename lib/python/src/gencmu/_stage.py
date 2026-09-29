@@ -262,11 +262,12 @@ def foreign_parts(root: DNode, tokens: list[Token], sources: Sources, text: str)
     ends = {part.end for part in parts if part.start < part.end}
     result: dict[int, Range] = {}
     for part in parts:
-        before = tokens[part.start - 1].source[1] if part.start > 0 else 0
         if part.start == part.end:
-            # An empty part takes in no text.
-            result[id(part)] = (before, before)
+            # An empty part takes in no text. Its source is that of an empty
+            # node (engine §12).
+            result[id(part)] = _empty_source(tokens, part.start)
             continue
+        before = tokens[part.start - 1].source[1] if part.start > 0 else 0
         # It always holds its own tokens' sources, which the tokens next to
         # it can share, and takes in the text next to it that no input token
         # covers.
