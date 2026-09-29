@@ -11,14 +11,14 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
 ```jbogenbau
 %redefine-rule word-quote-marker
   (* ZO_pre <- pre_clause ZO spaces? any_word spaces?;  GOhOI_pre <- pre_clause GOhOI spaces? any_word spaces? *)
-  $q(magic-body) <"word" ∪ "cmavo" ∪ classes($q)>
+  $q(magic-body) <~word ∪ ~cmavo ∪ classes($q)>
 %conditions
-  classes($q) ∩ ("ZO" ∪ "GOhOI") ≠ ∅
+  classes($q) ∩ (ZO ∪ GOhOI) ≠ ∅
 
 %redefine-rule single-marker
-  $q(magic-body) <"word" ∪ "cmavo" ∪ classes($q)>
+  $q(magic-body) <~word ∪ ~cmavo ∪ classes($q)>
 %conditions
-  classes($q) ∩ ("ZOhOI" ∪ "LAhOI" ∪ "MEhOI" ∪ "ZEhOI" ∪ "TAhAI" ∪ "BOhEI") ≠ ∅
+  classes($q) ∩ (ZOhOI ∪ LAhOI ∪ MEhOI ∪ ZEhOI ∪ TAhAI ∪ BOhEI) ≠ ∅
 ```
 
 `ra'oi` quotes the rafsi or gismu form that the forms stage read after it ([zantufa.md](zantufa.md)), with or without a pause between them.
@@ -28,14 +28,14 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
   rahoi-quote
 
 %rule rahoi-quote
-  $m(rahoi-marker) quote-gap $f("rafsi-form") <tags($m)>
+  $m(rahoi-marker) quote-gap $f(~rafsi-form) <tags($m)>
 %emits
-  $m, $f <"foreign-text">
+  $m, $f <~foreign-text>
 
 %rule rahoi-marker
-  $q(magic-body) <"word" ∪ "cmavo" ∪ classes($q)>
+  $q(magic-body) <~word ∪ ~cmavo ∪ classes($q)>
 %conditions
-  "RAhOI" ∈ classes($q)
+  RAhOI ⊆ classes($q)
 ```
 
 `mu'oi` quotes a body between two delimiters, as `zoi` does. Zantufa compares the two delimiters without their stress, so `zoi .ko. x .kO.` is a quote. The condition compares the phonemes without capitals, which is how the phonemes mark stress.
@@ -43,9 +43,9 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
 ```jbogenbau
 %redefine-rule zoi-marker
   (* ZOI_pre <- pre_clause ZOI spaces? zoi_open spaces? zoi_word* zoi_close spaces?;  MUhOI_pre likewise *)
-  $q(magic-body) <"word" ∪ "cmavo" ∪ classes($q)>
+  $q(magic-body) <~word ∪ ~cmavo ∪ classes($q)>
 %conditions
-  classes($q) ∩ ("ZOI" ∪ "MUhOI") ≠ ∅
+  classes($q) ∩ (ZOI ∪ MUhOI) ≠ ∅
 
 %redefine-rule zoi-quote
   $m(zoi-marker) quote-gap $open(delimiter) PAUSE $content(zoi-body) PAUSE $close(delimiter)
@@ -55,10 +55,10 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
   lowercase(phonemes($open)) = lowercase(phonemes($close)),
   phonemes($open) ∉ runs($content),
   lowercase(phonemes($open)) ∉ runs($content),
-  "run-final" ∉ tags(head($content)) ∨ lowercase(phonemes(head($content))) ≠ lowercase(phonemes($open)),
-  "run-final" ∈ tags($close)
+  ~run-final ⊈ tags(head($content)) ∨ lowercase(phonemes(head($content))) ≠ lowercase(phonemes($open)),
+  ~run-final ⊆ tags($close)
 %emits
-  $m, $open <"word">, $content <"foreign-text">, $close <"word">
+  $m, $open <~word>, $content <~foreign-text>, $close <~word>
 
 %redefine-rule empty-zoi-quote
   $m(zoi-marker) quote-gap $open(delimiter) PAUSE $close(delimiter)
@@ -66,9 +66,9 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
   tags($m)
 %conditions
   lowercase(phonemes($open)) = lowercase(phonemes($close)),
-  "run-final" ∈ tags($close)
+  ~run-final ⊆ tags($close)
 %emits
-  $m, $open <"word">, "foreign-text", $close <"word">
+  $m, $open <~word>, ~foreign-text, $close <~word>
 ```
 
 Zantufa reads `y` and `ie'o` as space only after a pause or at the start of the text, because its `spaces` begins with `!Y`. A hesitation attached to the word before it, with no pause between them, is a word of class Y there. So `zoie'o mi` quotes `ie'o` and leaves `mi`, while `zo ie'o mi` quotes `mi`. Such a word has no place in the syntax except in a quote, so the dialect rejects `mi cuyy klama`, as Zantufa does. Before `bu`, hesitation stays the base of a letter word.
@@ -81,14 +81,14 @@ In a `lo'u` or `lo'ai` quote, such a word is tagged `word` only, as the other wo
   $h(y-run) <∅>
 %conditions
   ¬begins(after($h), bu-next),
-  ("run-initial" ∪ "spacing") ∩ tags($h) ≠ ∅
+  (~run-initial ∪ ~spacing) ∩ tags($h) ≠ ∅
 %emits
   ε
 
 %rule attached-y
-  $h("hesitation") <"word" ∪ "cmavo" ∪ "Y">
+  $h(~hesitation) <~word ∪ ~cmavo ∪ Y>
 %conditions
-  ("run-initial" ∪ "spacing") ∩ tags($h) = ∅,
+  (~run-initial ∪ ~spacing) ∩ tags($h) = ∅,
   ¬begins(after($h), bu-next)
 %emits
   $
@@ -102,51 +102,51 @@ In a `lo'u` or `lo'ai` quote, such a word is tagged `word` only, as the other wo
 %extend-rule lohu-word
   attached-y
 %emits
-  $ <"word">
+  $ <~word>
 
 %extend-rule lohai-word
   attached-y
 %emits
-  $ <"word">
+  $ <~word>
 
 %redefine-rule bu-next
   (* ybu <- Y space_char* BU: one Y word, which may be several pieces of one run of y *)
   | [PAUSE] BU
-  | $h("hesitation") bu-next
+  | $h(~hesitation) bu-next
 %conditions
-  "after-hesitation" ∈ tags($h)
+  ~after-hesitation ⊆ tags($h)
 
 %redefine-rule y-base
   | y-run
   | $b(y-base) $h(y-run) <tags($h)>
 %conditions
-  "after-hesitation" ∈ tags($h)
+  ~after-hesitation ⊆ tags($h)
 ```
 
 A magic word is never a plain word. The stream's list of them lacks MUhOI, LOhAI and LEhAI, which only Zantufa reads so. A word of LU, TO or LUhEI that this stage reads as an unquoted word opens a text of its own. The forms stage gives the tag (a label on a token) `opener-space` to the hesitation after such a word. So that hesitation is space, and the word takes it with it. Inside a quote, such a hesitation is an attached Y word, as in `zo luyy si`, which erases the `yy` and keeps `zo lu`.
 
 ```jbogenbau
 %redefine-rule word
-  | @sa-su? $c(cmavo-token) <tags($c)>
-  | @¬sa-su? $e(cmavo-token) <tags($e)>
+  | sa-su? $c(cmavo-token) <tags($c)>
+  | ¬sa-su? $e(cmavo-token) <tags($e)>
   | $b(BRIVLA) <tags($b)>
   | $n(CMEVLA) <tags($n)>
   | $o(text-opener) $p(opener-spaces) <tags($o)>
 %conditions
   ¬begins(after($p), opener-space-token),
-  classes($c) ∩ ("LU" ∪ "TO" ∪ "LUhEI") = ∅ ∨ ¬begins(after($c), opener-space-token),
-  classes($e) ∩ ("LU" ∪ "TO" ∪ "LUhEI") = ∅ ∨ ¬begins(after($e), opener-space-token),
-  classes($c) ∩ ("ZO" ∪ "ZOI" ∪ "MUhOI" ∪ "LOhAI" ∪ "LEhAI" ∪ "LOhU" ∪ "ZOhOI" ∪ "LAhOI" ∪ "RAhOI" ∪ "MEhOI" ∪ "GOhOI" ∪ "ZEhOI" ∪ "TAhAI" ∪
-    "BOhEI" ∪ "FAhO" ∪ "BU" ∪ "ZEI" ∪ "SI" ∪ "SA" ∪ "SU") = ∅,
-  classes($e) ∩ ("ZO" ∪ "ZOI" ∪ "MUhOI" ∪ "LOhAI" ∪ "LEhAI" ∪ "LOhU" ∪ "ZOhOI" ∪ "LAhOI" ∪ "RAhOI" ∪ "MEhOI" ∪ "GOhOI" ∪ "ZEhOI" ∪ "TAhAI" ∪
-    "BOhEI" ∪ "FAhO" ∪ "BU" ∪ "ZEI" ∪ "SI") = ∅
+  classes($c) ∩ (LU ∪ TO ∪ LUhEI) = ∅ ∨ ¬begins(after($c), opener-space-token),
+  classes($e) ∩ (LU ∪ TO ∪ LUhEI) = ∅ ∨ ¬begins(after($e), opener-space-token),
+  classes($c) ∩ (ZO ∪ ZOI ∪ MUhOI ∪ LOhAI ∪ LEhAI ∪ LOhU ∪ ZOhOI ∪ LAhOI ∪ RAhOI ∪ MEhOI ∪ GOhOI ∪ ZEhOI ∪ TAhAI ∪
+    BOhEI ∪ FAhO ∪ BU ∪ ZEI ∪ SI ∪ SA ∪ SU) = ∅,
+  classes($e) ∩ (ZO ∪ ZOI ∪ MUhOI ∪ LOhAI ∪ LEhAI ∪ LOhU ∪ ZOhOI ∪ LAhOI ∪ RAhOI ∪ MEhOI ∪ GOhOI ∪ ZEhOI ∪ TAhAI ∪
+    BOhEI ∪ FAhO ∪ BU ∪ ZEI ∪ SI) = ∅
 %emits
   $
 
 %rule text-opener
   $q(cmavo-token) <tags($q)>
 %conditions
-  classes($q) ∩ ("LU" ∪ "TO" ∪ "LUhEI") ≠ ∅
+  classes($q) ∩ (LU ∪ TO ∪ LUhEI) ≠ ∅
 %emits
   $
 
@@ -157,9 +157,9 @@ A magic word is never a plain word. The stream's list of them lacks MUhOI, LOhAI
 
 %rule opener-space-token
   (* initial_spaces <- (space_char / !ybu Y)+: a hesitation before bu is no space *)
-  $h("hesitation")
+  $h(~hesitation)
 %conditions
-  "opener-space" ∈ tags($h),
+  ~opener-space ⊆ tags($h),
   ¬begins(after($h), bu-next)
 ```
 
@@ -167,10 +167,10 @@ The forms stage hands on the form after `ra'oi` as a `rafsi-form` token, even wh
 
 ```jbogenbau
 %extend-rule payload-token
-  "rafsi-form"
+  ~rafsi-form
 
 %extend-rule delimiter
-  "rafsi-form"
+  ~rafsi-form
 ```
 
 A quote word that opens no quote is an ordinary word in Zantufa, which `si` erases. Zantufa's `si_word` tries the quotes first, and then reads any cmavo but `bu`, a word of SI or SU, and `fa'o`. So `zoi si broda` is `broda`, and `lo'u si` is nothing. Such a marker is a unit only before its `si`, and only where no quote begins at it, because Zantufa tries the quote first. `zo` and the words of GOhOI always quote the next word, so they are never bare.
@@ -184,14 +184,14 @@ A quote word that opens no quote is an ordinary word in Zantufa, which `si` eras
   | $b(bare-marker) si-gap $f(erasures) [si-gap] si-word
 %conditions
   ¬begins(from($b), quote),
-  "wipes-all" ∉ tags($f)
+  ~wipes-all ⊈ tags($f)
 %emits
   ε
 
 %rule bare-marker
   $q(magic-body)
 %conditions
-  classes($q) ∩ ("ZOI" ∪ "MUhOI" ∪ "LOhU" ∪ "LOhAI" ∪ "ZOhOI" ∪ "LAhOI" ∪ "RAhOI" ∪ "MEhOI" ∪ "ZEhOI" ∪ "TAhAI" ∪ "BOhEI") ≠ ∅
+  classes($q) ∩ (ZOI ∪ MUhOI ∪ LOhU ∪ LOhAI ∪ ZOhOI ∪ LAhOI ∪ RAhOI ∪ MEhOI ∪ ZEhOI ∪ TAhAI ∪ BOhEI) ≠ ∅
 ```
 
 A `bu` makes a letter word of such a marker too, and of `su`, as Zantufa's `bu_clause` does. So `zoi bu`, `lo'u bu` and `su bu` are letter words, and `mi su bu si` is `mi`. A `su` before `bu` erases nothing, because Zantufa's `SU_clause` does not stand before `bu`.
@@ -199,10 +199,10 @@ A `bu` makes a letter word of such a marker too, and of `su`, as Zantufa's `bu_c
 ```jbogenbau
 %extend-rule lerfu-word
   (* bu_clause_no_pre <- (si_word / SU spaces?) bu_tail+ lerfu_post_clause *)
-  | $b(bare-marker) [PAUSE] bu-part <"word" ∪ "BY">
-  | $b(bare-marker) erasure-gap bu-part <"word" ∪ "BY">
-  | $s(su-letter-base) [PAUSE] bu-part <"word" ∪ "BY">
-  | $s(su-letter-base) erasure-gap bu-part <"word" ∪ "BY">
+  | $b(bare-marker) [PAUSE] bu-part <~word ∪ BY>
+  | $b(bare-marker) erasure-gap bu-part <~word ∪ BY>
+  | $s(su-letter-base) [PAUSE] bu-part <~word ∪ BY>
+  | $s(su-letter-base) erasure-gap bu-part <~word ∪ BY>
 %conditions
   ¬begins(from($b), quote)
 %emits
@@ -211,12 +211,12 @@ A `bu` makes a letter word of such a marker too, and of `su`, as Zantufa's `bu_c
 %rule su-letter-base
   $q(magic-body)
 %conditions
-  "SU" ∈ classes($q)
+  SU ⊆ classes($q)
 
 %redefine-rule su-word
   $q(magic-body)
 %conditions
-  "SU" ∈ classes($q),
+  SU ⊆ classes($q),
   ¬begins(after($q), bu-next)
 %emits
   ε

@@ -19,7 +19,7 @@ The stage reads an indicator run as far as it goes, so the stage is greedy. Wher
   | ε | item-run | item-run bahe-run | leading | leading bahe-run | bahe-run
   | $l(leading) $r(item-run) | $l(leading) $r(item-run) bahe-run
 %conditions
-  "NAI" ∉ tags(head($r)) ∨ classes(last($l)) ∩ ("UI" ∪ "CAI") = ∅
+  NAI ⊈ tags(head($r)) ∨ classes(last($l)) ∩ (UI ∪ CAI) = ∅
 
 %rule leading
   indicator-run
@@ -35,11 +35,11 @@ The stage reads an indicator run as far as it goes, so the stage is greedy. Wher
   $w
 
 %rule unit
-  | $w("word") | "foreign-text" | "LEhU"
+  | $w(~word) | ~foreign-text | LEhU
 %conditions
-  "indicator" ∉ tags($w),
-  "BAhE" ∉ tags($w),
-  "LEhU" ∉ tags($w)
+  ~indicator ⊈ tags($w),
+  BAhE ⊈ tags($w),
+  LEhU ⊈ tags($w)
 
 %rule absorbed
   indicator-run
@@ -55,9 +55,9 @@ The stage reads an indicator run as far as it goes, so the stage is greedy. Wher
   bahe | bahe-run bahe
 
 %rule bahe
-  $b("word") <tags($b)>
+  $b(~word) <tags($b)>
 %conditions
-  "BAhE" ∈ tags($b)
+  BAhE ⊆ tags($b)
 %emits
   $
 
@@ -66,40 +66,40 @@ The stage reads an indicator run as far as it goes, so the stage is greedy. Wher
   | indicator-run [fuhe] indicator | indicator-run [fuhe] attitudinal nai
 
 %rule indicator
-  | $i("word") | absorbed-bahe $i("word")
+  | $i(~word) | absorbed-bahe $i(~word)
 %tags
   tags($i)
 %conditions
-  "indicator" ∈ tags($i),
-  "FUhE" ∉ classes($i)
+  ~indicator ⊆ tags($i),
+  FUhE ⊈ classes($i)
 %emits
   $
 
 %rule fuhe
-  | $i("word") | absorbed-bahe $i("word")
+  | $i(~word) | absorbed-bahe $i(~word)
 %tags
   tags($i)
 %conditions
-  "FUhE" ∈ classes($i)
+  FUhE ⊆ classes($i)
 %emits
   $
 
 %rule attitudinal
-  | $i("word") | absorbed-bahe $i("word")
+  | $i(~word) | absorbed-bahe $i(~word)
 %tags
   tags($i)
 %conditions
-  "indicator" ∈ tags($i),
-  classes($i) ∩ ("UI" ∪ "CAI") ≠ ∅
+  ~indicator ⊆ tags($i),
+  classes($i) ∩ (UI ∪ CAI) ≠ ∅
 %emits
   $
 
 %rule nai
-  | $n("word") <tags($n)>
-  | absorbed-bahe $m("word") <tags($m)>
+  | $n(~word) <tags($n)>
+  | absorbed-bahe $m(~word) <tags($m)>
 %conditions
-  "NAI" ∈ tags($n),
-  "NAI" ∈ tags($m)
+  NAI ⊆ tags($n),
+  NAI ⊆ tags($m)
 %emits
   $
 ```

@@ -1,10 +1,10 @@
 # jbogenbau: from characters to tokens
 
-This is the first stage of the notation dialect, `../dialects/notation.md`. A stage is one step of a pipeline, with its own grammar. The stage reads the text of a grammar document's `jbogenbau` blocks, one token (a unit of input) per character. It hands the notation's tokens to the second stage, `syntax.md`. These tokens are names, strings, phoneme tags, spellings, captures, guards, keywords and symbols. The stage drops what carries no meaning: the spaces between tokens, and the comments.
+This is the first stage of the notation dialect, `../dialects/notation.md`. A stage is one step of a pipeline, with its own grammar. The stage reads the text of a grammar document's `jbogenbau` blocks, one token (a unit of input) per character. It hands the notation's tokens to the second stage, `syntax.md`. These tokens are names, strings, tag literals, phoneme tags, character tags, spellings, captures, guards, keywords and symbols. The stage drops what carries no meaning: the spaces between tokens, and the comments.
 
 `../../docs/notation.md` explains the notation. This document and `syntax.md` define it.
 
-A character reaches this grammar with two tags (labels that the grammar reads). The first tag is the character itself, `"a"`. The second tag is its class, `"alpha"`, `"digit"`, `"space"`, `"mark"` or `"other"`, and this tag is weak. At their first differing visible action, if both readings read one token under different tags, a strong tag beats a weak one. Every token that this stage emits is one run of characters. So a token's text is exactly what the author wrote.
+A character reaches this grammar with two tags (labels that the grammar reads). The first tag is its character tag, such as `'a'`. The second tag is its class, `~alpha`, `~digit`, `~space`, `~mark` or `~other`. The rules below read a character by one tag or the other, and their conditions keep the two readings apart. Every token that this stage emits is one run of characters. So a token's text is exactly what the author wrote.
 
 ## Choosing among readings
 
@@ -23,18 +23,26 @@ A text is any number of pieces, each a token or layout.
   [piece] ...
 
 %rule piece
-  word | string | phoneme | spelling | capture | guard | keyword | symbol | layout
+  | word | string | tag-literal | phoneme | character-tag | spelling
+  | capture | guard | keyword | symbol | negation | layout
 ```
 
-## Names
+## Names and tag literals
 
-A name is an ASCII letter followed by ASCII letters, digits and hyphens. Its first letter decides later whether it names a rule or a terminal. Here, every name is an `identifier`.
+A name is an ASCII letter followed by ASCII letters, digits and hyphens. Its first letter decides later whether it names a rule or a terminal. Here, every name is an `identifier`. A tag literal is `~` and a name, such as `~word`, and the stage tags it `tag`.
 
 ```jbogenbau
 %rule word
   name
 %tags
-  "identifier"
+  ~identifier
+%emits
+  $
+
+%rule tag-literal
+  '~' name
+%tags
+  ~tag
 %emits
   $
 
@@ -42,46 +50,62 @@ A name is an ASCII letter followed by ASCII letters, digits and hyphens. Its fir
   letter | name name-character
 
 %rule name-character
-  letter | digit | "-"
+  letter | digit | '-'
 
 %rule letter
-  | "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m"
-  | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z"
-  | "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M"
-  | "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z"
+  | 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j' | 'k' | 'l' | 'm'
+  | 'n' | 'o' | 'p' | 'q' | 'r' | 's' | 't' | 'u' | 'v' | 'w' | 'x' | 'y' | 'z'
+  | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M'
+  | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z'
 
 %rule digit
-  "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+  '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
 ```
 
-## Strings and phoneme tags
+## Strings, character tags and phoneme tags
 
-The grammar author writes a string in straight double quotes. Inside it, a backslash escapes the next character. The second stage's reader decodes `\\`, `\"` and `\u{h…}`, and rejects any other escape (`../../docs/engine.md`, §9). So this stage only has to find where the string ends. A phoneme tag is one character between slashes, `/a/`, and `/./` is the pause.
+The grammar author writes a string in straight double quotes. Inside it, a backslash escapes the next character. The second stage's reader decodes `\\`, `\"` and `\u{h…}`, and rejects any other escape (`../../docs/engine.md`, §9). So this stage only has to find where the string ends.
+
+A character tag is written between single quotes, such as `'a'`, and its escapes are `\\`, `\'` and `\u{h…}`. The reader decodes it and makes sure that it holds exactly one character. So this stage finds its end in the same way. A phoneme tag is one character between slashes, `/a/`, and `/./` is the pause.
 
 ```jbogenbau
 %rule string
-  "\"" [string-part] ... "\""
+  '"' [string-part] ... '"'
 %tags
-  "string"
+  ~string
 %emits
   $
 
 %rule string-part
   | $c(character)
-  | "\\" character
+  | '\\' character
 %conditions
   text($c) ≠ "\"",
   text($c) ≠ "\\"
 
-%rule phoneme
-  "/" character "/"
+%rule character-tag
+  '\'' [character-tag-part] ... '\''
 %tags
-  "phoneme"
+  ~character
+%emits
+  $
+
+%rule character-tag-part
+  | $c(character)
+  | '\\' character
+%conditions
+  text($c) ≠ "'",
+  text($c) ≠ "\\"
+
+%rule phoneme
+  '/' character '/'
+%tags
+  ~phoneme
 %emits
   $
 
 %rule character
-  "alpha" | "digit" | "space" | "mark" | "other"
+  ~alpha | ~digit | ~space | ~mark | ~other
 ```
 
 ## Spellings
@@ -90,9 +114,9 @@ A spelling says what a symbol must sound like, as in ``LE`la` ``. It is the char
 
 ```jbogenbau
 %rule spelling
-  "`" [spelling-part] ... "`"
+  '`' [spelling-part] ... '`'
 %tags
-  "spelling"
+  ~spelling
 %emits
   $
 
@@ -104,41 +128,81 @@ A spelling says what a symbol must sound like, as in ``LE`la` ``. It is the char
 
 ## Captures, guards and keywords
 
-A capture is `$` and a name, or `$` alone for the whole constituent. A feature guard tests a feature. A feature is a named switch that the grammars test. A guard is either a gate or a warning. A gate is `@` or `@¬`, a name and `?`. A warning is `@`, a name and `!`.
+A capture is `$` and a name, or `$` alone for the whole constituent. A feature guard tests a feature. A feature is a named switch that the grammars test. A guard is either a gate or a warning. A gate is a name and `?`, with `¬` before it for a negated gate. A warning is a name and `!`.
 
-A keyword is `%` and a name. The stage tags a keyword with its own spelling, `%rule`, so that the second stage names each keyword it knows and has no other. Each capture, guard and keyword is one token, so the second stage sees `$first` as one thing.
+A `¬` directly before a guard belongs to the guard. Anywhere else, `¬` is a symbol of its own, which negates a condition. So the symbol `¬` is only read where no guard begins after it.
 
 ```jbogenbau
 %rule capture
-  "$" [name]
+  '$' [name]
 %tags
-  "capture"
+  ~capture
 %emits
   $
 
 %rule guard
-  | "@" ["¬"] name "?"
-  | "@" name "!"
+  | ['¬'] name '?'
+  | name '!'
 %tags
-  "guard"
+  ~guard
 %emits
   $
 
-%rule keyword
-  "%" name
+%rule negation
+  '¬'
+%conditions
+  ¬begins(after($), guard)
 %emits
-  $ <text($)>
+  $
+```
+
+A keyword is `%` and a name. The stage tags each keyword that the notation knows with its own identifier, such as `keyword-rule` for `%rule`. So the second stage names each keyword it knows and has no other. Any other `%` and name is one token tagged `keyword`, which the second stage never reads. So an unknown keyword is an error at that token. Each capture, guard and keyword is one token, so the second stage sees `$first` as one thing.
+
+```jbogenbau
+%rule keyword
+  | '%' $rule(name) <~keyword-rule>
+  | '%' $redefine-rule(name) <~keyword-redefine-rule>
+  | '%' $extend-rule(name) <~keyword-extend-rule>
+  | '%' $tags(name) <~keyword-tags>
+  | '%' $conditions(name) <~keyword-conditions>
+  | '%' $emits(name) <~keyword-emits>
+  | '%' $verbatim(name) <~keyword-verbatim>
+  | '%' $ambiguity-resolution(name) <~keyword-ambiguity-resolution>
+  | '%' $elidable(name) <~keyword-elidable>
+  | '%' $stage(name) <~keyword-stage>
+  | '%' $include(name) <~keyword-include>
+  | '%' $features(name) <~keyword-features>
+  | '%' $other(name) <~keyword>
+%conditions
+  text($rule) = "rule",
+  text($redefine-rule) = "redefine-rule",
+  text($extend-rule) = "extend-rule",
+  text($tags) = "tags",
+  text($conditions) = "conditions",
+  text($emits) = "emits",
+  text($verbatim) = "verbatim",
+  text($ambiguity-resolution) = "ambiguity-resolution",
+  text($elidable) = "elidable",
+  text($stage) = "stage",
+  text($include) = "include",
+  text($features) = "features",
+  text($other) ≠ "rule", text($other) ≠ "redefine-rule", text($other) ≠ "extend-rule",
+  text($other) ≠ "tags", text($other) ≠ "conditions", text($other) ≠ "emits",
+  text($other) ≠ "verbatim", text($other) ≠ "ambiguity-resolution", text($other) ≠ "elidable",
+  text($other) ≠ "stage", text($other) ≠ "include", text($other) ≠ "features"
+%emits
+  $
 ```
 
 ## Symbols
 
-Every other token is a symbol, tagged with its own spelling. Most symbols are one character, which already carries its spelling as a tag. The rule for `...` states its own tag.
+Every other token is a symbol. A symbol of one character keeps the character tag of its one character, such as `'|'`. The rule for `...` tags it `ellipsis`.
 
 ```jbogenbau
 %rule symbol
-  | "|" | "&" | "(" | ")" | "[" | "]" | "<" | ">" | "#" | "ε" | "," | "∧" | "∨" | "¬" | "⟹"
-  | "?" | "=" | "≠" | "∈" | "∉" | "⊆" | "∪" | "∩" | "∅"
-  | "." "." "." <"...">
+  | '|' | '&' | '(' | ')' | '[' | ']' | '<' | '>' | '#' | 'ε' | ',' | '∧' | '∨' | '⟹'
+  | '=' | '≠' | '∈' | '∉' | '⊆' | '⊈' | '∪' | '∩' | '∖' | '∅'
+  | '.' '.' '.' <~ellipsis>
 %emits
   $
 ```
@@ -149,10 +213,10 @@ Spaces, tabs and line breaks separate tokens and mean nothing else. A comment ru
 
 ```jbogenbau
 %rule layout
-  "space" | comment
+  ~space | comment
 
 %rule comment
-  "(" "*" [comment-part] ... stars ")"
+  '(' '*' [comment-part] ... stars ')'
 
 %rule comment-part
   | $c(character)
@@ -163,5 +227,5 @@ Spaces, tabs and line breaks separate tokens and mean nothing else. A comment ru
   text($d) ≠ "*"
 
 %rule stars
-  "*" | stars "*"
+  '*' | stars '*'
 ```

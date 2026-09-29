@@ -4,7 +4,7 @@ This document opens the phoneme stage. A stage is one step of a pipeline, with i
 
 This document reads the Latin orthography of CLL chapter 3 and no more. The CLL dialect uses it as it is. The other dialects add the conventions of [latin.md](latin.md), such as digits and accents, and the scripts of [cyrillic.md](cyrillic.md) and [zbalermorna.md](zbalermorna.md). [The notation document](../../docs/notation.md) explains the notation.
 
-The terminals of the stage are characters, each written in straight quotes. A token is one unit that a stage reads or emits. A terminal matches one input token by tag. Every character token also carries its class, `alpha`, `digit`, `space`, `mark` or `other`.
+The terminals of the stage are characters, each written as a character tag in single quotes, such as `'a'`. A token is one unit that a stage reads or emits. A terminal matches one input token by tag. Every character token also carries its class, `~alpha`, `~digit`, `~space`, `~mark` or `~other`.
 
 The stage emits one token per phoneme, and each token carries the tag of that phoneme. A tag is a label on a token. So the later stages never see a character, and they read every script alike.
 
@@ -55,7 +55,7 @@ CLL 3.3 says that a comma "cannot be pronounced as a pause", so a comma alone be
   | $c(pause-core) pause-edge
   | pause-edge $c(pause-core) pause-edge
 %emits
-  $c <"PAUSE" ∪ /./>
+  $c <PAUSE ∪ /./>
 
 %rule pause-core
   core-char | pause-core core-char | pause-core pause-edge core-char
@@ -64,7 +64,7 @@ CLL 3.3 says that a comma "cannot be pronounced as a pause", so a comma alone be
   commas
 
 %rule core-char
-  "space" | "."
+  ~space | '.'
 
 %rule commas
   comma | commas comma
@@ -112,15 +112,15 @@ A comma stands only between two letters of a run. Between two vowels it is the s
 %rule vowel-group-plain
   | $g(vowel-group) $v(vowel) <tags($v)> | $h(vowel-group) $w(vowel) <tags($w)>
 %conditions
-  "syllabic" ∉ tags($g),
-  "syllabic" ∈ tags($h),
-  "syllabic" ∉ tags($w)
+  ~syllabic ⊈ tags($g),
+  ~syllabic ⊆ tags($h),
+  ~syllabic ⊈ tags($w)
 
 %rule vowel-group-joined
   $g(vowel-group) $v(joined-vowel) <tags($v)>
 %conditions
-  "syllabic" ∈ tags($g),
-  "syllabic" ∈ tags($v)
+  ~syllabic ⊆ tags($g),
+  ~syllabic ⊆ tags($v)
 
 %rule joined-vowel
   $v(vowel) <tags($v)>
@@ -143,7 +143,7 @@ A foreign run has at least one character that no letter rule of any script reads
   ¬matches(head($r), comma),
   ¬matches(last($r), comma)
 %emits
-  $ <"FOREIGN">
+  $ <FOREIGN>
 %verbatim
 
 %rule foreign-chars
@@ -170,7 +170,7 @@ A foreign run has at least one character that no letter rule of any script reads
   ¬matches($c, core-char)
 
 %rule run-class
-  "alpha" | "digit" | "mark" | "other"
+  ~alpha | ~digit | ~mark | ~other
 ```
 
 ## Letters
@@ -181,41 +181,41 @@ CLL 3.1 omits `h` from the alphabet. CLL 3.3 says that `h` does not write the ap
 
 ```jbogenbau
 %rule consonant
-  | "b" </b/> | "B" </b/>
-  | "c" </c/> | "C" </c/>
-  | "d" </d/> | "D" </d/>
-  | "f" </f/> | "F" </f/>
-  | "g" </g/> | "G" </g/>
-  | "j" </j/> | "J" </j/>
-  | "k" </k/> | "K" </k/>
-  | "l" </l/> | "L" </l/>
-  | "m" </m/> | "M" </m/>
-  | "n" </n/> | "N" </n/>
-  | "p" </p/> | "P" </p/>
-  | "r" </r/> | "R" </r/>
-  | "s" </s/> | "S" </s/>
-  | "t" </t/> | "T" </t/>
-  | "v" </v/> | "V" </v/>
-  | "x" </x/> | "X" </x/>
-  | "z" </z/> | "Z" </z/>
+  | 'b' </b/> | 'B' </b/>
+  | 'c' </c/> | 'C' </c/>
+  | 'd' </d/> | 'D' </d/>
+  | 'f' </f/> | 'F' </f/>
+  | 'g' </g/> | 'G' </g/>
+  | 'j' </j/> | 'J' </j/>
+  | 'k' </k/> | 'K' </k/>
+  | 'l' </l/> | 'L' </l/>
+  | 'm' </m/> | 'M' </m/>
+  | 'n' </n/> | 'N' </n/>
+  | 'p' </p/> | 'P' </p/>
+  | 'r' </r/> | 'R' </r/>
+  | 's' </s/> | 'S' </s/>
+  | 't' </t/> | 'T' </t/>
+  | 'v' </v/> | 'V' </v/>
+  | 'x' </x/> | 'X' </x/>
+  | 'z' </z/> | 'Z' </z/>
 %emits
   $
 
 %rule plain-vowel
-  "a" </a/> | "e" </e/> | "i" </i/> | "o" </o/> | "u" </u/> | "y" </y/>
+  'a' </a/> | 'e' </e/> | 'i' </i/> | 'o' </o/> | 'u' </u/> | 'y' </y/>
 %emits
   $
 
 %rule stressed-vowel
-  "A" </A/> | "E" </E/> | "I" </I/> | "O" </O/> | "U" </U/> | "Y" </Y/>
+  'A' </A/> | 'E' </E/> | 'I' </I/> | 'O' </O/> | 'U' </U/> | 'Y' </Y/>
 %emits
   $
 
 %rule apostrophe
-  "'" | "’" | "‘" | "ʼ"
+  '\u{27}' | '’' | '‘' | 'ʼ'
 %emits
   $ </'/>
 
 %rule comma
-  ","
+  ','
 ```

@@ -1,0 +1,47 @@
+{
+  "description": "runs() is a set of strings: = and ≠ compare two of them, ⊆ and ⊈ test one in another, ∖ takes their difference, and ∈ and ∉ test a string in one. The alternative bad fails, since its runs differ (engine §5, §10).",
+  "grammar": "%rule text good | bad\n%rule good $a(W) $b(W) $c(W)\n%conditions runs($a) = runs($b), runs($a) ≠ runs($c), runs($a) ⊆ runs($c), runs($c) ⊈ runs($a), runs($c) ∖ runs($a) ≠ ∅, runs($b) ∖ runs($a) = ∅, \"do\" ∈ runs($c), \"do\" ∉ runs($a)\n%rule bad $d(W) $e(W) $f(W)\n%conditions runs($d) = runs($f)",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "W"
+      ],
+      "phonemes": "la.mi"
+    },
+    {
+      "text": "y",
+      "tags": [
+        "W"
+      ],
+      "phonemes": "mi.la"
+    },
+    {
+      "text": "z",
+      "tags": [
+        "W"
+      ],
+      "phonemes": "la.mi.do"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "good"
+          }
+        ]
+      }
+    }
+  }
+}

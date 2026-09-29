@@ -108,6 +108,9 @@ func caseDialect(c *engineCase, noCache bool) (*Dialect, error) {
 }
 
 func runCase(d *Dialect, c *engineCase) (*ParseResult, error) {
+	if err := loadBundled(); err != nil {
+		return nil, err
+	}
 	opts := ParseOptions{Features: c.Options.Features, WithoutFeatures: c.Options.WithoutFeatures, ElisionOnly: c.Options.ElisionOnly, Until: c.Options.Until, NoAutoFeatures: true}
 	if c.Options.AutoFeatures != nil && *c.Options.AutoFeatures {
 		opts.NoAutoFeatures = false
@@ -119,16 +122,15 @@ func runCase(d *Dialect, c *engineCase) (*ParseResult, error) {
 	toks := make([]Token, 0, len(c.Tokens))
 	pos := 0
 	for i, tk := range c.Tokens {
-		tags := map[string]bool{}
+		// Each tag in its canonical spelling, as the output writes it
+		// (tests/README.md).
 		for _, tag := range tk.Tags {
-			if strings.HasPrefix(tag, "?") {
-				tags[tag[1:]] = false
-			} else {
-				tags[tag] = true
+			if !isTag(tag, bundled.uni) {
+				return nil, fmt.Errorf("a case token's tag %s is not a tag", tag)
 			}
 		}
 		n := len([]rune(tk.Text))
-		tok := Token{Text: tk.Text, Tags: tags, Span: [2]int{i, i + 1}, Source: [2]int{pos, pos + n}}
+		tok := Token{Text: tk.Text, Tags: tk.Tags, Span: [2]int{i, i + 1}, Source: [2]int{pos, pos + n}}
 		if tk.Phonemes != nil {
 			tok.Phonemes = *tk.Phonemes
 		}

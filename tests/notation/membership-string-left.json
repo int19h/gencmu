@@ -1,6 +1,6 @@
 {
-  "description": "The left side of ∈ and ∉ is a string: a quoted string, a phoneme tag, or phonemes, text or lowercase of something (engine §9, §10).",
-  "document": "```jbogenbau\n%rule a $x(B) %conditions \"b\" ∈ tags($x), /b/ ∉ $x, phonemes($x) ∈ runs($x), lowercase(text($x)) ∉ \"c\"\n```\n",
+  "description": "The left side of ∈ and ∉ is a string, a quoted string or phonemes, text or lowercase of something, and the right side a set of strings (engine §9, §10).",
+  "document": "```jbogenbau\n%rule a $x(B) %conditions \"b\" ∈ runs($x), phonemes($x) ∈ runs($x), lowercase(text($x)) ∉ runs($x)\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -9,24 +9,15 @@
             {
               "op": "∈",
               "left": {
-                "literal": "b"
+                "string": "b"
               },
               "right": {
-                "call": "tags",
+                "call": "runs",
                 "args": [
                   {
                     "capture": "x"
                   }
                 ]
-              }
-            },
-            {
-              "op": "∉",
-              "left": {
-                "literal": "/b/"
-              },
-              "right": {
-                "capture": "x"
               }
             },
             {
@@ -64,7 +55,12 @@
                 ]
               },
               "right": {
-                "literal": "c"
+                "call": "runs",
+                "args": [
+                  {
+                    "capture": "x"
+                  }
+                ]
               }
             }
           ]

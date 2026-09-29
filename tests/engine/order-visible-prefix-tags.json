@@ -1,5 +1,5 @@
 {
-  "description": "T with a visible prefix among derivations that also differ in tag strength (engine §6).",
+  "description": "T with a visible prefix among derivations that also read one token under different tags (engine §6).",
   "grammar": "%rule text a | B\n%rule a a text | [text] ... | text text ...",
   "tokens": [
     {
@@ -12,20 +12,20 @@
     {
       "text": "y",
       "tags": [
-        "?B"
+        "B"
       ]
     },
     {
       "text": "z",
       "tags": [
-        "?A",
+        "A",
         "B"
       ]
     }
   ],
   "expect": {
     "result": {
-      "format": 3,
+      "format": 4,
       "ok": true,
       "stages": [
         {
@@ -60,7 +60,7 @@
               0,
               5
             ],
-            "tags": {},
+            "tags": [],
             "children": [
               {
                 "kind": "rule",
@@ -73,7 +73,7 @@
                   0,
                   5
                 ],
-                "tags": {},
+                "tags": [],
                 "children": [
                   {
                     "kind": "rule",
@@ -86,7 +86,7 @@
                       0,
                       3
                     ],
-                    "tags": {},
+                    "tags": [],
                     "children": [
                       {
                         "kind": "rule",
@@ -99,10 +99,10 @@
                           0,
                           1
                         ],
-                        "tags": {
-                          "A": true,
-                          "B": true
-                        },
+                        "tags": [
+                          "A",
+                          "B"
+                        ],
                         "children": [
                           {
                             "kind": "token",
@@ -130,9 +130,9 @@
                           2,
                           3
                         ],
-                        "tags": {
-                          "B": false
-                        },
+                        "tags": [
+                          "B"
+                        ],
                         "children": [
                           {
                             "kind": "token",
@@ -162,10 +162,10 @@
                       4,
                       5
                     ],
-                    "tags": {
-                      "A": false,
-                      "B": true
-                    },
+                    "tags": [
+                      "A",
+                      "B"
+                    ],
                     "children": [
                       {
                         "kind": "token",
@@ -200,7 +200,7 @@
           0,
           5
         ],
-        "tags": {},
+        "tags": [],
         "children": [
           {
             "kind": "rule",
@@ -213,7 +213,7 @@
               0,
               5
             ],
-            "tags": {},
+            "tags": [],
             "children": [
               {
                 "kind": "rule",
@@ -226,10 +226,10 @@
                   0,
                   1
                 ],
-                "tags": {
-                  "A": true,
-                  "B": true
-                },
+                "tags": [
+                  "A",
+                  "B"
+                ],
                 "children": [
                   {
                     "kind": "token",
@@ -257,9 +257,9 @@
                   2,
                   3
                 ],
-                "tags": {
-                  "B": false
-                },
+                "tags": [
+                  "B"
+                ],
                 "children": [
                   {
                     "kind": "token",
@@ -287,10 +287,10 @@
                   4,
                   5
                 ],
-                "tags": {
-                  "A": false,
-                  "B": true
-                },
+                "tags": [
+                  "A",
+                  "B"
+                ],
                 "children": [
                   {
                     "kind": "token",

@@ -1,18 +1,53 @@
 {
-  "description": "elision-only allows a choice settled by strong and weak tags (engine §7).",
+  "description": "Without strength, elision-only no longer lets tags settle a choice: one token read under two tags gives two derivations of the restored text, so the check fails (engine §7).",
   "grammar": "%ambiguity-resolution greedy elision-only\n%rule text X | Y",
   "tokens": [
     {
       "text": "w",
       "tags": [
-        "?X",
+        "X",
         "Y"
       ]
     }
   ],
   "expect": {
     "result": {
-      "ok": true
-    }
+      "ok": false,
+      "tree": null,
+      "stages": [
+        {
+          "verdict": "tie"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "X",
+                "token": 0
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "Y",
+                "token": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "error": "ambiguous"
   }
 }

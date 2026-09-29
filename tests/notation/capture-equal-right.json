@@ -1,0 +1,10 @@
+{
+  "description": "A capture on the right of = is an error at the capture, not at the comparison: a span is not a value (engine §9).",
+  "document": "```jbogenbau\n%rule a $x(B) %conditions phonemes($x) = $x\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 42
+    }
+  }
+}

@@ -302,13 +302,7 @@ pub fn case_tokens(case: &Value) -> Option<Vec<gencmu::InputToken>> {
                     .map(Value::array)
                     .unwrap_or(&[])
                     .iter()
-                    .map(|tag| {
-                        let tag = tag.str().expect("a tag");
-                        match tag.strip_prefix('?') {
-                            Some(weak) => (weak.to_string(), false),
-                            None => (tag.to_string(), true),
-                        }
-                    })
+                    .map(|tag| tag.str().expect("a tag").to_string())
                     .collect(),
                 phonemes: token.get("phonemes").and_then(Value::str).map(str::to_string),
             })

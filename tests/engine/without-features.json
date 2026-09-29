@@ -2,7 +2,7 @@
   "description": "A caller can turn off a feature that the pipeline's %features turns on (engine §13).",
   "documents": {
     "p.md": "# A dialect\n\n```jbogenbau\n%features f\n```\n\n## Main\n\n```jbogenbau\n%stage main\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n",
-    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text @f? A | @¬f? B\n```\n"
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text f? A | ¬f? B\n```\n"
   },
   "pipeline": "p.md",
   "tokens": [

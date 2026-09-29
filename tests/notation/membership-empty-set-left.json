@@ -1,6 +1,6 @@
 {
-  "description": "∅ on the left of ∉ is a tag set, so the comparison is an error of the document (engine §9, §10).",
-  "document": "```jbogenbau\n%rule a $x(B) %conditions ∅ ∉ tags($x)\n```\n",
+  "description": "∅ on the left of ∉ is a set, not a string, so the comparison is an error of the document, reported at its first token (engine §9, §10).",
+  "document": "```jbogenbau\n%rule a $x(B) %conditions ∅ ∉ runs($x)\n```\n",
   "expect": {
     "error": {
       "line": 2,

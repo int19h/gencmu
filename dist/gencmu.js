@@ -24,71 +24,77 @@
   }
 
   // ---- tags.js
-  // Tag sets: a map from tag to strength, true for strong and false for weak.
+  // Tags and tag sets (engine §1). A tag is a string in its canonical
+  // spelling: an identifier tag is a name, a phoneme tag is `/p/`, and a
+  // character tag is one character between quotes, `'a'`. A tag has no
+  // strength, so a tag set is a set of these strings.
 
   /** @import { TagSet } from "./types.js" */
 
   /**
-   * @param {Iterable<[string, boolean]>} [entries]
+   * @param {Iterable<string>} [tags]
    * @returns {TagSet}
    */
-  function tagSet(entries) {
-    return new Map(entries || []);
+  function tagSet(tags) {
+    return new Set(tags || []);
   }
 
   /**
-   * @param {string} tag
-   * @returns {TagSet}
-   */
-  function strongTag(tag) {
-    return new Map([[tag, true]]);
-  }
-
-  /**
-   * @param {string} tag
-   * @returns {TagSet}
-   */
-  function weakTag(tag) {
-    return new Map([[tag, false]]);
-  }
-
-  // Every tag of either set, strong if it is strong in either.
-  /**
+   * Every tag of either set.
    * @param {TagSet} left
    * @param {TagSet} right
    * @returns {TagSet}
    */
   function tagUnion(left, right) {
-    const result = new Map(left);
-    for (const [tag, strong] of right) {
-      result.set(tag, (result.get(tag) || false) || strong);
-    }
+    if (right.size === 0) return left;
+    if (left.size === 0) return right;
+    const result = new Set(left);
+    for (const tag of right) result.add(tag);
     return result;
   }
 
-  // The tags of the first set that are also in the second, with the first's
-  // strength.
   /**
+   * The tags of both sets.
    * @param {TagSet} left
    * @param {TagSet} right
    * @returns {TagSet}
    */
   function tagIntersection(left, right) {
-    const result = new Map();
-    for (const [tag, strong] of left) {
-      if (right.has(tag)) result.set(tag, strong);
-    }
+    const result = new Set();
+    for (const tag of left) if (right.has(tag)) result.add(tag);
     return result;
   }
 
-  // A stable, unambiguous string for a tag set: its tags in code point order,
-  // each with its strength.
   /**
+   * The tags of the first set that are not in the second.
+   * @param {TagSet} left
+   * @param {TagSet} right
+   * @returns {TagSet}
+   */
+  function tagDifference(left, right) {
+    const result = new Set();
+    for (const tag of left) if (!right.has(tag)) result.add(tag);
+    return result;
+  }
+
+  /**
+   * Whether every tag of the first set is in the second.
+   * @param {TagSet} small
+   * @param {TagSet} large
+   * @returns {boolean}
+   */
+  function isSubset(small, large) {
+    for (const tag of small) if (!large.has(tag)) return false;
+    return true;
+  }
+
+  /**
+   * A stable, unambiguous string for a tag set: its tags in code point order.
    * @param {TagSet} tags
    * @returns {string}
    */
   function tagKey(tags) {
-    return JSON.stringify([...tags.keys()].sort(compareCodePoints).map((tag) => [tag, tags.get(tag)]));
+    return JSON.stringify(sortedTags(tags));
   }
 
   /**
@@ -96,9 +102,9 @@
    * @param {TagSet} right
    * @returns {boolean}
    */
-  function sameTagNames(left, right) {
+  function sameTags(left, right) {
     if (left.size !== right.size) return false;
-    for (const tag of left.keys()) if (!right.has(tag)) return false;
+    for (const tag of left) if (!right.has(tag)) return false;
     return true;
   }
 
@@ -121,14 +127,95 @@
   }
 
   /**
+   * A tag set's tags in code point order, as the output lists them.
    * @param {TagSet} tags
-   * @returns {Record<string, boolean>}
+   * @returns {string[]}
    */
-  function sortedTagObject(tags) {
-    /** @type {Record<string, boolean>} */
-    const result = {};
-    for (const tag of [...tags.keys()].sort(compareCodePoints)) result[tag] = /** @type {boolean} */ (tags.get(tag));
-    return result;
+  function sortedTags(tags) {
+    return [...tags].sort(compareCodePoints);
+  }
+
+  const NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
+
+  /**
+   * Whether a string is a name, and so an identifier tag (engine §1).
+   * @param {string} tag
+   * @returns {boolean}
+   */
+  function isName(tag) {
+    return NAME.test(tag);
+  }
+
+  /**
+   * Whether a tag is a phoneme tag: three code points, the first and last
+   * `/` (engine §1).
+   * @param {string} tag
+   * @returns {boolean}
+   */
+  function isPhonemeTag(tag) {
+    return tag.length >= 3 && tag[0] === "/" && tag[tag.length - 1] === "/" && [...tag].length === 3;
+  }
+
+  /**
+   * Whether a code point is written as `\u{h…}` in a character tag's
+   * canonical spelling (engine §1): a control character, a nonspacing mark,
+   * a private-use character, the quote or the backslash.
+   * @param {number} code
+   * @param {{isMark(code: number): boolean}} unicode
+   * @returns {boolean}
+   */
+  function escapedInTag(code, unicode) {
+    return code <= 0x1f || (code >= 0x7f && code <= 0x9f) || code === 0x27 || code === 0x5c ||
+      (code >= 0xe000 && code <= 0xf8ff) || (code >= 0xf0000 && code <= 0xffffd) || (code >= 0x100000 && code <= 0x10fffd) ||
+      unicode.isMark(code);
+  }
+
+  /**
+   * The character tag of a Unicode scalar value, in its canonical spelling
+   * (engine §1): `'a'`, or `'\u{301}'` for a code point that is escaped.
+   * @param {number} code
+   * @param {{isMark(code: number): boolean}} unicode
+   * @returns {string}
+   */
+  function characterTag(code, unicode) {
+    if (escapedInTag(code, unicode)) return `'\\u{${code.toString(16).toUpperCase()}}'`;
+    return `'${String.fromCodePoint(code)}'`;
+  }
+
+  /**
+   * The scalar value that a character tag in its canonical spelling names,
+   * or null for a string that is not one.
+   * @param {string} tag
+   * @param {{isMark(code: number): boolean}} unicode
+   * @returns {number | null}
+   */
+  function characterOfTag(tag, unicode) {
+    if (tag.length < 3 || tag[0] !== "'" || tag[tag.length - 1] !== "'") return null;
+    const inner = tag.slice(1, -1);
+    let code;
+    const escaped = /^\\u\{([0-9A-F]{1,6})\}$/.exec(inner);
+    if (escaped) code = parseInt(escaped[1], 16);
+    else if ([...inner].length === 1) code = /** @type {number} */ (inner.codePointAt(0));
+    else return null;
+    if (code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff)) return null;
+    return characterTag(code, unicode) === tag ? code : null;
+  }
+
+  /**
+   * Whether a string is a tag in its canonical spelling: a name, a phoneme
+   * tag or a character tag (engine §1). Without a table, which says which
+   * code points are marks, a character tag passes in either spelling that a
+   * table could make canonical.
+   * @param {unknown} tag
+   * @param {{isMark(code: number): boolean}} [unicode]
+   * @returns {boolean}
+   */
+  function isTag(tag, unicode) {
+    if (typeof tag !== "string") return false;
+    if (isName(tag) || isPhonemeTag(tag)) return true;
+    if (unicode) return characterOfTag(tag, unicode) !== null;
+    // No mark lies below U+0300.
+    return characterOfTag(tag, { isMark: () => false }) !== null || characterOfTag(tag, { isMark: (code) => code >= 0x300 }) !== null;
   }
 
   // ---- tokens.js
@@ -229,8 +316,8 @@
     return { lows, highs };
   }
 
-  // The first stage's input: one token per code point, tagged with the
-  // character, strong, and its class, weak.
+  // The first stage's input: one token per code point, tagged with its
+  // character tag and its class (engine §1).
   /**
    * @param {string} text
    * @param {UnicodeTable} unicode
@@ -240,9 +327,8 @@
     const tokens = [];
     let index = 0;
     for (const character of text) {
-      const tags = tagSet([[character, true]]);
-      const kind = unicode.classOf(/** @type {number} */ (character.codePointAt(0)));
-      if (!tags.has(kind)) tags.set(kind, false);
+      const code = /** @type {number} */ (character.codePointAt(0));
+      const tags = tagSet([characterTag(code, unicode), unicode.classOf(code)]);
       tokens.push(new Token(tags, [index, index + 1], [index, index + 1], character, null, undefined));
       index++;
     }
@@ -781,7 +867,7 @@
    * @returns {TagSet}
    */
   function constituentTags(context, production, scope) {
-    return production.tags ? asTagSet(evaluate(context, production.tags, scope)) : tagSet();
+    return production.tags ? asSet(evaluate(context, production.tags, scope)) : tagSet();
   }
 
   /** @implements {Scope} */
@@ -882,20 +968,27 @@
   }
 
   /**
+   * A term's value (engine §10): a string, or a set, of strings or of tags.
+   * The reader has made sure that the types agree, so a set's kind needs no
+   * mark here.
    * @param {ParseContext} context
    * @param {Argument} term
    * @param {Scope} scope
    * @returns {TermValue}
    */
   function evaluate(context, term, scope) {
-    if ("literal" in term) return { string: term.literal };
-    if ("if" in term) return holds(context, term.if, scope) ? evaluate(context, term.then, scope) : { tags: tagSet() };
-    if ("weak" in term) return { tags: weakTag(term.weak) };
-    if ("emptySet" in term) return { tags: tagSet() };
-    if ("union" in term) return { tags: term.union.reduce((acc, item) => tagUnion(acc, asTagSet(evaluate(context, item, scope))), tagSet()) };
+    if ("string" in term) return { string: term.string };
+    if ("tag" in term) return { set: tagSet([term.tag]) };
+    if ("if" in term) return holds(context, term.if, scope) ? evaluate(context, term.then, scope) : { set: tagSet() };
+    if ("emptySet" in term) return { set: tagSet() };
+    if ("union" in term) return { set: term.union.reduce((acc, item) => tagUnion(acc, asSet(evaluate(context, item, scope))), tagSet()) };
     if ("intersection" in term) {
-      const [first, ...rest] = term.intersection.map((item) => asTagSet(evaluate(context, item, scope)));
-      return { tags: rest.reduce((acc, item) => tagIntersection(acc, item), first) };
+      const [first, ...rest] = term.intersection.map((item) => asSet(evaluate(context, item, scope)));
+      return { set: rest.reduce((acc, item) => tagIntersection(acc, item), first) };
+    }
+    if ("difference" in term) {
+      const [left, right] = term.difference.map((item) => asSet(evaluate(context, item, scope)));
+      return { set: tagDifference(left, right) };
     }
     if ("call" in term) {
       const args = term.args;
@@ -913,32 +1006,29 @@
           return { string: context.unicode.lowercase(asString(inner)) };
         }
         case "runs": {
+          // A set of strings (engine §5).
           const span = spanOf(context, args[0], scope);
-          return { tags: tagSet(phonemesOf(context.tokens, span.start, span.end).split(".").filter((run) => run !== "").map((run) => [run, true])) };
+          return { set: new Set(phonemesOf(context.tokens, span.start, span.end).split(".").filter((run) => run !== "")) };
         }
         case "tags": {
           const span = spanOf(context, args[0], scope);
-          if (args.length === 2) return { tags: nestedTags(context, ruleName(args[1]), span.start, span.end) };
-          if (span.tags && "capture" in args[0]) return { tags: span.tags };
-          return { tags: tokensTags(context.tokens, span.start, span.end) };
+          if (args.length === 2) return { set: nestedTags(context, ruleName(args[1]), span.start, span.end) };
+          if (span.tags && "capture" in args[0]) return { set: span.tags };
+          return { set: tokensTags(context.tokens, span.start, span.end) };
         }
         case "classes": {
           const span = spanOf(context, args[0], scope);
           const tags = span.tags && "capture" in args[0] ? span.tags : tokensTags(context.tokens, span.start, span.end);
           const result = tagSet();
-          for (const [tag, strong] of tags) {
+          for (const tag of tags) {
             const first = tag.charCodeAt(0);
-            if (first >= 0x41 && first <= 0x5a) result.set(tag, strong);
+            if (first >= 0x41 && first <= 0x5a) result.add(tag);
           }
-          return { tags: result };
+          return { set: result };
         }
         default:
           throw new GencmuError("grammar", `unknown function ${term.call}`);
       }
-    }
-    if ("capture" in term) {
-      const span = scope.capture(term.capture);
-      return { tags: span.tags || tagSet() };
     }
     throw new GencmuError("grammar", `unknown term ${JSON.stringify(term)}`);
   }
@@ -955,11 +1045,11 @@
 
   /**
    * @param {TermValue} value
-   * @returns {TagSet}
+   * @returns {Set<string>}
    */
-  function asTagSet(value) {
-    if ("tags" in value) return value.tags;
-    return strongTag(value.string);
+  function asSet(value) {
+    if ("set" in value) return value.set;
+    throw new GencmuError("grammar", "expected a set");
   }
 
   /**
@@ -1002,23 +1092,15 @@
       case "≠": {
         let equal;
         if ("string" in left && "string" in right) equal = left.string === right.string;
-        else equal = sameTagNames(asTagSet(left), asTagSet(right));
+        else equal = sameTags(asSet(left), asSet(right));
         return equal === (condition.op === "=");
       }
       case "∈":
-      case "∉": {
-        const needle = asString(left);
-        let member;
-        if ("tags" in right) member = right.tags.has(needle);
-        else member = right.string === needle;
-        return member === (condition.op === "∈");
-      }
-      case "⊆": {
-        const small = asTagSet(left);
-        const large = asTagSet(right);
-        for (const tag of small.keys()) if (!large.has(tag)) return false;
-        return true;
-      }
+      case "∉":
+        return asSet(right).has(asString(left)) === (condition.op === "∈");
+      case "⊆":
+      case "⊈":
+        return isSubset(asSet(left), asSet(right)) === (condition.op === "⊆");
       default:
         throw new GencmuError("grammar", `unknown comparison ${condition.op}`);
     }
@@ -1254,7 +1336,7 @@
    * @typedef {object} TokenJson
    * @property {string} text
    * @property {string} phonemes
-   * @property {Record<string, boolean>} tags
+   * @property {string[]} tags
    * @property {Span} span
    * @property {Span} source
    * @property {true} [verbatim]
@@ -1265,7 +1347,7 @@
    * A result tree node in the result JSON.
    * @typedef {{kind: "token", terminal: string, token: number, span: Span, source: Span}
    *   | {kind: "elided", terminal: string, span: Span, source: Span}
-   *   | {kind: "rule", rule: string, span: Span, source: Span, tags: Record<string, boolean>, children: NodeJson[]}} NodeJson
+   *   | {kind: "rule", rule: string, span: Span, source: Span, tags: string[], children: NodeJson[]}} NodeJson
    */
 
   /**
@@ -1326,7 +1408,7 @@
    * @typedef {{[name: string]: DisplayValue | DisplayValue[] | string | null}} DisplayValue
    */
 
-  const RESULT_FORMAT = 3;
+  const RESULT_FORMAT = 4;
 
   /**
    * @param {Token} token
@@ -1337,7 +1419,7 @@
     const result = {
       text: token.text,
       phonemes: token.phonemes || "",
-      tags: sortedTagObject(token.tags),
+      tags: sortedTags(token.tags),
       span: [token.span[0], token.span[1]],
       source: [token.source[0], token.source[1]],
     };
@@ -1357,7 +1439,7 @@
         ? { kind: "token", terminal: leaf.terminal, token: leaf.token, span: leaf.span, source: leaf.source }
         : { kind: "elided", terminal: leaf.terminal, span: leaf.span, source: leaf.source }),
       /** @returns {NodeJson} */
-      (rule, children) => ({ kind: "rule", rule: rule.rule, span: rule.span, source: rule.source, tags: sortedTagObject(rule.tags), children }));
+      (rule, children) => ({ kind: "rule", rule: rule.rule, span: rule.span, source: rule.source, tags: sortedTags(rule.tags), children }));
   }
 
   /**
@@ -1741,17 +1823,21 @@
   // reader would have given it (docs/output.md, "The DOM"), so that a corrupt
   // or hand-made one is refused rather than failing somewhere inside a parse.
 
+
+
   /** @import { Argument, GrammarDom, Term } from "./types.js" */
 
   const DOM_FUNCTIONS = new Set(["phonemes", "text", "lowercase", "tags", "classes", "runs", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]);
-  const DOM_COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆"]);
+  const DOM_COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆", "⊈"]);
   const DOM_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
+  // A capture's name is all lower case (engine §9).
+  const CAPTURE_NAME = /^[a-z][a-z0-9-]*$/;
   // The nesting the notation allows (engine §9): deeper than any grammar a
   // person writes, and shallow enough for the recursive walks over a DOM.
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 8;
+  const DOM_FORMAT = 9;
 
   /**
    * What is wrong with a spelling of a symbol (engine §9), or null: an empty
@@ -1763,7 +1849,7 @@
    * the lowercase mapping is not checked.
    * @param {unknown} spelling
    * @param {unknown} expr the spelled expression
-   * @param {{lowercase(text: string): string}} [unicode]
+   * @param {{lowercase(text: string): string, isMark(code: number): boolean}} [unicode]
    * @returns {string | null}
    */
   function spellingProblem(spelling, expr, unicode) {
@@ -1772,7 +1858,7 @@
     if (spelling.includes("`")) return "a spelling holds a backtick";
     if (!isDomObject(expr) || Object.keys(expr).length !== 1 ||
         !((typeof expr.ref === "string" && expr.ref !== "#") || typeof expr.terminal === "string")) {
-      return "a spelling follows only a reference other than #, a string or a phoneme tag";
+      return "a spelling follows only a reference other than # or a terminal";
     }
     if (unicode && unicode.lowercase(spelling) !== spelling) return `the spelling ${spelling} is not in lower case`;
     return null;
@@ -1816,22 +1902,28 @@
     return isDomObject(value) && (typeof value.capture === "string" || (typeof value.call === "string" && DOM_SPANS.has(value.call)));
   }
 
+
   /**
-   * Whether a term is a string: a literal, or phonemes, text or lowercase of
-   * something.
-   * @param {unknown} value
+   * The forms of a term, each as its members (docs/output.md). The first
+   * member names the form.
+   */
+  const TERM_FORMS = [["union"], ["intersection"], ["difference"], ["if", "then"], ["call", "args"], ["string"], ["tag"], ["emptySet"], ["capture"]];
+
+  /**
+   * Whether a term node has exactly the members of one form, and no other.
+   * @param {Record<string, unknown>} value
    * @returns {boolean}
    */
-  function isDomString(value) {
-    return isDomObject(value) && (typeof value.literal === "string" ||
-      (typeof value.call === "string" && ["phonemes", "text", "lowercase"].includes(value.call)));
+  function isTermShape(value) {
+    const form = TERM_FORMS.find((members) => members[0] in value);
+    return form !== undefined && Object.keys(value).length === form.length && form.every((member) => member in value);
   }
 
   /**
    * Why a value is not a grammar DOM, or null when it is one. `unicode` is
    * the lowercase mapping that spellings are checked against.
    * @param {unknown} dom
-   * @param {{lowercase(text: string): string}} [unicode]
+   * @param {{lowercase(text: string): string, isMark(code: number): boolean}} [unicode]
    * @returns {string | null}
    */
   function domProblem(dom, unicode) {
@@ -1843,7 +1935,8 @@
       const args = /** @type {string[]} */ (directive.args);
       if ((directive.name === "stage" && !(args.length === 1 && DOM_NAME.test(args[0]))) ||
           (directive.name === "include" && args.length !== 1) ||
-          (directive.name === "features" && !(args.length > 0 && args.every((arg) => DOM_NAME.test(arg))))) return "a malformed directive";
+          (directive.name === "features" && !(args.length > 0 && args.every((arg) => DOM_NAME.test(arg)))) ||
+          (directive.name === "elidable" && !args.every((arg) => DOM_NAME.test(arg)))) return "a malformed directive";
     }
     /** @type {{kind: string, value: unknown, depth: number}[]} */
     const pending = [];
@@ -1880,6 +1973,7 @@
         if (new Set(names).size !== names.length) return "a capture name used twice in an alternative";
         if (names.length > 4) return "more than four captures in an alternative";
         if (names.includes("")) return "a capture that wraps a symbol has a name";
+        if (!names.every((name) => CAPTURE_NAME.test(name))) return "a capture name is not all lower case";
         if (alternative.tags !== undefined) pending.push({ kind: "constituent-tags", value: alternative.tags, depth: 0 });
       }
     }
@@ -1915,13 +2009,13 @@
           const problem = spellingProblem(value.spelling, value.expr, unicode);
           if (problem) return problem;
           push("expr", value.expr);
-        } else if (!(typeof value.ref === "string" || typeof value.terminal === "string" || value.empty === true)) {
+        } else if (!(typeof value.ref === "string" || isTag(value.terminal, unicode) || value.empty === true)) {
           return "a malformed expression";
         }
       } else if (kind === "top-capture") {
         const inner = value.expr;
         if (typeof value.capture !== "string" || !isDomObject(inner) ||
-            !(typeof inner.ref === "string" || typeof inner.terminal === "string" || "spelling" in inner)) return "a malformed capture";
+            !(typeof inner.ref === "string" || isTag(inner.terminal, unicode) || "spelling" in inner)) return "a malformed capture";
         // A capture is a compound node; a spelled symbol below it is checked
         // as any expression is.
         if ("spelling" in inner) push("expr", inner);
@@ -1936,6 +2030,8 @@
         const items = /** @type {unknown[]} */ (value.items);
         const known = (/** @type {string} */ key) => key === "capture" || key === "insert" || key === "tags";
         if (!items.every((item) => isDomObject(item) && (typeof item.capture === "string") !== (typeof item.insert === "string") && Object.keys(item).every(known))) return "a malformed emission";
+        // An inserted item is one tag (engine §9).
+        if (!items.every((item) => /** @type {Record<string, unknown>} */ (item).insert === undefined || isTag(/** @type {Record<string, unknown>} */ (item).insert, unicode))) return "a malformed emission";
         const records = /** @type {Record<string, unknown>[]} */ (items);
         const whole = records.filter((item) => item.capture === "");
         if (whole.length && whole.length !== records.length) return "a malformed emission";
@@ -1971,18 +2067,22 @@
           pending.push({ kind: "argument", value: value.initial, depth: next });
         } else {
           if (typeof value.op !== "string" || !DOM_COMPARATORS.has(value.op)) return "a malformed condition";
-          if ((value.op === "∈" || value.op === "∉") && !isDomString(value.left)) return "a malformed condition";
           push("term", value.left);
           push("term", value.right);
         }
       } else {
+        // A term has exactly the members of one form (docs/output.md). So a
+        // node that joins two forms, such as {"tag":…,"string":…}, is refused
+        // before it is read, and no library reads it one way where another
+        // reads it another way.
+        if (!isTermShape(value)) return "a malformed term";
         if ("if" in value) {
           if (Object.keys(value).length !== 2 || !("then" in value)) return "a malformed term";
           push("condition", value.if);
           push("term", value.then);
-        } else if ("union" in value || "intersection" in value) {
-          const items = value.union ?? value.intersection;
-          if (!list(items, 2)) return "a malformed term";
+        } else if ("union" in value || "intersection" in value || "difference" in value) {
+          const items = value.union ?? value.intersection ?? value.difference;
+          if (!list(items, 2, "difference" in value ? 2 : Infinity)) return "a malformed term";
           for (const item of /** @type {unknown[]} */ (items)) push("term", item);
         } else if ("call" in value) {
           // The reader's signatures (engine §9), with a span where one is due.
@@ -1992,18 +2092,19 @@
           let ok;
           if (typeof call !== "string" || !DOM_FUNCTIONS.has(call) || call === "matches" || call === "begins" || call === "initial") ok = false;
           else if (call === "tags") ok = (args.length === 1 && isDomSpan(args[0])) || (args.length === 2 && isDomSpan(args[0]) && isRule(args[1]));
-          else if (call === "lowercase") ok = args.length === 1 && isDomString(args[0]);
+          else if (call === "lowercase") ok = args.length === 1 && !isRule(args[0]) && !isDomSpan(args[0]);
           else ok = args.length === 1 && isDomSpan(args[0]);
           if (!ok || (!argument && DOM_SPANS.has(/** @type {string} */ (call)))) return "a malformed term";
           for (const arg of args) if (!isRule(arg)) pending.push({ kind: "argument", value: arg, depth: next });
-        } else if (!(typeof value.literal === "string" || typeof value.weak === "string" || value.emptySet === true || typeof value.capture === "string")) {
+        } else if (!(typeof value.string === "string" || isTag(value.tag, unicode) || value.emptySet === true || typeof value.capture === "string")) {
           return "a malformed term";
         }
       }
     }
-    // A definition the reader would refuse (engine §9).
-    for (const rule of /** @type {unknown[]} */ (dom.rules)) {
-      const problem = definitionProblem(rule);
+    // A definition the reader would refuse (engine §9), and terms and
+    // conditions whose types do not agree (engine §10).
+    for (const rule of /** @type {any[]} */ (dom.rules)) {
+      const problem = definitionProblem(rule) || ruleTypeProblem(rule);
       if (problem) return problem;
     }
     // The order of a document's items is the order of their positions, so no
@@ -2020,7 +2121,7 @@
   /**
    * Whether a value is a grammar DOM.
    * @param {unknown} dom
-   * @param {{lowercase(text: string): string}} [unicode]
+   * @param {{lowercase(text: string): string, isMark(code: number): boolean}} [unicode]
    * @returns {dom is GrammarDom}
    */
   function isDom(dom, unicode) {
@@ -2048,7 +2149,7 @@
       return node.args.some((argument) => isDomObject(argument) && typeof argument.call === "string" && readsOwnTags(argument));
     }
     if ("matches" in node || "begins" in node || "initial" in node) return false;
-    for (const key of ["union", "intersection", "any", "all"]) {
+    for (const key of ["union", "intersection", "difference", "any", "all"]) {
       const items = node[key];
       if (Array.isArray(items)) return items.some(readsOwnTags);
     }
@@ -2109,6 +2210,10 @@
     if (Array.isArray(node.intersection)) {
       const items = node.intersection.map((item) => simplify(item, has));
       return items.some(isEmptySet) ? DOM_EMPTY : { intersection: items };
+    }
+    if (Array.isArray(node.difference)) {
+      const [left, right] = node.difference.map((item) => simplify(item, has));
+      return isEmptySet(left) ? DOM_EMPTY : isEmptySet(right) ? left : { difference: [left, right] };
     }
     if (typeof node.op === "string") return { op: node.op, left: simplify(node.left, has), right: simplify(node.right, has) };
     if (typeof node.call === "string" && Array.isArray(node.args)) return { call: node.call, args: node.args.map((argument) => simplify(argument, has)) };
@@ -2234,6 +2339,186 @@
       if (next && next.capture !== "" && !alternatives.every((/** @type {Map<string, number>} */ captures) => captures.has(next.capture))) {
         return `%emits of ${rule.name} inserts a tag before $${next.capture}, which an alternative lacks`;
       }
+    }
+    return null;
+  }
+
+  // ---- Types (engine §10) -------------------------------------------------
+
+  /**
+   * A term's type: a string, a set of strings, a tag set, a span, or a set
+   * whose kind nothing has given yet, such as `∅`.
+   * @typedef {"string" | "strings" | "tags" | "span" | "set"} TermType
+   */
+
+  const SET_KINDS = new Set(["strings", "tags", "set"]);
+  const TYPE_NAMES = { string: "a string", strings: "a set of strings", tags: "a tag set", span: "a span", set: "a set" };
+
+  /**
+   * The type of the value a function gives (engine §10).
+   * @param {string} call
+   * @returns {TermType}
+   */
+  function callType(call) {
+    if (call === "phonemes" || call === "text" || call === "lowercase") return "string";
+    if (call === "runs") return "strings";
+    if (call === "tags" || call === "classes") return "tags";
+    return "span";
+  }
+
+  /**
+   * The kind of sets joined by ∪, ∩ or ∖, or why they cannot be joined: each
+   * is a set, and all whose kind is known have one kind.
+   * @param {TermType[]} types
+   * @param {string} operator
+   * @returns {{type: TermType} | {problem: string}}
+   */
+  function joinedType(types, operator) {
+    if (types.includes("span")) return { problem: "a span is not a value: tags($x) is the tag set of $x" };
+    const bad = types.find((type) => !SET_KINDS.has(type));
+    if (bad) return { problem: `${operator} joins sets, not ${TYPE_NAMES[bad]}` };
+    const kinds = new Set(types.filter((type) => type !== "set"));
+    if (kinds.size > 1) return { problem: `${operator} joins two sets of one kind, not a set of strings and a tag set` };
+    return { type: kinds.size ? /** @type {TermType} */ ([...kinds][0]) : "set" };
+  }
+
+  /**
+   * Why a comparison's two sides do not fit its comparator, or null.
+   * @param {string} op
+   * @param {TermType} left
+   * @param {TermType} right
+   * @returns {string | null}
+   */
+  function comparisonProblem(op, left, right) {
+    if (left === "span" || right === "span") return "a span is not a value: tags($x) is the tag set of $x";
+    if (op === "∈" || op === "∉") {
+      if (left !== "string") return `${op} tests a string, not ${TYPE_NAMES[left]}, in a set of strings; ⊆ and ⊈ compare two sets`;
+      if (right !== "strings" && right !== "set") return `${op} tests a string in a set of strings, not in ${TYPE_NAMES[right]}`;
+      return null;
+    }
+    if (op === "⊆" || op === "⊈") {
+      const joined = joinedType([left, right], op);
+      if ("problem" in joined) return joined.problem;
+      return joined.type === "set" ? `the kind of the sets that ${op} compares is not given` : null;
+    }
+    // = and ≠ compare two values of one type.
+    if (left === "string" || right === "string") return left === right ? null : `${op} compares two values of one type, not ${TYPE_NAMES[left]} and ${TYPE_NAMES[right]}`;
+    const joined = joinedType([left, right], op);
+    if ("problem" in joined) return joined.problem;
+    return joined.type === "set" ? `the kind of the sets that ${op} compares is not given` : null;
+  }
+
+  /**
+   * Why a term of type `type` cannot stand where `expected` is needed, or
+   * null. A set of open kind takes the kind it is given.
+   * @param {TermType} type
+   * @param {"string" | "tags"} expected
+   * @returns {string | null}
+   */
+  function expectedProblem(type, expected) {
+    if (type === expected || (type === "set" && expected === "tags")) return null;
+    if (type === "span") return "a span is not a value: tags($x) is the tag set of $x";
+    return `${TYPE_NAMES[expected]} is needed here, not ${TYPE_NAMES[type]}`;
+  }
+
+  /**
+   * The type of a term, or why its parts do not agree (engine §10). The
+   * term's shape must already be checked.
+   * @param {any} term
+   * @returns {{type: TermType} | {problem: string}}
+   */
+  function termType(term) {
+    if (typeof term.string === "string") return { type: "string" };
+    if (typeof term.tag === "string") return { type: "tags" };
+    if (term.emptySet === true) return { type: "set" };
+    if (typeof term.capture === "string") return { type: "span" };
+    for (const [key, operator] of [["union", "∪"], ["intersection", "∩"], ["difference", "∖"]]) {
+      if (!Array.isArray(term[key])) continue;
+      /** @type {TermType[]} */
+      const types = [];
+      for (const item of term[key]) {
+        const found = termType(item);
+        if ("problem" in found) return found;
+        types.push(found.type);
+      }
+      return joinedType(types, operator);
+    }
+    if ("if" in term) {
+      const problem = conditionTypeProblem(term.if);
+      if (problem) return { problem };
+      const then = termType(term.then);
+      if ("problem" in then) return then;
+      const wrong = expectedProblem(then.type, "tags");
+      return wrong ? { problem: wrong } : { type: "tags" };
+    }
+    if (typeof term.call === "string") {
+      for (const argument of term.args) {
+        if ("rule" in argument) continue;
+        const found = termType(argument);
+        if ("problem" in found) return found;
+        if (term.call === "lowercase") {
+          const wrong = expectedProblem(found.type, "string");
+          if (wrong) return { problem: `lowercase takes one string: ${wrong}` };
+        }
+      }
+      return { type: callType(term.call) };
+    }
+    return { problem: "a malformed term" };
+  }
+
+  /**
+   * Why a condition's terms do not agree in type, or null (engine §10).
+   * @param {any} condition
+   * @returns {string | null}
+   */
+  function conditionTypeProblem(condition) {
+    if (Array.isArray(condition.any) || Array.isArray(condition.all)) {
+      for (const item of condition.any ?? condition.all) {
+        const problem = conditionTypeProblem(item);
+        if (problem) return problem;
+      }
+      return null;
+    }
+    if ("not" in condition) return conditionTypeProblem(condition.not);
+    if ("if" in condition) return conditionTypeProblem(condition.if) || conditionTypeProblem(condition.then);
+    if (typeof condition.op === "string") {
+      const left = termType(condition.left);
+      if ("problem" in left) return left.problem;
+      const right = termType(condition.right);
+      if ("problem" in right) return right.problem;
+      return comparisonProblem(condition.op, left.type, right.type);
+    }
+    return null;
+  }
+
+  /**
+   * Why a term that must be a tag set, a constituent's or an item's, is not
+   * one, or null.
+   * @param {any} term
+   * @returns {string | null}
+   */
+  function tagTermProblem(term) {
+    const found = termType(term);
+    if ("problem" in found) return found.problem;
+    return expectedProblem(found.type, "tags");
+  }
+
+  /**
+   * Why a rule's terms and conditions do not agree in type, or null.
+   * @param {any} rule
+   * @returns {string | null}
+   */
+  function ruleTypeProblem(rule) {
+    const tagTerms = [rule.tags, ...rule.alternatives.map((/** @type {any} */ alternative) => alternative.tags),
+      ...(rule.emit ? rule.emit.items.map((/** @type {any} */ item) => item.tags) : [])];
+    for (const term of tagTerms) {
+      if (term === undefined) continue;
+      const problem = tagTermProblem(term);
+      if (problem) return problem;
+    }
+    for (const condition of rule.conditions) {
+      const problem = conditionTypeProblem(condition);
+      if (problem) return problem;
     }
     return null;
   }
@@ -2433,7 +2718,7 @@
    * @returns {string}
    */
   function tagList(tags) {
-    return [...tags.keys()].sort(compareCodePoints).map((tag) => (tags.get(tag) ? tag : `?${tag}`)).join(" ");
+    return [...tags].sort(compareCodePoints).join(" ");
   }
 
   /**
@@ -2469,11 +2754,16 @@
    */
   function formatTerm(term) {
     if ("rule" in term) return term.rule;
-    if ("literal" in term) return /^\/.\/$/u.test(term.literal) ? term.literal : quoted(term.literal);
-    if ("weak" in term) return `?${quoted(term.weak)}`;
+    if ("string" in term) return quoted(term.string);
+    // An identifier tag is a bare name with a capital, or ~name; a phoneme
+    // or character tag is written as it is.
+    if ("tag" in term) return /^[a-z]/.test(term.tag) ? `~${term.tag}` : term.tag;
     if ("emptySet" in term) return "∅";
-    if ("union" in term) return term.union.map(formatTerm).join(" ∪ ");
-    if ("intersection" in term) return term.intersection.map((item) => ("union" in item ? `(${formatTerm(item)})` : formatTerm(item))).join(" ∩ ");
+    /** @type {(item: Term) => string} */
+    const grouped = (item) => ("union" in item || "difference" in item ? `(${formatTerm(item)})` : formatTerm(item));
+    if ("union" in term) return term.union.map((item, index) => (index > 0 && "difference" in item ? grouped(item) : formatTerm(item))).join(" ∪ ");
+    if ("difference" in term) return `${formatTerm(term.difference[0])} ∖ ${grouped(term.difference[1])}`;
+    if ("intersection" in term) return term.intersection.map(grouped).join(" ∩ ");
     if ("call" in term) return `${term.call}(${term.args.map(formatTerm).join(", ")})`;
     if ("if" in term) return `(${formatCondition(term.if)} ⟹ ${formatTerm(term.then)})`;
     return `$${term.capture}`;
@@ -2688,14 +2978,14 @@
   }
 
   /**
-   * Whether a tag term certainly holds a strong phoneme tag, which fixes the
+   * Whether a tag term certainly holds a phoneme tag, which fixes the
    * phonemes of a token it tags (engine §5).
    * @param {Term | undefined} term
    * @returns {boolean}
    */
   function namesPhoneme(term) {
     if (!term) return false;
-    if ("literal" in term) return [...term.literal].length === 3 && term.literal.startsWith("/") && term.literal.endsWith("/");
+    if ("tag" in term) return isPhonemeTag(term.tag);
     if ("union" in term) return term.union.some(namesPhoneme);
     return false;
   }
@@ -3719,11 +4009,8 @@
    */
   function decide(difference, lean) {
     const { left: x, right: y } = difference;
-    if (x.kind === "read" && y.kind === "read") {
-      if (x.weak && !y.weak) return 1;
-      if (!x.weak && y.weak) return -1;
-      return 0;
-    }
+    // Two reads of one token as different terminals are tied (engine §6).
+    if (x.kind === "read" && y.kind === "read") return 0;
     if (x.kind !== y.kind) {
       if (lean === "none") return 0;
       const leftReads = x.kind === "read";
@@ -3734,7 +4021,7 @@
   }
 
   // The total order T (engine §6): at the first visible difference, the
-  // pair's decision by tag strength and lean, and where that is a tie, the
+  // pair's decision by lean, and where that is a tie, the
   // canonical keys; sequences equal in their visible actions are ordered at
   // their first difference among all actions. The chosen derivation is T's
   // minimum.
@@ -3846,8 +4133,7 @@
           let permitted = true;
           if (edge.kind === "seed") produced = [{ seq: EMPTY, alts: [], at: Infinity }];
           else if (edge.kind === "scan") {
-            const token = this.tokens[edge.token];
-            const read = this.readLeaf(edge.token, edge.terminal, token.tags.get(edge.terminal) === false);
+            const read = this.readLeaf(edge.token, edge.terminal);
             produced = dependency(edge.previous).all.map((entry) => extend(entry, read));
           } else {
             const close = this.closeLeaf(edge.child);
@@ -3892,13 +4178,12 @@
      * The one leaf for reading a token as a terminal.
      * @param {number} token
      * @param {string} terminal
-     * @param {boolean} weak
      * @returns {RopeLeaf}
      */
-    readLeaf(token, terminal, weak) {
+    readLeaf(token, terminal) {
       const key = `${token}\u0000${terminal}`;
       let found = this.reads.get(key);
-      if (!found) this.reads.set(key, (found = leaf({ kind: "read", token, terminal, weak })));
+      if (!found) this.reads.set(key, (found = leaf({ kind: "read", token, terminal })));
       return found;
     }
 
@@ -4364,7 +4649,7 @@
 
 
   /**
-   * @import { Derivation, DerivationRule, ElidedNode, EmitItem, ResultNode, Scope, Span, StageReport, TagSet, TermValue } from "./types.js"
+   * @import { Derivation, DerivationRule, ElidedNode, EmitItem, ResultNode, Scope, Span, StageReport, TagSet } from "./types.js"
    * @import { Grammar } from "./grammar.js"
    * @import { UnicodeTable } from "./unicode.js"
    */
@@ -4525,7 +4810,7 @@
           synthetic.push(restored.length);
           // A restored spelled terminator sounds like its spelling, so that it
           // matches its own terminator in the stricter grammar (engine §7).
-          restored.push(new Token(strongTag(node.terminal), [restored.length, restored.length], [position, position], "", node.spelling ?? null, undefined));
+          restored.push(new Token(tagSet([node.terminal]), [restored.length, restored.length], [position, position], "", node.spelling ?? null, undefined));
         }
         if (index < tokens.length) restored.push(tokens[index]);
       }
@@ -4821,9 +5106,7 @@
   function phonemeTag(tags) {
     /** @type {string[]} */
     const found = [];
-    for (const [tag, strong] of tags) {
-      if (strong && tag.length >= 3 && tag[0] === "/" && tag[tag.length - 1] === "/" && [...tag].length === 3) found.push(tag);
-    }
+    for (const tag of tags) if (isPhonemeTag(tag)) found.push(tag);
     if (found.length > 1) {
       throw new GencmuError("grammar", `a token carries two phoneme tags, ${found.sort(compareCodePoints).join(" and ")}`);
     }
@@ -4917,7 +5200,7 @@
   function insertedToken(tag, at, node, context, owner) {
     const tokens = context.tokens;
     const position = at > node.start ? tokens[at - 1].source[1] : sourceOf(context.sources, node.start, node.end)[0];
-    const tags = strongTag(tag);
+    const tags = tagSet([tag]);
     const phoneme = phonemeTag(tags);
     return new Token(tags, [at, at], [position, position], "", phoneme !== null ? phoneme : "", owner);
   }
@@ -4958,7 +5241,7 @@
       /** @type {(item: EmitItem, fallback: TagSet) => TagSet} */
       const valueTags = (item, fallback) => {
         if (!item.tags) return fallback;
-        const tags = asTags(evaluate(context, item.tags, scope));
+        const tags = asSet(evaluate(context, item.tags, scope));
         // A token no terminal can read is a mistake; `%emits ε` is how a
         // grammar emits nothing (engine §11).
         if (tags.size === 0) throw new GencmuError("grammar", `${production.owner} emits a token with no tags`);
@@ -4994,17 +5277,11 @@
     return out;
   }
 
-  /**
-   * @param {TermValue} value
-   * @returns {TagSet}
-   */
-  function asTags(value) {
-    if ("tags" in value) return value.tags;
-    return strongTag(value.string);
-  }
+
 
   // ---- reader.js
   // From the notation's syntax tree to a grammar DOM (engine §9).
+
 
 
 
@@ -5022,8 +5299,9 @@
    * @param {Token[]} tokens
    * @param {(token: Token) => Position} positionOf
    * @param {string} path
-   * @param {{lowercase(text: string): string}} unicode the lowercase mapping
-   *   that spellings are checked against (engine §9, §10)
+   * @param {{lowercase(text: string): string, isMark(code: number): boolean}} unicode
+   *   the lowercase mapping that spellings are checked against (engine §9,
+   *   §10), and the marks that a character tag escapes (engine §1)
    * @returns {GrammarDom}
    */
   function treeToDom(tree, tokens, positionOf, path, unicode) {
@@ -5071,13 +5349,19 @@
       if (ruleOf(item) === "directive") {
         const [directiveToken, ...rest] = parts(item);
         const name = text(directiveToken).slice(1);
-        const operands = rest.filter((child) => ruleOf(child) === "argument-word" || ruleOf(child) === "argument-string");
-        const problem = operandProblem(name, operands.map((child) => (ruleOf(child) === "argument-word" ? "name" : "string")));
+        const operands = rest.filter((child) => ruleOf(child) === "argument-word" || ruleOf(child) === "argument-string" || ruleOf(child) === "argument-tag");
+        const problem = operandProblem(name, operands.map((child) => operandKind(child)));
         if (problem) fail(problem, item);
         directives.push({
           name,
-          // A string operand is decoded, as a string of a rule is.
-          args: operands.map((child) => (ruleOf(child) === "argument-word" ? text(parts(child)[0]) : decode(parts(child)[0]))),
+          // A string operand is decoded, as a string of a rule is, and a tag
+          // literal is its name.
+          args: operands.map((child) => {
+            const token = parts(child)[0];
+            if (ruleOf(child) === "argument-word") return text(token);
+            if (ruleOf(child) === "argument-string") return decode(token);
+            return tagOf(token);
+          }),
           at: at(item),
         });
       } else if (ruleOf(item) === "rule") {
@@ -5116,12 +5400,13 @@
      * @returns {DomAlternative}
      */
     function readAlternative(node) {
-      // A guard's token is its spelling: `@f?` or `@¬f?` for a gate, `@f!`
-      // for a warning (engine §9).
+      // A guard's token is its spelling: `f?` or `¬f?` for a gate, `f!` for
+      // a warning (engine §9).
       const guards = ofRule(node, "guard").map((guard) => {
         const spelled = text(parts(guard)[0]);
+        const negated = spelled.startsWith("¬");
         /** @type {import("./types.js").Guard} */
-        const read = { feature: spelled.slice(spelled.startsWith("@¬") ? 2 : 1, -1), kind: spelled.endsWith("!") ? "warning" : "gate", negated: spelled.startsWith("@¬") };
+        const read = { feature: spelled.slice(negated ? 1 : 0, -1), kind: spelled.endsWith("!") ? "warning" : "gate", negated };
         return read;
       });
       /** @type {DomAlternative} */
@@ -5175,11 +5460,10 @@
     function readPrimary(node, top = false) {
       switch (ruleOf(node)) {
         case "reference": return { ref: text(parts(node)[0]) };
-        case "string": return { terminal: decode(parts(node)[0]) };
-        case "phoneme": return { terminal: text(parts(node)[0]) };
+        case "tag": case "character": case "phoneme": return { terminal: tagOf(parts(node)[0]) };
         case "spelled": {
-          // A reference, a string or a phoneme tag and its spelling, which
-          // the syntax grammar gives nothing else (engine §9).
+          // A reference or a terminal and its spelling, which the syntax
+          // grammar gives nothing else (engine §9).
           const [symbol, spellingToken] = parts(node);
           const expr = readPrimary(symbol);
           const spelling = [...text(spellingToken)].slice(1, -1).join("");
@@ -5191,9 +5475,10 @@
           if (!top) fail("a capture stands at the top level of an alternative, not inside [ ], ( ), ..., & or a choice", node);
           const [captureToken, , inner] = parts(node);
           if (text(captureToken) === "$") fail("$ is the whole constituent and wraps nothing", node);
+          if (!CAPTURE_NAME.test(text(captureToken).slice(1))) fail("a capture's name is all lower case", node);
           const wrapped = parts(inner)[0];
           const kind = ruleOf(wrapped);
-          if (kind !== "reference" && kind !== "string" && kind !== "phoneme" && kind !== "spelled") fail("a capture wraps one symbol", node);
+          if (kind !== "reference" && kind !== "tag" && kind !== "character" && kind !== "phoneme" && kind !== "spelled") fail("a capture wraps one symbol", node);
           const expr = readPrimary(wrapped);
           return { capture: text(captureToken).slice(1), expr };
         }
@@ -5217,13 +5502,14 @@
         /** @type {EmitItem} */
         let item = {};
         if (kind === "capture") item = { capture: text(target).slice(1) };
-        else if (kind === "string") item = { insert: decode(target) };
-        else if (kind === "phoneme") item = { insert: text(target) };
+        else if (kind === "tag" || kind === "character" || kind === "phoneme") item = { insert: tagOf(target) };
+        else if (kind === "identifier" && isCapital(text(target))) item = { insert: text(target) };
+        else if (kind === "identifier") fail(`${text(target)} names a rule; an inserted tag is a tag literal, such as ~${text(target)}`, itemNode);
         else fail("expected a capture or a tag after %emits", itemNode);
         const tags = one(itemNode, "emit-tags");
         if (tags && item.insert !== undefined) fail("an inserted tag takes no tags of its own", itemNode);
         if (tags) {
-          item.tags = readTerm(only(tags, "term"));
+          item.tags = readTagTerm(only(tags, "term"));
           if ("emptySet" in item.tags) fail("<∅> emits a token no terminal can read; %emits ε emits nothing", itemNode);
         }
         return item;
@@ -5243,8 +5529,22 @@
      * @returns {Term}
      */
     function readConstituentTags(node) {
-      const term = readTerm(only(node, "term"));
-      if (readsOwnTags(term)) fail("a constituent's tags cannot be made of its own tags, $, tags($) or classes($)", node);
+      const term = readTagTerm(only(node, "term"));
+      if (readsOwnTags(term)) fail("a constituent's tags cannot be made of its own tags, tags($) or classes($)", node);
+      return term;
+    }
+
+    /**
+     * A whole term that must be a tag set: a constituent's or an item's tags
+     * (engine §10). The error stands at the term.
+     * @param {ResultNode} node
+     * @returns {Term}
+     */
+    function readTagTerm(node) {
+      const term = readTerm(node);
+      const found = termType(term);
+      const problem = "problem" in found ? found.problem : expectedProblem(found.type, "tags");
+      if (problem) fail(problem, node);
       return term;
     }
 
@@ -5291,8 +5591,12 @@
           const [left, comparator, right] = parts(inner);
           const op = /** @type {Comparator} */ (text(parts(comparator)[0]));
           const condition = { op, left: readTerm(left), right: readTerm(right) };
-          // Membership tests a string; a tag set on the left is ⊆'s (engine §9).
-          if ((op === "∈" || op === "∉") && !isStringTerm(condition.left)) fail(`the left side of ${op} is a string`, inner);
+          // The two sides fit the comparator (engine §10).
+          const leftType = termType(condition.left);
+          const rightType = termType(condition.right);
+          const problem = "problem" in leftType ? leftType.problem : "problem" in rightType ? rightType.problem
+            : comparisonProblem(op, leftType.type, rightType.type);
+          if (problem) fail(problem, inner);
           return condition;
         }
         case "negation":
@@ -5324,17 +5628,60 @@
         return readTerm(inner, argument);
       }
       if (ruleOf(node) === "guarded-term") {
-        return { if: readAnyOf(only(node, "any-of")), then: readTerm(only(node, "term")) };
+        const condition = readAnyOf(only(node, "any-of"));
+        const conditionProblem = conditionTypeProblem(condition);
+        if (conditionProblem) fail(conditionProblem, node);
+        /** @type {Term} */
+        const guarded = { if: condition, then: readTerm(only(node, "term")) };
+        const found = termType(guarded);
+        if ("problem" in found) fail(found.problem, node);
+        return guarded;
       }
       if (ruleOf(node) === "union") {
+        // Parts joined by ∪ and ∖ group from the left: a run joined by ∪ is
+        // one union, and each ∖ takes what stands before it (engine §9).
         const found = ofRule(node, "intersection");
-        const items = found.map((item) => readTerm(item, argument && found.length === 1));
-        return items.length === 1 ? items[0] : { union: items };
+        if (found.length === 1) return readTerm(found[0], argument);
+        /** @type {string[]} */
+        const operators = parts(node).flatMap((child) => {
+          const written = tokenText(child);
+          return written === "∪" || written === "∖" ? [written] : [];
+        });
+        // A leading ∪ is a separator, not an operator.
+        while (operators.length >= found.length) operators.shift();
+        const items = found.map((item) => readTerm(item));
+        const joined = joinedType(items.map((item) => {
+          const type = termType(item);
+          return "problem" in type ? fail(type.problem, node) : type.type;
+        }), operators.includes("∖") ? "∖" : "∪");
+        if ("problem" in joined) fail(joined.problem, node);
+        /** @type {Term} */
+        let result = items[0];
+        let open = false;
+        operators.forEach((operator, index) => {
+          const next = items[index + 1];
+          if (operator === "∖") {
+            result = { difference: [result, next] };
+            open = false;
+          } else if (open && "union" in result) {
+            result.union.push(next);
+          } else {
+            result = { union: [result, next] };
+            open = true;
+          }
+        });
+        return result;
       }
       if (ruleOf(node) === "intersection") {
         const found = ofRule(node, "term-atom");
         const items = found.map((item) => readTerm(item, argument && found.length === 1));
-        return items.length === 1 ? items[0] : { intersection: items };
+        if (items.length === 1) return items[0];
+        const joined = joinedType(items.map((item) => {
+          const type = termType(item);
+          return "problem" in type ? fail(type.problem, node) : type.type;
+        }), "∩");
+        if ("problem" in joined) fail(joined.problem, node);
+        return { intersection: items };
       }
       if (ruleOf(node) === "term-atom") {
         const inner = parts(node).find((child) => child.kind === "rule");
@@ -5345,15 +5692,26 @@
           if (call.call === "matches" || call.call === "begins" || call.call === "initial") fail(`${call.call} is a condition, not a term`, inner);
           return call;
         }
-        return readTerm(inner);
+        return readTerm(inner, argument);
       }
       switch (ruleOf(node)) {
-        case "string": return { literal: decode(parts(node)[0]) };
-        case "phoneme": return { literal: text(parts(node)[0]) };
-        case "weak": return { weak: decode(parts(node)[1]) };
+        case "string": return { string: decode(parts(node)[0]) };
+        case "tag": case "character": case "phoneme": return { tag: tagOf(parts(node)[0]) };
+        case "name": {
+          // A bare name is a tag literal if it begins with a capital, and
+          // otherwise a rule, which only a function's argument names.
+          const name = text(parts(node)[0]);
+          if (isCapital(name)) return { tag: name };
+          if (argument) return /** @type {Term} */ (/** @type {unknown} */ ({ rule: name }));
+          return fail(`${name} names a rule, which is not a value; ~${name} is the tag`, node);
+        }
         case "empty-set": return { emptySet: true };
         case "call": return readCall(node);
-        case "capture-reference": return { capture: text(parts(node)[0]).slice(1) };
+        case "capture-reference": {
+          const capture = text(parts(node)[0]).slice(1);
+          if (!argument) fail(`a span is not a value: tags($${capture}) is the tag set of $${capture}`, node);
+          return { capture };
+        }
         default: return fail(`unexpected ${ruleOf(node)}`, node);
       }
     }
@@ -5366,23 +5724,25 @@
       const name = text(parts(node)[0]);
       if (!FUNCTIONS.has(name)) fail(`unknown function ${name}`, node);
       /** @type {Argument[]} */
-      const args = ofRule(node, "argument").map((argument) => {
-        const inner = parts(argument)[0];
-        if (inner.kind === "token") return { rule: text(inner) };
-        return readTerm(inner, true);
-      });
+      const args = ofRule(node, "argument").map((argument) => readTerm(parts(argument)[0], true));
       /** @type {(argument: Argument | undefined) => boolean} */
       const isSpan = (argument) => argument !== undefined && ("capture" in argument || ("call" in argument && SPANS.has(argument.call)));
       /** @type {(argument: Argument | undefined) => boolean} */
       const isRule = (argument) => argument !== undefined && "rule" in argument;
       /** @type {(argument: Argument | undefined) => boolean} */
-      const isString = (argument) => argument !== undefined && isStringTerm(argument);
+      const isString = (argument) => {
+        if (argument === undefined || "rule" in argument) return false;
+        const found = termType(argument);
+        return "type" in found && found.type === "string";
+      };
       let ok;
       if (name === "tags") ok = (args.length === 1 && isSpan(args[0])) || (args.length === 2 && isSpan(args[0]) && isRule(args[1]));
       else if (name === "matches" || name === "begins") ok = args.length === 2 && isSpan(args[0]) && isRule(args[1]);
       else if (name === "lowercase") ok = args.length === 1 && isString(args[0]);
       else ok = args.length === 1 && isSpan(args[0]);
       if (!ok) fail(`${name} takes ${SIGNATURES[name]}`, node);
+      // A rule stands only as the second argument.
+      if (args.some((argument, index) => "rule" in argument && index !== 1)) fail(`${name} takes ${SIGNATURES[name]}`, node);
       return { call: name, args };
     }
 
@@ -5391,7 +5751,10 @@
      * @returns {string}
      */
     function decode(tokenNode) {
-      const spelled = [...text(tokenNode)].slice(1, -1);
+      const written = text(tokenNode);
+      // A string escapes its double quote, and a character tag its quote.
+      const quote = written[0];
+      const spelled = [...written].slice(1, -1);
       let result = "";
       for (let index = 0; index < spelled.length; index++) {
         if (spelled[index] !== "\\") {
@@ -5399,7 +5762,7 @@
           continue;
         }
         const next = spelled[++index];
-        if (next === "\\" || next === '"') result += next;
+        if (next === "\\" || next === quote) result += next;
         else if (next === "u" && spelled[index + 1] === "{") {
           let end = index + 2;
           let hex = "";
@@ -5417,38 +5780,73 @@
       }
       return result;
     }
+
+    /**
+     * The tag of a tag literal `~name`, a character tag or a phoneme tag
+     * token: a character tag in its canonical spelling (engine §1, §9).
+     * @param {ResultNode} tokenNode
+     * @returns {string}
+     */
+    function tagOf(tokenNode) {
+      const written = text(tokenNode);
+      if (written.startsWith("~")) return written.slice(1);
+      if (written.startsWith("/")) return written;
+      const decoded = [...decode(tokenNode)];
+      if (decoded.length !== 1) fail("a character tag holds exactly one character", tokenNode);
+      return characterTag(/** @type {number} */ (decoded[0].codePointAt(0)), unicode);
+    }
+
+    /**
+     * The kind of a directive's operand (engine §9).
+     * @param {ResultNode} node
+     * @returns {OperandKind}
+     */
+    function operandKind(node) {
+      const token = parts(node)[0];
+      if (ruleOf(node) === "argument-string") return "string";
+      if (ruleOf(node) === "argument-word") return isCapital(text(token)) ? "class" : "name";
+      const written = text(token);
+      return written.startsWith("~") ? "tag" : written.startsWith("/") ? "phoneme" : "character";
+    }
   }
+
+  /**
+   * Whether a name begins with a capital, and so is a terminal and a tag
+   * literal (engine §2).
+   * @param {string} name
+   * @returns {boolean}
+   */
+  function isCapital(name) {
+    const first = name.codePointAt(0);
+    return first !== undefined && first >= 0x41 && first <= 0x5a;
+  }
+
+  /**
+   * A directive's operand: a bare name, lower case or with a capital, a
+   * string, a tag literal `~name`, a phoneme tag or a character tag.
+   * @typedef {"name" | "class" | "string" | "tag" | "phoneme" | "character"} OperandKind
+   */
 
   const FUNCTIONS = new Set(["phonemes", "text", "lowercase", "tags", "classes", "runs", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]);
 
   /**
-   * What is wrong with a directive's operands, each a name or a string, or
-   * null (engine §9).
+   * What is wrong with a directive's operands, or null (engine §9).
    * @param {string} name
-   * @param {("name" | "string")[]} kinds
+   * @param {OperandKind[]} kinds
    * @returns {string | null}
    */
   function operandProblem(name, kinds) {
-    const names = kinds.every((kind) => kind === "name");
+    const names = kinds.every((kind) => kind === "name" || kind === "class");
     if (name === "stage") return kinds.length === 1 && names ? null : "%stage takes one name";
     if (name === "include") return kinds.length === 1 && kinds[0] === "string" ? null : "%include takes one string";
     if (name === "features") return kinds.length > 0 && names ? null : "%features takes one or more names";
-    return names ? null : `%${name} takes names, not strings`;
+    // %elidable takes identifier tags: a name with a capital, or ~name.
+    if (name === "elidable") return kinds.every((kind) => kind === "class" || kind === "tag") ? null : "%elidable takes identifier tags: names with a capital, or ~name";
+    return names ? null : `%${name} takes names only`;
   }
 
-  // The functions whose value is a span, and those whose value is a string.
+  // The functions whose value is a span.
   const SPANS = new Set(["head", "tail", "last", "from", "after"]);
-  const STRINGS = new Set(["phonemes", "text", "lowercase"]);
-
-  /**
-   * Whether a term is a string: a literal, or phonemes, text or lowercase of
-   * something (engine §9).
-   * @param {Argument} term
-   * @returns {boolean}
-   */
-  function isStringTerm(term) {
-    return "literal" in term || ("call" in term && STRINGS.has(term.call));
-  }
 
   /** @type {Record<string, string>} */
   const SIGNATURES = {
@@ -5464,8 +5862,8 @@
     "conjunction", "sequence", "element", "primary", "reference", "string", "phoneme", "spelled", "capture", "group", "optional",
     "choice", "empty", "tags-clause", "conditions-clause", "emits-clause", "verbatim-clause", "emit-item", "emit-target", "emit-tags",
     "implication", "any-of", "all-of", "condition", "comparison", "comparator", "negation", "presence",
-    "term", "guarded-term", "union", "intersection", "term-atom", "weak", "empty-set", "call", "argument",
-    "capture-reference",
+    "term", "guarded-term", "union", "intersection", "term-atom", "tag", "character", "name", "empty-set", "call", "argument",
+    "capture-reference", "argument-tag",
   ]);
 
   /**
@@ -5749,8 +6147,9 @@
   }
 
   // ---- unicode.js
-  // The character data of grammars/unicode.txt: the class of a character and
-  // the simple lowercase mapping, the same in every gencmu library.
+  // The character data of grammars/unicode.txt: the class of a character,
+  // whether it is a mark, and the simple lowercase mapping, the same in every
+  // gencmu library.
 
   class UnicodeTable {
     /** @param {string} text the contents of unicode.txt */
@@ -5787,6 +6186,15 @@
       if (inRanges(this.marks, code)) return "mark";
       if (inRanges(this.alphas, code)) return "alpha";
       return "other";
+    }
+
+    /**
+     * Whether a code point is a nonspacing mark: a `mark` range of the file.
+     * @param {number} code
+     * @returns {boolean}
+     */
+    isMark(code) {
+      return inRanges(this.marks, code);
     }
 
     /**
@@ -6243,9 +6651,9 @@
   // ---- Tokens and results (docs/output.md) --------------------------------
 
   /**
-   * A tag set: each tag with its strength, `true` for strong and `false` for
-   * weak.
-   * @typedef {Map<string, boolean>} TagSet
+   * A tag set: tags in their canonical spelling (engine §1), which have no
+   * strength.
+   * @typedef {Set<string>} TagSet
    */
 
   /**
@@ -6349,7 +6757,6 @@
    * @property {"read"} kind
    * @property {number} token
    * @property {string} terminal
-   * @property {boolean} weak
    */
 
   /**
@@ -6503,7 +6910,8 @@
 
   /**
    * One item of an emission clause: a capture, `""` for `$`, the whole
-   * constituent, with the tags to give it; or an inserted token.
+   * constituent, with the tags to give it; or an inserted token, whose one
+   * tag `insert` is.
    * @typedef {object} EmitItem
    * @property {string} [capture]
    * @property {string} [insert]
@@ -6511,7 +6919,7 @@
    */
 
   /**
-   * @typedef {"=" | "≠" | "∈" | "∉" | "⊆"} Comparator
+   * @typedef {"=" | "≠" | "∈" | "∉" | "⊆" | "⊈"} Comparator
    */
 
   /**
@@ -6522,9 +6930,11 @@
    */
 
   /**
-   * A term of a condition or a tags clause.
-   * @typedef {{literal: string} | {weak: string} | {emptySet: true} | {union: Term[]} | {if: Condition, then: Term}
-   *   | {intersection: Term[]} | {call: string, args: Argument[]} | {capture: string}} Term
+   * A term of a condition or a tags clause: a string, a tag literal, the
+   * empty set, a set expression, a guarded term, a call, or a span, which
+   * only a call's argument can be (engine §10).
+   * @typedef {{string: string} | {tag: string} | {emptySet: true} | {union: Term[]} | {if: Condition, then: Term}
+   *   | {intersection: Term[]} | {difference: [Term, Term]} | {call: string, args: Argument[]} | {capture: string}} Term
    */
 
   /**
@@ -6614,8 +7024,9 @@
    */
 
   /**
-   * A value a term evaluates to.
-   * @typedef {{string: string} | {tags: TagSet}} TermValue
+   * A value a term evaluates to: a string, or a set, of strings or of tags,
+   * whose kind the reader has checked (engine §10).
+   * @typedef {{string: string} | {set: Set<string>}} TermValue
    */
 
   /**

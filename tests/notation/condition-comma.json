@@ -1,15 +1,15 @@
 {
   "description": "The conditions of %conditions are separated by commas, each one condition (engine §9).",
-  "document": "```jbogenbau\n%rule a $x(A) %conditions \"p\" ∈ tags($x), \"q\" ∈ tags($x)\n```\n",
+  "document": "```jbogenbau\n%rule a $x(A) %conditions ~p ⊆ tags($x), ~q ⊆ tags($x)\n```\n",
   "expect": {
     "dom": {
       "rules": [
         {
           "conditions": [
             {
-              "op": "∈",
+              "op": "⊆",
               "left": {
-                "literal": "p"
+                "tag": "p"
               },
               "right": {
                 "call": "tags",
@@ -21,9 +21,9 @@
               }
             },
             {
-              "op": "∈",
+              "op": "⊆",
               "left": {
-                "literal": "q"
+                "tag": "q"
               },
               "right": {
                 "call": "tags",

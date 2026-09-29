@@ -11,7 +11,7 @@ from ._clauses import WHOLE
 from ._errors import _GrammarFault
 from ._grammar import Lowered, Production, written_symbol
 from ._model import Range, Tags, Token
-from ._tags import PAUSE, TagTable, intersection, union
+from ._tags import EMPTY, PAUSE, TagTable, difference, intersection, is_class, union
 from ._trampoline import Walk, run
 from ._unicode import UnicodeTable
 
@@ -193,7 +193,7 @@ class StageContext:
         forest = self.parse_alone(rule, start, end)
         # The answer reads the items: every completed item of the rule over
         # the span, whether or not its derivations are all cyclic.
-        tags: Tags = {}
+        tags: Tags = EMPTY
         for root in forest.roots:
             tags = union(tags, self.tagtab.get(forest.tag[root]))
         answer = NestedAnswer(bool(forest.roots), tags)
@@ -239,11 +239,12 @@ class StageContext:
             self.running.discard(running)
 
 
-def _as_tags(value: Any) -> Tags:
-    """A value where a tag set is needed (engine §10): a string is the set of
-    that one strong tag."""
-    if isinstance(value, str):
-        return {value: True}
+def _as_set(value: Any) -> Tags:
+    """A value where a set is needed (engine §10). The reader has made sure
+    that the types agree, so a set's kind needs no mark here, and no value
+    turns into another."""
+    if not isinstance(value, (frozenset, set)):
+        raise _GrammarFault("a set is needed here")
     return value
 
 
@@ -308,7 +309,7 @@ class Evaluator:
         start, end, whole = span
         if whole is not None:
             return self.context.tagtab.get(whole)
-        result: Tags = {}
+        result: Tags = EMPTY
         for index in range(start, end):
             result = union(result, self.context.tokens[index].tags)
         return result
@@ -317,29 +318,34 @@ class Evaluator:
         return "".join(token.phonemes or "" for token in self.context.tokens[start:end])
 
     def _value(self, dom: Any, bound: dict[str, tuple[int, int, int]]) -> Walk:
-        if "literal" in dom:
-            return dom["literal"]
-        if "weak" in dom:
-            return {dom["weak"]: False}
+        """A term's value (engine §10): a string, or a set, of strings or of
+        tags."""
+        if "string" in dom:
+            return dom["string"]
+        if "tag" in dom:
+            return frozenset((dom["tag"],))
         if "emptySet" in dom:
-            return {}
+            return EMPTY
         if "if" in dom:
             # A guarded term: its term is evaluated only where its condition
             # holds (engine §10).
             if (yield self._condition(dom["if"], bound)):
-                return _as_tags((yield self._value(dom["then"], bound)))
-            return {}
+                return _as_set((yield self._value(dom["then"], bound)))
+            return EMPTY
         if "union" in dom:
-            result: Tags = {}
+            result: frozenset[str] = EMPTY
             for item in dom["union"]:
-                result = union(result, _as_tags((yield self._value(item, bound))))
+                result = union(result, _as_set((yield self._value(item, bound))))
             return result
         if "intersection" in dom:
             parts = dom["intersection"]
-            result = _as_tags((yield self._value(parts[0], bound)))
+            result = _as_set((yield self._value(parts[0], bound)))
             for item in parts[1:]:
-                result = intersection(result, _as_tags((yield self._value(item, bound))))
+                result = intersection(result, _as_set((yield self._value(item, bound))))
             return result
+        if "difference" in dom:
+            left = _as_set((yield self._value(dom["difference"][0], bound)))
+            return difference(left, _as_set((yield self._value(dom["difference"][1], bound))))
         name = dom.get("call")
         if name is not None:
             args = dom.get("args", [])
@@ -350,30 +356,27 @@ class Evaluator:
                 return self.context.unicode.lowercase(text)
             if name == "tags" and len(args) == 2:
                 start, end, _ = yield self._span(args[0], bound)
-                return dict(self.context.nested(args[1]["rule"], start, end).tags)
+                return self.context.nested(args[1]["rule"], start, end).tags
             span = yield self._span(args[0], bound)
             if name == "phonemes":
                 return self.phonemes(span[0], span[1])
             if name == "text":
                 return self.context.span_text(span[0], span[1])
             if name == "runs":
-                # The runs between pauses, each a strong tag (engine §5).
-                return {run: True for run in self.phonemes(span[0], span[1]).split(PAUSE) if run}
+                # The set of the strings between pauses (engine §5).
+                return frozenset(run for run in self.phonemes(span[0], span[1]).split(PAUSE) if run)
             if name == "tags":
-                return dict(self.span_tags(span))
+                return self.span_tags(span)
             if name == "classes":
-                return {tag: strong for tag, strong in self.span_tags(span).items() if "A" <= tag[:1] <= "Z"}
+                return frozenset(tag for tag in self.span_tags(span) if is_class(tag))
             raise _GrammarFault(f"an unknown function {name}()")
-        if "capture" in dom:
-            # A bare capture is its tags (engine §10).
-            return dict(self.span_tags((yield self._span(dom, bound))))
         raise _GrammarFault("a span is used where a value is needed")
 
     def value(self, dom: Any, bound: dict[str, tuple[int, int, int]]) -> Any:
         return run(self._value(dom, bound))
 
     def tags(self, dom: Any, bound: dict[str, tuple[int, int, int]]) -> Tags:
-        return _as_tags(self.value(dom, bound))
+        return _as_set(self.value(dom, bound))
 
     def condition(self, dom: Any, bound: dict[str, tuple[int, int, int]]) -> bool:
         return bool(run(self._condition(dom, bound)))
@@ -384,18 +387,17 @@ class Evaluator:
             left = yield self._value(dom["left"], bound)
             right = yield self._value(dom["right"], bound)
             if op in ("=", "≠"):
-                if isinstance(left, str) and isinstance(right, str):
-                    equal = left == right
-                else:
-                    equal = _as_tags(left).keys() == _as_tags(right).keys()
+                # Two strings, or two sets of one kind (engine §10).
+                equal = left == right
                 return equal if op == "=" else not equal
             if op in ("∈", "∉"):
                 if not isinstance(left, str):
                     raise _GrammarFault(f"the left side of {op} is a string")
-                inside = left in right if isinstance(right, dict) else left == right
+                inside = left in _as_set(right)
                 return inside if op == "∈" else not inside
-            if op == "⊆":
-                return _as_tags(left).keys() <= _as_tags(right).keys()
+            if op in ("⊆", "⊈"):
+                inside = _as_set(left) <= _as_set(right)
+                return inside if op == "⊆" else not inside
             raise _GrammarFault(f"an unknown comparison {op}")
         if "matches" in dom:
             start, end, _ = yield self._span(dom["matches"], bound)

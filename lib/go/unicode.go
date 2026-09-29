@@ -8,7 +8,8 @@ import (
 )
 
 // unicodeTable is grammars/unicode.txt: the mark and alpha ranges that give
-// a character its class (engine §1), and the simple lowercase mappings that
+// a character its class and say which characters a character tag escapes
+// (engine §1), and the simple lowercase mappings that
 // lowercase() applies (engine §10). Every library reads this table rather
 // than its platform's Unicode data, so that all of them agree.
 type unicodeTable struct {
@@ -63,7 +64,11 @@ func inRanges(ranges [][2]rune, c rune) bool {
 	return i < len(ranges) && ranges[i][0] <= c
 }
 
-// class is the weak class tag of a character token (engine §1).
+// isMark says whether a code point is a nonspacing mark: a mark range of
+// the table, which a character tag's canonical spelling escapes (engine §1).
+func (t *unicodeTable) isMark(c rune) bool { return inRanges(t.marks, c) }
+
+// class is the class tag of a character token (engine §1).
 func (t *unicodeTable) class(c rune) string {
 	switch {
 	case c >= 0x09 && c <= 0x0D, c == 0x20, c == 0x85, c == 0xA0, c == 0x1680,

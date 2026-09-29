@@ -1,10 +1,10 @@
 {
-  "description": "A guard needs its kind: @f followed by neither ? nor ! is not a guard, and reading stops after the name (engine §9).",
-  "document": "```jbogenbau\n%rule a @f A\n```\n",
+  "description": "A guard needs its kind: a name followed by neither ? nor ! is a name, so the ¬ before it is the negation symbol, which no body holds; the error is at the ¬ (engine §9).",
+  "document": "```jbogenbau\n%rule a ¬f A\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 11
+      "column": 9
     }
   }
 }

@@ -2,8 +2,8 @@
   "description": "A verbatim token over an empty span has an empty source at the end of the input token before it, and empty text (engine §11).",
   "documents": {
     "p.md": "## s\n\n```jbogenbau\n%stage letters\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage bodies\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
-    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [part] ...\n%rule part letter | comma\n%rule letter \"a\" | \"b\"\n%emits $ <\"L\">\n%rule comma \",\"\n```\n",
-    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $a(L) $e(nothing) $b(L)\n%emits $a <\"A\">, $e <\"E\">, $b <\"B\">\n%rule nothing ε\n%verbatim\n```\n"
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [part] ...\n%rule part letter | comma\n%rule letter 'a' | 'b'\n%emits $ <L>\n%rule comma ','\n```\n",
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $a(L) $e(nothing) $b(L)\n%emits $a <A>, $e <E>, $b <B>\n%rule nothing ε\n%verbatim\n```\n"
   },
   "pipeline": "p.md",
   "input": "a,b",

@@ -27,10 +27,10 @@ The stage is greedy: at the first difference between two parses, it takes the on
   [free ...]
 
 %rule any-word
-  "word"
+  ~word
 
 %rule anything
-  "foreign-text"
+  ~foreign-text
 ```
 
 ## The text and its paragraphs
@@ -705,10 +705,10 @@ A free modifier is a `sei` clause over a statement, a vocative, a mekso with `ma
   [free-not-number ...]
 
 %rule lohai-word
-  $w("word")
+  $w(~word)
 %conditions
-  "LOhAI" ∉ tags($w),
-  "LEhAI" ∉ tags($w)
+  LOhAI ⊈ tags($w),
+  LEhAI ⊈ tags($w)
 
 %rule free-not-number
   $f(free)

@@ -43,8 +43,10 @@ const phoneme = (letter) => {
 const spelling = (word) => [...word].map(phoneme).join(" ");
 const classes = (set) => {
   const all = [...set].sort();
-  if (all.some((name) => INDICATORS.has(name))) all.push("indicator");
-  return all.map((name) => `"${name}"`).join(" ∪ ");
+  // A class is a bare name, and the mark indicator a tag literal.
+  const tags = all.slice();
+  if (all.some((name) => INDICATORS.has(name))) tags.push("~indicator");
+  return tags.join(" ∪ ");
 };
 
 const groups = new Map();

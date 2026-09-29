@@ -24,14 +24,13 @@ INF = 1 << 60
 class Act:
     """An action: a read of a token as a terminal, or a close of an item."""
 
-    __slots__ = ("read", "token", "terminal", "weak", "item", "production", "start", "end", "visible", "eq", "canon")
+    __slots__ = ("read", "token", "terminal", "item", "production", "start", "end", "visible", "eq", "canon")
 
     def __init__(
         self,
         read: bool,
         token: int = -1,
         terminal: str = "",
-        weak: bool = False,
         item: int = -1,
         production: int = -1,
         start: int = 0,
@@ -41,7 +40,6 @@ class Act:
         self.read = read
         self.token = token
         self.terminal = terminal
-        self.weak = weak
         self.item = item
         self.production = production
         self.start = start
@@ -163,11 +161,11 @@ def first_difference(a: Rope | None, b: Rope | None, visible: bool) -> tuple[int
 def decide(x: Act, y: Act, lean: str) -> int:
     """Rules 1-3 of engine §6 at a visible difference: -1 when x wins, 1 when
     y wins, 0 when they are tied. ``lean`` is greedy, lazy, or none for
-    elision-only's check, which uses rule 1 alone."""
+    elision-only's check, under which any two derivations that differ are
+    tied (engine §7). Two reads of one token as different terminals are
+    tied (engine §6)."""
     if x.read and y.read:
-        if x.weak == y.weak:
-            return 0
-        return 1 if x.weak else -1
+        return 0
     if x.read != y.read:
         if lean == "none":
             return 0
@@ -219,9 +217,8 @@ def compare(a: Rope | None, b: Rope | None, lean: str) -> Comparison:
     return Comparison(True, canonical(x, y), index, False, x, y)
 
 
-Alt = tuple[Optional[Rope], int]
-"""A tied derivation, and the class of its action where it diverges: in
-elision-only's ranking, 1 for a close and 0 for a read; otherwise 0."""
+Alt = Optional[Rope]
+"""A tied derivation."""
 
 
 class Entry:
@@ -353,8 +350,7 @@ class Ranker:
     def read_leaf(self, token: int, terminal: str) -> Rope:
         found = self.read_leaves.get((token, terminal))
         if found is None:
-            weak = self.forest.tokens[token].tags.get(terminal) is False
-            found = leaf(Act(True, token=token, terminal=terminal, weak=weak))
+            found = leaf(Act(True, token=token, terminal=terminal))
             self.read_leaves[(token, terminal)] = found
         return found
 
@@ -464,47 +460,44 @@ class Ranker:
 
     def extend(self, entry: Entry, rope: Rope) -> Entry:
         result = Entry(concat(entry.seq, rope), [], INF)
-        for alt, kind in entry.alts:
-            self.offer(result, concat(alt, rope), entry.at, kind)
+        for alt in entry.alts:
+            self.offer(result, concat(alt, rope), entry.at)
         return result
 
     def combine(self, before: Entry, after: Entry) -> Entry:
         result = Entry(concat(before.seq, after.seq), [], INF)
-        for alt, kind in before.alts:
-            self.offer(result, concat(alt, after.seq), before.at, kind)
+        for alt in before.alts:
+            self.offer(result, concat(alt, after.seq), before.at)
         if after.alts:
             at = INF if after.at >= INF else vis(before.seq) + after.at
-            for alt, kind in after.alts:
-                self.offer(result, concat(before.seq, alt), at, kind)
+            for alt in after.alts:
+                self.offer(result, concat(before.seq, alt), at)
         return result
 
-    def kind(self, act: Act | None) -> int:
-        return 1 if self.lean == "none" and act is not None and not act.read else 0
-
-    def offer(self, entry: Entry, alt: Rope | None, at: int, kind: int = 0) -> None:
+    def offer(self, entry: Entry, alt: Rope | None, at: int) -> None:
         """Add a tied derivation to an entry's, keeping the earliest-diverging,
-        and of those the T-least of any two of one kind whose order is
+        and of those the T-least of any two whose order is
         settled."""
         if not entry.alts or at < entry.at:
-            entry.alts = [(alt, kind)]
+            entry.alts = [alt]
             entry.at = at
             return
         if at > entry.at:
             return
         kept: list[Alt] = []
         pending = True
-        for other, other_kind in entry.alts:
-            if not pending or other_kind != kind:
-                kept.append((other, other_kind))
+        for other in entry.alts:
+            if not pending:
+                kept.append(other)
                 continue
             comparison = compare(other, alt, self.lean)
             if not comparison.settled:
-                kept.append((other, other_kind))
+                kept.append(other)
             elif comparison.order <= 0:
-                kept.append((other, other_kind))
+                kept.append(other)
                 pending = False
         if pending:
-            kept.append((alt, kind))
+            kept.append(alt)
         entry.alts = kept
 
     def keep(self, kept: list[Entry], new: Entry) -> None:
@@ -518,40 +511,30 @@ class Ranker:
                 index += 1
                 continue
             if comparison.order < 0:
-                self.absorb(new, other, comparison, comparison.y)
+                self.absorb(new, other, comparison)
                 del kept[index]
                 continue
-            self.absorb(other, new, comparison, comparison.x)
+            self.absorb(other, new, comparison)
             return
         kept.append(new)
 
-    def absorb(self, winner: Entry, loser: Entry, comparison: Comparison, lost: Act | None) -> None:
+    def absorb(self, winner: Entry, loser: Entry, comparison: Comparison) -> None:
         """The winner takes over what of the loser is tied with it: the loser
         itself, if the two are tied, and the loser's tied derivations that
         diverge from it before the two do."""
         point = comparison.index
         if point >= INF:
             self.offer(winner, loser.seq, INF)
-            for alt, kind in loser.alts:
-                self.offer(winner, alt, loser.at, kind)
+            for alt in loser.alts:
+                self.offer(winner, alt, loser.at)
             return
         if not comparison.decisive:
             # The loser is tied with the winner here, and precedes in T every
             # derivation tied with it that diverges from it here or later.
-            self.offer(winner, loser.seq, point, self.kind(lost))
+            self.offer(winner, loser.seq, point)
         if loser.at < point:
-            for alt, kind in loser.alts:
-                self.offer(winner, alt, loser.at, kind)
-        elif loser.at == point and comparison.decisive and self.lean == "none":
-            # With rule 1 alone, ties are not transitive: a close is tied with
-            # a weak read and with a strong one, which beats the weak one. So
-            # a derivation that closes where the loser reads weakly and the
-            # winner strongly is still tied with the winner there; that is
-            # why tied derivations are kept by the kind of action they
-            # diverge with.
-            for alt, kind in loser.alts:
-                if kind == 1:
-                    self.offer(winner, alt, point, kind)
+            for alt in loser.alts:
+                self.offer(winner, alt, loser.at)
 
     # -- the whole input
 
@@ -592,12 +575,12 @@ class Ranker:
         # so it first differs from it visibly where the chosen one ends, and
         # so do its tied derivations that diverge from it no earlier.
         length = vis(chosen.seq)
-        candidates: list[tuple[int, Rope | None]] = [(chosen.at, alt) for alt, _ in chosen.alts]
+        candidates: list[tuple[int, Rope | None]] = [(chosen.at, alt) for alt in chosen.alts]
         for entry in kept:
             if entry is chosen:
                 continue
             candidates.append((length, entry.seq))
-            candidates.extend((entry.at if entry.at < length else length, alt) for alt, _ in entry.alts)
+            candidates.extend((entry.at if entry.at < length else length, alt) for alt in entry.alts)
         if not candidates:
             return Ranking("resolved", chosen.seq, None, None)
         best_at, best = candidates[0]

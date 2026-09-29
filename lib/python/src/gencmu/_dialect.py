@@ -18,6 +18,7 @@ from ._markdown import jbogenbau_text
 from ._model import Feature, Node, ParseError, ParseResult, ParseWarning, Stage, Token
 from ._pipeline import Pipeline, splice_pipeline
 from ._stage import StageOutcome, StageRunner
+from ._tags import character_tag
 from ._unicode import UnicodeTable
 from ._validate import FORMAT, MAX_DEPTH, TOO_DEEP, dom_problem
 
@@ -78,11 +79,16 @@ def _unicode_table(text: str) -> UnicodeTable:
 
 
 def character_tokens(text: str, unicode: UnicodeTable) -> list[Token]:
-    """The input of a pipeline's first stage: one token per code point (engine §1)."""
-    return [
-        Token(char, {char: True, unicode.character_class(char): False}, (index, index + 1), (index, index + 1))
-        for index, char in enumerate(text)
-    ]
+    """The input of a pipeline's first stage: one token per code point,
+    tagged with its character tag and its class (engine §1)."""
+    tags: dict[str, frozenset[str]] = {}
+    tokens: list[Token] = []
+    for index, char in enumerate(text):
+        found = tags.get(char)
+        if found is None:
+            found = tags[char] = frozenset((character_tag(ord(char), unicode), unicode.character_class(char)))
+        tokens.append(Token(char, found, (index, index + 1), (index, index + 1)))
+    return tokens
 
 
 # ---------------------------------------------------------------------------

@@ -227,12 +227,20 @@ export declare function phonemesOf(tokens: Token[], start: number, end: number):
  */
 export declare function textOf(context: ParseContext, start: number, end: number): string;
 /**
+ * A term's value (engine §10): a string, or a set, of strings or of tags.
+ * The reader has made sure that the types agree, so a set's kind needs no
+ * mark here.
  * @param {ParseContext} context
  * @param {Argument} term
  * @param {Scope} scope
  * @returns {TermValue}
  */
 export declare function evaluate(context: ParseContext, term: Argument, scope: Scope): TermValue;
+/**
+ * @param {TermValue} value
+ * @returns {Set<string>}
+ */
+export declare function asSet(value: TermValue): Set<string>;
 /**
  * @param {ParseContext} context
  * @param {Condition} condition

@@ -49,21 +49,21 @@ A `y` is a nucleus exactly where no nucleus follows it. So the first `y` of a ru
 
 ```jbogenbau
 %rule cmevla-shape            (* CMEVLA <- cmevla *)
-  $n(cmevla) <"continued" ∪ (¬begins(from($n), nucleus) ⟹ "onset")>
+  $n(cmevla) <~continued ∪ (¬begins(from($n), nucleus) ⟹ ~onset)>
 
 %rule cmavo-shape             (* CMAVO, less hesitation and ybu *)
-  $c(cmavo) <"continued" ∪ (¬begins(from($c), nucleus) ⟹ "onset")>
+  $c(cmavo) <~continued ∪ (¬begins(from($c), nucleus) ⟹ ~onset)>
 %conditions
   ¬matches($c, y-letters)
 
 %rule brivla-shape            (* BRIVLA, after CMEVLA and CMAVO in lojban_word *)
-  $b(brivla-word) <"continued" ∪ (¬begins(from($b), nucleus) ⟹ "onset")>
+  $b(brivla-word) <~continued ∪ (¬begins(from($b), nucleus) ⟹ ~onset)>
 %conditions
   ¬begins(from($b), cmevla),
   ¬begins(from($b), cmavo)
 
 %redefine-rule y-run          (* a CMAVO of y letters: cmavo_form's y+, or one y *)
-  $h(cmavo) <(¬begins(from($h), nucleus) ⟹ "onset")>
+  $h(cmavo) <(¬begins(from($h), nucleus) ⟹ ~onset)>
 %conditions
   matches($h, y-letters)
 

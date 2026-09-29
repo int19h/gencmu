@@ -9,12 +9,14 @@ use crate::dom::{Alternative, Arg, Cond, Dom, EmitItem, Expr, Op, Term};
 use crate::error::Error;
 
 /// How a stage chooses among parses (engine §6): the lean of rule 2, or,
-/// for the `elision-only` check (§7), rule 1 alone.
+/// for the `elision-only` check (§7), no lean at all.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Lean {
     Greedy,
     Lazy,
-    TagsOnly,
+    /// Neither: any two derivations that differ are tied, as the
+    /// `elision-only` check ranks (§7).
+    Neither,
 }
 
 /// An alternative after stitching, with the clauses of the rule that
@@ -301,12 +303,16 @@ fn check_span(term: &Term) -> Result<(), String> {
 
 fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
     match term {
-        Term::Literal(_) | Term::Weak(_) | Term::EmptySet => Ok(()),
+        Term::Str(_) | Term::Tag(_) | Term::EmptySet => Ok(()),
         Term::Union(items) | Term::Intersection(items) => {
             for item in items {
                 check_term(grammar, item)?;
             }
             Ok(())
+        }
+        Term::Difference(left, right) => {
+            check_term(grammar, left)?;
+            check_term(grammar, right)
         }
         Term::Capture(_) => Ok(()),
         Term::If(cond, then) => {
@@ -332,11 +338,8 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
 fn check_cond(grammar: &StageGrammar, cond: &Cond) -> Result<(), String> {
     match cond {
         Cond::Compare(op, left, right) => {
-            if !matches!(op.as_str(), "=" | "≠" | "∈" | "∉" | "⊆") {
+            if !matches!(op.as_str(), "=" | "≠" | "∈" | "∉" | "⊆" | "⊈") {
                 return Err(format!("an unknown comparison {op}"));
-            }
-            if matches!(op.as_str(), "∈" | "∉") && !left.is_string() {
-                return Err(format!("the left side of {op} is a string"));
             }
             check_term(grammar, left)?;
             check_term(grammar, right)

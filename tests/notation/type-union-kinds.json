@@ -1,0 +1,10 @@
+{
+  "description": "∪ joins two sets of one kind: a tag set and a set of strings are an error at the union, the smallest construct whose parts disagree (engine §9, §10).",
+  "document": "```jbogenbau\n%rule a $x(B) %conditions ∅ = tags($x) ∪ runs($x)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 31
+    }
+  }
+}

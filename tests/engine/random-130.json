@@ -1,5 +1,5 @@
 {
-  "description": "A random grammar with the notation's sugar and weak tags (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 1 derivations.",
+  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 1 derivations.",
   "grammar": "%ambiguity-resolution lazy\n%rule text ε | [B] (v | B) | u A\n%rule t (t | C) | t [C]\n%rule u ε | u ... t\n%rule v ε | (v | A) (u | A)",
   "tokens": [
     {
@@ -11,7 +11,7 @@
   ],
   "expect": {
     "result": {
-      "format": 3,
+      "format": 4,
       "ok": true,
       "stages": [
         {
@@ -31,7 +31,7 @@
           0,
           1
         ],
-        "tags": {},
+        "tags": [],
         "children": [
           {
             "kind": "rule",
@@ -44,7 +44,7 @@
               0,
               1
             ],
-            "tags": {},
+            "tags": [],
             "children": [
               {
                 "kind": "rule",
@@ -57,7 +57,7 @@
                   0,
                   0
                 ],
-                "tags": {},
+                "tags": [],
                 "children": []
               },
               {
@@ -71,7 +71,7 @@
                   0,
                   1
                 ],
-                "tags": {},
+                "tags": [],
                 "children": [
                   {
                     "kind": "rule",
@@ -84,7 +84,7 @@
                       0,
                       0
                     ],
-                    "tags": {},
+                    "tags": [],
                     "children": []
                   },
                   {
@@ -98,9 +98,9 @@
                       0,
                       1
                     ],
-                    "tags": {
-                      "C": true
-                    },
+                    "tags": [
+                      "C"
+                    ],
                     "children": [
                       {
                         "kind": "token",

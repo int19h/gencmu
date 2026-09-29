@@ -8,6 +8,7 @@ from typing import Any
 
 import gencmu
 from gencmu._model import Token
+from gencmu._tags import is_tag
 
 REPOSITORY = Path(__file__).resolve().parents[3]
 SHARED = REPOSITORY / "tests"
@@ -66,7 +67,12 @@ def case_tokens(case: dict[str, Any]) -> tuple[list[Token], str]:
     tokens: list[Token] = []
     position = 0
     for index, spec in enumerate(case["tokens"]):
-        tags = {tag[1:] if tag.startswith("?") else tag: not tag.startswith("?") for tag in spec["tags"]}
+        # Each tag in its canonical spelling, as the output writes it
+        # (tests/README.md).
+        for tag in spec["tags"]:
+            if not is_tag(tag):
+                raise ValueError(f"a case token's tag {tag} is not a tag")
+        tags = frozenset(spec["tags"])
         text = spec["text"]
         tokens.append(Token(text, tags, (index, index + 1), (position, position + len(text)), spec.get("phonemes")))
         position += len(text) + 1

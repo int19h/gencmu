@@ -1,17 +1,17 @@
 {
-  "description": "A random grammar with the notation's sugar and weak tags (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 2 derivations.",
+  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 2 derivations.",
   "grammar": "%ambiguity-resolution lazy\n%rule text B | ε | [C] v\n%rule t A | u\n%rule u (C | A) | ε\n%rule v ε | v t",
   "tokens": [
     {
       "text": "a",
       "tags": [
-        "?A"
+        "A"
       ]
     }
   ],
   "expect": {
     "result": {
-      "format": 3,
+      "format": 4,
       "ok": true,
       "stages": [
         {
@@ -50,7 +50,7 @@
               0,
               1
             ],
-            "tags": {},
+            "tags": [],
             "children": [
               {
                 "kind": "rule",
@@ -63,7 +63,7 @@
                   0,
                   1
                 ],
-                "tags": {},
+                "tags": [],
                 "children": [
                   {
                     "kind": "rule",
@@ -76,7 +76,7 @@
                       0,
                       0
                     ],
-                    "tags": {},
+                    "tags": [],
                     "children": []
                   },
                   {
@@ -90,9 +90,9 @@
                       0,
                       1
                     ],
-                    "tags": {
-                      "A": false
-                    },
+                    "tags": [
+                      "A"
+                    ],
                     "children": [
                       {
                         "kind": "rule",
@@ -105,9 +105,9 @@
                           0,
                           1
                         ],
-                        "tags": {
-                          "A": false
-                        },
+                        "tags": [
+                          "A"
+                        ],
                         "children": [
                           {
                             "kind": "token",
@@ -144,7 +144,7 @@
           0,
           1
         ],
-        "tags": {},
+        "tags": [],
         "children": [
           {
             "kind": "rule",
@@ -157,7 +157,7 @@
               0,
               1
             ],
-            "tags": {},
+            "tags": [],
             "children": [
               {
                 "kind": "rule",
@@ -170,7 +170,7 @@
                   0,
                   0
                 ],
-                "tags": {},
+                "tags": [],
                 "children": []
               },
               {
@@ -184,9 +184,9 @@
                   0,
                   1
                 ],
-                "tags": {
-                  "A": false
-                },
+                "tags": [
+                  "A"
+                ],
                 "children": [
                   {
                     "kind": "token",

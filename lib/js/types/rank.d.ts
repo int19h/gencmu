@@ -120,10 +120,9 @@ export declare class Ranker {
      * The one leaf for reading a token as a terminal.
      * @param {number} token
      * @param {string} terminal
-     * @param {boolean} weak
      * @returns {RopeLeaf}
      */
-    readLeaf(token: number, terminal: string, weak: boolean): RopeLeaf;
+    readLeaf(token: number, terminal: string): RopeLeaf;
     /**
      * An item's candidates, each ended by the item's own close.
      * @param {Item} item

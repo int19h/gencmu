@@ -1,6 +1,6 @@
 {
   "description": "A guarded tag term gives its tags where its condition holds and none where it does not (engine §10).",
-  "grammar": "%rule text x x\n%rule x $a(A)\n%tags \"x\" ∈ tags($a) ⟹ \"Y\"",
+  "grammar": "%rule text x x\n%rule x $a(A)\n%tags ~x ⊆ tags($a) ⟹ Y",
   "tokens": [
     {
       "text": "a",
@@ -26,14 +26,14 @@
           {
             "kind": "rule",
             "rule": "x",
-            "tags": {
-              "Y": true
-            }
+            "tags": [
+              "Y"
+            ]
           },
           {
             "kind": "rule",
             "rule": "x",
-            "tags": {}
+            "tags": []
           }
         ]
       }

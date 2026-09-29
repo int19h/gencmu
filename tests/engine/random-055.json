@@ -1,5 +1,5 @@
 {
-  "description": "A random grammar with the notation's sugar and weak tags (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 6 derivations.",
+  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 6 derivations.",
   "grammar": "%ambiguity-resolution greedy\n%rule text v v | ε | ε\n%rule t [u] t | B\n%rule u t ... v | C\n%rule v u | [C] [u]",
   "tokens": [
     {
@@ -11,7 +11,7 @@
   ],
   "expect": {
     "result": {
-      "format": 3,
+      "format": 4,
       "ok": true,
       "stages": [
         {
@@ -50,7 +50,7 @@
               0,
               1
             ],
-            "tags": {},
+            "tags": [],
             "children": [
               {
                 "kind": "rule",
@@ -63,9 +63,9 @@
                   0,
                   1
                 ],
-                "tags": {
-                  "C": true
-                },
+                "tags": [
+                  "C"
+                ],
                 "children": [
                   {
                     "kind": "rule",
@@ -78,9 +78,9 @@
                       0,
                       1
                     ],
-                    "tags": {
-                      "C": true
-                    },
+                    "tags": [
+                      "C"
+                    ],
                     "children": [
                       {
                         "kind": "token",
@@ -110,7 +110,7 @@
                   1,
                   1
                 ],
-                "tags": {},
+                "tags": [],
                 "children": []
               }
             ]
@@ -129,7 +129,7 @@
           0,
           1
         ],
-        "tags": {},
+        "tags": [],
         "children": [
           {
             "kind": "rule",
@@ -142,7 +142,7 @@
               0,
               1
             ],
-            "tags": {},
+            "tags": [],
             "children": [
               {
                 "kind": "token",
@@ -170,7 +170,7 @@
               1,
               1
             ],
-            "tags": {},
+            "tags": [],
             "children": []
           }
         ]

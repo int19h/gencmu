@@ -3,10 +3,11 @@
 //! stitching and lowering read.
 
 use crate::json::{write_str, Json};
+use crate::tags::is_tag;
 use crate::unicode::Unicode;
 
 /// The DOM format version (`docs/output.md`).
-pub(crate) const DOM_FORMAT: i64 = 8;
+pub(crate) const DOM_FORMAT: i64 = 9;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Dom {
@@ -39,10 +40,10 @@ pub(crate) struct RuleDef {
 /// says.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FeatureKind {
-    /// A gate, `@f?` or `@¬f?`: its alternatives are kept only while the
+    /// A gate, `f?` or `¬f?`: its alternatives are kept only while the
     /// feature is on, or off.
     Gate,
-    /// A warning, `@f!`: its alternatives are always kept, and while the
+    /// A warning, `f!`: its alternatives are always kept, and while the
     /// feature is on, each node of a chosen tree built from one gives a
     /// warning (engine §12).
     Warning,
@@ -84,27 +85,19 @@ pub(crate) enum Expr {
 /// expected. The capture named `""` is `$`, the whole constituent.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Term {
-    Literal(String),
-    Weak(String),
+    /// A string, decoded.
+    Str(String),
+    /// A tag literal: the set of one tag, in its canonical spelling.
+    Tag(String),
     EmptySet,
     Union(Vec<Term>),
     Intersection(Vec<Term>),
+    /// `a ∖ b`: the members of the first set that are not in the second.
+    Difference(Box<Term>, Box<Term>),
     Call(String, Vec<Arg>),
     Capture(String),
     /// `A ⟹ t`: `t` where the condition holds, else the empty set.
     If(Box<Cond>, Box<Term>),
-}
-
-impl Term {
-    /// A string: a literal, or `phonemes`, `text` or `lowercase` of
-    /// something (§9).
-    pub(crate) fn is_string(&self) -> bool {
-        match self {
-            Term::Literal(_) => true,
-            Term::Call(name, _) => matches!(name.as_str(), "phonemes" | "text" | "lowercase"),
-            _ => false,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -270,11 +263,15 @@ fn expr_from_json(value: &Json) -> R<Expr> {
 fn term_from_json(value: &Json) -> R<Term> {
     let list = |key: &str| -> R<Vec<Term>> { array(value, key)?.iter().map(term_from_json).collect() };
     Ok(match first_key(value)? {
-        "literal" => Term::Literal(string(value, "literal")?),
-        "weak" => Term::Weak(string(value, "weak")?),
+        "string" => Term::Str(string(value, "string")?),
+        "tag" => Term::Tag(string(value, "tag")?),
         "emptySet" => Term::EmptySet,
         "union" => Term::Union(list("union")?),
         "intersection" => Term::Intersection(list("intersection")?),
+        "difference" => match &list("difference")?[..] {
+            [left, right] => Term::Difference(Box::new(left.clone()), Box::new(right.clone())),
+            _ => return Err("a difference of other than two terms".to_string()),
+        },
         "capture" => Term::Capture(string(value, "capture")?),
         "if" => {
             Term::If(Box::new(cond_from_json(field(value, "if")?)?), Box::new(term_from_json(field(value, "then")?)?))
@@ -345,6 +342,33 @@ fn has(value: &Json, key: &str) -> bool {
     value.get(key).is_some()
 }
 
+/// The forms of a term, each as its members (docs/output.md). The first
+/// member names the form.
+const TERM_FORMS: [&[&str]; 9] = [
+    &["union"],
+    &["intersection"],
+    &["difference"],
+    &["if", "then"],
+    &["call", "args"],
+    &["string"],
+    &["tag"],
+    &["emptySet"],
+    &["capture"],
+];
+
+/// Whether a term has exactly the members of one form, and no other. So a
+/// node that joins two forms, such as `{"tag":…,"string":…}`, is refused
+/// before it is read, whatever the order of its members.
+fn is_term_shape(value: &Json) -> bool {
+    let Some(members) = value.as_object() else {
+        return false;
+    };
+    TERM_FORMS
+        .iter()
+        .find(|form| has(value, form[0]))
+        .is_some_and(|form| members.len() == form.len() && form.iter().all(|member| has(value, member)))
+}
+
 fn is_str(value: Option<&Json>) -> bool {
     matches!(value, Some(Json::Str(_)))
 }
@@ -377,11 +401,16 @@ fn is_span_json(value: &Json) -> bool {
             || matches!(value.get("call").and_then(Json::as_str), Some("head" | "tail" | "last" | "from" | "after")))
 }
 
-/// A string: a literal, or `phonemes`, `text` or `lowercase` of something.
-fn is_string_json(value: &Json) -> bool {
-    is_object(value)
-        && (is_str(value.get("literal"))
-            || matches!(value.get("call").and_then(Json::as_str), Some("phonemes" | "text" | "lowercase")))
+/// Whether a JSON value is a tag in its canonical spelling (engine §1).
+fn is_tag_json(value: Option<&Json>, unicode: &Unicode) -> bool {
+    matches!(value, Some(Json::Str(tag)) if is_tag(tag, unicode))
+}
+
+/// A capture's name is all lower case (engine §9).
+pub(crate) fn is_capture_name(name: &str) -> bool {
+    let mut chars = name.chars();
+    chars.next().is_some_and(|c| c.is_ascii_lowercase())
+        && chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
 }
 
 fn is_rule_arg(value: &Json) -> bool {
@@ -390,8 +419,7 @@ fn is_rule_arg(value: &Json) -> bool {
 
 /// What is wrong with a spelling of a symbol (engine §9), or `None`: an
 /// empty spelling, one with a backtick, which the notation cannot write,
-/// one of anything but a reference, a string or a phoneme tag, `#`
-/// included, or one that the lowercase mapping would change, since the
+/// one of anything but a reference or a terminal, `#` included, or one that the lowercase mapping would change, since the
 /// match ignores stress. `symbol` is whether the spelled expression is a
 /// reference other than `#` or a terminal.
 pub(crate) fn spelling_problem(spelling: &str, symbol: bool, unicode: &Unicode) -> Option<&'static str> {
@@ -400,7 +428,7 @@ pub(crate) fn spelling_problem(spelling: &str, symbol: bool, unicode: &Unicode) 
     } else if spelling.contains('`') {
         Some("a spelling holds a backtick")
     } else if !symbol {
-        Some("a spelling follows only a reference other than #, a string or a phoneme tag")
+        Some("a spelling follows only a reference other than # or a terminal")
     } else if unicode.lowercase(spelling) != spelling {
         Some("a spelling is not in lower case")
     } else {
@@ -446,7 +474,7 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
         || dom.get("rules").and_then(Json::as_array).is_none()
         || dom.get("directives").and_then(Json::as_array).is_none()
     {
-        return Some("not a DOM of format 8");
+        return Some("not a DOM of format 9");
     }
     for directive in dom.get("directives").and_then(Json::as_array).unwrap_or(&[]) {
         let args = directive.get("args").and_then(Json::as_array);
@@ -465,6 +493,8 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
             Some("stage") => args.len() == 1 && args.iter().all(is_name),
             Some("include") => args.len() == 1,
             Some("features") => !args.is_empty() && args.iter().all(is_name),
+            // Identifier tags, which the DOM writes as their names.
+            Some("elidable") => args.iter().all(is_name),
             _ => true,
         };
         if !operands_ok {
@@ -527,6 +557,9 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                     }
                     if names.contains(&name) {
                         return Some("a capture name used twice in one alternative");
+                    }
+                    if !is_capture_name(name) {
+                        return Some("a capture name is not all lower case");
                     }
                     names.push(name);
                     if names.len() > 4 {
@@ -610,7 +643,9 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                     let inner = value.get("expr");
                     let wraps_symbol = inner.is_some_and(|inner| {
                         is_object(inner)
-                            && (is_str(inner.get("ref")) || is_str(inner.get("terminal")) || has(inner, "spelling"))
+                            && (is_str(inner.get("ref"))
+                                || is_tag_json(inner.get("terminal"), unicode)
+                                || has(inner, "spelling"))
                     });
                     // `$` is the whole constituent and wraps nothing.
                     let named = value.get("capture").and_then(Json::as_str).is_some_and(|name| !name.is_empty());
@@ -634,7 +669,10 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                     if let Some(inner) = inner {
                         pending.push((Kind::Expr, inner, next));
                     }
-                } else if !(is_str(value.get("ref")) || is_str(value.get("terminal")) || is_true(value.get("empty"))) {
+                } else if !(is_str(value.get("ref"))
+                    || is_tag_json(value.get("terminal"), unicode)
+                    || is_true(value.get("empty")))
+                {
                     return Some("a malformed expression");
                 }
             }
@@ -666,7 +704,7 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                         } else {
                             captures.push(name);
                         }
-                    } else if is_str(item.get("insert")) {
+                    } else if is_tag_json(item.get("insert"), unicode) {
                         if has(item, "tags") {
                             return Some("a malformed emission");
                         }
@@ -723,12 +761,7 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                     }
                     pending.push((Kind::Argument, span, next));
                 } else {
-                    if !matches!(value.get("op").and_then(Json::as_str), Some("=" | "≠" | "∈" | "∉" | "⊆")) {
-                        return Some("a malformed condition");
-                    }
-                    // Membership tests a string; a tag set on the left is ⊆'s (§9).
-                    if matches!(value.get("op").and_then(Json::as_str), Some("∈" | "∉"))
-                        && !value.get("left").is_some_and(is_string_json)
+                    if !matches!(value.get("op").and_then(Json::as_str), Some("=" | "≠" | "∈" | "∉" | "⊆" | "⊈"))
                     {
                         return Some("a malformed condition");
                     }
@@ -742,6 +775,11 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                 }
             }
             Kind::Term | Kind::TagTerm | Kind::Argument => {
+                // A term has exactly the members of one form, so that no
+                // node is read as one form here and another elsewhere.
+                if !is_term_shape(value) {
+                    return Some("a malformed term");
+                }
                 let own = kind == Kind::TagTerm;
                 if own && is_whole(value) {
                     return Some("a tag term that reads the tags it defines");
@@ -753,9 +791,13 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                     };
                     pending.push((if own { Kind::TagCondition } else { Kind::Condition }, cond, next));
                     pending.push((inner, then, next));
-                } else if has(value, "union") || has(value, "intersection") {
+                } else if has(value, "union") || has(value, "intersection") || has(value, "difference") {
                     let items = value.get("union").or_else(|| value.get("intersection"));
-                    if !list(items, 2, usize::MAX) {
+                    let (items, most) = match items {
+                        Some(items) => (Some(items), usize::MAX),
+                        None => (value.get("difference"), 2),
+                    };
+                    if !list(items, 2, most) {
                         return Some("a malformed term");
                     }
                     pending
@@ -770,7 +812,8 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                             [span, rule] => is_span_json(span) && is_rule_arg(rule),
                             _ => false,
                         },
-                        Some("lowercase") => matches!(args, [string] if is_string_json(string)),
+                        // Its argument's type is checked with the others'.
+                        Some("lowercase") => matches!(args, [string] if !is_rule_arg(string) && !is_span_json(string)),
                         Some(
                             "phonemes" | "text" | "classes" | "runs" | "head" | "tail" | "last" | "from" | "after",
                         ) => matches!(args, [span] if is_span_json(span)),
@@ -790,14 +833,22 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                             pending.push((Kind::Argument, arg, next));
                         }
                     }
-                } else if !(is_str(value.get("literal"))
-                    || is_str(value.get("weak"))
+                } else if !(is_str(value.get("string"))
+                    || is_tag_json(value.get("tag"), unicode)
                     || is_true(value.get("emptySet"))
                     || is_str(value.get("capture")))
                 {
                     return Some("a malformed term");
                 }
             }
+        }
+    }
+    // Terms and conditions whose types do not agree (engine §10).
+    for rule in dom.get("rules").and_then(Json::as_array).unwrap_or(&[]) {
+        match rule_from_json(rule) {
+            Ok(rule) if rule_type_problem(&rule).is_none() => {}
+            Ok(_) => return Some("a term or a condition whose types do not agree"),
+            Err(_) => return Some("a malformed rule"),
         }
     }
     // The order of a document's items is the order of their positions, so
@@ -983,19 +1034,26 @@ fn write_expr(out: &mut String, expr: &Expr) {
 
 fn write_term(out: &mut String, term: &Term) {
     match term {
-        Term::Literal(text) => {
-            out.push_str("{\"literal\":");
+        Term::Str(text) => {
+            out.push_str("{\"string\":");
             write_str(out, text);
             out.push('}');
         }
-        Term::Weak(text) => {
-            out.push_str("{\"weak\":");
-            write_str(out, text);
+        Term::Tag(tag) => {
+            out.push_str("{\"tag\":");
+            write_str(out, tag);
             out.push('}');
         }
         Term::EmptySet => out.push_str("{\"emptySet\":true}"),
         Term::Union(items) => write_list(out, "union", items, write_term),
         Term::Intersection(items) => write_list(out, "intersection", items, write_term),
+        Term::Difference(left, right) => {
+            out.push_str("{\"difference\":[");
+            write_term(out, left);
+            out.push(',');
+            write_term(out, right);
+            out.push_str("]}");
+        }
         Term::Capture(name) => {
             out.push_str("{\"capture\":");
             write_str(out, name);
@@ -1080,4 +1138,178 @@ fn write_cond(out: &mut String, cond: &Cond) {
             out.push('}');
         }
     }
+}
+
+// ---- types (engine §10)
+
+/// A term's type: a string, a set of strings, a tag set, a span, or a set
+/// whose kind nothing has given yet, such as `∅`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Type {
+    String,
+    Strings,
+    Tags,
+    Span,
+    Set,
+}
+
+impl Type {
+    fn name(self) -> &'static str {
+        match self {
+            Type::String => "a string",
+            Type::Strings => "a set of strings",
+            Type::Tags => "a tag set",
+            Type::Span => "a span",
+            Type::Set => "a set",
+        }
+    }
+}
+
+const SPAN_NOT_VALUE: &str = "a span is not a value: tags($x) is the tag set of $x";
+
+/// The type of the value a function gives (engine §10).
+fn call_type(call: &str) -> Type {
+    match call {
+        "phonemes" | "text" | "lowercase" => Type::String,
+        "runs" => Type::Strings,
+        "tags" | "classes" => Type::Tags,
+        _ => Type::Span,
+    }
+}
+
+/// The kind of sets joined by `∪`, `∩` or `∖`, or why they cannot be
+/// joined: each is a set, and all whose kind is known have one kind.
+pub(crate) fn joined_type(types: &[Type], operator: &str) -> Result<Type, String> {
+    if types.contains(&Type::Span) {
+        return Err(SPAN_NOT_VALUE.to_string());
+    }
+    if let Some(bad) = types.iter().find(|&&ty| ty == Type::String) {
+        return Err(format!("{operator} joins sets, not {}", bad.name()));
+    }
+    let strings = types.contains(&Type::Strings);
+    let tags = types.contains(&Type::Tags);
+    match (strings, tags) {
+        (true, true) => Err(format!("{operator} joins two sets of one kind, not a set of strings and a tag set")),
+        (true, false) => Ok(Type::Strings),
+        (false, true) => Ok(Type::Tags),
+        (false, false) => Ok(Type::Set),
+    }
+}
+
+/// Why a comparison's two sides do not fit its comparator, or `None`.
+pub(crate) fn comparison_problem(op: &str, left: Type, right: Type) -> Option<String> {
+    if left == Type::Span || right == Type::Span {
+        return Some(SPAN_NOT_VALUE.to_string());
+    }
+    if matches!(op, "∈" | "∉") {
+        if left != Type::String {
+            return Some(format!(
+                "{op} tests a string, not {}, in a set of strings; ⊆ and ⊈ compare two sets",
+                left.name()
+            ));
+        }
+        if right != Type::Strings && right != Type::Set {
+            return Some(format!("{op} tests a string in a set of strings, not in {}", right.name()));
+        }
+        return None;
+    }
+    // `=` and `≠` compare two values of one type; `⊆` and `⊈` two sets.
+    if matches!(op, "=" | "≠") && (left == Type::String || right == Type::String) {
+        return (left != right)
+            .then(|| format!("{op} compares two values of one type, not {} and {}", left.name(), right.name()));
+    }
+    match joined_type(&[left, right], op) {
+        Err(problem) => Some(problem),
+        Ok(Type::Set) => Some(format!("the kind of the sets that {op} compares is not given")),
+        Ok(_) => None,
+    }
+}
+
+/// Why a term of type `ty` cannot stand where `expected`, a string or a
+/// tag set, is needed, or `None`. A set of open kind takes the kind it is
+/// given.
+pub(crate) fn expected_problem(ty: Type, expected: Type) -> Option<String> {
+    if ty == expected || (ty == Type::Set && expected == Type::Tags) {
+        None
+    } else if ty == Type::Span {
+        Some(SPAN_NOT_VALUE.to_string())
+    } else {
+        Some(format!("{} is needed here, not {}", expected.name(), ty.name()))
+    }
+}
+
+/// The type of a term, or why its parts do not agree (engine §10).
+pub(crate) fn term_type(term: &Term) -> Result<Type, String> {
+    let joined = |items: &mut dyn Iterator<Item = &Term>, operator: &str| {
+        let types = items.map(term_type).collect::<Result<Vec<_>, _>>()?;
+        joined_type(&types, operator)
+    };
+    match term {
+        Term::Str(_) => Ok(Type::String),
+        Term::Tag(_) => Ok(Type::Tags),
+        Term::EmptySet => Ok(Type::Set),
+        Term::Capture(_) => Ok(Type::Span),
+        Term::Union(items) => joined(&mut items.iter(), "∪"),
+        Term::Intersection(items) => joined(&mut items.iter(), "∩"),
+        Term::Difference(left, right) => joined(&mut [left.as_ref(), right.as_ref()].into_iter(), "∖"),
+        Term::If(cond, then) => {
+            if let Some(problem) = cond_type_problem(cond) {
+                return Err(problem);
+            }
+            match expected_problem(term_type(then)?, Type::Tags) {
+                Some(problem) => Err(problem),
+                None => Ok(Type::Tags),
+            }
+        }
+        Term::Call(call, args) => {
+            for arg in args {
+                if let Arg::Term(arg) = arg {
+                    let ty = term_type(arg)?;
+                    if call == "lowercase" {
+                        if let Some(problem) = expected_problem(ty, Type::String) {
+                            return Err(format!("lowercase takes one string: {problem}"));
+                        }
+                    }
+                }
+            }
+            Ok(call_type(call))
+        }
+    }
+}
+
+/// Why a condition's terms do not agree in type, or `None` (engine §10).
+pub(crate) fn cond_type_problem(cond: &Cond) -> Option<String> {
+    match cond {
+        Cond::Any(items) | Cond::All(items) => items.iter().find_map(cond_type_problem),
+        Cond::Not(inner) => cond_type_problem(inner),
+        Cond::If(antecedent, consequent) => cond_type_problem(antecedent).or_else(|| cond_type_problem(consequent)),
+        Cond::Compare(op, left, right) => match (term_type(left), term_type(right)) {
+            (Err(problem), _) | (_, Err(problem)) => Some(problem),
+            (Ok(left), Ok(right)) => comparison_problem(op, left, right),
+        },
+        Cond::Matches(..) | Cond::Begins(..) | Cond::Initial(_) | Cond::Captured(_) => None,
+    }
+}
+
+/// Why a term that must be a tag set, a constituent's or an item's, is
+/// not one, or `None`.
+pub(crate) fn tag_term_problem(term: &Term) -> Option<String> {
+    match term_type(term) {
+        Err(problem) => Some(problem),
+        Ok(ty) => expected_problem(ty, Type::Tags),
+    }
+}
+
+/// Why a rule's terms and conditions do not agree in type, or `None`.
+pub(crate) fn rule_type_problem(rule: &RuleDef) -> Option<String> {
+    let items = rule.emit.iter().flatten().filter_map(|item| match item {
+        EmitItem::Capture(_, tags) => tags.as_ref(),
+        EmitItem::Insert(_) => None,
+    });
+    rule.tags
+        .iter()
+        .chain(rule.alternatives.iter().filter_map(|alternative| alternative.tags.as_ref()))
+        .chain(items)
+        .find_map(tag_term_problem)
+        .or_else(|| rule.conditions.iter().find_map(cond_type_problem))
 }

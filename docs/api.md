@@ -40,7 +40,7 @@ A loaded dialect lists its features (engine §13), in code point order of the na
 
 The result has the fields of `docs/output.md`, in the data types of the language. These fields are `ok`, the stages, the `tree` of the last stage, the `error`, and the `warnings`. `warnings` is an empty list when there are no warnings. A stage has its name, its input and output tokens, its verdict, and for a tie its witness and tied tree.
 
-A node has its kind (`rule`, `token` or `elided`), its rule or terminal, its span and source range, its tags and its children. A token node also has the index of the token that it read. Tags are a map from name to strength. Positions count code points, whatever the string indexing of the language is.
+A node has its kind (`rule`, `token` or `elided`), its rule or terminal, its span and source range, its tags and its children. A token node also has the index of the token that it read. Tags are a set of tags, each a string in its canonical spelling (engine §1). Positions count code points, whatever the string indexing of the language is.
 
 ### Output
 
@@ -101,7 +101,7 @@ gencmu.to_brackets(result, show_elided=True)
 - `load_dialect(name)`, `load_dialect_file(path)` and `load_dialect_sources(sources, pipeline)` load a dialect. `sources` is a mapping from path to text.
 - `Dialect.parse(text, *, features=(), without_features=(), auto_features=True, until=None, elision_only=None) -> ParseResult`.
 - `Dialect.features` is a tuple of `Feature`, a dataclass with `name`, `kind` and `default`.
-- `ParseResult`, `Stage`, `Node`, `Token`, `ParseWarning` and `ParseError` are dataclasses. Tags are `dict[str, bool]`. The warning class is not called `Warning`, because `Warning` is a built-in exception.
+- `ParseResult`, `Stage`, `Node`, `Token`, `ParseWarning` and `ParseError` are dataclasses. Tags are a set of strings. The warning class is not called `Warning`, because `Warning` is a built-in exception.
 - `to_json(result) -> str` writes the canonical JSON. `result_json(result)` returns it as plain data. `to_brackets(result, *, show_elided=False)`.
 - Errors raise `gencmu.GencmuError`, with `kind` and `where`.
 

@@ -1,0 +1,26 @@
+{
+  "description": "A keyword's name is also a plain name: a rule can be named tags or rule (design §15, engine §9).",
+  "document": "```jbogenbau\n%rule tags rule %tags X\n%rule rule A\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "tags",
+          "alternatives": [
+            {
+              "expr": {
+                "ref": "rule"
+              }
+            }
+          ],
+          "tags": {
+            "tag": "X"
+          }
+        },
+        {
+          "name": "rule"
+        }
+      ]
+    }
+  }
+}

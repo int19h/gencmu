@@ -12,7 +12,7 @@ Each file is one case:
   "grammar": "%rule text A B",
   "documents": {"path.md": "Markdown text"},
   "pipeline": "path.md",
-  "tokens": [{"text": "a", "tags": ["A"]}, {"text": "b", "tags": ["B", "?C"]}],
+  "tokens": [{"text": "a", "tags": ["A"]}, {"text": "b", "tags": ["B", "C"]}],
   "input": "characters",
   "options": {"features": ["f"], "withoutFeatures": ["g"], "elisionOnly": true},
   "expect": {"result": PATTERN, "brackets": "(a b)", "warnings": [WARNING...], "features": [FEATURE...], "error": "grammar"}
@@ -23,7 +23,7 @@ The grammar comes from `grammar`, or from `documents` and `pipeline`. `grammar` 
 
 The input is `input` or `tokens`. `input` is a string of characters, read as engine §1 says. `tokens` replaces the input of the first stage. Each token gets these values:
 
-- Its tags are its listed tags. A tag is strong unless it is written with a leading `?`.
+- Its tags are its listed tags, each written as the output writes a tag (`docs/output.md`). So a character tag is `'a'`.
 - Its text is as given.
 - Its phonemes are the `phonemes` member if present, or else none.
 - Its span is `[i, i+1]`.

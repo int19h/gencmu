@@ -30,7 +30,7 @@ data, _ := gencmu.MarshalResult(result) // canonical JSON, docs/output.md
 - `MarshalResult(result)` writes the canonical JSON.
 - `Brackets(result, BracketOptions{ShowElided})` renders the tree as nested groups.
 
-A `*Dialect` is safe for concurrent use. Positions are code points.
+A `*Dialect` is safe for concurrent use. Positions are code points. The `Tags` of a `Token` or a `Node` are a `[]string` in code point order. Each tag appears once in its canonical spelling, such as `KOhA`, `/a/` or `'a'`.
 
 The module states Go 1.22, and CI tests it on 1.22 and the current stable release. The code needs generics and the `min` builtin (1.21). It is also written for the per-iteration loop variables of 1.22. Long-lived distributions such as Ubuntu 24.04 package 1.22 too. So a floor that old costs nothing, and the users of these distributions can build the module with the toolchain they have.
 
@@ -56,4 +56,4 @@ The tests read the shared cases in `../../tests/`. They run every engine and not
 GENCMU_PROPERTY_CASES=200000 GENCMU_PROPERTY_SEED=1000 go test -run TestRankingProperty -timeout 30m ./...
 ```
 
-For longer inputs, add `GENCMU_PROPERTY_TOKENS`. To set the percentage of cases ranked by rule 1 alone, add `GENCMU_PROPERTY_RULE1`. To run one case again and print its derivations, add `GENCMU_PROPERTY_ONLY=seed`.
+For longer inputs, add `GENCMU_PROPERTY_TOKENS`. To set the percentage of cases ranked with no lean, as elision-only's check ranks them, add `GENCMU_PROPERTY_RULE1`. To run one case again and print its derivations, add `GENCMU_PROPERTY_ONLY=seed`.

@@ -1,8 +1,8 @@
 {
-  "description": "%emits ε emits nothing; a string in an %emits list inserts a token with an empty span (engine §11).",
+  "description": "%emits ε emits nothing; a tag literal in an %emits list inserts a token with an empty span (engine §11).",
   "documents": {
     "p.md": "## s\n\n```jbogenbau\n%stage first\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage second\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
-    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text x ...\n%rule x y | z\n%rule y $a(A) $b(B) %emits $a, \"MID\", $b\n%rule z C %emits ε\n```\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text x ...\n%rule x y | z\n%rule y $a(A) $b(B) %emits $a, MID, $b\n%rule z C %emits ε\n```\n",
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A MID B\n```\n"
   },
   "pipeline": "p.md",
@@ -41,9 +41,9 @@
             },
             {
               "text": "",
-              "tags": {
-                "MID": true
-              },
+              "tags": [
+                "MID"
+              ],
               "span": [
                 2,
                 2

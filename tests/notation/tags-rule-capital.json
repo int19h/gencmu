@@ -1,0 +1,10 @@
+{
+  "description": "The second argument of tags is a rule, which a name with a capital is not: tags($x, KOhA) is an error at the call (engine §9).",
+  "document": "```jbogenbau\n%rule a $x(B) %conditions tags($x, KOhA) = ∅\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 27
+    }
+  }
+}

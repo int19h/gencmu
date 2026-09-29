@@ -11,14 +11,15 @@ import { extractGrammarText } from "../lib/js/src/markdown.js";
 import { DOM_FORMAT, spellingProblem } from "../lib/js/src/dom.js";
 import { operandProblem } from "../lib/js/src/reader.js";
 import { UnicodeTable } from "../lib/js/src/unicode.js";
+import { characterTag } from "../lib/js/src/tags.js";
 
 // The lowercase mapping that a spelling is checked against (engine §9).
 const unicode = new UnicodeTable(fs.readFileSync(new URL("../grammars/unicode.txt", import.meta.url), "utf8"));
 
-const SYMBOLS = ["...", "|", "&", "(", ")", "[", "]", "<", ">", "#", "ε", ",", "∧", "∨", "¬", "⟹", "?", "=", "≠",
-  "∈", "∉", "⊆", "∪", "∩", "∅"];
+const SYMBOLS = ["...", "|", "&", "(", ")", "[", "]", "<", ">", "#", "ε", ",", "∧", "∨", "¬", "⟹", "=", "≠",
+  "∈", "∉", "⊆", "⊈", "∪", "∩", "∖", "∅"];
 
-const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%tags", "%conditions", "%emits",
+const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%tags", "%conditions", "%emits", "%verbatim",
   "%ambiguity-resolution", "%elidable", "%stage", "%include", "%features"]);
 
 function fail(message, token) {
@@ -45,9 +46,37 @@ function lex(text, positions) {
       continue;
     }
     const start = i;
-    if (isLetter(c)) {
+    // A name, or a guard: a name and `?` or `!`, with `¬` before a gate.
+    if (isLetter(c) || (c === "¬" && isLetter(chars[i + 1] || ""))) {
+      const negated = c === "¬";
+      let j = negated ? i + 1 : i;
+      while (j < chars.length && isNameChar(chars[j])) j++;
+      const name = chars.slice(negated ? i + 1 : i, j).join("");
+      if (chars[j] === "?" || chars[j] === "!") {
+        if (negated && chars[j] === "!") fail("a warning has no negated form", { at: at(j) });
+        tokens.push({ kind: "guard", text: chars.slice(i, j + 1).join(""), at: at(start), name });
+        i = j + 1;
+        continue;
+      }
+      if (!negated) {
+        tokens.push({ kind: "identifier", text: name, at: at(start) });
+        i = j;
+        continue;
+      }
+    }
+    if (c === "~") {
+      i++;
+      if (!isLetter(chars[i] || "")) fail("a name after ~", { at: at(start) });
       while (i < chars.length && isNameChar(chars[i])) i++;
-      tokens.push({ kind: "identifier", text: chars.slice(start, i).join(""), at: at(start) });
+      tokens.push({ kind: "tag", text: chars.slice(start, i).join(""), at: at(start) });
+      continue;
+    }
+    if (c === "'") {
+      i++;
+      while (i < chars.length && chars[i] !== "'") i += chars[i] === "\\" ? 2 : 1;
+      if (i >= chars.length) fail("an unclosed character tag", { at: at(start) });
+      i++;
+      tokens.push({ kind: "character", text: chars.slice(start, i).join(""), at: at(start) });
       continue;
     }
     if (c === '"') {
@@ -73,25 +102,16 @@ function lex(text, positions) {
       i += 3;
       continue;
     }
-    if (c === "$" || c === "%" || c === "@") {
+    if (c === "$" || c === "%") {
       i++;
-      if (c === "@" && chars[i] === "¬") i++;
       const nameStart = i;
-      // `$` alone is the whole constituent; every other sigil needs a name.
+      // `$` alone is the whole constituent; a keyword needs a name.
       if (!isLetter(chars[i] || "") && c !== "$") fail(`a name after ${c}`, { at: at(start) });
       while (i < chars.length && isNameChar(chars[i])) i++;
-      const nameEnd = i;
-      // A guard ends in its kind: `?` for a gate, `!` for a warning, which
-      // has no negated form.
-      if (c === "@") {
-        const negated = chars[start + 1] === "¬";
-        if (chars[i] === "?" || (chars[i] === "!" && !negated)) i++;
-        else fail(`? or ! after a guard's name`, { at: at(i) });
-      }
       const text = chars.slice(start, i).join("");
       if (c === "%" && !KEYWORDS.has(text)) fail(`an unknown keyword ${text}`, { at: at(start) });
-      const kind = c === "$" ? "capture" : c === "%" ? text : "guard";
-      tokens.push({ kind, text, at: at(start), name: chars.slice(nameStart, nameEnd).join("") });
+      const kind = c === "$" ? "capture" : text;
+      tokens.push({ kind, text, at: at(start), name: chars.slice(nameStart, i).join("") });
       continue;
     }
     const symbol = SYMBOLS.find((s) => chars.slice(i, i + [...s].length).join("") === s);
@@ -104,11 +124,13 @@ function lex(text, positions) {
 
 export function decodeString(text, token) {
   const inner = [...text.slice(1, -1)];
+  // A string escapes its double quote, and a character tag its quote.
+  const quote = text[0];
   let result = "";
   for (let i = 0; i < inner.length; i++) {
     if (inner[i] !== "\\") { result += inner[i]; continue; }
     const next = inner[++i];
-    if (next === "\\" || next === '"') result += next;
+    if (next === "\\" || next === quote) result += next;
     else if (next === "u" && inner[i + 1] === "{") {
       let j = i + 2;
       let hex = "";
@@ -124,7 +146,24 @@ export function decodeString(text, token) {
 
 const DIRECTIVES = new Set(["%ambiguity-resolution", "%elidable", "%stage", "%include", "%features"]);
 const RULE_KEYWORDS = { "%rule": "define", "%redefine-rule": "redefine", "%extend-rule": "extend" };
-const COMPARATORS = ["=", "≠", "∈", "∉", "⊆"];
+const COMPARATORS = ["=", "≠", "∈", "∉", "⊆", "⊈"];
+
+// A character tag's DOM form: its one character in its canonical spelling
+// (engine §1, §9).
+function characterOf(token) {
+  const decoded = [...decodeString(token.text, token)];
+  if (decoded.length !== 1) fail("a character tag holds one character", token);
+  return characterTag(decoded[0].codePointAt(0), unicode);
+}
+
+// The tag of a tag token, a character token or a phoneme token.
+function tagOf(token) {
+  if (token.kind === "tag") return token.text.slice(1);
+  if (token.kind === "character") return characterOf(token);
+  return token.text;
+}
+
+const isCapital = (text) => /^[A-Z]/.test(text);
 
 class Parser {
   constructor(tokens) {
@@ -150,10 +189,10 @@ class Parser {
         this.index++;
         const args = [];
         const kinds = [];
-        while (this.is("identifier") || this.is("string")) {
+        while (["identifier", "string", "tag", "phoneme", "character"].some((kind) => this.is(kind))) {
           const operand = this.take();
-          kinds.push(operand.kind === "identifier" ? "name" : "string");
-          args.push(operand.kind === "identifier" ? operand.text : decodeString(operand.text, operand));
+          kinds.push(operand.kind === "identifier" ? (isCapital(operand.text) ? "class" : "name") : operand.kind);
+          args.push(operand.kind === "identifier" ? operand.text : operand.kind === "string" ? decodeString(operand.text, operand) : tagOf(operand));
         }
         const problem = operandProblem(token.name, kinds);
         if (problem) fail(problem, token);
@@ -197,7 +236,7 @@ class Parser {
     const guards = [];
     while (this.is("guard")) {
       const token = this.take();
-      guards.push({ feature: token.name, kind: token.text.endsWith("!") ? "warning" : "gate", negated: token.text.startsWith("@¬") });
+      guards.push({ feature: token.name, kind: token.text.endsWith("!") ? "warning" : "gate", negated: token.text.startsWith("¬") });
     }
     const alternative = { guards, expr: this.conjunction() };
     if (this.is("<")) alternative.tags = this.angleTerm();
@@ -218,7 +257,7 @@ class Parser {
   }
 
   startsPrimary() {
-    return ["identifier", "string", "phoneme", "capture", "(", "[", "#", "ε"].includes((this.peek() || {}).kind);
+    return ["identifier", "tag", "character", "phoneme", "capture", "(", "[", "#", "ε"].includes((this.peek() || {}).kind);
   }
 
   element() {
@@ -234,7 +273,7 @@ class Parser {
     // A reference, a string or a phoneme tag may take a spelling; the reader
     // refuses one after # (engine §9).
     if (!this.is("spelling")) return expr;
-    if (!["identifier", "string", "phoneme", "#"].includes(token.kind)) fail("expected a rule or a directive", this.peek());
+    if (!["identifier", "tag", "character", "phoneme", "#"].includes(token.kind)) fail("expected a rule or a directive", this.peek());
     const spellingToken = this.take("spelling");
     const spelling = [...spellingToken.text].slice(1, -1).join("");
     const problem = spellingProblem(spelling, expr, unicode);
@@ -247,8 +286,7 @@ class Parser {
     if (!token) fail("expected an expression", { at: this.endAt });
     switch (token.kind) {
       case "identifier": this.index++; return { ref: token.text };
-      case "string": this.index++; return { terminal: decodeString(token.text, token) };
-      case "phoneme": this.index++; return { terminal: token.text };
+      case "tag": case "character": case "phoneme": this.index++; return { terminal: tagOf(token) };
       case "capture": {
         this.index++;
         if (token.name === "") fail("$ is the whole constituent and wraps nothing", token);
@@ -293,8 +331,8 @@ class Parser {
     const token = this.take();
     let item;
     if (token.kind === "capture") item = { capture: token.name };
-    else if (token.kind === "string") item = { insert: decodeString(token.text, token) };
-    else if (token.kind === "phoneme") item = { insert: token.text };
+    else if (token.kind === "tag" || token.kind === "character" || token.kind === "phoneme") item = { insert: tagOf(token) };
+    else if (token.kind === "identifier" && isCapital(token.text)) item = { insert: token.text };
     else fail("expected a capture or a tag after %emits", token);
     if (this.is("<")) {
       if (item.insert !== undefined) fail("an inserted tag takes no tags of its own", token);
@@ -346,20 +384,20 @@ class Parser {
         this.take("(");
         const inner = this.implication();
         this.take(")");
-        if (this.startsComparator() || this.is("∪") || this.is("∩")) fail("a term, not a condition", this.peek());
+        if (this.startsComparator() || this.is("∪") || this.is("∩") || this.is("∖")) fail("a term, not a condition", this.peek());
         return inner;
       });
       if (grouped) return grouped;
     }
-    if (this.is("capture") && !this.startsComparator(1) && !this.is("∪", 1) && !this.is("∩", 1)) {
+    if (this.is("capture") && !this.startsComparator(1) && !this.is("∪", 1) && !this.is("∩", 1) && !this.is("∖", 1)) {
       return { captured: this.take().name };
     }
-    if (this.is("identifier") && this.peek().text === "matches" && this.is("(", 1)) {
+    if (this.is("identifier") && ["matches", "begins"].includes(this.peek().text) && this.is("(", 1)) {
       const saved = this.index;
       const call = this.call();
       if (!this.startsComparator()) {
-        if (call.args.length !== 2 || call.args[1].rule === undefined) fail("matches takes a span and a rule", this.tokens[saved]);
-        return { matches: call.args[0], rule: call.args[1].rule };
+        if (call.args.length !== 2 || call.args[1].rule === undefined) fail(`${call.call} takes a span and a rule`, this.tokens[saved]);
+        return call.call === "matches" ? { matches: call.args[0], rule: call.args[1].rule } : { begins: call.args[0], rule: call.args[1].rule };
       }
       this.index = saved;
     }
@@ -384,11 +422,22 @@ class Parser {
     return guarded || this.union();
   }
 
+  // Parts joined by ∪ and ∖, from the left: a run of ∪ is one union.
   union() {
     this.accept("∪");
-    const items = [this.intersection()];
-    while (this.accept("∪")) items.push(this.intersection());
-    return items.length === 1 ? items[0] : { union: items };
+    let result = this.intersection();
+    let open = false;
+    for (;;) {
+      if (this.accept("∪")) {
+        const next = this.intersection();
+        if (open) result.union.push(next);
+        else result = { union: [result, next] };
+        open = true;
+      } else if (this.accept("∖")) {
+        result = { difference: [result, this.intersection()] };
+        open = false;
+      } else return result;
+    }
   }
 
   intersection() {
@@ -402,13 +451,16 @@ class Parser {
     const token = this.peek();
     if (!token) fail("expected a term", { at: this.endAt });
     switch (token.kind) {
-      case "string": this.index++; return { literal: decodeString(token.text, token) };
-      case "phoneme": this.index++; return { literal: token.text };
-      case "?": { this.index++; const s = this.take("string"); return { weak: decodeString(s.text, s) }; }
+      case "string": this.index++; return { string: decodeString(token.text, token) };
+      case "tag": case "character": case "phoneme": this.index++; return { tag: tagOf(token) };
       case "∅": this.index++; return { emptySet: true };
       case "(": { this.index++; const inner = this.term(); this.take(")"); return inner; }
       case "capture": this.index++; return { capture: token.name };
-      case "identifier": return this.call();
+      case "identifier":
+        if (this.is("(", 1)) return this.call();
+        if (!isCapital(token.text)) fail("a rule is not a value", token);
+        this.index++;
+        return { tag: token.text };
       default: fail("expected a term", token);
     }
   }

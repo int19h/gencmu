@@ -1,0 +1,154 @@
+{
+  "description": "∖ is set difference. ∩ binds tighter than ∪ and ∖, which bind equally and group from the left; a leading ∪ is a separator (engine §9, §10).",
+  "document": "```jbogenbau\n%rule a A <B ∖ C ∪ D>\n%rule b A <B ∪ C ∖ D>\n%rule c A <B ∖ C ∖ D>\n%rule d A <B ∪ C ∩ D ∖ E>\n%rule e A <∪ B ∪ C>\n%rule f A <B ∖ (C ∪ D)>\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "a",
+          "alternatives": [
+            {
+              "tags": {
+                "union": [
+                  {
+                    "difference": [
+                      {
+                        "tag": "B"
+                      },
+                      {
+                        "tag": "C"
+                      }
+                    ]
+                  },
+                  {
+                    "tag": "D"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "b",
+          "alternatives": [
+            {
+              "tags": {
+                "difference": [
+                  {
+                    "union": [
+                      {
+                        "tag": "B"
+                      },
+                      {
+                        "tag": "C"
+                      }
+                    ]
+                  },
+                  {
+                    "tag": "D"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "c",
+          "alternatives": [
+            {
+              "tags": {
+                "difference": [
+                  {
+                    "difference": [
+                      {
+                        "tag": "B"
+                      },
+                      {
+                        "tag": "C"
+                      }
+                    ]
+                  },
+                  {
+                    "tag": "D"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "d",
+          "alternatives": [
+            {
+              "tags": {
+                "difference": [
+                  {
+                    "union": [
+                      {
+                        "tag": "B"
+                      },
+                      {
+                        "intersection": [
+                          {
+                            "tag": "C"
+                          },
+                          {
+                            "tag": "D"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "tag": "E"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "e",
+          "alternatives": [
+            {
+              "tags": {
+                "union": [
+                  {
+                    "tag": "B"
+                  },
+                  {
+                    "tag": "C"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "f",
+          "alternatives": [
+            {
+              "tags": {
+                "difference": [
+                  {
+                    "tag": "B"
+                  },
+                  {
+                    "union": [
+                      {
+                        "tag": "C"
+                      },
+                      {
+                        "tag": "D"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

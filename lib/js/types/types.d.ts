@@ -1,4 +1,4 @@
-export type TagSet = Map<string, boolean>;
+export type TagSet = Set<string>;
 export type Span = [number, number];
 export type Position = [number, number];
 export type ErrorLocation = {
@@ -64,7 +64,6 @@ export type ReadAction = {
     kind: "read";
     token: number;
     terminal: string;
-    weak: boolean;
 };
 export type CloseAction = {
     kind: "close";
@@ -250,7 +249,7 @@ export type EmitItem = {
     insert?: string;
     tags?: Term;
 };
-export type Comparator = "=" | "≠" | "∈" | "∉" | "⊆";
+export type Comparator = "=" | "≠" | "∈" | "∉" | "⊆" | "⊈";
 export type Condition = {
     any: Condition[];
 } | {
@@ -276,9 +275,9 @@ export type Condition = {
     right: Term;
 };
 export type Term = {
-    literal: string;
+    string: string;
 } | {
-    weak: string;
+    tag: string;
 } | {
     emptySet: true;
 } | {
@@ -288,6 +287,8 @@ export type Term = {
     then: Term;
 } | {
     intersection: Term[];
+} | {
+    difference: [Term, Term];
 } | {
     call: string;
     args: Argument[];
@@ -383,7 +384,7 @@ export type Edge = {
 export type TermValue = {
     string: string;
 } | {
-    tags: TagSet;
+    set: Set<string>;
 };
 export type SpanValue = {
     start: number;
@@ -423,9 +424,9 @@ export type Token = import("./tokens.js").Token;
 export type Item = import("./earley.js").Item;
 export type ParseContext = import("./earley.js").ParseContext;
 /**
- * A tag set: each tag with its strength, `true` for strong and `false` for
- * weak.
- * @typedef {Map<string, boolean>} TagSet
+ * A tag set: tags in their canonical spelling (engine §1), which have no
+ * strength.
+ * @typedef {Set<string>} TagSet
  */
 /**
  * A half-open range `[start, end)`: of a stage's input tokens, or of the
@@ -516,7 +517,6 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {"read"} kind
  * @property {number} token
  * @property {string} terminal
- * @property {boolean} weak
  */
 /**
  * @typedef {object} CloseAction
@@ -649,14 +649,15 @@ export type ParseContext = import("./earley.js").ParseContext;
  */
 /**
  * One item of an emission clause: a capture, `""` for `$`, the whole
- * constituent, with the tags to give it; or an inserted token.
+ * constituent, with the tags to give it; or an inserted token, whose one
+ * tag `insert` is.
  * @typedef {object} EmitItem
  * @property {string} [capture]
  * @property {string} [insert]
  * @property {Term} [tags]
  */
 /**
- * @typedef {"=" | "≠" | "∈" | "∉" | "⊆"} Comparator
+ * @typedef {"=" | "≠" | "∈" | "∉" | "⊆" | "⊈"} Comparator
  */
 /**
  * A condition.
@@ -665,9 +666,11 @@ export type ParseContext = import("./earley.js").ParseContext;
  *   | {op: Comparator, left: Term, right: Term}} Condition
  */
 /**
- * A term of a condition or a tags clause.
- * @typedef {{literal: string} | {weak: string} | {emptySet: true} | {union: Term[]} | {if: Condition, then: Term}
- *   | {intersection: Term[]} | {call: string, args: Argument[]} | {capture: string}} Term
+ * A term of a condition or a tags clause: a string, a tag literal, the
+ * empty set, a set expression, a guarded term, a call, or a span, which
+ * only a call's argument can be (engine §10).
+ * @typedef {{string: string} | {tag: string} | {emptySet: true} | {union: Term[]} | {if: Condition, then: Term}
+ *   | {intersection: Term[]} | {difference: [Term, Term]} | {call: string, args: Argument[]} | {capture: string}} Term
  */
 /**
  * A function's argument: a term, or the name of a rule.
@@ -744,8 +747,9 @@ export type ParseContext = import("./earley.js").ParseContext;
  *   | {kind: "complete", previous: Item, child: Item}} Edge
  */
 /**
- * A value a term evaluates to.
- * @typedef {{string: string} | {tags: TagSet}} TermValue
+ * A value a term evaluates to: a string, or a set, of strings or of tags,
+ * whose kind the reader has checked (engine §10).
+ * @typedef {{string: string} | {set: Set<string>}} TermValue
  */
 /**
  * A span a term denotes, with the tags of the captured part when it is a

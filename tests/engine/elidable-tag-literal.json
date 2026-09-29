@@ -1,0 +1,44 @@
+{
+  "description": "%elidable takes identifier tags: ~ku makes the terminal ~ku elidable, and ~KU and a bare KU are one terminal (design §15, engine §3.8).",
+  "grammar": "%elidable ~ku ~KU\n%rule text A [~ku] [KU]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A",
+            "token": 0
+          },
+          {
+            "kind": "elided",
+            "terminal": "ku",
+            "span": [
+              1,
+              1
+            ]
+          },
+          {
+            "kind": "elided",
+            "terminal": "KU",
+            "span": [
+              1,
+              1
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

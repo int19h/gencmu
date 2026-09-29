@@ -2,7 +2,7 @@
   "description": "tags(span, rule) is the tags of the span parsed as the rule, which is how a word looks itself up in a lexicon (engine §10).",
   "documents": {
     "p.md": "## s\n\n```jbogenbau\n%stage first\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n",
-    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w(word) <tags($w, lexicon)>\n%rule word L ...\n%rule lexicon L L <\"PAIR\"> | L <\"ONE\">\n```\n"
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w(word) <tags($w, lexicon)>\n%rule word L ...\n%rule lexicon L L <PAIR> | L <ONE>\n```\n"
   },
   "pipeline": "p.md",
   "tokens": [
@@ -25,9 +25,9 @@
       "tree": {
         "kind": "rule",
         "rule": "text",
-        "tags": {
-          "PAIR": true
-        }
+        "tags": [
+          "PAIR"
+        ]
       }
     }
   }

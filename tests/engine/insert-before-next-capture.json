@@ -1,6 +1,6 @@
 {
   "description": "An inserted tag stands where it is listed, its span empty at the start of the capture listed next after it; a part the list does not name is not emitted (engine §11).",
-  "grammar": "%rule text $a(A) B $b(C) %emits $a, \"x\", $b",
+  "grammar": "%rule text $a(A) B $b(C) %emits $a, ~x, $b",
   "tokens": [
     {
       "text": "a",
@@ -42,9 +42,9 @@
             },
             {
               "text": "",
-              "tags": {
-                "x": true
-              },
+              "tags": [
+                "x"
+              ],
               "span": [
                 2,
                 2

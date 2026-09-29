@@ -1,6 +1,6 @@
 {
-  "description": "Strings are decoded; phoneme tags keep their slashes (engine §9).",
-  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule text \"a\\u{ED80}\\\"\" /ʃ/ / /\n```\n",
+  "description": "A body's terminals: a character tag in its canonical spelling, phoneme tags with their slashes, a tag literal's name, and a bare name with a capital as a ref (engine §1, §9).",
+  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule text 'a' '\\u{ED80}' '\"' /ʃ/ / / ~word KOhA\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -10,13 +10,25 @@
               "expr": {
                 "seq": [
                   {
-                    "terminal": "a\""
+                    "terminal": "'a'"
+                  },
+                  {
+                    "terminal": "'\\u{ED80}'"
+                  },
+                  {
+                    "terminal": "'\"'"
                   },
                   {
                     "terminal": "/ʃ/"
                   },
                   {
                     "terminal": "/ /"
+                  },
+                  {
+                    "terminal": "word"
+                  },
+                  {
+                    "ref": "KOhA"
                   }
                 ]
               }

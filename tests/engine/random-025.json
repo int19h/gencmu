@@ -1,18 +1,18 @@
 {
-  "description": "A random grammar with the notation's sugar and weak tags (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 5 derivations.",
+  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 5 derivations.",
   "grammar": "%ambiguity-resolution greedy\n%rule text ε | (t | B) | [v]\n%rule t [C] [B] | C\n%rule u C B | C v\n%rule v ε | u ...",
   "tokens": [
     {
       "text": "a",
       "tags": [
         "B",
-        "?C"
+        "C"
       ]
     }
   ],
   "expect": {
     "result": {
-      "format": 3,
+      "format": 4,
       "ok": true,
       "stages": [
         {
@@ -26,13 +26,9 @@
               }
             },
             {
-              "close": {
-                "rule": "t",
-                "production": 7,
-                "span": [
-                  0,
-                  0
-                ]
+              "read": {
+                "token": 0,
+                "terminal": "C"
               }
             }
           ],
@@ -47,7 +43,10 @@
               0,
               1
             ],
-            "tags": {},
+            "tags": [
+              "B",
+              "C"
+            ],
             "children": [
               {
                 "kind": "rule",
@@ -60,11 +59,14 @@
                   0,
                   1
                 ],
-                "tags": {},
+                "tags": [
+                  "B",
+                  "C"
+                ],
                 "children": [
                   {
                     "kind": "token",
-                    "terminal": "B",
+                    "terminal": "C",
                     "token": 0,
                     "span": [
                       0,
@@ -93,10 +95,10 @@
           0,
           1
         ],
-        "tags": {
-          "B": true,
-          "C": false
-        },
+        "tags": [
+          "B",
+          "C"
+        ],
         "children": [
           {
             "kind": "token",

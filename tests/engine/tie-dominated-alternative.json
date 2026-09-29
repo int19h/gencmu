@@ -1,6 +1,6 @@
 {
-  "description": "A derivation tied with the chosen one can still be dominated: B X ties with A X at the first read but loses to B Y, so B Y is the tied derivation reported (engine §6).",
-  "grammar": "%ambiguity-resolution greedy\n%rule text A X | B X | B Y",
+  "description": "A derivation tied with the chosen one can still be dominated. The derivation through p ties with A C D at the first read, but loses to the one through q, which reads D where it closes p. So the one through q is the tied derivation reported (engine §6).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text A C D | p D | B q\n%rule p B C\n%rule q C D",
   "tokens": [
     {
       "text": "x",
@@ -12,8 +12,13 @@
     {
       "text": "y",
       "tags": [
-        "?X",
-        "Y"
+        "C"
+      ]
+    },
+    {
+      "text": "z",
+      "tags": [
+        "D"
       ]
     }
   ],
@@ -23,31 +28,67 @@
       "stages": [
         {
           "verdict": "tie",
+          "witness": [
+            {
+              "read": {
+                "token": 0,
+                "terminal": "A"
+              }
+            },
+            {
+              "read": {
+                "token": 0,
+                "terminal": "B"
+              }
+            }
+          ],
           "tied": {
+            "kind": "rule",
             "rule": "text",
             "children": [
               {
                 "kind": "token",
-                "terminal": "B"
+                "terminal": "B",
+                "token": 0
               },
               {
-                "kind": "token",
-                "terminal": "Y"
+                "kind": "rule",
+                "rule": "q",
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "C",
+                    "token": 1
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "D",
+                    "token": 2
+                  }
+                ]
               }
             ]
           }
         }
       ],
       "tree": {
+        "kind": "rule",
         "rule": "text",
         "children": [
           {
             "kind": "token",
-            "terminal": "A"
+            "terminal": "A",
+            "token": 0
           },
           {
             "kind": "token",
-            "terminal": "X"
+            "terminal": "C",
+            "token": 1
+          },
+          {
+            "kind": "token",
+            "terminal": "D",
+            "token": 2
           }
         ]
       }

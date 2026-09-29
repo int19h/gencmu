@@ -1,0 +1,10 @@
+{
+  "description": "An inserted item is a tag literal, never a string: %emits \"foo\" is an error at the string (design §15, engine §9).",
+  "document": "```jbogenbau\n%rule a A %emits \"foo\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 18
+    }
+  }
+}

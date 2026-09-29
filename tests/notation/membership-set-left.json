@@ -1,6 +1,6 @@
 {
   "description": "A union in parentheses on the left of ∈ is a tag set, so the comparison is an error of the document, reported at the parenthesis (engine §9, §10).",
-  "document": "```jbogenbau\n%rule a $x(B) %conditions (\"a\" ∪ \"b\") ∈ tags($x)\n```\n",
+  "document": "```jbogenbau\n%rule a $x(B) %conditions (~a ∪ ~b) ∈ runs($x)\n```\n",
   "expect": {
     "error": {
       "line": 2,

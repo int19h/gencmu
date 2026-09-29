@@ -5,8 +5,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-Tags = dict[str, bool]
-"""A tag set: tag name to strength, ``True`` for strong."""
+Tags = frozenset[str]
+"""A tag set: the tags it holds, each in its canonical spelling (engine §1).
+A tag has no strength."""
 
 Range = tuple[int, int]
 """A half-open range ``(start, end)``."""
@@ -114,7 +115,7 @@ class Stage:
 @dataclass
 class ParseWarning:
     """A warning (engine §12): a rule node of a stage's chosen tree whose
-    alternative has a warning ``@feature!``, while the feature is on.
+    alternative has a warning ``feature!``, while the feature is on.
     ``span`` is the node's range of the stage's input tokens, and ``source``
     its range of the original text. Not called ``Warning``, which is a
     built-in exception."""

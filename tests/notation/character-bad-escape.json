@@ -1,0 +1,10 @@
+{
+  "description": "A character tag's escapes are \\', \\\\ and \\u{…}: \\\" is an error at the tag (engine §9).",
+  "document": "```jbogenbau\n%rule a '\\\"'\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  }
+}

@@ -6,7 +6,7 @@ import (
 )
 
 // resultFormat is the version of docs/output.md.
-const resultFormat = 3
+const resultFormat = 4
 
 // MarshalResult writes the canonical JSON of a result (docs/output.md).
 func MarshalResult(result *ParseResult) ([]byte, error) {
@@ -88,18 +88,21 @@ func writeStage(w *jsonWriter, s *Stage) {
 	w.raw("}")
 }
 
-func writeTags(w *jsonWriter, tags map[string]bool) {
-	names := make([]string, 0, len(tags))
-	for n := range tags {
-		names = append(names, n)
-	}
+// writeTags lists every tag once, in code point order (docs/output.md).
+func writeTags(w *jsonWriter, tags []string) {
+	names := append([]string{}, tags...)
 	sort.Strings(names)
-	w.raw("{")
+	w.raw("[")
 	for i, n := range names {
-		w.key(i == 0, n)
-		w.bool(tags[n])
+		if i > 0 && n == names[i-1] {
+			continue
+		}
+		if i > 0 {
+			w.raw(",")
+		}
+		w.str(n)
 	}
-	w.raw("}")
+	w.raw("]")
 }
 
 func writeToken(w *jsonWriter, t *Token) {

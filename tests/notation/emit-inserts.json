@@ -1,0 +1,31 @@
+{
+  "description": "An inserted item is one tag: a bare name with a capital, ~name, a character tag or a phoneme tag (design §15, engine §9).",
+  "document": "```jbogenbau\n%rule a $x(A) %emits KU, ~ku, 'a', /a/, $x\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "emit": {
+            "items": [
+              {
+                "insert": "KU"
+              },
+              {
+                "insert": "ku"
+              },
+              {
+                "insert": "'a'"
+              },
+              {
+                "insert": "/a/"
+              },
+              {
+                "capture": "x"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

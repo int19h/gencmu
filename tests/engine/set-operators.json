@@ -1,0 +1,104 @@
+{
+  "description": "∪, ∩ and ∖ on tag sets: ∩ binds tighter than ∪ and ∖, which bind equally and group from the left (engine §10).",
+  "grammar": "%rule text a b c d e f\n%rule a W <A ∪ B ∖ A ∪ C>\n%rule b W <A ∪ B ∩ C>\n%rule c W <(A ∪ B) ∩ (B ∪ C)>\n%rule d W <A ∖ (A ∪ B) ∪ C>\n%rule e W <A ∖ A ∩ B ∪ B>\n%rule f $x(W) <tags($x) ∖ W ∪ D>",
+  "tokens": [
+    {
+      "text": "u",
+      "tags": [
+        "W",
+        "V"
+      ]
+    },
+    {
+      "text": "v",
+      "tags": [
+        "W",
+        "V"
+      ]
+    },
+    {
+      "text": "w",
+      "tags": [
+        "W",
+        "V"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "W",
+        "V"
+      ]
+    },
+    {
+      "text": "y",
+      "tags": [
+        "W",
+        "V"
+      ]
+    },
+    {
+      "text": "z",
+      "tags": [
+        "W",
+        "V"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "a",
+            "tags": [
+              "B",
+              "C"
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "b",
+            "tags": [
+              "A"
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "c",
+            "tags": [
+              "B"
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "d",
+            "tags": [
+              "C"
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "e",
+            "tags": [
+              "A",
+              "B"
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "f",
+            "tags": [
+              "D",
+              "V"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

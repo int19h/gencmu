@@ -11,10 +11,10 @@ Libraries write object keys in the order that this document gives. They write no
 ### A parse result
 
 ```
-{"format":3,"ok":true,"stages":[STAGE...],"tree":NODE,"error":ERROR,"warnings":[WARNING...]}
+{"format":4,"ok":true,"stages":[STAGE...],"tree":NODE,"error":ERROR,"warnings":[WARNING...]}
 ```
 
-`format` is the version of the shape of the result, 3. `tree` is the chosen tree of the last stage, or `null`. `error` is `null` when `ok` is true. `warnings` is present only when there is at least one warning (engine §12, §13).
+`format` is the version of the shape of the result, 4. `tree` is the chosen tree of the last stage, or `null`. `error` is `null` when `ok` is true. `warnings` is present only when there is at least one warning (engine §12, §13).
 
 A stage has this form:
 
@@ -31,15 +31,17 @@ A stage has this form:
 A token has this form:
 
 ```
-{"text":"mi","phonemes":"mi","tags":{"KOhA":true,"UI":false,"word":true},"span":[0,2],"source":[0,2]}
+{"text":"mi","phonemes":"mi","tags":["KOhA","UI","word"],"span":[0,2],"source":[0,2]}
 ```
 
-`tags` lists every tag in code point order, strong as `true`, weak as `false`. `phonemes` is always present, the empty string for a token with none (engine §5). `"verbatim":true` follows `source` for a verbatim token, and is absent for any other (engine §11). The phonemes of a verbatim token are its text, which can hold any character. `insertedBy` follows `source` for a token that was inserted from a quoted tag or a phoneme tag (engine §1). Its value is the name of the rule that inserted the token.
+`tags` lists every tag once, in code point order. A tag is written in its canonical spelling (engine §1), so a character tag is `'a'`, and a combining acute accent is `'\u{301}'`. `phonemes` is always present, the empty string for a token with none (engine §5). `"verbatim":true` follows `source` for a verbatim token, and is absent for any other (engine §11). The phonemes of a verbatim token are its text, which can hold any character.
+
+`insertedBy` follows `source` for a token that was inserted from a tag literal (engine §1). Its value is the name of the rule that inserted the token.
 
 A node has one of these forms:
 
 ```
-{"kind":"rule","rule":"sumti","span":[0,3],"source":[0,9],"tags":{...},"children":[NODE...]}
+{"kind":"rule","rule":"sumti","span":[0,3],"source":[0,9],"tags":[TAG...],"children":[NODE...]}
 {"kind":"token","terminal":"KOhA","token":0,"span":[0,1],"source":[0,2]}
 {"kind":"elided","terminal":"KU","span":[3,3],"source":[9,9]}
 ```
@@ -80,14 +82,14 @@ A mistake of the caller is not a result. It is an error of kind `usage` (engine 
 A grammar DOM (document object model) is the data that a library makes when it reads a grammar document (engine §8, §9). `bootstrap.json` and the precompiled DOMs hold the same data.
 
 ```
-{"format":8,"rules":[RULE...],"directives":[DIRECTIVE...]}
+{"format":9,"rules":[RULE...],"directives":[DIRECTIVE...]}
 ```
 
 `format` is the version of the DOM. It changes whenever the shape of the DOM changes. A library never uses a cached DOM of another version.
 
 A rule is `{"name":"sumti","op":"define","tags":TERM,"alternatives":[ALT...],"emit":EMIT,"conditions":[COND...],"verbatim":true,"at":[line,column]}`. `op` is `define`, `redefine` or `extend`. `tags`, `emit` and `verbatim` are optional. `verbatim` is present, and `true`, only for a rule that has `%verbatim`. The name of a rule is a name, or `#`.
 
-An alternative is `{"guards":[GUARD...],"expr":EXPR,"tags":TERM}`, with `tags` optional. A guard is `{"feature":"cbm","kind":"gate","negated":false}` for `@cbm?`, with `"negated":true` for `@¬cbm?`, or `{"feature":"y-cmavo","kind":"warning","negated":false}` for `@y-cmavo!`.
+An alternative is `{"guards":[GUARD...],"expr":EXPR,"tags":TERM}`, with `tags` optional. A guard is `{"feature":"cbm","kind":"gate","negated":false}` for `cbm?`, with `"negated":true` for `¬cbm?`, or `{"feature":"y-cmavo","kind":"warning","negated":false}` for `y-cmavo!`.
 
 An expression is one of these forms:
 
@@ -99,13 +101,17 @@ An expression is one of these forms:
 {"empty":true}
 ```
 
-`terminal` holds a name, a decoded string, or a phoneme tag `/p/`. A spelled symbol has no member but `spelling` and `expr`. Its `expr` is a `ref` other than `#`, or a `terminal`, with no other member. Its `spelling` is the text between the backticks, so it holds no backtick. The spelling is never empty, and `lowercase` does not change it (engine §9). A capture's `expr` is a `ref`, a `terminal` or a spelled symbol.
+`terminal` holds a tag in its canonical spelling (engine §1): a name from `~name`, a phoneme tag `/p/`, or a character tag such as `'a'`. A bare name is a `ref`, whether it names a rule or, with a capital, a terminal.
 
-A term is `{"literal":"s"}`, `{"weak":"s"}`, `{"emptySet":true}`, `{"union":[TERM...]}`, `{"intersection":[TERM...]}`, `{"if":COND,"then":TERM}` or `{"call":"phonemes","args":[ARG...]}`. An argument is a span or a term. For `tags`, `matches` and `begins`, an argument can also be a rule name, `{"rule":"lexicon"}`. A span is `{"capture":"x"}`, `{"capture":""}` for `$`, or `{"call":"head","args":[SPAN]}`. `tail`, `last`, `from` and `after` have the same form as `head`.
+A spelled symbol has no member but `spelling` and `expr`. Its `expr` is a `ref` other than `#`, or a `terminal`, with no other member. Its `spelling` is the text between the backticks, so it holds no backtick. The spelling is never empty, and `lowercase` does not change it (engine §9). A capture's `expr` is a `ref`, a `terminal` or a spelled symbol.
+
+A term is `{"string":"s"}`, `{"tag":"KOhA"}`, `{"emptySet":true}`, `{"union":[TERM...]}`, `{"intersection":[TERM...]}`, `{"difference":[TERM,TERM]}`, `{"if":COND,"then":TERM}` or `{"call":"phonemes","args":[ARG...]}`. `string` holds the decoded string. `tag` holds one tag in its canonical spelling, from a tag literal, a bare name with a capital, a phoneme tag or a character tag. `difference` has exactly two parts, and `a ∖ b ∖ c` nests the first difference in the second. A term has no member but those of its one form.
+
+An argument is a span or a term. For `tags`, `matches` and `begins`, an argument can also be a rule name, `{"rule":"lexicon"}`. A span is `{"capture":"x"}`, `{"capture":""}` for `$`, or `{"call":"head","args":[SPAN]}`. `tail`, `last`, `from` and `after` have the same form as `head`.
 
 A condition is one of these forms:
 
-- `{"op":"=","left":TERM,"right":TERM}`, with `op` one of `=`, `≠`, `∈`, `∉`, `⊆`. For `∈` and `∉`, `left` is a string: a `literal`, or a `call` of `phonemes`, `text` or `lowercase` (engine §9).
+- `{"op":"=","left":TERM,"right":TERM}`, with `op` one of `=`, `≠`, `∈`, `∉`, `⊆`, `⊈`. The types of `left` and `right` agree as engine §10 says.
 - `{"matches":SPAN,"rule":"r"}`
 - `{"begins":SPAN,"rule":"r"}`
 - `{"initial":SPAN}`
@@ -115,15 +121,15 @@ A condition is one of these forms:
 - `{"captured":"x"}`, with `""` for `$`
 - `{"if":COND,"then":COND}`
 
-An emission is `{"items":[ITEM...]}`. An item is `{"capture":"x","tags":TERM}`, with `tags` optional, or `{"insert":"h"}`. For `ε`, there are no items. `"capture":""` is `$`.
+An emission is `{"items":[ITEM...]}`. An item is `{"capture":"x","tags":TERM}`, with `tags` optional, or `{"insert":"/h/"}`, whose value is one tag in its canonical spelling. For `ε`, there are no items. `"capture":""` is `$`.
 
-A directive is `{"name":"elidable","args":["KU","KEI"],"at":[line,column]}`. The name is the keyword without `%`: `ambiguity-resolution`, `elidable`, `stage`, `include` or `features`. An argument is a name, or, for `include`, the decoded string: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`.
+A directive is `{"name":"elidable","args":["KU","KEI"],"at":[line,column]}`. An operand `~KU` of `%elidable` is the name `KU`. The name is the keyword without `%`: `ambiguity-resolution`, `elidable`, `stage`, `include` or `features`. An argument is a name, or, for `include`, the decoded string: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`.
 
 `rules` and `directives` each keep the order in which the document has them. `at` is the line and column of an item's first token. So the order of all of a document's items is the order of their positions. No two items of a DOM share a position (engine §9).
 
 ### Precompiled DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":8,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
+`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":9,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
 
 ## Renderings
 

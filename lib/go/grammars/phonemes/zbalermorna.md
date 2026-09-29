@@ -18,36 +18,36 @@ The first rules below read the consonant radicals. U+ED89 is the radical for the
 
 ```jbogenbau
 %extend-rule consonant
-  | "\u{ED80}" </p/>
-  | "\u{ED81}" </t/>
-  | "\u{ED82}" </k/>
-  | "\u{ED83}" </f/>
-  | "\u{ED90}" </b/>
-  | "\u{ED91}" </d/>
-  | "\u{ED92}" </g/>
-  | "\u{ED93}" </v/>
-  | "\u{ED84}" </l/>
-  | "\u{ED85}" </s/>
-  | "\u{ED86}" </c/>
-  | "\u{ED87}" </m/>
-  | "\u{ED94}" </r/>
-  | "\u{ED95}" </z/>
-  | "\u{ED96}" </j/>
-  | "\u{ED97}" </n/>
-  | "\u{ED88}" </x/>
+  | '\u{ED80}' </p/>
+  | '\u{ED81}' </t/>
+  | '\u{ED82}' </k/>
+  | '\u{ED83}' </f/>
+  | '\u{ED90}' </b/>
+  | '\u{ED91}' </d/>
+  | '\u{ED92}' </g/>
+  | '\u{ED93}' </v/>
+  | '\u{ED84}' </l/>
+  | '\u{ED85}' </s/>
+  | '\u{ED86}' </c/>
+  | '\u{ED87}' </m/>
+  | '\u{ED94}' </r/>
+  | '\u{ED95}' </z/>
+  | '\u{ED96}' </j/>
+  | '\u{ED97}' </n/>
+  | '\u{ED88}' </x/>
 %emits
   $
 
 %extend-rule apostrophe
-  "\u{ED8A}"
+  '\u{ED8A}'
 %emits
   $ </'/>
 
 %extend-rule core-char
-  "\u{ED89}"
+  '\u{ED89}'
 
 %extend-rule comma
-  "\u{ED9A}" | "\u{ED8C}" | "\u{ED99}" | "\u{ED9B}"
+  '\u{ED9A}' | '\u{ED8C}' | '\u{ED99}' | '\u{ED9B}'
 ```
 
 A vowel diacritic and its full-vowel form are the same phoneme. The stress mark U+ED98 after either, or after a diphthong diacritic, makes it stressed, and a repeated mark is one mark. The glide radicals U+EDAA and U+EDAB are `i` and `u` before a vowel. A diphthong diacritic is two phonemes and stands where a vowel stands.
@@ -58,27 +58,27 @@ A stress mark or a shorthand is a character of the script, so it is never punctu
 
 ```jbogenbau
 %extend-rule plain-vowel
-  | "\u{EDA0}" </a/> | "\u{EDB0}" </a/>
-  | "\u{EDA1}" </e/> | "\u{EDB1}" </e/>
-  | "\u{EDA2}" </i/> | "\u{EDB2}" </i/> | "\u{EDAA}" </i/>
-  | "\u{EDA3}" </o/> | "\u{EDB3}" </o/>
-  | "\u{EDA4}" </u/> | "\u{EDB4}" </u/> | "\u{EDAB}" </u/>
-  | "\u{EDA5}" </y/> | "\u{EDB5}" </y/>
+  | '\u{EDA0}' </a/> | '\u{EDB0}' </a/>
+  | '\u{EDA1}' </e/> | '\u{EDB1}' </e/>
+  | '\u{EDA2}' </i/> | '\u{EDB2}' </i/> | '\u{EDAA}' </i/>
+  | '\u{EDA3}' </o/> | '\u{EDB3}' </o/>
+  | '\u{EDA4}' </u/> | '\u{EDB4}' </u/> | '\u{EDAB}' </u/>
+  | '\u{EDA5}' </y/> | '\u{EDB5}' </y/>
 %emits
   $
 
 %extend-rule stressed-vowel
-  | "\u{EDA0}" zbalermorna-stress </A/> | "\u{EDB0}" zbalermorna-stress </A/>
-  | "\u{EDA1}" zbalermorna-stress </E/> | "\u{EDB1}" zbalermorna-stress </E/>
-  | "\u{EDA2}" zbalermorna-stress </I/> | "\u{EDB2}" zbalermorna-stress </I/>
-  | "\u{EDA3}" zbalermorna-stress </O/> | "\u{EDB3}" zbalermorna-stress </O/>
-  | "\u{EDA4}" zbalermorna-stress </U/> | "\u{EDB4}" zbalermorna-stress </U/>
-  | "\u{EDA5}" zbalermorna-stress </Y/> | "\u{EDB5}" zbalermorna-stress </Y/>
+  | '\u{EDA0}' zbalermorna-stress </A/> | '\u{EDB0}' zbalermorna-stress </A/>
+  | '\u{EDA1}' zbalermorna-stress </E/> | '\u{EDB1}' zbalermorna-stress </E/>
+  | '\u{EDA2}' zbalermorna-stress </I/> | '\u{EDB2}' zbalermorna-stress </I/>
+  | '\u{EDA3}' zbalermorna-stress </O/> | '\u{EDB3}' zbalermorna-stress </O/>
+  | '\u{EDA4}' zbalermorna-stress </U/> | '\u{EDB4}' zbalermorna-stress </U/>
+  | '\u{EDA5}' zbalermorna-stress </Y/> | '\u{EDB5}' zbalermorna-stress </Y/>
 %emits
   $
 
 %rule zbalermorna-stress
-  "\u{ED98}" | zbalermorna-stress "\u{ED98}"
+  '\u{ED98}' | zbalermorna-stress '\u{ED98}'
 
 %extend-rule vowel
   zbalermorna-diphthong | zbalermorna-stressed-diphthong
@@ -93,28 +93,28 @@ A stress mark or a shorthand is a character of the script, so it is never punctu
   zbalermorna-shorthand-mark | zbalermorna-stress-mark
 
 %rule zbalermorna-stress-mark
-  "\u{ED98}"
+  '\u{ED98}'
 
 %rule zbalermorna-diphthong
   zbalermorna-ai | zbalermorna-ei | zbalermorna-oi | zbalermorna-au
 
 %rule zbalermorna-ai
-  "\u{EDA6}"
+  '\u{EDA6}'
 %emits
   $ </a/>, $ </i/>
 
 %rule zbalermorna-ei
-  "\u{EDA7}"
+  '\u{EDA7}'
 %emits
   $ </e/>, $ </i/>
 
 %rule zbalermorna-oi
-  "\u{EDA8}"
+  '\u{EDA8}'
 %emits
   $ </o/>, $ </i/>
 
 %rule zbalermorna-au
-  "\u{EDA9}"
+  '\u{EDA9}'
 %emits
   $ </a/>, $ </u/>
 
@@ -125,22 +125,22 @@ A stress mark or a shorthand is a character of the script, so it is never punctu
   | zbalermorna-stressed-au
 
 %rule zbalermorna-stressed-ai
-  "\u{EDA6}" zbalermorna-stress
+  '\u{EDA6}' zbalermorna-stress
 %emits
   $ </A/>, $ </i/>
 
 %rule zbalermorna-stressed-ei
-  "\u{EDA7}" zbalermorna-stress
+  '\u{EDA7}' zbalermorna-stress
 %emits
   $ </E/>, $ </i/>
 
 %rule zbalermorna-stressed-oi
-  "\u{EDA8}" zbalermorna-stress
+  '\u{EDA8}' zbalermorna-stress
 %emits
   $ </O/>, $ </i/>
 
 %rule zbalermorna-stressed-au
-  "\u{EDA9}" zbalermorna-stress
+  '\u{EDA9}' zbalermorna-stress
 %emits
   $ </A/>, $ </u/>
 
@@ -153,5 +153,5 @@ A stress mark or a shorthand is a character of the script, so it is never punctu
   plain-vowel | stressed-vowel
 
 %rule zbalermorna-shorthand-mark
-  "\u{ED8B}"
+  '\u{ED8B}'
 ```

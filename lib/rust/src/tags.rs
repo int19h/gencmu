@@ -1,16 +1,17 @@
-//! Tags and tag sets (engine §1): names interned to numbers, and sets of
-//! (tag, strength) interned to numbers, so that items can compare them
-//! cheaply.
+//! Tags and tag sets (engine §1): tags interned to numbers, and sets of
+//! tags interned to numbers, so that items can compare them cheaply. A tag
+//! is a string in its canonical spelling, and has no strength.
 
-use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 
 use crate::fxhash::FxMap;
+use crate::unicode::Unicode;
 
 pub(crate) type TagId = u32;
 pub(crate) type SetId = u32;
 
-/// A tag set, sorted by tag id; `true` is strong.
-pub(crate) type TagList = Vec<(TagId, bool)>;
+/// A tag set, sorted by tag id.
+pub(crate) type TagList = Vec<TagId>;
 
 #[derive(Debug, Default)]
 pub(crate) struct Tags {
@@ -61,38 +62,29 @@ impl Tags {
     }
 
     pub(crate) fn contains(&self, set: SetId, tag: TagId) -> bool {
-        self.sets[set as usize].binary_search_by_key(&tag, |&(id, _)| id).is_ok()
+        self.sets[set as usize].binary_search(&tag).is_ok()
     }
 
-    /// Builds a set from names and strengths; a tag given twice is strong
-    /// if either is.
-    pub(crate) fn set_of<'a>(&mut self, tags: impl IntoIterator<Item = (&'a str, bool)>) -> SetId {
-        let mut list: TagList = tags.into_iter().map(|(name, strong)| (self.tag(name), strong)).collect();
+    /// Builds a set from tags; a tag given twice is there once.
+    pub(crate) fn set_of<'a>(&mut self, tags: impl IntoIterator<Item = &'a str>) -> SetId {
+        let mut list: TagList = tags.into_iter().map(|name| self.tag(name)).collect();
         list.sort_unstable();
-        list.dedup_by(|later, earlier| {
-            if later.0 == earlier.0 {
-                earlier.1 |= later.1;
-                true
-            } else {
-                false
-            }
-        });
+        list.dedup();
         self.set(list)
     }
 
-    /// The set as a map from name to strength, in code point order.
-    pub(crate) fn to_map(&self, set: SetId) -> BTreeMap<String, bool> {
-        self.list(set).iter().map(|&(id, strong)| (self.name(id).to_string(), strong)).collect()
+    /// The set's tags, in code point order.
+    pub(crate) fn to_set(&self, set: SetId) -> BTreeSet<String> {
+        self.list(set).iter().map(|&id| self.name(id).to_string()).collect()
     }
 }
 
-/// The union of two sorted lists: every tag of either, strong if strong in
-/// either.
+/// The union of two sorted lists: every tag of either.
 pub(crate) fn union(left: &TagList, right: &TagList) -> TagList {
     let mut out = Vec::with_capacity(left.len() + right.len());
     let (mut i, mut j) = (0, 0);
     while i < left.len() && j < right.len() {
-        match left[i].0.cmp(&right[j].0) {
+        match left[i].cmp(&right[j]) {
             std::cmp::Ordering::Less => {
                 out.push(left[i]);
                 i += 1;
@@ -102,7 +94,7 @@ pub(crate) fn union(left: &TagList, right: &TagList) -> TagList {
                 j += 1;
             }
             std::cmp::Ordering::Equal => {
-                out.push((left[i].0, left[i].1 || right[j].1));
+                out.push(left[i]);
                 i += 1;
                 j += 1;
             }
@@ -113,10 +105,19 @@ pub(crate) fn union(left: &TagList, right: &TagList) -> TagList {
     out
 }
 
-/// The intersection: the tags of the first that are in the second, with
-/// the first's strength.
+/// The intersection: the tags of both.
 pub(crate) fn intersection(left: &TagList, right: &TagList) -> TagList {
-    left.iter().filter(|&&(id, _)| right.binary_search_by_key(&id, |&(other, _)| other).is_ok()).copied().collect()
+    left.iter().filter(|id| right.binary_search(id).is_ok()).copied().collect()
+}
+
+/// The difference: the tags of the first that are not in the second.
+pub(crate) fn difference(left: &TagList, right: &TagList) -> TagList {
+    left.iter().filter(|id| right.binary_search(id).is_err()).copied().collect()
+}
+
+/// Whether every tag of the first is in the second.
+pub(crate) fn is_subset(small: &TagList, large: &TagList) -> bool {
+    small.iter().all(|id| large.binary_search(id).is_ok())
 }
 
 /// Whether a tag is a phoneme tag `/p/`, exactly three code points, and if
@@ -127,4 +128,59 @@ pub(crate) fn phoneme_of(tag: &str) -> Option<&str> {
     } else {
         None
     }
+}
+
+/// Whether a string is a name (engine §9), and so an identifier tag: an
+/// ASCII letter followed by ASCII letters, digits and hyphens.
+pub(crate) fn is_name(tag: &str) -> bool {
+    let mut chars = tag.chars();
+    chars.next().is_some_and(|c| c.is_ascii_alphabetic()) && chars.all(|c| c.is_ascii_alphanumeric() || c == '-')
+}
+
+/// Whether a code point is written as `\u{h…}` in a character tag's
+/// canonical spelling (engine §1): a control character, a nonspacing mark,
+/// a private-use character, the quote or the backslash.
+fn escaped_in_tag(code: u32, unicode: &Unicode) -> bool {
+    matches!(code, 0..=0x1F | 0x7F..=0x9F | 0x27 | 0x5C | 0xE000..=0xF8FF | 0xF0000..=0xFFFFD | 0x10_0000..=0x10_FFFD)
+        || unicode.is_mark(code)
+}
+
+/// The character tag of a character, in its canonical spelling (engine
+/// §1): `'a'`, or `'\u{301}'` for a code point that is escaped.
+pub(crate) fn character_tag(c: char, unicode: &Unicode) -> String {
+    let code = c as u32;
+    if escaped_in_tag(code, unicode) {
+        format!("'\\u{{{code:X}}}'")
+    } else {
+        format!("'{c}'")
+    }
+}
+
+/// Whether a string is a character tag in its canonical spelling.
+fn is_character_tag(tag: &str, unicode: &Unicode) -> bool {
+    let Some(inner) = tag.strip_prefix('\'').and_then(|rest| rest.strip_suffix('\'')) else {
+        return false;
+    };
+    let code = match inner.strip_prefix("\\u{").and_then(|rest| rest.strip_suffix('}')) {
+        Some(digits)
+            if (1..=6).contains(&digits.len())
+                && digits.chars().all(|c| c.is_ascii_digit() || ('A'..='F').contains(&c)) =>
+        {
+            u32::from_str_radix(digits, 16).ok()
+        }
+        _ => {
+            let mut chars = inner.chars();
+            match (chars.next(), chars.next()) {
+                (Some(c), None) => Some(c as u32),
+                _ => None,
+            }
+        }
+    };
+    code.and_then(char::from_u32).is_some_and(|c| character_tag(c, unicode) == tag)
+}
+
+/// Whether a string is a tag in its canonical spelling: a name, a phoneme
+/// tag or a character tag (engine §1).
+pub(crate) fn is_tag(tag: &str, unicode: &Unicode) -> bool {
+    is_name(tag) || phoneme_of(tag).is_some() || is_character_tag(tag, unicode)
 }

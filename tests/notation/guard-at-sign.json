@@ -1,0 +1,10 @@
+{
+  "description": "A guard has no @: @cbm? is not notation, and reading stops at the @ (design §2, engine §9).",
+  "document": "```jbogenbau\n%rule a @cbm? A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  }
+}

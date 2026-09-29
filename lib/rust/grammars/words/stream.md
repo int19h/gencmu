@@ -32,22 +32,22 @@ The stage is lazy: where two parses differ, it takes the one that closes a const
   | [PAUSE] faho-group | [PAUSE] body gap faho-group
   | [PAUSE] $d(body) gap hesitations gap faho-group
 %conditions
-  "sa-end" ∈ tags($c),
-  "sa-end" ∈ tags($d)
+  ~sa-end ⊆ tags($c),
+  ~sa-end ⊆ tags($d)
 
 %rule body
   | $t(body-tail) <tags($t)>
   | stray-si <∅>
-  | stray-si gap $z(body-tail) <("stream-end" ∪ "sa-end") ∩ tags($z)>
+  | stray-si gap $z(body-tail) <(~stream-end ∪ ~sa-end) ∩ tags($z)>
 
 %rule body-tail
-  | stream <"stream-end">
-  | @sa-su? sa-run <"sa-end">
-  | @sa-su? wiped <∅>
-  | @sa-su? wiped gap stream <"stream-end">
-  | @sa-su? stream gap sa-run <"sa-end">
-  | @sa-su? wiped gap sa-run <"sa-end">
-  | @sa-su? wiped gap stream gap sa-run <"sa-end">
+  | stream <~stream-end>
+  | sa-su? sa-run <~sa-end>
+  | sa-su? wiped <∅>
+  | sa-su? wiped gap stream <~stream-end>
+  | sa-su? stream gap sa-run <~sa-end>
+  | sa-su? wiped gap sa-run <~sa-end>
+  | sa-su? wiped gap stream gap sa-run <~sa-end>
 
 %rule gap
   ε | PAUSE
@@ -57,25 +57,25 @@ The stage is lazy: where two parses differ, it takes the one that closes a const
 
 %rule stream
   | $o(opener) <tags($o)>
-  | $s(stream) PAUSE $e(element) <tags($e) ∪ classes($s) ∪ "first-wipes" ∩ tags($s)>
-  | $t(stream) $f(element) <tags($f) ∪ classes($t) ∪ "first-wipes" ∩ tags($t)>
+  | $s(stream) PAUSE $e(element) <tags($e) ∪ classes($s) ∪ ~first-wipes ∩ tags($s)>
+  | $t(stream) $f(element) <tags($f) ∪ classes($t) ∪ ~first-wipes ∩ tags($t)>
 %conditions
-  "wipes-all" ∉ tags($e),
-  "wipes-all" ∉ tags($f)
+  ~wipes-all ⊈ tags($e),
+  ~wipes-all ⊈ tags($f)
 
 %rule opener
   | $o(element) <tags($o)>
-  | @sa-su? $w(element) <tags($w) ∪ "first-wipes">
+  | sa-su? $w(element) <tags($w) ∪ ~first-wipes>
 %conditions
-  "wipes-all" ∉ tags($o),
-  "wipes-all" ∈ tags($w)
+  ~wipes-all ⊈ tags($o),
+  ~wipes-all ⊆ tags($w)
 
 %rule element
   unit | erasure | hesitation
 
 %rule unit
   | word | quote | lerfu-word | zei-compound
-  | @sa-su? sa-erasure | @sa-su? sa-wiped | @sa-su? @su-boundary? su-erasure
+  | sa-su? sa-erasure | sa-su? sa-wiped | sa-su? su-boundary? su-erasure
 ```
 
 A stream can open with an element that erases the whole text before it, tagged `wipes-all`. The opener then tags the stream `first-wipes`, and each join passes that tag on. "Erasure by `sa` and `su`" explains such elements.
@@ -91,9 +91,9 @@ A `sa` directly before a `si` is such an unmatched `sa`. It looks for a word of 
 ```jbogenbau
 %rule stray-si
   | stray-run | hesitations [PAUSE] stray-run | [hesitations [PAUSE]] erasure [si-gap] stray-run
-  | @sa-su? wiped [si-gap] stray-run
-  | @sa-su? sa-run [si-gap] si-run
-  | @sa-su? wiped-reach gap sa-run [si-gap] si-run
+  | sa-su? wiped [si-gap] stray-run
+  | sa-su? sa-run [si-gap] si-run
+  | sa-su? wiped-reach gap sa-run [si-gap] si-run
 
 %rule stray-run
   si-run | bu-word [si-gap] si-run
@@ -115,10 +115,10 @@ The approved word forms read an odd run of three or more `y` as two words, `y` a
   ε
 
 %rule y-run
-  "hesitation"
+  ~hesitation
 
 %rule bu-next
-  [PAUSE] BU | "hesitation" bu-next
+  [PAUSE] BU | ~hesitation bu-next
 
 %rule y-base
   y-run | y-base y-run
@@ -133,7 +133,7 @@ The approved word forms read an odd run of three or more `y` as two words, `y` a
 %rule faho-word
   $q(magic-body)
 %conditions
-  "FAhO" ∈ classes($q)
+  FAhO ⊆ classes($q)
 ```
 
 ## Words
@@ -146,22 +146,22 @@ The magic words are never plain words. The rules under "Quotes", "Compounds" and
 
 ```jbogenbau
 %rule word
-  | @sa-su? $c(cmavo-token) <tags($c)>
-  | @¬sa-su? $e(cmavo-token) <tags($e)>
+  | sa-su? $c(cmavo-token) <tags($c)>
+  | ¬sa-su? $e(cmavo-token) <tags($e)>
   | $b(BRIVLA) <tags($b)>
   | $n(CMEVLA) <tags($n)>
 %conditions
-  classes($c) ∩ ("ZO" ∪ "ZOI" ∪ "LOhU" ∪ "ZOhOI" ∪ "LAhOI" ∪ "RAhOI" ∪ "MEhOI" ∪ "GOhOI" ∪ "ZEhOI" ∪ "TAhAI" ∪ "BOhEI" ∪
-    "FAhO" ∪ "BU" ∪ "ZEI" ∪ "SI" ∪ "SA" ∪ "SU") = ∅,
-  classes($e) ∩ ("ZO" ∪ "ZOI" ∪ "LOhU" ∪ "ZOhOI" ∪ "LAhOI" ∪ "RAhOI" ∪ "MEhOI" ∪ "GOhOI" ∪ "ZEhOI" ∪ "TAhAI" ∪ "BOhEI" ∪
-    "FAhO" ∪ "BU" ∪ "ZEI" ∪ "SI") = ∅,
+  classes($c) ∩ (ZO ∪ ZOI ∪ LOhU ∪ ZOhOI ∪ LAhOI ∪ RAhOI ∪ MEhOI ∪ GOhOI ∪ ZEhOI ∪ TAhAI ∪ BOhEI ∪
+    FAhO ∪ BU ∪ ZEI ∪ SI ∪ SA ∪ SU) = ∅,
+  classes($e) ∩ (ZO ∪ ZOI ∪ LOhU ∪ ZOhOI ∪ LAhOI ∪ RAhOI ∪ MEhOI ∪ GOhOI ∪ ZEhOI ∪ TAhAI ∪ BOhEI ∪
+    FAhO ∪ BU ∪ ZEI ∪ SI) = ∅,
   ¬begins(from($c), quote),
   ¬begins(from($e), quote)
 %emits
   $
 
 %rule cmavo-token
-  $c("cmavo") <tags($c)>
+  $c(~cmavo) <tags($c)>
 ```
 
 Every rule that reads a cmavo as a Lojban word reads it as `cmavo-token`, so that a dialect can add to what that means. The CLL dialect warns there for a cmavo that uses `y` as a vowel beyond the forms CLL gives ([cll-stream.md](cll-stream.md)).
@@ -170,7 +170,7 @@ The rules below know a magic word by the selma'o the lexicon gives it, not by it
 
 ```jbogenbau
 %rule magic-body
-  $q("cmavo") <tags($q)>
+  $q(~cmavo) <tags($q)>
 ```
 
 ## Quotes
@@ -190,12 +190,12 @@ Each quote hands the syntax stage its marker and its contents. The marker carrie
 %rule quoted-word
   $m(word-quote-marker) quote-gap $w(quotable-word) <tags($m)>
 %emits
-  $m, $w <"word">
+  $m, $w <~word>
 
 %rule word-quote-marker
-  $q(magic-body) <"word" ∪ "cmavo" ∪ classes($q)>
+  $q(magic-body) <~word ∪ ~cmavo ∪ classes($q)>
 %conditions
-  "ZO" ∈ classes($q)
+  ZO ⊆ classes($q)
 
 %rule quotable-word
   cmavo-token | BRIVLA | CMEVLA | y-bu-word
@@ -223,16 +223,16 @@ The body of a `zoi` quote and the run that `zo'oi` quotes are `%verbatim`. So th
   | $m(single-marker) $r(zohoi-payload) <tags($m)>
   | $m(single-marker) PAUSE [hesitations [PAUSE]] $s(zohoi-payload) <tags($m)>
 %conditions
-  "run-final" ∈ tags(last($r)),
-  "run-final" ∈ tags(last($s)),
-  "hesitation" ∉ tags(head($s)) ∨ begins(after(head($s)), bu-next)
+  ~run-final ⊆ tags(last($r)),
+  ~run-final ⊆ tags(last($s)),
+  ~hesitation ⊈ tags(head($s)) ∨ begins(after(head($s)), bu-next)
 %emits
-  $m, $r <"foreign-text">, $s <"foreign-text">
+  $m, $r <~foreign-text>, $s <~foreign-text>
 
 %rule single-marker
-  $q(magic-body) <"word" ∪ "cmavo" ∪ classes($q)>
+  $q(magic-body) <~word ∪ ~cmavo ∪ classes($q)>
 %conditions
-  classes($q) ∩ ("ZOhOI" ∪ "LAhOI" ∪ "RAhOI" ∪ "MEhOI" ∪ "GOhOI" ∪ "ZEhOI" ∪ "TAhAI" ∪ "BOhEI") ≠ ∅
+  classes($q) ∩ (ZOhOI ∪ LAhOI ∪ RAhOI ∪ MEhOI ∪ GOhOI ∪ ZEhOI ∪ TAhAI ∪ BOhEI) ≠ ∅
 
 %rule zoi-quote
   $m(zoi-marker) quote-gap $open(delimiter) PAUSE $content(zoi-body) PAUSE $close(delimiter)
@@ -241,9 +241,9 @@ The body of a `zoi` quote and the run that `zo'oi` quotes are `%verbatim`. So th
 %conditions
   phonemes($open) = phonemes($close),
   phonemes($open) ∉ runs($content),
-  "run-final" ∈ tags($close)
+  ~run-final ⊆ tags($close)
 %emits
-  $m, $open <"word">, $content <"foreign-text">, $close <"word">
+  $m, $open <~word>, $content <~foreign-text>, $close <~word>
 
 %rule empty-zoi-quote
   $m(zoi-marker) quote-gap $open(delimiter) PAUSE $close(delimiter)
@@ -251,17 +251,17 @@ The body of a `zoi` quote and the run that `zo'oi` quotes are `%verbatim`. So th
   tags($m)
 %conditions
   phonemes($open) = phonemes($close),
-  "run-final" ∈ tags($close)
+  ~run-final ⊆ tags($close)
 %emits
-  $m, $open <"word">, "foreign-text", $close <"word">
+  $m, $open <~word>, ~foreign-text, $close <~word>
 
 %rule delimiter
   cmavo-token | BRIVLA | CMEVLA
 
 %rule zoi-marker
-  $q(magic-body) <"word" ∪ "cmavo" ∪ classes($q)>
+  $q(magic-body) <~word ∪ ~cmavo ∪ classes($q)>
 %conditions
-  "ZOI" ∈ classes($q)
+  ZOI ⊆ classes($q)
 ```
 
 Inside `lo'u ... le'u` the words are ordinary words, but no quote marker opens anything and no eraser erases. So a `lo'u` stretch is a stream of bare words. The quote ends at the first `le'u`, even after a `zo`, which is the fifth of the departures from CLL 19. The quote can be empty, `lo'u le'u`, as a `zoi` quote can. The stage drops hesitation inside the quote, as it does everywhere (the fourth of the departures from CLL 19). So `lo'u .y. le'u` quotes nothing, as camxes-std reads it.
@@ -277,31 +277,31 @@ The ordinary erasure by `sa` does not take a `le'u` after it. The grammar states
   | $m(lohu-marker) gap lohu-stream gap lehu-close
   | $m(lohu-marker) [PAUSE] lehu-close
 %tags
-  tags($m) ∪ "LEhU"
+  tags($m) ∪ LEhU
 
 %rule lohu-marker
-  $q(magic-body) <"word" ∪ "cmavo" ∪ classes($q)>
+  $q(magic-body) <~word ∪ ~cmavo ∪ classes($q)>
 %conditions
-  "LOhU" ∈ classes($q)
+  LOhU ⊆ classes($q)
 %emits
   $
 
 %rule lehu-marker
-  $q(magic-body) <"word" ∪ "cmavo" ∪ classes($q)>
+  $q(magic-body) <~word ∪ ~cmavo ∪ classes($q)>
 %conditions
-  "LEhU" ∈ classes($q)
+  LEhU ⊆ classes($q)
 %emits
-  $ <"LEhU">
+  $ <LEhU>
 
 %rule lehu-close
   | lehu-marker
-  | @sa-su? lehu-erased [PAUSE] sa-word sa-gap lehu-marker
-  | @sa-su? lehu-erased gap lehu-reach gap sa-word sa-gap lehu-marker
+  | sa-su? lehu-erased [PAUSE] sa-word sa-gap lehu-marker
+  | sa-su? lehu-erased gap lehu-reach gap sa-word sa-gap lehu-marker
 
 %rule lehu-erased
   $q(magic-body)
 %conditions
-  "LEhU" ∈ classes($q)
+  LEhU ⊆ classes($q)
 %emits
   ε
 
@@ -310,12 +310,12 @@ The ordinary erasure by `sa` does not take a `le'u` after it. The grammar states
   | $s(lehu-reach) PAUSE $e(element)
   | $t(lehu-reach) $f(element)
 %conditions
-  classes($first) ∩ ("LOhU" ∪ "LEhU") = ∅,
-  "first-wipes" ∉ tags($first),
-  classes($e) ∩ ("LOhU" ∪ "LEhU") = ∅,
-  classes($f) ∩ ("LOhU" ∪ "LEhU") = ∅,
-  "wipes-all" ∉ tags($e),
-  "wipes-all" ∉ tags($f)
+  classes($first) ∩ (LOhU ∪ LEhU) = ∅,
+  ~first-wipes ⊈ tags($first),
+  classes($e) ∩ (LOhU ∪ LEhU) = ∅,
+  classes($f) ∩ (LOhU ∪ LEhU) = ∅,
+  ~wipes-all ⊈ tags($e),
+  ~wipes-all ⊈ tags($f)
 %emits
   ε
 
@@ -333,9 +333,9 @@ The ordinary erasure by `sa` does not take a `le'u` after it. The grammar states
   | CMEVLA
   | y-bu-word
 %conditions
-  "LEhU" ∉ classes($c)
+  LEhU ⊈ classes($c)
 %emits
-  $ <"word">
+  $ <~word>
 ```
 
 The gap between a marker and its word is an optional pause, with hesitation allowed inside it. The hesitation is runs of `y` with pauses between them. A quoted body is any run of tokens, pauses included, and a `zo'oi` quote any run of tokens up to a pause. A foreign run can appear there, and nowhere else but after `fa'o`.
@@ -361,7 +361,7 @@ The gap between a marker and its word is an optional pause, with hesitation allo
   payload-token | PAUSE
 
 %rule payload-token
-  "word" | "hesitation" | FOREIGN
+  ~word | ~hesitation | FOREIGN
 ```
 
 ## Compounds
@@ -376,29 +376,29 @@ The forms stage tags the first word of each run `run-initial`, and a `sa` that l
 
 ```jbogenbau
 %rule lerfu-word
-  | $u(unit) bu-part <"word" ∪ "BY" ∪ "wipes-all" ∩ tags($u)>
-  | $u(unit) PAUSE bu-part <"word" ∪ "BY" ∪ "wipes-all" ∩ tags($u)>
-  | $u(unit) erasure-gap bu-part <"word" ∪ "BY" ∪ "wipes-all" ∩ tags($u)>
-  | y-base [PAUSE] bu-part <"word" ∪ "BY">
+  | $u(unit) bu-part <~word ∪ BY ∪ ~wipes-all ∩ tags($u)>
+  | $u(unit) PAUSE bu-part <~word ∪ BY ∪ ~wipes-all ∩ tags($u)>
+  | $u(unit) erasure-gap bu-part <~word ∪ BY ∪ ~wipes-all ∩ tags($u)>
+  | y-base [PAUSE] bu-part <~word ∪ BY>
 %emits
   $
 
 %rule bu-word
   $q(magic-body)
 %conditions
-  "BU" ∈ classes($q)
+  BU ⊆ classes($q)
 
 %rule bu-part
   bu-word | bu-replacement
 
 %rule bu-replacement
-  | @sa-su? bu-erased [PAUSE] sa-word sa-gap bu-word
-  | @sa-su? bu-erased gap bu-reach gap sa-word sa-gap bu-word
+  | sa-su? bu-erased [PAUSE] sa-word sa-gap bu-word
+  | sa-su? bu-erased gap bu-reach gap sa-word sa-gap bu-word
 
 %rule bu-erased
   $q(magic-body)
 %conditions
-  "BU" ∈ classes($q)
+  BU ⊆ classes($q)
 %emits
   ε
 
@@ -407,12 +407,12 @@ The forms stage tags the first word of each run `run-initial`, and a `sa` that l
   | $s(bu-reach) PAUSE $e(element)
   | $t(bu-reach) $f(element)
 %conditions
-  classes($first) ∩ ("BY") = ∅,
-  "first-wipes" ∉ tags($first),
-  classes($e) ∩ ("BY") = ∅,
-  classes($f) ∩ ("BY") = ∅,
-  "wipes-all" ∉ tags($e),
-  "wipes-all" ∉ tags($f)
+  classes($first) ∩ (BY) = ∅,
+  ~first-wipes ⊈ tags($first),
+  classes($e) ∩ (BY) = ∅,
+  classes($f) ∩ (BY) = ∅,
+  ~wipes-all ⊈ tags($e),
+  ~wipes-all ⊈ tags($f)
 %emits
   ε
 
@@ -422,7 +422,7 @@ The forms stage tags the first word of each run `run-initial`, and a `sa` that l
   | $l(unit) zei-word zei-after-gap zei-right
   | $l(unit) zei-before-gap zei-word zei-after-gap zei-right
 %tags
-  "word" ∪ "BRIVLA" ∪ "wipes-all" ∩ tags($l)
+  ~word ∪ BRIVLA ∪ ~wipes-all ∩ tags($l)
 %emits
   $
 
@@ -442,7 +442,7 @@ The forms stage tags the first word of each run `run-initial`, and a `sa` that l
 %rule zei-word
   $q(magic-body)
 %conditions
-  "ZEI" ∈ classes($q)
+  ZEI ⊆ classes($q)
 
 %rule zei-right
   cmavo-token | BRIVLA | CMEVLA | y-bu-word
@@ -454,7 +454,7 @@ The forms stage tags the first word of each run `run-initial`, and a `sa` that l
   | $e(erasure)
   | gap-erasures wide-gap $e(erasure)
 %conditions
-  "wipes-all" ∉ tags($e)
+  ~wipes-all ⊈ tags($e)
 ```
 
 `sa bu` "backs up to the last BU, pulling an already constructed pseudo-word apart", as the proposal puts it among its unique cases. It erases back to the `bu` of the last letter word, and the new `bu` binds to that letter word's base again. So `.abu sa bu` is `.abu`. `bu-part` reads such a stretch as the letter word's `bu`. Nothing between can be a letter word, because the `bu` of that letter word is then the last `bu`. So the grammar states `bu-reach` as it states the reach of a `sa`, and `bu-reach` ends at the first letter word.
@@ -471,12 +471,12 @@ An eraser acts when the stage reads it, as the Magic Words proposal has it. So a
 
 ```jbogenbau
 %rule erasure
-  | $u(unit) si-word <"wipes-all" ∩ tags($u)>
-  | $u(unit) si-gap si-word <"wipes-all" ∩ tags($u)>
-  | $u(unit) $e(erasures) [si-gap] si-word <"wipes-all" ∩ tags($u)>
-  | $u(unit) si-gap $e(erasures) [si-gap] si-word <"wipes-all" ∩ tags($u)>
+  | $u(unit) si-word <~wipes-all ∩ tags($u)>
+  | $u(unit) si-gap si-word <~wipes-all ∩ tags($u)>
+  | $u(unit) $e(erasures) [si-gap] si-word <~wipes-all ∩ tags($u)>
+  | $u(unit) si-gap $e(erasures) [si-gap] si-word <~wipes-all ∩ tags($u)>
 %conditions
-  "wipes-all" ∉ tags($e)
+  ~wipes-all ⊈ tags($e)
 %emits
   ε
 
@@ -485,7 +485,7 @@ An eraser acts when the stage reads it, as the Magic Words proposal has it. So a
   | $r(erasures) si-gap $e(erasure) <tags($r)>
   | $r(erasures) $e(erasure) <tags($r)>
 %conditions
-  "wipes-all" ∉ tags($e)
+  ~wipes-all ⊈ tags($e)
 
 %rule si-gap
   PAUSE | [PAUSE] hesitations [PAUSE]
@@ -493,7 +493,7 @@ An eraser acts when the stage reads it, as the Magic Words proposal has it. So a
 %rule si-word
   $q(magic-body)
 %conditions
-  "SI" ∈ classes($q)
+  SI ⊆ classes($q)
 ```
 
 ## Erasure by `sa` and `su`
@@ -522,27 +522,27 @@ Several `sa` in a row reach back to successively further matches, "one for each 
 %rule sa-erasure
   $first(sa-nest) sa-gap $next(sa-next)
 %tags
-  "wipes-all" ∩ tags($first) ∪ classes($next) ∪ "run-initial" ∩ tags($next)
+  ~wipes-all ∩ tags($first) ∪ classes($next) ∪ ~run-initial ∩ tags($next)
 %conditions
   classes($first) ∩ classes($next) ≠ ∅,
-  "LEhU" ∉ classes($next) ∨ "LOhU" ∈ classes($next)
+  LEhU ⊈ classes($next) ∨ LOhU ⊆ classes($next)
 
 %rule sa-nest
-  | $o(sa-open) gap sa-word <classes($o) ∪ "wipes-all" ∩ tags($o)>
-  | $a(sa-open) gap $n(sa-nest) wide-gap sa-word <classes($a) ∩ classes($n) ∪ "wipes-all" ∩ tags($a)>
+  | $o(sa-open) gap sa-word <classes($o) ∪ ~wipes-all ∩ tags($o)>
+  | $a(sa-open) gap $n(sa-nest) wide-gap sa-word <classes($a) ∩ classes($n) ∪ ~wipes-all ∩ tags($a)>
 %conditions
   classes($a) ∩ classes($n) ≠ ∅
 %emits
   ε
 
 %rule sa-open
-  | $first(element) <classes($first) ∪ "wipes-all" ∩ tags($first)>
-  | $s(sa-open) PAUSE $e(element) <classes($s) ∪ "wipes-all" ∩ tags($s)>
-  | $t(sa-open) $f(element) <classes($t) ∪ "wipes-all" ∩ tags($t)>
+  | $first(element) <classes($first) ∪ ~wipes-all ∩ tags($first)>
+  | $s(sa-open) PAUSE $e(element) <classes($s) ∪ ~wipes-all ∩ tags($s)>
+  | $t(sa-open) $f(element) <classes($t) ∪ ~wipes-all ∩ tags($t)>
 %conditions
   classes($first) ≠ ∅,
-  "wipes-all" ∉ tags($e),
-  "wipes-all" ∉ tags($f),
+  ~wipes-all ⊈ tags($e),
+  ~wipes-all ⊈ tags($f),
   classes($s) ∩ classes($e) = ∅,
   classes($t) ∩ classes($f) = ∅
 %emits
@@ -566,7 +566,7 @@ Several `sa` in a row reach back to successively further matches, "one for each 
   word | quote | y-bu-letter
 
 %rule y-bu-letter
-  y-base [PAUSE] bu-word <"word" ∪ "BY">
+  y-base [PAUSE] bu-word <~word ∪ BY>
 %emits
   $
 
@@ -576,7 +576,7 @@ Several `sa` in a row reach back to successively further matches, "one for each 
 %rule sa-word
   $q(magic-body)
 %conditions
-  "SA" ∈ classes($q)
+  SA ⊆ classes($q)
 %emits
   ε
 
@@ -596,31 +596,31 @@ Like the reach of a `sa`, the reach of a `su` is left-recursive, and it evaluate
   | $stop(boundary) gap su-word
   | $stop(boundary) gap su-reach gap su-word
 %tags
-  "wipes-all" ∩ tags($stop) ∪ classes($stop)
+  ~wipes-all ∩ tags($stop) ∪ classes($stop)
 
 %rule boundary
   $b(element) <tags($b)>
 %conditions
-  classes($b) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") ≠ ∅
+  classes($b) ∩ (NIhO ∪ LU ∪ TUhE ∪ TO) ≠ ∅
 
 %rule su-reach
   | $first(opener)
   | $s(su-reach) PAUSE $e(element)
   | $t(su-reach) $f(element)
 %conditions
-  classes($first) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅,
-  "first-wipes" ∉ tags($first),
-  classes($e) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅,
-  classes($f) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅,
-  "wipes-all" ∉ tags($e),
-  "wipes-all" ∉ tags($f)
+  classes($first) ∩ (NIhO ∪ LU ∪ TUhE ∪ TO) = ∅,
+  ~first-wipes ⊈ tags($first),
+  classes($e) ∩ (NIhO ∪ LU ∪ TUhE ∪ TO) = ∅,
+  classes($f) ∩ (NIhO ∪ LU ∪ TUhE ∪ TO) = ∅,
+  ~wipes-all ⊈ tags($e),
+  ~wipes-all ⊈ tags($f)
 %emits
   ε
 
 %rule su-word
   $q(magic-body)
 %conditions
-  "SU" ∈ classes($q)
+  SU ⊆ classes($q)
 %emits
   ε
 ```
@@ -649,17 +649,17 @@ Only `opener` accepts an element with that tag, and it tags the stream `first-wi
 
 %rule wiped-item
   | su-word <∅>
-  | @su-boundary? $q(wiped-reach) gap su-word <∅>
-  | @¬su-boundary? wiped-reach gap su-word <∅>
+  | su-boundary? $q(wiped-reach) gap su-word <∅>
+  | ¬su-boundary? wiped-reach gap su-word <∅>
   | sa-run wide-gap su-word <∅>
   | wiped-reach gap sa-run wide-gap su-word <∅>
 %conditions
-  classes($q) ∩ ("NIhO" ∪ "LU" ∪ "TUhE" ∪ "TO") = ∅
+  classes($q) ∩ (NIhO ∪ LU ∪ TUhE ∪ TO) = ∅
 
 %rule sa-wiped
-  | sa-run sa-gap $n(sa-next) <"wipes-all" ∪ classes($n) ∪ "run-initial" ∩ tags($n)>
-  | $r(wiped-reach) gap sa-run sa-gap $n(sa-next) <"wipes-all" ∪ classes($n) ∪ "run-initial" ∩ tags($n)>
-  | $w(sa-wipe) sa-gap $n(sa-next) <"wipes-all" ∪ classes($n) ∪ "run-initial" ∩ tags($n)>
+  | sa-run sa-gap $n(sa-next) <~wipes-all ∪ classes($n) ∪ ~run-initial ∩ tags($n)>
+  | $r(wiped-reach) gap sa-run sa-gap $n(sa-next) <~wipes-all ∪ classes($n) ∪ ~run-initial ∩ tags($n)>
+  | $w(sa-wipe) sa-gap $n(sa-next) <~wipes-all ∪ classes($n) ∪ ~run-initial ∩ tags($n)>
 %conditions
   classes($r) ∩ classes($n) = ∅,
   classes($w) ∩ classes($n) ≠ ∅
@@ -676,7 +676,7 @@ Only `opener` accepts an element with that tag, and it tags the stream `first-wi
 
 %rule reach-body
   | $c(reach-core) <tags($c)>
-  | reach-prefix gap $c(reach-core) <"first-wipes" ∩ tags($c) ∪ classes($c)>
+  | reach-prefix gap $c(reach-core) <~first-wipes ∩ tags($c) ∪ classes($c)>
 
 %rule reach-prefix
   | stray-si <∅>
@@ -692,9 +692,9 @@ Only `opener` accepts an element with that tag, and it tags the stream `first-wi
   | hesitations [PAUSE] $h(erasures) gap bu-word <∅>
   | hesitations [PAUSE] $h(erasures) gap bu-word gap $u(stream) <classes($u)>
 %conditions
-  "first-wipes" ∉ tags($t),
-  "first-wipes" ∉ tags($u),
-  "wipes-all" ∉ tags($h)
+  ~first-wipes ⊈ tags($t),
+  ~first-wipes ⊈ tags($u),
+  ~wipes-all ⊈ tags($h)
 %emits
   ε
 ```

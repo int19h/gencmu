@@ -1,0 +1,10 @@
+{
+  "description": "∖ takes two sets of one kind: the error is at the union that holds the difference (engine §9, §10).",
+  "document": "```jbogenbau\n%rule a $x(B) %conditions ∅ ≠ runs($x) ∖ tags($x)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 31
+    }
+  }
+}

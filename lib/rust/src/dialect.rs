@@ -15,6 +15,7 @@ use crate::rank::{Act, Ranker, Ranking, Verdict as RankVerdict};
 use crate::result::{
     Action, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Stage, Tags, Token, Verdict, Warning,
 };
+use crate::tags::character_tag;
 use crate::tree::{build, emit, public_tree, warnings_of, IKind, ITree, TreeContext};
 use crate::unicode::Unicode;
 
@@ -71,7 +72,7 @@ pub struct Feature {
 pub struct InputToken {
     /// The token's text.
     pub text: String,
-    /// Its tags, `true` for strong.
+    /// Its tags, each in its canonical spelling (engine §1).
     pub tags: Tags,
     /// What it sounds like, if anything (engine §5).
     pub phonemes: Option<String>,
@@ -228,13 +229,13 @@ impl Dialect {
             let mut input = Vec::with_capacity(chars.len());
             let mut public = Vec::with_capacity(chars.len());
             for (index, &c) in chars.iter().enumerate() {
+                // Its character tag and its class (§1).
                 let text = c.to_string();
-                let class = unicode.class(c);
-                let set = tags.set_of([(text.as_str(), true), (class, false)]);
+                let set = tags.set_of([character_tag(c, &unicode).as_str(), unicode.class(c)]);
                 public.push(Token {
                     text: text.clone(),
                     phonemes: None,
-                    tags: tags.to_map(set),
+                    tags: tags.to_set(set),
                     span: index..index + 1,
                     source: index..index + 1,
                     verbatim: false,
@@ -265,11 +266,11 @@ impl Dialect {
             let mut at = 0;
             for (index, token) in tokens.iter().enumerate() {
                 let length = token.text.chars().count();
-                let set = tags.set_of(token.tags.iter().map(|(name, &strong)| (name.as_str(), strong)));
+                let set = tags.set_of(token.tags.iter().map(String::as_str));
                 public.push(Token {
                     text: token.text.clone(),
                     phonemes: token.phonemes.clone(),
-                    tags: tags.to_map(set),
+                    tags: tags.to_set(set),
                     span: index..index + 1,
                     source: at..at + length,
                     verbatim: false,
@@ -455,7 +456,7 @@ impl Dialect {
         let lean = grammar.lean;
         let maximal = grammar.maximal.then(|| Maximal::new(&lowered, &chart, &input, shared.unicode));
         let ranked = if accepted {
-            let mut ranker = Ranker::new(&lowered, &chart, &input, shared, &term_tags, lean, maximal.as_ref());
+            let mut ranker = Ranker::new(&lowered, &chart, &input, shared, lean, maximal.as_ref());
             ranker.rank().map(|ranking| {
                 let chosen = build(&ranker, ranking.chosen);
                 let tied = ranking.tied.map(|tied| build(&ranker, tied));
@@ -470,7 +471,7 @@ impl Dialect {
             // would otherwise have chosen (§4).
             let forbidden = match &maximal {
                 Some(maximal) if accepted => {
-                    let mut ranker = Ranker::new(&lowered, &chart, &input, shared, &term_tags, lean, None);
+                    let mut ranker = Ranker::new(&lowered, &chart, &input, shared, lean, None);
                     ranker
                         .rank()
                         .and_then(|ranking| forbidden_terminator(&build(&ranker, ranking.chosen), &lowered, maximal))
@@ -482,8 +483,8 @@ impl Dialect {
             run.stages.push(stage);
             return Err(Box::new(error));
         };
-        let tag_map = |set: u32| shared.tags.to_map(set);
-        let context = TreeContext { g: &lowered, tokens: &input, tag_map: &tag_map, synthetic: None };
+        let tag_set = |set: u32| shared.tags.to_set(set);
+        let context = TreeContext { g: &lowered, tokens: &input, tag_map: &tag_set, synthetic: None };
         let tree = public_tree(&chosen, &context);
         // The chosen tree's warnings, which stand even if the `elision-only`
         // check or the emission then fails (§12).
@@ -530,7 +531,7 @@ impl Dialect {
             public.push(Token {
                 text: text.clone(),
                 phonemes: token.phonemes.clone(),
-                tags: shared.tags.to_map(token.tags),
+                tags: shared.tags.to_set(token.tags),
                 span: token.span.0..token.span.1,
                 source: token.source.0..token.source.1,
                 verbatim: token.verbatim,
@@ -633,7 +634,7 @@ impl Dialect {
                 // (§7).
                 tokens.push(Tok {
                     text: String::new(),
-                    tags: shared.tags.set_of([(*terminal, true)]),
+                    tags: shared.tags.set_of([*terminal]),
                     phonemes: spelling.map(str::to_string),
                     source: (at, at),
                     verbatim: false,
@@ -660,14 +661,14 @@ impl Dialect {
         }
         // `maximal` does not apply here: the check's parse has no elided
         // terminator (§4).
-        let mut ranker = Ranker::new(&lowered, &chart, &tokens, shared, &term_tags, Lean::TagsOnly, None);
+        let mut ranker = Ranker::new(&lowered, &chart, &tokens, shared, Lean::Neither, None);
         let Some(Ranking { verdict: RankVerdict::Tie, chosen, tied: Some(tied), .. }) = ranker.rank() else {
             return Ok(None);
         };
         let chosen = build(&ranker, chosen);
         let tied = build(&ranker, tied);
-        let tag_map = |set: u32| shared.tags.to_map(set);
-        let context = TreeContext { g: &lowered, tokens: &tokens, tag_map: &tag_map, synthetic: Some(&synthetic) };
+        let tag_set = |set: u32| shared.tags.to_set(set);
+        let context = TreeContext { g: &lowered, tokens: &tokens, tag_map: &tag_set, synthetic: Some(&synthetic) };
         let readings = vec![public_tree(&chosen, &context), public_tree(&tied, &context)];
         let stage = &self.stages[index].name;
         Ok(Some(ParseError {
@@ -805,7 +806,7 @@ fn has_sa_su(tree: &Node) -> bool {
     while let Some(node) = stack.pop() {
         if node.kind == NodeKind::Rule
             && node.rule.as_deref() == Some("word")
-            && (node.tags.contains_key("SA") || node.tags.contains_key("SU"))
+            && (node.tags.contains("SA") || node.tags.contains("SU"))
         {
             return true;
         }

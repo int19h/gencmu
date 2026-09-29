@@ -1,6 +1,6 @@
 {
   "description": "An inserted tag with no capture listed after it goes after the constituent's last child, unnamed ones included (engine §11).",
-  "grammar": "%rule text $a(A) B %emits $a, \"x\"",
+  "grammar": "%rule text $a(A) B %emits $a, ~x",
   "tokens": [
     {
       "text": "a",
@@ -17,7 +17,7 @@
   ],
   "expect": {
     "result": {
-      "format": 3,
+      "format": 4,
       "ok": true,
       "stages": [
         {
@@ -27,9 +27,9 @@
             {
               "text": "a",
               "phonemes": "",
-              "tags": {
-                "A": true
-              },
+              "tags": [
+                "A"
+              ],
               "span": [
                 0,
                 1
@@ -42,9 +42,9 @@
             {
               "text": "",
               "phonemes": "",
-              "tags": {
-                "x": true
-              },
+              "tags": [
+                "x"
+              ],
               "span": [
                 2,
                 2
@@ -69,7 +69,7 @@
           0,
           3
         ],
-        "tags": {},
+        "tags": [],
         "children": [
           {
             "kind": "token",

@@ -64,7 +64,7 @@ The four libraries implement one specification, `docs/engine.md`. It was written
 3. The recognizer is an Earley parser (a standard algorithm for any context-free grammar). Its items, the partial matches that it keeps, record the span and the identity of the tag set of each captured part. The parser evaluates each condition as soon as it reads the last capture of that condition. With `from` and `after`, a condition can look past its constituent to the end of the input. A PEG (parsing expression grammar, which tries alternatives in order) has a lookahead that does the same.
 
    Nested parses for `matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` share their memo (a cache of answers) with the parse that started them. The memo key is the kind of query, the rule, and either the content of a short span or the position of a long span. A nested parse asked about its own span is a grammar error.
-4. The engine chooses a parse. It orders the parses by their first difference, as sequences of bottom-up actions. The order uses strong-over-weak tags and the grammar's declared `%ambiguity-resolution`. This part also covers the verdicts unique, resolved and tie, the tie witness, and the `elision-only` check (see "Ambiguity" below).
+4. The engine chooses a parse. It orders the parses by their first difference, as sequences of bottom-up actions. The order uses the grammar's declared `%ambiguity-resolution`. This part also covers the verdicts unique, resolved and tie, the tie witness, and the `elision-only` check (see "Ambiguity" below).
 5. The stage emits the tokens of the next stage. Each token has its text, its phonemes and its source range.
 6. The pipeline runs the stages in order, and stops at the first rejection.
 
@@ -103,13 +103,13 @@ A rule is a keyword, its name and its body, followed by its clauses. Each clause
 %rule vowel-group-joined
   $g(vowel-group) $v(vowel) <tags($v)>
 %conditions
-  "syllabic" ∈ tags($g),
-  "syllabic" ∈ tags($v)
+  ~syllabic ⊆ tags($g),
+  ~syllabic ⊆ tags($v)
 %emits
   $g, /'/, $v
 ```
 
-Every binary operator can also stand first, as a no-op, so that a list can put one item on each line. The binary operators are `|` and `&` in bodies, `∪` and `∩` in tag terms, and `∧` and `∨` in conditions.
+Every binary operator except the difference, `∖`, can also stand first, as a no-op, so that a list can put one item on each line. These operators are `|` and `&` in bodies, `∪` and `∩` in terms, and `∧` and `∨` in conditions.
 
 A stage is several documents, read in order and stitched into one grammar. `%rule` defines a rule, and is an error if a rule of that name exists. `%redefine-rule` replaces a rule that an earlier document defined, and is an error if none did. `%extend-rule` adds alternatives to a rule defined before it, and is an error if none was.
 
@@ -121,9 +121,9 @@ This is what the dialects need. A script document adds its letters to the rules 
 
 The Zantufa syntax is a grammar of its own. Zantufa 1.9999 restates almost every rule of camxes, a PEG grammar of Lojban. So the gencmu grammar translates the Zantufa rules one by one. It uses small rules for the conditions that state the lookaheads and ordered choices of the reference.
 
-A name in upper case is a terminal that matches a token carrying that tag. A string in straight quotes, `"а"`, `"word"`, is a terminal whose tag the name syntax cannot spell. A phoneme between slashes, `/a/`, `/'/`, `/./` for a pause, is a phoneme tag. It matches like any tag, and it also says what a token that carries it sounds like, which `phonemes()` reads. Slashes mean nothing else.
+A name in upper case is a terminal that matches a token carrying that tag. A character between single quotes, `'а'`, is a character tag, which matches that character of the text. `~name` is the identifier tag `name`, for a tag that does not begin with a capital, such as `~cmavo`. A phoneme between slashes, `/a/`, `/'/`, `/./` for a pause, is a phoneme tag. It matches like any tag, and it also says what a token that carries it sounds like, which `phonemes()` reads. Slashes mean nothing else.
 
-A reference, a string or a phoneme tag can carry a spelling, the text between backticks after it, as in ``LE`la` ``. The symbol then matches only where its span sounds like the spelling, whatever the stress or the script. So a rule can name a word by its sound in its body, and not in a condition. A spelling does not replace a class, since a word that `zo` quotes has the sound but not the class.
+A reference, a tag literal, a phoneme tag or a character tag can carry a spelling, the text between backticks after it, as in ``LE`la` ``. The symbol then matches only where its span sounds like the spelling, whatever the stress or the script. So a rule can name a word by its sound in its body, and not in a condition. A spelling does not replace a class, since a word that `zo` quotes has the sound but not the class.
 
 The operators of a body are those of CLL:
 
@@ -133,14 +133,14 @@ The operators of a body are those of CLL:
 - `A & B` is and/or, in order.
 - `( )` is grouping.
 - `ε` is empty.
-- `@f?` and `@¬f?` are gates, and `@f!` is a warning. These are the feature guards on an alternative (see "Gates and warnings").
+- `f?` and `¬f?` are gates, and `f!` is a warning. These are the feature guards on an alternative (see "Gates and warnings").
 - `$x(symbol)` is a capture, and `$` is the whole constituent.
 
 `#` is not built in. It is a rule that the grammar defines as `[free ...]`, as CLL's EBNF defines it. So the free modifiers of one slot, such as vocatives, are one node of the tree.
 
 CLL writes `/KU/` for an elidable terminator, a closing word that the speaker can leave out. Here it is written `[KU]`, and `/KU#/` is `[KU #]`. The grammar declares once which terminators are elidable (see below). `[KU #]` is exactly what CLL prints: an elided terminator takes its free-modifier slot with it. So `xy. xi ky.` (CLL 17.38) needs `xy. boi xi ky.` under the printed grammar, as CLL's official parser does, and as the corpus scans of the prototype show. The grammars that allow free modifiers after an elided terminator, as the camxes family does, write `[KU] #`.
 
-`%tags` gives the tags that the constituent of every alternative carries. An alternative's own tags, after it in angle brackets, add to them. A weak tag is `?"KOhA"`. There is one notation for a set of tags, the union: `"UI" ∪ "CAI"`.
+`%tags` gives the tags that the constituent of every alternative carries. An alternative's own tags, after it in angle brackets, add to them. A tag has no strength. There is one notation for a set of tags, the union: `UI ∪ CAI ∪ ~indicator`.
 
 `%conditions` lists conditions over the captured parts. Each condition applies to the alternatives that capture what it mentions. The recognizer evaluates it as early as it can. Within one condition, `∧`, `∨` and `⟹` are logic, in that order of precedence, grouped with parentheses.
 
@@ -223,7 +223,7 @@ A document can be included in several stages, and an included document can hold 
 
 A grammar admits every parse that its rules allow. Where a text has more than one parse, the engine treats each parse as the sequence of steps that a bottom-up reader takes. A step reads the next token or closes a constituent. The engine compares the parses at the first step where two of them differ:
 
-- If both read the same token under two tags, a strong tag beats a weak one.
+- If both read the same token under two tags, the text is ambiguous for this grammar.
 - If one reads and the other closes, `%ambiguity-resolution` decides. `greedy` takes the one that reads, so a constituent ends as late as the grammar allows. `lazy` takes the one that closes, so a constituent ends as early as the grammar allows.
 - If both close different constituents, the text is ambiguous for this grammar, and the result is a tie, with its witness.
 
@@ -233,15 +233,17 @@ The syntax grammars are greedy, and that is how an elided terminator is placed. 
 
 CLL's own rule is narrower. It says only that a terminator can be elided if no ambiguity results. It says nothing of the other ambiguities that its EBNF has. `elision-only` applies that rule literally, to the stage whose grammar declares it. It applies the rule only when the ranking of that stage was not `unique`:
 
-1. Take the `elided` nodes of the chosen tree in text order. Where several stand at one point, take the inner before the outer. For each node, insert a synthetic token before the stage-input token at the node's position. The synthetic token carries only the tag of that terminator, strong, and is marked synthetic.
+1. Take the `elided` nodes of the chosen tree in text order. Where several stand at one point, take the inner before the outer. For each node, insert a synthetic token before the stage-input token at the node's position. The synthetic token carries only the tag of that terminator, and is marked synthetic.
 2. Lower the same grammar again, and make mandatory every optional whose first symbol is an `%elidable` terminator. Parse the new token sequence.
-3. Build the ranking of that forest (the set of all its parses) with only the strong-over-weak rule, and with no lean to greedy or lazy. If the forest has exactly one derivation, or the tag rule alone selects one, the check passes. In that case, every other reading of the original input needed a terminator elided where the chosen reading did not. CLL's rule forbids that elision, because it made the text ambiguous. Otherwise, the ambiguity is not about terminators, and the result is an error of kind `ambiguous`. `ok` is false, and the error carries the two readings that the ranking reports, the chosen and the tied, shown over the original input.
+3. Build the ranking of that forest (the set of all its parses) with no lean to greedy or lazy. If the forest has exactly one derivation, the check passes. It also passes if the forest has none, since then no two restored readings exist to report. In that case, every other reading of the original input needed a terminator elided where the chosen reading did not. CLL's rule forbids that elision, because it made the text ambiguous.
 
-A weak tag is exactly how a dialect marks a reading that it admits as a second choice. That is why the tag rule still applies in step 3. The engine cases pin the definition with these cases:
+   Otherwise, the ambiguity is not about terminators, and the result is an error of kind `ambiguous`. `ok` is false, and the error carries the two readings that the ranking reports, the chosen and the tied, shown over the original input.
+
+The engine cases pin the definition with these cases:
 
 - Two readings that elide different terminators. The check passes.
 - Two readings that differ with every terminator written. The check fails.
-- An ambiguity that a weak tag settles. The check passes.
+- A restored text with no derivation. The check passes.
 - Several terminators elided at one point
 
 ### Where an elided terminator can fall
@@ -289,7 +291,7 @@ Node
   children      for a rule node: nodes, in text order
   span          token range in the stage's input
   source        code-point range in the original text
-  tags          for a rule node: its tag set, each tag strong or weak
+  tags          for a rule node: its tag set, a sorted list of tags
   token         for a token node: the index of the stage-input token it read
 ```
 
@@ -429,11 +431,11 @@ TypeScript writes declarations from the annotations into `lib/js/types/`. These 
 
 A dialect that extends another makes two kinds of change. Most are additions: texts that the base grammar rejects and the dialect accepts, such as `cu` before a bare selbri in the experimental dialect. Some change how the dialect reads a text that the base grammar accepts. An example is the cmevla-brivla merger, which lets a name word (cmevla) also act as a predicate word (brivla). Under the merger, `la .alis. klama` is one description. The notation has a kind of feature guard for each kind of change.
 
-An addition is a warning, `@name!`. Its alternative is there whether the feature is on or off, so turning the feature on changes no verdict and no tree. It only adds a warning to the result for each place where the chosen tree uses the alternative. The warning names the feature and the text. The dialect turns none of its warnings on, so its texts parse without warnings by default. A reader who wants to know which additions a text relies on turns them on.
+An addition is a warning, `name!`. Its alternative is there whether the feature is on or off, so turning the feature on changes no verdict and no tree. It only adds a warning to the result for each place where the chosen tree uses the alternative. The warning names the feature and the text. The dialect turns none of its warnings on, so its texts parse without warnings by default. A reader who wants to know which additions a text relies on turns them on.
 
 A warning is on the chosen tree only. An addition that only a tied or losing reading uses is not reported. The idea comes from jbotci, another Lojban parser, which warns where an experimental construct makes a text parse that the standard grammar rejects. The experimental syntax is already a layer over the CLL grammar, but its additions are not warnings yet. The one bundled warning is `y-cmavo`, in the word stage of the cll-ebnf dialect.
 
-A change of reading is a gate, `@name?`, with the old form under `@¬name?`, so that exactly one of the two is live. A warning cannot express it, because a warning keeps its alternative even with the feature off. The base reading is then gone either way. A dialect that makes such a change turns its gate on by default, and a caller who wants the base reading turns it off. Gates are also how a grammar keeps an expensive construct out of the parses that do not need it (see below).
+A change of reading is a gate, `name?`, with the old form under `¬name?`, so that exactly one of the two is live. A warning cannot express it, because a warning keeps its alternative even with the feature off. The base reading is then gone either way. A dialect that makes such a change turns its gate on by default, and a caller who wants the base reading turns it off. Gates are also how a grammar keeps an expensive construct out of the parses that do not need it (see below).
 
 A name is one kind or the other in a dialect. It is an error to load a dialect in which one guard uses a name as a gate and another uses it as a warning. Turning the feature on then means two things.
 

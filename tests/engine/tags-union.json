@@ -1,6 +1,6 @@
 {
   "description": "A constituent's tags are the union of its alternative's own and the rule's %tags; with either written, the single symbol's tags are not its default (engine §3.7).",
-  "grammar": "%rule text x x\n%rule x A <\"one\"> | B\n%tags \"rule\"",
+  "grammar": "%rule text x x\n%rule x A <~one> | B\n%tags ~rule",
   "tokens": [
     {
       "text": "a",
@@ -25,17 +25,17 @@
           {
             "kind": "rule",
             "rule": "x",
-            "tags": {
-              "one": true,
-              "rule": true
-            }
+            "tags": [
+              "one",
+              "rule"
+            ]
           },
           {
             "kind": "rule",
             "rule": "x",
-            "tags": {
-              "rule": true
-            }
+            "tags": [
+              "rule"
+            ]
           }
         ]
       }

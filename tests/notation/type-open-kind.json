@@ -1,0 +1,10 @@
+{
+  "description": "∅ takes its kind from its context: ∅ = ∅ gives it none, which is an error at the comparison (engine §9, §10).",
+  "document": "```jbogenbau\n%rule a $x(B) %conditions ∅ = ∅\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 27
+    }
+  }
+}

@@ -561,13 +561,11 @@
       element("td", { class: "num", text: row.span }),
       element("td", { class: "num", text: row.source }),
       element("td", { class: "tags" },
-        row.tags.split(" ").filter(Boolean).map((tag) => element("span", {
-          class: tag.startsWith("?") ? "tag weak" : "tag", title: tag.startsWith("?") ? "weak" : "strong", text: tag.replace(/^\?/, ""),
-        })),
+        row.tags.map((tag) => element("span", { class: "tag", text: tag })),
         row.insertedBy ? element("span", { class: "muted", text: ` inserted by ${row.insertedBy}` }) : null)));
     const note = result.total > result.rows.length ? element("p", { class: "hint", text: `The first ${result.rows.length} of ${result.total} tokens.` }) : null;
     $("output").replaceChildren(...[
-      element("p", { class: "hint", text: `What the ${result.stage} stage handed on. A faded tag is weak.` }),
+      element("p", { class: "hint", text: `What the ${result.stage} stage handed on.` }),
       element("div", { class: "table-wrap" }, element("table", { class: "tokens" }, element("thead", {}, header), element("tbody", {}, rows))), note,
     ].filter(Boolean));
   }

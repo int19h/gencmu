@@ -1,0 +1,48 @@
+{
+  "description": "Restoring the chosen tree's elided terminators can reject every reading: the lookahead of a sees the restored KU. With no derivation of the restored text, no two readings exist to report, so the check passes (engine §7).",
+  "grammar": "%ambiguity-resolution greedy elision-only\n%elidable KU\n%rule text a | c\n%rule a $x(A) [KU]\n%conditions ¬begins(after($x), k)\n%rule c A d\n%rule d ε\n%rule k KU",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "stages": [
+        {
+          "verdict": "tie"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "a",
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 0
+              },
+              {
+                "kind": "elided",
+                "terminal": "KU",
+                "span": [
+                  1,
+                  1
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

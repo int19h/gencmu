@@ -80,8 +80,9 @@ pub(crate) fn simplify_cond(cond: &Cond, has: &dyn Fn(&str) -> bool) -> Simple {
 
 /// Simplifies a term for a production (engine §3.6): `None` where it is
 /// the empty set, written `∅` or left by a guard that does not hold. The
-/// empty set is dropped from a union, makes an intersection empty, and
-/// makes a guarded term empty.
+/// empty set is dropped from a union, makes an intersection empty, makes a
+/// difference whose first part it is empty and one whose second part it is
+/// its first part, and makes a guarded term empty.
 pub(crate) fn simplify_term(term: &Term, has: &dyn Fn(&str) -> bool) -> Option<Term> {
     match term {
         Term::EmptySet => None,
@@ -105,6 +106,13 @@ pub(crate) fn simplify_term(term: &Term, has: &dyn Fn(&str) -> bool) -> Option<T
             }
             Some(Term::Intersection(left))
         }
+        Term::Difference(left, right) => {
+            let left = simplify_term(left, has)?;
+            Some(match simplify_term(right, has) {
+                None => left,
+                Some(right) => Term::Difference(Box::new(left), Box::new(right)),
+            })
+        }
         _ => Some(term.clone()),
     }
 }
@@ -118,6 +126,10 @@ fn term_captures<'a>(term: &'a Term, out: &mut Vec<&'a str>) {
     match term {
         Term::Capture(name) => out.push(name),
         Term::Union(items) | Term::Intersection(items) => items.iter().for_each(|item| term_captures(item, out)),
+        Term::Difference(left, right) => {
+            term_captures(left, out);
+            term_captures(right, out);
+        }
         Term::Call(_, args) => {
             for arg in args {
                 if let Arg::Term(term) = arg {
@@ -129,7 +141,7 @@ fn term_captures<'a>(term: &'a Term, out: &mut Vec<&'a str>) {
             cond_captures(cond, out);
             term_captures(then, out);
         }
-        Term::Literal(_) | Term::Weak(_) | Term::EmptySet => {}
+        Term::Str(_) | Term::Tag(_) | Term::EmptySet => {}
     }
 }
 
@@ -167,6 +179,10 @@ pub(crate) fn cond_uses(cond: &Cond) -> Vec<&str> {
 fn term_presences<'a>(term: &'a Term, out: &mut Vec<&'a str>) {
     match term {
         Term::Union(items) | Term::Intersection(items) => items.iter().for_each(|item| term_presences(item, out)),
+        Term::Difference(left, right) => {
+            term_presences(left, out);
+            term_presences(right, out);
+        }
         Term::If(cond, then) => {
             cond_presences(cond, out);
             term_presences(then, out);

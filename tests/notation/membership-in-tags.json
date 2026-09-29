@@ -1,0 +1,10 @@
+{
+  "description": "∈ tests a string in a set of strings, so a string in a tag set is an error of the document; ⊆ tests a tag literal in a tag set (engine §9, §10).",
+  "document": "```jbogenbau\n%rule a $x(B) %conditions \"a\" ∈ tags($x)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 27
+    }
+  }
+}

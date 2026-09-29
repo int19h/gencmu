@@ -1,0 +1,10 @@
+{
+  "description": "An inserted bare name without a capital names a rule, not a tag: the error is at the item (design §15, engine §9).",
+  "document": "```jbogenbau\n%rule a $x(A) %emits $x, foo\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 26
+    }
+  }
+}

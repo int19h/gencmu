@@ -16,6 +16,12 @@ export declare class UnicodeTable {
      */
     classOf(code: number): "space" | "digit" | "mark" | "alpha" | "other";
     /**
+     * Whether a code point is a nonspacing mark: a `mark` range of the file.
+     * @param {number} code
+     * @returns {boolean}
+     */
+    isMark(code: number): boolean;
+    /**
      * @param {string} text
      * @returns {string}
      */

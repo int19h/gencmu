@@ -1,13 +1,13 @@
 //! The result of a parse (`docs/output.md`), as Rust data. A result owns
 //! everything it holds, so it outlives the text and the dialect.
 
-use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::fmt;
 use std::ops::Range;
 
-/// A tag set: each tag with its strength, `true` for strong and `false`
-/// for weak, in code point order.
-pub type Tags = BTreeMap<String, bool>;
+/// A tag set: each tag in its canonical spelling (engine §1), in code
+/// point order.
+pub type Tags = BTreeSet<String>;
 
 /// A token that a stage read or emitted (engine §1).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -275,12 +275,12 @@ impl fmt::Display for ParseError {
 }
 
 /// A warning (engine §12): a rule node of a stage's chosen tree, built from
-/// an alternative with a warning `@f!` while the feature `f` was on.
+/// an alternative with a warning `f!` while the feature `f` was on.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Warning {
     /// The stage whose chosen tree has the node.
     pub stage: String,
-    /// The warning's feature, the `f` of `@f!`.
+    /// The warning's feature, the `f` of `f!`.
     pub feature: String,
     /// The node's rule.
     pub rule: String,

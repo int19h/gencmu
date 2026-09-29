@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -510,10 +511,7 @@ func hasSaSu(o stageOutcome) bool {
 			continue
 		}
 		if n.Rule == "word" {
-			if _, ok := n.Tags["SA"]; ok {
-				return true
-			}
-			if _, ok := n.Tags["SU"]; ok {
+			if slices.Contains(n.Tags, "SA") || slices.Contains(n.Tags, "SU") {
 				return true
 			}
 		}

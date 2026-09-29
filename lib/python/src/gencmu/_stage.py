@@ -94,7 +94,7 @@ class Tree:
 
     def build(self, root: DNode, tagtab: Any) -> Node:
         tokens = self.tokens
-        top = Node("rule", (root.start, root.end), (0, 0), rule=root.production.rule_name, tags=dict(tagtab.get(root.tag)))
+        top = Node("rule", (root.start, root.end), (0, 0), rule=root.production.rule_name, tags=tagtab.get(root.tag))
         builders: list[Node] = [top]
         work: list[tuple[str, Any]] = [("close", root), ("kids", (root, root.production.rep_splice))]
         while work:
@@ -135,7 +135,7 @@ class Tree:
                         (child.start, child.end),
                         (0, 0),
                         rule=child.production.rule_name,
-                        tags=dict(tagtab.get(child.tag)),
+                        tags=tagtab.get(child.tag),
                     )
                     parent.children.append(node)
                     builders.append(node)
@@ -268,13 +268,13 @@ def span_phonemes(tokens: list[Token], uncounted: list[bool], start: int, end: i
 
 
 def phoneme_tag(tags: Tags, span: Range) -> str | None:
-    """The phonemes of an emitted token's strong phoneme tag, or ``None`` if
+    """The phonemes of an emitted token's phoneme tag, or ``None`` if
     it has none. Two are an error of the grammar on any emitted token,
     verbatim or not (engine §5)."""
-    strong = sorted(tag for tag, st in tags.items() if st and phoneme_of(tag) is not None)
-    if len(strong) > 1:
-        raise _GrammarFault(f"an emitted token has two strong phoneme tags: {', '.join(strong)}", span)
-    return phoneme_of(strong[0]) if strong else None
+    found = sorted(tag for tag in tags if phoneme_of(tag) is not None)
+    if len(found) > 1:
+        raise _GrammarFault(f"an emitted token has two phoneme tags: {', '.join(found)}", span)
+    return phoneme_of(found[0]) if found else None
 
 
 class Emitter:
@@ -296,7 +296,7 @@ class Emitter:
         phoneme = phoneme_tag(tags, (start, end))
         phonemes = phoneme if phoneme is not None else span_phonemes(self.tokens, self.uncounted, start, end)
         text = self.context.text[source[0] : source[1]]
-        return Token(text, dict(tags), (start, end), source, phonemes, inserted_by)
+        return Token(text, tags, (start, end), source, phonemes, inserted_by)
 
     def part_token(self, part: DChild, tags: Tags) -> Token:
         """The token a ``$`` item or a capture item emits over a part
@@ -309,12 +309,12 @@ class Emitter:
             phoneme_tag(tags, span)
             source = self.widened_source(part.start, part.end)
             text = self.context.text[source[0] : source[1]]
-            return Token(text, dict(tags), span, source, text, verbatim=True)
+            return Token(text, tags, span, source, text, verbatim=True)
         if part.end - part.start == 1 and tokens[part.start].verbatim:
             # A token over one verbatim token is verbatim, with its source.
             phoneme_tag(tags, span)
             only = tokens[part.start]
-            return Token(only.text, dict(tags), span, only.source, only.text, verbatim=True)
+            return Token(only.text, tags, span, only.source, only.text, verbatim=True)
         return self.token(part.start, part.end, tags, self.part_source(part), None)
 
     def widened_source(self, start: int, end: int) -> Range:
@@ -381,7 +381,7 @@ class Emitter:
                 at = self.tokens[boundary - 1].source[1]
             else:
                 at = self.tree.source_of(node)[0]
-            self.output.append(self.token(boundary, boundary, {tag: True}, (at, at), node.production.rule_name))
+            self.output.append(self.token(boundary, boundary, frozenset((tag,)), (at, at), node.production.rule_name))
 
     def context_caps(self, node: DNode) -> Any:
         return self.forest.caps[node.item]
@@ -537,8 +537,10 @@ class StageRunner:
         return outcome
 
     def check_elision(self, tree: Node) -> ParseError | None:
-        """Engine §7: write the chosen tree's elided terminators back, parse
-        again with none elidable, and rank by the tag rule alone."""
+        """Engine §7: write the chosen tree's elided terminators back and
+        parse again with none elidable. The check passes when that parse has
+        at most one derivation: it ranks with no lean, so any two
+        derivations that differ are tied."""
         tokens = self.tokens
         inserted = elided_nodes(tree)
         new_tokens: list[Token] = []
@@ -550,7 +552,7 @@ class StageRunner:
                 # A restored spelled terminator sounds like its spelling, so
                 # that it matches its own terminator in the stricter grammar
                 # (engine §7).
-                new_tokens.append(Token("", {node.terminal or "": True}, (index, index), node.source, node.spelling))
+                new_tokens.append(Token("", frozenset((node.terminal or "",)), (index, index), node.source, node.spelling))
                 synthetic.append(True)
                 pending += 1
             if index < len(tokens):

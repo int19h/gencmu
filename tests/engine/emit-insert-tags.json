@@ -1,0 +1,62 @@
+{
+  "description": "An inserted item is one tag of any kind: a bare name with a capital, ~name, a character tag or a phoneme tag, which alone gives the token phonemes (design §15, engine §11).",
+  "grammar": "%rule text $x(A) %emits KU, ~ku, 'a', /a/, $x",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "text": "",
+              "phonemes": "",
+              "tags": [
+                "KU"
+              ],
+              "insertedBy": "text"
+            },
+            {
+              "text": "",
+              "phonemes": "",
+              "tags": [
+                "ku"
+              ],
+              "insertedBy": "text"
+            },
+            {
+              "text": "",
+              "phonemes": "",
+              "tags": [
+                "'a'"
+              ],
+              "insertedBy": "text"
+            },
+            {
+              "text": "",
+              "phonemes": "a",
+              "tags": [
+                "/a/"
+              ],
+              "insertedBy": "text"
+            },
+            {
+              "text": "a",
+              "phonemes": "",
+              "tags": [
+                "A"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
