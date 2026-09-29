@@ -46,7 +46,7 @@ A node has one of these forms:
 {"kind":"elided","terminal":"KU","span":[3,3],"source":[9,9]}
 ```
 
-A token node's `token` is the index of the stage-input token it read. Its `terminal` is the terminal that read the token. For a range or a property, the terminal is its written form in canonical spelling, such as `'a'..'z'` or `'\p{L}'` (engine §4). A read in a witness and the list of expected terminals use the same form. The output writes an elided node of a spelled terminator as any other elided node, without its spelling.
+A token node's `token` is the index of the stage-input token it read. Its `terminal` is the terminal that read the token. For a range or a property, the terminal is its written form in canonical spelling, such as `'a'..'z'` or `'\p{L}'` (engine §4). A read in a witness and the list of expected terminals use the same form. The output writes an elided node of a tested terminator as any other elided node, without its test.
 
 A warning has this form:
 
@@ -75,14 +75,16 @@ A mistake of the caller is not a result. It is an error of kind `usage` (engine 
 
 `line` and `column` count from 1, in code points. Lines end at `\n`, `\r\n` or `\r`.
 
-`expected` lists terminals in code point order. The library writes a spelled terminal as the terminal followed by its spelling in backticks, as in ``LE`la` ``, and sorts it by that text. So `LE` comes before ``LE`la` ``, which comes before `LEhU`. Each terminal comes with the rules whose items can read it at that position, also in code point order. `message` is the description for people, and the shared tests do not compare its wording.
+`expected` lists terminals in code point order. The library writes a tested terminal as the terminal followed by its test, as in `LE="la"`, and sorts it by that text. So `LE` comes before `LE="la"`, which comes before `LEhU`. Each terminal comes with the rules whose items can read it at that position, also in code point order. `message` is the description for people, and the shared tests do not compare its wording.
+
+The test is written as in the notation, with no space but those around ` ∪ `, and with its value in canonical form. A string stands between double quotes, with a backslash before each `\` and `"` in it. A tag set is `∅`, or its one tag, or its tags joined by ` ∪ ` in parentheses. Its tags are in code point order, each in its canonical spelling (engine §1). A constant is written as its value. So `KOhA⊇(UI ∪ word)`, `KOhA∩'a'=∅` and `LE≠"lo"` are written forms.
 
 ### A grammar DOM
 
 A grammar DOM (document object model) is the data that a library makes when it reads a grammar document (engine §8, §9). `bootstrap.json` and the precompiled DOMs hold the same data.
 
 ```
-{"format":11,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...]}
+{"format":12,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...]}
 ```
 
 `format` is the version of the DOM. It changes whenever the shape of the DOM changes. A library never uses a cached DOM of another version.
@@ -98,13 +100,13 @@ An expression is one of these forms:
 {"optional":EXPR}  {"repeat":EXPR,"min":1}
 {"ref":"sumti"}    {"terminal":"KOhA"}    {"capture":"x","expr":EXPR}
 {"range":["'a'","'z'"]}    {"property":"L"}
-{"spelling":"la","expr":EXPR}
+{"test":"=","value":TERM,"expr":EXPR}
 {"empty":true}
 ```
 
 `terminal` holds a tag in its canonical spelling (engine §1): a name from `~name`, a phoneme tag `/p/`, or a character tag such as `'a'`. A bare name is a `ref`, whether it names a rule or, with a capital, a terminal. A `range` holds its start and its end, each a character tag in its canonical spelling, and the start is not above the end. A `property` holds its name, one of those of engine §1.
 
-A spelled symbol has no member but `spelling` and `expr`. Its `expr` is a `ref` other than `#`, or a `terminal`, with no other member. Its `spelling` is the text between the backticks, so it holds no backtick. The spelling is never empty, and it holds no comma and no code point that the lowercase mapping changes (engine §9). A capture's `expr` is a `ref`, a `terminal`, a `range`, a `property` or a spelled symbol.
+A tested symbol has no member but `test`, `value` and `expr`. `test` is its comparator: `=`, `≠`, `⊇`, `⊉`, `∩=∅` or `∩≠∅`. Its `expr` is a `ref` other than `#`, a `terminal`, a `range` or a `property`, with no other member. Its `value` is a closed term (engine §10), a string for `=` and `≠` and a tag set for the other four. A string there holds no comma and no code point that the lowercase mapping changes (engine §9). A capture's `expr` is a `ref`, a `terminal`, a `range`, a `property` or a tested symbol.
 
 A term is `{"string":"s"}`, `{"tag":"KOhA"}`, `{"range":["'a'","'z'"]}`, `{"emptySet":true}`, `{"const":"SU-STOPS","at":[line,column]}`, `{"union":[TERM...]}`, `{"intersection":[TERM...]}`, `{"difference":[TERM,TERM]}`, `{"if":COND,"then":TERM}` or `{"call":"phonemes","args":[ARG...]}`. `string` holds the decoded string. `tag` holds one tag in its canonical spelling, from a tag literal, a bare name with a capital, a phoneme tag or a character tag. `range` is as in an expression. `difference` has exactly two parts, and `a ∖ b ∖ c` nests the first difference in the second.
 
@@ -134,7 +136,7 @@ A directive is `{"name":"elidable","args":["KU","KEI"],"at":[line,column]}`. An 
 
 ### Precompiled DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":11,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
+`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":12,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
 
 An entry holds the document's constants as the document writes them. The loader gives them their values when it stitches a stage. So one entry serves every stage and dialect that includes the document (engine §2, §8).
 

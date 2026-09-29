@@ -90,9 +90,11 @@ A stage also has constants. A constant is a named value that terms and condition
 
 A constant in `t` that is not defined at that point is an error. So no cycle can arise. For example, after `%const $A ~a`, `%const $B $A` and `%redefine-const $A ~b`, `$A` is `~b` and `$B` is `~a`. A redefinition keeps the constant's type. A value of another type is an error.
 
-Rules see the final values. A constant in a rule's terms or conditions has the value that the last definition of the stage gives it, wherever the rule stands.
+Rules see the final values. A constant in a rule's terms, conditions or tests has the value that the last definition of the stage gives it, wherever the rule stands.
 
-After the loader stitches the stage, it checks each rule definition that holds a constant. A constant that the stage never defines is an error there. The types of the terms and conditions that hold constants must agree (§9, §10). The checks of §9 that depend on the value of a constant apply there too. The loader checks every definition of the stage in this way. That includes a definition that a later `%redefine-rule` replaces, although its alternatives are then gone.
+After the loader stitches the stage, it checks each rule definition that holds a constant. A constant that the stage never defines is an error there. The types of the terms, conditions and tests that hold constants must agree (§9, §10).
+
+A string constant in an `=` or `≠` test must be a canonical sound (§9). The checks of §9 that depend on the value of a constant apply there too. The loader checks every definition of the stage in this way. That includes a definition that a later `%redefine-rule` replaces, although its alternatives are then gone.
 
 A constant belongs to its stage, as a rule does. A document in several stages or dialects takes the values of each. The DOM of a document holds its definitions and its references to constants, never their values (§8).
 
@@ -104,7 +106,13 @@ A name whose first character is `A` to `Z` is a terminal, the identifier tag of 
 
 A tag literal `~name`, a phoneme tag or a character tag is a terminal too. The DOM writes it as `terminal`, the tag. A range and a property (§1) are terminals as well, which the DOM writes as `range` and `property`.
 
-A reference, a tag literal, a phoneme tag or a character tag can carry a spelling: ``LE`la` ``, ``~la`la` ``, ``/a/`a` ``. A spelling is text between backticks after a symbol. It says what the symbol must sound like (§4). A spelled symbol is a symbol with a spelling. The spelling is not part of the name. A terminal with a spelling is the same terminal, and a reference with a spelling refers to the same rule.
+A reference other than `#`, or a terminal, can carry one test on its own span, as in `LE="la"`. A tested symbol is a symbol with a test. The test is not part of the name. A tested terminal is the same terminal, and a tested reference refers to the same rule. A test has one of six forms, where `X` is the symbol:
+
+- `X="s"` and `X≠"s"`: the canonical sound of the span (§5) is `s`, or it is not.
+- `X⊇t` and `X⊉t`: the own tags of `X` include every tag of `t`, or they lack one at least.
+- `X∩t=∅` and `X∩t≠∅`: the own tags of `X` include no tag of `t`, or they include one at least.
+
+The first two are sound tests, and the other four are tag tests. `s` is a closed term (§10) whose type is a string, and `t` is a closed term whose type is a tag set. The own tags of a terminal are the tags of its token. The own tags of a reference are the tags of its completed constituent (§4).
 
 ## 3. Lowering
 
@@ -117,12 +125,12 @@ Lowering turns a grammar, given the set of enabled features, into a context-free
 
    `A₁ & … & Aₙ` has at most 16 items. More is an error of the document (§9), since the expansions number 2ⁿ−1. It expands to every non-empty subsequence that keeps their order. The subsequences come in the order of the binary numbers 1 to 2ⁿ−1, with `A₁` as the lowest bit. `ε` is the empty sequence. A sequence's expansions are the products of its items' expansions, the first item varying slowest.
 
-   A spelled symbol expands to that one symbol, which carries the spelling. It adds no helper. So the numbering, the transparent closes of §6 and the constituents of a production are those of the symbol without its spelling. Two productions that differ only in the spelling of a symbol are two productions.
+   A tested symbol expands to that one symbol, which carries the test. It adds no helper. So the numbering, the transparent closes of §6 and the constituents of a production are those of the symbol without its test. Two productions that differ only in the test of a symbol are two productions.
 3. A trailing repetition is an alternative with two properties. It is the only alternative of its rule left after step 1. Its expression is `x ...` or `[x] ...`, or a sequence ending in one. Lowering turns such an alternative into left recursion on the rule itself: `r → p x ...` becomes `r → p x | r x`, and `r → p [x] ...` becomes `r → p | r x`.
 
    The intermediate prefixes of such an alternative are then constituents of `r`, and the ranking sees them (§6). This is how the YACC grammar of CLL (The Complete Lojban Language) realizes `...`, and CLL says that left grouping is implied. The recursive productions have none of the alternative's captures, because the captured parts lie inside the inner `r`. So an alternative lowered this way that captures anything is an error of the grammar. Lowering finds this error when it lowers the grammar for features that leave the alternative alone in its rule.
 4. The engine names the helpers, and it never shows their names. A helper is a production whose left side is a helper name.
-5. A capture `$x(s)` must wrap a single symbol `s`, which can be spelled, in a sequence at the top level of an alternative. It must not stand inside `[ ]`, `...`, `( )` or `&`. It labels the symbol's position in the production. An alternative has at most four captures. `$`, the whole constituent, is a capture of every production that no alternative writes. Its span runs from the item's origin to its end, and its tags are the constituent's (§4).
+5. A capture `$x(s)` must wrap a single symbol `s`, which can be tested, in a sequence at the top level of an alternative. It must not stand inside `[ ]`, `...`, `( )` or `&`. It labels the symbol's position in the production. An alternative has at most four captures. `$`, the whole constituent, is a capture of every production that no alternative writes. Its span runs from the item's origin to its end, and its tags are the constituent's (§4).
 6. Conditions, tags, emission and `%verbatim` attach to the production that an alternative lowers to, or to each production if it expands to several. They attach with the clauses of the alternative's definition (§2). A production has a capture if its alternative captures it, and every production has `$`.
 
    Before lowering attaches a clause, it simplifies the clause for the production, by these rules:
@@ -140,7 +148,9 @@ Lowering turns a grammar, given the set of enabled features, into a context-free
    - Lowering drops an emission item that names a capture the production lacks from that production's emission.
    - A tag term, the alternative's own or the definition's `%tags`, that uses a capture the production lacks is an error of the document.
 7. A production's tags are the union of its alternative's own tag term and its definition's `%tags` term, where either is written. A production with neither has the tags of its symbol's constituent if it has one symbol, and none if it has several. Lowering makes this explicit: it treats the single symbol as captured.
-8. An optional `[x]` is elidable when two things hold. `x` is a symbol, or a sequence whose first item is, recursively, one. That symbol is an `%elidable` terminal, spelled or not. An optional whose content is a choice or an `&` is never elidable, even if every branch begins with an elidable terminal. The `elision-only` check (§7) lowers the grammar a second time with every elidable optional made mandatory: its helper loses `ε`. A spelled elidable terminal stays spelled when its optional is made mandatory.
+8. An optional `[x]` is elidable when two things hold. `x` is a symbol, or a sequence whose first item is, recursively, one. That symbol is an `%elidable` terminal, tested or not. An optional whose content is a choice or an `&` is never elidable, even if every branch begins with an elidable terminal. The `elision-only` check (§7) lowers the grammar a second time with every elidable optional made mandatory: its helper loses `ε`. A tested elidable terminal keeps its test when its optional is made mandatory.
+
+   The terminal of an elidable optional has no test or an `=` test, since §7 restores it with a sound. Any other test on it is an error of the grammar. The loader finds this error after it stitches the stage, since a later `%elidable` can make an optional elidable. It checks every alternative of the stitched stage, whatever the features, and reports the error at the definition that wrote the alternative. A test on a later symbol of the optional is no error, since §7 restores only the terminal.
 
 Lowering numbers the productions from 0. This numbering is the tie-break of §6. A production that a condition false for it removes (§3.6) takes no number, though the helpers of its alternative still do. Lowering takes the rules in the order in which they were first defined after stitching. A rule replaced with `%redefine-rule` keeps the place of the rule that it replaces, and alternatives added with `%extend-rule` follow the rule's own alternatives.
 
@@ -166,13 +176,17 @@ A terminal `T` matches a token whose tags contain `T`. A range matches a token t
 
 A range or a property has no tag of its own. As a terminal, its identity is its written form in canonical spelling, such as `'a'..'z'` or `'\p{L}'`. The ends of a range are in their canonical spelling (§1), so `'\u{61}'..'z'` is `'a'..'z'`. This form is the terminal for the ranking and its canonical keys (§6). It is also the terminal in the expected terminals, the tree's token nodes (§12) and the witness.
 
-A spelled symbol ``X`s` `` matches what `X` matches, over a span whose phonemes match the spelling. That is, the canonical sound `phonemes(span)` (§5) is exactly `s`. So the match ignores stress, script and syllable breaks. A token with no phonemes, a character of the first stage, never matches a spelled terminal.
+A tested symbol (§2) matches what its symbol matches, where its test holds. The test reads the symbol's own span and its own tags. For a terminal, these are the token's span and tags. For a reference, they are the span and the tag set of the completed item that the item advances over.
 
-When an item reads a spelled symbol, the recognizer produces the advanced item only if the span of that symbol matches the spelling. This holds over a token, for a terminal, and over a completed item, for anything else. It includes an advance over a constituent that completed empty at the item's position. A spelling is never empty, so it always rejects such a constituent.
+`X="s"` holds when the canonical sound of the span, `phonemes(span)` (§5), is exactly `s`. So the match ignores stress, script and syllable breaks. `X⊇t` holds when the own tags include every tag of `t`. `X∩t=∅` holds when they include no tag of `t`. `X≠"s"`, `X⊉t` and `X∩t≠∅` hold exactly where those three do not.
 
-The recognizer applies the spelling before any condition that the advance makes ready. The paragraphs below say when a condition is ready. If the spelling fails, the recognizer evaluates none of those conditions. The order is observable, because a condition can end the parse with an error of the grammar. The spelling does not stop the conditions that run earlier. These are the conditions inside the referenced rule, which run before that rule completes, and those that run when the recognizer predicts the item.
+A test is an ordinary predicate, and an empty span is no exception. So `X=""` and `X≠"la"` hold for a constituent that completed empty, and `X⊇∅` always holds. A character of the first stage has no phonemes, so its canonical sound is the empty string.
 
-The spelling is not part of the terminal's identity. A spelled terminal ``T`s` `` is the terminal `T` for the actions of §6. It is also `T` in the tree's token nodes (§12) and in the witness. The spelling only removes matches.
+When an item reads a tested symbol, the recognizer produces the advanced item only if the test holds. This holds over a token, for a terminal, and over a completed item, for a reference. It includes an advance over a constituent that completed empty at the item's position. Two completed items over one span can have different tag sets. So a tag test can let an item advance over one of them and not over the other.
+
+The recognizer applies the test before any condition that the advance makes ready. The paragraphs below say when a condition is ready. If the test fails, the recognizer evaluates none of those conditions. The order is observable, because a condition can end the parse with an error of the grammar. The test does not stop the conditions that run earlier. These are the conditions inside the referenced rule, which run before that rule completes, and those that run when the recognizer predicts the item.
+
+The test is not part of the terminal's identity. A tested terminal `T="s"` is the terminal `T` for the actions of §6. It is also `T` in the tree's token nodes (§12) and in the witness. The test only removes matches.
 
 When an item completes, its constituent's tags are its production's tag terms evaluated over its captured parts (§10) and joined as §3.7 says. A completed item has exactly one tag set. So two derivations of one production over one span that are one item have equal tag sets. Two such derivations with different tag sets differ in a captured part, so they are two items.
 
@@ -180,7 +194,7 @@ The recognizer evaluates a condition, as simplified for its production (§3.6), 
 
 The recognizer evaluates a condition that uses no capture when it predicts the item. It does the same with a condition that uses only `$` in a production with no symbols, over the empty span there. So a rule whose only production has no symbols and the condition `initial($)` completes only at the start of the input. Anywhere else, the recognizer never advances an alternative that begins with that rule, and that alternative predicts nothing after the rule.
 
-`matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` each run a nested parse. A nested parse is one recognition over the span's tokens alone, with `rule` as the start rule, over the same lowered grammar. It applies spellings as the main parse does. The three functions read the recognizer's items, before any ranking and before `maximal`, as follows:
+`matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` each run a nested parse. A nested parse is one recognition over the span's tokens alone, with `rule` as the start rule, over the same lowered grammar. It applies tests as the main parse does. The three functions read the recognizer's items, before any ranking and before `maximal`, as follows:
 
 - `matches` holds when a completed item of `rule` spans the tokens.
 - `begins` holds when a completed item of `rule` has its origin at the span's start, in any set.
@@ -202,7 +216,9 @@ A query about a span from inside a parse of the same span as the same rule is an
 
 Derivations are finite trees. A derivation in which a constituent has, anywhere below it, a constituent of the same rule over the same span is cyclic. The engine does not count a cyclic derivation, since such a derivation can repeat without end. For example, with `a → b` and `b → a | A`, `A` has one derivation as `a`, not infinitely many. So does the empty text as `t`, with `t → u | ε` and `u → t`.
 
-Derivations are made only of advances that the spellings allowed. An implementation can build derivations again from completed spans, without the advances. Such an implementation applies the spellings again. For example, take ``text → [X] body`y` ``, `body → X Y | Y` and the input `X Y`, where `X` sounds `x` and `Y` sounds `y`. Only the `body` over `Y` matches, so `[X]` reads `X`. No derivation reads `[X]` as empty.
+Derivations are made only of advances that the tests allowed. An implementation can build derivations again from completed spans, without the advances. Such an implementation applies the tests again, each to the candidate constituent itself, with its own span and its own tags. For example, take `text → [X] body="y"`, `body → X Y | Y` and the input `X Y`, where `X` sounds `x` and `Y` sounds `y`. Only the `body` over `Y` matches, so `[X]` reads `X`. No derivation reads `[X]` as empty.
+
+A tag test works in the same way. Take `text → [X] body⊇~b` and `body → X Y | Y`, where the second production of `body` has the tag term `~b`. Only the `body` over `Y` carries `b`, so again `[X]` reads `X`.
 
 In a derivation, the helper of an elidable optional (§3.8) that derives `ε` is an elided terminator, at the position where it is empty. Its constituent is the node of the symbol just before the helper in the production that has the helper among its symbols. In `LE sumti-tail [KU #]`, it is the node of `sumti-tail`. In `[terms] [VAU #]`, it is the node of the helper of `[terms]`, whether that optional is empty or not. In `(number | lerfu-string) [BOI #]`, it is the node of `number` or `lerfu-string`, as the production has one or the other.
 
@@ -216,13 +232,13 @@ A PEG (parsing expression grammar) repetition such as `([T] A) ...` reads its ne
 
 When the stage's directive has `maximal`, the engine does not count some more derivations, as it does not count cyclic ones. It does not count a derivation if one of its elided terminators has a constituent that is not the longest possible. Such a constituent is a node of a symbol `Y` spanning `[s, p]`. The recognizer also has a completed item of a production of `Y`, with origin `s`, in a set after `p`.
 
-When `Y` is spelled, the longer constituent counts only if its span also matches the spelling. The longer constituent need not fit into any derivation of `text`, which is what makes `maximal` commit as a PEG does. The longer constituent can contain the constituent itself, as a left-recursive rule builds a longer node on a shorter one.
+When `Y` is tested, the longer constituent counts only if the test holds of it, with its own span and its own tags. The longer constituent need not fit into any derivation of `text`, which is what makes `maximal` commit as a PEG does. The longer constituent can contain the constituent itself, as a left-recursive rule builds a longer node on a shorter one.
 
-Only the constituent matters, not what follows the elided terminator in its production. Whether a constituent is the longest possible depends only on its symbol, its spelling, its origin and its end. So an implementation can find, once per parse, the furthest set in which each symbol completes from each origin. For a spelled symbol, it needs each such set, since the furthest one need not match the spelling. `maximal` does not apply to the parse of §7, which has no elided terminator. It also does not apply to a nested parse, which reads the recognizer's items and not derivations.
+Only the constituent matters, not what follows the elided terminator in its production. Whether a constituent is the longest possible depends only on its symbol, its test, its origin and its end. So an implementation can find, once per parse, the furthest set in which each symbol completes from each origin. For a tested symbol, it needs each completed item of the symbol from each origin, since the furthest one need not pass the test. `maximal` does not apply to the parse of §7, which has no elided terminator. It also does not apply to a nested parse, which reads the recognizer's items and not derivations.
 
-A stage accepts when an item of the start rule `text` spans the whole input and has at least one derivation that is counted. It rejects an input whose every such derivation is cyclic, as it rejects one with no such item. A rejected input reports the furthest position that any item reached. It also reports the terminals that the items there can read next, together with the rules that those items belong to (§11). The stage writes a spelled terminal as the terminal followed by its spelling in backticks, such as ``LE`la` `` (`docs/output.md`).
+A stage accepts when an item of the start rule `text` spans the whole input and has at least one derivation that is counted. It rejects an input whose every such derivation is cyclic, as it rejects one with no such item. A rejected input reports the furthest position that any item reached. It also reports the terminals that the items there can read next, together with the rules that those items belong to (§11). The stage writes a tested terminal with its test, such as `LE="la"` (`docs/output.md`).
 
-An input rejected only because `maximal` forbids an elided terminator in every derivation that is not cyclic reports that terminator instead. The terminator comes from the derivation that the stage chooses (§6) when `maximal` forbids nothing. It is the first elided terminator of that derivation, in the order of the tree's leaves, that `maximal` forbids. Its position is the position reported, and its terminal, with the rule in whose alternative its optional is written, is the one terminal expected there. If that terminator is spelled, the stage writes it with its spelling there too.
+An input rejected only because `maximal` forbids an elided terminator in every derivation that is not cyclic reports that terminator instead. The terminator comes from the derivation that the stage chooses (§6) when `maximal` forbids nothing. It is the first elided terminator of that derivation, in the order of the tree's leaves, that `maximal` forbids. Its position is the position reported, and its terminal, with the rule in whose alternative its optional is written, is the one terminal expected there. If that terminator is tested, the stage writes it with its test there too.
 
 ## 5. Phonemes and text
 
@@ -291,7 +307,7 @@ So nothing needs to be enumerated, and the number of derivations, which can be e
 
 When the stage's directive has `elision-only`, or the caller asks for it, and the verdict is not `unique`:
 
-1. Take the chosen tree's elided terminators (§12) in text order, inner before outer where several are at one position. Before the input token at each one's position, insert a synthetic token. Its tags are that terminal alone, and its span and source are empty at that position. If the terminator is spelled, the token's phonemes are its spelling. Otherwise the token has no phonemes. So a restored ``KU`ku` `` matches its own terminator in the parse of step 2.
+1. Take the chosen tree's elided terminators (§12) in text order, inner before outer where several are at one position. Before the input token at each one's position, insert a synthetic token. Its tags are that terminal alone, and its span and source are empty at that position. If the terminator has an `=` test, the token's phonemes are the test's string. Otherwise the token has no phonemes. So a restored `KU="ku"` matches its own terminator in the parse of step 2.
 2. Parse the new token sequence with the grammar lowered as in §3.8.
 3. Rank that forest with no lean: any two derivations that differ are tied. If the forest has exactly one derivation, the check passes and the result is the original one.
 
@@ -335,8 +351,9 @@ The notation's syntax grammar names its constituents so that the reader can read
 | `phoneme` in a body | `terminal`, the token's text `/p/` |
 | `range` in a body | `range`, its two ends, each decoded as a `character` is: `{"range":["'a'","'z'"]}` |
 | `property` in a body | `property`, the name between the braces: `{"property":"L"}` |
-| `spelled` | `spelling` of its `reference`, `tag`, `character` or `phoneme`, as the table reads that. `spelling` is the text between the backticks: `{"spelling":"la","expr":{"ref":"LE"}}` |
-| `capture` | `capture`, the name without `$`, of its primary, which must be a `reference`, `tag`, `character`, `phoneme`, `range`, `property` or `spelled` |
+| `tested` | `test`, the comparator of its `test`. `value`, the term of its `test-operand`. `expr`, its primary as the table reads that: `{"test":"=","value":{"string":"la"},"expr":{"ref":"LE"}}`. The comparator is `=`, `≠`, `⊇` or `⊉`, or `∩=∅` or `∩≠∅` for a test that begins with `∩` |
+| `test-operand` | its term, as a `term-atom` reads it |
+| `capture` | `capture`, the name without `$`, of its primary, which must be a `reference`, `tag`, `character`, `phoneme`, `range`, `property` or `tested` |
 | `group` | its `choice` |
 | `optional` | `optional` of its `choice` |
 | `empty` | `empty` |
@@ -369,17 +386,18 @@ The lexical stage reads the longest symbol. So `...` is always one token, repeti
 
 The grammar does not state the restrictions below. Each of these is an error of the document, and the reader reports it at the first token of the offending construct:
 
-- A capture wrapping anything but one symbol, `$x((B))` included. A symbol is a reference, a tag literal, a character tag, a phoneme tag, a range, a property or a spelled one of these.
+- A capture wrapping anything but one symbol, `$x((B))` included. A symbol is a reference, a tag literal, a character tag, a phoneme tag, a range, a property or a tested one of these.
 - A capture whose name has a capital. Capture names are all lower case.
 - A constant in a body, reported at the constant. A body names a class of tokens with a rule, such as `%rule digit '0'..'9'`, and never with a constant.
 - `$` wrapping anything.
 - A capture name used twice in one alternative.
-- A spelling after `#`, a range or a property, reported at the spelling. The syntax grammar permits a spelling on any of these, and on a reference, a tag literal, a character tag or a phoneme tag. There, `#` is a reference.
+- A test after anything but a reference other than `#` or a terminal, reported at the test. So a test after a group, an optional, a capture, `ε`, `#` or another test is an error. The syntax grammar permits a test after any primary.
 - A range whose start is above its end, reported at the range.
 - A property whose text is not `'\p{Name}'` with a name of §1, reported at the property. So a long name, such as `Letter`, and a name in other case, such as `lu`, are errors.
 - A property in a term or a condition, reported at the property. A property is not a tag set.
-- A spelling that no canonical sound (§5) can be, reported at the spelling. That is a spelling with a comma, or with a code point that the simple lowercase mapping changes. So ``LE`La` `` and ``LE`l,a` `` are errors.
-- A spelling that is empty, reported at the spelling.
+- A string in an `=` or `≠` test that no canonical sound (§5) can be, reported at the string. That is a string with a comma, or with a code point that the simple lowercase mapping changes. So `LE="La"` and `LE="l,a"` are errors. The loader checks a constant there in the same way (§2).
+- A test's operand that is not a closed term (§10), reported at the first part that is not closed. So a capture, `$`, a guarded term and a call of `phonemes`, `text`, `tags` or `classes` are errors there.
+- A test's operand of the wrong type, reported at the operand. The operand of `=` and `≠` is a string, and that of the other four tests is a tag set. So `LE⊇"la"` and `LE=~la` are errors.
 - A function that does not exist, or one called with the wrong arguments. `phonemes`, `text`, `classes`, `head`, `tail`, `last`, `from` and `after` take one span. `split` takes two strings, and `tag` takes one string. `tags` takes a span and optionally a rule name. `matches` and `begins` take a span and a rule name, and `initial` takes one span.
 
   In these signatures, a span is a capture or `head`, `tail`, `last`, `from` or `after` of one. A string is a term whose type is string (§10).
@@ -393,9 +411,9 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A bare name that does not begin with a capital, where a value is needed. Such a name is a rule, and a rule is only the second argument of `tags`, `matches` or `begins`.
 - `matches`, `begins` or `initial` as a term.
 - An `&` of more than 16 items.
-- An expression, a term or a condition nested more than 256 deep. That is, in the DOM (docs/output.md), a node of one lies below more than 256 compound nodes of it. In an expression, the compound nodes are `optional`, `repeat`, `and`, `choice`, `seq`, `capture` and `spelling`. In a term, they are `union`, `intersection`, `difference`, `if` and `call`. In a condition, they are `any`, `all`, `not`, `if`, `matches`, `begins`, `initial` and a comparison.
+- An expression, a term or a condition nested more than 256 deep. That is, in the DOM (docs/output.md), a node of one lies below more than 256 compound nodes of it. In an expression, the compound nodes are `optional`, `repeat`, `and`, `choice`, `seq`, `capture` and `test`. In a term, they are `union`, `intersection`, `difference`, `if` and `call`. In a condition, they are `any`, `all`, `not`, `if`, `matches`, `begins`, `initial` and a comparison.
 
-  The condition of a guarded term counts on from the term's depth, as a comparison's terms count on from the condition's. `( )` makes no node, so it adds nothing. So 256 nested `[ ]` around a symbol are allowed, and 257 are not. The reader reports this error at the first item, in the order of the document, that holds such a node. That item is a rule or a constant definition.
+  The condition of a guarded term counts on from the term's depth, as a comparison's terms count on from the condition's. A test's value counts on from the test's depth in the same way. `( )` makes no node, so it adds nothing. So 256 nested `[ ]` around a symbol are allowed, and 257 are not. The reader reports this error at the first item, in the order of the document, that holds such a node. That item is a rule or a constant definition.
 - `$` with items other than `$`.
 - Tags on an inserted tag.
 - An inserted bare name that does not begin with a capital, which names a rule and not a tag.
@@ -424,7 +442,7 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 
 - Two of its items share a position.
 - It has a `stage`, `include`, `features` or `elidable` directive whose operands the reader refuses.
-- It has a spelling that the reader refuses, by the same lowercase mapping that the canonical sound uses.
+- It has a test that the reader refuses. That is a test after anything but a reference other than `#` or a terminal, or an unknown comparator. It is also a value that is not a closed term of the right type. It is also a string that holds a comma or that the lowercase mapping of the canonical sound changes.
 - It has a `terminal`, a `tag` or an inserted tag that is not a tag in its canonical spelling (§1).
 - It has a `range` whose ends are not two character tags in their canonical spelling, or whose start is above its end.
 - It has a `property` whose name §1 does not list.
@@ -467,13 +485,13 @@ An empty delimiter is an error. It is an error of the document when the delimite
 
 `tag(a)` needs a name (§9) for `a`. Any other string is an error. When the reader sees it, as a string literal or a constant, it is an error of the document. Otherwise it is an error of the grammar when a parse evaluates the `tag`.
 
-A closed term uses no capture and no span. It holds only strings, tag literals, ranges, `∅`, constants, the operators `∪`, `∩` and `∖`, and `split` and `tag` of closed terms. A constant's value is a closed term, whose type is a string, a set of strings or a tag set. The loader evaluates it when it stitches the stage (§2), as a parse evaluates a term.
+A closed term uses no capture and no span. It holds only strings, tag literals, ranges, `∅`, constants, the operators `∪`, `∩` and `∖`, and `split` and `tag` of closed terms. A constant's value is a closed term, whose type is a string, a set of strings or a tag set. So is the value of a test (§2), whose type is a string or a tag set. The loader evaluates a constant's value when it stitches the stage (§2), as a parse evaluates a term.
 
 `..` binds tighter than every other operator, since its two sides are character tags. So `'a'..'c' ∪ 'x'` is `('a'..'c') ∪ 'x'`.
 
 `∩` binds tighter than `∪` and `∖`. Those two bind equally and group from the left, so `a ∖ b ∪ c` is `(a ∖ b) ∪ c`.
 
-`∅` takes its kind from the other side of its operator or comparison. A tag term, guarded term or emission item also gives it the required tag-set type. In a `%redefine-const`, the type that the constant keeps (§2) gives the value its kind in the same way. So after `%const $A ~a`, `%redefine-const $A ∅` makes `$A` the empty tag set. An expression whose kind nothing gives is an error of the document. So `%const $E ∅` is an error.
+`∅` takes its kind from the other side of its operator or comparison. A tag term, guarded term, emission item or tag test also gives it the required tag-set type. In a `%redefine-const`, the type that the constant keeps (§2) gives the value its kind in the same way. So after `%const $A ~a`, `%redefine-const $A ∅` makes `$A` the empty tag set. An expression whose kind nothing gives is an error of the document. So `%const $E ∅` is an error.
 
 `a = b` and `a ≠ b` compare two strings, two sets of strings or two tag sets. Any other pair is an error of the document. `a ∈ b` and `a ∉ b` test a string in a set of strings. `a ⊆ b` tests that every member of `a` is in `b`, and `a ⊈ b` that one is not. Both sides are sets of one kind. `matches(s, R)` holds when the span parses as `R`, and `begins(s, R)` when a prefix of it does, the empty prefix included.
 
@@ -528,7 +546,7 @@ The engine builds the result's tree from the chosen derivation, as follows:
 - A read token is a `token` node holding the index of the input token and the terminal that the recognizer read it as.
 - The engine splices out helper productions: their children take their place.
 - The engine splices out the prefixes of a trailing repetition (§3.3), so the rule is one node whose children are its items in order.
-- An elidable optional (§3.8) that is absent becomes an `elided` node for its terminal `T`. The node has an empty span at the position where the optional is empty. The node of a spelled terminator records the spelling, for the synthetic token of §7. The output does not show it (`docs/output.md`).
+- An elidable optional (§3.8) that is absent becomes an `elided` node for its terminal `T`. The node has an empty span at the position where the optional is empty. The node of a terminator with an `=` test records the test's string, for the synthetic token of §7. The output does not show it (`docs/output.md`).
 
 A node with a nonempty span has the source of its tokens (§1). A node with an empty span is an `elided` node or a rule that read nothing. Such a node has an empty source at the source end of the input token before its position. At position 0, its empty source is at the source start of the first input token, or at 0 if there is no input token.
 
@@ -573,6 +591,6 @@ When all of these hold, the engine runs the stages up to and including the one n
 
 The engine then runs the parse again from the first stage with `sa-su` added, in two cases. In the first case, that first run does not end with the `words` stage accepting. Any reason counts: a rejection or an error in it or in a stage before it. In the second case, the chosen tree of the `words` stage has a constituent of the rule `word` whose tag set has `SA` or `SU`.
 
-In either case, the engine discards the first run's stages and warnings. Otherwise that first run's stages are the parse's, with their warnings, continued to the end. The test is on the class and not on the spelling, because the lexicon decides which words erase. For example, `li'oi` is SU in the experimental lexicon, and a stressed `sA` is `sa`.
+In either case, the engine discards the first run's stages and warnings. Otherwise that first run's stages are the parse's, with their warnings, continued to the end. The engine checks the class and not the sound, because the lexicon decides which words erase. For example, `li'oi` is SU in the experimental lexicon, and a stressed `sA` is `sa`.
 
 Mistakes of the caller are errors of kind `usage`. Two examples are an `until` that names no stage and a text that is not a sequence of scalar values (§1). They are raised or returned as a load error is, and they are not results. A grammar error found while parsing is a result. Examples are a nested parse asked about its own span and a `split` with an empty delimiter. Its error has kind `grammar`, the `stage` that it arose in and a message, and no position.
