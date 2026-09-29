@@ -32,12 +32,20 @@ A nonspacing mark is a character whose General_Category in `grammars/unicode.txt
 
 The input of the first stage is the characters of the text, one token for each code point `c` at position `i`. For this token, `span` and `source` are `[i, i+1)`, and `text` is `c`. Its `tags` hold one tag, the character tag of `c`, and nothing else. A character token has no phonemes. A grammar reads a class of characters, such as the letters, with a range or a property.
 
+A text is a sequence of Unicode scalar values. A text that is not one is a usage error (§13), and the engine refuses it before it makes any character token. In JavaScript and Python, such a text is a string with a lone surrogate. In Go, it is a string that is not valid UTF-8. A Rust string is always valid. The same holds for the text of a grammar document.
+
 `tools/unicode-table.py` generates `grammars/unicode.txt` from one version of the Unicode Character Database. Every library uses this file, not the Unicode data of its platform, so that the four libraries agree on every character. The file holds one entry on each line, with code points in hexadecimal:
 
 - `unicode 15.1.0`: the version of the data.
-- `category Lu 0041 005A`: a range of code points whose General_Category is `Lu`. The category is in its short form. Each such range is a longest run of one category, and together they hold every Unicode scalar value once. `Cn`, the unassigned code points, has its ranges too.
+- `category Lu 0041 005A`: a range of code points whose General_Category is `Lu`. The category is in its short form.
 - `white-space 0009 000D`: a range of code points that have the White_Space property.
 - `lower 0041 0061`: a code point and its simple lowercase mapping.
+
+In the bundled file, each `category` range is a longest run of one category. Together these ranges hold every Unicode scalar value once. `Cn`, the unassigned code points, has its ranges too. The records can stand in any order in a file. Each library sorts them when it loads the file, so their order never changes an answer.
+
+A caller can supply its own `unicode.txt` (`docs/api.md`). That table replaces the bundled data entirely, `White_Space` included, and nothing falls back to the bundled data. So the table must list the white space that the caller's grammar documents use. A table need not hold every scalar value. A scalar value that no `category` range holds has the category `Cn`. One that no `white-space` range holds lacks White_Space, and one with no `lower` entry has no lowercase mapping.
+
+`Cs` belongs only to the surrogates, U+D800 to U+DFFF, and a table lists none of them. A surrogate is not a scalar value, so it never becomes a character tag.
 
 A tag set is a set of tags. A tag has no strength: a set holds it or not. The union holds every tag of either set. The intersection holds their shared tags. The difference holds the first set's tags that the second lacks.
 
@@ -514,4 +522,4 @@ The engine then runs the parse again from the first stage with `sa-su` added, in
 
 In either case, the engine discards the first run's stages and warnings. Otherwise that first run's stages are the parse's, with their warnings, continued to the end. The test is on the class and not on the spelling, because the lexicon decides which words erase. For example, `li'oi` is SU in the experimental lexicon, and a stressed `sA` is `sa`.
 
-Mistakes of the caller, such as an `until` that names no stage, are errors of kind `usage`. They are raised or returned as a load error is, and they are not results. A grammar error found while parsing, such as a nested parse asked about its own span, is a result. Its error has kind `grammar`, the `stage` that it arose in and a message, and no position.
+Mistakes of the caller are errors of kind `usage`. Two examples are an `until` that names no stage and a text that is not a sequence of scalar values (§1). They are raised or returned as a load error is, and they are not results. A grammar error found while parsing, such as a nested parse asked about its own span, is a result. Its error has kind `grammar`, the `stage` that it arose in and a message, and no position.
