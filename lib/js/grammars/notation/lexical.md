@@ -4,7 +4,7 @@ This is the first stage of the notation dialect, `../dialects/notation.md`. A st
 
 `../../docs/notation.md` explains the notation. This document and `syntax.md` define it.
 
-A character reaches this grammar with one tag (a label that the grammar reads), its character tag, such as `'a'`. The rules below read a character by that tag, by a range such as `'a'..'z'`, or by a Unicode property such as `'\p{White_Space}'`. Every token that this stage emits is one run of characters. So a token's text is exactly what the author wrote.
+A character reaches this grammar with one tag (a name that the grammar reads), its character tag, such as `'a'`. The rules below read a character by that tag, by a range such as `'a'..'z'`, or by a Unicode property such as `'\p{White_Space}'`. Every token that this stage emits is one run of characters. So a token's text is exactly what the author wrote.
 
 ## Choosing among readings
 
@@ -177,7 +177,7 @@ A keyword is `%` and a name. The stage tags each keyword that the notation knows
   | '%' $tags(name) <~keyword-tags>
   | '%' $conditions(name) <~keyword-conditions>
   | '%' $emits(name) <~keyword-emits>
-  | '%' $verbatim(name) <~keyword-verbatim>
+  | '%' $foreign(name) <~keyword-foreign>
   | '%' $ambiguity-resolution(name) <~keyword-ambiguity-resolution>
   | '%' $elidable(name) <~keyword-elidable>
   | '%' $stage(name) <~keyword-stage>
@@ -195,7 +195,7 @@ A keyword is `%` and a name. The stage tags each keyword that the notation knows
   text($tags) = "tags",
   text($conditions) = "conditions",
   text($emits) = "emits",
-  text($verbatim) = "verbatim",
+  text($foreign) = "foreign",
   text($ambiguity-resolution) = "ambiguity-resolution",
   text($elidable) = "elidable",
   text($stage) = "stage",
@@ -207,7 +207,7 @@ A keyword is `%` and a name. The stage tags each keyword that the notation knows
   text($implies) = "implies",
   text($other) ≠ "rule", text($other) ≠ "redefine-rule", text($other) ≠ "extend-rule",
   text($other) ≠ "tags", text($other) ≠ "conditions", text($other) ≠ "emits",
-  text($other) ≠ "verbatim", text($other) ≠ "ambiguity-resolution", text($other) ≠ "elidable",
+  text($other) ≠ "foreign", text($other) ≠ "ambiguity-resolution", text($other) ≠ "elidable",
   text($other) ≠ "stage", text($other) ≠ "include", text($other) ≠ "features",
   text($other) ≠ "const", text($other) ≠ "redefine-const",
   text($other) ≠ "classifier", text($other) ≠ "implies"

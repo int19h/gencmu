@@ -213,6 +213,7 @@
             index,
             text: token.text,
             phonemes: token.phonemes || "",
+            label: token.label,
             span: token.span[0] + "–" + token.span[1],
             source: token.source[0] + "–" + token.source[1],
             // A list, since a character tag can hold a space.

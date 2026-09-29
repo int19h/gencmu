@@ -96,7 +96,7 @@ In a `lo'u` or `lo'ai` quote, such a word is tagged `word` only, as the other wo
   | $b(y-base) $h(y-run⊇~after-hesitation) <tags($h)>
 ```
 
-A magic word is never a plain word. The stream's list of them, `$MAGIC-WORDS`, lacks MUhOI, LOhAI and LEhAI, which only Zantufa reads so, and this document adds them. A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads as an unquoted word opens a text of its own. The forms stage gives the tag (a label on a token) `opener-space` to the hesitation after such a word. So that hesitation is space, and the word takes it with it. Inside a quote, such a hesitation is an attached Y word, as in `zo luyy si`, which erases the `yy` and keeps `zo lu`.
+A magic word is never a plain word. The stream's list of them, `$MAGIC-WORDS`, lacks MUhOI, LOhAI and LEhAI, which only Zantufa reads so, and this document adds them. A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads as an unquoted word opens a text of its own. The forms stage gives the tag (a name on a token) `opener-space` to the hesitation after such a word. So that hesitation is space, and the word takes it with it. Inside a quote, such a hesitation is an attached Y word, as in `zo luyy si`, which erases the `yy` and keeps `zo lu`.
 
 ```jbogenbau
 %redefine-const $MAGIC-WORDS

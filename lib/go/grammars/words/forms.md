@@ -2,7 +2,7 @@
 
 This document opens the forms stage. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)). The forms stage is the second stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The stage reads the phonemes that the phoneme stage emitted.
 
-The stage divides the text into its source words and tags each word with its class. A token is one unit that a stage reads or writes. A tag is a label on a token. The stage hands the words to the word stage ([stream.md](stream.md)), where the magic words act on them. [The notation document](../../docs/notation.md) explains the notation.
+The stage divides the text into its source words and tags each word with its class. A token is one unit that a stage reads or writes. A tag is a name on a token. The stage hands the words to the word stage ([stream.md](stream.md)), where the magic words act on them. [The notation document](../../docs/notation.md) explains the notation.
 
 This document does not decide what a word looks like. The loader stitches other documents into the stage with this one: the word forms of one family, and one lexicon. A family is a set of word forms that dialects use. The family defines the three shapes this grammar reads, `cmavo-shape`, `brivla-shape` and `cmevla-shape`. It tags each with the pause properties below.
 
@@ -61,7 +61,7 @@ A run that divides into words divides in one way only. The word forms of each fa
   | /b/ | /c/ | /d/ | /f/ | /g/ | /j/ | /k/ | /l/ | /m/ | /n/ | /p/ | /r/ | /s/ | /t/ | /v/ | /x/ | /z/
 ```
 
-The stage covers every input token. It passes pauses and foreign runs through, and combines letters into words or foreign runs. A foreign run of the phoneme stage keeps its text as its phonemes.
+The stage covers every input token. It passes pauses and foreign runs through, and combines letters into words or foreign runs. A foreign run of the phoneme stage keeps its phonemes, `?`, and its label, which is its text.
 
 A run of letters that divides into no words becomes one `FOREIGN` token, which sounds like its letters. So a `zoi` delimiter compares with it exactly as with the same letters read as words. The text of the token is what the author wrote.
 

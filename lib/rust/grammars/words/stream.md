@@ -2,7 +2,7 @@
 
 This document is the word stage, the third stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). A stage is one step of a pipeline, with its own grammar. A token is a unit such as a phoneme or a word. Each stage reads the tokens that the stage before it emitted, and emits new tokens.
 
-The stage reads the source words that the forms stage divided ([forms.md](forms.md)). It hands the indicator stage the words of the text, each tagged with its class. A tag is a label that a token carries. The tags are `word` on every word, `cmavo`, `BRIVLA` or `CMEVLA` by its shape, and every selma'o the lexicon gave it.
+The stage reads the source words that the forms stage divided ([forms.md](forms.md)). It hands the indicator stage the words of the text, each tagged with its class. A tag is a name that a token carries. The tags are `word` on every word, `cmavo`, `BRIVLA` or `CMEVLA` by its shape, and every selma'o the lexicon gave it.
 
 This document contributes the magic words, the constructs that act on the word stream before the syntax sees it. They are the quotes `zo`, `ma'oi`, `zoi`, `la'o`, `mu'oi`, `lo'u ... le'u`, `zo'oi` and its relatives, and the compounders `bu` and `zei`. They are also the erasers `si`, `sa` and `su`, hesitation, and `fa'o`. The stage resolves them together, in one grammar, because they act strictly left to right on one stream.
 
@@ -214,7 +214,7 @@ The delimiter is the word after the marker. The stage takes it when it reads the
 
 No compound formed with `bu` is a delimiter, not even `.y. bu`. But a letter word such as `gy` or `y'y` is a delimiter. So `zoi .y. bu. x .y. bu.` is no quote, because hesitation is no word, and the stage never drops a hesitation before `bu`. So a delimiter is always one word, and a quote always ends at the first run of its body that is the delimiter.
 
-The body of a `zoi` quote and the run that `zo'oi` quotes are `%verbatim`. So the syntax receives a token that sounds like the text as written, with its punctuation. It does not sound like the phonemes that the phoneme stage read in the text. The stage still compares the delimiters, and each run of the body, by their phonemes.
+The body of a `zoi` quote and the run that `zo'oi` quotes are `%foreign`. So the syntax receives a token that sounds `?`, whatever the body holds. Its label is the text as written, with its punctuation. The stage still compares the delimiters, and each run of the body, by their phonemes. A run that the phoneme stage made foreign sounds `?` there, so it never matches a delimiter.
 
 ```jbogenbau
 %rule single-word-quote
@@ -349,11 +349,11 @@ The gap between a marker and its word is an optional pause, with hesitation allo
 
 %rule zoi-body
   any-token | zoi-body any-token
-%verbatim
+%foreign
 
 %rule zohoi-payload
   payload-token | zohoi-payload payload-token
-%verbatim
+%foreign
 
 %rule any-token
   payload-token | PAUSE

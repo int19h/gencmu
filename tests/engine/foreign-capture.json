@@ -1,6 +1,6 @@
 {
-  "description": "A capture item whose part is a verbatim constituent emits a verbatim token, whose source runs from the end of the input token before it to the start of the one after it; a $ item over a constituent that merely holds a verbatim one is not verbatim (engine §5, §11).",
-  "grammar": "%rule text q p\n%rule q Q $b(body)\n%emits $b <B>\n%rule p P body\n%emits $ <C>\n%rule body X | body X\n%verbatim",
+  "description": "A capture item whose part is a foreign part emits a token with the part's source, which runs from the end of the input token before it to the start of the one after it. A $ item over a constituent that holds a foreign part keeps its own source, sounds `?` for the part, and has the part's text in its label (engine §5, §11).",
+  "grammar": "%rule text q p\n%rule q Q $b(body)\n%emits $b <B>\n%rule p P body\n%emits $ <C>\n%rule body X | body X\n%foreign",
   "tokens": [
     {
       "text": "q",
@@ -44,7 +44,8 @@
           "output": [
             {
               "text": " x x ",
-              "phonemes": " x x ",
+              "phonemes": "?",
+              "label": " x x ",
               "span": [
                 1,
                 3
@@ -56,7 +57,8 @@
             },
             {
               "text": "p x",
-              "phonemes": "a",
+              "phonemes": "?",
+              "label": "p x",
               "span": [
                 3,
                 5

@@ -12,7 +12,7 @@ Zantufa lets free modifiers follow every word (`post_clause`), with a few except
 
 The word stage reads the magic words, the words such as `si` that act on other words. `zei` is SI there and erases a word, `sa` is an attitudinal, and `su` erases the whole text before it. "Differences from Zantufa 1.9999" says where the last differs from Zantufa.
 
-[The notation document](../../docs/notation.md) explains the notation. A lookahead of the reference, such as `!terms`, is a condition with `begins`. The terminals of this grammar (the symbols that each match one input token) are selma'o. A tag is a label on a token. The rules `any-word` and `anything` match tokens tagged `word` and `foreign-text`, respectively. The word stage puts these tags on the words and the foreign text of a quote.
+[The notation document](../../docs/notation.md) explains the notation. A lookahead of the reference, such as `!terms`, is a condition with `begins`. The terminals of this grammar (the symbols that each match one input token) are selma'o. A tag is a name on a token. The rules `any-word` and `anything` match tokens tagged `word` and `foreign-text`, respectively. The word stage puts these tags on the words and the foreign text of a quote.
 
 The stage is greedy: at the first difference between two parses, it takes the one that reads the next word. A PEG's repetition is greedy too, and the two usually agree. Where two alternatives of an ordered choice can read the same words, the later one has a condition that removes that reading. The terminators that the reference writes with `_elidible` are elidable here.
 

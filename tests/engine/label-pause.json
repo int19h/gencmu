@@ -1,0 +1,57 @@
+{
+  "description": "The pause, a token with the phoneme tag `/./`, is labelled as a space, whether a rule emits it over text or inserts it. A token over pauses keeps only the first of each run of pause parts and none at either end, in its label as in its phonemes (engine §5).",
+  "documents": {
+    "p.md": "## phonemes\n\n```jbogenbau\n%stage phonemes\n```\n\n- [g.md](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## words\n\n```jbogenbau\n%stage words\n```\n\n- [h.md](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [part] ...\n%rule part letter | pause\n%rule letter $c('a')\n%emits $c <L ∪ /a/>, /./\n%rule pause '-' | pause '-'\n%emits $ <P ∪ /./>\n```\n",
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w(all)\n%emits $w <W>\n%rule all [any] ...\n%rule any L | P | /./\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "a--a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "text": "a",
+              "phonemes": "a",
+              "label": "a"
+            },
+            {
+              "text": "",
+              "phonemes": ".",
+              "label": " ",
+              "insertedBy": "letter"
+            },
+            {
+              "text": "--",
+              "phonemes": ".",
+              "label": " "
+            },
+            {
+              "text": "a",
+              "phonemes": "a",
+              "label": "a"
+            },
+            {
+              "text": "",
+              "phonemes": ".",
+              "label": " ",
+              "insertedBy": "letter"
+            }
+          ]
+        },
+        {
+          "output": [
+            {
+              "text": "a--a",
+              "phonemes": "a.a",
+              "label": "a a"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

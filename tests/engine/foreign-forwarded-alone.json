@@ -1,0 +1,71 @@
+{
+  "description": "A later stage that forwards a token over a foreign part keeps its source, even after the tokens next to it disappear: the third stage reads B alone, and its token keeps `ab`. A `%foreign` rule of a later stage widens the token again, over the text that no input token of that stage covers (engine §11).",
+  "documents": {
+    "p.md": "## letters\n\n```jbogenbau\n%stage letters\n```\n\n- [g.md](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## bodies\n\n```jbogenbau\n%stage bodies\n```\n\n- [h.md](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n\n## forwards\n\n```jbogenbau\n%stage forwards\n```\n\n- [k.md](k.md)\n  ```jbogenbau\n  %include \"k.md\"\n  ```\n\n## widens\n\n```jbogenbau\n%stage widens\n```\n\n- [m.md](m.md)\n  ```jbogenbau\n  %include \"m.md\"\n  ```\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [part] ...\n%rule part letter | pause | mark\n%rule letter 'a' <L ∪ /a/> | 'b' <L ∪ /b/> | 'c' <L ∪ /c/> | 'd' <L ∪ /d/>\n%emits $\n%rule pause ' ' <P ∪ /./>\n%emits $\n%rule mark '!'\n```\n",
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text P $b(body) P\n%emits $b <B>\n%rule body L | body L\n%foreign\n```\n",
+    "k.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $b(B)\n%emits $b <C>\n```\n",
+    "m.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $c(wrap)\n%emits $c <D>\n%rule wrap C\n%foreign\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": " ab ",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {
+          "output": [
+            {
+              "text": "ab",
+              "phonemes": "?",
+              "label": "ab",
+              "span": [
+                1,
+                3
+              ],
+              "source": [
+                1,
+                3
+              ]
+            }
+          ]
+        },
+        {
+          "output": [
+            {
+              "text": "ab",
+              "phonemes": "?",
+              "label": "ab",
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                1,
+                3
+              ]
+            }
+          ]
+        },
+        {
+          "output": [
+            {
+              "text": " ab ",
+              "phonemes": "?",
+              "label": " ab ",
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                4
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -17,7 +17,7 @@ The approved grammar reads the question mark and the exclamation mark as pauses,
 
 A character token carries only its character tag. So the rule `other-char` names the characters that are no letter, mark, digit or whitespace. A letter is a character of the Unicode property `L`, and a mark is one of `Mn`. A digit is `0` to `9`, and whitespace is a character of the property White_Space. A punctuation character is such a character that no letter rule reads by itself.
 
-A pause token covers its core, from its first to its last whitespace character or period, with any punctuation inside it. A token is one unit that a stage reads or emits. Other punctuation at either end of a pause belongs to no token. So a `zoi` body keeps the quotation marks in `zoi gy. "Hello!" .gy.`. The body takes in the text next to it that no token covers, as [the notation](../../docs/notation.md) says under "Verbatim text".
+A pause token covers its core, from its first to its last whitespace character or period, with any punctuation inside it. A token is one unit that a stage reads or emits. Other punctuation at either end of a pause belongs to no token. So a `zoi` body keeps the quotation marks in `zoi gy. "Hello!" .gy.`. The body takes in the text next to it that no token covers, as [the notation](../../docs/notation.md) says under "Foreign text".
 
 Punctuation between two letters, with no whitespace, is a pause token of its own, as in `klama!do`. So is a text of nothing but punctuation. Commas can stand inside such a pause and at its edges. The token runs from the first punctuation character of the pause to the last. A comma at an edge belongs to no token, as next to a pause of whitespace. So `jy?,sai` is `jy` and `sai`.
 
@@ -129,7 +129,7 @@ A run in which every vowel is a capital carries no stress mark, and the stage re
   ¬matches(last($r), comma)
 %emits
   $ <FOREIGN>
-%verbatim
+%foreign
 
 %rule capital-run
   capital-shape

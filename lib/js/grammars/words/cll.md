@@ -2,7 +2,7 @@
 
 This document is the family part of the forms stage in the [CLL](../dialects/cll-ebnf.md) dialect. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)). A family is a set of word forms that dialects use. This family gives the word forms of chapters 3 and 4 of *The Complete Lojban Language*, version 1.1. The loader stitches it into the forms stage after [forms.md](forms.md) and [shapes.md](shapes.md), whose sounds it builds words from.
 
-This document defines the three shapes that the forms stage reads, `cmavo-shape`, `brivla-shape` and `cmevla-shape`. It tags each such word with what the pause rules of CLL 4.9 need to know about the word. A tag is a label on a token. A token is one unit that a stage reads or writes. The family of the definition effort is [bpfk.md](bpfk.md). [The notation document](../../docs/notation.md) explains the notation.
+This document defines the three shapes that the forms stage reads, `cmavo-shape`, `brivla-shape` and `cmevla-shape`. It tags each such word with what the pause rules of CLL 4.9 need to know about the word. A tag is a name on a token. A token is one unit that a stage reads or writes. The family of the definition effort is [bpfk.md](bpfk.md). [The notation document](../../docs/notation.md) explains the notation.
 
 The rules state CLL 1.1's word forms precisely enough to implement them twice, and an independent implementation of the same rules agrees with this grammar. Under these rules a text divides into words in at most one way. So the lazy choice of the stage among parses ([engine §6](../../docs/engine.md#6-choosing-a-parse)) never decides where a word ends.
 

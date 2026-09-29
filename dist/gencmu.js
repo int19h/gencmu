@@ -318,16 +318,17 @@
      * @param {string | null} phonemes what it sounds like
      * @param {string | undefined} insertedBy the rule that inserted it, for a
      *   token no text stands for
-     * @param {boolean} [verbatim] whether it sounds like its text (engine §11)
+     * @param {string} [label] what it shows to people (engine §5): by default
+     *   its text, as for a character token or one that a caller supplies
      */
-    constructor(tags, span, source, text, phonemes, insertedBy, verbatim = false) {
+    constructor(tags, span, source, text, phonemes, insertedBy, label = text) {
       this.tags = tags;
       this.span = span;
       this.source = source;
       this.text = text;
       this.phonemes = phonemes;
       this.insertedBy = insertedBy;
-      this.verbatim = verbatim;
+      this.label = label;
     }
   }
 
@@ -1509,10 +1510,10 @@
    * @typedef {object} TokenJson
    * @property {string} text
    * @property {string} phonemes
+   * @property {string} label
    * @property {string[]} tags
    * @property {Span} span
    * @property {Span} source
-   * @property {true} [verbatim]
    * @property {string} [insertedBy]
    */
 
@@ -1581,7 +1582,7 @@
    * @typedef {{[name: string]: DisplayValue | DisplayValue[] | string | null}} DisplayValue
    */
 
-  const RESULT_FORMAT = 4;
+  const RESULT_FORMAT = 5;
 
   /**
    * @param {Token} token
@@ -1592,11 +1593,11 @@
     const result = {
       text: token.text,
       phonemes: token.phonemes || "",
+      label: token.label,
       tags: sortedTags(token.tags),
       span: [token.span[0], token.span[1]],
       source: [token.source[0], token.source[1]],
     };
-    if (token.verbatim) result.verbatim = true;
     if (token.insertedBy !== undefined) result.insertedBy = token.insertedBy;
     return result;
   }
@@ -1681,11 +1682,8 @@
    * @returns {string}
    */
   function leafLabel(node, tokens) {
-    const token = tokens[node.token];
-    // For people a pause, `.`, is a space, but a verbatim token is shown as
-    // it is written (docs/output.md).
-    if (token.verbatim) return token.text;
-    return token.phonemes ? token.phonemes.replaceAll(".", " ") : token.text;
+    // Every rendering shows a token by its label (docs/output.md).
+    return tokens[node.token].label;
   }
 
   // The bracket rendering (docs/output.md): nested groups cycling ( [ {.
@@ -2136,7 +2134,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 13;
+  const DOM_FORMAT = 14;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9-]*$/;
   // A classifier's name begins with a lower-case letter, and a class with a
@@ -2364,7 +2362,7 @@
     for (const rule of dom.rules) {
       if (!isDomObject(rule) || typeof rule.name !== "string" || !(DOM_NAME.test(rule.name) || rule.name === "#") || !["define", "redefine", "extend"].includes(/** @type {string} */ (rule.op)) ||
           !Array.isArray(rule.alternatives) || rule.alternatives.length === 0 || !Array.isArray(rule.conditions) || !isDomPosition(rule.at) ||
-          (rule.verbatim !== undefined && rule.verbatim !== true)) {
+          (rule.foreign !== undefined && rule.foreign !== true)) {
         return "a malformed rule";
       }
       if (rule.tags !== undefined) pending.push({ kind: "constituent-tags", value: rule.tags, depth: 0 });
@@ -2786,8 +2784,8 @@
     const alternatives = rule.alternatives.map(alternativeCaptures);
     const anyHas = (/** @type {string} */ name) => alternatives.some((/** @type {Map<string, number>} */ captures) => captures.has(name));
     const items = rule.emit ? rule.emit.items : [];
-    // A constituent that does not count cannot sound like its text (engine §9).
-    if (rule.verbatim && rule.emit && items.length === 0) return `${rule.name} is verbatim and emits ε`;
+    // A constituent that does not count is never a foreign part (engine §9).
+    if (rule.foreign && rule.emit && items.length === 0) return `${rule.name} is foreign and emits ε`;
     const clauses = [rule.tags, ...rule.conditions, ...rule.alternatives.map((/** @type {any} */ a) => a.tags), ...items];
     // An emission item mentions its own capture, whatever else it says.
     const named = items.flatMap((/** @type {any} */ item) => (typeof item.capture === "string" ? [item.capture] : []));
@@ -3391,9 +3389,9 @@
         blocks.push(`${stage.name}: no tokens (${stage.error ? stage.error.kind : "not run"})`);
         continue;
       }
-      const rows = stage.output.map((token, index) => [String(index), quoted(token.text), quoted(token.phonemes || ""),
+      const rows = stage.output.map((token, index) => [String(index), quoted(token.text), quoted(token.phonemes || ""), quoted(token.label),
         `${token.span[0]}-${token.span[1]}`, `${token.source[0]}-${token.source[1]}`, tagList(token.tags) + (token.insertedBy ? `  (inserted by ${token.insertedBy})` : "")]);
-      const header = ["#", "text", "phonemes", "span", "source", "tags"];
+      const header = ["#", "text", "phonemes", "label", "span", "source", "tags"];
       const widths = header.map((title, column) => Math.max([...title].length, ...rows.map((row) => [...row[column]].length)));
       /** @type {(row: string[]) => string} */
       const format = (row) => row.map((cell, column) => (column === row.length - 1 ? cell : cell + " ".repeat(widths[column] - [...cell].length))).join("  ");
@@ -3902,7 +3900,7 @@
    * @property {Term | undefined} tags
    * @property {Emission | undefined} emit
    * @property {Condition[]} conditions
-   * @property {boolean} verbatim
+   * @property {boolean} foreign
    */
 
   /**
@@ -4011,7 +4009,7 @@
       for (const rule of dom.rules) {
         if (constantsIn(rule).length > 0) this.constantUsers.push({ path, rule });
         const at = { document: path, line: rule.at[0], column: rule.at[1] };
-        const clauses = { tags: rule.tags, emit: rule.emit, conditions: rule.conditions || [], verbatim: rule.verbatim === true };
+        const clauses = { tags: rule.tags, emit: rule.emit, conditions: rule.conditions || [], foreign: rule.foreign === true };
         const alternatives = rule.alternatives.map((alternative) => ({ ...alternative, clauses, document: path, at }));
         const previous = this.rules.get(rule.name);
         if (rule.op === "define") {
@@ -4623,7 +4621,7 @@
             conditions: [],
             tags: single ? { call: "tags", args: [{ capture: "\u0000child" }] } : null,
             emit: null,
-            verbatim: false,
+            foreign: false,
             recursivePrefix: false,
             warnings: [],
           });
@@ -4703,7 +4701,7 @@
         conditions,
         tags,
         emit,
-        verbatim: clauses.verbatim,
+        foreign: clauses.foreign,
         recursivePrefix,
         warnings: alternative.guards.filter((guard) => guard.kind === "warning").map((guard) => guard.feature),
       });
@@ -6257,32 +6255,118 @@
     return found.length ? [...found[0]][1] : null;
   }
 
-  // What a node says: the phonemes of the tokens it covers, less those inside
-  // a constituent that does not count, with each run of pause tokens made one
-  // and a pause token at either end left out (engine §5). The pauses are
-  // counted by token, so that a verbatim token keeps its periods.
+  /**
+   * The source and the text of a foreign part (engine §11).
+   * @typedef {{source: Span, text: string}} ForeignPart
+   */
+
+  /**
+   * The foreign parts of a chosen derivation, with their sources and texts
+   * (engine §11): the constituents of `%foreign` productions inside no
+   * constituent that emits `ε` and no other foreign part. The stage fixes them
+   * before it emits anything, so that every token over a part holds the same
+   * text. The walk keeps its own stack, as the tree's does.
+   * @param {Derivation} root
+   * @param {ParseContext} context
+   * @returns {Map<Derivation, ForeignPart>}
+   */
+  function foreignParts(root, context) {
+    /** @type {DerivationRule[]} */
+    const parts = [];
+    const stack = [root];
+    for (let node = stack.pop(); node !== undefined; node = stack.pop()) {
+      if ("read" in node || countsForNothing(node.production)) continue;
+      if (node.production.foreign) {
+        parts.push(node);
+        continue;
+      }
+      for (let index = node.children.length - 1; index >= 0; index--) stack.push(node.children[index]);
+    }
+    const tokens = context.tokens;
+    // Text between two input tokens belongs to the part with a non-empty span
+    // that ends there, before one that starts there.
+    const ends = new Set(parts.filter((part) => part.start < part.end).map((part) => part.end));
+    /** @type {Map<Derivation, ForeignPart>} */
+    const result = new Map();
+    for (const part of parts) {
+      const before = part.start > 0 ? tokens[part.start - 1].source[1] : 0;
+      if (part.start === part.end) {
+        // An empty part takes in no text.
+        result.set(part, { source: [before, before], text: "" });
+        continue;
+      }
+      // It always holds its own tokens' sources, which the tokens next to it
+      // may share, and takes in the text next to it that no input token covers.
+      const own = sourceOf(context.sources, part.start, part.end);
+      const start = ends.has(part.start) ? own[0] : Math.min(own[0], before);
+      const after = part.end < tokens.length ? tokens[part.end].source[0] : context.sourceText.length;
+      const end = Math.max(own[1], after);
+      result.set(part, { source: [start, end], text: context.sourceText.slice(start, end).join("") });
+    }
+    return result;
+  }
+
+  /**
+   * A join of the phonemes or of the labels of a token's parts (engine §5): a
+   * part with an empty string is left out, of each run of adjacent pause parts
+   * only the first is kept, and a pause part at either end is left out. Pauses
+   * are counted by part, so a part keeps its own periods and spaces.
+   */
+  class Join {
+    constructor() {
+      /** @type {string[]} */
+      this.pieces = [];
+      this.pause = false;
+    }
+    /**
+     * @param {string} piece
+     * @param {boolean} pause whether the part is a pause part
+     */
+    add(piece, pause) {
+      if (piece === "") return;
+      if (pause && (this.pieces.length === 0 || this.pause)) return;
+      this.pieces.push(piece);
+      this.pause = pause;
+    }
+    /** @returns {string} */
+    result() {
+      if (this.pause) this.pieces.pop();
+      return this.pieces.join("");
+    }
+  }
+
+  // What a node says and shows: the phonemes and the labels of its parts,
+  // joined (engine §5, §11). A part is a read input token or a foreign part.
+  // Nothing inside a constituent that does not count is a part, and the walk
+  // does not enter a foreign part.
   /**
    * @param {Derivation} node
    * @param {ParseContext} context
-   * @returns {string}
+   * @param {Map<Derivation, ForeignPart>} foreign
+   * @returns {{phonemes: string, label: string}}
    */
-  function spoken(node, context) {
-    /** @type {string[]} */
-    const pieces = [];
+  function spoken(node, context, foreign) {
+    const phonemes = new Join();
+    const label = new Join();
     const stack = [node];
     for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
       if ("read" in current) {
-        const phonemes = context.tokens[current.read.token].phonemes || "";
-        if (phonemes === "") continue;
-        if (phonemes === "." && (pieces.length === 0 || pieces[pieces.length - 1] === ".")) continue;
-        pieces.push(phonemes);
+        const token = context.tokens[current.read.token];
+        const sound = token.phonemes || "";
+        phonemes.add(sound, sound === ".");
+        label.add(token.label, sound === ".");
         continue;
       }
       if (countsForNothing(current.production)) continue;
+      const part = foreign.get(current);
+      if (part) {
+        phonemes.add("?", false);
+        label.add(part.text, false);
+        continue;
+      }
       for (let index = current.children.length - 1; index >= 0; index--) stack.push(current.children[index]);
     }
-    if (pieces[pieces.length - 1] === ".") pieces.pop();
-    return pieces.join("");
+    return { phonemes: phonemes.result(), label: label.result() };
   }
 
   /**
@@ -6296,43 +6380,36 @@
   }
 
   /**
+   * The phonemes and the label of a phoneme tag `/p/` (engine §5): `p` and
+   * `p`, but a space for the label of the pause.
+   * @param {string} phoneme
+   * @returns {{phonemes: string, label: string}}
+   */
+  function sounded(phoneme) {
+    return { phonemes: phoneme, label: phoneme === "." ? " " : phoneme };
+  }
+
+  /**
    * @param {Derivation} node
    * @param {TagSet} explicit the tags that the emission gives the token
    * @param {ParseContext} context
-   * @param {Set<number>} widenedEnds where the widened tokens emitted before
-   *   this one end
+   * @param {Map<Derivation, ForeignPart>} foreign the derivation's foreign
+   *   parts
    * @returns {Token}
    */
-  function makeToken(node, explicit, context, widenedEnds) {
-    const tokens = context.tokens;
-    // The stage's implications apply before the phonemes (engine §11).
+  function makeToken(node, explicit, context, foreign) {
+    // The stage's implications apply before the phonemes and the label
+    // (engine §11).
     const tags = implied(explicit, context.lowered.implications);
-    // Two phoneme tags are an error on any token, verbatim or not (engine §5).
+    // Two phoneme tags are an error on any token (engine §5).
     const phoneme = phonemeTag(tags);
-    if ("production" in node && node.production.verbatim) {
-      // A widened token takes in the text next to it that no input token
-      // covers, but not text that a widened token before it has taken, and
-      // sounds like its text (engine §5, §11).
-      const before = node.start > 0 ? tokens[node.start - 1].source[1] : 0;
-      if (node.start === node.end) return new Token(tags, [node.start, node.end], [before, before], "", "", undefined, true);
-      // It always holds its own tokens' sources, which the tokens next to it
-      // may share.
-      const own = sourceOf(context.sources, node.start, node.end);
-      const start = widenedEnds.has(node.start) ? own[0] : Math.min(own[0], before);
-      const after = node.end < tokens.length ? tokens[node.end].source[0] : context.sourceText.length;
-      const end = Math.max(own[1], after);
-      widenedEnds.add(node.end);
-      const text = context.sourceText.slice(start, end).join("");
-      return new Token(tags, [node.start, node.end], [start, end], text, text, undefined, true);
-    }
-    if (node.end - node.start === 1 && tokens[node.start].verbatim) {
-      // A token over one verbatim token is verbatim, with its source.
-      const only = tokens[node.start];
-      return new Token(tags, [node.start, node.end], [only.source[0], only.source[1]], only.text, only.text, undefined, true);
-    }
-    const source = sourceOf(context.sources, node.start, node.end);
-    const phonemes = phoneme !== null ? phoneme : spoken(node, context);
-    return new Token(tags, [node.start, node.end], source, context.sourceText.slice(source[0], source[1]).join(""), phonemes, undefined);
+    // A token over a foreign part has the part's source and text (engine §11).
+    const part = foreign.get(node);
+    const source = part ? part.source : sourceOf(context.sources, node.start, node.end);
+    const text = part ? part.text : context.sourceText.slice(source[0], source[1]).join("");
+    // A phoneme tag decides the sound and the label, over `?` (engine §5).
+    const said = phoneme !== null ? sounded(phoneme) : spoken(node, context, foreign);
+    return new Token(tags, [node.start, node.end], source, text, said.phonemes, undefined, said.label);
   }
 
   /**
@@ -6347,8 +6424,11 @@
     const tokens = context.tokens;
     const position = at > node.start ? tokens[at - 1].source[1] : sourceOf(context.sources, node.start, node.end)[0];
     const tags = implied(tagSet([tag]), context.lowered.implications);
+    // An inserted token has no parts: a phoneme tag gives its phonemes and its
+    // label, or both are empty (engine §5).
     const phoneme = phonemeTag(tags);
-    return new Token(tags, [at, at], [position, position], "", phoneme !== null ? phoneme : "", owner);
+    const said = phoneme !== null ? sounded(phoneme) : { phonemes: "", label: "" };
+    return new Token(tags, [at, at], [position, position], "", said.phonemes, owner, said.label);
   }
 
   /**
@@ -6397,9 +6477,8 @@
   function emit(root, context) {
     /** @type {Token[]} */
     const out = [];
-    // Where the widened tokens emitted so far end (engine §11).
-    /** @type {Set<number>} */
-    const widenedEnds = new Set();
+    // The foreign parts and their texts, fixed before any token (engine §11).
+    const foreign = foreignParts(root, context);
     /** @type {EmitTask[]} */
     const tasks = [{ walk: root }];
     for (let task = tasks.pop(); task !== undefined; task = tasks.pop()) {
@@ -6429,7 +6508,7 @@
       if (clause.items[0].capture === "") {
         // One token covering the constituent per `$`: a digit that is two
         // phonemes is emitted as two tokens over the same character.
-        for (const item of clause.items) out.push(makeToken(node, valueTags(item, nodeTags(node, context)), context, widenedEnds));
+        for (const item of clause.items) out.push(makeToken(node, valueTags(item, nodeTags(node, context)), context, foreign));
         continue;
       }
       // The items, in the order listed, and nothing else of the constituent
@@ -6447,7 +6526,7 @@
           ordered.push({ token: () => insertedToken(insert, at, node, context, production.owner) });
         } else if (item.capture !== undefined) {
           const child = part(item.capture);
-          ordered.push({ token: () => makeToken(child, valueTags(item, nodeTags(child, context)), context, widenedEnds) });
+          ordered.push({ token: () => makeToken(child, valueTags(item, nodeTags(child, context)), context, foreign) });
         }
       });
       for (let index = ordered.length - 1; index >= 0; index--) tasks.push(ordered[index]);
@@ -6674,7 +6753,7 @@
       // captures are (engine §3.6).
       const conditions = one(node, "conditions-clause");
       rule.conditions = conditions ? ofRule(conditions, "implication").map(readImplication) : [];
-      if (one(node, "verbatim-clause")) rule.verbatim = true;
+      if (one(node, "foreign-clause")) rule.foreign = true;
       rule.at = at(node);
       const problem = definitionProblem(rule);
       if (problem) fail(problem, node);
@@ -7219,7 +7298,7 @@
   const NAMED = new Set([
     "directive", "argument-word", "argument-string", "rule", "definer", "body", "alternative", "guard", "alternative-tags",
     "conjunction", "sequence", "element", "primary", "reference", "string", "phoneme", "tested", "test", "test-operand", "capture", "group", "optional",
-    "choice", "empty", "tags-clause", "conditions-clause", "emits-clause", "verbatim-clause", "emit-item", "emit-target", "emit-tags",
+    "choice", "empty", "tags-clause", "conditions-clause", "emits-clause", "foreign-clause", "emit-item", "emit-target", "emit-tags",
     "implication", "any-of", "all-of", "condition", "comparison", "comparator", "negation", "presence",
     "term", "guarded-term", "union", "intersection", "term-atom", "tag", "character", "name", "empty-set", "call", "argument",
     "capture-reference", "argument-tag", "range", "property", "constant-definition", "constant-definer", "constant-reference",
@@ -8238,7 +8317,7 @@
    * @property {DomAlternative[]} alternatives
    * @property {Emission} [emit]
    * @property {Condition[]} conditions
-   * @property {true} [verbatim]
+   * @property {true} [foreign]
    * @property {Position} at
    */
 
@@ -8379,8 +8458,8 @@
    * @property {ReadyCondition[]} conditions
    * @property {Term | null} tags
    * @property {Emission | null} emit
-   * @property {boolean} verbatim whether a token over its constituent sounds
-   *   like its text (engine §11)
+   * @property {boolean} foreign whether its constituent is a foreign part,
+   *   which sounds `?` and shows its text (engine §11)
    * @property {boolean} recursivePrefix
    * @property {string[]} warnings the features of the alternative's warnings,
    *   in the order they are written; none for a helper
