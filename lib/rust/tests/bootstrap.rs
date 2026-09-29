@@ -5,6 +5,7 @@ mod common;
 use std::collections::BTreeMap;
 
 use common::{parse_json, repository, Value};
+use gencmu::tools::DOM_FORMAT;
 
 fn grammars() -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("grammars")
@@ -88,7 +89,7 @@ fn the_grammar_copy_is_current() {
 #[test]
 fn compiled_doms_match_a_fresh_reading() {
     let compiled = parse_json(&read("compiled.json")).expect("compiled.json");
-    assert_eq!(compiled.get("format"), Some(&Value::Number(11.0)));
+    assert_eq!(compiled.get("format"), Some(&Value::Number(DOM_FORMAT as f64)));
     assert_eq!(compiled.get("bootstrap").and_then(Value::str), Some(gencmu::tools::bootstrap_hash().as_str()));
     let documents = compiled.get("documents").expect("documents").object().to_vec();
     assert!(!documents.is_empty());

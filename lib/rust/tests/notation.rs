@@ -48,3 +48,35 @@ fn notation_cases() {
         failures.join("\n\n")
     );
 }
+
+/// The reader reads every form of a test in a body, with spaces inside it
+/// or not, and refuses a test after anything but a reference other than
+/// `#` or a terminal, a second test, a string that is not a canonical
+/// sound, and an operand of the wrong type (engine §9).
+#[test]
+fn tests_in_a_body_are_read_and_refused() {
+    let document = "```jbogenbau\n%const $C ~c\n%rule text $l(LE=\"la\") UI=\"ui\" ... [KU = \"ku\"] w≠\"\" A⊇B w⊉$C A∩(B ∪ ~c)=∅ A ∩ 'a'..'z' ≠ ∅ '\\p{L}'⊇∅ B (C)\n```\n";
+    let json = gencmu::tools::read_grammar_document(document).expect("a document with tests");
+    let dom = parse_json(&json).expect("a DOM");
+    let tests: Vec<String> = json
+        .match_indices("\"test\":\"")
+        .map(|(at, _)| json[at + 8..].split('"').next().unwrap_or("").to_string())
+        .collect();
+    assert_eq!(tests, ["=", "=", "=", "≠", "⊇", "⊉", "∩=∅", "∩≠∅", "⊇"], "{json}");
+    assert!(dom.get("rules").is_some());
+    for refused in [
+        "%rule text (A)=\"a\"",
+        "%rule text A=\"a\"=\"b\"",
+        "%rule text #=\"a\"",
+        "%rule text A=\"A\"",
+        "%rule text A⊇\"a\"",
+        "%rule text A=B",
+        "%rule text [A]⊇B",
+        "%rule text $x(A)=\"a\"",
+        "%rule text ε=\"\"",
+        "%rule text A⊇(tags($x))",
+    ] {
+        let error = gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{refused}\n```\n"));
+        assert!(error.is_err(), "{refused} was read");
+    }
+}

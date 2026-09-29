@@ -6,8 +6,8 @@ use crate::json::{write_str, Json};
 use crate::tags::{character_code, is_name, is_tag};
 use crate::unicode::{is_property_name, Unicode};
 
-/// The DOM format version (`docs/output.md`).
-pub(crate) const DOM_FORMAT: i64 = 11;
+/// The DOM format version (`docs/output.md`), part of every cache key.
+pub const DOM_FORMAT: i64 = 12;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -98,9 +98,11 @@ pub(crate) enum Expr {
     /// A property `'\p{Name}'`, by its name (engine §1).
     Property(String),
     Capture(String, Box<Expr>),
-    /// A spelled symbol, ``X`s` ``: a `Ref` other than `#`, or a
-    /// `Terminal`, whose span must sound like the spelling (engine §4).
-    Spelled(String, Box<Expr>),
+    /// A tested symbol, such as `X="s"`: its comparator, `=`, `≠`, `⊇`,
+    /// `⊉`, `∩=∅` or `∩≠∅`, its value, a closed term, and its symbol, a
+    /// `Ref` other than `#`, a `Terminal`, a `Range` or a `Property`
+    /// (engine §2, §4).
+    Tested(String, Term, Box<Expr>),
     Empty,
 }
 
@@ -281,6 +283,15 @@ fn first_key(value: &Json) -> R<&str> {
 }
 
 fn expr_from_json(value: &Json) -> R<Expr> {
+    // A tested symbol is known by its comparator, whatever the order of its
+    // members.
+    if value.get("test").is_some() {
+        return Ok(Expr::Tested(
+            string(value, "test")?,
+            term_from_json(field(value, "value")?)?,
+            Box::new(expr_from_json(field(value, "expr")?)?),
+        ));
+    }
     let list = |key: &str| -> R<Vec<Expr>> { array(value, key)?.iter().map(expr_from_json).collect() };
     Ok(match first_key(value)? {
         "seq" => Expr::Seq(list("seq")?),
@@ -299,7 +310,6 @@ fn expr_from_json(value: &Json) -> R<Expr> {
         }
         "property" => Expr::Property(string(value, "property")?),
         "capture" => Expr::Capture(string(value, "capture")?, Box::new(expr_from_json(field(value, "expr")?)?)),
-        "spelling" => Expr::Spelled(string(value, "spelling")?, Box::new(expr_from_json(field(value, "expr")?)?)),
         "empty" => Expr::Empty,
         other => return Err(format!("an unknown expression {other:?}")),
     })
@@ -477,23 +487,41 @@ fn is_rule_arg(value: &Json) -> bool {
     matches!(value.as_object(), Some([(key, Json::Str(_))]) if key == "rule")
 }
 
-/// What is wrong with a spelling of a symbol (engine §9), or `None`: an
-/// empty spelling, one with a backtick, which the notation cannot write,
-/// one of anything but a reference or a terminal, `#` included, or one that
-/// no canonical sound can be, with a comma or a code point that the
-/// lowercase mapping would change. `symbol` is whether the spelled
-/// expression is a reference other than `#` or a terminal.
-pub(crate) fn spelling_problem(spelling: &str, symbol: bool, unicode: &Unicode) -> Option<&'static str> {
-    if spelling.is_empty() {
-        Some("a spelling is empty")
-    } else if spelling.contains('`') {
-        Some("a spelling holds a backtick")
-    } else if !symbol {
-        Some("a spelling follows only a reference other than # or a terminal")
-    } else if spelling.contains(',') {
-        Some("a spelling holds a comma, which no canonical sound holds")
-    } else if unicode.lowercase(spelling) != spelling {
-        Some("a spelling is not in lower case")
+/// The comparators of a test in a body (engine §2): the two sound tests
+/// and the four tag tests.
+pub(crate) const TEST_OPS: [&str; 6] = ["=", "≠", "⊇", "⊉", "∩=∅", "∩≠∅"];
+
+/// Whether a test's comparator is a sound test, whose value is a string,
+/// rather than a tag test, whose value is a tag set (engine §2).
+pub(crate) fn is_sound_test(op: &str) -> bool {
+    op == "=" || op == "≠"
+}
+
+/// The type of a test's value: a string for a sound test, and a tag set
+/// for a tag test (engine §2).
+pub(crate) fn test_value_type(op: &str) -> Type {
+    if is_sound_test(op) {
+        Type::String
+    } else {
+        Type::Tags
+    }
+}
+
+/// Why a term of type `ty` cannot be the value of a test with the
+/// comparator `op`, or `None` (engine §9, §10).
+pub(crate) fn test_type_problem(op: &str, ty: Type) -> Option<String> {
+    let expected = test_value_type(op);
+    expected_problem(ty, expected).map(|problem| format!("{op} tests {}: {problem}", expected.name()))
+}
+
+/// What is wrong with the string of a sound test (engine §9), or `None`:
+/// one that no canonical sound can be, with a comma or a code point that
+/// the lowercase mapping would change.
+pub(crate) fn sound_problem(sound: &str, unicode: &Unicode) -> Option<&'static str> {
+    if sound.contains(',') {
+        Some("the string of a sound test holds a comma, which no canonical sound holds")
+    } else if unicode.lowercase(sound) != sound {
+        Some("the string of a sound test is not in lower case, which every canonical sound is")
     } else {
         None
     }
@@ -536,13 +564,37 @@ fn is_character_class_json(value: &Json, unicode: &Unicode) -> bool {
     }
 }
 
-/// Whether a JSON expression is one a spelling may follow: a reference
-/// other than `#`, or a terminal, with no other key, so that no node is
-/// read one way here and another way when it is built.
-fn is_spellable_json(value: &Json) -> bool {
+/// Whether a JSON expression is one a test may follow (engine §2): a
+/// reference other than `#`, a terminal, a range or a property, with no
+/// other member, so that no node is read one way here and another way when
+/// it is built.
+fn is_testable_json(value: &Json, unicode: &Unicode) -> bool {
     match value.as_object() {
-        Some([(key, Json::Str(name))]) => (key == "ref" && name != "#") || key == "terminal",
-        _ => false,
+        Some([(key, Json::Str(name))]) if key == "ref" => name != "#",
+        Some([(key, Json::Str(tag))]) if key == "terminal" => is_tag(tag, unicode),
+        _ => is_character_class_json(value, unicode),
+    }
+}
+
+/// What is wrong with a test's value (engine §9), or `None`: it must be a
+/// closed term, of type string for a sound test and tag set for a tag test,
+/// and a string literal of a sound test must be a canonical sound. The
+/// shape of the value must already be checked, and its nesting bounded.
+fn test_value_problem(op: &str, value: &Json, unicode: &Unicode) -> Option<&'static str> {
+    if !is_closed_json(value) {
+        return Some("a test's operand is a closed term, and reads no capture or span");
+    }
+    let Ok(term) = term_from_json(value) else {
+        return Some("a malformed term");
+    };
+    match term_type(&term) {
+        Err(_) => return Some("a term or a condition whose types do not agree"),
+        Ok(ty) if test_type_problem(op, ty).is_some() => return Some("a test's value is of the wrong type"),
+        Ok(_) => {}
+    }
+    match &term {
+        Term::Str(sound) if is_sound_test(op) => sound_problem(sound, unicode),
+        _ => None,
     }
 }
 
@@ -566,8 +618,8 @@ enum Kind {
 /// §9, docs/output.md "A grammar DOM"), or `None` when it is one. A DOM
 /// from the bootstrap or from `compiled.json` is held to every rule the
 /// reader enforces, so that no cache entry can change a result.
-/// Spellings are checked against `unicode`'s lowercase mapping, the one
-/// the match uses.
+/// The strings of sound tests are checked against `unicode`'s lowercase
+/// mapping, the one the match uses.
 pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
     if !is_object(dom)
         || dom.get("format").and_then(Json::as_int) != Some(DOM_FORMAT)
@@ -575,7 +627,7 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
         || dom.get("directives").and_then(Json::as_array).is_none()
         || dom.get("constants").and_then(Json::as_array).is_none()
     {
-        return Some("not a DOM of format 11");
+        return Some("not a DOM of this format");
     }
     for directive in dom.get("directives").and_then(Json::as_array).unwrap_or(&[]) {
         let args = directive.get("args").and_then(Json::as_array);
@@ -603,6 +655,9 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
         }
     }
     let mut pending: Vec<(Kind, &Json, usize)> = Vec::new();
+    // The tested symbols, whose values are checked once the nesting is
+    // bounded.
+    let mut tests: Vec<&Json> = Vec::new();
     // A constant's definition: its name, its op, its position and a value
     // that is a closed term (engine §2, §10).
     for constant in dom.get("constants").and_then(Json::as_array).unwrap_or(&[]) {
@@ -720,9 +775,12 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
         let next = depth + 1;
         match kind {
             Kind::Expr => {
-                // A spelled symbol has its spelling and its symbol, and no
-                // other key that building it could read in its place.
-                if has(value, "spelling") && (value.as_object().map_or(0, <[_]>::len) != 2 || !has(value, "expr")) {
+                // A tested symbol has its comparator, its value and its
+                // symbol, and no other key that building it could read in
+                // its place.
+                if has(value, "test")
+                    && (value.as_object().map_or(0, <[_]>::len) != 3 || !has(value, "expr") || !has(value, "value"))
+                {
                     return Some("a malformed expression");
                 }
                 // A range or a property has no member but its own.
@@ -765,7 +823,7 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                             } else {
                                 is_str(inner.get("ref"))
                                     || is_tag_json(inner.get("terminal"), unicode)
-                                    || has(inner, "spelling")
+                                    || has(inner, "test")
                             }
                     });
                     // `$` is the whole constituent and wraps nothing.
@@ -773,23 +831,27 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                     if !named || !wraps_symbol {
                         return Some("a malformed capture");
                     }
-                    // A capture is a compound node; a spelled symbol below it
+                    // A capture is a compound node; a tested symbol below it
                     // is checked as any expression is.
-                    if let Some(inner) = inner.filter(|inner| has(inner, "spelling")) {
+                    if let Some(inner) = inner.filter(|inner| has(inner, "test")) {
                         pending.push((Kind::Expr, inner, next));
                     }
-                } else if let Some(spelling) = value.get("spelling") {
-                    // A compound node (engine §9) over one symbol.
-                    let Json::Str(spelling) = spelling else {
-                        return Some("a malformed spelling");
+                } else if let Some(op) = value.get("test") {
+                    // A compound node (engine §9) over one symbol; its value
+                    // counts on from its depth, and is checked once the
+                    // nesting is bounded.
+                    if !op.as_str().is_some_and(|op| TEST_OPS.contains(&op)) {
+                        return Some("a malformed test");
+                    }
+                    let (Some(inner), Some(test_value)) = (value.get("expr"), value.get("value")) else {
+                        return Some("a malformed expression");
                     };
-                    let inner = value.get("expr");
-                    if let Some(problem) = spelling_problem(spelling, inner.is_some_and(is_spellable_json), unicode) {
-                        return Some(problem);
+                    if !is_testable_json(inner, unicode) {
+                        return Some("a test follows only a reference other than # or a terminal");
                     }
-                    if let Some(inner) = inner {
-                        pending.push((Kind::Expr, inner, next));
-                    }
+                    pending.push((Kind::Expr, inner, next));
+                    pending.push((Kind::Term, test_value, next));
+                    tests.push(value);
                 } else if !(is_str(value.get("ref"))
                     || is_tag_json(value.get("terminal"), unicode)
                     || is_true(value.get("empty"))
@@ -979,6 +1041,12 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
     for constant in dom.get("constants").and_then(Json::as_array).unwrap_or(&[]) {
         if !constant.get("value").is_some_and(is_closed_json) {
             return Some("a constant's value is not a closed term");
+        }
+    }
+    for test in tests {
+        let op = test.get("test").and_then(Json::as_str).unwrap_or("");
+        if let Some(problem) = test_value_problem(op, test.get("value").unwrap_or(&Json::Null), unicode) {
+            return Some(problem);
         }
     }
     // Terms and conditions whose types do not agree (engine §10).
@@ -1236,9 +1304,11 @@ fn write_expr(out: &mut String, expr: &Expr) {
             write_expr(out, inner);
             out.push('}');
         }
-        Expr::Spelled(spelling, inner) => {
-            out.push_str("{\"spelling\":");
-            write_str(out, spelling);
+        Expr::Tested(op, value, inner) => {
+            out.push_str("{\"test\":");
+            write_str(out, op);
+            out.push_str(",\"value\":");
+            write_term(out, value);
             out.push_str(",\"expr\":");
             write_expr(out, inner);
             out.push('}');
@@ -1462,12 +1532,34 @@ pub(crate) fn constants_in_cond<'t>(cond: &'t Cond, out: &mut Vec<(&'t str, (usi
     }
 }
 
+/// The tested symbols of an expression, in the order written: each
+/// comparator, value and symbol.
+pub(crate) fn tests_in(expr: &Expr) -> Vec<(&str, &Term, &Expr)> {
+    let mut found = Vec::new();
+    let mut stack = vec![expr];
+    while let Some(current) = stack.pop() {
+        match current {
+            Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => stack.extend(items.iter().rev()),
+            Expr::Optional(inner) | Expr::Repeat(inner, _) | Expr::Capture(_, inner) => stack.push(inner),
+            Expr::Tested(op, value, inner) => {
+                found.push((op.as_str(), value, inner.as_ref()));
+                stack.push(inner);
+            }
+            Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => {}
+        }
+    }
+    found
+}
+
 /// The references to constants in a rule, in the order of its DOM: its
-/// tags, its alternatives' tags, its emission and its conditions.
+/// tags, its alternatives' tests and tags, its emission and its conditions.
 pub(crate) fn constants_in_rule(rule: &RuleDef) -> Vec<(&str, (usize, usize))> {
     let mut out = Vec::new();
     rule.tags.iter().for_each(|term| constants_in_term(term, &mut out));
     for alternative in &rule.alternatives {
+        for (_, value, _) in tests_in(&alternative.expr) {
+            constants_in_term(value, &mut out);
+        }
         alternative.tags.iter().for_each(|term| constants_in_term(term, &mut out));
     }
     for item in rule.emit.iter().flatten() {
@@ -1687,6 +1779,16 @@ pub(crate) fn rule_type_fault(rule: &RuleDef, constants: ConstantTypes) -> Optio
         .chain(items)
         .find_map(|term| tag_term_fault(term, constants))
         .or_else(|| rule.conditions.iter().find_map(|cond| cond_type_fault(cond, constants)))
+        .or_else(|| {
+            // A test's value is a string for a sound test and a tag set for
+            // a tag test (engine §9, §10).
+            rule.alternatives.iter().flat_map(|alternative| tests_in(&alternative.expr)).find_map(|(op, value, _)| {
+                match term_type_in(value, constants) {
+                    Err(fault) => Some(fault),
+                    Ok(ty) => test_type_problem(op, ty).map(|problem| Fault::in_term(problem, value)),
+                }
+            })
+        })
 }
 
 /// The type of a constant's value, or why it cannot be one (engine §2,

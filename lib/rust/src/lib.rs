@@ -72,6 +72,7 @@ pub use result::{
 /// splicing a bundled pipeline into its stages, and the hashes the DOM
 /// cache is keyed by (engine §8).
 pub mod tools {
+    pub use crate::dom::DOM_FORMAT;
     pub use crate::json::fnv1a64;
     pub use crate::loader::{bootstrap_hash, read_grammar_document, splice_bundled_pipeline};
 }

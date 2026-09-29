@@ -1,9 +1,10 @@
 //! From the notation's document tree to a grammar DOM (engine §9).
 
 use crate::dom::{
-    comparison_problem, cond_type_problem, constant_value_type, is_capture_name, joined_type, literal_call_problem,
-    property_problem, range_problem, spelling_problem, tag_term_problem, term_type, Alternative, Arg, Cond, ConstDef,
-    Directive, Dom, EmitItem, Expr, FeatureKind, Guard, Op, RuleDef, Term, Type,
+    comparison_problem, cond_type_problem, constant_value_type, is_capture_name, is_sound_test, joined_type,
+    literal_call_problem, property_problem, range_problem, sound_problem, tag_term_problem, term_type,
+    test_type_problem, Alternative, Arg, Cond, ConstDef, Directive, Dom, EmitItem, Expr, FeatureKind, Guard, Op,
+    RuleDef, Term, Type,
 };
 use crate::error::Error;
 use crate::result::{Node, NodeKind, Token};
@@ -23,12 +24,12 @@ pub(crate) struct Reader<'a> {
     pub captures: std::cell::RefCell<Vec<String>>,
     /// The document position of a grammar-text index.
     pub position: &'a dyn Fn(usize) -> (usize, usize),
-    /// The lowercase mapping that spellings are checked against (engine
-    /// §5, §9).
+    /// The lowercase mapping that the strings of sound tests are checked
+    /// against (engine §5, §9).
     pub unicode: &'a Unicode,
-    /// Whether the reader is reading a constant's value, a closed term
-    /// (engine §9, §10).
-    pub in_constant: std::cell::Cell<bool>,
+    /// What the reader is reading as a closed term, a constant's value or a
+    /// test's operand, if it is reading one (engine §9, §10).
+    pub closed_for: std::cell::Cell<Option<&'static str>>,
 }
 
 const CONSTANT_IN_BODY: &str =
@@ -122,9 +123,9 @@ impl<'a> Reader<'a> {
         let name = self.text(reference).trim_start_matches('$').to_string();
         let redefine = self.text(definer) == "%redefine-const";
         let value_node = self.one(node, "term");
-        self.in_constant.set(true);
+        self.closed_for.set(Some("a constant's value"));
         let value = self.term(value_node, 0, false);
-        self.in_constant.set(false);
+        self.closed_for.set(None);
         let value = value?;
         if let Err(fault) = constant_value_type(&value, redefine, &|_| Type::Any) {
             return Err(self.error(value_node, fault.problem));
@@ -224,7 +225,7 @@ impl<'a> Reader<'a> {
     }
 
     fn alternative(&self, node: &'a Node) -> R<Alternative> {
-        // A guard's token is its spelling: `f?` or `¬f?` for a gate, `f!`
+        // A guard's token is its text: `f?` or `¬f?` for a gate, `f!`
         // for a warning (§9).
         let guards = Self::rules(node, "guard")
             .map(|guard| {
@@ -318,27 +319,7 @@ impl<'a> Reader<'a> {
         let token = || Self::tokens_of(inner).next().expect("a token");
         Ok(match rule_name(inner) {
             "reference" | "tag" | "character" | "phoneme" | "range" | "property" => self.symbol(inner)?,
-            "spelled" => {
-                // A reference or a terminal and its spelling, which the
-                // syntax grammar gives nothing else (engine §9).
-                let expr = self.symbol(Self::inner(inner))?;
-                let spelling_token = token();
-                if matches!(expr, Expr::Range(..) | Expr::Property(_)) {
-                    return Err(self.error(spelling_token, "a range or a property takes no spelling"));
-                }
-                let text: Vec<char> = self.text(spelling_token).chars().collect();
-                let spelling: String = text[1.min(text.len())..text.len().saturating_sub(1).max(1)].iter().collect();
-                let spellable = matches!(&expr, Expr::Ref(name) if name != "#") || matches!(expr, Expr::Terminal(_));
-                if let Some(problem) = spelling_problem(&spelling, spellable, self.unicode) {
-                    let message = if problem == "a spelling is not in lower case" {
-                        format!("the spelling {spelling} is not in lower case")
-                    } else {
-                        problem.to_string()
-                    };
-                    return Err(self.error(spelling_token, message));
-                }
-                Expr::Spelled(spelling, Box::new(expr))
-            }
+            "tested" => self.tested(inner, depth)?,
             "capture" => {
                 let capture = token();
                 if self.text(capture) == "$" {
@@ -355,7 +336,7 @@ impl<'a> Reader<'a> {
                 }
                 if !matches!(
                     rule_name(wrapped),
-                    "reference" | "tag" | "character" | "phoneme" | "range" | "property" | "spelled"
+                    "reference" | "tag" | "character" | "phoneme" | "range" | "property" | "tested"
                 ) {
                     return Err(self.error(capture, "a capture must wrap a single symbol"));
                 }
@@ -377,6 +358,56 @@ impl<'a> Reader<'a> {
             "constant-reference" => return Err(self.error(inner, CONSTANT_IN_BODY)),
             other => panic!("an unknown primary {other}"),
         })
+    }
+
+    /// A reference other than `#` or a terminal, and one test on its own
+    /// span (engine §2, §9). The syntax grammar reads a test after any
+    /// primary, so that the reader can name the reason.
+    fn tested(&self, node: &'a Node, depth: usize) -> R<Expr> {
+        let symbol = Self::inner(self.one(node, "primary"));
+        let test = self.one(node, "test");
+        let kind = rule_name(symbol);
+        if kind == "constant-reference" {
+            return Err(self.error(symbol, CONSTANT_IN_BODY));
+        }
+        let hash = kind == "reference" && Self::tokens_of(symbol).next().is_some_and(|token| self.text(token) == "#");
+        if !matches!(kind, "reference" | "tag" | "character" | "phoneme" | "range" | "property") || hash {
+            return Err(self.error(
+                test,
+                "a test follows only a reference other than # or a terminal, not a group, an optional, a capture, ε, # or another test",
+            ));
+        }
+        let expr = self.symbol(symbol)?;
+        // The comparator is the test's tokens: `=`, `≠`, `⊇` or `⊉`, or `∩`
+        // and `=∅` or `≠∅` around the operand.
+        let mut op = String::new();
+        let mut stack = vec![test];
+        while let Some(current) = stack.pop() {
+            if current.kind == NodeKind::Token {
+                op.push_str(self.text(current));
+            } else if rule_name(current) != "test-operand" {
+                stack.extend(current.children.iter().rev());
+            }
+        }
+        let operand = self.one(test, "test-operand");
+        self.closed_for.set(Some("a test's operand"));
+        let value = self.atom(operand, depth, false);
+        self.closed_for.set(None);
+        let value = value?;
+        let problem = match term_type(&value) {
+            Err(problem) => Some(problem),
+            Ok(ty) => test_type_problem(&op, ty),
+        };
+        if let Some(problem) = problem {
+            return Err(self.error(operand, problem));
+        }
+        if let (true, Term::Str(sound)) = (is_sound_test(&op), &value) {
+            if let Some(problem) = sound_problem(sound, self.unicode) {
+                let at = first_of_rule(operand, "string").unwrap_or(operand);
+                return Err(self.error(at, problem.replacen("the string", &format!("the string {sound:?}"), 1)));
+            }
+        }
+        Ok(Expr::Tested(op, value, Box::new(expr)))
     }
 
     /// A reference, or a terminal: a tag literal, a character tag, a
@@ -689,8 +720,8 @@ impl<'a> Reader<'a> {
         let inner = Self::inner(node);
         match rule_name(inner) {
             "guarded-term" => {
-                if self.in_constant.get() {
-                    return Err(self.error(inner, "a constant's value is a closed term, and holds no guarded term"));
+                if let Some(closed) = self.closed_for.get() {
+                    return Err(self.error(inner, format!("{closed} is a closed term, and holds no guarded term")));
                 }
                 let depth = self.deeper(inner, depth)?;
                 let cond = self.any_of(self.one(inner, "any-of"), depth)?;
@@ -796,8 +827,8 @@ impl<'a> Reader<'a> {
             }
             "capture-reference" => {
                 let name = self.text(token()).trim_start_matches('$').to_string();
-                if self.in_constant.get() {
-                    return Err(self.error(inner, "a constant's value is a closed term, and holds no capture"));
+                if let Some(closed) = self.closed_for.get() {
+                    return Err(self.error(inner, format!("{closed} is a closed term, and holds no capture")));
                 }
                 if !argument {
                     return Err(
@@ -825,10 +856,8 @@ impl<'a> Reader<'a> {
         if !FUNCTIONS.contains(&name.as_str()) {
             return Err(self.error(name_token, format!("an unknown function {name}()")));
         }
-        if self.in_constant.get() && name != "split" && name != "tag" {
-            return Err(
-                self.error(name_token, format!("a constant's value is a closed term, and {name}() reads a span"))
-            );
+        if let Some(closed) = self.closed_for.get().filter(|_| name != "split" && name != "tag") {
+            return Err(self.error(name_token, format!("{closed} is a closed term, and {name}() reads a span")));
         }
         let mut args = Vec::new();
         for argument in Self::rules(node, "argument") {
@@ -859,6 +888,14 @@ impl<'a> Reader<'a> {
         }
         Ok(Term::Call(name, args))
     }
+}
+
+/// The first node of a rule at or below a node, in the order written.
+fn first_of_rule<'n>(node: &'n Node, name: &str) -> Option<&'n Node> {
+    if node.kind == NodeKind::Rule && rule_name(node) == name {
+        return Some(node);
+    }
+    node.children.iter().find_map(|child| first_of_rule(child, name))
 }
 
 /// The functions of the notation (engine §9).

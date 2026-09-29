@@ -13,6 +13,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::rc::Rc;
 
 use common::{parse_json, Value};
+use gencmu::tools::DOM_FORMAT;
 
 /// SplitMix64: small, and good enough to pick grammars.
 struct Rng(u64);
@@ -350,7 +351,7 @@ fn grammar_dom(source: &Source) -> String {
         directives.push(format!("{{\"name\":\"elidable\",\"args\":[\"{}\"],\"at\":[3,1]}}", TERMINALS[t]));
     }
     format!(
-        "{{\"format\":11,\"rules\":[{}],\"directives\":[{}],\"constants\":[]}}",
+        "{{\"format\":{DOM_FORMAT},\"rules\":[{}],\"directives\":[{}],\"constants\":[]}}",
         rules.join(","),
         directives.join(",")
     )
@@ -783,7 +784,7 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
         }
     }
     let compiled = format!(
-        "{{\"format\":11,\"bootstrap\":\"{}\",\"documents\":{{\"main.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
+        "{{\"format\":{DOM_FORMAT},\"bootstrap\":\"{}\",\"documents\":{{\"main.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
         gencmu::tools::bootstrap_hash(),
         gencmu::tools::fnv1a64(&document)
     );

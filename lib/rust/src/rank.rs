@@ -14,10 +14,11 @@
 use crate::fxhash::FxMap;
 use std::cmp::Ordering;
 
-use crate::earley::{sounds_like, Chart, Item, Shared, Tok};
+use crate::earley::{test_holds, Chart, Item, Shared, Tok};
 use crate::grammar::Lean;
-use crate::lower::{Lowered, Sym};
+use crate::lower::{Lowered, Sym, NO_TEST};
 use crate::maximal::Maximal;
+use crate::tags::{SetId, Tags};
 use crate::unicode::Unicode;
 
 pub(crate) const EMPTY: u32 = 0;
@@ -61,10 +62,28 @@ pub(crate) enum Verdict {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum Node {
-    Read { tok: u32, terminal: u32 },
-    Item { set: u32, index: u32 },
-    Close { set: u32, index: u32 },
-    Group { rule: u32, origin: u32, set: u32, tags: u32 },
+    Read {
+        tok: u32,
+        terminal: u32,
+    },
+    Item {
+        set: u32,
+        index: u32,
+    },
+    Close {
+        set: u32,
+        index: u32,
+    },
+    /// The completed items of `rule` from `origin` in `set`: those with the
+    /// tag set `tags`, or any; and those that the test `test` holds of, or
+    /// any where it is `NO_TEST`.
+    Group {
+        rule: u32,
+        origin: u32,
+        set: u32,
+        tags: u32,
+        test: u32,
+    },
 }
 
 type Key = (Node, u32);
@@ -142,9 +161,10 @@ pub(crate) struct Dag<'c> {
     g: &'c Lowered,
     chart: &'c Chart,
     tokens: &'c [Tok],
-    /// The table of the canonical sound that spellings are matched with
-    /// (§4, §5).
+    /// The table of the canonical sound and the tag table that the tests of
+    /// symbols read (§4, §5).
     unicode: &'c Unicode,
+    tags: &'c Tags,
     lean: Lean,
     pub arena: Vec<DNode>,
     vlen: Vec<u32>,
@@ -504,6 +524,7 @@ impl<'c> Ranker<'c> {
             chart,
             tokens,
             unicode: shared.unicode,
+            tags: &shared.tags,
             lean,
             arena: Vec::new(),
             vlen: Vec::new(),
@@ -571,18 +592,20 @@ impl<'c> Ranker<'c> {
                 let mut links = Vec::new();
                 let same = |m: u32, fset: u32| if m == set { fset } else { 0 };
                 // The predecessors are rebuilt from completed spans, so a
-                // spelled symbol's span is matched with its spelling again:
-                // a derivation is made only of advances the spelling
-                // allowed (§4).
-                let spelling = production.spelling(position);
-                let (tokens, unicode) = (self.dag.tokens, self.dag.unicode);
-                let sounds = |m: u32| {
-                    spelling.map_or(true, |spelling| sounds_like(&tokens[m as usize..set as usize], unicode, spelling))
+                // tested symbol's test is applied again, to the candidate
+                // constituent itself, with its own span and its own tags: a
+                // derivation is made only of advances the test allowed (§4).
+                let test_id = production.test(position).unwrap_or(NO_TEST);
+                let test = self.dag.g.test(item.prod, position);
+                let (tokens, unicode, tags) = (self.dag.tokens, self.dag.unicode, self.dag.tags);
+                let holds = |m: u32, own: SetId| {
+                    test.map_or(true, |test| test_holds(test, &tokens[m as usize..set as usize], unicode, tags, own))
                 };
                 match production.syms[position] {
                     Sym::T(terminal) => {
                         let m = set - 1;
-                        if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| sounds(m)) {
+                        let own = tokens[m as usize].tags;
+                        if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| holds(m, own)) {
                             links.push(((Node::Item { set: m, index: p }, 0), (Node::Read { tok: m, terminal }, 0)));
                         }
                     }
@@ -590,8 +613,9 @@ impl<'c> Ranker<'c> {
                         if captured {
                             let cap = caps[caps.len() - 1];
                             let m = cap.start;
-                            if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| sounds(m)) {
-                                let child = Node::Group { rule, origin: m, set, tags: cap.tags };
+                            if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| holds(m, cap.tags))
+                            {
+                                let child = Node::Group { rule, origin: m, set, tags: cap.tags, test: NO_TEST };
                                 let child_fset = if m == item.origin { fset } else { 0 };
                                 links.push(((Node::Item { set: m, index: p }, same(m, fset)), (child, child_fset)));
                             }
@@ -602,9 +626,17 @@ impl<'c> Ranker<'c> {
                                 .map(|origins| origins.iter().copied().filter(|&m| m >= item.origin).collect())
                                 .unwrap_or_default();
                             origins.sort_unstable();
+                            let eset = &self.dag.chart.sets[set as usize];
                             for m in origins {
-                                if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| sounds(m)) {
-                                    let child = Node::Group { rule, origin: m, set, tags: ANY };
+                                // Two completed items over one span can have
+                                // different tag sets, and a tag test can hold
+                                // of one of them alone.
+                                let passes = test.is_none()
+                                    || eset.completed.get(&(rule, m)).is_some_and(|items| {
+                                        items.iter().any(|&index| holds(m, eset.tagset[index as usize]))
+                                    });
+                                if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| passes) {
+                                    let child = Node::Group { rule, origin: m, set, tags: ANY, test: test_id };
                                     let child_fset = if m == item.origin { fset } else { 0 };
                                     links.push(((Node::Item { set: m, index: p }, same(m, fset)), (child, child_fset)));
                                 }
@@ -623,8 +655,11 @@ impl<'c> Ranker<'c> {
                 let inner = self.fset_with(fset, rule);
                 Deps::Close(Some((Node::Item { set, index }, inner)))
             }
-            Node::Group { rule, origin, set, tags } => {
+            Node::Group { rule, origin, set, tags, test } => {
                 let eset = &self.dag.chart.sets[set as usize];
+                let test = (test != NO_TEST).then(|| &self.dag.g.tests[test as usize]);
+                let span = &self.dag.tokens[origin as usize..set as usize];
+                let (unicode, tag_table) = (self.dag.unicode, self.dag.tags);
                 let members = eset
                     .completed
                     .get(&(rule, origin))
@@ -632,6 +667,11 @@ impl<'c> Ranker<'c> {
                         items
                             .iter()
                             .filter(|&&index| tags == ANY || eset.tagset[index as usize] == tags)
+                            .filter(|&&index| {
+                                test.map_or(true, |test| {
+                                    test_holds(test, span, unicode, tag_table, eset.tagset[index as usize])
+                                })
+                            })
                             .map(|&index| (Node::Close { set, index }, fset))
                             .collect()
                     })
@@ -696,18 +736,16 @@ impl<'c> Ranker<'c> {
                 let maximal = self.maximal;
                 let item = self.item(set, index);
                 let guarded = maximal.is_some_and(|maximal| maximal.guards(&item));
-                // The spelling of the symbol whose constituent the elided
-                // terminator follows, if it is spelled (§4).
-                let spelling =
-                    if guarded { self.dag.g.prods[item.prod as usize].spelling(item.dot as usize - 1) } else { None };
+                // The test of the symbol whose constituent the elided
+                // terminator follows, if it is tested (§4).
+                let test = if guarded { self.dag.g.test(item.prod, item.dot as usize - 1) } else { None };
                 let mut all = NodeResult::default();
                 let mut allowed = NodeResult::default();
                 for (pred, child) in links {
                     let (elided, permitted) = match (maximal, child.0) {
-                        (Some(maximal), Node::Group { rule, origin, set: end, .. }) => (
-                            maximal.elided(rule, origin, end),
-                            !guarded || !maximal.forbids(rule, origin, end, spelling),
-                        ),
+                        (Some(maximal), Node::Group { rule, origin, set: end, .. }) => {
+                            (maximal.elided(rule, origin, end), !guarded || !maximal.forbids(rule, origin, end, test))
+                        }
                         _ => (false, true),
                     };
                     let left = &self.results[self.memo[&pred] as usize];
@@ -769,7 +807,7 @@ impl<'c> Ranker<'c> {
     /// if it has none (every one is cyclic).
     pub(crate) fn rank(&mut self) -> Option<Ranking> {
         let n = (self.dag.chart.sets.len() - 1) as u32;
-        let root = (Node::Group { rule: self.dag.g.start, origin: 0, set: n, tags: ANY }, 0);
+        let root = (Node::Group { rule: self.dag.g.start, origin: 0, set: n, tags: ANY, test: NO_TEST }, 0);
         let result = self.evaluate(root);
         if result.count == 0 || result.entries.is_empty() {
             return None;

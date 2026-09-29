@@ -9,7 +9,7 @@ use crate::dom::FeatureKind;
 use crate::earley::{matchers, Chart, EngineError, Recognizer, Shared, Tok};
 use crate::error::Error;
 use crate::grammar::{Change, Lean, StageGrammar};
-use crate::lower::{lower, Lowered, Prod, Sym};
+use crate::lower::{lower, Lowered, Prod, Sym, SymbolTest};
 use crate::maximal::Maximal;
 use crate::rank::{Act, Ranker, Ranking, Verdict as RankVerdict};
 use crate::result::{
@@ -454,7 +454,7 @@ impl Dialect {
         let n = input.len();
         let accepted = chart.accepts(lowered.start, n);
         let lean = grammar.lean;
-        let maximal = grammar.maximal.then(|| Maximal::new(&lowered, &chart, &input, shared.unicode));
+        let maximal = grammar.maximal.then(|| Maximal::new(&lowered, &chart, &input, shared.unicode, &shared.tags));
         let ranked = if accepted {
             let mut ranker = Ranker::new(&lowered, &chart, &input, shared, lean, maximal.as_ref());
             ranker.rank().map(|ranking| {
@@ -605,7 +605,8 @@ impl Dialect {
         features: &BTreeSet<String>,
     ) -> Result<Option<ParseError>, EngineError> {
         // The chosen tree's elided terminators in the order of its leaves,
-        // each with its position and its spelling, if it is spelled.
+        // each with its position and the string of its `=` test, if it has
+        // one.
         let mut elided: Vec<(usize, &str, Option<&str>)> = Vec::new();
         let mut stack = vec![0u32];
         while let Some(index) = stack.pop() {
@@ -614,7 +615,8 @@ impl Dialect {
                 let production = &g.prods[prod as usize];
                 let rule = &g.rules[production.rule as usize];
                 if let (true, Some(terminal), true) = (rule.helper, &rule.elided, production.syms.is_empty()) {
-                    elided.push((start as usize, terminal, rule.elided_spelling.as_deref()));
+                    let test = rule.elided_test.map(|test| &g.tests[test as usize]);
+                    elided.push((start as usize, terminal, test.and_then(|test| test.sound.as_deref())));
                 }
             }
             stack.extend(node.children.iter().rev());
@@ -623,19 +625,19 @@ impl Dialect {
         let mut synthetic = Vec::with_capacity(input.len() + elided.len());
         let mut next = elided.iter().peekable();
         for position in 0..=input.len() {
-            while let Some((_, terminal, spelling)) = next.next_if(|(at, _, _)| *at == position) {
+            while let Some((_, terminal, sound)) = next.next_if(|(at, _, _)| *at == position) {
                 let at = if position > 0 {
                     input[position - 1].source.1
                 } else {
                     input.first().map_or(0, |token| token.source.0)
                 };
-                // A restored spelled terminator sounds like its spelling, so
-                // that it matches its own terminator in the stricter grammar
-                // (§7).
+                // A restored terminator with an `=` test sounds like the
+                // test's string, so that it matches its own terminator in the
+                // stricter grammar (§7).
                 tokens.push(Tok {
                     text: String::new(),
                     tags: shared.tags.set_of([*terminal]),
-                    phonemes: spelling.map(str::to_string),
+                    phonemes: sound.map(str::to_string),
                     source: (at, at),
                     verbatim: false,
                     sound: Default::default(),
@@ -696,10 +698,11 @@ fn rejection_of(g: &Lowered, chart: &Chart) -> (usize, Vec<Expected>) {
     let mut expected: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     let mut expect = |production: &Prod, dot: usize| {
         if let Some(Sym::T(terminal)) = production.syms.get(dot) {
-            // A spelled terminal is written with its spelling, and sorts by
-            // that text (docs/output.md).
+            // A tested terminal is written with its test, and sorts by that
+            // text (docs/output.md).
+            let test = production.test(dot).map(|test| &g.tests[test as usize]);
             expected
-                .entry(written_symbol(&g.terminals[*terminal as usize], production.spelling(dot)))
+                .entry(written_symbol(&g.terminals[*terminal as usize], test))
                 .or_default()
                 .insert(g.rules[production.owner as usize].name.clone());
         }
@@ -749,11 +752,11 @@ fn forbidden_terminator(tree: &ITree, g: &Lowered, maximal: &Maximal) -> Option<
             if maximal.elided(helper.rule, start, end) && position > 0 && !own {
                 let before = &tree.nodes[node.children[position - 1] as usize];
                 if let IKind::Close { prod: constituent, start: from, end: to, .. } = before.kind {
-                    let spelling = production.spelling(position - 1);
-                    if maximal.forbids(g.prods[constituent as usize].rule, from, to, spelling) {
+                    let test = g.test(prod, position - 1);
+                    if maximal.forbids(g.prods[constituent as usize].rule, from, to, test) {
                         let elided = &g.rules[helper.rule as usize];
                         let terminal = elided.elided.as_deref().expect("an elidable terminator");
-                        let terminal = written_symbol(terminal, elided.elided_spelling.as_deref());
+                        let terminal = written_symbol(terminal, elided.elided_test.map(|test| &g.tests[test as usize]));
                         let rule = g.rules[helper.owner as usize].name.clone();
                         return Some((start as usize, vec![Expected { terminal, rules: vec![rule] }]));
                     }
@@ -765,12 +768,12 @@ fn forbidden_terminator(tree: &ITree, g: &Lowered, maximal: &Maximal) -> Option<
     None
 }
 
-/// A terminal as the diagnostics write it: its name, followed by its
-/// spelling in backticks if it has one, such as LE`la` (docs/output.md).
-fn written_symbol(name: &str, spelling: Option<&str>) -> String {
-    match spelling {
+/// A terminal as the diagnostics write it: its name, followed by its test
+/// if it has one, such as LE="la" (docs/output.md).
+fn written_symbol(name: &str, test: Option<&SymbolTest>) -> String {
+    match test {
         None => name.to_string(),
-        Some(spelling) => format!("{name}`{spelling}`"),
+        Some(test) => format!("{name}{}", test.written),
     }
 }
 
