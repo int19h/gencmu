@@ -21,7 +21,7 @@ println!("{}", gencmu::to_json(&result));
 - `Dialect::features()` lists the features of the dialect in code point order. Each is a `Feature` with its `name`, its `kind` (`FeatureKind::Gate` or `FeatureKind::Warning`), and whether the pipeline turns it on by `default`.
 - `to_json(&result)` writes the canonical JSON of `docs/output.md`.
 - `to_brackets(&result, show_elided)` renders the tree as brackets.
-- A `ParseResult` owns its data: the stages, the tree, the error and the warnings. Each stage has its input and output tokens, its verdict and, for a tie, its witness. The warnings are those of the warning features that are turned on. Positions are Unicode code points. Tags are a `BTreeSet<String>`, each tag in its canonical spelling, such as `'a'` for a character tag.
+- A `ParseResult` owns its data: the stages, the tree, the error and the warnings. Each stage has its input and output tokens, its verdict and, for a tie, its witness. The warnings are those of the warning features that are turned on. Positions are Unicode code points. Tags are a `BTreeSet<String>`, each tag in its canonical spelling, such as `'a'` for a character tag. A character token of the first stage carries only its character tag.
 - `Dialect` is `Send` and `Sync`, so threads can share one dialect freely.
 - For tests and tools: `Dialect::parse_tokens` feeds tokens straight to the first stage. A DOM (document object model) is the parsed form of a grammar document. `gencmu::tools` reads one grammar document to its DOM, splices a bundled pipeline into its stages, and computes the hashes of the DOM cache.
 

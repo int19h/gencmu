@@ -9,11 +9,21 @@ use std::sync::Arc;
 use crate::clauses::{simplify_cond, simplify_value, Simple};
 use crate::dom::{Arg, Cond, EmitItem, Expr, FeatureKind, Term};
 use crate::grammar::{is_terminal_name, StageGrammar, StitchedAlternative};
+use crate::tags::{code_of_character_tag, property_name, range_name};
+use crate::unicode::Property;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Sym {
     T(u32),
     N(u32),
+}
+
+/// The characters a range or a property matches (engine §4): a range's
+/// first and last scalar values, or a property.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Characters {
+    Range(u32, u32),
+    Property(Property),
 }
 
 #[derive(Debug, Clone)]
@@ -36,6 +46,8 @@ pub(crate) enum LTerm {
     Str(String),
     /// The tag set of one tag.
     Tag(String),
+    /// The character tags of a range, by its first and last scalar values.
+    Range(u32, u32),
     Empty,
     Union(Vec<LTerm>),
     Inter(Vec<LTerm>),
@@ -158,6 +170,9 @@ pub(crate) struct Lowered {
     pub rules: Vec<LRule>,
     pub prods: Vec<Prod>,
     pub terminals: Vec<String>,
+    /// For each terminal, the characters it matches if it is a range or a
+    /// property, whose name is then its written form (engine §4).
+    pub characters: Vec<Option<Characters>>,
     pub start: u32,
     /// Nonterminals that can occur twice on one chain of constituents over
     /// one span: those in a cycle of the grammar's unit graph, whose edges
@@ -182,6 +197,7 @@ struct Lowerer<'a> {
     grammar: &'a StageGrammar,
     mandatory: bool,
     terminals: Vec<String>,
+    characters: Vec<Option<Characters>>,
     terminal_index: FxMap<String, u32>,
     helpers: Vec<HelperDef>,
     owner: u32,
@@ -203,12 +219,15 @@ fn product(left: Vec<Sequence>, right: &[Sequence]) -> Vec<Sequence> {
 }
 
 impl<'a> Lowerer<'a> {
-    fn terminal(&mut self, name: &str) -> u32 {
+    /// A terminal's id, by its name; `characters` for a range or a
+    /// property, whose name is its written form, which no tag has.
+    fn terminal(&mut self, name: &str, characters: Option<Characters>) -> u32 {
         if let Some(&id) = self.terminal_index.get(name) {
             return id;
         }
         let id = self.terminals.len() as u32;
         self.terminals.push(name.to_string());
+        self.characters.push(characters);
         self.terminal_index.insert(name.to_string(), id);
         id
     }
@@ -230,7 +249,7 @@ impl<'a> Lowerer<'a> {
         if reference && !is_terminal_name(name) {
             Sym::N(self.grammar.index[name] as u32)
         } else {
-            Sym::T(self.terminal(name))
+            Sym::T(self.terminal(name, None))
         }
     }
 
@@ -304,6 +323,20 @@ impl<'a> Lowerer<'a> {
             Expr::Repeat(inner, min) => vec![vec![(self.repeat(inner, *min), None, None)]],
             Expr::Ref(name) => vec![vec![(self.symbol(name, true), None, None)]],
             Expr::Terminal(name) => vec![vec![(self.symbol(name, false), None, None)]],
+            // A range or a property is a terminal whose name is its written
+            // form, and which matches by its characters rather than by a
+            // tag (engine §4).
+            Expr::Range(start, end) => {
+                let codes = code_of_character_tag(start).zip(code_of_character_tag(end));
+                let (first, last) = codes.expect("a range of two character tags, which reading checks");
+                let terminal = self.terminal(&range_name(start, end), Some(Characters::Range(first, last)));
+                vec![vec![(Sym::T(terminal), None, None)]]
+            }
+            Expr::Property(name) => {
+                let property = Property::of(name).expect("a property, which reading checks");
+                let terminal = self.terminal(&property_name(name), Some(Characters::Property(property)));
+                vec![vec![(Sym::T(terminal), None, None)]]
+            }
             // A spelled symbol lowers to its symbol with the spelling, and
             // adds no helper (§3).
             Expr::Spelled(spelling, inner) => {
@@ -398,6 +431,11 @@ impl<'a> Scope<'a> {
         Ok(match term {
             Term::Str(text) => LTerm::Str(text.clone()),
             Term::Tag(tag) => LTerm::Tag(tag.clone()),
+            Term::Range(start, end) => {
+                let codes = code_of_character_tag(start).zip(code_of_character_tag(end));
+                let (first, last) = codes.expect("a range of two character tags, which reading checks");
+                LTerm::Range(first, last)
+            }
             Term::EmptySet => LTerm::Empty,
             Term::Union(items) => LTerm::Union(list(self, items)?),
             Term::Intersection(items) => LTerm::Inter(list(self, items)?),
@@ -485,6 +523,7 @@ pub(crate) fn lower(
         grammar,
         mandatory,
         terminals: Vec::new(),
+        characters: Vec::new(),
         terminal_index: FxMap::default(),
         helpers: Vec::new(),
         owner: 0,
@@ -601,6 +640,7 @@ pub(crate) fn lower(
     }
 
     let terminals = std::mem::take(&mut lowerer.terminals);
+    let characters = std::mem::take(&mut lowerer.characters);
     let mut prods = Vec::with_capacity(order.len());
     'productions: for pending in order {
         let syms: Vec<Sym> = pending.sequence.iter().map(|(sym, _, _)| *sym).collect();
@@ -754,7 +794,7 @@ pub(crate) fn lower(
     }
 
     let cyclic = cyclic_rules(&rules, &prods);
-    Ok(Lowered { start: grammar.index["text"] as u32, rules, prods, terminals, cyclic })
+    Ok(Lowered { start: grammar.index["text"] as u32, rules, prods, terminals, characters, cyclic })
 }
 
 /// The nonterminals that lie on a cycle of the unit graph.

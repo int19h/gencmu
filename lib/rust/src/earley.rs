@@ -4,9 +4,29 @@
 
 use crate::fxhash::{FxMap, FxSet};
 
-use crate::lower::{CmpOp, LCond, LTerm, Lowered, Span, Sym};
-use crate::tags::{difference, intersection, is_subset, union, SetId, TagId, TagList, Tags};
+use crate::lower::{Characters, CmpOp, LCond, LTerm, Lowered, Span, Sym};
+use crate::tags::{character_tag, difference, intersection, is_subset, union, SetId, TagId, TagList, Tags};
 use crate::unicode::Unicode;
+
+/// How a terminal matches a token (engine §4): by a tag the token carries,
+/// or, for a range or a property, by one of its character tags.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum Matcher {
+    Tag(TagId),
+    Characters(Characters),
+}
+
+/// The matchers of a lowered grammar's terminals, by terminal id.
+pub(crate) fn matchers(g: &Lowered, tags: &mut Tags) -> Vec<Matcher> {
+    g.terminals
+        .iter()
+        .zip(&g.characters)
+        .map(|(name, characters)| match characters {
+            Some(characters) => Matcher::Characters(*characters),
+            None => Matcher::Tag(tags.tag(name)),
+        })
+        .collect()
+}
 
 /// A token of a stage's input.
 #[derive(Debug, Clone)]
@@ -160,6 +180,9 @@ enum NestedKey {
 /// parse over other tokens or with other rules.
 pub(crate) struct Shared<'a> {
     pub tags: Tags,
+    /// The tag list of each range that a term holds, by its first and last
+    /// scalar values, made once (§10).
+    ranges: FxMap<(u32, u32), TagList>,
     pub unicode: &'a Unicode,
     pub text: &'a [char],
     /// Whether a span parses as a rule, and its tags as it: what `matches`
@@ -177,6 +200,7 @@ impl<'a> Shared<'a> {
     pub(crate) fn new(unicode: &'a Unicode, text: &'a [char]) -> Shared<'a> {
         Shared {
             tags: Tags::new(),
+            ranges: FxMap::default(),
             unicode,
             text,
             memo: FxMap::default(),
@@ -193,6 +217,38 @@ impl<'a> Shared<'a> {
         self.running.clear();
     }
 
+    /// Whether a terminal matches a token whose tags are `set` (§4). A
+    /// range or a property matches once, however many of its tags qualify.
+    #[inline]
+    pub(crate) fn reads(&self, matcher: Matcher, set: SetId) -> bool {
+        match matcher {
+            Matcher::Tag(tag) => self.tags.contains(set, tag),
+            Matcher::Characters(characters) => self.carries(characters, set),
+        }
+    }
+
+    /// Whether a tag set holds a character tag of a range or a property.
+    fn carries(&self, characters: Characters, set: SetId) -> bool {
+        self.tags.list(set).iter().filter_map(|&tag| self.tags.code(tag)).any(|code| match characters {
+            Characters::Range(first, last) => (first..=last).contains(&code),
+            Characters::Property(property) => self.unicode.has(property, code),
+        })
+    }
+
+    /// The character tags of a range, from its first to its last scalar
+    /// value, the surrogates skipped (§1).
+    fn range(&mut self, first: u32, last: u32) -> TagList {
+        if let Some(list) = self.ranges.get(&(first, last)) {
+            return list.clone();
+        }
+        let unicode = self.unicode;
+        let mut list: TagList =
+            (first..=last).filter_map(char::from_u32).map(|c| self.tags.tag(&character_tag(c, unicode))).collect();
+        list.sort_unstable();
+        self.ranges.insert((first, last), list.clone());
+        list
+    }
+
     pub(crate) fn source_text(&self, start: usize, end: usize) -> String {
         self.text[start..end].iter().collect()
     }
@@ -207,7 +263,8 @@ enum Value {
 
 pub(crate) struct Recognizer<'g, 's, 'a> {
     pub g: &'g Lowered,
-    pub term_tags: &'g [TagId],
+    /// How each terminal of the grammar matches a token, by terminal id.
+    pub matchers: &'g [Matcher],
     pub shared: &'s mut Shared<'a>,
 }
 
@@ -287,7 +344,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 } else {
                     match production.syms[item.dot as usize] {
                         Sym::T(terminal) => {
-                            if e < n && self.shared.tags.contains(tokens[e].tags, self.term_tags[terminal as usize]) {
+                            if e < n && self.shared.reads(self.matchers[terminal as usize], tokens[e].tags) {
                                 let cap = Cap { start: e as u32, end: e as u32 + 1, tags: tokens[e].tags };
                                 self.advance(&mut chart, tokens, base, item, cap, e + 1)?;
                             }
@@ -364,8 +421,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             if let (Some(Sym::T(terminal)), false) =
                 (lowered.syms.first(), lowered.conds.iter().any(|&(_, at)| at == 0))
             {
-                let tag = self.term_tags[*terminal as usize];
-                if e >= tokens.len() || !self.shared.tags.contains(tokens[e].tags, tag) {
+                let matcher = self.matchers[*terminal as usize];
+                if e >= tokens.len() || !self.shared.reads(matcher, tokens[e].tags) {
                     continue;
                 }
             }
@@ -622,6 +679,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         Ok(match term {
             LTerm::Str(text) => Value::Str(text.clone()),
             LTerm::Tag(tag) => Value::Set(vec![self.shared.tags.tag(tag)]),
+            LTerm::Range(first, last) => Value::Set(self.shared.range(*first, *last)),
             LTerm::Empty => Value::Set(TagList::new()),
             LTerm::Union(items) => {
                 let mut list = TagList::new();

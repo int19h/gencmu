@@ -16,6 +16,8 @@ pub(crate) type TagList = Vec<TagId>;
 #[derive(Debug, Default)]
 pub(crate) struct Tags {
     names: Vec<String>,
+    /// For each tag, the scalar value of a character tag, or `u32::MAX`.
+    codes: Vec<u32>,
     index: FxMap<String, TagId>,
     sets: Vec<TagList>,
     set_index: FxMap<TagList, SetId>,
@@ -34,8 +36,15 @@ impl Tags {
         }
         let id = self.names.len() as TagId;
         self.names.push(name.to_string());
+        self.codes.push(code_of_character_tag(name).unwrap_or(u32::MAX));
         self.index.insert(name.to_string(), id);
         id
+    }
+
+    /// The scalar value of a character tag, or `None` for another tag.
+    #[inline]
+    pub(crate) fn code(&self, id: TagId) -> Option<u32> {
+        Some(self.codes[id as usize]).filter(|&code| code != u32::MAX)
     }
 
     pub(crate) fn lookup(&self, name: &str) -> Option<TagId> {
@@ -156,11 +165,25 @@ pub(crate) fn character_tag(c: char, unicode: &Unicode) -> String {
     }
 }
 
-/// Whether a string is a character tag in its canonical spelling.
-fn is_character_tag(tag: &str, unicode: &Unicode) -> bool {
-    let Some(inner) = tag.strip_prefix('\'').and_then(|rest| rest.strip_suffix('\'')) else {
-        return false;
-    };
+/// The scalar value of a character tag, `'c'` or `'\u{h…}'`, or `None` for
+/// any other tag. The tag is not checked to be in its canonical spelling:
+/// every tag inside the engine is (engine §1).
+pub(crate) fn code_of_character_tag(tag: &str) -> Option<u32> {
+    let inner = tag.strip_prefix('\'').and_then(|rest| rest.strip_suffix('\''))?;
+    if let Some(digits) = inner.strip_prefix("\\u{").and_then(|rest| rest.strip_suffix('}')) {
+        return u32::from_str_radix(digits, 16).ok();
+    }
+    let mut chars = inner.chars();
+    match (chars.next(), chars.next()) {
+        (Some(c), None) => Some(c as u32),
+        _ => None,
+    }
+}
+
+/// The scalar value of a character tag in its canonical spelling, or
+/// `None` for any other string.
+pub(crate) fn character_code(tag: &str, unicode: &Unicode) -> Option<u32> {
+    let inner = tag.strip_prefix('\'').and_then(|rest| rest.strip_suffix('\''))?;
     let code = match inner.strip_prefix("\\u{").and_then(|rest| rest.strip_suffix('}')) {
         Some(digits)
             if (1..=6).contains(&digits.len())
@@ -176,7 +199,23 @@ fn is_character_tag(tag: &str, unicode: &Unicode) -> bool {
             }
         }
     };
-    code.and_then(char::from_u32).is_some_and(|c| character_tag(c, unicode) == tag)
+    code.and_then(char::from_u32).filter(|&c| character_tag(c, unicode) == tag).map(|c| c as u32)
+}
+
+/// Whether a string is a character tag in its canonical spelling.
+fn is_character_tag(tag: &str, unicode: &Unicode) -> bool {
+    character_code(tag, unicode).is_some()
+}
+
+/// The written form of a range, its identity as a terminal (engine §4): its
+/// two ends, in their canonical spelling, joined by `..`.
+pub(crate) fn range_name(start: &str, end: &str) -> String {
+    format!("{start}..{end}")
+}
+
+/// The written form of a property, its identity as a terminal (engine §4).
+pub(crate) fn property_name(name: &str) -> String {
+    format!("'\\p{{{name}}}'")
 }
 
 /// Whether a string is a tag in its canonical spelling: a name, a phoneme

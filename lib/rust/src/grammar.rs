@@ -275,13 +275,15 @@ fn check_expr(grammar: &StageGrammar, expr: &Expr, top: bool) -> Result<(), Stri
                 check_rule(grammar, name)
             }
         }
-        Expr::Terminal(_) | Expr::Empty => Ok(()),
+        Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => Ok(()),
         Expr::Capture(name, inner) => {
             if !top {
                 return Err(format!("the capture ${name} is not at the top level of its alternative"));
             }
             match inner.as_ref() {
-                Expr::Ref(_) | Expr::Terminal(_) | Expr::Spelled(..) => check_expr(grammar, inner, false),
+                Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Spelled(..) => {
+                    check_expr(grammar, inner, false)
+                }
                 _ => Err(format!("the capture ${name} does not wrap a single symbol")),
             }
         }
@@ -303,7 +305,7 @@ fn check_span(term: &Term) -> Result<(), String> {
 
 fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
     match term {
-        Term::Str(_) | Term::Tag(_) | Term::EmptySet => Ok(()),
+        Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet => Ok(()),
         Term::Union(items) | Term::Intersection(items) => {
             for item in items {
                 check_term(grammar, item)?;
