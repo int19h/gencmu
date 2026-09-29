@@ -57,12 +57,15 @@ class UnicodeTable:
 
     def category(self, code: int) -> str:
         """The General_Category of a code point, in its short form, by a
-        binary search of the category ranges; ``Cs`` for a surrogate, which
-        the file does not list."""
+        binary search of the category ranges (engine §1): ``Cs`` for a
+        surrogate, which a table does not list, and ``Cn`` for any other code
+        point that the table omits."""
+        if 0xD800 <= code <= 0xDFFF:
+            return "Cs"
         index = bisect_right(self._starts, code) - 1
         if index >= 0 and code <= self._ends[index]:
             return self._categories[index]
-        return "Cs"
+        return "Cn"
 
     def is_mark(self, code: int) -> bool:
         """Whether a code point is a nonspacing mark, of General_Category

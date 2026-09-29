@@ -1934,25 +1934,33 @@
       this.whiteSpace = [];
       /** @type {Map<number, number>} */
       this.lower = new Map();
+      /** @type {[number, number, string][]} */
+      const ranges = [];
       for (const line of text.split("\n")) {
         const fields = line.trim().split(/\s+/);
         if (fields[0] === "unicode") this.version = fields[1];
-        else if (fields[0] === "category") {
-          this.categories.push(fields[1]);
-          this.starts.push(parseInt(fields[2], 16));
-          this.ends.push(parseInt(fields[3], 16));
-        } else if (fields[0] === "white-space") this.whiteSpace.push([parseInt(fields[1], 16), parseInt(fields[2], 16)]);
+        else if (fields[0] === "category") ranges.push([parseInt(fields[2], 16), parseInt(fields[3], 16), fields[1]]);
+        else if (fields[0] === "white-space") this.whiteSpace.push([parseInt(fields[1], 16), parseInt(fields[2], 16)]);
         else if (fields[0] === "lower") this.lower.set(parseInt(fields[1], 16), parseInt(fields[2], 16));
+      }
+      // The records can stand in any order in the file (engine §1).
+      ranges.sort((a, b) => a[0] - b[0]);
+      for (const [start, end, category] of ranges) {
+        this.starts.push(start);
+        this.ends.push(end);
+        this.categories.push(category);
       }
     }
 
     /**
-     * The General_Category of a scalar value, in its short form; `Cs` for a
-     * surrogate, which the file does not list.
+     * The General_Category of a code point, in its short form (engine §1):
+     * `Cs` for a surrogate, which a table does not list, and `Cn` for any
+     * other code point that the table omits.
      * @param {number} code
      * @returns {string}
      */
     category(code) {
+      if (code >= 0xd800 && code <= 0xdfff) return "Cs";
       let low = 0;
       let high = this.starts.length - 1;
       while (low <= high) {
@@ -1961,7 +1969,7 @@
         else if (code > this.ends[middle]) low = middle + 1;
         else return this.categories[middle];
       }
-      return "Cs";
+      return "Cn";
     }
 
     /**

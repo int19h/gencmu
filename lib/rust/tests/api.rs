@@ -110,6 +110,11 @@ fn sources_may_bring_their_own_tables() {
     let dialect =
         gencmu::load_dialect_sources(single("%ambiguity-resolution greedy\n%rule text '\\p{L}'"), "p.md").unwrap();
     assert!(dialect.parse("a", &no_auto()).unwrap().ok);
+    // A scalar value that the caller's table omits is Cn (engine §1).
+    let mut sources = single("%ambiguity-resolution greedy\n%rule text '\\p{Cn}'");
+    sources.insert("unicode.txt".to_string(), table.to_string());
+    let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
+    assert!(dialect.parse("a", &no_auto()).unwrap().ok);
 }
 
 #[test]

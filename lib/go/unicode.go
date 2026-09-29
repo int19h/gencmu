@@ -85,15 +85,19 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 	return t, nil
 }
 
-// category is the General_Category of a scalar value in its short form,
-// found by binary search; Cs for a surrogate, which the file does not list.
+// category is the General_Category of a code point in its short form,
+// found by binary search (engine §1): Cs for a surrogate, which a table does
+// not list, and Cn for any other code point that the table omits.
 func (t *unicodeTable) category(c rune) string {
+	if c >= 0xD800 && c <= 0xDFFF {
+		return "Cs"
+	}
 	r := t.categories
 	i := sort.Search(len(r), func(i int) bool { return r[i].end >= c })
 	if i < len(r) && r[i].start <= c {
 		return r[i].category
 	}
-	return "Cs"
+	return "Cn"
 }
 
 // isMark says whether a code point is a nonspacing mark, of

@@ -87,15 +87,19 @@ impl Unicode {
         Ok(table)
     }
 
-    /// The General_Category of a scalar value, in its short form, found by a
-    /// binary search of the category ranges. A code point that the file does
-    /// not list, a surrogate, is `Cs`.
+    /// The General_Category of a code point, in its short form, found by a
+    /// binary search of the category ranges (engine §1). A surrogate, which
+    /// a table does not list, is `Cs`. Any other code point that the table
+    /// omits is `Cn`.
     pub(crate) fn category(&self, code: u32) -> &'static str {
+        if (0xD800..=0xDFFF).contains(&code) {
+            return "Cs";
+        }
         let index = self.categories.partition_point(|&(first, _, _)| first <= code);
         if index > 0 && self.categories[index - 1].1 >= code {
             self.categories[index - 1].2
         } else {
-            "Cs"
+            "Cn"
         }
     }
 
@@ -149,6 +153,54 @@ mod tests {
         assert_eq!(unicode.category(0x10FFFF), "Cn");
         assert!(unicode.is_mark(0x301));
         assert!(!unicode.is_mark('a' as u32));
+    }
+
+    /// Every code point next to a boundary of a record, where an unsorted
+    /// search goes wrong first.
+    fn boundaries(text: &str) -> Vec<u32> {
+        let mut points: Vec<u32> = text
+            .lines()
+            .flat_map(|line| line.split_whitespace().skip(1))
+            .filter_map(|field| u32::from_str_radix(field, 16).ok())
+            .flat_map(|value| [value.wrapping_sub(1), value, value + 1])
+            .filter(|&point| point <= 0x10FFFF)
+            .collect();
+        points.sort_unstable();
+        points.dedup();
+        points
+    }
+
+    #[test]
+    fn records_in_any_order_give_the_same_answers() {
+        let text = crate::loader::bundled("unicode.txt").expect("unicode.txt");
+        let bundled = table();
+        let reversed_text: Vec<&str> = text.lines().rev().collect();
+        let reversed = Unicode::parse(&reversed_text.join("\n")).expect("the reversed table");
+        for code in boundaries(text) {
+            assert_eq!(reversed.category(code), bundled.category(code), "U+{code:04X}");
+            assert_eq!(reversed.is_white_space(code), bundled.is_white_space(code), "U+{code:04X}");
+            if let Some(c) = char::from_u32(code) {
+                assert_eq!(reversed.lowercase(&c.to_string()), bundled.lowercase(&c.to_string()), "U+{code:04X}");
+            }
+        }
+        assert_eq!(reversed.category('a' as u32), "Ll");
+        assert_eq!(reversed.category('A' as u32), "Lu");
+    }
+
+    #[test]
+    fn an_omitted_scalar_value_is_cn_without_white_space_or_lowercase() {
+        let table = Unicode::parse("unicode 0.0.0\ncategory Lu 0041 005A\n").expect("a partial table");
+        let has = |name: &str, code: u32| table.has(Property::of(name).expect("a property"), code);
+        assert_eq!(table.category('A' as u32), "Lu");
+        assert_eq!(table.category('a' as u32), "Cn");
+        assert_eq!(table.category(0x10FFFF), "Cn");
+        assert_eq!(table.category(0), "Cn");
+        assert_eq!(table.category(0xD800), "Cs");
+        assert!(has("Cn", 'a' as u32) && has("C", 'a' as u32));
+        assert!(!has("L", 'a' as u32) && !has("Cs", 'a' as u32));
+        assert!(!table.is_white_space(0x20) && !table.is_white_space(0x9) && !has("White_Space", 0x20));
+        assert_eq!(table.lowercase("AB"), "AB");
+        assert!(!table.is_mark(0x301));
     }
 
     #[test]

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -348,6 +349,108 @@ func TestCharacterTags(t *testing.T) {
 	for _, bad := range []string{`'\u{61}'`, `'\u{0301}'`, `'\u{ed80}'`, "'́'", "''", "'ab'", `'\u{D800}'`, `'\u{110000}'`, "'''"} {
 		if isTag(bad, bundled.uni) {
 			t.Errorf("%s is taken for a canonical tag", bad)
+		}
+	}
+}
+
+// The records of a table give the same answers in any order (engine §1).
+// The code points next to a boundary of a record are where an unsorted
+// search goes wrong first.
+func TestUnicodeTableOrder(t *testing.T) {
+	data, err := bundledFS.ReadFile("grammars/unicode.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(data)
+	lines := strings.Split(strings.TrimRight(text, "\n"), "\n")
+	for i, j := 0, len(lines)-1; i < j; i, j = i+1, j-1 {
+		lines[i], lines[j] = lines[j], lines[i]
+	}
+	bundled, err := parseUnicodeTable(text)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reversed, err := parseUnicodeTable(strings.Join(lines, "\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		for _, field := range fields[min(1, len(fields)):] {
+			v, err := strconv.ParseUint(field, 16, 32)
+			if err != nil {
+				continue
+			}
+			for _, c := range []rune{rune(v) - 1, rune(v), rune(v) + 1} {
+				if c < 0 || c > 0x10FFFF {
+					continue
+				}
+				if reversed.category(c) != bundled.category(c) || reversed.isWhiteSpace(c) != bundled.isWhiteSpace(c) {
+					t.Errorf("U+%04X: the reversed table disagrees", c)
+				}
+				if (c < 0xD800 || c > 0xDFFF) && reversed.lowercase(string(c)) != bundled.lowercase(string(c)) {
+					t.Errorf("U+%04X: the reversed table lowercases it otherwise", c)
+				}
+			}
+		}
+	}
+	if reversed.category('a') != "Ll" || reversed.category('A') != "Lu" {
+		t.Error("the reversed table misreads a letter")
+	}
+}
+
+// A scalar value that a caller's table omits is Cn, without White_Space
+// or a lowercase mapping (engine §1).
+func TestUnicodeTablePartial(t *testing.T) {
+	uni, err := parseUnicodeTable("unicode 0.0.0\ncategory Lu 0041 005A\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for c, want := range map[rune]string{'A': "Lu", 'a': "Cn", 0x10FFFF: "Cn", 0: "Cn", 0xD800: "Cs"} {
+		if got := uni.category(c); got != want {
+			t.Errorf("U+%04X: category %s, want %s", c, got, want)
+		}
+	}
+	if !uni.hasProperty("Cn", 'a') || !uni.hasProperty("C", 'a') || uni.hasProperty("L", 'a') || uni.hasProperty("Cs", 'a') {
+		t.Error("hasProperty is wrong for an omitted scalar value")
+	}
+	if uni.isWhiteSpace(' ') || uni.isWhiteSpace('\t') || uni.hasProperty("White_Space", ' ') {
+		t.Error("a table without white-space lines has White_Space")
+	}
+	if uni.lowercase("AB") != "AB" || uni.isMark(0x301) {
+		t.Error("a table without lower lines lowercases, or has a mark")
+	}
+}
+
+// A caller's table replaces the bundled one entirely (engine §1). This one
+// knows no letters, only the white space that the notation reads between
+// tokens.
+func TestUnicodeTableOfCaller(t *testing.T) {
+	sources := func(rule string, table bool) map[string]string {
+		m := map[string]string{
+			"p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n",
+			"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text " + rule + "\n```\n",
+		}
+		if table {
+			m["unicode.txt"] = "unicode 0.0.0\nwhite-space 0009 000D\nwhite-space 0020 0020\n"
+		}
+		return m
+	}
+	for _, c := range []struct {
+		rule  string
+		table bool
+		ok    bool
+	}{{`'\p{L}'`, true, false}, {`'\p{Cn}'`, true, true}, {`'\p{L}'`, false, true}} {
+		d, err := LoadDialectSources(sources(c.rule, c.table), "p.md")
+		if err != nil {
+			t.Fatal(err)
+		}
+		res, err := d.Parse("a", ParseOptions{NoAutoFeatures: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.OK != c.ok {
+			t.Errorf("%s with the caller's table %v: ok %v", c.rule, c.table, res.OK)
 		}
 	}
 }
