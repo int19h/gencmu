@@ -59,4 +59,14 @@ fn harness_detects_a_wrong_expectation() {
     assert!(usage(both, r#"{"error": "usage"}"#).is_ok());
     assert!(usage(both, "{}").is_err());
     assert!(usage("{}", r#"{"error": "usage"}"#).is_err());
+    // Where a load error stands is compared when the case gives it.
+    let placed = |place: &str| {
+        let case = format!(
+            r#"{{"grammar": "%rule text X\n%rule text Y", "tokens": [], "expect": {{"error": "grammar", "where": {place}}}}}"#
+        );
+        run_engine_case(&parse_json(&case).unwrap())
+    };
+    assert!(placed(r#"{"document": "main.md", "line": 4, "column": 1}"#).is_ok());
+    assert!(placed(r#"{"document": "main.md", "line": 3, "column": 1}"#).is_err());
+    assert!(placed(r#"{"document": "pipeline.md", "line": 4, "column": 1}"#).is_err());
 }

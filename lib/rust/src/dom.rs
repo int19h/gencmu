@@ -3,16 +3,35 @@
 //! stitching and lowering read.
 
 use crate::json::{write_str, Json};
-use crate::tags::{character_code, is_tag};
+use crate::tags::{character_code, is_name, is_tag};
 use crate::unicode::{is_property_name, Unicode};
 
 /// The DOM format version (`docs/output.md`).
-pub(crate) const DOM_FORMAT: i64 = 10;
+pub(crate) const DOM_FORMAT: i64 = 11;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
     pub rules: Vec<RuleDef>,
     pub directives: Vec<Directive>,
+    pub constants: Vec<ConstDef>,
+}
+
+/// A constant's definition (engine §2): `%const $NAME t`, or, when
+/// `redefine`, `%redefine-const $NAME t`. The name has no `$`, and the
+/// value is a closed term (§10) that holds references, never values.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct ConstDef {
+    pub name: String,
+    pub redefine: bool,
+    pub value: Term,
+    pub at: (usize, usize),
+}
+
+/// Whether a string is a constant's name without its `$`: a name that
+/// begins with `A` to `Z` (engine §2).
+pub(crate) fn is_constant_name(name: &str) -> bool {
+    let mut chars = name.chars();
+    chars.next().is_some_and(|c| c.is_ascii_uppercase()) && chars.all(|c| c.is_ascii_alphanumeric() || c == '-')
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -105,6 +124,9 @@ pub(crate) enum Term {
     Capture(String),
     /// `A ⟹ t`: `t` where the condition holds, else the empty set.
     If(Box<Cond>, Box<Term>),
+    /// A reference to a constant, by its name without `$`, and where it
+    /// stands. Stitching replaces it with the constant's value (engine §2).
+    Const(String, (usize, usize)),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -190,13 +212,24 @@ pub(crate) fn dom_from_json(value: &Json, unicode: &Unicode) -> R<Dom> {
             })
         })
         .collect::<R<Vec<_>>>()?;
+    let constants = array(value, "constants")?
+        .iter()
+        .map(|constant| {
+            Ok(ConstDef {
+                name: string(constant, "name")?,
+                redefine: string(constant, "op")? == "redefine",
+                value: term_from_json(field(constant, "value")?)?,
+                at: position(constant)?,
+            })
+        })
+        .collect::<R<Vec<_>>>()?;
     // A definition the reader would refuse (engine §9).
     for rule in &rules {
         if let Some(problem) = crate::clauses::definition_problem(rule) {
             return Err(problem);
         }
     }
-    Ok(Dom { rules, directives })
+    Ok(Dom { rules, directives, constants })
 }
 
 fn rule_from_json(value: &Json) -> R<RuleDef> {
@@ -297,6 +330,7 @@ fn term_from_json(value: &Json) -> R<Term> {
             _ => return Err("a difference of other than two terms".to_string()),
         },
         "capture" => Term::Capture(string(value, "capture")?),
+        "const" => Term::Const(string(value, "const")?, position(value)?),
         "if" => {
             Term::If(Box::new(cond_from_json(field(value, "if")?)?), Box::new(term_from_json(field(value, "then")?)?))
         }
@@ -368,7 +402,7 @@ fn has(value: &Json, key: &str) -> bool {
 
 /// The forms of a term, each as its members (docs/output.md). The first
 /// member names the form.
-const TERM_FORMS: [&[&str]; 10] = [
+const TERM_FORMS: [&[&str]; 11] = [
     &["union"],
     &["intersection"],
     &["difference"],
@@ -379,6 +413,7 @@ const TERM_FORMS: [&[&str]; 10] = [
     &["range"],
     &["emptySet"],
     &["capture"],
+    &["const", "at"],
 ];
 
 /// Whether a term has exactly the members of one form, and no other. So a
@@ -444,9 +479,10 @@ fn is_rule_arg(value: &Json) -> bool {
 
 /// What is wrong with a spelling of a symbol (engine §9), or `None`: an
 /// empty spelling, one with a backtick, which the notation cannot write,
-/// one of anything but a reference or a terminal, `#` included, or one that the lowercase mapping would change, since the
-/// match ignores stress. `symbol` is whether the spelled expression is a
-/// reference other than `#` or a terminal.
+/// one of anything but a reference or a terminal, `#` included, or one that
+/// no canonical sound can be, with a comma or a code point that the
+/// lowercase mapping would change. `symbol` is whether the spelled
+/// expression is a reference other than `#` or a terminal.
 pub(crate) fn spelling_problem(spelling: &str, symbol: bool, unicode: &Unicode) -> Option<&'static str> {
     if spelling.is_empty() {
         Some("a spelling is empty")
@@ -454,6 +490,8 @@ pub(crate) fn spelling_problem(spelling: &str, symbol: bool, unicode: &Unicode) 
         Some("a spelling holds a backtick")
     } else if !symbol {
         Some("a spelling follows only a reference other than # or a terminal")
+    } else if spelling.contains(',') {
+        Some("a spelling holds a comma, which no canonical sound holds")
     } else if unicode.lowercase(spelling) != spelling {
         Some("a spelling is not in lower case")
     } else {
@@ -535,8 +573,9 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
         || dom.get("format").and_then(Json::as_int) != Some(DOM_FORMAT)
         || dom.get("rules").and_then(Json::as_array).is_none()
         || dom.get("directives").and_then(Json::as_array).is_none()
+        || dom.get("constants").and_then(Json::as_array).is_none()
     {
-        return Some("not a DOM of format 10");
+        return Some("not a DOM of format 11");
     }
     for directive in dom.get("directives").and_then(Json::as_array).unwrap_or(&[]) {
         let args = directive.get("args").and_then(Json::as_array);
@@ -564,6 +603,21 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
         }
     }
     let mut pending: Vec<(Kind, &Json, usize)> = Vec::new();
+    // A constant's definition: its name, its op, its position and a value
+    // that is a closed term (engine §2, §10).
+    for constant in dom.get("constants").and_then(Json::as_array).unwrap_or(&[]) {
+        let well_formed = constant.as_object().is_some_and(|members| members.len() == 4)
+            && constant.get("name").and_then(Json::as_str).is_some_and(is_constant_name)
+            && matches!(constant.get("op").and_then(Json::as_str), Some("define" | "redefine"))
+            && is_position(constant.get("at"));
+        let Some(value) = constant.get("value").filter(|_| well_formed) else {
+            return Some("a malformed constant");
+        };
+        if !is_closed_json(value) {
+            return Some("a constant's value is not a closed term");
+        }
+        pending.push((Kind::Term, value, 0));
+    }
     for rule in dom.get("rules").and_then(Json::as_array).unwrap_or(&[]) {
         let alternatives = rule.get("alternatives").and_then(Json::as_array);
         let conditions = rule.get("conditions").and_then(Json::as_array);
@@ -883,11 +937,14 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                             [span, rule] => is_span_json(span) && is_rule_arg(rule),
                             _ => false,
                         },
-                        // Its argument's type is checked with the others'.
-                        Some("lowercase") => matches!(args, [string] if !is_rule_arg(string) && !is_span_json(string)),
-                        Some(
-                            "phonemes" | "text" | "classes" | "runs" | "head" | "tail" | "last" | "from" | "after",
-                        ) => matches!(args, [span] if is_span_json(span)),
+                        // Their arguments' types are checked with the others'.
+                        Some("split") => {
+                            matches!(args, [a, b] if [a, b].iter().all(|arg| !is_rule_arg(arg) && !is_span_json(arg)))
+                        }
+                        Some("tag") => matches!(args, [string] if !is_rule_arg(string) && !is_span_json(string)),
+                        Some("phonemes" | "text" | "classes" | "head" | "tail" | "last" | "from" | "after") => {
+                            matches!(args, [span] if is_span_json(span))
+                        }
                         // `matches`, `begins` and `initial` are conditions,
                         // never terms.
                         _ => false,
@@ -899,6 +956,9 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                     if own && matches!(call, Some("tags" | "classes")) && matches!(args, [span] if is_whole(span)) {
                         return Some("a tag term that reads the tags it defines");
                     }
+                    if let Some(problem) = call.and_then(|call| literal_call_problem_json(call, args)) {
+                        return Some(problem);
+                    }
                     for arg in args {
                         if !is_rule_arg(arg) {
                             pending.push((Kind::Argument, arg, next));
@@ -908,7 +968,9 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                     || is_tag_json(value.get("tag"), unicode)
                     || is_range_json(value.get("range"), unicode)
                     || is_true(value.get("emptySet"))
-                    || is_str(value.get("capture")))
+                    || is_str(value.get("capture"))
+                    || (value.get("const").and_then(Json::as_str).is_some_and(is_constant_name)
+                        && is_position(value.get("at"))))
                 {
                     return Some("a malformed term");
                 }
@@ -923,10 +985,18 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
             Err(_) => return Some("a malformed rule"),
         }
     }
+    for constant in dom.get("constants").and_then(Json::as_array).unwrap_or(&[]) {
+        let redefine = constant.get("op").and_then(Json::as_str) == Some("redefine");
+        match constant.get("value").map(term_from_json) {
+            Some(Ok(value)) if constant_value_type(&value, redefine, &|_| Type::Any).is_ok() => {}
+            Some(Ok(_)) => return Some("a term or a condition whose types do not agree"),
+            _ => return Some("a malformed constant"),
+        }
+    }
     // The order of a document's items is the order of their positions, so
     // no two items share one (engine §9).
     let mut positions = std::collections::HashSet::new();
-    for kind in ["rules", "directives"] {
+    for kind in ["rules", "directives", "constants"] {
         for item in dom.get(kind).and_then(Json::as_array).unwrap_or(&[]) {
             if let Some([Json::Int(line), Json::Int(column)]) = item.get("at").and_then(Json::as_array) {
                 if !positions.insert((*line, *column)) {
@@ -936,6 +1006,57 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
         }
     }
     None
+}
+
+/// Whether a term's JSON is closed (engine §10): no capture, no guarded
+/// term, and no call but `split` and `tag` of closed terms. The shape of
+/// the term need not be checked.
+fn is_closed_json(term: &Json) -> bool {
+    if !is_object(term) {
+        return true;
+    }
+    if has(term, "capture") || has(term, "if") {
+        return false;
+    }
+    if let Some(call) = term.get("call") {
+        return matches!(call.as_str(), Some("split" | "tag"))
+            && term.get("args").and_then(Json::as_array).unwrap_or(&[]).iter().all(is_closed_json);
+    }
+    ["union", "intersection", "difference"]
+        .iter()
+        .all(|key| term.get(key).and_then(Json::as_array).unwrap_or(&[]).iter().all(is_closed_json))
+}
+
+/// What is wrong with a call of `split` or `tag` whose argument the reader
+/// sees as a string literal (engine §9, §10), or `None`: an empty
+/// delimiter, or a tag's string that is not a name.
+pub(crate) fn literal_call_problem(call: &str, args: &[Arg]) -> Option<&'static str> {
+    fn literal(arg: Option<&Arg>) -> Option<&str> {
+        match arg {
+            Some(Arg::Term(Term::Str(text))) => Some(text),
+            _ => None,
+        }
+    }
+    match call {
+        "split" if literal(args.get(1)) == Some("") => Some("split has an empty delimiter"),
+        "tag" if literal(args.first()).is_some_and(|name| !is_name(name)) => Some("the string of tag() is not a name"),
+        _ => None,
+    }
+}
+
+/// `literal_call_problem` over a DOM's JSON.
+fn literal_call_problem_json(call: &str, args: &[Json]) -> Option<&'static str> {
+    fn literal(arg: Option<&Json>) -> Option<&str> {
+        match arg.and_then(Json::as_object) {
+            Some([(key, Json::Str(text))]) if key == "string" => Some(text),
+            _ => None,
+        }
+    }
+    match call {
+        "split" if literal(args.get(1)) == Some("") => Some("split has an empty delimiter"),
+        "tag" if literal(args.first()).is_some_and(|name| !is_name(name)) => Some("the string of tag() is not a name"),
+        _ => None,
+    }
 }
 
 // ---- writing a DOM as canonical JSON
@@ -966,6 +1087,18 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
             write_str(&mut out, arg);
         }
         out.push_str(&format!("],\"at\":[{},{}]}}", directive.at.0, directive.at.1));
+    }
+    out.push_str("],\"constants\":[");
+    for (index, constant) in dom.constants.iter().enumerate() {
+        if index > 0 {
+            out.push(',');
+        }
+        out.push_str("{\"name\":");
+        write_str(&mut out, &constant.name);
+        out.push_str(if constant.redefine { ",\"op\":\"redefine\"" } else { ",\"op\":\"define\"" });
+        out.push_str(",\"value\":");
+        write_term(&mut out, &constant.value);
+        out.push_str(&format!(",\"at\":[{},{}]}}", constant.at.0, constant.at.1));
     }
     out.push_str("]}");
     out
@@ -1146,6 +1279,11 @@ fn write_term(out: &mut String, term: &Term) {
             write_str(out, name);
             out.push('}');
         }
+        Term::Const(name, at) => {
+            out.push_str("{\"const\":");
+            write_str(out, name);
+            out.push_str(&format!(",\"at\":[{},{}]}}", at.0, at.1));
+        }
         Term::If(cond, then) => {
             out.push_str("{\"if\":");
             write_cond(out, cond);
@@ -1229,8 +1367,9 @@ fn write_cond(out: &mut String, cond: &Cond) {
 
 // ---- types (engine §10)
 
-/// A term's type: a string, a set of strings, a tag set, a span, or a set
-/// whose kind nothing has given yet, such as `∅`.
+/// A term's type: a string, a set of strings, a tag set, a span, a set
+/// whose kind nothing has given yet, such as `∅`, or, for a constant whose
+/// type the reader cannot know, any type but a span (engine §9).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Type {
     String,
@@ -1238,18 +1377,114 @@ pub(crate) enum Type {
     Tags,
     Span,
     Set,
+    Any,
 }
 
 impl Type {
-    fn name(self) -> &'static str {
+    pub(crate) fn name(self) -> &'static str {
         match self {
             Type::String => "a string",
             Type::Strings => "a set of strings",
             Type::Tags => "a tag set",
             Type::Span => "a span",
             Type::Set => "a set",
+            Type::Any => "a value",
         }
     }
+}
+
+/// The type of each constant, where the loader knows it (engine §2). The
+/// reader knows none, and gives every constant the type `Any`.
+pub(crate) type ConstantTypes<'a> = &'a dyn Fn(&str) -> Type;
+
+/// A disagreement of types (engine §10): the problem, and where the first
+/// constant of the smallest construct that holds it stands, if it holds
+/// one. The loader reports the error there (engine §9).
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct Fault {
+    pub problem: String,
+    pub at: Option<(usize, usize)>,
+}
+
+impl Fault {
+    fn in_term(problem: String, term: &Term) -> Fault {
+        Fault { problem, at: first_constant_in_term(term) }
+    }
+
+    fn in_cond(problem: String, cond: &Cond) -> Fault {
+        Fault { problem, at: first_constant_in_cond(cond) }
+    }
+}
+
+/// The references to constants in a term, in the order written.
+pub(crate) fn constants_in_term<'t>(term: &'t Term, out: &mut Vec<(&'t str, (usize, usize))>) {
+    match term {
+        Term::Const(name, at) => out.push((name, *at)),
+        Term::Union(items) | Term::Intersection(items) => items.iter().for_each(|item| constants_in_term(item, out)),
+        Term::Difference(left, right) => {
+            constants_in_term(left, out);
+            constants_in_term(right, out);
+        }
+        Term::If(cond, then) => {
+            constants_in_cond(cond, out);
+            constants_in_term(then, out);
+        }
+        Term::Call(_, args) => {
+            for arg in args {
+                if let Arg::Term(term) = arg {
+                    constants_in_term(term, out);
+                }
+            }
+        }
+        Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Capture(_) => {}
+    }
+}
+
+/// The references to constants in a condition, in the order written.
+pub(crate) fn constants_in_cond<'t>(cond: &'t Cond, out: &mut Vec<(&'t str, (usize, usize))>) {
+    match cond {
+        Cond::Compare(_, left, right) => {
+            constants_in_term(left, out);
+            constants_in_term(right, out);
+        }
+        Cond::Not(inner) => constants_in_cond(inner, out),
+        Cond::Any(items) | Cond::All(items) => items.iter().for_each(|item| constants_in_cond(item, out)),
+        Cond::If(antecedent, consequent) => {
+            constants_in_cond(antecedent, out);
+            constants_in_cond(consequent, out);
+        }
+        Cond::Matches(span, _) | Cond::Begins(span, _) | Cond::Initial(span) => constants_in_term(span, out),
+        Cond::Captured(_) => {}
+    }
+}
+
+/// The references to constants in a rule, in the order of its DOM: its
+/// tags, its alternatives' tags, its emission and its conditions.
+pub(crate) fn constants_in_rule(rule: &RuleDef) -> Vec<(&str, (usize, usize))> {
+    let mut out = Vec::new();
+    rule.tags.iter().for_each(|term| constants_in_term(term, &mut out));
+    for alternative in &rule.alternatives {
+        alternative.tags.iter().for_each(|term| constants_in_term(term, &mut out));
+    }
+    for item in rule.emit.iter().flatten() {
+        if let EmitItem::Capture(_, Some(term)) = item {
+            constants_in_term(term, &mut out);
+        }
+    }
+    rule.conditions.iter().for_each(|cond| constants_in_cond(cond, &mut out));
+    out
+}
+
+fn first_constant_in_term(term: &Term) -> Option<(usize, usize)> {
+    let mut out = Vec::new();
+    constants_in_term(term, &mut out);
+    out.first().map(|&(_, at)| at)
+}
+
+fn first_constant_in_cond(cond: &Cond) -> Option<(usize, usize)> {
+    let mut out = Vec::new();
+    constants_in_cond(cond, &mut out);
+    out.first().map(|&(_, at)| at)
 }
 
 const SPAN_NOT_VALUE: &str = "a span is not a value: tags($x) is the tag set of $x";
@@ -1257,15 +1492,16 @@ const SPAN_NOT_VALUE: &str = "a span is not a value: tags($x) is the tag set of 
 /// The type of the value a function gives (engine §10).
 fn call_type(call: &str) -> Type {
     match call {
-        "phonemes" | "text" | "lowercase" => Type::String,
-        "runs" => Type::Strings,
-        "tags" | "classes" => Type::Tags,
+        "phonemes" | "text" => Type::String,
+        "split" => Type::Strings,
+        "tags" | "classes" | "tag" => Type::Tags,
         _ => Type::Span,
     }
 }
 
 /// The kind of sets joined by `∪`, `∩` or `∖`, or why they cannot be
-/// joined: each is a set, and all whose kind is known have one kind.
+/// joined: each is a set, and all whose kind is known have one kind. A
+/// constant whose type is not known yet fits any set.
 pub(crate) fn joined_type(types: &[Type], operator: &str) -> Result<Type, String> {
     if types.contains(&Type::Span) {
         return Err(SPAN_NOT_VALUE.to_string());
@@ -1279,32 +1515,40 @@ pub(crate) fn joined_type(types: &[Type], operator: &str) -> Result<Type, String
         (true, true) => Err(format!("{operator} joins two sets of one kind, not a set of strings and a tag set")),
         (true, false) => Ok(Type::Strings),
         (false, true) => Ok(Type::Tags),
+        (false, false) if types.contains(&Type::Any) => Ok(Type::Any),
         (false, false) => Ok(Type::Set),
     }
 }
 
-/// Why a comparison's two sides do not fit its comparator, or `None`.
+/// Why a comparison's two sides do not fit its comparator, or `None`. A
+/// side of type `Any` fits, and the loader checks it again (engine §9).
 pub(crate) fn comparison_problem(op: &str, left: Type, right: Type) -> Option<String> {
     if left == Type::Span || right == Type::Span {
         return Some(SPAN_NOT_VALUE.to_string());
     }
     if matches!(op, "∈" | "∉") {
-        if left != Type::String {
+        if left != Type::String && left != Type::Any {
             return Some(format!(
                 "{op} tests a string, not {}, in a set of strings; ⊆ and ⊈ compare two sets",
                 left.name()
             ));
         }
-        if right != Type::Strings && right != Type::Set {
+        if !matches!(right, Type::Strings | Type::Set | Type::Any) {
             return Some(format!("{op} tests a string in a set of strings, not in {}", right.name()));
         }
         return None;
     }
-    // `=` and `≠` compare two values of one type; `⊆` and `⊈` two sets.
-    if matches!(op, "=" | "≠") && (left == Type::String || right == Type::String) {
-        return (left != right)
-            .then(|| format!("{op} compares two values of one type, not {} and {}", left.name(), right.name()));
+    if matches!(op, "=" | "≠") {
+        // `=` and `≠` compare two values of one type.
+        if left == Type::Any || right == Type::Any {
+            return None;
+        }
+        if left == Type::String || right == Type::String {
+            return (left != right)
+                .then(|| format!("{op} compares two values of one type, not {} and {}", left.name(), right.name()));
+        }
     }
+    // `⊆` and `⊈` compare two sets, as `=` and `≠` do.
     match joined_type(&[left, right], op) {
         Err(problem) => Some(problem),
         Ok(Type::Set) => Some(format!("the kind of the sets that {op} compares is not given")),
@@ -1314,9 +1558,9 @@ pub(crate) fn comparison_problem(op: &str, left: Type, right: Type) -> Option<St
 
 /// Why a term of type `ty` cannot stand where `expected`, a string or a
 /// tag set, is needed, or `None`. A set of open kind takes the kind it is
-/// given.
+/// given, and a constant of unknown type fits.
 pub(crate) fn expected_problem(ty: Type, expected: Type) -> Option<String> {
-    if ty == expected || (ty == Type::Set && expected == Type::Tags) {
+    if ty == expected || ty == Type::Any || (ty == Type::Set && expected == Type::Tags) {
         None
     } else if ty == Type::Span {
         Some(SPAN_NOT_VALUE.to_string())
@@ -1325,36 +1569,51 @@ pub(crate) fn expected_problem(ty: Type, expected: Type) -> Option<String> {
     }
 }
 
-/// The type of a term, or why its parts do not agree (engine §10).
+/// The reader's view of constants: each is of any type but a span.
+fn unknown(_: &str) -> Type {
+    Type::Any
+}
+
+/// The type of a term, or why its parts do not agree (engine §10), with
+/// the constants' types as the reader knows them.
 pub(crate) fn term_type(term: &Term) -> Result<Type, String> {
+    term_type_in(term, &unknown).map_err(|fault| fault.problem)
+}
+
+/// The type of a term, or why its parts do not agree, at the smallest
+/// construct that disagrees (engine §10). `constants` gives the type of
+/// each constant.
+pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type, Fault> {
     let joined = |items: &mut dyn Iterator<Item = &Term>, operator: &str| {
-        let types = items.map(term_type).collect::<Result<Vec<_>, _>>()?;
-        joined_type(&types, operator)
+        let types = items.map(|item| term_type_in(item, constants)).collect::<Result<Vec<_>, _>>()?;
+        joined_type(&types, operator).map_err(|problem| Fault::in_term(problem, term))
     };
     match term {
         Term::Str(_) => Ok(Type::String),
         Term::Tag(_) | Term::Range(..) => Ok(Type::Tags),
         Term::EmptySet => Ok(Type::Set),
         Term::Capture(_) => Ok(Type::Span),
+        Term::Const(name, _) => Ok(constants(name)),
         Term::Union(items) => joined(&mut items.iter(), "∪"),
         Term::Intersection(items) => joined(&mut items.iter(), "∩"),
         Term::Difference(left, right) => joined(&mut [left.as_ref(), right.as_ref()].into_iter(), "∖"),
         Term::If(cond, then) => {
-            if let Some(problem) = cond_type_problem(cond) {
-                return Err(problem);
+            if let Some(fault) = cond_type_fault(cond, constants) {
+                return Err(fault);
             }
-            match expected_problem(term_type(then)?, Type::Tags) {
-                Some(problem) => Err(problem),
+            match expected_problem(term_type_in(then, constants)?, Type::Tags) {
+                Some(problem) => Err(Fault::in_term(problem, term)),
                 None => Ok(Type::Tags),
             }
         }
         Term::Call(call, args) => {
             for arg in args {
                 if let Arg::Term(arg) = arg {
-                    let ty = term_type(arg)?;
-                    if call == "lowercase" {
+                    let ty = term_type_in(arg, constants)?;
+                    if call == "split" || call == "tag" {
                         if let Some(problem) = expected_problem(ty, Type::String) {
-                            return Err(format!("lowercase takes one string: {problem}"));
+                            let signature = if call == "split" { "two strings" } else { "one string" };
+                            return Err(Fault::in_term(format!("{call} takes {signature}: {problem}"), term));
                         }
                     }
                 }
@@ -1366,14 +1625,29 @@ pub(crate) fn term_type(term: &Term) -> Result<Type, String> {
 
 /// Why a condition's terms do not agree in type, or `None` (engine §10).
 pub(crate) fn cond_type_problem(cond: &Cond) -> Option<String> {
+    cond_type_fault(cond, &unknown).map(|fault| fault.problem)
+}
+
+/// Why a condition's terms do not agree in type, at the smallest construct
+/// that disagrees, or `None` (engine §10).
+pub(crate) fn cond_type_fault(cond: &Cond, constants: ConstantTypes) -> Option<Fault> {
     match cond {
-        Cond::Any(items) | Cond::All(items) => items.iter().find_map(cond_type_problem),
-        Cond::Not(inner) => cond_type_problem(inner),
-        Cond::If(antecedent, consequent) => cond_type_problem(antecedent).or_else(|| cond_type_problem(consequent)),
-        Cond::Compare(op, left, right) => match (term_type(left), term_type(right)) {
-            (Err(problem), _) | (_, Err(problem)) => Some(problem),
-            (Ok(left), Ok(right)) => comparison_problem(op, left, right),
-        },
+        Cond::Any(items) | Cond::All(items) => items.iter().find_map(|item| cond_type_fault(item, constants)),
+        Cond::Not(inner) => cond_type_fault(inner, constants),
+        Cond::If(antecedent, consequent) => {
+            cond_type_fault(antecedent, constants).or_else(|| cond_type_fault(consequent, constants))
+        }
+        Cond::Compare(op, left, right) => {
+            let left = match term_type_in(left, constants) {
+                Ok(ty) => ty,
+                Err(fault) => return Some(fault),
+            };
+            let right = match term_type_in(right, constants) {
+                Ok(ty) => ty,
+                Err(fault) => return Some(fault),
+            };
+            comparison_problem(op, left, right).map(|problem| Fault::in_cond(problem, cond))
+        }
         Cond::Matches(..) | Cond::Begins(..) | Cond::Initial(_) | Cond::Captured(_) => None,
     }
 }
@@ -1381,14 +1655,24 @@ pub(crate) fn cond_type_problem(cond: &Cond) -> Option<String> {
 /// Why a term that must be a tag set, a constituent's or an item's, is
 /// not one, or `None`.
 pub(crate) fn tag_term_problem(term: &Term) -> Option<String> {
-    match term_type(term) {
-        Err(problem) => Some(problem),
-        Ok(ty) => expected_problem(ty, Type::Tags),
+    tag_term_fault(term, &unknown).map(|fault| fault.problem)
+}
+
+fn tag_term_fault(term: &Term, constants: ConstantTypes) -> Option<Fault> {
+    match term_type_in(term, constants) {
+        Err(fault) => Some(fault),
+        Ok(ty) => expected_problem(ty, Type::Tags).map(|problem| Fault::in_term(problem, term)),
     }
 }
 
 /// Why a rule's terms and conditions do not agree in type, or `None`.
 pub(crate) fn rule_type_problem(rule: &RuleDef) -> Option<String> {
+    rule_type_fault(rule, &unknown).map(|fault| fault.problem)
+}
+
+/// Why a rule's terms and conditions do not agree in type, at the
+/// smallest construct that disagrees, or `None`.
+pub(crate) fn rule_type_fault(rule: &RuleDef, constants: ConstantTypes) -> Option<Fault> {
     let items = rule.emit.iter().flatten().filter_map(|item| match item {
         EmitItem::Capture(_, tags) => tags.as_ref(),
         EmitItem::Insert(_) => None,
@@ -1397,6 +1681,20 @@ pub(crate) fn rule_type_problem(rule: &RuleDef) -> Option<String> {
         .iter()
         .chain(rule.alternatives.iter().filter_map(|alternative| alternative.tags.as_ref()))
         .chain(items)
-        .find_map(tag_term_problem)
-        .or_else(|| rule.conditions.iter().find_map(cond_type_problem))
+        .find_map(|term| tag_term_fault(term, constants))
+        .or_else(|| rule.conditions.iter().find_map(|cond| cond_type_fault(cond, constants)))
+}
+
+/// The type of a constant's value, or why it cannot be one (engine §2,
+/// §10): a string, a set of strings or a tag set. A redefinition keeps the
+/// constant's type, which gives `∅` its kind, so its value can be of open
+/// kind.
+pub(crate) fn constant_value_type(value: &Term, redefine: bool, constants: ConstantTypes) -> Result<Type, Fault> {
+    match term_type_in(value, constants)? {
+        Type::Span => Err(Fault::in_term("a constant's value is a string or a set, never a span".to_string(), value)),
+        Type::Set if !redefine => {
+            Err(Fault::in_term("the kind of the set that the constant holds is not given".to_string(), value))
+        }
+        ty => Ok(ty),
+    }
 }

@@ -95,7 +95,7 @@ fn notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dialect, E
                 })?;
             documents.push((path, Arc::new(dom)));
         }
-        stages.push(stitch(&name, &documents)?);
+        stages.push(stitch(&name, &documents, &unicode)?);
     }
     if stages.is_empty() {
         return Err(grammar_error("bootstrap.json has no stages".to_string()));
@@ -165,6 +165,7 @@ pub(crate) fn read_document(notation: &Dialect, text: &str) -> Result<Dom, Error
                     captures: Default::default(),
                     position: &position,
                     unicode: &notation.unicode,
+                    in_constant: Default::default(),
                 };
                 let dom = reader.document(tree)?;
                 check_read(&dom, &notation.unicode)?;
@@ -184,8 +185,10 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
     let Some(problem) = dom_problem(&whole, unicode) else {
         return Ok(());
     };
-    for rule in &dom.rules {
-        let single = Dom { rules: vec![rule.clone()], directives: Vec::new() };
+    let singles = dom.rules.iter().map(|rule| (Dom { rules: vec![rule.clone()], ..Dom::default() }, rule.at)).chain(
+        dom.constants.iter().map(|constant| (Dom { constants: vec![constant.clone()], ..Dom::default() }, constant.at)),
+    );
+    for (single, at) in singles {
         let json =
             json::parse(&dom_to_json(&single)).map_err(|message| Error::grammar(format!("the DOM: {message}")))?;
         if let Some(problem) = dom_problem(&json, unicode) {
@@ -194,7 +197,7 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
             } else {
                 problem
             };
-            return Err(Error::grammar(problem).at(rule.at.0, rule.at.1));
+            return Err(Error::grammar(problem).at(at.0, at.1));
         }
     }
     Err(Error::grammar(problem))
@@ -316,7 +319,7 @@ fn load(context: &Context, sources: &dyn Sources, pipeline_path: &str) -> Result
     for stage in pipeline.stages {
         let documents: Vec<(Arc<str>, Arc<Dom>)> =
             stage.documents.into_iter().map(|(path, dom)| (path, Arc::new(dom))).collect();
-        stages.push(stitch(&stage.name, &documents).map_err(|error| error.in_stage(&stage.name))?);
+        stages.push(stitch(&stage.name, &documents, &context.unicode).map_err(|error| error.in_stage(&stage.name))?);
     }
     // A name used both as a gate and as a warning, in any of the stages, is
     // an error of the dialect as a whole (engine §13).

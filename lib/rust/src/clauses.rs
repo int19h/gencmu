@@ -141,7 +141,7 @@ fn term_captures<'a>(term: &'a Term, out: &mut Vec<&'a str>) {
             cond_captures(cond, out);
             term_captures(then, out);
         }
-        Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet => {}
+        Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Const(..) => {}
     }
 }
 

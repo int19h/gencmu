@@ -55,11 +55,14 @@ pub(crate) enum LTerm {
     Diff(Box<LTerm>, Box<LTerm>),
     Phonemes(Span),
     Text(Span),
-    Lower(Box<LTerm>),
+    /// `split(a, d)`: the set of the pieces of `a` between the occurrences
+    /// of `d` (§10).
+    Split(Box<LTerm>, Box<LTerm>),
+    /// `tag(a)`: the identifier tag whose name is `a`.
+    TagOf(Box<LTerm>),
     Tags(Span),
     TagsRule(Span, u32),
     Classes(Span),
-    Runs(Span),
     /// `A ⟹ t`: `t` where the condition holds, else the empty set.
     If(Box<LCond>, Box<LTerm>),
 }
@@ -440,17 +443,20 @@ impl<'a> Scope<'a> {
             Term::Union(items) => LTerm::Union(list(self, items)?),
             Term::Intersection(items) => LTerm::Inter(list(self, items)?),
             Term::Difference(left, right) => LTerm::Diff(Box::new(self.term(left)?), Box::new(self.term(right)?)),
-            // A span is never a value (§10); the reader refuses one.
-            Term::Capture(_) => return Err(Missing),
+            // A span is never a value (§10); the reader refuses one. And
+            // stitching gives every constant its value (§2).
+            Term::Capture(_) | Term::Const(..) => return Err(Missing),
             Term::If(cond, then) => LTerm::If(Box::new(self.cond(cond)?), Box::new(self.term(then)?)),
             Term::Call(name, args) => match (name.as_str(), &args[..]) {
                 ("phonemes", [Arg::Term(span)]) => LTerm::Phonemes(self.span(span)?),
                 ("text", [Arg::Term(span)]) => LTerm::Text(self.span(span)?),
                 ("classes", [Arg::Term(span)]) => LTerm::Classes(self.span(span)?),
-                ("runs", [Arg::Term(span)]) => LTerm::Runs(self.span(span)?),
                 ("tags", [Arg::Term(span)]) => LTerm::Tags(self.span(span)?),
                 ("tags", [Arg::Term(span), Arg::Rule(rule)]) => LTerm::TagsRule(self.span(span)?, self.rule(rule)?),
-                ("lowercase", [Arg::Term(inner)]) => LTerm::Lower(Box::new(self.term(inner)?)),
+                ("split", [Arg::Term(string), Arg::Term(delimiter)]) => {
+                    LTerm::Split(Box::new(self.term(string)?), Box::new(self.term(delimiter)?))
+                }
+                ("tag", [Arg::Term(name)]) => LTerm::TagOf(Box::new(self.term(name)?)),
                 _ => return Err(Missing),
             },
         })

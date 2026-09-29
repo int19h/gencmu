@@ -1,9 +1,9 @@
 //! From the notation's document tree to a grammar DOM (engine §9).
 
 use crate::dom::{
-    comparison_problem, cond_type_problem, is_capture_name, joined_type, property_problem, range_problem,
-    spelling_problem, tag_term_problem, term_type, Alternative, Arg, Cond, Directive, Dom, EmitItem, Expr, FeatureKind,
-    Guard, Op, RuleDef, Term, Type,
+    comparison_problem, cond_type_problem, constant_value_type, is_capture_name, joined_type, literal_call_problem,
+    property_problem, range_problem, spelling_problem, tag_term_problem, term_type, Alternative, Arg, Cond, ConstDef,
+    Directive, Dom, EmitItem, Expr, FeatureKind, Guard, Op, RuleDef, Term, Type,
 };
 use crate::error::Error;
 use crate::result::{Node, NodeKind, Token};
@@ -24,9 +24,15 @@ pub(crate) struct Reader<'a> {
     /// The document position of a grammar-text index.
     pub position: &'a dyn Fn(usize) -> (usize, usize),
     /// The lowercase mapping that spellings are checked against (engine
-    /// §9, §10).
+    /// §5, §9).
     pub unicode: &'a Unicode,
+    /// Whether the reader is reading a constant's value, a closed term
+    /// (engine §9, §10).
+    pub in_constant: std::cell::Cell<bool>,
 }
+
+const CONSTANT_IN_BODY: &str =
+    "a constant cannot stand in a body: a body names a class of tokens with a rule, such as %rule digit '0'..'9'";
 
 type R<T> = Result<T, Error>;
 
@@ -92,7 +98,7 @@ impl<'a> Reader<'a> {
     }
 
     pub(crate) fn document(&self, root: &'a Node) -> R<Dom> {
-        let mut dom = Dom { rules: Vec::new(), directives: Vec::new() };
+        let mut dom = Dom::default();
         let mut stack: Vec<&Node> = root.children.iter().rev().collect();
         while let Some(node) = stack.pop() {
             if node.kind != NodeKind::Rule {
@@ -101,10 +107,29 @@ impl<'a> Reader<'a> {
             match rule_name(node) {
                 "rule" => dom.rules.push(self.rule(node)?),
                 "directive" => dom.directives.push(self.directive(node)?),
+                "constant-definition" => dom.constants.push(self.constant(node)?),
                 _ => stack.extend(node.children.iter().rev()),
             }
         }
         Ok(dom)
+    }
+
+    /// A constant's definition: its name without `$`, and its value, a
+    /// closed term of a type that a constant can have (engine §2, §9, §10).
+    fn constant(&self, node: &'a Node) -> R<ConstDef> {
+        let definer = Self::tokens_of(self.one(node, "constant-definer")).next().expect("a constant definer");
+        let reference = Self::tokens_of(self.one(node, "constant-reference")).next().expect("a constant");
+        let name = self.text(reference).trim_start_matches('$').to_string();
+        let redefine = self.text(definer) == "%redefine-const";
+        let value_node = self.one(node, "term");
+        self.in_constant.set(true);
+        let value = self.term(value_node, 0, false);
+        self.in_constant.set(false);
+        let value = value?;
+        if let Err(fault) = constant_value_type(&value, redefine, &|_| Type::Any) {
+            return Err(self.error(value_node, fault.problem));
+        }
+        Ok(ConstDef { name, redefine, value, at: self.at(definer) })
     }
 
     fn directive(&self, node: &'a Node) -> R<Directive> {
@@ -325,6 +350,9 @@ impl<'a> Reader<'a> {
                 }
                 let primary = self.one(inner, "primary");
                 let wrapped = Self::inner(primary);
+                if rule_name(wrapped) == "constant-reference" {
+                    return Err(self.error(wrapped, CONSTANT_IN_BODY));
+                }
                 if !matches!(
                     rule_name(wrapped),
                     "reference" | "tag" | "character" | "phoneme" | "range" | "property" | "spelled"
@@ -346,6 +374,7 @@ impl<'a> Reader<'a> {
             "group" => self.choice(self.one(inner, "choice"), depth)?,
             "optional" => Expr::Optional(Box::new(self.choice(self.one(inner, "choice"), depth)?)),
             "empty" => Expr::Empty,
+            "constant-reference" => return Err(self.error(inner, CONSTANT_IN_BODY)),
             other => panic!("an unknown primary {other}"),
         })
     }
@@ -660,6 +689,9 @@ impl<'a> Reader<'a> {
         let inner = Self::inner(node);
         match rule_name(inner) {
             "guarded-term" => {
+                if self.in_constant.get() {
+                    return Err(self.error(inner, "a constant's value is a closed term, and holds no guarded term"));
+                }
                 let depth = self.deeper(inner, depth)?;
                 let cond = self.any_of(self.one(inner, "any-of"), depth)?;
                 if let Some(problem) = cond_type_problem(&cond) {
@@ -759,8 +791,14 @@ impl<'a> Reader<'a> {
                 Term::Tag(name.to_string())
             }
             "empty-set" => Term::EmptySet,
+            "constant-reference" => {
+                Term::Const(self.text(token()).trim_start_matches('$').to_string(), self.at(token()))
+            }
             "capture-reference" => {
                 let name = self.text(token()).trim_start_matches('$').to_string();
+                if self.in_constant.get() {
+                    return Err(self.error(inner, "a constant's value is a closed term, and holds no capture"));
+                }
                 if !argument {
                     return Err(
                         self.error(inner, format!("a span is not a value: tags(${name}) is the tag set of ${name}"))
@@ -787,6 +825,11 @@ impl<'a> Reader<'a> {
         if !FUNCTIONS.contains(&name.as_str()) {
             return Err(self.error(name_token, format!("an unknown function {name}()")));
         }
+        if self.in_constant.get() && name != "split" && name != "tag" {
+            return Err(
+                self.error(name_token, format!("a constant's value is a closed term, and {name}() reads a span"))
+            );
+        }
         let mut args = Vec::new();
         for argument in Self::rules(node, "argument") {
             args.push(self.argument(argument, depth)?);
@@ -796,8 +839,11 @@ impl<'a> Reader<'a> {
         let ok = match (name.as_str(), &args[..]) {
             ("tags", [first]) => span(first),
             ("tags" | "matches" | "begins", [first, second]) => span(first) && rule(second),
-            ("lowercase", [Arg::Term(term)]) => term_type(term) == Ok(Type::String),
-            ("matches" | "begins" | "tags" | "lowercase", _) => false,
+            // A constant's type is known only when the loader stitches the
+            // stage.
+            ("split", [Arg::Term(a), Arg::Term(d)]) => [a, d].iter().all(|term| string_like(term)),
+            ("tag", [Arg::Term(term)]) => string_like(term),
+            ("matches" | "begins" | "tags" | "split" | "tag", _) => false,
             (_, [first]) => span(first),
             _ => false,
         };
@@ -807,27 +853,24 @@ impl<'a> Reader<'a> {
         if matches!(name.as_str(), "matches" | "begins" | "initial") {
             return Err(self.error(name_token, format!("{name}() is a condition, not a term")));
         }
+        // An empty delimiter or a tag's name that the reader sees (§9).
+        if let Some(problem) = literal_call_problem(&name, &args) {
+            return Err(self.error(name_token, problem));
+        }
         Ok(Term::Call(name, args))
     }
 }
 
 /// The functions of the notation (engine §9).
 const FUNCTIONS: [&str; 14] = [
-    "phonemes",
-    "text",
-    "lowercase",
-    "tags",
-    "classes",
-    "runs",
-    "head",
-    "tail",
-    "last",
-    "from",
-    "after",
-    "matches",
-    "begins",
-    "initial",
+    "phonemes", "text", "split", "tag", "tags", "classes", "head", "tail", "last", "from", "after", "matches",
+    "begins", "initial",
 ];
+
+/// Whether a term is a string, or a constant that may be one (engine §9).
+fn string_like(term: &Term) -> bool {
+    matches!(term_type(term), Ok(Type::String | Type::Any))
+}
 
 /// Whether a name begins with a capital, and so is a terminal and a tag
 /// literal (engine §2).
@@ -859,7 +902,7 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
         Term::Union(items) | Term::Intersection(items) => items.iter().any(reads_own_tags),
         Term::Difference(left, right) => reads_own_tags(left) || reads_own_tags(right),
         Term::If(cond, then) => cond_reads_own_tags(cond) || reads_own_tags(then),
-        Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet => false,
+        Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Const(..) => false,
     }
 }
 
