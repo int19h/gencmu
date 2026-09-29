@@ -224,7 +224,7 @@ Tags alone are not enough, since a condition can read `text()`, which includes w
 
 A nested parse sets the start and the end of the input that `initial`, `from` and `after` see to those of its span. It restores both when it ends, also when it fails with an error of the grammar.
 
-A query about a span from inside a parse of the same span as the same rule is an error of the grammar. This holds for any of the three functions, whatever the kind of the parse in progress. The error is reported with the span and the rule, and the whole parse fails with it. Such a query makes the grammar define the rule in terms of itself over the same text. Whether the query is negated does not matter.
+A query about a span from inside a parse of the same span as the same rule is an error of the grammar. This holds for any of the three functions, whatever the kind of the parse in progress. The error names the rule, and the whole parse fails with it. Such a query makes the grammar define the rule in terms of itself over the same text. Whether the query is negated does not matter.
 
 Derivations are finite trees. A derivation in which a constituent has, anywhere below it, a constituent of the same rule over the same span is cyclic. The engine does not count a cyclic derivation, since such a derivation can repeat without end. For example, with `a → b` and `b → a | A`, `A` has one derivation as `a`, not infinitely many. So does the empty text as `t`, with `t → u | ε` and `u → t`.
 
