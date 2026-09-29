@@ -192,11 +192,13 @@ class _Constants:
             left = _set((yield self._closed(path, term["difference"][0], item)))
             return difference(left, _set((yield self._closed(path, term["difference"][1], item))))
         if term.get("call") == "split":
+            # Left to right, as a parse evaluates a term (engine §10).
             text, delimiter = term["args"]
+            pieces = _string((yield self._closed(path, text, item)))
             seen = _string((yield self._closed(path, delimiter, item)))
             if seen == "":
                 raise self.fault_error(path, delimiter, item, "split has an empty delimiter")
-            return split_string(_string((yield self._closed(path, text, item))), seen)
+            return split_string(pieces, seen)
         if term.get("call") == "tag":
             name = _string((yield self._closed(path, term["args"][0], item)))
             if not is_name(name):

@@ -138,16 +138,17 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int) (*con
 	case tmCall:
 		switch t.Str {
 		case "split":
+			// Left to right, as a parse evaluates a term (§10).
+			s, err := str(t.Items[0])
+			if err != nil {
+				return nil, err
+			}
 			delimiter, err := str(t.Items[1])
 			if err != nil {
 				return nil, err
 			}
 			if delimiter == "" {
 				return nil, g.faultError(doc, t.Items[1], item, "split has an empty delimiter")
-			}
-			s, err := str(t.Items[0])
-			if err != nil {
-				return nil, err
 			}
 			return &constValue{ty: tyStrings, names: in.fromList(splitString(s, delimiter)).names}, nil
 		case "tag":

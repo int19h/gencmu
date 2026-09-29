@@ -388,23 +388,22 @@ impl Constants<'_> {
                 }
                 Value::Set(out.unwrap_or_default())
             }
+            // Left to right, as a parse evaluates a term (§10).
             Term::Difference(left, right) => {
+                let left = set(left)?;
                 let right = set(right)?;
-                Value::Set(set(left)?.into_iter().filter(|member| !right.contains(member)).collect())
+                Value::Set(left.into_iter().filter(|member| !right.contains(member)).collect())
             }
             Term::Call(call, args) => match (call.as_str(), &args[..]) {
                 ("split", [Arg::Term(text), Arg::Term(delimiter)]) => {
+                    let text = string(text)?;
                     let seen = string(delimiter)?;
                     if seen.is_empty() {
                         let fault = Fault { problem: "split has an empty delimiter".to_string(), at: None };
                         return Err(fault_error(fault, document, first_constant(delimiter).unwrap_or(item)));
                     }
                     Value::Set(
-                        string(text)?
-                            .split(seen.as_str())
-                            .filter(|piece| !piece.is_empty())
-                            .map(str::to_string)
-                            .collect(),
+                        text.split(seen.as_str()).filter(|piece| !piece.is_empty()).map(str::to_string).collect(),
                     )
                 }
                 ("tag", [Arg::Term(name)]) => {

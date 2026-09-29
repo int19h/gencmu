@@ -1,0 +1,20 @@
+{
+  "description": "The loader evaluates a constant's value from left to right, as a parse evaluates a term. Both sides of the difference fail, and the error is that of the left side, at $BAD1 (engine §2, §10).",
+  "grammar": "%const $BAD1 \"a!\"\n%const $BAD2 \"b!\"\n%const $C tag($BAD1) ∖ tag($BAD2)\n%rule text A <$C>",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 15
+    }
+  }
+}
