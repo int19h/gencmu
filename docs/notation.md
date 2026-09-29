@@ -58,6 +58,12 @@ A tag literal is a terminal in a body. So is a phoneme tag, `/a/`, and a charact
 
 A character tag names one Unicode scalar value, and that value is its identity. Inside the quotes, `\'` is a quote and `\\` a backslash. `\u{ED80}` is the character with that hexadecimal value. The value has one to six digits. It is at most `10FFFF`, and it is not a surrogate, `D800` to `DFFF`. So `'a'` and `'\u{61}'` are one tag, and `'\u{301}'` is a combining acute accent.
 
+A range, `'a'..'z'`, is the character tags from `'a'` to `'z'`, by scalar value. It skips the surrogates, so `'\u{D7FF}'..'\u{E000}'` is two tags. Its ends take the escapes of a character tag. A range whose start is above its end is an error. `...` is always repetition, so `'a'...'z'` is not a range: it is `'a'` repeated, then `'z'`.
+
+A property, `'\p{L}'`, is the characters that have a property in the Unicode data of `grammars/unicode.txt`. Its name is a General_Category value in its short form, such as `Lu` or `Nd`. It can also name a group of values by their first letter, such as `L`. `White_Space` and `Any`, every character, are the two other names. The case of a name counts, and no long name or alias is a property, so `'\p{lu}'` and `'\p{Letter}'` are errors. The engine documentation lists every name (`docs/engine.md`, §1).
+
+A range and a property are terminals in a body. Each matches a token that carries one of its characters, once, with one reading. A capture can wrap either one, as in `$c('0'..'9')`. Neither takes a spelling, and `%elidable` and `%emits` take neither. In the expected terminals and the tree, each stands as its written form, such as `'a'..'z'`.
+
 A string is text in straight double quotes, such as `"la"`. It is a value in a condition, and never a tag or a terminal. Inside it, `\\` is a backslash and `\"` a quote, and `\u{h...}` is as in a character tag.
 
 A reference, a tag literal, a phoneme tag or a character tag can be followed by a spelling. A spelling is text between backticks, as in ``LE`la` ``. The symbol then matches only where what it spans sounds like the spelling. That is, the phonemes of its tokens, joined with no separator and lowercased, are the spelling. So a stressed `lA`, a Cyrillic `ла` and a zbalermorna `la` all match ``LE`la` ``.
@@ -199,7 +205,7 @@ A token of neither kind sounds like the tokens of its stage's input that it cove
 
 The third type is the set of strings. `runs(span)` is the set of the runs of a span's phonemes. The runs are the strings between its pauses. So `phonemes($open) ∉ runs($content)` says that the word `$open` is not one of the runs of `$content`. A run can hold several words: a text writes `lemiklama` as one run.
 
-The fourth type is the tag set. A tag literal is the set with that one tag, so `UI ∪ CAI` is the set of both, and `~indicator` is the set of the mark.
+The fourth type is the tag set. A tag literal is the set with that one tag, so `UI ∪ CAI` is the set of both, and `~indicator` is the set of the mark. A range is the set of its character tags, so `tags($c) ∩ 'a'..'z' ≠ ∅` says that `$c` carries a lower-case ASCII letter. `..` binds tighter than every other operator, so `'a'..'c' ∪ 'x'` is four tags. A property is not a tag set, so it cannot stand in a term.
 
 `tags(span)` is the tag set of the captured part. `tags(span, rule)` is the tag set that the span has when parsed as `rule`, unioned over every parse. It is empty when the span does not parse as `rule`. This is how a word looks itself up in a lexicon that is itself a set of rules. `classes(span)` keeps only the tags that begin with a capital.
 
@@ -261,7 +267,7 @@ The stage walks a rule with no `%emits`. What it hands to the next stage is what
 
 An item of the list can be a capture. The stage hands a capture on as one token. The token has the constituent's tags, or the tags of a tag term after the capture in angle brackets.
 
-An item can also be a single tag literal: an identifier tag, a phoneme tag or a character tag. The stage hands it on as a token with that one tag and no text of its own. A string is not a tag, so `%emits "foo"` is an error. The author must list the captures in the order they stand in the text.
+An item can also be a single tag literal: an identifier tag, a phoneme tag or a character tag. The stage hands it on as a token with that one tag and no text of its own. A string is not a tag, so `%emits "foo"` is an error. A range or a property is not one tag, so it is an error there too. The author must list the captures in the order they stand in the text.
 
 `$` is the whole constituent. A list of `$` items hands on one token over the whole constituent for each item. For example, `%emits $ </n/>, $ </o/>` is how the digit `0` becomes the phonemes of `no`. An inserted tag stands where it is listed. So `%emits $g, /'/, $v` hands on an apostrophe between two vowels, for a script that writes none. A tag term that gives no tags when the parse is made is an error of the grammar, because no terminal can read the token.
 
@@ -305,7 +311,7 @@ A token of a later stage that covers only one verbatim token is verbatim too. So
 A directive is a keyword and its operands. By convention each stands in a block of its own, after prose that says why the grammar needs it. Two directives can share a line.
 
 - `%ambiguity-resolution greedy` or `lazy`, optionally followed by `elision-only`, and then optionally by `maximal`: how the stage chooses among parses, explained under "Ambiguity" and "Elided terminators". Every stage must say it exactly once, in any of its documents.
-- `%elidable KU KEI VAU ...`: the terminators that can be elided. An absent optional whose first symbol is one of them shows in the parse tree as that terminator, elided at that point. `elision-only` writes these terminators back. The operands are identifier tags: bare names that begin with a capital, or `~name`. So `KU` and `~KU` are one operand. A phoneme tag or a character tag there is an error.
+- `%elidable KU KEI VAU ...`: the terminators that can be elided. An absent optional whose first symbol is one of them shows in the parse tree as that terminator, elided at that point. `elision-only` writes these terminators back. The operands are identifier tags: bare names that begin with a capital, or `~name`. So `KU` and `~KU` are one operand. A phoneme tag, a character tag, a range or a property there is an error.
 - `%stage NAME`, `%include "PATH"` and `%features NAME ...` build a pipeline, as the next section says.
 
 ## Pipelines
@@ -345,7 +351,7 @@ By convention, each document keeps its link in the prose, and its `%include` fol
 
 The layout is a matter of style, and the notation does not require it. An `%include` can stand in any block, between any two rules or directives. `tools/sync.js --check` makes sure that the bundled pipelines keep the style.
 
-The first stage reads the text's characters. Each is a token with two tags: its character tag, such as `'a'`, and its class, `alpha`, `digit`, `mark`, `space` or `other`. Every later stage reads what the stage before it emitted.
+The first stage reads the text's characters. Each is a token with one tag, its character tag, such as `'a'`. A grammar reads a class of characters with a range or a property, such as `'0'..'9'` or `'\p{L}'`. Every later stage reads what the stage before it emitted.
 
 `gencmu stitch --dialect NAME` prints a dialect's pipeline as one jbogenbau text. The command replaces every `%include` with what it stands for, and puts the dialect's features in one `%features` at the top. Each run of rules from one document follows a comment naming it.
 

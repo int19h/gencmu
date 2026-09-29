@@ -1,0 +1,49 @@
+{
+  "description": "Two character predicates can match one token. Each is its own terminal, so the two reads of the token are tied (engine §6, rule 1), and the canonical order chooses the terminal first in code point order (engine §4, §6).",
+  "grammar": "%rule text 'a'..'c' | '\\p{Ll}'",
+  "input": "b",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "tie",
+          "witness": [
+            {
+              "read": {
+                "token": 0,
+                "terminal": "'\\p{Ll}'"
+              }
+            },
+            {
+              "read": {
+                "token": 0,
+                "terminal": "'a'..'c'"
+              }
+            }
+          ],
+          "tied": {
+            "kind": "rule",
+            "rule": "text",
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "'a'..'c'"
+              }
+            ]
+          }
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "'\\p{Ll}'"
+          }
+        ]
+      }
+    }
+  }
+}

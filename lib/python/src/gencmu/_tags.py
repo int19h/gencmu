@@ -70,7 +70,7 @@ def is_name(tag: str) -> bool:
 
 class Marks(Protocol):
     """What a character tag's canonical spelling depends on: which code
-    points are nonspacing marks, the ``mark`` ranges of unicode.txt."""
+    points are nonspacing marks, of General_Category ``Mn`` in unicode.txt."""
 
     def is_mark(self, code: int) -> bool: ...
 
@@ -140,6 +140,38 @@ def is_tag(tag: object, unicode: Marks | None = None) -> bool:
     if unicode is not None:
         return character_of_tag(tag, unicode) is not None
     return character_of_tag(tag, _NoMarks()) is not None or character_of_tag(tag, _AllMarks()) is not None
+
+
+def code_of_character_tag(tag: str) -> int:
+    """The scalar value of a character tag in its canonical spelling, or -1
+    for any other tag. The tag is not checked beyond its first character:
+    every tag inside the engine is in its canonical spelling (engine §1)."""
+    if tag[:1] != "'":
+        return -1
+    if tag[1:2] == "\\" and len(tag) > 3:
+        return int(tag[4:-2], 16)
+    return ord(tag[1])
+
+
+def range_name(range_: tuple[str, str] | list[str]) -> str:
+    """The written form of a range, its identity as a terminal (engine §4):
+    its two ends, in their canonical spelling, joined by ``..``."""
+    return f"{range_[0]}..{range_[1]}"
+
+
+def property_name(name: str) -> str:
+    """The written form of a property, its identity as a terminal (engine §4)."""
+    return f"'\\p{{{name}}}'"
+
+
+def range_tags(range_: tuple[str, str] | list[str], unicode: Marks) -> Tags:
+    """The character tags of a range (engine §1), from its start to its end
+    by scalar value, the surrogates skipped."""
+    first = code_of_character_tag(range_[0])
+    last = code_of_character_tag(range_[1])
+    return frozenset(
+        character_tag(code, unicode) for code in range(first, last + 1) if not 0xD800 <= code <= 0xDFFF
+    )
 
 
 def is_class(tag: str) -> bool:

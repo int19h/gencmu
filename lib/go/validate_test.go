@@ -209,10 +209,30 @@ func TestDOMRules(t *testing.T) {
 		// The order of items is the order of their positions (engine §9).
 		{"two directives at one position", directive(`{"name":"elidable","args":["A"],"at":[2,1]}`)},
 		{"a rule and a directive at one position", strings.Replace(alt(good), `"at":[2,1]`, `"at":[1,1]`, 1)},
+		// A range or a property is checked as the reader checks it
+		// (engine §1, §9).
+		{"a range starts at or below its end", alt(`{"range":["'z'","'a'"]}`)},
+		{"a range has two ends", alt(`{"range":["'a'"]}`)},
+		{"a range's ends are canonical", alt(`{"range":["'\\u{61}'","'z'"]}`)},
+		{"a range's ends are character tags", alt(`{"range":["A","'z'"]}`)},
+		{"a range's ends are strings", alt(`{"range":["'a'",1]}`)},
+		{"a range has no other member", alt(`{"range":["'a'","'z'"],"terminal":"A"}`)},
+		{"a property's name is a short form", alt(`{"property":"Letter"}`)},
+		{"a property's name has its case", alt(`{"property":"lu"}`)},
+		{"a property has no other member", alt(`{"property":"L","range":["'a'","'z'"]}`)},
+		{"a range takes no spelling", alt(`{"spelling":"a","expr":{"range":["'a'","'z'"]}}`)},
+		{"a property takes no spelling", alt(`{"spelling":"a","expr":{"property":"L"}}`)},
+		{"a property is not a term", tagged(`{"property":"L"}`)},
+		{"a range in a term starts at or below its end", tagged(`{"range":["'z'","'a'"]}`)},
+		{"an inserted range is not one tag", emit(`{"items":[{"insert":"'a'..'z'"},{"capture":"x"}]}`)},
 	}
 	// Each variation's well-formed twin decodes, so that the refusals are
 	// the rule's and not the test's.
 	for _, ok := range []string{alt(good), alt(nested(255)),
+		// A range, a property, each captured, and a range in a term.
+		alt(`{"range":["'a'","'z'"]}`), alt(`{"property":"White_Space"}`),
+		alt(`{"seq":[{"capture":"c","expr":{"range":["'\\u{300}'","'\\u{36F}'"]}},{"capture":"d","expr":{"property":"Cs"}}]}`),
+		tagged(`{"union":[{"range":["'a'","'c'"]},{"tag":"'x'"}]}`),
 		// A gate, negated or not, and a warning.
 		guarded(`{"feature":"f","kind":"gate","negated":true}`), guarded(`{"feature":"f","kind":"gate","negated":false},{"feature":"g","kind":"warning","negated":false}`),
 		alt(`{"seq":[{"capture":"a","expr":{"terminal":"a"}},{"capture":"b","expr":{"terminal":"b"}},{"capture":"c","expr":{"ref":"C"}},{"capture":"d","expr":{"ref":"D"}}]}`),

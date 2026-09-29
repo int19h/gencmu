@@ -1,0 +1,173 @@
+{
+  "description": "Every property name: the 30 General_Category values in their short form, the seven one-letter groups, White_Space and Any, each with a character that has it. '\\p{Cs}' is a name, but no character tag has it, since a character tag is never a surrogate (engine §1, §4).",
+  "grammar": "%rule text '\\p{Lu}' '\\p{Ll}' '\\p{Lt}' '\\p{Lm}' '\\p{Lo}' '\\p{Mn}' '\\p{Mc}' '\\p{Me}' '\\p{Nd}' '\\p{Nl}' '\\p{No}' '\\p{Pc}' '\\p{Pd}' '\\p{Ps}' '\\p{Pe}' '\\p{Pi}' '\\p{Pf}' '\\p{Po}' '\\p{Sm}' '\\p{Sc}' '\\p{Sk}' '\\p{So}' '\\p{Zs}' '\\p{Zl}' '\\p{Zp}' '\\p{Cc}' '\\p{Cf}' ['\\p{Cs}'] '\\p{Co}' '\\p{Cn}' '\\p{L}' '\\p{M}' '\\p{N}' '\\p{P}' '\\p{S}' '\\p{Z}' '\\p{C}' '\\p{White_Space}' '\\p{Any}'",
+  "input": "Aaǅʰ漢́ः⃝7Ⅻ①_-()«»!+$^©   \u0007​͸აा٥،€　\u0001😀",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "'\\p{Lu}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Ll}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Lt}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Lm}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Lo}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Mn}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Mc}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Me}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Nd}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Nl}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{No}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Pc}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Pd}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Ps}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Pe}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Pi}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Pf}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Po}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Sm}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Sc}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Sk}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{So}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Zs}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Zl}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Zp}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Cc}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Cf}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Co}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Cn}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{L}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{M}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{N}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{P}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{S}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Z}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{C}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{White_Space}'"
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\p{Any}'"
+          }
+        ]
+      }
+    }
+  }
+}

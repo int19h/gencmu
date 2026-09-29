@@ -1,4 +1,6 @@
-"""The character table every library shares, grammars/unicode.txt (engine §1)."""
+"""The character table every library shares, grammars/unicode.txt (engine §1):
+the General_Category of a character, the White_Space property, and the simple
+lowercase mapping."""
 
 from __future__ import annotations
 
@@ -6,17 +8,24 @@ from bisect import bisect_right
 
 from ._errors import GencmuError
 
-_SPACES = frozenset(
-    [*range(0x09, 0x0E), 0x20, 0x85, 0xA0, 0x1680, *range(0x2000, 0x200B), 0x2028, 0x2029, 0x202F, 0x205F, 0x3000]
-)
+CATEGORIES = (
+    "Lu", "Ll", "Lt", "Lm", "Lo", "Mn", "Mc", "Me", "Nd", "Nl", "No", "Pc", "Pd", "Ps", "Pe", "Pi", "Pf", "Po",
+    "Sm", "Sc", "Sk", "So", "Zs", "Zl", "Zp", "Cc", "Cf", "Cs", "Co", "Cn",
+)  # fmt: skip
+"""The General_Category values in their short form (engine §1)."""
+
+PROPERTY_NAMES = frozenset((*CATEGORIES, "L", "M", "N", "P", "S", "Z", "C", "White_Space", "Any"))
+"""The names a property can have (engine §1): the General_Category values in
+their short form, their one-letter groups, White_Space and Any."""
 
 
 class UnicodeTable:
-    """Character classes, nonspacing marks and simple lower-case mappings."""
+    """General_Category ranges, White_Space ranges and simple lower-case
+    mappings."""
 
     def __init__(self, text: str) -> None:
-        marks: list[tuple[int, int]] = []
-        alphas: list[tuple[int, int]] = []
+        categories: list[tuple[int, int, str]] = []
+        white_space: list[tuple[int, int]] = []
         self.lower: dict[int, int] = {}
         self.version = ""
         for number, line in enumerate(text.splitlines(), 1):
@@ -26,51 +35,58 @@ class UnicodeTable:
             try:
                 if fields[0] == "unicode":
                     self.version = fields[1]
-                elif fields[0] == "mark":
-                    marks.append((int(fields[1], 16), int(fields[2], 16)))
-                elif fields[0] == "alpha":
-                    alphas.append((int(fields[1], 16), int(fields[2], 16)))
+                elif fields[0] == "category":
+                    if fields[1] not in CATEGORIES:
+                        raise ValueError(fields[1])
+                    categories.append((int(fields[2], 16), int(fields[3], 16), fields[1]))
+                elif fields[0] == "white-space":
+                    white_space.append((int(fields[1], 16), int(fields[2], 16)))
                 elif fields[0] == "lower":
                     self.lower[int(fields[1], 16)] = int(fields[2], 16)
                 else:
                     raise ValueError(fields[0])
             except (ValueError, IndexError) as error:
                 raise GencmuError(f"unreadable line: {line!r}", document="unicode.txt", line=number) from error
-        marks.sort()
-        alphas.sort()
-        self._mark_starts = [start for start, _ in marks]
-        self._mark_ends = [end for _, end in marks]
-        self._alpha_starts = [start for start, _ in alphas]
-        self._alpha_ends = [end for _, end in alphas]
-        self._classes: dict[str, str] = {}
+        categories.sort()
+        white_space.sort()
+        self._starts = [start for start, _, _ in categories]
+        self._ends = [end for _, end, _ in categories]
+        self._categories = [category for _, _, category in categories]
+        self._space_starts = [start for start, _ in white_space]
+        self._space_ends = [end for _, end in white_space]
 
-    @staticmethod
-    def _within(code: int, starts: list[int], ends: list[int]) -> bool:
-        index = bisect_right(starts, code) - 1
-        return index >= 0 and code <= ends[index]
-
-    def character_class(self, char: str) -> str:
-        cached = self._classes.get(char)
-        if cached is not None:
-            return cached
-        code = ord(char)
-        if code in _SPACES:
-            result = "space"
-        elif 0x30 <= code <= 0x39:
-            result = "digit"
-        elif self._within(code, self._mark_starts, self._mark_ends):
-            result = "mark"
-        elif self._within(code, self._alpha_starts, self._alpha_ends):
-            result = "alpha"
-        else:
-            result = "other"
-        self._classes[char] = result
-        return result
+    def category(self, code: int) -> str:
+        """The General_Category of a code point, in its short form, by a
+        binary search of the category ranges (engine §1): ``Cs`` for a
+        surrogate, which a table does not list, and ``Cn`` for any other code
+        point that the table omits."""
+        if 0xD800 <= code <= 0xDFFF:
+            return "Cs"
+        index = bisect_right(self._starts, code) - 1
+        if index >= 0 and code <= self._ends[index]:
+            return self._categories[index]
+        return "Cn"
 
     def is_mark(self, code: int) -> bool:
-        """Whether a code point is a nonspacing mark: a ``mark`` range of the
-        file. A character tag writes such a character escaped (engine §1)."""
-        return self._within(code, self._mark_starts, self._mark_ends)
+        """Whether a code point is a nonspacing mark, of General_Category
+        ``Mn``. A character tag writes such a character escaped (engine §1)."""
+        return self.category(code) == "Mn"
+
+    def is_white_space(self, code: int) -> bool:
+        """Whether a code point has the White_Space property."""
+        index = bisect_right(self._space_starts, code) - 1
+        return index >= 0 and code <= self._space_ends[index]
+
+    def has_property(self, name: str, code: int) -> bool:
+        """Whether a scalar value has a property (engine §1), whose name must
+        be one of ``PROPERTY_NAMES``."""
+        if name == "Any":
+            return True
+        if name == "White_Space":
+            return self.is_white_space(code)
+        if len(name) == 1:
+            return self.category(code)[0] == name
+        return self.category(code) == name
 
     def lowercase(self, text: str) -> str:
         lower = self.lower

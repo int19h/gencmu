@@ -23,11 +23,11 @@ fn dom(text_alternative: &str, text_extra: &str, rule: &str, format: u32, direct
 const B: &str = r#"{"guards":[],"expr":{"terminal":"b"}}"#;
 
 fn with_rule(rule: &str) -> String {
-    dom(B, "", rule, 9, r#""greedy""#)
+    dom(B, "", rule, 10, r#""greedy""#)
 }
 
 fn with_alternative(alternative: &str) -> String {
-    dom(alternative, "", "", 9, r#""greedy""#)
+    dom(alternative, "", "", 10, r#""greedy""#)
 }
 
 /// A DOM like the document's, but accepting "b", with `directive` added
@@ -35,13 +35,13 @@ fn with_alternative(alternative: &str) -> String {
 fn with_directive(directive: &str) -> String {
     let rule = r#"{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"terminal":"b"}}],"conditions":[],"at":[3,1]}"#;
     format!(
-        r#"{{"format":9,"rules":[{rule}],"directives":[{{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}},{directive}]}}"#
+        r#"{{"format":10,"rules":[{rule}],"directives":[{{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}},{directive}]}}"#
     )
 }
 
 fn with_emission(emission: &str) -> String {
     let alternative = r#"{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"terminal":"b"}},{"capture":"y","expr":{"terminal":"c"}}]}}"#;
-    dom(alternative, &format!(r#","emit":{emission}"#), "", 9, r#""greedy""#)
+    dom(alternative, &format!(r#","emit":{emission}"#), "", 10, r#""greedy""#)
 }
 
 fn with_condition(condition: &str) -> String {
@@ -58,7 +58,7 @@ fn with_tags(term: &str) -> String {
 /// Parses "a" with a dialect whose `compiled.json` holds `dom` for the
 /// document: true when the document itself was read.
 fn document_was_read(dom: &str) -> bool {
-    document_was_read_from(9, dom)
+    document_was_read_from(10, dom)
 }
 
 /// The same, with a `compiled.json` of the given format.
@@ -177,7 +177,8 @@ fn a_well_formed_dom_is_used() {
 
 #[test]
 fn a_cache_of_another_format_is_a_miss() {
-    assert!(!document_was_read_from(9, &with_rule("")));
+    assert!(!document_was_read_from(10, &with_rule("")));
+    assert!(document_was_read_from(9, &with_rule("")), "a format-9 cache is never used");
     assert!(document_was_read_from(8, &with_rule("")), "a format-8 cache is never used");
     assert!(document_was_read_from(7, &with_rule("")), "a format-7 cache is never used");
     assert!(document_was_read_from(6, &with_rule("")), "a format-6 cache is never used");
@@ -186,6 +187,88 @@ fn a_cache_of_another_format_is_a_miss() {
     assert!(document_was_read_from(3, &with_rule("")), "a format-3 cache is never used");
     assert!(document_was_read_from(2, &with_rule("")), "a format-2 cache is never used");
     assert!(document_was_read_from(1, &with_rule("")), "a format-1 cache is never used");
+}
+
+/// A range or a property from the cache is held to what the reader checks
+/// (engine §1, §9).
+#[test]
+fn a_precompiled_range_or_property_is_checked() {
+    let expr = |expr: &str| with_alternative(&format!(r#"{{"guards":[],"expr":{expr}}}"#));
+    // Well formed, and none reads "a": each entry is used.
+    for dom in [
+        expr(r#"{"range":["'b'","'z'"]}"#),
+        expr(r#"{"property":"White_Space"}"#),
+        expr(
+            r#"{"seq":[{"capture":"c","expr":{"range":["'\\u{300}'","'\\u{36F}'"]}},{"capture":"d","expr":{"property":"Cs"}}]}"#,
+        ),
+        with_tags(r#"{"union":[{"range":["'a'","'c'"]},{"tag":"'x'"}]}"#),
+    ] {
+        assert!(!document_was_read(&dom), "a well-formed entry was not used: {dom}");
+    }
+    for dom in [
+        expr(r#"{"range":["'z'","'a'"]}"#),
+        expr(r#"{"range":["'a'"]}"#),
+        expr(r#"{"range":["'\\u{61}'","'z'"]}"#),
+        expr(r#"{"range":["A","'z'"]}"#),
+        expr(r#"{"range":["'a'","'z'"],"terminal":"A"}"#),
+        expr(r#"{"property":"Letter"}"#),
+        expr(r#"{"property":"lu"}"#),
+        expr(r#"{"property":"L","range":["'a'","'z'"]}"#),
+        expr(r#"{"spelling":"a","expr":{"range":["'a'","'z'"]}}"#),
+        expr(r#"{"spelling":"a","expr":{"property":"L"}}"#),
+        expr(r#"{"capture":"c","expr":{"property":"Foo"}}"#),
+        with_tags(r#"{"property":"L"}"#),
+        with_tags(r#"{"range":["'z'","'a'"]}"#),
+        with_emission(r#"{"items":[{"insert":"'a'..'z'"}]}"#),
+    ] {
+        assert!(document_was_read(&dom), "a malformed entry was used: {dom}");
+    }
+    // A range or a property beside a sequence is checked before the
+    // sequence is split, so no member of the node goes unread.
+    for beside in MALFORMED_BESIDE_A_SEQUENCE {
+        let dom = expr(&format!(r#"{{"seq":[{{"range":["'b'","'z'"]}},{{"property":"L"}}],{beside}}}"#));
+        assert!(document_was_read(&dom), "a malformed entry was used: {dom}");
+    }
+    assert!(document_was_read(&expr(r#"{"seq":[{"range":["'b'","'z'"]},{"property":"Bogus"}]}"#)));
+}
+
+/// Members that make a sequence node malformed: a range or a property has no
+/// member but its own (engine §9).
+const MALFORMED_BESIDE_A_SEQUENCE: [&str; 4] =
+    [r#""range":["'z'","'a'"]"#, r#""range":["'a'","'z'"]"#, r#""property":"Bogus""#, r#""property":"L""#];
+
+/// A malformed range or property in the bootstrap is an error of the
+/// grammar, where there is no document to read instead (engine §9).
+#[test]
+fn a_bootstrap_with_a_malformed_range_or_property_is_an_error() {
+    let refusal = |dom: String| {
+        let bootstrap = format!(
+            r#"{{"format":10,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{dom}}}]}}]}}"#
+        );
+        let sources = [
+            ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+            ("g.md", DOCUMENT.to_string()),
+            ("notation/bootstrap.json", bootstrap),
+        ];
+        let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("a notation that cannot read g.md");
+        assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
+        error.message.strip_prefix("bootstrap.json: ").map(str::to_string)
+    };
+    let expr = |expr: &str| with_alternative(&format!(r#"{{"guards":[],"expr":{expr}}}"#));
+    // A bootstrap that is read, whose notation then fails on g.md.
+    assert_eq!(refusal(expr(r#"{"seq":[{"range":["'a'","'z'"]},{"property":"L"}]}"#)), None);
+    let mut refused = vec![
+        expr(r#"{"seq":[{"range":["'z'","'a'"]},{"property":"L"}]}"#),
+        expr(r#"{"seq":[{"range":["'\\u{61}'","'z'"]},{"property":"L"}]}"#),
+        expr(r#"{"seq":[{"range":["'a'","'z'"]},{"property":"Bogus"}]}"#),
+        with_tags(r#"{"property":"L"}"#),
+    ];
+    for beside in MALFORMED_BESIDE_A_SEQUENCE {
+        refused.push(expr(&format!(r#"{{"seq":[{{"range":["'a'","'z'"]}},{{"property":"L"}}],{beside}}}"#)));
+    }
+    for dom in refused {
+        assert!(refusal(dom.clone()).is_some(), "a malformed bootstrap was used: {dom}");
+    }
 }
 
 #[test]
@@ -231,7 +314,7 @@ fn every_malformed_dom_is_a_cache_miss() {
             spelled(r##"{"optional":{"terminal":"b"},"spelling":"b","expr":{"ref":"#"}}"##),
         ),
         ("a spelled symbol nested too deeply", spelled(&spelled_nested)),
-        ("a directive argument that is not a string", dom(B, "", "", 9, "7")),
+        ("a directive argument that is not a string", dom(B, "", "", 10, "7")),
         (
             "a rule name that is not a name",
             with_rule(
@@ -510,7 +593,7 @@ fn every_malformed_dom_is_a_cache_miss() {
 #[test]
 fn a_malformed_bootstrap_is_an_error() {
     let bootstrap = format!(
-        r#"{{"format":9,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
+        r#"{{"format":10,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
         with_emission(r#"{"items":[{"capture":""},{"insert":"X"}]}"#)
     );
     let sources = [
@@ -529,7 +612,7 @@ fn a_refused_bootstrap_spelling_is_an_error() {
     let refusal = |expr: &str| {
         let alternative = format!(r#"{{"guards":[],"expr":{expr}}}"#);
         let bootstrap = format!(
-            r#"{{"format":9,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
+            r#"{{"format":10,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
             with_alternative(&alternative)
         );
         let sources = [
@@ -563,7 +646,7 @@ fn a_refused_bootstrap_spelling_is_an_error() {
 fn a_bootstrap_term_of_two_forms_is_an_error() {
     let refusal = |term: &str| {
         let bootstrap = format!(
-            r#"{{"format":9,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
+            r#"{{"format":10,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
             with_tags(term)
         );
         let sources = [

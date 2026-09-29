@@ -1,0 +1,31 @@
+{
+  "description": "A range skips the surrogates, which are not scalar values: '\\u{D7FF}'..'\\u{E000}' holds two tags, and a token over U+D7FF or U+E000 matches it as a terminal (engine §1, §10).",
+  "grammar": "%rule text $c(c) <'\\u{D7FF}'..'\\u{E000}'>\n%rule c '\\u{D7FF}'..'\\u{E000}'\n%emits $",
+  "input": "",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "",
+              "tags": [
+                "'\\u{E000}'"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "tags": [
+          "'\\u{E000}'",
+          "'퟿'"
+        ]
+      }
+    }
+  }
+}

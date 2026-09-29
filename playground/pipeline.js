@@ -41,7 +41,8 @@
     return kept.join("\n");
   }
 
-  // The characters the notation reads as spaces (engine §1).
+  // The characters the notation reads as spaces: the White_Space property
+  // (engine §1, grammars/notation/lexical.md).
   const SPACE = /^[\t-\r \u0085\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]$/;
 
   // The notation's tokens that matter here, as the notation reads them
@@ -77,8 +78,9 @@
           i++;
         }
       } else if (cs[i] === "'") {
-        // A character tag, the characters between two quotes with a
-        // backslash escaping the next one, is one token.
+        // A character tag or a property, the characters between two
+        // quotes with a backslash escaping the next one, is one token. A
+        // range is two of them joined by `..`, which is of no interest here.
         let end = i + 1;
         while (end < cs.length && cs[end] !== "'") end += cs[end] === "\\" ? 2 : 1;
         found.push({ kind: "character", value: cs.slice(i, end + 1).join("") });

@@ -13,8 +13,9 @@ import re
 from typing import Any, Protocol
 
 from ._clauses import definition_problem
-from ._tags import is_tag
+from ._tags import character_of_tag, is_tag
 from ._types import rule_type_problem
+from ._unicode import PROPERTY_NAMES
 
 
 class Lowercase(Protocol):
@@ -27,7 +28,7 @@ class Lowercase(Protocol):
     def is_mark(self, code: int) -> bool: ...
 
 
-FORMAT = 9
+FORMAT = 10
 """The version of the DOM's shape (docs/output.md)."""
 
 MAX_DEPTH = 256
@@ -93,6 +94,7 @@ _TERM_FORMS = (
     ("call", "args"),
     ("string",),
     ("tag",),
+    ("range",),
     ("emptySet",),
     ("capture",),
 )
@@ -179,10 +181,47 @@ def spelling_problem(spelling: Any, expr: Any, unicode: Lowercase | None) -> str
     return None
 
 
-def dom_problem(dom: Any, unicode: Lowercase | None = None) -> str | None:
+def range_problem(range_: Any, unicode: Lowercase) -> str | None:
+    """What is wrong with a range (engine §1, §9), or None: its ends must be
+    two character tags in their canonical spelling by the table, which says
+    which code points are marks, the start not above the end."""
+    if not isinstance(range_, list) or len(range_) != 2:
+        return "a malformed range"
+    first, last = (character_of_tag(end, unicode) if isinstance(end, str) else None for end in range_)
+    if first is None or last is None:
+        return "a range's ends are two character tags"
+    if first > last:
+        return f"the range {range_[0]}..{range_[1]} starts above its end"
+    return None
+
+
+def property_problem(name: Any) -> str | None:
+    """What is wrong with a property's name (engine §1, §9), or None."""
+    if not isinstance(name, str) or name not in PROPERTY_NAMES:
+        return (
+            f"'\\p{{{name}}}' is not a property: a property is a General_Category value in its short form,"
+            " a one-letter group of them, White_Space or Any"
+        )
+    return None
+
+
+def _is_character_class(value: dict[str, Any], unicode: Lowercase) -> bool:
+    """Whether an expression node is a range or a property that the DOM
+    allows, and has no other member."""
+    if len(value) != 1:
+        return False
+    if "range" in value:
+        return range_problem(value["range"], unicode) is None
+    if "property" in value:
+        return property_problem(value["property"]) is None
+    return False
+
+
+def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
     """Why a value is not a grammar DOM the reader could have written, or
-    None when it is one. ``unicode`` is the lowercase mapping that spellings
-    are checked against."""
+    None when it is one. ``unicode`` is the loader's table: the lowercase
+    mapping that spellings are checked against, and the marks that decide a
+    character tag's canonical spelling."""
     if (
         not isinstance(dom, dict)
         or dom.get("format") != FORMAT
@@ -274,7 +313,7 @@ def dom_problem(dom: Any, unicode: Lowercase | None = None) -> str | None:
     return None
 
 
-def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase | None) -> str | None:
+def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase) -> str | None:
     """Check the nodes of expressions, emissions, conditions and terms, each
     entry a node, its kind, its depth, and whether it lies in a rule's or an
     alternative's tag term, which may not read the tags it defines."""
@@ -291,6 +330,9 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase | None) 
             # A spelled symbol has its spelling and its symbol, and no other
             # key that lowering could read in its place.
             if "spelling" in value and value.keys() != {"spelling", "expr"}:
+                return "a malformed expression"
+            # A range or a property has no member but its own.
+            if ("range" in value or "property" in value) and not _is_character_class(value, unicode):
                 return "a malformed expression"
             if "choice" in value or "seq" in value:
                 items = value["choice"] if "choice" in value else value["seq"]
@@ -316,7 +358,13 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase | None) 
                     not isinstance(value["capture"], str)
                     or value["capture"] == _WHOLE
                     or not isinstance(inner, dict)
-                    or not (isinstance(inner.get("ref"), str) or is_tag(inner.get("terminal"), unicode) or "spelling" in inner)
+                    or not (
+                        isinstance(inner.get("ref"), str)
+                        or is_tag(inner.get("terminal"), unicode)
+                        or "spelling" in inner
+                        or _is_character_class(inner, unicode)
+                    )
+                    or (("range" in inner or "property" in inner) and not _is_character_class(inner, unicode))
                 ):
                     return "a malformed capture"
                 # A capture is a compound node; a spelled symbol below it is
@@ -333,6 +381,7 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase | None) 
                 isinstance(value.get("ref"), str)
                 or is_tag(value.get("terminal"), unicode)
                 or value.get("empty") is True
+                or _is_character_class(value, unicode)
             ):
                 return "a malformed expression"
         elif kind == "emission":
@@ -445,6 +494,7 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase | None) 
                 or is_tag(value.get("tag"), unicode)
                 or value.get("emptySet") is True
                 or isinstance(value.get("capture"), str)
+                or ("range" in value and range_problem(value["range"], unicode) is None)
             ):
                 return "a malformed term"
     return None

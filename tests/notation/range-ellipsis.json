@@ -1,0 +1,29 @@
+{
+  "description": "The lexer reads the longest symbol, so 'a'...'z' is 'a' repeated, then 'z', and not a range (engine §9).",
+  "document": "```jbogenbau\n%rule a 'a'...'z'\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "seq": [
+                  {
+                    "repeat": {
+                      "terminal": "'a'"
+                    },
+                    "min": 1
+                  },
+                  {
+                    "terminal": "'z'"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

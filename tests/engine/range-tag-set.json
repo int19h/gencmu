@@ -1,0 +1,26 @@
+{
+  "description": "A range is a tag set in a tag term and in a condition, with ∪, ∩, ∖, ⊆ and =. `..` binds tighter than every other operator, so 'a'..'c' ∪ 'x' is four tags (engine §1, §10).",
+  "grammar": "%rule text $c(item)\n%conditions\n  tags($c) = 'a'..'c' ∪ 'x',\n  'b'..'b' ⊆ tags($c),\n  tags($c) ∩ 'x'..'z' = 'x',\n  tags($c) ∖ 'a'..'b' = 'c' ∪ 'x',\n  'a'..'z' ⊈ tags($c)\n%rule item 'q' <'a'..'c' ∪ 'x'>",
+  "input": "q",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "item",
+            "tags": [
+              "'a'",
+              "'b'",
+              "'c'",
+              "'x'"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

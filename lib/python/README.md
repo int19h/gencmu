@@ -18,11 +18,11 @@ A dialect is a pipeline document and the documents that it includes. The pipelin
 
 - `load_dialect(name)` loads a dialect of the bundled grammars. `name` is the name of its pipeline document under `grammars/dialects/` without `.md`.
 - `load_dialect_file(path)`: a pipeline document on disk. The loader finds its grammar documents relative to it. The Unicode table and the bootstrap of the notation come from the bundled grammars.
-- `load_dialect_sources(sources, pipeline)`: documents held in memory, a mapping from `/`-separated path to text, and the path of the pipeline document in it. The mapping can hold its own `unicode.txt`, `notation/bootstrap.json` and `compiled.json`. The bundled ones fill in what it lacks.
+- `load_dialect_sources(sources, pipeline)`: documents held in memory, a mapping from `/`-separated path to text, and the path of the pipeline document in it. The mapping can hold its own `unicode.txt`, `notation/bootstrap.json` and `compiled.json`. The bundled ones fill in what it lacks. A `unicode.txt` in the map replaces the bundled table entirely, White_Space included (`docs/api.md`).
 
 The loader reads a grammar document through the notation (the grammar of grammar documents) only when `compiled.json` has no matching entry. `compiled.json` holds the precompiled DOMs, the parsed forms of the grammar documents. An entry matches when it is for the same text, under the same bootstrap and DOM format. Reading a large grammar through the notation is slow in pure Python. So the bundled grammars all have an entry. Each loader takes `use_cache=False` to read every document afresh.
 
-A dialect that cannot be loaded raises `gencmu.GencmuError`. Its `kind` is `"grammar"`, and its `where` is `document:line:column` as far as it is known.
+A dialect that cannot be loaded raises `gencmu.GencmuError`. Its `kind` is `"grammar"`, and its `where` is `document:line:column` as far as it is known. A document on disk that is not valid UTF-8 is such an error, with no line or column. A document in the mapping with a lone surrogate is the caller's mistake, of `kind` `"usage"`.
 
 ## Parsing
 
@@ -36,7 +36,7 @@ result = dialect.parse(text, features=(), without_features=(), auto_features=Tru
 - `until`: the name of the last stage to run. An unknown name raises `GencmuError` with `kind` `"usage"`.
 - `elision_only`: `True` or `False` to override the grammars' `%ambiguity-resolution ... elision-only`.
 
-A text that does not parse is a result whose `ok` is false and whose `error` says why. The kind of that error is `rejected`, `ambiguous` or `grammar`. Here, `grammar` is for a defect of a grammar found only while parsing. For tests and tools, `Dialect.parse_tokens(tokens, text, ...)` takes pre-built tokens in place of the characters of the first stage.
+A `text` with a lone surrogate raises `GencmuError` with `kind` `"usage"`. A text that does not parse is a result whose `ok` is false and whose `error` says why. The kind of that error is `rejected`, `ambiguous` or `grammar`. Here, `grammar` is for a defect of a grammar found only while parsing. For tests and tools, `Dialect.parse_tokens(tokens, text, ...)` takes pre-built tokens in place of the characters of the first stage.
 
 `dialect.features` lists the features of the dialect in code point order of their names, as a tuple of `Feature`. Each `Feature` has these fields:
 
@@ -50,7 +50,7 @@ You can use a dialect for any number of parses, and you can share it between thr
 
 ## The result
 
-`ParseResult`, `Stage`, `Node`, `Token`, `ParseError`, `ParseWarning`, `Action` and `Expected` are dataclasses. A tag set is a `frozenset[str]` of tags, each in its canonical spelling, such as `KOhA`, `/a/` or `'a'` (`docs/engine.md`, §1). Ranges are `(start, end)` tuples, and source ranges are in code points.
+`ParseResult`, `Stage`, `Node`, `Token`, `ParseError`, `ParseWarning`, `Action` and `Expected` are dataclasses. A tag set is a `frozenset[str]` of tags, each in its canonical spelling, such as `KOhA`, `/a/` or `'a'` (`docs/engine.md`, §1). A character token of the first stage carries one tag, its character tag. A terminal in a token node, witness or expected list is a tag, range or property. A range or property uses its written form, such as `'a'..'z'` or `'\p{L}'` (`docs/engine.md`, §4). Spans are `(start, end)` tuples, and source ranges are in code points.
 
 `result.warnings` lists the warnings of the nodes of the chosen tree of each stage. A node has one `ParseWarning` for each warning guard `f!` of its alternative whose feature `f` is on. The warnings come in stage order and then in tree order. Each has its `stage`, `feature`, `rule`, `span` and `source`. The list is empty when there are no warnings.
 

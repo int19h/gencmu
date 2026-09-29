@@ -1,0 +1,10 @@
+{
+  "description": "A property is written '\\p{Name}': '\\pL' is an error at the property (engine §9).",
+  "document": "```jbogenbau\n%rule a B '\\pL'\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 11
+    }
+  }
+}

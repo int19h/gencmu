@@ -6,7 +6,7 @@ use crate::fxhash::FxMap;
 use std::sync::{Arc, Mutex};
 
 use crate::dom::FeatureKind;
-use crate::earley::{Chart, EngineError, Recognizer, Shared, Tok};
+use crate::earley::{matchers, Chart, EngineError, Recognizer, Shared, Tok};
 use crate::error::Error;
 use crate::grammar::{Change, Lean, StageGrammar};
 use crate::lower::{lower, Lowered, Prod, Sym};
@@ -229,9 +229,9 @@ impl Dialect {
             let mut input = Vec::with_capacity(chars.len());
             let mut public = Vec::with_capacity(chars.len());
             for (index, &c) in chars.iter().enumerate() {
-                // Its character tag and its class (§1).
+                // Its character tag and nothing else (§1).
                 let text = c.to_string();
-                let set = tags.set_of([character_tag(c, &unicode).as_str(), unicode.class(c)]);
+                let set = tags.set_of([character_tag(c, &unicode).as_str()]);
                 public.push(Token {
                     text: text.clone(),
                     phonemes: None,
@@ -438,9 +438,9 @@ impl Dialect {
                 return Err(Box::new(error));
             }
         };
-        let term_tags: Vec<u32> = lowered.terminals.iter().map(|name| shared.tags.tag(name)).collect();
+        let matchers = matchers(&lowered, &mut shared.tags);
         let chart = {
-            let mut recognizer = Recognizer { g: &lowered, term_tags: &term_tags, shared };
+            let mut recognizer = Recognizer { g: &lowered, matchers: &matchers, shared };
             recognizer.recognize(&input, 0, lowered.start)
         };
         let chart = match chart {
@@ -513,7 +513,7 @@ impl Dialect {
             }
         }
         let emitted = {
-            let mut recognizer = Recognizer { g: &lowered, term_tags: &term_tags, shared };
+            let mut recognizer = Recognizer { g: &lowered, matchers: &matchers, shared };
             emit(&mut recognizer, &chosen, &input)
         };
         let emitted = match emitted {
@@ -648,10 +648,10 @@ impl Dialect {
             }
         }
         let lowered = self.lowered(index, features, true)?;
-        let term_tags: Vec<u32> = lowered.terminals.iter().map(|name| shared.tags.tag(name)).collect();
+        let matchers = matchers(&lowered, &mut shared.tags);
         shared.next_stage();
         let chart = {
-            let mut recognizer = Recognizer { g: &lowered, term_tags: &term_tags, shared };
+            let mut recognizer = Recognizer { g: &lowered, matchers: &matchers, shared };
             recognizer.recognize(&tokens, 0, lowered.start)
         };
         shared.next_stage();

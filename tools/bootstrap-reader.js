@@ -8,7 +8,7 @@
 
 import fs from "node:fs";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
-import { DOM_FORMAT, spellingProblem } from "../lib/js/src/dom.js";
+import { DOM_FORMAT, propertyProblem, rangeProblem, spellingProblem } from "../lib/js/src/dom.js";
 import { operandProblem } from "../lib/js/src/reader.js";
 import { UnicodeTable } from "../lib/js/src/unicode.js";
 import { characterTag } from "../lib/js/src/tags.js";
@@ -16,7 +16,7 @@ import { characterTag } from "../lib/js/src/tags.js";
 // The lowercase mapping that a spelling is checked against (engine §9).
 const unicode = new UnicodeTable(fs.readFileSync(new URL("../grammars/unicode.txt", import.meta.url), "utf8"));
 
-const SYMBOLS = ["...", "|", "&", "(", ")", "[", "]", "<", ">", "#", "ε", ",", "∧", "∨", "¬", "⟹", "=", "≠",
+const SYMBOLS = ["...", "..", "|", "&", "(", ")", "[", "]", "<", ">", "#", "ε", ",", "∧", "∨", "¬", "⟹", "=", "≠",
   "∈", "∉", "⊆", "⊈", "∪", "∩", "∖", "∅"];
 
 const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%tags", "%conditions", "%emits", "%verbatim",
@@ -69,6 +69,17 @@ function lex(text, positions) {
       if (!isLetter(chars[i] || "")) fail("a name after ~", { at: at(start) });
       while (i < chars.length && isNameChar(chars[i])) i++;
       tokens.push({ kind: "tag", text: chars.slice(start, i).join(""), at: at(start) });
+      continue;
+    }
+    // A property: a quote, \p, and anything up to the next quote that no
+    // backslash escapes. A character tag never begins with \p, but a later
+    // \p in either token is an escape that the decoding refuses.
+    if (c === "'" && chars[i + 1] === "\\" && chars[i + 2] === "p") {
+      i += 3;
+      while (i < chars.length && chars[i] !== "'") i += chars[i] === "\\" ? 2 : 1;
+      if (i >= chars.length) fail("an unclosed property", { at: at(start) });
+      i++;
+      tokens.push({ kind: "property", text: chars.slice(start, i).join(""), at: at(start) });
       continue;
     }
     if (c === "'") {
@@ -156,6 +167,23 @@ function characterOf(token) {
   return characterTag(decoded[0].codePointAt(0), unicode);
 }
 
+// A range's DOM form: its two ends in their canonical spelling (engine §9).
+function rangeOf(first, last) {
+  const range = [characterOf(first), characterOf(last)];
+  const problem = rangeProblem(range, unicode);
+  if (problem) fail(problem, first);
+  return range;
+}
+
+// A property's DOM form: its name (engine §1, §9).
+function propertyOf(token) {
+  const match = /^'\\p\{([^}]*)\}'$/.exec(token.text);
+  if (!match) fail("a property is written '\\p{Name}'", token);
+  const problem = propertyProblem(match[1]);
+  if (problem) fail(problem, token);
+  return match[1];
+}
+
 // The tag of a tag token, a character token or a phoneme token.
 function tagOf(token) {
   if (token.kind === "tag") return token.text.slice(1);
@@ -189,8 +217,13 @@ class Parser {
         this.index++;
         const args = [];
         const kinds = [];
-        while (["identifier", "string", "tag", "phoneme", "character"].some((kind) => this.is(kind))) {
+        while (["identifier", "string", "tag", "phoneme", "character", "property"].some((kind) => this.is(kind))) {
           const operand = this.take();
+          if (operand.kind === "character" && this.accept("..")) {
+            this.take("character");
+            kinds.push("range");
+            continue;
+          }
           kinds.push(operand.kind === "identifier" ? (isCapital(operand.text) ? "class" : "name") : operand.kind);
           args.push(operand.kind === "identifier" ? operand.text : operand.kind === "string" ? decodeString(operand.text, operand) : tagOf(operand));
         }
@@ -257,7 +290,7 @@ class Parser {
   }
 
   startsPrimary() {
-    return ["identifier", "tag", "character", "phoneme", "capture", "(", "[", "#", "ε"].includes((this.peek() || {}).kind);
+    return ["identifier", "tag", "character", "property", "phoneme", "capture", "(", "[", "#", "ε"].includes((this.peek() || {}).kind);
   }
 
   element() {
@@ -273,8 +306,9 @@ class Parser {
     // A reference, a string or a phoneme tag may take a spelling; the reader
     // refuses one after # (engine §9).
     if (!this.is("spelling")) return expr;
-    if (!["identifier", "tag", "character", "phoneme", "#"].includes(token.kind)) fail("expected a rule or a directive", this.peek());
+    if (!["identifier", "tag", "character", "property", "phoneme", "#"].includes(token.kind)) fail("expected a rule or a directive", this.peek());
     const spellingToken = this.take("spelling");
+    if (expr.range !== undefined || expr.property !== undefined) fail("a range or a property takes no spelling", spellingToken);
     const spelling = [...spellingToken.text].slice(1, -1).join("");
     const problem = spellingProblem(spelling, expr, unicode);
     if (problem) fail(problem, spellingToken);
@@ -286,14 +320,19 @@ class Parser {
     if (!token) fail("expected an expression", { at: this.endAt });
     switch (token.kind) {
       case "identifier": this.index++; return { ref: token.text };
-      case "tag": case "character": case "phoneme": this.index++; return { terminal: tagOf(token) };
+      case "character":
+        this.index++;
+        if (this.accept("..")) return { range: rangeOf(token, this.take("character")) };
+        return { terminal: tagOf(token) };
+      case "property": this.index++; return { property: propertyOf(token) };
+      case "tag": case "phoneme": this.index++; return { terminal: tagOf(token) };
       case "capture": {
         this.index++;
         if (token.name === "") fail("$ is the whole constituent and wraps nothing", token);
         this.take("(");
         const inner = this.primary();
         this.take(")");
-        if (inner.ref === undefined && inner.terminal === undefined && inner.spelling === undefined) fail("a capture wraps one symbol", token);
+        if (inner.ref === undefined && inner.terminal === undefined && inner.spelling === undefined && inner.range === undefined && inner.property === undefined) fail("a capture wraps one symbol", token);
         return { capture: token.name, expr: inner };
       }
       case "(": { this.index++; const inner = this.choice(); this.take(")"); return inner; }
@@ -331,6 +370,7 @@ class Parser {
     const token = this.take();
     let item;
     if (token.kind === "capture") item = { capture: token.name };
+    else if (token.kind === "property" || (token.kind === "character" && this.is(".."))) fail("an inserted item is one tag, not a range or a property", token);
     else if (token.kind === "tag" || token.kind === "character" || token.kind === "phoneme") item = { insert: tagOf(token) };
     else if (token.kind === "identifier" && isCapital(token.text)) item = { insert: token.text };
     else fail("expected a capture or a tag after %emits", token);
@@ -452,7 +492,12 @@ class Parser {
     if (!token) fail("expected a term", { at: this.endAt });
     switch (token.kind) {
       case "string": this.index++; return { string: decodeString(token.text, token) };
-      case "tag": case "character": case "phoneme": this.index++; return { tag: tagOf(token) };
+      case "character":
+        this.index++;
+        if (this.accept("..")) return { range: rangeOf(token, this.take("character")) };
+        return { tag: tagOf(token) };
+      case "property": return fail("a property is not a tag set, and stands only as a terminal in a body", token);
+      case "tag": case "phoneme": this.index++; return { tag: tagOf(token) };
       case "∅": this.index++; return { emptySet: true };
       case "(": { this.index++; const inner = this.term(); this.take(")"); return inner; }
       case "capture": this.index++; return { capture: token.name };

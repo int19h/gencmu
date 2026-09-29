@@ -100,13 +100,20 @@ fn load_errors_carry_the_document_and_position() {
 
 #[test]
 fn sources_may_bring_their_own_tables() {
-    let mut sources = single("%ambiguity-resolution greedy\n%rule text ~alpha");
-    // A character table that knows no letters: every one is "other".
-    sources.insert("unicode.txt".to_string(), "unicode 0.0.0\n".to_string());
+    let mut sources = single("%ambiguity-resolution greedy\n%rule text '\\p{L}'");
+    // A character table that knows no letters, only the white space that
+    // the notation reads between tokens.
+    let table = "unicode 0.0.0\nwhite-space 0009 000D\nwhite-space 0020 0020\n";
+    sources.insert("unicode.txt".to_string(), table.to_string());
     let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
     assert!(!dialect.parse("a", &no_auto()).unwrap().ok);
     let dialect =
-        gencmu::load_dialect_sources(single("%ambiguity-resolution greedy\n%rule text ~alpha"), "p.md").unwrap();
+        gencmu::load_dialect_sources(single("%ambiguity-resolution greedy\n%rule text '\\p{L}'"), "p.md").unwrap();
+    assert!(dialect.parse("a", &no_auto()).unwrap().ok);
+    // A scalar value that the caller's table omits is Cn (engine §1).
+    let mut sources = single("%ambiguity-resolution greedy\n%rule text '\\p{Cn}'");
+    sources.insert("unicode.txt".to_string(), table.to_string());
+    let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
     assert!(dialect.parse("a", &no_auto()).unwrap().ok);
 }
 
@@ -173,7 +180,7 @@ fn words_dialect() -> gencmu::Dialect {
     );
     sources.insert(
         "s.md".to_string(),
-        grammar("%ambiguity-resolution greedy\n%rule text [c] ...\n%rule c 's' </s/> | 'a' </a/> | 'u' </u/> | 'm' </m/> | 'i' </i/> | ~space </./> %emits $"),
+        grammar("%ambiguity-resolution greedy\n%rule text [c] ...\n%rule c 's' </s/> | 'a' </a/> | 'u' </u/> | 'm' </m/> | 'i' </i/> | '\\p{White_Space}' </./> %emits $"),
     );
     sources.insert(
         "w.md".to_string(),
@@ -269,7 +276,7 @@ fn parts_that_emit_epsilon_are_neither_emitted_nor_counted() {
     sources.insert(
         "f.md".to_string(),
         grammar(
-            "%ambiguity-resolution greedy\n%rule text [c] ...\n%rule c 'a' </a/> | 'b' </b/> | ~space </./> %emits $",
+            "%ambiguity-resolution greedy\n%rule text [c] ...\n%rule c 'a' </a/> | 'b' </b/> | '\\p{White_Space}' </./> %emits $",
         ),
     );
     sources.insert(
@@ -359,7 +366,7 @@ fn a_rejection_writes_a_spelled_terminal_with_its_spelling() {
 #[test]
 fn positions_are_code_points() {
     let dialect = gencmu::load_dialect_sources(
-        single("%ambiguity-resolution greedy\n%rule text [c] ... %rule c ~other | ~alpha %emits $"),
+        single("%ambiguity-resolution greedy\n%rule text [c] ... %rule c '\\p{Any}' %emits $"),
         "p.md",
     )
     .unwrap();

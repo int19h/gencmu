@@ -34,7 +34,7 @@ A token has this form:
 {"text":"mi","phonemes":"mi","tags":["KOhA","UI","word"],"span":[0,2],"source":[0,2]}
 ```
 
-`tags` lists every tag once, in code point order. A tag is written in its canonical spelling (engine §1), so a character tag is `'a'`, and a combining acute accent is `'\u{301}'`. `phonemes` is always present, the empty string for a token with none (engine §5). `"verbatim":true` follows `source` for a verbatim token, and is absent for any other (engine §11). The phonemes of a verbatim token are its text, which can hold any character.
+`tags` lists every tag once, in code point order. A tag is written in its canonical spelling (engine §1), so a character tag is `'a'`, and a combining acute accent is `'\u{301}'`. A character token of the first stage has one tag, its character tag. `phonemes` is always present, the empty string for a token with none (engine §5). `"verbatim":true` follows `source` for a verbatim token, and is absent for any other (engine §11). The phonemes of a verbatim token are its text, which can hold any character.
 
 `insertedBy` follows `source` for a token that was inserted from a tag literal (engine §1). Its value is the name of the rule that inserted the token.
 
@@ -46,7 +46,7 @@ A node has one of these forms:
 {"kind":"elided","terminal":"KU","span":[3,3],"source":[9,9]}
 ```
 
-A token node's `token` is the index of the stage-input token it read. An elided node of a spelled terminator is written the same way. The output does not show its spelling.
+A token node's `token` is the index of the stage-input token it read. Its `terminal` is the terminal that read the token. For a range or a property, the terminal is its written form in canonical spelling, such as `'a'..'z'` or `'\p{L}'` (engine §4). A read in a witness and the list of expected terminals use the same form. The output writes an elided node of a spelled terminator as any other elided node, without its spelling.
 
 A warning has this form:
 
@@ -82,7 +82,7 @@ A mistake of the caller is not a result. It is an error of kind `usage` (engine 
 A grammar DOM (document object model) is the data that a library makes when it reads a grammar document (engine §8, §9). `bootstrap.json` and the precompiled DOMs hold the same data.
 
 ```
-{"format":9,"rules":[RULE...],"directives":[DIRECTIVE...]}
+{"format":10,"rules":[RULE...],"directives":[DIRECTIVE...]}
 ```
 
 `format` is the version of the DOM. It changes whenever the shape of the DOM changes. A library never uses a cached DOM of another version.
@@ -97,15 +97,16 @@ An expression is one of these forms:
 {"seq":[EXPR...]}  {"choice":[EXPR...]}  {"and":[EXPR...]}
 {"optional":EXPR}  {"repeat":EXPR,"min":1}
 {"ref":"sumti"}    {"terminal":"KOhA"}    {"capture":"x","expr":EXPR}
+{"range":["'a'","'z'"]}    {"property":"L"}
 {"spelling":"la","expr":EXPR}
 {"empty":true}
 ```
 
-`terminal` holds a tag in its canonical spelling (engine §1): a name from `~name`, a phoneme tag `/p/`, or a character tag such as `'a'`. A bare name is a `ref`, whether it names a rule or, with a capital, a terminal.
+`terminal` holds a tag in its canonical spelling (engine §1): a name from `~name`, a phoneme tag `/p/`, or a character tag such as `'a'`. A bare name is a `ref`, whether it names a rule or, with a capital, a terminal. A `range` holds its start and its end, each a character tag in its canonical spelling, and the start is not above the end. A `property` holds its name, one of those of engine §1.
 
-A spelled symbol has no member but `spelling` and `expr`. Its `expr` is a `ref` other than `#`, or a `terminal`, with no other member. Its `spelling` is the text between the backticks, so it holds no backtick. The spelling is never empty, and `lowercase` does not change it (engine §9). A capture's `expr` is a `ref`, a `terminal` or a spelled symbol.
+A spelled symbol has no member but `spelling` and `expr`. Its `expr` is a `ref` other than `#`, or a `terminal`, with no other member. Its `spelling` is the text between the backticks, so it holds no backtick. The spelling is never empty, and `lowercase` does not change it (engine §9). A capture's `expr` is a `ref`, a `terminal`, a `range`, a `property` or a spelled symbol.
 
-A term is `{"string":"s"}`, `{"tag":"KOhA"}`, `{"emptySet":true}`, `{"union":[TERM...]}`, `{"intersection":[TERM...]}`, `{"difference":[TERM,TERM]}`, `{"if":COND,"then":TERM}` or `{"call":"phonemes","args":[ARG...]}`. `string` holds the decoded string. `tag` holds one tag in its canonical spelling, from a tag literal, a bare name with a capital, a phoneme tag or a character tag. `difference` has exactly two parts, and `a ∖ b ∖ c` nests the first difference in the second. A term has no member but those of its one form.
+A term is `{"string":"s"}`, `{"tag":"KOhA"}`, `{"range":["'a'","'z'"]}`, `{"emptySet":true}`, `{"union":[TERM...]}`, `{"intersection":[TERM...]}`, `{"difference":[TERM,TERM]}`, `{"if":COND,"then":TERM}` or `{"call":"phonemes","args":[ARG...]}`. `string` holds the decoded string. `tag` holds one tag in its canonical spelling, from a tag literal, a bare name with a capital, a phoneme tag or a character tag. `range` is as in an expression. `difference` has exactly two parts, and `a ∖ b ∖ c` nests the first difference in the second. A term has no member but those of its one form.
 
 An argument is a span or a term. For `tags`, `matches` and `begins`, an argument can also be a rule name, `{"rule":"lexicon"}`. A span is `{"capture":"x"}`, `{"capture":""}` for `$`, or `{"call":"head","args":[SPAN]}`. `tail`, `last`, `from` and `after` have the same form as `head`.
 
@@ -129,7 +130,7 @@ A directive is `{"name":"elidable","args":["KU","KEI"],"at":[line,column]}`. An 
 
 ### Precompiled DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":9,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
+`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":10,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
 
 ## Renderings
 

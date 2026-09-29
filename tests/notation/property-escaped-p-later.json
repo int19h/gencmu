@@ -1,0 +1,10 @@
+{
+  "description": "Only the opening '\\p makes a property. '\\p{L}\\p' is one property token, and the reader reports it as malformed at its opening quote (engine §9, grammars/notation/lexical.md).",
+  "document": "```jbogenbau\n%rule a '\\p{L}\\p'\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  }
+}

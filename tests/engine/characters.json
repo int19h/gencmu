@@ -1,6 +1,6 @@
 {
-  "description": "The first stage reads one token per code point, tagged with its character tag and its class, both ordinary tags (engine §1).",
-  "grammar": "%rule text 'x' ~space ~digit 'é'",
+  "description": "The first stage reads one token per code point, tagged with its character tag and nothing else. A range and a property read a character by its tag, and each stands in the tree as its written form (engine §1, §4).",
+  "grammar": "%rule text 'x' '\\p{White_Space}' '0'..'9' 'é'",
   "input": "x 7é",
   "expect": {
     "result": {
@@ -15,11 +15,11 @@
           },
           {
             "kind": "token",
-            "terminal": "space"
+            "terminal": "'\\p{White_Space}'"
           },
           {
             "kind": "token",
-            "terminal": "digit"
+            "terminal": "'0'..'9'"
           },
           {
             "kind": "token",

@@ -19,7 +19,8 @@ class Token:
 
     ``span`` is the range of the previous stage's tokens it covers, and
     ``source`` the range of the original text, in code points. ``phonemes``
-    is ``None`` for a token that has none, such as a character.
+    is ``None`` for a token that has none, such as a character, whose only
+    tag is its character tag.
     ``inserted_by`` names the rule whose emission clause made a token with
     an empty span. ``verbatim`` is true for a verbatim token, whose
     phonemes are its text (engine §11).
@@ -40,7 +41,9 @@ class Node:
 
     ``kind`` is ``"rule"``, ``"token"`` or ``"elided"``. A rule node has
     ``rule``, ``tags`` and ``children``; a token node has ``terminal`` and
-    ``token``, the index of the stage-input token it read; an elided node
+    ``token``, the index of the stage-input token it read. That terminal is
+    a tag, or the written form of a range or a property, such as
+    ``'a'..'z'`` or ``'\\p{L}'`` (engine §4). An elided node
     has ``terminal``, the terminator it stands for, and ``spelling``, the
     terminator's spelling if it is spelled, which elision-only's restored
     token sounds like (engine §7) and the output does not show.

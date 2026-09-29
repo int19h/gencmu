@@ -111,6 +111,14 @@ func (ev *evaluator) term(t *domTerm) value {
 		return value{kind: vString, s: t.Str}
 	case tmTag:
 		return value{kind: vSet, set: in.single(t.Str)}
+	case tmRange:
+		ps := ev.run.ps
+		set := ps.ranges[t.Range]
+		if set == nil {
+			set = in.fromList(rangeTags(t.Range, ps.uni.isMark))
+			ps.ranges[t.Range] = set
+		}
+		return value{kind: vSet, set: set}
 	case tmEmptySet:
 		return value{kind: vSet, set: in.empty()}
 	case tmUnion:

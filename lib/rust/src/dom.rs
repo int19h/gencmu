@@ -3,11 +3,11 @@
 //! stitching and lowering read.
 
 use crate::json::{write_str, Json};
-use crate::tags::is_tag;
-use crate::unicode::Unicode;
+use crate::tags::{character_code, is_tag};
+use crate::unicode::{is_property_name, Unicode};
 
 /// The DOM format version (`docs/output.md`).
-pub(crate) const DOM_FORMAT: i64 = 9;
+pub(crate) const DOM_FORMAT: i64 = 10;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Dom {
@@ -73,6 +73,11 @@ pub(crate) enum Expr {
     Repeat(Box<Expr>, u8),
     Ref(String),
     Terminal(String),
+    /// A range `'a'..'z'`: its two ends, character tags in their canonical
+    /// spelling, the start not above the end (engine §1).
+    Range(String, String),
+    /// A property `'\p{Name}'`, by its name (engine §1).
+    Property(String),
     Capture(String, Box<Expr>),
     /// A spelled symbol, ``X`s` ``: a `Ref` other than `#`, or a
     /// `Terminal`, whose span must sound like the spelling (engine §4).
@@ -89,6 +94,8 @@ pub(crate) enum Term {
     Str(String),
     /// A tag literal: the set of one tag, in its canonical spelling.
     Tag(String),
+    /// A range `'a'..'z'`, the set of its character tags (engine §1).
+    Range(String, String),
     EmptySet,
     Union(Vec<Term>),
     Intersection(Vec<Term>),
@@ -253,6 +260,11 @@ fn expr_from_json(value: &Json) -> R<Expr> {
         }
         "ref" => Expr::Ref(string(value, "ref")?),
         "terminal" => Expr::Terminal(string(value, "terminal")?),
+        "range" => {
+            let (start, end) = range_from_json(value)?;
+            Expr::Range(start, end)
+        }
+        "property" => Expr::Property(string(value, "property")?),
         "capture" => Expr::Capture(string(value, "capture")?, Box::new(expr_from_json(field(value, "expr")?)?)),
         "spelling" => Expr::Spelled(string(value, "spelling")?, Box::new(expr_from_json(field(value, "expr")?)?)),
         "empty" => Expr::Empty,
@@ -260,11 +272,23 @@ fn expr_from_json(value: &Json) -> R<Expr> {
     })
 }
 
+/// A range's two ends, from `{"range":[START,END]}`.
+fn range_from_json(value: &Json) -> R<(String, String)> {
+    match array(value, "range")? {
+        [Json::Str(start), Json::Str(end)] => Ok((start.clone(), end.clone())),
+        _ => Err("a malformed range".to_string()),
+    }
+}
+
 fn term_from_json(value: &Json) -> R<Term> {
     let list = |key: &str| -> R<Vec<Term>> { array(value, key)?.iter().map(term_from_json).collect() };
     Ok(match first_key(value)? {
         "string" => Term::Str(string(value, "string")?),
         "tag" => Term::Tag(string(value, "tag")?),
+        "range" => {
+            let (start, end) = range_from_json(value)?;
+            Term::Range(start, end)
+        }
         "emptySet" => Term::EmptySet,
         "union" => Term::Union(list("union")?),
         "intersection" => Term::Intersection(list("intersection")?),
@@ -344,7 +368,7 @@ fn has(value: &Json, key: &str) -> bool {
 
 /// The forms of a term, each as its members (docs/output.md). The first
 /// member names the form.
-const TERM_FORMS: [&[&str]; 9] = [
+const TERM_FORMS: [&[&str]; 10] = [
     &["union"],
     &["intersection"],
     &["difference"],
@@ -352,6 +376,7 @@ const TERM_FORMS: [&[&str]; 9] = [
     &["call", "args"],
     &["string"],
     &["tag"],
+    &["range"],
     &["emptySet"],
     &["capture"],
 ];
@@ -436,6 +461,43 @@ pub(crate) fn spelling_problem(spelling: &str, symbol: bool, unicode: &Unicode) 
     }
 }
 
+/// What is wrong with a range (engine §1, §9), or `None`: its ends must be
+/// two character tags in their canonical spelling, the start not above the
+/// end.
+pub(crate) fn range_problem(start: &str, end: &str, unicode: &Unicode) -> Option<String> {
+    match (character_code(start, unicode), character_code(end, unicode)) {
+        (Some(first), Some(last)) if first > last => Some(format!("the range {start}..{end} starts above its end")),
+        (Some(_), Some(_)) => None,
+        _ => Some("a range's ends are two character tags".to_string()),
+    }
+}
+
+/// What is wrong with a property's name (engine §1, §9), or `None`.
+pub(crate) fn property_problem(name: &str) -> Option<String> {
+    (!is_property_name(name)).then(|| {
+        format!(
+            "'\\p{{{name}}}' is not a property: a property is a General_Category value in its short form, \
+             a one-letter group of them, White_Space or Any"
+        )
+    })
+}
+
+/// Whether a JSON value is `[START,END]`, a range the DOM allows.
+fn is_range_json(value: Option<&Json>, unicode: &Unicode) -> bool {
+    matches!(value.and_then(Json::as_array), Some([Json::Str(start), Json::Str(end)])
+        if range_problem(start, end, unicode).is_none())
+}
+
+/// Whether an expression is a range or a property that the DOM allows, with
+/// no other member.
+fn is_character_class_json(value: &Json, unicode: &Unicode) -> bool {
+    match value.as_object() {
+        Some([(key, range)]) if key == "range" => is_range_json(Some(range), unicode),
+        Some([(key, Json::Str(name))]) if key == "property" => property_problem(name).is_none(),
+        _ => false,
+    }
+}
+
 /// Whether a JSON expression is one a spelling may follow: a reference
 /// other than `#`, or a terminal, with no other key, so that no node is
 /// read one way here and another way when it is built.
@@ -474,7 +536,7 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
         || dom.get("rules").and_then(Json::as_array).is_none()
         || dom.get("directives").and_then(Json::as_array).is_none()
     {
-        return Some("not a DOM of format 9");
+        return Some("not a DOM of format 10");
     }
     for directive in dom.get("directives").and_then(Json::as_array).unwrap_or(&[]) {
         let args = directive.get("args").and_then(Json::as_array);
@@ -612,6 +674,10 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                 if has(value, "spelling") && (value.as_object().map_or(0, <[_]>::len) != 2 || !has(value, "expr")) {
                     return Some("a malformed expression");
                 }
+                // A range or a property has no member but its own.
+                if (has(value, "range") || has(value, "property")) && !is_character_class_json(value, unicode) {
+                    return Some("a malformed expression");
+                }
                 if has(value, "choice") || has(value, "seq") {
                     let items = value.get("choice").or_else(|| value.get("seq"));
                     if !list(items, 2, usize::MAX) {
@@ -643,9 +709,13 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                     let inner = value.get("expr");
                     let wraps_symbol = inner.is_some_and(|inner| {
                         is_object(inner)
-                            && (is_str(inner.get("ref"))
-                                || is_tag_json(inner.get("terminal"), unicode)
-                                || has(inner, "spelling"))
+                            && if has(inner, "range") || has(inner, "property") {
+                                is_character_class_json(inner, unicode)
+                            } else {
+                                is_str(inner.get("ref"))
+                                    || is_tag_json(inner.get("terminal"), unicode)
+                                    || has(inner, "spelling")
+                            }
                     });
                     // `$` is the whole constituent and wraps nothing.
                     let named = value.get("capture").and_then(Json::as_str).is_some_and(|name| !name.is_empty());
@@ -671,7 +741,8 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                     }
                 } else if !(is_str(value.get("ref"))
                     || is_tag_json(value.get("terminal"), unicode)
-                    || is_true(value.get("empty")))
+                    || is_true(value.get("empty"))
+                    || is_character_class_json(value, unicode))
                 {
                     return Some("a malformed expression");
                 }
@@ -835,6 +906,7 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                     }
                 } else if !(is_str(value.get("string"))
                     || is_tag_json(value.get("tag"), unicode)
+                    || is_range_json(value.get("range"), unicode)
                     || is_true(value.get("emptySet"))
                     || is_str(value.get("capture")))
                 {
@@ -1014,6 +1086,12 @@ fn write_expr(out: &mut String, expr: &Expr) {
             write_str(out, name);
             out.push('}');
         }
+        Expr::Range(start, end) => write_range(out, start, end),
+        Expr::Property(name) => {
+            out.push_str("{\"property\":");
+            write_str(out, name);
+            out.push('}');
+        }
         Expr::Capture(name, inner) => {
             out.push_str("{\"capture\":");
             write_str(out, name);
@@ -1032,6 +1110,14 @@ fn write_expr(out: &mut String, expr: &Expr) {
     }
 }
 
+fn write_range(out: &mut String, start: &str, end: &str) {
+    out.push_str("{\"range\":[");
+    write_str(out, start);
+    out.push(',');
+    write_str(out, end);
+    out.push_str("]}");
+}
+
 fn write_term(out: &mut String, term: &Term) {
     match term {
         Term::Str(text) => {
@@ -1044,6 +1130,7 @@ fn write_term(out: &mut String, term: &Term) {
             write_str(out, tag);
             out.push('}');
         }
+        Term::Range(start, end) => write_range(out, start, end),
         Term::EmptySet => out.push_str("{\"emptySet\":true}"),
         Term::Union(items) => write_list(out, "union", items, write_term),
         Term::Intersection(items) => write_list(out, "intersection", items, write_term),
@@ -1246,7 +1333,7 @@ pub(crate) fn term_type(term: &Term) -> Result<Type, String> {
     };
     match term {
         Term::Str(_) => Ok(Type::String),
-        Term::Tag(_) => Ok(Type::Tags),
+        Term::Tag(_) | Term::Range(..) => Ok(Type::Tags),
         Term::EmptySet => Ok(Type::Set),
         Term::Capture(_) => Ok(Type::Span),
         Term::Union(items) => joined(&mut items.iter(), "∪"),

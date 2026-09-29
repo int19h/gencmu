@@ -1,7 +1,7 @@
 import type { GrammarDom } from "./types.js";
 export declare const CAPTURE_NAME: RegExp;
 export declare const DOM_MAX_DEPTH = 256;
-export declare const DOM_FORMAT = 9;
+export declare const DOM_FORMAT = 10;
 /**
  * What is wrong with a spelling of a symbol (engine §9), or null: an empty
  * spelling, one with a backtick, which the notation cannot write, one that
@@ -20,23 +20,41 @@ export declare function spellingProblem(spelling: unknown, expr: unknown, unicod
     isMark(code: number): boolean;
 }): string | null;
 /**
- * Why a value is not a grammar DOM, or null when it is one. `unicode` is
- * the lowercase mapping that spellings are checked against.
- * @param {unknown} dom
- * @param {{lowercase(text: string): string, isMark(code: number): boolean}} [unicode]
+ * What is wrong with a range (engine §1, §9), or null: its ends must be two
+ * character tags in their canonical spelling by the table, which says which
+ * code points are marks, the start not above the end.
+ * @param {unknown} range
+ * @param {{isMark(code: number): boolean}} unicode
  * @returns {string | null}
  */
-export declare function domProblem(dom: unknown, unicode?: {
+export declare function rangeProblem(range: unknown, unicode: {
+    isMark(code: number): boolean;
+}): string | null;
+/**
+ * What is wrong with a property's name (engine §1, §9), or null.
+ * @param {unknown} name
+ * @returns {string | null}
+ */
+export declare function propertyProblem(name: unknown): string | null;
+/**
+ * Why a value is not a grammar DOM, or null when it is one. `unicode` is
+ * the loader's table: the lowercase mapping that spellings are checked
+ * against, and the marks that decide a character tag's canonical spelling.
+ * @param {unknown} dom
+ * @param {{lowercase(text: string): string, isMark(code: number): boolean}} unicode
+ * @returns {string | null}
+ */
+export declare function domProblem(dom: unknown, unicode: {
     lowercase(text: string): string;
     isMark(code: number): boolean;
 }): string | null;
 /**
- * Whether a value is a grammar DOM.
+ * Whether a value is a grammar DOM, by the loader's table.
  * @param {unknown} dom
- * @param {{lowercase(text: string): string, isMark(code: number): boolean}} [unicode]
+ * @param {{lowercase(text: string): string, isMark(code: number): boolean}} unicode
  * @returns {dom is GrammarDom}
  */
-export declare function isDom(dom: unknown, unicode?: {
+export declare function isDom(dom: unknown, unicode: {
     lowercase(text: string): string;
     isMark(code: number): boolean;
 }): dom is GrammarDom;

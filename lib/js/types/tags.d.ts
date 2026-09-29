@@ -102,3 +102,34 @@ export declare function characterOfTag(tag: string, unicode: {
 export declare function isTag(tag: unknown, unicode?: {
     isMark(code: number): boolean;
 }): boolean;
+/**
+ * The scalar value of a character tag in its canonical spelling, or -1 for
+ * any other tag. The tag is not checked beyond its first character: every
+ * tag inside the engine is in its canonical spelling (engine §1).
+ * @param {string} tag
+ * @returns {number}
+ */
+export declare function codeOfCharacterTag(tag: string): number;
+/**
+ * The written form of a range, its identity as a terminal (engine §4):
+ * its two ends, in their canonical spelling, joined by `..`.
+ * @param {[string, string]} range
+ * @returns {string}
+ */
+export declare function rangeName(range: [string, string]): string;
+/**
+ * The written form of a property, its identity as a terminal (engine §4).
+ * @param {string} name
+ * @returns {string}
+ */
+export declare function propertyName(name: string): string;
+/**
+ * The character tags of a range (engine §1), from its start to its end by
+ * scalar value, the surrogates skipped.
+ * @param {[string, string]} range
+ * @param {{isMark(code: number): boolean}} unicode
+ * @returns {TagSet}
+ */
+export declare function rangeTags(range: [string, string], unicode: {
+    isMark(code: number): boolean;
+}): TagSet;

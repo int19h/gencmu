@@ -7,7 +7,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 9
+const domFormat = 10
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
@@ -53,6 +53,8 @@ const (
 	exCapture  = "capture"
 	exSpelling = "spelling"
 	exEmpty    = "empty"
+	exRange    = "range"
+	exProperty = "property"
 )
 
 type domExpr struct {
@@ -60,14 +62,16 @@ type domExpr struct {
 	Items []*domExpr // seq, choice, and
 	Inner *domExpr   // optional, repeat, capture, spelling (its symbol)
 	Min   int        // repeat
-	Name  string     // ref, terminal (a tag in its canonical spelling), capture; spelling: the spelling
+	Name  string     // ref, terminal (a tag in its canonical spelling), capture, property (its name); spelling: the spelling
+	Range [2]string  // range: its two ends, character tags in their canonical spelling
 }
 
 // Term kinds. A string is tmString, and a tag literal tmTag, the tag in its
 // canonical spelling. A span is a term of kind tmCapture, "" for $, the
 // whole constituent, or a tmCall of head, tail, last, from or after; a rule
 // argument is tmRule. A difference, a ∖ b, has exactly two items. A guarded
-// term, A ⟹ t, is tmIf: Cond is A, and Items holds t alone.
+// term, A ⟹ t, is tmIf: Cond is A, and Items holds t alone. A range,
+// 'a'..'z', is tmRange, its ends in Range.
 const (
 	tmString       = "string"
 	tmTag          = "tag"
@@ -79,6 +83,7 @@ const (
 	tmCapture      = "capture"
 	tmRule         = "rule"
 	tmIf           = "if"
+	tmRange        = "range"
 )
 
 type domTerm struct {
@@ -86,6 +91,7 @@ type domTerm struct {
 	Str   string     // string, tag, call (the function), capture, rule
 	Items []*domTerm // union, intersection, difference, call arguments; if: its term
 	Cond  *domCond   // if: its condition
+	Range [2]string  // range: its two ends
 }
 
 // isSpanFunction says whether a function gives a span (engine §10).
@@ -283,7 +289,23 @@ func (e *domExpr) writeJSON(w *jsonWriter) {
 		w.raw("}")
 	case exEmpty:
 		w.raw(`{"empty":true}`)
+	case exRange:
+		writeRange(w, e.Range)
+	case exProperty:
+		w.raw(`{"property":`)
+		w.str(e.Name)
+		w.raw("}")
 	}
+}
+
+// writeRange writes a range, {"range":["'a'","'z'"]}, as an expression or
+// a term.
+func writeRange(w *jsonWriter, r [2]string) {
+	w.raw(`{"range":[`)
+	w.str(r[0])
+	w.raw(",")
+	w.str(r[1])
+	w.raw("]}")
 }
 
 func (t *domTerm) writeJSON(w *jsonWriter) {
@@ -296,6 +318,8 @@ func (t *domTerm) writeJSON(w *jsonWriter) {
 		w.raw("}")
 	case tmEmptySet:
 		w.raw(`{"emptySet":true}`)
+	case tmRange:
+		writeRange(w, t.Range)
 	case tmUnion, tmIntersection, tmDifference:
 		w.raw("{")
 		w.str(t.Kind)
@@ -617,6 +641,21 @@ func decodeExpr(raw json.RawMessage) (*domExpr, error) {
 	if _, ok := o["spelling"]; ok && (len(o) != 2 || o["expr"] == nil) {
 		return nil, fmt.Errorf("a malformed expression")
 	}
+	// A range or a property has no member but its own.
+	if v, ok := o[exRange]; ok {
+		if len(o) != 1 {
+			return nil, fmt.Errorf("a malformed expression")
+		}
+		r, err := decodeRange(v)
+		return &domExpr{Kind: exRange, Range: r}, err
+	}
+	if v, ok := o[exProperty]; ok {
+		if len(o) != 1 {
+			return nil, fmt.Errorf("a malformed expression")
+		}
+		name, err := decodeString(v)
+		return &domExpr{Kind: exProperty, Name: name}, err
+	}
 	for _, k := range []string{exSeq, exChoice, exAnd} {
 		if v, ok := o[k]; ok {
 			items, err := decodeList(v, decodeExpr)
@@ -673,7 +712,17 @@ func decodeExpr(raw json.RawMessage) (*domExpr, error) {
 // The first member names the form. A rule argument is one too.
 var termForms = [][]string{
 	{tmUnion}, {tmIntersection}, {tmDifference}, {tmIf, "then"}, {tmCall, "args"},
-	{tmString}, {tmTag}, {tmEmptySet}, {tmCapture}, {tmRule},
+	{tmString}, {tmTag}, {tmRange}, {tmEmptySet}, {tmCapture}, {tmRule},
+}
+
+// decodeRange decodes a range's two ends, which the checker then holds to
+// the reader's rules.
+func decodeRange(raw json.RawMessage) ([2]string, error) {
+	var ends []string
+	if err := unmarshal(raw, &ends); err != nil || len(ends) != 2 {
+		return [2]string{}, fmt.Errorf("a malformed range")
+	}
+	return [2]string{ends[0], ends[1]}, nil
 }
 
 // isTermShape says whether a term has exactly the members of one form, and
@@ -714,6 +763,10 @@ func decodeTerm(raw json.RawMessage) (*domTerm, error) {
 	}
 	if isTrue(o["emptySet"]) {
 		return &domTerm{Kind: tmEmptySet}, nil
+	}
+	if v, ok := o[tmRange]; ok {
+		r, err := decodeRange(v)
+		return &domTerm{Kind: tmRange, Range: r}, err
 	}
 	for _, k := range []string{tmUnion, tmIntersection, tmDifference} {
 		if v, ok := o[k]; ok {

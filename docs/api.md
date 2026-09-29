@@ -12,9 +12,11 @@ A dialect is a pipeline document and the grammar documents that it includes. The
 - From a pipeline document on disk. The library finds its grammar documents relative to it. Its `unicode.txt` and `notation/bootstrap.json` come from the bundled grammars.
 - From documents held in memory: a map from `/`-separated path to text, and the path of the pipeline document in the map. The map can supply its own `unicode.txt`, `notation/bootstrap.json` and `compiled.json`. Any of these that the map lacks come from the bundled grammars. The exception is the portable JavaScript entry point, which has no bundle to read. There, the map must hold the first two (see "JavaScript").
 
+A `unicode.txt` in the map replaces the bundled table entirely, with no fallback to the bundled data. This holds for `White_Space` too, so the table must list the white space that the documents use. A code point that the table omits has the category `Cn`, no White_Space and no lowercase mapping (engine §1).
+
 The path of an `%include` resolves against the document that holds it, with `.` and `..` normalized (engine §13). A DOM (document object model) is the parsed form of a grammar document, as `docs/output.md` describes. `compiled.json` holds precompiled DOMs. A library reads a document through the notation (the grammar of grammar documents) only when `compiled.json` has no entry for it that matches. An entry matches when it has the same text hash, the same bootstrap hash and the same DOM format.
 
-A dialect that cannot be loaded is an error. A dialect cannot be loaded when a document is missing, does not parse as the notation, or does not stitch (combine) into a valid grammar. The error is an exception in JavaScript and Python, and a returned error in Go and Rust. It carries a message with the document, line and column where known.
+A dialect that cannot be loaded is an error. A dialect cannot be loaded when a document is missing, does not parse as the notation, or does not stitch (combine) into a valid grammar. It also cannot be loaded when a document on disk is not valid UTF-8 (engine §1). The error is an exception in JavaScript and Python, and a returned error in Go and Rust. It carries a message with the document, line and column where known.
 
 ### Parsing
 
@@ -27,6 +29,8 @@ A feature is a named switch that the grammars of the dialect test (engine §13).
 | auto features | on | add `sa-su` only where the text needs it (design, "Expensive constructs behind features"). It does nothing when `without features` names `sa-su` or `sa-su` is already on. It also does nothing when the dialect has no gate `sa-su`, or when the run does not reach a stage named `words` (engine §13). |
 | until | the last stage | the name of the last stage to run. An unknown name is an error. |
 | elision-only | the grammar's own | on or off for every stage that runs, overriding `%ambiguity-resolution ... elision-only` |
+
+A text must be a sequence of Unicode scalar values, or it is a usage error (engine §1). So a JavaScript or Python string with a lone surrogate is a usage error. So is a Go string that is not valid UTF-8. The same holds for a document held in memory. A document read from disk is different: bytes that are not valid UTF-8 there are a `grammar` load error, with no line or column.
 
 A text that does not parse is not an error, but a result whose `ok` is false and whose `error` says why. The kind of that error is `rejected`, `ambiguous` or `grammar`. Here, `grammar` is for a defect found only while parsing, such as a nested parse asked about its own span. Parsing is synchronous, and you can use a loaded dialect for any number of parses. In Python, Go and Rust, any number of threads can share one dialect and parse at once. JavaScript has one thread, and the worker of the playground has its own dialects.
 

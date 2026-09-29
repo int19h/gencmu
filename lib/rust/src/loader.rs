@@ -249,11 +249,25 @@ fn normalize(path: &Path) -> PathBuf {
 }
 
 impl Sources for DiskSources {
+    /// A document's bytes as strict UTF-8, which keeps a byte order mark as
+    /// the character U+FEFF. Bytes that do not decode are a grammar error of
+    /// the document, found before anything hashes it or looks it up in
+    /// `compiled.json` (engine §1).
     fn read(&self, path: &str) -> Result<Option<String>, Error> {
-        match std::fs::read_to_string(path) {
+        let bytes = match std::fs::read(path) {
+            Ok(bytes) => bytes,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(error) => {
+                return Err(Error::new(ErrorKind::Io, format!("cannot read {path}: {error}")).in_document(path));
+            }
+        };
+        match String::from_utf8(bytes) {
             Ok(text) => Ok(Some(text)),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(error) => Err(Error::new(ErrorKind::Io, format!("cannot read {path}: {error}")).in_document(path)),
+            Err(error) => Err(Error::grammar(format!(
+                "the document is not valid UTF-8: an invalid byte sequence at byte {}",
+                error.utf8_error().valid_up_to()
+            ))
+            .in_document(path)),
         }
     }
 

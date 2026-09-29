@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from ._clauses import definition_problem
@@ -11,7 +12,15 @@ from ._model import Node, Token
 from ._tags import character_tag
 from ._trampoline import Walk, run
 from ._types import comparison_problem, condition_type_problem, joined_type, tag_term_problem, term_type
-from ._validate import CAPTURE_NAME, FORMAT, Lowercase, spelling_problem, term_reads_own_tags
+from ._validate import (
+    CAPTURE_NAME,
+    FORMAT,
+    Lowercase,
+    property_problem,
+    range_problem,
+    spelling_problem,
+    term_reads_own_tags,
+)
 
 Dom = dict[str, Any]
 
@@ -19,8 +28,11 @@ _MAPPED = frozenset(
     """directive argument-string argument-tag rule alternative alternative-tags choice conjunction sequence element
     reference string tag character phoneme name spelled capture group optional empty tags-clause conditions-clause
     emits-clause verbatim-clause emit-item emit-tags implication any-of all-of comparison negation presence call term
-    guarded-term union intersection empty-set capture-reference""".split()
+    guarded-term union intersection empty-set capture-reference range property""".split()
 )
+_PROPERTY = re.compile(r"'\\p\{([^}]*)\}'")
+_SYMBOLS = frozenset(["reference", "tag", "character", "phoneme", "range", "property", "spelled"])
+"""What a capture can wrap: one symbol (engine §9)."""
 _DEFINERS = {"%rule": "define", "%redefine-rule": "redefine", "%extend-rule": "extend"}
 _SPAN_FUNCTIONS = frozenset(["head", "tail", "last", "from", "after"])
 _FUNCTIONS = frozenset(
@@ -164,17 +176,22 @@ class DomBuilder:
             return self.text(node)
         if node.rule == "argument-string":
             return self.decode(self.kids(node)[0])
+        # A range or a property has no tag; operand_problem has refused it.
         return self.tag_of(self.kids(node)[0])
 
     def operand_kind(self, node: Node) -> str:
         """The kind of a directive's operand: ``name`` or ``class`` for a
         bare name, lower case or with a capital, ``string``, or ``tag``,
-        ``phoneme`` or ``character`` for a tag (engine §9)."""
+        ``phoneme`` or ``character`` for a tag, or ``range`` or ``property``
+        (engine §9)."""
         if node.kind == "token":
             return "class" if _is_capital(self.text(node)) else "name"
         if node.rule == "argument-string":
             return "string"
-        written = self.text(self.kids(node)[0])
+        operand = self.kids(node)[0]
+        if operand.kind == "rule" and operand.rule in ("range", "property"):
+            return operand.rule
+        written = self.text(operand)
         return "tag" if written.startswith("~") else "phoneme" if written.startswith("/") else "character"
 
     def rule(self, node: Node) -> Dom:
@@ -286,6 +303,10 @@ class DomBuilder:
             return {"ref": self.text(self.kids(node)[0])}
         if rule in ("tag", "character", "phoneme"):
             return {"terminal": self.tag_of(self.kids(node)[0])}
+        if rule == "range":
+            return {"range": self.range_of(node)}
+        if rule == "property":
+            return {"property": self.property_of(self.kids(node)[0])}
         if rule == "spelled":
             # A reference or a terminal and its spelling, which the syntax
             # grammar gives nothing else (engine §9).
@@ -293,6 +314,8 @@ class DomBuilder:
             symbol = next(kid for kid in kids if kid.kind == "rule")
             spelling_token = kids[-1]
             expr = yield self._expr(symbol)
+            if "range" in expr or "property" in expr:
+                raise self.fail(spelling_token, "a range or a property takes no spelling")
             spelling = self.text(spelling_token)[1:-1]
             problem = spelling_problem(spelling, expr, self.unicode)
             if problem is not None:
@@ -306,7 +329,7 @@ class DomBuilder:
             if not CAPTURE_NAME.fullmatch(name):
                 raise self.fail(node, f"the capture ${name} has a capital; a capture's name is all lower case")
             inner = [kid for kid in kids[1:] if kid.kind == "rule"]
-            if len(inner) != 1 or inner[0].rule not in ("reference", "tag", "character", "phoneme", "spelled"):
+            if len(inner) != 1 or inner[0].rule not in _SYMBOLS:
                 raise self.fail(node, f"the capture ${name} must wrap one reference or terminal, spelled or not")
             if not top:
                 raise self.fail(node, f"the capture ${name} is not at the top level of its alternative")
@@ -343,6 +366,27 @@ class DomBuilder:
             raise self.fail(token, "a character tag holds exactly one character")
         return character_tag(ord(decoded), self.unicode)
 
+    def range_of(self, node: Node) -> list[str]:
+        """A range's two ends, each a character tag in its canonical
+        spelling; its start must not be above its end (engine §1, §9)."""
+        ends = [self.tag_of(self.kids(end)[0]) for end in self.rules(node, "character")]
+        problem = range_problem(ends, self.unicode)
+        if problem is not None:
+            raise self.fail(node, problem)
+        return ends
+
+    def property_of(self, token: Node) -> str:
+        """A property's name: its token is ``'\\p{Name}'``, with a name of
+        engine §1."""
+        match = _PROPERTY.fullmatch(self.text(token))
+        if match is None:
+            raise self.fail(token, "a property is written '\\p{Name}'")
+        name = match.group(1)
+        problem = property_problem(name)
+        if problem is not None:
+            raise self.fail(token, problem)
+        return name
+
     # -- emission
 
     def emission(self, node: Node) -> Dom:
@@ -353,6 +397,8 @@ class DomBuilder:
         for item in self.rules(node, "emit-item"):
             kids = self.kids(item)
             target = kids[0]
+            if target.kind == "rule" and target.rule in ("range", "property"):
+                raise self.fail(item, "an inserted item is one tag, not a range or a property")
             tag_nodes = [kid for kid in kids[1:] if kid.kind == "rule" and kid.rule == "emit-tags"]
             text = self.text(target)
             tags_of_target = self.tokens[target.token].tags if target.token is not None else frozenset()
@@ -551,6 +597,10 @@ class DomBuilder:
             return {"string": self.decode(self.kids(node)[0])}
         if rule in ("tag", "character", "phoneme"):
             return {"tag": self.tag_of(self.kids(node)[0])}
+        if rule == "range":
+            return {"range": self.range_of(node)}
+        if rule == "property":
+            raise self.fail(node, "a property is not a tag set, and stands only as a terminal in a body")
         if rule == "name":
             # A bare name is a tag literal if it begins with a capital, and
             # otherwise a rule, which only a function's argument names.
@@ -580,8 +630,9 @@ class DomBuilder:
 
 def operand_problem(name: str, kinds: list[str]) -> str | None:
     """What is wrong with a directive's operands, each ``name`` or
-    ``class``, a bare name lower case or with a capital, ``string``, or
-    ``tag``, ``phoneme`` or ``character``, or None (engine §9)."""
+    ``class``, a bare name lower case or with a capital, ``string``,
+    ``tag``, ``phoneme`` or ``character``, or ``range`` or ``property``, or
+    None (engine §9)."""
     names = all(kind in ("name", "class") for kind in kinds)
     if name == "stage":
         return None if len(kinds) == 1 and names else "%stage takes one name"

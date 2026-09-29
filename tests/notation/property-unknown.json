@@ -1,0 +1,10 @@
+{
+  "description": "An unknown property name is an error of the document, at the property (engine §1, §9).",
+  "document": "```jbogenbau\n%rule a B '\\p{Foo}'\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 11
+    }
+  }
+}

@@ -14,7 +14,8 @@ from typing import Any, Callable
 import gencmu
 from gencmu._dialect import DOM_FORMAT, _unicode_table, bundled_text, read_document
 from gencmu._hash import fnv1a64
-from gencmu._validate import dom_problem
+from gencmu._validate import Lowercase
+from gencmu._validate import dom_problem as _dom_problem
 
 DOCUMENT = """```jbogenbau
 %ambiguity-resolution greedy
@@ -27,6 +28,14 @@ PIPELINE = '```jbogenbau\n%stage main\n%include "g.md"\n%stage next\n%include "h
 NEXT = "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ['a'] [Y]\n```\n"
 
 Dom = dict[str, Any]
+
+BUNDLED_UNICODE = _unicode_table(bundled_text("unicode.txt") or "")
+
+
+def dom_problem(dom: Any, unicode: Lowercase = BUNDLED_UNICODE) -> str | None:
+    """The check, which always has a table: the bundled one, unless a test
+    gives its own."""
+    return _dom_problem(dom, unicode)
 
 
 def rule(dom: Dom) -> Dom:
@@ -488,10 +497,8 @@ class PrecompiledDomRules(unittest.TestCase):
                 dom = copy.deepcopy(self.dom)
                 set_expr(expr)(dom)
                 self.assertEqual(dom_problem(dom, unicode), problem)
-        # Without a table, the case is not checked.
         dom = copy.deepcopy(self.dom)
         set_expr({"capture": "x", "expr": spelled("La")})(dom)
-        self.assertIsNone(dom_problem(dom))
         # An entry with a spelling in capitals is a miss: the document is read afresh.
         self.assertEqual(self.parse(dom), self.parse(None))
         # A spelled symbol is a compound node (engine §9), below a capture too.
@@ -521,6 +528,54 @@ class PrecompiledDomRules(unittest.TestCase):
                 gencmu.load_dialect_sources({**sources, "unicode.txt": table}, "p.md", use_cache=use_cache)
             self.assertIn("lower case", str(caught.exception))
 
+    def test_ranges_and_properties(self) -> None:
+        """A precompiled range or property is checked as the reader checks
+        it (engine §9)."""
+        for name, expr, tags in (
+            ("a range", {"range": ["'a'", "'z'"]}, None),
+            ("a property", {"property": "White_Space"}, None),
+            ("captured", {"seq": [{"capture": "c", "expr": {"range": ["'\\u{300}'", "'\\u{36F}'"]}}, {"capture": "d", "expr": {"property": "Cs"}}]}, None),
+            ("a range in a term", {"ref": "A"}, {"union": [{"range": ["'a'", "'c'"]}, {"tag": "'x'"}]}),
+        ):
+            with self.subTest(allowed=name):
+                dom = copy.deepcopy(self.dom)
+                set_expr(expr)(dom)
+                rule(dom)["conditions"] = []
+                rule(dom).pop("tags", None)
+                rule(dom).pop("emit", None)
+                alt(dom).pop("tags", None)
+                if tags is not None:
+                    alt(dom)["tags"] = tags
+                self.assertIsNone(dom_problem(dom))
+        for name, expr, tags in (
+            ("a reversed range", {"range": ["'z'", "'a'"]}, None),
+            ("a range of one end", {"range": ["'a'"]}, None),
+            ("a range whose end is not canonical", {"range": ["'\\u{61}'", "'z'"]}, None),
+            ("a range whose end is no character tag", {"range": ["A", "'z'"]}, None),
+            ("a range that is also a terminal", {"range": ["'a'", "'z'"], "terminal": "A"}, None),
+            ("a long property name", {"property": "Letter"}, None),
+            ("a property name in other case", {"property": "lu"}, None),
+            ("a property that is also a range", {"property": "L", "range": ["'a'", "'z'"]}, None),
+            ("a spelled range", {"spelling": "a", "expr": {"range": ["'a'", "'z'"]}}, None),
+            ("a spelled property", {"spelling": "a", "expr": {"property": "L"}}, None),
+            ("a property in a term", {"ref": "A"}, {"property": "L"}),
+            ("a reversed range in a term", {"ref": "A"}, {"range": ["'z'", "'a'"]}),
+        ):
+            with self.subTest(refused=name):
+                dom = copy.deepcopy(self.dom)
+                set_expr(expr)(dom)
+                rule(dom)["conditions"] = []
+                rule(dom).pop("tags", None)
+                rule(dom).pop("emit", None)
+                alt(dom).pop("tags", None)
+                if tags is not None:
+                    alt(dom)["tags"] = tags
+                self.assertIsNotNone(dom_problem(dom))
+        # An inserted range or property is not one tag.
+        dom = copy.deepcopy(self.dom)
+        set_emit({"items": [{"insert": "'a'..'z'"}]})(dom)
+        self.assertIsNotNone(dom_problem(dom))
+
     def test_four_captures_are_allowed(self) -> None:
         dom = copy.deepcopy(self.dom)
         set_expr({"seq": [{"capture": name, "expr": A} for name in "xyzv"]})(dom)
@@ -534,6 +589,96 @@ class PrecompiledDomRules(unittest.TestCase):
                 change(broken)
                 self.assertIsNotNone(dom_problem(broken))
                 self.assertEqual(self.parse(broken), fresh)
+
+
+CLASS_DOCUMENT = "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a'..'z' '\\p{L}'\n```\n"
+CLASS_PIPELINE = '```jbogenbau\n%stage main\n%include "g.md"\n```\n'
+
+
+def _class_changes() -> list[tuple[str, Callable[[Dom], None]]]:
+    """Malformed range and property nodes, as changes to a DOM whose first
+    alternative is a sequence of a range and a property. The reader would
+    refuse each (engine §9)."""
+
+    def seq_item(index: int, key: str, value: Any) -> Callable[[Dom], None]:
+        def change(dom: Dom) -> None:
+            alt(dom)["expr"]["seq"][index][key] = value
+
+        return change
+
+    def beside(key: str, value: Any) -> Callable[[Dom], None]:
+        def change(dom: Dom) -> None:
+            alt(dom)["expr"][key] = value
+
+        return change
+
+    return [
+        ("a reversed range", seq_item(0, "range", ["'b'", "'a'"])),
+        ("a range with an end not in its canonical spelling", seq_item(0, "range", ["'\\u{61}'", "'b'"])),
+        ("an unknown property", seq_item(1, "property", "Bogus")),
+        ("a property in a term", set_tags({"property": "L"})),
+        ("a reversed range beside a sequence", beside("range", ["'z'", "'a'"])),
+        ("a range beside a sequence", beside("range", ["'a'", "'z'"])),
+        ("an unknown property beside a sequence", beside("property", "Bogus")),
+        ("a property beside a sequence", beside("property", "L")),
+    ]
+
+
+class CharacterClassLoading(unittest.TestCase):
+    """A malformed range or property takes the whole loading path: a
+    precompiled one is a miss, and one in the bootstrap is an error."""
+
+    def test_a_precompiled_malformed_range_or_property_is_a_miss(self) -> None:
+        sources = {"p.md": CLASS_PIPELINE, "g.md": CLASS_DOCUMENT}
+        fresh_result = gencmu.load_dialect_sources(sources, "p.md", use_cache=False).parse("zb", auto_features=False)
+        self.assertTrue(fresh_result.ok)
+        fresh = gencmu.to_json(fresh_result)
+        bootstrap_hash = fnv1a64(bundled_text("notation/bootstrap.json") or "")
+
+        def parse(dom: Dom) -> str:
+            documents = {"g.md": {"hash": fnv1a64(CLASS_DOCUMENT), "dom": dom}}
+            compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "documents": documents})
+            dialect = gencmu.load_dialect_sources({**sources, "compiled.json": compiled}, "p.md")
+            return gencmu.to_json(dialect.parse("zb", auto_features=False))
+
+        # The control: a well-formed entry with the range 'a'..'b' is used in
+        # place of the document, and rejects the z. Each broken entry below
+        # keeps that range, so an entry used by mistake would reject it too.
+        control = read_document(CLASS_DOCUMENT, "g.md")
+        alt(control)["expr"]["seq"][0]["range"] = ["'a'", "'b'"]
+        self.assertIsNone(dom_problem(control))
+        self.assertNotEqual(parse(control), fresh)
+        for name, change in _class_changes():
+            with self.subTest(refused=name):
+                dom = copy.deepcopy(control)
+                change(dom)
+                self.assertIsNotNone(dom_problem(dom))
+                self.assertEqual(parse(dom), fresh)
+
+    def test_a_bootstrap_with_a_malformed_range_or_property_is_an_error(self) -> None:
+        def with_rule(change: Callable[[Dom], None] | None) -> str:
+            # Put a rule of the shape above first in the bootstrap's first
+            # document.
+            bootstrap = json.loads(bundled_text("notation/bootstrap.json") or "{}")
+            expr = {"seq": [{"range": ["'a'", "'z'"]}, {"property": "L"}]}
+            added = {"name": "unused-rule", "op": "define", "alternatives": [{"guards": [], "expr": expr}], "conditions": [], "at": [100000, 1]}
+            if change is not None:
+                change({"rules": [added]})
+            bootstrap["stages"][0]["documents"][0]["dom"]["rules"].insert(0, added)
+            return json.dumps(bootstrap)
+
+        def refused(bootstrap: str) -> bool:
+            sources = {"p.md": CLASS_PIPELINE, "g.md": CLASS_DOCUMENT, "notation/bootstrap.json": bootstrap}
+            try:
+                gencmu.load_dialect_sources(sources, "p.md", use_cache=False)
+            except gencmu.GencmuError as error:
+                return error.document == "notation/bootstrap.json"
+            return False
+
+        self.assertFalse(refused(with_rule(None)))
+        for name, change in _class_changes():
+            with self.subTest(refused=name):
+                self.assertTrue(refused(with_rule(change)))
 
 
 if __name__ == "__main__":

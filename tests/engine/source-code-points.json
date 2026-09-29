@@ -1,6 +1,6 @@
 {
   "description": "Source ranges count code points, so a character outside the BMP is one position (engine §1, output.md).",
-  "grammar": "%rule text ~other 'a'",
+  "grammar": "%rule text '\\p{So}' 'a'",
   "input": "😀a",
   "expect": {
     "result": {
@@ -15,7 +15,7 @@
         "children": [
           {
             "kind": "token",
-            "terminal": "other",
+            "terminal": "'\\p{So}'",
             "source": [
               0,
               1

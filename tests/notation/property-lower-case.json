@@ -1,0 +1,10 @@
+{
+  "description": "A property name is matched with its case, so '\\p{lu}' is an error at the property (engine §1, §9).",
+  "document": "```jbogenbau\n%rule a B '\\p{lu}'\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 11
+    }
+  }
+}

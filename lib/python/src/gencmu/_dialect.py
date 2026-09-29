@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import threading
 from dataclasses import dataclass
 from importlib import resources
@@ -47,6 +48,19 @@ def bundled_text(path: str) -> str | None:
     return text
 
 
+def _decode(data: bytes, document: str) -> str:
+    """A file's bytes as strict UTF-8, which keeps a byte order mark as the
+    character U+FEFF. Bytes that do not decode are a grammar error of the
+    document, found before anything hashes it or looks it up in
+    compiled.json (engine §1)."""
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise GencmuError(
+            f"the document is not valid UTF-8: {error.reason} at byte {error.start}", document=document
+        ) from None
+
+
 def _read_bundled(path: str) -> str | None:
     node = _bundled_root()
     for part in path.split("/"):
@@ -54,9 +68,18 @@ def _read_bundled(path: str) -> str | None:
             return None
         node = node.joinpath(part)
     try:
-        return node.read_text(encoding="utf-8")  # type: ignore[no-any-return]
+        data = node.read_bytes()
     except (FileNotFoundError, IsADirectoryError, NotADirectoryError, OSError):
         return None
+    try:
+        return _decode(data, path)
+    except GencmuError:
+        # compiled.json is only a cache, so bytes of it that do not decode
+        # make it absent, a miss for every document. Anything else that
+        # does not decode stays an error.
+        if path == "compiled.json":
+            return None
+        raise
 
 
 _lock = threading.Lock()
@@ -78,15 +101,28 @@ def _unicode_table(text: str) -> UnicodeTable:
     return table
 
 
+_SURROGATE = re.compile("[\ud800-\udfff]")
+
+
+def scalar_problem(text: str) -> str | None:
+    """Why a string is not a sequence of Unicode scalar values, or ``None``
+    when it is one. A Python string can hold a lone surrogate, which engine
+    §1 makes a usage error."""
+    found = _SURROGATE.search(text)
+    if found is None:
+        return None
+    return f"a lone surrogate U+{ord(found.group()):04X} at code point {found.start()}"
+
+
 def character_tokens(text: str, unicode: UnicodeTable) -> list[Token]:
     """The input of a pipeline's first stage: one token per code point,
-    tagged with its character tag and its class (engine §1)."""
+    tagged with its character tag and nothing else (engine §1)."""
     tags: dict[str, frozenset[str]] = {}
     tokens: list[Token] = []
     for index, char in enumerate(text):
         found = tags.get(char)
         if found is None:
-            found = tags[char] = frozenset((character_tag(ord(char), unicode), unicode.character_class(char)))
+            found = tags[char] = frozenset((character_tag(ord(char), unicode),))
         tokens.append(Token(char, found, (index, index + 1), (index, index + 1)))
     return tokens
 
@@ -162,12 +198,12 @@ class NotationReader:
         except (LookupError, TypeError, ValueError, AttributeError, AssertionError) as error:
             # Only a bootstrap that is not the notation's gives such a tree.
             raise GencmuError(f"the notation's tree cannot be read as a grammar ({error!r}); is the bootstrap the notation's?", document=path) from error
-        if dom_problem(dom) == TOO_DEEP:
+        if dom_problem(dom, self.unicode) == TOO_DEEP:
             # The bound on nesting is the same for a document read here as for
             # a precompiled DOM (engine §9); reported at the first rule too deep.
             line, column = 1, 1
             for rule in dom["rules"]:
-                if dom_problem({**dom, "rules": [rule], "directives": []}) == TOO_DEEP:
+                if dom_problem({**dom, "rules": [rule], "directives": []}, self.unicode) == TOO_DEEP:
                     line, column = rule["at"]
                     break
             raise GencmuError(
@@ -247,6 +283,10 @@ class _Loader:
 
     def dom(self, path: str) -> Dom:
         text = self.text(path)
+        # A document is a sequence of scalar values, as a text is (engine §1).
+        problem = scalar_problem(text)
+        if problem is not None:
+            raise GencmuError(f"the document is not a sequence of Unicode scalar values: {problem}", kind="usage", document=path)
         text_hash = fnv1a64(text)
         # The Unicode table is part of the key: a spelling that one table
         # accepts another may refuse (engine §9).
@@ -314,10 +354,11 @@ def load_dialect_file(path: str | os.PathLike[str], *, use_cache: bool = True) -
 
     def lookup(relative: str) -> str | None:
         try:
-            with open(os.path.join(root, *relative.split("/")), encoding="utf-8", newline="") as file:
-                return file.read()
+            with open(os.path.join(root, *relative.split("/")), "rb") as file:
+                data = file.read()
         except OSError:
             return None
+        return _decode(data, relative)
 
     return _Loader(lookup, _resources(), use_cache).load(os.path.basename(pipeline))
 
@@ -405,6 +446,9 @@ class Dialect:
         a result whose ``ok`` is false; a mistake in the call, such as an
         unknown stage name or a feature named both to turn on and to turn
         off, raises :class:`GencmuError`."""
+        problem = scalar_problem(text)
+        if problem is not None:
+            raise GencmuError(f"the text is not a sequence of Unicode scalar values: {problem}", kind="usage")
         return self.parse_tokens(
             character_tokens(text, self.unicode),
             text,
@@ -429,6 +473,11 @@ class Dialect:
         """Parse pre-built tokens in place of the first stage's characters,
         over the original ``text`` their sources point into. For tests and
         tools; :meth:`parse` is the usual entry point."""
+        # A text is a sequence of scalar values, so a lone surrogate is the
+        # caller's mistake, refused before any character token (engine §1).
+        problem = scalar_problem(text)
+        if problem is not None:
+            raise GencmuError(f"the text is not a sequence of Unicode scalar values: {problem}", kind="usage")
         for option, value in (("features", features), ("without_features", without_features)):
             if isinstance(value, str):
                 raise GencmuError(f"{option} is a collection of names, not one string", kind="usage")

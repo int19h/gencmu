@@ -1,8 +1,9 @@
 //! From the notation's document tree to a grammar DOM (engine §9).
 
 use crate::dom::{
-    comparison_problem, cond_type_problem, is_capture_name, joined_type, spelling_problem, tag_term_problem, term_type,
-    Alternative, Arg, Cond, Directive, Dom, EmitItem, Expr, FeatureKind, Guard, Op, RuleDef, Term, Type,
+    comparison_problem, cond_type_problem, is_capture_name, joined_type, property_problem, range_problem,
+    spelling_problem, tag_term_problem, term_type, Alternative, Arg, Cond, Directive, Dom, EmitItem, Expr, FeatureKind,
+    Guard, Op, RuleDef, Term, Type,
 };
 use crate::error::Error;
 use crate::result::{Node, NodeKind, Token};
@@ -117,7 +118,8 @@ impl<'a> Reader<'a> {
                 child.kind == NodeKind::Rule
                     && matches!(rule_name(child), "argument-word" | "argument-string" | "argument-tag")
             })
-            .map(|child| (child, Self::tokens_of(child).next().expect("an argument")))
+            // A token, or the node of a range or a property.
+            .map(|child| (child, child.children.first().expect("an argument")))
             .collect();
         let kinds: Vec<Operand> = operands
             .iter()
@@ -127,6 +129,8 @@ impl<'a> Reader<'a> {
                     "argument-string" => Operand::String,
                     "argument-word" if is_capital(text) => Operand::Class,
                     "argument-word" => Operand::Name,
+                    _ if operand.kind == NodeKind::Rule && rule_name(operand) == "range" => Operand::Range,
+                    _ if operand.kind == NodeKind::Rule => Operand::Property,
                     _ if text.starts_with('~') => Operand::Tag,
                     _ if text.starts_with('/') => Operand::Phoneme,
                     _ => Operand::Character,
@@ -137,7 +141,8 @@ impl<'a> Reader<'a> {
             return Err(self.error(node, problem));
         }
         // A string operand is decoded, as a string of a rule is, and a tag
-        // literal is its name.
+        // literal is its name. operand_problem has refused a range or a
+        // property, which has no tag.
         let mut args = Vec::new();
         for &(child, operand) in &operands {
             args.push(match rule_name(child) {
@@ -287,12 +292,15 @@ impl<'a> Reader<'a> {
         let inner = Self::inner(node);
         let token = || Self::tokens_of(inner).next().expect("a token");
         Ok(match rule_name(inner) {
-            "reference" | "tag" | "character" | "phoneme" => self.symbol(inner)?,
+            "reference" | "tag" | "character" | "phoneme" | "range" | "property" => self.symbol(inner)?,
             "spelled" => {
                 // A reference or a terminal and its spelling, which the
                 // syntax grammar gives nothing else (engine §9).
                 let expr = self.symbol(Self::inner(inner))?;
                 let spelling_token = token();
+                if matches!(expr, Expr::Range(..) | Expr::Property(_)) {
+                    return Err(self.error(spelling_token, "a range or a property takes no spelling"));
+                }
                 let text: Vec<char> = self.text(spelling_token).chars().collect();
                 let spelling: String = text[1.min(text.len())..text.len().saturating_sub(1).max(1)].iter().collect();
                 let spellable = matches!(&expr, Expr::Ref(name) if name != "#") || matches!(expr, Expr::Terminal(_));
@@ -317,7 +325,10 @@ impl<'a> Reader<'a> {
                 }
                 let primary = self.one(inner, "primary");
                 let wrapped = Self::inner(primary);
-                if !matches!(rule_name(wrapped), "reference" | "tag" | "character" | "phoneme" | "spelled") {
+                if !matches!(
+                    rule_name(wrapped),
+                    "reference" | "tag" | "character" | "phoneme" | "range" | "property" | "spelled"
+                ) {
                     return Err(self.error(capture, "a capture must wrap a single symbol"));
                 }
                 if !top {
@@ -339,15 +350,49 @@ impl<'a> Reader<'a> {
         })
     }
 
-    /// A reference, or a terminal: a tag literal, a character tag or a
-    /// phoneme tag.
+    /// A reference, or a terminal: a tag literal, a character tag, a
+    /// phoneme tag, a range or a property.
     fn symbol(&self, node: &'a Node) -> R<Expr> {
+        if rule_name(node) == "range" {
+            let (start, end) = self.range(node)?;
+            return Ok(Expr::Range(start, end));
+        }
         let token = Self::tokens_of(node).next().expect("a token");
         Ok(match rule_name(node) {
             "reference" => Expr::Ref(self.text(token).to_string()),
             "tag" | "character" | "phoneme" => Expr::Terminal(self.tag_of(token)?),
+            "property" => Expr::Property(self.property(token)?),
             other => panic!("an unknown symbol {other}"),
         })
+    }
+
+    /// A range's two ends, each a character tag in its canonical spelling;
+    /// its start must not be above its end (engine §1, §9).
+    fn range(&self, node: &'a Node) -> R<(String, String)> {
+        let mut ends = Vec::new();
+        for end in Self::rules(node, "character") {
+            ends.push(self.tag_of(Self::tokens_of(end).next().expect("a character tag"))?);
+        }
+        let [start, end] = <[String; 2]>::try_from(ends).expect("a range has two ends");
+        if let Some(problem) = range_problem(&start, &end, self.unicode) {
+            return Err(self.error(node, problem));
+        }
+        Ok((start, end))
+    }
+
+    /// A property's name: its token is `'\p{Name}'`, with a name of engine
+    /// §1.
+    fn property(&self, token: &'a Node) -> R<String> {
+        let text = self.text(token);
+        let name =
+            text.strip_prefix("'\\p{").and_then(|rest| rest.strip_suffix("}'")).filter(|name| !name.contains('}'));
+        let Some(name) = name else {
+            return Err(self.error(token, "a property is written '\\p{Name}'"));
+        };
+        if let Some(problem) = property_problem(name) {
+            return Err(self.error(token, problem));
+        }
+        Ok(name.to_string())
     }
 
     /// Decodes a string or a character tag's token (engine §9). A string
@@ -415,7 +460,11 @@ impl<'a> Reader<'a> {
         let arrow = Self::tokens_of(node).next().expect("%emits");
         let mut items = Vec::new();
         for item in Self::rules(node, "emit-item") {
-            let target = Self::tokens_of(self.one(item, "emit-target")).next().expect("an emission target");
+            // An inserted item is one tag (engine §9).
+            let target = self.one(item, "emit-target").children.first().expect("an emission target");
+            if target.kind == NodeKind::Rule {
+                return Err(self.error(item, "an inserted item is one tag, not a range or a property"));
+            }
             let tags = Self::rules(item, "emit-tags").next();
             let text = self.text(target);
             match target.terminal.as_deref().unwrap_or("") {
@@ -691,6 +740,13 @@ impl<'a> Reader<'a> {
             "term" => self.term(inner, depth, argument)?,
             "string" => Term::Str(self.decode(token())?),
             "tag" | "character" | "phoneme" => Term::Tag(self.tag_of(token())?),
+            "range" => {
+                let (start, end) = self.range(inner)?;
+                Term::Range(start, end)
+            }
+            "property" => {
+                return Err(self.error(inner, "a property is not a tag set, and stands only as a terminal in a body"))
+            }
             // A bare name is a tag literal if it begins with a capital, and
             // otherwise a rule, which only a function's argument names.
             "name" => {
@@ -803,7 +859,7 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
         Term::Union(items) | Term::Intersection(items) => items.iter().any(reads_own_tags),
         Term::Difference(left, right) => reads_own_tags(left) || reads_own_tags(right),
         Term::If(cond, then) => cond_reads_own_tags(cond) || reads_own_tags(then),
-        Term::Str(_) | Term::Tag(_) | Term::EmptySet => false,
+        Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet => false,
     }
 }
 
@@ -818,7 +874,8 @@ fn cond_reads_own_tags(cond: &Cond) -> bool {
 }
 
 /// A directive's operand: a bare name, with a capital or not, a string, a
-/// tag literal `~name`, a phoneme tag or a character tag.
+/// tag literal `~name`, a phoneme tag, a character tag, a range or a
+/// property.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Operand {
     Name,
@@ -827,6 +884,8 @@ enum Operand {
     Tag,
     Phoneme,
     Character,
+    Range,
+    Property,
 }
 
 /// What is wrong with a directive's operands, or `None` (engine §9).

@@ -231,6 +231,10 @@ export type Expr = {
 } | {
     terminal: string;
 } | {
+    range: [string, string];
+} | {
+    property: string;
+} | {
     spelling: string;
     expr: SpelledSymbol;
 } | {
@@ -279,6 +283,8 @@ export type Term = {
 } | {
     tag: string;
 } | {
+    range: [string, string];
+} | {
     emptySet: true;
 } | {
     union: Term[];
@@ -306,6 +312,17 @@ export type GrammarSymbol = {
      * lowercased; not part of the terminal's identity (engine §4)
      */
     spelling?: string;
+    /**
+     * for a range or a property, the
+     * characters it matches; its name is then its written form (engine §4)
+     */
+    characters?: CharacterClass;
+};
+export type CharacterClass = {
+    from: number;
+    to: number;
+} | {
+    property: string;
 };
 export type Capture = {
     name: string;
@@ -636,6 +653,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * A rule body expression.
  * @typedef {{choice: Expr[]} | {and: Expr[]} | {seq: Expr[]} | {repeat: Expr, min: number}
  *   | {optional: Expr} | {capture: string, expr: Expr} | {ref: string} | {terminal: string}
+ *   | {range: [string, string]} | {property: string}
  *   | {spelling: string, expr: SpelledSymbol} | {empty: true}} Expr
  */
 /**
@@ -669,7 +687,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * A term of a condition or a tags clause: a string, a tag literal, the
  * empty set, a set expression, a guarded term, a call, or a span, which
  * only a call's argument can be (engine §10).
- * @typedef {{string: string} | {tag: string} | {emptySet: true} | {union: Term[]} | {if: Condition, then: Term}
+ * @typedef {{string: string} | {tag: string} | {range: [string, string]} | {emptySet: true} | {union: Term[]} | {if: Condition, then: Term}
  *   | {intersection: Term[]} | {difference: [Term, Term]} | {call: string, args: Argument[]} | {capture: string}} Term
  */
 /**
@@ -682,6 +700,13 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {boolean} terminal
  * @property {string} [spelling] what the symbol's span must sound like,
  *   lowercased; not part of the terminal's identity (engine §4)
+ * @property {CharacterClass} [characters] for a range or a property, the
+ *   characters it matches; its name is then its written form (engine §4)
+ */
+/**
+ * The characters a range or a property matches: a range's first and last
+ * scalar values, or a property's name.
+ * @typedef {{from: number, to: number} | {property: string}} CharacterClass
  */
 /**
  * @typedef {object} Capture

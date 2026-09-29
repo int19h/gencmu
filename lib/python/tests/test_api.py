@@ -55,7 +55,7 @@ SOUNDS = """# Sounds
   [c] ...
 
 %rule c
-  's' </s/> | 'a' </a/> | 'm' </m/> | 'i' </i/> | ~space </./>
+  's' </s/> | 'a' </a/> | 'm' </m/> | 'i' </i/> | '\\p{White_Space}' </./>
 %emits
   $
 ```
@@ -314,7 +314,9 @@ class Output(unittest.TestCase):
             list(value["error"]),
             ["kind", "stage", "token", "source", "line", "column", "expected", "message"],
         )
-        self.assertEqual(value["error"]["expected"][0], {"terminal": "'a'", "rules": ["c"]})
+        # In code point order: a property is its written form (engine §4).
+        self.assertEqual(value["error"]["expected"][0], {"terminal": "'\\p{White_Space}'", "rules": ["c"]})
+        self.assertEqual(value["error"]["expected"][1], {"terminal": "'a'", "rules": ["c"]})
         self.assertIsNone(value["tree"])
 
     def test_brackets(self) -> None:
@@ -442,12 +444,14 @@ class Robustness(unittest.TestCase):
                 self.assertTrue(dialect.parse("a", auto_features=False).ok)
 
     def test_bundled_doms_are_well_formed(self) -> None:
+        from gencmu._dialect import _unicode_table
         from gencmu._validate import dom_problem
 
+        unicode = _unicode_table(bundled_text("unicode.txt") or "")
         compiled = json.loads(bundled_text("compiled.json") or "{}")
         for path, entry in compiled["documents"].items():
             with self.subTest(document=path):
-                self.assertIsNone(dom_problem(entry["dom"]))
+                self.assertIsNone(dom_problem(entry["dom"], unicode))
 
     def test_deeply_nested_grammar(self) -> None:
         """A grammar nested as deep as engine §9 allows loads and parses."""

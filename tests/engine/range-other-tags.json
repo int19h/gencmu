@@ -1,0 +1,34 @@
+{
+  "description": "A range or a property reads only character tags: a token of a later stage that carries none, such as one tagged with a phoneme, does not match it (engine §4).",
+  "grammar": "%rule text '\\p{Any}' | A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "/a/",
+        "A"
+      ],
+      "phonemes": "a"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A"
+          }
+        ]
+      }
+    }
+  }
+}

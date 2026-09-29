@@ -1,0 +1,10 @@
+{
+  "description": "An inserted item of %emits is one tag, so a property there is an error at the item (engine §9).",
+  "document": "```jbogenbau\n%rule a $b(B)\n%emits '\\p{L}', $b\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 8
+    }
+  }
+}

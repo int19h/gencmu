@@ -1,0 +1,10 @@
+{
+  "description": "A property name is a short form: the long name '\\p{Letter}' is an error at the property (engine §1, §9).",
+  "document": "```jbogenbau\n%rule a B '\\p{Letter}'\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 11
+    }
+  }
+}

@@ -609,6 +609,81 @@ func TestMalformedPrecompiled(t *testing.T) {
 	}
 }
 
+// Malformed range and property nodes take the whole loading path: in
+// compiled.json each is a miss, read from the document instead, and in the
+// bootstrap each is an error of the bootstrap (engine §9). Each keeps the
+// range 'b'..'c' first, so an entry used by mistake would reject "ab".
+func TestMalformedCharacterClasses(t *testing.T) {
+	loadBundled()
+	sources := oneStage("%ambiguity-resolution greedy\n%rule text 'a'..'z' '\\p{L}'")
+	gText := sources["g.md"]
+	format := strconv.Itoa(domFormat)
+	dom := func(expr string) string {
+		return `{"format":` + format + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[3,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}]}`
+	}
+	compiled := func(dom string) map[string]string {
+		src := map[string]string{}
+		for k, v := range sources {
+			src[k] = v
+		}
+		src["compiled.json"] = `{"format":` + format + `,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(gText) + `","dom":` + dom + `}}}`
+		return src
+	}
+	bootstrap := func(dom string) error {
+		src := map[string]string{}
+		for k, v := range sources {
+			src[k] = v
+		}
+		src["notation/bootstrap.json"] = `{"format":` + format + `,"stages":[{"name":"lexical","documents":[{"path":"notation/lexical.md","dom":` + dom + `}]}]}`
+		_, err := LoadDialectSources(src, "p.md")
+		return err
+	}
+	parse := func(src map[string]string) bool {
+		d, err := LoadDialectSources(src, "p.md")
+		if err != nil {
+			t.Fatal(err)
+		}
+		res, err := d.Parse("ab", ParseOptions{NoAutoFeatures: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return res.OK
+	}
+	// The control: a well-formed entry is used, and rejects "ab"; in the
+	// bootstrap, it is read, and its notation then fails on g.md.
+	control := dom(`{"seq":[{"range":["'b'","'c'"]},{"property":"L"}]}`)
+	if parse(compiled(control)) {
+		t.Fatal("the well-formed entry was not used")
+	}
+	var e *Error
+	if err := bootstrap(control); !errors.As(err, &e) || e.Document == "notation/bootstrap.json" {
+		t.Fatalf("the well-formed bootstrap was refused: %v", err)
+	}
+	for _, expr := range []string{
+		`{"seq":[{"range":["'c'","'b'"]},{"property":"L"}]}`,
+		`{"seq":[{"range":["'\\u{62}'","'c'"]},{"property":"L"}]}`,
+		`{"seq":[{"range":["'b'","'c'"]},{"property":"Bogus"}]}`,
+		`{"seq":[{"range":["'b'","'c'"]},{"property":"L"}]},"tags":{"property":"L"}`,
+		// A range or a property beside a sequence, which is checked before
+		// the sequence is split.
+		`{"seq":[{"range":["'b'","'c'"]},{"property":"L"}],"range":["'z'","'a'"]}`,
+		`{"seq":[{"range":["'b'","'c'"]},{"property":"L"}],"range":["'a'","'z'"]}`,
+		`{"seq":[{"range":["'b'","'c'"]},{"property":"L"}],"property":"Bogus"}`,
+		`{"seq":[{"range":["'b'","'c'"]},{"property":"L"}],"property":"L"}`,
+	} {
+		d := dom(expr)
+		if _, err := decodeDOM([]byte(d), bundled.uni); err == nil {
+			t.Errorf("a malformed DOM decodes: %s", expr)
+		}
+		if !parse(compiled(d)) {
+			t.Errorf("%s in compiled.json: the document was not read instead", expr)
+		}
+		if err := bootstrap(d); !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "notation/bootstrap.json" {
+			t.Errorf("%s in the bootstrap: expected an error of the bootstrap, got %v", expr, err)
+		}
+	}
+}
+
 // Caller tokens whose source lies outside the text are a usage error, not
 // a panic (review of PR #8).
 func TestParseTokensOutOfRange(t *testing.T) {
@@ -631,6 +706,117 @@ func TestParseTokensOutOfRange(t *testing.T) {
 	toks = []Token{{Text: "a", Tags: []string{"'a'"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}}
 	if res, err := d.ParseTokens("a", toks, ParseOptions{}); err != nil || !res.OK {
 		t.Fatalf("%v %+v", err, res)
+	}
+}
+
+// A text or a document that is not valid UTF-8 is no sequence of scalar
+// values, so it is a usage error, refused before any character token
+// (engine §1). "\xed\xa0\x80" encodes the surrogate U+D800.
+func TestInvalidUTF8(t *testing.T) {
+	isUsage := func(err error) bool {
+		var e *Error
+		return errors.As(err, &e) && e.Kind == ErrorUsage
+	}
+	// Each of these would read U+FFFD or U+D800 if the text became tokens.
+	rules := []string{`'\p{Cs}'`, `'\p{Any}'`, `'\u{D7FF}'..'\u{E000}'`, `'\u{FFFD}'`, "[character] ...\n%rule character '\\p{Any}'"}
+	for _, rule := range rules {
+		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text "+rule))
+		for _, text := range []string{"\xed\xa0\x80", "a\xff", "\xc3", "\xf4\x90\x80\x80", "\xe2\x82"} {
+			if res, err := d.Parse(text, ParseOptions{NoAutoFeatures: true}); res != nil || !isUsage(err) {
+				t.Errorf("%s over %q: expected a usage error, got %v %v", rule, text, res, err)
+			}
+			if res, err := d.ParseTokens(text, nil, ParseOptions{NoAutoFeatures: true}); res != nil || !isUsage(err) {
+				t.Errorf("%s over %q with tokens: expected a usage error, got %v %v", rule, text, res, err)
+			}
+		}
+	}
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text '\\p{Any}'"))
+	if res, err := d.Parse("\U0001F600", ParseOptions{NoAutoFeatures: true}); err != nil || !res.OK {
+		t.Errorf("a valid text: %v %+v", err, res)
+	}
+	_, err := LoadDialectSources(oneStage("%ambiguity-resolution greedy\n%rule text '\xed\xa0\x80'"), "p.md")
+	var e *Error
+	if !errors.As(err, &e) || e.Kind != ErrorUsage || e.Document != "g.md" {
+		t.Errorf("a document that is not valid UTF-8: %v", err)
+	}
+}
+
+// A grammar document read from disk is strict UTF-8 (engine §1): bytes that
+// do not decode are a grammar error of that document, with no line or
+// column, found before any hash or compiled DOM. U+FFFD, supplementary
+// characters and a byte order mark decode as themselves.
+func TestFileUTF8(t *testing.T) {
+	const pipeline = "# A dialect\n\n```jbogenbau\n%stage main\n%include \"g.md\"\n```\n"
+	grammar := func(rule string) string {
+		return "# A grammar\n\n```jbogenbau\n%ambiguity-resolution greedy\n" + rule + "\n```\n"
+	}
+	dir := func(files map[string]string) string {
+		root := t.TempDir()
+		for name, text := range files {
+			if err := os.WriteFile(filepath.Join(root, name), []byte(text), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return root
+	}
+	// A stray continuation, a truncated sequence, an overlong form, an
+	// encoded surrogate and a value above U+10FFFF.
+	invalid := []string{"\x80", "\xe2\x82", "\xc0\xaf", "\xed\xa0\x80", "\xf4\x90\x80\x80", "\xff"}
+	good := grammar("%rule text 'a'")
+	places := []struct {
+		place string
+		files func(b string) map[string]string
+		bad   string
+	}{
+		{"the pipeline's prose", func(b string) map[string]string {
+			return map[string]string{"p.md": "# A dialect " + b + "\n\n" + pipeline, "g.md": good}
+		}, "p.md"},
+		{"a comment of the pipeline", func(b string) map[string]string {
+			return map[string]string{"p.md": strings.Replace(pipeline, "%stage main", "%stage main (* "+b+" *)", 1), "g.md": good}
+		}, "p.md"},
+		{"an included document's prose", func(b string) map[string]string {
+			return map[string]string{"p.md": pipeline, "g.md": "# A grammar " + b + "\n\n" + good}
+		}, "g.md"},
+		{"a comment of an included document", func(b string) map[string]string {
+			return map[string]string{"p.md": pipeline, "g.md": grammar("%rule text 'a' (* " + b + " *)")}
+		}, "g.md"},
+	}
+	for _, p := range places {
+		for _, b := range invalid {
+			root := dir(p.files(b))
+			_, err := LoadDialectFile(filepath.Join(root, "p.md"))
+			var e *Error
+			if !errors.As(err, &e) || e.Kind != ErrorGrammar || !strings.HasSuffix(e.Document, "/"+p.bad) ||
+				!strings.Contains(e.Message, "not valid UTF-8") || e.Line != 0 || e.Column != 0 {
+				t.Errorf("%s, %q: expected a grammar error of %s, got %#v", p.place, b, p.bad, err)
+			}
+		}
+	}
+	root := dir(map[string]string{
+		"p.md": "# A dialect \uFFFD \U0001F600\n\n" + pipeline,
+		"g.md": grammar("%rule text '\uFFFD' '\U0001F600' '\U0010FFFD' (* \uFFFD \U0001F600 *)"),
+	})
+	d, err := LoadDialectFile(filepath.Join(root, "p.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for text, want := range map[string]bool{"\uFFFD\U0001F600\U0010FFFD": true, "\uFFFD\U0001F600": false} {
+		if res, err := d.Parse(text, ParseOptions{NoAutoFeatures: true}); err != nil || res.OK != want {
+			t.Errorf("%q: %v %+v", text, err, res)
+		}
+	}
+	// A byte order mark stays U+FEFF, so a fence after it opens no block.
+	marked := dir(map[string]string{"p.md": "\uFEFF" + pipeline[strings.Index(pipeline, "```"):], "g.md": good})
+	if _, err := LoadDialectFile(filepath.Join(marked, "p.md")); err == nil || !strings.Contains(err.Error(), "at least one %stage") {
+		t.Errorf("a fence after a byte order mark: %v", err)
+	}
+	prose := dir(map[string]string{"p.md": "\uFEFF" + pipeline, "g.md": grammar("%rule text '\uFEFF'")})
+	d, err = LoadDialectFile(filepath.Join(prose, "p.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res, err := d.Parse("\uFEFF", ParseOptions{NoAutoFeatures: true}); err != nil || !res.OK {
+		t.Errorf("a byte order mark in a character tag: %v %+v", err, res)
 	}
 }
 

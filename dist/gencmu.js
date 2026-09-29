@@ -218,6 +218,56 @@
     return characterOfTag(tag, { isMark: () => false }) !== null || characterOfTag(tag, { isMark: (code) => code >= 0x300 }) !== null;
   }
 
+  /**
+   * The scalar value of a character tag in its canonical spelling, or -1 for
+   * any other tag. The tag is not checked beyond its first character: every
+   * tag inside the engine is in its canonical spelling (engine §1).
+   * @param {string} tag
+   * @returns {number}
+   */
+  function codeOfCharacterTag(tag) {
+    if (tag.charCodeAt(0) !== 0x27) return -1;
+    if (tag.charCodeAt(1) === 0x5c) return parseInt(tag.slice(4, -2), 16);
+    return /** @type {number} */ (tag.codePointAt(1));
+  }
+
+  /**
+   * The written form of a range, its identity as a terminal (engine §4):
+   * its two ends, in their canonical spelling, joined by `..`.
+   * @param {[string, string]} range
+   * @returns {string}
+   */
+  function rangeName(range) {
+    return `${range[0]}..${range[1]}`;
+  }
+
+  /**
+   * The written form of a property, its identity as a terminal (engine §4).
+   * @param {string} name
+   * @returns {string}
+   */
+  function propertyName(name) {
+    return `'\\p{${name}}'`;
+  }
+
+  /**
+   * The character tags of a range (engine §1), from its start to its end by
+   * scalar value, the surrogates skipped.
+   * @param {[string, string]} range
+   * @param {{isMark(code: number): boolean}} unicode
+   * @returns {TagSet}
+   */
+  function rangeTags(range, unicode) {
+    const result = new Set();
+    const last = codeOfCharacterTag(range[1]);
+    for (let code = codeOfCharacterTag(range[0]); code <= last; code++) {
+      if (code === 0xd800) code = 0xe000;
+      if (code > last) break;
+      result.add(characterTag(code, unicode));
+    }
+    return result;
+  }
+
   // ---- tokens.js
   // Tokens (engine §1): what every stage reads and writes.
 
@@ -317,7 +367,7 @@
   }
 
   // The first stage's input: one token per code point, tagged with its
-  // character tag and its class (engine §1).
+  // character tag and nothing else (engine §1).
   /**
    * @param {string} text
    * @param {UnicodeTable} unicode
@@ -328,7 +378,7 @@
     let index = 0;
     for (const character of text) {
       const code = /** @type {number} */ (character.codePointAt(0));
-      const tags = tagSet([characterTag(code, unicode), unicode.classOf(code)]);
+      const tags = tagSet([characterTag(code, unicode)]);
       tokens.push(new Token(tags, [index, index + 1], [index, index + 1], character, null, undefined));
       index++;
     }
@@ -353,7 +403,7 @@
 
 
   /**
-   * @import { Argument, Condition, Edge, Expectation, LoweredGrammar, Production, Scope, Slot, SpanValue, TagSet, Term, TermValue } from "./types.js"
+   * @import { Argument, CharacterClass, Condition, Edge, Expectation, GrammarSymbol, LoweredGrammar, Production, Scope, Slot, SpanValue, TagSet, Term, TermValue } from "./types.js"
    * @import { Token } from "./tokens.js"
    * @import { UnicodeTable } from "./unicode.js"
    */
@@ -637,7 +687,7 @@
         }
         // The conditions above run first, as they did when every prediction
         // was made an item, so that a trace shows the production as dropped.
-        if (lookaheadSkips(production, next)) {
+        if (lookaheadSkips(context, production, next)) {
           skipped = true;
           continue;
         }
@@ -721,7 +771,7 @@
               add(set, item.production, advanced.dot, item.origin, advanced.slots, item, done, advanced.tagId);
             }
           }
-        } else if (position < end && tokens[position].tags.has(next.name)) {
+        } else if (position < end && (next.characters === undefined ? tokens[position].tags.has(next.name) : carries(context.unicode, next.characters, tokens[position].tags))) {
           const advanced = advance(item, position, position + 1, null);
           if (advanced) {
             add(setAt(position + 1), item.production, advanced.dot, item.origin, advanced.slots, item, null, advanced.tagId);
@@ -772,14 +822,47 @@
   // One token of lookahead: an item whose first symbol is a terminal the next
   // token lacks could never advance, so a prediction of it is not made.
   /**
+   * @param {ParseContext} context
    * @param {Production} production
    * @param {Token | null} next
    * @returns {boolean}
    */
-  function lookaheadSkips(production, next) {
+  function lookaheadSkips(context, production, next) {
     const first = production.rhs[0];
-    return Boolean(first && first.terminal && !(next && next.tags.has(first.name)));
+    return Boolean(first && first.terminal && !(next && reads(context, first, next)));
   }
+
+  /**
+   * Whether a terminal matches a token (engine §4): a tag it carries, or, for
+   * a range or a property, one of its character tags.
+   * @param {ParseContext} context
+   * @param {GrammarSymbol} symbol
+   * @param {Token} token
+   * @returns {boolean}
+   */
+  function reads(context, symbol, token) {
+    return symbol.characters === undefined ? token.tags.has(symbol.name) : carries(context.unicode, symbol.characters, token.tags);
+  }
+
+  /**
+   * Whether tags hold a character tag of a range or a property (engine §4).
+   * @param {UnicodeTable} unicode
+   * @param {CharacterClass} characters
+   * @param {TagSet} tags
+   * @returns {boolean}
+   */
+  function carries(unicode, characters, tags) {
+    for (const tag of tags) {
+      const code = codeOfCharacterTag(tag);
+      if (code < 0) continue;
+      if ("property" in characters ? unicode.hasProperty(characters.property, code) : code >= characters.from && code <= characters.to) return true;
+    }
+    return false;
+  }
+
+  // The tags of each range that a term holds, made once (engine §10).
+  /** @type {WeakMap<object, TagSet>} */
+  const rangeSets = new WeakMap();
 
   // The slots of a predicted item, one list per production that all its
   // predictions share: advancing over a capture copies the list first.
@@ -979,6 +1062,11 @@
   function evaluate(context, term, scope) {
     if ("string" in term) return { string: term.string };
     if ("tag" in term) return { set: tagSet([term.tag]) };
+    if ("range" in term) {
+      let tags = rangeSets.get(term);
+      if (!tags) rangeSets.set(term, (tags = rangeTags(term.range, context.unicode)));
+      return { set: tags };
+    }
     if ("if" in term) return holds(context, term.if, scope) ? evaluate(context, term.then, scope) : { set: tagSet() };
     if ("emptySet" in term) return { set: tagSet() };
     if ("union" in term) return { set: term.union.reduce((acc, item) => tagUnion(acc, asSet(evaluate(context, item, scope))), tagSet()) };
@@ -1248,7 +1336,7 @@
     const next = position < chart.end ? context.tokens[position] : null;
     for (const rule of set.skipped) {
       for (const production of context.lowered.byLhs.get(rule) || []) {
-        if (!lookaheadSkips(production, next) || failedCondition(context, production, -1, emptySlots(production), position, position)) continue;
+        if (!lookaheadSkips(context, production, next) || failedCondition(context, production, -1, emptySlots(production), position, position)) continue;
         note(writtenSymbol(production.rhs[0]), production.owner);
       }
     }
@@ -1817,11 +1905,126 @@
   }
 
 
+  // ---- unicode.js
+  // The character data of grammars/unicode.txt: the General_Category of a
+  // character, the White_Space property, and the simple lowercase mapping, the
+  // same in every gencmu library (engine §1).
+
+  // The names a property can have (engine §1): the General_Category values in
+  // their short form, their one-letter groups, White_Space and Any.
+  const CATEGORIES = [
+    "Lu", "Ll", "Lt", "Lm", "Lo", "Mn", "Mc", "Me", "Nd", "Nl", "No", "Pc", "Pd", "Ps", "Pe", "Pi", "Pf", "Po",
+    "Sm", "Sc", "Sk", "So", "Zs", "Zl", "Zp", "Cc", "Cf", "Cs", "Co", "Cn",
+  ];
+  const PROPERTY_NAMES = new Set([...CATEGORIES, "L", "M", "N", "P", "S", "Z", "C", "White_Space", "Any"]);
+
+  class UnicodeTable {
+    /** @param {string} text the contents of unicode.txt */
+    constructor(text) {
+      /** @type {string | null} */
+      this.version = null;
+      // The category ranges, in order: parallel arrays for a binary search.
+      /** @type {number[]} */
+      this.starts = [];
+      /** @type {number[]} */
+      this.ends = [];
+      /** @type {string[]} */
+      this.categories = [];
+      /** @type {[number, number][]} */
+      this.whiteSpace = [];
+      /** @type {Map<number, number>} */
+      this.lower = new Map();
+      /** @type {[number, number, string][]} */
+      const ranges = [];
+      for (const line of text.split("\n")) {
+        const fields = line.trim().split(/\s+/);
+        if (fields[0] === "unicode") this.version = fields[1];
+        else if (fields[0] === "category") ranges.push([parseInt(fields[2], 16), parseInt(fields[3], 16), fields[1]]);
+        else if (fields[0] === "white-space") this.whiteSpace.push([parseInt(fields[1], 16), parseInt(fields[2], 16)]);
+        else if (fields[0] === "lower") this.lower.set(parseInt(fields[1], 16), parseInt(fields[2], 16));
+      }
+      // The records can stand in any order in the file (engine §1).
+      ranges.sort((a, b) => a[0] - b[0]);
+      for (const [start, end, category] of ranges) {
+        this.starts.push(start);
+        this.ends.push(end);
+        this.categories.push(category);
+      }
+    }
+
+    /**
+     * The General_Category of a code point, in its short form (engine §1):
+     * `Cs` for a surrogate, which a table does not list, and `Cn` for any
+     * other code point that the table omits.
+     * @param {number} code
+     * @returns {string}
+     */
+    category(code) {
+      if (code >= 0xd800 && code <= 0xdfff) return "Cs";
+      let low = 0;
+      let high = this.starts.length - 1;
+      while (low <= high) {
+        const middle = (low + high) >> 1;
+        if (code < this.starts[middle]) high = middle - 1;
+        else if (code > this.ends[middle]) low = middle + 1;
+        else return this.categories[middle];
+      }
+      return "Cn";
+    }
+
+    /**
+     * Whether a code point is a nonspacing mark, of General_Category Mn.
+     * @param {number} code
+     * @returns {boolean}
+     */
+    isMark(code) {
+      return this.category(code) === "Mn";
+    }
+
+    /**
+     * Whether a code point has the White_Space property.
+     * @param {number} code
+     * @returns {boolean}
+     */
+    isWhiteSpace(code) {
+      for (const [start, end] of this.whiteSpace) if (code >= start && code <= end) return true;
+      return false;
+    }
+
+    /**
+     * Whether a scalar value has a property (engine §1), whose name must be
+     * one of PROPERTY_NAMES.
+     * @param {string} name
+     * @param {number} code
+     * @returns {boolean}
+     */
+    hasProperty(name, code) {
+      if (name === "Any") return true;
+      if (name === "White_Space") return this.isWhiteSpace(code);
+      if (name.length === 1) return this.category(code)[0] === name;
+      return this.category(code) === name;
+    }
+
+    /**
+     * @param {string} text
+     * @returns {string}
+     */
+    lowercase(text) {
+      let result = "";
+      for (const character of text) {
+        const mapped = this.lower.get(/** @type {number} */ (character.codePointAt(0)));
+        result += mapped === undefined ? character : String.fromCodePoint(mapped);
+      }
+      return result;
+    }
+  }
+
   // ---- dom.js
   // Checks that a grammar DOM that did not come from reading a document, the
   // bootstrap's or a precompiled one from compiled.json, has the shape the
   // reader would have given it (docs/output.md, "The DOM"), so that a corrupt
   // or hand-made one is refused rather than failing somewhere inside a parse.
+
 
 
 
@@ -1837,7 +2040,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 9;
+  const DOM_FORMAT = 10;
 
   /**
    * What is wrong with a spelling of a symbol (engine §9), or null: an empty
@@ -1862,6 +2065,46 @@
     }
     if (unicode && unicode.lowercase(spelling) !== spelling) return `the spelling ${spelling} is not in lower case`;
     return null;
+  }
+
+  /**
+   * What is wrong with a range (engine §1, §9), or null: its ends must be two
+   * character tags in their canonical spelling by the table, which says which
+   * code points are marks, the start not above the end.
+   * @param {unknown} range
+   * @param {{isMark(code: number): boolean}} unicode
+   * @returns {string | null}
+   */
+  function rangeProblem(range, unicode) {
+    if (!Array.isArray(range) || range.length !== 2) return "a malformed range";
+    const codes = range.map((end) => (typeof end === "string" ? characterOfTag(end, unicode) : null));
+    if (codes[0] === null || codes[1] === null) return "a range's ends are two character tags";
+    if (codes[0] > codes[1]) return `the range ${range[0]}..${range[1]} starts above its end`;
+    return null;
+  }
+
+  /**
+   * What is wrong with a property's name (engine §1, §9), or null.
+   * @param {unknown} name
+   * @returns {string | null}
+   */
+  function propertyProblem(name) {
+    if (typeof name !== "string" || !PROPERTY_NAMES.has(name)) return `'\\p{${String(name)}}' is not a property: a property is a General_Category value in its short form, a one-letter group of them, White_Space or Any`;
+    return null;
+  }
+
+  /**
+   * Whether an expression node is a range or a property that the DOM allows,
+   * and has no other member.
+   * @param {Record<string, unknown>} value
+   * @param {{isMark(code: number): boolean}} unicode
+   * @returns {boolean}
+   */
+  function isCharacterClass(value, unicode) {
+    if (Object.keys(value).length !== 1) return false;
+    if ("range" in value) return rangeProblem(value.range, unicode) === null;
+    if ("property" in value) return propertyProblem(value.property) === null;
+    return false;
   }
 
   /**
@@ -1907,7 +2150,7 @@
    * The forms of a term, each as its members (docs/output.md). The first
    * member names the form.
    */
-  const TERM_FORMS = [["union"], ["intersection"], ["difference"], ["if", "then"], ["call", "args"], ["string"], ["tag"], ["emptySet"], ["capture"]];
+  const TERM_FORMS = [["union"], ["intersection"], ["difference"], ["if", "then"], ["call", "args"], ["string"], ["tag"], ["range"], ["emptySet"], ["capture"]];
 
   /**
    * Whether a term node has exactly the members of one form, and no other.
@@ -1921,9 +2164,10 @@
 
   /**
    * Why a value is not a grammar DOM, or null when it is one. `unicode` is
-   * the lowercase mapping that spellings are checked against.
+   * the loader's table: the lowercase mapping that spellings are checked
+   * against, and the marks that decide a character tag's canonical spelling.
    * @param {unknown} dom
-   * @param {{lowercase(text: string): string, isMark(code: number): boolean}} [unicode]
+   * @param {{lowercase(text: string): string, isMark(code: number): boolean}} unicode
    * @returns {string | null}
    */
   function domProblem(dom, unicode) {
@@ -1960,8 +2204,11 @@
         // Depth counts the compound nodes above a node (engine §9): the
         // items of a top-level sequence are below one, the sequence.
         const expr = alternative.expr;
-        // The expression itself is checked before its sequence is split.
+        // The expression itself is checked before its sequence is split, so
+        // that a member beside `seq` is never left unread: a spelling, or a
+        // range or a property, which has no member but its own.
         if (isDomObject(expr) && isMisshapenSpelling(expr)) return "a malformed expression";
+        if (isDomObject(expr) && ("range" in expr || "property" in expr) && !isCharacterClass(expr, unicode)) return "a malformed expression";
         const isSeq = isDomObject(expr) && Array.isArray(expr.seq);
         const top = isSeq ? /** @type {unknown[]} */ (expr.seq) : [expr];
         for (const item of top) {
@@ -1990,6 +2237,8 @@
       const list = (items, least, most = Infinity) => Array.isArray(items) && items.length >= least && items.length <= most;
       if ((kind === "expr" || kind === "top-capture") && isMisshapenSpelling(value)) return "a malformed expression";
       if (kind === "expr") {
+        // A range or a property has no member but its own.
+        if (("range" in value || "property" in value) && !isCharacterClass(value, unicode)) return "a malformed expression";
         if ("choice" in value || "seq" in value) {
           const items = "choice" in value ? value.choice : value.seq;
           if (!list(items, 2)) return "a malformed expression";
@@ -2009,13 +2258,14 @@
           const problem = spellingProblem(value.spelling, value.expr, unicode);
           if (problem) return problem;
           push("expr", value.expr);
-        } else if (!(typeof value.ref === "string" || isTag(value.terminal, unicode) || value.empty === true)) {
+        } else if (!(typeof value.ref === "string" || isTag(value.terminal, unicode) || value.empty === true || isCharacterClass(value, unicode))) {
           return "a malformed expression";
         }
       } else if (kind === "top-capture") {
         const inner = value.expr;
         if (typeof value.capture !== "string" || !isDomObject(inner) ||
-            !(typeof inner.ref === "string" || isTag(inner.terminal, unicode) || "spelling" in inner)) return "a malformed capture";
+            !(typeof inner.ref === "string" || isTag(inner.terminal, unicode) || "spelling" in inner || isCharacterClass(inner, unicode)) ||
+            (("range" in inner || "property" in inner) && !isCharacterClass(inner, unicode))) return "a malformed capture";
         // A capture is a compound node; a spelled symbol below it is checked
         // as any expression is.
         if ("spelling" in inner) push("expr", inner);
@@ -2096,7 +2346,8 @@
           else ok = args.length === 1 && isDomSpan(args[0]);
           if (!ok || (!argument && DOM_SPANS.has(/** @type {string} */ (call)))) return "a malformed term";
           for (const arg of args) if (!isRule(arg)) pending.push({ kind: "argument", value: arg, depth: next });
-        } else if (!(typeof value.string === "string" || isTag(value.tag, unicode) || value.emptySet === true || typeof value.capture === "string")) {
+        } else if (!(typeof value.string === "string" || isTag(value.tag, unicode) || value.emptySet === true || typeof value.capture === "string" ||
+            ("range" in value && rangeProblem(value.range, unicode) === null))) {
           return "a malformed term";
         }
       }
@@ -2119,9 +2370,9 @@
   }
 
   /**
-   * Whether a value is a grammar DOM.
+   * Whether a value is a grammar DOM, by the loader's table.
    * @param {unknown} dom
-   * @param {{lowercase(text: string): string, isMark(code: number): boolean}} [unicode]
+   * @param {{lowercase(text: string): string, isMark(code: number): boolean}} unicode
    * @returns {dom is GrammarDom}
    */
   function isDom(dom, unicode) {
@@ -2429,7 +2680,7 @@
    */
   function termType(term) {
     if (typeof term.string === "string") return { type: "string" };
-    if (typeof term.tag === "string") return { type: "tags" };
+    if (typeof term.tag === "string" || "range" in term) return { type: "tags" };
     if (term.emptySet === true) return { type: "set" };
     if (typeof term.capture === "string") return { type: "span" };
     for (const [key, operator] of [["union", "∪"], ["intersection", "∩"], ["difference", "∖"]]) {
@@ -2758,6 +3009,7 @@
     // An identifier tag is a bare name with a capital, or ~name; a phoneme
     // or character tag is written as it is.
     if ("tag" in term) return /^[a-z]/.test(term.tag) ? `~${term.tag}` : term.tag;
+    if ("range" in term) return `${term.range[0]}..${term.range[1]}`;
     if ("emptySet" in term) return "∅";
     /** @type {(item: Term) => string} */
     const grouped = (item) => ("union" in item || "difference" in item ? `(${formatTerm(item)})` : formatTerm(item));
@@ -3155,6 +3407,7 @@
   // ---- grammar.js
   // A stage's grammar: its documents stitched together (engine §2) and
   // lowered to productions for one set of features (engine §3).
+
 
 
 
@@ -3629,6 +3882,13 @@
       }
       if ("ref" in expr) return [[{ symbol: { name: expr.ref, terminal: isTerminalName(expr.ref) } }]];
       if ("terminal" in expr) return [[{ symbol: { name: expr.terminal, terminal: true } }]];
+      // A range or a property is a terminal whose name is its written form,
+      // and which matches by its characters rather than by a tag (engine §4).
+      if ("range" in expr) {
+        const characters = { from: codeOfCharacterTag(expr.range[0]), to: codeOfCharacterTag(expr.range[1]) };
+        return [[{ symbol: { name: rangeName(expr.range), terminal: true, characters } }]];
+      }
+      if ("property" in expr) return [[{ symbol: { name: propertyName(expr.property), terminal: true, characters: { property: expr.property } } }]];
       if ("capture" in expr) {
         const inner = this.expand(expr.expr, where);
         if (inner.length !== 1 || inner[0].length !== 1) {
@@ -5360,6 +5620,7 @@
             const token = parts(child)[0];
             if (ruleOf(child) === "argument-word") return text(token);
             if (ruleOf(child) === "argument-string") return decode(token);
+            // A range or a property has no tag; operandProblem has refused it.
             return tagOf(token);
           }),
           at: at(item),
@@ -5461,11 +5722,14 @@
       switch (ruleOf(node)) {
         case "reference": return { ref: text(parts(node)[0]) };
         case "tag": case "character": case "phoneme": return { terminal: tagOf(parts(node)[0]) };
+        case "range": return { range: readRange(node) };
+        case "property": return { property: readProperty(parts(node)[0]) };
         case "spelled": {
           // A reference or a terminal and its spelling, which the syntax
           // grammar gives nothing else (engine §9).
           const [symbol, spellingToken] = parts(node);
           const expr = readPrimary(symbol);
+          if ("range" in expr || "property" in expr) fail("a range or a property takes no spelling", spellingToken);
           const spelling = [...text(spellingToken)].slice(1, -1).join("");
           const problem = spellingProblem(spelling, expr, unicode);
           if (problem) fail(problem, spellingToken);
@@ -5478,7 +5742,7 @@
           if (!CAPTURE_NAME.test(text(captureToken).slice(1))) fail("a capture's name is all lower case", node);
           const wrapped = parts(inner)[0];
           const kind = ruleOf(wrapped);
-          if (kind !== "reference" && kind !== "tag" && kind !== "character" && kind !== "phoneme" && kind !== "spelled") fail("a capture wraps one symbol", node);
+          if (!["reference", "tag", "character", "phoneme", "range", "property", "spelled"].includes(/** @type {string} */ (kind))) fail("a capture wraps one symbol", node);
           const expr = readPrimary(wrapped);
           return { capture: text(captureToken).slice(1), expr };
         }
@@ -5498,13 +5762,14 @@
       if (parts(node).some((child) => tokenText(child) === "ε")) return { items: [] };
       const items = ofRule(node, "emit-item").map((itemNode) => {
         const target = parts(only(itemNode, "emit-target"))[0];
-        const kind = target.kind === "rule" ? undefined : target.terminal;
+        const kind = target.kind === "rule" ? target.rule : target.terminal;
         /** @type {EmitItem} */
         let item = {};
         if (kind === "capture") item = { capture: text(target).slice(1) };
         else if (kind === "tag" || kind === "character" || kind === "phoneme") item = { insert: tagOf(target) };
         else if (kind === "identifier" && isCapital(text(target))) item = { insert: text(target) };
         else if (kind === "identifier") fail(`${text(target)} names a rule; an inserted tag is a tag literal, such as ~${text(target)}`, itemNode);
+        else if (kind === "range" || kind === "property") fail("an inserted item is one tag, not a range or a property", itemNode);
         else fail("expected a capture or a tag after %emits", itemNode);
         const tags = one(itemNode, "emit-tags");
         if (tags && item.insert !== undefined) fail("an inserted tag takes no tags of its own", itemNode);
@@ -5697,6 +5962,8 @@
       switch (ruleOf(node)) {
         case "string": return { string: decode(parts(node)[0]) };
         case "tag": case "character": case "phoneme": return { tag: tagOf(parts(node)[0]) };
+        case "range": return { range: readRange(node) };
+        case "property": return fail("a property is not a tag set, and stands only as a terminal in a body", node);
         case "name": {
           // A bare name is a tag literal if it begins with a capital, and
           // otherwise a rule, which only a function's argument names.
@@ -5797,6 +6064,35 @@
     }
 
     /**
+     * A range's two ends, each a character tag in its canonical spelling; its
+     * start must not be above its end (engine §1, §9).
+     * @param {ResultNode} node
+     * @returns {[string, string]}
+     */
+    function readRange(node) {
+      const ends = ofRule(node, "character").map((end) => tagOf(parts(end)[0]));
+      /** @type {[string, string]} */
+      const range = [ends[0], ends[1]];
+      const problem = rangeProblem(range, unicode);
+      if (problem) fail(problem, node);
+      return range;
+    }
+
+    /**
+     * A property's name: its token is `'\p{Name}'`, with a name of engine §1.
+     * @param {ResultNode} tokenNode
+     * @returns {string}
+     */
+    function readProperty(tokenNode) {
+      const match = /^'\\p\{([^}]*)\}'$/.exec(text(tokenNode));
+      if (!match) fail("a property is written '\\p{Name}'", tokenNode);
+      const name = /** @type {RegExpExecArray} */ (match)[1];
+      const problem = propertyProblem(name);
+      if (problem) fail(problem, tokenNode);
+      return name;
+    }
+
+    /**
      * The kind of a directive's operand (engine §9).
      * @param {ResultNode} node
      * @returns {OperandKind}
@@ -5805,6 +6101,7 @@
       const token = parts(node)[0];
       if (ruleOf(node) === "argument-string") return "string";
       if (ruleOf(node) === "argument-word") return isCapital(text(token)) ? "class" : "name";
+      if (ruleOf(token) === "range" || ruleOf(token) === "property") return /** @type {OperandKind} */ (ruleOf(token));
       const written = text(token);
       return written.startsWith("~") ? "tag" : written.startsWith("/") ? "phoneme" : "character";
     }
@@ -5824,7 +6121,7 @@
   /**
    * A directive's operand: a bare name, lower case or with a capital, a
    * string, a tag literal `~name`, a phoneme tag or a character tag.
-   * @typedef {"name" | "class" | "string" | "tag" | "phoneme" | "character"} OperandKind
+   * @typedef {"name" | "class" | "string" | "tag" | "phoneme" | "character" | "range" | "property"} OperandKind
    */
 
   const FUNCTIONS = new Set(["phonemes", "text", "lowercase", "tags", "classes", "runs", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]);
@@ -5863,7 +6160,7 @@
     "choice", "empty", "tags-clause", "conditions-clause", "emits-clause", "verbatim-clause", "emit-item", "emit-target", "emit-tags",
     "implication", "any-of", "all-of", "condition", "comparison", "comparator", "negation", "presence",
     "term", "guarded-term", "union", "intersection", "term-atom", "tag", "character", "name", "empty-set", "call", "argument",
-    "capture-reference", "argument-tag",
+    "capture-reference", "argument-tag", "range", "property",
   ]);
 
   /**
@@ -6146,88 +6443,6 @@
     return "rule" in item ? item.rule.at : item.directive.at;
   }
 
-  // ---- unicode.js
-  // The character data of grammars/unicode.txt: the class of a character,
-  // whether it is a mark, and the simple lowercase mapping, the same in every
-  // gencmu library.
-
-  class UnicodeTable {
-    /** @param {string} text the contents of unicode.txt */
-    constructor(text) {
-      /** @type {string | null} */
-      this.version = null;
-      /** @type {[number, number][]} */
-      this.marks = [];
-      /** @type {[number, number][]} */
-      this.alphas = [];
-      /** @type {Map<number, number>} */
-      this.lower = new Map();
-      for (const line of text.split("\n")) {
-        const fields = line.trim().split(/\s+/);
-        if (fields[0] === "unicode") this.version = fields[1];
-        else if (fields[0] === "mark") this.marks.push([parseInt(fields[1], 16), parseInt(fields[2], 16)]);
-        else if (fields[0] === "alpha") this.alphas.push([parseInt(fields[1], 16), parseInt(fields[2], 16)]);
-        else if (fields[0] === "lower") this.lower.set(parseInt(fields[1], 16), parseInt(fields[2], 16));
-      }
-    }
-
-    /**
-     * The class tag of a code point (engine §1).
-     * @param {number} code
-     * @returns {"space" | "digit" | "mark" | "alpha" | "other"}
-     */
-    classOf(code) {
-      if ((code >= 0x09 && code <= 0x0d) || code === 0x20 || code === 0x85 || code === 0xa0 || code === 0x1680 ||
-          (code >= 0x2000 && code <= 0x200a) || code === 0x2028 || code === 0x2029 || code === 0x202f ||
-          code === 0x205f || code === 0x3000) {
-        return "space";
-      }
-      if (code >= 0x30 && code <= 0x39) return "digit";
-      if (inRanges(this.marks, code)) return "mark";
-      if (inRanges(this.alphas, code)) return "alpha";
-      return "other";
-    }
-
-    /**
-     * Whether a code point is a nonspacing mark: a `mark` range of the file.
-     * @param {number} code
-     * @returns {boolean}
-     */
-    isMark(code) {
-      return inRanges(this.marks, code);
-    }
-
-    /**
-     * @param {string} text
-     * @returns {string}
-     */
-    lowercase(text) {
-      let result = "";
-      for (const character of text) {
-        const mapped = this.lower.get(/** @type {number} */ (character.codePointAt(0)));
-        result += mapped === undefined ? character : String.fromCodePoint(mapped);
-      }
-      return result;
-    }
-  }
-
-  /**
-   * @param {[number, number][]} ranges
-   * @param {number} code
-   */
-  function inRanges(ranges, code) {
-    let low = 0;
-    let high = ranges.length - 1;
-    while (low <= high) {
-      const middle = (low + high) >> 1;
-      const [start, end] = ranges[middle];
-      if (code < start) high = middle - 1;
-      else if (code > end) low = middle + 1;
-      else return true;
-    }
-    return false;
-  }
-
   // ---- dialect.js
   // Dialects: loading pipeline documents and their grammars, reading grammar
   // documents with the notation dialect (engine §8), and running a text
@@ -6315,6 +6530,11 @@
      */
     documentDom(path) {
       const text = this.need(path);
+      // A document is a sequence of scalar values, as a text is (engine §1).
+      const surrogate = loneSurrogate(text);
+      if (surrogate !== null) {
+        throw new GencmuError("usage", `${path}: the document is not a sequence of Unicode scalar values: a lone surrogate U+${surrogate.code.toString(16).toUpperCase()} at code point ${surrogate.at}`, { document: path });
+      }
       const hash = fnv1a64(text);
       const key = `${path}\u0000${hash}`;
       const cached = this.cache.get(key);
@@ -6355,9 +6575,9 @@
       }
       // The bound on nesting is the same for a document read here as for a
       // precompiled DOM (engine §9).
-      if (domProblem(dom) === "nested too deeply") {
+      if (domProblem(dom, this.unicode) === "nested too deeply") {
         // Reported at the rule that holds it, the first too deep.
-        const rule = dom.rules.find((candidate) => domProblem({ ...dom, rules: [candidate], directives: [] }) === "nested too deeply");
+        const rule = dom.rules.find((candidate) => domProblem({ ...dom, rules: [candidate], directives: [] }, this.unicode) === "nested too deeply");
         const [line, column] = rule ? rule.at : [1, 1];
         throw new GencmuError("grammar", `${path}:${line}:${column}: an expression, term or condition is nested more than ${DOM_MAX_DEPTH} deep`, { document: path, line, column });
       }
@@ -6440,6 +6660,12 @@
      * @returns {ParseResult}
      */
     parse(text, options = {}) {
+      // A text is a sequence of scalar values, so a lone surrogate is the
+      // caller's mistake, refused before any character token (engine §1).
+      const surrogate = loneSurrogate(text);
+      if (surrogate !== null) {
+        throw new GencmuError("usage", `the text is not a sequence of Unicode scalar values: a lone surrogate U+${surrogate.code.toString(16).toUpperCase()} at code point ${surrogate.at}`);
+      }
       // The features on are the pipeline's, with the caller's added and the
       // caller's turned off removed (engine §13).
       const on = [...(options.features || [])];
@@ -6583,6 +6809,22 @@
     return hash.toString(16).padStart(16, "0");
   }
 
+  /**
+   * The first lone surrogate of a string, with its position in code points,
+   * or null when the string is a sequence of scalar values.
+   * @param {string} text
+   * @returns {{code: number, at: number} | null}
+   */
+  function loneSurrogate(text) {
+    if (!/[\uD800-\uDFFF]/u.test(text)) return null;
+    let at = 0;
+    for (const character of text) {
+      const code = /** @type {number} */ (character.codePointAt(0));
+      if (code >= 0xd800 && code <= 0xdfff) return { code, at };
+      at++;
+    }
+    return null;
+  }
 
   // ---- index.js
   // gencmu: a Lojban parser whose grammars are literate documents loaded at
@@ -6894,6 +7136,7 @@
    * A rule body expression.
    * @typedef {{choice: Expr[]} | {and: Expr[]} | {seq: Expr[]} | {repeat: Expr, min: number}
    *   | {optional: Expr} | {capture: string, expr: Expr} | {ref: string} | {terminal: string}
+   *   | {range: [string, string]} | {property: string}
    *   | {spelling: string, expr: SpelledSymbol} | {empty: true}} Expr
    */
 
@@ -6933,7 +7176,7 @@
    * A term of a condition or a tags clause: a string, a tag literal, the
    * empty set, a set expression, a guarded term, a call, or a span, which
    * only a call's argument can be (engine §10).
-   * @typedef {{string: string} | {tag: string} | {emptySet: true} | {union: Term[]} | {if: Condition, then: Term}
+   * @typedef {{string: string} | {tag: string} | {range: [string, string]} | {emptySet: true} | {union: Term[]} | {if: Condition, then: Term}
    *   | {intersection: Term[]} | {difference: [Term, Term]} | {call: string, args: Argument[]} | {capture: string}} Term
    */
 
@@ -6950,6 +7193,14 @@
    * @property {boolean} terminal
    * @property {string} [spelling] what the symbol's span must sound like,
    *   lowercased; not part of the terminal's identity (engine §4)
+   * @property {CharacterClass} [characters] for a range or a property, the
+   *   characters it matches; its name is then its written form (engine §4)
+   */
+
+  /**
+   * The characters a range or a property matches: a range's first and last
+   * scalar values, or a property's name.
+   * @typedef {{from: number, to: number} | {property: string}} CharacterClass
    */
 
   /**

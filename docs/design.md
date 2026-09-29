@@ -121,7 +121,9 @@ This is what the dialects need. A script document adds its letters to the rules 
 
 The Zantufa syntax is a grammar of its own. Zantufa 1.9999 restates almost every rule of camxes, a PEG grammar of Lojban. So the gencmu grammar translates the Zantufa rules one by one. It uses small rules for the conditions that state the lookaheads and ordered choices of the reference.
 
-A name in upper case is a terminal that matches a token carrying that tag. A character between single quotes, `'а'`, is a character tag, which matches that character of the text. `~name` is the identifier tag `name`, for a tag that does not begin with a capital, such as `~cmavo`. A phoneme between slashes, `/a/`, `/'/`, `/./` for a pause, is a phoneme tag. It matches like any tag, and it also says what a token that carries it sounds like, which `phonemes()` reads. Slashes mean nothing else.
+A name in upper case is a terminal that matches a token carrying that tag. A character between single quotes, `'а'`, is a character tag, which matches that character of the text. A character token carries only its character tag. So a class of characters is a range, such as `'0'..'9'`, or a Unicode property, such as `'\p{L}'`.
+
+`~name` is the identifier tag `name`, for a tag that does not begin with a capital, such as `~cmavo`. A phoneme between slashes, `/a/`, `/'/`, `/./` for a pause, is a phoneme tag. It matches like any tag, and it also says what a token that carries it sounds like, which `phonemes()` reads. Slashes mean nothing else.
 
 A reference, a tag literal, a phoneme tag or a character tag can carry a spelling, the text between backticks after it, as in ``LE`la` ``. The symbol then matches only where its span sounds like the spelling, whatever the stress or the script. So a rule can name a word by its sound in its body, and not in a condition. A spelling does not replace a class, since a word that `zo` quotes has the sound but not the class.
 
