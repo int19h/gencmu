@@ -189,9 +189,28 @@ def applies(condition: Dom, present: AbstractSet[str]) -> Simplified | None:
     return simplified if captures_in(simplified) <= present else None
 
 
+def waits(clause: Any) -> bool:
+    """Whether a clause holds a constant without its value. A constant is
+    its value in simplification (engine §3.6), so the checks that
+    simplification decides wait for the loader, which checks the definition
+    again once the constants have their values (engine §9)."""
+    stack = [clause]
+    while stack:
+        value = stack.pop()
+        if isinstance(value, dict):
+            if isinstance(value.get("const"), str) and "value" not in value:
+                return True
+            stack.extend(value.values())
+        elif isinstance(value, list):
+            stack.extend(value)
+    return False
+
+
 def definition_problem(rule: Dom) -> str | None:
     """Why a definition, a well-formed rule of a DOM with its clauses, is an
-    error of its document as a whole (engine §9), or None."""
+    error of its document as a whole (engine §9), or None. The checks that
+    simplification decides skip a clause that holds a constant without its
+    value."""
     alternatives = rule["alternatives"]
     captured = [top_captures(alternative["expr"]) for alternative in alternatives]
     presents = [set(names) | {WHOLE} for names in captured]
@@ -208,11 +227,13 @@ def definition_problem(rule: Dom) -> str | None:
     if unknown:
         return f"${unknown[0]} is captured by no alternative of {rule['name']}"
     for condition in rule["conditions"]:
+        if waits(condition):
+            continue
         if all(applies(condition, present) is None for present in presents):
             return f"a condition of {rule['name']} applies to none of its alternatives"
 
     def lacks(term: Dom, present: set[str]) -> bool:
-        return not captures_in(simplify_term(term, present)) <= present
+        return not waits(term) and not captures_in(simplify_term(term, present)) <= present
 
     for alternative, present in zip(alternatives, presents):
         if "tags" in alternative and lacks(alternative["tags"], present):

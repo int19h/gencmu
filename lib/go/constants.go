@@ -180,6 +180,11 @@ func (g *stageGrammar) resolveConstants() *Error {
 		if f := ruleTypeFault(u.rule, types); f != nil {
 			return g.faultError(u.doc, f.node, u.rule.At, f.problem)
 		}
+		// The checks that simplification decides, which the reader left to
+		// the loader, now with the constants' values (§9).
+		if msg := definitionProblem(newResolver(g.constants).rule(u.rule)); msg != "" {
+			return g.constError(u.doc, u.rule.At, "%s", msg)
+		}
 		for _, call := range closedCalls(u.rule) {
 			arg := call.Items[0]
 			if call.Str == "split" {
@@ -203,7 +208,7 @@ func (g *stageGrammar) resolveConstants() *Error {
 	// Each reference holds the final value. The DOM is shared by every
 	// stage and dialect that includes its document, so the clauses are
 	// copied, and a clause that alternatives share stays shared.
-	r := &resolver{constants: g.constants, terms: map[*domTerm]*domTerm{}, conds: map[*domCond]*domCond{}, emits: map[*domEmit]*domEmit{}, alts: map[*domAlt]*domAlt{}}
+	r := newResolver(g.constants)
 	for _, rule := range g.rules {
 		for _, a := range rule.alts {
 			a.ruleTags = r.term(a.ruleTags)
@@ -272,6 +277,29 @@ type resolver struct {
 	conds     map[*domCond]*domCond
 	emits     map[*domEmit]*domEmit
 	alts      map[*domAlt]*domAlt
+}
+
+func newResolver(constants map[string]*stageConst) *resolver {
+	return &resolver{constants: constants, terms: map[*domTerm]*domTerm{}, conds: map[*domCond]*domCond{}, emits: map[*domEmit]*domEmit{}, alts: map[*domAlt]*domAlt{}}
+}
+
+// rule copies a rule definition with each reference to a constant holding
+// its value.
+func (r *resolver) rule(rule *domRule) *domRule {
+	copied := *rule
+	copied.Tags = r.term(rule.Tags)
+	copied.Conditions = r.condList(rule.Conditions)
+	copied.Emit = r.emit(rule.Emit)
+	copied.Alternatives = make([]*domAlt, len(rule.Alternatives))
+	for i, a := range rule.Alternatives {
+		copied.Alternatives[i] = a
+		if a.Tags != nil && len(constRefs(a.Tags)) > 0 {
+			alt := *a
+			alt.Tags = r.term(a.Tags)
+			copied.Alternatives[i] = &alt
+		}
+	}
+	return &copied
 }
 
 func (r *resolver) term(t *domTerm) *domTerm {

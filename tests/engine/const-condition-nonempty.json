@@ -1,0 +1,20 @@
+{
+  "description": "Where the final value of $E is not empty, the condition uses $x and $y, which no alternative has together, so it applies to no alternative. The loader reports it at the definition (engine §2, §9).",
+  "grammar": "%const $E B ∖ B\n%rule text $x(A) | $y(C)\n%conditions tags($x) ∪ ($E ∩ tags($y)) ≠ ∅\n%redefine-const $E B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 1
+    }
+  }
+}

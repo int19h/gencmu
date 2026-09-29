@@ -283,6 +283,17 @@ func usesAll(names map[string]bool, has func(string) bool) (string, bool) {
 // clauses written with them, cannot be read (engine §9), or "". The DOM's
 // shape must already be sound.
 func definitionProblem(r *domRule) string {
+	// A constant is its value in simplification (§3.6). A clause that holds
+	// a constant without one waits for the loader, which checks the
+	// definition again once the constants have their values (§9).
+	waits := func(node any) bool {
+		for _, ref := range constRefs(node) {
+			if ref.value == nil {
+				return true
+			}
+		}
+		return false
+	}
 	alts := make([]map[string]int, len(r.Alternatives))
 	for i, a := range r.Alternatives {
 		alts[i] = altCaptures(a)
@@ -324,6 +335,9 @@ func definitionProblem(r *domRule) string {
 	}
 	// A condition that applies to no alternative.
 	for _, c := range r.Conditions {
+		if waits(c) {
+			continue
+		}
 		applies := false
 		for _, caps := range alts {
 			has := hasIn(caps)
@@ -347,7 +361,7 @@ func definitionProblem(r *domRule) string {
 		}
 	}
 	unguarded := func(t *domTerm, has func(string) bool) string {
-		if t == nil {
+		if t == nil || waits(t) {
 			return ""
 		}
 		used := map[string]bool{}

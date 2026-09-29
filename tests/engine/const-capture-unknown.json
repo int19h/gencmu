@@ -1,0 +1,20 @@
+{
+  "description": "A clause that mentions a capture that no alternative captures is an error of the document, whatever the value of a constant beside it. The reader finds it, at the definition (engine §9).",
+  "grammar": "%const $E B ∖ B\n%rule text A | $x(A)\n%tags Y ∪ ($E ∩ tags($z))",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 1
+    }
+  }
+}

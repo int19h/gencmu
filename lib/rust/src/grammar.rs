@@ -5,6 +5,7 @@
 use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
 
+use crate::clauses::definition_problem;
 use crate::dom::{
     constant_value_type, constants_in_rule, constants_in_term, rule_type_fault, Alternative, Arg, Cond, ConstDef, Dom,
     EmitItem, Expr, Fault, Op, RuleDef, Term, Type,
@@ -440,6 +441,11 @@ impl Constants<'_> {
             if let Some(fault) = rule_type_fault(rule, &|name| self.ty(name)) {
                 return Err(fault_error(fault, document, rule.at));
             }
+            // The checks that simplification decides, which the reader left
+            // to the loader, now with the constants' values (§9).
+            if let Some(problem) = definition_problem(&self.substitute_rule(rule)) {
+                return Err(located(problem, document, rule.at));
+            }
             let mut calls = Vec::new();
             calls_in_rule(rule, &mut calls);
             for (call, args) in calls {
@@ -482,6 +488,24 @@ impl Constants<'_> {
             }
         }
         Ok(())
+    }
+
+    /// A copy of a rule definition in which each constant is its value.
+    fn substitute_rule(&self, rule: &RuleDef) -> RuleDef {
+        let mut rule = rule.clone();
+        let terms = rule.tags.iter_mut().chain(rule.alternatives.iter_mut().filter_map(|a| a.tags.as_mut())).chain(
+            rule.emit.iter_mut().flatten().filter_map(|item| match item {
+                EmitItem::Capture(_, tags) => tags.as_mut(),
+                EmitItem::Insert(_) => None,
+            }),
+        );
+        for term in terms {
+            self.substitute_term(term);
+        }
+        for cond in &mut rule.conditions {
+            self.substitute_cond(cond);
+        }
+        rule
     }
 
     fn substitute_term(&self, term: &mut Term) {

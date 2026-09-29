@@ -394,3 +394,63 @@ func TestDeepConstant(t *testing.T) {
 		t.Fatalf("a deep bootstrap constant: expected an error of the grammar, got %v", err)
 	}
 }
+
+// A cached DOM whose capture checks wait for a constant's value is used,
+// and the loader makes the checks once the constants have their values
+// (engine §3.6, §9).
+func TestCachedClauseWaitsForConstant(t *testing.T) {
+	loadBundled()
+	grammar := func(first, last string) string {
+		return "%ambiguity-resolution greedy\n%const $E " + first + "\n%rule text 'a' | $x('a')\n%tags Y ∪ ($E ∩ tags($x))\n%redefine-const $E " + last
+	}
+	// The tags of the parse's tree, or the load error's position, with the
+	// cache entry given.
+	outcome := func(g string, entry string) string {
+		src := oneStage(g)
+		if entry != "" {
+			src["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + entry + `}}}`
+		}
+		d, err := LoadDialectSources(src, "p.md")
+		if err != nil {
+			var e *Error
+			if !errors.As(err, &e) {
+				t.Fatal(err)
+			}
+			return "error at " + strconv.Itoa(e.Line) + ":" + strconv.Itoa(e.Column)
+		}
+		res, err := d.Parse("a", ParseOptions{})
+		if err != nil || !res.OK {
+			t.Fatalf("%v %+v", err, res.Error)
+		}
+		return strings.Join(res.Tree.Tags, " ")
+	}
+	read := func(g string) string {
+		dom, err := bundled.reader.read(oneStage(g)["g.md"], "g.md")
+		if err != nil {
+			t.Fatalf("the document is refused: %v", err)
+		}
+		if _, err := decodeDOM(json.RawMessage(dom.json()), bundled.uni); err != nil {
+			t.Fatalf("its DOM is refused: %v", err)
+		}
+		return string(dom.json())
+	}
+	empty := grammar("B", "$E ∖ B")
+	dom := read(empty)
+	for _, entry := range []string{"", dom} {
+		if got := outcome(empty, entry); got != "Y" {
+			t.Errorf("an empty constant, cached %v: %s", entry != "", got)
+		}
+	}
+	// A hit: the entry, changed, is the one the parse sees.
+	changed := strings.Replace(dom, `{"tag":"Y"}`, `{"tag":"Z"}`, 1)
+	if changed == dom || outcome(empty, changed) != "Z" {
+		t.Errorf("the cache entry was not used")
+	}
+	full := grammar("B ∖ B", "B")
+	dom = read(full)
+	for _, entry := range []string{"", dom} {
+		if got := outcome(full, entry); got != "error at 6:1" {
+			t.Errorf("a constant that is not empty, cached %v: %s", entry != "", got)
+		}
+	}
+}

@@ -826,6 +826,47 @@ class Constants(unittest.TestCase):
             gencmu.load_dialect_sources({**CONSTANT_SOURCES, "notation/bootstrap.json": text}, "p.md", use_cache=False)
         self.assertEqual(caught.exception.kind, "grammar")
 
+    def test_a_precompiled_clause_with_a_constant_waits_for_its_value(self) -> None:
+        """A cached DOM whose capture checks wait for a constant's value is
+        used, and the loader makes the checks once the constants have their
+        values (engine §3.6, §9)."""
+        token = [Token("a", frozenset(["A"]), (0, 1), (0, 1), None)]
+        bootstrap_hash = fnv1a64(bundled_text("notation/bootstrap.json") or "")
+
+        def document(first: str, last: str) -> str:
+            return (
+                f"```jbogenbau\n%ambiguity-resolution greedy\n%const $E {first}\n%rule text A | $x(A)\n"
+                f"%tags Y ∪ ($E ∩ tags($x))\n%redefine-const $E {last}\n```\n"
+            )
+
+        def outcome(text: str, entry: Dom | None) -> Any:
+            sources = {**CONSTANT_SOURCES, "g.md": text}
+            if entry is not None:
+                documents = {"g.md": {"hash": fnv1a64(text), "dom": entry}}
+                sources["compiled.json"] = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "documents": documents})
+            try:
+                dialect = gencmu.load_dialect_sources(sources, "p.md", use_cache=entry is not None)
+            except gencmu.GencmuError as error:
+                return (error.line, error.column)
+            result = dialect.parse_tokens(token, "a", auto_features=False)
+            assert result.tree is not None
+            return sorted(result.tree.tags)
+
+        empty = document("B", "$E ∖ B")
+        dom = read_document(empty, "g.md")
+        self.assertIsNone(dom_problem(dom))
+        self.assertEqual(outcome(empty, None), ["Y"])
+        self.assertEqual(outcome(empty, dom), ["Y"])
+        # A hit: the entry, changed, is the one the parse sees.
+        changed = json.loads(json.dumps(dom).replace('{"tag": "Y"}', '{"tag": "Z"}'))
+        self.assertNotEqual(changed, dom)
+        self.assertEqual(outcome(empty, changed), ["Z"])
+        full = document("B ∖ B", "B")
+        dom = read_document(full, "g.md")
+        self.assertIsNone(dom_problem(dom))
+        self.assertEqual(outcome(full, None), (4, 1))
+        self.assertEqual(outcome(full, dom), (4, 1))
+
     def test_lexical_tokens(self) -> None:
         """The notation's lexical stage tags constants and the keywords that
         define them (grammars/notation/lexical.md)."""

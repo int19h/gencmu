@@ -1,0 +1,20 @@
+{
+  "description": "Where the final value of $E is not empty, `$E ∩ tags($x)` uses $x, which an alternative lacks. The loader finds this once $E has its final value, and reports it at the definition, as the reader reports such an error (engine §2, §9).",
+  "grammar": "%const $E B ∖ B\n%rule text A | $x(A)\n%tags Y ∪ ($E ∩ tags($x))\n%redefine-const $E B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 1
+    }
+  }
+}

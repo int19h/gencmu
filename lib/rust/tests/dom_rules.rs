@@ -915,3 +915,46 @@ fn a_bootstrap_constant_nested_too_deeply_is_an_error() {
     assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
     assert!(error.message.contains("nested too deeply"), "{}", error.message);
 }
+
+/// A cached DOM whose capture checks wait for a constant's value is used,
+/// and the loader makes the checks once the constants have their values
+/// (engine §3.6, §9).
+#[test]
+fn a_precompiled_clause_with_a_constant_waits_for_its_value() {
+    let document = |first: &str, last: &str| {
+        format!(
+            "```jbogenbau\n%ambiguity-resolution greedy\n%const $E {first}\n%rule text 'a' | $x('a')\n%tags Y ∪ ($E ∩ tags($x))\n%redefine-const $E {last}\n```\n"
+        )
+    };
+    // The tags of the parse's tree, or the load error's position, with the
+    // cache entry given.
+    let outcome = |document: &str, entry: Option<&str>| -> Result<Vec<String>, (usize, usize)> {
+        let mut sources = vec![
+            ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+            ("g.md", document.to_string()),
+        ];
+        if let Some(entry) = entry {
+            let compiled = format!(
+                r#"{{"format":11,"bootstrap":"{}","documents":{{"g.md":{{"hash":"{}","dom":{entry}}}}}}}"#,
+                gencmu::tools::bootstrap_hash(),
+                gencmu::tools::fnv1a64(document)
+            );
+            sources.push(("compiled.json", compiled));
+        }
+        let dialect = gencmu::load_dialect_sources(sources, "p.md")
+            .map_err(|error| (error.line.unwrap_or(0), error.column.unwrap_or(0)))?;
+        let options = gencmu::ParseOptions { auto_features: false, ..Default::default() };
+        let result = dialect.parse("a", &options).expect("a parse");
+        Ok(result.tree.expect("a tree").tags.iter().cloned().collect())
+    };
+    let empty = document("B", "$E ∖ B");
+    let read = gencmu::tools::read_grammar_document(&empty).expect("the document");
+    assert_eq!(outcome(&empty, None), Ok(vec!["Y".to_string()]));
+    assert_eq!(outcome(&empty, Some(&read)), Ok(vec!["Y".to_string()]));
+    // A hit: the entry, changed, is the one the parse sees.
+    assert_eq!(outcome(&empty, Some(&read.replace(r#"{"tag":"Y"}"#, r#"{"tag":"Z"}"#))), Ok(vec!["Z".to_string()]));
+    let full = document("B ∖ B", "B");
+    let read = gencmu::tools::read_grammar_document(&full).expect("the document");
+    assert_eq!(outcome(&full, None), Err((4, 1)));
+    assert_eq!(outcome(&full, Some(&read)), Err((4, 1)));
+}

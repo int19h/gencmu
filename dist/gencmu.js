@@ -2624,11 +2624,17 @@
 
   /**
    * Why a definition, a rule's alternatives with its own clauses, cannot be
-   * read (engine §9), or null. The DOM's shape must already be checked.
+   * read (engine §9), or null. The DOM's shape must already be checked. The
+   * checks that simplification decides skip a clause that holds a constant
+   * without its value.
    * @param {any} rule
    * @returns {string | null}
    */
   function definitionProblem(rule) {
+    // A constant is its value in simplification (engine §3.6). A clause that
+    // holds a constant without one waits for the loader, which checks the
+    // definition again once the constants have their values (engine §9).
+    const waits = (/** @type {unknown} */ clause) => constantsIn(clause).some((reference) => !("value" in reference));
     const alternatives = rule.alternatives.map(alternativeCaptures);
     const anyHas = (/** @type {string} */ name) => alternatives.some((/** @type {Map<string, number>} */ captures) => captures.has(name));
     const items = rule.emit ? rule.emit.items : [];
@@ -2641,6 +2647,7 @@
       if (!anyHas(name)) return `$${name} is captured by no alternative of ${rule.name}`;
     }
     for (const condition of rule.conditions) {
+      if (waits(condition)) continue;
       const applies = alternatives.some((/** @type {Map<string, number>} */ captures) => {
         const simple = simplify(condition, (name) => captures.has(name));
         return simple !== DOM_TRUE && capturesUsed(simple).every((name) => captures.has(name));
@@ -2651,7 +2658,7 @@
       const captures = alternatives[index];
       const has = (/** @type {string} */ name) => captures.has(name);
       for (const term of [rule.tags, rule.alternatives[index].tags]) {
-        if (term === undefined) continue;
+        if (term === undefined || waits(term)) continue;
         const missing = capturesUsed(simplify(term, has)).find((name) => !has(name));
         if (missing !== undefined) return `a tag term of ${rule.name} uses $${missing}, which an alternative lacks; guard it with $${missing} ⟹`;
       }
@@ -2663,7 +2670,7 @@
         return `%emits of ${rule.name} lists captures out of the order they stand in`;
       }
       for (const item of present) {
-        if (!item.tags) continue;
+        if (!item.tags || waits(item.tags)) continue;
         const missing = capturesUsed(simplify(item.tags, has)).find((name) => !has(name));
         if (missing !== undefined) return `a tag term of ${rule.name} uses $${missing}, which an alternative lacks; guard it with $${missing} ⟹`;
       }
@@ -3917,6 +3924,10 @@
         }
         const fault = ruleTypeFault(rule, types);
         if (fault) throw this.faultError(path, fault.node, rule.at, fault.problem);
+        // The checks that simplification decides, which the reader left to
+        // the loader, now with the constants' values (engine §9).
+        const problem = definitionProblem(resolveNode(rule, this.constants));
+        if (problem) throw this.documentError(path, rule.at, problem);
         for (const call of callsIn(rule)) {
           const argument = call.call === "split" ? call.args[1] : call.call === "tag" ? call.args[0] : undefined;
           if (!argument || !("const" in argument)) continue;

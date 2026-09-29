@@ -1,0 +1,24 @@
+{
+  "description": "Where the final value of $E is empty, the condition uses only $x, so it applies to the first alternative (engine §3.6, §9).",
+  "grammar": "%const $E B\n%rule text $x(A) | $y(C)\n%conditions tags($x) ∪ ($E ∩ tags($y)) ≠ ∅\n%redefine-const $E ∅",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "tags": [
+          "A"
+        ]
+      }
+    }
+  }
+}

@@ -8,7 +8,7 @@ import json
 from dataclasses import dataclass, field
 from typing import Any, Union
 
-from ._clauses import WHOLE, applies, captures_in, simplify_term
+from ._clauses import WHOLE, applies, captures_in, definition_problem, simplify_term
 from ._errors import GencmuError
 from ._tags import (
     EMPTY,
@@ -216,6 +216,11 @@ class _Constants:
             fault = rule_type_fault(rule, self.type_of)
             if fault is not None:
                 raise self.fault_error(path, fault[1], rule["at"], fault[0])
+            # The checks that simplification decides, which the reader left
+            # to the loader, now with the constants' values (engine §9).
+            problem = definition_problem(run(self.with_values(rule)))
+            if problem is not None:
+                raise _error(problem, path, rule["at"], self.stage)
             for call in _calls_in(rule):
                 argument = call["args"][1] if call["call"] == "split" else call["args"][0]
                 if not isinstance(argument, dict) or "const" not in argument:
@@ -228,6 +233,23 @@ class _Constants:
                     raise _error(
                         f"tag({json.dumps(seen, ensure_ascii=False)}): the string is not a name", path, argument["at"], self.stage
                     )
+
+    def with_values(self, node: Any) -> Walk:
+        """A copy of a DOM node in which each reference to a constant holds
+        the constant's value now."""
+        if isinstance(node, list):
+            items: list[Any] = []
+            for item in node:
+                items.append((yield self.with_values(item)))
+            return items
+        if not isinstance(node, dict):
+            return node
+        if isinstance(node.get("const"), str):
+            return {"const": node["const"], "at": node["at"], "value": self.values[node["const"]].value}
+        copy: dict[str, Any] = {}
+        for key, value in node.items():
+            copy[key] = yield self.with_values(value)
+        return copy
 
     def resolve(self, rules: dict[str, Rule]) -> None:
         """Gives every reference to a constant in the stitched rules its
