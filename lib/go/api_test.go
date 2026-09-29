@@ -609,6 +609,81 @@ func TestMalformedPrecompiled(t *testing.T) {
 	}
 }
 
+// Malformed range and property nodes take the whole loading path: in
+// compiled.json each is a miss, read from the document instead, and in the
+// bootstrap each is an error of the bootstrap (engine §9). Each keeps the
+// range 'b'..'c' first, so an entry used by mistake would reject "ab".
+func TestMalformedCharacterClasses(t *testing.T) {
+	loadBundled()
+	sources := oneStage("%ambiguity-resolution greedy\n%rule text 'a'..'z' '\\p{L}'")
+	gText := sources["g.md"]
+	format := strconv.Itoa(domFormat)
+	dom := func(expr string) string {
+		return `{"format":` + format + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[3,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}]}`
+	}
+	compiled := func(dom string) map[string]string {
+		src := map[string]string{}
+		for k, v := range sources {
+			src[k] = v
+		}
+		src["compiled.json"] = `{"format":` + format + `,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(gText) + `","dom":` + dom + `}}}`
+		return src
+	}
+	bootstrap := func(dom string) error {
+		src := map[string]string{}
+		for k, v := range sources {
+			src[k] = v
+		}
+		src["notation/bootstrap.json"] = `{"format":` + format + `,"stages":[{"name":"lexical","documents":[{"path":"notation/lexical.md","dom":` + dom + `}]}]}`
+		_, err := LoadDialectSources(src, "p.md")
+		return err
+	}
+	parse := func(src map[string]string) bool {
+		d, err := LoadDialectSources(src, "p.md")
+		if err != nil {
+			t.Fatal(err)
+		}
+		res, err := d.Parse("ab", ParseOptions{NoAutoFeatures: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return res.OK
+	}
+	// The control: a well-formed entry is used, and rejects "ab"; in the
+	// bootstrap, it is read, and its notation then fails on g.md.
+	control := dom(`{"seq":[{"range":["'b'","'c'"]},{"property":"L"}]}`)
+	if parse(compiled(control)) {
+		t.Fatal("the well-formed entry was not used")
+	}
+	var e *Error
+	if err := bootstrap(control); !errors.As(err, &e) || e.Document == "notation/bootstrap.json" {
+		t.Fatalf("the well-formed bootstrap was refused: %v", err)
+	}
+	for _, expr := range []string{
+		`{"seq":[{"range":["'c'","'b'"]},{"property":"L"}]}`,
+		`{"seq":[{"range":["'\\u{62}'","'c'"]},{"property":"L"}]}`,
+		`{"seq":[{"range":["'b'","'c'"]},{"property":"Bogus"}]}`,
+		`{"seq":[{"range":["'b'","'c'"]},{"property":"L"}]},"tags":{"property":"L"}`,
+		// A range or a property beside a sequence, which is checked before
+		// the sequence is split.
+		`{"seq":[{"range":["'b'","'c'"]},{"property":"L"}],"range":["'z'","'a'"]}`,
+		`{"seq":[{"range":["'b'","'c'"]},{"property":"L"}],"range":["'a'","'z'"]}`,
+		`{"seq":[{"range":["'b'","'c'"]},{"property":"L"}],"property":"Bogus"}`,
+		`{"seq":[{"range":["'b'","'c'"]},{"property":"L"}],"property":"L"}`,
+	} {
+		d := dom(expr)
+		if _, err := decodeDOM([]byte(d), bundled.uni); err == nil {
+			t.Errorf("a malformed DOM decodes: %s", expr)
+		}
+		if !parse(compiled(d)) {
+			t.Errorf("%s in compiled.json: the document was not read instead", expr)
+		}
+		if err := bootstrap(d); !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "notation/bootstrap.json" {
+			t.Errorf("%s in the bootstrap: expected an error of the bootstrap, got %v", expr, err)
+		}
+	}
+}
+
 // Caller tokens whose source lies outside the text are a usage error, not
 // a panic (review of PR #8).
 func TestParseTokensOutOfRange(t *testing.T) {

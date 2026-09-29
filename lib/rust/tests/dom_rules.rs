@@ -223,6 +223,52 @@ fn a_precompiled_range_or_property_is_checked() {
     ] {
         assert!(document_was_read(&dom), "a malformed entry was used: {dom}");
     }
+    // A range or a property beside a sequence is checked before the
+    // sequence is split, so no member of the node goes unread.
+    for beside in MALFORMED_BESIDE_A_SEQUENCE {
+        let dom = expr(&format!(r#"{{"seq":[{{"range":["'b'","'z'"]}},{{"property":"L"}}],{beside}}}"#));
+        assert!(document_was_read(&dom), "a malformed entry was used: {dom}");
+    }
+    assert!(document_was_read(&expr(r#"{"seq":[{"range":["'b'","'z'"]},{"property":"Bogus"}]}"#)));
+}
+
+/// Members that make a sequence node malformed: a range or a property has no
+/// member but its own (engine §9).
+const MALFORMED_BESIDE_A_SEQUENCE: [&str; 4] =
+    [r#""range":["'z'","'a'"]"#, r#""range":["'a'","'z'"]"#, r#""property":"Bogus""#, r#""property":"L""#];
+
+/// A malformed range or property in the bootstrap is an error of the
+/// grammar, where there is no document to read instead (engine §9).
+#[test]
+fn a_bootstrap_with_a_malformed_range_or_property_is_an_error() {
+    let refusal = |dom: String| {
+        let bootstrap = format!(
+            r#"{{"format":10,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{dom}}}]}}]}}"#
+        );
+        let sources = [
+            ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+            ("g.md", DOCUMENT.to_string()),
+            ("notation/bootstrap.json", bootstrap),
+        ];
+        let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("a notation that cannot read g.md");
+        assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
+        error.message.strip_prefix("bootstrap.json: ").map(str::to_string)
+    };
+    let expr = |expr: &str| with_alternative(&format!(r#"{{"guards":[],"expr":{expr}}}"#));
+    // A bootstrap that is read, whose notation then fails on g.md.
+    assert_eq!(refusal(expr(r#"{"seq":[{"range":["'a'","'z'"]},{"property":"L"}]}"#)), None);
+    let mut refused = vec![
+        expr(r#"{"seq":[{"range":["'z'","'a'"]},{"property":"L"}]}"#),
+        expr(r#"{"seq":[{"range":["'\\u{61}'","'z'"]},{"property":"L"}]}"#),
+        expr(r#"{"seq":[{"range":["'a'","'z'"]},{"property":"Bogus"}]}"#),
+        with_tags(r#"{"property":"L"}"#),
+    ];
+    for beside in MALFORMED_BESIDE_A_SEQUENCE {
+        refused.push(expr(&format!(r#"{{"seq":[{{"range":["'a'","'z'"]}},{{"property":"L"}}],{beside}}}"#)));
+    }
+    for dom in refused {
+        assert!(refusal(dom.clone()).is_some(), "a malformed bootstrap was used: {dom}");
+    }
 }
 
 #[test]

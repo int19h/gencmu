@@ -584,5 +584,95 @@ class PrecompiledDomRules(unittest.TestCase):
                 self.assertEqual(self.parse(broken), fresh)
 
 
+CLASS_DOCUMENT = "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a'..'z' '\\p{L}'\n```\n"
+CLASS_PIPELINE = '```jbogenbau\n%stage main\n%include "g.md"\n```\n'
+
+
+def _class_changes() -> list[tuple[str, Callable[[Dom], None]]]:
+    """Malformed range and property nodes, as changes to a DOM whose first
+    alternative is a sequence of a range and a property. The reader would
+    refuse each (engine §9)."""
+
+    def seq_item(index: int, key: str, value: Any) -> Callable[[Dom], None]:
+        def change(dom: Dom) -> None:
+            alt(dom)["expr"]["seq"][index][key] = value
+
+        return change
+
+    def beside(key: str, value: Any) -> Callable[[Dom], None]:
+        def change(dom: Dom) -> None:
+            alt(dom)["expr"][key] = value
+
+        return change
+
+    return [
+        ("a reversed range", seq_item(0, "range", ["'b'", "'a'"])),
+        ("a range with an end not in its canonical spelling", seq_item(0, "range", ["'\\u{61}'", "'b'"])),
+        ("an unknown property", seq_item(1, "property", "Bogus")),
+        ("a property in a term", set_tags({"property": "L"})),
+        ("a reversed range beside a sequence", beside("range", ["'z'", "'a'"])),
+        ("a range beside a sequence", beside("range", ["'a'", "'z'"])),
+        ("an unknown property beside a sequence", beside("property", "Bogus")),
+        ("a property beside a sequence", beside("property", "L")),
+    ]
+
+
+class CharacterClassLoading(unittest.TestCase):
+    """A malformed range or property takes the whole loading path: a
+    precompiled one is a miss, and one in the bootstrap is an error."""
+
+    def test_a_precompiled_malformed_range_or_property_is_a_miss(self) -> None:
+        sources = {"p.md": CLASS_PIPELINE, "g.md": CLASS_DOCUMENT}
+        fresh_result = gencmu.load_dialect_sources(sources, "p.md", use_cache=False).parse("zb", auto_features=False)
+        self.assertTrue(fresh_result.ok)
+        fresh = gencmu.to_json(fresh_result)
+        bootstrap_hash = fnv1a64(bundled_text("notation/bootstrap.json") or "")
+
+        def parse(dom: Dom) -> str:
+            documents = {"g.md": {"hash": fnv1a64(CLASS_DOCUMENT), "dom": dom}}
+            compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "documents": documents})
+            dialect = gencmu.load_dialect_sources({**sources, "compiled.json": compiled}, "p.md")
+            return gencmu.to_json(dialect.parse("zb", auto_features=False))
+
+        # The control: a well-formed entry with the range 'a'..'b' is used in
+        # place of the document, and rejects the z. Each broken entry below
+        # keeps that range, so an entry used by mistake would reject it too.
+        control = read_document(CLASS_DOCUMENT, "g.md")
+        alt(control)["expr"]["seq"][0]["range"] = ["'a'", "'b'"]
+        self.assertIsNone(dom_problem(control))
+        self.assertNotEqual(parse(control), fresh)
+        for name, change in _class_changes():
+            with self.subTest(refused=name):
+                dom = copy.deepcopy(control)
+                change(dom)
+                self.assertIsNotNone(dom_problem(dom))
+                self.assertEqual(parse(dom), fresh)
+
+    def test_a_bootstrap_with_a_malformed_range_or_property_is_an_error(self) -> None:
+        def with_rule(change: Callable[[Dom], None] | None) -> str:
+            # Put a rule of the shape above first in the bootstrap's first
+            # document.
+            bootstrap = json.loads(bundled_text("notation/bootstrap.json") or "{}")
+            expr = {"seq": [{"range": ["'a'", "'z'"]}, {"property": "L"}]}
+            added = {"name": "unused-rule", "op": "define", "alternatives": [{"guards": [], "expr": expr}], "conditions": [], "at": [100000, 1]}
+            if change is not None:
+                change({"rules": [added]})
+            bootstrap["stages"][0]["documents"][0]["dom"]["rules"].insert(0, added)
+            return json.dumps(bootstrap)
+
+        def refused(bootstrap: str) -> bool:
+            sources = {"p.md": CLASS_PIPELINE, "g.md": CLASS_DOCUMENT, "notation/bootstrap.json": bootstrap}
+            try:
+                gencmu.load_dialect_sources(sources, "p.md", use_cache=False)
+            except gencmu.GencmuError as error:
+                return error.document == "notation/bootstrap.json"
+            return False
+
+        self.assertFalse(refused(with_rule(None)))
+        for name, change in _class_changes():
+            with self.subTest(refused=name):
+                self.assertTrue(refused(with_rule(change)))
+
+
 if __name__ == "__main__":
     unittest.main()

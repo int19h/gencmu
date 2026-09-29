@@ -2208,8 +2208,11 @@
         // Depth counts the compound nodes above a node (engine §9): the
         // items of a top-level sequence are below one, the sequence.
         const expr = alternative.expr;
-        // The expression itself is checked before its sequence is split.
+        // The expression itself is checked before its sequence is split, so
+        // that a member beside `seq` is never left unread: a spelling, or a
+        // range or a property, which has no member but its own.
         if (isDomObject(expr) && isMisshapenSpelling(expr)) return "a malformed expression";
+        if (isDomObject(expr) && ("range" in expr || "property" in expr) && !isCharacterClass(expr, unicode)) return "a malformed expression";
         const isSeq = isDomObject(expr) && Array.isArray(expr.seq);
         const top = isSeq ? /** @type {unknown[]} */ (expr.seq) : [expr];
         for (const item of top) {
