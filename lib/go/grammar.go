@@ -178,7 +178,7 @@ func (g *stageGrammar) checkAlt(a *sAlt) *Error {
 			if len(captures) > 4 {
 				return fail("an alternative has at most four captures")
 			}
-			if e.Inner.Kind != exRef && e.Inner.Kind != exTerminal && e.Inner.Kind != exSpelling {
+			if !isCapturable(e.Inner.Kind) {
 				return fail("a capture wraps a single symbol")
 			}
 			return walk(e.Inner, false)

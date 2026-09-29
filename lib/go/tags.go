@@ -240,3 +240,74 @@ func isTag(tag string, uni *unicodeTable) bool {
 	_, ok := characterOfTag(tag, func(c rune) bool { return c >= 0x300 })
 	return ok
 }
+
+// codeOfCharacterTag is the scalar value of a character tag in its
+// canonical spelling, or -1 for any other tag. The tag is not checked
+// beyond its form: every tag inside the engine is in its canonical spelling
+// (engine §1).
+func codeOfCharacterTag(tag string) rune {
+	if len(tag) < 3 || tag[0] != '\'' {
+		return -1
+	}
+	if tag[1] == '\\' {
+		v, err := strconv.ParseUint(tag[4:len(tag)-2], 16, 32)
+		if err != nil {
+			return -1
+		}
+		return rune(v)
+	}
+	r, _ := utf8.DecodeRuneInString(tag[1:])
+	return r
+}
+
+// rangeName is the written form of a range, its identity as a terminal
+// (engine §4): its two ends, in their canonical spelling, joined by "..".
+func rangeName(r [2]string) string { return r[0] + ".." + r[1] }
+
+// propertyName is the written form of a property, its identity as a
+// terminal (engine §4).
+func propertyName(name string) string { return `'\p{` + name + `}'` }
+
+// rangeTags lists the character tags of a range (engine §1), from its start
+// to its end by scalar value, the surrogates skipped.
+func rangeTags(r [2]string, isMark func(rune) bool) []string {
+	var out []string
+	last := codeOfCharacterTag(r[1])
+	for c := codeOfCharacterTag(r[0]); c <= last; c++ {
+		if c == 0xD800 {
+			c = 0xE000
+			if c > last {
+				break
+			}
+		}
+		out = append(out, characterTag(c, isMark))
+	}
+	return out
+}
+
+// charClass is the characters a range or a property terminal matches: a
+// range's first and last scalar values, or a property's name.
+type charClass struct {
+	from, to rune
+	property string // "" for a range
+}
+
+// carries says whether a tag set holds a character tag of the class
+// (engine §4): the terminal then matches the token once, however many of
+// its tags qualify.
+func (cc *charClass) carries(uni *unicodeTable, ts *tagset) bool {
+	for _, tag := range ts.names {
+		c := codeOfCharacterTag(tag)
+		if c < 0 {
+			continue
+		}
+		if cc.property != "" {
+			if uni.hasProperty(cc.property, c) {
+				return true
+			}
+		} else if c >= cc.from && c <= cc.to {
+			return true
+		}
+	}
+	return false
+}

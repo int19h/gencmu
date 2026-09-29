@@ -145,7 +145,7 @@ var domRules = map[string]bool{
 	"presence": true, "call": true, "term": true, "guarded-term": true, "union": true,
 	"intersection": true, "empty-set": true, "capture-reference": true,
 	"alternative-tags": true, "argument-word": true, "argument-string": true, "argument-tag": true, "guard": true,
-	"comparator": true,
+	"comparator": true, "range": true, "property": true,
 }
 
 func (b *domBuilder) at(n *Node) [2]int {
@@ -232,9 +232,15 @@ func (b *domBuilder) document(root *Node) *domDoc {
 					dir.Args = append(dir.Args, b.decode(parts(p)[0]))
 					kinds = append(kinds, operandString)
 				case "argument-tag":
-					// A tag literal is its name; a phoneme or character tag
-					// is refused below.
+					// A tag literal is its name; a phoneme or character tag,
+					// a range or a property is refused below.
 					t := parts(p)[0]
+					if t.Kind == KindRule {
+						// A range or a property, which has no tag.
+						dir.Args = append(dir.Args, b.text(t))
+						kinds = append(kinds, t.Rule)
+						continue
+					}
 					dir.Args = append(dir.Args, b.tagOf(t))
 					switch b.text(t)[0] {
 					case '~':
@@ -394,6 +400,10 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 		return &domExpr{Kind: exRef, Name: b.text(n)}
 	case "tag", "character", "phoneme":
 		return &domExpr{Kind: exTerminal, Name: b.tagOf(parts(n)[0])}
+	case "range":
+		return &domExpr{Kind: exRange, Range: b.readRange(n)}
+	case "property":
+		return &domExpr{Kind: exProperty, Name: b.readProperty(parts(n)[0])}
 	case "spelled":
 		// A reference or a terminal and its spelling, which the syntax
 		// grammar gives nothing else; the spelling is the text between the
@@ -408,6 +418,9 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 			}
 		}
 		inner := b.expr(symbol)
+		if inner.Kind == exRange || inner.Kind == exProperty {
+			b.fail(token, "a range or a property takes no spelling")
+		}
 		rs := []rune(b.text(token))
 		spelling := string(rs[1 : len(rs)-1])
 		if msg := spellingProblem(spelling, inner, b.uni); msg != "" {
@@ -424,8 +437,8 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 		if !captureName.MatchString(name) {
 			b.fail(ps[0], "a capture's name is all lower case")
 		}
-		if len(inner) != 1 || (inner[0].Rule != "reference" && inner[0].Rule != "tag" && inner[0].Rule != "character" && inner[0].Rule != "phoneme" && inner[0].Rule != "spelled") {
-			b.fail(ps[0], "a capture wraps a single symbol: a name, a tag literal, a character tag or a phoneme tag, spelled or not")
+		if len(inner) != 1 || !capturedRules[inner[0].Rule] {
+			b.fail(ps[0], "a capture wraps a single symbol: a name, a tag literal, a character tag, a phoneme tag, a range or a property, or a spelled one")
 		}
 		if b.inner > 0 {
 			b.fail(ps[0], "a capture stands only at the top level of an alternative, not inside [ ], ( ), ..., & or a choice")
@@ -448,6 +461,42 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 	}
 	b.fail(n, "unexpected %s in an expression", n.Rule)
 	return nil
+}
+
+// capturedRules are the rules of the symbols a capture can wrap (engine §9).
+var capturedRules = map[string]bool{
+	"reference": true, "tag": true, "character": true, "phoneme": true, "range": true, "property": true, "spelled": true,
+}
+
+// readRange reads a range's two ends, each a character tag in its canonical
+// spelling; its start must not be above its end (engine §1, §9).
+func (b *domBuilder) readRange(n *Node) [2]string {
+	var ends []string
+	for _, c := range ruleParts(n) {
+		ends = append(ends, b.tagOf(parts(c)[0]))
+	}
+	if len(ends) != 2 {
+		b.fail(n, "a range's ends are two character tags")
+	}
+	r := [2]string{ends[0], ends[1]}
+	if msg := rangeProblem(r, b.uni); msg != "" {
+		b.fail(n, "%s", msg)
+	}
+	return r
+}
+
+// readProperty reads a property's name: its token is '\p{Name}', with a
+// name of engine §1.
+func (b *domBuilder) readProperty(n *Node) string {
+	written := b.text(n)
+	if !strings.HasPrefix(written, `'\p{`) || !strings.HasSuffix(written, "}'") || strings.Count(written, "}") != 1 {
+		b.fail(n, `a property is written '\p{Name}'`)
+	}
+	name := written[4 : len(written)-2]
+	if msg := propertyProblem(name); msg != "" {
+		b.fail(n, "%s", msg)
+	}
+	return name
 }
 
 // decode decodes a string or a character tag token (engine §9). A string
@@ -585,6 +634,10 @@ func (b *domBuilder) termIn(n *Node, argument bool) *domTerm {
 		return &domTerm{Kind: tmString, Str: b.decode(n)}
 	case "tag", "character", "phoneme":
 		return &domTerm{Kind: tmTag, Str: b.tagOf(parts(n)[0])}
+	case "range":
+		return &domTerm{Kind: tmRange, Range: b.readRange(n)}
+	case "property":
+		b.fail(n, "a property is not a tag set, and stands only as a terminal in a body")
 	case "name":
 		// A bare name is a tag literal if it begins with a capital, and
 		// otherwise a rule, which only a function's argument names.
@@ -799,6 +852,8 @@ func (b *domBuilder) emission(n *Node) *domEmit {
 		}
 		text := b.text(target)
 		switch {
+		case target.Kind == KindRule && (target.Rule == "range" || target.Rule == "property"):
+			b.fail(target, "an inserted item is one tag, not a range or a property")
 		case strings.HasPrefix(text, "$"):
 			it.Capture = text[1:]
 			if it.Capture == "" {
@@ -835,7 +890,8 @@ func (b *domBuilder) emission(n *Node) *domEmit {
 }
 
 // The kinds of a directive's operand: a bare name, lower case or with a
-// capital, a string, a tag literal ~name, a phoneme tag or a character tag.
+// capital, a string, a tag literal ~name, a phoneme tag, a character tag,
+// a range or a property.
 const (
 	operandName      = "name"
 	operandClass     = "class"
@@ -843,6 +899,8 @@ const (
 	operandTag       = "tag"
 	operandPhoneme   = "phoneme"
 	operandCharacter = "character"
+	operandRange     = "range"
+	operandProperty  = "property"
 )
 
 // operandProblem says what is wrong with a directive's operands, given the

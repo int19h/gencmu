@@ -305,14 +305,14 @@ func sameValue(a, b reflect.Value) bool {
 	panic("sameValue: cannot compare a " + a.Kind().String())
 }
 
-// The notation's lexical stage tags keywords, tag literals, character tags
-// and symbols (grammars/notation/lexical.md).
+// The notation's lexical stage tags keywords, tag literals, character tags,
+// properties and symbols (grammars/notation/lexical.md).
 func TestNotationLexicalTags(t *testing.T) {
 	d, err := LoadDialect("notation")
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, err := d.Parse("%rule a ¬f? ~b 'c' /d/ E ... | g! %tags X %rulex $e ¬h", ParseOptions{Until: "lexical"})
+	res, err := d.Parse(`%rule a ¬f? ~b 'c' /d/ E ... | g! %tags X %rulex $e ¬h 'x'..'y' '\p{L}' 'a'...`, ParseOptions{Until: "lexical"})
 	if err != nil || !res.OK {
 		t.Fatalf("%v %+v", err, res)
 	}
@@ -322,8 +322,9 @@ func TestNotationLexicalTags(t *testing.T) {
 	}
 	want := [][2]string{
 		{"%rule", "keyword-rule"}, {"a", "identifier"}, {"¬f?", "guard"}, {"~b", "tag"}, {"'c'", "character"},
-		{"/d/", "phoneme"}, {"E", "identifier"}, {"...", "ellipsis"}, {"|", "'|' other"}, {"g!", "guard"},
-		{"%tags", "keyword-tags"}, {"X", "identifier"}, {"%rulex", "keyword"}, {"$e", "capture"}, {"¬", "'¬' other"}, {"h", "identifier"},
+		{"/d/", "phoneme"}, {"E", "identifier"}, {"...", "ellipsis"}, {"|", "'|'"}, {"g!", "guard"},
+		{"%tags", "keyword-tags"}, {"X", "identifier"}, {"%rulex", "keyword"}, {"$e", "capture"}, {"¬", "'¬'"}, {"h", "identifier"},
+		{"'x'", "character"}, {"..", "double-dot"}, {"'y'", "character"}, {`'\p{L}'`, "property"}, {"'a'", "character"}, {"...", "ellipsis"},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got  %v\nwant %v", got, want)
@@ -348,5 +349,34 @@ func TestCharacterTags(t *testing.T) {
 		if isTag(bad, bundled.uni) {
 			t.Errorf("%s is taken for a canonical tag", bad)
 		}
+	}
+}
+
+// grammars/unicode.txt gives each scalar value its General_Category and
+// says which have White_Space (engine §1).
+func TestUnicodeTable(t *testing.T) {
+	data, err := bundledFS.ReadFile("grammars/unicode.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	uni, err := parseUnicodeTable(string(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for c, want := range map[rune]string{'a': "Ll", 'A': "Lu", '0': "Nd", ' ': "Zs", 0x301: "Mn", 0xD800: "Cs", 0xE000: "Co", 0x378: "Cn", 0x10FFFF: "Cn", 0: "Cc"} {
+		if got := uni.category(c); got != want {
+			t.Errorf("U+%04X: category %s, want %s", c, got, want)
+		}
+	}
+	if !uni.isMark(0x301) || uni.isMark('a') || uni.isMark(0x903) {
+		t.Error("isMark disagrees with Mn")
+	}
+	for _, c := range []rune{9, 0x0D, ' ', 0x85, 0xA0, 0x2028, 0x3000} {
+		if !uni.hasProperty("White_Space", c) {
+			t.Errorf("U+%04X lacks White_Space", c)
+		}
+	}
+	if uni.hasProperty("White_Space", 0x200B) || !uni.hasProperty("L", 'é') || uni.hasProperty("L", '1') || !uni.hasProperty("Any", 0x378) {
+		t.Error("hasProperty is wrong")
 	}
 }

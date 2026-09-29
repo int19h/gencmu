@@ -17,10 +17,13 @@ type parseState struct {
 	// running (terms.go).
 	nested     map[nestedKey]*nestedResult
 	inProgress map[spanKey]bool
+	// ranges holds the tag set of each range a term has read, made once
+	// (engine §10).
+	ranges map[[2]string]*tagset
 }
 
 func newParseState(uni *unicodeTable, text []rune) *parseState {
-	ps := &parseState{uni: uni, in: newInterner(), text: text, nested: map[nestedKey]*nestedResult{}, inProgress: map[spanKey]bool{}}
+	ps := &parseState{uni: uni, in: newInterner(), text: text, nested: map[nestedKey]*nestedResult{}, inProgress: map[spanKey]bool{}, ranges: map[[2]string]*tagset{}}
 	ps.lineStarts = []int{0}
 	for i := 0; i < len(text); i++ {
 		switch text[i] {
@@ -46,12 +49,11 @@ func (ps *parseState) lineColumn(pos int) (int, int) {
 }
 
 // characterTokens is the first stage's input (engine §1): one token per
-// code point, tagged with its character tag and its class.
+// code point, tagged with its character tag and nothing else.
 func (ps *parseState) characterTokens() []Token {
 	toks := make([]Token, len(ps.text))
 	for i, c := range ps.text {
-		tags := []string{characterTag(c, ps.uni.isMark), ps.uni.class(c)}
-		// A character tag begins with a quote, which sorts before a class.
+		tags := []string{characterTag(c, ps.uni.isMark)}
 		toks[i] = Token{Text: string(c), Tags: tags, Span: [2]int{i, i + 1}, Source: [2]int{i, i + 1}}
 	}
 	return toks

@@ -59,11 +59,14 @@ type lrule struct {
 }
 
 type lowered struct {
-	stage      *stageGrammar
-	rules      []*lrule
-	byName     map[string]int32
-	terminals  []string
-	termID     map[string]int32
+	stage     *stageGrammar
+	rules     []*lrule
+	byName    map[string]int32
+	terminals []string
+	termID    map[string]int32
+	// classes holds, for each terminal that is a range or a property, the
+	// characters it matches; nil for a terminal that is a tag (§4).
+	classes    []*charClass
 	prods      []*production
 	lean       string // "greedy", "lazy", or "" for no lean (§7)
 	maximal    bool   // no terminator is elided where its constituent could have been longer (§4)
@@ -126,11 +129,16 @@ func lower(g *stageGrammar, features map[string]bool, mandatory bool) *lowered {
 	return l
 }
 
-func (lw *lowerer) terminal(name string) symbol {
+func (lw *lowerer) terminal(name string) symbol { return lw.classTerminal(name, nil) }
+
+// classTerminal is a terminal that matches by its characters, a range or a
+// property, whose name is its written form (§4); cc is nil for a tag.
+func (lw *lowerer) classTerminal(name string, cc *charClass) symbol {
 	id, ok := lw.l.termID[name]
 	if !ok {
 		id = int32(len(lw.l.terminals))
 		lw.l.terminals = append(lw.l.terminals, name)
+		lw.l.classes = append(lw.l.classes, cc)
 		lw.l.termID[name] = id
 	}
 	return symbol{term: true, id: id}
@@ -505,6 +513,13 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 		return [][]slot{{{sym: symbol{id: lw.l.byName[e.Name]}}}}
 	case exTerminal:
 		return [][]slot{{{sym: lw.terminal(e.Name)}}}
+	case exRange:
+		// A range or a property is a terminal whose name is its written
+		// form, and which matches by its characters rather than by a tag.
+		cc := &charClass{from: codeOfCharacterTag(e.Range[0]), to: codeOfCharacterTag(e.Range[1])}
+		return [][]slot{{{sym: lw.classTerminal(rangeName(e.Range), cc)}}}
+	case exProperty:
+		return [][]slot{{{sym: lw.classTerminal(propertyName(e.Name), &charClass{property: e.Name})}}}
 	case exCapture:
 		var out [][]slot
 		for _, x := range lw.expand(e.Inner, a, ruleName) {

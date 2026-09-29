@@ -198,8 +198,8 @@ func (c *domChecker) expr(e *domExpr, depth int, top bool) {
 			c.fail("a capture name is not all lower case")
 			return
 		}
-		if e.Inner == nil || (e.Inner.Kind != exRef && e.Inner.Kind != exTerminal && e.Inner.Kind != exSpelling) || (e.Inner.Kind == exRef && e.Inner.Name == "") {
-			c.fail("a capture of something other than a reference, a terminal or a spelled one of these")
+		if e.Inner == nil || !isCapturable(e.Inner.Kind) || (e.Inner.Kind == exRef && e.Inner.Name == "") {
+			c.fail("a capture of something other than a reference, a terminal, a range, a property or a spelled one of these")
 			return
 		}
 		if c.captures[e.Name] {
@@ -210,7 +210,7 @@ func (c *domChecker) expr(e *domExpr, depth int, top bool) {
 			c.fail("an alternative has at most four captures")
 		}
 		// A capture is a compound node: its symbol lies below it.
-		if e.Inner.Kind == exSpelling {
+		if e.Inner.Kind == exSpelling || e.Inner.Kind == exRange || e.Inner.Kind == exProperty {
 			c.expr(e.Inner, depth+1, false)
 		} else {
 			c.deep(depth + 1)
@@ -231,10 +231,66 @@ func (c *domChecker) expr(e *domExpr, depth int, top bool) {
 		if !isTag(e.Name, c.uni) {
 			c.fail("a malformed terminal %q", e.Name)
 		}
+	case exRange:
+		if msg := rangeProblem(e.Range, c.uni); msg != "" {
+			c.fail("%s", msg)
+		}
+	case exProperty:
+		if msg := propertyProblem(e.Name); msg != "" {
+			c.fail("%s", msg)
+		}
 	case exEmpty:
 	default:
 		c.fail("an unknown expression %q", e.Kind)
 	}
+}
+
+// isCapturable says whether a capture can wrap an expression of a kind: a
+// reference, a terminal, a range, a property or a spelled symbol (engine §9).
+func isCapturable(kind string) bool {
+	switch kind {
+	case exRef, exTerminal, exRange, exProperty, exSpelling:
+		return true
+	}
+	return false
+}
+
+// rangeProblem is what is wrong with a range (engine §1, §9), or "": its
+// ends must be two character tags in their canonical spelling, the start
+// not above the end. Without a table, which says which code points are
+// marks, an end passes in either spelling that a table could make
+// canonical.
+func rangeProblem(r [2]string, uni *unicodeTable) string {
+	var codes [2]rune
+	for i, end := range r {
+		if !isTag(end, uni) {
+			return "a range's ends are two character tags"
+		}
+		var c rune
+		var ok bool
+		if uni != nil {
+			c, ok = characterOfTag(end, uni.isMark)
+		} else if c, ok = characterOfTag(end, func(rune) bool { return false }); !ok {
+			c, ok = characterOfTag(end, func(rune) bool { return true })
+		}
+		if !ok {
+			return "a range's ends are two character tags"
+		}
+		codes[i] = c
+	}
+	if codes[0] > codes[1] {
+		return fmt.Sprintf("the range %s..%s starts above its end", r[0], r[1])
+	}
+	return ""
+}
+
+// propertyProblem is what is wrong with a property's name (engine §1, §9),
+// or "".
+func propertyProblem(name string) string {
+	if !propertyNames[name] {
+		return fmt.Sprintf(`'\p{%s}' is not a property: a property is a General_Category value in its short form, a one-letter group of them, White_Space or Any`, name)
+	}
+	return ""
 }
 
 // spellingProblem is what is wrong with a spelling of a symbol (engine §9),
@@ -274,6 +330,10 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 	case tmTag:
 		if !isTag(t.Str, c.uni) {
 			c.fail("a malformed tag %q", t.Str)
+		}
+	case tmRange:
+		if msg := rangeProblem(t.Range, c.uni); msg != "" {
+			c.fail("%s", msg)
 		}
 	case tmUnion, tmIntersection, tmDifference:
 		if len(t.Items) < 2 || (t.Kind == tmDifference && len(t.Items) != 2) {
@@ -612,7 +672,7 @@ func typeOf(t *domTerm) (termType, string) {
 	switch t.Kind {
 	case tmString:
 		return tyString, ""
-	case tmTag:
+	case tmTag, tmRange:
 		return tyTags, ""
 	case tmEmptySet:
 		return tySet, ""

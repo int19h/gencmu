@@ -117,7 +117,16 @@ func (r *recognizer) canRead(k int, term int32) bool {
 	if k >= r.n {
 		return false
 	}
-	return r.run.tagsets[r.base+k].has(r.g.terminals[term])
+	return r.reads(r.run.tagsets[r.base+k], term)
+}
+
+// reads says whether a terminal matches a token with these tags (§4): a tag
+// it carries, or, for a range or a property, one of its character tags.
+func (r *recognizer) reads(ts *tagset, term int32) bool {
+	if cc := r.g.classes[term]; cc != nil {
+		return cc.carries(r.run.ps.uni, ts)
+	}
+	return ts.has(r.g.terminals[term])
 }
 
 // predictable checks the conditions of a production that mention no
@@ -166,7 +175,7 @@ func (r *recognizer) process(k int, it *item) {
 		if sym.term {
 			if k < r.n {
 				ts := r.run.tagsets[r.base+k]
-				if ts.has(r.g.terminals[sym.id]) {
+				if r.reads(ts, sym.id) {
 					r.advance(it, k+1, capVal{int32(k), int32(k + 1), ts.id}, link{prev: it, tok: int32(k), term: sym.id})
 				}
 			}
