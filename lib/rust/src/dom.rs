@@ -613,9 +613,6 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
         let Some(value) = constant.get("value").filter(|_| well_formed) else {
             return Some("a malformed constant");
         };
-        if !is_closed_json(value) {
-            return Some("a constant's value is not a closed term");
-        }
         pending.push((Kind::Term, value, 0));
     }
     for rule in dom.get("rules").and_then(Json::as_array).unwrap_or(&[]) {
@@ -975,6 +972,13 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                     return Some("a malformed term");
                 }
             }
+        }
+    }
+    // The walks below recurse, so they run only once the nesting is
+    // bounded.
+    for constant in dom.get("constants").and_then(Json::as_array).unwrap_or(&[]) {
+        if !constant.get("value").is_some_and(is_closed_json) {
+            return Some("a constant's value is not a closed term");
         }
     }
     // Terms and conditions whose types do not agree (engine §10).

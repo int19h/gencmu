@@ -2,6 +2,7 @@ package gencmu
 
 import (
 	"encoding/json"
+	"errors"
 	"strconv"
 	"strings"
 	"testing"
@@ -352,5 +353,44 @@ func TestReaderNesting(t *testing.T) {
 	_, err := bundled.reader.read(doc(257), "g.md")
 	if err == nil || err.Line != 3 || err.Column != 1 {
 		t.Fatalf("257 deep: expected an error at the rule, 3:1, got %v", err)
+	}
+}
+
+// A constant nested too deeply is refused before any walk that recurses
+// (engine §9): a compiled.json entry is a miss, and a bootstrap is an error
+// of the grammar.
+func TestDeepConstant(t *testing.T) {
+	loadBundled()
+	deep := strings.Repeat(`{"union":[`, 2000) + `{"tag":"a"}` + strings.Repeat(`,{"tag":"B"}]}`, 2000)
+	k := `{"name":"K","op":"define","value":` + deep + `,"at":[9999,1]}`
+	src := oneStage("%ambiguity-resolution greedy\n%rule text 'a' 'b'")
+	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"seq":[{"terminal":"a"},{"terminal":"b"}]}}],"conditions":[],"at":[4,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[3,1]}],"constants":[` + k + `]}`
+	if _, err := decodeDOM(json.RawMessage(dom), bundled.uni); err == nil || !strings.Contains(err.Error(), "nested more than 256 deep") {
+		t.Fatalf("a deep constant: expected the nesting error, got %v", err)
+	}
+	src["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + dom + `}}}`
+	d, err := LoadDialectSources(src, "p.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res, err := d.Parse("ab", ParseOptions{}); err != nil || !res.OK {
+		t.Fatalf("the document was not read instead: %v %+v", err, res.Error)
+	}
+	delete(src, "compiled.json")
+	bootstrap := bundled.sources["notation/bootstrap.json"]
+	i := strings.Index(bootstrap, `"constants":[`)
+	if i < 0 {
+		t.Fatal("no constants in the bootstrap")
+	}
+	i += len(`"constants":[`)
+	sep := ","
+	if bootstrap[i] == ']' {
+		sep = ""
+	}
+	src["notation/bootstrap.json"] = bootstrap[:i] + k + sep + bootstrap[i:]
+	_, err = LoadDialectSources(src, "p.md")
+	var e *Error
+	if !errors.As(err, &e) || e.Kind != ErrorGrammar || !strings.Contains(e.Message, "nested more than 256 deep") {
+		t.Fatalf("a deep bootstrap constant: expected an error of the grammar, got %v", err)
 	}
 }

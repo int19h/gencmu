@@ -2231,7 +2231,6 @@
       if (!isDomObject(constant) || typeof constant.name !== "string" || !CONSTANT_NAME.test(constant.name) ||
           (constant.op !== "define" && constant.op !== "redefine") || !isDomPosition(constant.at) || !("value" in constant) ||
           Object.keys(constant).length !== 4) return "a malformed constant";
-      if (openPart(constant.value) !== null) return "a constant's value is not a closed term";
       pending.push({ kind: "term", value: constant.value, depth: 0 });
     }
     for (const rule of dom.rules) {
@@ -2411,6 +2410,10 @@
     for (const rule of /** @type {any[]} */ (dom.rules)) {
       const problem = definitionProblem(rule) || ruleTypeProblem(rule);
       if (problem) return problem;
+    }
+    // The walks below recurse, so they run only once the nesting is bounded.
+    for (const constant of /** @type {any[]} */ (dom.constants)) {
+      if (openPart(constant.value) !== null) return "a constant's value is not a closed term";
     }
     for (const constant of /** @type {any[]} */ (dom.constants)) {
       const problem = valueTypeProblem(constant.value, constant.op === "redefine");

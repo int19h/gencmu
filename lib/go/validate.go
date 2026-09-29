@@ -124,13 +124,15 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 		if !constName.MatchString(k.Name) || (k.Op != "define" && k.Op != "redefine") || k.Value == nil {
 			return &domProblem{message: "a malformed constant", constant: k}
 		}
-		if openPart(k.Value) != nil {
-			return &domProblem{message: fmt.Sprintf("constant $%s: a constant's value is not a closed term", k.Name), constant: k}
-		}
 		c := &domChecker{constant: k, label: "constant $" + k.Name, uni: uni}
 		c.term(k.Value, 0, false)
 		if c.problem != nil {
 			return c.problem
+		}
+		// The walks below recurse, so they run only once the nesting is
+		// bounded.
+		if openPart(k.Value) != nil {
+			return &domProblem{message: fmt.Sprintf("constant $%s: a constant's value is not a closed term", k.Name), constant: k}
 		}
 		if _, f := constantValueType(k.Value, k.Op == "redefine", nil); f != nil {
 			return &domProblem{message: fmt.Sprintf("constant $%s: %s", k.Name, f.problem), constant: k}

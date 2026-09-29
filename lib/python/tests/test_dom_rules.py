@@ -791,6 +791,41 @@ class Constants(unittest.TestCase):
             gencmu.load_dialect_sources({**CONSTANT_SOURCES, "notation/bootstrap.json": json.dumps(bootstrap)}, "p.md", use_cache=False)
         self.assertEqual(caught.exception.kind, "grammar")
 
+    @staticmethod
+    def deep_value_json(depth: int) -> str:
+        """A constant's value nested `depth` unions deep, as JSON text: deeper
+        than a walk that recursed could follow, and shallower than json.loads
+        can."""
+        return '{"union":[' * depth + '{"tag":"a"}' + ',{"tag":"B"}]}' * depth
+
+    def test_a_precompiled_constant_nested_too_deeply_is_a_miss(self) -> None:
+        """The bound on nesting holds before any walk that recurses (engine
+        §9), so the entry is a miss and the document is read instead."""
+        token = [Token("a", frozenset(["A"]), (0, 1), (0, 1), None)]
+        fresh = gencmu.load_dialect_sources(CONSTANT_SOURCES, "p.md", use_cache=False)
+        expected = gencmu.to_json(fresh.parse_tokens(token, "a", auto_features=False))
+        dom = read_document(CONSTANT_SOURCES["g.md"], "g.md")
+        dom["constants"][0]["value"] = "@VALUE@"
+        deep = json.dumps(dom).replace('"@VALUE@"', self.deep_value_json(2000))
+        self.assertEqual(dom_problem(json.loads(deep)), "nested too deeply")
+        bootstrap_hash = fnv1a64(bundled_text("notation/bootstrap.json") or "")
+        compiled = (
+            f'{{"format":{DOM_FORMAT},"bootstrap":"{bootstrap_hash}",'
+            f'"documents":{{"g.md":{{"hash":"{fnv1a64(CONSTANT_SOURCES["g.md"])}","dom":{deep}}}}}}}'
+        )
+        dialect = gencmu.load_dialect_sources({**CONSTANT_SOURCES, "compiled.json": compiled}, "p.md")
+        self.assertEqual(gencmu.to_json(dialect.parse_tokens(token, "a", auto_features=False)), expected)
+
+    def test_a_bootstrap_constant_nested_too_deeply_is_an_error(self) -> None:
+        """The bound on nesting holds before any walk that recurses (engine
+        §9), so the bootstrap is an error of the grammar."""
+        bootstrap = json.loads(bundled_text("notation/bootstrap.json") or "{}")
+        bootstrap["stages"][0]["documents"][0]["dom"]["constants"].append({"name": "K", "op": "define", "value": "@VALUE@", "at": [99999, 1]})
+        text = json.dumps(bootstrap).replace('"@VALUE@"', self.deep_value_json(2000))
+        with self.assertRaisesRegex(gencmu.GencmuError, "nested too deeply") as caught:
+            gencmu.load_dialect_sources({**CONSTANT_SOURCES, "notation/bootstrap.json": text}, "p.md", use_cache=False)
+        self.assertEqual(caught.exception.kind, "grammar")
+
     def test_lexical_tokens(self) -> None:
         """The notation's lexical stage tags constants and the keywords that
         define them (grammars/notation/lexical.md)."""

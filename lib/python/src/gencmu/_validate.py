@@ -272,8 +272,6 @@ def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
             or len(constant) != 4
         ):
             return "a malformed constant"
-        if open_part(constant["value"]) is not None:
-            return "a constant's value is not a closed term"
         pending.append(("term", constant["value"], 0, False))
     for rule in dom["rules"]:
         if (
@@ -319,6 +317,10 @@ def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
     problem = _walk(pending, unicode)
     if problem is not None:
         return problem
+    # The walks below recurse, so they run only once the nesting is bounded.
+    for constant in dom["constants"]:
+        if open_part(constant["value"]) is not None:
+            return "a constant's value is not a closed term"
     # A definition is checked as a whole (engine §9), once its clauses are
     # known to be well formed, and so are the types of its terms and
     # conditions (engine §10).

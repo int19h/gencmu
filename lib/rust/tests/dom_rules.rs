@@ -882,3 +882,36 @@ fn a_bootstrap_with_a_malformed_constant_is_an_error() {
     assert_eq!(refusal(&constant("K", "define", r#"{"tag":"a"}"#, 5)), None);
     assert_eq!(refusal(&constant("k", "define", r#"{"tag":"a"}"#, 5)).as_deref(), Some("a malformed constant"));
 }
+
+/// A constant's value nested `depth` unions deep.
+fn deep_value(depth: usize) -> String {
+    format!(r#"{}{{"tag":"a"}}{}"#, r#"{"union":["#.repeat(depth), r#",{"tag":"B"}]}"#.repeat(depth))
+}
+
+/// A cached constant nested too deeply is a miss, found before any walk
+/// that recurses (engine §9).
+#[test]
+fn a_precompiled_constant_nested_too_deeply_is_a_miss() {
+    assert!(!document_was_read(&with_constants(&constant("K", "define", &deep_value(256), 5), "")));
+    assert!(document_was_read(&with_constants(&constant("K", "define", &deep_value(257), 5), "")));
+    // As deep as compiled.json can hold.
+    assert!(document_was_read(&with_constants(&constant("K", "define", &deep_value(500), 5), "")));
+}
+
+/// A bootstrap constant nested too deeply is an error of the grammar,
+/// found before any walk that recurses (engine §9).
+#[test]
+fn a_bootstrap_constant_nested_too_deeply_is_an_error() {
+    let bootstrap = format!(
+        r#"{{"format":11,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
+        with_constants(&constant("K", "define", &deep_value(500), 5), "")
+    );
+    let sources = [
+        ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+        ("g.md", DOCUMENT.to_string()),
+        ("notation/bootstrap.json", bootstrap),
+    ];
+    let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("a bootstrap nested too deeply");
+    assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
+    assert!(error.message.contains("nested too deeply"), "{}", error.message);
+}
