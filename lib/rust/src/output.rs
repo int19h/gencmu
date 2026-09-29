@@ -33,15 +33,14 @@ fn write_token(out: &mut String, token: &Token) {
     write_str(out, &token.text);
     out.push_str(",\"phonemes\":");
     write_str(out, token.phonemes.as_deref().unwrap_or(""));
+    out.push_str(",\"label\":");
+    write_str(out, &token.label);
     out.push_str(",\"tags\":");
     write_tags(out, &token.tags);
     out.push_str(",\"span\":");
     write_range(out, &token.span);
     out.push_str(",\"source\":");
     write_range(out, &token.source);
-    if token.verbatim {
-        out.push_str(",\"verbatim\":true");
-    }
     if let Some(rule) = &token.inserted_by {
         out.push_str(",\"insertedBy\":");
         write_str(out, rule);
@@ -249,7 +248,7 @@ fn write_warning(out: &mut String, warning: &Warning) {
 /// documented order, no whitespace, non-ASCII characters as themselves.
 pub fn to_json(result: &ParseResult) -> String {
     let mut out = String::new();
-    out.push_str("{\"format\":4,\"ok\":");
+    out.push_str("{\"format\":5,\"ok\":");
     out.push_str(if result.ok { "true" } else { "false" });
     out.push_str(",\"stages\":[");
     for (index, stage) in result.stages.iter().enumerate() {
@@ -297,8 +296,9 @@ enum Rendered {
     Group(Vec<usize>),
 }
 
-/// Renders a tree as brackets (`docs/output.md`, "Brackets"), labelling
-/// token nodes from `tokens`, the input of the tree's stage.
+/// Renders a tree as brackets (`docs/output.md`, "Brackets"), showing each
+/// token node by the label of its token in `tokens`, the input of the
+/// tree's stage.
 pub(crate) fn brackets(tree: &Node, tokens: &[Token], show_elided: bool) -> String {
     // Bottom-up: render every node into an arena, collapsing as we go.
     let mut order: Vec<(&Node, Option<usize>)> = vec![(tree, None)];
@@ -320,16 +320,9 @@ pub(crate) fn brackets(tree: &Node, tokens: &[Token], show_elided: bool) -> Stri
         let rendered = match node.kind {
             NodeKind::Token => {
                 let token = node.token.and_then(|token| tokens.get(token));
-                let label = match token {
-                    // A verbatim token's label is its text (docs/output.md).
-                    Some(token) if token.verbatim => token.text.clone(),
-                    Some(token) => match token.phonemes.as_deref() {
-                        // Each pause is written as a space.
-                        Some(phonemes) if !phonemes.is_empty() => phonemes.replace('.', " "),
-                        _ => token.text.clone(),
-                    },
-                    None => String::new(),
-                };
+                // Every rendering shows a token by its label
+                // (docs/output.md).
+                let label = token.map_or_else(String::new, |token| token.label.clone());
                 // A token is never an empty node, even when its label is
                 // empty, as an empty zoi quotation's is.
                 Rendered::Leaf(label)

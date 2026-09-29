@@ -94,8 +94,8 @@ fn a_well_formed_dom_is_used() {
     assert!(!document_was_read(&whole_twice));
     // `%emits ε` is no items (§9).
     assert!(!document_was_read(&with_emission(r#"{"items":[]}"#)));
-    // `verbatim` marks a rule with `%verbatim` (docs/output.md).
-    assert!(!document_was_read(&with_emission(r#"{"items":[{"capture":"x"}]},"verbatim":true"#)));
+    // `foreign` marks a rule with `%foreign` (docs/output.md).
+    assert!(!document_was_read(&with_emission(r#"{"items":[{"capture":"x"}]},"foreign":true"#)));
     // A guard is a gate, negated or not, or a warning (§9).
     let gate_and_warning = with_alternative(
         r#"{"guards":[{"feature":"f","kind":"gate","negated":true},{"feature":"w","kind":"warning","negated":false}],"expr":{"terminal":"b"}}"#,
@@ -204,6 +204,7 @@ fn a_well_formed_dom_is_used() {
 #[test]
 fn a_cache_of_another_format_is_a_miss() {
     assert!(!document_was_read_from(DOM_FORMAT, &with_rule("")));
+    assert!(document_was_read_from(13, &with_rule("")), "a format-13 cache is never used");
     assert!(document_was_read_from(11, &with_rule("")), "a format-11 cache is never used");
     assert!(document_was_read_from(10, &with_rule("")), "a format-10 cache is never used");
     assert!(document_was_read_from(9, &with_rule("")), "a format-9 cache is never used");
@@ -590,9 +591,9 @@ fn every_malformed_dom_is_a_cache_miss() {
             ),
         ),
         ("captures listed out of order", with_emission(r#"{"items":[{"capture":"y"},{"capture":"x"}]}"#)),
-        ("verbatim false", with_emission(r#"{"items":[{"capture":"x"}]},"verbatim":false"#)),
-        ("verbatim that is not a boolean", with_emission(r#"{"items":[{"capture":"x"}]},"verbatim":1"#)),
-        ("verbatim with %emits ε", with_emission(r#"{"items":[]},"verbatim":true"#)),
+        ("foreign false", with_emission(r#"{"items":[{"capture":"x"}]},"foreign":false"#)),
+        ("foreign that is not a boolean", with_emission(r#"{"items":[{"capture":"x"}]},"foreign":1"#)),
+        ("foreign with %emits ε", with_emission(r#"{"items":[]},"foreign":true"#)),
         (
             "an emission naming a capture no alternative has",
             with_emission(r#"{"items":[{"capture":"x"},{"capture":"z","tags":{"tag":"T"}}]}"#),

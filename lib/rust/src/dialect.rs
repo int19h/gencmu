@@ -67,7 +67,8 @@ pub struct Feature {
 /// characters: for tests and tools, such as the shared engine cases.
 ///
 /// The original text of such a parse is the tokens' texts joined with
-/// single spaces, and each token's source is its text's place in it.
+/// single spaces, and each token's source is its text's place in it. Each
+/// token's label is its text (engine §5).
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct InputToken {
     /// The token's text.
@@ -269,21 +270,22 @@ impl Dialect {
                 // Its character tag and nothing else (§1).
                 let text = c.to_string();
                 let set = tags.set_of([character_tag(c, &unicode).as_str()]);
+                // A character token's label is its text (§5).
                 public.push(Token {
                     text: text.clone(),
                     phonemes: None,
+                    label: text.clone(),
                     tags: tags.to_set(set),
                     span: index..index + 1,
                     source: index..index + 1,
-                    verbatim: false,
                     inserted_by: None,
                 });
                 input.push(Tok {
+                    label: text.clone(),
                     text,
                     tags: set,
                     phonemes: None,
                     source: (index, index + 1),
-                    verbatim: false,
                     sound: Default::default(),
                 });
             }
@@ -304,13 +306,15 @@ impl Dialect {
             for (index, token) in tokens.iter().enumerate() {
                 let length = token.text.chars().count();
                 let set = tags.set_of(token.tags.iter().map(String::as_str));
+                // A token that a caller supplies has its text as its label
+                // (§5).
                 public.push(Token {
                     text: token.text.clone(),
                     phonemes: token.phonemes.clone(),
+                    label: token.text.clone(),
                     tags: tags.to_set(set),
                     span: index..index + 1,
                     source: at..at + length,
-                    verbatim: false,
                     inserted_by: None,
                 });
                 input.push(Tok {
@@ -318,7 +322,7 @@ impl Dialect {
                     tags: set,
                     phonemes: token.phonemes.clone(),
                     source: (at, at + length),
-                    verbatim: false,
+                    label: token.text.clone(),
                     sound: Default::default(),
                 });
                 at += length + 1;
@@ -568,10 +572,10 @@ impl Dialect {
             public.push(Token {
                 text: text.clone(),
                 phonemes: token.phonemes.clone(),
+                label: token.label.clone(),
                 tags: shared.tags.to_set(token.tags),
                 span: token.span.0..token.span.1,
                 source: token.source.0..token.source.1,
-                verbatim: token.verbatim,
                 inserted_by: token.inserted_by,
             });
             next.push(Tok {
@@ -579,7 +583,7 @@ impl Dialect {
                 tags: token.tags,
                 phonemes: token.phonemes,
                 source: token.source,
-                verbatim: token.verbatim,
+                label: token.label,
                 sound: Default::default(),
             });
         }
@@ -679,7 +683,7 @@ impl Dialect {
                     tags: shared.tags.set_of([*terminal]),
                     phonemes: sound.map(str::to_string),
                     source: (at, at),
-                    verbatim: false,
+                    label: String::new(),
                     sound: Default::default(),
                 });
                 synthetic.push(true);

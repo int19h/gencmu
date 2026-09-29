@@ -69,13 +69,8 @@ fn outcome(dialect: &gencmu::Dialect, case: &Value) -> BTreeMap<&'static str, Va
     if let Some(output) =
         result.stages.iter().find(|stage| stage.name == "words").and_then(|stage| stage.output.as_ref())
     {
-        let words = output
-            .iter()
-            .map(|token| match token.phonemes.as_deref() {
-                Some(phonemes) if !phonemes.is_empty() => string(phonemes),
-                _ => string(&token.text),
-            })
-            .collect();
+        // Each word is written as its label (tests/README.md).
+        let words = output.iter().map(|token| string(&token.label)).collect();
         got.insert("words", Value::Array(words));
     }
     got

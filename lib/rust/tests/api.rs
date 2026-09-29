@@ -294,6 +294,9 @@ fn parts_that_emit_epsilon_are_neither_emitted_nor_counted() {
     // The erased first letter of each pair does not count, and the pause
     // is `.` (engine §5).
     assert_eq!(heard, ["b", ".", "a"]);
+    // Each token's label joins the same parts, with the pause as a space.
+    let shown: Vec<_> = output.iter().map(|token| token.label.as_str()).collect();
+    assert_eq!(shown, ["b", " ", "a"]);
     assert_eq!(output[0].text, "ab");
 }
 
@@ -387,7 +390,7 @@ fn results_outlive_the_dialect_and_cross_threads() {
         dialect.parse(&text, &ParseOptions::default()).unwrap()
     };
     let json = std::thread::spawn(move || gencmu::to_json(&result)).join().unwrap();
-    assert!(json.starts_with("{\"format\":4,\"ok\":true"));
+    assert!(json.starts_with("{\"format\":5,\"ok\":true"));
 
     let dialect = std::sync::Arc::new(gencmu::load_dialect("notation").unwrap());
     let threads: Vec<_> = (0..4)

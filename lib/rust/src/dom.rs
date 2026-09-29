@@ -7,7 +7,7 @@ use crate::tags::{character_code, is_name, is_tag};
 use crate::unicode::{is_property_name, Unicode};
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 13;
+pub const DOM_FORMAT: i64 = 14;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -89,9 +89,9 @@ pub(crate) struct RuleDef {
     pub alternatives: Vec<Alternative>,
     pub emit: Option<Vec<EmitItem>>,
     pub conditions: Vec<Cond>,
-    /// `%verbatim`: a token over the rule's constituent sounds like its
-    /// text (engine §11).
-    pub verbatim: bool,
+    /// `%foreign`: each constituent of the rule is a foreign part, which
+    /// sounds `?` and shows its text (engine §11).
+    pub foreign: bool,
     pub at: (usize, usize),
 }
 
@@ -345,7 +345,7 @@ fn rule_from_json(value: &Json) -> R<RuleDef> {
             .collect::<R<Vec<_>>>()?,
         emit: value.get("emit").map(emit_from_json).transpose()?,
         conditions: array(value, "conditions")?.iter().map(cond_from_json).collect::<R<Vec<_>>>()?,
-        verbatim: is_true(value.get("verbatim")),
+        foreign: is_true(value.get("foreign")),
         at: position(value)?,
     })
 }
@@ -818,8 +818,8 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
             || !alternatives.is_some_and(|alternatives| !alternatives.is_empty())
             || conditions.is_none()
             || !is_position(rule.get("at"))
-            // `verbatim` is present only as true (docs/output.md).
-            || !matches!(rule.get("verbatim"), None | Some(Json::Bool(true)))
+            // `foreign` is present only as true (docs/output.md).
+            || !matches!(rule.get("foreign"), None | Some(Json::Bool(true)))
         {
             return Some("a malformed rule");
         }
@@ -1439,8 +1439,8 @@ fn write_rule(out: &mut String, rule: &RuleDef) {
         write_cond(out, cond);
     }
     out.push(']');
-    if rule.verbatim {
-        out.push_str(",\"verbatim\":true");
+    if rule.foreign {
+        out.push_str(",\"foreign\":true");
     }
     out.push_str(&format!(",\"at\":[{},{}]}}", rule.at.0, rule.at.1));
 }
