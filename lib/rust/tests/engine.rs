@@ -88,3 +88,26 @@ fn harness_detects_a_wrong_expectation() {
     assert!(parses(r#"{"brackets": "x"}"#).is_ok());
     assert!(parses(r#"{"error": "rejected"}"#).is_err());
 }
+
+/// The shared cases compare only an error's kind. Of two errors of one
+/// emission, the message shows which came first (engine §11).
+#[test]
+fn emission_errors_come_in_order() {
+    let message = |name: &str| {
+        let text =
+            std::fs::read_to_string(common::repository().join("tests").join("engine").join(name)).expect("a case");
+        let case = parse_json(&text).expect("a case is JSON");
+        let (documents, pipeline) = common::case_documents(&case);
+        let dialect = gencmu::load_dialect_sources(documents, &pipeline).expect("the dialect");
+        let input = case.get("input").and_then(common::Value::str).expect("an input");
+        let result = dialect.parse(input, &common::case_options(&case)).expect("a result");
+        result.error.expect("an error").message
+    };
+    // A before-attachment comes before its carrier's tag term.
+    let first = message("attach-error-order.json");
+    assert!(first.contains("two phoneme tags"), "{first}");
+    // An inserted token comes after the items before it and their
+    // attachments.
+    let second = message("attach-error-insert-order.json");
+    assert!(second.contains(r#"tag("?")"#), "{second}");
+}

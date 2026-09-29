@@ -207,20 +207,21 @@ func elidedNodes(root *Node) []*Node {
 
 // ---- emission
 
-// An emitTask walks a constituent, emits a token over one, or adds a token
-// made already. inside says whether the constituent that it walks or emits
+// An emitTask walks a constituent, emits a token over one, or makes an
+// inserted token. inside says whether the constituent that it walks or emits
 // lies inside a foreign part (§11). The ranking can share one node among
 // several places of the chosen derivation, and only some of them can lie
 // inside a foreign part. So the walk carries this with each place, and the
 // node does not. A token's tags are evaluated when the task runs, so that
 // the errors of a stage's emission come in the order of evaluation (§10,
-// §11). before and after are the parts whose tokens a carrier takes as its
+// §11). An inserted token is made when its task runs too, for the same
+// reason. before and after are the parts whose tokens a carrier takes as its
 // attachments.
 type emitTask struct {
 	walk          *dn
 	emit          *dn
 	tags          func() *tagset
-	tok           *Token
+	insert        func() Token
 	inside        bool
 	before, after []*dn
 }
@@ -269,8 +270,8 @@ func (run *stageRun) emitWalk(em *emitter, d *dn, inside bool) []Token {
 		t := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 		switch {
-		case t.tok != nil:
-			out = append(out, *t.tok)
+		case t.insert != nil:
+			out = append(out, t.insert())
 		case t.emit != nil:
 			// Before-attachments, then the carrier with its tag term, then
 			// after-attachments; the first error ends the emission. New
@@ -411,11 +412,16 @@ func (run *stageRun) plan(rec *recognizer, n *dn, inside bool) []emitTask {
 	return plan
 }
 
-// inserted is the token of an inserted tag at token position at of a
-// constituent over [start, end): its source is empty at the source end of
-// the token before, or at the constituent's source start if at is its
-// start (§11).
+// inserted is the task that makes the token of an inserted tag at token
+// position at of a constituent over [start, end): its source is empty at
+// the source end of the token before, or at the constituent's source start
+// if at is its start (§11).
 func (run *stageRun) inserted(tag string, at, start, end int, rule string) emitTask {
+	return emitTask{insert: func() Token { return run.insertedToken(tag, at, start, end, rule) }}
+}
+
+// insertedToken is the token that inserted describes.
+func (run *stageRun) insertedToken(tag string, at, start, end int, rule string) Token {
 	src := run.spanSource(start, end)
 	if at > start {
 		e := run.toks[at-1].Source[1]
@@ -426,14 +432,14 @@ func (run *stageRun) inserted(tag string, at, start, end int, rule string) emitT
 	// The stage's implications apply before the phonemes and the label
 	// (§11).
 	tags := run.implied(run.ps.in.single(tag))
-	tok := &Token{Text: "", Tags: tags.list(), Span: [2]int{at, at}, Source: src, InsertedBy: rule}
+	tok := Token{Text: "", Tags: tags.list(), Span: [2]int{at, at}, Source: src, InsertedBy: rule}
 	// An inserted token has no parts: a phoneme tag gives its phonemes and
 	// its label, or both are empty (§5). It reads no input, so the error of
 	// two phoneme tags has no input position (§13, docs/output.md).
 	if phoneme, ok := run.phonemeOf(tags); ok {
 		tok.Phonemes, tok.Label = sounded(phoneme)
 	}
-	return emitTask{tok: tok}
+	return tok
 }
 
 // emitted is the token a constituent emits, with the given explicit tags

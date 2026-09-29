@@ -1011,3 +1011,17 @@ func TestAttachmentErrorOrder(t *testing.T) {
 		t.Fatalf("%v %+v", err, res)
 	}
 }
+
+// An inserted token is made when its item's turn comes, so the error of an
+// earlier item's attachment comes before the inserted token's (engine §11).
+func TestInsertedAfterAttachmentErrorOrder(t *testing.T) {
+	c := loadCase(t, "../../tests/engine/attach-error-insert-order.json")
+	d, err := caseDialect(c, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := runCase(d, c, &c.Options)
+	if err != nil || res.Error == nil || !strings.Contains(res.Error.Message, `tag("?")`) {
+		t.Fatalf("%v %+v", err, res.Error)
+	}
+}

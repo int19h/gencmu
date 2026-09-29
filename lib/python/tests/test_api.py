@@ -10,6 +10,8 @@ from pathlib import Path
 import gencmu
 from gencmu._dialect import DOM_FORMAT, bundled_text
 
+from .shared import case_sources
+
 PIPELINE = """# A test dialect
 
 ## Sounds
@@ -442,6 +444,15 @@ class Attachments(unittest.TestCase):
         result = dialect.parse(case["input"], auto_features=False)
         assert result.error is not None
         self.assertIn("two phoneme tags", result.error.message)
+
+    def test_inserted_error_order(self) -> None:
+        """An inserted token's error comes after an earlier attachment's
+        (engine §11)."""
+        case = json.loads((Path(__file__).resolve().parents[3] / "tests" / "engine" / "attach-error-insert-order.json").read_text("utf-8"))
+        dialect = gencmu.load_dialect_sources(*case_sources(case))
+        result = dialect.parse(case["input"], auto_features=False)
+        assert result.error is not None
+        self.assertIn('tag("?")', result.error.message)
 
     def test_deep_nesting(self) -> None:
         """Attachments as deep as the text is long need no recursion."""
