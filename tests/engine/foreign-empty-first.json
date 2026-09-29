@@ -1,0 +1,48 @@
+{
+  "description": "An empty foreign part with no input token before it has an empty source at the start of the text, even where the first input token starts later. An ordinary token over an empty constituent there has the source of a node with an empty span, at the source start of the first input token (engine §11, §12).",
+  "documents": {
+    "p.md": "## s\n\n```jbogenbau\n%stage letters\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage parts\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [part] ...\n%rule part letter | space\n%rule letter 'a' | 'b'\n%emits $ <L>\n%rule space ' '\n```\n",
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $e(gap) $n(none) L L\n%emits $e <E>, $n <N>\n%rule gap ε\n%foreign\n%rule none ε\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "  ab",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {
+          "output": [
+            {
+              "text": "",
+              "phonemes": "?",
+              "label": "",
+              "span": [
+                0,
+                0
+              ],
+              "source": [
+                0,
+                0
+              ]
+            },
+            {
+              "text": "",
+              "phonemes": "",
+              "label": "",
+              "span": [
+                0,
+                0
+              ],
+              "source": [
+                2,
+                2
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

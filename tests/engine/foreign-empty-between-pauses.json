@@ -1,0 +1,58 @@
+{
+  "description": "The two joins of a token's parts are independent (engine §5). An empty foreign part between two pauses gives `?` to the phonemes, so they keep both pauses. It gives nothing to the label, so there the pauses are adjacent, and the label keeps only the first. Both joins find a pause part by its phonemes, so the label keeps the text `-` of the first pause.",
+  "grammar": "%rule text $w(word)\n%emits $w <W>\n%rule word L P gap P L\n%rule gap ε\n%foreign",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "L"
+      ],
+      "phonemes": "a"
+    },
+    {
+      "text": "-",
+      "tags": [
+        "P"
+      ],
+      "phonemes": "."
+    },
+    {
+      "text": "-",
+      "tags": [
+        "P"
+      ],
+      "phonemes": "."
+    },
+    {
+      "text": "b",
+      "tags": [
+        "L"
+      ],
+      "phonemes": "b"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "text": "a - - b",
+              "phonemes": "a.?.b",
+              "label": "a-b",
+              "span": [
+                0,
+                4
+              ],
+              "source": [
+                0,
+                7
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
