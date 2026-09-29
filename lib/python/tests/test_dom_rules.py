@@ -807,7 +807,14 @@ class Constants(unittest.TestCase):
         dom = read_document(CONSTANT_SOURCES["g.md"], "g.md")
         dom["constants"][0]["value"] = "@VALUE@"
         deep = json.dumps(dom).replace('"@VALUE@"', self.deep_value_json(2000))
-        self.assertEqual(dom_problem(json.loads(deep)), "nested too deeply")
+        try:
+            parsed = json.loads(deep)
+        except RecursionError:
+            # Before Python 3.12, json.loads cannot follow this depth, and the
+            # loader then treats the whole compiled.json as unreadable.
+            parsed = None
+        if parsed is not None:
+            self.assertEqual(dom_problem(parsed), "nested too deeply")
         bootstrap_hash = fnv1a64(bundled_text("notation/bootstrap.json") or "")
         compiled = (
             f'{{"format":{DOM_FORMAT},"bootstrap":"{bootstrap_hash}",'
@@ -822,7 +829,9 @@ class Constants(unittest.TestCase):
         bootstrap = json.loads(bundled_text("notation/bootstrap.json") or "{}")
         bootstrap["stages"][0]["documents"][0]["dom"]["constants"].append({"name": "K", "op": "define", "value": "@VALUE@", "at": [99999, 1]})
         text = json.dumps(bootstrap).replace('"@VALUE@"', self.deep_value_json(2000))
-        with self.assertRaisesRegex(gencmu.GencmuError, "nested too deeply") as caught:
+        # Before Python 3.12, json.loads cannot follow this depth, and the
+        # bootstrap is then an error because it is not JSON.
+        with self.assertRaisesRegex(gencmu.GencmuError, "nested too deeply|is not JSON") as caught:
             gencmu.load_dialect_sources({**CONSTANT_SOURCES, "notation/bootstrap.json": text}, "p.md", use_cache=False)
         self.assertEqual(caught.exception.kind, "grammar")
 
