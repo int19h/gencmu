@@ -568,7 +568,7 @@ This selection is over the whole chosen derivation, and it does not change what 
 
 A `%foreign` constituent that the selection leaves out is an ordinary constituent, even when its own emission clause emits a token over it. That token has the source of its input tokens and the join of its parts. This can happen inside a foreign part. A foreign rule with no emission clause walks its children. A capture item of a foreign rule emits a token over part of its constituent. It never happens inside a constituent that emits `ε`, because that constituent walks nothing, so nothing inside it emits.
 
-Each foreign part has a source and a text, which the stage also fixes before it emits anything. A foreign part with an empty span takes in no text. Its source is empty at the source end of the input token before the span. With no such token, it is empty at the start of the text, even where the source of the first input token starts later. There it differs from a node with an empty span (§12).
+Each foreign part has a source and a text, which the stage also fixes before it emits anything. An empty foreign part takes in no text. Its source is the empty-node source of §12.
 
 A foreign part with a non-empty span starts from the source of its own input tokens (§1). It then takes in the text next to it that no input token covers, as the next two paragraphs say.
 
