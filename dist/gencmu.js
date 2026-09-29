@@ -6717,9 +6717,11 @@
   }
 
   // The tokens a derivation emits for the next stage (engine §11). The walk
-  // keeps its own stack of tasks, in text order, rather than recursing.
+  // keeps its own stack of tasks, in text order, rather than recursing. So
+  // attachments nest as deep as the text is long: each attachment's tokens
+  // gather in a list of their own on a stack of lists.
   /**
-   * @typedef {{walk: Derivation} | {token: () => Token}} EmitTask
+   * @typedef {{walk: Derivation} | {run: () => void}} EmitTask
    */
 
   /**
@@ -6734,22 +6736,25 @@
   }
 
   /**
-   * The tokens a constituent emits in its place in the derivation (engine
-   * §11): the stage's output from the root, or an attachment from a captured
-   * part.
+   * The tokens the root of a derivation emits (engine §11), with the
+   * attachments of its captured parts.
    * @param {Derivation} root
    * @param {Emitter} emitter
    * @returns {Token[]}
    */
   function emitted(root, emitter) {
     const { context, foreign } = emitter;
-    /** @type {Token[]} */
-    const out = [];
+    // The tokens emitted so far: the output, and above it the attachments
+    // being gathered, the innermost last.
+    /** @type {Token[][]} */
+    const lists = [[]];
+    /** @type {(token: Token) => void} */
+    const put = (token) => lists[lists.length - 1].push(token);
     /** @type {EmitTask[]} */
     const tasks = [{ walk: root }];
     for (let task = tasks.pop(); task !== undefined; task = tasks.pop()) {
-      if ("token" in task) {
-        out.push(task.token());
+      if ("run" in task) {
+        task.run();
         continue;
       }
       const node = task.walk;
@@ -6774,7 +6779,7 @@
       if (clause.items[0].capture === "") {
         // One token covering the constituent per `$`: a digit that is two
         // phonemes is emitted as two tokens over the same character.
-        for (const item of clause.items) out.push(makeToken(node, valueTags(item, nodeTags(node, context)), emitter));
+        for (const item of clause.items) put(makeToken(node, valueTags(item, nodeTags(node, context)), emitter));
         continue;
       }
       // The items, in the order listed, and nothing else of the constituent
@@ -6783,10 +6788,12 @@
       // next after it, or the constituent's end.
       /** @type {(name: string) => Derivation} */
       const part = (name) => node.children[/** @type {import("./types.js").Capture} */ (production.captures.find((entry) => entry.name === name)).index];
-      // An attachment: what its captured part emits in its place, each token
-      // without its span (engine §11).
-      /** @type {(names: string[] | undefined) => import("./tokens.js").AttachedToken[]} */
-      const attachments = (names) => (names ?? []).flatMap((name) => emitted(part(name), emitter).map(attached));
+      // An attachment: what its captured parts emit in their place, walked
+      // into a list of their own (engine §11).
+      /** @type {(names: string[] | undefined) => EmitTask[]} */
+      const walks = (names) => (names ?? []).map((name) => ({ walk: part(name) }));
+      // The attachments gathered last, each token without its span.
+      const gathered = () => /** @type {Token[]} */ (lists.pop()).map(attached);
       /** @type {EmitTask[]} */
       const ordered = [];
       clause.items.forEach((item, index) => {
@@ -6794,25 +6801,38 @@
           const insert = item.insert;
           const next = clause.items.slice(index + 1).find((later) => later.capture !== undefined);
           const at = next && next.capture !== undefined ? part(next.before?.[0] ?? next.capture).start : node.end;
-          ordered.push({ token: () => insertedToken(insert, at, node, context, production.owner) });
+          ordered.push({ run: () => put(insertedToken(insert, at, node, context, production.owner)) });
         } else if (item.capture !== undefined) {
           const child = part(item.capture);
-          ordered.push({ token: () => {
-            // Before-attachments, then the carrier with its tag term, then
-            // after-attachments; the first error ends the emission. New
-            // attachments are outer to inherited ones (engine §11).
-            const before = attachments(item.before);
-            const token = makeToken(child, valueTags(item, nodeTags(child, context)), emitter);
-            const after = attachments(item.after);
-            if (before.length) token.before = [...before, ...token.before];
-            if (after.length) token.after = [...token.after, ...after];
-            return token;
-          } });
+          // Before-attachments, then the carrier with its tag term, then
+          // after-attachments; the first error ends the emission. New
+          // attachments are outer to inherited ones (engine §11).
+          /** @type {import("./tokens.js").AttachedToken[]} */
+          let before = [];
+          /** @type {Token | undefined} */
+          let token;
+          ordered.push(
+            { run: () => lists.push([]) },
+            ...walks(item.before),
+            { run: () => {
+              before = gathered();
+              token = makeToken(child, valueTags(item, nodeTags(child, context)), emitter);
+              lists.push([]);
+            } },
+            ...walks(item.after),
+            { run: () => {
+              const after = gathered();
+              const carrier = /** @type {Token} */ (token);
+              if (before.length) carrier.before = [...before, ...carrier.before];
+              if (after.length) carrier.after = [...carrier.after, ...after];
+              put(carrier);
+            } },
+          );
         }
       });
       for (let index = ordered.length - 1; index >= 0; index--) tasks.push(ordered[index]);
     }
-    return out;
+    return lists[0];
   }
 
 
