@@ -72,7 +72,8 @@ function lex(text, positions) {
       continue;
     }
     // A property: a quote, \p, and anything up to the next quote that no
-    // backslash escapes. \p is never an escape of a character tag.
+    // backslash escapes. A character tag never begins with \p, but a later
+    // \p in either token is an escape that the decoding refuses.
     if (c === "'" && chars[i + 1] === "\\" && chars[i + 2] === "p") {
       i += 3;
       while (i < chars.length && chars[i] !== "'") i += chars[i] === "\\" ? 2 : 1;

@@ -65,7 +65,7 @@ The grammar author writes a string in straight double quotes. Inside it, a backs
 
 A character tag is written between single quotes, such as `'a'`, and its escapes are `\\`, `\'` and `\u{h…}`. The reader decodes it and makes sure that it holds exactly one character. So this stage finds its end in the same way. A phoneme tag is one character between slashes, `/a/`, and `/./` is the pause.
 
-A property is a quote, `\p`, and anything up to the next quote that no backslash escapes, such as `'\p{L}'`. The stage tags it `property`. So `\p` is never an escape of a character tag, and the two kinds of token never overlap. The reader makes sure that a property is `'\p{Name}'` with a name that the notation knows (`../../docs/engine.md`, §1, §9).
+A property is a quote, `\p`, and anything up to the next quote that no backslash escapes, such as `'\p{L}'`. The stage tags it `property`. A character tag never begins with `\p`, so the two kinds of token never overlap. Later in either token, `\p` is an escape like any other. The stage finds the token's end, and the reader reports the malformed token at its opening quote. The reader makes sure that a property is `'\p{Name}'` with a name that the notation knows (`../../docs/engine.md`, §1, §9).
 
 ```jbogenbau
 %rule string
@@ -83,19 +83,26 @@ A property is a quote, `\p`, and anything up to the next quote that no backslash
   text($c) ≠ "\\"
 
 %rule character-tag
-  '\'' [character-tag-part] ... '\''
+  '\'' [character-tag-first [character-tag-part] ...] '\''
 %tags
   ~character
 %emits
   $
 
-%rule character-tag-part
+%rule character-tag-first
   | $c(character)
   | '\\' $e(character)
 %conditions
   text($c) ≠ "'",
   text($c) ≠ "\\",
   text($e) ≠ "p"
+
+%rule character-tag-part
+  | $c(character)
+  | '\\' character
+%conditions
+  text($c) ≠ "'",
+  text($c) ≠ "\\"
 
 %rule property
   '\'' '\\' 'p' [character-tag-part] ... '\''

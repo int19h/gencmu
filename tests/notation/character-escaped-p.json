@@ -1,0 +1,10 @@
+{
+  "description": "A character tag never begins with \\p, but a later \\p is an escape like any other. 'x\\p' is one character tag, and the reader refuses its escape at the opening quote (engine §9, grammars/notation/lexical.md).",
+  "document": "```jbogenbau\n%rule a 'x\\p'\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  }
+}
