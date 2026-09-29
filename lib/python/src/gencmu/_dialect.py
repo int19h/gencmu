@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import threading
 from dataclasses import dataclass
 from importlib import resources
@@ -76,6 +77,19 @@ def _unicode_table(text: str) -> UnicodeTable:
         with _lock:
             _unicode_tables[text] = table
     return table
+
+
+_SURROGATE = re.compile("[\ud800-\udfff]")
+
+
+def scalar_problem(text: str) -> str | None:
+    """Why a string is not a sequence of Unicode scalar values, or ``None``
+    when it is one. A Python string can hold a lone surrogate, which engine
+    §1 makes a usage error."""
+    found = _SURROGATE.search(text)
+    if found is None:
+        return None
+    return f"a lone surrogate U+{ord(found.group()):04X} at code point {found.start()}"
 
 
 def character_tokens(text: str, unicode: UnicodeTable) -> list[Token]:
@@ -247,6 +261,10 @@ class _Loader:
 
     def dom(self, path: str) -> Dom:
         text = self.text(path)
+        # A document is a sequence of scalar values, as a text is (engine §1).
+        problem = scalar_problem(text)
+        if problem is not None:
+            raise GencmuError(f"{path}: the document is not a sequence of Unicode scalar values: {problem}", kind="usage", document=path)
         text_hash = fnv1a64(text)
         # The Unicode table is part of the key: a spelling that one table
         # accepts another may refuse (engine §9).
@@ -405,6 +423,9 @@ class Dialect:
         a result whose ``ok`` is false; a mistake in the call, such as an
         unknown stage name or a feature named both to turn on and to turn
         off, raises :class:`GencmuError`."""
+        problem = scalar_problem(text)
+        if problem is not None:
+            raise GencmuError(f"the text is not a sequence of Unicode scalar values: {problem}", kind="usage")
         return self.parse_tokens(
             character_tokens(text, self.unicode),
             text,
@@ -429,6 +450,11 @@ class Dialect:
         """Parse pre-built tokens in place of the first stage's characters,
         over the original ``text`` their sources point into. For tests and
         tools; :meth:`parse` is the usual entry point."""
+        # A text is a sequence of scalar values, so a lone surrogate is the
+        # caller's mistake, refused before any character token (engine §1).
+        problem = scalar_problem(text)
+        if problem is not None:
+            raise GencmuError(f"the text is not a sequence of Unicode scalar values: {problem}", kind="usage")
         for option, value in (("features", features), ("without_features", without_features)):
             if isinstance(value, str):
                 raise GencmuError(f"{option} is a collection of names, not one string", kind="usage")

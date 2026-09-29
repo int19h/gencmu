@@ -6531,6 +6531,11 @@
      */
     documentDom(path) {
       const text = this.need(path);
+      // A document is a sequence of scalar values, as a text is (engine §1).
+      const surrogate = loneSurrogate(text);
+      if (surrogate !== null) {
+        throw new GencmuError("usage", `${path}: the document is not a sequence of Unicode scalar values: a lone surrogate U+${surrogate.code.toString(16).toUpperCase()} at code point ${surrogate.at}`, { document: path });
+      }
       const hash = fnv1a64(text);
       const key = `${path}\u0000${hash}`;
       const cached = this.cache.get(key);
@@ -6656,6 +6661,12 @@
      * @returns {ParseResult}
      */
     parse(text, options = {}) {
+      // A text is a sequence of scalar values, so a lone surrogate is the
+      // caller's mistake, refused before any character token (engine §1).
+      const surrogate = loneSurrogate(text);
+      if (surrogate !== null) {
+        throw new GencmuError("usage", `the text is not a sequence of Unicode scalar values: a lone surrogate U+${surrogate.code.toString(16).toUpperCase()} at code point ${surrogate.at}`);
+      }
       // The features on are the pipeline's, with the caller's added and the
       // caller's turned off removed (engine §13).
       const on = [...(options.features || [])];
@@ -6799,6 +6810,22 @@
     return hash.toString(16).padStart(16, "0");
   }
 
+  /**
+   * The first lone surrogate of a string, with its position in code points,
+   * or null when the string is a sequence of scalar values.
+   * @param {string} text
+   * @returns {{code: number, at: number} | null}
+   */
+  function loneSurrogate(text) {
+    if (!/[\uD800-\uDFFF]/u.test(text)) return null;
+    let at = 0;
+    for (const character of text) {
+      const code = /** @type {number} */ (character.codePointAt(0));
+      if (code >= 0xd800 && code <= 0xdfff) return { code, at };
+      at++;
+    }
+    return null;
+  }
 
   // ---- index.js
   // gencmu: a Lojban parser whose grammars are literate documents loaded at

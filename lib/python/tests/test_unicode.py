@@ -74,5 +74,39 @@ class CallerTable(unittest.TestCase):
         self.assertTrue(load(bundled, "p.md").parse("a", auto_features=False).ok)
 
 
+class LoneSurrogates(unittest.TestCase):
+    """A text or a document with a lone surrogate is a usage error, refused
+    before any character token (engine §1)."""
+
+    @staticmethod
+    def _sources(rule: str) -> dict[str, str]:
+        return {
+            "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
+            "g.md": f"```jbogenbau\n%ambiguity-resolution greedy\n%rule text {rule}\n```\n",
+        }
+
+    def test_a_text_with_a_lone_surrogate_is_a_usage_error(self) -> None:
+        # Each of these would read U+D800 if it became a character tag.
+        rules = ("'\\p{Cs}'", "'\\p{Any}'", "'\\u{D7FF}'..'\\u{E000}'", "[character] ...\n%rule character '\\p{Any}'")
+        for rule in rules:
+            dialect = gencmu.load_dialect_sources(self._sources(rule), "p.md")
+            for text in ("\ud800", "a\udc00", "\udbff\udbff", "\udfff\ud800"):
+                with self.subTest(rule=rule, text=ascii(text)):
+                    with self.assertRaises(gencmu.GencmuError) as caught:
+                        dialect.parse(text, auto_features=False)
+                    self.assertEqual(caught.exception.kind, "usage")
+                    with self.assertRaises(gencmu.GencmuError) as caught:
+                        dialect.parse_tokens([], text, auto_features=False)
+                    self.assertEqual(caught.exception.kind, "usage")
+        dialect = gencmu.load_dialect_sources(self._sources("'\\p{Any}'"), "p.md")
+        self.assertTrue(dialect.parse("\U0001F600", auto_features=False).ok)
+
+    def test_a_document_with_a_lone_surrogate_is_a_usage_error(self) -> None:
+        with self.assertRaises(gencmu.GencmuError) as caught:
+            gencmu.load_dialect_sources(self._sources("'\ud800'"), "p.md", use_cache=False)
+        self.assertEqual(caught.exception.kind, "usage")
+        self.assertEqual(caught.exception.document, "g.md")
+
+
 if __name__ == "__main__":
     unittest.main()

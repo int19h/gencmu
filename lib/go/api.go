@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"unicode/utf8"
 )
 
 //go:embed grammars
@@ -92,6 +93,10 @@ func (l *loader) document(p string) (*domDoc, *Error) {
 	if !ok {
 		return nil, &Error{Kind: ErrorGrammar, Document: p, Message: "the document is missing"}
 	}
+	// A document is a sequence of scalar values, as a text is (engine §1).
+	if problem := utf8Problem(text); problem != "" {
+		return nil, &Error{Kind: ErrorUsage, Document: p, Message: "the document is not a sequence of Unicode scalar values: " + problem}
+	}
 	if !l.noCache {
 		if raw, ok := l.compiled[fnv1a64(text)]; ok {
 			if dom, err := decodeDOM(raw, l.uni); err == nil {
@@ -100,6 +105,23 @@ func (l *loader) document(p string) (*domDoc, *Error) {
 		}
 	}
 	return l.reader.read(text, p)
+}
+
+// utf8Problem says why a string is not valid UTF-8, which engine §1 makes
+// a usage error, or is "" when it is valid. A string that encodes a
+// surrogate is not valid either.
+func utf8Problem(s string) string {
+	if utf8.ValidString(s) {
+		return ""
+	}
+	for i := 0; i < len(s); {
+		r, size := utf8.DecodeRuneInString(s[i:])
+		if r == utf8.RuneError && size <= 1 {
+			return fmt.Sprintf("invalid UTF-8 at byte %d", i)
+		}
+		i += size
+	}
+	return "invalid UTF-8"
 }
 
 // guard turns a panic, which a defect of this library or of data it trusted
@@ -366,10 +388,13 @@ func (d *Dialect) lower(stage int, features map[string]bool, mandatory bool) *lo
 }
 
 // Parse parses a text. A text that does not parse is a result whose OK is
-// false; the error is for a caller's mistake, such as an unknown stage or a
-// feature named both to turn on and to turn off, and is a *Error of kind
-// "usage".
+// false; the error is for a caller's mistake, such as an unknown stage, a
+// feature named both to turn on and to turn off, or a text that is not valid
+// UTF-8, and is a *Error of kind "usage".
 func (d *Dialect) Parse(text string, options ParseOptions) (*ParseResult, error) {
+	if err := textProblem(text); err != nil {
+		return nil, err
+	}
 	return d.parse([]rune(text), nil, options)
 }
 
@@ -379,6 +404,9 @@ func (d *Dialect) Parse(text string, options ParseOptions) (*ParseResult, error)
 // Each token's Source must lie within the text, in order: a token may not
 // start before the one before it ends.
 func (d *Dialect) ParseTokens(text string, tokens []Token, options ParseOptions) (*ParseResult, error) {
+	if err := textProblem(text); err != nil {
+		return nil, err
+	}
 	if tokens == nil {
 		tokens = []Token{}
 	}
@@ -392,6 +420,16 @@ func (d *Dialect) ParseTokens(text string, tokens []Token, options ParseOptions)
 		end = s[1]
 	}
 	return d.parse(runes, tokens, options)
+}
+
+// textProblem is the usage error of a text that is not valid UTF-8, which
+// is no sequence of scalar values (engine §1), or nil. It comes before any
+// character token.
+func textProblem(text string) error {
+	if problem := utf8Problem(text); problem != "" {
+		return &Error{Kind: ErrorUsage, Message: "the text is not a sequence of Unicode scalar values: " + problem}
+	}
+	return nil
 }
 
 func (d *Dialect) parse(text []rune, tokens []Token, options ParseOptions) (res *ParseResult, err error) {

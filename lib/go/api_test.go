@@ -634,6 +634,38 @@ func TestParseTokensOutOfRange(t *testing.T) {
 	}
 }
 
+// A text or a document that is not valid UTF-8 is no sequence of scalar
+// values, so it is a usage error, refused before any character token
+// (engine §1). "\xed\xa0\x80" encodes the surrogate U+D800.
+func TestInvalidUTF8(t *testing.T) {
+	isUsage := func(err error) bool {
+		var e *Error
+		return errors.As(err, &e) && e.Kind == ErrorUsage
+	}
+	// Each of these would read U+FFFD or U+D800 if the text became tokens.
+	rules := []string{`'\p{Cs}'`, `'\p{Any}'`, `'\u{D7FF}'..'\u{E000}'`, `'\u{FFFD}'`, "[character] ...\n%rule character '\\p{Any}'"}
+	for _, rule := range rules {
+		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text "+rule))
+		for _, text := range []string{"\xed\xa0\x80", "a\xff", "\xc3", "\xf4\x90\x80\x80", "\xe2\x82"} {
+			if res, err := d.Parse(text, ParseOptions{NoAutoFeatures: true}); res != nil || !isUsage(err) {
+				t.Errorf("%s over %q: expected a usage error, got %v %v", rule, text, res, err)
+			}
+			if res, err := d.ParseTokens(text, nil, ParseOptions{NoAutoFeatures: true}); res != nil || !isUsage(err) {
+				t.Errorf("%s over %q with tokens: expected a usage error, got %v %v", rule, text, res, err)
+			}
+		}
+	}
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text '\\p{Any}'"))
+	if res, err := d.Parse("\U0001F600", ParseOptions{NoAutoFeatures: true}); err != nil || !res.OK {
+		t.Errorf("a valid text: %v %+v", err, res)
+	}
+	_, err := LoadDialectSources(oneStage("%ambiguity-resolution greedy\n%rule text '\xed\xa0\x80'"), "p.md")
+	var e *Error
+	if !errors.As(err, &e) || e.Kind != ErrorUsage || e.Document != "g.md" {
+		t.Errorf("a document that is not valid UTF-8: %v", err)
+	}
+}
+
 // A character tag holds exactly one character, so an empty one is an error
 // of the document, and a precompiled DOM with the terminal "" is refused
 // (engine §1, §9).
