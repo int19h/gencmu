@@ -1,0 +1,31 @@
+{
+  "description": "An inserted token gets the implications of its stage too. Its inserted tag is its explicit tag set, so an implication that adds a second phoneme tag is an error of the grammar, found while parsing. The error has the stage and no position (engine §5, §11, docs/output.md).",
+  "grammar": "%implies /e/ ⟹ /o/\n%rule text [word] ...\n%rule word $w(W)\n%emits\n  $w, /e/",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "W"
+      ],
+      "phonemes": "x"
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "result": {
+      "format": 4,
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "grammar",
+        "stage": "main"
+      }
+    }
+  }
+}

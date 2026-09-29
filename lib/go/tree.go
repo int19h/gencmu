@@ -347,8 +347,10 @@ func (run *stageRun) inserted(tag string, at, start, end int, rule string) emitT
 			phonemes = append(phonemes, ph)
 		}
 	}
+	// An inserted token reads no input, so the error has no input position
+	// (§13, docs/output.md).
 	if len(phonemes) > 1 {
-		panic(&parseFailure{message: "an emitted token has two phoneme tags", token: start, tokenEnd: end, hasToken: true})
+		panic(&parseFailure{message: "an emitted token has two phoneme tags"})
 	}
 	if len(phonemes) == 1 {
 		tok.Phonemes = phonemes[0]
