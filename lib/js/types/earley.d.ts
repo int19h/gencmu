@@ -18,7 +18,7 @@ export type Chart = {
     context: ParseContext;
 };
 /**
- * @import { Argument, Condition, Edge, Expectation, LoweredGrammar, Production, Scope, Slot, SpanValue, TagSet, Term, TermValue } from "./types.js"
+ * @import { Argument, CharacterClass, Condition, Edge, Expectation, GrammarSymbol, LoweredGrammar, Production, Scope, Slot, SpanValue, TagSet, Term, TermValue } from "./types.js"
  * @import { Token } from "./tokens.js"
  * @import { UnicodeTable } from "./unicode.js"
  */

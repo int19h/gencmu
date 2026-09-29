@@ -1,14 +1,14 @@
 # jbogenbau: from characters to tokens
 
-This is the first stage of the notation dialect, `../dialects/notation.md`. A stage is one step of a pipeline, with its own grammar. The stage reads the text of a grammar document's `jbogenbau` blocks, one token (a unit of input) per character. It hands the notation's tokens to the second stage, `syntax.md`. These tokens are names, strings, tag literals, phoneme tags, character tags, spellings, captures, guards, keywords and symbols. The stage drops what carries no meaning: the spaces between tokens, and the comments.
+This is the first stage of the notation dialect, `../dialects/notation.md`. A stage is one step of a pipeline, with its own grammar. The stage reads the text of a grammar document's `jbogenbau` blocks, one token (a unit of input) per character. It hands the notation's tokens to the second stage, `syntax.md`. These tokens are names, strings, tag literals, phoneme tags, character tags, properties, spellings, captures, guards, keywords and symbols. The stage drops what carries no meaning: the spaces between tokens, and the comments.
 
 `../../docs/notation.md` explains the notation. This document and `syntax.md` define it.
 
-A character reaches this grammar with two tags (labels that the grammar reads). The first tag is its character tag, such as `'a'`. The second tag is its class, `~alpha`, `~digit`, `~space`, `~mark` or `~other`. The rules below read a character by one tag or the other, and their conditions keep the two readings apart. Every token that this stage emits is one run of characters. So a token's text is exactly what the author wrote.
+A character reaches this grammar with one tag (a label that the grammar reads), its character tag, such as `'a'`. The rules below read a character by that tag, by a range such as `'a'..'z'`, or by a Unicode property such as `'\p{White_Space}'`. Every token that this stage emits is one run of characters. So a token's text is exactly what the author wrote.
 
 ## Choosing among readings
 
-A name is the longest run of name characters, and `...` is one symbol, not three periods. That is the greedy reading: where one reading ends a token and another reads on, the one that reads on wins.
+A name is the longest run of name characters, and `...` is one symbol, not three periods or `..` and a period. That is the greedy reading: where one reading ends a token and another reads on, the one that reads on wins.
 
 ```jbogenbau
 %ambiguity-resolution greedy
@@ -23,7 +23,7 @@ A text is any number of pieces, each a token or layout.
   [piece] ...
 
 %rule piece
-  | word | string | tag-literal | phoneme | character-tag | spelling
+  | word | string | tag-literal | phoneme | character-tag | property | spelling
   | capture | guard | keyword | symbol | negation | layout
 ```
 
@@ -53,20 +53,19 @@ A name is an ASCII letter followed by ASCII letters, digits and hyphens. Its fir
   letter | digit | '-'
 
 %rule letter
-  | 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j' | 'k' | 'l' | 'm'
-  | 'n' | 'o' | 'p' | 'q' | 'r' | 's' | 't' | 'u' | 'v' | 'w' | 'x' | 'y' | 'z'
-  | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M'
-  | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z'
+  'a'..'z' | 'A'..'Z'
 
 %rule digit
-  '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
+  '0'..'9'
 ```
 
-## Strings, character tags and phoneme tags
+## Strings, character tags, properties and phoneme tags
 
 The grammar author writes a string in straight double quotes. Inside it, a backslash escapes the next character. The second stage's reader decodes `\\`, `\"` and `\u{h…}`, and rejects any other escape (`../../docs/engine.md`, §9). So this stage only has to find where the string ends.
 
 A character tag is written between single quotes, such as `'a'`, and its escapes are `\\`, `\'` and `\u{h…}`. The reader decodes it and makes sure that it holds exactly one character. So this stage finds its end in the same way. A phoneme tag is one character between slashes, `/a/`, and `/./` is the pause.
+
+A property is a quote, `\p`, and anything up to the next quote that no backslash escapes, such as `'\p{L}'`. The stage tags it `property`. So `\p` is never an escape of a character tag, and the two kinds of token never overlap. The reader makes sure that a property is `'\p{Name}'` with a name that the notation knows (`../../docs/engine.md`, §1, §9).
 
 ```jbogenbau
 %rule string
@@ -92,10 +91,18 @@ A character tag is written between single quotes, such as `'a'`, and its escapes
 
 %rule character-tag-part
   | $c(character)
-  | '\\' character
+  | '\\' $e(character)
 %conditions
   text($c) ≠ "'",
-  text($c) ≠ "\\"
+  text($c) ≠ "\\",
+  text($e) ≠ "p"
+
+%rule property
+  '\'' '\\' 'p' [character-tag-part] ... '\''
+%tags
+  ~property
+%emits
+  $
 
 %rule phoneme
   '/' character '/'
@@ -105,7 +112,7 @@ A character tag is written between single quotes, such as `'a'`, and its escapes
   $
 
 %rule character
-  ~alpha | ~digit | ~space | ~mark | ~other
+  '\p{Any}'
 ```
 
 ## Spellings
@@ -196,13 +203,14 @@ A keyword is `%` and a name. The stage tags each keyword that the notation knows
 
 ## Symbols
 
-Every other token is a symbol. A symbol of one character keeps the character tag of its one character, such as `'|'`. The rule for `...` tags it `ellipsis`.
+Every other token is a symbol. A symbol of one character keeps the character tag of its one character, such as `'|'`. The rule for `...` tags it `ellipsis`, and `..`, which joins the two ends of a range, is `double-dot`.
 
 ```jbogenbau
 %rule symbol
   | '|' | '&' | '(' | ')' | '[' | ']' | '<' | '>' | '#' | 'ε' | ',' | '∧' | '∨' | '⟹'
   | '=' | '≠' | '∈' | '∉' | '⊆' | '⊈' | '∪' | '∩' | '∖' | '∅'
   | '.' '.' '.' <~ellipsis>
+  | '.' '.' <~double-dot>
 %emits
   $
 ```
@@ -213,7 +221,10 @@ Spaces, tabs and line breaks separate tokens and mean nothing else. A comment ru
 
 ```jbogenbau
 %rule layout
-  ~space | comment
+  space | comment
+
+%rule space
+  '\p{White_Space}'
 
 %rule comment
   '(' '*' [comment-part] ... stars ')'

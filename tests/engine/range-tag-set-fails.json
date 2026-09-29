@@ -1,0 +1,14 @@
+{
+  "description": "A condition over a range is an ordinary condition: where it fails, the parse does not exist (engine §10).",
+  "grammar": "%rule text $c('\\p{Any}')\n%conditions\n  tags($c) ∩ 'a'..'z' ≠ ∅",
+  "input": "Q",
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected"
+      }
+    },
+    "error": "rejected"
+  }
+}

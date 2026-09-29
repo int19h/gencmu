@@ -1,0 +1,10 @@
+{
+  "description": "A range takes no spelling: the error is at the spelling (engine §9).",
+  "document": "```jbogenbau\n%rule a 'a'..'z'`a`\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 17
+    }
+  }
+}

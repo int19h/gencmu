@@ -1,0 +1,10 @@
+{
+  "description": "A property is not a tag set, so it cannot stand in a condition: the error is at the property (engine §9).",
+  "document": "```jbogenbau\n%rule a $b(B)\n%conditions\n  tags($b) ∩ '\\p{L}' ≠ ∅\n```\n",
+  "expect": {
+    "error": {
+      "line": 4,
+      "column": 14
+    }
+  }
+}

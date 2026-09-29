@@ -1,0 +1,99 @@
+{
+  "description": "A range is a tag-set value in a tag term and in a condition. `..` binds tighter than ∪, ∩ and ∖: 'a'..'c' ∪ 'x' is ('a'..'c') ∪ 'x' (engine §9, §10).",
+  "document": "```jbogenbau\n%rule a $c(B) <'a'..'c' ∪ 'x'>\n%conditions\n  tags($c) ∩ 'a'..'z' ≠ ∅,\n  tags($c) ∖ '0'..'9' ⊆ 'a'..'c',\n  tags($c) = 'x'..'x'\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "tags": {
+                "union": [
+                  {
+                    "range": [
+                      "'a'",
+                      "'c'"
+                    ]
+                  },
+                  {
+                    "tag": "'x'"
+                  }
+                ]
+              }
+            }
+          ],
+          "conditions": [
+            {
+              "op": "≠",
+              "left": {
+                "intersection": [
+                  {
+                    "call": "tags",
+                    "args": [
+                      {
+                        "capture": "c"
+                      }
+                    ]
+                  },
+                  {
+                    "range": [
+                      "'a'",
+                      "'z'"
+                    ]
+                  }
+                ]
+              },
+              "right": {
+                "emptySet": true
+              }
+            },
+            {
+              "op": "⊆",
+              "left": {
+                "difference": [
+                  {
+                    "call": "tags",
+                    "args": [
+                      {
+                        "capture": "c"
+                      }
+                    ]
+                  },
+                  {
+                    "range": [
+                      "'0'",
+                      "'9'"
+                    ]
+                  }
+                ]
+              },
+              "right": {
+                "range": [
+                  "'a'",
+                  "'c'"
+                ]
+              }
+            },
+            {
+              "op": "=",
+              "left": {
+                "call": "tags",
+                "args": [
+                  {
+                    "capture": "c"
+                  }
+                ]
+              },
+              "right": {
+                "range": [
+                  "'x'",
+                  "'x'"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

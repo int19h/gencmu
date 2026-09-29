@@ -1,5 +1,5 @@
 {
-  "description": "The output writes a character tag in its canonical spelling: the character itself, or \\u{h…} for a control character, a nonspacing mark, a private-use character, the quote and the backslash. A character token also carries its class, an ordinary tag (engine §1, docs/output.md).",
+  "description": "The output writes a character tag in its canonical spelling: the character itself, or \\u{h…} for a control character, a nonspacing mark, a private-use character, the quote and the backslash. A character token carries its character tag and nothing else (engine §1, docs/output.md).",
   "grammar": "%rule text [c] ...\n%rule c '\\u{61}' | '\\u{0301}' | '\\'' | '\\\\' | '\\u{E000}' | '\\u{9}' | 'é'\n%emits $",
   "input": "á'\\\té",
   "expect": {
@@ -12,50 +12,43 @@
             {
               "text": "a",
               "tags": [
-                "'a'",
-                "alpha"
+                "'a'"
               ]
             },
             {
               "text": "́",
               "tags": [
-                "'\\u{301}'",
-                "mark"
+                "'\\u{301}'"
               ]
             },
             {
               "text": "'",
               "tags": [
-                "'\\u{27}'",
-                "other"
+                "'\\u{27}'"
               ]
             },
             {
               "text": "\\",
               "tags": [
-                "'\\u{5C}'",
-                "other"
+                "'\\u{5C}'"
               ]
             },
             {
               "text": "",
               "tags": [
-                "'\\u{E000}'",
-                "other"
+                "'\\u{E000}'"
               ]
             },
             {
               "text": "\t",
               "tags": [
-                "'\\u{9}'",
-                "space"
+                "'\\u{9}'"
               ]
             },
             {
               "text": "é",
               "tags": [
-                "'é'",
-                "alpha"
+                "'é'"
               ]
             }
           ]

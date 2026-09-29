@@ -1,0 +1,10 @@
+{
+  "description": "A range whose start is above its end is an error of the document, at the range (engine §1, §9).",
+  "document": "```jbogenbau\n%rule a B\n  'a' 'z'..'\\u{61}'\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 7
+    }
+  }
+}

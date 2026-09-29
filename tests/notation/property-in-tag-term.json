@@ -1,0 +1,10 @@
+{
+  "description": "A property is not a tag set, so it cannot stand in a tag term: the error is at the property (engine §9).",
+  "document": "```jbogenbau\n%rule a B <X ∪ '\\p{L}'>\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 16
+    }
+  }
+}

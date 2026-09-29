@@ -1,7 +1,7 @@
 import type { GrammarDom } from "./types.js";
 export declare const CAPTURE_NAME: RegExp;
 export declare const DOM_MAX_DEPTH = 256;
-export declare const DOM_FORMAT = 9;
+export declare const DOM_FORMAT = 10;
 /**
  * What is wrong with a spelling of a symbol (engine §9), or null: an empty
  * spelling, one with a backtick, which the notation cannot write, one that
@@ -19,6 +19,24 @@ export declare function spellingProblem(spelling: unknown, expr: unknown, unicod
     lowercase(text: string): string;
     isMark(code: number): boolean;
 }): string | null;
+/**
+ * What is wrong with a range (engine §1, §9), or null: its ends must be two
+ * character tags in their canonical spelling, the start not above the end.
+ * Without a table, which says which code points are marks, an end passes in
+ * either spelling that a table could make canonical.
+ * @param {unknown} range
+ * @param {{isMark(code: number): boolean}} [unicode]
+ * @returns {string | null}
+ */
+export declare function rangeProblem(range: unknown, unicode?: {
+    isMark(code: number): boolean;
+}): string | null;
+/**
+ * What is wrong with a property's name (engine §1, §9), or null.
+ * @param {unknown} name
+ * @returns {string | null}
+ */
+export declare function propertyProblem(name: unknown): string | null;
 /**
  * Why a value is not a grammar DOM, or null when it is one. `unicode` is
  * the lowercase mapping that spellings are checked against.

@@ -21,7 +21,7 @@ export declare function treeToDom(tree: ResultNode, tokens: Token[], positionOf:
     lowercase(text: string): string;
     isMark(code: number): boolean;
 }): GrammarDom;
-export type OperandKind = "name" | "class" | "string" | "tag" | "phoneme" | "character";
+export type OperandKind = "name" | "class" | "string" | "tag" | "phoneme" | "character" | "range" | "property";
 /**
  * What is wrong with a directive's operands, or null (engine §9).
  * @param {string} name

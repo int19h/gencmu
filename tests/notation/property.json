@@ -1,0 +1,32 @@
+{
+  "description": "A property is '\\p{Name}'. The DOM holds its name, and a capture can wrap it (engine §1, §9, docs/output.md).",
+  "document": "```jbogenbau\n%rule a '\\p{L}' $c('\\p{White_Space}') '\\p{Any}'\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "seq": [
+                  {
+                    "property": "L"
+                  },
+                  {
+                    "capture": "c",
+                    "expr": {
+                      "property": "White_Space"
+                    }
+                  },
+                  {
+                    "property": "Any"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

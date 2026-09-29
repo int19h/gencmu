@@ -1,6 +1,6 @@
 {
   "description": "A token that a verbatim rule emits with $ sounds like its text, even if it carries a phoneme tag (engine §5, §11).",
-  "grammar": "%rule text [piece] ...\n%rule piece word | ~space\n%rule word 'a' | word 'a'\n%emits $ <W ∪ /a/>\n%verbatim",
+  "grammar": "%rule text [piece] ...\n%rule piece word | '\\p{White_Space}'\n%rule word 'a' | word 'a'\n%emits $ <W ∪ /a/>\n%verbatim",
   "input": "aa aaa",
   "expect": {
     "result": {
