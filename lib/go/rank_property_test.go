@@ -442,7 +442,7 @@ func TestRankingProperty(t *testing.T) {
 		r := rand.New(rand.NewSource(seed + int64(c)))
 		gen := &genGrammar{r: r, rules: []string{"text", "a", "b", "c"}[:2+r.Intn(3)], terms: []string{"A", "B", "C"}}
 		dom := gen.grammar()
-		sg, serr := stitch("main", []docDOM{{path: "g.md", dom: dom}})
+		sg, serr := stitch("main", []docDOM{{path: "g.md", dom: dom}}, bundled.uni)
 		if serr != nil {
 			t.Fatalf("seed %d: %v", seed+int64(c), serr)
 		}

@@ -1,0 +1,24 @@
+{
+  "description": "A constant is its value in simplification, so where the final value of $E is empty, `$E ∩ tags($x)` uses no capture. The tag term then serves the alternative without $x, as it does with ∅ written, and the loader checks it once $E has that value (engine §3.6, §9).",
+  "grammar": "%const $E B\n%rule text A | $x(A)\n%tags Y ∪ ($E ∩ tags($x))\n%redefine-const $E $E ∖ B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "tags": [
+          "Y"
+        ]
+      }
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
   "description": "A capture is a span, not a value, so it cannot stand on the left of ∈; the error is at the capture (engine §9, §10).",
-  "document": "```jbogenbau\n%rule a $x(B) %conditions $x ∈ runs($x)\n```\n",
+  "document": "```jbogenbau\n%rule a $x(B) %conditions $x ∈ split(phonemes($x), \".\")\n```\n",
   "expect": {
     "error": {
       "line": 2,

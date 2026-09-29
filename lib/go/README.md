@@ -46,7 +46,7 @@ go test ./...
 go test -race -run Concurrent ./...
 ```
 
-The tests read the shared cases in `../../tests/`. They run every engine and notation case, the corpus and the fixpoint of the bootstrap. They also compare `compiled.json` with a fresh reading, with the cache both used and bypassed.
+The tests read the shared cases in `../../tests/`. They run every engine and notation case, the corpus and the fixpoint of the bootstrap. For an engine case whose grammar cannot be loaded, they also compare where the error stands, when the case gives it. They also compare `compiled.json` with a fresh reading, with the cache both used and bypassed.
 
 `TestCorpus` runs the core sample of the Lojban corpus (`../../tests/core.txt`) on as many goroutines as there are CPUs. The goroutines share one `*Dialect` for each dialect. `GENCMU_CORPUS=full` runs every case of `../../tests/corpus/`, and `GENCMU_CORPUS_WORKERS` sets the number of goroutines.
 

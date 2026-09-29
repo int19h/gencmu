@@ -142,7 +142,8 @@ pub(crate) struct Dag<'c> {
     g: &'c Lowered,
     chart: &'c Chart,
     tokens: &'c [Tok],
-    /// The lowercase mapping that spellings are matched with (§4).
+    /// The table of the canonical sound that spellings are matched with
+    /// (§4, §5).
     unicode: &'c Unicode,
     lean: Lean,
     pub arena: Vec<DNode>,

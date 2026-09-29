@@ -1,0 +1,17 @@
+{
+  "description": "A rule sees a constant's final value wherever the rule stands, even before the constant's %const and %redefine-const (engine §2).",
+  "grammar": "%rule text $x(X)\n%conditions tags($x) ⊆ $A\n%const $A Y\n%redefine-const $A $A ∪ X",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

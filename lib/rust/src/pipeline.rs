@@ -4,14 +4,15 @@
 
 use std::sync::Arc;
 
-use crate::dom::{Directive, Dom, RuleDef};
+use crate::dom::{ConstDef, Directive, Dom, RuleDef};
 use crate::error::Error;
 
-/// An item of a document: a rule or a directive.
+/// An item of a document: a rule, a directive or a constant's definition.
 #[derive(Clone, Copy)]
 pub(crate) enum Item<'a> {
     Rule(&'a RuleDef),
     Directive(&'a Directive),
+    Constant(&'a ConstDef),
 }
 
 impl Item<'_> {
@@ -19,15 +20,21 @@ impl Item<'_> {
         match self {
             Item::Rule(rule) => rule.at,
             Item::Directive(directive) => directive.at,
+            Item::Constant(constant) => constant.at,
         }
     }
 }
 
-/// A document's rules and directives in the order they were written, which
-/// is the order of their positions (engine §9).
+/// A document's rules, directives and constants in the order they were
+/// written, which is the order of their positions (engine §9).
 pub(crate) fn items_in_order(dom: &Dom) -> Vec<Item<'_>> {
-    let mut items: Vec<Item> =
-        dom.rules.iter().map(Item::Rule).chain(dom.directives.iter().map(Item::Directive)).collect();
+    let mut items: Vec<Item> = dom
+        .rules
+        .iter()
+        .map(Item::Rule)
+        .chain(dom.directives.iter().map(Item::Directive))
+        .chain(dom.constants.iter().map(Item::Constant))
+        .collect();
     items.sort_by_key(Item::at);
     items
 }
@@ -131,18 +138,20 @@ impl Splicer<'_> {
                     let Some(stage) = self.stages.last_mut() else {
                         let what = match item {
                             Item::Rule(rule) => format!("the rule {}", rule.name),
+                            Item::Constant(constant) => format!("the constant ${}", constant.name),
                             Item::Directive(directive) => format!("%{}", directive.name),
                         };
                         return Err(here(format!("{what} stands before the first %stage")));
                     };
                     let continues = self.open_run && stage.documents.last().is_some_and(|(run, _)| run == path);
                     if !continues {
-                        stage.documents.push((path.clone(), Dom { rules: Vec::new(), directives: Vec::new() }));
+                        stage.documents.push((path.clone(), Dom::default()));
                         self.open_run = true;
                     }
                     let (_, run) = stage.documents.last_mut().expect("a run");
                     match item {
                         Item::Rule(rule) => run.rules.push(rule.clone()),
+                        Item::Constant(constant) => run.constants.push(constant.clone()),
                         Item::Directive(directive) => run.directives.push(directive.clone()),
                     }
                 }

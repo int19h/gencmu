@@ -153,7 +153,7 @@ func (l *loader) load(pipelinePath string) (*Dialect, error) {
 	}
 	d := &Dialect{uni: l.uni, declared: p.features, lowered: map[lowerKey]*lowered{}}
 	for _, s := range p.stages {
-		g, err := stitch(s.name, s.documents)
+		g, err := stitch(s.name, s.documents, l.uni)
 		if err != nil {
 			if err.Document == "" {
 				err.Document = s.doc

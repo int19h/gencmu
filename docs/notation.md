@@ -12,7 +12,7 @@ A grammar is unordered: its alternatives are not ranked. Where a text has more t
 
 ## Rules
 
-A grammar is a sequence of rules and directives (see "Directives"). Each one begins with a keyword, which is a word after `%`, and ends where the next one begins. A rule is `%rule`, its name, and its body:
+A grammar is a sequence of rules, directives (see "Directives") and constants (see "Constants"). Each one begins with a keyword, which is a word after `%`, and ends where the next one begins. A rule is `%rule`, its name, and its body:
 
 ```jbogenbau
 %rule sumti-tail
@@ -66,9 +66,9 @@ A range and a property are terminals in a body. Each matches a token that carrie
 
 A string is text in straight double quotes, such as `"la"`. It is a value in a condition, and never a tag or a terminal. Inside it, `\\` is a backslash and `\"` a quote, and `\u{h...}` is as in a character tag.
 
-A reference, a tag literal, a phoneme tag or a character tag can be followed by a spelling. A spelling is text between backticks, as in ``LE`la` ``. The symbol then matches only where what it spans sounds like the spelling. That is, the phonemes of its tokens, joined with no separator and lowercased, are the spelling. So a stressed `lA`, a Cyrillic `ла` and a zbalermorna `la` all match ``LE`la` ``.
+A reference, a tag literal, a phoneme tag or a character tag can be followed by a spelling. A spelling is text between backticks, as in ``LE`la` ``. The symbol then matches only where what it spans sounds like the spelling. That is, the canonical sound of its span, `phonemes()` (see "Conditions"), is the spelling. So a stressed `lA`, a Cyrillic `ла` and a zbalermorna `la` all match ``LE`la` ``.
 
-A rule reference sounds like its whole span, so ``sumti`lomlatu` `` matches `lo mlatu`. Each token keeps its own periods. For example, `broda bu` is one `BY` word that sounds `broda.bu`. The spelling is written in phonemes, in lower case, with `'` for the apostrophe. An empty spelling is an error, as is one in capitals or one after `#`. Spaces and comments can stand between a symbol and its spelling, but the grammars write them together.
+A rule reference sounds like its whole span, so ``sumti`lomlatu` `` matches `lo mlatu`. Each token keeps its own periods. For example, `broda bu` is one `BY` word that sounds `broda.bu`. The spelling is written in phonemes, in lower case, with `'` for the apostrophe. An empty spelling is an error, as is one in capitals, one with a comma or one after `#`. Spaces and comments can stand between a symbol and its spelling, but the grammars write them together.
 
 A symbol with a spelling is a spelled symbol. The spelling binds tighter than `...`, so every repetition of ``UI`ui` ...`` must sound like `ui`. A capture can wrap a spelled symbol, as in ``$l(LE`la`)``. An optional can hold one, as in ``[KU`ku`]``, which can be elided (left out) when `[KU]` can. A group, an optional, a capture or `ε` cannot take a spelling, so ``(LE NU)`lonu` `` is an error. A spelled symbol never matches an empty span.
 
@@ -148,6 +148,29 @@ The alternatives that an extension adds carry the extension's own clauses, not t
 
 The notation has no way to remove a single alternative. A rule is small enough to restate, and a restated rule reads better than a list of deletions.
 
+## Constants
+
+A constant names a value that several rules use, such as a list of classes. Its name is `$` and a name that begins with a capital. By convention, the whole name is in capitals, as in `$SU-STOPS`. The loader stitches a constant as it stitches a rule, and the constant belongs to its stage:
+
+- `%const $NAME value` defines a constant. It is an error if a constant of that name was defined before it in the stage.
+- `%redefine-const $NAME value` gives a constant a new value. It is an error if none was defined before it in the stage.
+
+```jbogenbau
+%const $SU-STOPS NIhO ∪ LU ∪ TUhE ∪ TO
+%const $PAUSE "."
+%redefine-const $MAGIC-WORDS $MAGIC-WORDS ∪ LOhAI ∪ LEhAI
+```
+
+The value is a string, a set of strings or a tag set, never a span. It is a closed term: it uses no capture and no span. So it holds only strings, tag literals, ranges, `∅` and other constants, joined by `∪`, `∩` and `∖`. `split` and `tag` of such terms are closed too (see "Conditions"). A call of `phonemes`, `text`, `tags` or `classes`, a capture and a guarded term are errors in a value.
+
+Inside a `%redefine-const`, the constant's own name is its value before the redefinition. So one redefinition can extend a set with `∪`, narrow it with `∩` or `∖`, or replace it. A redefinition keeps the type of the value, so a set cannot become a string. That type also gives `∅` its kind. So `%redefine-const $A ∅` makes a set empty, but `%const $E ∅` is an error.
+
+A constant in a value has the value that it has at that point of the stage. It is an error to use a constant before its `%const`. So after `%const $A ~a`, `%const $B $A` and `%redefine-const $A ~b`, `$B` is `~a`. A constant in a rule has the final value of the stage, wherever the rule stands. So a document can use a constant that a later document redefines.
+
+A constant stands wherever a value of its type can, in tag terms and in conditions. It cannot stand in a body. A body names a class of tokens with a rule, such as `%rule digit '0'..'9'`. A constant that the stage never defines is an error. That holds in a rule that a later `%redefine-rule` replaces too.
+
+The loader gives the constants their values when it stitches each stage. So a document that several dialects include takes the values of each dialect. The error for a constant stands at the reference to it, or at the definition that is wrong.
+
 ## Captures
 
 Writing `$name(symbol)` around a symbol of a rule's body captures that symbol. A capture gives a part of the constituent a name that the clauses of the rule can use. A capture's name is all lower case.
@@ -163,6 +186,8 @@ A condition or an item of `%emits` that uses a capture that an alternative lacks
 A tag term that uses a capture that one of its alternatives lacks is an error, unless `⟹` (below) guards the use. The reason is that a tag term has no value that can mean "nothing to say". An alternative's own tags serve that alternative. The tags after `%tags` serve every alternative. The tags of an emitted item serve every alternative that has the item.
 
 It is an error to mention a capture that no alternative of the rule, or of the extension, captures. It is also an error to write a condition or an item of `%emits` that applies to no alternative. Each of these is a mistake, such as a misspelled name.
+
+A constant counts in these rules as its value. So where `$E` is empty, `$E ∩ tags($x)` is empty and uses no capture. gencmu checks such a clause when it stitches the stage, since only then does the constant have a value.
 
 `$x`, standing as a condition, is a presence test: it says whether the alternative captured `x`. gencmu also knows this when it reads the grammar. `$` alone is always true. gencmu decides a presence test for each alternative before anything else, so it is not a use of the capture. So `%conditions $x` applies to every alternative, and removes those that do not capture `x`.
 
@@ -186,7 +211,7 @@ It is an error to mention a capture that no alternative of the rule, or of the e
   | empty-zoi-quote
 %conditions
   phonemes($open) = phonemes($close),
-  phonemes($open) ∉ runs($content)
+  phonemes($open) ∉ split(phonemes($content), ".")
 ```
 
 Within one condition of the list, `∧` and `∨` join conditions, and `∧` binds tighter. `⟹` binds looser than both, and groups to the right. Parentheses group, and `¬` negates the condition after it. The parser evaluates a condition joined with `∧` only when it can evaluate all its parts. So two conditions about different parts are better as two items of the list. The parser then evaluates each one as early as it can.
@@ -197,17 +222,25 @@ The first type is the span, a sequence of tokens. A capture `$x` is a span, the 
 
 `from($x)` is the tokens from the start of `$x` to the end of the input. `after($x)` is the tokens after `$x`, to the end of the input. These two reach past the constituent, to the text that follows it. A span is only an argument of a function, such as `tags($x)`, and never a value of its own.
 
-The second type is the string. `phonemes(span)` is what a span sounds like: the phonemes of its tokens, joined. A token's phonemes are fixed when its stage emits it. A token over a verbatim constituent sounds like its text (see "Verbatim text"). Any other token sounds like the phoneme that its `/x/` tag names, if it has one. Two phoneme tags on one token are an error of the grammar.
+The second type is the string. `phonemes(span)` is the canonical sound of a span. That is the phonemes of its tokens, joined, in lower case and without commas. A comma is the syllable break of CLL 3.3, which changes no word. So `phonemes()` ignores stress and syllable breaks. It keeps every pause, and adds none between the tokens.
+
+A token's own phonemes are fixed when its stage emits it, and they keep their capitals and commas. A token over a verbatim constituent sounds like its text (see "Verbatim text"). Any other token sounds like the phoneme that its `/x/` tag names, if it has one. Two phoneme tags on one token are an error of the grammar.
 
 A token of neither kind sounds like the tokens of its stage's input that it covers, joined in order. That leaves out the tokens inside a rule that emits `ε` (see "Emission"). It also makes each run of pause tokens into one pause token, and removes a pause token at either end. A pause is `.`, so `klama bu` sounds as `klama.bu`. The renderings for people write a pause as a space.
 
-`text(span)` is the original text that the span covers. `lowercase(string)` folds capitals. So `phonemes($m) ≠ lowercase(phonemes($m))` says that `$m` carries a stress mark. Where a condition compares one word's phonemes with a constant, as in `lowercase(phonemes($l)) = "la"`, a spelling says it in the body: ``LE`la` ``. A string in double quotes, such as `"la"`, is a string literal.
+`text(span)` is the original text that the span covers. A string in double quotes, such as `"la"`, is a string literal. Where a condition compares one word's sound with a literal, as in `phonemes($l) = "la"`, a spelling says it in the body: ``LE`la` ``.
 
-The third type is the set of strings. `runs(span)` is the set of the runs of a span's phonemes. The runs are the strings between its pauses. So `phonemes($open) ∉ runs($content)` says that the word `$open` is not one of the runs of `$content`. A run can hold several words: a text writes `lemiklama` as one run.
+The third type is the set of strings. `split(string, delimiter)` is the set of the pieces of the string between the occurrences of the delimiter. It reads the string from the left, and two occurrences never overlap. It drops the empty pieces.
+
+So `split(phonemes($content), ".")` is the set of the runs of `$content`, the stretches between its pauses. Then `phonemes($open) ∉ split(phonemes($content), ".")` says that the word `$open` is not one of those runs. A run can hold several words: a text writes `lemiklama` as one run.
+
+An empty delimiter is an error. It is an error of the document when the reader sees it, as `""` or a constant. Otherwise it is an error of the grammar, when a parse meets it.
 
 The fourth type is the tag set. A tag literal is the set with that one tag, so `UI ∪ CAI` is the set of both, and `~indicator` is the set of the mark. A range is the set of its character tags, so `tags($c) ∩ 'a'..'z' ≠ ∅` says that `$c` carries a lower-case ASCII letter. `..` binds tighter than every other operator, so `'a'..'c' ∪ 'x'` is four tags. A property is not a tag set, so it cannot stand in a term.
 
 `tags(span)` is the tag set of the captured part. `tags(span, rule)` is the tag set that the span has when parsed as `rule`, unioned over every parse. It is empty when the span does not parse as `rule`. This is how a word looks itself up in a lexicon that is itself a set of rules. `classes(span)` keeps only the tags that begin with a capital.
+
+`tag(string)` is the identifier tag of that name, as a set of one tag. A string that is not a name is an error, in the same way as an empty delimiter.
 
 `∪`, `∩` and `∖` are union, intersection and difference. Each applies to two sets of one kind: two sets of strings, or two tag sets. `∩` binds tighter than `∪` and `∖`. Those two bind equally and group from the left, so `A ∖ B ∪ C` is `(A ∖ B) ∪ C`. `∅` is the empty set, and its context gives its kind. An expression whose kind nothing gives, such as `∅ = ∅`, is an error.
 

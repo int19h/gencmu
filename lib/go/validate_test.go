@@ -2,6 +2,7 @@ package gencmu
 
 import (
 	"encoding/json"
+	"errors"
 	"strconv"
 	"strings"
 	"testing"
@@ -15,7 +16,7 @@ func TestDOMRules(t *testing.T) {
 	const good = `{"seq":[{"terminal":"a"},{"terminal":"b"}]}`
 	format := `"format":` + strconv.Itoa(domFormat)
 	rule := func(fields string) string {
-		return `{` + format + `,"rules":[{"name":"text","op":"define",` + fields + `,"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}]}`
+		return `{` + format + `,"rules":[{"name":"text","op":"define",` + fields + `,"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[]}`
 	}
 	guarded := func(guard string) string {
 		return rule(`"alternatives":[{"guards":[` + guard + `],"expr":` + good + `}],"conditions":[]`)
@@ -25,8 +26,13 @@ func TestDOMRules(t *testing.T) {
 	}
 	// A second directive after the first.
 	directive := func(dir string) string {
-		return strings.Replace(alt(good), `"at":[2,1]}]}`, `"at":[2,1]},`+dir+`]}`, 1)
+		return strings.Replace(alt(good), `"at":[2,1]}]`, `"at":[2,1]},`+dir+`]`, 1)
 	}
+	// A document with one constant's definition.
+	constant := func(k string) string {
+		return strings.Replace(alt(good), `"constants":[]`, `"constants":[`+k+`]`, 1)
+	}
+	runs := `{"call":"split","args":[{"call":"phonemes","args":[{"capture":"x"}]},{"string":"."}]}`
 	tagged := func(tags string) string {
 		return rule(`"alternatives":[{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"terminal":"a"}},{"terminal":"b"}]},"tags":` + tags + `}],"conditions":[]`)
 	}
@@ -137,7 +143,13 @@ func TestDOMRules(t *testing.T) {
 		{"phonemes takes one span", tagged(`{"call":"phonemes","args":[{"capture":"x"},{"capture":"x"}]}`)},
 		{"text takes a span", tagged(`{"call":"text","args":[{"string":"x"}]}`)},
 		{"tags takes a span and a rule name", tagged(`{"call":"tags","args":[{"capture":"x"},{"string":"r"}]}`)},
-		{"lowercase takes a string", tagged(`{"call":"lowercase","args":[{"tag":"X"}]}`)},
+		{"lowercase is not a function", tagged(`{"call":"lowercase","args":[{"string":"X"}]}`)},
+		{"runs is not a function", cond(`{"op":"∈","left":{"string":"a"},"right":{"call":"runs","args":[{"capture":"x"}]}}`)},
+		{"tag takes a string", tagged(`{"call":"tag","args":[{"tag":"X"}]}`)},
+		{"split takes two strings", cond(`{"op":"∈","left":{"string":"a"},"right":{"call":"split","args":[{"string":"a"}]}}`)},
+		{"split takes strings, not spans", cond(`{"op":"∈","left":{"string":"a"},"right":{"call":"split","args":[{"capture":"x"},{"string":"."}]}}`)},
+		{"split has no empty delimiter", cond(`{"op":"∈","left":{"string":"a"},"right":{"call":"split","args":[{"string":"a"},{"string":""}]}}`)},
+		{"tag takes a name", tagged(`{"call":"tag","args":[{"string":"x y"}]}`)},
 		{"a capture is not on the left of ∈", cond(`{"op":"∈","left":{"capture":"x"},"right":{"capture":"x"}}`)},
 		{"tags() is not on the left of ∉", cond(`{"op":"∉","left":{"call":"tags","args":[{"capture":"x"}]},"right":{"string":"b"}}`)},
 		{"head is a span, not a value", tagged(`{"call":"head","args":[{"capture":"x"}]}`)},
@@ -156,14 +168,31 @@ func TestDOMRules(t *testing.T) {
 		{"a tag is canonical", tagged(`{"tag":"'\\'"}`)},
 		{"a tag is a tag", tagged(`{"tag":"a b"}`)},
 		// The types of terms and conditions agree (engine §10).
-		{"a span is not a value in ∈", cond(`{"op":"∈","left":{"capture":"x"},"right":{"call":"runs","args":[{"capture":"x"}]}}`)},
+		{"a span is not a value in ∈", cond(`{"op":"∈","left":{"capture":"x"},"right":` + runs + `}`)},
 		{"∈ tests a string in a set of strings", cond(`{"op":"∈","left":{"string":"b"},"right":{"call":"tags","args":[{"capture":"x"}]}}`)},
-		{"⊆ compares sets of one kind", cond(`{"op":"⊆","left":{"tag":"a"},"right":{"call":"runs","args":[{"capture":"x"}]}}`)},
+		{"⊆ compares sets of one kind", cond(`{"op":"⊆","left":{"tag":"a"},"right":` + runs + `}`)},
 		{"= compares values of one type", cond(`{"op":"=","left":{"call":"text","args":[{"capture":"x"}]},"right":{"tag":"a"}}`)},
 		{"the kind of ∅ = ∅ is given", cond(`{"op":"=","left":{"emptySet":true},"right":{"emptySet":true}}`)},
 		{"a tag term is a tag set", tagged(`{"string":"x"}`)},
-		{"a union joins sets of one kind", tagged(`{"union":[{"call":"tags","args":[{"capture":"x"}]},{"call":"runs","args":[{"capture":"x"}]}]}`)},
-		{"lowercase takes a string, not a span", tagged(`{"call":"lowercase","args":[{"capture":"x"}]}`)},
+		{"a union joins sets of one kind", tagged(`{"union":[{"call":"tags","args":[{"capture":"x"}]},` + runs + `]}`)},
+		{"tag takes a string, not a span", tagged(`{"call":"tag","args":[{"capture":"x"}]}`)},
+		// Constants and their definitions (engine §2, §9, §10).
+		{"a DOM has constants", strings.Replace(alt(good), `,"constants":[]`, ``, 1)},
+		{"constants are a list", strings.Replace(alt(good), `"constants":[]`, `"constants":null`, 1)},
+		{"a constant's name begins with a capital", constant(`{"name":"a","op":"define","value":{"tag":"X"},"at":[3,1]}`)},
+		{"a constant's op is define or redefine", constant(`{"name":"A","op":"extend","value":{"tag":"X"},"at":[3,1]}`)},
+		{"a constant has a value", constant(`{"name":"A","op":"define","at":[3,1]}`)},
+		{"a constant has no other member", constant(`{"name":"A","op":"define","value":{"tag":"X"},"at":[3,1],"x":1}`)},
+		{"a constant has a position", constant(`{"name":"A","op":"define","value":{"tag":"X"},"at":[3]}`)},
+		{"a constant's value holds no capture", constant(`{"name":"A","op":"define","value":{"union":[{"tag":"X"},{"capture":"x"}]},"at":[3,1]}`)},
+		{"a constant's value calls no phonemes", constant(`{"name":"A","op":"define","value":{"call":"split","args":[{"call":"phonemes","args":[{"capture":"x"}]},{"string":"."}]},"at":[3,1]}`)},
+		{"a constant's value holds no guarded term", constant(`{"name":"A","op":"define","value":{"if":{"op":"⊆","left":{"tag":"X"},"right":{"tag":"Y"}},"then":{"tag":"Z"}},"at":[3,1]}`)},
+		{"a constant's value has a kind", constant(`{"name":"A","op":"define","value":{"emptySet":true},"at":[3,1]}`)},
+		{"a constant's value is well formed", constant(`{"name":"A","op":"define","value":{"union":[{"tag":"X"}]},"at":[3,1]}`)},
+		{"a constant's value agrees in type", constant(`{"name":"A","op":"define","value":{"union":[{"tag":"X"},{"string":"x"}]},"at":[3,1]}`)},
+		{"a constant and a rule at one position", constant(`{"name":"A","op":"define","value":{"tag":"X"},"at":[1,1]}`)},
+		{"a constant's reference names a constant", tagged(`{"const":"x","at":[1,5]}`)},
+		{"a constant's reference has a position", tagged(`{"const":"X"}`)},
 		// Capture names, terminals and inserted tags (engine §1, §9).
 		{"a capture name is lower case", alt(`{"seq":[{"capture":"X","expr":{"ref":"A"}},{"ref":"B"}]}`)},
 		{"a terminal is a tag", alt(`{"seq":[{"terminal":"é"},{"terminal":"b"}]}`)},
@@ -249,9 +278,9 @@ func TestDOMRules(t *testing.T) {
 		tagged(`{"difference":[{"tag":"X"},{"tag":"Y"}]}`), tagged(`{"tag":"'\\u{5C}'"}`),
 		cond(`{"op":"=","left":{"call":"text","args":[{"capture":"x"}]},"right":{"string":"wrong"}}`),
 		alt(`{"seq":[{"terminal":"'é'"},{"terminal":"'\\u{301}'"}]}`), emit(`{"items":[{"insert":"'a'"},{"capture":"x"}]}`),
-		cond(`{"op":"∈","left":{"call":"text","args":[{"capture":"x"}]},"right":{"call":"runs","args":[{"capture":"x"}]}}`),
+		cond(`{"op":"∈","left":{"call":"text","args":[{"capture":"x"}]},"right":` + runs + `}`),
 		cond(`{"op":"⊈","left":{"tag":"a"},"right":{"call":"tags","args":[{"capture":"x"}]}}`),
-		cond(`{"op":"=","left":{"emptySet":true},"right":{"call":"runs","args":[{"capture":"x"}]}}`),
+		cond(`{"op":"=","left":{"emptySet":true},"right":` + runs + `}`),
 		// An emission and its items are not compound: an item's term counts
 		// from the top.
 		emit(`{"items":[{"capture":"","tags":` + unions(256) + `}]}`),
@@ -262,7 +291,14 @@ func TestDOMRules(t *testing.T) {
 		tagged(`{"call":"tags","args":[{"capture":""},{"rule":"text"}]}`), tagged(`{"call":"tags","args":[{"call":"head","args":[{"capture":""}]}]}`),
 		cond(`{"all":[{"matches":{"capture":""},"rule":"text"},{"op":"⊆","left":{"tag":"a"},"right":{"call":"tags","args":[{"capture":""}]}}]}`),
 		cond(strings.Repeat(`{"all":[{"matches":{"capture":"x"},"rule":"text"},`, 255) + `{"matches":{"capture":"x"},"rule":"text"}` + strings.Repeat(`]}`, 255)),
-		cond(`{"op":"=","left":{"call":"lowercase","args":[{"call":"text","args":[{"call":"head","args":[{"capture":"x"}]}]}]},"right":{"string":"a"}}`),
+		cond(`{"op":"⊆","left":{"call":"tag","args":[{"call":"text","args":[{"call":"head","args":[{"capture":"x"}]}]}]},"right":{"tag":"a"}}`),
+		// Constants, their definitions and their references.
+		constant(`{"name":"A","op":"define","value":{"union":[{"tag":"X"},{"const":"B","at":[3,20]}]},"at":[3,1]}`),
+		constant(`{"name":"A","op":"redefine","value":{"emptySet":true},"at":[3,1]}`),
+		constant(`{"name":"A","op":"define","value":{"call":"split","args":[{"string":"a.b"},{"const":"P","at":[3,20]}]},"at":[3,1]}`),
+		constant(`{"name":"A","op":"define","value":{"call":"tag","args":[{"string":"X"}]},"at":[3,1]}`),
+		tagged(`{"union":[{"const":"A","at":[1,5]},{"call":"tag","args":[{"const":"S","at":[1,9]}]}]}`),
+		cond(`{"op":"∈","left":{"const":"S","at":[1,5]},"right":{"call":"split","args":[{"call":"phonemes","args":[{"capture":"x"}]},{"const":"P","at":[1,9]}]}}`),
 		cond(`{"any":[{"not":{"matches":{"capture":"x"},"rule":"text"}},{"op":"=","left":{"string":"a"},"right":{"string":"a"}}]}`),
 		cond(strings.Repeat(`{"not":`, 254) + `{"initial":{"call":"tail","args":[{"capture":"x"}]}}` + strings.Repeat(`}`, 254)),
 		// A lookahead, at the bound, and the tokens' tags from $ on.
@@ -317,5 +353,104 @@ func TestReaderNesting(t *testing.T) {
 	_, err := bundled.reader.read(doc(257), "g.md")
 	if err == nil || err.Line != 3 || err.Column != 1 {
 		t.Fatalf("257 deep: expected an error at the rule, 3:1, got %v", err)
+	}
+}
+
+// A constant nested too deeply is refused before any walk that recurses
+// (engine §9): a compiled.json entry is a miss, and a bootstrap is an error
+// of the grammar.
+func TestDeepConstant(t *testing.T) {
+	loadBundled()
+	deep := strings.Repeat(`{"union":[`, 2000) + `{"tag":"a"}` + strings.Repeat(`,{"tag":"B"}]}`, 2000)
+	k := `{"name":"K","op":"define","value":` + deep + `,"at":[9999,1]}`
+	src := oneStage("%ambiguity-resolution greedy\n%rule text 'a' 'b'")
+	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"seq":[{"terminal":"a"},{"terminal":"b"}]}}],"conditions":[],"at":[4,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[3,1]}],"constants":[` + k + `]}`
+	if _, err := decodeDOM(json.RawMessage(dom), bundled.uni); err == nil || !strings.Contains(err.Error(), "nested more than 256 deep") {
+		t.Fatalf("a deep constant: expected the nesting error, got %v", err)
+	}
+	src["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + dom + `}}}`
+	d, err := LoadDialectSources(src, "p.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res, err := d.Parse("ab", ParseOptions{}); err != nil || !res.OK {
+		t.Fatalf("the document was not read instead: %v %+v", err, res.Error)
+	}
+	delete(src, "compiled.json")
+	bootstrap := bundled.sources["notation/bootstrap.json"]
+	i := strings.Index(bootstrap, `"constants":[`)
+	if i < 0 {
+		t.Fatal("no constants in the bootstrap")
+	}
+	i += len(`"constants":[`)
+	sep := ","
+	if bootstrap[i] == ']' {
+		sep = ""
+	}
+	src["notation/bootstrap.json"] = bootstrap[:i] + k + sep + bootstrap[i:]
+	_, err = LoadDialectSources(src, "p.md")
+	var e *Error
+	if !errors.As(err, &e) || e.Kind != ErrorGrammar || !strings.Contains(e.Message, "nested more than 256 deep") {
+		t.Fatalf("a deep bootstrap constant: expected an error of the grammar, got %v", err)
+	}
+}
+
+// A cached DOM whose capture checks wait for a constant's value is used,
+// and the loader makes the checks once the constants have their values
+// (engine §3.6, §9).
+func TestCachedClauseWaitsForConstant(t *testing.T) {
+	loadBundled()
+	grammar := func(first, last string) string {
+		return "%ambiguity-resolution greedy\n%const $E " + first + "\n%rule text 'a' | $x('a')\n%tags Y ∪ ($E ∩ tags($x))\n%redefine-const $E " + last
+	}
+	// The tags of the parse's tree, or the load error's position, with the
+	// cache entry given.
+	outcome := func(g string, entry string) string {
+		src := oneStage(g)
+		if entry != "" {
+			src["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + entry + `}}}`
+		}
+		d, err := LoadDialectSources(src, "p.md")
+		if err != nil {
+			var e *Error
+			if !errors.As(err, &e) {
+				t.Fatal(err)
+			}
+			return "error at " + strconv.Itoa(e.Line) + ":" + strconv.Itoa(e.Column)
+		}
+		res, err := d.Parse("a", ParseOptions{})
+		if err != nil || !res.OK {
+			t.Fatalf("%v %+v", err, res.Error)
+		}
+		return strings.Join(res.Tree.Tags, " ")
+	}
+	read := func(g string) string {
+		dom, err := bundled.reader.read(oneStage(g)["g.md"], "g.md")
+		if err != nil {
+			t.Fatalf("the document is refused: %v", err)
+		}
+		if _, err := decodeDOM(json.RawMessage(dom.json()), bundled.uni); err != nil {
+			t.Fatalf("its DOM is refused: %v", err)
+		}
+		return string(dom.json())
+	}
+	empty := grammar("B", "$E ∖ B")
+	dom := read(empty)
+	for _, entry := range []string{"", dom} {
+		if got := outcome(empty, entry); got != "Y" {
+			t.Errorf("an empty constant, cached %v: %s", entry != "", got)
+		}
+	}
+	// A hit: the entry, changed, is the one the parse sees.
+	changed := strings.Replace(dom, `{"tag":"Y"}`, `{"tag":"Z"}`, 1)
+	if changed == dom || outcome(empty, changed) != "Z" {
+		t.Errorf("the cache entry was not used")
+	}
+	full := grammar("B ∖ B", "B")
+	dom = read(full)
+	for _, entry := range []string{"", dom} {
+		if got := outcome(full, entry); got != "error at 6:1" {
+			t.Errorf("a constant that is not empty, cached %v: %s", entry != "", got)
+		}
 	}
 }

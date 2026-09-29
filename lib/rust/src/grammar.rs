@@ -2,11 +2,17 @@
 //! checks that need no features: directives, definitions, references,
 //! captures and terms.
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
 
-use crate::dom::{Alternative, Arg, Cond, Dom, EmitItem, Expr, Op, Term};
+use crate::clauses::definition_problem;
+use crate::dom::{
+    constant_value_type, constants_in_rule, constants_in_term, rule_type_fault, Alternative, Arg, Cond, ConstDef, Dom,
+    EmitItem, Expr, Fault, Op, RuleDef, Term, Type,
+};
 use crate::error::Error;
+use crate::tags::{character_tag, code_of_character_tag, is_name};
+use crate::unicode::Unicode;
 
 /// How a stage chooses among parses (engine §6): the lean of rule 2, or,
 /// for the `elision-only` check (§7), no lean at all.
@@ -80,8 +86,13 @@ fn located(message: String, document: &str, at: (usize, usize)) -> Error {
 }
 
 /// Stitches the runs of items of one stage, in order: each a document's
-/// path and a DOM of consecutive items of it.
-pub(crate) fn stitch(stage: &str, documents: &[(Arc<str>, Arc<Dom>)]) -> Result<StageGrammar, Error> {
+/// path and a DOM of consecutive items of it. `unicode` gives the tags of a
+/// range in a constant's value.
+pub(crate) fn stitch(
+    stage: &str,
+    documents: &[(Arc<str>, Arc<Dom>)],
+    unicode: &Unicode,
+) -> Result<StageGrammar, Error> {
     let mut grammar = StageGrammar {
         name: stage.to_string(),
         rules: Vec::new(),
@@ -93,8 +104,16 @@ pub(crate) fn stitch(stage: &str, documents: &[(Arc<str>, Arc<Dom>)]) -> Result<
         changes: Vec::new(),
     };
     let mut resolution: Option<(Arc<str>, (usize, usize))> = None;
+    let mut constants = Constants { stage, unicode, values: HashMap::new() };
+    // The definitions of rules that use constants, which are checked once
+    // the constants have their final values; a rule that a later one
+    // replaces included.
+    let mut users: Vec<(&Arc<str>, &RuleDef)> = Vec::new();
     for (document, dom) in documents {
         for rule in &dom.rules {
+            if !constants_in_rule(rule).is_empty() {
+                users.push((document, rule));
+            }
             let alternatives: Vec<StitchedAlternative> = rule
                 .alternatives
                 .iter()
@@ -196,7 +215,11 @@ pub(crate) fn stitch(stage: &str, documents: &[(Arc<str>, Arc<Dom>)]) -> Result<
                 other => return Err(here(format!("an unknown directive %{other}"))),
             }
         }
+        for constant in &dom.constants {
+            constants.add(document, constant)?;
+        }
     }
+    constants.resolve(&mut grammar, &users)?;
     if resolution.is_none() {
         return Err(Error::grammar(format!("stage {stage} has no %ambiguity-resolution directive")).in_stage(stage));
     }
@@ -211,6 +234,383 @@ pub(crate) fn stitch(stage: &str, documents: &[(Arc<str>, Arc<Dom>)]) -> Result<
         }
     }
     Ok(grammar)
+}
+
+/// A constant's value (engine §2, §10): a string, or a set of strings or
+/// of tags.
+#[derive(Debug, Clone, PartialEq)]
+enum Value {
+    Str(String),
+    Set(BTreeSet<String>),
+}
+
+impl Value {
+    fn set(self) -> BTreeSet<String> {
+        match self {
+            Value::Set(set) => set,
+            Value::Str(_) => BTreeSet::new(),
+        }
+    }
+
+    fn string(self) -> String {
+        match self {
+            Value::Str(text) => text,
+            Value::Set(_) => String::new(),
+        }
+    }
+
+    /// The term that stands for the value once the stage is stitched: a
+    /// constant whose value is the empty set is the empty set (§3.6).
+    fn term(&self) -> Term {
+        match self {
+            Value::Str(text) => Term::Str(text.clone()),
+            Value::Set(set) => match set.len() {
+                0 => Term::EmptySet,
+                1 => Term::Tag(set.iter().next().expect("one member").clone()),
+                _ => Term::Union(set.iter().map(|member| Term::Tag(member.clone())).collect()),
+            },
+        }
+    }
+}
+
+/// A constant of a stage: its value and its type now, and the document of
+/// its last definition.
+struct StageConstant {
+    value: Value,
+    ty: Type,
+    document: Arc<str>,
+}
+
+/// The constants of a stage as the loader stitches it (engine §2).
+struct Constants<'a> {
+    stage: &'a str,
+    unicode: &'a Unicode,
+    values: HashMap<String, StageConstant>,
+}
+
+impl Constants<'_> {
+    fn ty(&self, name: &str) -> Type {
+        self.values.get(name).map_or(Type::Any, |constant| constant.ty)
+    }
+
+    /// Defines or redefines a constant, with the value its term has at this
+    /// point of the stage (engine §2).
+    fn add(&mut self, document: &Arc<str>, constant: &ConstDef) -> Result<(), Error> {
+        let ConstDef { name, redefine, value, at } = constant;
+        let previous = self.values.get(name);
+        match (previous, redefine) {
+            (Some(previous), false) => {
+                return Err(located(
+                    format!(
+                        "%const ${name} is already defined in stage {}, in {}; %redefine-const gives it a new value",
+                        self.stage, previous.document
+                    ),
+                    document,
+                    *at,
+                ));
+            }
+            (None, true) => {
+                return Err(located(
+                    format!(
+                        "%redefine-const ${name} gives a value to no constant defined before it in stage {}",
+                        self.stage
+                    ),
+                    document,
+                    *at,
+                ));
+            }
+            _ => {}
+        }
+        // A reference sees the constants defined before this point.
+        let mut references = Vec::new();
+        constants_in_term(value, &mut references);
+        for (reference, where_) in references {
+            if !self.values.contains_key(reference) {
+                return Err(located(
+                    format!("${reference} is not defined before this point of stage {}", self.stage),
+                    document,
+                    where_,
+                ));
+            }
+        }
+        let mut ty = constant_value_type(value, *redefine, &|other| self.ty(other))
+            .map_err(|fault| fault_error(fault, document, *at))?;
+        if let Some(previous) = previous {
+            // A redefinition keeps the type, which gives ∅ its kind.
+            if ty == Type::Set && matches!(previous.ty, Type::Strings | Type::Tags) {
+                ty = previous.ty;
+            }
+            if ty != previous.ty {
+                return Err(located(
+                    format!("%redefine-const ${name} keeps the type of the constant, and cannot make it {}", ty.name()),
+                    document,
+                    *at,
+                ));
+            }
+        }
+        let value = self.evaluate(value, document, *at)?;
+        self.values.insert(name.clone(), StageConstant { value, ty, document: document.clone() });
+        Ok(())
+    }
+
+    /// The value of a closed term, with the constants' values now (engine
+    /// §2, §10). An empty delimiter or a tag's string that is not a name
+    /// comes from a constant here, since the reader refuses a literal one,
+    /// and the error stands at that constant.
+    fn evaluate(&self, term: &Term, document: &str, item: (usize, usize)) -> Result<Value, Error> {
+        let set = |part: &Term| self.evaluate(part, document, item).map(Value::set);
+        let string = |part: &Term| self.evaluate(part, document, item).map(Value::string);
+        Ok(match term {
+            Term::Str(text) => Value::Str(text.clone()),
+            Term::Tag(tag) => Value::Set(BTreeSet::from([tag.clone()])),
+            Term::Range(start, end) => {
+                let codes = code_of_character_tag(start).zip(code_of_character_tag(end));
+                let (first, last) = codes.expect("a range of two character tags, which reading checks");
+                Value::Set((first..=last).filter_map(char::from_u32).map(|c| character_tag(c, self.unicode)).collect())
+            }
+            Term::EmptySet => Value::Set(BTreeSet::new()),
+            Term::Const(name, _) => self.values.get(name).expect("a constant defined before").value.clone(),
+            Term::Union(items) => {
+                let mut out = BTreeSet::new();
+                for item in items {
+                    out.extend(set(item)?);
+                }
+                Value::Set(out)
+            }
+            Term::Intersection(items) => {
+                let mut out: Option<BTreeSet<String>> = None;
+                for item in items {
+                    let next = set(item)?;
+                    out = Some(match out {
+                        None => next,
+                        Some(out) => out.intersection(&next).cloned().collect(),
+                    });
+                }
+                Value::Set(out.unwrap_or_default())
+            }
+            // Left to right, as a parse evaluates a term (§10).
+            Term::Difference(left, right) => {
+                let left = set(left)?;
+                let right = set(right)?;
+                Value::Set(left.into_iter().filter(|member| !right.contains(member)).collect())
+            }
+            Term::Call(call, args) => match (call.as_str(), &args[..]) {
+                ("split", [Arg::Term(text), Arg::Term(delimiter)]) => {
+                    let text = string(text)?;
+                    let seen = string(delimiter)?;
+                    if seen.is_empty() {
+                        let fault = Fault { problem: "split has an empty delimiter".to_string(), at: None };
+                        return Err(fault_error(fault, document, first_constant(delimiter).unwrap_or(item)));
+                    }
+                    Value::Set(
+                        text.split(seen.as_str()).filter(|piece| !piece.is_empty()).map(str::to_string).collect(),
+                    )
+                }
+                ("tag", [Arg::Term(name)]) => {
+                    let seen = string(name)?;
+                    if !is_name(&seen) {
+                        return Err(located(
+                            format!("tag({seen:?}): the string is not a name"),
+                            document,
+                            first_constant(name).unwrap_or(item),
+                        ));
+                    }
+                    Value::Set(BTreeSet::from([seen]))
+                }
+                _ => return Err(located("a constant's value is not a closed term".to_string(), document, item)),
+            },
+            Term::Capture(_) | Term::If(..) => {
+                return Err(located("a constant's value is not a closed term".to_string(), document, item));
+            }
+        })
+    }
+
+    /// Gives every constant in a rule its final value, once the stage is
+    /// stitched, and checks what the reader could not: that each is
+    /// defined, that the types agree, and that a constant that `split` or
+    /// `tag` reads directly is a delimiter that is not empty, or a name
+    /// (engine §2, §9, §10).
+    fn resolve(&self, grammar: &mut StageGrammar, users: &[(&Arc<str>, &RuleDef)]) -> Result<(), Error> {
+        for &(document, rule) in users {
+            for (name, at) in constants_in_rule(rule) {
+                if !self.values.contains_key(name) {
+                    return Err(located(format!("${name} is not defined in stage {}", self.stage), document, at));
+                }
+            }
+            if let Some(fault) = rule_type_fault(rule, &|name| self.ty(name)) {
+                return Err(fault_error(fault, document, rule.at));
+            }
+            // The checks that simplification decides, which the reader left
+            // to the loader, now with the constants' values (§9).
+            if let Some(problem) = definition_problem(&self.substitute_rule(rule)) {
+                return Err(located(problem, document, rule.at));
+            }
+            let mut calls = Vec::new();
+            calls_in_rule(rule, &mut calls);
+            for (call, args) in calls {
+                let argument = match (call, args) {
+                    ("split", [_, Arg::Term(Term::Const(name, at))]) | ("tag", [Arg::Term(Term::Const(name, at))]) => {
+                        (name, *at)
+                    }
+                    _ => continue,
+                };
+                let seen = match &self.values[argument.0].value {
+                    Value::Str(text) => text.as_str(),
+                    Value::Set(_) => "",
+                };
+                if call == "split" && seen.is_empty() {
+                    return Err(located("split has an empty delimiter".to_string(), document, argument.1));
+                }
+                if call == "tag" && !is_name(seen) {
+                    return Err(located(format!("tag({seen:?}): the string is not a name"), document, argument.1));
+                }
+            }
+        }
+        if users.is_empty() {
+            return Ok(());
+        }
+        // Each reference holds the final value.
+        for rule in &mut grammar.rules {
+            for alternative in &mut rule.alternatives {
+                let terms = alternative.alternative.tags.iter_mut().chain(alternative.rule_tags.iter_mut()).chain(
+                    alternative.emit.iter_mut().flatten().filter_map(|item| match item {
+                        EmitItem::Capture(_, tags) => tags.as_mut(),
+                        EmitItem::Insert(_) => None,
+                    }),
+                );
+                for term in terms {
+                    self.substitute_term(term);
+                }
+                for cond in &mut alternative.conditions {
+                    self.substitute_cond(cond);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// A copy of a rule definition in which each constant is its value.
+    fn substitute_rule(&self, rule: &RuleDef) -> RuleDef {
+        let mut rule = rule.clone();
+        let terms = rule.tags.iter_mut().chain(rule.alternatives.iter_mut().filter_map(|a| a.tags.as_mut())).chain(
+            rule.emit.iter_mut().flatten().filter_map(|item| match item {
+                EmitItem::Capture(_, tags) => tags.as_mut(),
+                EmitItem::Insert(_) => None,
+            }),
+        );
+        for term in terms {
+            self.substitute_term(term);
+        }
+        for cond in &mut rule.conditions {
+            self.substitute_cond(cond);
+        }
+        rule
+    }
+
+    fn substitute_term(&self, term: &mut Term) {
+        match term {
+            Term::Const(name, _) => *term = self.values[name.as_str()].value.term(),
+            Term::Union(items) | Term::Intersection(items) => {
+                items.iter_mut().for_each(|item| self.substitute_term(item));
+            }
+            Term::Difference(left, right) => {
+                self.substitute_term(left);
+                self.substitute_term(right);
+            }
+            Term::If(cond, then) => {
+                self.substitute_cond(cond);
+                self.substitute_term(then);
+            }
+            Term::Call(_, args) => {
+                for arg in args {
+                    if let Arg::Term(term) = arg {
+                        self.substitute_term(term);
+                    }
+                }
+            }
+            Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Capture(_) => {}
+        }
+    }
+
+    fn substitute_cond(&self, cond: &mut Cond) {
+        match cond {
+            Cond::Compare(_, left, right) => {
+                self.substitute_term(left);
+                self.substitute_term(right);
+            }
+            Cond::Not(inner) => self.substitute_cond(inner),
+            Cond::Any(items) | Cond::All(items) => items.iter_mut().for_each(|item| self.substitute_cond(item)),
+            Cond::If(antecedent, consequent) => {
+                self.substitute_cond(antecedent);
+                self.substitute_cond(consequent);
+            }
+            Cond::Matches(..) | Cond::Begins(..) | Cond::Initial(_) | Cond::Captured(_) => {}
+        }
+    }
+}
+
+/// The error for a construct whose types disagree: at its first constant,
+/// which the loader alone could type, or else at the item (engine §9).
+fn fault_error(fault: Fault, document: &str, item: (usize, usize)) -> Error {
+    located(fault.problem, document, fault.at.unwrap_or(item))
+}
+
+fn first_constant(term: &Term) -> Option<(usize, usize)> {
+    let mut out = Vec::new();
+    constants_in_term(term, &mut out);
+    out.first().map(|&(_, at)| at)
+}
+
+/// The calls of a rule's terms and conditions, each before the calls in
+/// its arguments.
+fn calls_in_rule<'r>(rule: &'r RuleDef, out: &mut Vec<(&'r str, &'r [Arg])>) {
+    fn term<'r>(t: &'r Term, out: &mut Vec<(&'r str, &'r [Arg])>) {
+        match t {
+            Term::Call(name, args) => {
+                out.push((name, args));
+                for arg in args {
+                    if let Arg::Term(inner) = arg {
+                        term(inner, out);
+                    }
+                }
+            }
+            Term::Union(items) | Term::Intersection(items) => items.iter().for_each(|item| term(item, out)),
+            Term::Difference(left, right) => {
+                term(left, out);
+                term(right, out);
+            }
+            Term::If(c, then) => {
+                cond(c, out);
+                term(then, out);
+            }
+            Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Capture(_) | Term::Const(..) => {}
+        }
+    }
+    fn cond<'r>(c: &'r Cond, out: &mut Vec<(&'r str, &'r [Arg])>) {
+        match c {
+            Cond::Compare(_, left, right) => {
+                term(left, out);
+                term(right, out);
+            }
+            Cond::Not(inner) => cond(inner, out),
+            Cond::Any(items) | Cond::All(items) => items.iter().for_each(|item| cond(item, out)),
+            Cond::If(antecedent, consequent) => {
+                cond(antecedent, out);
+                cond(consequent, out);
+            }
+            Cond::Matches(..) | Cond::Begins(..) | Cond::Initial(_) | Cond::Captured(_) => {}
+        }
+    }
+    rule.tags.iter().for_each(|t| term(t, out));
+    for alternative in &rule.alternatives {
+        alternative.tags.iter().for_each(|t| term(t, out));
+    }
+    for item in rule.emit.iter().flatten() {
+        if let EmitItem::Capture(_, Some(t)) = item {
+            term(t, out);
+        }
+    }
+    rule.conditions.iter().for_each(|c| cond(c, out));
 }
 
 fn check_alternative(grammar: &StageGrammar, alternative: &StitchedAlternative) -> Result<(), String> {
@@ -305,7 +705,8 @@ fn check_span(term: &Term) -> Result<(), String> {
 
 fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
     match term {
-        Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet => Ok(()),
+        // Stitching has checked every constant (engine §2).
+        Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Const(..) => Ok(()),
         Term::Union(items) | Term::Intersection(items) => {
             for item in items {
                 check_term(grammar, item)?;
@@ -322,14 +723,18 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
             check_term(grammar, then)
         }
         Term::Call(name, args) => match (name.as_str(), &args[..]) {
-            ("phonemes" | "text" | "classes" | "runs" | "tags", [Arg::Term(span)]) => check_span(span),
+            ("phonemes" | "text" | "classes" | "tags", [Arg::Term(span)]) => check_span(span),
             ("tags", [Arg::Term(span), Arg::Rule(rule)]) => {
                 check_span(span)?;
                 check_rule(grammar, rule)
             }
-            ("lowercase", [Arg::Term(inner)]) => check_term(grammar, inner),
+            ("split", [Arg::Term(string), Arg::Term(delimiter)]) => {
+                check_term(grammar, string)?;
+                check_term(grammar, delimiter)
+            }
+            ("tag", [Arg::Term(inner)]) => check_term(grammar, inner),
             ("head" | "tail" | "last" | "from" | "after", _) => Err(format!("{name}() is a span, not a value")),
-            ("phonemes" | "text" | "classes" | "runs" | "tags" | "lowercase" | "matches" | "begins" | "initial", _) => {
+            ("phonemes" | "text" | "classes" | "tags" | "split" | "tag" | "matches" | "begins" | "initial", _) => {
                 Err(format!("{name}() is called with the wrong arguments"))
             }
             _ => Err(format!("an unknown function {name}()")),

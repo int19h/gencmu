@@ -20,7 +20,7 @@ const SYMBOLS = ["...", "..", "|", "&", "(", ")", "[", "]", "<", ">", "#", "ε",
   "∈", "∉", "⊆", "⊈", "∪", "∩", "∖", "∅"];
 
 const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%tags", "%conditions", "%emits", "%verbatim",
-  "%ambiguity-resolution", "%elidable", "%stage", "%include", "%features"]);
+  "%ambiguity-resolution", "%elidable", "%stage", "%include", "%features", "%const", "%redefine-const"]);
 
 function fail(message, token) {
   const error = new Error(message);
@@ -121,7 +121,8 @@ function lex(text, positions) {
       while (i < chars.length && isNameChar(chars[i])) i++;
       const text = chars.slice(start, i).join("");
       if (c === "%" && !KEYWORDS.has(text)) fail(`an unknown keyword ${text}`, { at: at(start) });
-      const kind = c === "$" ? "capture" : text;
+      // `$` and a name with a capital is a constant (engine §2).
+      const kind = c === "$" ? (isCapital(chars[nameStart] || "") ? "constant" : "capture") : text;
       tokens.push({ kind, text, at: at(start), name: chars.slice(nameStart, i).join("") });
       continue;
     }
@@ -157,6 +158,7 @@ export function decodeString(text, token) {
 
 const DIRECTIVES = new Set(["%ambiguity-resolution", "%elidable", "%stage", "%include", "%features"]);
 const RULE_KEYWORDS = { "%rule": "define", "%redefine-rule": "redefine", "%extend-rule": "extend" };
+const CONSTANT_KEYWORDS = { "%const": "define", "%redefine-const": "redefine" };
 const COMPARATORS = ["=", "≠", "∈", "∉", "⊆", "⊈"];
 
 // A character tag's DOM form: its one character in its canonical spelling
@@ -211,6 +213,7 @@ class Parser {
   document() {
     const rules = [];
     const directives = [];
+    const constants = [];
     while (this.peek()) {
       const token = this.peek();
       if (DIRECTIVES.has(token.kind)) {
@@ -232,11 +235,17 @@ class Parser {
         directives.push({ name: token.name, args, at: token.at });
       } else if (RULE_KEYWORDS[token.kind]) {
         rules.push(this.rule());
+      } else if (CONSTANT_KEYWORDS[token.kind]) {
+        // A constant's definition; the reader of the libraries checks its
+        // value, which the notation's own documents never hold.
+        this.index++;
+        const name = this.take("constant");
+        constants.push({ name: name.name, op: CONSTANT_KEYWORDS[token.kind], value: this.term(), at: token.at });
       } else {
         fail("expected a rule or a directive", token);
       }
     }
-    return { format: DOM_FORMAT, rules, directives };
+    return { format: DOM_FORMAT, rules, directives, constants };
   }
 
   rule() {
@@ -501,6 +510,7 @@ class Parser {
       case "∅": this.index++; return { emptySet: true };
       case "(": { this.index++; const inner = this.term(); this.take(")"); return inner; }
       case "capture": this.index++; return { capture: token.name };
+      case "constant": this.index++; return { const: token.name, at: token.at };
       case "identifier":
         if (this.is("(", 1)) return this.call();
         if (!isCapital(token.text)) fail("a rule is not a value", token);

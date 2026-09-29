@@ -1,0 +1,24 @@
+{
+  "description": "A constant's value may nest 256 deep: here 256 differences, grouped from the left (engine §9).",
+  "grammar": "%const $K ~a ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B\n%rule text A <$K>",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "tags": [
+          "a"
+        ]
+      }
+    }
+  }
+}

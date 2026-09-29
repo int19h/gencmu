@@ -1,7 +1,8 @@
 //! The character table of `grammars/unicode.txt` (engine §1): the
 //! General_Category of every scalar value, the White_Space property, and the
-//! simple lowercase mappings `lowercase()` uses. Every library reads this
-//! table rather than its platform's Unicode data, so that all agree.
+//! simple lowercase mappings of the canonical sound (engine §5). Every
+//! library reads this table rather than its platform's Unicode data, so
+//! that all agree.
 
 use std::collections::HashMap;
 
@@ -127,7 +128,18 @@ impl Unicode {
 
     /// The simple lowercase mapping of a string, code point by code point.
     pub(crate) fn lowercase(&self, text: &str) -> String {
-        text.chars().map(|c| self.lower.get(&(c as u32)).and_then(|&to| char::from_u32(to)).unwrap_or(c)).collect()
+        text.chars().map(|c| self.lower_char(c)).collect()
+    }
+
+    fn lower_char(&self, c: char) -> char {
+        self.lower.get(&(c as u32)).and_then(|&to| char::from_u32(to)).unwrap_or(c)
+    }
+
+    /// The canonical form of a sound (engine §5): each code point replaced
+    /// by its simple lowercase mapping, and every comma, the syllable break,
+    /// removed.
+    pub(crate) fn canonical(&self, text: &str) -> String {
+        text.chars().map(|c| self.lower_char(c)).filter(|&c| c != ',').collect()
     }
 }
 

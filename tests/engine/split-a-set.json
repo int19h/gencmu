@@ -1,6 +1,6 @@
 {
-  "description": "runs() is a tag set, the runs of a span's phonemes, so = between two of them compares the runs they hold, not their order or number (engine §5, §10).",
-  "grammar": "%rule text $x(A) $y(B) $w(C)\n%conditions runs($x) = runs($y), runs($x) ≠ runs($w)",
+  "description": "split() gives a set of strings, so = between two of them compares the pieces they hold, not their order or number (engine §10).",
+  "grammar": "%rule text $x(A) $y(B) $w(C)\n%conditions split(phonemes($x), \".\") = split(phonemes($y), \".\"), split(phonemes($x), \".\") ≠ split(phonemes($w), \".\")",
   "tokens": [
     {
       "text": "x",

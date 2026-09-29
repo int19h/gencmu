@@ -1,6 +1,6 @@
 {
   "description": "⊆ and ⊈ compare two sets of one kind, tag sets or sets of strings (engine §9, §10).",
-  "document": "```jbogenbau\n%rule a $x(B) %conditions ~a ⊈ tags($x), runs($x) ⊆ runs($x), tags($x) ∖ ~a = ∅\n```\n",
+  "document": "```jbogenbau\n%rule a $x(B) %conditions ~a ⊈ tags($x), split(phonemes($x), \".\") ⊆ split(phonemes($x), \".\"), tags($x) ∖ ~a = ∅\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -23,18 +23,34 @@
             {
               "op": "⊆",
               "left": {
-                "call": "runs",
+                "call": "split",
                 "args": [
                   {
-                    "capture": "x"
+                    "call": "phonemes",
+                    "args": [
+                      {
+                        "capture": "x"
+                      }
+                    ]
+                  },
+                  {
+                    "string": "."
                   }
                 ]
               },
               "right": {
-                "call": "runs",
+                "call": "split",
                 "args": [
                   {
-                    "capture": "x"
+                    "call": "phonemes",
+                    "args": [
+                      {
+                        "capture": "x"
+                      }
+                    ]
+                  },
+                  {
+                    "string": "."
                   }
                 ]
               }

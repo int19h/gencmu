@@ -20,6 +20,11 @@
 // when the bundled compiled.json has no DOM for its text under the current
 // bootstrap, so loading a bundled dialect reads no grammar at all.
 //
+// A DOM holds a document's constants as the document writes them, never
+// their values. The loader gives each constant its value when it stitches
+// a stage. So a document that several stages or dialects include takes the
+// values of each.
+//
 // # Parsing
 //
 //	dialect, err := gencmu.LoadDialect("notation")

@@ -1,0 +1,46 @@
+{
+  "description": "phonemes() of a span is its canonical sound: its tokens' phonemes joined with no separator, in lower case and without commas. It keeps every pause, so two pauses stay two and a pause at either end stays (engine §5).",
+  "grammar": "%rule text $p(P) $x(A) $q(P) P $y(B)\n%conditions phonemes($x) = \"la\", phonemes($y) = \"koa\", phonemes($) = \".la..koa\"",
+  "tokens": [
+    {
+      "text": ".",
+      "tags": [
+        "P"
+      ],
+      "phonemes": "."
+    },
+    {
+      "text": "lA",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "lA"
+    },
+    {
+      "text": ".",
+      "tags": [
+        "P"
+      ],
+      "phonemes": "."
+    },
+    {
+      "text": ".",
+      "tags": [
+        "P"
+      ],
+      "phonemes": "."
+    },
+    {
+      "text": "ko,A",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "ko,A"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

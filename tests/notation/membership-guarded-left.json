@@ -1,6 +1,6 @@
 {
   "description": "A guarded term is a tag set, so it cannot stand on the left of ∈; the error is at the comparison's first token, its parenthesis (engine §9, §10).",
-  "document": "```jbogenbau\n%rule a $x(B) %conditions ($x ⟹ ~a) ∈ runs($x)\n```\n",
+  "document": "```jbogenbau\n%rule a $x(B) %conditions ($x ⟹ ~a) ∈ split(phonemes($x), \".\")\n```\n",
   "expect": {
     "error": {
       "line": 2,

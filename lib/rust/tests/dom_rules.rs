@@ -16,18 +16,18 @@ fn dom(text_alternative: &str, text_extra: &str, rule: &str, format: u32, direct
         rules.push_str(rule);
     }
     format!(
-        r#"{{"format":{format},"rules":[{rules}],"directives":[{{"name":"ambiguity-resolution","args":[{directive_args}],"at":[2,1]}}]}}"#
+        r#"{{"format":{format},"rules":[{rules}],"directives":[{{"name":"ambiguity-resolution","args":[{directive_args}],"at":[2,1]}}],"constants":[]}}"#
     )
 }
 
 const B: &str = r#"{"guards":[],"expr":{"terminal":"b"}}"#;
 
 fn with_rule(rule: &str) -> String {
-    dom(B, "", rule, 10, r#""greedy""#)
+    dom(B, "", rule, 11, r#""greedy""#)
 }
 
 fn with_alternative(alternative: &str) -> String {
-    dom(alternative, "", "", 10, r#""greedy""#)
+    dom(alternative, "", "", 11, r#""greedy""#)
 }
 
 /// A DOM like the document's, but accepting "b", with `directive` added
@@ -35,13 +35,13 @@ fn with_alternative(alternative: &str) -> String {
 fn with_directive(directive: &str) -> String {
     let rule = r#"{"name":"text","op":"define","alternatives":[{"guards":[],"expr":{"terminal":"b"}}],"conditions":[],"at":[3,1]}"#;
     format!(
-        r#"{{"format":10,"rules":[{rule}],"directives":[{{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}},{directive}]}}"#
+        r#"{{"format":11,"rules":[{rule}],"directives":[{{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}},{directive}],"constants":[]}}"#
     )
 }
 
 fn with_emission(emission: &str) -> String {
     let alternative = r#"{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"terminal":"b"}},{"capture":"y","expr":{"terminal":"c"}}]}}"#;
-    dom(alternative, &format!(r#","emit":{emission}"#), "", 10, r#""greedy""#)
+    dom(alternative, &format!(r#","emit":{emission}"#), "", 11, r#""greedy""#)
 }
 
 fn with_condition(condition: &str) -> String {
@@ -58,7 +58,7 @@ fn with_tags(term: &str) -> String {
 /// Parses "a" with a dialect whose `compiled.json` holds `dom` for the
 /// document: true when the document itself was read.
 fn document_was_read(dom: &str) -> bool {
-    document_was_read_from(10, dom)
+    document_was_read_from(11, dom)
 }
 
 /// The same, with a `compiled.json` of the given format.
@@ -146,10 +146,15 @@ fn a_well_formed_dom_is_used() {
     assert!(!document_was_read(&with_tags(difference)));
     let not_subset = r#"{"op":"⊈","left":{"tag":"T"},"right":{"call":"tags","args":[{"capture":"w"}]}}"#;
     assert!(!document_was_read(&with_condition(not_subset)));
-    let member = r#"{"op":"∉","left":{"string":"b"},"right":{"call":"runs","args":[{"capture":"w"}]}}"#;
-    assert!(!document_was_read(&with_condition(member)));
-    let empty = r#"{"op":"=","left":{"emptySet":true},"right":{"call":"runs","args":[{"capture":"w"}]}}"#;
-    assert!(!document_was_read(&with_condition(empty)));
+    let runs = r#"{"call":"split","args":[{"call":"phonemes","args":[{"capture":"w"}]},{"string":"."}]}"#;
+    let member = format!(r#"{{"op":"∉","left":{{"string":"b"}},"right":{runs}}}"#);
+    assert!(!document_was_read(&with_condition(&member)));
+    let empty = format!(r#"{{"op":"=","left":{{"emptySet":true}},"right":{runs}}}"#);
+    assert!(!document_was_read(&with_condition(&empty)));
+    // tag of a string, as a tag term and in a condition (engine §10).
+    assert!(!document_was_read(&with_tags(r#"{"call":"tag","args":[{"call":"text","args":[{"capture":"x"}]}]}"#)));
+    let named = r#"{"op":"=","left":{"call":"tag","args":[{"string":"T"}]},"right":{"tag":"T"}}"#;
+    assert!(!document_was_read(&with_condition(named)));
     assert!(!document_was_read(&with_directive(r#"{"name":"elidable","args":["KU","ku"],"at":[2,30]}"#)));
     // A spelled reference or terminal, captured or not, and a
     // spelled symbol below 255 compound nodes, itself a compound node (§9).
@@ -177,7 +182,8 @@ fn a_well_formed_dom_is_used() {
 
 #[test]
 fn a_cache_of_another_format_is_a_miss() {
-    assert!(!document_was_read_from(10, &with_rule("")));
+    assert!(!document_was_read_from(11, &with_rule("")));
+    assert!(document_was_read_from(10, &with_rule("")), "a format-10 cache is never used");
     assert!(document_was_read_from(9, &with_rule("")), "a format-9 cache is never used");
     assert!(document_was_read_from(8, &with_rule("")), "a format-8 cache is never used");
     assert!(document_was_read_from(7, &with_rule("")), "a format-7 cache is never used");
@@ -243,7 +249,7 @@ const MALFORMED_BESIDE_A_SEQUENCE: [&str; 4] =
 fn a_bootstrap_with_a_malformed_range_or_property_is_an_error() {
     let refusal = |dom: String| {
         let bootstrap = format!(
-            r#"{{"format":10,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{dom}}}]}}]}}"#
+            r#"{{"format":11,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{dom}}}]}}]}}"#
         );
         let sources = [
             ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
@@ -414,10 +420,32 @@ fn every_malformed_dom_is_a_cache_miss() {
         ("after as a value", with_tags(r#"{"call":"after","args":[{"capture":"x"}]}"#)),
         ("from of a value", with_tags(r#"{"call":"text","args":[{"call":"from","args":[{"string":"x"}]}]}"#)),
         (
-            "lowercase of a tag set",
-            with_condition(r#"{"op":"=","left":{"call":"lowercase","args":[{"tag":"x"}]},"right":{"string":"x"}}"#),
+            "lowercase, which is no function",
+            with_condition(r#"{"op":"=","left":{"call":"lowercase","args":[{"string":"x"}]},"right":{"string":"x"}}"#),
         ),
-        ("lowercase of a span", with_tags(r#"{"call":"lowercase","args":[{"capture":"x"}]}"#)),
+        (
+            "runs, which is no function",
+            with_condition(r#"{"op":"∈","left":{"string":"x"},"right":{"call":"runs","args":[{"capture":"w"}]}}"#),
+        ),
+        ("tag of a tag set", with_tags(r#"{"call":"tag","args":[{"tag":"x"}]}"#)),
+        ("tag of a span", with_tags(r#"{"call":"tag","args":[{"capture":"x"}]}"#)),
+        ("tag of a string that is not a name", with_tags(r#"{"call":"tag","args":[{"string":"x y"}]}"#)),
+        (
+            "split of one string",
+            with_condition(r#"{"op":"∈","left":{"string":"x"},"right":{"call":"split","args":[{"string":"x"}]}}"#),
+        ),
+        (
+            "split of a span",
+            with_condition(
+                r#"{"op":"∈","left":{"string":"x"},"right":{"call":"split","args":[{"capture":"w"},{"string":"."}]}}"#,
+            ),
+        ),
+        (
+            "split with an empty delimiter",
+            with_condition(
+                r#"{"op":"∈","left":{"string":"x"},"right":{"call":"split","args":[{"string":"x"},{"string":""}]}}"#,
+            ),
+        ),
         ("a capture on the left of ∈", with_condition(r#"{"op":"∈","left":{"capture":"w"},"right":{"capture":"w"}}"#)),
         (
             "tags on the left of ∉",
@@ -469,7 +497,7 @@ fn every_malformed_dom_is_a_cache_miss() {
         (
             "a union of a set of strings and a tag set",
             with_condition(
-                r#"{"op":"=","left":{"emptySet":true},"right":{"union":[{"call":"runs","args":[{"capture":"w"}]},{"tag":"T"}]}}"#,
+                r#"{"op":"=","left":{"emptySet":true},"right":{"union":[{"call":"split","args":[{"call":"phonemes","args":[{"capture":"w"}]},{"string":"."}]},{"tag":"T"}]}}"#,
             ),
         ),
         ("a guarded string", with_tags(r#"{"if":{"captured":"x"},"then":{"string":"T"}}"#)),
@@ -593,7 +621,7 @@ fn every_malformed_dom_is_a_cache_miss() {
 #[test]
 fn a_malformed_bootstrap_is_an_error() {
     let bootstrap = format!(
-        r#"{{"format":10,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
+        r#"{{"format":11,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
         with_emission(r#"{"items":[{"capture":""},{"insert":"X"}]}"#)
     );
     let sources = [
@@ -612,7 +640,7 @@ fn a_refused_bootstrap_spelling_is_an_error() {
     let refusal = |expr: &str| {
         let alternative = format!(r#"{{"guards":[],"expr":{expr}}}"#);
         let bootstrap = format!(
-            r#"{{"format":10,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
+            r#"{{"format":11,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
             with_alternative(&alternative)
         );
         let sources = [
@@ -646,7 +674,7 @@ fn a_refused_bootstrap_spelling_is_an_error() {
 fn a_bootstrap_term_of_two_forms_is_an_error() {
     let refusal = |term: &str| {
         let bootstrap = format!(
-            r#"{{"format":10,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
+            r#"{{"format":11,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
             with_tags(term)
         );
         let sources = [
@@ -684,4 +712,249 @@ fn a_document_nested_too_deeply_is_an_error_at_its_rule() {
     let deep = format!("```jbogenbau\n%rule a B\n%rule c {}B{}\n```\n", "[".repeat(257), "]".repeat(257));
     let error = gencmu::tools::read_grammar_document(&deep).expect_err("nested more than 256 deep");
     assert_eq!((error.line, error.column), (Some(3), Some(1)), "{error}");
+}
+
+/// A DOM like the document's, accepting "b", with the constants given and
+/// a condition on the text rule, which captures its token as `x`.
+fn with_constants(constants: &str, condition: &str) -> String {
+    let conditions = if condition.is_empty() { String::new() } else { condition.to_string() };
+    let rule = format!(
+        r#"{{"name":"text","op":"define","alternatives":[{{"guards":[],"expr":{{"capture":"x","expr":{{"terminal":"b"}}}}}}],"conditions":[{conditions}],"at":[3,1]}}"#
+    );
+    format!(
+        r#"{{"format":11,"rules":[{rule}],"directives":[{{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}}],"constants":[{constants}]}}"#
+    )
+}
+
+/// A constant's definition at line `line`, with its value.
+fn constant(name: &str, op: &str, value: &str, line: usize) -> String {
+    format!(r#"{{"name":"{name}","op":"{op}","value":{value},"at":[{line},1]}}"#)
+}
+
+/// A precompiled constant, and a reference to one, are checked as the
+/// reader checks them (engine §2, §9).
+#[test]
+fn a_precompiled_constant_is_checked() {
+    let k = constant("K", "define", r#"{"tag":"a"}"#, 5);
+    let used = [
+        with_constants(&k, ""),
+        with_constants(&k, r#"{"op":"⊆","left":{"tag":"a"},"right":{"const":"K","at":[3,20]}}"#),
+        with_constants(
+            &format!(
+                "{},{}",
+                constant("S", "define", r#"{"string":"."}"#, 5),
+                constant("T", "define", r#"{"call":"split","args":[{"string":"a.b"},{"const":"S","at":[6,20]}]}"#, 6)
+            ),
+            r#"{"op":"∈","left":{"string":"a"},"right":{"const":"T","at":[3,20]}}"#,
+        ),
+        with_constants(
+            &format!("{k},{}", constant("K", "redefine", r#"{"emptySet":true}"#, 6)),
+            r#"{"op":"=","left":{"emptySet":true},"right":{"const":"K","at":[3,20]}}"#,
+        ),
+    ];
+    for dom in &used {
+        assert!(!document_was_read(dom), "the cache entry should be used: {dom}");
+    }
+    let refused = [
+        ("no constants", dom(B, "", "", 11, r#""greedy""#).replace(r#","constants":[]"#, "")),
+        ("a name without a capital", with_constants(&constant("k", "define", r#"{"tag":"a"}"#, 5), "")),
+        ("an unknown op", with_constants(&constant("K", "extend", r#"{"tag":"a"}"#, 5), "")),
+        (
+            "a constant without a position",
+            with_constants(r#"{"name":"K","op":"define","value":{"tag":"a"},"at":null}"#, ""),
+        ),
+        (
+            "a constant with another member",
+            with_constants(r#"{"name":"K","op":"define","value":{"tag":"a"},"at":[5,1],"extra":true}"#, ""),
+        ),
+        ("a capture in a value", with_constants(&constant("K", "define", r#"{"capture":"x"}"#, 5), "")),
+        (
+            "phonemes in a value",
+            with_constants(&constant("K", "define", r#"{"call":"phonemes","args":[{"capture":"x"}]}"#, 5), ""),
+        ),
+        (
+            "a guarded term in a value",
+            with_constants(&constant("K", "define", r#"{"if":{"captured":"x"},"then":{"tag":"a"}}"#, 5), ""),
+        ),
+        ("∅ as a defined value", with_constants(&constant("K", "define", r#"{"emptySet":true}"#, 5), "")),
+        (
+            "a union of a string and a tag set",
+            with_constants(&constant("K", "define", r#"{"union":[{"string":"a"},{"tag":"b"}]}"#, 5), ""),
+        ),
+        (
+            "an empty delimiter in a value",
+            with_constants(
+                &constant("K", "define", r#"{"call":"split","args":[{"string":"a"},{"string":""}]}"#, 5),
+                "",
+            ),
+        ),
+        (
+            "a reference whose name has no capital",
+            with_constants(&k, r#"{"op":"⊆","left":{"tag":"a"},"right":{"const":"k","at":[3,20]}}"#),
+        ),
+        (
+            "a reference without a position",
+            with_constants(&k, r#"{"op":"⊆","left":{"tag":"a"},"right":{"const":"K"}}"#),
+        ),
+        (
+            "a reference that holds a value",
+            with_constants(&k, r#"{"op":"⊆","left":{"tag":"a"},"right":{"const":"K","at":[3,20],"value":{"set":[]}}}"#),
+        ),
+        (
+            "a tag set in ∈, whatever the constant",
+            with_constants(&k, r#"{"op":"∈","left":{"tag":"a"},"right":{"const":"K","at":[3,20]}}"#),
+        ),
+        ("a constant at a rule's position", with_constants(&constant("K", "define", r#"{"tag":"a"}"#, 3), "")),
+    ];
+    let mut used = Vec::new();
+    for (name, dom) in &refused {
+        if !document_was_read(dom) {
+            used.push(*name);
+        }
+    }
+    assert!(used.is_empty(), "these malformed DOMs were used from the cache: {used:?}");
+}
+
+/// A cached DOM holds a constant as the document writes it, and the loader
+/// gives it its value when it stitches the stage (engine §2, §8).
+#[test]
+fn a_precompiled_constant_serves_the_parse() {
+    let document = "```jbogenbau\n%ambiguity-resolution greedy\n%const $K ~a ∪ B\n%rule text 'a' <$K>\n```\n";
+    let read = gencmu::tools::read_grammar_document(document).expect("the document");
+    assert!(
+        read.contains(
+            r#""constants":[{"name":"K","op":"define","value":{"union":[{"tag":"a"},{"tag":"B"}]},"at":[3,1]}]"#
+        ),
+        "{read}"
+    );
+    // The tags of the parse's tree, with the cache entry given.
+    let tags = |entry: Option<&str>| {
+        let mut sources = vec![
+            ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+            ("g.md", document.to_string()),
+        ];
+        if let Some(entry) = entry {
+            let compiled = format!(
+                r#"{{"format":11,"bootstrap":"{}","documents":{{"g.md":{{"hash":"{}","dom":{entry}}}}}}}"#,
+                gencmu::tools::bootstrap_hash(),
+                gencmu::tools::fnv1a64(document)
+            );
+            sources.push(("compiled.json", compiled));
+        }
+        let dialect = gencmu::load_dialect_sources(sources, "p.md").expect("a dialect");
+        let options = gencmu::ParseOptions { auto_features: false, ..Default::default() };
+        let result = dialect.parse("a", &options).expect("a parse");
+        let tree = result.tree.expect("a tree");
+        tree.tags.iter().cloned().collect::<Vec<String>>()
+    };
+    assert_eq!(tags(None), ["B", "a"]);
+    assert_eq!(tags(Some(&read)), ["B", "a"]);
+    // A hit: the entry's constant, changed, is the one the parse sees.
+    assert_eq!(tags(Some(&read.replace(r#"{"tag":"a"}"#, r#"{"tag":"c"}"#))), ["B", "c"]);
+    // A miss: an entry whose reference holds a value, or whose constant is
+    // malformed, is refused, and the document is read instead.
+    let changed = read.replace(r#"{"const":"K","at":[4,17]}"#, r#"{"const":"K","at":[4,17],"value":{"tag":"c"}}"#);
+    assert_ne!(changed, read);
+    assert_eq!(tags(Some(&changed.replace(r#"{"tag":"a"}"#, r#"{"tag":"c"}"#))), ["B", "a"]);
+    let open = read.replace(r#""value":{"union":[{"tag":"a"},{"tag":"B"}]}"#, r#""value":{"capture":"x"}"#);
+    assert_ne!(open, read);
+    assert_eq!(tags(Some(&open)), ["B", "a"]);
+}
+
+/// A malformed constant in the bootstrap is an error of the grammar.
+#[test]
+fn a_bootstrap_with_a_malformed_constant_is_an_error() {
+    let refusal = |constants: &str| {
+        let bootstrap = format!(
+            r#"{{"format":11,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
+            with_constants(constants, "")
+        );
+        let sources = [
+            ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+            ("g.md", DOCUMENT.to_string()),
+            ("notation/bootstrap.json", bootstrap),
+        ];
+        let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("a notation that cannot read g.md");
+        assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
+        error.message.strip_prefix("bootstrap.json: ").map(str::to_string)
+    };
+    // A bootstrap that is read, whose notation then fails on g.md.
+    assert_eq!(refusal(&constant("K", "define", r#"{"tag":"a"}"#, 5)), None);
+    assert_eq!(refusal(&constant("k", "define", r#"{"tag":"a"}"#, 5)).as_deref(), Some("a malformed constant"));
+}
+
+/// A constant's value nested `depth` unions deep.
+fn deep_value(depth: usize) -> String {
+    format!(r#"{}{{"tag":"a"}}{}"#, r#"{"union":["#.repeat(depth), r#",{"tag":"B"}]}"#.repeat(depth))
+}
+
+/// A cached constant nested too deeply is a miss, found before any walk
+/// that recurses (engine §9).
+#[test]
+fn a_precompiled_constant_nested_too_deeply_is_a_miss() {
+    assert!(!document_was_read(&with_constants(&constant("K", "define", &deep_value(256), 5), "")));
+    assert!(document_was_read(&with_constants(&constant("K", "define", &deep_value(257), 5), "")));
+    // As deep as compiled.json can hold.
+    assert!(document_was_read(&with_constants(&constant("K", "define", &deep_value(500), 5), "")));
+}
+
+/// A bootstrap constant nested too deeply is an error of the grammar,
+/// found before any walk that recurses (engine §9).
+#[test]
+fn a_bootstrap_constant_nested_too_deeply_is_an_error() {
+    let bootstrap = format!(
+        r#"{{"format":11,"stages":[{{"name":"lexical","documents":[{{"path":"notation/lexical.md","dom":{}}}]}}]}}"#,
+        with_constants(&constant("K", "define", &deep_value(500), 5), "")
+    );
+    let sources = [
+        ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+        ("g.md", DOCUMENT.to_string()),
+        ("notation/bootstrap.json", bootstrap),
+    ];
+    let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("a bootstrap nested too deeply");
+    assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
+    assert!(error.message.contains("nested too deeply"), "{}", error.message);
+}
+
+/// A cached DOM whose capture checks wait for a constant's value is used,
+/// and the loader makes the checks once the constants have their values
+/// (engine §3.6, §9).
+#[test]
+fn a_precompiled_clause_with_a_constant_waits_for_its_value() {
+    let document = |first: &str, last: &str| {
+        format!(
+            "```jbogenbau\n%ambiguity-resolution greedy\n%const $E {first}\n%rule text 'a' | $x('a')\n%tags Y ∪ ($E ∩ tags($x))\n%redefine-const $E {last}\n```\n"
+        )
+    };
+    // The tags of the parse's tree, or the load error's position, with the
+    // cache entry given.
+    let outcome = |document: &str, entry: Option<&str>| -> Result<Vec<String>, (usize, usize)> {
+        let mut sources = vec![
+            ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+            ("g.md", document.to_string()),
+        ];
+        if let Some(entry) = entry {
+            let compiled = format!(
+                r#"{{"format":11,"bootstrap":"{}","documents":{{"g.md":{{"hash":"{}","dom":{entry}}}}}}}"#,
+                gencmu::tools::bootstrap_hash(),
+                gencmu::tools::fnv1a64(document)
+            );
+            sources.push(("compiled.json", compiled));
+        }
+        let dialect = gencmu::load_dialect_sources(sources, "p.md")
+            .map_err(|error| (error.line.unwrap_or(0), error.column.unwrap_or(0)))?;
+        let options = gencmu::ParseOptions { auto_features: false, ..Default::default() };
+        let result = dialect.parse("a", &options).expect("a parse");
+        Ok(result.tree.expect("a tree").tags.iter().cloned().collect())
+    };
+    let empty = document("B", "$E ∖ B");
+    let read = gencmu::tools::read_grammar_document(&empty).expect("the document");
+    assert_eq!(outcome(&empty, None), Ok(vec!["Y".to_string()]));
+    assert_eq!(outcome(&empty, Some(&read)), Ok(vec!["Y".to_string()]));
+    // A hit: the entry, changed, is the one the parse sees.
+    assert_eq!(outcome(&empty, Some(&read.replace(r#"{"tag":"Y"}"#, r#"{"tag":"Z"}"#))), Ok(vec!["Z".to_string()]));
+    let full = document("B ∖ B", "B");
+    let read = gencmu::tools::read_grammar_document(&full).expect("the document");
+    assert_eq!(outcome(&full, None), Err((4, 1)));
+    assert_eq!(outcome(&full, Some(&read)), Err((4, 1)));
 }

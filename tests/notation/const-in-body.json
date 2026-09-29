@@ -1,0 +1,10 @@
+{
+  "description": "A constant cannot stand in a body, even where its value is a tag set. The error is at the constant (engine §9).",
+  "document": "```jbogenbau\n%const $DIGITS '0'..'9'\n%rule digit $DIGITS\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 13
+    }
+  }
+}

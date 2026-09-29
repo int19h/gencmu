@@ -1,0 +1,24 @@
+{
+  "description": "A constant's definition before the first %stage is an error of the dialect (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%const $K ~a\n%stage main\n%include \"g.md\"\n```\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text X\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "p.md",
+      "line": 2,
+      "column": 1
+    }
+  }
+}

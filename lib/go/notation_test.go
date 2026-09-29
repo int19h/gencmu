@@ -332,6 +332,30 @@ func TestNotationLexicalTags(t *testing.T) {
 	}
 }
 
+// The notation's lexical stage tags constants and the keywords that define
+// them (grammars/notation/lexical.md).
+func TestNotationLexicalConstants(t *testing.T) {
+	d, err := LoadDialect("notation")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := d.Parse(`%const $SU-STOPS %redefine-const $x $ $K1`, ParseOptions{Until: "lexical"})
+	if err != nil || !res.OK {
+		t.Fatalf("%v %+v", err, res)
+	}
+	var got [][2]string
+	for _, tok := range res.Stages[0].Output {
+		got = append(got, [2]string{tok.Text, strings.Join(tok.Tags, " ")})
+	}
+	want := [][2]string{
+		{"%const", "keyword-const"}, {"$SU-STOPS", "constant"}, {"%redefine-const", "keyword-redefine-const"},
+		{"$x", "capture"}, {"$", "capture"}, {"$K1", "constant"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got  %v\nwant %v", got, want)
+	}
+}
+
 // A character tag is one scalar value in one canonical spelling (engine
 // §1): the escapes of the reader and the engine's spelling agree.
 func TestCharacterTags(t *testing.T) {

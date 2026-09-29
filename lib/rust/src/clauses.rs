@@ -2,7 +2,7 @@
 //! §9): simplifying a clause for a production, the captures a clause uses,
 //! and the checks of a definition as a whole.
 
-use crate::dom::{Alternative, Arg, Cond, EmitItem, Expr, RuleDef, Term};
+use crate::dom::{constants_in_cond, constants_in_term, Alternative, Arg, Cond, EmitItem, Expr, RuleDef, Term};
 
 /// A condition simplified for a production: decided, or still to evaluate.
 #[derive(Debug, Clone, PartialEq)]
@@ -141,7 +141,7 @@ fn term_captures<'a>(term: &'a Term, out: &mut Vec<&'a str>) {
             cond_captures(cond, out);
             term_captures(then, out);
         }
-        Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet => {}
+        Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Const(..) => {}
     }
 }
 
@@ -224,8 +224,25 @@ pub(crate) fn alternative_captures(alternative: &Alternative) -> Vec<(&str, usiz
         .collect()
 }
 
+/// Whether a term holds a constant. A constant is its value in
+/// simplification (§3.6), and the DOM holds no value, so the checks that
+/// simplification decides wait for the loader, which substitutes the values
+/// and checks the definition again (§9).
+fn term_waits(term: &Term) -> bool {
+    let mut out = Vec::new();
+    constants_in_term(term, &mut out);
+    !out.is_empty()
+}
+
+fn cond_waits(cond: &Cond) -> bool {
+    let mut out = Vec::new();
+    constants_in_cond(cond, &mut out);
+    !out.is_empty()
+}
+
 /// Why a definition, a rule's alternatives with its own clauses, is an
-/// error of the document (engine §9), or `None`.
+/// error of the document (engine §9), or `None`. The checks that
+/// simplification decides skip a clause that holds a constant.
 pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
     let alternatives: Vec<Vec<(&str, usize)>> = rule.alternatives.iter().map(alternative_captures).collect();
     let captures_of = |index: usize| {
@@ -267,7 +284,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
     }
 
     // A condition that applies to no alternative.
-    for cond in &rule.conditions {
+    for cond in rule.conditions.iter().filter(|cond| !cond_waits(cond)) {
         let applies = (0..alternatives.len()).any(|index| {
             let has = captures_of(index);
             match simplify_cond(cond, &has) {
@@ -286,7 +303,9 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
     };
     for (index, alternative) in rule.alternatives.iter().enumerate() {
         let has = captures_of(index);
-        for term in [rule.tags.as_ref(), alternative.tags.as_ref()].into_iter().flatten() {
+        for term in
+            [rule.tags.as_ref(), alternative.tags.as_ref()].into_iter().flatten().filter(|term| !term_waits(term))
+        {
             if let Some(simple) = simplify_term(term, &has) {
                 if let Some(missing) = term_uses(&simple).into_iter().find(|name| !has(name)) {
                     return Some(unguarded(missing));
@@ -322,6 +341,9 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
         }
         for item in &present {
             if let EmitItem::Capture(_, Some(term)) = item {
+                if term_waits(term) {
+                    continue;
+                }
                 if let Some(simple) = simplify_term(term, &has) {
                     if let Some(missing) = term_uses(&simple).into_iter().find(|name| !has(name)) {
                         return Some(unguarded(missing));

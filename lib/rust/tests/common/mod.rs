@@ -331,6 +331,25 @@ pub fn feature_value(feature: &gencmu::Feature) -> Value {
     ])
 }
 
+/// Compares where the error of a grammar that cannot be loaded stands with
+/// the case's `expect.where`, if it has one (tests/README.md).
+fn error_where(expect: &Value, error: &gencmu::Error) -> Result<(), String> {
+    let Some(place) = expect.get("where") else {
+        return Ok(());
+    };
+    let document = place.get("document").and_then(Value::str);
+    let line = place.get("line").and_then(Value::number).map(|n| n as usize);
+    let column = place.get("column").and_then(Value::number).map(|n| n as usize);
+    if error.document.as_deref() == document && error.line == line && error.column == column {
+        Ok(())
+    } else {
+        Err(format!(
+            "the error is at {:?}:{:?}:{:?}, not {document:?}:{line:?}:{column:?}: {error}",
+            error.document, error.line, error.column
+        ))
+    }
+}
+
 /// Runs one engine case (tests/README.md); the error says what differs.
 pub fn run_engine_case(case: &Value) -> Result<(), String> {
     let (documents, pipeline) = case_documents(case);
@@ -339,7 +358,7 @@ pub fn run_engine_case(case: &Value) -> Result<(), String> {
         Ok(dialect) => dialect,
         Err(error) => {
             return match (expect.get("error").and_then(Value::str), expect.get("result")) {
-                (Some("grammar"), None) if error.kind == gencmu::ErrorKind::Grammar => Ok(()),
+                (Some("grammar"), None) if error.kind == gencmu::ErrorKind::Grammar => error_where(expect, &error),
                 _ => Err(format!("the dialect did not load: {error}")),
             };
         }

@@ -7,13 +7,24 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 10
+const domFormat = 11
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
 type domDoc struct {
 	Rules      []*domRule
 	Directives []*domDirective
+	Constants  []*domConst
+}
+
+// domConst is a constant's definition (engine §2): %const, "define", or
+// %redefine-const, "redefine", its name without $, and its value, a closed
+// term. The DOM never holds the value the loader gives the constant.
+type domConst struct {
+	Name  string
+	Op    string
+	Value *domTerm
+	At    [2]int
 }
 
 type domRule struct {
@@ -71,7 +82,8 @@ type domExpr struct {
 // whole constituent, or a tmCall of head, tail, last, from or after; a rule
 // argument is tmRule. A difference, a ∖ b, has exactly two items. A guarded
 // term, A ⟹ t, is tmIf: Cond is A, and Items holds t alone. A range,
-// 'a'..'z', is tmRange, its ends in Range.
+// 'a'..'z', is tmRange, its ends in Range. A reference to a constant is
+// tmConst, its name without $ in Str and its position in At.
 const (
 	tmString       = "string"
 	tmTag          = "tag"
@@ -84,6 +96,7 @@ const (
 	tmRule         = "rule"
 	tmIf           = "if"
 	tmRange        = "range"
+	tmConst        = "const"
 )
 
 type domTerm struct {
@@ -92,6 +105,10 @@ type domTerm struct {
 	Items []*domTerm // union, intersection, difference, call arguments; if: its term
 	Cond  *domCond   // if: its condition
 	Range [2]string  // range: its two ends
+	At    [2]int     // const: the position of the reference
+	// value is a constant's final value in its stage, which only a
+	// stitched grammar's copy of the reference holds (engine §2).
+	value *constValue
 }
 
 // isSpanFunction says whether a function gives a span (engine §10).
@@ -185,6 +202,21 @@ func (d *domDoc) writeJSON(w *jsonWriter) {
 		}
 		w.raw(`],"at":`)
 		w.pair(dir.At)
+		w.raw("}")
+	}
+	w.raw(`],"constants":[`)
+	for i, k := range d.Constants {
+		if i > 0 {
+			w.raw(",")
+		}
+		w.raw(`{"name":`)
+		w.str(k.Name)
+		w.raw(`,"op":`)
+		w.str(k.Op)
+		w.raw(`,"value":`)
+		k.Value.writeJSON(w)
+		w.raw(`,"at":`)
+		w.pair(k.At)
 		w.raw("}")
 	}
 	w.raw("]}")
@@ -318,6 +350,12 @@ func (t *domTerm) writeJSON(w *jsonWriter) {
 		w.raw("}")
 	case tmEmptySet:
 		w.raw(`{"emptySet":true}`)
+	case tmConst:
+		w.raw(`{"const":`)
+		w.str(t.Str)
+		w.raw(`,"at":`)
+		w.pair(t.At)
+		w.raw("}")
 	case tmRange:
 		writeRange(w, t.Range)
 	case tmUnion, tmIntersection, tmDifference:
@@ -464,7 +502,18 @@ func decodeDOM(raw json.RawMessage, uni *unicodeTable) (*domDoc, error) {
 	if err := unmarshal(o["directives"], &dirs); err != nil {
 		return nil, err
 	}
+	var consts []json.RawMessage
+	if err := unmarshal(o["constants"], &consts); err != nil {
+		return nil, fmt.Errorf("not a DOM of format %d", domFormat)
+	}
 	d := &domDoc{}
+	for _, k := range consts {
+		constant, err := decodeConst(k)
+		if err != nil {
+			return nil, err
+		}
+		d.Constants = append(d.Constants, constant)
+	}
 	for _, r := range rules {
 		rule, err := decodeRule(r)
 		if err != nil {
@@ -495,6 +544,30 @@ func decodeDOM(raw json.RawMessage, uni *unicodeTable) (*domDoc, error) {
 		return nil, err
 	}
 	return d, nil
+}
+
+// decodeConst reads a constant's definition, which has exactly its name,
+// its op, its value and its position.
+func decodeConst(raw json.RawMessage) (*domConst, error) {
+	o, err := decodeObj(raw)
+	malformed := fmt.Errorf("a malformed constant")
+	if err != nil || len(o) != 4 || o["value"] == nil {
+		return nil, malformed
+	}
+	k := &domConst{}
+	if k.Name, err = decodeString(o["name"]); err != nil {
+		return nil, malformed
+	}
+	if k.Op, err = decodeString(o["op"]); err != nil {
+		return nil, malformed
+	}
+	if k.At, err = decodePosition(o["at"]); err != nil {
+		return nil, malformed
+	}
+	if k.Value, err = decodeTerm(o["value"]); err != nil {
+		return nil, err
+	}
+	return k, nil
 }
 
 func decodeRule(raw json.RawMessage) (*domRule, error) {
@@ -712,7 +785,7 @@ func decodeExpr(raw json.RawMessage) (*domExpr, error) {
 // The first member names the form. A rule argument is one too.
 var termForms = [][]string{
 	{tmUnion}, {tmIntersection}, {tmDifference}, {tmIf, "then"}, {tmCall, "args"},
-	{tmString}, {tmTag}, {tmRange}, {tmEmptySet}, {tmCapture}, {tmRule},
+	{tmString}, {tmTag}, {tmRange}, {tmEmptySet}, {tmCapture}, {tmRule}, {tmConst, "at"},
 }
 
 // decodeRange decodes a range's two ends, which the checker then holds to
@@ -763,6 +836,14 @@ func decodeTerm(raw json.RawMessage) (*domTerm, error) {
 	}
 	if isTrue(o["emptySet"]) {
 		return &domTerm{Kind: tmEmptySet}, nil
+	}
+	if v, ok := o[tmConst]; ok {
+		name, err := decodeString(v)
+		if err != nil {
+			return nil, err
+		}
+		at, err := decodePosition(o["at"])
+		return &domTerm{Kind: tmConst, Str: name, At: at}, err
 	}
 	if v, ok := o[tmRange]; ok {
 		r, err := decodeRange(v)

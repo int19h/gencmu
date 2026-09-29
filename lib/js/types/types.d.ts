@@ -179,6 +179,13 @@ export type GrammarDom = {
     format: number;
     rules: DomRule[];
     directives: DomDirective[];
+    constants: DomConstant[];
+};
+export type DomConstant = {
+    name: string;
+    op: "define" | "redefine";
+    value: Term;
+    at: Position;
 };
 export type DomDirective = {
     name: string;
@@ -300,6 +307,11 @@ export type Term = {
     args: Argument[];
 } | {
     capture: string;
+} | ConstantTerm;
+export type ConstantTerm = {
+    const: string;
+    at: Position;
+    value?: TermValue;
 };
 export type Argument = Term | {
     rule: string;
@@ -618,6 +630,16 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {number} format
  * @property {DomRule[]} rules
  * @property {DomDirective[]} directives
+ * @property {DomConstant[]} constants
+ */
+/**
+ * A constant's definition: `%const` or `%redefine-const`, the name without
+ * `$`, and its value, a closed term (engine §2, §10).
+ * @typedef {object} DomConstant
+ * @property {string} name
+ * @property {"define" | "redefine"} op
+ * @property {Term} value
+ * @property {Position} at
  */
 /**
  * @typedef {object} DomDirective
@@ -688,7 +710,12 @@ export type ParseContext = import("./earley.js").ParseContext;
  * empty set, a set expression, a guarded term, a call, or a span, which
  * only a call's argument can be (engine §10).
  * @typedef {{string: string} | {tag: string} | {range: [string, string]} | {emptySet: true} | {union: Term[]} | {if: Condition, then: Term}
- *   | {intersection: Term[]} | {difference: [Term, Term]} | {call: string, args: Argument[]} | {capture: string}} Term
+ *   | {intersection: Term[]} | {difference: [Term, Term]} | {call: string, args: Argument[]} | {capture: string} | ConstantTerm} Term
+ */
+/**
+ * A reference to a constant, with the position of the reference. In a
+ * stitched grammar, it also holds the constant's final value (engine §2).
+ * @typedef {{const: string, at: Position, value?: TermValue}} ConstantTerm
  */
 /**
  * A function's argument: a term, or the name of a rule.

@@ -91,3 +91,9 @@ class UnicodeTable:
     def lowercase(self, text: str) -> str:
         lower = self.lower
         return "".join(chr(lower.get(ord(char), ord(char))) for char in text)
+
+    def canonical(self, text: str) -> str:
+        """The canonical form of a sound (engine §5): each code point
+        replaced by its simple lowercase mapping, and every comma, the
+        syllable break, removed."""
+        return self.lowercase(text).replace(",", "")

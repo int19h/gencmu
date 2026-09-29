@@ -14,6 +14,7 @@ from typing import Any, Callable
 import gencmu
 from gencmu._dialect import DOM_FORMAT, _unicode_table, bundled_text, read_document
 from gencmu._hash import fnv1a64
+from gencmu._model import Token
 from gencmu._validate import Lowercase
 from gencmu._validate import dom_problem as _dom_problem
 
@@ -122,7 +123,7 @@ TAGS_X = {"call": "tags", "args": [X]}
 WHOLE = {"capture": ""}
 TAG = {"tag": "b"}
 STR = {"string": "b"}
-RUNS = {"call": "runs", "args": [X]}
+RUNS = {"call": "split", "args": [{"call": "phonemes", "args": [X]}, {"string": "."}]}
 TEXT = {"call": "text", "args": [X]}
 SAME = {"op": "=", "left": STR, "right": STR}
 
@@ -182,8 +183,22 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("a literal", set_tags({"literal": "b"})),
     ("a string as a tag term", set_tags(STR)),
     ("a set of strings as a tag term", set_tags(RUNS)),
-    ("lowercase of a tag set", set_condition({"op": "=", "left": {"call": "lowercase", "args": [TAG]}, "right": STR})),
-    ("lowercase of a span", set_tags({"call": "lowercase", "args": [X]})),
+    ("lowercase, which is no function", set_condition({"op": "=", "left": {"call": "lowercase", "args": [STR]}, "right": STR})),
+    ("runs, which is no function", set_condition({"op": "∈", "left": STR, "right": {"call": "runs", "args": [X]}})),
+    ("tag of a tag set", set_tags({"call": "tag", "args": [TAG]})),
+    ("tag of a span", set_tags({"call": "tag", "args": [X]})),
+    ("tag of two strings", set_tags({"call": "tag", "args": [STR, STR]})),
+    ("tag of a string that is no name", set_tags({"call": "tag", "args": [{"string": "x y"}]})),
+    ("split of one string", set_condition({"op": "∈", "left": STR, "right": {"call": "split", "args": [STR]}})),
+    ("split of a span", set_condition({"op": "∈", "left": STR, "right": {"call": "split", "args": [X, STR]}})),
+    ("split of a tag set", set_condition({"op": "∈", "left": STR, "right": {"call": "split", "args": [TAG, STR]}})),
+    ("split with an empty delimiter", set_condition({"op": "∈", "left": STR, "right": {"call": "split", "args": [STR, {"string": ""}]}})),
+    # A reference to a constant has a name with a capital and a position,
+    # and never a value (engine §9, docs/output.md).
+    ("a constant with a lower-case name", set_tags({"const": "k", "at": [9, 20]})),
+    ("a constant without a position", set_tags({"const": "K"})),
+    ("a constant with a value", set_tags({"const": "K", "at": [9, 20], "value": {"set": []}})),
+    ("a constant where a string must be a set", set_condition({"op": "∈", "left": TAG, "right": {"const": "K", "at": [9, 20]}})),
     ("a capture on the left of ∈", set_condition({"op": "∈", "left": X, "right": RUNS})),
     ("tags on the left of ∉", set_condition({"op": "∉", "left": TAGS_X, "right": STR})),
     ("a string in a tag set", set_condition({"op": "∈", "left": STR, "right": TAGS_X})),
@@ -461,6 +476,13 @@ class PrecompiledDomRules(unittest.TestCase):
             ("⊈", set_condition({"op": "⊈", "left": TAG, "right": TAGS_X})),
             ("a string in a set of strings", set_condition({"op": "∈", "left": TEXT, "right": RUNS})),
             ("∅ compared with a set of strings", set_condition({"op": "=", "left": {"emptySet": True}, "right": RUNS})),
+            ("tag of a string", set_tags({"call": "tag", "args": [STR]})),
+            ("tag of text", set_tags({"call": "tag", "args": [TEXT]})),
+            # The reader cannot know a constant's type, so it fits any value
+            # but a span (engine §9).
+            ("a constant as a tag set", set_tags({"union": [TAG, {"const": "K", "at": [9, 20]}]})),
+            ("constants on both sides of ∈", set_condition({"op": "∈", "left": {"const": "S", "at": [9, 20]}, "right": {"const": "T", "at": [9, 30]}})),
+            ("a constant as split's delimiter", set_condition({"op": "∈", "left": TEXT, "right": {"call": "split", "args": [TEXT, {"const": "D", "at": [9, 20]}]}})),
             ("a character tag", set_tags({"union": [{"tag": "'\\u{5C}'"}, {"tag": "'é'"}]})),
             ("an elidable tag", lambda dom: dom["directives"].append({"name": "elidable", "args": ["KU", "ku"], "at": [9, 1]})),
             ("an emitted item dropped where its capture is missing", with_bare_alternative(set_emit({"items": [{"capture": "x"}, {"insert": "Y"}]}))),
@@ -489,6 +511,7 @@ class PrecompiledDomRules(unittest.TestCase):
             ("a spelling of #", {"seq": [{"capture": "x", "expr": A}, spelled("a", {"ref": "#"})]}, "a spelling follows only a reference other than # or a terminal"),
             ("a spelling of a spelling", {"capture": "x", "expr": spelled("a", spelled("a"))}, "a spelling follows only a reference other than # or a terminal"),
             ("a spelling with a backtick", {"capture": "x", "expr": spelled("a`b")}, "a spelling holds a backtick"),
+            ("a spelling with a comma", {"capture": "x", "expr": spelled("ko,a")}, "the spelling ko,a holds a comma, which no canonical sound holds"),
             ("a spelling of an empty terminal", {"capture": "x", "expr": spelled("a", {"empty": True, "terminal": "a"})}, "a spelling follows only a reference other than # or a terminal"),
             ("a spelling of a reference and a terminal", {"capture": "x", "expr": spelled("a", {"ref": "text", "terminal": "a"})}, "a spelling follows only a reference other than # or a terminal"),
             ("a spelled symbol that is also empty", {"capture": "x", "expr": {**spelled("a"), "empty": True}}, "a malformed expression"),
@@ -679,6 +702,198 @@ class CharacterClassLoading(unittest.TestCase):
         for name, change in _class_changes():
             with self.subTest(refused=name):
                 self.assertTrue(refused(with_rule(change)))
+
+
+
+CONSTANT_SOURCES = {
+    "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%const $K ~a ∪ B\n%rule text A <$K>\n```\n",
+}
+
+
+class Constants(unittest.TestCase):
+    """A constant's definition and a reference to one in a precompiled or
+    bootstrap DOM are checked as the reader checks them (engine §2, §9)."""
+
+    @staticmethod
+    def text(constants: list[Dom], conditions: list[Dom] | None = None) -> Dom:
+        return {
+            "format": DOM_FORMAT,
+            "rules": [{"name": "text", "op": "define", "alternatives": [{"guards": [], "expr": {"ref": "A"}}], "conditions": conditions or [], "at": [9, 1]}],
+            "directives": [],
+            "constants": constants,
+        }
+
+    @staticmethod
+    def constant(value: Any, **extra: Any) -> Dom:
+        return {"name": "K", "op": "define", "value": value, "at": [1, 1], **extra}
+
+    def test_a_precompiled_constant_is_checked(self) -> None:
+        text, constant = self.text, self.constant
+        self.assertIsNone(dom_problem(text([constant({"tag": "a"})])))
+        split = {"call": "split", "args": [{"string": "a.b"}, {"const": "K", "at": [2, 20]}]}
+        self.assertIsNone(dom_problem(text([constant({"string": "."}), constant(split, name="S", at=[2, 1])])))
+        self.assertIsNone(dom_problem(text([constant({"emptySet": True}, op="redefine")])))
+        self.assertEqual(dom_problem({"format": DOM_FORMAT, "rules": [], "directives": []}), f"not a DOM of format {DOM_FORMAT}")
+        for extra in ({"name": "k"}, {"op": "extend"}, {"at": None}, {"extra": True}):
+            with self.subTest(extra=extra):
+                self.assertEqual(dom_problem(text([constant({"tag": "a"}, **extra)])), "a malformed constant")
+        for value in ({"capture": "x"}, {"call": "phonemes", "args": [{"capture": "x"}]}, {"if": {"captured": "x"}, "then": {"tag": "a"}}):
+            with self.subTest(value=value):
+                self.assertEqual(dom_problem(text([constant(value)])), "a constant's value is not a closed term")
+        self.assertIn("not given", str(dom_problem(text([constant({"emptySet": True})]))))
+        self.assertIn("joins sets", str(dom_problem(text([constant({"union": [{"string": "a"}, {"tag": "b"}]})]))))
+        empty = {"call": "split", "args": [{"string": "a"}, {"string": ""}]}
+        self.assertEqual(dom_problem(text([constant(empty)])), "split has an empty delimiter")
+        # Two items at one position, a constant among them.
+        self.assertEqual(dom_problem(text([constant({"tag": "a"}, at=[9, 1])])), "two items at one position")
+
+    def test_a_precompiled_constant_serves_the_parse(self) -> None:
+        """A cached DOM holds the constant, and the loader gives it its
+        value; one that holds a value, or a malformed definition, is a
+        miss, and the document is read instead (engine §2, §8)."""
+        token = [Token("a", frozenset(["A"]), (0, 1), (0, 1), None)]
+        fresh = gencmu.load_dialect_sources(CONSTANT_SOURCES, "p.md", use_cache=False)
+        expected = fresh.parse_tokens(token, "a", auto_features=False)
+        assert expected.tree is not None
+        self.assertEqual(sorted(expected.tree.tags), ["B", "a"])
+        dom = read_document(CONSTANT_SOURCES["g.md"], "g.md")
+        self.assertEqual(dom["constants"], [{"name": "K", "op": "define", "value": {"union": [{"tag": "a"}, {"tag": "B"}]}, "at": [3, 1]}])
+        bootstrap_hash = fnv1a64(bundled_text("notation/bootstrap.json") or "")
+
+        def parse(entry: Dom) -> str:
+            documents = {"g.md": {"hash": fnv1a64(CONSTANT_SOURCES["g.md"]), "dom": entry}}
+            compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "documents": documents})
+            dialect = gencmu.load_dialect_sources({**CONSTANT_SOURCES, "compiled.json": compiled}, "p.md")
+            return gencmu.to_json(dialect.parse_tokens(token, "a", auto_features=False))
+
+        # The control: an entry whose constant is ~c is used in place of the
+        # document.
+        control = copy.deepcopy(dom)
+        control["constants"][0]["value"] = {"tag": "c"}
+        self.assertIn('"tags":["c"]', parse(control))
+        self.assertEqual(parse(dom), gencmu.to_json(expected))
+        valued = copy.deepcopy(control)
+        alt(valued)["tags"] = {"const": "K", "at": [4, 15], "value": ["a"]}
+        opened = copy.deepcopy(control)
+        opened["constants"][0]["value"] = {"capture": "x"}
+        missing = copy.deepcopy(control)
+        del missing["constants"]
+        for bad in (valued, opened, missing):
+            with self.subTest(bad=bad):
+                self.assertIsNotNone(dom_problem(bad))
+                self.assertEqual(parse(bad), gencmu.to_json(expected))
+
+    def test_a_bootstrap_with_a_malformed_constant_is_an_error(self) -> None:
+        bootstrap = json.loads(bundled_text("notation/bootstrap.json") or "{}")
+        bootstrap["stages"][0]["documents"][0]["dom"]["constants"].append({"name": "k", "op": "define", "value": {"tag": "a"}, "at": [1, 1]})
+        with self.assertRaisesRegex(gencmu.GencmuError, "malformed constant") as caught:
+            gencmu.load_dialect_sources({**CONSTANT_SOURCES, "notation/bootstrap.json": json.dumps(bootstrap)}, "p.md", use_cache=False)
+        self.assertEqual(caught.exception.kind, "grammar")
+
+    @staticmethod
+    def deep_value_json(depth: int) -> str:
+        """A constant's value nested `depth` unions deep, as JSON text: deeper
+        than a walk that recursed could follow, and shallower than json.loads
+        can."""
+        return '{"union":[' * depth + '{"tag":"a"}' + ',{"tag":"B"}]}' * depth
+
+    def test_a_precompiled_constant_nested_too_deeply_is_a_miss(self) -> None:
+        """The bound on nesting holds before any walk that recurses (engine
+        §9), so the entry is a miss and the document is read instead."""
+        token = [Token("a", frozenset(["A"]), (0, 1), (0, 1), None)]
+        fresh = gencmu.load_dialect_sources(CONSTANT_SOURCES, "p.md", use_cache=False)
+        expected = gencmu.to_json(fresh.parse_tokens(token, "a", auto_features=False))
+        dom = read_document(CONSTANT_SOURCES["g.md"], "g.md")
+        dom["constants"][0]["value"] = "@VALUE@"
+        deep = json.dumps(dom).replace('"@VALUE@"', self.deep_value_json(2000))
+        try:
+            parsed = json.loads(deep)
+        except RecursionError:
+            # Before Python 3.12, json.loads cannot follow this depth, and the
+            # loader then treats the whole compiled.json as unreadable.
+            parsed = None
+        if parsed is not None:
+            self.assertEqual(dom_problem(parsed), "nested too deeply")
+        bootstrap_hash = fnv1a64(bundled_text("notation/bootstrap.json") or "")
+        compiled = (
+            f'{{"format":{DOM_FORMAT},"bootstrap":"{bootstrap_hash}",'
+            f'"documents":{{"g.md":{{"hash":"{fnv1a64(CONSTANT_SOURCES["g.md"])}","dom":{deep}}}}}}}'
+        )
+        dialect = gencmu.load_dialect_sources({**CONSTANT_SOURCES, "compiled.json": compiled}, "p.md")
+        self.assertEqual(gencmu.to_json(dialect.parse_tokens(token, "a", auto_features=False)), expected)
+
+    def test_a_bootstrap_constant_nested_too_deeply_is_an_error(self) -> None:
+        """The bound on nesting holds before any walk that recurses (engine
+        §9), so the bootstrap is an error of the grammar."""
+        bootstrap = json.loads(bundled_text("notation/bootstrap.json") or "{}")
+        bootstrap["stages"][0]["documents"][0]["dom"]["constants"].append({"name": "K", "op": "define", "value": "@VALUE@", "at": [99999, 1]})
+        text = json.dumps(bootstrap).replace('"@VALUE@"', self.deep_value_json(2000))
+        # Before Python 3.12, json.loads cannot follow this depth, and the
+        # bootstrap is then an error because it is not JSON.
+        with self.assertRaisesRegex(gencmu.GencmuError, "nested too deeply|is not JSON") as caught:
+            gencmu.load_dialect_sources({**CONSTANT_SOURCES, "notation/bootstrap.json": text}, "p.md", use_cache=False)
+        self.assertEqual(caught.exception.kind, "grammar")
+
+    def test_a_precompiled_clause_with_a_constant_waits_for_its_value(self) -> None:
+        """A cached DOM whose capture checks wait for a constant's value is
+        used, and the loader makes the checks once the constants have their
+        values (engine §3.6, §9)."""
+        token = [Token("a", frozenset(["A"]), (0, 1), (0, 1), None)]
+        bootstrap_hash = fnv1a64(bundled_text("notation/bootstrap.json") or "")
+
+        def document(first: str, last: str) -> str:
+            return (
+                f"```jbogenbau\n%ambiguity-resolution greedy\n%const $E {first}\n%rule text A | $x(A)\n"
+                f"%tags Y ∪ ($E ∩ tags($x))\n%redefine-const $E {last}\n```\n"
+            )
+
+        def outcome(text: str, entry: Dom | None) -> Any:
+            sources = {**CONSTANT_SOURCES, "g.md": text}
+            if entry is not None:
+                documents = {"g.md": {"hash": fnv1a64(text), "dom": entry}}
+                sources["compiled.json"] = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "documents": documents})
+            try:
+                dialect = gencmu.load_dialect_sources(sources, "p.md", use_cache=entry is not None)
+            except gencmu.GencmuError as error:
+                return (error.line, error.column)
+            result = dialect.parse_tokens(token, "a", auto_features=False)
+            assert result.tree is not None
+            return sorted(result.tree.tags)
+
+        empty = document("B", "$E ∖ B")
+        dom = read_document(empty, "g.md")
+        self.assertIsNone(dom_problem(dom))
+        self.assertEqual(outcome(empty, None), ["Y"])
+        self.assertEqual(outcome(empty, dom), ["Y"])
+        # A hit: the entry, changed, is the one the parse sees.
+        changed = json.loads(json.dumps(dom).replace('{"tag": "Y"}', '{"tag": "Z"}'))
+        self.assertNotEqual(changed, dom)
+        self.assertEqual(outcome(empty, changed), ["Z"])
+        full = document("B ∖ B", "B")
+        dom = read_document(full, "g.md")
+        self.assertIsNone(dom_problem(dom))
+        self.assertEqual(outcome(full, None), (4, 1))
+        self.assertEqual(outcome(full, dom), (4, 1))
+
+    def test_lexical_tokens(self) -> None:
+        """The notation's lexical stage tags constants and the keywords that
+        define them (grammars/notation/lexical.md)."""
+        notation = gencmu.load_dialect("notation")
+        result = notation.parse("%const $SU-STOPS %redefine-const $x $ $K1", until="lexical", auto_features=False)
+        output = result.stages[0].output
+        assert output is not None
+        self.assertEqual(
+            [(token.text, sorted(token.tags)) for token in output],
+            [
+                ("%const", ["keyword-const"]),
+                ("$SU-STOPS", ["constant"]),
+                ("%redefine-const", ["keyword-redefine-const"]),
+                ("$x", ["capture"]),
+                ("$", ["capture"]),
+                ("$K1", ["constant"]),
+            ],
+        )
 
 
 if __name__ == "__main__":

@@ -1,0 +1,20 @@
+{
+  "description": "%redefine-const of a constant that is not defined before it is an error of the document, at the definition (engine §2).",
+  "grammar": "%rule text X\n%redefine-const $A ~a",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 1
+    }
+  }
+}

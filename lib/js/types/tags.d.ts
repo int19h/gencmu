@@ -64,6 +64,15 @@ export declare function sortedTags(tags: TagSet): string[];
  */
 export declare function isName(tag: string): boolean;
 /**
+ * The value of split(string, delimiter) (engine §10): the pieces between
+ * the occurrences of the delimiter, found from the left without overlap,
+ * with the empty pieces dropped. The delimiter is not empty.
+ * @param {string} string
+ * @param {string} delimiter
+ * @returns {Set<string>}
+ */
+export declare function splitString(string: string, delimiter: string): Set<string>;
+/**
  * Whether a tag is a phoneme tag: three code points, the first and last
  * `/` (engine §1).
  * @param {string} tag

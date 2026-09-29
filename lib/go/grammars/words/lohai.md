@@ -43,14 +43,14 @@ In the experimental dialect, a marker that opens no quote is an ordinary word. [
   $ <~word>
 
 %rule lohai-marker
-  $q(magic-body) <~word ∪ ~cmavo ∪ classes($q)>
+  $q(magic-body) <classes($q) ∪ ~word ∪ ~cmavo>
 %conditions
   LOhAI ⊆ classes($q)
 %emits
   $
 
 %rule lehai-marker
-  $q(magic-body) <~word ∪ ~cmavo ∪ classes($q)>
+  $q(magic-body) <classes($q) ∪ ~word ∪ ~cmavo>
 %conditions
   LEhAI ⊆ classes($q)
 %emits

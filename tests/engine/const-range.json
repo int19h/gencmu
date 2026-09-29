@@ -1,0 +1,20 @@
+{
+  "description": "A constant can be a range, a tag set of character tags, which a condition tests (engine §2, §10).",
+  "grammar": "%const $DIGITS '0'..'9'\n%rule text digit | other\n%rule digit $c('\\p{Any}')\n%conditions tags($c) ⊆ $DIGITS\n%rule other $c('\\p{Any}')\n%conditions tags($c) ∩ $DIGITS = ∅",
+  "input": "5",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "digit"
+          }
+        ]
+      }
+    }
+  }
+}

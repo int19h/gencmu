@@ -1,8 +1,10 @@
-import type { DomDirective, DomRule, GrammarDom } from "./types.js";
+import type { DomConstant, DomDirective, DomRule, GrammarDom } from "./types.js";
 export type Item = {
     rule: DomRule;
 } | {
     directive: DomDirective;
+} | {
+    constant: DomConstant;
 };
 export type SplicedStage = {
     name: string;
@@ -16,10 +18,10 @@ export type SplicedStage = {
         dom: GrammarDom;
     }[];
 };
-/** @import { DomDirective, DomRule, GrammarDom } from "./types.js" */
+/** @import { DomConstant, DomDirective, DomRule, GrammarDom } from "./types.js" */
 /**
- * An item of a document: a rule or a directive.
- * @typedef {{rule: DomRule} | {directive: DomDirective}} Item
+ * An item of a document: a rule, a directive or a constant's definition.
+ * @typedef {{rule: DomRule} | {directive: DomDirective} | {constant: DomConstant}} Item
  */
 /**
  * One stage of a spliced pipeline: its name, where its %stage stands, and its
@@ -28,8 +30,8 @@ export type SplicedStage = {
  * @typedef {{name: string, at: {document: string, line: number, column: number}, documents: {path: string, dom: GrammarDom}[]}} SplicedStage
  */
 /**
- * A document's rules and directives in the order they were written, which is
- * the order of their positions (engine §9).
+ * A document's rules, directives and constants in the order they were
+ * written, which is the order of their positions (engine §9).
  * @param {GrammarDom} dom
  * @returns {Item[]}
  */

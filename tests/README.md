@@ -15,7 +15,8 @@ Each file is one case:
   "tokens": [{"text": "a", "tags": ["A"]}, {"text": "b", "tags": ["B", "C"]}],
   "input": "characters",
   "options": {"features": ["f"], "withoutFeatures": ["g"], "elisionOnly": true},
-  "expect": {"result": PATTERN, "brackets": "(a b)", "warnings": [WARNING...], "features": [FEATURE...], "error": "grammar"}
+  "expect": {"result": PATTERN, "brackets": "(a b)", "warnings": [WARNING...], "features": [FEATURE...], "error": "grammar",
+             "where": {"document": "main.md", "line": 4, "column": 12}}
 }
 ```
 
@@ -42,6 +43,8 @@ Auto features (engine §13) are off for a case unless its options say `"autoFeat
 `expect.brackets` is the bracket rendering, with elided terminators hidden. `expect.warnings` is the list of warnings of the result, compared whole. So `[]` says that there are no warnings. `expect.features` is the list of features of the dialect (`docs/api.md`), compared whole. Each feature is written as `{"name":..., "kind":..., "default":...}`.
 
 `expect.error` is the error kind, when the case is about an error. For a grammar that cannot be loaded, the result is the error alone. For a mistake of the caller, `usage`, there is no result.
+
+`expect.where`, when present, is where the error of a grammar that cannot be loaded stands. It names a document of the case and a line and a column in it. For a case with `grammar`, the document is `main.md`. Its fence is line 1, so the rules start on line 3, or on line 2 when they hold their own `%ambiguity-resolution`.
 
 ## Notation cases: `notation/*.json`
 

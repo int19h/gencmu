@@ -9,27 +9,31 @@ same walk bounds the nesting of a document that was read (engine §9).
 
 from __future__ import annotations
 
+import json
 import re
 from typing import Any, Protocol
 
 from ._clauses import definition_problem
 from ._tags import character_of_tag, is_tag
-from ._types import rule_type_problem
+from ._types import constant_value_problem, open_part, rule_type_problem
 from ._unicode import PROPERTY_NAMES
 
 
 class Lowercase(Protocol):
     """What spellings are checked against: the lowercase mapping of the
-    library's Unicode table (engine §10), and the marks that a character tag
-    escapes (engine §1)."""
+    library's Unicode table, which the canonical sound uses (engine §5, §9),
+    and the marks that a character tag escapes (engine §1)."""
 
     def lowercase(self, text: str) -> str: ...
 
     def is_mark(self, code: int) -> bool: ...
 
 
-FORMAT = 10
+FORMAT = 11
 """The version of the DOM's shape (docs/output.md)."""
+
+CONSTANT_NAME = re.compile(r"[A-Z][A-Za-z0-9-]*")
+"""A constant's name, without its ``$``, begins with a capital (engine §2)."""
 
 MAX_DEPTH = 256
 """No node of an expression, a term or a condition may lie below more than
@@ -41,7 +45,7 @@ comparison."""
 
 TOO_DEEP = "nested too deeply"
 
-_FUNCTIONS = {"phonemes", "text", "lowercase", "tags", "classes", "runs", "head", "tail", "last", "from", "after", "matches", "begins", "initial"}
+_FUNCTIONS = {"phonemes", "text", "split", "tag", "tags", "classes", "head", "tail", "last", "from", "after", "matches", "begins", "initial"}
 _COMPARATORS = {"=", "≠", "∈", "∉", "⊆", "⊈"}
 _SPANS = {"head", "tail", "last", "from", "after"}
 _NAME = re.compile(r"[A-Za-z][A-Za-z0-9-]*")
@@ -97,6 +101,7 @@ _TERM_FORMS = (
     ("range",),
     ("emptySet",),
     ("capture",),
+    ("const", "at"),
 )
 
 
@@ -161,9 +166,9 @@ def term_reads_own_tags(term: Any) -> bool:
 def spelling_problem(spelling: Any, expr: Any, unicode: Lowercase | None) -> str | None:
     """What is wrong with a spelling of a symbol (engine §9), or None: an
     empty spelling, one with a backtick, which the notation cannot write,
-    one that the lowercase mapping would change, since the match ignores
-    stress, or one of anything but a reference or a terminal, ``#``
-    included. The spelled symbol is exactly one reference or one
+    one that no canonical sound can be, with a comma or a code point that
+    the lowercase mapping would change, or one of anything but a reference
+    or a terminal, ``#`` included. The spelled symbol is exactly one reference or one
     terminal, so that no node is read one way here and another way when
     lowered. Without a table, the lowercase mapping is not checked."""
     if not isinstance(spelling, str):
@@ -176,6 +181,8 @@ def spelling_problem(spelling: Any, expr: Any, unicode: Lowercase | None) -> str
         (isinstance(expr.get("ref"), str) and expr["ref"] != "#") or isinstance(expr.get("terminal"), str)
     ):
         return "a spelling follows only a reference other than # or a terminal"
+    if "," in spelling:
+        return f"the spelling {spelling} holds a comma, which no canonical sound holds"
     if unicode is not None and unicode.lowercase(spelling) != spelling:
         return f"the spelling {spelling} is not in lower case"
     return None
@@ -227,6 +234,7 @@ def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
         or dom.get("format") != FORMAT
         or not isinstance(dom.get("rules"), list)
         or not isinstance(dom.get("directives"), list)
+        or not isinstance(dom.get("constants"), list)
     ):
         return f"not a DOM of format {FORMAT}"
     for directive in dom["directives"]:
@@ -251,6 +259,20 @@ def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
     # lies in a rule's or an alternative's tag term, which may not read
     # the tags it defines.
     pending: list[tuple[str, Any, int, bool]] = []
+    # A constant's definition: its name, its op, its position and a value
+    # that is a closed term (engine §2, §10).
+    for constant in dom["constants"]:
+        if (
+            not isinstance(constant, dict)
+            or not isinstance(constant.get("name"), str)
+            or not CONSTANT_NAME.fullmatch(constant["name"])
+            or not _is_one_of(constant.get("op"), {"define", "redefine"})
+            or not _is_position(constant.get("at"))
+            or "value" not in constant
+            or len(constant) != 4
+        ):
+            return "a malformed constant"
+        pending.append(("term", constant["value"], 0, False))
     for rule in dom["rules"]:
         if (
             not isinstance(rule, dict)
@@ -295,6 +317,10 @@ def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
     problem = _walk(pending, unicode)
     if problem is not None:
         return problem
+    # The walks below recurse, so they run only once the nesting is bounded.
+    for constant in dom["constants"]:
+        if open_part(constant["value"]) is not None:
+            return "a constant's value is not a closed term"
     # A definition is checked as a whole (engine §9), once its clauses are
     # known to be well formed, and so are the types of its terms and
     # conditions (engine §10).
@@ -302,10 +328,14 @@ def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
         problem = definition_problem(rule) or rule_type_problem(rule)
         if problem is not None:
             return problem
+    for constant in dom["constants"]:
+        problem = constant_value_problem(constant["value"], constant["op"] == "redefine")
+        if problem is not None:
+            return problem
     # The order of a document's items is the order of their positions, so no
     # two items share one (engine §9).
     positions: set[tuple[int, int]] = set()
-    for item in [*dom["rules"], *dom["directives"]]:
+    for item in [*dom["rules"], *dom["directives"], *dom["constants"]]:
         at = (item["at"][0], item["at"][1])
         if at in positions:
             return "two items at one position"
@@ -481,13 +511,18 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase) -> str 
                     ok = (len(args) == 1 and _is_span(args[0])) or (
                         len(args) == 2 and _is_span(args[0]) and _is_rule_name(args[1])
                     )
-                elif call == "lowercase":
-                    # Its argument's type is checked with the rule's types.
+                elif call == "split":
+                    # Its arguments' types are checked with the rule's types.
+                    ok = len(args) == 2 and all(not _is_rule_name(arg) and not _is_span(arg) for arg in args)
+                elif call == "tag":
                     ok = len(args) == 1 and not _is_rule_name(args[0]) and not _is_span(args[0])
                 else:
                     ok = len(args) == 1 and _is_span(args[0])
                 if not ok or (kind != "argument" and call in _SPANS):
                     return "a malformed term"
+                seen = literal_call_problem(call, args)
+                if seen is not None:
+                    return seen
                 pending.extend(("argument", arg, below, own) for arg in args if not _is_rule_name(arg))
             elif not (
                 isinstance(value.get("string"), str)
@@ -495,6 +530,28 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase) -> str 
                 or value.get("emptySet") is True
                 or isinstance(value.get("capture"), str)
                 or ("range" in value and range_problem(value["range"], unicode) is None)
+                or (
+                    isinstance(value.get("const"), str)
+                    and CONSTANT_NAME.fullmatch(value["const"]) is not None
+                    and _is_position(value.get("at"))
+                )
             ):
                 return "a malformed term"
+    return None
+
+
+def literal_call_problem(call: str, args: list[Any]) -> str | None:
+    """What is wrong with a call of split or tag whose argument the reader
+    sees as a string literal (engine §9, §10), or None: an empty delimiter,
+    or a tag's string that is not a name."""
+
+    def literal(arg: Any) -> str | None:
+        return arg["string"] if isinstance(arg, dict) and isinstance(arg.get("string"), str) else None
+
+    if call == "split" and len(args) > 1 and literal(args[1]) == "":
+        return "split has an empty delimiter"
+    if call == "tag" and args:
+        name = literal(args[0])
+        if name is not None and not _NAME.fullmatch(name):
+            return f"tag({json.dumps(name, ensure_ascii=False)}): the string is not a name"
     return None

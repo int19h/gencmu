@@ -160,7 +160,7 @@ class NotationReader:
                 if problem is not None:
                     raise GencmuError(f"the bootstrap's DOM of {document['path']} is malformed: {problem}", document=where)
                 pairs.append((document["path"], document["dom"]))
-            stages.append(stitch(stage["name"], pairs))
+            stages.append(stitch(stage["name"], pairs, unicode))
         self.stages = [(grammar.stage, lower(grammar, frozenset())) for grammar in stages]
 
     def read(self, text: str, path: str) -> Dom:
@@ -202,9 +202,11 @@ class NotationReader:
             # The bound on nesting is the same for a document read here as for
             # a precompiled DOM (engine §9); reported at the first rule too deep.
             line, column = 1, 1
-            for rule in dom["rules"]:
-                if dom_problem({**dom, "rules": [rule], "directives": []}, self.unicode) == TOO_DEEP:
-                    line, column = rule["at"]
+            items = [("rules", rule) for rule in dom["rules"]] + [("constants", constant) for constant in dom["constants"]]
+            items.sort(key=lambda item: (item[1]["at"][0], item[1]["at"][1]))
+            for key, item in items:
+                if dom_problem({**dom, "rules": [], "directives": [], "constants": [], key: [item]}, self.unicode) == TOO_DEEP:
+                    line, column = item["at"]
                     break
             raise GencmuError(
                 f"an expression, term or condition is nested more than {MAX_DEPTH} deep",
@@ -315,7 +317,7 @@ class _Loader:
         stages: list[Grammar] = []
         for stage in pipeline.stages:
             try:
-                stages.append(stitch(stage.name, stage.documents))
+                stages.append(stitch(stage.name, stage.documents, self.unicode))
             except GencmuError as error:
                 if error.stage is None:
                     error.stage = stage.name

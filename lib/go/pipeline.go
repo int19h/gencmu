@@ -9,28 +9,37 @@ import (
 // by the items of the document it names, split into stages at each %stage
 // (engine §13).
 
-// docItem is an item of a document: a rule or a directive.
+// docItem is an item of a document: a rule, a directive or a constant's
+// definition.
 type docItem struct {
-	rule *domRule
-	dir  *domDirective
+	rule     *domRule
+	dir      *domDirective
+	constant *domConst
 }
 
 func (it docItem) at() [2]int {
-	if it.rule != nil {
+	switch {
+	case it.rule != nil:
 		return it.rule.At
+	case it.constant != nil:
+		return it.constant.At
 	}
 	return it.dir.At
 }
 
-// itemsInOrder lists a document's rules and directives in the order they
-// were written, which is the order of their positions (engine §9).
+// itemsInOrder lists a document's rules, directives and constants in the
+// order they were written, which is the order of their positions (engine
+// §9).
 func itemsInOrder(dom *domDoc) []docItem {
-	items := make([]docItem, 0, len(dom.Rules)+len(dom.Directives))
+	items := make([]docItem, 0, len(dom.Rules)+len(dom.Directives)+len(dom.Constants))
 	for _, r := range dom.Rules {
 		items = append(items, docItem{rule: r})
 	}
 	for _, d := range dom.Directives {
 		items = append(items, docItem{dir: d})
+	}
+	for _, k := range dom.Constants {
+		items = append(items, docItem{constant: k})
 	}
 	sort.SliceStable(items, func(i, j int) bool {
 		a, b := items[i].at(), items[j].at()
@@ -120,15 +129,21 @@ func splicePipeline(pipelinePath string, domOf func(p string) (*domDoc, *Error))
 					if item.rule != nil {
 						return grammarError(docPath, at, "the rule %s stands before the first %%stage", item.rule.Name)
 					}
+					if item.constant != nil {
+						return grammarError(docPath, at, "the constant $%s stands before the first %%stage", item.constant.Name)
+					}
 					return grammarError(docPath, at, "%%%s stands before the first %%stage", item.dir.Name)
 				}
 				if run == nil || runPath != docPath {
-					run, runPath = &domDoc{Rules: []*domRule{}, Directives: []*domDirective{}}, docPath
+					run, runPath = &domDoc{Rules: []*domRule{}, Directives: []*domDirective{}, Constants: []*domConst{}}, docPath
 					s.documents = append(s.documents, docDOM{path: docPath, dom: run})
 				}
-				if item.rule != nil {
+				switch {
+				case item.rule != nil:
 					run.Rules = append(run.Rules, item.rule)
-				} else {
+				case item.constant != nil:
+					run.Constants = append(run.Constants, item.constant)
+				default:
 					run.Directives = append(run.Directives, item.dir)
 				}
 			}

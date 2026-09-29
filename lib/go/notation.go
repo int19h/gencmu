@@ -3,6 +3,7 @@ package gencmu
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -52,7 +53,7 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (*notationReader, er
 			}
 			docs = append(docs, docDOM{path: *d.Path, dom: dom})
 		}
-		g, gerr := stitch(*s.Name, docs)
+		g, gerr := stitch(*s.Name, docs, uni)
 		if gerr != nil {
 			return nil, gerr
 		}
@@ -113,15 +114,49 @@ func (nr *notationReader) read(text, docPath string) (dom *domDoc, err *Error) {
 	}()
 	dom = b.document(out.tree)
 	// What the notation's grammar cannot state and the walk does not see:
-	// nesting deeper than 256 (§9), reported at the rule.
+	// nesting deeper than 256 (§9), reported at the first item, a rule or a
+	// constant's definition, that nests too deeply, in the order of the
+	// document.
 	if p := checkDOM(dom, nr.uni); p != nil {
+		if p.tooDeep {
+			p = firstTooDeep(dom, nr.uni, p)
+		}
 		e := &Error{Kind: ErrorGrammar, Document: docPath, Message: p.message}
 		if p.rule != nil {
 			e.Line, e.Column = p.rule.At[0], p.rule.At[1]
+		} else if p.constant != nil {
+			e.Line, e.Column = p.constant.At[0], p.constant.At[1]
 		}
 		return nil, e
 	}
 	return dom, nil
+}
+
+// firstTooDeep is the nesting problem of the first item of a document, in
+// the order of its positions, that nests too deeply alone; found, when no
+// item does alone.
+func firstTooDeep(dom *domDoc, uni *unicodeTable, found *domProblem) *domProblem {
+	type item struct {
+		at    [2]int
+		alone *domDoc
+	}
+	var items []item
+	for _, r := range dom.Rules {
+		items = append(items, item{r.At, &domDoc{Rules: []*domRule{r}}})
+	}
+	for _, k := range dom.Constants {
+		items = append(items, item{k.At, &domDoc{Constants: []*domConst{k}}})
+	}
+	sort.SliceStable(items, func(i, j int) bool {
+		a, b := items[i].at, items[j].at
+		return a[0] < b[0] || (a[0] == b[0] && a[1] < b[1])
+	})
+	for _, it := range items {
+		if p := checkDOM(it.alone, uni); p != nil && p.tooDeep {
+			return p
+		}
+	}
+	return found
 }
 
 type domBuilder struct {
@@ -131,6 +166,9 @@ type domBuilder struct {
 	gt       *grammarText
 	doc      string
 	uni      *unicodeTable // the lowercase mapping spellings are checked against
+	// inConstant says the reader is reading a constant's value, a closed
+	// term (§9, §10).
+	inConstant bool
 }
 
 // The rules the reader looks at by name; every other rule is transparent.
@@ -146,6 +184,7 @@ var domRules = map[string]bool{
 	"intersection": true, "empty-set": true, "capture-reference": true,
 	"alternative-tags": true, "argument-word": true, "argument-string": true, "argument-tag": true, "guard": true,
 	"comparator": true, "range": true, "property": true,
+	"constant-definition": true, "constant-definer": true, "constant-reference": true,
 }
 
 func (b *domBuilder) at(n *Node) [2]int {
@@ -206,11 +245,13 @@ func (b *domBuilder) text(n *Node) string {
 }
 
 func (b *domBuilder) document(root *Node) *domDoc {
-	d := &domDoc{Rules: []*domRule{}, Directives: []*domDirective{}}
+	d := &domDoc{Rules: []*domRule{}, Directives: []*domDirective{}, Constants: []*domConst{}}
 	for _, c := range ruleParts(root) {
 		switch c.Rule {
 		case "rule":
 			d.Rules = append(d.Rules, b.rule(c))
+		case "constant-definition":
+			d.Constants = append(d.Constants, b.constant(c))
 		case "directive":
 			ps := parts(c)
 			dir := &domDirective{Name: strings.TrimPrefix(b.text(ps[0]), "%"), Args: []string{}, At: b.at(ps[0])}
@@ -260,6 +301,27 @@ func (b *domBuilder) document(root *Node) *domDoc {
 	}
 	return d
 }
+
+// constant reads a constant's definition: its name without $, and its
+// value, a closed term of a type that a constant can have (engine §2, §9,
+// §10).
+func (b *domBuilder) constant(n *Node) *domConst {
+	ps := ruleParts(n)
+	k := &domConst{Name: strings.TrimPrefix(b.text(ps[1]), "$"), Op: "define", At: b.at(n)}
+	if b.text(ps[0]) == "%redefine-const" {
+		k.Op = "redefine"
+	}
+	b.inConstant = true
+	k.Value = b.value(ps[2])
+	b.inConstant = false
+	if _, f := constantValueType(k.Value, k.Op == "redefine", nil); f != nil {
+		b.fail(ps[2], "%s", f.problem)
+	}
+	return k
+}
+
+// constantInBody is the error of a constant that stands in a body (§9).
+const constantInBody = "a constant cannot stand in a body: a body names a class of tokens with a rule, such as %rule digit '0'..'9'"
 
 func (b *domBuilder) rule(n *Node) *domRule {
 	// The definer, the name, the alternatives and the clauses; the syntax
@@ -437,6 +499,9 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 		if !captureName.MatchString(name) {
 			b.fail(ps[0], "a capture's name is all lower case")
 		}
+		if len(inner) == 1 && inner[0].Rule == "constant-reference" {
+			b.fail(inner[0], "%s", constantInBody)
+		}
 		if len(inner) != 1 || !capturedRules[inner[0].Rule] {
 			b.fail(ps[0], "a capture wraps a single symbol: a name, a tag literal, a character tag, a phoneme tag, a range or a property, or a spelled one")
 		}
@@ -458,6 +523,8 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 		return &domExpr{Kind: exOptional, Inner: inner}
 	case "empty":
 		return &domExpr{Kind: exEmpty}
+	case "constant-reference":
+		b.fail(n, "%s", constantInBody)
 	}
 	b.fail(n, "unexpected %s in an expression", n.Rule)
 	return nil
@@ -578,6 +645,9 @@ func (b *domBuilder) termIn(n *Node, argument bool) *domTerm {
 	case "guarded-term":
 		// A ⟹ t: its condition, and its term, which must be a tag set
 		// (§10).
+		if b.inConstant {
+			b.fail(n, "a constant's value is a closed term, and holds no guarded term")
+		}
 		ps := ruleParts(n)
 		cond := b.anyOf(ps[0])
 		if problem := condTypeProblem(cond); problem != "" {
@@ -651,8 +721,13 @@ func (b *domBuilder) termIn(n *Node, argument bool) *domTerm {
 		b.fail(n, "%s names a rule, which is not a value; ~%s is the tag", name, name)
 	case "empty-set":
 		return &domTerm{Kind: tmEmptySet}
+	case "constant-reference":
+		return &domTerm{Kind: tmConst, Str: strings.TrimPrefix(b.text(n), "$"), At: b.at(n)}
 	case "capture-reference":
 		name := strings.TrimPrefix(b.text(n), "$")
+		if b.inConstant {
+			b.fail(n, "a constant's value is a closed term, and holds no capture")
+		}
 		if !argument {
 			b.fail(n, "a span is not a value: tags($%s) is the tag set of $%s", name, name)
 		}
@@ -704,13 +779,14 @@ func isSpanTerm(t *domTerm) bool {
 	return t.Kind == tmCapture || (t.Kind == tmCall && isSpanFunction(t.Str))
 }
 
-// isStringTerm says whether a term, not a rule, is a string (§10).
+// isStringTerm says whether a term, not a rule, is a string (§10). A
+// constant's type is known only when the loader stitches the stage.
 func isStringTerm(t *domTerm) bool {
 	if t.Kind == tmRule {
 		return false
 	}
 	ty, problem := typeOf(t)
-	return problem == "" && ty == tyString
+	return problem == "" && (ty == tyString || ty == tyAny)
 }
 
 // call reads a call in a term, or, in a condition, matches(), begins() or
@@ -718,6 +794,14 @@ func isStringTerm(t *domTerm) bool {
 func (b *domBuilder) call(n *Node, inCondition bool) *domTerm {
 	ps := parts(n)
 	name := b.text(ps[0])
+	// A constant's value calls only split and tag, the closed functions
+	// (§9, §10).
+	if b.inConstant && name != "split" && name != "tag" {
+		if !notationFunctions[name] {
+			b.fail(ps[0], "%s() is not a function of the notation", name)
+		}
+		b.fail(ps[0], "a constant's value is a closed term, and %s() is not closed", name)
+	}
 	var args []*domTerm
 	var argNodes []*Node
 	for _, p := range ps[1:] {
@@ -750,18 +834,30 @@ func (b *domBuilder) call(n *Node, inCondition bool) *domTerm {
 		return &domTerm{Kind: tmCall, Str: name, Items: args}
 	}
 	switch name {
-	case "phonemes", "text", "runs", "classes", "head", "tail", "last", "from", "after":
+	case "phonemes", "text", "classes", "head", "tail", "last", "from", "after":
 		shape(len(args) == 1 && span(0))
 	case "tags":
 		shape((len(args) == 1 && span(0)) || (len(args) == 2 && span(0) && rule(1)))
-	case "lowercase":
+	case "split":
+		shape(len(args) == 2 && isStringTerm(args[0]) && isStringTerm(args[1]))
+	case "tag":
 		shape(len(args) == 1 && isStringTerm(args[0]))
 	case "matches", "begins", "initial":
 		b.fail(ps[0], "%s() is a condition, not a term", name)
 	default:
 		b.fail(ps[0], "%s() is not a function of the notation", name)
 	}
+	// An empty delimiter or a tag's name that the reader sees (§9).
+	if msg := literalCallProblem(name, args); msg != "" {
+		b.fail(ps[0], "%s", msg)
+	}
 	return &domTerm{Kind: tmCall, Str: name, Items: args}
+}
+
+// notationFunctions are the functions of the notation (§10).
+var notationFunctions = map[string]bool{
+	"phonemes": true, "text": true, "split": true, "tag": true, "tags": true, "classes": true, "head": true, "tail": true,
+	"last": true, "from": true, "after": true, "matches": true, "begins": true, "initial": true,
 }
 
 // implication reads A ⟹ B, which groups to the right, or the one any-of.

@@ -12,8 +12,8 @@ use crate::unicode::Unicode;
 pub(crate) struct Maximal<'c> {
     g: &'c Lowered,
     chart: &'c Chart,
-    /// The tokens the chart was made over, and the lowercase mapping, for
-    /// the spellings of symbols (§4).
+    /// The tokens the chart was made over, and the table of their canonical
+    /// sound, for the spellings of symbols (§4, §5).
     tokens: &'c [Tok],
     unicode: &'c Unicode,
     /// The furthest set in which each symbol completes from each origin,

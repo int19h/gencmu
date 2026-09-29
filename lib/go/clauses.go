@@ -22,6 +22,13 @@ const (
 // reducedEmpty is the empty set a term reduces to.
 var reducedEmpty = &domTerm{Kind: tmEmptySet}
 
+// isEmptySet says whether a term is the empty set as lowering sees it: ∅,
+// or a constant whose value is an empty set, since a constant is its value
+// there (§3.6).
+func isEmptySet(t *domTerm) bool {
+	return t.Kind == tmEmptySet || (t.Kind == tmConst && t.value != nil && t.value.ty != tyString && len(t.value.names) == 0)
+}
+
 // simplifyCond simplifies a condition for a production that has the
 // captures has says it has (engine §3.6): each presence test becomes true
 // or false, A ⟹ B becomes B where A is true and true where A is false, a
@@ -127,7 +134,7 @@ func simplifyTerm(t *domTerm, has func(string) bool) *domTerm {
 			return simplifyTerm(t.Items[0], has)
 		}
 		then := simplifyTerm(t.Items[0], has)
-		if then.Kind == tmEmptySet {
+		if isEmptySet(then) {
 			return reducedEmpty
 		}
 		if cond == t.Cond && then == t.Items[0] {
@@ -137,9 +144,9 @@ func simplifyTerm(t *domTerm, has func(string) bool) *domTerm {
 	case tmDifference:
 		l, r := simplifyTerm(t.Items[0], has), simplifyTerm(t.Items[1], has)
 		switch {
-		case l.Kind == tmEmptySet:
+		case isEmptySet(l):
 			return reducedEmpty
-		case r.Kind == tmEmptySet:
+		case isEmptySet(r):
 			return l
 		case l == t.Items[0] && r == t.Items[1]:
 			return t
@@ -155,7 +162,7 @@ func simplifyTerm(t *domTerm, has func(string) bool) *domTerm {
 			if s != it {
 				changed = true
 			}
-			if s.Kind == tmEmptySet {
+			if isEmptySet(s) {
 				if t.Kind == tmIntersection {
 					return reducedEmpty
 				}
@@ -276,6 +283,17 @@ func usesAll(names map[string]bool, has func(string) bool) (string, bool) {
 // clauses written with them, cannot be read (engine §9), or "". The DOM's
 // shape must already be sound.
 func definitionProblem(r *domRule) string {
+	// A constant is its value in simplification (§3.6). A clause that holds
+	// a constant without one waits for the loader, which checks the
+	// definition again once the constants have their values (§9).
+	waits := func(node any) bool {
+		for _, ref := range constRefs(node) {
+			if ref.value == nil {
+				return true
+			}
+		}
+		return false
+	}
 	alts := make([]map[string]int, len(r.Alternatives))
 	for i, a := range r.Alternatives {
 		alts[i] = altCaptures(a)
@@ -317,6 +335,9 @@ func definitionProblem(r *domRule) string {
 	}
 	// A condition that applies to no alternative.
 	for _, c := range r.Conditions {
+		if waits(c) {
+			continue
+		}
 		applies := false
 		for _, caps := range alts {
 			has := hasIn(caps)
@@ -340,7 +361,7 @@ func definitionProblem(r *domRule) string {
 		}
 	}
 	unguarded := func(t *domTerm, has func(string) bool) string {
-		if t == nil {
+		if t == nil || waits(t) {
 			return ""
 		}
 		used := map[string]bool{}

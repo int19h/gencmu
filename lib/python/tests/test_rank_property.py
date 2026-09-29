@@ -336,6 +336,7 @@ def random_sugared(rng: random.Random) -> dict[str, Any]:
         "format": DOM_FORMAT,
         "rules": rules,
         "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [9, 1]}],
+        "constants": [],
     }
 
 
@@ -360,7 +361,7 @@ class RankingProperty(unittest.TestCase):
             rng = random.Random(seed + number)
             rules, names = random_grammar(rng)
             productions = productions_of(rules)
-            lowered = lower(stitch("main", [("g.md", dom_of(rules, names, "greedy"))]), frozenset())
+            lowered = lower(stitch("main", [("g.md", dom_of(rules, names, "greedy"))], _unicode_table(_resources().unicode)), frozenset())
             for _ in range(4):
                 tokens = random_tokens(rules, rng)
                 for lean in ("greedy", "lazy", "none"):
@@ -389,7 +390,7 @@ class RankingProperty(unittest.TestCase):
         verdicts: dict[Any, int] = {}
         for number in range(cases):
             rng = random.Random(10_000_000 + seed + number)
-            lowered = lower(stitch("main", [("g.md", random_sugared(rng))]), frozenset())
+            lowered = lower(stitch("main", [("g.md", random_sugared(rng))], _unicode_table(_resources().unicode)), frozenset())
             productions = [(p.lhs, tuple(s if t else s for s, t in zip(p.rhs, p.terminal)), p.transparent) for p in lowered.productions]
             plain_rules: list[list[list[Any]]] = [[] for _ in lowered.rule_names]
             for lhs, rhs, _ in productions:

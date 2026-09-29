@@ -5,7 +5,7 @@
 use crate::fxhash::{FxMap, FxSet};
 
 use crate::lower::{Characters, CmpOp, LCond, LTerm, Lowered, Span, Sym};
-use crate::tags::{character_tag, difference, intersection, is_subset, union, SetId, TagId, TagList, Tags};
+use crate::tags::{character_tag, difference, intersection, is_name, is_subset, union, SetId, TagId, TagList, Tags};
 use crate::unicode::Unicode;
 
 /// How a terminal matches a token (engine §4): by a tag the token carries,
@@ -37,22 +37,24 @@ pub(crate) struct Tok {
     pub source: (usize, usize),
     /// Whether its phonemes are its text (§11).
     pub verbatim: bool,
-    /// Its phonemes lowercased, for the spellings of symbols, computed when
-    /// a spelling first looks at the token (§4).
+    /// Its phonemes in canonical form, for the spellings of symbols and for
+    /// `phonemes()`, computed when one first looks at the token (§4, §5).
     pub sound: std::cell::OnceCell<Box<str>>,
 }
 
 impl Tok {
-    /// The token's phonemes lowercased, or nothing if it has none (§4).
+    /// The token's phonemes in canonical form, or nothing if it has none
+    /// (§5). The lowercase mapping and the removal of commas act on each
+    /// code point alone, so the canonical sound of a span is its tokens'
+    /// joined.
     pub(crate) fn sound(&self, unicode: &Unicode) -> &str {
-        self.sound.get_or_init(|| unicode.lowercase(self.phonemes.as_deref().unwrap_or("")).into())
+        self.sound.get_or_init(|| unicode.canonical(self.phonemes.as_deref().unwrap_or("")).into())
     }
 }
 
-/// Whether `tokens` sound like a spelling: their phonemes, joined and
-/// lowercased, are exactly it (§4). A token with no phonemes adds nothing,
-/// and a spelling is never empty, so neither such a token alone nor an
-/// empty span matches.
+/// Whether `tokens` sound like a spelling: their canonical sound is exactly
+/// it (§4, §5). A token with no phonemes adds nothing, and a spelling is
+/// never empty, so neither such a token alone nor an empty span matches.
 pub(crate) fn sounds_like(tokens: &[Tok], unicode: &Unicode, spelling: &str) -> bool {
     let mut rest = spelling;
     for token in tokens {
@@ -625,8 +627,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
 
     // ---- terms and conditions
 
-    fn phonemes(tokens: &[Tok], start: usize, end: usize) -> String {
-        tokens[start..end].iter().filter_map(|token| token.phonemes.as_deref()).collect()
+    /// The canonical sound of the span (§5).
+    fn phonemes(&self, tokens: &[Tok], start: usize, end: usize) -> String {
+        tokens[start..end].iter().map(|token| token.sound(self.shared.unicode)).collect()
     }
 
     /// The text over the source of the span's tokens (§1). The scan costs
@@ -670,6 +673,15 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         }
     }
 
+    /// A string's value. The reader has made sure that the types agree
+    /// (§10), so a set never stands where a string is needed.
+    fn string_term(&mut self, term: &LTerm, frame: &Frame, tokens: &[Tok], base: usize) -> Result<String, EngineError> {
+        match self.term(term, frame, tokens, base)? {
+            Value::Str(text) => Ok(text),
+            Value::Set(_) => Err(EngineError { message: "a set where a string is needed".to_string(), rule: None }),
+        }
+    }
+
     fn set_term(&mut self, term: &LTerm, frame: &Frame, tokens: &[Tok], base: usize) -> Result<TagList, EngineError> {
         let value = self.term(term, frame, tokens, base)?;
         Self::as_set(value)
@@ -706,18 +718,39 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             }
             LTerm::Phonemes(span) => {
                 let (start, end, _) = span_bounds(span, frame, tokens.len());
-                Value::Str(Self::phonemes(tokens, start, end))
+                Value::Str(self.phonemes(tokens, start, end))
             }
             LTerm::Text(span) => {
                 let (start, end, _) = span_bounds(span, frame, tokens.len());
                 Value::Str(self.text(tokens, start, end))
             }
-            LTerm::Lower(inner) => match self.term(inner, frame, tokens, base)? {
-                Value::Str(text) => Value::Str(self.shared.unicode.lowercase(&text)),
-                Value::Set(_) => {
-                    return Err(EngineError { message: "lowercase takes one string".to_string(), rule: None });
+            // A set of strings (§10); an empty delimiter that only a parse
+            // sees is an error of the grammar.
+            LTerm::Split(string, delimiter) => {
+                let string = self.string_term(string, frame, tokens, base)?;
+                let delimiter = self.string_term(delimiter, frame, tokens, base)?;
+                if delimiter.is_empty() {
+                    return Err(EngineError { message: "split has an empty delimiter".to_string(), rule: None });
                 }
-            },
+                let mut list: TagList = string
+                    .split(delimiter.as_str())
+                    .filter(|piece| !piece.is_empty())
+                    .map(|piece| self.shared.tags.tag(piece))
+                    .collect();
+                list.sort_unstable();
+                list.dedup();
+                Value::Set(list)
+            }
+            LTerm::TagOf(name) => {
+                let name = self.string_term(name, frame, tokens, base)?;
+                if !is_name(&name) {
+                    return Err(EngineError {
+                        message: format!("tag({name:?}): the string is not a name"),
+                        rule: None,
+                    });
+                }
+                Value::Set(vec![self.shared.tags.tag(&name)])
+            }
             LTerm::Tags(span) => {
                 let bounds = span_bounds(span, frame, tokens.len());
                 Value::Set(self.span_tags(bounds, frame, tokens, base)?)
@@ -743,17 +776,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 } else {
                     Value::Set(TagList::new())
                 }
-            }
-            // The set of strings of the runs between pauses, never the
-            // empty string (§5).
-            LTerm::Runs(span) => {
-                let (start, end, _) = span_bounds(span, frame, tokens.len());
-                let phonemes = Self::phonemes(tokens, start, end);
-                let mut list: TagList =
-                    phonemes.split('.').filter(|run| !run.is_empty()).map(|run| self.shared.tags.tag(run)).collect();
-                list.sort_unstable();
-                list.dedup();
-                Value::Set(list)
             }
         })
     }

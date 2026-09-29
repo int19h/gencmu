@@ -103,7 +103,7 @@ class Compiled(unittest.TestCase):
         lexical = bundled_text("notation/lexical.md")
         assert lexical is not None
         stale = json.loads(json.dumps(self.compiled))
-        stale["documents"]["notation/lexical.md"]["dom"] = {"format": DOM_FORMAT, "rules": [], "directives": []}
+        stale["documents"]["notation/lexical.md"]["dom"] = {"format": DOM_FORMAT, "rules": [], "directives": [], "constants": []}
         edited = lexical + "\nA note added after the grammar.\n"
         sources = {
             "compiled.json": json.dumps(stale),

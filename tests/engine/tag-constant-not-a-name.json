@@ -1,0 +1,20 @@
+{
+  "description": "tag() of a constant whose value is not a name is an error of the document, which the loader reports at the constant (engine §2, §10).",
+  "grammar": "%const $N \"ko'a\"\n%rule text A <tag($N)>",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 19
+    }
+  }
+}

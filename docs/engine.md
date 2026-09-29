@@ -69,7 +69,7 @@ No other name is a property. So `'\p{lu}'` and `'\p{Letter}'` are errors of the 
 
 ## 2. Grammars
 
-A grammar is the stitching of the items of one stage of a pipeline (§13) into a set of rules and directives. An item is a rule or a directive, read from a document (§8, §9). A rule has a name and alternatives, and optionally rule-level tags, conditions and an emission clause. An alternative has guards, an expression, and optionally tags. The grammar DOM (document object model), in `docs/output.md`, is the exact data.
+A grammar is the stitching of the items of one stage of a pipeline (§13) into a set of rules, directives and constants. An item is a rule, a directive or a constant definition, read from a document (§8, §9). A rule has a name and alternatives, and optionally rule-level tags, conditions and an emission clause. An alternative has guards, an expression, and optionally tags. The grammar DOM (document object model), in `docs/output.md`, is the exact data.
 
 To stitch a stage's items, the loader reads them in order, whatever documents they come from. Each rule is stated one of three ways, and each is an error in the case given:
 
@@ -80,6 +80,23 @@ To stitch a stage's items, the loader reads them in order, whatever documents th
 When `%extend-rule` extends a rule, each appended alternative carries the extension's own clauses: its rule-level tags, conditions and emission. These clauses apply to the appended alternatives alone, and the base rule's clauses do not apply to them. The earlier alternatives keep their own clauses. So a script document can add letters to a rule without restating its clauses, and its own clauses do not leak into the base rule. A definition is a `%rule`, `%redefine-rule` or `%extend-rule` statement: its alternatives and the clauses written with them. The loader records every replacement and extension.
 
 The loader collects directives from all the stage's items. `%stage`, `%include` and `%features` shape the pipeline (§13) and do not belong to a stage. The other two directives belong to the stage.
+
+A stage also has constants. A constant is a named value that terms and conditions use (§10). Its name is `$` and a name (§9) that begins with `A` to `Z`, such as `$SU-STOPS`. By convention, the whole name is in capitals. An item states a constant in one of two ways, and each is an error in the case given:
+
+- `%const $NAME t` (`define`) defines the constant: an error if a constant of that name was defined before it in the stage.
+- `%redefine-const $NAME t` (`redefine`) gives the constant a new value: an error if none was defined before it in the stage.
+
+`t` is a closed term (§10). The loader evaluates it when it reaches the item in the stitching order. A constant in `t` has the value that it has at that point. In a `%redefine-const`, the constant's own name stands for its value before the redefinition. So one redefinition can extend a set with `∪`, narrow it with `∩` or `∖`, or replace it.
+
+A constant in `t` that is not defined at that point is an error. So no cycle can arise. For example, after `%const $A ~a`, `%const $B $A` and `%redefine-const $A ~b`, `$A` is `~b` and `$B` is `~a`. A redefinition keeps the constant's type. A value of another type is an error.
+
+Rules see the final values. A constant in a rule's terms or conditions has the value that the last definition of the stage gives it, wherever the rule stands.
+
+After the loader stitches the stage, it checks each rule definition that holds a constant. A constant that the stage never defines is an error there. The types of the terms and conditions that hold constants must agree (§9, §10). The checks of §9 that depend on the value of a constant apply there too. The loader checks every definition of the stage in this way. That includes a definition that a later `%redefine-rule` replaces, although its alternatives are then gone.
+
+A constant belongs to its stage, as a rule does. A document in several stages or dialects takes the values of each. The DOM of a document holds its definitions and its references to constants, never their values (§8).
+
+Each error of a constant is an error of the document. The loader reports a second `%const`, a `%redefine-const` of nothing and a change of type at the constant's definition. The loader reports errors from the two deferred capture checks of §9 at the rule's definition. It reports every other error at the reference to the constant.
 
 A stage has exactly one `%ambiguity-resolution L [elision-only] [maximal]`, or it is an error naming the stage. `L` is `greedy` or `lazy`. If both `elision-only` (§7) and `maximal` (§4) are written, they stand in that order. `%elidable T...` names the elidable terminators, and repeated directives add up.
 
@@ -114,6 +131,7 @@ Lowering turns a grammar, given the set of enabled features, into a context-free
    - `A ⟹ B` becomes `B` where `A` is then true. Where `A` is false, it becomes true, as a condition, or the empty set, as a term.
    - A condition `A ⟹ B` whose `B` is then true becomes true, and one whose `B` is false becomes `¬A`.
    - Lowering reduces `¬`, `∧` and `∨` over a true or false part as logic says.
+   - A constant is its value here. So a constant whose value is the empty set is an empty set.
    - Lowering drops a term's empty set, written `∅` or left by a guard, from a union. A union of nothing but empty sets is the empty set, as is an intersection with one. A difference whose first part is empty is empty. If its second part is empty, the difference is its first part. A guarded term whose term is the empty set is the empty set.
 
    Since the engine never evaluates a reduced part, the reduction is part of the order of evaluation (§10). A capture that is still mentioned after simplification is used by the clause. Then the simplified clauses attach as follows:
@@ -148,7 +166,7 @@ A terminal `T` matches a token whose tags contain `T`. A range matches a token t
 
 A range or a property has no tag of its own. As a terminal, its identity is its written form in canonical spelling, such as `'a'..'z'` or `'\p{L}'`. The ends of a range are in their canonical spelling (§1), so `'\u{61}'..'z'` is `'a'..'z'`. This form is the terminal for the ranking and its canonical keys (§6). It is also the terminal in the expected terminals, the tree's token nodes (§12) and the witness.
 
-A spelled symbol ``X`s` `` matches what `X` matches, over a span whose phonemes match the spelling. That is, `phonemes(span)` (§5), lowercased as `lowercase` does (§10), is exactly `s`. So the match ignores stress and script. A token with no phonemes, a character of the first stage, never matches a spelled terminal.
+A spelled symbol ``X`s` `` matches what `X` matches, over a span whose phonemes match the spelling. That is, the canonical sound `phonemes(span)` (§5) is exactly `s`. So the match ignores stress, script and syllable breaks. A token with no phonemes, a character of the first stage, never matches a spelled terminal.
 
 When an item reads a spelled symbol, the recognizer produces the advanced item only if the span of that symbol matches the spelling. This holds over a token, for a terminal, and over a completed item, for anything else. It includes an advance over a constituent that completed empty at the item's position. A spelling is never empty, so it always rejects such a constituent.
 
@@ -219,7 +237,11 @@ A token's `phonemes` are these:
 
 An emitted token always has phonemes, possibly the empty string. Only the character tokens of the first stage have none. Two phoneme tags on one emitted token are an error of the grammar that emitted it, whether or not the token is verbatim.
 
-`phonemes(span)` in a condition is the concatenation of the span's tokens' phonemes. `text(span)` is the original text over the source of the span's tokens (§1), and the empty string for an empty span. `runs(span)` is the set of strings of the runs of `phonemes(span)`. The runs are the strings between its pauses, `.`. The empty string is never among them.
+`phonemes(span)` in a condition is the canonical sound of the span. It joins the phonemes of the span's tokens in order, with no separator. Then it replaces each code point with its simple lowercase mapping, the `lower` entries of `grammars/unicode.txt`. It also removes every comma, `,`, the syllable break of CLL 3.3.
+
+The canonical sound keeps every pause. It does not merge two pauses, and it does not remove a pause at either end. So a stressed `lA` sounds `la`, and `kore,a` sounds `korea`. A token's own `phonemes`, above and in the output, stay as the token has them.
+
+`text(span)` is the original text over the source of the span's tokens (§1), and the empty string for an empty span.
 
 ## 6. Choosing a parse
 
@@ -291,6 +313,8 @@ The reader parses the grammar text with the notation dialect, `grammars/dialects
 
 An implementation can keep the DOMs that it built before. It keys each DOM by the document's text hash, the bootstrap's hash and the DOM format version (`docs/output.md`). It treats a mismatch in any of the three as a miss. The hash is 64-bit FNV-1a over the text's UTF-8 bytes, written as 16 lower-case hexadecimal digits. Every package ships `compiled.json` beside its grammars. The file holds the DOM of each bundled grammar document in this way.
 
+A DOM holds the definitions of constants and the references to them as the document writes them. It never holds a value that the loader gives a constant when it stitches a stage (§2). So one cached DOM serves every stage and every dialect that includes its document. The values of the constants exist only in a stitched stage, and neither `compiled.json` nor the bootstrap holds them.
+
 ## 9. From notation tree to DOM
 
 The notation's syntax grammar names its constituents so that the reader can read the DOM off the tree. Every rule of `grammars/notation/syntax.md` whose name appears in this table maps as shown. Every other rule makes no node of the DOM. The reader reads its children in its place, in order.
@@ -298,6 +322,7 @@ The notation's syntax grammar names its constituents so that the reader can read
 | rule | DOM |
 | --- | --- |
 | `directive` | a directive: name from its keyword without `%`, arguments in order. An `argument-word` gives its name, an `argument-string` the decoded string, and an `argument-tag` of `~name` the name |
+| `constant-definition` | a constant: `define` or `redefine` from its `constant-definer`, a token tagged `keyword-const` or `keyword-redefine-const`. Name from its `constant-reference` without `$`. Value from its `term` |
 | `rule` | a rule: `define`, `redefine` or `extend` from its `definer`, a token tagged `keyword-rule`, `keyword-redefine-rule` or `keyword-extend-rule`. Name from its `rule-name`, a name or `#`. Alternatives from its `body`. Tags from its `tags-clause`. Conditions from its `conditions-clause`. Emission from its `emits-clause`. `verbatim` true if it has a `verbatim-clause` |
 | `alternative` | guards from its `guard`s: a gate from `f?` or `¬f?`, a warning from `f!`. Expression from its `conjunction`, tags from `alternative-tags` |
 | `choice` | `choice` of its `conjunction`s, or the one conjunction itself |
@@ -335,6 +360,7 @@ The notation's syntax grammar names its constituents so that the reader can read
 | `range` in a term | `range`, as in a body |
 | `name` in a term | `tag`, the name, if it begins with a capital. As the second argument of `tags`, `matches` or `begins`, a name that does not is a rule, `{"rule":"r"}` |
 | `empty-set`, `capture-reference` | `emptySet`, a span `capture`, `""` for `$` |
+| `constant-reference` in a term | `const`, the name without `$`, and `at`, the line and column of its token |
 | `call` in a term | `call` with its arguments |
 
 A rule with any other name makes no node of the DOM. The reader reads its children in its place.
@@ -345,25 +371,31 @@ The grammar does not state the restrictions below. Each of these is an error of 
 
 - A capture wrapping anything but one symbol, `$x((B))` included. A symbol is a reference, a tag literal, a character tag, a phoneme tag, a range, a property or a spelled one of these.
 - A capture whose name has a capital. Capture names are all lower case.
+- A constant in a body, reported at the constant. A body names a class of tokens with a rule, such as `%rule digit '0'..'9'`, and never with a constant.
 - `$` wrapping anything.
 - A capture name used twice in one alternative.
 - A spelling after `#`, a range or a property, reported at the spelling. The syntax grammar permits a spelling on any of these, and on a reference, a tag literal, a character tag or a phoneme tag. There, `#` is a reference.
 - A range whose start is above its end, reported at the range.
 - A property whose text is not `'\p{Name}'` with a name of §1, reported at the property. So a long name, such as `Letter`, and a name in other case, such as `lu`, are errors.
 - A property in a term or a condition, reported at the property. A property is not a tag set.
-- A spelling with a code point that `lowercase` (§10) changes, reported at the spelling. The match ignores stress, so ``LE`La` `` is an error.
+- A spelling that no canonical sound (§5) can be, reported at the spelling. That is a spelling with a comma, or with a code point that the simple lowercase mapping changes. So ``LE`La` `` and ``LE`l,a` `` are errors.
 - A spelling that is empty, reported at the spelling.
-- A function that does not exist, or one called with the wrong arguments. `phonemes`, `text`, `runs`, `classes`, `head`, `tail`, `last`, `from` and `after` take one span. `lowercase` takes one string. `tags` takes a span and optionally a rule name. `matches` and `begins` take a span and a rule name, and `initial` takes one span.
+- A function that does not exist, or one called with the wrong arguments. `phonemes`, `text`, `classes`, `head`, `tail`, `last`, `from` and `after` take one span. `split` takes two strings, and `tag` takes one string. `tags` takes a span and optionally a rule name. `matches` and `begins` take a span and a rule name, and `initial` takes one span.
 
   In these signatures, a span is a capture or `head`, `tail`, `last`, `from` or `after` of one. A string is a term whose type is string (§10).
-- A term or a condition whose types do not agree, as §10 gives them. So `"a" ∈ tags($x)` and `phonemes($x) = ~a` are errors, and so is `∅ = ∅`, whose kind nothing gives. The reader reports the error at the smallest construct whose parts disagree. That construct is a union with its differences, an intersection, a guarded term, a call or a comparison. Otherwise, it is the whole tag term of a clause or an item.
+- A `split` whose delimiter is the string literal `""`, reported at the call.
+- A `tag` whose argument is a string literal that is not a name, reported at the call.
+- A constant's value that is not a closed term (§10), reported at the first part that is not closed. So a capture, `$`, a guarded term and a call of `phonemes`, `text`, `tags` or `classes` are errors there.
+- A term or a condition whose types do not agree, as §10 gives them. So `"a" ∈ tags($x)` and `phonemes($x) = ~a` are errors, and so is `∅ = ∅`, whose kind nothing gives. The reader reports the error at the smallest construct whose parts disagree. That construct is a union with its differences, an intersection, a guarded term, a call or a comparison. Otherwise, it is the whole tag term of a clause or an item, or the whole value of a constant.
+
+  The reader does not know the type of a constant, so it lets a constant stand for a value of any type but a span. The loader checks the types again after it stitches the stage (§2). It reports an error there at the first constant of the smallest construct whose parts disagree.
 - A span where a value is needed: a capture, `$`, or `head`, `tail`, `last`, `from` or `after`. The reader reports it at the span.
 - A bare name that does not begin with a capital, where a value is needed. Such a name is a rule, and a rule is only the second argument of `tags`, `matches` or `begins`.
 - `matches`, `begins` or `initial` as a term.
 - An `&` of more than 16 items.
 - An expression, a term or a condition nested more than 256 deep. That is, in the DOM (docs/output.md), a node of one lies below more than 256 compound nodes of it. In an expression, the compound nodes are `optional`, `repeat`, `and`, `choice`, `seq`, `capture` and `spelling`. In a term, they are `union`, `intersection`, `difference`, `if` and `call`. In a condition, they are `any`, `all`, `not`, `if`, `matches`, `begins`, `initial` and a comparison.
 
-  The condition of a guarded term counts on from the term's depth, as a comparison's terms count on from the condition's. `( )` makes no node, so it adds nothing. So 256 nested `[ ]` around a symbol are allowed, and 257 are not.
+  The condition of a guarded term counts on from the term's depth, as a comparison's terms count on from the condition's. `( )` makes no node, so it adds nothing. So 256 nested `[ ]` around a symbol are allowed, and 257 are not. The reader reports this error at the first item, in the order of the document, that holds such a node. That item is a rule or a constant definition.
 - `$` with items other than `$`.
 - Tags on an inserted tag.
 - An inserted bare name that does not begin with a capital, which names a rule and not a tag.
@@ -371,7 +403,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - `∅` as an item's tags, which is a token no terminal reads.
 - A capture other than `$` listed twice in one emission.
 - A rule's or an alternative's tag term that reads the tags that it defines: `tags($)` or `classes($)` in it. `tags(head($))` and the like read the tokens' tags, not the constituent's, and are allowed, as is `tags($, R)`.
-- An unknown directive, which the syntax grammar already refuses.
+- An unknown directive or keyword, which the syntax grammar already refuses.
 - A directive with the wrong operands, reported at the directive. `%stage` takes one name, `%include` one string, and `%features` one or more names. `%elidable` takes identifier tags: names that begin with a capital, or `~name`. A range or a property there is an error, as a phoneme tag or a character tag is. `%ambiguity-resolution` takes names only.
 
 Once the reader reads a definition (§2), it makes sure that the whole definition meets its requirements. Each of the following is an error of the document too, and the reader reports it at the definition:
@@ -384,16 +416,20 @@ Once the reader reads a definition (§2), it makes sure that the whole definitio
 - In an emission, an inserted tag whose anchor, the capture listed next after it, is one that some alternative of the definition lacks.
 - In an emission, an alternative for which every item is dropped, so that it emits nothing although the rule lists what to emit. A rule that emits nothing says so with `ε`.
 
-A document's items are its rules and directives. The DOM keeps them in two lists, each in the order written. Every item has the position of its first token, so the order of all of a document's items is the order of their positions.
+Two of these checks depend on simplification (§3.6). They are the check that a condition applies to an alternative, and the check of the captures that a tag term uses. In simplification, a constant is its value, and the reader does not know that value. So the reader leaves these two checks to the loader for each clause that holds a constant. The loader makes them after it gives the constants their values (§2), and it reports an error at the definition. The check that some alternative captures each mentioned capture does not depend on a value, so the reader makes it for every clause.
+
+A document's items are its rules, its directives and its constant definitions. The DOM keeps them in three lists, each in the order written. Every item has the position of its first token, so the order of all of a document's items is the order of their positions.
 
 A DOM is malformed in each of these cases, whether it is read, cached or in the bootstrap:
 
 - Two of its items share a position.
 - It has a `stage`, `include`, `features` or `elidable` directive whose operands the reader refuses.
-- It has a spelling that the reader refuses, by the same `lowercase` mapping that the match uses.
+- It has a spelling that the reader refuses, by the same lowercase mapping that the canonical sound uses.
 - It has a `terminal`, a `tag` or an inserted tag that is not a tag in its canonical spelling (§1).
 - It has a `range` whose ends are not two character tags in their canonical spelling, or whose start is above its end.
 - It has a `property` whose name §1 does not list.
+- It has a constant definition or a `const` term whose name is not a name that begins with `A` to `Z`.
+- It has a constant whose value is not a closed term, or a `split` or a `tag` that the reader refuses.
 - It has a term or a condition whose types do not agree (§10).
 
 To decode a string, the reader removes the quotes. In the decoded string, `\\` is `\`, `\"` is `"`, and `\u{h...}` is the character with that hexadecimal value. The value has one to six hexadecimal digits and is a Unicode scalar value: at most `10FFFF`, and not a surrogate, `D800` to `DFFF`. Any other `\`, and a `\u{...}` that breaks these limits, is an error of the document, and the reader reports it at the string.
@@ -417,16 +453,27 @@ A term has one of four types: a string, a set of strings, a tag set or a span. N
 | `a ∪ b`, `a ∩ b`, `a ∖ b` | the type of `a` and `b`, two sets of one kind | union, intersection, difference |
 | `A ⟹ t` | tag set | `t` where the condition `A` holds, else `∅` |
 | `phonemes(s)`, `text(s)` | string | §5 |
-| `lowercase(t)` | string | `t` with each code point replaced by its simple lowercase mapping, the `lower` entries of `grammars/unicode.txt` |
+| `split(a, d)` | set of strings | the pieces of the string `a` between the occurrences of the string `d` (below) |
+| `tag(a)` | tag set | the set of the one identifier tag whose name is the string `a` |
+| `$NAME` | the type of its value | the value of the constant (§2) |
 | `tags(s)` | tag set | the captured part's constituent tags if `s` is a whole capture, else the union of the span's tokens' tags |
 | `tags(s, R)` | tag set | the union of the tag sets of the completed items of `R` that span `s`, as `matches` reads them (§4), empty if there are none |
 | `classes(s)` | tag set | the tags of `tags(s)` whose first character is `A` to `Z` |
-| `runs(s)` | set of strings | §5 |
 | `$x`, `$`, `head(s)` and the other span functions | span | the argument of a function, never a value |
+
+`split(a, d)` finds the occurrences of `d` in `a` from the left. Each search starts where the last occurrence ends, so two occurrences never overlap. The pieces are the strings before the first occurrence, between two occurrences and after the last one. The value is the set of the pieces that are not empty. So `split("a..b.", ".")` is the set of `"a"` and `"b"`, and `split("aaa", "aa")` is the set of `"a"`.
+
+An empty delimiter is an error. It is an error of the document when the delimiter is the literal `""` or a constant whose value is `""` (§2, §9). Otherwise it is an error of the grammar when a parse evaluates the `split`, and the whole parse fails with it (§13). So `split(phonemes($x), text($y))` is such an error where `$y` is empty.
+
+`tag(a)` needs a name (§9) for `a`. Any other string is an error. When the reader sees it, as a string literal or a constant, it is an error of the document. Otherwise it is an error of the grammar when a parse evaluates the `tag`.
+
+A closed term uses no capture and no span. It holds only strings, tag literals, ranges, `∅`, constants, the operators `∪`, `∩` and `∖`, and `split` and `tag` of closed terms. A constant's value is a closed term, whose type is a string, a set of strings or a tag set. The loader evaluates it when it stitches the stage (§2), as a parse evaluates a term.
 
 `..` binds tighter than every other operator, since its two sides are character tags. So `'a'..'c' ∪ 'x'` is `('a'..'c') ∪ 'x'`.
 
-`∩` binds tighter than `∪` and `∖`. Those two bind equally and group from the left, so `a ∖ b ∪ c` is `(a ∖ b) ∪ c`. `∅` takes its kind from the other side of its operator or comparison. A tag term, guarded term or emission item also gives it the required tag-set type. An expression whose kind nothing gives is an error of the document.
+`∩` binds tighter than `∪` and `∖`. Those two bind equally and group from the left, so `a ∖ b ∪ c` is `(a ∖ b) ∪ c`.
+
+`∅` takes its kind from the other side of its operator or comparison. A tag term, guarded term or emission item also gives it the required tag-set type. In a `%redefine-const`, the type that the constant keeps (§2) gives the value its kind in the same way. So after `%const $A ~a`, `%redefine-const $A ∅` makes `$A` the empty tag set. An expression whose kind nothing gives is an error of the document. So `%const $E ∅` is an error.
 
 `a = b` and `a ≠ b` compare two strings, two sets of strings or two tag sets. Any other pair is an error of the document. `a ∈ b` and `a ∉ b` test a string in a set of strings. `a ⊆ b` tests that every member of `a` is in `b`, and `a ⊈ b` that one is not. Both sides are sets of one kind. `matches(s, R)` holds when the span parses as `R`, and `begins(s, R)` when a prefix of it does, the empty prefix included.
 
@@ -434,7 +481,11 @@ A term has one of four types: a string, a set of strings, a tag set or a span. N
 
 `A ⟹ B`, a condition, holds when `A` does not or `B` does. `⟹` binds looser than `∨`, which binds looser than `∧`. `⟹` groups to the right, and parentheses group.
 
-Evaluating a condition can run a nested parse, which can fail with an error of the grammar (§4). So which parts the engine evaluates is observable, and this section fixes the order of evaluation. The engine evaluates conditions joined by `∧` or `∨` from left to right. Evaluation stops at the first that decides the whole: a false one for `∧`, a true one for `∨`. `A ⟹ B` evaluates `A` first, and `B` only if `A` holds. A guarded term `A ⟹ t` likewise evaluates `t` only if `A` holds.
+Evaluating a condition can run a nested parse, which can fail with an error of the grammar (§4). `split` and `tag` can fail in the same way. So which parts the engine evaluates is observable, and this section fixes the order of evaluation.
+
+The engine evaluates conditions joined by `∧` or `∨` from left to right. Evaluation stops at the first that decides the whole: a false one for `∧`, a true one for `∨`. `A ⟹ B` evaluates `A` first, and `B` only if `A` holds. A guarded term `A ⟹ t` likewise evaluates `t` only if `A` holds.
+
+Within a term, the engine evaluates the parts from left to right. So it evaluates the parts of `∪`, `∩` and `∖`, and the arguments of a call, in the order written. It evaluates the two sides of a comparison in the same order. So where two parts both fail, the error is that of the left part. The loader evaluates the value of a constant (§2) in the same order. For example, in `tag($A) ∖ tag($B)`, where neither value is a name, the error is that of `tag($A)`.
 
 `A ⟹ t`, where `A` is a condition and `t` a tag set, is `t` where `A` holds. Where `A` does not hold, it is the empty tag set. A guarded term binds looser than `∪`, `∩` and `∖`, so it stands in parentheses inside any of them.
 
@@ -497,7 +548,7 @@ The names of every `%features` of the stream are the features the pipeline turns
 
 - An `%include` of a document that does not exist, at the `%include`. The error names the documents that included it.
 - An `%include` of a document that is already being included, which is a cycle, at the `%include`. The error names the documents that included it.
-- A rule, or an `%ambiguity-resolution` or `%elidable`, before the first `%stage`.
+- A rule, an `%ambiguity-resolution`, an `%elidable` or a constant definition before the first `%stage`.
 - A `%stage` with the name of an earlier one.
 - A stage with no rules, at its `%stage`.
 - A pipeline with no `%stage`.
@@ -524,4 +575,4 @@ The engine then runs the parse again from the first stage with `sa-su` added, in
 
 In either case, the engine discards the first run's stages and warnings. Otherwise that first run's stages are the parse's, with their warnings, continued to the end. The test is on the class and not on the spelling, because the lexicon decides which words erase. For example, `li'oi` is SU in the experimental lexicon, and a stressed `sA` is `sa`.
 
-Mistakes of the caller are errors of kind `usage`. Two examples are an `until` that names no stage and a text that is not a sequence of scalar values (§1). They are raised or returned as a load error is, and they are not results. A grammar error found while parsing, such as a nested parse asked about its own span, is a result. Its error has kind `grammar`, the `stage` that it arose in and a message, and no position.
+Mistakes of the caller are errors of kind `usage`. Two examples are an `until` that names no stage and a text that is not a sequence of scalar values (§1). They are raised or returned as a load error is, and they are not results. A grammar error found while parsing is a result. Examples are a nested parse asked about its own span and a `split` with an empty delimiter. Its error has kind `grammar`, the `stage` that it arose in and a message, and no position.

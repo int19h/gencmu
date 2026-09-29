@@ -5,6 +5,7 @@ captured parts' spans and tag sets, and the terms and conditions of engine
 from __future__ import annotations
 
 import itertools
+import json
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
@@ -12,7 +13,7 @@ from ._clauses import WHOLE
 from ._errors import _GrammarFault
 from ._grammar import Lowered, Production, written_symbol
 from ._model import Range, Tags, Token
-from ._tags import EMPTY, PAUSE, TagTable, code_of_character_tag, difference, intersection, is_class, range_tags, union
+from ._tags import EMPTY, TagTable, code_of_character_tag, difference, intersection, is_class, is_name, range_tags, split_string, union
 from ._trampoline import Walk, run
 from ._unicode import UnicodeTable
 
@@ -124,8 +125,9 @@ class StageContext:
     count: Callable[[Forest, list[int]], list[int]] | None = None
     # Where each run of the tokens lies in the text (engine §1).
     sources: Sources = field(init=False)
-    # Each token's phonemes lowercased, for the spellings of symbols,
-    # computed when a spelling first looks at the token (engine §4).
+    # Each token's phonemes in canonical form, for the spellings of symbols
+    # and for phonemes(), computed when one first looks at the token
+    # (engine §4, §5).
     sounds: list[str | None] = field(init=False)
     # Whether a range or a property matches a tag set, by the terminal's
     # name and the set's number in the tag table (engine §4).
@@ -169,17 +171,24 @@ class StageContext:
             found = self.range_sets[key] = range_tags(ends, self.unicode)
         return found
 
+    def sound(self, index: int) -> str:
+        """A token's phonemes in canonical form (engine §5), remembered for
+        the parse. The lowercase mapping and the removal of commas act on
+        each code point alone, so the canonical sound of a span is its
+        tokens' joined."""
+        sound = self.sounds[index]
+        if sound is None:
+            sound = self.sounds[index] = self.unicode.canonical(self.tokens[index].phonemes or "")
+        return sound
+
     def spelling_matches(self, spelling: str, start: int, end: int) -> bool:
-        """Whether tokens start..end sound like a spelling: their phonemes,
-        joined and lowercased, are exactly it (engine §4). A token with no
-        phonemes adds nothing, and a spelling is never empty, so neither
-        such a token alone nor an empty span matches."""
-        sounds = self.sounds
+        """Whether tokens start..end sound like a spelling: their canonical
+        sound is exactly it (engine §4, §5). A token with no phonemes adds
+        nothing, and a spelling is never empty, so neither such a token
+        alone nor an empty span matches."""
         offset = 0
         for index in range(start, end):
-            sound = sounds[index]
-            if sound is None:
-                sound = sounds[index] = self.unicode.lowercase(self.tokens[index].phonemes or "")
+            sound = self.sound(index)
             if not spelling.startswith(sound, offset):
                 return False
             offset += len(sound)
@@ -285,6 +294,13 @@ def _as_set(value: Any) -> Tags:
     return value
 
 
+def _as_string(value: Any) -> str:
+    """A value where a string is needed (engine §10)."""
+    if not isinstance(value, str):
+        raise _GrammarFault("a string is needed here")
+    return value
+
+
 class Evaluator:
     """Terms and conditions (engine §10) over one parse's captures."""
 
@@ -352,7 +368,9 @@ class Evaluator:
         return result
 
     def phonemes(self, start: int, end: int) -> str:
-        return "".join(token.phonemes or "" for token in self.context.tokens[start:end])
+        """The canonical sound of tokens start..end (engine §5)."""
+        sound = self.context.sound
+        return "".join(sound(index) for index in range(start, end))
 
     def _value(self, dom: Any, bound: dict[str, tuple[int, int, int]]) -> Walk:
         """A term's value (engine §10): a string, or a set, of strings or of
@@ -361,6 +379,12 @@ class Evaluator:
             return dom["string"]
         if "tag" in dom:
             return frozenset((dom["tag"],))
+        if "const" in dom:
+            # A constant holds its final value once the stage is stitched
+            # (engine §2).
+            if "value" not in dom:
+                raise _GrammarFault(f"the constant ${dom['const']} has no value")
+            return dom["value"]
         if "range" in dom:
             return self.context.range_tags(dom["range"])
         if "emptySet" in dom:
@@ -388,11 +412,19 @@ class Evaluator:
         name = dom.get("call")
         if name is not None:
             args = dom.get("args", [])
-            if name == "lowercase":
-                text = yield self._value(args[0], bound)
-                if not isinstance(text, str):
-                    raise _GrammarFault("lowercase() takes a string")
-                return self.context.unicode.lowercase(text)
+            if name == "split":
+                # A set of strings (engine §10); an empty delimiter that only
+                # a parse sees is an error of the grammar.
+                text = _as_string((yield self._value(args[0], bound)))
+                delimiter = _as_string((yield self._value(args[1], bound)))
+                if delimiter == "":
+                    raise _GrammarFault("split has an empty delimiter")
+                return split_string(text, delimiter)
+            if name == "tag":
+                text = _as_string((yield self._value(args[0], bound)))
+                if not is_name(text):
+                    raise _GrammarFault(f"tag({json.dumps(text, ensure_ascii=False)}): the string is not a name")
+                return frozenset((text,))
             if name == "tags" and len(args) == 2:
                 start, end, _ = yield self._span(args[0], bound)
                 return self.context.nested(args[1]["rule"], start, end).tags
@@ -401,9 +433,6 @@ class Evaluator:
                 return self.phonemes(span[0], span[1])
             if name == "text":
                 return self.context.span_text(span[0], span[1])
-            if name == "runs":
-                # The set of the strings between pauses (engine §5).
-                return frozenset(run for run in self.phonemes(span[0], span[1]).split(PAUSE) if run)
             if name == "tags":
                 return self.span_tags(span)
             if name == "classes":

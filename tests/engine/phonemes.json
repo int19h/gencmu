@@ -1,9 +1,9 @@
 {
-  "description": "Phoneme tags say what a token sounds like, and phonemes() of later stages reads them (engine §5).",
+  "description": "Phoneme tags say what a token sounds like. A token keeps its phonemes as they are, and phonemes() of a later stage reads them in canonical form, in lower case (engine §5).",
   "documents": {
     "p.md": "## s\n\n```jbogenbau\n%stage sounds\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage words\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [c] ...\n%rule c 'a' </a/> | 'Á' </A/> | '\\p{White_Space}' </./> %emits $\n```\n",
-    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w(pair) %conditions phonemes($w) = \"aA\"\n%rule pair /a/ /A/\n```\n"
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w(pair) %conditions phonemes($w) = \"aa\"\n%rule pair /a/ /A/\n```\n"
   },
   "pipeline": "p.md",
   "input": "aÁ",

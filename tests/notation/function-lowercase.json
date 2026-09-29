@@ -1,0 +1,10 @@
+{
+  "description": "lowercase is not a function of the notation, so a call of it is an error at the call (engine §9).",
+  "document": "```jbogenbau\n%rule a $x(B) %conditions lowercase(text($x)) = \"a\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 27
+    }
+  }
+}

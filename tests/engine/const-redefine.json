@@ -1,0 +1,17 @@
+{
+  "description": "%redefine-const reads the constant's value before it: it extends a set with ∪, narrows it with ∩ or ∖, or replaces it (engine §2).",
+  "grammar": "%const $A B ∪ C\n%redefine-const $A $A ∪ D\n%const $N B ∪ C ∪ D\n%redefine-const $N $N ∖ C\n%redefine-const $N $N ∩ (B ∪ E)\n%const $R B\n%redefine-const $R E\n%rule text $x(X)\n%conditions $A = B ∪ C ∪ D, $N = B, $R = E",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

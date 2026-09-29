@@ -1,6 +1,6 @@
 {
   "description": "Conditions with ∨ and ¬, and an emission list with an inserted phoneme (engine §9).",
-  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule g $a(A) $b(B) %conditions phonemes($a) = \"x\" ∨ phonemes($a) ∈ runs($b), ¬matches($b, r) %emits $a, /'/, $b <W>\n```\n",
+  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule g $a(A) $b(B) %conditions phonemes($a) = \"x\" ∨ phonemes($a) ∈ split(phonemes($b), \".\"), ¬matches($b, r) %emits $a, /'/, $b <W>\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -33,10 +33,18 @@
                     ]
                   },
                   "right": {
-                    "call": "runs",
+                    "call": "split",
                     "args": [
                       {
-                        "capture": "b"
+                        "call": "phonemes",
+                        "args": [
+                          {
+                            "capture": "b"
+                          }
+                        ]
+                      },
+                      {
+                        "string": "."
                       }
                     ]
                   }

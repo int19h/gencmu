@@ -59,8 +59,9 @@ export declare class ParseContext {
     unicode: UnicodeTable;
     interner: TagInterner;
     /**
-     * Each token's phonemes lowercased, for the spellings of symbols,
-     * computed when a spelling first looks at the token (engine §4).
+     * Each token's phonemes in canonical form, for the spellings of
+     * symbols and for phonemes(), computed when one first looks at the
+     * token (engine §4, §5).
      * @type {(string | undefined)[]}
      */
     sounds: (string | undefined)[];
@@ -194,8 +195,8 @@ export declare function writtenSymbol(symbol: {
     spelling?: string;
 }): string;
 /**
- * Whether the tokens [from, to) sound like a spelling: their phonemes,
- * joined and lowercased, are exactly it (engine §4). A token with no
+ * Whether the tokens [from, to) sound like a spelling: their canonical
+ * sound is exactly it (engine §4, §5). A token with no
  * phonemes adds nothing, and a spelling is never empty, so neither such a
  * token alone nor an empty span matches.
  * @param {ParseContext} context
@@ -212,13 +213,6 @@ export declare function spellingMatches(context: ParseContext, spelling: string,
  * @returns {Item[]}
  */
 export declare function rootItems(chart: Chart, rule: string): Item[];
-/**
- * @param {Token[]} tokens
- * @param {number} start
- * @param {number} end
- * @returns {string}
- */
-export declare function phonemesOf(tokens: Token[], start: number, end: number): string;
 /**
  * @param {ParseContext} context
  * @param {number} start

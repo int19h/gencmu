@@ -12,7 +12,7 @@ import (
 // A set of tags or of strings (engine §1, §10): its members in code point
 // order, interned so that an item can key on its id. A tag has no
 // strength, so a set holds a member or not. A set of strings, such as
-// runs() gives, has the same form; the reader has checked that no set of
+// split() gives, has the same form; the reader has checked that no set of
 // one kind meets a set of the other.
 type tagset struct {
 	id    int32
@@ -156,6 +156,19 @@ var nameSyntax = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9-]*$`)
 // isName says whether a string is a name, and so an identifier tag
 // (engine §1).
 func isName(s string) bool { return nameSyntax.MatchString(s) }
+
+// splitString is the value of split(s, delimiter) (engine §10): the pieces
+// between the occurrences of the delimiter, found from the left without
+// overlap, with the empty pieces dropped. The delimiter is not empty.
+func splitString(s, delimiter string) []string {
+	var pieces []string
+	for _, piece := range strings.Split(s, delimiter) {
+		if piece != "" {
+			pieces = append(pieces, piece)
+		}
+	}
+	return pieces
+}
 
 // isCapital says whether a name begins with a capital, and so is a
 // terminal and a tag literal (engine §2).

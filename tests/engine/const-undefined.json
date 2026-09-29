@@ -1,0 +1,20 @@
+{
+  "description": "A rule that uses a constant the stage never defines is an error of the document, at the reference (engine §2).",
+  "grammar": "%rule text $x(X)\n%conditions tags($x) ⊆ $UNDEFINED",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 24
+    }
+  }
+}

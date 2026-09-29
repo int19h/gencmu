@@ -23,6 +23,14 @@ class EngineCases(unittest.TestCase):
                     self.assertEqual(expect.get("error"), "grammar", f"{path.name}: the dialect did not load: {error}")
                     assert error is not None
                     self.assertEqual(error.kind, "grammar")
+                    if "where" in expect:
+                        # Where the error stands, in a document of the case
+                        # (tests/README.md).
+                        self.assertEqual(
+                            {"document": error.document, "line": error.line, "column": error.column},
+                            expect["where"],
+                            f"{path.name}: {error.message}",
+                        )
                     continue
                 if "features" in expect:
                     self.assertEqual(features, expect["features"], path.name)

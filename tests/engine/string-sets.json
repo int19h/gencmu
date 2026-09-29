@@ -1,6 +1,6 @@
 {
-  "description": "runs() is a set of strings: = and ≠ compare two of them, ⊆ and ⊈ test one in another, ∖ takes their difference, and ∈ and ∉ test a string in one. The alternative bad fails, since its runs differ (engine §5, §10).",
-  "grammar": "%rule text good | bad\n%rule good $a(W) $b(W) $c(W)\n%conditions runs($a) = runs($b), runs($a) ≠ runs($c), runs($a) ⊆ runs($c), runs($c) ⊈ runs($a), runs($c) ∖ runs($a) ≠ ∅, runs($b) ∖ runs($a) = ∅, \"do\" ∈ runs($c), \"do\" ∉ runs($a)\n%rule bad $d(W) $e(W) $f(W)\n%conditions runs($d) = runs($f)",
+  "description": "split() gives a set of strings: = and ≠ compare two of them, ⊆ and ⊈ test one in another, ∖ takes their difference, and ∈ and ∉ test a string in one. The alternative bad fails, since its pieces differ (engine §10).",
+  "grammar": "%rule text good | bad\n%rule good $a(W) $b(W) $c(W)\n%conditions split(phonemes($a), \".\") = split(phonemes($b), \".\"), split(phonemes($a), \".\") ≠ split(phonemes($c), \".\"), split(phonemes($a), \".\") ⊆ split(phonemes($c), \".\"), split(phonemes($c), \".\") ⊈ split(phonemes($a), \".\"), split(phonemes($c), \".\") ∖ split(phonemes($a), \".\") ≠ ∅, split(phonemes($b), \".\") ∖ split(phonemes($a), \".\") = ∅, \"do\" ∈ split(phonemes($c), \".\"), \"do\" ∉ split(phonemes($a), \".\")\n%rule bad $d(W) $e(W) $f(W)\n%conditions split(phonemes($d), \".\") = split(phonemes($f), \".\")",
   "tokens": [
     {
       "text": "x",

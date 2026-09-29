@@ -1,7 +1,7 @@
 import type { GrammarDom, Position, ResultNode } from "./types.js";
 import type { Token } from "./tokens.js";
 /**
- * @import { Argument, Comparator, Condition, DomAlternative, DomDirective, DomRule, EmitItem, Emission, Expr, GrammarDom, Position, ResultNode, RuleNode, Term } from "./types.js"
+ * @import { Argument, Comparator, Condition, DomAlternative, DomConstant, DomDirective, DomRule, EmitItem, Emission, Expr, GrammarDom, Position, ResultNode, RuleNode, Term } from "./types.js"
  * @import { Token } from "./tokens.js"
  */
 /**

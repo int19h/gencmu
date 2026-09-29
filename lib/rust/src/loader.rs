@@ -95,7 +95,7 @@ fn notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dialect, E
                 })?;
             documents.push((path, Arc::new(dom)));
         }
-        stages.push(stitch(&name, &documents)?);
+        stages.push(stitch(&name, &documents, &unicode)?);
     }
     if stages.is_empty() {
         return Err(grammar_error("bootstrap.json has no stages".to_string()));
@@ -165,6 +165,7 @@ pub(crate) fn read_document(notation: &Dialect, text: &str) -> Result<Dom, Error
                     captures: Default::default(),
                     position: &position,
                     unicode: &notation.unicode,
+                    in_constant: Default::default(),
                 };
                 let dom = reader.document(tree)?;
                 check_read(&dom, &notation.unicode)?;
@@ -177,24 +178,44 @@ pub(crate) fn read_document(notation: &Dialect, text: &str) -> Result<Dom, Error
 }
 
 /// Holds a DOM just read to the rules a precompiled one is held to, the
-/// bound on nesting among them (engine §9), reported at the first rule
+/// bound on nesting among them (engine §9), reported at the first item
 /// that breaks one.
 fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
-    let whole = json::parse(&dom_to_json(dom)).map_err(|message| Error::grammar(format!("the DOM: {message}")))?;
-    let Some(problem) = dom_problem(&whole, unicode) else {
+    const TOO_DEEP: &str = "an expression, term or condition is nested more than 256 deep";
+    // The problem of a DOM, through its JSON. JSON nested deeper than the
+    // parser follows holds a node below far more than 256 compound nodes.
+    let problem_of = |dom: &Dom| -> Option<String> {
+        match json::parse(&dom_to_json(dom)) {
+            Ok(json) => dom_problem(&json, unicode).map(|problem| {
+                if problem == "nested too deeply" {
+                    TOO_DEEP.to_string()
+                } else {
+                    problem.to_string()
+                }
+            }),
+            Err(message) if message.contains("nested too deeply") => Some(TOO_DEEP.to_string()),
+            Err(message) => Some(format!("the DOM: {message}")),
+        }
+    };
+    let Some(problem) = problem_of(dom) else {
         return Ok(());
     };
-    for rule in &dom.rules {
-        let single = Dom { rules: vec![rule.clone()], directives: Vec::new() };
-        let json =
-            json::parse(&dom_to_json(&single)).map_err(|message| Error::grammar(format!("the DOM: {message}")))?;
-        if let Some(problem) = dom_problem(&json, unicode) {
-            let problem = if problem == "nested too deeply" {
-                "an expression, term or condition is nested more than 256 deep"
-            } else {
-                problem
-            };
-            return Err(Error::grammar(problem).at(rule.at.0, rule.at.1));
+    // Each item alone, a rule or a constant's definition, in the order of
+    // the document.
+    let mut singles: Vec<(Dom, (usize, usize))> = dom
+        .rules
+        .iter()
+        .map(|rule| (Dom { rules: vec![rule.clone()], ..Dom::default() }, rule.at))
+        .chain(
+            dom.constants
+                .iter()
+                .map(|constant| (Dom { constants: vec![constant.clone()], ..Dom::default() }, constant.at)),
+        )
+        .collect();
+    singles.sort_by_key(|(_, at)| *at);
+    for (single, at) in singles {
+        if let Some(problem) = problem_of(&single) {
+            return Err(Error::grammar(problem).at(at.0, at.1));
         }
     }
     Err(Error::grammar(problem))
@@ -316,7 +337,7 @@ fn load(context: &Context, sources: &dyn Sources, pipeline_path: &str) -> Result
     for stage in pipeline.stages {
         let documents: Vec<(Arc<str>, Arc<Dom>)> =
             stage.documents.into_iter().map(|(path, dom)| (path, Arc::new(dom))).collect();
-        stages.push(stitch(&stage.name, &documents).map_err(|error| error.in_stage(&stage.name))?);
+        stages.push(stitch(&stage.name, &documents, &context.unicode).map_err(|error| error.in_stage(&stage.name))?);
     }
     // A name used both as a gate and as a warning, in any of the stages, is
     // an error of the dialect as a whole (engine §13).

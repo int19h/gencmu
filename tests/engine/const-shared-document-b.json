@@ -1,0 +1,29 @@
+{
+  "description": "One document shared by two pipelines takes each pipeline's value of a constant. With pb.md, $K is ~b (engine §2, §8). const-shared-document-a.json runs pa.md over the same documents.",
+  "documents": {
+    "pa.md": "```jbogenbau\n%stage main\n%include \"a.md\"\n%include \"shared.md\"\n```\n",
+    "pb.md": "```jbogenbau\n%stage main\n%include \"b.md\"\n%include \"shared.md\"\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%const $K ~a\n%rule thing '\\p{Any}'\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%const $K ~b\n%rule thing '\\p{Any}'\n```\n",
+    "shared.md": "```jbogenbau\n%rule text [item] ...\n%rule item $t(thing) <$K>\n%emits\n  $\n```\n"
+  },
+  "pipeline": "pb.md",
+  "input": "x",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "text": "x",
+              "tags": [
+                "b"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
