@@ -468,6 +468,51 @@ fn deep_tokens_and_ties_do_not_overflow() {
 }
 
 #[test]
+fn deep_attachments_do_not_overflow() {
+    small_stack(|| {
+        // Each w carries the rest of the text as its after-attachment, so
+        // the attachments nest as deep as the text is long.
+        let mut sources = BTreeMap::new();
+        sources.insert(
+            "p.md".to_string(),
+            "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n".to_string(),
+        );
+        sources.insert(
+            "a.md".to_string(),
+            grammar("%ambiguity-resolution greedy\n%rule text\n  | $w(word) | $w(word) $a(text)\n%emits\n  $w ($a)\n%rule word\n  'w' <W>"),
+        );
+        sources.insert("b.md".to_string(), grammar("%ambiguity-resolution greedy\n%rule text W"));
+        let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
+        let count = 1500;
+        let result = dialect.parse(&"w".repeat(count), &no_auto()).unwrap();
+        assert!(result.ok, "{:?}", result.error);
+        let output = result.stages[0].output.as_ref().unwrap();
+        assert_eq!(output.len(), 1);
+        let mut depth = 0;
+        let mut attachments = &output[0].after;
+        while let Some(first) = attachments.first() {
+            depth += 1;
+            attachments = &first.after;
+        }
+        assert_eq!(depth, count - 1);
+        let copy = result.clone();
+        assert!(copy == result);
+        let json = gencmu::to_json(&result);
+        assert!(json.len() > count * 50);
+        let brackets = gencmu::to_brackets(&result, false);
+        assert!(
+            brackets.starts_with("(w [w {w (w") && brackets.trim_end_matches([')', ']', '}']).ends_with("[w w"),
+            "{}",
+            &brackets[..40]
+        );
+        assert_eq!(brackets.matches('w').count(), count);
+        let shown = format!("{:?}", output[0]);
+        assert!(shown.len() > count * 50);
+        drop(copy);
+    });
+}
+
+#[test]
 fn a_long_name_through_the_notation_does_not_overflow() {
     small_stack(|| {
         let dialect = gencmu::load_dialect("notation").unwrap();
