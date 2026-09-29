@@ -372,8 +372,9 @@ func (run *stageRun) emitted(rec *recognizer, n *dn, explicit *tagset, widenedEn
 			phonemes = append(phonemes, ph)
 		}
 	}
+	// A defect found while parsing has no position (§13, docs/output.md).
 	if len(phonemes) > 1 {
-		panic(&parseFailure{message: "an emitted token has two phoneme tags", token: a, tokenEnd: b, hasToken: true})
+		panic(&parseFailure{message: "an emitted token has two phoneme tags"})
 	}
 	if n.kind == dClose && n.prod.verbatim {
 		return run.widened(a, b, tags, widenedEnds)

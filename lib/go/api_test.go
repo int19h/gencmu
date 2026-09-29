@@ -897,25 +897,32 @@ func TestEmptyCharacterTag(t *testing.T) {
 	}
 }
 
-// A second phoneme tag that an implication gives an inserted token is an
-// error of the grammar with the stage and no input position, since the
-// token reads no input (engine §11, docs/output.md).
-func TestInsertedPhonemeConflictHasNoPosition(t *testing.T) {
-	d, err := LoadDialectSources(oneStage("%ambiguity-resolution greedy\n%implies /e/ ⟹ /o/\n%rule text [word] ...\n%rule word $w(W)\n%emits\n  $w, /e/"), "p.md")
-	if err != nil {
-		t.Fatal(err)
-	}
-	res, err := d.ParseTokens("x", []Token{{Text: "x", Tags: []string{"W"}, Phonemes: "x", Span: [2]int{0, 1}, Source: [2]int{0, 1}}}, ParseOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if res.OK || res.Error == nil || res.Error.Kind != ErrorGrammar || res.Error.Stage != "main" {
-		t.Fatalf("expected an error of the grammar in the stage main, got %+v", res.Error)
-	}
-	if want := "stage main: an emitted token has two phoneme tags"; res.Error.Message != want {
-		t.Fatalf("expected the message %q, with no position, got %q", want, res.Error.Message)
-	}
-	if res.Error.Token != nil || res.Error.Source != nil || res.Error.Line != 0 || res.Error.Column != 0 {
-		t.Fatalf("expected no position, got %+v", res.Error)
+// Two phoneme tags on an emitted token are an error of the grammar with the
+// stage and no position, as any defect found while parsing is: on a token
+// that a constituent emits, on a verbatim one, and on an inserted one,
+// which reads no input (engine §5, §11, docs/output.md).
+func TestPhonemeConflictHasNoPosition(t *testing.T) {
+	for _, grammar := range []string{
+		"%implies A ⟹ /o/\n%rule text [word] ...\n%rule word $w(W) <A ∪ /e/>\n%emits\n  $",
+		"%rule text [word] ...\n%rule word $w(W) </e/ ∪ /o/>\n%emits\n  $\n%verbatim",
+		"%implies /e/ ⟹ /o/\n%rule text [word] ...\n%rule word $w(W)\n%emits\n  $w, /e/",
+	} {
+		d, err := LoadDialectSources(oneStage("%ambiguity-resolution greedy\n"+grammar), "p.md")
+		if err != nil {
+			t.Fatalf("%s: %v", grammar, err)
+		}
+		res, err := d.ParseTokens("x", []Token{{Text: "x", Tags: []string{"W"}, Phonemes: "x", Span: [2]int{0, 1}, Source: [2]int{0, 1}}}, ParseOptions{})
+		if err != nil {
+			t.Fatalf("%s: %v", grammar, err)
+		}
+		if res.OK || res.Error == nil || res.Error.Kind != ErrorGrammar || res.Error.Stage != "main" {
+			t.Fatalf("%s: expected an error of the grammar in the stage main, got %+v", grammar, res.Error)
+		}
+		if want := "stage main: an emitted token has two phoneme tags"; res.Error.Message != want {
+			t.Errorf("%s: expected the message %q, with no position, got %q", grammar, want, res.Error.Message)
+		}
+		if res.Error.Token != nil || res.Error.Source != nil || res.Error.Line != 0 || res.Error.Column != 0 {
+			t.Errorf("%s: expected no position, got %+v", grammar, res.Error)
+		}
 	}
 }
