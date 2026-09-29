@@ -48,6 +48,19 @@ def bundled_text(path: str) -> str | None:
     return text
 
 
+def _decode(data: bytes, document: str) -> str:
+    """A file's bytes as strict UTF-8, which keeps a byte order mark as the
+    character U+FEFF. Bytes that do not decode are a grammar error of the
+    document, found before anything hashes it or looks it up in
+    compiled.json (engine §1)."""
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise GencmuError(
+            f"the document is not valid UTF-8: {error.reason} at byte {error.start}", document=document
+        ) from None
+
+
 def _read_bundled(path: str) -> str | None:
     node = _bundled_root()
     for part in path.split("/"):
@@ -55,9 +68,10 @@ def _read_bundled(path: str) -> str | None:
             return None
         node = node.joinpath(part)
     try:
-        return node.read_text(encoding="utf-8")  # type: ignore[no-any-return]
+        data = node.read_bytes()
     except (FileNotFoundError, IsADirectoryError, NotADirectoryError, OSError):
         return None
+    return _decode(data, path)
 
 
 _lock = threading.Lock()
@@ -332,10 +346,11 @@ def load_dialect_file(path: str | os.PathLike[str], *, use_cache: bool = True) -
 
     def lookup(relative: str) -> str | None:
         try:
-            with open(os.path.join(root, *relative.split("/")), encoding="utf-8", newline="") as file:
-                return file.read()
+            with open(os.path.join(root, *relative.split("/")), "rb") as file:
+                data = file.read()
         except OSError:
             return None
+        return _decode(data, relative)
 
     return _Loader(lookup, _resources(), use_cache).load(os.path.basename(pipeline))
 
