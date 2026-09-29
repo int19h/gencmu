@@ -12,7 +12,7 @@ A grammar is unordered: its alternatives are not ranked. Where a text has more t
 
 ## Rules
 
-A grammar is a sequence of rules, directives (see "Directives") and constants (see "Constants"). Each one begins with a keyword, which is a word after `%`, and ends where the next one begins. A rule is `%rule`, its name, and its body:
+A grammar is a sequence of rules, directives (see "Directives"), constants (see "Constants"), classifiers (see "Classifiers") and implications (see "Implications"). Each one begins with a keyword, which is a word after `%`, and ends where the next one begins. A rule is `%rule`, its name, and its body:
 
 ```jbogenbau
 %rule sumti-tail
@@ -52,7 +52,9 @@ A tag is of one of three kinds. A tag has no strength: a token either carries it
 - A phoneme tag is one phoneme between slashes, such as `/a/`, `/'/`, and `/./` for a pause.
 - A character tag is one character between single quotes, such as `'a'`. The quotes are part of the tag's name.
 
-A tag literal is a tag written as a value: a set of that one tag. `~name` is the identifier tag `name`. A bare name that begins with a capital is the same thing, wherever a tag literal can stand. So `KOhA` and `~KOhA` are one tag, in a body, in a tag term and in a set expression. A bare name that begins with a lower-case letter is always a rule, so `~run-initial` needs its `~`.
+A tag literal is a tag written as a value: a set of that one tag. `~name` is the identifier tag `name`. A bare name that begins with a capital is the same thing, wherever a tag literal can stand. So `KOhA` and `~KOhA` are one tag, in a body, in a tag term and in a set expression.
+
+A bare name that begins with a lower-case letter is never a tag. It names a rule, or a classifier (see "Classifiers"). So `~run-initial` needs its `~`.
 
 A tag literal is a terminal in a body. So is a phoneme tag, `/a/`, and a character tag, `'a'`. A phoneme tag matches like any tag, and it also says what a token that carries it sounds like. `phonemes()` reads that sound. A character tag matches a character of the text, in the first stage (see "Pipelines").
 
@@ -109,7 +111,7 @@ A terminator is a word that closes a construct, such as `ku`. CLL writes a termi
 
 A feature is a name that is on or off for a parse. It has the same value in every stage of that parse. The pipeline of the dialect turns some features on (see "Pipelines"). The caller, the program or person that asks for the parse, can turn other features on, and can turn any of the dialect's features off. An alternative can begin with guards, which make it depend on features. There are two kinds of guard, gates and warnings.
 
-A gate, `name?`, keeps the alternative only while the feature `name` is on, and `¬name?` keeps it only while the feature is off. A gate changes what the grammar accepts. `?` and `!` have no other use in the notation.
+A gate, `name?`, keeps the alternative only while the feature `name` is on, and `¬name?` keeps it only while the feature is off. A gate changes what the grammar accepts. A gate can also stand before an entry of a classifier (see "Classifiers"). `?` and `!` have no other use in the notation.
 
 A warning, `name!`, keeps the alternative whether the feature is on or off. While the feature is on, a parse whose chosen tree uses the alternative carries a warning. The warning names the feature and the text that the alternative's constituent covers. A warning changes nothing that the grammar accepts or chooses. It reports where a text relies on an addition to a base grammar.
 
@@ -170,7 +172,7 @@ A constant names a value that several rules use, such as a list of classes. Its 
 %redefine-const $MAGIC-WORDS $MAGIC-WORDS ∪ LOhAI ∪ LEhAI
 ```
 
-The value is a string, a set of strings or a tag set, never a span. It is a closed term: it uses no capture and no span. So it holds only strings, tag literals, ranges, `∅` and other constants, joined by `∪`, `∩` and `∖`. `split` and `tag` of such terms are closed too (see "Conditions"). A call of `phonemes`, `text`, `tags` or `classes`, a capture and a guarded term are errors in a value.
+The value is a string, a set of strings or a tag set, never a span. It is a closed term: it uses no capture and no span. So it holds only strings, tag literals, ranges, `∅` and other constants, joined by `∪`, `∩` and `∖`. `split` and `tag` of such terms are closed too (see "Conditions"). A call of `phonemes`, `text`, `tags`, `classes` or `classify`, a capture and a guarded term are errors in a value. The value of `classify` depends on the features, and the value of a constant does not.
 
 Inside a `%redefine-const`, the constant's own name is its value before the redefinition. So one redefinition can extend a set with `∪`, narrow it with `∩` or `∖`, or replace it. A redefinition keeps the type of the value, so a set cannot become a string. That type also gives `∅` its kind. So `%redefine-const $A ∅` makes a set empty, but `%const $E ∅` is an error.
 
@@ -179,6 +181,52 @@ A constant in a value has the value that it has at that point of the stage. It i
 A constant stands wherever a value of its type can, in tag terms and in conditions. It cannot stand in a body. A body names a class of tokens with a rule, such as `%rule digit '0'..'9'`. A constant that the stage never defines is an error. That holds in a rule that a later `%redefine-rule` replaces too.
 
 The loader gives the constants their values when it stitches each stage. So a document that several dialects include takes the values of each dialect. The error for a constant stands at the reference to it, or at the definition that is wrong.
+
+## Classifiers
+
+A classifier gives a sound its classes. A lexicon is a classifier: it gives each cmavo its selma'o. `%classifier` and a name start a classifier, and its entries follow:
+
+```jbogenbau
+%classifier lexicon
+  "mi" "do" "ko'a" "ko'e" ∈ KOhA
+  "ui" "u'i" ∈ UI
+
+%classifier lexicon
+  date-li? "de'i" "na'a" "ti'u" ∈ LI
+  date-li? "de'i" "ti'u" ∉ BAI
+```
+
+An entry is one or more keys, `∈` or `∉`, and one class. A `%classifier` can also have no entries. A key is a string. `∈` adds the class to each key, and `∉` removes it from each key. A word in several classes has several entries.
+
+Line breaks mean nothing here, as everywhere in the notation. An entry ends after its class, and by convention each entry stands on a line of its own.
+
+A key is a canonical sound, as `phonemes()` gives it (see "Conditions"). So it is in lower case, with `'` for the apostrophe and no comma, and `"Mi"` and `"ko,a"` are errors. A class is an identifier tag whose name begins with a capital, such as `KOhA` or `~KOhA`. So `~indicator` is not a class, and a phoneme tag is not one either.
+
+An entry can begin with gates, as an alternative can (see "Feature guards"). An entry whose gates do not all hold does nothing. A warning on an entry is an error.
+
+The name of a classifier begins with a lower-case letter. A classifier belongs to its stage, as a rule does. Every `%classifier` of one name in a stage adds entries to one classifier. gencmu applies the entries in the order of the stage, whatever documents they come from. A key has the classes that hold after the last entry.
+
+An entry that adds a class that a key already has is an error. So is an entry that removes a class that a key does not have. These errors depend on the features, so they are errors of the grammar. gencmu reports one at its entry, for a parse that turns on the features that make it. A mistake in how an entry is written is an error of the document, even where the entry's gates do not hold.
+
+`classify(string, name)` (see "Conditions") is the set of the classes that the classifier gives the string. It is empty for a string that no entry names. A name that no `%classifier` of the stage uses is an error. `tags(span, rule)` is still the way to ask a rule for the tags of a span, as `brivla-scan` does in the CLL word forms.
+
+The audit (see "Stitching documents") lists every entry of every classifier. It says which class the entry adds to each key or removes from it, with the entry's gates and its document.
+
+## Implications
+
+An implication says that some tags bring other tags with them:
+
+```jbogenbau
+%implies UI ∪ CAI ∪ Y ∪ DAhO ∪ FUhE ∪ FUhO ⟹ ~indicator
+```
+
+`%implies A ⟹ B` says that each token that the stage emits with a tag of `A` also carries every tag of `B`. `A` and `B` are tag sets. Each is a closed term, as a constant's value is (see "Constants"). A constant in them has its final value, as in a rule.
+
+The stage applies its implications when it emits a token. First it gives the token the tags that the emission gives it (see "Emission"). Then it adds `B` for each implication whose `A` shares a tag with the token. It repeats this until no tag changes. So implications chain, and a cycle ends, because an implication only adds tags.
+
+Only then does the stage find the token's sound. So an implication that adds a phoneme tag sets the token's sound. Two phoneme tags on one token are an error, also when an implication added one of them.
+
+Implications apply only to the tokens that the stage emits. They do not change a constituent's tags, the value of a term or the classes of a classifier. A later stage applies only its own implications. So the lexicon's implication in the forms stage marks each attitudinal `indicator`. The word stage can drop that mark from a quote's marker, and nothing adds it again.
 
 ## Captures
 
@@ -207,7 +255,7 @@ A constant counts in these rules as its value. So where `$E` is empty, `$E ∩ t
   | $c(cmavo-shape) <~cmavo>
   | brivla-shape <BRIVLA>
 %tags
-  ~word ∪ ($c ⟹ tags($c, lexicon))
+  ~word ∪ ($c ⟹ classify(phonemes($c), lexicon))
 ```
 
 ## Conditions
@@ -233,7 +281,7 @@ The first type is the span, a sequence of tokens. A capture `$x` is a span, the 
 
 The second type is the string. `phonemes(span)` is the canonical sound of a span. That is the phonemes of its tokens, joined, in lower case and without commas. A comma is the syllable break of CLL 3.3, which changes no word. So `phonemes()` ignores stress and syllable breaks. It keeps every pause, and adds none between the tokens.
 
-A token's own phonemes are fixed when its stage emits it, and they keep their capitals and commas. A token over a verbatim constituent sounds like its text (see "Verbatim text"). Any other token sounds like the phoneme that its `/x/` tag names, if it has one. Two phoneme tags on one token are an error of the grammar.
+A token's own phonemes are fixed when its stage emits it, and they keep their capitals and commas. A token over a verbatim constituent sounds like its text (see "Verbatim text"). Any other token sounds like the phoneme that its `/x/` tag names, if it has one. Such a tag can come from an implication (see "Implications"). Two phoneme tags on one token are an error of the grammar.
 
 A token of neither kind sounds like the tokens of its stage's input that it covers, joined in order. That leaves out the tokens inside a rule that emits `ε` (see "Emission"). It also makes each run of pause tokens into one pause token, and removes a pause token at either end. A pause is `.`, so `klama bu` sounds as `klama.bu`. The renderings for people write a pause as a space.
 
@@ -247,7 +295,9 @@ An empty delimiter is an error. It is an error of the document when the reader s
 
 The fourth type is the tag set. A tag literal is the set with that one tag, so `UI ∪ CAI` is the set of both, and `~indicator` is the set of the mark. A range is the set of its character tags, so `tags($c) ∩ 'a'..'z' ≠ ∅` says that `$c` carries a lower-case ASCII letter. `..` binds tighter than every other operator, so `'a'..'c' ∪ 'x'` is four tags. A property is not a tag set, so it cannot stand in a term.
 
-`tags(span)` is the tag set of the captured part. `tags(span, rule)` is the tag set that the span has when parsed as `rule`, unioned over every parse. It is empty when the span does not parse as `rule`. This is how a word looks itself up in a lexicon that is itself a set of rules. `classes(span)` keeps only the tags that begin with a capital.
+`tags(span)` is the tag set of the captured part. `tags(span, rule)` is the tag set that the span has when parsed as `rule`, unioned over every parse. It is empty when the span does not parse as `rule`. `classes(span)` keeps only the tags that begin with a capital.
+
+`classify(string, classifier)` is the set of the classes that a classifier gives the string (see "Classifiers"). It is empty for a string that the classifier does not know. The second argument is a bare name, which names a classifier of the stage. So `classify(phonemes($c), lexicon)` is the set of the classes of the word `$c`.
 
 `tag(string)` is the identifier tag of that name, as a set of one tag. A string that is not a name is an error, in the same way as an empty delimiter.
 
@@ -296,12 +346,12 @@ Every token and every constituent carries a set of tags, and a terminal matches 
 %rule cmavo
   $w(cmavo-body)
 %tags
-  ~cmavo ∪ tags($w, lexicon)
+  ~cmavo ∪ classify(phonemes($w), lexicon)
 ```
 
 Sometimes no tags are written at all, neither after the alternative nor after `%tags`. Then a constituent built from one symbol has that symbol's tags, and a constituent built from several symbols has none. So a rule `word` whose body is `cmavo | brivla | cmevla` needs no tags. A `mi` arrives at the next stage tagged by the chain of rules that built it.
 
-A tag term that defines a constituent's tags cannot be made of those tags. So `tags($)` and `classes($)` are errors in a tag term after an alternative or after `%tags`. `tags($, lexicon)` is not an error there, because it parses the constituent's tokens again. The tag term of an emitted item does not define the constituent's tags, so it can use `tags($)` and `classes($)`.
+A tag term that defines a constituent's tags cannot be made of those tags. So `tags($)` and `classes($)` are errors in a tag term after an alternative or after `%tags`. `tags($, rule)` and `classify(phonemes($), lexicon)` are not errors there. The first parses the constituent's tokens again, and the second reads their sound. The tag term of an emitted item does not define the constituent's tags, so it can use `tags($)` and `classes($)`.
 
 ## Emission
 
@@ -395,7 +445,7 @@ The layout is a matter of style, and the notation does not require it. An `%incl
 
 The first stage reads the text's characters. Each is a token with one tag, its character tag, such as `'a'`. A grammar reads a class of characters with a range or a property, such as `'0'..'9'` or `'\p{L}'`. Every later stage reads what the stage before it emitted.
 
-`gencmu stitch --dialect NAME` prints a dialect's pipeline as one jbogenbau text. The command replaces every `%include` with what it stands for, and puts the dialect's features in one `%features` at the top. Each run of rules from one document follows a comment naming it.
+`gencmu stitch --dialect NAME` prints a dialect's pipeline as one jbogenbau text. The command replaces every `%include` with what it stands for, and puts the dialect's features in one `%features` at the top. Each run of rules from one document follows a comment naming it. A classifier stands as its author wrote it, entry by entry, and not as the table that its entries make.
 
 ## Ambiguity
 
