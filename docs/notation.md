@@ -384,7 +384,7 @@ The carrier's token covers its own capture only. An attachment is the list of to
 
 An attachment capture stands in exactly one item, and never as an item of its own. An alternative without the carrier emits nothing for the item, and it must also lack the item's attachment captures. The captures of an emission, attachments included, must be written in the order that they stand in the text. Where an alternative lacks an attachment capture, the item has one attachment fewer.
 
-A token that the next stage forwards keeps its attachments. A token over exactly one input token with attachments inherits them, whatever tags it gets. A token over an input token with attachments and any other part that counts is an error. Such a token cannot say which part each attachment belongs to. No condition, test or function sees attachments, and neither does a terminal. The renderings show them with their token.
+A token that the next stage forwards keeps its attachments. A token over exactly one input token with attachments inherits them, whatever tags it gets. A token over an input token with attachments and any other part that counts is an error. Such a token cannot say which part each attachment belongs to. An input token with attachments under two tokens, as under `$ <t>, $ <u>`, is an error too. No condition, test or function sees attachments, and neither does a terminal. The renderings show them with their token.
 
 A part that the list of a rule merely does not name is not handed on, but it still counts. For example, a pause inside a quote is part of what a compound over the quote sounds like. A rule with no `%emits` that happens to hand on nothing, as a gap does, counts as well. Only `ε` says that text does not count.
 

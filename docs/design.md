@@ -156,6 +156,8 @@ CLL writes `/KU/` for an elidable terminator, a closing word that the speaker ca
 
 A captured item can also carry attachments, captures in parentheses before or after it, as in `($b) $w ($a)`. The tokens of an attachment belong to the item's token, and no later stage reads them. So the indicator stage keeps `ui` and `ba'e` visible on the word that they modify, without an indicator slot after every word of the syntax. A later stage forwards the attachments with the token, and the renderings show them.
 
+The syntax reads a run of indicators itself where no word stands before it: at the start of a text, and after a text opener such as `lu`. In such a run, the indicator stage attaches only `ba'e`, to the indicator after it. A `nai` after an attitudinal stays a token of its own there, and the syntax reads `UI NAI` as it always has. In a run after a word, the `nai` attaches to its attitudinal instead.
+
 `%foreign` says that the constituent is foreign text, such as the body of a `zoi` quote. A token over it sounds `?`, and its label is the text as the author wrote it. So a comparison of sounds never mistakes foreign text for Lojban, and the renderings still show that text. The text of a foreign part also takes in punctuation next to it that no token covers.
 
 A clause can refer to a capture that some alternative lacks. Lowering decides such a clause before the recognizer reads any text. A condition or an emitted item then does not apply to that alternative. A tag term is an error unless it is guarded, as in `($c ⟹ classify(phonemes($c), lexicon))`. The reason is that a tag term has no value that can mean "nothing to say". A clause that applies to no alternative, or a capture that no alternative captures, is an error.

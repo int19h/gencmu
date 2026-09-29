@@ -612,6 +612,8 @@ If a token has exactly one part, and that part is an input token with attachment
 
 A token can have an input token with attachments among its parts together with another part. That other part can be an input token, with attachments or without, or a foreign part. This is an error of the grammar. A token whose parts hold a foreign part that holds an input token with attachments is an error of the grammar too. A foreign part holds each input token that it reads, except one inside a constituent that emits `ε`.
 
+An input token with attachments can also be the one part of two tokens that the stage emits, as under `$ <t>, $ <u>`. This is an error of the grammar as well, since its attachments cannot belong to both tokens. The stage finds the error at the second of those tokens.
+
 The reason is that a token over several parts cannot say which part each attachment belongs to. The stage checks a token's parts in this way after it checks the token's phoneme tags. No bundled dialect has a stage that makes such a token.
 
 The attachment lists follow the order of the derivation and of the emission. That is the order of the text when the sources lie in order. The engine does not promise that order for sources out of order.
