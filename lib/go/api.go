@@ -86,6 +86,10 @@ type loader struct {
 	reader   *notationReader
 	compiled map[string]json.RawMessage
 	noCache  bool
+	// fromDisk is set when read decodes files, not strings the caller
+	// supplies: bytes that are not valid UTF-8 are then a grammar error of
+	// the document, not a usage error (engine §1).
+	fromDisk bool
 }
 
 func (l *loader) document(p string) (*domDoc, *Error) {
@@ -93,8 +97,13 @@ func (l *loader) document(p string) (*domDoc, *Error) {
 	if !ok {
 		return nil, &Error{Kind: ErrorGrammar, Document: p, Message: "the document is missing"}
 	}
-	// A document is a sequence of scalar values, as a text is (engine §1).
+	// A document is a sequence of scalar values, as a text is. A file on
+	// disk is strict UTF-8, checked before its hash finds a compiled DOM
+	// (engine §1). A byte order mark stays U+FEFF.
 	if problem := utf8Problem(text); problem != "" {
+		if l.fromDisk {
+			return nil, &Error{Kind: ErrorGrammar, Document: p, Message: "the document is not valid UTF-8: " + problem}
+		}
 		return nil, &Error{Kind: ErrorUsage, Document: p, Message: "the document is not a sequence of Unicode scalar values: " + problem}
 	}
 	if !l.noCache {
@@ -262,6 +271,7 @@ func LoadDialectFile(file string) (*Dialect, error) {
 		data, err := os.ReadFile(filepath.FromSlash(p))
 		return string(data), err == nil
 	}
+	l.fromDisk = true
 	return l.dialect(filepath.ToSlash(abs))
 }
 

@@ -741,6 +741,85 @@ func TestInvalidUTF8(t *testing.T) {
 	}
 }
 
+// A grammar document read from disk is strict UTF-8 (engine §1): bytes that
+// do not decode are a grammar error of that document, with no line or
+// column, found before any hash or compiled DOM. U+FFFD, supplementary
+// characters and a byte order mark decode as themselves.
+func TestFileUTF8(t *testing.T) {
+	const pipeline = "# A dialect\n\n```jbogenbau\n%stage main\n%include \"g.md\"\n```\n"
+	grammar := func(rule string) string {
+		return "# A grammar\n\n```jbogenbau\n%ambiguity-resolution greedy\n" + rule + "\n```\n"
+	}
+	dir := func(files map[string]string) string {
+		root := t.TempDir()
+		for name, text := range files {
+			if err := os.WriteFile(filepath.Join(root, name), []byte(text), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return root
+	}
+	// A stray continuation, a truncated sequence, an overlong form, an
+	// encoded surrogate and a value above U+10FFFF.
+	invalid := []string{"\x80", "\xe2\x82", "\xc0\xaf", "\xed\xa0\x80", "\xf4\x90\x80\x80", "\xff"}
+	good := grammar("%rule text 'a'")
+	places := []struct {
+		place string
+		files func(b string) map[string]string
+		bad   string
+	}{
+		{"the pipeline's prose", func(b string) map[string]string {
+			return map[string]string{"p.md": "# A dialect " + b + "\n\n" + pipeline, "g.md": good}
+		}, "p.md"},
+		{"a comment of the pipeline", func(b string) map[string]string {
+			return map[string]string{"p.md": strings.Replace(pipeline, "%stage main", "%stage main (* "+b+" *)", 1), "g.md": good}
+		}, "p.md"},
+		{"an included document's prose", func(b string) map[string]string {
+			return map[string]string{"p.md": pipeline, "g.md": "# A grammar " + b + "\n\n" + good}
+		}, "g.md"},
+		{"a comment of an included document", func(b string) map[string]string {
+			return map[string]string{"p.md": pipeline, "g.md": grammar("%rule text 'a' (* " + b + " *)")}
+		}, "g.md"},
+	}
+	for _, p := range places {
+		for _, b := range invalid {
+			root := dir(p.files(b))
+			_, err := LoadDialectFile(filepath.Join(root, "p.md"))
+			var e *Error
+			if !errors.As(err, &e) || e.Kind != ErrorGrammar || !strings.HasSuffix(e.Document, "/"+p.bad) ||
+				!strings.Contains(e.Message, "not valid UTF-8") || e.Line != 0 || e.Column != 0 {
+				t.Errorf("%s, %q: expected a grammar error of %s, got %#v", p.place, b, p.bad, err)
+			}
+		}
+	}
+	root := dir(map[string]string{
+		"p.md": "# A dialect \uFFFD \U0001F600\n\n" + pipeline,
+		"g.md": grammar("%rule text '\uFFFD' '\U0001F600' '\U0010FFFD' (* \uFFFD \U0001F600 *)"),
+	})
+	d, err := LoadDialectFile(filepath.Join(root, "p.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for text, want := range map[string]bool{"\uFFFD\U0001F600\U0010FFFD": true, "\uFFFD\U0001F600": false} {
+		if res, err := d.Parse(text, ParseOptions{NoAutoFeatures: true}); err != nil || res.OK != want {
+			t.Errorf("%q: %v %+v", text, err, res)
+		}
+	}
+	// A byte order mark stays U+FEFF, so a fence after it opens no block.
+	marked := dir(map[string]string{"p.md": "\uFEFF" + pipeline[strings.Index(pipeline, "```"):], "g.md": good})
+	if _, err := LoadDialectFile(filepath.Join(marked, "p.md")); err == nil || !strings.Contains(err.Error(), "at least one %stage") {
+		t.Errorf("a fence after a byte order mark: %v", err)
+	}
+	prose := dir(map[string]string{"p.md": "\uFEFF" + pipeline, "g.md": grammar("%rule text '\uFEFF'")})
+	d, err = LoadDialectFile(filepath.Join(prose, "p.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res, err := d.Parse("\uFEFF", ParseOptions{NoAutoFeatures: true}); err != nil || !res.OK {
+		t.Errorf("a byte order mark in a character tag: %v %+v", err, res)
+	}
+}
+
 // A character tag holds exactly one character, so an empty one is an error
 // of the document, and a precompiled DOM with the terminal "" is refused
 // (engine §1, §9).
