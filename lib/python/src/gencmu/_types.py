@@ -33,6 +33,8 @@ reader knows none, and gives every constant the type ``any``."""
 _SET_KINDS = frozenset(["strings", "tags", "set"])
 _NAMES = {"string": "a string", "strings": "a set of strings", "tags": "a tag set", "span": "a span", "set": "a set", "any": "a value"}
 SPAN_NOT_VALUE = "a span is not a value: tags($x) is the tag set of $x"
+_CALL_STRINGS = {"split": "two strings", "tag": "one string", "classify": "a string and a classifier's name"}
+"""The calls whose arguments, but a classifier's name, are strings."""
 
 
 def type_name(kind: TermType) -> str:
@@ -49,7 +51,7 @@ def _call_type(call: str) -> TermType:
         return "string"
     if call == "split":
         return "strings"
-    if call in ("tags", "classes", "tag"):
+    if call in ("tags", "classes", "tag", "classify"):
         return "tags"
     return "span"
 
@@ -161,16 +163,15 @@ def term_type_fault(term: Any, constants: ConstantTypes = _unknown_constants) ->
     call = term.get("call")
     if isinstance(call, str):
         for argument in term.get("args", []):
-            if "rule" in argument:
+            if "rule" in argument or "classifier" in argument:
                 continue
             kind, fault = term_type_fault(argument, constants)
             if fault is not None:
                 return None, fault
-            if call in ("split", "tag"):
+            if call in _CALL_STRINGS:
                 problem = expected_problem(kind, "string")  # type: ignore[arg-type]
                 if problem is not None:
-                    signature = "two strings" if call == "split" else "one string"
-                    return None, (f"{call} takes {signature}: {problem}", term)
+                    return None, (f"{call} takes {_CALL_STRINGS[call]}: {problem}", term)
         return _call_type(call), None
     return None, ("a malformed term", term)
 

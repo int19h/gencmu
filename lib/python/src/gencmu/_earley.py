@@ -433,6 +433,13 @@ class Evaluator:
                 if not is_name(text):
                     raise _GrammarFault(f"tag({json.dumps(text, ensure_ascii=False)}): the string is not a name")
                 return frozenset((text,))
+            if name == "classify":
+                # The classes that the classifier gives the string, for the
+                # features of the parse, or none for an unknown key (engine
+                # §10).
+                key = _as_string((yield self._value(args[0], bound)))
+                table = self.context.lowered.classifiers.get(args[1]["classifier"])
+                return table.get(key, EMPTY) if table is not None else EMPTY
             if name == "tags" and len(args) == 2:
                 start, end, _ = yield self._span(args[0], bound)
                 return self.context.nested(args[1]["rule"], start, end).tags

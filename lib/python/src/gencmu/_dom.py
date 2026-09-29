@@ -15,6 +15,7 @@ from ._types import (
     comparison_problem,
     condition_type_problem,
     constant_value_type,
+    expected_problem,
     is_sound_test,
     joined_type,
     tag_term_problem,
@@ -23,6 +24,7 @@ from ._types import (
 )
 from ._validate import (
     CAPTURE_NAME,
+    CLASSIFIER_NAME,
     FORMAT,
     Lowercase,
     literal_call_problem,
@@ -39,7 +41,8 @@ _MAPPED = frozenset(
     reference string tag character phoneme name tested test test-operand capture group optional empty tags-clause conditions-clause
     emits-clause verbatim-clause emit-item emit-tags implication any-of all-of comparison negation presence call term
     guarded-term union intersection empty-set capture-reference range property constant-definition constant-definer
-    constant-reference""".split()
+    constant-reference classifier classifier-name classifier-entry classifier-key classifier-operator classifier-class
+    implication-declaration""".split()
 )
 _PROPERTY = re.compile(r"'\\p\{([^}]*)\}'")
 _SYMBOLS = frozenset(["reference", "tag", "character", "phoneme", "range", "property", "tested"])
@@ -47,7 +50,7 @@ _SYMBOLS = frozenset(["reference", "tag", "character", "phoneme", "range", "prop
 _DEFINERS = {"%rule": "define", "%redefine-rule": "redefine", "%extend-rule": "extend"}
 _SPAN_FUNCTIONS = frozenset(["head", "tail", "last", "from", "after"])
 _FUNCTIONS = frozenset(
-    ["phonemes", "text", "split", "tag", "tags", "classes", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]
+    ["phonemes", "text", "split", "tag", "tags", "classes", "classify", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]
 )
 _SIGNATURES = {
     "phonemes": "one span",
@@ -62,6 +65,7 @@ _SIGNATURES = {
     "split": "two strings",
     "tag": "one string",
     "tags": "a span, and optionally a rule",
+    "classify": "a string and a classifier's name",
     "matches": "a span and a rule",
     "begins": "a span and a rule",
 }
@@ -173,6 +177,8 @@ class DomBuilder:
         rules: list[Dom] = []
         directives: list[Dom] = []
         constants: list[Dom] = []
+        classifiers: list[Dom] = []
+        implications: list[Dom] = []
         for kid in self.kids(root):
             if kid.kind == "rule" and kid.rule == "rule":
                 rules.append(self.rule(kid))
@@ -180,7 +186,77 @@ class DomBuilder:
                 directives.append(self.directive(kid))
             elif kid.kind == "rule" and kid.rule == "constant-definition":
                 constants.append(self.constant(kid))
-        return {"format": FORMAT, "rules": rules, "directives": directives, "constants": constants}
+            elif kid.kind == "rule" and kid.rule == "classifier":
+                classifiers.append(self.classifier(kid))
+            elif kid.kind == "rule" and kid.rule == "implication-declaration":
+                implications.append(self.implication(kid))
+        return {
+            "format": FORMAT,
+            "rules": rules,
+            "directives": directives,
+            "constants": constants,
+            "classifiers": classifiers,
+            "implications": implications,
+        }
+
+    def classifier(self, node: Node) -> Dom:
+        """A ``%classifier`` item: its name, which begins with a lower-case
+        letter, and its entries (engine §2, §9)."""
+        name_node = self.rules(node, "classifier-name")[0]
+        name = self.text(self.kids(name_node)[0])
+        if not CLASSIFIER_NAME.fullmatch(name):
+            raise self.fail(name_node, f"{name} begins with a capital, so it is a tag; a classifier's name begins with a lower-case letter")
+        entries = [self.entry(entry) for entry in self.rules(node, "classifier-entry")]
+        return {"name": name, "entries": entries, "at": list(self.position(node))}
+
+    def entry(self, node: Node) -> Dom:
+        """An entry of a classifier: gates, canonical keys, ``∈`` or ``∉``,
+        and a class (engine §2, §9)."""
+        guards: list[Dom] = []
+        keys: list[str] = []
+        op = ""
+        name = ""
+        for kid in self.kids(node):
+            if kid.kind == "token":
+                # A guard's token is its text: f? or ¬f? for a gate. A
+                # warning f! is an error here.
+                text = self.text(kid)
+                if text.endswith("!"):
+                    raise self.fail(kid, "an entry of a classifier takes gates only, not a warning")
+                negated = text.startswith("¬")
+                guards.append({"feature": text[1 if negated else 0 : -1], "kind": "gate", "negated": negated})
+            elif kid.rule == "classifier-key":
+                key = self.decode(self.kids(kid)[0])
+                wrong = sound_problem(key, self.unicode)
+                if wrong is not None:
+                    raise self.fail(kid, f"a key is a canonical sound: {wrong}")
+                keys.append(key)
+            elif kid.rule == "classifier-operator":
+                op = self.text(self.kids(kid)[0])
+            elif kid.rule == "classifier-class":
+                written = self.text(self.kids(kid)[0])
+                name = written[1:] if written.startswith("~") else written
+                if not _is_capital(name):
+                    raise self.fail(kid, f"{written} is not a class: a class is an identifier tag that begins with a capital")
+        return {"guards": guards, "keys": keys, "op": op, "class": name, "at": list(self.position(node))}
+
+    def implication(self, node: Node) -> Dom:
+        """An implication, ``%implies A ⟹ B``: two closed terms whose type is
+        a tag set (engine §2, §9)."""
+        sides: list[Dom] = []
+        for side in self.rules(node, "union"):
+            self.closed_for = "a side of an implication"
+            try:
+                term = self.value(side)
+            finally:
+                self.closed_for = None
+            kind, problem = term_type(term)
+            if problem is None:
+                problem = expected_problem(kind, "tags")  # type: ignore[arg-type]
+            if problem is not None:
+                raise self.fail(side, f"a side of an implication is a tag set: {problem}")
+            sides.append(term)
+        return {"if": sides[0], "then": sides[1], "at": list(self.position(node))}
 
     def constant(self, node: Node) -> Dom:
         """A constant's definition: its name without ``$``, and its value, a
@@ -561,9 +637,15 @@ class DomBuilder:
         if node.rule == "call":
             call = yield self._call(node)
             args = call["args"]
-            if call["call"] == "initial" and len(args) == 1 and "rule" not in args[0]:
+            if call["call"] == "initial" and len(args) == 1 and "rule" not in args[0] and "classifier" not in args[0]:
                 return {"initial": args[0]}
-            if call["call"] not in ("matches", "begins") or len(args) != 2 or "rule" not in args[1] or "rule" in args[0]:
+            if (
+                call["call"] not in ("matches", "begins")
+                or len(args) != 2
+                or "rule" not in args[1]
+                or "rule" in args[0]
+                or "classifier" in args[0]
+            ):
                 raise self.fail(node, "a condition calls only matches(span, rule), begins(span, rule) or initial(span)")
             return {call["call"]: args[0], "rule": args[1]["rule"]}
         raise self.fail(node, f"unexpected {node.rule} in a condition")
@@ -581,6 +663,8 @@ class DomBuilder:
         name = self.text(kids[0])
         if name not in _FUNCTIONS:
             raise self.fail(node, f"an unknown function {name}()")
+        if self.closed_for and name == "classify":
+            raise self.fail(node, f"{self.closed_for} is a closed term, and classify depends on the features")
         if self.closed_for and name not in ("split", "tag"):
             raise self.fail(node, f"{self.closed_for} is a closed term, and {name} reads a span")
         args: list[Dom] = []
@@ -607,11 +691,17 @@ class DomBuilder:
             ok = len(args) == 2 and all(is_string(argument) for argument in args)
         elif name == "tag":
             ok = len(args) == 1 and is_string(args[0])
+        elif name == "classify":
+            ok = len(args) == 2 and is_string(args[0]) and is_rule(args[1])
         else:
             ok = len(args) == 1 and _is_span(args[0])
         # A rule stands only as the second argument.
         if not ok or any(is_rule(argument) and index != 1 for index, argument in enumerate(args)):
             raise self.fail(node, f"{name}() takes {_SIGNATURES[name]}")
+        # The second argument of classify names a classifier, not a rule
+        # (engine §9).
+        if name == "classify":
+            return {"call": name, "args": [args[0], {"classifier": args[1]["rule"]}]}
         # An empty delimiter or a tag's name that the reader sees (engine §9).
         seen = literal_call_problem(name, args)
         if seen is not None:

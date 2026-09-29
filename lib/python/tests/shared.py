@@ -79,20 +79,23 @@ def case_tokens(case: dict[str, Any]) -> tuple[list[Token], str]:
     return tokens, " ".join(spec["text"] for spec in case["tokens"])
 
 
-def run_case(
-    case: dict[str, Any], use_cache: bool = True
-) -> tuple[dict[str, Any] | None, gencmu.ParseResult | None, gencmu.GencmuError | None, list[dict[str, Any]] | None]:
-    """An engine case's canonical result and result, or the error in their
-    place: the load's, or the parse's for a mistake of the caller, which is
-    no result (engine §13). Last, the dialect's features as a case writes
-    them, or None if it did not load."""
+def load_case_dialect(case: dict[str, Any], use_cache: bool = True) -> tuple[gencmu.Dialect | None, gencmu.GencmuError | None]:
+    """An engine case's loaded dialect, or the error of its load."""
     sources, pipeline = case_sources(case)
     try:
-        dialect = gencmu.load_dialect_sources(sources, pipeline, use_cache=use_cache)
+        return gencmu.load_dialect_sources(sources, pipeline, use_cache=use_cache), None
     except gencmu.GencmuError as error:
-        return None, None, error, None
-    features = [{"name": feature.name, "kind": feature.kind, "default": feature.default} for feature in dialect.features]
-    options = case.get("options", {})
+        return None, error
+
+
+def parse_case(
+    dialect: gencmu.Dialect, case: dict[str, Any], run: dict[str, Any] | None = None
+) -> tuple[dict[str, Any] | None, gencmu.ParseResult | None, gencmu.GencmuError | None]:
+    """An engine case's canonical result and result, parsed with a loaded
+    dialect under the options of ``run``, the case itself or one item of
+    its ``parses`` (tests/README.md); or a mistake of the caller in their
+    place, which is no result (engine §13)."""
+    options = (case if run is None else run).get("options", {})
     kwargs: dict[str, Any] = {
         "features": options.get("features", []),
         "without_features": options.get("withoutFeatures", []),
@@ -109,5 +112,24 @@ def run_case(
     except gencmu.GencmuError as error:
         if error.kind != "usage":
             raise
-        return None, None, error, features
-    return gencmu.result_json(result), result, None, features
+        return None, None, error
+    return gencmu.result_json(result), result, None
+
+
+def case_features(dialect: gencmu.Dialect) -> list[dict[str, Any]]:
+    """A dialect's features as a case writes them."""
+    return [{"name": feature.name, "kind": feature.kind, "default": feature.default} for feature in dialect.features]
+
+
+def run_case(
+    case: dict[str, Any], use_cache: bool = True
+) -> tuple[dict[str, Any] | None, gencmu.ParseResult | None, gencmu.GencmuError | None, list[dict[str, Any]] | None]:
+    """An engine case's canonical result and result, or the error in their
+    place: the load's, or the parse's for a mistake of the caller, which is
+    no result (engine §13). Last, the dialect's features as a case writes
+    them, or None if it did not load."""
+    dialect, error = load_case_dialect(case, use_cache)
+    if dialect is None:
+        return None, None, error, None
+    value, result, error = parse_case(dialect, case)
+    return value, result, error, case_features(dialect)

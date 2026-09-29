@@ -33,14 +33,31 @@ class Pipeline:
     features: frozenset[str]
 
 
+_LISTS = {
+    "rule": "rules",
+    "directive": "directives",
+    "constant": "constants",
+    "classifier": "classifiers",
+    "implication": "implications",
+}
+"""The list of a DOM that holds each kind of item."""
+
+
+def _empty_dom(format_: Any) -> Dom:
+    return {"format": format_, "rules": [], "directives": [], "constants": [], "classifiers": [], "implications": []}
+
+
 def items_in_order(dom: Dom) -> list[tuple[str, Dom]]:
-    """A document's rules, directives and constant definitions, each tagged
-    ``"rule"``, ``"directive"`` or ``"constant"``, in the order they were
-    written, which is the order of their positions (engine §9)."""
+    """A document's rules, directives, constant definitions, classifiers and
+    implications, each tagged ``"rule"``, ``"directive"``, ``"constant"``,
+    ``"classifier"`` or ``"implication"``, in the order they were written,
+    which is the order of their positions (engine §9)."""
     items = (
         [("rule", rule) for rule in dom["rules"]]
         + [("directive", directive) for directive in dom["directives"]]
         + [("constant", constant) for constant in dom.get("constants", [])]
+        + [("classifier", classifier) for classifier in dom.get("classifiers", [])]
+        + [("implication", implication) for implication in dom.get("implications", [])]
     )
     items.sort(key=lambda item: (item[1]["at"][0], item[1]["at"][1]))
     return items
@@ -92,13 +109,17 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None]) -> Pipeline:
                         what = f"the rule {item['name']}"
                     elif kind == "constant":
                         what = f"the constant ${item['name']}"
+                    elif kind == "classifier":
+                        what = f"the classifier {item['name']}"
+                    elif kind == "implication":
+                        what = "%implies"
                     else:
                         what = f"%{name}"
                     raise fail(f"{what} stands before the first %stage")
                 if run is None or run[0] != document:
-                    run = (document, {"format": dom["format"], "rules": [], "directives": [], "constants": []})
+                    run = (document, _empty_dom(dom["format"]))
                     stages[-1].documents.append(run)
-                run[1]["rules" if kind == "rule" else "constants" if kind == "constant" else "directives"].append(item)
+                run[1][_LISTS[kind]].append(item)
 
     top = dom_of(path)
     if top is None:

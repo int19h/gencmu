@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import itertools
 import json
+import threading
 from dataclasses import dataclass, field
 from typing import Any, Union
 
@@ -24,7 +25,17 @@ from ._tags import (
     written_test,
 )
 from ._trampoline import Walk, run
-from ._types import TermType, constant_value_type, constants_in, is_sound_test, rule_type_fault, tests_in, type_name
+from ._types import (
+    TermType,
+    constant_value_type,
+    constants_in,
+    expected_problem,
+    is_sound_test,
+    rule_type_fault,
+    term_type_fault,
+    tests_in,
+    type_name,
+)
 from ._validate import Lowercase, sound_problem
 
 Dom = dict[str, Any]
@@ -114,6 +125,61 @@ class Grammar:
     maximal: bool
     elidable: frozenset[str]
     changes: list[Change] = field(default_factory=list)
+    # The stage's %classifier items in stitching order, each with its
+    # document (engine §2).
+    classifier_items: list[tuple[str, Dom]] = field(default_factory=list)
+    # The stage's implications, each side's tags with the constants' final
+    # values (engine §2, §11).
+    implications: list[tuple[frozenset[str], frozenset[str]]] = field(default_factory=list)
+    # The classifiers resolved for each set of features, or the error of
+    # their resolution (engine §2).
+    _classifier_tables: dict[frozenset[str], Classifiers | GencmuError] = field(default_factory=dict, repr=False, compare=False)
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
+
+    def classifiers(self, features: frozenset[str]) -> Classifiers:
+        """Each classifier of the stage for one set of features: each key's
+        classes after every entry whose gates hold, in stitching order
+        (engine §2). An entry that adds a membership that holds, or removes
+        one that does not, is an error of the grammar for these features."""
+        with self._lock:
+            found = self._classifier_tables.get(features)
+        if found is None:
+            try:
+                found = _resolve_classifiers(self.classifier_items, features)
+            except GencmuError as error:
+                found = error
+            with self._lock:
+                self._classifier_tables[features] = found
+        if isinstance(found, GencmuError):
+            raise found
+        return found
+
+
+Classifiers = dict[str, dict[str, frozenset[str]]]
+"""Each classifier of a stage by name, resolved for one set of features:
+each key's classes."""
+
+
+def _resolve_classifiers(items: list[tuple[str, Dom]], features: frozenset[str]) -> Classifiers:
+    tables: Classifiers = {}
+    for path, classifier in items:
+        table = tables.setdefault(classifier["name"], {})
+        for entry in classifier["entries"]:
+            if not all((guard["feature"] in features) != guard["negated"] for guard in entry["guards"]):
+                continue
+            adds = entry["op"] == "∈"
+            name = entry["class"]
+            for key in entry["keys"]:
+                classes = table.get(key, EMPTY)
+                if adds == (name in classes):
+                    line, column = int(entry["at"][0]), int(entry["at"][1])
+                    word = json.dumps(key, ensure_ascii=False)
+                    message = f"{word} is already in {name}" if adds else f"{word} is not in {name}, so ∉ has nothing to remove"
+                    # A lowering error is a result's, whose message alone
+                    # names the entry (engine §2).
+                    raise GencmuError(f"{path}:{line}:{column}: the classifier {classifier['name']}: {message}")
+                table[key] = classes | {name} if adds else classes - {name}
+    return tables
 
 
 def _error(message: str, document: str, at: Any = None, stage: str | None = None) -> GencmuError:
@@ -236,6 +302,24 @@ class _Constants:
                 raise self.fault_error(path, term["args"][0], item, f"tag({json.dumps(name, ensure_ascii=False)}): the string is not a name")
             return frozenset((name,))
         raise _error("a constant's value is not a closed term", path, item, self.stage)
+
+    def implication(self, path: str, implication: Dom) -> tuple[frozenset[str], frozenset[str]]:
+        """An implication's two sides, with the constants' final values:
+        closed terms whose type is a tag set (engine §2, §9)."""
+        sides: list[frozenset[str]] = []
+        for side in (implication["if"], implication["then"]):
+            for reference in constants_in(side):
+                if reference["const"] not in self.values:
+                    raise _error(f"${reference['const']} is not defined in stage {self.stage}", path, reference["at"], self.stage)
+            kind, fault = term_type_fault(side, self.type_of)
+            if fault is None:
+                problem = expected_problem(kind, "tags")  # type: ignore[arg-type]
+                if problem is not None:
+                    fault = (problem, side)
+            if fault is not None:
+                raise self.fault_error(path, fault[1], implication["at"], f"a side of an implication is a tag set: {fault[0]}")
+            sides.append(_set(run(self._closed(path, side, implication["at"]))))
+        return sides[0], sides[1]
 
     def check(self) -> None:
         """Checks what the reader could not in each rule that uses a
@@ -369,6 +453,8 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
     changes: list[Change] = []
     resolutions: list[tuple[list[str], str, Any]] = []
     elidable: set[str] = set()
+    classifier_items: list[tuple[str, Dom]] = []
+    implication_items: list[tuple[str, Dom]] = []
     for path, dom in documents:
         for rule in dom.get("rules", []):
             if constants_in(rule):
@@ -423,9 +509,12 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
                 raise _error(f"an unknown directive %{name}", path, at, stage)
         for constant in dom.get("constants", []):
             constants.add(path, constant)
+        classifier_items.extend((path, classifier) for classifier in dom.get("classifiers", []))
+        implication_items.extend((path, implication) for implication in dom.get("implications", []))
     constants.check()
     constants.resolve(rules)
     _resolve_tests(rules, constants)
+    implications = [constants.implication(path, implication) for path, implication in implication_items]
     _check_elidable_tests(stage, rules, elidable)
     if not resolutions:
         raise GencmuError(f"stage {stage} has no %ambiguity-resolution", stage=stage)
@@ -448,6 +537,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
         )
     if "text" not in rules:
         raise GencmuError(f"stage {stage} has no rule text, its start rule", stage=stage)
+    classifier_names = {classifier["name"] for _, classifier in classifier_items}
     for rule in rules.values():
         for alt in rule.alternatives:
             stack: list[Any] = [alt.expr, alt.tags, alt.rule_tags, alt.emit, alt.conditions]
@@ -459,10 +549,30 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
                         raise _error(f"{ref} is not a rule of stage {stage}", alt.document, alt.at, stage)
                     if isinstance(value.get("rule"), str) and value["rule"] not in rules:
                         raise _error(f"{value['rule']} is not a rule of stage {stage}", alt.document, alt.at, stage)
+                    # A classifier that classify names belongs to the stage
+                    # (engine §2).
+                    named = value.get("classifier")
+                    if isinstance(named, str) and named not in classifier_names:
+                        raise _error(
+                            f"{rule.name} classifies with {named}, which no %classifier of stage {stage} names",
+                            alt.document,
+                            alt.at,
+                            stage,
+                        )
                     stack.extend(value.values())
                 elif isinstance(value, list):
                     stack.extend(value)
-    return Grammar(stage, rules, args[0], elision_only, maximal, frozenset(elidable), changes)
+    return Grammar(
+        stage,
+        rules,
+        args[0],
+        elision_only,
+        maximal,
+        frozenset(elidable),
+        changes,
+        classifier_items=classifier_items,
+        implications=implications,
+    )
 
 
 RESOLVED = "resolved"
@@ -608,6 +718,10 @@ class Lowered:
     by_first_terminal: list[dict[str, list[int]]] = field(default_factory=list)
     by_first_characters: list[dict[str, list[int]]] = field(default_factory=list)
     not_terminal_first: list[list[int]] = field(default_factory=list)
+    # The stage's classifiers for the same features, and its implications
+    # (engine §2, §11).
+    classifiers: Classifiers = field(default_factory=dict)
+    implications: list[tuple[frozenset[str], frozenset[str]]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         self.by_first_terminal = [{} for _ in self.rule_names]
@@ -1003,5 +1117,11 @@ class _Lowerer:
 
 
 def lower(grammar: Grammar, features: frozenset[str], elision: bool = False) -> Lowered:
-    """Lower a stage's grammar for a set of enabled features (engine §3)."""
-    return _Lowerer(grammar, features, elision).lower()
+    """Lower a stage's grammar for a set of enabled features (engine §3).
+    The stage resolves its classifiers for the same features, before it
+    lowers its rules (engine §2, §3)."""
+    classifiers = grammar.classifiers(features)
+    lowered = _Lowerer(grammar, features, elision).lower()
+    lowered.classifiers = classifiers
+    lowered.implications = grammar.implications
+    return lowered

@@ -22,7 +22,7 @@ A dialect is a pipeline document and the documents that it includes. The pipelin
 
 The loader reads a grammar document through the notation (the grammar of grammar documents) only when `compiled.json` has no matching entry. `compiled.json` holds the precompiled DOMs, the parsed forms of the grammar documents. An entry matches when it is for the same text, under the same bootstrap and DOM format. Reading a large grammar through the notation is slow in pure Python. So the bundled grammars all have an entry. Each loader takes `use_cache=False` to read every document afresh.
 
-An entry holds a document's constants (`%const` and `%redefine-const`) as the document writes them, never their values. The loader gives each constant its value when it stitches a stage (`docs/engine.md`, §2). So a document that several stages or dialects include takes the values of each, and one entry serves them all.
+An entry holds a document's constants (`%const` and `%redefine-const`), classifiers (`%classifier`) and implications (`%implies`) as the document writes them, never their values. The loader gives each constant its value when it stitches a stage (`docs/engine.md`, §2). A stage resolves each classifier for the features of a parse, and keeps the result for each set of features. So a document that several stages or dialects include takes the values of each, and one entry serves them all.
 
 A dialect that cannot be loaded raises `gencmu.GencmuError`. Its `kind` is `"grammar"`, and its `where` is `document:line:column` as far as it is known. An error of a constant stands at the definition that is wrong, or else at the reference to the constant. A document on disk that is not valid UTF-8 is such an error, with no line or column. A document in the mapping with a lone surrogate is the caller's mistake, of `kind` `"usage"`.
 
@@ -38,15 +38,15 @@ result = dialect.parse(text, features=(), without_features=(), auto_features=Tru
 - `until`: the name of the last stage to run. An unknown name raises `GencmuError` with `kind` `"usage"`.
 - `elision_only`: `True` or `False` to override the grammars' `%ambiguity-resolution ... elision-only`.
 
-A `text` with a lone surrogate raises `GencmuError` with `kind` `"usage"`. A text that does not parse is a result whose `ok` is false and whose `error` says why. The kind of that error is `rejected`, `ambiguous` or `grammar`. Here, `grammar` is for a defect of a grammar found only while parsing. For tests and tools, `Dialect.parse_tokens(tokens, text, ...)` takes pre-built tokens in place of the characters of the first stage.
+A `text` with a lone surrogate raises `GencmuError` with `kind` `"usage"`. A text that does not parse is a result whose `ok` is false and whose `error` says why. The kind of that error is `rejected`, `ambiguous` or `grammar`. Here, `grammar` is for a defect of a grammar found only while parsing. An example is a classifier's entry that adds a class that a key already has, under the features of the parse. The message of that error names the document, line and column of the entry. For tests and tools, `Dialect.parse_tokens(tokens, text, ...)` takes pre-built tokens in place of the characters of the first stage.
 
-`dialect.features` lists the features of the dialect in code point order of their names, as a tuple of `Feature`. Each `Feature` has these fields:
+`dialect.features` lists the features of the dialect in code point order of their names, as a tuple of `Feature`. The list includes the gates of the entries of its classifiers. Each `Feature` has these fields:
 
 - `name`
 - `kind`: `"gate"` for a guard `f?` or `¬f?`, or `"warning"` for `f!`
 - `default`: whether the pipeline turns the feature on
 
-A dialect whose guards use one name both as a gate and as a warning cannot be loaded.
+A dialect whose guards use one name both as a gate and as a warning cannot be loaded. A gate of a classifier's entry counts here too.
 
 You can use a dialect for any number of parses, and you can share it between threads.
 
@@ -74,7 +74,7 @@ python -m unittest
 
 The tests cover these items:
 
-- The shared cases of `tests/engine/` and `tests/notation/` in the repository, with the position of each load error that a case gives
+- The shared cases of `tests/engine/` and `tests/notation/` in the repository, with the position of each load error that a case gives. A case with `parses` parses its input several times with one loaded dialect.
 - The fixpoint of the bootstrap of the notation
 - A comparison of `compiled.json` with a fresh reading
 - The API

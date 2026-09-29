@@ -286,6 +286,21 @@ def phoneme_tag(tags: Tags, span: Range) -> str | None:
     return phoneme_of(found[0]) if found else None
 
 
+def implied(tags: Tags, implications: list[tuple[Tags, Tags]]) -> Tags:
+    """A token's explicit tags with the tags of the stage's implications,
+    added until no tag changes (engine §11). An implication only adds tags,
+    so the loop ends, also over a cycle."""
+    result = tags
+    changed = bool(implications)
+    while changed:
+        changed = False
+        for premise, consequence in implications:
+            if not result.isdisjoint(premise) and not consequence <= result:
+                result = result | consequence
+                changed = True
+    return result
+
+
 class Emitter:
     """Emission (engine §11): the tokens a stage hands to the next."""
 
@@ -307,9 +322,11 @@ class Emitter:
         text = self.context.text[source[0] : source[1]]
         return Token(text, tags, (start, end), source, phonemes, inserted_by)
 
-    def part_token(self, part: DChild, tags: Tags) -> Token:
-        """The token a ``$`` item or a capture item emits over a part
-        (engine §11)."""
+    def part_token(self, part: DChild, explicit: Tags) -> Token:
+        """The token a ``$`` item or a capture item emits over a part, with
+        the tags that the emission gives it (engine §11)."""
+        # The stage's implications apply before the phonemes (engine §11).
+        tags = implied(explicit, self.context.lowered.implications)
         tokens = self.tokens
         span = (part.start, part.end)
         if isinstance(part, DNode) and part.production.verbatim:
@@ -390,7 +407,8 @@ class Emitter:
                 at = self.tokens[boundary - 1].source[1]
             else:
                 at = self.tree.source_of(node)[0]
-            self.output.append(self.token(boundary, boundary, frozenset((tag,)), (at, at), node.production.rule_name))
+            tags = implied(frozenset((tag,)), self.context.lowered.implications)
+            self.output.append(self.token(boundary, boundary, tags, (at, at), node.production.rule_name))
 
     def context_caps(self, node: DNode) -> Any:
         return self.forest.caps[node.item]
