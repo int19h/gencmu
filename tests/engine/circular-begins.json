@@ -13,7 +13,8 @@
     "result": {
       "ok": false,
       "error": {
-        "kind": "grammar"
+        "kind": "grammar",
+        "stage": "main"
       }
     },
     "error": "grammar"

@@ -355,13 +355,7 @@ func (run *stageRun) rejectedAt(k int, expected []Expected) *ParseError {
 // failure is a grammar error found while parsing: its kind, stage and
 // message, and no position (§13).
 func (run *stageRun) failure(f *parseFailure) *ParseError {
-	msg := "stage " + run.name + ": " + f.message
-	if f.hasToken {
-		src := run.spanSource(f.token, f.tokenEnd)
-		line, col := run.ps.lineColumn(src[0])
-		msg += fmt.Sprintf(" (tokens %d to %d, at line %d, column %d)", f.token, f.tokenEnd, line, col)
-	}
-	return &ParseError{Kind: ErrorGrammar, Stage: run.name, Message: msg}
+	return &ParseError{Kind: ErrorGrammar, Stage: run.name, Message: "stage " + run.name + ": " + f.message}
 }
 
 // checkElision is engine §7: write the chosen tree's elided terminators back

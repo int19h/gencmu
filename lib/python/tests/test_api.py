@@ -355,6 +355,34 @@ class Output(unittest.TestCase):
         self.assertEqual(gencmu.to_brackets(result), "(klama bu x.y a..b)")
 
 
+class GrammarFaults(unittest.TestCase):
+    """A defect of a grammar found while parsing is an error with the stage
+    and no position (engine §13, docs/output.md)."""
+
+    def test_a_fault_has_no_position(self) -> None:
+        own_span = (
+            "a condition asks whether its own span parses as text from inside the parse of that span as text: "
+            "the grammar defines text in terms of itself over the same text"
+        )
+        for grammar, message in [
+            ("%implies A ⟹ /o/\n%rule text [word] ...\n%rule word $w(W) <A ∪ /e/>\n%emits\n  $", "an emitted token has two phoneme tags: /e/, /o/"),
+            ("%rule text [word] ...\n%rule word $w(W) </e/ ∪ /o/>\n%emits\n  $\n%verbatim", "an emitted token has two phoneme tags: /e/, /o/"),
+            ("%implies /e/ ⟹ /o/\n%rule text [word] ...\n%rule word $w(W)\n%emits\n  $w, /e/", "an emitted token has two phoneme tags: /e/, /o/"),
+            ("%rule text $a(W) %emits $a <tags($a) ∩ Z>", "text emits a token with no tags; a rule that emits nothing says %emits ε"),
+            ("%rule text $a(x) %conditions ¬matches($a, text)\n%rule x W", own_span),
+            ("%rule text $a(x) %conditions ¬begins(from($a), text)\n%rule x W", own_span),
+        ]:
+            with self.subTest(grammar=grammar):
+                sources = {
+                    "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
+                    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n" + grammar + "\n```\n",
+                }
+                dialect = gencmu.load_dialect_sources(sources, "p.md", use_cache=False)
+                result = dialect.parse_tokens([gencmu.Token("x", frozenset({"W"}), (0, 1), (0, 1), "x")], "x", auto_features=False)
+                self.assertFalse(result.ok)
+                self.assertEqual(result.error, gencmu.ParseError("grammar", message, stage="main"))
+
+
 class Warnings(unittest.TestCase):
     def dialect(self, rules: str) -> gencmu.Dialect:
         sources = {

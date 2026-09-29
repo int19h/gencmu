@@ -286,7 +286,7 @@ func (run *stageRun) plan(rec *recognizer, n *dn) []emitTask {
 		}
 		tags := ev.tagsOf(it.Tags)
 		if len(tags.names) == 0 {
-			panic(&parseFailure{message: p.ruleName + " emits a token with no tags", token: start, tokenEnd: end, hasToken: true, rule: p.ruleName})
+			panic(&parseFailure{message: p.ruleName + " emits a token with no tags"})
 		}
 		return tags
 	}

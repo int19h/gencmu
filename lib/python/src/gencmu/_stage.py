@@ -276,13 +276,13 @@ def span_phonemes(tokens: list[Token], uncounted: list[bool], start: int, end: i
     return joined_phonemes([tokens[index].phonemes or "" for index in range(start, end) if not uncounted[index]])
 
 
-def phoneme_tag(tags: Tags, span: Range) -> str | None:
+def phoneme_tag(tags: Tags) -> str | None:
     """The phonemes of an emitted token's phoneme tag, or ``None`` if
     it has none. Two are an error of the grammar on any emitted token,
     verbatim or not (engine §5)."""
     found = sorted(tag for tag in tags if phoneme_of(tag) is not None)
     if len(found) > 1:
-        raise _GrammarFault(f"an emitted token has two phoneme tags: {', '.join(found)}", span)
+        raise _GrammarFault(f"an emitted token has two phoneme tags: {', '.join(found)}")
     return phoneme_of(found[0]) if found else None
 
 
@@ -317,7 +317,7 @@ class Emitter:
         self.widened_ends: set[int] = set()
 
     def token(self, start: int, end: int, tags: Tags, source: Range, inserted_by: str | None) -> Token:
-        phoneme = phoneme_tag(tags, (start, end))
+        phoneme = phoneme_tag(tags)
         phonemes = phoneme if phoneme is not None else span_phonemes(self.tokens, self.uncounted, start, end)
         text = self.context.text[source[0] : source[1]]
         return Token(text, tags, (start, end), source, phonemes, inserted_by)
@@ -332,13 +332,13 @@ class Emitter:
         if isinstance(part, DNode) and part.production.verbatim:
             # A widened token sounds like its text (engine §5), but two
             # phoneme tags are still an error on it.
-            phoneme_tag(tags, span)
+            phoneme_tag(tags)
             source = self.widened_source(part.start, part.end)
             text = self.context.text[source[0] : source[1]]
             return Token(text, tags, span, source, text, verbatim=True)
         if part.end - part.start == 1 and tokens[part.start].verbatim:
             # A token over one verbatim token is verbatim, with its source.
-            phoneme_tag(tags, span)
+            phoneme_tag(tags)
             only = tokens[part.start]
             return Token(only.text, tags, span, only.source, only.text, verbatim=True)
         return self.token(part.start, part.end, tags, self.part_source(part), None)
@@ -420,7 +420,7 @@ class Emitter:
         bound = self.evaluator.bind(node.production, self.context_caps(node), (node.start, node.end, node.tag))
         tags = self.evaluator.tags(term, bound)
         if not tags:
-            raise _GrammarFault(f"{node.production.rule_name} emits a token with no tags; a rule that emits nothing says %emits ε", (node.start, node.end))
+            raise _GrammarFault(f"{node.production.rule_name} emits a token with no tags; a rule that emits nothing says %emits ε")
         return tags
 
 
