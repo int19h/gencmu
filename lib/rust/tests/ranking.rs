@@ -58,7 +58,9 @@ const TERMINALS: [&str; 3] = ["A", "B", "C"];
 enum Lean {
     Greedy,
     Lazy,
-    TagsOnly,
+    /// No lean: any two derivations that differ are tied, as the
+    /// `elision-only` check ranks (§7).
+    Neither,
 }
 
 /// The grammar as written.
@@ -102,7 +104,7 @@ fn symbol(rng: &mut Rng, rule: usize, rule_count: usize, terminal_count: usize, 
     }
 }
 
-fn generate(rng: &mut Rng) -> (Source, Vec<Vec<(usize, bool)>>) {
+fn generate(rng: &mut Rng) -> (Source, Vec<Vec<usize>>) {
     let rule_count = 1 + rng.below(4);
     let terminal_count = 1 + rng.below(3);
     let sugar = rng.chance(40);
@@ -143,11 +145,11 @@ fn generate(rng: &mut Rng) -> (Source, Vec<Vec<(usize, bool)>>) {
     let tokens = sentence
         .into_iter()
         .map(|terminal| {
-            let mut tags = vec![(terminal, rng.chance(80))];
+            let mut tags = vec![terminal];
             if rng.chance(40) {
                 let other = rng.below(terminal_count);
                 if other != terminal {
-                    tags.push((other, rng.chance(60)));
+                    tags.push(other);
                 }
             }
             tags
@@ -290,7 +292,7 @@ fn grammar_text(source: &Source) -> String {
                     body.push("ε".to_string());
                 }
                 if let Some(tags) = tags {
-                    body.push(format!("<\"{tags}\">"));
+                    body.push(format!("<{tags}>"));
                 }
                 body.join(" ")
             })
@@ -327,7 +329,7 @@ fn grammar_dom(source: &Source) -> String {
                     1 => parts[0].clone(),
                     _ => format!("{{\"seq\":[{}]}}", parts.join(",")),
                 };
-                let tags = tags.map_or(String::new(), |tags| format!(",\"tags\":{{\"literal\":\"{tags}\"}}"));
+                let tags = tags.map_or(String::new(), |tags| format!(",\"tags\":{{\"tag\":\"{tags}\"}}"));
                 format!("{{\"guards\":[],\"expr\":{expr}{tags}}}")
             })
             .collect();
@@ -347,7 +349,7 @@ fn grammar_dom(source: &Source) -> String {
     if let Some(t) = source.elidable {
         directives.push(format!("{{\"name\":\"elidable\",\"args\":[\"{}\"],\"at\":[3,1]}}", TERMINALS[t]));
     }
-    format!("{{\"format\":8,\"rules\":[{}],\"directives\":[{}]}}", rules.join(","), directives.join(","))
+    format!("{{\"format\":9,\"rules\":[{}],\"directives\":[{}]}}", rules.join(","), directives.join(","))
 }
 
 // ---- derivations by brute force
@@ -366,7 +368,7 @@ struct Derivation {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Act {
-    Read { token: usize, terminal: usize, strong: bool },
+    Read { token: usize, terminal: usize },
     Close { prod: usize, start: usize, end: usize, visible: bool },
 }
 
@@ -382,7 +384,7 @@ type Derivations = Rc<Vec<Rc<Derivation>>>;
 
 struct Enumerator<'a> {
     grammar: &'a Grammar,
-    tokens: &'a [Vec<(usize, bool)>],
+    tokens: &'a [Vec<usize>],
     memo: HashMap<(usize, usize, usize, Vec<usize>), Derivations>,
     budget: usize,
 }
@@ -427,7 +429,7 @@ impl<'a> Enumerator<'a> {
         let mut out = Vec::new();
         match syms[index] {
             Sym::T(terminal) => {
-                if start < end && self.tokens[start].iter().any(|&(t, _)| t == terminal) {
+                if start < end && self.tokens[start].contains(&terminal) {
                     for rest in self.sequence(syms, index + 1, start + 1, end, parent, forbidden)? {
                         let mut children = vec![Child::Read(start, terminal)];
                         children.extend(rest);
@@ -462,14 +464,11 @@ impl<'a> Enumerator<'a> {
     }
 }
 
-fn actions(grammar: &Grammar, tokens: &[Vec<(usize, bool)>], derivation: &Derivation, out: &mut Vec<Act>) {
+fn actions(grammar: &Grammar, derivation: &Derivation, out: &mut Vec<Act>) {
     for child in &derivation.children {
         match child {
-            Child::Read(token, terminal) => {
-                let strong = tokens[*token].iter().find(|&&(t, _)| t == *terminal).map(|&(_, s)| s).unwrap_or(false);
-                out.push(Act::Read { token: *token, terminal: *terminal, strong });
-            }
-            Child::Node(node) => actions(grammar, tokens, node, out),
+            Child::Read(token, terminal) => out.push(Act::Read { token: *token, terminal: *terminal }),
+            Child::Node(node) => actions(grammar, node, out),
         }
     }
     out.push(Act::Close {
@@ -486,22 +485,17 @@ fn actions(grammar: &Grammar, tokens: &[Vec<(usize, bool)>], derivation: &Deriva
 /// Which of two differing visible actions wins: `(a_first, tie)`.
 fn outcome(lean: Lean, a: &Act, b: &Act) -> (bool, bool) {
     match (a, b) {
-        (Act::Read { terminal: x, strong: s, .. }, Act::Read { terminal: y, strong: t, .. }) => {
-            if s != t {
-                (*s, false)
-            } else {
-                (TERMINALS[*x] < TERMINALS[*y], true)
-            }
-        }
+        // Two reads of one token as different terminals are tied.
+        (Act::Read { terminal: x, .. }, Act::Read { terminal: y, .. }) => (TERMINALS[*x] < TERMINALS[*y], true),
         (Act::Read { .. }, Act::Close { .. }) => match lean {
             Lean::Greedy => (true, false),
             Lean::Lazy => (false, false),
-            Lean::TagsOnly => (true, true),
+            Lean::Neither => (true, true),
         },
         (Act::Close { .. }, Act::Read { .. }) => match lean {
             Lean::Greedy => (false, false),
             Lean::Lazy => (true, false),
-            Lean::TagsOnly => (false, true),
+            Lean::Neither => (false, true),
         },
         (Act::Close { prod: p, start: s, end: e, .. }, Act::Close { prod: q, start: t, end: f, .. }) => {
             ((p, s, e) < (q, t, f), true)
@@ -768,7 +762,7 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
         .iter()
         .map(|derivation| {
             let mut out = Vec::new();
-            actions(&grammar, &tokens, derivation, &mut out);
+            actions(&grammar, derivation, &mut out);
             out
         })
         .collect();
@@ -785,7 +779,7 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
         }
     }
     let compiled = format!(
-        "{{\"format\":8,\"bootstrap\":\"{}\",\"documents\":{{\"main.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
+        "{{\"format\":9,\"bootstrap\":\"{}\",\"documents\":{{\"main.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
         gencmu::tools::bootstrap_hash(),
         gencmu::tools::fnv1a64(&document)
     );
@@ -800,7 +794,7 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
         .enumerate()
         .map(|(index, tags)| gencmu::InputToken {
             text: format!("t{index}"),
-            tags: tags.iter().map(|&(t, strong)| (TERMINALS[t].to_string(), strong)).collect(),
+            tags: tags.iter().map(|&t| TERMINALS[t].to_string()).collect(),
             phonemes: None,
         })
         .collect();
@@ -809,15 +803,8 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
     let json = gencmu::to_json(&result);
     let actual = parse_json(&json).map_err(|error| format!("not JSON: {error}"))?;
     let describe = |problem: String| {
-        let tags: Vec<String> = tokens
-            .iter()
-            .map(|tags| {
-                tags.iter()
-                    .map(|&(t, s)| format!("{}{}", if s { "" } else { "?" }, TERMINALS[t]))
-                    .collect::<Vec<_>>()
-                    .join(",")
-            })
-            .collect();
+        let tags: Vec<String> =
+            tokens.iter().map(|tags| tags.iter().map(|&t| TERMINALS[t]).collect::<Vec<_>>().join(",")).collect();
         format!(
             "seed {seed}: {problem}\ngrammar:\n{text}tokens: {tags:?}\nderivations: {}\nresult: {json}",
             derivations.len()
@@ -833,9 +820,9 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
         Outcome::NoLeast(finding) => return Err(describe(finding.to_string())),
     };
     // With elision-only and no elidable terminators, the check ranks the
-    // same forest by rule 1 alone.
+    // same forest with no lean.
     if grammar.elision_only && expected.verdict != "unique" {
-        if let Outcome::Expected(check) = expect(&ranked, Lean::TagsOnly, findings) {
+        if let Outcome::Expected(check) = expect(&ranked, Lean::Neither, findings) {
             if check.verdict == "tie" {
                 let pattern = format!(
                     "{{\"ok\":false,\"error\":{{\"kind\":\"ambiguous\",\"readings\":[{},{}]}}}}",
@@ -846,7 +833,7 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
                 return common::matches(&pattern, &actual, "result").map(|_| true).map_err(describe);
             }
         } else {
-            return Err(describe("T has no least derivation under rule 1 alone".to_string()));
+            return Err(describe("T has no least derivation with no lean".to_string()));
         }
     }
     let mut pattern = format!("{{\"ok\":true,\"stages\":[{{\"verdict\":\"{}\"", expected.verdict);

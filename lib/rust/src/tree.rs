@@ -2,7 +2,7 @@
 //! §12), and to the next stage's tokens (§11). Every walk here is
 //! iterative.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 
 use crate::earley::{Cap, EngineError, Frame, Recognizer, Tok};
 use crate::fxhash::FxSet;
@@ -76,7 +76,7 @@ pub(crate) fn build(ranker: &Ranker, root: u32) -> ITree {
 pub(crate) struct TreeContext<'a> {
     pub g: &'a Lowered,
     pub tokens: &'a [Tok],
-    pub tag_map: &'a dyn Fn(SetId) -> BTreeMap<String, bool>,
+    pub tag_map: &'a dyn Fn(SetId) -> BTreeSet<String>,
     /// For the `elision-only` check: which tokens are written-back
     /// terminators, to be shown as elided nodes over the original input.
     pub synthetic: Option<&'a [bool]>,
@@ -194,7 +194,7 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
                     token: if synthetic { None } else { Some(at) },
                     span: at..if synthetic { at } else { at + 1 },
                     source,
-                    tags: BTreeMap::new(),
+                    tags: BTreeSet::new(),
                     children: Vec::new(),
                 }]
             }
@@ -222,7 +222,7 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
                             token: None,
                             span: start..start,
                             source: source_of(&originals, start, start),
-                            tags: BTreeMap::new(),
+                            tags: BTreeSet::new(),
                             children: Vec::new(),
                         }],
                         _ => children,
@@ -320,14 +320,14 @@ fn span_of(tree: &ITree, index: u32) -> (u32, u32) {
     }
 }
 
-/// The phoneme of a token's strong phoneme tag, if it has one (§5). Two
-/// such tags are an error of the grammar on any token, verbatim or not.
+/// The phoneme of a token's phoneme tag, if it has one (§5). Two such
+/// tags are an error of the grammar on any token, verbatim or not.
 fn phoneme_tag(recognizer: &Recognizer, tags: SetId) -> Result<Option<String>, EngineError> {
     let mut own: Option<&str> = None;
-    for &(id, strong) in recognizer.shared.tags.list(tags) {
-        if let (true, Some(phoneme)) = (strong, phoneme_of(recognizer.shared.tags.name(id))) {
+    for &id in recognizer.shared.tags.list(tags) {
+        if let Some(phoneme) = phoneme_of(recognizer.shared.tags.name(id)) {
             if own.is_some() {
-                return Err(EngineError { message: "a token carries two strong phoneme tags".to_string(), rule: None });
+                return Err(EngineError { message: "a token carries two phoneme tags".to_string(), rule: None });
             }
             own = Some(phoneme);
         }
@@ -515,7 +515,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                 };
                 let IKind::Close { prod, .. } = &tree.nodes[node as usize].kind else { unreachable!("a close") };
                 let owner = g.prods[*prod as usize].owner;
-                let set = recognizer.shared.tags.set_of([(tag.as_str(), true)]);
+                let set = recognizer.shared.tags.set_of([tag.as_str()]);
                 out.push(Emitted {
                     span: (at as usize, at as usize),
                     source: (source, source),

@@ -39,7 +39,7 @@ fn harness_detects_a_wrong_expectation() {
     // expected exactly when there is one.
     let warned = |expect: &str| {
         let case = format!(
-            r#"{{"grammar": "%rule text @w! X", "tokens": [{{"text": "x", "tags": ["X"]}}], "options": {{"features": ["w"]}}, "expect": {expect}}}"#
+            r#"{{"grammar": "%rule text w! X", "tokens": [{{"text": "x", "tags": ["X"]}}], "options": {{"features": ["w"]}}, "expect": {expect}}}"#
         );
         run_engine_case(&parse_json(&case).unwrap())
     };

@@ -45,7 +45,13 @@ impl Unicode {
         index > 0 && ranges[index - 1].1 >= code
     }
 
-    /// The weak class tag of a character (engine §1).
+    /// Whether a code point is a nonspacing mark: a `mark` range of the
+    /// table, which a character tag writes escaped (engine §1).
+    pub(crate) fn is_mark(&self, code: u32) -> bool {
+        Self::within(&self.marks, code)
+    }
+
+    /// The class tag of a character (engine §1).
     pub(crate) fn class(&self, c: char) -> &'static str {
         let code = c as u32;
         let space = matches!(

@@ -18,7 +18,6 @@ use crate::earley::{sounds_like, Chart, Item, Shared, Tok};
 use crate::grammar::Lean;
 use crate::lower::{Lowered, Sym};
 use crate::maximal::Maximal;
-use crate::tags::Tags;
 use crate::unicode::Unicode;
 
 pub(crate) const EMPTY: u32 = 0;
@@ -29,7 +28,7 @@ const ANY: u32 = u32::MAX;
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum DNode {
     Empty,
-    Read { tok: u32, terminal: u32, strong: bool },
+    Read { tok: u32, terminal: u32 },
     Seq { left: u32, right: u32 },
     Close { body: u32, set: u32, item: u32 },
 }
@@ -37,7 +36,7 @@ pub(crate) enum DNode {
 /// An action of a derivation's sequence (§6).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Act {
-    Read { tok: u32, terminal: u32, strong: bool },
+    Read { tok: u32, terminal: u32 },
     Close { prod: u32, start: u32, end: u32, visible: bool },
 }
 
@@ -145,8 +144,6 @@ pub(crate) struct Dag<'c> {
     tokens: &'c [Tok],
     /// The lowercase mapping that spellings are matched with (§4).
     unicode: &'c Unicode,
-    tags: &'c Tags,
-    term_tags: &'c [u32],
     lean: Lean,
     pub arena: Vec<DNode>,
     vlen: Vec<u32>,
@@ -261,20 +258,11 @@ impl<'c> Dag<'c> {
                 if tie {
                     winner.comps.push(Comp { d: loser.x, div: p });
                 }
+                // A companion that diverged from the loser where the winner
+                // beat it is beaten there too, since ties are transitive.
                 for comp in &loser.comps {
                     if comp.div < p {
                         winner.comps.push(comp.clone());
-                    } else if comp.div == p && !tie {
-                        // Beaten at p, the loser's companion that diverged
-                        // from it at p can still be tied with the winner
-                        // there: under rule 1 alone, a close is tied with a
-                        // weak read and with the strong read that beat it.
-                        if let Diff::At { index, a, b } = self.first_difference(winner.x, comp.d, true) {
-                            let (winner_first, tied) = self.outcome(&a, &b);
-                            if tied && winner_first {
-                                winner.comps.push(Comp { d: comp.d, div: index });
-                            }
-                        }
                     }
                 }
             }
@@ -338,7 +326,7 @@ impl<'c> Dag<'c> {
     fn atomic(&self, walk: &Walk) -> Option<Act> {
         match walk {
             Walk::Node(id) => match self.arena[*id as usize] {
-                DNode::Read { tok, terminal, strong } => Some(Act::Read { tok, terminal, strong }),
+                DNode::Read { tok, terminal } => Some(Act::Read { tok, terminal }),
                 _ => None,
             },
             Walk::Act(id) => {
@@ -423,22 +411,19 @@ impl<'c> Dag<'c> {
     /// whether that is a tie broken by the canonical order: `(a_first, tie)`.
     fn outcome(&self, a: &Act, b: &Act) -> (bool, bool) {
         match (a, b) {
-            (Act::Read { terminal: x, strong: s, .. }, Act::Read { terminal: y, strong: t, .. }) => {
-                if s != t {
-                    (*s, false)
-                } else {
-                    (self.terminal_name(*x) < self.terminal_name(*y), true)
-                }
+            // Two reads of one token as different terminals are tied (§6).
+            (Act::Read { terminal: x, .. }, Act::Read { terminal: y, .. }) => {
+                (self.terminal_name(*x) < self.terminal_name(*y), true)
             }
             (Act::Read { .. }, Act::Close { .. }) => match self.lean {
                 Lean::Greedy => (true, false),
                 Lean::Lazy => (false, false),
-                Lean::TagsOnly => (true, true),
+                Lean::Neither => (true, true),
             },
             (Act::Close { .. }, Act::Read { .. }) => match self.lean {
                 Lean::Greedy => (false, false),
                 Lean::Lazy => (true, false),
-                Lean::TagsOnly => (false, true),
+                Lean::Neither => (false, true),
             },
             (Act::Close { prod: p, start: s, end: e, .. }, Act::Close { prod: q, start: t, end: f, .. }) => {
                 ((p, s, e) < (q, t, f), true)
@@ -510,7 +495,6 @@ impl<'c> Ranker<'c> {
         chart: &'c Chart,
         tokens: &'c [Tok],
         shared: &'c Shared<'c>,
-        term_tags: &'c [u32],
         lean: Lean,
         maximal: Option<&'c Maximal<'c>>,
     ) -> Ranker<'c> {
@@ -519,8 +503,6 @@ impl<'c> Ranker<'c> {
             chart,
             tokens,
             unicode: shared.unicode,
-            tags: &shared.tags,
-            term_tags,
             lean,
             arena: Vec::new(),
             vlen: Vec::new(),
@@ -697,10 +679,7 @@ impl<'c> Ranker<'c> {
         match deps {
             Deps::Leaf => match node {
                 Node::Read { tok, terminal } => {
-                    let tag = self.dag.term_tags[terminal as usize];
-                    let list = self.dag.tags.list(self.dag.tokens[tok as usize].tags);
-                    let strong = list.binary_search_by_key(&tag, |&(id, _)| id).map(|at| list[at].1).unwrap_or(false);
-                    let x = self.dag.push(DNode::Read { tok, terminal, strong }, 1, 1);
+                    let x = self.dag.push(DNode::Read { tok, terminal }, 1, 1);
                     NodeResult { entries: vec![Entry { x, comps: Vec::new() }], count: 1, allowed: None }
                 }
                 _ => NodeResult { entries: vec![Entry { x: EMPTY, comps: Vec::new() }], count: 1, allowed: None },

@@ -5,7 +5,7 @@
 use crate::fxhash::{FxMap, FxSet};
 
 use crate::lower::{CmpOp, LCond, LTerm, Lowered, Span, Sym};
-use crate::tags::{intersection, union, SetId, TagId, TagList, Tags};
+use crate::tags::{difference, intersection, is_subset, union, SetId, TagId, TagList, Tags};
 use crate::unicode::Unicode;
 
 /// A token of a stage's input.
@@ -452,8 +452,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             Some(term) => {
                 // The term cannot read `$`'s tags, which it defines (§9).
                 let frame = Frame { tags: Some(0), ..*frame };
-                let value = self.term(term, &frame, tokens, base)?;
-                let list = self.as_set(value);
+                let list = self.set_term(term, &frame, tokens, base)?;
                 self.shared.tags.set(list)
             }
             None if production.syms.len() == 1 => {
@@ -605,37 +604,47 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         })
     }
 
-    fn as_set(&mut self, value: Value) -> TagList {
+    /// A set's value. The reader has made sure that the types agree
+    /// (§10), so a string never stands where a set is needed.
+    fn as_set(value: Value) -> Result<TagList, EngineError> {
         match value {
-            Value::Set(list) => list,
-            Value::Str(text) => vec![(self.shared.tags.tag(&text), true)],
+            Value::Set(list) => Ok(list),
+            Value::Str(_) => Err(EngineError { message: "a string where a set is needed".to_string(), rule: None }),
         }
+    }
+
+    fn set_term(&mut self, term: &LTerm, frame: &Frame, tokens: &[Tok], base: usize) -> Result<TagList, EngineError> {
+        let value = self.term(term, frame, tokens, base)?;
+        Self::as_set(value)
     }
 
     fn term(&mut self, term: &LTerm, frame: &Frame, tokens: &[Tok], base: usize) -> Result<Value, EngineError> {
         Ok(match term {
-            LTerm::Lit(text) => Value::Str(text.clone()),
-            LTerm::Weak(text) => Value::Set(vec![(self.shared.tags.tag(text), false)]),
+            LTerm::Str(text) => Value::Str(text.clone()),
+            LTerm::Tag(tag) => Value::Set(vec![self.shared.tags.tag(tag)]),
             LTerm::Empty => Value::Set(TagList::new()),
             LTerm::Union(items) => {
                 let mut list = TagList::new();
                 for item in items {
-                    let value = self.term(item, frame, tokens, base)?;
-                    list = union(&list, &self.as_set(value));
+                    list = union(&list, &self.set_term(item, frame, tokens, base)?);
                 }
                 Value::Set(list)
             }
             LTerm::Inter(items) => {
                 let mut list: Option<TagList> = None;
                 for item in items {
-                    let value = self.term(item, frame, tokens, base)?;
-                    let set = self.as_set(value);
+                    let set = self.set_term(item, frame, tokens, base)?;
                     list = Some(match list {
                         None => set,
                         Some(list) => intersection(&list, &set),
                     });
                 }
                 Value::Set(list.unwrap_or_default())
+            }
+            LTerm::Diff(left, right) => {
+                let left = self.set_term(left, frame, tokens, base)?;
+                let right = self.set_term(right, frame, tokens, base)?;
+                Value::Set(difference(&left, &right))
             }
             LTerm::Phonemes(span) => {
                 let (start, end, _) = span_bounds(span, frame, tokens.len());
@@ -647,13 +656,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             }
             LTerm::Lower(inner) => match self.term(inner, frame, tokens, base)? {
                 Value::Str(text) => Value::Str(self.shared.unicode.lowercase(&text)),
-                Value::Set(list) => {
-                    let names: Vec<(String, bool)> = list
-                        .iter()
-                        .map(|&(id, strong)| (self.shared.unicode.lowercase(self.shared.tags.name(id)), strong))
-                        .collect();
-                    let id = self.shared.tags.set_of(names.iter().map(|(name, strong)| (name.as_str(), *strong)));
-                    Value::Set(self.shared.tags.list(id).clone())
+                Value::Set(_) => {
+                    return Err(EngineError { message: "lowercase takes one string".to_string(), rule: None });
                 }
             },
             LTerm::Tags(span) => {
@@ -670,38 +674,30 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 let list = self.span_tags(bounds, frame, tokens, base)?;
                 Value::Set(
                     list.into_iter()
-                        .filter(|&(id, _)| self.shared.tags.name(id).starts_with(|c: char| c.is_ascii_uppercase()))
+                        .filter(|&id| self.shared.tags.name(id).starts_with(|c: char| c.is_ascii_uppercase()))
                         .collect(),
                 )
             }
             // `t` is evaluated only where the guard holds (§10).
             LTerm::If(cond, then) => {
                 if self.condition(cond, frame, tokens, base)? {
-                    let value = self.term(then, frame, tokens, base)?;
-                    Value::Set(self.as_set(value))
+                    Value::Set(self.set_term(then, frame, tokens, base)?)
                 } else {
                     Value::Set(TagList::new())
                 }
             }
-            // The runs between pauses, each a strong tag, never the empty
-            // string (§5).
+            // The set of strings of the runs between pauses, never the
+            // empty string (§5).
             LTerm::Runs(span) => {
                 let (start, end, _) = span_bounds(span, frame, tokens.len());
                 let phonemes = Self::phonemes(tokens, start, end);
-                let mut list: TagList = phonemes
-                    .split('.')
-                    .filter(|run| !run.is_empty())
-                    .map(|run| (self.shared.tags.tag(run), true))
-                    .collect();
+                let mut list: TagList =
+                    phonemes.split('.').filter(|run| !run.is_empty()).map(|run| self.shared.tags.tag(run)).collect();
                 list.sort_unstable();
                 list.dedup();
                 Value::Set(list)
             }
         })
-    }
-
-    fn names(&self, list: &TagList) -> Vec<TagId> {
-        list.iter().map(|&(id, _)| id).collect()
     }
 
     fn condition(&mut self, cond: &LCond, frame: &Frame, tokens: &[Tok], base: usize) -> Result<bool, EngineError> {
@@ -743,37 +739,28 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 let left = self.term(left, frame, tokens, base)?;
                 let right = self.term(right, frame, tokens, base)?;
                 match op {
+                    // Two strings, or two sets of one kind (§10).
                     CmpOp::Eq | CmpOp::Ne => {
                         let equal = match (left, right) {
                             (Value::Str(a), Value::Str(b)) => a == b,
-                            (a, b) => {
-                                let a = self.as_set(a);
-                                let b = self.as_set(b);
-                                self.names(&a) == self.names(&b)
-                            }
+                            (a, b) => Self::as_set(a)? == Self::as_set(b)?,
                         };
                         equal == (*op == CmpOp::Eq)
                     }
+                    // A string in a set of strings.
                     CmpOp::In | CmpOp::NotIn => {
-                        let inside = match (left, right) {
-                            (Value::Str(a), Value::Str(b)) => a == b,
-                            (Value::Str(a), Value::Set(b)) => {
-                                self.shared.tags.lookup(&a).is_some_and(|id| b.iter().any(|&(tag, _)| tag == id))
-                            }
-                            // The reader refuses any other left side (§9).
-                            (Value::Set(_), _) => {
-                                return Err(EngineError {
-                                    message: "the left side of ∈ or ∉ is a string".to_string(),
-                                    rule: None,
-                                });
-                            }
+                        let Value::Str(needle) = left else {
+                            return Err(EngineError {
+                                message: "the left side of ∈ or ∉ is a string".to_string(),
+                                rule: None,
+                            });
                         };
+                        let set = Self::as_set(right)?;
+                        let inside = self.shared.tags.lookup(&needle).is_some_and(|id| set.binary_search(&id).is_ok());
                         inside == (*op == CmpOp::In)
                     }
-                    CmpOp::Subset => {
-                        let a = self.as_set(left);
-                        let b = self.as_set(right);
-                        a.iter().all(|&(id, _)| b.iter().any(|&(tag, _)| tag == id))
+                    CmpOp::Subset | CmpOp::NotSubset => {
+                        is_subset(&Self::as_set(left)?, &Self::as_set(right)?) == (*op == CmpOp::Subset)
                     }
                 }
             }
@@ -788,8 +775,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         tokens: &[Tok],
         base: usize,
     ) -> Result<SetId, EngineError> {
-        let value = self.term(term, frame, tokens, base)?;
-        let list = self.as_set(value);
+        let list = self.set_term(term, frame, tokens, base)?;
         Ok(self.shared.tags.set(list))
     }
 }

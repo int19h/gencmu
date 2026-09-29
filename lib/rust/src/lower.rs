@@ -32,11 +32,15 @@ pub(crate) enum Span {
 
 #[derive(Debug, Clone)]
 pub(crate) enum LTerm {
-    Lit(String),
-    Weak(String),
+    /// A string.
+    Str(String),
+    /// The tag set of one tag.
+    Tag(String),
     Empty,
     Union(Vec<LTerm>),
     Inter(Vec<LTerm>),
+    /// The members of the first set that are not in the second.
+    Diff(Box<LTerm>, Box<LTerm>),
     Phonemes(Span),
     Text(Span),
     Lower(Box<LTerm>),
@@ -55,6 +59,7 @@ pub(crate) enum CmpOp {
     In,
     NotIn,
     Subset,
+    NotSubset,
 }
 
 #[derive(Debug, Clone)]
@@ -391,13 +396,14 @@ impl<'a> Scope<'a> {
             items.iter().map(|item| scope.term(item)).collect::<Result<Vec<_>, _>>()
         };
         Ok(match term {
-            Term::Literal(text) => LTerm::Lit(text.clone()),
-            Term::Weak(text) => LTerm::Weak(text.clone()),
+            Term::Str(text) => LTerm::Str(text.clone()),
+            Term::Tag(tag) => LTerm::Tag(tag.clone()),
             Term::EmptySet => LTerm::Empty,
             Term::Union(items) => LTerm::Union(list(self, items)?),
             Term::Intersection(items) => LTerm::Inter(list(self, items)?),
-            // A bare capture where a value is needed is its tags (§10).
-            Term::Capture(_) => LTerm::Tags(self.span(term)?),
+            Term::Difference(left, right) => LTerm::Diff(Box::new(self.term(left)?), Box::new(self.term(right)?)),
+            // A span is never a value (§10); the reader refuses one.
+            Term::Capture(_) => return Err(Missing),
             Term::If(cond, then) => LTerm::If(Box::new(self.cond(cond)?), Box::new(self.term(then)?)),
             Term::Call(name, args) => match (name.as_str(), &args[..]) {
                 ("phonemes", [Arg::Term(span)]) => LTerm::Phonemes(self.span(span)?),
@@ -421,6 +427,7 @@ impl<'a> Scope<'a> {
                     "∈" => CmpOp::In,
                     "∉" => CmpOp::NotIn,
                     "⊆" => CmpOp::Subset,
+                    "⊈" => CmpOp::NotSubset,
                     _ => return Err(Missing),
                 };
                 LCond::Cmp(op, self.term(left)?, self.term(right)?)

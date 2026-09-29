@@ -16,16 +16,16 @@ fn write_range(out: &mut String, range: &Range<usize>) {
     out.push(']');
 }
 
+/// A tag set as the list of its tags, in code point order (docs/output.md).
 fn write_tags(out: &mut String, tags: &Tags) {
-    out.push('{');
-    for (index, (name, strong)) in tags.iter().enumerate() {
+    out.push('[');
+    for (index, name) in tags.iter().enumerate() {
         if index > 0 {
             out.push(',');
         }
         write_str(out, name);
-        out.push_str(if *strong { ":true" } else { ":false" });
     }
-    out.push('}');
+    out.push(']');
 }
 
 fn write_token(out: &mut String, token: &Token) {
@@ -249,7 +249,7 @@ fn write_warning(out: &mut String, warning: &Warning) {
 /// documented order, no whitespace, non-ASCII characters as themselves.
 pub fn to_json(result: &ParseResult) -> String {
     let mut out = String::new();
-    out.push_str("{\"format\":3,\"ok\":");
+    out.push_str("{\"format\":4,\"ok\":");
     out.push_str(if result.ok { "true" } else { "false" });
     out.push_str(",\"stages\":[");
     for (index, stage) in result.stages.iter().enumerate() {

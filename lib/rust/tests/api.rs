@@ -37,7 +37,7 @@ fn a_dialect_loads_from_disk() {
     let bundled = gencmu::load_dialect("notation").expect("bundled");
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("grammars/dialects/notation.md");
     let from_disk = gencmu::load_dialect_file(path).expect("from disk");
-    let text = "%rule a $x(B) <\"T\"> %conditions text($x) ≠ \"q\" %emits $";
+    let text = "%rule a $x(B) <T> %conditions text($x) ≠ \"q\" %emits $";
     assert_eq!(
         gencmu::to_json(&bundled.parse(text, &ParseOptions::default()).unwrap()),
         gencmu::to_json(&from_disk.parse(text, &ParseOptions::default()).unwrap())
@@ -51,7 +51,7 @@ fn a_dialect_loads_from_disk() {
         "```jbogenbau\n%stage only\n%include \"../grammars/g.md\"\n```\n",
     )
     .unwrap();
-    std::fs::write(directory.join("grammars/g.md"), grammar("%ambiguity-resolution greedy\n%rule text \"a\" ..."))
+    std::fs::write(directory.join("grammars/g.md"), grammar("%ambiguity-resolution greedy\n%rule text 'a' ..."))
         .unwrap();
     let mine = gencmu::load_dialect_file(directory.join("dialects/mine.md")).expect("a dialect on disk");
     let result = mine.parse("aaa", &ParseOptions::default()).unwrap();
@@ -100,13 +100,13 @@ fn load_errors_carry_the_document_and_position() {
 
 #[test]
 fn sources_may_bring_their_own_tables() {
-    let mut sources = single("%ambiguity-resolution greedy\n%rule text \"alpha\"");
+    let mut sources = single("%ambiguity-resolution greedy\n%rule text ~alpha");
     // A character table that knows no letters: every one is "other".
     sources.insert("unicode.txt".to_string(), "unicode 0.0.0\n".to_string());
     let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
     assert!(!dialect.parse("a", &no_auto()).unwrap().ok);
     let dialect =
-        gencmu::load_dialect_sources(single("%ambiguity-resolution greedy\n%rule text \"alpha\""), "p.md").unwrap();
+        gencmu::load_dialect_sources(single("%ambiguity-resolution greedy\n%rule text ~alpha"), "p.md").unwrap();
     assert!(dialect.parse("a", &no_auto()).unwrap().ok);
 }
 
@@ -119,9 +119,9 @@ fn until_features_and_elision_only() {
     );
     sources.insert(
         "g.md".to_string(),
-        grammar("%ambiguity-resolution greedy\n%rule text [w] ...\n%rule w \"x\" <\"X\"> %emits $"),
+        grammar("%ambiguity-resolution greedy\n%rule text [w] ...\n%rule w 'x' <X> %emits $"),
     );
-    sources.insert("h.md".to_string(), grammar("%ambiguity-resolution greedy\n%rule text @f? @g? X X | @f? @¬g? X"));
+    sources.insert("h.md".to_string(), grammar("%ambiguity-resolution greedy\n%rule text f? g? X X | f? ¬g? X"));
     let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
     let gate = |name: &str, default| Feature { name: name.to_string(), kind: FeatureKind::Gate, default };
     assert_eq!(dialect.features(), [gate("f", true), gate("g", false)]);
@@ -140,7 +140,7 @@ fn until_features_and_elision_only() {
     assert_eq!(error.kind, ErrorKind::Usage);
 
     let ambiguous = gencmu::load_dialect_sources(
-        single("%ambiguity-resolution greedy elision-only\n%rule text s | s \"b\" %rule s \"a\" [\"b\"]"),
+        single("%ambiguity-resolution greedy elision-only\n%rule text s | s 'b' %rule s 'a' ['b']"),
         "p.md",
     )
     .unwrap();
@@ -154,7 +154,7 @@ fn until_features_and_elision_only() {
     assert!(off.ok);
     assert_eq!(off.stages[0].verdict, Some(Verdict::Resolved));
     let on = gencmu::load_dialect_sources(
-        single("%ambiguity-resolution greedy\n%rule text s | s \"b\" %rule s \"a\" [\"b\"]"),
+        single("%ambiguity-resolution greedy\n%rule text s | s 'b' %rule s 'a' ['b']"),
         "p.md",
     )
     .unwrap()
@@ -173,12 +173,12 @@ fn words_dialect() -> gencmu::Dialect {
     );
     sources.insert(
         "s.md".to_string(),
-        grammar("%ambiguity-resolution greedy\n%rule text [c] ...\n%rule c \"s\" </s/> | \"a\" </a/> | \"u\" </u/> | \"m\" </m/> | \"i\" </i/> | \"space\" </./> %emits $"),
+        grammar("%ambiguity-resolution greedy\n%rule text [c] ...\n%rule c 's' </s/> | 'a' </a/> | 'u' </u/> | 'm' </m/> | 'i' </i/> | ~space </./> %emits $"),
     );
     sources.insert(
         "w.md".to_string(),
         grammar(
-            "%ambiguity-resolution lazy\n%rule text [piece] ...\n%rule piece word | /./\n%rule word /m/ /i/ | @sa-su? /s/ /a/ | @sa-su? /s/ /u/",
+            "%ambiguity-resolution lazy\n%rule text [piece] ...\n%rule piece word | /./\n%rule word /m/ /i/ | sa-su? /s/ /a/ | sa-su? /s/ /u/",
         ),
     );
     gencmu::load_dialect_sources(sources, "p.md").unwrap()
@@ -212,7 +212,7 @@ fn gates_turn_off_and_warnings_follow_the_chosen_tree() {
     sources.insert("p.md".to_string(), "```jbogenbau\n%features f\n%stage main\n%include \"g.md\"\n```\n".to_string());
     sources.insert(
         "g.md".to_string(),
-        grammar("%ambiguity-resolution greedy\n%rule text @f? \"a\" | @¬f? @w! part ...\n%rule part @w! \"b\" | \"c\""),
+        grammar("%ambiguity-resolution greedy\n%rule text f? 'a' | ¬f? w! part ...\n%rule part w! 'b' | 'c'"),
     );
     let dialect = gencmu::load_dialect_sources(sources.clone(), "p.md").unwrap();
     assert_eq!(
@@ -253,7 +253,7 @@ fn gates_turn_off_and_warnings_follow_the_chosen_tree() {
         "q.md".to_string(),
         "```jbogenbau\n%stage one\n%include \"g.md\"\n%stage two\n%include \"h.md\"\n```\n".to_string(),
     );
-    sources.insert("h.md".to_string(), grammar("%ambiguity-resolution greedy\n%rule text @w? X"));
+    sources.insert("h.md".to_string(), grammar("%ambiguity-resolution greedy\n%rule text w? X"));
     let error = gencmu::load_dialect_sources(sources, "q.md").expect_err("w a warning in one stage, a gate in another");
     assert_eq!((error.kind, error.document.as_deref()), (ErrorKind::Grammar, Some("q.md")), "{error}");
 }
@@ -269,13 +269,13 @@ fn parts_that_emit_epsilon_are_neither_emitted_nor_counted() {
     sources.insert(
         "f.md".to_string(),
         grammar(
-            "%ambiguity-resolution greedy\n%rule text [c] ...\n%rule c \"a\" </a/> | \"b\" </b/> | \"space\" </./> %emits $",
+            "%ambiguity-resolution greedy\n%rule text [c] ...\n%rule c 'a' </a/> | 'b' </b/> | ~space </./> %emits $",
         ),
     );
     sources.insert(
         "g.md".to_string(),
         grammar(
-            "%ambiguity-resolution greedy\n%rule text [unit] ...\n%rule unit pair <\"U\"> | /./ %emits $\n%rule pair erased $b(letter) %emits $b\n%rule erased letter %emits ε\n%rule letter /a/ | /b/",
+            "%ambiguity-resolution greedy\n%rule text [unit] ...\n%rule unit pair <U> | /./ %emits $\n%rule pair erased $b(letter) %emits $b\n%rule erased letter %emits ε\n%rule letter /a/ | /b/",
         ),
     );
     sources.insert("h.md".to_string(), grammar("%ambiguity-resolution greedy\n%rule text [U | /./] ..."));
@@ -293,7 +293,7 @@ fn parts_that_emit_epsilon_are_neither_emitted_nor_counted() {
 #[test]
 fn rejections_say_where_and_what() {
     let dialect =
-        gencmu::load_dialect_sources(single("%ambiguity-resolution greedy\n%rule text \"a\" \"b\""), "p.md").unwrap();
+        gencmu::load_dialect_sources(single("%ambiguity-resolution greedy\n%rule text 'a' 'b'"), "p.md").unwrap();
     let result = dialect.parse("a\nc", &no_auto()).unwrap();
     assert!(!result.ok);
     assert!(result.tree.is_none());
@@ -304,7 +304,7 @@ fn rejections_say_where_and_what() {
     assert_eq!(error.source, Some(1..2));
     assert_eq!((error.line, error.column), (Some(1), Some(2)));
     assert_eq!(error.expected.len(), 1);
-    assert_eq!(error.expected[0].terminal, "b");
+    assert_eq!(error.expected[0].terminal, "'b'");
     assert_eq!(error.expected[0].rules, ["text"]);
     assert_eq!(result.stages[0].verdict, None);
     assert!(result.stages[0].output.is_none());
@@ -338,11 +338,11 @@ fn a_rejection_writes_a_spelled_terminal_with_its_spelling() {
     );
     sources.insert(
         "s.md".to_string(),
-        block("%rule text [sound] ...\n%rule sound \"l\" </l/> | \"a\" </a/> | \"i\" </i/> | \"d\" </d/> | \" \" </./> %emits $"),
+        block("%rule text [sound] ...\n%rule sound 'l' </l/> | 'a' </a/> | 'i' </i/> | 'd' </d/> | ' ' </./> %emits $"),
     );
     sources.insert(
         "w.md".to_string(),
-        block("%rule text [word] ...\n%rule word le | d | \"/./\"\n%rule le \"/l/\" \"/a/\" [\"/i/\"] %emits $ <\"LE\">\n%rule d \"/d/\" %emits $ <\"D\">"),
+        block("%rule text [word] ...\n%rule word le | d | /./\n%rule le /l/ /a/ [/i/] %emits $ <LE>\n%rule d /d/ %emits $ <D>"),
     );
     sources.insert("g.md".to_string(), block("%rule text LE`la` D D | LE`lai` C"));
     let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
@@ -359,7 +359,7 @@ fn a_rejection_writes_a_spelled_terminal_with_its_spelling() {
 #[test]
 fn positions_are_code_points() {
     let dialect = gencmu::load_dialect_sources(
-        single("%ambiguity-resolution greedy\n%rule text [c] ... %rule c \"other\" | \"alpha\" %emits $"),
+        single("%ambiguity-resolution greedy\n%rule text [c] ... %rule c ~other | ~alpha %emits $"),
         "p.md",
     )
     .unwrap();
@@ -379,7 +379,7 @@ fn results_outlive_the_dialect_and_cross_threads() {
         dialect.parse(&text, &ParseOptions::default()).unwrap()
     };
     let json = std::thread::spawn(move || gencmu::to_json(&result)).join().unwrap();
-    assert!(json.starts_with("{\"format\":3,\"ok\":true"));
+    assert!(json.starts_with("{\"format\":4,\"ok\":true"));
 
     let dialect = std::sync::Arc::new(gencmu::load_dialect("notation").unwrap());
     let threads: Vec<_> = (0..4)
@@ -403,7 +403,7 @@ fn small_stack(body: impl FnOnce() + Send + 'static) {
 fn deep_left_recursion_does_not_overflow() {
     small_stack(|| {
         let dialect =
-            gencmu::load_dialect_sources(single("%ambiguity-resolution greedy\n%rule text text \"a\" | \"a\""), "p.md")
+            gencmu::load_dialect_sources(single("%ambiguity-resolution greedy\n%rule text text 'a' | 'a'"), "p.md")
                 .unwrap();
         let text = "a".repeat(20_000);
         let started = std::time::Instant::now();
@@ -435,14 +435,14 @@ fn deep_left_recursion_does_not_overflow() {
 fn deep_tokens_and_ties_do_not_overflow() {
     small_stack(|| {
         let dialect = gencmu::load_dialect_sources(
-            single("%ambiguity-resolution greedy\n%rule text text p | p\n%rule p A B <\"ONE\"> | A B <\"TWO\">"),
+            single("%ambiguity-resolution greedy\n%rule text text p | p\n%rule p A B <ONE> | A B <TWO>"),
             "p.md",
         )
         .unwrap();
         let tokens: Vec<gencmu::InputToken> = (0..6000)
             .map(|index| gencmu::InputToken {
                 text: if index % 2 == 0 { "a".into() } else { "b".into() },
-                tags: [(if index % 2 == 0 { "A" } else { "B" }.to_string(), true)].into_iter().collect(),
+                tags: [if index % 2 == 0 { "A" } else { "B" }.to_string()].into_iter().collect(),
                 phonemes: None,
             })
             .collect();
@@ -480,14 +480,14 @@ fn an_and_of_more_than_sixteen_items_is_an_error() {
     assert!(gencmu::load_dialect_sources(single(&sixteen), "p.md").is_ok());
 
     // A DOM from the cache is checked too, rather than trusted.
-    let mut sources = single("%ambiguity-resolution greedy\n%rule text A");
+    let mut sources = single("%ambiguity-resolution greedy\n%rule text 'A'");
     let refs: Vec<String> = (0..64).map(|index| format!("{{\"ref\":\"A{index}\"}}")).collect();
     let dom = format!(
-        "{{\"format\":8,\"rules\":[{{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{{\"guards\":[],\"expr\":{{\"and\":[{}]}}}}],\"conditions\":[],\"at\":[4,1]}}],\"directives\":[{{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[3,1]}}]}}",
+        "{{\"format\":9,\"rules\":[{{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{{\"guards\":[],\"expr\":{{\"and\":[{}]}}}}],\"conditions\":[],\"at\":[4,1]}}],\"directives\":[{{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[3,1]}}]}}",
         refs.join(",")
     );
     let compiled = format!(
-        "{{\"format\":8,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
+        "{{\"format\":9,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
         gencmu::tools::bootstrap_hash(),
         gencmu::tools::fnv1a64(&sources["g.md"])
     );
@@ -501,17 +501,17 @@ fn an_and_of_more_than_sixteen_items_is_an_error() {
 #[test]
 fn a_corrupt_cache_is_a_miss_not_an_abort() {
     small_stack(|| {
-        let text = "%ambiguity-resolution greedy\n%rule text \"a\"";
+        let text = "%ambiguity-resolution greedy\n%rule text 'a'";
         let hash = gencmu::tools::fnv1a64(&grammar(text));
         let deep_dom = format!("{}{{\"empty\":true}}{}", "{\"optional\":".repeat(10_000), "}".repeat(10_000));
         for compiled in [
             format!("{}{}", "[".repeat(10_000), "]".repeat(10_000)),
             format!(
-                "{{\"format\":8,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{deep_dom}}}}}}}",
+                "{{\"format\":9,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{deep_dom}}}}}}}",
                 gencmu::tools::bootstrap_hash()
             ),
             format!(
-                "{{\"format\":8,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{{\"rules\":7}}}}}}}}",
+                "{{\"format\":9,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{{\"rules\":7}}}}}}}}",
                 gencmu::tools::bootstrap_hash()
             ),
             "not JSON".to_string(),
