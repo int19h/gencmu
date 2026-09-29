@@ -22,7 +22,7 @@ A dialect is a pipeline document and the documents that it includes. The pipelin
 
 The loader reads a grammar document through the notation (the grammar of grammar documents) only when `compiled.json` has no matching entry. `compiled.json` holds the precompiled DOMs, the parsed forms of the grammar documents. An entry matches when it is for the same text, under the same bootstrap and DOM format. Reading a large grammar through the notation is slow in pure Python. So the bundled grammars all have an entry. Each loader takes `use_cache=False` to read every document afresh.
 
-A dialect that cannot be loaded raises `gencmu.GencmuError`. Its `kind` is `"grammar"`, and its `where` is `document:line:column` as far as it is known.
+A dialect that cannot be loaded raises `gencmu.GencmuError`. Its `kind` is `"grammar"`, and its `where` is `document:line:column` as far as it is known. A document on disk that is not valid UTF-8 is such an error, with no line or column. A document in the mapping with a lone surrogate is the caller's mistake, of `kind` `"usage"`.
 
 ## Parsing
 

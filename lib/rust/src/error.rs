@@ -7,11 +7,13 @@ use std::fmt;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum ErrorKind {
-    /// A grammar or pipeline document is missing, does not parse as the
-    /// notation, or does not stitch into a valid grammar; or one of the
-    /// shipped data files (`unicode.txt`, `bootstrap.json`) is malformed.
+    /// A grammar or pipeline document is missing, is not valid UTF-8 on
+    /// disk, does not parse as the notation, or does not stitch into a valid
+    /// grammar; or one of the shipped data files (`unicode.txt`,
+    /// `bootstrap.json`) is malformed.
     Grammar,
-    /// A file could not be read from disk.
+    /// A file could not be read from disk, for a reason other than its
+    /// bytes.
     Io,
     /// The caller asked for something that does not exist, such as an
     /// unknown stage name in [`ParseOptions::until`](crate::ParseOptions::until).
