@@ -1,0 +1,10 @@
+{
+  "description": "A span as an operand of ∪ in a tag term is an error at the span, not at the union (engine §9).",
+  "document": "```jbogenbau\n%rule a $x(A) <A ∪ head($x)>\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 20
+    }
+  }
+}

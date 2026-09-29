@@ -569,6 +569,9 @@ class DomBuilder:
             return {"capture": capture}
         if rule == "call":
             call = yield self._call(node)
+            # A span is not a value: the error stands at the span (engine §9).
+            if not argument and call["call"] in _SPAN_FUNCTIONS:
+                raise self.fail(node, f"{call['call']}() gives a span, which is not a value")
             if call["call"] in ("matches", "begins", "initial"):
                 raise self.fail(node, f"{call['call']}() is a condition, not a term")
             return call

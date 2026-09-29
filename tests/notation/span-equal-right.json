@@ -1,0 +1,10 @@
+{
+  "description": "A span on the right of = is an error at the span, not at the comparison: head($x) gives a span, which is not a value (engine §9).",
+  "document": "```jbogenbau\n%rule a $x(B) %conditions phonemes($x) = head($x)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 42
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "description": "A bare capture where %tags needs a tag set is an error at the capture: tags($x) is its tag set (engine §9).",
+  "document": "```jbogenbau\n%rule a $x(A) %tags $x\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 21
+    }
+  }
+}

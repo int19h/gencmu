@@ -117,7 +117,7 @@ A condition is one of these forms:
 
 An emission is `{"items":[ITEM...]}`. An item is `{"capture":"x","tags":TERM}`, with `tags` optional, or `{"insert":"/h/"}`, whose value is one tag in its canonical spelling. For `ε`, there are no items. `"capture":""` is `$`.
 
-A directive is `{"name":"elidable","args":["KU","KEI"],"at":[line,column]}`. The name is the keyword without `%`: `ambiguity-resolution`, `elidable`, `stage`, `include` or `features`. An argument is a name, or, for `include`, the decoded string. An operand `~KU` of `%elidable` is the name `KU`: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`.
+A directive is `{"name":"elidable","args":["KU","KEI"],"at":[line,column]}`. An operand `~KU` of `%elidable` is the name `KU`. The name is the keyword without `%`: `ambiguity-resolution`, `elidable`, `stage`, `include` or `features`. An argument is a name, or, for `include`, the decoded string: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`.
 
 `rules` and `directives` each keep the order in which the document has them. `at` is the line and column of an item's first token. So the order of all of a document's items is the order of their positions. No two items of a DOM share a position (engine §9).
 
