@@ -8,7 +8,7 @@ A `nai` directly after an attitudinal attaches to the attitudinal, as in the CLL
 
 With both forms, two readings of `ui nai` tie. So this document restates `indicator-run` with a condition. If a run ends in an attitudinal, its next indicator of its own is not a `nai`. A `fu'e` before that `nai` lifts this. A `ba'e` between an attitudinal and its `nai` goes with the `nai`, as in the CLL document. The restated `text` drops the CLL condition on a `nai` after a leading attitudinal. A `nai` is an indicator here, so a run of items never begins with one.
 
-A leading run, which the syntax reads itself, needs no pair form: `ui` and `nai` are two indicators there, and each stays a token of its own. So this document restates `leading` without the pair form of the CLL document.
+A leading run needs no pair form. The syntax reads `ui` and `nai` as separate indicators there. So this document restates `leading` without the pair form of the CLL document.
 
 The CLL document already reads `fu'e` as camxes-exp's `indicators` rule does. A `fu'e` must have an indicator after it, so `mi fu'e ui klama` is a text, and `mi fu'e klama` is not. The restated `indicator-run` lets each indicator take its own `fu'e`.
 
