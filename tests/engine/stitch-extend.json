@@ -2,8 +2,8 @@
   "description": "%extend-rule adds alternatives, with the extension's own clauses (engine §2).",
   "documents": {
     "p.md": "## s\n\n```jbogenbau\n%stage main\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
-    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text x\n%rule x A <\"FROM-A\">\n```\n",
-    "h.md": "```jbogenbau\n%extend-rule x B <\"FROM-B\">\n```\n"
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text x\n%rule x A <FROM-A>\n```\n",
+    "h.md": "```jbogenbau\n%extend-rule x B <FROM-B>\n```\n"
   },
   "pipeline": "p.md",
   "tokens": [
@@ -24,9 +24,9 @@
           {
             "kind": "rule",
             "rule": "x",
-            "tags": {
-              "FROM-B": true
-            }
+            "tags": [
+              "FROM-B"
+            ]
           }
         ]
       }

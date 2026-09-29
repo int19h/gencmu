@@ -1,0 +1,10 @@
+{
+  "description": "A constituent's tags are a tag set: a string after %tags is an error at the term (design §3, engine §9).",
+  "document": "```jbogenbau\n%rule a A %tags \"x\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 17
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
   "description": "A token with no phonemes, a character of the first stage, never matches a spelled terminal (engine §4).",
-  "grammar": "%rule text \"a\"`a`",
+  "grammar": "%rule text ~a`a`",
   "tokens": [
     {
       "text": "a",

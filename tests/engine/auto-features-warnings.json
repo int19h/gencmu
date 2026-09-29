@@ -2,7 +2,7 @@
   "description": "When auto features run the parse again with sa-su, the first run's warnings are discarded: only the second run's chosen trees give warnings (engine §13).",
   "documents": {
     "p.md": "# A dialect\n\n## Words\n\n```jbogenbau\n%stage words\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n",
-    "g.md": "```jbogenbau\n%ambiguity-resolution lazy\n%rule text @¬sa-su? @w! word | @sa-su? word\n%rule word\n  A <\"SA\">\n```\n"
+    "g.md": "```jbogenbau\n%ambiguity-resolution lazy\n%rule text ¬sa-su? w! word | sa-su? word\n%rule word\n  A <SA>\n```\n"
   },
   "pipeline": "p.md",
   "tokens": [

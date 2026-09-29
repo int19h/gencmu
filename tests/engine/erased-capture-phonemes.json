@@ -2,7 +2,7 @@
   "description": "A constituent whose own rule emits ε, emitted by its parent as a capture, is a token that counts for nothing: its phonemes leave out everything it covers (engine §5, §11).",
   "documents": {
     "p.md": "## s\n\n```jbogenbau\n%stage first\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage second\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
-    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $a(x) $b(y) %emits $a <\"X\">, $b\n%rule x A %emits ε\n%rule y B\n```\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $a(x) $b(y) %emits $a <X>, $b\n%rule x A %emits ε\n%rule y B\n```\n",
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text X B\n```\n"
   },
   "pipeline": "p.md",
@@ -31,9 +31,9 @@
             {
               "text": "a",
               "phonemes": "",
-              "tags": {
-                "X": true
-              }
+              "tags": [
+                "X"
+              ]
             },
             {
               "text": "b",

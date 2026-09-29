@@ -1,6 +1,6 @@
 {
-  "description": "The first stage reads one token per code point, tagged with the character and, weakly, its class (engine §1).",
-  "grammar": "%rule text \"x\" \"space\" \"digit\" \"é\"",
+  "description": "The first stage reads one token per code point, tagged with its character tag and its class, both ordinary tags (engine §1).",
+  "grammar": "%rule text 'x' ~space ~digit 'é'",
   "input": "x 7é",
   "expect": {
     "result": {
@@ -11,7 +11,7 @@
         "children": [
           {
             "kind": "token",
-            "terminal": "x"
+            "terminal": "'x'"
           },
           {
             "kind": "token",
@@ -23,7 +23,7 @@
           },
           {
             "kind": "token",
-            "terminal": "é"
+            "terminal": "'é'"
           }
         ]
       }

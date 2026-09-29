@@ -3,7 +3,7 @@ import type { Token } from "./tokens.js";
 export type TokenJson = {
     text: string;
     phonemes: string;
-    tags: Record<string, boolean>;
+    tags: string[];
     span: Span;
     source: Span;
     verbatim?: true;
@@ -25,7 +25,7 @@ export type NodeJson = {
     rule: string;
     span: Span;
     source: Span;
-    tags: Record<string, boolean>;
+    tags: string[];
     children: NodeJson[];
 };
 export type ActionJson = {
@@ -87,7 +87,7 @@ export type DisplayValue = {
  * @typedef {object} TokenJson
  * @property {string} text
  * @property {string} phonemes
- * @property {Record<string, boolean>} tags
+ * @property {string[]} tags
  * @property {Span} span
  * @property {Span} source
  * @property {true} [verbatim]
@@ -97,7 +97,7 @@ export type DisplayValue = {
  * A result tree node in the result JSON.
  * @typedef {{kind: "token", terminal: string, token: number, span: Span, source: Span}
  *   | {kind: "elided", terminal: string, span: Span, source: Span}
- *   | {kind: "rule", rule: string, span: Span, source: Span, tags: Record<string, boolean>, children: NodeJson[]}} NodeJson
+ *   | {kind: "rule", rule: string, span: Span, source: Span, tags: string[], children: NodeJson[]}} NodeJson
  */
 /**
  * A witness action in the result JSON.
@@ -151,7 +151,7 @@ export type DisplayValue = {
  * member, its rule or terminal.
  * @typedef {{[name: string]: DisplayValue | DisplayValue[] | string | null}} DisplayValue
  */
-export declare const RESULT_FORMAT = 3;
+export declare const RESULT_FORMAT = 4;
 /**
  * @param {ResultNode} node
  * @returns {NodeJson}

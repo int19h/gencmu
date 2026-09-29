@@ -1,19 +1,19 @@
 {
-  "description": "A random grammar with the notation's sugar and weak tags (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 3 derivations.",
+  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 3 derivations.",
   "grammar": "%ambiguity-resolution lazy\n%rule text (u | A) C | ε | t\n%rule t B [t] ... | ε\n%rule u [A] | ε\n%rule v ε | [v] ...",
   "tokens": [
     {
       "text": "a",
       "tags": [
-        "?A",
+        "A",
         "B",
-        "?C"
+        "C"
       ]
     }
   ],
   "expect": {
     "result": {
-      "format": 3,
+      "format": 4,
       "ok": true,
       "stages": [
         {
@@ -33,7 +33,7 @@
           0,
           1
         ],
-        "tags": {},
+        "tags": [],
         "children": [
           {
             "kind": "rule",
@@ -46,7 +46,7 @@
               0,
               0
             ],
-            "tags": {},
+            "tags": [],
             "children": []
           },
           {

@@ -33,7 +33,7 @@ The phoneme stage cannot know that a pause stands in a quote. So punctuation bet
   | $c(punctuation) commas
   | commas $c(punctuation) commas
 %emits
-  $c <"PAUSE" ∪ /./>
+  $c <PAUSE ∪ /./>
 
 %redefine-rule pause-edge
   edge-char | pause-edge edge-char
@@ -45,7 +45,7 @@ The phoneme stage cannot know that a pause stands in a quote. So punctuation bet
   punctuation-char | punctuation punctuation-char | punctuation commas punctuation-char
 
 %rule punctuation-char
-  $c("other")
+  $c(~other)
 %conditions
   ¬matches($c, any-lojban-char),
   ¬matches($c, core-char)
@@ -69,15 +69,15 @@ The approved grammar ignores a comma before a letter (`comma*` in each letter ru
 %extend-rule vowel-group-plain
   | $g(vowel-group) commas $v(vowel) <tags($v)> | $h(vowel-group) commas $w(vowel) <tags($w)>
 %conditions
-  "syllabic" ∉ tags($g),
-  "syllabic" ∈ tags($h),
-  "syllabic" ∉ tags($w)
+  ~syllabic ⊈ tags($g),
+  ~syllabic ⊆ tags($h),
+  ~syllabic ⊈ tags($w)
 
 %extend-rule vowel-group-joined
   $g(vowel-group) commas $v(joined-vowel) <tags($v)>
 %conditions
-  "syllabic" ∈ tags($g),
-  "syllabic" ∈ tags($v)
+  ~syllabic ⊆ tags($g),
+  ~syllabic ⊆ tags($v)
 ```
 
 ## The apostrophe
@@ -86,7 +86,7 @@ Texts write the apostrophe as the letter `h`, which CLL does not use. The names 
 
 ```jbogenbau
 %extend-rule apostrophe
-  "h" | "H"
+  'h' | 'H'
 %emits
   $ </'/>
 ```
@@ -116,7 +116,7 @@ A run in which every vowel is a capital carries no stress mark, and the stage re
   ¬matches(head($r), comma),
   ¬matches(last($r), comma)
 %emits
-  $ <"FOREIGN">
+  $ <FOREIGN>
 %verbatim
 
 %rule capital-run
@@ -150,15 +150,15 @@ A run in which every vowel is a capital carries no stress mark, and the stage re
   | $g(folded-vowel-group) [commas] $v(folded-vowel) <tags($v)>
   | $h(folded-vowel-group) [commas] $w(folded-vowel) <tags($w)>
 %conditions
-  "syllabic" ∉ tags($g),
-  "syllabic" ∈ tags($h),
-  "syllabic" ∉ tags($w)
+  ~syllabic ⊈ tags($g),
+  ~syllabic ⊆ tags($h),
+  ~syllabic ⊈ tags($w)
 
 %rule folded-vowel-group-joined
   $g(folded-vowel-group) [commas] $v(joined-folded-vowel) <tags($v)>
 %conditions
-  "syllabic" ∈ tags($g),
-  "syllabic" ∈ tags($v)
+  ~syllabic ⊆ tags($g),
+  ~syllabic ⊆ tags($v)
 
 %rule joined-folded-vowel
   $v(folded-vowel) <tags($v)>
@@ -166,7 +166,7 @@ A run in which every vowel is a capital carries no stress mark, and the stage re
   /'/, $v
 
 %rule folded-vowel
-  "A" </a/> | "E" </e/> | "I" </i/> | "O" </o/> | "U" </u/> | "Y" </y/>
+  'A' </a/> | 'E' </e/> | 'I' </i/> | 'O' </o/> | 'U' </u/> | 'Y' </y/>
 %emits
   $
 ```
@@ -177,26 +177,26 @@ A vowel with an acute or a grave accent, precomposed or combining, is the stress
 
 ```jbogenbau
 %extend-rule plain-vowel
-  | "ĭ" </i/> | "Ĭ" </i/> | "i" glide-mark </i/> | "I" glide-mark </i/>
-  | "ŭ" </u/> | "Ŭ" </u/> | "u" glide-mark </u/> | "U" glide-mark </u/>
+  | 'ĭ' </i/> | 'Ĭ' </i/> | 'i' glide-mark </i/> | 'I' glide-mark </i/>
+  | 'ŭ' </u/> | 'Ŭ' </u/> | 'u' glide-mark </u/> | 'U' glide-mark </u/>
 %emits
   $
 
 %extend-rule stressed-vowel
-  | "á" </A/> | "à" </A/> | "Á" </A/> | "À" </A/> | "a" stress-mark </A/> | "A" stress-mark </A/>
-  | "é" </E/> | "è" </E/> | "É" </E/> | "È" </E/> | "e" stress-mark </E/> | "E" stress-mark </E/>
-  | "í" </I/> | "ì" </I/> | "Í" </I/> | "Ì" </I/> | "i" stress-mark </I/> | "I" stress-mark </I/>
-  | "ó" </O/> | "ò" </O/> | "Ó" </O/> | "Ò" </O/> | "o" stress-mark </O/> | "O" stress-mark </O/>
-  | "ú" </U/> | "ù" </U/> | "Ú" </U/> | "Ù" </U/> | "u" stress-mark </U/> | "U" stress-mark </U/>
-  | "ý" </Y/> | "ỳ" </Y/> | "Ý" </Y/> | "Ỳ" </Y/> | "y" stress-mark </Y/> | "Y" stress-mark </Y/>
+  | 'á' </A/> | 'à' </A/> | 'Á' </A/> | 'À' </A/> | 'a' stress-mark </A/> | 'A' stress-mark </A/>
+  | 'é' </E/> | 'è' </E/> | 'É' </E/> | 'È' </E/> | 'e' stress-mark </E/> | 'E' stress-mark </E/>
+  | 'í' </I/> | 'ì' </I/> | 'Í' </I/> | 'Ì' </I/> | 'i' stress-mark </I/> | 'I' stress-mark </I/>
+  | 'ó' </O/> | 'ò' </O/> | 'Ó' </O/> | 'Ò' </O/> | 'o' stress-mark </O/> | 'O' stress-mark </O/>
+  | 'ú' </U/> | 'ù' </U/> | 'Ú' </U/> | 'Ù' </U/> | 'u' stress-mark </U/> | 'U' stress-mark </U/>
+  | 'ý' </Y/> | 'ỳ' </Y/> | 'Ý' </Y/> | 'Ỳ' </Y/> | 'y' stress-mark </Y/> | 'Y' stress-mark </Y/>
 %emits
   $
 
 %rule stress-mark
-  "\u{0301}" | "\u{0300}"
+  '\u{301}' | '\u{300}'
 
 %rule glide-mark
-  "\u{0306}"
+  '\u{306}'
 ```
 
 ## Digits
@@ -225,57 +225,57 @@ The approved grammar reads a digit as a member of PA, the number word it stands 
   digit-0 | digit-1 | digit-2 | digit-3 | digit-4 | digit-5 | digit-6 | digit-7 | digit-8 | digit-9
 
 %rule digit-0
-  "0"
+  '0'
 %emits
   $ </n/>, $ </o/>
 
 %rule digit-1
-  "1"
+  '1'
 %emits
   $ </p/>, $ </a/>
 
 %rule digit-2
-  "2"
+  '2'
 %emits
   $ </r/>, $ </e/>
 
 %rule digit-3
-  "3"
+  '3'
 %emits
   $ </c/>, $ </i/>
 
 %rule digit-4
-  "4"
+  '4'
 %emits
   $ </v/>, $ </o/>
 
 %rule digit-5
-  "5"
+  '5'
 %emits
   $ </m/>, $ </u/>
 
 %rule digit-6
-  "6"
+  '6'
 %emits
   $ </x/>, $ </a/>
 
 %rule digit-7
-  "7"
+  '7'
 %emits
   $ </z/>, $ </e/>
 
 %rule digit-8
-  "8"
+  '8'
 %emits
   $ </b/>, $ </i/>
 
 %rule digit-9
-  "9"
+  '9'
 %emits
   $ </s/>, $ </o/>
 
 %rule decimal-point
-  "."
+  '.'
 %emits
   $ </p/>, $ </i/>
 ```

@@ -1,5 +1,5 @@
 {
-  "description": "A random grammar with the notation's sugar and weak tags (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 2 derivations.",
+  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 2 derivations.",
   "grammar": "%ambiguity-resolution greedy\n%rule text ε | B (v | B) | C\n%rule t B u | ε\n%rule u A | t\n%rule v [t] ... v | ε",
   "tokens": [
     {
@@ -18,7 +18,7 @@
   ],
   "expect": {
     "result": {
-      "format": 3,
+      "format": 4,
       "ok": true,
       "stages": [
         {
@@ -57,7 +57,7 @@
               0,
               3
             ],
-            "tags": {},
+            "tags": [],
             "children": [
               {
                 "kind": "token",
@@ -83,7 +83,7 @@
                   2,
                   3
                 ],
-                "tags": {},
+                "tags": [],
                 "children": [
                   {
                     "kind": "rule",
@@ -96,7 +96,7 @@
                       2,
                       3
                     ],
-                    "tags": {},
+                    "tags": [],
                     "children": [
                       {
                         "kind": "token",
@@ -122,7 +122,7 @@
                           3,
                           3
                         ],
-                        "tags": {},
+                        "tags": [],
                         "children": [
                           {
                             "kind": "rule",
@@ -135,7 +135,7 @@
                               3,
                               3
                             ],
-                            "tags": {},
+                            "tags": [],
                             "children": []
                           }
                         ]
@@ -153,7 +153,7 @@
                       3,
                       3
                     ],
-                    "tags": {},
+                    "tags": [],
                     "children": []
                   }
                 ]
@@ -174,7 +174,7 @@
           0,
           3
         ],
-        "tags": {},
+        "tags": [],
         "children": [
           {
             "kind": "token",

@@ -38,21 +38,21 @@ In the experimental dialect, a marker that opens no quote is an ordinary word. [
   | CMEVLA
   | y-bu-word
 %conditions
-  classes($c) ∩ ("LOhAI" ∪ "LEhAI") = ∅
+  classes($c) ∩ (LOhAI ∪ LEhAI) = ∅
 %emits
-  $ <"word">
+  $ <~word>
 
 %rule lohai-marker
-  $q(magic-body) <"word" ∪ "cmavo" ∪ classes($q)>
+  $q(magic-body) <~word ∪ ~cmavo ∪ classes($q)>
 %conditions
-  "LOhAI" ∈ classes($q)
+  LOhAI ⊆ classes($q)
 %emits
   $
 
 %rule lehai-marker
-  $q(magic-body) <"word" ∪ "cmavo" ∪ classes($q)>
+  $q(magic-body) <~word ∪ ~cmavo ∪ classes($q)>
 %conditions
-  "LEhAI" ∈ classes($q)
+  LEhAI ⊆ classes($q)
 %emits
   $
 ```

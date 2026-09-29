@@ -1,6 +1,6 @@
 {
   "description": "A stage that rejects its input gives no warnings, although a warned alternative read part of it (engine §12).",
-  "grammar": "%rule text @w! A B",
+  "grammar": "%rule text w! A B",
   "tokens": [
     {
       "text": "a",

@@ -1,6 +1,6 @@
 {
   "description": "A presence test is decided per alternative: %conditions $a removes the alternative that does not capture a (engine §3.6).",
-  "grammar": "%rule text x\n%rule x $a(A) <\"captured\"> | A <\"bare\">\n%conditions $a",
+  "grammar": "%rule text x\n%rule x $a(A) <~captured> | A <~bare>\n%conditions $a",
   "tokens": [
     {
       "text": "a",
@@ -24,9 +24,9 @@
           {
             "kind": "rule",
             "rule": "x",
-            "tags": {
-              "captured": true
-            }
+            "tags": [
+              "captured"
+            ]
           }
         ]
       }

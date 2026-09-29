@@ -1,6 +1,6 @@
 {
-  "description": "@w! is a warning guard, and @f? a gate (engine §9).",
-  "document": "```jbogenbau\n%rule a @f? @w! A\n```\n",
+  "description": "w! is a warning guard, and f? a gate (engine §9).",
+  "document": "```jbogenbau\n%rule a f? w! A\n```\n",
   "expect": {
     "dom": {
       "rules": [

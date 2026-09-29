@@ -1,0 +1,48 @@
+{
+  "description": "~KOhA and a bare KOhA are one tag, as a terminal and in a tag term (design §2, engine §1).",
+  "grammar": "%rule text ~KOhA KOhA <~KOhA ∪ KOhA ∪ ~word>",
+  "tokens": [
+    {
+      "text": "mi",
+      "tags": [
+        "KOhA"
+      ]
+    },
+    {
+      "text": "do",
+      "tags": [
+        "KOhA"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "tags": [
+          "KOhA",
+          "word"
+        ],
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "KOhA",
+            "token": 0
+          },
+          {
+            "kind": "token",
+            "terminal": "KOhA",
+            "token": 1
+          }
+        ]
+      }
+    }
+  }
+}

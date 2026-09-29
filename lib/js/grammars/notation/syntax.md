@@ -2,7 +2,7 @@
 
 This is the second stage of the notation dialect, `../dialects/notation.md`. A stage is one step of a pipeline, with its own grammar. The stage reads the tokens (units of input) that `lexical.md` emitted. It builds the tree from which a library reads the grammar's rules and directives. Its rule names matter to that reader: the table in `../../docs/engine.md`, §9, says what each named constituent becomes. `../../docs/notation.md` explains the notation for authors.
 
-The tokens arrive with tags (labels that the grammar reads). The lexical stage tags a token `identifier`, `string`, `phoneme`, `spelling`, `capture` or `guard`. Instead, it tags a keyword such as `"%rule"`, or a symbol such as `"|"` or `"..."`, with its own spelling.
+The tokens arrive with tags (labels that the grammar reads). The lexical stage tags a token `~identifier`, `~string`, `~tag`, `~phoneme`, `~character`, `~spelling`, `~capture` or `~guard`. It tags a keyword that the notation knows with its own identifier, such as `~keyword-rule` for `%rule`, and `...` with `~ellipsis`. Any other symbol is one character, which keeps its character tag, such as `'|'`.
 
 ## Choosing among parses
 
@@ -14,7 +14,7 @@ Every rule and directive begins with a keyword, and a keyword begins nothing els
 
 ## Documents
 
-A grammar text is a sequence of rules and directives. A directive is its keyword and any number of operands, each a name or a string. A library reads the tree into a DOM (document object model), its own form of the grammar. At that point, the library makes sure that each directive has the operands that it takes, so that an error names the directive (`../../docs/engine.md`, §9).
+A grammar text is a sequence of rules and directives. A directive is its keyword and any number of operands, each a name, a string or a tag. A library reads the tree into a DOM (document object model), its own form of the grammar. At that point, the library makes sure that each directive has the operands that it takes, so that an error names the directive (`../../docs/engine.md`, §9).
 
 ```jbogenbau
 %rule text
@@ -24,16 +24,20 @@ A grammar text is a sequence of rules and directives. A directive is its keyword
   rule | directive
 
 %rule directive
-  directive-name [argument-word | argument-string] ...
+  directive-name [argument-word | argument-string | argument-tag] ...
 
 %rule directive-name
-  "%ambiguity-resolution" | "%elidable" | "%stage" | "%include" | "%features"
+  | ~keyword-ambiguity-resolution | ~keyword-elidable | ~keyword-stage
+  | ~keyword-include | ~keyword-features
 
 %rule argument-word
-  "identifier"
+  ~identifier
 
 %rule argument-string
-  "string"
+  ~string
+
+%rule argument-tag
+  ~tag | ~phoneme | ~character
 ```
 
 ## Rules
@@ -45,160 +49,169 @@ A rule is a keyword, its name, its alternatives and its clauses, in this order. 
   definer rule-name body [tags-clause] [conditions-clause] [emits-clause] [verbatim-clause]
 
 %rule definer
-  "%rule" | "%redefine-rule" | "%extend-rule"
+  ~keyword-rule | ~keyword-redefine-rule | ~keyword-extend-rule
 
 %rule rule-name
-  "identifier" | "#"
+  ~identifier | '#'
 
 %rule body
-  ["|"] alternative ["|" alternative] ...
+  ['|'] alternative ['|' alternative] ...
 
 %rule alternative
   [guard] ... conjunction [alternative-tags]
 
 %rule guard
-  "guard"
+  ~guard
 
 %rule alternative-tags
-  "<" term ">"
+  '<' term '>'
 ```
 
 ## Expressions
 
 `&` joins sequences, and a sequence is one or more elements. An element is a primary, followed by `...` for one or more of it. An optional followed by `...` is zero or more. Parentheses group a choice, whose alternatives carry neither guards nor tags.
 
-A reference, a string or a phoneme tag can carry a spelling, as in ``LE`la` ``. It matches only where its span sounds like the spelling. Nothing else takes a spelling, so a group or an optional followed by one is not a primary, and the spelling binds tighter than `...`.
+A terminal is a name, a tag literal, a character tag or a phoneme tag. A string is not a terminal. A reference or a terminal can carry a spelling, as in ``LE`la` ``. It matches only where its span sounds like the spelling. Nothing else takes a spelling, so a group or an optional followed by one is not a primary, and the spelling binds tighter than `...`.
 
 ```jbogenbau
 %rule conjunction
-  ["&"] sequence ["&" sequence] ...
+  ['&'] sequence ['&' sequence] ...
 
 %rule sequence
   element ...
 
 %rule element
-  primary ["..."]
+  primary [~ellipsis]
 
 %rule primary
-  reference | string | phoneme | spelled | capture | group | optional | empty
+  reference | tag | character | phoneme | spelled | capture | group | optional | empty
 
 %rule spelled
-  (reference | string | phoneme) "spelling"
+  (reference | tag | character | phoneme) ~spelling
 
 %rule reference
-  "identifier" | "#"
+  ~identifier | '#'
 
-%rule string
-  "string"
+%rule tag
+  ~tag
+
+%rule character
+  ~character
 
 %rule phoneme
-  "phoneme"
+  ~phoneme
 
 %rule capture
-  "capture" "(" primary ")"
+  ~capture '(' primary ')'
 
 %rule group
-  "(" choice ")"
+  '(' choice ')'
 
 %rule optional
-  "[" choice "]"
+  '[' choice ']'
 
 %rule choice
-  ["|"] conjunction ["|" conjunction] ...
+  ['|'] conjunction ['|' conjunction] ...
 
 %rule empty
-  "ε"
+  'ε'
 ```
 
 ## Clauses
 
-`%tags` says what tags every alternative's constituent carries. `%conditions` lists what must hold of the captured parts. `%emits` says what the constituent hands on. That is a list of items. Each item is a capture, with tags of its own between `<` and `>`, or an inserted tag. The clause can also be `ε`, nothing, which also makes the constituent not count.
+`%tags` says what tags every alternative's constituent carries. `%conditions` lists what must hold of the captured parts. `%emits` says what the constituent hands on. That is a list of items. Each item is a capture, with tags of its own between `<` and `>`, or an inserted tag: a name, a tag literal, a character tag or a phoneme tag. The clause can also be `ε`, nothing, which also makes the constituent not count.
 
 `%verbatim` is a keyword alone. It says that a token over the constituent sounds like its text.
 
 ```jbogenbau
 %rule tags-clause
-  "%tags" term
+  ~keyword-tags term
 
 %rule conditions-clause
-  "%conditions" [","] implication ["," implication] ...
+  ~keyword-conditions [','] implication [',' implication] ...
 
 %rule emits-clause
-  "%emits" ([","] emit-item ["," emit-item] ... | "ε")
+  ~keyword-emits ([','] emit-item [',' emit-item] ... | 'ε')
 
 %rule verbatim-clause
-  "%verbatim"
+  ~keyword-verbatim
 
 %rule emit-item
   emit-target [emit-tags]
 
 %rule emit-target
-  "capture" | "string" | "phoneme"
+  ~capture | ~identifier | ~tag | ~character | ~phoneme
 
 %rule emit-tags
-  "<" term ">"
+  '<' term '>'
 ```
 
 A condition joins others with `∧`, `∨` and `⟹`. These operators bind in that order, and `⟹` groups to the right. Parentheses group, and `¬` negates the condition after it. A capture alone is a condition, true where the alternative has it.
 
 ```jbogenbau
 %rule implication
-  any-of ["⟹" implication]
+  any-of ['⟹' implication]
 
 %rule any-of
-  ["∨"] all-of ["∨" all-of] ...
+  ['∨'] all-of ['∨' all-of] ...
 
 %rule all-of
-  ["∧"] condition ["∧" condition] ...
+  ['∧'] condition ['∧' condition] ...
 
 %rule condition
-  comparison | call | negation | presence | "(" implication ")"
+  comparison | call | negation | presence | '(' implication ')'
 
 %rule comparison
   union comparator union
 
 %rule comparator
-  "=" | "≠" | "∈" | "∉" | "⊆"
+  '=' | '≠' | '∈' | '∉' | '⊆' | '⊈'
 
 %rule negation
-  "¬" condition
+  '¬' condition
 
 %rule presence
-  "capture"
+  ~capture
 ```
 
 ## Terms
 
-A term is a string or a tag set. `∩` binds tighter than `∪`. A term guarded by a condition, `A ⟹ t`, is `t` where `A` holds and nothing where it does not. It binds looser than `∪` and `∩`, so it stands in parentheses inside a larger term. Only a whole tag term can be a guarded term without parentheses.
+A term is a string, a set of strings, a tag set or a span. `∩` binds tighter than `∪` and `∖`, which bind equally and group from the left. A term guarded by a condition, `A ⟹ t`, is `t` where `A` holds and nothing where it does not. It binds looser than `∪`, `∩` and `∖`, so it stands in parentheses inside a larger term. Only a whole tag term can be a guarded term without parentheses.
+
+A bare name in a term is a tag literal when it begins with a capital. Otherwise it names a rule, which only a function's argument can do. The reader tells the two apart and gives each term its type (`../../docs/engine.md`, §9, §10).
 
 ```jbogenbau
 %rule term
   union | guarded-term
 
 %rule guarded-term
-  any-of "⟹" term
+  any-of '⟹' term
 
 %rule union
-  ["∪"] intersection ["∪" intersection] ...
+  ['∪'] intersection [('∪' | '∖') intersection] ...
 
 %rule intersection
-  ["∩"] term-atom ["∩" term-atom] ...
+  ['∩'] term-atom ['∩' term-atom] ...
 
 %rule term-atom
-  string | phoneme | weak | empty-set | "(" term ")" | call | capture-reference
+  | string | tag | character | phoneme | name | empty-set
+  | '(' term ')' | call | capture-reference
 
-%rule weak
-  "?" "string"
+%rule string
+  ~string
+
+%rule name
+  ~identifier
 
 %rule empty-set
-  "∅"
+  '∅'
 
 %rule call
-  "identifier" "(" argument ["," argument] ... ")"
+  ~identifier '(' argument [',' argument] ... ')'
 
 %rule argument
-  union | "identifier"
+  union
 
 %rule capture-reference
-  "capture"
+  ~capture
 ```

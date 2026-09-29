@@ -215,7 +215,8 @@
             phonemes: token.phonemes || "",
             span: token.span[0] + "–" + token.span[1],
             source: token.source[0] + "–" + token.source[1],
-            tags: [...token.tags.keys()].sort().map((tag) => (token.tags.get(tag) ? tag : "?" + tag)).join(" "),
+            // A list, since a character tag can hold a space.
+            tags: [...token.tags].sort(),
             insertedBy: token.insertedBy || "",
           }));
           output = {

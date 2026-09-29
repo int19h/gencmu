@@ -37,7 +37,7 @@ The layer keeps the CLL grammar's connective before the first `.i` of a text (`j
 
 ```jbogenbau
 %redefine-rule text
-  | @¬cbm? [NAI ...] CMEVLA ... # [joik-jek] text-1
+  | ¬cbm? [NAI ...] CMEVLA ... # [joik-jek] text-1
   | [indicators & free ...] [joik-jek] text-1
 
 %redefine-rule indicators
@@ -202,7 +202,7 @@ The layer reads a termset with `nu'i` as `nu'i` with a forethought form wherever
   | termset
   | NA # KU #
   | bare-na
-  | @soi-clause? soi-term
+  | soi-clause? soi-term
 
 %rule bare-na
   (* !gek !ek !joik_jek !gihek NA_clause free* KU_elidible free* *)
@@ -246,7 +246,7 @@ The layer reads a termset with `nu'i` as `nu'i` with a forethought form wherever
   | termset
   | NA # KU #
   | listed-bare-na
-  | @soi-clause? soi-term
+  | soi-clause? soi-term
 
 %rule listed-tagged-term
   (* abs_tag_term: !gek tag free* !selbri !gek_sentence, then a sumti or an elided KU *)
@@ -312,7 +312,7 @@ The layer reads a termset with `nu'i` as `nu'i` with a forethought form wherever
   | termset-with-nuhi
   | NA # KU #
   | listed-bare-na
-  | @soi-clause? soi-term
+  | soi-clause? soi-term
 
 %rule termset-with-nuhi
   | NUhI # gek terms [NUhU] # gik terms [NUhU] #
@@ -361,7 +361,7 @@ A description can take a forethought sentence in place of a selbri, and so can a
   | NAhE # $u(term) [LUhU] #
   | KOhA #
   | lerfu-string free-after-lerfu-string
-  | @¬cbm? name-marker # [relative-clauses] CMEVLA ... #
+  | ¬cbm? name-marker # [relative-clauses] CMEVLA ... #
   | (LA | LE) # sumti-tail [KU] #
   | LOhOI # subsentence [KUhAU] #
   | LI # mex [LOhO] #
@@ -452,7 +452,7 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
 %redefine-rule tanru-unit-2
   | KE # selbri-3 [KEhE] #
   | BRIVLA #
-  | @cbm? CMEVLA #
+  | cbm? CMEVLA #
   | GOhA [RAhO] #
   | ME # sumti [MEhU] # [MOI #]
   | ME # $x(mex) [MEhU] # [MOI #]
@@ -479,7 +479,7 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
 
 %rule tanru-unit-2-not-starting-with-ke
   | BRIVLA #
-  | @cbm? CMEVLA #
+  | cbm? CMEVLA #
   | GOhA [RAhO] #
   | ME # sumti [MEhU] # [MOI #]
   | ME # $x(mex) [MEhU] # [MOI #]
@@ -657,14 +657,14 @@ So `pa so mo'o` is the number `pa so`, and not `pa` followed by the ordinal `so 
 %redefine-rule free
   | SEI # [terms [CU #]] selbri [SEhU]
   | vocative [relative-clauses] selbri [relative-clauses] [DOhU]
-  | @¬cbm? vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
+  | ¬cbm? vocative [relative-clauses] CMEVLA ... # [relative-clauses] [DOhU]
   | vocative [sumti] [DOhU]
   | mex-2 MAI
   | TO text [TOI]
   | XI # mex-2
   | LOhAI [lohai-word ...] [LOhAI [lohai-word ...]] LEhAI
   | LEhAI
-  | @¬soi-clause? SOI # sumti [sumti] [SEhU]
+  | ¬soi-clause? SOI # sumti [sumti] [SEhU]
 
 %rule name-marker
   LE`la` | LE`lai` | LE`la'i`
@@ -685,17 +685,17 @@ So `pa so mo'o` is the number `pa so`, and not `pa` followed by the ordinal `so 
   BOI
 
 %rule lohai-word
-  $w("word")
+  $w(~word)
 %conditions
-  "LOhAI" ∉ tags($w),
-  "LEhAI" ∉ tags($w)
+  LOhAI ⊈ tags($w),
+  LEhAI ⊈ tags($w)
 ```
 
 ## Choosing among parses
 
 Where a text has more than one parse, the stage chooses by the rule of [the notation document](../../docs/notation.md) under "Ambiguity". The layer declares the `greedy` resolution. At the first difference between two parses:
 
-- A reading of a word under a weak tag (a tag for a second-choice class) loses to one under a strong tag. The experimental lexicon gives no weak tags.
+- Two parses that read the same word under two different tags tie, and the stage reports the tie.
 - A parse that reads the next word wins over one that closes a constituent, so a constituent ends as late as the grammar allows.
 - Two parses that close different constituents at the same point tie, and the stage reports the tie.
 

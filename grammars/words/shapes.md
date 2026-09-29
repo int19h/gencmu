@@ -488,24 +488,24 @@ So a brivla with marked stress has `s2`, and one without any capital vowel has `
 ```jbogenbau
 %rule brivla-scan
   | $i(brivla-item)
-      <("counted" ∈ tags($i) ⟹ "n1") ∪ ("counted" ∉ tags($i) ⟹ "n0")
-       ∪ ("marked" ∈ tags($i) ⟹ "s1" ∪ "first-marked") ∪ ("marked" ∉ tags($i) ⟹ "s0")
-       ∪ "single-end" ∩ tags($i)>
+      <(~counted ⊆ tags($i) ⟹ ~n1) ∪ (~counted ⊈ tags($i) ⟹ ~n0)
+       ∪ (~marked ⊆ tags($i) ⟹ ~s1 ∪ ~first-marked) ∪ (~marked ⊈ tags($i) ⟹ ~s0)
+       ∪ ~single-end ∩ tags($i)>
   | $s(brivla-scan) $j(brivla-item)
-      <("s0" ∈ tags($s) ∧ "marked" ∉ tags($j) ⟹ "s0")
-       ∪ ("s0" ∈ tags($s) ∧ "marked" ∈ tags($j) ⟹ "s1")
-       ∪ ("s1" ∈ tags($s) ∧ "counted" ∉ tags($j) ⟹ "s1")
-       ∪ ("s1" ∈ tags($s) ∧ "counted" ∈ tags($j) ∧ "marked" ∉ tags($j) ⟹ "s2")
-       ∪ ("s2" ∈ tags($s) ∧ "counted" ∉ tags($j) ⟹ "s2")
-       ∪ ("counted" ∉ tags($j) ⟹ ("n0" ∪ "n1" ∪ "n2" ∪ "n3") ∩ tags($s))
-       ∪ ("counted" ∈ tags($j) ∧ "n0" ∈ tags($s) ⟹ "n1")
-       ∪ ("counted" ∈ tags($j) ∧ "n1" ∈ tags($s) ⟹ "n2")
-       ∪ ("counted" ∈ tags($j) ∧ ("n2" ∪ "n3") ∩ tags($s) ≠ ∅ ⟹ "n3")
-       ∪ "first-marked" ∩ tags($s)
-       ∪ ("n0" ∈ tags($s) ∧ "marked" ∈ tags($j) ⟹ "first-marked")
-       ∪ "single-end" ∩ tags($j)>
+      <(~s0 ⊆ tags($s) ∧ ~marked ⊈ tags($j) ⟹ ~s0)
+       ∪ (~s0 ⊆ tags($s) ∧ ~marked ⊆ tags($j) ⟹ ~s1)
+       ∪ (~s1 ⊆ tags($s) ∧ ~counted ⊈ tags($j) ⟹ ~s1)
+       ∪ (~s1 ⊆ tags($s) ∧ ~counted ⊆ tags($j) ∧ ~marked ⊈ tags($j) ⟹ ~s2)
+       ∪ (~s2 ⊆ tags($s) ∧ ~counted ⊈ tags($j) ⟹ ~s2)
+       ∪ (~counted ⊈ tags($j) ⟹ (~n0 ∪ ~n1 ∪ ~n2 ∪ ~n3) ∩ tags($s))
+       ∪ (~counted ⊆ tags($j) ∧ ~n0 ⊆ tags($s) ⟹ ~n1)
+       ∪ (~counted ⊆ tags($j) ∧ ~n1 ⊆ tags($s) ⟹ ~n2)
+       ∪ (~counted ⊆ tags($j) ∧ (~n2 ∪ ~n3) ∩ tags($s) ≠ ∅ ⟹ ~n3)
+       ∪ ~first-marked ∩ tags($s)
+       ∪ (~n0 ⊆ tags($s) ∧ ~marked ⊆ tags($j) ⟹ ~first-marked)
+       ∪ ~single-end ∩ tags($j)>
 %conditions
-  "single-end" ∉ tags($s)
+  ~single-end ⊈ tags($s)
     ∨ ¬matches(head($j), vowel)
     ∨ ¬matches(last($s), i-or-u)
       ∧ (¬matches(last($s), any-a) ∨ ¬matches(head($j), i-or-u))
@@ -513,8 +513,8 @@ So a brivla with marked stress has `s2`, and one without any capital vowel has `
 
 %rule brivla-item
   | consonant | /y/ | /'/ | /,/
-  | $v(vowel) <"counted" ∪ "single-end" ∪ (matches($v, capital-vowel) ⟹ "marked")>
-  | $d(brivla-diphthong) <"counted" ∪ (matches($d, stress-mark) ⟹ "marked")>
+  | $v(vowel) <~counted ∪ ~single-end ∪ (matches($v, capital-vowel) ⟹ ~marked)>
+  | $d(brivla-diphthong) <~counted ∪ (matches($d, stress-mark) ⟹ ~marked)>
 
 %rule brivla-diphthong
   falling-diphthong | rising-diphthong
@@ -532,26 +532,26 @@ The stream uses the stress on the first syllable of a name, for CLL 4.2's pause 
 ```jbogenbau
 %rule name-scan
   | $i(name-item)
-      <("nucleus" ∈ tags($i) ⟹ "v1") ∪ ("nucleus" ∉ tags($i) ⟹ "v0")
-       ∪ ("counted" ∈ tags($i) ⟹ "n1" ∪ "first-counted") ∪ ("counted" ∉ tags($i) ⟹ "n0")
-       ∪ ("marked" ∈ tags($i) ⟹ "first-marked" ∪ "any-marked")
-       ∪ "single-end" ∩ tags($i)>
+      <(~nucleus ⊆ tags($i) ⟹ ~v1) ∪ (~nucleus ⊈ tags($i) ⟹ ~v0)
+       ∪ (~counted ⊆ tags($i) ⟹ ~n1 ∪ ~first-counted) ∪ (~counted ⊈ tags($i) ⟹ ~n0)
+       ∪ (~marked ⊆ tags($i) ⟹ ~first-marked ∪ ~any-marked)
+       ∪ ~single-end ∩ tags($i)>
   | $s(name-scan) $j(name-item)
-      <("v1" ∈ tags($s) ∨ "nucleus" ∈ tags($j) ⟹ "v1")
-       ∪ ("v0" ∈ tags($s) ∧ "nucleus" ∉ tags($j) ⟹ "v0")
-       ∪ "first-counted" ∩ tags($s)
-       ∪ ("v0" ∈ tags($s) ∧ "counted" ∈ tags($j) ⟹ "first-counted")
-       ∪ "first-marked" ∩ tags($s)
-       ∪ ("v0" ∈ tags($s) ∧ "marked" ∈ tags($j) ⟹ "first-marked")
-       ∪ "any-marked" ∩ tags($s)
-       ∪ ("marked" ∈ tags($j) ⟹ "any-marked")
-       ∪ ("counted" ∉ tags($j) ⟹ ("n0" ∪ "n1" ∪ "n2" ∪ "n3") ∩ tags($s))
-       ∪ ("counted" ∈ tags($j) ∧ "n0" ∈ tags($s) ⟹ "n1")
-       ∪ ("counted" ∈ tags($j) ∧ "n1" ∈ tags($s) ⟹ "n2")
-       ∪ ("counted" ∈ tags($j) ∧ ("n2" ∪ "n3") ∩ tags($s) ≠ ∅ ⟹ "n3")
-       ∪ "single-end" ∩ tags($j)>
+      <(~v1 ⊆ tags($s) ∨ ~nucleus ⊆ tags($j) ⟹ ~v1)
+       ∪ (~v0 ⊆ tags($s) ∧ ~nucleus ⊈ tags($j) ⟹ ~v0)
+       ∪ ~first-counted ∩ tags($s)
+       ∪ (~v0 ⊆ tags($s) ∧ ~counted ⊆ tags($j) ⟹ ~first-counted)
+       ∪ ~first-marked ∩ tags($s)
+       ∪ (~v0 ⊆ tags($s) ∧ ~marked ⊆ tags($j) ⟹ ~first-marked)
+       ∪ ~any-marked ∩ tags($s)
+       ∪ (~marked ⊆ tags($j) ⟹ ~any-marked)
+       ∪ (~counted ⊈ tags($j) ⟹ (~n0 ∪ ~n1 ∪ ~n2 ∪ ~n3) ∩ tags($s))
+       ∪ (~counted ⊆ tags($j) ∧ ~n0 ⊆ tags($s) ⟹ ~n1)
+       ∪ (~counted ⊆ tags($j) ∧ ~n1 ⊆ tags($s) ⟹ ~n2)
+       ∪ (~counted ⊆ tags($j) ∧ (~n2 ∪ ~n3) ∩ tags($s) ≠ ∅ ⟹ ~n3)
+       ∪ ~single-end ∩ tags($j)>
 %conditions
-  "single-end" ∉ tags($s)
+  ~single-end ⊈ tags($s)
     ∨ ¬matches(head($j), name-vowel)
     ∨ ¬matches(last($s), i-or-u)
       ∧ (¬matches(last($s), any-a) ∨ ¬matches(head($j), i-or-u))
@@ -559,10 +559,10 @@ The stream uses the stress on the first syllable of a name, for CLL 4.2's pause 
 
 %rule name-item
   | consonant | /'/ | /,/
-  | $v(vowel) <"nucleus" ∪ "counted" ∪ "single-end" ∪ (matches($v, capital-vowel) ⟹ "marked")>
-  | $y(any-y) <"nucleus" ∪ (matches($y, stress-mark) ⟹ "marked")>
-  | $d(brivla-diphthong) <"nucleus" ∪ "counted" ∪ (matches($d, stress-mark) ⟹ "marked")>
-  | $e(y-diphthong) <"nucleus" ∪ (matches($e, stress-mark) ⟹ "marked")>
+  | $v(vowel) <~nucleus ∪ ~counted ∪ ~single-end ∪ (matches($v, capital-vowel) ⟹ ~marked)>
+  | $y(any-y) <~nucleus ∪ (matches($y, stress-mark) ⟹ ~marked)>
+  | $d(brivla-diphthong) <~nucleus ∪ ~counted ∪ (matches($d, stress-mark) ⟹ ~marked)>
+  | $e(y-diphthong) <~nucleus ∪ (matches($e, stress-mark) ⟹ ~marked)>
 
 %rule name-vowel
   vowel | any-y

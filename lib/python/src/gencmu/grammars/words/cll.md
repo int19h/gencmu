@@ -32,20 +32,20 @@ A cmavo's stress is free (CLL 3.9), so any of its vowels can be a capital. Its f
 ```jbogenbau
 %rule cmavo-shape
   | $c(plain-cmavo-body)
-      <"onset" ∪ "continued"
-       ∪ (matches($c, first-marked-cmavo) ⟹ "initial-stress") ∪ (matches($c, last-marked-cmavo) ⟹ "final-stress")
-       ∪ (matches($c, name-intro-cmavo) ⟹ "name-intro")>
+      <~onset ∪ ~continued
+       ∪ (matches($c, first-marked-cmavo) ⟹ ~initial-stress) ∪ (matches($c, last-marked-cmavo) ⟹ ~final-stress)
+       ∪ (matches($c, name-intro-cmavo) ⟹ ~name-intro)>
   | $v(vowel-cmavo)
-      <"continued"
-       ∪ (matches($v, first-marked-cmavo) ⟹ "initial-stress") ∪ (matches($v, last-marked-cmavo) ⟹ "final-stress")>
+      <~continued
+       ∪ (matches($v, first-marked-cmavo) ⟹ ~initial-stress) ∪ (matches($v, last-marked-cmavo) ⟹ ~final-stress)>
   | $l(letter-cmavo)
-      <"onset" ∪ "cy" ∪ "uncounted" ∪ (matches($l, stress-mark) ⟹ "initial-stress" ∪ "final-stress")>
+      <~onset ∪ ~cy ∪ ~uncounted ∪ (matches($l, stress-mark) ⟹ ~initial-stress ∪ ~final-stress)>
   | $p(y-pair-cmavo)
-      <"continued" ∪ (matches($p, y-letters) ⟹ "uncounted")
-       ∪ (matches($p, first-marked-cmavo) ⟹ "initial-stress") ∪ (matches($p, last-marked-cmavo) ⟹ "final-stress")>
+      <~continued ∪ (matches($p, y-letters) ⟹ ~uncounted)
+       ∪ (matches($p, first-marked-cmavo) ⟹ ~initial-stress) ∪ (matches($p, last-marked-cmavo) ⟹ ~final-stress)>
   | $w(warned-cmavo)
-      <"continued" ∪ "cmavo-warning" ∪ (matches(head($w), consonant) ⟹ "onset") ∪ (matches($w, y-letters) ⟹ "uncounted")
-       ∪ (matches($w, first-marked-cmavo) ⟹ "initial-stress") ∪ (matches($w, last-marked-cmavo) ⟹ "final-stress")>
+      <~continued ∪ ~cmavo-warning ∪ (matches(head($w), consonant) ⟹ ~onset) ∪ (matches($w, y-letters) ⟹ ~uncounted)
+       ∪ (matches($w, first-marked-cmavo) ⟹ ~initial-stress) ∪ (matches($w, last-marked-cmavo) ⟹ ~final-stress)>
 
 %rule plain-cmavo-body
   consonant cmavo-units
@@ -119,18 +119,18 @@ A brivla is a gismu, a lujvo or a borrowing (CLL 4.3). It ends in a vowel other 
 ```jbogenbau
 %rule brivla-shape
   | $m(brivla-word)
-      <tags($m) ∪ "stress-guard" ∪ "continued" ∪ ("first-marked" ∈ tags($m, brivla-scan) ⟹ "initial-stress")>
+      <tags($m) ∪ ~stress-guard ∪ ~continued ∪ (~first-marked ⊆ tags($m, brivla-scan) ⟹ ~initial-stress)>
   | $u(brivla-word)
-      <tags($u) ∪ "stress-guard" ∪ "open-stress" ∪ ("n2" ∈ tags($u, brivla-scan) ⟹ "initial-stress")>
+      <tags($u) ∪ ~stress-guard ∪ ~open-stress ∪ (~n2 ⊆ tags($u, brivla-scan) ⟹ ~initial-stress)>
 %conditions
-  "s2" ∈ tags($m, brivla-scan),
-  "s0" ∈ tags($u, brivla-scan),
-  ("n2" ∪ "n3") ∩ tags($u, brivla-scan) ≠ ∅
+  ~s2 ⊆ tags($m, brivla-scan),
+  ~s0 ⊆ tags($u, brivla-scan),
+  (~n2 ∪ ~n3) ∩ tags($u, brivla-scan) ≠ ∅
 
 %rule brivla-word
-  | gismu-form <"gismu" ∪ "onset">
-  | lujvo-form <"lujvo" ∪ "onset">
-  | $f(fuhivla-word) <"fuhivla" ∪ (matches(head($f), consonant) ⟹ "onset")>
+  | gismu-form <~gismu ∪ ~onset>
+  | lujvo-form <~lujvo ∪ ~onset>
+  | $f(fuhivla-word) <~fuhivla ∪ (matches(head($f), consonant) ⟹ ~onset)>
 ```
 
 A gismu is CVCCV with a permissible pair, or CCVCV with an initial pair (CLL 4.4). Here and below, C is a consonant, and V is one of `a e i o u`, never `y`.
@@ -341,7 +341,7 @@ The slinku'i test of CLL 4.7 says that a CV cmavo joined to the front of a borro
   ¬matches($f, lujvo-form),
   ¬matches($f, lujvo-after-cv),
   ¬matches($f, lujvo-after-cvv),
-  ("n2" ∪ "n3") ∩ tags($f, brivla-scan) ≠ ∅,
+  (~n2 ∪ ~n3) ∩ tags($f, brivla-scan) ≠ ∅,
   ¬matches($f, combination)
 
 %rule fuhivla-form
@@ -388,11 +388,11 @@ Pauses surround a name (rules 2 and 4), so its shape carries neither `onset` nor
 ```jbogenbau
 %rule cmevla-shape
   $n(cmevla)
-    <(matches(head($n), consonant) ⟹ "name-onset")
-     ∪ ("first-marked" ∈ tags($n, name-scan)
-        ∨ "any-marked" ∉ tags($n, name-scan) ∧ "first-counted" ∈ tags($n, name-scan)
-          ∧ ("n1" ∪ "n2") ∩ tags($n, name-scan) ≠ ∅
-        ⟹ "initial-stress")>
+    <(matches(head($n), consonant) ⟹ ~name-onset)
+     ∪ (~first-marked ⊆ tags($n, name-scan)
+        ∨ ~any-marked ⊈ tags($n, name-scan) ∧ ~first-counted ⊆ tags($n, name-scan)
+          ∧ (~n1 ∪ ~n2) ∩ tags($n, name-scan) ≠ ∅
+        ⟹ ~initial-stress)>
 %conditions
   ¬matches($n, la-doi-inside)
 

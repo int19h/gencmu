@@ -1,0 +1,10 @@
+{
+  "description": "∖ is an operator, not a separator, so it cannot stand first; the error is at the ∖ (engine §9).",
+  "document": "```jbogenbau\n%rule a A <∖ B>\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 12
+    }
+  }
+}

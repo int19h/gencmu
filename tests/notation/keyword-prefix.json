@@ -1,0 +1,10 @@
+{
+  "description": "A keyword is % and a whole name: %rulex is an unknown keyword, not %rule and a name, and the error is at it (design §15, engine §9).",
+  "document": "```jbogenbau\n%rule a A\n%rulex b B\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 1
+    }
+  }
+}

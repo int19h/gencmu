@@ -20,7 +20,7 @@ Indicators do not attach to `lu`, since camxes-exp's `LU_post` takes none. They 
   | item-run item
   | $p(item-run) indicator-run
 %conditions
-  "LU" ∈ classes(last($p))
+  LU ⊆ classes(last($p))
 
 %redefine-rule item
   | [absorbed-bahe] $w(unit)
@@ -28,7 +28,7 @@ Indicators do not attach to `lu`, since camxes-exp's `LU_post` takes none. They 
 %tags
   tags($w)
 %conditions
-  $a ⟹ "LU" ∉ classes($w)
+  $a ⟹ LU ⊈ classes($w)
 %emits
   $w
 

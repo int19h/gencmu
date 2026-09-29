@@ -1,0 +1,10 @@
+{
+  "description": "¬ belongs to a gate only when it stands directly before the gate's name; with a space between, it is the negation symbol, which no body holds (engine §9).",
+  "document": "```jbogenbau\n%rule a ¬ cbm? A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  }
+}

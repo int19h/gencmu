@@ -2,7 +2,7 @@
   "description": "Auto features do not add sa-su when the caller has turned it off, so a words stage that needs it rejects the text (engine §13).",
   "documents": {
     "p.md": "# A dialect\n\n## Words\n\n```jbogenbau\n%stage words\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n",
-    "g.md": "```jbogenbau\n%ambiguity-resolution lazy\n%rule text @sa-su? A | B\n```\n"
+    "g.md": "```jbogenbau\n%ambiguity-resolution lazy\n%rule text sa-su? A | B\n```\n"
   },
   "pipeline": "p.md",
   "tokens": [

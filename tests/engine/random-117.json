@@ -1,5 +1,5 @@
 {
-  "description": "A random grammar with the notation's sugar and weak tags (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 1 derivations.",
+  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 1 derivations.",
   "grammar": "%ambiguity-resolution greedy\n%rule text ε | ε | u [A]\n%rule t ε | t (C | A)\n%rule u t u | A ... B\n%rule v (A | C) A | ε",
   "tokens": [
     {
@@ -25,7 +25,7 @@
   ],
   "expect": {
     "result": {
-      "format": 3,
+      "format": 4,
       "ok": true,
       "stages": [
         {
@@ -45,7 +45,7 @@
           0,
           5
         ],
-        "tags": {},
+        "tags": [],
         "children": [
           {
             "kind": "rule",
@@ -58,7 +58,7 @@
               0,
               3
             ],
-            "tags": {},
+            "tags": [],
             "children": [
               {
                 "kind": "token",

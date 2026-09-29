@@ -1,0 +1,45 @@
+{
+  "description": "~name is the identifier tag name, and a bare name with a capital is the same tag: a terminal in a body, a tag in a term (design §2, engine §9).",
+  "document": "```jbogenbau\n%rule a ~KOhA KOhA ~b <~KOhA ∪ KOhA ∪ /a/ ∪ 'c'>\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "seq": [
+                  {
+                    "terminal": "KOhA"
+                  },
+                  {
+                    "ref": "KOhA"
+                  },
+                  {
+                    "terminal": "b"
+                  }
+                ]
+              },
+              "tags": {
+                "union": [
+                  {
+                    "tag": "KOhA"
+                  },
+                  {
+                    "tag": "KOhA"
+                  },
+                  {
+                    "tag": "/a/"
+                  },
+                  {
+                    "tag": "'c'"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

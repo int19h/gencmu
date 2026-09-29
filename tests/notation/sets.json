@@ -1,6 +1,6 @@
 {
-  "description": "Weak tags, ∅, and ∩ binding tighter than ∪ (engine §10).",
-  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule w $a(A) <\"X\" ∪ ?\"Y\" ∪ tags($a) ∩ ∅>\n```\n",
+  "description": "A tag term: tag literals, ∅, and ∩ binding tighter than ∪ (engine §10).",
+  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule w $a(A) <X ∪ ~y ∪ tags($a) ∩ ∅>\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -10,10 +10,10 @@
               "tags": {
                 "union": [
                   {
-                    "literal": "X"
+                    "tag": "X"
                   },
                   {
-                    "weak": "Y"
+                    "tag": "y"
                   },
                   {
                     "intersection": [

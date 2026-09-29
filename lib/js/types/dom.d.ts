@@ -1,6 +1,7 @@
 import type { GrammarDom } from "./types.js";
+export declare const CAPTURE_NAME: RegExp;
 export declare const DOM_MAX_DEPTH = 256;
-export declare const DOM_FORMAT = 8;
+export declare const DOM_FORMAT = 9;
 /**
  * What is wrong with a spelling of a symbol (engine §9), or null: an empty
  * spelling, one with a backtick, which the notation cannot write, one that
@@ -11,30 +12,33 @@ export declare const DOM_FORMAT = 8;
  * the lowercase mapping is not checked.
  * @param {unknown} spelling
  * @param {unknown} expr the spelled expression
- * @param {{lowercase(text: string): string}} [unicode]
+ * @param {{lowercase(text: string): string, isMark(code: number): boolean}} [unicode]
  * @returns {string | null}
  */
 export declare function spellingProblem(spelling: unknown, expr: unknown, unicode?: {
     lowercase(text: string): string;
+    isMark(code: number): boolean;
 }): string | null;
 /**
  * Why a value is not a grammar DOM, or null when it is one. `unicode` is
  * the lowercase mapping that spellings are checked against.
  * @param {unknown} dom
- * @param {{lowercase(text: string): string}} [unicode]
+ * @param {{lowercase(text: string): string, isMark(code: number): boolean}} [unicode]
  * @returns {string | null}
  */
 export declare function domProblem(dom: unknown, unicode?: {
     lowercase(text: string): string;
+    isMark(code: number): boolean;
 }): string | null;
 /**
  * Whether a value is a grammar DOM.
  * @param {unknown} dom
- * @param {{lowercase(text: string): string}} [unicode]
+ * @param {{lowercase(text: string): string, isMark(code: number): boolean}} [unicode]
  * @returns {dom is GrammarDom}
  */
 export declare function isDom(dom: unknown, unicode?: {
     lowercase(text: string): string;
+    isMark(code: number): boolean;
 }): dom is GrammarDom;
 /**
  * Whether a term, or a condition inside one, reads the tags of `$`, the
@@ -82,3 +86,49 @@ export declare function alternativeCaptures(alternative: any): Map<string, numbe
  * @returns {string | null}
  */
 export declare function definitionProblem(rule: any): string | null;
+export type TermType = "string" | "strings" | "tags" | "span" | "set";
+/**
+ * The kind of sets joined by ∪, ∩ or ∖, or why they cannot be joined: each
+ * is a set, and all whose kind is known have one kind.
+ * @param {TermType[]} types
+ * @param {string} operator
+ * @returns {{type: TermType} | {problem: string}}
+ */
+export declare function joinedType(types: TermType[], operator: string): {
+    type: TermType;
+} | {
+    problem: string;
+};
+/**
+ * Why a comparison's two sides do not fit its comparator, or null.
+ * @param {string} op
+ * @param {TermType} left
+ * @param {TermType} right
+ * @returns {string | null}
+ */
+export declare function comparisonProblem(op: string, left: TermType, right: TermType): string | null;
+/**
+ * Why a term of type `type` cannot stand where `expected` is needed, or
+ * null. A set of open kind takes the kind it is given.
+ * @param {TermType} type
+ * @param {"string" | "tags"} expected
+ * @returns {string | null}
+ */
+export declare function expectedProblem(type: TermType, expected: "string" | "tags"): string | null;
+/**
+ * The type of a term, or why its parts do not agree (engine §10). The
+ * term's shape must already be checked.
+ * @param {any} term
+ * @returns {{type: TermType} | {problem: string}}
+ */
+export declare function termType(term: any): {
+    type: TermType;
+} | {
+    problem: string;
+};
+/**
+ * Why a condition's terms do not agree in type, or null (engine §10).
+ * @param {any} condition
+ * @returns {string | null}
+ */
+export declare function conditionTypeProblem(condition: any): string | null;

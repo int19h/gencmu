@@ -1,6 +1,6 @@
 {
   "description": "Warnings come in the order a walk of the chosen tree meets their nodes, parent before children and children left to right, and for one node in the order its guards are written (engine §12).",
-  "grammar": "%rule text @w! @v! a b\n%rule a @v! A\n%rule b @w! B",
+  "grammar": "%rule text w! v! a b\n%rule a v! A\n%rule b w! B",
   "tokens": [
     {
       "text": "a",

@@ -1,0 +1,82 @@
+{
+  "description": "An identifier tag, a character tag and a phoneme tag of the same letter are three different tags: each token reads under its own kind only (engine §1).",
+  "grammar": "%rule text x x x\n%rule x ~a | 'a' | /a/",
+  "tokens": [
+    {
+      "text": "p",
+      "tags": [
+        "a"
+      ]
+    },
+    {
+      "text": "q",
+      "tags": [
+        "'a'"
+      ]
+    },
+    {
+      "text": "r",
+      "tags": [
+        "/a/"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "x",
+            "tags": [
+              "a"
+            ],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "a",
+                "token": 0
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "x",
+            "tags": [
+              "'a'"
+            ],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "'a'",
+                "token": 1
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "x",
+            "tags": [
+              "/a/"
+            ],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "/a/",
+                "token": 2
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

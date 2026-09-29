@@ -2,7 +2,7 @@
   "description": "A dialect lists its features in code point order, each with its kind and whether %features turns it on; a name only %features declares is a gate (engine §13).",
   "documents": {
     "p.md": "# A dialect\n\n```jbogenbau\n%features f h\n```\n\n## Main\n\n```jbogenbau\n%stage main\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n",
-    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text @f? A | @¬g? B | @w! C\n```\n"
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text f? A | ¬g? B | w! C\n```\n"
   },
   "pipeline": "p.md",
   "tokens": [

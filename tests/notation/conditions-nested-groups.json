@@ -1,6 +1,6 @@
 {
   "description": "Parentheses make no node, so a group of the connective around it is part of it: (a ∧ b) ∧ c is one all of three, and (a ∨ b) ∨ c one any of three (engine §9).",
-  "document": "```jbogenbau\n%rule a $x(A) %conditions (\"p\" ∈ tags($x) ∧ \"q\" ∈ tags($x)) ∧ \"r\" ∈ tags($x)\n%rule b $x(A) %conditions (\"p\" ∈ tags($x) ∨ \"q\" ∈ tags($x)) ∨ \"r\" ∈ tags($x)\n```\n",
+  "document": "```jbogenbau\n%rule a $x(A) %conditions (~p ⊆ tags($x) ∧ ~q ⊆ tags($x)) ∧ ~r ⊆ tags($x)\n%rule b $x(A) %conditions (~p ⊆ tags($x) ∨ ~q ⊆ tags($x)) ∨ ~r ⊆ tags($x)\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -9,9 +9,9 @@
             {
               "all": [
                 {
-                  "op": "∈",
+                  "op": "⊆",
                   "left": {
-                    "literal": "p"
+                    "tag": "p"
                   },
                   "right": {
                     "call": "tags",
@@ -23,9 +23,9 @@
                   }
                 },
                 {
-                  "op": "∈",
+                  "op": "⊆",
                   "left": {
-                    "literal": "q"
+                    "tag": "q"
                   },
                   "right": {
                     "call": "tags",
@@ -37,9 +37,9 @@
                   }
                 },
                 {
-                  "op": "∈",
+                  "op": "⊆",
                   "left": {
-                    "literal": "r"
+                    "tag": "r"
                   },
                   "right": {
                     "call": "tags",
@@ -59,9 +59,9 @@
             {
               "any": [
                 {
-                  "op": "∈",
+                  "op": "⊆",
                   "left": {
-                    "literal": "p"
+                    "tag": "p"
                   },
                   "right": {
                     "call": "tags",
@@ -73,9 +73,9 @@
                   }
                 },
                 {
-                  "op": "∈",
+                  "op": "⊆",
                   "left": {
-                    "literal": "q"
+                    "tag": "q"
                   },
                   "right": {
                     "call": "tags",
@@ -87,9 +87,9 @@
                   }
                 },
                 {
-                  "op": "∈",
+                  "op": "⊆",
                   "left": {
-                    "literal": "r"
+                    "tag": "r"
                   },
                   "right": {
                     "call": "tags",

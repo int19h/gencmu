@@ -1,0 +1,10 @@
+{
+  "description": "⊆ compares two sets: a string on its left is an error at the comparison (engine §9, §10).",
+  "document": "```jbogenbau\n%rule a $x(B) %conditions phonemes($x) ⊆ tags($x)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 27
+    }
+  }
+}

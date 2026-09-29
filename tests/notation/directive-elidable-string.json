@@ -1,5 +1,5 @@
 {
-  "description": "%elidable and %ambiguity-resolution take names, not strings; the error is at the directive (engine §9).",
+  "description": "%elidable takes identifier tags and %ambiguity-resolution names, not strings; the error is at the directive (engine §9).",
   "document": "```jbogenbau\n%rule a A\n%elidable KU \"KEI\"\n```\n",
   "expect": {
     "error": {

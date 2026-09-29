@@ -1,0 +1,55 @@
+{
+  "description": "⊆ and ⊈ compare two tag sets, and ∅ takes its kind from the other side of =. Only the first alternative of text holds, since V ⊈ tags($x) fails where $x carries V (engine §10).",
+  "grammar": "%rule text p q r | p s r\n%rule p $x(W) %conditions V ⊆ tags($x)\n%rule q $x(W) %conditions ~v ⊈ tags($x)\n%rule r $x(W) %conditions tags($x) ∖ (V ∪ W) = ∅, tags($x) ∩ ~v = ∅\n%rule s $x(W) %conditions V ⊈ tags($x)",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "W",
+        "V"
+      ]
+    },
+    {
+      "text": "y",
+      "tags": [
+        "W",
+        "V"
+      ]
+    },
+    {
+      "text": "z",
+      "tags": [
+        "W",
+        "V"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "p"
+          },
+          {
+            "kind": "rule",
+            "rule": "q"
+          },
+          {
+            "kind": "rule",
+            "rule": "r"
+          }
+        ]
+      }
+    }
+  }
+}

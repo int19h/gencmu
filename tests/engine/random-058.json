@@ -1,11 +1,11 @@
 {
-  "description": "A random grammar with the notation's sugar and weak tags (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 8 derivations.",
+  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 8 derivations.",
   "grammar": "%ambiguity-resolution lazy\n%rule text u [u] ... | ε | t [t]\n%rule t [A] [t] | B\n%rule u [C] | C A\n%rule v ε | [B] ... B",
   "tokens": [
     {
       "text": "a",
       "tags": [
-        "?A",
+        "A",
         "B",
         "C"
       ]
@@ -13,12 +13,87 @@
   ],
   "expect": {
     "result": {
-      "format": 3,
+      "format": 4,
       "ok": true,
       "stages": [
         {
           "name": "main",
-          "verdict": "resolved",
+          "verdict": "tie",
+          "witness": [
+            {
+              "read": {
+                "token": 0,
+                "terminal": "A"
+              }
+            },
+            {
+              "read": {
+                "token": 0,
+                "terminal": "B"
+              }
+            }
+          ],
+          "tied": {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "t",
+                "span": [
+                  0,
+                  0
+                ],
+                "source": [
+                  0,
+                  0
+                ],
+                "tags": [],
+                "children": []
+              },
+              {
+                "kind": "rule",
+                "rule": "t",
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ],
+                "tags": [
+                  "A",
+                  "B",
+                  "C"
+                ],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "B",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
           "output": []
         }
       ],
@@ -33,7 +108,7 @@
           0,
           1
         ],
-        "tags": {},
+        "tags": [],
         "children": [
           {
             "kind": "rule",
@@ -46,7 +121,7 @@
               0,
               0
             ],
-            "tags": {},
+            "tags": [],
             "children": []
           },
           {
@@ -60,15 +135,11 @@
               0,
               1
             ],
-            "tags": {
-              "A": false,
-              "B": true,
-              "C": true
-            },
+            "tags": [],
             "children": [
               {
                 "kind": "token",
-                "terminal": "B",
+                "terminal": "A",
                 "token": 0,
                 "span": [
                   0,

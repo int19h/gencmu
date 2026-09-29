@@ -24,10 +24,10 @@
           "output": [
             {
               "text": "k",
-              "tags": {
-                "A": true,
-                "K": true
-              },
+              "tags": [
+                "A",
+                "K"
+              ],
               "span": [
                 0,
                 1

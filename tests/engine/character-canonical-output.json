@@ -1,0 +1,66 @@
+{
+  "description": "The output writes a character tag in its canonical spelling: the character itself, or \\u{h…} for a control character, a nonspacing mark, a private-use character, the quote and the backslash. A character token also carries its class, an ordinary tag (engine §1, docs/output.md).",
+  "grammar": "%rule text [c] ...\n%rule c '\\u{61}' | '\\u{0301}' | '\\'' | '\\\\' | '\\u{E000}' | '\\u{9}' | 'é'\n%emits $",
+  "input": "á'\\\té",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "a",
+              "tags": [
+                "'a'",
+                "alpha"
+              ]
+            },
+            {
+              "text": "́",
+              "tags": [
+                "'\\u{301}'",
+                "mark"
+              ]
+            },
+            {
+              "text": "'",
+              "tags": [
+                "'\\u{27}'",
+                "other"
+              ]
+            },
+            {
+              "text": "\\",
+              "tags": [
+                "'\\u{5C}'",
+                "other"
+              ]
+            },
+            {
+              "text": "",
+              "tags": [
+                "'\\u{E000}'",
+                "other"
+              ]
+            },
+            {
+              "text": "\t",
+              "tags": [
+                "'\\u{9}'",
+                "space"
+              ]
+            },
+            {
+              "text": "é",
+              "tags": [
+                "'é'",
+                "alpha"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

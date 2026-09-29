@@ -1,0 +1,10 @@
+{
+  "description": "A character tag names a Unicode scalar value, never a surrogate: '\\u{D800}' is an error at the tag (engine §9).",
+  "document": "```jbogenbau\n%rule a '\\u{D800}'\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  }
+}

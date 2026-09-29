@@ -1,0 +1,68 @@
+{
+  "description": "⊆ and ⊈ compare two sets of one kind, tag sets or sets of strings (engine §9, §10).",
+  "document": "```jbogenbau\n%rule a $x(B) %conditions ~a ⊈ tags($x), runs($x) ⊆ runs($x), tags($x) ∖ ~a = ∅\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "conditions": [
+            {
+              "op": "⊈",
+              "left": {
+                "tag": "a"
+              },
+              "right": {
+                "call": "tags",
+                "args": [
+                  {
+                    "capture": "x"
+                  }
+                ]
+              }
+            },
+            {
+              "op": "⊆",
+              "left": {
+                "call": "runs",
+                "args": [
+                  {
+                    "capture": "x"
+                  }
+                ]
+              },
+              "right": {
+                "call": "runs",
+                "args": [
+                  {
+                    "capture": "x"
+                  }
+                ]
+              }
+            },
+            {
+              "op": "=",
+              "left": {
+                "difference": [
+                  {
+                    "call": "tags",
+                    "args": [
+                      {
+                        "capture": "x"
+                      }
+                    ]
+                  },
+                  {
+                    "tag": "a"
+                  }
+                ]
+              },
+              "right": {
+                "emptySet": true
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

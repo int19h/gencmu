@@ -1,0 +1,10 @@
+{
+  "description": "A weak tag ?\"…\" is no longer notation: ? has no use outside a guard, and reading stops at it (design §17, engine §9).",
+  "document": "```jbogenbau\n%rule a $x(B) <?\"b\">\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 16
+    }
+  }
+}

@@ -43,7 +43,7 @@ A run that divides into words divides in one way only. The word forms of each fa
 %rule foreign-run
   $f(FOREIGN)
 %emits
-  $ <tags($f) ∪ "run-initial" ∪ "run-final">
+  $ <tags($f) ∪ ~run-initial ∪ ~run-final>
 
 %rule unread-run
   $f(letters)
@@ -51,7 +51,7 @@ A run that divides into words divides in one way only. The word forms of each fa
   ¬begins(after($f), letter),
   ¬matches($f, run-words)
 %emits
-  $ <"FOREIGN" ∪ "run-initial" ∪ "run-final">
+  $ <FOREIGN ∪ ~run-initial ∪ ~run-final>
 
 %rule letters
   letter | letters letter
@@ -84,15 +84,15 @@ The approved word forms set only `onset` and `continued`, with the meaning that 
 %rule run-words
   | $f(first-word) <tags($f)>
   | $r(run-words) $v(later-word)
-      <tags($v) ∪ ("uncounted" ∈ tags($v) ⟹ "open-stress" ∩ tags($r))>
+      <tags($v) ∪ (~uncounted ⊆ tags($v) ⟹ ~open-stress ∩ tags($r))>
 %conditions
-  ("continued" ∪ "cy" ∪ "name-intro" ∪ "open-stress") ∩ tags($r) ≠ ∅,
-  "cy" ∈ tags($r) ∧ "cy" ∈ tags($v)
-    ∨ "continued" ∈ tags($r) ∧ "onset" ∈ tags($v) ∧ ("cy" ∉ tags($r) ∨ "cy" ∉ tags($v))
-    ∨ "name-intro" ∈ tags($r) ∧ "name-onset" ∈ tags($v)
-    ∨ "open-stress" ∈ tags($r) ∧ "cy" ∉ tags($r) ∧ "onset" ∈ tags($v),
-  "final-stress" ∉ tags($r) ∨ ("stress-guard" ∪ "initial-stress") ∩ tags($v) = ∅,
-  "open-stress" ∉ tags($r) ∨ "uncounted" ∈ tags($v)
+  (~continued ∪ ~cy ∪ ~name-intro ∪ ~open-stress) ∩ tags($r) ≠ ∅,
+  ~cy ⊆ tags($r) ∧ ~cy ⊆ tags($v)
+    ∨ ~continued ⊆ tags($r) ∧ ~onset ⊆ tags($v) ∧ (~cy ⊈ tags($r) ∨ ~cy ⊈ tags($v))
+    ∨ ~name-intro ⊆ tags($r) ∧ ~name-onset ⊆ tags($v)
+    ∨ ~open-stress ⊆ tags($r) ∧ ~cy ⊈ tags($r) ∧ ~onset ⊆ tags($v),
+  ~final-stress ⊈ tags($r) ∨ (~stress-guard ∪ ~initial-stress) ∩ tags($v) = ∅,
+  ~open-stress ⊈ tags($r) ∨ ~uncounted ⊆ tags($v)
 ```
 
 A join permits two words without a pause. This document states the joins so that no two joins apply to the same pair. For example, only the `Cy` rule joins two `Cy` letter words side by side. That is why the general join, a continued word followed by an onset, leaves that case to the `Cy` rule.
@@ -103,12 +103,12 @@ The word stage needs to know where a run begins and ends. A name that `bu` takes
 %rule first-word
   $w(source-word)
 %emits
-  $ <tags($w) ∪ "run-initial" ∪ (¬begins(after($w), letter) ⟹ "run-final")>
+  $ <tags($w) ∪ ~run-initial ∪ (¬begins(after($w), letter) ⟹ ~run-final)>
 
 %rule later-word
   $w(source-word)
 %emits
-  $ <tags($w) ∪ (¬begins(after($w), letter) ⟹ "run-final")>
+  $ <tags($w) ∪ (¬begins(after($w), letter) ⟹ ~run-final)>
 ```
 
 ## Words
@@ -117,10 +117,10 @@ A source word is a cmavo, a brivla, a name, or hesitation. The stage hands it on
 
 ```jbogenbau
 %rule source-word
-  | $c(cmavo-shape) <"word" ∪ "cmavo" ∪ tags($c) ∪ tags($c, lexicon)>
-  | $b(brivla-shape) <"word" ∪ "BRIVLA" ∪ tags($b)>
-  | $n(cmevla-shape) <"word" ∪ "CMEVLA" ∪ tags($n)>
-  | $h(hesitation-shape) <"hesitation" ∪ tags($h)>
+  | $c(cmavo-shape) <~word ∪ ~cmavo ∪ tags($c) ∪ tags($c, lexicon)>
+  | $b(brivla-shape) <~word ∪ BRIVLA ∪ tags($b)>
+  | $n(cmevla-shape) <~word ∪ CMEVLA ∪ tags($n)>
+  | $h(hesitation-shape) <~hesitation ∪ tags($h)>
 ```
 
 Hesitation is `y` of any length. It is a source word of its own here, because the pause rules hold for it as for any word. It begins with a vowel, so a pause comes before it, unless the family gives it `onset`. The approved word forms read `kyyykerlo` as `ky`, `yy` and `kerlo`, because the first `y` of `yy` is not a nucleus there.
@@ -129,7 +129,7 @@ Hesitation needs no pause after it, as the Magic Words proposal says. The word s
 
 ```jbogenbau
 %rule hesitation-shape
-  $h(y-run) <"continued" ∪ "uncounted" ∪ tags($h)>
+  $h(y-run) <~continued ∪ ~uncounted ∪ tags($h)>
 
 %rule y-run
   any-y | any-y y-run | any-y /,/ y-run

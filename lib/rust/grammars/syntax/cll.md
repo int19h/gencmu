@@ -543,10 +543,10 @@ CLL ends its grammar with four rules that it calls non-formal. A parser applies 
 
 ```jbogenbau
 %rule any-word
-  "word"
+  ~word
 
 %rule anything
-  "foreign-text"
+  ~foreign-text
 ```
 
 The stages before this one apply the other two. The indicator stage attaches `ba'e` and indicators to their words, and the word stage applies the erasers. This document shows them as CLL prints them, for reference only. CLL does not define anywhere the `utterance` that `sa` erases.

@@ -12,7 +12,7 @@ export type StageOptions = {
     last: boolean;
 };
 /**
- * @import { Derivation, DerivationRule, ElidedNode, EmitItem, ResultNode, Scope, Span, StageReport, TagSet, TermValue } from "./types.js"
+ * @import { Derivation, DerivationRule, ElidedNode, EmitItem, ResultNode, Scope, Span, StageReport, TagSet } from "./types.js"
  * @import { Grammar } from "./grammar.js"
  * @import { UnicodeTable } from "./unicode.js"
  */

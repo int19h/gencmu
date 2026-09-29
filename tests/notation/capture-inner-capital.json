@@ -1,0 +1,10 @@
+{
+  "description": "A capture's name is all lower case, not only its first letter (design §2, engine §9).",
+  "document": "```jbogenbau\n%rule a $aB(A)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  }
+}

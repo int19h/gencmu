@@ -1,0 +1,10 @@
+{
+  "description": "A string is a value, never a terminal: a body that holds one is an error at the string (design §2, engine §9).",
+  "document": "```jbogenbau\n%rule a \"KOhA\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  }
+}

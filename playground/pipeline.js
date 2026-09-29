@@ -48,7 +48,8 @@
   // (grammars/notation/lexical.md): keywords, names and strings, with spaces
   // and comments dropped. A comment runs from "(*" to the first "*)" after
   // it; a phoneme tag, one character between slashes, is one token, and so
-  // is a spelling, the characters between two backticks; and a
+  // are a character tag, between two quotes, and a spelling, the characters
+  // between two backticks; and a
   // string's escapes are decoded, an escape the reader refuses giving no
   // string. Anything else is a token of its own that ends a directive.
   function tokens(text) {
@@ -75,6 +76,13 @@
           found.push({ kind: "other", value: "`" });
           i++;
         }
+      } else if (cs[i] === "'") {
+        // A character tag, the characters between two quotes with a
+        // backslash escaping the next one, is one token.
+        let end = i + 1;
+        while (end < cs.length && cs[end] !== "'") end += cs[end] === "\\" ? 2 : 1;
+        found.push({ kind: "character", value: cs.slice(i, end + 1).join("") });
+        i = end + 1;
       } else if (cs[i] === "/" && cs[i + 2] === "/") {
         found.push({ kind: "phoneme", value: cs.slice(i, i + 3).join("") });
         i += 3;

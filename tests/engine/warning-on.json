@@ -1,6 +1,6 @@
 {
-  "description": "A warning @w! keeps its alternative, and while w is on, a rule node of the chosen tree from that alternative gives a warning with the stage, the feature, the rule, and the node's span and source (engine §3.1, §12).",
-  "grammar": "%rule text @w! A | B",
+  "description": "A warning w! keeps its alternative, and while w is on, a rule node of the chosen tree from that alternative gives a warning with the stage, the feature, the rule, and the node's span and source (engine §3.1, §12).",
+  "grammar": "%rule text w! A | B",
   "tokens": [
     {
       "text": "a",

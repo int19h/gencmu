@@ -1,0 +1,10 @@
+{
+  "description": "%elidable takes identifier tags: a bare name without a capital names a rule, and is an error at the directive (design §15, engine §9).",
+  "document": "```jbogenbau\n%rule a A\n%elidable ku\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 1
+    }
+  }
+}

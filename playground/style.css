@@ -275,7 +275,6 @@ table.tokens { border-collapse: collapse; width: 100%; font-size: 13px; }
 .tokens td.num { font-family: var(--mono); color: var(--muted); white-space: nowrap; }
 .tokens code { white-space: pre; }
 .tag { display: inline-block; font-family: var(--mono); font-size: 12px; padding: 0 5px; margin: 1px 3px 1px 0; border-radius: 4px; background: var(--accent-bg); }
-.tag.weak { background: none; border: 1px dashed var(--border); color: var(--muted); }
 .trace-controls .field { margin-top: 0; }
 .stepper { display: inline-flex; align-items: center; gap: 4px; }
 .stepper input { width: 6em; }

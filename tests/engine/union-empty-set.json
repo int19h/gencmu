@@ -1,6 +1,6 @@
 {
   "description": "A written ∅ is dropped from a union and makes an intersection empty, before anything is evaluated, so a nested parse inside such an intersection is never run (engine §3.6, §10).",
-  "grammar": "%rule text $a(A)\n%tags \"T\" ∪ ∅ ∪ (∅ ∩ tags($a, text))",
+  "grammar": "%rule text $a(A)\n%tags T ∪ ∅ ∪ (∅ ∩ tags($a, text))",
   "tokens": [
     {
       "text": "a",
@@ -15,9 +15,9 @@
       "tree": {
         "kind": "rule",
         "rule": "text",
-        "tags": {
-          "T": true
-        }
+        "tags": [
+          "T"
+        ]
       }
     }
   }

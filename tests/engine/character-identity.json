@@ -1,0 +1,41 @@
+{
+  "description": "A character tag's identity is its scalar value: an escape and the character itself are one tag, and a mark is its own token (engine §1).",
+  "grammar": "%rule text '\\u{E9}' 'e' '́' '\\u{0065}'",
+  "input": "éée",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "'é'",
+            "token": 0
+          },
+          {
+            "kind": "token",
+            "terminal": "'e'",
+            "token": 1
+          },
+          {
+            "kind": "token",
+            "terminal": "'\\u{301}'",
+            "token": 2
+          },
+          {
+            "kind": "token",
+            "terminal": "'e'",
+            "token": 3
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "description": "A bare name without a capital names a rule, which is not a value: <foo> is an error at the name, and ~foo is the tag (design §2, engine §9).",
+  "document": "```jbogenbau\n%rule a A <foo>\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 12
+    }
+  }
+}

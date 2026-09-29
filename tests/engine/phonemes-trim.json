@@ -2,8 +2,8 @@
   "description": "A token's phonemes make each run of pauses one and lose a pause at either end; any other character, a space or U+00A0, is an ordinary phoneme and is kept (engine §5).",
   "documents": {
     "p.md": "## s\n\n```jbogenbau\n%stage first\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage second\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n\n## u\n\n```jbogenbau\n%stage third\n```\n\n- [k](k.md)\n  ```jbogenbau\n  %include \"k.md\"\n  ```\n",
-    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [c] ...\n%rule c E </./> | F </a/> | G <\"/\\u{A0}/\"> | H </ />\n%emits $\n```\n",
-    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [any] ...\n%emits $ <\"X\">\n%rule any /./ | /a/ | \"/\\u{A0}/\" | / /\n```\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [c] ...\n%rule c E </./> | F </a/> | G </ /> | H </ />\n%emits $\n```\n",
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [any] ...\n%emits $ <X>\n%rule any /./ | /a/ | / / | / /\n```\n",
     "k.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text X\n```\n"
   },
   "pipeline": "p.md",
@@ -102,9 +102,9 @@
           "output": [
             {
               "phonemes": "a . ",
-              "tags": {
-                "X": true
-              }
+              "tags": [
+                "X"
+              ]
             }
           ]
         },

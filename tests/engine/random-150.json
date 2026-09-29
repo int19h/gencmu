@@ -1,5 +1,5 @@
 {
-  "description": "A random grammar with the notation's sugar and weak tags (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 16 derivations.",
+  "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 16 derivations.",
   "grammar": "%ambiguity-resolution greedy\n%rule text v C | B [u] | ε\n%rule t A v | (u | A) v\n%rule u B C | [u] t\n%rule v ε | ε",
   "tokens": [
     {
@@ -24,7 +24,7 @@
   ],
   "expect": {
     "result": {
-      "format": 3,
+      "format": 4,
       "ok": true,
       "stages": [
         {
@@ -63,7 +63,7 @@
               0,
               5
             ],
-            "tags": {},
+            "tags": [],
             "children": [
               {
                 "kind": "token",
@@ -89,7 +89,7 @@
                   2,
                   5
                 ],
-                "tags": {},
+                "tags": [],
                 "children": [
                   {
                     "kind": "rule",
@@ -102,7 +102,7 @@
                       2,
                       3
                     ],
-                    "tags": {},
+                    "tags": [],
                     "children": [
                       {
                         "kind": "rule",
@@ -115,7 +115,7 @@
                           2,
                           3
                         ],
-                        "tags": {},
+                        "tags": [],
                         "children": [
                           {
                             "kind": "token",
@@ -141,7 +141,7 @@
                               3,
                               3
                             ],
-                            "tags": {},
+                            "tags": [],
                             "children": []
                           }
                         ]
@@ -159,7 +159,7 @@
                       4,
                       5
                     ],
-                    "tags": {},
+                    "tags": [],
                     "children": [
                       {
                         "kind": "token",
@@ -185,7 +185,7 @@
                           5,
                           5
                         ],
-                        "tags": {},
+                        "tags": [],
                         "children": []
                       }
                     ]
@@ -208,7 +208,7 @@
           0,
           5
         ],
-        "tags": {},
+        "tags": [],
         "children": [
           {
             "kind": "token",
@@ -234,7 +234,7 @@
               2,
               5
             ],
-            "tags": {},
+            "tags": [],
             "children": [
               {
                 "kind": "rule",
@@ -247,7 +247,7 @@
                   2,
                   3
                 ],
-                "tags": {},
+                "tags": [],
                 "children": [
                   {
                     "kind": "rule",
@@ -260,7 +260,7 @@
                       2,
                       3
                     ],
-                    "tags": {},
+                    "tags": [],
                     "children": [
                       {
                         "kind": "token",
@@ -286,7 +286,7 @@
                           3,
                           3
                         ],
-                        "tags": {},
+                        "tags": [],
                         "children": []
                       }
                     ]
@@ -304,7 +304,7 @@
                   4,
                   5
                 ],
-                "tags": {},
+                "tags": [],
                 "children": [
                   {
                     "kind": "token",
@@ -330,7 +330,7 @@
                       5,
                       5
                     ],
-                    "tags": {},
+                    "tags": [],
                     "children": []
                   }
                 ]

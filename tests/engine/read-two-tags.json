@@ -1,0 +1,64 @@
+{
+  "description": "The same token read under two tags: the two readings are tied under greedy, as under any lean, since a tag has no strength (engine §6.1).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text X | Y",
+  "tokens": [
+    {
+      "text": "w",
+      "tags": [
+        "X",
+        "Y"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 4,
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "tie",
+          "witness": [
+            {
+              "read": {
+                "token": 0,
+                "terminal": "X"
+              }
+            },
+            {
+              "read": {
+                "token": 0,
+                "terminal": "Y"
+              }
+            }
+          ],
+          "tied": {
+            "kind": "rule",
+            "rule": "text",
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "Y",
+                "token": 0
+              }
+            ]
+          }
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "tags": [
+          "X",
+          "Y"
+        ],
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "X",
+            "token": 0
+          }
+        ]
+      }
+    }
+  }
+}

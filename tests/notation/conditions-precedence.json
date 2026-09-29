@@ -1,6 +1,6 @@
 {
   "description": "∧ binds tighter than ∨, which binds tighter than ⟹, which groups to the right; parentheses group (engine §9, §10).",
-  "document": "```jbogenbau\n%rule a $x(A) $y(B) %conditions \"p\" ∈ tags($x) ∨ \"q\" ∈ tags($y) ∧ \"r\" ∈ tags($x)\n%rule b $x(A) $y(B) %conditions (\"p\" ∈ tags($x) ∨ \"q\" ∈ tags($y)) ∧ ¬(\"r\" ∈ tags($x) ∧ matches($y, a))\n%rule c $x(A) %conditions \"p\" ∈ tags($x) ⟹ \"q\" ∈ tags($x) ⟹ \"r\" ∈ tags($x)\n```\n",
+  "document": "```jbogenbau\n%rule a $x(A) $y(B) %conditions ~p ⊆ tags($x) ∨ ~q ⊆ tags($y) ∧ ~r ⊆ tags($x)\n%rule b $x(A) $y(B) %conditions (~p ⊆ tags($x) ∨ ~q ⊆ tags($y)) ∧ ¬(~r ⊆ tags($x) ∧ matches($y, a))\n%rule c $x(A) %conditions ~p ⊆ tags($x) ⟹ ~q ⊆ tags($x) ⟹ ~r ⊆ tags($x)\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -9,9 +9,9 @@
             {
               "any": [
                 {
-                  "op": "∈",
+                  "op": "⊆",
                   "left": {
-                    "literal": "p"
+                    "tag": "p"
                   },
                   "right": {
                     "call": "tags",
@@ -25,9 +25,9 @@
                 {
                   "all": [
                     {
-                      "op": "∈",
+                      "op": "⊆",
                       "left": {
-                        "literal": "q"
+                        "tag": "q"
                       },
                       "right": {
                         "call": "tags",
@@ -39,9 +39,9 @@
                       }
                     },
                     {
-                      "op": "∈",
+                      "op": "⊆",
                       "left": {
-                        "literal": "r"
+                        "tag": "r"
                       },
                       "right": {
                         "call": "tags",
@@ -65,9 +65,9 @@
                 {
                   "any": [
                     {
-                      "op": "∈",
+                      "op": "⊆",
                       "left": {
-                        "literal": "p"
+                        "tag": "p"
                       },
                       "right": {
                         "call": "tags",
@@ -79,9 +79,9 @@
                       }
                     },
                     {
-                      "op": "∈",
+                      "op": "⊆",
                       "left": {
-                        "literal": "q"
+                        "tag": "q"
                       },
                       "right": {
                         "call": "tags",
@@ -98,9 +98,9 @@
                   "not": {
                     "all": [
                       {
-                        "op": "∈",
+                        "op": "⊆",
                         "left": {
-                          "literal": "r"
+                          "tag": "r"
                         },
                         "right": {
                           "call": "tags",
@@ -128,9 +128,9 @@
           "conditions": [
             {
               "if": {
-                "op": "∈",
+                "op": "⊆",
                 "left": {
-                  "literal": "p"
+                  "tag": "p"
                 },
                 "right": {
                   "call": "tags",
@@ -143,9 +143,9 @@
               },
               "then": {
                 "if": {
-                  "op": "∈",
+                  "op": "⊆",
                   "left": {
-                    "literal": "q"
+                    "tag": "q"
                   },
                   "right": {
                     "call": "tags",
@@ -157,9 +157,9 @@
                   }
                 },
                 "then": {
-                  "op": "∈",
+                  "op": "⊆",
                   "left": {
-                    "literal": "r"
+                    "tag": "r"
                   },
                   "right": {
                     "call": "tags",

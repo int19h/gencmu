@@ -1,5 +1,5 @@
 {
-  "description": "The same token read under two strong tags is a tie; the chosen reading is the terminal first in code point order (engine §6.1).",
+  "description": "The same token read under two tags is a tie; the chosen reading is the terminal first in code point order (engine §6.1).",
   "grammar": "%rule text X | Y",
   "tokens": [
     {

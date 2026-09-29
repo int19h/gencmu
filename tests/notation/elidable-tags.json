@@ -1,0 +1,18 @@
+{
+  "description": "%elidable takes identifier tags: bare names with a capital, or ~name, which is its name in the DOM (design §15, engine §9).",
+  "document": "```jbogenbau\n%rule a A\n%elidable KU ~KEI ~ku\n```\n",
+  "expect": {
+    "dom": {
+      "directives": [
+        {
+          "name": "elidable",
+          "args": [
+            "KU",
+            "KEI",
+            "ku"
+          ]
+        }
+      ]
+    }
+  }
+}
