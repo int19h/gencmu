@@ -122,7 +122,8 @@ def is_empty_set(dom: Any) -> bool:
 
 def _term(dom: Any, present: AbstractSet[str]) -> Walk:
     """A term's empty set, written or left by a guard, is dropped from a
-    union, and makes an intersection or a guarded term empty (engine §3.6):
+    union, and makes an intersection, a difference from it or a guarded term
+    empty (engine §3.6):
     what is reduced away is never evaluated."""
     if not isinstance(dom, dict):
         return dom
@@ -151,6 +152,14 @@ def _term(dom: Any, present: AbstractSet[str]) -> Walk:
                 return part
             parts.append(part)
         return {"intersection": parts}
+    if isinstance(dom.get("difference"), list):
+        # A difference from the empty set is empty, and one of the empty set
+        # is its first part (engine §3.6).
+        left = yield _term(dom["difference"][0], present)
+        if is_empty_set(left):
+            return left
+        right = yield _term(dom["difference"][1], present)
+        return left if is_empty_set(right) else {"difference": [left, right]}
     if isinstance(dom.get("args"), list):
         args = []
         for arg in dom["args"]:

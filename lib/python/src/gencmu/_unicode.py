@@ -12,7 +12,7 @@ _SPACES = frozenset(
 
 
 class UnicodeTable:
-    """Character classes and simple lower-case mappings."""
+    """Character classes, nonspacing marks and simple lower-case mappings."""
 
     def __init__(self, text: str) -> None:
         marks: list[tuple[int, int]] = []
@@ -66,6 +66,11 @@ class UnicodeTable:
             result = "other"
         self._classes[char] = result
         return result
+
+    def is_mark(self, code: int) -> bool:
+        """Whether a code point is a nonspacing mark: a ``mark`` range of the
+        file. A character tag writes such a character escaped (engine §1)."""
+        return self._within(code, self._mark_starts, self._mark_ends)
 
     def lowercase(self, text: str) -> str:
         lower = self.lower

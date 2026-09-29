@@ -41,7 +41,7 @@ A text that does not parse is a result whose `ok` is false and whose `error` say
 `dialect.features` lists the features of the dialect in code point order of their names, as a tuple of `Feature`. Each `Feature` has these fields:
 
 - `name`
-- `kind`: `"gate"` for a guard `@f?` or `@¬f?`, or `"warning"` for `@f!`
+- `kind`: `"gate"` for a guard `f?` or `¬f?`, or `"warning"` for `f!`
 - `default`: whether the pipeline turns the feature on
 
 A dialect whose guards use one name both as a gate and as a warning cannot be loaded.
@@ -50,9 +50,9 @@ You can use a dialect for any number of parses, and you can share it between thr
 
 ## The result
 
-`ParseResult`, `Stage`, `Node`, `Token`, `ParseError`, `ParseWarning`, `Action` and `Expected` are dataclasses. Tags are `dict[str, bool]`, with `True` for a strong tag. Ranges are `(start, end)` tuples, and source ranges are in code points.
+`ParseResult`, `Stage`, `Node`, `Token`, `ParseError`, `ParseWarning`, `Action` and `Expected` are dataclasses. A tag set is a `frozenset[str]` of tags, each in its canonical spelling, such as `KOhA`, `/a/` or `'a'` (`docs/engine.md`, §1). Ranges are `(start, end)` tuples, and source ranges are in code points.
 
-`result.warnings` lists the warnings of the nodes of the chosen tree of each stage. A node has one `ParseWarning` for each warning guard `@f!` of its alternative whose feature `f` is on. The warnings come in stage order and then in tree order. Each has its `stage`, `feature`, `rule`, `span` and `source`. The list is empty when there are no warnings.
+`result.warnings` lists the warnings of the nodes of the chosen tree of each stage. A node has one `ParseWarning` for each warning guard `f!` of its alternative whose feature `f` is on. The warnings come in stage order and then in tree order. Each has its `stage`, `feature`, `rule`, `span` and `source`. The list is empty when there are no warnings.
 
 - `gencmu.to_json(result)` is the canonical JSON as text, in the key order of `docs/output.md`.
 - `gencmu.result_json(result)` is the same as plain data.

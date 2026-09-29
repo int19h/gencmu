@@ -55,7 +55,7 @@ SOUNDS = """# Sounds
   [c] ...
 
 %rule c
-  "s" </s/> | "a" </a/> | "m" </m/> | "i" </i/> | "space" </./>
+  's' </s/> | 'a' </a/> | 'm' </m/> | 'i' </i/> | ~space </./>
 %emits
   $
 ```
@@ -78,9 +78,9 @@ WORDS = """# Words
   ε
 
 %rule word
-  /s/ /a/ <"SA"> | /m/ /i/
+  /s/ /a/ <SA> | /m/ /i/
 %emits
-  $ <"WORD">
+  $ <WORD>
 ```
 """
 
@@ -90,7 +90,7 @@ SYNTAX = """# Syntax
 %ambiguity-resolution greedy
 
 %rule text
-  @¬sa-su? WORD ... | @sa-su? WORD ... <"ERASING">
+  ¬sa-su? WORD ... | sa-su? WORD ... <ERASING>
 ```
 """
 
@@ -105,8 +105,8 @@ ELIDING = {
 def elided_tokens() -> tuple[list[gencmu.Token], str]:
     return (
         [
-            gencmu.Token("a", {"A": True}, (0, 1), (0, 1)),
-            gencmu.Token("b", {"B": True}, (1, 2), (2, 3)),
+            gencmu.Token("a", frozenset({"A"}), (0, 1), (0, 1)),
+            gencmu.Token("b", frozenset({"B"}), (1, 2), (2, 3)),
         ],
         "a b",
     )
@@ -242,7 +242,7 @@ class Options(unittest.TestCase):
         words = result.stages[-1].output
         assert words is not None
         self.assertEqual([token.phonemes for token in words], ["mi", "sa"])
-        self.assertEqual([token.tags for token in words], [{"WORD": True}, {"WORD": True}])
+        self.assertEqual([token.tags for token in words], [frozenset({"WORD"}), frozenset({"WORD"})])
         only = self.dialect.parse("mi", until="sounds")
         self.assertEqual(len(only.stages), 1)
         with self.assertRaises(gencmu.GencmuError) as caught:
@@ -267,7 +267,7 @@ class Options(unittest.TestCase):
         output is that of any elided node (engine §7, §12)."""
         grammar = "```jbogenbau\n%ambiguity-resolution greedy\n%elidable KU\n%rule text A [KU`ku`]\n```\n"
         dialect = gencmu.load_dialect_sources({"p.md": ELIDING["p.md"], "g.md": grammar}, "p.md")
-        result = dialect.parse_tokens([gencmu.Token("a", {"A": True}, (0, 1), (0, 1), "a")], "a")
+        result = dialect.parse_tokens([gencmu.Token("a", frozenset({"A"}), (0, 1), (0, 1), "a")], "a")
         assert result.tree is not None
         elided = result.tree.children[1]
         self.assertEqual((elided.kind, elided.terminal, elided.spelling), ("elided", "KU", "ku"))
@@ -279,7 +279,7 @@ class Options(unittest.TestCase):
         spelling, as the expected list does (docs/output.md)."""
         grammar = "```jbogenbau\n%ambiguity-resolution greedy\n%rule text LE`la` | LE`lai` C\n```\n"
         dialect = gencmu.load_dialect_sources({"p.md": ELIDING["p.md"], "g.md": grammar}, "p.md")
-        result = dialect.parse_tokens([gencmu.Token("lo", {"LE": True}, (0, 2), (0, 2), "lo")], "lo")
+        result = dialect.parse_tokens([gencmu.Token("lo", frozenset({"LE"}), (0, 2), (0, 2), "lo")], "lo")
         assert result.error is not None
         self.assertEqual([entry.terminal for entry in result.error.expected or []], ["LE`la`", "LE`lai`"])
         self.assertIn("it expected LE`la` (text), LE`lai` (text)", result.error.message)
@@ -300,9 +300,9 @@ class Output(unittest.TestCase):
         result = dialect.parse("mi", until="words", auto_features=False)
         text = gencmu.to_json(result)
         self.assertEqual(json.loads(text), gencmu.result_json(result))
-        self.assertTrue(text.startswith('{"format":3,"ok":true,"stages":[{"name":"sounds","verdict":"unique","output":[{"text":"m","phonemes":"m","tags":{"/m/":true},"span":[0,1],"source":[0,1]}'), text)
+        self.assertTrue(text.startswith('{"format":4,"ok":true,"stages":[{"name":"sounds","verdict":"unique","output":[{"text":"m","phonemes":"m","tags":["/m/"],"span":[0,1],"source":[0,1]}'), text)
         self.assertIn(
-            '"tree":{"kind":"rule","rule":"text","span":[0,2],"source":[0,2],"tags":{},"children":[{"kind":"rule","rule":"piece"',
+            '"tree":{"kind":"rule","rule":"text","span":[0,2],"source":[0,2],"tags":[],"children":[{"kind":"rule","rule":"piece"',
             text,
         )
         self.assertTrue(text.endswith(',"error":null}'))
@@ -314,7 +314,7 @@ class Output(unittest.TestCase):
             list(value["error"]),
             ["kind", "stage", "token", "source", "line", "column", "expected", "message"],
         )
-        self.assertEqual(value["error"]["expected"][0], {"terminal": "a", "rules": ["c"]})
+        self.assertEqual(value["error"]["expected"][0], {"terminal": "'a'", "rules": ["c"]})
         self.assertIsNone(value["tree"])
 
     def test_brackets(self) -> None:
@@ -330,7 +330,7 @@ class Output(unittest.TestCase):
             "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A s %rule s A t %rule t A u %rule u A A\n```\n",
         }
         dialect = gencmu.load_dialect_sources(sources, "p.md")
-        tokens = [gencmu.Token(str(n), {"A": True}, (n, n + 1), (2 * n, 2 * n + 1)) for n in range(5)]
+        tokens = [gencmu.Token(str(n), frozenset({"A"}), (n, n + 1), (2 * n, 2 * n + 1)) for n in range(5)]
         result = dialect.parse_tokens(tokens, "0 1 2 3 4")
         self.assertEqual(gencmu.to_brackets(result), "(0 [1 {2 (3 4)}])")
 
@@ -344,9 +344,9 @@ class Output(unittest.TestCase):
         }
         dialect = gencmu.load_dialect_sources(sources, "p.md")
         tokens = [
-            gencmu.Token("klama bu", {"A": True}, (0, 1), (0, 8), "klama.bu"),
-            gencmu.Token("x.y", {"A": True}, (1, 2), (9, 12), ""),
-            gencmu.Token("a..b", {"A": True}, (2, 3), (13, 17), "a..b", verbatim=True),
+            gencmu.Token("klama bu", frozenset({"A"}), (0, 1), (0, 8), "klama.bu"),
+            gencmu.Token("x.y", frozenset({"A"}), (1, 2), (9, 12), ""),
+            gencmu.Token("a..b", frozenset({"A"}), (2, 3), (13, 17), "a..b", verbatim=True),
         ]
         result = dialect.parse_tokens(tokens, "klama bu x.y a..b")
         self.assertEqual(gencmu.to_brackets(result), "(klama bu x.y a..b)")
@@ -363,8 +363,8 @@ class Warnings(unittest.TestCase):
     def test_result_and_json(self) -> None:
         """A warning is a ParseWarning of the result, and in the canonical
         JSON after the error only when there is one (docs/output.md)."""
-        dialect = self.dialect("%rule text @w! A | B")
-        tokens = [gencmu.Token("a", {"A": True}, (0, 1), (0, 1))]
+        dialect = self.dialect("%rule text w! A | B")
+        tokens = [gencmu.Token("a", frozenset({"A"}), (0, 1), (0, 1))]
         result = dialect.parse_tokens(tokens, "a", features=["w"])
         self.assertEqual(result.warnings, [gencmu.ParseWarning("main", "w", "text", (0, 1), (0, 1))])
         self.assertTrue(
@@ -377,8 +377,8 @@ class Warnings(unittest.TestCase):
     def test_trailing_repetition(self) -> None:
         """The prefixes of a trailing repetition are no nodes of the tree, so
         they give no warnings of their own (engine §3.3, §12)."""
-        dialect = self.dialect("%rule text @w! x ...\n%rule x @v! A")
-        tokens = [gencmu.Token(str(n), {"A": True}, (n, n + 1), (2 * n, 2 * n + 1)) for n in range(3)]
+        dialect = self.dialect("%rule text w! x ...\n%rule x v! A")
+        tokens = [gencmu.Token(str(n), frozenset({"A"}), (n, n + 1), (2 * n, 2 * n + 1)) for n in range(3)]
         result = dialect.parse_tokens(tokens, "0 1 2", features=["v", "w"])
         self.assertEqual(
             [(warning.feature, warning.rule, warning.span, warning.source) for warning in result.warnings],
@@ -414,7 +414,7 @@ class Robustness(unittest.TestCase):
     def test_malformed_bootstrap(self) -> None:
         for bootstrap in ('{"format":1,"stages":[]}', "[]", "not json", "[" * 2000 + "]" * 2000, '{"format":1,"stages":[{"name":"x","documents":[{"path":"a","dom":{"rules":[{}]}}]}]}'):
             with self.subTest(bootstrap=bootstrap[:40]):
-                sources = self.grammar('%rule text "a"')
+                sources = self.grammar("%rule text 'a'")
                 sources["notation/bootstrap.json"] = bootstrap
                 with self.assertRaises(gencmu.GencmuError) as caught:
                     gencmu.load_dialect_sources(sources, "p.md", use_cache=False)
@@ -423,7 +423,7 @@ class Robustness(unittest.TestCase):
     def test_malformed_cache_entry_is_a_miss(self) -> None:
         from gencmu._hash import fnv1a64
 
-        sources = self.grammar('%rule text "a"')
+        sources = self.grammar("%rule text 'a'")
         compiled = {
             "format": DOM_FORMAT,
             "bootstrap": fnv1a64(bundled_text("notation/bootstrap.json") or ""),
@@ -436,7 +436,7 @@ class Robustness(unittest.TestCase):
     def test_unreadable_cache_is_no_cache(self) -> None:
         for compiled in ("[" * 2000 + "]" * 2000, "not json", "[]"):
             with self.subTest(compiled=compiled[:10]):
-                sources = self.grammar('%rule text "a"')
+                sources = self.grammar("%rule text 'a'")
                 sources["compiled.json"] = compiled
                 dialect = gencmu.load_dialect_sources(sources, "p.md")
                 self.assertTrue(dialect.parse("a", auto_features=False).ok)
@@ -452,20 +452,20 @@ class Robustness(unittest.TestCase):
     def test_deeply_nested_grammar(self) -> None:
         """A grammar nested as deep as engine §9 allows loads and parses."""
         depth = 250
-        rules = "%rule text " + "[" * depth + '("a")' + "]" * depth
-        rules += " <" + "(" * depth + '"T"' + ")" * depth + "> %conditions " + "¬" * depth + '"a" = "a"'
+        rules = "%rule text " + "[" * depth + "('a')" + "]" * depth
+        rules += " <" + "(" * depth + "T" + ")" * depth + "> %conditions " + "¬" * depth + '"a" = "a"'
         dialect = gencmu.load_dialect_sources(self.grammar(rules), "p.md")
         result = dialect.parse("a", auto_features=False)
         self.assertTrue(result.ok, result.error)
         self.assertEqual(gencmu.to_brackets(result), "a")
         assert result.tree is not None
-        self.assertEqual(result.tree.tags, {"T": True})
+        self.assertEqual(result.tree.tags, frozenset({"T"}))
 
     def test_too_deeply_nested_grammar(self) -> None:
         """Nesting more than 256 deep is an error at the rule that holds it."""
         for rules in (
-            '%rule x "b"\n%rule text ' + "[" * 300 + '"a"' + "]" * 300,
-            '%rule x "b"\n%rule text "a" %conditions ' + "¬" * 300 + '"a" = "a"',
+            "%rule x 'b'\n%rule text " + "[" * 300 + "'a'" + "]" * 300,
+            "%rule x 'b'\n%rule text 'a' %conditions " + "¬" * 300 + '"a" = "a"',
         ):
             with self.subTest(rules=rules[:30]):
                 with self.assertRaises(gencmu.GencmuError) as caught:
@@ -473,7 +473,7 @@ class Robustness(unittest.TestCase):
                 self.assertEqual((caught.exception.document, caught.exception.line, caught.exception.column), ("g.md", 4, 1))
 
     def test_deep_tree(self) -> None:
-        dialect = gencmu.load_dialect_sources(self.grammar('%rule text text "a" | "a"'), "p.md")
+        dialect = gencmu.load_dialect_sources(self.grammar("%rule text text 'a' | 'a'"), "p.md")
         result = dialect.parse("a" * 10000, auto_features=False)
         self.assertTrue(result.ok)
         text = gencmu.to_json(result)

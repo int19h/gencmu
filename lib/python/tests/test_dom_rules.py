@@ -18,13 +18,13 @@ from gencmu._validate import dom_problem
 
 DOCUMENT = """```jbogenbau
 %ambiguity-resolution greedy
-%rule text $x("a") ["b"] <"T" ∪ tags($x)>
+%rule text $x('a') ['b'] <~T ∪ tags($x)>
 %conditions phonemes($x) = ""
 %emits $x
 ```
 """
 PIPELINE = '```jbogenbau\n%stage main\n%include "g.md"\n%stage next\n%include "h.md"\n```\n'
-NEXT = "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [\"a\"] [\"Y\"]\n```\n"
+NEXT = "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ['a'] [Y]\n```\n"
 
 Dom = dict[str, Any]
 
@@ -77,7 +77,7 @@ def with_bare_alternative(*changes: Callable[[Dom], None]) -> Callable[[Dom], No
     which serves it: then the changes."""
 
     def change(dom: Dom) -> None:
-        rule(dom)["alternatives"].append({"guards": [], "expr": {"terminal": "b"}})
+        rule(dom)["alternatives"].append({"guards": [], "expr": {"terminal": "'b'"}})
         rule(dom)["emit"] = {"items": [WHOLE]}
         for other in changes:
             other(dom)
@@ -86,14 +86,14 @@ def with_bare_alternative(*changes: Callable[[Dom], None]) -> Callable[[Dom], No
 
 
 def nested_union(depth: int) -> Any:
-    term: Any = {"literal": "T"}
+    term: Any = {"tag": "T"}
     for _ in range(depth):
-        term = {"union": [term, {"literal": "U"}]}
+        term = {"union": [term, {"tag": "U"}]}
     return term
 
 
 def nested_not(depth: int) -> Any:
-    condition: Any = {"op": "=", "left": {"literal": "a"}, "right": {"literal": "a"}}
+    condition: Any = {"op": "=", "left": {"string": "a"}, "right": {"string": "a"}}
     # The comparison is compound too: its terms lie below it.
     for _ in range(depth - 1):
         condition = {"not": condition}
@@ -101,17 +101,21 @@ def nested_not(depth: int) -> Any:
 
 
 def nested(depth: int) -> Any:
-    expr: Any = {"terminal": "a"}
+    expr: Any = {"terminal": "'a'"}
     for _ in range(depth):
         expr = {"optional": expr}
     return expr
 
 
-A = {"terminal": "a"}
+A = {"terminal": "'a'"}
 X = {"capture": "x"}
+TAGS_X = {"call": "tags", "args": [X]}
 WHOLE = {"capture": ""}
-LIT = {"literal": "b"}
-SAME = {"op": "=", "left": LIT, "right": LIT}
+TAG = {"tag": "b"}
+STR = {"string": "b"}
+RUNS = {"call": "runs", "args": [X]}
+TEXT = {"call": "text", "args": [X]}
+SAME = {"op": "=", "left": STR, "right": STR}
 
 
 # One malformed DOM for each rule the reader enforces.
@@ -148,11 +152,14 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("a capture name used twice", set_expr({"seq": [{"capture": "x", "expr": A}, {"capture": "x", "expr": A}]})),
     ("$ with an inserted tag", set_emit({"items": [WHOLE, {"insert": "Y"}]})),
     ("$ with a capture", set_emit({"items": [WHOLE, {"capture": "x"}]})),
-    ("an item with a key of no item", set_emit({"items": [{"capture": "x", "tags": LIT, "weak": True}]})),
+    ("an item with a key of no item", set_emit({"items": [{"capture": "x", "tags": TAG, "weak": True}]})),
     ("a capture on an inserted tag", set_emit({"items": [{"capture": "x"}, {"insert": "Y", "capture": "x"}]})),
     ("∅ as an item's tags", set_emit({"items": [{"capture": "x", "tags": {"emptySet": True}}]})),
     ("a capture listed twice", set_emit({"items": [{"capture": "x"}, {"capture": "x"}]})),
-    ("tags on an inserted tag", set_emit({"items": [{"capture": "x"}, {"insert": "Y", "tags": LIT}]})),
+    ("tags on an inserted tag", set_emit({"items": [{"capture": "x"}, {"insert": "Y", "tags": TAG}]})),
+    # An inserted item is one tag in its canonical spelling (engine §1, §9).
+    ("an inserted item that is no tag", set_emit({"items": [{"capture": "x"}, {"insert": "a b"}]})),
+    ("an inserted character tag not in its canonical spelling", set_emit({"items": [{"capture": "x"}, {"insert": "'\\u{61}'"}]})),
     ("an emission with items that are no list", set_emit({"items": None})),
     ("an unknown emission item", set_emit({"items": [{"that": True}]})),
     ("an unknown function", set_tags({"call": "upper", "args": [X]})),
@@ -161,53 +168,69 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("initial as a term", set_tags({"call": "initial", "args": [X]})),
     ("head where a value is needed", set_tags({"call": "head", "args": [X]})),
     ("after where a value is needed", set_tags({"call": "after", "args": [X]})),
-    ("from of a literal", set_tags({"call": "tags", "args": [{"call": "from", "args": [LIT]}]})),
-    ("lowercase of a weak tag", set_tags({"call": "lowercase", "args": [{"weak": "b"}]})),
+    ("from of a tag", set_tags({"call": "tags", "args": [{"call": "from", "args": [TAG]}]})),
+    ("a weak tag", set_tags({"weak": "b"})),
+    ("a literal", set_tags({"literal": "b"})),
+    ("a string as a tag term", set_tags(STR)),
+    ("a set of strings as a tag term", set_tags(RUNS)),
+    ("lowercase of a tag set", set_condition({"op": "=", "left": {"call": "lowercase", "args": [TAG]}, "right": STR})),
     ("lowercase of a span", set_tags({"call": "lowercase", "args": [X]})),
-    ("a capture on the left of ∈", set_condition({"op": "∈", "left": X, "right": X})),
-    ("tags on the left of ∉", set_condition({"op": "∉", "left": {"call": "tags", "args": [X]}, "right": LIT})),
+    ("a capture on the left of ∈", set_condition({"op": "∈", "left": X, "right": RUNS})),
+    ("tags on the left of ∉", set_condition({"op": "∉", "left": TAGS_X, "right": STR})),
+    ("a string in a tag set", set_condition({"op": "∈", "left": STR, "right": TAGS_X})),
+    ("⊆ of a tag set and a set of strings", set_condition({"op": "⊆", "left": TAG, "right": RUNS})),
+    ("= of a string and a tag set", set_condition({"op": "=", "left": TEXT, "right": TAG})),
+    ("= of two sets of no kind", set_condition({"op": "=", "left": {"emptySet": True}, "right": {"emptySet": True}})),
+    ("a union of two kinds", set_tags({"union": [TAGS_X, RUNS]})),
+    ("a difference of three parts", set_tags({"difference": [TAG, TAG, TAG]})),
+    ("a difference of one part", set_tags({"difference": [TAG]})),
+    ("a character tag not in its canonical spelling", set_tags({"tag": "'\\'"})),
+    ("a terminal that is no tag", set_expr({"capture": "x", "expr": {"terminal": "é"}})),
+    ("a terminal of two characters", set_expr({"capture": "x", "expr": {"terminal": "'ab'"}})),
+    ("a capture name with a capital", set_expr({"capture": "X", "expr": A})),
+    ("an elidable phoneme tag", lambda dom: dom["directives"].append({"name": "elidable", "args": ["/a/"], "at": [9, 1]})),
     ("phonemes of two spans", set_tags({"call": "phonemes", "args": [X, X]})),
-    ("phonemes of a literal", set_tags({"call": "phonemes", "args": [LIT]})),
-    ("tags with a term for a rule", set_tags({"call": "tags", "args": [X, LIT]})),
+    ("phonemes of a tag", set_tags({"call": "phonemes", "args": [TAG]})),
+    ("tags with a term for a rule", set_tags({"call": "tags", "args": [X, TAG]})),
     ("a rule name as a term", set_tags({"rule": "text"})),
-    ("union of one part", set_tags({"union": [LIT]})),
+    ("union of one part", set_tags({"union": [TAG]})),
     ("tags with arguments that are no list", set_tags({"call": "tags", "args": None})),
     ("classes of a list in a rule's tags", set_rule_tags({"call": "classes", "args": [[WHOLE]]})),
-    ("$ in an alternative's tags", set_tags({"union": [WHOLE, LIT]})),
+    ("$ in an alternative's tags", set_tags({"union": [WHOLE, TAG]})),
     ("tags($) in an alternative's tags", set_tags({"call": "tags", "args": [WHOLE]})),
-    ("classes($) in a rule's tags", set_rule_tags({"intersection": [{"call": "classes", "args": [WHOLE]}, LIT]})),
+    ("classes($) in a rule's tags", set_rule_tags({"intersection": [{"call": "classes", "args": [WHOLE]}, TAG]})),
     ("an unknown term", set_tags({"number": 1})),
     ("any of one condition", set_condition({"any": [SAME]})),
     ("all of one condition", set_condition({"all": [SAME]})),
-    ("matches of a literal", set_condition({"matches": LIT, "rule": "text"})),
+    ("matches of a tag", set_condition({"matches": TAG, "rule": "text"})),
     ("matches without a rule", set_condition({"matches": X})),
-    ("an unknown comparator", set_condition({"op": "<", "left": LIT, "right": LIT})),
-    ("a comparator that is a list", set_condition({"op": ["="], "left": LIT, "right": LIT})),
+    ("an unknown comparator", set_condition({"op": "<", "left": STR, "right": STR})),
+    ("a comparator that is a list", set_condition({"op": ["="], "left": STR, "right": STR})),
     ("matches of a call that is a list", set_condition({"matches": {"call": []}, "rule": "text"})),
-    ("begins of a literal", set_condition({"begins": LIT, "rule": "text"})),
+    ("begins of a tag", set_condition({"begins": TAG, "rule": "text"})),
     ("begins without a rule", set_condition({"begins": X})),
     ("matches and begins in one condition", set_condition({"matches": X, "begins": X, "rule": "text"})),
-    ("initial of a literal", set_condition({"initial": LIT})),
+    ("initial of a tag", set_condition({"initial": TAG})),
     ("initial with a rule", set_condition({"initial": X, "rule": "text"})),
     ("a function that is a list", set_tags({"call": ["phonemes"], "args": [X]})),
     ("an op that is a list", lambda dom: rule(dom).update(op=["define"])),
-    ("a comparison without a side", set_condition({"op": "=", "left": LIT})),
+    ("a comparison without a side", set_condition({"op": "=", "left": STR})),
     ("a presence test of no name", set_condition({"captured": 1})),
     ("an implication without a consequent", set_condition({"if": SAME})),
     ("a guarded term without a term", set_tags({"if": SAME})),
     ("a guarded term as a span", set_tags({"call": "tags", "args": [{"if": SAME, "then": X}]})),
     ("a guarded term of a span", set_tags({"if": SAME, "then": {"call": "head", "args": [X]}})),
-    ("$ in a guard of an alternative's tags", set_tags({"if": {"op": "∈", "left": LIT, "right": WHOLE}, "then": LIT})),
-    ("tags($) in a guard of a rule's tags", set_rule_tags({"if": {"not": {"op": "=", "left": LIT, "right": {"call": "tags", "args": [WHOLE]}}}, "then": LIT})),
+    ("$ in a guard of an alternative's tags", set_tags({"if": {"op": "∈", "left": STR, "right": WHOLE}, "then": TAG})),
+    ("tags($) in a guard of a rule's tags", set_rule_tags({"if": {"not": {"op": "=", "left": TAG, "right": {"call": "tags", "args": [WHOLE]}}}, "then": TAG})),
     # A definition as a whole (engine §9).
-    ("a condition on a capture no alternative has", set_condition({"op": "=", "left": {"call": "text", "args": [{"capture": "y"}]}, "right": LIT})),
+    ("a condition on a capture no alternative has", set_condition({"op": "=", "left": {"call": "text", "args": [{"capture": "y"}]}, "right": STR})),
     ("a presence test of a capture no alternative has", set_condition({"captured": "y"})),
     ("an emitted capture no alternative has", set_emit({"items": [{"capture": "y"}]})),
     ("a condition that applies to no alternative", set_condition({"captured": "x"})),
     ("a condition that is true everywhere", set_condition({"if": {"captured": "x"}, "then": {"captured": ""}})),
-    ("a rule's tags using a capture an alternative lacks", with_bare_alternative(set_rule_tags(X))),
-    ("an alternative's tags using a capture it lacks", with_bare_alternative(lambda dom: rule(dom)["alternatives"][1].update(tags=X))),
-    ("an emitted item's tags using a capture an alternative lacks", with_bare_alternative(set_emit({"items": [{"capture": "", "tags": X}]}))),
+    ("a rule's tags using a capture an alternative lacks", with_bare_alternative(set_rule_tags(TAGS_X))),
+    ("an alternative's tags using a capture it lacks", with_bare_alternative(lambda dom: rule(dom)["alternatives"][1].update(tags=TAGS_X))),
+    ("an emitted item's tags using a capture an alternative lacks", with_bare_alternative(set_emit({"items": [{"capture": "", "tags": TAGS_X}]}))),
     ("captures emitted out of order", lambda dom: (set_expr({"seq": [{"capture": "x", "expr": A}, {"capture": "y", "expr": A}]})(dom), set_emit({"items": [{"capture": "y"}, {"capture": "x"}]})(dom))),
     ("an inserted tag anchored on a missing capture", with_bare_alternative(set_emit({"items": [{"insert": "Y"}, {"capture": "x"}]}))),
     ("an emission that leaves an alternative nothing", with_bare_alternative(set_emit({"items": [{"capture": "x"}]}))),
@@ -245,7 +268,7 @@ def scramble(value: Any, rng: random.Random) -> Any:
     container, key = rng.choice(paths)
     container[key] = rng.choice(
         [None, True, 0, 2, -1, 1.5, "", "x", "=", "head", "matches", [], [{}], {}, {"call": []}, {"capture": 1},
-         {"call": "head", "args": [{"capture": "x"}]}, {"literal": []}, {"capture": "x", "expr": {"ref": "A"}}]
+         {"call": "head", "args": [{"capture": "x"}]}, {"tag": []}, {"string": 1}, {"tag": "'\\u{61}'"}, {"capture": "x", "expr": {"ref": "A"}}]
     )
     return value
 
@@ -360,25 +383,32 @@ class PrecompiledDomRules(unittest.TestCase):
         ∧, ⟹, presence tests, guarded terms, # as a rule's name, a negated
         gate and a warning (engine §9)."""
         for name, change in (
-            ("$ twice", set_emit({"items": [{"capture": "", "tags": LIT}, WHOLE]})),
+            ("$ twice", set_emit({"items": [{"capture": "", "tags": TAG}, WHOLE]})),
             ("ε", set_emit({"items": []})),
             ("verbatim", lambda dom: rule(dom).update(verbatim=True)),
             ("tags($) in an emitted term", set_emit({"items": [{"capture": "x", "tags": {"call": "tags", "args": [WHOLE]}}]})),
             ("tags($, rule) in an alternative's tags", set_tags({"call": "tags", "args": [WHOLE, {"rule": "text"}]})),
-            ("text($) in an alternative's tags", set_tags({"call": "text", "args": [WHOLE]})),
+            ("text($) in a guard of an alternative's tags", set_tags({"if": {"op": "=", "left": {"call": "text", "args": [WHOLE]}, "right": STR}, "then": TAG})),
             ("tags(head($)) in an alternative's tags", set_tags({"call": "tags", "args": [{"call": "head", "args": [WHOLE]}]})),
-            ("a condition on $", set_condition({"op": "∈", "left": LIT, "right": {"call": "tags", "args": [WHOLE]}})),
+            ("a condition on $", set_condition({"op": "⊆", "left": TAG, "right": {"call": "tags", "args": [WHOLE]}})),
             ("all", set_condition({"all": [SAME, {"not": {"matches": WHOLE, "rule": "text"}}]})),
             ("begins of after($)", set_condition({"begins": {"call": "after", "args": [WHOLE]}, "rule": "text"})),
             ("tags(from($)) in an alternative's tags", set_tags({"call": "tags", "args": [{"call": "from", "args": [WHOLE]}]})),
-            ("initial($) in a guard of an alternative's tags", set_tags({"if": {"initial": WHOLE}, "then": LIT})),
+            ("initial($) in a guard of an alternative's tags", set_tags({"if": {"initial": WHOLE}, "then": TAG})),
             ("# as a rule's name", lambda dom: rule(dom).update(name="#")),
             ("a negated gate", lambda dom: alt(dom).update(guards=[{"feature": "f", "kind": "gate", "negated": True}])),
             ("a warning", lambda dom: alt(dom).update(guards=[{"feature": "w", "kind": "warning", "negated": False}])),
-            ("an implication", set_condition({"if": SAME, "then": {"op": "=", "left": {"call": "text", "args": [X]}, "right": LIT}})),
+            ("an implication", set_condition({"if": SAME, "then": {"op": "=", "left": TEXT, "right": STR}})),
             ("a presence test that removes an alternative", with_bare_alternative(set_condition({"captured": "x"}))),
-            ("a guarded term", with_bare_alternative(set_rule_tags({"union": [LIT, {"if": {"captured": "x"}, "then": X}]}))),
-            ("a guard reading tags(head($))", set_tags({"if": {"op": "∈", "left": LIT, "right": {"call": "tags", "args": [{"call": "head", "args": [WHOLE]}]}}, "then": LIT})),
+            ("a guarded term", with_bare_alternative(set_rule_tags({"union": [TAG, {"if": {"captured": "x"}, "then": TAGS_X}]}))),
+            ("a guard reading tags(head($))", set_tags({"if": {"op": "⊆", "left": TAG, "right": {"call": "tags", "args": [{"call": "head", "args": [WHOLE]}]}}, "then": TAG})),
+            # Typed terms and conditions (engine §10).
+            ("a difference", set_tags({"difference": [TAGS_X, {"union": [TAG, {"tag": "/a/"}]}]})),
+            ("⊈", set_condition({"op": "⊈", "left": TAG, "right": TAGS_X})),
+            ("a string in a set of strings", set_condition({"op": "∈", "left": TEXT, "right": RUNS})),
+            ("∅ compared with a set of strings", set_condition({"op": "=", "left": {"emptySet": True}, "right": RUNS})),
+            ("a character tag", set_tags({"union": [{"tag": "'\\u{5C}'"}, {"tag": "'é'"}]})),
+            ("an elidable tag", lambda dom: dom["directives"].append({"name": "elidable", "args": ["KU", "ku"], "at": [9, 1]})),
             ("an emitted item dropped where its capture is missing", with_bare_alternative(set_emit({"items": [{"capture": "x"}, {"insert": "Y"}]}))),
         ):
             with self.subTest(what=name):
@@ -402,11 +432,11 @@ class PrecompiledDomRules(unittest.TestCase):
             ("a spelling that is no string", {"capture": "x", "expr": spelled(7)}, "a malformed spelling"),
             ("a spelling in capitals", {"capture": "x", "expr": spelled("La")}, "the spelling La is not in lower case"),
             ("a Cyrillic capital", {"capture": "x", "expr": spelled("Ла")}, "the spelling Ла is not in lower case"),
-            ("a spelling of #", {"seq": [{"capture": "x", "expr": A}, spelled("a", {"ref": "#"})]}, "a spelling follows only a reference other than #, a string or a phoneme tag"),
-            ("a spelling of a spelling", {"capture": "x", "expr": spelled("a", spelled("a"))}, "a spelling follows only a reference other than #, a string or a phoneme tag"),
+            ("a spelling of #", {"seq": [{"capture": "x", "expr": A}, spelled("a", {"ref": "#"})]}, "a spelling follows only a reference other than # or a terminal"),
+            ("a spelling of a spelling", {"capture": "x", "expr": spelled("a", spelled("a"))}, "a spelling follows only a reference other than # or a terminal"),
             ("a spelling with a backtick", {"capture": "x", "expr": spelled("a`b")}, "a spelling holds a backtick"),
-            ("a spelling of an empty terminal", {"capture": "x", "expr": spelled("a", {"empty": True, "terminal": "a"})}, "a spelling follows only a reference other than #, a string or a phoneme tag"),
-            ("a spelling of a reference and a terminal", {"capture": "x", "expr": spelled("a", {"ref": "text", "terminal": "a"})}, "a spelling follows only a reference other than #, a string or a phoneme tag"),
+            ("a spelling of an empty terminal", {"capture": "x", "expr": spelled("a", {"empty": True, "terminal": "a"})}, "a spelling follows only a reference other than # or a terminal"),
+            ("a spelling of a reference and a terminal", {"capture": "x", "expr": spelled("a", {"ref": "text", "terminal": "a"})}, "a spelling follows only a reference other than # or a terminal"),
             ("a spelled symbol that is also empty", {"capture": "x", "expr": {**spelled("a"), "empty": True}}, "a malformed expression"),
         ):
             with self.subTest(what=name):

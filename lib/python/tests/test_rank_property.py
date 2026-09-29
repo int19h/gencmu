@@ -1,7 +1,7 @@
 """The ranking of engine §6 against brute force.
 
 Random small grammars, with ε, left recursion and unary cycles, over short
-random inputs whose tokens carry strong and weak tags. The reference
+random inputs whose tokens carry one tag or several. The reference
 enumerates every derivation, leaving out the cyclic ones as engine §4
 defines them, and computes the verdict, the chosen derivation, the tied
 derivation and the witness straight from the definitions of §6; the library
@@ -34,7 +34,7 @@ class Budget(Exception):
     pass
 
 
-# An action: ("r", token, terminal, weak) or ("c", production, start, end, visible).
+# An action: ("r", token, terminal) or ("c", production, start, end, visible).
 
 
 def same(x: tuple[Any, ...], y: tuple[Any, ...]) -> bool:
@@ -46,10 +46,10 @@ def visible(action: tuple[Any, ...]) -> bool:
 
 
 def decide(x: tuple[Any, ...], y: tuple[Any, ...], lean: str) -> int:
+    # Two reads of one token as different terminals are tied (engine §6),
+    # and under no lean, elision-only's, so is any other pair (engine §7).
     if x[0] == "r" and y[0] == "r":
-        if x[3] == y[3]:
-            return 0
-        return 1 if x[3] else -1
+        return 0
     if x[0] != y[0]:
         if lean == "none":
             return 0
@@ -96,7 +96,7 @@ def order(a: tuple[Any, ...], b: tuple[Any, ...], lean: str) -> int:
     return 0 if whole is None else canonical(*whole)
 
 
-def reference(productions: list[tuple[int, tuple[Any, ...], bool]], rules: int, tokens: list[dict[str, bool]], lean: str, budget: int) -> dict[str, Any] | None:
+def reference(productions: list[tuple[int, tuple[Any, ...], bool]], rules: int, tokens: list[frozenset[str]], lean: str, budget: int) -> dict[str, Any] | None:
     """Every derivation of the start rule, rule 0, and the ranking's answers
     from the definitions. A production is its rule, its symbols (a string
     for a terminal, a number for a rule) and whether it is transparent."""
@@ -136,7 +136,7 @@ def reference(productions: list[tuple[int, tuple[Any, ...], bool]], rules: int, 
         results: list[tuple[Any, ...]] = []
         if isinstance(symbol, str):
             if i < j and symbol in tokens[i]:
-                read = ("r", i, symbol, not tokens[i][symbol])
+                read = ("r", i, symbol)
                 results = [(read,) + rest for rest in expand(rhs, index + 1, i + 1, j, node_i, node_j, inner)]
         else:
             for k in range(i, j + 1):
@@ -224,7 +224,7 @@ def sample(rules: list[list[list[Any]]], rng: random.Random) -> list[str] | None
     return out
 
 
-def random_tokens(rules: list[list[list[Any]]], rng: random.Random) -> list[dict[str, bool]]:
+def random_tokens(rules: list[list[list[Any]]], rng: random.Random) -> list[frozenset[str]]:
     """Mostly the terminals of a derivation, each with other tags besides;
     now and then any tokens at all."""
     terminals = None
@@ -238,7 +238,7 @@ def random_tokens(rules: list[list[list[Any]]], rng: random.Random) -> list[dict
     tokens = []
     for terminal in terminals:
         tags = {terminal, *rng.sample(TERMINALS, rng.choice([0, 0, 1, 1, 2]))}
-        tokens.append({tag: rng.random() < 0.7 for tag in sorted(tags)})
+        tokens.append(frozenset(tags))
     return tokens
 
 
@@ -269,9 +269,9 @@ def dom_of(rules: list[list[list[Any]]], names: list[str], lean: str) -> dict[st
     }
 
 
-def library(lowered: Any, tokens: list[dict[str, bool]], lean: str) -> dict[str, Any]:
+def library(lowered: Any, tokens: list[frozenset[str]], lean: str) -> dict[str, Any]:
     text = " ".join("x" for _ in tokens)
-    token_list = [Token("x", dict(tags), (index, index + 1), (2 * index, 2 * index + 1)) for index, tags in enumerate(tokens)]
+    token_list = [Token("x", tags, (index, index + 1), (2 * index, 2 * index + 1)) for index, tags in enumerate(tokens)]
     context = StageContext(lowered, token_list, text, _unicode_table(_resources().unicode))
     context.count = count_roots
     forest = Parser(context).parse(lowered.rule_ids["text"])
@@ -281,7 +281,7 @@ def library(lowered: Any, tokens: list[dict[str, bool]], lean: str) -> dict[str,
 
     def plain(rope: Any) -> tuple[Any, ...]:
         return tuple(
-            ("r", act.token, act.terminal, act.weak) if act.read else ("c", act.production, act.start, act.end, act.visible)
+            ("r", act.token, act.terminal) if act.read else ("c", act.production, act.start, act.end, act.visible)
             for act in actions(rope)
         )
 
@@ -290,7 +290,7 @@ def library(lowered: Any, tokens: list[dict[str, bool]], lean: str) -> dict[str,
         found["tied"] = plain(ranking.tied)
         x, y = ranking.witness  # type: ignore[misc]
         found["witness"] = tuple(
-            ("r", act.token, act.terminal, act.weak) if act.read else ("c", act.production, act.start, act.end, act.visible)
+            ("r", act.token, act.terminal) if act.read else ("c", act.production, act.start, act.end, act.visible)
             for act in (x, y)
         )
     return found
@@ -339,14 +339,14 @@ def random_sugared(rng: random.Random) -> dict[str, Any]:
     }
 
 
-def describe(rules: list[list[list[Any]]], names: list[str], tokens: list[dict[str, bool]], lean: str) -> str:
+def describe(rules: list[list[list[Any]]], names: list[str], tokens: list[frozenset[str]], lean: str) -> str:
     def show(value: Any) -> str:
         return value if isinstance(value, str) else names[value]
 
     grammar = " ".join(
         f"%rule {names[number]} {' | '.join(' '.join(show(v) for v in alt) or 'ε' for alt in alts)}" for number, alts in enumerate(rules)
     )
-    shown = " ".join("[" + " ".join(t if s else "?" + t for t, s in tags.items()) + "]" for tags in tokens)
+    shown = " ".join("[" + " ".join(sorted(tags)) + "]" for tags in tokens)
     return f"{lean}: {grammar} over {shown}"
 
 

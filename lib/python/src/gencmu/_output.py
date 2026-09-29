@@ -6,20 +6,16 @@ import json
 from typing import Any
 
 from ._model import Action, Node, ParseError, ParseResult, ParseWarning, Stage, Token
-from ._tags import PAUSE
+from ._tags import PAUSE, sorted_tags
 
-FORMAT = 3
-
-
-def _tags(tags: dict[str, bool]) -> dict[str, bool]:
-    return {tag: tags[tag] for tag in sorted(tags)}
+FORMAT = 4
 
 
 def token_json(token: Token) -> dict[str, Any]:
     value: dict[str, Any] = {"text": token.text}
     if token.phonemes is not None:
         value["phonemes"] = token.phonemes
-    value["tags"] = _tags(token.tags)
+    value["tags"] = sorted_tags(token.tags)
     value["span"] = list(token.span)
     value["source"] = list(token.source)
     if token.verbatim:
@@ -39,7 +35,7 @@ def node_json(node: Node) -> dict[str, Any]:
                 "rule": current.rule,
                 "span": list(current.span),
                 "source": list(current.source),
-                "tags": _tags(current.tags or {}),
+                "tags": sorted_tags(current.tags or ()),
                 "children": [],
             }
         if current.kind == "token":

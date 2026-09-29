@@ -13,16 +13,21 @@ import re
 from typing import Any, Protocol
 
 from ._clauses import definition_problem
+from ._tags import is_tag
+from ._types import rule_type_problem
 
 
 class Lowercase(Protocol):
     """What spellings are checked against: the lowercase mapping of the
-    library's Unicode table (engine §10)."""
+    library's Unicode table (engine §10), and the marks that a character tag
+    escapes (engine §1)."""
 
     def lowercase(self, text: str) -> str: ...
 
+    def is_mark(self, code: int) -> bool: ...
 
-FORMAT = 8
+
+FORMAT = 9
 """The version of the DOM's shape (docs/output.md)."""
 
 MAX_DEPTH = 256
@@ -30,15 +35,17 @@ MAX_DEPTH = 256
 this many compound nodes of it (engine §9). A node's depth here is the
 number of compound nodes above it, since only compound nodes have children:
 optional, repeat, and, choice, seq, capture and spelling; union,
-intersection, if and call; any, all, not, if, matches, begins, initial and a
+intersection, difference, if and call; any, all, not, if, matches, begins, initial and a
 comparison."""
 
 TOO_DEEP = "nested too deeply"
 
 _FUNCTIONS = {"phonemes", "text", "lowercase", "tags", "classes", "runs", "head", "tail", "last", "from", "after", "matches", "begins", "initial"}
-_COMPARATORS = {"=", "≠", "∈", "∉", "⊆"}
+_COMPARATORS = {"=", "≠", "∈", "∉", "⊆", "⊈"}
 _SPANS = {"head", "tail", "last", "from", "after"}
 _NAME = re.compile(r"[A-Za-z][A-Za-z0-9-]*")
+CAPTURE_NAME = re.compile(r"[a-z][a-z0-9-]*")
+"""A capture's name is all lower case (engine §9)."""
 _WHOLE = ""
 """The capture name of ``$``, the whole constituent (engine §3.5)."""
 
@@ -60,13 +67,6 @@ def _is_one_of(value: Any, names: set[str]) -> bool:
 def _is_span(value: Any) -> bool:
     """A capture, or head, tail, last, from or after of one."""
     return isinstance(value, dict) and (isinstance(value.get("capture"), str) or _is_one_of(value.get("call"), _SPANS))
-
-
-def _is_string(value: Any) -> bool:
-    """A literal, or phonemes, text or lowercase of something."""
-    return isinstance(value, dict) and (
-        isinstance(value.get("literal"), str) or _is_one_of(value.get("call"), {"phonemes", "text", "lowercase"})
-    )
 
 
 def _is_guard(value: Any) -> bool:
@@ -95,7 +95,8 @@ def _is_whole(value: Any) -> bool:
 def reads_own_tags(term: Any, argument: bool = False) -> bool:
     """Whether one node of a rule's or an alternative's tag term reads the
     tags that term defines: ``$`` as a value, ``tags($)`` or ``classes($)``
-    (engine §9). The caller walks the term; ``argument`` says the node is an
+    (engine §9). ``$`` as a value is also a span where a value is needed,
+    which the types refuse (engine §10). The caller walks the term; ``argument`` says the node is an
     argument of a call, where ``$`` is a span."""
     if not isinstance(term, dict):
         return False
@@ -135,8 +136,8 @@ def spelling_problem(spelling: Any, expr: Any, unicode: Lowercase | None) -> str
     """What is wrong with a spelling of a symbol (engine §9), or None: an
     empty spelling, one with a backtick, which the notation cannot write,
     one that the lowercase mapping would change, since the match ignores
-    stress, or one of anything but a reference, a string or a phoneme tag,
-    ``#`` included. The spelled symbol is exactly one reference or one
+    stress, or one of anything but a reference or a terminal, ``#``
+    included. The spelled symbol is exactly one reference or one
     terminal, so that no node is read one way here and another way when
     lowered. Without a table, the lowercase mapping is not checked."""
     if not isinstance(spelling, str):
@@ -148,7 +149,7 @@ def spelling_problem(spelling: Any, expr: Any, unicode: Lowercase | None) -> str
     if not isinstance(expr, dict) or len(expr) != 1 or not (
         (isinstance(expr.get("ref"), str) and expr["ref"] != "#") or isinstance(expr.get("terminal"), str)
     ):
-        return "a spelling follows only a reference other than #, a string or a phoneme tag"
+        return "a spelling follows only a reference other than # or a terminal"
     if unicode is not None and unicode.lowercase(spelling) != spelling:
         return f"the spelling {spelling} is not in lower case"
     return None
@@ -180,6 +181,7 @@ def dom_problem(dom: Any, unicode: Lowercase | None = None) -> str | None:
             (name == "stage" and not (len(args) == 1 and _NAME.fullmatch(args[0])))
             or (name == "include" and len(args) != 1)
             or (name == "features" and not (args and all(_NAME.fullmatch(arg) for arg in args)))
+            or (name == "elidable" and not all(_NAME.fullmatch(arg) for arg in args))
         ):
             return "a malformed directive"
     # Each entry is a node to check, its kind, its depth, and whether it
@@ -222,6 +224,8 @@ def dom_problem(dom: Any, unicode: Lowercase | None = None) -> str | None:
                 return "a capture name used twice in an alternative"
             if len(names) > 4:
                 return "more than four captures in an alternative"
+            if not all(CAPTURE_NAME.fullmatch(name) for name in names if name != _WHOLE):
+                return "a capture name is not all lower case"
             pending.append(("top", expr, 0, False))
             if "tags" in alternative:
                 pending.append(("term", alternative["tags"], 0, True))
@@ -229,9 +233,10 @@ def dom_problem(dom: Any, unicode: Lowercase | None = None) -> str | None:
     if problem is not None:
         return problem
     # A definition is checked as a whole (engine §9), once its clauses are
-    # known to be well formed.
+    # known to be well formed, and so are the types of its terms and
+    # conditions (engine §10).
     for rule in dom["rules"]:
-        problem = definition_problem(rule)
+        problem = definition_problem(rule) or rule_type_problem(rule)
         if problem is not None:
             return problem
     # The order of a document's items is the order of their positions, so no
@@ -287,7 +292,7 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase | None) 
                     not isinstance(value["capture"], str)
                     or value["capture"] == _WHOLE
                     or not isinstance(inner, dict)
-                    or not (isinstance(inner.get("ref"), str) or isinstance(inner.get("terminal"), str) or "spelling" in inner)
+                    or not (isinstance(inner.get("ref"), str) or is_tag(inner.get("terminal"), unicode) or "spelling" in inner)
                 ):
                     return "a malformed capture"
                 # A capture is a compound node; a spelled symbol below it is
@@ -302,7 +307,7 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase | None) 
                 pending.append(("expr", value["expr"], below, False))
             elif not (
                 isinstance(value.get("ref"), str)
-                or isinstance(value.get("terminal"), str)
+                or is_tag(value.get("terminal"), unicode)
                 or value.get("empty") is True
             ):
                 return "a malformed expression"
@@ -318,7 +323,8 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase | None) 
                 if not isinstance(item, dict):
                     kinds.append(None)
                 elif isinstance(item.get("insert"), str):
-                    kinds.append("insert" if item.keys() == {"insert"} else None)
+                    # An inserted item is one tag (engine §9).
+                    kinds.append("insert" if item.keys() == {"insert"} and is_tag(item["insert"], unicode) else None)
                 elif isinstance(item.get("capture"), str):
                     if not item.keys() <= {"capture", "tags"}:
                         kinds.append(None)
@@ -372,17 +378,16 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase | None) 
             else:
                 if not _is_one_of(value.get("op"), _COMPARATORS):
                     return "a malformed condition"
-                if value["op"] in ("∈", "∉") and not _is_string(value.get("left")):
-                    return "a malformed condition"
                 pending.append(("term", value.get("left"), below, own))
                 pending.append(("term", value.get("right"), below, own))
         else:
             # A term; an argument is a term where a span may stand.
             if own and reads_own_tags(value, kind == "argument"):
                 return "a tag term that reads the tags it defines"
-            if "union" in value or "intersection" in value:
-                items = value["union"] if "union" in value else value["intersection"]
-                if not _items(items, 2):
+            if "union" in value or "intersection" in value or "difference" in value:
+                key = "union" if "union" in value else "intersection" if "intersection" in value else "difference"
+                items = value[key]
+                if not _items(items, 2, 2 if key == "difference" else float("inf")):
                     return "a malformed term"
                 pending.extend(("term", item, below, own) for item in items)
             elif "if" in value:
@@ -402,15 +407,16 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase | None) 
                         len(args) == 2 and _is_span(args[0]) and _is_rule_name(args[1])
                     )
                 elif call == "lowercase":
-                    ok = len(args) == 1 and _is_string(args[0])
+                    # Its argument's type is checked with the rule's types.
+                    ok = len(args) == 1 and not _is_rule_name(args[0]) and not _is_span(args[0])
                 else:
                     ok = len(args) == 1 and _is_span(args[0])
                 if not ok or (kind != "argument" and call in _SPANS):
                     return "a malformed term"
                 pending.extend(("argument", arg, below, own) for arg in args if not _is_rule_name(arg))
             elif not (
-                isinstance(value.get("literal"), str)
-                or isinstance(value.get("weak"), str)
+                isinstance(value.get("string"), str)
+                or is_tag(value.get("tag"), unicode)
                 or value.get("emptySet") is True
                 or isinstance(value.get("capture"), str)
             ):
