@@ -5,8 +5,10 @@
 // single symbol with no guard and no tags of its own. A single symbol is a
 // reference, a terminal, a range, a property, a tested symbol or ε. An
 // eligible rule does not put exactly one symbol on each of its lines when it
-// has more than one, and each line of its body holds at most LINE_LIMIT code
-// points. A rule chooses its own grouping otherwise.
+// has more than one, unless no two adjacent symbols fit on one line. Each line
+// that a symbol of its body occupies holds at most LINE_LIMIT code points. A
+// symbol can run over several lines, and each of them counts. A rule chooses
+// its own grouping otherwise.
 //
 // The rules and their lines come from the Markdown extraction of the engine
 // and the DOM's positions. From a rule's position, a small scanner finds
@@ -25,13 +27,15 @@ export function isSingleSymbol(expr) {
 }
 
 /**
- * @typedef {{text: string, line: number}} WrittenSymbol
+ * A symbol as written, with the lines it occupies, from its first to its
+ * last. Its text keeps its own line breaks.
+ * @typedef {{text: string, lines: number[]}} WrittenSymbol
  * @typedef {{rule: any, keyword: string, line: number, indent: string, symbols: WrittenSymbol[]}} EligibleRule
  */
 
 /**
  * The eligible rules of a document, each with its symbols as written and the
- * line of each. `dom` is the document's DOM.
+ * lines of each. `dom` is the document's DOM.
  * @param {string} markdown
  * @param {{rules: any[]}} dom
  * @param {string} path
@@ -56,10 +60,13 @@ export function eligibleRules(markdown, dom, path) {
     if (start === undefined || chars[start] !== "%") throw new Error(`${path}:${rule.at[0]}:${rule.at[1]}: no keyword at the position of rule ${rule.name}`);
     const starts = scanBody(chars, start);
     if (starts.length !== alternatives.length) throw new Error(`${path}:${rule.at[0]}: found ${starts.length} alternatives of rule ${rule.name} in its text, but its DOM has ${alternatives.length}`);
-    const written = starts.map(({ from, to }) => ({ text: chars.slice(from, to).join(""), line: positions[from][0] }));
+    const written = starts.map(({ from, to }) => ({
+      text: chars.slice(from, to).join(""),
+      lines: [...new Set(positions.slice(from, to).map(([line]) => line))],
+    }));
     const headLine = lines[rule.at[0] - 1];
     const headIndent = /^\s*/.exec(headLine)?.[0] ?? "";
-    const firstLine = written[0].line;
+    const firstLine = written[0].lines[0];
     const indent = firstLine === rule.at[0] ? `${headIndent}  ` : (/^\s*/.exec(lines[firstLine - 1])?.[0] ?? "");
     const keyword = { define: "%rule", redefine: "%redefine-rule", extend: "%extend-rule" }[/** @type {"define" | "redefine" | "extend"} */ (rule.op)];
     result.push({ rule, keyword, line: rule.at[0], indent, symbols: written });
@@ -131,34 +138,54 @@ function scanBody(chars, start) {
 }
 
 /**
- * The lines of a layout of `symbols`, each indented by `indent`: the fewest
- * lines of at most `limit` code points, and for that number of lines, the
- * split whose longest line is shortest. One line has no leading `|`, and
- * every line of several begins with `| `. A symbol that does not fit on a line
- * by itself stands on its own line, which does not count toward the longest.
+ * The lines of a layout of `symbols`, each indented by `indent`. The layout
+ * has the fewest lines that hold at most `limit` code points. For that number
+ * of lines, it takes the split whose longest line is shortest. One line has
+ * no leading `|`, and every line of several begins with `| `.
+ *
+ * A symbol keeps its own line breaks, and the lines after its first stay as
+ * written. The next symbol continues its last line. A symbol that does not fit
+ * by itself stands alone, and its lines that are too long do not count toward
+ * the longest.
  * @param {string[]} symbols
  * @param {string} indent
  * @param {number} [limit]
  * @returns {string[]}
  */
 export function suggestLayout(symbols, indent, limit = LINE_LIMIT) {
-  const length = (/** @type {string} */ s) => [...s].length;
-  const one = indent + symbols.join(" | ");
-  if (length(one) <= limit) return [one];
+  const width = (/** @type {string} */ s) => [...s].length;
+  const parts = symbols.map((symbol) => symbol.split("\n"));
   const n = symbols.length;
-  const sizes = symbols.map(length);
-  const base = length(indent) + 2;
-  // The width of a line of symbols i to j - 1, and what it counts toward the
-  // longest line, or null when it cannot be a line.
-  /** @type {(i: number, j: number) => number | null} */
-  const cost = (i, j) => {
-    let width = base + 3 * (j - i - 1);
-    for (let k = i; k < j; k++) width += sizes[k];
-    if (width <= limit) return width;
-    return j - i === 1 ? 0 : null;
+  // The lines of symbols i to j - 1 as one line of the layout, which begins
+  // with `start`.
+  /** @type {(i: number, j: number, start: string) => string[]} */
+  const linesOf = (i, j, start) => {
+    const lines = [start];
+    for (let k = i; k < j; k++) {
+      const [first, ...rest] = parts[k];
+      lines[lines.length - 1] += (k === i ? "" : " | ") + first;
+      lines.push(...rest);
+    }
+    return lines;
   };
-  // best[k][j]: the shortest longest line of symbols 0 to j - 1 on k lines;
-  // from[k][j]: where the last of those lines begins.
+  const one = linesOf(0, n, indent);
+  if (one.length === 1 && width(one[0]) <= limit) return one;
+  // What a line of the layout of symbols i to j - 1 counts toward the
+  // longest line, or null when it cannot be a line of the layout.
+  /** @type {(number | null)[][]} */
+  const cost = [];
+  for (let i = 0; i < n; i++) {
+    cost.push([]);
+    for (let j = i + 1; j <= n; j++) {
+      const widths = linesOf(i, j, `${indent}| `).map(width);
+      const fitting = widths.filter((w) => w <= limit);
+      cost[i][j] = fitting.length === widths.length || j - i === 1 ? Math.max(0, ...fitting) : null;
+    }
+  }
+  // best[k][j]: the shortest longest line of symbols 0 to j - 1 on k lines
+  // of the layout; from[k][j]: where the last of those lines begins. The
+  // lines after the first of each symbol are the same in every layout, so
+  // the fewest lines of the layout make the fewest lines.
   const best = [[0, ...Array(n).fill(Infinity)]];
   /** @type {number[][]} */
   const from = [[]];
@@ -167,8 +194,8 @@ export function suggestLayout(symbols, indent, limit = LINE_LIMIT) {
     from.push(Array(n + 1).fill(-1));
     for (let j = 1; j <= n; j++) {
       for (let i = j - 1; i >= 0; i--) {
-        const c = cost(i, j);
-        if (c === null) break;
+        const c = cost[i][j];
+        if (c === null) continue;
         const value = Math.max(best[k - 1][i], c);
         if (value < best[k][j]) {
           best[k][j] = value;
@@ -177,14 +204,14 @@ export function suggestLayout(symbols, indent, limit = LINE_LIMIT) {
       }
     }
     if (best[k][n] === Infinity) continue;
-    /** @type {string[]} */
-    const result = [];
+    /** @type {string[][]} */
+    const groups = [];
     for (let j = n, line = k; line > 0; line--) {
       const i = from[line][j];
-      result.unshift(`${indent}| ${symbols.slice(i, j).join(" | ")}`);
+      groups.unshift(linesOf(i, j, `${indent}| `));
       j = i;
     }
-    return result;
+    return groups.flat();
   }
   throw new Error("unreachable: every symbol can stand on its own line");
 }
@@ -203,14 +230,19 @@ export function layoutProblems(markdown, dom, path, limit = LINE_LIMIT) {
   /** @type {string[]} */
   const problems = [];
   for (const { rule, keyword, line, indent, symbols } of eligibleRules(markdown, dom, path)) {
-    const bodyLines = [...new Set(symbols.map((symbol) => symbol.line))];
+    // How many symbols occupy each line of the body.
+    /** @type {Map<number, number>} */
+    const occupants = new Map();
+    for (const symbol of symbols) for (const number of symbol.lines) occupants.set(number, (occupants.get(number) ?? 0) + 1);
+    const bodyLines = [...occupants.keys()].sort((a, b) => a - b);
     for (const number of bodyLines) {
       const width = [...lines[number - 1]].length;
       if (width > limit) problems.push(`${path}:${number}: a line of ${keyword} ${rule.name} holds ${width} characters, more than ${limit}`);
     }
-    if (bodyLines.length < 2 || bodyLines.length !== symbols.length) continue;
+    if (bodyLines.length < 2 || [...occupants.values()].some((count) => count !== 1)) continue;
     const suggestion = suggestLayout(symbols.map((symbol) => symbol.text), indent, limit);
-    // When no two symbols fit on one line, one per line is the only layout.
+    // When no two adjacent symbols fit on one line, one per line is the only
+    // layout. A suggestion with fewer lines puts two symbols on one line.
     if (suggestion.length < bodyLines.length) {
       problems.push(`${path}:${line}: ${keyword} ${rule.name} puts one symbol on each of its ${bodyLines.length} lines; write:\n${suggestion.join("\n")}`);
     }
