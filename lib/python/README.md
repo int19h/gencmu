@@ -50,7 +50,7 @@ You can use a dialect for any number of parses, and you can share it between thr
 
 ## The result
 
-`ParseResult`, `Stage`, `Node`, `Token`, `ParseError`, `ParseWarning`, `Action` and `Expected` are dataclasses. A tag set is a `frozenset[str]` of tags, each in its canonical spelling, such as `KOhA`, `/a/` or `'a'` (`docs/engine.md`, §1). Ranges are `(start, end)` tuples, and source ranges are in code points.
+`ParseResult`, `Stage`, `Node`, `Token`, `ParseError`, `ParseWarning`, `Action` and `Expected` are dataclasses. A tag set is a `frozenset[str]` of tags, each in its canonical spelling, such as `KOhA`, `/a/` or `'a'` (`docs/engine.md`, §1). A character token of the first stage carries one tag, its character tag. The terminal of a token node, of a read in a witness and of an expected terminal is a tag, or the written form of a range or a property, such as `'a'..'z'` or `'\p{L}'` (`docs/engine.md`, §4). Spans are `(start, end)` tuples, and source ranges are in code points.
 
 `result.warnings` lists the warnings of the nodes of the chosen tree of each stage. A node has one `ParseWarning` for each warning guard `f!` of its alternative whose feature `f` is on. The warnings come in stage order and then in tree order. Each has its `stage`, `feature`, `rule`, `span` and `source`. The list is empty when there are no warnings.
 

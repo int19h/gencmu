@@ -80,7 +80,7 @@ def term_type(term: Any) -> Found:
     must already be checked."""
     if isinstance(term.get("string"), str):
         return "string", None
-    if isinstance(term.get("tag"), str):
+    if isinstance(term.get("tag"), str) or "range" in term:
         return "tags", None
     if term.get("emptySet") is True:
         return "set", None

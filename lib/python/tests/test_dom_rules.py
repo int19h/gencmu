@@ -521,6 +521,54 @@ class PrecompiledDomRules(unittest.TestCase):
                 gencmu.load_dialect_sources({**sources, "unicode.txt": table}, "p.md", use_cache=use_cache)
             self.assertIn("lower case", str(caught.exception))
 
+    def test_ranges_and_properties(self) -> None:
+        """A precompiled range or property is checked as the reader checks
+        it (engine §9)."""
+        for name, expr, tags in (
+            ("a range", {"range": ["'a'", "'z'"]}, None),
+            ("a property", {"property": "White_Space"}, None),
+            ("captured", {"seq": [{"capture": "c", "expr": {"range": ["'\\u{300}'", "'\\u{36F}'"]}}, {"capture": "d", "expr": {"property": "Cs"}}]}, None),
+            ("a range in a term", {"ref": "A"}, {"union": [{"range": ["'a'", "'c'"]}, {"tag": "'x'"}]}),
+        ):
+            with self.subTest(allowed=name):
+                dom = copy.deepcopy(self.dom)
+                set_expr(expr)(dom)
+                rule(dom)["conditions"] = []
+                rule(dom).pop("tags", None)
+                rule(dom).pop("emit", None)
+                alt(dom).pop("tags", None)
+                if tags is not None:
+                    alt(dom)["tags"] = tags
+                self.assertIsNone(dom_problem(dom))
+        for name, expr, tags in (
+            ("a reversed range", {"range": ["'z'", "'a'"]}, None),
+            ("a range of one end", {"range": ["'a'"]}, None),
+            ("a range whose end is not canonical", {"range": ["'\\u{61}'", "'z'"]}, None),
+            ("a range whose end is no character tag", {"range": ["A", "'z'"]}, None),
+            ("a range that is also a terminal", {"range": ["'a'", "'z'"], "terminal": "A"}, None),
+            ("a long property name", {"property": "Letter"}, None),
+            ("a property name in other case", {"property": "lu"}, None),
+            ("a property that is also a range", {"property": "L", "range": ["'a'", "'z'"]}, None),
+            ("a spelled range", {"spelling": "a", "expr": {"range": ["'a'", "'z'"]}}, None),
+            ("a spelled property", {"spelling": "a", "expr": {"property": "L"}}, None),
+            ("a property in a term", {"ref": "A"}, {"property": "L"}),
+            ("a reversed range in a term", {"ref": "A"}, {"range": ["'z'", "'a'"]}),
+        ):
+            with self.subTest(refused=name):
+                dom = copy.deepcopy(self.dom)
+                set_expr(expr)(dom)
+                rule(dom)["conditions"] = []
+                rule(dom).pop("tags", None)
+                rule(dom).pop("emit", None)
+                alt(dom).pop("tags", None)
+                if tags is not None:
+                    alt(dom)["tags"] = tags
+                self.assertIsNotNone(dom_problem(dom))
+        # An inserted range or property is not one tag.
+        dom = copy.deepcopy(self.dom)
+        set_emit({"items": [{"insert": "'a'..'z'"}]})(dom)
+        self.assertIsNotNone(dom_problem(dom))
+
     def test_four_captures_are_allowed(self) -> None:
         dom = copy.deepcopy(self.dom)
         set_expr({"seq": [{"capture": name, "expr": A} for name in "xyzv"]})(dom)

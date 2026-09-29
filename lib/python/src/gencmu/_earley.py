@@ -4,6 +4,7 @@ captured parts' spans and tag sets, and the terms and conditions of engine
 
 from __future__ import annotations
 
+import itertools
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
@@ -11,7 +12,7 @@ from ._clauses import WHOLE
 from ._errors import _GrammarFault
 from ._grammar import Lowered, Production, written_symbol
 from ._model import Range, Tags, Token
-from ._tags import EMPTY, PAUSE, TagTable, difference, intersection, is_class, union
+from ._tags import EMPTY, PAUSE, TagTable, code_of_character_tag, difference, intersection, is_class, range_tags, union
 from ._trampoline import Walk, run
 from ._unicode import UnicodeTable
 
@@ -126,11 +127,47 @@ class StageContext:
     # Each token's phonemes lowercased, for the spellings of symbols,
     # computed when a spelling first looks at the token (engine §4).
     sounds: list[str | None] = field(init=False)
+    # Whether a range or a property matches a tag set, by the terminal's
+    # name and the set's number in the tag table (engine §4).
+    carried: dict[tuple[str, int], bool] = field(default_factory=dict)
+    # The tags of each range that a term holds, made once (engine §10).
+    range_sets: dict[tuple[str, str], Tags] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.token_tags = [self.tagtab.intern(token.tags) for token in self.tokens]
         self.sources = Sources(self.tokens)
         self.sounds = [None] * len(self.tokens)
+
+    def carries(self, terminal: str, tag_id: int) -> bool:
+        """Whether a tag set holds a character tag of a range or a property,
+        one of the lowered grammar's character terminals (engine §4). The
+        terminal matches once however many of its tags qualify."""
+        key = (terminal, tag_id)
+        found = self.carried.get(key)
+        if found is None:
+            characters = self.lowered.characters[terminal]
+            found = False
+            for tag in self.tagtab.get(tag_id):
+                code = code_of_character_tag(tag)
+                if code < 0:
+                    continue
+                if isinstance(characters, str):
+                    if self.unicode.has_property(characters, code):
+                        found = True
+                        break
+                elif characters[0] <= code <= characters[1]:
+                    found = True
+                    break
+            self.carried[key] = found
+        return found
+
+    def range_tags(self, ends: list[str]) -> Tags:
+        """The character tags of a range in a term (engine §10)."""
+        key = (ends[0], ends[1])
+        found = self.range_sets.get(key)
+        if found is None:
+            found = self.range_sets[key] = range_tags(ends, self.unicode)
+        return found
 
     def spelling_matches(self, spelling: str, start: int, end: int) -> bool:
         """Whether tokens start..end sound like a spelling: their phonemes,
@@ -324,6 +361,8 @@ class Evaluator:
             return dom["string"]
         if "tag" in dom:
             return frozenset((dom["tag"],))
+        if "range" in dom:
+            return self.context.range_tags(dom["range"])
         if "emptySet" in dom:
             return EMPTY
         if "if" in dom:
@@ -535,7 +574,10 @@ class Parser:
         # is not predicted, since its item could never advance; a rejection
         # at that position lists the terminals it expected all the same.
         by_first = lowered.by_first_terminal
+        by_first_characters = lowered.by_first_characters
         not_terminal_first = lowered.not_terminal_first
+        characters = lowered.characters
+        carries = context.carries
 
         def allowed(production: Production, j: int) -> bool:
             if not production.conds_predict:
@@ -556,6 +598,15 @@ class Parser:
                         for number in table.get(tag, ()):
                             if allowed(productions[number], j):
                                 add(number, 0, j, (), j, SEED)
+                # A range or a property matches by the token's characters.
+                table = by_first_characters[rule]
+                if table:
+                    token_tag = token_tags[base + j]
+                    for terminal, numbers in table.items():
+                        if carries(terminal, token_tag):
+                            for number in numbers:
+                                if allowed(productions[number], j):
+                                    add(number, 0, j, (), j, SEED)
 
         current = [0]
         following: list[int] = []
@@ -605,7 +656,9 @@ class Parser:
                 token = tokens[base + j]
                 token_tag = token_tags[base + j]
                 for terminal, waiters in scanning[j].items():
-                    if terminal in token.tags:
+                    # A range or a property matches by the token's
+                    # characters, and never by a tag (engine §4).
+                    if carries(terminal, token_tag) if characters and terminal in characters else terminal in token.tags:
                         for waiter in waiters:
                             advance(waiter, (j, j + 1, token_tag), j + 1, (waiter, 1, j, terminal))
         # The last set, if the parse reached it.
@@ -617,9 +670,10 @@ class Parser:
         ]
         expected: dict[str, set[str]] = {}
         here = tokens[base + furthest].tags if furthest < n else {}
+        here_tag = token_tags[base + furthest] if furthest < n else None
         for rule in predicted[furthest]:
-            for terminal, numbers in by_first[rule].items():
-                if terminal in here:
+            for terminal, numbers in itertools.chain(by_first[rule].items(), by_first_characters[rule].items()):
+                if here_tag is not None and (carries(terminal, here_tag) if terminal in characters else terminal in here):
                     continue
                 for number in numbers:
                     production = productions[number]

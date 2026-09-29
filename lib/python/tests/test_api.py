@@ -55,7 +55,7 @@ SOUNDS = """# Sounds
   [c] ...
 
 %rule c
-  's' </s/> | 'a' </a/> | 'm' </m/> | 'i' </i/> | ~space </./>
+  's' </s/> | 'a' </a/> | 'm' </m/> | 'i' </i/> | '\\p{White_Space}' </./>
 %emits
   $
 ```
@@ -314,7 +314,9 @@ class Output(unittest.TestCase):
             list(value["error"]),
             ["kind", "stage", "token", "source", "line", "column", "expected", "message"],
         )
-        self.assertEqual(value["error"]["expected"][0], {"terminal": "'a'", "rules": ["c"]})
+        # In code point order: a property is its written form (engine §4).
+        self.assertEqual(value["error"]["expected"][0], {"terminal": "'\\p{White_Space}'", "rules": ["c"]})
+        self.assertEqual(value["error"]["expected"][1], {"terminal": "'a'", "rules": ["c"]})
         self.assertIsNone(value["tree"])
 
     def test_brackets(self) -> None:

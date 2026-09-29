@@ -9,6 +9,7 @@ from typing import Any, Union
 
 from ._clauses import WHOLE, applies, captures_in, simplify_term
 from ._errors import GencmuError
+from ._tags import code_of_character_tag, property_name, range_name
 from ._trampoline import Walk, run
 
 Dom = dict[str, Any]
@@ -229,17 +230,32 @@ class Lowered:
     rule_productions: list[list[int]]
     rule_display: list[str]
     lean: str
+    # The ranges and properties among the terminals, by their written
+    # form, which is their name (engine §4): what each one matches.
+    characters: dict[str, CharacterClass] = field(default_factory=dict)
+    # The productions of each rule that begin with a terminal, by that
+    # terminal; those that begin with a range or a property are apart, since
+    # a token matches them by its characters and not by a tag.
     by_first_terminal: list[dict[str, list[int]]] = field(default_factory=list)
+    by_first_characters: list[dict[str, list[int]]] = field(default_factory=list)
     not_terminal_first: list[list[int]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         self.by_first_terminal = [{} for _ in self.rule_names]
+        self.by_first_characters = [{} for _ in self.rule_names]
         self.not_terminal_first = [[] for _ in self.rule_names]
         for production in self.productions:
             if production.rhs and production.terminal[0]:
-                self.by_first_terminal[production.lhs].setdefault(production.rhs[0], []).append(production.id)  # type: ignore[arg-type]
+                first: str = production.rhs[0]  # type: ignore[assignment]
+                table = self.by_first_characters if first in self.characters else self.by_first_terminal
+                table[production.lhs].setdefault(first, []).append(production.id)
             else:
                 self.not_terminal_first[production.lhs].append(production.id)
+
+
+CharacterClass = Union[tuple[int, int], str]
+"""What a range or a property matches: a range's first and last scalar
+values, or a property's name."""
 
 
 # A symbol of an expansion: ("t", tag) or ("n", rule id), with a third
@@ -267,6 +283,7 @@ class _Lowerer:
         self.productions: list[Production] = []
         self.current: Rule | None = None
         self.current_alt: Alternative | None = None
+        self.characters: dict[str, CharacterClass] = {}
 
     def fail(self, message: str) -> GencmuError:
         rule = self.current
@@ -309,6 +326,21 @@ class _Lowerer:
                 terminal: str = expr["terminal"]
                 return (terminal, spelling)
             return None
+
+    def character_class(self, expr: Dom) -> tuple[str, Any] | None:
+        """A range or a property as a terminal, whose name is its written
+        form, and which matches by its characters rather than by a tag
+        (engine §4); None for any other expression."""
+        if "range" in expr:
+            ends = expr["range"]
+            name = range_name(ends)
+            self.characters[name] = (code_of_character_tag(ends[0]), code_of_character_tag(ends[1]))
+            return ("t", name)
+        if "property" in expr:
+            name = property_name(expr["property"])
+            self.characters[name] = expr["property"]
+            return ("t", name)
+        return None
 
     def symbol(self, name: str) -> tuple[str, Any]:
         if is_terminal_name(name):
@@ -363,6 +395,8 @@ class _Lowerer:
             return [[(self.symbol(expr["ref"]), None)]]
         if "terminal" in expr:
             return [[(("t", expr["terminal"]), None)]]
+        if "range" in expr or "property" in expr:
+            return [[(self.character_class(expr), None)]]
         if "spelling" in expr:
             # A spelled symbol lowers to its symbol with the spelling, and
             # adds no helper (engine §3).
@@ -381,6 +415,8 @@ class _Lowerer:
                 symbol = self.symbol(inner["ref"])
             elif "terminal" in inner:
                 symbol = ("t", inner["terminal"])
+            elif "range" in inner or "property" in inner:
+                symbol = self.character_class(inner)  # type: ignore[assignment]
             else:
                 raise self.fail(f"the capture ${expr['capture']} does not wrap one symbol")
             if spelling is not None:
@@ -520,7 +556,7 @@ class _Lowerer:
                 # A capture may wrap a spelled symbol (engine §3.5).
                 if isinstance(inner, dict) and "spelling" in inner:
                     inner = inner.get("expr")
-                if not isinstance(inner, dict) or not ("ref" in inner or "terminal" in inner):
+                if not isinstance(inner, dict) or not ("ref" in inner or "terminal" in inner or "range" in inner or "property" in inner):
                     raise self.fail(f"the capture ${item['capture']} does not wrap one symbol")
             else:
                 nested.append(item)
@@ -587,6 +623,7 @@ class _Lowerer:
             rule_productions=rule_productions,
             rule_display=self.rule_display,
             lean=self.grammar.lean,
+            characters=self.characters,
         )
 
     def holds(self, guards: list[Dom]) -> bool:

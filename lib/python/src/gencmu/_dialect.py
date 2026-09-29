@@ -80,13 +80,13 @@ def _unicode_table(text: str) -> UnicodeTable:
 
 def character_tokens(text: str, unicode: UnicodeTable) -> list[Token]:
     """The input of a pipeline's first stage: one token per code point,
-    tagged with its character tag and its class (engine §1)."""
+    tagged with its character tag and nothing else (engine §1)."""
     tags: dict[str, frozenset[str]] = {}
     tokens: list[Token] = []
     for index, char in enumerate(text):
         found = tags.get(char)
         if found is None:
-            found = tags[char] = frozenset((character_tag(ord(char), unicode), unicode.character_class(char)))
+            found = tags[char] = frozenset((character_tag(ord(char), unicode),))
         tokens.append(Token(char, found, (index, index + 1), (index, index + 1)))
     return tokens
 
