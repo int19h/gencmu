@@ -63,9 +63,9 @@
 // # Concurrency
 //
 // A *Dialect is safe for concurrent use by several goroutines. Each parse
-// keeps its own state; the grammars a dialect lowers for each set of
-// features, and the classifiers each stage resolves for it, are cached
-// under a mutex and never change once built.
+// keeps its own state. A dialect caches the lowered grammars and resolved
+// classifiers for each set of features under a mutex. These values never
+// change once built.
 //
 // # Ambiguity
 //

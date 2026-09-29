@@ -348,7 +348,7 @@ These are the product, not an afterthought:
 - A tie shows the two derivations side by side from the first difference.
 - Stage inspection shows the tokens that every stage emitted, with their tags.
 - The trace shows, for one position, which items the recognizer predicted, completed and dropped, and which condition dropped them. This is the tool for "why does my grammar not accept this".
-- The audit reports undefined and unreachable rules, every rule that a later document replaced or extended, and `%emits ε` that changes nothing. It also lists, for each classifier, where each membership is added and where it is removed, with the gates of each entry. Such an `%emits ε` is over text that can never emit a token or be covered by one. A condition that applies to no alternative is not an audit finding. It is an error of the grammar.
+- The audit reports undefined and unreachable rules, every rule that a later document replaced or extended, and `%emits ε` that changes nothing. Such an `%emits ε` is over text that can never emit a token or be covered by one. The audit data lists every membership change, with its key, class, gates and document. The printed report shows the gated memberships and those that more than one entry changes. A condition that applies to no alternative is not an audit finding. It is an error of the grammar.
 
 ## CLI and playground
 

@@ -38,7 +38,9 @@ result = dialect.parse(text, features=(), without_features=(), auto_features=Tru
 - `until`: the name of the last stage to run. An unknown name raises `GencmuError` with `kind` `"usage"`.
 - `elision_only`: `True` or `False` to override the grammars' `%ambiguity-resolution ... elision-only`.
 
-A `text` with a lone surrogate raises `GencmuError` with `kind` `"usage"`. A text that does not parse is a result whose `ok` is false and whose `error` says why. The kind of that error is `rejected`, `ambiguous` or `grammar`. Here, `grammar` is for a defect of a grammar found only while parsing. An example is a classifier's entry that adds a class that a key already has, under the features of the parse. The message of that error names the document, line and column of the entry. For tests and tools, `Dialect.parse_tokens(tokens, text, ...)` takes pre-built tokens in place of the characters of the first stage.
+A `text` with a lone surrogate raises `GencmuError` with `kind` `"usage"`. A text that does not parse is a result whose `ok` is false and whose `error` says why. The kind of that error is `rejected`, `ambiguous` or `grammar`. Here, `grammar` is for a defect of a grammar found only while parsing. An example is a classifier's entry that adds a class that a key already has, under the features of the parse. The message of that error names the document, line and column of the entry.
+
+For tests and tools, `Dialect.parse_tokens(tokens, text, ...)` takes pre-built tokens in place of the characters of the first stage.
 
 `dialect.features` lists the features of the dialect in code point order of their names, as a tuple of `Feature`. The list includes the gates of the entries of its classifiers. Each `Feature` has these fields:
 

@@ -210,7 +210,7 @@ An entry that adds a class that a key already has is an error. So is an entry th
 
 `classify(string, name)` (see "Conditions") is the set of the classes that the classifier gives the string. It is empty for a string that no entry names. A name that no `%classifier` of the stage uses is an error. `tags(span, rule)` is still the way to ask a rule for the tags of a span, as `brivla-scan` does in the CLL word forms.
 
-The audit (see "Stitching documents") lists every entry of every classifier. It says which class the entry adds to each key or removes from it, with the entry's gates and its document.
+The audit data lists every membership change, with its key, class, gates and document. The printed report shows the gated memberships and those that more than one entry changes.
 
 ## Implications
 

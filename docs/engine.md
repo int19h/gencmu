@@ -509,7 +509,9 @@ An empty delimiter is an error. It is an error of the document when the delimite
 
 `tag(a)` needs a name (§9) for `a`. Any other string is an error. When the reader sees it, as a string literal or a constant, it is an error of the document. Otherwise it is an error of the grammar when a parse evaluates the `tag`.
 
-A closed term uses no capture and no span. It holds only strings, tag literals, ranges, `∅`, constants, the operators `∪`, `∩` and `∖`, and `split` and `tag` of closed terms. So it never holds `classify`, whose value depends on the features. A constant's value is a closed term, whose type is a string, a set of strings or a tag set. So is the value of a test (§2), whose type is a string or a tag set. So is each side of an implication, whose type is a tag set. The loader evaluates a constant's value when it stitches the stage (§2), as a parse evaluates a term.
+A closed term uses no capture and no span. It holds only strings, tag literals, ranges, `∅`, constants, the operators `∪`, `∩` and `∖`, and `split` and `tag` of closed terms. So it never holds `classify`, whose value depends on the features.
+
+A constant's value is a closed term, whose type is a string, a set of strings or a tag set. So is the value of a test (§2), whose type is a string or a tag set. So is each side of an implication, whose type is a tag set. The loader evaluates a constant's value when it stitches the stage (§2), as a parse evaluates a term.
 
 `..` binds tighter than every other operator, since its two sides are character tags. So `'a'..'c' ∪ 'x'` is `('a'..'c') ∪ 'x'`.
 
