@@ -1,0 +1,31 @@
+{
+  "description": "A tag-set constant stands in a tag term and in a condition (engine §2, §10).",
+  "grammar": "%const $MARKS ~word ∪ C\n%rule text $w(word)\n%conditions $MARKS ⊆ tags($w), tags($w) ∩ $MARKS ≠ ∅\n%rule word A <$MARKS>",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "word",
+            "tags": [
+              "C",
+              "word"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

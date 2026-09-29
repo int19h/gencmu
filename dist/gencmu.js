@@ -147,6 +147,18 @@
   }
 
   /**
+   * The value of split(string, delimiter) (engine §10): the pieces between
+   * the occurrences of the delimiter, found from the left without overlap,
+   * with the empty pieces dropped. The delimiter is not empty.
+   * @param {string} string
+   * @param {string} delimiter
+   * @returns {Set<string>}
+   */
+  function splitString(string, delimiter) {
+    return new Set(string.split(delimiter).filter((piece) => piece !== ""));
+  }
+
+  /**
    * Whether a tag is a phoneme tag: three code points, the first and last
    * `/` (engine §1).
    * @param {string} tag
@@ -468,8 +480,9 @@
       this.unicode = unicode;
       this.interner = new TagInterner();
       /**
-       * Each token's phonemes lowercased, for the spellings of symbols,
-       * computed when a spelling first looks at the token (engine §4).
+       * Each token's phonemes in canonical form, for the spellings of
+       * symbols and for phonemes(), computed when one first looks at the
+       * token (engine §4, §5).
        * @type {(string | undefined)[]}
        */
       this.sounds = new Array(tokens.length);
@@ -798,8 +811,8 @@
   }
 
   /**
-   * Whether the tokens [from, to) sound like a spelling: their phonemes,
-   * joined and lowercased, are exactly it (engine §4). A token with no
+   * Whether the tokens [from, to) sound like a spelling: their canonical
+   * sound is exactly it (engine §4, §5). A token with no
    * phonemes adds nothing, and a spelling is never empty, so neither such a
    * token alone nor an empty span matches.
    * @param {ParseContext} context
@@ -811,12 +824,25 @@
   function spellingMatches(context, spelling, from, to) {
     let offset = 0;
     for (let index = from; index < to; index++) {
-      let sound = context.sounds[index];
-      if (sound === undefined) sound = context.sounds[index] = context.unicode.lowercase(context.tokens[index].phonemes || "");
+      const sound = canonicalSound(context, index);
       if (!spelling.startsWith(sound, offset)) return false;
       offset += sound.length;
     }
     return offset === spelling.length;
+  }
+
+  /**
+   * A token's phonemes in canonical form (engine §5), remembered for the
+   * parse. The lowercase mapping and the removal of commas act on each code
+   * point alone, so the canonical sound of a span is its tokens' joined.
+   * @param {ParseContext} context
+   * @param {number} index
+   * @returns {string}
+   */
+  function canonicalSound(context, index) {
+    let sound = context.sounds[index];
+    if (sound === undefined) sound = context.sounds[index] = context.unicode.canonical(context.tokens[index].phonemes || "");
+    return sound;
   }
 
   // One token of lookahead: an item whose first symbol is a terminal the next
@@ -1015,18 +1041,6 @@
   }
 
   /**
-   * @param {Token[]} tokens
-   * @param {number} start
-   * @param {number} end
-   * @returns {string}
-   */
-  function phonemesOf(tokens, start, end) {
-    let result = "";
-    for (let index = start; index < end; index++) result += tokens[index].phonemes || "";
-    return result;
-  }
-
-  /**
    * @param {ParseContext} context
    * @param {number} start
    * @param {number} end
@@ -1062,6 +1076,11 @@
   function evaluate(context, term, scope) {
     if ("string" in term) return { string: term.string };
     if ("tag" in term) return { set: tagSet([term.tag]) };
+    // A constant holds its final value once the stage is stitched (engine §2).
+    if ("const" in term) {
+      if (!term.value) throw new GencmuError("grammar", `the constant $${term.const} has no value`);
+      return term.value;
+    }
     if ("range" in term) {
       let tags = rangeSets.get(term);
       if (!tags) rangeSets.set(term, (tags = rangeTags(term.range, context.unicode)));
@@ -1082,21 +1101,28 @@
       const args = term.args;
       switch (term.call) {
         case "phonemes": {
+          // The canonical sound (engine §5).
           const span = spanOf(context, args[0], scope);
-          return { string: phonemesOf(context.tokens, span.start, span.end) };
+          let sound = "";
+          for (let index = span.start; index < span.end; index++) sound += canonicalSound(context, index);
+          return { string: sound };
         }
         case "text": {
           const span = spanOf(context, args[0], scope);
           return { string: textOf(context, span.start, span.end) };
         }
-        case "lowercase": {
-          const inner = evaluate(context, args[0], scope);
-          return { string: context.unicode.lowercase(asString(inner)) };
+        case "split": {
+          // A set of strings (engine §10); an empty delimiter that only a
+          // parse sees is an error of the grammar.
+          const string = asString(evaluate(context, args[0], scope));
+          const delimiter = asString(evaluate(context, args[1], scope));
+          if (delimiter === "") throw new GencmuError("grammar", "split has an empty delimiter");
+          return { set: splitString(string, delimiter) };
         }
-        case "runs": {
-          // A set of strings (engine §5).
-          const span = spanOf(context, args[0], scope);
-          return { set: new Set(phonemesOf(context.tokens, span.start, span.end).split(".").filter((run) => run !== "")) };
+        case "tag": {
+          const name = asString(evaluate(context, args[0], scope));
+          if (!isName(name)) throw new GencmuError("grammar", `tag(${JSON.stringify(name)}): the string is not a name`);
+          return { set: tagSet([name]) };
         }
         case "tags": {
           const span = spanOf(context, args[0], scope);
@@ -2006,6 +2032,17 @@
     }
 
     /**
+     * The canonical form of a sound (engine §5): each code point replaced by
+     * its simple lowercase mapping, and every comma, the syllable break,
+     * removed.
+     * @param {string} text
+     * @returns {string}
+     */
+    canonical(text) {
+      return this.lowercase(text).replace(/,/g, "");
+    }
+
+    /**
      * @param {string} text
      * @returns {string}
      */
@@ -2030,7 +2067,7 @@
 
   /** @import { Argument, GrammarDom, Term } from "./types.js" */
 
-  const DOM_FUNCTIONS = new Set(["phonemes", "text", "lowercase", "tags", "classes", "runs", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]);
+  const DOM_FUNCTIONS = new Set(["phonemes", "text", "split", "tag", "tags", "classes", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]);
   const DOM_COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆", "⊈"]);
   const DOM_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
   // A capture's name is all lower case (engine §9).
@@ -2040,13 +2077,16 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 10;
+  const DOM_FORMAT = 11;
+  // A constant's name, without its `$`, begins with a capital (engine §2).
+  const CONSTANT_NAME = /^[A-Z][A-Za-z0-9-]*$/;
 
   /**
    * What is wrong with a spelling of a symbol (engine §9), or null: an empty
    * spelling, one with a backtick, which the notation cannot write, one that
-   * the lowercase mapping would change, since the match ignores stress, or
-   * one of anything but a reference, a string or a phoneme tag, `#` included.
+   * no canonical sound can be, with a comma or a code point that the
+   * lowercase mapping would change, or one of anything but a reference or a
+   * terminal, `#` included.
    * The spelled symbol is exactly one reference or one terminal, so that no
    * node is read one way here and another way when lowered. Without a table,
    * the lowercase mapping is not checked.
@@ -2063,6 +2103,7 @@
         !((typeof expr.ref === "string" && expr.ref !== "#") || typeof expr.terminal === "string")) {
       return "a spelling follows only a reference other than # or a terminal";
     }
+    if (spelling.includes(",")) return `the spelling ${spelling} holds a comma, which no canonical sound holds`;
     if (unicode && unicode.lowercase(spelling) !== spelling) return `the spelling ${spelling} is not in lower case`;
     return null;
   }
@@ -2150,7 +2191,7 @@
    * The forms of a term, each as its members (docs/output.md). The first
    * member names the form.
    */
-  const TERM_FORMS = [["union"], ["intersection"], ["difference"], ["if", "then"], ["call", "args"], ["string"], ["tag"], ["range"], ["emptySet"], ["capture"]];
+  const TERM_FORMS = [["union"], ["intersection"], ["difference"], ["if", "then"], ["call", "args"], ["string"], ["tag"], ["range"], ["emptySet"], ["capture"], ["const", "at"]];
 
   /**
    * Whether a term node has exactly the members of one form, and no other.
@@ -2171,7 +2212,7 @@
    * @returns {string | null}
    */
   function domProblem(dom, unicode) {
-    if (!isDomObject(dom) || dom.format !== DOM_FORMAT || !Array.isArray(dom.rules) || !Array.isArray(dom.directives)) return `not a DOM of format ${DOM_FORMAT}`;
+    if (!isDomObject(dom) || dom.format !== DOM_FORMAT || !Array.isArray(dom.rules) || !Array.isArray(dom.directives) || !Array.isArray(dom.constants)) return `not a DOM of format ${DOM_FORMAT}`;
     for (const directive of dom.directives) {
       if (!isDomObject(directive) || typeof directive.name !== "string" || !Array.isArray(directive.args) ||
           !directive.args.every((arg) => typeof arg === "string") || !isDomPosition(directive.at)) return "a malformed directive";
@@ -2184,6 +2225,15 @@
     }
     /** @type {{kind: string, value: unknown, depth: number}[]} */
     const pending = [];
+    // A constant's definition: its name, its op, its position and a value
+    // that is a closed term (engine §2, §10).
+    for (const constant of dom.constants) {
+      if (!isDomObject(constant) || typeof constant.name !== "string" || !CONSTANT_NAME.test(constant.name) ||
+          (constant.op !== "define" && constant.op !== "redefine") || !isDomPosition(constant.at) || !("value" in constant) ||
+          Object.keys(constant).length !== 4) return "a malformed constant";
+      if (openPart(constant.value) !== null) return "a constant's value is not a closed term";
+      pending.push({ kind: "term", value: constant.value, depth: 0 });
+    }
     for (const rule of dom.rules) {
       if (!isDomObject(rule) || typeof rule.name !== "string" || !(DOM_NAME.test(rule.name) || rule.name === "#") || !["define", "redefine", "extend"].includes(/** @type {string} */ (rule.op)) ||
           !Array.isArray(rule.alternatives) || rule.alternatives.length === 0 || !Array.isArray(rule.conditions) || !isDomPosition(rule.at) ||
@@ -2342,12 +2392,16 @@
           let ok;
           if (typeof call !== "string" || !DOM_FUNCTIONS.has(call) || call === "matches" || call === "begins" || call === "initial") ok = false;
           else if (call === "tags") ok = (args.length === 1 && isDomSpan(args[0])) || (args.length === 2 && isDomSpan(args[0]) && isRule(args[1]));
-          else if (call === "lowercase") ok = args.length === 1 && !isRule(args[0]) && !isDomSpan(args[0]);
+          else if (call === "split") ok = args.length === 2 && args.every((arg) => !isRule(arg) && !isDomSpan(arg));
+          else if (call === "tag") ok = args.length === 1 && !isRule(args[0]) && !isDomSpan(args[0]);
           else ok = args.length === 1 && isDomSpan(args[0]);
           if (!ok || (!argument && DOM_SPANS.has(/** @type {string} */ (call)))) return "a malformed term";
+          const seen = literalCallProblem(/** @type {string} */ (call), args);
+          if (seen) return seen;
           for (const arg of args) if (!isRule(arg)) pending.push({ kind: "argument", value: arg, depth: next });
         } else if (!(typeof value.string === "string" || isTag(value.tag, unicode) || value.emptySet === true || typeof value.capture === "string" ||
-            ("range" in value && rangeProblem(value.range, unicode) === null))) {
+            ("range" in value && rangeProblem(value.range, unicode) === null) ||
+            (typeof value.const === "string" && CONSTANT_NAME.test(value.const) && isDomPosition(value.at)))) {
           return "a malformed term";
         }
       }
@@ -2358,13 +2412,36 @@
       const problem = definitionProblem(rule) || ruleTypeProblem(rule);
       if (problem) return problem;
     }
+    for (const constant of /** @type {any[]} */ (dom.constants)) {
+      const problem = valueTypeProblem(constant.value, constant.op === "redefine");
+      if (problem) return problem;
+    }
     // The order of a document's items is the order of their positions, so no
     // two items share one (engine §9).
     const positions = new Set();
-    for (const item of [.../** @type {{at: [number, number]}[]} */ (dom.rules), .../** @type {{at: [number, number]}[]} */ (dom.directives)]) {
+    for (const item of [.../** @type {{at: [number, number]}[]} */ (dom.rules), .../** @type {{at: [number, number]}[]} */ (dom.directives),
+      .../** @type {{at: [number, number]}[]} */ (dom.constants)]) {
       const key = `${item.at[0]}:${item.at[1]}`;
       if (positions.has(key)) return "two items at one position";
       positions.add(key);
+    }
+    return null;
+  }
+
+  /**
+   * What is wrong with a call of split or tag whose argument the reader sees
+   * as a string literal (engine §9, §10), or null: an empty delimiter, or a
+   * tag's string that is not a name.
+   * @param {string} call
+   * @param {unknown[]} args
+   * @returns {string | null}
+   */
+  function literalCallProblem(call, args) {
+    const literal = (/** @type {unknown} */ arg) => (isDomObject(arg) && typeof arg.string === "string" ? arg.string : null);
+    if (call === "split" && literal(args[1]) === "") return "split has an empty delimiter";
+    if (call === "tag") {
+      const name = literal(args[0]);
+      if (name !== null && !DOM_NAME.test(name)) return `tag(${JSON.stringify(name)}): the string is not a name`;
     }
     return null;
   }
@@ -2477,7 +2554,11 @@
    * @returns {boolean}
    */
   function isEmptySet(node) {
-    return isDomObject(node) && node.emptySet === true && Object.keys(node).length === 1;
+    if (!isDomObject(node)) return false;
+    if (node.emptySet === true && Object.keys(node).length === 1) return true;
+    // A constant is its value here, once the loader has given it one (engine
+    // §3.6).
+    return typeof node.const === "string" && isDomObject(node.value) && node.value.set instanceof Set && node.value.set.size === 0;
   }
 
   /**
@@ -2597,13 +2678,22 @@
   // ---- Types (engine §10) -------------------------------------------------
 
   /**
-   * A term's type: a string, a set of strings, a tag set, a span, or a set
-   * whose kind nothing has given yet, such as `∅`.
-   * @typedef {"string" | "strings" | "tags" | "span" | "set"} TermType
+   * A term's type: a string, a set of strings, a tag set, a span, a set
+   * whose kind nothing has given yet, such as `∅`, or, for a constant that
+   * the reader cannot know, any type but a span (engine §9).
+   * @typedef {"string" | "strings" | "tags" | "span" | "set" | "any"} TermType
+   */
+
+  /**
+   * The type of each constant, where the loader knows it (engine §2); the
+   * reader knows none, and gives every constant the type `any`.
+   * @typedef {(name: string) => TermType} ConstantTypes
    */
 
   const SET_KINDS = new Set(["strings", "tags", "set"]);
-  const TYPE_NAMES = { string: "a string", strings: "a set of strings", tags: "a tag set", span: "a span", set: "a set" };
+  const TYPE_NAMES = { string: "a string", strings: "a set of strings", tags: "a tag set", span: "a span", set: "a set", any: "a value" };
+  /** @type {ConstantTypes} */
+  const UNKNOWN_CONSTANTS = () => "any";
 
   /**
    * The type of the value a function gives (engine §10).
@@ -2611,30 +2701,34 @@
    * @returns {TermType}
    */
   function callType(call) {
-    if (call === "phonemes" || call === "text" || call === "lowercase") return "string";
-    if (call === "runs") return "strings";
-    if (call === "tags" || call === "classes") return "tags";
+    if (call === "phonemes" || call === "text") return "string";
+    if (call === "split") return "strings";
+    if (call === "tags" || call === "classes" || call === "tag") return "tags";
     return "span";
   }
 
   /**
    * The kind of sets joined by ∪, ∩ or ∖, or why they cannot be joined: each
-   * is a set, and all whose kind is known have one kind.
+   * is a set, and all whose kind is known have one kind. A constant whose
+   * type is not known yet fits any set.
    * @param {TermType[]} types
    * @param {string} operator
    * @returns {{type: TermType} | {problem: string}}
    */
   function joinedType(types, operator) {
     if (types.includes("span")) return { problem: "a span is not a value: tags($x) is the tag set of $x" };
-    const bad = types.find((type) => !SET_KINDS.has(type));
+    const known = types.filter((type) => type !== "any");
+    const bad = known.find((type) => !SET_KINDS.has(type));
     if (bad) return { problem: `${operator} joins sets, not ${TYPE_NAMES[bad]}` };
-    const kinds = new Set(types.filter((type) => type !== "set"));
+    const kinds = new Set(known.filter((type) => type !== "set"));
     if (kinds.size > 1) return { problem: `${operator} joins two sets of one kind, not a set of strings and a tag set` };
-    return { type: kinds.size ? /** @type {TermType} */ ([...kinds][0]) : "set" };
+    if (kinds.size) return { type: /** @type {TermType} */ ([...kinds][0]) };
+    return { type: known.length < types.length ? "any" : "set" };
   }
 
   /**
-   * Why a comparison's two sides do not fit its comparator, or null.
+   * Why a comparison's two sides do not fit its comparator, or null. A side
+   * of type `any` fits, and the loader checks it again (engine §9).
    * @param {string} op
    * @param {TermType} left
    * @param {TermType} right
@@ -2643,8 +2737,8 @@
   function comparisonProblem(op, left, right) {
     if (left === "span" || right === "span") return "a span is not a value: tags($x) is the tag set of $x";
     if (op === "∈" || op === "∉") {
-      if (left !== "string") return `${op} tests a string, not ${TYPE_NAMES[left]}, in a set of strings; ⊆ and ⊈ compare two sets`;
-      if (right !== "strings" && right !== "set") return `${op} tests a string in a set of strings, not in ${TYPE_NAMES[right]}`;
+      if (left !== "string" && left !== "any") return `${op} tests a string, not ${TYPE_NAMES[left]}, in a set of strings; ⊆ and ⊈ compare two sets`;
+      if (right !== "strings" && right !== "set" && right !== "any") return `${op} tests a string in a set of strings, not in ${TYPE_NAMES[right]}`;
       return null;
     }
     if (op === "⊆" || op === "⊈") {
@@ -2653,6 +2747,7 @@
       return joined.type === "set" ? `the kind of the sets that ${op} compares is not given` : null;
     }
     // = and ≠ compare two values of one type.
+    if (left === "any" || right === "any") return null;
     if (left === "string" || right === "string") return left === right ? null : `${op} compares two values of one type, not ${TYPE_NAMES[left]} and ${TYPE_NAMES[right]}`;
     const joined = joinedType([left, right], op);
     if ("problem" in joined) return joined.problem;
@@ -2661,60 +2756,98 @@
 
   /**
    * Why a term of type `type` cannot stand where `expected` is needed, or
-   * null. A set of open kind takes the kind it is given.
+   * null. A set of open kind takes the kind it is given, and a constant of
+   * unknown type fits.
    * @param {TermType} type
    * @param {"string" | "tags"} expected
    * @returns {string | null}
    */
   function expectedProblem(type, expected) {
-    if (type === expected || (type === "set" && expected === "tags")) return null;
+    if (type === expected || type === "any" || (type === "set" && expected === "tags")) return null;
     if (type === "span") return "a span is not a value: tags($x) is the tag set of $x";
     return `${TYPE_NAMES[expected]} is needed here, not ${TYPE_NAMES[type]}`;
   }
 
   /**
-   * The type of a term, or why its parts do not agree (engine §10). The
-   * term's shape must already be checked.
-   * @param {any} term
-   * @returns {{type: TermType} | {problem: string}}
+   * A disagreement of types, and the smallest construct that holds it.
+   * @typedef {{problem: string, node: any}} TypeFault
    */
-  function termType(term) {
+
+  /**
+   * The type of a term, or why its parts do not agree (engine §10), with the
+   * smallest construct whose parts disagree. The term's shape must already
+   * be checked. `constants` gives the type of each constant.
+   * @param {any} term
+   * @param {ConstantTypes} [constants]
+   * @returns {{type: TermType} | TypeFault}
+   */
+  function termType(term, constants = UNKNOWN_CONSTANTS) {
     if (typeof term.string === "string") return { type: "string" };
     if (typeof term.tag === "string" || "range" in term) return { type: "tags" };
     if (term.emptySet === true) return { type: "set" };
     if (typeof term.capture === "string") return { type: "span" };
+    if (typeof term.const === "string") return { type: constants(term.const) };
     for (const [key, operator] of [["union", "∪"], ["intersection", "∩"], ["difference", "∖"]]) {
       if (!Array.isArray(term[key])) continue;
       /** @type {TermType[]} */
       const types = [];
       for (const item of term[key]) {
-        const found = termType(item);
+        const found = termType(item, constants);
         if ("problem" in found) return found;
         types.push(found.type);
       }
-      return joinedType(types, operator);
+      const joined = joinedType(types, operator);
+      return "problem" in joined ? { problem: joined.problem, node: term } : joined;
     }
     if ("if" in term) {
-      const problem = conditionTypeProblem(term.if);
-      if (problem) return { problem };
-      const then = termType(term.then);
+      const fault = conditionTypeFault(term.if, constants);
+      if (fault) return fault;
+      const then = termType(term.then, constants);
       if ("problem" in then) return then;
       const wrong = expectedProblem(then.type, "tags");
-      return wrong ? { problem: wrong } : { type: "tags" };
+      return wrong ? { problem: wrong, node: term } : { type: "tags" };
     }
     if (typeof term.call === "string") {
       for (const argument of term.args) {
         if ("rule" in argument) continue;
-        const found = termType(argument);
+        const found = termType(argument, constants);
         if ("problem" in found) return found;
-        if (term.call === "lowercase") {
+        if (term.call === "split" || term.call === "tag") {
           const wrong = expectedProblem(found.type, "string");
-          if (wrong) return { problem: `lowercase takes one string: ${wrong}` };
+          if (wrong) return { problem: `${term.call} takes ${term.call === "split" ? "two strings" : "one string"}: ${wrong}`, node: term };
         }
       }
       return { type: callType(term.call) };
     }
-    return { problem: "a malformed term" };
+    return { problem: "a malformed term", node: term };
+  }
+
+  /**
+   * Why a condition's terms do not agree in type, with the smallest
+   * construct that disagrees, or null (engine §10).
+   * @param {any} condition
+   * @param {ConstantTypes} [constants]
+   * @returns {TypeFault | null}
+   */
+  function conditionTypeFault(condition, constants = UNKNOWN_CONSTANTS) {
+    if (Array.isArray(condition.any) || Array.isArray(condition.all)) {
+      for (const item of condition.any ?? condition.all) {
+        const fault = conditionTypeFault(item, constants);
+        if (fault) return fault;
+      }
+      return null;
+    }
+    if ("not" in condition) return conditionTypeFault(condition.not, constants);
+    if ("if" in condition) return conditionTypeFault(condition.if, constants) || conditionTypeFault(condition.then, constants);
+    if (typeof condition.op === "string") {
+      const left = termType(condition.left, constants);
+      if ("problem" in left) return left;
+      const right = termType(condition.right, constants);
+      if ("problem" in right) return right;
+      const problem = comparisonProblem(condition.op, left.type, right.type);
+      return problem ? { problem, node: condition } : null;
+    }
+    return null;
   }
 
   /**
@@ -2723,35 +2856,44 @@
    * @returns {string | null}
    */
   function conditionTypeProblem(condition) {
-    if (Array.isArray(condition.any) || Array.isArray(condition.all)) {
-      for (const item of condition.any ?? condition.all) {
-        const problem = conditionTypeProblem(item);
-        if (problem) return problem;
-      }
-      return null;
-    }
-    if ("not" in condition) return conditionTypeProblem(condition.not);
-    if ("if" in condition) return conditionTypeProblem(condition.if) || conditionTypeProblem(condition.then);
-    if (typeof condition.op === "string") {
-      const left = termType(condition.left);
-      if ("problem" in left) return left.problem;
-      const right = termType(condition.right);
-      if ("problem" in right) return right.problem;
-      return comparisonProblem(condition.op, left.type, right.type);
-    }
-    return null;
+    const fault = conditionTypeFault(condition);
+    return fault ? fault.problem : null;
   }
 
   /**
    * Why a term that must be a tag set, a constituent's or an item's, is not
-   * one, or null.
+   * one, with the construct at fault, or null.
    * @param {any} term
-   * @returns {string | null}
+   * @param {ConstantTypes} [constants]
+   * @returns {TypeFault | null}
    */
-  function tagTermProblem(term) {
-    const found = termType(term);
-    if ("problem" in found) return found.problem;
-    return expectedProblem(found.type, "tags");
+  function tagTermFault(term, constants) {
+    const found = termType(term, constants);
+    if ("problem" in found) return found;
+    const problem = expectedProblem(found.type, "tags");
+    return problem ? { problem, node: term } : null;
+  }
+
+  /**
+   * Why a rule's terms and conditions do not agree in type, with the
+   * construct at fault, or null.
+   * @param {any} rule
+   * @param {ConstantTypes} [constants]
+   * @returns {TypeFault | null}
+   */
+  function ruleTypeFault(rule, constants) {
+    const tagTerms = [rule.tags, ...rule.alternatives.map((/** @type {any} */ alternative) => alternative.tags),
+      ...(rule.emit ? rule.emit.items.map((/** @type {any} */ item) => item.tags) : [])];
+    for (const term of tagTerms) {
+      if (term === undefined) continue;
+      const fault = tagTermFault(term, constants);
+      if (fault) return fault;
+    }
+    for (const condition of rule.conditions) {
+      const fault = conditionTypeFault(condition, constants);
+      if (fault) return fault;
+    }
+    return null;
   }
 
   /**
@@ -2760,18 +2902,90 @@
    * @returns {string | null}
    */
   function ruleTypeProblem(rule) {
-    const tagTerms = [rule.tags, ...rule.alternatives.map((/** @type {any} */ alternative) => alternative.tags),
-      ...(rule.emit ? rule.emit.items.map((/** @type {any} */ item) => item.tags) : [])];
-    for (const term of tagTerms) {
-      if (term === undefined) continue;
-      const problem = tagTermProblem(term);
-      if (problem) return problem;
+    const fault = ruleTypeFault(rule);
+    return fault ? fault.problem : null;
+  }
+
+  /**
+   * The type of a constant's value, or why it cannot be one (engine §2,
+   * §10): a string, a set of strings or a tag set. A redefinition keeps the
+   * constant's type, which gives `∅` its kind, so its value can be of open
+   * kind.
+   * @param {any} value
+   * @param {boolean} redefine
+   * @param {ConstantTypes} [constants]
+   * @returns {{type: TermType} | TypeFault}
+   */
+  function constantValueType(value, redefine, constants) {
+    const found = termType(value, constants);
+    if ("problem" in found) return found;
+    if (found.type === "span") return { problem: "a constant's value is a string or a set, never a span", node: value };
+    if (found.type === "set" && !redefine) return { problem: "the kind of the set that the constant holds is not given", node: value };
+    return found;
+  }
+
+  /**
+   * Why a constant's value cannot be one, or null.
+   * @param {any} value
+   * @param {boolean} redefine
+   * @returns {string | null}
+   */
+  function valueTypeProblem(value, redefine) {
+    const found = constantValueType(value, redefine);
+    return "problem" in found ? found.problem : null;
+  }
+
+  // ---- Constants (engine §2, §10) -----------------------------------------
+
+  /**
+   * The first part of a term that is not closed (engine §10), or null: a
+   * capture, a guarded term, or a call of anything but split and tag. The
+   * shape of the term need not be checked.
+   * @param {unknown} term
+   * @returns {any}
+   */
+  function openPart(term) {
+    if (!isDomObject(term)) return null;
+    if ("capture" in term || "if" in term) return term;
+    if (typeof term.call === "string") {
+      if (term.call !== "split" && term.call !== "tag") return term;
+      for (const argument of Array.isArray(term.args) ? term.args : []) {
+        const open = openPart(argument);
+        if (open) return open;
+      }
+      return null;
     }
-    for (const condition of rule.conditions) {
-      const problem = conditionTypeProblem(condition);
-      if (problem) return problem;
+    for (const key of ["union", "intersection", "difference"]) {
+      const items = term[key];
+      if (!Array.isArray(items)) continue;
+      for (const item of items) {
+        const open = openPart(item);
+        if (open) return open;
+      }
     }
     return null;
+  }
+
+  /**
+   * The references to constants in a term, a condition, a rule or any part
+   * of a DOM, in the order written.
+   * @param {unknown} node
+   * @returns {import("./types.js").ConstantTerm[]}
+   */
+  function constantsIn(node) {
+    /** @type {import("./types.js").ConstantTerm[]} */
+    const found = [];
+    /** @param {unknown} current */
+    const walk = (current) => {
+      if (Array.isArray(current)) {
+        for (const item of current) walk(item);
+      } else if (isDomObject(current)) {
+        if (typeof current.const === "string") found.push(/** @type {any} */ (current));
+        else for (const value of Object.values(current)) walk(value);
+      }
+    };
+    walk(node);
+    return found;
   }
 
   // ---- diagnostics.js
@@ -3011,6 +3225,7 @@
     if ("tag" in term) return /^[a-z]/.test(term.tag) ? `~${term.tag}` : term.tag;
     if ("range" in term) return `${term.range[0]}..${term.range[1]}`;
     if ("emptySet" in term) return "∅";
+    if ("const" in term) return `$${term.const}`;
     /** @type {(item: Term) => string} */
     const grouped = (item) => ("union" in item || "difference" in item ? `(${formatTerm(item)})` : formatTerm(item));
     if ("union" in term) return term.union.map((item, index) => (index > 0 && "difference" in item ? grouped(item) : formatTerm(item))).join(" ∪ ");
@@ -3238,6 +3453,7 @@
   function namesPhoneme(term) {
     if (!term) return false;
     if ("tag" in term) return isPhonemeTag(term.tag);
+    if ("const" in term) return Boolean(term.value && "set" in term.value && [...term.value.set].some(isPhonemeTag));
     if ("union" in term) return term.union.some(namesPhoneme);
     return false;
   }
@@ -3413,7 +3629,17 @@
 
 
   /**
-   * @import { Condition, DomAlternative, Emission, ErrorLocation, Expr, GrammarDom, Guard, LoweredGrammar, Production, Resolution, Term } from "./types.js"
+   * @import { Condition, ConstantTerm, DomAlternative, DomConstant, DomRule, Emission, ErrorLocation, Expr, GrammarDom, Guard, LoweredGrammar, Production, Resolution, Term, TermValue } from "./types.js"
+   * @import { TermType } from "./dom.js"
+   */
+
+  /**
+   * A constant of a stage (engine §2): its value and type now, and the
+   * document of its last definition.
+   * @typedef {object} StageConstant
+   * @property {TermValue} value
+   * @property {TermType} type
+   * @property {string} document
    */
 
   /**
@@ -3473,9 +3699,20 @@
     /**
      * @param {string} stageName
      * @param {{path: string, dom: GrammarDom}[]} documents
+     * @param {{isMark(code: number): boolean}} unicode the loader's table, for
+     *   the tags of a range in a constant's value
      */
-    constructor(stageName, documents) {
+    constructor(stageName, documents, unicode) {
       this.stageName = stageName;
+      this.unicode = unicode;
+      /** @type {Map<string, StageConstant>} */
+      this.constants = new Map();
+      /**
+       * The definitions of rules that use constants, which the loader checks
+       * once the constants have their final values.
+       * @type {{path: string, rule: DomRule}[]}
+       */
+      this.constantUsers = [];
       /** @type {Map<string, StitchedRule>} */
       this.rules = new Map();
       /** @type {RuleChange[]} */
@@ -3485,6 +3722,7 @@
       /** @type {Resolution | null} */
       this.resolution = null;
       for (const { path, dom } of documents) this.addDocument(path, dom);
+      this.resolveConstants();
       if (!this.resolution) {
         throw new GencmuError("grammar", `stage ${stageName} has no %ambiguity-resolution`, { stage: stageName });
       }
@@ -3499,6 +3737,7 @@
      */
     addDocument(path, dom) {
       for (const rule of dom.rules) {
+        if (constantsIn(rule).length > 0) this.constantUsers.push({ path, rule });
         const at = { document: path, line: rule.at[0], column: rule.at[1] };
         const clauses = { tags: rule.tags, emit: rule.emit, conditions: rule.conditions || [], verbatim: rule.verbatim === true };
         const alternatives = rule.alternatives.map((alternative) => ({ ...alternative, clauses, document: path, at }));
@@ -3548,6 +3787,161 @@
             throw new GencmuError("grammar", `${path}:${at.line}: unknown directive %${directive.name}`, at);
         }
       }
+      for (const constant of dom.constants) this.addConstant(path, constant);
+    }
+
+    /**
+     * An error of the document at a position of it (engine §2).
+     * @param {string} path
+     * @param {[number, number]} position
+     * @param {string} message
+     * @returns {GencmuError}
+     */
+    documentError(path, position, message) {
+      const [line, column] = position;
+      return new GencmuError("grammar", `${path}:${line}:${column}: ${message}`, { document: path, line, column });
+    }
+
+    /**
+     * Defines or redefines a constant, with the value its term has at this
+     * point of the stage (engine §2).
+     * @param {string} path
+     * @param {DomConstant} constant
+     */
+    addConstant(path, constant) {
+      const { name, op, value } = constant;
+      const previous = this.constants.get(name);
+      if (op === "define" && previous) {
+        throw this.documentError(path, constant.at, `%const $${name} is already defined in stage ${this.stageName}, in ${previous.document}; %redefine-const gives it a new value`);
+      }
+      if (op === "redefine" && !previous) {
+        throw this.documentError(path, constant.at, `%redefine-const $${name} gives a value to no constant defined before it in stage ${this.stageName}`);
+      }
+      // A reference sees the constants defined before this point (engine §2).
+      for (const reference of constantsIn(value)) {
+        if (!this.constants.has(reference.const)) {
+          throw this.documentError(path, reference.at, `$${reference.const} is not defined before this point of stage ${this.stageName}`);
+        }
+      }
+      const found = constantValueType(value, op === "redefine", (other) => /** @type {StageConstant} */ (this.constants.get(other)).type);
+      if ("problem" in found) throw this.faultError(path, found.node, constant.at, found.problem);
+      let type = found.type;
+      if (previous) {
+        // A redefinition keeps the type, which gives ∅ its kind.
+        if (type === "set" && (previous.type === "strings" || previous.type === "tags")) type = previous.type;
+        if (type !== previous.type) {
+          throw this.documentError(path, constant.at, `%redefine-const $${name} keeps the type of the constant, and cannot make it ${TYPE_PHRASES[type]}`);
+        }
+      }
+      this.constants.set(name, { value: this.evaluateClosed(path, value, constant.at), type, document: path });
+    }
+
+    /**
+     * The error for a construct whose types disagree: at its first constant,
+     * which the loader alone could type, or else at the item (engine §9).
+     * @param {string} path
+     * @param {unknown} node
+     * @param {[number, number]} item
+     * @param {string} problem
+     * @returns {GencmuError}
+     */
+    faultError(path, node, item, problem) {
+      const first = constantsIn(node)[0];
+      return this.documentError(path, first ? first.at : item, problem);
+    }
+
+    /**
+     * The value of a closed term, with the constants' values now (engine §2,
+     * §10). An empty delimiter or a tag's string that is not a name comes
+     * from a constant here, since the reader refuses a literal one, and the
+     * error stands at that constant.
+     * @param {string} path
+     * @param {Term} term
+     * @param {[number, number]} item the position of the definition
+     * @returns {TermValue}
+     */
+    evaluateClosed(path, term, item) {
+      /** @type {(term: Term) => Set<string>} */
+      const set = (part) => {
+        const value = this.evaluateClosed(path, part, item);
+        return "set" in value ? value.set : tagSet();
+      };
+      /** @type {(term: Term) => string} */
+      const string = (part) => {
+        const value = this.evaluateClosed(path, part, item);
+        return "string" in value ? value.string : "";
+      };
+      if ("string" in term) return { string: term.string };
+      if ("tag" in term) return { set: tagSet([term.tag]) };
+      if ("range" in term) return { set: rangeTags(term.range, this.unicode) };
+      if ("emptySet" in term) return { set: tagSet() };
+      if ("const" in term) return /** @type {StageConstant} */ (this.constants.get(term.const)).value;
+      if ("union" in term) return { set: term.union.map(set).reduce(tagUnion, tagSet()) };
+      if ("intersection" in term) {
+        const [first, ...rest] = term.intersection.map(set);
+        return { set: rest.reduce(tagIntersection, first) };
+      }
+      if ("difference" in term) return { set: tagDifference(set(term.difference[0]), set(term.difference[1])) };
+      if ("call" in term && term.call === "split") {
+        const [text, delimiter] = /** @type {Term[]} */ (term.args);
+        const seen = string(delimiter);
+        if (seen === "") throw this.faultError(path, delimiter, item, "split has an empty delimiter");
+        return { set: splitString(string(text), seen) };
+      }
+      if ("call" in term && term.call === "tag") {
+        const name = string(/** @type {Term} */ (term.args[0]));
+        if (!isName(name)) throw this.faultError(path, term.args[0], item, `tag(${JSON.stringify(name)}): the string is not a name`);
+        return { set: tagSet([name]) };
+      }
+      throw new GencmuError("grammar", `${path}: a constant's value is not a closed term`, { document: path });
+    }
+
+    /**
+     * Gives every constant in a rule its final value, once the stage is
+     * stitched, and checks what the reader could not: that each is defined,
+     * that the types agree, and that a constant that split or tag reads
+     * directly is a delimiter that is not empty, or a name (engine §2, §9,
+     * §10).
+     */
+    resolveConstants() {
+      /** @type {(name: string) => TermType} */
+      const types = (name) => /** @type {StageConstant} */ (this.constants.get(name)).type;
+      for (const { path, rule } of this.constantUsers) {
+        for (const reference of constantsIn(rule)) {
+          if (!this.constants.has(reference.const)) {
+            throw this.documentError(path, reference.at, `$${reference.const} is not defined in stage ${this.stageName}`);
+          }
+        }
+        const fault = ruleTypeFault(rule, types);
+        if (fault) throw this.faultError(path, fault.node, rule.at, fault.problem);
+        for (const call of callsIn(rule)) {
+          const argument = call.call === "split" ? call.args[1] : call.call === "tag" ? call.args[0] : undefined;
+          if (!argument || !("const" in argument)) continue;
+          const value = /** @type {StageConstant} */ (this.constants.get(argument.const)).value;
+          const seen = "string" in value ? value.string : "";
+          if (call.call === "split" && seen === "") throw this.documentError(path, argument.at, "split has an empty delimiter");
+          if (call.call === "tag" && !isName(seen)) throw this.documentError(path, argument.at, `tag(${JSON.stringify(seen)}): the string is not a name`);
+        }
+      }
+      if (this.constantUsers.length === 0) return;
+      // Each reference holds the final value; the clauses that a definition's
+      // alternatives share stay shared.
+      /** @type {Map<object, RuleClauses>} */
+      const resolved = new Map();
+      /** @type {<T>(node: T) => T} */
+      const resolve = (node) => /** @type {any} */ (resolveNode(node, this.constants));
+      for (const rule of this.rules.values()) {
+        rule.alternatives = rule.alternatives.map((alternative) => {
+          const { clauses } = alternative;
+          if (constantsIn(alternative.tags).length === 0 && constantsIn([clauses.tags, clauses.conditions, clauses.emit]).length === 0) return alternative;
+          let shared = resolved.get(clauses);
+          if (!shared) {
+            shared = { ...clauses, tags: resolve(clauses.tags), conditions: resolve(clauses.conditions), emit: resolve(clauses.emit) };
+            resolved.set(clauses, shared);
+          }
+          return { ...alternative, tags: resolve(alternative.tags), clauses: shared };
+        });
+      }
     }
 
     checkReferences() {
@@ -3595,6 +3989,52 @@
       if (!lowered) this.lowered.set(key, (lowered = new Lowering(this, features, strict).run()));
       return lowered;
     }
+  }
+
+  const TYPE_PHRASES = { string: "a string", strings: "a set of strings", tags: "a tag set", span: "a span", set: "a set", any: "a value" };
+
+  /**
+   * A copy of a clause in which every reference to a constant holds the
+   * constant's value (engine §2).
+   * @param {unknown} node
+   * @param {Map<string, StageConstant>} constants
+   * @returns {unknown}
+   */
+  function resolveNode(node, constants) {
+    if (Array.isArray(node)) return node.map((item) => resolveNode(item, constants));
+    if (node === null || typeof node !== "object") return node;
+    const record = /** @type {Record<string, unknown>} */ (node);
+    if (typeof record.const === "string") {
+      /** @type {ConstantTerm} */
+      const reference = { const: record.const, at: /** @type {[number, number]} */ (record.at), value: /** @type {StageConstant} */ (constants.get(record.const)).value };
+      return reference;
+    }
+    /** @type {Record<string, unknown>} */
+    const copy = {};
+    for (const [key, value] of Object.entries(record)) copy[key] = resolveNode(value, constants);
+    return copy;
+  }
+
+  /**
+   * The calls of split and tag in a rule's clauses.
+   * @param {unknown} node
+   * @returns {{call: string, args: any[]}[]}
+   */
+  function callsIn(node) {
+    /** @type {{call: string, args: any[]}[]} */
+    const found = [];
+    /** @param {unknown} current */
+    const walk = (current) => {
+      if (Array.isArray(current)) {
+        for (const item of current) walk(item);
+      } else if (current !== null && typeof current === "object") {
+        const record = /** @type {Record<string, unknown>} */ (current);
+        if ((record.call === "split" || record.call === "tag") && Array.isArray(record.args)) found.push(/** @type {any} */ (record));
+        for (const value of Object.values(record)) walk(value);
+      }
+    };
+    walk(node);
+    return found;
   }
 
   /**
@@ -5547,7 +5987,7 @@
 
 
   /**
-   * @import { Argument, Comparator, Condition, DomAlternative, DomDirective, DomRule, EmitItem, Emission, Expr, GrammarDom, Position, ResultNode, RuleNode, Term } from "./types.js"
+   * @import { Argument, Comparator, Condition, DomAlternative, DomConstant, DomDirective, DomRule, EmitItem, Emission, Expr, GrammarDom, Position, ResultNode, RuleNode, Term } from "./types.js"
    * @import { Token } from "./tokens.js"
    */
 
@@ -5605,6 +6045,11 @@
     const rules = [];
     /** @type {DomDirective[]} */
     const directives = [];
+    /** @type {DomConstant[]} */
+    const constants = [];
+    // Whether the reader is reading a constant's value, a closed term (engine
+    // §9, §10).
+    let inConstant = false;
     for (const item of parts(tree)) {
       if (ruleOf(item) === "directive") {
         const [directiveToken, ...rest] = parts(item);
@@ -5627,9 +6072,30 @@
         });
       } else if (ruleOf(item) === "rule") {
         rules.push(readRule(item));
+      } else if (ruleOf(item) === "constant-definition") {
+        constants.push(readConstant(item));
       }
     }
-    return { format: DOM_FORMAT, rules, directives };
+    return { format: DOM_FORMAT, rules, directives, constants };
+
+    /**
+     * A constant's definition: its name without `$`, and its value, a closed
+     * term of a type that a constant can have (engine §2, §9, §10).
+     * @param {ResultNode} node
+     * @returns {DomConstant}
+     */
+    function readConstant(node) {
+      const keyword = tokenText(parts(only(node, "constant-definer"))[0]);
+      const name = text(parts(only(node, "constant-reference"))[0]).slice(1);
+      const valueNode = only(node, "term");
+      inConstant = true;
+      const value = readTerm(valueNode);
+      inConstant = false;
+      const op = keyword === "%redefine-const" ? "redefine" : "define";
+      const found = constantValueType(value, op === "redefine");
+      if ("problem" in found) fail(found.problem, valueNode);
+      return { name, op, value, at: at(node) };
+    }
 
     /**
      * @param {ResultNode} node
@@ -5742,10 +6208,12 @@
           if (!CAPTURE_NAME.test(text(captureToken).slice(1))) fail("a capture's name is all lower case", node);
           const wrapped = parts(inner)[0];
           const kind = ruleOf(wrapped);
+          if (kind === "constant-reference") fail(CONSTANT_IN_BODY, wrapped);
           if (!["reference", "tag", "character", "phoneme", "range", "property", "spelled"].includes(/** @type {string} */ (kind))) fail("a capture wraps one symbol", node);
           const expr = readPrimary(wrapped);
           return { capture: text(captureToken).slice(1), expr };
         }
+        case "constant-reference": return fail(CONSTANT_IN_BODY, node);
         case "group": return readExpression(only(node, "choice"));
         case "optional": return { optional: readExpression(only(node, "choice")) };
         case "empty": return { empty: true };
@@ -5893,6 +6361,7 @@
         return readTerm(inner, argument);
       }
       if (ruleOf(node) === "guarded-term") {
+        if (inConstant) fail("a constant's value is a closed term, and holds no guarded term", node);
         const condition = readAnyOf(only(node, "any-of"));
         const conditionProblem = conditionTypeProblem(condition);
         if (conditionProblem) fail(conditionProblem, node);
@@ -5974,8 +6443,10 @@
         }
         case "empty-set": return { emptySet: true };
         case "call": return readCall(node);
+        case "constant-reference": return { const: text(parts(node)[0]).slice(1), at: at(node) };
         case "capture-reference": {
           const capture = text(parts(node)[0]).slice(1);
+          if (inConstant) fail("a constant's value is a closed term, and holds no capture", node);
           if (!argument) fail(`a span is not a value: tags($${capture}) is the tag set of $${capture}`, node);
           return { capture };
         }
@@ -5990,6 +6461,7 @@
     function readCall(node) {
       const name = text(parts(node)[0]);
       if (!FUNCTIONS.has(name)) fail(`unknown function ${name}`, node);
+      if (inConstant && name !== "split" && name !== "tag") fail(`a constant's value is a closed term, and ${name} reads a span`, node);
       /** @type {Argument[]} */
       const args = ofRule(node, "argument").map((argument) => readTerm(parts(argument)[0], true));
       /** @type {(argument: Argument | undefined) => boolean} */
@@ -6000,16 +6472,21 @@
       const isString = (argument) => {
         if (argument === undefined || "rule" in argument) return false;
         const found = termType(argument);
-        return "type" in found && found.type === "string";
+        // A constant's type is known only when the loader stitches the stage.
+        return "type" in found && (found.type === "string" || found.type === "any");
       };
       let ok;
       if (name === "tags") ok = (args.length === 1 && isSpan(args[0])) || (args.length === 2 && isSpan(args[0]) && isRule(args[1]));
       else if (name === "matches" || name === "begins") ok = args.length === 2 && isSpan(args[0]) && isRule(args[1]);
-      else if (name === "lowercase") ok = args.length === 1 && isString(args[0]);
+      else if (name === "split") ok = args.length === 2 && args.every(isString);
+      else if (name === "tag") ok = args.length === 1 && isString(args[0]);
       else ok = args.length === 1 && isSpan(args[0]);
       if (!ok) fail(`${name} takes ${SIGNATURES[name]}`, node);
       // A rule stands only as the second argument.
       if (args.some((argument, index) => "rule" in argument && index !== 1)) fail(`${name} takes ${SIGNATURES[name]}`, node);
+      // An empty delimiter or a tag's name that the reader sees (engine §9).
+      const seen = literalCallProblem(name, args);
+      if (seen) fail(seen, node);
       return { call: name, args };
     }
 
@@ -6124,7 +6601,7 @@
    * @typedef {"name" | "class" | "string" | "tag" | "phoneme" | "character" | "range" | "property"} OperandKind
    */
 
-  const FUNCTIONS = new Set(["phonemes", "text", "lowercase", "tags", "classes", "runs", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]);
+  const FUNCTIONS = new Set(["phonemes", "text", "split", "tag", "tags", "classes", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]);
 
   /**
    * What is wrong with a directive's operands, or null (engine §9).
@@ -6142,6 +6619,8 @@
     return names ? null : `%${name} takes names only`;
   }
 
+  const CONSTANT_IN_BODY = "a constant cannot stand in a body: a body names a class of tokens with a rule, such as %rule digit '0'..'9'";
+
   // The functions whose value is a span.
   const SPANS = new Set(["head", "tail", "last", "from", "after"]);
 
@@ -6149,7 +6628,7 @@
   const SIGNATURES = {
     phonemes: "one span", text: "one span", words: "one span", classes: "one span",
     head: "one span", tail: "one span", last: "one span", from: "one span", after: "one span", initial: "one span",
-    lowercase: "one string", tags: "a span, and optionally a rule", matches: "a span and a rule", begins: "a span and a rule",
+    split: "two strings", tag: "one string", tags: "a span, and optionally a rule", matches: "a span and a rule", begins: "a span and a rule",
   };
 
   // The rules of the notation's syntax grammar that the reader reads; every
@@ -6160,7 +6639,7 @@
     "choice", "empty", "tags-clause", "conditions-clause", "emits-clause", "verbatim-clause", "emit-item", "emit-target", "emit-tags",
     "implication", "any-of", "all-of", "condition", "comparison", "comparator", "negation", "presence",
     "term", "guarded-term", "union", "intersection", "term-atom", "tag", "character", "name", "empty-set", "call", "argument",
-    "capture-reference", "argument-tag", "range", "property",
+    "capture-reference", "argument-tag", "range", "property", "constant-definition", "constant-definer", "constant-reference",
   ]);
 
   /**
@@ -6280,11 +6759,11 @@
 
 
 
-  /** @import { DomDirective, DomRule, GrammarDom } from "./types.js" */
+  /** @import { DomConstant, DomDirective, DomRule, GrammarDom } from "./types.js" */
 
   /**
-   * An item of a document: a rule or a directive.
-   * @typedef {{rule: DomRule} | {directive: DomDirective}} Item
+   * An item of a document: a rule, a directive or a constant's definition.
+   * @typedef {{rule: DomRule} | {directive: DomDirective} | {constant: DomConstant}} Item
    */
 
   /**
@@ -6295,17 +6774,16 @@
    */
 
   /**
-   * A document's rules and directives in the order they were written, which is
-   * the order of their positions (engine §9).
+   * A document's rules, directives and constants in the order they were
+   * written, which is the order of their positions (engine §9).
    * @param {GrammarDom} dom
    * @returns {Item[]}
    */
   function itemsInOrder(dom) {
-    /** @type {(item: Item) => [number, number]} */
-    const at = (item) => ("rule" in item ? item.rule.at : item.directive.at);
     /** @type {Item[]} */
-    const items = [...dom.rules.map((rule) => ({ rule })), ...dom.directives.map((directive) => ({ directive }))];
-    return items.sort((a, b) => at(a)[0] - at(b)[0] || at(a)[1] - at(b)[1]);
+    const items = [...dom.rules.map((rule) => ({ rule })), ...dom.directives.map((directive) => ({ directive })),
+      ...dom.constants.map((constant) => ({ constant }))];
+    return items.sort((a, b) => itemAt(a)[0] - itemAt(b)[0] || itemAt(a)[1] - itemAt(b)[1]);
   }
 
   /**
@@ -6330,7 +6808,7 @@
      */
     const splice = (documentPath, dom, chain) => {
       for (const item of itemsInOrder(dom)) {
-        const where = "rule" in item ? item.rule.at : item.directive.at;
+        const where = itemAt(item);
         const at = { document: documentPath, line: where[0], column: where[1] };
         const place = `${documentPath}:${at.line}:${at.column}`;
         if ("directive" in item && item.directive.name === "include") {
@@ -6359,14 +6837,15 @@
         } else {
           const stage = stages[stages.length - 1];
           if (!stage) {
-            const what = "rule" in item ? `the rule ${item.rule.name}` : `%${item.directive.name}`;
+            const what = "rule" in item ? `the rule ${item.rule.name}` : "constant" in item ? `the constant $${item.constant.name}` : `%${item.directive.name}`;
             throw new GencmuError("grammar", `${place}: ${what} stands before the first %stage`, at);
           }
           if (run === null || run.path !== documentPath) {
-            run = { path: documentPath, dom: { format: dom.format, rules: [], directives: [] } };
+            run = { path: documentPath, dom: { format: dom.format, rules: [], directives: [], constants: [] } };
             stage.documents.push(run);
           }
           if ("rule" in item) run.dom.rules.push(item.rule);
+          else if ("constant" in item) run.dom.constants.push(item.constant);
           else run.dom.directives.push(item.directive);
         }
       }
@@ -6440,7 +6919,7 @@
    * @returns {[number, number]}
    */
   function itemAt(item) {
-    return "rule" in item ? item.rule.at : item.directive.at;
+    return "rule" in item ? item.rule.at : "constant" in item ? item.constant.at : item.directive.at;
   }
 
   // ---- dialect.js
@@ -6488,7 +6967,7 @@
       const bootstrap = readBootstrap(this.need("notation/bootstrap.json"), this.unicode);
       this.bootstrapHash = fnv1a64(this.need("notation/bootstrap.json"));
       this.notation = new Dialect("dialects/notation.md", bootstrap.stages.map((stage) =>
-        new Stage(stage.name, new Grammar(stage.name, stage.documents.map((document) => ({ path: document.path, dom: document.dom }))))), this);
+        new Stage(stage.name, new Grammar(stage.name, stage.documents.map((document) => ({ path: document.path, dom: document.dom })), this.unicode))), this);
       /** @type {Map<string, CompiledEntry>} */
       this.compiled = new Map();
       // Precompiled DOMs are a cache: one that cannot be read, or an entry
@@ -6591,7 +7070,7 @@
      */
     dialect(path) {
       const pipeline = this.pipeline(path);
-      const stages = pipeline.stages.map((stage) => new Stage(stage.name, new Grammar(stage.name, stage.documents)));
+      const stages = pipeline.stages.map((stage) => new Stage(stage.name, new Grammar(stage.name, stage.documents, this.unicode)));
       return new Dialect(path, stages, this, pipeline.features);
     }
 
@@ -7096,6 +7575,17 @@
    * @property {number} format
    * @property {DomRule[]} rules
    * @property {DomDirective[]} directives
+   * @property {DomConstant[]} constants
+   */
+
+  /**
+   * A constant's definition: `%const` or `%redefine-const`, the name without
+   * `$`, and its value, a closed term (engine §2, §10).
+   * @typedef {object} DomConstant
+   * @property {string} name
+   * @property {"define" | "redefine"} op
+   * @property {Term} value
+   * @property {Position} at
    */
 
   /**
@@ -7177,7 +7667,13 @@
    * empty set, a set expression, a guarded term, a call, or a span, which
    * only a call's argument can be (engine §10).
    * @typedef {{string: string} | {tag: string} | {range: [string, string]} | {emptySet: true} | {union: Term[]} | {if: Condition, then: Term}
-   *   | {intersection: Term[]} | {difference: [Term, Term]} | {call: string, args: Argument[]} | {capture: string}} Term
+   *   | {intersection: Term[]} | {difference: [Term, Term]} | {call: string, args: Argument[]} | {capture: string} | ConstantTerm} Term
+   */
+
+  /**
+   * A reference to a constant, with the position of the reference. In a
+   * stitched grammar, it also holds the constant's final value (engine §2).
+   * @typedef {{const: string, at: Position, value?: TermValue}} ConstantTerm
    */
 
   /**

@@ -1,6 +1,6 @@
 {
   "description": "∅ on the left of ∉ is a set, not a string, so the comparison is an error of the document, reported at its first token (engine §9, §10).",
-  "document": "```jbogenbau\n%rule a $x(B) %conditions ∅ ∉ runs($x)\n```\n",
+  "document": "```jbogenbau\n%rule a $x(B) %conditions ∅ ∉ split(phonemes($x), \".\")\n```\n",
   "expect": {
     "error": {
       "line": 2,

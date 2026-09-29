@@ -1,0 +1,10 @@
+{
+  "description": "A constant's value is typed as any term: ∪ of a string and a tag set is an error at the union (engine §9, §10).",
+  "document": "```jbogenbau\n%const $A \"a\" ∪ ~b\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 11
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "description": "The loader checks the types of a term that holds a constant after it stitches the stage, and reports an error at the first constant of the smallest construct whose parts disagree (engine §9, §10).",
+  "grammar": "%const $S \"a\"\n%rule text $x(X)\n%conditions tags($x) ⊆ ~b ∪ $S",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 29
+    }
+  }
+}

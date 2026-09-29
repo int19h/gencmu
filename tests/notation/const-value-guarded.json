@@ -1,0 +1,10 @@
+{
+  "description": "A constant's value is a closed term, so a guarded term in it is an error, at the guarded term (engine §9, §10).",
+  "document": "```jbogenbau\n%const $A (~a ⊆ ~b ⟹ ~c)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 12
+    }
+  }
+}

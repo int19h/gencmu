@@ -44,6 +44,14 @@ export declare class UnicodeTable {
      */
     hasProperty(name: string, code: number): boolean;
     /**
+     * The canonical form of a sound (engine §5): each code point replaced by
+     * its simple lowercase mapping, and every comma, the syllable break,
+     * removed.
+     * @param {string} text
+     * @returns {string}
+     */
+    canonical(text: string): string;
+    /**
      * @param {string} text
      * @returns {string}
      */

@@ -1105,6 +1105,7 @@ adhoc.zantufa.i7.gohoi-one-word
 adhoc.zantufa.i12.cehe-is-bo
 adhoc.zantufa.free.ui-post-number
 adhoc.zantufa.zoi.stress-in-delimiter
+adhoc.zantufa.zoi.stress-closes
 adhoc.zantufa.lohai.si
 adhoc.zantufa.su.inside-free
 adhoc.zantufa.y.ieho-hesitation

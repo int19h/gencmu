@@ -1,0 +1,29 @@
+{
+  "description": "One document shared by two pipelines takes each pipeline's value of a constant: the loader gives constants their values when it stitches a stage, not in the document's DOM. With pa.md, $K is ~a (engine §2, §8). const-shared-document-b.json runs pb.md over the same documents.",
+  "documents": {
+    "pa.md": "```jbogenbau\n%stage main\n%include \"a.md\"\n%include \"shared.md\"\n```\n",
+    "pb.md": "```jbogenbau\n%stage main\n%include \"b.md\"\n%include \"shared.md\"\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%const $K ~a\n%rule thing '\\p{Any}'\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%const $K ~b\n%rule thing '\\p{Any}'\n```\n",
+    "shared.md": "```jbogenbau\n%rule text [item] ...\n%rule item $t(thing) <$K>\n%emits\n  $\n```\n"
+  },
+  "pipeline": "pa.md",
+  "input": "x",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "text": "x",
+              "tags": [
+                "a"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

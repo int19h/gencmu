@@ -1,0 +1,10 @@
+{
+  "description": "A capture cannot wrap a constant, which cannot stand in a body. The error is at the constant (engine §9).",
+  "document": "```jbogenbau\n%rule a $x($K) B\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 12
+    }
+  }
+}

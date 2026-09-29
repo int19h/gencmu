@@ -142,19 +142,20 @@ A word is a cmavo, a brivla or a cmevla, as the forms stage read it. The stage e
 
 A feature is a named switch that the grammars test. A guard is a condition on a feature. The cmevla-brivla merger of the experimental grammars is a matter of syntax, stated there with the `cbm` guard. It is not a second class on the word.
 
-The magic words are never plain words. The rules under "Quotes", "Compounds" and "Erasure" say what each does instead. The condition here keeps them out, so that the stage cannot read `zo` as a word that stands beside the word it quotes.
+The magic words are never plain words. The rules under "Quotes", "Compounds" and "Erasure" say what each does instead. The condition here keeps them out, so that the stage cannot read `zo` as a word that stands beside the word it quotes. The constant `$MAGIC-WORDS` lists their classes, so that a dialect can add to the list in one place. Without the feature `sa-su`, `sa` and `su` are plain words.
 
 ```jbogenbau
+%const $MAGIC-WORDS
+  ZO ∪ ZOI ∪ LOhU ∪ ZOhOI ∪ LAhOI ∪ RAhOI ∪ MEhOI ∪ GOhOI ∪ ZEhOI ∪ TAhAI ∪ BOhEI ∪ FAhO ∪ BU ∪ ZEI ∪ SI ∪ SA ∪ SU
+
 %rule word
   | sa-su? $c(cmavo-token) <tags($c)>
   | ¬sa-su? $e(cmavo-token) <tags($e)>
   | $b(BRIVLA) <tags($b)>
   | $n(CMEVLA) <tags($n)>
 %conditions
-  classes($c) ∩ (ZO ∪ ZOI ∪ LOhU ∪ ZOhOI ∪ LAhOI ∪ RAhOI ∪ MEhOI ∪ GOhOI ∪ ZEhOI ∪ TAhAI ∪ BOhEI ∪
-    FAhO ∪ BU ∪ ZEI ∪ SI ∪ SA ∪ SU) = ∅,
-  classes($e) ∩ (ZO ∪ ZOI ∪ LOhU ∪ ZOhOI ∪ LAhOI ∪ RAhOI ∪ MEhOI ∪ GOhOI ∪ ZEhOI ∪ TAhAI ∪ BOhEI ∪
-    FAhO ∪ BU ∪ ZEI ∪ SI) = ∅,
+  classes($c) ∩ $MAGIC-WORDS = ∅,
+  classes($e) ∩ ($MAGIC-WORDS ∖ (SA ∪ SU)) = ∅,
   ¬begins(from($c), quote),
   ¬begins(from($e), quote)
 %emits
@@ -177,7 +178,9 @@ The rules below know a magic word by the selma'o the lexicon gives it, not by it
 
 CLL 19.9 and 19.10 describe the quotes. This stage decides each quote, because the words inside a quote do not count as words. For example, `zo si` quotes `si`, and a `zoi` body is not Lojban at all.
 
-Each quote hands the syntax stage its marker and its contents. The marker carries the tags `word` and `cmavo` and the selma'o the lexicon gives it, but not the tag `indicator`. So no later stage takes a marker for an indicator, even where a lexicon also makes the marker an attitudinal. The contents are bare words or one stretch of `foreign-text`, which is what the syntax grammar's `any-word` and `anything` read.
+Each quote hands the syntax stage its marker and its contents. The contents are bare words or one stretch of `foreign-text`, which is what the syntax grammar's `any-word` and `anything` read. The marker keeps its classes, and the tags `word` and `cmavo`: `classes($q) ∪ ~word ∪ ~cmavo`. It drops every other mark, so it never carries `indicator`, even where a lexicon also makes the marker an attitudinal.
+
+The reason is the indicator stage, which takes single tokens. It reads a marker with `indicator` as an indicator, and leaves the quoted contents behind with nothing to hold them. For example, take a lexicon that puts `ui` in both ZO and UI. Then `mi ui broda klama` fails if the marker keeps `indicator`. The indicator stage attaches `ui` to `mi`, and the bare word `broda` is left in the text. This lasts until the indicator stage can take a quote as one unit.
 
 ```jbogenbau
 %rule quote
@@ -193,7 +196,7 @@ Each quote hands the syntax stage its marker and its contents. The marker carrie
   $m, $w <~word>
 
 %rule word-quote-marker
-  $q(magic-body) <~word ∪ ~cmavo ∪ classes($q)>
+  $q(magic-body) <classes($q) ∪ ~word ∪ ~cmavo>
 %conditions
   ZO ⊆ classes($q)
 
@@ -208,9 +211,13 @@ Each quote hands the syntax stage its marker and its contents. The marker carrie
 
 After a pause, the quote skips hesitation, as camxes-exp skips it in its `spaces`. Then the quote takes the next token and the rest of that token's run. So `zo'oiyymibroda` quotes `yymibroda`, `zo'oi yy mibroda` and `zo'oi yymibroda` quote `mibroda`, and `zo'oi yy` has nothing to quote. The quote ends where its run ends, `run-final` on its last token. Otherwise the lazy choice of the stage quotes only `mi` of `zo'oi mibroda`.
 
-`zoi`, `la'o` and `mu'oi` quote a body between two delimiter words. The two delimiters must be the same word. That word must not be a whole run of the body, so the quote ends at the first run that is that word. The delimiter can occur inside a longer run of the body.
+`zoi`, `la'o` and `mu'oi` quote a body between two delimiter words. The two delimiters must be the same word. That word must not be a whole run of the body, so the quote ends at the first run that is that word. The delimiter can occur inside a longer run of the body. This is the sixth of the departures from CLL 19.
 
-The stage compares the two delimiters exactly, stress included, which is the sixth of the departures from CLL 19. That is the condition the captures state, and the parser makes sure that it holds as the parse advances. So a candidate close that is not the opener never opens a continuation of the text. CLL 4.9 puts a pause before and after the body, and after the closing delimiter: the closing delimiter is the last word of its run. A quote whose delimiters stand side by side quotes nothing. It hands the syntax an empty stretch of foreign text, so that its shape is the same as any other's.
+The stage compares the words by their canonical sound, `phonemes()`, which is in lower case and has no commas. So stress and syllable breaks do not count, in the two delimiters and in the runs of the body. `zoi .kO. mi .ko.` is a quote, and so is `zoi .ko. mi .kO.`. That is the condition the captures state, and the parser makes sure that it holds as the parse advances.
+
+So a candidate close that is not the opener never opens a continuation of the text. CLL 4.9 puts a pause before and after the body, and after the closing delimiter: the closing delimiter is the last word of its run. A quote whose delimiters stand side by side quotes nothing. It hands the syntax an empty stretch of foreign text, so that its shape is the same as any other's.
+
+Other parsers have compared the delimiters without case too. The official parser of the second baseline lowercases every word as it reads it, and keeps only its letters and apostrophes. ilmentufa's camxes lowercased both delimiters, dropped their commas and wrote `h` as an apostrophe. Its commit 2534c3b of 2020 replaced those actions with generic ones, which compare the words exactly. Pierre Abbat's design of 2003, on the Lojban mailing list, matches the closing delimiter "ignoring capitalization and commas".
 
 The delimiter is the word after the marker. The stage takes it when it reads the marker, before a `bu` after it can act, as camxes-std reads it. So `zoi ba'e bu ba'e bu` quotes `bu` between two `ba'e`, and the last `bu` makes a letter word of the quote. And `zoi .ibu. x .ibu.` is no quote, because the delimiter `i` needs a pause after it.
 
@@ -230,7 +237,7 @@ The body of a `zoi` quote and the run that `zo'oi` quotes are `%verbatim`. So th
   $m, $r <~foreign-text>, $s <~foreign-text>
 
 %rule single-marker
-  $q(magic-body) <~word ∪ ~cmavo ∪ classes($q)>
+  $q(magic-body) <classes($q) ∪ ~word ∪ ~cmavo>
 %conditions
   classes($q) ∩ (ZOhOI ∪ LAhOI ∪ RAhOI ∪ MEhOI ∪ GOhOI ∪ ZEhOI ∪ TAhAI ∪ BOhEI) ≠ ∅
 
@@ -240,7 +247,7 @@ The body of a `zoi` quote and the run that `zo'oi` quotes are `%verbatim`. So th
   tags($m)
 %conditions
   phonemes($open) = phonemes($close),
-  phonemes($open) ∉ runs($content),
+  phonemes($open) ∉ split(phonemes($content), "."),
   ~run-final ⊆ tags($close)
 %emits
   $m, $open <~word>, $content <~foreign-text>, $close <~word>
@@ -259,7 +266,7 @@ The body of a `zoi` quote and the run that `zo'oi` quotes are `%verbatim`. So th
   cmavo-token | BRIVLA | CMEVLA
 
 %rule zoi-marker
-  $q(magic-body) <~word ∪ ~cmavo ∪ classes($q)>
+  $q(magic-body) <classes($q) ∪ ~word ∪ ~cmavo>
 %conditions
   ZOI ⊆ classes($q)
 ```
@@ -280,14 +287,14 @@ The ordinary erasure by `sa` does not take a `le'u` after it. The grammar states
   tags($m) ∪ LEhU
 
 %rule lohu-marker
-  $q(magic-body) <~word ∪ ~cmavo ∪ classes($q)>
+  $q(magic-body) <classes($q) ∪ ~word ∪ ~cmavo>
 %conditions
   LOhU ⊆ classes($q)
 %emits
   $
 
 %rule lehu-marker
-  $q(magic-body) <~word ∪ ~cmavo ∪ classes($q)>
+  $q(magic-body) <classes($q) ∪ ~word ∪ ~cmavo>
 %conditions
   LEhU ⊆ classes($q)
 %emits
@@ -587,7 +594,7 @@ Several `sa` in a row reach back to successively further matches, "one for each 
   sa-word wide-gap sa-run
 ```
 
-With `su-boundary`, `su` erases back to a boundary word, which survives, or to the start of the text. Without it, `su` always erases back to the start of the text. The boundary words are ordinary words to every other rule. Only `su` knows them, by their classes: what a `su` erases is a reach none of whose elements has one of those classes.
+With `su-boundary`, `su` erases back to a boundary word, which survives, or to the start of the text. Without it, `su` always erases back to the start of the text. The boundary words are ordinary words to every other rule. Only `su` knows them, by their classes, which the constant `$SU-STOPS` lists. What a `su` erases is a reach none of whose elements has one of those classes.
 
 Like the reach of a `sa`, the reach of a `su` is left-recursive, and it evaluates its condition at every element as it goes. So it dies at the next boundary, and does not run on to the end of the text. The boundary is an element, so that what an earlier `su` left standing bounds the next.
 
@@ -598,20 +605,23 @@ Like the reach of a `sa`, the reach of a `su` is left-recursive, and it evaluate
 %tags
   ~wipes-all ∩ tags($stop) ∪ classes($stop)
 
+%const $SU-STOPS
+  NIhO ∪ LU ∪ TUhE ∪ TO
+
 %rule boundary
   $b(element) <tags($b)>
 %conditions
-  classes($b) ∩ (NIhO ∪ LU ∪ TUhE ∪ TO) ≠ ∅
+  classes($b) ∩ $SU-STOPS ≠ ∅
 
 %rule su-reach
   | $first(opener)
   | $s(su-reach) PAUSE $e(element)
   | $t(su-reach) $f(element)
 %conditions
-  classes($first) ∩ (NIhO ∪ LU ∪ TUhE ∪ TO) = ∅,
+  classes($first) ∩ $SU-STOPS = ∅,
   ~first-wipes ⊈ tags($first),
-  classes($e) ∩ (NIhO ∪ LU ∪ TUhE ∪ TO) = ∅,
-  classes($f) ∩ (NIhO ∪ LU ∪ TUhE ∪ TO) = ∅,
+  classes($e) ∩ $SU-STOPS = ∅,
+  classes($f) ∩ $SU-STOPS = ∅,
   ~wipes-all ⊈ tags($e),
   ~wipes-all ⊈ tags($f)
 %emits
@@ -654,7 +664,7 @@ Only `opener` accepts an element with that tag, and it tags the stream `first-wi
   | sa-run wide-gap su-word <∅>
   | wiped-reach gap sa-run wide-gap su-word <∅>
 %conditions
-  classes($q) ∩ (NIhO ∪ LU ∪ TUhE ∪ TO) = ∅
+  classes($q) ∩ $SU-STOPS = ∅
 
 %rule sa-wiped
   | sa-run sa-gap $n(sa-next) <~wipes-all ∪ classes($n) ∪ ~run-initial ∩ tags($n)>
@@ -709,7 +719,7 @@ camxes-std, the PEG grammar (parsing expression grammar) of the definition effor
 
 camxes-std also applies its rule unevenly. It accepts `broda sa broda`, but it rejects `lo broda sa broda`, where the description is the construct that the words after the `sa` continue. The proposal reads the two alike: `broda` and `lo broda`.
 
-The proposal reads six kinds of text differently from CLL 19. The Zantufa dialect departs from three of them ([zantufa-stream.md](zantufa-stream.md)). Its `zei` erases a word and joins nothing (item 2). A hesitation attached to the word before it is a word of class Y there (item 4). Its `zoi` delimiters match without their stress (item 6). Every other dialect follows the proposal in all six:
+The proposal reads six kinds of text differently from CLL 19. The Zantufa dialect departs from two of them ([zantufa-stream.md](zantufa-stream.md)). Its `zei` erases a word and joins nothing (item 2). A hesitation attached to the word before it is a word of class Y there (item 4). Every other dialect follows the proposal in all six:
 
 1. `si` erases a quote or a compound as one word. The proposal makes one word of each quote and each compound, and "SI erases the preceding word". CLL counts `zo` and its word as two words (Example 19.77) and a `zoi` quote as four (Example 19.79). A `lo'u` quote counts as its words and its two markers: 19.13 erases a stray `lo'u` with `fy. le'u si si si`. So every dialect rejects Examples 19.77 and 19.80, `zo .bab. se cmene zo si si si la bab.` and `mi se cmene zo .djan. si si zo .djordj.`.
 
@@ -718,7 +728,7 @@ The proposal reads six kinds of text differently from CLL 19. The Zantufa dialec
 3. `bu` makes a letter word of `ba'e` and `za'e`. CLL 17.4 says that these two words "may not have bu attached", and 19.16 says the same of every BAhE cmavo. The proposal's table reads `ba'e bu` as a letter word, and the proposal says that "BAhE cannot be used to mark BU; BU wins".
 4. Hesitation is not a word. The proposal treats `.y.` as whitespace, which is its third meta-rule. CLL makes `.y.` a cmavo of selma'o Y (19.14), and 19.16 says that `zo` quotes the following word "no matter what it is". Here, `zo .y. co` quotes `co`, the grammar rejects `zo .y.`, and `co .y. si` erases `co`. The one exception is `.y. bu`, the letter word for `y`. The proposal forms it "before any other processing of any kind", which is its first meta-rule, so `zo .y. bu` quotes that letter word.
 5. A `lo'u` quote ends at the first `le'u`. CLL 19.16 says that `lo'u` quotes all following words "up to a le'u (but not a zo le'u)", and 19.10 says that a `zoi` quote of non-Lojban text can appear inside `lo'u ... le'u`. The proposal's `lo'u` takes "all following Lojban words" through the next `le'u`, and its table rejects `lo'u co co zo le'u co le'u`. Here, `zo` and `zoi` are plain words inside the quote. So every dialect rejects `lo'u zo le'u le'u`, and also `lo'u zoi gy. with .gy. le'u`, because `with` is not a Lojban word. CLL 19.10 agrees that a `le'u` inside such a `zoi` quote ends the `lo'u` quote.
-6. The grammar compares a `zoi` delimiter as a whole word. CLL 19.10 says that the delimiter "may not appear" in the written text, so Example 19.50, `mi djuno fi le valsi po'u zoi gy. gyrations .gy.`, is "ungrammatical as written". Here, the delimiter must not be a whole run of the body, and the run `gyrations` is not `gy`, so the grammar accepts the example. The proposal and camxes-std read it in the same way. The comparison is exact: the closing delimiter must have the same phonemes as the opening one. A stressed vowel does not match a plain one, so `zoi .kO. mi .ko.` is not a quote.
+6. The grammar compares a `zoi` delimiter as a whole word. CLL 19.10 says that the delimiter "may not appear" in the written text, so Example 19.50, `mi djuno fi le valsi po'u zoi gy. gyrations .gy.`, is "ungrammatical as written". Here, the delimiter must not be a whole run of the body, and the run `gyrations` is not `gy`, so the grammar accepts the example. The proposal and camxes-std read it in the same way. The comparison is by the canonical sound, so a stressed vowel matches a plain one, and `zoi .kO. mi .ko.` is a quote.
 
 What `su` erases is not in this list, because there the dialects differ. The feature `su-boundary` chooses between the reading of CLL 19.13 and the reading of the proposal, as "Erasure by `sa` and `su`" explains.
 

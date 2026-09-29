@@ -1,0 +1,10 @@
+{
+  "description": "runs is not a function of the notation, so a call of it is an error at the call; split(phonemes(s), \".\") gives the runs (engine §9).",
+  "document": "```jbogenbau\n%rule a $x(B) %conditions \"a\" ∈ runs($x)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 33
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "description": "A spelling with a comma is an error, since no canonical sound holds a comma. The error is at the spelling (engine §9).",
+  "document": "```jbogenbau\n%rule a A`ko,a`\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 10
+    }
+  }
+}

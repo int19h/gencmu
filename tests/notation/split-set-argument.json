@@ -1,0 +1,10 @@
+{
+  "description": "split takes two strings: a tag set is an error at the call (engine §9, §10).",
+  "document": "```jbogenbau\n%rule a $x(B) %conditions \"a\" ∈ split(tags($x), \".\")\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 33
+    }
+  }
+}

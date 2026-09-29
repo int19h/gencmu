@@ -1,0 +1,24 @@
+{
+  "description": "A redefinition keeps the constant's type, which gives ∅ its kind, so %redefine-const can make a set empty (engine §2, §10).",
+  "grammar": "%const $A B ∪ C\n%redefine-const $A ∅\n%rule text $x(X) <$A ∪ Y>\n%conditions tags($x) ∩ $A = ∅",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "tags": [
+          "Y"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "description": "tag() of a string that is not a name is an error of the grammar when a parse evaluates it (engine §10, §13).",
+  "grammar": "%rule text $w(word)\n%rule word $y(A) <tag(text($y))>",
+  "tokens": [
+    {
+      "text": "ko'a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "grammar",
+        "stage": "main"
+      }
+    },
+    "error": "grammar"
+  }
+}

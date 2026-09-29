@@ -1,0 +1,10 @@
+{
+  "description": "classify is not closed, since its value depends on the features, and it is an error in a constant's value, at the call (engine §9, §10).",
+  "document": "```jbogenbau\n%const $A classify(\"mi\", lexicon)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 11
+    }
+  }
+}

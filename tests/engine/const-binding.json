@@ -1,0 +1,17 @@
+{
+  "description": "A reference in a constant's value sees the value at that point of the stage, and a rule sees the final value: after $A is ~a, $B is $A and $A is redefined as ~b, $B is ~a and $A is ~b (engine §2).",
+  "grammar": "%const $A ~a\n%const $B $A\n%redefine-const $A ~b\n%rule text $x(X)\n%conditions $B = ~a, $A = ~b",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

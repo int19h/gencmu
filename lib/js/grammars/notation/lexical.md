@@ -1,6 +1,6 @@
 # jbogenbau: from characters to tokens
 
-This is the first stage of the notation dialect, `../dialects/notation.md`. A stage is one step of a pipeline, with its own grammar. The stage reads the text of a grammar document's `jbogenbau` blocks, one token (a unit of input) per character. It hands the notation's tokens to the second stage, `syntax.md`. These tokens are names, strings, tag literals, phoneme tags, character tags, properties, spellings, captures, guards, keywords and symbols. The stage drops what carries no meaning: the spaces between tokens, and the comments.
+This is the first stage of the notation dialect, `../dialects/notation.md`. A stage is one step of a pipeline, with its own grammar. The stage reads the text of a grammar document's `jbogenbau` blocks, one token (a unit of input) per character. It hands the notation's tokens to the second stage, `syntax.md`. These tokens are names, strings, tag literals, phoneme tags, character tags, properties, spellings, captures, constants, guards, keywords and symbols. The stage drops what carries no meaning: the spaces between tokens, and the comments.
 
 `../../docs/notation.md` explains the notation. This document and `syntax.md` define it.
 
@@ -24,7 +24,7 @@ A text is any number of pieces, each a token or layout.
 
 %rule piece
   | word | string | tag-literal | phoneme | character-tag | property | spelling
-  | capture | guard | keyword | symbol | negation | layout
+  | capture | constant | guard | keyword | symbol | negation | layout
 ```
 
 ## Names and tag literals
@@ -48,6 +48,12 @@ A name is an ASCII letter followed by ASCII letters, digits and hyphens. Its fir
 
 %rule name
   letter | name name-character
+
+%rule lower-name
+  'a'..'z' | lower-name name-character
+
+%rule upper-name
+  'A'..'Z' | upper-name name-character
 
 %rule name-character
   letter | digit | '-'
@@ -140,17 +146,26 @@ A spelling says what a symbol must sound like, as in ``LE`la` ``. It is the char
   text($c) ≠ "`"
 ```
 
-## Captures, guards and keywords
+## Captures, constants, guards and keywords
 
-A capture is `$` and a name, or `$` alone for the whole constituent. A feature guard tests a feature. A feature is a named switch that the grammars test. A guard is either a gate or a warning. A gate is a name and `?`, with `¬` before it for a negated gate. A warning is a name and `!`.
+A capture is `$` and a name that begins with a lower-case letter, or `$` alone for the whole constituent. A constant is `$` and a name that begins with a capital, such as `$SU-STOPS`. The stage tags it `constant`.
+
+A feature guard tests a feature. A feature is a named switch that the grammars test. A guard is either a gate or a warning. A gate is a name and `?`, with `¬` before it for a negated gate. A warning is a name and `!`.
 
 A `¬` directly before a guard belongs to the guard. Anywhere else, `¬` is a symbol of its own, which negates a condition. So the symbol `¬` is only read where no guard begins after it.
 
 ```jbogenbau
 %rule capture
-  '$' [name]
+  '$' [lower-name]
 %tags
   ~capture
+%emits
+  $
+
+%rule constant
+  '$' upper-name
+%tags
+  ~constant
 %emits
   $
 
@@ -170,7 +185,7 @@ A `¬` directly before a guard belongs to the guard. Anywhere else, `¬` is a sy
   $
 ```
 
-A keyword is `%` and a name. The stage tags each keyword that the notation knows with its own identifier, such as `keyword-rule` for `%rule`. So the second stage names each keyword it knows and has no other. Any other `%` and name is one token tagged `keyword`, which the second stage never reads. So an unknown keyword is an error at that token. Each capture, guard and keyword is one token, so the second stage sees `$first` as one thing.
+A keyword is `%` and a name. The stage tags each keyword that the notation knows with its own identifier, such as `keyword-rule` for `%rule`. So the second stage names each keyword it knows and has no other. Any other `%` and name is one token tagged `keyword`, which the second stage never reads. So an unknown keyword is an error at that token. Each capture, constant, guard and keyword is one token, so the second stage sees `$first` as one thing.
 
 ```jbogenbau
 %rule keyword
@@ -186,6 +201,8 @@ A keyword is `%` and a name. The stage tags each keyword that the notation knows
   | '%' $stage(name) <~keyword-stage>
   | '%' $include(name) <~keyword-include>
   | '%' $features(name) <~keyword-features>
+  | '%' $const(name) <~keyword-const>
+  | '%' $redefine-const(name) <~keyword-redefine-const>
   | '%' $other(name) <~keyword>
 %conditions
   text($rule) = "rule",
@@ -200,10 +217,13 @@ A keyword is `%` and a name. The stage tags each keyword that the notation knows
   text($stage) = "stage",
   text($include) = "include",
   text($features) = "features",
+  text($const) = "const",
+  text($redefine-const) = "redefine-const",
   text($other) ≠ "rule", text($other) ≠ "redefine-rule", text($other) ≠ "extend-rule",
   text($other) ≠ "tags", text($other) ≠ "conditions", text($other) ≠ "emits",
   text($other) ≠ "verbatim", text($other) ≠ "ambiguity-resolution", text($other) ≠ "elidable",
-  text($other) ≠ "stage", text($other) ≠ "include", text($other) ≠ "features"
+  text($other) ≠ "stage", text($other) ≠ "include", text($other) ≠ "features",
+  text($other) ≠ "const", text($other) ≠ "redefine-const"
 %emits
   $
 ```

@@ -1,0 +1,10 @@
+{
+  "description": "A constant's value is a closed term, so a span function in it is an error, at the call (engine §9, §10).",
+  "document": "```jbogenbau\n%const $A tags(head($x))\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 11
+    }
+  }
+}

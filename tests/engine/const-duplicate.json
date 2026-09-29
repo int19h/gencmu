@@ -1,0 +1,20 @@
+{
+  "description": "A second %const of one name in a stage is an error of the document, at the second definition (engine §2).",
+  "grammar": "%const $A ~a\n%const $A ~b\n%rule text X",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 1
+    }
+  }
+}

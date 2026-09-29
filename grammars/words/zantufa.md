@@ -34,6 +34,13 @@ Zantufa's Y is `y` and `ie'o`, and its `spaces` read both as space. So `ie'o` is
 
 The stage hands the form on as one token, tagged `rafsi-form`, and the word stage makes the quote. A token is one unit that a stage reads or emits. A tag is a label on a token. Where no such form follows, `ra'oi` is an ordinary word, as in Zantufa's `si_word`, so `ra'oi bu` is a letter word. The word stage rejects `ra'oi do`.
 
+A word of LU, TO or LUhEI opens a text of its own. The hesitation after such a word can be space, which the stage tags `opener-space` below. The constant `$TEXT-OPENERS` lists these classes. The word stage defines the same constant, because a constant belongs to its stage ([zantufa-stream.md](zantufa-stream.md)).
+
+```jbogenbau
+%const $TEXT-OPENERS
+  LU ∪ TO ∪ LUhEI
+```
+
 ```jbogenbau
 %redefine-rule runs
   | $r(run) <tags($r)>
@@ -64,10 +71,10 @@ The stage hands the form on as one token, tagged `rafsi-form`, and the word stag
   ~spacing ⊆ tags($q),
   ~y-letters ⊆ tags($q),
   ~spacing ⊆ tags($t),
-  ~opener-space ⊆ tags($o) ∨ classes($o) ∩ (LU ∪ TO ∪ LUhEI) ≠ ∅,
+  ~opener-space ⊆ tags($o) ∨ classes($o) ∩ $TEXT-OPENERS ≠ ∅,
   ~y-letters ⊈ tags($t) ∨ ~y-letters ⊈ tags($u),
   ~y-letters ⊈ tags($r) ∨ ~y-letters ⊈ tags($v),
-  ~hesitation ⊈ tags($v) ∨ (~spacing ∪ ~opener-space) ∩ tags($r) = ∅ ∧ classes($r) ∩ (LU ∪ TO ∪ LUhEI) = ∅,
+  ~hesitation ⊈ tags($v) ∨ (~spacing ∪ ~opener-space) ∩ tags($r) = ∅ ∧ classes($r) ∩ $TEXT-OPENERS = ∅,
   RAhOI ⊈ tags($r) ∨ ¬begins(from($v), rahoi-form),
   (~continued ∪ ~cy ∪ ~name-intro ∪ ~open-stress) ∩ tags($r) ≠ ∅,
   ~cy ⊆ tags($r) ∧ ~cy ⊆ tags($v)
@@ -95,10 +102,10 @@ The stage hands the form on as one token, tagged `rafsi-form`, and the word stag
 %conditions
   RAhOI ⊈ tags($r) ∨ ¬begins(from($v), rahoi-form),
   ~y-letters ⊈ tags($r) ∨ ~y-letters ⊈ tags($v),
-  ~hesitation ⊈ tags($v) ∨ ~opener-space ⊈ tags($r) ∧ classes($r) ∩ (LU ∪ TO ∪ LUhEI) = ∅,
+  ~hesitation ⊈ tags($v) ∨ ~opener-space ⊈ tags($r) ∧ classes($r) ∩ $TEXT-OPENERS = ∅,
   ~y-letters ⊆ tags($s),
   ~opener-space ⊈ tags($s),
-  ~opener-space ⊆ tags($o) ∨ classes($o) ∩ (LU ∪ TO ∪ LUhEI) ≠ ∅
+  ~opener-space ⊆ tags($o) ∨ classes($o) ∩ $TEXT-OPENERS ≠ ∅
 
 %rule space-hesitation
   (* initial_spaces <- (space_char / !ybu Y)+ EOF? / EOF: after space, every Y word is space *)

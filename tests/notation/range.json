@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule a 'a'..'z' '\\u{61}' .. '\\u{7a}' $c('\\u{300}'..'\\u{36f}')\n```\n",
   "expect": {
     "dom": {
-      "format": 10,
+      "format": 11,
       "rules": [
         {
           "alternatives": [

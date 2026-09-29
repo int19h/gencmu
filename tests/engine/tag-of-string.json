@@ -1,0 +1,17 @@
+{
+  "description": "tag() of a string is the identifier tag of that name, as a set of one tag, in a tag term and in a condition (engine §10).",
+  "grammar": "%rule text $w(word)\n%conditions KOhA ⊆ tags($w), tag(text($w)) = KOhA\n%rule word $y(A) <tag(text($y))>",
+  "tokens": [
+    {
+      "text": "KOhA",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

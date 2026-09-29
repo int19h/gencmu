@@ -1,0 +1,18 @@
+{
+  "description": "split() drops the empty pieces: those before a leading delimiter, after a trailing one and between two adjacent ones (engine §10).",
+  "grammar": "%rule text $x(A)\n%conditions split(phonemes($x), \".\") = split(\"a.b\", \".\"), \"\" ∉ split(phonemes($x), \".\")",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "..a...b."
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -2,7 +2,7 @@
 
 This is the second stage of the notation dialect, `../dialects/notation.md`. A stage is one step of a pipeline, with its own grammar. The stage reads the tokens (units of input) that `lexical.md` emitted. It builds the tree from which a library reads the grammar's rules and directives. Its rule names matter to that reader: the table in `../../docs/engine.md`, §9, says what each named constituent becomes. `../../docs/notation.md` explains the notation for authors.
 
-The tokens arrive with tags (labels that the grammar reads). The lexical stage tags a token `~identifier`, `~string`, `~tag`, `~phoneme`, `~character`, `~property`, `~spelling`, `~capture` or `~guard`. It tags a keyword that the notation knows with its own identifier, such as `~keyword-rule` for `%rule`, `...` with `~ellipsis`, and `..` with `~double-dot`. Any other symbol is one character, which keeps its character tag, such as `'|'`.
+The tokens arrive with tags (labels that the grammar reads). The lexical stage tags a token `~identifier`, `~string`, `~tag`, `~phoneme`, `~character`, `~property`, `~spelling`, `~capture`, `~constant` or `~guard`. It tags a keyword that the notation knows with its own identifier, such as `~keyword-rule` for `%rule`, `...` with `~ellipsis`, and `..` with `~double-dot`. Any other symbol is one character, which keeps its character tag, such as `'|'`.
 
 ## Choosing among parses
 
@@ -14,14 +14,20 @@ Every rule and directive begins with a keyword, and a keyword begins nothing els
 
 ## Documents
 
-A grammar text is a sequence of rules and directives. A directive is its keyword and any number of operands, each a name, a string, a tag, a range or a property. A library reads the tree into a DOM (document object model), its own form of the grammar. At that point, the library makes sure that each directive has the operands that it takes, so that an error names the directive (`../../docs/engine.md`, §9).
+A grammar text is a sequence of rules, directives and constant definitions. A directive is its keyword and any number of operands, each a name, a string, a tag, a range or a property. A constant definition is `%const` or `%redefine-const`, the constant, and a term, its value. A library reads the tree into a DOM (document object model), its own form of the grammar. At that point, the library makes sure that each directive has the operands that it takes, so that an error names the directive (`../../docs/engine.md`, §9).
 
 ```jbogenbau
 %rule text
   [statement] ...
 
 %rule statement
-  rule | directive
+  rule | directive | constant-definition
+
+%rule constant-definition
+  constant-definer constant-reference term
+
+%rule constant-definer
+  ~keyword-const | ~keyword-redefine-const
 
 %rule directive
   directive-name [argument-word | argument-string | argument-tag] ...
@@ -73,7 +79,7 @@ A rule is a keyword, its name, its alternatives and its clauses, in this order. 
 
 A terminal is a name, a tag literal, a character tag, a phoneme tag, a range or a property. A string is not a terminal. A range is two character tags joined by `..`, such as `'a'..'z'`. A reference or a terminal can carry a spelling, as in ``LE`la` ``. It matches only where its span sounds like the spelling. Nothing else takes a spelling, so a group or an optional followed by one is not a primary, and the spelling binds tighter than `...`.
 
-The grammar also reads a spelling on a range or a property. The reader refuses it there, and names the reason.
+The grammar also reads a spelling on a range or a property, and a constant as a primary. The reader refuses each of them, and names the reason.
 
 ```jbogenbau
 %rule conjunction
@@ -86,7 +92,8 @@ The grammar also reads a spelling on a range or a property. The reader refuses i
   primary [~ellipsis]
 
 %rule primary
-  reference | tag | character | phoneme | range | property | spelled | capture | group | optional | empty
+  | reference | tag | character | phoneme | range | property | spelled | capture | group | optional | empty
+  | constant-reference
 
 %rule spelled
   (reference | tag | character | phoneme | range | property) ~spelling
@@ -188,7 +195,7 @@ A condition joins others with `∧`, `∨` and `⟹`. These operators bind in th
 
 A term is a string, a set of strings, a tag set or a span. A range is a tag set, and `..` binds tighter than any other operator, since its two sides are character tags. `∩` binds tighter than `∪` and `∖`, which bind equally and group from the left. A term guarded by a condition, `A ⟹ t`, is `t` where `A` holds and nothing where it does not. It binds looser than `∪`, `∩` and `∖`, so it stands in parentheses inside a larger term. Only a whole tag term can be a guarded term without parentheses.
 
-A property is not a tag set, but the grammar reads one in a term, so that the reader can refuse it by name. A bare name in a term is a tag literal when it begins with a capital. Otherwise it names a rule, which only a function's argument can do. The reader tells the two apart and gives each term its type (`../../docs/engine.md`, §9, §10).
+A property is not a tag set, but the grammar reads one in a term, so that the reader can refuse it by name. A bare name in a term is a tag literal when it begins with a capital. Otherwise it names a rule, which only a function's argument can do. A constant, such as `$SU-STOPS`, stands for its value. The reader tells the two apart and gives each term its type (`../../docs/engine.md`, §9, §10).
 
 ```jbogenbau
 %rule term
@@ -205,7 +212,7 @@ A property is not a tag set, but the grammar reads one in a term, so that the re
 
 %rule term-atom
   | string | tag | character | phoneme | range | property | name | empty-set
-  | '(' term ')' | call | capture-reference
+  | '(' term ')' | call | capture-reference | constant-reference
 
 %rule string
   ~string
@@ -224,4 +231,7 @@ A property is not a tag set, but the grammar reads one in a term, so that the re
 
 %rule capture-reference
   ~capture
+
+%rule constant-reference
+  ~constant
 ```

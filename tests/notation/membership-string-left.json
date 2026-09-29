@@ -1,6 +1,6 @@
 {
-  "description": "The left side of ∈ and ∉ is a string, a quoted string or phonemes, text or lowercase of something, and the right side a set of strings (engine §9, §10).",
-  "document": "```jbogenbau\n%rule a $x(B) %conditions \"b\" ∈ runs($x), phonemes($x) ∈ runs($x), lowercase(text($x)) ∉ runs($x)\n```\n",
+  "description": "The left side of ∈ and ∉ is a string, a quoted string or phonemes or text of something, and the right side a set of strings (engine §9, §10).",
+  "document": "```jbogenbau\n%rule a $x(B) %conditions \"b\" ∈ split(phonemes($x), \".\"), phonemes($x) ∈ split(phonemes($x), \".\"), text($x) ∉ split(phonemes($x), \".\")\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -12,10 +12,18 @@
                 "string": "b"
               },
               "right": {
-                "call": "runs",
+                "call": "split",
                 "args": [
                   {
-                    "capture": "x"
+                    "call": "phonemes",
+                    "args": [
+                      {
+                        "capture": "x"
+                      }
+                    ]
+                  },
+                  {
+                    "string": "."
                   }
                 ]
               }
@@ -31,10 +39,18 @@
                 ]
               },
               "right": {
-                "call": "runs",
+                "call": "split",
                 "args": [
                   {
-                    "capture": "x"
+                    "call": "phonemes",
+                    "args": [
+                      {
+                        "capture": "x"
+                      }
+                    ]
+                  },
+                  {
+                    "string": "."
                   }
                 ]
               }
@@ -42,23 +58,26 @@
             {
               "op": "∉",
               "left": {
-                "call": "lowercase",
+                "call": "text",
                 "args": [
                   {
-                    "call": "text",
+                    "capture": "x"
+                  }
+                ]
+              },
+              "right": {
+                "call": "split",
+                "args": [
+                  {
+                    "call": "phonemes",
                     "args": [
                       {
                         "capture": "x"
                       }
                     ]
-                  }
-                ]
-              },
-              "right": {
-                "call": "runs",
-                "args": [
+                  },
                   {
-                    "capture": "x"
+                    "string": "."
                   }
                 ]
               }

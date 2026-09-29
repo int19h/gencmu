@@ -1,0 +1,18 @@
+{
+  "description": "split() cuts a string only at its delimiter: a space or a tab is part of a piece (engine §10).",
+  "grammar": "%rule text $x(A)\n%conditions \"a\" ∉ split(phonemes($x), \".\") ∧ \"a b\\u{9}c\" ∈ split(phonemes($x), \".\") ∧ \"d\" ∈ split(phonemes($x), \".\")",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a b\tc.d"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

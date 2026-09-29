@@ -1,0 +1,21 @@
+{
+  "description": "An empty delimiter that is a constant is an error of the document, which the loader reports at the constant (engine §2, §10).",
+  "grammar": "%const $D \"\"\n%rule text $x(A)\n%conditions \"a\" ∈ split(phonemes($x), $D)",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 39
+    }
+  }
+}

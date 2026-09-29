@@ -1,0 +1,52 @@
+{
+  "description": "A constant belongs to its stage, so one document included in two stages takes each stage's value: $K is ~a in the first stage and ~b in the second (engine §2, §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%include \"first.md\"\n%include \"shared.md\"\n%stage second\n%include \"second.md\"\n%include \"shared.md\"\n```\n",
+    "first.md": "```jbogenbau\n%ambiguity-resolution greedy\n%const $K ~a\n%rule thing '\\p{Any}'\n```\n",
+    "second.md": "```jbogenbau\n%ambiguity-resolution greedy\n%const $K ~b\n%rule thing ~a\n```\n",
+    "shared.md": "```jbogenbau\n%rule text [item] ...\n%rule item $t(thing) <$K>\n%emits\n  $\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "xy",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "first",
+          "output": [
+            {
+              "text": "x",
+              "tags": [
+                "a"
+              ]
+            },
+            {
+              "text": "y",
+              "tags": [
+                "a"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "second",
+          "output": [
+            {
+              "text": "x",
+              "tags": [
+                "b"
+              ]
+            },
+            {
+              "text": "y",
+              "tags": [
+                "b"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "description": "The kind of ∅ as a constant's whole value is not given, which is an error at the value (engine §9, §10).",
+  "document": "```jbogenbau\n%const $E ∅\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 11
+    }
+  }
+}

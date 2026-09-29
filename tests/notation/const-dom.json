@@ -1,0 +1,147 @@
+{
+  "description": "%const and %redefine-const make constant definitions, and a constant in a term is a const with the position of its reference. The DOM holds no value of a constant (engine §2, §9, docs/output.md).",
+  "document": "```jbogenbau\n%const $SU-STOPS NIhO ∪ LU\n%const $PAUSE \".\"\n%redefine-const $SU-STOPS $SU-STOPS ∪ TO\n%redefine-const $E ∅\n%rule a $x(B) <$SU-STOPS>\n%conditions \"b\" ∈ split(phonemes($x), $PAUSE), tag($PAUSE) = ~a\n```\n",
+  "expect": {
+    "dom": {
+      "format": 11,
+      "rules": [
+        {
+          "name": "a",
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "B"
+                }
+              },
+              "tags": {
+                "const": "SU-STOPS",
+                "at": [
+                  6,
+                  16
+                ]
+              }
+            }
+          ],
+          "conditions": [
+            {
+              "op": "∈",
+              "left": {
+                "string": "b"
+              },
+              "right": {
+                "call": "split",
+                "args": [
+                  {
+                    "call": "phonemes",
+                    "args": [
+                      {
+                        "capture": "x"
+                      }
+                    ]
+                  },
+                  {
+                    "const": "PAUSE",
+                    "at": [
+                      7,
+                      39
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "op": "=",
+              "left": {
+                "call": "tag",
+                "args": [
+                  {
+                    "const": "PAUSE",
+                    "at": [
+                      7,
+                      52
+                    ]
+                  }
+                ]
+              },
+              "right": {
+                "tag": "a"
+              }
+            }
+          ],
+          "at": [
+            6,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [
+        {
+          "name": "SU-STOPS",
+          "op": "define",
+          "value": {
+            "union": [
+              {
+                "tag": "NIhO"
+              },
+              {
+                "tag": "LU"
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "name": "PAUSE",
+          "op": "define",
+          "value": {
+            "string": "."
+          },
+          "at": [
+            3,
+            1
+          ]
+        },
+        {
+          "name": "SU-STOPS",
+          "op": "redefine",
+          "value": {
+            "union": [
+              {
+                "const": "SU-STOPS",
+                "at": [
+                  4,
+                  27
+                ]
+              },
+              {
+                "tag": "TO"
+              }
+            ]
+          },
+          "at": [
+            4,
+            1
+          ]
+        },
+        {
+          "name": "E",
+          "op": "redefine",
+          "value": {
+            "emptySet": true
+          },
+          "at": [
+            5,
+            1
+          ]
+        }
+      ]
+    }
+  }
+}
