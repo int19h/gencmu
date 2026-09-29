@@ -82,7 +82,7 @@ A mistake of the caller is not a result. It is an error of kind `usage` (engine 
 A grammar DOM (document object model) is the data that a library makes when it reads a grammar document (engine §8, §9). `bootstrap.json` and the precompiled DOMs hold the same data.
 
 ```
-{"format":10,"rules":[RULE...],"directives":[DIRECTIVE...]}
+{"format":11,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...]}
 ```
 
 `format` is the version of the DOM. It changes whenever the shape of the DOM changes. A library never uses a cached DOM of another version.
@@ -104,9 +104,11 @@ An expression is one of these forms:
 
 `terminal` holds a tag in its canonical spelling (engine §1): a name from `~name`, a phoneme tag `/p/`, or a character tag such as `'a'`. A bare name is a `ref`, whether it names a rule or, with a capital, a terminal. A `range` holds its start and its end, each a character tag in its canonical spelling, and the start is not above the end. A `property` holds its name, one of those of engine §1.
 
-A spelled symbol has no member but `spelling` and `expr`. Its `expr` is a `ref` other than `#`, or a `terminal`, with no other member. Its `spelling` is the text between the backticks, so it holds no backtick. The spelling is never empty, and `lowercase` does not change it (engine §9). A capture's `expr` is a `ref`, a `terminal`, a `range`, a `property` or a spelled symbol.
+A spelled symbol has no member but `spelling` and `expr`. Its `expr` is a `ref` other than `#`, or a `terminal`, with no other member. Its `spelling` is the text between the backticks, so it holds no backtick. The spelling is never empty, and it holds no comma and no code point that the lowercase mapping changes (engine §9). A capture's `expr` is a `ref`, a `terminal`, a `range`, a `property` or a spelled symbol.
 
-A term is `{"string":"s"}`, `{"tag":"KOhA"}`, `{"range":["'a'","'z'"]}`, `{"emptySet":true}`, `{"union":[TERM...]}`, `{"intersection":[TERM...]}`, `{"difference":[TERM,TERM]}`, `{"if":COND,"then":TERM}` or `{"call":"phonemes","args":[ARG...]}`. `string` holds the decoded string. `tag` holds one tag in its canonical spelling, from a tag literal, a bare name with a capital, a phoneme tag or a character tag. `range` is as in an expression. `difference` has exactly two parts, and `a ∖ b ∖ c` nests the first difference in the second. A term has no member but those of its one form.
+A term is `{"string":"s"}`, `{"tag":"KOhA"}`, `{"range":["'a'","'z'"]}`, `{"emptySet":true}`, `{"const":"SU-STOPS","at":[line,column]}`, `{"union":[TERM...]}`, `{"intersection":[TERM...]}`, `{"difference":[TERM,TERM]}`, `{"if":COND,"then":TERM}` or `{"call":"phonemes","args":[ARG...]}`. `string` holds the decoded string. `tag` holds one tag in its canonical spelling, from a tag literal, a bare name with a capital, a phoneme tag or a character tag. `range` is as in an expression. `difference` has exactly two parts, and `a ∖ b ∖ c` nests the first difference in the second.
+
+`const` is a reference to a constant, by its name without `$`. Its `at` is the line and column of the reference, where the loader reports an error of the constant (engine §2). A term has no member but those of its one form.
 
 An argument is a span or a term. For `tags`, `matches` and `begins`, an argument can also be a rule name, `{"rule":"lexicon"}`. A span is `{"capture":"x"}`, `{"capture":""}` for `$`, or `{"call":"head","args":[SPAN]}`. `tail`, `last`, `from` and `after` have the same form as `head`.
 
@@ -124,13 +126,17 @@ A condition is one of these forms:
 
 An emission is `{"items":[ITEM...]}`. An item is `{"capture":"x","tags":TERM}`, with `tags` optional, or `{"insert":"/h/"}`, whose value is one tag in its canonical spelling. For `ε`, there are no items. `"capture":""` is `$`.
 
+A constant definition is `{"name":"SU-STOPS","op":"define","value":TERM,"at":[line,column]}`. `op` is `define` for `%const` and `redefine` for `%redefine-const`. The name has no `$`. The value is a closed term (engine §10), which can hold `const` terms but never a value that the loader gives them.
+
 A directive is `{"name":"elidable","args":["KU","KEI"],"at":[line,column]}`. An operand `~KU` of `%elidable` is the name `KU`. The name is the keyword without `%`: `ambiguity-resolution`, `elidable`, `stage`, `include` or `features`. An argument is a name, or, for `include`, the decoded string: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`.
 
-`rules` and `directives` each keep the order in which the document has them. `at` is the line and column of an item's first token. So the order of all of a document's items is the order of their positions. No two items of a DOM share a position (engine §9).
+`rules`, `directives` and `constants` each keep the order in which the document has them. `at` is the line and column of an item's first token. So the order of all of a document's items is the order of their positions. No two items of a DOM share a position (engine §9).
 
 ### Precompiled DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":10,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
+`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":11,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
+
+An entry holds the document's constants as the document writes them. The loader gives them their values when it stitches a stage. So one entry serves every stage and dialect that includes the document (engine §2, §8).
 
 ## Renderings
 
