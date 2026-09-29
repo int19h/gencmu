@@ -518,8 +518,13 @@ def _check_elidable_tests(stage: str, rules: dict[str, Rule], elidable: set[str]
                     while "seq" in first:
                         first = first["seq"][0]
                     if "test" in first and first["test"] != "=":
+                        # A reference in lower case names a rule, which is
+                        # never a terminator, even where an identifier tag
+                        # of %elidable shares its name.
                         inner = first["expr"]
-                        name = inner.get("ref", inner.get("terminal"))
+                        name = inner.get("terminal")
+                        if name is None and is_terminal_name(inner.get("ref", "")):
+                            name = inner["ref"]
                         if name is not None and name in elidable:
                             raise _error(
                                 f"{rule.name} can elide {name}, whose test {first['test']} gives it no sound to restore;"

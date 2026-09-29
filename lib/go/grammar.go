@@ -203,7 +203,7 @@ func (g *stageGrammar) checkElidableTests() *Error {
 					for first.Kind == exSeq {
 						first = first.Items[0]
 					}
-					if first.Kind == exTest && first.Op != "=" && (first.Inner.Kind == exRef || first.Inner.Kind == exTerminal) && g.elidable[first.Inner.Name] {
+					if first.Kind == exTest && first.Op != "=" && isTagSymbol(first.Inner) && g.elidable[first.Inner.Name] {
 						e := grammarError(a.doc, a.at, "%s can elide %s, whose test %s gives it no sound to restore; an elidable terminator has no test or an = test", r.name, first.Inner.Name, first.Op)
 						e.Stage = g.name
 						return e

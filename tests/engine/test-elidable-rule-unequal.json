@@ -1,0 +1,39 @@
+{
+  "description": "A ≠ test on a rule reference is no error, even where %elidable names an identifier tag that shares the rule's name, since the optional holds the rule x and not the terminal ~x. An absent [x≠\"a\"] is no elided node, while an absent [~x] is one (engine §2, §3.8).",
+  "grammar": "%elidable ~x\n%rule text [x≠\"a\"] [~x] B\n%rule x A",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "kind": "elided",
+            "terminal": "x",
+            "span": [
+              0,
+              0
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "B"
+          }
+        ]
+      }
+    }
+  }
+}

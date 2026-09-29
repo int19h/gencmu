@@ -4124,7 +4124,7 @@
               let first = expr.optional;
               while ("seq" in first) first = first.seq[0];
               if ("test" in first && first.test !== "=") {
-                const name = "ref" in first.expr ? first.expr.ref : "terminal" in first.expr ? first.expr.terminal : undefined;
+                const name = tagName(first.expr);
                 if (name !== undefined && this.elidable.has(name)) {
                   throw new GencmuError("grammar", `${alternative.document}: ${rule.name} can elide ${name}, whose test ${first.test} gives it no sound to restore; an elidable terminator has no test or an = test`, alternative.at);
                 }
@@ -4255,6 +4255,19 @@
   function isTerminalName(name) {
     const first = name.codePointAt(0);
     return first !== undefined && first >= 0x41 && first <= 0x5a;
+  }
+
+  /**
+   * The tag of a symbol that matches by a tag: a terminal, or a reference
+   * whose name begins with a capital. A reference in lower case names a rule,
+   * so %elidable never makes it a terminator, even one that shares its name
+   * with an identifier tag (engine §2, §3.8).
+   * @param {Expr} expr
+   * @returns {string | undefined}
+   */
+  function tagName(expr) {
+    if ("terminal" in expr) return expr.terminal;
+    return "ref" in expr && isTerminalName(expr.ref) ? expr.ref : undefined;
   }
 
   /**
@@ -4588,7 +4601,7 @@
       while ("seq" in first) first = first.seq[0];
       const tested = "test" in first ? first : null;
       if (tested) first = tested.expr;
-      const name = "ref" in first ? first.ref : "terminal" in first ? first.terminal : undefined;
+      const name = tagName(first);
       if (name === undefined || !this.grammar.elidable.has(name)) return null;
       return { terminal: name, test: tested ? this.grammar.symbolTest(tested, where.rule.document, where.rule.at) : null };
     }

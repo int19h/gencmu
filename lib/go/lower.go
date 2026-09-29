@@ -415,22 +415,28 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt, repeatPrefix b
 	}
 }
 
-// elidableTerminal is the symbol an optional's content is, or begins with
-// as a sequence, recursively (§3.8), and its tested node, if it is tested;
-// a choice or an & begins with none. A tested terminal is elidable when its
-// terminal is.
+// elidableTerminal is the terminal an optional's content is, or begins
+// with as a sequence, recursively (§3.8), and its tested node, if it is
+// tested; a choice or an & begins with none. A tested terminal is elidable
+// when its terminal is.
 func elidableTerminal(e *domExpr) (string, *domExpr) {
-	switch e.Kind {
-	case exSeq:
+	switch {
+	case e.Kind == exSeq:
 		return elidableTerminal(e.Items[0])
-	case exTest:
-		if e.Inner.Kind == exRef || e.Inner.Kind == exTerminal {
-			return e.Inner.Name, e
-		}
-	case exRef, exTerminal:
+	case e.Kind == exTest && isTagSymbol(e.Inner):
+		return e.Inner.Name, e
+	case isTagSymbol(e):
 		return e.Name, nil
 	}
 	return "", nil
+}
+
+// isTagSymbol says whether a symbol matches by a tag: a terminal, or a
+// reference whose name begins with a capital. A reference in lower case
+// names a rule, so %elidable never makes it a terminator, even one that
+// shares its name with an identifier tag (§2, §3.8).
+func isTagSymbol(e *domExpr) bool {
+	return e.Kind == exTerminal || e.Kind == exRef && isTerminalName(e.Name)
 }
 
 func (lw *lowerer) expandSeq(items []*domExpr, a *sAlt, ruleName string) [][]slot {

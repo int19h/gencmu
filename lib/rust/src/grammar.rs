@@ -672,8 +672,12 @@ fn check_elidable_tests(grammar: &StageGrammar) -> Result<(), Error> {
                         first = &items[0];
                     }
                     if let Expr::Tested(op, _, symbol) = first {
+                        // A reference in lower case names a rule, which is
+                        // never a terminator, even where an identifier tag
+                        // of %elidable shares its name.
                         let name = match symbol.as_ref() {
-                            Expr::Ref(name) | Expr::Terminal(name) => Some(name),
+                            Expr::Ref(name) if is_terminal_name(name) => Some(name),
+                            Expr::Terminal(name) => Some(name),
                             _ => None,
                         };
                         if let Some(name) = name.filter(|name| op != "=" && grammar.elidable.contains(name)) {
