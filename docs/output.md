@@ -184,7 +184,9 @@ The tree has one node per line, and children are indented two spaces under their
 
 - A rule node is its name. If the node has only token descendants on one line of source, ` · ` and its text follow the name. They do not if any of those tokens has attachments. They also do not if the label of any of those tokens, or of their attachments, holds a line break.
 - A token node is its terminal, then its label from above in quotes. The quoted label is escaped as a JSON string, so a line break in it is written `\n`.
-- The attachments of a token node follow it, each on a line of its own, indented two spaces more than the node. The before-attachments come first, each after `◂ `, and then the after-attachments, each after `▸ `. These marks differ from the ` › ` that joins a chain of rule nodes. An attachment is its classes, then its label in quotes. Its classes are its tags that begin with `A` to `Z`, in code point order, joined by ` ∪ `. An attachment with no class is its label alone. Its own attachments follow it in the same way, indented two spaces more.
+- The attachments of a token node follow it, each on a line of its own, indented two spaces more than the node. The before-attachments come first, each after `◂ `, and then the after-attachments, each after `▸ `. These marks differ from the ` › ` that joins a chain of rule nodes.
+
+  An attachment is its classes, then its label in quotes. Its classes are its tags that begin with `A` to `Z`, in code point order, joined by ` ∪ `. An attachment with no class is its label alone. Its own attachments follow it in the same way, indented two spaces more.
 - An elided node is its terminal in angle brackets.
 
 Chains of rule nodes with one child are written on one line, joined by ` › `. So in the CLL dialect, the token node of `mi` in `mi ui nai klama` has these lines, at the indentation of the node:

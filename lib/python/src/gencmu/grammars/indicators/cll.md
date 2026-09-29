@@ -136,7 +136,9 @@ This stage follows CLL 19.8, which gives the meaning of `fu'e`: "Placing fu'e in
 
 CLL 19.8 also lets several `fu'e` scopes stand in force at once. It says that "Other attitudinals of more local scope can appear after attitudinals marked by FUhE." So `indicator-run` lets each indicator take its own `fu'e`, and one word can take several such groups. This is the camxes rule `indicators <- FUhE_clause? indicator+`, repeated after a word. The BNF's rule `word = [BAhE] any-word [indicators]` allows only one group after a word, so this stage departs from the BNF there. That limit appears to be an oversight, since the YACC parser absorbs the indicators before its grammar reads them.
 
-The CLL lexicon marks `fu'e` `indicator`, so `unit` never reads it as a word. Under these rules, `mi fu'e ui klama`, `mi fu'e ui nai klama` and `mi ui fu'e ia klama` are texts. The text `mi viska le fu'e .ia blanu zdani fu'o ponse` is one too. A `ba'e` can stand before the word or before the `fu'e`, as in `ba'e mi fu'e ui klama` and `mi ba'e fu'e ui klama`. In the second, the `ba'e` goes with the `fu'e`. The stage rejects `mi fu'e klama`, `mi ui fu'e klama` and `mi fu'e fu'e ui klama`. In each of them, a `fu'e` has no indicator directly after it.
+The CLL lexicon marks `fu'e` `indicator`, so `unit` never reads it as a word. Under these rules, `mi fu'e ui klama`, `mi fu'e ui nai klama` and `mi ui fu'e ia klama` are texts. The text `mi viska le fu'e .ia blanu zdani fu'o ponse` is one too. The stage rejects `mi fu'e klama`, `mi ui fu'e klama` and `mi fu'e fu'e ui klama`. In each of them, a `fu'e` has no indicator directly after it.
+
+A `ba'e` can stand before the word or before the `fu'e`, as in `ba'e mi fu'e ui klama` and `mi ba'e fu'e ui klama`. In the second, the `ba'e` goes with the `fu'e`.
 
 The stage also rejects `mi fu'e y klama`. The BNF counts `y` as an indicator, but the word stage drops hesitation, as the Magic Words proposal treats `.y.` as a pause. So no indicator follows that `fu'e` in this stage. A run at the start of the text follows the same rule. So `fu'e ui mi klama` and `ui fu'e ia mi klama` are texts, and the stage rejects `fu'e mi klama`.
 

@@ -327,7 +327,9 @@ So nothing needs to be enumerated, and the number of derivations, which can be e
 
 When the stage's directive has `elision-only`, or the caller asks for it, and the verdict is not `unique`:
 
-1. Take the chosen tree's elided terminators (§12) in text order, inner before outer where several are at one position. Before the input token at each one's position, insert a synthetic token. Its tags are that terminal alone, and its span and source are empty at that position. It has no attachments, and the parse of step 2 reads no attachments, as no parse does (§11). If the terminator has an `=` test, the token's phonemes are the test's string. Otherwise the token has no phonemes. So a restored `KU="ku"` matches its own terminator in the parse of step 2.
+1. Take the chosen tree's elided terminators (§12) in text order, inner before outer where several are at one position. Before the input token at each one's position, insert a synthetic token. Its tags are that terminal alone, and its span and source are empty at that position. It has no attachments, and the parse of step 2 reads no attachments, as no parse does (§11).
+
+   If the terminator has an `=` test, the token's phonemes are the test's string. Otherwise the token has no phonemes. So a restored `KU="ku"` matches its own terminator in the parse of step 2.
 2. Parse the new token sequence with the grammar lowered as in §3.8.
 3. Rank that forest with no lean: any two derivations that differ are tied. If the forest has exactly one derivation, the check passes and the result is the original one.
 
