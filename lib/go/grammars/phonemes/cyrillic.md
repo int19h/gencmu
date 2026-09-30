@@ -48,7 +48,9 @@ The consonants are those of CLL 3.12: `ш` for `c`, `ж` for `j`, `х` for `x`, 
 
 The orthography has no apostrophe between vowels. Two adjacent vowel letters are two syllables, so `аи` is `a'i`. The orthography writes a diphthong with the short forms `й` and `ў`, so `ай` is `ai`. This is where the orthography differs from CLL 3.12, which writes a diphthong as a vowel pair, as the Latin orthography does.
 
-So a full vowel letter carries the tag `syllabic`, which the vowel-group rules of [latin-strict.md](latin-strict.md) read. The stage inserts an apostrophe between adjacent syllabic vowels. `й` and `ў`, the glides, carry no such tag, and they join the vowel beside them into a diphthong. A capital vowel, or a combining accent after any vowel letter, marks stress, as in Latin. Inside an all-capital run, the stage folds a capital vowel or glide, that is, it reads the letter as plain.
+So a full vowel letter carries the tag `syllabic`, which the vowel-group rules of [latin-strict.md](latin-strict.md) read. The stage inserts an apostrophe between adjacent syllabic vowels. `й`, `ј` and `ў`, the glides, carry no such tag, and they join the vowel beside them into a diphthong.
+
+A capital full vowel letter, or a combining accent after one, marks stress, as in Latin. A glide never marks stress, as the Latin `ĭ` of [latin.md](latin.md) does not. CLL 3.1 needs only the vowel letter of a stressed syllable marked, and here that is the full vowel letter. So a capital glide is plain, and an accent after a glide makes its run foreign. Inside an all-capital run, the stage folds a capital vowel or glide, that is, it reads the letter as plain.
 
 ```jbogenbau
 %rule cyrillic-plain-vowel
