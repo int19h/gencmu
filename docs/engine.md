@@ -336,7 +336,7 @@ When the stage's directive has `elision-only`, or the caller asks for it, and th
 
    The result's `tree` is null. The stage keeps its verdict, witness, tied tree and output, since it accepted its input. The error has no `token` or `source`. The readings show where they differ.
 
-The elided terminators are taken in the order of the chosen tree's leaves, left to right. If the parse of step 2 accepts nothing, the check passes as well. Restoring the terminators can reject every reading, and then no two restored readings exist to report. An error of the grammar found in the parse of step 2 ends the stage as one found while emitting does (§11). The stage keeps its verdict, witness, tied tree and warnings, but it has no output, and the error is the result's.
+The stage takes the elided terminators in the order of the chosen tree's leaves, left to right. If the parse of step 2 accepts nothing, the check passes as well. Restoring the terminators can reject every reading, and then no two restored readings exist to report. An error of the grammar found in the parse of step 2 ends the stage as one found while emitting does (§11). The stage keeps its verdict, witness, tied tree and warnings, but it has no output, and the error is the result's.
 
 A caller can also switch the check off for a stage that declares it.
 

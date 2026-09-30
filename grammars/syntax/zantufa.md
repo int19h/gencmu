@@ -2,7 +2,7 @@
 
 This document is the syntax of the [Zantufa](../dialects/zantufa.md) dialect. A dialect is a pipeline of stages, defined by one pipeline document. Its reference is Guskant's Zantufa 1.9999, `zantufa-1.9999.peg` in the `gerna_cipra` repository, a PEG (parsing expression grammar). It is a grammar of its own, and it translates the reference rule by rule.
 
-Each rule's comment gives the rule of the reference that it translates. A rule has the reference's name, written with hyphens. The other rules state the reference's lookaheads (tests of the words that follow) and ordered choices (alternatives tried in order) as conditions.
+Each rule's comment gives the rule of the reference that it translates. A rule has the reference's name, written with hyphens. The other rules state the reference's lookaheads and ordered choices as conditions. A lookahead is a test of the words that follow. An ordered choice is a list of alternatives tried in order.
 
 A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo. [The Zantufa lexicon](../words/lexicon-zantufa.md) gives each cmavo the selma'o that Zantufa gives it. For example, every tense word but those of ROI is BAI, `ca'a` and `ka'e` are NA, and `je` is JOI. Also, `la` is LE, `ce'e` is BO, and `nai` and `sa` are UI.
 
