@@ -508,7 +508,7 @@ Without the feature, `sa` and `su` are ordinary cmavo of SA and SU, which the sy
 
 CLL 19.13: `sa` erases back to the most recent word of the same selma'o as the word after it, that word included. It leaves the word after it standing.
 
-In CLL 19.13, `su` "erases the entire text". The Magic Words proposal and camxes-std stop `su` sooner, at the most recent `ni'o`, `no'i`, `lu`, `tu'e` or `to`, which survives. CLL 1.0 prints a YACC grammar (a grammar for the parser generator YACC) in its chapter 21. That grammar opens with the steps that a parser takes before the grammar. Its step 2g also stops `su` at `ni'o`, `no'i`, `lu`, `tu'e` or `to`, but it erases that word too.
+In CLL 19.13, `su` "erases the entire text". The Magic Words proposal and camxes-std stop `su` sooner, at the most recent `ni'o`, `no'i`, `lu`, `tu'e`, `to` or `to'i`, which survives. CLL 1.0 prints a YACC grammar (a grammar for the parser generator YACC) in its chapter 21. That grammar opens with the steps that a parser takes before the grammar. Its step 2g also stops `su` at a word of NIhO, LU, TUhE or TO, but it erases that word too.
 
 The feature `su-boundary` gives the reading of the proposal. The approved word forms and experimental dialects turn it on. The CLL and Zantufa dialects leave it off, so there `su` erases the whole text before it. The stage resolves both erasers here, in the same left-to-right pass as the quotes, the compounds and `si`, because they act in that order. For example, in `mi le brodi sa le si la brodo` the `sa` takes `le brodi` before the `si` erases the `le` that follows it. And `mi brodi .i sa mi zei co mi` compounds `mi zei co` only after the `sa` took `mi brodi .i`.
 

@@ -129,7 +129,7 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
   $ <tags($w) ∪ ~spacing ∪ (¬begins(after($w), nonpause-phoneme) ⟹ ~run-final)>
 
 %rule opener-space
-  (* a hesitation after lu, to or lu'ei, or after such a hesitation: space if that word opens a text *)
+  (* a hesitation after a text opener, or after such a hesitation: space if that word opens a text *)
   $w(source-word⊇~hesitation)
 %emits
   $ <tags($w) ∪ ~opener-space ∪ (¬begins(after($w), nonpause-phoneme) ⟹ ~run-final)>
@@ -164,7 +164,7 @@ The approved word forms read an odd run of three or more `y` as `y` and the rest
 
 A hesitation that begins a run is space. Each hesitation that directly follows a space continues it, up to the next other word, as `initial_spaces` reads it. The stage tags these `spacing` ([zantufa-stream.md](zantufa-stream.md)).
 
-The stage tags `opener-space` a hesitation directly after `lu`, `to` or `lu'ei`, and each one after it. It is space where that word opens a text of its own, whose `intro_null` reads space, but not where that word is itself quoted. Only the word stage knows which.
+The stage tags `opener-space` a hesitation directly after a text opener, and each one after it. A text opener is a word of LU, TO or LUhEI, such as `lu`. Such a hesitation is space where the opener opens a text of its own, whose `intro_null` reads space. It is not space where the opener is itself quoted. Only the word stage knows which.
 
 ```jbogenbau
 %rule joined-hesitation
