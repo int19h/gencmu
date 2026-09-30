@@ -8,7 +8,7 @@ The syntax of the dialect is the CLL grammar. The dialect reads elided terminato
 
 A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. Beyond CLL's orthography, the phoneme stage reads the conventions of [`../phonemes/latin.md`](../phonemes/latin.md). The approved grammar reads part of these conventions too. The phoneme stage also reads gencmu's Cyrillic and zbalermorna. The indicator stage is the indicator stage of the [cll-ebnf](cll-ebnf.md) dialect.
 
-A feature is a named switch that the grammars test. The dialect turns on the feature `su-boundary`, so that `su` erases back to the last `ni'o`, `no'i`, `lu`, `tu'e` or `to`. The Magic Words proposal and camxes-std (the reference PEG parser) read `su` in this way. Under CLL 19.13, `su` erases the whole text.
+A feature is a named switch that the grammars test. The dialect turns on the feature `su-boundary`, so that `su` erases back to the last `ni'o`, `no'i`, `lu`, `tu'e`, `to` or `to'i`. The Magic Words proposal and camxes-std (the reference PEG parser) read `su` in this way. Under CLL 19.13, `su` erases the whole text.
 
 ```jbogenbau
 %features su-boundary
