@@ -291,7 +291,7 @@ The second type is the string. `phonemes(span)` is the canonical sound of a span
 
 The next paragraph uses four more Lojban terms. A gismu is a root word. A lujvo is a compound word. A fu'ivla is a borrowed word. A cmevla is a proper name.
 
-In the `cll-ebnf` dialect, a comma between two vowels marks a syllable break, as CLL 3.3 describes. In that dialect, a cmavo, a gismu or a lujvo has no comma between two vowels. A fu'ivla or a cmevla can have one, as in the cmevla `nu,iork`. Without its commas and with its capitals lowered, a fu'ivla must still be a fu'ivla, and a cmevla must still be a cmevla. For example, `zba,A,u` is a fu'ivla, because `zbaau` is one, although `zbaAu` is none. So `ba,irgau` and `ma,i` are no words, because `bairgau` is a lujvo and `mai` is a cmavo.
+In the `cll-ebnf` dialect, a comma between two vowels marks a syllable break, as CLL 3.3 describes. In that dialect, a cmavo, a gismu or a lujvo has no comma between two vowels. A fu'ivla or a cmevla can have one, as in the cmevla `nu,iork`. Without its commas and with its capitals lowered, a fu'ivla must still be a fu'ivla, and a cmevla must still be a cmevla. For example, the fu'ivla `zba,A,u` passes this check as `zbaau`, which is a fu'ivla, although `zbaAu` is none. So `ba,irgau` and `ma,i` are no words, because `bairgau` is a lujvo and `mai` is a cmavo.
 
 In the other bundled Lojban dialects, a comma between two vowels is nothing, so `ma,i` is `mai`. In all four bundled Lojban dialects, the word stage compares `zoi` delimiters by `phonemes()`, which has no commas, so `nuiork` and `nu,iork` match.
 
@@ -327,7 +327,7 @@ The predicates are:
 - `begins(span, rule)` holds when some prefix of the span parses as the rule. The empty prefix counts.
 - `initial(span)` holds when the span begins where the parser's input begins.
 
-`matches` and `tags(span, rule)` parse the captured span alone, as the named rule, with the same grammar. This is how gencmu states CLL's slinku'i test for borrowings. A CV cmavo is a particle of one consonant and one vowel. The test says that such a cmavo before a borrowing must not make a lujvo, a compound word. That is `¬matches($f, lujvo-after-cv)`, because the rule is the part of a lujvo after its first two letters.
+`matches` and `tags(span, rule)` parse the captured span alone, as the named rule, with the same grammar. This is how gencmu states CLL's slinku'i test for fu'ivla. A CV cmavo is a particle of one consonant and one vowel. The test says that such a cmavo before a fu'ivla must not make a lujvo. That is `¬matches($f, lujvo-after-cv)`, because the rule is the part of a lujvo after its first two letters.
 
 Inside such a parse, a condition can ask about the very span that is being parsed, as the same rule. Such a condition defines the rule in terms of itself over the same text, negated or not. The parser reports it as an error of the grammar.
 
@@ -423,7 +423,7 @@ A part that the list of a rule merely does not name is not handed on, but it sti
 
 During emission, `%opaque` treats each constituent of a rule as one part, an opaque part. An opaque part has its text as its label and `?` as its phonemes, whatever it holds. This is true whether the constituent emits a token with `$` or a parent emits a token over it. Recognition and conditions do not change. They still read the phonemes of the input tokens, so an opaque rule can test `phonemes($a) = "a"` and still emit `?`.
 
-The directive says nothing about the language of the text. It only says how the stage emits the text. Examples are the body of a `zoi` quote and a run of letters that no script reads. The body of a `zoi` quote is opaque even when it holds good Lojban words.
+The directive says nothing about the language of the text. It only says how the stage emits the text. Examples of opaque parts are a `zoi` body and a run containing an unrecognized character, such as `klama?` in `cll-ebnf`. The body of a `zoi` quote is opaque even when it holds good Lojban words.
 
 ```jbogenbau
 %rule zoi-body

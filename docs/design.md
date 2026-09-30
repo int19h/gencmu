@@ -167,9 +167,9 @@ A captured item can also carry attachments, captures in parentheses before or af
 
 The syntax reads leading indicators itself. They stand at the start of a text or after a text opener such as `lu`. In such a run, the indicator stage attaches only `ba'e`, to the indicator after it. A `nai` after an attitudinal stays a separate token there. The syntax reads `UI NAI`. In a run after a word, the `nai` attaches to its attitudinal instead.
 
-During emission, `%opaque` treats a constituent as one part, with its text as its label and `?` as its phonemes. The body of a `zoi` quote is an example. Recognition and conditions still read the phonemes of the input tokens. So a later comparison of sounds never matches that text with a word, and the renderings still show it. The text of an opaque part also takes in punctuation next to it that no token covers.
+During emission, `%opaque` treats a constituent as one part, with its text as its label and `?` as its phonemes. The body of a `zoi` quote is an example. Its emitted token sounds `?`, so later sound comparisons distinguish it from Lojban words. Its label preserves the text for the renderings. The stage's own recognition and conditions still read the phonemes of its input tokens. The text of an opaque part also takes in punctuation next to it that no token covers.
 
-The engine does not tie `%opaque` to any tag, because a grammar chooses its own tags. In the bundled grammars, `UNREAD` marks a run that the pipeline has not read as words. The phoneme stage makes such a run opaque. The forms stage keeps the phonemes of its own unread runs, so a `zoi` delimiter still compares with them.
+The engine does not tie `%opaque` to any tag, because a grammar chooses its own tags. In the bundled grammars, `UNREAD` marks a run that the pipeline did not read as words. The phoneme stage makes such a run opaque. The forms stage keeps the phonemes of its own unread runs, so a `zoi` delimiter still compares with them.
 
 The word stage makes `zoi` and `zo'oi` bodies opaque, and the bodies of the quotes that work like `zoi`, such as `la'o`. Their payloads and Zantufa's quoted rafsi forms carry `quoted-text`, the mark for what a quote hands the syntax as one unit. A quoted rafsi form keeps its phonemes.
 
