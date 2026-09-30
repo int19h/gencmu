@@ -98,6 +98,8 @@ The approved word forms set only `onset` and `continued`, with the meaning that 
 
 A join permits two words without a pause. This document states the joins so that no two joins apply to the same pair. For example, only the `Cy` rule joins two `Cy` letter words side by side. That is why the general join, a continued word followed by an onset, leaves that case to the `Cy` rule.
 
+The first condition of `run-words` follows from the second. Each join of the second needs one of four tags on the words before: `continued`, `cy`, `name-intro` or `open-stress`. The first condition stays because it uses only `$r`. So the parser tests it as soon as it reads the words before, and drops the join before it reads another word (engine §4). Without it, the parser tries every word shape after a word that no word can join. The full corpus then takes about 13% longer in the Rust library.
+
 The word stage needs to know where a run begins and ends. A name that `bu` takes needs a pause before it (CLL 17.4). A `zoi` quote and a `zo'oi` quote end at the end of a run. So this stage tags the first word of each run `run-initial`, and the last word `run-final`.
 
 ```jbogenbau
