@@ -140,7 +140,7 @@ The bundled dialects do not guard every change. The only bundled warning is `y-c
 
 ## Stitching documents
 
-A stage reads its input with one grammar. The loader assembles that grammar from the rules and directives of one or more documents, read in order. A later rule can change what an earlier one said. Only the order of the rules in the stage matters, not the document where each was written. There are three ways to state a rule, and each says what it expects to be there already:
+A stage reads its input with one grammar. The loader assembles that grammar from the items of one or more documents, read in order. A later rule can change what an earlier one said. Only the order of the rules in the stage matters, not the document where each was written. There are three ways to state a rule, and each says what it expects to be there already:
 
 - `%rule` defines a rule. It is an error if a rule of that name was defined before it in the stage.
 - `%redefine-rule` replaces a rule defined before it in the stage. It is an error if none was. The earlier alternatives are gone.
