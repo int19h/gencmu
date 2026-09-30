@@ -1,6 +1,6 @@
 # The shared tests
 
-Every gencmu library runs every case here. If a case fails in one library and passes in another, there is a bug. The bug is in the library that disagrees with `docs/engine.md`, or in the specification itself.
+Every gencmu library runs every shared case that its API can express. The Rust library skips a few engine cases, as "Engine cases" says. If a case fails in one library and passes in another, there is a bug. The bug is in the library that disagrees with `docs/engine.md`, or in the specification itself.
 
 ## Engine cases: `engine/*.json`
 
@@ -28,7 +28,7 @@ The input is `input` or `tokens`. `input` is a string of characters, read as eng
 - Its text is as given.
 - Its phonemes are the `phonemes` member if present, or else none.
 - Its label is its text.
-- Its span is `[i, i+1]`.
+- Its span is `[i, i+1)`.
 - Its source is the position of its text in the texts joined with single spaces.
 - Its attachments are its `before` and `after` members, when present, each a list of tokens in this same form. A caller cannot supply attachments. So a list that is not empty is a `usage` error, and the library drops an empty one (`docs/api.md`). The Rust library, whose input tokens have no attachments, skips a case whose tokens have either member.
 

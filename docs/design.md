@@ -63,7 +63,7 @@ The four libraries implement one specification, `docs/engine.md`. It was written
 2. Lowering turns the grammar into a context-free grammar. Lowering makes named helper rules for the notation's shorthand, such as `[ ]` and `...`, and diagnostics hide these rules.
 3. The recognizer is an Earley parser (a standard algorithm for any context-free grammar). Its items, the partial matches that it keeps, record the span and the identity of the tag set of each captured part. The parser evaluates each condition as soon as it reads the last capture of that condition. With `from` and `after`, a condition can look past its constituent to the end of the input. A PEG (parsing expression grammar, which tries alternatives in order) has a lookahead that does the same.
 
-   Nested parses for `matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` share their memo (a cache of answers) with the parse that started them. The memo key is the kind of query, the rule, and either the content of a short span or the position of a long span. A nested parse asked about its own span is a grammar error.
+   Nested parses for `matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` share their memo (a cache of answers) with the parse that started them. The memo key is the kind of query, the rule, and either the content of a short span or the position of a long span. A nested parse asked about its own span, as the same rule, is a grammar error.
 4. The engine chooses a parse. It orders the parses by their first difference, as sequences of bottom-up actions. The order uses the grammar's declared `%ambiguity-resolution`. This part also covers the verdicts unique, resolved and tie, the tie witness, and the `elision-only` check (see "Ambiguity" below).
 5. The stage emits the tokens of the next stage. Each token has its text, its phonemes, its label and its source range. The label is what the renderings for people show. A token can also carry attachments, tokens that belong to it and that no later stage reads.
 6. The pipeline runs the stages in order, and stops at the first rejection.
@@ -75,7 +75,7 @@ The four libraries implement one specification, `docs/engine.md`. It was written
 - A non-final stage with a tie emits the chosen derivation. Its tie stands even when every tied derivation emits the same tokens. The stage is ambiguous as written, and the report of the tie lets a grammar author fix it. The engine cases include a three-way tie and a tie whose derivations emit the same tokens.
 - The cases cover empty spans and cycles: nullable rules, empty captures and a condition on an empty span. They also cover a unary cycle of `a` to `b` and `b` to `a`, and a nested parse asked about its own span. Each case has its defined outcome.
 
-Every position in a result is a half-open range of coordinates: the range holds its start but not its end. Source positions count Unicode code points, not bytes or UTF-16 units, so that the four languages agree on non-ASCII text. Each library converts at its edge (JavaScript from UTF-16, Go and Rust from UTF-8). The libraries derive line and column in diagnostics from code points. Lines split at `\n`, `\r\n` and `\r`.
+Every span and every source range in a result is half-open: the range holds its start but not its end. Source positions count Unicode code points, not bytes or UTF-16 units, so that the four languages agree on non-ASCII text. Each library converts at its edge (JavaScript from UTF-16, Go and Rust from UTF-8). The libraries derive line and column in diagnostics from code points. Lines split at `\n`, `\r\n` and `\r`.
 
 A token's `span` is a range of the previous stage's tokens. Its `source` is the smallest range of the original text that holds the sources of those tokens. So the source is contiguous even when some of those tokens emitted nothing, as an erased word inside a compound does. A token inserted by an emission clause has an empty span, and an empty source range at the position where it was inserted. Its provenance is that emission: its `insertedBy` records the rule whose clause inserted it.
 
@@ -93,7 +93,7 @@ The bodies keep the look of CLL's EBNF, because a reader of CLL recognizes that 
 
 A grammar document is Markdown. Its fenced `jbogenbau` blocks, in order, are the grammar, and the prose between them explains it. The loader finds only the fences by lines, as Markdown requires. Inside a block, line breaks and indentation mean nothing.
 
-A rule is a keyword, its name and its body, followed by its clauses. Each clause is a keyword and what it says. A rule ends where the next keyword that begins a rule or a directive stands. So a rule needs no terminator, and nothing is recognized by its position on a line:
+A rule is a keyword, its name and its body, followed by its clauses. Each clause is a keyword and what it says. A rule ends where the next item begins: a rule, a directive, a constant, a classifier or an implication. So a rule needs no terminator, and nothing is recognized by its position on a line:
 
 ```jbogenbau
 %rule term-connective
@@ -103,12 +103,12 @@ A rule is a keyword, its name and its body, followed by its clauses. Each clause
   | VUhU #
 
 %rule vowel-group-joined
-  $g(vowel-group) $v(vowel) <tags($v)>
-%conditions
-  ~syllabic ⊆ tags($g),
-  ~syllabic ⊆ tags($v)
+  vowel-group⊇~syllabic $v(joined-vowel⊇~syllabic) <tags($v)>
+
+%rule joined-vowel
+  $v(vowel) <tags($v)>
 %emits
-  $g, /'/, $v
+  /'/, $v
 ```
 
 Every binary operator except the difference, `∖`, can also stand first, as a no-op, so that a list can put one item on each line. These operators are `|` and `&` in bodies, `∪` and `∩` in terms, and `∧` and `∨` in conditions. The commas of a clause's list can stand first too.
@@ -184,7 +184,7 @@ A maintainer changes the notation in its documents, and `tools/sync.js` regenera
 
 `docs/engine.md` specifies the search (§8), the walk rule by rule (§9) and the restrictions (§9).
 
-Grammar authors get the same diagnostics for a malformed grammar as for a malformed Lojban text. The playground can also show how a grammar document parses. The cost is load time. The bundled grammars are about 200 KB, and a character-level stage reads them quickly in Rust and JavaScript but slowly in pure Python. So every package ships, beside its grammar copy, the DOM of each bundled document as JSON.
+Grammar authors get the same diagnostics for a malformed grammar as for a malformed Lojban text. The playground can also show how a grammar document parses. The cost is load time. The grammar text of the bundled documents is about 160 KB. A character-level stage reads it quickly in Rust and JavaScript but slowly in pure Python. So every package ships, beside its grammar copy, the DOM of each bundled document as JSON.
 
 The key of a DOM has three parts:
 
@@ -362,11 +362,13 @@ These are the product, not an afterthought:
 
 The CLI is `node lib/js/cli.js` (and `npx gencmu` once published). It has these commands:
 
-- `parse`, with `--dialect`, `--feature` and `--no-feature`, `--until`, `--format brackets|tree|json|canonical|tokens` and `--trace`. It prints any warning on standard error, as it prints a tie.
+- `parse`, with options such as `--dialect`, `--feature` and `--no-feature`, `--until`, `--format brackets|tree|json|canonical|tokens` and `--trace`. It prints any warning on standard error, as it prints a tie.
+- `dialects`, to list the bundled dialects
 - `features`, to list a dialect's features
 - `audit`
 - `stitch`, to print a dialect's pipeline as one jbogenbau text, with each classifier's entries as written
 - `test`, to run a test file against a dialect
+- `help`, to list the commands and every option
 
 The CLI needs Node and nothing else.
 

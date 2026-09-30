@@ -242,7 +242,7 @@ An elided terminator has no constituent in three cases:
 
 A PEG (parsing expression grammar) repetition such as `([T] A) ...` reads its next item after what it read. It does not make what it read longer first.
 
-When the stage's directive has `maximal`, the engine does not count some more derivations, as it does not count cyclic ones. It does not count a derivation if one of its elided terminators has a constituent that is not the longest possible. Such a constituent is a node of a symbol `Y` spanning `[s, p]`. The recognizer also has a completed item of a production of `Y`, with origin `s`, in a set after `p`.
+When the stage's directive has `maximal`, the engine does not count some more derivations, as it does not count cyclic ones. It does not count a derivation if one of its elided terminators has a constituent that is not the longest possible. Such a constituent is a node of a symbol `Y` spanning `[s, p)`. The recognizer also has a completed item of a production of `Y`, with origin `s`, in a set after `p`.
 
 When `Y` is tested, the longer constituent counts only if the test holds of it, with its own span and its own tags. The longer constituent need not fit into any derivation of `text`, which is what makes `maximal` commit as a PEG does. The longer constituent can contain the constituent itself, as a left-recursive rule builds a longer node on a shorter one.
 

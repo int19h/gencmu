@@ -193,6 +193,7 @@ A classifier gives a sound its classes. A lexicon is a classifier: it gives each
 %classifier lexicon
   "mi" "do" "ko'a" "ko'e" ∈ KOhA
   "ui" "u'i" ∈ UI
+  "de'i" "ti'u" ∈ BAI
 
 %classifier lexicon
   date-li? "de'i" "na'a" "ti'u" ∈ LI
@@ -229,7 +230,7 @@ The stage applies its implications when it emits a token. First it gives the tok
 
 Only then does the stage find the token's sound. So an implication that adds a phoneme tag sets the token's sound. Two phoneme tags on one token are an error, also when an implication added one of them.
 
-Implications apply only to the tokens that the stage emits. They do not change a constituent's tags, the value of a term or the classes of a classifier. A later stage applies only its own implications. So the lexicon's implication in the forms stage marks each attitudinal `indicator`. The word stage can drop that mark from a quote's marker, and nothing adds it again.
+Implications apply only to the tokens that the stage emits. They do not change a constituent's tags, the value of a term or the classes of a classifier. A later stage applies only its own implications. So the lexicon's implication in the forms stage marks each word of these classes `indicator`. The word stage can drop that mark from a quote's marker, and nothing adds it again.
 
 ## Captures
 
@@ -469,7 +470,7 @@ A dialect is a pipeline document, which is Markdown too. Each stage is a heading
 - `%include "PATH"` stands for the rules and directives of the document at `PATH`. The loader resolves the path against the directory of the document that holds the `%include`. It works as if their text stood in its place, so an included document can include others and can hold `%stage` and `%features` too. Each document must still be complete rules and directives on its own. A document can be included in several stages. A document that includes itself, directly or through others, is an error.
 - `%features NAME ...` names features the dialect turns on for every parse, wherever it stands. A caller can turn other features on, and can turn any of these off.
 
-Rules can also stand in the pipeline document itself, between its `%include` blocks. The loader stitches them in their places. A rule or a stage-level directive before the first `%stage` is an error. So are two stages of one name and a stage with no rules.
+Rules can also stand in the pipeline document itself, between its `%include` blocks. The loader stitches them in their places. A rule, a constant, a classifier, an implication or a stage-level directive before the first `%stage` is an error. So are two stages of one name and a stage with no rules.
 
 By convention, each document keeps its link in the prose, and its `%include` follows in a block of its own, in the same list item. So the pipeline reads as hyperlinked prose. A block's fence can be indented by up to three spaces, so a block can stand under a list item, indented by two. The reader knows no other Markdown container.
 
