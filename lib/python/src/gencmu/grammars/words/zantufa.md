@@ -48,6 +48,8 @@ A word of LU, TO or LUhEI opens a text of its own. The hesitation after such a w
   LU ∪ TO ∪ LUhEI
 ```
 
+A run that begins with `ra'oi` and a form after it extends the rule `read-run` of forms.md. So the stage never reads such a run as foreign text too.
+
 The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join. The first of them follows from the second, but it lets the parser drop a join early, as forms.md explains.
 
 ```jbogenbau
@@ -59,7 +61,7 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
   RAhOI ⊈ tags($p) ∨ ¬matches($r, rahoi-rest),
   RAhOI ⊆ tags($q)
 
-%extend-rule run
+%extend-rule read-run
   run-words⊇RAhOI $s(rahoi-rest)
 %tags
   tags($s)

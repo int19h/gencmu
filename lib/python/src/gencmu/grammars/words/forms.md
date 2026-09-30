@@ -45,7 +45,10 @@ A run that divides into words divides in one way only. The word forms of each fa
   $
 
 %rule run
-  run-words | foreign-run | unread-run
+  read-run | foreign-run | unread-run
+
+%rule read-run
+  run-words
 
 %rule foreign-run
   $f(FOREIGN)
@@ -56,7 +59,7 @@ A run that divides into words divides in one way only. The word forms of each fa
   $f(phoneme-run)
 %conditions
   ¬begins(after($f), nonpause-phoneme),
-  ¬matches($f, run-words)
+  ¬matches($f, read-run)
 %emits
   $ <FOREIGN ∪ ~run-initial ∪ ~run-final>
 
@@ -74,6 +77,8 @@ The stage covers every input token. It passes pauses and foreign runs through, a
 A run of phonemes that divides into no words becomes one `FOREIGN` token, which sounds like its phonemes. So a `zoi` delimiter compares with it exactly as with the same phonemes read as words. The text of the token is what the author wrote.
 
 The stage tests only a whole run for whether it divides. A part of a run has a phoneme after it, so the stage does not test it. The stage tests the run alone. This gives the same answer as a test in place, because no rule of this stage reads past the end of a run.
+
+The rule `read-run` is a run that divides into words. A dialect that divides a run in another way extends `read-run`, as [zantufa.md](zantufa.md) does for `ra'oi`. So `unread-run` never takes a run that one of these ways reads.
 
 ## Words in a run
 
