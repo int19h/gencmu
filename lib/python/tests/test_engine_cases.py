@@ -112,6 +112,18 @@ class EngineCases(unittest.TestCase):
             with self.subTest(member=name), self.assertRaises(AssertionError):
                 self.check("load", {"error": "grammar", name: []}, value, result, error, features)
 
+    def test_a_usage_error_of_loading_meets_only_its_kind(self) -> None:
+        # A document held in memory with a lone surrogate is a mistake of the
+        # caller (engine §1), found at load (tests/README.md).
+        value, result, error, features = run_case({"grammar": "%rule text 'a\ud800'"})
+        assert error is not None
+        self.assertEqual(error.kind, "usage")
+        self.check("load", {"error": "usage"}, value, result, error, features)
+        with self.assertRaises(AssertionError):
+            self.check("load", {"error": "grammar"}, value, result, error, features)
+        with self.assertRaises(AssertionError):
+            self.check("load", {"error": "usage", "result": {}}, value, result, error, features)
+
 
 if __name__ == "__main__":
     unittest.main()
