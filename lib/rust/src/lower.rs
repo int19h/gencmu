@@ -232,9 +232,9 @@ pub(crate) struct Prod {
     pub cap_pos: Vec<u16>,
     pub tags: Option<LTerm>,
     pub emit: LEmit,
-    /// `%foreign`: its constituent is a foreign part, which sounds `?` and
+    /// `%opaque`: its constituent is an opaque part, which sounds `?` and
     /// shows its text (§11).
-    pub foreign: bool,
+    pub opaque: bool,
     /// Conditions, each with the dot at which it is evaluated.
     pub conds: Vec<(LCond, u16)>,
     pub visible: bool,
@@ -812,7 +812,7 @@ pub(crate) fn lower(
             tests,
             tags: None,
             emit: LEmit::None,
-            foreign: false,
+            opaque: false,
             conds: Vec::new(),
             trailing_step: pending.trailing_step,
             warnings: Vec::new(),
@@ -823,7 +823,7 @@ pub(crate) fn lower(
             let alternative = alternatives[pending.rule as usize][number];
             production.document = Some(alternative.document.clone());
             production.at = alternative.at;
-            production.foreign = alternative.foreign;
+            production.opaque = alternative.opaque;
             production.warnings = alternative
                 .alternative
                 .guards
