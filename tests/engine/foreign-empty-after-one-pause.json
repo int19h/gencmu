@@ -1,0 +1,65 @@
+{
+  "description": "An empty foreign part after one pause gives `?` to the phonemes of a token over it, with no pause after the `?`. The label keeps the one pause and gains nothing. The word stage's empty `zoi` quote has this shape, and a letter word over it sounds `zoi.gy.?gy.bu` (engine §5, §11).",
+  "grammar": "%rule text $w(letter)\n%emits $w <W>\n%rule letter quote P L\n%rule quote L P $b(body) L\n%emits $b <F>\n%rule body ε\n%foreign",
+  "tokens": [
+    {
+      "text": "gy",
+      "tags": [
+        "L"
+      ],
+      "phonemes": "gy"
+    },
+    {
+      "text": "-",
+      "tags": [
+        "P"
+      ],
+      "phonemes": "."
+    },
+    {
+      "text": "gy",
+      "tags": [
+        "L"
+      ],
+      "phonemes": "gy"
+    },
+    {
+      "text": "-",
+      "tags": [
+        "P"
+      ],
+      "phonemes": "."
+    },
+    {
+      "text": "bu",
+      "tags": [
+        "L"
+      ],
+      "phonemes": "bu"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "text": "gy - gy - bu",
+              "phonemes": "gy.?gy.bu",
+              "label": "gy-gy-bu",
+              "span": [
+                0,
+                5
+              ],
+              "source": [
+                0,
+                12
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

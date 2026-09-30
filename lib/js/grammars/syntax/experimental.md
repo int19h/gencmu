@@ -364,7 +364,7 @@ A description can take a forethought sentence in place of a selbri, and so can a
   | KOhA #
   | lerfu-string free-after-lerfu-string
   | ¬cbm? name-marker # [relative-clauses] CMEVLA ... #
-  | (LA | LE) # sumti-tail [KU] #
+  | LE # sumti-tail [KU] #
   | LOhOI # subsentence [KUhAU] #
   | LI # mex [LOhO] #
   | ZO any-word #
@@ -522,7 +522,7 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
 camxes-exp replaces CLL's mekso with its own, and the layer follows it (camxes-exp.peg, `quantifier` to `lerfu_string`). So nothing reads the CLL rules `operand`, `operand-1` to `operand-3` and `rp-operand`. These are the changes:
 
 - A number is a run of PA words, `ni'e` selbri and `mo'e` sumti, with no lerfu word in it. A lerfu string is a run of lerfu words, with no PA word in it. So `li pa by` is two terms, and `mi viska cy no` is not a text.
-- An operand of a mekso is `mex-2`: a number or a lerfu string, a `vei` group, a forethought connection, or a `la'e` or `na'e` reference. It can also be a `pe'o` forethought expression or a reverse Polish expression. The operands `ni'e` and `mo'e` are inside numbers.
+- An operand of a mekso is `mex-2`: a number or a lerfu string, a `vei` group, a forethought connection, or a `la'e` or `na'e` reference. It can also be a `pe'o` forethought expression or a reverse Polish expression. The operands `ni'e` and `mo'e` are inside numbers. There is no `jo'i` array, although the lexicon has `jo'i`. camxes-exp reads `jo'i` only in its `operand` rules, which nothing reads, so it rejects `li jo'i pa re te'u`.
 - `bo` after an operator, with an optional tense or modal, groups two operands tighter (`li pa su'i bo re`). There is no `bi'e`, and a forethought operator needs `pe'o`.
 - An operator can be a connective, a joik, jek or ek. A joik or jek operator has one slot of free modifiers, the one at the end of `joik-jek`. The PEG of camxes-exp never reads its second `free*` there.
 - A quantifier is a whole mekso, `pa su'i re broda`. It cannot begin with a lerfu word, `la'e` or `na'e`, because camxes-exp reads a sumti there (its `!sumti_6`). camxes-exp also refuses a quantifier where a selbri begins (`!selbri`), and so does the layer. So in `mi piso'umei jimpe`, `pi so'u mei jimpe` is the selbri, and not a quantifier of a description.

@@ -1025,3 +1025,121 @@ func TestInsertedAfterAttachmentErrorOrder(t *testing.T) {
 		t.Fatalf("%v %+v", err, res.Error)
 	}
 }
+
+// stageOutput is the output of the stage name of a parse of text, which must
+// succeed.
+func stageOutput(t *testing.T, d *Dialect, text, name string) []Token {
+	t.Helper()
+	res, err := d.Parse(text, ParseOptions{})
+	if err != nil || !res.OK {
+		t.Fatalf("%s: %v %+v", text, err, res.Error)
+	}
+	for _, stage := range res.Stages {
+		if stage.Name == name {
+			return stage.Output
+		}
+	}
+	t.Fatalf("%s: no stage %s", text, name)
+	return nil
+}
+
+func hasTag(token Token, tag string) bool {
+	for _, t := range token.Tags {
+		if t == tag {
+			return true
+		}
+	}
+	return false
+}
+
+// words/stream.md: the body of an empty zoi quote is an empty foreign part.
+// So it sounds ?, and a letter word over the quote keeps the ?, with no pause
+// after it, since the one pause between the delimiters comes first.
+func TestEmptyZoiBodySoundsForeign(t *testing.T) {
+	d, err := LoadDialect("cll-ebnf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var body *Token
+	for _, token := range stageOutput(t, d, "zoi gy gy", "words") {
+		if hasTag(token, "foreign-text") {
+			body = &token
+			break
+		}
+	}
+	if body == nil || body.Phonemes != "?" || body.InsertedBy != "" {
+		t.Fatalf("the body of zoi gy gy: %+v", body)
+	}
+	if letter := stageOutput(t, d, "zoi gy gy bu", "words")[0]; letter.Phonemes != "zoi.gy.?gy.bu" {
+		t.Fatalf("zoi gy gy bu sounds %q", letter.Phonemes)
+	}
+}
+
+// phonemes/zbalermorna.md: the token of the vowel after the shorthand mark
+// covers the mark, so a word that begins with the shorthand begins at it.
+func TestZbalermornaShorthandCoversItsMark(t *testing.T) {
+	d, err := LoadDialect("bpfk")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := ""
+	if vowel := stageOutput(t, d, text, "phonemes")[0]; vowel.Text != "" || vowel.Source != [2]int{0, 2} {
+		t.Fatalf("the vowel: %q %v", vowel.Text, vowel.Source)
+	}
+	word := stageOutput(t, d, text, "forms")[0]
+	if word.Text != text || word.Source != [2]int{0, 3} || word.Phonemes != "u'i" {
+		t.Fatalf("the word: %q %v %q", word.Text, word.Source, word.Phonemes)
+	}
+}
+
+// syntax/experimental.md: the grammar reads no LA, since no word of the
+// experimental lexicon has it. A probe document after the lexicon moves la
+// from LE to LA, and then no rule reads la mlatu ku.
+func TestExperimentalSyntaxReadsNoLA(t *testing.T) {
+	sources := map[string]string{}
+	root := "grammars"
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil || entry.IsDir() || !strings.HasSuffix(path, ".md") {
+			return err
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		relative, err := filepath.Rel(root, path)
+		sources[filepath.ToSlash(relative)] = string(data)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	include := `%include "../words/lexicon-experimental.md"`
+	if !strings.Contains(sources["dialects/experimental.md"], include) {
+		t.Fatal("the pipeline no longer includes the lexicon")
+	}
+	sources["dialects/experimental.md"] = strings.Replace(sources["dialects/experimental.md"], include, include+"\n  %include \"../words/la-probe.md\"", 1)
+	sources["words/la-probe.md"] = block("%classifier lexicon", `  "la" ∉ LE`, `  "la" ∈ LA`)
+	probe, err := LoadDialectSources(sources, "dialects/experimental.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := probe.Parse("la mlatu ku cu klama", ParseOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var la Token
+	for _, stage := range res.Stages {
+		if stage.Name == "forms" {
+			la = stage.Output[0]
+		}
+	}
+	if !hasTag(la, "LA") || hasTag(la, "LE") {
+		t.Fatalf("la has the tags %v", la.Tags)
+	}
+	if res.OK || res.Error == nil || res.Error.Stage != "syntax" {
+		t.Fatalf("la mlatu ku cu klama: %v %+v", res.OK, res.Error)
+	}
+	if res, err := probe.Parse("lo mlatu ku cu klama", ParseOptions{}); err != nil || !res.OK {
+		t.Fatalf("lo mlatu ku cu klama: %v %+v", err, res)
+	}
+}

@@ -1,0 +1,64 @@
+{
+  "description": "A capture over a mark and a vowel emits one token over both, with the vowel's tags through `%tags tags($v)`. So the token's text and source take in the mark, and it sounds like the vowel. An inserted tag after it has an empty span at its end. The zbalermorna shorthand of the phoneme stage has this shape (engine §5, §11).",
+  "grammar": "%rule text [part] ...\n%rule part vowel | shorthand\n%rule vowel 'a' </a/> | 'u' </u/>\n%emits $\n%rule shorthand $v(marked)\n%emits $v, /'/\n%rule marked '^' $v(vowel)\n%tags tags($v)",
+  "input": "^ua",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "text": "^u",
+              "phonemes": "u",
+              "label": "u",
+              "tags": [
+                "/u/"
+              ],
+              "span": [
+                0,
+                2
+              ],
+              "source": [
+                0,
+                2
+              ]
+            },
+            {
+              "text": "",
+              "phonemes": "'",
+              "label": "'",
+              "tags": [
+                "/'/"
+              ],
+              "span": [
+                2,
+                2
+              ],
+              "source": [
+                2,
+                2
+              ]
+            },
+            {
+              "text": "a",
+              "phonemes": "a",
+              "label": "a",
+              "tags": [
+                "/a/"
+              ],
+              "span": [
+                2,
+                3
+              ],
+              "source": [
+                2,
+                3
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

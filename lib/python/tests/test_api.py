@@ -624,3 +624,62 @@ class Robustness(unittest.TestCase):
         self.assertEqual(text.count('"rule":"text"'), 10000)
         brackets = gencmu.to_brackets(result)
         self.assertTrue(brackets.startswith("(" + "[{(" * 3) and brackets.endswith("a)"))
+
+
+def stage_output(dialect: gencmu.Dialect, text: str, name: str) -> list[gencmu.Token]:
+    """The output of the stage NAME of a parse of TEXT, which must succeed."""
+    result = dialect.parse(text)
+    assert result.ok, (text, result.error)
+    output = next(stage for stage in result.stages if stage.name == name).output
+    assert output is not None
+    return output
+
+
+class BundledGrammars(unittest.TestCase):
+    """What the shared corpus cannot see in the bundled grammars: the
+    phonemes and the sources of the tokens of a stage."""
+
+    def test_empty_zoi_body(self) -> None:
+        """words/stream.md: the body of an empty zoi quote is an empty foreign
+        part. So it sounds ?, and a letter word over the quote keeps the ?,
+        with no pause after it, since the one pause between the delimiters
+        comes first."""
+        dialect = gencmu.load_dialect("cll-ebnf")
+        body = next(token for token in stage_output(dialect, "zoi gy gy", "words") if "foreign-text" in token.tags)
+        self.assertEqual(body.phonemes, "?")
+        self.assertIsNone(body.inserted_by)
+        letter = stage_output(dialect, "zoi gy gy bu", "words")[0]
+        self.assertEqual(letter.phonemes, "zoi.gy.?gy.bu")
+
+    def test_zbalermorna_shorthand(self) -> None:
+        """phonemes/zbalermorna.md: the token of the vowel after the shorthand
+        mark covers the mark, so a word that begins with the shorthand begins
+        at it."""
+        dialect = gencmu.load_dialect("bpfk")
+        text = ""
+        vowel = stage_output(dialect, text, "phonemes")[0]
+        self.assertEqual((vowel.text, vowel.source), ("", (0, 2)))
+        word = stage_output(dialect, text, "forms")[0]
+        self.assertEqual((word.text, word.source, word.phonemes), (text, (0, 3), "u'i"))
+
+    def test_experimental_syntax_reads_no_la(self) -> None:
+        """syntax/experimental.md: the grammar reads no LA, since no word of
+        the experimental lexicon has it. A probe document after the lexicon
+        moves la from LE to LA, and then no rule reads la mlatu ku."""
+        root = Path(__file__).resolve().parents[1] / "src" / "gencmu" / "grammars"
+        sources = {path.relative_to(root).as_posix(): path.read_text(encoding="utf-8") for path in root.rglob("*.md")}
+        include = '%include "../words/lexicon-experimental.md"'
+        self.assertIn(include, sources["dialects/experimental.md"])
+        sources["dialects/experimental.md"] = sources["dialects/experimental.md"].replace(
+            include, include + '\n  %include "../words/la-probe.md"'
+        )
+        sources["words/la-probe.md"] = '```jbogenbau\n%classifier lexicon\n  "la" ∉ LE\n  "la" ∈ LA\n```\n'
+        probe = gencmu.load_dialect_sources(sources, "dialects/experimental.md")
+        result = probe.parse("la mlatu ku cu klama")
+        forms = next(stage for stage in result.stages if stage.name == "forms").output
+        assert forms is not None
+        self.assertTrue("LA" in forms[0].tags and "LE" not in forms[0].tags)
+        self.assertFalse(result.ok)
+        assert result.error is not None
+        self.assertEqual(result.error.stage, "syntax")
+        self.assertTrue(probe.parse("lo mlatu ku cu klama").ok)
