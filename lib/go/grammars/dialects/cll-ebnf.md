@@ -96,6 +96,7 @@ The stage applies CLL's non-formal rule `word = [BAhE] any-word [indicators]`. A
   ```jbogenbau
   %include "../syntax/cll.md"
   ```
+
 The stage is the grammar of chapter 21, with selma'o as its terminals. The CLL grammar leaves the choice among parses to each dialect that uses it. This dialect makes the choice here:
 
 ```jbogenbau

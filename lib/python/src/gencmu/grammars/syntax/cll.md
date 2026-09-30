@@ -4,7 +4,17 @@ This document opens the syntax stage, the last stage of the [CLL](../dialects/cl
 
 This document is the grammar of Lojban as chapter 21 of *The Complete Lojban Language* (CLL) prints it, in the notation that the book uses. That notation is EBNF (Extended Backus-Naur Form). This grammar departs from the printed one where "Differences from the printed CLL grammar" at the end says.
 
-A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo. Its terminals are selma'o. A terminal matches an input token by tag. A tag is a name that an earlier stage gives a token.
+A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo. The terminals of this grammar are selma'o. A terminal matches an input token by tag. A tag is a name that an earlier stage gives a token.
+
+The prose uses these Lojban terms before the sections that explain them:
+
+- A selbri is the predicate of a sentence.
+- A sumti is an argument of a selbri.
+- A tanru is a compound selbri.
+- A jek is a logical connective between tanru units, such as `je`.
+- A joik is a non-logical connective, such as `joi`.
+- A stag is a tense or modal that can stand in a connective.
+- A mekso is a mathematical expression.
 
 The stages before it make the word stream that it reads. The forms stage, [a family of word forms](../words/forms.md), reads phonemes into words. The word stage, [the word stream](../words/stream.md), makes quotes and compounds and applies the erasers `si`, `sa` and `su`. [The indicator stage](../indicators/cll.md) attaches a run of indicators to the word before it, as CLL's non-formal rule `word = [BAhE] any-word [indicators]` says. Every cmavo reaches this grammar under each selma'o that [the CLL lexicon](../words/lexicon-cll.md) gives it. The material of a quote arrives tagged `word` or `foreign-text`, which is what `any-word` and `anything` read.
 

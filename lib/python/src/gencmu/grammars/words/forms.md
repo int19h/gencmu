@@ -72,11 +72,11 @@ The stage tests only a whole run for whether it divides. A part of a run has a p
 
 The stage reads the words of a run from the left. Each word after the first can follow the word before it only if the pause rules let the two stand together with no pause. The family tags each word with the properties that these rules test. The run carries the tags of its last word, so the condition sees the word before and the word after:
 
-- `onset`: the word can follow another word directly. It begins with a consonant and is not a name (rules 3 and 4).
-- `continued`: another word can follow this one directly. A name never has it (rule 2), nor a `Cy` letter, nor a brivla whose stress is not marked.
+- `onset`: The word can follow another word directly. It begins with a consonant and is not a name (rules 3 and 4).
+- `continued`: Another word can follow this one directly. A name never has it (rule 2), nor a `Cy` letter, nor a brivla whose stress is not marked.
 - `name-intro` and `name-onset`: `name-intro` marks `la`, `lai`, `la'i` and `doi`, and `name-onset` marks a name that begins with a consonant. The name can follow the cmavo directly (rule 4).
-- `cy`: a `Cy` letter, which only another `Cy` letter can follow directly (rule 6)
-- `final-stress`, `initial-stress` and `stress-guard`: the word's last or first syllable is stressed, or the word is a brivla. A word with either of the other two cannot directly follow a word with `final-stress` (4.2, rule 5).
+- `cy`: A `Cy` letter, which only another `Cy` letter can follow directly (rule 6)
+- `final-stress`, `initial-stress` and `stress-guard`: The word's last or first syllable is stressed, or the word is a brivla. A word with either of the other two cannot directly follow a word with `final-stress` (4.2, rule 5).
 - `open-stress` and `uncounted`: `open-stress` marks a brivla whose stress is not marked, and `uncounted` marks a word with no counted syllable. CLL 3.9 counts a brivla's syllables to the next pause, so only words with no counted syllable can follow it in its run. The run carries `open-stress` on through them.
 
 The approved word forms set only `onset` and `continued`, with the meaning that the PEG gives them. The PEG is the parsing expression grammar of the approved forms. [bpfk.md](bpfk.md) translates it. Every word is `continued`, and a word that does not begin with a nucleus is `onset`, a name included. Their words look past their own ends, as the words of the PEG do, and decide the rest themselves.

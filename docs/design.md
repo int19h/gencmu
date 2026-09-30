@@ -408,8 +408,8 @@ The editor lists a dialect's documents stage by stage. A forgiving scan of the `
 
 There are three kinds of shared test, and every library runs all of them:
 
-- `tests/engine/`: the engine specification's cases. Each case gives a pattern that the canonical result JSON must match. A pattern can pin stages, tokens, tags, verdicts, witnesses, errors and coordinates.
-- `tests/notation/`: small grammar documents with their expected DOMs and errors
+- `tests/engine/`: The engine specification's cases. Each case gives a pattern that the canonical result JSON must match. A pattern can pin stages, tokens, tags, verdicts, witnesses, errors and coordinates.
+- `tests/notation/`: Small grammar documents with their expected DOMs and errors
 - `tests/corpus/*.jsonl`: Lojban texts, one case per line:
 
   ```

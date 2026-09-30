@@ -17,8 +17,8 @@ gencmu.to_brackets(result, show_elided=True)
 A dialect is a pipeline document and the documents that it includes. The pipeline declares its stages with `%stage`, and the grammar documents of each stage with `%include`. It declares the features that it turns on with `%features` (`docs/notation.md`, "Pipelines").
 
 - `load_dialect(name)` loads a dialect of the bundled grammars. `name` is the name of its pipeline document under `grammars/dialects/` without `.md`.
-- `load_dialect_file(path)`: a pipeline document on disk. The loader finds its grammar documents relative to it. The Unicode table and the bootstrap of the notation come from the bundled grammars.
-- `load_dialect_sources(sources, pipeline)`: documents held in memory, a mapping from `/`-separated path to text, and the path of the pipeline document in it. The mapping can hold its own `unicode.txt`, `notation/bootstrap.json` and `compiled.json`. The bundled ones fill in what it lacks. A `unicode.txt` in the map replaces the bundled table entirely, White_Space included (`docs/api.md`).
+- `load_dialect_file(path)` loads a pipeline document from disk. The loader finds its grammar documents relative to it. The Unicode table and the bootstrap of the notation come from the bundled grammars.
+- `load_dialect_sources(sources, pipeline)` loads documents held in memory. `sources` is a mapping from `/`-separated path to text, and `pipeline` is the path of the pipeline document in it. The mapping can hold its own `unicode.txt`, `notation/bootstrap.json` and `compiled.json`. The bundled ones fill in what it lacks. A `unicode.txt` in the map replaces the bundled table entirely, White_Space included (`docs/api.md`).
 
 The loader reads a grammar document through the notation (the grammar of grammar documents) only when `compiled.json` has no matching entry. `compiled.json` holds the precompiled DOMs, the parsed forms of the grammar documents. An entry matches when it is for the same text, under the same bootstrap and DOM format. Reading a large grammar through the notation is slow in pure Python. So the bundled grammars all have an entry. Each loader takes `use_cache=False` to read every document afresh.
 
@@ -32,11 +32,11 @@ A dialect that cannot be loaded raises `gencmu.GencmuError`. Its `kind` is `"gra
 result = dialect.parse(text, features=(), without_features=(), auto_features=True, until=None, elision_only=None)
 ```
 
-- `features`: feature names to turn on in every stage, besides those the pipeline turns on with `%features`.
-- `without_features`: feature names to turn off in every stage, including those that the pipeline turns on. A name in both lists raises `GencmuError` with `kind` `"usage"`.
-- `auto_features`: add `sa-su` only where the text needs it. To find out, the parser first parses up to the stage named `words` without `sa-su`. This works only in a dialect that has `sa-su` as a gate and a stage named `words`. It does nothing if `sa-su` is already on, if `without_features` names it, or if `until` names a stage before `words`.
-- `until`: the name of the last stage to run. An unknown name raises `GencmuError` with `kind` `"usage"`.
-- `elision_only`: `True` or `False` to override the grammars' `%ambiguity-resolution ... elision-only`.
+- `features` names the features that the caller turns on in every stage, besides those the pipeline turns on with `%features`.
+- `without_features` names the features that the caller turns off in every stage, those that the pipeline turns on included. A name in both lists raises `GencmuError` with `kind` `"usage"`.
+- `auto_features` adds `sa-su` only where the text needs it. To find out, the parser first parses up to the stage named `words` without `sa-su`. This works only in a dialect that has `sa-su` as a gate and a stage named `words`. It does nothing if `sa-su` is already on, if `without_features` names it, or if `until` names a stage before `words`.
+- `until` names the last stage to run. An unknown name raises `GencmuError` with `kind` `"usage"`.
+- `elision_only`, when it is `True` or `False`, overrides the grammars' `%ambiguity-resolution ... elision-only`.
 
 A `text` with a lone surrogate raises `GencmuError` with `kind` `"usage"`. A text that does not parse is a result whose `ok` is false and whose `error` says why. The kind of that error is `rejected`, `ambiguous` or `grammar`. Here, `grammar` is for a defect of a grammar found only while parsing. An example is a classifier's entry that adds a class that a key already has, under the features of the parse. The message of that error names the document, line and column of the entry.
 
@@ -46,7 +46,7 @@ For tests and tools, `Dialect.parse_tokens(tokens, text, ...)` takes pre-built t
 
 - `name`
 - `kind`: `"gate"` for a guard `f?` or `¬f?`, or `"warning"` for `f!`
-- `default`: whether the pipeline turns the feature on
+- `default`: Whether the pipeline turns the feature on
 
 A dialect whose guards use one name both as a gate and as a warning cannot be loaded. A gate of a classifier's entry counts here too.
 
@@ -56,7 +56,7 @@ You can use a dialect for any number of parses, and you can share it between thr
 
 `ParseResult`, `Stage`, `Node`, `Token`, `ParseError`, `ParseWarning`, `Action` and `Expected` are dataclasses. A tag set is a `frozenset[str]` of tags, each in its canonical spelling, such as `KOhA`, `/a/` or `'a'` (`docs/engine.md`, §1). A character token of the first stage carries one tag, its character tag.
 
-A `Token` has its `text`, `phonemes`, `label`, `tags`, `span` and `source`, and `inserted_by` for a token that an emission inserted. The `label` is what the token shows to people. A pause shows as a space, and a foreign part, such as the body of a `zoi` quote, shows its text as written (`docs/engine.md`, §5 and §11). A character token's label is its text.
+A `Token` has its `text`, `phonemes`, `label`, `tags`, `span` and `source`, and `inserted_by` for a token that an emission inserted. The `label` is what the token shows to people. A pause shows as a space. A foreign part, such as the body of a `zoi` quote, shows its text as written (`docs/engine.md`, §5 and §11). A character token's label is its text.
 
 A `Token` also has its attachments, `before` and `after`. These are two lists of tokens that belong to it and that no later stage reads, such as the indicators after a word (`docs/engine.md`, §11). Both lists are empty unless an emission gives the token attachments. An attached token has no span, so its `span` is `None`. Its `source` is still a range of the original text.
 

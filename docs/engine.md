@@ -8,14 +8,14 @@ This document is the specification that every gencmu library implements. It says
 
 A stage is one step of a pipeline (§13), with its own grammar. Everything a stage reads and writes is a sequence of tokens. A token has:
 
-- `tags`: a set of tags, each a string.
-- `span`: the half-open range of the previous stage's tokens that it covers. A half-open range includes its start and excludes its end.
-- `source`: the half-open range of the original text that it covers, in Unicode code points.
-- `text`: the original text over `source`.
-- `phonemes`: what the token sounds like (§5).
-- `label`: what the token shows to people (§5).
-- `insertedBy`: for a token that an emission clause inserted from a tag literal (§11), the rule that the clause belongs to. For any other token it is absent, even for a token that an emission `$` makes over an empty constituent.
-- `before` and `after`: the token's attachments (§11). These are two lists of tokens that belong to the token and that no later stage reads. Both are empty unless an emission gives the token attachments. An attached token has no `span`.
+- `tags`: A set of tags, each a string
+- `span`: The half-open range of the previous stage's tokens that it covers. A half-open range includes its start and excludes its end.
+- `source`: The half-open range of the original text that it covers, in Unicode code points
+- `text`: The original text over `source`
+- `phonemes`: What the token sounds like (§5)
+- `label`: What the token shows to people (§5)
+- `insertedBy`: For a token that an emission clause inserted from a tag literal (§11), the rule that the clause belongs to. For any other token it is absent, even for a token that an emission `$` makes over an empty constituent.
+- `before` and `after`: The token's attachments (§11). These are two lists of tokens that belong to the token and that no later stage reads. Both are empty unless an emission gives the token attachments. An attached token has no `span`.
 
 The source of one token or more runs from the least source start among them to the greatest source end. An empty source counts as the point where it lies. Tokens usually lie in the order of their sources. Then this source runs from the source start of the first token to the source end of the last token.
 
@@ -39,10 +39,10 @@ A library reads a grammar document from disk as strict UTF-8. Bytes that are not
 
 `tools/unicode-table.py` generates `grammars/unicode.txt` from one version of the Unicode Character Database. Every library uses this file, not the Unicode data of its platform, so that the four libraries agree on every character. The file holds one entry on each line, with code points in hexadecimal:
 
-- `unicode 15.1.0`: the version of the data.
-- `category Lu 0041 005A`: a range of code points whose General_Category is `Lu`. The category is in its short form.
-- `white-space 0009 000D`: a range of code points that have the White_Space property.
-- `lower 0041 0061`: a code point and its simple lowercase mapping.
+- `unicode 15.1.0`: The version of the data
+- `category Lu 0041 005A`: A range of code points whose General_Category is `Lu`. The category is in its short form.
+- `white-space 0009 000D`: A range of code points that have the White_Space property
+- `lower 0041 0061`: A code point and its simple lowercase mapping
 
 In the bundled file, each `category` range is a longest run of one category. Together these ranges hold every Unicode scalar value once. `Cn`, the unassigned code points, has its ranges too. The records can stand in any order in a file. Each library sorts them when it loads the file, so their order never changes an answer.
 
@@ -120,9 +120,9 @@ A tag literal `~name`, a phoneme tag or a character tag is a terminal too. The D
 
 A reference other than `#`, or a terminal, can carry one test on its own span, as in `LE="la"`. A tested symbol is a symbol with a test. The test is not part of the name. A tested terminal is the same terminal, and a tested reference refers to the same rule. A test has one of six forms, where `X` is the symbol:
 
-- `X="s"` and `X≠"s"`: the canonical sound of the span (§5) is `s`, or it is not.
-- `X⊇t` and `X⊉t`: the own tags of `X` include every tag of `t`, or they lack one at least.
-- `X∩t=∅` and `X∩t≠∅`: the own tags of `X` include no tag of `t`, or they include one at least.
+- `X="s"` and `X≠"s"`: The canonical sound of the span (§5) is `s`, or it is not.
+- `X⊇t` and `X⊉t`: The own tags of `X` include every tag of `t`, or they lack one at least.
+- `X∩t=∅` and `X∩t≠∅`: The own tags of `X` include no tag of `t`, or they include one at least.
 
 The first two are sound tests, and the other four are tag tests. `s` is a closed term (§10) whose type is a string, and `t` is a closed term whose type is a tag set. The own tags of a terminal are the tags of its token. The own tags of a reference are the tags of its completed constituent (§4).
 

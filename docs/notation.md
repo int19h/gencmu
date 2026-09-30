@@ -309,13 +309,13 @@ The fourth type is the tag set. A tag literal is the set with that one tag, so `
 
 The predicates are:
 
-- `=` and `≠`, on two strings, two sets of strings or two tag sets. Any other pair is an error.
-- `∈` and `∉`, of a string in a set of strings.
-- `⊆` and `⊈`, of one set in another of the same kind. So `~indicator ⊆ tags($i)` says that `$i` carries the mark `indicator`, and `~indicator ⊈ tags($i)` says that it does not.
-- `$x`, of a capture.
-- `matches(span, rule)`, true when the span parses as the named rule.
-- `begins(span, rule)`, true when some prefix of the span parses as the rule. The empty prefix counts.
-- `initial(span)`, true when the span begins where the parser's input begins.
+- `=` and `≠` compare two strings, two sets of strings or two tag sets. Any other pair is an error.
+- `∈` and `∉` test whether a string is in a set of strings.
+- `⊆` and `⊈` test whether one set is in another of the same kind. So `~indicator ⊆ tags($i)` says that `$i` carries the mark `indicator`, and `~indicator ⊈ tags($i)` says that it does not.
+- `$x` holds when the alternative has the capture `x`.
+- `matches(span, rule)` holds when the span parses as the named rule.
+- `begins(span, rule)` holds when some prefix of the span parses as the rule. The empty prefix counts.
+- `initial(span)` holds when the span begins where the parser's input begins.
 
 `matches` and `tags(span, rule)` parse the captured span alone, as the named rule, with the same grammar. This is how gencmu states CLL's slinku'i test for borrowings. A CV cmavo is a particle of one consonant and one vowel. The test says that such a cmavo before a borrowing must not make a lujvo, a compound word. That is `¬matches($f, lujvo-after-cv)`, because the rule is the part of a lujvo after its first two letters.
 
@@ -435,8 +435,8 @@ An inserted token with a phoneme tag has that phoneme as its label, or a space f
 
 A directive is a keyword and its operands. By convention each stands in a block of its own, after prose that says why the grammar needs it. Two directives can share a line.
 
-- `%ambiguity-resolution greedy` or `lazy`, optionally followed by `elision-only`, and then optionally by `maximal`: how the stage chooses among parses, explained under "Ambiguity" and "Elided terminators". Every stage must say it exactly once, in any of its documents.
-- `%elidable KU KEI VAU ...`: the terminators that can be elided. An absent optional whose first symbol is one of them shows in the parse tree as that terminator, elided at that point. `elision-only` writes these terminators back. The operands are identifier tags: bare names that begin with a capital, or `~name`. So `KU` and `~KU` are one operand. A phoneme tag, a character tag, a range or a property there is an error.
+- `%ambiguity-resolution greedy` or `lazy`, optionally followed by `elision-only`, and then optionally by `maximal`: How the stage chooses among parses, explained under "Ambiguity" and "Elided terminators". Every stage must say it exactly once, in any of its documents.
+- `%elidable KU KEI VAU ...`: The terminators that can be elided. An absent optional whose first symbol is one of them shows in the parse tree as that terminator, elided at that point. `elision-only` writes these terminators back. The operands are identifier tags: bare names that begin with a capital, or `~name`. So `KU` and `~KU` are one operand. A phoneme tag, a character tag, a range or a property there is an error.
 - `%stage NAME`, `%include "PATH"` and `%features NAME ...` build a pipeline, as the next section says.
 
 ## Pipelines

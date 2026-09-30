@@ -10,12 +10,12 @@ The rules state CLL 1.1's word forms precisely enough to implement them twice. U
 
 The forms stage joins two words without a pause only if CLL 4.9 and 4.2 allow it. It reads these tags on the word before and the word after:
 
-- `onset`: the word begins with a consonant and is not a name. Only such a word can follow another word without a pause (rules 3 and 4), apart from a name after `la`, below.
-- `continued`: another word can follow this one without a pause. Every cmavo but a `Cy` letter has it, and so does a brivla whose stress is marked.
-- `open-stress`: the word is a brivla whose stress is not marked. CLL 3.9 puts its stress on its penultimate syllable, so no counted syllable can follow it before the next pause. Only a word tagged `uncounted`, one with no counted syllable, can follow it without a pause.
-- `cy`: a `Cy` letter, which rule 6 lets only another `Cy` follow directly
+- `onset`: The word begins with a consonant and is not a name. Only such a word can follow another word without a pause (rules 3 and 4), apart from a name after `la`, below.
+- `continued`: Another word can follow this one without a pause. Every cmavo but a `Cy` letter has it, and so does a brivla whose stress is marked.
+- `open-stress`: The word is a brivla whose stress is not marked. CLL 3.9 puts its stress on its penultimate syllable, so no counted syllable can follow it before the next pause. Only a word tagged `uncounted`, one with no counted syllable, can follow it without a pause.
+- `cy`: A `Cy` letter, which rule 6 lets only another `Cy` follow directly
 - `name-intro` and `name-onset`: `name-intro` marks `la`, `lai`, `la'i` and `doi`, and `name-onset` marks a name that begins with a consonant. Rule 4 lets the name follow the cmavo without a pause.
-- `initial-stress` and `final-stress`: the word's first or last syllable is stressed. Such syllables are those of the first and the last vowel nucleus of the word as written, `y` included. A pause must stand between a word with `final-stress` and a following word with `initial-stress` (CLL 4.2). It must also stand before a following brivla, which carries the tag `stress-guard` (rule 5).
+- `initial-stress` and `final-stress`: The word's first or last syllable is stressed. Such syllables are those of the first and the last vowel nucleus of the word as written, `y` included. A pause must stand between a word with `final-stress` and a following word with `initial-stress` (CLL 4.2). It must also stand before a following brivla, which carries the tag `stress-guard` (rule 5).
 
 ## Cmavo
 
