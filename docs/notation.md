@@ -136,7 +136,7 @@ A dialect that extends another dialect can use the two kinds for two kinds of ch
 
 A change to how the dialect reads a text of the base cannot be a warning. The change removes the base reading, and a warning changes nothing that the grammar accepts or chooses. So a gate can guard such a change, with the old form under `¬name?` beside it. The dialect then turns the gate on, and a caller who wants the base reading turns it off.
 
-The bundled dialects do not guard every change. The only bundled warning is `y-cmavo`, in the CLL dialect, so the additions of the experimental dialect carry no warning yet. A dialect also makes a change without a guard where a feature needs a convoluted grammar to keep the change separate. The documents of the dialect then say so.
+The bundled dialects do not guard every change. The only bundled warning is `y-cmavo`, in the `cll-ebnf` dialect, so the additions of the experimental dialect carry no warning yet. A dialect also makes a change without a guard where a feature needs a convoluted grammar to keep the change separate. The documents of the dialect then say so.
 
 ## Stitching documents
 

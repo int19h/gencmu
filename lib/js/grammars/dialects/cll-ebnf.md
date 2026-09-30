@@ -4,7 +4,9 @@ This dialect is Lojban as *The Complete Lojban Language* (CLL) describes it. The
 
 The printed grammar is normative here, with the repairs that [the CLL grammar](../syntax/cll.md) lists. Any parse that the printed grammar admits counts. The dialect accepts a text that the grammar admits. But the text must not have two readings or more once the syntax stage writes back its elided terminators. The option `elision-only` states this rule, and `docs/engine.md` (§7) gives it exactly.
 
-A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. Each stage reads the tokens (units such as phonemes or words) that the stage before it emitted. `docs/notation.md` explains the notation. A feature is a named switch that the grammars test. This dialect turns on the feature `cll-cyrillic`.
+A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. Each stage reads the tokens that the stage before it emitted.
+
+`docs/notation.md` explains the notation. A feature is a named switch that the grammars test. This dialect turns on the feature `cll-cyrillic`.
 
 ```jbogenbau
 %features cll-cyrillic

@@ -30,7 +30,7 @@ data, _ := gencmu.MarshalResult(result) // canonical JSON, docs/output.md
   For tests and tools, `(*Dialect).ParseTokens(text, tokens, options)` feeds pre-built tokens to the first stage. Each of those tokens has its `Text` as its label, whatever its `Label` says. A caller cannot supply attachments: a token with a non-empty `Before` or `After` is a usage error, and empty ones are dropped. The parse copies the tokens, so the caller's stay as they are.
 - `(*Dialect).Features()` lists the features of the dialect, the gates of its classifiers' entries included. Each is a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`. `Default` says whether the pipeline turns the feature on.
 - `MarshalResult(result)` writes the canonical JSON.
-- `Brackets(result, BracketOptions{ShowElided})` renders the tree as nested groups. It shows each token by its `Label`. A token with attachments is a group of its before-attachments, its label and its after-attachments, so `mi ui klama` is `([mi ui] klama)` in the CLL dialect.
+- `Brackets(result, BracketOptions{ShowElided})` renders the tree as nested groups. It shows each token by its `Label`. A token with attachments is a group of its before-attachments, its label and its after-attachments, so `mi ui klama` is `([mi ui] klama)` in the `cll-ebnf` dialect.
 
 A `*Dialect` is safe for concurrent use. Source positions count Unicode code points. Spans and token indices count tokens of the relevant stage. The `Tags` of a `Token` or a `Node` are a `[]string` in code point order. Each tag appears once in its canonical spelling, such as `KOhA`, `/a/` or `'a'`.
 

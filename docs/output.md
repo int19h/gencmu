@@ -28,7 +28,7 @@ A stage has this form:
 
 `output` is the emitted tokens of an accepted stage, the last stage included. It is absent when the emission of the stage fails (engine §11). It is also absent when the reparse of `elision-only` meets an error of the grammar (engine §7).
 
-A token has this form. This one is the token of `mi` that the forms stage of the CLL dialect emits:
+A token has this form. This one is the token of `mi` that the forms stage of the `cll-ebnf` dialect emits:
 
 ```
 {"text":"mi","phonemes":"mi","label":"mi","tags":["KOhA","cmavo","continued","onset","run-final","run-initial","word"],"span":[0,2],"source":[0,2]}
@@ -40,7 +40,7 @@ A token has this form. This one is the token of `mi` that the forms stage of the
 
 `insertedBy` follows `source` for a token that was inserted from a tag literal (engine §1). Its value is the name of the rule that inserted the token.
 
-`before` and `after` follow `insertedBy` for a token with attachments (engine §11). Each is an array of tokens in this form, and each is present only when it is not empty. An attached token has no `span`, so its object leaves it out. This is the token of `mi ui` that the indicator stage of the CLL dialect emits:
+`before` and `after` follow `insertedBy` for a token with attachments (engine §11). Each is an array of tokens in this form, and each is present only when it is not empty. An attached token has no `span`, so its object leaves it out. This is the token of `mi ui` that the indicator stage of the `cll-ebnf` dialect emits:
 
 ```
 {"text":"mi","phonemes":"mi","label":"mi","tags":["KOhA","cmavo","continued","onset","run-final","run-initial","word"],
@@ -177,7 +177,7 @@ Brackets write the tree of the final stage as nested groups:
 3. The renderer renders the children of a rule node and drops the empty ones. An empty child is an elided node that is not shown, or a rule node that renders nothing. A token node is never empty. If no child is left, the node is empty. If one child is left, the node is that child. Otherwise, the node is a group.
 4. The depth *d* of a group counts groups only: a child group of a group at depth *d* is at *d*+1. A group is written between `(` `)` when *d* mod 3 is 0, `[` `]` when 1, and `{` `}` when 2. One space separates its members.
 
-So `lo mlatu cu citka le finpe` is `([lo mlatu] cu [citka {le finpe}])`. In the CLL dialect, `mi ui klama` is `([mi ui] klama)`, `ba'e mi klama` is `([ba'e mi] klama)`, and `mi ui nai klama` is `([mi {ui nai}] klama)`.
+So `lo mlatu cu citka le finpe` is `([lo mlatu] cu [citka {le finpe}])`. In the `cll-ebnf` dialect, `mi ui klama` is `([mi ui] klama)`, `ba'e mi klama` is `([ba'e mi] klama)`, and `mi ui nai klama` is `([mi {ui nai}] klama)`.
 
 ### Tree
 
@@ -190,7 +190,7 @@ The tree has one node per line, and children are indented two spaces under their
   An attachment is its classes, then its label in quotes. Its classes are its tags that begin with `A` to `Z`, in code point order, joined by ` ∪ `. An attachment with no class is its label alone. Its own attachments follow it in the same way, indented two spaces more.
 - An elided node is its terminal in angle brackets.
 
-Chains of rule nodes with one child are written on one line, joined by ` › `. So in the CLL dialect, the token node of `mi` in `mi ui nai klama` has these lines, at the indentation of the node:
+Chains of rule nodes with one child are written on one line, joined by ` › `. So in the `cll-ebnf` dialect, the token node of `mi` in `mi ui nai klama` has these lines, at the indentation of the node:
 
 ```
 KOhA "mi"

@@ -66,7 +66,7 @@ A terminal in a token node, witness or expected list is a tag, range or property
 
 - `gencmu.to_json(result)` is the canonical JSON as text, in the key order of `docs/output.md`.
 - `gencmu.result_json(result)` is the same as plain data.
-- `gencmu.to_brackets(result, show_elided=False)` renders the last stage's tree as nested groups, with each token shown by its label. A token with attachments is a group of its before-attachments, its label and its after-attachments. So in the CLL dialect, `mi ui klama` is `([mi ui] klama)`.
+- `gencmu.to_brackets(result, show_elided=False)` renders the last stage's tree as nested groups, with each token shown by its label. A token with attachments is a group of its before-attachments, its label and its after-attachments. So in the `cll-ebnf` dialect, `mi ui klama` is `([mi ui] klama)`.
 
 ## Development
 
