@@ -423,7 +423,7 @@ A part that the list of a rule merely does not name is not handed on, but it sti
 
 During emission, `%opaque` treats each constituent of a rule as one part, an opaque part. An opaque part has its text as its label and `?` as its phonemes, whatever it holds. This is true whether the constituent emits a token with `$` or a parent emits a token over it. Recognition and conditions do not change. They still read the phonemes of the input tokens, so an opaque rule can test `phonemes($a) = "a"` and still emit `?`.
 
-The directive says nothing about the language of the text. It only says how the stage emits the text. Examples of opaque parts are a `zoi` body and a run containing an unrecognized character, such as `klama?` in `cll-ebnf`. The body of a `zoi` quote is opaque even when it holds good Lojban words.
+The directive says nothing about the language of the text. It only says how the stage emits the text. Examples of opaque parts are a `zoi` body and a run with a character that no script reads, such as `klama?` in `cll-ebnf`. The body of a `zoi` quote is opaque even when it holds good Lojban words.
 
 ```jbogenbau
 %rule zoi-body
