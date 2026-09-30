@@ -183,7 +183,7 @@ var domRules = map[string]bool{
 	"string": true, "tag": true, "character": true, "phoneme": true, "name": true,
 	"tested": true, "test": true, "test-operand": true, "capture": true, "group": true, "optional": true,
 	"empty": true, "tags-clause": true, "conditions-clause": true, "emits-clause": true,
-	"foreign-clause": true, "emit-item": true, "emit-tags": true, "emit-before": true, "emit-after": true, "implication": true,
+	"opaque-clause": true, "emit-item": true, "emit-tags": true, "emit-before": true, "emit-after": true, "implication": true,
 	"any-of": true, "all-of": true, "comparison": true, "negation": true,
 	"presence": true, "call": true, "term": true, "guarded-term": true, "union": true,
 	"intersection": true, "empty-set": true, "capture-reference": true,
@@ -434,8 +434,8 @@ func (b *domBuilder) rule(n *Node) *domRule {
 			}
 		case "emits-clause":
 			r.Emit = b.emission(p)
-		case "foreign-clause":
-			r.Foreign = true
+		case "opaque-clause":
+			r.Opaque = true
 		}
 	}
 	// The definition as a whole (§9), reported at the rule.

@@ -32,7 +32,7 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
 %rule rahoi-quote
   $m(rahoi-marker) quote-gap $f(~rafsi-form) <tags($m)>
 %emits
-  $m, $f <~foreign-text>
+  $m, $f <~quoted-text>
 
 %rule rahoi-marker
   $q(magic-body) <classes($q) ∪ ~word ∪ ~cmavo>

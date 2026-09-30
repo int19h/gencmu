@@ -20,7 +20,7 @@ const unicode = new UnicodeTable(fs.readFileSync(new URL("../grammars/unicode.tx
 const SYMBOLS = ["...", "..", "|", "&", "(", ")", "[", "]", "<", ">", "#", "ε", ",", "∧", "∨", "¬", "⟹", "=", "≠",
   "∈", "∉", "⊆", "⊈", "⊇", "⊉", "∪", "∩", "∖", "∅"];
 
-const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%tags", "%conditions", "%emits", "%foreign",
+const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%tags", "%conditions", "%emits", "%opaque",
   "%ambiguity-resolution", "%elidable", "%stage", "%include", "%features", "%const", "%redefine-const", "%classifier", "%implies"]);
 
 function fail(message, token) {
@@ -305,10 +305,10 @@ class Parser {
     }
     if (this.accept("%emits")) rule.emit = this.emission(keyword);
     rule.conditions = conditions;
-    if (this.accept("%foreign")) {
-      // A constituent that does not count is never a foreign part (engine §9).
-      if (rule.emit && rule.emit.items.length === 0) fail(`${rule.name} is foreign and emits ε`, keyword);
-      rule.foreign = true;
+    if (this.accept("%opaque")) {
+      // A constituent that does not count is never an opaque part (engine §9).
+      if (rule.emit && rule.emit.items.length === 0) fail(`${rule.name} is opaque and emits ε`, keyword);
+      rule.opaque = true;
     }
     rule.at = keyword.at;
     return rule;

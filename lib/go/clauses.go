@@ -302,9 +302,9 @@ func definitionProblem(r *domRule) string {
 	if r.Emit != nil {
 		items = r.Emit.Items
 	}
-	// A constituent that does not count is never a foreign part (engine §9).
-	if r.Foreign && r.Emit != nil && r.Emit.nothing() {
-		return fmt.Sprintf("%s is foreign and emits ε", r.Name)
+	// A constituent that does not count is never an opaque part (engine §9).
+	if r.Opaque && r.Emit != nil && r.Emit.nothing() {
+		return fmt.Sprintf("%s is opaque and emits ε", r.Name)
 	}
 	// A capture no alternative captures, wherever it is mentioned.
 	mentioned := map[string]bool{}

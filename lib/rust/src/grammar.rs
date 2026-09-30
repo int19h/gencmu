@@ -35,7 +35,7 @@ pub(crate) struct StitchedAlternative {
     pub rule_tags: Option<Term>,
     pub emit: Option<Vec<EmitItem>>,
     pub conditions: Vec<Cond>,
-    pub foreign: bool,
+    pub opaque: bool,
     pub document: Arc<str>,
     pub at: (usize, usize),
 }
@@ -191,7 +191,7 @@ pub(crate) fn stitch(
                     rule_tags: rule.tags.clone(),
                     emit: rule.emit.clone(),
                     conditions: rule.conditions.clone(),
-                    foreign: rule.foreign,
+                    opaque: rule.opaque,
                     document: document.clone(),
                     at: rule.at,
                 })

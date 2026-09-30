@@ -228,7 +228,7 @@ export type DomRule = {
     alternatives: DomAlternative[];
     emit?: Emission;
     conditions: Condition[];
-    foreign?: true;
+    opaque?: true;
     at: Position;
 };
 export type DomAlternative = {
@@ -415,10 +415,10 @@ export type Production = {
     tags: Term | null;
     emit: Emission | null;
     /**
-     * whether its constituent is a foreign part,
+     * whether its constituent is an opaque part,
      * which sounds `?` and shows its text (engine §11)
      */
-    foreign: boolean;
+    opaque: boolean;
     recursivePrefix: boolean;
     /**
      * the features of the alternative's warnings,
@@ -743,7 +743,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {DomAlternative[]} alternatives
  * @property {Emission} [emit]
  * @property {Condition[]} conditions
- * @property {true} [foreign]
+ * @property {true} [opaque]
  * @property {Position} at
  */
 /**
@@ -867,7 +867,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {ReadyCondition[]} conditions
  * @property {Term | null} tags
  * @property {Emission | null} emit
- * @property {boolean} foreign whether its constituent is a foreign part,
+ * @property {boolean} opaque whether its constituent is an opaque part,
  *   which sounds `?` and shows its text (engine §11)
  * @property {boolean} recursivePrefix
  * @property {string[]} warnings the features of the alternative's warnings,

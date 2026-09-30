@@ -1,8 +1,8 @@
 {
-  "description": "An attachment whose part is a recursive foreign rule is one foreign part: the attached token sounds ? and shows the text (engine §11).",
+  "description": "An attachment whose part is a recursive opaque rule is one opaque part: the attached token sounds ? and shows the text (engine §11).",
   "documents": {
     "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
-    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text item ...\n%rule item\n  | $w(word) | $w(word) $a(quote)\n%emits\n  $w ($a)\n%rule word\n  'w' <W>\n%rule quote\n  fq\n%emits\n  $ <Q>\n%rule fq\n  'q' | fq 'q'\n%foreign\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text item ...\n%rule item\n  | $w(word) | $w(word) $a(quote)\n%emits\n  $w ($a)\n%rule word\n  'w' <W>\n%rule quote\n  fq\n%emits\n  $ <Q>\n%rule fq\n  'q' | fq 'q'\n%opaque\n```\n",
     "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text W ...\n```\n"
   },
   "pipeline": "p.md",

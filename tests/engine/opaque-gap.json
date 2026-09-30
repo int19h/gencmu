@@ -1,9 +1,9 @@
 {
-  "description": "A foreign part takes in the characters next to it that no input token covers, up to the start and the end of the text. A token over it sounds `?`, and its label is that text (engine §5, §11).",
+  "description": "An opaque part takes in the characters next to it that no input token covers, up to the start and the end of the text. A token over it sounds `?`, and its label is that text (engine §5, §11).",
   "documents": {
     "p.md": "## s\n\n```jbogenbau\n%stage letters\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage bodies\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [part] ...\n%rule part letter | pause | quote\n%rule letter 'a' | 'b' | 'c'\n%emits $ <L>\n%rule pause '\\p{White_Space}'\n%emits $ <P ∪ /./>\n%rule quote '\\u{27}'\n```\n",
-    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $a(body) P $b(body)\n%emits $a <B>, $b <B>\n%rule body L | body L\n%foreign\n```\n"
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $a(body) P $b(body)\n%emits $a <B>, $b <B>\n%rule body L | body L\n%opaque\n```\n"
   },
   "pipeline": "p.md",
   "input": "'ab' c'",

@@ -56,7 +56,7 @@ The feature `cll-cyrillic`, which the dialect turns on, reads the Cyrillic of CL
 
 The stage receives phonemes. A run is a stretch with no internal pause. The stage hands on the source words of each run. It gives each word a tag for its class and, for a cmavo, a tag for its selma'o. A tag marks a token by name, phoneme or character.
 
-If a run divides into no words, the stage hands the run on as one foreign token. The word forms divide a run into words in at most one way, so the choice among parses never decides where a word ends.
+If a run divides into no words, the stage hands the run on as one unread token. The word forms divide a run into words in at most one way, so the choice among parses never decides where a word ends.
 
 ## Stage 3: words
 
@@ -73,7 +73,7 @@ If a run divides into no words, the stage hands the run on as one foreign token.
   %include "../words/cll-stream.md"
   ```
 
-The stage receives the source words and hands on the words of the text. It rejects a foreign run, except in a foreign quote or after `fa'o`. For the magic words, the stage is lazy: it ends each constituent as early as the grammar allows. So each magic word acts on what exists when the stage reads it.
+The stage receives the source words and hands on the words of the text. It rejects an unread run, except in a foreign quote or after `fa'o`. For the magic words, the stage is lazy: it ends each constituent as early as the grammar allows. So each magic word acts on what exists when the stage reads it.
 
 The warning `y-cmavo` reports a cmavo that uses `y` as a vowel beyond the forms that CLL gives, such as `ka'y`. The feature `sa-su` controls `sa` and `su`. The libraries turn this feature on for a text only when the text needs it.
 

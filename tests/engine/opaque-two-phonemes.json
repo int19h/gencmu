@@ -1,0 +1,15 @@
+{
+  "description": "Two phoneme tags on one emitted token are an error of the grammar, even on a token over an opaque part (engine §5).",
+  "grammar": "%rule text word\n%rule word 'a'\n%emits $ </a/ ∪ /b/>\n%opaque",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "grammar",
+        "stage": "main"
+      }
+    },
+    "error": "grammar"
+  }
+}

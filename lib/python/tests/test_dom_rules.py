@@ -140,7 +140,7 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("rule op not define, redefine or extend", lambda dom: rule(dom).update(op="replace")),
     ("rule without alternatives", lambda dom: rule(dom).update(alternatives=[])),
     ("rule without a position", lambda dom: rule(dom).pop("at")),
-    ("foreign other than true", lambda dom: rule(dom).update(foreign=False)),
+    ("opaque other than true", lambda dom: rule(dom).update(opaque=False)),
     ("guard without negated", lambda dom: alt(dom).update(guards=[{"feature": "f", "kind": "gate"}])),
     ("guard without a kind", lambda dom: alt(dom).update(guards=[{"feature": "f", "negated": False}])),
     ("guard of an unknown kind", lambda dom: alt(dom).update(guards=[{"feature": "f", "kind": "hint", "negated": False}])),
@@ -272,7 +272,7 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("captures emitted out of order", lambda dom: (set_expr({"seq": [{"capture": "x", "expr": A}, {"capture": "y", "expr": A}]})(dom), set_emit({"items": [{"capture": "y"}, {"capture": "x"}]})(dom))),
     ("an inserted tag anchored on a missing capture", with_bare_alternative(set_emit({"items": [{"insert": "Y"}, {"capture": "x"}]}))),
     ("an emission that leaves an alternative nothing", with_bare_alternative(set_emit({"items": [{"capture": "x"}]}))),
-    ("foreign with ε", lambda dom: (rule(dom).update(foreign=True), set_emit({"items": []})(dom))),
+    ("opaque with ε", lambda dom: (rule(dom).update(opaque=True), set_emit({"items": []})(dom))),
     # Tests in a body (engine §2, §9).
     ("a test with an unknown comparator", set_expr({"capture": "x", "expr": {"test": "==", "value": {"string": "a"}, "expr": A}})),
     ("a test whose comparator is no string", set_expr({"capture": "x", "expr": {"test": 7, "value": {"string": "a"}, "expr": A}})),
@@ -461,7 +461,7 @@ class PrecompiledDomRules(unittest.TestCase):
         for name, change in (
             ("$ twice", set_emit({"items": [{"capture": "", "tags": TAG}, WHOLE]})),
             ("ε", set_emit({"items": []})),
-            ("foreign", lambda dom: rule(dom).update(foreign=True)),
+            ("opaque", lambda dom: rule(dom).update(opaque=True)),
             ("tags($) in an emitted term", set_emit({"items": [{"capture": "x", "tags": {"call": "tags", "args": [WHOLE]}}]})),
             ("tags($, rule) in an alternative's tags", set_tags({"call": "tags", "args": [WHOLE, {"rule": "text"}]})),
             ("text($) in a guard of an alternative's tags", set_tags({"if": {"op": "=", "left": {"call": "text", "args": [WHOLE]}, "right": STR}, "then": TAG})),

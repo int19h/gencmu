@@ -24,7 +24,7 @@ println!("{}", gencmu::to_json(&result));
 - `to_brackets(&result, show_elided)` renders the tree as brackets. It shows each token by its label. A token with attachments is a group of its before-attachments, its label and its after-attachments, so `mi ui klama` in the `cll-ebnf` dialect is `([mi ui] klama)`.
 - A `ParseResult` owns its data: the stages, the tree, the error and the warnings. Each stage has its input and output tokens, its verdict and, for a tie, its witness and tied tree.
 
-  A token has its text, its phonemes, its label, its tags, its span and its source range. The label is what the renderings for people show. A foreign part, such as the body of a `zoi` quote, sounds `?` and has its text as its label. A pause has a space as its label.
+  A token has its text, its phonemes, its label, its tags, its span and its source range. The label is what the renderings for people show. An opaque part, such as the body of a `zoi` quote, sounds `?` and has its text as its label. A pause has a space as its label.
 
   A token also has its attachments, `before` and `after`. These are tokens that belong to it and that no later stage reads, such as the indicators after a word. Each is an `Attachment`, a token without a span, with attachments of its own. Both lists are empty unless an emission gave the token attachments.
 

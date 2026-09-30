@@ -83,7 +83,7 @@ A rule is a keyword, its name, its alternatives and its clauses, in this order. 
 
 ```jbogenbau
 %rule rule
-  definer rule-name body [tags-clause] [conditions-clause] [emits-clause] [foreign-clause]
+  definer rule-name body [tags-clause] [conditions-clause] [emits-clause] [opaque-clause]
 
 %rule definer
   ~keyword-rule | ~keyword-redefine-rule | ~keyword-extend-rule
@@ -188,7 +188,7 @@ The grammar reads a test after any primary, and a constant as a primary. The rea
 
 An item can have attachments: captures in parentheses, any number before its target and any number after its tags. The grammar reads them on any item, and around `$` too. The reader refuses them where the item is not a named capture, and it refuses `($)`.
 
-`%foreign` is a keyword alone. It says that the constituent is foreign text, which sounds `?` and shows its text.
+`%opaque` is a keyword alone. During emission, it makes the constituent one part, which sounds `?` and shows its text.
 
 ```jbogenbau
 %rule tags-clause
@@ -200,8 +200,8 @@ An item can have attachments: captures in parentheses, any number before its tar
 %rule emits-clause
   ~keyword-emits ([','] emit-item [',' emit-item] ... | 'ε')
 
-%rule foreign-clause
-  ~keyword-foreign
+%rule opaque-clause
+  ~keyword-opaque
 
 %rule emit-item
   [emit-before] ... emit-target [emit-tags] [emit-after] ...

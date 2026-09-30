@@ -7,7 +7,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 15
+const domFormat = 16
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
@@ -64,7 +64,7 @@ type domRule struct {
 	Alternatives []*domAlt
 	Emit         *domEmit
 	Conditions   []*domCond
-	Foreign      bool // %foreign: its constituents are foreign parts, which sound ? and show their text (engine §11)
+	Opaque       bool // %opaque: its constituents are opaque parts, which sound ? and show their text (engine §11)
 	At           [2]int
 }
 
@@ -387,8 +387,8 @@ func (r *domRule) writeJSON(w *jsonWriter) {
 		c.writeJSON(w)
 	}
 	w.raw("]")
-	if r.Foreign {
-		w.raw(`,"foreign":true`)
+	if r.Opaque {
+		w.raw(`,"opaque":true`)
 	}
 	w.raw(`,"at":`)
 	w.pair(r.At)
@@ -839,11 +839,11 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 		}
 	}
 	// A flag: true or absent.
-	if v, ok := o["foreign"]; ok {
+	if v, ok := o["opaque"]; ok {
 		if !isTrue(v) {
 			return nil, fmt.Errorf("a malformed rule")
 		}
-		r.Foreign = true
+		r.Opaque = true
 	}
 	var alts, conds []json.RawMessage
 	if err := unmarshal(o["alternatives"], &alts); err != nil {

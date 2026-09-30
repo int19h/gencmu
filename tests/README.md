@@ -76,7 +76,7 @@ Each line is one case: a Lojban text, with the result that gencmu must give for 
 - `dialect` is the name of a bundled dialect. `features`, when present, lists the features that the case turns on. `withoutFeatures` lists those that it turns off.
 - `expect` is `accept` or `reject`. For an accepted text, `verdict` is the verdict of the last stage, and `brackets` is its tree, with elided terminators hidden. For a rejected one, `stage` names the stage that rejected it.
 - `ties`, when present, names every stage whose verdict is `tie`, so that a tie in a stage before the last is pinned too.
-- `words` is the output of the word stage, whenever the word stage accepted. The case writes each token as its label (engine §5). So a pause inside a word is a space, and a foreign part is its text.
+- `words` is the output of the word stage, whenever the word stage accepted. The case writes each token as its label (engine §5). So a pause inside a word is a space, and an opaque part is its text.
 
 A case runs with auto features on, which is the default of the API. The case matches when every one of those fields that the case or the result of the library has is equal.
 

@@ -36,7 +36,7 @@ A body can be followed by clauses. A clause is a keyword and what it says. A bod
 - `%tags` gives the tags that the constituent of every alternative carries.
 - `%conditions` states what must hold of the parts.
 - `%emits` states what the constituent hands to the next stage.
-- `%foreign` marks the constituent as foreign text, which sounds `?` and shows its text.
+- `%opaque` makes the constituent one part during emission. That part sounds `?` and shows its text.
 
 The sections below explain each clause.
 
@@ -297,7 +297,7 @@ In the other bundled Lojban dialects, a comma between two vowels is nothing, so 
 
 A token's own phonemes are fixed when its stage emits it, and they keep their capitals and commas. A token sounds like the phoneme that its `/x/` tag names, if it has one. Such a tag can come from an implication (see "Implications"). Two phoneme tags on one token are an error of the grammar.
 
-A token without such a tag sounds like the tokens of its stage's input that it covers, joined in order. That leaves out the tokens inside a rule that emits `ε` (see "Emission"). A foreign part inside the token sounds `?` (see "Foreign text"). The join also makes each run of pause tokens into one pause token, and removes a pause token at either end. A pause is `.`, so `klama bu` sounds as `klama.bu`. `?` is an ordinary character in a comparison.
+A token without such a tag sounds like the tokens of its stage's input that it covers, joined in order. That leaves out the tokens inside a rule that emits `ε` (see "Emission"). An opaque part inside the token sounds `?` (see "Opaque text"). The join also makes each run of pause tokens into one pause token, and removes a pause token at either end. A pause is `.`, so `klama bu` sounds as `klama.bu`. `?` is an ordinary character in a comparison.
 
 `text(span)` is the original text that the span covers. A string in double quotes, such as `"la"`, is a string literal. Where a condition compares one word's sound with a literal, as in `phonemes($l) = "la"`, a test says it in the body: `LE="la"`.
 
@@ -419,27 +419,29 @@ A part that the list of a rule merely does not name is not handed on, but it sti
   ε
 ```
 
-## Foreign text
+## Opaque text
 
-`%foreign` says that a rule's constituents are foreign text, which is not Lojban. Examples are the body of a `zoi` quote and a run of letters that no script reads. Each constituent of such a rule is a foreign part. A foreign part sounds `?`, whatever it holds, and it shows its text to people. This is true whether the constituent emits a token with `$` or a parent emits a token over it.
+During emission, `%opaque` treats each constituent of a rule as one part, an opaque part. An opaque part has its text as its label and `?` as its phonemes, whatever it holds. This is true whether the constituent emits a token with `$` or a parent emits a token over it. Recognition and conditions do not change. They still read the phonemes of the input tokens, so an opaque rule can test `phonemes($a) = "a"` and still emit `?`.
+
+The directive says nothing about the language of the text. It only says how the stage emits the text. Examples are the body of a `zoi` quote and a run of letters that no script reads. The body of a `zoi` quote is opaque even when it holds good Lojban words.
 
 ```jbogenbau
 %rule zoi-body
   zoi-part | zoi-body zoi-part
-%foreign
+%opaque
 ```
 
 So `zoi gy. John is a man .gy.` hands on the body as a token that sounds `?`. In the experimental dialect, the forms stage before it emitted the phonemes `jo'n.is.a.man` for the body. The label of the token is `John is a man`. The label is what the renderings for people show (see "Labels").
 
-The text of a foreign part also takes in the text next to it that no token of the stage's input covers. An example is punctuation that the stage before read as part of a pause but did not emit. So the text starts at the end of the input token before it, or at the start of the text. It ends at the start of the input token after it, or at the end of the text. Text between two foreign parts belongs to the first of them. An empty foreign part sounds `?` and has no text.
+The text of an opaque part also takes in the text next to it that no token of the stage's input covers. An example is punctuation that the stage before read as part of a pause but did not emit. So the text starts at the end of the input token before it, or at the start of the text. It ends at the start of the input token after it, or at the end of the text. Text between two opaque parts belongs to the first of them. An empty opaque part sounds `?` and has no text.
 
-Three rules settle what a foreign part gives. A foreign part inside a rule that emits `ε` gives nothing, as any part there does. A foreign part inside another gives nothing of its own, because the outer one counts once. So a recursive rule such as `zoi-body` is one part. A token with a phoneme tag sounds like that phoneme, and a foreign part inside it does not change that. A rule cannot have both `%foreign` and `%emits ε`, because a constituent that does not count holds no foreign part.
+Three rules settle what an opaque part gives. An opaque part inside a rule that emits `ε` gives nothing, as any part there does. An opaque part inside another gives nothing of its own, because the outer one counts once. So a recursive rule such as `zoi-body` is one part. A token with a phoneme tag sounds like that phoneme, and an opaque part inside it does not change that. A rule cannot have both `%opaque` and `%emits ε`, because a constituent that does not count holds no opaque part.
 
 A later stage that forwards a token keeps its text and its source. So a quote body sounds `?` and shows its text to the end of the pipeline.
 
 ## Labels
 
-Every token has a label, which is what the renderings for people show. The stage gives a token its label when it emits the token, from the same parts as its phonemes. A foreign part gives its text, and a pause gives a space. A token with a phoneme tag has that phoneme as its label, but a token with the pause, `/./`, has a space. Any other part gives its own label. A character token, the input of the first stage, has its text as its label.
+Every token has a label, which is what the renderings for people show. The stage gives a token its label when it emits the token, from the same parts as its phonemes. An opaque part gives its text, and a pause gives a space. A token with a phoneme tag has that phoneme as its label, but a token with the pause, `/./`, has a space. Any other part gives its own label. A character token, the input of the first stage, has its text as its label.
 
 An inserted token with a phoneme tag has that phoneme as its label, or a space for the pause, `/./`. So the apostrophe that the zbalermorna shorthand inserts stays in the label of `u'i`. An inserted token without a phoneme tag has an empty label.
 

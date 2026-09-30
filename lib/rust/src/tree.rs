@@ -366,8 +366,8 @@ fn sounded(phoneme: String) -> (String, String) {
     (phoneme, label)
 }
 
-/// The source and the text of a foreign part (§11).
-struct ForeignPart {
+/// The source and the text of an opaque part (§11).
+struct OpaquePart {
     source: (usize, usize),
     text: String,
 }
@@ -377,18 +377,12 @@ fn counts_for_nothing(g: &Lowered, prod: u32) -> bool {
     matches!(g.prods[prod as usize].emit, LEmit::Nothing)
 }
 
-/// The foreign parts of the chosen derivation, with their sources and
-/// texts (§11): the constituents of `%foreign` productions inside no
-/// constituent that emits ε and no other foreign part. The stage fixes them
+/// The opaque parts of the chosen derivation, with their sources and
+/// texts (§11): the constituents of `%opaque` productions inside no
+/// constituent that emits ε and no other opaque part. The stage fixes them
 /// before it emits anything, so that every token over a part holds the same
 /// text.
-fn foreign_parts(
-    g: &Lowered,
-    tree: &ITree,
-    tokens: &[Tok],
-    sources: &Sources,
-    text: &[char],
-) -> FxMap<u32, ForeignPart> {
+fn opaque_parts(g: &Lowered, tree: &ITree, tokens: &[Tok], sources: &Sources, text: &[char]) -> FxMap<u32, OpaquePart> {
     let mut parts: Vec<(u32, u32, u32)> = Vec::new();
     let mut stack = vec![0u32];
     while let Some(index) = stack.pop() {
@@ -399,7 +393,7 @@ fn foreign_parts(
         if counts_for_nothing(g, prod) {
             continue;
         }
-        if g.prods[prod as usize].foreign {
+        if g.prods[prod as usize].opaque {
             parts.push((index, start, end));
             continue;
         }
@@ -425,7 +419,7 @@ fn foreign_parts(
             let after = tokens.get(end as usize).map_or(text.len(), |token| token.source.0);
             (from, own.1.max(after))
         };
-        result.insert(index, ForeignPart { source, text: text[source.0..source.1].iter().collect() });
+        result.insert(index, OpaquePart { source, text: text[source.0..source.1].iter().collect() });
     }
     result
 }
@@ -459,10 +453,10 @@ impl Join {
 }
 
 /// What a node says and shows (§5, §11): the phonemes and the labels of its
-/// parts, joined. A part is a read input token or a foreign part. Nothing
+/// parts, joined. A part is a read input token or an opaque part. Nothing
 /// inside a constituent that emits ε is a part, the node's own included,
-/// and the walk does not enter a foreign part.
-fn spoken(g: &Lowered, tree: &ITree, tokens: &[Tok], foreign: &FxMap<u32, ForeignPart>, root: u32) -> (String, String) {
+/// and the walk does not enter an opaque part.
+fn spoken(g: &Lowered, tree: &ITree, tokens: &[Tok], opaque: &FxMap<u32, OpaquePart>, root: u32) -> (String, String) {
     let mut phonemes = Join::default();
     let mut label = Join::default();
     let mut stack = vec![root];
@@ -479,7 +473,7 @@ fn spoken(g: &Lowered, tree: &ITree, tokens: &[Tok], foreign: &FxMap<u32, Foreig
                 if counts_for_nothing(g, prod) {
                     continue;
                 }
-                if let Some(part) = foreign.get(&index) {
+                if let Some(part) = opaque.get(&index) {
                     phonemes.add("?", false);
                     label.add(&part.text, false);
                     continue;
@@ -498,7 +492,7 @@ fn cover(
     tree: &ITree,
     tokens: &[Tok],
     sources: &Sources,
-    foreign: &FxMap<u32, ForeignPart>,
+    opaque: &FxMap<u32, OpaquePart>,
     forwarding: &mut Forwarding,
     index: u32,
     tags: SetId,
@@ -507,8 +501,8 @@ fn cover(
     let span = (start as usize, end as usize);
     // Two phoneme tags are an error on any token (§5).
     let phoneme = phoneme_tag(recognizer, tags)?;
-    // A token over a foreign part has the part's source (§11).
-    let source = if let Some(part) = foreign.get(&index) {
+    // A token over an opaque part has the part's source (§11).
+    let source = if let Some(part) = opaque.get(&index) {
         part.source
     } else if start < end {
         sources.of(span.0, span.1)
@@ -519,7 +513,7 @@ fn cover(
     // A phoneme tag decides the sound and the label, over `?` (§5).
     let (phonemes, label) = match phoneme {
         Some(phoneme) => sounded(phoneme),
-        None => spoken(recognizer.g, tree, tokens, foreign, index),
+        None => spoken(recognizer.g, tree, tokens, opaque, index),
     };
     let mut token = Emitted {
         span,
@@ -534,7 +528,7 @@ fn cover(
     // The parts decide the attachments too, after the phoneme tags are
     // checked (§11).
     if forwarding.on {
-        if let Some(from) = forwarded(recognizer.g, tree, tokens, foreign, index)? {
+        if let Some(from) = forwarded(recognizer.g, tree, tokens, opaque, index)? {
             // Attachments belong to one token: an input token that is the
             // one part of a second token is an error of the grammar.
             if !forwarding.inherited.insert(from) {
@@ -554,14 +548,14 @@ fn cover(
 
 /// The one input token whose attachments a token over node `root` inherits,
 /// or `None` (§11). The parts are those of the join (§5): a read input
-/// token, or a foreign part as one piece, and nothing inside a constituent
-/// that emits ε. A token with attachments among other parts, or a foreign
+/// token, or an opaque part as one piece, and nothing inside a constituent
+/// that emits ε. A token with attachments among other parts, or an opaque
 /// part that holds one, is an error of the grammar.
 fn forwarded(
     g: &Lowered,
     tree: &ITree,
     tokens: &[Tok],
-    foreign: &FxMap<u32, ForeignPart>,
+    opaque: &FxMap<u32, OpaquePart>,
     root: u32,
 ) -> Result<Option<u32>, EngineError> {
     let mut parts = 0usize;
@@ -580,11 +574,11 @@ fn forwarded(
                 if counts_for_nothing(g, prod) {
                     continue;
                 }
-                if foreign.contains_key(&index) {
+                if opaque.contains_key(&index) {
                     parts += 1;
                     if holds_attachments(g, tree, tokens, index) {
                         return Err(EngineError {
-                            message: "a foreign part over a token with attachments, which a token over it cannot place"
+                            message: "an opaque part over a token with attachments, which a token over it cannot place"
                                 .to_string(),
                             rule: Some(g.prods[prod as usize].owner),
                         });
@@ -606,7 +600,7 @@ fn forwarded(
     Ok(found)
 }
 
-/// Whether a foreign part holds an input token with attachments: one that
+/// Whether an opaque part holds an input token with attachments: one that
 /// it reads outside any constituent that emits ε (§11).
 fn holds_attachments(g: &Lowered, tree: &ITree, tokens: &[Tok], root: u32) -> bool {
     let mut stack = vec![root];
@@ -710,8 +704,8 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
         })
         .collect();
     let mut out: Vec<Emitted> = Vec::new();
-    // The foreign parts and their texts, fixed before any token (§11).
-    let foreign = foreign_parts(g, tree, tokens, &sources, recognizer.shared.text);
+    // The opaque parts and their texts, fixed before any token (§11).
+    let opaque = opaque_parts(g, tree, tokens, &sources, recognizer.shared.text);
     let mut forwarding = Forwarding { on: tokens.iter().any(Tok::has_attachments), inherited: FxSet::default() };
     // The output positions of the marks of the items being emitted.
     let mut marks: Vec<usize> = Vec::new();
@@ -795,7 +789,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                     None => tags,
                 };
                 let tags = implied(&mut recognizer.shared.tags, tags, &implications);
-                out.push(cover(recognizer, tree, tokens, &sources, &foreign, &mut forwarding, node, tags)?);
+                out.push(cover(recognizer, tree, tokens, &sources, &opaque, &mut forwarding, node, tags)?);
             }
             Work::Mark => marks.push(out.len()),
             Work::Attach => {

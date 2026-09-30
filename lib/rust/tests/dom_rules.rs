@@ -97,8 +97,8 @@ fn a_well_formed_dom_is_used() {
     assert!(!document_was_read(&with_emission(r#"{"items":[{"capture":"x","after":["y"]}]}"#)));
     // `%emits ε` is no items (§9).
     assert!(!document_was_read(&with_emission(r#"{"items":[]}"#)));
-    // `foreign` marks a rule with `%foreign` (docs/output.md).
-    assert!(!document_was_read(&with_emission(r#"{"items":[{"capture":"x"}]},"foreign":true"#)));
+    // `opaque` marks a rule with `%opaque` (docs/output.md).
+    assert!(!document_was_read(&with_emission(r#"{"items":[{"capture":"x"}]},"opaque":true"#)));
     // A guard is a gate, negated or not, or a warning (§9).
     let gate_and_warning = with_alternative(
         r#"{"guards":[{"feature":"f","kind":"gate","negated":true},{"feature":"w","kind":"warning","negated":false}],"expr":{"terminal":"b"}}"#,
@@ -613,9 +613,9 @@ fn every_malformed_dom_is_a_cache_miss() {
             ),
         ),
         ("captures listed out of order", with_emission(r#"{"items":[{"capture":"y"},{"capture":"x"}]}"#)),
-        ("foreign false", with_emission(r#"{"items":[{"capture":"x"}]},"foreign":false"#)),
-        ("foreign that is not a boolean", with_emission(r#"{"items":[{"capture":"x"}]},"foreign":1"#)),
-        ("foreign with %emits ε", with_emission(r#"{"items":[]},"foreign":true"#)),
+        ("opaque false", with_emission(r#"{"items":[{"capture":"x"}]},"opaque":false"#)),
+        ("opaque that is not a boolean", with_emission(r#"{"items":[{"capture":"x"}]},"opaque":1"#)),
+        ("opaque with %emits ε", with_emission(r#"{"items":[]},"opaque":true"#)),
         (
             "an emission naming a capture no alternative has",
             with_emission(r#"{"items":[{"capture":"x"},{"capture":"z","tags":{"tag":"T"}}]}"#),

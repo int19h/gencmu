@@ -1,12 +1,12 @@
 {
-  "description": "A foreign part that holds an input token with attachments is an error of the grammar for a token over it (engine §11).",
+  "description": "A token over an input token with attachments and an opaque part is an error of the grammar (engine §11).",
   "documents": {
     "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
     "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text item ...\n%rule item\n  | $w(word) | $b(bb) $w(word) | $w(word) $a(ii) | $b(bb) $w(word) $a(ii)\n%emits\n  ($b) $w ($a)\n%rule word\n  | 'w' <W> | 'z' <Z>\n%rule bb\n  'b' <B>\n%emits\n  $\n%rule ii\n  'i' <I>\n%emits\n  $\n```\n",
-    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $f(fw)\n%emits\n  $f\n%rule fw\n  W\n%tags\n  ~F\n%foreign\n```\n"
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $x(pair)\n%emits\n  $x\n%rule pair\n  W fz\n%tags\n  ~P\n%rule fz\n  Z\n%opaque\n```\n"
   },
   "pipeline": "p.md",
-  "input": "wi",
+  "input": "wiz",
   "expect": {
     "result": {
       "format": 6,
@@ -44,6 +44,22 @@
                     2
                   ]
                 }
+              ]
+            },
+            {
+              "text": "z",
+              "phonemes": "",
+              "label": "z",
+              "tags": [
+                "Z"
+              ],
+              "span": [
+                2,
+                3
+              ],
+              "source": [
+                2,
+                3
               ]
             }
           ]

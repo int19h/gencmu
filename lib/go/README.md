@@ -34,7 +34,7 @@ data, _ := gencmu.MarshalResult(result) // canonical JSON, docs/output.md
 
 A `*Dialect` is safe for concurrent use. Source positions count Unicode code points. Spans and token indices count tokens of the relevant stage. The `Tags` of a `Token` or a `Node` are a `[]string` in code point order. Each tag appears once in its canonical spelling, such as `KOhA`, `/a/` or `'a'`.
 
-A `Token` has `Phonemes`, what it sounds like, and `Label`, what it shows to people (engine §5). A token over a foreign part, such as the body of a `zoi` quote, sounds `?` and has the part's text as its label.
+A `Token` has `Phonemes`, what it sounds like, and `Label`, what it shows to people (engine §5). A token over an opaque part, such as the body of a `zoi` quote, sounds `?` and has the part's text as its label.
 
 A `Token` also has its attachments, `Before` and `After` (engine §11). These are tokens that belong to it and that no later stage reads, such as the indicators after a word. They are nil when there are none. An attached token has no span: its `Span` is zero, and the canonical JSON leaves it out.
 

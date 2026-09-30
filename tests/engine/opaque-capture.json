@@ -1,6 +1,6 @@
 {
-  "description": "A capture item whose part is a foreign part emits a token with the part's source, which runs from the end of the input token before it to the start of the one after it. A $ item over a constituent that holds a foreign part keeps its own source, sounds `?` for the part, and has the part's text in its label (engine §5, §11).",
-  "grammar": "%rule text q p\n%rule q Q $b(body)\n%emits $b <B>\n%rule p P body\n%emits $ <C>\n%rule body X | body X\n%foreign",
+  "description": "A capture item whose part is an opaque part emits a token with the part's source, which runs from the end of the input token before it to the start of the one after it. A $ item over a constituent that holds an opaque part keeps its own source, sounds `?` for the part, and has the part's text in its label (engine §5, §11).",
+  "grammar": "%rule text q p\n%rule q Q $b(body)\n%emits $b <B>\n%rule p P body\n%emits $ <C>\n%rule body X | body X\n%opaque",
   "tokens": [
     {
       "text": "q",

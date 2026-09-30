@@ -15,7 +15,7 @@ The phonemes are the letters of CLL chapter 3, each written as a phoneme tag:
 - The apostrophe `/'/`
 - The syllable break `/,/`, which a comma between two vowels writes
 
-A stressed vowel is a phoneme of its own. So stress is a position in the word grammar and not a mark that the word grammar tests. Two tags stand for what is not a letter. `PAUSE` is a pause of any length, and it also carries the phoneme tag `/./`, whose phoneme is `.`. `FOREIGN` is a run of text that is not Lojban at all. The forms stage passes it on, and the words stage admits it only inside a foreign quote or after `fa'o`.
+A stressed vowel is a phoneme of its own. So stress is a position in the word grammar and not a mark that the word grammar tests. Two tags stand for what is not a letter. `PAUSE` is a pause of any length, and it also carries the phoneme tag `/./`, whose phoneme is `.`. `UNREAD` is a run that the pipeline has not read as words, here a run with a character that this orthography does not read. The forms stage passes it on, and the word stage admits it only inside a foreign quote or after `fa'o`.
 
 ## The text and its runs
 
@@ -127,7 +127,7 @@ A comma stands only between two letters of a run. Between two vowels it is the s
   consonant | plain-vowel | stressed-vowel | apostrophe | comma
 ```
 
-A run that is not an ordinary run is foreign. It has a letter, a digit, a mark or any other character that this orthography does not read, as `mi klama?` has. The stage emits a foreign run as one `FOREIGN` token. The rule is `%foreign`, so the token sounds `?`, and its label is its text. A `zoi` delimiter is a word, which never sounds `?`. So no delimiter matches such a run.
+A run that is not an ordinary run is foreign. It has a letter, a digit, a mark or any other character that this orthography does not read, as `mi klama?` has. The stage emits a foreign run as one `UNREAD` token. The rule is `%opaque`, so the token sounds `?`, and its label is its text. A `zoi` delimiter is a word, which never sounds `?`. So no delimiter matches such a run.
 
 A foreign run has at least one character that no rule of `any-lojban-char` reads by itself. The rule `letters` always reads a run without one. So the stage tests only a run with one, and a long run of letters costs nothing more. A run neither begins nor ends with a comma, which is part of the pause next to it. A run character is any character but whitespace and the period.
 
@@ -139,8 +139,8 @@ A foreign run has at least one character that no rule of `any-lojban-char` reads
   ¬matches(head($r), comma),
   ¬matches(last($r), comma)
 %emits
-  $ <FOREIGN>
-%foreign
+  $ <UNREAD>
+%opaque
 
 %rule foreign-chars
   | foreign-char

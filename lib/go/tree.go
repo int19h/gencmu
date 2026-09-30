@@ -209,9 +209,9 @@ func elidedNodes(root *Node) []*Node {
 
 // An emitTask walks a constituent, emits a token over one, or makes an
 // inserted token. inside says whether the constituent that it walks or emits
-// lies inside a foreign part (§11). The ranking can share one node among
+// lies inside an opaque part (§11). The ranking can share one node among
 // several places of the chosen derivation, and only some of them can lie
-// inside a foreign part. So the walk carries this with each place, and the
+// inside an opaque part. So the walk carries this with each place, and the
 // node does not. A token's tags are evaluated when the task runs, so that
 // the errors of a stage's emission come in the order of evaluation (§10,
 // §11). An inserted token is made when its task runs too, for the same
@@ -226,12 +226,12 @@ type emitTask struct {
 	before, after []*dn
 }
 
-// emitter is what one derivation's emission shares: its foreign parts,
+// emitter is what one derivation's emission shares: its opaque parts,
 // whether any input token has attachments to forward, and the input tokens
 // whose attachments a token of this emission has inherited (§11).
 type emitter struct {
 	rec       *recognizer
-	foreign   map[*dn]*foreignPart
+	opaque    map[*dn]*opaquePart
 	forwards  bool
 	inherited map[int]bool
 }
@@ -247,8 +247,8 @@ func (run *stageRun) kidSpan(rec *recognizer, k *dn) (int, int, *tagset) {
 // emit walks the chosen derivation from the left and returns the tokens of
 // the next stage.
 func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
-	// The foreign parts and their texts, fixed before any token (§11).
-	em := &emitter{rec: rec, foreign: run.foreignParts(rec, d), inherited: map[int]bool{}}
+	// The opaque parts and their texts, fixed before any token (§11).
+	em := &emitter{rec: rec, opaque: run.opaqueParts(rec, d), inherited: map[int]bool{}}
 	for i := range run.toks {
 		if hasAttachments(&run.toks[i]) {
 			em.forwards = true
@@ -260,7 +260,7 @@ func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 
 // emitWalk is what a constituent emits in its place in the derivation
 // (§11): the stage's output from the root, or an attachment from a
-// captured part. inside says whether the constituent lies inside a foreign
+// captured part. inside says whether the constituent lies inside an opaque
 // part.
 func (run *stageRun) emitWalk(em *emitter, d *dn, inside bool) []Token {
 	rec := em.rec
@@ -320,12 +320,12 @@ func attached(toks []Token) []Token {
 }
 
 // plan is what one constituent's emission clause does, in order. inside
-// says whether the constituent lies inside a foreign part.
+// says whether the constituent lies inside an opaque part.
 func (run *stageRun) plan(rec *recognizer, n *dn, inside bool) []emitTask {
 	p := n.prod
 	kids := flattenKids(n.a)
-	// Its children lie inside a foreign part if it is one or lies inside one.
-	within := inside || p.foreign
+	// Its children lie inside an opaque part if it is one or lies inside one.
+	within := inside || p.opaque
 	if p.emit == nil {
 		plan := make([]emitTask, len(kids))
 		for i, k := range kids {
@@ -444,20 +444,20 @@ func (run *stageRun) insertedToken(tag string, at, start, end int, rule string) 
 
 // emitted is the token a constituent emits, with the given explicit tags
 // and those its stage's implications add to them. The emitter holds the
-// sources and the texts of the derivation's foreign parts, and inside says
-// whether the constituent lies inside a foreign part (§11).
+// sources and the texts of the derivation's opaque parts, and inside says
+// whether the constituent lies inside an opaque part (§11).
 func (run *stageRun) emitted(em *emitter, n *dn, explicit *tagset, inside bool) Token {
-	rec, foreign := em.rec, em.foreign
+	rec, opaque := em.rec, em.opaque
 	a, b, _ := run.kidSpan(rec, n)
 	// The stage's implications apply before the phonemes and the label
 	// (§11).
 	tags := run.implied(explicit)
 	// Two phoneme tags are an error on any token (§5).
 	phoneme, ok := run.phonemeOf(tags)
-	// A token over a foreign part has the part's source and text (§11).
+	// A token over an opaque part has the part's source and text (§11).
 	var tok Token
-	if n.kind == dClose && n.prod.foreign && !inside {
-		part := foreign[n]
+	if n.kind == dClose && n.prod.opaque && !inside {
+		part := opaque[n]
 		tok = Token{Text: part.text, Tags: tags.list(), Span: [2]int{a, b}, Source: part.source}
 	} else {
 		src := run.spanSource(a, b)
@@ -467,7 +467,7 @@ func (run *stageRun) emitted(em *emitter, n *dn, explicit *tagset, inside bool) 
 	if ok {
 		tok.Phonemes, tok.Label = sounded(phoneme)
 	} else {
-		tok.Phonemes, tok.Label = run.spoken(rec, n, foreign, inside)
+		tok.Phonemes, tok.Label = run.spoken(rec, n, opaque, inside)
 	}
 	// The parts decide the attachments too, after the phoneme tags are
 	// checked (§11).
@@ -488,8 +488,8 @@ func (run *stageRun) emitted(em *emitter, n *dn, explicit *tagset, inside bool) 
 
 // forwarded is the input token whose attachments a token over n inherits,
 // or -1 (§11). The parts are those of the join (§5): a read input token, or
-// a foreign part as one piece, and nothing inside a constituent that emits
-// ε. A token with attachments among other parts, or a foreign part that
+// an opaque part as one piece, and nothing inside a constituent that emits
+// ε. A token with attachments among other parts, or an opaque part that
 // holds one, is an error of the grammar.
 func (run *stageRun) forwarded(rec *recognizer, n *dn, inside bool) int {
 	parts, found := 0, -1
@@ -507,10 +507,10 @@ func (run *stageRun) forwarded(rec *recognizer, n *dn, inside bool) int {
 			if x.prod.nothing {
 				continue
 			}
-			if x.prod.foreign && !inside {
+			if x.prod.opaque && !inside {
 				parts++
 				if run.holdsAttachments(rec, x) {
-					panic(&parseFailure{message: x.prod.ruleName + " is a foreign part over a token with attachments, which a token over it cannot place"})
+					panic(&parseFailure{message: x.prod.ruleName + " is an opaque part over a token with attachments, which a token over it cannot place"})
 				}
 				continue
 			}
@@ -530,7 +530,7 @@ func (run *stageRun) forwarded(rec *recognizer, n *dn, inside bool) int {
 	return found
 }
 
-// holdsAttachments says whether a foreign part holds an input token with
+// holdsAttachments says whether an opaque part holds an input token with
 // attachments: one that it reads outside any constituent that emits ε
 // (§11).
 func (run *stageRun) holdsAttachments(rec *recognizer, n *dn) bool {
@@ -589,13 +589,13 @@ func sounded(phoneme string) (string, string) {
 }
 
 // spoken is what a constituent says and shows: the phonemes and the labels
-// of its parts, joined (§5, §11). A part is a read input token or a foreign
+// of its parts, joined (§5, §11). A part is a read input token or an opaque
 // part. Nothing inside a constituent that does not count is a part, and the
-// walk does not enter a foreign part. inside says whether the constituent
-// lies inside a foreign part. Then nothing in it is a foreign part.
-// Otherwise the walk stops at the first %foreign constituent on each path,
-// so no constituent that it reaches lies inside a foreign part.
-func (run *stageRun) spoken(rec *recognizer, n *dn, foreign map[*dn]*foreignPart, inside bool) (string, string) {
+// walk does not enter an opaque part. inside says whether the constituent
+// lies inside an opaque part. Then nothing in it is an opaque part.
+// Otherwise the walk stops at the first %opaque constituent on each path,
+// so no constituent that it reaches lies inside an opaque part.
+func (run *stageRun) spoken(rec *recognizer, n *dn, opaque map[*dn]*opaquePart, inside bool) (string, string) {
 	var phonemes, label join
 	stack := []*dn{n}
 	for len(stack) > 0 {
@@ -611,9 +611,9 @@ func (run *stageRun) spoken(rec *recognizer, n *dn, foreign map[*dn]*foreignPart
 			if x.prod.nothing {
 				continue
 			}
-			if x.prod.foreign && !inside {
+			if x.prod.opaque && !inside {
 				phonemes.add("?", false)
-				label.add(foreign[x].text, false)
+				label.add(opaque[x].text, false)
 				continue
 			}
 			if x.a != nil {
@@ -655,25 +655,25 @@ func (j *join) add(piece string, pause bool) {
 	}
 }
 
-// foreignPart is the source and the text of a foreign part (§11).
-type foreignPart struct {
+// opaquePart is the source and the text of an opaque part (§11).
+type opaquePart struct {
 	source [2]int
 	text   string
 }
 
-// foreignParts finds the foreign parts of a chosen derivation, with their
-// sources and texts (§11): the constituents of %foreign productions inside
-// no constituent that emits ε and no other foreign part. The stage fixes
+// opaqueParts finds the opaque parts of a chosen derivation, with their
+// sources and texts (§11): the constituents of %opaque productions inside
+// no constituent that emits ε and no other opaque part. The stage fixes
 // them before it emits anything, so that every token over a part holds the
 // same text.
 //
-// The map holds the source and the text of each node that is a foreign part
+// The map holds the source and the text of each node that is an opaque part
 // in some place of the derivation. It does not say which places those are,
 // because a node can be shared by several places, and only some of them can
-// be foreign parts. The emission walk decides that for each place. The
+// be opaque parts. The emission walk decides that for each place. The
 // source and the text depend only on the node's span, so they are the same
-// in each place where the node is a foreign part.
-func (run *stageRun) foreignParts(rec *recognizer, root *dn) map[*dn]*foreignPart {
+// in each place where the node is an opaque part.
+func (run *stageRun) opaqueParts(rec *recognizer, root *dn) map[*dn]*opaquePart {
 	var parts []*dn
 	stack := []*dn{root}
 	for len(stack) > 0 {
@@ -684,7 +684,7 @@ func (run *stageRun) foreignParts(rec *recognizer, root *dn) map[*dn]*foreignPar
 			if x.prod.nothing {
 				continue
 			}
-			if x.prod.foreign {
+			if x.prod.opaque {
 				parts = append(parts, x)
 				continue
 			}
@@ -709,13 +709,13 @@ func (run *stageRun) foreignParts(rec *recognizer, root *dn) map[*dn]*foreignPar
 			ends[rec.base+int(x.end)] = true
 		}
 	}
-	out := make(map[*dn]*foreignPart, len(parts))
+	out := make(map[*dn]*opaquePart, len(parts))
 	for _, x := range parts {
 		a, b := rec.base+int(x.start), rec.base+int(x.end)
 		// An empty part takes in no text. Its source is that of an empty
 		// node (§12).
 		if a == b {
-			out[x] = &foreignPart{source: run.emptySource(a)}
+			out[x] = &opaquePart{source: run.emptySource(a)}
 			continue
 		}
 		before := 0
@@ -737,7 +737,7 @@ func (run *stageRun) foreignParts(rec *recognizer, root *dn) map[*dn]*foreignPar
 		if after > end {
 			end = after
 		}
-		out[x] = &foreignPart{source: [2]int{start, end}, text: string(run.ps.text[start:end])}
+		out[x] = &opaquePart{source: [2]int{start, end}, text: string(run.ps.text[start:end])}
 	}
 	return out
 }

@@ -241,11 +241,11 @@ def emits_nothing(production: Production) -> bool:
     return production.emit is not None and not production.emit
 
 
-def foreign_parts(root: DNode, tokens: list[Token], sources: Sources, text: str) -> dict[int, Range]:
-    """The foreign parts of a chosen derivation, each with its source,
-    keyed by the ``id`` of its node (engine §11). A foreign part is the
-    constituent of a ``%foreign`` production inside no constituent that
-    emits ``ε`` and no other foreign part. The stage fixes them before it
+def opaque_parts(root: DNode, tokens: list[Token], sources: Sources, text: str) -> dict[int, Range]:
+    """The opaque parts of a chosen derivation, each with its source,
+    keyed by the ``id`` of its node (engine §11). An opaque part is the
+    constituent of a ``%opaque`` production inside no constituent that
+    emits ``ε`` and no other opaque part. The stage fixes them before it
     emits anything, so that every token over a part holds the same text."""
     parts: list[DNode] = []
     stack: list[DChild] = [root]
@@ -253,7 +253,7 @@ def foreign_parts(root: DNode, tokens: list[Token], sources: Sources, text: str)
         node = stack.pop()
         if isinstance(node, DRead) or emits_nothing(node.production):
             continue
-        if node.production.foreign:
+        if node.production.opaque:
             parts.append(node)
             continue
         stack.extend(reversed(node.children))
@@ -347,15 +347,15 @@ class Emitter:
         self.output: list[Token] = []
         self.forwards = False
         self.inherited: set[int] = set()
-        # The foreign parts and their sources, fixed before any token
+        # The opaque parts and their sources, fixed before any token
         # (engine §11).
-        self.foreign = foreign_parts(root, self.tokens, context.sources, context.text)
+        self.opaque = opaque_parts(root, self.tokens, context.sources, context.text)
 
     def spoken(self, part: DChild) -> tuple[str, str]:
         """What a part says and shows: the phonemes and the labels of its
         parts, joined (engine §5, §11). A part is a read input token or a
-        foreign part. Nothing inside a constituent that does not count is a
-        part, and the walk does not enter a foreign part."""
+        opaque part. Nothing inside a constituent that does not count is a
+        part, and the walk does not enter an opaque part."""
         phonemes = Join()
         label = Join()
         stack: list[DChild] = [part]
@@ -369,7 +369,7 @@ class Emitter:
                 continue
             if emits_nothing(node.production):
                 continue
-            source = self.foreign.get(id(node))
+            source = self.opaque.get(id(node))
             if source is not None:
                 phonemes.add("?", False)
                 label.add(self.context.text[source[0] : source[1]], False)
@@ -385,9 +385,9 @@ class Emitter:
         tags = implied(explicit, self.context.lowered.implications)
         # Two phoneme tags are an error on any token (engine §5).
         phoneme = phoneme_tag(tags)
-        # A token over a foreign part has the part's source and text (engine
+        # A token over an opaque part has the part's source and text (engine
         # §11).
-        source = self.foreign.get(id(part)) if isinstance(part, DNode) else None
+        source = self.opaque.get(id(part)) if isinstance(part, DNode) else None
         if source is None:
             source = self.part_source(part)
         text = self.context.text[source[0] : source[1]]
@@ -413,9 +413,9 @@ class Emitter:
     def forwarded(self, part: DChild) -> Token | None:
         """The one input token whose attachments a token over ``part``
         inherits, or ``None`` (engine §11). The parts are those of the join
-        (engine §5): a read input token, or a foreign part as one piece, and
+        (engine §5): a read input token, or an opaque part as one piece, and
         nothing inside a constituent that emits ``ε``. A token with
-        attachments among other parts, or a foreign part that holds one, is
+        attachments among other parts, or an opaque part that holds one, is
         an error of the grammar."""
         parts = 0
         found: Token | None = None
@@ -430,11 +430,11 @@ class Emitter:
                 continue
             if emits_nothing(node.production):
                 continue
-            if id(node) in self.foreign:
+            if id(node) in self.opaque:
                 parts += 1
                 if self.holds_attachments(node):
                     raise _GrammarFault(
-                        f"{node.production.rule_name} is a foreign part over a token with attachments, which a token over it cannot place"
+                        f"{node.production.rule_name} is an opaque part over a token with attachments, which a token over it cannot place"
                     )
                 continue
             stack.extend(reversed(node.children))
@@ -443,7 +443,7 @@ class Emitter:
         return found
 
     def holds_attachments(self, part: DNode) -> bool:
-        """Whether a foreign part holds an input token with attachments: one
+        """Whether an opaque part holds an input token with attachments: one
         that it reads outside any constituent that emits ``ε`` (engine
         §11)."""
         stack: list[DChild] = [part]

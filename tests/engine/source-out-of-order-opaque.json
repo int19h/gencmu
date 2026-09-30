@@ -1,10 +1,10 @@
 {
-  "description": "A foreign part's source starts from the source of its own input tokens, from the least source start among them to the greatest source end, before it takes in the text next to it (engine §1, §11). The second stage emits X[1,1) Y[0,0) Z[1,1) for `a` and X[2,2) Y[1,1) Z[2,2) for `b`, so X Y ends before it starts. The part over the second X Y starts where another foreign part ends, so it does not start earlier, and it holds `b`, the source of its tokens. So the sources of these two foreign parts overlap, and so do their texts and their labels, since the rules do not keep them apart (engine §11).",
+  "description": "An opaque part's source starts from the source of its own input tokens, from the least source start among them to the greatest source end, before it takes in the text next to it (engine §1, §11). The second stage emits X[1,1) Y[0,0) Z[1,1) for `a` and X[2,2) Y[1,1) Z[2,2) for `b`, so X Y ends before it starts. The part over the second X Y starts where another opaque part ends, so it does not start earlier, and it holds `b`, the source of its tokens. So the sources of these two opaque parts overlap, and so do their texts and their labels, since the rules do not keep them apart (engine §11).",
   "documents": {
     "p.md": "## Letters\n\n```jbogenbau\n%stage letters\n```\n\n- [a](a.md)\n  ```jbogenbau\n  %include \"a.md\"\n  ```\n\n## Pairs\n\n```jbogenbau\n%stage pairs\n```\n\n- [b](b.md)\n  ```jbogenbau\n  %include \"b.md\"\n  ```\n\n## Triples\n\n```jbogenbau\n%stage triples\n```\n\n- [c](c.md)\n  ```jbogenbau\n  %include \"c.md\"\n  ```\n",
     "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text letter letter\n%rule letter char %emits $ <A>, $ <A>\n%rule char 'a' | 'b'\n```\n",
     "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text pair pair\n%rule pair prefix edge\n%rule prefix A %emits X\n%rule edge $n(nothing) A %emits Y, $n <Z>\n%rule nothing ε\n```\n",
-    "c.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $u(u) $w(w) $z(z)\n%emits $u <U>, $w <W>, $z <V>\n%rule u X Y Z\n%foreign\n%rule w X Y\n%foreign\n%rule z Z\n%foreign\n```\n"
+    "c.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $u(u) $w(w) $z(z)\n%emits $u <U>, $w <W>, $z <V>\n%rule u X Y Z\n%opaque\n%rule w X Y\n%opaque\n%rule z Z\n%opaque\n```\n"
   },
   "pipeline": "p.md",
   "input": "ab",

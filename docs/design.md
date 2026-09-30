@@ -86,7 +86,7 @@ Every span and every source range in a result is half-open: the range holds its 
 
 A token's `span` is a range of the previous stage's tokens. Its `source` is the smallest range of the original text that holds the sources of those tokens. So the source is contiguous even when some of those tokens emitted nothing, as an erased word inside a compound does. A token inserted by an emission clause has an empty span, and an empty source range at the position where it was inserted. Its provenance is that emission: its `insertedBy` records the rule whose clause inserted it.
 
-A token whose constituent is a nonempty foreign part also takes in adjacent text that no input token covers. A larger token that holds a foreign part keeps the source of its input tokens.
+A token whose constituent is a nonempty opaque part also takes in adjacent text that no input token covers. A larger token that holds an opaque part keeps the source of its input tokens.
 
 Following `span` from stage to stage explains any token of a stage's output. The chain ends at the characters, or at a token with an empty span. An inserted token ends it at the rule in its `insertedBy`. A token over a part that read nothing has an empty span and no `insertedBy`. An attached token has no `span`, so its chain ends at the stage that attached it. Its `source` still gives its place in the original text.
 
@@ -167,7 +167,11 @@ A captured item can also carry attachments, captures in parentheses before or af
 
 The syntax reads leading indicators itself. They stand at the start of a text or after a text opener such as `lu`. In such a run, the indicator stage attaches only `ba'e`, to the indicator after it. A `nai` after an attitudinal stays a separate token there. The syntax reads `UI NAI`. In a run after a word, the `nai` attaches to its attitudinal instead.
 
-`%foreign` says that the constituent is foreign text, such as the body of a `zoi` quote. A token over it sounds `?`, and its label is the text as the author wrote it. So a comparison of sounds never mistakes foreign text for Lojban, and the renderings still show that text. The text of a foreign part also takes in punctuation next to it that no token covers.
+During emission, `%opaque` treats a constituent as one part, with its text as its label and `?` as its phonemes. The body of a `zoi` quote is an example. Recognition and conditions still read the phonemes of the input tokens. So a later comparison of sounds never matches that text with a word, and the renderings still show it. The text of an opaque part also takes in punctuation next to it that no token covers.
+
+The engine does not tie `%opaque` to any tag, because a grammar chooses its own tags. In the bundled grammars, `UNREAD` marks a run that the pipeline has not read as words. The phoneme stage makes such a run opaque. The forms stage keeps the phonemes of its own unread runs, so a `zoi` delimiter still compares with them.
+
+The word stage makes `zoi` and `zo'oi` bodies opaque, and the bodies of the quotes that work like `zoi`, such as `la'o`. Their payloads and Zantufa's quoted rafsi forms carry `quoted-text`, the mark for what a quote hands the syntax as one unit. A quoted rafsi form keeps its phonemes.
 
 A clause can refer to a capture that some alternative lacks. Lowering decides such a clause before the recognizer reads any text. A condition or an emitted item then does not apply to that alternative. A tag term is an error unless it is guarded, as in `($c ⟹ classify(phonemes($c), lexicon))`. The reason is that a tag term has no value that can mean "nothing to say". A clause that applies to no alternative, or a capture that no alternative captures, is an error.
 

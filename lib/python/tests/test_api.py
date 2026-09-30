@@ -477,7 +477,7 @@ class GrammarFaults(unittest.TestCase):
         )
         for grammar, message in [
             ("%implies A ⟹ /o/\n%rule text [word] ...\n%rule word $w(W) <A ∪ /e/>\n%emits\n  $", "an emitted token has two phoneme tags: /e/, /o/"),
-            ("%rule text [word] ...\n%rule word $w(W) </e/ ∪ /o/>\n%emits\n  $\n%foreign", "an emitted token has two phoneme tags: /e/, /o/"),
+            ("%rule text [word] ...\n%rule word $w(W) </e/ ∪ /o/>\n%emits\n  $\n%opaque", "an emitted token has two phoneme tags: /e/, /o/"),
             ("%implies /e/ ⟹ /o/\n%rule text [word] ...\n%rule word $w(W)\n%emits\n  $w, /e/", "an emitted token has two phoneme tags: /e/, /o/"),
             ("%rule text $a(W) %emits $a <tags($a) ∩ Z>", "text emits a token with no tags; a rule that emits nothing says %emits ε"),
             ("%rule text $a(x) %conditions ¬matches($a, text)\n%rule x W", own_span),
@@ -640,12 +640,12 @@ class BundledGrammars(unittest.TestCase):
     phonemes and the sources of the tokens of a stage."""
 
     def test_empty_zoi_body(self) -> None:
-        """words/stream.md: the body of an empty zoi quote is an empty foreign
+        """words/stream.md: the body of an empty zoi quote is an empty opaque
         part. So it sounds ?, and a letter word over the quote keeps the ?,
         with no pause after it, since the one pause between the delimiters
         comes first."""
         dialect = gencmu.load_dialect("cll-ebnf")
-        body = next(token for token in stage_output(dialect, "zoi gy gy", "words") if "foreign-text" in token.tags)
+        body = next(token for token in stage_output(dialect, "zoi gy gy", "words") if "quoted-text" in token.tags)
         self.assertEqual(body.phonemes, "?")
         self.assertIsNone(body.inserted_by)
         letter = stage_output(dialect, "zoi gy gy bu", "words")[0]
