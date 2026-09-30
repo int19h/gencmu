@@ -57,6 +57,13 @@ tools/sync.js              regenerates every generated file below
 
 ## The engine
 
+The engine works with these objects:
+
+- A token is one unit that a stage reads or emits, such as a character, a phoneme or a word.
+- A tag marks a token by name, phoneme or character. Examples are `KOhA`, `/a/` and `'a'`.
+- A constituent is a part of the input that one rule matched. Its span is the range of input tokens that it covers.
+- A capture, such as `$c`, names a part of an alternative, so that a condition or an emission can use it.
+
 The four libraries implement one specification, `docs/engine.md`. It was written first, and it is precise enough that two implementations cannot legitimately differ. It covers:
 
 1. The loader, the part of a library that reads documents, uses the notation's own grammar. It reads the fenced `jbogenbau` blocks of a Markdown document into a grammar DOM (document object model: the document as a tree of objects). See "The notation" below. The loader splices pipeline documents as "Pipelines" says, and stitches the rules of each stage into one grammar. Its errors carry file, line and column.
@@ -125,11 +132,11 @@ A stage can also give sounds their classes with a classifier, such as a lexicon.
 
 `%implies UI ∪ CAI ⟹ ~indicator` says that each token that the stage emits with `UI` or `CAI` also carries `indicator`. So a lexicon says once which classes are indicators, and not on every word.
 
-This is what the dialects need. A script document adds its letters to the rules of the phoneme grammar with `%extend-rule`. A word family adds the word forms that its morphology allows. The experimental syntax is a layer over the CLL syntax. It restates the CLL rules that it changes, and adds rules of its own.
+This is what the dialects need. A script document adds its letters to the rules of the phoneme grammar with `%extend-rule`. A word family is a set of word forms that dialects use, such as those of CLL. Its documents add those forms to the stage that divides the text into words. The experimental syntax is a layer over the CLL syntax. It restates the CLL rules that it changes, and adds rules of its own.
 
 The Zantufa syntax is a grammar of its own. Zantufa 1.9999 restates almost every rule of camxes, a PEG grammar of Lojban. So the gencmu grammar translates the Zantufa rules one by one. It uses small rules for the conditions that state the lookaheads and ordered choices of the reference.
 
-A name in upper case is a terminal that matches a token carrying that tag. A character between single quotes, `'а'`, is a character tag, which matches that character of the text. A character token carries only its character tag. So a class of characters is a range, such as `'0'..'9'`, or a Unicode property, such as `'\p{L}'`.
+A name in upper case is a terminal that matches a token carrying that tag. A character between single quotes, `'a'`, is a character tag, which matches that character of the text. A character token carries only its character tag. So a class of characters is a range, such as `'0'..'9'`, or a Unicode property, such as `'\p{L}'`.
 
 `~name` is the identifier tag `name`, for a tag that does not begin with a capital, such as `~cmavo`. A phoneme between slashes, `/a/`, `/'/`, `/./` for a pause, is a phoneme tag. It matches like any tag, and it also says what a token that carries it sounds like, which `phonemes()` reads. Slashes mean nothing else.
 
@@ -150,7 +157,7 @@ The operators of a body are those of CLL:
 
 CLL writes `/KU/` for an elidable terminator, a closing word that the speaker can leave out. Here it is written `[KU]`, and `/KU#/` is `[KU #]`. The grammar declares which terminators are elidable (see below). `[KU #]` is exactly what CLL prints: an elided terminator takes its free-modifier slot with it. So `xy. xi ky.` (CLL 17.38) needs `xy. boi xi ky.` under the printed grammar, as CLL's official parser does, and as the corpus scans of the prototype show. The grammars that allow free modifiers after an elided terminator, as the camxes family does, write `[KU] #`.
 
-`%tags` gives the tags that the constituent of every alternative carries. An alternative's own tags, after it in angle brackets, add to them. A tag has no strength. There is one notation for a set of tags, the union: `UI ∪ CAI ∪ ~indicator`.
+`%tags` gives the tags that the constituent of every alternative carries. An alternative's own tags, after it in angle brackets, add to them. A tag has no strength: a constituent carries it or not. There is one notation for a set of tags, the union: `UI ∪ CAI ∪ ~indicator`.
 
 `%conditions` lists conditions over the captured parts. Each condition applies to the alternatives that capture what it mentions. The recognizer evaluates it as early as it can. Within one condition, `∧`, `∨` and `⟹` are logic, in that order of precedence, grouped with parentheses.
 
@@ -245,7 +252,7 @@ A grammar admits every parse that its rules allow. Where a text has more than on
 
 The preference is like greedy and lazy quantifiers in a backtracking regular-expression engine, and not like the greed of a PEG. The preference orders the parses that the grammar already admits, and never commits, so it cannot reject a text. The earliest difference dominates. And the preference applies to every constituent of the stage, not to one quantifier.
 
-The syntax grammars are greedy, and that is how an elided terminator is placed. The forms and words stages are lazy. The word forms divide a run in one way only, so of these two stages, the choice matters only in the words stage. A magic word, such as `si`, acts on other words. In the words stage, a magic word acts on what exists when it is read.
+The syntax grammars are greedy, and that is how an elided terminator is placed. The forms stage divides the text into words. The words stage applies the magic words, such as `si`, which act on other words. Both stages are lazy. The word forms divide a run in one way only, so the choice matters only in the words stage. In that stage, a magic word acts on what exists when it is read.
 
 CLL's own rule is narrower. It says only that a terminator can be elided if no ambiguity results. It says nothing of the other ambiguities that its EBNF has. `elision-only` applies that rule literally, to the stage whose grammar declares it. It applies the rule only when the ranking of that stage was not `unique`:
 

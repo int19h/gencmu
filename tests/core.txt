@@ -566,6 +566,9 @@ adhoc.words.orthography.accent-is-no-cll-letter
 adhoc.words.orthography.accent-is-no-cll-letter.bpfk
 adhoc.words.orthography.digit-is-no-cll-letter
 adhoc.words.orthography.digit-is-no-cll-letter.bpfk
+adhoc.words.orthography.zbalermorna.stray-stress-mark-before-foreign-char
+adhoc.words.orthography.zbalermorna.stray-stress-marks-after-vowel
+adhoc.words.orthography.zbalermorna.stray-shorthand-before-foreign-char
 adhoc.words.orthography.comma-between-vowels-is-a-break
 adhoc.words.orthography.comma-between-vowels-is-a-break.bpfk
 adhoc.words.orthography.comma-parts-a-name

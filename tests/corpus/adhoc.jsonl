@@ -837,6 +837,9 @@
 {"id":"adhoc.words.orthography.zbalermorna.lone-stress-mark-in-zoi","text":"zoi gy.  .gy.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi","gy","","gy"],"brackets":"(zoi gy  gy)"}
 {"id":"adhoc.words.orthography.zbalermorna.lone-shorthand-in-zoi","text":"zoi gy.  .gy.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi","gy","","gy"],"brackets":"(zoi gy  gy)"}
 {"id":"adhoc.words.orthography.zbalermorna.shorthand-before-stressed-vowel","text":"","dialect":"experimental","expect":"accept","verdict":"unique","words":["A'a"],"brackets":"A'a"}
+{"id":"adhoc.words.orthography.zbalermorna.stray-stress-mark-before-foreign-char","text":"zoi gy. q .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy","q","gy"],"brackets":"(zoi gy q gy)"}
+{"id":"adhoc.words.orthography.zbalermorna.stray-stress-marks-after-vowel","text":"zoi gy. aq .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy","aq","gy"],"brackets":"(zoi gy aq gy)"}
+{"id":"adhoc.words.orthography.zbalermorna.stray-shorthand-before-foreign-char","text":"zoi gy. q .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy","q","gy"],"brackets":"(zoi gy q gy)"}
 {"id":"adhoc.words.orthography.comma.cyrillic-vowels","text":"ми ма,и","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","ma'i"],"brackets":"(mi ma'i)"}
 {"id":"adhoc.words.orthography.comma.capital-run","text":"MI KLA,MA","dialect":"experimental","expect":"accept","verdict":"unique","words":["mI","klama"],"brackets":"(mI klama)"}
 {"id":"adhoc.words.orthography.apostrophe.h","text":"mi coho","dialect":"experimental","expect":"accept","verdict":"resolved","words":["mi","co'o"],"brackets":"(mi co'o)"}

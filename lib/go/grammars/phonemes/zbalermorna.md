@@ -54,7 +54,7 @@ A vowel diacritic and its full-vowel form are the same phoneme. The stress mark 
 
 The shorthand U+ED8B followed by a vowel, plain or stressed, is that vowel and an apostrophe. A token is one unit that a stage reads or emits. The vowel's token covers the shorthand too, as a stressed vowel's token covers its stress mark. The rule emits the apostrophe as a token with an empty span. The shorthand stands where a non-vowel stands, because the apostrophe closes the vowel group. It does not stand before a diphthong.
 
-A stress mark or a shorthand is a character of the script, so it is never punctuation. But one that no letter takes makes its run foreign. So `foreign-char` takes each of them, and a run that the script reads whole is still no foreign run.
+A stress mark or a shorthand is a mark of the script, like an accent. So this document adds both to `mark-char` of [latin.md](latin.md), and no punctuation rule reads them as a pause. Neither is a Lojban character by itself. So `foreign-char` takes a stray mark, one that no letter takes, and the mark makes its run foreign.
 
 ```jbogenbau
 %extend-rule plain-vowel
@@ -87,9 +87,9 @@ A stress mark or a shorthand is a character of the script, so it is never punctu
   zbalermorna-shorthand
 
 %extend-rule any-lojban-char
-  zbalermorna-diphthong | zbalermorna-shorthand-mark | zbalermorna-stress-mark
+  zbalermorna-diphthong
 
-%extend-rule foreign-char
+%extend-rule mark-char
   zbalermorna-shorthand-mark | zbalermorna-stress-mark
 
 %rule zbalermorna-stress-mark
