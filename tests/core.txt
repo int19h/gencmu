@@ -1205,3 +1205,13 @@ adhoc.indicators.attach.leading-ui-nai.zantufa
 adhoc.indicators.attach.leading-fuhe.zantufa
 adhoc.indicators.attach.leading-stray-nai.zantufa
 adhoc.indicators.attach.lu-vocative.zantufa
+adhoc.words.commas.le-ba-irgau
+adhoc.words.commas.le-zda-i
+adhoc.words.commas.do-is
+adhoc.words.commas.akru-a
+adhoc.words.commas.le-tce-ila
+adhoc.words.commas.kulnrsu-omi
+adhoc.words.commas.la-nu-iork
+adhoc.words.commas.y-y
+adhoc.words.commas.zba-a-uklama
+adhoc.words.cll11.bang-r-kore-a

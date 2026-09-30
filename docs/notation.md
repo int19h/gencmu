@@ -289,7 +289,11 @@ The first type is the span, a sequence of tokens. A capture `$x` is a span, the 
 
 The second type is the string. `phonemes(span)` is the canonical sound of a span. That is the phonemes of its tokens, joined, in lower case and without commas. So `phonemes()` ignores stress and syllable breaks. It keeps every pause, and adds none between the tokens.
 
-In the `cll-ebnf` dialect, a comma between two vowels marks a syllable break, as CLL 3.3 describes. A cmevla is a Lojban word used as a proper name. In that dialect, a comma can split two vowels into separate syllables in a cmevla or borrowing, as in `nu,iork`. In a cmavo, such a comma makes the form invalid in that dialect, as in `ma,i`. In the other bundled Lojban dialects, a comma between two vowels is nothing, so `ma,i` is `mai`. In all four bundled Lojban dialects, `phonemes()` ignores commas when comparing `zoi` delimiters, so `nuiork` and `nu,iork` match.
+The next paragraph uses four more Lojban terms. A gismu is a root word. A lujvo is a compound word. A fu'ivla is a borrowed word. A cmevla is a proper name.
+
+In the `cll-ebnf` dialect, a comma between two vowels marks a syllable break, as CLL 3.3 describes. In that dialect, a cmavo, a gismu or a lujvo has no comma between two vowels. A fu'ivla or a cmevla can have one, as in the cmevla `nu,iork`. Without its commas and with its capitals lowered, a fu'ivla must still be a fu'ivla, and a cmevla must still be a cmevla. For example, `zba,A,u` is a fu'ivla, because `zbaau` is one, although `zbaAu` is none. So `ba,irgau` and `ma,i` are no words, because `bairgau` is a lujvo and `mai` is a cmavo.
+
+In the other bundled Lojban dialects, a comma between two vowels is nothing, so `ma,i` is `mai`. In all four bundled Lojban dialects, the word stage compares `zoi` delimiters by `phonemes()`, which has no commas, so `nuiork` and `nu,iork` match.
 
 A token's own phonemes are fixed when its stage emits it, and they keep their capitals and commas. A token sounds like the phoneme that its `/x/` tag names, if it has one. Such a tag can come from an implication (see "Implications"). Two phoneme tags on one token are an error of the grammar.
 
