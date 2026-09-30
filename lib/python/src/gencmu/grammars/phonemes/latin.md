@@ -109,7 +109,7 @@ A run in which every vowel is a capital carries no stress mark, and the stage re
 
 `capital-shape` is that shape: its consonants and digits and its capital vowels, written out so that two groups are required. Consonants stand between every two groups, so the rules never split adjacent vowels into separate groups. `capital-consonants` reads a decimal point between two digits, as `non-vowels` does in an ordinary run (see "Digits"). So `MI2.3KLAMA` is a capital run. `capital-consonants` does not reuse `non-vowels`, because other scripts extend `non-vowel` with forms that hold a vowel. Forms such as the zbalermorna shorthand keep a run from folding.
 
-`capital-run` reads that shape with every vowel folded. An ordinary run is any other run of letters, which the condition states by exclusion. In an ordinary run, a capital vowel marks stress. A foreign run is now also a run that is not a capital run.
+`capital-run` reads that shape with every vowel folded. An ordinary run is any other run of letters, which the condition states by exclusion. In an ordinary run, a capital vowel marks stress. No capital run matches `foreign-chars` in the bundled grammars, so `foreign-run` needs no separate test for it.
 
 ```jbogenbau
 %extend-rule run
@@ -119,17 +119,6 @@ A run in which every vowel is a capital carries no stress mark, and the stage re
   $r(letters)
 %conditions
   ¬matches($r, capital-shape)
-
-%redefine-rule foreign-run
-  $r(foreign-chars)
-%conditions
-  ¬matches($r, letters),
-  ¬matches($r, capital-shape),
-  ¬matches(head($r), comma),
-  ¬matches(last($r), comma)
-%emits
-  $ <FOREIGN>
-%foreign
 
 %rule capital-run
   capital-shape
