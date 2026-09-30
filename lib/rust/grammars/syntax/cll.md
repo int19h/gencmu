@@ -13,8 +13,10 @@ The prose uses these Lojban terms before the sections that explain them:
 - A tanru is a compound selbri.
 - A jek is a logical connective between tanru units, such as `je`.
 - A joik is a non-logical connective, such as `joi`.
-- A stag is a tense or modal that can stand in a connective.
+- A stag is a tense or modal inside a connective.
 - A mekso is a mathematical expression.
+- A brivla is a predicate word.
+- A lerfu word is a letter word, such as `.abu` or `xy.`.
 
 The stages before it make the word stream that it reads. The forms stage, [a family of word forms](../words/forms.md), reads phonemes into words. The word stage, [the word stream](../words/stream.md), makes quotes and compounds and applies the erasers `si`, `sa` and `su`. [The indicator stage](../indicators/cll.md) attaches a run of indicators to the word before it, as CLL's non-formal rule `word = [BAhE] any-word [indicators]` says. Every cmavo reaches this grammar under each selma'o that [the CLL lexicon](../words/lexicon-cll.md) gives it. The material of a quote arrives tagged `word` or `foreign-text`, which is what `any-word` and `anything` read.
 

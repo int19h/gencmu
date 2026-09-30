@@ -680,4 +680,4 @@ In either case, the engine discards the first run's stages and warnings. Otherwi
 
 Mistakes of the caller are errors of kind `usage`. Two examples are an `until` that names no stage and a text that is not a sequence of scalar values (§1). A token that the caller supplies with attachments is a third (`docs/api.md`). They are raised or returned as a load error is, and they are not results.
 
-A grammar error found while parsing is a result. Examples are a nested parse asked about its own span and a `split` with an empty delimiter. Its error has kind `grammar`, the `stage` that it arose in and a message, and no position.
+A grammar error found while parsing is a result. Examples are a nested parse asked about its own span as the same rule, and a `split` with an empty delimiter. Its error has kind `grammar`, the `stage` that it arose in and a message, and no position.

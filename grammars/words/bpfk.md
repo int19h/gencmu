@@ -4,6 +4,16 @@ This document is the family part of the forms stage in the [approved word forms]
 
 The document gives the word-form grammar that the definition effort of the Logical Language Group approved. That grammar is a parsing expression grammar (PEG), the morphology part of `camxes.peg` in the ilmentufa repository, at commit 778ea13. The 1.3 editions of *The Complete Lojban Language* print the same grammar as appendix A2.
 
+The prose uses these Lojban terms for words:
+
+- A cmavo is a particle, a short structure word.
+- A selma'o is a word class of cmavo.
+- A brivla is a predicate word.
+- A cmevla is a name word.
+- A gismu is a root word.
+- A lujvo is a compound word.
+- A rafsi is a short form of a word inside a compound.
+
 This document translates the PEG rule by rule. Each rule here has the name of the PEG rule that it translates, in lower case and with hyphens for underscores. A comment gives the PEG rule. A rule that the PEG does not have is one of two kinds. It is a part of a PEG rule that needs a name of its own here, or a rule that a condition tests. Its comment says which.
 
 ## How the PEG is written here

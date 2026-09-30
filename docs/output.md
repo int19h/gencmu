@@ -63,7 +63,7 @@ A warning has this form:
 {"stage":"words","feature":"y-cmavo","rule":"cmavo-token","span":[2,3],"source":[3,7]}
 ```
 
-As in a node, `span` counts the input tokens of the stage, and `source` counts the code points of the original text. The example is the warning for `ka'y` in `mi ka'y` in the cll-ebnf dialect.
+As in a node, `span` counts the input tokens of the stage, and `source` counts the code points of the original text. The example is the warning for `ka'y` in `mi ka'y`, in the cll-ebnf dialect with the feature `y-cmavo` on.
 
 An action in a witness is `{"read":{"token":4,"terminal":"KOhA"}}` or `{"close":{"rule":"sumti","production":57,"span":[2,5]}}`. The production is numbered from 0, as in engine §3. For a production of a helper, `rule` is the rule whose alternative introduced the helper.
 
@@ -78,7 +78,7 @@ An error has this form:
 
 - `rejected`: The grammar of the stage does not accept its input.
 - `ambiguous` (engine §7): The error has `stage`, `"readings":[NODE,NODE]` and `message`, and no position.
-- `grammar`: A grammar failed to load, or the parser found a defect while parsing. For a grammar that failed to load, the error has `document`, `line` and `column` where known. For a defect found while parsing, such as a condition that asked about its own span, the error has `stage` and no position.
+- `grammar`: A grammar failed to load, or the parser found a defect while parsing. For a grammar that failed to load, the error has `document`, `line` and `column` where known. For a defect found while parsing, the error has `stage` and no position. An example of such a defect is a nested parse asked about its own span as the same rule.
 
 A mistake of the caller is not a result. It is an error of kind `usage` (engine §13).
 

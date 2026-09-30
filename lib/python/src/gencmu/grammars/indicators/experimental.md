@@ -10,7 +10,7 @@ With both forms, two readings of `ui nai` tie. So this document restates `indica
 
 A `nai` is an indicator here, so a run of items never begins with one.
 
-A leading run needs no pair form. The syntax reads `ui` and `nai` as separate indicators there. So this document restates `leading` without the pair form of the CLL document.
+A leading run needs no pair form. The syntax reads `ui` and `nai` as separate indicators there. So this document restates `leading` without the pair form of the CLL document. After this, nothing reads the rule `leading-attitudinal-nai` of the CLL document.
 
 The CLL document already reads `fu'e` as camxes-exp's `indicators` rule does. A `fu'e` must have an indicator after it, so `mi fu'e ui klama` is a text, and `mi fu'e klama` is not. The restated `indicator-run` lets each indicator take its own `fu'e`.
 

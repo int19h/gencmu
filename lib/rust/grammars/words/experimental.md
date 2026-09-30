@@ -4,6 +4,13 @@ This document is part of the forms stage in the [experimental](../dialects/exper
 
 Each rule here has the name of the camxes-exp rule that it translates, and its comment gives that rule, as in bpfk.md. The [Zantufa](../dialects/zantufa.md) dialect makes only the first change, in [zantufa.md](zantufa.md). [The notation document](../../docs/notation.md) explains the notation.
 
+The prose uses these Lojban terms for words:
+
+- A brivla is a predicate word.
+- A gismu is a root word.
+- A lujvo is a compound word.
+- A rafsi is a short form of a word inside a compound.
+
 ## The pair mz
 
 CLL 3.6 forbids the consonant pair `mz`. The approved grammar, the word-form grammar that bpfk.md translates, forbids it too: its letter rule for `m` refuses a following `z`. The letter rule for `m` in camxes-exp refuses only another `m` among the consonants. So camxes-exp accepts `mz` wherever a permissible pair can stand. Examples are the gismu `kamzi`, the lujvo `bamzda` and the name `.djeimz.`.

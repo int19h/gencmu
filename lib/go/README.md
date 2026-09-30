@@ -32,7 +32,7 @@ data, _ := gencmu.MarshalResult(result) // canonical JSON, docs/output.md
 - `MarshalResult(result)` writes the canonical JSON.
 - `Brackets(result, BracketOptions{ShowElided})` renders the tree as nested groups. It shows each token by its `Label`. A token with attachments is a group of its before-attachments, its label and its after-attachments, so `mi ui klama` is `([mi ui] klama)` in the CLL dialect.
 
-A `*Dialect` is safe for concurrent use. Positions are code points. The `Tags` of a `Token` or a `Node` are a `[]string` in code point order. Each tag appears once in its canonical spelling, such as `KOhA`, `/a/` or `'a'`.
+A `*Dialect` is safe for concurrent use. Source positions count Unicode code points. Spans and token indices count tokens of the relevant stage. The `Tags` of a `Token` or a `Node` are a `[]string` in code point order. Each tag appears once in its canonical spelling, such as `KOhA`, `/a/` or `'a'`.
 
 A `Token` has `Phonemes`, what it sounds like, and `Label`, what it shows to people (engine §5). A token over a foreign part, such as the body of a `zoi` quote, sounds `?` and has the part's text as its label.
 
@@ -52,7 +52,7 @@ go test ./...
 go test -race -run Concurrent ./...
 ```
 
-The tests read the shared cases in `../../tests/`. They run every engine and notation case, the corpus and the fixpoint of the bootstrap. For an engine case whose grammar cannot be loaded, they also compare where the error stands, when the case gives it. An engine case with `parses` loads its dialect once and parses its input with each item's options in turn. They also compare `compiled.json` with a fresh reading, with the cache both used and bypassed.
+The tests read the shared cases in `../../tests/`. They run every engine and notation case, the core sample of the corpus and the fixpoint of the bootstrap. For an engine case whose grammar cannot be loaded, they also compare where the error stands, when the case gives it. An engine case with `parses` loads its dialect once and parses its input with each item's options in turn. They also compare `compiled.json` with a fresh reading, with the cache both used and bypassed.
 
 `TestCorpus` runs the core sample of the Lojban corpus (`../../tests/core.txt`) on as many goroutines as there are CPUs. The goroutines share one `*Dialect` for each dialect. `GENCMU_CORPUS=full` runs every case of `../../tests/corpus/`, and `GENCMU_CORPUS_WORKERS` sets the number of goroutines.
 

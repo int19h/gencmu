@@ -4,6 +4,14 @@ This document is the family part of the forms stage in the [CLL](../dialects/cll
 
 This document defines the three shapes that the forms stage reads, `cmavo-shape`, `brivla-shape` and `cmevla-shape`. It tags each such word with what the pause rules of CLL 4.9 need to know about the word. A tag is a name on a token. A token is one unit that a stage reads or writes. The family of the definition effort is [bpfk.md](bpfk.md). [The notation document](../../docs/notation.md) explains the notation.
 
+The prose uses these Lojban terms for words:
+
+- A cmavo is a particle, a short structure word.
+- A brivla is a predicate word.
+- A gismu is a root word.
+- A lujvo is a compound word.
+- A rafsi is a short form of a word inside a compound.
+
 The rules state CLL 1.1's word forms precisely enough to implement them twice. Under these rules a text divides into words in at most one way. So the lazy choice of the stage among parses ([engine §6](../../docs/engine.md#6-choosing-a-parse)) never decides where a word ends.
 
 ## Pause tags

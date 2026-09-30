@@ -4,7 +4,7 @@ This document adds to [latin-strict.md](latin-strict.md) the conventions that Lo
 
 Most conventions here read text that CLL does not. Two of them instead change how the stage reads a text that latin-strict.md also reads. These two are the comma between two vowels, which the approved grammar ignores, and a capital run. A capital run has multiple vowel groups with only capital vowels. The approved grammar is the word-form grammar that the Lojban definition effort approved. The conventions are these:
 
-- Punctuation other than the period is a pause.
+- Punctuation other than the period and the comma is a pause.
 - A comma between two vowels is nothing, as it is elsewhere.
 - `h` writes the apostrophe.
 - A capital run carries no stress mark.
@@ -13,9 +13,9 @@ Most conventions here read text that CLL does not. Two of them instead change ho
 
 ## Punctuation
 
-The approved grammar reads the question mark and the exclamation mark as pauses, like the period and whitespace. Its PEG, or parsing expression grammar, calls them `space_char`. This grammar also reads as a pause any other character that is neither a letter of some script, a digit nor a mark. That is a rule of gencmu. Texts on the web put quotation marks, brackets and dashes around words. The approved grammar rejects `mi "klama"`, and this grammar reads it as `mi klama`.
+The approved grammar reads the question mark and the exclamation mark as pauses, like the period and whitespace. Its PEG, or parsing expression grammar, calls them `space_char`. This grammar also reads as a pause any other character that is neither a letter of some script, a digit, a mark nor a comma. That is a rule of gencmu. Texts on the web put quotation marks, brackets and dashes around words. The approved grammar rejects `mi "klama"`, and this grammar reads it as `mi klama`.
 
-A character token carries only its character tag. So the rule `other-char` names the characters that are no letter, mark, digit or whitespace. A letter is a character of the Unicode property `L`, and a mark is one of `Mn`. A digit is `0` to `9`, and whitespace is a character of the property White_Space. A punctuation character is such a character that no letter rule reads by itself.
+A character token carries only its character tag. So the rule `other-char` names the characters that are no letter, mark, digit or whitespace. A letter is a character of the Unicode property `L`, and a mark is one of `Mn`. A digit is `0` to `9`, and whitespace is a character of the property White_Space. A punctuation character is such a character that no rule of `any-lojban-char` or `core-char` reads by itself.
 
 A pause token covers its core, from its first to its last whitespace character or period, with any punctuation inside it. A token is one unit that a stage reads or emits. Other punctuation at either end of a pause belongs to no token. So a `zoi` body keeps the quotation marks in `zoi gy. "Hello!" .gy.`. The body takes in the text next to it that no token covers, as [the notation](../../docs/notation.md) says under "Foreign text".
 
@@ -94,7 +94,7 @@ The approved grammar ignores a comma before a letter (`comma*` in each letter ru
 
 ## The apostrophe
 
-Texts write the apostrophe as the letter `h`, which CLL does not use. The names of selma'o, such as KOhA, write it so, and the approved grammar reads it so (`h <- comma* ['h] &nucleus` in its PEG).
+Texts write the apostrophe as the letter `h`, which CLL does not use. The names of selma'o (classes of Lojban particles), such as KOhA, write it so, and the approved grammar reads it so (`h <- comma* ['h] &nucleus` in its PEG).
 
 ```jbogenbau
 %extend-rule apostrophe
