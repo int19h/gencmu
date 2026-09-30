@@ -339,11 +339,12 @@ The layer reads a termset with `nu'i` as `nu'i` with a forethought form wherever
 Sumti connectives are ek, joik, jek or VUhU (`sumti-connective`). This change and the new mekso below leave the CLL rule `joik-ek` unused. After `vu'o`, a connected sumti can follow the relative clauses or replace them, and `vu'o` can also end the sumti (`mi vu'o`). Under `cbm` a cmevla is a selbri word, so the layer removes the `la CMEVLA` name form, and `la .alis.` is a description. That form begins with `la`, `lai` or `la'i`, which are words of LE here, and `name-marker` names them by their sound. The new sumti are these:
 
 - `na'e sumti lu'u`, without `bo`
-- `la'e`, `na'e bo` or `na'e` around a term that is not a sumti, such as `na ku` or a tense or modal with its sumti
+- `la'e` or `na'e bo` around a term that is not a sumti, such as `na ku` or a tense or modal with its sumti or `ku`
+- `na'e` around a term that is neither a sumti nor a tense or modal with its sumti or `ku`, such as `na ku`
 - `lo'oi subsentence ku'au`, a description of a subsentence
 - The single-word quotes `zo'oi`, `la'oi` and `ra'oi`, whose bodies the word stage delimits
 
-A `na'e` alone does not take a whole term that is a tense or modal with its sumti or `ku`. This is because `na'e pu` then matches the rule `tag`. A connected term can still begin with such a term, as in `na'e pu ku .e na ku lu'u`. The inner sumti of a description can be any sumti, a connected one too (`lo mi .e do broda`). It does not begin with a quantifier. camxes-exp reads a quantifier there as the CLL form `quantifier sumti` first, so `lo re mi broda` is `lo re mi` and the selbri `broda`.
+A `na'e` alone does not take a whole term that is a tense or modal with its sumti or its `ku`, written or elided. This is because `na'e pu` then matches the rule `tag`. A connected term can still begin with such a term, as in `na'e pu ku .e na ku lu'u`. The inner sumti of a description can be any sumti, a connected one too (`lo mi .e do broda`). It does not begin with a quantifier. camxes-exp reads a quantifier there as the CLL form `quantifier sumti` first, so `lo re mi broda` is `lo re mi` and the selbri `broda`.
 
 `quantifier-head` lists the selma'o that can begin a quantifier. A quantifier can also begin with a forethought connective, as in `lo ge pa gi re mi broda`. `quantified-sumti` excludes such an inner sumti as a whole.
 

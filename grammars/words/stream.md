@@ -214,7 +214,9 @@ After a pause, the quote skips hesitation, as camxes-exp skips it in its `spaces
 
 The stage compares the words by their canonical sound, `phonemes()`, which is in lower case and has no commas. So stress and syllable breaks do not count, in the two delimiters and in the runs of the body. `zoi .kO. mi .ko.` is a quote, and so is `zoi .ko. mi .kO.`. That is the condition the captures state, and the parser makes sure that it holds as the parse advances.
 
-So a run of the body that is not the delimiter never ends the quote. CLL 4.9 puts a pause before and after the body, and after the closing delimiter: the closing delimiter is the last word of its run. A quote whose delimiters stand side by side quotes nothing. Its body is an empty foreign part, so it sounds `?` and has the shape of any other body. The one pause between the delimiters comes before that body, so a letter word over the quote sounds `zoi.gy.?gy.bu`.
+So a run of the body that is not the delimiter never ends the quote. CLL 4.9 puts a pause before and after the body. This stage also requires the closing delimiter to be the last word of its run, because it finds the delimiter as a whole run. So `zoi mi. x mi. klama` is a quote, and the word stage rejects `zoi mi. x mibroda klama`.
+
+A quote whose delimiters stand side by side quotes nothing. Its body is an empty foreign part, so it sounds `?` and has the shape of any other body. The one pause between the delimiters comes before that body, so a letter word over the quote sounds `zoi.gy.?gy.bu`.
 
 Other parsers also compared the delimiters without case. CLL's official parser lowercases every word as it reads it, and keeps only its letters and apostrophes. ilmentufa's camxes lowercased both delimiters, dropped their commas and wrote `h` as an apostrophe. Its commit 2534c3b of 2020 replaced those actions with generic ones, which compare the words exactly. Pierre Abbat's design of 2003, on the Lojban mailing list, matches the closing delimiter "ignoring capitalization and commas".
 

@@ -1,6 +1,6 @@
 # The Zantufa dialect
 
-This is the dialect of Guskant's Zantufa 1.9999, a PEG grammar of Lojban. A PEG commits to the first matching alternative. Zantufa restates almost every rule of camxes, the PEG grammar of the definition effort. It has no termsets and no `tense` rule, and every tense word is a modal. Free modifiers can follow any word, and a statement can take terms after it.
+This is the dialect of Guskant's Zantufa 1.9999, a PEG grammar of Lojban. A PEG commits to the first matching alternative. Zantufa restates almost every rule of camxes, the PEG grammar of the definition effort. It has no termsets and no `tense` rule, and most tense words are modals. Free modifiers can follow any word, and a statement can take terms after it.
 
 The dialect's policy is the experimental dialect's ([`experimental.md`](experimental.md)): Zantufa 1.9999 is the baseline of the dialect, not its limit. The dialect does not copy a rejection that comes only from a PEG committing to its first match. A tie has more than one winning reading. The dialect settles ties as Zantufa's ordered choice (the fixed order in which a PEG tries alternatives) does. It follows Zantufa's explicit lookaheads (tests of the words that follow).
 
