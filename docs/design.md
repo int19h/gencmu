@@ -6,7 +6,7 @@ Status: implemented. If the implementation shows that a decision is wrong, the s
 
 gencmu is a standalone Lojban parser whose grammar is data. Every layer of the language is a literate grammar document in one notation, which gencmu loads at runtime. A literate document mixes the grammar with prose that explains it. The layers go from characters to phonemes, from phonemes to words, and from words to a parse tree.
 
-A dialect is a pipeline document, itself literate Markdown. The pipeline is a sequence of stages. A stage reads its input with one grammar, and hands its result to the next stage. The first stage reads the characters of the text. The pipeline document lists the stages and the grammar documents stitched into each stage. It also explains what each stage receives and hands on.
+A dialect is a pipeline of stages, defined by one pipeline document. That document is literate Markdown too. A stage reads its input with one grammar, and hands its result to the next stage. The first stage reads the characters of the text. The pipeline document lists the stages and the grammar documents stitched into each stage. It also explains what each stage receives and hands on.
 
 The users of gencmu want to read a grammar, change it, and see at once what the change does to a text. So the notation, the diagnostics and the interactive tools matter as much as the parser.
 
@@ -125,7 +125,7 @@ A stage can also give sounds their classes with a classifier, such as a lexicon.
 
 `%implies UI ∪ CAI ⟹ ~indicator` says that each token that the stage emits with `UI` or `CAI` also carries `indicator`. So a lexicon says once which classes are indicators, and not on every word.
 
-This is what the dialects need. A script document adds its letters to the rules of the phoneme grammar with `%extend-rule`. A word family adds the syllables that its morphology allows. The experimental syntax is a layer over the CLL syntax. It restates the CLL rules that it changes, and adds rules of its own.
+This is what the dialects need. A script document adds its letters to the rules of the phoneme grammar with `%extend-rule`. A word family adds the word forms that its morphology allows. The experimental syntax is a layer over the CLL syntax. It restates the CLL rules that it changes, and adds rules of its own.
 
 The Zantufa syntax is a grammar of its own. Zantufa 1.9999 restates almost every rule of camxes, a PEG grammar of Lojban. So the gencmu grammar translates the Zantufa rules one by one. It uses small rules for the conditions that state the lookaheads and ordered choices of the reference.
 
@@ -148,7 +148,7 @@ The operators of a body are those of CLL:
 
 `#` is not built in. It is a rule that the grammar defines as `[free ...]`, as CLL's EBNF defines it. So the free modifiers of one slot, such as vocatives, are one node of the tree.
 
-CLL writes `/KU/` for an elidable terminator, a closing word that the speaker can leave out. Here it is written `[KU]`, and `/KU#/` is `[KU #]`. The grammar declares once which terminators are elidable (see below). `[KU #]` is exactly what CLL prints: an elided terminator takes its free-modifier slot with it. So `xy. xi ky.` (CLL 17.38) needs `xy. boi xi ky.` under the printed grammar, as CLL's official parser does, and as the corpus scans of the prototype show. The grammars that allow free modifiers after an elided terminator, as the camxes family does, write `[KU] #`.
+CLL writes `/KU/` for an elidable terminator, a closing word that the speaker can leave out. Here it is written `[KU]`, and `/KU#/` is `[KU #]`. The grammar declares which terminators are elidable (see below). `[KU #]` is exactly what CLL prints: an elided terminator takes its free-modifier slot with it. So `xy. xi ky.` (CLL 17.38) needs `xy. boi xi ky.` under the printed grammar, as CLL's official parser does, and as the corpus scans of the prototype show. The grammars that allow free modifiers after an elided terminator, as the camxes family does, write `[KU] #`.
 
 `%tags` gives the tags that the constituent of every alternative carries. An alternative's own tags, after it in angle brackets, add to them. A tag has no strength. There is one notation for a set of tags, the union: `UI ∪ CAI ∪ ~indicator`.
 
@@ -168,7 +168,7 @@ Directives are keywords too, and can stand in any block.
 
 `%ambiguity-resolution greedy` or `lazy`, optionally followed by `elision-only` and then, optionally, by `maximal`, says how the stage chooses among parses (see "Ambiguity"). Every stage must have exactly one, in any of its documents. A stage with none or two is a load error that names the stage.
 
-`%elidable KU KEI VAU ...` lists the terminators that can be elided. An absent optional whose first symbol is one of them appears in the tree as that terminator, elided at that point. `elision-only` restores these terminators.
+`%elidable KU KEI VAU ...` lists the terminators that can be elided. An absent optional whose first symbol is one of them appears in the tree as that terminator, elided at that point. `elision-only` restores these terminators. A stage can have several `%elidable` directives, and their terminators add up.
 
 By convention, a directive stands in a block of its own, after prose that says why the grammar needs it. gencmu does not enforce the convention.
 
@@ -355,7 +355,7 @@ These are the product, not an afterthought:
 - A grammar error carries file, line and column, and names the rule.
 - A tie shows the two derivations side by side from the first difference.
 - Stage inspection shows the tokens that every stage emitted, with their tags.
-- The trace shows, for one position, which items the recognizer predicted, completed and dropped, and which condition dropped them. This is the tool for "why does my grammar not accept this".
+- The trace shows, for one position, which items the recognizer predicted, advanced, completed and dropped, and which condition dropped them. This is the tool for "why does my grammar not accept this".
 - The audit reports undefined and unreachable rules, every rule that a later document replaced or extended, and `%emits ε` that changes nothing. Such an `%emits ε` is over text that can never emit a token or be covered by one. The audit data lists every membership change, with its key, class, gates and document. The printed report shows the gated memberships and those that more than one entry changes. A condition that applies to no alternative is not an audit finding. It is an error of the grammar.
 
 ## CLI and playground
@@ -433,7 +433,7 @@ CI has two workflows. `nightly.yml` runs the whole corpus in all four languages 
 - JavaScript: Node 20 and current, the bundle freshness check, `node --test`, and `npm pack --dry-run` to make sure that the package holds its files
 - Python: 3.10 and current, `python -m unittest`, `python -m build` for the wheel, and the tests again from the installed wheel
 - Go: 1.22, the minimum of the module, and current, `go vet`, `go test`, `go test -race` for concurrent parses, and a build of the module alone
-- Rust: MSRV (the minimum supported Rust version) and stable, `cargo fmt --check`, `cargo clippy`, `cargo test`, and `cargo package` to make sure that the crate is self-contained
+- Rust: its minimum version and stable, `cargo fmt --check`, `cargo clippy`, `cargo test`, `cargo package` to make sure that the crate is self-contained, and the whole corpus on stable
 
 The Python build backend is the only tool outside the standard library, and only at build time. Third-party actions are pinned by commit hash. GitHub Pages serves `main` from the root with no workflow.
 
@@ -467,7 +467,7 @@ The cost then grows in proportion to the text, but each word costs more. In Java
 
 Without the feature, the words of SA and SU are ordinary words. The syntax rejects a token of SA or SU that is still there after the word stage. But another magic word can act on such a token first. So `mi su si do` reads as `mi do` without the feature, because `si` erases the `su`. With the feature, it reads as `do`.
 
-The libraries' `auto_features` parse a text's word stage once without the feature. They enable the feature only if that stage rejects the text, or reads a word of SA or SU. That word can be anywhere in the tree, erased by a `si` or not. A text with no such word parses the same either way. The CLI and the playground use `auto_features` by default.
+The libraries' `auto_features` parse a text's word stage once without the feature. They enable the feature if the run does not reach an accepting word stage. They also enable it if the chosen tree of that stage has a `word` constituent tagged SA or SU. That word can be anywhere in the tree, erased by a `si` or not. A text with no such word parses the same either way. The CLI and the playground use `auto_features` by default.
 
 The engine can later make this unnecessary: it can stop predicting a rule whose required words cannot occur in the rest of the input. That is an optimization to specify once it is understood, and it is not part of the first version.
 

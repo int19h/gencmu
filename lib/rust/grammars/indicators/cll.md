@@ -18,7 +18,7 @@ The stage reads an indicator run as far as it goes, so the stage is greedy. Wher
 
 ## Nested texts
 
-A text opener is a word whose class introduces a nested text: `lu` of LU and `to` of TO. The syntax reads a nested text with `text`, which begins with its own indicators. So an indicator directly after a text opener belongs to the nested text, not to the opener. `lu ui mi klama li'u` quotes `ui mi klama`, `lu ui li'u` quotes the text `ui`, and `to ui mi klama toi` holds `ui` in the parenthesis.
+A text opener is a word whose class introduces a nested text: a word of LU or TO, such as `lu` or `to`. In the Zantufa dialect, `lu'ei` of LUhEI also opens a text. This stage needs no entry for it, because no word of the Zantufa lexicon is an indicator. The syntax reads a nested text with `text`, which begins with its own indicators. So an indicator directly after a text opener belongs to the nested text, not to the opener. `lu ui mi klama li'u` quotes `ui mi klama`, `lu ui li'u` quotes the text `ui`, and `to ui mi klama toi` holds `ui` in the parenthesis.
 
 So a run of indicators directly after a text opener stays in the stream. A run at the start of the text does the same (see "Leading runs"). A closing word, such as `li'u` or `toi`, is an ordinary word. An indicator after it attaches to it, and so applies to the quote or the parenthesis as a whole. `tu'e` of TUhE is not a text opener. It introduces `text-1`, which reads no leading indicators, so an indicator after `tu'e` attaches to `tu'e`.
 

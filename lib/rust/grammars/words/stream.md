@@ -1,6 +1,6 @@
 # The word stream
 
-This document is the word stage, the third stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). A stage is one step of a pipeline, with its own grammar. A token is a unit such as a phoneme or a word. Each stage reads the tokens that the stage before it emitted, and emits new tokens.
+This document is the word stage, the third stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [approved word forms](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. Each stage reads the tokens that the stage before it emitted, and emits new tokens.
 
 The prose uses these Lojban terms for words:
 
@@ -18,7 +18,7 @@ For example, `merko zei zo` is a `zei` compound whose second word is `zo`, becau
 
 The forms stage, before this stage, decides where the words are and where the pauses between them are needed. A run of the text is a stretch with no pause in it. The forms stage divides each run into words, under the pause rules of the dialect's word forms, or makes the run one `FOREIGN` token. Every pause rule of those word forms holds within one run. So the division does not depend on the magic words, with one exception ([zantufa.md](zantufa.md)). In the Zantufa dialect, `ra'oi` changes how the forms stage divides the letters after it, in its own run or in the next.
 
-This stage reads the words by their tags. This stage makes sure that the magic words have the pauses they need. These are the pauses around a `zoi` body and the end of a `zo'oi` quote. In the CLL dialect, [cll-stream.md](cll-stream.md) also makes sure that a name that `bu` takes has pauses around it. The stage applies no other pause requirements.
+This stage reads the words by their tags. This stage makes sure that the magic words have the pauses they need. These are the pauses around a `zoi` body and the end of a `zo'oi` quote. In the `cll-ebnf` dialect, [cll-stream.md](cll-stream.md) also makes sure that a name that `bu` takes has pauses around it. The stage applies no other pause requirements.
 
 [The notation document](../../docs/notation.md) explains the notation. The stage's choice among parses, at the end of this document, is the mirror of the syntax stage's.
 
@@ -164,7 +164,7 @@ The magic words are never plain words. The rules under "Quotes", "Compounds" and
   $c(~cmavo) <tags($c)>
 ```
 
-Every rule that reads a cmavo as a Lojban word reads it as `cmavo-token`, so that a dialect can add to what that means. The CLL dialect warns there for a cmavo that uses `y` as a vowel beyond the forms CLL gives ([cll-stream.md](cll-stream.md)).
+Every rule that reads a cmavo as a Lojban word reads it as `cmavo-token`, so that a dialect can add to what that means. The `cll-ebnf` dialect warns there for a cmavo that uses `y` as a vowel beyond the forms CLL gives ([cll-stream.md](cll-stream.md)).
 
 The rules below know a magic word by the selma'o the lexicon gives it, not by its spelling. A cmavo's stress is free (CLL 3.9), and the lexicon reads a stressed vowel as the plain one. So `zO` quotes as `zo` does. Also, the dialect's lexicon decides which words are magic. So `ma'oi` and `zo'oi`, which CLL does not have, are quote words only where the dialect's lexicon gives them their classes. The experimental lexicon does so for both, and the Zantufa lexicon for `ma'oi`.
 
@@ -214,7 +214,9 @@ After a pause, the quote skips hesitation, as camxes-exp skips it in its `spaces
 
 The stage compares the words by their canonical sound, `phonemes()`, which is in lower case and has no commas. So stress and syllable breaks do not count, in the two delimiters and in the runs of the body. `zoi .kO. mi .ko.` is a quote, and so is `zoi .ko. mi .kO.`. That is the condition the captures state, and the parser makes sure that it holds as the parse advances.
 
-So a run of the body that is not the delimiter never ends the quote. CLL 4.9 puts a pause before and after the body, and after the closing delimiter: the closing delimiter is the last word of its run. A quote whose delimiters stand side by side quotes nothing. Its body is an empty foreign part, so it sounds `?` and has the shape of any other body. The one pause between the delimiters comes before that body, so a letter word over the quote sounds `zoi.gy.?gy.bu`.
+So a run of the body that is not the delimiter never ends the quote. CLL 4.9 puts a pause before and after the body. This stage also requires the closing delimiter to be the last word of its run, because it finds the delimiter as a whole run. So `zoi mi. x mi. klama` is a quote, and the word stage rejects `zoi mi. x mibroda klama`.
+
+A quote whose delimiters stand side by side quotes nothing. Its body is an empty foreign part, so it sounds `?` and has the shape of any other body. The one pause between the delimiters comes before that body, so a letter word over the quote sounds `zoi.gy.?gy.bu`.
 
 Other parsers also compared the delimiters without case. CLL's official parser lowercases every word as it reads it, and keeps only its letters and apostrophes. ilmentufa's camxes lowercased both delimiters, dropped their commas and wrote `h` as an apostrophe. Its commit 2534c3b of 2020 replaced those actions with generic ones, which compare the words exactly. Pierre Abbat's design of 2003, on the Lojban mailing list, matches the closing delimiter "ignoring capitalization and commas".
 
@@ -382,7 +384,7 @@ The right operand of `zei` is the next word whatever it is, a quote marker or an
 
 A compound is one word (CLL 4.6, 17.4). The stage hands it on as one token, a `BY` for `bu` and a `BRIVLA` for `zei`. The syntax grammar reads that token as it reads any letter word or brivla. The syntax grammar keeps its printed rules `any-word BU` and `any-word ZEI any-word` for fidelity, and they never match.
 
-The forms stage tags the first word of each run `run-initial`, and a `sa` that leaves a word standing passes that tag on. The CLL dialect uses it: there a name that `bu` takes needs a pause on both sides of it ([cll-stream.md](cll-stream.md)).
+The forms stage tags the first word of each run `run-initial`, and a `sa` that leaves a word standing passes that tag on. The `cll-ebnf` dialect uses it: there a name that `bu` takes needs a pause on both sides of it ([cll-stream.md](cll-stream.md)).
 
 ```jbogenbau
 %rule lerfu-word

@@ -21,7 +21,7 @@ println!("{}", gencmu::to_json(&result));
 - `ParseOptions` has `features`, `without_features`, `auto_features` (on by default), `until` and `elision_only`. `features` names the features to turn on, besides the pipeline's own. `without_features` names the features to turn off, the pipeline's own included.
 - `Dialect::features()` lists the features of the dialect in code point order, the gates of its classifiers' entries included. Each is a `Feature` with its `name`, its `kind` (`FeatureKind::Gate` or `FeatureKind::Warning`), and whether the pipeline turns it on by `default`.
 - `to_json(&result)` writes the canonical JSON of `docs/output.md`.
-- `to_brackets(&result, show_elided)` renders the tree as brackets. It shows each token by its label. A token with attachments is a group of its before-attachments, its label and its after-attachments, so `mi ui klama` in the CLL dialect is `([mi ui] klama)`.
+- `to_brackets(&result, show_elided)` renders the tree as brackets. It shows each token by its label. A token with attachments is a group of its before-attachments, its label and its after-attachments, so `mi ui klama` in the `cll-ebnf` dialect is `([mi ui] klama)`.
 - A `ParseResult` owns its data: the stages, the tree, the error and the warnings. Each stage has its input and output tokens, its verdict and, for a tie, its witness and tied tree.
 
   A token has its text, its phonemes, its label, its tags, its span and its source range. The label is what the renderings for people show. A foreign part, such as the body of a `zoi` quote, sounds `?` and has its text as its label. A pause has a space as its label.

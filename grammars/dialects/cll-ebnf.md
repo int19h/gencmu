@@ -4,7 +4,9 @@ This dialect is Lojban as *The Complete Lojban Language* (CLL) describes it. The
 
 The printed grammar is normative here, with the repairs that [the CLL grammar](../syntax/cll.md) lists. Any parse that the printed grammar admits counts. The dialect accepts a text that the grammar admits. But the text must not have two readings or more once the syntax stage writes back its elided terminators. The option `elision-only` states this rule, and `docs/engine.md` (§7) gives it exactly.
 
-A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. Each stage reads the tokens (units such as phonemes or words) that the stage before it emitted. `docs/notation.md` explains the notation. A feature is a named switch that the grammars test. This dialect turns on the feature `cll-cyrillic`.
+A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. Each stage reads the tokens that the stage before it emitted.
+
+`docs/notation.md` explains the notation. A feature is a named switch that the grammars test. This dialect turns on the feature `cll-cyrillic`.
 
 ```jbogenbau
 %features cll-cyrillic
@@ -86,7 +88,7 @@ The warning `y-cmavo` reports a cmavo that uses `y` as a vowel beyond the forms 
   %include "../indicators/cll.md"
   ```
 
-The stage applies CLL's non-formal rule `word = [BAhE] any-word [indicators]`. A run of indicators attaches to the word before it, and `ba'e` attaches to the word after it. At the start of a text and after `lu` or `to`, the syntax reads the indicators. There, only `ba'e` attaches. The stage hands on the words that the syntax reads.
+The stage applies CLL's non-formal rule `word = [BAhE] any-word [indicators]`. A run of indicators attaches to the word before it, and `ba'e` attaches to the word after it. The syntax reads the indicators at the start of a text and after a text opener. A text opener is a word of LU or TO, such as `lu` or `to'i`. At those places, only `ba'e` attaches. The stage hands on the words that the syntax reads.
 
 ## Stage 5: syntax
 

@@ -6,7 +6,7 @@ Every gencmu library offers the same operations on the same data. Each library s
 
 ### Loading a dialect
 
-A dialect is a pipeline document and the grammar documents that it includes. The pipeline document names the stages of the dialect. A library loads a dialect in three ways:
+A pipeline document and the grammar documents that it includes define a dialect. The pipeline document names the stages of the dialect. A library loads a dialect in three ways:
 
 - It loads a dialect by name, from the grammars bundled in the package. The name is the file name of a pipeline document under `grammars/dialects/` without `.md`. So the names are `cll-ebnf`, `bpfk`, `experimental`, `zantufa` and `notation`.
 - It loads a pipeline document from disk. The library finds its grammar documents relative to it. Its `unicode.txt` and `notation/bootstrap.json` come from the bundled grammars.

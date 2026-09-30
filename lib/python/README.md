@@ -14,7 +14,7 @@ gencmu.to_brackets(result, show_elided=True)
 
 ## Loading a dialect
 
-A dialect is a pipeline document and the documents that it includes. The pipeline declares its stages with `%stage`, and the grammar documents of each stage with `%include`. It declares the features that it turns on with `%features` (`docs/notation.md`, "Pipelines").
+A pipeline document and the grammar documents that it includes define a dialect. The pipeline declares its stages with `%stage`, and the grammar documents of each stage with `%include`. It declares the features that it turns on with `%features` (`docs/notation.md`, "Pipelines").
 
 - `load_dialect(name)` loads a dialect of the bundled grammars. `name` is the name of its pipeline document under `grammars/dialects/` without `.md`.
 - `load_dialect_file(path)` loads a pipeline document from disk. The loader finds its grammar documents relative to it. The Unicode table and the bootstrap of the notation come from the bundled grammars.
@@ -66,7 +66,7 @@ A terminal in a token node, witness or expected list is a tag, range or property
 
 - `gencmu.to_json(result)` is the canonical JSON as text, in the key order of `docs/output.md`.
 - `gencmu.result_json(result)` is the same as plain data.
-- `gencmu.to_brackets(result, show_elided=False)` renders the last stage's tree as nested groups, with each token shown by its label. A token with attachments is a group of its before-attachments, its label and its after-attachments. So in the CLL dialect, `mi ui klama` is `([mi ui] klama)`.
+- `gencmu.to_brackets(result, show_elided=False)` renders the last stage's tree as nested groups, with each token shown by its label. A token with attachments is a group of its before-attachments, its label and its after-attachments. So in the `cll-ebnf` dialect, `mi ui klama` is `([mi ui] klama)`.
 
 ## Development
 
