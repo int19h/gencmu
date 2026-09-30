@@ -155,7 +155,9 @@ The lookaheads of the reference's fragments are conditions here. A `gek` or `joi
 
 ## Sentences and bridi-tails
 
-A sentence is terms, an optional `cu` and a bridi-tail, or a forethought connection of sentences. Terms stand only before the first bridi-tail, because Zantufa has no JACU (a proposal for a simpler system of connectives). Bridi-tails connect at three levels, as in camxes. The outer level takes a connective only where the inner one cannot: a tense or modal follows it, and then `ke` or `cu`. The reference's lookaheads leave these forms to the outer level. After `ke`, the words are a group of bridi-tails, unless a selbri ends with `ke'e` there, and then they are a tanru.
+A sentence is terms, an optional `cu` and a bridi-tail, or a forethought connection of sentences. Terms stand only before the first bridi-tail, because Zantufa has no JACU (a proposal for a simpler system of connectives). Bridi-tails connect at three levels, as in camxes.
+
+The outer level takes a connective only where the inner one cannot. That is where `ke` follows it, with or without a tense or modal first, or where a tense or modal and `cu` follow it. The reference's lookaheads leave these forms to the outer level. After `ke`, the words are a group of bridi-tails, unless a selbri ends with `ke'e` there, and then they are a tanru.
 
 ```jbogenbau
 %rule sentence
