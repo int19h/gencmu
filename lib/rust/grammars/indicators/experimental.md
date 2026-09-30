@@ -8,7 +8,7 @@ A `nai` directly after an attitudinal attaches to the attitudinal, as in the CLL
 
 With both forms, two readings of `ui nai` tie. So this document restates `indicator-run` with a condition. If a run ends in an attitudinal, its next indicator of its own is not a `nai`. A `fu'e` before that `nai` lifts this. A `ba'e` between an attitudinal and its `nai` goes with the `nai`, as in the CLL document.
 
-The restated `text` drops the CLL condition on a `nai` after a leading attitudinal. A `nai` is an indicator here, so a run of items never begins with one.
+A `nai` is an indicator here, so a run of items never begins with one.
 
 A leading run needs no pair form. The syntax reads `ui` and `nai` as separate indicators there. So this document restates `leading` without the pair form of the CLL document.
 
@@ -17,10 +17,6 @@ The CLL document already reads `fu'e` as camxes-exp's `indicators` rule does. A 
 Indicators do not attach to `lu`, since camxes-exp's `LU_post` takes none. They stay in the stream, where they begin the quoted text: `lu ui li'u` quotes the text `ui`. The CLL document states this for every text opener, so this layer needs no rule of its own for it. But camxes-exp's `TO_post` does take indicators. So after `to`, the dialect departs from camxes-exp: `to ui mi klama toi` holds `ui` in the parenthesis.
 
 ```jbogenbau
-%redefine-rule text
-  | ε | item-run | item-run bahe-run | leading | leading bahe-run | bahe-run
-  | leading item-run | leading item-run bahe-run
-
 %redefine-rule leading
   | [fuhe] indicator | leading [fuhe] indicator
 
