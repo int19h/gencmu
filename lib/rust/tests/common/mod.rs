@@ -387,10 +387,9 @@ const AFTER_LOAD: [&str; 4] = ["result", "brackets", "warnings", "features"];
 /// Holds the error of a dialect that did not load to `expect`. The error is
 /// the whole outcome, so a case that expects anything that only a loaded
 /// dialect gives fails (tests/README.md).
-fn check_load_error(expect: &Value, error: &gencmu::Error) -> Result<(), String> {
+pub fn check_load_error(expect: &Value, error: &gencmu::Error) -> Result<(), String> {
     let kind = match error.kind {
         gencmu::ErrorKind::Grammar => "grammar",
-        gencmu::ErrorKind::Io => "io",
         gencmu::ErrorKind::Usage => "usage",
         _ => "another kind",
     };
@@ -399,6 +398,10 @@ fn check_load_error(expect: &Value, error: &gencmu::Error) -> Result<(), String>
     }
     if AFTER_LOAD.iter().any(|name| expect.get(name).is_some()) {
         return Err(format!("the dialect did not load: {error}"));
+    }
+    // `where` is given only for a grammar error.
+    if kind != "grammar" && expect.get("where").is_some() {
+        return Err(format!("expect.where is only for a grammar error: {error}"));
     }
     error_where(expect, error)
 }

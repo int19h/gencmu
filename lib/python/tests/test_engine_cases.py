@@ -64,8 +64,9 @@ class EngineCases(unittest.TestCase):
             loaded_only = [name for name in AFTER_LOAD if name in expect]
             self.assertEqual(loaded_only, [], f"{label}: the dialect did not load: {error}")
             if "where" in expect:
-                # Where the error stands, in a document of the case
-                # (tests/README.md).
+                # Where the error stands, in a document of the case, given
+                # only for a grammar error (tests/README.md).
+                self.assertEqual(error.kind, "grammar", f"{label}: expect.where is only for a grammar error")
                 self.assertEqual(
                     {"document": error.document, "line": error.line, "column": error.column},
                     expect["where"],
@@ -123,6 +124,10 @@ class EngineCases(unittest.TestCase):
             self.check("load", {"error": "grammar"}, value, result, error, features)
         with self.assertRaises(AssertionError):
             self.check("load", {"error": "usage", "result": {}}, value, result, error, features)
+        # A usage error has no line or column, so a case gives no `where` for
+        # it.
+        with self.assertRaises(AssertionError):
+            self.check("load", {"error": "usage", "where": {"document": "main.md"}}, value, result, error, features)
 
 
 if __name__ == "__main__":

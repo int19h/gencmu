@@ -226,8 +226,11 @@ func checkLoadError(expect *caseExpect, err error) error {
 	if expect.Result != nil || expect.Brackets != nil || expect.Warnings != nil || expect.Features != nil {
 		return fmt.Errorf("the dialect did not load: %v", err)
 	}
-	// Where the error stands, in a document of the case.
-	if w := expect.Where; w != nil && (e.Document != w.Document || e.Line != w.Line || e.Column != w.Column) {
+	// Where the error stands, in a document of the case, given only for a
+	// grammar error.
+	if w := expect.Where; w != nil && e.Kind != ErrorGrammar {
+		return fmt.Errorf("expect.where is only for a grammar error: %v", err)
+	} else if w != nil && (e.Document != w.Document || e.Line != w.Line || e.Column != w.Column) {
 		return fmt.Errorf("the load error stands at %s:%d:%d, not at %s:%d:%d: %v", e.Document, e.Line, e.Column, w.Document, w.Line, w.Column, err)
 	}
 	return nil
@@ -304,20 +307,32 @@ func checkParse(d *Dialect, c *engineCase, options *caseOptions, expect *caseExp
 func TestEngineRunnerLoadError(t *testing.T) {
 	grammar := "%rule text A\n%rule text A"
 	brackets := ""
+	// "\xed\xa0\x80" encodes the surrogate U+D800, so this document held in
+	// memory is a usage error at load (engine §1).
+	unusable := "%rule text 'a\xed\xa0\x80'"
+	where := &struct {
+		Document     string
+		Line, Column int
+	}{Document: "main.md"}
 	for _, tc := range []struct {
-		name   string
-		expect caseExpect
-		pass   bool
+		name    string
+		grammar *string
+		expect  caseExpect
+		pass    bool
 	}{
-		{"grammar", caseExpect{Error: ErrorGrammar}, true},
-		{"usage", caseExpect{Error: ErrorUsage}, false},
-		{"none", caseExpect{}, false},
-		{"result", caseExpect{Error: ErrorGrammar, Result: json.RawMessage("{}")}, false},
-		{"brackets", caseExpect{Error: ErrorGrammar, Brackets: &brackets}, false},
-		{"warnings", caseExpect{Error: ErrorGrammar, Warnings: json.RawMessage("[]")}, false},
-		{"features", caseExpect{Error: ErrorGrammar, Features: json.RawMessage("[]")}, false},
+		{"grammar", &grammar, caseExpect{Error: ErrorGrammar}, true},
+		{"usage", &grammar, caseExpect{Error: ErrorUsage}, false},
+		{"none", &grammar, caseExpect{}, false},
+		{"result", &grammar, caseExpect{Error: ErrorGrammar, Result: json.RawMessage("{}")}, false},
+		{"brackets", &grammar, caseExpect{Error: ErrorGrammar, Brackets: &brackets}, false},
+		{"warnings", &grammar, caseExpect{Error: ErrorGrammar, Warnings: json.RawMessage("[]")}, false},
+		{"features", &grammar, caseExpect{Error: ErrorGrammar, Features: json.RawMessage("[]")}, false},
+		{"usage at load", &unusable, caseExpect{Error: ErrorUsage}, true},
+		{"usage at load, grammar expected", &unusable, caseExpect{Error: ErrorGrammar}, false},
+		{"usage at load, result expected", &unusable, caseExpect{Error: ErrorUsage, Result: json.RawMessage("{}")}, false},
+		{"usage at load, where given", &unusable, caseExpect{Error: ErrorUsage, Where: where}, false},
 	} {
-		c := &engineCase{Grammar: &grammar, Expect: tc.expect}
+		c := &engineCase{Grammar: tc.grammar, Expect: tc.expect}
 		if err := checkCase(c, true); (err == nil) != tc.pass {
 			t.Errorf("%s: the runner gave %v", tc.name, err)
 		}
