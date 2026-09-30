@@ -6,9 +6,9 @@
 // by name; that it never shows an out-of-date answer as current; that it
 // shows an empty bracket rendering as one; that a failure for another run
 // does not end the current one; and that a link to the Trace tab traces its
-// text, or shows its error once. With no URL the page is opened from file://, as someone who cloned the repository
-// would; given a URL, that URL is checked instead, which is how a GitHub
-// Pages deployment is tested.
+// text, or shows its error once. With no URL the page is opened from
+// file://, as someone who cloned the repository would; given a URL, that URL
+// is checked instead, which is how a GitHub Pages deployment is tested.
 //
 //   node tools/smoke-playground.js [--browser chrome|firefox] [URL]
 //
