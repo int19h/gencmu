@@ -14,7 +14,7 @@ A leading run needs no pair form. The syntax reads `ui` and `nai` as separate in
 
 The CLL document already reads `fu'e` as camxes-exp's `indicators` rule does. A `fu'e` must have an indicator after it, so `mi fu'e ui klama` is a text, and `mi fu'e klama` is not. The restated `indicator-run` lets each indicator take its own `fu'e`.
 
-Indicators do not attach to `lu`, since camxes-exp's `LU_post` takes none. They stay in the stream, where they begin the quoted text: `lu ui li'u` quotes the text `ui`. The CLL document states this for every text opener, so this layer needs no rule of its own for it.
+Indicators do not attach to `lu`, since camxes-exp's `LU_post` takes none. They stay in the stream, where they begin the quoted text: `lu ui li'u` quotes the text `ui`. The CLL document states this for every text opener, so this layer needs no rule of its own for it. But camxes-exp's `TO_post` does take indicators. So after `to`, the dialect departs from camxes-exp: `to ui mi klama toi` holds `ui` in the parenthesis.
 
 ```jbogenbau
 %redefine-rule text

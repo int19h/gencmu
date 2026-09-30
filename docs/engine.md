@@ -82,10 +82,9 @@ When `%extend-rule` extends a rule, each appended alternative carries the extens
 
 The loader collects directives from all the stage's items. `%stage`, `%include` and `%features` shape the pipeline (§13) and do not belong to a stage. The other two directives belong to the stage.
 
-A stage also has constants. A constant is a named value that terms and conditions use (§10). Its name is `$` and a name (§9) that begins with `A` to `Z`, such as `$SU-STOPS`. By convention, the whole name is in capitals. An item states a constant in one of two ways, and each is an error in the case given:
+A stage also has constants. A constant is a named value that terms and conditions use (§10). Its name is `$` and a name (§9) that begins with `A` to `Z`, such as `$SU-STOPS`. By convention, the whole name is in capitals.
 
-- `%const $NAME t` (`define`) defines the constant: an error if a constant of that name was defined before it in the stage.
-- `%redefine-const $NAME t` (`redefine`) gives the constant a new value: an error if none was defined before it in the stage.
+An item states a constant in one of two ways. `%const $NAME t` (`define`) defines the constant. It is an error if a constant of that name was defined before it in the stage. `%redefine-const $NAME t` (`redefine`) gives the constant a new value. It is an error if no constant of that name was defined before it in the stage.
 
 `t` is a closed term (§10). The loader evaluates it when it reaches the item in the stitching order. A constant in `t` has the value that it has at that point. In a `%redefine-const`, the constant's own name stands for its value before the redefinition. So one redefinition can extend a set with `∪`, narrow it with `∩` or `∖`, or replace it.
 
@@ -93,9 +92,9 @@ A constant in `t` that is not defined at that point is an error. So no cycle can
 
 Rules see the final values. A constant in a rule's terms, conditions or tests has the value that the last definition of the stage gives it, wherever the rule stands.
 
-After the loader stitches the stage, it checks each rule definition that holds a constant. A constant that the stage never defines is an error there. The types of the terms, conditions and tests that hold constants must agree (§9, §10).
+After the loader stitches the stage, it makes sure that each rule definition that holds a constant meets the requirements of this section. A constant that the stage never defines is an error there. The types of the terms, conditions and tests that hold constants must agree (§9, §10).
 
-A string constant in an `=` or `≠` test must be a canonical sound (§9). The checks of §9 that depend on the value of a constant apply there too. The loader checks every definition of the stage in this way. That includes a definition that a later `%redefine-rule` replaces, although its alternatives are then gone.
+A string constant in an `=` or `≠` test must be a canonical sound (§9). The requirements of §9 that depend on the value of a constant apply there too. The loader applies these requirements to every definition of the stage. That includes a definition that a later `%redefine-rule` replaces, although its alternatives are then gone.
 
 A constant belongs to its stage, as a rule does. A document in several stages or dialects takes the values of each. The DOM of a document holds its definitions and its references to constants, never their values (§8).
 
@@ -111,7 +110,7 @@ An `∈` whose membership already holds is an error of the grammar, and so is an
 
 A call `classify(a, C)` names the classifier `C` (§10). A name that no item of the stage uses is an error of the document. A classifier belongs to its stage, so the loader finds this error when it stitches the stage. It reports the error at the definition that holds the call.
 
-A stage also has implications. An item `%implies A ⟹ B` (`implication`) adds one. `A` and `B` are closed terms (§10) whose type is a tag set. A constant in them has the value that the last definition of the stage gives it, as in a rule. The loader checks their types after it stitches the stage, as it checks a rule's (§9). §11 says how the stage applies its implications.
+A stage also has implications. An item `%implies A ⟹ B` (`implication`) adds one. `A` and `B` are closed terms (§10) whose type is a tag set. A constant in them has the value that the last definition of the stage gives it, as in a rule. After the loader stitches the stage, it makes sure that their types agree, as it does for a rule (§9). §11 says how the stage applies its implications.
 
 A stage has exactly one `%ambiguity-resolution L [elision-only] [maximal]`, or it is an error naming the stage. `L` is `greedy` or `lazy`. If both `elision-only` (§7) and `maximal` (§4) are written, they stand in that order. `%elidable T...` names the elidable terminators, and repeated directives add up.
 
@@ -163,7 +162,7 @@ Lowering turns a grammar, given the set of enabled features, into a context-free
 7. A production's tags are the union of its alternative's own tag term and its definition's `%tags` term, where either is written. A production with neither has the tags of its symbol's constituent if it has one symbol, and none if it has several. Lowering makes this explicit: it treats the single symbol as captured.
 8. An optional `[x]` is elidable when two things hold. `x` is a symbol, or a sequence whose first item is, recursively, one. That symbol is an `%elidable` terminal, tested or not. An optional whose content is a choice or an `&` is never elidable, even if every branch begins with an elidable terminal. The `elision-only` check (§7) lowers the grammar a second time with every elidable optional made mandatory: its helper loses `ε`. A tested elidable terminal keeps its test when its optional is made mandatory.
 
-   The terminal of an elidable optional has no test or an `=` test, since §7 restores it with a sound. Any other test on it is an error of the grammar. The loader finds this error after it stitches the stage, since a later `%elidable` can make an optional elidable. It checks every alternative of the stitched stage, whatever the features, and reports the error at the definition that wrote the alternative. A test on a later symbol of the optional is no error, since §7 restores only the terminal.
+   The terminal of an elidable optional has no test or an `=` test, since §7 restores it with a sound. Any other test on it is an error of the grammar. The loader finds this error after it stitches the stage, since a later `%elidable` can make an optional elidable. It makes sure that no alternative of the stitched stage has such a test, whatever the features. It reports the error at the definition that wrote the alternative. A test on a later symbol of the optional is no error, since §7 restores only the terminal.
 
 Lowering numbers the productions from 0. This numbering is the tie-break of §6. A production that a condition false for it removes (§3.6) takes no number, though the helpers of its alternative still do. Lowering takes the rules in the order in which they were first defined after stitching. A rule replaced with `%redefine-rule` keeps the place of the rule that it replaces, and alternatives added with `%extend-rule` follow the rule's own alternatives.
 
@@ -189,7 +188,7 @@ A terminal `T` matches a token whose tags contain `T`. A range matches a token t
 
 A range or a property has no tag of its own. As a terminal, its identity is its written form in canonical spelling, such as `'a'..'z'` or `'\p{L}'`. The ends of a range are in their canonical spelling (§1), so `'\u{61}'..'z'` is `'a'..'z'`. This form is the terminal for the ranking and its canonical keys (§6). It is also the terminal in the expected terminals, the tree's token nodes (§12) and the witness.
 
-A tested symbol (§2) matches what its symbol matches, where its test holds. The test reads the symbol's own span and its own tags. For a terminal, these are the token's span and tags. For a reference, they are the span and the tag set of the completed item that the item advances over.
+A tested symbol (§2) matches what its symbol matches, where its test holds. The test reads the symbol's own span and its own tags. For a terminal, the span covers that one token in the current input, and the tags are the token's tags. For a reference, they are the span and the tag set of the completed item that the item advances over.
 
 `X="s"` holds when the canonical sound of the span, `phonemes(span)` (§5), is exactly `s`. So the match ignores stress, script and syllable breaks. `X⊇t` holds when the own tags include every tag of `t`. `X∩t=∅` holds when they include no tag of `t`. `X≠"s"`, `X⊉t` and `X∩t≠∅` hold exactly where those three do not.
 
@@ -267,7 +266,7 @@ The join counts pauses by part, not by character. So it keeps a period or a spac
 
 The two joins are independent. Each leaves out the parts whose own string is empty, and both find a pause part by its phonemes. So they can keep different parts. An empty foreign part between two pauses gives `?` to the phonemes, so the phonemes keep both pauses. It gives nothing to the label, so there the two pauses are adjacent, and the label keeps only the first.
 
-An inserted token has no parts. If it has a phoneme tag, it sounds like that phoneme and has it as its label. Otherwise its phonemes and its label are empty. So the inserted apostrophe `/'/` of a script is part of the label of the word around it.
+An inserted token has no parts. If it has a phoneme tag, it sounds like that phoneme and has it as its label, or a space for the pause. Otherwise its phonemes and its label are empty. So the inserted apostrophe `/'/` of a script is part of the label of the word around it.
 
 An emitted token always has phonemes, possibly the empty string. Only the character tokens of the first stage have none. Two phoneme tags on one emitted token are an error of the grammar that emitted it, whether or not its constituent is a foreign part. The tag set here is the token's tags after the stage's implications (§11).
 
@@ -420,7 +419,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A range whose start is above its end, reported at the range.
 - A property whose text is not `'\p{Name}'` with a name of §1, reported at the property. So a long name, such as `Letter`, and a name in other case, such as `lu`, are errors.
 - A property in a term or a condition, reported at the property. A property is not a tag set.
-- A string in an `=` or `≠` test that no canonical sound (§5) can be, reported at the string. That is a string with a comma, or with a code point that the simple lowercase mapping changes. So `LE="La"` and `LE="l,a"` are errors. The loader checks a constant there in the same way (§2).
+- A string in an `=` or `≠` test that no canonical sound (§5) can be, reported at the string. That is a string with a comma, or with a code point that the simple lowercase mapping changes. So `LE="La"` and `LE="l,a"` are errors. The loader makes sure that a string constant there is a canonical sound too (§2).
 - A test's operand that is not a closed term (§10), reported at the first part that is not closed. So a capture, `$`, a guarded term and a call of `phonemes`, `text`, `tags`, `classes` or `classify` are errors there.
 - A test's operand of the wrong type, reported at the operand. The operand of `=` and `≠` is a string, and that of the other four tests is a tag set. So `LE⊇"la"` and `LE=~la` are errors.
 - A function that does not exist, or one called with the wrong arguments. `phonemes`, `text`, `classes`, `head`, `tail`, `last`, `from` and `after` take one span. `split` takes two strings, and `tag` takes one string. `tags` takes a span and optionally a rule name. `matches` and `begins` take a span and a rule name, and `initial` takes one span. `classify` takes a string and a classifier's name.
@@ -436,7 +435,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A class that is not a name that begins with `A` to `Z`, reported at the class. So `~indicator` is an error there.
 - A term or a condition whose types do not agree, as §10 gives them. So `"a" ∈ tags($x)` and `phonemes($x) = ~a` are errors, and so is `∅ = ∅`, whose kind nothing gives. The reader reports the error at the smallest construct whose parts disagree. That construct is a union with its differences, an intersection, a guarded term, a call or a comparison. Otherwise, it is the whole tag term of a clause or an item, or the whole value of a constant.
 
-  The reader does not know the type of a constant, so it lets a constant stand for a value of any type but a span. The loader checks the types again after it stitches the stage (§2). It reports an error there at the first constant of the smallest construct whose parts disagree.
+  The reader does not know the type of a constant, so it lets a constant stand for a value of any type but a span. After the loader stitches the stage, it makes sure again that the types agree (§2). It reports an error there at the first constant of the smallest construct whose parts disagree.
 - A span where a value is needed: a capture, `$`, or `head`, `tail`, `last`, `from` or `after`. The reader reports it at the span.
 - A bare name that does not begin with a capital, where a value is needed. Such a name is a rule or a classifier. A rule is only the second argument of `tags`, `matches` or `begins`, and a classifier only that of `classify`.
 - `matches`, `begins` or `initial` as a term.
@@ -462,7 +461,7 @@ Once the reader reads a definition (§2), it makes sure that the whole definitio
 - A condition that applies (§3.6) to no alternative of the definition, whatever features are enabled.
 - A tag term that uses (§3.6) a capture that an alternative it serves lacks. An alternative's own tags serve that alternative, and `%tags` serves every alternative of the definition. An emission item's tags serve every alternative in which the item is not dropped.
 - `%foreign` in a definition whose emission is `ε`. A constituent that does not count gives no part, so it is never a foreign part (§11).
-- In an emission, captures written in an order other than the one in which some alternative that has them captures them. The written order runs item after item. Within an item, it runs through the before-attachments, the carrier and the after-attachments. Each alternative checks the captures that it has. So `%emits ($a) $c, $b` is an error when the body has `$a`, `$b` and `$c` in that order.
+- In an emission, captures written in an order other than the one in which some alternative that has them captures them. The written order runs item after item. Within an item, it runs through the before-attachments, the carrier and the after-attachments. For each alternative, the reader makes sure that the captures that the alternative has stand in the written order. So `%emits ($a) $c, $b` is an error when the body has `$a`, `$b` and `$c` in that order.
 - In an emission, an attachment capture in an alternative that lacks the carrier of its item.
 - In an emission, an inserted tag before a capture item whose carrier some alternative of the definition lacks. The capture item is the first one listed after the inserted tag.
 - In an emission, an alternative for which every item is dropped, so that it emits nothing although the rule lists what to emit. A rule that emits nothing says so with `ε`.
@@ -558,7 +557,7 @@ Every stage that accepts its input emits tokens by walking its chosen tree from 
   - An inserted tag, a tag literal, emits a token with that one tag and an empty span.
 - A constituent whose production's emission is `ε`, no items, emits nothing and does not count. Nothing inside it is part of the phonemes or the label of a token that covers it (§5). It is how a grammar erases text. The text is still there, and still covered by the tokens around it, but counts for nothing. A part that an emission merely does not list is not emitted, but counts.
 
-The tags that an item gives its token are the token's explicit tags. The stage then applies its implications (§2) to them. For each implication `A ⟹ B` whose `A` shares a tag with the token's tags, it adds the tags of `B`. It repeats this until no implication adds a tag, so the order of the implications does not matter. An implication only adds tags, so the repetition ends, also where implications form a cycle. Only then does the stage check the token's phoneme tags and find its phonemes and its label (§5).
+The tags that an item gives its token are the token's explicit tags. The stage then applies its implications (§2) to them. For each implication `A ⟹ B` whose `A` shares a tag with the token's tags, it adds the tags of `B`. It repeats this until no implication adds a tag, so the order of the implications does not matter. An implication only adds tags, so the repetition ends, also where implications form a cycle. Only then does the stage make sure that the token has at most one phoneme tag, and find its phonemes and its label (§5).
 
 Implications apply to every token that the stage emits, an inserted one included, and to nothing else. They do not change a constituent's tags, the value of a term or classifier, or a token of the stage's input. A later stage applies only its own implications. The synthetic tokens of §7 are not emitted, so no implication applies to them.
 
@@ -602,7 +601,7 @@ The carrier emits its token over its captured part, as any capture item does. It
 
 The attachment of a capture is the sequence of tokens that the captured constituent emits, in its own place in the derivation. The stage finds these tokens as it finds the tokens of a constituent that it walks. So the foreign parts, the empty sources and the `ε` of this section apply to them. A constituent that emits nothing gives no attachment. A bare terminal with no emission above it is an example.
 
-The tokens of an attachment are not tokens of the stage's output. Each of them is an emitted token, so the stage applies its implications to it and checks its phoneme tags (§5). A constituent above the item can emit one token over the span of the attachments. That token treats their parts as ordinary parts of its span.
+The tokens of an attachment are not tokens of the stage's output. Each of them is an emitted token, so the stage applies its implications to it. The stage also makes sure that it has at most one phoneme tag (§5). A constituent above the item can emit one token over the span of the attachments. That token treats their parts as ordinary parts of its span.
 
 Within one item, the stage first produces the before-attachments in written order. Then it produces the carrier's token with its tag term, and then the after-attachments in written order. The carrier's token takes the tokens of its before-attachment captures, in order, as its `before`. It takes those of its after-attachment captures as its `after`. The first error of the grammar ends the stage's emission, as an empty tag term does.
 
@@ -616,7 +615,7 @@ A token can have an input token with attachments among its parts together with a
 
 An input token with attachments can also be the one part of two tokens that the stage emits, as under `$ <t>, $ <u>`. This is an error of the grammar as well, since its attachments cannot belong to both tokens. The stage finds the error at the second of those tokens.
 
-The reason is that a token over several parts cannot say which part each attachment belongs to. The stage checks a token's parts in this way after it checks the token's phoneme tags. No bundled dialect has a stage that makes such a token.
+The reason is that a token over several parts cannot say which part each attachment belongs to. The stage makes sure that a token's parts meet these requirements after it makes sure that the token has at most one phoneme tag. No bundled dialect has a stage that makes such a token.
 
 The attachment lists follow the order of the derivation and of the emission. That is the order of the text when the sources lie in order. The engine does not promise that order for sources out of order.
 
@@ -652,7 +651,7 @@ The names of every `%features` of the stream are the features the pipeline turns
 
 - An `%include` of a document that does not exist, at the `%include`. The error names the documents that included it.
 - An `%include` of a document that is already being included, which is a cycle, at the `%include`. The error names the documents that included it.
-- A rule, an `%ambiguity-resolution`, an `%elidable` or a constant definition before the first `%stage`.
+- A rule, an `%ambiguity-resolution`, an `%elidable`, a constant definition, a classifier or an implication before the first `%stage`.
 - A `%stage` with the name of an earlier one.
 - A stage with no rules, at its `%stage`.
 - A pipeline with no `%stage`.
@@ -677,7 +676,7 @@ When all of these hold, the engine runs the stages up to and including the one n
 
 The engine then runs the parse again from the first stage with `sa-su` added, in two cases. In the first case, that first run does not end with the `words` stage accepting. Any reason counts: a rejection or an error in it or in a stage before it. In the second case, the chosen tree of the `words` stage has a constituent of the rule `word` whose tag set has `SA` or `SU`.
 
-In either case, the engine discards the first run's stages and warnings. Otherwise that first run's stages are the parse's, with their warnings, continued to the end. The engine checks the class and not the sound, because the lexicon decides which words erase. For example, `li'oi` is SU in the experimental lexicon, and a stressed `sA` is `sa`.
+In either case, the engine discards the first run's stages and warnings. Otherwise that first run's stages are the parse's, with their warnings, continued to the end. The engine tests the class and not the sound, because the lexicon decides which words erase. For example, `li'oi` is SU in the experimental lexicon, and a stressed `sA` is `sa`.
 
 Mistakes of the caller are errors of kind `usage`. Two examples are an `until` that names no stage and a text that is not a sequence of scalar values (§1). A token that the caller supplies with attachments is a third (`docs/api.md`). They are raised or returned as a load error is, and they are not results.
 

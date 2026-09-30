@@ -6,6 +6,8 @@ The layer adds the experimental constructs that grew up in use after CLL was pri
 
 The layer restates each CLL rule that it changes with `%redefine-rule`. It states its own rules with `%rule`. Each section below says what the layer changes in that part of the grammar. A rule that this document does not name is the CLL grammar's, as that document explains it.
 
+A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo.
+
 [The experimental lexicon](../words/lexicon-experimental.md) gives each cmavo the one selma'o that camxes-exp gives it. For example, `mi'ai` is KOhA, `la` is LE, `fi'oi` is SOI, `ma'oi` is ZO and `la'oi` is ZOhOI. `no'oi` and `po'oi` are NOhOI, with the terminator `ku'oi`. Some selma'o are not in CLL: `LOhOI`, `NOhOI`, `KUhOI`, `KUhAU`, `LOhAI`, `LEhAI`, `ZOhOI` and `MEhOI`. This grammar never reads a CLL class that camxes-exp does not have, such as LA.
 
 [The notation document](../../docs/notation.md) explains the notation. The terminals of this grammar (the symbols that each match one input token) are selma'o. A tag is a name on a token. The rules `any-word` and `anything` match tokens tagged `word` and `foreign-text`, respectively.
@@ -27,11 +29,11 @@ The greedy rule settles these ambiguities. One of them is the connection of two 
 
 ## The text and its paragraphs
 
-The layer changes the text in three ways. A `nai` at the start of a text is an indicator, as the indicator stage of the experimental dialect reads it. So `indicators` takes it, like the indicators of camxes-exp, and a separate `nai` stands only before a run of names. The connective after a text-leading `.i` can be an ek, as in `.i .e do klama`, because camxes-exp's joik takes the words of A. The rule writes the tense before `bo` in a text-leading `.i` as a `tag`. A `stag` is a `tag` in this dialect (see "Tenses and modals"), so the name changes nothing.
+The layer changes the text in four ways. A `nai` at the start of a text is an indicator, as the indicator stage of the experimental dialect reads it. So `indicators` takes it, like the indicators of camxes-exp, and a separate `nai` stands only before a run of names. The connective after a text-leading `.i` can be an ek, as in `.i .e do klama`, because camxes-exp's joik takes the words of A. The rule writes the tense before `bo` in a text-leading `.i` as a `tag`. A `stag` is a `tag` in this dialect (see "Tenses and modals"), so the name changes nothing.
 
 The third change is that `.i ni'o` can follow a `ni'o`. Usage writes a new topic inside a reply in that way. At the start of a text, the CLL grammar's `text-1` already reads `.i ni'o`, as the repair of the printed grammar that it lists says. So `text-1` takes the form after a first run of `ni'o`, and `paragraphs` takes it after a later one. A run of `ni'o` can also end the text (`mi klama ni'o`), as in camxes-exp.
 
-The layer keeps CLL's run of names at the start of a text only with `cbm` off. Under `cbm`, a cmevla is a selbri word, so the dialect rejects `.djan. mi klama`. camxes-exp has no such form.
+The fourth change is that the layer keeps CLL's run of names at the start of a text only with `cbm` off. Under `cbm`, a cmevla is a selbri word, so the dialect rejects `.djan. mi klama`. camxes-exp has no such form.
 
 The layer keeps the CLL grammar's connective before the first `.i` of a text (`je mi klama`). camxes-exp has it too. But its `paragraphs` can be empty, so its `(!text_1 joik_jek)?` never matches, and it rejects such a text. That is an accident of the PEG, and gencmu reads the text as CLL does.
 

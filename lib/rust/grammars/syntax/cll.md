@@ -2,7 +2,9 @@
 
 This document opens the syntax stage, the last stage of the [CLL](../dialects/cll-ebnf.md) and [approved word forms](../dialects/bpfk.md) dialects. It is also the base of the syntax of the [experimental](../dialects/experimental.md) dialect. A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar.
 
-This document is the grammar of Lojban as chapter 21 of *The Complete Lojban Language* (CLL) prints it, in the notation that the book uses. That notation is EBNF (Extended Backus-Naur Form). This grammar departs from the printed one where "Differences from the printed CLL grammar" at the end says. Its terminals are selma'o. A terminal matches an input token by tag. A tag is a name that an earlier stage gives a token.
+This document is the grammar of Lojban as chapter 21 of *The Complete Lojban Language* (CLL) prints it, in the notation that the book uses. That notation is EBNF (Extended Backus-Naur Form). This grammar departs from the printed one where "Differences from the printed CLL grammar" at the end says.
+
+A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo. Its terminals are selma'o. A terminal matches an input token by tag. A tag is a name that an earlier stage gives a token.
 
 The stages before it make the word stream that it reads. The forms stage, [a family of word forms](../words/forms.md), reads phonemes into words. The word stage, [the word stream](../words/stream.md), makes quotes and compounds and applies the erasers `si`, `sa` and `su`. [The indicator stage](../indicators/cll.md) attaches a run of indicators to the word before it, as CLL's non-formal rule `word = [BAhE] any-word [indicators]` says. Every cmavo reaches this grammar under each selma'o that [the CLL lexicon](../words/lexicon-cll.md) gives it. The material of a quote arrives tagged `word` or `foreign-text`, which is what `any-word` and `anything` read.
 
@@ -10,7 +12,7 @@ The stages before it make the word stream that it reads. The forms stage, [a fam
 
 This document writes the grammar literately: each block of rules follows the prose that explains it, and the blocks together are the grammar. The prose says what each construct is for and how the rules do it. The chapter numbers are those of CLL.
 
-A directive and a rule set the grammar up. This document does not say how the stage chooses among parses. CLL's rule that a terminator can be elided "if no grammatical ambiguity results" has more than one reading (see "Choosing among parses"). So each dialect that uses this grammar names its own reading after this document. The cll-ebnf and bpfk dialects do so in a document of one directive. The experimental layer (a document that changes earlier rules) names its reading itself.
+A directive and a rule set the grammar up. This document does not say how the stage chooses among parses. CLL's rule that a terminator can be elided "if no grammatical ambiguity results" has more than one reading (see "Choosing among parses"). So each dialect that uses this grammar names its own reading after this document. The cll-ebnf and bpfk dialects do so in their pipeline documents. The experimental layer (a document that changes earlier rules) names its reading itself.
 
 `%elidable` lists the terminators that CLL marks as elidable. The printed grammar writes them between slashes. Here each is an optional, `[KU]`, or `[KU #]` when its free-modifier slot goes with it. An absent one shows in the parse tree as that terminator, elided. `#` is the free-modifier slot that follows almost every word: any number of free modifiers, as CLL's EBNF defines it. This document defines `free`, a single free modifier, under "Free modifiers, vocatives and indicators".
 

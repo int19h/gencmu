@@ -77,9 +77,11 @@ The four libraries implement one specification, `docs/engine.md`. It was written
 
 Every position in a result is a half-open range of coordinates: the range holds its start but not its end. Source positions count Unicode code points, not bytes or UTF-16 units, so that the four languages agree on non-ASCII text. Each library converts at its edge (JavaScript from UTF-16, Go and Rust from UTF-8). The libraries derive line and column in diagnostics from code points. Lines split at `\n`, `\r\n` and `\r`.
 
-A token's `span` is a range of the previous stage's tokens. Its `source` is the smallest range of the original text that holds the sources of those tokens. So the source is contiguous even when some of those tokens emitted nothing, as an erased word inside a compound does. A token inserted by an emission clause has an empty span, and an empty source range at the position where it was inserted. Its provenance is that emission: it records the rule whose clause inserted it. A token over a foreign part also takes in the text next to it that no token covers.
+A token's `span` is a range of the previous stage's tokens. Its `source` is the smallest range of the original text that holds the sources of those tokens. So the source is contiguous even when some of those tokens emitted nothing, as an erased word inside a compound does. A token inserted by an emission clause has an empty span, and an empty source range at the position where it was inserted. Its provenance is that emission: its `insertedBy` records the rule whose clause inserted it.
 
-Following `span` from stage to stage, or `inserted-by` where a token has no span, explains any token. The chain ends at the characters or at the rule that made the token.
+A token whose constituent is a nonempty foreign part also takes in adjacent text that no input token covers. A larger token that holds a foreign part keeps the source of its input tokens.
+
+Following `span` from stage to stage explains any token of a stage's output. The chain ends at the characters, or at a token with an empty span. An inserted token ends it at the rule in its `insertedBy`. A token over a part that read nothing has an empty span and no `insertedBy`. An attached token has no `span`, so its chain ends at the stage that attached it. Its `source` still gives its place in the original text.
 
 ## The notation
 
@@ -109,7 +111,7 @@ A rule is a keyword, its name and its body, followed by its clauses. Each clause
   $g, /'/, $v
 ```
 
-Every binary operator except the difference, `∖`, can also stand first, as a no-op, so that a list can put one item on each line. These operators are `|` and `&` in bodies, `∪` and `∩` in terms, and `∧` and `∨` in conditions.
+Every binary operator except the difference, `∖`, can also stand first, as a no-op, so that a list can put one item on each line. These operators are `|` and `&` in bodies, `∪` and `∩` in terms, and `∧` and `∨` in conditions. The commas of a clause's list can stand first too.
 
 A stage is several documents, read in order and stitched into one grammar. `%rule` defines a rule, and is an error if a rule of that name exists. `%redefine-rule` replaces a rule that an earlier document defined, and is an error if none did. `%extend-rule` adds alternatives to a rule defined before it, and is an error if none was.
 
@@ -270,7 +272,7 @@ The engine cases pin the definition with these cases:
 
 The notation offers the third reading as `maximal` (engine §4). It is a condition on which parses count, stated over the recognizer's items. It does not order the alternatives of a rule, so a grammar stays a description of its language. The bpfk dialect reads elided terminators this way, because the definition effort that approved its word forms also adopted the PEG.
 
-The cll-ebnf dialect takes the printed grammar as normative, and keeps the literal reading. So do the experimental and Zantufa dialects, which accept the most. The cll-ebnf and bpfk dialects each name their reading in a document of one directive, stitched after the CLL grammar. A stage states its `%ambiguity-resolution` exactly once, so the experimental layer over the CLL grammar states its own.
+The cll-ebnf dialect takes the printed grammar as normative, and keeps the literal reading. So do the experimental and Zantufa dialects, which accept the most. The cll-ebnf and bpfk dialects each name their reading in their pipeline documents, after they include the CLL grammar. A stage states its `%ambiguity-resolution` exactly once, so the experimental layer over the CLL grammar states its own.
 
 A measurement at the time `maximal` was specified used the 24,552 CLL cases that the corpus then held. There, `maximal` rejects 68 texts that the literal reading accepts, and camxes-std, the reference PEG, rejects 66 of them. `maximal` changes the chosen reading of no text that it accepts. In 2,892 texts, it removes only parses that the greedy ranking already beat, so their verdict becomes `unique` instead of `resolved`.
 
@@ -395,7 +397,7 @@ The editor lists a dialect's documents stage by stage. A forgiving scan of the `
 
 `docs/output.md` defines the output formats exactly. JavaScript implements them for the CLI and the playground, and every library implements the bracket form for the tests:
 
-- `brackets` is the tree as nested groups, cycling `( ) [ ] { }` by depth. The renderer collapses groups of one child, and leaves show their phonemes, with stress. An option shows elided terminators in angle brackets, `⟨ku⟩`, or hides them.
+- `brackets` is the tree as nested groups, cycling `( ) [ ] { }` by depth. The renderer collapses groups of one child, and leaves show their labels, with stress. An option shows elided terminators in angle brackets, `⟨ku⟩`, or hides them.
 - `tree` is an indented listing, one node per line, with the rule name and the text.
 - `json` is the display JSON, a projection of the tree for reading. It is pretty-printed so that a node with one child stays on one line with its parent, as in `{"tanru-unit-2": {"BRIVLA": "mlatu"}}`. This keeps deep trees readable.
 - `canonical` is the canonical JSON of the whole result, which the shared tests compare.
@@ -420,11 +422,11 @@ The corpus was seeded once from the prototype's fixtures and their verdicts. Som
 
 A change to a case's expected `words` or `brackets` needs no field of its own. It is a change to what gencmu produces. The author of the change makes it in the same commit as the grammar change that causes it. The message of that commit explains it. After seeding, the corpus is ours: a change that alters an expectation updates the file in the same commit.
 
-Every library runs the whole corpus. On a pull request, a sampled core of about 1,100 cases (`tests/core.txt`) runs in every language. Rust and JavaScript also run the whole corpus there. All four languages run the whole corpus nightly and before a release, sharded if Python needs it. No language is permanently exempt.
+Every library runs the whole corpus. On a pull request, a sampled core of about 1,200 cases (`tests/core.txt`) runs in every language. Rust and JavaScript also run the whole corpus there. All four languages run the whole corpus nightly and before a release, sharded if Python needs it. No language is permanently exempt.
 
 ## CI
 
-CI is one workflow with one job for each language. Each job runs on the oldest and the newest supported toolchain:
+CI has two workflows. `nightly.yml` runs the whole corpus in all four languages each night and on demand. `ci.yml` runs on each pull request and each push to `main`. It has three additional jobs: the playground in two browsers, the whole corpus in JavaScript, and the JavaScript types. It also has one job for each language, which runs on the oldest and the newest supported toolchain:
 
 - JavaScript: Node 20 and current, `node --test`, the bundle freshness check
 - Python: 3.10 and current, `python -m unittest`, `python -m build` for the wheel. The build backend is the only tool outside the standard library, and only at build time.
@@ -473,6 +475,6 @@ Three things came from the prototype:
 
 - The grammar documents. They were rewritten where they referred to the prototype, other parsers or research notes, and converted to the notation above.
 - The notation document
-- The fixture corpus, converted to the format above. It has about 26,000 cases and 8 MB with words and brackets, and the repository keeps it whole.
+- The fixture corpus, converted to the format above. The repository keeps it whole. With the cases added since, it now has about 29,000 cases and 7 MB with words and brackets.
 
 Nothing else came from the prototype: no code, no scripts, no notes. The maintainers edit the CLL lexicon by hand. The experimental and Zantufa lexicons come from the word tables of other parsers. `tools/peg-lexicon.js` generates each of them, and a maintainer changes one by running the tool again. The Zantufa grammar is a grammar of its own, as above.

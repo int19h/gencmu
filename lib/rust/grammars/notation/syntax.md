@@ -106,7 +106,7 @@ A rule is a keyword, its name, its alternatives and its clauses, in this order. 
 
 `&` joins sequences, and a sequence is one or more elements. An element is a primary, followed by `...` for one or more of it. An optional followed by `...` is zero or more. Parentheses group a choice, whose alternatives carry neither guards nor tags.
 
-A terminal is a name, a tag literal, a character tag, a phoneme tag, a range or a property. A string is not a terminal. A range is two character tags joined by `..`, such as `'a'..'z'`.
+A terminal is a name that begins with a capital, a tag literal, a character tag, a phoneme tag, a range or a property. A string is not a terminal. A range is two character tags joined by `..`, such as `'a'..'z'`.
 
 A reference or a terminal can carry a test on its own span, such as `LE="la"` or `cmavo∩UI=∅`. A test is `=`, `≠`, `⊇` or `⊉` and an operand, or `∩`, an operand, and `=∅` or `≠∅`. The operand is one term: a string, a tag, a range, `∅`, a constant, or a term in parentheses. So `UI⊇(A ∪ B)` needs its parentheses. The test binds tighter than `...`.
 
@@ -249,7 +249,7 @@ A condition joins others with `∧`, `∨` and `⟹`. These operators bind in th
 
 A term is a string, a set of strings, a tag set or a span. A range is a tag set, and `..` binds tighter than any other operator, since its two sides are character tags. `∩` binds tighter than `∪` and `∖`, which bind equally and group from the left. A term guarded by a condition, `A ⟹ t`, is `t` where `A` holds and nothing where it does not. It binds looser than `∪`, `∩` and `∖`, so it stands in parentheses inside a larger term. Only a whole tag term can be a guarded term without parentheses.
 
-A property is not a tag set, but the grammar reads one in a term, so that the reader can refuse it by name. A bare name in a term is a tag literal when it begins with a capital. Otherwise it names a rule, which only a function's argument can do. A constant, such as `$SU-STOPS`, stands for its value. The reader tells the two apart and gives each term its type (`../../docs/engine.md`, §9, §10).
+A property is not a tag set, but the grammar reads one in a term, so that the reader can refuse it by name. A bare name in a term is a tag literal when it begins with a capital. Otherwise it names a rule or a classifier, which only a function's argument can do. A constant, such as `$SU-STOPS`, stands for its value. The reader tells the two apart and gives each term its type (`../../docs/engine.md`, §9, §10).
 
 ```jbogenbau
 %rule term

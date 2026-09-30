@@ -154,4 +154,4 @@ The dialect also reads `sa` by a different rule. The word stage erases with `sa`
 - The dialect rejects `mi broda gi'e klama da de di sa na gi'e prami`. No word of NA comes before the `sa`, so it erases back to the start of the text. What is left, `na gi'e prami`, is not a text. camxes-exp accepts the text.
 - The dialect rejects `le le broda ku brode le broda sa sa le brodi`. The two `sa` words erase back to the second `le` before them, which leaves `le le brodi`. camxes-exp accepts the text.
 
-The corpus is the collection of Lojban test texts. Among its texts with `sa`, the dialect accepts 166 that camxes-exp rejects. It rejects 3 that camxes-exp accepts.
+The corpus is the collection of Lojban test texts. A measurement in September 2026 read its 358 texts with the word `sa` under this dialect, whatever their own dialects. The dialect accepted 215 of them that camxes-exp rejects, and it rejected 6 that camxes-exp accepts.

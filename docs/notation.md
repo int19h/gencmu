@@ -1,6 +1,6 @@
 # jbogenbau, the grammar notation
 
-Every grammar in gencmu is a Markdown document. Its fenced `jbogenbau` blocks, read in order, are one grammar, and the prose between the blocks explains it. This document explains jbogenbau, the notation that those blocks use. The grammars only say what they are about, and refer here for the rest. Two grammars written in jbogenbau itself define it: `grammars/notation/lexical.md` and `grammars/notation/syntax.md`. This document explains the notation, and those two grammars define it.
+Every grammar in gencmu is a Markdown document. Its fenced `jbogenbau` blocks, read in order, are one grammar, and the prose between the blocks explains it. This document explains jbogenbau, the notation that those blocks use. The grammars only say what they are about, and refer here for the rest. Two grammars written in jbogenbau itself define it: `grammars/notation/lexical.md` and `grammars/notation/syntax.md`.
 
 A jbogenbau grammar is an attribute grammar with EBNF rule bodies. An attribute grammar is a grammar whose constituents carry computed values. A constituent is a part of the text that one rule matched. EBNF (Extended Backus-Naur Form) is a common notation for the bodies of grammar rules. Each rule body is EBNF in the form that *The Complete Lojban Language* (CLL) prints in chapter 21. Each constituent carries one attribute, its set of tags (names such as `KOhA`), computed bottom-up from its parts.
 
@@ -37,10 +37,10 @@ No line of such a rule's body holds more than 100 characters, counted as Unicode
 
 A body can be followed by clauses. A clause is a keyword and what it says. A body has at most one clause of each kind, and the clauses come in this order:
 
-- `%tags`: the tags that the constituent of every alternative carries.
-- `%conditions`: what must hold of the parts.
-- `%emits`: what the constituent hands to the next stage.
-- `%foreign`: the constituent is foreign text, which sounds `?` and shows its text.
+- `%tags` gives the tags that the constituent of every alternative carries.
+- `%conditions` states what must hold of the parts.
+- `%emits` states what the constituent hands to the next stage.
+- `%foreign` marks the constituent as foreign text, which sounds `?` and shows its text.
 
 The sections below explain each clause.
 
@@ -165,10 +165,9 @@ The notation has no way to remove a single alternative. A rule is small enough t
 
 ## Constants
 
-A constant names a value that several rules use, such as a list of classes. Its name is `$` and a name that begins with a capital. By convention, the whole name is in capitals, as in `$SU-STOPS`. The loader stitches a constant as it stitches a rule, and the constant belongs to its stage:
+A constant names a value that several rules use, such as a list of classes. Its name is `$` and a name that begins with a capital. By convention, the whole name is in capitals, as in `$SU-STOPS`. The loader stitches a constant as it stitches a rule, and the constant belongs to its stage.
 
-- `%const $NAME value` defines a constant. It is an error if a constant of that name was defined before it in the stage.
-- `%redefine-const $NAME value` gives a constant a new value. It is an error if none was defined before it in the stage.
+`%const $NAME value` defines a constant. It is an error if a constant of that name was defined before it in the stage. `%redefine-const $NAME value` gives a constant a new value. It is an error if no constant of that name was defined before it in the stage.
 
 ```jbogenbau
 %const $SU-STOPS NIhO ∪ LU ∪ TUhE ∪ TO
@@ -248,7 +247,7 @@ A tag term that uses a capture that one of its alternatives lacks is an error, u
 
 It is an error to mention a capture that no alternative of the rule, or of the extension, captures. It is also an error to write a condition or an item of `%emits` that applies to no alternative. Each of these is a mistake, such as a misspelled name.
 
-A constant counts in these rules as its value. So where `$E` is empty, `$E ∩ tags($x)` is empty and uses no capture. gencmu checks such a clause when it stitches the stage, since only then does the constant have a value.
+A constant counts in these rules as its value. So where `$E` is empty, `$E ∩ tags($x)` is empty and uses no capture. gencmu makes sure that such a clause meets these rules when it stitches the stage. Only then does the constant have a value.
 
 `$x`, standing as a condition, is a presence test: it says whether the alternative captured `x`. gencmu also knows this when it reads the grammar. `$` alone is always true. gencmu decides a presence test for each alternative before anything else, so it is not a use of the capture. So `%conditions $x` applies to every alternative, and removes those that do not capture `x`.
 
@@ -299,7 +298,7 @@ An empty delimiter is an error. It is an error of the document when the reader s
 
 The fourth type is the tag set. A tag literal is the set with that one tag, so `UI ∪ CAI` is the set of both, and `~indicator` is the set of the mark. A range is the set of its character tags, so `tags($c) ∩ 'a'..'z' ≠ ∅` says that `$c` carries a lower-case ASCII letter. `..` binds tighter than every other operator, so `'a'..'c' ∪ 'x'` is four tags. A property is not a tag set, so it cannot stand in a term.
 
-`tags(span)` is the tag set of the captured part. `tags(span, rule)` is the tag set that the span has when parsed as `rule`, unioned over every parse. It is empty when the span does not parse as `rule`. `classes(span)` keeps only the tags that begin with a capital.
+`tags(span)` is the tag set of the captured part, when the span is a whole capture. For another span, such as `head($x)`, it is the union of the tags of the span's tokens. `tags(span, rule)` is the tag set that the span has when parsed as `rule`, unioned over every parse. It is empty when the span does not parse as `rule`. `classes(span)` keeps only the tags that begin with a capital.
 
 `classify(string, classifier)` is the set of the classes that a classifier gives the string (see "Classifiers"). It is empty for a string that the classifier does not know. The second argument is a bare name, which names a classifier of the stage. So `classify(phonemes($c), lexicon)` is the set of the classes of the word `$c`.
 
@@ -417,7 +416,7 @@ A part that the list of a rule merely does not name is not handed on, but it sti
 %foreign
 ```
 
-So `zoi gy. John is a man .gy.` hands on the body as a token that sounds `?`. The stage before emitted the phonemes `jo'n.is.a.man` for it. The label of the token is `John is a man`. The label is what the renderings for people show (see "Labels").
+So `zoi gy. John is a man .gy.` hands on the body as a token that sounds `?`. In the experimental dialect, the forms stage before it emitted the phonemes `jo'n.is.a.man` for the body. The label of the token is `John is a man`. The label is what the renderings for people show (see "Labels").
 
 The text of a foreign part also takes in the text next to it that no token of the stage's input covers. An example is punctuation that the stage before read as part of a pause but did not emit. So the text starts at the end of the input token before it, or at the start of the text. It ends at the start of the input token after it, or at the end of the text. Text between two foreign parts belongs to the first of them. An empty foreign part sounds `?` and has no text.
 
@@ -427,9 +426,9 @@ A later stage that forwards a token keeps its text and its source. So a quote bo
 
 ## Labels
 
-Every token has a label, which is what the renderings for people show. The stage gives a token its label when it emits the token, from the same parts as its phonemes. A foreign part gives its text, and a pause gives a space. A token with a phoneme tag has that phoneme as its label. Any other part gives its own label. A character token, the input of the first stage, has its text as its label.
+Every token has a label, which is what the renderings for people show. The stage gives a token its label when it emits the token, from the same parts as its phonemes. A foreign part gives its text, and a pause gives a space. A token with a phoneme tag has that phoneme as its label, but a token with the pause, `/./`, has a space. Any other part gives its own label. A character token, the input of the first stage, has its text as its label.
 
-An inserted token with a phoneme tag has that phoneme as its label. So the apostrophe that the zbalermorna shorthand inserts stays in the label of `u'i`. An inserted token without a phoneme tag has an empty label.
+An inserted token with a phoneme tag has that phoneme as its label, or a space for the pause, `/./`. So the apostrophe that the zbalermorna shorthand inserts stays in the label of `u'i`. An inserted token without a phoneme tag has an empty label.
 
 ## Directives
 

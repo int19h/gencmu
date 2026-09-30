@@ -31,7 +31,7 @@ A stage has this form:
 A token has this form:
 
 ```
-{"text":"mi","phonemes":"mi","label":"mi","tags":["KOhA","UI","word"],"span":[0,2],"source":[0,2]}
+{"text":"mi","phonemes":"mi","label":"mi","tags":["KOhA","cmavo","word"],"span":[0,2],"source":[0,2]}
 ```
 
 `tags` lists every tag once, in code point order. A tag is written in its canonical spelling (engine §1), so a character tag is `'a'`, and a combining acute accent is `'\u{301}'`. A character token of the first stage has one tag, its character tag. `phonemes` is always present, the empty string for a token with none (engine §5). A foreign part sounds `?` (engine §11).
@@ -76,9 +76,9 @@ An error has this form:
 
 `kind` is one of these values:
 
-- `rejected`: the grammar of the stage does not accept its input.
-- `ambiguous` (engine §7): the error has `stage`, `"readings":[NODE,NODE]` and `message`, and no position.
-- `grammar`: a grammar failed to load, or the parser found a defect while parsing. For a grammar that failed to load, the error has `document`, `line` and `column` where known. For a defect found while parsing, such as a condition that asked about its own span, the error has `stage` and no position.
+- `rejected`: The grammar of the stage does not accept its input.
+- `ambiguous` (engine §7): The error has `stage`, `"readings":[NODE,NODE]` and `message`, and no position.
+- `grammar`: A grammar failed to load, or the parser found a defect while parsing. For a grammar that failed to load, the error has `document`, `line` and `column` where known. For a defect found while parsing, such as a condition that asked about its own span, the error has `stage` and no position.
 
 A mistake of the caller is not a result. It is an error of kind `usage` (engine §13).
 
@@ -90,7 +90,7 @@ The test uses notation operators and canonical output tags, with spaces only aro
 
 ### A grammar DOM
 
-A grammar DOM (document object model) is the data that a library makes when it reads a grammar document (engine §8, §9). `bootstrap.json` and the precompiled DOMs hold the same data.
+A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. `bootstrap.json` and the precompiled DOMs hold the same data.
 
 ```
 {"format":15,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}
