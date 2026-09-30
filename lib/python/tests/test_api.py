@@ -760,3 +760,41 @@ class RepeatedFailures(unittest.TestCase):
             del result
         gc.collect()
         self.assertEqual([token() for token in tokens], [None] * len(tokens))
+
+
+class SharedCaches(unittest.TestCase):
+    """The caches that loads share keep a few entries, and only so many
+    characters of the texts that key them. A process that loads dialects
+    from many texts does not keep them all."""
+
+    def test_recent_bounds_count_and_size(self) -> None:
+        from gencmu._recent import Recent
+
+        recent: Recent[str, int] = Recent(3, 9)
+        for index, key in enumerate("abcd"):
+            recent.put(key, index, 1)
+        self.assertEqual((len(recent), recent.get("a"), recent.get("d")), (3, None, 3))
+        recent.put("big", 9, 8)
+        self.assertEqual((len(recent), recent.size, recent.get("b"), recent.get("c")), (2, 9, None, None))
+        recent.put("huge", 0, 11)
+        self.assertEqual((len(recent), recent.size, recent.get("huge")), (0, 0, None))
+
+    def test_unicode_tables_are_dropped(self) -> None:
+        from gencmu import _dialect
+
+        unicode = bundled_text("unicode.txt")
+        assert unicode is not None
+        tables = []
+        for index in range(6):
+            sources, pipeline = case_sources({"grammar": "%rule text 'a'"})
+            # A different text, with the same table.
+            sources["unicode.txt"] = unicode + "\n" * (index + 1)
+            dialect = gencmu.load_dialect_sources(sources, pipeline)
+            self.assertTrue(dialect.parse("a").ok)
+            tables.append(weakref.ref(dialect.unicode))
+            del dialect
+        gc.collect()
+        self.assertLessEqual(len(_dialect._unicode_tables), _dialect._MAX_TEXTS)
+        self.assertLessEqual(len(_dialect._readers), _dialect._MAX_TEXTS)
+        self.assertLessEqual(sum(table() is not None for table in tables), _dialect._MAX_TEXTS)
+        self.assertIsNone(tables[0]())
