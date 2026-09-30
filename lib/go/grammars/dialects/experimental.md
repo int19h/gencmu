@@ -8,7 +8,7 @@ camxes-exp is the experimental PEG grammar. A PEG commits to the first matching 
 
 A feature is a named switch that the grammars test. The dialect turns on the feature `su-boundary`, so that `su` erases back to the last `ni'o`, `no'i`, `lu`, `tu'e` or `to`, as camxes-exp's does.
 
-The dialect also turns on two features of the syntax, as camxes-exp always has them. `cbm` is the cmevla-brivla merger. `soi-clause` makes `soi` a term that takes a subsentence, in place of CLL's free modifier of reciprocity. A caller (the program or person that asks for a parse) can turn either off to read the CLL form.
+The dialect also turns on two features of the syntax, because camxes-exp has no way to turn them off. `cbm` is the cmevla-brivla merger, which lets a name word (cmevla) also act as a predicate word (brivla). `soi-clause` makes `soi` a term that takes a subsentence, in place of CLL's free modifier of reciprocity. A caller (the program or person that asks for a parse) can turn either off to read the CLL form.
 
 ```jbogenbau
 %features cbm soi-clause su-boundary
@@ -121,7 +121,7 @@ A PEG has ordered choice. Ordered choice keeps the first matching alternative. T
 
 The layer follows camxes-exp's ordered choice where that choice decides what a text means. Where camxes-exp states a lookahead (a test of the words that follow), such as `!selbri` after a tag, the layer follows it. The paragraphs below list the exceptions, and the ties that remain. A tie has more than one winning reading.
 
-The dialect also accepts two constructs by choice, which camxes-exp rejects. In a sentence's own terms, camxes-exp requires a stag (a tense or modal that can stand in a connective) between a connective and `bo` (`abs_term_2`). This grammar does not, so `fa mi .e bo fe do klama` parses here, as it did before the grammar took camxes-exp's two levels of terms.
+The dialect also accepts two constructs by choice, which camxes-exp rejects. A stag is a tense or modal inside a connective. In a sentence's own terms, camxes-exp requires a stag between a connective and `bo` (`abs_term_2`). This grammar does not, so `fa mi .e bo fe do klama` parses here, as it did before the grammar took camxes-exp's two levels of terms.
 
 In `fa mi .e bo fe do .a fi mi klama`, one connected term precedes `klama`. Within that term, `bo` binds tighter than `.a`.
 
@@ -131,11 +131,11 @@ Some readings differ where camxes-exp's ordered choice picks a reading that the 
 
 First, `la djonz. cu na'e pamoi cusku` has `na'e` on the selbri `pa moi`. camxes-exp reads the number `na'e pa` before `moi`, since its `mex MOI` form comes first.
 
-Second, in `mi nelci le su'u delno .enai le su'u stero delno`, the elided terminators fall as late as the grammar allows. So `.enai` joins two bridi-tails inside the first abstraction. camxes-exp joins the two descriptions.
+Second, in `mi nelci le su'u delno .enai le su'u stero delno`, the elided terminators fall as late as the grammar allows. So `.enai` joins two bridi-tails (selbri with their terms) inside the first abstraction. camxes-exp joins the two descriptions.
 
 Two other differences come from what the grammars allow. First, after `vu'o`, a connected sumti can follow without relative clauses here. So `mi viska ko'a vu'o .e ko'e` joins two sumti after `vu'o`. camxes-exp takes a connected sumti there only after relative clauses, so it joins two terms.
 
-Second, camxes-exp's selbri has a form with an ek, a tag and `ke` (`.e ba ke`), which this grammar does not have yet. So camxes-exp accepts `le dakli .e ba ke bevri ke'e ku`, and the dialect rejects it. And in `mi bevri le dakli .ebake bevri le gerku`, camxes-exp reads one tanru inside the description, where the dialect joins two bridi-tails.
+Second, camxes-exp's selbri has a form with an ek, a tag and `ke` (`.e ba ke`), which this grammar does not have yet. So camxes-exp accepts `le dakli .e ba ke bevri ke'e ku`, and the dialect rejects it. And in `mi bevri le dakli .ebake bevri le gerku`, camxes-exp reads one tanru (compound selbri) inside the description, where the dialect joins two bridi-tails.
 
 A replacement quote is one unit of raw words in the word stage (`../words/lohai.md`), as in camxes-exp. A magic word is a word, such as `si`, that acts on other words. A magic word after the quote acts on all of it, as the left-to-right rule requires. Zantufa also accepts all four texts below, but its `zei` erases, so it reads the compound as `broda`. camxes-exp rejects them:
 

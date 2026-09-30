@@ -43,7 +43,7 @@ The feature `cll-cyrillic`, which the dialect turns on, reads the Cyrillic of CL
   ```jbogenbau
   %include "../words/shapes.md"
   ```
-- [CLL word forms](../words/cll.md): the cmavo, gismu, lujvo, borrowings and names of CLL chapters 3 and 4
+- [CLL word forms](../words/cll.md): the particles (cmavo), root words (gismu), compounds (lujvo), borrowings and names of CLL chapters 3 and 4
   ```jbogenbau
   %include "../words/cll.md"
   ```
@@ -105,4 +105,4 @@ The stage is the grammar of chapter 21, with selma'o as its terminals. The CLL g
 
 The stage is greedy: of two parses, the one that reads the next word wins. So an elided terminator is absent for as long as the grammar allows. A terminator can be elided wherever a parse of the whole text needs it. With `elision-only`, the stage applies CLL's rule that a terminator can be elided only if no ambiguity results. So a text that is still ambiguous with its terminators written back is an error. [The notation document](../../docs/notation.md) explains both, under "Ambiguity".
 
-So `le nanmu joi le ninmu cu klama` parses, although CLL 14.14 says that the text needs its first `ku`. `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` also parses, and its description ends before `se farvi`. Where the printed grammar is ambiguous in anything but a terminator, the text is an error that shows both readings. For example, `mi broda joi ke brode ke'e` is a `ke` group joined to `broda` by `joi`. It is also `joi` before a tanru unit that begins with `ke`.
+So `le nanmu joi le ninmu cu klama` parses, although CLL 14.14 says that the text needs its first `ku`. `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` also parses, and its description ends before `se farvi`. Where the printed grammar is ambiguous in anything but a terminator, the text is an error that shows both readings. For example, `mi broda joi ke brode ke'e` is a `ke` group joined to `broda` by `joi`. It is also `joi` before a tanru unit (a part of a compound predicate) that begins with `ke`.

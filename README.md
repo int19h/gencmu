@@ -1,6 +1,8 @@
 # gencmu
 
-gencmu is a Lojban parser whose grammar is data. Every layer of the language is a literate grammar document in jbogenbau, the grammar notation of gencmu. The layers go from characters to phonemes, from phonemes to words, and from words to a parse tree. A literate grammar document mixes prose with the grammar rules, and gencmu loads it at runtime. A dialect is a pipeline document that lists the stages and the grammars of each. If you change a grammar, you change the language that the parser reads, and nothing is compiled.
+gencmu is a Lojban parser whose grammar is data. Every layer of the language is a literate grammar document in jbogenbau, the grammar notation of gencmu. A literate grammar document mixes prose with the grammar rules, and gencmu loads it at runtime. If you change a grammar, you change the language that the parser reads, and nothing is compiled.
+
+A stage is one step of a parse, with its own grammar. The stages go from characters to phonemes, from phonemes to words, and from words to a parse tree. A dialect is a pipeline document. It lists the stages and the grammar documents of each. A feature is a named switch that the grammars test.
 
 ## Try it
 
@@ -19,7 +21,7 @@ Or open `index.html` in a browser, from the clone or from GitHub Pages. This pag
 
 - It parses the text as you type, under any dialect and set of features.
 - It shows the brackets, the tree, the JSON and the tokens of every stage.
-- It explains a rejection or a tie.
+- It explains a rejection or a tie (two readings that rank the same).
 - It traces a stage at a position.
 - It audits the dialect.
 - It has an editor for the grammar documents. When you change a document, the playground parses the text again at once. You can download what you changed.
@@ -29,7 +31,7 @@ Or open `index.html` in a browser, from the clone or from GitHub Pages. This pag
 | name | what it reads |
 | --- | --- |
 | `cll-ebnf` | Lojban as *The Complete Lojban Language* describes it, its printed grammar taken as normative |
-| `bpfk` | CLL with the word forms the definition effort approved, elided terminators read as its PEG grammars read them |
+| `bpfk` | CLL with the word forms that the BPFK (a Lojban committee) approved, with omitted closing words read as its parsers read them |
 | `experimental` | CLL with the experimental constructs in use since |
 | `zantufa` | Guskant's Zantufa 1.9999, translated rule by rule |
 | `notation` | jbogenbau, gencmu's grammar notation, in which gencmu reads its own grammar documents |

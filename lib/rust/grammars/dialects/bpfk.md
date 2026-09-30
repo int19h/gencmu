@@ -2,7 +2,7 @@
 
 This dialect is the CLL dialect with the word-form grammar that the definition effort (the BPFK, a committee of the Lojban community) approved. That grammar replaces the grammar of chapter 4. The 1.3 editions of *The Complete Lojban Language* (CLL) print that grammar as appendix A2. [`../words/bpfk.md`](../words/bpfk.md) translates that grammar rule by rule.
 
-The approved grammar differs from chapter 4 in several ways. A rafsi is a short form of a word inside a compound. For example, the approved grammar has the extended rafsi, which let a brivla or a borrowing stand inside a compound before a y-hyphen. It also lets a `Cy` letter word stand before another word without a pause, so `fyno` is `fy no`. CLL 4.9 rule 6 asks for a pause there.
+The approved grammar differs from chapter 4 in several ways. A rafsi is a short form of a word inside a compound. A brivla is a predicate word. For example, the approved grammar has the extended rafsi, which let a brivla or a borrowing stand inside a compound before a y-hyphen. It also lets a `Cy` letter word stand before another word without a pause, so `fyno` is `fy no`. CLL 4.9 rule 6 asks for a pause there.
 
 The syntax of the dialect is the CLL grammar. The dialect reads elided terminators as the PEG grammars that the definition effort adopted read them. A PEG commits to the first matching alternative.
 

@@ -340,7 +340,7 @@ A permissible run is a run of consonants whose adjacent pairs are all permissibl
 
 ## Vowels
 
-A vowel of a word form is one of `a e i o u`, in either case. `y` is not one of them. It is a hyphen in a lujvo, a vowel of a name, a letter of a few cmavo, and hesitation. A capital vowel marks stress, and nothing else about the word changes with the case of a letter.
+A vowel of a word form is one of `a e i o u`, in either case. `y` is not one of them. It is a hyphen in a compound word (lujvo), a vowel of a name, a letter of a few particles (cmavo), and hesitation. A capital vowel marks stress, and nothing else about the word changes with the case of a letter.
 
 The diphthongs of CLL 3.4 are the falling `ai ei oi au` and the rising `ia ie ii io iu ua ue ui uo uu`. The rising ones can stand only in names and borrowings, and in a cmavo only as the whole word. A name can also have `iy` and `uy`. A diphthong can have a capital on either letter or on both, and it then marks one stressed syllable.
 
@@ -405,7 +405,7 @@ A run of vowels with no apostrophe or comma in it divides into syllables from th
 
 The stress of a word depends on its syllables. CLL 3.9 counts the syllables of `a e i o u` and their diphthongs. It does not count a syllable of `y`, `iy` or `uy`, or of a syllabic consonant. A syllabic consonant is still a consonant here, so it adds no syllable at all.
 
-A brivla is stressed on its penultimate counted syllable. If a capital vowel marks the stress, every capital vowel of the brivla must be in that syllable, and exactly one counted syllable follows it. So `BAjykla` is right, because CLL 3.9 does not count the `y`, and `bAIkla` is right, because `aI` is one syllable. A capital `Y` never stands in a brivla.
+A brivla is a predicate word. It is stressed on its penultimate counted syllable. If a capital vowel marks the stress, every capital vowel of the brivla must be in that syllable, and exactly one counted syllable follows it. So `BAjykla` is right, because CLL 3.9 does not count the `y`, and `bAIkla` is right, because `aI` is one syllable. A capital `Y` never stands in a brivla.
 
 `brivla-scan` reads the letters of a brivla one syllable nucleus at a time, from the left. Its tags, the names that it puts on what it reads, say where the stress is. A nucleus is a vowel or a diphthong of a brivla. A vowel can stand alone before another vowel only if the two form no diphthong. So the reading is unique, and it is CLL's grouping. The tags are:
 

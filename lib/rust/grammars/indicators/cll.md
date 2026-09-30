@@ -124,7 +124,7 @@ The rule `attitudinal-nai` reads the pair with three captures: the `ba'e` run be
 
 After a leading run (see "Leading runs"), a `nai` belongs to the last indicator of the run when that is an attitudinal. The stage is greedy, so it reads the `nai` into the run before it starts the next item. So `iu nai` is one run, not `iu` followed by a text that begins with `nai`. The same holds when a `ba'e` stands before the `nai`, as in `iu ba'e nai`.
 
-A `ba'e` before an indicator marks the indicator and goes with it. So does a `ba'e` before the `nai` of an attitudinal. `ba'e` "marks the following word but does not change its meaning", as the Magic Words proposal says. Also, "One NAI can follow any UI or CAI cmavo". So `mi .e .ui ba'e nai do` negates the `.ui` and leaves the `.e` as it is.
+A `ba'e` before an indicator marks the indicator and goes with it. So does a `ba'e` before the `nai` of an attitudinal. `ba'e` "marks the following word but does not change its meaning", as the Magic Words proposal says. A cmavo is a particle, a short structure word. Also, "One NAI can follow any UI or CAI cmavo". So `mi .e .ui ba'e nai do` negates the `.ui` and leaves the `.e` as it is.
 
 The stage reads an indicator run as far as it goes: `broda ui nai` attaches both words to `broda`. Because the stage is greedy, `nai` is part of the run and not the next word of the syntax. A `ba'e` is a word of BAhE, which the CLL lexicon gives only to `ba'e` and `za'e`.
 
@@ -142,9 +142,9 @@ The stage also rejects `mi fu'e y klama`. The EBNF counts `y` as an indicator, b
 
 ## Leading runs
 
-A leading run is a run of indicators that the syntax reads itself: at the start of the text, or directly after a text opener. Its indicators stay in the stream, each as a token of its own. A `ba'e` before one of them attaches to it, since the syntax does not read `ba'e`. But a `nai` after an attitudinal stays a token of its own, and the syntax reads `UI NAI` as it always has. So `ba'e ui nai mi klama` hands on `ui`, with `ba'e` attached before it, and then `nai`, `mi` and `klama`.
+A leading run is a run of indicators that the syntax reads itself: at the start of the text, or directly after a text opener. Its indicators stay in the stream, each as a token of its own. A `ba'e` before one of them attaches to it, since the syntax does not read `ba'e`. But a `nai` after an attitudinal stays a token of its own, and the syntax reads `UI NAI`. So `ba'e ui nai mi klama` hands on `ui`, with `ba'e` attached before it, and then `nai`, `mi` and `klama`.
 
-The reason is that the syntax reads this run. A `nai` nested under its attitudinal hides from the syntax, which then reads a second `nai` after the attitudinal as that attitudinal's own. So `pau nai nai mi klama` becomes a text. With the `nai` in the stream, the syntax rejects it, as it always has.
+The reason is that the syntax reads this run. A `nai` nested under its attitudinal hides from the syntax, which then reads a second `nai` after the attitudinal as that attitudinal's own. So `pau nai nai mi klama` becomes a text. With the `nai` in the stream, the syntax rejects it.
 
 ```jbogenbau
 %rule leading

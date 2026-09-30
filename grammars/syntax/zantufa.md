@@ -6,6 +6,17 @@ Each rule's comment gives the rule of the reference that it translates. A rule h
 
 A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo. [The Zantufa lexicon](../words/lexicon-zantufa.md) gives each cmavo the selma'o that Zantufa gives it. For example, every tense word but those of ROI is BAI, `ca'a` and `ka'e` are NA, and `je` is JOI. Also, `la` is LE, `ce'e` is BO, and `nai` and `sa` are UI.
 
+The prose also uses these Lojban terms:
+
+- A gismu is a root word.
+- A rafsi is a short form of a word inside a compound.
+- A selbri is the predicate of a sentence.
+- A sumti is an argument of a selbri.
+- A tanru is a compound selbri.
+- A bridi-tail is a selbri with any terms after it.
+- A lerfu word is a letter word, such as `.abu` or `xy.`.
+- A mekso is a mathematical expression.
+
 A stage is one step of a pipeline, with its own grammar. The pipeline is the sequence of stages that reads a text. The indicator stage attaches `ba'e` and the other words of BAhE to the word after them, so this grammar does not read them. It reads every other word, the attitudinals included.
 
 Zantufa lets free modifiers follow every word (`post_clause`), with a few exceptions. These are `bu`, `fa'o`, a word of SI or BAhE, and the words inside a quote. So the translation writes `#`, the slot for free modifiers, after each terminal and after each quote. An elidable terminator keeps its slot inside its brackets, `[KU #]`, as the reference's `KU_elidible <- KU_clause?` does. After a PA word, the free modifiers do not begin with a number (`number_post_clause`). After a BY word they do not begin with a lerfu string, and after a COI word they do not begin with a vocative.

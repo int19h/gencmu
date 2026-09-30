@@ -94,7 +94,7 @@ The approved grammar ignores a comma before a letter (`comma*` in each letter ru
 
 ## The apostrophe
 
-Texts write the apostrophe as the letter `h`, which CLL does not use. The names of selma'o, such as KOhA, write it so, and the approved grammar reads it so (`h <- comma* ['h] &nucleus` in its PEG).
+Texts write the apostrophe as the letter `h`, which CLL does not use. The names of selma'o (classes of Lojban particles), such as KOhA, write it so, and the approved grammar reads it so (`h <- comma* ['h] &nucleus` in its PEG).
 
 ```jbogenbau
 %extend-rule apostrophe

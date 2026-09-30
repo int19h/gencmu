@@ -4,6 +4,13 @@ This document is part of the forms stage in the [Zantufa](../dialects/zantufa.md
 
 The rule here has the name of the Zantufa rule that it translates, and its comment gives that rule, as in bpfk.md. [The notation document](../../docs/notation.md) explains the notation.
 
+The prose uses these Lojban terms for words:
+
+- A cmavo is a particle, a short structure word.
+- A gismu is a root word.
+- A lujvo is a compound word.
+- A rafsi is a short form of a word inside a compound.
+
 CLL 3.6 forbids the consonant pair `mz`. The approved grammar, the word-form grammar that bpfk.md translates, forbids it too: its letter rule for `m` refuses a following `z`. The letter rule for `m` in Zantufa refuses only another `m` among the consonants, as the rule of camxes-exp (the experimental camxes parser) does. So Zantufa accepts `mz` wherever a permissible pair can stand. Examples are the gismu `kamzi`, the lujvo `bamzda` and the name `.djeimz.`. The other changes that camxes-exp makes to the word forms, in [experimental.md](experimental.md), are not Zantufa's.
 
 ```jbogenbau

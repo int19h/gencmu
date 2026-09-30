@@ -52,7 +52,7 @@ A name is an ASCII letter followed by ASCII letters, digits and hyphens. A name 
 
 A tag is of one of three kinds. A tag has no strength: a token either carries it or not.
 
-- An identifier tag is a name, such as `KOhA` or `run-initial`. By convention, a name that begins with a capital is a class, such as a selma'o, and any other is a mark.
+- An identifier tag is a name, such as `KOhA` or `run-initial`. By convention, a name that begins with a capital is a class, such as a selma'o (a class of Lojban particles). Any other name is a mark.
 - A phoneme tag is one phoneme between slashes, such as `/a/`, `/'/`, and `/./` for a pause.
 - A character tag is one character between single quotes, such as `'a'`. The quotes are part of the tag's name.
 
@@ -187,7 +187,7 @@ The loader gives the constants their values when it stitches each stage. So a do
 
 ## Classifiers
 
-A classifier gives a sound its classes. A lexicon is a classifier: it gives each cmavo its selma'o. `%classifier` and a name start a classifier, and its entries follow:
+A classifier gives a sound its classes. A cmavo is a particle, a short structure word. A lexicon is a classifier: it gives each cmavo its selma'o. `%classifier` and a name start a classifier, and its entries follow:
 
 ```jbogenbau
 %classifier lexicon

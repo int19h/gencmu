@@ -6,6 +6,13 @@ The stage divides the text into its source words and tags each word with its cla
 
 This document does not decide what a word looks like. The loader stitches other documents into the stage with this one: the word forms of one family, and one lexicon. A family is a set of word forms that dialects use. The family defines the three shapes this grammar reads, `cmavo-shape`, `brivla-shape` and `cmevla-shape`. It tags each with the pause properties below.
 
+The prose uses these Lojban terms for words:
+
+- A cmavo is a particle, a short structure word.
+- A selma'o is a word class of cmavo.
+- A brivla is a predicate word.
+- A cmevla is a name word.
+
 The CLL dialect stitches [shapes.md](shapes.md) and [cll.md](cll.md) as its family. The other dialects stitch [bpfk.md](bpfk.md), with [experimental.md](experimental.md) or [zantufa.md](zantufa.md) after it. The lexicon is [lexicon-cll.md](lexicon-cll.md), [lexicon-experimental.md](lexicon-experimental.md) or [lexicon-zantufa.md](lexicon-zantufa.md), and it gives each cmavo its selma'o.
 
 ## Runs

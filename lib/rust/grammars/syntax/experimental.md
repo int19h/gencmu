@@ -6,7 +6,18 @@ The layer adds the experimental constructs that grew up in use after CLL was pri
 
 The layer restates each CLL rule that it changes with `%redefine-rule`. It states its own rules with `%rule`. Each section below says what the layer changes in that part of the grammar. A rule that this document does not name is the CLL grammar's, as that document explains it.
 
-A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo.
+The prose uses these Lojban terms, as [the CLL grammar](cll.md) does:
+
+- A cmavo is a particle, a short structure word.
+- A selma'o is a word class of cmavo.
+- A brivla is a predicate word.
+- A cmevla is a name word.
+- A selbri is the predicate of a sentence.
+- A sumti is an argument of a selbri.
+- A tanru is a compound selbri.
+- A bridi-tail is a selbri with any terms after it.
+- A lerfu word is a letter word, such as `.abu` or `xy.`.
+- A mekso is a mathematical expression.
 
 [The experimental lexicon](../words/lexicon-experimental.md) gives each cmavo the one selma'o that camxes-exp gives it. For example, `mi'ai` is KOhA, `la` is LE, `fi'oi` is SOI, `ma'oi` is ZO and `la'oi` is ZOhOI. `no'oi` and `po'oi` are NOhOI, with the terminator `ku'oi`. Some selma'o are not in CLL: `LOhOI`, `NOhOI`, `KUhOI`, `KUhAU`, `LOhAI`, `LEhAI`, `ZOhOI` and `MEhOI`. This grammar never reads a CLL class that camxes-exp does not have, such as LA.
 
@@ -14,7 +25,7 @@ A cmavo is a particle, a short structure word. A selma'o is a word class of cmav
 
 A stage is one step of a pipeline, with its own grammar. The pipeline is the sequence of stages that reads a text. The word stage, an earlier stage, puts these two tags on the material of a quote.
 
-The layer uses two feature guards, which make a part of a rule depend on a feature. `cbm` is the cmevla-brivla merger. `soi-clause` makes `soi` a term that takes a subsentence, where CLL has a free modifier of reciprocity. The experimental dialect turns both on, as camxes-exp always has them, and a caller can turn either off.
+The layer uses two feature guards, which make a part of a rule depend on a feature. `cbm` is the cmevla-brivla merger. `soi-clause` makes `soi` a term that takes a subsentence, where CLL has a free modifier of reciprocity. The experimental dialect turns both on, because camxes-exp has no way to turn them off. A caller can turn either off.
 
 Unlike the CLL grammar, this layer writes the free-modifier slot after an elidable terminator outside its brackets: `[X] #` where CLL has `[X #]`. So free modifiers can follow an elided terminator. The layer restates many rules below for that reason alone. `free-after-number` and `free-after-lerfu-string` keep a number or lerfu string maximal. After an elided `boi`, they exclude a first free modifier that starts with a word that the number or string can read.
 
