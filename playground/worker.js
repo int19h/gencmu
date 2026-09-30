@@ -24,7 +24,8 @@
 //   { kind: "dom", path, hash, dom }     a document just read, for the page
 //       to hand to the next worker if this one is ever replaced
 //   { kind: "result", id, ... }          a run's answer
-//   { kind: "failed", id, message }      a run that threw, which is a bug
+//   { kind: "failed", id, message }      a run that threw, which is a bug;
+//       id null: a message that is not a run threw, such as "init"
 (function (root) {
   "use strict";
 
@@ -376,6 +377,12 @@
       for (const [path, entry] of this.doms) if (this.edits.has(path)) compiled[path] = entry;
       this.unsent.clear();
       worker.postMessage({ kind: "init", sources, compiled });
+    }
+
+    /** Stops the running worker; the next `start` makes a new one. */
+    stop() {
+      if (this.worker) this.worker.terminate();
+      this.worker = null;
     }
 
     /** The text of a document as the parser sees it. */

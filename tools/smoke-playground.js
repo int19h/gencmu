@@ -4,8 +4,9 @@
 // expected brackets, and explains a text it rejects; that "gencmu" in its
 // heading links to the repository; that it lists the features a parse used
 // by name; that it never shows an out-of-date answer as current; that it
-// shows an empty bracket rendering as one; and that a link to the Trace tab
-// traces its text, or shows its error once. With no URL the page is opened from file://, as someone who cloned the repository
+// shows an empty bracket rendering as one; that a failure for another run
+// does not end the current one; and that a link to the Trace tab traces its
+// text, or shows its error once. With no URL the page is opened from file://, as someone who cloned the repository
 // would; given a URL, that URL is checked instead, which is how a GitHub
 // Pages deployment is tested.
 //
@@ -108,6 +109,16 @@ async function main() {
     });
     if (started.state !== "ready") throw new Error(`the playground did not become ready: ${started.status}`);
     const version = await run(() => document.getElementById("version").textContent);
+    // The id of every run the page sends from here on.
+    await run(() => {
+      const client = self.playground.client;
+      const send = client.run.bind(client);
+      self.smokeRunIds = [];
+      client.run = (id, request) => {
+        self.smokeRunIds.push(id);
+        send(id, request);
+      };
+    });
     if (!/^library \d+\.\d+\.\d+/.test(version)) throw new Error(`the worker did not report the library's version: ${version}`);
 
     // The word "gencmu" in the heading links to the repository.
@@ -232,6 +243,46 @@ async function main() {
     if (!features || !features.codes.length || !new RegExp(`^Features: ${named}$`).test(features.text)) {
       throw new Error(`the features used were not listed by name: ${JSON.stringify(features)}`);
     }
+    await stale();
+
+    // A failure of an earlier run can arrive after a newer run started. It
+    // must not end the newer run, and its error is not shown. The worker
+    // fails a run whose request is null. Here that run has the id of the
+    // last run that finished, and the worker posts its failure before it
+    // reads the newer run.
+    const staleFailure = "mi klama le zarci .i do klama";
+    const failedEarlier = await run((text) => {
+      const client = self.playground.client;
+      const ids = self.smokeRunIds;
+      const earlier = ids[ids.length - 1];
+      const input = document.getElementById("input");
+      input.value = text;
+      input.dispatchEvent(new Event("input"));
+      client.worker.postMessage({ kind: "run", id: earlier, request: null });
+      self.playground.schedule(0);
+      return { earlier, newer: ids[ids.length - 1] };
+    }, staleFailure);
+    if (!(failedEarlier.newer > failedEarlier.earlier)) throw new Error(`the page did not start a newer run at once: ${JSON.stringify(failedEarlier)}`);
+    const afterFailure = await answerFor(staleFailure);
+    if (afterFailure.error) throw new Error(`a failure for another run ended the current one: ${afterFailure.error}`);
+    if (!afterFailure.output.includes("klama")) throw new Error(`no brackets after a stale failure: ${JSON.stringify(afterFailure)}`);
+    const boxes = await run(() => [...document.querySelectorAll("#diagnostics .box")].map((box) => box.textContent));
+    if (boxes.some((box) => /went wrong/.test(box))) throw new Error(`a failure for another run was shown: ${JSON.stringify(boxes)}`);
+
+    // A failure outside any run, here of a worker told to start with no
+    // documents, stops that worker. The page says so, and the next change
+    // starts a new worker.
+    await run(() => self.playground.client.worker.postMessage({ kind: "init", sources: null }));
+    const broken = await until("the failure outside a run", () => {
+      const status = document.getElementById("status");
+      return status.dataset.state === "error" ? { text: document.getElementById("diagnostics").textContent, worker: !!self.playground.client.worker } : null;
+    });
+    if (!/The parser worker stopped/.test(broken.text) || broken.worker) {
+      throw new Error(`a failure outside a run did not stop the worker: ${JSON.stringify(broken)}`);
+    }
+    await type(last);
+    const restarted = await answerFor(last);
+    if (restarted.error || restarted.output.trim() !== brackets) throw new Error(`no new worker after a failure outside a run: ${JSON.stringify(restarted)}`);
     await stale();
 
     // A shared link can ask for a feature both on and off, which the library
