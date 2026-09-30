@@ -435,8 +435,8 @@ An inserted token with a phoneme tag has that phoneme as its label, or a space f
 
 A directive is a keyword and its operands. By convention each stands in a block of its own, after prose that says why the grammar needs it. Two directives can share a line.
 
-- `%ambiguity-resolution greedy` or `lazy`, optionally followed by `elision-only`, and then optionally by `maximal`: How the stage chooses among parses, explained under "Ambiguity" and "Elided terminators". Every stage must say it exactly once, in any of its documents.
-- `%elidable KU KEI VAU ...`: The terminators that can be elided. An absent optional whose first symbol is one of them shows in the parse tree as that terminator, elided at that point. `elision-only` writes these terminators back. The operands are identifier tags: bare names that begin with a capital, or `~name`. So `KU` and `~KU` are one operand. A phoneme tag, a character tag, a range or a property there is an error.
+- `%ambiguity-resolution greedy` or `lazy`, optionally followed by `elision-only` and then optionally by `maximal`, says how the stage chooses among parses. "Ambiguity" and "Elided terminators" explain it. Every stage must say it exactly once, in any of its documents.
+- `%elidable KU KEI VAU ...` names the terminators that can be elided. An absent optional whose first symbol is one of them shows in the parse tree as that terminator, elided at that point. `elision-only` writes these terminators back. The operands are identifier tags: bare names that begin with a capital, or `~name`. So `KU` and `~KU` are one operand. A phoneme tag, a character tag, a range or a property there is an error.
 - `%stage NAME`, `%include "PATH"` and `%features NAME ...` build a pipeline, as the next section says.
 
 ## Pipelines

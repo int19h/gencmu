@@ -6,16 +6,16 @@ This document is the specification that every gencmu library implements. It says
 
 ## 1. Tokens
 
-A stage is one step of a pipeline (§13), with its own grammar. Everything a stage reads and writes is a sequence of tokens. A token has:
+A stage is one step of a pipeline (§13), with its own grammar. Everything a stage reads and writes is a sequence of tokens. A token has these fields:
 
-- `tags`: A set of tags, each a string
-- `span`: The half-open range of the previous stage's tokens that it covers. A half-open range includes its start and excludes its end.
-- `source`: The half-open range of the original text that it covers, in Unicode code points
-- `text`: The original text over `source`
-- `phonemes`: What the token sounds like (§5)
-- `label`: What the token shows to people (§5)
-- `insertedBy`: For a token that an emission clause inserted from a tag literal (§11), the rule that the clause belongs to. For any other token it is absent, even for a token that an emission `$` makes over an empty constituent.
-- `before` and `after`: The token's attachments (§11). These are two lists of tokens that belong to the token and that no later stage reads. Both are empty unless an emission gives the token attachments. An attached token has no `span`.
+- `tags` is a set of tags, each a string.
+- `span` is the half-open range of the previous stage's tokens that the token covers. A half-open range includes its start and excludes its end.
+- `source` is the half-open range of the original text that the token covers, in Unicode code points.
+- `text` is the original text over `source`.
+- `phonemes` is what the token sounds like (§5).
+- `label` is what the token shows to people (§5).
+- `insertedBy` names the rule whose emission clause inserted the token from a tag literal (§11). For any other token it is absent, even for a token that an emission `$` makes over an empty constituent.
+- `before` and `after` are the token's attachments (§11). These are two lists of tokens that belong to the token and that no later stage reads. Both are empty unless an emission gives the token attachments. An attached token has no `span`.
 
 The source of one token or more runs from the least source start among them to the greatest source end. An empty source counts as the point where it lies. Tokens usually lie in the order of their sources. Then this source runs from the source start of the first token to the source end of the last token.
 
@@ -39,10 +39,10 @@ A library reads a grammar document from disk as strict UTF-8. Bytes that are not
 
 `tools/unicode-table.py` generates `grammars/unicode.txt` from one version of the Unicode Character Database. Every library uses this file, not the Unicode data of its platform, so that the four libraries agree on every character. The file holds one entry on each line, with code points in hexadecimal:
 
-- `unicode 15.1.0`: The version of the data
-- `category Lu 0041 005A`: A range of code points whose General_Category is `Lu`. The category is in its short form.
-- `white-space 0009 000D`: A range of code points that have the White_Space property
-- `lower 0041 0061`: A code point and its simple lowercase mapping
+- `unicode 15.1.0` gives the version of the data.
+- `category Lu 0041 005A` gives a range of code points whose General_Category is `Lu`. The category is in its short form.
+- `white-space 0009 000D` gives a range of code points that have the White_Space property.
+- `lower 0041 0061` gives a code point and its simple lowercase mapping.
 
 In the bundled file, each `category` range is a longest run of one category. Together these ranges hold every Unicode scalar value once. `Cn`, the unassigned code points, has its ranges too. The records can stand in any order in a file. Each library sorts them when it loads the file, so their order never changes an answer.
 

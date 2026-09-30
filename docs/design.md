@@ -362,7 +362,7 @@ These are the product, not an afterthought:
 
 The CLI is `node lib/js/cli.js` (and `npx gencmu` once published). It has these commands:
 
-- `parse`, with options such as `--dialect`, `--feature` and `--no-feature`, `--until`, `--format brackets|tree|json|canonical|tokens` and `--trace`. It prints any warning on standard error, as it prints a tie.
+- `parse` parses a text. Its options include `--dialect`, `--feature` and `--no-feature`, `--until`, `--format brackets|tree|json|canonical|tokens` and `--trace`. It prints any warning on standard error, as it prints a tie.
 - `dialects`, to list the bundled dialects
 - `features`, to list a dialect's features
 - `audit`
@@ -408,9 +408,9 @@ The editor lists a dialect's documents stage by stage. A forgiving scan of the `
 
 There are three kinds of shared test, and every library runs all of them:
 
-- `tests/engine/`: The engine specification's cases. Each case gives a pattern that the canonical result JSON must match. A pattern can pin stages, tokens, tags, verdicts, witnesses, errors and coordinates.
-- `tests/notation/`: Small grammar documents with their expected DOMs and errors
-- `tests/corpus/*.jsonl`: Lojban texts, one case per line:
+- `tests/engine/` holds the engine specification's cases. Each case gives a pattern that the canonical result JSON must match. A pattern can pin stages, tokens, tags, verdicts, witnesses, errors and coordinates.
+- `tests/notation/` holds small grammar documents with their expected DOMs and errors.
+- `tests/corpus/*.jsonl` holds Lojban texts, one case per line:
 
   ```
   {"id": "cll.10.183.c10e24d5", "text": "puzu", "dialect": "cll-ebnf",
