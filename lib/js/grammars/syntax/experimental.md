@@ -364,7 +364,7 @@ A description can take a forethought sentence in place of a selbri, and so can a
   | KOhA #
   | lerfu-string free-after-lerfu-string
   | ¬cbm? name-marker # [relative-clauses] CMEVLA ... #
-  | (LA | LE) # sumti-tail [KU] #
+  | LE # sumti-tail [KU] #
   | LOhOI # subsentence [KUhAU] #
   | LI # mex [LOhO] #
   | ZO any-word #
