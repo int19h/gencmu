@@ -669,14 +669,14 @@ fn stage_output(dialect: &gencmu::Dialect, text: &str, name: &str) -> Vec<gencmu
     stage.output.expect("an output")
 }
 
-/// words/stream.md: the body of an empty zoi quote is an empty foreign part.
+/// words/stream.md: the body of an empty zoi quote is an empty opaque part.
 /// So it sounds `?`, and a letter word over the quote keeps the `?`, with no
 /// pause after it, since the one pause between the delimiters comes first.
 #[test]
-fn an_empty_zoi_body_sounds_foreign_and_so_does_a_letter_word_over_it() {
+fn an_empty_zoi_body_sounds_opaque_and_so_does_a_letter_word_over_it() {
     let dialect = gencmu::load_dialect("cll-ebnf").expect("the CLL dialect");
     let words = stage_output(&dialect, "zoi gy gy", "words");
-    let body = words.iter().find(|token| token.tags.iter().any(|tag| tag == "foreign-text")).expect("a body");
+    let body = words.iter().find(|token| token.tags.iter().any(|tag| tag == "quoted-text")).expect("a body");
     assert_eq!(body.phonemes.as_deref(), Some("?"));
     assert_eq!(body.inserted_by, None);
     let letter = &stage_output(&dialect, "zoi gy gy bu", "words")[0];

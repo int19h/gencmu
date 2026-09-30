@@ -21,9 +21,9 @@ The text is runs and pauses. A run is a stretch of text with no pause inside. Th
 
 Every pause rule of CLL 4.9 and 4.2 holds within one run. A pause satisfies each of them, so two words with a pause between them never constrain each other. The approved word forms look past the end of a word only as far as the next pause. So this stage reads each run on its own. The one exception is in the Zantufa dialect. There, a `ra'oi` before a pause changes how the stage divides the next run ([zantufa.md](zantufa.md)).
 
-A run is a sequence of words, or it is foreign text. A run is foreign text when the phoneme stage already found it foreign, because it has a character that no script reads. A run of phonemes that divides into no words is also foreign text.
+A run is a sequence of words, or it is unread. An unread run is one that the pipeline has not read as words, and it carries the tag `UNREAD`. A run is unread when the phoneme stage already left it unread, because it has a character that no script reads. A run of phonemes that divides into no words is also unread.
 
-Foreign text is not an error here. The word stage decides whether foreign text can stand where it is. The word stage takes foreign text as the body of a quote, such as `zoi` or `zo'oi`, and after `fa'o`. Elsewhere it rejects foreign text ([stream.md](stream.md)). So this stage never rejects a text.
+An unread run is not an error here. The word stage decides whether an unread run can stand where it is. The word stage takes it as the body of a quote, such as `zoi` or `zo'oi`, and after `fa'o`. Elsewhere it rejects an unread run ([stream.md](stream.md)). So this stage never rejects a text.
 
 A run that divides into words divides in one way only. The word forms of each family make sure of that. So the choice of the stage among parses never decides anything here.
 
@@ -51,7 +51,7 @@ A run that divides into words divides in one way only. The word forms of each fa
   run-words
 
 %rule foreign-run
-  $f(FOREIGN)
+  $f(UNREAD)
 %emits
   $ <tags($f) ∪ ~run-initial ∪ ~run-final>
 
@@ -61,7 +61,7 @@ A run that divides into words divides in one way only. The word forms of each fa
   ¬begins(after($f), nonpause-phoneme),
   ¬matches($f, read-run)
 %emits
-  $ <FOREIGN ∪ ~run-initial ∪ ~run-final>
+  $ <UNREAD ∪ ~run-initial ∪ ~run-final>
 
 %rule phoneme-run
   nonpause-phoneme | phoneme-run nonpause-phoneme
@@ -72,9 +72,9 @@ A run that divides into words divides in one way only. The word forms of each fa
   | /n/ | /p/ | /r/ | /s/ | /t/ | /v/ | /x/ | /z/
 ```
 
-The stage covers every input token. It passes pauses and foreign runs through, and combines phonemes into words or foreign runs. A foreign run of the phoneme stage keeps its phonemes, `?`, and its label, which is its text.
+The stage covers every input token. It passes pauses and the unread runs of the phoneme stage through, and combines phonemes into words or unread runs. An unread run of the phoneme stage keeps its phonemes, `?`, and its label, which is its text.
 
-A run of phonemes that divides into no words becomes one `FOREIGN` token, which sounds like its phonemes. So a `zoi` delimiter compares with it exactly as with the same phonemes read as words. The text of the token is what the author wrote.
+A run of phonemes that divides into no words becomes one `UNREAD` token, which sounds like its phonemes. Its rule is not `%opaque`, because the stage has read those phonemes. So a `zoi` delimiter compares with it exactly as with the same phonemes read as words. The text of the token is what the author wrote.
 
 The stage tests only a whole run for whether it divides. A part of a run has a phoneme after it, so the stage does not test it. The stage tests the run alone. This gives the same answer as a test in place, because no rule of this stage reads past the end of a run.
 

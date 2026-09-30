@@ -16,7 +16,7 @@ This document contributes the magic words, the constructs that act on the word s
 
 For example, `merko zei zo` is a `zei` compound whose second word is `zo`, because `zei` takes the word before any quote forms. And `fa fe si bu zei fi` erases `fe`, makes `fa bu`, and compounds it with `fi`. The stage resolves `sa` and `su`, the erasers that reach back over many words, in the same pass, because they act in the same order. The rules for all of these words come from the Magic Words proposal of the definition effort of the Logical Language Group. In six places, the proposal reads a text differently from CLL 19, and "Departures from CLL 19" lists them.
 
-The forms stage, before this stage, decides where the words are and where the pauses between them are needed. A run of the text is a stretch with no pause in it. The forms stage divides each run into words, under the pause rules of the dialect's word forms, or makes the run one `FOREIGN` token. Every pause rule of those word forms holds within one run. So the division does not depend on the magic words, with one exception ([zantufa.md](zantufa.md)). In the Zantufa dialect, `ra'oi` changes how the forms stage divides the letters after it, in its own run or in the next.
+The forms stage, before this stage, decides where the words are and where the pauses between them are needed. A run of the text is a stretch with no pause in it. The forms stage divides each run into words, under the pause rules of the dialect's word forms, or makes the run one `UNREAD` token. Every pause rule of those word forms holds within one run. So the division does not depend on the magic words, with one exception ([zantufa.md](zantufa.md)). In the Zantufa dialect, `ra'oi` changes how the forms stage divides the letters after it, in its own run or in the next.
 
 This stage reads the words by their tags. This stage makes sure that the magic words have the pauses they need. These are the pauses around a `zoi` body and the end of a `zo'oi` quote. In the `cll-ebnf` dialect, [cll-stream.md](cll-stream.md) also makes sure that a name that `bu` takes has pauses around it. The stage applies no other pause requirements.
 
@@ -123,7 +123,7 @@ The approved word forms read an odd run of three or more `y` as two words, `y` a
   y-run | y-base y-run
 ```
 
-`fa'o` ends the text (CLL 19.15): the stage does not read or hand on whatever follows it, so the group emits nothing. As the Magic Words proposal says, "No words are read to the right of FAhO, unconditionally". The forms stage reads `fa'o` as a word only where its run divides into words with `fa'o` as one of them. So `fa'omi` and `fa'obu` are `fa'o` alone, but `fa'oxxx`, whose run is foreign, is no text. Before it, the stage reads the stream as anywhere else, so `mifa'o` is `mi fa'o`.
+`fa'o` ends the text (CLL 19.15): the stage does not read or hand on whatever follows it, so the group emits nothing. As the Magic Words proposal says, "No words are read to the right of FAhO, unconditionally". The forms stage reads `fa'o` as a word only where its run divides into words with `fa'o` as one of them. So `fa'omi` and `fa'obu` are `fa'o` alone, but `fa'oxxx`, whose run is unread, is no text. Before it, the stage reads the stream as anywhere else, so `mifa'o` is `mi fa'o`.
 
 ```jbogenbau
 %rule faho-group
@@ -177,7 +177,7 @@ The rules below know a magic word by the selma'o the lexicon gives it, not by it
 
 CLL 19.9 and 19.10 describe the quotes. This stage decides each quote, because the words inside a quote do not count as words. For example, `zo si` quotes `si`, and a `zoi` body is not Lojban at all.
 
-Each quote hands the syntax stage its marker and its contents. The contents are bare words or one stretch of `foreign-text`, which is what the syntax grammar's `any-word` and `anything` read. The marker keeps its classes, and the tags `word` and `cmavo`: `classes($q) ∪ ~word ∪ ~cmavo`. It drops every other mark, so it never carries `indicator`. That holds even where the marker is also an attitudinal, which the forms stage's implication marks `indicator`. The word stage has no implication that adds the mark again.
+Each quote hands the syntax stage its marker and its contents. The contents are bare words or one unit of `quoted-text`, which is what the syntax grammar's `any-word` and `anything` read. The marker keeps its classes, and the tags `word` and `cmavo`: `classes($q) ∪ ~word ∪ ~cmavo`. It drops every other mark, so it never carries `indicator`. That holds even where the marker is also an attitudinal, which the forms stage's implication marks `indicator`. The word stage has no implication that adds the mark again.
 
 The reason is the indicator stage, which takes single tokens. It reads a marker with `indicator` as an indicator, and leaves the quoted contents behind with nothing to hold them. For example, take a lexicon that puts `ui` in both ZO and UI. Then `mi ui broda klama` fails if the marker keeps `indicator`. The indicator stage attaches `ui` to `mi`, and the bare word `broda` is left in the text. This lasts until the indicator stage can take a quote as one unit.
 
@@ -206,7 +206,7 @@ The reason is the indicator stage, which takes single tokens. It reads a marker 
   y-base [PAUSE] bu-word
 ```
 
-A word of ZOhOI or MEhOI, such as `zo'oi` or `me'oi`, quotes the next run of characters up to a pause. A quote attached to its marker, with no pause between them, takes the rest of the marker's run. The forms stage must divide that whole run into source words. Otherwise it makes the run one foreign token, with no marker in it. So `zo'oiklama` quotes `klama`, but the word stage rejects `zo'oixxx`. After a pause, the quote can take foreign text, as in `zo'oi xxx`.
+A word of ZOhOI or MEhOI, such as `zo'oi` or `me'oi`, quotes the next run of characters up to a pause. A quote attached to its marker, with no pause between them, takes the rest of the marker's run. The forms stage must divide that whole run into source words. Otherwise it makes the run one `UNREAD` token, with no marker in it. So `zo'oiklama` quotes `klama`, but the word stage rejects `zo'oixxx`. After a pause, the quote can take an unread run, as in `zo'oi xxx`.
 
 After a pause, the quote skips hesitation, as camxes-exp skips it in its `spaces`. Then the quote takes the next token and the rest of that token's run. So `zo'oiyymibroda` quotes `yymibroda`, `zo'oi yy mibroda` and `zo'oi yymibroda` quote `mibroda`, and `zo'oi yy` has nothing to quote. The quote ends where its run ends, `run-final` on its last token. Otherwise the lazy choice of the stage quotes only `mi` of `zo'oi mibroda`.
 
@@ -216,7 +216,7 @@ The stage compares the words by their canonical sound, `phonemes()`, which is in
 
 So a run of the body that is not the delimiter never ends the quote. CLL 4.9 puts a pause before and after the body. This stage also requires the closing delimiter to be the last word of its run, because it finds the delimiter as a whole run. So `zoi mi. x mi. klama` is a quote, and the word stage rejects `zoi mi. x mibroda klama`.
 
-A quote whose delimiters stand side by side quotes nothing. Its body is an empty foreign part, so it sounds `?` and has the shape of any other body. The one pause between the delimiters comes before that body, so a letter word over the quote sounds `zoi.gy.?gy.bu`.
+A quote whose delimiters stand side by side quotes nothing. Its body is an empty opaque part, so it sounds `?` and has the shape of any other body. The one pause between the delimiters comes before that body, so a letter word over the quote sounds `zoi.gy.?gy.bu`.
 
 Other parsers also compared the delimiters without case. CLL's official parser lowercases every word as it reads it, and keeps only its letters and apostrophes. ilmentufa's camxes lowercased both delimiters, dropped their commas and wrote `h` as an apostrophe. Its commit 2534c3b of 2020 replaced those actions with generic ones, which compare the words exactly. Pierre Abbat's design of 2003, on the Lojban mailing list, matches the closing delimiter "ignoring capitalization and commas".
 
@@ -224,7 +224,7 @@ The delimiter is the word after the marker. The stage takes it when it reads the
 
 No compound formed with `bu` is a delimiter, not even `.y. bu`. But a letter word such as `gy` or `y'y` is a delimiter. So `zoi .y. bu. x .y. bu.` is no quote, because hesitation is no word, and the stage never drops a hesitation before `bu`. So a delimiter is always one word, and a quote always ends at the first run of its body that is the delimiter.
 
-The body of a `zoi` quote and the run that `zo'oi` quotes are `%foreign`. So the syntax receives a token that sounds `?`, whatever the body holds. Its label is the text as written, with its punctuation. The stage still compares the delimiters, and each run of the body, by their phonemes. A run that the phoneme stage made foreign sounds `?` there, so it never matches a delimiter.
+The body of a `zoi` quote and the run that `zo'oi` quotes are `%opaque`. So the syntax receives a token that sounds `?`, whatever the body holds. Its label is the text as written, with its punctuation. The stage still compares the delimiters, and each run of the body, by their phonemes. A run that the phoneme stage left unread sounds `?` there, so it never matches a delimiter.
 
 ```jbogenbau
 %rule single-word-quote
@@ -235,7 +235,7 @@ The body of a `zoi` quote and the run that `zo'oi` quotes are `%foreign`. So the
   ~run-final ⊆ tags(last($s)),
   ~hesitation ⊈ tags(head($s)) ∨ begins(after(head($s)), bu-next)
 %emits
-  $m, $r <~foreign-text>, $s <~foreign-text>
+  $m, $r <~quoted-text>, $s <~quoted-text>
 
 %rule single-marker
   $q(magic-body) <classes($q) ∪ ~word ∪ ~cmavo>
@@ -251,7 +251,7 @@ The body of a `zoi` quote and the run that `zo'oi` quotes are `%foreign`. So the
   phonemes($open) ∉ split(phonemes($content), "."),
   ~run-final ⊆ tags($close)
 %emits
-  $m, $open <~word>, $content <~foreign-text>, $close <~word>
+  $m, $open <~word>, $content <~quoted-text>, $close <~word>
 
 %rule empty-zoi-quote
   $m(zoi-marker) quote-gap $open(delimiter) PAUSE $content(empty-zoi-body) $close(delimiter)
@@ -261,7 +261,7 @@ The body of a `zoi` quote and the run that `zo'oi` quotes are `%foreign`. So the
   phonemes($open) = phonemes($close),
   ~run-final ⊆ tags($close)
 %emits
-  $m, $open <~word>, $content <~foreign-text>, $close <~word>
+  $m, $open <~word>, $content <~quoted-text>, $close <~word>
 
 %rule empty-zoi-body
   ε
@@ -350,7 +350,7 @@ The ordinary erasure by `sa` does not take a `le'u` after it. The grammar states
   $ <~word>
 ```
 
-The gap between a marker and its word is an optional pause, with hesitation allowed inside it. The hesitation is runs of `y` with pauses between them. A quoted body is any run of tokens, pauses included, and a `zo'oi` quote any run of tokens up to a pause. A foreign run can appear there, and nowhere else but after `fa'o`.
+The gap between a marker and its word is an optional pause, with hesitation allowed inside it. The hesitation is runs of `y` with pauses between them. A quoted body is any run of tokens, pauses included, and a `zo'oi` quote any run of tokens up to a pause. An unread run can appear there, and nowhere else but after `fa'o`.
 
 ```jbogenbau
 %rule quote-gap
@@ -373,7 +373,7 @@ The gap between a marker and its word is an optional pause, with hesitation allo
   payload-token | PAUSE
 
 %rule payload-token
-  ~word | ~hesitation | FOREIGN
+  ~word | ~hesitation | UNREAD
 ```
 
 ## Compounds

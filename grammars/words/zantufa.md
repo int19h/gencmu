@@ -54,7 +54,7 @@ A word of LU, TO or LUhEI opens a text of its own. The hesitation after such a w
   LU ∪ TO ∪ LUhEI
 ```
 
-This document extends the rule `read-run` of forms.md to read a run in which a form follows `ra'oi`, as in `mira'oibroda`. So the stage never reads such a run as foreign text too.
+This document extends the rule `read-run` of forms.md to read a run in which a form follows `ra'oi`, as in `mira'oibroda`. So the stage never reads such a run as an unread run too.
 
 The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join. The first of them follows from the second, but it lets the parser drop a join early, as forms.md explains.
 

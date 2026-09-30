@@ -1052,17 +1052,17 @@ func hasTag(token Token, tag string) bool {
 	return false
 }
 
-// words/stream.md: the body of an empty zoi quote is an empty foreign part.
+// words/stream.md: the body of an empty zoi quote is an empty opaque part.
 // So it sounds ?, and a letter word over the quote keeps the ?, with no pause
 // after it, since the one pause between the delimiters comes first.
-func TestEmptyZoiBodySoundsForeign(t *testing.T) {
+func TestEmptyZoiBodySoundsOpaque(t *testing.T) {
 	d, err := LoadDialect("cll-ebnf")
 	if err != nil {
 		t.Fatal(err)
 	}
 	var body *Token
 	for _, token := range stageOutput(t, d, "zoi gy gy", "words") {
-		if hasTag(token, "foreign-text") {
+		if hasTag(token, "quoted-text") {
 			body = &token
 			break
 		}

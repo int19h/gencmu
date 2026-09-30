@@ -56,7 +56,7 @@ An item is a word with the `ba'e` run before it and the indicator run after it, 
   ($b) $w ($a)
 
 %rule unit
-  | ~word∩(~indicator ∪ BAhE ∪ LEhU)=∅ | ~foreign-text | LEhU
+  | ~word∩(~indicator ∪ BAhE ∪ LEhU)=∅ | ~quoted-text | LEhU
 
 %rule bahe-run
   bahe | bahe-run bahe
