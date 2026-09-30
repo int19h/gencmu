@@ -529,10 +529,23 @@ class Dialect:
         # §5). It has no attachments: a list that is not empty is the
         # caller's mistake, and an empty one is dropped (docs/api.md). The
         # parse copies each token, so the caller's objects stay as they are.
+        # The copy has its tags and positions in values that cannot change,
+        # so the result shares nothing that the caller can change.
         for index, token in enumerate(tokens):
             if token.before or token.after:
                 raise GencmuError(f"token {index} has attachments, which a caller cannot supply", kind="usage")
-        tokens = [replace(token, label=token.text, before=[], after=[]) for token in tokens]
+        tokens = [
+            replace(
+                token,
+                tags=frozenset(token.tags),
+                span=None if token.span is None else (token.span[0], token.span[1]),
+                source=(token.source[0], token.source[1]),
+                label=token.text,
+                before=[],
+                after=[],
+            )
+            for token in tokens
+        ]
         # Only a dialect that has sa-su as a gate adds it by itself, and not
         # when the caller has turned it off (engine §13).
         gated = any(feature.name == "sa-su" and feature.kind == "gate" for feature in self.features)
