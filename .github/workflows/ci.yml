@@ -50,6 +50,9 @@ jobs:
         run: node --test
       - name: The package holds everything it needs
         working-directory: lib/js
+        # With bash named, the step runs with pipefail, so a failure of
+        # npm pack fails the step.
+        shell: bash
         run: npm pack --dry-run 2>&1 | tee pack.txt && grep -q "grammars/compiled.json" pack.txt && grep -q "src/index.js" pack.txt && grep -q "types/index.d.ts" pack.txt
 
   python:
@@ -77,6 +80,9 @@ jobs:
           "$RUNNER_TEMP/build/bin/python" -m build --outdir "$RUNNER_TEMP/dist"
       - name: The wheel holds everything it needs
         working-directory: lib/python
+        # With bash named, the step runs with pipefail, so a failure of
+        # zipfile fails the step.
+        shell: bash
         run: |
           python -m zipfile -l "$RUNNER_TEMP"/dist/*.whl | tee wheel.txt
           grep -q "gencmu/grammars/compiled.json" wheel.txt
