@@ -973,6 +973,34 @@ mod tests {
     }
 
     #[test]
+    fn classifier_tables_are_bounded() {
+        // Every set of five classifier gates, twice: the second round
+        // resolves again the tables that the first round dropped.
+        let names = ["a", "b", "c", "d", "e"];
+        let entries: String = names.iter().map(|name| format!("\n  {name}? \"x\" ∈ {}", name.to_uppercase())).collect();
+        let dialect =
+            dialect(&format!("%classifier c\n  \"x\" ∈ X{entries}\n%rule text $w('x') <classify(text($w), c)>"));
+        for _ in 0..2 {
+            for set in 0..1usize << names.len() {
+                let features: Vec<String> = names
+                    .iter()
+                    .enumerate()
+                    .filter(|(index, _)| set & (1 << index) != 0)
+                    .map(|(_, name)| name.to_string())
+                    .collect();
+                let mut want: Vec<String> = features.iter().map(|name| name.to_uppercase()).collect();
+                want.push("X".to_string());
+                want.sort();
+                let options = ParseOptions { features, auto_features: false, ..ParseOptions::default() };
+                let result = dialect.parse("x", &options).unwrap();
+                let tags: Vec<String> = result.tree.as_ref().expect("a tree").tags.iter().cloned().collect();
+                assert_eq!(tags, want);
+            }
+        }
+        assert!(cached(&dialect).1 <= MAX_LOWERED);
+    }
+
+    #[test]
     fn lowered_grammars_are_bounded() {
         let names = ["a", "b", "c", "d", "e", "f", "g"];
         let alternatives: Vec<String> = names.iter().map(|name| format!("{name}? 'x'")).collect();
