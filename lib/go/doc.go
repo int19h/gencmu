@@ -43,7 +43,7 @@
 // a non-empty Before or After is a usage error, and empty ones are dropped.
 //
 // A token has its phonemes, what it sounds like, and its label, what it
-// shows to people (engine §5). A token over a foreign part, such as the
+// shows to people (engine §5). A token over an opaque part, such as the
 // body of a zoi quote, sounds ? and has the part's text as its label.
 // A token can also carry attachments, Before and After: tokens that belong
 // to it and that no later stage reads, such as the indicators after a word

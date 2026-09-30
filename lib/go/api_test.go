@@ -289,9 +289,9 @@ func TestMarshalResult(t *testing.T) {
 	if !strings.HasSuffix(string(data), `,"error":null,"warnings":[{"stage":"main","feature":"w","rule":"text","span":[0,2],"source":[0,2]}]}`) {
 		t.Fatalf("%s", data)
 	}
-	// "label" follows "phonemes" on every token. A foreign part sounds ?
+	// "label" follows "phonemes" on every token. An opaque part sounds ?
 	// and shows its text, and nothing marks it.
-	d = mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text w 'x'\n%rule w 'é'\n%emits $ <W>\n%foreign"))
+	d = mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text w 'x'\n%rule w 'é'\n%emits $ <W>\n%opaque"))
 	res, _ = d.Parse("éx", ParseOptions{})
 	data, _ = MarshalResult(res)
 	if !strings.Contains(string(data), `"output":[{"text":"é","phonemes":"?","label":"é","tags":["W"],"span":[0,1],"source":[0,1]}]}`) {
@@ -905,13 +905,13 @@ func TestEmptyCharacterTag(t *testing.T) {
 
 // A defect of a grammar found while parsing is an error with the stage and
 // no position (engine §13, docs/output.md): two phoneme tags on a token that
-// a constituent emits, on a token over a foreign part and on an inserted
+// a constituent emits, on a token over an opaque part and on an inserted
 // one, a token with no tags, and a condition that asks about its own span.
 func TestGrammarFaultHasNoPosition(t *testing.T) {
 	const twoPhonemes = "stage main: an emitted token has two phoneme tags"
 	for _, c := range []struct{ grammar, message string }{
 		{"%implies A ⟹ /o/\n%rule text [word] ...\n%rule word $w(W) <A ∪ /e/>\n%emits\n  $", twoPhonemes},
-		{"%rule text [word] ...\n%rule word $w(W) </e/ ∪ /o/>\n%emits\n  $\n%foreign", twoPhonemes},
+		{"%rule text [word] ...\n%rule word $w(W) </e/ ∪ /o/>\n%emits\n  $\n%opaque", twoPhonemes},
 		{"%implies /e/ ⟹ /o/\n%rule text [word] ...\n%rule word $w(W)\n%emits\n  $w, /e/", twoPhonemes},
 		{"%rule text $a(W) %emits $a <tags($a) ∩ Z>", "stage main: text emits a token with no tags"},
 		{"%rule text $a(x) %conditions ¬matches($a, text)\n%rule x W",
