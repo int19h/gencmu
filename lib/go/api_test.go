@@ -1074,3 +1074,20 @@ func TestEmptyZoiBodySoundsForeign(t *testing.T) {
 		t.Fatalf("zoi gy gy bu sounds %q", letter.Phonemes)
 	}
 }
+
+// phonemes/zbalermorna.md: the token of the vowel after the shorthand mark
+// covers the mark, so a word that begins with the shorthand begins at it.
+func TestZbalermornaShorthandCoversItsMark(t *testing.T) {
+	d, err := LoadDialect("bpfk")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := ""
+	if vowel := stageOutput(t, d, text, "phonemes")[0]; vowel.Text != "" || vowel.Source != [2]int{0, 2} {
+		t.Fatalf("the vowel: %q %v", vowel.Text, vowel.Source)
+	}
+	word := stageOutput(t, d, text, "forms")[0]
+	if word.Text != text || word.Source != [2]int{0, 3} || word.Phonemes != "u'i" {
+		t.Fatalf("the word: %q %v %q", word.Text, word.Source, word.Phonemes)
+	}
+}

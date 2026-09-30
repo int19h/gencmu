@@ -682,3 +682,16 @@ fn an_empty_zoi_body_sounds_foreign_and_so_does_a_letter_word_over_it() {
     let letter = &stage_output(&dialect, "zoi gy gy bu", "words")[0];
     assert_eq!(letter.phonemes.as_deref(), Some("zoi.gy.?gy.bu"));
 }
+
+/// phonemes/zbalermorna.md: the token of the vowel after the shorthand mark
+/// covers the mark, so a word that begins with the shorthand begins at it.
+#[test]
+fn the_zbalermorna_shorthand_vowel_token_covers_its_mark() {
+    let dialect = gencmu::load_dialect("bpfk").expect("the bpfk dialect");
+    let text = "\u{ED8B}\u{EDA4}\u{EDA2}";
+    let vowel = &stage_output(&dialect, text, "phonemes")[0];
+    assert_eq!((vowel.text.as_str(), vowel.source.clone()), ("\u{ED8B}\u{EDA4}", 0..2));
+    let word = &stage_output(&dialect, text, "forms")[0];
+    assert_eq!((word.text.as_str(), word.source.clone()), (text, 0..3));
+    assert_eq!(word.phonemes.as_deref(), Some("u'i"));
+}

@@ -650,3 +650,14 @@ class BundledGrammars(unittest.TestCase):
         self.assertIsNone(body.inserted_by)
         letter = stage_output(dialect, "zoi gy gy bu", "words")[0]
         self.assertEqual(letter.phonemes, "zoi.gy.?gy.bu")
+
+    def test_zbalermorna_shorthand(self) -> None:
+        """phonemes/zbalermorna.md: the token of the vowel after the shorthand
+        mark covers the mark, so a word that begins with the shorthand begins
+        at it."""
+        dialect = gencmu.load_dialect("bpfk")
+        text = ""
+        vowel = stage_output(dialect, text, "phonemes")[0]
+        self.assertEqual((vowel.text, vowel.source), ("", (0, 2)))
+        word = stage_output(dialect, text, "forms")[0]
+        self.assertEqual((word.text, word.source, word.phonemes), (text, (0, 3), "u'i"))
