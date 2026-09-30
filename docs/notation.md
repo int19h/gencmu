@@ -341,14 +341,14 @@ The approved word forms, the word grammar of the `bpfk` dialect, use these to tr
 Every token and every constituent carries a set of tags, and a terminal matches a token by tag. So the tags that a grammar gives its constituents are the terminals of the grammar of the next stage. A rule uses tag terms to say what tags its constituents carry. A tag term in angle brackets after an alternative is for that alternative. A tag term after `%tags` is for every alternative. Where both are written, a constituent's tags are the union of the two:
 
 ```jbogenbau
-%rule cmevla
-  | ¬cbm? $b(cmevla-body) <CMEVLA>
-  | cbm? $b(cmevla-body) <CMEVLA ∪ BRIVLA>
+%rule source-word
+  | $b(brivla-shape) <BRIVLA ∪ tags($b)>
+  | $n(cmevla-shape) <CMEVLA ∪ tags($n)>
 %tags
   ~word
 
 %rule cmavo
-  $w(cmavo-body)
+  $w(cmavo-shape)
 %tags
   ~cmavo ∪ classify(phonemes($w), lexicon)
 ```
@@ -365,7 +365,7 @@ An item of the list can be a capture. The stage hands a capture on as one token.
 
 An item can also be a single tag literal: an identifier tag, a phoneme tag or a character tag. The stage hands it on as a token with that one tag and no text of its own. A string is not a tag, so `%emits "foo"` is an error. A range or a property is not one tag, so it is an error there too. The author must list the captures in the order they stand in the text.
 
-`$` is the whole constituent. A list of `$` items hands on one token over the whole constituent for each item. For example, `%emits $ </n/>, $ </o/>` is how the digit `0` becomes the phonemes of `no`. An inserted tag stands where it is listed. So `%emits $g, /'/, $v` hands on an apostrophe between two vowels, for a script that writes none. A tag term that gives no tags when the parse is made is an error of the grammar, because no terminal can read the token.
+`$` is the whole constituent. A list of `$` items hands on one token over the whole constituent for each item. For example, `%emits $ </n/>, $ </o/>` is how the digit `0` becomes the phonemes of `no`. An inserted tag stands where it is listed. So `%emits /'/, $v` hands on an apostrophe before a vowel, for a script that writes none (`joined-vowel` in `latin-strict.md`). A tag term that gives no tags when the parse is made is an error of the grammar, because no terminal can read the token.
 
 `%emits ε` hands on nothing, and it does more: the constituent does not count. So nothing in it is part of what a token over it sounds like. That is what an erased stretch of text is. `broda brode si bu` hands on the letter word `broda bu` (`si` erases the word before it). Its token covers `brode si` too, because a `si` erasure can stand between a word and its `bu`. But the token does not sound like `brode si`.
 

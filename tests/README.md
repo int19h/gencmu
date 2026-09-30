@@ -1,6 +1,6 @@
 # The shared tests
 
-Every gencmu library runs every shared case that its API can express. The Rust library skips a few engine cases, as "Engine cases" says. If a case fails in one library and passes in another, there is a bug. The bug is in the library that disagrees with `docs/engine.md`, or in the specification itself.
+Every gencmu library runs every shared case that its API can express. The Rust library skips two engine cases, as "Engine cases" says. If a case fails in one library and passes in another, there is a bug. The bug is in the library that disagrees with `docs/engine.md`, or in the specification itself.
 
 ## Engine cases: `engine/*.json`
 

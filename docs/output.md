@@ -40,11 +40,12 @@ A token has this form. This one is the token of `mi` that the forms stage of the
 
 `insertedBy` follows `source` for a token that was inserted from a tag literal (engine §1). Its value is the name of the rule that inserted the token.
 
-`before` and `after` follow `insertedBy` for a token with attachments (engine §11). Each is an array of tokens in this form, and each is present only when it is not empty. An attached token has no `span`, so its object leaves it out:
+`before` and `after` follow `insertedBy` for a token with attachments (engine §11). Each is an array of tokens in this form, and each is present only when it is not empty. An attached token has no `span`, so its object leaves it out. This is the token of `mi ui` that the indicator stage of the CLL dialect emits:
 
 ```
-{"text":"mi","phonemes":"mi","label":"mi","tags":["KOhA"],"span":[0,1],"source":[0,2],
- "after":[{"text":"ui","phonemes":"ui","label":"ui","tags":["UI","indicator"],"source":[3,5]}]}
+{"text":"mi","phonemes":"mi","label":"mi","tags":["KOhA","cmavo","continued","onset","run-final","run-initial","word"],
+ "span":[0,1],"source":[0,2],
+ "after":[{"text":"ui","phonemes":"ui","label":"ui","tags":["UI","cmavo","continued","indicator","run-final","run-initial","word"],"source":[3,5]}]}
 ```
 
 A node has one of these forms:

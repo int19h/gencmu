@@ -17,7 +17,8 @@ println!("{}", gencmu::to_json(&result));
 ## The API
 
 - `load_dialect(name)` loads a bundled dialect, the pipeline document `grammars/dialects/NAME.md`. `load_dialect_file(path)` loads a pipeline document from disk, and finds the documents that it includes relative to it. `load_dialect_sources(sources, pipeline)` loads documents held in memory, from any iterable of `(path, text)` pairs. Each returns `Result<Dialect, gencmu::Error>`.
-- `Dialect::parse(&self, text, &ParseOptions) -> Result<ParseResult, Error>` parses a text. A text that does not parse is a result whose `ok` is false. The same holds for a grammar defect found while parsing, such as an entry that adds a class twice under the selected features. The `Error` is for a mistake of the caller. Examples are an unknown stage in `until`, and a feature named both to turn on and to turn off. `ParseOptions` has `features` and `without_features`, the features to turn on and off besides the pipeline's own, `auto_features` (on by default), `until` and `elision_only`.
+- `Dialect::parse(&self, text, &ParseOptions) -> Result<ParseResult, Error>` parses a text. A text that does not parse is a result whose `ok` is false. The same holds for a grammar defect found while parsing, such as an entry that adds a class twice under the selected features. The `Error` is for a mistake of the caller. Examples are an unknown stage in `until`, and a feature named both to turn on and to turn off.
+- `ParseOptions` has `features`, `without_features`, `auto_features` (on by default), `until` and `elision_only`. `features` names the features to turn on, besides the pipeline's own. `without_features` names the features to turn off, the pipeline's own included.
 - `Dialect::features()` lists the features of the dialect in code point order, the gates of its classifiers' entries included. Each is a `Feature` with its `name`, its `kind` (`FeatureKind::Gate` or `FeatureKind::Warning`), and whether the pipeline turns it on by `default`.
 - `to_json(&result)` writes the canonical JSON of `docs/output.md`.
 - `to_brackets(&result, show_elided)` renders the tree as brackets. It shows each token by its label. A token with attachments is a group of its before-attachments, its label and its after-attachments, so `mi ui klama` in the CLL dialect is `([mi ui] klama)`.
@@ -41,7 +42,7 @@ The grammars of the crate, `grammars/`, are a copy of the grammars of the reposi
 
 `cargo test` runs these tests:
 
-- The shared engine and notation cases of the `tests/` of the repository, apart from the few engine cases whose input tokens have attachments
+- The shared engine and notation cases of the repository's `tests/`, apart from two engine cases whose input tokens have a `before` or `after` member
 - The bootstrap fixpoint
 - The DOM cache
 - The API
