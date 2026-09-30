@@ -264,7 +264,7 @@ A tanru unit is one brick of the selbri. `tanru-unit` allows `cei` to assign the
 - `me sumti me'u`, which turns a sumti into a selbri, optionally with a following `moi`
 - A number or lerfu string with `moi`, `mei` or the others of MOI
 - `nu'a` before an operator
-- A conversion `se`, `te`, ...
+- A conversion: `se`, `te`, `ve` or `xe`
 - `jai` with an optional tense or modal
 - A `zei` compound of any words
 - A scalar negation `na'e`

@@ -56,13 +56,13 @@ A range, written `'a'..'z'`, is the set of the character tags from its start to 
 
 A property, written `'\p{Name}'`, holds the scalar values that have a property in `grammars/unicode.txt`. The names are exactly these, and their case counts. Each General_Category value in its short form is a name. So is each group of these values, which holds the values whose short form begins with its letter:
 
-- `L`: `Lu`, `Ll`, `Lt`, `Lm` and `Lo`.
-- `M`: `Mn`, `Mc` and `Me`.
-- `N`: `Nd`, `Nl` and `No`.
-- `P`: `Pc`, `Pd`, `Ps`, `Pe`, `Pi`, `Pf` and `Po`.
-- `S`: `Sm`, `Sc`, `Sk` and `So`.
-- `Z`: `Zs`, `Zl` and `Zp`.
-- `C`: `Cc`, `Cf`, `Cs`, `Co` and `Cn`.
+- `L`: `Lu`, `Ll`, `Lt`, `Lm` and `Lo`
+- `M`: `Mn`, `Mc` and `Me`
+- `N`: `Nd`, `Nl` and `No`
+- `P`: `Pc`, `Pd`, `Ps`, `Pe`, `Pi`, `Pf` and `Po`
+- `S`: `Sm`, `Sc`, `Sk` and `So`
+- `Z`: `Zs`, `Zl` and `Zp`
+- `C`: `Cc`, `Cf`, `Cs`, `Co` and `Cn`
 
 The two other names are `White_Space`, the code points of the `white-space` ranges, and `Any`, every scalar value.
 
@@ -74,9 +74,9 @@ A grammar is the stitching of the items of one stage of a pipeline (§13) into a
 
 To stitch a stage's items, the loader reads them in order, whatever documents they come from. Each rule is stated one of three ways, and each is an error in the case given:
 
-- `%rule` (`define`) defines a rule: an error if a rule of that name was defined before it in the stage.
-- `%redefine-rule` (`redefine`) replaces the rule of that name defined before it in the stage: an error if none was. The earlier alternatives are then gone, those of any `%extend-rule` of the rule included.
-- `%extend-rule` (`extend`) appends its alternatives to the rule of that name defined before it in the stage: an error if none was.
+- `%rule` (`define`) defines a rule. It is an error if a rule of that name was defined before it in the stage.
+- `%redefine-rule` (`redefine`) replaces the rule of that name defined before it in the stage. It is an error if none was. The earlier alternatives are then gone, those of any `%extend-rule` of the rule included.
+- `%extend-rule` (`extend`) appends its alternatives to the rule of that name defined before it in the stage. It is an error if none was.
 
 When `%extend-rule` extends a rule, each appended alternative carries the extension's own clauses: its rule-level tags, conditions and emission. These clauses apply to the appended alternatives alone, and the base rule's clauses do not apply to them. The earlier alternatives keep their own clauses. So a script document can add letters to a rule without restating its clauses, and its own clauses do not leak into the base rule. A definition is a `%rule`, `%redefine-rule` or `%extend-rule` statement: its alternatives and the clauses written with them. The loader records every replacement and extension.
 
@@ -286,23 +286,23 @@ Two reads are the same action when they read the same token as the same terminal
 
 The stage compares two derivations of the same input at their first differing visible action:
 
-1. Both read the same token as different terminals: tied.
-2. One reads and the other closes: `greedy` prefers the read, `lazy` the close.
-3. Both close, different productions or different spans: tied.
+1. If both read the same token as different terminals, they are tied.
+2. If one reads and the other closes, `greedy` prefers the read, and `lazy` the close.
+3. If both close, with different productions or different spans, they are tied.
 
 If the visible sequences are equal, or one is a proper prefix of the other, the two are tied. For the witness below, their first difference is the first pair of differing actions of the whole sequences, transparent ones included. A derivation whose visible sequence is a proper prefix of the other's differs from it where the shorter ends.
 
 The winner is a derivation that no other derivation beats. The verdict is one of these:
 
-- `unique` if the input has one derivation.
-- `resolved` if it has several and one winner that is not tied with any other derivation at its first difference with it.
-- `tie` otherwise.
+- `unique` if the input has one derivation
+- `resolved` if it has several and one winner that is not tied with any other derivation at its first difference with it
+- `tie` otherwise
 
 The stage puts the derivations in a canonical order, *T*, and it chooses the first. *T* compares two derivations first by their visible sequences:
 
-- At their first differing visible pair, by rules 1 to 3 where those decide, and otherwise by the canonical keys. The canonical keys put a read before a close. They order two reads by terminal, in code point order. They order two closes by production number, then span start, then span end.
+- *T* compares them at their first differing visible pair, by rules 1 to 3 where those decide, and otherwise by the canonical keys. The canonical keys put a read before a close. They order two reads by terminal, in code point order. They order two closes by production number, then span start, then span end.
 - If one visible sequence is a proper prefix of the other, the shorter comes first.
-- If the visible sequences are equal, at the first differing pair of the whole sequences, by the canonical keys. If one whole sequence is a prefix of the other, the shorter comes first.
+- If the visible sequences are equal, *T* compares them at the first differing pair of the whole sequences, by the canonical keys. If one whole sequence is a prefix of the other, the shorter comes first.
 
 *T* is lexicographic on the visible sequences and then on the whole ones, so it is a total order. The chosen derivation, `m`, is its least element, whatever the verdict.
 
@@ -410,61 +410,61 @@ The lexical stage reads the longest symbol. So `...` is always one token, repeti
 
 The grammar does not state the restrictions below. Each of these is an error of the document, and the reader reports it at the first token of the offending construct:
 
-- A capture wrapping anything but one symbol, `$x((B))` included. A symbol is a reference, a tag literal, a character tag, a phoneme tag, a range, a property or a tested one of these.
-- A capture whose name has a capital. Capture names are all lower case.
-- A constant in a body, reported at the constant. A body names a class of tokens with a rule, such as `%rule digit '0'..'9'`, and never with a constant.
-- `$` wrapping anything.
-- A capture name used twice in one alternative.
-- A test after anything but a reference other than `#` or a terminal, reported at the test. So a test after a group, an optional, a capture, `ε`, `#` or another test is an error. The syntax grammar permits a test after any primary.
-- A range whose start is above its end, reported at the range.
-- A property whose text is not `'\p{Name}'` with a name of §1, reported at the property. So a long name, such as `Letter`, and a name in other case, such as `lu`, are errors.
-- A property in a term or a condition, reported at the property. A property is not a tag set.
-- A string in an `=` or `≠` test that no canonical sound (§5) can be, reported at the string. That is a string with a comma, or with a code point that the simple lowercase mapping changes. So `LE="La"` and `LE="l,a"` are errors. The loader makes sure that a string constant there is a canonical sound too (§2).
-- A test's operand that is not a closed term (§10), reported at the first part that is not closed. So a capture, `$`, a guarded term and a call of `phonemes`, `text`, `tags`, `classes` or `classify` are errors there.
-- A test's operand of the wrong type, reported at the operand. The operand of `=` and `≠` is a string, and that of the other four tests is a tag set. So `LE⊇"la"` and `LE=~la` are errors.
-- A function that does not exist, or one called with the wrong arguments. `phonemes`, `text`, `classes`, `head`, `tail`, `last`, `from` and `after` take one span. `split` takes two strings, and `tag` takes one string. `tags` takes a span and optionally a rule name. `matches` and `begins` take a span and a rule name, and `initial` takes one span. `classify` takes a string and a classifier's name.
+- A capture that wraps anything but one symbol is an error, `$x((B))` included. A symbol is a reference, a tag literal, a character tag, a phoneme tag, a range, a property or a tested one of these.
+- A capture whose name has a capital is an error. Capture names are all lower case.
+- A constant in a body is an error, reported at the constant. A body names a class of tokens with a rule, such as `%rule digit '0'..'9'`, and never with a constant.
+- A `$` that wraps anything is an error.
+- A capture name used twice in one alternative is an error.
+- A test after anything but a reference other than `#` or a terminal is an error, reported at the test. So a test after a group, an optional, a capture, `ε`, `#` or another test is an error. The syntax grammar permits a test after any primary.
+- A range whose start is above its end is an error, reported at the range.
+- A property whose text is not `'\p{Name}'` with a name of §1 is an error, reported at the property. So a long name, such as `Letter`, and a name in other case, such as `lu`, are errors.
+- A property in a term or a condition is an error, reported at the property. A property is not a tag set.
+- A string in an `=` or `≠` test that no canonical sound (§5) can be is an error, reported at the string. That is a string with a comma, or with a code point that the simple lowercase mapping changes. So `LE="La"` and `LE="l,a"` are errors. The loader makes sure that a string constant there is a canonical sound too (§2).
+- A test's operand that is not a closed term (§10) is an error, reported at the first part that is not closed. So a capture, `$`, a guarded term and a call of `phonemes`, `text`, `tags`, `classes` or `classify` are errors there.
+- A test's operand of the wrong type is an error, reported at the operand. The operand of `=` and `≠` is a string, and that of the other four tests is a tag set. So `LE⊇"la"` and `LE=~la` are errors.
+- A function that does not exist is an error, and so is one called with the wrong arguments. `phonemes`, `text`, `classes`, `head`, `tail`, `last`, `from` and `after` take one span. `split` takes two strings, and `tag` takes one string. `tags` takes a span and optionally a rule name. `matches` and `begins` take a span and a rule name, and `initial` takes one span. `classify` takes a string and a classifier's name.
 
   In these signatures, a span is a capture or `head`, `tail`, `last`, `from` or `after` of one. A string is a term whose type is string (§10). The reader reports a call with the wrong arguments at the call. So a bare name in an argument that takes no name, as in `classify(lex, "mi")`, is reported at `classify`, not at the name.
-- A `split` whose delimiter is the string literal `""`, reported at the call.
-- A `tag` whose argument is a string literal that is not a name, reported at the call.
-- A constant's value that is not a closed term (§10), reported at the first part that is not closed. So a capture, `$`, a guarded term and a call of `phonemes`, `text`, `tags`, `classes` or `classify` are errors there.
-- A side of an implication that is not a closed term, reported in the same way. A side whose type is not a tag set, reported at the side.
-- A classifier's name that does not begin with `a` to `z`, reported at the name. `classify` cannot name it, since a bare name with a capital is a tag.
-- A warning on a classifier's entry, reported at the warning. An entry takes gates only.
-- A key that no canonical sound can be, reported at the key. That is a key with a comma, or with a code point that the simple lowercase mapping changes. So `"Mi"` and `"ko,a"` are errors, as they are in a test.
-- A class that is not a name that begins with `A` to `Z`, reported at the class. So `~indicator` is an error there.
-- A term or a condition whose types do not agree, as §10 gives them. So `"a" ∈ tags($x)` and `phonemes($x) = ~a` are errors, and so is `∅ = ∅`, whose kind nothing gives. The reader reports the error at the smallest construct whose parts disagree. That construct is a union with its differences, an intersection, a guarded term, a call or a comparison. Otherwise, it is the whole tag term of a clause or an item, or the whole value of a constant.
+- A `split` whose delimiter is the string literal `""` is an error, reported at the call.
+- A `tag` whose argument is a string literal that is not a name is an error, reported at the call.
+- A constant's value that is not a closed term (§10) is an error, reported at the first part that is not closed. So a capture, `$`, a guarded term and a call of `phonemes`, `text`, `tags`, `classes` or `classify` are errors there.
+- A side of an implication that is not a closed term is an error, reported in the same way. A side whose type is not a tag set is an error too, reported at the side.
+- A classifier's name that does not begin with `a` to `z` is an error, reported at the name. `classify` cannot name it, since a bare name with a capital is a tag.
+- A warning on a classifier's entry is an error, reported at the warning. An entry takes gates only.
+- A key that no canonical sound can be is an error, reported at the key. That is a key with a comma, or with a code point that the simple lowercase mapping changes. So `"Mi"` and `"ko,a"` are errors, as they are in a test.
+- A class that is not a name that begins with `A` to `Z` is an error, reported at the class. So `~indicator` is an error there.
+- A term or a condition whose types do not agree, as §10 gives them, is an error. So `"a" ∈ tags($x)` and `phonemes($x) = ~a` are errors, and so is `∅ = ∅`, whose kind nothing gives. The reader reports the error at the smallest construct whose parts disagree. That construct is a union with its differences, an intersection, a guarded term, a call or a comparison. Otherwise, it is the whole tag term of a clause or an item, or the whole value of a constant.
 
   The reader does not know the type of a constant, so it lets a constant stand for a value of any type but a span. After the loader stitches the stage, it makes sure again that the types agree (§2). It reports an error there at the first constant of the smallest construct whose parts disagree.
-- A span where a value is needed: a capture, `$`, or `head`, `tail`, `last`, `from` or `after`. The reader reports it at the span.
-- A bare name that does not begin with a capital, where a value is needed. Such a name is a rule or a classifier. A rule is only the second argument of `tags`, `matches` or `begins`, and a classifier only that of `classify`.
-- `matches`, `begins` or `initial` as a term.
-- An `&` of more than 16 items.
-- An expression, a term or a condition nested more than 256 deep. That is, in the DOM (docs/output.md), a node of one lies below more than 256 compound nodes of it. In an expression, the compound nodes are `optional`, `repeat`, `and`, `choice`, `seq`, `capture` and `test`. In a term, they are `union`, `intersection`, `difference`, `if` and `call`. In a condition, they are `any`, `all`, `not`, `if`, `matches`, `begins`, `initial` and a comparison.
+- A span where a value is needed is an error: a capture, `$`, or `head`, `tail`, `last`, `from` or `after`. The reader reports it at the span.
+- A bare name that does not begin with a capital is an error where a value is needed. Such a name is a rule or a classifier. A rule is only the second argument of `tags`, `matches` or `begins`, and a classifier only that of `classify`.
+- `matches`, `begins` or `initial` as a term is an error.
+- An `&` of more than 16 items is an error.
+- An expression, a term or a condition nested more than 256 deep is an error. That is, in the DOM (docs/output.md), a node of one lies below more than 256 compound nodes of it. In an expression, the compound nodes are `optional`, `repeat`, `and`, `choice`, `seq`, `capture` and `test`. In a term, they are `union`, `intersection`, `difference`, `if` and `call`. In a condition, they are `any`, `all`, `not`, `if`, `matches`, `begins`, `initial` and a comparison.
 
   The condition of a guarded term counts on from the term's depth, as a comparison's terms count on from the condition's. A test's value counts on from the test's depth in the same way. `( )` makes no node, so it adds nothing. So 256 nested `[ ]` around a symbol are allowed, and 257 are not. The reader reports this error at the first item, in the order of the document, that holds such a node. That item is a rule, a constant definition or an implication.
-- `$` with items other than `$`.
-- Tags on an inserted tag.
-- An inserted bare name that does not begin with a capital, which names a rule and not a tag.
-- An inserted range or property, which is not one tag.
-- `∅` as an item's tags, which is a token no terminal reads.
-- An attachment (§11) that holds `$`, reported at the attachment. An attachment holds a named capture.
-- An attachment on a `$` item or on an inserted tag, reported at the item. Only a named capture carries attachments. So a constituent never attaches to itself.
-- A capture other than `$` named twice in one emission, as an item or as an attachment. So an attachment capture is never an item of its own.
-- A rule's or an alternative's tag term that reads the tags that it defines: `tags($)` or `classes($)` in it. `tags(head($))` and the like read the tokens' tags, not the constituent's, and are allowed, as is `tags($, R)`.
-- An unknown directive or keyword, which the syntax grammar already refuses.
-- A directive with the wrong operands, reported at the directive. `%stage` takes one name, `%include` one string, and `%features` one or more names. `%elidable` takes identifier tags: names that begin with a capital, or `~name`. A range or a property there is an error, as a phoneme tag or a character tag is. `%ambiguity-resolution` takes names only.
+- `$` with items other than `$` is an error.
+- Tags on an inserted tag are an error.
+- An inserted bare name that does not begin with a capital is an error, because it names a rule and not a tag.
+- An inserted range or property is an error, because it is not one tag.
+- `∅` as an item's tags is an error, because no terminal reads such a token.
+- An attachment (§11) that holds `$` is an error, reported at the attachment. An attachment holds a named capture.
+- An attachment on a `$` item or on an inserted tag is an error, reported at the item. Only a named capture carries attachments. So a constituent never attaches to itself.
+- A capture other than `$` named twice in one emission, as an item or as an attachment, is an error. So an attachment capture is never an item of its own.
+- A rule's or an alternative's tag term that reads the tags that it defines is an error: `tags($)` or `classes($)` in it. `tags(head($))` and the like read the tokens' tags, not the constituent's, and are allowed, as is `tags($, R)`.
+- An unknown directive or keyword is an error. The syntax grammar already refuses it.
+- A directive with the wrong operands is an error, reported at the directive. `%stage` takes one name, `%include` one string, and `%features` one or more names. `%elidable` takes identifier tags: names that begin with a capital, or `~name`. A range or a property there is an error, as a phoneme tag or a character tag is. `%ambiguity-resolution` takes names only.
 
 Once the reader reads a definition (§2), it makes sure that the whole definition meets its requirements. Each of the following is an error of the document too, and the reader reports it at the definition:
 
-- A capture, in any clause, `$x` presence tests included, that no alternative of the definition captures.
-- A condition that applies (§3.6) to no alternative of the definition, whatever features are enabled.
-- A tag term that uses (§3.6) a capture that an alternative it serves lacks. An alternative's own tags serve that alternative, and `%tags` serves every alternative of the definition. An emission item's tags serve every alternative in which the item is not dropped.
-- `%foreign` in a definition whose emission is `ε`. A constituent that does not count gives no part, so it is never a foreign part (§11).
-- In an emission, captures written in an order other than the one in which some alternative that has them captures them. The written order runs item after item. Within an item, it runs through the before-attachments, the carrier and the after-attachments. For each alternative, the reader makes sure that the captures that the alternative has stand in the written order. So `%emits ($a) $c, $b` is an error when the body has `$a`, `$b` and `$c` in that order.
-- In an emission, an attachment capture in an alternative that lacks the carrier of its item.
-- In an emission, an inserted tag before a capture item whose carrier some alternative of the definition lacks. The capture item is the first one listed after the inserted tag.
-- In an emission, an alternative for which every item is dropped, so that it emits nothing although the rule lists what to emit. A rule that emits nothing says so with `ε`.
+- A capture that no alternative of the definition captures is an error, in any clause, `$x` presence tests included.
+- A condition that applies (§3.6) to no alternative of the definition, whatever features are enabled, is an error.
+- A tag term that uses (§3.6) a capture that an alternative it serves lacks is an error. An alternative's own tags serve that alternative, and `%tags` serves every alternative of the definition. An emission item's tags serve every alternative in which the item is not dropped.
+- `%foreign` in a definition whose emission is `ε` is an error. A constituent that does not count gives no part, so it is never a foreign part (§11).
+- In an emission, captures written in an order other than the one in which some alternative that has them captures them are an error. The written order runs item after item. Within an item, it runs through the before-attachments, the carrier and the after-attachments. For each alternative, the reader makes sure that the captures that the alternative has stand in the written order. So `%emits ($a) $c, $b` is an error when the body has `$a`, `$b` and `$c` in that order.
+- In an emission, an attachment capture in an alternative that lacks the carrier of its item is an error.
+- In an emission, an inserted tag before a capture item whose carrier some alternative of the definition lacks is an error. The capture item is the first one listed after the inserted tag.
+- An alternative for which every item of the emission is dropped is an error. It emits nothing although the rule lists what to emit. A rule that emits nothing says so with `ε`.
 
 Two of these checks depend on simplification (§3.6). They are the check that a condition applies to an alternative, and the check of the captures that a tag term uses. In simplification, a constant is its value, and the reader does not know that value. So the reader leaves these two checks to the loader for each clause that holds a constant. The loader makes them after it gives the constants their values (§2), and it reports an error at the definition. The check that some alternative captures each mentioned capture does not depend on a value, so the reader makes it for every clause.
 
@@ -550,7 +550,7 @@ Within a term, the engine evaluates the parts from left to right. So it evaluate
 
 Every stage that accepts its input emits tokens by walking its chosen tree from the left. This includes the last stage, whose tokens are its output (`docs/output.md`), though no stage reads them.
 
-- The stage walks a constituent whose production has no emission: its children in order. A token that the constituent reads directly emits nothing.
+- The stage walks the children of a constituent whose production has no emission, in order. A token that the constituent reads directly emits nothing.
 - A constituent whose production has an emission emits exactly the items of the emission, as dropped for its production (§3.6). It emits them in the order in which the emission lists them. The stage walks nothing inside it but the attachment captures of its items (below):
   - A `$` item emits one token covering the constituent, with the constituent's tags, or with the tags of the item's term if it has one. `$ <t>, $ <u>` emits one such token per item, in order, all with the same span and source. This is how a digit that stands for a two-phoneme word is two tokens over one character.
   - A capture item emits one token covering the captured part, with the part's own tags, or with the tags of the item's term. The token takes the attachments that its item names (below).
@@ -649,12 +649,12 @@ To splice a pipeline, the loader reads the pipeline document's items (§9) in or
 
 The names of every `%features` of the stream are the features the pipeline turns on. The loader stitches each stage's other items in order (§2). Each of these is an error of the dialect, and the loader reports it at the item named:
 
-- An `%include` of a document that does not exist, at the `%include`. The error names the documents that included it.
-- An `%include` of a document that is already being included, which is a cycle, at the `%include`. The error names the documents that included it.
-- A rule, an `%ambiguity-resolution`, an `%elidable`, a constant definition, a classifier or an implication before the first `%stage`.
-- A `%stage` with the name of an earlier one.
-- A stage with no rules, at its `%stage`.
-- A pipeline with no `%stage`.
+- An `%include` of a document that does not exist is an error at the `%include`. The error names the documents that included it.
+- An `%include` of a document that is already being included, which is a cycle, is an error at the `%include`. The error names the documents that included it.
+- A rule, an `%ambiguity-resolution`, an `%elidable`, a constant definition, a classifier or an implication before the first `%stage` is an error.
+- A `%stage` with the name of an earlier one is an error.
+- A stage with no rules is an error at its `%stage`.
+- A pipeline with no `%stage` is an error.
 
 A document can be included more than once, in one stage or in several. The loader reads its items again each time.
 

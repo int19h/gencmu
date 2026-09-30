@@ -10,12 +10,12 @@ A dialect is a pipeline document, itself literate Markdown. The pipeline is a se
 
 The users of gencmu want to read a grammar, change it, and see at once what the change does to a text. So the notation, the diagnostics and the interactive tools matter as much as the parser.
 
-gencmu ships:
+gencmu ships these parts:
 
-- Four libraries, in JavaScript, Python, Go and Rust. Each is a clean-room implementation of one engine specification: it is written from the specification, not from another library's code. No library has dependencies beyond the standard library of its language.
-- The grammars and dialect pipelines, shared by all four
-- One command-line tool (CLI) and one web playground, both in JavaScript. Both run from a clone with no install step.
-- One test corpus, shared by all four libraries. Its expectations are what gencmu itself is meant to produce.
+- There are four libraries, in JavaScript, Python, Go and Rust. Each is a clean-room implementation of one engine specification: it is written from the specification, not from another library's code. No library has dependencies beyond the standard library of its language.
+- The grammars and dialect pipelines are shared by all four.
+- There is one command-line tool (CLI) and one web playground, both in JavaScript. Both run from a clone with no install step.
+- There is one test corpus, shared by all four libraries. Its expectations are what gencmu itself is meant to produce.
 
 gencmu does not ship research notes, comparisons with other parsers, or the scripts that produced the corpus. Those stay in the repository of the prototype, the earlier research parser that gencmu came from.
 
@@ -257,9 +257,9 @@ CLL's own rule is narrower. It says only that a terminator can be elided if no a
 
 The engine cases pin the definition with these cases:
 
-- Two readings that elide different terminators. The check passes.
-- Two readings that differ with every terminator written. The check fails.
-- A restored text with no derivation. The check passes.
+- Two readings that elide different terminators, for which the check passes
+- Two readings that differ with every terminator written, for which the check fails
+- A restored text with no derivation, for which the check passes
 - Several terminators elided at one point
 
 ### Where an elided terminator can fall
@@ -342,7 +342,7 @@ The distributable artifacts are exactly these:
 
 - The npm package `gencmu` (the `lib/js/` directory)
 - The Python distribution `gencmu` (`lib/python/`, a pure-Python wheel)
-- The Go module `github.com/int19h/gencmu/lib/go`. Import it as `gencmu "github.com/int19h/gencmu/lib/go"`. A Go module in a subdirectory is tagged `lib/go/vX.Y.Z`.
+- The Go module `github.com/int19h/gencmu/lib/go`, imported as `gencmu "github.com/int19h/gencmu/lib/go"`, whose versions are tagged `lib/go/vX.Y.Z` because it is in a subdirectory
 - The crate `gencmu` (`lib/rust/`)
 
 Each contains its grammar copy and nothing from outside its directory. CI makes sure of this: it builds each artifact from a clean checkout (`npm pack`, `python -m build`, `go build` from a module-mode checkout, `cargo package`).
@@ -391,7 +391,7 @@ The playground has these parts:
 - The warnings of the parse
 - The output in the four formats, and the tokens of each stage
 - The diagnostics above
-- An editor for the grammar documents. An edit parses the text again at once, and the edited documents can be downloaded.
+- An editor for the grammar documents, which parses the text again at once after each edit and lets the user download the edited documents
 
 The editor lists a dialect's documents stage by stage. A forgiving scan of the `%stage` and `%include` directives finds them (`playground/pipeline.js`). So a pipeline with an error, a missing document or a cycle still shows every document it reaches. Parsing runs in a worker (a `Blob` worker, which also works from `file://`), so a long text does not freeze the page.
 
@@ -431,11 +431,11 @@ Every library runs the whole corpus. On a pull request, a sampled core of about 
 CI has two workflows. `nightly.yml` runs the whole corpus in all four languages each night and on demand. `ci.yml` runs on each pull request and each push to `main`. It has three additional jobs: the playground in two browsers, the whole corpus in JavaScript, and the JavaScript types. It also has one job for each language, which runs on the oldest and the newest supported toolchain:
 
 - JavaScript: Node 20 and current, `node --test`, the bundle freshness check
-- Python: 3.10 and current, `python -m unittest`, `python -m build` for the wheel. The build backend is the only tool outside the standard library, and only at build time.
+- Python: 3.10 and current, `python -m unittest`, `python -m build` for the wheel
 - Go: 1.22, the minimum of the module, and current, `go vet`, `go test`
 - Rust: MSRV (the minimum supported Rust version) and stable, `cargo fmt --check`, `cargo clippy`, `cargo test`, and `cargo package` to make sure that the crate is self-contained
 
-Third-party actions are pinned by commit hash. GitHub Pages can serve `main` from the root with no workflow. It is not enabled while the repository is private, because a Pages site is public.
+The Python build backend is the only tool outside the standard library, and only at build time. Third-party actions are pinned by commit hash. GitHub Pages can serve `main` from the root with no workflow. It is not enabled while the repository is private, because a Pages site is public.
 
 ## Standard library only
 
@@ -475,8 +475,10 @@ The engine can later make this unnecessary: it can stop predicting a rule whose 
 
 Three things came from the prototype:
 
-- The grammar documents. They were rewritten where they referred to the prototype, other parsers or research notes, and converted to the notation above.
+- The grammar documents, rewritten where they referred to the prototype, other parsers or research notes, and converted to the notation above
 - The notation document
-- The fixture corpus, converted to the format above. The repository keeps it whole. With the cases added since, it now has about 29,000 cases and 7 MB with words and brackets.
+- The fixture corpus, converted to the format above
+
+The repository keeps the corpus whole. With the cases added since, it now has about 29,000 cases and 7 MB with words and brackets.
 
 Nothing else came from the prototype: no code, no scripts, no notes. The maintainers edit the CLL lexicon by hand. The experimental and Zantufa lexicons come from the word tables of other parsers. `tools/peg-lexicon.js` generates each of them, and a maintainer changes one by running the tool again. The Zantufa grammar is a grammar of its own, as above.

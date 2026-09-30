@@ -125,7 +125,7 @@ An argument is a span or a term. For `tags`, `matches` and `begins`, an argument
 
 A condition is one of these forms:
 
-- `{"op":"=","left":TERM,"right":TERM}`, with `op` one of `=`, `≠`, `∈`, `∉`, `⊆`, `⊈`. The types of `left` and `right` agree as engine §10 says.
+- `{"op":"=","left":TERM,"right":TERM}`, with `op` one of `=`, `≠`, `∈`, `∉`, `⊆`, `⊈`, and with `left` and `right` of types that agree as engine §10 says
 - `{"matches":SPAN,"rule":"r"}`
 - `{"begins":SPAN,"rule":"r"}`
 - `{"initial":SPAN}`
