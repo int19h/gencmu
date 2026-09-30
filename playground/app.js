@@ -551,8 +551,9 @@
     }
     if (result.format !== "canonical" && !result.tree) output.replaceChildren(noTree());
     else if (result.text === "" && result.format === "brackets") {
-      // A tree with no tokens: its brackets are empty (docs/output.md).
-      output.replaceChildren(element("p", { class: "hint", text: "The tree holds no tokens, so its brackets are empty." }), ...withCopy(""));
+      // A tree can render as nothing: a hollow tree, or tokens whose labels
+      // are empty (docs/output.md). So the note is about the rendering only.
+      output.replaceChildren(element("p", { class: "hint", text: "The bracket rendering is empty." }), ...withCopy(""));
     } else output.replaceChildren(...withCopy(result.text));
   }
 

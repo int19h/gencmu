@@ -189,18 +189,36 @@ async function main() {
 
     // An empty text has a tree whose brackets are empty (docs/output.md).
     // The page shows that rendering, with its Copy button, and does not say
-    // that there is no tree.
+    // that there is no tree. It says only that the rendering is empty.
+    const emptyRendering = async (what) => {
+      const answer = await answerFor("");
+      if (answer.error) throw new Error(`the playground failed: ${answer.error}`);
+      const empty = await run(() => ({
+        pre: document.querySelector("#output pre.result-text") ? document.querySelector("#output pre.result-text").textContent : null,
+        copy: !!document.querySelector("#output .copy-row button"),
+        text: document.getElementById("output").textContent,
+      }));
+      if (empty.pre !== "" || !empty.copy || /No tree|no tokens/.test(empty.text) || !/The bracket rendering is empty/.test(empty.text)) {
+        throw new Error(`the empty bracket rendering of ${what} was not shown as one: ${JSON.stringify(empty)}`);
+      }
+    };
     await type("");
-    const hollow = await answerFor("");
-    if (hollow.error) throw new Error(`the playground failed: ${hollow.error}`);
-    const empty = await run(() => ({
-      pre: document.querySelector("#output pre.result-text") ? document.querySelector("#output pre.result-text").textContent : null,
-      copy: !!document.querySelector("#output .copy-row button"),
-      text: document.getElementById("output").textContent,
-    }));
-    if (empty.pre !== "" || !empty.copy || /No tree/.test(empty.text)) {
-      throw new Error(`an empty bracket rendering was not shown as one: ${JSON.stringify(empty)}`);
-    }
+    await emptyRendering("a hollow tree");
+
+    // A token's label can be empty too (docs/output.md), so an empty
+    // rendering does not mean that the tree holds no tokens. In this
+    // pipeline the first stage emits one token X with an empty label for the
+    // empty text, and the second stage reads it.
+    const labelless = "dialects/zantufa.md";
+    await run((path) => self.playground.client.setDocument(path, "# Empty labels\n\n```jbogenbau\n" +
+      "%stage a\n%ambiguity-resolution greedy\n%rule text ε\n%emits X\n" +
+      "%stage b\n%ambiguity-resolution greedy\n%rule text X\n```\n"), labelless);
+    await choose(labelless);
+    await emptyRendering("a token with an empty label");
+    const shownFor = await run(() => document.getElementById("result").dataset.dialect);
+    if (shownFor !== "zantufa") throw new Error(`the empty label was checked under ${shownFor}, not the edited pipeline`);
+    await run((path) => self.playground.client.setDocument(path, self.gencmuGrammars[path]), labelless);
+    await choose("dialects/cll-ebnf.md");
     await type(last);
     await answerFor(last);
 
