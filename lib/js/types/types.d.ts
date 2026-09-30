@@ -81,7 +81,39 @@ export type SettledStageReport = StageReportBase & {
     witness: null;
     tied?: undefined;
 };
-export type Witness = [Action | null, Action | null];
+export type Witness = [WitnessAction | null, WitnessAction | null];
+export type WitnessAction = WitnessRead | WitnessClose;
+export type WitnessRead = {
+    kind: "read";
+    /**
+     * the index of the token in the stage's input
+     */
+    token: number;
+    /**
+     * the terminal that read it
+     */
+    terminal: string;
+};
+export type WitnessClose = {
+    kind: "close";
+    /**
+     * the rule of the production; for a helper, the
+     * rule whose alternative introduced it
+     */
+    rule: string;
+    /**
+     * the number of the production (engine §3)
+     */
+    production: number;
+    /**
+     * whether the production is a helper's
+     */
+    helper: boolean;
+    /**
+     * the tokens that the production covers
+     */
+    span: Span;
+};
 export type StageReportBase = {
     name: string;
     /**
@@ -94,11 +126,6 @@ export type StageReportBase = {
      * the tokens the stage read
      */
     input?: Token[];
-    /**
-     * the chosen derivation, helpers and all
-     */
-    derivation?: Derivation;
-    context?: ParseContext;
     /**
      * the warnings of the chosen tree
      * (engine §12); absent for a stage that rejected its input
@@ -625,8 +652,28 @@ export type ParseContext = import("./earley.js").ParseContext;
  */
 /**
  * Where the chosen and the tied derivation first differ: their actions
- * there, null on the side of one that ended.
- * @typedef {[Action | null, Action | null]} Witness
+ * there, null on the side of one that ended. The witness is plain data of
+ * the result's own, and shares nothing with the grammar.
+ * @typedef {[WitnessAction | null, WitnessAction | null]} Witness
+ */
+/**
+ * An action of a witness: a token read, or a production closed.
+ * @typedef {WitnessRead | WitnessClose} WitnessAction
+ */
+/**
+ * @typedef {object} WitnessRead
+ * @property {"read"} kind
+ * @property {number} token the index of the token in the stage's input
+ * @property {string} terminal the terminal that read it
+ */
+/**
+ * @typedef {object} WitnessClose
+ * @property {"close"} kind
+ * @property {string} rule the rule of the production; for a helper, the
+ *   rule whose alternative introduced it
+ * @property {number} production the number of the production (engine §3)
+ * @property {boolean} helper whether the production is a helper's
+ * @property {Span} span the tokens that the production covers
  */
 /**
  * What every stage report has.
@@ -636,8 +683,6 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {ResultNode | null} tree
  * @property {ParseError | null} error
  * @property {Token[]} [input] the tokens the stage read
- * @property {Derivation} [derivation] the chosen derivation, helpers and all
- * @property {ParseContext} [context]
  * @property {ParseWarning[]} [warnings] the warnings of the chosen tree
  *   (engine §12); absent for a stage that rejected its input
  */

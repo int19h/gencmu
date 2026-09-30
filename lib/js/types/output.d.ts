@@ -91,7 +91,7 @@ export type WarningJson = {
 export type DisplayValue = {
     [name: string]: DisplayValue | DisplayValue[] | string | string[] | null;
 };
-/** @import { Action, ParseError, ParseResult, ResultNode, Span } from "./types.js" */
+/** @import { WitnessAction, ParseError, ParseResult, ResultNode, Span } from "./types.js" */
 /** @import { AttachedToken, Token } from "./tokens.js" */
 /**
  * A token in the result JSON.

@@ -1543,7 +1543,7 @@
 
 
 
-  /** @import { Action, ParseError, ParseResult, ResultNode, Span } from "./types.js" */
+  /** @import { WitnessAction, ParseError, ParseResult, ResultNode, Span } from "./types.js" */
   /** @import { AttachedToken, Token } from "./tokens.js" */
 
   /**
@@ -1664,14 +1664,13 @@
   }
 
   /**
-   * @param {Action | null} action
+   * @param {WitnessAction | null} action
    * @returns {ActionJson | null}
    */
   function actionJson(action) {
     if (action === null) return null;
     if (action.kind === "read") return { read: { token: action.token, terminal: action.terminal } };
-    const production = action.item.production;
-    return { close: { rule: production.owner, production: production.id, span: [action.item.origin, action.item.end] } };
+    return { close: { rule: action.rule, production: action.production, span: [action.span[0], action.span[1]] } };
   }
 
   /**
@@ -3346,7 +3345,7 @@
 
 
   /**
-   * @import { Action, Condition, Expr, ParseResult, ResultNode, Span, StageReport, TagSet, Term, Argument, Production } from "./types.js"
+   * @import { WitnessAction, Condition, Expr, ParseResult, ResultNode, Span, StageReport, TagSet, Term, Argument, Production } from "./types.js"
    * @import { Token } from "./tokens.js"
    * @import { Dialect } from "./dialect.js"
    * @import { TraceEvent } from "./earley.js"
@@ -3441,16 +3440,15 @@
   // ---- Ties ----------------------------------------------------------------
 
   /**
-   * @param {Action | null} action
+   * @param {WitnessAction | null} action
    * @param {Token[]} tokens
    * @returns {string}
    */
   function describeAction(action, tokens) {
     if (!action) return "ends there";
     if (action.kind === "read") return `reads ${quoted(tokens[action.token] ? tokens[action.token].text : "")} as ${action.terminal}`;
-    const production = action.item.production;
-    const rule = production.helper ? `part of ${production.owner}` : production.lhs;
-    return `closes ${rule} over tokens ${action.item.origin} to ${action.item.end}`;
+    const rule = action.helper ? `part of ${action.rule}` : action.rule;
+    return `closes ${rule} over tokens ${action.span[0]} to ${action.span[1]}`;
   }
 
   /**
@@ -3487,7 +3485,7 @@
       const tokens = stage.input || [];
       const [chosen, tied] = stage.witness;
       const action = chosen || tied;
-      const at = action ? (action.kind === "read" ? action.token : action.item.end) : 0;
+      const at = action ? (action.kind === "read" ? action.token : action.span[1]) : 0;
       const lines = [`The ${stage.name} stage is ambiguous: its grammar reads the text two ways, which first differ here:`];
       if (tokens.length) {
         const token = tokens[Math.min(at, tokens.length - 1)];
@@ -6025,7 +6023,7 @@
 
 
   /**
-   * @import { Derivation, DerivationRule, ElidedNode, EmitItem, ResultNode, Scope, Span, StageReport, TagSet } from "./types.js"
+   * @import { Action, Derivation, DerivationRule, ElidedNode, EmitItem, ResultNode, Scope, Span, StageReport, TagSet } from "./types.js"
    * @import { Grammar } from "./grammar.js"
    * @import { UnicodeTable } from "./unicode.js"
    */
@@ -6104,7 +6102,7 @@
         // A tie always has a second derivation, and so a witness.
         Object.assign(report, {
           verdict: "tie",
-          witness: /** @type {import("./types.js").Witness} */ (ranking.witness),
+          witness: witnessOf(/** @type {[Action | null, Action | null]} */ (ranking.witness)),
           tied: resultTree(derivationTree(/** @type {import("./types.js").Rope} */ (ranking.second)), context)[0],
         });
       } else {
@@ -6112,8 +6110,6 @@
       }
       const derivation = derivationTree(ranking.chosen);
       report.tree = resultTree(derivation, context)[0];
-      report.derivation = derivation;
-      report.context = context;
       report.warnings = warningsOf(derivation, context, features, this.name);
       try {
         report.output = emit(derivation, context);
@@ -6455,6 +6451,23 @@
       }]);
     }
     return result;
+  }
+
+  /**
+   * A witness as plain data of the result's own: an action that closes a
+   * production names it by its rule and number, and holds no chart item.
+   * @param {[Action | null, Action | null]} actions
+   * @returns {import("./types.js").Witness}
+   */
+  function witnessOf(actions) {
+    /** @type {(action: Action | null) => import("./types.js").WitnessAction | null} */
+    const plain = (action) => {
+      if (action === null) return null;
+      if (action.kind === "read") return { kind: "read", token: action.token, terminal: action.terminal };
+      const { production, origin, end } = action.item;
+      return { kind: "close", rule: production.owner, production: production.id, helper: production.helper, span: [origin, end] };
+    };
+    return [plain(actions[0]), plain(actions[1])];
   }
 
   /** @implements {Scope} */
@@ -8229,7 +8242,9 @@
       // A token that the caller supplies has its text as its label (engine §5).
       // It has no attachments: a list that is not empty is the caller's
       // mistake, and an empty one is dropped (docs/api.md). The parse copies
-      // each token, so the caller's objects stay as they are.
+      // each token and its positions, so the caller's objects stay as they
+      // are, and the result shares none of them. The result gets its own tag
+      // sets when the stages are done.
       if (options.tokens) {
         options.tokens.forEach((token, index) => {
           if ((token.before && token.before.length > 0) || (token.after && token.after.length > 0)) {
@@ -8237,7 +8252,7 @@
           }
         });
         options = { ...options, tokens: options.tokens.map((token) =>
-          new Token(token.tags, token.span, token.source, token.text, token.phonemes, token.insertedBy)) };
+          new Token(token.tags, [token.span[0], token.span[1]], [token.source[0], token.source[1]], token.text, token.phonemes, token.insertedBy)) };
       }
       // The features on are the pipeline's, with the caller's added and the
       // caller's turned off removed (engine §13).
@@ -8317,13 +8332,18 @@
   function ownTags(stages) {
     /** @type {Set<object>} */
     const seen = new Set();
-    /** @type {(token: import("./tokens.js").AttachedToken) => void} */
-    const ownToken = (token) => {
-      if (seen.has(token)) return;
-      seen.add(token);
-      token.tags = new Set(token.tags);
-      token.before.forEach(ownToken);
-      token.after.forEach(ownToken);
+    // An explicit stack, since a chain of attachments can be as deep as a
+    // long text is long.
+    /** @type {(first: import("./tokens.js").AttachedToken) => void} */
+    const ownToken = (first) => {
+      const stack = [first];
+      for (let token = stack.pop(); token !== undefined; token = stack.pop()) {
+        if (seen.has(token)) continue;
+        seen.add(token);
+        token.tags = new Set(token.tags);
+        for (const attached of token.before) stack.push(attached);
+        for (const attached of token.after) stack.push(attached);
+      }
     };
     /** @type {(root: ResultNode) => void} */
     const ownTree = (root) => {
@@ -8637,8 +8657,31 @@
 
   /**
    * Where the chosen and the tied derivation first differ: their actions
-   * there, null on the side of one that ended.
-   * @typedef {[Action | null, Action | null]} Witness
+   * there, null on the side of one that ended. The witness is plain data of
+   * the result's own, and shares nothing with the grammar.
+   * @typedef {[WitnessAction | null, WitnessAction | null]} Witness
+   */
+
+  /**
+   * An action of a witness: a token read, or a production closed.
+   * @typedef {WitnessRead | WitnessClose} WitnessAction
+   */
+
+  /**
+   * @typedef {object} WitnessRead
+   * @property {"read"} kind
+   * @property {number} token the index of the token in the stage's input
+   * @property {string} terminal the terminal that read it
+   */
+
+  /**
+   * @typedef {object} WitnessClose
+   * @property {"close"} kind
+   * @property {string} rule the rule of the production; for a helper, the
+   *   rule whose alternative introduced it
+   * @property {number} production the number of the production (engine §3)
+   * @property {boolean} helper whether the production is a helper's
+   * @property {Span} span the tokens that the production covers
    */
 
   /**
@@ -8649,8 +8692,6 @@
    * @property {ResultNode | null} tree
    * @property {ParseError | null} error
    * @property {Token[]} [input] the tokens the stage read
-   * @property {Derivation} [derivation] the chosen derivation, helpers and all
-   * @property {ParseContext} [context]
    * @property {ParseWarning[]} [warnings] the warnings of the chosen tree
    *   (engine §12); absent for a stage that rejected its input
    */

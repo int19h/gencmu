@@ -3,7 +3,7 @@ import type { Token } from "./tokens.js";
 import type { Dialect } from "./dialect.js";
 import type { TraceEvent } from "./earley.js";
 /**
- * @import { Action, Condition, Expr, ParseResult, ResultNode, Span, StageReport, TagSet, Term, Argument, Production } from "./types.js"
+ * @import { WitnessAction, Condition, Expr, ParseResult, ResultNode, Span, StageReport, TagSet, Term, Argument, Production } from "./types.js"
  * @import { Token } from "./tokens.js"
  * @import { Dialect } from "./dialect.js"
  * @import { TraceEvent } from "./earley.js"
