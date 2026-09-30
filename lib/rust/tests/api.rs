@@ -590,9 +590,10 @@ fn a_corrupt_cache_is_a_miss_not_an_abort() {
         let terminal = r#"{"terminal":"'a'"}"#;
         let dialect = load(compiled(text, &changed_dom(text, terminal, r#"{"terminal":"'b'"}"#)));
         assert!(dialect.parse("b", &no_auto()).unwrap().ok, "the cache is used");
-        // Deeper than a DOM can nest (engine §9), but not so deep that the
-        // JSON does not parse, as the first entry below is.
-        let deep = format!("{}{{\"terminal\":\"'b'\"}}{}", "{\"optional\":".repeat(300), "}".repeat(300));
+        // Deeper than a DOM can nest (engine §9), and nearly as deep as the
+        // JSON reader allows, but not so deep that the JSON does not parse,
+        // as the first entry below is.
+        let deep = format!("{}{{\"terminal\":\"'b'\"}}{}", "{\"optional\":".repeat(1000), "}".repeat(1000));
         let dom = gencmu::tools::read_grammar_document(&grammar(text)).expect("a DOM");
         let rules = &dom[dom.find("\"rules\":").expect("rules")..dom.find(",\"directives\":").expect("directives")];
         for cache in [
