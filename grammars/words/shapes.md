@@ -6,7 +6,7 @@ The rules state CLL 1.1's word forms precisely enough to implement them twice. B
 
 ## Consonants
 
-CLL 3.6 lists the permissible consonant pairs. A pair is never the same consonant twice, never a voiced and an unvoiced consonant together, and never two of `c j s z`. CLL 3.6 also forbids the pairs `cx`, `kx`, `xc`, `xk` and `mz`. The voiced consonants are `b d g v j z`, and the unvoiced ones are `p t k f c s x`. `l m n r` are neither. The `after-x` table for each consonant lists the consonants that can follow it, 179 pairs in all.
+CLL 3.6 lists the permissible consonant pairs. A pair is never the same consonant twice, never a voiced and an unvoiced consonant together, and never two of `c j s z`. CLL 3.6 also forbids the pairs `cx`, `kx`, `xc`, `xk` and `mz`. The voiced consonants are `b d g v j z`, and the unvoiced ones are `p t k f c s x`. `l m n r` are neither. For each consonant C, the rule `after-C` lists the consonants that can follow C, 179 pairs in all.
 
 CLL 3.7 lists the 48 pairs that can begin a word. A longer cluster can begin a borrowing if each adjacent pair in it is one of the 48 (CLL 4.7). So `spraile` is a borrowing, but not `ktraile` or `trkaile`. `long-initial-run` is every such cluster of three consonants or more. CLL 3.7 forbids the triples `ndj ndz ntc nts`, except in a name.
 

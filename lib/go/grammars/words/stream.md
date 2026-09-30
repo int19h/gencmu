@@ -10,7 +10,7 @@ The prose uses these Lojban terms for words:
 - A cmevla is a name word.
 - A lujvo is a compound word.
 
-The stage reads the source words that the forms stage divided ([forms.md](forms.md)). It hands the indicator stage the words of the text, each tagged with its class. A tag is a name that a token carries. The tags are `word` on every word, `cmavo`, `BRIVLA` or `CMEVLA` by its shape, and every selma'o the lexicon gave it.
+The stage reads the source words that the forms stage divided ([forms.md](forms.md)). It hands the indicator stage the words of the text, each tagged with its class. A tag marks a token by name, phoneme or character. The tags are `word` on every word, `cmavo`, `BRIVLA` or `CMEVLA` by its shape, and every selma'o the lexicon gave it.
 
 This document contributes the magic words, the constructs that act on the word stream before the syntax sees it. They are the quotes `zo`, `ma'oi`, `zoi`, `la'o`, `lo'u ... le'u`, `zo'oi` and its relatives, and the compounders `bu` and `zei`. They are also the erasers `si`, `sa` and `su`, hesitation, and `fa'o`. The stage resolves them together, in one grammar, because they act strictly left to right on one stream.
 

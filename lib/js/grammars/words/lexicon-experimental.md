@@ -4,7 +4,7 @@ This document is the lexicon of the forms stage in the [experimental](../dialect
 
 The lexicon gives each cmavo the selma'o that camxes-exp, the experimental PEG (parsing expression grammar), gives it. It holds the cmavo of CLL (*The Complete Lojban Language*) and the experimental cmavo that camxes-exp reads. `tools/peg-lexicon.js` writes the classifier below from the selma'o lists of `camxes-exp.peg` in ilmentufa, as of commit 7cf6cab. A maintainer changes the lexicon by running the tool again.
 
-Each entry lists words by their canonical sound and gives them one selma'o, as [lexicon-cll.md](lexicon-cll.md) explains. A tag is a name on a word. camxes-exp gives each word one selma'o. It gives three CLL words another class than CLL does. `la`, `lai` and `la'i` are LE, because camxes-exp reads a name as a selbri, a predicate.
+Each entry lists words by their canonical sound and gives them one selma'o, as [lexicon-cll.md](lexicon-cll.md) explains. camxes-exp gives each word one selma'o. It gives three CLL words another class than CLL does. `la`, `lai` and `la'i` are LE, because camxes-exp reads a name as a selbri, a predicate.
 
 The implication after the entries marks some words `indicator`, which the indicator stage reads. They are an attitudinal, a CAI word, `y`, `da'o`, `fu'e` and `fu'o`. camxes-exp also reads a bare NAI as an indicator, and [the experimental word forms](experimental.md) mark the NAI words so.
 

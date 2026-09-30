@@ -6,7 +6,7 @@ This document reads the Latin orthography of CLL chapter 3 and no more. The CLL 
 
 The terminals of the stage are characters, each written as a character tag in single quotes, such as `'a'`. A token is one unit that a stage reads or emits. A terminal matches one input token by tag. A character token carries only its character tag. So a class of characters is a range, such as `'0'..'9'`, or a Unicode property, such as `'\p{White_Space}'`.
 
-The stage emits one token per phoneme, and each token carries the tag of that phoneme, such as `/a/`. A tag is a name, a phoneme or a character on a token. So the later stages never see a character, and they read every script alike.
+The stage emits one token per phoneme, and each token carries the tag of that phoneme, such as `/a/`. A tag marks a token by name, phoneme or character. So the later stages never see a character, and they read every script alike.
 
 The phonemes are the letters of CLL chapter 3, each written as a phoneme tag:
 

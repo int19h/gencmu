@@ -2,7 +2,7 @@
 
 This is the second stage of the notation dialect, `../dialects/notation.md`. A stage is one step of a pipeline, with its own grammar. The stage reads the tokens (units of input) that `lexical.md` emitted. It builds the tree from which a library reads the grammar's rules and directives. Its rule names matter to that reader: the table in `../../docs/engine.md`, §9, says what each named constituent becomes. `../../docs/notation.md` explains the notation for authors.
 
-The tokens arrive with tags (names that the grammar reads). The lexical stage tags a token `~identifier`, `~string`, `~tag`, `~phoneme`, `~character`, `~property`, `~capture`, `~constant` or `~guard`. It tags a keyword that the notation knows with its own identifier, such as `~keyword-rule` for `%rule`, `...` with `~ellipsis`, and `..` with `~double-dot`. Any other symbol is one character, which keeps its character tag, such as `'|'`.
+The tokens arrive with tags (names or characters that the grammar reads). The lexical stage tags a token `~identifier`, `~string`, `~tag`, `~phoneme`, `~character`, `~property`, `~capture`, `~constant` or `~guard`. It tags a keyword that the notation knows with its own identifier, such as `~keyword-rule` for `%rule`, `...` with `~ellipsis`, and `..` with `~double-dot`. Any other symbol is one character, which keeps its character tag, such as `'|'`.
 
 ## Choosing among parses
 
