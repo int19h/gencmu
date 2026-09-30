@@ -20,7 +20,7 @@ The translation leaves out a condition in two cases, where the condition cannot 
 
 In the first case, no two alternatives of a choice can both begin at the same point. This is because each pair of them reads different letters at some position. For example, one reads a consonant where the other reads a vowel. No alternative of such a choice can be empty. The comment on the rule names the positions.
 
-In the second case, the PEG uses the rule only in lookaheads, directly or at the end of another such rule. A lookahead asks only whether the rule begins, not where it ends. So a choice that ends such a rule needs no order, because the rule begins if any of its alternatives begins. And the translation can leave out a part at its end that can only make it longer. The second and later consonants of `cluster` are such a part. The comment says "only a lookahead".
+In the second case, the PEG uses the rule only in lookaheads, directly or at the end of another such rule. A lookahead asks only whether the rule begins, not where it ends. So a choice that ends such a rule needs no order, because the rule begins if any of its alternatives begins. And the translation can leave out a part at its end that can only make it longer. The third and later consonants of `cluster`, the repeats of `consonant+`, are such a part. The comment says "only a lookahead".
 
 The phoneme stage reads the text before this stage does. In four ways, the text that this stage reads differs from the text that the PEG reads:
 

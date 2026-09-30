@@ -31,7 +31,7 @@ The greedy rule settles these ambiguities. One of them is the connection of two 
 
 The layer changes the text in four ways. A `nai` at the start of a text is an indicator, as the indicator stage of the experimental dialect reads it. So `indicators` takes it, like the indicators of camxes-exp, and a separate `nai` stands only before a run of names. The connective after a text-leading `.i` can be an ek, as in `.i .e do klama`, because camxes-exp's joik takes the words of A. The rule writes the tense before `bo` in a text-leading `.i` as a `tag`. A `stag` is a `tag` in this dialect (see "Tenses and modals"), so the name changes nothing.
 
-The third change is that `.i ni'o` can follow a `ni'o`. Usage writes a new topic inside a reply in that way. At the start of a text, the CLL grammar's `text-1` already reads `.i ni'o`, as the repair of the printed grammar that it lists says. So `text-1` takes the form after a first run of `ni'o`, and `paragraphs` takes it after a later one. A run of `ni'o` can also end the text (`mi klama ni'o`), as in camxes-exp.
+The third change is about runs of `ni'o`. First, `.i ni'o` can follow a `ni'o`, as usage writes a new topic inside a reply. At the start of a text, the CLL grammar's `text-1` already reads `.i ni'o`, as the repair of the printed grammar that it lists says. So `text-1` takes the form after a first run of `ni'o`, and `paragraphs` takes it after a later one. Second, a run of `ni'o` can end the text (`mi klama ni'o`), as in camxes-exp.
 
 The fourth change is that the layer keeps CLL's run of names at the start of a text only with `cbm` off. Under `cbm`, a cmevla is a selbri word, so the dialect rejects `.djan. mi klama`. camxes-exp has no such form.
 
