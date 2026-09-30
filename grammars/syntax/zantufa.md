@@ -4,7 +4,7 @@ This document is the syntax of the [Zantufa](../dialects/zantufa.md) dialect. A 
 
 Each rule's comment gives the rule of the reference that it translates. A rule has the reference's name, written with hyphens. The other rules state the reference's lookaheads (tests of the words that follow) and ordered choices (alternatives tried in order) as conditions.
 
-[The Zantufa lexicon](../words/lexicon-zantufa.md) gives each cmavo the selma'o that Zantufa gives it. For example, every tense word is BAI, `ca'a` and `ka'e` are NA, and `je` is JOI. Also, `la` is LE, `ce'e` is BO, and `nai` and `sa` are UI.
+A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo. [The Zantufa lexicon](../words/lexicon-zantufa.md) gives each cmavo the selma'o that Zantufa gives it. For example, every tense word is BAI, `ca'a` and `ka'e` are NA, and `je` is JOI. Also, `la` is LE, `ce'e` is BO, and `nai` and `sa` are UI.
 
 A stage is one step of a pipeline, with its own grammar. The pipeline is the sequence of stages that reads a text. The indicator stage attaches `ba'e` and the other words of BAhE to the word after them, so this grammar does not read them. It reads every other word, the attitudinals included.
 

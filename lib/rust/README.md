@@ -1,6 +1,6 @@
 # gencmu for Rust
 
-gencmu is a Lojban parser whose grammars are literate Markdown documents, loaded at runtime. This crate is the Rust library of [gencmu](https://github.com/int19h/gencmu). It is a clean-room implementation of the engine specification, `docs/engine.md`, with no dependencies at all. A clean-room implementation is written from the specification alone. The crate embeds the grammars that it bundles.
+gencmu is a Lojban parser whose grammars are literate Markdown documents, loaded at runtime. This crate is the Rust library of [gencmu](https://github.com/int19h/gencmu). A clean-room implementation is written from the specification alone. The crate is a clean-room implementation of the engine specification, `docs/engine.md`, with no dependencies at all. The crate embeds the grammars that it bundles.
 
 ```rust
 // in a function that returns Result<_, gencmu::Error>

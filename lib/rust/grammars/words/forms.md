@@ -66,7 +66,7 @@ The stage covers every input token. It passes pauses and foreign runs through, a
 
 A run of phonemes that divides into no words becomes one `FOREIGN` token, which sounds like its phonemes. So a `zoi` delimiter compares with it exactly as with the same phonemes read as words. The text of the token is what the author wrote.
 
-The stage tests whether the run divides only for the whole run, because a phoneme follows a part of a run. The stage tests the run alone. This gives the same answer as a test in place, because no rule of this stage reads past the end of a run.
+The stage tests only a whole run for whether it divides. A part of a run has a phoneme after it, so the stage does not test it. The stage tests the run alone. This gives the same answer as a test in place, because no rule of this stage reads past the end of a run.
 
 ## Words in a run
 

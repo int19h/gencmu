@@ -1,6 +1,6 @@
 # jbogenbau, the grammar notation
 
-Every grammar in gencmu is a Markdown document. Its fenced `jbogenbau` blocks, read in order, are one grammar, and the prose between the blocks explains it. This document explains jbogenbau, the notation that those blocks use. The grammars only say what they are about, and refer here for the rest. Two grammars written in jbogenbau itself define it: `grammars/notation/lexical.md` and `grammars/notation/syntax.md`. This document explains the notation, and those two grammars define it.
+Every grammar in gencmu is a Markdown document. Its fenced `jbogenbau` blocks, read in order, are one grammar, and the prose between the blocks explains it. This document explains jbogenbau, the notation that those blocks use. The grammars only say what they are about, and refer here for the rest. Two grammars written in jbogenbau itself define it: `grammars/notation/lexical.md` and `grammars/notation/syntax.md`.
 
 A jbogenbau grammar is an attribute grammar with EBNF rule bodies. An attribute grammar is a grammar whose constituents carry computed values. A constituent is a part of the text that one rule matched. EBNF (Extended Backus-Naur Form) is a common notation for the bodies of grammar rules. Each rule body is EBNF in the form that *The Complete Lojban Language* (CLL) prints in chapter 21. Each constituent carries one attribute, its set of tags (names such as `KOhA`), computed bottom-up from its parts.
 
@@ -37,10 +37,10 @@ No line of such a rule's body holds more than 100 characters, counted as Unicode
 
 A body can be followed by clauses. A clause is a keyword and what it says. A body has at most one clause of each kind, and the clauses come in this order:
 
-- `%tags`: the tags that the constituent of every alternative carries.
-- `%conditions`: what must hold of the parts.
-- `%emits`: what the constituent hands to the next stage.
-- `%foreign`: the constituent is foreign text, which sounds `?` and shows its text.
+- `%tags` gives the tags that the constituent of every alternative carries.
+- `%conditions` states what must hold of the parts.
+- `%emits` states what the constituent hands to the next stage.
+- `%foreign` marks the constituent as foreign text, which sounds `?` and shows its text.
 
 The sections below explain each clause.
 
@@ -165,10 +165,9 @@ The notation has no way to remove a single alternative. A rule is small enough t
 
 ## Constants
 
-A constant names a value that several rules use, such as a list of classes. Its name is `$` and a name that begins with a capital. By convention, the whole name is in capitals, as in `$SU-STOPS`. The loader stitches a constant as it stitches a rule, and the constant belongs to its stage:
+A constant names a value that several rules use, such as a list of classes. Its name is `$` and a name that begins with a capital. By convention, the whole name is in capitals, as in `$SU-STOPS`. The loader stitches a constant as it stitches a rule, and the constant belongs to its stage.
 
-- `%const $NAME value` defines a constant. It is an error if a constant of that name was defined before it in the stage.
-- `%redefine-const $NAME value` gives a constant a new value. It is an error if none was defined before it in the stage.
+`%const $NAME value` defines a constant. It is an error if a constant of that name was defined before it in the stage. `%redefine-const $NAME value` gives a constant a new value. It is an error if no constant of that name was defined before it in the stage.
 
 ```jbogenbau
 %const $SU-STOPS NIhO ∪ LU ∪ TUhE ∪ TO
@@ -248,7 +247,7 @@ A tag term that uses a capture that one of its alternatives lacks is an error, u
 
 It is an error to mention a capture that no alternative of the rule, or of the extension, captures. It is also an error to write a condition or an item of `%emits` that applies to no alternative. Each of these is a mistake, such as a misspelled name.
 
-A constant counts in these rules as its value. So where `$E` is empty, `$E ∩ tags($x)` is empty and uses no capture. gencmu checks such a clause when it stitches the stage, since only then does the constant have a value.
+A constant counts in these rules as its value. So where `$E` is empty, `$E ∩ tags($x)` is empty and uses no capture. gencmu makes sure that such a clause meets these rules when it stitches the stage. Only then does the constant have a value.
 
 `$x`, standing as a condition, is a presence test: it says whether the alternative captured `x`. gencmu also knows this when it reads the grammar. `$` alone is always true. gencmu decides a presence test for each alternative before anything else, so it is not a use of the capture. So `%conditions $x` applies to every alternative, and removes those that do not capture `x`.
 
