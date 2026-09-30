@@ -141,7 +141,7 @@ A word is a cmavo, a brivla or a cmevla, as the forms stage read it. The stage e
 
 A feature is a named switch that the grammars test. A guard is a condition on a feature. The cmevla-brivla merger of the experimental grammars is a matter of syntax, stated there with the `cbm` guard. It is not a second class on the word.
 
-The magic words are never plain words. The rules under "Quotes", "Compounds" and "Erasure" say what each does instead. The condition here keeps them out, so that the stage cannot read `zo` as a word that stands beside the word it quotes. The constant `$MAGIC-WORDS` lists the classes of the magic words in the CLL and experimental lexicons. A dialect with other magic words adds their classes to it in one place. Without the feature `sa-su`, `sa` and `su` are plain words.
+The magic words are never plain words. The rules under "Quotes", "Compounds" and "Erasure" say what each does instead. The condition here keeps them out, so that the stage cannot read `zo` as a word that stands beside the word it quotes. The constant `$MAGIC-WORDS` lists the classes of the magic words in the CLL and experimental lexicons, except LOhAI and LEhAI ([lohai.md](lohai.md)). A dialect with other magic words adds their classes to it in one place. Without the feature `sa-su`, `sa` and `su` are plain words.
 
 ```jbogenbau
 %const $MAGIC-WORDS

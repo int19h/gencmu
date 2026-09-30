@@ -32,7 +32,7 @@ Or open `index.html` in a browser, from the clone or from GitHub Pages. This pag
 | --- | --- |
 | `cll-ebnf` | Lojban as *The Complete Lojban Language* describes it, its printed grammar taken as normative |
 | `bpfk` | CLL with the word forms that the BPFK (a Lojban committee) approved, with omitted closing words read as its parsers read them |
-| `experimental` | CLL with the experimental constructs in use since |
+| `experimental` | CLL with the constructs that came into use after CLL, as camxes-exp reads them |
 | `zantufa` | Guskant's Zantufa 1.9999, translated rule by rule |
 | `notation` | jbogenbau, gencmu's grammar notation, in which gencmu reads its own grammar documents |
 

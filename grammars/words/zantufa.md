@@ -1,15 +1,21 @@
 # Zantufa word forms
 
-This document is part of the forms stage in the [Zantufa](../dialects/zantufa.md) dialect. The forms stage is the second stage of the pipeline. It divides the phonemes of the text into words. The loader stitches this document into the stage after [bpfk.md](bpfk.md). Zantufa 1.9999 reads the word forms that the definition effort of the Logical Language Group approved, with one change, and this document makes that change.
-
-The rule here has the name of the Zantufa rule that it translates, and its comment gives that rule, as in bpfk.md. [The notation document](../../docs/notation.md) explains the notation.
+This document is part of the forms stage in the [Zantufa](../dialects/zantufa.md) dialect. The forms stage is the second stage of the pipeline. It divides the phonemes of the text into words. The loader stitches this document into the stage after [bpfk.md](bpfk.md).
 
 The prose uses these Lojban terms for words:
 
 - A cmavo is a particle, a short structure word.
 - A gismu is a root word.
 - A lujvo is a compound word.
-- A rafsi is a short form of a word inside a compound.
+- A rafsi is a shortened word form used inside compounds.
+
+Zantufa 1.9999 reads the word forms that the definition effort of the Logical Language Group approved, with three changes. This document makes them:
+
+- It permits the consonant pair `mz`.
+- It reads `ie'o` as hesitation, as it reads `y`.
+- It divides the letters after `ra'oi` into the rafsi or gismu form that `ra'oi` quotes.
+
+The rule `m` has the name of the Zantufa rule that it translates, and its comment gives that rule, as in bpfk.md. Where another rule states a Zantufa rule, its comment gives that rule. The rest are rules of [forms.md](forms.md) that this document changes, or rules that support them. [The notation document](../../docs/notation.md) explains the notation.
 
 CLL 3.6 forbids the consonant pair `mz`. The approved grammar, the word-form grammar that bpfk.md translates, forbids it too: its letter rule for `m` refuses a following `z`. The letter rule for `m` in Zantufa refuses only another `m` among the consonants, as the rule of camxes-exp (the experimental camxes parser) does. So Zantufa accepts `mz` wherever a permissible pair can stand. Examples are the gismu `kamzi`, the lujvo `bamzda` and the name `.djeimz.`. The other changes that camxes-exp makes to the word forms, in [experimental.md](experimental.md), are not Zantufa's.
 
@@ -48,6 +54,8 @@ A word of LU, TO or LUhEI opens a text of its own. The hesitation after such a w
   LU ∪ TO ∪ LUhEI
 ```
 
+A run that begins with `ra'oi` and a form after it extends the rule `read-run` of forms.md. So the stage never reads such a run as foreign text too.
+
 The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join. The first of them follows from the second, but it lets the parser drop a join early, as forms.md explains.
 
 ```jbogenbau
@@ -59,7 +67,7 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
   RAhOI ⊈ tags($p) ∨ ¬matches($r, rahoi-rest),
   RAhOI ⊆ tags($q)
 
-%extend-rule run
+%extend-rule read-run
   run-words⊇RAhOI $s(rahoi-rest)
 %tags
   tags($s)

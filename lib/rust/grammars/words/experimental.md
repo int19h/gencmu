@@ -9,7 +9,7 @@ The prose uses these Lojban terms for words:
 - A brivla is a predicate word.
 - A gismu is a root word.
 - A lujvo is a compound word.
-- A rafsi is a short form of a word inside a compound.
+- A rafsi is a shortened word form used inside compounds.
 
 ## The pair mz
 

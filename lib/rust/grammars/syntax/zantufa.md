@@ -9,7 +9,7 @@ A cmavo is a particle, a short structure word. A selma'o is a word class of cmav
 The prose also uses these Lojban terms:
 
 - A gismu is a root word.
-- A rafsi is a short form of a word inside a compound.
+- A rafsi is a shortened word form used inside compounds.
 - A selbri is the predicate of a sentence.
 - A sumti is an argument of a selbri.
 - A tanru is a compound selbri.
@@ -250,7 +250,9 @@ The outer level takes a connective only where the inner one cannot. That is wher
 
 ## Terms
 
-Zantufa has no termsets. A term is a `xoi` clause, a `ke` group of terms, a tense or modal with its sumti, or a sumti. It can also be a briga'i form (`noi'a` with a selbri, or a bare `na`), or a forethought connection of terms. In a term, no forethought bridi-tail or `bo` directly follows a tense or modal, as the reference's lookaheads say. A selbri follows it only where the selbri begins with a tense or modal, as in `mi pe pu ba broda`. A sumti comes before a forethought term over the same words, as in the reference's ordered choice.
+Zantufa has no termsets. A term is a `xoi` clause, a `ke` group of terms, a tense or modal with its sumti, or a sumti. It can also be a briga'i form (`noi'a` with a selbri, or a bare `na`), or a forethought connection of terms. A sumti comes before a forethought term over the same words, as in the reference's ordered choice.
+
+In a term, no forethought bridi-tail, `bo` or selbri directly follows a tense or modal, as the reference's lookaheads say. No further part of a tense or modal follows it either, because the reference reads a tense or modal as far as it can. The reference's lookahead lets a selbri follow where the selbri begins with a tense or modal. But no such selbri is left after a tense or modal that reads as far as it can. So `mi pe pu ba broda` has no parse, as in Zantufa, and `mi pe pu ku ba broda` has one.
 
 ```jbogenbau
 %rule terms
@@ -305,7 +307,8 @@ Zantufa has no termsets. A term is a `xoi` clause, a `ke` group of terms, a tens
   | $f(fa-jai) tag-term-argument
 %conditions
   ¬begins(from($t), gek),
-  ¬begins(after($t), selbri) ∨ begins(after($t), tag),
+  ¬begins(after($t), tcita-selci),
+  ¬begins(after($t), selbri),
   ¬begins(after($t), gek-bridi-tail),
   ¬begins(after($t), bo-word),
   ¬begins(after($f), tanru-unit-1)
@@ -660,7 +663,7 @@ Zantufa's mekso is flat: operands and runs of operators alternate, `bo` and `ke`
 
 ## Tenses and modals
 
-A tense or modal (the rule `tag`) is a run of `tcita-selci` joined by joiks. Each is a modal, a ROI word with an optional mekso before it, `fi'o` with a selbri, or one of these after `na'e` or `se`. The grammar reads a tense or modal whole. Another `tcita-selci` comes before a joik. And a tense or modal before a selbri never leaves a `tcita-selci` for the selbri.
+A tense or modal (the rule `tag`) is a run of `tcita-selci` joined by joiks. Each is a modal, a ROI word with an optional mekso before it, `fi'o` with a selbri, or one of these after `na'e` or `se`. The grammar reads a tense or modal whole. Another `tcita-selci` comes before a joik. And a tense or modal in a term or before a selbri never leaves a `tcita-selci` after it.
 
 ```jbogenbau
 %rule tag

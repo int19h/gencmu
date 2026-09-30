@@ -9,7 +9,7 @@ The prose uses these Lojban terms for words:
 - A cmavo is a particle, a short structure word.
 - A gismu is a root word.
 - A lujvo is a compound word.
-- A rafsi is a short form of a word inside a compound.
+- A rafsi is a shortened word form used inside compounds.
 
 Magic words act on other words. Examples are quotes and erasers. Most of Zantufa's magic words follow from its lexicon. SI is `si`, `zei`, `ze'ei` and `si'u'i`, so each erases the word before it, and no word joins two words into a lujvo. `sa` is an attitudinal. ZO is `zo`, `ma'oi` and `ra'ai`, LOhU is `lo'u` and `la'ai`, and ZOI is `zoi` and `la'o`.
 
@@ -98,7 +98,9 @@ In a `lo'u` or `lo'ai` quote, such a word is tagged `word` only, as the other wo
   | $b(y-base) $h(y-run⊇~after-hesitation) <tags($h)>
 ```
 
-A magic word is never a plain word. The stream's list of them, `$MAGIC-WORDS`, lacks RAhOI, GOhOI, MUhOI, LOhAI and LEhAI, which only Zantufa reads as magic words, and this document adds them. A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads as an unquoted word opens a text of its own. The forms stage gives the tag (a name on a token) `opener-space` to the hesitation after such a word. So that hesitation is space, and the word takes it with it. Inside a quote, such a hesitation is an attached Y word, as in `zo luyy si`, which erases the `yy` and keeps `zo lu`.
+A magic word is never a plain word. The stream's list of them, `$MAGIC-WORDS`, lacks RAhOI, GOhOI and MUhOI, which only Zantufa has. It also lacks LOhAI and LEhAI. The experimental dialect reads a bare marker of these as a plain word, and Zantufa does not. This document adds all five classes to the list.
+
+A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads as an unquoted word opens a text of its own. The forms stage gives the tag (a name on a token) `opener-space` to the hesitation after such a word. So that hesitation is space, and the word takes it with it. Inside a quote, such a hesitation is an attached Y word, as in `zo luyy si`, which erases the `yy` and keeps `zo lu`.
 
 ```jbogenbau
 %redefine-const $MAGIC-WORDS
