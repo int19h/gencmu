@@ -6,7 +6,7 @@ A jbogenbau grammar is an attribute grammar with EBNF rule bodies. An attribute 
 
 Conditions over the parts restrict which parses exist. A condition can also ask whether a part parses as another rule. This takes the grammar beyond context-free grammars, whose rules only combine symbols. It goes beyond them in the way that Boolean grammars do. In a Boolean grammar, a rule can also require that the same text matches, or does not match, another rule.
 
-A token is one unit of text. Examples are characters and words. A transducer reads tokens and emits another sequence. Each rule can also say what its constituents hand to the next stage. So a grammar is a transducer. A dialect is a pipeline of these grammars.
+A token is one unit that a grammar reads or emits. Examples are characters, phonemes and words. A transducer reads tokens and emits another sequence. Each rule can also say what its constituents hand to the next grammar. So a grammar is a transducer. A dialect is a pipeline of these grammars, called its stages.
 
 A grammar is unordered: its alternatives are not ranked. Where a text has more than one parse, one rule makes the choice afterwards. The section "Ambiguity" describes that rule.
 
