@@ -569,7 +569,9 @@ An inserted token's span is empty at the start of its anchor. The anchor is the 
 
 If no capture is listed after an inserted token, the span is empty at the end of the constituent. Its source is empty at the source end of the input token before that position. If the position is the constituent's start, its source is empty at the start of the constituent's source.
 
-A rule with `%opaque` says that the stage keeps the text of its constituents and does not read their sound. The body of a `zoi` quote is an example. Before the stage emits anything, it finds the opaque parts of its chosen derivation. An opaque part is a constituent whose production has `%opaque`, with two exceptions. A constituent inside a constituent that emits `ε` is not an opaque part. A constituent inside an opaque part is not an opaque part either. Here, inside means below in the derivation, so the outer constituent of a recursive opaque rule is the one opaque part.
+A rule with `%opaque` says that the stage keeps the text of its constituents and does not read their sound. The body of a `zoi` quote is an example.
+
+Before the stage emits anything, it finds the opaque parts of its chosen derivation. An opaque part is a constituent whose production has `%opaque`, with two exceptions. A constituent inside a constituent that emits `ε` is not an opaque part. A constituent inside an opaque part is not an opaque part either. Here, inside means below in the derivation, so the outer constituent of a recursive opaque rule is the one opaque part.
 
 This selection is over the whole chosen derivation, and it does not change what a constituent emits. Whether a constituent is an opaque part depends on its place in the derivation. Two occurrences can use the same production over the same span but differ in whether they lie inside an opaque part.
 
