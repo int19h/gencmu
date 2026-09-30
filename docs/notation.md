@@ -287,7 +287,9 @@ The first type is the span, a sequence of tokens. A capture `$x` is a span, the 
 
 `from($x)` is the tokens from the start of `$x` to the end of the input. `after($x)` is the tokens after `$x`, to the end of the input. A condition can parse a span with `matches`, `begins` or `tags(span, rule)` (see below). In such a parse, the input is that span. These two reach past the constituent, to the text that follows it. A span is only an argument of a function, such as `tags($x)`, and never a value of its own.
 
-The second type is the string. `phonemes(span)` is the canonical sound of a span. That is the phonemes of its tokens, joined, in lower case and without commas. A comma is the syllable break of CLL 3.3. In a name or a borrowing, it can split two vowels that could form a diphthong, as in `nu,iork`. In a cmavo, a comma inside a diphthong, as in `ma,i`, gives no word. `phonemes()` drops every comma, so `nuiork` and `nu,iork` match as `zoi` delimiters. So `phonemes()` ignores stress and syllable breaks. It keeps every pause, and adds none between the tokens.
+The second type is the string. `phonemes(span)` is the canonical sound of a span. That is the phonemes of its tokens, joined, in lower case and without commas.
+
+A comma is the syllable break of CLL 3.3. In a name or a borrowing, it can split two vowels that form a diphthong without the comma, as in `nu,iork`. In a cmavo, a comma inside a diphthong, as in `ma,i`, gives no word. `phonemes()` drops every comma, so `nuiork` and `nu,iork` match as `zoi` delimiters. So `phonemes()` ignores stress and syllable breaks. It keeps every pause, and adds none between the tokens.
 
 A token's own phonemes are fixed when its stage emits it, and they keep their capitals and commas. A token sounds like the phoneme that its `/x/` tag names, if it has one. Such a tag can come from an implication (see "Implications"). Two phoneme tags on one token are an error of the grammar.
 
