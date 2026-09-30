@@ -289,7 +289,7 @@ The first type is the span, a sequence of tokens. A capture `$x` is a span, the 
 
 The second type is the string. `phonemes(span)` is the canonical sound of a span. That is the phonemes of its tokens, joined, in lower case and without commas. So `phonemes()` ignores stress and syllable breaks. It keeps every pause, and adds none between the tokens.
 
-In the `cll-ebnf` dialect, a comma is the syllable break of CLL 3.3. There, in a cmevla (a name word) or a borrowing, it can split two vowels that form a diphthong without the comma, as in `nu,iork`. In a cmavo, a comma inside a diphthong, as in `ma,i`, gives no word. In the other bundled dialects, a comma between two vowels is nothing, so `ma,i` is `mai`. In every dialect, `phonemes()` drops the comma, so `nuiork` and `nu,iork` match as `zoi` delimiters.
+In the `cll-ebnf` dialect, a comma is the syllable break of CLL 3.3. There, in a cmevla (a name word) or a borrowing, it can split two vowels that form a diphthong without the comma, as in `nu,iork`. In a cmavo, a comma inside a diphthong, as in `ma,i`, gives no word. In the other bundled Lojban dialects, a comma between two vowels is nothing, so `ma,i` is `mai`. In every dialect, `phonemes()` drops the comma, so `nuiork` and `nu,iork` match as `zoi` delimiters.
 
 A token's own phonemes are fixed when its stage emits it, and they keep their capitals and commas. A token sounds like the phoneme that its `/x/` tag names, if it has one. Such a tag can come from an implication (see "Implications"). Two phoneme tags on one token are an error of the grammar.
 
