@@ -26,7 +26,7 @@ A feature is a named switch that the grammars of the dialect test (engine §13).
 | --- | --- | --- |
 | features | none | feature names to turn on for every stage, besides those the pipeline's `%features` turns on |
 | without features | none | feature names to turn off for every stage, including any that the `%features` of the pipeline turns on. A name in both lists is a usage error. |
-| auto features | on | add `sa-su` only where the text needs it (design, "Expensive constructs behind features"). It does nothing when `without features` names `sa-su` or `sa-su` is already on. It also does nothing when the dialect has no gate `sa-su`, or when the run does not reach a stage named `words` (engine §13). |
+| auto features | on | add `sa-su` only where the text needs it (design, "Expensive constructs behind features"). It does nothing when `without features` names `sa-su` or `sa-su` is already on. It also does nothing when the dialect lacks the gate `sa-su` or the stage `words`. It does nothing when `until` names an earlier stage (engine §13). |
 | until | the last stage | the name of the last stage to run. An unknown name is an error. |
 | elision-only | the grammar's own | on or off for every stage that runs, overriding `%ambiguity-resolution ... elision-only` |
 
