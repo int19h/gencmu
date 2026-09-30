@@ -1091,7 +1091,6 @@ adhoc.words.split.zohoi.attached-hesitation.experimental
 adhoc.words.split.zoi.letter-word-delimiter
 adhoc.words.split.gap.si-zei
 adhoc.words.split.hes.before-wiped-erasures
-adhoc.words.cll-exact.zobroda
 cll.3.30.c3e9d13.4
 cll.4.4.c4e2d4
 cll.4.46.c4e7d3.3
