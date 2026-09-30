@@ -25,7 +25,7 @@ A dialect is a pipeline of stages, defined by one pipeline document. A stage is 
   %include "../phonemes/cyrillic-cll.md"
   ```
 
-The stage receives the text's characters. It hands on one token per phoneme, whatever the script, and a `PAUSE` wherever the text pauses. It reads the orthography of CLL chapter 3 and no more. A digit, an accent or a question mark is foreign to the stage, so the word stage rejects a text with one outside a quote. A run of letters is one stretch until a pause says otherwise. So the stage is greedy: it ends each constituent as late as the grammar allows.
+The stage receives the text's characters and hands on one token per phoneme, whatever the script, and a `PAUSE` wherever the text pauses. It reads the orthography of CLL chapter 3 and no more. A digit, an accent or a question mark is foreign to the stage. So the word stage rejects a text with one, except in a quote or after `fa'o`. A run of letters is one stretch until a pause says otherwise. So the stage is greedy: it ends each constituent as late as the grammar allows.
 
 The feature `cll-cyrillic`, which the dialect turns on, reads the Cyrillic of CLL 3.12. gencmu's own Cyrillic is not CLL's, so this dialect does not offer it. With the feature off, the stage reads no Cyrillic.
 
@@ -69,7 +69,7 @@ The stage receives phonemes. A run is a stretch with no internal pause. The stag
   %include "../words/cll-stream.md"
   ```
 
-The stage receives the source words and hands on the words of the text. It rejects a foreign run outside a foreign quote. For the magic words, the stage is lazy: it ends each constituent as early as the grammar allows. So each magic word acts on what exists when the stage reads it.
+The stage receives the source words and hands on the words of the text. It rejects a foreign run, except in a foreign quote or after `fa'o`. For the magic words, the stage is lazy: it ends each constituent as early as the grammar allows. So each magic word acts on what exists when the stage reads it.
 
 The warning `y-cmavo` reports a cmavo that uses `y` as a vowel beyond the forms that CLL gives, such as `ka'y`. The feature `sa-su` controls `sa` and `su`. The libraries turn this feature on for a text only when the text needs it.
 
@@ -84,7 +84,7 @@ The warning `y-cmavo` reports a cmavo that uses `y` as a vowel beyond the forms 
   %include "../indicators/cll.md"
   ```
 
-The stage applies CLL's non-formal rule `word = [BAhE] any-word [indicators]`. A run of indicators attaches to the word before it, and `ba'e` attaches to the word after it. The stage hands on the words that the syntax reads.
+The stage applies CLL's non-formal rule `word = [BAhE] any-word [indicators]`. A run of indicators attaches to the word before it, and `ba'e` attaches to the word after it. At the start of a text and after `lu` or `to`, the syntax reads the indicators. There, only `ba'e` attaches. The stage hands on the words that the syntax reads.
 
 ## Stage 5: syntax
 
@@ -96,6 +96,7 @@ The stage applies CLL's non-formal rule `word = [BAhE] any-word [indicators]`. A
   ```jbogenbau
   %include "../syntax/cll.md"
   ```
+
 The stage is the grammar of chapter 21, with selma'o as its terminals. The CLL grammar leaves the choice among parses to each dialect that uses it. This dialect makes the choice here:
 
 ```jbogenbau
@@ -104,4 +105,4 @@ The stage is the grammar of chapter 21, with selma'o as its terminals. The CLL g
 
 The stage is greedy: of two parses, the one that reads the next word wins. So an elided terminator is absent for as long as the grammar allows. A terminator can be elided wherever a parse of the whole text needs it. With `elision-only`, the stage applies CLL's rule that a terminator can be elided only if no ambiguity results. So a text that is still ambiguous with its terminators written back is an error. [The notation document](../../docs/notation.md) explains both, under "Ambiguity".
 
-So `le nanmu joi le ninmu cu klama` parses, although CLL 14.14 says that CLL's official parser needs its `ku`. `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` also parses, and its description ends before `se farvi`. Where the printed grammar is ambiguous in anything but a terminator, the text is an error that shows both readings. For example, `mi broda joi ke brode ke'e` is a `ke` group joined to `broda` by `joi`. It is also `joi` before a tanru unit that begins with `ke`.
+So `le nanmu joi le ninmu cu klama` parses, although CLL 14.14 says that the text needs its first `ku`. `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` also parses, and its description ends before `se farvi`. Where the printed grammar is ambiguous in anything but a terminator, the text is an error that shows both readings. For example, `mi broda joi ke brode ke'e` is a `ke` group joined to `broda` by `joi`. It is also `joi` before a tanru unit that begins with `ke`.

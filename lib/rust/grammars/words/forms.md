@@ -12,7 +12,7 @@ The CLL dialect stitches [shapes.md](shapes.md) and [cll.md](cll.md) as its fami
 
 The text is runs and pauses. A run is a stretch of text with no pause inside. The phoneme stage emits each pause as one `PAUSE` token. The phoneme stage decides what counts as a pause. In CLL's orthography, a pause is a space or a period. In the conventions that the other dialects read, other punctuation is a pause too.
 
-Every pause rule of CLL 4.9 and 4.2 holds within one run. A pause satisfies each of them, so two words with a pause between them never constrain each other. The approved word forms look past the end of a word only as far as the next pause. So this stage reads each run on its own.
+Every pause rule of CLL 4.9 and 4.2 holds within one run. A pause satisfies each of them, so two words with a pause between them never constrain each other. The approved word forms look past the end of a word only as far as the next pause. So this stage reads each run on its own. The one exception is in the Zantufa dialect. There, a `ra'oi` before a pause changes how the stage divides the next run ([zantufa.md](zantufa.md)).
 
 A run is a sequence of words, or it is foreign text. A run is foreign text when the phoneme stage already found it foreign, because it has a character that no script reads. A run of phonemes that divides into no words is also foreign text.
 
@@ -72,11 +72,11 @@ The stage tests only a whole run for whether it divides. A part of a run has a p
 
 The stage reads the words of a run from the left. Each word after the first can follow the word before it only if the pause rules let the two stand together with no pause. The family tags each word with the properties that these rules test. The run carries the tags of its last word, so the condition sees the word before and the word after:
 
-- `onset`: the word can follow another word directly. It begins with a consonant and is not a name (rules 3 and 4).
-- `continued`: another word can follow this one directly. A name never has it (rule 2), nor a `Cy` letter, nor a brivla whose stress is not marked.
+- `onset`: The word can follow another word directly. It begins with a consonant and is not a name (rules 3 and 4).
+- `continued`: Another word can follow this one directly. A name never has it (rule 2), nor a `Cy` letter, nor a brivla whose stress is not marked.
 - `name-intro` and `name-onset`: `name-intro` marks `la`, `lai`, `la'i` and `doi`, and `name-onset` marks a name that begins with a consonant. The name can follow the cmavo directly (rule 4).
-- `cy`: a `Cy` letter, which only another `Cy` letter can follow directly (rule 6)
-- `final-stress`, `initial-stress` and `stress-guard`: the word's last or first syllable is stressed, or the word is a brivla. A word with either of the other two cannot directly follow a word with `final-stress` (4.2, rule 5).
+- `cy`: A `Cy` letter, which only another `Cy` letter can follow directly (rule 6)
+- `final-stress`, `initial-stress` and `stress-guard`: The word's last or first syllable is stressed, or the word is a brivla. A word with either of the other two cannot directly follow a word with `final-stress` (4.2, rule 5).
 - `open-stress` and `uncounted`: `open-stress` marks a brivla whose stress is not marked, and `uncounted` marks a word with no counted syllable. CLL 3.9 counts a brivla's syllables to the next pause, so only words with no counted syllable can follow it in its run. The run carries `open-stress` on through them.
 
 The approved word forms set only `onset` and `continued`, with the meaning that the PEG gives them. The PEG is the parsing expression grammar of the approved forms. [bpfk.md](bpfk.md) translates it. Every word is `continued`, and a word that does not begin with a nucleus is `onset`, a name included. Their words look past their own ends, as the words of the PEG do, and decide the rest themselves.
@@ -89,14 +89,14 @@ The approved word forms set only `onset` and `continued`, with the meaning that 
 %conditions
   (~continued ∪ ~cy ∪ ~name-intro ∪ ~open-stress) ∩ tags($r) ≠ ∅,
   ~cy ⊆ tags($r) ∧ ~cy ⊆ tags($v)
-    ∨ ~continued ⊆ tags($r) ∧ ~onset ⊆ tags($v) ∧ (~cy ⊈ tags($r) ∨ ~cy ⊈ tags($v))
+    ∨ ~continued ⊆ tags($r) ∧ ~onset ⊆ tags($v)
     ∨ ~name-intro ⊆ tags($r) ∧ ~name-onset ⊆ tags($v)
     ∨ ~open-stress ⊆ tags($r) ∧ ~cy ⊈ tags($r) ∧ ~onset ⊆ tags($v),
   ~final-stress ⊈ tags($r) ∨ (~stress-guard ∪ ~initial-stress) ∩ tags($v) = ∅,
   ~open-stress ⊈ tags($r) ∨ ~uncounted ⊆ tags($v)
 ```
 
-A join permits two words without a pause. This document states the joins so that no two joins apply to the same pair. For example, only the `Cy` rule joins two `Cy` letter words side by side. That is why the general join, a continued word followed by an onset, leaves that case to the `Cy` rule.
+A join permits two words without a pause. This document states the joins so that no two joins apply to the same pair. For example, a `Cy` letter is never `continued`. So only the `Cy` rule joins two of them. The general join, a continued word followed by an onset, never joins a `Cy` letter to the word after it.
 
 The first condition of `run-words` follows from the second. Each join of the second needs one of four tags on the words before: `continued`, `cy`, `name-intro` or `open-stress`. The first condition stays because it uses only `$r`.
 

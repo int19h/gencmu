@@ -6,7 +6,7 @@ The lexicon gives each cmavo the selma'o that Zantufa 1.9999 gives it. `tools/pe
 
 Each entry lists words by their canonical sound and gives them one selma'o, as [lexicon-cll.md](lexicon-cll.md) explains. Zantufa gives each word one selma'o, and its classes differ from those of CLL (*The Complete Lojban Language*) in many places. For example:
 
-- Every tense word is BAI, `mo'i` and `fe'e` are NAhE, and the CAhA words, such as `ca'a` and `ka'e`, are NA.
+- Every tense word but those of ROI is BAI, `mo'i` and `fe'e` are NAhE, and the CAhA words, such as `ca'a` and `ka'e`, are NA.
 - `je`, `ja`, `jo` and `ju` are JOI, because Zantufa has no JA.
 - `la`, `lai` and `la'i` are LE, because Zantufa reads a name as a selbri.
 - `ce'e` is BO, `nu'i` and `nu'u` are KE and KEhE, and `pe'e` is BAhE, because Zantufa has no termsets.

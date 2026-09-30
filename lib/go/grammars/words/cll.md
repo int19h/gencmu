@@ -10,18 +10,18 @@ The rules state CLL 1.1's word forms precisely enough to implement them twice. U
 
 The forms stage joins two words without a pause only if CLL 4.9 and 4.2 allow it. It reads these tags on the word before and the word after:
 
-- `onset`: the word begins with a consonant and is not a name. Only such a word can follow another word without a pause (rules 3 and 4), apart from a name after `la`, below.
-- `continued`: another word can follow this one without a pause. Every cmavo but a `Cy` letter has it, and so does a brivla whose stress is marked.
-- `open-stress`: the word is a brivla whose stress is not marked. CLL 3.9 puts its stress on its penultimate syllable, so no counted syllable can follow it before the next pause. Only a word tagged `uncounted`, one with no counted syllable, can follow it without a pause.
-- `cy`: a `Cy` letter, which rule 6 lets only another `Cy` follow directly
+- `onset`: The word begins with a consonant and is not a name. Only such a word can follow another word without a pause (rules 3 and 4), apart from a name after `la`, below.
+- `continued`: Another word can follow this one without a pause. Every cmavo but a `Cy` letter has it, and so does a brivla whose stress is marked.
+- `open-stress`: The word is a brivla whose stress is not marked. CLL 3.9 puts its stress on its penultimate syllable, so no counted syllable can follow it before the next pause. Only a word tagged `uncounted`, one with no counted syllable, can follow it without a pause.
+- `cy`: A `Cy` letter, which rule 6 lets only another `Cy` follow directly
 - `name-intro` and `name-onset`: `name-intro` marks `la`, `lai`, `la'i` and `doi`, and `name-onset` marks a name that begins with a consonant. Rule 4 lets the name follow the cmavo without a pause.
-- `initial-stress` and `final-stress`: the word's first or last syllable is stressed. Such syllables are those of the first and the last vowel nucleus of the word as written, `y` included. A pause must stand between a word with `final-stress` and a following word with `initial-stress` (CLL 4.2). It must also stand before a following brivla, which carries the tag `stress-guard` (rule 5).
+- `initial-stress` and `final-stress`: The word's first or last syllable is stressed. Such syllables are those of the first and the last vowel nucleus of the word as written, `y` included. A pause must stand between a word with `final-stress` and a following word with `initial-stress` (CLL 4.2). It must also stand before a following brivla, which carries the tag `stress-guard` (rule 5).
 
 ## Cmavo
 
 A cmavo is an optional consonant followed by vowel units joined by apostrophes. A unit is a vowel or a falling diphthong (CLL 4.1, 4.2). So `sei'a` is a cmavo, but `seia`, `baiu` and `miui` are not: their vowels do not form units. One or two vowels make the forms V, VV, CV and CVV. Three or more are the experimental cmavo of CLL 4.2, such as `ku'a'e` and `bai'ai`.
 
-The ten rising diphthongs, such as `ia` and `ui`, are cmavo as whole words. A consonant never comes before one, so `kie` and `mui` are no cmavo. A comma never stands in a cmavo: `ma,i` is neither one cmavo nor `ma .i`, because a comma is no pause.
+The ten rising diphthongs, such as `ia` and `ui`, are cmavo as whole words. A consonant never comes before one, so `kie` and `mui` are no cmavo. A syllable-break comma cannot stand between the vowels of a cmavo. So `ma,i` is neither one cmavo nor `ma .i`, because a comma is no pause.
 
 A consonant followed by `y` is a letter cmavo (CLL 4.2, 17). So is `y'y`, the letter for the apostrophe. The ten pairs `a'y e'y i'y o'y u'y y'a y'e y'i y'o y'u` are cmavo too.
 
@@ -419,15 +419,15 @@ Pauses surround a name (rules 2 and 4), so its shape carries neither `onset` nor
 
 In a few places CLL 1.1 is silent, or two passages disagree. This grammar reads each place as follows:
 
-- Hyphens. CLL 4.11 says that "it is illegal to add a hyphen at a place that is not required by this algorithm". So a lujvo has a `y` only where the algorithm puts one, and `rokyre'o`, `basykla` and `lojybangri` are no lujvo. The algorithm has no rule for an `n` before `tc`, `ts`, `dj` or `dz`, and the `y` goes there, as in `junydji`.
+- Hyphens: CLL 4.11 says that "it is illegal to add a hyphen at a place that is not required by this algorithm". So a lujvo has a `y` only where the algorithm puts one, and `rokyre'o`, `basykla` and `lojybangri` are no lujvo. The algorithm has no rule for an `n` before `tc`, `ts`, `dj` or `dz`, and the `y` goes there, as in `junydji`.
 - The slinku'i test holds for every borrowing, as CLL 4.7 states it, so `ikla` and `irklama` are no borrowings. A borrowing is also not a cmavo followed by a borrowing, which is one more way the book's promise of a single division can fail.
 - A "combination of cmavo, gismu, and lujvo" (CLL 4.7) is the same spoken word, with its syllables and stress, as 17.4's `denpabu` shows. So `klamale` and `bantua` are borrowings.
-- Stress and pauses. CLL 4.9 rule 5 asks for a pause after a stressed last syllable before a brivla. CLL 4.2 asks for one between two stressed syllables, whatever the words. "If the final syllable of one word is stressed, and the first syllable of the next word is stressed, you must insert a pause". Both hold, so `mIdO` needs a pause.
-- Syllables. A syllabic consonant adds no syllable. So the first and last syllables of a word are those of its first and last written vowels, `y` included.
+- Stress and pauses: CLL 4.9 rule 5 asks for a pause after a stressed last syllable before a brivla. CLL 4.2 asks for one between two stressed syllables, whatever the words. "If the final syllable of one word is stressed, and the first syllable of the next word is stressed, you must insert a pause". Both hold, so `mIdO` needs a pause.
+- Syllables: A syllabic consonant adds no syllable. So the first and last syllables of a word are those of its first and last written vowels, `y` included.
 - An unmarked brivla is stressed on the penultimate syllable, counted to the next pause (CLL 3.9). So `klamacy.` is `klama cy.`, and `klamabu` is one borrowing, like `denpabu`.
-- Capital letters. A capital on either letter of a diphthong, or on both, marks one stressed syllable, so `bAIkla` is a lujvo. A capital `Y` can mark stress in a name or a cmavo, whose stress can fall on any syllable. It never stands in a brivla, whose `y` is not counted.
-- Vowels. CLL never says whether two vowels that form no diphthong can stand side by side. In a name or a borrowing they can, each its own syllable, as in `.aab.` and `paarku`. Usage before the PEG (parsing expression grammar) grammars had them.
-- Vowels in a cmavo. A cmavo's vowels are single vowels and falling diphthongs joined by apostrophes (CLL 4.1, 4.2). A rising diphthong is a cmavo only as a whole word. So `seia`, `miui` and `kie` are no cmavo, and `sei'a` is one. An apostrophe or a comma can stand before a rising diphthong in a name, as in `.a'uas.`.
-- Commas. A comma between two vowels is a syllable break, as CLL 3.5's `.me,iin.` and 4.7's `bang,r,kore,a` use it. Anywhere else it is not a letter, so a comma that changes no syllable leaves the same word.
-- Written boundaries. CLL 3.3 lets a missing period be inferred, but not a missing word boundary. So a space or a period ends a word and counts as a pause, and no boundary is inferred where none is written. `miui` is no text, and `mi .ui` and `mi ui` are two words.
-- `y` in a cmavo. The ten pairs `a'y`, `e'y`, `i'y`, `o'y`, `u'y`, `y'a`, `y'e`, `y'i`, `y'o` and `y'u` are cmavo. The word stage reads a longer cmavo with a `y` unit, such as `ka'y`, under the warning `y-cmavo`.
+- Capital letters: A capital on either letter of a diphthong, or on both, marks one stressed syllable, so `bAIkla` is a lujvo. A capital `Y` can mark stress in a name or a cmavo, whose stress can fall on any syllable. It never stands in a brivla, whose `y` is not counted.
+- Vowels: CLL never says whether two vowels that form no diphthong can stand side by side. In a name or a borrowing they can, each its own syllable, as in `.aab.` and `paarku`. Usage before the PEG (parsing expression grammar) grammars had them.
+- Vowels in a cmavo: A cmavo's vowels are single vowels and falling diphthongs joined by apostrophes (CLL 4.1, 4.2). A rising diphthong is a cmavo only as a whole word. So `seia`, `miui` and `kie` are no cmavo, and `sei'a` is one. An apostrophe or a comma can stand before a rising diphthong in a name, as in `.a'uas.`.
+- Commas: A comma between two vowels is a syllable break, as CLL 3.5's `.me,iin.` and 4.7's `bang,r,kore,a` use it. Anywhere else it is not a letter, so a comma that changes no syllable leaves the same word.
+- Written boundaries: CLL 3.3 lets a missing period be inferred, but not a missing word boundary. So a space or a period ends a word and counts as a pause, and no boundary is inferred where none is written. `miui` is no text, and `mi .ui` and `mi ui` are two words.
+- `y` in a cmavo: The ten pairs `a'y`, `e'y`, `i'y`, `o'y`, `u'y`, `y'a`, `y'e`, `y'i`, `y'o` and `y'u` are cmavo. The word stage reads a longer cmavo with a `y` unit, such as `ka'y`, under the warning `y-cmavo`.

@@ -28,10 +28,10 @@ A stage has this form:
 
 `output` is the emitted tokens of an accepted stage, the last stage included. It is absent when the emission of the stage fails (engine §11). It is also absent when the reparse of `elision-only` meets an error of the grammar (engine §7).
 
-A token has this form:
+A token has this form. This one is the token of `mi` that the forms stage of the CLL dialect emits:
 
 ```
-{"text":"mi","phonemes":"mi","label":"mi","tags":["KOhA","cmavo","word"],"span":[0,2],"source":[0,2]}
+{"text":"mi","phonemes":"mi","label":"mi","tags":["KOhA","cmavo","continued","onset","run-final","run-initial","word"],"span":[0,2],"source":[0,2]}
 ```
 
 `tags` lists every tag once, in code point order. A tag is written in its canonical spelling (engine §1), so a character tag is `'a'`, and a combining acute accent is `'\u{301}'`. A character token of the first stage has one tag, its character tag. `phonemes` is always present, the empty string for a token with none (engine §5). A foreign part sounds `?` (engine §11).
@@ -125,7 +125,7 @@ An argument is a span or a term. For `tags`, `matches` and `begins`, an argument
 
 A condition is one of these forms:
 
-- `{"op":"=","left":TERM,"right":TERM}`, with `op` one of `=`, `≠`, `∈`, `∉`, `⊆`, `⊈`. The types of `left` and `right` agree as engine §10 says.
+- `{"op":"=","left":TERM,"right":TERM}`, with `op` one of `=`, `≠`, `∈`, `∉`, `⊆`, `⊈`, and with `left` and `right` of types that agree as engine §10 says
 - `{"matches":SPAN,"rule":"r"}`
 - `{"begins":SPAN,"rule":"r"}`
 - `{"initial":SPAN}`

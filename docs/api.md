@@ -8,9 +8,9 @@ Every gencmu library offers the same operations on the same data. Each library s
 
 A dialect is a pipeline document and the grammar documents that it includes. The pipeline document names the stages of the dialect. A library loads a dialect in three ways:
 
-- By name, from the grammars bundled in the package. The name is the file name of a pipeline document under `grammars/dialects/` without `.md`. So the names are `cll-ebnf`, `bpfk`, `experimental`, `zantufa` and `notation`.
-- From a pipeline document on disk. The library finds its grammar documents relative to it. Its `unicode.txt` and `notation/bootstrap.json` come from the bundled grammars.
-- From documents held in memory: a map from `/`-separated path to text, and the path of the pipeline document in the map. The map can supply its own `unicode.txt`, `notation/bootstrap.json` and `compiled.json`. Any of these that the map lacks come from the bundled grammars. The exception is the portable JavaScript entry point, which has no bundle to read. There, the map must hold the first two (see "JavaScript").
+- It loads a dialect by name, from the grammars bundled in the package. The name is the file name of a pipeline document under `grammars/dialects/` without `.md`. So the names are `cll-ebnf`, `bpfk`, `experimental`, `zantufa` and `notation`.
+- It loads a pipeline document from disk. The library finds its grammar documents relative to it. Its `unicode.txt` and `notation/bootstrap.json` come from the bundled grammars.
+- It loads documents held in memory: a map from `/`-separated path to text, and the path of the pipeline document in the map. The map can supply its own `unicode.txt`, `notation/bootstrap.json` and `compiled.json`. Any of these that the map lacks come from the bundled grammars. The exception is the portable JavaScript entry point, which has no bundle to read. There, the map must hold the first two (see "JavaScript").
 
 A `unicode.txt` in the map replaces the bundled table entirely, with no fallback to the bundled data. This holds for `White_Space` too, so the table must list the white space that the documents use. A code point that the table omits has the category `Cn`, no White_Space and no lowercase mapping (engine §1).
 
@@ -66,7 +66,7 @@ Every library runs these tests:
 
 - `tests/engine/`
 - `tests/notation/`
-- The fixpoint of the bootstrap: a reading of `grammars/notation/*.md` with the bootstrap reproduces the bootstrap.
+- The fixpoint of the bootstrap, where a reading of `grammars/notation/*.md` with the bootstrap reproduces the bootstrap
 - A comparison of `compiled.json` with a fresh reading, with the cache both used and bypassed
 
 ## JavaScript
@@ -138,7 +138,7 @@ gencmu.Brackets(result, gencmu.BracketOptions{ShowElided: true})
 ```
 
 - `LoadDialect(name)`, `LoadDialectFile(path)` and `LoadDialectSources(sources map[string]string, pipeline string)` each return `(*Dialect, error)`. A load error is a `*gencmu.Error`.
-- `(*Dialect).Parse(text string, options ParseOptions) (*ParseResult, error)`. The error is for a mistake of the caller, such as an unknown stage name. A text that does not parse is a result. `ParseOptions` has `Features []string`, `WithoutFeatures []string`, `NoAutoFeatures bool`, `Until string` and `ElisionOnly *bool`. Auto features are on unless `NoAutoFeatures` is set.
+- `(*Dialect).Parse(text string, options ParseOptions) (*ParseResult, error)` parses a text. The error is for a mistake of the caller, such as an unknown stage name. A text that does not parse is a result. `ParseOptions` has `Features []string`, `WithoutFeatures []string`, `NoAutoFeatures bool`, `Until string` and `ElisionOnly *bool`. Auto features are on unless `NoAutoFeatures` is set.
 - `(*Dialect).Features() []Feature` lists the features. Each `Feature` has `Name`, `Kind` and `Default`.
 - `MarshalResult(result) ([]byte, error)` writes the canonical JSON.
 - A `*Dialect` is safe for concurrent use by any number of goroutines.
@@ -159,9 +159,9 @@ gencmu::to_brackets(&result, true);
 ```
 
 - `load_dialect(name)`, `load_dialect_file(path)` and `load_dialect_sources(sources, pipeline)` each return `Result<Dialect, gencmu::Error>`.
-- `Dialect::parse(&self, text: &str, options: &ParseOptions) -> Result<ParseResult, Error>`. `ParseOptions` has `features`, `without_features`, `auto_features`, `until` and `elision_only`, and `ParseOptions::default()` has auto features on.
+- `Dialect::parse(&self, text: &str, options: &ParseOptions) -> Result<ParseResult, Error>` parses a text. `ParseOptions` has `features`, `without_features`, `auto_features`, `until` and `elision_only`, and `ParseOptions::default()` has auto features on.
 - `Dialect::features(&self) -> &[Feature]` lists the features. Each `Feature` has `name`, `kind` and `default`.
-- `to_json(&ParseResult) -> String`.
-- `to_brackets(&ParseResult, show_elided: bool) -> String`.
+- `to_json(&ParseResult) -> String` writes the canonical JSON.
+- `to_brackets(&ParseResult, show_elided: bool) -> String` renders the tree as brackets.
 - A result owns its data (`String`, `Vec`) and borrows neither the text nor the dialect. So it outlives both.
 - The crate has no dependencies. It states its minimum supported Rust version.

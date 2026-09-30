@@ -1092,6 +1092,64 @@ func TestZbalermornaShorthandCoversItsMark(t *testing.T) {
 	}
 }
 
+// words/cll.md and words/forms.md: a Cy letter is never continued. So the
+// general join of run-words, a continued word before an onset, never joins a
+// Cy letter to the word after it, and only the Cy rule joins two letters.
+func TestCyLetterIsNeverContinued(t *testing.T) {
+	d, err := LoadDialect("cll-ebnf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	letters := stageOutput(t, d, "cyky", "forms")
+	if len(letters) != 2 || letters[0].Label != "cy" || letters[1].Label != "ky" {
+		t.Fatalf("the letters: %+v", letters)
+	}
+	for _, letter := range letters {
+		if !hasTag(letter, "cy") || hasTag(letter, "continued") {
+			t.Fatalf("%s has the tags %v", letter.Label, letter.Tags)
+		}
+	}
+}
+
+// indicators/cll.md: the greedy ranking reads a nai after a leading
+// attitudinal into the leading run, with or without a ba'e before it, and
+// after a text opener as at the start of the text. No condition decides it,
+// so each of these texts has the verdict resolved in the indicator stage.
+func TestRankingReadsLeadingNaiIntoTheRun(t *testing.T) {
+	d, err := LoadDialect("cll-ebnf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		text   string
+		labels []string
+	}{
+		{"ui nai mi klama", []string{"ui", "nai", "mi", "klama"}},
+		{"ui ba'e nai mi klama", []string{"ui", "nai", "mi", "klama"}},
+		{"lu ui nai mi li'u", []string{"lu", "ui", "nai", "mi", "li'u"}},
+	} {
+		res, err := d.Parse(c.text, ParseOptions{})
+		if err != nil || !res.OK {
+			t.Fatalf("%s: %v %+v", c.text, err, res.Error)
+		}
+		for _, stage := range res.Stages {
+			if stage.Name != "indicators" {
+				continue
+			}
+			if stage.Verdict != VerdictResolved {
+				t.Fatalf("%s: the verdict is %q", c.text, stage.Verdict)
+			}
+			var labels []string
+			for _, token := range stage.Output {
+				labels = append(labels, token.Label)
+			}
+			if strings.Join(labels, " ") != strings.Join(c.labels, " ") {
+				t.Fatalf("%s: the labels are %v", c.text, labels)
+			}
+		}
+	}
+}
+
 // syntax/experimental.md: the grammar reads no LA, since no word of the
 // experimental lexicon has it. A probe document after the lexicon moves la
 // from LE to LA, and then no rule reads la mlatu ku.

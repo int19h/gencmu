@@ -10,12 +10,12 @@ A dialect is a pipeline document, itself literate Markdown. The pipeline is a se
 
 The users of gencmu want to read a grammar, change it, and see at once what the change does to a text. So the notation, the diagnostics and the interactive tools matter as much as the parser.
 
-gencmu ships:
+gencmu ships these parts:
 
-- Four libraries, in JavaScript, Python, Go and Rust. Each is a clean-room implementation of one engine specification: it is written from the specification, not from another library's code. No library has dependencies beyond the standard library of its language.
-- The grammars and dialect pipelines, shared by all four
-- One command-line tool (CLI) and one web playground, both in JavaScript. Both run from a clone with no install step.
-- One test corpus, shared by all four libraries. Its expectations are what gencmu itself is meant to produce.
+- There are four libraries, in JavaScript, Python, Go and Rust. Each is a clean-room implementation of one engine specification: it is written from the specification, not from another library's code. No library has dependencies beyond the standard library of its language.
+- The grammars and dialect pipelines are shared by all four.
+- There is one command-line tool (CLI) and one web playground, both in JavaScript. Both run from a clone with no install step.
+- There is one test corpus, shared by all four libraries. Its expectations are what gencmu itself is meant to produce.
 
 gencmu does not ship research notes, comparisons with other parsers, or the scripts that produced the corpus. Those stay in the repository of the prototype, the earlier research parser that gencmu came from.
 
@@ -63,7 +63,7 @@ The four libraries implement one specification, `docs/engine.md`. It was written
 2. Lowering turns the grammar into a context-free grammar. Lowering makes named helper rules for the notation's shorthand, such as `[ ]` and `...`, and diagnostics hide these rules.
 3. The recognizer is an Earley parser (a standard algorithm for any context-free grammar). Its items, the partial matches that it keeps, record the span and the identity of the tag set of each captured part. The parser evaluates each condition as soon as it reads the last capture of that condition. With `from` and `after`, a condition can look past its constituent to the end of the input. A PEG (parsing expression grammar, which tries alternatives in order) has a lookahead that does the same.
 
-   Nested parses for `matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` share their memo (a cache of answers) with the parse that started them. The memo key is the kind of query, the rule, and either the content of a short span or the position of a long span. A nested parse asked about its own span is a grammar error.
+   Nested parses for `matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` share their memo (a cache of answers) with the parse that started them. The memo key is the kind of query, the rule, and either the content of a short span or the position of a long span. A nested parse asked about its own span, as the same rule, is a grammar error.
 4. The engine chooses a parse. It orders the parses by their first difference, as sequences of bottom-up actions. The order uses the grammar's declared `%ambiguity-resolution`. This part also covers the verdicts unique, resolved and tie, the tie witness, and the `elision-only` check (see "Ambiguity" below).
 5. The stage emits the tokens of the next stage. Each token has its text, its phonemes, its label and its source range. The label is what the renderings for people show. A token can also carry attachments, tokens that belong to it and that no later stage reads.
 6. The pipeline runs the stages in order, and stops at the first rejection.
@@ -75,7 +75,7 @@ The four libraries implement one specification, `docs/engine.md`. It was written
 - A non-final stage with a tie emits the chosen derivation. Its tie stands even when every tied derivation emits the same tokens. The stage is ambiguous as written, and the report of the tie lets a grammar author fix it. The engine cases include a three-way tie and a tie whose derivations emit the same tokens.
 - The cases cover empty spans and cycles: nullable rules, empty captures and a condition on an empty span. They also cover a unary cycle of `a` to `b` and `b` to `a`, and a nested parse asked about its own span. Each case has its defined outcome.
 
-Every position in a result is a half-open range of coordinates: the range holds its start but not its end. Source positions count Unicode code points, not bytes or UTF-16 units, so that the four languages agree on non-ASCII text. Each library converts at its edge (JavaScript from UTF-16, Go and Rust from UTF-8). The libraries derive line and column in diagnostics from code points. Lines split at `\n`, `\r\n` and `\r`.
+Every span and every source range in a result is half-open: the range holds its start but not its end. Source positions count Unicode code points, not bytes or UTF-16 units, so that the four languages agree on non-ASCII text. Each library converts at its edge (JavaScript from UTF-16, Go and Rust from UTF-8). The libraries derive line and column in diagnostics from code points. Lines split at `\n`, `\r\n` and `\r`.
 
 A token's `span` is a range of the previous stage's tokens. Its `source` is the smallest range of the original text that holds the sources of those tokens. So the source is contiguous even when some of those tokens emitted nothing, as an erased word inside a compound does. A token inserted by an emission clause has an empty span, and an empty source range at the position where it was inserted. Its provenance is that emission: its `insertedBy` records the rule whose clause inserted it.
 
@@ -93,7 +93,7 @@ The bodies keep the look of CLL's EBNF, because a reader of CLL recognizes that 
 
 A grammar document is Markdown. Its fenced `jbogenbau` blocks, in order, are the grammar, and the prose between them explains it. The loader finds only the fences by lines, as Markdown requires. Inside a block, line breaks and indentation mean nothing.
 
-A rule is a keyword, its name and its body, followed by its clauses. Each clause is a keyword and what it says. A rule ends where the next keyword that begins a rule or a directive stands. So a rule needs no terminator, and nothing is recognized by its position on a line:
+A rule is a keyword, its name and its body, followed by its clauses. Each clause is a keyword and what it says. A rule ends where the next item begins: a rule, a directive, a constant, a classifier or an implication. So a rule needs no terminator, and nothing is recognized by its position on a line:
 
 ```jbogenbau
 %rule term-connective
@@ -103,12 +103,12 @@ A rule is a keyword, its name and its body, followed by its clauses. Each clause
   | VUhU #
 
 %rule vowel-group-joined
-  $g(vowel-group) $v(vowel) <tags($v)>
-%conditions
-  ~syllabic ⊆ tags($g),
-  ~syllabic ⊆ tags($v)
+  vowel-group⊇~syllabic $v(joined-vowel⊇~syllabic) <tags($v)>
+
+%rule joined-vowel
+  $v(vowel) <tags($v)>
 %emits
-  $g, /'/, $v
+  /'/, $v
 ```
 
 Every binary operator except the difference, `∖`, can also stand first, as a no-op, so that a list can put one item on each line. These operators are `|` and `&` in bodies, `∪` and `∩` in terms, and `∧` and `∨` in conditions. The commas of a clause's list can stand first too.
@@ -184,7 +184,7 @@ A maintainer changes the notation in its documents, and `tools/sync.js` regenera
 
 `docs/engine.md` specifies the search (§8), the walk rule by rule (§9) and the restrictions (§9).
 
-Grammar authors get the same diagnostics for a malformed grammar as for a malformed Lojban text. The playground can also show how a grammar document parses. The cost is load time. The bundled grammars are about 200 KB, and a character-level stage reads them quickly in Rust and JavaScript but slowly in pure Python. So every package ships, beside its grammar copy, the DOM of each bundled document as JSON.
+Grammar authors get the same diagnostics for a malformed grammar as for a malformed Lojban text. The playground can also show how a grammar document parses. The cost is load time. The grammar text of the bundled documents is about 160 KB. A character-level stage reads it quickly in Rust and JavaScript but slowly in pure Python. So every package ships, beside its grammar copy, the DOM of each bundled document as JSON.
 
 The key of a DOM has three parts:
 
@@ -257,9 +257,9 @@ CLL's own rule is narrower. It says only that a terminator can be elided if no a
 
 The engine cases pin the definition with these cases:
 
-- Two readings that elide different terminators. The check passes.
-- Two readings that differ with every terminator written. The check fails.
-- A restored text with no derivation. The check passes.
+- Two readings that elide different terminators, for which the check passes
+- Two readings that differ with every terminator written, for which the check fails
+- A restored text with no derivation, for which the check passes
 - Several terminators elided at one point
 
 ### Where an elided terminator can fall
@@ -342,7 +342,7 @@ The distributable artifacts are exactly these:
 
 - The npm package `gencmu` (the `lib/js/` directory)
 - The Python distribution `gencmu` (`lib/python/`, a pure-Python wheel)
-- The Go module `github.com/int19h/gencmu/lib/go`. Import it as `gencmu "github.com/int19h/gencmu/lib/go"`. A Go module in a subdirectory is tagged `lib/go/vX.Y.Z`.
+- The Go module `github.com/int19h/gencmu/lib/go`, imported as `gencmu "github.com/int19h/gencmu/lib/go"`, whose versions are tagged `lib/go/vX.Y.Z` because it is in a subdirectory
 - The crate `gencmu` (`lib/rust/`)
 
 Each contains its grammar copy and nothing from outside its directory. CI makes sure of this: it builds each artifact from a clean checkout (`npm pack`, `python -m build`, `go build` from a module-mode checkout, `cargo package`).
@@ -362,11 +362,13 @@ These are the product, not an afterthought:
 
 The CLI is `node lib/js/cli.js` (and `npx gencmu` once published). It has these commands:
 
-- `parse`, with `--dialect`, `--feature` and `--no-feature`, `--until`, `--format brackets|tree|json|canonical|tokens` and `--trace`. It prints any warning on standard error, as it prints a tie.
+- `parse` parses a text. Its options include `--dialect`, `--feature` and `--no-feature`, `--until`, `--format brackets|tree|json|canonical|tokens` and `--trace`. It prints any warning on standard error, as it prints a tie.
+- `dialects`, to list the bundled dialects
 - `features`, to list a dialect's features
 - `audit`
 - `stitch`, to print a dialect's pipeline as one jbogenbau text, with each classifier's entries as written
 - `test`, to run a test file against a dialect
+- `help`, to list the commands and every option
 
 The CLI needs Node and nothing else.
 
@@ -389,7 +391,7 @@ The playground has these parts:
 - The warnings of the parse
 - The output in the four formats, and the tokens of each stage
 - The diagnostics above
-- An editor for the grammar documents. An edit parses the text again at once, and the edited documents can be downloaded.
+- An editor for the grammar documents, which parses the text again at once after each edit and lets the user download the edited documents
 
 The editor lists a dialect's documents stage by stage. A forgiving scan of the `%stage` and `%include` directives finds them (`playground/pipeline.js`). So a pipeline with an error, a missing document or a cycle still shows every document it reaches. Parsing runs in a worker (a `Blob` worker, which also works from `file://`), so a long text does not freeze the page.
 
@@ -406,9 +408,9 @@ The editor lists a dialect's documents stage by stage. A forgiving scan of the `
 
 There are three kinds of shared test, and every library runs all of them:
 
-- `tests/engine/`: the engine specification's cases. Each case gives a pattern that the canonical result JSON must match. A pattern can pin stages, tokens, tags, verdicts, witnesses, errors and coordinates.
-- `tests/notation/`: small grammar documents with their expected DOMs and errors
-- `tests/corpus/*.jsonl`: Lojban texts, one case per line:
+- `tests/engine/` holds the engine specification's cases. Each case gives a pattern that the canonical result JSON must match. A pattern can pin stages, tokens, tags, verdicts, witnesses, errors and coordinates.
+- `tests/notation/` holds small grammar documents with their expected DOMs and errors.
+- `tests/corpus/*.jsonl` holds Lojban texts, one case per line:
 
   ```
   {"id": "cll.10.183.c10e24d5", "text": "puzu", "dialect": "cll-ebnf",
@@ -429,11 +431,11 @@ Every library runs the whole corpus. On a pull request, a sampled core of about 
 CI has two workflows. `nightly.yml` runs the whole corpus in all four languages each night and on demand. `ci.yml` runs on each pull request and each push to `main`. It has three additional jobs: the playground in two browsers, the whole corpus in JavaScript, and the JavaScript types. It also has one job for each language, which runs on the oldest and the newest supported toolchain:
 
 - JavaScript: Node 20 and current, `node --test`, the bundle freshness check
-- Python: 3.10 and current, `python -m unittest`, `python -m build` for the wheel. The build backend is the only tool outside the standard library, and only at build time.
+- Python: 3.10 and current, `python -m unittest`, `python -m build` for the wheel
 - Go: 1.22, the minimum of the module, and current, `go vet`, `go test`
 - Rust: MSRV (the minimum supported Rust version) and stable, `cargo fmt --check`, `cargo clippy`, `cargo test`, and `cargo package` to make sure that the crate is self-contained
 
-Third-party actions are pinned by commit hash. GitHub Pages can serve `main` from the root with no workflow. It is not enabled while the repository is private, because a Pages site is public.
+The Python build backend is the only tool outside the standard library, and only at build time. Third-party actions are pinned by commit hash. GitHub Pages can serve `main` from the root with no workflow. It is not enabled while the repository is private, because a Pages site is public.
 
 ## Standard library only
 
@@ -473,8 +475,10 @@ The engine can later make this unnecessary: it can stop predicting a rule whose 
 
 Three things came from the prototype:
 
-- The grammar documents. They were rewritten where they referred to the prototype, other parsers or research notes, and converted to the notation above.
+- The grammar documents, rewritten where they referred to the prototype, other parsers or research notes, and converted to the notation above
 - The notation document
-- The fixture corpus, converted to the format above. The repository keeps it whole. With the cases added since, it now has about 29,000 cases and 7 MB with words and brackets.
+- The fixture corpus, converted to the format above
+
+The repository keeps the corpus whole. With the cases added since, it now has about 29,000 cases and 7 MB with words and brackets.
 
 Nothing else came from the prototype: no code, no scripts, no notes. The maintainers edit the CLL lexicon by hand. The experimental and Zantufa lexicons come from the word tables of other parsers. `tools/peg-lexicon.js` generates each of them, and a maintainer changes one by running the tool again. The Zantufa grammar is a grammar of its own, as above.

@@ -6,7 +6,7 @@ This lexicon holds the cmavo of *The Complete Lojban Language* (CLL), 598 words,
 
 The lexicon below is a classifier. Each of its entries lists words and gives them one class, as `"mi" "do" ∈ KOhA` does. The forms stage looks a cmavo up with `classify(phonemes($c), lexicon)`, and tags the cmavo with its classes. A tag is a name on a word. The lexicon writes each word as its canonical sound, in lower case, with `'` for the apostrophe. Cmavo stress is free, so a stressed vowel finds the same word as a plain one.
 
-If a word has several classes, it carries them all, and the syntax stage reads it under each class. No word of CLL has more than one. The entries stand in the order of their classes. The implication after them marks each word of an attitudinal class (UI, CAI, Y, DAhO, FUhO or FUhE) `indicator`. The indicator stage uses this mark to attach a run of indicators to the word before it, as the non-formal `word` rule of CLL says.
+If a word has several classes, it carries them all, and the syntax stage reads it under each class. No word of CLL has more than one. The entries stand in the order of their classes. CLL's `indicator` and `indicators` rules read the words of UI, CAI, Y, DAhO, FUhO and FUhE. The implication after the entries marks each of these words `indicator`. The indicator stage uses this mark to attach a run of indicators to the word before it, as the non-formal `word` rule of CLL says.
 
 The key `y` never applies. The forms stage reads a run of `y` as hesitation, which is not a cmavo, so it never looks `y` up.
 

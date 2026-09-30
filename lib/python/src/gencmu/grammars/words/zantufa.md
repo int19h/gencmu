@@ -78,7 +78,7 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
   RAhOI ⊈ tags($r) ∨ ¬begins(from($v), rahoi-form),
   (~continued ∪ ~cy ∪ ~name-intro ∪ ~open-stress) ∩ tags($r) ≠ ∅,
   ~cy ⊆ tags($r) ∧ ~cy ⊆ tags($v)
-    ∨ ~continued ⊆ tags($r) ∧ ~onset ⊆ tags($v) ∧ (~cy ⊈ tags($r) ∨ ~cy ⊈ tags($v))
+    ∨ ~continued ⊆ tags($r) ∧ ~onset ⊆ tags($v)
     ∨ ~name-intro ⊆ tags($r) ∧ ~name-onset ⊆ tags($v)
     ∨ ~open-stress ⊆ tags($r) ∧ ~cy ⊈ tags($r) ∧ ~onset ⊆ tags($v),
   ~final-stress ⊈ tags($r) ∨ (~stress-guard ∪ ~initial-stress) ∩ tags($v) = ∅,

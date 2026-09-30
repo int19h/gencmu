@@ -193,6 +193,7 @@ A classifier gives a sound its classes. A lexicon is a classifier: it gives each
 %classifier lexicon
   "mi" "do" "ko'a" "ko'e" ∈ KOhA
   "ui" "u'i" ∈ UI
+  "de'i" "ti'u" ∈ BAI
 
 %classifier lexicon
   date-li? "de'i" "na'a" "ti'u" ∈ LI
@@ -229,7 +230,7 @@ The stage applies its implications when it emits a token. First it gives the tok
 
 Only then does the stage find the token's sound. So an implication that adds a phoneme tag sets the token's sound. Two phoneme tags on one token are an error, also when an implication added one of them.
 
-Implications apply only to the tokens that the stage emits. They do not change a constituent's tags, the value of a term or the classes of a classifier. A later stage applies only its own implications. So the lexicon's implication in the forms stage marks each attitudinal `indicator`. The word stage can drop that mark from a quote's marker, and nothing adds it again.
+Implications apply only to the tokens that the stage emits. They do not change a constituent's tags, the value of a term or the classes of a classifier. A later stage applies only its own implications. So the lexicon's implication in the forms stage marks each word of these classes `indicator`. The word stage can drop that mark from a quote's marker, and nothing adds it again.
 
 ## Captures
 
@@ -308,13 +309,13 @@ The fourth type is the tag set. A tag literal is the set with that one tag, so `
 
 The predicates are:
 
-- `=` and `≠`, on two strings, two sets of strings or two tag sets. Any other pair is an error.
-- `∈` and `∉`, of a string in a set of strings.
-- `⊆` and `⊈`, of one set in another of the same kind. So `~indicator ⊆ tags($i)` says that `$i` carries the mark `indicator`, and `~indicator ⊈ tags($i)` says that it does not.
-- `$x`, of a capture.
-- `matches(span, rule)`, true when the span parses as the named rule.
-- `begins(span, rule)`, true when some prefix of the span parses as the rule. The empty prefix counts.
-- `initial(span)`, true when the span begins where the parser's input begins.
+- `=` and `≠` compare two strings, two sets of strings or two tag sets. Any other pair is an error.
+- `∈` and `∉` test whether a string is in a set of strings.
+- `⊆` and `⊈` test whether one set is in another of the same kind. So `~indicator ⊆ tags($i)` says that `$i` carries the mark `indicator`, and `~indicator ⊈ tags($i)` says that it does not.
+- `$x` holds when the alternative has the capture `x`.
+- `matches(span, rule)` holds when the span parses as the named rule.
+- `begins(span, rule)` holds when some prefix of the span parses as the rule. The empty prefix counts.
+- `initial(span)` holds when the span begins where the parser's input begins.
 
 `matches` and `tags(span, rule)` parse the captured span alone, as the named rule, with the same grammar. This is how gencmu states CLL's slinku'i test for borrowings. A CV cmavo is a particle of one consonant and one vowel. The test says that such a cmavo before a borrowing must not make a lujvo, a compound word. That is `¬matches($f, lujvo-after-cv)`, because the rule is the part of a lujvo after its first two letters.
 
@@ -434,8 +435,8 @@ An inserted token with a phoneme tag has that phoneme as its label, or a space f
 
 A directive is a keyword and its operands. By convention each stands in a block of its own, after prose that says why the grammar needs it. Two directives can share a line.
 
-- `%ambiguity-resolution greedy` or `lazy`, optionally followed by `elision-only`, and then optionally by `maximal`: how the stage chooses among parses, explained under "Ambiguity" and "Elided terminators". Every stage must say it exactly once, in any of its documents.
-- `%elidable KU KEI VAU ...`: the terminators that can be elided. An absent optional whose first symbol is one of them shows in the parse tree as that terminator, elided at that point. `elision-only` writes these terminators back. The operands are identifier tags: bare names that begin with a capital, or `~name`. So `KU` and `~KU` are one operand. A phoneme tag, a character tag, a range or a property there is an error.
+- `%ambiguity-resolution greedy` or `lazy`, optionally followed by `elision-only` and then optionally by `maximal`, says how the stage chooses among parses. "Ambiguity" and "Elided terminators" explain it. Every stage must say it exactly once, in any of its documents.
+- `%elidable KU KEI VAU ...` names the terminators that can be elided. An absent optional whose first symbol is one of them shows in the parse tree as that terminator, elided at that point. `elision-only` writes these terminators back. The operands are identifier tags: bare names that begin with a capital, or `~name`. So `KU` and `~KU` are one operand. A phoneme tag, a character tag, a range or a property there is an error.
 - `%stage NAME`, `%include "PATH"` and `%features NAME ...` build a pipeline, as the next section says.
 
 ## Pipelines
@@ -469,7 +470,7 @@ A dialect is a pipeline document, which is Markdown too. Each stage is a heading
 - `%include "PATH"` stands for the rules and directives of the document at `PATH`. The loader resolves the path against the directory of the document that holds the `%include`. It works as if their text stood in its place, so an included document can include others and can hold `%stage` and `%features` too. Each document must still be complete rules and directives on its own. A document can be included in several stages. A document that includes itself, directly or through others, is an error.
 - `%features NAME ...` names features the dialect turns on for every parse, wherever it stands. A caller can turn other features on, and can turn any of these off.
 
-Rules can also stand in the pipeline document itself, between its `%include` blocks. The loader stitches them in their places. A rule or a stage-level directive before the first `%stage` is an error. So are two stages of one name and a stage with no rules.
+Rules can also stand in the pipeline document itself, between its `%include` blocks. The loader stitches them in their places. A rule, a constant, a classifier, an implication or a stage-level directive before the first `%stage` is an error. So are two stages of one name and a stage with no rules.
 
 By convention, each document keeps its link in the prose, and its `%include` follows in a block of its own, in the same list item. So the pipeline reads as hyperlinked prose. A block's fence can be indented by up to three spaces, so a block can stand under a list item, indented by two. The reader knows no other Markdown container.
 

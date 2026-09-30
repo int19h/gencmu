@@ -121,7 +121,7 @@ A PEG has ordered choice. Ordered choice keeps the first matching alternative. T
 
 The layer follows camxes-exp's ordered choice where that choice decides what a text means. Where camxes-exp states a lookahead (a test of the words that follow), such as `!selbri` after a tag, the layer follows it. The paragraphs below list the exceptions, and the ties that remain. A tie has more than one winning reading.
 
-The dialect also accepts two constructs by choice, which camxes-exp rejects. In a sentence's own terms, camxes-exp requires a stag between a connective and `bo` (`abs_term_2`). This grammar does not, so `fa mi .e bo fe do klama` parses here, as it did before the grammar took camxes-exp's two levels of terms.
+The dialect also accepts two constructs by choice, which camxes-exp rejects. In a sentence's own terms, camxes-exp requires a stag (a tense or modal that can stand in a connective) between a connective and `bo` (`abs_term_2`). This grammar does not, so `fa mi .e bo fe do klama` parses here, as it did before the grammar took camxes-exp's two levels of terms.
 
 In `fa mi .e bo fe do .a fi mi klama`, one connected term precedes `klama`. Within that term, `bo` binds tighter than `.a`.
 
