@@ -207,20 +207,30 @@ func checkCase(c *engineCase, noCache bool) error {
 		return nil
 	}
 	if err != nil {
-		e, ok := err.(*Error)
-		if !ok {
-			return fmt.Errorf("load: %v", err)
-		}
-		if c.Expect.Error != e.Kind || c.Expect.Result != nil {
-			return fmt.Errorf("unexpected load error: %v", err)
-		}
-		// Where the error stands, in a document of the case.
-		if w := c.Expect.Where; w != nil && (e.Document != w.Document || e.Line != w.Line || e.Column != w.Column) {
-			return fmt.Errorf("the load error stands at %s:%d:%d, not at %s:%d:%d: %v", e.Document, e.Line, e.Column, w.Document, w.Line, w.Column, err)
-		}
-		return nil
+		return checkLoadError(&c.Expect, err)
 	}
 	return checkParse(d, c, &c.Options, &c.Expect)
+}
+
+// checkLoadError matches the error of a dialect that did not load against
+// an expectation. The error is the whole outcome, so an expectation of
+// anything that only a loaded dialect gives fails (tests/README.md).
+func checkLoadError(expect *caseExpect, err error) error {
+	e, ok := err.(*Error)
+	if !ok {
+		return fmt.Errorf("load: %v", err)
+	}
+	if expect.Error != e.Kind {
+		return fmt.Errorf("unexpected load error: %v", err)
+	}
+	if expect.Result != nil || expect.Brackets != nil || expect.Warnings != nil || expect.Features != nil {
+		return fmt.Errorf("the dialect did not load: %v", err)
+	}
+	// Where the error stands, in a document of the case.
+	if w := expect.Where; w != nil && (e.Document != w.Document || e.Line != w.Line || e.Column != w.Column) {
+		return fmt.Errorf("the load error stands at %s:%d:%d, not at %s:%d:%d: %v", e.Document, e.Line, e.Column, w.Document, w.Line, w.Column, err)
+	}
+	return nil
 }
 
 // checkParse parses a case's input with a loaded dialect and matches the
@@ -287,6 +297,31 @@ func checkParse(d *Dialect, c *engineCase, options *caseOptions, expect *caseExp
 		return fmt.Errorf("unexpected error\n%s", data)
 	}
 	return nil
+}
+
+// The runner fails a case whose dialect does not load, when the case
+// expects another kind of error, or more than the error.
+func TestEngineRunnerLoadError(t *testing.T) {
+	grammar := "%rule text A\n%rule text A"
+	brackets := ""
+	for _, tc := range []struct {
+		name   string
+		expect caseExpect
+		pass   bool
+	}{
+		{"grammar", caseExpect{Error: ErrorGrammar}, true},
+		{"usage", caseExpect{Error: ErrorUsage}, false},
+		{"none", caseExpect{}, false},
+		{"result", caseExpect{Error: ErrorGrammar, Result: json.RawMessage("{}")}, false},
+		{"brackets", caseExpect{Error: ErrorGrammar, Brackets: &brackets}, false},
+		{"warnings", caseExpect{Error: ErrorGrammar, Warnings: json.RawMessage("[]")}, false},
+		{"features", caseExpect{Error: ErrorGrammar, Features: json.RawMessage("[]")}, false},
+	} {
+		c := &engineCase{Grammar: &grammar, Expect: tc.expect}
+		if err := checkCase(c, true); (err == nil) != tc.pass {
+			t.Errorf("%s: the runner gave %v", tc.name, err)
+		}
+	}
 }
 
 func TestEngineCases(t *testing.T) {

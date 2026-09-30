@@ -54,6 +54,8 @@ The library loads the dialect once, and then parses the input with each item's o
 
 `expect.error` is the error kind, when the case is about an error. For a grammar that cannot be loaded, the result is the error alone. For a mistake of the caller, `usage`, there is no result.
 
+A load that fails gives only its error. Its kind is `grammar` for a grammar that cannot be loaded. It is `usage` for a mistake of the caller at load, such as a document held in memory that is not a sequence of Unicode scalar values (engine §1). A case expects such an error with `expect.error` of that kind. It can also give `expect.where`. It gives no `result`, `brackets`, `warnings` or `features`, because only a loaded dialect gives them. A runner fails a case when the load fails with another kind, or when the case expects one of these members.
+
 `expect.where`, when present, is where the error of a grammar that cannot be loaded stands. It names a document of the case and a line and a column in it. For a case with `grammar`, the document is `main.md`. Its fence is line 1, so the rules start on line 3, or on line 2 when they hold their own `%ambiguity-resolution`.
 
 ## Notation cases: `notation/*.json`

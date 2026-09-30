@@ -376,14 +376,31 @@ pub fn run_engine_case(case: &Value) -> Result<(), String> {
     let expect = case.get("expect").ok_or("a case without expect")?;
     let dialect = match gencmu::load_dialect_sources(documents, &pipeline) {
         Ok(dialect) => dialect,
-        Err(error) => {
-            return match (expect.get("error").and_then(Value::str), expect.get("result")) {
-                (Some("grammar"), None) if error.kind == gencmu::ErrorKind::Grammar => error_where(expect, &error),
-                _ => Err(format!("the dialect did not load: {error}")),
-            };
-        }
+        Err(error) => return check_load_error(expect, &error),
     };
     check_parse(&dialect, case, case, expect)
+}
+
+/// The members of `expect` that only a loaded dialect can meet.
+const AFTER_LOAD: [&str; 4] = ["result", "brackets", "warnings", "features"];
+
+/// Holds the error of a dialect that did not load to `expect`. The error is
+/// the whole outcome, so a case that expects anything that only a loaded
+/// dialect gives fails (tests/README.md).
+fn check_load_error(expect: &Value, error: &gencmu::Error) -> Result<(), String> {
+    let kind = match error.kind {
+        gencmu::ErrorKind::Grammar => "grammar",
+        gencmu::ErrorKind::Io => "io",
+        gencmu::ErrorKind::Usage => "usage",
+        _ => "another kind",
+    };
+    if expect.get("error").and_then(Value::str) != Some(kind) {
+        return Err(format!("unexpected load error: {error}"));
+    }
+    if AFTER_LOAD.iter().any(|name| expect.get(name).is_some()) {
+        return Err(format!("the dialect did not load: {error}"));
+    }
+    error_where(expect, error)
 }
 
 /// Runs `work` on a thread with a deep stack. The canonical result nests
