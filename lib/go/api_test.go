@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -1245,6 +1246,61 @@ func TestLoweredBounded(t *testing.T) {
 	}
 	if n := d.lowered[0].len(); n > maxLowered {
 		t.Fatalf("%d lowered grammars", n)
+	}
+	if n := d.stages[0].classifierSet.byKey.len(); n > maxLowered {
+		t.Fatalf("%d classifier tables", n)
+	}
+}
+
+// TestCallerTokensShareNothing changes the caller's token after a parse,
+// and then the result. Neither change reaches the other (docs/api.md).
+func TestCallerTokensShareNothing(t *testing.T) {
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text A"))
+	tokens := []Token{{Text: "a", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}}
+	res, err := d.ParseTokens("a", tokens, ParseOptions{NoAutoFeatures: true})
+	if err != nil || !res.OK {
+		t.Fatalf("%v %+v", err, res)
+	}
+	tokens[0].Tags[0] = "Z"
+	if got := res.Stages[0].Input[0].Tags; !reflect.DeepEqual(got, []string{"A"}) {
+		t.Fatalf("the result's tags are %v", got)
+	}
+	tokens[0].Tags[0] = "A"
+	res.Stages[0].Input[0].Tags[0] = "Q"
+	if !reflect.DeepEqual(tokens[0].Tags, []string{"A"}) {
+		t.Fatalf("the caller's tags are %v", tokens[0].Tags)
+	}
+}
+
+// TestClassifierTablesBounded parses with every set of five classifier
+// gates, twice. The second round resolves again the tables that the first
+// round dropped, and each gives the same classes.
+func TestClassifierTablesBounded(t *testing.T) {
+	names := []string{"a", "b", "c", "d", "e"}
+	entries := ""
+	for _, name := range names {
+		entries += "\n  " + name + "? \"x\" ∈ " + strings.ToUpper(name)
+	}
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%classifier c\n  \"x\" ∈ X"+entries+"\n%rule text $w('x') <classify(text($w), c)>"))
+	for round := 0; round < 2; round++ {
+		for set := 0; set < 1<<len(names); set++ {
+			var features []string
+			want := []string{"X"}
+			for i, name := range names {
+				if set&(1<<i) != 0 {
+					features = append(features, name)
+					want = append(want, strings.ToUpper(name))
+				}
+			}
+			sort.Strings(want)
+			res, err := d.Parse("x", ParseOptions{Features: features, NoAutoFeatures: true})
+			if err != nil || !res.OK {
+				t.Fatalf("%v: %v %+v", features, err, res)
+			}
+			if !reflect.DeepEqual(res.Tree.Tags, want) {
+				t.Fatalf("%v: the tags are %v", features, res.Tree.Tags)
+			}
+		}
 	}
 	if n := d.stages[0].classifierSet.byKey.len(); n > maxLowered {
 		t.Fatalf("%d classifier tables", n)

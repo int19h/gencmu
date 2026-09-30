@@ -469,9 +469,11 @@ func (d *Dialect) ParseTokens(text string, tokens []Token, options ParseOptions)
 		}
 		end = s[1]
 	}
-	// A copy, so that the caller's tokens stay as they are.
+	// A copy, so that the caller's tokens stay as they are, and the result
+	// shares no slice with them.
 	own := make([]Token, len(tokens))
 	for i, t := range tokens {
+		t.Tags = append([]string(nil), t.Tags...)
 		t.Label = t.Text
 		t.Before, t.After = nil, nil
 		own[i] = t
