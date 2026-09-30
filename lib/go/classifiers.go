@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 )
 
@@ -36,13 +35,22 @@ type classifierTables struct {
 }
 
 // stageClassifiers holds a stage's classifier items in stitching order and
-// its resolved classifiers for each set of features, which parses on
-// several threads share.
+// its resolved classifiers for each set of its gates that is on, which
+// parses on several threads share.
 type stageClassifiers struct {
 	items []classifierItem
 	names map[string]bool
+	// gates are the features that gate an entry, in code point order. Only
+	// these change the classifiers.
+	gates []string
 	mu    sync.Mutex
-	byKey map[string]*classifierTables
+	byKey *recent[string, *classifierEntry]
+}
+
+// classifierEntry is the classifiers for one set of gates, resolved once.
+type classifierEntry struct {
+	once   sync.Once
+	tables *classifierTables
 }
 
 // addImplications gives each implication of the stage the values of its
@@ -84,26 +92,22 @@ type implicationItem struct {
 // stitching order. An entry that adds a membership that holds, or removes
 // one that does not, is an error of the grammar for these features.
 func (g *stageGrammar) classifiers(features map[string]bool) *classifierTables {
-	var on []string
-	for f, v := range features {
-		if v {
-			on = append(on, f)
-		}
-	}
-	sort.Strings(on)
-	key := strings.Join(on, " ")
 	c := &g.classifierSet
+	on, key := namesOn(c.gates, features)
 	c.mu.Lock()
-	defer c.mu.Unlock()
-	if t, ok := c.byKey[key]; ok {
-		return t
-	}
-	t := resolveClassifiers(c.items, features)
 	if c.byKey == nil {
-		c.byKey = map[string]*classifierTables{}
+		c.byKey = newRecent[string, *classifierEntry](maxLowered)
 	}
-	c.byKey[key] = t
-	return t
+	e, ok := c.byKey.get(key)
+	if !ok {
+		e = &classifierEntry{}
+		c.byKey.put(key, e)
+	}
+	c.mu.Unlock()
+	// The first parse that needs them resolves them, outside the lock. So
+	// it does not hold up the parses that need other ones.
+	e.once.Do(func() { e.tables = resolveClassifiers(c.items, on) })
+	return e.tables
 }
 
 // resolveClassifiers applies the entries of the items in order, for a set

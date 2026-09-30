@@ -39,7 +39,7 @@ func FuzzPrecompiledDOM(f *testing.F) {
 		if ferr != nil {
 			return
 		}
-		d := &Dialect{stages: []*stageGrammar{g}, features: features, uni: bundled.uni, lowered: map[lowerKey]*lowered{}}
+		d := &Dialect{stages: []*stageGrammar{g}, features: features, uni: bundled.uni}
 		// With no feature on, and with every one on: every warning, and the
 		// gates that are not negated.
 		var all []string

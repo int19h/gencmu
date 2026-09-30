@@ -18,6 +18,11 @@ type stageGrammar struct {
 	// implications with their values (engine §2, §11).
 	classifierSet stageClassifiers
 	implications  []stageImplication
+	// guarded are the features that guard an alternative or an entry of a
+	// classifier, in code point order. Only these change a lowered grammar:
+	// a gate drops an alternative, and a production lists the warnings that
+	// are on. Any other name matches no guard (engine §13).
+	guarded []string
 }
 
 // stitchChange records a rule a later item of the stage replaced or
@@ -201,6 +206,20 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 	if err := g.makeTests(); err != nil {
 		return nil, err
 	}
+	var guards, entries []domGuard
+	for _, it := range g.classifierSet.items {
+		for _, e := range it.classifier.Entries {
+			entries = append(entries, e.Guards...)
+		}
+	}
+	for _, r := range g.rules {
+		for _, a := range r.alts {
+			guards = append(guards, a.alt.Guards...)
+		}
+	}
+	// The guards of an entry are all gates (engine §2).
+	g.classifierSet.gates = guardNames(entries)
+	g.guarded = guardNames(append(guards, entries...))
 	return g, nil
 }
 

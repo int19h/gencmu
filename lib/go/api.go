@@ -151,7 +151,7 @@ func (l *loader) load(pipelinePath string) (*Dialect, error) {
 	if perr != nil {
 		return nil, perr
 	}
-	d := &Dialect{uni: l.uni, declared: p.features, lowered: map[lowerKey]*lowered{}}
+	d := &Dialect{uni: l.uni, declared: p.features}
 	for _, s := range p.stages {
 		g, err := stitch(s.name, s.documents, l.uni)
 		if err != nil {
@@ -343,13 +343,20 @@ type Dialect struct {
 	features []Feature // every feature, with its kind and default (§13)
 	uni      *unicodeTable
 	mu       sync.Mutex
-	lowered  map[lowerKey]*lowered
+	// lowered holds each stage's lowered grammars, keyed by the guarded
+	// features that are on and by whether elidable optionals are mandatory.
+	lowered []*recent[lowerKey, *lowerEntry]
 }
 
 type lowerKey struct {
-	stage     int
-	features  string
+	guarded   string
 	mandatory bool
+}
+
+// lowerEntry is a stage's grammar lowered for one key, once.
+type lowerEntry struct {
+	once sync.Once
+	l    *lowered
 }
 
 // ParseOptions are the options of a parse (docs/api.md). The zero value
@@ -396,23 +403,30 @@ func (d *Dialect) kind(name string) string {
 	return ""
 }
 
+// lower is a stage's grammar lowered for a set of features. Only the guarded
+// features that are on change the productions. So two sets of features with
+// the same guarded features on share one lowered grammar.
 func (d *Dialect) lower(stage int, features map[string]bool, mandatory bool) *lowered {
-	names := make([]string, 0, len(features))
-	for f, on := range features {
-		if on {
-			names = append(names, f)
-		}
-	}
-	sort.Strings(names)
-	key := lowerKey{stage, strings.Join(names, " "), mandatory}
+	g := d.stages[stage]
+	on, guarded := namesOn(g.guarded, features)
+	key := lowerKey{guarded, mandatory}
 	d.mu.Lock()
-	defer d.mu.Unlock()
-	if l, ok := d.lowered[key]; ok {
-		return l
+	if d.lowered == nil {
+		d.lowered = make([]*recent[lowerKey, *lowerEntry], len(d.stages))
 	}
-	l := lower(d.stages[stage], features, mandatory)
-	d.lowered[key] = l
-	return l
+	if d.lowered[stage] == nil {
+		d.lowered[stage] = newRecent[lowerKey, *lowerEntry](maxLowered)
+	}
+	e, ok := d.lowered[stage].get(key)
+	if !ok {
+		e = &lowerEntry{}
+		d.lowered[stage].put(key, e)
+	}
+	d.mu.Unlock()
+	// The first parse that needs it lowers it, outside the lock. So it does
+	// not hold up the parses that need other ones.
+	e.once.Do(func() { e.l = lower(g, on, mandatory) })
+	return e.l
 }
 
 // Parse parses a text. A text that does not parse is a result whose OK is
