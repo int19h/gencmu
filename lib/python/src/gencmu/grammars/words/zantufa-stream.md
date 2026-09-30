@@ -9,7 +9,7 @@ The prose uses these Lojban terms for words:
 - A cmavo is a particle, a short structure word.
 - A gismu is a root word.
 - A lujvo is a compound word.
-- A rafsi is a short form of a word inside a compound.
+- A rafsi is a shortened word form used inside compounds.
 
 Magic words act on other words. Examples are quotes and erasers. Most of Zantufa's magic words follow from its lexicon. SI is `si`, `zei`, `ze'ei` and `si'u'i`, so each erases the word before it, and no word joins two words into a lujvo. `sa` is an attitudinal. ZO is `zo`, `ma'oi` and `ra'ai`, LOhU is `lo'u` and `la'ai`, and ZOI is `zoi` and `la'o`.
 

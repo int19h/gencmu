@@ -10,7 +10,7 @@ The prose uses these Lojban terms for words:
 - A brivla is a predicate word.
 - A gismu is a root word.
 - A lujvo is a compound word.
-- A rafsi is a short form of a word inside a compound.
+- A rafsi is a shortened word form used inside compounds.
 
 The rules state CLL 1.1's word forms precisely enough to implement them twice. Under these rules a text divides into words in at most one way. So the lazy choice of the stage among parses ([engine §6](../../docs/engine.md#6-choosing-a-parse)) never decides where a word ends.
 

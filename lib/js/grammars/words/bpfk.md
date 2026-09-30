@@ -12,7 +12,7 @@ The prose uses these Lojban terms for words:
 - A cmevla is a name word.
 - A gismu is a root word.
 - A lujvo is a compound word.
-- A rafsi is a short form of a word inside a compound.
+- A rafsi is a shortened word form used inside compounds.
 
 This document translates the PEG rule by rule. Each rule here has the name of the PEG rule that it translates, in lower case and with hyphens for underscores. A comment gives the PEG rule. A rule that the PEG does not have is one of two kinds. It is a part of a PEG rule that needs a name of its own here, or a rule that a condition tests. Its comment says which.
 

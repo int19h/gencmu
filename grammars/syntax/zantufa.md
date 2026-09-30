@@ -9,7 +9,7 @@ A cmavo is a particle, a short structure word. A selma'o is a word class of cmav
 The prose also uses these Lojban terms:
 
 - A gismu is a root word.
-- A rafsi is a short form of a word inside a compound.
+- A rafsi is a shortened word form used inside compounds.
 - A selbri is the predicate of a sentence.
 - A sumti is an argument of a selbri.
 - A tanru is a compound selbri.
