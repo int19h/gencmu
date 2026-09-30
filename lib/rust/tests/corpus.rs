@@ -107,9 +107,16 @@ fn the_corpus() {
     }
     // The longest texts first, so that the pool is not left waiting on one.
     cases.sort_by_key(|case| std::cmp::Reverse(case.get("text").and_then(Value::str).map_or(0, str::len)));
+    // A count of workers from the environment is at least 1, so that the
+    // corpus cannot pass without a case.
     let workers = std::env::var("GENCMU_CORPUS_WORKERS")
         .ok()
-        .and_then(|n| n.parse().ok())
+        .map(|n| {
+            n.parse::<usize>()
+                .ok()
+                .filter(|&n| n > 0)
+                .unwrap_or_else(|| panic!("GENCMU_CORPUS_WORKERS is {n:?}, not a count of 1 or more"))
+        })
         .unwrap_or_else(|| std::thread::available_parallelism().map_or(1, |n| n.get().saturating_sub(1).max(1)))
         .min(cases.len().max(1));
     let started = std::time::Instant::now();
@@ -117,9 +124,11 @@ fn the_corpus() {
     let next = Arc::new(AtomicUsize::new(0));
     let dialects: Arc<Mutex<HashMap<String, Arc<gencmu::Dialect>>>> = Arc::default();
     let failures: Arc<Mutex<Vec<String>>> = Arc::default();
+    let done = Arc::new(AtomicUsize::new(0));
     let threads: Vec<_> = (0..workers)
         .map(|_| {
-            let (cases, next, dialects, failures) = (cases.clone(), next.clone(), dialects.clone(), failures.clone());
+            let (cases, next, dialects, failures, done) =
+                (cases.clone(), next.clone(), dialects.clone(), failures.clone(), done.clone());
             std::thread::Builder::new()
                 .stack_size(16 * 1024 * 1024)
                 .spawn(move || loop {
@@ -148,6 +157,7 @@ fn the_corpus() {
                     if let Some(problem) = problem {
                         failures.lock().unwrap().push(format!("{id} ({name}): {problem}"));
                     }
+                    done.fetch_add(1, Ordering::Relaxed);
                 })
                 .expect("a worker")
         })
@@ -155,6 +165,8 @@ fn the_corpus() {
     for thread in threads {
         thread.join().expect("a worker");
     }
+    // Every case that was selected ran.
+    assert_eq!(done.load(Ordering::Relaxed), cases.len(), "cases run");
     let failures = failures.lock().unwrap();
     eprintln!(
         "corpus: {} cases on {workers} threads in {:?}, {} differ",
