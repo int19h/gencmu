@@ -2,7 +2,7 @@
 
 This document is part of the word stage in the [CLL](../dialects/cll-ebnf.md) dialect. A stage is one step of a pipeline, with its own grammar. A token is a unit such as a phoneme or a word. Each stage reads the tokens that the stage before it emitted, and emits new tokens. The dialect includes this document after [stream.md](stream.md). [The notation document](../../docs/notation.md) explains the notation.
 
-This document adds the two rules of CLL that the approved word forms do not have. A cmavo is a particle, a short structure word. One is a warning for a cmavo that uses `y` as a vowel. The other is the pauses around a name that `bu` takes.
+A cmavo is a particle, a short structure word. This document adds the two rules of CLL that the approved word forms do not have. One is a warning for a cmavo that uses `y` as a vowel. The other is the pauses around a name that `bu` takes.
 
 CLL's word forms admit a cmavo that uses `y` as one more vowel unit, beyond the forms that CLL gives. Examples are `ka'y` and `ky'a` ([cll.md](cll.md)). The forms stage gives each such word the tag (a name on a token) `cmavo-warning`.
 

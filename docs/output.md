@@ -166,7 +166,7 @@ The renderings are for people. The CLI and the playground implement all three re
 
 A token node reads an input token of the last stage, and that token can have attachments (engine §11). Every rendering shows them with the token node. The tied tree and the readings of an `ambiguous` error read the same tokens, so they show the same attachments.
 
-A hollow rule node, such as an empty slot for a free modifier, has no token and no elided node below it. No rendering shows a hollow rule node. Brackets drop it as an empty node, and the tree and the display JSON leave it out. But the root is always shown. So a text whose tree is hollow, such as the empty text, renders in the tree as the rule name of the root alone. In the display JSON, it renders as `{"text":[]}`.
+A hollow rule node, such as an empty slot for a free modifier, has no token and no elided node below it. No rendering shows a hollow rule node. Brackets drop it as an empty node, and the tree and the display JSON leave it out. But the root is always shown. So a text whose tree is hollow, such as the empty text, renders in the tree as the rule name of the root alone. In the display JSON, it renders as `{"text": []}`.
 
 ### Brackets
 

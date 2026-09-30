@@ -2,7 +2,7 @@
 
 Every grammar in gencmu is a Markdown document. Its fenced `jbogenbau` blocks, read in order, are one grammar, and the prose between the blocks explains it. This document explains jbogenbau, the notation that those blocks use. The grammars only say what they are about, and refer here for the rest. Two grammars written in jbogenbau itself define it: `grammars/notation/lexical.md` and `grammars/notation/syntax.md`.
 
-A jbogenbau grammar is an attribute grammar with EBNF rule bodies. An attribute grammar is a grammar whose constituents carry computed values. A constituent is a part of the text that one rule matched. EBNF (Extended Backus-Naur Form) is a common notation for the bodies of grammar rules. Each rule body is EBNF in the form that *The Complete Lojban Language* (CLL) prints in chapter 21. Each constituent carries one attribute, its set of tags (names such as `KOhA`), computed bottom-up from its parts.
+A jbogenbau grammar is an attribute grammar with EBNF rule bodies. An attribute grammar is a grammar whose constituents carry computed values. A constituent is a part of the text that one rule matched. EBNF (Extended Backus-Naur Form) is a common notation for the bodies of grammar rules. Each rule body is EBNF in the form that *The Complete Lojban Language* (CLL) prints in chapter 21. Each constituent carries one attribute, its set of tags (names, phonemes or characters, such as `KOhA`, `/a/` or `'a'`), computed bottom-up from its parts.
 
 Conditions over the parts restrict which parses exist. A condition can also ask whether a part parses as another rule. This takes the grammar beyond context-free grammars, whose rules only combine symbols. It goes beyond them in the way that Boolean grammars do. In a Boolean grammar, a rule can also require that the same text matches, or does not match, another rule.
 
@@ -172,8 +172,10 @@ A constant names a value that several rules use, such as a list of classes. Its 
 ```jbogenbau
 %const $SU-STOPS NIhO ∪ LU ∪ TUhE ∪ TO
 %const $PAUSE "."
-%redefine-const $MAGIC-WORDS $MAGIC-WORDS ∪ LOhAI ∪ LEhAI
+%redefine-const $MAGIC-WORDS $MAGIC-WORDS ∪ RAhOI ∪ GOhOI ∪ MUhOI ∪ LOhAI ∪ LEhAI
 ```
+
+The first line is a constant of the word stage, in `grammars/words/stream.md`. The last line is how the Zantufa word stream adds its magic words, in `grammars/words/zantufa-stream.md`. The other dialects keep LOhAI and LEhAI out of `$MAGIC-WORDS`, because the experimental dialect reads a bare marker of these as a plain word. No bundled grammar defines `$PAUSE`. It shows a string value.
 
 The value is a string, a set of strings or a tag set, never a span. It is a closed term: it uses no capture and no span. So it holds only strings, tag literals, ranges, `∅` and other constants, joined by `∪`, `∩` and `∖`. `split` and `tag` of such terms are closed too (see "Conditions"). A call of `phonemes`, `text`, `tags`, `classes` or `classify`, a capture and a guarded term are errors in a value. The value of `classify` depends on the features, and the value of a constant does not.
 

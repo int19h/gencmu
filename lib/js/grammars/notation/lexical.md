@@ -4,7 +4,7 @@ This is the first stage of the notation dialect, `../dialects/notation.md`. A st
 
 `../../docs/notation.md` explains the notation. This document and `syntax.md` define it.
 
-A character reaches this grammar with one tag, its character tag, such as `'a'`. A tag is a name, a phoneme or a character on a token. The rules below read a character by that tag, by a range such as `'a'..'z'`, or by a Unicode property such as `'\p{White_Space}'`. Every token that this stage emits is one run of characters. So a token's text is exactly what the author wrote.
+A character reaches this grammar with one tag, its character tag, such as `'a'`. A tag marks a token by name, phoneme or character. The rules below read a character by that tag, by a range such as `'a'..'z'`, or by a Unicode property such as `'\p{White_Space}'`. Every token that this stage emits is one run of characters. So a token's text is exactly what the author wrote.
 
 ## Choosing among readings
 
