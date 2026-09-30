@@ -108,7 +108,7 @@ A classifier's value depends on the features, so the stage resolves it for one s
 
 An `∈` whose membership already holds is an error of the grammar, and so is an `∉` whose membership does not hold. The stage resolves every classifier of its grammar when it lowers the grammar for the features of a parse (§3). It resolves them before it lowers the rules, and whether or not a term reads them. So such an error ends the stage as an error of lowering does (§3.3). Its message names the document, line and column of the entry. An entry that a gate skips has no such error.
 
-A call `classify(a, C)` names the classifier `C` (§10). A name that no item of the stage uses is an error of the document. A classifier belongs to its stage, so the loader finds this error when it stitches the stage. It reports the error at the definition that holds the call.
+A call `classify(a, C)` names the classifier `C` (§10). A `classify` whose classifier no `%classifier` item of the stage declares is an error of the document. A classifier belongs to its stage, so the loader finds this error when it stitches the stage. It reports the error at the definition that holds the call.
 
 A stage also has implications. An item `%implies A ⟹ B` (`implication`) adds one. `A` and `B` are closed terms (§10) whose type is a tag set. A constant in them has the value that the last definition of the stage gives it, as in a rule. After the loader stitches the stage, it makes sure that their types agree, as it does for a rule (§9). §11 says how the stage applies its implications.
 
@@ -643,7 +643,7 @@ Nothing else gives warnings. No warnings come from a tied or losing derivation, 
 
 ## 13. The pipeline
 
-A dialect is a pipeline document (`docs/design.md`, "Pipelines"), which the loader reads into stages as follows.
+A pipeline document (`docs/design.md`, "Pipelines") defines a dialect. The loader reads it into stages as follows.
 
 To splice a pipeline, the loader reads the pipeline document's items (§9) in order. It replaces each `%include "PATH"` with the items of the document at `PATH`, read in the same way. It resolves `PATH` against the directory of the document that holds the `%include`. It splits the resulting stream of items at each `%stage NAME`. The items after it, up to the next `%stage`, are that stage's, whatever documents they come from. So a `%stage` inside an included document starts a stage like any other, and the items after the `%include` go on in it.
 

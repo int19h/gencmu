@@ -6,7 +6,7 @@ A jbogenbau grammar is an attribute grammar with EBNF rule bodies. An attribute 
 
 Conditions over the parts restrict which parses exist. A condition can also ask whether a part parses as another rule. This takes the grammar beyond context-free grammars, whose rules only combine symbols. It goes beyond them in the way that Boolean grammars do. In a Boolean grammar, a rule can also require that the same text matches, or does not match, another rule.
 
-A token is one unit that a grammar reads or emits. Examples are characters, phonemes and words. A transducer reads tokens and emits another sequence. Each rule can also say what its constituents hand to the next grammar. So a grammar is a transducer. A dialect is a pipeline of these grammars, called its stages.
+A token is one unit that a grammar reads or emits. Examples are characters, phonemes and words. A transducer reads tokens and emits another sequence. Each rule can also say what its constituents hand to the next grammar. So a grammar is a transducer. A dialect is a pipeline of these grammars, its stages, defined by one pipeline document.
 
 A grammar is unordered: its alternatives are not ranked. Where a text has more than one parse, one rule makes the choice afterwards. The section "Ambiguity" describes that rule.
 
@@ -109,7 +109,7 @@ The operators of a body are those of CLL:
 
 `#` is not an operator but a rule, whose name is `#` and not a word. The grammar defines it like any other rule. The syntax grammars define it as `[free ...]`, zero or more free modifiers, as CLL's own EBNF does. Its constituent is a node of the tree like that of any rule, so the free modifiers in one slot are grouped under it.
 
-A terminator is a word that closes a construct, such as `ku`. CLL writes a terminator that can be elided (left out) between slashes, `/KU/`. It writes `/KU#/` for such a terminator whose free-modifier slot goes with it. In this notation, both are optionals: `[KU]` and `[KU #]`. The grammar declares once which terminators are elidable (see "Directives"). Here, slashes are for phonemes.
+A terminator is a word that closes a construct, such as `ku`. CLL writes a terminator that can be elided (left out) between slashes, `/KU/`. It writes `/KU#/` for such a terminator whose free-modifier slot goes with it. In this notation, both are optionals: `[KU]` and `[KU #]`. The grammar declares which terminators are elidable (see "Directives"). Here, slashes are for phonemes.
 
 ## Feature guards
 
@@ -214,7 +214,7 @@ The name of a classifier begins with a lower-case letter. A classifier belongs t
 
 An entry that adds a class that a key already has is an error. So is an entry that removes a class that a key does not have. These errors depend on the features, so they are errors of the grammar. gencmu reports one at its entry, for a parse that turns on the features that make it. A mistake in how an entry is written is an error of the document, even where the entry's gates do not hold.
 
-`classify(string, name)` (see "Conditions") is the set of the classes that the classifier gives the string. It is empty for a string that no entry names. A name that no `%classifier` of the stage uses is an error. `tags(span, rule)` is still the way to ask a rule for the tags of a span, as `brivla-scan` does in the CLL word forms.
+`classify(string, name)` (see "Conditions") is the set of the classes that the classifier gives the string. It is empty for a string that no entry names. A `classify` that names a classifier that no `%classifier` of the stage declares is an error. `tags(span, rule)` is still the way to ask a rule for the tags of a span, as `brivla-shape` asks `brivla-scan` in the CLL word forms.
 
 The audit data lists every membership change, with its key, class, gates and document. The printed report shows the gated memberships and those that more than one entry changes.
 
@@ -238,7 +238,7 @@ Implications apply only to the tokens that the stage emits. They do not change a
 
 Writing `$name(symbol)` around a symbol of a rule's body captures that symbol. A capture gives a part of the constituent a name that the clauses of the rule can use. A capture's name is all lower case.
 
-A capture wraps one symbol at the top level of an alternative, not inside `[ ]`, `...`, `( )` or `&`. So an alternative either reads that symbol or does not exist. An alternative has at most four captures. `$` alone is the whole constituent, a capture that every alternative has without writing it.
+A capture wraps one symbol at the top level of an alternative, not inside `[ ]`, `...`, `( )` or `&`. So an alternative either reads that symbol or does not exist. An alternative has at most four captures. Two captures of one alternative cannot have the same name. `$` alone is the whole constituent, a capture that every alternative has without writing it.
 
 The gates can leave one alternative in a rule. If that alternative ends in `...`, an explicit capture in its body is an error. gencmu turns such an alternative into left recursion on its rule, and the recursive part has no place for the capture (engine §3). To capture a part there, move the repetition into a rule of its own.
 
@@ -283,7 +283,7 @@ A term of a condition has one of four types: a span, a string, a set of strings 
 
 The first type is the span, a sequence of tokens. A capture `$x` is a span, the tokens that the captured part covers, and `$` is the tokens that the whole constituent covers. `head($x)` is its first token, `tail($x)` the rest, and `last($x)` the last.
 
-`from($x)` is the tokens from the start of `$x` to the end of the input. `after($x)` is the tokens after `$x`, to the end of the input. These two reach past the constituent, to the text that follows it. A span is only an argument of a function, such as `tags($x)`, and never a value of its own.
+`from($x)` is the tokens from the start of `$x` to the end of the input. `after($x)` is the tokens after `$x`, to the end of the input. In a nested parse, the input is the span being parsed, as for `initial`. These two reach past the constituent, to the text that follows it. A span is only an argument of a function, such as `tags($x)`, and never a value of its own.
 
 The second type is the string. `phonemes(span)` is the canonical sound of a span. That is the phonemes of its tokens, joined, in lower case and without commas. A comma is the syllable break of CLL 3.3, which changes no word. So `phonemes()` ignores stress and syllable breaks. It keeps every pause, and adds none between the tokens.
 
@@ -363,11 +363,13 @@ A tag term that defines a constituent's tags cannot be made of those tags. So `t
 
 The stage walks a rule with no `%emits`. What it hands to the next stage is what its parts hand on, in order. A token that it reads directly hands on nothing. A rule with `%emits` hands on exactly what the list says, in the order that the list says it. The stage walks nothing else of the constituent.
 
-An item of the list can be a capture. The stage hands a capture on as one token. The token has the constituent's tags, or the tags of a tag term after the capture in angle brackets.
+An item of the list can be a capture. The stage hands a capture on as one token. The token has the captured part's tags, or the tags of a tag term after the capture in angle brackets.
 
 An item can also be a single tag literal: an identifier tag, a phoneme tag or a character tag. The stage hands it on as a token with that one tag and no text of its own. A string is not a tag, so `%emits "foo"` is an error. A range or a property is not one tag, so it is an error there too. The author must list the captures in the order they stand in the text.
 
-`$` is the whole constituent. A list of `$` items hands on one token over the whole constituent for each item. For example, `%emits $ </n/>, $ </o/>` is how the digit `0` becomes the phonemes of `no`. An inserted tag stands where it is listed. So `%emits /'/, $v` hands on an apostrophe before a vowel, for a script that writes none (`joined-vowel` in `latin-strict.md`). A tag term that gives no tags when the parse is made is an error of the grammar, because no terminal can read the token.
+`$` is the whole constituent. A list of `$` items hands on one token over the whole constituent for each item. For example, `%emits $ </n/>, $ </o/>` is how the digit `0` becomes the phonemes of `no`. A list with a `$` item holds only `$` items.
+
+An inserted tag stands where it is listed. So `%emits /'/, $v` hands on an apostrophe before a vowel, for a script that writes none (`joined-vowel` in `latin-strict.md`). A tag term that gives no tags when the parse is made is an error of the grammar, because no terminal can read the token.
 
 `%emits ε` hands on nothing, and it does more: the constituent does not count. So nothing in it is part of what a token over it sounds like. That is what an erased stretch of text is. `broda brode si bu` hands on the letter word `broda bu` (`si` erases the word before it). Its token covers `brode si` too, because a `si` erasure can stand between a word and its `bu`. But the token does not sound like `brode si`.
 
@@ -438,12 +440,12 @@ An inserted token with a phoneme tag has that phoneme as its label, or a space f
 A directive is a keyword and its operands. By convention each stands in a block of its own, after prose that says why the grammar needs it. Two directives can share a line.
 
 - `%ambiguity-resolution greedy` or `lazy`, optionally followed by `elision-only` and then optionally by `maximal`, says how the stage chooses among parses. "Ambiguity" and "Elided terminators" explain it. Every stage must say it exactly once, in any of its documents.
-- `%elidable KU KEI VAU ...` names the terminators that can be elided. An absent optional whose first symbol is one of them shows in the parse tree as that terminator, elided at that point. `elision-only` writes these terminators back. The operands are identifier tags: bare names that begin with a capital, or `~name`. So `KU` and `~KU` are one operand. A phoneme tag, a character tag, a range or a property there is an error.
+- `%elidable KU KEI VAU ...` names the terminators that can be elided. An absent optional whose first symbol is one of them shows in the parse tree as that terminator, elided at that point. `elision-only` writes these terminators back. The operands are identifier tags: bare names that begin with a capital, or `~name`, so `KU` and `~KU` are one operand. A phoneme tag, a character tag, a range or a property there is an error. A stage can have several `%elidable` directives, and their terminators add up.
 - `%stage NAME`, `%include "PATH"` and `%features NAME ...` build a pipeline, as the next section says.
 
 ## Pipelines
 
-A dialect is a pipeline document, which is Markdown too. Each stage is a heading, followed by the list of its documents. Prose then says what the stage receives, does and hands on. Three directives in `jbogenbau` blocks say what the pipeline is made of:
+A pipeline document, which is Markdown too, defines a dialect. Each stage is a heading, followed by the list of its documents. Prose then says what the stage receives, does and hands on. Three directives in `jbogenbau` blocks say what the pipeline is made of:
 
 ````markdown
 # The experimental dialect
@@ -501,6 +503,8 @@ The syntax grammars are greedy: an elided terminator sits as late as the grammar
 CLL permits eliding a terminator "if no grammatical ambiguity results", and says no more about how a parser decides that. By default, a stage decides it from the whole text. A stage that declares `maximal` decides it as a PEG does.
 
 An elided terminator ends the part of its alternative that is written just before it. That part is its *constituent*: a rule, an optional or a repetition, once parentheses are spelled out. In `le nanmu joi le ninmu`, the `ku` elided after `nanmu` ends the `sumti-tail` of `LE sumti-tail [KU #]`, which is `nanmu`. Some elided terminators have no constituent. These are the terminators elided after a single word, at the start of their alternative, or at the start of a repeated item. At the start of a repeated item, what the repetition read so far stands before the terminator.
+
+A production is an alternative of the expanded grammar (engine §3). An elided terminator also has no constituent when it immediately follows the production's initial reference to its own rule. So a rule that an author writes with left recursion can have such terminators too.
 
 By default, the constituent of an elided terminator can end wherever a parse of the whole text needs it to end. The ranking above chooses among the parses. So `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses. The `sumti-tail` of `le lojbo` ends before `se farvi`, which becomes the selbri (the main predicate). A parse with the longer `sumti-tail` `lojbo se farvi` leaves the sentence without a selbri.
 

@@ -2,7 +2,7 @@
 
 gencmu is a Lojban parser whose grammar is data. Every layer of the language is a literate grammar document in jbogenbau, the grammar notation of gencmu. A literate grammar document mixes prose with the grammar rules, and gencmu loads it at runtime. If you change a grammar, you change the language that the parser reads, and nothing is compiled.
 
-A stage is one step of a parse, with its own grammar. The stages go from characters to phonemes, from phonemes to words, and from words to a parse tree. A dialect is a pipeline document. It lists the stages and the grammar documents of each. A feature is a named switch that the grammars test.
+A stage is one step of a parse, with its own grammar. A dialect is a pipeline of stages, defined by one pipeline document. That document lists the stages and the grammar documents of each. A Lojban dialect has five stages: phonemes, forms, words, indicators and syntax. Together they go from characters to phonemes, from phonemes to words, and from words to a parse tree. A feature is a named switch that the grammars test.
 
 ## Try it
 
@@ -32,7 +32,7 @@ Or open `index.html` in a browser, from the clone or from GitHub Pages. This pag
 | --- | --- |
 | `cll-ebnf` | Lojban as *The Complete Lojban Language* describes it, its printed grammar taken as normative |
 | `bpfk` | CLL with the word forms that the BPFK (a Lojban committee) approved, with omitted closing words read as its parsers read them |
-| `experimental` | CLL with the constructs that came into use after CLL, as camxes-exp reads them |
+| `experimental` | CLL with the constructs that came into use after CLL, with camxes-exp as its baseline |
 | `zantufa` | Guskant's Zantufa 1.9999, translated rule by rule |
 | `notation` | jbogenbau, gencmu's grammar notation, in which gencmu reads its own grammar documents |
 

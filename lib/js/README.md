@@ -19,7 +19,7 @@ console.log(result.ok, toBrackets(result));
 
 A parse prints its result on standard output. It explains any tie or error on standard error. A rejection shows the line, with a caret under the word that the stage failed to read. It also shows, by rule, what can come there. A tie shows where the two readings first differ, and both trees side by side.
 
-`--trace STAGE:POSITION` prints a trace on standard output. The trace shows the items that a stage predicted, completed and dropped at one position. It also shows the condition that dropped each item.
+`--trace STAGE:POSITION` prints a trace on standard output. The trace shows the items that a stage predicted, advanced, completed and dropped at one position. It also shows the condition that dropped each item.
 
 The same explanations are functions of the library, for tools of your own: `explainError`, `explainTies`, `tokenTable`, `audit` with `formatAudit`, and `trace` with `formatTrace`.
 
