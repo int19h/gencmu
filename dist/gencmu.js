@@ -8289,6 +8289,7 @@
         if (report.error) break;
         tokens = /** @type {Token[]} */ (report.output);
       }
+      ownTags(stages.slice(continued ? continued.stages.length : 0));
       const final = stages[stages.length - 1];
       const error = stages.find((stage) => stage.error);
       const result = {
@@ -8301,6 +8302,45 @@
         features: [...options.features].sort(),
       };
       return result;
+    }
+  }
+
+  /**
+   * Gives every token and rule node of the stages a tag set of its own. A
+   * stage can put a set that its grammar holds on a token or a node: the
+   * value of a constant, the classes of a classifier or the tags of a range.
+   * A caller's token can also bring its own set. So a caller that changes a
+   * result changes no later parse, and a later change to the caller's set
+   * does not change the result.
+   * @param {StageReport[]} stages
+   */
+  function ownTags(stages) {
+    /** @type {Set<object>} */
+    const seen = new Set();
+    /** @type {(token: import("./tokens.js").AttachedToken) => void} */
+    const ownToken = (token) => {
+      if (seen.has(token)) return;
+      seen.add(token);
+      token.tags = new Set(token.tags);
+      token.before.forEach(ownToken);
+      token.after.forEach(ownToken);
+    };
+    /** @type {(root: ResultNode) => void} */
+    const ownTree = (root) => {
+      const stack = [root];
+      for (let node = stack.pop(); node !== undefined; node = stack.pop()) {
+        if (node.kind !== "rule" || seen.has(node)) continue;
+        seen.add(node);
+        node.tags = new Set(node.tags);
+        for (const child of node.children) stack.push(child);
+      }
+    };
+    for (const stage of stages) {
+      if (stage.input) stage.input.forEach(ownToken);
+      if (stage.output) stage.output.forEach(ownToken);
+      if (stage.tree) ownTree(stage.tree);
+      if (stage.tied) ownTree(stage.tied);
+      if (stage.error && stage.error.readings) stage.error.readings.forEach(ownTree);
     }
   }
 
