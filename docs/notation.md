@@ -502,7 +502,7 @@ The syntax grammars are greedy: an elided terminator sits as late as the grammar
 
 CLL permits eliding a terminator "if no grammatical ambiguity results", and says no more about how a parser decides that. By default, a stage decides it from the whole text. A stage that declares `maximal` decides it as a PEG does.
 
-An elided terminator ends the part of its alternative that is written just before it. That part is its *constituent*: a rule, an optional or a repetition, once parentheses are spelled out. In `le nanmu joi le ninmu`, the `ku` elided after `nanmu` ends the `sumti-tail` of `LE sumti-tail [KU #]`, which is `nanmu`. Some elided terminators have no constituent. These are the terminators elided after a single word, at the start of their alternative, or at the start of a repeated item. At the start of a repeated item, what the repetition read so far stands before the terminator.
+An elided terminator ends the part of its alternative that is written just before it. That part is its *constituent*: a rule, an optional or a repetition, once parentheses are spelled out. In `le nanmu joi le ninmu`, the `ku` elided after `nanmu` ends the `sumti-tail` of `LE sumti-tail [KU #]`, which is `nanmu`. Some elided terminators have no constituent. These are the terminators elided directly after a terminal, at the start of their alternative, or at the start of a repeated item. At the start of a repeated item, what the repetition read so far stands before the terminator.
 
 A production is an alternative of the expanded grammar (engine §3). An elided terminator also has no constituent when it immediately follows the production's initial reference to its own rule. So a rule that an author writes with left recursion can have such terminators too.
 
