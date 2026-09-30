@@ -79,7 +79,7 @@ Every position in a result is a half-open range of coordinates: the range holds 
 
 A token's `span` is a range of the previous stage's tokens. Its `source` is the smallest range of the original text that holds the sources of those tokens. So the source is contiguous even when some of those tokens emitted nothing, as an erased word inside a compound does. A token inserted by an emission clause has an empty span, and an empty source range at the position where it was inserted. Its provenance is that emission: its `insertedBy` records the rule whose clause inserted it.
 
-A token whose constituent is a foreign part also takes in the text next to it that no token covers. A larger token that holds a foreign part keeps the source of its input tokens.
+A token whose constituent is a nonempty foreign part also takes in adjacent text that no input token covers. A larger token that holds a foreign part keeps the source of its input tokens.
 
 Following `span` from stage to stage explains any token of a stage's output. The chain ends at the characters, or at a token with an empty span. An inserted token ends it at the rule in its `insertedBy`. A token over a part that read nothing has an empty span and no `insertedBy`. An attached token has no `span`, so its chain ends at the stage that attached it. Its `source` still gives its place in the original text.
 
@@ -426,7 +426,7 @@ Every library runs the whole corpus. On a pull request, a sampled core of about 
 
 ## CI
 
-CI has two workflows. `nightly.yml` runs the whole corpus in all four languages each night and on demand. `ci.yml` runs on each pull request and each push to `main`. It has three jobs that are not for one language: the playground in two browsers, the whole corpus in JavaScript, and the JavaScript types. It also has one job for each language, which runs on the oldest and the newest supported toolchain:
+CI has two workflows. `nightly.yml` runs the whole corpus in all four languages each night and on demand. `ci.yml` runs on each pull request and each push to `main`. It has three additional jobs: the playground in two browsers, the whole corpus in JavaScript, and the JavaScript types. It also has one job for each language, which runs on the oldest and the newest supported toolchain:
 
 - JavaScript: Node 20 and current, `node --test`, the bundle freshness check
 - Python: 3.10 and current, `python -m unittest`, `python -m build` for the wheel. The build backend is the only tool outside the standard library, and only at build time.
