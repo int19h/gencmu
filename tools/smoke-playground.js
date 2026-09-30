@@ -3,9 +3,9 @@
 // parser worker starts, parses a sentence under the CLL dialect into the
 // expected brackets, and explains a text it rejects; that "gencmu" in its
 // heading links to the repository; that it lists the features a parse used
-// by name; that it never shows an out-of-date answer as current; and that a
-// link to the Trace tab traces its text, or shows its error once. With no
-// URL the page is opened from file://, as someone who cloned the repository
+// by name; that it never shows an out-of-date answer as current; that it
+// shows an empty bracket rendering as one; and that a link to the Trace tab
+// traces its text, or shows its error once. With no URL the page is opened from file://, as someone who cloned the repository
 // would; given a URL, that URL is checked instead, which is how a GitHub
 // Pages deployment is tested.
 //
@@ -175,6 +175,23 @@ async function main() {
     const settled = await answerFor(last);
     if (settled.error || settled.output.trim() !== brackets) throw new Error(`after a burst of changes: ${JSON.stringify(settled)}`);
     await stale();
+
+    // An empty text has a tree whose brackets are empty (docs/output.md).
+    // The page shows that rendering, with its Copy button, and does not say
+    // that there is no tree.
+    await type("");
+    const hollow = await answerFor("");
+    if (hollow.error) throw new Error(`the playground failed: ${hollow.error}`);
+    const empty = await run(() => ({
+      pre: document.querySelector("#output pre.result-text") ? document.querySelector("#output pre.result-text").textContent : null,
+      copy: !!document.querySelector("#output .copy-row button"),
+      text: document.getElementById("output").textContent,
+    }));
+    if (empty.pre !== "" || !empty.copy || /No tree/.test(empty.text)) {
+      throw new Error(`an empty bracket rendering was not shown as one: ${JSON.stringify(empty)}`);
+    }
+    await type(last);
+    await answerFor(last);
 
     // An edited document is read with the notation grammar, which takes a
     // while for a long one such as the CLL word shapes; a dialect that does

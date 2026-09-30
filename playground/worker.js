@@ -185,6 +185,9 @@
     // hundred thousand phonemes helps nobody and slows the page.
     const TOKEN_ROWS = 3000;
 
+    // A rendering of the tree says whether there is one: brackets render a
+    // tree with no tokens as nothing (docs/output.md), so an empty text does
+    // not mean that there is no tree.
     function render(parsed, view) {
       const key = JSON.stringify(view);
       const cached = parsed.renders.get(key);
@@ -194,11 +197,11 @@
       let output;
       switch (view.format) {
         case "tree":
-          output = { format: "tree", text: gencmu.toTree(result) };
+          output = { format: "tree", tree: !!result.tree, text: gencmu.toTree(result) };
           break;
         case "json": {
           const value = gencmu.displayValue(result);
-          output = { format: "json", text: value === null ? "" : gencmu.prettyJson(value) };
+          output = { format: "json", tree: !!result.tree, text: value === null ? "" : gencmu.prettyJson(value) };
           break;
         }
         case "canonical":
@@ -228,7 +231,7 @@
           break;
         }
         default:
-          output = { format: "brackets", text: gencmu.toBrackets(result, { showElided: !!view.showElided }) };
+          output = { format: "brackets", tree: !!result.tree, text: gencmu.toBrackets(result, { showElided: !!view.showElided }) };
       }
       parsed.renders.set(key, output);
       return output;

@@ -530,8 +530,11 @@
       renderTokens(result);
       return;
     }
-    if (result.text === "" && result.format !== "canonical") output.replaceChildren(noTree());
-    else output.replaceChildren(...withCopy(result.text));
+    if (result.format !== "canonical" && !result.tree) output.replaceChildren(noTree());
+    else if (result.text === "" && result.format === "brackets") {
+      // A tree with no tokens: its brackets are empty (docs/output.md).
+      output.replaceChildren(element("p", { class: "hint", text: "The tree holds no tokens, so its brackets are empty." }), ...withCopy(""));
+    } else output.replaceChildren(...withCopy(result.text));
   }
 
   async function copy(text, button) {
