@@ -23,17 +23,17 @@ Or open `index.html` in a browser, from the clone or from GitHub Pages. This pag
 - It shows the brackets, the tree, the JSON and the tokens of every stage.
 - It explains a rejection or a tie (two readings that rank the same).
 - It traces a stage at a position.
-- It audits the dialect.
+- It audits the dialect: it lists the undefined, unreachable, replaced and extended rules.
 - It has an editor for the grammar documents. When you change a document, the playground parses the text again at once. You can download what you changed.
 
 ## The dialects
 
 | name | what it reads |
 | --- | --- |
-| `cll-ebnf` | Lojban as *The Complete Lojban Language* describes it, its printed grammar taken as normative |
+| `cll-ebnf` | Lojban as *The Complete Lojban Language* (CLL) describes it, its printed grammar taken as normative |
 | `bpfk` | CLL with the word forms that the BPFK (a Lojban committee) approved, with omitted closing words read as its parsers read them |
-| `experimental` | CLL with the constructs that came into use after CLL, with camxes-exp as its baseline |
-| `zantufa` | Guskant's Zantufa 1.9999, translated rule by rule |
+| `experimental` | CLL with the constructs that came into use after CLL, with camxes-exp, an experimental PEG (parsing expression grammar) parser of Lojban, as its baseline |
+| `zantufa` | Guskant's Zantufa 1.9999, a PEG grammar of Lojban, translated rule by rule |
 | `notation` | jbogenbau, gencmu's grammar notation, in which gencmu reads its own grammar documents |
 
 Each dialect is a document under [`grammars/dialects/`](grammars/dialects), which includes the grammar documents of its stages and links to each. `node lib/js/cli.js stitch --dialect NAME` prints a dialect as one jbogenbau text.
