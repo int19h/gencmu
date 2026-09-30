@@ -1025,3 +1025,52 @@ func TestInsertedAfterAttachmentErrorOrder(t *testing.T) {
 		t.Fatalf("%v %+v", err, res.Error)
 	}
 }
+
+// stageOutput is the output of the stage name of a parse of text, which must
+// succeed.
+func stageOutput(t *testing.T, d *Dialect, text, name string) []Token {
+	t.Helper()
+	res, err := d.Parse(text, ParseOptions{})
+	if err != nil || !res.OK {
+		t.Fatalf("%s: %v %+v", text, err, res.Error)
+	}
+	for _, stage := range res.Stages {
+		if stage.Name == name {
+			return stage.Output
+		}
+	}
+	t.Fatalf("%s: no stage %s", text, name)
+	return nil
+}
+
+func hasTag(token Token, tag string) bool {
+	for _, t := range token.Tags {
+		if t == tag {
+			return true
+		}
+	}
+	return false
+}
+
+// words/stream.md: the body of an empty zoi quote is an empty foreign part.
+// So it sounds ?, and a letter word over the quote keeps the ?, with no pause
+// after it, since the one pause between the delimiters comes first.
+func TestEmptyZoiBodySoundsForeign(t *testing.T) {
+	d, err := LoadDialect("cll-ebnf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var body *Token
+	for _, token := range stageOutput(t, d, "zoi gy gy", "words") {
+		if hasTag(token, "foreign-text") {
+			body = &token
+			break
+		}
+	}
+	if body == nil || body.Phonemes != "?" || body.InsertedBy != "" {
+		t.Fatalf("the body of zoi gy gy: %+v", body)
+	}
+	if letter := stageOutput(t, d, "zoi gy gy bu", "words")[0]; letter.Phonemes != "zoi.gy.?gy.bu" {
+		t.Fatalf("zoi gy gy bu sounds %q", letter.Phonemes)
+	}
+}

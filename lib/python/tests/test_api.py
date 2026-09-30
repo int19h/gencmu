@@ -624,3 +624,29 @@ class Robustness(unittest.TestCase):
         self.assertEqual(text.count('"rule":"text"'), 10000)
         brackets = gencmu.to_brackets(result)
         self.assertTrue(brackets.startswith("(" + "[{(" * 3) and brackets.endswith("a)"))
+
+
+def stage_output(dialect: gencmu.Dialect, text: str, name: str) -> list[gencmu.Token]:
+    """The output of the stage NAME of a parse of TEXT, which must succeed."""
+    result = dialect.parse(text)
+    assert result.ok, (text, result.error)
+    output = next(stage for stage in result.stages if stage.name == name).output
+    assert output is not None
+    return output
+
+
+class BundledGrammars(unittest.TestCase):
+    """What the shared corpus cannot see in the bundled grammars: the
+    phonemes and the sources of the tokens of a stage."""
+
+    def test_empty_zoi_body(self) -> None:
+        """words/stream.md: the body of an empty zoi quote is an empty foreign
+        part. So it sounds ?, and a letter word over the quote keeps the ?,
+        with no pause after it, since the one pause between the delimiters
+        comes first."""
+        dialect = gencmu.load_dialect("cll-ebnf")
+        body = next(token for token in stage_output(dialect, "zoi gy gy", "words") if "foreign-text" in token.tags)
+        self.assertEqual(body.phonemes, "?")
+        self.assertIsNone(body.inserted_by)
+        letter = stage_output(dialect, "zoi gy gy bu", "words")[0]
+        self.assertEqual(letter.phonemes, "zoi.gy.?gy.bu")

@@ -660,3 +660,25 @@ fn attachments_follow_their_token_into_the_result_and_the_brackets() {
     assert!(json.contains(r#""source":[0,2],"after":[{"text":"ui","phonemes":"ui","label":"ui","tags":["#), "{json}");
     assert!(json.contains(r#""source":[3,5],"after":[{"text":"nai""#), "{json}");
 }
+
+/// The output of the stage `name` of a parse of `text`, which must succeed.
+fn stage_output(dialect: &gencmu::Dialect, text: &str, name: &str) -> Vec<gencmu::Token> {
+    let result = dialect.parse(text, &ParseOptions::default()).expect("a result");
+    assert!(result.ok, "{text}: {:?}", result.error);
+    let stage = result.stages.into_iter().find(|stage| stage.name == name).expect("the stage");
+    stage.output.expect("an output")
+}
+
+/// words/stream.md: the body of an empty zoi quote is an empty foreign part.
+/// So it sounds `?`, and a letter word over the quote keeps the `?`, with no
+/// pause after it, since the one pause between the delimiters comes first.
+#[test]
+fn an_empty_zoi_body_sounds_foreign_and_so_does_a_letter_word_over_it() {
+    let dialect = gencmu::load_dialect("cll-ebnf").expect("the CLL dialect");
+    let words = stage_output(&dialect, "zoi gy gy", "words");
+    let body = words.iter().find(|token| token.tags.iter().any(|tag| tag == "foreign-text")).expect("a body");
+    assert_eq!(body.phonemes.as_deref(), Some("?"));
+    assert_eq!(body.inserted_by, None);
+    let letter = &stage_output(&dialect, "zoi gy gy bu", "words")[0];
+    assert_eq!(letter.phonemes.as_deref(), Some("zoi.gy.?gy.bu"));
+}
