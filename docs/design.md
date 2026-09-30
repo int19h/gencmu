@@ -60,7 +60,7 @@ tools/sync.js              regenerates every generated file below
 The engine works with these objects:
 
 - A token is one unit that a stage reads or emits, such as a character, a phoneme or a word.
-- A tag is a name, a phoneme or a character that marks a token, such as `KOhA`, `/a/` or `'a'`.
+- A tag marks a token by name, phoneme or character. Examples are `KOhA`, `/a/` and `'a'`.
 - A constituent is a part of the input that one rule matched. Its span is the range of input tokens that it covers.
 - A capture, such as `$c`, names a part of an alternative, so that a condition or an emission can use it.
 
