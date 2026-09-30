@@ -299,7 +299,7 @@ An empty delimiter is an error. It is an error of the document when the reader s
 
 The fourth type is the tag set. A tag literal is the set with that one tag, so `UI ∪ CAI` is the set of both, and `~indicator` is the set of the mark. A range is the set of its character tags, so `tags($c) ∩ 'a'..'z' ≠ ∅` says that `$c` carries a lower-case ASCII letter. `..` binds tighter than every other operator, so `'a'..'c' ∪ 'x'` is four tags. A property is not a tag set, so it cannot stand in a term.
 
-`tags(span)` is the tag set of the captured part. `tags(span, rule)` is the tag set that the span has when parsed as `rule`, unioned over every parse. It is empty when the span does not parse as `rule`. `classes(span)` keeps only the tags that begin with a capital.
+`tags(span)` is the tag set of the captured part, when the span is a whole capture. For another span, such as `head($x)`, it is the union of the tags of the span's tokens. `tags(span, rule)` is the tag set that the span has when parsed as `rule`, unioned over every parse. It is empty when the span does not parse as `rule`. `classes(span)` keeps only the tags that begin with a capital.
 
 `classify(string, classifier)` is the set of the classes that a classifier gives the string (see "Classifiers"). It is empty for a string that the classifier does not know. The second argument is a bare name, which names a classifier of the stage. So `classify(phonemes($c), lexicon)` is the set of the classes of the word `$c`.
 
@@ -417,7 +417,7 @@ A part that the list of a rule merely does not name is not handed on, but it sti
 %foreign
 ```
 
-So `zoi gy. John is a man .gy.` hands on the body as a token that sounds `?`. The stage before emitted the phonemes `jo'n.is.a.man` for it. The label of the token is `John is a man`. The label is what the renderings for people show (see "Labels").
+So `zoi gy. John is a man .gy.` hands on the body as a token that sounds `?`. In the experimental dialect, the forms stage before it emitted the phonemes `jo'n.is.a.man` for the body. The label of the token is `John is a man`. The label is what the renderings for people show (see "Labels").
 
 The text of a foreign part also takes in the text next to it that no token of the stage's input covers. An example is punctuation that the stage before read as part of a pause but did not emit. So the text starts at the end of the input token before it, or at the start of the text. It ends at the start of the input token after it, or at the end of the text. Text between two foreign parts belongs to the first of them. An empty foreign part sounds `?` and has no text.
 
@@ -427,9 +427,9 @@ A later stage that forwards a token keeps its text and its source. So a quote bo
 
 ## Labels
 
-Every token has a label, which is what the renderings for people show. The stage gives a token its label when it emits the token, from the same parts as its phonemes. A foreign part gives its text, and a pause gives a space. A token with a phoneme tag has that phoneme as its label. Any other part gives its own label. A character token, the input of the first stage, has its text as its label.
+Every token has a label, which is what the renderings for people show. The stage gives a token its label when it emits the token, from the same parts as its phonemes. A foreign part gives its text, and a pause gives a space. A token with a phoneme tag has that phoneme as its label, but a token with the pause, `/./`, has a space. Any other part gives its own label. A character token, the input of the first stage, has its text as its label.
 
-An inserted token with a phoneme tag has that phoneme as its label. So the apostrophe that the zbalermorna shorthand inserts stays in the label of `u'i`. An inserted token without a phoneme tag has an empty label.
+An inserted token with a phoneme tag has that phoneme as its label, or a space for the pause, `/./`. So the apostrophe that the zbalermorna shorthand inserts stays in the label of `u'i`. An inserted token without a phoneme tag has an empty label.
 
 ## Directives
 

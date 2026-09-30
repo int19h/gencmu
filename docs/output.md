@@ -31,7 +31,7 @@ A stage has this form:
 A token has this form:
 
 ```
-{"text":"mi","phonemes":"mi","label":"mi","tags":["KOhA","UI","word"],"span":[0,2],"source":[0,2]}
+{"text":"mi","phonemes":"mi","label":"mi","tags":["KOhA","cmavo","word"],"span":[0,2],"source":[0,2]}
 ```
 
 `tags` lists every tag once, in code point order. A tag is written in its canonical spelling (engine §1), so a character tag is `'a'`, and a combining acute accent is `'\u{301}'`. A character token of the first stage has one tag, its character tag. `phonemes` is always present, the empty string for a token with none (engine §5). A foreign part sounds `?` (engine §11).

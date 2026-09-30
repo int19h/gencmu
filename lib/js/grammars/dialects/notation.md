@@ -4,7 +4,13 @@ This is the dialect in which gencmu reads its own grammar documents. A dialect i
 
 The libraries do not read these documents to start. Instead, they read the DOM of this dialect from `../notation/bootstrap.json`. A DOM holds the parsed rules and directives. A test in every library loads this pipeline with that DOM. The test compares the result with the bootstrap itself.
 
-The input is the text of a grammar document's `jbogenbau` blocks, joined with a newline between blocks. Only one part of the reading of a grammar is not itself a grammar: the step that finds the blocks in the Markdown.
+The input is the text of a grammar document's `jbogenbau` blocks, joined with a newline between blocks. Three steps of the reading of a grammar are not grammars, and each library writes them by hand:
+
+- The search for the blocks in the Markdown
+- The walk from the parse tree to the grammar objects
+- The errors that the grammar of the notation does not find
+
+`../../docs/engine.md` specifies these steps in §8 and §9.
 
 ## Stage 1: tokens
 
@@ -17,7 +23,7 @@ The input is the text of a grammar document's `jbogenbau` blocks, joined with a 
   %include "../notation/lexical.md"
   ```
 
-The stage receives one token (a unit of input) per character. It hands on the notation's tokens: names, strings, phoneme tags, captures, guards, keywords and symbols. Each of these tokens is a run of the characters that the author wrote. The stage drops spaces and comments.
+The stage receives one token (a unit of input) per character. It hands on the notation's tokens: names, strings, tag literals, phoneme tags, character tags, properties, captures, constants, guards, keywords and symbols. Each of these tokens is a run of the characters that the author wrote. The stage drops spaces and comments.
 
 ## Stage 2: the document
 

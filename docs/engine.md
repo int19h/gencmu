@@ -189,7 +189,7 @@ A terminal `T` matches a token whose tags contain `T`. A range matches a token t
 
 A range or a property has no tag of its own. As a terminal, its identity is its written form in canonical spelling, such as `'a'..'z'` or `'\p{L}'`. The ends of a range are in their canonical spelling (§1), so `'\u{61}'..'z'` is `'a'..'z'`. This form is the terminal for the ranking and its canonical keys (§6). It is also the terminal in the expected terminals, the tree's token nodes (§12) and the witness.
 
-A tested symbol (§2) matches what its symbol matches, where its test holds. The test reads the symbol's own span and its own tags. For a terminal, these are the token's span and tags. For a reference, they are the span and the tag set of the completed item that the item advances over.
+A tested symbol (§2) matches what its symbol matches, where its test holds. The test reads the symbol's own span and its own tags. For a terminal, the span covers that one token in the current input, and the tags are the token's tags. For a reference, they are the span and the tag set of the completed item that the item advances over.
 
 `X="s"` holds when the canonical sound of the span, `phonemes(span)` (§5), is exactly `s`. So the match ignores stress, script and syllable breaks. `X⊇t` holds when the own tags include every tag of `t`. `X∩t=∅` holds when they include no tag of `t`. `X≠"s"`, `X⊉t` and `X∩t≠∅` hold exactly where those three do not.
 
@@ -267,7 +267,7 @@ The join counts pauses by part, not by character. So it keeps a period or a spac
 
 The two joins are independent. Each leaves out the parts whose own string is empty, and both find a pause part by its phonemes. So they can keep different parts. An empty foreign part between two pauses gives `?` to the phonemes, so the phonemes keep both pauses. It gives nothing to the label, so there the two pauses are adjacent, and the label keeps only the first.
 
-An inserted token has no parts. If it has a phoneme tag, it sounds like that phoneme and has it as its label. Otherwise its phonemes and its label are empty. So the inserted apostrophe `/'/` of a script is part of the label of the word around it.
+An inserted token has no parts. If it has a phoneme tag, it sounds like that phoneme and has it as its label, or a space for the pause. Otherwise its phonemes and its label are empty. So the inserted apostrophe `/'/` of a script is part of the label of the word around it.
 
 An emitted token always has phonemes, possibly the empty string. Only the character tokens of the first stage have none. Two phoneme tags on one emitted token are an error of the grammar that emitted it, whether or not its constituent is a foreign part. The tag set here is the token's tags after the stage's implications (§11).
 
@@ -652,7 +652,7 @@ The names of every `%features` of the stream are the features the pipeline turns
 
 - An `%include` of a document that does not exist, at the `%include`. The error names the documents that included it.
 - An `%include` of a document that is already being included, which is a cycle, at the `%include`. The error names the documents that included it.
-- A rule, an `%ambiguity-resolution`, an `%elidable` or a constant definition before the first `%stage`.
+- A rule, an `%ambiguity-resolution`, an `%elidable`, a constant definition, a classifier or an implication before the first `%stage`.
 - A `%stage` with the name of an earlier one.
 - A stage with no rules, at its `%stage`.
 - A pipeline with no `%stage`.
