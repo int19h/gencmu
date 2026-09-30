@@ -206,7 +206,7 @@ After a pause, the quote skips hesitation, as camxes-exp skips it in its `spaces
 
 The stage compares the words by their canonical sound, `phonemes()`, which is in lower case and has no commas. So stress and syllable breaks do not count, in the two delimiters and in the runs of the body. `zoi .kO. mi .ko.` is a quote, and so is `zoi .ko. mi .kO.`. That is the condition the captures state, and the parser makes sure that it holds as the parse advances.
 
-So a run of the body that is not the delimiter never ends the quote. CLL 4.9 puts a pause before and after the body, and after the closing delimiter: the closing delimiter is the last word of its run. A quote whose delimiters stand side by side quotes nothing. It hands the syntax an empty stretch of foreign text, so that its shape is the same as any other's.
+So a run of the body that is not the delimiter never ends the quote. CLL 4.9 puts a pause before and after the body, and after the closing delimiter: the closing delimiter is the last word of its run. A quote whose delimiters stand side by side quotes nothing. Its body is an empty foreign part, so it sounds `?` and has the shape of any other body. The one pause between the delimiters comes before that body, so a letter word over the quote sounds `zoi.gy.?gy.bu`.
 
 Other parsers also compared the delimiters without case. CLL's official parser lowercases every word as it reads it, and keeps only its letters and apostrophes. ilmentufa's camxes lowercased both delimiters, dropped their commas and wrote `h` as an apostrophe. Its commit 2534c3b of 2020 replaced those actions with generic ones, which compare the words exactly. Pierre Abbat's design of 2003, on the Lojban mailing list, matches the closing delimiter "ignoring capitalization and commas".
 
@@ -244,14 +244,18 @@ The body of a `zoi` quote and the run that `zo'oi` quotes are `%foreign`. So the
   $m, $open <~word>, $content <~foreign-text>, $close <~word>
 
 %rule empty-zoi-quote
-  $m(zoi-marker) quote-gap $open(delimiter) PAUSE $close(delimiter)
+  $m(zoi-marker) quote-gap $open(delimiter) PAUSE $content(empty-zoi-body) $close(delimiter)
 %tags
   tags($m)
 %conditions
   phonemes($open) = phonemes($close),
   ~run-final ⊆ tags($close)
 %emits
-  $m, $open <~word>, ~foreign-text, $close <~word>
+  $m, $open <~word>, $content <~foreign-text>, $close <~word>
+
+%rule empty-zoi-body
+  ε
+%foreign
 
 %rule delimiter
   cmavo-token | BRIVLA | CMEVLA
