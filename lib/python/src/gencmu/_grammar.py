@@ -11,6 +11,7 @@ from typing import Any, Union
 
 from ._clauses import WHOLE, applies, captures_in, definition_problem, simplify_term
 from ._errors import GencmuError
+from ._recent import Recent
 from ._tags import (
     EMPTY,
     code_of_character_tag,
@@ -131,28 +132,54 @@ class Grammar:
     # The stage's implications, each side's tags with the constants' final
     # values (engine §2, §11).
     implications: list[tuple[frozenset[str], frozenset[str]]] = field(default_factory=list)
-    # The classifiers resolved for each set of features, or the error of
-    # their resolution (engine §2).
-    _classifier_tables: dict[frozenset[str], Classifiers | GencmuError] = field(default_factory=dict, repr=False, compare=False)
+    # The features that gate an entry of a classifier. Only these change
+    # the classifiers.
+    classifier_gates: frozenset[str] = field(init=False, repr=False, compare=False)
+    # The features that gate an alternative or an entry of a classifier.
+    # Only these change a lowered grammar. A warning keeps its alternative
+    # (engine §3.1), and any other name matches no guard (engine §13).
+    gates: frozenset[str] = field(init=False, repr=False, compare=False)
+    # The classifiers resolved for each set of the classifier gates that is
+    # on, or the error of their resolution (engine §2).
+    _classifier_tables: Recent[frozenset[str], Classifiers | GencmuError] = field(
+        default_factory=lambda: Recent(MAX_LOWERED), repr=False, compare=False
+    )
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        entries = [guard for _, classifier in self.classifier_items for entry in classifier["entries"] for guard in entry["guards"]]
+        alternatives = [guard for rule in self.rules.values() for alternative in rule.alternatives for guard in alternative.guards]
+        self.classifier_gates = _gate_names(entries)
+        self.gates = _gate_names(alternatives + entries)
 
     def classifiers(self, features: frozenset[str]) -> Classifiers:
         """Each classifier of the stage for one set of features: each key's
         classes after every entry whose gates hold, in stitching order
         (engine §2). An entry that adds a membership that holds, or removes
         one that does not, is an error of the grammar for these features."""
+        key = features & self.classifier_gates
         with self._lock:
-            found = self._classifier_tables.get(features)
+            found = self._classifier_tables.get(key)
         if found is None:
             try:
-                found = _resolve_classifiers(self.classifier_items, features)
+                found = _resolve_classifiers(self.classifier_items, key)
             except GencmuError as error:
                 found = error
             with self._lock:
-                self._classifier_tables[features] = found
+                self._classifier_tables.put(key, found)
         if isinstance(found, GencmuError):
             raise found
         return found
+
+
+MAX_LOWERED = 16
+"""The most lowered grammars, and the most classifier tables, that a stage
+keeps. Each set of the stage's gates that is on has its own, so a stage with
+k gates can have 2^k of them. The least recently used goes first."""
+
+
+def _gate_names(guards: list[Dom]) -> frozenset[str]:
+    return frozenset(guard["feature"] for guard in guards if guard.get("kind") != "warning")
 
 
 Classifiers = dict[str, dict[str, frozenset[str]]]

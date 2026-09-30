@@ -13,11 +13,12 @@ from typing import Any, Callable, Iterable, Mapping, Sequence
 
 from ._dom import DomBuilder
 from ._errors import GencmuError
-from ._grammar import Grammar, Lowered, lower, stitch
+from ._grammar import MAX_LOWERED, Grammar, Lowered, lower, stitch
 from ._hash import fnv1a64
 from ._markdown import jbogenbau_text
 from ._model import Feature, Node, ParseError, ParseResult, ParseWarning, Stage, Token
 from ._pipeline import Pipeline, splice_pipeline
+from ._recent import Recent
 from ._stage import StageOutcome, StageRunner
 from ._tags import character_tag
 from ._unicode import UnicodeTable
@@ -412,7 +413,9 @@ class Dialect:
         self.features = _dialect_features(path, stages, pipeline.features)
         self.grammars = stages
         self.unicode = unicode
-        self._lowered: dict[tuple[int, frozenset[str], bool], Lowered | GencmuError] = {}
+        # Each stage's lowered grammars, keyed by the gates that are on and
+        # by strictness, or the error that lowering found.
+        self._lowered: list[Recent[tuple[frozenset[str], bool], Lowered | GencmuError]] = [Recent(MAX_LOWERED) for _ in stages]
         self._lock = threading.Lock()
         for number in range(len(stages)):
             try:
@@ -427,16 +430,19 @@ class Dialect:
         return [grammar.stage for grammar in self.grammars]
 
     def lowered(self, number: int, features: frozenset[str], elision: bool) -> Lowered:
-        key = (number, features, elision)
+        # Only the gates that are on change the productions. So two sets of
+        # features with the same gates on share one lowered grammar.
+        gates = features & self.grammars[number].gates
+        key = (gates, elision)
         with self._lock:
-            found = self._lowered.get(key)
+            found = self._lowered[number].get(key)
         if found is None:
             try:
-                found = lower(self.grammars[number], features, elision)
+                found = lower(self.grammars[number], gates, elision)
             except GencmuError as error:
                 found = error
             with self._lock:
-                self._lowered[key] = found
+                self._lowered[number].put(key, found)
         if isinstance(found, GencmuError):
             raise found
         return found

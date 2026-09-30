@@ -10,7 +10,7 @@ from pathlib import Path
 import gencmu
 from gencmu._dialect import DOM_FORMAT, bundled_text
 
-from .shared import case_sources
+from .shared import case_sources, load_case_dialect
 
 PIPELINE = """# A test dialect
 
@@ -712,3 +712,27 @@ class BundledGrammars(unittest.TestCase):
         assert result.error is not None
         self.assertEqual(result.error.stage, "syntax")
         self.assertTrue(probe.parse("lo mlatu ku cu klama").ok)
+
+
+class LoweringCaches(unittest.TestCase):
+    """A dialect keeps a lowered grammar for each set of a stage's gates that
+    is on, and a bounded number of them (engine §3.1, §13)."""
+
+    def test_unused_names_share_one_lowering(self) -> None:
+        dialect, error = load_case_dialect({"grammar": "%rule text f? 'x' | 'y'"})
+        assert dialect is not None, error
+        for index in range(50):
+            self.assertTrue(dialect.parse("y", features=[f"unused-{index}"], auto_features=False).ok)
+        self.assertEqual(len(dialect._lowered[0]), 1)
+        self.assertEqual(len(dialect.grammars[0]._classifier_tables), 1)
+
+    def test_bounded(self) -> None:
+        names = ["a", "b", "c", "d", "e", "f", "g"]
+        grammar = "%rule text " + " | ".join(f"{name}? 'x'" for name in names) + " | 'y'"
+        dialect, error = load_case_dialect({"grammar": grammar})
+        assert dialect is not None, error
+        for number in range(1 << len(names)):
+            features = [name for index, name in enumerate(names) if number & (1 << index)]
+            self.assertEqual(dialect.parse("x", features=features, auto_features=False).ok, bool(features), features)
+        self.assertLessEqual(len(dialect._lowered[0]), 16)
+        self.assertLessEqual(len(dialect.grammars[0]._classifier_tables), 16)
