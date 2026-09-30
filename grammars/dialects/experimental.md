@@ -145,6 +145,8 @@ A replacement quote is one unit of raw words in the word stage (`../words/lohai.
 
 `ba'e` is not a magic word, as the Magic Words proposal says. So the word stage removes `fa'o` and what follows it first, and `mi ba'e fa'o` leaves a `ba'e` with nothing to mark. The proposal calls that an error, and the dialect rejects it. camxes-exp accepts it.
 
+After `to`, indicators begin the parenthesis, as they begin a quote after `lu`. So `to ui mi klama toi` holds `ui` inside the parenthesis. camxes-exp attaches `ui` to `to`, because its `TO_post` takes indicators.
+
 The dialect cannot yet settle two kinds of text, and it reports a tie for each. A quote or a parenthesis whose terminator is elided can hold a fragment of terms or a whole sentence: `to mi klama` holds `mi` or `mi klama`. camxes-exp reads the sentence. A forethought connective before a number can connect two sumti or make a quantifier: `ge nai abu gi no drata`. camxes-exp reads the quantifier.
 
 The dialect also reads `sa` by a different rule. The word stage erases with `sa` left to right, as the Magic Words proposal says ([`../words/stream.md`](../words/stream.md)). A `sa` erases back to the last word of the selma'o of the word after it, or to the start of the text. camxes-exp tries to do the same inside its syntax grammar, with one `_sa` rule for each kind of construct, and it reads some texts differently:

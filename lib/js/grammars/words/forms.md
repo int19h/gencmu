@@ -96,7 +96,7 @@ The approved word forms set only `onset` and `continued`, with the meaning that 
   ~open-stress ⊈ tags($r) ∨ ~uncounted ⊆ tags($v)
 ```
 
-A join permits two words without a pause. This document states the joins so that no two joins apply to the same pair. For example, a `Cy` letter is never `continued`. So only the `Cy` rule joins two of them. The general join, a continued word followed by an onset, never joins a `Cy` letter to the word after it.
+A join permits two words without a pause. This document states the joins so that no two joins apply to the same pair. For example, in the CLL family, a word tagged `cy` never carries `continued`. So only the `Cy` rule joins two `Cy` letters there, and the general join, a continued word followed by an onset, never follows one. The approved word forms tag no word `cy`. They join a `Cy`-shaped word such as `fy` by the general join, so `fyno` is `fy` and `no`.
 
 The first condition of `run-words` follows from the second. Each join of the second needs one of four tags on the words before: `continued`, `cy`, `name-intro` or `open-stress`. The first condition stays because it uses only `$r`.
 
