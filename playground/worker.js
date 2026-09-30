@@ -264,7 +264,12 @@
     //
     // request: { dialect, text, features: string[], withoutFeatures: string[], autoFeatures, until,
     //   elisionOnly: null | boolean, view: { format, showElided, pretty,
-    //   stage }, trace: null | { stage, position }, audit: boolean }
+    //   stage }, trace: null | { stage: string | null, position }, audit: boolean }
+    //
+    // A trace whose stage is null gets no trace but traceNeedsStages: true,
+    // once the text is parsed. Only that answer tells the page to ask again.
+    // An answer with an error has no trace and no such flag, so that the
+    // page does not ask again for a run that fails in the same way.
     function run(id, request) {
       runId = id;
       const started = now();
@@ -283,7 +288,10 @@
         !request.features.includes(name) && !entry.info.features.some((feature) => feature.name === name && feature.default));
       answer.parseMs = parsed.ms;
       answer.output = render(parsed, request.view);
-      if (request.trace) answer.trace = runTrace(entry, parsed, request);
+      // A trace asked for before the page knew the dialect's stages names
+      // none. This answer names them, and says that the page can ask again.
+      if (request.trace && request.trace.stage === null) answer.traceNeedsStages = true;
+      else if (request.trace) answer.trace = runTrace(entry, parsed, request);
       if (request.audit) {
         if (entry.audit === undefined) entry.audit = gencmu.formatAudit(gencmu.audit(entry.dialect));
         answer.audit = entry.audit;

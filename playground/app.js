@@ -172,6 +172,10 @@
     if (state.tab === "trace" && info) {
       if (!info.stages.some((stage) => stage.name === state.trace.stage)) state.trace.stage = defaultTraceStage(info);
       trace = { stage: state.trace.stage, position: state.trace.position };
+    } else if (state.tab === "trace") {
+      // The stages are not known yet. The worker names them and says that
+      // the trace waits for them (show below).
+      trace = { stage: null, position: state.trace.position };
     }
     let view;
     if (state.tab === "canonical") view = { format: "canonical", pretty: state.pretty };
@@ -379,8 +383,10 @@
     if (message.loadError) setStatus("ready", "The dialect has a grammar error");
     else if (message.parseError) setStatus("ready", "The parser could not run");
     else setStatus("ready", "Ready");
-    // A trace asked for before the dialect's stages were known.
-    if (state.tab === "trace" && !message.trace && message.info) schedule(0);
+    // A trace asked for before the dialect's stages were known. Only the
+    // worker's explicit answer asks again: an answer with an error has no
+    // trace either, and asking again for it fails in the same way forever.
+    if (state.tab === "trace" && message.traceNeedsStages) schedule(0);
   }
 
   function showFailure(text) {
