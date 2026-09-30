@@ -229,9 +229,9 @@ def definition_problem(rule: Dom) -> str | None:
     known = set().union(*presents)
     emit = rule.get("emit")
     items: list[Dom] = emit["items"] if emit is not None else []
-    # A constituent that does not count is never a foreign part (engine §9).
-    if rule.get("foreign") and emit is not None and not items:
-        return f"{rule['name']} is foreign and emits ε"
+    # A constituent that does not count is never an opaque part (engine §9).
+    if rule.get("opaque") and emit is not None and not items:
+        return f"{rule['name']} is opaque and emits ε"
     clauses: list[Any] = [rule.get("tags"), rule["conditions"], items]
     clauses.extend(alternative.get("tags") for alternative in alternatives)
     # An emission item mentions its attachments too.
