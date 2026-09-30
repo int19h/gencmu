@@ -696,6 +696,41 @@ fn the_zbalermorna_shorthand_vowel_token_covers_its_mark() {
     assert_eq!(word.phonemes.as_deref(), Some("u'i"));
 }
 
+/// words/cll.md and words/forms.md: a Cy letter is never `continued`. So
+/// the general join of `run-words`, a continued word before an onset, never
+/// joins a Cy letter to the word after it, and only the Cy rule joins two.
+#[test]
+fn a_cy_letter_carries_cy_and_never_continued() {
+    let dialect = gencmu::load_dialect("cll-ebnf").expect("the CLL dialect");
+    let letters = stage_output(&dialect, "cyky", "forms");
+    assert_eq!(letters.iter().map(|token| token.label.as_str()).collect::<Vec<_>>(), ["cy", "ky"]);
+    for letter in &letters {
+        let has = |tag: &str| letter.tags.iter().any(|each| each == tag);
+        assert!(has("cy") && !has("continued"), "{}", letter.label);
+    }
+}
+
+/// indicators/cll.md: the greedy ranking reads a `nai` after a leading
+/// attitudinal into the leading run, with or without a `ba'e` before it, and
+/// after a text opener as at the start of the text. No condition decides it,
+/// so each of these texts has the verdict resolved in the indicator stage.
+#[test]
+fn the_ranking_reads_a_nai_after_a_leading_attitudinal_into_the_run() {
+    let dialect = gencmu::load_dialect("cll-ebnf").expect("the CLL dialect");
+    for (text, labels) in [
+        ("ui nai mi klama", &["ui", "nai", "mi", "klama"][..]),
+        ("ui ba'e nai mi klama", &["ui", "nai", "mi", "klama"][..]),
+        ("lu ui nai mi li'u", &["lu", "ui", "nai", "mi", "li'u"][..]),
+    ] {
+        let result = dialect.parse(text, &ParseOptions::default()).expect("a result");
+        assert!(result.ok, "{text}");
+        let stage = result.stages.iter().find(|stage| stage.name == "indicators").expect("the stage");
+        assert_eq!(stage.verdict, Some(Verdict::Resolved), "{text}");
+        let output = stage.output.as_ref().expect("an output");
+        assert_eq!(output.iter().map(|token| token.label.as_str()).collect::<Vec<_>>(), labels, "{text}");
+    }
+}
+
 /// syntax/experimental.md: the grammar reads no LA, since no word of the
 /// experimental lexicon has it. A probe document after the lexicon moves
 /// `la` from LE to LA, and then no rule reads `la mlatu ku`.

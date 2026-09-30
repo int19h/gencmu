@@ -133,11 +133,11 @@ A word is a cmavo, a brivla or a cmevla, as the forms stage read it. The stage e
 
 A feature is a named switch that the grammars test. A guard is a condition on a feature. The cmevla-brivla merger of the experimental grammars is a matter of syntax, stated there with the `cbm` guard. It is not a second class on the word.
 
-The magic words are never plain words. The rules under "Quotes", "Compounds" and "Erasure" say what each does instead. The condition here keeps them out, so that the stage cannot read `zo` as a word that stands beside the word it quotes. The constant `$MAGIC-WORDS` lists their classes, so that a dialect can add to the list in one place. Without the feature `sa-su`, `sa` and `su` are plain words.
+The magic words are never plain words. The rules under "Quotes", "Compounds" and "Erasure" say what each does instead. The condition here keeps them out, so that the stage cannot read `zo` as a word that stands beside the word it quotes. The constant `$MAGIC-WORDS` lists the classes of the magic words in the CLL and experimental lexicons. A dialect with other magic words adds their classes to it in one place. Without the feature `sa-su`, `sa` and `su` are plain words.
 
 ```jbogenbau
 %const $MAGIC-WORDS
-  ZO ∪ ZOI ∪ LOhU ∪ ZOhOI ∪ LAhOI ∪ RAhOI ∪ MEhOI ∪ GOhOI ∪ ZEhOI ∪ TAhAI ∪ BOhEI ∪ FAhO ∪ BU ∪ ZEI ∪ SI ∪ SA ∪ SU
+  ZO ∪ ZOI ∪ LOhU ∪ ZOhOI ∪ MEhOI ∪ FAhO ∪ BU ∪ ZEI ∪ SI ∪ SA ∪ SU
 
 %rule word
   | sa-su? $c(cmavo-token) <tags($c)>
@@ -198,7 +198,7 @@ The reason is the indicator stage, which takes single tokens. It reads a marker 
   y-base [PAUSE] bu-word
 ```
 
-`zo'oi` and its relatives quote the next run of characters up to a pause. A quote attached to its marker, with no pause between them, takes the rest of the marker's run. The forms stage must divide that whole run into source words. Otherwise it makes the run one foreign token, with no marker in it. So `zo'oiklama` quotes `klama`, but the word stage rejects `zo'oixxx`. After a pause, the quote can take foreign text, as in `zo'oi xxx`.
+A word of ZOhOI or MEhOI, such as `zo'oi` or `me'oi`, quotes the next run of characters up to a pause. A quote attached to its marker, with no pause between them, takes the rest of the marker's run. The forms stage must divide that whole run into source words. Otherwise it makes the run one foreign token, with no marker in it. So `zo'oiklama` quotes `klama`, but the word stage rejects `zo'oixxx`. After a pause, the quote can take foreign text, as in `zo'oi xxx`.
 
 After a pause, the quote skips hesitation, as camxes-exp skips it in its `spaces`. Then the quote takes the next token and the rest of that token's run. So `zo'oiyymibroda` quotes `yymibroda`, `zo'oi yy mibroda` and `zo'oi yymibroda` quote `mibroda`, and `zo'oi yy` has nothing to quote. The quote ends where its run ends, `run-final` on its last token. Otherwise the lazy choice of the stage quotes only `mi` of `zo'oi mibroda`.
 
@@ -230,7 +230,7 @@ The body of a `zoi` quote and the run that `zo'oi` quotes are `%foreign`. So the
 %rule single-marker
   $q(magic-body) <classes($q) ∪ ~word ∪ ~cmavo>
 %conditions
-  classes($q) ∩ (ZOhOI ∪ LAhOI ∪ RAhOI ∪ MEhOI ∪ GOhOI ∪ ZEhOI ∪ TAhAI ∪ BOhEI) ≠ ∅
+  classes($q) ∩ (ZOhOI ∪ MEhOI) ≠ ∅
 
 %rule zoi-quote
   $m(zoi-marker) quote-gap $open(delimiter) PAUSE $content(zoi-body) PAUSE $close(delimiter)

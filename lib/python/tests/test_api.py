@@ -662,6 +662,35 @@ class BundledGrammars(unittest.TestCase):
         word = stage_output(dialect, text, "forms")[0]
         self.assertEqual((word.text, word.source, word.phonemes), (text, (0, 3), "u'i"))
 
+    def test_cy_letter_is_never_continued(self) -> None:
+        """words/cll.md and words/forms.md: a Cy letter is never continued. So
+        the general join of run-words, a continued word before an onset,
+        never joins a Cy letter to the word after it, and only the Cy rule
+        joins two letters."""
+        letters = stage_output(gencmu.load_dialect("cll-ebnf"), "cyky", "forms")
+        self.assertEqual([token.label for token in letters], ["cy", "ky"])
+        for letter in letters:
+            self.assertTrue("cy" in letter.tags and "continued" not in letter.tags, letter.label)
+
+    def test_ranking_reads_leading_nai_into_the_run(self) -> None:
+        """indicators/cll.md: the greedy ranking reads a nai after a leading
+        attitudinal into the leading run, with or without a ba'e before it,
+        and after a text opener as at the start of the text. No condition
+        decides it, so each of these texts has the verdict resolved in the
+        indicator stage."""
+        dialect = gencmu.load_dialect("cll-ebnf")
+        for text, labels in [
+            ("ui nai mi klama", ["ui", "nai", "mi", "klama"]),
+            ("ui ba'e nai mi klama", ["ui", "nai", "mi", "klama"]),
+            ("lu ui nai mi li'u", ["lu", "ui", "nai", "mi", "li'u"]),
+        ]:
+            result = dialect.parse(text)
+            self.assertTrue(result.ok, text)
+            stage = next(stage for stage in result.stages if stage.name == "indicators")
+            self.assertEqual(stage.verdict, "resolved", text)
+            assert stage.output is not None
+            self.assertEqual([token.label for token in stage.output], labels, text)
+
     def test_experimental_syntax_reads_no_la(self) -> None:
         """syntax/experimental.md: the grammar reads no LA, since no word of
         the experimental lexicon has it. A probe document after the lexicon

@@ -32,9 +32,7 @@ So a run of indicators directly after a text opener stays in the stream. A run a
 ```jbogenbau
 %rule text
   | ε | item-run | item-run bahe-run | leading | leading bahe-run | bahe-run
-  | $l(leading) $r(item-run) | $l(leading) $r(item-run) bahe-run
-%conditions
-  NAI ⊈ tags(head($r)) ∨ classes(last($l)) ∩ (UI ∪ CAI) = ∅
+  | leading item-run | leading item-run bahe-run
 
 %rule item-run
   | item
@@ -124,7 +122,7 @@ The rule `attitudinal-nai` reads the pair with three captures: the `ba'e` run be
   ($b) $m
 ```
 
-After a run of indicators at the start of the text, a `nai` belongs to the last of them when that is an attitudinal. So `iu nai` is one run, not `iu` followed by a text that begins with `nai`.
+After a leading run (see "Leading runs"), a `nai` belongs to the last indicator of the run when that is an attitudinal. The stage is greedy, so it reads the `nai` into the run before it starts the next item. So `iu nai` is one run, not `iu` followed by a text that begins with `nai`. The same holds when a `ba'e` stands before the `nai`, as in `iu ba'e nai`.
 
 A `ba'e` before an indicator marks the indicator and goes with it. So does a `ba'e` before the `nai` of an attitudinal. `ba'e` "marks the following word but does not change its meaning", as the Magic Words proposal says. Also, "One NAI can follow any UI or CAI cmavo". So `mi .e .ui ba'e nai do` negates the `.ui` and leaves the `.e` as it is.
 

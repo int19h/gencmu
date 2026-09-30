@@ -89,14 +89,14 @@ The approved word forms set only `onset` and `continued`, with the meaning that 
 %conditions
   (~continued ∪ ~cy ∪ ~name-intro ∪ ~open-stress) ∩ tags($r) ≠ ∅,
   ~cy ⊆ tags($r) ∧ ~cy ⊆ tags($v)
-    ∨ ~continued ⊆ tags($r) ∧ ~onset ⊆ tags($v) ∧ (~cy ⊈ tags($r) ∨ ~cy ⊈ tags($v))
+    ∨ ~continued ⊆ tags($r) ∧ ~onset ⊆ tags($v)
     ∨ ~name-intro ⊆ tags($r) ∧ ~name-onset ⊆ tags($v)
     ∨ ~open-stress ⊆ tags($r) ∧ ~cy ⊈ tags($r) ∧ ~onset ⊆ tags($v),
   ~final-stress ⊈ tags($r) ∨ (~stress-guard ∪ ~initial-stress) ∩ tags($v) = ∅,
   ~open-stress ⊈ tags($r) ∨ ~uncounted ⊆ tags($v)
 ```
 
-A join permits two words without a pause. This document states the joins so that no two joins apply to the same pair. For example, only the `Cy` rule joins two `Cy` letter words side by side. That is why the general join, a continued word followed by an onset, leaves that case to the `Cy` rule.
+A join permits two words without a pause. This document states the joins so that no two joins apply to the same pair. For example, a `Cy` letter is never `continued`. So only the `Cy` rule joins two of them. The general join, a continued word followed by an onset, never joins a `Cy` letter to the word after it.
 
 The first condition of `run-words` follows from the second. Each join of the second needs one of four tags on the words before: `continued`, `cy`, `name-intro` or `open-stress`. The first condition stays because it uses only `$r`.
 
