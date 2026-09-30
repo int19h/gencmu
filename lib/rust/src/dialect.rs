@@ -2,16 +2,16 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::fxhash::FxMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 
-use crate::dom::FeatureKind;
+use crate::dom::{FeatureKind, Guard};
 use crate::earley::{matchers, Chart, EngineError, Recognizer, Shared, Tok};
 use crate::error::Error;
 use crate::grammar::{Change, ClassifierTables, Lean, StageGrammar};
 use crate::lower::{lower, Lowered, Prod, Sym, SymbolTest, TestOp};
 use crate::maximal::Maximal;
 use crate::rank::{Act, Ranker, Ranking, Verdict as RankVerdict};
+use crate::recent::Recent;
 use crate::result::{
     Action, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Stage, Tags, Token, Verdict, Warning,
 };
@@ -80,17 +80,78 @@ pub struct InputToken {
     pub phonemes: Option<String>,
 }
 
-type LoweredKey = (usize, Vec<String>, bool);
 type LoweredResult = Result<Arc<Lowered>, EngineError>;
-type ClassifiersKey = (usize, Vec<String>);
 type ClassifiersResult = Result<Arc<ClassifierTables>, EngineError>;
+/// A lowered grammar, or its error, built once by the first parse that
+/// needs it.
+type LoweredCell = Arc<OnceLock<LoweredResult>>;
+type ClassifiersCell = Arc<OnceLock<ClassifiersResult>>;
+
+/// The most lowered grammars, and the most classifier tables, that a stage
+/// keeps. Each set of the stage's gates that is on has its own, so a stage
+/// with k gates can have 2^k of them. The least recently used goes first.
+const MAX_LOWERED: usize = 16;
+
+/// A stage's lowered grammars and classifiers, each built once for a set
+/// of its gates that is on.
+struct StageCache {
+    /// The features that gate an alternative or an entry of a classifier,
+    /// in code point order. Only these change a lowered grammar. A warning
+    /// keeps its alternative (engine §3.1), and any other name matches no
+    /// guard (engine §13).
+    gates: Vec<String>,
+    /// The features that gate an entry of a classifier, in code point
+    /// order. Only these change the classifiers.
+    classifier_gates: Vec<String>,
+    /// The lowered grammars, keyed by the gates that are on and by whether
+    /// elidable optionals are mandatory.
+    lowered: Mutex<Recent<(Vec<String>, bool), LoweredCell>>,
+    /// The classifiers, keyed by the classifier gates that are on (§2).
+    classifiers: Mutex<Recent<Vec<String>, ClassifiersCell>>,
+}
+
+impl StageCache {
+    fn new(stage: &StageGrammar) -> StageCache {
+        let entries: Vec<&Guard> = stage
+            .classifiers
+            .iter()
+            .flat_map(|(_, classifier)| &classifier.entries)
+            .flat_map(|entry| &entry.guards)
+            .collect();
+        let alternatives = stage
+            .rules
+            .iter()
+            .flat_map(|rule| &rule.alternatives)
+            .flat_map(|alternative| &alternative.alternative.guards);
+        StageCache {
+            gates: gate_names(alternatives.chain(entries.iter().copied())),
+            classifier_gates: gate_names(entries.iter().copied()),
+            lowered: Mutex::new(Recent::new(MAX_LOWERED)),
+            classifiers: Mutex::new(Recent::new(MAX_LOWERED)),
+        }
+    }
+}
+
+/// The names of the features that gate, in code point order, each once.
+fn gate_names<'a>(guards: impl Iterator<Item = &'a Guard>) -> Vec<String> {
+    let names: BTreeSet<&String> =
+        guards.filter(|guard| guard.kind == FeatureKind::Gate).map(|guard| &guard.feature).collect();
+    names.into_iter().cloned().collect()
+}
+
+/// The names among `names` that are on in `features`.
+fn names_on(names: &[String], features: &BTreeSet<String>) -> Vec<String> {
+    names.iter().filter(|name| features.contains(*name)).cloned().collect()
+}
 
 /// A loaded dialect: a pipeline of stages, each a stitched grammar.
 ///
 /// A `Dialect` is `Send` and `Sync`: one may be shared between threads and
 /// used for any number of parses at once. The grammars it lowers for a set
 /// of features, and the classifiers it resolves for them, are kept behind
-/// a mutex and shared by later parses.
+/// a mutex and shared by later parses. Only a new set of the gates that are
+/// on makes a new one. It keeps a bounded number of them, and builds each
+/// one once, outside the mutex.
 pub struct Dialect {
     pub(crate) stages: Vec<StageGrammar>,
     /// The features the pipeline's `%features` turns on.
@@ -98,9 +159,8 @@ pub struct Dialect {
     pub(crate) features: Vec<Feature>,
     pub(crate) unicode: Arc<Unicode>,
     pub(crate) changes: Vec<Change>,
-    lowered: Mutex<FxMap<LoweredKey, LoweredResult>>,
-    /// Each stage's classifiers, resolved for each set of features (§2).
-    classifiers: Mutex<FxMap<ClassifiersKey, ClassifiersResult>>,
+    /// Each stage's lowered grammars and classifiers.
+    caches: Vec<StageCache>,
 }
 
 impl std::fmt::Debug for Dialect {
@@ -189,15 +249,8 @@ impl Dialect {
     ) -> Result<Dialect, Error> {
         let features = dialect_features(&stages, &declared)?;
         let changes = stages.iter().flat_map(|stage| stage.changes.iter().cloned()).collect();
-        Ok(Dialect {
-            stages,
-            declared,
-            features,
-            unicode,
-            changes,
-            lowered: Mutex::new(FxMap::default()),
-            classifiers: Mutex::new(FxMap::default()),
-        })
+        let caches = stages.iter().map(StageCache::new).collect();
+        Ok(Dialect { stages, declared, features, unicode, changes, caches })
     }
 
     /// The names of the pipeline's stages, in order.
@@ -220,37 +273,50 @@ impl Dialect {
     /// The stage's grammar lowered for a set of features, or the error of
     /// the grammar that lowering found (engine §3.3), which a parse reports
     /// as it reports any found while parsing.
+    ///
+    /// Only the gates that are on change the productions. So two sets of
+    /// features with the same gates on share one lowered grammar. The first
+    /// parse that needs it lowers it, outside the lock, so it does not hold
+    /// up the parses that need other ones.
     fn lowered(&self, stage: usize, features: &BTreeSet<String>, mandatory: bool) -> LoweredResult {
-        let key = (stage, features.iter().cloned().collect(), mandatory);
-        let mut cache = self.lowered.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-        cache
-            .entry(key)
-            .or_insert_with(|| {
-                // The stage resolves its classifiers for the same features,
-                // before it lowers its rules (§2, §3).
-                let classifiers = self.classifiers(stage, features)?;
-                lower(&self.stages[stage], features, mandatory, classifiers)
-                    .map(Arc::new)
-                    .map_err(|error| EngineError { message: error.message, rule: Some(error.rule) })
-            })
-            .clone()
+        let cache = &self.caches[stage];
+        let on = names_on(&cache.gates, features);
+        let cell = cache
+            .lowered
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .get_or_insert_with((on.clone(), mandatory), Default::default);
+        cell.get_or_init(|| {
+            let on: BTreeSet<String> = on.into_iter().collect();
+            // The stage resolves its classifiers for the same features,
+            // before it lowers its rules (§2, §3).
+            let classifiers = self.classifiers(stage, &on)?;
+            lower(&self.stages[stage], &on, mandatory, classifiers)
+                .map(Arc::new)
+                .map_err(|error| EngineError { message: error.message, rule: Some(error.rule) })
+        })
+        .clone()
     }
 
     /// The stage's classifiers resolved for a set of features, or the error
-    /// of the grammar that an entry makes for them (§2). Each set of
-    /// features is resolved once.
+    /// of the grammar that an entry makes for them (§2). Each set of the
+    /// classifier gates that is on is resolved once, outside the lock.
     fn classifiers(&self, stage: usize, features: &BTreeSet<String>) -> ClassifiersResult {
-        let key = (stage, features.iter().cloned().collect());
-        let mut cache = self.classifiers.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-        cache
-            .entry(key)
-            .or_insert_with(|| {
-                self.stages[stage]
-                    .resolve_classifiers(features)
-                    .map(Arc::new)
-                    .map_err(|message| EngineError { message, rule: None })
-            })
-            .clone()
+        let cache = &self.caches[stage];
+        let on = names_on(&cache.classifier_gates, features);
+        let cell = cache
+            .classifiers
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .get_or_insert_with(on.clone(), Default::default);
+        cell.get_or_init(|| {
+            let on: BTreeSet<String> = on.into_iter().collect();
+            self.stages[stage]
+                .resolve_classifiers(&on)
+                .map(Arc::new)
+                .map_err(|message| EngineError { message, rule: None })
+        })
+        .clone()
     }
 
     /// Parses a text.
@@ -875,4 +941,54 @@ fn has_sa_su(tree: &Node) -> bool {
         stack.extend(node.children.iter());
     }
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Dialect, ParseOptions, MAX_LOWERED};
+
+    fn dialect(rules: &str) -> Dialect {
+        let grammar = format!("```jbogenbau\n%ambiguity-resolution greedy\n{rules}\n```\n");
+        let pipeline = "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string();
+        crate::load_dialect_sources([("p.md".to_string(), pipeline), ("g.md".to_string(), grammar)], "p.md").unwrap()
+    }
+
+    fn cached(dialect: &Dialect) -> (usize, usize) {
+        let cache = &dialect.caches[0];
+        (cache.lowered.lock().unwrap().len(), cache.classifiers.lock().unwrap().len())
+    }
+
+    #[test]
+    fn unused_names_share_one_lowering() {
+        let dialect = dialect("%rule text f? 'x' | 'y'");
+        for index in 0..50 {
+            let options = ParseOptions {
+                features: vec![format!("unused-{index}")],
+                auto_features: false,
+                ..ParseOptions::default()
+            };
+            assert!(dialect.parse("y", &options).unwrap().ok);
+        }
+        assert_eq!(cached(&dialect), (1, 1));
+    }
+
+    #[test]
+    fn lowered_grammars_are_bounded() {
+        let names = ["a", "b", "c", "d", "e", "f", "g"];
+        let alternatives: Vec<String> = names.iter().map(|name| format!("{name}? 'x'")).collect();
+        let dialect = dialect(&format!("%rule text {} | 'y'", alternatives.join(" | ")));
+        for set in 0..1usize << names.len() {
+            let features: Vec<String> = names
+                .iter()
+                .enumerate()
+                .filter(|(index, _)| set & (1 << index) != 0)
+                .map(|(_, name)| name.to_string())
+                .collect();
+            let expected = !features.is_empty();
+            let options = ParseOptions { features, auto_features: false, ..ParseOptions::default() };
+            assert_eq!(dialect.parse("x", &options).unwrap().ok, expected);
+        }
+        let (lowered, classifiers) = cached(&dialect);
+        assert!(lowered <= MAX_LOWERED && classifiers <= MAX_LOWERED, "{lowered} {classifiers}");
+    }
 }
