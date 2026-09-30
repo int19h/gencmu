@@ -1,9 +1,9 @@
 {
-  "description": "Text that no input token covers, between two adjacent foreign parts, belongs to the first of them: `a,b` gives `a,` and `b`. Each part sounds `?` and has its text as its label (engine §5, §11).",
+  "description": "An empty opaque part sounds `?` and takes in no text: a token over it has empty text and label, and an empty source at the end of the input token before it (engine §5, §11).",
   "documents": {
     "p.md": "## s\n\n```jbogenbau\n%stage letters\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage bodies\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [part] ...\n%rule part letter | comma\n%rule letter 'a' | 'b'\n%emits $ <L>\n%rule comma ','\n```\n",
-    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $a(v) $b(v)\n%emits $a <A>, $b <B>\n%rule v L\n%foreign\n```\n"
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $a(L) $e(nothing) $b(L)\n%emits $a <A>, $e <E>, $b <B>\n%rule nothing ε\n%opaque\n```\n"
   },
   "pipeline": "p.md",
   "input": "a,b",
@@ -11,6 +11,7 @@
     "result": {
       "ok": true,
       "stages": [
+        {},
         {
           "output": [
             {
@@ -21,37 +22,20 @@
               ]
             },
             {
-              "text": "b",
-              "source": [
-                2,
-                3
-              ]
-            }
-          ]
-        },
-        {
-          "output": [
-            {
-              "text": "a,",
+              "text": "",
               "phonemes": "?",
-              "label": "a,",
+              "label": "",
               "span": [
-                0,
+                1,
                 1
               ],
               "source": [
-                0,
-                2
+                1,
+                1
               ]
             },
             {
               "text": "b",
-              "phonemes": "?",
-              "label": "b",
-              "span": [
-                1,
-                2
-              ],
               "source": [
                 2,
                 3

@@ -62,17 +62,17 @@ export declare class Stage {
  * @returns {ResultNode[]}
  */
 export declare function resultTree(root: Derivation, context: ParseContext): ResultNode[];
-export type ForeignPart = {
+export type OpaquePart = {
     source: Span;
     text: string;
 };
 export type Emitter = {
     context: ParseContext;
     /**
-     * the derivation's foreign
+     * the derivation's opaque
      * parts
      */
-    foreign: Map<Derivation, ForeignPart>;
+    opaque: Map<Derivation, OpaquePart>;
     /**
      * whether any input token has attachments
      */

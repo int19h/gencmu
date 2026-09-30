@@ -1,10 +1,10 @@
 {
-  "description": "A parent that emits one token over a quote and `bu` holds the quote's body as a foreign part. The part sounds `?` and gives its text, with the comma that no input token covers, so the token is labelled `zoi gy Hello, gy bu` (engine §5, §11).",
+  "description": "A parent that emits one token over a quote and `bu` holds the quote's body as an opaque part. The part sounds `?` and gives its text, with the comma that no input token covers, so the token is labelled `zoi gy Hello, gy bu` (engine §5, §11).",
   "documents": {
     "p.md": "## characters\n\n```jbogenbau\n%stage characters\n```\n\n- [g.md](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## words\n\n```jbogenbau\n%stage words\n```\n\n- [h.md](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n\n## quotes\n\n```jbogenbau\n%stage quotes\n```\n\n- [k.md](k.md)\n  ```jbogenbau\n  %include \"k.md\"\n  ```\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [part] ...\n%rule part letter | pause\n%rule letter\n  | 'z' </z/> | 'o' </o/> | 'i' </i/> | 'g' </g/> | 'y' </y/> | 'b' </b/> | 'u' </u/>\n  | 'a' </a/> | 'c' </c/> | 'H' </h/> | 'e' </e/> | 'l' </l/>\n%emits $ <tags($) ∪ L>\n%rule pause [','] $c(core) [',']\n%emits $c <P ∪ /./>\n%rule core core-char | core core-char\n%rule core-char ' ' | '.'\n```\n",
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [piece] ...\n%rule piece word | pause\n%rule word L | word L\n%emits $ <W>\n%rule pause P\n%emits $\n```\n",
-    "k.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text lerfu\n%rule lerfu quote P W=\"bu\"\n%emits $ <BY>\n%rule quote W=\"zoi\" P $d(W) P body P $e(W)\n%conditions phonemes($d) = phonemes($e)\n%rule body W | body P W\n%foreign\n```\n"
+    "k.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text lerfu\n%rule lerfu quote P W=\"bu\"\n%emits $ <BY>\n%rule quote W=\"zoi\" P $d(W) P body P $e(W)\n%conditions phonemes($d) = phonemes($e)\n%rule body W | body P W\n%opaque\n```\n"
   },
   "pipeline": "p.md",
   "input": "zoi gy. Hello, .gy. bu",

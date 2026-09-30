@@ -265,7 +265,7 @@ The body of a `zoi` quote and the run that `zo'oi` quotes are `%foreign`. So the
 
 %rule empty-zoi-body
   ε
-%foreign
+%opaque
 
 %rule delimiter
   cmavo-token | BRIVLA | CMEVLA
@@ -363,11 +363,11 @@ The gap between a marker and its word is an optional pause, with hesitation allo
 
 %rule zoi-body
   any-token | zoi-body any-token
-%foreign
+%opaque
 
 %rule zohoi-payload
   payload-token | zohoi-payload payload-token
-%foreign
+%opaque
 
 %rule any-token
   payload-token | PAUSE

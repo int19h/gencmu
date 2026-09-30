@@ -140,7 +140,7 @@ A foreign run has at least one character that no rule of `any-lojban-char` reads
   ¬matches(last($r), comma)
 %emits
   $ <FOREIGN>
-%foreign
+%opaque
 
 %rule foreign-chars
   | foreign-char

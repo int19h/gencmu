@@ -179,7 +179,7 @@ A keyword is `%` and a name. The stage tags each keyword that the notation knows
   | '%' $tags(name) <~keyword-tags>
   | '%' $conditions(name) <~keyword-conditions>
   | '%' $emits(name) <~keyword-emits>
-  | '%' $foreign(name) <~keyword-foreign>
+  | '%' $opaque(name) <~keyword-opaque>
   | '%' $ambiguity-resolution(name) <~keyword-ambiguity-resolution>
   | '%' $elidable(name) <~keyword-elidable>
   | '%' $stage(name) <~keyword-stage>
@@ -197,7 +197,7 @@ A keyword is `%` and a name. The stage tags each keyword that the notation knows
   text($tags) = "tags",
   text($conditions) = "conditions",
   text($emits) = "emits",
-  text($foreign) = "foreign",
+  text($opaque) = "opaque",
   text($ambiguity-resolution) = "ambiguity-resolution",
   text($elidable) = "elidable",
   text($stage) = "stage",
@@ -209,7 +209,7 @@ A keyword is `%` and a name. The stage tags each keyword that the notation knows
   text($implies) = "implies",
   text($other) ≠ "rule", text($other) ≠ "redefine-rule", text($other) ≠ "extend-rule",
   text($other) ≠ "tags", text($other) ≠ "conditions", text($other) ≠ "emits",
-  text($other) ≠ "foreign", text($other) ≠ "ambiguity-resolution", text($other) ≠ "elidable",
+  text($other) ≠ "opaque", text($other) ≠ "ambiguity-resolution", text($other) ≠ "elidable",
   text($other) ≠ "stage", text($other) ≠ "include", text($other) ≠ "features",
   text($other) ≠ "const", text($other) ≠ "redefine-const",
   text($other) ≠ "classifier", text($other) ≠ "implies"

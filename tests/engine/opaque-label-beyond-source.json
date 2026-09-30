@@ -1,6 +1,6 @@
 {
-  "description": "A token whose constituent holds a foreign part, but is none, keeps the source of its input tokens. Its label joins the whole text of the part, which takes in the space after `x` that no input token covers. So the label of `wrap` reaches beyond its source and its text (engine §5, §11).",
-  "grammar": "%rule text $w(wrap) $q(Q)\n%emits $w <W>, $q <Q>\n%rule wrap P body\n%rule body X\n%foreign",
+  "description": "A token whose constituent holds an opaque part, but is none, keeps the source of its input tokens. Its label joins the whole text of the part, which takes in the space after `x` that no input token covers. So the label of `wrap` reaches beyond its source and its text (engine §5, §11).",
+  "grammar": "%rule text $w(wrap) $q(Q)\n%emits $w <W>, $q <Q>\n%rule wrap P body\n%rule body X\n%opaque",
   "tokens": [
     {
       "text": "p",

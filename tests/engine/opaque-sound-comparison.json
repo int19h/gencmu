@@ -1,9 +1,9 @@
 {
-  "description": "`?` is an ordinary character in a comparison: the sound of a foreign token is `?`, which a sound test and a condition compare like any other string (engine §5).",
+  "description": "`?` is an ordinary character in a comparison: the sound of an opaque token is `?`, which a sound test and a condition compare like any other string (engine §5).",
   "documents": {
     "p.md": "## letters\n\n```jbogenbau\n%stage letters\n```\n\n- [g.md](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## bodies\n\n```jbogenbau\n%stage bodies\n```\n\n- [h.md](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n\n## compares\n\n```jbogenbau\n%stage compares\n```\n\n- [k.md](k.md)\n  ```jbogenbau\n  %include \"k.md\"\n  ```\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [part] ...\n%rule part letter | pause | mark\n%rule letter 'a' <L ∪ /a/> | 'b' <L ∪ /b/> | 'c' <L ∪ /c/> | 'd' <L ∪ /d/>\n%emits $\n%rule pause ' ' <P ∪ /./>\n%emits $\n%rule mark '!'\n```\n",
-    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $b(body)\n%emits $b <B>\n%rule body L | body L\n%foreign\n```\n",
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $b(body)\n%emits $b <B>\n%rule body L | body L\n%opaque\n```\n",
     "k.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $b(B=\"?\")\n%conditions phonemes($b) = \"?\", phonemes($b) ≠ \"ab\"\n%emits $b <C>\n```\n"
   },
   "pipeline": "p.md",

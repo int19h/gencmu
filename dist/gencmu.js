@@ -2261,7 +2261,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 15;
+  const DOM_FORMAT = 16;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9-]*$/;
   // A classifier's name begins with a lower-case letter, and a class with a
@@ -2489,7 +2489,7 @@
     for (const rule of dom.rules) {
       if (!isDomObject(rule) || typeof rule.name !== "string" || !(DOM_NAME.test(rule.name) || rule.name === "#") || !["define", "redefine", "extend"].includes(/** @type {string} */ (rule.op)) ||
           !Array.isArray(rule.alternatives) || rule.alternatives.length === 0 || !Array.isArray(rule.conditions) || !isDomPosition(rule.at) ||
-          (rule.foreign !== undefined && rule.foreign !== true)) {
+          (rule.opaque !== undefined && rule.opaque !== true)) {
         return "a malformed rule";
       }
       if (rule.tags !== undefined) pending.push({ kind: "constituent-tags", value: rule.tags, depth: 0 });
@@ -2921,8 +2921,8 @@
     const alternatives = rule.alternatives.map(alternativeCaptures);
     const anyHas = (/** @type {string} */ name) => alternatives.some((/** @type {Map<string, number>} */ captures) => captures.has(name));
     const items = rule.emit ? rule.emit.items : [];
-    // A constituent that does not count is never a foreign part (engine §9).
-    if (rule.foreign && rule.emit && items.length === 0) return `${rule.name} is foreign and emits ε`;
+    // A constituent that does not count is never an opaque part (engine §9).
+    if (rule.opaque && rule.emit && items.length === 0) return `${rule.name} is opaque and emits ε`;
     const clauses = [rule.tags, ...rule.conditions, ...rule.alternatives.map((/** @type {any} */ a) => a.tags), ...items];
     // An emission item mentions its own capture and its attachments,
     // whatever else it says.
@@ -4058,7 +4058,7 @@
    * @property {Term | undefined} tags
    * @property {Emission | undefined} emit
    * @property {Condition[]} conditions
-   * @property {boolean} foreign
+   * @property {boolean} opaque
    */
 
   /**
@@ -4167,7 +4167,7 @@
       for (const rule of dom.rules) {
         if (constantsIn(rule).length > 0) this.constantUsers.push({ path, rule });
         const at = { document: path, line: rule.at[0], column: rule.at[1] };
-        const clauses = { tags: rule.tags, emit: rule.emit, conditions: rule.conditions || [], foreign: rule.foreign === true };
+        const clauses = { tags: rule.tags, emit: rule.emit, conditions: rule.conditions || [], opaque: rule.opaque === true };
         const alternatives = rule.alternatives.map((alternative) => ({ ...alternative, clauses, document: path, at }));
         const previous = this.rules.get(rule.name);
         if (rule.op === "define") {
@@ -4779,7 +4779,7 @@
             conditions: [],
             tags: single ? { call: "tags", args: [{ capture: "\u0000child" }] } : null,
             emit: null,
-            foreign: false,
+            opaque: false,
             recursivePrefix: false,
             warnings: [],
           });
@@ -4870,7 +4870,7 @@
         conditions,
         tags,
         emit,
-        foreign: clauses.foreign,
+        opaque: clauses.opaque,
         recursivePrefix,
         warnings: alternative.guards.filter((guard) => guard.kind === "warning").map((guard) => guard.feature),
       });
@@ -6425,27 +6425,27 @@
   }
 
   /**
-   * The source and the text of a foreign part (engine §11).
-   * @typedef {{source: Span, text: string}} ForeignPart
+   * The source and the text of an opaque part (engine §11).
+   * @typedef {{source: Span, text: string}} OpaquePart
    */
 
   /**
-   * The foreign parts of a chosen derivation, with their sources and texts
-   * (engine §11): the constituents of `%foreign` productions inside no
-   * constituent that emits `ε` and no other foreign part. The stage fixes them
+   * The opaque parts of a chosen derivation, with their sources and texts
+   * (engine §11): the constituents of `%opaque` productions inside no
+   * constituent that emits `ε` and no other opaque part. The stage fixes them
    * before it emits anything, so that every token over a part holds the same
    * text. The walk keeps its own stack, as the tree's does.
    * @param {Derivation} root
    * @param {ParseContext} context
-   * @returns {Map<Derivation, ForeignPart>}
+   * @returns {Map<Derivation, OpaquePart>}
    */
-  function foreignParts(root, context) {
+  function opaqueParts(root, context) {
     /** @type {DerivationRule[]} */
     const parts = [];
     const stack = [root];
     for (let node = stack.pop(); node !== undefined; node = stack.pop()) {
       if ("read" in node || countsForNothing(node.production)) continue;
-      if (node.production.foreign) {
+      if (node.production.opaque) {
         parts.push(node);
         continue;
       }
@@ -6455,7 +6455,7 @@
     // Text between two input tokens belongs to the part with a non-empty span
     // that ends there, before one that starts there.
     const ends = new Set(parts.filter((part) => part.start < part.end).map((part) => part.end));
-    /** @type {Map<Derivation, ForeignPart>} */
+    /** @type {Map<Derivation, OpaquePart>} */
     const result = new Map();
     for (const part of parts) {
       if (part.start === part.end) {
@@ -6505,16 +6505,16 @@
   }
 
   // What a node says and shows: the phonemes and the labels of its parts,
-  // joined (engine §5, §11). A part is a read input token or a foreign part.
+  // joined (engine §5, §11). A part is a read input token or an opaque part.
   // Nothing inside a constituent that does not count is a part, and the walk
-  // does not enter a foreign part.
+  // does not enter an opaque part.
   /**
    * @param {Derivation} node
    * @param {ParseContext} context
-   * @param {Map<Derivation, ForeignPart>} foreign
+   * @param {Map<Derivation, OpaquePart>} opaque
    * @returns {{phonemes: string, label: string}}
    */
-  function spoken(node, context, foreign) {
+  function spoken(node, context, opaque) {
     const phonemes = new Join();
     const label = new Join();
     const stack = [node];
@@ -6527,7 +6527,7 @@
         continue;
       }
       if (countsForNothing(current.production)) continue;
-      const part = foreign.get(current);
+      const part = opaque.get(current);
       if (part) {
         phonemes.add("?", false);
         label.add(part.text, false);
@@ -6559,11 +6559,11 @@
   }
 
   /**
-   * What one derivation's emission needs: the parse, its foreign parts, and
+   * What one derivation's emission needs: the parse, its opaque parts, and
    * whether any input token has attachments to forward (engine §11).
    * @typedef {object} Emitter
    * @property {ParseContext} context
-   * @property {Map<Derivation, ForeignPart>} foreign the derivation's foreign
+   * @property {Map<Derivation, OpaquePart>} opaque the derivation's opaque
    *   parts
    * @property {boolean} forwards whether any input token has attachments
    * @property {Set<import("./tokens.js").AttachedToken>} inherited the input
@@ -6577,22 +6577,22 @@
    * @returns {Token}
    */
   function makeToken(node, explicit, emitter) {
-    const { context, foreign } = emitter;
+    const { context, opaque } = emitter;
     // The stage's implications apply before the phonemes and the label
     // (engine §11).
     const tags = implied(explicit, context.lowered.implications);
     // Two phoneme tags are an error on any token (engine §5).
     const phoneme = phonemeTag(tags);
-    // A token over a foreign part has the part's source and text (engine §11).
-    const part = foreign.get(node);
+    // A token over an opaque part has the part's source and text (engine §11).
+    const part = opaque.get(node);
     const source = part ? part.source : sourceOf(context.sources, node.start, node.end);
     const text = part ? part.text : context.sourceText.slice(source[0], source[1]).join("");
     // A phoneme tag decides the sound and the label, over `?` (engine §5).
-    const said = phoneme !== null ? sounded(phoneme) : spoken(node, context, foreign);
+    const said = phoneme !== null ? sounded(phoneme) : spoken(node, context, opaque);
     const token = new Token(tags, [node.start, node.end], source, text, said.phonemes, undefined, said.label);
     // The parts decide the attachments too, after the phoneme tags are
     // checked (engine §11).
-    const from = emitter.forwards ? forwarded(node, context, foreign) : null;
+    const from = emitter.forwards ? forwarded(node, context, opaque) : null;
     if (from) {
       // Attachments belong to one token: an input token that is the one part
       // of a second token is an error of the grammar (engine §11).
@@ -6609,15 +6609,15 @@
   /**
    * The one input token whose attachments a token over `node` inherits, or
    * null (engine §11). The parts are those of the join (engine §5): a read
-   * input token, or a foreign part as one piece, and nothing inside a
+   * input token, or an opaque part as one piece, and nothing inside a
    * constituent that emits `ε`. A token with attachments among other parts,
-   * or a foreign part that holds one, is an error of the grammar.
+   * or an opaque part that holds one, is an error of the grammar.
    * @param {Derivation} node
    * @param {ParseContext} context
-   * @param {Map<Derivation, ForeignPart>} foreign
+   * @param {Map<Derivation, OpaquePart>} opaque
    * @returns {import("./tokens.js").AttachedToken | null}
    */
-  function forwarded(node, context, foreign) {
+  function forwarded(node, context, opaque) {
     let parts = 0;
     /** @type {import("./tokens.js").AttachedToken | null} */
     let found = null;
@@ -6630,10 +6630,10 @@
         continue;
       }
       if (countsForNothing(current.production)) continue;
-      if (foreign.has(current)) {
+      if (opaque.has(current)) {
         parts++;
         if (holdsAttachments(current, context)) {
-          throw new GencmuError("grammar", `${current.production.owner} is a foreign part over a token with attachments, which a token over it cannot place`);
+          throw new GencmuError("grammar", `${current.production.owner} is an opaque part over a token with attachments, which a token over it cannot place`);
         }
         continue;
       }
@@ -6646,7 +6646,7 @@
   }
 
   /**
-   * Whether a foreign part holds an input token with attachments: one that it
+   * Whether an opaque part holds an input token with attachments: one that it
    * reads outside any constituent that emits `ε` (engine §11).
    * @param {Derivation} node
    * @param {ParseContext} context
@@ -6730,9 +6730,9 @@
    * @returns {Token[]}
    */
   function emit(root, context) {
-    // The foreign parts and their texts, fixed before any token (engine §11).
-    const foreign = foreignParts(root, context);
-    return emitted(root, { context, foreign, forwards: context.tokens.some(hasAttachments), inherited: new Set() });
+    // The opaque parts and their texts, fixed before any token (engine §11).
+    const opaque = opaqueParts(root, context);
+    return emitted(root, { context, opaque, forwards: context.tokens.some(hasAttachments), inherited: new Set() });
   }
 
   /**
@@ -6743,7 +6743,7 @@
    * @returns {Token[]}
    */
   function emitted(root, emitter) {
-    const { context, foreign } = emitter;
+    const { context, opaque } = emitter;
     // The tokens emitted so far: the output, and above it the attachments
     // being gathered, the innermost last.
     /** @type {Token[][]} */
@@ -7057,7 +7057,7 @@
       // captures are (engine §3.6).
       const conditions = one(node, "conditions-clause");
       rule.conditions = conditions ? ofRule(conditions, "implication").map(readImplication) : [];
-      if (one(node, "foreign-clause")) rule.foreign = true;
+      if (one(node, "opaque-clause")) rule.opaque = true;
       rule.at = at(node);
       const problem = definitionProblem(rule);
       if (problem) fail(problem, node);
@@ -7630,7 +7630,7 @@
   const NAMED = new Set([
     "directive", "argument-word", "argument-string", "rule", "definer", "body", "alternative", "guard", "alternative-tags",
     "conjunction", "sequence", "element", "primary", "reference", "string", "phoneme", "tested", "test", "test-operand", "capture", "group", "optional",
-    "choice", "empty", "tags-clause", "conditions-clause", "emits-clause", "foreign-clause", "emit-item", "emit-target", "emit-tags", "emit-before", "emit-after",
+    "choice", "empty", "tags-clause", "conditions-clause", "emits-clause", "opaque-clause", "emit-item", "emit-target", "emit-tags", "emit-before", "emit-after",
     "implication", "any-of", "all-of", "condition", "comparison", "comparator", "negation", "presence",
     "term", "guarded-term", "union", "intersection", "term-atom", "tag", "character", "name", "empty-set", "call", "argument",
     "capture-reference", "argument-tag", "range", "property", "constant-definition", "constant-definer", "constant-reference",
@@ -8663,7 +8663,7 @@
    * @property {DomAlternative[]} alternatives
    * @property {Emission} [emit]
    * @property {Condition[]} conditions
-   * @property {true} [foreign]
+   * @property {true} [opaque]
    * @property {Position} at
    */
 
@@ -8807,7 +8807,7 @@
    * @property {ReadyCondition[]} conditions
    * @property {Term | null} tags
    * @property {Emission | null} emit
-   * @property {boolean} foreign whether its constituent is a foreign part,
+   * @property {boolean} opaque whether its constituent is an opaque part,
    *   which sounds `?` and shows its text (engine §11)
    * @property {boolean} recursivePrefix
    * @property {string[]} warnings the features of the alternative's warnings,

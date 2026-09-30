@@ -1,8 +1,8 @@
 {
-  "description": "Pauses are counted by part, not by character: the join keeps the periods in the label of a foreign part, makes each run of pause parts one, and leaves out a pause part at either end. The phonemes join in the same way, with `?` for the part (engine §5).",
+  "description": "Pauses are counted by part, not by character: the join keeps the periods in the label of an opaque part, makes each run of pause parts one, and leaves out a pause part at either end. The phonemes join in the same way, with `?` for the part (engine §5).",
   "documents": {
     "p.md": "## s\n\n```jbogenbau\n%stage first\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage second\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
-    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [part] ...\n%rule part v | pause | y\n%rule v 'a' '.' '.' 'b'\n%emits $ <V>\n%foreign\n%rule pause '-'\n%emits $ <P ∪ /./>\n%rule y 'y'\n%emits $ <Y ∪ /y/>\n```\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [part] ...\n%rule part v | pause | y\n%rule v 'a' '.' '.' 'b'\n%emits $ <V>\n%opaque\n%rule pause '-'\n%emits $ <P ∪ /./>\n%rule y 'y'\n%emits $ <Y ∪ /y/>\n```\n",
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text all\n%emits $ <Z>\n%rule all [any] ...\n%rule any V | P | Y\n```\n"
   },
   "pipeline": "p.md",
