@@ -188,7 +188,7 @@ The grammar reads a test after any primary, and a constant as a primary. The rea
 
 An item can have attachments: captures in parentheses, any number before its target and any number after its tags. The grammar reads them on any item, and around `$` too. The reader refuses them where the item is not a named capture, and it refuses `($)`.
 
-`%opaque` is a keyword alone. It says that the stage keeps the text of the constituent and does not read its sound. So the constituent sounds `?` and shows its text.
+`%opaque` is a keyword alone. During emission, it makes the constituent one part, which sounds `?` and shows its text.
 
 ```jbogenbau
 %rule tags-clause

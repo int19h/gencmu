@@ -36,7 +36,7 @@ A body can be followed by clauses. A clause is a keyword and what it says. A bod
 - `%tags` gives the tags that the constituent of every alternative carries.
 - `%conditions` states what must hold of the parts.
 - `%emits` states what the constituent hands to the next stage.
-- `%opaque` keeps the text of the constituent and does not read its sound. So it sounds `?` and shows its text.
+- `%opaque` makes the constituent one part during emission. That part sounds `?` and shows its text.
 
 The sections below explain each clause.
 
@@ -421,9 +421,9 @@ A part that the list of a rule merely does not name is not handed on, but it sti
 
 ## Opaque text
 
-`%opaque` says that the stage keeps the text of a rule's constituents and does not read their sound. Each constituent of such a rule is an opaque part. An opaque part sounds `?`, whatever it holds, and it shows its text to people. This is true whether the constituent emits a token with `$` or a parent emits a token over it.
+During emission, `%opaque` treats each constituent of a rule as one part, an opaque part. An opaque part has its text as its label and `?` as its phonemes, whatever it holds. This is true whether the constituent emits a token with `$` or a parent emits a token over it. Recognition and conditions do not change. They still read the phonemes of the input tokens, so an opaque rule can test `phonemes($a) = "a"` and still emit `?`.
 
-The directive says nothing about the language of the text. It only says how the stage treats the text. Examples are the body of a `zoi` quote and a run of letters that no script reads. The body of a `zoi` quote is opaque even when it holds good Lojban words.
+The directive says nothing about the language of the text. It only says how the stage emits the text. Examples are the body of a `zoi` quote and a run of letters that no script reads. The body of a `zoi` quote is opaque even when it holds good Lojban words.
 
 ```jbogenbau
 %rule zoi-body

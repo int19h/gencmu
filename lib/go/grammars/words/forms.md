@@ -74,7 +74,7 @@ A run that divides into words divides in one way only. The word forms of each fa
 
 The stage covers every input token. It passes pauses and the unread runs of the phoneme stage through, and combines phonemes into words or unread runs. An unread run of the phoneme stage keeps its phonemes, `?`, and its label, which is its text.
 
-A run of phonemes that divides into no words becomes one `UNREAD` token, which sounds like its phonemes. Its rule is not `%opaque`, because the stage has read those phonemes. So a `zoi` delimiter compares with it exactly as with the same phonemes read as words. The text of the token is what the author wrote.
+A run of phonemes that divides into no words becomes one `UNREAD` token, which sounds like its phonemes. Its rule is not `%opaque`, so the token keeps those phonemes. So a `zoi` delimiter compares with it exactly as with the same phonemes read as words. The text of the token is what the author wrote.
 
 The stage tests only a whole run for whether it divides. A part of a run has a phoneme after it, so the stage does not test it. The stage tests the run alone. This gives the same answer as a test in place, because no rule of this stage reads past the end of a run.
 
