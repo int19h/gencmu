@@ -15,7 +15,7 @@ The phonemes are the letters of CLL chapter 3, each written as a phoneme tag:
 - The apostrophe `/'/`
 - The syllable break `/,/`, which a comma between two vowels writes
 
-A stressed vowel is a phoneme of its own. So stress is a position in the word grammar and not a mark that the word grammar tests. Two tags stand for what is not a letter. `PAUSE` is a pause of any length, and it also carries the phoneme tag `/./`, whose phoneme is `.`. `UNREAD` is a run that the pipeline has not read as words, here a run with a character that this orthography does not read. The forms stage passes it on, and the word stage admits it only inside a foreign quote or after `fa'o`.
+A stressed vowel is a phoneme of its own. So stress is a position in the word grammar and not a mark that the word grammar tests. Two tags stand for what is not a letter. `PAUSE` is a pause of any length, and it also carries the phoneme tag `/./`, whose phoneme is `.`. `UNREAD` is a run that the pipeline did not read as words, here a run with a character that this orthography does not read. The forms stage passes it on, and the word stage admits it only inside a foreign quote or after `fa'o`.
 
 ## The text and its runs
 
