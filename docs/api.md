@@ -56,6 +56,8 @@ A stage has its name, its input and output tokens, its verdict, and for a tie it
 
 A node has its kind (`rule`, `token` or `elided`), its rule or terminal, its span and source range, its tags and its children. A token node also has the index of the token that it read. Tags are a set of tags, each a string in its canonical spelling (engine §1). Source positions count Unicode code points, whatever the string indexing of the language is. Spans and token indices count tokens of the relevant stage.
 
+A result shares no value that can change with the dialect, or with the tokens of the caller. This holds for every tag set of a token or a node, in the chosen tree, the tied tree and the readings of an error. So a change to a result changes no later parse. A later change to a token of the caller does not change the result.
+
 ### Output
 
 Every library writes the canonical JSON of a result as text, in the key order that `docs/output.md` gives. Every library also renders a result as brackets, with elided terminators hidden or shown. The JavaScript library also renders the tree listing and the display JSON, for the CLI and the playground.
