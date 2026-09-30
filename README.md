@@ -38,7 +38,7 @@ Each dialect is a document under [`grammars/dialects/`](grammars/dialects), whic
 
 ## The libraries
 
-Four libraries implement one specification. Each library has no dependency beyond the standard library of its language. Each library passes the same shared tests. The libraries are:
+Four libraries implement one specification. Each library has no dependency beyond the standard library of its language. Each library passes every shared test that its API can express. The libraries are:
 
 - JavaScript: [`lib/js/`](lib/js), the npm package `gencmu`, with the CLI
 - Python: [`lib/python/`](lib/python), the package `gencmu`

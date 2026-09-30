@@ -140,7 +140,7 @@ The bundled dialects do not guard every change. The only bundled warning is `y-c
 
 ## Stitching documents
 
-A stage of a pipeline is the rules and directives of several documents, read in order. A later rule can change what an earlier one said. Only the order of the rules in the stage matters, not the document where each was written. There are three ways to state a rule, and each says what it expects to be there already:
+A stage reads its input with one grammar. The loader assembles that grammar from the rules and directives of one or more documents, read in order. A later rule can change what an earlier one said. Only the order of the rules in the stage matters, not the document where each was written. There are three ways to state a rule, and each says what it expects to be there already:
 
 - `%rule` defines a rule. It is an error if a rule of that name was defined before it in the stage.
 - `%redefine-rule` replaces a rule defined before it in the stage. It is an error if none was. The earlier alternatives are gone.
@@ -478,7 +478,7 @@ The layout is a matter of style, and the notation does not require it. An `%incl
 
 The first stage reads the text's characters. Each is a token with one tag, its character tag, such as `'a'`. A grammar reads a class of characters with a range or a property, such as `'0'..'9'` or `'\p{L}'`. Every later stage reads what the stage before it emitted.
 
-`gencmu stitch --dialect NAME` prints a dialect's pipeline as one jbogenbau text. The command replaces every `%include` with what it stands for, and puts the dialect's features in one `%features` at the top. Each run of rules from one document follows a comment naming it. A classifier stands as its author wrote it, entry by entry, and not as the table that its entries make.
+`node lib/js/cli.js stitch --dialect NAME` prints a dialect's pipeline as one jbogenbau text. The command replaces every `%include` with what it stands for, and puts the dialect's features in one `%features` at the top. Each run of rules from one document follows a comment naming it. A classifier stands as its author wrote it, entry by entry, and not as the table that its entries make.
 
 ## Ambiguity
 
@@ -518,4 +518,4 @@ If that parse has exactly one derivation, the check passes. If it has none, the 
 
 The grammars that extend CLL are really ambiguous in places. A sumti is an argument of the selbri. A term is a wider kind of argument that includes the sumti. In the experimental grammar, the `mi .e do` of `mi .e do klama` is two sumti joined by `.e`, or two terms joined by it.
 
-These grammars declare only `greedy`. A caller can switch `elision-only` on for a parse, to look for overlaps in the text that it supplies. A caller can also switch it off, to loosen a grammar that declares it.
+These grammars declare only `greedy`. A caller can switch `elision-only` on for a parse, to find ambiguities that are not about terminators in the text that it supplies. A caller can also switch it off, to loosen a grammar that declares it.

@@ -73,7 +73,7 @@ The four libraries implement one specification, `docs/engine.md`. It was written
 - A tie is a successful parse (`ok` is true) with the verdict `tie`, a witness and the tied tree. The chosen tree is the least in a total order that breaks the ranking's ties by canonical keys. The tied tree is the derivation, tied with the chosen tree, that diverges from it earliest (engine §6). The tie is never silent: every surface shows it.
 - The witness of a tie is the pair of actions at the first visible difference between the two trees. A close of a helper rule, or of a rule with one symbol, is transparent (not visible). An earlier difference at such a close does not decide the witness. If the two trees have no visible difference, the witness is the pair of actions at their first difference.
 - A non-final stage with a tie emits the chosen derivation. Its tie stands even when every tied derivation emits the same tokens. The stage is ambiguous as written, and the report of the tie lets a grammar author fix it. The engine cases include a three-way tie and a tie whose derivations emit the same tokens.
-- The cases cover empty spans and cycles: nullable rules, empty captures and a condition on an empty span. They also cover a unary cycle of `a` to `b` and `b` to `a`, and a nested parse asked about its own span. Each case has its defined outcome.
+- The cases cover empty spans and cycles: nullable rules, empty captures and a condition on an empty span. They also cover a unary cycle of `a` to `b` and `b` to `a`. Another case is a nested parse asked about its own span as the same rule. Each case has its defined outcome.
 
 Every span and every source range in a result is half-open: the range holds its start but not its end. Source positions count Unicode code points, not bytes or UTF-16 units, so that the four languages agree on non-ASCII text. Each library converts at its edge (JavaScript from UTF-16, Go and Rust from UTF-8). The libraries derive line and column in diagnostics from code points. Lines split at `\n`, `\r\n` and `\r`.
 
@@ -113,7 +113,7 @@ A rule is a keyword, its name and its body, followed by its clauses. Each clause
 
 Every binary operator except the difference, `∖`, can also stand first, as a no-op, so that a list can put one item on each line. These operators are `|` and `&` in bodies, `∪` and `∩` in terms, and `∧` and `∨` in conditions. The commas of a clause's list can stand first too.
 
-A stage is several documents, read in order and stitched into one grammar. `%rule` defines a rule, and is an error if a rule of that name exists. `%redefine-rule` replaces a rule that an earlier document defined, and is an error if none did. `%extend-rule` adds alternatives to a rule defined before it, and is an error if none was.
+A stage reads its input with one grammar. The loader assembles that grammar from one or more documents, read in order. `%rule` defines a rule, and is an error if a rule of that name exists. `%redefine-rule` replaces a rule that an earlier document defined, and is an error if none did. `%extend-rule` adds alternatives to a rule defined before it, and is an error if none was.
 
 So an accidental override never passes silently, and a replacement says so where it is made. A misspelled name in a replacement, an extension or a reference is an error. A misspelled `%rule` defines a rule that nothing reads, and the audit (see "Diagnostics and debugging") reports it. The loader also reports every replacement and extension: which document changed which rule. So a reader can see the effect of a dialect on its base in one place.
 
@@ -166,7 +166,7 @@ A clause can refer to a capture that some alternative lacks. Lowering decides su
 
 Directives are keywords too, and can stand in any block.
 
-`%ambiguity-resolution greedy` or `lazy`, optionally followed by `elision-only` and then by `maximal`, says how the stage chooses among parses (see "Ambiguity"). Every stage must have exactly one, in any of its documents. A stage with none or two is a load error that names the stage.
+`%ambiguity-resolution greedy` or `lazy`, optionally followed by `elision-only` and then, optionally, by `maximal`, says how the stage chooses among parses (see "Ambiguity"). Every stage must have exactly one, in any of its documents. A stage with none or two is a load error that names the stage.
 
 `%elidable KU KEI VAU ...` lists the terminators that can be elided. An absent optional whose first symbol is one of them appears in the tree as that terminator, elided at that point. `elision-only` restores these terminators.
 
@@ -245,7 +245,7 @@ A grammar admits every parse that its rules allow. Where a text has more than on
 
 The preference is like greedy and lazy quantifiers in a backtracking regular-expression engine, and not like the greed of a PEG. The preference orders the parses that the grammar already admits, and never commits, so it cannot reject a text. The earliest difference dominates. And the preference applies to every constituent of the stage, not to one quantifier.
 
-The syntax grammars are greedy, and that is how an elided terminator is placed. The forms and words stages are lazy. The word forms divide a run in one way only, so the choice matters only in the words stage. A magic word, such as `si`, acts on other words. In the words stage, a magic word acts on what exists when it is read.
+The syntax grammars are greedy, and that is how an elided terminator is placed. The forms and words stages are lazy. The word forms divide a run in one way only, so of these two stages, the choice matters only in the words stage. A magic word, such as `si`, acts on other words. In the words stage, a magic word acts on what exists when it is read.
 
 CLL's own rule is narrower. It says only that a terminator can be elided if no ambiguity results. It says nothing of the other ambiguities that its EBNF has. `elision-only` applies that rule literally, to the stage whose grammar declares it. It applies the rule only when the ranking of that stage was not `unique`:
 
@@ -286,7 +286,7 @@ Measured on the prototype's corpus, `elision-only` cost the CLL grammar nothing.
 
 In the experimental grammar today, two sumti (arguments of a predicate) joined by a connective between them cause such an ambiguity. A term is a wider kind of argument that includes the sumti. The grammar also reads the two sumti as two terms joined in the same way, with or without `bo`. So `mi .e do klama` and `mi .e bo do klama` each have two readings.
 
-So the dialects of the CLL syntax grammar declare `%ambiguity-resolution greedy elision-only`, with `maximal` in the bpfk dialect. The extended dialects declare `greedy`. Each dialect has prose that gives these reasons. A parse option overrides `elision-only` either way: on, to look for overlaps in the supplied text, or off, to loosen the CLL dialect. The lean itself (greedy or lazy) cannot be overridden, because a lazy syntax or a greedy word grammar is a different language, not a variation.
+So the dialects of the CLL syntax grammar declare `%ambiguity-resolution greedy elision-only`, with `maximal` in the bpfk dialect, and the extended dialects declare `greedy`. Each dialect has prose that gives these reasons. A parse option overrides `elision-only` either way. A caller switches it on to find ambiguities that are not about terminators in the supplied text, or off to loosen the CLL dialect. The lean itself (greedy or lazy) cannot be overridden, because a lazy syntax or a greedy word grammar is a different language, not a variation.
 
 ## The result, and why it has no types
 
@@ -362,15 +362,15 @@ These are the product, not an afterthought:
 
 The CLI is `node lib/js/cli.js` (and `npx gencmu` once published). It has these commands:
 
-- `parse` parses a text. Its options include `--dialect`, `--feature` and `--no-feature`, `--until`, `--format brackets|tree|json|canonical|tokens` and `--trace`. It prints any warning on standard error, as it prints a tie.
+- `parse`, to parse a text, with options that include `--dialect`, `--feature` and `--no-feature`, `--until`, `--format brackets|tree|json|canonical|tokens` and `--trace`
 - `dialects`, to list the bundled dialects
 - `features`, to list a dialect's features
-- `audit`
+- `audit`, to report the undefined, unreachable, replaced and extended rules of a dialect
 - `stitch`, to print a dialect's pipeline as one jbogenbau text, with each classifier's entries as written
 - `test`, to run a test file against a dialect
 - `help`, to list the commands and every option
 
-The CLI needs Node and nothing else.
+`parse` prints any warning on standard error, as it prints a tie. The CLI needs Node and nothing else.
 
 The playground is `index.html` with `dist/gencmu.js` and `dist/grammars.js` loaded as classic scripts. So it works from `file://`, where browsers refuse ES modules, and from GitHub Pages alike. Nothing is fetched: the grammars are a JavaScript object in `dist/grammars.js`. The page builds the worker from a `Blob` whose text is the library source and the grammar object. So the worker fetches nothing either.
 
@@ -406,7 +406,7 @@ The editor lists a dialect's documents stage by stage. A forgiving scan of the `
 
 ## Tests
 
-There are three kinds of shared test, and every library runs all of them:
+There are three kinds of shared test. Every library runs each case that its API can express, as `tests/README.md` says:
 
 - `tests/engine/` holds the engine specification's cases. Each case gives a pattern that the canonical result JSON must match. A pattern can pin stages, tokens, tags, verdicts, witnesses, errors and coordinates.
 - `tests/notation/` holds small grammar documents with their expected DOMs and errors.
@@ -435,7 +435,7 @@ CI has two workflows. `nightly.yml` runs the whole corpus in all four languages 
 - Go: 1.22, the minimum of the module, and current, `go vet`, `go test`
 - Rust: MSRV (the minimum supported Rust version) and stable, `cargo fmt --check`, `cargo clippy`, `cargo test`, and `cargo package` to make sure that the crate is self-contained
 
-The Python build backend is the only tool outside the standard library, and only at build time. Third-party actions are pinned by commit hash. GitHub Pages can serve `main` from the root with no workflow. It is not enabled while the repository is private, because a Pages site is public.
+The Python build backend is the only tool outside the standard library, and only at build time. Third-party actions are pinned by commit hash. GitHub Pages serves `main` from the root with no workflow.
 
 ## Standard library only
 
