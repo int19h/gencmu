@@ -23,7 +23,7 @@ The input is the text of a grammar document's `jbogenbau` blocks, joined with a 
   %include "../notation/lexical.md"
   ```
 
-The stage receives one token per character. A token is one unit that a stage reads or emits. It hands on the notation's tokens: names, strings, tag literals, phoneme tags, character tags, properties, captures, constants, guards, keywords and symbols. Each of these tokens is a run of the characters that the author wrote. The stage drops spaces and comments.
+The stage receives one token per character. A token is one unit that a stage reads or emits. The stage hands on the notation's tokens: names, strings, tag literals, phoneme tags, character tags, properties, captures, constants, guards, keywords and symbols. Each of these tokens is a run of the characters that the author wrote. The stage drops spaces and comments.
 
 ## Stage 2: the document
 

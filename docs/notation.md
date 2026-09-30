@@ -134,6 +134,8 @@ A change to how the dialect reads a text of the base cannot be a warning. The ch
 
 The bundled dialects do not guard every change. The only bundled warning is `y-cmavo`, in the `cll-ebnf` dialect, so the additions of the experimental dialect carry no warning yet. A dialect also makes a change without a guard where a feature needs a convoluted grammar to keep the change separate. The documents of the dialect then say so.
 
+## Layout of the bundled grammars
+
 The bundled grammars keep a layout convention for a rule with two or more alternatives that are each a single symbol. A single symbol is a reference, a terminal, a range, a property, a tested symbol or `ε`. An alternative with a guard, or with tags of its own (see "Tags"), is not a single symbol. If such a rule has more than one line, it does not put exactly one symbol on each line. The exception is a rule in which no two adjacent symbols fit together on one line.
 
 No line of such a rule's body holds more than 100 characters, counted as Unicode code points. A symbol can run over several lines, and each of these lines counts. Apart from this, the author chooses the groups, such as the vowels on one line and the consonants on the next. `tools/sync.js --check` makes sure that the bundled grammars keep this convention. For a rule with one symbol per line, it suggests a layout, and keeps the line breaks inside each symbol.
@@ -283,9 +285,9 @@ A term of a condition has one of four types: a span, a string, a set of strings 
 
 The first type is the span, a sequence of tokens. A capture `$x` is a span, the tokens that the captured part covers, and `$` is the tokens that the whole constituent covers. `head($x)` is its first token, `tail($x)` the rest, and `last($x)` the last.
 
-`from($x)` is the tokens from the start of `$x` to the end of the input. `after($x)` is the tokens after `$x`, to the end of the input. In a nested parse, the input is the span being parsed, as for `initial`. These two reach past the constituent, to the text that follows it. A span is only an argument of a function, such as `tags($x)`, and never a value of its own.
+`from($x)` is the tokens from the start of `$x` to the end of the input. `after($x)` is the tokens after `$x`, to the end of the input. A condition can parse a span with `matches`, `begins` or `tags(span, rule)` (see below). In such a parse, the input is that span. These two reach past the constituent, to the text that follows it. A span is only an argument of a function, such as `tags($x)`, and never a value of its own.
 
-The second type is the string. `phonemes(span)` is the canonical sound of a span. That is the phonemes of its tokens, joined, in lower case and without commas. A comma is the syllable break of CLL 3.3, which changes no word. So `phonemes()` ignores stress and syllable breaks. It keeps every pause, and adds none between the tokens.
+The second type is the string. `phonemes(span)` is the canonical sound of a span. That is the phonemes of its tokens, joined, in lower case and without commas. A comma is the syllable break of CLL 3.3. In a name or a borrowing, it can split two vowels that could form a diphthong, as in `nu,iork`. In a cmavo, a comma inside a diphthong, as in `ma,i`, gives no word. `phonemes()` drops every comma, so `nuiork` and `nu,iork` match as `zoi` delimiters. So `phonemes()` ignores stress and syllable breaks. It keeps every pause, and adds none between the tokens.
 
 A token's own phonemes are fixed when its stage emits it, and they keep their capitals and commas. A token sounds like the phoneme that its `/x/` tag names, if it has one. Such a tag can come from an implication (see "Implications"). Two phoneme tags on one token are an error of the grammar.
 
