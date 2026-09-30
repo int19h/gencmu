@@ -661,3 +661,25 @@ class BundledGrammars(unittest.TestCase):
         self.assertEqual((vowel.text, vowel.source), ("", (0, 2)))
         word = stage_output(dialect, text, "forms")[0]
         self.assertEqual((word.text, word.source, word.phonemes), (text, (0, 3), "u'i"))
+
+    def test_experimental_syntax_reads_no_la(self) -> None:
+        """syntax/experimental.md: the grammar reads no LA, since no word of
+        the experimental lexicon has it. A probe document after the lexicon
+        moves la from LE to LA, and then no rule reads la mlatu ku."""
+        root = Path(__file__).resolve().parents[1] / "src" / "gencmu" / "grammars"
+        sources = {path.relative_to(root).as_posix(): path.read_text(encoding="utf-8") for path in root.rglob("*.md")}
+        include = '%include "../words/lexicon-experimental.md"'
+        self.assertIn(include, sources["dialects/experimental.md"])
+        sources["dialects/experimental.md"] = sources["dialects/experimental.md"].replace(
+            include, include + '\n  %include "../words/la-probe.md"'
+        )
+        sources["words/la-probe.md"] = '```jbogenbau\n%classifier lexicon\n  "la" ∉ LE\n  "la" ∈ LA\n```\n'
+        probe = gencmu.load_dialect_sources(sources, "dialects/experimental.md")
+        result = probe.parse("la mlatu ku cu klama")
+        forms = next(stage for stage in result.stages if stage.name == "forms").output
+        assert forms is not None
+        self.assertTrue("LA" in forms[0].tags and "LE" not in forms[0].tags)
+        self.assertFalse(result.ok)
+        assert result.error is not None
+        self.assertEqual(result.error.stage, "syntax")
+        self.assertTrue(probe.parse("lo mlatu ku cu klama").ok)

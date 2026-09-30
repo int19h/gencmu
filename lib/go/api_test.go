@@ -1091,3 +1091,55 @@ func TestZbalermornaShorthandCoversItsMark(t *testing.T) {
 		t.Fatalf("the word: %q %v %q", word.Text, word.Source, word.Phonemes)
 	}
 }
+
+// syntax/experimental.md: the grammar reads no LA, since no word of the
+// experimental lexicon has it. A probe document after the lexicon moves la
+// from LE to LA, and then no rule reads la mlatu ku.
+func TestExperimentalSyntaxReadsNoLA(t *testing.T) {
+	sources := map[string]string{}
+	root := "grammars"
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil || entry.IsDir() || !strings.HasSuffix(path, ".md") {
+			return err
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		relative, err := filepath.Rel(root, path)
+		sources[filepath.ToSlash(relative)] = string(data)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	include := `%include "../words/lexicon-experimental.md"`
+	if !strings.Contains(sources["dialects/experimental.md"], include) {
+		t.Fatal("the pipeline no longer includes the lexicon")
+	}
+	sources["dialects/experimental.md"] = strings.Replace(sources["dialects/experimental.md"], include, include+"\n  %include \"../words/la-probe.md\"", 1)
+	sources["words/la-probe.md"] = block("%classifier lexicon", `  "la" ∉ LE`, `  "la" ∈ LA`)
+	probe, err := LoadDialectSources(sources, "dialects/experimental.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := probe.Parse("la mlatu ku cu klama", ParseOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var la Token
+	for _, stage := range res.Stages {
+		if stage.Name == "forms" {
+			la = stage.Output[0]
+		}
+	}
+	if !hasTag(la, "LA") || hasTag(la, "LE") {
+		t.Fatalf("la has the tags %v", la.Tags)
+	}
+	if res.OK || res.Error == nil || res.Error.Stage != "syntax" {
+		t.Fatalf("la mlatu ku cu klama: %v %+v", res.OK, res.Error)
+	}
+	if res, err := probe.Parse("lo mlatu ku cu klama", ParseOptions{}); err != nil || !res.OK {
+		t.Fatalf("lo mlatu ku cu klama: %v %+v", err, res)
+	}
+}

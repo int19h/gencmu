@@ -695,3 +695,41 @@ fn the_zbalermorna_shorthand_vowel_token_covers_its_mark() {
     assert_eq!((word.text.as_str(), word.source.clone()), (text, 0..3));
     assert_eq!(word.phonemes.as_deref(), Some("u'i"));
 }
+
+/// syntax/experimental.md: the grammar reads no LA, since no word of the
+/// experimental lexicon has it. A probe document after the lexicon moves
+/// `la` from LE to LA, and then no rule reads `la mlatu ku`.
+#[test]
+fn the_experimental_syntax_reads_no_la() {
+    fn walk(root: &std::path::Path, directory: &std::path::Path, sources: &mut BTreeMap<String, String>) {
+        for entry in std::fs::read_dir(directory).expect("a directory") {
+            let path = entry.expect("an entry").path();
+            if path.is_dir() {
+                walk(root, &path, sources);
+            } else if path.extension().is_some_and(|extension| extension == "md") {
+                let relative = path.strip_prefix(root).unwrap().components();
+                let relative: Vec<_> = relative.map(|part| part.as_os_str().to_string_lossy().into_owned()).collect();
+                sources.insert(relative.join("/"), std::fs::read_to_string(&path).expect("a document"));
+            }
+        }
+    }
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("grammars");
+    let mut sources = BTreeMap::new();
+    walk(&root, &root, &mut sources);
+    let include = "%include \"../words/lexicon-experimental.md\"";
+    let pipeline = sources.get_mut("dialects/experimental.md").expect("the pipeline");
+    assert!(pipeline.contains(include));
+    *pipeline = pipeline.replace(include, &format!("{include}\n  %include \"../words/la-probe.md\""));
+    sources.insert(
+        "words/la-probe.md".to_string(),
+        "```jbogenbau\n%classifier lexicon\n  \"la\" ∉ LE\n  \"la\" ∈ LA\n```\n".to_string(),
+    );
+    let probe = gencmu::load_dialect_sources(sources, "dialects/experimental.md").expect("the probe dialect");
+    let result = probe.parse("la mlatu ku cu klama", &ParseOptions::default()).expect("a result");
+    let forms = result.stages.iter().find(|stage| stage.name == "forms").expect("the forms stage");
+    let la = &forms.output.as_ref().expect("an output")[0];
+    assert!(la.tags.iter().any(|tag| tag == "LA") && !la.tags.iter().any(|tag| tag == "LE"));
+    assert!(!result.ok);
+    assert_eq!(result.error.as_ref().and_then(|error| error.stage.as_deref()), Some("syntax"));
+    assert!(probe.parse("lo mlatu ku cu klama", &ParseOptions::default()).expect("a result").ok);
+}
