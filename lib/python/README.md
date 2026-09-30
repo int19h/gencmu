@@ -80,7 +80,8 @@ python -m unittest
 
 The tests cover these items:
 
-- The tests run the shared cases of `tests/engine/` and `tests/notation/` in the repository, with the position of each load error that a case gives. A case with `parses` parses its input several times with one loaded dialect.
+- The shared cases of `tests/engine/` and `tests/notation/` in the repository, with the position of each load error that a case gives
+- For a case with `parses`, several parses of its input with one loaded dialect
 - The fixpoint of the bootstrap of the notation
 - A comparison of `compiled.json` with a fresh reading
 - The API
