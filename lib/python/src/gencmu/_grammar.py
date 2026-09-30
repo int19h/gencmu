@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from typing import Any, Union
 
 from ._clauses import WHOLE, applies, captures_in, definition_problem, simplify_term
-from ._errors import GencmuError
+from ._errors import ErrorData, GencmuError
 from ._recent import Recent
 from ._tags import (
     EMPTY,
@@ -141,7 +141,7 @@ class Grammar:
     gates: frozenset[str] = field(init=False, repr=False, compare=False)
     # The classifiers resolved for each set of the classifier gates that is
     # on, or the error of their resolution (engine §2).
-    _classifier_tables: Recent[frozenset[str], Classifiers | GencmuError] = field(
+    _classifier_tables: Recent[frozenset[str], Classifiers | ErrorData] = field(
         default_factory=lambda: Recent(MAX_LOWERED), repr=False, compare=False
     )
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
@@ -164,11 +164,11 @@ class Grammar:
             try:
                 found = _resolve_classifiers(self.classifier_items, key)
             except GencmuError as error:
-                found = error
+                found = ErrorData.of(error)
             with self._lock:
                 self._classifier_tables.put(key, found)
-        if isinstance(found, GencmuError):
-            raise found
+        if isinstance(found, ErrorData):
+            raise found.error()
         return found
 
 

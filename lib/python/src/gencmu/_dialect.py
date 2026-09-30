@@ -12,7 +12,7 @@ from importlib import resources
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
 from ._dom import DomBuilder
-from ._errors import GencmuError
+from ._errors import ErrorData, GencmuError
 from ._grammar import MAX_LOWERED, Grammar, Lowered, lower, stitch
 from ._hash import fnv1a64
 from ._markdown import jbogenbau_text
@@ -415,7 +415,7 @@ class Dialect:
         self.unicode = unicode
         # Each stage's lowered grammars, keyed by the gates that are on and
         # by strictness, or the error that lowering found.
-        self._lowered: list[Recent[tuple[frozenset[str], bool], Lowered | GencmuError]] = [Recent(MAX_LOWERED) for _ in stages]
+        self._lowered: list[Recent[tuple[frozenset[str], bool], Lowered | ErrorData]] = [Recent(MAX_LOWERED) for _ in stages]
         self._lock = threading.Lock()
         for number in range(len(stages)):
             try:
@@ -440,11 +440,11 @@ class Dialect:
             try:
                 found = lower(self.grammars[number], gates, elision)
             except GencmuError as error:
-                found = error
+                found = ErrorData.of(error)
             with self._lock:
                 self._lowered[number].put(key, found)
-        if isinstance(found, GencmuError):
-            raise found
+        if isinstance(found, ErrorData):
+            raise found.error()
         return found
 
     def parse(

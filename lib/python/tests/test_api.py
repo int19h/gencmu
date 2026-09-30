@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import gc
 import json
 import tempfile
 import unittest
+import weakref
 from pathlib import Path
 
 import gencmu
@@ -736,3 +738,25 @@ class LoweringCaches(unittest.TestCase):
             self.assertEqual(dialect.parse("x", features=features, auto_features=False).ok, bool(features), features)
         self.assertLessEqual(len(dialect._lowered[0]), 16)
         self.assertLessEqual(len(dialect.grammars[0]._classifier_tables), 16)
+
+
+class RepeatedFailures(unittest.TestCase):
+    """An error of the grammar that lowering finds is kept for later parses
+    with the same features. A parse that meets it keeps nothing of an
+    earlier one alive (engine §2, §13)."""
+
+    def test_no_earlier_input_stays_reachable(self) -> None:
+        dialect, error = load_case_dialect(
+            {"grammar": '%classifier c\n  "a" ∈ A\n  "a" ∈ A\n%rule text $w(\'a\') <classify(text($w), c)>'}
+        )
+        assert dialect is not None, error
+        tokens = []
+        for _ in range(5):
+            result = dialect.parse("a", auto_features=False)
+            self.assertFalse(result.ok)
+            assert result.error is not None
+            self.assertEqual(result.error.kind, "grammar")
+            tokens.append(weakref.ref(result.stages[0].input[0]))
+            del result
+        gc.collect()
+        self.assertEqual([token() for token in tokens], [None] * len(tokens))

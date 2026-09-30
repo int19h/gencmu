@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 
 class GencmuError(Exception):
     """A dialect that cannot be loaded, or a caller's mistake.
@@ -46,6 +48,30 @@ class GencmuError(Exception):
         prefix = f"{where}: " if where else ""
         stage = f" (stage {self.stage})" if self.stage and not where else ""
         return f"{prefix}{self.message}{stage}"
+
+
+@dataclass(frozen=True)
+class ErrorData:
+    """What a :class:`GencmuError` says, without the error itself. A cache
+    keeps this, and raises a new error each time. An error that is raised
+    again keeps the frames of each raise in its traceback, and so the text
+    and the tokens of every parse that met it."""
+
+    message: str
+    kind: str
+    document: str | None
+    line: int | None
+    column: int | None
+    stage: str | None
+
+    @staticmethod
+    def of(error: GencmuError) -> ErrorData:
+        return ErrorData(error.message, error.kind, error.document, error.line, error.column, error.stage)
+
+    def error(self) -> GencmuError:
+        return GencmuError(
+            self.message, kind=self.kind, document=self.document, line=self.line, column=self.column, stage=self.stage
+        )
 
 
 class _GrammarFault(Exception):
