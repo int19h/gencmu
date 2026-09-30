@@ -977,7 +977,9 @@ mod tests {
         // Every set of five classifier gates, twice: the second round
         // resolves again the tables that the first round dropped.
         let names = ["a", "b", "c", "d", "e"];
-        let entries: String = names.iter().map(|name| format!("\n  {name}? \"x\" ∈ {}", name.to_uppercase())).collect();
+        let entries: Vec<String> =
+            names.iter().map(|name| format!("\n  {name}? \"x\" ∈ {}", name.to_uppercase())).collect();
+        let entries = entries.concat();
         let dialect =
             dialect(&format!("%classifier c\n  \"x\" ∈ X{entries}\n%rule text $w('x') <classify(text($w), c)>"));
         for _ in 0..2 {
