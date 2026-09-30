@@ -8242,9 +8242,8 @@
       // A token that the caller supplies has its text as its label (engine §5).
       // It has no attachments: a list that is not empty is the caller's
       // mistake, and an empty one is dropped (docs/api.md). The parse copies
-      // each token and its positions, so the caller's objects stay as they
-      // are, and the result shares none of them. The result gets its own tag
-      // sets when the stages are done.
+      // each token, its tags and its positions, so the caller's objects stay
+      // as they are, and the result shares none of them.
       if (options.tokens) {
         options.tokens.forEach((token, index) => {
           if ((token.before && token.before.length > 0) || (token.after && token.after.length > 0)) {
@@ -8252,7 +8251,7 @@
           }
         });
         options = { ...options, tokens: options.tokens.map((token) =>
-          new Token(token.tags, [token.span[0], token.span[1]], [token.source[0], token.source[1]], token.text, token.phonemes, token.insertedBy)) };
+          new Token(new Set(token.tags), [token.span[0], token.span[1]], [token.source[0], token.source[1]], token.text, token.phonemes, token.insertedBy)) };
       }
       // The features on are the pipeline's, with the caller's added and the
       // caller's turned off removed (engine §13).
