@@ -16,7 +16,7 @@ Every pause rule of CLL 4.9 and 4.2 holds within one run. A pause satisfies each
 
 A run is a sequence of words, or it is foreign text. A run is foreign text when the phoneme stage already found it foreign, because it has a character that no script reads. A run of phonemes that divides into no words is also foreign text.
 
-Foreign text is not an error here. The word stage decides whether foreign text can stand where it is. Inside a `zoi` quote, it is the body of the quote, and elsewhere the word stage rejects it. So this stage never rejects a text.
+Foreign text is not an error here. The word stage decides whether foreign text can stand where it is. The word stage takes foreign text as the body of a quote, such as `zoi` or `zo'oi`, and after `fa'o`. Elsewhere it rejects foreign text ([stream.md](stream.md)). So this stage never rejects a text.
 
 A run that divides into words divides in one way only. The word forms of each family make sure of that. So the choice of the stage among parses never decides anything here.
 

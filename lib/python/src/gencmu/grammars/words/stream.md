@@ -4,7 +4,7 @@ This document is the word stage, the third stage of every Lojban dialect: [CLL](
 
 The stage reads the source words that the forms stage divided ([forms.md](forms.md)). It hands the indicator stage the words of the text, each tagged with its class. A tag is a name that a token carries. The tags are `word` on every word, `cmavo`, `BRIVLA` or `CMEVLA` by its shape, and every selma'o the lexicon gave it.
 
-This document contributes the magic words, the constructs that act on the word stream before the syntax sees it. They are the quotes `zo`, `ma'oi`, `zoi`, `la'o`, `mu'oi`, `lo'u ... le'u`, `zo'oi` and its relatives, and the compounders `bu` and `zei`. They are also the erasers `si`, `sa` and `su`, hesitation, and `fa'o`. The stage resolves them together, in one grammar, because they act strictly left to right on one stream.
+This document contributes the magic words, the constructs that act on the word stream before the syntax sees it. They are the quotes `zo`, `ma'oi`, `zoi`, `la'o`, `lo'u ... le'u`, `zo'oi` and its relatives, and the compounders `bu` and `zei`. They are also the erasers `si`, `sa` and `su`, hesitation, and `fa'o`. The stage resolves them together, in one grammar, because they act strictly left to right on one stream.
 
 For example, `merko zei zo` is a `zei` compound whose second word is `zo`, because `zei` takes the word before any quote forms. And `fa fe si bu zei fi` erases `fe`, makes `fa bu`, and compounds it with `fi`. The stage resolves `sa` and `su`, the erasers that reach back over many words, in the same pass, because they act in the same order. The rules for all of these words come from the Magic Words proposal of the definition effort of the Logical Language Group. In six places, the proposal reads a text differently from CLL 19, and "Departures from CLL 19" lists them.
 
@@ -202,7 +202,7 @@ The reason is the indicator stage, which takes single tokens. It reads a marker 
 
 After a pause, the quote skips hesitation, as camxes-exp skips it in its `spaces`. Then the quote takes the next token and the rest of that token's run. So `zo'oiyymibroda` quotes `yymibroda`, `zo'oi yy mibroda` and `zo'oi yymibroda` quote `mibroda`, and `zo'oi yy` has nothing to quote. The quote ends where its run ends, `run-final` on its last token. Otherwise the lazy choice of the stage quotes only `mi` of `zo'oi mibroda`.
 
-`zoi`, `la'o` and `mu'oi` quote a body between two delimiter words. The two delimiters must be the same word. That word must not be a whole run of the body, so the quote ends at the first run that is that word. The delimiter can occur inside a longer run of the body. This is the sixth of the departures from CLL 19.
+`zoi` and `la'o` quote a body between two delimiter words, and so does `mu'oi` in the Zantufa dialect ([zantufa-stream.md](zantufa-stream.md)). The two delimiters must be the same word. That word must not be a whole run of the body, so the quote ends at the first run that is that word. The delimiter can occur inside a longer run of the body. This is the sixth of the departures from CLL 19.
 
 The stage compares the words by their canonical sound, `phonemes()`, which is in lower case and has no commas. So stress and syllable breaks do not count, in the two delimiters and in the runs of the body. `zoi .kO. mi .ko.` is a quote, and so is `zoi .ko. mi .kO.`. That is the condition the captures state, and the parser makes sure that it holds as the parse advances.
 
