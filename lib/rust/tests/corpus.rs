@@ -105,13 +105,23 @@ fn the_corpus() {
         cases.retain(|case| case.get("id").and_then(Value::str).is_some_and(|id| core.contains(id)));
         assert_eq!(cases.len(), core.len(), "every id of core.txt names a case");
     }
+    // With no case selected, as for an empty tests/corpus/, the test would
+    // pass without running one.
+    assert!(!cases.is_empty(), "the corpus selects no case");
     // The longest texts first, so that the pool is not left waiting on one.
     cases.sort_by_key(|case| std::cmp::Reverse(case.get("text").and_then(Value::str).map_or(0, str::len)));
+    // A count of workers from the environment is 1 or more. With none, no
+    // case would run.
     let workers = std::env::var("GENCMU_CORPUS_WORKERS")
         .ok()
-        .and_then(|n| n.parse().ok())
+        .map(|n| {
+            n.parse::<usize>()
+                .ok()
+                .filter(|&n| n > 0)
+                .unwrap_or_else(|| panic!("GENCMU_CORPUS_WORKERS is {n:?}, not a count of 1 or more"))
+        })
         .unwrap_or_else(|| std::thread::available_parallelism().map_or(1, |n| n.get().saturating_sub(1).max(1)))
-        .min(cases.len().max(1));
+        .min(cases.len());
     let started = std::time::Instant::now();
     let cases = Arc::new(cases);
     let next = Arc::new(AtomicUsize::new(0));

@@ -78,6 +78,36 @@ fn harness_detects_a_wrong_expectation() {
     assert!(placed(r#"{"document": "main.md", "line": 4, "column": 1}"#).is_ok());
     assert!(placed(r#"{"document": "main.md", "line": 3, "column": 1}"#).is_err());
     assert!(placed(r#"{"document": "pipeline.md", "line": 4, "column": 1}"#).is_err());
+    // A load error meets only an expectation of that kind of error, with
+    // nothing that only a loaded dialect gives.
+    let unloaded = |expect: &str| {
+        let case = format!(r#"{{"grammar": "%rule text X\n%rule text Y", "tokens": [], "expect": {expect}}}"#);
+        run_engine_case(&parse_json(&case).unwrap())
+    };
+    assert!(unloaded(r#"{"error": "grammar"}"#).is_ok());
+    assert!(unloaded(r#"{"error": "usage"}"#).is_err());
+    assert!(unloaded("{}").is_err());
+    for member in ["result", "brackets", "warnings", "features"] {
+        assert!(unloaded(&format!(r#"{{"error": "grammar", "{member}": []}}"#)).is_err(), "{member}");
+    }
+    // A Rust document is always valid, so no load here fails with a usage
+    // error. A grammar error given the kind usage stands for one. It has
+    // no line or column, so a case gives no `where` for it.
+    let (documents, pipeline) = common::case_documents(
+        &parse_json(
+            r#"{"grammar": "%rule text X
+%rule text Y"}"#,
+        )
+        .unwrap(),
+    );
+    let mut error = gencmu::load_dialect_sources(documents, &pipeline).expect_err("a load error");
+    error.kind = gencmu::ErrorKind::Usage;
+    (error.line, error.column) = (None, None);
+    let usage = |expect: &str| common::check_load_error(&parse_json(expect).unwrap(), &error);
+    assert!(usage(r#"{"error": "usage"}"#).is_ok());
+    assert!(usage(r#"{"error": "grammar"}"#).is_err());
+    assert!(usage(r#"{"error": "usage", "result": {}}"#).is_err());
+    assert!(usage(r#"{"error": "usage", "where": {"document": "main.md"}}"#).is_err());
     // Each item of `parses` is held to its own expectation.
     let parses = |second: &str| {
         let case = format!(

@@ -59,10 +59,32 @@ impl Json {
     }
 }
 
+/// A value drops without recursion, so that a value nested as deep as
+/// `MAX_DEPTH` allows does not exhaust a small stack. Its arrays and
+/// objects are emptied onto a list of values to drop.
+impl Drop for Json {
+    fn drop(&mut self) {
+        let mut pending: Vec<Json> = match self {
+            Json::Arr(items) => std::mem::take(items),
+            Json::Obj(members) => members.drain(..).map(|(_, value)| value).collect(),
+            _ => return,
+        };
+        while let Some(mut value) = pending.pop() {
+            match &mut value {
+                Json::Arr(items) => pending.append(items),
+                Json::Obj(members) => pending.extend(members.drain(..).map(|(_, value)| value)),
+                _ => {}
+            }
+            // The value holds no nested value now, so its own drop ends at
+            // once.
+        }
+    }
+}
+
 /// How deeply arrays and objects may nest: room for a DOM nested as deep
 /// as engine §9 allows (two levels a node at most, and a few around it); a
 /// deeper text, corrupt or malicious, is an error rather than a structure
-/// whose conversion or drop would exhaust the stack.
+/// whose conversion would exhaust the stack.
 pub(crate) const MAX_DEPTH: usize = 1024;
 
 /// Parses a JSON text. Numbers must be integers, which is all the shipped
@@ -340,5 +362,18 @@ mod tests {
         assert!(parse(&deep).is_err());
         let fine = format!("{}{}", "[".repeat(MAX_DEPTH), "]".repeat(MAX_DEPTH));
         assert!(parse(&fine).is_ok());
+    }
+
+    #[test]
+    fn a_deep_value_drops_on_a_small_stack() {
+        let arrays = format!("{}{}", "[".repeat(MAX_DEPTH), "]".repeat(MAX_DEPTH));
+        let objects = format!("{}1{}", "{\"a\":".repeat(MAX_DEPTH - 1), "}".repeat(MAX_DEPTH - 1));
+        let values = [parse(&arrays).unwrap(), parse(&objects).unwrap()];
+        std::thread::Builder::new()
+            .stack_size(64 * 1024)
+            .spawn(move || drop(values))
+            .unwrap()
+            .join()
+            .expect("no overflow");
     }
 }

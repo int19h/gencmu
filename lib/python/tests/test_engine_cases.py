@@ -12,6 +12,10 @@ import gencmu
 from .shared import case_features, cases, load_case, load_case_dialect, mismatch, parse_case, run_case
 
 
+# The members of `expect` that only a loaded dialect can meet.
+AFTER_LOAD = ("result", "brackets", "warnings", "features")
+
+
 class EngineCases(unittest.TestCase):
     def test_cases(self) -> None:
         # A canonical result nests as deep as a case's attachments do
@@ -52,12 +56,17 @@ class EngineCases(unittest.TestCase):
     ) -> None:
         """Whether an outcome meets a case's expectation (tests/README.md)."""
         if features is None:
-            self.assertEqual(expect.get("error"), "grammar", f"{label}: the dialect did not load: {error}")
+            # A dialect that does not load gives the error alone, so a case
+            # that expects anything that only a loaded dialect gives fails
+            # (tests/README.md).
             assert error is not None
-            self.assertEqual(error.kind, "grammar")
+            self.assertEqual(error.kind, expect.get("error"), f"{label}: unexpected load error: {error}")
+            loaded_only = [name for name in AFTER_LOAD if name in expect]
+            self.assertEqual(loaded_only, [], f"{label}: the dialect did not load: {error}")
             if "where" in expect:
-                # Where the error stands, in a document of the case
-                # (tests/README.md).
+                # Where the error stands, in a document of the case, given
+                # only for a grammar error (tests/README.md).
+                self.assertEqual(error.kind, "grammar", f"{label}: expect.where is only for a grammar error")
                 self.assertEqual(
                     {"document": error.document, "line": error.line, "column": error.column},
                     expect["where"],
@@ -88,6 +97,37 @@ class EngineCases(unittest.TestCase):
             self.assertEqual(value["error"]["kind"], expect["error"], label)
         else:
             self.assertIsNone(value["error"], f"{label}: unexpected error\n{text[:2000]}")
+
+    def test_a_load_error_meets_only_an_expectation_of_the_error(self) -> None:
+        # The runner fails a case whose dialect does not load, when the case
+        # expects another kind of error, or more than the error.
+        value, result, error, features = run_case({"grammar": "%rule text A\n%rule text A"})
+        assert error is not None
+        self.assertEqual(error.kind, "grammar")
+        self.check("load", {"error": "grammar"}, value, result, error, features)
+        with self.assertRaises(AssertionError):
+            self.check("load", {"error": "usage"}, value, result, error, features)
+        with self.assertRaises(AssertionError):
+            self.check("load", {}, value, result, error, features)
+        for name in AFTER_LOAD:
+            with self.subTest(member=name), self.assertRaises(AssertionError):
+                self.check("load", {"error": "grammar", name: []}, value, result, error, features)
+
+    def test_a_usage_error_of_loading_meets_only_its_kind(self) -> None:
+        # A document held in memory with a lone surrogate is a mistake of the
+        # caller (engine §1), found at load (tests/README.md).
+        value, result, error, features = run_case({"grammar": "%rule text 'a\ud800'"})
+        assert error is not None
+        self.assertEqual(error.kind, "usage")
+        self.check("load", {"error": "usage"}, value, result, error, features)
+        with self.assertRaises(AssertionError):
+            self.check("load", {"error": "grammar"}, value, result, error, features)
+        with self.assertRaises(AssertionError):
+            self.check("load", {"error": "usage", "result": {}}, value, result, error, features)
+        # A usage error has no line or column, so a case gives no `where` for
+        # it.
+        with self.assertRaises(AssertionError):
+            self.check("load", {"error": "usage", "where": {"document": "main.md"}}, value, result, error, features)
 
 
 if __name__ == "__main__":

@@ -26,11 +26,26 @@ pub(crate) fn bundled(path: &str) -> Option<&'static str> {
 }
 
 /// The precompiled DOMs of `compiled.json`, usable only when its format
-/// and bootstrap hash match.
+/// and bootstrap hash match. Each DOM is shared by its two keys, not
+/// copied: a copy would recurse over the JSON before `dom_from_json` checks
+/// its depth.
 #[derive(Default)]
 struct Compiled {
-    by_path: HashMap<String, (String, Json)>,
-    by_hash: HashMap<String, Json>,
+    by_path: HashMap<String, (String, Arc<Json>)>,
+    by_hash: HashMap<String, Arc<Json>>,
+}
+
+/// The members of an object, taken out of it, or none for another value.
+fn members(mut value: Json) -> Vec<(String, Json)> {
+    match &mut value {
+        Json::Obj(members) => std::mem::take(members),
+        _ => Vec::new(),
+    }
+}
+
+/// The value of an object's first member of the name `key`, taken out of it.
+fn take(value: Json, key: &str) -> Option<Json> {
+    members(value).into_iter().find(|(name, _)| name == key).map(|(_, value)| value)
 }
 
 impl Compiled {
@@ -46,10 +61,12 @@ impl Compiled {
         if !usable {
             return Ok(compiled);
         }
-        for (path, entry) in value.get("documents").and_then(Json::as_object).unwrap_or(&[]) {
-            if let (Some(hash), Some(dom)) = (entry.get("hash").and_then(Json::as_str), entry.get("dom")) {
-                compiled.by_path.insert(path.clone(), (hash.to_string(), dom.clone()));
-                compiled.by_hash.insert(hash.to_string(), dom.clone());
+        for (path, entry) in take(value, "documents").map(members).unwrap_or_default() {
+            let hash = entry.get("hash").and_then(Json::as_str).map(str::to_string);
+            if let (Some(hash), Some(dom)) = (hash, take(entry, "dom")) {
+                let dom = Arc::new(dom);
+                compiled.by_path.insert(path, (hash.clone(), dom.clone()));
+                compiled.by_hash.insert(hash, dom);
             }
         }
         Ok(compiled)

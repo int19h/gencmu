@@ -16,6 +16,25 @@ fn single(rules: &str) -> BTreeMap<String, String> {
     sources
 }
 
+/// A `compiled.json` of the current format whose entry for `g.md`, under
+/// the hash of the document of `rules`, holds `dom`.
+fn compiled(rules: &str, dom: &str) -> String {
+    format!(
+        "{{\"format\":{},\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
+        gencmu::tools::DOM_FORMAT,
+        gencmu::tools::bootstrap_hash(),
+        gencmu::tools::fnv1a64(&grammar(rules))
+    )
+}
+
+/// The DOM that the reader gives for the document of `rules`, with the
+/// node `from` in it replaced by `to`.
+fn changed_dom(rules: &str, from: &str, to: &str) -> String {
+    let dom = gencmu::tools::read_grammar_document(&grammar(rules)).expect("a DOM");
+    assert!(dom.contains(from), "{from} is not in {dom}");
+    dom.replacen(from, to, 1)
+}
+
 fn no_auto() -> ParseOptions {
     ParseOptions { auto_features: false, ..ParseOptions::default() }
 }
@@ -535,47 +554,56 @@ fn an_and_of_more_than_sixteen_items_is_an_error() {
     let sixteen = format!("%ambiguity-resolution greedy\n%rule text {}", items[..16].join(" & "));
     assert!(gencmu::load_dialect_sources(single(&sixteen), "p.md").is_ok());
 
-    // A DOM from the cache is checked too, rather than trusted.
-    let mut sources = single("%ambiguity-resolution greedy\n%rule text 'A'");
-    let refs: Vec<String> = (0..64).map(|index| format!("{{\"ref\":\"A{index}\"}}")).collect();
-    let dom = format!(
-        "{{\"format\":9,\"rules\":[{{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{{\"guards\":[],\"expr\":{{\"and\":[{}]}}}}],\"conditions\":[],\"at\":[4,1]}}],\"directives\":[{{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[3,1]}}]}}",
-        refs.join(",")
-    );
-    let compiled = format!(
-        "{{\"format\":9,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
-        gencmu::tools::bootstrap_hash(),
-        gencmu::tools::fnv1a64(&sources["g.md"])
-    );
-    sources.insert("compiled.json".to_string(), compiled);
-    // It is not a DOM the reader could give, so it is a cache miss, and
-    // the document itself is read.
-    let dialect = gencmu::load_dialect_sources(sources, "p.md").expect("the document read instead");
-    assert!(dialect.parse("A", &no_auto()).unwrap().ok);
+    // A DOM from the cache is checked too, rather than trusted. The cache
+    // holds a DOM of this format for the document, with an & of 'B' in
+    // place of 'A'. An & of 16 items is a DOM the reader could give, so the
+    // cache is used, and the dialect takes "B".
+    let text = "%ambiguity-resolution greedy\n%rule text 'A'";
+    let and = |count: usize| {
+        let items = vec![r#"{"terminal":"'B'"}"#; count];
+        let dom = changed_dom(text, r#"{"terminal":"'A'"}"#, &format!(r#"{{"and":[{}]}}"#, items.join(",")));
+        let mut sources = single(text);
+        sources.insert("compiled.json".to_string(), compiled(text, &dom));
+        gencmu::load_dialect_sources(sources, "p.md").expect("a dialect")
+    };
+    let dialect = and(16);
+    assert!(dialect.parse("B", &no_auto()).unwrap().ok, "the cache is used");
+    assert!(!dialect.parse("A", &no_auto()).unwrap().ok, "the cache is used");
+    // An & of 17 items is not a DOM the reader could give, so it is a
+    // cache miss, and the document itself is read.
+    let dialect = and(17);
+    assert!(dialect.parse("A", &no_auto()).unwrap().ok, "the document read instead");
 }
 
 #[test]
 fn a_corrupt_cache_is_a_miss_not_an_abort() {
     small_stack(|| {
         let text = "%ambiguity-resolution greedy\n%rule text 'a'";
-        let hash = gencmu::tools::fnv1a64(&grammar(text));
-        let deep_dom = format!("{}{{\"empty\":true}}{}", "{\"optional\":".repeat(10_000), "}".repeat(10_000));
-        for compiled in [
+        let load = |cache: String| {
+            let mut sources = single(text);
+            sources.insert("compiled.json".to_string(), cache);
+            gencmu::load_dialect_sources(sources, "p.md").expect("a dialect")
+        };
+        // Each corrupt DOM starts from a DOM of this format, so that it
+        // reaches the check of the DOM. Unchanged but for 'b' in place of
+        // 'a', the cache is used.
+        let terminal = r#"{"terminal":"'a'"}"#;
+        let dialect = load(compiled(text, &changed_dom(text, terminal, r#"{"terminal":"'b'"}"#)));
+        assert!(dialect.parse("b", &no_auto()).unwrap().ok, "the cache is used");
+        // Deeper than a DOM can nest (engine §9), and nearly as deep as the
+        // JSON reader allows, but not so deep that the JSON does not parse,
+        // as the first entry below is.
+        let deep = format!("{}{{\"terminal\":\"'b'\"}}{}", "{\"optional\":".repeat(1000), "}".repeat(1000));
+        let dom = gencmu::tools::read_grammar_document(&grammar(text)).expect("a DOM");
+        let rules = &dom[dom.find("\"rules\":").expect("rules")..dom.find(",\"directives\":").expect("directives")];
+        for cache in [
             format!("{}{}", "[".repeat(10_000), "]".repeat(10_000)),
-            format!(
-                "{{\"format\":9,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{deep_dom}}}}}}}",
-                gencmu::tools::bootstrap_hash()
-            ),
-            format!(
-                "{{\"format\":9,\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{hash}\",\"dom\":{{\"rules\":7}}}}}}}}",
-                gencmu::tools::bootstrap_hash()
-            ),
+            compiled(text, &changed_dom(text, terminal, &deep)),
+            compiled(text, &dom.replacen(rules, "\"rules\":7", 1)),
             "not JSON".to_string(),
         ] {
-            let mut sources = single(text);
-            sources.insert("compiled.json".to_string(), compiled);
-            let dialect = gencmu::load_dialect_sources(sources, "p.md").expect("read through the notation instead");
-            assert!(dialect.parse("a", &no_auto()).unwrap().ok);
+            let dialect = load(cache);
+            assert!(dialect.parse("a", &no_auto()).unwrap().ok, "read through the notation instead");
         }
     });
 }
