@@ -1229,3 +1229,49 @@ fn a_guard_of_an_alternative_names_a_feature() {
         }
     }
 }
+
+/// A DOM like the document's, with a rule `x` of `expr` and `condition`
+/// added.
+fn with_mixed(expr: &str, condition: &str) -> String {
+    with_rule(&format!(
+        r#"{{"name":"x","op":"define","alternatives":[{{"guards":[],"expr":{expr}}}],"conditions":[{condition}],"at":[4,1]}}"#
+    ))
+}
+
+/// An expression or a condition has exactly the members of one form, and a
+/// reference is a name or `#` (docs/output.md, engine §9). A node that
+/// breaks this is a cache miss and an error of a bootstrap, whatever the
+/// order of its members.
+#[test]
+fn a_node_of_two_forms_is_refused() {
+    let b = r#"{"terminal":"b"}"#;
+    let c = r#"{"terminal":"c"}"#;
+    let captured = r#"{"capture":"w","expr":{"terminal":"b"}}"#;
+    let seq = |first: &str, second: &str| format!(r#"{{"seq":[{first},{second}]}}"#);
+    let compared = r#""op":"=","left":{"call":"text","args":[{"capture":"w"}]},"right":{"string":"b"}"#;
+    let condition = format!("{{{compared}}}");
+    let second = |node: &str| with_mixed(&seq(captured, node), &condition);
+    let wrapped = |node: &str| with_mixed(&seq(&format!(r#"{{"capture":"w","expr":{node}}}"#), c), &condition);
+    let refused = [
+        second(r#"{"empty":true,"terminal":"b"}"#),
+        second(r#"{"terminal":"b","empty":true}"#),
+        second(&format!(r#"{{"choice":[{b},{c}],"seq":[{c},{c}]}}"#)),
+        second(&format!(r#"{{"seq":[{c},{c}],"choice":[{b},{c}]}}"#)),
+        second(&format!(r#"{{"choice":[{b},{c}],"seq":[{{"ref":5}},{c}]}}"#)),
+        second(&format!(r#"{{"repeat":{b},"min":1,"optional":{c}}}"#)),
+        second(&format!(r#"{{"optional":{c},"repeat":{b},"min":1}}"#)),
+        second(&format!(r#"{{"repeat":{b},"min":1,"optional":{{"ref":["x"]}}}}"#)),
+        second(r#"{"ref":"x y"}"#),
+        with_mixed(&format!(r#"{{"seq":[{captured},{c}],"choice":[{b},{c}]}}"#), &condition),
+        wrapped(r#"{"terminal":"'ab'"}"#),
+        wrapped(r#"{"ref":"A","terminal":"b"}"#),
+        wrapped(r#"{"terminal":"b","ref":"A"}"#),
+        wrapped(r#"{"ref":"x y"}"#),
+        with_mixed(&seq(r#"{"capture":"w","expr":{"terminal":"b"},"ref":"B"}"#, c), &condition),
+        with_mixed(&seq(captured, c), &format!(r#"{{{compared},"not":{{"captured":"w"}}}}"#)),
+        with_mixed(&seq(captured, c), &format!(r#"{{"not":{{"captured":"w"}},{compared}}}"#)),
+        with_mixed(&seq(captured, c), &format!(r#"{{"captured":"w",{compared}}}"#)),
+        with_mixed(&seq(captured, c), &format!(r#"{{{compared},"matches":{{"capture":"w"}}}}"#)),
+    ];
+    assert_refused(&with_mixed(&seq(captured, c), &condition), &refused, "a malformed");
+}

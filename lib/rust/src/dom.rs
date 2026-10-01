@@ -517,6 +517,23 @@ fn has(value: &Json, key: &str) -> bool {
     value.get(key).is_some()
 }
 
+/// The forms of an expression, each as its members (docs/output.md). The
+/// first member names the form.
+const EXPR_FORMS: [&[&str]; 12] = [
+    &["seq"],
+    &["choice"],
+    &["and"],
+    &["optional"],
+    &["repeat", "min"],
+    &["ref"],
+    &["terminal"],
+    &["capture", "expr"],
+    &["range"],
+    &["property"],
+    &["test", "value", "expr"],
+    &["empty"],
+];
+
 /// The forms of a term, each as its members (docs/output.md). The first
 /// member names the form.
 const TERM_FORMS: [&[&str]; 11] = [
@@ -533,14 +550,28 @@ const TERM_FORMS: [&[&str]; 11] = [
     &["const", "at"],
 ];
 
-/// Whether a term has exactly the members of one form, and no other. So a
-/// node that joins two forms, such as `{"tag":…,"string":…}`, is refused
-/// before it is read, whatever the order of its members.
-fn is_term_shape(value: &Json) -> bool {
+/// The forms of a condition, each as its members (docs/output.md). The
+/// first member names the form.
+const COND_FORMS: [&[&str]; 9] = [
+    &["op", "left", "right"],
+    &["matches", "rule"],
+    &["begins", "rule"],
+    &["initial"],
+    &["not"],
+    &["any"],
+    &["all"],
+    &["captured"],
+    &["if", "then"],
+];
+
+/// Whether a node has exactly the members of one of its forms, and no
+/// other. So a node that joins two forms, such as `{"tag":…,"string":…}`,
+/// is refused before it is read, whatever the order of its members.
+fn has_one_form(value: &Json, forms: &[&[&str]]) -> bool {
     let Some(members) = value.as_object() else {
         return false;
     };
-    TERM_FORMS
+    forms
         .iter()
         .find(|form| has(value, form[0]))
         .is_some_and(|form| members.len() == form.len() && form.iter().all(|member| has(value, member)))
@@ -689,7 +720,7 @@ fn is_character_class_json(value: &Json, unicode: &Unicode) -> bool {
 /// it is built.
 fn is_testable_json(value: &Json, unicode: &Unicode) -> bool {
     match value.as_object() {
-        Some([(key, Json::Str(name))]) if key == "ref" => name != "#",
+        Some([(key, Json::Str(name))]) if key == "ref" => name != "#" && is_rule_name(name),
         Some([(key, Json::Str(tag))]) if key == "terminal" => is_tag(tag, unicode),
         _ => is_character_class_json(value, unicode),
     }
@@ -945,19 +976,16 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
         let next = depth + 1;
         match kind {
             Kind::Expr => {
-                // A tested symbol has its comparator, its value and its
-                // symbol, and no other key that building it could read in
-                // its place.
-                if has(value, "test")
-                    && (value.as_object().map_or(0, <[_]>::len) != 3 || !has(value, "expr") || !has(value, "value"))
-                {
+                // An expression has exactly the members of one form
+                // (docs/output.md).
+                if !has_one_form(value, &EXPR_FORMS) {
                     return Some("a malformed expression");
                 }
-                // A range or a property has no member but its own.
-                if (has(value, "range") || has(value, "property")) && !is_character_class_json(value, unicode) {
-                    return Some("a malformed expression");
-                }
-                if has(value, "choice") || has(value, "seq") {
+                if has(value, "range") || has(value, "property") {
+                    if !is_character_class_json(value, unicode) {
+                        return Some("a malformed expression");
+                    }
+                } else if has(value, "choice") || has(value, "seq") {
                     let items = value.get("choice").or_else(|| value.get("seq"));
                     if !list(items, 2, usize::MAX) {
                         return Some("a malformed expression");
@@ -985,27 +1013,19 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                 } else if let Some(inner) = value.get("optional") {
                     pending.push((Kind::Expr, inner, next));
                 } else if has(value, "capture") {
-                    let inner = value.get("expr");
-                    let wraps_symbol = inner.is_some_and(|inner| {
-                        is_object(inner)
-                            && if has(inner, "range") || has(inner, "property") {
-                                is_character_class_json(inner, unicode)
-                            } else {
-                                is_str(inner.get("ref"))
-                                    || is_tag_json(inner.get("terminal"), unicode)
-                                    || has(inner, "test")
-                            }
+                    // A capture wraps one symbol: a reference, a terminal, a
+                    // range, a property or a tested one of these (§9).
+                    let inner = value.get("expr").filter(|inner| {
+                        ["ref", "terminal", "range", "property", "test"].iter().any(|member| has(inner, member))
                     });
                     // `$` is the whole constituent and wraps nothing.
                     let named = value.get("capture").and_then(Json::as_str).is_some_and(|name| !name.is_empty());
-                    if !named || !wraps_symbol {
+                    let Some(inner) = inner.filter(|_| named) else {
                         return Some("a malformed capture");
-                    }
-                    // A capture is a compound node; a tested symbol below it
+                    };
+                    // A capture is a compound node, and its symbol below it
                     // is checked as any expression is.
-                    if let Some(inner) = inner.filter(|inner| has(inner, "test")) {
-                        pending.push((Kind::Expr, inner, next));
-                    }
+                    pending.push((Kind::Expr, inner, next));
                 } else if let Some(op) = value.get("test") {
                     // A compound node (engine §9) over one symbol; its value
                     // counts on from its depth, and is checked once the
@@ -1022,11 +1042,11 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                     pending.push((Kind::Expr, inner, next));
                     pending.push((Kind::Term, test_value, next));
                     tests.push(value);
-                } else if !(is_str(value.get("ref"))
+                } else if !(value.get("ref").and_then(Json::as_str).is_some_and(is_rule_name)
                     || is_tag_json(value.get("terminal"), unicode)
-                    || is_true(value.get("empty"))
-                    || is_character_class_json(value, unicode))
+                    || is_true(value.get("empty")))
                 {
+                    // A reference is a name or `#` (§9).
                     return Some("a malformed expression");
                 }
             }
@@ -1105,6 +1125,11 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                 // term's own tags either (§9).
                 let (conditions, terms) =
                     if kind == Kind::TagCondition { (kind, Kind::TagTerm) } else { (kind, Kind::Term) };
+                // A condition has exactly the members of one form
+                // (docs/output.md).
+                if !has_one_form(value, &COND_FORMS) {
+                    return Some("a malformed condition");
+                }
                 if has(value, "any") || has(value, "all") {
                     let items = value.get("any").or_else(|| value.get("all"));
                     if !list(items, 2, usize::MAX) {
@@ -1153,7 +1178,7 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
             Kind::Term | Kind::TagTerm | Kind::Argument => {
                 // A term has exactly the members of one form, so that no
                 // node is read as one form here and another elsewhere.
-                if !is_term_shape(value) {
+                if !has_one_form(value, &TERM_FORMS) {
                     return Some("a malformed term");
                 }
                 let own = kind == Kind::TagTerm;
