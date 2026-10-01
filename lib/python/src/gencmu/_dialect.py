@@ -188,6 +188,10 @@ class NotationReader:
             last = number == len(self.stages) - 1
             runner = StageRunner(name, lowered, lambda: lowered, tokens, grammar_text.text, self.unicode, emit=not last)
             outcome = runner.run(False)
+            if outcome.error is not None and outcome.error.kind == "ambiguous":
+                # A tie has no single position, so the error names the
+                # document alone, never its start (engine §8).
+                raise GencmuError(f"the grammar text is ambiguous: the {name} stage of the notation reads it in two ways", document=path)
             if outcome.error is not None:
                 source = outcome.error.source
                 index = source[0] if source is not None else len(grammar_text.text)
