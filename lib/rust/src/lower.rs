@@ -325,7 +325,15 @@ struct Lowerer<'a> {
     places: Vec<Vec<usize>>,
 }
 
-fn product(left: Vec<Sequence>, right: &[Sequence]) -> Vec<Sequence> {
+fn product(mut left: Vec<Sequence>, right: &[Sequence]) -> Vec<Sequence> {
+    // With one right sequence, the usual case, each left sequence grows in
+    // place, so that a long sequence expands in linear time.
+    if let [only] = right {
+        for sequence in &mut left {
+            sequence.extend(only.iter().cloned());
+        }
+        return left;
+    }
     let mut out = Vec::with_capacity(left.len() * right.len());
     for first in &left {
         for second in right {
