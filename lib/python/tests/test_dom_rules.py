@@ -772,6 +772,135 @@ class CharacterClassLoading(unittest.TestCase):
 
 
 
+MIXED_DOCUMENT = '```jbogenbau\n%ambiguity-resolution greedy\n%rule text $x(A) B\n%conditions text($x) = "ok"\n```\n'
+
+
+def _mixed_changes() -> list[tuple[str, Callable[[Dom], None]]]:
+    """Expressions and conditions that join the members of two forms, or
+    that hold a value of the wrong kind, as changes to a DOM of ``$x(A) B``
+    with the condition ``text($x) = "ok"``. Each is refused whatever the
+    order of its members, so that no library reads one form where another
+    reads the other (docs/output.md)."""
+
+    def second(value: Any) -> Callable[[Dom], None]:
+        def change(dom: Dom) -> None:
+            alt(dom)["expr"]["seq"][1] = value
+
+        return change
+
+    def captured(value: Any) -> Callable[[Dom], None]:
+        def change(dom: Dom) -> None:
+            alt(dom)["expr"]["seq"][0]["expr"] = value
+
+        return change
+
+    def beside(key: str, value: Any) -> Callable[[Dom], None]:
+        def change(dom: Dom) -> None:
+            alt(dom)["expr"][key] = value
+
+        return change
+
+    def capture_beside(key: str, value: Any) -> Callable[[Dom], None]:
+        def change(dom: Dom) -> None:
+            alt(dom)["expr"]["seq"][0][key] = value
+
+        return change
+
+    def condition_before(key: str, value: Any) -> Callable[[Dom], None]:
+        def change(dom: Dom) -> None:
+            rule(dom)["conditions"][0] = {key: value, **rule(dom)["conditions"][0]}
+
+        return change
+
+    def condition_after(key: str, value: Any) -> Callable[[Dom], None]:
+        def change(dom: Dom) -> None:
+            rule(dom)["conditions"][0][key] = value
+
+        return change
+
+    b, c = {"ref": "B"}, {"ref": "C"}
+    return [
+        ("empty with a terminal", second({"empty": True, "terminal": "B"})),
+        ("a terminal with empty", second({"terminal": "B", "empty": True})),
+        ("a choice with a sequence", second({"choice": [b, c], "seq": [c, c]})),
+        ("a sequence with a choice", second({"seq": [c, c], "choice": [b, c]})),
+        ("a choice with a sequence of a bad reference", second({"choice": [b, c], "seq": [{"ref": 5}, c]})),
+        ("a repetition with an optional", second({"repeat": b, "min": 1, "optional": c})),
+        ("an optional with a repetition", second({"optional": c, "repeat": b, "min": 1})),
+        ("a repetition with an optional of a bad reference", second({"repeat": b, "min": 1, "optional": {"ref": ["x"]}})),
+        ("a reference that is not a name", second({"ref": "x y"})),
+        ("a top-level sequence with a choice", beside("choice", [b, c])),
+        ("a captured terminal not in its canonical spelling", captured({"terminal": "'ab'"})),
+        ("a captured reference with a terminal", captured({"ref": "A", "terminal": "A"})),
+        ("a captured reference that is not a name", captured({"ref": "x y"})),
+        ("a capture with a reference", capture_beside("ref", "B")),
+        ("a comparison with a negation", condition_after("not", {"captured": "x"})),
+        ("a negation with a comparison", condition_before("not", {"captured": "x"})),
+        ("a presence test with a comparison", condition_before("captured", "x")),
+        ("a match with another member", condition_after("matches", {"capture": "x"})),
+    ]
+
+
+class MixedFormLoading(unittest.TestCase):
+    """A node of two forms takes the whole loading path: a precompiled one
+    is a miss, and one in the bootstrap is an error."""
+
+    def test_a_precompiled_node_of_two_forms_is_a_miss(self) -> None:
+        sources = {"p.md": CLASS_PIPELINE, "g.md": MIXED_DOCUMENT}
+        tokens = [Token("ok", frozenset(["A"]), (0, 1), (0, 2), None), Token("b", frozenset(["B"]), (1, 2), (3, 4), None)]
+        fresh_result = gencmu.load_dialect_sources(sources, "p.md", use_cache=False).parse_tokens(tokens, "ok b", auto_features=False)
+        self.assertTrue(fresh_result.ok)
+        fresh = gencmu.to_json(fresh_result)
+        bootstrap_hash = fnv1a64(bundled_text("notation/bootstrap.json") or "")
+
+        def parse(dom: Dom) -> str:
+            documents = {"g.md": {"hash": fnv1a64(MIXED_DOCUMENT), "dom": dom}}
+            compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "documents": documents})
+            dialect = gencmu.load_dialect_sources({**sources, "compiled.json": compiled}, "p.md")
+            return gencmu.to_json(dialect.parse_tokens(tokens, "ok b", auto_features=False))
+
+        # The control: a well-formed entry whose condition wants "no" is
+        # used in place of the document, and refuses the text. Each broken
+        # entry below keeps that condition, so an entry used by mistake
+        # refuses it too.
+        control = read_document(MIXED_DOCUMENT, "g.md")
+        rule(control)["conditions"][0]["right"] = {"string": "no"}
+        self.assertIsNone(dom_problem(control))
+        self.assertNotEqual(parse(control), fresh)
+        for name, change in _mixed_changes():
+            with self.subTest(refused=name):
+                dom = copy.deepcopy(control)
+                change(dom)
+                self.assertIsNotNone(dom_problem(dom))
+                self.assertEqual(parse(dom), fresh)
+
+    def test_a_bootstrap_node_of_two_forms_is_an_error(self) -> None:
+        def with_rule(change: Callable[[Dom], None] | None) -> str:
+            # Put a rule of the shape above first in the bootstrap's first
+            # document.
+            bootstrap = json.loads(bundled_text("notation/bootstrap.json") or "{}")
+            expr = {"seq": [{"capture": "x", "expr": {"ref": "A"}}, {"ref": "B"}]}
+            condition = {"op": "=", "left": {"call": "text", "args": [{"capture": "x"}]}, "right": {"string": "ok"}}
+            added = {"name": "unused-rule", "op": "define", "alternatives": [{"guards": [], "expr": expr}], "conditions": [condition], "at": [100000, 1]}
+            if change is not None:
+                change({"rules": [added]})
+            bootstrap["stages"][0]["documents"][0]["dom"]["rules"].insert(0, added)
+            return json.dumps(bootstrap)
+
+        def refused(bootstrap: str) -> bool:
+            sources = {"p.md": CLASS_PIPELINE, "g.md": MIXED_DOCUMENT, "notation/bootstrap.json": bootstrap}
+            try:
+                gencmu.load_dialect_sources(sources, "p.md", use_cache=False)
+            except gencmu.GencmuError as error:
+                return error.document == "notation/bootstrap.json"
+            return False
+
+        self.assertFalse(refused(with_rule(None)))
+        for name, change in _mixed_changes():
+            with self.subTest(refused=name):
+                self.assertTrue(refused(with_rule(change)))
+
+
 CONSTANT_SOURCES = {
     "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%const $K ~a ∪ B\n%rule text A <$K>\n```\n",

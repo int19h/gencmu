@@ -131,8 +131,22 @@ def _is_entry(entry: Any, unicode: Lowercase) -> bool:
     )
 
 
-# The forms of a term, each as its members (docs/output.md). The first
-# member names the form.
+# The forms of an expression, a term and a condition, each as its members
+# (docs/output.md). The first member names the form.
+_EXPRESSION_FORMS = (
+    ("seq",),
+    ("choice",),
+    ("and",),
+    ("optional",),
+    ("repeat", "min"),
+    ("ref",),
+    ("terminal",),
+    ("capture", "expr"),
+    ("range",),
+    ("property",),
+    ("test", "value", "expr"),
+    ("empty",),
+)
 _TERM_FORMS = (
     ("union",),
     ("intersection",),
@@ -146,15 +160,31 @@ _TERM_FORMS = (
     ("capture",),
     ("const", "at"),
 )
+_CONDITION_FORMS = (
+    ("op", "left", "right"),
+    ("matches", "rule"),
+    ("begins", "rule"),
+    ("initial",),
+    ("not",),
+    ("any",),
+    ("all",),
+    ("captured",),
+    ("if", "then"),
+)
 
 
-def _is_term_shape(value: dict[str, Any]) -> bool:
-    """Whether a term has exactly the members of one form. So a node that
-    joins two forms, such as ``{"tag":…,"string":…}``, is refused before it
-    is read, and no library reads it one way where another reads it
-    another way."""
-    form = next((members for members in _TERM_FORMS if members[0] in value), None)
+def _has_one_form(value: dict[str, Any], forms: tuple[tuple[str, ...], ...]) -> bool:
+    """Whether a node has exactly the members of one of its forms. So a node
+    that joins two forms, such as ``{"tag":…,"string":…}``, is refused
+    before it is read, and no library reads it one way where another reads
+    it another way."""
+    form = next((members for members in forms if members[0] in value), None)
     return form is not None and len(value) == len(form) and all(member in value for member in form)
+
+
+def _is_ref(value: Any) -> bool:
+    """A reference's name: a name, or ``#`` (engine §9)."""
+    return isinstance(value, str) and (value == "#" or _NAME.fullmatch(value) is not None)
 
 
 def _items(value: Any, least: int, most: float = float("inf")) -> bool:
@@ -230,7 +260,7 @@ def _is_testable(expr: Any, unicode: Lowercase) -> bool:
     if not isinstance(expr, dict) or len(expr) != 1:
         return False
     return (
-        (isinstance(expr.get("ref"), str) and expr["ref"] != "#")
+        (_is_ref(expr.get("ref")) and expr["ref"] != "#")
         or is_tag(expr.get("terminal"), unicode)
         or _is_character_class(expr, unicode)
     )
@@ -256,13 +286,6 @@ def test_value_fault(op: str, value: Any, unicode: Lowercase | None) -> tuple[st
         if wrong is not None:
             return wrong, value
     return None
-
-
-def _is_misshapen_test(value: dict[str, Any]) -> bool:
-    """Whether an expression node has a test but is not exactly a tested
-    symbol: its comparator, its value and its symbol, and no other key that
-    lowering could read in its place."""
-    return "test" in value and value.keys() != {"test", "value", "expr"}
 
 
 def range_problem(range_: Any, unicode: Lowercase) -> str | None:
@@ -483,14 +506,14 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase, tests: 
             return f"a malformed {'expression' if kind in ('top', 'item') else kind}"
         below = depth + 1
         if kind in ("expr", "top", "item"):
-            # A tested symbol has its comparator, its value and its symbol,
-            # and no other key that lowering could read in its place.
-            if _is_misshapen_test(value):
+            # An expression has exactly the members of one form
+            # (docs/output.md).
+            if not _has_one_form(value, _EXPRESSION_FORMS):
                 return "a malformed expression"
-            # A range or a property has no member but its own.
-            if ("range" in value or "property" in value) and not _is_character_class(value, unicode):
-                return "a malformed expression"
-            if "choice" in value or "seq" in value:
+            if "range" in value or "property" in value:
+                if not _is_character_class(value, unicode):
+                    return "a malformed expression"
+            elif "choice" in value or "seq" in value:
                 items = value["choice"] if "choice" in value else value["seq"]
                 if not _items(items, 2):
                     return "a malformed expression"
@@ -510,23 +533,18 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase, tests: 
                 inner = value.get("expr")
                 if kind == "expr":
                     return "a capture below the top level of an alternative"
+                # A capture wraps one symbol: a reference, a terminal, a
+                # range, a property or a tested one of these (engine §9).
                 if (
                     not isinstance(value["capture"], str)
                     or value["capture"] == _WHOLE
                     or not isinstance(inner, dict)
-                    or not (
-                        isinstance(inner.get("ref"), str)
-                        or is_tag(inner.get("terminal"), unicode)
-                        or "test" in inner
-                        or _is_character_class(inner, unicode)
-                    )
-                    or (("range" in inner or "property" in inner) and not _is_character_class(inner, unicode))
+                    or not any(member in inner for member in ("ref", "terminal", "range", "property", "test"))
                 ):
                     return "a malformed capture"
-                # A capture is a compound node; a tested symbol below it is
+                # A capture is a compound node, and its symbol below it is
                 # checked as any expression is.
-                if "test" in inner:
-                    pending.append(("expr", inner, below, False))
+                pending.append(("expr", inner, below, False))
             elif "test" in value:
                 # A compound node (engine §9) over one symbol; its value
                 # counts on from its depth, and is checked once the nesting
@@ -538,12 +556,7 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase, tests: 
                 pending.append(("expr", value["expr"], below, False))
                 pending.append(("term", value["value"], below, False))
                 tests.append(value)
-            elif not (
-                isinstance(value.get("ref"), str)
-                or is_tag(value.get("terminal"), unicode)
-                or value.get("empty") is True
-                or _is_character_class(value, unicode)
-            ):
+            elif not (_is_ref(value.get("ref")) or is_tag(value.get("terminal"), unicode) or value.get("empty") is True):
                 return "a malformed expression"
         elif kind == "emission":
             # No items for ε; otherwise items of the keys capture, insert,
@@ -592,8 +605,11 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase, tests: 
                 # An emission is no node of a term: its tags start at the top.
                 pending.append(("term", item["tags"], depth, False))
         elif kind == "condition":
-            # The condition of a guarded term in a tag term may not read the
-            # tags the term defines either.
+            # A condition has exactly the members of one form
+            # (docs/output.md). The condition of a guarded term in a tag
+            # term cannot read the tags the term defines either.
+            if not _has_one_form(value, _CONDITION_FORMS):
+                return "a malformed condition"
             if "any" in value or "all" in value:
                 items = value["any"] if "any" in value else value["all"]
                 if not _items(items, 2):
@@ -625,7 +641,7 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase, tests: 
                 pending.append(("term", value.get("right"), below, own))
         else:
             # A term; an argument is a term where a span may stand.
-            if not _is_term_shape(value):
+            if not _has_one_form(value, _TERM_FORMS):
                 return "a malformed term"
             if own and reads_own_tags(value, kind == "argument"):
                 return "a tag term that reads the tags it defines"
