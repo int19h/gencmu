@@ -5560,11 +5560,12 @@
       }, { all: [], allowed: [] }, this.elisions ? (current, key) => this.keptEdges(current, key) : null);
     }
 
-    // Under late-elision, an item's summaries in one context (engine §6):
-    // over all its derivations and over those an elided terminator may
-    // follow, as for the candidates, each with its least elision vector, the
-    // number of derivations that attain it and the number of all its
-    // derivations, both capped at two, and the edges that attain it.
+    // Under late-elision, an item's summaries in one context (engine §6).
+    // As for the candidates, one summary covers all its derivations, and the
+    // other only those that an elided terminator can follow. Each holds the
+    // least elision vector, the number of derivations that attain it and the
+    // number of all derivations, both capped at two. It also holds the edges
+    // that attain the least vector.
     /**
      * @param {Item} item
      * @returns {Allowed<ElisionSummary>}
@@ -6078,9 +6079,9 @@
     return { left, right, size: left.size + right.size };
   }
 
-  // Adds an edge's derivations to a summary: the total counts every edge,
-  // losing ones included; the least count and the kept edges only those that
-  // attain the least vector.
+  // Adds an edge's derivations to a summary. The total counts every edge,
+  // losing ones included. The least count and the kept edges count only the
+  // edges that attain the least vector.
   /**
    * @param {ElisionSummary} summary
    * @param {number} index
@@ -6102,10 +6103,10 @@
   }
 
   // -1 when the left vector is less, 1 when the right one is, 0 when they are
-  // equal. Two sequences of positions compare at their first difference: the
+  // equal. Two sequences of positions compare at their first difference. The
   // one that elides at the earlier position has the greater count there, so
-  // the later position is less; and a sequence that ends first has fewer
-  // elisions after the shared part.
+  // the later position is less. A sequence that ends first has fewer
+  // elisions after the shared part, so it is less.
   /**
    * @param {ElisionSeq} left
    * @param {ElisionSeq} right
@@ -8998,7 +8999,7 @@
 
   /**
    * What one stage did. A stage whose verdict is `tie` has a witness, and
-   * its two readings are in its error; any other has no witness.
+   * its two readings are in its error. Any other stage has no witness.
    * @typedef {TiedStageReport | SettledStageReport} StageReport
    */
 
@@ -9044,12 +9045,12 @@
    * @typedef {object} StageReportBase
    * @property {string} name
    * @property {Token[] | null} output the tokens handed to the next stage
-   * @property {ResultNode | null} tree the chosen tree; null for a stage that
-   *   rejected its input or tied
+   * @property {ResultNode | null} tree the chosen tree, or null for a stage
+   *   that rejected its input or tied
    * @property {ParseError | null} error
    * @property {Token[]} [input] the tokens the stage read
    * @property {ParseWarning[]} [warnings] the warnings of the chosen tree
-   *   (engine §12); absent for a stage that rejected its input or tied
+   *   (engine §12), absent for a stage that rejected its input or tied
    */
 
   /**
