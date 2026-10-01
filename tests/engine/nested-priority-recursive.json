@@ -1,0 +1,34 @@
+{
+  "description": "Written-terminator priority adds no check of its own, but a changed answer can make another condition run. Under priority, begins of r is false on A B T, so the implication goes on to matches of loop. loop asks about its own span as itself, which is the error of a recursive query (engine §4).",
+  "grammar": "%elidable T\n%rule text A B T\n%conditions (¬begins(from($), r)) ⟹ matches($, loop)\n%rule r A c [T] T\n%rule c B\n%rule loop A B T\n%conditions matches($, loop)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "grammar",
+        "stage": "main"
+      }
+    },
+    "error": "grammar"
+  }
+}

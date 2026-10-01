@@ -1,0 +1,26 @@
+{
+  "description": "A witness is a finite proof, and a rule can occur again over the same span within it. The completed r → s, with the tags X, rests on s → r over the r → A [T] with the tags Y, which is eligible. A stage would not count that derivation, since r stands below r over one span, but the query does. So tags of r is X and Y (engine §4).",
+  "grammar": "%elidable T\n%rule text A\n%tags tags($, r)\n%rule r A [T] <Y> | s <X>\n%rule s r",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "tags": [
+          "X",
+          "Y"
+        ]
+      }
+    }
+  }
+}

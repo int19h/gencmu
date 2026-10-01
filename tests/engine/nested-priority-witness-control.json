@@ -1,0 +1,42 @@
+{
+  "description": "The control of nested-priority-witness, with y → B z in place of y → B z [U]. The second witness, where [A] reads A, now omits no optional that it can read as written, so it is eligible, and begins of r holds (engine §4).",
+  "grammar": "%elidable T U\n%rule text A B C T U\n%conditions begins(from($), r)\n%rule r [A] y [T] C T U\n%rule y A B | A B C | B z\n%rule z ε | C T",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ]
+    },
+    {
+      "text": "u",
+      "tags": [
+        "U"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null
+    }
+  }
+}
