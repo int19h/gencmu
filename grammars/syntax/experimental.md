@@ -538,6 +538,7 @@ camxes-exp replaces CLL's mekso with its own, and the layer follows it (camxes-e
 - `bo` after an operator, with an optional tense or modal, groups two operands tighter (`li pa su'i bo re`). There is no `bi'e`, and a forethought operator needs `pe'o`.
 - An operator can be a connective, a joik, jek or ek. A joik or jek operator has one slot of free modifiers, the one at the end of `joik-jek`. The PEG of camxes-exp never reads its second `free*` there.
 - A quantifier is a whole mekso, `pa su'i re broda`. It cannot begin with a lerfu word, `la'e` or `na'e`, because camxes-exp reads a sumti there (its `!sumti_6`). camxes-exp also refuses a quantifier where a selbri begins (`!selbri`), and so does the layer. So in `mi piso'umei jimpe`, `pi so'u mei jimpe` is the selbri, and not a quantifier of a description.
+- A quantifier also cannot begin with a forethought connection whose first half begins with one of those words (`gek-barrier`). A sumti starts there too. So in `ge nai abu gi no drata`, `ge nai ... gi` joins the two sumti `abu` and `no drata`. It does not make the quantifier `ge nai abu gi no` over `drata`. CLL has only the first reading, because a CLL quantifier is a number or a `vei` group. camxes-exp takes the second reading. Its PEG tries `sumti_5`, a quantifier and its sumti, before `gek sumti gik sumti_4`, and the quantifier matches first. Nothing shows that camxes-exp intends this reading, and the layer follows CLL. A forethought connection of numbers is still a quantifier, as in `lo ge pa gi re mi broda`.
 - `me` takes a mekso as well as a sumti, a whole mekso takes `moi`, and `nu'a` takes a whole operator.
 - After `me`, a lerfu string is a sumti and not a mekso, because camxes-exp tries the sumti first (`me my`). The layer settles that tie as camxes-exp does. Before `moi`, the layer differs: in `me my moi`, camxes-exp's `sumti_6` does not read `my` where a selbri begins (`!selbri`), so `my` is a mekso there. The layer reads a sumti. It does not copy the rejections of camxes-exp's PEG, which keeps a sumti once one matches. For example, `me my su'i pa` is the mekso `my su'i pa`, although camxes-exp rejects the text.
 
@@ -549,10 +550,14 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   $m(mex)
 %conditions
   ¬matches(head($m), quantifier-barrier),
+  ¬begins(from($m), gek-barrier),
   ¬begins(from($m), selbri)
 
 %rule quantifier-barrier
   BY | LAU | TEI | LAhE | NAhE
+
+%rule gek-barrier
+  gek quantifier-barrier
 
 %redefine-rule mex
   mex-1 [operator mex-1] ...
