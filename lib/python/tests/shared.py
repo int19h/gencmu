@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import replace
+import faulthandler
 import json
+import os
 from pathlib import Path
-from typing import Any
+import signal
+import sys
+import threading
+from typing import Any, Iterator
 
 import gencmu
 from gencmu._model import Token
@@ -13,6 +19,42 @@ from gencmu._tags import is_tag
 
 REPOSITORY = Path(__file__).resolve().parents[3]
 SHARED = REPOSITORY / "tests"
+
+CASE_SECONDS = float(os.environ.get("GENCMU_CASE_TIMEOUT", "60"))
+"""How long one shared case may run before the runner reports it as a
+failure. GENCMU_CASE_TIMEOUT sets it."""
+
+
+class CaseTimeout(AssertionError):
+    """A shared case that ran past its time, reported as a failure."""
+
+
+@contextmanager
+def deadline(label: str, seconds: float = CASE_SECONDS) -> Iterator[None]:
+    """Fail a case that runs longer than ``seconds``, so that a hang is a
+    failure and not a run that never ends. Where the process can have an
+    alarm signal, the case fails with :class:`CaseTimeout` and the other
+    cases go on. Elsewhere the process ends with a traceback of every
+    thread, which fails the run."""
+    alarm = hasattr(signal, "setitimer") and threading.current_thread() is threading.main_thread()
+    if not alarm:
+        faulthandler.dump_traceback_later(seconds, exit=True, file=sys.stderr)
+        try:
+            yield
+        finally:
+            faulthandler.cancel_dump_traceback_later()
+        return
+
+    def expire(signum: int, frame: Any) -> None:
+        raise CaseTimeout(f"{label} ran for more than {seconds:g} seconds")
+
+    previous = signal.signal(signal.SIGALRM, expire)
+    signal.setitimer(signal.ITIMER_REAL, seconds)
+    try:
+        yield
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous)
 
 
 def cases(kind: str) -> list[Path]:
@@ -47,6 +89,38 @@ def mismatch(pattern: Any, value: Any, where: str = "$") -> str | None:
     if pattern != value or type(pattern) is not type(value):
         return f"{where}: expected {json.dumps(pattern, ensure_ascii=False)}, found {json.dumps(value, ensure_ascii=False)}"
     return None
+
+
+def result_problems(value: dict[str, Any]) -> list[str]:
+    """What a canonical result breaks of the invariants that every runner
+    checks on every result, whatever the case expects (tests/README.md): no
+    stage has a tied tree, and a stage whose verdict is tie has no output,
+    comes last, and has the result's ambiguous error with the reason tie,
+    its name and two readings."""
+    problems: list[str] = []
+    stages = value["stages"]
+    for index, stage in enumerate(stages):
+        if "tied" in stage:
+            problems.append(f"stage {stage['name']} has a tied tree")
+        if stage["verdict"] != "tie":
+            continue
+        if "output" in stage:
+            problems.append(f"the tied stage {stage['name']} has output")
+        if index != len(stages) - 1:
+            problems.append(f"a stage runs after the tied stage {stage['name']}")
+        error = value["error"]
+        if (
+            value["ok"] is not False
+            or value["tree"] is not None
+            or not isinstance(error, dict)
+            or error.get("kind") != "ambiguous"
+            or error.get("reason") != "tie"
+            or error.get("stage") != stage["name"]
+            or not isinstance(error.get("readings"), list)
+            or len(error["readings"]) != 2
+        ):
+            problems.append(f"the tied stage {stage['name']} lacks its error of kind ambiguous, reason tie and two readings")
+    return problems
 
 
 def case_sources(case: dict[str, Any]) -> tuple[dict[str, str], str]:

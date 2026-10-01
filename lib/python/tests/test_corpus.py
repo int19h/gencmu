@@ -14,11 +14,11 @@ import os
 import time
 import unittest
 from concurrent.futures import ProcessPoolExecutor
-from typing import Any
+from typing import Any, Callable
 
-from .shared import SHARED
+from .shared import SHARED, result_problems
 
-FIELDS = ("expect", "verdict", "stage", "ties", "words", "brackets")
+FIELDS = ("expect", "verdict", "stage", "error", "ties", "words", "brackets")
 
 _dialects: dict[str, Any] = {}
 
@@ -32,19 +32,32 @@ def all_cases() -> list[dict[str, Any]]:
     return found
 
 
-def outcome(case: dict[str, Any]) -> dict[str, Any]:
-    """What gencmu makes of a case, in the case's own terms."""
+def outcome(case: dict[str, Any], mutate: Callable[[dict[str, Any]], dict[str, Any]] | None = None) -> dict[str, Any]:
+    """What gencmu makes of a case, in the case's own terms. ``mutate``, for
+    a test of the runner, changes the canonical result before the check of
+    its invariants."""
     import gencmu
 
     dialect = _dialects.get(case["dialect"])
     if dialect is None:
         dialect = _dialects[case["dialect"]] = gencmu.load_dialect(case["dialect"])
     result = dialect.parse(case["text"], features=case.get("features", []), without_features=case.get("withoutFeatures", []))
+    # A tied stage emits nothing and ends the run with its error
+    # (tests/README.md).
+    value = gencmu.result_json(result)
+    if mutate is not None:
+        value = mutate(value)
+    problems = result_problems(value)
+    if problems:
+        raise AssertionError(f"the result breaks an invariant: {'; '.join(problems)}")
     got: dict[str, Any] = {"expect": "accept" if result.ok else "reject"}
     if result.ok:
         got["verdict"] = result.stages[-1].verdict
     else:
         got["stage"] = result.error.stage if result.error else None
+    if result.error is not None and result.error.kind == "ambiguous":
+        # An ambiguous error pins its kind and its reason (tests/README.md).
+        got["error"] = {"kind": result.error.kind, "reason": result.error.reason}
     ties = [stage.name for stage in result.stages if stage.verdict == "tie"]
     if ties:
         got["ties"] = ties
@@ -111,6 +124,40 @@ class Corpus(unittest.TestCase):
                 failures.append(problem)
             lines.append(json.dumps({"id": case_id, "seconds": round(seconds, 3), "chars": len(case["text"]), "ok": problem is None, "problem": problem}, ensure_ascii=False) + "\n")
 
+    def test_a_result_that_breaks_an_invariant_is_refused(self) -> None:
+        """The runner checks the whole invariant of a tie on the canonical
+        result of each tied corpus case (tests/README.md)."""
+        tied_cases = [case for case in all_cases() if "ties" in case]
+        self.assertTrue(tied_cases, "the corpus has tied cases")
+
+        def tied(value: dict[str, Any], **changes: Any) -> dict[str, Any]:
+            stages = list(value["stages"])
+            stages[-1] = {**stages[-1], **changes}
+            return {**value, "stages": stages}
+
+        def error(value: dict[str, Any], **changes: Any) -> dict[str, Any]:
+            return {**value, "error": {**value["error"], **changes}}
+
+        mutants: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
+            "a tree": lambda value: {**value, "tree": value["error"]["readings"][0]},
+            "one reading": lambda value: error(value, readings=value["error"]["readings"][:1]),
+            "an ok result": lambda value: {**value, "ok": True},
+            "another kind of error": lambda value: error(value, kind="rejected"),
+            "an error of another stage": lambda value: error(value, stage="another"),
+            "another reason": lambda value: error(value, reason="elision-only"),
+            "a tied stage with output": lambda value: tied(value, output=[]),
+            "a stage with a tied tree": lambda value: tied(value, tied=value["error"]["readings"][1]),
+            "a stage after the tie": lambda value: {**value, "stages": [*value["stages"], {"name": "later", "verdict": "unique"}]},
+            "an error without a reason": lambda value: {
+                **value,
+                "error": {key: found for key, found in value["error"].items() if key != "reason"},
+            },
+        }
+        for case in tied_cases:
+            self.assertIsNone(mismatch(case, outcome(case)))
+            for name, mutate in mutants.items():
+                with self.subTest(case=case["id"], mutant=name), self.assertRaisesRegex(AssertionError, "breaks an invariant"):
+                    outcome(case, mutate)
 
 if __name__ == "__main__":
     unittest.main()

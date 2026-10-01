@@ -113,12 +113,18 @@ class SymbolTest:
         return not tags.isdisjoint(wanted)
 
 
+RANKING_RULES = ("greedy", "lazy", "late-elision")
+"""The rules of the ranking that ``%ambiguity-resolution`` can name
+(engine §2, §6)."""
+
+
 @dataclass
 class Grammar:
     """A stage's stitched grammar and its directives."""
 
     stage: str
     rules: dict[str, Rule]
+    # The rule of the ranking, one of RANKING_RULES (engine §6).
     lean: str
     elision_only: bool
     # Whether an elided terminator is forbidden where its constituent could
@@ -549,8 +555,8 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
         args, path, at = resolutions[1]
         raise _error(f"stage {stage} has more than one %ambiguity-resolution", path, at, stage)
     args, path, at = resolutions[0]
-    # The lean, then elision-only and maximal, each optional, in that order
-    # (engine §2).
+    # The rule of the ranking (engine §6), then elision-only and maximal,
+    # each optional, in that order (engine §2).
     rest = args[1:]
     elision_only = rest[:1] == ["elision-only"]
     if elision_only:
@@ -558,9 +564,12 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
     maximal = rest[:1] == ["maximal"]
     if maximal:
         rest = rest[1:]
-    if not args or args[0] not in ("greedy", "lazy") or rest:
+    if not args or args[0] not in RANKING_RULES or rest:
         raise _error(
-            "%ambiguity-resolution takes greedy or lazy, then optionally elision-only, then optionally maximal", path, at, stage
+            "%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only, then optionally maximal",
+            path,
+            at,
+            stage,
         )
     if "text" not in rules:
         raise GencmuError(f"stage {stage} has no rule text, its start rule", stage=stage)
