@@ -164,7 +164,9 @@ Lowering turns a grammar, given the set of enabled features, into a context-free
 
    The terminal of an elidable optional has no test or an `=` test, since §7 restores it with a sound. Any other test on it is an error of the grammar. The loader finds this error after it stitches the stage, since a later `%elidable` can make an optional elidable. It makes sure that no alternative of the stitched stage has such a test, whatever the features. It reports the error at the definition that wrote the alternative. A test on a later symbol of the optional is no error, since §7 restores only the terminal.
 
-Lowering numbers the productions from 0. The canonical order of §6 uses this numbering to order the two readings of a tie. It never decides which derivation a stage chooses. A production that a condition false for it removes (§3.6) takes no number, though the helpers of its alternative still do. Lowering takes the rules in the order in which they were first defined after stitching. A rule replaced with `%redefine-rule` keeps the place of the rule that it replaces, and alternatives added with `%extend-rule` follow the rule's own alternatives.
+Lowering numbers the productions from 0. The canonical order *T* of §6 uses this numbering. *T* orders the ambiguity diagnostics and selects the forbidden terminator that a `maximal` rejection reports (§4). It never selects an accepted reading.
+
+A production that a condition false for it removes (§3.6) takes no number, though the helpers of its alternative still do. Lowering takes the rules in the order in which they were first defined after stitching. A rule replaced with `%redefine-rule` keeps the place of the rule that it replaces, and alternatives added with `%extend-rule` follow the rule's own alternatives.
 
 Within a rule, lowering takes its remaining alternatives in order. Each alternative contributes its own productions first, and then its helpers. Its own productions come in the order of its expansions (step 2). For a trailing repetition, the non-recursive productions come first and then the recursive ones.
 
@@ -252,7 +254,7 @@ A stage accepts when an item of the start rule `text` spans the whole input and 
 
 An input rejected only because `maximal` forbids an elided terminator in every derivation that is not cyclic reports that terminator instead. The terminator comes from the first reading, `m`, of the ranking that the stage makes when `maximal` forbids nothing (§6). It is the first elided terminator of that derivation, in the order of the tree's leaves, that `maximal` forbids. Its position is the position reported, and its terminal, with the rule in whose alternative its optional is written, is the one terminal expected there. If that terminator is tested, the stage writes it with its test there too.
 
-The reported terminator comes from `m` whatever the verdict of that ranking. So the canonical order of §6 can decide which terminator a rejection reports, but never whether the stage accepts.
+The reported terminator comes from `m` whatever the verdict of that ranking. So *T* (§6) selects the forbidden terminator that such a rejection reports. It never selects an accepted reading.
 
 ## 5. Phonemes, labels and text
 
@@ -294,6 +296,10 @@ A derivation is read as its sequence of actions in bottom-up order. An action is
 
 Two reads are the same action when they read the same token as the same terminal. Two closes are the same when they close the same production over the same span.
 
+Transparency removes a close from the comparison, but it does not merge derivations. Two derivations that differ only at transparent closes are still two derivations, and they are tied. For example, `text → [[X]]` derives the empty input in two ways. The outer helper derives ε itself, or through the inner helper. So `text → [A] & [B]` does too, through the expansions of its `&` (§3.2). The error of such a tie can carry two equal trees, while its witness names two different productions.
+
+The engine does not merge derivations whose trees are equal either. Such derivations can still differ in what the stage does with them. Two definitions of `text → A` give equal trees, but their emission clauses can emit different tokens. Their alternatives can also differ in their warning guards, or in `%opaque`.
+
 Under `greedy` and `lazy`, the stage compares two derivations of the same input at their first differing visible action:
 
 1. If both read the same token as different terminals, they are tied.
@@ -320,7 +326,7 @@ At the first differing pair of projected actions, `read(p)` and `end(N)` beat `e
 
 So under `late-elision`, a token read as two terminals does not stop the comparison, as rule 1 does. Two different closes do not stop it either, as rule 3 does. The preference does not depend on the age, the nesting or the name of a terminator.
 
-The stage puts the derivations in a canonical order, *T*. *T* decides only which two readings a tie reports, in which order, and its witness. It never decides which derivation the stage chooses. Under `greedy`, `lazy` and no lean, *T* compares two derivations first by their visible sequences:
+The stage puts the derivations in a canonical order, *T*. *T* orders the ambiguity diagnostics and selects the forbidden terminator that a `maximal` rejection reports (§4). It never selects an accepted reading. Under `greedy`, `lazy` and no lean, *T* compares two derivations first by their visible sequences:
 
 - *T* compares them at their first differing visible pair, by rules 1 to 3 where those decide, and otherwise by the canonical keys. The canonical keys put a read before a close. They order two reads by terminal, in code point order. They order two closes by production number, then span start, then span end.
 - If one visible sequence is a proper prefix of the other, the shorter comes first.
@@ -332,17 +338,17 @@ Under `late-elision`, *T* compares two derivations first by their elision vector
 
 Nothing beats `m`. Under `greedy` and `lazy`, whatever beats a derivation precedes it in *T*. Under `late-elision`, *T* puts the least vectors first. So `m` is best.
 
-A derivation is tied with `m` when `m` does not beat it. Under `greedy` and `lazy`, a best derivation other than `m` is tied with `m`, since its first difference with `m` is a tie. The converse does not hold. Under `late-elision`, the derivations tied with `m` are exactly the other best derivations.
+A distinct derivation `d` is tied with `m` when `m` does not beat `d`. So `m` is never tied with itself. Under `greedy` and `lazy`, a best derivation other than `m` is tied with `m`, since its first difference with `m` is a tie. The converse does not hold. Under `late-elision`, the derivations tied with `m` are exactly the other best derivations.
 
 For example, take `text → A C D | p D | B q`, `p → B C` and `q → C D`, over the tokens `A B`, `C` and `D`. Under `greedy`, `m` reads the first token as `A`. The derivation through `p` is tied with it, but loses to the one through `q`, which reads `D` where it closes `p`.
 
-Of the derivations tied with `m`, the second reading is the one that diverges from `m` earliest. It has the fewest visible actions before its first visible difference with `m`. A derivation whose visible sequence is a proper prefix or an extension of `m`'s diverges where the shorter ends. One whose visible sequence equals `m`'s diverges last. Several that diverge at the same point are ordered by *T*. That derivation, `t`, is best.
+Of the distinct derivations tied with `m`, the second reading is the one that diverges from `m` earliest. It has the fewest visible actions before its first visible difference with `m`. A derivation whose visible sequence is a proper prefix or an extension of `m`'s diverges where the shorter ends. One whose visible sequence equals `m`'s diverges last. Several that diverge at the same point are ordered by *T*. That derivation, `t`, is best.
 
-Under `late-elision`, `t` is best because its vector equals that of `m`. Under `greedy` and `lazy`, the proof is as follows.
+Under `late-elision`, `t` is best because its vector equals that of `m`. Under `greedy` and `lazy`, the proof is as follows. Suppose that another derivation beats `t`. It is not `m`, since `m` does not beat `t`.
 
-Suppose that another derivation beats `t`. If it beats `t` before `t` diverges from `m`, it beats `m`, which nothing does. If it beats `t` later, it shares `t`'s divergence from `m`. If it beats `t` just where `t` diverges, it beats `m` there too, or it is tied with `m` there. This is because an action that beats one tied with `m`'s cannot lose to `m`'s. Either way, it is tied with `m`, diverges no later than `t`, and precedes `t` in *T*.
+If it beats `t` before `t` diverges from `m`, it beats `m`, which nothing does. If it beats `t` later, it shares `t`'s divergence from `m`. If it beats `t` just where `t` diverges, it beats `m` there too, or it is tied with `m` there. This is because an action that beats one tied with `m`'s cannot lose to `m`'s. Either way, it is a distinct derivation tied with `m`, diverges no later than `t`, and precedes `t` in *T*.
 
-So the verdict is `tie` exactly when some derivation is tied with `m`, and then `m` and `t` are two best derivations. Otherwise `m` beats every other derivation, and it is the chosen derivation. In the example, `t` is the derivation through `q`, and the verdict is `tie`. It shows the first point at which the text can be read another way. The witness is the pair of actions at the first difference between `m` and `t`, visible if there is one. It compares the actions themselves, under every rule, and not their projections.
+So the verdict is `tie` exactly when some distinct derivation is tied with `m`, and then `m` and `t` are two best derivations. Otherwise `m` beats every other derivation, and it is the chosen derivation. In the example, `t` is the derivation through `q`, and the verdict is `tie`. It shows the first point at which the text can be read another way. The witness is the pair of actions at the first difference between `m` and `t`, visible if there is one. It compares the actions themselves, under every rule, and not their projections.
 
 A tie is not a success. The result is an error of kind `ambiguous`, with the reason `tie`, and `ok` is false. The error carries two readings, `m` and then `t`, each as a tree (§12). The result's `tree` is null. The stage keeps its verdict and its witness. It has no chosen tree, no output (§11) and no warnings (§12), and no later stage runs (§13).
 
@@ -350,15 +356,25 @@ A stage takes its steps in this order. It recognizes its input (§4), and it ran
 
 Under `greedy`, `lazy` and no lean, both `m` and the earliest-diverging tied derivation compose over the packed forest, the shared graph of all derivations. So an implementation can compute both from the forest. It keeps, for each item, its *T*-least derivation and the earliest-diverging derivations tied with it. It keeps several candidates side by side while their order is not yet settled, since what follows decides. Their order is not settled while one's visible sequence is a prefix of another's. It is also not settled while their visible sequences are equal and one whole sequence is a prefix of the other.
 
+Under every rule, the derivations of the input are those of every completed item of `text` that spans it. The implementation combines these items as the edges of one root.
+
 One candidate can beat another under `greedy` or `lazy`. Then the loser's tied derivation stays tied with the winner exactly when it diverged from the loser before the point where the winner beat it. One that diverged there is beaten there too.
 
 So nothing needs to be enumerated, and the number of derivations, which can be exponential, never matters. Under `maximal` (§4), an item whose next symbol is an elidable optional keeps a second set of candidates. This set comes from only those of its edges whose last symbol's node `maximal` does not forbid. An edge that advances the item over an elided terminator combines that set. Every other edge combines all of the item's derivations. The number of derivations that decides `unique` is counted the same way.
 
-Under `late-elision`, elision vectors compose by addition. The vector of a derivation is the sum, component by component, of the vectors of its parts. An elided terminator at `p` is a part whose vector is one at `p` and zero elsewhere. Adding one vector to two others keeps their order. So in a best derivation, each part has the least vector among the derivations of its own item.
+Under `late-elision`, elision vectors compose by addition. The vector of a derivation is the sum, component by component, of the vectors of its parts. An elided terminator at `p` is a part whose vector is one at `p` and zero elsewhere. Adding one vector to two others keeps their order. So in a best derivation, each part has the least vector among the derivations that its place allows.
 
-An implementation keeps, for each item, its least vector and the number of derivations that attain it, capped at two. For one edge, it adds the vectors of the parts and multiplies their numbers. For the edges of one item, it keeps the lesser vector, or it adds the numbers where the vectors are equal. A number of two at the item of `text` is a tie. It also keeps the number of all derivations, capped at two, which decides `unique`. Under `maximal`, it keeps the two summaries above, one for all edges and one for the edges that `maximal` does not forbid.
+The place of a part limits its derivations in two ways. Under `maximal`, an edge over an elided terminator combines only the derivations that `maximal` allows, as above. This is the part's eligibility. Also, a part cannot use a rule over the span of a constituent of that rule above it, or the derivation is cyclic (§4). The rules above a part over its own span are its cycle context.
 
-The best derivations form a smaller forest: the edges of each item that attain its least vector. The stage finds `m` and `t` by a ranking with no lean over that forest. A vector has N + 1 components. So a sparse vector, or a shared sequence of elisions, keeps the cost of each addition and comparison small.
+So an implementation keeps one summary for each combination of item, eligibility and cycle context that some place needs. Two summaries of one item can have different least vectors. A summary holds the least vector of its derivations and the number of them that attain it, capped at two. For one edge, it adds the vectors of the parts and multiplies their numbers. For the edges of one summary, it keeps the lesser vector, or it adds the numbers where the vectors are equal.
+
+The derivations of the input are those of every completed item of `text` that spans it (§4). The implementation combines the summaries of all these items as the edges of one root. A number of two at the root is a tie. This holds also when two items of `text` each have one least derivation. It also keeps the number of all derivations at the root, capped at two, which decides `unique`.
+
+The best derivations form a smaller forest. For each summary, the implementation keeps the edges that attain the summary's least vector. Each kept edge leads to the summaries of its parts, with their own eligibility and cycle context. The stage finds `m` and `t` by a ranking with no lean over that forest. That ranking keeps the same distinctions, so it reaches a part only through the summary that its place allows.
+
+For example, take `text → [A] y [T] B` and `y → A A | A A B | A [U]`. `T` and `U` are elidable, and the stage declares `maximal`. On `A A B`, the least prefix before `[T]` over all edges uses `y → A A` and elides nothing. `maximal` forbids `T` after it, because `y → A A B` ends later. The only eligible prefix reads the first `A` alone and uses `y → A [U]`. A forest of the least edges over all derivations loses the only derivation that counts.
+
+A vector has N + 1 components. So a sparse vector, or a shared sequence of elisions, keeps the cost of each addition and comparison small.
 
 ## 7. Elision-only
 
