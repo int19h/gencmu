@@ -12,12 +12,13 @@ from importlib import resources
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
 from ._dom import DomBuilder
-from ._errors import GencmuError
-from ._grammar import Grammar, Lowered, lower, stitch
+from ._errors import ErrorData, GencmuError
+from ._grammar import MAX_LOWERED, Grammar, Lowered, lower, stitch
 from ._hash import fnv1a64
 from ._markdown import jbogenbau_text
 from ._model import Feature, Node, ParseError, ParseResult, ParseWarning, Stage, Token
 from ._pipeline import Pipeline, splice_pipeline
+from ._recent import Recent
 from ._stage import StageOutcome, StageRunner
 from ._tags import character_tag
 from ._unicode import UnicodeTable
@@ -83,12 +84,20 @@ def _read_bundled(path: str) -> str | None:
 
 
 _lock = threading.Lock()
-# Keyed by the texts themselves: a string caches its own hash, so a text
-# read once is found again at no cost.
-_unicode_tables: dict[str, UnicodeTable] = {}
-_readers: dict[tuple[str, str], NotationReader] = {}
-_compiled_indexes: dict[tuple[str, str, str], dict[str, Dom]] = {}
-_dom_cache: dict[tuple[str, str, str, int], Dom] = {}
+# The caches that loads share. They are keyed by the texts themselves: a
+# string caches its own hash, so a text read once is found again at no
+# cost. A process can load many dialects from texts that callers supply.
+# So each cache keeps only a few entries, and only so many characters of
+# the texts that key them. The least recently used goes first.
+_MAX_TEXTS = 4
+_MAX_TEXT_SIZE = 4_000_000
+_unicode_tables: Recent[str, UnicodeTable] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
+_readers: Recent[tuple[str, str], NotationReader] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
+_compiled_indexes: Recent[tuple[str, str, str], dict[str, Dom]] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
+# The DOMs that a reader read, each keyed by the hash of its document, and
+# sized by the length of that document.
+_MAX_DOMS = 256
+_MAX_DOM_SIZE = 4_000_000
 
 
 def _unicode_table(text: str) -> UnicodeTable:
@@ -97,7 +106,7 @@ def _unicode_table(text: str) -> UnicodeTable:
     if table is None:
         table = UnicodeTable(text)
         with _lock:
-            _unicode_tables[text] = table
+            _unicode_tables.put(text, table, len(text))
     return table
 
 
@@ -137,6 +146,9 @@ class NotationReader:
     def __init__(self, bootstrap: str, unicode: UnicodeTable) -> None:
         self.hash = fnv1a64(bootstrap)
         self.unicode = unicode
+        # The DOMs this reader read, by the hash of the text and the DOM
+        # format. The module's lock guards it.
+        self.doms: Recent[tuple[str, int], Dom] = Recent(_MAX_DOMS, _MAX_DOM_SIZE)
         where = "notation/bootstrap.json"
         try:
             data = json.loads(bootstrap)
@@ -230,7 +242,7 @@ def _reader(bootstrap: str, unicode_text: str) -> NotationReader:
     if reader is None:
         reader = NotationReader(bootstrap, _unicode_table(unicode_text))
         with _lock:
-            _readers[key] = reader
+            _readers.put(key, reader, len(bootstrap) + len(unicode_text))
     return reader
 
 
@@ -259,7 +271,7 @@ def _compiled_index(compiled: str | None, bootstrap_hash: str, unicode_text: str
         # follow included, is no cache: every document is read afresh.
         index = {}
     with _lock:
-        _compiled_indexes[key] = index
+        _compiled_indexes.put(key, index, len(compiled) + len(unicode_text))
     return index
 
 
@@ -296,20 +308,21 @@ class _Loader:
         if problem is not None:
             raise GencmuError(f"the document is not a sequence of Unicode scalar values: {problem}", kind="usage", document=path)
         text_hash = fnv1a64(text)
-        # The Unicode table is part of the key: a sound test that one table
-        # accepts another may refuse (engine §9).
-        key = (text_hash, self.reader.hash, self.resources.unicode, DOM_FORMAT)
+        # The reader keeps the DOMs it read. So the bootstrap and the Unicode
+        # table are part of the key: a sound test that one table accepts
+        # another may refuse (engine §9).
+        key = (text_hash, DOM_FORMAT)
         if self.use_cache:
             found = self.compiled.get(text_hash)
             if found is not None:
                 return found
             with _lock:
-                found = _dom_cache.get(key)
+                found = self.reader.doms.get(key)
             if found is not None:
                 return found
         dom = self.reader.read(text, path)
         with _lock:
-            _dom_cache[key] = dom
+            self.reader.doms.put(key, dom, len(text))
         return dom
 
     def pipeline(self, pipeline_path: str) -> Pipeline:
@@ -412,7 +425,9 @@ class Dialect:
         self.features = _dialect_features(path, stages, pipeline.features)
         self.grammars = stages
         self.unicode = unicode
-        self._lowered: dict[tuple[int, frozenset[str], bool], Lowered | GencmuError] = {}
+        # Each stage's lowered grammars, keyed by the gates that are on and
+        # by strictness, or the error that lowering found.
+        self._lowered: list[Recent[tuple[frozenset[str], bool], Lowered | ErrorData]] = [Recent(MAX_LOWERED) for _ in stages]
         self._lock = threading.Lock()
         for number in range(len(stages)):
             try:
@@ -427,18 +442,21 @@ class Dialect:
         return [grammar.stage for grammar in self.grammars]
 
     def lowered(self, number: int, features: frozenset[str], elision: bool) -> Lowered:
-        key = (number, features, elision)
+        # Only the gates that are on change the productions. So two sets of
+        # features with the same gates on share one lowered grammar.
+        gates = features & self.grammars[number].gates
+        key = (gates, elision)
         with self._lock:
-            found = self._lowered.get(key)
+            found = self._lowered[number].get(key)
         if found is None:
             try:
-                found = lower(self.grammars[number], features, elision)
+                found = lower(self.grammars[number], gates, elision)
             except GencmuError as error:
-                found = error
+                found = ErrorData.of(error)
             with self._lock:
-                self._lowered[key] = found
-        if isinstance(found, GencmuError):
-            raise found
+                self._lowered[number].put(key, found)
+        if isinstance(found, ErrorData):
+            raise found.error()
         return found
 
     def parse(
@@ -511,10 +529,23 @@ class Dialect:
         # §5). It has no attachments: a list that is not empty is the
         # caller's mistake, and an empty one is dropped (docs/api.md). The
         # parse copies each token, so the caller's objects stay as they are.
+        # The copy has its tags and positions in values that cannot change,
+        # so the result shares nothing that the caller can change.
         for index, token in enumerate(tokens):
             if token.before or token.after:
                 raise GencmuError(f"token {index} has attachments, which a caller cannot supply", kind="usage")
-        tokens = [replace(token, label=token.text, before=[], after=[]) for token in tokens]
+        tokens = [
+            replace(
+                token,
+                tags=frozenset(token.tags),
+                span=None if token.span is None else (token.span[0], token.span[1]),
+                source=(token.source[0], token.source[1]),
+                label=token.text,
+                before=[],
+                after=[],
+            )
+            for token in tokens
+        ]
         # Only a dialect that has sa-su as a gate adds it by itself, and not
         # when the caller has turned it off (engine §13).
         gated = any(feature.name == "sa-su" and feature.kind == "gate" for feature in self.features)

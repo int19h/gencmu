@@ -1,0 +1,62 @@
+{
+  "description": "A warning changes no lowering, so parses with and without it can share one. Each parse still gives the warnings of its own features. One loaded dialect parses with w off, on and off again (engine §3.1, §12, §13).",
+  "grammar": "%rule text w! A | B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "parses": [
+    {
+      "options": {},
+      "expect": {
+        "result": {
+          "ok": true
+        },
+        "warnings": [],
+        "brackets": "a"
+      }
+    },
+    {
+      "options": {
+        "features": [
+          "w"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": true
+        },
+        "warnings": [
+          {
+            "stage": "main",
+            "feature": "w",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          }
+        ],
+        "brackets": "a"
+      }
+    },
+    {
+      "options": {},
+      "expect": {
+        "result": {
+          "ok": true
+        },
+        "warnings": [],
+        "brackets": "a"
+      }
+    }
+  ]
+}

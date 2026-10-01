@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
+import gc
 import json
 import tempfile
 import unittest
+import weakref
 from pathlib import Path
 
 import gencmu
 from gencmu._dialect import DOM_FORMAT, bundled_text
 
-from .shared import case_sources
+from .shared import case_sources, load_case_dialect
 
 PIPELINE = """# A test dialect
 
@@ -712,3 +714,123 @@ class BundledGrammars(unittest.TestCase):
         assert result.error is not None
         self.assertEqual(result.error.stage, "syntax")
         self.assertTrue(probe.parse("lo mlatu ku cu klama").ok)
+
+
+class LoweringCaches(unittest.TestCase):
+    """A dialect keeps a lowered grammar for each set of a stage's gates that
+    is on, and a bounded number of them (engine §3.1, §13)."""
+
+    def test_unused_names_share_one_lowering(self) -> None:
+        dialect, error = load_case_dialect({"grammar": "%rule text f? 'x' | 'y'"})
+        assert dialect is not None, error
+        for index in range(50):
+            self.assertTrue(dialect.parse("y", features=[f"unused-{index}"], auto_features=False).ok)
+        self.assertEqual(len(dialect._lowered[0]), 1)
+        self.assertEqual(len(dialect.grammars[0]._classifier_tables), 1)
+
+    def test_bounded(self) -> None:
+        names = ["a", "b", "c", "d", "e", "f", "g"]
+        grammar = "%rule text " + " | ".join(f"{name}? 'x'" for name in names) + " | 'y'"
+        dialect, error = load_case_dialect({"grammar": grammar})
+        assert dialect is not None, error
+        for number in range(1 << len(names)):
+            features = [name for index, name in enumerate(names) if number & (1 << index)]
+            self.assertEqual(dialect.parse("x", features=features, auto_features=False).ok, bool(features), features)
+        self.assertLessEqual(len(dialect._lowered[0]), 16)
+        self.assertLessEqual(len(dialect.grammars[0]._classifier_tables), 16)
+
+    def test_classifier_tables_bounded(self) -> None:
+        """Every set of five classifier gates, twice: the second round
+        resolves again the tables that the first round dropped."""
+        names = ["a", "b", "c", "d", "e"]
+        entries = "".join(f'\n  {name}? "x" ∈ {name.upper()}' for name in names)
+        dialect, error = load_case_dialect({"grammar": f'%classifier c\n  "x" ∈ X{entries}\n%rule text $w(\'x\') <classify(text($w), c)>'})
+        assert dialect is not None, error
+        for _ in range(2):
+            for number in range(1 << len(names)):
+                features = [name for index, name in enumerate(names) if number & (1 << index)]
+                result = dialect.parse("x", features=features, auto_features=False)
+                assert result.tree is not None
+                self.assertEqual(result.tree.tags, frozenset(["X"] + [name.upper() for name in features]))
+        self.assertLessEqual(len(dialect.grammars[0]._classifier_tables), 16)
+
+
+class RepeatedFailures(unittest.TestCase):
+    """An error of the grammar that lowering finds is kept for later parses
+    with the same features. A parse that meets it keeps nothing of an
+    earlier one alive (engine §2, §13)."""
+
+    def test_no_earlier_input_stays_reachable(self) -> None:
+        dialect, error = load_case_dialect(
+            {"grammar": '%classifier c\n  "a" ∈ A\n  "a" ∈ A\n%rule text $w(\'a\') <classify(text($w), c)>'}
+        )
+        assert dialect is not None, error
+        tokens = []
+        for _ in range(5):
+            result = dialect.parse("a", auto_features=False)
+            self.assertFalse(result.ok)
+            assert result.error is not None
+            self.assertEqual(result.error.kind, "grammar")
+            tokens.append(weakref.ref(result.stages[0].input[0]))
+            del result
+        gc.collect()
+        self.assertEqual([token() for token in tokens], [None] * len(tokens))
+
+
+class SharedCaches(unittest.TestCase):
+    """The caches that loads share keep a few entries, and only so many
+    characters of the texts that key them. A process that loads dialects
+    from many texts does not keep them all."""
+
+    def test_recent_bounds_count_and_size(self) -> None:
+        from gencmu._recent import Recent
+
+        recent: Recent[str, int] = Recent(3, 9)
+        for index, key in enumerate("abcd"):
+            recent.put(key, index, 1)
+        self.assertEqual((len(recent), recent.get("a"), recent.get("d")), (3, None, 3))
+        recent.put("big", 9, 8)
+        self.assertEqual((len(recent), recent.size, recent.get("b"), recent.get("c")), (2, 9, None, None))
+        recent.put("huge", 0, 11)
+        self.assertEqual((len(recent), recent.size, recent.get("huge")), (0, 0, None))
+
+    def test_unicode_tables_are_dropped(self) -> None:
+        from gencmu import _dialect
+
+        unicode = bundled_text("unicode.txt")
+        assert unicode is not None
+        tables = []
+        for index in range(6):
+            sources, pipeline = case_sources({"grammar": "%rule text 'a'"})
+            # A different text, with the same table.
+            sources["unicode.txt"] = unicode + "\n" * (index + 1)
+            dialect = gencmu.load_dialect_sources(sources, pipeline)
+            self.assertTrue(dialect.parse("a").ok)
+            tables.append(weakref.ref(dialect.unicode))
+            del dialect
+        gc.collect()
+        self.assertLessEqual(len(_dialect._unicode_tables), _dialect._MAX_TEXTS)
+        self.assertLessEqual(len(_dialect._readers), _dialect._MAX_TEXTS)
+        self.assertLessEqual(sum(table() is not None for table in tables), _dialect._MAX_TEXTS)
+        self.assertIsNone(tables[0]())
+
+
+class CallerTokens(unittest.TestCase):
+    """A result shares nothing that can change with the caller's tokens
+    (docs/api.md)."""
+
+    def test_no_shared_values(self) -> None:
+        dialect, error = load_case_dialect({"grammar": "%rule text A"})
+        assert dialect is not None, error
+        tags = {"A"}
+        span = [0, 1]
+        source = [0, 1]
+        token = gencmu.Token("a", tags, span, source)  # type: ignore[arg-type]
+        result = dialect.parse_tokens([token], "a", auto_features=False)
+        self.assertTrue(result.ok)
+        tags.add("Z")
+        span[1] = 99
+        source[0] = 99
+        read = result.stages[0].input[0]
+        self.assertEqual((read.tags, tuple(read.span or ()), tuple(read.source)), (frozenset({"A"}), (0, 1), (0, 1)))
+        self.assertIsNot(read, token)

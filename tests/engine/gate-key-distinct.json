@@ -1,0 +1,61 @@
+{
+  "description": "Each set of features gets its own lowering. A feature whose name holds a comma or a space is one name, and not the names on either side of it. One loaded dialect parses with the one feature \"a,b\", then with a and b, then with the one feature \"a b\". No parse changes the answer of a later one (engine §3.1, §13).",
+  "grammar": "%rule text a? b? 'x' | ¬a? 'y'",
+  "input": "x",
+  "parses": [
+    {
+      "options": {
+        "features": [
+          "a,b"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": false
+        },
+        "error": "rejected"
+      }
+    },
+    {
+      "options": {
+        "features": [
+          "a",
+          "b"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": true
+        },
+        "brackets": "x"
+      }
+    },
+    {
+      "options": {
+        "features": [
+          "a b"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": false
+        },
+        "error": "rejected"
+      }
+    },
+    {
+      "options": {
+        "features": [
+          "a",
+          "b"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": true
+        },
+        "brackets": "x"
+      }
+    }
+  ]
+}

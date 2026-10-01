@@ -53,6 +53,7 @@ mod notation;
 mod output;
 mod pipeline;
 mod rank;
+mod recent;
 mod result;
 mod tags;
 mod tree;

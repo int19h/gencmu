@@ -89,8 +89,14 @@ export declare class Grammar {
     /** @type {StageImplication[]} */
     implications: StageImplication[];
     /**
-     * The classifiers resolved for each set of features, keyed as the
-     * lowered grammars are (engine §2).
+     * The features that gate an entry of a classifier. Only these change
+     * the classifiers' values.
+     * @type {string[]}
+     */
+    classifierGates: string[];
+    /**
+     * The classifiers resolved for each set of the classifier gates that is
+     * on (engine §2).
      * @type {Map<string, Map<string, Map<string, TagSet>>>}
      */
     classifierTables: Map<string, Map<string, Map<string, TagSet>>>;
@@ -99,7 +105,17 @@ export declare class Grammar {
      * @type {WeakMap<object, SymbolTest>}
      */
     tests: WeakMap<object, SymbolTest>;
-    /** @type {Map<string, LoweredGrammar>} */
+    /**
+     * The features that gate an alternative or an entry of a classifier.
+     * Only these change a lowered grammar. A warning keeps its alternative
+     * (engine §3.1), and any other name matches no guard (engine §13).
+     * @type {string[]}
+     */
+    gates: string[];
+    /**
+     * The lowered grammars, keyed by strictness and by the gates that are on.
+     * @type {Map<string, LoweredGrammar>}
+     */
     lowered: Map<string, LoweredGrammar>;
     /**
      * @param {string} stageName

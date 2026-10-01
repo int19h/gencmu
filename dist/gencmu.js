@@ -1543,7 +1543,7 @@
 
 
 
-  /** @import { Action, ParseError, ParseResult, ResultNode, Span } from "./types.js" */
+  /** @import { WitnessAction, ParseError, ParseResult, ResultNode, Span } from "./types.js" */
   /** @import { AttachedToken, Token } from "./tokens.js" */
 
   /**
@@ -1664,14 +1664,13 @@
   }
 
   /**
-   * @param {Action | null} action
+   * @param {WitnessAction | null} action
    * @returns {ActionJson | null}
    */
   function actionJson(action) {
     if (action === null) return null;
     if (action.kind === "read") return { read: { token: action.token, terminal: action.terminal } };
-    const production = action.item.production;
-    return { close: { rule: production.owner, production: production.id, span: [action.item.origin, action.item.end] } };
+    return { close: { rule: action.rule, production: action.production, span: [action.span[0], action.span[1]] } };
   }
 
   /**
@@ -3346,7 +3345,7 @@
 
 
   /**
-   * @import { Action, Condition, Expr, ParseResult, ResultNode, Span, StageReport, TagSet, Term, Argument, Production } from "./types.js"
+   * @import { WitnessAction, Condition, Expr, ParseResult, ResultNode, Span, StageReport, TagSet, Term, Argument, Production } from "./types.js"
    * @import { Token } from "./tokens.js"
    * @import { Dialect } from "./dialect.js"
    * @import { TraceEvent } from "./earley.js"
@@ -3441,16 +3440,15 @@
   // ---- Ties ----------------------------------------------------------------
 
   /**
-   * @param {Action | null} action
+   * @param {WitnessAction | null} action
    * @param {Token[]} tokens
    * @returns {string}
    */
   function describeAction(action, tokens) {
     if (!action) return "ends there";
     if (action.kind === "read") return `reads ${quoted(tokens[action.token] ? tokens[action.token].text : "")} as ${action.terminal}`;
-    const production = action.item.production;
-    const rule = production.helper ? `part of ${production.owner}` : production.lhs;
-    return `closes ${rule} over tokens ${action.item.origin} to ${action.item.end}`;
+    const rule = action.helper ? `part of ${action.rule}` : action.rule;
+    return `closes ${rule} over tokens ${action.span[0]} to ${action.span[1]}`;
   }
 
   /**
@@ -3487,7 +3485,7 @@
       const tokens = stage.input || [];
       const [chosen, tied] = stage.witness;
       const action = chosen || tied;
-      const at = action ? (action.kind === "read" ? action.token : action.item.end) : 0;
+      const at = action ? (action.kind === "read" ? action.token : action.span[1]) : 0;
       const lines = [`The ${stage.name} stage is ambiguous: its grammar reads the text two ways, which first differ here:`];
       if (tokens.length) {
         const token = tokens[Math.min(at, tokens.length - 1)];
@@ -4099,6 +4097,11 @@
 
   const MAX_CAPTURES = 4;
 
+  // The most lowered grammars, and the most classifier tables, that a stage
+  // keeps. Each set of the stage's gates that is on has its own, so a stage
+  // with k gates can have 2^k of them. The least recently used goes first.
+  const MAX_LOWERED = 16;
+
   // Stitches documents, each { path, dom }, into one grammar.
   class Grammar {
     /**
@@ -4140,8 +4143,14 @@
       /** @type {StageImplication[]} */
       this.implications = this.implicationItems.map(({ path, implication }) => this.resolveImplication(path, implication));
       /**
-       * The classifiers resolved for each set of features, keyed as the
-       * lowered grammars are (engine §2).
+       * The features that gate an entry of a classifier. Only these change
+       * the classifiers' values.
+       * @type {string[]}
+       */
+      this.classifierGates = gateNames(this.classifierItems.flatMap(({ classifier }) => classifier.entries.flatMap((entry) => entry.guards)));
+      /**
+       * The classifiers resolved for each set of the classifier gates that is
+       * on (engine §2).
        * @type {Map<string, Map<string, Map<string, TagSet>>>}
        */
       this.classifierTables = new Map();
@@ -4155,7 +4164,20 @@
         throw new GencmuError("grammar", `stage ${stageName} has no %ambiguity-resolution`, { stage: stageName });
       }
       this.checkReferences();
-      /** @type {Map<string, LoweredGrammar>} */
+      /**
+       * The features that gate an alternative or an entry of a classifier.
+       * Only these change a lowered grammar. A warning keeps its alternative
+       * (engine §3.1), and any other name matches no guard (engine §13).
+       * @type {string[]}
+       */
+      this.gates = gateNames([
+        ...[...this.rules.values()].flatMap((rule) => rule.alternatives.flatMap((alternative) => alternative.guards)),
+        ...this.classifierItems.flatMap(({ classifier }) => classifier.entries.flatMap((entry) => entry.guards)),
+      ]);
+      /**
+       * The lowered grammars, keyed by strictness and by the gates that are on.
+       * @type {Map<string, LoweredGrammar>}
+       */
       this.lowered = new Map();
     }
 
@@ -4256,8 +4278,8 @@
      * @returns {Map<string, Map<string, TagSet>>}
      */
     classifiers(features) {
-      const key = [...features].sort().join(",");
-      let tables = this.classifierTables.get(key);
+      const key = JSON.stringify(this.classifierGates.filter((name) => features.has(name)));
+      let tables = recall(this.classifierTables, key);
       if (tables) return tables;
       tables = new Map();
       for (const { path, classifier } of this.classifierItems) {
@@ -4279,7 +4301,7 @@
           }
         }
       }
-      this.classifierTables.set(key, tables);
+      remember(this.classifierTables, key, tables);
       return tables;
     }
 
@@ -4546,17 +4568,59 @@
      * @returns {LoweredGrammar}
      */
     lower(features, strict) {
-      const key = [...features].sort().join(",") + (strict ? "|strict" : "");
-      let lowered = this.lowered.get(key);
+      // Only the gates that are on change the productions. So two sets of
+      // features with the same gates on share one lowered grammar.
+      const on = new Set(this.gates.filter((name) => features.has(name)));
+      const key = JSON.stringify([strict, [...on]]);
+      let lowered = recall(this.lowered, key);
       if (!lowered) {
         // The stage resolves its classifiers for the same features, before it
         // lowers its rules (engine §2, §3).
-        const classifiers = this.classifiers(features);
-        lowered = { ...new Lowering(this, features, strict).run(), classifiers, implications: this.implications };
-        this.lowered.set(key, lowered);
+        const classifiers = this.classifiers(on);
+        lowered = { ...new Lowering(this, on, strict).run(), classifiers, implications: this.implications };
+        remember(this.lowered, key, lowered);
       }
       return lowered;
     }
+  }
+
+  /**
+   * The names of the features that gate, in code point order, each once.
+   * @param {Guard[]} guards
+   * @returns {string[]}
+   */
+  function gateNames(guards) {
+    const names = new Set(guards.filter((guard) => guard.kind !== "warning").map((guard) => guard.feature));
+    return [...names].sort(compareCodePoints);
+  }
+
+  /**
+   * The value of a key in a bounded cache, now the most recently used.
+   * @template T
+   * @param {Map<string, T>} cache
+   * @param {string} key
+   * @returns {T | undefined}
+   */
+  function recall(cache, key) {
+    const value = cache.get(key);
+    if (value !== undefined) {
+      cache.delete(key);
+      cache.set(key, value);
+    }
+    return value;
+  }
+
+  /**
+   * Adds a value to a bounded cache, and drops the least recently used
+   * value when the cache is full.
+   * @template T
+   * @param {Map<string, T>} cache
+   * @param {string} key
+   * @param {T} value
+   */
+  function remember(cache, key, value) {
+    cache.set(key, value);
+    if (cache.size > MAX_LOWERED) cache.delete(/** @type {string} */ (cache.keys().next().value));
   }
 
   const TYPE_PHRASES = { string: "a string", strings: "a set of strings", tags: "a tag set", span: "a span", set: "a set", any: "a value" };
@@ -5959,7 +6023,7 @@
 
 
   /**
-   * @import { Derivation, DerivationRule, ElidedNode, EmitItem, ResultNode, Scope, Span, StageReport, TagSet } from "./types.js"
+   * @import { Action, Derivation, DerivationRule, ElidedNode, EmitItem, ResultNode, Scope, Span, StageReport, TagSet } from "./types.js"
    * @import { Grammar } from "./grammar.js"
    * @import { UnicodeTable } from "./unicode.js"
    */
@@ -6038,7 +6102,7 @@
         // A tie always has a second derivation, and so a witness.
         Object.assign(report, {
           verdict: "tie",
-          witness: /** @type {import("./types.js").Witness} */ (ranking.witness),
+          witness: witnessOf(/** @type {[Action | null, Action | null]} */ (ranking.witness)),
           tied: resultTree(derivationTree(/** @type {import("./types.js").Rope} */ (ranking.second)), context)[0],
         });
       } else {
@@ -6046,8 +6110,6 @@
       }
       const derivation = derivationTree(ranking.chosen);
       report.tree = resultTree(derivation, context)[0];
-      report.derivation = derivation;
-      report.context = context;
       report.warnings = warningsOf(derivation, context, features, this.name);
       try {
         report.output = emit(derivation, context);
@@ -6389,6 +6451,23 @@
       }]);
     }
     return result;
+  }
+
+  /**
+   * A witness as plain data of the result's own: an action that closes a
+   * production names it by its rule and number, and holds no chart item.
+   * @param {[Action | null, Action | null]} actions
+   * @returns {import("./types.js").Witness}
+   */
+  function witnessOf(actions) {
+    /** @type {(action: Action | null) => import("./types.js").WitnessAction | null} */
+    const plain = (action) => {
+      if (action === null) return null;
+      if (action.kind === "read") return { kind: "read", token: action.token, terminal: action.terminal };
+      const { production, origin, end } = action.item;
+      return { kind: "close", rule: production.owner, production: production.id, helper: production.helper, span: [origin, end] };
+    };
+    return [plain(actions[0]), plain(actions[1])];
   }
 
   /** @implements {Scope} */
@@ -8163,7 +8242,8 @@
       // A token that the caller supplies has its text as its label (engine §5).
       // It has no attachments: a list that is not empty is the caller's
       // mistake, and an empty one is dropped (docs/api.md). The parse copies
-      // each token, so the caller's objects stay as they are.
+      // each token, its tags and its positions, so the caller's objects stay
+      // as they are, and the result shares none of them.
       if (options.tokens) {
         options.tokens.forEach((token, index) => {
           if ((token.before && token.before.length > 0) || (token.after && token.after.length > 0)) {
@@ -8171,7 +8251,7 @@
           }
         });
         options = { ...options, tokens: options.tokens.map((token) =>
-          new Token(token.tags, token.span, token.source, token.text, token.phonemes, token.insertedBy)) };
+          new Token(new Set(token.tags), [token.span[0], token.span[1]], [token.source[0], token.source[1]], token.text, token.phonemes, token.insertedBy)) };
       }
       // The features on are the pipeline's, with the caller's added and the
       // caller's turned off removed (engine §13).
@@ -8223,6 +8303,7 @@
         if (report.error) break;
         tokens = /** @type {Token[]} */ (report.output);
       }
+      ownTags(stages.slice(continued ? continued.stages.length : 0));
       const final = stages[stages.length - 1];
       const error = stages.find((stage) => stage.error);
       const result = {
@@ -8235,6 +8316,50 @@
         features: [...options.features].sort(),
       };
       return result;
+    }
+  }
+
+  /**
+   * Gives every token and rule node of the stages a tag set of its own. A
+   * stage can put a set that its grammar holds on a token or a node: the
+   * value of a constant, the classes of a classifier or the tags of a range.
+   * A caller's token can also bring its own set. So a caller that changes a
+   * result changes no later parse, and a later change to the caller's set
+   * does not change the result.
+   * @param {StageReport[]} stages
+   */
+  function ownTags(stages) {
+    /** @type {Set<object>} */
+    const seen = new Set();
+    // An explicit stack, since a chain of attachments can be as deep as a
+    // long text is long.
+    /** @type {(first: import("./tokens.js").AttachedToken) => void} */
+    const ownToken = (first) => {
+      const stack = [first];
+      for (let token = stack.pop(); token !== undefined; token = stack.pop()) {
+        if (seen.has(token)) continue;
+        seen.add(token);
+        token.tags = new Set(token.tags);
+        for (const attached of token.before) stack.push(attached);
+        for (const attached of token.after) stack.push(attached);
+      }
+    };
+    /** @type {(root: ResultNode) => void} */
+    const ownTree = (root) => {
+      const stack = [root];
+      for (let node = stack.pop(); node !== undefined; node = stack.pop()) {
+        if (node.kind !== "rule" || seen.has(node)) continue;
+        seen.add(node);
+        node.tags = new Set(node.tags);
+        for (const child of node.children) stack.push(child);
+      }
+    };
+    for (const stage of stages) {
+      if (stage.input) stage.input.forEach(ownToken);
+      if (stage.output) stage.output.forEach(ownToken);
+      if (stage.tree) ownTree(stage.tree);
+      if (stage.tied) ownTree(stage.tied);
+      if (stage.error && stage.error.readings) stage.error.readings.forEach(ownTree);
     }
   }
 
@@ -8531,8 +8656,31 @@
 
   /**
    * Where the chosen and the tied derivation first differ: their actions
-   * there, null on the side of one that ended.
-   * @typedef {[Action | null, Action | null]} Witness
+   * there, null on the side of one that ended. The witness is plain data of
+   * the result's own, and shares nothing with the grammar.
+   * @typedef {[WitnessAction | null, WitnessAction | null]} Witness
+   */
+
+  /**
+   * An action of a witness: a token read, or a production closed.
+   * @typedef {WitnessRead | WitnessClose} WitnessAction
+   */
+
+  /**
+   * @typedef {object} WitnessRead
+   * @property {"read"} kind
+   * @property {number} token the index of the token in the stage's input
+   * @property {string} terminal the terminal that read it
+   */
+
+  /**
+   * @typedef {object} WitnessClose
+   * @property {"close"} kind
+   * @property {string} rule the rule of the production; for a helper, the
+   *   rule whose alternative introduced it
+   * @property {number} production the number of the production (engine §3)
+   * @property {boolean} helper whether the production is a helper's
+   * @property {Span} span the tokens that the production covers
    */
 
   /**
@@ -8543,8 +8691,6 @@
    * @property {ResultNode | null} tree
    * @property {ParseError | null} error
    * @property {Token[]} [input] the tokens the stage read
-   * @property {Derivation} [derivation] the chosen derivation, helpers and all
-   * @property {ParseContext} [context]
    * @property {ParseWarning[]} [warnings] the warnings of the chosen tree
    *   (engine §12); absent for a stage that rejected its input
    */
