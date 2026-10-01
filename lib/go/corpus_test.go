@@ -132,16 +132,25 @@ func corpusOutcomeOf(res *ParseResult, canonical any) (map[string]any, error) {
 }
 
 // The corpus runner refuses a result that breaks an invariant of a tie,
-// whatever the case expects, on every tied case of the corpus
-// (tests/README.md).
+// whatever the case expects (tests/README.md). No text ties in a bundled
+// dialect, so a tied engine case of two stages stands for a tied corpus
+// case, beside any tied case that the corpus has.
 func TestCorpusRunnerInvariants(t *testing.T) {
+	ec := loadCase(t, "../../tests/engine/attach-tie.json")
+	d, err := caseDialect(ec, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := runCase(d, ec, &caseOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkTieMutants(t, "engine/attach-tie.json", res)
 	dialects := map[string]*Dialect{}
-	tied := 0
 	for _, c := range readCorpus(t) {
 		if _, ok := c.fields["ties"]; !ok {
 			continue
 		}
-		tied++
 		d := dialects[c.Dialect]
 		if d == nil {
 			var err error
@@ -157,19 +166,31 @@ func TestCorpusRunnerInvariants(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		data, _ := MarshalResult(res)
-		for name, mutate := range tieMutants {
-			var got map[string]any
-			json.Unmarshal(data, &got)
-			stages := got["stages"].([]any)
-			mutate(got, stages[len(stages)-1].(map[string]any))
-			if _, err := corpusOutcomeOf(res, got); err == nil {
-				t.Errorf("%s, %s: the corpus runner accepts it", c.ID, name)
-			}
-		}
+		checkTieMutants(t, c.ID, res)
 	}
-	if tied == 0 {
-		t.Fatal("the corpus has no tied case")
+}
+
+// checkTieMutants holds a tied result to the invariants, and each mutant of
+// it to a refusal.
+func checkTieMutants(t *testing.T, id string, res *ParseResult) {
+	t.Helper()
+	data, _ := MarshalResult(res)
+	var whole map[string]any
+	json.Unmarshal(data, &whole)
+	if _, err := corpusOutcomeOf(res, whole); err != nil {
+		t.Fatalf("%s: %v", id, err)
+	}
+	if e, _ := whole["error"].(map[string]any); e == nil || e["reason"] != "tie" {
+		t.Fatalf("%s: the result is not a tie", id)
+	}
+	for name, mutate := range tieMutants {
+		var got map[string]any
+		json.Unmarshal(data, &got)
+		stages := got["stages"].([]any)
+		mutate(got, stages[len(stages)-1].(map[string]any))
+		if _, err := corpusOutcomeOf(res, got); err == nil {
+			t.Errorf("%s, %s: the corpus runner accepts it", id, name)
+		}
 	}
 }
 

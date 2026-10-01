@@ -38,7 +38,7 @@ The layer does not declare `elision-only`, the option that applies CLL's rule th
 - In a tanru and between operators, a `ke` directly after a joik opens the connective's own `ke` group ("Selbri and tanru").
 - A connection that can be a sumti connection is one ("Terms").
 - A `be` group attaches to the tanru unit before it ("Selbri and tanru").
-- A subscript after a subscript nests ("Free modifiers, vocatives and indicators").
+- A subscript after a subscript nests. Any other free modifier after a subscript belongs to the word that the subscript marks ("Free modifiers, vocatives and indicators").
 
 `%elidable` adds the experimental terminators `ku'au` and `ku'oi` to CLL's.
 
@@ -769,6 +769,12 @@ A subscript after a subscript nests. CLL 18.13 says: "By convention, a subscript
 
 Without the rule, the two readings elide the same terminators. camxes-exp nests as well, and camxes-std reads two subscripts of the first `xa`.
 
+Any other free modifier after the mekso of a subscript attaches to the word that the subscript marks. CLL's grammar has no slot of free modifiers after a subscript: `XI # (number | lerfu-string) /BOI/`. So in `mi broda xi pa boi to do toi`, the subscript and the parenthesis both belong to `broda`. The official parser of CLL reads the text in this way. The same holds where `boi` is elided, and after `vei ... ve'o`.
+
+The second condition on the `xi` form of `free` states this rule. `mekso-ending-in-free` is a mekso that ends with a free modifier other than a subscript. A subscript's mekso cannot be one. Without the rule, the two readings elide the same terminators.
+
+camxes-exp departs here. It reads the mekso of a subscript as `mex_2`, which ends with its own free modifiers, so the parenthesis goes inside the subscript. That is a side effect of the reuse of `mex_2`, and not a choice that its grammar states.
+
 ```jbogenbau
 %redefine-rule free
   | SEI # [terms [CU #]] selbri [SEhU]
@@ -782,7 +788,13 @@ Without the rule, the two readings elide the same terminators. camxes-exp nests 
   | LEhAI
   | ¬soi-clause? SOI # sumti [sumti] [SEhU]
 %conditions
-  XI ⊈ tags(head(after($m)))
+  XI ⊈ tags(head(after($m))),
+  ¬matches($m, mekso-ending-in-free)
+
+%rule mekso-ending-in-free
+  mex-2 [free ...] $f(free)
+%conditions
+  XI ⊈ tags(head($f))
 
 %rule name-marker
   LE="la" | LE="lai" | LE="la'i"

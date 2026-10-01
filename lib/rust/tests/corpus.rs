@@ -210,20 +210,20 @@ fn the_corpus() {
 }
 
 /// The corpus runner refuses the canonical result of a tied case once it
-/// breaks any part of the invariants, the whole error and tree included.
+/// breaks any part of the invariants, the whole error and tree included. No
+/// text ties in a bundled dialect, so a tied engine case of two stages
+/// stands for a tied corpus case.
 #[test]
 fn the_corpus_runner_refuses_a_result_that_breaks_an_invariant() {
-    let case = all_cases()
-        .into_iter()
-        .find(|case| case.get("id").and_then(Value::str) == Some("adhoc.camxes-exp.ties.free-after-subscript"))
-        .expect("the tied case");
-    let name = case.get("dialect").and_then(Value::str).expect("a dialect");
-    let dialect = gencmu::load_dialect(name).expect("a bundled dialect");
-    let got = outcome(&dialect, &case).expect("the result keeps the invariants");
-    assert_eq!(compare(&case, &got), None);
-    let text = case.get("text").and_then(Value::str).expect("a text");
-    let json = parse_json(&gencmu::to_json(&dialect.parse(text, &gencmu::ParseOptions::default()).unwrap())).unwrap();
+    let file = repository().join("tests/engine/attach-tie.json");
+    let case = parse_json(&std::fs::read_to_string(&file).expect("the tied engine case")).expect("JSON");
+    let (documents, pipeline) = common::case_documents(&case);
+    let dialect = gencmu::load_dialect_sources(documents, &pipeline).expect("the dialect of the case");
+    let text = case.get("input").and_then(Value::str).expect("an input");
+    let options = gencmu::ParseOptions { auto_features: false, ..gencmu::ParseOptions::default() };
+    let json = parse_json(&gencmu::to_json(&dialect.parse(text, &options).unwrap())).unwrap();
     assert_eq!(invariants(&json), Ok(()));
+    assert_eq!(json.get("error").and_then(|error| error.get("reason")).and_then(Value::str), Some("tie"));
 
     // A copy of an object with one member set, or removed for `None`.
     fn with(object: &Value, key: &str, value: Option<Value>) -> Value {

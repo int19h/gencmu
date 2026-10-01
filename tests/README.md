@@ -106,7 +106,7 @@ Each line is one case: a Lojban text, with the result that gencmu must give for 
 - `ties`, when present, names the stage whose verdict is `tie`. A tie ends the run, so at most one stage has it, and that stage can come before the last.
 - `words` records the word stage's output when that output is present. The case writes each token as its label (engine §5). So a pause inside a word is a space, and an opaque part is its text.
 
-A runner also checks the invariants of a tie (above) on the result of each corpus case. A case runs with auto features on, which is the default of the API. The case matches when every one of those fields that the case or the result of the library has is equal.
+A runner also checks the invariants of a tie (above) on the result of each corpus case. No corpus text ties in its dialect, so each library also tests that its runner refuses a broken tie with the engine case `attach-tie.json`. A case runs with auto features on, which is the default of the API. The case matches when every one of those fields that the case or the result of the library has is equal.
 
 The corpus started from a seed: a fixture collection whose verdicts came from another parser. Where the expectation of gencmu differs from that seed, the case says so. `"seeded": "accept"` or `"reject"` is the verdict of the seed, and `reason` says why gencmu differs, in terms of its own grammars. `node tools/corpus-departures.js` lists every such case, grouped by reason. A change to the `words` or `brackets` of a case needs no field of its own. It is a change to what gencmu produces, made in the same commit as the grammar change that causes it.
 

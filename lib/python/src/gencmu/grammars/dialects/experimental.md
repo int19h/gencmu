@@ -149,7 +149,7 @@ After `to`, indicators begin the parenthesis, as they begin a quote after `lu`. 
 
 A quote or a parenthesis whose terminator is elided can hold a fragment of terms or a whole sentence. So `to mi klama` holds `mi` or `mi klama`. The reading with `mi` elides `vau` and `toi` after `mi`, so `late-elision` takes the sentence, as camxes-exp does.
 
-One kind of text still ties. A free modifier after a subscript with a written terminator can belong to the subscript or to the word that the subscript marks. So `mi broda xi pa boi to do toi` has two readings, which elide the same terminators, and the dialect reports a tie. camxes-exp gives the parenthesis to the subscript.
+A free modifier after a subscript can belong to the subscript or to the word that the subscript marks. The dialect gives it to the word, as CLL's grammar does. So in `mi broda xi pa boi to do toi`, the parenthesis belongs to `broda`. camxes-exp gives it to the subscript.
 
 In `ge nai abu gi no drata`, a forethought connective can connect two sumti or make a quantifier. The dialect connects the sumti `abu` and `no drata`, as CLL does. A CLL quantifier is a number or a `vei ... ve'o` group. camxes-exp reads the quantifier `ge nai abu gi no` with the selbri `drata`. Where no sumti reading remains, the dialect rejects the text, as CLL does. So it rejects `ge abu gi by broda cu klama`, which camxes-exp reads with the quantifier `ge abu gi by`.
 

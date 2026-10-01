@@ -16,7 +16,7 @@ import unittest
 from concurrent.futures import ProcessPoolExecutor
 from typing import Any, Callable
 
-from .shared import SHARED, result_problems
+from .shared import SHARED, load_case, load_case_dialect, parse_case, result_problems
 
 FIELDS = ("expect", "verdict", "stage", "error", "ties", "words", "brackets")
 
@@ -126,9 +126,10 @@ class Corpus(unittest.TestCase):
 
     def test_a_result_that_breaks_an_invariant_is_refused(self) -> None:
         """The runner checks the whole invariant of a tie on the canonical
-        result of each tied corpus case (tests/README.md)."""
+        result of each tied corpus case (tests/README.md). No text ties in a
+        bundled dialect, so a tied engine case of two stages stands for a
+        tied corpus case, beside any tied case that the corpus has."""
         tied_cases = [case for case in all_cases() if "ties" in case]
-        self.assertTrue(tied_cases, "the corpus has tied cases")
 
         def tied(value: dict[str, Any], **changes: Any) -> dict[str, Any]:
             stages = list(value["stages"])
@@ -153,6 +154,17 @@ class Corpus(unittest.TestCase):
                 "error": {key: found for key, found in value["error"].items() if key != "reason"},
             },
         }
+        engine_case = load_case(SHARED / "engine" / "attach-tie.json")
+        dialect, load_error = load_case_dialect(engine_case)
+        self.assertIsNone(load_error)
+        assert dialect is not None
+        value = parse_case(dialect, engine_case)[0]
+        assert value is not None
+        self.assertEqual(value["error"]["reason"], "tie")
+        self.assertEqual(result_problems(value), [])
+        for name, mutate in mutants.items():
+            with self.subTest(case="engine/attach-tie.json", mutant=name):
+                self.assertNotEqual(result_problems(mutate(value)), [])
         for case in tied_cases:
             self.assertIsNone(mismatch(case, outcome(case)))
             for name, mutate in mutants.items():

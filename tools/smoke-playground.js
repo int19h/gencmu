@@ -172,16 +172,23 @@ async function main() {
       throw new Error(`${rejected} was not explained as a rejection: ${JSON.stringify(explained)}`);
     }
 
-    // A tie is an error, shown with its two readings and no tree.
-    const tied = "mi broda xi pa boi to do toi";
-    await choose("dialects/experimental.md");
+    // A tie is an error, shown with its two readings and no tree. No text
+    // ties in a bundled dialect, so an edited pipeline stands in for one: its
+    // stage syntax reads "w" as either of two rules.
+    const tiedPipeline = "dialects/zantufa.md";
+    await run((path) => self.playground.client.setDocument(path, "# A tie\n\n```jbogenbau\n" +
+      "%stage syntax\n%ambiguity-resolution greedy\n%rule text a | b\n%rule a 'w'\n%rule b 'w'\n```\n"), tiedPipeline);
+    await choose(tiedPipeline);
+    const tied = "w";
     await type(tied);
     const tie = await answerFor(tied);
     if (tie.error) throw new Error(`the playground failed: ${tie.error}`);
     if (!/a tie in the syntax stage/.test(tie.verdict) || !/The syntax stage is ambiguous/.test(tie.explanation) ||
-        !/first\(/.test(tie.explanation) || !/second\(/.test(tie.explanation) || tie.output !== "") {
+        !/first/.test(tie.explanation) || !/second/.test(tie.explanation) || tie.output !== "") {
       throw new Error(`${tied} was not shown as a tie: ${JSON.stringify(tie)}`);
     }
+    await run((path) => self.playground.client.setDocument(path, self.gencmuGrammars[path]), tiedPipeline);
+    await choose("dialects/experimental.md");
 
     // Texts typed while earlier ones are still being parsed, one of them long
     // enough to be parsing when the next arrives.
