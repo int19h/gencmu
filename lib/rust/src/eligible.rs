@@ -13,6 +13,8 @@
 //! it has an eligible proof tree, and P, it has an eligible proof tree whose
 //! fixed prefix permits the optional after it to be empty.
 
+use std::cell::{Cell, OnceCell};
+
 use crate::earley::{test_holds, Cap, Chart, Item, Tok};
 use crate::fxhash::FxMap;
 use crate::lower::{Lowered, Sym};
@@ -48,17 +50,47 @@ enum Next {
     Constituent,
 }
 
+/// The completed items of the chart by rule and origin, each with its
+/// place, in the order of their sets.
+type CompletedIndex = FxMap<(u32, u32), Vec<Place>>;
+
 /// The chart of one nested parse, with what reading it needs.
 pub(crate) struct Proofs<'a> {
-    pub g: &'a Lowered,
-    pub chart: &'a Chart,
+    g: &'a Lowered,
+    chart: &'a Chart,
     /// The tokens of the nested parse's span alone.
-    pub tokens: &'a [Tok],
-    pub unicode: &'a Unicode,
-    pub tags: &'a Tags,
+    tokens: &'a [Tok],
+    unicode: &'a Unicode,
+    tags: &'a Tags,
+    /// The completed items of the whole chart by rule and origin, built
+    /// once, when the first search for a blocking path needs it.
+    index: OnceCell<CompletedIndex>,
+    /// How many entries of the chart the searches have looked at: the
+    /// index once, and then each completed item they read.
+    operations: Cell<u64>,
 }
 
-impl Proofs<'_> {
+impl<'a> Proofs<'a> {
+    pub(crate) fn new(
+        g: &'a Lowered,
+        chart: &'a Chart,
+        tokens: &'a [Tok],
+        unicode: &'a Unicode,
+        tags: &'a Tags,
+    ) -> Proofs<'a> {
+        Proofs { g, chart, tokens, unicode, tags, index: OnceCell::new(), operations: Cell::new(0) }
+    }
+
+    /// How many entries of the chart the searches have looked at so far.
+    #[cfg(test)]
+    pub(crate) fn operations(&self) -> u64 {
+        self.operations.get()
+    }
+
+    fn count(&self, entries: usize) {
+        self.operations.set(self.operations.get() + entries as u64);
+    }
+
     fn item(&self, (set, index): Place) -> Item {
         self.chart.sets[set as usize].items[index as usize]
     }
@@ -87,16 +119,23 @@ impl Proofs<'_> {
         self.chart.sets.get(set as usize)?.find(&next).map(|index| (set, index))
     }
 
-    /// The completed items of `rule` from `origin`, each with its place.
+    /// The completed items of `rule` from `origin`, each with its place,
+    /// from an index of the whole chart, which one pass over the chart
+    /// builds for the whole query.
     fn completed(&self, rule: u32, origin: u32) -> impl Iterator<Item = Place> + '_ {
-        (origin as usize..self.chart.sets.len()).flat_map(move |set| {
-            self.chart.sets[set]
-                .completed
-                .get(&(rule, origin))
-                .into_iter()
-                .flatten()
-                .map(move |&index| (set as u32, index))
-        })
+        let index = self.index.get_or_init(|| {
+            let mut index = CompletedIndex::default();
+            for (set, entries) in self.chart.sets.iter().enumerate() {
+                self.count(entries.completed.len());
+                for (&key, list) in &entries.completed {
+                    index.entry(key).or_default().extend(list.iter().map(|&at| (set as u32, at)));
+                }
+            }
+            index
+        });
+        let found = index.get(&(rule, origin)).map_or(&[][..], Vec::as_slice);
+        self.count(found.len());
+        found.iter().copied()
     }
 
     /// The constituent of a completed item at `place`.
@@ -709,7 +748,7 @@ mod tests {
         if witnesses.is_empty() {
             return None;
         }
-        let proofs = Proofs { g: &g, chart: &chart, tokens: &input, unicode: &dialect.unicode, tags: &shared.tags };
+        let proofs = Proofs::new(&g, &chart, &input, &dialect.unicode, &shared.tags);
         let got = proofs.eligible(&witnesses);
         let mut oracle = Oracle::new(&g, &tokens, start);
         let mut truth = Vec::new();
@@ -723,6 +762,50 @@ mod tests {
             truth.push(oracle.search((item.prod, item.dot, 0, set, captured), false, &mut HashSet::new()).ok()?);
         }
         Some((got, truth, format!("{document}tokens {tokens:?}")))
+    }
+
+    /// The searches for a blocking path read an index of the chart that
+    /// one pass builds, not every later set of the chart for each
+    /// omission. So with no written terminator in the text, the number of
+    /// entries that they look at grows linearly with the text.
+    #[test]
+    fn the_searches_for_blocking_paths_look_at_each_set_once() {
+        let grammar = "%ambiguity-resolution greedy\n%elidable T\n%rule text body B\n%conditions matches($, r)\n\
+                       %rule body A ...\n%rule r parts B\n%rule parts part ...\n%rule part A [T]\n";
+        let sources = [("main.md", format!("```jbogenbau\n{grammar}```\n")), ("p.md", PIPELINE.to_string())];
+        let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
+        let g = dialect.lowered_stage(0);
+        let start = g.rules.iter().position(|rule| rule.name == "r" && !rule.helper).expect("r") as u32;
+        let operations = |n: usize| {
+            let chars: Vec<char> = vec![' '; (n + 1) * 2];
+            let mut shared = Shared::new(&dialect.unicode, &chars);
+            let input: Vec<Tok> = (0..=n)
+                .map(|index| Tok {
+                    text: "x".to_string(),
+                    tags: shared.tags.set_of([if index < n { "A" } else { "B" }]),
+                    phonemes: None,
+                    source: (index * 2, index * 2 + 1),
+                    label: "x".to_string(),
+                    sound: Default::default(),
+                    before: Vec::new(),
+                    after: Vec::new(),
+                })
+                .collect();
+            let matchers = matchers(&g, &mut shared.tags);
+            let chart = Recognizer { g: &g, matchers: &matchers, shared: &mut shared }
+                .recognize(&input, 0, start)
+                .expect("a chart");
+            let end = n as u32 + 1;
+            let witnesses: Vec<(u32, u32)> =
+                chart.sets[end as usize].completed[&(start, 0)].iter().map(|&index| (end, index)).collect();
+            let proofs = Proofs::new(&g, &chart, &input, &dialect.unicode, &shared.tags);
+            assert_eq!(proofs.eligible(&witnesses), vec![true; witnesses.len()]);
+            proofs.operations()
+        };
+        let (small, large) = (operations(500), operations(2000));
+        assert!(small > 0, "the searches ran");
+        // Four times the text costs about four times as much, not sixteen.
+        assert!(large < small * 6, "{small} operations for 500 tokens, {large} for 2000");
     }
 
     #[test]

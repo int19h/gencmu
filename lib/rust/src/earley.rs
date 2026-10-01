@@ -647,7 +647,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
 
     /// The proof trees of a nested parse's chart over `tokens`, its span.
     fn proofs<'c>(&'c self, chart: &'c Chart, tokens: &'c [Tok]) -> Proofs<'c> {
-        Proofs { g: self.g, chart, tokens, unicode: self.shared.unicode, tags: &self.shared.tags }
+        Proofs::new(self.g, chart, tokens, self.shared.unicode, &self.shared.tags)
     }
 
     /// Runs the recognizer over `tokens[start..end]` alone, with `rule` as
