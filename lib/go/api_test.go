@@ -768,6 +768,21 @@ func TestParseTokensOutOfRange(t *testing.T) {
 		if res != nil || !errors.As(err, &e) || e.Kind != ErrorUsage {
 			t.Fatalf("source %v: expected a usage error, got %v %v", src, res, err)
 		}
+		if !strings.Contains(e.Message, "source") || strings.Contains(e.Message, "span") {
+			t.Errorf("source %v: the message is %q", src, e.Message)
+		}
+	}
+	// A span counts tokens, not code points, so only its order is checked.
+	for _, span := range [][2]int{{-1, 0}, {1, 0}} {
+		toks := []Token{{Text: "a", Tags: []string{"'a'"}, Span: span, Source: [2]int{0, 1}}}
+		res, err := d.ParseTokens("a", toks, ParseOptions{})
+		var e *Error
+		if res != nil || !errors.As(err, &e) || e.Kind != ErrorUsage {
+			t.Fatalf("span %v: expected a usage error, got %v %v", span, res, err)
+		}
+		if !strings.Contains(e.Message, "span") || strings.Contains(e.Message, "source") || strings.Contains(e.Message, "code point") {
+			t.Errorf("span %v: the message is %q", span, e.Message)
+		}
 	}
 	toks := []Token{{Text: "a", Tags: []string{"'a'"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}}
 	if res, err := d.ParseTokens("a", toks, ParseOptions{}); err != nil || !res.OK {
