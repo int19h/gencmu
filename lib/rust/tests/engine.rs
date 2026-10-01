@@ -18,7 +18,13 @@ fn engine_cases() {
             skipped += 1;
             continue;
         }
-        if let Err(problem) = run_engine_case(&case) {
+        // A case that hangs is a failure, and the others still run.
+        let limit = common::case_timeout();
+        let outcome = common::within(limit, move || {
+            std::panic::catch_unwind(|| run_engine_case(&case)).unwrap_or_else(|_| Err("the case panicked".to_string()))
+        });
+        let outcome = outcome.unwrap_or_else(|| Err(format!("the case did not finish in {limit:?}")));
+        if let Err(problem) = outcome {
             failures.push(format!("{}:\n{problem}", file.display()));
         }
     }
@@ -40,6 +46,12 @@ fn engine_cases() {
 fn harness_detects_a_wrong_expectation() {
     let case = parse_json(r#"{"grammar": "%rule text X | Y", "tokens": [{"text": "w", "tags": ["X", "Y"]}], "expect": {"result": {"ok": true, "stages": [{"verdict": "unique"}]}}}"#).unwrap();
     assert!(run_engine_case(&case).is_err());
+    // A case that does not finish in time is a failure.
+    assert!(common::within(std::time::Duration::from_millis(50), || std::thread::sleep(
+        std::time::Duration::from_secs(5)
+    ))
+    .is_none());
+    assert_eq!(common::within(std::time::Duration::from_secs(5), || 7), Some(7));
     let case = parse_json(r#"{"grammar": "%rule text X | Y", "tokens": [{"text": "w", "tags": ["X", "Y"]}], "expect": {"result": {"ok": true, "tree": {"children": [{"terminal": "Y"}]}}}}"#).unwrap();
     assert!(run_engine_case(&case).is_err());
     let case = parse_json(r#"{"grammar": "%rule text X | Y", "tokens": [{"text": "w", "tags": ["X", "Y"]}], "expect": {"result": {"ok": true, "tree": {"children": [{"terminal": "X"}]}}, "brackets": "v"}}"#).unwrap();
@@ -140,4 +152,46 @@ fn emission_errors_come_in_order() {
     // attachments.
     let second = message("attach-error-insert-order.json");
     assert!(second.contains(r#"tag("?")"#), "{second}");
+}
+
+/// The runner checks the invariants of a tie on every result, whatever the
+/// case expects (tests/README.md), and refuses a result that breaks one.
+#[test]
+fn the_runner_refuses_a_result_that_breaks_an_invariant() {
+    use common::{check_json, result_problems, Value};
+    let case = parse_json(
+        r#"{"grammar": "%rule text x | y\n%rule x A\n%rule y A", "tokens": [{"text": "a", "tags": ["A"]}]}"#,
+    )
+    .unwrap();
+    let (documents, pipeline) = common::case_documents(&case);
+    let dialect = gencmu::load_dialect_sources(documents, &pipeline).expect("the dialect");
+    let tokens = common::case_tokens(&case).expect("tokens");
+    let result = dialect.parse_tokens(&tokens, &common::case_options(&case)).expect("a result");
+    let json = parse_json(&gencmu::to_json(&result)).expect("JSON");
+    let expect = parse_json(r#"{"result": {"ok": false, "error": {"kind": "ambiguous"}}}"#).unwrap();
+    assert_eq!(result_problems(&json), Vec::<String>::new());
+    assert_eq!(check_json(&expect, &json), Ok(String::new()));
+
+    // A copy of an object with one member set, or removed for `None`.
+    fn with(object: &Value, key: &str, value: Option<Value>) -> Value {
+        let mut members: Vec<(String, Value)> =
+            object.object().iter().filter(|(name, _)| name != key).cloned().collect();
+        members.extend(value.map(|value| (key.to_string(), value)));
+        Value::Object(members)
+    }
+    let stage = &json.get("stages").unwrap().array()[0];
+    let error = json.get("error").unwrap();
+    let reading = error.get("readings").unwrap().array()[1].clone();
+    let stages = |stages: Vec<Value>| with(&json, "stages", Some(Value::Array(stages)));
+    let later = parse_json(r#"{"name": "later", "verdict": "unique"}"#).unwrap();
+    let mutants = [
+        stages(vec![with(stage, "output", Some(Value::Array(Vec::new())))]),
+        stages(vec![with(stage, "tied", Some(reading))]),
+        stages(vec![stage.clone(), later]),
+        with(&json, "error", Some(with(error, "reason", None))),
+    ];
+    for mutant in &mutants {
+        assert!(!result_problems(mutant).is_empty(), "{mutant:?}");
+        assert!(check_json(&expect, mutant).is_err(), "{mutant:?}");
+    }
 }

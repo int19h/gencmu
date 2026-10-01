@@ -5,7 +5,8 @@ use std::ops::Range;
 
 use crate::json::write_str;
 use crate::result::{
-    Action, Attachment, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Stage, Tags, Token, Verdict, Warning,
+    Action, AmbiguityReason, Attachment, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Stage, Tags, Token,
+    Verdict, Warning,
 };
 
 fn write_range(out: &mut String, range: &Range<usize>) {
@@ -236,10 +237,6 @@ fn write_stage(out: &mut String, stage: &Stage) {
         write_action(out, second);
         out.push(']');
     }
-    if let Some(tied) = &stage.tied {
-        out.push_str(",\"tied\":");
-        write_node(out, tied);
-    }
     if let Some(output) = &stage.output {
         out.push_str(",\"output\":[");
         for (index, token) in output.iter().enumerate() {
@@ -263,6 +260,13 @@ fn write_error(out: &mut String, error: &ParseError) {
     if let Some(stage) = &error.stage {
         out.push_str(",\"stage\":");
         write_str(out, stage);
+    }
+    if let Some(reason) = error.reason {
+        out.push_str(",\"reason\":");
+        out.push_str(match reason {
+            AmbiguityReason::Tie => "\"tie\"",
+            AmbiguityReason::ElisionOnly => "\"elision-only\"",
+        });
     }
     if let Some(token) = error.token {
         out.push_str(",\"token\":");
@@ -339,7 +343,7 @@ fn write_warning(out: &mut String, warning: &Warning) {
 /// documented order, no whitespace, non-ASCII characters as themselves.
 pub fn to_json(result: &ParseResult) -> String {
     let mut out = String::new();
-    out.push_str("{\"format\":6,\"ok\":");
+    out.push_str("{\"format\":7,\"ok\":");
     out.push_str(if result.ok { "true" } else { "false" });
     out.push_str(",\"stages\":[");
     for (index, stage) in result.stages.iter().enumerate() {

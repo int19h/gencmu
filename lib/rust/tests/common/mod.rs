@@ -359,6 +359,27 @@ fn error_where(expect: &Value, error: &gencmu::Error) -> Result<(), String> {
     }
 }
 
+/// How long one shared case may run before the runner reports it as
+/// hanging: `GENCMU_CASE_TIMEOUT` seconds, 120 by default.
+pub fn case_timeout() -> std::time::Duration {
+    let seconds = std::env::var("GENCMU_CASE_TIMEOUT").ok().and_then(|n| n.parse().ok()).unwrap_or(120);
+    std::time::Duration::from_secs(seconds)
+}
+
+/// Runs `work` on a thread of its own, and gives up on it after `limit`.
+/// A thread that hangs cannot be stopped, but the runner reports it and
+/// goes on, and the process ends with the test.
+pub fn within<T: Send + 'static>(limit: std::time::Duration, work: impl FnOnce() -> T + Send + 'static) -> Option<T> {
+    let (send, receive) = std::sync::mpsc::channel();
+    std::thread::Builder::new()
+        .stack_size(64 << 20)
+        .spawn(move || {
+            let _ = send.send(work());
+        })
+        .expect("a thread");
+    receive.recv_timeout(limit).ok()
+}
+
 /// Runs one engine case (tests/README.md); the error says what differs.
 /// A case with `parses` loads its dialect once and parses its input with
 /// each item's options in order, each result held to the item's `expect`.
@@ -421,6 +442,70 @@ fn with_deep_stack<T: Send>(work: impl FnOnce() -> T + Send) -> T {
     })
 }
 
+/// What a canonical result breaks of the invariants that every runner
+/// checks on every result, whatever the case expects (tests/README.md): no
+/// stage has a tied tree, and a stage whose verdict is `tie` has no output,
+/// comes last, and has the result's ambiguous error with the reason `tie`
+/// and two readings.
+pub fn result_problems(json: &Value) -> Vec<String> {
+    let mut problems = Vec::new();
+    let stages = json.get("stages").map_or(&[][..], Value::array);
+    for (index, stage) in stages.iter().enumerate() {
+        let name = stage.get("name").and_then(Value::str).unwrap_or("?");
+        if stage.get("tied").is_some() {
+            problems.push(format!("stage {name} has a tied tree"));
+        }
+        if stage.get("verdict").and_then(Value::str) != Some("tie") {
+            continue;
+        }
+        if stage.get("output").is_some() {
+            problems.push(format!("the tied stage {name} has output"));
+        }
+        if index + 1 != stages.len() {
+            problems.push(format!("a stage runs after the tied stage {name}"));
+        }
+        let error = json.get("error");
+        let field = |key: &str| error.and_then(|error| error.get(key)).and_then(Value::str);
+        let readings = error.and_then(|error| error.get("readings"));
+        if json.get("ok") != Some(&Value::Bool(false))
+            || json.get("tree") != Some(&Value::Null)
+            || field("kind") != Some("ambiguous")
+            || field("reason") != Some("tie")
+            || field("stage") != Some(name)
+            || !matches!(readings, Some(Value::Array(readings)) if readings.len() == 2)
+        {
+            problems
+                .push(format!("the tied stage {name} lacks its error of kind ambiguous, reason tie and two readings"));
+        }
+    }
+    problems
+}
+
+/// Holds a canonical result to the invariants, and then to the case's
+/// `expect.warnings` and `expect.result`: what differs, if anything. The
+/// invariants come first, and a result that breaks them is an error and is
+/// compared no further.
+pub fn check_json(expect: &Value, actual: &Value) -> Result<String, String> {
+    let mut problems = String::new();
+    let broken = result_problems(actual);
+    if !broken.is_empty() {
+        return Err(format!("the result breaks an invariant: {}\n", broken.join("; ")));
+    }
+    if let Some(expected) = expect.get("warnings") {
+        // The canonical result has no `warnings` when there are none.
+        let none = Value::Array(Vec::new());
+        if let Err(problem) = same(expected, actual.get("warnings").unwrap_or(&none), "warnings") {
+            let _ = writeln!(problems, "{problem}");
+        }
+    }
+    if let Some(pattern) = expect.get("result") {
+        if let Err(problem) = matches(pattern, actual, "result") {
+            let _ = writeln!(problems, "{problem}");
+        }
+    }
+    Ok(problems)
+}
+
 /// Parses a case's input with the options of `run`, the case itself or one
 /// item of its `parses`, and holds the result to `expect`.
 fn check_parse(dialect: &gencmu::Dialect, case: &Value, run: &Value, expect: &Value) -> Result<(), String> {
@@ -449,21 +534,8 @@ fn check_parse(dialect: &gencmu::Dialect, case: &Value, run: &Value, expect: &Va
     };
     let json = gencmu::to_json(&result);
     problems.push_str(&with_deep_stack(|| {
-        let mut problems = String::new();
         let actual = parse_json(&json).map_err(|error| format!("the result is not JSON ({error}): {json}"))?;
-        if let Some(expected) = expect.get("warnings") {
-            // The canonical result has no `warnings` when there are none.
-            let none = Value::Array(Vec::new());
-            if let Err(problem) = same(expected, actual.get("warnings").unwrap_or(&none), "warnings") {
-                let _ = writeln!(problems, "{problem}");
-            }
-        }
-        if let Some(pattern) = expect.get("result") {
-            if let Err(problem) = matches(pattern, &actual, "result") {
-                let _ = writeln!(problems, "{problem}");
-            }
-        }
-        Ok::<String, String>(problems)
+        check_json(expect, &actual).map_err(|problem| format!("{problem}result: {json}"))
     })?);
     if let Some(expected) = expect.get("brackets").and_then(Value::str) {
         let found = gencmu::to_brackets(&result, false);

@@ -155,6 +155,14 @@ pub(crate) fn read_document(notation: &Dialect, text: &str) -> Result<Dom, Error
     let options = ParseOptions { auto_features: false, ..ParseOptions::default() };
     let result = notation.parse_chars(grammar.chars.clone(), &options)?;
     if let Some(error) = &result.error {
+        // A tie has no single position, so the error names the document
+        // alone (engine §8).
+        if error.kind == ParseErrorKind::Ambiguous {
+            let stage = error.stage.as_deref().unwrap_or("?");
+            return Err(Error::grammar(format!(
+                "the grammar text is ambiguous: the {stage} stage of the notation reads it in two ways"
+            )));
+        }
         let at = error.source.as_ref().map_or(0, |source| source.start);
         let (line, column) = grammar.position(at);
         let message = match error.kind {
