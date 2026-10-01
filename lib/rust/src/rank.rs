@@ -1223,9 +1223,15 @@ impl<'c> Ranker<'c> {
             }
         }
         // Under late-elision, the forest of the best derivations holds a
-        // second one exactly when the least count is two.
+        // second one exactly when the least count is two. A disagreement is
+        // a defect of the library, and like its other broken invariants it
+        // panics, in release builds too, rather than pick a verdict.
         if let Some((_, least)) = counts {
-            debug_assert_eq!(least >= 2, tied.is_some(), "the least count disagrees with the forest of the best");
+            assert_eq!(
+                least >= 2,
+                tied.is_some(),
+                "the least count of late-elision disagrees with the forest of the best derivations"
+            );
         }
         let verdict = if total == 1 {
             Verdict::Unique
