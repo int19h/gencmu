@@ -87,7 +87,7 @@ An error has one of these forms:
   - `elision-only`: The stage chose one derivation, but its text stays ambiguous with its elided terminators written back (engine §7). The stage's verdict is `resolved`, and it keeps its output. The readings hold the written-back terminators as elided nodes.
 - `grammar`: A grammar failed to load, or the parser found a defect while parsing. For a grammar that failed to load, the error has `document`, `line` and `column` where known. For a defect found while parsing, the error has `stage` and no position. An example of such a defect is a nested parse asked about its own span as the same rule.
 
-For example, `text → [[X]]` on the empty input ties, and both readings are `{"kind":"rule","rule":"text","span":[0,0],"source":[0,0],"tags":[],"children":[]}`. The witness names two different productions of the helpers. A nullable `&`, such as `[A] & [B]`, gives such a tie in the same way.
+For example, `text → [[X]]` on the empty input ties, and both readings are `{"kind":"rule","rule":"text","span":[0,0],"source":[0,0],"tags":[],"children":[]}`. The witness names two different productions of the helpers. A nullable `&`, such as `[A] & [B]`, gives such a tie in the same way, with three derivations.
 
 A mistake of the caller is not a result. It is an error of kind `usage` (engine §13).
 
