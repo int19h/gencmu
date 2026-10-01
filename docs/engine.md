@@ -406,6 +406,48 @@ The notation's syntax grammar names its constituents so that the reader can read
 
 A rule with any other name makes no node of the DOM. The reader reads its children in its place.
 
+The reader knows these rules of the syntax grammar: `directive`, `argument-word`, `argument-string`, `argument-tag`, `classifier`, `classifier-name`, `classifier-entry`, `classifier-key`, `classifier-operator`, `classifier-class`, `implication-declaration`, `constant-definition`, `constant-definer`, `constant-reference`, `rule`, `definer`, `rule-name`, `body`, `alternative`, `guard`, `alternative-tags`, `choice`, `conjunction`, `sequence`, `element`, `primary`, `reference`, `tag`, `character`, `phoneme`, `range`, `property`, `tested`, `test`, `test-operand`, `capture`, `group`, `optional`, `empty`, `tags-clause`, `conditions-clause`, `emits-clause`, `opaque-clause`, `emit-item`, `emit-target`, `emit-tags`, `emit-before`, `emit-after`, `implication`, `any-of`, `all-of`, `condition`, `comparison`, `comparator`, `negation`, `presence`, `call`, `argument`, `term`, `guarded-term`, `union`, `intersection`, `term-atom`, `string`, `name`, `empty-set` and `capture-reference`. Any other rule is a wrapper. A node's parts are its children, with each wrapper replaced by its own parts, at any depth, in order. The reader reads only the parts of a node. So a bootstrap can wrap a known rule in rules of its own, and the reader reads the same DOM.
+
+A node must have the parts that the reader reads from it. A node without one is an error of the document, reported at the node. A bootstrap of another notation can give such a tree (`docs/api.md`). The reader ignores any other part. These are the parts that each known rule must have. Where a list says "one or more", at least one is needed. Where it says two, the reader reads the first two.
+
+| rule | parts |
+| --- | --- |
+| the root | no part. Each known part is an item: a `directive`, a `rule`, a `constant-definition`, a `classifier` or an `implication-declaration`. Any other known part is an error |
+| `directive` | a token, its keyword. Its operands are its `argument-word`, `argument-string` and `argument-tag` parts |
+| `argument-word`, `argument-string`, `classifier-name`, `classifier-key`, `classifier-operator`, `classifier-class`, `constant-definer`, `constant-reference`, `definer`, `rule-name`, `guard`, `reference`, `tag`, `character`, `phoneme`, `property`, `string`, `name`, `presence`, `capture-reference`, `comparator`, `call` | a token. For a `call`, it is the function's name, and the `argument` parts are its arguments |
+| `argument-tag`, `emit-target` | a first part that is a token, a `range` or a `property` |
+| `classifier` | a `classifier-name` |
+| `classifier-entry` | one or more `classifier-key`, a `classifier-operator` and a `classifier-class` |
+| `implication-declaration`, `comparison` | two `union`. A `comparison` also needs a `comparator` |
+| `constant-definition` | a `constant-definer`, a `constant-reference` and a `term` |
+| `rule` | a `definer`, a `rule-name` and a `body` |
+| `body` | one or more `alternative` |
+| `alternative` | a `conjunction` |
+| `choice`, `conjunction`, `sequence` | one or more `conjunction`, `sequence` and `element` in turn |
+| `element` | a `primary` |
+| `primary` | one known part: a `reference`, `tag`, `character`, `phoneme`, `range`, `property`, `tested`, `capture`, `group`, `optional`, `empty` or `constant-reference` |
+| `range` | two `character` |
+| `tested` | a `primary` and a `test` |
+| `test` | a `test-operand`. Its tokens make its comparator |
+| `capture` | a token, its capture, and a `primary` |
+| `group`, `optional` | a `choice` |
+| `tags-clause`, `alternative-tags`, `emit-tags`, `guarded-term` | a `term`. A `guarded-term` also needs an `any-of` |
+| `conditions-clause` | one or more `implication` |
+| `emits-clause` | a token `ε`, or one or more `emit-item` |
+| `emit-item` | an `emit-target` |
+| `implication` | an `any-of` |
+| `any-of` | one or more `all-of` |
+| `all-of` | one or more `condition` |
+| `condition` | one known part: a `comparison`, `call`, `negation`, `presence` or `implication` |
+| `negation` | a `condition` |
+| `argument` | a `union` |
+| `term` | one known part: a `union` or a `guarded-term` |
+| `union` | one or more `intersection` |
+| `intersection` | one or more `term-atom` |
+| `term-atom`, `test-operand` | one known part: a `string`, `tag`, `character`, `phoneme`, `range`, `property`, `name`, `empty-set`, `term`, `call`, `capture-reference` or `constant-reference` |
+
+The other known rules need no part.
+
 The lexical stage reads the longest symbol. So `...` is always one token, repetition, and never `..` followed by a period. So `'a'...'z'` is not a range. It is `'a'` repeated, then `'z'`. A range is two character tags joined by `..`, with any layout between them.
 
 The grammar does not state the restrictions below. Each of these is an error of the document, and the reader reports it at the first token of the offending construct:
