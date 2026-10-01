@@ -428,7 +428,7 @@ func compareVectors(x, y []int32) int {
 // whom), the tie-break order, and where the visible sequences diverge.
 type bcmp struct {
 	visDiff bool
-	pos     int // visible position of the difference; the shorter length for a prefix; inf if visibly equal
+	pos     int // visible position of the difference; the shorter length for a prefix; bruteInf if visibly equal
 	outcome int
 	aFirst  bool
 	pair    [2]action // the witness pair
@@ -460,7 +460,7 @@ func bruteCompare(rk *ranker, x, y bderiv) bcmp {
 	}
 	c := bcmp{pos: n, pair: wholeDiff()}
 	if len(x.vis) == len(y.vis) {
-		c.pos = inf
+		c.pos = bruteInf
 		c.aFirst = rk.canonLess(c.pair[0], c.pair[1])
 	} else {
 		// A visible prefix precedes its extensions.
@@ -468,6 +468,10 @@ func bruteCompare(rk *ranker, x, y bderiv) bcmp {
 	}
 	return c
 }
+
+// bruteInf is the divergence of derivations that differ only in
+// transparent actions, beyond every position of a small case.
+const bruteInf = 1 << 30
 
 type bruteResult struct {
 	count   int

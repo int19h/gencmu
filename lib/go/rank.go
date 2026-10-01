@@ -42,7 +42,35 @@ type dn struct {
 	tags       *tagset     // close
 	a          *dn         // part: the children before; close: its children
 	b          *dn         // part: the last child
-	vis, whole int32
+	// vis and whole are the numbers of its visible actions and of all its
+	// actions, and sizes holds both instead where either does not fit in an
+	// int64: a derivation over an empty span can have exponentially many.
+	vis, whole int64
+	sizes      *dnSizes
+}
+
+type dnSizes struct{ vis, whole count }
+
+func (n *dn) visCount() count {
+	if n.sizes != nil {
+		return n.sizes.vis
+	}
+	return countOf(n.vis)
+}
+
+func (n *dn) wholeCount() count {
+	if n.sizes != nil {
+		return n.sizes.whole
+	}
+	return countOf(n.whole)
+}
+
+func (n *dn) setSizes(vis, whole count) {
+	if vis.big == nil && whole.big == nil {
+		n.vis, n.whole = vis.n, whole.n
+	} else {
+		n.sizes = &dnSizes{vis: vis, whole: whole}
+	}
 }
 
 func readNode(tok, term int32) *dn {
@@ -50,31 +78,33 @@ func readNode(tok, term int32) *dn {
 }
 
 func partNode(prev, child *dn) *dn {
-	n := &dn{kind: dPart, a: prev, b: child, vis: child.vis, whole: child.whole}
+	n := &dn{kind: dPart, a: prev, b: child}
+	vis, whole := child.visCount(), child.wholeCount()
 	if prev != nil {
-		n.vis += prev.vis
-		n.whole += prev.whole
+		vis, whole = vis.add(prev.visCount()), whole.add(prev.wholeCount())
 	}
+	n.setSizes(vis, whole)
 	return n
 }
 
 func closeNode(p *production, start, end int32, tags *tagset, kids *dn) *dn {
-	n := &dn{kind: dClose, prod: p, start: start, end: end, tags: tags, a: kids, whole: 1}
+	n := &dn{kind: dClose, prod: p, start: start, end: end, tags: tags, a: kids}
+	vis, whole := count{}, countOne
 	if !p.transparent {
-		n.vis = 1
+		vis = countOne
 	}
 	if kids != nil {
-		n.vis += kids.vis
-		n.whole += kids.whole
+		vis, whole = vis.add(kids.visCount()), whole.add(kids.wholeCount())
 	}
+	n.setSizes(vis, whole)
 	return n
 }
 
-func visOf(n *dn) int {
+func visOf(n *dn) count {
 	if n == nil {
-		return 0
+		return count{}
 	}
-	return int(n.vis)
+	return n.visCount()
 }
 
 // action is one read or close.
@@ -132,21 +162,21 @@ func elAction(e iterEl) action {
 	return action{prod: e.n.prod, start: e.n.start, end: e.n.end}
 }
 
-func elWhole(e iterEl) int {
+func elWhole(e iterEl) count {
 	if isLeaf(e) {
-		return 1
+		return countOne
 	}
-	return int(e.n.whole)
+	return e.n.wholeCount()
 }
 
-func elVis(e iterEl) int {
+func elVis(e iterEl) count {
 	if e.leaf {
 		if e.n.prod.transparent {
-			return 0
+			return count{}
 		}
-		return 1
+		return countOne
 	}
-	return int(e.n.vis)
+	return e.n.visCount()
 }
 
 const (
@@ -165,7 +195,7 @@ const (
 
 type cmpRes struct {
 	kind     int
-	pos      int // visible actions before the difference
+	pos      count // visible actions before the difference
 	va, vb   action
 	outcome  int
 	wa, wb   action // the first difference of the whole sequences
@@ -317,7 +347,7 @@ func (rk *ranker) compare(a, b *dn) cmpRes {
 	ia.push(a)
 	ib.push(b)
 	var r cmpRes
-	vis := 0
+	vis := count{}
 	// The whole sequences, in step, skipping shared subtrees.
 	for {
 		ea, oka := ia.top()
@@ -330,7 +360,7 @@ func (rk *ranker) compare(a, b *dn) cmpRes {
 			break
 		}
 		if ea == eb {
-			vis += elVis(ea)
+			vis = vis.add(elVis(ea))
 			ia.pop()
 			ib.pop()
 			continue
@@ -338,11 +368,11 @@ func (rk *ranker) compare(a, b *dn) cmpRes {
 		if !isLeaf(ea) || !isLeaf(eb) {
 			// Expand the larger side first, so that the two meet at a
 			// subtree they share.
-			wa, wb := elWhole(ea), elWhole(eb)
-			if !isLeaf(ea) && wa >= wb {
+			c := elWhole(ea).cmp(elWhole(eb))
+			if !isLeaf(ea) && c >= 0 {
 				ia.expand()
 			}
-			if !isLeaf(eb) && wb >= wa {
+			if !isLeaf(eb) && c <= 0 {
 				ib.expand()
 			}
 			continue
@@ -350,7 +380,7 @@ func (rk *ranker) compare(a, b *dn) cmpRes {
 		xa, xb := elAction(ea), elAction(eb)
 		if xa == xb {
 			if xa.visible() {
-				vis++
+				vis = vis.add(countOne)
 			}
 			ia.pop()
 			ib.pop()
@@ -373,7 +403,7 @@ func (rk *ranker) compare(a, b *dn) cmpRes {
 				}
 				return e, true
 			}
-			if e.n.vis == 0 {
+			if e.n.visCount().isZero() {
 				it.pop()
 				continue
 			}
@@ -396,24 +426,24 @@ func (rk *ranker) compare(a, b *dn) cmpRes {
 			return r
 		}
 		if ea == eb {
-			vis += elVis(ea)
+			vis = vis.add(elVis(ea))
 			ia.pop()
 			ib.pop()
 			continue
 		}
 		if !isLeaf(ea) || !isLeaf(eb) {
-			va, vb := elVis(ea), elVis(eb)
-			if !isLeaf(ea) && va >= vb {
+			c := elVis(ea).cmp(elVis(eb))
+			if !isLeaf(ea) && c >= 0 {
 				ia.expand()
 			}
-			if !isLeaf(eb) && vb >= va {
+			if !isLeaf(eb) && c <= 0 {
 				ib.expand()
 			}
 			continue
 		}
 		xa, xb := elAction(ea), elAction(eb)
 		if xa == xb {
-			vis++
+			vis = vis.add(countOne)
 			ia.pop()
 			ib.pop()
 			continue
@@ -424,13 +454,11 @@ func (rk *ranker) compare(a, b *dn) cmpRes {
 	}
 }
 
-const inf = 1 << 30 // the divergence of derivations that differ only in transparent actions
-
 // tiedSet holds the derivations tied with a candidate that diverge from it
 // earliest, all at div, reduced to those no other beats.
 type tiedSet struct {
 	ds  []*dn
-	div int
+	div count
 }
 
 type cand struct {
@@ -452,11 +480,12 @@ type entry struct {
 	allowed *entry
 }
 
-func (rk *ranker) addTo(s *tiedSet, d *dn, div int) {
-	if len(s.ds) > 0 && div > s.div {
+func (rk *ranker) addTo(s *tiedSet, d *dn, div count) {
+	c := div.cmp(s.div)
+	if len(s.ds) > 0 && c > 0 {
 		return
 	}
-	if len(s.ds) == 0 || div < s.div {
+	if len(s.ds) == 0 || c < 0 {
 		s.ds, s.div = []*dn{d}, div
 		return
 	}
@@ -464,21 +493,19 @@ func (rk *ranker) addTo(s *tiedSet, d *dn, div int) {
 }
 
 // addTied offers a derivation tied with c that diverges from it at div.
-func (rk *ranker) addTied(c *cand, d *dn, div int) {
+func (rk *ranker) addTied(c *cand, d *dn, div count) {
 	rk.addTo(&c.tied, d, div)
 }
 
 // inherit offers what of a tied set, with each derivation changed by f, is
 // tied with c at the same divergence.
-func (rk *ranker) inherit(c *cand, z *cand, shift int, f func(*dn) *dn, below int) {
+func (rk *ranker) inherit(c *cand, z *cand, shift count, f func(*dn) *dn, below count) {
 	s := z.tied
-	if len(s.ds) == 0 || s.div >= below {
+	if len(s.ds) == 0 || s.div.cmp(below) >= 0 {
 		return
 	}
-	div := s.div
-	if div != inf {
-		div += shift
-	}
+	// A shift leaves inf as it is.
+	div := s.div.add(shift)
 	for _, t := range s.ds {
 		rk.addTied(c, f(t), div)
 	}
@@ -515,12 +542,12 @@ func (rk *ranker) contribute(w, z *cand, r cmpRes) {
 		if tie {
 			rk.addTied(w, z.d, r.pos)
 		}
-		rk.inherit(w, z, 0, same, r.pos)
+		rk.inherit(w, z, count{}, same, r.pos)
 	case cVisEqual, cIdentical:
 		if r.kind == cVisEqual {
 			rk.addTied(w, z.d, inf)
 		}
-		rk.inherit(w, z, 0, same, inf+1)
+		rk.inherit(w, z, count{}, same, pastInf)
 	}
 }
 
@@ -601,8 +628,8 @@ func (rk *ranker) extend(xs, cs []*cand, into []*cand) []*cand {
 	for _, x := range xs {
 		for _, c := range cs {
 			n := &cand{d: partNode(x.d, c.d)}
-			rk.inherit(n, x, 0, func(t *dn) *dn { return partNode(t, c.d) }, inf+1)
-			rk.inherit(n, c, visOf(x.d), func(t *dn) *dn { return partNode(x.d, t) }, inf+1)
+			rk.inherit(n, x, count{}, func(t *dn) *dn { return partNode(t, c.d) }, pastInf)
+			rk.inherit(n, c, visOf(x.d), func(t *dn) *dn { return partNode(x.d, t) }, pastInf)
 			into = append(into, n)
 		}
 	}
@@ -849,7 +876,7 @@ func (rk *ranker) symVal(s *symNode, f forbidden) *entry {
 		c := v.it
 		for _, x := range v.e.cands {
 			n := &cand{d: closeNode(c.prod, s.start, s.end, s.tags, x.d)}
-			rk.inherit(n, x, 0, func(t *dn) *dn { return closeNode(c.prod, s.start, s.end, s.tags, t) }, inf+1)
+			rk.inherit(n, x, count{}, func(t *dn) *dn { return closeNode(c.prod, s.start, s.end, s.tags, t) }, pastInf)
 			cands = append(cands, n)
 		}
 	}
@@ -1009,20 +1036,25 @@ func (s *summary) add(vec *elSeq, least, total int) {
 
 // elSeq is an elision vector (engine §6), kept as the sequence of the
 // positions of a derivation's elided terminators in text order: a leaf is
-// one elision at at, and a pair is left followed by right. nil is the
-// empty sequence. The sequence of an edge is that of the item before it
-// followed by that of the child, so sequences built on one prefix share it,
-// and a comparison skips what both share.
+// one elision at its position, and a pair is left followed by right. nil
+// is the empty sequence. The sequence of an edge is that of the item before
+// it followed by that of the child, so sequences built on one prefix share
+// it, and a comparison skips what both share.
+//
+// Each node knows its first and last position and its exact size. A node
+// whose positions are all one is a run of that many elisions there, which
+// a comparison takes whole: over an empty span, a run can hold
+// exponentially many elisions, and two runs built apart share no node.
 type elSeq struct {
-	at          int32
+	first, last int32 // the first and the last position
 	left, right *elSeq
-	size        int32
+	size        count
 }
 
 func (rk *ranker) leaf(at int32) *elSeq {
 	l := rk.leaves[at]
 	if l == nil {
-		l = &elSeq{at: at, size: 1}
+		l = &elSeq{first: at, last: at, size: countOne}
 		rk.leaves[at] = l
 	}
 	return l
@@ -1035,7 +1067,7 @@ func concatElisions(a, b *elSeq) *elSeq {
 	if b == nil {
 		return a
 	}
-	return &elSeq{left: a, right: b, size: a.size + b.size}
+	return &elSeq{first: a.first, last: b.last, left: a, right: b, size: a.size.add(b.size)}
 }
 
 // compareElisions is -1 when vector a is less than b, 1 when it is greater,
@@ -1045,52 +1077,97 @@ func concatElisions(a, b *elSeq) *elSeq {
 // the earlier position has the greater count there, so the later position
 // is less. A sequence that ends first has fewer elisions after the shared
 // part, so it is less.
+//
+// The comparison walks the two sequences run by run. It takes the front run
+// of each side, the elisions of one node at one position, and it takes away
+// the smaller from the greater, so the cost depends on the number of nodes
+// it opens and not on the number of elisions.
 func compareElisions(a, b *elSeq) int {
 	if a == b {
 		return 0
 	}
-	sa, sb := []*elSeq{a}, []*elSeq{b}
-	front := func(st *[]*elSeq) *elSeq {
-		for len(*st) > 0 {
-			if n := (*st)[len(*st)-1]; n != nil {
-				return n
-			}
-			*st = (*st)[:len(*st)-1]
-		}
-		return nil
-	}
+	x, y := runWalk{st: []*elSeq{a}}, runWalk{st: []*elSeq{b}}
 	for {
-		x, y := front(&sa), front(&sb)
+		xn, yn := x.front(), y.front()
 		switch {
-		case x == nil && y == nil:
+		case xn == nil && yn == nil:
 			return 0
-		case x == nil:
+		case xn == nil:
 			return -1
-		case y == nil:
+		case yn == nil:
 			return 1
 		}
-		if x == y {
-			sa, sb = sa[:len(sa)-1], sb[:len(sb)-1]
+		if xn == yn && !x.cut && !y.cut {
+			x.pop()
+			y.pop()
 			continue
 		}
-		xPair, yPair := x.left != nil, y.left != nil
-		if xPair || yPair {
-			// Expand the larger side first, so that a part both share is met
-			// at the front of both.
-			if xPair && (!yPair || x.size >= y.size) {
-				sa = append(sa[:len(sa)-1], x.right, x.left)
+		xMany, yMany := xn.first != xn.last, yn.first != yn.last
+		if xMany || yMany {
+			// Open the larger side first, so that a part both share is met
+			// at the front of both. A node over one position is a run, and
+			// a walk never opens it.
+			c := xn.size.cmp(yn.size)
+			if xMany && (!yMany || c >= 0) {
+				x.open()
 			}
-			if yPair && (!xPair || y.size >= x.size) {
-				sb = append(sb[:len(sb)-1], y.right, y.left)
+			if yMany && (!xMany || c <= 0) {
+				y.open()
 			}
 			continue
 		}
-		if x.at != y.at {
-			if x.at > y.at {
+		if xn.first != yn.first {
+			if xn.first > yn.first {
 				return -1
 			}
 			return 1
 		}
-		sa, sb = sa[:len(sa)-1], sb[:len(sb)-1]
+		xs, ys := x.runSize(), y.runSize()
+		switch c := xs.cmp(ys); {
+		case c == 0:
+			x.pop()
+			y.pop()
+		case c < 0:
+			x.pop()
+			y.rest, y.cut = ys.sub(xs), true
+		default:
+			y.pop()
+			x.rest, x.cut = xs.sub(ys), true
+		}
 	}
+}
+
+// runWalk walks a sequence of elisions. Where the run at its front is cut,
+// rest is what remains of it.
+type runWalk struct {
+	st   []*elSeq
+	rest count
+	cut  bool
+}
+
+func (w *runWalk) front() *elSeq {
+	for len(w.st) > 0 {
+		if n := w.st[len(w.st)-1]; n != nil {
+			return n
+		}
+		w.st = w.st[:len(w.st)-1]
+	}
+	return nil
+}
+
+func (w *runWalk) pop() {
+	w.st = w.st[:len(w.st)-1]
+	w.cut = false
+}
+
+func (w *runWalk) open() {
+	n := w.st[len(w.st)-1]
+	w.st = append(w.st[:len(w.st)-1], n.right, n.left)
+}
+
+func (w *runWalk) runSize() count {
+	if w.cut {
+		return w.rest
+	}
+	return w.st[len(w.st)-1].size
 }
