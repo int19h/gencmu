@@ -40,7 +40,7 @@ The grammar also states the attachment conventions of the reference. These are t
 - Free modifiers nest (see "Free modifiers").
 - A connective joins sumti before it joins terms (see "Sumti").
 - A run of operators is one unit (see "Mekso").
-- A gek before bridi-tails begins a forethought bridi-tail (see "Sentences and bridi-tails").
+- A gek before bridi-tails begins a bridi-tail, not a connection of sentences (see "Sentences and bridi-tails").
 
 Each of these conditions is a restriction of the grammar, not a preference among whole parses. It removes a reading where the words from a given point begin a given rule. It does not test whether the remaining reading gives a parse of the whole text.
 
@@ -185,7 +185,9 @@ The lookaheads of the reference's fragments are conditions here. A `gek` or `joi
 
 A sentence is terms, an optional `cu` and a bridi-tail, or a forethought connection of sentences. Terms stand only before the first bridi-tail, because Zantufa has no JACU (a proposal for a simpler system of connectives). Bridi-tails connect at three levels, as in camxes.
 
-A gek before bridi-tails begins a forethought bridi-tail, not a forethought connection of sentences. So in `mi ge klama gi cadzu`, the gek is part of the bridi-tail after `mi`. The condition on the second alternative of `sentence` states this. It is the ordered choice of the reference, which tries the bridi-tail first. This is deliberate. Dated comments of the reference record that its author ordered these alternatives so, and give the intended trees.
+A gek before bridi-tails begins a bridi-tail, not a forethought connection of sentences. So in `mi ge klama gi cadzu`, the gek is part of the bridi-tail after `mi`. There it begins a forethought tanru unit, `ge klama gi cadzu`. The condition on the second alternative of `sentence` states this. It is the ordered choice of the reference, which tries the bridi-tail first. Dated comments of the reference record that its author ordered these alternatives so, and give the intended trees.
+
+The condition tests for a bridi-tail that no `gi` follows (`bridi-tail-before-no-gik`). The reference's runs of `gik` read as far as they can, so its bridi-tail never stops before a further `gi`. So in `ge broda gi brode gi brodi gi cu brodo`, its bridi-tail fails, and the reference reads a forethought connection of sentences. A test for any bridi-tail finds the shorter `ge broda gi brode` there, and rejects the text.
 
 The outer level takes a connective only where the inner one cannot. That is where `ke` follows it, with or without a tense or modal first, or where a tense or modal and `cu` follow it. The reference's lookaheads leave these forms to the outer level. After `ke`, the words are a group of bridi-tails, unless a selbri ends with `ke'e` there, and then they are a tanru.
 
@@ -197,7 +199,12 @@ The tenses and modals before `ke` and a forethought bridi-tail are one tag. The 
   | [terms] [CU #] bridi-tail
   | [terms] $g(gek) sentence (gik sentence) ... [GIhI #] tail-terms
 %conditions
-  ¬begins(from($g), bridi-tail)
+  ¬begins(from($g), bridi-tail-before-no-gik)
+
+%rule bridi-tail-before-no-gik
+  $b(bridi-tail)
+%conditions
+  ¬begins(after($b), gik)
 
 %rule bridi-tail
   (* bridi_tail <- bridi_tail_1 (joik_gihek tag? CU_elidible bridi_tail_1)* *)
