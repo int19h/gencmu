@@ -177,6 +177,7 @@ fn until_features_and_elision_only() {
     assert!(!result.ok);
     let error = result.error.as_ref().unwrap();
     assert_eq!(error.kind, ParseErrorKind::Ambiguous);
+    assert_eq!(error.reason, Some(gencmu::AmbiguityReason::ElisionOnly));
     assert_eq!(error.readings.len(), 2);
     assert!(result.tree.is_none());
     let off = ambiguous.parse("ab", &ParseOptions { elision_only: Some(false), ..no_auto() }).unwrap();
@@ -412,7 +413,7 @@ fn results_outlive_the_dialect_and_cross_threads() {
         dialect.parse(&text, &ParseOptions::default()).unwrap()
     };
     let json = std::thread::spawn(move || gencmu::to_json(&result)).join().unwrap();
-    assert!(json.starts_with("{\"format\":6,\"ok\":true"));
+    assert!(json.starts_with("{\"format\":7,\"ok\":true"));
 
     let dialect = std::sync::Arc::new(gencmu::load_dialect("notation").unwrap());
     let threads: Vec<_> = (0..4)
@@ -484,7 +485,6 @@ fn deep_tokens_and_ties_do_not_overflow() {
         eprintln!("6000 tokens with 3000 independent ties in {:?}", started.elapsed());
         assert!(result.ok);
         assert_eq!(result.stages[0].verdict, Some(Verdict::Tie));
-        assert!(result.stages[0].tied.is_some());
         let _ = gencmu::to_json(&result);
     });
 }

@@ -283,9 +283,10 @@ impl fmt::Debug for Node {
 pub enum Verdict {
     /// The input has one derivation.
     Unique,
-    /// It has several, and one wins over all.
+    /// It has several, and exactly one of them is best.
     Resolved,
-    /// Some derivation is tied with the chosen one.
+    /// Two or more derivations are best. A tie is an error: the stage has
+    /// no chosen tree and no output (engine §6).
     Tie,
 }
 
@@ -318,16 +319,15 @@ pub struct Stage {
     pub name: String,
     /// The tokens the stage read.
     pub input: Vec<Token>,
-    /// The tokens it emitted, present when it accepted its input.
+    /// The tokens it emitted, present when its verdict is unique or
+    /// resolved and its emission did not fail. A tied stage emits nothing.
     pub output: Option<Vec<Token>>,
     /// How its ranking came out; `None` when it rejected its input.
     pub verdict: Option<Verdict>,
-    /// For a tie, the pair of actions where the chosen and the tied
-    /// derivations first differ.
+    /// For a tie, the pair of actions where the first and the second
+    /// reading first differ, the first reading's action first. The readings
+    /// themselves are in the result's error.
     pub witness: Option<[Action; 2]>,
-    /// For a tie, the tree of the derivation tied with the chosen one that
-    /// diverges from it earliest.
-    pub tied: Option<Node>,
 }
 
 /// Why a text did not parse.
@@ -335,12 +335,25 @@ pub struct Stage {
 pub enum ParseErrorKind {
     /// A stage's grammar does not accept its input.
     Rejected,
-    /// The `elision-only` check failed (engine §7).
+    /// A stage has two or more best readings, or the `elision-only` check
+    /// failed; the error's `reason` says which (engine §6, §7).
     Ambiguous,
     /// A defect of a grammar found while parsing, such as a nested parse
     /// asked about its own span, or a classifier's entry that adds a class
     /// twice under the features of the parse.
     Grammar,
+}
+
+/// Why an error of kind `Ambiguous` is one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum AmbiguityReason {
+    /// The ranking of the stage has two or more best derivations (engine
+    /// §6). The stage's verdict is a tie, and it has no output.
+    Tie,
+    /// The stage chose one derivation, but its text stays ambiguous with
+    /// its elided terminators written back (engine §7). The stage keeps its
+    /// output.
+    ElisionOnly,
 }
 
 /// A terminal a rejected stage could have read next, with the rules whose
@@ -360,6 +373,8 @@ pub struct ParseError {
     pub kind: ParseErrorKind,
     /// The stage it concerns.
     pub stage: Option<String>,
+    /// For an ambiguity, why it is one.
+    pub reason: Option<AmbiguityReason>,
     /// The stage-input token it concerns.
     pub token: Option<usize>,
     /// That token's range of the original text.
@@ -373,7 +388,8 @@ pub struct ParseError {
     pub column: Option<usize>,
     /// For a rejection, what could have been read next.
     pub expected: Vec<Expected>,
-    /// For an ambiguity, the two readings.
+    /// For an ambiguity, the two readings: the first and the second
+    /// reading of the tie, or of the ranking of the `elision-only` check.
     pub readings: Vec<Node>,
     /// The human description.
     pub message: String,

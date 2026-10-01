@@ -13,7 +13,8 @@ use crate::maximal::Maximal;
 use crate::rank::{Act, Ranker, Ranking, Verdict as RankVerdict};
 use crate::recent::Recent;
 use crate::result::{
-    Action, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Stage, Tags, Token, Verdict, Warning,
+    Action, AmbiguityReason, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Stage, Tags, Token,
+    Verdict, Warning,
 };
 use crate::tags::character_tag;
 use crate::tree::{build, emit, public_tree, warnings_of, IKind, ITree, TreeContext};
@@ -515,6 +516,7 @@ impl Dialect {
         ParseError {
             kind: ParseErrorKind::Grammar,
             stage: Some(stage.name.clone()),
+            reason: None,
             token: None,
             source: None,
             document: None,
@@ -538,14 +540,8 @@ impl Dialect {
         let grammar = &self.stages[index];
         let input = std::mem::take(&mut run.input);
         let public_input = std::mem::take(&mut run.public_input);
-        let mut stage = Stage {
-            name: grammar.name.clone(),
-            input: public_input,
-            output: None,
-            verdict: None,
-            witness: None,
-            tied: None,
-        };
+        let mut stage =
+            Stage { name: grammar.name.clone(), input: public_input, output: None, verdict: None, witness: None };
         let lowered = match self.lowered(index, features, false) {
             Ok(lowered) => lowered,
             Err(error) => {
@@ -575,13 +571,12 @@ impl Dialect {
             let mut ranker = Ranker::new(&lowered, &chart, &input, shared, lean, maximal.as_ref());
             ranker.rank().map(|ranking| {
                 let chosen = build(&ranker, ranking.chosen);
-                let tied = ranking.tied.map(|tied| build(&ranker, tied));
-                (ranking, chosen, tied)
+                (ranking, chosen)
             })
         } else {
             None
         };
-        let Some((ranking, chosen, tied)) = ranked else {
+        let Some((ranking, chosen)) = ranked else {
             // A text that `maximal` leaves with no derivation is rejected at
             // the first terminator it forbids in the derivation the stage
             // would otherwise have chosen (§4).
@@ -610,9 +605,6 @@ impl Dialect {
             RankVerdict::Resolved => Verdict::Resolved,
             RankVerdict::Tie => Verdict::Tie,
         });
-        if let Some(tied) = &tied {
-            stage.tied = Some(public_tree(tied, &context));
-        }
         if let Some((first, second)) = ranking.witness {
             stage.witness = Some([action(&lowered, first), action(&lowered, second)]);
         }
@@ -702,6 +694,7 @@ impl Dialect {
         ParseError {
             kind: ParseErrorKind::Rejected,
             stage: Some(stage.clone()),
+            reason: None,
             token: Some(position),
             source: Some(source),
             document: None,
@@ -801,6 +794,7 @@ impl Dialect {
         Ok(Some(ParseError {
             kind: ParseErrorKind::Ambiguous,
             stage: Some(stage.clone()),
+            reason: Some(AmbiguityReason::ElisionOnly),
             token: None,
             source: None,
             document: None,

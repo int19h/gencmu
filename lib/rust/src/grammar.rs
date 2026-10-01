@@ -16,14 +16,17 @@ use crate::fxhash::FxMap;
 use crate::tags::{character_tag, code_of_character_tag, is_name};
 use crate::unicode::Unicode;
 
-/// How a stage chooses among parses (engine §6): the lean of rule 2, or,
-/// for the `elision-only` check (§7), no lean at all.
+/// The rule by which a stage ranks its derivations (engine §6): the lean
+/// of rule 2, the counts of elided terminators, or, for the `elision-only`
+/// check (§7), no lean at all.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Lean {
     Greedy,
     Lazy,
+    /// A derivation beats another when its elision vector is less.
+    LateElision,
     /// Neither: any two derivations that differ are tied, as the
-    /// `elision-only` check ranks (§7).
+    /// `elision-only` check ranks (§7). A directive cannot name it.
     Neither,
 }
 
@@ -255,7 +258,7 @@ pub(crate) fn stitch(
                     }
                     let refused = || {
                         here(
-                            "%ambiguity-resolution takes greedy or lazy, then optionally elision-only, then optionally maximal"
+                            "%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only, then optionally maximal"
                                 .to_string(),
                         )
                     };
@@ -263,6 +266,7 @@ pub(crate) fn stitch(
                     grammar.lean = match args.next() {
                         Some("greedy") => Lean::Greedy,
                         Some("lazy") => Lean::Lazy,
+                        Some("late-elision") => Lean::LateElision,
                         _ => return Err(refused()),
                     };
                     // Each optional word in its place, and nothing after

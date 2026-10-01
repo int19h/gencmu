@@ -439,12 +439,12 @@ impl<'c> Dag<'c> {
             (Act::Read { .. }, Act::Close { .. }) => match self.lean {
                 Lean::Greedy => (true, false),
                 Lean::Lazy => (false, false),
-                Lean::Neither => (true, true),
+                Lean::Neither | Lean::LateElision => (true, true),
             },
             (Act::Close { .. }, Act::Read { .. }) => match self.lean {
                 Lean::Greedy => (false, false),
                 Lean::Lazy => (true, false),
-                Lean::Neither => (false, true),
+                Lean::Neither | Lean::LateElision => (false, true),
             },
             (Act::Close { prod: p, start: s, end: e, .. }, Act::Close { prod: q, start: t, end: f, .. }) => {
                 ((p, s, e) < (q, t, f), true)

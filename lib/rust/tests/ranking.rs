@@ -12,7 +12,7 @@ mod common;
 use std::collections::{BTreeMap, HashMap};
 use std::rc::Rc;
 
-use common::{parse_json, Value};
+use common::parse_json;
 use gencmu::tools::DOM_FORMAT;
 
 /// SplitMix64: small, and good enough to pick grammars.
@@ -842,22 +842,12 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
         }
     }
     let mut pattern = format!("{{\"ok\":true,\"stages\":[{{\"verdict\":\"{}\"", expected.verdict);
-    if let (Some(tied), Some((a, b))) = (expected.tied, expected.witness) {
-        pattern.push_str(&format!(
-            ",\"witness\":[{},{}],\"tied\":{}",
-            action_json(&grammar, &a),
-            action_json(&grammar, &b),
-            tree_json(&grammar, &derivations[tied])
-        ));
+    if let (Some(_), Some((a, b))) = (expected.tied, expected.witness) {
+        pattern.push_str(&format!(",\"witness\":[{},{}]", action_json(&grammar, &a), action_json(&grammar, &b)));
     }
     pattern.push_str(&format!("}}],\"tree\":{}}}", tree_json(&grammar, &derivations[expected.chosen])));
     let pattern = parse_json(&pattern).expect("a pattern");
     common::matches(&pattern, &actual, "result").map_err(describe)?;
-    if expected.verdict != "tie"
-        && actual.get("stages").map(Value::array).and_then(|s| s.first()).and_then(|s| s.get("tied")).is_some()
-    {
-        return Err(describe("a tied tree without a tie".to_string()));
-    }
     *findings
         .entry(match (expected.verdict, expected.count) {
             ("unique", _) => "(stat) unique",
