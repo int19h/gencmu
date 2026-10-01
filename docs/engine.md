@@ -214,7 +214,7 @@ The recognizer evaluates a condition that uses no capture when it predicts the i
 - `begins` holds when a completed item of `rule` has its origin at the span's start, in any set, and has an eligible witness. So it covers a prefix of the span, the empty prefix included.
 - `tags` is the union of the tag sets of the completed items of `rule` that span the tokens and have an eligible witness.
 
-A witness of a completed item is a finite proof of it in the chart. It is a tree of the advances by which the recognizer made the item, each from items that it made before. A witness can be cyclic. A constituent in it can have, below it, a constituent of the same rule over the same span. A stage does not count such a derivation (below), but a query reads it, as before.
+A witness of a completed item is a finite proof of that item. A witness is a finite tree justified by the predicted items and valid advances of the completed chart. It does not depend on item discovery order. A rule can occur again over the same span within this tree. This differs on purpose from the derivations that a stage counts and ranks (below, and §6), which exclude such a repetition.
 
 Several eligible witnesses are an ordinary success. A query never ranks its witnesses, and it never has a tie.
 
@@ -222,14 +222,26 @@ A nested parse follows written-terminator priority. In plain words, a nested rea
 
 Whether an omission is forbidden depends on the production prefix that the witness holds fixed, as follows:
 
-- Where the optional has a constituent `Y` (below), the prefix is the item before `Y`, with its captures. The omission is forbidden when the chart has a path from that item that reads `Y` through some position `p′ ≥ p`. The path then reads the optional's nonempty alternative. That reading of `Y` passes `Y`'s test, if it has one.
+- Where the optional has a constituent `Y` (below), the prefix is the item before `Y` in the same witness, with its captures. The omission is forbidden when the chart has a path from that item that reads `Y` through some position `p′ ≥ p`. The path then reads the optional's nonempty alternative. That reading of `Y` passes `Y`'s test, if it has one.
 - Where the optional has no constituent, the prefix is the whole item before the optional. The omission is forbidden when the chart advances that item over the optional's nonempty alternative at `p`.
 
 The advances of such a path come from the chart. So their tests and conditions passed. They need not belong to a witness of `rule`, and they need not be eligible themselves. An attempt that never completes `rule` can still forbid an omission.
 
-An item has an eligible witness when one of its advances combines children that have eligible witnesses, and that advance is not a forbidden omission. A predicted item, with its dot at the start, has one. This is the least answer that these advances give. So an item that only a cycle through itself makes eligible has no eligible witness.
+So eligibility belongs to a whole witness, not to an advance alone. Two witnesses of one item can hold different items fixed before `Y`. An omission is permitted only through a witness whose own fixed prefix permits it, and that same witness must be eligible. An eligible prefix of one witness never combines with the permitted omission of another.
 
-Written-terminator priority reads only the chart that recognition already made. It evaluates no condition and runs no query of its own. So it adds no error of the grammar, and the rule on a query about its own span (below) stays as it is. The window of a query stays as it is too. A `matches` over a span does not look past the span's end, even where a written terminator stands after it. So the keys of the memo (below) stay as they are too.
+For example, let `T` and `U` be elidable. Take `r → [A] y [T] C T U` and `y → A B | A B C | B z [U]`. Also take `z → ε | C T`. On `A B C T U`, `begins` of `r` is false.
+
+Two witnesses reach the omission of `[T]` after `y`. In the first, `[A]` is empty and `y → A B`. That prefix is eligible, but the omission is forbidden, since the same prefix reads `A B C` as `y` and then the written `T`.
+
+In the second witness, `[A]` reads `A` and `y → B z [U]`, so the omission of `[T]` is permitted. But that witness is not eligible. Its omission of `[U]` is forbidden, because `z` can read `C T`, and then the written `U` follows. Without the `[U]` of `y → B z [U]`, the second witness is eligible, and `begins` holds.
+
+An implementation can keep two states for each item. The first says that the item has an eligible witness. The second says that it has an eligible witness that permits the next optional to be empty. Where the optional has a constituent `Y`, the second state keeps the choice of the advance over `Y` that makes this so. A predicted item has an eligible witness. The implementation computes both states together, to the least answer that the advances give.
+
+So an item with no finite proof from predicted items has no witness, and a cycle alone gives none. An item that only a cycle through itself makes eligible has no eligible witness.
+
+Written-terminator priority reads only the chart that recognition already made. The filtering step introduces no new error checks. Changed query answers can cause other conditions to run or stop running. The existing rule for recursive queries still applies (below).
+
+The window of a query stays as it is too. A `matches` over a span does not look past the span's end, even where a written terminator stands after it. So the keys of the memo (below) stay as they are too.
 
 `begins` is one recognition over the whole span, not a separate parse of each prefix. The reason is that the conditions inside `rule` see the end of the span as the end of their input. A recognizer can stop at a set that holds no item, since no later set can then hold one. Otherwise it reads as far as it can. An error of the grammar that it meets is an error, even after `rule` completed once.
 
