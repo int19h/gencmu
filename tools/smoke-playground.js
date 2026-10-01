@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 // Opens the playground in a headless browser and checks that it works: its
 // parser worker starts, parses a sentence under the CLL dialect into the
-// expected brackets, and explains a text it rejects; that "gencmu" in its
-// heading links to the repository; that it lists the features a parse used
-// by name; that it never shows an out-of-date answer as current; that it
-// shows an empty bracket rendering as one; that a failure for another run
-// does not end the current one; and that a link to the Trace tab traces its
-// text, or shows its error once. With no URL the page is opened from
+// expected brackets, explains a text it rejects, and shows a tie as an
+// error with its two readings; that "gencmu" in its heading links to the
+// repository; that it lists the features a parse used by name; that it
+// never shows an out-of-date answer as current; that it shows an empty
+// bracket rendering as one; that a failure for another run does not end
+// the current one; and that a link to the Trace tab traces its text, or
+// shows its error once. With no URL the page is opened from
 // file://, as someone who cloned the repository would; given a URL, that URL
 // is checked instead, which is how a GitHub Pages deployment is tested.
 //
@@ -169,6 +170,16 @@ async function main() {
     if (!/rejected/.test(explained.verdict) || !/The syntax stage cannot read the text/.test(explained.explanation) ||
         !/\^/.test(explained.explanation) || !/sumti-6: .*LE/.test(explained.explanation)) {
       throw new Error(`${rejected} was not explained as a rejection: ${JSON.stringify(explained)}`);
+    }
+
+    // A tie is an error, shown with its two readings and no tree.
+    const tied = "mi bevri le dakli gi'eke bevri le gerku gi'a bevri le mlatu";
+    await type(tied);
+    const tie = await answerFor(tied);
+    if (tie.error) throw new Error(`the playground failed: ${tie.error}`);
+    if (!/a tie in the syntax stage/.test(tie.verdict) || !/The syntax stage is ambiguous/.test(tie.explanation) ||
+        !/first\(mi /.test(tie.explanation) || !/second\(mi /.test(tie.explanation) || tie.output !== "") {
+      throw new Error(`${tied} was not shown as a tie: ${JSON.stringify(tie)}`);
     }
 
     // Texts typed while earlier ones are still being parsed, one of them long

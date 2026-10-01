@@ -16,7 +16,7 @@ export type Difference = {
 };
 export type Ranking = {
     verdict: import("./types.js").Verdict;
-    chosen: Rope;
+    first: Rope;
     second: Rope | null;
     witness: [Action | null, Action | null] | null;
 };

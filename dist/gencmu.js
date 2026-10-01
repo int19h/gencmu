@@ -5154,10 +5154,12 @@
    */
 
   /**
-   * What the ranking concluded.
+   * What the ranking concluded: the verdict, the first reading, m, which is
+   * the chosen derivation unless the verdict is a tie, and for a tie the
+   * second reading and the witness (engine §6).
    * @typedef {object} Ranking
    * @property {import("./types.js").Verdict} verdict
-   * @property {Rope} chosen
+   * @property {Rope} first
    * @property {Rope | null} second
    * @property {[Action | null, Action | null] | null} witness
    */
@@ -5404,8 +5406,9 @@
   // The total order T (engine §6): at the first visible difference, the
   // pair's decision by lean, and where that is a tie, the
   // canonical keys; sequences equal in their visible actions are ordered at
-  // their first difference among all actions. The chosen derivation is T's
-  // minimum.
+  // their first difference among all actions. The first reading is T's
+  // minimum. T orders the diagnostics and picks the terminator that a
+  // maximal rejection reports, and never turns a tie into a choice.
   /**
    * @param {Rope} left
    * @param {Rope} right
@@ -5919,9 +5922,9 @@
       return answer;
     }
 
-    // Ranks the derivations of the root items: the verdict, the chosen
-    // derivation, the tied derivation diverging from it earliest if the
-    // result is a tie, and the witness.
+    // Ranks the derivations of the root items: the verdict, the first
+    // reading, and for a tie the second reading, the tied derivation that
+    // diverges from the first earliest, and the witness.
     /**
      * @param {Item[]} roots
      * @returns {Ranking | null} null when every derivation is cyclic
@@ -5975,7 +5978,7 @@
         if (!difference || !difference.left || !difference.right) difference = firstDifference(main.seq, second, false);
         witness = difference ? [difference.left, difference.right] : null;
       }
-      return { verdict, chosen: main.seq, second, witness };
+      return { verdict, first: main.seq, second, witness };
     }
   }
 
@@ -6357,7 +6360,7 @@
         // chosen tree, no output and no warnings, and the error holds the
         // first and the second reading (engine §6). A tie always has a second
         // derivation, and so a witness.
-        const readings = [ranking.chosen, /** @type {import("./types.js").Rope} */ (ranking.second)]
+        const readings = [ranking.first, /** @type {import("./types.js").Rope} */ (ranking.second)]
           .map((rope) => resultTree(derivationTree(rope), context)[0]);
         Object.assign(report, {
           verdict: "tie",
@@ -6373,7 +6376,7 @@
         return report;
       }
       Object.assign(report, { verdict: ranking.verdict, witness: null });
-      const derivation = derivationTree(ranking.chosen);
+      const derivation = derivationTree(ranking.first);
       report.tree = resultTree(derivation, context)[0];
       report.warnings = warningsOf(derivation, context, features, this.name);
       try {
@@ -6488,7 +6491,7 @@
           const end = toOriginal(node.span[1]);
           return { ...node, span: [start, end], source: sourceOf(original, start, end), children };
         });
-      return [ranking.chosen, /** @type {import("./types.js").Rope} */ (ranking.second)].map((rope) => remap(resultTree(derivationTree(rope), context)[0]));
+      return [ranking.first, /** @type {import("./types.js").Rope} */ (ranking.second)].map((rope) => remap(resultTree(derivationTree(rope), context)[0]));
     }
   }
 
@@ -6617,7 +6620,7 @@
   }
 
   /**
-   * Of a ranking's chosen derivation, the first elided terminator, in the order
+   * Of a ranking's first reading, the first elided terminator, in the order
    * of the tree's leaves, that maximal forbids: its position, and its terminal
    * with the rule its optional is written in as the one expected there (engine
    * §4). Null for no ranking, or none forbidden.
@@ -6628,7 +6631,7 @@
   function forbiddenTerminator(ranking, maximal) {
     if (ranking === null) return null;
     /** @type {{node: Derivation, next: number}[]} */
-    const stack = [{ node: derivationTree(ranking.chosen), next: 0 }];
+    const stack = [{ node: derivationTree(ranking.first), next: 0 }];
     while (stack.length > 0) {
       const frame = stack[stack.length - 1];
       const node = frame.node;
