@@ -450,7 +450,9 @@ An inserted token with a phoneme tag has that phoneme as its label, or a space f
 A directive is a keyword and its operands. By convention each stands in a block of its own, after prose that says why the grammar needs it. Two directives can share a line.
 
 - `%ambiguity-resolution` says how the stage chooses among parses. Its first operand is the rule of the ranking: `greedy`, `lazy` or `late-elision`. `elision-only` and then `maximal` can follow it. "Ambiguity" and "Elided terminators" explain it. Every stage must say it exactly once, in any of its documents.
-- `%elidable KU KEI VAU ...` names the terminators that can be elided. An absent optional whose first symbol is one of them shows in the parse tree as that terminator, elided at that point. `elision-only` writes these terminators back. The operands are identifier tags: bare names that begin with a capital, or `~name`, so `KU` and `~KU` are one operand. A phoneme tag, a character tag, a range or a property there is an error. A stage can have several `%elidable` directives, and their terminators add up.
+- `%elidable KU KEI VAU ...` names the terminators that can be elided. An absent optional whose first symbol is one of them shows in the parse tree as that terminator, elided at that point. `late-elision` counts these terminators, `maximal` can forbid them, and `elision-only` writes them back. An optional that begins with another terminal, such as an optional separator, can still be absent. Its absence counts for nothing and leaves no node.
+
+  The operands are identifier tags: bare names that begin with a capital, or `~name`, so `KU` and `~KU` are one operand. A phoneme tag, a character tag, a range or a property there is an error. A stage can have several `%elidable` directives, and their terminators add up.
 - `%stage NAME`, `%include "PATH"` and `%features NAME ...` build a pipeline, as the next section says.
 
 ## Pipelines
@@ -506,7 +508,7 @@ A tie is an error of kind `ambiguous`. The stage hands nothing on, and no later 
 - If one reads and the other closes, the rule decides. `greedy` takes the one that reads, so a constituent ends as late as the grammar allows. `lazy` takes the one that closes, so a constituent ends as early as the grammar allows.
 - If both close different constituents, they are tied.
 
-Constituents with a single symbol, and the helper constituents that the notation creates for `[ ]` and `...`, are transparent to the comparison. So two parses that differ only in such a relabeling do not differ yet. Transparency does not merge parses, though. Two parses that differ only there are still two parses, and they are tied. For example, `[[X]]` matches the empty text in two ways, and so does `[A] & [B]`.
+Constituents with a single symbol, and the helper constituents that the notation creates for `[ ]` and `...`, are transparent to the comparison. So two parses that differ only in such a relabeling do not differ yet. Transparency does not merge parses, though. Two parses that differ only there are still two parses. `greedy` and `lazy` tie them, and `late-elision` ties them unless they elide different terminators. For example, `[[X]]` matches the empty text in two ways, and `[A] & [B]` in three.
 
 The preference is like greedy and lazy quantifiers in a backtracking regular-expression engine. It is unlike the greed of a PEG parser. The preference orders the parses that the grammar already admits, and never commits early. So it never rejects a text by itself, but a tie that it leaves is an error. The earliest difference decides. And it applies to every constituent of the stage, not to one quantifier.
 
@@ -516,7 +518,7 @@ Two parses with the same counts at every position are tied, whatever else differ
 
 For example, the experimental grammar can read `to mi klama` in two ways. One ends the parenthesis `to` after `mi`, with `vau` and `toi` elided there, and `klama` is the main predicate. The other puts `mi klama` inside the parenthesis and elides terminators only at the end. `late-elision` takes the second, because the first leaves out a terminator earlier. `greedy` leaves the two readings tied, so the text is an error under `greedy`. Before ties became errors, the canonical order took the first.
 
-Today the bundled syntax grammars declare `greedy`, so an elided terminator sits as late as the grammar allows. That is the baseline. The approved policy moves the syntax of all four dialects to `late-elision`, with grammar rules that settle the choices that it leaves tied.
+The syntax stage of every bundled dialect uses `late-elision`. Each grammar settles with rules of its own the choices that `late-elision` leaves tied, such as where a free modifier attaches. A dialect whose grammar change has not landed yet still declares `greedy`.
 
 The forms and words stages are lazy. The word forms divide a run in one way only, so in the forms stage the choice never decides where a word ends. A magic word, such as `si`, acts on other words. In the words stage, the choice makes a magic word act on what exists when it is read. So `mi si si` erases `mi` and then nothing.
 
@@ -550,4 +552,4 @@ The grammars that extend CLL are really ambiguous in places. A sumti is an argum
 
 `late-elision` does not make `elision-only` redundant. Written-back terminators can let another alternative match, or change what a condition or a test sees. So the check can find two readings where the ranking found one best parse.
 
-Today the grammars that extend CLL declare only `greedy`. A caller can switch `elision-only` on for a parse, to find ambiguities that are not about terminators in the text that it supplies. A caller can also switch it off, to loosen a grammar that declares it.
+The grammars that extend CLL do not declare `elision-only`. A caller can switch `elision-only` on for a parse, to find ambiguities that are not about terminators in the text that it supplies. A caller can also switch it off, to loosen a grammar that declares it.
