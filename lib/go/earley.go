@@ -298,17 +298,25 @@ func (r *recognizer) accepted(start int32) []*symNode {
 }
 
 // begun says whether a start-rule constituent begins at the start of the
-// input, in any set: whether a prefix of the input, the empty one included,
-// parses as the start rule.
+// input, in any set, with an eligible proof tree: whether a prefix of the
+// input, the empty one included, parses as the start rule.
 func (r *recognizer) begun(start int32) bool {
+	var items []*item
 	for _, s := range r.sets {
-		for key := range s.syms {
+		for key, c := range s.syms {
 			if key.rule == start && key.origin == 0 {
-				return true
+				items = append(items, c.items...)
 			}
 		}
 	}
-	return false
+	// Only an item with an eligible proof tree counts (§4).
+	return len(r.eligibleItems(items)) > 0
+}
+
+// anyEligible says whether a constituent has an item with an eligible
+// proof tree (§4).
+func (r *recognizer) anyEligible(c *symNode) bool {
+	return len(r.eligibleItems(c.items)) > 0
 }
 
 func sortSyms(s []*symNode) {

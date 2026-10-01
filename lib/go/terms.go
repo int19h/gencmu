@@ -331,13 +331,17 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *ta
 	defer delete(ps.inProgress, at)
 	rec := run.recognize(g, start, s.a, s.b-s.a)
 	res := &nestedResult{}
+	// Each query reads only the completed items of the rule that have an
+	// eligible proof tree (§4).
 	if kind == cdBegins {
 		res.holds = rec.begun(start)
 	} else {
 		acc := rec.accepted(start)
-		res.holds, res.tags = len(acc) > 0, ps.in.empty()
+		res.holds, res.tags = false, ps.in.empty()
 		for _, c := range acc {
-			res.tags = ps.in.union(res.tags, c.tags)
+			if rec.anyEligible(c) {
+				res.holds, res.tags = true, ps.in.union(res.tags, c.tags)
+			}
 		}
 	}
 	ps.nested[k] = res
