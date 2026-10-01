@@ -680,31 +680,98 @@ class Ranker(Summaries):
         return Ranking("tie", first.seq, second, witness)
 
 
-Vector = tuple[int, ...]
-"""An elision vector (engine §6), sparse: for each boundary with elided
-terminators, in order, the boundary negated and then the count there. The
-negation makes Python's order of tuples the order of vectors: at the first
-boundary where two vectors differ, the one with the smaller count is less,
-and a vector with no more elisions is less than one that goes on."""
+class Elided:
+    """A non-empty sequence of elisions: the positions of a derivation's
+    elided terminators, in text order, with one entry for each terminator.
+    It is one elision, a leaf, or two sequences joined. A sequence built on
+    another shares it, so an edge adds one node and copies nothing. Each
+    node knows its size, an exact integer, and its first and last
+    positions. A node whose first and last positions are equal is a run:
+    all its elisions stand at one position."""
+
+    __slots__ = ("size", "first", "last", "left", "right")
+
+    def __init__(self, size: int, first: int, last: int, left: Elided | None = None, right: Elided | None = None) -> None:
+        self.size = size
+        self.first = first
+        self.last = last
+        self.left = left
+        self.right = right
 
 
-def add(a: Vector, b: Vector) -> Vector:
-    """The sum of two elision vectors, component by component."""
-    if not a:
-        return b
-    if not b:
-        return a
-    if a[-2] > b[0]:
-        # Every boundary of a precedes every boundary of b, which is how
-        # an edge joins the item before it and its child.
-        return a + b
-    if a[-2] == b[0]:
-        return a[:-1] + (a[-1] + b[1],) + b[2:]
-    counts: dict[int, int] = {}
-    for vector in (a, b):
-        for index in range(0, len(vector), 2):
-            counts[vector[index]] = counts.get(vector[index], 0) + vector[index + 1]
-    return tuple(value for boundary in sorted(counts, reverse=True) for value in (boundary, counts[boundary]))
+Vector = Optional[Elided]
+"""An elision vector (engine §6): its sequence of elisions, or ``None``
+for a derivation that elides nothing. The count at a boundary is the
+number of elisions at that position."""
+
+
+def join(left: Vector, right: Vector) -> Vector:
+    """The sum of the vectors of an edge's two children. Every position of
+    the item before the step precedes every position of the child, so the
+    sum is the two sequences joined."""
+    if left is None:
+        return right
+    if right is None:
+        return left
+    return Elided(left.size + right.size, left.first, right.last, left, right)
+
+
+def compare_vectors(left: Vector, right: Vector) -> int:
+    """-1 when the left vector is less, 1 when the right one is, 0 when they
+    are equal (engine §6). Two sequences compare at their first differing
+    elision. There, the one at the earlier position has the greater count
+    at that position, so the later position is less. A sequence that ends
+    first has fewer elisions after the shared part, so it is less.
+
+    The comparison takes a run whole and counts how much of the run at the
+    front of each side it has taken. So it never walks the elisions of a
+    run one by one, and it skips a part that both sides share at the same
+    point."""
+    a: list[Elided] = [left] if left is not None else []
+    b: list[Elided] = [right] if right is not None else []
+    taken_a = taken_b = 0
+    while True:
+        if not a or not b:
+            return 0 if not a and not b else (-1 if not a else 1)
+        x, y = a[-1], b[-1]
+        if x is y and taken_a == taken_b:
+            a.pop()
+            b.pop()
+            taken_a = taken_b = 0
+            continue
+        x_run = x.first == x.last
+        y_run = y.first == y.last
+        if not x_run or not y_run:
+            # Descend the larger side first, so that a part both share is
+            # met at the front of both. Only a node that is no run is
+            # descended, and nothing of it has been taken.
+            descend_a = not x_run and (y_run or x.size >= y.size)
+            descend_b = not y_run and (x_run or y.size >= x.size)
+            if descend_a:
+                a.pop()
+                a.append(x.right)  # type: ignore[arg-type]
+                a.append(x.left)  # type: ignore[arg-type]
+            if descend_b:
+                b.pop()
+                b.append(y.right)  # type: ignore[arg-type]
+                b.append(y.left)  # type: ignore[arg-type]
+            continue
+        if x.first != y.first:
+            return -1 if x.first > y.first else 1
+        rest_a = x.size - taken_a
+        rest_b = y.size - taken_b
+        if rest_a < rest_b:
+            a.pop()
+            taken_a = 0
+            taken_b += rest_a
+        elif rest_b < rest_a:
+            b.pop()
+            taken_b = 0
+            taken_a += rest_b
+        else:
+            a.pop()
+            b.pop()
+            taken_a = taken_b = 0
 
 
 class Summary:
@@ -725,25 +792,28 @@ class Summary:
 class Least:
     """A summary being built over the edges of an item."""
 
-    __slots__ = ("total", "vector", "count", "edges")
+    __slots__ = ("total", "found", "vector", "count", "edges")
 
     def __init__(self) -> None:
         self.total = 0
-        self.vector: Vector | None = None
+        self.found = False
+        self.vector: Vector = None
         self.count = 0
         self.edges: list[int] = []
 
     def offer(self, index: int, total: int, vector: Vector, count: int) -> None:
         # Every edge adds to the total, losing ones included.
         self.total += total
-        if self.vector is None or vector < self.vector:
+        order = compare_vectors(vector, self.vector) if self.found else -1
+        if order < 0:
+            self.found = True
             self.vector, self.count, self.edges = vector, count, [index]
-        elif vector == self.vector:
+        elif order == 0:
             self.count += count
             self.edges.append(index)
 
     def summary(self) -> Summary | None:
-        if self.vector is None:
+        if not self.found:
             return None
         return Summary(min(self.total, 2), self.vector, min(self.count, 2), frozenset(self.edges))
 
@@ -766,6 +836,8 @@ class Elisions(Summaries):
         self.elided = [
             production.helper and production.elided is not None and not production.rhs for production in self.productions
         ]
+        # The one sequence of a single elision at each position.
+        self.leaves: dict[int, Elided] = {}
 
     def compute(self, key: Key) -> Any:
         """A full key's summary, or ``None`` with no derivation; a partial
@@ -778,14 +850,17 @@ class Elisions(Summaries):
             if inner is None or not self.elided[forest.prod[item]]:
                 return inner
             # An elided terminator counts one at its position.
-            unit = (-forest.origin[item], 1)
-            return Summary(inner.total, add(inner.vector, unit), inner.count, NO_EDGES)
+            at = forest.origin[item]
+            unit = self.leaves.get(at)
+            if unit is None:
+                unit = self.leaves[at] = Elided(1, at, at)
+            return Summary(inner.total, join(inner.vector, unit), inner.count, NO_EDGES)
         guarded = self.guarded(item)
         every = Least()
         eligible = Least()
         for index, edge_kind, pred_key, child_key, a, _ in self.steps(key):
             if edge_kind == 0:
-                total, vector, count = 1, (), 1
+                total, vector, count = 1, None, 1
             else:
                 assert pred_key is not None
                 before: Summary | None = memo[pred_key][1 if self.eligible_before(edge_kind, a) else 0]
@@ -797,7 +872,7 @@ class Elisions(Summaries):
                     if child is None:
                         continue
                     total = min(total * child.total, 2)
-                    vector = add(vector, child.vector)
+                    vector = join(vector, child.vector)
                     count = min(count * child.count, 2)
             every.offer(index, total, vector, count)
             if guarded and self.permits(item, edge_kind, a):
@@ -821,10 +896,7 @@ class Elisions(Summaries):
         from a ranking with no lean over the best derivations; ``None`` if
         the input has no derivation. The root combines its items as a
         summary combines its edges (engine §6)."""
-        total = 0
-        least: Vector | None = None
-        count = 0
-        best: list[int] = []
+        roots_least = Least()
         for root in roots:
             key = self.full_key(root, self.empty)
             if key is None:
@@ -832,14 +904,13 @@ class Elisions(Summaries):
             summary: Summary | None = self.solve(key)
             if summary is None:
                 continue
-            total += summary.total
-            if least is None or summary.vector < least:
-                least, count, best = summary.vector, summary.count, [root]
-            elif summary.vector == least:
-                count += summary.count
-                best.append(root)
-        if least is None:
+            # The root combines its items as a summary combines its edges.
+            roots_least.offer(root, summary.total, summary.vector, summary.count)
+        if not roots_least.found:
             return None
+        total = roots_least.total
+        count = roots_least.count
+        best = roots_least.edges
         readings = Ranker(self.forest, "none", self.maximal, best=self).rank(best)
         # The least count says whether the best forest holds a second
         # derivation, and the ranking with no lean over it finds one exactly

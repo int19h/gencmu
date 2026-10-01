@@ -18,6 +18,7 @@ from __future__ import annotations
 import functools
 import os
 import random
+import tracemalloc
 import unittest
 from unittest import mock
 from typing import Any
@@ -28,7 +29,7 @@ from gencmu._earley import Forest, Parser, StageContext
 from gencmu._grammar import lower, stitch
 from gencmu._maximal import Maximal
 from gencmu._model import Token
-from gencmu._rank import Least, Vector, actions, add, count_roots, rank
+from gencmu._rank import Elided, Least, Vector, actions, compare_vectors, count_roots, join, rank
 from gencmu._stage import StageRunner
 
 TERMINALS = ["A", "B", "C"]
@@ -768,29 +769,86 @@ class ElisionVectors(unittest.TestCase):
 
     @staticmethod
     def elisions(at: int, k: int) -> Vector:
-        """2^k elisions at one boundary, built by doubling, each sum a new
-        tuple."""
-        vector: Vector = (-at, 1)
+        """2^k elisions at one position, built by doubling. Each half is a
+        copy of its own, so no part is shared."""
+        vector: Vector = Elided(1, at, at)
         for _ in range(k):
-            vector = add(vector, tuple(list(vector)))
+            assert vector is not None
+            copy = Elided(vector.size, vector.first, vector.last, vector.left, vector.right)
+            vector = join(vector, copy)
         return vector
 
     def test_runs_of_elisions(self) -> None:
-        one: Vector = (0, 1)
+        one: Vector = Elided(1, 0, 0)
         for k in (32, 53, 60, 100):
             with self.subTest(k=k):
-                self.assertEqual(self.elisions(0, k), (0, 2**k))
-                self.assertEqual(self.elisions(0, k), self.elisions(0, k), f"2^{k} and 2^{k}")
-                # One more elision at the same boundary is greater, also
+                run = self.elisions(0, k)
+                assert run is not None
+                self.assertEqual(run.size, 2**k)
+                self.assertEqual(compare_vectors(run, self.elisions(0, k)), 0, f"2^{k} and 2^{k}")
+                # One more elision at the same position is greater, also
                 # past 2^53, and one fewer is less.
-                self.assertLess(self.elisions(0, k), add(self.elisions(0, k), one), f"2^{k} and 2^{k} + 1")
-                self.assertGreater(add(one, self.elisions(0, k)), self.elisions(0, k), f"1 + 2^{k} and 2^{k}")
-                self.assertLess((0, 2**k - 1), self.elisions(0, k), f"2^{k} - 1 and 2^{k}")
+                self.assertEqual(compare_vectors(run, join(self.elisions(0, k), one)), -1, f"2^{k} and 2^{k} + 1")
+                self.assertEqual(compare_vectors(join(one, self.elisions(0, k)), run), 1, f"1 + 2^{k} and 2^{k}")
+                # 2^0 + 2^1 + ... + 2^(k-1) is one fewer.
+                fewer: Vector = None
+                for power in range(k):
+                    fewer = join(fewer, self.elisions(0, power))
+                assert fewer is not None
+                self.assertEqual(fewer.size, 2**k - 1)
+                self.assertEqual(compare_vectors(fewer, run), -1, f"2^{k} - 1 and 2^{k}")
                 # The same counts, followed by elisions at different
-                # boundaries: the later boundary is less.
-                self.assertLess(add(self.elisions(0, k), self.elisions(3, k)), add(self.elisions(0, k), self.elisions(2, k)), f"then at 3 or at 2, 2^{k} each")
-                # One elision earlier outweighs any number later.
-                self.assertLess(self.elisions(1, k), one, f"2^{k} at 1 and one at 0")
+                # positions: the later position is less.
+                self.assertEqual(
+                    compare_vectors(join(self.elisions(0, k), self.elisions(3, k)), join(self.elisions(0, k), self.elisions(2, k))),
+                    -1,
+                    f"then at 3 or at 2, 2^{k} each",
+                )
+                # One elision at an earlier position outweighs any number at
+                # a later one.
+                self.assertEqual(compare_vectors(self.elisions(1, k), one), -1, f"2^{k} at 1 and one at 0")
+                self.assertEqual(compare_vectors(None, one), -1)
+                self.assertEqual(compare_vectors(None, None), 0)
+
+
+class LongInputs(unittest.TestCase):
+    def test_late_elision_memory_grows_linearly(self) -> None:
+        """A summary shares the vector of the item before it, so a long
+        input with several derivations ranks in memory in proportion to its
+        length: each unit reads A and elides one or two T, so the input is
+        resolved. Four times the input takes about four times the memory,
+        where copying each vector would take sixteen."""
+
+        def ref(name: str) -> dict[str, Any]:
+            return {"ref": name}
+
+        units = [{"seq": [ref("A"), {"optional": ref("T")}]}, {"seq": [ref("A"), {"optional": ref("T")}, {"optional": ref("T")}]}]
+        dom = {
+            "format": DOM_FORMAT,
+            "rules": [
+                {"name": "text", "op": "define", "alternatives": [{"guards": [], "expr": {"repeat": ref("unit"), "min": 1}}], "conditions": [], "at": [3, 1]},
+                {"name": "unit", "op": "define", "alternatives": [{"guards": [], "expr": unit} for unit in units], "conditions": [], "at": [4, 1]},
+            ],
+            "directives": [{"name": "ambiguity-resolution", "args": ["late-elision"], "at": [1, 1]}, {"name": "elidable", "args": ["T"], "at": [2, 1]}],
+            "constants": [],
+        }
+        unicode = _unicode_table(_resources().unicode)
+        lowered = lower(stitch("main", [("g.md", dom)], unicode), frozenset())
+        peaks = []
+        for length in (500, 2000):
+            tokens = [Token("a", frozenset(["A"]), (index, index + 1), (index, index + 1)) for index in range(length)]
+            context = StageContext(lowered, tokens, "a" * length, unicode)
+            context.count = count_roots
+            forest = Parser(context).parse(lowered.rule_ids["text"])
+            tracemalloc.start()
+            try:
+                ranking = rank(forest, "late-elision")
+                peaks.append(tracemalloc.get_traced_memory()[1])
+            finally:
+                tracemalloc.stop()
+            assert ranking is not None
+            self.assertEqual(ranking.verdict, "resolved")
+        self.assertLess(peaks[1], 6 * peaks[0], f"peak memory {peaks[0]} bytes for 500 tokens, {peaks[1]} for 2000")
 
 
 if __name__ == "__main__":
