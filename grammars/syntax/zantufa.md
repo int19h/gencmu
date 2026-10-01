@@ -25,7 +25,9 @@ The word stage reads the magic words, the words such as `si` that act on other w
 
 [The notation document](../../docs/notation.md) explains the notation. A lookahead of the reference, such as `!terms`, is a condition with `begins`. The terminals of this grammar (the symbols that each match one input token) are selma'o. A tag marks a token by name, phoneme or character. The rules `any-word` and `anything` match tokens tagged `word` and `quoted-text`, respectively. The word stage puts these tags on the words of a quote and on a unit that a quote hands on whole.
 
-The stage is greedy: at the first difference between two parses, it takes the one that reads the next word. A PEG's repetition is greedy too, and the two usually agree. Where two alternatives of an ordered choice can read the same words, the later one has a condition that removes that reading. The terminators that the reference writes with `_elidible` are elidable here.
+The stage is greedy: at the first difference between two parses, it takes the one that reads the next word. A PEG's repetition is greedy too, and the two usually agree. Where two alternatives of an ordered choice can read the same words, the later one has a condition that removes that reading. The terminators that the reference writes with `_elidible` are elidable here, but `cu` is not.
+
+The reference writes `CU_elidible`, but `cu` is a separator. It stands between the terms and the bridi-tail, and it closes neither of them. CLL's grammar does not make `cu` elidable either. So `[CU #]` is an ordinary optional here. A written `cu` parses as before, and a sentence can still omit it. An absent `cu` makes no elided node in the tree, and the ranking does not count it. `maximal` and `elision-only` do not treat it as a terminator either.
 
 The grammar also states the attachment conventions of the reference. These are the points where a greedy repetition or an ordered choice of the reference decides how words attach. A condition states each of them, so that the grammar gives the reading, and the ranking does not. These are the conventions:
 
@@ -40,7 +42,7 @@ Each of these conditions is a restriction of the grammar, not a preference among
 %ambiguity-resolution greedy
 
 %elidable
-  BEhO BOI CU DOhU FEhU GEhU GIhI IAU KEI KEhE KU KUhAU KUhE
+  BEhO BOI DOhU FEhU GEhU GIhI IAU KEI KEhE KU KUhAU KUhE
   KUhO LIhAU LIhU LOhO LUhU MEhU SEhU TEhU TOI TUhU VAU VEhO
 
 %rule #
