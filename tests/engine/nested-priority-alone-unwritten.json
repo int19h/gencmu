@@ -1,0 +1,24 @@
+{
+  "description": "The control of nested-priority-alone where no T is written: r → A [T] B leaves out [T] on A B, and begins of r holds (engine §4).",
+  "grammar": "%elidable T\n%rule text A B\n%conditions begins(from($), r)\n%rule r A [T] B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null
+    }
+  }
+}

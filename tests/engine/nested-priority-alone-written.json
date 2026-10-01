@@ -1,0 +1,30 @@
+{
+  "description": "The control of nested-priority-alone with both T written: on A T T, r reads the first T as [T] and the second as its last T. That witness omits nothing, so begins of r holds, although the witness that leaves out [T] is not eligible (engine §4).",
+  "grammar": "%elidable T\n%rule text A T T\n%conditions begins(from($), r)\n%rule r A [T] T",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ]
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null
+    }
+  }
+}

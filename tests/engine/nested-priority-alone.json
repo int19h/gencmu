@@ -1,0 +1,28 @@
+{
+  "description": "An omission with no constituent: [T] follows the terminal A, so the prefix is the item before [T]. On A T, that item reads the written T as [T], so leaving it out is forbidden, and r cannot read the token as its last T. begins of r is false (engine §4).",
+  "grammar": "%elidable T\n%rule text A T\n%conditions begins(from($), r)\n%rule r A [T] T",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "stage": "main"
+      }
+    },
+    "error": "rejected"
+  }
+}
