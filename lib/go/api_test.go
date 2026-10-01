@@ -769,16 +769,40 @@ func TestParseTokensOutOfRange(t *testing.T) {
 			t.Fatalf("source %v: expected a usage error, got %v %v", src, res, err)
 		}
 	}
-	toks := []Token{
-		{Text: "a", Tags: []string{"'a'"}, Source: [2]int{2, 3}},
-		{Text: "a", Tags: []string{"'a'"}, Source: [2]int{0, 1}},
-	}
-	if _, err := d.ParseTokens("a a", toks, ParseOptions{}); err == nil {
-		t.Fatal("tokens out of order were accepted")
-	}
-	toks = []Token{{Text: "a", Tags: []string{"'a'"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}}
+	toks := []Token{{Text: "a", Tags: []string{"'a'"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}}
 	if res, err := d.ParseTokens("a", toks, ParseOptions{}); err != nil || !res.OK {
 		t.Fatalf("%v %+v", err, res)
+	}
+}
+
+// Caller tokens whose sources overlap or lie out of order are not a
+// mistake (engine §1, §11). The source of a run of them runs from the least
+// start among them to the greatest end, and its text is the text there.
+func TestParseTokensOutOfOrder(t *testing.T) {
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text A B\n%emits $"))
+	for _, c := range []struct {
+		text       string
+		x, y, want [2]int
+	}{
+		{"a b", [2]int{2, 3}, [2]int{0, 1}, [2]int{0, 3}},
+		{"abc", [2]int{0, 2}, [2]int{1, 3}, [2]int{0, 3}},
+		{"abcd", [2]int{1, 4}, [2]int{2, 3}, [2]int{1, 4}},
+	} {
+		toks := []Token{
+			{Text: "x", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: c.x},
+			{Text: "y", Tags: []string{"B"}, Span: [2]int{1, 2}, Source: c.y},
+		}
+		res, err := d.ParseTokens(c.text, toks, ParseOptions{})
+		if err != nil || !res.OK {
+			t.Fatalf("sources %v and %v: %v %+v", c.x, c.y, err, res)
+		}
+		if res.Tree.Source != c.want {
+			t.Errorf("sources %v and %v: the tree's source is %v, not %v", c.x, c.y, res.Tree.Source, c.want)
+		}
+		out := res.Stages[0].Output
+		if len(out) != 1 || out[0].Source != c.want || out[0].Text != string([]rune(c.text)[c.want[0]:c.want[1]]) {
+			t.Errorf("sources %v and %v: the output is %+v", c.x, c.y, out)
+		}
 	}
 }
 
