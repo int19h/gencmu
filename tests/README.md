@@ -68,6 +68,18 @@ A load that fails gives only its error. Its kind is `grammar` for a grammar that
 
 Each library reads the document as a grammar document (engine §8, §9). The reading makes a DOM (document object model), as `docs/output.md` describes. The library matches the DOM against the pattern, or it compares the position of the error with the expected position. The reader reports a syntax error at the first token that cannot continue the document. It reports an error of §9 at the first token of the offending construct.
 
+## Notation shapes: `notation-shapes.json`
+
+```
+{"description": "...", "document": "Markdown text", "inputs": ["b", "qs"], "control": [OUTCOME...], "loads": {"guard": [OUTCOME...]}}
+```
+
+A caller can supply its own `notation/bootstrap.json` (`docs/api.md`). Its notation can give the reader a tree of another shape, and engine §9 says how the reader reads it. Each library loads `document` as the one document of a stage `main`, with a bootstrap made from the bundled one. It then parses each of `inputs`, with the options of the API's default. The outcome of an input is its bracket rendering if it parses, or else the kind of its error. A load that fails gives only the kind of its error.
+
+- With the bundled bootstrap, the outcomes are `control`.
+- Then each rule of the bundled bootstrap's syntax document, except `text`, gets a wrapper: a new rule whose one alternative is a reference to it. Every reference to the rule in that document becomes a reference to its wrapper. The outcomes are `control` again.
+- Then each rule of that document, except `text`, gets a new name in turn: its name with `x` after it, in its definition and in every reference to it. A rule named in `loads` gives a dialect, and the outcomes are those of `loads`. Any other rule gives the load error `grammar`. No other error escapes the library.
+
 ## Corpus cases: `corpus/*.jsonl` and `core.txt`
 
 Each line is one case: a Lojban text, with the result that gencmu must give for it:
