@@ -1,0 +1,17 @@
+{
+  "description": "A rejected stage whose only production failed its condition at prediction expects nothing, even though the next token is the terminal that the production starts with (engine §4).",
+  "grammar": "%rule text 'a' %conditions \"x\" = \"y\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 0,
+        "expected": []
+      }
+    },
+    "error": "rejected"
+  }
+}

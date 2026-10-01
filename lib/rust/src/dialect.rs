@@ -836,11 +836,10 @@ fn rejection_of(g: &Lowered, chart: &Chart) -> (usize, Vec<Expected>) {
         expect(&g.prods[item.prod as usize], item.dot as usize);
     }
     // The predictions the recognizer did not add, since the next token
-    // could not continue them.
-    for &rule in &chart.sets[furthest].predicted {
-        for &production in &g.rules[rule as usize].prods {
-            expect(&g.prods[production as usize], 0);
-        }
+    // could not continue them. Those whose condition failed are not among
+    // them, since their items do not exist.
+    for &production in &chart.sets[furthest].skipped {
+        expect(&g.prods[production as usize], 0);
     }
     let expected = expected
         .into_iter()
