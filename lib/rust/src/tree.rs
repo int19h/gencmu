@@ -737,7 +737,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                         // inside the constituent is walked but their
                         // attachments (§11).
                         let (_, end) = span_of(tree, index);
-                        let child = |slot: u8| node.children[production.cap_pos[slot as usize] as usize];
+                        let child = |slot: u8| node.children[production.cap_pos[slot as usize]];
                         let mut sequence = Vec::with_capacity(items.len());
                         for item in items {
                             match item {

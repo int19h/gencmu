@@ -611,6 +611,38 @@ fn a_corrupt_cache_is_a_miss_not_an_abort() {
     });
 }
 
+/// A dialect whose one production reads `count` terminals 'a' and then the
+/// rest of `rules`, which starts with two 'a'. It comes from a cache DOM, so
+/// that the notation does not read a rule that long.
+fn long_production(rules: &str, count: usize) -> gencmu::Dialect {
+    let text = format!("%ambiguity-resolution greedy\n{rules}");
+    let two = r#"{"seq":[{"terminal":"'a'"},{"terminal":"'a'"}"#;
+    let many = format!(r#"{{"seq":[{}"#, vec![r#"{"terminal":"'a'"}"#; count].join(","));
+    let mut sources = single(&text);
+    sources.insert("compiled.json".to_string(), compiled(&text, &changed_dom(&text, two, &many)));
+    gencmu::load_dialect_sources(sources, "p.md").expect("a dialect")
+}
+
+#[test]
+fn positions_past_u16_keep_conditions_in_place() {
+    for count in [65_535, 65_536] {
+        // A condition on `$` runs when the item is complete (§4), after
+        // every symbol, not at prediction over an empty span.
+        let input = "a".repeat(count);
+        let empty = long_production("%rule text 'a' 'a' %conditions text($) = \"\"", count);
+        assert!(!empty.parse(&input, &no_auto()).unwrap().ok, "{count} symbols: the whole text is not empty");
+        let full = long_production("%rule text 'a' 'a' %conditions text($) ≠ \"\"", count);
+        assert!(full.parse(&input, &no_auto()).unwrap().ok, "{count} symbols: the whole text is the input");
+        // A capture after them stands at position `count`, and its
+        // condition runs once the capture is read.
+        let captured = long_production("%rule text 'a' 'a' $c('b') %conditions text($c) = \"b\"", count);
+        let result = captured.parse(&format!("{input}b"), &no_auto()).unwrap();
+        assert!(result.ok, "{count} symbols before the capture");
+        let wrong = long_production("%rule text 'a' 'a' $c('b') %conditions text($c) = \"a\"", count);
+        assert!(!wrong.parse(&format!("{input}b"), &no_auto()).unwrap().ok, "{count} symbols before the capture");
+    }
+}
+
 #[test]
 fn relative_paths_keep_their_leading_parents() {
     // From the crate's directory, up out of the checkout and down again into

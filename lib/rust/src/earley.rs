@@ -419,7 +419,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let g = self.g;
         let production = &g.prods[item.prod as usize];
         for (cond, trigger) in &production.conds {
-            if u32::from(*trigger) == item.dot {
+            if *trigger == item.dot as usize {
                 let caps = chart.caps(item.caps).to_vec();
                 let frame = Frame { caps: &caps, prod: item.prod, origin: item.origin, end: set as u32, tags: None };
                 if !self.condition(cond, &frame, tokens, base)? {
