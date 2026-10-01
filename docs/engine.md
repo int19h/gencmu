@@ -208,40 +208,52 @@ The recognizer evaluates a condition, as simplified for its production (§3.6), 
 
 The recognizer evaluates a condition that uses no capture when it predicts the item. It does the same with a condition that uses only `$` in a production with no symbols, over the empty span there. So a rule whose only production has no symbols and the condition `initial($)` completes only at the start of the input. Anywhere else, the recognizer never advances an alternative that begins with that rule, and that alternative predicts nothing after the rule.
 
-`matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` each run a nested parse. A nested parse is one recognition over the span's tokens alone, with `rule` as the start rule, over the same lowered grammar. It applies tests as the main parse does. Its chart is every item that this recognition makes, before any filtering. The three functions read the eligible witnesses of the chart (below), before any ranking and before `maximal`:
+`matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` each run a nested parse. A nested parse is one recognition over the span's tokens alone, with `rule` as the start rule, over the same lowered grammar. It applies tests and conditions as the main parse does. Its chart is every item, partial or completed, that this recognition holds after it ends. The three functions read the eligible proof trees of the chart (below), before any ranking and before `maximal`:
 
-- `matches` holds when a completed item of `rule` spans the tokens and has an eligible witness.
-- `begins` holds when a completed item of `rule` has its origin at the span's start, in any set, and has an eligible witness. So it covers a prefix of the span, the empty prefix included.
-- `tags` is the union of the tag sets of the completed items of `rule` that span the tokens and have an eligible witness.
+- `matches` holds when a completed item of `rule` spans the tokens and has an eligible proof tree.
+- `begins` holds when a completed item of `rule` has its origin at the span's start, in any set, and has an eligible proof tree. So it covers a prefix of the span, the empty prefix included.
+- `tags` is the union of the tag sets of the completed items of `rule` that span the tokens and have an eligible proof tree.
 
-A witness of a completed item is a finite proof of that item. A witness is a finite tree justified by the predicted items and valid advances of the completed chart. It does not depend on item discovery order. A rule can occur again over the same span within this tree. This differs on purpose from the derivations that a stage counts and ranks (below, and §6), which exclude such a repetition.
+A proof tree of an item shows how the rules of recognition justify the item from the chart. A predicted item, with its dot at the start, is a leaf. An advance of an item over a token or over a completed item is a node. Its children are a proof tree of the item before the advance and, for a completion, a proof tree of the completed item. Each advance follows the rules of this section, with its tests and conditions satisfied.
 
-Several eligible witnesses are an ordinary success. A query never ranks its witnesses, and it never has a tie.
+A proof tree is finite, and it does not depend on the order in which the recognizer finds items. A rule can occur again over the same span within it. This differs on purpose from the derivations that a stage counts and ranks (below, and §6), which exclude such a repetition. An item with no finite proof tree from predicted items has none, so a cycle alone gives none.
 
-A nested parse follows written-terminator priority. In plain words, a nested reading cannot leave out a terminator that the same construct can read in the actual text. A witness is eligible when none of its omissions is forbidden. An omission is an advance of an item over the empty helper of an elidable optional (§3.8), at its position `p`.
+An implementation can rebuild the advances from completed spans, as it can for a stage's derivations (below). Such a rebuilding keeps the captures, and it applies the symbol tests again to the actual candidate. It never evaluates a condition again.
 
-Whether an omission is forbidden depends on the production prefix that the witness holds fixed, as follows:
+Several eligible proof trees are an ordinary success. A query never ranks its proof trees, and it never has a tie or an ambiguity error. The witness of a tie (§6) is a different thing, and a query has none.
 
-- Where the optional has a constituent `Y` (below), the prefix is the item before `Y` in the same witness, with its captures. The omission is forbidden when the chart has a path from that item that reads `Y` through some position `p′ ≥ p`. The path then reads the optional's nonempty alternative. That reading of `Y` passes `Y`'s test, if it has one.
-- Where the optional has no constituent, the prefix is the whole item before the optional. The omission is forbidden when the chart advances that item over the optional's nonempty alternative at `p`.
+A nested parse follows written-terminator priority. In plain words, a nested reading cannot leave out an elidable optional where the same construct can read that whole optional as written. A proof tree is eligible when none of its omissions is forbidden. An omission is an advance of an item over the empty helper of an elidable optional (§3.8), at its position `p`.
 
-The advances of such a path come from the chart. So their tests and conditions passed. They need not belong to a witness of `rule`, and they need not be eligible themselves. An attempt that never completes `rule` can still forbid an omission.
+Whether an omission is forbidden depends on the production prefix that the proof tree holds fixed, as follows:
 
-So eligibility belongs to a whole witness, not to an advance alone. Two witnesses of one item can hold different items fixed before `Y`. An omission is permitted only through a witness whose own fixed prefix permits it, and that same witness must be eligible. An eligible prefix of one witness never combines with the permitted omission of another.
+- Where the optional has a constituent `Y` (below), the fixed prefix is the item before `Y` in the same proof tree, with its captures. The omission is forbidden when the chart advances that item over a completed `Y` that ends at some position `p′ ≥ p`. The resulting item then advances over a completed nonempty alternative of the optional, from `p′`. That completed `Y` passes `Y`'s test, if it has one.
+- Where the optional has no constituent, the fixed prefix is the item before the optional itself. The omission is forbidden when the chart advances that item over a completed nonempty alternative of the optional, from `p`.
+
+The nonempty alternative is the whole content of the optional, not only its terminator. So a written terminator forbids an omission only where the whole optional can complete after it. For example, let `T` be elidable, and take `r → c [T A] D` and `c → B | B D`. On `B D T`, `begins` of `r` holds. The longer `c` reaches the `T`, but `[T A]` cannot complete. On `B D T A`, `begins` is false, because the whole written optional completes.
+
+The advances of a blocking path come from the chart. So their tests and conditions passed. They need not belong to a proof tree of `rule`, and they need not be eligible themselves. An attempt that never completes `rule` can still forbid an omission.
+
+So eligibility belongs to a whole proof tree, not to an advance alone. Two proof trees of one item can hold different items fixed before `Y`. An omission is permitted only through a proof tree whose own fixed prefix permits it, and that same tree must be eligible. An eligible prefix of one tree never combines with the permitted omission of another.
 
 For example, let `T` and `U` be elidable. Take `r → [A] y [T] C T U` and `y → A B | A B C | B z [U]`. Also take `z → ε | C T`. On `A B C T U`, `begins` of `r` is false.
 
-Two witnesses reach the omission of `[T]` after `y`. In the first, `[A]` is empty and `y → A B`. That prefix is eligible, but the omission is forbidden, since the same prefix reads `A B C` as `y` and then the written `T`.
+Two proof trees reach the omission of `[T]` after `y`. In the first, `[A]` is empty and `y → A B`. That prefix is eligible, but the omission is forbidden, since the same prefix reads `A B C` as `y` and then the written `T`.
 
-In the second witness, `[A]` reads `A` and `y → B z [U]`, so the omission of `[T]` is permitted. But that witness is not eligible. Its omission of `[U]` is forbidden, because `z` can read `C T`, and then the written `U` follows. Without the `[U]` of `y → B z [U]`, the second witness is eligible, and `begins` holds.
+In the second tree, `[A]` reads `A` and `y → B z [U]`, so the omission of `[T]` is permitted. But that tree is not eligible. Its omission of `[U]` is forbidden, because `z` can read `C T`, and then the written `U` follows. Without the `[U]` of `y → B z [U]`, the second tree is eligible, and `begins` holds.
 
-An implementation can keep two states for each item. The first says that the item has an eligible witness. The second says that it has an eligible witness that permits the next optional to be empty. Where the optional has a constituent `Y`, the second state keeps the choice of the advance over `Y` that makes this so. A predicted item has an eligible witness. The implementation computes both states together, to the least answer that the advances give.
+An implementation can keep two states for each item. The first, E, says that the item has an eligible proof tree. The second, P, says that it has an eligible proof tree whose fixed prefix permits the next optional to be empty. The two states follow these transitions:
 
-So an item with no finite proof from predicted items has no witness, and a cycle alone gives none. An item that only a cycle through itself makes eligible has no eligible witness.
+- A predicted item has E.
+- An advance that is not an omission gives the new item E when the item before it has E. For a completion, the completed item has E too.
+- An omission gives the new item E only when the item before it has P.
+- The item before an optional with a constituent `Y` has P through one advance over `Y` that gives it E. The item before that advance is the fixed prefix, and that prefix must permit the omission.
+- The item before an optional with no constituent has P when it has E and it permits the omission itself.
 
-Written-terminator priority reads only the chart that recognition already made. The filtering step introduces no new error checks. Changed query answers can cause other conditions to run or stop running. The existing rule for recursive queries still applies (below).
+The implementation computes E and P together, to the least answer that the advances give. So an item that only a cycle through itself makes eligible has neither state.
 
-The window of a query stays as it is too. A `matches` over a span does not look past the span's end, even where a written terminator stands after it. So the keys of the memo (below) stay as they are too.
+Eligibility filtering reads only the chart, and it evaluates no conditions. A query's answer determines which expressions the enclosing condition evaluates. The recursive-query error rule (below) applies to those evaluations.
+
+A query reads the tokens of its span alone. A `matches` over a span does not look past the span's end, even where a written terminator stands after it. So the keys of the memo (below) fit its answer.
 
 `begins` is one recognition over the whole span, not a separate parse of each prefix. The reason is that the conditions inside `rule` see the end of the span as the end of their input. A recognizer can stop at a set that holds no item, since no later set can then hold one. Otherwise it reads as far as it can. An error of the grammar that it meets is an error, even after `rule` completed once.
 
@@ -664,7 +676,7 @@ A term has one of four types: a string, a set of strings, a tag set or a span. N
 | `tag(a)` | tag set | the set of the one identifier tag whose name is the string `a` |
 | `$NAME` | the type of its value | the value of the constant (§2) |
 | `tags(s)` | tag set | the captured part's constituent tags if `s` is a whole capture, else the union of the span's tokens' tags |
-| `tags(s, R)` | tag set | the union of the tag sets of the completed items of `R` over `s` with an eligible witness (§4), or empty |
+| `tags(s, R)` | tag set | the union of the tag sets of the completed items of `R` over `s` with an eligible proof tree (§4), or empty |
 | `classes(s)` | tag set | the tags of `tags(s)` whose first character is `A` to `Z` |
 | `classify(a, C)` | tag set | the classes that the classifier `C` gives the string `a`, for the features of the parse (§2), empty if no entry names `a` |
 | `$x`, `$`, `head(s)` and the other span functions | span | the argument of a function, never a value |
@@ -687,7 +699,7 @@ A constant's value is a closed term, whose type is a string, a set of strings or
 
 `a = b` and `a ≠ b` compare two strings, two sets of strings or two tag sets. Any other pair is an error of the document. `a ∈ b` and `a ∉ b` test a string in a set of strings. `a ⊆ b` tests that every member of `a` is in `b`, and `a ⊈ b` that one is not. Both sides are sets of one kind.
 
-`matches(s, R)` holds when the span parses as `R`, and `begins(s, R)` when a prefix of it does, the empty prefix included. Both read only eligible witnesses (§4).
+`matches(s, R)` holds when the span parses as `R`, and `begins(s, R)` when a prefix of it does, the empty prefix included. Both read only eligible proof trees (§4).
 
 `initial(s)` holds when the span begins where the input of the parse that evaluates the condition begins. That is the start of the stage's input, or, in a nested parse (§4), the start of the span that the parse reads. `$x`, as a condition, holds when the production has the capture `x` (§3.6), and `$` always holds. `¬c` negates. Conditions joined by `∨` hold when any does, and those joined by `∧` when all do.
 
