@@ -44,11 +44,11 @@ The layer changes the text in four ways. A `nai` at the start of a text is an in
 
 The second change is that the connective after a text-leading `.i` can be an ek, as in `.i .e do klama`. camxes-exp allows it because its joik takes the words of A. The rule writes the tense before `bo` in a text-leading `.i` as a `tag`. A `stag` is a `tag` in this dialect (see "Tenses and modals"), so the name changes nothing.
 
-An `.i` with an ek needs a paragraph right after it. Without this rule, `i.e` and `.iji` tie, because a bare ek is a fragment. One reading is `.i` with the connective `e` and no sentence after it. The other is `.i` and the fragment `e`, as in the answer to a `ji` question. CLL allows only a jek or joik after a text-leading `.i`. So CLL has only the second reading, and the layer keeps it.
+An `.i` directly followed by a connective is always that connective, for every family of connectives. So `i.e`, `.iji` and `mi klama .i e` read `.i e` or `.i ji` as a connective. Without this rule, these texts tie, because a bare ek is a fragment. The rule `lone-i` states it. It is an `.i` that no ek follows directly, and `text-1` and `paragraph` read it before a fragment. A jek or joik needs no such rule, because no fragment starts with one.
 
-In `.i e .i mi klama`, the first `.i` precedes a paragraph. That paragraph starts with the fragment `e`, as in CLL. The layer rejects `.i e .i e mi klama`, as CLL does. camxes-exp reads the connective in each of these texts. Its `text_1` tries the connective first, and its paragraphs can be empty.
+A bare connective answer stands without `.i`, as `e` or `je` alone. That is CLL's own rule for a jek. A bare jek answers `je'i`, and CLL reads it only in the connective slot before `text-1`. So in CLL, `.ije` is always the connective, and never `.i` before an answer. The layer treats `.i e` as CLL treats `.ije`, and so it matches camxes-exp.
 
-A jek causes no tie, because a bare jek is not a fragment. So `.ije` alone is still a text, as in CLL.
+CLL has no reading of its own for an ek after `.i`, because its `text-1` has no such connective. So `.i e .i mi klama`, `.i e .i e mi klama` and `.i e .ije mi klama` are texts with connectives, as in camxes-exp. An ek after `.i` and a free modifier does not follow `.i` directly, so it can still be a fragment. CLL forbids a bare forethought answer (CLL 14.13, after Example 14.105). So `ge'i` and `gu'i` have no bare answer in either grammar.
 
 The third change is about runs of `ni'o`. First, `.i ni'o` can follow a `ni'o`, as usage writes a new topic inside a reply. At the start of a text, the CLL grammar's `text-1` already reads `.i ni'o`, as the repair of the printed grammar that it lists says. So `text-1` takes the form after a first run of `ni'o`, and `paragraphs` takes it after a later one. Second, a run of `ni'o` can end the text (`mi klama ni'o`), as in camxes-exp.
 
@@ -68,10 +68,19 @@ The layer keeps the CLL grammar's connective before the first `.i` of a text (`j
   UI | CAI | NAI | Y | DAhO | FUhO
 
 %redefine-rule text-1
-  [(I [jek | joik] [[tag] BO] #) ...] ([NIhO ... # [I # NIhO ... #]] [paragraphs] | I ek [[tag] BO] # paragraphs)
+  [((I (jek | joik | ek) | lone-i) [[tag] BO] #) ...] [NIhO ... # [I # NIhO ... #]] [paragraphs]
 
 %redefine-rule paragraphs
   paragraph [NIhO ... # [paragraphs | I # NIhO ... # [paragraphs]]]
+
+%redefine-rule paragraph
+  (statement | fragment) [lone-i # [statement | fragment]] ...
+
+%rule lone-i
+  (* I_clause !jek !joik !joik_jek in camxes-exp's paragraph *)
+  $i(I)
+%conditions
+  ¬begins(after($i), ek)
 ```
 
 ## Statements and fragments

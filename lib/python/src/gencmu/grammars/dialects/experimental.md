@@ -151,8 +151,6 @@ The dialect cannot yet settle one kind of text, and it reports a tie for it. A q
 
 In `ge nai abu gi no drata`, a forethought connective can connect two sumti or make a quantifier. The dialect connects the sumti `abu` and `no drata`, as CLL does. A CLL quantifier is a number or a `vei` group. camxes-exp reads the quantifier `ge nai abu gi no` over `drata`. It does so only because its PEG tries a quantifier before a forethought connection of sumti.
 
-After a text-leading `.i`, an ek needs a paragraph. So `i.e` and `.iji` are `.i` and a fragment, as in CLL. camxes-exp reads `.i` with a connective and no sentence after it. The dialect also rejects `.i e .i e mi klama`, as CLL does, and camxes-exp accepts it.
-
 The dialect also reads `sa` by a different rule. The word stage erases with `sa` left to right, as the Magic Words proposal says ([`../words/stream.md`](../words/stream.md)). A `sa` erases back to the last word of the selma'o of the word after it, or to the start of the text. camxes-exp tries to do the same inside its syntax grammar, with one `_sa` rule for each kind of construct, and it reads some texts differently:
 
 - `mi broda le brode sa ti` is `ti`, since `mi` is the last word of KOhA before the `sa`. camxes-exp reads `mi broda ti`.
