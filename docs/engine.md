@@ -208,11 +208,28 @@ The recognizer evaluates a condition, as simplified for its production (§3.6), 
 
 The recognizer evaluates a condition that uses no capture when it predicts the item. It does the same with a condition that uses only `$` in a production with no symbols, over the empty span there. So a rule whose only production has no symbols and the condition `initial($)` completes only at the start of the input. Anywhere else, the recognizer never advances an alternative that begins with that rule, and that alternative predicts nothing after the rule.
 
-`matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` each run a nested parse. A nested parse is one recognition over the span's tokens alone, with `rule` as the start rule, over the same lowered grammar. It applies tests as the main parse does. The three functions read the recognizer's items, before any ranking and before `maximal`, as follows:
+`matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` each run a nested parse. A nested parse is one recognition over the span's tokens alone, with `rule` as the start rule, over the same lowered grammar. It applies tests as the main parse does. Its chart is every item that this recognition makes, before any filtering. The three functions read the eligible witnesses of the chart (below), before any ranking and before `maximal`:
 
-- `matches` holds when a completed item of `rule` spans the tokens.
-- `begins` holds when a completed item of `rule` has its origin at the span's start, in any set.
-- `tags` is the union of the tag sets of the items that `matches` reads, whether or not an item's every derivation is cyclic.
+- `matches` holds when a completed item of `rule` spans the tokens and has an eligible witness.
+- `begins` holds when a completed item of `rule` has its origin at the span's start, in any set, and has an eligible witness. So it covers a prefix of the span, the empty prefix included.
+- `tags` is the union of the tag sets of the completed items of `rule` that span the tokens and have an eligible witness.
+
+A witness of a completed item is a finite proof of it in the chart. It is a tree of the advances by which the recognizer made the item, each from items that it made before. A witness can be cyclic. A constituent in it can have, below it, a constituent of the same rule over the same span. A stage does not count such a derivation (below), but a query reads it, as before.
+
+Several eligible witnesses are an ordinary success. A query never ranks its witnesses, and it never has a tie.
+
+A nested parse follows written-terminator priority. In plain words, a nested reading cannot leave out a terminator that the same construct can read in the actual text. A witness is eligible when none of its omissions is forbidden. An omission is an advance of an item over the empty helper of an elidable optional (§3.8), at its position `p`.
+
+Whether an omission is forbidden depends on the production prefix that the witness holds fixed, as follows:
+
+- Where the optional has a constituent `Y` (below), the prefix is the item before `Y`, with its captures. The omission is forbidden when the chart has a path from that item that reads `Y` through some position `p′ ≥ p`. The path then reads the optional's nonempty alternative. That reading of `Y` passes `Y`'s test, if it has one.
+- Where the optional has no constituent, the prefix is the whole item before the optional. The omission is forbidden when the chart advances that item over the optional's nonempty alternative at `p`.
+
+The advances of such a path come from the chart. So their tests and conditions passed. They need not belong to a witness of `rule`, and they need not be eligible themselves. An attempt that never completes `rule` can still forbid an omission.
+
+An item has an eligible witness when one of its advances combines children that have eligible witnesses, and that advance is not a forbidden omission. A predicted item, with its dot at the start, has one. This is the least answer that these advances give. So an item that only a cycle through itself makes eligible has no eligible witness.
+
+Written-terminator priority reads only the chart that recognition already made. It evaluates no condition and runs no query of its own. So it adds no error of the grammar, and the rule on a query about its own span (below) stays as it is. The window of a query stays as it is too. A `matches` over a span does not look past the span's end, even where a written terminator stands after it. So the keys of the memo (below) stay as they are too.
 
 `begins` is one recognition over the whole span, not a separate parse of each prefix. The reason is that the conditions inside `rule` see the end of the span as the end of their input. A recognizer can stop at a set that holds no item, since no later set can then hold one. Otherwise it reads as far as it can. An error of the grammar that it meets is an error, even after `rule` completed once.
 
@@ -248,7 +265,7 @@ When the stage's directive has `maximal`, the engine does not count some more de
 
 When `Y` is tested, the longer constituent counts only if the test holds of it, with its own span and its own tags. The longer constituent need not fit into any derivation of `text`, which is what makes `maximal` commit as a PEG does. The longer constituent can contain the constituent itself, as a left-recursive rule builds a longer node on a shorter one.
 
-Only the constituent matters, not what follows the elided terminator in its production. Whether a constituent is the longest possible depends only on its symbol, its test, its origin and its end. So an implementation can find, once per parse, the furthest set in which each symbol completes from each origin. For a tested symbol, it needs each completed item of the symbol from each origin, since the furthest one need not pass the test. `maximal` does not apply to the parse of §7, which has no elided terminator. It also does not apply to a nested parse, which reads the recognizer's items and not derivations.
+Only the constituent matters, not what follows the elided terminator in its production. Whether a constituent is the longest possible depends only on its symbol, its test, its origin and its end. So an implementation can find, once per parse, the furthest set in which each symbol completes from each origin. For a tested symbol, it needs each completed item of the symbol from each origin, since the furthest one need not pass the test. `maximal` does not apply to the parse of §7, which has no elided terminator. It also does not apply to a nested parse, which follows written-terminator priority instead (above).
 
 A stage accepts when an item of the start rule `text` spans the whole input and has at least one derivation that is counted. It rejects an input whose every such derivation is cyclic, as it rejects one with no such item. A stage that accepts its input can still end with a tie, which is an error (§6). A rejected input reports the furthest position that any item reached. It also reports the terminals that the items there can read next, together with the rules that those items belong to (§11). The stage writes a tested terminal with its test, such as `LE="la"` (`docs/output.md`).
 
@@ -635,7 +652,7 @@ A term has one of four types: a string, a set of strings, a tag set or a span. N
 | `tag(a)` | tag set | the set of the one identifier tag whose name is the string `a` |
 | `$NAME` | the type of its value | the value of the constant (§2) |
 | `tags(s)` | tag set | the captured part's constituent tags if `s` is a whole capture, else the union of the span's tokens' tags |
-| `tags(s, R)` | tag set | the union of the tag sets of the completed items of `R` that span `s`, as `matches` reads them (§4), empty if there are none |
+| `tags(s, R)` | tag set | the union of the tag sets of the completed items of `R` over `s` with an eligible witness (§4), or empty |
 | `classes(s)` | tag set | the tags of `tags(s)` whose first character is `A` to `Z` |
 | `classify(a, C)` | tag set | the classes that the classifier `C` gives the string `a`, for the features of the parse (§2), empty if no entry names `a` |
 | `$x`, `$`, `head(s)` and the other span functions | span | the argument of a function, never a value |
@@ -656,7 +673,9 @@ A constant's value is a closed term, whose type is a string, a set of strings or
 
 `∅` takes its kind from the other side of its operator or comparison. A tag term, guarded term, emission item or tag test also gives it the required tag-set type. In a `%redefine-const`, the type that the constant keeps (§2) gives the value its kind in the same way. So after `%const $A ~a`, `%redefine-const $A ∅` makes `$A` the empty tag set. An expression whose kind nothing gives is an error of the document. So `%const $E ∅` is an error.
 
-`a = b` and `a ≠ b` compare two strings, two sets of strings or two tag sets. Any other pair is an error of the document. `a ∈ b` and `a ∉ b` test a string in a set of strings. `a ⊆ b` tests that every member of `a` is in `b`, and `a ⊈ b` that one is not. Both sides are sets of one kind. `matches(s, R)` holds when the span parses as `R`, and `begins(s, R)` when a prefix of it does, the empty prefix included.
+`a = b` and `a ≠ b` compare two strings, two sets of strings or two tag sets. Any other pair is an error of the document. `a ∈ b` and `a ∉ b` test a string in a set of strings. `a ⊆ b` tests that every member of `a` is in `b`, and `a ⊈ b` that one is not. Both sides are sets of one kind.
+
+`matches(s, R)` holds when the span parses as `R`, and `begins(s, R)` when a prefix of it does, the empty prefix included. Both read only eligible witnesses (§4).
 
 `initial(s)` holds when the span begins where the input of the parse that evaluates the condition begins. That is the start of the stage's input, or, in a nested parse (§4), the start of the span that the parse reads. `$x`, as a condition, holds when the production has the capture `x` (§3.6), and `$` always holds. `¬c` negates. Conditions joined by `∨` hold when any does, and those joined by `∧` when all do.
 
