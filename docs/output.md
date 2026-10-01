@@ -27,7 +27,7 @@ A stage has one of these forms:
 
 If there is no visible difference, it is the pair at their first difference. That is the first pair of differing actions of the whole sequences, transparent ones included. A derivation whose visible sequence is a proper prefix of the other's differs from it where the shorter ends.
 
-The readings themselves are in the result's error (below), and the stage holds no tree of them. The canonical order of engine §6 decides which two readings a tie reports and so which witness it shows. It never decides which derivation a stage chooses.
+The readings themselves are in the result's error (below), and the stage holds no tree of them. The canonical order *T* of engine §6 orders the ambiguity diagnostics and selects the forbidden terminator that a `maximal` rejection reports. It never selects an accepted reading.
 
 `output` is the emitted tokens of a stage whose verdict is `unique` or `resolved`, the last stage included. It is absent for a tie, since a tied stage emits nothing (engine §6, §11). It is absent when the emission of the stage fails (engine §11). It is also absent when the reparse of `elision-only` meets an error of the grammar (engine §7).
 
@@ -83,9 +83,11 @@ An error has one of these forms:
 
 - `rejected`: The grammar of the stage does not accept its input.
 - `ambiguous` (engine §6, §7): The error has `stage`, `reason`, `"readings":[NODE,NODE]` and `message`, and no position. `reason` says which of two cases the error is:
-  - `tie`: The ranking of the stage has two or more best derivations (engine §6). The stage's verdict is `tie`, and it has no output. The readings are the first and the second reading of the tie, over the stage's input as the stage read it.
+  - `tie`: The ranking of the stage has two or more best derivations (engine §6). The stage's verdict is `tie`, and it has no output. The readings are the first and the second reading of the tie, over the stage's input as the stage read it. They are two derivations, but they can be equal as `NODE` values. The engine counts derivations, and it merges neither those that differ only at transparent closes nor those with equal trees (engine §6). The witness then names the actions where they differ.
   - `elision-only`: The stage chose one derivation, but its text stays ambiguous with its elided terminators written back (engine §7). The stage's verdict is `resolved`, and it keeps its output. The readings hold the written-back terminators as elided nodes.
 - `grammar`: A grammar failed to load, or the parser found a defect while parsing. For a grammar that failed to load, the error has `document`, `line` and `column` where known. For a defect found while parsing, the error has `stage` and no position. An example of such a defect is a nested parse asked about its own span as the same rule.
+
+For example, `text → [[X]]` on the empty input ties, and both readings are `{"kind":"rule","rule":"text","span":[0,0],"source":[0,0],"tags":[],"children":[]}`. The witness names two different productions of the helpers. A nullable `&`, such as `[A] & [B]`, gives such a tie in the same way.
 
 A mistake of the caller is not a result. It is an error of kind `usage` (engine §13).
 
