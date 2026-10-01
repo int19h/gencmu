@@ -970,6 +970,15 @@ fn has_sa_su(tree: &Node) -> bool {
     false
 }
 
+/// For the tests inside the crate: a stage's grammar lowered with no
+/// features on.
+#[cfg(test)]
+impl Dialect {
+    pub(crate) fn lowered_stage(&self, stage: usize) -> Arc<Lowered> {
+        self.lowered(stage, &BTreeSet::new(), false).unwrap_or_else(|error| panic!("{}", error.message))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Dialect, ParseOptions, MAX_LOWERED};

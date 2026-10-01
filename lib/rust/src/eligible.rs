@@ -330,3 +330,424 @@ impl Proofs<'_> {
         production.syms.is_empty() && self.g.rules[production.rule as usize].elided.is_some()
     }
 }
+
+/// Checks written-terminator priority (§4) against a search for eligible
+/// proof trees, found one by one, on small random grammars with chained
+/// elidable optionals. The search reads a chart that it builds itself
+/// from the lowered grammar, with none of the recognizer's tables, and it
+/// reads whether an omission is forbidden straight from the words of the
+/// specification.
+#[cfg(test)]
+mod tests {
+    use std::collections::{HashMap, HashSet};
+
+    use super::Proofs;
+    use crate::earley::{matchers, Recognizer, Shared, Tok};
+    use crate::lower::{Lowered, Sym};
+
+    /// SplitMix64.
+    struct Rng(u64);
+
+    impl Rng {
+        fn next(&mut self) -> u64 {
+            self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
+            let mut z = self.0;
+            z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+            z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+            z ^ (z >> 31)
+        }
+
+        fn below(&mut self, n: usize) -> usize {
+            (self.next() % n as u64) as usize
+        }
+    }
+
+    const RULES: [&str; 4] = ["r", "t", "u", "v"];
+    const TERMINALS: [&str; 4] = ["A", "B", "T", "U"];
+
+    /// An item of the oracle's chart: production, dot, origin, end, and
+    /// the tags of its captured part. Only a production of one symbol
+    /// captures, and only that symbol (engine §3.7), so the tags are those
+    /// of a token, `1 + t` for terminal `t`, or none, `0`.
+    type OItem = (u32, u32, u32, u32, u8);
+
+    struct TooMany;
+
+    struct Oracle<'a> {
+        g: &'a Lowered,
+        chart: HashSet<OItem>,
+        last: u32,
+        budget: usize,
+    }
+
+    impl Oracle<'_> {
+        /// The chart of a recognition of `start` over the tokens, each
+        /// named by its one terminal: every item that prediction reaches
+        /// and whose symbols before the dot read the tokens it spans.
+        fn new<'a>(g: &'a Lowered, tokens: &[&str], start: u32) -> Oracle<'a> {
+            let n = tokens.len() as u32;
+            let mut oracle = Oracle { g, chart: HashSet::new(), last: n, budget: 200_000 };
+            let mut predicted: HashSet<(u32, u32)> = HashSet::from([(start, 0)]);
+            loop {
+                let before = (oracle.chart.len(), predicted.len());
+                for &(rule, at) in &predicted.clone() {
+                    for &prod in &g.rules[rule as usize].prods {
+                        oracle.chart.insert((prod, 0, at, at, 0));
+                    }
+                }
+                for item in oracle.chart.clone() {
+                    let (prod, dot, _, end, _) = item;
+                    match oracle.syms(prod).get(dot as usize) {
+                        None => {}
+                        Some(&Sym::T(terminal)) => {
+                            if end < n && g.terminals[terminal as usize] == tokens[end as usize] {
+                                let made = oracle.advance(item, end + 1, 1 + terminal as u8);
+                                oracle.chart.insert(made);
+                            }
+                        }
+                        Some(&Sym::N(rule)) => {
+                            predicted.insert((rule, end));
+                            for k in end..=n {
+                                for child in oracle.completed(rule, end, k) {
+                                    let made = oracle.advance(item, k, oracle.tags(child));
+                                    oracle.chart.insert(made);
+                                }
+                            }
+                        }
+                    }
+                }
+                if (oracle.chart.len(), predicted.len()) == before {
+                    break;
+                }
+            }
+            oracle
+        }
+
+        fn syms(&self, prod: u32) -> &[Sym] {
+            &self.g.prods[prod as usize].syms
+        }
+
+        fn elidable(&self, rule: u32) -> bool {
+            self.g.rules[rule as usize].elided.is_some()
+        }
+
+        /// The item made from `item` by an advance to `end` over a part
+        /// whose tags are `tags`.
+        fn advance(&self, (prod, dot, origin, _, kept): OItem, end: u32, tags: u8) -> OItem {
+            let captured = self.syms(prod).len() == 1;
+            (prod, dot + 1, origin, end, if captured { tags } else { kept })
+        }
+
+        /// The tags of a completed item's constituent.
+        fn tags(&self, (prod, _, _, _, captured): OItem) -> u8 {
+            if self.syms(prod).len() == 1 {
+                captured
+            } else {
+                0
+            }
+        }
+
+        /// The completed items of `rule` from `origin` to `end`.
+        fn completed(&self, rule: u32, origin: u32, end: u32) -> Vec<OItem> {
+            let mut found = Vec::new();
+            for &prod in &self.g.rules[rule as usize].prods {
+                let length = self.syms(prod).len() as u32;
+                for tags in 0..=self.g.terminals.len() as u8 {
+                    let item = (prod, length, origin, end, tags);
+                    if self.chart.contains(&item) {
+                        found.push(item);
+                    }
+                }
+            }
+            found
+        }
+
+        /// Whether the chart advances `item` over a completed nonempty
+        /// alternative of the elidable optional that comes next.
+        fn reads_written(&self, item: OItem) -> bool {
+            let (prod, dot, _, end, _) = item;
+            let Some(&Sym::N(helper)) = self.syms(prod).get(dot as usize) else { return false };
+            (end..=self.last).any(|k| {
+                self.completed(helper, end, k).into_iter().any(|child| {
+                    !self.syms(child.0).is_empty() && self.chart.contains(&self.advance(item, k, self.tags(child)))
+                })
+            })
+        }
+
+        /// Whether the chart advances `before` over a completed `Y` that
+        /// ends at some p' ≥ p, and the item made then reads the optional
+        /// as written.
+        fn forbidden_after(&self, before: OItem, p: u32) -> bool {
+            let (prod, dot, _, end, _) = before;
+            let Some(&Sym::N(y)) = self.syms(prod).get(dot as usize) else { return false };
+            (p.max(end)..=self.last).any(|k| {
+                self.completed(y, end, k).into_iter().any(|child| {
+                    let made = self.advance(before, k, self.tags(child));
+                    self.chart.contains(&made) && self.reads_written(made)
+                })
+            })
+        }
+
+        /// Where an elidable optional comes next after the item: with a
+        /// constituent, alone, or not at all.
+        fn next_optional(&self, (prod, dot, ..): OItem) -> Option<bool> {
+            let syms = self.syms(prod);
+            let Some(&Sym::N(helper)) = syms.get(dot as usize) else { return None };
+            if !self.elidable(helper) {
+                return None;
+            }
+            let alone = dot == 0
+                || matches!(syms[dot as usize - 1], Sym::T(_))
+                || (dot == 1 && syms[0] == Sym::N(self.g.prods[prod as usize].rule));
+            Some(!alone)
+        }
+
+        /// The advances that make an item: the item before and the
+        /// completed item read, none for a token or a predicted item.
+        fn edges(&self, item: OItem) -> Vec<Option<(OItem, Option<OItem>)>> {
+            let (prod, dot, origin, end, _) = item;
+            if dot == 0 {
+                return vec![None];
+            }
+            let mut edges = Vec::new();
+            for m in origin..=end {
+                for kept in 0..=self.g.terminals.len() as u8 {
+                    let before = (prod, dot - 1, origin, m, kept);
+                    if !self.chart.contains(&before) {
+                        continue;
+                    }
+                    match self.syms(prod)[dot as usize - 1] {
+                        Sym::T(terminal) => {
+                            if m + 1 == end && self.advance(before, end, 1 + terminal as u8) == item {
+                                edges.push(Some((before, None)));
+                            }
+                        }
+                        Sym::N(rule) => {
+                            for child in self.completed(rule, m, end) {
+                                if self.advance(before, end, self.tags(child)) == item {
+                                    edges.push(Some((before, Some(child))));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            edges
+        }
+
+        /// Whether `item` has an eligible proof tree, and with `permit`
+        /// one whose own advance permits the optional after it to be
+        /// empty. A path never repeats an item in one state.
+        fn search(&mut self, item: OItem, permit: bool, path: &mut HashSet<(OItem, bool)>) -> Result<bool, TooMany> {
+            self.budget = self.budget.checked_sub(1).ok_or(TooMany)?;
+            if !path.insert((item, permit)) {
+                return Ok(false);
+            }
+            let found = self.search_on(item, permit, path);
+            path.remove(&(item, permit));
+            found
+        }
+
+        fn search_on(
+            &mut self,
+            item: OItem,
+            permit: bool,
+            inner: &mut HashSet<(OItem, bool)>,
+        ) -> Result<bool, TooMany> {
+            let kind = if permit { self.next_optional(item) } else { None };
+            if kind == Some(false) && self.reads_written(item) {
+                return Ok(false);
+            }
+            for edge in self.edges(item) {
+                match edge {
+                    None => {
+                        if kind != Some(true) {
+                            return Ok(true);
+                        }
+                    }
+                    Some((before, None)) => {
+                        if kind != Some(true) && self.search(before, false, inner)? {
+                            return Ok(true);
+                        }
+                    }
+                    Some((before, Some(child))) => {
+                        if kind == Some(true) && self.forbidden_after(before, item.3) {
+                            continue;
+                        }
+                        let child_rule = self.g.prods[child.0 as usize].rule;
+                        let omission = self.syms(child.0).is_empty() && self.elidable(child_rule);
+                        if self.search(before, omission, inner)? && self.search(child, false, inner)? {
+                            return Ok(true);
+                        }
+                    }
+                }
+            }
+            Ok(false)
+        }
+    }
+
+    /// A random alternative, as text and as its DOM's expression.
+    fn body(rng: &mut Rng) -> (String, String) {
+        let symbol = |rng: &mut Rng| {
+            if rng.below(2) == 0 {
+                TERMINALS[rng.below(4)]
+            } else {
+                RULES[rng.below(4)]
+            }
+        };
+        let reference = |name: &str| format!(r#"{{"ref":"{name}"}}"#);
+        let (mut text, mut dom) = (Vec::new(), Vec::new());
+        for _ in 0..rng.below(4) {
+            match rng.below(50) {
+                0..=9 => {
+                    text.push("[T]".to_string());
+                    dom.push(format!(r#"{{"optional":{}}}"#, reference("T")));
+                }
+                10..=14 => {
+                    text.push("[U]".to_string());
+                    dom.push(format!(r#"{{"optional":{}}}"#, reference("U")));
+                }
+                15..=18 => {
+                    let after = symbol(rng);
+                    text.push(format!("[T {after}]"));
+                    dom.push(format!(r#"{{"optional":{{"seq":[{},{}]}}}}"#, reference("T"), reference(after)));
+                }
+                _ => {
+                    let name = symbol(rng);
+                    text.push(name.to_string());
+                    dom.push(reference(name));
+                }
+            }
+        }
+        match dom.len() {
+            0 => ("ε".to_string(), r#"{"empty":true}"#.to_string()),
+            1 => (text.join(" "), dom.remove(0)),
+            _ => (text.join(" "), format!(r#"{{"seq":[{}]}}"#, dom.join(","))),
+        }
+    }
+
+    /// The pipeline and its DOM, which every round shares.
+    const PIPELINE: &str = "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n";
+
+    /// A random grammar as its document and its DOM, which the cache gives
+    /// the loader so that a round does not read the document through the
+    /// notation.
+    fn grammar(rng: &mut Rng) -> (String, String) {
+        let mut lines = Vec::new();
+        let mut rules = vec![format!(
+            r#"{{"name":"text","op":"define","alternatives":[{{"guards":[],"expr":{{"ref":"A"}}}}],"conditions":[],"at":[4,1]}}"#
+        )];
+        for (line, rule) in RULES.iter().enumerate() {
+            let (first, second) = (body(rng), body(rng));
+            lines.push(format!("%rule {rule} {} | {}", first.0, second.0));
+            let alternatives = [first.1, second.1].map(|expr| format!(r#"{{"guards":[],"expr":{expr}}}"#)).join(",");
+            rules.push(format!(
+                r#"{{"name":"{rule}","op":"define","alternatives":[{alternatives}],"conditions":[],"at":[{},1]}}"#,
+                line + 5
+            ));
+        }
+        let document = format!(
+            "```jbogenbau\n%ambiguity-resolution greedy\n%elidable T U\n%rule text A\n{}\n```\n",
+            lines.join("\n")
+        );
+        let directives = r#"[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]},{"name":"elidable","args":["T","U"],"at":[3,1]}]"#;
+        let dom = format!(
+            r#"{{"format":{},"rules":[{}],"directives":{directives},"constants":[],"classifiers":[],"implications":[]}}"#,
+            crate::dom::DOM_FORMAT,
+            rules.join(",")
+        );
+        (document, dom)
+    }
+
+    /// The eligible witnesses of `begins` as the library finds them and as
+    /// the oracle does, for one random grammar and input; `None` when the
+    /// round checks nothing.
+    fn round(rng: &mut Rng, pipeline: &str, check_dom: bool) -> Option<(Vec<bool>, Vec<bool>, String)> {
+        let (document, dom) = grammar(rng);
+        if check_dom {
+            // The DOM given to the cache is the one the notation reads.
+            let read = crate::tools::read_grammar_document(&document).expect("the document");
+            assert_eq!(crate::json::parse(&read).ok(), crate::json::parse(&dom).ok(), "{dom}\n{read}");
+        }
+        let compiled = format!(
+            r#"{{"format":{},"bootstrap":"{}","documents":{{"main.md":{{"hash":"{}","dom":{dom}}},"p.md":{{"hash":"{}","dom":{pipeline}}}}}}}"#,
+            crate::dom::DOM_FORMAT,
+            crate::tools::bootstrap_hash(),
+            crate::json::fnv1a64(&document),
+            crate::json::fnv1a64(PIPELINE)
+        );
+        let tokens: Vec<&str> = (0..rng.below(5)).map(|_| TERMINALS[rng.below(4)]).collect();
+        let sources = [("main.md", document.clone()), ("p.md", PIPELINE.to_string()), ("compiled.json", compiled)];
+        let dialect = crate::load_dialect_sources(sources, "p.md").ok()?;
+        let g = dialect.lowered_stage(0);
+        let start = g.rules.iter().position(|rule| rule.name == "r" && !rule.helper)? as u32;
+        let chars: Vec<char> = vec![' '; tokens.len() * 2];
+        let mut shared = Shared::new(&dialect.unicode, &chars);
+        let input: Vec<Tok> = tokens
+            .iter()
+            .enumerate()
+            .map(|(index, &terminal)| Tok {
+                text: "x".to_string(),
+                tags: shared.tags.set_of([terminal]),
+                phonemes: None,
+                source: (index * 2, index * 2 + 1),
+                label: "x".to_string(),
+                sound: Default::default(),
+                before: Vec::new(),
+                after: Vec::new(),
+            })
+            .collect();
+        let matchers = matchers(&g, &mut shared.tags);
+        let chart = Recognizer { g: &g, matchers: &matchers, shared: &mut shared }.recognize(&input, 0, start).ok()?;
+        // The witnesses of begins: completed items of r from the start, in
+        // any set.
+        let witnesses: Vec<(u32, u32)> = (0..chart.sets.len())
+            .flat_map(|set| {
+                chart.sets[set].completed.get(&(start, 0)).into_iter().flatten().map(move |&index| (set as u32, index))
+            })
+            .collect();
+        if witnesses.is_empty() {
+            return None;
+        }
+        let proofs = Proofs { g: &g, chart: &chart, tokens: &input, unicode: &dialect.unicode, tags: &shared.tags };
+        let got = proofs.eligible(&witnesses);
+        let mut oracle = Oracle::new(&g, &tokens, start);
+        let mut truth = Vec::new();
+        for &(set, index) in &witnesses {
+            let item = chart.sets[set as usize].items[index as usize];
+            // The tags of the captured part, as the oracle names them.
+            let captured = chart.caps(item.caps).first().map_or(0, |cap| {
+                let names = shared.tags.to_set(cap.tags);
+                names.iter().next().map_or(0, |name| 1 + g.terminals.iter().position(|t| t == name).unwrap() as u8)
+            });
+            truth.push(oracle.search((item.prod, item.dot, 0, set, captured), false, &mut HashSet::new()).ok()?);
+        }
+        Some((got, truth, format!("{document}tokens {tokens:?}")))
+    }
+
+    #[test]
+    fn written_terminator_priority_agrees_with_a_search_for_proof_trees() {
+        let cases: u64 = std::env::var("GENCMU_PROPERTY_CASES").ok().and_then(|n| n.parse().ok()).unwrap_or(2000);
+        let seed: u64 = std::env::var("GENCMU_PROPERTY_SEED").ok().and_then(|n| n.parse().ok()).unwrap_or(20261001);
+        let mut rng = Rng(seed);
+        let pipeline = crate::tools::read_grammar_document(PIPELINE).expect("the pipeline");
+        let (mut checked, mut filtered) = (0, 0);
+        let mut failures: HashMap<String, (Vec<bool>, Vec<bool>)> = HashMap::new();
+        for case in 0..cases {
+            let Some((got, truth, case)) = round(&mut rng, &pipeline, case % 50 == 0) else { continue };
+            checked += 1;
+            if truth.contains(&false) {
+                filtered += 1;
+            }
+            if got != truth && failures.len() < 5 {
+                failures.insert(case, (got, truth));
+            }
+        }
+        eprintln!("eligibility: {checked} grammars checked, {filtered} with a witness filtered out");
+        assert!(failures.is_empty(), "{} disagreements, as (library, oracle):\n{failures:#?}", failures.len());
+        assert!(
+            checked > cases / 4 && filtered > cases / 50,
+            "{checked} grammars checked, {filtered} with a witness filtered out"
+        );
+    }
+}
