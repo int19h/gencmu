@@ -371,7 +371,9 @@ type ParseOptions struct {
 	WithoutFeatures []string
 	// NoAutoFeatures switches off adding sa-su only where the text needs it.
 	NoAutoFeatures bool
-	// Until names the last stage to run; empty runs every stage.
+	// Until names the last stage to run. The zero value, the empty string,
+	// runs every stage, so Go cannot ask for a stage with an empty name
+	// (docs/api.md).
 	Until string
 	// ElisionOnly, when set, switches elision-only on or off for every stage.
 	ElisionOnly *bool

@@ -27,7 +27,7 @@ A feature is a named switch that the grammars of the dialect test (engine §13).
 | features | none | feature names to turn on for every stage, besides those the pipeline's `%features` turns on |
 | without features | none | feature names to turn off for every stage, including any that the `%features` of the pipeline turns on. A name in both lists is a usage error. |
 | auto features | on | add `sa-su` only where the text needs it (design, "Expensive constructs behind features"). It does nothing when `without features` names `sa-su` or `sa-su` is already on. It also does nothing when the dialect lacks the gate `sa-su` or the stage `words`. It does nothing when `until` names an earlier stage (engine §13). |
-| until | the last stage | the name of the last stage to run. An unknown name is an error. |
+| until | the last stage | the name of the last stage to run. An unknown name is an error, and so is an empty name. Go is the exception, as its section says. |
 | elision-only | the grammar's own | on or off for every stage that runs, overriding `%ambiguity-resolution ... elision-only` |
 
 A text must be a sequence of Unicode scalar values, or it is a usage error (engine §1). So a JavaScript or Python string with a lone surrogate is a usage error. So is a Go string that is not valid UTF-8. The same holds for a document held in memory. A document read from disk is different: bytes that are not valid UTF-8 there are a `grammar` load error, with no line or column.
@@ -140,7 +140,7 @@ gencmu.Brackets(result, gencmu.BracketOptions{ShowElided: true})
 ```
 
 - `LoadDialect(name)`, `LoadDialectFile(path)` and `LoadDialectSources(sources map[string]string, pipeline string)` each return `(*Dialect, error)`. A load error is a `*gencmu.Error`.
-- `(*Dialect).Parse(text string, options ParseOptions) (*ParseResult, error)` parses a text. The error is for a mistake of the caller, such as an unknown stage name. A text that does not parse is a result. `ParseOptions` has `Features []string`, `WithoutFeatures []string`, `NoAutoFeatures bool`, `Until string` and `ElisionOnly *bool`. Auto features are on unless `NoAutoFeatures` is set.
+- `(*Dialect).Parse(text string, options ParseOptions) (*ParseResult, error)` parses a text. The error is for a mistake of the caller, such as an unknown stage name. A text that does not parse is a result. `ParseOptions` has `Features []string`, `WithoutFeatures []string`, `NoAutoFeatures bool`, `Until string` and `ElisionOnly *bool`. Auto features are on unless `NoAutoFeatures` is set. `Until` is a string, so Go cannot tell an empty name from no name. An empty `Until` runs every stage.
 - `(*Dialect).Features() []Feature` lists the features. Each `Feature` has `Name`, `Kind` and `Default`.
 - `MarshalResult(result) ([]byte, error)` writes the canonical JSON.
 - A `*Dialect` is safe for concurrent use by any number of goroutines.
