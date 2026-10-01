@@ -584,7 +584,9 @@ null = any-word SI | utterance SA | text SU
 
 ## Choosing among parses
 
-Because terminators can be omitted, some texts have more than one parse. The stage chooses among them by the rule that [the notation document](../../docs/notation.md) states under "Ambiguity" and "Elided terminators", with the resolution that each dialect declares. The cll-ebnf and bpfk dialects declare `late-elision elision-only`, and bpfk adds `maximal`. The experimental layer declares only `late-elision`. So in each of them, a terminator is elided as late as the grammar allows. Two parses that elide the same terminators at the same places are tied, and a tie is an error. In cll-ebnf and bpfk, a text whose parses differ in anything but where a terminator was elided is an error too.
+Because terminators can be omitted, some texts have more than one parse. The stage chooses among them by the rule that [the notation document](../../docs/notation.md) states under "Ambiguity" and "Elided terminators", with the resolution that each dialect declares. The cll-ebnf and bpfk dialects declare `late-elision elision-only`, and bpfk adds `maximal`. The experimental layer declares only `late-elision`.
+
+So in each of them, a terminator is elided as late as the grammar allows. Two parses that elide the same terminators at the same places are tied, and a tie is an error. In cll-ebnf and bpfk, a text whose parses differ in anything but where a terminator was elided is an error too.
 
 These two differ in where the part before an elided terminator can end. The cll-ebnf dialect takes the printed grammar as normative and lets it end wherever a parse of the whole text needs it ([`../dialects/cll-ebnf.md`](../dialects/cll-ebnf.md)). The bpfk dialect reads as the PEG grammars that the definition effort adopted, which never end it where a longer part is possible ([`../dialects/bpfk.md`](../dialects/bpfk.md)). A PEG is a parsing expression grammar. CLL's official parser reads in a third way, one lexeme (one token of its lexer) ahead, which no dialect here follows. The design document says why.
 

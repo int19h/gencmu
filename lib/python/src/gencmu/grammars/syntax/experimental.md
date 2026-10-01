@@ -510,7 +510,7 @@ A group of preposed linked arguments comes before a whole `tanru-unit-1`, as in 
 
 So `zdani be mi vorme` gives `be mi` to `zdani`, and `le tutci be sigdanva le marna` gives an empty `be` group to `tutci`. Without the rule, each text has two readings, which elide the same terminators. camxes-exp gives the group to the unit before it too, and so does camxes-std.
 
-In `be mi klama be do be ti`, `be do` belongs to `klama`, and `be ti` to the whole unit. In `be mi klama be do`, `be do` belongs to `klama`, as in camxes-exp. The whole unit cannot take it, because `klama` would then stand directly before `be`.
+In `be mi klama be do be ti`, `be do` belongs to `klama`, and `be ti` to the whole unit. In `be mi klama be do`, `be do` belongs to `klama`, as in camxes-exp. The whole unit cannot take it, because `klama` then stands directly before `be`.
 
 A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in which `ke'a` refers to the selbri (`mi klama no'oi bajra`). They are joined as relative clauses are: by `zi'e`, a joik, a jek or an ek, or two groups of them in forethought.
 
