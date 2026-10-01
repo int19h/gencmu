@@ -44,7 +44,10 @@ Each of these conditions is a restriction of the grammar, not a preference among
   KUhO LIhAU LIhU LOhO LUhU MEhU SEhU TEhU TOI TUhU VAU VEhO
 
 %rule #
-  [free ...]
+  | ε
+  | $f(free)
+%tags
+  $f ⟹ tags($f)
 
 %rule any-word
   ~word
@@ -738,7 +741,7 @@ A tense or modal (the rule `tag`) is a run of `tcita-selci` joined by joiks. Eac
 
 ## Free modifiers
 
-A free modifier is a `sei` clause over a statement, a vocative, a mekso with `mai`, or a `to` parenthesis. It can also be a subscript, a replacement quote, or an attitudinal with its own free modifiers after it. A vocative takes a selbri or a sumti.
+A free modifier is a `sei` clause over a statement, a vocative, a mekso with `mai`, or a `to` parenthesis. It can also be a subscript, a replacement quote, or an attitudinal with its own free modifiers after it. A vocative takes a name, a selbri or a sumti, or nothing.
 
 A free modifier nests in the nearest slot that can take it. So no free modifier follows another one in the same slot. The condition on `free` states this. In `ui nai`, the `nai` is in the slot of `ui`. In `coi ui coi do`, `coi do` is in the slot of `ui`, which is in the slot of the first `coi`. In `xy boi xi by boi xi vo`, the second subscript is inside the first one.
 
@@ -746,25 +749,46 @@ The reference reads so because `post_clause <- free*` reads as far as it can, an
 
 The condition is on `free`, not on each slot. So it removes a free modifier that another free modifier follows at the same level. But it does not make each slot read as far as it can. This keeps a departure from Zantufa, in `mi klama pamai le zarci .e remai le zdani` (see "Differences from Zantufa 1.9999"). There the slot of `.e` stays empty, and `.e re` with `mai` is one free modifier after `zarci`.
 
+A vocative with a name ends after the name and any relative clauses of the name. A name is a run of CMEVLA words. So in `doi djan. klama`, the address is `doi djan.`, and `klama` is outside it. In `doi alis. noi bebna`, the relative clause is part of the address. The selbri of a vocative does not begin with a name. To address someone with a longer selbri, the speaker groups it, as in `doi ke djan. klama ke'e`.
+
+A vocative with a name also closes each vocative around it. So in `pe'u sai doi xod. ko jmina`, `doi xod.` is in the slot of `sai`, which is in the slot of `pe'u`. The address of `pe'u` ends there, and `ko` is the first sumti of `jmina`. These two conventions depart from Zantufa (see "Differences from Zantufa 1.9999").
+
+The grammar tag `named-address` states the second convention. A vocative with a name carries this tag. An attitudinal and a vocative word carry the tags of their slots. A vocative word with the tag takes no name, selbri or sumti. So the tag goes outward through the slots until no vocative or attitudinal carries it further. It does not leave a parenthesis or a quote, because each holds a text of its own.
+
 ```jbogenbau
 %rule free
   (* free <- SEI_clause statement SEhU_elidible / vocative relative_clauses? selbri DOhU_elidible
            / vocative sumti? DOhU_elidible / mex_2 MAI_clause / TO_clause text TOI_elidible / xi_clause
            / LOhAI_clause / (UI_clause !BU_clause)+ *)
   | SEI # statement [SEhU #]
-  | vocative [relative-clauses] selbri [DOhU #]
-  | vocative [sumti] [DOhU #]
+  | $v(vocative) [relative-clauses] $n(vocative-name) [DOhU #]
+  | $v(vocative) [relative-clauses] $s(selbri) [DOhU #]
+  | $v(vocative) $a(sumti) [DOhU #]
+  | $e(vocative) [DOhU #]
   | mex-2 MAI #
   | TO text [TOI #]
   | XI # mex-2
   | [LOhAI [lohai-word ...] [LOhAI [lohai-word ...]]] LEhAI #
-  | UI #
+  | UI $u(#)
+%tags
+  ($n ⟹ ~named-address) ∪ ($u ⟹ tags($u)) ∪ ($e ⟹ tags($e))
 %conditions
-  ¬begins(after($), free)
+  ¬begins(after($), free),
+  $v ⟹ ~named-address ⊈ tags($v),
+  $s ⟹ ¬matches(head($s), name-word)
+
+%rule name-word
+  CMEVLA
+
+%rule vocative-name
+  (CMEVLA #) ... [relative-clauses]
 
 %rule vocative
   (* vocative <- COI_clause+;  COI_post <- vocative_post_clause *)
-  (COI vocative-post) ...
+  | COI $p(vocative-post)
+  | vocative COI $p(vocative-post)
+%tags
+  tags($p)
 
 %rule number-post
   (* number_post_clause <- spaces? !BU_clause (!number free)* *)
@@ -789,7 +813,10 @@ The condition is on `free`, not on each slot. So it removes a free modifier that
 
 %rule vocative-post
   (* vocative_post_clause <- spaces? !BU_clause (!vocative free)* *)
-  [free-not-vocative ...]
+  | ε
+  | $f(free-not-vocative)
+%tags
+  $f ⟹ tags($f)
 
 %rule free-not-vocative
   $f(free)
@@ -803,6 +830,9 @@ The dialect reads some texts differently from Zantufa 1.9999. The policy of the 
 
 - A PEG commits to the first alternative that matches, and a repetition reads as far as it can. So Zantufa rejects some texts that its rules allow, and the dialect accepts them. In `are`, Zantufa reads `a` as a whole fragment, and `re` is left over. In `le vi'ofagri`, the vocative after `le` takes `fagri`, and the description has no selbri. In `la poi ke'a barda .djan.`, the relative clause takes the name. Each of these parses here.
 - Where a PEG's greed gives a reading that the ranking of this stage does not choose, the dialect keeps its own reading. The ranking is the order of preference of the stage among parses. In `mi klama pamai le zarci .e remai le zdani`, Zantufa's `.e` takes `re mai` as its own free modifier. Here the free modifier is the mekso `.e re` with `mai`, after `zarci`. In `mi me my su'i ny me'u`, Zantufa reads one mekso, `my su'i ny`, after `me`. Here `me` takes a sumti, `ny` with the quantifier `my su'i`.
+- A vocative with a name ends after the name and its relative clauses, and it closes each vocative around it. Zantufa reads a name as a selbri, so in `doi djan. klama` the address is the tanru `djan. klama`. Here `klama` is outside the address.
+
+  In `pe'usai doi xod ko jmina fi lo kamjikca lisri`, Zantufa nests `doi xod` in the slot of `sai`. Then `pe'u` takes `ko` as its sumti, and `jmina` has no first place. No comment of the reference discusses these readings, which follow from its greedy `sumti?` and `selbri`. Here the address of `pe'u` ends after `xod`, and `ko` is the first place of `jmina`.
 - A lookahead here sees the words that the syntax reads, after erasure and without `ba'e`. Zantufa erases and reads `ba'e` inside its grammar, so its lookaheads see those words. So Zantufa accepts `li pa je ba'e cu broda`, `li pa je brode si cu broda` and `ba'e ke broda ke'e ke'e be mi`, and the dialect rejects them. And Zantufa reads `ke mi ba'e ke'e` as a group of terms, and the dialect as a grouped sumti.
 - A nested text takes its own leading free modifiers: those after a word of LU, LUhEI or TO. Zantufa's `LU_clause`, `LUhEI_clause` and `TO_clause` take them as the free modifiers of the opener, before the text begins. The dialect follows the principle of every dialect's indicator stage, that a text begins with its own indicators. It applies that principle to every free modifier, so that one boundary separates the opener from its text. So `lu ui li'u` quotes the text `ui`, and a vocative at the start of a quote belongs to the quote.
 - The word stage reads a stray `si` or `bu` at the start of a text as the Magic Words proposal does. So `si mi` is `mi`, and `bu si` is nothing. Zantufa rejects both, because its `si` and `bu` need a word before them there.
