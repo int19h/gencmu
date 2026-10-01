@@ -3,9 +3,10 @@
 Random small grammars, with ε, left recursion and unary cycles, over short
 random inputs whose tokens carry one tag or several. The reference
 enumerates every derivation, leaving out the cyclic ones as engine §4
-defines them, and computes the verdict, the chosen derivation, the tied
-derivation and the witness straight from the definitions of §6; the library
-computes them over the packed forest without enumerating. A grammar whose
+defines them. It computes the verdict, the first and the second reading
+and the witness straight from the definitions of §6, under greedy, lazy,
+no lean and late-elision. The library computes them over the packed forest
+without enumerating. A grammar whose
 derivations exceed a budget is skipped rather than enumerated.
 
 GENCMU_PROPERTY_CASES sets the number of grammars (default 400) and
@@ -24,7 +25,7 @@ from gencmu._dialect import DOM_FORMAT, _resources, _unicode_table
 from gencmu._earley import Parser, StageContext
 from gencmu._grammar import lower, stitch
 from gencmu._model import Token
-from gencmu._rank import Ranker, actions, count_roots
+from gencmu._rank import actions, count_roots, rank
 
 TERMINALS = ["A", "B", "C"]
 INF = float("inf")
@@ -96,10 +97,19 @@ def order(a: tuple[Any, ...], b: tuple[Any, ...], lean: str) -> int:
     return 0 if whole is None else canonical(*whole)
 
 
-def reference(productions: list[tuple[int, tuple[Any, ...], bool]], rules: int, tokens: list[frozenset[str]], lean: str, budget: int) -> dict[str, Any] | None:
+def reference(
+    productions: list[tuple[int, tuple[Any, ...], bool]],
+    rules: int,
+    tokens: list[frozenset[str]],
+    lean: str,
+    budget: int,
+    elided: frozenset[int] = frozenset(),
+) -> dict[str, Any] | None:
     """Every derivation of the start rule, rule 0, and the ranking's answers
     from the definitions. A production is its rule, its symbols (a string
-    for a terminal, a number for a rule) and whether it is transparent."""
+    for a terminal, a number for a rule) and whether it is transparent.
+    ``elided`` holds the empty productions of the helpers of elidable
+    optionals, whose closes ``late-elision`` counts."""
     n = len(tokens)
     by_rule: list[list[int]] = [[] for _ in range(rules)]
     for number, (lhs, _, _) in enumerate(productions):
@@ -152,6 +162,29 @@ def reference(productions: list[tuple[int, tuple[Any, ...], bool]], rules: int, 
     derivations = derive(0, 0, n, frozenset())
     if not derivations:
         return {"verdict": None}
+    if lean == "late-elision":
+        # One derivation beats another by its elision vector alone, and T
+        # orders equal vectors as no lean does (engine §6). So the readings
+        # are those of no lean over the derivations of the least vector.
+        def vector(sequence: tuple[Any, ...]) -> tuple[int, ...]:
+            counts = [0] * (n + 1)
+            for action in sequence:
+                if action[0] == "c" and action[1] in elided:
+                    counts[action[2]] += 1
+            return tuple(counts)
+
+        least = min(vector(sequence) for sequence in derivations)
+        best = [sequence for sequence in derivations if vector(sequence) == least]
+        found = answers(best, "none")
+        if len(derivations) > 1 and found["verdict"] == "unique":
+            found["verdict"] = "resolved"
+        return found
+    return answers(derivations, lean)
+
+
+def answers(derivations: list[tuple[Any, ...]], lean: str) -> dict[str, Any]:
+    """The verdict, the first and the second reading and the witness of
+    derivations ranked under greedy, lazy or no lean (engine §6)."""
     key = functools.cmp_to_key(lambda a, b: order(a, b, lean))
     chosen = min(derivations, key=key)
     if len(derivations) == 1:
@@ -275,7 +308,7 @@ def library(lowered: Any, tokens: list[frozenset[str]], lean: str) -> dict[str, 
     context = StageContext(lowered, token_list, text, _unicode_table(_resources().unicode))
     context.count = count_roots
     forest = Parser(context).parse(lowered.rule_ids["text"])
-    ranking = Ranker(forest, lean).rank(forest.roots) if forest.roots else None
+    ranking = rank(forest, lean)
     if ranking is None:
         return {"verdict": None}
 
@@ -336,6 +369,38 @@ def random_sugared(rng: random.Random) -> dict[str, Any]:
         "format": DOM_FORMAT,
         "rules": rules,
         "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [9, 1]}],
+        "constants": [],
+    }
+
+
+def random_eliding(rng: random.Random) -> dict[str, Any]:
+    """A grammar with optionals of the elidable terminator T, alone or
+    before another symbol, among the sugar of random_sugared."""
+    count = rng.randint(1, 3)
+    names = ["text", "ra", "rb", "rc"][:count]
+
+    def item() -> dict[str, Any]:
+        roll = rng.random()
+        if roll < 0.25:
+            return {"optional": {"ref": "T"}}
+        if roll < 0.4:
+            return {"optional": {"seq": [{"ref": "T"}, random_expression(rng, count, 2)]}}
+        return random_expression(rng, count)
+
+    rules = []
+    for number in range(count):
+        alternatives = []
+        for _ in range(rng.randint(1, 3)):
+            items = [item() for _ in range(rng.choice([1, 2, 2, 3]))]
+            alternatives.append({"guards": [], "expr": items[0] if len(items) == 1 else {"seq": items}})
+        rules.append({"name": names[number], "op": "define", "alternatives": alternatives, "conditions": [], "at": [number + 1, 1]})
+    return {
+        "format": DOM_FORMAT,
+        "rules": rules,
+        "directives": [
+            {"name": "ambiguity-resolution", "args": ["late-elision"], "at": [9, 1]},
+            {"name": "elidable", "args": ["T"], "at": [10, 1]},
+        ],
         "constants": [],
     }
 
@@ -411,6 +476,39 @@ class RankingProperty(unittest.TestCase):
         if os.environ.get("GENCMU_PROPERTY_VERBOSE"):
             print(f"\nsugar: compared {compared}, skipped {skipped}, verdicts {verdicts}")
         self.assertGreater(verdicts.get("tie", 0), 0)
+
+    def test_late_elision_against_enumeration(self) -> None:
+        """late-elision over grammars with an elidable terminator: the
+        verdict from the elision vectors, and the readings of no lean over
+        the derivations with the least vector (engine §6)."""
+        cases = int(os.environ.get("GENCMU_PROPERTY_CASES", "1000")) // 2
+        seed = int(os.environ.get("GENCMU_PROPERTY_SEED", "1"))
+        compared = skipped = 0
+        verdicts: dict[Any, int] = {}
+        for number in range(cases):
+            rng = random.Random(20_000_000 + seed + number)
+            lowered = lower(stitch("main", [("g.md", random_eliding(rng))], _unicode_table(_resources().unicode)), frozenset())
+            productions = [(p.lhs, tuple(p.rhs), p.transparent) for p in lowered.productions]
+            elided = frozenset(p.id for p in lowered.productions if p.helper and p.elided is not None and not p.rhs)
+            plain_rules: list[list[list[Any]]] = [[] for _ in lowered.rule_names]
+            for lhs, rhs, _ in productions:
+                plain_rules[lhs].append(list(rhs))
+            for _ in range(4):
+                tokens = random_tokens(plain_rules, rng)
+                try:
+                    expected = reference(productions, len(lowered.rule_names), tokens, "late-elision", 20000, elided)
+                except Budget:
+                    skipped += 1
+                    continue
+                assert expected is not None
+                found = library(lowered, tokens, "late-elision")
+                compared += 1
+                verdicts[expected["verdict"]] = verdicts.get(expected["verdict"], 0) + 1
+                self.assertEqual(found, expected, f"seed {20_000_000 + seed + number}, over {tokens}")
+        if os.environ.get("GENCMU_PROPERTY_VERBOSE"):
+            print(f"\nlate-elision: compared {compared}, skipped {skipped}, verdicts {verdicts}")
+        self.assertGreater(verdicts.get("tie", 0), 0)
+        self.assertGreater(verdicts.get("resolved", 0), 0)
 
 
 if __name__ == "__main__":
