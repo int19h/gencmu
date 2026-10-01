@@ -14,7 +14,7 @@ import os
 import time
 import unittest
 from concurrent.futures import ProcessPoolExecutor
-from typing import Any
+from typing import Any, Callable
 
 from .shared import SHARED, result_problems
 
@@ -32,8 +32,10 @@ def all_cases() -> list[dict[str, Any]]:
     return found
 
 
-def outcome(case: dict[str, Any]) -> dict[str, Any]:
-    """What gencmu makes of a case, in the case's own terms."""
+def outcome(case: dict[str, Any], mutate: Callable[[dict[str, Any]], dict[str, Any]] | None = None) -> dict[str, Any]:
+    """What gencmu makes of a case, in the case's own terms. ``mutate``, for
+    a test of the runner, changes the canonical result before the check of
+    its invariants."""
     import gencmu
 
     dialect = _dialects.get(case["dialect"])
@@ -42,7 +44,10 @@ def outcome(case: dict[str, Any]) -> dict[str, Any]:
     result = dialect.parse(case["text"], features=case.get("features", []), without_features=case.get("withoutFeatures", []))
     # A tied stage emits nothing and ends the run with its error
     # (tests/README.md).
-    problems = result_problems(gencmu.result_json(result))
+    value = gencmu.result_json(result)
+    if mutate is not None:
+        value = mutate(value)
+    problems = result_problems(value)
     if problems:
         raise AssertionError(f"the result breaks an invariant: {'; '.join(problems)}")
     got: dict[str, Any] = {"expect": "accept" if result.ok else "reject"}
@@ -118,6 +123,34 @@ class Corpus(unittest.TestCase):
             if problem:
                 failures.append(problem)
             lines.append(json.dumps({"id": case_id, "seconds": round(seconds, 3), "chars": len(case["text"]), "ok": problem is None, "problem": problem}, ensure_ascii=False) + "\n")
+
+    def test_a_result_that_breaks_an_invariant_is_refused(self) -> None:
+        """The runner checks the whole invariant of a tie on the canonical
+        result of a corpus case (tests/README.md)."""
+        case = next(case for case in all_cases() if case["id"] == "adhoc.camxes-exp.ties.fragment-or-sentence-in-to")
+        self.assertIsNone(mismatch(case, outcome(case)))
+
+        def tied(value: dict[str, Any], **changes: Any) -> dict[str, Any]:
+            stages = list(value["stages"])
+            stages[-1] = {**stages[-1], **changes}
+            return {**value, "stages": stages}
+
+        mutants: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
+            "a tied stage with output": lambda value: tied(value, output=[]),
+            "a stage with a tied tree": lambda value: tied(value, tied=value["error"]["readings"][1]),
+            "a stage after the tie": lambda value: {**value, "stages": [*value["stages"], {"name": "later", "verdict": "unique"}]},
+            "a tree": lambda value: {**value, "tree": value["error"]["readings"][0]},
+            "an ok result": lambda value: {**value, "ok": True},
+            "one reading": lambda value: {**value, "error": {**value["error"], "readings": value["error"]["readings"][:1]}},
+            "an error without a reason": lambda value: {
+                **value,
+                "error": {key: found for key, found in value["error"].items() if key != "reason"},
+            },
+            "an error of another stage": lambda value: {**value, "error": {**value["error"], "stage": "words"}},
+        }
+        for name, mutate in mutants.items():
+            with self.subTest(mutant=name), self.assertRaisesRegex(AssertionError, "breaks an invariant"):
+                outcome(case, mutate)
 
 
 if __name__ == "__main__":
