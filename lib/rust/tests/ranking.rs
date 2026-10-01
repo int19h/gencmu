@@ -1,7 +1,8 @@
 //! A property test of the ranking (engine §6): random small grammars and
 //! inputs, every derivation enumerated by brute force, and the verdict,
-//! chosen derivation, tied derivation and witness computed straight from
-//! the definitions, compared with the library's.
+//! first reading, second reading and witness computed straight from the
+//! definitions, compared with the library's. The rule of the ranking is
+//! `greedy`, `lazy` or `late-elision`.
 //!
 //! `GENCMU_PROPERTY_CASES` sets how many cases to run (default 600) and
 //! `GENCMU_PROPERTY_SEED` the first seed; a failing case prints its seed,
@@ -59,6 +60,8 @@ const TERMINALS: [&str; 3] = ["A", "B", "C"];
 enum Lean {
     Greedy,
     Lazy,
+    /// A derivation beats another when its elision vector is less.
+    LateElision,
     /// No lean: any two derivations that differ are tied, as the
     /// `elision-only` check ranks (§7).
     Neither,
@@ -108,7 +111,18 @@ fn symbol(rng: &mut Rng, rule: usize, rule_count: usize, terminal_count: usize, 
 fn generate(rng: &mut Rng) -> (Source, Vec<Vec<usize>>) {
     let rule_count = 1 + rng.below(4);
     let terminal_count = 1 + rng.below(3);
-    let sugar = rng.chance(40);
+    let lean = match rng.below(10) {
+        0..=3 => Lean::Greedy,
+        4..=6 => Lean::Lazy,
+        _ => Lean::LateElision,
+    };
+    let late = lean == Lean::LateElision;
+    let elision_only = lean == Lean::Greedy && rng.chance(25);
+    // Under late-elision, a grammar always has sugar and an elidable
+    // terminator, and often optionals of it, so that the vectors decide.
+    let sugar = late || rng.chance(40);
+    let elidable =
+        if sugar && !elision_only && (late || rng.chance(50)) { Some(rng.below(terminal_count)) } else { None };
     let mut rules = Vec::new();
     for rule in 0..rule_count {
         let mut alternatives = Vec::new();
@@ -117,10 +131,11 @@ fn generate(rng: &mut Rng) -> (Source, Vec<Vec<usize>>) {
             let mut items = Vec::new();
             for position in 0..length {
                 let sym = symbol(rng, rule, rule_count, terminal_count, position, length);
-                items.push(match (sugar, rng.below(10)) {
-                    (true, 0) => Item::Optional(sym),
-                    (true, 1) => Item::Repeat(sym),
-                    (true, 2) => Item::OptionalRepeat(sym),
+                items.push(match (sugar, rng.below(10), elidable) {
+                    (true, 0, _) => Item::Optional(sym),
+                    (true, 1, _) => Item::Repeat(sym),
+                    (true, 2, _) => Item::OptionalRepeat(sym),
+                    (true, 3 | 4, Some(t)) if late => Item::Optional(Sym::T(t)),
                     _ => Item::Plain(sym),
                 });
             }
@@ -129,9 +144,6 @@ fn generate(rng: &mut Rng) -> (Source, Vec<Vec<usize>>) {
         }
         rules.push(alternatives);
     }
-    let lean = if rng.chance(50) { Lean::Greedy } else { Lean::Lazy };
-    let elision_only = lean == Lean::Greedy && rng.chance(25);
-    let elidable = if sugar && !elision_only && rng.chance(50) { Some(rng.below(terminal_count)) } else { None };
     let source = Source { rules, lean, elision_only, elidable };
     let grammar = lower(&source);
     // Most inputs are sentences of the grammar, so that most cases parse.
@@ -278,6 +290,7 @@ fn grammar_text(source: &Source) -> String {
     let mut text = String::new();
     text.push_str(match (source.lean, source.elision_only) {
         (Lean::Lazy, _) => "%ambiguity-resolution lazy\n",
+        (Lean::LateElision, _) => "%ambiguity-resolution late-elision\n",
         (_, true) => "%ambiguity-resolution greedy elision-only\n",
         _ => "%ambiguity-resolution greedy\n",
     });
@@ -343,6 +356,7 @@ fn grammar_dom(source: &Source) -> String {
     }
     let args = match (source.lean, source.elision_only) {
         (Lean::Lazy, _) => "\"lazy\"",
+        (Lean::LateElision, _) => "\"late-elision\"",
         (_, true) => "\"greedy\",\"elision-only\"",
         _ => "\"greedy\"",
     };
@@ -496,11 +510,13 @@ fn outcome(lean: Lean, a: &Act, b: &Act) -> (bool, bool) {
             Lean::Greedy => (true, false),
             Lean::Lazy => (false, false),
             Lean::Neither => (true, true),
+            Lean::LateElision => unreachable!("late-elision compares actions with no lean"),
         },
         (Act::Close { .. }, Act::Read { .. }) => match lean {
             Lean::Greedy => (false, false),
             Lean::Lazy => (true, false),
             Lean::Neither => (false, true),
+            Lean::LateElision => unreachable!("late-elision compares actions with no lean"),
         },
         (Act::Close { prod: p, start: s, end: e, .. }, Act::Close { prod: q, start: t, end: f, .. }) => {
             ((p, s, e) < (q, t, f), true)
@@ -536,11 +552,20 @@ fn first_difference<'x>(a: &'x [Act], b: &'x [Act]) -> Option<(usize, &'x Act, &
 struct Ranked {
     visible: Vec<Vec<Act>>,
     full: Vec<Vec<Act>>,
+    /// Each derivation's elision vector, as a count for each boundary.
+    vectors: Vec<Vec<usize>>,
 }
 
 impl Ranked {
-    /// The order T: is `a` before `b`?
+    /// The order T: is `a` before `b`? Under late-elision, the lesser
+    /// vector first, and then as with no lean.
     fn before(&self, lean: Lean, a: usize, b: usize) -> bool {
+        if lean == Lean::LateElision {
+            return match self.vectors[a].cmp(&self.vectors[b]) {
+                std::cmp::Ordering::Equal => self.before(Lean::Neither, a, b),
+                order => order == std::cmp::Ordering::Less,
+            };
+        }
         match first_difference(&self.visible[a], &self.visible[b]) {
             Some((_, x, y)) => outcome(lean, x, y).0,
             // A visible prefix before its extensions.
@@ -553,6 +578,9 @@ impl Ranked {
     }
 
     fn beats(&self, lean: Lean, a: usize, b: usize) -> bool {
+        if lean == Lean::LateElision {
+            return self.vectors[a] < self.vectors[b];
+        }
         match first_difference(&self.visible[a], &self.visible[b]) {
             Some((_, x, y)) => {
                 let (first, tie) = outcome(lean, x, y);
@@ -563,6 +591,9 @@ impl Ranked {
     }
 
     fn tied(&self, lean: Lean, a: usize, b: usize) -> bool {
+        if lean == Lean::LateElision {
+            return a != b && self.vectors[a] == self.vectors[b];
+        }
         a != b
             && match first_difference(&self.visible[a], &self.visible[b]) {
                 Some((_, x, y)) => outcome(lean, x, y).1,
@@ -772,7 +803,24 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
         })
         .collect();
     let visible = full.iter().map(|acts| acts.iter().filter(|act| act.visible()).copied().collect()).collect();
-    let ranked = Ranked { visible, full };
+    // The count of elided terminators at each boundary: a close of the
+    // empty production of an elidable optional's helper (engine §6).
+    let vectors = full
+        .iter()
+        .map(|acts| {
+            let mut counts = vec![0; tokens.len() + 1];
+            for act in acts {
+                if let Act::Close { prod, start, .. } = act {
+                    let production = &grammar.prods[*prod];
+                    if production.syms.is_empty() && grammar.rules[production.rule].elided.is_some() {
+                        counts[*start] += 1;
+                    }
+                }
+            }
+            counts
+        })
+        .collect();
+    let ranked = Ranked { visible, full, vectors };
 
     let document = format!("```jbogenbau\n{text}```\n");
     let dom = grammar_dom(&source);
@@ -856,6 +904,14 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
             _ => "(stat) tie of more",
         })
         .or_default() += 1;
+    if grammar.lean == Lean::LateElision {
+        let stat = match expected.verdict {
+            "unique" => "(stat) late-elision unique",
+            "resolved" => "(stat) late-elision resolved",
+            _ => "(stat) late-elision tie",
+        };
+        *findings.entry(stat).or_default() += 1;
+    }
     Ok(true)
 }
 

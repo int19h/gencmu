@@ -570,7 +570,7 @@ impl Dialect {
         let ranked = if accepted {
             let mut ranker = Ranker::new(&lowered, &chart, &input, shared, lean, maximal.as_ref());
             ranker.rank().map(|ranking| {
-                let chosen = build(&ranker, ranking.chosen);
+                let chosen = build(&ranker, ranking.first);
                 (ranking, chosen)
             })
         } else {
@@ -585,7 +585,7 @@ impl Dialect {
                     let mut ranker = Ranker::new(&lowered, &chart, &input, shared, lean, None);
                     ranker
                         .rank()
-                        .and_then(|ranking| forbidden_terminator(&build(&ranker, ranking.chosen), &lowered, maximal))
+                        .and_then(|ranking| forbidden_terminator(&build(&ranker, ranking.first), &lowered, maximal))
                 }
                 _ => None,
             };
@@ -782,14 +782,14 @@ impl Dialect {
         // `maximal` does not apply here: the check's parse has no elided
         // terminator (§4).
         let mut ranker = Ranker::new(&lowered, &chart, &tokens, shared, Lean::Neither, None);
-        let Some(Ranking { verdict: RankVerdict::Tie, chosen, tied: Some(tied), .. }) = ranker.rank() else {
+        let Some(Ranking { verdict: RankVerdict::Tie, first, second: Some(second), .. }) = ranker.rank() else {
             return Ok(None);
         };
-        let chosen = build(&ranker, chosen);
-        let tied = build(&ranker, tied);
+        let first = build(&ranker, first);
+        let second = build(&ranker, second);
         let tag_set = |set: u32| shared.tags.to_set(set);
         let context = TreeContext { g: &lowered, tokens: &tokens, tag_map: &tag_set, synthetic: Some(&synthetic) };
-        let readings = vec![public_tree(&chosen, &context), public_tree(&tied, &context)];
+        let readings = vec![public_tree(&first, &context), public_tree(&second, &context)];
         let stage = &self.stages[index].name;
         Ok(Some(ParseError {
             kind: ParseErrorKind::Ambiguous,
