@@ -32,7 +32,9 @@ A feature is a named switch that the grammars of the dialect test (engine §13).
 
 A text must be a sequence of Unicode scalar values, or it is a usage error (engine §1). So a JavaScript or Python string with a lone surrogate is a usage error. So is a Go string that is not valid UTF-8. The same holds for a document held in memory. A document read from disk is different: bytes that are not valid UTF-8 there are a `grammar` load error, with no line or column.
 
-A text that does not parse is not an error, but a result whose `ok` is false and whose `error` says why. The kind of that error is `rejected`, `ambiguous` or `grammar`. Here, `grammar` is for a defect found only while parsing. One example is a nested parse asked about its own span as the same rule. Another is a classifier's entry that adds a class twice under the features of the parse.
+A text that does not parse is not an error, but a result whose `ok` is false and whose `error` says why. The kind of that error is `rejected`, `ambiguous` or `grammar`. An `ambiguous` error has a reason. It is `tie` where a stage has two or more best readings (engine §6). It is `elision-only` where the check of engine §7 fails.
+
+Here, `grammar` is for a defect found only while parsing. One example is a nested parse asked about its own span as the same rule. Another is a classifier's entry that adds a class twice under the features of the parse.
 
 Parsing is synchronous, and you can use a loaded dialect for any number of parses. In Python, Go and Rust, any number of threads can share one dialect and parse at once. JavaScript has one thread, and the worker of the playground has its own dialects.
 
@@ -54,7 +56,7 @@ A loaded dialect lists its features (engine §13), in code point order of the na
 
 The result has the fields of `docs/output.md`, in the data types of the language. These fields are `ok`, the stages, the `tree` of the last stage, the `error`, and the `warnings`. `warnings` is an empty list when there are no warnings.
 
-A stage has its name, its input and output tokens, its verdict, and for a tie its witness and tied tree. A token has its text, its phonemes, its label, its tags, its span and its source range. An inserted token also names the rule that inserted it. A token also has its attachments, `before` and `after`, two lists of tokens (engine §11). An attached token has no span.
+A stage has its name, its input and output tokens, its verdict, and for a tie its witness. A tied stage has no output tokens, and its two readings are in the result's error. A token has its text, its phonemes, its label, its tags, its span and its source range. An inserted token also names the rule that inserted it. A token also has its attachments, `before` and `after`, two lists of tokens (engine §11). An attached token has no span.
 
 A node has its kind (`rule`, `token` or `elided`), its rule or terminal, its span and source range, its tags and its children. A token node also has the index of the token that it read. Tags are a set of tags, each a string in its canonical spelling (engine §1). Source positions count Unicode code points, whatever the string indexing of the language is. Spans and token indices count tokens of the relevant stage.
 
