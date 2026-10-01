@@ -859,20 +859,11 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 		if err != nil {
 			return nil, err
 		}
-		alt := &domAlt{Guards: []domGuard{}}
-		var guards []*struct {
-			Feature *string
-			Kind    *string
-			Negated *bool
-		}
-		if err := json.Unmarshal(ao["guards"], &guards); err != nil || guards == nil {
-			return nil, fmt.Errorf("a malformed alternative")
-		}
-		for _, gd := range guards {
-			if gd == nil || gd.Feature == nil || gd.Kind == nil || gd.Negated == nil {
-				return nil, fmt.Errorf("a malformed guard")
-			}
-			alt.Guards = append(alt.Guards, domGuard{*gd.Feature, *gd.Kind, *gd.Negated})
+		alt := &domAlt{}
+		// The guards of an alternative have the members of an entry's
+		// guards. The checker holds their kinds to the reader's rules.
+		if alt.Guards, err = decodeGuards(ao["guards"]); err != nil {
+			return nil, err
 		}
 		if alt.Expr, err = decodeExpr(ao["expr"]); err != nil {
 			return nil, err

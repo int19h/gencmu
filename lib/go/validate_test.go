@@ -97,6 +97,12 @@ func TestDOMRules(t *testing.T) {
 		{"a guard has a kind", guarded(`{"feature":"f","negated":false}`)},
 		{"a guard is a gate or a warning", guarded(`{"feature":"f","kind":"hint","negated":false}`)},
 		{"a warning is never negated", guarded(`{"feature":"f","kind":"warning","negated":true}`)},
+		// A guard has exactly its feature, its kind and whether it is
+		// negated, as an entry's guard has.
+		{"a guard has no other member", guarded(`{"feature":"f","kind":"gate","negated":false,"extra":true}`)},
+		{"a guard is not null", guarded(`null`)},
+		{"a guard's negated is a boolean", guarded(`{"feature":"f","kind":"gate","negated":null}`)},
+		{"an alternative has a list of guards", rule(`"alternatives":[{"guards":null,"expr":` + good + `}],"conditions":[]`)},
 		{"an alternative has guards", rule(`"alternatives":[{"expr":` + good + `}],"conditions":[]`)},
 		{"a seq has two items or more", alt(`{"seq":[{"terminal":"a"}]}`)},
 		{"a seq is not empty", alt(`{"seq":[]}`)},
@@ -771,4 +777,18 @@ func TestMixedForms(t *testing.T) {
 			t.Errorf("%s: expected an error of the bootstrap, got %v", m.name, err)
 		}
 	}
+}
+
+// A guard of an alternative has exactly its feature, its kind and whether
+// it is negated, as a guard of a classifier's entry has (docs/output.md).
+// A bootstrap with a guard of another member is an error of the grammar.
+func TestBootstrapGuardMembers(t *testing.T) {
+	rule := func(guard string) string {
+		return `{"name":"guarded-rule","op":"define","alternatives":[{"guards":[` + guard + `],"expr":{"ref":"A"}}],"conditions":[],"at":[9999,1]}`
+	}
+	if err := bootstrapError(t, "rules", rule(`{"feature":"f","kind":"gate","negated":false}`)); err != nil {
+		t.Fatalf("a well-formed guard: %v", err)
+	}
+	assertGrammarError(t, bootstrapError(t, "rules", rule(`{"feature":"f","kind":"gate","negated":false,"extra":true}`)), "a malformed guard")
+	assertGrammarError(t, bootstrapError(t, "rules", rule(`{"kind":"gate","negated":false,"feature":"f","note":"x"}`)), "a malformed guard")
 }
