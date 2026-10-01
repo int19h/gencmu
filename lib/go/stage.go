@@ -220,7 +220,6 @@ func (run *stageRun) run(g *lowered, mandatory func() *lowered, elisionOnly bool
 		out.stage.Verdict = VerdictUnique
 	case res.tied != nil:
 		out.stage.Verdict = VerdictTie
-		out.stage.Tied = run.buildTree(rec, res.tied)
 		out.stage.Witness = run.actions(rec, res.witness)
 	default:
 		out.stage.Verdict = VerdictResolved
