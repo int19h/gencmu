@@ -179,7 +179,7 @@ Directives are keywords too, and can stand in any block.
 
 `%ambiguity-resolution` says how the stage chooses among parses (see "Ambiguity"). Its first operand is the rule of the ranking: `greedy`, `lazy` or `late-elision`. `elision-only` and then `maximal` can follow it. Every stage must have exactly one, in any of its documents. A stage with none or two is a load error that names the stage.
 
-`%elidable KU KEI VAU ...` lists the terminators that can be elided. An absent optional whose first symbol is one of them appears in the tree as that terminator, elided at that point. `elision-only` restores these terminators. A stage can have several `%elidable` directives, and their terminators add up.
+`%elidable KU KEI VAU ...` lists the terminators that can be elided. An absent optional whose first symbol is one of them appears in the tree as that terminator, elided at that point. `elision-only` restores these terminators. A stage can have several `%elidable` directives, and their terminators add up. `%elidable maximal TOI SEhU` also makes its terminators maximal (see "Maximal terminators").
 
 By convention, a directive stands in a block of its own, after prose that says why the grammar needs it. gencmu does not enforce the convention.
 
@@ -326,6 +326,24 @@ The window of a query is its span. A `matches` over a captured span does not loo
 The alternative was to apply `maximal` inside nested parses. It was measured in two variants over the parse jobs of the corpus. V1 sought the longer constituent in the whole input of the stage. It changed 39 jobs, and 31 of them became false ties. V2 sought it only in the chart of the query. It changed 24 jobs, and 17 of them became false ties.
 
 Both variants change queries where no terminator is written, so the policy was rejected. Written-terminator priority changed no corpus job. It settles every constructed text of this kind that was tried, in seven Zantufa and four experimental families of conditions.
+
+### Maximal terminators
+
+Some Zantufa conditions accept a nested reading that closes a parenthesis early, with no terminator written. The condition `¬matches($m, terms-vau)` of `fragment` is an example. So `so to mi klama` reads `([so {to mi}] klama)`, while the reference parser reads one mex fragment, `so` with the parenthesis `to mi klama`. `so to recap` closes an empty `to`. In `ro sei ny rere'u basna mutce cusku`, the `sei` closes before `cusku`.
+
+Written-terminator priority does not settle these texts, because no `toi` or `se'u` is written. A condition cannot say that the content of a construct cannot be longer. An attempt to copy the greed of the reference with conditions rejected 27 texts that the reference accepts. Stage-wide `maximal` inside nested parses changed 39 jobs and made 31 false ties ("Nested queries and elided terminators" above).
+
+So a grammar can make single terminators maximal (engine §4). Such a terminator follows the rule of `maximal`, but for itself alone, and in nested queries too. The grammar names the constructs that a reader closes as late as it can, such as `to … toi` and `sei … se'u`. Every other terminator keeps the default.
+
+The notation is a word on `%elidable`: `%elidable maximal TOI SEhU`. A maximal terminator is always elidable, so one directive declares both. No new keyword is needed. In the DOM, the word is the member `"maximal":true`, not an operand, so it stays apart from `~maximal`. The DOM format becomes 17.
+
+Inside a query, the longer constituent comes from the query's own chart. So the window and the memo keys of a query do not change. A `begins` with `from` or `after` already sees the rest of the input. A bounded `matches` sees only its span, and a constituent that goes on past the span does not count there.
+
+A maximal terminator applies whatever the directive says, and stage-wide `maximal` keeps its meaning. Both remove derivations before any ranking rule ranks them. Written-terminator priority and a maximal terminator both forbid omissions in a query. A rejection names the first forbidden terminator, as for `maximal`. `elision-only` writes back a maximal terminator as any other.
+
+The four libraries already find the furthest completion of each symbol from each origin for `maximal`. The main parse uses that table for the named terminators only. A nested query builds the same table from its own chart, which costs one pass over that chart. The two states of written-terminator priority check the longer constituent in the same step.
+
+Two questions are open. One is whether Zantufa also makes `LIhU` maximal. The other is whether a bounded `matches` ever needs a longer constituent past its span.
 
 ### Where an elided terminator can fall
 
