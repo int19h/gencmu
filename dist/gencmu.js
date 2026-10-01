@@ -6999,7 +6999,7 @@
     /** @type {(node: ResultNode, kinds: Set<string>) => RuleNode} */
     const knownOf = (node, kinds) => {
       const found = parts(node).filter((child) => child.kind === "rule");
-      if (found.length !== 1 || !kinds.has(/** @type {RuleNode} */ (found[0]).rule)) return lacks(node, `one of ${[...kinds].join(", ")}`);
+      if (found.length !== 1 || !kinds.has(/** @type {RuleNode} */ (found[0]).rule)) return lacks(node, `single part of these: ${[...kinds].join(", ")}`);
       return /** @type {RuleNode} */ (found[0]);
     };
     /** @type {(node: ResultNode) => string | undefined} */

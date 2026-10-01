@@ -320,7 +320,7 @@ func (b *domBuilder) knownOf(n *Node, kinds []string) *Node {
 			}
 		}
 	}
-	b.lacks(n, "one of "+strings.Join(kinds, ", "))
+	b.lacks(n, "single part of these: "+strings.Join(kinds, ", "))
 	return nil
 }
 

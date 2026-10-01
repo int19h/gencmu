@@ -144,7 +144,7 @@ impl<'a> Reader<'a> {
     fn inner<'n>(&self, node: &'n Node, kinds: &[&str]) -> R<&'n Node> {
         match Self::parts(node).into_iter().filter(|child| child.kind == NodeKind::Rule).collect::<Vec<_>>()[..] {
             [found] if kinds.contains(&rule_name(found)) => Ok(found),
-            _ => Err(self.shape_error(node, format!("one of {}", kinds.join(", ")))),
+            _ => Err(self.shape_error(node, format!("single part of these: {}", kinds.join(", ")))),
         }
     }
 

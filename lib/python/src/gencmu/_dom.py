@@ -227,7 +227,7 @@ class DomBuilder:
         """The one rule among the parts, which must be one of ``kinds``."""
         found = [kid for kid in self.kids(node) if kid.kind == "rule"]
         if len(found) != 1 or found[0].rule not in kinds:
-            raise self.lacks(node, "one of " + ", ".join(sorted(kinds)))
+            raise self.lacks(node, "single part of these: " + ", ".join(sorted(kinds)))
         return found[0]
 
     # -- the document
