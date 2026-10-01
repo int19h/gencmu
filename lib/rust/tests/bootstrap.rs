@@ -153,3 +153,88 @@ fn parsing_with_and_without_the_cache() {
         assert_eq!(a, c, "{text}");
     }
 }
+
+/// A document that holds every construct of the notation, read with the
+/// bootstrap of each test below.
+const EVERY_CONSTRUCT: &str = r#"```jbogenbau
+%ambiguity-resolution greedy
+%elidable KU ~KEI
+%features f g
+%const $K ~A ∪ ~B
+%redefine-const $K ~A ∪ ~B ∪ ∅
+%classifier lex
+  f? "mi" ∈ KOhA
+  ¬g? "do" ∉ ~KOhA
+%implies ~A ∩ ~B ⟹ ~C ∖ ~D
+%rule text
+  | f? h! $x(A) $y(LE="la") [C | D] E... (F & G) 'a'..'z' '\p{L}' /a/ ~H UI∩(~B)=∅ <~T ∪ $K>
+  | g? text-tail
+  %tags ~U ∪ ($x ∧ classify(text($x), lex) ⊆ ~V ⟹ ~W)
+  %conditions , (text($x) = "ok" ∨ initial($y)) ⟹ ¬matches(head($x), text) ∧ $y, begins(tail($x), text), text($y) ∈ split("a.b", ".")
+  %emits $x <tags($x) ∩ tag(text($x))> ($y), ~Y
+  %opaque
+%rule text-tail
+  ε
+%redefine-rule text-tail
+  #
+%extend-rule text-tail
+  'b'
+%rule #
+  'c'
+```
+"#;
+
+/// Loads a dialect whose one document is `document`, read with `bootstrap`
+/// in place of the bundled one.
+fn load_with_bootstrap(bootstrap: String, document: &str) -> Result<gencmu::Dialect, gencmu::Error> {
+    let sources = [
+        ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+        ("g.md", document.to_string()),
+        ("notation/bootstrap.json", bootstrap),
+    ];
+    gencmu::load_dialect_sources(sources, "p.md")
+}
+
+/// A caller can supply its own bootstrap (docs/api.md), whose notation can
+/// give the reader a tree of another shape. Here each rule of the
+/// notation's syntax has another name in turn, so that the tree lacks a
+/// node the reader looks for, or holds one that it does not know. The
+/// reader then gives an error of the grammar, and never panics.
+#[test]
+fn a_bootstrap_of_another_shape_is_an_error_and_never_a_panic() {
+    let bootstrap = read("notation/bootstrap.json");
+    if let Err(error) = load_with_bootstrap(bootstrap.clone(), EVERY_CONSTRUCT) {
+        panic!("the bundled bootstrap reads the document: {error}");
+    }
+    // The syntax document is the bootstrap's last, and only its rules are
+    // renamed.
+    let start = bootstrap.find(r#""path":"notation/syntax.md""#).expect("the syntax document");
+    let syntax = parse_json(&bootstrap).expect("bootstrap.json");
+    let names: Vec<String> = syntax
+        .get("stages")
+        .expect("stages")
+        .array()
+        .iter()
+        .flat_map(|stage| stage.get("documents").expect("documents").array().iter())
+        .filter(|document| document.get("path").and_then(Value::str) == Some("notation/syntax.md"))
+        .flat_map(|document| document.get("dom").expect("dom").get("rules").expect("rules").array().iter())
+        .map(|rule| rule.get("name").and_then(Value::str).expect("a rule's name").to_string())
+        .collect();
+    assert!(names.iter().any(|name| name == "definer"), "{names:?}");
+    let mut refused = Vec::new();
+    for name in names.iter().filter(|name| *name != "text") {
+        let (before, after) = bootstrap.split_at(start);
+        let renamed = after
+            .replace(&format!(r#""name":"{name}","op""#), &format!(r#""name":"{name}x","op""#))
+            .replace(&format!(r#"{{"ref":"{name}"}}"#), &format!(r#"{{"ref":"{name}x"}}"#));
+        match load_with_bootstrap(format!("{before}{renamed}"), EVERY_CONSTRUCT) {
+            Ok(_) => {}
+            Err(error) => {
+                assert_eq!(error.kind, gencmu::ErrorKind::Grammar, "{name}: {error}");
+                refused.push(name.as_str());
+            }
+        }
+    }
+    // A rule without its definer, among others.
+    assert!(refused.contains(&"definer"), "{refused:?}");
+}
