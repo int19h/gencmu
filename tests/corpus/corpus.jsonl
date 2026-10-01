@@ -15193,7 +15193,7 @@
 {"id":"corpus.camxes.3117","text":"i za'a le nomei cu jundi","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["i","za'a","le","no","mei","cu","jundi"],"brackets":"([i za'a] [{le (no mei)} cu jundi])"}
 {"id":"corpus.camxes.3118","text":"coi edaurd","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["coi","edaurd"],"brackets":"(coi edaurd)"}
 {"id":"corpus.camxes.3119","text":"si eduard","dialect":"experimental","expect":"reject","stage":"words"}
-{"id":"corpus.camxes.312","text":"fe'i re bi'epi'i .abu ","dialect":"zantufa","expect":"accept","verdict":"unique","words":["fe'i","re","bi'e","pi'i","abu"],"brackets":"([{fe'i re} {bi'e pi'i}] abu)"}
+{"id":"corpus.camxes.312","text":"fe'i re bi'epi'i .abu ","dialect":"zantufa","expect":"accept","verdict":"unique","words":["fe'i","re","bi'e","pi'i","abu"],"brackets":"([fe'i re] [bi'e pi'i abu])"}
 {"id":"corpus.camxes.3120","text":"mi tcidu fi le skicu le skami bangu poi se cmene zoi .gy. Ruby .gy. (zoi)","dialect":"cll-ebnf","expect":"reject","stage":"words"}
 {"id":"corpus.camxes.3121","text":"coi rain","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["coi","rain"],"brackets":"(coi rain)"}
 {"id":"corpus.camxes.3122","text":"mi pu denpa le nu do xruti","dialect":"cll-ebnf","expect":"accept","verdict":"resolved","words":["mi","pu","denpa","le","nu","do","xruti"],"brackets":"(mi [{pu denpa} {le (nu [do xruti])}])"}

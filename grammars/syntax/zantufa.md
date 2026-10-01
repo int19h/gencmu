@@ -605,6 +605,8 @@ Zantufa's mekso is flat: operands and runs of operators alternate, `bo` and `ke`
 
 The grammar reads a run of operators whole. So in `li re su'i ni'u pa`, `su'i ni'u` is one run. It is not an operator without an operand and then a link of its own. The rule `operators` states this, with a condition that no operator follows the run. The reference's `operator+` reads as far as it can. This is deliberate, and a comment of the reference shows a run of two operators as one unit, `[pi'i pi'i]`.
 
+The operand after a run of operators is greedy too. The reference's `mex_1?` after `operator+` reads an operand wherever one follows. So a run of operators ends a mekso only where no operand follows it. The first alternative of `mex-link` and of `bihe-link` has a condition that states this. So `by su'i cy klama` has the quantifier `by su'i cy` before `klama`, and `mi me my su'i ny me'u` has the mekso `my su'i ny` after `me`. Both are Zantufa's readings.
+
 ```jbogenbau
 %rule quantifier
   (* quantifier <- !sumti_5 !selbri mex relative_clauses? *)
@@ -618,9 +620,10 @@ The grammar reads a run of operators whole. So in `li re su'i ni'u pa`, `su'i ni
   mex-1 [mex-link] ...
 
 %rule mex-link
-  operators | operators $x(mex-1)
+  $o(operators) | operators $x(mex-1)
 %conditions
-  ¬begins(from($x), operator)
+  ¬begins(from($x), operator),
+  ¬begins(after($o), mex-1)
 
 %rule mex-1
   (* mex_1 <- (KE_clause mex_2+ KEhE_elidible / mex_2 (BO_clause mex_2)* )
@@ -628,9 +631,10 @@ The grammar reads a run of operators whole. So in `li re su'i ni'u pa`, `su'i ni
   mex-group [bihe-link] ...
 
 %rule bihe-link
-  BIhE # operators | BIhE # operators $x(mex-group)
+  BIhE # $o(operators) | BIhE # operators $x(mex-group)
 %conditions
-  ¬begins(from($x), operator)
+  ¬begins(from($x), operator),
+  ¬begins(after($o), mex-group)
 
 %rule mex-group
   KE # mex-2 ... [KEhE #] | mex-2 [BO # mex-2] ...
@@ -842,7 +846,7 @@ The dialect keeps one odd reading of Zantufa. In `pe'usai doi xod ko jmina`, the
 The dialect reads some texts differently from Zantufa 1.9999. The policy of the dialect page accounts for most of them:
 
 - A PEG commits to the first alternative that matches, and a repetition reads as far as it can. So Zantufa rejects some texts that its rules allow, and the dialect accepts them. In `are`, Zantufa reads `a` as a whole fragment, and `re` is left over. In `le vi'ofagri`, the vocative after `le` takes `fagri`, and the description has no selbri. In `la poi ke'a barda .djan.`, the relative clause takes the name. Each of these parses here.
-- Where a PEG's greed gives a reading that the ranking of this stage does not choose, the dialect keeps its own reading. The ranking is the order of preference of the stage among parses. In `mi klama pamai le zarci .e remai le zdani`, Zantufa's `.e` takes `re mai` as its own free modifier. Here the free modifier is the mekso `.e re` with `mai`, after `zarci`. In `mi me my su'i ny me'u`, Zantufa reads one mekso, `my su'i ny`, after `me`. Here `me` takes a sumti, `ny` with the quantifier `my su'i`.
+- Where a PEG's greed gives a reading that the ranking of this stage does not choose, the dialect keeps its own reading. The ranking is the order of preference of the stage among parses. In `mi klama pamai le zarci .e remai le zdani`, Zantufa's `.e` takes `re mai` as its own free modifier. Here the free modifier is the mekso `.e re` with `mai`, after `zarci`.
 - A lookahead here sees the words that the syntax reads, after erasure and without `ba'e`. Zantufa erases and reads `ba'e` inside its grammar, so its lookaheads see those words. So Zantufa accepts `li pa je ba'e cu broda`, `li pa je brode si cu broda` and `ba'e ke broda ke'e ke'e be mi`, and the dialect rejects them. And Zantufa reads `ke mi ba'e ke'e` as a group of terms, and the dialect as a grouped sumti.
 - A nested text takes its own leading free modifiers: those after a word of LU, LUhEI or TO. Zantufa's `LU_clause`, `LUhEI_clause` and `TO_clause` take them as the free modifiers of the opener, before the text begins. The dialect follows the principle of every dialect's indicator stage, that a text begins with its own indicators. It applies that principle to every free modifier, so that one boundary separates the opener from its text. So `lu ui li'u` quotes the text `ui`, and a vocative at the start of a quote belongs to the quote.
 - The word stage reads a stray `si` or `bu` at the start of a text as the Magic Words proposal does. So `si mi` is `mi`, and `bu si` is nothing. Zantufa rejects both, because its `si` and `bu` need a word before them there.
