@@ -331,7 +331,9 @@ The predicates are:
 
 Inside such a parse, a condition can ask about the very span that is being parsed, as the same rule. Such a condition defines the rule in terms of itself over the same text, negated or not. The parser reports it as an error of the grammar.
 
-Such a parse never leaves out an elidable terminator where the same construct can go on and read that terminator as written. In the Zantufa dialect, `cy to roi toi klama` is `[cy (to roi toi)] klama`. A nested `tag` cannot read `cy to roi` as `cy roi` with an empty parenthesis, because the parenthesis can read on to its written `toi`. In the same way, the experimental dialect reads `mi klama na to broda toi` with `broda` inside the parenthesis. Engine §4 defines this written-terminator priority. Several readings that remain are no tie: the query holds.
+Every nested query, whether `matches`, `begins` or `tags`, follows written-terminator priority (engine §4). A nested reading cannot leave out an elidable optional where the same construct can read that whole optional as written. In the Zantufa dialect, `cy to roi toi klama` gives `([cy {to roi toi}] klama)`. A nested `tag` cannot read `cy to roi` as `cy roi` with an empty parenthesis, because the parenthesis can read on to its written `toi`.
+
+In the same way, the experimental dialect gives `(mi [klama {na (to broda toi)}])` for `mi klama na to broda toi`. There `broda` stays inside the parenthesis. The priority has a cost: a positive query can fail where a parse without it succeeds. Take `T` elidable, `r → A c [T] T` and `c → B`. Then `matches` of `r` over `A B T` fails, because `[T]` takes the written `T`. Several readings that the priority keeps do not cause an ambiguity error.
 
 A lookahead tests a rule without reading the input. A PEG is a grammar that tries alternatives in order. PEG is short for parsing expression grammar. `begins` with `from` or `after` is a lookahead, like the lookahead of a PEG.
 
