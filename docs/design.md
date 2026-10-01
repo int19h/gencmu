@@ -70,7 +70,7 @@ The four libraries implement one specification, `docs/engine.md`. It was written
 2. Lowering turns the grammar into a context-free grammar. Lowering makes named helper rules for the notation's shorthand, such as `[ ]` and `...`, and diagnostics hide these rules.
 3. The recognizer is an Earley parser (a standard algorithm for any context-free grammar). Its items, the partial matches that it keeps, record the span and the identity of the tag set of each captured part. The parser evaluates each condition as soon as it reads the last capture of that condition. With `from` and `after`, a condition can look past its constituent to the end of the input. A PEG (parsing expression grammar, which tries alternatives in order) has a lookahead that does the same.
 
-   Nested parses for `matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` share their memo (a cache of answers) with the parse that started them. The memo key is the kind of query, the rule, and either the content of a short span or the position of a long span. A nested parse asked about its own span, as the same rule, is a grammar error.
+   Nested parses for `matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` share their memo (a cache of answers) with the parse that started them. The memo key is the kind of query, the rule, and either the content of a short span or the position of a long span. A nested parse asked about its own span, as the same rule, is a grammar error. A nested parse never leaves out a terminator that the same construct can read as written (see "Nested queries and elided terminators" below).
 4. The engine chooses a parse by the rule that the grammar's `%ambiguity-resolution` declares. `greedy` and `lazy` compare parses at their first difference, as sequences of bottom-up actions. `late-elision` compares only where the parses elide terminators. This part also covers the verdicts unique, resolved and tie, the error of a tie and its witness, and the `elision-only` check (see "Ambiguity" below).
 5. The stage emits the tokens of the next stage. Each token has its text, its phonemes, its label and its source range. The label is what the renderings for people show. A token can also carry attachments, tokens that belong to it and that no later stage reads.
 6. The pipeline runs the stages in order, and stops at the first rejection or error.
@@ -308,6 +308,22 @@ The engine cases pin the definition with these cases:
 For example, take `text → A body [T] B` and `body → X | X B`, with `T` elidable. On `A X B`, the one complete parse uses `body → X` and elides `T`. `maximal` forbids that elision, because `body → X B` is longer, so the text is an error. Without `maximal`, every ranking rule accepts the one parse.
 
 `elision-only` parses again with the terminators written back. That can let another alternative match, and a condition or a test can answer differently. A ranking of the original parses sees neither. For example, take `text → a | b | c`, `a → A [T]`, `b → A [T] [T]` and `c → A T`. On `A`, `late-elision` prefers `a`, with one elided `T`, to `b`, with two. Written back, `A T` parses through both `a` and `c`, so `elision-only` reports the text.
+
+### Nested queries and elided terminators
+
+A condition can ask whether a span parses as a rule, with `matches`, `begins` or `tags` (engine §4). That nested parse sees every way to read the span, and an elidable terminator can be left out anywhere in it. So a nested reading can rely on leaving out a terminator that the same construct reads in the actual text. A nested reading must not do that.
+
+So every nested query follows written-terminator priority (engine §4). A nested reading cannot leave out an elidable terminator where the same construct can go on and read that terminator as written. The query answers from the readings that remain. Several such readings are an ordinary success, never a tie. No option turns this priority off.
+
+In Zantufa, `cy to roi toi klama` holds the parenthesis `to roi toi` after the letter `cy`. A condition of `term-2` requires that no tag begins where the term begins. Without priority, the nested parse reads `cy to roi` as the tag `cy roi`. It closes the parenthesis at once, with its `toi` left out, although `toi` is written right after `roi`. So the condition failed, and the dialect rejected the text. With priority, the text reads `[cy (to roi toi)] klama`, as the Zantufa reference parser does.
+
+In the experimental dialect, `mi klama na to broda toi` has the same problem. The nested parse of a condition reads `na to broda` as a negated selbri, with `broda` taken from inside the parenthesis. With priority, the text reads `mi klama (na [to broda toi] ⟨ku⟩)`, as camxes-exp does.
+
+The priority is a local commitment, not a proof that the shorter reading is impossible. Take `r → A c [T] T` and `c → B`, with `T` elidable, on `A B T`. Without priority, `r` leaves out `[T]` and reads the token as its last `T`. With priority, the token belongs to `[T]`, so the query fails.
+
+The window of a query stays as it was. A `matches` over a captured span does not look at a terminator written after the span. A `begins` with `from` or `after` already sees the rest of the input.
+
+A simpler policy was to apply `maximal` inside nested parses. It was rejected, because it also changes queries where no terminator is written. On the corpus, it changed 39 texts, and it made 31 accepted texts into false ties. Written-terminator priority changed no corpus result. It settles every constructed text of this kind that was tried, in seven Zantufa and four experimental families of conditions.
 
 ### Where an elided terminator can fall
 
