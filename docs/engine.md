@@ -112,7 +112,7 @@ A call `classify(a, C)` names the classifier `C` (§10). A `classify` whose clas
 
 A stage also has implications. An item `%implies A ⟹ B` (`implication`) adds one. `A` and `B` are closed terms (§10) whose type is a tag set. A constant in them has the value that the last definition of the stage gives it, as in a rule. After the loader stitches the stage, it makes sure that their types agree, as it does for a rule (§9). §11 says how the stage applies its implications.
 
-A stage has exactly one `%ambiguity-resolution L [elision-only] [maximal]`, or it is an error naming the stage. `L` is `greedy` or `lazy`. If both `elision-only` (§7) and `maximal` (§4) are written, they stand in that order. `%elidable T...` names the elidable terminators, and repeated directives add up.
+A stage has exactly one `%ambiguity-resolution L [elision-only] [maximal]`, or it is an error naming the stage. `L` is the rule of the ranking, `greedy`, `lazy` or `late-elision` (§6). If both `elision-only` (§7) and `maximal` (§4) are written, they stand in that order. `%elidable T...` names the elidable terminators, and repeated directives add up.
 
 A name whose first character is `A` to `Z` is a terminal, the identifier tag of that name. The DOM writes both kinds of name as `ref`, and lowering (§3) tells them apart by that first letter. Any other name is a rule reference, and must be defined in the stage, or it is an error. `#`, the free-modifier slot, is a rule's name like any other.
 
@@ -164,7 +164,7 @@ Lowering turns a grammar, given the set of enabled features, into a context-free
 
    The terminal of an elidable optional has no test or an `=` test, since §7 restores it with a sound. Any other test on it is an error of the grammar. The loader finds this error after it stitches the stage, since a later `%elidable` can make an optional elidable. It makes sure that no alternative of the stitched stage has such a test, whatever the features. It reports the error at the definition that wrote the alternative. A test on a later symbol of the optional is no error, since §7 restores only the terminal.
 
-Lowering numbers the productions from 0. This numbering is the tie-break of §6. A production that a condition false for it removes (§3.6) takes no number, though the helpers of its alternative still do. Lowering takes the rules in the order in which they were first defined after stitching. A rule replaced with `%redefine-rule` keeps the place of the rule that it replaces, and alternatives added with `%extend-rule` follow the rule's own alternatives.
+Lowering numbers the productions from 0. The canonical order of §6 uses this numbering to order the two readings of a tie. It never decides which derivation a stage chooses. A production that a condition false for it removes (§3.6) takes no number, though the helpers of its alternative still do. Lowering takes the rules in the order in which they were first defined after stitching. A rule replaced with `%redefine-rule` keeps the place of the rule that it replaces, and alternatives added with `%extend-rule` follow the rule's own alternatives.
 
 Within a rule, lowering takes its remaining alternatives in order. Each alternative contributes its own productions first, and then its helpers. Its own productions come in the order of its expansions (step 2). For a trailing repetition, the non-recursive productions come first and then the recursive ones.
 
@@ -248,9 +248,11 @@ When `Y` is tested, the longer constituent counts only if the test holds of it, 
 
 Only the constituent matters, not what follows the elided terminator in its production. Whether a constituent is the longest possible depends only on its symbol, its test, its origin and its end. So an implementation can find, once per parse, the furthest set in which each symbol completes from each origin. For a tested symbol, it needs each completed item of the symbol from each origin, since the furthest one need not pass the test. `maximal` does not apply to the parse of §7, which has no elided terminator. It also does not apply to a nested parse, which reads the recognizer's items and not derivations.
 
-A stage accepts when an item of the start rule `text` spans the whole input and has at least one derivation that is counted. It rejects an input whose every such derivation is cyclic, as it rejects one with no such item. A rejected input reports the furthest position that any item reached. It also reports the terminals that the items there can read next, together with the rules that those items belong to (§11). The stage writes a tested terminal with its test, such as `LE="la"` (`docs/output.md`).
+A stage accepts when an item of the start rule `text` spans the whole input and has at least one derivation that is counted. It rejects an input whose every such derivation is cyclic, as it rejects one with no such item. A stage that accepts its input can still end with a tie, which is an error (§6). A rejected input reports the furthest position that any item reached. It also reports the terminals that the items there can read next, together with the rules that those items belong to (§11). The stage writes a tested terminal with its test, such as `LE="la"` (`docs/output.md`).
 
-An input rejected only because `maximal` forbids an elided terminator in every derivation that is not cyclic reports that terminator instead. The terminator comes from the derivation that the stage chooses (§6) when `maximal` forbids nothing. It is the first elided terminator of that derivation, in the order of the tree's leaves, that `maximal` forbids. Its position is the position reported, and its terminal, with the rule in whose alternative its optional is written, is the one terminal expected there. If that terminator is tested, the stage writes it with its test there too.
+An input rejected only because `maximal` forbids an elided terminator in every derivation that is not cyclic reports that terminator instead. The terminator comes from the first reading, `m`, of the ranking that the stage makes when `maximal` forbids nothing (§6). It is the first elided terminator of that derivation, in the order of the tree's leaves, that `maximal` forbids. Its position is the position reported, and its terminal, with the rule in whose alternative its optional is written, is the one terminal expected there. If that terminator is tested, the stage writes it with its test there too.
+
+The reported terminator comes from `m` whatever the verdict of that ranking. So the canonical order of §6 can decide which terminator a rejection reports, but never whether the stage accepts.
 
 ## 5. Phonemes, labels and text
 
@@ -280,11 +282,19 @@ The canonical sound and every comparison treat `?` as an ordinary character. In 
 
 ## 6. Choosing a parse
 
+A stage ranks the counted derivations of its input (§4). The rule of its directive (§2), `greedy`, `lazy` or `late-elision`, says when one derivation beats another. A derivation is best when no other derivation beats it. The verdict is one of these:
+
+- `unique` if the input has one derivation
+- `resolved` if it has several, and exactly one of them is best
+- `tie` if two or more derivations are best
+
+Under `unique` and `resolved`, the chosen derivation is the one best derivation. Under `resolved`, it beats every other derivation (below). A tie is an error, and the stage then has no chosen derivation. The production numbers of §3 never decide which derivation a stage chooses.
+
 A derivation is read as its sequence of actions in bottom-up order. An action is a read of a token as a terminal, or a close of a production over a span. Closes of helper productions and of productions with exactly one symbol are transparent. They are part of the sequence, but two sequences never differ at one. The other actions are visible.
 
 Two reads are the same action when they read the same token as the same terminal. Two closes are the same when they close the same production over the same span.
 
-The stage compares two derivations of the same input at their first differing visible action:
+Under `greedy` and `lazy`, the stage compares two derivations of the same input at their first differing visible action:
 
 1. If both read the same token as different terminals, they are tied.
 2. If one reads and the other closes, `greedy` prefers the read, and `lazy` the close.
@@ -292,51 +302,81 @@ The stage compares two derivations of the same input at their first differing vi
 
 If the visible sequences are equal, or one is a proper prefix of the other, the two are tied. For the witness below, their first difference is the first pair of differing actions of the whole sequences, transparent ones included. A derivation whose visible sequence is a proper prefix of the other's differs from it where the shorter ends.
 
-The winner is a derivation that no other derivation beats. The verdict is one of these:
+A ranking with no lean compares two derivations in the same way, but rule 2 ties them too. So under no lean, any two derivations that differ are tied. The check of §7 ranks with no lean, and so do the readings of a tie under `late-elision` (below). A directive cannot name it.
 
-- `unique` if the input has one derivation
-- `resolved` if it has several and one winner that is not tied with any other derivation at its first difference with it
-- `tie` otherwise
+Under `late-elision`, the stage compares the elided terminators of two derivations (§4), and nothing else. Let the input have N tokens. A boundary is a position from 0 to N. The elision vector of a derivation has one component for each boundary. The component at boundary `p` is the number of the derivation's elided terminators at position `p`.
 
-The stage puts the derivations in a canonical order, *T*, and it chooses the first. *T* compares two derivations first by their visible sequences:
+The vector counts each elided terminator once, whatever its terminal, its constituent or its depth. So two terminators elided at one position count two, also when they are of different terminals. An ordinary empty optional, an empty repetition and a close of any other production count nothing.
+
+Under `late-elision`, one derivation beats another when its elision vector is less. The stage compares two vectors from boundary 0 to boundary N. At the first boundary where they differ, the vector with the smaller count is less. Two derivations with equal vectors are tied, even where their trees differ. So a stage whose derivations elide nothing has a tie whenever its input has more than one derivation.
+
+The same comparison can be read as actions. Project a derivation's sequence of actions in this way:
+
+- A close of the helper of an elidable optional that derives ε becomes `elide(p)`, where `p` is its position.
+- A read of token `p` becomes `read(p)`, whatever the terminal that reads it.
+- The projection drops every other close, and it ends with `end(N)`.
+
+At the first differing pair of projected actions, `read(p)` and `end(N)` beat `elide(p)`. Two elisions at one boundary are the same projected action. So are two reads of one token. In plain words, at the first place where two readings differ in leaving out a terminator, `late-elision` prefers the reading that reads on.
+
+So under `late-elision`, a token read as two terminals does not stop the comparison, as rule 1 does. Two different closes do not stop it either, as rule 3 does. The preference does not depend on the age, the nesting or the name of a terminator.
+
+The stage puts the derivations in a canonical order, *T*. *T* decides only which two readings a tie reports, in which order, and its witness. It never decides which derivation the stage chooses. Under `greedy`, `lazy` and no lean, *T* compares two derivations first by their visible sequences:
 
 - *T* compares them at their first differing visible pair, by rules 1 to 3 where those decide, and otherwise by the canonical keys. The canonical keys put a read before a close. They order two reads by terminal, in code point order. They order two closes by production number, then span start, then span end.
 - If one visible sequence is a proper prefix of the other, the shorter comes first.
 - If the visible sequences are equal, *T* compares them at the first differing pair of the whole sequences, by the canonical keys. If one whole sequence is a prefix of the other, the shorter comes first.
 
-*T* is lexicographic on the visible sequences and then on the whole ones, so it is a total order. The chosen derivation, `m`, is its least element, whatever the verdict.
+Under `late-elision`, *T* compares two derivations first by their elision vectors, the lesser first. It orders two derivations with equal vectors as it does under no lean.
 
-Nothing beats `m`, since whatever beats a derivation precedes it in *T*. A derivation is undominated when no derivation beats it. So an undominated derivation other than `m` is tied with `m`: its first difference with `m` is a tie. The converse does not hold.
+*T* is lexicographic on the visible sequences and then on the whole ones, after the elision vectors under `late-elision`. So it is a total order. The first reading, `m`, is its least element, whatever the verdict.
+
+Nothing beats `m`. Under `greedy` and `lazy`, whatever beats a derivation precedes it in *T*. Under `late-elision`, *T* puts the least vectors first. So `m` is best.
+
+A derivation is tied with `m` when `m` does not beat it. Under `greedy` and `lazy`, a best derivation other than `m` is tied with `m`, since its first difference with `m` is a tie. The converse does not hold. Under `late-elision`, the derivations tied with `m` are exactly the other best derivations.
 
 For example, take `text → A C D | p D | B q`, `p → B C` and `q → C D`, over the tokens `A B`, `C` and `D`. Under `greedy`, `m` reads the first token as `A`. The derivation through `p` is tied with it, but loses to the one through `q`, which reads `D` where it closes `p`.
 
-Of the derivations tied with `m`, the tied derivation reported beside `m` is the one that diverges from `m` earliest. It has the fewest visible actions before its first visible difference with `m`. A derivation whose visible sequence is a proper prefix or an extension of `m`'s diverges where the shorter ends. One whose visible sequence equals `m`'s diverges last. Several that diverge at the same point are ordered by *T*. That derivation, `t`, is undominated.
+Of the derivations tied with `m`, the second reading is the one that diverges from `m` earliest. It has the fewest visible actions before its first visible difference with `m`. A derivation whose visible sequence is a proper prefix or an extension of `m`'s diverges where the shorter ends. One whose visible sequence equals `m`'s diverges last. Several that diverge at the same point are ordered by *T*. That derivation, `t`, is best.
 
-To see why, suppose that another derivation beats `t`. If it beats `t` before `t` diverges from `m`, it beats `m`, which nothing does. If it beats `t` later, it shares `t`'s divergence from `m`. If it beats `t` just where `t` diverges, it beats `m` there too, or it is tied with `m` there. This is because an action that beats one tied with `m`'s cannot lose to `m`'s. Either way, it is tied with `m`, diverges no later than `t`, and precedes `t` in *T*.
+Under `late-elision`, `t` is best because its vector equals that of `m`. Under `greedy` and `lazy`, the proof is as follows.
 
-So the verdict is `tie` exactly when some derivation is tied with `m`. In the example, `t` is the derivation through `q`. It shows the first point at which the text can be read another way. The witness is the pair of actions at the first difference between `m` and `t`, visible if there is one.
+Suppose that another derivation beats `t`. If it beats `t` before `t` diverges from `m`, it beats `m`, which nothing does. If it beats `t` later, it shares `t`'s divergence from `m`. If it beats `t` just where `t` diverges, it beats `m` there too, or it is tied with `m` there. This is because an action that beats one tied with `m`'s cannot lose to `m`'s. Either way, it is tied with `m`, diverges no later than `t`, and precedes `t` in *T*.
 
-Both `m` and the earliest-diverging tied derivation compose over the packed forest, the shared graph of all derivations. So an implementation can compute both from the forest. It keeps, for each item, its *T*-least derivation and the earliest-diverging derivations tied with it. It keeps several candidates side by side while their order is not yet settled, since what follows decides. Their order is not settled while one's visible sequence is a prefix of another's. It is also not settled while their visible sequences are equal and one whole sequence is a prefix of the other.
+So the verdict is `tie` exactly when some derivation is tied with `m`, and then `m` and `t` are two best derivations. Otherwise `m` beats every other derivation, and it is the chosen derivation. In the example, `t` is the derivation through `q`, and the verdict is `tie`. It shows the first point at which the text can be read another way. The witness is the pair of actions at the first difference between `m` and `t`, visible if there is one. It compares the actions themselves, under every rule, and not their projections.
+
+A tie is not a success. The result is an error of kind `ambiguous`, with the reason `tie`, and `ok` is false. The error carries two readings, `m` and then `t`, each as a tree (§12). The result's `tree` is null. The stage keeps its verdict and its witness. It has no chosen tree, no output (§11) and no warnings (§12), and no later stage runs (§13).
+
+A stage takes its steps in this order. It recognizes its input (§4), and it ranks the derivations. If the verdict is `unique` or `resolved`, it emits its tokens (§11), and then it runs the check of §7 if that applies. A tie ends the stage at the ranking, so neither emission nor that check runs. An error of the grammar found while emitting ends the stage before that check.
+
+Under `greedy`, `lazy` and no lean, both `m` and the earliest-diverging tied derivation compose over the packed forest, the shared graph of all derivations. So an implementation can compute both from the forest. It keeps, for each item, its *T*-least derivation and the earliest-diverging derivations tied with it. It keeps several candidates side by side while their order is not yet settled, since what follows decides. Their order is not settled while one's visible sequence is a prefix of another's. It is also not settled while their visible sequences are equal and one whole sequence is a prefix of the other.
 
 One candidate can beat another under `greedy` or `lazy`. Then the loser's tied derivation stays tied with the winner exactly when it diverged from the loser before the point where the winner beat it. One that diverged there is beaten there too.
 
 So nothing needs to be enumerated, and the number of derivations, which can be exponential, never matters. Under `maximal` (§4), an item whose next symbol is an elidable optional keeps a second set of candidates. This set comes from only those of its edges whose last symbol's node `maximal` does not forbid. An edge that advances the item over an elided terminator combines that set. Every other edge combines all of the item's derivations. The number of derivations that decides `unique` is counted the same way.
 
+Under `late-elision`, elision vectors compose by addition. The vector of a derivation is the sum, component by component, of the vectors of its parts. An elided terminator at `p` is a part whose vector is one at `p` and zero elsewhere. Adding one vector to two others keeps their order. So in a best derivation, each part has the least vector among the derivations of its own item.
+
+An implementation keeps, for each item, its least vector and the number of derivations that attain it, capped at two. For one edge, it adds the vectors of the parts and multiplies their numbers. For the edges of one item, it keeps the lesser vector, or it adds the numbers where the vectors are equal. A number of two at the item of `text` is a tie. It also keeps the number of all derivations, capped at two, which decides `unique`. Under `maximal`, it keeps the two summaries above, one for all edges and one for the edges that `maximal` does not forbid.
+
+The best derivations form a smaller forest: the edges of each item that attain its least vector. The stage finds `m` and `t` by a ranking with no lean over that forest. A vector has N + 1 components. So a sparse vector, or a shared sequence of elisions, keeps the cost of each addition and comparison small.
+
 ## 7. Elision-only
 
-When the stage's directive has `elision-only`, or the caller asks for it, and the verdict is not `unique`:
+When the stage's directive has `elision-only`, or the caller asks for it, and the verdict is `resolved`:
 
 1. Take the chosen tree's elided terminators (§12) in text order, inner before outer where several are at one position. Before the input token at each one's position, insert a synthetic token. Its tags are that terminal alone, and its span and source are empty at that position. It has no attachments, and the parse of step 2 reads no attachments, as no parse does (§11).
 
    If the terminator has an `=` test, the token's phonemes are the test's string. Otherwise the token has no phonemes. So a restored `KU="ku"` matches its own terminator in the parse of step 2.
 2. Parse the new token sequence with the grammar lowered as in §3.8.
-3. Rank that forest with no lean: any two derivations that differ are tied. If the forest has exactly one derivation, the check passes and the result is the original one.
+3. Rank that forest with no lean (§6): any two derivations that differ are tied. If the forest has exactly one derivation, the check passes and the result is the original one.
 
-   Otherwise the result is an error of kind `ambiguous`, and `ok` is false. The error carries two readings: the chosen derivation of that ranking and the tied one reported beside it. Both are shown over the original input, with the written-back terminators as elided nodes. Each node of a reading has the span and the source that it has over the original input (§12). An elided node has the position where its synthetic token was inserted, and that token's source.
+   Otherwise the result is an error of kind `ambiguous`, with the reason `elision-only`, and `ok` is false. The error carries two readings: the first and the second reading of that ranking (§6). Both are shown over the original input, with the written-back terminators as elided nodes. Each node of a reading has the span and the source that it has over the original input (§12). An elided node has the position where its synthetic token was inserted, and that token's source.
 
-   The result's `tree` is null. The stage keeps its verdict, witness, tied tree and output, since it accepted its input. The error has no `token` or `source`. The readings show where they differ.
+   The result's `tree` is null. The stage keeps its verdict, output and warnings, since it accepted its input and chose its derivation. The error has no `token` or `source`. The readings show where they differ.
 
-The stage takes the elided terminators in the order of the chosen tree's leaves, left to right. If the parse of step 2 accepts nothing, the check passes as well. Restoring the terminators can reject every reading, and then no two restored readings exist to report. An error of the grammar found in the parse of step 2 ends the stage as one found while emitting does (§11). The stage keeps its verdict, witness, tied tree and warnings, but it has no output, and the error is the result's.
+The check runs after the stage emits its tokens (§6, §11). A tie never reaches it, because a tie ends the stage first. The check does not run for `unique`. The rule of the directive does not apply to the parse of step 2. Its elision vectors are all zero, and its ranking has no lean whatever the rule.
+
+The stage takes the elided terminators in the order of the chosen tree's leaves, left to right. If the parse of step 2 accepts nothing, the check passes as well. Restoring the terminators can reject every reading, and then no two restored readings exist to report. An error of the grammar found in the parse of step 2 ends the stage as one found while emitting does (§11). The stage keeps its verdict and warnings, but it has no output, and the error is the result's.
 
 A caller can also switch the check off for a stage that declares it.
 
@@ -593,7 +633,7 @@ Within a term, the engine evaluates the parts from left to right. So it evaluate
 
 ## 11. Emission
 
-Every stage that accepts its input emits tokens by walking its chosen tree from the left. This includes the last stage, whose tokens are its output (`docs/output.md`), though no stage reads them.
+Every stage whose verdict is `unique` or `resolved` emits tokens by walking its chosen tree from the left. This includes the last stage, whose tokens are its output (`docs/output.md`), though no stage reads them.
 
 - The stage walks the children of a constituent whose production has no emission, in order. A token that the constituent reads directly emits nothing.
 - A constituent whose production has an emission emits exactly the items of the emission, as dropped for its production (§3.6). It emits them in the order in which the emission lists them. The stage walks nothing inside it but the attachment captures of its items (below):
@@ -606,7 +646,7 @@ The tags that an item gives its token are the token's explicit tags. The stage t
 
 Implications apply to every token that the stage emits, an inserted one included, and to nothing else. They do not change a constituent's tags, the value of a term or classifier, or a token of the stage's input. A later stage applies only its own implications. The synthetic tokens of §7 are not emitted, so no implication applies to them.
 
-An item's tag term that gives the empty set is an error of the grammar, found while parsing. No terminal can read such a token. The stage already accepted its input and chose its tree. So it keeps its verdict, witness, tied tree and warnings (§12), but it has no output, and the error is the result's.
+An item's tag term that gives the empty set is an error of the grammar, found while parsing. No terminal can read such a token. The stage already accepted its input and chose its tree. So it keeps its verdict and warnings (§12), but it has no output, and the error is the result's. The check of §7 does not run.
 
 The constituent of a token is the constituent that its `$` item covers, or the part that its capture item captures. An emitted token's span is the range of the stage's input tokens that its constituent covers. Its `source` is the source of those tokens (§1), or, if there are none, empty where a node with an empty span has it (§12). A token whose constituent is an opaque part is the one exception, as below. Its phonemes and its label are as in §5.
 
@@ -666,11 +706,11 @@ The reason is that a token over several parts cannot say which part each attachm
 
 The attachment lists follow the order of the derivation and of the emission. That is the order of the text when the sources lie in order. The engine does not promise that order for sources out of order.
 
-A stage whose verdict is `tie` emits its chosen derivation, and the tie is reported, at whichever stage it is. A tie is a property of the grammar, and the grammar is the place to settle it. The engine does not hide a tie, even where the tied derivations emit the same tokens.
+A stage whose verdict is `tie` emits nothing (§6), at whichever stage it is. This holds even where the tied derivations emit the same tokens. A tie is a property of the grammar, and the grammar is the place to settle it. The engine never emits one tied derivation in place of the others.
 
 ## 12. The tree
 
-The engine builds the result's tree from the chosen derivation, as follows:
+The result's tree comes from the chosen derivation, and each reading of an `ambiguous` error comes from its own derivation (§6, §7). The engine builds a tree from a derivation as follows:
 
 - A closed production of a rule that the author wrote is a `rule` node, its children in order.
 - A read token is a `token` node holding the index of the input token and the terminal that the recognizer read it as.
@@ -678,15 +718,15 @@ The engine builds the result's tree from the chosen derivation, as follows:
 - The engine splices out the prefixes of a trailing repetition (§3.3), so the rule is one node whose children are its items in order.
 - An elidable optional (§3.8) that is absent becomes an `elided` node for its terminal `T`. The node has an empty span at the position where the optional is empty. The node of a terminator with an `=` test records the test's string, for the synthetic token of §7. The output does not show it (`docs/output.md`).
 
-The input token of a token node can carry attachments (§11). The node does not hold them, and the renderings take them from the token (`docs/output.md`). A tied tree reads the same input tokens, so it shows the same attachments.
+The input token of a token node can carry attachments (§11). The node does not hold them, and the renderings take them from the token (`docs/output.md`). The two readings of an `ambiguous` error read the same input tokens, so they show the same attachments.
 
 A node with a nonempty span has the source of its tokens (§1). A node with an empty span is an `elided` node or a rule that read nothing. Such a node has an empty source at the source end of the input token before its position. At position 0, its empty source is at the source start of the first input token, or at 0 if there is no input token.
 
 A `rule` node of a stage's chosen tree gives warnings from the alternative that its production came from. It gives one warning for each warning `f!` of that alternative where the feature `f` is on. The warning holds the stage's name, the feature, the rule, and the node's span and source.
 
-A stage's warnings are those of its chosen tree. They are in the order in which a walk of the tree meets their nodes, parent before children and children left to right. The warnings of one node are in the order in which its guards are written. The warnings of a stage whose verdict is `tie` come from the chosen tree too.
+A stage's warnings are those of its chosen tree. They are in the order in which a walk of the tree meets their nodes, parent before children and children left to right. The warnings of one node are in the order in which its guards are written. A stage whose verdict is `tie` has no chosen tree, so it gives no warnings. The engine never takes warnings from one tied derivation in place of the others.
 
-Nothing else gives warnings. No warnings come from a tied or losing derivation, the reparse of `elision-only` (§7), a nested parse (§4), or a stage that rejected its input. A warning changes nothing that the stage accepts, chooses or emits.
+Nothing else gives warnings. No warnings come from a reading of an `ambiguous` error or a losing derivation. None come from the reparse of `elision-only` (§7), a nested parse (§4), or a stage that rejected its input. A warning changes nothing that the stage accepts, chooses or emits.
 
 ## 13. The pipeline
 
@@ -705,7 +745,7 @@ The names of every `%features` of the stream are the features the pipeline turns
 
 A document can be included more than once, in one stage or in several. The loader reads its items again each time.
 
-The first stage reads the character tokens of §1, and each later stage reads the tokens that the stage before it emitted. The features on for every stage are those that the pipeline or the caller turns on, less those that the caller turns off. A caller who names one feature both to turn on and to turn off makes a usage error. Naming a feature that no guard of the dialect uses is not an error: the feature is on or off. A stage that rejects its input ends the run with that rejection, and an `ambiguous` error (§7) ends it likewise.
+The first stage reads the character tokens of §1, and each later stage reads the tokens that the stage before it emitted. The features on for every stage are those that the pipeline or the caller turns on, less those that the caller turns off. A caller who names one feature both to turn on and to turn off makes a usage error. Naming a feature that no guard of the dialect uses is not an error: the feature is on or off. A stage that rejects its input ends the run with that rejection. An `ambiguous` error, of a tie (§6) or of the check of §7, ends it likewise.
 
 The result's `ok` is true when every stage run accepted without an error. The result's warnings are those of every stage that ran (§12), in stage order, and they are kept whether or not the result is `ok`.
 
@@ -721,7 +761,7 @@ When all of these hold, the engine runs the stages up to and including the one n
 - The caller did not turn `sa-su` off.
 - The run reaches a stage named `words`: the dialect has one, and `until`, if given, names it or a later stage.
 
-The engine then runs the parse again from the first stage with `sa-su` added, in two cases. In the first case, that first run does not end with the `words` stage accepting. Any reason counts: a rejection or an error in it or in a stage before it. In the second case, the chosen tree of the `words` stage has a constituent of the rule `word` whose tag set has `SA` or `SU`.
+The engine then runs the parse again from the first stage with `sa-su` added, in two cases. In the first case, that first run does not end with the `words` stage accepting. Any reason counts: a rejection, a tie or another error in it or in a stage before it. In the second case, the chosen tree of the `words` stage has a constituent of the rule `word` whose tag set has `SA` or `SU`.
 
 In either case, the engine discards the first run's stages and warnings. Otherwise that first run's stages are the parse's, with their warnings, continued to the end. The engine tests the class and not the sound, because the lexicon decides which words erase. For example, `li'oi` is SU in the experimental lexicon, and a stressed `sA` is `sa`.
 
