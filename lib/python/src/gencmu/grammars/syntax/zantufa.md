@@ -754,6 +754,10 @@ The reference reads so because `post_clause <- free*` reads as far as it can, an
 
 The condition is on `free`, not on each slot. So it removes a free modifier that another free modifier follows at the same level. But it does not make each slot read as far as it can. This keeps a departure from Zantufa, in `mi klama pamai le zarci .e remai le zdani` (see "Differences from Zantufa 1.9999"). There the slot of `.e` stays empty, and `.e re` with `mai` is one free modifier after `zarci`.
 
+A vocative takes a selbri or a sumti as its address, as in Zantufa. Zantufa merges cmevla and brivla, so a name is an ordinary tanru unit. The selbri of the address reads as far as it can, as Zantufa's does. So in `doi djan klama`, the address is the selbri `djan klama`, and the text has no bridi. To address someone by name before a bridi, a speaker ends the vocative with `do'u`, as in `doi djan do'u klama`.
+
+The dialect keeps one odd reading of Zantufa. In `pe'usai doi xod ko jmina`, the vocative `doi xod` is in the slot of `sai`, and `sai` is in the slot of `pe'u`. The address of `doi` is the selbri `xod`, which ends before `ko`. Then `pe'u` takes `ko` as its own address, a sumti. So the bridi `jmina` has no first place, and `ko` is not the one who adds. Zantufa reads the text in the same way, and the dialect follows it.
+
 ```jbogenbau
 %rule free
   (* free <- SEI_clause statement SEhU_elidible / vocative relative_clauses? selbri DOhU_elidible
