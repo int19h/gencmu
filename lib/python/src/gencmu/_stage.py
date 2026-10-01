@@ -12,7 +12,7 @@ from ._grammar import Lowered, Production, SymbolTest, written_symbol
 from ._markdown import line_column
 from ._maximal import Maximal
 from ._model import Action, Expected, Node, ParseError, ParseWarning, Range, Tags, Token
-from ._rank import Act, Ranker, Ranking, Rope, actions, count_roots
+from ._rank import Act, Ranking, Rope, actions, count_roots, rank
 from ._tags import PAUSE, phoneme_of
 from ._unicode import UnicodeTable
 
@@ -201,7 +201,7 @@ def forbidden_terminator(forest: Forest, ranking: Ranking | None, maximal: Maxim
         return None
     # Each entry is a node, its parent, and its place among the parent's
     # children.
-    stack: list[tuple[DChild, DNode | None, int]] = [(derivation(forest, ranking.chosen), None, 0)]
+    stack: list[tuple[DChild, DNode | None, int]] = [(derivation(forest, ranking.first), None, 0)]
     while stack:
         node, parent, index = stack.pop()
         if isinstance(node, DRead):
@@ -670,7 +670,7 @@ class StageRunner:
         start = lowered.rule_ids["text"]
         forest = Parser(context).parse(start)
         maximal = Maximal(forest, context) if lowered.grammar.maximal else None
-        ranking = Ranker(forest, lowered.lean, maximal).rank(forest.roots) if forest.roots else None
+        ranking = rank(forest, lowered.lean, maximal)
         if ranking is None:
             forbidden = None
             if forest.roots:
@@ -680,18 +680,18 @@ class StageRunner:
                     # rejected at the first terminator it forbids in the
                     # derivation the stage would otherwise have chosen
                     # (engine §4).
-                    forbidden = forbidden_terminator(forest, Ranker(forest, lowered.lean).rank(forest.roots), maximal)
+                    forbidden = forbidden_terminator(forest, rank(forest, lowered.lean), maximal)
             return StageOutcome(error=self.rejection(forest, forbidden))
-        root = derivation(forest, ranking.chosen)
+        root = derivation(forest, ranking.first)
         tree = Tree(root, context.sources, context.tagtab)
         outcome = StageOutcome(verdict=ranking.verdict, tree=tree.root, derivation=root)
         outcome.warnings = warnings_of(root, tree, self.features, self.name)
-        outcome.chosen_actions = list(actions(ranking.chosen))
+        outcome.chosen_actions = list(actions(ranking.first))
         if ranking.verdict == "tie":
             assert ranking.witness is not None and ranking.witness[0] is not None and ranking.witness[1] is not None
             outcome.witness = (_action(ranking.witness[0], lowered), _action(ranking.witness[1], lowered))
-            outcome.tied = Tree(derivation(forest, ranking.tied), context.sources, context.tagtab).root
-            outcome.tied_actions = list(actions(ranking.tied))
+            outcome.tied = Tree(derivation(forest, ranking.second), context.sources, context.tagtab).root
+            outcome.tied_actions = list(actions(ranking.second))
         emitter = Emitter(context, forest, tree, root)
         try:
             if self.emit:
@@ -742,12 +742,12 @@ class StageRunner:
         lowered = self.elision_lowered()
         context = self.context(lowered, new_tokens)
         forest = Parser(context).parse(lowered.rule_ids["text"])
-        ranking = Ranker(forest, "none").rank(forest.roots) if forest.roots else None
+        ranking = rank(forest, "none")
         if ranking is None or ranking.verdict != "tie":
             return None
         readings = []
         original = Sources(tokens)
-        for rope in (ranking.chosen, ranking.tied):
+        for rope in (ranking.first, ranking.second):
             reading = Tree(derivation(forest, rope), context.sources, context.tagtab).root
             readings.append(_map_back(reading, synthetic, boundary, original))
         return ParseError(

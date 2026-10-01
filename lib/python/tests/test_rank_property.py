@@ -285,9 +285,9 @@ def library(lowered: Any, tokens: list[frozenset[str]], lean: str) -> dict[str, 
             for act in actions(rope)
         )
 
-    found: dict[str, Any] = {"verdict": ranking.verdict, "chosen": plain(ranking.chosen)}
+    found: dict[str, Any] = {"verdict": ranking.verdict, "chosen": plain(ranking.first)}
     if ranking.verdict == "tie":
-        found["tied"] = plain(ranking.tied)
+        found["tied"] = plain(ranking.second)
         x, y = ranking.witness  # type: ignore[misc]
         found["witness"] = tuple(
             ("r", act.token, act.terminal) if act.read else ("c", act.production, act.start, act.end, act.visible)
