@@ -705,8 +705,11 @@ func TestMixedForms(t *testing.T) {
 		// entry used by mistake refuses the text.
 		compared = `"op":"=","left":{"call":"text","args":[{"capture":"x"}]},"right":{"string":"z"}`
 	)
-	rule := func(name, expr, condition string, line int) string {
-		return `{"name":"` + name + `","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[` + condition + `],"at":[` + strconv.Itoa(line) + `,1]}`
+	rule := func(name, expr, condition, emit string, line int) string {
+		if emit != "" {
+			emit = `,"emit":` + emit
+		}
+		return `{"name":"` + name + `","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}]` + emit + `,"conditions":[` + condition + `],"at":[` + strconv.Itoa(line) + `,1]}`
 	}
 	seq := func(first, second string) string { return `{"seq":[` + first + `,` + second + `]}` }
 	parse := func(dom string) bool {
@@ -724,38 +727,42 @@ func TestMixedForms(t *testing.T) {
 		res, err := d.Parse("ab", ParseOptions{})
 		return err == nil && res.OK
 	}
-	document := func(expr, condition string) string {
-		return `{` + format + `,"rules":[` + rule("text", expr, condition, 4) + `],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[3,1]}],"constants":[],"classifiers":[],"implications":[]}`
+	document := func(expr, condition, emit string) string {
+		return `{` + format + `,"rules":[` + rule("text", expr, condition, emit, 4) + `],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[3,1]}],"constants":[],"classifiers":[],"implications":[]}`
 	}
 	if !parse("") {
 		t.Fatal("the document does not accept the text")
 	}
-	control := document(seq(captured, b), `{`+compared+`}`)
+	control := document(seq(captured, b), `{`+compared+`}`, "")
 	if parse(control) {
 		t.Fatal("the control: the cache entry was not used")
 	}
-	if err := bootstrapError(t, "rules", rule("unused-rule", seq(captured, b), `{`+compared+`}`, 9999)); err != nil {
+	if err := bootstrapError(t, "rules", rule("unused-rule", seq(captured, b), `{`+compared+`}`, "", 9999)); err != nil {
 		t.Fatalf("the control: a well-formed bootstrap rule: %v", err)
 	}
-	for _, m := range []struct{ name, expr, condition string }{
-		{"empty with a terminal", seq(captured, `{"empty":true,"terminal":"'b'"}`), ""},
-		{"a terminal with empty", seq(captured, `{"terminal":"'b'","empty":true}`), ""},
-		{"a choice with a sequence", seq(captured, `{"choice":[`+b+`,`+c+`],"seq":[`+c+`,`+c+`]}`), ""},
-		{"a sequence with a choice", seq(captured, `{"seq":[`+c+`,`+c+`],"choice":[`+b+`,`+c+`]}`), ""},
-		{"a choice with a sequence of a bad reference", seq(captured, `{"choice":[`+b+`,`+c+`],"seq":[{"ref":5},`+c+`]}`), ""},
-		{"a repetition with an optional", seq(captured, `{"repeat":`+b+`,"min":1,"optional":`+c+`}`), ""},
-		{"an optional with a repetition", seq(captured, `{"optional":`+c+`,"repeat":`+b+`,"min":1}`), ""},
-		{"a repetition with an optional of a bad reference", seq(captured, `{"repeat":`+b+`,"min":1,"optional":{"ref":["x"]}}`), ""},
-		{"a reference that is not a name", seq(captured, `{"ref":"x y"}`), ""},
-		{"a top-level sequence with a choice", `{"seq":[` + captured + `,` + b + `],"choice":[` + b + `,` + c + `]}`, ""},
-		{"a captured terminal not in its canonical spelling", seq(`{"capture":"x","expr":{"terminal":"'ab'"}}`, b), ""},
-		{"a captured reference with a terminal", seq(`{"capture":"x","expr":{"ref":"A","terminal":"'a'"}}`, b), ""},
-		{"a captured reference that is not a name", seq(`{"capture":"x","expr":{"ref":"x y"}}`, b), ""},
-		{"a capture with a reference", seq(`{"capture":"x","expr":`+a+`,"ref":"B"}`, b), ""},
-		{"a comparison with a negation", "", `{` + compared + `,"not":{"captured":"x"}}`},
-		{"a negation with a comparison", "", `{"not":{"captured":"x"},` + compared + `}`},
-		{"a presence test with a comparison", "", `{"captured":"x",` + compared + `}`},
-		{"a match with another member", "", `{` + compared + `,"matches":{"capture":"x"}}`},
+	for _, m := range []struct{ name, expr, condition, emit string }{
+		{"empty with a terminal", seq(captured, `{"empty":true,"terminal":"'b'"}`), "", ""},
+		{"a terminal with empty", seq(captured, `{"terminal":"'b'","empty":true}`), "", ""},
+		{"a choice with a sequence", seq(captured, `{"choice":[`+b+`,`+c+`],"seq":[`+c+`,`+c+`]}`), "", ""},
+		{"a sequence with a choice", seq(captured, `{"seq":[`+c+`,`+c+`],"choice":[`+b+`,`+c+`]}`), "", ""},
+		{"a choice with a sequence of a bad reference", seq(captured, `{"choice":[`+b+`,`+c+`],"seq":[{"ref":5},`+c+`]}`), "", ""},
+		{"a repetition with an optional", seq(captured, `{"repeat":`+b+`,"min":1,"optional":`+c+`}`), "", ""},
+		{"an optional with a repetition", seq(captured, `{"optional":`+c+`,"repeat":`+b+`,"min":1}`), "", ""},
+		{"a repetition with an optional of a bad reference", seq(captured, `{"repeat":`+b+`,"min":1,"optional":{"ref":["x"]}}`), "", ""},
+		{"a reference that is not a name", seq(captured, `{"ref":"x y"}`), "", ""},
+		{"a top-level sequence with a choice", `{"seq":[` + captured + `,` + b + `],"choice":[` + b + `,` + c + `]}`, "", ""},
+		{"a captured terminal not in its canonical spelling", seq(`{"capture":"x","expr":{"terminal":"'ab'"}}`, b), "", ""},
+		{"a captured reference with a terminal", seq(`{"capture":"x","expr":{"ref":"A","terminal":"'a'"}}`, b), "", ""},
+		{"a captured terminal with a reference", seq(`{"capture":"x","expr":{"terminal":"'a'","ref":"A"}}`, b), "", ""},
+		{"a captured reference that is not a name", seq(`{"capture":"x","expr":{"ref":"x y"}}`, b), "", ""},
+		{"a capture with a reference", seq(`{"capture":"x","expr":`+a+`,"ref":"B"}`, b), "", ""},
+		{"a comparison with a negation", "", `{` + compared + `,"not":{"captured":"x"}}`, ""},
+		{"a negation with a comparison", "", `{"not":{"captured":"x"},` + compared + `}`, ""},
+		{"a presence test with a comparison", "", `{"captured":"x",` + compared + `}`, ""},
+		{"a comparison with a match", "", `{` + compared + `,"matches":{"capture":"x"}}`, ""},
+		{"a match with a rule and another member", "", `{"matches":{"capture":"x"},"rule":"text","initial":{"capture":"x"}}`, ""},
+		{"an emission with another member", "", "", `{"items":[{"capture":"x"}],"extra":true}`},
+		{"another member with an emission", "", "", `{"extra":true,"items":[{"capture":"x"}]}`},
 	} {
 		expr, condition := m.expr, m.condition
 		if expr == "" {
@@ -764,14 +771,14 @@ func TestMixedForms(t *testing.T) {
 		if condition == "" {
 			condition = `{` + compared + `}`
 		}
-		dom := document(expr, condition)
+		dom := document(expr, condition, m.emit)
 		if _, err := decodeDOM(json.RawMessage(dom), bundled.uni); err == nil {
 			t.Errorf("%s: the DOM decodes", m.name)
 		}
 		if !parse(dom) {
 			t.Errorf("%s: the cache entry was used", m.name)
 		}
-		err := bootstrapError(t, "rules", rule("unused-rule", expr, condition, 9999))
+		err := bootstrapError(t, "rules", rule("unused-rule", expr, condition, m.emit, 9999))
 		var e *Error
 		if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "notation/bootstrap.json" {
 			t.Errorf("%s: expected an error of the bootstrap, got %v", m.name, err)

@@ -1233,8 +1233,14 @@ fn a_guard_of_an_alternative_names_a_feature() {
 /// A DOM like the document's, with a rule `x` of `expr` and `condition`
 /// added.
 fn with_mixed(expr: &str, condition: &str) -> String {
+    with_mixed_emission(expr, condition, "")
+}
+
+/// The same, with the members of `emission` after the rule's
+/// alternatives.
+fn with_mixed_emission(expr: &str, condition: &str, emission: &str) -> String {
     with_rule(&format!(
-        r#"{{"name":"x","op":"define","alternatives":[{{"guards":[],"expr":{expr}}}],"conditions":[{condition}],"at":[4,1]}}"#
+        r#"{{"name":"x","op":"define","alternatives":[{{"guards":[],"expr":{expr}}}]{emission},"conditions":[{condition}],"at":[4,1]}}"#
     ))
 }
 
@@ -1272,6 +1278,9 @@ fn a_node_of_two_forms_is_refused() {
         with_mixed(&seq(captured, c), &format!(r#"{{"not":{{"captured":"w"}},{compared}}}"#)),
         with_mixed(&seq(captured, c), &format!(r#"{{"captured":"w",{compared}}}"#)),
         with_mixed(&seq(captured, c), &format!(r#"{{{compared},"matches":{{"capture":"w"}}}}"#)),
+        with_mixed(&seq(captured, c), r#"{"matches":{"capture":"w"},"rule":"text","initial":{"capture":"w"}}"#),
+        with_mixed_emission(&seq(captured, c), &condition, r#","emit":{"items":[{"capture":"w"}],"extra":true}"#),
+        with_mixed_emission(&seq(captured, c), &condition, r#","emit":{"extra":true,"items":[{"capture":"w"}]}"#),
     ];
     assert_refused(&with_mixed(&seq(captured, c), &condition), &refused, "a malformed");
 }

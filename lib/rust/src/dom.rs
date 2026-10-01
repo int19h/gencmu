@@ -1056,7 +1056,7 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                 // those; no items is `ε` (§9). Attachments are lists of
                 // named captures, present only when not empty, and only on
                 // a named capture, and they count as listed.
-                if !list(value.get("items"), 0, usize::MAX) {
+                if !list(value.get("items"), 0, usize::MAX) || value.as_object().map_or(0, <[_]>::len) != 1 {
                     return Some("a malformed emission");
                 }
                 let items = value.get("items").and_then(Json::as_array).unwrap_or(&[]);

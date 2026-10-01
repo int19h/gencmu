@@ -819,6 +819,18 @@ def _mixed_changes() -> list[tuple[str, Callable[[Dom], None]]]:
 
         return change
 
+    def replace_condition(value: Any) -> Callable[[Dom], None]:
+        def change(dom: Dom) -> None:
+            rule(dom)["conditions"][0] = value
+
+        return change
+
+    def emission(value: Any) -> Callable[[Dom], None]:
+        def change(dom: Dom) -> None:
+            rule(dom)["emit"] = value
+
+        return change
+
     b, c = {"ref": "B"}, {"ref": "C"}
     return [
         ("empty with a terminal", second({"empty": True, "terminal": "B"})),
@@ -833,12 +845,16 @@ def _mixed_changes() -> list[tuple[str, Callable[[Dom], None]]]:
         ("a top-level sequence with a choice", beside("choice", [b, c])),
         ("a captured terminal not in its canonical spelling", captured({"terminal": "'ab'"})),
         ("a captured reference with a terminal", captured({"ref": "A", "terminal": "A"})),
+        ("a captured terminal with a reference", captured({"terminal": "A", "ref": "A"})),
         ("a captured reference that is not a name", captured({"ref": "x y"})),
         ("a capture with a reference", capture_beside("ref", "B")),
         ("a comparison with a negation", condition_after("not", {"captured": "x"})),
         ("a negation with a comparison", condition_before("not", {"captured": "x"})),
         ("a presence test with a comparison", condition_before("captured", "x")),
-        ("a match with another member", condition_after("matches", {"capture": "x"})),
+        ("a comparison with a match", condition_after("matches", {"capture": "x"})),
+        ("a match with a rule and another member", replace_condition({"matches": {"capture": "x"}, "rule": "text", "initial": {"capture": "x"}})),
+        ("an emission with another member", emission({"items": [{"capture": "x"}], "extra": True})),
+        ("another member with an emission", emission({"extra": True, "items": [{"capture": "x"}]})),
     ]
 
 

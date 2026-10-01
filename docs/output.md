@@ -138,7 +138,7 @@ A condition is one of these forms:
 
 A condition has no member but those of its one form.
 
-An emission is `{"items":[ITEM...]}`. An item is `{"capture":"x","tags":TERM,"before":["b"],"after":["a"]}`, or `{"insert":"/h/"}`, whose value is one tag in its canonical spelling. For `ε`, there are no items. `"capture":""` is `$`.
+An emission is `{"items":[ITEM...]}`, with no other member. An item is `{"capture":"x","tags":TERM,"before":["b"],"after":["a"]}`, or `{"insert":"/h/"}`, whose value is one tag in its canonical spelling. For `ε`, there are no items. `"capture":""` is `$`.
 
 An item's `tags` is optional. `before` and `after` list the item's attachment captures (engine §11), each by its name without `$`, in the order written. Each is present only when it is not empty, and only for a named capture.
 
