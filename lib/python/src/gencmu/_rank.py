@@ -265,6 +265,7 @@ class Summaries:
         self.dependencies_memo: dict[Key, list[Key]] = {}
         self.sensitive_memo: dict[int, bool] = {}
         self.empty: frozenset[int] = frozenset()
+        self.groups_memo: dict[int, int] | None = None
 
     # -- the cycle rule's contexts
 
@@ -310,15 +311,95 @@ class Summaries:
             stack.pop()
         return memo[item]
 
+    def groups(self) -> dict[int, int]:
+        """The group of each rule that can complete again below itself over
+        its own span, found once, when first asked for.
+
+        The graph has an arc from one rule to another when an item of the
+        first has a completed child of the second over the same span. A rule
+        above an item over its span can complete again below it only if the
+        two rules reach each other in this graph: they are in one strongly
+        connected group (engine §6). A group of one rule with no arc to
+        itself has no cycle, and its rule has no group."""
+        if self.groups_memo is not None:
+            return self.groups_memo
+        forest = self.forest
+        origin, end = forest.origin, forest.end
+        arcs: dict[int, set[int]] = {}
+        for item, edges in enumerate(forest.edges):
+            for _, kind, child, _ in edges:
+                if kind == 2 and origin[child] == origin[item] and end[child] == end[item]:
+                    arcs.setdefault(self.rule(item), set()).add(self.rule(child))
+        # Tarjan's algorithm, with a stack of its own in place of recursion.
+        index: dict[int, int] = {}
+        low: dict[int, int] = {}
+        open_: list[int] = []
+        on_open: set[int] = set()
+        groups: dict[int, int] = {}
+        found = 0
+        for start in arcs:
+            if start in index:
+                continue
+            frames: list[tuple[int, Iterator[int]]] = []
+
+            def enter(rule: int) -> None:
+                index[rule] = low[rule] = len(index)
+                open_.append(rule)
+                on_open.add(rule)
+                frames.append((rule, iter(arcs.get(rule, ()))))
+
+            enter(start)
+            while frames:
+                rule, targets = frames[-1]
+                target = next(targets, None)
+                if target is not None:
+                    if target not in index:
+                        enter(target)
+                    elif target in on_open:
+                        low[rule] = min(low[rule], index[target])
+                    continue
+                frames.pop()
+                if frames:
+                    parent = frames[-1][0]
+                    low[parent] = min(low[parent], low[rule])
+                if low[rule] == index[rule]:
+                    members = []
+                    while True:
+                        member = open_.pop()
+                        on_open.discard(member)
+                        members.append(member)
+                        if member == rule:
+                            break
+                    if len(members) > 1 or rule in arcs.get(rule, ()):
+                        for member in members:
+                            groups[member] = found
+                        found += 1
+        self.groups_memo = groups
+        return groups
+
+    def context_of(self, item: int, forbidden: frozenset[int]) -> frozenset[int]:
+        """The part of a cycle context that matters to an item: the rules of
+        its own rule's group, the only ones that can complete again below
+        it over its span (engine §6). So the number of contexts of an item
+        does not grow with the number of paths that reach it."""
+        if not forbidden or not self.sensitive(item):
+            return self.empty
+        groups = self.groups()
+        own = groups.get(self.rule(item))
+        if own is None:
+            return self.empty
+        kept = frozenset(rule for rule in forbidden if groups.get(rule) == own)
+        return kept if kept else self.empty
+
     def full_key(self, item: int, forbidden: frozenset[int]) -> Key | None:
         """The key of a completed item in a context, or ``None`` where the
         context forbids its rule, since the derivation would be cyclic."""
         if self.rule(item) in forbidden:
             return None
-        return (0, item, forbidden if forbidden and self.sensitive(item) else self.empty)
+        return (0, item, self.context_of(item, forbidden))
 
     def partial_key(self, item: int, forbidden: frozenset[int]) -> Key:
-        return (1, item, forbidden if forbidden and self.sensitive(item) else self.empty)
+        return (1, item, self.context_of(item, forbidden))
 
     def inner_key(self, key: Key) -> Key:
         """The key of a completed item's derivations before its close: its
