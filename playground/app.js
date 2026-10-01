@@ -172,6 +172,10 @@
     if (state.tab === "trace" && info) {
       if (!info.stages.some((stage) => stage.name === state.trace.stage)) state.trace.stage = defaultTraceStage(info);
       trace = { stage: state.trace.stage, position: state.trace.position };
+    } else if (state.tab === "trace") {
+      // The stages are not known yet. The worker names them and says that
+      // the trace waits for them (show below).
+      trace = { stage: null, position: state.trace.position };
     }
     let view;
     if (state.tab === "canonical") view = { format: "canonical", pretty: state.pretty };
@@ -240,6 +244,7 @@
   }
 
   function send() {
+    if (!client.worker) startWorker();
     const id = nextId++;
     job.running = {
       id, generation, started: performance.now(), phase: "starting", path: null,
@@ -280,20 +285,38 @@
         break;
       }
       case "failed":
-        finishRun(true);
-        showFailure(`The parser failed, which is a bug in gencmu:\n${message.message}`);
+        // A failure outside any run, such as when the worker starts, leaves
+        // a worker that cannot be trusted: it is handled as a crash.
+        if (message.id === null) {
+          stopWorker(`The parser worker stopped, which is a bug in gencmu:\n${message.message}\nA new one is started for the next change.`);
+          break;
+        }
+        // A failure of another run is not this run's end, as for "result".
+        if (!running || message.id !== running.id) break;
+        finishRun(running.generation === generation);
+        if (running.generation === generation) showFailure(`The parser failed, which is a bug in gencmu:\n${message.message}`);
         break;
       case "crashed":
         // A worker that died, of memory most likely, is replaced for the
         // next run; this one's answer is lost.
-        job.running = null;
-        job.pending = false;
-        reading = null;
-        setBusy(false);
-        showFailure(`The parser worker stopped: ${message.message}. A new one is started for the next change.`);
-        startWorker();
+        stopWorker(`The parser worker stopped: ${message.message}. A new one is started for the next change.`);
         break;
     }
+  }
+
+  // Stops a worker that crashed or failed outside a run. The next run
+  // starts a new one: a worker that fails as it starts would otherwise be
+  // replaced again and again without end.
+  function stopWorker(text) {
+    clearTimeout(job.timer);
+    job.running = null;
+    job.pending = false;
+    reading = null;
+    setBusy(false);
+    showFailure(text);
+    workerReady = false;
+    client.stop();
+    renderDocuments();
   }
 
   function finishRun(current) {
@@ -379,8 +402,10 @@
     if (message.loadError) setStatus("ready", "The dialect has a grammar error");
     else if (message.parseError) setStatus("ready", "The parser could not run");
     else setStatus("ready", "Ready");
-    // A trace asked for before the dialect's stages were known.
-    if (state.tab === "trace" && !message.trace && message.info) schedule(0);
+    // A trace asked for before the dialect's stages were known. Only the
+    // worker's explicit answer asks again: an answer with an error has no
+    // trace either, and asking again for it fails in the same way forever.
+    if (state.tab === "trace" && message.traceNeedsStages) schedule(0);
   }
 
   function showFailure(text) {
@@ -524,8 +549,13 @@
       renderTokens(result);
       return;
     }
-    if (result.text === "" && result.format !== "canonical") output.replaceChildren(noTree());
-    else output.replaceChildren(...withCopy(result.text));
+    // A rendering of the tree says whether there is one (worker.js render).
+    if (result.tree === false) output.replaceChildren(noTree());
+    else if (result.text === "" && result.format === "brackets") {
+      // A tree can render as nothing: a hollow tree, or tokens whose labels
+      // are empty (docs/output.md). So the note is about the rendering only.
+      output.replaceChildren(element("p", { class: "hint", text: "The bracket rendering is empty." }), ...withCopy(""));
+    } else output.replaceChildren(...withCopy(result.text));
   }
 
   async function copy(text, button) {

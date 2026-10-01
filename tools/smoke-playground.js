@@ -3,10 +3,12 @@
 // parser worker starts, parses a sentence under the CLL dialect into the
 // expected brackets, and explains a text it rejects; that "gencmu" in its
 // heading links to the repository; that it lists the features a parse used
-// by name; and that it never shows an out-of-date answer as current. With no
-// URL the page is opened from file://, as someone who cloned the repository
-// would; given a URL, that URL is checked instead, which is how a GitHub
-// Pages deployment is tested.
+// by name; that it never shows an out-of-date answer as current; that it
+// shows an empty bracket rendering as one; that a failure for another run
+// does not end the current one; and that a link to the Trace tab traces its
+// text, or shows its error once. With no URL the page is opened from
+// file://, as someone who cloned the repository would; given a URL, that URL
+// is checked instead, which is how a GitHub Pages deployment is tested.
 //
 //   node tools/smoke-playground.js [--browser chrome|firefox] [URL]
 //
@@ -46,7 +48,7 @@ async function main() {
   if (!engine) throw new Error(`unknown browser ${browser}`);
   const instance = await engine.launch({ headless: true });
   try {
-    const page = await instance.newPage();
+    let page = await instance.newPage();
     /** Runs a function in the page and returns its value. */
     const run = (script, arg) => page.evaluate(script, arg);
     /** Polls a function until it returns something other than null. */
@@ -71,6 +73,16 @@ async function main() {
       return { output: output ? output.textContent : "", explanation: explanation ? explanation.textContent : "",
                verdict: document.querySelector("#summary .badge").textContent };
     }, text);
+    // The page once it is idle with an answer shown, or has failed, and
+    // optionally once an element matches a selector.
+    const idle = (what, selector) => until(what, (selector) => {
+      const status = document.getElementById("status");
+      if (status.dataset.state === "error") return { error: status.textContent };
+      if (status.dataset.state !== "ready" || document.getElementById("result").hasAttribute("aria-busy")) return null;
+      if (selector && !document.querySelector(selector)) return null;
+      const output = document.querySelector("#output pre");
+      return { boxes: [...document.querySelectorAll("#diagnostics .box")].map((box) => box.textContent), output: output ? output.textContent : null };
+    }, selector || null);
     // A change marks the shown result stale at once, before any answer: the
     // result region is busy and the status no longer says ready. The change
     // and the check run in one evaluation, so no answer can come between.
@@ -97,6 +109,16 @@ async function main() {
     });
     if (started.state !== "ready") throw new Error(`the playground did not become ready: ${started.status}`);
     const version = await run(() => document.getElementById("version").textContent);
+    // The id of every run the page sends from here on.
+    await run(() => {
+      const client = self.playground.client;
+      const send = client.run.bind(client);
+      self.smokeRunIds = [];
+      client.run = (id, request) => {
+        self.smokeRunIds.push(id);
+        send(id, request);
+      };
+    });
     if (!/^library \d+\.\d+\.\d+/.test(version)) throw new Error(`the worker did not report the library's version: ${version}`);
 
     // The word "gencmu" in the heading links to the repository.
@@ -165,6 +187,41 @@ async function main() {
     if (settled.error || settled.output.trim() !== brackets) throw new Error(`after a burst of changes: ${JSON.stringify(settled)}`);
     await stale();
 
+    // An empty text has a tree whose brackets are empty (docs/output.md).
+    // The page shows that rendering, with its Copy button, and does not say
+    // that there is no tree. It says only that the rendering is empty.
+    const emptyRendering = async (what) => {
+      const answer = await answerFor("");
+      if (answer.error) throw new Error(`the playground failed: ${answer.error}`);
+      const empty = await run(() => ({
+        pre: document.querySelector("#output pre.result-text") ? document.querySelector("#output pre.result-text").textContent : null,
+        copy: !!document.querySelector("#output .copy-row button"),
+        text: document.getElementById("output").textContent,
+      }));
+      if (empty.pre !== "" || !empty.copy || /No tree|no tokens/.test(empty.text) || !/The bracket rendering is empty/.test(empty.text)) {
+        throw new Error(`the empty bracket rendering of ${what} was not shown as one: ${JSON.stringify(empty)}`);
+      }
+    };
+    await type("");
+    await emptyRendering("a hollow tree");
+
+    // A token's label can be empty too (docs/output.md), so an empty
+    // rendering does not mean that the tree holds no tokens. In this
+    // pipeline the first stage emits one token X with an empty label for the
+    // empty text, and the second stage reads it.
+    const labelless = "dialects/zantufa.md";
+    await run((path) => self.playground.client.setDocument(path, "# Empty labels\n\n```jbogenbau\n" +
+      "%stage a\n%ambiguity-resolution greedy\n%rule text ε\n%emits X\n" +
+      "%stage b\n%ambiguity-resolution greedy\n%rule text X\n```\n"), labelless);
+    await choose(labelless);
+    await emptyRendering("a token with an empty label");
+    const shownFor = await run(() => document.getElementById("result").dataset.dialect);
+    if (shownFor !== "zantufa") throw new Error(`the empty label was checked under ${shownFor}, not the edited pipeline`);
+    await run((path) => self.playground.client.setDocument(path, self.gencmuGrammars[path]), labelless);
+    await choose("dialects/cll-ebnf.md");
+    await type(last);
+    await answerFor(last);
+
     // An edited document is read with the notation grammar, which takes a
     // while for a long one such as the CLL word shapes; a dialect that does
     // not use it should not wait for that.
@@ -205,6 +262,76 @@ async function main() {
       throw new Error(`the features used were not listed by name: ${JSON.stringify(features)}`);
     }
     await stale();
+
+    // A failure of an earlier run can arrive after a newer run started. It
+    // must not end the newer run, and its error is not shown. The worker
+    // fails a run whose request is null. Here that run has the id of the
+    // last run that finished, and the worker posts its failure before it
+    // reads the newer run.
+    const staleFailure = "mi klama le zarci .i do klama";
+    const failedEarlier = await run((text) => {
+      const client = self.playground.client;
+      const ids = self.smokeRunIds;
+      const earlier = ids[ids.length - 1];
+      const input = document.getElementById("input");
+      input.value = text;
+      input.dispatchEvent(new Event("input"));
+      client.worker.postMessage({ kind: "run", id: earlier, request: null });
+      self.playground.schedule(0);
+      return { earlier, newer: ids[ids.length - 1] };
+    }, staleFailure);
+    if (!(failedEarlier.newer > failedEarlier.earlier)) throw new Error(`the page did not start a newer run at once: ${JSON.stringify(failedEarlier)}`);
+    const afterFailure = await answerFor(staleFailure);
+    if (afterFailure.error) throw new Error(`a failure for another run ended the current one: ${afterFailure.error}`);
+    if (!afterFailure.output.includes("klama")) throw new Error(`no brackets after a stale failure: ${JSON.stringify(afterFailure)}`);
+    const boxes = await run(() => [...document.querySelectorAll("#diagnostics .box")].map((box) => box.textContent));
+    if (boxes.some((box) => /went wrong/.test(box))) throw new Error(`a failure for another run was shown: ${JSON.stringify(boxes)}`);
+
+    // A failure outside any run, here of a worker told to start with no
+    // documents, stops that worker. The page says so, and the next change
+    // starts a new worker.
+    await run(() => self.playground.client.worker.postMessage({ kind: "init", sources: null }));
+    const broken = await until("the failure outside a run", () => {
+      const status = document.getElementById("status");
+      return status.dataset.state === "error" ? { text: document.getElementById("diagnostics").textContent, worker: !!self.playground.client.worker } : null;
+    });
+    if (!/The parser worker stopped/.test(broken.text) || broken.worker) {
+      throw new Error(`a failure outside a run did not stop the worker: ${JSON.stringify(broken)}`);
+    }
+    await type(last);
+    const restarted = await answerFor(last);
+    if (restarted.error || restarted.output.trim() !== brackets) throw new Error(`no new worker after a failure outside a run: ${JSON.stringify(restarted)}`);
+    await stale();
+
+    // A shared link can ask for a feature both on and off, which the library
+    // refuses. On the Trace tab the page shows that error once and then
+    // stays idle: it asks the worker again only when the worker says that
+    // the trace waits for the dialect's stages. The link keeps both lists.
+    const conflicting = "#text=mi&dialect=cll-ebnf&features=sa-su&without=sa-su&view=trace";
+    page = await instance.newPage();
+    await page.goto(target + conflicting);
+    const refused = await idle("the refused feature selection");
+    if (refused.error) throw new Error(`the playground failed: ${refused.error}`);
+    if (refused.boxes.length !== 1 || !/The parser could not run/.test(refused.boxes[0]) || !/sa-su/.test(refused.boxes[0])) {
+      throw new Error(`a feature both on and off was not shown as one error: ${JSON.stringify(refused)}`);
+    }
+    const runs = await run(() => self.playground.timings.runs.length);
+    await sleep(1500);
+    const after = await run(() => ({ runs: self.playground.timings.runs.length, state: document.getElementById("status").dataset.state, hash: location.hash }));
+    if (after.runs !== runs || after.state !== "ready") {
+      throw new Error(`the Trace tab kept asking after the error: ${runs} runs, then ${JSON.stringify(after)}`);
+    }
+    const kept = new URLSearchParams(after.hash.slice(1));
+    if (kept.get("features") !== "sa-su" || kept.get("without") !== "sa-su") {
+      throw new Error(`the link lost its feature selection: ${after.hash}`);
+    }
+
+    // A link to the Trace tab traces the text, once the worker has named
+    // the dialect's stages.
+    page = await instance.newPage();
+    await page.goto(target + "#text=mi%20klama&dialect=cll-ebnf&view=trace");
+    const traced = await idle("a trace from a link", "#trace-picker .gap");
+    if (traced.error || !traced.output) throw new Error(`a link to the Trace tab gave no trace: ${JSON.stringify(traced)}`);
     console.log(`playground works in ${browser} at ${target}, ${version}`);
   } finally {
     await instance.close();

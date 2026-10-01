@@ -24,7 +24,8 @@
 //   { kind: "dom", path, hash, dom }     a document just read, for the page
 //       to hand to the next worker if this one is ever replaced
 //   { kind: "result", id, ... }          a run's answer
-//   { kind: "failed", id, message }      a run that threw, which is a bug
+//   { kind: "failed", id, message }      a run that threw, which is a bug;
+//       id null: a message that is not a run threw, such as "init"
 (function (root) {
   "use strict";
 
@@ -185,6 +186,9 @@
     // hundred thousand phonemes helps nobody and slows the page.
     const TOKEN_ROWS = 3000;
 
+    // A rendering of the tree says whether there is one: brackets render a
+    // tree with no tokens as nothing (docs/output.md), so an empty text does
+    // not mean that there is no tree.
     function render(parsed, view) {
       const key = JSON.stringify(view);
       const cached = parsed.renders.get(key);
@@ -194,11 +198,11 @@
       let output;
       switch (view.format) {
         case "tree":
-          output = { format: "tree", text: gencmu.toTree(result) };
+          output = { format: "tree", tree: !!result.tree, text: gencmu.toTree(result) };
           break;
         case "json": {
           const value = gencmu.displayValue(result);
-          output = { format: "json", text: value === null ? "" : gencmu.prettyJson(value) };
+          output = { format: "json", tree: !!result.tree, text: value === null ? "" : gencmu.prettyJson(value) };
           break;
         }
         case "canonical":
@@ -228,7 +232,7 @@
           break;
         }
         default:
-          output = { format: "brackets", text: gencmu.toBrackets(result, { showElided: !!view.showElided }) };
+          output = { format: "brackets", tree: !!result.tree, text: gencmu.toBrackets(result, { showElided: !!view.showElided }) };
       }
       parsed.renders.set(key, output);
       return output;
@@ -264,7 +268,12 @@
     //
     // request: { dialect, text, features: string[], withoutFeatures: string[], autoFeatures, until,
     //   elisionOnly: null | boolean, view: { format, showElided, pretty,
-    //   stage }, trace: null | { stage, position }, audit: boolean }
+    //   stage }, trace: null | { stage: string | null, position }, audit: boolean }
+    //
+    // A trace whose stage is null gets no trace but traceNeedsStages: true,
+    // once the text is parsed. Only that answer tells the page to ask again.
+    // An answer with an error has no trace and no such flag, so that the
+    // page does not ask again for a run that fails in the same way.
     function run(id, request) {
       runId = id;
       const started = now();
@@ -283,7 +292,10 @@
         !request.features.includes(name) && !entry.info.features.some((feature) => feature.name === name && feature.default));
       answer.parseMs = parsed.ms;
       answer.output = render(parsed, request.view);
-      if (request.trace) answer.trace = runTrace(entry, parsed, request);
+      // A trace asked for before the page knew the dialect's stages names
+      // none. This answer names them, and says that the page can ask again.
+      if (request.trace && request.trace.stage === null) answer.traceNeedsStages = true;
+      else if (request.trace) answer.trace = runTrace(entry, parsed, request);
       if (request.audit) {
         if (entry.audit === undefined) entry.audit = gencmu.formatAudit(gencmu.audit(entry.dialect));
         answer.audit = entry.audit;
@@ -365,6 +377,12 @@
       for (const [path, entry] of this.doms) if (this.edits.has(path)) compiled[path] = entry;
       this.unsent.clear();
       worker.postMessage({ kind: "init", sources, compiled });
+    }
+
+    /** Stops the running worker; the next `start` makes a new one. */
+    stop() {
+      if (this.worker) this.worker.terminate();
+      this.worker = null;
     }
 
     /** The text of a document as the parser sees it. */
