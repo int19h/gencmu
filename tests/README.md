@@ -95,7 +95,7 @@ Each line is one case: a Lojban text, with the result that gencmu must give for 
 - `expect` is `accept` or `reject`. For an accepted text, `verdict` is the verdict of the last stage, and `brackets` is its tree, with elided terminators hidden. For a rejected one, `stage` names the stage that rejected it.
 - `error`, when present, pins the error of a rejected text: `{"kind": "ambiguous", "reason": "tie"}`. It holds the error's `kind`, and for an `ambiguous` error its `reason`, `tie` or `elision-only` (engine §6, §7). A case expects an ambiguity with `expect` set to `reject`, its `stage`, and this `error`. A third value of `expect` is not needed. The error's `reason` stands inside `error`, apart from the case's own `reason`, which explains a departure from the seed (below).
 - `ties`, when present, names the stage whose verdict is `tie`. A tie ends the run, so at most one stage has it, and that stage can come before the last.
-- `words` is the output of the word stage, whenever the word stage accepted. The case writes each token as its label (engine §5). So a pause inside a word is a space, and an opaque part is its text.
+- `words` records the word stage's output when that output is present. The case writes each token as its label (engine §5). So a pause inside a word is a space, and an opaque part is its text.
 
 A case runs with auto features on, which is the default of the API. The case matches when every one of those fields that the case or the result of the library has is equal.
 
