@@ -6,6 +6,9 @@ export declare class GencmuError extends Error {
      *   run, or a caller's mistake such as an unknown stage name
      * @param {string} message
      * @param {import("./types.js").ErrorLocation} [where]
+     * @param {{cause?: unknown}} [options] the error that caused this one
      */
-    constructor(kind: "grammar" | "usage", message: string, where?: import("./types.js").ErrorLocation);
+    constructor(kind: "grammar" | "usage", message: string, where?: import("./types.js").ErrorLocation, options?: {
+        cause?: unknown;
+    });
 }

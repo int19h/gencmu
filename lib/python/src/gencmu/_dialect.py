@@ -210,29 +210,39 @@ class NotationReader:
         except (LookupError, TypeError, ValueError, AttributeError, AssertionError) as error:
             # Only a bootstrap that is not the notation's gives such a tree.
             raise GencmuError(f"the notation's tree cannot be read as a grammar ({error!r}); is the bootstrap the notation's?", document=path) from error
-        if dom_problem(dom, self.unicode) == TOO_DEEP:
-            # The bound on nesting is the same for a document read here as for
-            # a precompiled DOM (engine §9); reported at the first item too
-            # deep, a rule, a constant's definition or an implication.
-            line, column = 1, 1
-            items = (
-                [("rules", rule) for rule in dom["rules"]]
-                + [("constants", constant) for constant in dom["constants"]]
-                + [("implications", implication) for implication in dom["implications"]]
-            )
-            items.sort(key=lambda item: (item[1]["at"][0], item[1]["at"][1]))
-            empty = {"rules": [], "directives": [], "constants": [], "classifiers": [], "implications": []}
-            for key, item in items:
-                if dom_problem({**dom, **empty, key: [item]}, self.unicode) == TOO_DEEP:
-                    line, column = item["at"]
-                    break
+        # A document read here is held to the rules of a precompiled DOM
+        # (engine §9). A bootstrap that is not the notation's can give a DOM
+        # that breaks them.
+        problem = dom_problem(dom, self.unicode)
+        if problem is None:
+            return dom
+        # Each rule, constant definition and implication alone, in the
+        # order of the document.
+        items = (
+            [("rules", rule) for rule in dom["rules"]]
+            + [("constants", constant) for constant in dom["constants"]]
+            + [("implications", implication) for implication in dom["implications"]]
+        )
+        items.sort(key=lambda item: (item[1]["at"][0], item[1]["at"][1]))
+        empty = {"rules": [], "directives": [], "constants": [], "classifiers": [], "implications": []}
+        alone = [(item["at"], dom_problem({**dom, **empty, key: [item]}, self.unicode)) for key, item in items]
+        if problem == TOO_DEEP:
+            # The bound on nesting, reported at the first item too deep, or
+            # else at the start.
+            line, column = next((at for at, found in alone if found == TOO_DEEP), (1, 1))
             raise GencmuError(
                 f"an expression, term or condition is nested more than {MAX_DEPTH} deep",
                 document=path,
                 line=line,
                 column=column,
             )
-        return dom
+        # Any other problem, at the first item that has it alone, or else at
+        # the document.
+        found_at = next(((at, found) for at, found in alone if found is not None), None)
+        if found_at is None:
+            raise GencmuError(problem, document=path)
+        (line, column), found = found_at
+        raise GencmuError(found, document=path, line=line, column=column)
 
 
 def _reader(bootstrap: str, unicode_text: str) -> NotationReader:

@@ -1229,3 +1229,70 @@ fn a_guard_of_an_alternative_names_a_feature() {
         }
     }
 }
+
+/// A DOM like the document's, with a rule `x` of `expr` and `condition`
+/// added.
+fn with_mixed(expr: &str, condition: &str) -> String {
+    with_mixed_emission(expr, condition, "")
+}
+
+/// The same, with the members of `emission` after the rule's
+/// alternatives.
+fn with_mixed_emission(expr: &str, condition: &str, emission: &str) -> String {
+    with_rule(&format!(
+        r#"{{"name":"x","op":"define","alternatives":[{{"guards":[],"expr":{expr}}}]{emission},"conditions":[{condition}],"at":[4,1]}}"#
+    ))
+}
+
+/// An expression or a condition has exactly the members of one form, and a
+/// reference is a name or `#` (docs/output.md, engine §9). A node that
+/// breaks this is a cache miss and an error of a bootstrap, whatever the
+/// order of its members.
+#[test]
+fn a_node_of_two_forms_is_refused() {
+    let b = r#"{"terminal":"b"}"#;
+    let c = r#"{"terminal":"c"}"#;
+    let captured = r#"{"capture":"w","expr":{"terminal":"b"}}"#;
+    let seq = |first: &str, second: &str| format!(r#"{{"seq":[{first},{second}]}}"#);
+    let compared = r#""op":"=","left":{"call":"text","args":[{"capture":"w"}]},"right":{"string":"b"}"#;
+    let condition = format!("{{{compared}}}");
+    let second = |node: &str| with_mixed(&seq(captured, node), &condition);
+    let wrapped = |node: &str| with_mixed(&seq(&format!(r#"{{"capture":"w","expr":{node}}}"#), c), &condition);
+    let refused = [
+        second(r#"{"empty":true,"terminal":"b"}"#),
+        second(r#"{"terminal":"b","empty":true}"#),
+        second(&format!(r#"{{"choice":[{b},{c}],"seq":[{c},{c}]}}"#)),
+        second(&format!(r#"{{"seq":[{c},{c}],"choice":[{b},{c}]}}"#)),
+        second(&format!(r#"{{"choice":[{b},{c}],"seq":[{{"ref":5}},{c}]}}"#)),
+        second(&format!(r#"{{"repeat":{b},"min":1,"optional":{c}}}"#)),
+        second(&format!(r#"{{"optional":{c},"repeat":{b},"min":1}}"#)),
+        second(&format!(r#"{{"repeat":{b},"min":1,"optional":{{"ref":["x"]}}}}"#)),
+        second(r#"{"ref":"x y"}"#),
+        with_mixed(&format!(r#"{{"seq":[{captured},{c}],"choice":[{b},{c}]}}"#), &condition),
+        wrapped(r#"{"terminal":"'ab'"}"#),
+        wrapped(r#"{"ref":"A","terminal":"b"}"#),
+        wrapped(r#"{"terminal":"b","ref":"A"}"#),
+        wrapped(r#"{"ref":"x y"}"#),
+        with_mixed(&seq(r#"{"capture":"w","expr":{"terminal":"b"},"ref":"B"}"#, c), &condition),
+        with_mixed(&seq(captured, c), &format!(r#"{{{compared},"not":{{"captured":"w"}}}}"#)),
+        with_mixed(&seq(captured, c), &format!(r#"{{"not":{{"captured":"w"}},{compared}}}"#)),
+        with_mixed(&seq(captured, c), &format!(r#"{{"captured":"w",{compared}}}"#)),
+        with_mixed(&seq(captured, c), &format!(r#"{{{compared},"matches":{{"capture":"w"}}}}"#)),
+        with_mixed(&seq(captured, c), r#"{"matches":{"capture":"w"},"rule":"text","initial":{"capture":"w"}}"#),
+        with_mixed_emission(&seq(captured, c), &condition, r#","emit":{"items":[{"capture":"w"}],"extra":true}"#),
+        with_mixed_emission(&seq(captured, c), &condition, r#","emit":{"extra":true,"items":[{"capture":"w"}]}"#),
+    ];
+    assert_refused(&with_mixed(&seq(captured, c), &condition), &refused, "a malformed");
+}
+
+/// A guard of a rule's alternative has no member but its feature, its kind
+/// and whether it is negated, as a gate of an entry has (docs/output.md).
+#[test]
+fn a_guard_of_an_alternative_has_three_members() {
+    let guarded = |guard: &str| with_alternative(&format!(r#"{{"guards":[{guard}],"expr":{{"terminal":"b"}}}}"#));
+    let refused = [
+        guarded(r#"{"feature":"f","kind":"gate","negated":false,"extra":true}"#),
+        guarded(r#"{"note":"x","feature":"f","kind":"gate","negated":false}"#),
+    ];
+    assert_refused(&guarded(r#"{"feature":"f","kind":"gate","negated":false}"#), &refused, "a malformed alternative");
+}

@@ -37,13 +37,29 @@ from ._validate import (
 Dom = dict[str, Any]
 
 _MAPPED = frozenset(
-    """directive argument-string argument-tag rule alternative alternative-tags choice conjunction sequence element
-    reference string tag character phoneme name tested test test-operand capture group optional empty tags-clause conditions-clause
-    emits-clause opaque-clause emit-item emit-tags emit-before emit-after implication any-of all-of comparison negation presence call term
-    guarded-term union intersection empty-set capture-reference range property constant-definition constant-definer
+    """directive argument-word argument-string argument-tag rule definer rule-name body alternative guard alternative-tags
+    choice conjunction sequence element primary reference string tag character phoneme name tested test test-operand capture
+    group optional empty tags-clause conditions-clause emits-clause opaque-clause emit-item emit-target emit-tags emit-before
+    emit-after implication any-of all-of condition comparison comparator negation presence call argument term guarded-term
+    union intersection term-atom empty-set capture-reference range property constant-definition constant-definer
     constant-reference classifier classifier-name classifier-entry classifier-key classifier-operator classifier-class
     implication-declaration""".split()
 )
+"""The rules of the notation's syntax grammar that the reader knows (engine
+§9). Every other rule is a wrapper, and the reader reads its parts in its
+place."""
+_PRIMARIES = frozenset(
+    ["reference", "tag", "character", "phoneme", "range", "property", "tested", "capture", "group", "optional", "empty", "constant-reference"]
+)
+_CONDITIONS = frozenset(["comparison", "call", "negation", "presence", "implication"])
+_TERMS = frozenset(["union", "guarded-term"])
+_ATOMS = frozenset(
+    ["string", "tag", "character", "phoneme", "range", "property", "name", "empty-set", "term", "call", "capture-reference", "constant-reference"]
+)
+"""What a primary, a condition, a term and a term atom hold: the one rule
+among their parts is one of these (engine §9)."""
+_ITEMS = frozenset(["directive", "rule", "constant-definition", "classifier", "implication-declaration"])
+"""The items of a document (engine §9)."""
 _PROPERTY = re.compile(r"'\\p\{([^}]*)\}'")
 _SYMBOLS = frozenset(["reference", "tag", "character", "phoneme", "range", "property", "tested"])
 """What a capture can wrap: one symbol (engine §9)."""
@@ -171,6 +187,49 @@ class DomBuilder:
     def rules(self, node: Node, name: str) -> list[Node]:
         return [kid for kid in self.kids(node) if kid.kind == "rule" and kid.rule == name]
 
+    # -- the parts that the reader reads from a node (engine §9). A node that
+    # lacks one is an error of the document, which only a bootstrap of
+    # another notation gives.
+
+    def lacks(self, node: Node, what: str) -> GencmuError:
+        return self.fail(node, f"the notation's {node.rule} has no {what}")
+
+    def one(self, node: Node, name: str) -> Node | None:
+        found = self.rules(node, name)
+        return found[0] if found else None
+
+    def only(self, node: Node, name: str) -> Node:
+        found = self.rules(node, name)
+        if not found:
+            raise self.lacks(node, name)
+        return found[0]
+
+    def some(self, node: Node, name: str, least: int = 1) -> list[Node]:
+        found = self.rules(node, name)
+        if len(found) < least:
+            raise self.lacks(node, name if least == 1 else f"{least} of {name}")
+        return found
+
+    def token(self, node: Node) -> Node:
+        found = next((kid for kid in self.kids(node) if kid.kind == "token"), None)
+        if found is None:
+            raise self.lacks(node, "token")
+        return found
+
+    def symbol_part(self, node: Node) -> Node:
+        """The first part, a token, a range or a property."""
+        kids = self.kids(node)
+        if kids and (kids[0].kind == "token" or kids[0].rule in ("range", "property")):
+            return kids[0]
+        raise self.lacks(node, "token, range or property")
+
+    def known_of(self, node: Node, kinds: frozenset[str]) -> Node:
+        """The one rule among the parts, which must be one of ``kinds``."""
+        found = [kid for kid in self.kids(node) if kid.kind == "rule"]
+        if len(found) != 1 or found[0].rule not in kinds:
+            raise self.lacks(node, "single part of these: " + ", ".join(sorted(kinds)))
+        return found[0]
+
     # -- the document
 
     def document_dom(self, root: Node) -> Dom:
@@ -180,6 +239,8 @@ class DomBuilder:
         classifiers: list[Dom] = []
         implications: list[Dom] = []
         for kid in self.kids(root):
+            if kid.kind == "rule" and kid.rule not in _ITEMS:
+                raise self.fail(kid, f"the notation gives a {kid.rule} where an item stands")
             if kid.kind == "rule" and kid.rule == "rule":
                 rules.append(self.rule(kid))
             elif kid.kind == "rule" and kid.rule == "directive":
@@ -202,8 +263,8 @@ class DomBuilder:
     def classifier(self, node: Node) -> Dom:
         """A ``%classifier`` item: its name, which begins with a lower-case
         letter, and its entries (engine §2, §9)."""
-        name_node = self.rules(node, "classifier-name")[0]
-        name = self.text(self.kids(name_node)[0])
+        name_node = self.only(node, "classifier-name")
+        name = self.text(self.token(name_node))
         if not CLASSIFIER_NAME.fullmatch(name):
             raise self.fail(name_node, f"{name} begins with a capital, so it is a tag; a classifier's name begins with a lower-case letter")
         entries = [self.entry(entry) for entry in self.rules(node, "classifier-entry")]
@@ -214,37 +275,33 @@ class DomBuilder:
         and a class (engine §2, §9)."""
         guards: list[Dom] = []
         keys: list[str] = []
-        op = ""
-        name = ""
-        for kid in self.kids(node):
-            if kid.kind == "token":
-                # A guard's token is its text: f? or ¬f? for a gate. A
-                # warning f! is an error here.
-                text = self.text(kid)
-                if text.endswith("!"):
-                    raise self.fail(kid, "an entry of a classifier takes gates only, not a warning")
-                negated = text.startswith("¬")
-                guards.append({"feature": text[1 if negated else 0 : -1], "kind": "gate", "negated": negated})
-            elif kid.rule == "classifier-key":
-                key = self.decode(self.kids(kid)[0])
-                wrong = sound_problem(key, self.unicode)
-                if wrong is not None:
-                    raise self.fail(kid, f"a key is a canonical sound: {wrong}")
-                keys.append(key)
-            elif kid.rule == "classifier-operator":
-                op = self.text(self.kids(kid)[0])
-            elif kid.rule == "classifier-class":
-                written = self.text(self.kids(kid)[0])
-                name = written[1:] if written.startswith("~") else written
-                if not _is_capital(name):
-                    raise self.fail(kid, f"{written} is not a class: a class is an identifier tag that begins with a capital")
+        for guard in self.rules(node, "guard"):
+            # A guard's token is its text: f? or ¬f? for a gate. A warning
+            # f! is an error here.
+            text = self.text(self.token(guard))
+            if text.endswith("!"):
+                raise self.fail(guard, "an entry of a classifier takes gates only, not a warning")
+            negated = text.startswith("¬")
+            guards.append({"feature": text[1 if negated else 0 : -1], "kind": "gate", "negated": negated})
+        for key_node in self.some(node, "classifier-key"):
+            key = self.decode(self.token(key_node))
+            wrong = sound_problem(key, self.unicode)
+            if wrong is not None:
+                raise self.fail(key_node, f"a key is a canonical sound: {wrong}")
+            keys.append(key)
+        op = self.text(self.token(self.only(node, "classifier-operator")))
+        class_node = self.only(node, "classifier-class")
+        written = self.text(self.token(class_node))
+        name = written[1:] if written.startswith("~") else written
+        if not _is_capital(name):
+            raise self.fail(class_node, f"{written} is not a class: a class is an identifier tag that begins with a capital")
         return {"guards": guards, "keys": keys, "op": op, "class": name, "at": list(self.position(node))}
 
     def implication(self, node: Node) -> Dom:
         """An implication, ``%implies A ⟹ B``: two closed terms whose type is
         a tag set (engine §2, §9)."""
         sides: list[Dom] = []
-        for side in self.rules(node, "union"):
+        for side in self.some(node, "union", 2)[:2]:
             self.closed_for = "a side of an implication"
             try:
                 term = self.value(side)
@@ -262,10 +319,9 @@ class DomBuilder:
         """A constant's definition: its name without ``$``, and its value, a
         closed term of a type that a constant can have (engine §2, §9,
         §10)."""
-        definer = self.rules(node, "constant-definer")[0]
-        keyword = self.text(self.kids(definer)[0])
-        name = self.text(self.kids(self.rules(node, "constant-reference")[0])[0])[1:]
-        value_node = self.rules(node, "term")[0]
+        keyword = self.text(self.token(self.only(node, "constant-definer")))
+        name = self.text(self.token(self.only(node, "constant-reference")))[1:]
+        value_node = self.only(node, "term")
         self.closed_for = "a constant's value"
         try:
             value = self.value(value_node)
@@ -278,9 +334,8 @@ class DomBuilder:
         return {"name": name, "op": op, "value": value, "at": list(self.position(node))}
 
     def directive(self, node: Node) -> Dom:
-        kids = self.kids(node)
-        name = self.text(kids[0])[1:]
-        operands = [kid for kid in kids[1:] if kid.kind == "token" or kid.rule in ("argument-string", "argument-tag")]
+        name = self.text(self.token(node))[1:]
+        operands = [kid for kid in self.kids(node) if kid.kind == "rule" and kid.rule in ("argument-word", "argument-string", "argument-tag")]
         problem = operand_problem(name, [self.operand_kind(kid) for kid in operands])
         if problem:
             raise self.fail(node, problem)
@@ -290,23 +345,23 @@ class DomBuilder:
     def operand(self, node: Node) -> str:
         """A directive's operand: a name is its text, a string is decoded,
         as a string of a rule is, and a tag literal is its tag."""
-        if node.kind == "token":
-            return self.text(node)
+        if node.rule == "argument-word":
+            return self.text(self.token(node))
         if node.rule == "argument-string":
-            return self.decode(self.kids(node)[0])
+            return self.decode(self.token(node))
         # A range or a property has no tag; operand_problem has refused it.
-        return self.tag_of(self.kids(node)[0])
+        return self.tag_of(self.symbol_part(node))
 
     def operand_kind(self, node: Node) -> str:
         """The kind of a directive's operand: ``name`` or ``class`` for a
         bare name, lower case or with a capital, ``string``, or ``tag``,
         ``phoneme`` or ``character`` for a tag, or ``range`` or ``property``
         (engine §9)."""
-        if node.kind == "token":
-            return "class" if _is_capital(self.text(node)) else "name"
+        if node.rule == "argument-word":
+            return "class" if _is_capital(self.text(self.token(node))) else "name"
         if node.rule == "argument-string":
             return "string"
-        operand = self.kids(node)[0]
+        operand = self.symbol_part(node)
         if operand.kind == "rule" and operand.rule in ("range", "property"):
             return operand.rule
         written = self.text(operand)
@@ -315,27 +370,18 @@ class DomBuilder:
     def rule(self, node: Node) -> Dom:
         """A definition: its keyword, its name, its alternatives and its
         clauses, checked as a whole once it is read (engine §9)."""
-        kids = self.kids(node)
-        op = _DEFINERS[self.text(kids[0])]
-        name = self.text(kids[1])
-        tags: Dom | None = None
-        alternatives: list[Dom] = []
-        emit: Dom | None = None
-        opaque = False
+        op = _DEFINERS.get(self.text(self.token(self.only(node, "definer"))), "define")
+        name = self.text(self.token(self.only(node, "rule-name")))
+        tags_node = self.one(node, "tags-clause")
+        tags = self.own_tags(tags_node) if tags_node is not None else None
+        alternatives = [self.alternative(kid) for kid in self.some(self.only(node, "body"), "alternative")]
+        emits_node = self.one(node, "emits-clause")
+        emit = self.emission(emits_node) if emits_node is not None else None
+        conditions_node = self.one(node, "conditions-clause")
         conditions: list[Dom] = []
-        for kid in kids[2:]:
-            if kid.kind == "token":
-                continue
-            if kid.rule == "alternative":
-                alternatives.append(self.alternative(kid))
-            elif kid.rule == "tags-clause":
-                tags = self.own_tags(kid)
-            elif kid.rule == "conditions-clause":
-                conditions.extend(run(self._condition(item)) for item in self.rules(kid, "implication"))
-            elif kid.rule == "emits-clause":
-                emit = self.emission(kid)
-            elif kid.rule == "opaque-clause":
-                opaque = True
+        if conditions_node is not None:
+            conditions = [run(self._condition(item)) for item in self.some(conditions_node, "implication")]
+        opaque = self.one(node, "opaque-clause") is not None
         dom: Dom = {"name": name, "op": op}
         if tags is not None:
             dom["tags"] = tags
@@ -356,22 +402,17 @@ class DomBuilder:
 
     def alternative(self, node: Node) -> Dom:
         guards: list[Dom] = []
-        expr: Dom | None = None
-        tags: Dom | None = None
         self.captures: set[str] = set()
-        for kid in self.kids(node):
-            if kid.kind == "token":
-                # A guard's token is its text: f? or ¬f? for a gate, f!
-                # for a warning (engine §9).
-                text = self.text(kid)
-                negated = text.startswith("¬")
-                kind = "warning" if text.endswith("!") else "gate"
-                guards.append({"feature": text[1 if negated else 0 : -1], "kind": kind, "negated": negated})
-            elif kid.rule == "conjunction":
-                expr = run(self._expr(kid, True))
-            elif kid.rule == "alternative-tags":
-                tags = self.own_tags(kid)
-        assert expr is not None
+        for guard in self.rules(node, "guard"):
+            # A guard's token is its text: f? or ¬f? for a gate, f! for a
+            # warning (engine §9).
+            text = self.text(self.token(guard))
+            negated = text.startswith("¬")
+            kind = "warning" if text.endswith("!") else "gate"
+            guards.append({"feature": text[1 if negated else 0 : -1], "kind": kind, "negated": negated})
+        expr = run(self._expr(self.only(node, "conjunction"), True))
+        tags_node = self.one(node, "alternative-tags")
+        tags = self.own_tags(tags_node) if tags_node is not None else None
         dom: Dom = {"guards": guards, "expr": expr}
         if tags is not None:
             dom["tags"] = tags
@@ -380,7 +421,7 @@ class DomBuilder:
     def own_tags(self, node: Node) -> Dom:
         """A rule's or an alternative's tag term, which may not read the tags
         it defines (engine §9)."""
-        tags = self.tag_term(self.rules(node, "term")[0])
+        tags = self.tag_term(self.only(node, "term"))
         if term_reads_own_tags(tags):
             raise self.fail(node, "a constituent's tags cannot be made of its own: tags($) or classes($)")
         return tags
@@ -398,7 +439,7 @@ class DomBuilder:
         rule = node.rule
         if rule in ("choice", "conjunction", "sequence"):
             part = {"choice": "conjunction", "conjunction": "sequence", "sequence": "element"}[rule]
-            parts = self.rules(node, part)
+            parts = self.some(node, part)
             if rule == "conjunction" and len(parts) > 16:
                 raise self.fail(node, "& joins at most 16 items, since it expands to 2ⁿ−1 sequences")
             if len(parts) == 1:
@@ -409,33 +450,32 @@ class DomBuilder:
                 items.append((yield self._expr(p, top and rule == "sequence")))
             return {key: items}
         if rule == "element":
-            kids = self.kids(node)
-            primary = kids[0]
-            repeated = any(kid.kind == "token" and self.text(kid) == "..." for kid in kids[1:])
+            primary = self.known_of(self.only(node, "primary"), _PRIMARIES)
+            repeated = any(kid.kind == "token" and self.text(kid) == "..." for kid in self.kids(node))
             if not repeated:
                 return (yield self._expr(primary, top))
-            if primary.kind == "rule" and primary.rule == "optional":
-                return {"repeat": (yield self._expr(self.rules(primary, "choice")[0])), "min": 0}
+            if primary.rule == "optional":
+                return {"repeat": (yield self._expr(self.only(primary, "choice"))), "min": 0}
             return {"repeat": (yield self._expr(primary)), "min": 1}
         if rule == "reference":
-            return {"ref": self.text(self.kids(node)[0])}
+            return {"ref": self.text(self.token(node))}
         if rule in ("tag", "character", "phoneme"):
-            return {"terminal": self.tag_of(self.kids(node)[0])}
+            return {"terminal": self.tag_of(self.token(node))}
         if rule == "range":
             return {"range": self.range_of(node)}
         if rule == "property":
-            return {"property": self.property_of(self.kids(node)[0])}
+            return {"property": self.property_of(self.token(node))}
         if rule == "tested":
             # A reference other than # or a terminal, and one test on its
             # own span (engine §2, §9). The syntax grammar reads a test after
             # any primary, so that the reader can name the reason.
-            kids = self.kids(node)
-            symbol, test_node = kids[0], kids[-1]
-            kind = symbol.rule if symbol.kind == "rule" else None
+            symbol = self.known_of(self.only(node, "primary"), _PRIMARIES)
+            test_node = self.only(node, "test")
+            kind = symbol.rule
             if kind == "constant-reference":
                 raise self.fail(symbol, _CONSTANT_IN_BODY)
             if kind not in ("reference", "tag", "character", "phoneme", "range", "property") or (
-                kind == "reference" and self.text(self.kids(symbol)[0]) == "#"
+                kind == "reference" and self.text(self.token(symbol)) == "#"
             ):
                 raise self.fail(
                     test_node,
@@ -444,9 +484,8 @@ class DomBuilder:
             expr = yield self._expr(symbol)
             # The comparator is the test's tokens: =, ≠, ⊇ or ⊉, or ∩ and
             # =∅ or ≠∅ around the operand.
-            test_kids = self.kids(test_node)
-            op = "".join(self.text(kid) for kid in test_kids if kid.kind == "token")
-            operand = next(kid for kid in test_kids if kid.kind == "rule" and kid.rule == "test-operand")
+            op = "".join(self.text(kid) for kid in self.kids(test_node) if kid.kind == "token")
+            operand = self.only(test_node, "test-operand")
             self.closed_for = "a test's operand"
             try:
                 value = self.value(operand)
@@ -463,16 +502,15 @@ class DomBuilder:
                     raise self.fail(self._first_of_rule(operand, "string") or operand, wrong)
             return {"test": op, "value": value, "expr": expr}
         if rule == "capture":
-            kids = self.kids(node)
-            name = self.text(kids[0])[1:]
+            name = self.text(self.token(node))[1:]
             if not name:
                 raise self.fail(node, "$ is the whole constituent and wraps nothing")
             if not CAPTURE_NAME.fullmatch(name):
                 raise self.fail(node, f"the capture ${name} has a capital; a capture's name is all lower case")
-            inner = [kid for kid in kids[1:] if kid.kind == "rule"]
-            if len(inner) == 1 and inner[0].rule == "constant-reference":
+            inner = [self.known_of(self.only(node, "primary"), _PRIMARIES)]
+            if inner[0].rule == "constant-reference":
                 raise self.fail(inner[0], _CONSTANT_IN_BODY)
-            if len(inner) != 1 or inner[0].rule not in _SYMBOLS:
+            if inner[0].rule not in _SYMBOLS:
                 raise self.fail(node, f"the capture ${name} must wrap one reference or terminal, tested or not")
             if not top:
                 raise self.fail(node, f"the capture ${name} is not at the top level of its alternative")
@@ -485,9 +523,9 @@ class DomBuilder:
         if rule == "constant-reference":
             raise self.fail(node, _CONSTANT_IN_BODY)
         if rule == "group":
-            return (yield self._expr(self.rules(node, "choice")[0]))
+            return (yield self._expr(self.only(node, "choice")))
         if rule == "optional":
-            return {"optional": (yield self._expr(self.rules(node, "choice")[0]))}
+            return {"optional": (yield self._expr(self.only(node, "choice")))}
         if rule == "empty":
             return {"empty": True}
         raise self.fail(node, f"unexpected {rule} in an expression")
@@ -525,7 +563,7 @@ class DomBuilder:
     def range_of(self, node: Node) -> list[str]:
         """A range's two ends, each a character tag in its canonical
         spelling; its start must not be above its end (engine §1, §9)."""
-        ends = [self.tag_of(self.kids(end)[0]) for end in self.rules(node, "character")]
+        ends = [self.tag_of(self.token(end)) for end in self.some(node, "character", 2)[:2]]
         problem = range_problem(ends, self.unicode)
         if problem is not None:
             raise self.fail(node, problem)
@@ -553,13 +591,13 @@ class DomBuilder:
         error of an item stands at the item, whose first part can be an
         attachment."""
         items: list[Dom] = []
-        for item in self.rules(node, "emit-item"):
-            kids = self.kids(item)
-            parts = [kid for kid in kids if not (kid.kind == "rule" and kid.rule in ("emit-before", "emit-after", "emit-tags"))]
-            target = parts[0]
-            if target.kind == "rule" and target.rule in ("range", "property"):
+        # %emits ε emits nothing, and the constituent does not count.
+        empty = any(kid.kind == "token" and self.text(kid) == "ε" for kid in self.kids(node))
+        for item in [] if empty else self.some(node, "emit-item"):
+            target = self.symbol_part(self.only(item, "emit-target"))
+            if target.kind == "rule":
                 raise self.fail(item, "an inserted item is one tag, not a range or a property")
-            tag_nodes = [kid for kid in kids if kid.kind == "rule" and kid.rule == "emit-tags"]
+            tag_nodes = self.rules(item, "emit-tags")
             text = self.text(target)
             tags_of_target = self.tokens[target.token].tags if target.token is not None else frozenset()
             entry: Dom
@@ -578,7 +616,7 @@ class DomBuilder:
             if tag_nodes:
                 if "insert" in entry:
                     raise self.fail(item, "an inserted tag takes no tags of its own")
-                entry["tags"] = self.tag_term(self.rules(tag_nodes[0], "term")[0])
+                entry["tags"] = self.tag_term(self.only(tag_nodes[0], "term"))
                 if entry["tags"].get("emptySet") is True:
                     raise self.fail(item, "an emitted token's tags cannot be ∅, which no terminal reads; a rule that emits nothing says %emits ε")
             # Attachments: named captures in parentheses, carried only by a
@@ -607,8 +645,8 @@ class DomBuilder:
     def attachment(self, node: Node) -> str:
         """An attachment's capture, by its name without ``$``: never ``$``
         itself (engine §9)."""
-        capture = next(kid for kid in self.kids(node) if kid.kind == "token" and self.text(kid).startswith("$"))
-        name = self.text(capture)[1:]
+        capture = next((kid for kid in self.kids(node) if kid.kind == "token" and self.text(kid).startswith("$")), None)
+        name = self.text(capture)[1:] if capture is not None else ""
         if name == "":
             raise self.fail(node, "an attachment holds a named capture, not $")
         return name
@@ -620,15 +658,17 @@ class DomBuilder:
         connective, ``∧`` or ``∨``, is folded into the one around it, since
         parentheses make no node (engine §9)."""
         if node.rule == "implication":
-            parts = [kid for kid in self.kids(node) if kid.kind == "rule"]
-            premise = yield self._condition(parts[0])
-            if len(parts) == 1:
+            premise = yield self._condition(self.only(node, "any-of"))
+            consequent = self.one(node, "implication")
+            if consequent is None:
                 return premise
-            return {"if": premise, "then": (yield self._condition(parts[1]))}
+            return {"if": premise, "then": (yield self._condition(consequent))}
+        if node.rule == "condition":
+            return (yield self._condition(self.known_of(node, _CONDITIONS)))
         if node.rule in ("any-of", "all-of"):
             key = "any" if node.rule == "any-of" else "all"
             parts: list[Dom] = []
-            for kid in self.kids(node):
+            for kid in self.some(node, "all-of" if node.rule == "any-of" else "condition"):
                 if kid.kind == "rule":
                     part = yield self._condition(kid)
                     # Parentheses make no node: a group of the same
@@ -642,9 +682,8 @@ class DomBuilder:
 
     def _simple_condition(self, node: Node) -> Walk:
         if node.rule == "comparison":
-            kids = self.kids(node)
-            terms = [kid for kid in kids if kid.kind == "rule"]
-            op = next(self.text(kid) for kid in kids if kid.kind == "token")
+            terms = self.some(node, "union", 2)
+            op = self.text(self.token(self.only(node, "comparator")))
             left = yield self._term(terms[0])
             right = yield self._term(terms[1])
             # The two sides fit the comparator (engine §10).
@@ -657,10 +696,9 @@ class DomBuilder:
                 raise self.fail(node, problem)
             return {"op": op, "left": left, "right": right}
         if node.rule == "negation":
-            inner = [kid for kid in self.kids(node) if kid.kind == "rule"]
-            return {"not": (yield self._condition(inner[0]))}
+            return {"not": (yield self._condition(self.only(node, "condition")))}
         if node.rule == "presence":
-            return {"captured": self.text(self.kids(node)[0])[1:]}
+            return {"captured": self.text(self.token(node))[1:]}
         if node.rule == "call":
             call = yield self._call(node)
             args = call["args"]
@@ -686,8 +724,7 @@ class DomBuilder:
         """A call and its arguments, checked against the function's
         signature (engine §9). A bare lower-case name is a rule, which only
         the second argument of tags, matches or begins names."""
-        kids = self.kids(node)
-        name = self.text(kids[0])
+        name = self.text(self.token(node))
         if name not in _FUNCTIONS:
             raise self.fail(node, f"an unknown function {name}()")
         if self.closed_for and name == "classify":
@@ -695,9 +732,8 @@ class DomBuilder:
         if self.closed_for and name not in ("split", "tag"):
             raise self.fail(node, f"{self.closed_for} is a closed term, and {name} reads a span")
         args: list[Dom] = []
-        for kid in kids[1:]:
-            if kid.kind == "rule":
-                args.append((yield self._term(kid, True)))
+        for kid in self.rules(node, "argument"):
+            args.append((yield self._term(self.only(kid, "union"), True)))
 
         def is_string(argument: Dom) -> bool:
             if "rule" in argument:
@@ -752,23 +788,19 @@ class DomBuilder:
         """A term; ``argument`` says it is a function's argument, where a
         span or a rule may stand."""
         rule = node.rule
-        if rule == "test-operand":
-            # One term, as a term-atom reads it.
-            inner = [kid for kid in self.kids(node) if kid.kind == "rule"]
-            if not inner:
-                raise self.fail(node, "expected a term")
-            return (yield self._term(inner[0], argument))
+        if rule in ("test-operand", "term-atom"):
+            # A test's operand is one term, as a term-atom reads it.
+            return (yield self._term(self.known_of(node, _ATOMS), argument))
         if rule == "term":
-            return (yield self._term([kid for kid in self.kids(node) if kid.kind == "rule"][0], argument))
+            return (yield self._term(self.known_of(node, _TERMS), argument))
         if rule == "guarded-term":
             if self.closed_for:
                 raise self.fail(node, f"{self.closed_for} is a closed term, and holds no guarded term")
-            parts = [kid for kid in self.kids(node) if kid.kind == "rule"]
-            condition = yield self._condition(parts[0])
+            condition = yield self._condition(self.only(node, "any-of"))
             problem = condition_type_problem(condition)
             if problem is not None:
                 raise self.fail(node, problem)
-            guarded = {"if": condition, "then": (yield self._term(parts[1]))}
+            guarded = {"if": condition, "then": (yield self._term(self.only(node, "term")))}
             _, problem = term_type(guarded)
             if problem is not None:
                 raise self.fail(node, problem)
@@ -778,7 +810,7 @@ class DomBuilder:
             # is one union, and each ∖ takes what stands before it (engine
             # §9). A leading ∪ is a separator, not an operator.
             kids = self.kids(node)
-            parts = [kid for kid in kids if kid.kind == "rule"]
+            parts = self.some(node, "intersection")
             if len(parts) == 1:
                 return (yield self._term(parts[0], argument))
             operators = [self.text(kid) for kid in kids if kid.kind == "token" and self.text(kid) in ("∪", "∖")]
@@ -800,7 +832,7 @@ class DomBuilder:
                     open_union = True
             return result
         if rule == "intersection":
-            parts = [kid for kid in self.kids(node) if kid.kind == "rule"]
+            parts = self.some(node, "term-atom")
             if len(parts) == 1:
                 return (yield self._term(parts[0], argument))
             items = []
@@ -809,9 +841,9 @@ class DomBuilder:
             self._joined(node, items, "∩")
             return {"intersection": items}
         if rule == "string":
-            return {"string": self.decode(self.kids(node)[0])}
+            return {"string": self.decode(self.token(node))}
         if rule in ("tag", "character", "phoneme"):
-            return {"tag": self.tag_of(self.kids(node)[0])}
+            return {"tag": self.tag_of(self.token(node))}
         if rule == "range":
             return {"range": self.range_of(node)}
         if rule == "property":
@@ -819,7 +851,7 @@ class DomBuilder:
         if rule == "name":
             # A bare name is a tag literal if it begins with a capital, and
             # otherwise a rule, which only a function's argument names.
-            name = self.text(self.kids(node)[0])
+            name = self.text(self.token(node))
             if _is_capital(name):
                 return {"tag": name}
             if argument:
@@ -828,14 +860,14 @@ class DomBuilder:
         if rule == "empty-set":
             return {"emptySet": True}
         if rule == "capture-reference":
-            capture = self.text(self.kids(node)[0])[1:]
+            capture = self.text(self.token(node))[1:]
             if self.closed_for:
                 raise self.fail(node, f"{self.closed_for} is a closed term, and holds no capture")
             if not argument:
                 raise self.fail(node, f"a span is not a value: tags(${capture}) is the tag set of ${capture}")
             return {"capture": capture}
         if rule == "constant-reference":
-            return {"const": self.text(self.kids(node)[0])[1:], "at": list(self.position(node))}
+            return {"const": self.text(self.token(node))[1:], "at": list(self.position(node))}
         if rule == "call":
             call = yield self._call(node)
             # A span is not a value: the error stands at the span (engine §9).
