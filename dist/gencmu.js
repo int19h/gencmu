@@ -8210,6 +8210,21 @@
     return names.map((name) => ({ name, kind: kinds.get(name) || "gate", default: declared.includes(name) }));
   }
 
+  /**
+   * The index of the last stage to run. Only an absent until runs every
+   * stage. Any other value, "" and null among them, must name a stage, or it
+   * is a usage error (engine §13).
+   * @param {{name: string}[]} stages
+   * @param {string | null | undefined} until
+   * @returns {number}
+   */
+  function lastStage(stages, until) {
+    if (until === undefined) return stages.length - 1;
+    const index = stages.findIndex((stage) => stage.name === until);
+    if (index < 0) throw new GencmuError("usage", `no stage is named ${JSON.stringify(until)}`);
+    return index;
+  }
+
   class Dialect {
     /**
      * @param {string} path
@@ -8261,10 +8276,7 @@
       if (both !== undefined) throw new GencmuError("usage", `the feature ${both} is named both to turn on and to turn off`);
       let features = new Set([...this.declared, ...on].filter((name) => !off.has(name)));
       const wordsAt = this.stages.findIndex((stage) => stage.name === "words");
-      // Only an absent until runs every stage. Any other value, "" and null
-      // among them, must name a stage (engine §13).
-      const untilAt = options.until === undefined ? this.stages.length - 1 : this.stages.findIndex((stage) => stage.name === options.until);
-      if (untilAt < 0) throw new GencmuError("usage", `no stage is named ${JSON.stringify(options.until)}`);
+      const untilAt = lastStage(this.stages, options.until);
       // The probe is for a run that reaches the words stage (engine §13).
       // Only a dialect that has sa-su as a gate adds it by itself (engine §13).
       const gated = this.features.some((feature) => feature.name === "sa-su" && feature.kind === "gate");
@@ -8292,8 +8304,7 @@
       const stages = continued ? continued.stages.slice() : [];
       let tokens = options.tokens || characterTokens(text, this.loader.unicode);
       if (continued) tokens = /** @type {Token[]} */ (stages[stages.length - 1].output);
-      // parse has checked the name already.
-      const last = options.until === undefined ? this.stages.length - 1 : this.stages.findIndex((stage) => stage.name === options.until);
+      const last = lastStage(this.stages, options.until);
       for (let index = stages.length; index <= last; index++) {
         const stage = this.stages[index];
         const report = stage.run(tokens, sourceText, this.loader.unicode, {
