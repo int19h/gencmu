@@ -1,0 +1,65 @@
+{
+  "description": "text → [[X]] derives the empty input in two ways: the outer helper is empty, or the inner one is. Nothing is elided, so they tie under late-elision. Both readings are the same empty tree, and the witness names two productions (engine §6, docs/output.md).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text [[X]]",
+  "tokens": [],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie",
+          "witness": [
+            {
+              "close": {
+                "rule": "text"
+              }
+            },
+            {
+              "close": {
+                "rule": "text"
+              }
+            }
+          ]
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              0
+            ],
+            "source": [
+              0,
+              0
+            ],
+            "tags": [],
+            "children": []
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              0
+            ],
+            "source": [
+              0,
+              0
+            ],
+            "tags": [],
+            "children": []
+          }
+        ]
+      }
+    },
+    "error": "ambiguous"
+  }
+}

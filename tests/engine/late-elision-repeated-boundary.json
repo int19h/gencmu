@@ -1,0 +1,38 @@
+{
+  "description": "Each elided terminator counts once, whatever its terminal. Through x, T and U are elided at 1, which counts two; through y, only T, which counts one. So y wins, though both elide only at 1 (engine §6).",
+  "grammar": "%ambiguity-resolution late-elision\n%elidable T U\n%rule text x | y\n%rule x A [T] [U] B\n%rule y A [T] B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "y"
+          }
+        ]
+      }
+    }
+  }
+}

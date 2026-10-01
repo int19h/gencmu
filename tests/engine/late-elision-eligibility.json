@@ -1,0 +1,82 @@
+{
+  "description": "Under maximal, a summary is kept per eligibility. The least prefix before [T] over all edges uses y → A A and elides nothing, but maximal forbids T after it, since y → A A B ends later. The only derivation that counts reads [A] and then y → A [U]. A forest of the least edges over all derivations would lose it (engine §4, §6).",
+  "grammar": "%ambiguity-resolution late-elision maximal\n%elidable T U\n%rule text [A] y [T] B\n%rule y A A | A A B | A [U]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A",
+            "token": 0
+          },
+          {
+            "kind": "rule",
+            "rule": "y",
+            "span": [
+              1,
+              2
+            ],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 1
+              },
+              {
+                "kind": "elided",
+                "terminal": "U",
+                "span": [
+                  2,
+                  2
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "elided",
+            "terminal": "T",
+            "span": [
+              2,
+              2
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "B",
+            "token": 2
+          }
+        ]
+      }
+    }
+  }
+}

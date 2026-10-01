@@ -1,0 +1,82 @@
+{
+  "description": "A tie is an error of kind ambiguous, with the reason tie, and ok is false. The stage keeps its verdict and witness. The result has no tree, and the error holds the first and the second reading (engine §6, docs/output.md).",
+  "grammar": "%rule text x | y\n%rule x A B\n%rule y A B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 7,
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie",
+          "witness": [
+            {
+              "close": {
+                "rule": "x",
+                "production": 2,
+                "span": [
+                  0,
+                  2
+                ]
+              }
+            },
+            {
+              "close": {
+                "rule": "y",
+                "production": 3,
+                "span": [
+                  0,
+                  2
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "x"
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "y"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "warnings": [],
+    "error": "ambiguous"
+  }
+}

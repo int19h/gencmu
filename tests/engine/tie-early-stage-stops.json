@@ -1,0 +1,28 @@
+{
+  "description": "A tie in the first of three stages ends the run there. The later stages do not run, so the result has one stage (engine §6, §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%include \"a.md\"\n%stage second\n%include \"b.md\"\n%stage third\n%include \"b.md\"\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution late-elision\n%rule text x | y\n%rule x $a('a') %emits $a <A>\n%rule y $a('a') %emits $a <A>\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution late-elision\n%rule text $a(A) %emits $a\n```\n"
+  },
+  "pipeline": "p.md",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "first",
+          "verdict": "tie"
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "first",
+        "reason": "tie"
+      }
+    },
+    "error": "ambiguous"
+  }
+}

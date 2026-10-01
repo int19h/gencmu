@@ -1,0 +1,30 @@
+{
+  "description": "The cycle context applies to every ranking rule. With text → b | a, a → b and b → a | A, the input A has two derivations that are not cyclic, and they tie under greedy (engine §4, §6).",
+  "grammar": "%rule text b | a\n%rule a b\n%rule b a | A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "tree": null,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie"
+      },
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie"
+        }
+      ]
+    },
+    "error": "ambiguous"
+  }
+}

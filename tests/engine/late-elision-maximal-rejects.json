@@ -1,0 +1,50 @@
+{
+  "description": "late-elision does not make maximal redundant. On A X B, the one complete derivation uses body → X and elides T, but maximal forbids that elision, since body → X B is longer. So the text is rejected at T (engine §4, §6).",
+  "grammar": "%ambiguity-resolution late-elision maximal\n%elidable T\n%rule text A body [T] B\n%rule body X | X B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 2,
+        "expected": [
+          {
+            "terminal": "T",
+            "rules": [
+              "text"
+            ]
+          }
+        ]
+      }
+    },
+    "error": "rejected"
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "description": "A summary is kept per cycle context. The input has two derivations that are not cyclic, through text → b and through text → a. Beneath b, a has no derivation that counts, since a → b repeats b. Directly under text, a has one. So the input ties under late-elision (engine §4, §6).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text b | a\n%rule a b\n%rule b a | A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie"
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "b"
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "a",
+                "children": [
+                  {
+                    "kind": "rule",
+                    "rule": "b"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "error": "ambiguous"
+  }
+}

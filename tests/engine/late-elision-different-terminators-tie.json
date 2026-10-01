@@ -1,0 +1,53 @@
+{
+  "description": "text → [KU] | [VAU] on the empty input ties under late-elision: each derivation elides one terminator at 0, and the name of the terminator does not count (engine §6).",
+  "grammar": "%ambiguity-resolution late-elision\n%elidable KU VAU\n%rule text [KU] | [VAU]",
+  "tokens": [],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie"
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "children": [
+              {
+                "kind": "elided",
+                "terminal": "KU",
+                "span": [
+                  0,
+                  0
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "children": [
+              {
+                "kind": "elided",
+                "terminal": "VAU",
+                "span": [
+                  0,
+                  0
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "error": "ambiguous"
+  }
+}

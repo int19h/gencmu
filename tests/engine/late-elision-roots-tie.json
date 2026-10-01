@@ -1,0 +1,30 @@
+{
+  "description": "Two complete items of text span the input, since their captured parts have different tag sets. Each has one derivation and elides nothing. The engine combines them as one root, so the input ties (engine §4, §6).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text $x(a)\n%rule a A <P> | A <Q>",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "tree": null,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie"
+      },
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie"
+        }
+      ]
+    },
+    "error": "ambiguous"
+  }
+}

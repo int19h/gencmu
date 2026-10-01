@@ -1,0 +1,23 @@
+{
+  "description": "text → [A] & [B] on the empty input ties under greedy too: its three derivations differ only at transparent closes, and transparency does not merge them (engine §6).",
+  "grammar": "%rule text [A] & [B]",
+  "tokens": [],
+  "expect": {
+    "result": {
+      "ok": false,
+      "tree": null,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie"
+      },
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie"
+        }
+      ]
+    },
+    "error": "ambiguous"
+  }
+}
