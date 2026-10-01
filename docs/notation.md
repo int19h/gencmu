@@ -457,6 +457,8 @@ A directive is a keyword and its operands. By convention each stands in a block 
 - `%elidable KU KEI VAU ...` names the terminators that can be elided. An absent optional whose first symbol is one of them shows in the parse tree as that terminator, elided at that point. `late-elision` counts these terminators, `maximal` can forbid them, and `elision-only` writes them back. An optional that is not elidable (engine §3.8), such as an optional separator, can still be absent. Its absence counts for nothing and leaves no node.
 
   The operands are identifier tags: bare names that begin with a capital, or `~name`, so `KU` and `~KU` are one operand. A phoneme tag, a character tag, a range or a property there is an error. A stage can have several `%elidable` directives, and their terminators add up.
+
+  `%elidable maximal TOI SEhU` names terminators that are elidable and also maximal. The word `maximal` stands first. A maximal terminator can be elided only where its constituent cannot be longer, as `maximal` says below, but for that terminator alone. It applies in the main parse and in nested queries. A terminator that any `%elidable maximal` names is maximal.
 - `%stage NAME`, `%include "PATH"` and `%features NAME ...` build a pipeline, as the next section says.
 
 ## Pipelines
@@ -549,6 +551,10 @@ By default, the constituent of an elided terminator can end wherever a parse of 
 If `maximal` leaves a text with no parse, the text is an error. The error is at the first terminator that `maximal` forbids in the parse that the stage ranks first without `maximal`. Writing that terminator out ends its constituent there. Where that ranking is a tie, the engine's canonical order decides which tied parse names the terminator. It never decides whether the text parses.
 
 `maximal` and `late-elision` do different things, and a stage can declare both. `late-elision` ranks only parses of the whole text. `maximal` removes a parse because of a longer constituent, even one that fits no parse of the whole text. So a ranking cannot reproduce the rejections of `maximal`.
+
+`maximal` holds for every terminator of a stage, and only in its main parse. A grammar can also make single terminators maximal, with `%elidable maximal` (engine §4). Such a terminator follows the rule of `maximal` wherever it is elided, also inside `matches`, `begins` and `tags`. Inside a query, the longer constituent lies within the query's own span. The other terminators of the stage keep the default.
+
+This is for a construct that a reader closes as late as it can, such as a parenthesis. In Zantufa, `so to mi klama` can close the parenthesis `to` after `mi`, with `toi` elided, and leave `klama` as the selbri. The reference parser reads `to mi klama` as one parenthesis. No `toi` is written, so written-terminator priority cannot decide. With `TOI` maximal, the `to` cannot close before `klama`, because a longer parenthesis exists.
 
 CLL's own rule is narrower: a terminator can be elided only if no ambiguity results. CLL says nothing of the other ambiguities of its EBNF. `elision-only` applies that rule literally.
 
