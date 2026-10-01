@@ -680,3 +680,95 @@ func TestGuardFeatureName(t *testing.T) {
 		}
 	}
 }
+
+// An expression or a condition has exactly the members of one form, and a
+// reference is a name or # (docs/output.md, engine §9). A compiled.json
+// entry that breaks this is a miss, and the document is read instead. A
+// bootstrap that breaks it is an error of the grammar. The order of the
+// members varies, as the other libraries read JSON in order.
+func TestMixedForms(t *testing.T) {
+	loadBundled()
+	format := `"format":` + strconv.Itoa(domFormat)
+	src := oneStage("%ambiguity-resolution greedy\n%rule text $x('a') 'b'\n%conditions text($x) = \"a\"")
+	const (
+		a        = `{"terminal":"'a'"}`
+		b        = `{"terminal":"'b'"}`
+		c        = `{"terminal":"'c'"}`
+		captured = `{"capture":"x","expr":` + a + `}`
+		// A condition that wants "z", which the text does not give. So an
+		// entry used by mistake refuses the text.
+		compared = `"op":"=","left":{"call":"text","args":[{"capture":"x"}]},"right":{"string":"z"}`
+	)
+	rule := func(name, expr, condition string, line int) string {
+		return `{"name":"` + name + `","op":"define","alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[` + condition + `],"at":[` + strconv.Itoa(line) + `,1]}`
+	}
+	seq := func(first, second string) string { return `{"seq":[` + first + `,` + second + `]}` }
+	parse := func(dom string) bool {
+		s := map[string]string{}
+		for k, v := range src {
+			s[k] = v
+		}
+		if dom != "" {
+			s["compiled.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(s["g.md"]) + `","dom":` + dom + `}}}`
+		}
+		d, err := LoadDialectSources(s, "p.md")
+		if err != nil {
+			t.Fatalf("%s: %v", dom, err)
+		}
+		res, err := d.Parse("ab", ParseOptions{})
+		return err == nil && res.OK
+	}
+	document := func(expr, condition string) string {
+		return `{` + format + `,"rules":[` + rule("text", expr, condition, 4) + `],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[3,1]}],"constants":[],"classifiers":[],"implications":[]}`
+	}
+	if !parse("") {
+		t.Fatal("the document does not accept the text")
+	}
+	control := document(seq(captured, b), `{`+compared+`}`)
+	if parse(control) {
+		t.Fatal("the control: the cache entry was not used")
+	}
+	if err := bootstrapError(t, "rules", rule("unused-rule", seq(captured, b), `{`+compared+`}`, 9999)); err != nil {
+		t.Fatalf("the control: a well-formed bootstrap rule: %v", err)
+	}
+	for _, m := range []struct{ name, expr, condition string }{
+		{"empty with a terminal", seq(captured, `{"empty":true,"terminal":"'b'"}`), ""},
+		{"a terminal with empty", seq(captured, `{"terminal":"'b'","empty":true}`), ""},
+		{"a choice with a sequence", seq(captured, `{"choice":[`+b+`,`+c+`],"seq":[`+c+`,`+c+`]}`), ""},
+		{"a sequence with a choice", seq(captured, `{"seq":[`+c+`,`+c+`],"choice":[`+b+`,`+c+`]}`), ""},
+		{"a choice with a sequence of a bad reference", seq(captured, `{"choice":[`+b+`,`+c+`],"seq":[{"ref":5},`+c+`]}`), ""},
+		{"a repetition with an optional", seq(captured, `{"repeat":`+b+`,"min":1,"optional":`+c+`}`), ""},
+		{"an optional with a repetition", seq(captured, `{"optional":`+c+`,"repeat":`+b+`,"min":1}`), ""},
+		{"a repetition with an optional of a bad reference", seq(captured, `{"repeat":`+b+`,"min":1,"optional":{"ref":["x"]}}`), ""},
+		{"a reference that is not a name", seq(captured, `{"ref":"x y"}`), ""},
+		{"a top-level sequence with a choice", `{"seq":[` + captured + `,` + b + `],"choice":[` + b + `,` + c + `]}`, ""},
+		{"a captured terminal not in its canonical spelling", seq(`{"capture":"x","expr":{"terminal":"'ab'"}}`, b), ""},
+		{"a captured reference with a terminal", seq(`{"capture":"x","expr":{"ref":"A","terminal":"'a'"}}`, b), ""},
+		{"a captured reference that is not a name", seq(`{"capture":"x","expr":{"ref":"x y"}}`, b), ""},
+		{"a capture with a reference", seq(`{"capture":"x","expr":`+a+`,"ref":"B"}`, b), ""},
+		{"a comparison with a negation", "", `{` + compared + `,"not":{"captured":"x"}}`},
+		{"a negation with a comparison", "", `{"not":{"captured":"x"},` + compared + `}`},
+		{"a presence test with a comparison", "", `{"captured":"x",` + compared + `}`},
+		{"a match with another member", "", `{` + compared + `,"matches":{"capture":"x"}}`},
+	} {
+		expr, condition := m.expr, m.condition
+		if expr == "" {
+			expr = seq(captured, b)
+		}
+		if condition == "" {
+			condition = `{` + compared + `}`
+		}
+		dom := document(expr, condition)
+		if _, err := decodeDOM(json.RawMessage(dom), bundled.uni); err == nil {
+			t.Errorf("%s: the DOM decodes", m.name)
+		}
+		if !parse(dom) {
+			t.Errorf("%s: the cache entry was used", m.name)
+		}
+		err := bootstrapError(t, "rules", rule("unused-rule", expr, condition, 9999))
+		var e *Error
+		if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "notation/bootstrap.json" {
+			t.Errorf("%s: expected an error of the bootstrap, got %v", m.name, err)
+		}
+	}
+}

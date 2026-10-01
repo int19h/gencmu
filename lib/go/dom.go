@@ -950,23 +950,15 @@ func decodeExpr(raw json.RawMessage) (*domExpr, error) {
 	if err != nil {
 		return nil, err
 	}
-	// A tested symbol has its comparator, its value and its symbol, and
-	// nothing else.
-	if _, ok := o["test"]; ok && (len(o) != 3 || o["expr"] == nil || o["value"] == nil) {
+	// An expression has exactly the members of one form (docs/output.md).
+	if !hasOneForm(o, exprForms) {
 		return nil, fmt.Errorf("a malformed expression")
 	}
-	// A range or a property has no member but its own.
 	if v, ok := o[exRange]; ok {
-		if len(o) != 1 {
-			return nil, fmt.Errorf("a malformed expression")
-		}
 		r, err := decodeRange(v)
 		return &domExpr{Kind: exRange, Range: r}, err
 	}
 	if v, ok := o[exProperty]; ok {
-		if len(o) != 1 {
-			return nil, fmt.Errorf("a malformed expression")
-		}
 		name, err := decodeString(v)
 		return &domExpr{Kind: exProperty, Name: name}, err
 	}
@@ -1026,12 +1018,22 @@ func decodeExpr(raw json.RawMessage) (*domExpr, error) {
 	return nil, fmt.Errorf("unknown expression %s", string(raw))
 }
 
-// termForms are the forms of a term, each as its members (docs/output.md).
-// The first member names the form. A rule argument and a classifier
-// argument are forms too.
+// exprForms, termForms and condForms are the forms of an expression, a
+// term and a condition, each as its members (docs/output.md). The first
+// member names the form. A rule argument and a classifier argument are
+// forms of a term too.
+var exprForms = [][]string{
+	{exSeq}, {exChoice}, {exAnd}, {exOptional}, {exRepeat, "min"}, {exRef}, {exTerminal}, {exCapture, "expr"},
+	{exRange}, {exProperty}, {exTest, "value", "expr"}, {exEmpty},
+}
+
 var termForms = [][]string{
 	{tmUnion}, {tmIntersection}, {tmDifference}, {tmIf, "then"}, {tmCall, "args"},
 	{tmString}, {tmTag}, {tmRange}, {tmEmptySet}, {tmCapture}, {tmRule}, {tmClassifier}, {tmConst, "at"},
+}
+
+var condForms = [][]string{
+	{"op", "left", "right"}, {cdMatches, "rule"}, {cdBegins, "rule"}, {cdInitial}, {cdNot}, {cdAny}, {cdAll}, {cdCaptured}, {cdIf, "then"},
 }
 
 // decodeRange decodes a range's two ends, which the checker then holds to
@@ -1044,12 +1046,12 @@ func decodeRange(raw json.RawMessage) ([2]string, error) {
 	return [2]string{ends[0], ends[1]}, nil
 }
 
-// isTermShape says whether a term has exactly the members of one form, and
-// no other. So a node that joins two forms, such as {"tag":…,"string":…},
-// is refused before it is read, and no library reads it one way where
-// another reads it another way.
-func isTermShape(o jobj) bool {
-	for _, form := range termForms {
+// hasOneForm says whether a node has exactly the members of one of its
+// forms, and no other. So a node that joins two forms, such as
+// {"tag":…,"string":…}, is refused before it is read, and no library reads
+// it one way where another reads it another way.
+func hasOneForm(o jobj, forms [][]string) bool {
+	for _, form := range forms {
 		if _, ok := o[form[0]]; !ok {
 			continue
 		}
@@ -1071,7 +1073,7 @@ func decodeTerm(raw json.RawMessage) (*domTerm, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !isTermShape(o) {
+	if !hasOneForm(o, termForms) {
 		return nil, fmt.Errorf("a malformed term")
 	}
 	for _, k := range []string{tmString, tmTag, tmCapture, tmRule, tmClassifier} {
@@ -1124,6 +1126,10 @@ func decodeCond(raw json.RawMessage) (*domCond, error) {
 	o, err := decodeObj(raw)
 	if err != nil {
 		return nil, err
+	}
+	// A condition has exactly the members of one form (docs/output.md).
+	if !hasOneForm(o, condForms) {
+		return nil, fmt.Errorf("a malformed condition")
 	}
 	if v, ok := o["op"]; ok {
 		c := &domCond{Kind: cdCompare}

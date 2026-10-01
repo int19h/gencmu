@@ -350,7 +350,7 @@ func (c *domChecker) expr(e *domExpr, depth int, top bool) {
 			c.fail("a capture name is not all lower case")
 			return
 		}
-		if e.Inner == nil || !isCapturable(e.Inner.Kind) || (e.Inner.Kind == exRef && e.Inner.Name == "") {
+		if e.Inner == nil || !isCapturable(e.Inner.Kind) {
 			c.fail("a capture of something other than a reference, a terminal, a range, a property or a tested one of these")
 			return
 		}
@@ -361,12 +361,9 @@ func (c *domChecker) expr(e *domExpr, depth int, top bool) {
 		if len(c.captures) > 4 {
 			c.fail("an alternative has at most four captures")
 		}
-		// A capture is a compound node: its symbol lies below it.
-		if e.Inner.Kind == exTest || e.Inner.Kind == exRange || e.Inner.Kind == exProperty {
-			c.expr(e.Inner, depth+1, false)
-		} else {
-			c.deep(depth + 1)
-		}
+		// A capture is a compound node: its symbol lies below it, and is
+		// checked as any expression is.
+		c.expr(e.Inner, depth+1, false)
 	case exTest:
 		// A compound node (engine §9) over one symbol; its value counts on
 		// from its depth, and is checked once the nesting is bounded.
@@ -386,8 +383,9 @@ func (c *domChecker) expr(e *domExpr, depth int, top bool) {
 		c.term(e.Value, depth+1, false)
 		c.tests = append(c.tests, e)
 	case exRef:
-		if e.Name == "" {
-			c.fail("an empty ref")
+		// A reference is a name or # (engine §9).
+		if e.Name != "#" && !domName.MatchString(e.Name) {
+			c.fail("a reference to %q, which is not a name", e.Name)
 		}
 	case exTerminal:
 		// A tag in its canonical spelling (engine §1).
@@ -426,7 +424,7 @@ func isTestable(e *domExpr) bool {
 	}
 	switch e.Kind {
 	case exRef:
-		return e.Name != "" && e.Name != "#"
+		return e.Name != "#"
 	case exTerminal, exRange, exProperty:
 		return true
 	}
