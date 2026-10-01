@@ -855,6 +855,10 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
     let result = dialect.parse_tokens(&input, &options).map_err(|error| format!("parse: {error}"))?;
     let json = gencmu::to_json(&result);
     let actual = parse_json(&json).map_err(|error| format!("not JSON: {error}"))?;
+    let broken = common::result_problems(&actual);
+    if !broken.is_empty() {
+        return Err(format!("seed {seed}: the result breaks an invariant: {broken:?}\nresult: {json}"));
+    }
     let describe = |problem: String| {
         let tags: Vec<String> =
             tokens.iter().map(|tags| tags.iter().map(|&t| TERMINALS[t]).collect::<Vec<_>>().join(",")).collect();
