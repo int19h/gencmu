@@ -570,16 +570,17 @@ impl Dialect {
         let ranked = if accepted {
             let mut ranker = Ranker::new(&lowered, &chart, &input, shared, lean, maximal.as_ref());
             ranker.rank().map(|ranking| {
-                let chosen = build(&ranker, ranking.first);
-                (ranking, chosen)
+                let first = build(&ranker, ranking.first);
+                let second = ranking.second.map(|second| build(&ranker, second));
+                (ranking, first, second)
             })
         } else {
             None
         };
-        let Some((ranking, chosen)) = ranked else {
+        let Some((ranking, chosen, second)) = ranked else {
             // A text that `maximal` leaves with no derivation is rejected at
-            // the first terminator it forbids in the derivation the stage
-            // would otherwise have chosen (§4).
+            // the first terminator it forbids in the first reading of the
+            // ranking without `maximal`, whatever its verdict (§4).
             let forbidden = match &maximal {
                 Some(maximal) if accepted => {
                     let mut ranker = Ranker::new(&lowered, &chart, &input, shared, lean, None);
@@ -596,10 +597,6 @@ impl Dialect {
         };
         let tag_set = |set: u32| shared.tags.to_set(set);
         let context = TreeContext { g: &lowered, tokens: &input, tag_map: &tag_set, synthetic: None };
-        let tree = public_tree(&chosen, &context);
-        // The chosen tree's warnings, which stand even if the `elision-only`
-        // check or the emission then fails (§12).
-        run.warnings.extend(warnings_of(&chosen, &lowered, &input, features, &grammar.name));
         stage.verdict = Some(match ranking.verdict {
             RankVerdict::Unique => Verdict::Unique,
             RankVerdict::Resolved => Verdict::Resolved,
@@ -608,18 +605,20 @@ impl Dialect {
         if let Some((first, second)) = ranking.witness {
             stage.witness = Some([action(&lowered, first), action(&lowered, second)]);
         }
-        let check = elision.unwrap_or(grammar.elision_only);
-        let mut ambiguous = None;
-        if check && ranking.verdict != RankVerdict::Unique {
-            match self.elision_check(index, shared, &input, &chosen, &lowered, features) {
-                Ok(found) => ambiguous = found,
-                Err(error) => {
-                    let error = self.grammar_error(index, error);
-                    run.stages.push(stage);
-                    return Err(Box::new(error));
-                }
-            }
+        // A tie is an error that ends the stage at its ranking: it has no
+        // chosen tree, no output and no warnings, and the error holds the
+        // first and the second reading (§6).
+        if ranking.verdict == RankVerdict::Tie {
+            let second = second.expect("a tie has a second reading");
+            let readings = vec![public_tree(&chosen, &context), public_tree(&second, &context)];
+            let error = self.tie(index, readings);
+            run.stages.push(stage);
+            return Err(Box::new(error));
         }
+        let tree = public_tree(&chosen, &context);
+        // The chosen tree's warnings, which stand even if the emission or
+        // the `elision-only` check then fails (§12).
+        run.warnings.extend(warnings_of(&chosen, &lowered, &input, features, &grammar.name));
         let emitted = {
             let mut recognizer = Recognizer { g: &lowered, matchers: &matchers, shared };
             emit(&mut recognizer, &chosen, &input)
@@ -658,10 +657,26 @@ impl Dialect {
                 after: token.after,
             });
         }
+        // The check of `elision-only` runs after the emission, and only for
+        // a stage that chose one of several derivations (§7).
+        let check = elision.unwrap_or(grammar.elision_only);
+        let mut ambiguous = None;
+        if check && ranking.verdict == RankVerdict::Resolved {
+            match self.elision_check(index, shared, &input, &chosen, &lowered, features) {
+                Ok(found) => ambiguous = found,
+                Err(error) => {
+                    // The stage keeps its verdict and warnings, but it has
+                    // no output.
+                    let error = self.grammar_error(index, error);
+                    run.stages.push(stage);
+                    return Err(Box::new(error));
+                }
+            }
+        }
         stage.output = Some(public.clone());
         run.stages.push(stage);
-        // An ambiguous stage accepted its input: it keeps its output, and
-        // the run ends with the error (§7).
+        // A stage ambiguous under `elision-only` chose its derivation: it
+        // keeps its output, and the run ends with the error (§7).
         if let Some(error) = ambiguous {
             return Err(Box::new(error));
         }
@@ -669,6 +684,25 @@ impl Dialect {
         run.public_input = public;
         run.tree = Some(tree);
         Ok(())
+    }
+
+    /// The error of a stage whose ranking has two or more best derivations,
+    /// with its first and its second reading (§6).
+    fn tie(&self, index: usize, readings: Vec<Node>) -> ParseError {
+        let stage = &self.stages[index].name;
+        ParseError {
+            kind: ParseErrorKind::Ambiguous,
+            stage: Some(stage.clone()),
+            reason: Some(AmbiguityReason::Tie),
+            token: None,
+            source: None,
+            document: None,
+            line: None,
+            column: None,
+            expected: Vec::new(),
+            readings,
+            message: format!("stage {stage} has two best readings of its text, a tie"),
+        }
     }
 
     /// The error of a stage that rejected its input at the token `position`,
@@ -1007,9 +1041,13 @@ mod tests {
                 .filter(|(index, _)| set & (1 << index) != 0)
                 .map(|(_, name)| name.to_string())
                 .collect();
-            let expected = !features.is_empty();
+            // The stage accepts its input whenever a feature is on, and ties
+            // when two are.
+            let count = features.len();
             let options = ParseOptions { features, auto_features: false, ..ParseOptions::default() };
-            assert_eq!(dialect.parse("x", &options).unwrap().ok, expected);
+            let result = dialect.parse("x", &options).unwrap();
+            assert_eq!(result.stages[0].verdict.is_some(), count > 0);
+            assert_eq!(result.ok, count == 1);
         }
         let (lowered, classifiers) = cached(&dialect);
         assert!(lowered <= MAX_LOWERED && classifiers <= MAX_LOWERED, "{lowered} {classifiers}");

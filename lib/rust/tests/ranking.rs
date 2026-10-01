@@ -873,12 +873,12 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
         Outcome::NoLeast(finding) => return Err(describe(finding.to_string())),
     };
     // With elision-only and no elidable terminators, the check ranks the
-    // same forest with no lean.
-    if grammar.elision_only && expected.verdict != "unique" {
+    // same forest with no lean. It runs only for a resolved stage (§7).
+    if grammar.elision_only && expected.verdict == "resolved" {
         if let Outcome::Expected(check) = expect(&ranked, Lean::Neither, findings) {
             if check.verdict == "tie" {
                 let pattern = format!(
-                    "{{\"ok\":false,\"error\":{{\"kind\":\"ambiguous\",\"readings\":[{},{}]}}}}",
+                    "{{\"ok\":false,\"error\":{{\"kind\":\"ambiguous\",\"reason\":\"elision-only\",\"readings\":[{},{}]}}}}",
                     tree_json(&grammar, &derivations[check.chosen]),
                     tree_json(&grammar, &derivations[check.tied.expect("a tie")])
                 );
@@ -889,13 +889,29 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
             return Err(describe("T has no least derivation with no lean".to_string()));
         }
     }
-    let mut pattern = format!("{{\"ok\":true,\"stages\":[{{\"verdict\":\"{}\"", expected.verdict);
-    if let (Some(_), Some((a, b))) = (expected.tied, expected.witness) {
-        pattern.push_str(&format!(",\"witness\":[{},{}]", action_json(&grammar, &a), action_json(&grammar, &b)));
-    }
-    pattern.push_str(&format!("}}],\"tree\":{}}}", tree_json(&grammar, &derivations[expected.chosen])));
+    // A tie is an ambiguous error with the first and the second reading,
+    // and its stage has no output (§6).
+    let pattern = match (expected.tied, expected.witness) {
+        (Some(tied), Some((a, b))) => format!(
+            "{{\"ok\":false,\"stages\":[{{\"verdict\":\"tie\",\"witness\":[{},{}]}}],\"tree\":null,\
+             \"error\":{{\"kind\":\"ambiguous\",\"reason\":\"tie\",\"readings\":[{},{}]}}}}",
+            action_json(&grammar, &a),
+            action_json(&grammar, &b),
+            tree_json(&grammar, &derivations[expected.chosen]),
+            tree_json(&grammar, &derivations[tied])
+        ),
+        _ => format!(
+            "{{\"ok\":true,\"stages\":[{{\"verdict\":\"{}\"}}],\"tree\":{}}}",
+            expected.verdict,
+            tree_json(&grammar, &derivations[expected.chosen])
+        ),
+    };
     let pattern = parse_json(&pattern).expect("a pattern");
     common::matches(&pattern, &actual, "result").map_err(describe)?;
+    let stage = &result.stages[0];
+    if (stage.verdict == Some(gencmu::Verdict::Tie)) != stage.output.is_none() {
+        return Err(describe("a stage has output exactly when it does not tie".to_string()));
+    }
     *findings
         .entry(match (expected.verdict, expected.count) {
             ("unique", _) => "(stat) unique",

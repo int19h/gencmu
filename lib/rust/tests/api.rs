@@ -483,8 +483,14 @@ fn deep_tokens_and_ties_do_not_overflow() {
         let started = std::time::Instant::now();
         let result = dialect.parse_tokens(&tokens, &no_auto()).unwrap();
         eprintln!("6000 tokens with 3000 independent ties in {:?}", started.elapsed());
-        assert!(result.ok);
+        // A tie is an ambiguous error, whose readings are the two trees.
+        assert!(!result.ok);
         assert_eq!(result.stages[0].verdict, Some(Verdict::Tie));
+        assert!(result.stages[0].output.is_none());
+        let error = result.error.as_ref().expect("an error");
+        assert_eq!((error.kind, error.reason), (ParseErrorKind::Ambiguous, Some(gencmu::AmbiguityReason::Tie)));
+        assert_eq!(error.readings.len(), 2);
+        assert!(result.tree.is_none());
         let _ = gencmu::to_json(&result);
     });
 }
@@ -569,9 +575,12 @@ fn an_and_of_more_than_sixteen_items_is_an_error() {
         sources.insert("compiled.json".to_string(), compiled(text, &dom));
         gencmu::load_dialect_sources(sources, "p.md").expect("a dialect")
     };
+    // The & reads "B" in sixteen ways, a tie, but the stage accepts it.
+    let accepts =
+        |dialect: &gencmu::Dialect, text: &str| dialect.parse(text, &no_auto()).unwrap().stages[0].verdict.is_some();
     let dialect = and(16);
-    assert!(dialect.parse("B", &no_auto()).unwrap().ok, "the cache is used");
-    assert!(!dialect.parse("A", &no_auto()).unwrap().ok, "the cache is used");
+    assert!(accepts(&dialect, "B"), "the cache is used");
+    assert!(!accepts(&dialect, "A"), "the cache is used");
     // An & of 17 items is not a DOM the reader could give, so it is a
     // cache miss, and the document itself is read.
     let dialect = and(17);
