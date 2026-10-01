@@ -343,7 +343,11 @@ A maximal terminator applies whatever the directive says, and stage-wide `maxima
 
 The four libraries already find the furthest completion of each symbol from each origin for `maximal`. The main parse uses that table for the named terminators only. A nested query builds the same table from its own chart, which costs one pass over that chart. The two states of written-terminator priority check the longer constituent in the same step.
 
-Two questions are open. One is whether Zantufa also makes `LIhU` maximal. The other is whether a bounded `matches` ever needs a longer constituent past its span.
+The engine feature and the choice of terminators are separate decisions. The engine defines what a maximal terminator does. The Zantufa grammar chooses which of its terminators are maximal, and that choice has a cost.
+
+With `TOI` and `SEhU` maximal, a prototype reads the motivating texts as the reference does. But it rejects `sei abu pensi ba ju'o rinka`, which the reference and the earlier grammar read as `[sei abu pensi] [ba ju'o rinka]`. The chart holds the longer statement `abu pensi ba`. The longer constituent need not fit the enclosing construct, so `se'u` cannot be elided after `pensi`. So the feature avoids 26 of the 27 false rejections of the greed experiment, and this text remains one.
+
+Whether Zantufa also makes `LIhU` maximal is undecided. A bounded query stays within its span. A `matches` over a captured span asks whether that span alone parses as the rule. A longer constituent past the span is outside that question, and looking past it changes the windows and the memo keys of every query.
 
 ### Where an elided terminator can fall
 
