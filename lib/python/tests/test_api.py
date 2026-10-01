@@ -252,6 +252,10 @@ class Options(unittest.TestCase):
         with self.assertRaises(gencmu.GencmuError) as caught:
             self.dialect.parse("mi", until="semantics")
         self.assertEqual(caught.exception.kind, "usage")
+        # An empty name names no stage either (docs/api.md).
+        with self.assertRaises(gencmu.GencmuError) as caught:
+            self.dialect.parse("mi", until="")
+        self.assertEqual(caught.exception.kind, "usage")
 
     def test_elision_only(self) -> None:
         dialect = gencmu.load_dialect_sources(ELIDING, "p.md")
@@ -290,6 +294,35 @@ class Options(unittest.TestCase):
         self.assertEqual(result.stages[0].output[0].label, "a")
         self.assertEqual(gencmu.to_brackets(result), "a")
         self.assertEqual(token.label, "CUSTOM", "the caller's token changed")
+
+    def test_caller_ranges(self) -> None:
+        """A caller's source must lie within the text, in code points, and a
+        caller's span must start at 0 or later and not end before it starts.
+        Either mistake is a usage error. Sources can overlap or lie out of
+        order (docs/api.md, engine §11)."""
+        grammar = "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A B\n%emits $\n```\n"
+        dialect = gencmu.load_dialect_sources({"p.md": ELIDING["p.md"], "g.md": grammar}, "p.md")
+
+        def tokens(first: tuple[int, int], second: tuple[int, int], span: tuple[int, int] = (1, 2)) -> list[gencmu.Token]:
+            return [gencmu.Token("a", frozenset({"A"}), (0, 1), first), gencmu.Token("b", frozenset({"B"}), span, second)]
+
+        for source in ((0, 6), (-2, 1), (2, 1), (3, 3)):
+            with self.subTest(source=source):
+                with self.assertRaises(gencmu.GencmuError) as caught:
+                    dialect.parse_tokens(tokens((0, 1), source), "ab", auto_features=False)
+                self.assertEqual(caught.exception.kind, "usage")
+                self.assertIn("source", str(caught.exception))
+        for span in ((-1, 0), (2, 1)):
+            with self.subTest(span=span):
+                with self.assertRaises(gencmu.GencmuError) as caught:
+                    dialect.parse_tokens(tokens((0, 1), (1, 2), span), "ab", auto_features=False)
+                self.assertEqual(caught.exception.kind, "usage")
+                self.assertIn("span", str(caught.exception))
+        result = dialect.parse_tokens(tokens((1, 2), (0, 2)), "ab", auto_features=False)
+        self.assertTrue(result.ok, result.error)
+        output = result.stages[0].output
+        assert output is not None
+        self.assertEqual((output[0].source, output[0].text), ((0, 2), "ab"))
 
     def test_caller_attachments(self) -> None:
         """A caller cannot supply attachments: a token with a list that is

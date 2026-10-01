@@ -1,0 +1,24 @@
+{
+  "description": "A rejected stage expects no terminal of a production whose condition failed at prediction, since that item does not exist. Rule x has such a production, so only 'c' is expected (engine §4).",
+  "grammar": "%rule text x | 'c'\n%rule x 'b' %conditions \"a\" = \"b\"",
+  "input": "d",
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 0,
+        "expected": [
+          {
+            "terminal": "'c'",
+            "rules": [
+              "text"
+            ]
+          }
+        ]
+      }
+    },
+    "error": "rejected"
+  }
+}

@@ -371,7 +371,9 @@ type ParseOptions struct {
 	WithoutFeatures []string
 	// NoAutoFeatures switches off adding sa-su only where the text needs it.
 	NoAutoFeatures bool
-	// Until names the last stage to run; empty runs every stage.
+	// Until names the last stage to run. The zero value, the empty string,
+	// runs every stage, so Go cannot ask for a stage with an empty name
+	// (docs/api.md).
 	Until string
 	// ElisionOnly, when set, switches elision-only on or off for every stage.
 	ElisionOnly *bool
@@ -443,8 +445,9 @@ func (d *Dialect) Parse(text string, options ParseOptions) (*ParseResult, error)
 // ParseTokens parses pre-built tokens in place of the first stage's
 // character tokens, for tests and tools: text is the original text their
 // Source ranges index, in code points.
-// Each token's Source must lie within the text, in order: a token may not
-// start before the one before it ends. A token that the caller supplies has
+// Each token's Source must lie within the text. The sources of two tokens
+// can overlap or lie out of order (engine §11). Each token's Span must
+// start at 0 or later and must not end before it starts. A token that the caller supplies has
 // its Text as its label (engine §5), whatever its Label says. It cannot
 // supply attachments: a token with a non-empty Before or After is a usage
 // error, and empty ones are dropped (docs/api.md). The parse copies the
@@ -461,13 +464,18 @@ func (d *Dialect) ParseTokens(text string, tokens []Token, options ParseOptions)
 		}
 	}
 	runes := []rune(text)
-	end := 0
+	// Bounds only, so that no index panics: the sources need not lie in
+	// order (engine §11).
 	for i, t := range tokens {
-		s := t.Source
-		if s[0] < end || s[0] > s[1] || s[1] > len(runes) || t.Span[0] < 0 || t.Span[0] > t.Span[1] {
-			return nil, &Error{Kind: ErrorUsage, Message: fmt.Sprintf("token %d: source %v and span %v do not lie in order within a text of %d code points", i, s, t.Span, len(runes))}
+		// A source counts code points of the text.
+		if s := t.Source; s[0] < 0 || s[0] > s[1] || s[1] > len(runes) {
+			return nil, &Error{Kind: ErrorUsage, Message: fmt.Sprintf("token %d: the source %v is not a range within a text of %d code points", i, s, len(runes))}
 		}
-		end = s[1]
+		// A span counts tokens of the stage before, which a caller's
+		// tokens have none of, so only its order is checked.
+		if s := t.Span; s[0] < 0 || s[0] > s[1] {
+			return nil, &Error{Kind: ErrorUsage, Message: fmt.Sprintf("token %d: the span %v is not a range of tokens: it starts below 0 or ends before it starts", i, s)}
+		}
 	}
 	// A copy, so that the caller's tokens stay as they are, and the result
 	// shares no slice with them.

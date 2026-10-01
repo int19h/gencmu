@@ -14,7 +14,7 @@ Each file is one case:
   "pipeline": "path.md",
   "tokens": [{"text": "a", "tags": ["A"]}, {"text": "b", "tags": ["B", "C"]}],
   "input": "characters",
-  "options": {"features": ["f"], "withoutFeatures": ["g"], "elisionOnly": true},
+  "options": {"features": ["f"], "withoutFeatures": ["g"], "elisionOnly": true, "until": "words"},
   "expect": {"result": PATTERN, "brackets": "(a b)", "warnings": [WARNING...], "features": [FEATURE...], "error": "grammar",
              "where": {"document": "main.md", "line": 4, "column": 12}}
 }
@@ -35,6 +35,8 @@ The input is `input` or `tokens`. `input` is a string of characters, read as eng
 Auto features (engine §13) are off for a case unless its options say `"autoFeatures": true`.
 
 `options.features` and `options.withoutFeatures` are the features the caller turns on and off (engine §13).
+
+`options.until`, when present, names the last stage to run (engine §13). A name that is not a stage of the dialect is a `usage` error. No case gives an empty name, because Go cannot tell an empty name from no name (`docs/api.md`). Each library tests an empty name in its own tests.
 
 `expect.result` is a pattern matched against the canonical result of `docs/output.md`. A pattern matches in these ways:
 

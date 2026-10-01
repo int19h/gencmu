@@ -1,0 +1,11 @@
+{
+  "description": "An until that names no stage of the dialect is a mistake of the caller, a usage error (engine §13).",
+  "grammar": "%rule text 'a'",
+  "input": "a",
+  "options": {
+    "until": "nonesuch"
+  },
+  "expect": {
+    "error": "usage"
+  }
+}

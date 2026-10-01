@@ -8210,6 +8210,21 @@
     return names.map((name) => ({ name, kind: kinds.get(name) || "gate", default: declared.includes(name) }));
   }
 
+  /**
+   * The index of the last stage to run. Only an absent until runs every
+   * stage. Any other value, "" and null among them, must name a stage, or it
+   * is a usage error (engine §13).
+   * @param {{name: string}[]} stages
+   * @param {string | null | undefined} until
+   * @returns {number}
+   */
+  function lastStage(stages, until) {
+    if (until === undefined) return stages.length - 1;
+    const index = stages.findIndex((stage) => stage.name === until);
+    if (index < 0) throw new GencmuError("usage", `no stage is named ${JSON.stringify(until)}`);
+    return index;
+  }
+
   class Dialect {
     /**
      * @param {string} path
@@ -8245,9 +8260,21 @@
       // each token, its tags and its positions, so the caller's objects stay
       // as they are, and the result shares none of them.
       if (options.tokens) {
+        const length = [...text].length;
         options.tokens.forEach((token, index) => {
           if ((token.before && token.before.length > 0) || (token.after && token.after.length > 0)) {
             throw new GencmuError("usage", `token ${index} has attachments, which a caller cannot supply`);
+          }
+          // A source counts code points of the text, and must lie within it.
+          // Sources can overlap or lie out of order (engine §11). A span
+          // counts tokens of the stage before, so only its order is checked
+          // (docs/api.md).
+          const [start, end] = token.source;
+          if (!(0 <= start && start <= end && end <= length)) {
+            throw new GencmuError("usage", `token ${index}: the source ${JSON.stringify(token.source)} is not a range within a text of ${length} code points`);
+          }
+          if (token.span && !(0 <= token.span[0] && token.span[0] <= token.span[1])) {
+            throw new GencmuError("usage", `token ${index}: the span ${JSON.stringify(token.span)} is not a range of tokens: it starts below 0 or ends before it starts`);
           }
         });
         options = { ...options, tokens: options.tokens.map((token) =>
@@ -8261,7 +8288,7 @@
       if (both !== undefined) throw new GencmuError("usage", `the feature ${both} is named both to turn on and to turn off`);
       let features = new Set([...this.declared, ...on].filter((name) => !off.has(name)));
       const wordsAt = this.stages.findIndex((stage) => stage.name === "words");
-      const untilAt = options.until === undefined ? this.stages.length - 1 : this.stages.findIndex((stage) => stage.name === options.until);
+      const untilAt = lastStage(this.stages, options.until);
       // The probe is for a run that reaches the words stage (engine §13).
       // Only a dialect that has sa-su as a gate adds it by itself (engine §13).
       const gated = this.features.some((feature) => feature.name === "sa-su" && feature.kind === "gate");
@@ -8289,8 +8316,7 @@
       const stages = continued ? continued.stages.slice() : [];
       let tokens = options.tokens || characterTokens(text, this.loader.unicode);
       if (continued) tokens = /** @type {Token[]} */ (stages[stages.length - 1].output);
-      const last = options.until ? this.stages.findIndex((stage) => stage.name === options.until) : this.stages.length - 1;
-      if (last < 0) throw new GencmuError("usage", `no stage is named ${options.until}`);
+      const last = lastStage(this.stages, options.until);
       for (let index = stages.length; index <= last; index++) {
         const stage = this.stages[index];
         const report = stage.run(tokens, sourceText, this.loader.unicode, {

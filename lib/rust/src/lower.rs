@@ -229,14 +229,14 @@ pub(crate) struct Prod {
     /// production is tested.
     pub tests: Vec<u32>,
     /// For each capture slot, its position.
-    pub cap_pos: Vec<u16>,
+    pub cap_pos: Vec<usize>,
     pub tags: Option<LTerm>,
     pub emit: LEmit,
     /// `%opaque`: its constituent is an opaque part, which sounds `?` and
     /// shows its text (§11).
     pub opaque: bool,
     /// Conditions, each with the dot at which it is evaluated.
-    pub conds: Vec<(LCond, u16)>,
+    pub conds: Vec<(LCond, usize)>,
     pub visible: bool,
     /// `r → r x`, the step of a trailing repetition (§3.3).
     pub trailing_step: bool,
@@ -325,7 +325,15 @@ struct Lowerer<'a> {
     places: Vec<Vec<usize>>,
 }
 
-fn product(left: Vec<Sequence>, right: &[Sequence]) -> Vec<Sequence> {
+fn product(mut left: Vec<Sequence>, right: &[Sequence]) -> Vec<Sequence> {
+    // With one right sequence, the usual case, each left sequence grows in
+    // place, so that a long sequence expands in linear time.
+    if let [only] = right {
+        for sequence in &mut left {
+            sequence.extend(only.iter().cloned());
+        }
+        return left;
+    }
     let mut out = Vec::with_capacity(left.len() * right.len());
     for first in &left {
         for second in right {
@@ -516,10 +524,10 @@ struct Missing;
 
 struct Scope<'a> {
     names: &'a FxMap<String, u8>,
-    cap_pos: &'a [u16],
+    cap_pos: &'a [usize],
     rules: &'a std::collections::HashMap<String, usize>,
     /// The latest position of a capture mentioned so far.
-    last: Option<u16>,
+    last: Option<usize>,
     /// Whether `$` has been mentioned so far.
     whole: bool,
 }
@@ -797,7 +805,7 @@ pub(crate) fn lower(
             if let Some(name) = name {
                 cap_at[position] = Some(cap_pos.len() as u8);
                 names.insert(name.clone(), cap_pos.len() as u8);
-                cap_pos.push(position as u16);
+                cap_pos.push(position);
             }
         }
         let helper = pending.rule as usize >= user_count;
@@ -864,7 +872,7 @@ pub(crate) fn lower(
                     // One that uses `$` waits for the item to be complete
                     // (§4).
                     let trigger =
-                        if scope.whole { production.syms.len() as u16 } else { scope.last.map_or(0, |last| last + 1) };
+                        if scope.whole { production.syms.len() } else { scope.last.map_or(0, |last| last + 1) };
                     production.conds.push((lowered, trigger));
                 }
             }
