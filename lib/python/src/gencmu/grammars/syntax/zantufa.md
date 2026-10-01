@@ -277,6 +277,8 @@ Zantufa has no termsets. A term is a `xoi` clause, a `ke` group of terms, a tens
 
 In a term, no forethought bridi-tail, `bo` or selbri directly follows a tense or modal, as the reference's lookaheads say. No further part of a tense or modal follows it either, because the reference reads a tense or modal as far as it can. The reference's lookahead lets a selbri follow where the selbri begins with a tense or modal. But no such selbri is left after a tense or modal that reads as far as it can. So `mi pe pu ba broda` has no parse, as in Zantufa, and `mi pe pu ku ba broda` has one.
 
+A `ke` group of terms comes before a sumti that begins with `ke`, as in the reference's ordered choice. Where `ke'e` is elided, both can read the same words. So `ke mi klama` is a group of terms, `ke mi`, and then the selbri. It is not the sumti `ke mi` with an elided `ke'e`. Both readings elide one `ke'e`, so without a condition they tie. The condition on the sumti alternative (`ke-group-of-terms`) removes the sumti reading exactly where the group of terms begins.
+
 ```jbogenbau
 %rule terms
   (* terms <- term+ *)
@@ -310,7 +312,13 @@ In a term, no forethought bridi-tail, `bo` or selbri directly follows a tense or
 %conditions
   ¬begins(from($g), sumti) ∨ begins(from($g), tag),
   ¬begins(after($k), sumti-kehe),
-  ¬begins(from($s), tag)
+  ¬begins(from($s), tag),
+  ¬begins(from($s), ke-group-of-terms)
+
+%rule ke-group-of-terms
+  $k(ke-clause) terms
+%conditions
+  ¬begins(after($k), sumti-kehe)
 
 %rule sumti-kehe
   sumti KEhE
