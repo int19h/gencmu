@@ -28,7 +28,7 @@ from gencmu._earley import Forest, Parser, StageContext
 from gencmu._grammar import lower, stitch
 from gencmu._maximal import Maximal
 from gencmu._model import Token
-from gencmu._rank import Least, actions, count_roots, rank
+from gencmu._rank import Least, Vector, actions, add, count_roots, rank
 from gencmu._stage import StageRunner
 
 TERMINALS = ["A", "B", "C"]
@@ -759,6 +759,38 @@ class RankingProperty(unittest.TestCase):
             print(f"\nlate-elision: compared {compared}, skipped {skipped}, verdicts {verdicts}")
         self.assertGreater(verdicts.get("tie", 0), 0)
         self.assertGreater(verdicts.get("resolved", 0), 0)
+
+
+
+class ElisionVectors(unittest.TestCase):
+    """Elision vectors compare exactly however many elisions they share,
+    also when two equal vectors are built apart (engine §6)."""
+
+    @staticmethod
+    def elisions(at: int, k: int) -> Vector:
+        """2^k elisions at one boundary, built by doubling, each sum a new
+        tuple."""
+        vector: Vector = (-at, 1)
+        for _ in range(k):
+            vector = add(vector, tuple(list(vector)))
+        return vector
+
+    def test_runs_of_elisions(self) -> None:
+        one: Vector = (0, 1)
+        for k in (32, 53, 60, 100):
+            with self.subTest(k=k):
+                self.assertEqual(self.elisions(0, k), (0, 2**k))
+                self.assertEqual(self.elisions(0, k), self.elisions(0, k), f"2^{k} and 2^{k}")
+                # One more elision at the same boundary is greater, also
+                # past 2^53, and one fewer is less.
+                self.assertLess(self.elisions(0, k), add(self.elisions(0, k), one), f"2^{k} and 2^{k} + 1")
+                self.assertGreater(add(one, self.elisions(0, k)), self.elisions(0, k), f"1 + 2^{k} and 2^{k}")
+                self.assertLess((0, 2**k - 1), self.elisions(0, k), f"2^{k} - 1 and 2^{k}")
+                # The same counts, followed by elisions at different
+                # boundaries: the later boundary is less.
+                self.assertLess(add(self.elisions(0, k), self.elisions(3, k)), add(self.elisions(0, k), self.elisions(2, k)), f"then at 3 or at 2, 2^{k} each")
+                # One elision earlier outweighs any number later.
+                self.assertLess(self.elisions(1, k), one, f"2^{k} at 1 and one at 0")
 
 
 if __name__ == "__main__":
