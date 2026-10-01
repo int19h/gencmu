@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from ._clauses import WHOLE
+from ._eligible import eligible
 from ._errors import _GrammarFault
 from ._grammar import Lowered, Production, SymbolTest, written_symbol
 from ._model import Range, Tags, Token
@@ -245,19 +246,22 @@ class StageContext:
         if found is not None:
             return found
         forest = self.parse_alone(rule, start, end)
-        # The answer reads the items: every completed item of the rule over
-        # the span, whether or not its derivations are all cyclic.
+        # The answer reads the completed items of the rule over the span
+        # that have an eligible proof tree, under written-terminator
+        # priority (engine §4).
+        found_items = eligible(forest, forest.roots)
         tags: Tags = EMPTY
-        for root in forest.roots:
+        for root in found_items:
             tags = union(tags, self.tagtab.get(forest.tag[root]))
-        answer = NestedAnswer(bool(forest.roots), tags)
+        answer = NestedAnswer(bool(found_items), tags)
         self.memo[key] = answer
         return answer
 
     def begins(self, rule: str, start: int, end: int) -> bool:
         """Whether a prefix of tokens start..end, the empty one included,
-        parses as rule: whether a completed item of the rule begins at the
-        span's start, in any set (engine §4)."""
+        parses as rule: whether a completed item of the rule with an
+        eligible proof tree begins at the span's start, in any set (engine
+        §4)."""
         key = self.nested_key(rule, start, end)
         found = self.begins_memo.get(key)
         if found is not None:
@@ -265,10 +269,13 @@ class StageContext:
         forest = self.parse_alone(rule, start, end)
         number = self.lowered.rule_ids[rule]
         productions = self.lowered.productions
-        answer = any(
-            origin == 0 and productions[prod].lhs == number and dot == len(productions[prod].rhs)
-            for prod, dot, origin in zip(forest.prod, forest.dot, forest.origin)
-        )
+        witnesses = [
+            item
+            for item, (prod, dot, origin) in enumerate(zip(forest.prod, forest.dot, forest.origin))
+            if origin == 0 and productions[prod].lhs == number and dot == len(productions[prod].rhs)
+        ]
+        # Only an item with an eligible proof tree counts (engine §4).
+        answer = bool(eligible(forest, witnesses))
         self.begins_memo[key] = answer
         return answer
 

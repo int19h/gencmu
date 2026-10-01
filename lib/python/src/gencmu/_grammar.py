@@ -758,8 +758,15 @@ class Lowered:
     # (engine §2, §11).
     classifiers: Classifiers = field(default_factory=dict)
     implications: list[tuple[frozenset[str], frozenset[str]]] = field(default_factory=list)
+    # The helpers of the elidable optionals, by rule number (engine §3.8):
+    # the rules of the productions whose empty alternative is an elided
+    # terminator.
+    elidable_helpers: frozenset[int] = frozenset()
 
     def __post_init__(self) -> None:
+        self.elidable_helpers = frozenset(
+            production.lhs for production in self.productions if production.helper and production.elided is not None
+        )
         self.by_first_terminal = [{} for _ in self.rule_names]
         self.by_first_characters = [{} for _ in self.rule_names]
         self.not_terminal_first = [[] for _ in self.rule_names]
