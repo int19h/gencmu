@@ -787,3 +787,28 @@ func TestRankingProperty(t *testing.T) {
 		t.Errorf("%d rejections, %d empty inputs, %d cases under maximal, %d narrowed by it", rejected, empty, withMaximal, narrowed)
 	}
 }
+
+// The oracle treats only a rule completed again over its own span as a
+// cycle, not a repeated partial item: on A B, the outer p and the nested p
+// start at A but end apart, so the input has three derivations (engine §4;
+// tests/engine/cycle-repeated-partial-item.json).
+func TestOracleRepeatedPartialItem(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	dom, err := bundled.reader.read("```jbogenbau\n%ambiguity-resolution lazy\n%rule text p\n%rule p r q [B]\n%rule r A | ε\n%rule q p | ε\n```\n", "g.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sg, serr := stitch("main", []docDOM{{path: "g.md", dom: dom}}, bundled.uni)
+	if serr != nil {
+		t.Fatal(serr)
+	}
+	lg := lower(sg, nil, false)
+	tags := []map[string]bool{{"A": true}, {"B": true}}
+	en := &enumerator{g: lg, tags: tags, sounds: []string{"", ""}, memo: map[string][]*bnode{}, budget: 20000}
+	trees, derr := en.derive(symbol{id: lg.byName["text"]}, 0, 2, nil)
+	if derr != nil || len(trees) != 3 {
+		t.Fatalf("%d derivations, %v", len(trees), derr)
+	}
+}

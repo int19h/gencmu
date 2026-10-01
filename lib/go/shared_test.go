@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 )
 
 // The shared cases of tests/README.md.
@@ -406,6 +407,15 @@ var tieMutants = map[string]func(got, tied map[string]any){
 	"an error without reason": func(got, tied map[string]any) { delete(got["error"].(map[string]any), "reason") },
 }
 
+// The runner fails a case that does not finish in time.
+func TestEngineRunnerTimeout(t *testing.T) {
+	grammar := doublingGrammar("late-elision", 25, false, "%rule text ε | rN")
+	c := &engineCase{Grammar: &grammar, Tokens: []caseToken{}, Expect: caseExpect{}}
+	if err := checkCaseWithin(c, time.Nanosecond); err == nil || !strings.Contains(err.Error(), "did not finish") {
+		t.Fatalf("the runner gave %v", err)
+	}
+}
+
 // The runner refuses a result that breaks an invariant, whatever the case
 // expects (tests/README.md).
 func TestEngineRunnerInvariants(t *testing.T) {
@@ -441,7 +451,33 @@ func TestEngineRunnerInvariants(t *testing.T) {
 	}
 }
 
+// caseTimeout is how long one engine case can run before it fails, so that
+// a hang is reported as a failure of its case. GENCMU_CASE_TIMEOUT sets it,
+// as a Go duration.
+const caseTimeout = 30 * time.Second
+
+// checkCaseWithin checks a case, and fails it when it takes longer than
+// the timeout. A case that hangs keeps its goroutine, but the run goes on.
+func checkCaseWithin(c *engineCase, timeout time.Duration) error {
+	done := make(chan error, 1)
+	go func() { done <- checkCase(c, false) }()
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(timeout):
+		return fmt.Errorf("the case did not finish within %v", timeout)
+	}
+}
+
 func TestEngineCases(t *testing.T) {
+	timeout := caseTimeout
+	if s := os.Getenv("GENCMU_CASE_TIMEOUT"); s != "" {
+		d, err := time.ParseDuration(s)
+		if err != nil {
+			t.Fatalf("GENCMU_CASE_TIMEOUT: %v", err)
+		}
+		timeout = d
+	}
 	files, _ := filepath.Glob("../../tests/engine/*.json")
 	if len(files) == 0 {
 		t.Fatal("no engine cases in ../../tests/engine")
@@ -449,7 +485,7 @@ func TestEngineCases(t *testing.T) {
 	for _, f := range files {
 		c := loadCase(t, f)
 		t.Run(strings.TrimSuffix(filepath.Base(f), ".json"), func(t *testing.T) {
-			if err := checkCase(c, false); err != nil {
+			if err := checkCaseWithin(c, timeout); err != nil {
 				t.Errorf("%s\n%v", c.Description, err)
 			}
 		})
