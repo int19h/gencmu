@@ -296,7 +296,11 @@ A derivation is read as its sequence of actions in bottom-up order. An action is
 
 Two reads are the same action when they read the same token as the same terminal. Two closes are the same when they close the same production over the same span.
 
-Transparency removes a close from the comparison, but it does not merge derivations. Two derivations that differ only at transparent closes are still two derivations, and they are tied. For example, `text → [[X]]` derives the empty input in two ways. The outer helper derives ε itself, or through the inner helper. So `text → [A] & [B]` does too, through the expansions of its `&` (§3.2). The error of such a tie can carry two equal trees, while its witness names two different productions.
+Transparency removes a close from the comparison, but it does not merge derivations. Two derivations that differ only at transparent closes are still two derivations. Under `greedy` and `lazy`, they are tied. Under `late-elision`, their elision vectors still decide (below).
+
+For example, `text → [[X]]` derives the empty input in two ways. The outer helper derives ε itself, or through the inner helper. `text → [A] & [B]` derives it in three ways, through the expansions of its `&` (§3.2). These use `[A]` alone, `[B]` alone, or both. All have the same empty tree, and all three rules report a tie. The error of such a tie can carry two equal trees, while its witness names two different productions.
+
+With `%elidable KU`, `text → [[KU]]` also derives the empty input in two ways. The outer helper is empty, which elides nothing, or the inner one is, which elides `KU`. Their vectors are (0) and (1). So the input ties under `greedy` and `lazy`, and it is `resolved` under `late-elision`.
 
 The engine does not merge derivations whose trees are equal either. Such derivations can still differ in what the stage does with them. Two definitions of `text → A` give equal trees, but their emission clauses can emit different tokens. Their alternatives can also differ in their warning guards, or in `%opaque`.
 
@@ -313,6 +317,8 @@ A ranking with no lean compares two derivations in the same way, but rule 2 ties
 Under `late-elision`, the stage compares the elided terminators of two derivations (§4), and nothing else. Let the input have N tokens. A boundary is a position from 0 to N. The elision vector of a derivation has one component for each boundary. The component at boundary `p` is the number of the derivation's elided terminators at position `p`.
 
 The vector counts each elided terminator once, whatever its terminal, its constituent or its depth. So two terminators elided at one position count two, also when they are of different terminals. An ordinary empty optional, an empty repetition and a close of any other production count nothing.
+
+`%elidable` alone decides what counts. It also decides which empty optionals become `elided` nodes (§12), what `maximal` forbids (§4) and what §7 restores. An optional whose first terminal is not elidable, such as an optional separator, can still be empty. Its absence counts nothing and leaves no node. The ranking knows no particular terminal, so a grammar that wants a separator not to count leaves it out of `%elidable`.
 
 Under `late-elision`, one derivation beats another when its elision vector is less. The stage compares two vectors from boundary 0 to boundary N. At the first boundary where they differ, the vector with the smaller count is less. Two derivations with equal vectors are tied, even where their trees differ. So a stage whose derivations elide nothing has a tie whenever its input has more than one derivation.
 
@@ -354,21 +360,24 @@ A tie is not a success. The result is an error of kind `ambiguous`, with the rea
 
 A stage takes its steps in this order. It recognizes its input (§4), and it ranks the derivations. If the verdict is `unique` or `resolved`, it emits its tokens (§11), and then it runs the check of §7 if that applies. A tie ends the stage at the ranking, so neither emission nor that check runs. An error of the grammar found while emitting ends the stage before that check.
 
-Under `greedy`, `lazy` and no lean, both `m` and the earliest-diverging tied derivation compose over the packed forest, the shared graph of all derivations. So an implementation can compute both from the forest. It keeps, for each item, its *T*-least derivation and the earliest-diverging derivations tied with it. It keeps several candidates side by side while their order is not yet settled, since what follows decides. Their order is not settled while one's visible sequence is a prefix of another's. It is also not settled while their visible sequences are equal and one whole sequence is a prefix of the other.
+Every rule composes over the packed forest, the shared graph of all derivations. So an implementation keeps summaries of derivations, and never needs to enumerate them. A summary belongs to an item in a place. The place of a part limits its derivations in two ways, under every rule.
 
-Under every rule, the derivations of the input are those of every completed item of `text` that spans it. The implementation combines these items as the edges of one root.
+- Under `maximal` (§4), an edge that advances an item over an elided terminator combines only some derivations of the item. These are the derivations whose last symbol's node `maximal` does not forbid. Every other edge combines all of the item's derivations. This is the part's eligibility.
+- A part cannot use a rule over the span of a constituent of that rule above it, or the derivation is cyclic (§4). The rules above a part over its own span are its cycle context.
 
-One candidate can beat another under `greedy` or `lazy`. Then the loser's tied derivation stays tied with the winner exactly when it diverged from the loser before the point where the winner beat it. One that diverged there is beaten there too.
+So an implementation keeps one summary for each combination of item, eligibility and cycle context that some place needs. Two summaries of one item can differ. A summary keyed by the item alone can lose a reading.
 
-So nothing needs to be enumerated, and the number of derivations, which can be exponential, never matters. Under `maximal` (§4), an item whose next symbol is an elidable optional keeps a second set of candidates. This set comes from only those of its edges whose last symbol's node `maximal` does not forbid. An edge that advances the item over an elided terminator combines that set. Every other edge combines all of the item's derivations. The number of derivations that decides `unique` is counted the same way.
+For example, take `text → b | a`, `a → b` and `b → a | A`, over the token `A`. The input has two derivations that are not cyclic, through `text → b` and through `text → a`. They tie under every rule. Beneath `b` over the same span, `a` has no derivation that counts, since `a → b` repeats `b`. Directly under `text`, `a` has one, so a summary of `a` that ignores its context loses a reading of the root.
+
+The derivations of the input are those of every completed item of `text` that spans it (§4). The implementation combines the summaries of all these items as the edges of one root. The number of derivations that decides `unique` is counted over the same summaries, capped at two.
+
+Under `greedy`, `lazy` and no lean, both `m` and the earliest-diverging tied derivation compose over that forest. An implementation keeps, for each summary, its *T*-least derivation and the earliest-diverging derivations tied with it. It keeps several candidates side by side while their order is not yet settled, since what follows decides. Their order is not settled while one's visible sequence is a prefix of another's. It is also not settled while their visible sequences are equal and one whole sequence is a prefix of the other.
+
+One candidate can beat another under `greedy` or `lazy`. Then the loser's tied derivation stays tied with the winner exactly when it diverged from the loser before the point where the winner beat it. One that diverged there is beaten there too. So the number of derivations, which can be exponential, never matters.
 
 Under `late-elision`, elision vectors compose by addition. The vector of a derivation is the sum, component by component, of the vectors of its parts. An elided terminator at `p` is a part whose vector is one at `p` and zero elsewhere. Adding one vector to two others keeps their order. So in a best derivation, each part has the least vector among the derivations that its place allows.
 
-The place of a part limits its derivations in two ways. Under `maximal`, an edge over an elided terminator combines only the derivations that `maximal` allows, as above. This is the part's eligibility. Also, a part cannot use a rule over the span of a constituent of that rule above it, or the derivation is cyclic (§4). The rules above a part over its own span are its cycle context.
-
-So an implementation keeps one summary for each combination of item, eligibility and cycle context that some place needs. Two summaries of one item can have different least vectors. A summary holds the least vector of its derivations and the number of them that attain it, capped at two. For one edge, it adds the vectors of the parts and multiplies their numbers. For the edges of one summary, it keeps the lesser vector, or it adds the numbers where the vectors are equal.
-
-The derivations of the input are those of every completed item of `text` that spans it (§4). The implementation combines the summaries of all these items as the edges of one root. A number of two at the root is a tie. This holds also when two items of `text` each have one least derivation. It also keeps the number of all derivations at the root, capped at two, which decides `unique`.
+A summary under `late-elision` holds the least vector of its derivations and the number of them that attain it, capped at two. For one edge, the implementation adds the vectors of the parts and multiplies their numbers. For the edges of one summary, it keeps the lesser vector, or it adds the numbers where the vectors are equal. A number of two at the root is a tie. This holds also when two items of `text` each have one least derivation.
 
 The best derivations form a smaller forest. For each summary, the implementation keeps the edges that attain the summary's least vector. Each kept edge leads to the summaries of its parts, with their own eligibility and cycle context. The stage finds `m` and `t` by a ranking with no lean over that forest. That ranking keeps the same distinctions, so it reaches a part only through the summary that its place allows.
 
