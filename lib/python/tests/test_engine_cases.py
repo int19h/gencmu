@@ -9,7 +9,7 @@ from typing import Any
 
 import gencmu
 
-from .shared import case_features, cases, load_case, load_case_dialect, mismatch, parse_case, result_problems, run_case
+from .shared import CaseTimeout, case_features, cases, deadline, load_case, load_case_dialect, mismatch, parse_case, result_problems, run_case
 
 
 # The members of `expect` that only a loaded dialect can meet.
@@ -29,7 +29,8 @@ class EngineCases(unittest.TestCase):
         paths = cases("engine")
         self.assertTrue(paths, "no engine cases found")
         for path in paths:
-            with self.subTest(case=path.name):
+            # A case that hangs fails, and the other cases go on.
+            with self.subTest(case=path.name), deadline(path.name):
                 case = load_case(path)
                 if "parses" in case:
                     # The case parses its input several times with the one
@@ -100,6 +101,12 @@ class EngineCases(unittest.TestCase):
             self.assertEqual(value["error"]["kind"], expect["error"], label)
         else:
             self.assertIsNone(value["error"], f"{label}: unexpected error\n{text[:2000]}")
+
+    def test_a_case_that_hangs_fails(self) -> None:
+        """The runner reports a case that runs past its time as a failure."""
+        with self.assertRaises(CaseTimeout), deadline("a loop", 0.2):
+            while True:
+                pass
 
     def test_a_load_error_meets_only_an_expectation_of_the_error(self) -> None:
         # The runner fails a case whose dialect does not load, when the case
