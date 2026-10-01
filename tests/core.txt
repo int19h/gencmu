@@ -976,6 +976,12 @@ adhoc.camxes-exp.ties.mid-text-i-ek-is-connective
 adhoc.camxes-exp.ties.mid-text-i-ek-before-i
 adhoc.camxes-exp.ties.i-free-ek-is-fragment
 adhoc.camxes-exp.ties.bare-ek-is-fragment
+adhoc.camxes-exp.ties.i-jek-gek-rejected
+adhoc.camxes-exp.ties.i-joik-gek-rejected
+adhoc.camxes-exp.ties.mid-text-i-jek-gek-rejected
+adhoc.camxes-exp.ties.mid-text-i-joik-gek-rejected
+adhoc.camxes-exp.ties.i-gihek-is-fragment
+adhoc.camxes-exp.ties.mid-text-i-gihek-is-fragment
 adhoc.words.cll11.kiheuhe
 adhoc.words.cll11.kie
 adhoc.words.cll11.klez-ba

@@ -2855,6 +2855,12 @@
 {"id":"adhoc.camxes-exp.ties.mid-text-i-ek-before-i","text":"mi klama .i e .i do klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","klama","i","e","i","do","klama"],"brackets":"([{mi klama} i e] i [do klama])"}
 {"id":"adhoc.camxes-exp.ties.i-free-ek-is-fragment","text":"mi klama .i sei broda se'u e","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","klama","i","sei","broda","se'u","e"],"brackets":"([mi klama] i [sei broda se'u] e)"}
 {"id":"adhoc.camxes-exp.ties.bare-ek-is-fragment","text":"e","dialect":"experimental","expect":"accept","verdict":"unique","words":["e"],"brackets":"e"}
+{"id":"adhoc.camxes-exp.ties.i-jek-gek-rejected","text":".i je gi mi gi do","dialect":"experimental","expect":"reject","stage":"syntax","words":["i","je","gi","mi","gi","do"]}
+{"id":"adhoc.camxes-exp.ties.i-joik-gek-rejected","text":".i joi gi mi gi do","dialect":"experimental","expect":"reject","stage":"syntax","words":["i","joi","gi","mi","gi","do"]}
+{"id":"adhoc.camxes-exp.ties.mid-text-i-jek-gek-rejected","text":"mi klama .i je gi mi gi do","dialect":"experimental","expect":"reject","stage":"syntax","words":["mi","klama","i","je","gi","mi","gi","do"]}
+{"id":"adhoc.camxes-exp.ties.mid-text-i-joik-gek-rejected","text":"mi klama .i joi gi mi gi do","dialect":"experimental","expect":"reject","stage":"syntax","words":["mi","klama","i","joi","gi","mi","gi","do"]}
+{"id":"adhoc.camxes-exp.ties.i-gihek-is-fragment","text":".i gi'e","dialect":"experimental","expect":"accept","verdict":"unique","words":["i","gi'e"],"brackets":"(i gi'e)"}
+{"id":"adhoc.camxes-exp.ties.mid-text-i-gihek-is-fragment","text":"mi klama .i gi'e","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","klama","i","gi'e"],"brackets":"([mi klama] i gi'e)"}
 {"id":"adhoc.camxes-exp.lohai.raw-zo","text":"mi lo'ai zo le'ai klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","lo'ai","zo","le'ai","klama"],"brackets":"([mi {lo'ai zo le'ai}] klama)"}
 {"id":"adhoc.camxes-exp.lohai.raw-su","text":"mi lo'ai su le'ai klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","lo'ai","su","le'ai","klama"],"brackets":"([mi {lo'ai su le'ai}] klama)"}
 {"id":"adhoc.camxes-exp.lohai.raw-si","text":"mi lo'ai do si le'ai klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","lo'ai","do","si","le'ai","klama"],"brackets":"([mi {lo'ai do si le'ai}] klama)"}
