@@ -109,7 +109,7 @@ The dialect also turns on two features of the syntax, because camxes-exp has no 
   %include "../syntax/experimental.md"
   ```
 
-The experimental grammar is greedy like CLL's: it ends each constituent as late as the grammar allows. But it does not declare `elision-only`, the rule that a terminator can be elided only if no ambiguity results. The grammar has ambiguities that are not about terminators. For example, two sumti joined by an afterthought connective are also two terms joined in the same way, as in `mi .e do klama`. The greedy rule settles them.
+The experimental grammar ranks with `late-elision`, as CLL's does: it elides each terminator as late as the grammar allows. But it does not declare `elision-only`, the rule that a terminator can be elided only if no ambiguity results. The grammar has ambiguities that are not about terminators. For example, two sumti joined by an afterthought connective are also two terms joined in the same way, as in `mi .e do klama`. Rules of the grammar settle them, and the grammar lists them.
 
 ## Where it reads texts differently from camxes-exp
 
@@ -147,7 +147,9 @@ A replacement quote is one unit of raw words in the word stage (`../words/lohai.
 
 After `to`, indicators begin the parenthesis, as they begin a quote after `lu`. So `to ui mi klama toi` holds `ui` inside the parenthesis. camxes-exp attaches `ui` to `to`, because its `TO_post` takes indicators.
 
-The dialect cannot yet settle one kind of text, and it reports a tie for it. A quote or a parenthesis whose terminator is elided can hold a fragment of terms or a whole sentence. So `to mi klama` holds `mi` or `mi klama`. camxes-exp reads the sentence.
+A quote or a parenthesis whose terminator is elided can hold a fragment of terms or a whole sentence. So `to mi klama` holds `mi` or `mi klama`. The reading with `mi` elides `vau` and `toi` after `mi`, so `late-elision` takes the sentence, as camxes-exp does.
+
+One kind of text still ties. A free modifier after a subscript with a written terminator can belong to the subscript or to the word that the subscript marks. So `mi broda xi pa boi to do toi` has two readings, which elide the same terminators, and the dialect reports a tie. camxes-exp gives the parenthesis to the subscript.
 
 In `ge nai abu gi no drata`, a forethought connective can connect two sumti or make a quantifier. The dialect connects the sumti `abu` and `no drata`, as CLL does. A CLL quantifier is a number or a `vei ... ve'o` group. camxes-exp reads the quantifier `ge nai abu gi no` with the selbri `drata`. Where no sumti reading remains, the dialect rejects the text, as CLL does. So it rejects `ge abu gi by broda cu klama`, which camxes-exp reads with the quantifier `ge abu gi by`.
 

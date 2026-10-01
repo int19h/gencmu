@@ -173,7 +173,7 @@ async function main() {
     }
 
     // A tie is an error, shown with its two readings and no tree.
-    const tied = "to mi klama";
+    const tied = "mi broda xi pa boi to do toi";
     await choose("dialects/experimental.md");
     await type(tied);
     const tie = await answerFor(tied);

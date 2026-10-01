@@ -215,7 +215,7 @@ fn the_corpus() {
 fn the_corpus_runner_refuses_a_result_that_breaks_an_invariant() {
     let case = all_cases()
         .into_iter()
-        .find(|case| case.get("id").and_then(Value::str) == Some("adhoc.camxes-exp.ties.fragment-or-sentence-in-to"))
+        .find(|case| case.get("id").and_then(Value::str) == Some("adhoc.camxes-exp.ties.free-after-subscript"))
         .expect("the tied case");
     let name = case.get("dialect").and_then(Value::str).expect("a dialect");
     let dialect = gencmu::load_dialect(name).expect("a bundled dialect");
