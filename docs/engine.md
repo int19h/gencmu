@@ -309,7 +309,7 @@ An input rejected only because `maximal` or a maximal terminator forbids an elid
 
 That ranking reads the same chart of the main parse. It does not run recognition again, and the answers of nested queries in it are those of the parse.
 
-This report covers only main derivations that maximality removes. A condition whose nested query loses every eligible proof tree fails as any condition fails. Its item is never made, so the rejection is an ordinary one (above).
+This report covers only main derivations that maximality removes. If a nested query's answer makes a condition false, the recognizer does not make that advanced item. If no counted main derivation remains, the ordinary rejection rules apply.
 
 For example, take `%elidable maximal T` and `text → A B` with the condition `begins(from($), r)`. Also take `r → y [T] B` and `y → A | A B`. On `A B`, the query fails, because `y → A B` is longer. No main root remains, and no terminator is named.
 
