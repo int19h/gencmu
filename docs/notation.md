@@ -450,7 +450,7 @@ An inserted token with a phoneme tag has that phoneme as its label, or a space f
 A directive is a keyword and its operands. By convention each stands in a block of its own, after prose that says why the grammar needs it. Two directives can share a line.
 
 - `%ambiguity-resolution` says how the stage chooses among parses. Its first operand is the rule of the ranking: `greedy`, `lazy` or `late-elision`. `elision-only` and then `maximal` can follow it. "Ambiguity" and "Elided terminators" explain it. Every stage must say it exactly once, in any of its documents.
-- `%elidable KU KEI VAU ...` names the terminators that can be elided. An absent optional whose first symbol is one of them shows in the parse tree as that terminator, elided at that point. `late-elision` counts these terminators, `maximal` can forbid them, and `elision-only` writes them back. An optional that begins with another terminal, such as an optional separator, can still be absent. Its absence counts for nothing and leaves no node.
+- `%elidable KU KEI VAU ...` names the terminators that can be elided. An absent optional whose first symbol is one of them shows in the parse tree as that terminator, elided at that point. `late-elision` counts these terminators, `maximal` can forbid them, and `elision-only` writes them back. An optional that is not elidable (engine §3.8), such as an optional separator, can still be absent. Its absence counts for nothing and leaves no node.
 
   The operands are identifier tags: bare names that begin with a capital, or `~name`, so `KU` and `~KU` are one operand. A phoneme tag, a character tag, a range or a property there is an error. A stage can have several `%elidable` directives, and their terminators add up.
 - `%stage NAME`, `%include "PATH"` and `%features NAME ...` build a pipeline, as the next section says.
@@ -500,7 +500,9 @@ The first stage reads the text's characters. Each is a token with one tag, its c
 
 A grammar admits every parse that its rules allow. Where a text has more than one parse, the stage's `%ambiguity-resolution` names the rule that ranks them: `greedy`, `lazy` or `late-elision`. A parse is best when no other parse beats it under that rule. If exactly one parse is best, the stage takes it. If two or more are best, they are tied, and the text is ambiguous for this grammar.
 
-A tie is an error of kind `ambiguous`. The stage hands nothing on, and no later stage runs. The error shows two of the tied parses, and the first point at which they differ is its witness. The order of a rule's alternatives sets the canonical order of the engine. That order orders the ambiguity diagnostics and selects the forbidden terminator that a `maximal` rejection reports. It never selects an accepted reading.
+A tie is an error of kind `ambiguous`. The stage hands nothing on, and no later stage runs. The error shows two of the tied parses. The stage shows the first point at which they differ, its witness.
+
+The engine's canonical order (engine §6) orders the ambiguity diagnostics and selects the forbidden terminator that a `maximal` rejection reports. Among its keys are the numbers of the productions, which follow the order of a rule's alternatives. The canonical tie-break keys never turn a tie into an accepted reading.
 
 `greedy` and `lazy` treat each parse as the sequence of steps that a bottom-up reader takes. A step reads the next token or closes a constituent. gencmu compares the parses at the first step where two of them differ:
 
@@ -510,7 +512,7 @@ A tie is an error of kind `ambiguous`. The stage hands nothing on, and no later 
 
 Constituents with a single symbol, and the helper constituents that the notation creates for `[ ]` and `...`, are transparent to the comparison. So two parses that differ only in such a relabeling do not differ yet.
 
-Transparency does not merge parses, though. Two parses that differ only there are still two parses. Greedy and lazy tie them. Late-elision ties them exactly when their elision vectors are equal. For example, `[[X]]` matches the empty text in two ways, and `[A] & [B]` in three.
+Transparency does not merge parses, though. Two parses that differ only there are still two parses. `greedy` and `lazy` tie them. `late-elision` ties them exactly when their counts of elided terminators are equal at every position. For example, `[[X]]` matches the empty text in two ways, and `[A] & [B]` in three.
 
 The preference is like greedy and lazy quantifiers in a backtracking regular-expression engine. It is unlike the greed of a PEG parser. The preference orders the parses that the grammar already admits, and never commits early. So it never rejects a text by itself, but a tie that it leaves is an error. The earliest difference decides. And it applies to every constituent of the stage, not to one quantifier.
 
@@ -540,7 +542,7 @@ By default, the constituent of an elided terminator can end wherever a parse of 
 
 `maximal` only removes parses, and never chooses among the parses that remain. The rule of the stage ranks the parses that remain, as before. `maximal` does not order the alternatives of a rule, as a PEG does. A stage that declares `maximal` still sees every parse that its rules allow, apart from those that `maximal` removes.
 
-If `maximal` leaves a text with no parse, the text is an error. The error is at the first terminator that `maximal` forbids in the parse that the stage ranks first without `maximal`. Writing that terminator out ends its constituent there. Where that ranking is a tie, the order of the alternatives decides which tied parse names the terminator. It never decides whether the text parses.
+If `maximal` leaves a text with no parse, the text is an error. The error is at the first terminator that `maximal` forbids in the parse that the stage ranks first without `maximal`. Writing that terminator out ends its constituent there. Where that ranking is a tie, the engine's canonical order decides which tied parse names the terminator. It never decides whether the text parses.
 
 `maximal` and `late-elision` do different things, and a stage can declare both. `late-elision` ranks only parses of the whole text. `maximal` removes a parse because of a longer constituent, even one that fits no parse of the whole text. So a ranking cannot reproduce the rejections of `maximal`.
 
@@ -550,7 +552,7 @@ With `elision-only`, after the stage chooses one of several parses, it writes th
 
 If that parse has exactly one derivation, the check passes. If it has none, the check passes too, because no two readings exist to show. With two or more, the ambiguity is not about terminators, and the parse is an error that shows two readings. A tie is an error before the check runs, so the check sees only a text that the rule settled.
 
-For the CLL grammar, `elision-only` rejects only a few texts, which the printed grammar leaves ambiguous in more than a terminator. Historically, `mi broda joi ke brode ke'e` was one of them. The CLL grammar now settles it with the condition that the official parser applies to a joik before `ke`.
+So the check fails only where one best parse survives, but the text with its terminators written back has two readings. The corpus measured for this decision had no such text, but that is no general guarantee. Historically, under `greedy`, `mi broda joi ke brode ke'e` was one. The CLL grammar now settles it as the official parser does. A `ke` unit cannot directly follow a plain joik, a joik that does not open its own `ke` group.
 
 The grammars that extend CLL are really ambiguous in places. A sumti is an argument of the selbri. A term is a wider kind of argument that includes the sumti. Historically, the experimental grammar read the `mi .e do` of `mi .e do klama` in two ways. It was two sumti joined by `.e`, or two terms joined by it. Its rule that a sumti connection comes before a term connection now settles it.
 
