@@ -173,12 +173,13 @@ async function main() {
     }
 
     // A tie is an error, shown with its two readings and no tree.
-    const tied = "mi bevri le dakli gi'eke bevri le gerku gi'a bevri le mlatu";
+    const tied = "to mi klama";
+    await choose("dialects/experimental.md");
     await type(tied);
     const tie = await answerFor(tied);
     if (tie.error) throw new Error(`the playground failed: ${tie.error}`);
     if (!/a tie in the syntax stage/.test(tie.verdict) || !/The syntax stage is ambiguous/.test(tie.explanation) ||
-        !/first\(mi /.test(tie.explanation) || !/second\(mi /.test(tie.explanation) || tie.output !== "") {
+        !/first\(/.test(tie.explanation) || !/second\(/.test(tie.explanation) || tie.output !== "") {
       throw new Error(`${tied} was not shown as a tie: ${JSON.stringify(tie)}`);
     }
 
