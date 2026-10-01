@@ -49,6 +49,7 @@ mod loader;
 mod lower;
 mod markdown;
 mod maximal;
+mod nat;
 mod notation;
 mod output;
 mod pipeline;

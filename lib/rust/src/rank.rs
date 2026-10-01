@@ -24,11 +24,11 @@ use crate::earley::{test_holds, Chart, Item, Shared, Tok};
 use crate::grammar::Lean;
 use crate::lower::{Lowered, Sym, SymbolTest, NO_TEST};
 use crate::maximal::Maximal;
+use crate::nat::Nat;
 use crate::tags::{SetId, Tags};
 use crate::unicode::Unicode;
 
 pub(crate) const EMPTY: u32 = 0;
-const INF: u32 = u32::MAX;
 const ANY: u32 = u32::MAX;
 
 /// A node of a derivation.
@@ -94,10 +94,19 @@ enum Node {
 
 type Key = (Node, u32);
 
+/// Where a companion first differs from its entry: at a place of the
+/// visible sequence, or only in transparent actions, which is after every
+/// place. A place can pass any fixed width, so it is exact.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+enum Div {
+    At(Nat),
+    Last,
+}
+
 #[derive(Debug, Clone)]
 struct Comp {
     d: u32,
-    div: u32,
+    div: Div,
 }
 
 #[derive(Debug, Clone)]
@@ -137,17 +146,17 @@ enum Walk {
 }
 
 enum Diff {
-    At { index: u32, a: Act, b: Act },
-    APrefix { len: u32 },
-    BPrefix { len: u32 },
+    At { index: Nat, a: Act, b: Act },
+    APrefix { len: Nat },
+    BPrefix { len: Nat },
     Equal,
 }
 
 /// How two derivations of one node relate: `p` is the visible index where
 /// the first comes first, and `tie` whether that is a tie (§6).
 enum Rel {
-    AFirst { p: u32, tie: bool },
-    BFirst { p: u32, tie: bool },
+    AFirst { p: Nat, tie: bool },
+    BFirst { p: Nat, tie: bool },
     AFirstFull,
     BFirstFull,
     Unresolved,
@@ -166,18 +175,32 @@ pub(crate) struct Ranking {
 
 /// Elision vectors (§6), each kept as the positions of its elided
 /// terminators in text order. A vector is a node of a shared tree whose
-/// leaves are positions, so the vector of an edge is the two of its
-/// children joined, and vectors built on one part share it.
+/// leaves are runs, a position with the number of terminators elided there,
+/// so the vector of an edge is the two of its children joined, and vectors
+/// built on one part share it. A count at one boundary can be exponential
+/// in the size of the grammar, so it is an exact `Nat`.
 struct Vectors {
     nodes: Vec<VNode>,
     leaves: FxMap<u32, u32>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 enum VNode {
     Empty,
-    At(u32),
-    Join { left: u32, right: u32, size: u32 },
+    /// `count` terminators elided at `at`.
+    Run {
+        at: u32,
+        count: Nat,
+    },
+    /// Two vectors, where every position of `left` comes before or at every
+    /// position of `right`, and the two span more than one position. `hint`
+    /// is the number of elided terminators, saturated, which only guides
+    /// the comparison.
+    Join {
+        left: u32,
+        right: u32,
+        hint: u64,
+    },
 }
 
 /// The vector with no elided terminator.
@@ -188,12 +211,17 @@ impl Vectors {
         Vectors { nodes: vec![VNode::Empty], leaves: FxMap::default() }
     }
 
-    fn size(&self, vector: u32) -> u32 {
-        match self.nodes[vector as usize] {
+    fn hint(&self, vector: u32) -> u64 {
+        match &self.nodes[vector as usize] {
             VNode::Empty => 0,
-            VNode::At(_) => 1,
-            VNode::Join { size, .. } => size,
+            VNode::Run { count, .. } => count.saturated(),
+            VNode::Join { hint, .. } => *hint,
         }
+    }
+
+    fn push(&mut self, node: VNode) -> u32 {
+        self.nodes.push(node);
+        (self.nodes.len() - 1) as u32
     }
 
     /// The vector of one terminator elided at `position`.
@@ -201,79 +229,122 @@ impl Vectors {
         if let Some(&found) = self.leaves.get(&position) {
             return found;
         }
-        self.nodes.push(VNode::At(position));
-        let id = (self.nodes.len() - 1) as u32;
+        let id = self.push(VNode::Run { at: position, count: Nat::ONE });
         self.leaves.insert(position, id);
         id
     }
 
     /// The sum of two vectors, where every position of `left` comes before
-    /// or at every position of `right`.
+    /// or at every position of `right`. Two runs at one position make one
+    /// run, so every vector of a single position is a run.
     fn join(&mut self, left: u32, right: u32) -> u32 {
-        let size = self.size(left) + self.size(right);
-        if self.size(left) == 0 {
-            return right;
+        match (&self.nodes[left as usize], &self.nodes[right as usize]) {
+            (VNode::Empty, _) => right,
+            (_, VNode::Empty) => left,
+            (VNode::Run { at: p, count: a }, VNode::Run { at: q, count: b }) if p == q => {
+                let run = VNode::Run { at: *p, count: a.add(b) };
+                self.push(run)
+            }
+            _ => {
+                let hint = self.hint(left).saturating_add(self.hint(right));
+                self.push(VNode::Join { left, right, hint })
+            }
         }
-        if self.size(right) == 0 {
-            return left;
+    }
+
+    /// The next run of a walk, opening joins.
+    fn next_run(&self, stack: &mut Vec<u32>) -> Option<(u32, Nat)> {
+        while let Some(top) = stack.pop() {
+            match &self.nodes[top as usize] {
+                VNode::Empty => {}
+                VNode::Run { at, count } => return Some((*at, count.clone())),
+                VNode::Join { left, right, .. } => {
+                    stack.push(*right);
+                    stack.push(*left);
+                }
+            }
         }
-        self.nodes.push(VNode::Join { left, right, size });
-        (self.nodes.len() - 1) as u32
+        None
     }
 
     /// Compares two vectors from boundary 0 on: `Less` when `a` is less.
-    /// At the first place where their positions differ, the one that
-    /// elides at the earlier position has the greater count there, so the
-    /// other is less. A vector whose positions end first has fewer elided
-    /// terminators after the shared part, so it is less.
+    /// The walk takes the runs of both in text order. Where two runs have
+    /// one position, the smaller count is used up first, and the rest of
+    /// the other stays. At the first place where their positions differ,
+    /// the one that elides at the earlier position has the greater count
+    /// there, so the other is less. A vector whose runs end first has fewer
+    /// elided terminators after the shared part, so it is less.
     fn compare(&self, a: u32, b: u32) -> Ordering {
         let mut left = vec![a];
         let mut right = vec![b];
+        // The rest of a run that the other side has used up in part.
+        let mut rest_left: Option<(u32, Nat)> = None;
+        let mut rest_right: Option<(u32, Nat)> = None;
         loop {
-            while left.last().is_some_and(|&v| self.size(v) == 0) {
-                left.pop();
+            if rest_left.is_none() && rest_right.is_none() {
+                while left.last().is_some_and(|&v| matches!(self.nodes[v as usize], VNode::Empty)) {
+                    left.pop();
+                }
+                while right.last().is_some_and(|&v| matches!(self.nodes[v as usize], VNode::Empty)) {
+                    right.pop();
+                }
+                match (left.last(), right.last()) {
+                    (None, None) => return Ordering::Equal,
+                    (None, Some(_)) => return Ordering::Less,
+                    (Some(_), None) => return Ordering::Greater,
+                    (Some(&x), Some(&y)) => {
+                        // A part both share counts the same on both sides.
+                        if x == y {
+                            left.pop();
+                            right.pop();
+                            continue;
+                        }
+                        // Opens the larger side first, so that a part both
+                        // share meets itself at the front of both.
+                        let (nx, ny) = (&self.nodes[x as usize], &self.nodes[y as usize]);
+                        let (hx, hy) = (self.hint(x), self.hint(y));
+                        let (jx, jy) = (matches!(nx, VNode::Join { .. }), matches!(ny, VNode::Join { .. }));
+                        if jx || jy {
+                            if let VNode::Join { left: l, right: r, .. } = *nx {
+                                if !jy || hx >= hy {
+                                    left.pop();
+                                    left.push(r);
+                                    left.push(l);
+                                }
+                            }
+                            if let VNode::Join { left: l, right: r, .. } = *ny {
+                                if !jx || hy >= hx {
+                                    right.pop();
+                                    right.push(r);
+                                    right.push(l);
+                                }
+                            }
+                            continue;
+                        }
+                    }
+                }
             }
-            while right.last().is_some_and(|&v| self.size(v) == 0) {
-                right.pop();
-            }
-            let (x, y) = match (left.last(), right.last()) {
+            let x = match rest_left.take() {
+                Some(run) => Some(run),
+                None => self.next_run(&mut left),
+            };
+            let y = match rest_right.take() {
+                Some(run) => Some(run),
+                None => self.next_run(&mut right),
+            };
+            let ((p, count_x), (q, count_y)) = match (x, y) {
                 (None, None) => return Ordering::Equal,
                 (None, Some(_)) => return Ordering::Less,
                 (Some(_), None) => return Ordering::Greater,
-                (Some(&x), Some(&y)) => (x, y),
+                (Some(x), Some(y)) => (x, y),
             };
-            if x == y {
-                left.pop();
-                right.pop();
-                continue;
+            if p != q {
+                return q.cmp(&p);
             }
-            match (self.nodes[x as usize], self.nodes[y as usize]) {
-                (VNode::At(p), VNode::At(q)) => {
-                    if p != q {
-                        return q.cmp(&p);
-                    }
-                    left.pop();
-                    right.pop();
-                }
-                (nx, ny) => {
-                    // Opens the larger side first, so that a part both share
-                    // meets itself at the front of both.
-                    let (sx, sy) = (self.size(x), self.size(y));
-                    if let VNode::Join { left: l, right: r, .. } = nx {
-                        if !matches!(ny, VNode::Join { .. }) || sx >= sy {
-                            left.pop();
-                            left.push(r);
-                            left.push(l);
-                        }
-                    }
-                    if let VNode::Join { left: l, right: r, .. } = ny {
-                        if !matches!(nx, VNode::Join { .. }) || sy >= sx {
-                            right.pop();
-                            right.push(r);
-                            right.push(l);
-                        }
-                    }
-                }
+            match count_x.cmp(&count_y) {
+                Ordering::Equal => {}
+                Ordering::Less => rest_right = Some((q, count_y.sub(&count_x))),
+                Ordering::Greater => rest_left = Some((p, count_x.sub(&count_y))),
             }
         }
     }
@@ -370,8 +441,10 @@ pub(crate) struct Dag<'c> {
     tags: &'c Tags,
     lean: Lean,
     pub arena: Vec<DNode>,
-    vlen: Vec<u32>,
-    flen: Vec<u32>,
+    /// The number of visible actions and of all actions of each node,
+    /// exact, since a derivation can be exponentially long.
+    vlen: Vec<Nat>,
+    flen: Vec<Nat>,
 }
 
 pub(crate) struct Ranker<'c> {
@@ -391,7 +464,7 @@ impl<'c> Dag<'c> {
         self.chart.sets[set as usize].items[index as usize]
     }
 
-    fn push(&mut self, node: DNode, vlen: u32, flen: u32) -> u32 {
+    fn push(&mut self, node: DNode, vlen: Nat, flen: Nat) -> u32 {
         self.arena.push(node);
         self.vlen.push(vlen);
         self.flen.push(flen);
@@ -399,15 +472,15 @@ impl<'c> Dag<'c> {
     }
 
     fn seq(&mut self, left: u32, right: u32) -> u32 {
-        let vlen = self.vlen[left as usize] + self.vlen[right as usize];
-        let flen = self.flen[left as usize] + self.flen[right as usize];
+        let vlen = self.vlen[left as usize].add(&self.vlen[right as usize]);
+        let flen = self.flen[left as usize].add(&self.flen[right as usize]);
         self.push(DNode::Seq { left, right }, vlen, flen)
     }
 
     fn close(&mut self, body: u32, set: u32, item: u32) -> u32 {
         let visible = self.g.prods[self.chart.sets[set as usize].items[item as usize].prod as usize].visible;
-        let vlen = self.vlen[body as usize] + u32::from(visible);
-        let flen = self.flen[body as usize] + 1;
+        let vlen = if visible { self.vlen[body as usize].add(&Nat::ONE) } else { self.vlen[body as usize].clone() };
+        let flen = self.flen[body as usize].add(&Nat::ONE);
         self.push(DNode::Close { body, set, item }, vlen, flen)
     }
 
@@ -420,11 +493,14 @@ impl<'c> Dag<'c> {
         let x = self.seq(first.x, second.x);
         let mut comps = Vec::new();
         for comp in &first.comps {
-            comps.push(Comp { d: self.seq(comp.d, second.x), div: comp.div });
+            comps.push(Comp { d: self.seq(comp.d, second.x), div: comp.div.clone() });
         }
-        let offset = self.vlen[first.x as usize];
+        let offset = self.vlen[first.x as usize].clone();
         for comp in &second.comps {
-            let div = if comp.div == INF { INF } else { offset + comp.div };
+            let div = match &comp.div {
+                Div::At(place) => Div::At(offset.add(place)),
+                Div::Last => Div::Last,
+            };
             comps.push(Comp { d: self.seq(first.x, comp.d), div });
         }
         self.prune(&mut comps);
@@ -478,11 +554,12 @@ impl<'c> Dag<'c> {
     /// The winner takes in what of the loser stays tied with it: the loser
     /// itself if their difference was a tie, and the loser's companions that
     /// diverged from it before that difference.
-    fn absorb(&mut self, winner: &mut Entry, loser: &Entry, p: Option<u32>, tie: bool) {
+    fn absorb(&mut self, winner: &mut Entry, loser: &Entry, p: Option<Nat>, tie: bool) {
         match p {
             Some(p) => {
+                let p = Div::At(p);
                 if tie {
-                    winner.comps.push(Comp { d: loser.x, div: p });
+                    winner.comps.push(Comp { d: loser.x, div: p.clone() });
                 }
                 // A companion that diverged from the loser where the winner
                 // beat it is beaten there too, since ties are transitive.
@@ -493,7 +570,7 @@ impl<'c> Dag<'c> {
                 }
             }
             None => {
-                winner.comps.push(Comp { d: loser.x, div: INF });
+                winner.comps.push(Comp { d: loser.x, div: Div::Last });
                 winner.comps.extend(loser.comps.iter().cloned());
             }
         }
@@ -503,7 +580,7 @@ impl<'c> Dag<'c> {
     /// Keeps the companions that diverge earliest, and of those the ones
     /// nothing precedes in every context.
     fn prune(&mut self, comps: &mut Vec<Comp>) {
-        let Some(min) = comps.iter().map(|comp| comp.div).min() else {
+        let Some(min) = comps.iter().map(|comp| &comp.div).min().cloned() else {
             return;
         };
         let candidates: Vec<Comp> = comps.drain(..).filter(|comp| comp.div == min).collect();
@@ -530,20 +607,20 @@ impl<'c> Dag<'c> {
         *comps = kept;
     }
 
-    fn walk_len(&self, walk: &Walk, visible: bool) -> u32 {
+    fn walk_len(&self, walk: &Walk, visible: bool) -> Nat {
         match walk {
             Walk::Node(id) => {
                 if visible {
-                    self.vlen[*id as usize]
+                    self.vlen[*id as usize].clone()
                 } else {
-                    self.flen[*id as usize]
+                    self.flen[*id as usize].clone()
                 }
             }
             Walk::Act(id) => {
                 let DNode::Close { set, item, .. } = self.arena[*id as usize] else { unreachable!("a close") };
                 match self.close_act(set, item) {
-                    Act::Close { visible: false, .. } if visible => 0,
-                    _ => 1,
+                    Act::Close { visible: false, .. } if visible => Nat::ZERO,
+                    _ => Nat::ONE,
                 }
             }
         }
@@ -582,12 +659,12 @@ impl<'c> Dag<'c> {
     fn first_difference(&self, a: u32, b: u32, visible: bool) -> Diff {
         let mut left = vec![Walk::Node(a)];
         let mut right = vec![Walk::Node(b)];
-        let mut index = 0u32;
+        let mut index = Nat::ZERO;
         loop {
-            while left.last().is_some_and(|walk| self.walk_len(walk, visible) == 0) {
+            while left.last().is_some_and(|walk| self.walk_len(walk, visible).is_zero()) {
                 left.pop();
             }
-            while right.last().is_some_and(|walk| self.walk_len(walk, visible) == 0) {
+            while right.last().is_some_and(|walk| self.walk_len(walk, visible).is_zero()) {
                 right.pop();
             }
             let (Some(x), Some(y)) = (left.last(), right.last()) else {
@@ -599,7 +676,7 @@ impl<'c> Dag<'c> {
             };
             if let (Walk::Node(p), Walk::Node(q)) = (x, y) {
                 if p == q {
-                    index += self.walk_len(x, visible);
+                    index = index.add(&self.walk_len(x, visible));
                     left.pop();
                     right.pop();
                     continue;
@@ -609,7 +686,7 @@ impl<'c> Dag<'c> {
             match (ax, ay) {
                 (Some(p), Some(q)) => {
                     if p.same(&q) {
-                        index += 1;
+                        index = index.add(&Nat::ONE);
                         left.pop();
                         right.pop();
                     } else {
@@ -741,7 +818,7 @@ impl<'c> Ranker<'c> {
             vlen: Vec::new(),
             flen: Vec::new(),
         };
-        dag.push(DNode::Empty, 0, 0);
+        dag.push(DNode::Empty, Nat::ZERO, Nat::ZERO);
         let mut ranker = Ranker {
             dag,
             memo: FxMap::default(),
@@ -1072,7 +1149,7 @@ impl<'c> Ranker<'c> {
         match deps {
             Deps::Leaf => match node {
                 Node::Read { tok, terminal } => {
-                    let x = self.dag.push(DNode::Read { tok, terminal }, 1, 1);
+                    let x = self.dag.push(DNode::Read { tok, terminal }, Nat::ONE, Nat::ONE);
                     NodeResult { entries: vec![Entry { x, comps: Vec::new() }], count: 1, allowed: None }
                 }
                 _ => NodeResult { entries: vec![Entry { x: EMPTY, comps: Vec::new() }], count: 1, allowed: None },
@@ -1132,7 +1209,7 @@ impl<'c> Ranker<'c> {
                     let comps = entry
                         .comps
                         .iter()
-                        .map(|comp| Comp { d: self.dag.close(comp.d, set, index), div: comp.div })
+                        .map(|comp| Comp { d: self.dag.close(comp.d, set, index), div: comp.div.clone() })
                         .collect();
                     self.dag.add_entry(&mut list, Entry { x, comps });
                 }
@@ -1194,7 +1271,7 @@ impl<'c> Ranker<'c> {
         }
         // The derivation tied with the chosen one that diverges from it
         // earliest, and of those the first in T.
-        let mut tied: Option<(u32, u32)> = None;
+        let mut tied: Option<(u32, Div)> = None;
         for d in candidates {
             let div = match self.dag.first_difference(chosen, d, true) {
                 Diff::At { index, a, b } => {
@@ -1202,20 +1279,20 @@ impl<'c> Ranker<'c> {
                     if !tie {
                         continue;
                     }
-                    index
+                    Div::At(index)
                 }
-                Diff::APrefix { len } | Diff::BPrefix { len } => len,
+                Diff::APrefix { len } | Diff::BPrefix { len } => Div::At(len),
                 Diff::Equal => match self.dag.first_difference(chosen, d, false) {
                     Diff::Equal => continue,
-                    _ => INF,
+                    _ => Div::Last,
                 },
             };
-            let better = match tied {
+            let better = match &tied {
                 None => true,
-                Some((best, best_div)) => match div.cmp(&best_div) {
+                Some((best, best_div)) => match div.cmp(best_div) {
                     Ordering::Less => true,
                     Ordering::Greater => false,
-                    Ordering::Equal => self.dag.before(d, best),
+                    Ordering::Equal => self.dag.before(d, *best),
                 },
             };
             if better {
@@ -1240,13 +1317,78 @@ impl<'c> Ranker<'c> {
         } else {
             Verdict::Resolved
         };
-        let witness = tied.map(|(t, _)| match self.dag.first_difference(chosen, t, true) {
+        let second = tied.map(|(t, _)| t);
+        let witness = second.map(|t| match self.dag.first_difference(chosen, t, true) {
             Diff::At { a, b, .. } => (a, b),
             _ => match self.dag.first_difference(chosen, t, false) {
                 Diff::At { a, b, .. } => (a, b),
                 _ => unreachable!("two different derivations differ"),
             },
         });
-        Some(Ranking { verdict, first: chosen, second: tied.map(|(t, _)| t), witness })
+        Some(Ranking { verdict, first: chosen, second, witness })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Nat, Ordering, VNode, Vectors};
+
+    /// 2^k, by doubling from one.
+    fn power(k: u32) -> Nat {
+        (0..k).fold(Nat::ONE, |n, _| n.add(&n))
+    }
+
+    /// A run of `count` terminators elided at `at`, made by joining
+    /// smaller runs, as the ranking makes it.
+    fn run(vectors: &mut Vectors, at: u32, doublings: u32) -> u32 {
+        let mut vector = vectors.one(at);
+        for _ in 0..doublings {
+            vector = vectors.join(vector, vector);
+        }
+        vector
+    }
+
+    /// The comparison of elision vectors stays exact where a count at one
+    /// boundary passes any fixed width, and where one run is split across
+    /// joins.
+    #[test]
+    fn vectors_compare_exactly_past_any_fixed_width() {
+        let mut vectors = Vectors::new();
+        let empty = super::NO_ELISIONS;
+        let big = run(&mut vectors, 0, 100);
+        assert!(matches!(&vectors.nodes[big as usize], VNode::Run { at: 0, count } if *count == power(100)));
+        let one = vectors.one(0);
+        let bigger = vectors.join(big, one);
+        assert_eq!(vectors.compare(empty, big), Ordering::Less);
+        assert_eq!(vectors.compare(big, empty), Ordering::Greater);
+        assert_eq!(vectors.compare(big, bigger), Ordering::Less);
+        assert_eq!(vectors.compare(bigger, big), Ordering::Greater);
+        assert_eq!(vectors.compare(bigger, bigger), Ordering::Equal);
+        // 2^32 at boundary 0, which a 32-bit count would wrap to nothing.
+        let wraps = run(&mut vectors, 0, 32);
+        assert_eq!(vectors.compare(wraps, empty), Ordering::Greater);
+        // Equal counts at 0; then the one that elides at 2 is greater than
+        // the one that elides at 3.
+        let at_two = vectors.one(2);
+        let at_three = vectors.one(3);
+        let a = vectors.join(big, at_three);
+        let b = vectors.join(big, at_two);
+        assert_eq!(vectors.compare(a, b), Ordering::Less);
+        assert_eq!(vectors.compare(b, a), Ordering::Greater);
+        // One run at 1 split across two joins counts as their sum.
+        let first = vectors.one(0);
+        let middle = run(&mut vectors, 1, 70);
+        let split = vectors.join(first, middle);
+        let rest = run(&mut vectors, 1, 70);
+        let split = vectors.join(split, rest);
+        let whole = run(&mut vectors, 1, 71);
+        let whole = vectors.join(first, whole);
+        assert_eq!(vectors.compare(split, whole), Ordering::Equal);
+        assert_eq!(vectors.compare(whole, split), Ordering::Equal);
+        let more = vectors.join(whole, at_two);
+        assert_eq!(vectors.compare(split, more), Ordering::Less);
+        let fewer = run(&mut vectors, 1, 69);
+        let fewer = vectors.join(first, fewer);
+        assert_eq!(vectors.compare(fewer, split), Ordering::Less);
     }
 }

@@ -860,3 +860,36 @@ fn the_experimental_syntax_reads_no_la() {
     assert_eq!(result.error.as_ref().and_then(|error| error.stage.as_deref()), Some("syntax"));
     assert!(probe.parse("lo mlatu ku cu klama", &ParseOptions::default()).expect("a result").ok);
 }
+
+/// A grammar whose derivations are exponentially long: each rule repeats
+/// the rule before it twice, from `r0 → [T]` with `T` elidable, and the
+/// rule `text` has the alternatives `text`.
+fn doubling(rule: &str, depth: usize, text: &str) -> gencmu::Dialect {
+    let mut grammar = format!("%ambiguity-resolution {rule}\n%elidable T\n%rule text {text}\n%rule r0 [T]\n");
+    for i in 1..=depth {
+        grammar.push_str(&format!("%rule r{i} r{} r{}\n", i - 1, i - 1));
+    }
+    gencmu::load_dialect_sources(single(&grammar), "p.md").unwrap()
+}
+
+/// The counts of a derivation can pass any fixed width: here 2^32 and
+/// 2^100 terminators elided at boundary 0, and as many visible actions.
+/// They stay exact (engine §6).
+#[test]
+fn exponentially_long_derivations_keep_exact_counts() {
+    for depth in [32, 100] {
+        // Under late-elision, the empty reading elides nothing and wins.
+        let dialect = doubling("late-elision", depth, &format!("ε | r{depth}"));
+        let result = dialect.parse_tokens(&[], &no_auto()).unwrap();
+        assert!(result.ok, "{depth}");
+        assert_eq!(result.stages[0].verdict, Some(Verdict::Resolved), "{depth}");
+        // Under greedy, the reading that reads A at once beats the one that
+        // first closes the long rule.
+        let dialect = doubling("greedy", depth, &format!("A | r{depth} A"));
+        let a = gencmu::InputToken { text: "a".into(), tags: ["A".to_string()].into_iter().collect(), phonemes: None };
+        let result = dialect.parse_tokens(&[a], &no_auto()).unwrap();
+        assert!(result.ok, "{depth}");
+        assert_eq!(result.stages[0].verdict, Some(Verdict::Resolved), "{depth}");
+        assert_eq!(gencmu::to_brackets(&result, false), "a", "{depth}");
+    }
+}
