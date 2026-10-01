@@ -22,7 +22,7 @@ println!("{}", gencmu::to_json(&result));
 - `Dialect::features()` lists the features of the dialect in code point order, the gates of its classifiers' entries included. Each is a `Feature` with its `name`, its `kind` (`FeatureKind::Gate` or `FeatureKind::Warning`), and whether the pipeline turns it on by `default`.
 - `to_json(&result)` writes the canonical JSON of `docs/output.md`.
 - `to_brackets(&result, show_elided)` renders the tree as brackets. It shows each token by its label. A token with attachments is a group of its before-attachments, its label and its after-attachments, so `mi ui klama` in the `cll-ebnf` dialect is `([mi ui] klama)`.
-- A `ParseResult` owns its data: the stages, the tree, the error and the warnings. Each stage has its input and output tokens, its verdict and, for a tie, its witness and tied tree.
+- A `ParseResult` owns its data: the stages, the tree, the error and the warnings. Each stage has its input and output tokens, its verdict and, for a tie, its witness. A tied stage has no output tokens, and the error of the result holds its two readings.
 
   A token has its text, its phonemes, its label, its tags, its span and its source range. The label is what the renderings for people show. An opaque part, such as the body of a `zoi` quote, sounds `?` and has its text as its label. A pause has a space as its label.
 
