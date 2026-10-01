@@ -293,7 +293,9 @@ When `Y` is tested, the longer constituent counts only if the test holds of it, 
 
 Only the constituent matters, not what follows the elided terminator in its production. Whether a constituent is the longest possible depends only on its symbol, its test, its origin and its end. So an implementation can find, once per parse, the furthest set in which each symbol completes from each origin. For a tested symbol, it needs each completed item of the symbol from each origin, since the furthest one need not pass the test. `maximal` does not apply to the parse of §7, which has no elided terminator. It also does not apply to a nested parse, which follows written-terminator priority instead (above).
 
-A maximal terminator is one that `%elidable maximal` names (§2). It brings the condition of `maximal` to that terminator alone. The engine does not count a derivation in which an elided terminator of a maximal terminal has a constituent that is not the longest possible. The terminal is that of the elidable optional (§3.8). The constituent, its origin, its test and the three cases with no constituent are as above. An elided terminator with no constituent is never forbidden.
+A maximal terminator is one that `%elidable maximal` names (§2). It brings the condition of `maximal` to that terminator alone. The engine does not count a derivation in which an elided terminator of a maximal terminal has a constituent that is not the longest possible. The terminal is that of the elidable optional (§3.8). The constituent, its origin, its test and the three cases with no constituent are as above.
+
+Maximality never forbids an omission with no constituent. Written-terminator priority still applies in a query.
 
 The longer constituent need not fit into any derivation of `text`, as above. A stage-wide `maximal` makes every elidable terminator maximal in the main parse. A maximal terminator differs from it in two ways. It applies whatever the directive of the stage says. It also applies in a nested parse (above), where a stage-wide `maximal` does not.
 
@@ -304,6 +306,12 @@ An implementation already finds the furthest completion of each symbol from each
 A stage accepts when an item of the start rule `text` spans the whole input and has at least one derivation that is counted. It rejects an input whose every such derivation is cyclic, as it rejects one with no such item. A stage that accepts its input can still end with a tie, which is an error (§6). A rejected input reports the furthest position that any item reached. It also reports the terminals that the items there can read next, together with the rules that those items belong to (§11). The stage writes a tested terminal with its test, such as `LE="la"` (`docs/output.md`).
 
 An input rejected only because `maximal` or a maximal terminator forbids an elided terminator in every derivation that is not cyclic reports that terminator instead. The terminator comes from the first reading, `m`, of the ranking that the stage makes when neither forbids anything (§6). It is the first elided terminator of that derivation, in the order of the tree's leaves, that either forbids. Its position is the position reported, and its terminal, with the rule in whose alternative its optional is written, is the one terminal expected there. If that terminator is tested, the stage writes it with its test there too.
+
+That ranking reads the same chart of the main parse. It does not run recognition again, and the answers of nested queries in it are those of the parse.
+
+This report covers only main derivations that maximality removes. A condition whose nested query loses every eligible proof tree fails as any condition fails. Its item is never made, so the rejection is an ordinary one (above).
+
+For example, take `%elidable maximal T` and `text → A B` with the condition `begins(from($), r)`. Also take `r → y [T] B` and `y → A | A B`. On `A B`, the query fails, because `y → A B` is longer. No main root remains, and no terminator is named.
 
 The reported terminator comes from `m` whatever the verdict of that ranking. So *T* (§6) selects the forbidden terminator that such a rejection reports. The canonical tie-break keys never turn a tie into an accepted reading.
 
