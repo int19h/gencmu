@@ -114,7 +114,7 @@ An expression is one of these forms:
 {"empty":true}
 ```
 
-`terminal` holds a tag in its canonical spelling (engine §1): a name from `~name`, a phoneme tag `/p/`, or a character tag such as `'a'`. A bare name is a `ref`, whether it names a rule or, with a capital, a terminal. A `range` holds its start and its end, each a character tag in its canonical spelling, and the start is not above the end. A `property` holds its name, one of those of engine §1.
+An expression has no member but those of its one form. `terminal` holds a tag in its canonical spelling (engine §1): a name from `~name`, a phoneme tag `/p/`, or a character tag such as `'a'`. A bare name is a `ref`, whether it names a rule or, with a capital, a terminal. So a `ref` holds a name (engine §9), or `#`. A `range` holds its start and its end, each a character tag in its canonical spelling, and the start is not above the end. A `property` holds its name, one of those of engine §1.
 
 A tested symbol has no member but `test`, `value` and `expr`. `test` is its comparator: `=`, `≠`, `⊇`, `⊉`, `∩=∅` or `∩≠∅`. Its `expr` is a `ref` other than `#`, a `terminal`, a `range` or a `property`, with no other member. Its `value` is a closed term (engine §10), a string for `=` and `≠` and a tag set for the other four. A string there holds no comma and no code point that the lowercase mapping changes (engine §9). A capture's `expr` is a `ref`, a `terminal`, a `range`, a `property` or a tested symbol.
 
@@ -135,6 +135,8 @@ A condition is one of these forms:
 - `{"all":[COND...]}`
 - `{"captured":"x"}`, with `""` for `$`
 - `{"if":COND,"then":COND}`
+
+A condition has no member but those of its one form.
 
 An emission is `{"items":[ITEM...]}`. An item is `{"capture":"x","tags":TERM,"before":["b"],"after":["a"]}`, or `{"insert":"/h/"}`, whose value is one tag in its canonical spelling. For `ε`, there are no items. `"capture":""` is `$`.
 
