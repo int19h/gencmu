@@ -641,7 +641,6 @@ class Dialect:
                 current,
                 outcome.output,
                 outcome.witness,
-                outcome.tied,
                 outcome.tree,
             )
             stages.append(stage)

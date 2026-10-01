@@ -8,7 +8,7 @@ from typing import Any
 from ._model import Action, Node, ParseError, ParseResult, ParseWarning, Stage, Token
 from ._tags import sorted_tags
 
-FORMAT = 6
+FORMAT = 7
 
 
 def token_json(token: Token) -> dict[str, Any]:
@@ -90,8 +90,6 @@ def stage_json(stage: Stage) -> dict[str, Any]:
     value: dict[str, Any] = {"name": stage.name, "verdict": stage.verdict}
     if stage.verdict == "tie" and stage.witness is not None:
         value["witness"] = [action_json(stage.witness[0]), action_json(stage.witness[1])]
-        if stage.tied is not None:
-            value["tied"] = node_json(stage.tied)
     if stage.output is not None:
         value["output"] = [token_json(token) for token in stage.output]
     return value
@@ -101,6 +99,8 @@ def error_json(error: ParseError) -> dict[str, Any]:
     value: dict[str, Any] = {"kind": error.kind}
     if error.stage is not None:
         value["stage"] = error.stage
+    if error.reason is not None:
+        value["reason"] = error.reason
     if error.token is not None:
         value["token"] = error.token
     if error.source is not None:

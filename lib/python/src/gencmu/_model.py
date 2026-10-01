@@ -97,11 +97,17 @@ class Expected:
 @dataclass
 class ParseError:
     """Why a parse failed: ``kind`` is ``"rejected"``, ``"ambiguous"`` or
-    ``"grammar"`` (docs/output.md, "Error")."""
+    ``"grammar"`` (docs/output.md, "Error").
+
+    An ambiguous error has a ``reason``: ``"tie"`` where a stage has two or
+    more best readings (engine §6), or ``"elision-only"`` where the check of
+    engine §7 fails. Its ``readings`` are two trees: the first and the
+    second reading of the ranking that found the ambiguity."""
 
     kind: str
     message: str
     stage: str | None = None
+    reason: str | None = None
     token: int | None = None
     source: Range | None = None
     document: str | None = None
@@ -114,15 +120,19 @@ class ParseError:
 @dataclass
 class Stage:
     """One stage of a run: its verdict (``"unique"``, ``"resolved"``,
-    ``"tie"``, or ``None`` if it did not accept), the tie's witness and tied
-    tree, its input tokens and, if it accepted, the tokens it emitted."""
+    ``"tie"``, or ``None`` if it did not accept), its input tokens and, if
+    it chose a derivation, its tree and the tokens it emitted.
+
+    A tied stage has its ``witness``, the pair of actions where the two
+    readings of the tie first differ, with the first reading's first. It has
+    no tree and no output, and its two readings are in the result's error
+    (engine §6)."""
 
     name: str
     verdict: str | None
     input: list[Token]
     output: list[Token] | None = None
     witness: tuple[Action, Action] | None = None
-    tied: Node | None = None
     tree: Node | None = None
 
 
