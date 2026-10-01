@@ -193,7 +193,7 @@ The condition tests for a bridi-tail that no `gi` follows (`bridi-tail-before-no
 
 The outer level takes a connective only where the inner one cannot. That is where `ke` follows it, with or without a tense or modal first, or where a tense or modal and `cu` follow it. The reference's lookaheads leave these forms to the outer level. After `ke`, the words are a group of bridi-tails, unless a selbri ends with `ke'e` there, and then they are a tanru.
 
-The tenses and modals before `ke` and a forethought bridi-tail are one tag. The reference writes `tag*` there, but its `tag` reads every tense or modal that follows. So the repetition never runs twice. Here `[tag]` takes the whole run. A repetition here gives `pu ba ke ge broda mi gi brode do ke'e` two readings with the same elisions, one tag or two, and so a tie.
+The tenses and modals before `ke` and a forethought bridi-tail are one tag. The reference writes `tag*` there, but its `tag` reads every tense or modal that follows. So the repetition never runs twice. Here `[tag]` takes the whole run. With a repetition, `pu ba ke ge broda mi gi brode do ke'e` has two readings, with one tag or two. They elide the same terminators, so they tie.
 
 ```jbogenbau
 %rule sentence
@@ -614,7 +614,7 @@ Zantufa's mekso is flat: operands and runs of operators alternate, `bo` and `ke`
 
 The grammar reads a run of operators whole. So in `li re su'i ni'u pa`, `su'i ni'u` is one run. It is not an operator without an operand and then a link of its own. The rule `operators` states this, with a condition that no operator follows the run. The reference's `operator+` reads as far as it can. This is deliberate, and a comment of the reference shows a run of two operators as one unit, `[pi'i pi'i]`.
 
-The operand after a run of operators is greedy too. The reference's `mex_1?` after `operator+` reads an operand wherever one follows. So a run of operators ends a mekso only where no operand follows it. The first alternative of `mex-link` and of `bihe-link` has a condition that states this. So `by su'i cy klama` has the quantifier `by su'i cy` before `klama`, and `mi me my su'i ny me'u` has the mekso `my su'i ny` after `me`. Both are Zantufa's readings.
+The operand after a run of operators is greedy too. The reference's `mex_1?` after `operator+` reads an operand wherever one follows. So a run of operators ends a mekso only where no operand follows it. The first alternative of `mex-link` and of `bihe-link` has a condition that states this. So `by su'i cy klama` has the quantifier `by su'i cy` before `klama`. And `mi me my su'i ny me'u` has the mekso `my su'i ny` after `me`. Both are Zantufa's readings.
 
 `mex-forethought` does not translate two parts of the reference's rule. Its lookahead `!(lerfu_string BOI_elidible)` never fails before an operator, because no operator begins with a lerfu word. And its `mex_forethought?` after `mex_2+` adds nothing, because `mex_2+` already reads a forethought mekso as one of its parts.
 
