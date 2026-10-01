@@ -508,7 +508,9 @@ A tie is an error of kind `ambiguous`. The stage hands nothing on, and no later 
 - If one reads and the other closes, the rule decides. `greedy` takes the one that reads, so a constituent ends as late as the grammar allows. `lazy` takes the one that closes, so a constituent ends as early as the grammar allows.
 - If both close different constituents, they are tied.
 
-Constituents with a single symbol, and the helper constituents that the notation creates for `[ ]` and `...`, are transparent to the comparison. So two parses that differ only in such a relabeling do not differ yet. Transparency does not merge parses, though. Two parses that differ only there are still two parses. `greedy` and `lazy` tie them, and `late-elision` ties them unless they elide different terminators. For example, `[[X]]` matches the empty text in two ways, and `[A] & [B]` in three.
+Constituents with a single symbol, and the helper constituents that the notation creates for `[ ]` and `...`, are transparent to the comparison. So two parses that differ only in such a relabeling do not differ yet.
+
+Transparency does not merge parses, though. Two parses that differ only there are still two parses. Greedy and lazy tie them. Late-elision ties them exactly when their elision vectors are equal. For example, `[[X]]` matches the empty text in two ways, and `[A] & [B]` in three.
 
 The preference is like greedy and lazy quantifiers in a backtracking regular-expression engine. It is unlike the greed of a PEG parser. The preference orders the parses that the grammar already admits, and never commits early. So it never rejects a text by itself, but a tie that it leaves is an error. The earliest difference decides. And it applies to every constituent of the stage, not to one quantifier.
 
@@ -518,7 +520,7 @@ Two parses with the same counts at every position are tied, whatever else differ
 
 For example, the experimental grammar can read `to mi klama` in two ways. One ends the parenthesis `to` after `mi`, with `vau` and `toi` elided there, and `klama` is the main predicate. The other puts `mi klama` inside the parenthesis and elides terminators only at the end. `late-elision` takes the second, because the first leaves out a terminator earlier. `greedy` leaves the two readings tied, so the text is an error under `greedy`. Before ties became errors, the canonical order took the first.
 
-The syntax stage of every bundled dialect uses `late-elision`. Each grammar settles with rules of its own the choices that `late-elision` leaves tied, such as where a free modifier attaches. A dialect whose grammar change has not landed yet still declares `greedy`.
+The syntax stage of the four bundled Lojban dialects uses `late-elision`. Each grammar settles with rules of its own the choices that `late-elision` leaves tied, such as where a free modifier attaches.
 
 The forms and words stages are lazy. The word forms divide a run in one way only, so in the forms stage the choice never decides where a word ends. A magic word, such as `si`, acts on other words. In the words stage, the choice makes a magic word act on what exists when it is read. So `mi si si` erases `mi` and then nothing.
 
@@ -546,9 +548,11 @@ CLL's own rule is narrower: a terminator can be elided only if no ambiguity resu
 
 With `elision-only`, after the stage chooses one of several parses, it writes the elided terminators of that parse back into the input. A terminator with an `=` test sounds like the test's string there. Then the stage parses the input again, with no terminator elidable. So an elidable terminator has no test or an `=` test. Any other test on it is an error of the grammar, which the loader reports.
 
-If that parse has exactly one derivation, the check passes. If it has none, the check passes too, because no two readings exist to show. With two or more, the ambiguity is not about terminators, and the parse is an error that shows two readings. A tie is an error before the check runs, so the check sees only a text that the rule settled. Today, for the CLL grammar, `elision-only` rejects only a few texts. The printed grammar leaves them ambiguous in more than a terminator, such as `mi broda joi ke brode ke'e`.
+If that parse has exactly one derivation, the check passes. If it has none, the check passes too, because no two readings exist to show. With two or more, the ambiguity is not about terminators, and the parse is an error that shows two readings. A tie is an error before the check runs, so the check sees only a text that the rule settled.
 
-The grammars that extend CLL are really ambiguous in places. A sumti is an argument of the selbri. A term is a wider kind of argument that includes the sumti. Today the experimental grammar reads the `mi .e do` of `mi .e do klama` in two ways. It is two sumti joined by `.e`, or two terms joined by it.
+For the CLL grammar, `elision-only` rejects only a few texts, which the printed grammar leaves ambiguous in more than a terminator. Historically, `mi broda joi ke brode ke'e` was one of them. The CLL grammar now settles it with the condition that the official parser applies to a joik before `ke`.
+
+The grammars that extend CLL are really ambiguous in places. A sumti is an argument of the selbri. A term is a wider kind of argument that includes the sumti. Historically, the experimental grammar read the `mi .e do` of `mi .e do klama` in two ways. It was two sumti joined by `.e`, or two terms joined by it. Its rule that a sumti connection comes before a term connection now settles it.
 
 `late-elision` does not make `elision-only` redundant. Written-back terminators can let another alternative match, or change what a condition or a test sees. So the check can find two readings where the ranking found one best parse.
 
