@@ -359,6 +359,22 @@ class PrecompiledDomRules(unittest.TestCase):
             except Exception as error:  # pragma: no cover - the failure itself
                 self.fail(f"{type(error).__name__} for {json.dumps(broken)[:300]}")
 
+    def test_a_document_read_with_another_notation_is_checked(self) -> None:
+        """A notation whose rule names can be strings gives a rule named
+        "x" with its quotes, which no DOM has. The reader passes it, and the
+        check refuses it at the rule (engine §9)."""
+        bootstrap = json.loads(bundled_text("notation/bootstrap.json") or "{}")
+        syntax = next(document for stage in bootstrap["stages"] for document in stage["documents"] if document["path"] == "notation/syntax.md")
+        next(rule for rule in syntax["dom"]["rules"] if rule["name"] == "rule-name")["alternatives"].append({"guards": [], "expr": {"terminal": "string"}})
+        sources = {
+            "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
+            "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule \"x\" 'a'\n```\n",
+            "notation/bootstrap.json": json.dumps(bootstrap),
+        }
+        with self.assertRaisesRegex(gencmu.GencmuError, "a malformed rule") as caught:
+            gencmu.load_dialect_sources(sources, "p.md", use_cache=False)
+        self.assertEqual((caught.exception.kind, caught.exception.document, caught.exception.line, caught.exception.column), ("grammar", "g.md", 3, 1))
+
     def test_a_broken_bootstrap_dom_is_an_error(self) -> None:
         """In a bootstrap, where there is no document to read instead, a
         broken DOM is a GencmuError."""

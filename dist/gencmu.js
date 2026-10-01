@@ -14,9 +14,10 @@
      *   run, or a caller's mistake such as an unknown stage name
      * @param {string} message
      * @param {import("./types.js").ErrorLocation} [where]
+     * @param {{cause?: unknown}} [options] the error that caused this one
      */
-    constructor(kind, message, where) {
-      super(message);
+    constructor(kind, message, where, options) {
+      super(message, options);
       this.name = "GencmuError";
       this.kind = kind;
       this.where = where || {};
@@ -8134,26 +8135,33 @@
       try {
         dom = treeToDom(/** @type {ResultNode} */ (syntax.tree), syntax.input || [], positionOf, path, this.unicode);
       } catch (error) {
-        if (error instanceof RangeError) throw new GencmuError("grammar", `${path}: nested too deeply`, { document: path });
-        throw error;
+        if (error instanceof GencmuError) throw error;
+        if (error instanceof RangeError) throw new GencmuError("grammar", `${path}: nested too deeply`, { document: path }, { cause: error });
+        // Only a bootstrap that is not the notation's gives a tree that the
+        // reader cannot read. That is an error of the grammar too.
+        throw new GencmuError("grammar", `${path}: the notation's tree cannot be read as a grammar: ${error instanceof Error ? error.message : String(error)}`,
+          { document: path }, { cause: error });
       }
-      // The bound on nesting is the same for a document read here as for a
-      // precompiled DOM (engine §9).
-      if (domProblem(dom, this.unicode) === "nested too deeply") {
+      // A document read here is held to the rules of a precompiled DOM
+      // (engine §9). A bootstrap that is not the notation's can give a DOM
+      // that breaks them.
+      const problem = domProblem(dom, this.unicode);
+      if (problem === null) return dom;
+      if (problem === "nested too deeply") {
         // Reported at the first item, a rule, a constant's definition or an
         // implication, that
         // holds it, in the order of the document.
-        /** @type {{at: [number, number], alone: GrammarDom}[]} */
-        const items = [
-          ...dom.rules.map((rule) => ({ at: rule.at, alone: { ...dom, rules: [rule], directives: [], constants: [], classifiers: [], implications: [] } })),
-          ...dom.constants.map((constant) => ({ at: constant.at, alone: { ...dom, rules: [], directives: [], constants: [constant], classifiers: [], implications: [] } })),
-          ...dom.implications.map((implication) => ({ at: implication.at, alone: { ...dom, rules: [], directives: [], constants: [], classifiers: [], implications: [implication] } })),
-        ].sort((a, b) => a.at[0] - b.at[0] || a.at[1] - b.at[1]);
-        const item = items.find((candidate) => domProblem(candidate.alone, this.unicode) === "nested too deeply");
+        const item = itemsAlone(dom).find((candidate) => domProblem(candidate.alone, this.unicode) === "nested too deeply");
         const [line, column] = item ? item.at : [1, 1];
         throw new GencmuError("grammar", `${path}:${line}:${column}: an expression, term or condition is nested more than ${DOM_MAX_DEPTH} deep`, { document: path, line, column });
       }
-      return dom;
+      // Any other problem is reported at the first item that has it alone,
+      // in the order of the document, or else at the document.
+      const item = itemsAlone(dom).map((candidate) => ({ at: candidate.at, problem: domProblem(candidate.alone, this.unicode) }))
+        .find((candidate) => candidate.problem !== null);
+      if (!item) throw new GencmuError("grammar", `${path}: ${problem}`, { document: path });
+      const [line, column] = item.at;
+      throw new GencmuError("grammar", `${path}:${line}:${column}: ${item.problem}`, { document: path, line, column });
     }
 
     /**
@@ -8400,6 +8408,21 @@
   }
 
   // Adds the line and column of an error's source position.
+  /**
+   * Each rule, constant definition and implication of a DOM, alone in a DOM
+   * of its own, in the order of the document.
+   * @param {GrammarDom} dom
+   * @returns {{at: [number, number], alone: GrammarDom}[]}
+   */
+  function itemsAlone(dom) {
+    const none = { rules: [], directives: [], constants: [], classifiers: [], implications: [] };
+    return [
+      ...dom.rules.map((rule) => ({ at: rule.at, alone: { ...dom, ...none, rules: [rule] } })),
+      ...dom.constants.map((constant) => ({ at: constant.at, alone: { ...dom, ...none, constants: [constant] } })),
+      ...dom.implications.map((implication) => ({ at: implication.at, alone: { ...dom, ...none, implications: [implication] } })),
+    ].sort((a, b) => a.at[0] - b.at[0] || a.at[1] - b.at[1]);
+  }
+
   /**
    * The notation dialect's DOM from bootstrap.json, or a grammar error saying
    * what is wrong with it.
