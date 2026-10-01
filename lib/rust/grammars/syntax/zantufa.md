@@ -472,6 +472,8 @@ The reference tries a gek tanru unit before the forms with `se`, `fa` or `na'e` 
 
 So the conditions state the reference's order. `se`, `fa` and `na'e` do not take a tanru unit where the words from them begin a gek tanru unit (`gek-tanru-unit`). And the gek alternative does not begin with `na'e`, because the reference's optional `NAhE_clause` takes it first. So in `na'e bai gi broda gi brode`, `na'e` comes before the gek `bai gi`.
 
+A run of `cei` nests to the right. The reference repeats `(CEI_clause selbri)*`, but the selbri after the first `cei` reads every later `cei` first. So in `broda cei brode cei brodi`, the second `cei` is inside the selbri `brode cei brodi`. Here `selbri-1` takes at most one `cei` and the selbri after it. A repetition here gives two readings with the same elisions, and so a tie.
+
 ```jbogenbau
 %rule selbri
   (* selbri <- selbri_1 / tag selbri / NA_clause selbri *)
@@ -481,8 +483,8 @@ So the conditions state the reference's order. `se`, `fa` and `na'e` do not take
 
 %rule selbri-1
   (* selbri_1 <- (!KE selbri_2 KEhE_clause linkargs / selbri_2) relative_clauses? (CEI_clause selbri)* *)
-  | $s(selbri-2) KEhE # linkargs [relative-clauses] [CEI # selbri] ...
-  | selbri-2 [relative-clauses] [CEI # selbri] ...
+  | $s(selbri-2) KEhE # linkargs [relative-clauses] [CEI # selbri]
+  | selbri-2 [relative-clauses] [CEI # selbri]
 %conditions
   ¬begins(from($s), ke-word)
 
