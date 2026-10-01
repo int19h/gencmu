@@ -78,15 +78,15 @@ const (
 )
 
 // Stage is what one stage of a pipeline did. Verdict is empty for a stage
-// that rejected its input; Witness and Tied are set for a tie; Output is
-// nil unless the stage accepted.
+// that rejected its input. Witness is set for a tie, whose two readings are
+// in the result's Error (engine §6). Output is nil unless the verdict is
+// unique or resolved, and nil too when the stage's emission failed.
 type Stage struct {
 	Name    string
 	Input   []Token
 	Output  []Token
 	Verdict string
 	Witness []Action
-	Tied    *Node
 }
 
 // Error kinds.
@@ -98,6 +98,16 @@ const (
 	ErrorUsage = "usage"
 )
 
+// Reasons of an ambiguous error.
+const (
+	// ReasonTie is a stage whose ranking has two or more best derivations
+	// (engine §6).
+	ReasonTie = "tie"
+	// ReasonElisionOnly is a text that stays ambiguous with its elided
+	// terminators written back (engine §7).
+	ReasonElisionOnly = "elision-only"
+)
+
 // Expected is a terminal a rejected input could have continued with, and
 // the rules whose items could have read it.
 type Expected struct {
@@ -106,12 +116,15 @@ type Expected struct {
 }
 
 // ParseError says why a text did not parse (docs/output.md, "Error").
+// Reason is set only for an ambiguous error: ReasonTie or ReasonElisionOnly.
 // Token and Source are nil when unknown; Line and Column are 0 when unknown.
 // For a rejection they give the position in the text; for a grammar error,
-// the position in Document.
+// the position in Document. An ambiguous error has Readings, two trees over
+// the stage's input, and no position.
 type ParseError struct {
 	Kind     string
 	Stage    string
+	Reason   string
 	Token    *int
 	Source   *[2]int
 	Document string

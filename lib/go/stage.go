@@ -178,8 +178,8 @@ func (run *stageRun) run(g *lowered, mandatory func() *lowered, elisionOnly bool
 			}
 			// A fault found once the stage has chosen its tree, while
 			// emitting or in the reparse of elision-only, leaves it without
-			// output; it keeps its verdict, witness, tied tree and warnings,
-			// none of which is set if the fault came earlier (§7, §11, §12).
+			// output; it keeps its verdict and warnings, neither of which is
+			// set if the fault came earlier (§7, §11, §12).
 			out.stage.Output = nil
 			out.tree = nil
 			out.err = run.failure(f)
@@ -203,11 +203,11 @@ func (run *stageRun) run(g *lowered, mandatory func() *lowered, elisionOnly bool
 	}
 	if res == nil {
 		// A text that maximal leaves with no derivation is rejected at the
-		// first terminator it forbids in the derivation the stage would
-		// otherwise have chosen (§4).
+		// first terminator it forbids in the first reading, m, of the
+		// ranking without maximal, whatever its verdict (§4).
 		if mx != nil && len(top) > 0 {
 			if other := newRanker(rec, g.lean, nil).rank(top); other != nil {
-				out.err = run.forbiddenTerminator(rec, other.chosen, mx)
+				out.err = run.forbiddenTerminator(rec, other.first, mx)
 			}
 		}
 		if out.err == nil {
@@ -215,31 +215,37 @@ func (run *stageRun) run(g *lowered, mandatory func() *lowered, elisionOnly bool
 		}
 		return out
 	}
-	switch {
-	case res.count == 1:
-		out.stage.Verdict = VerdictUnique
-	case res.tied != nil:
-		out.stage.Verdict = VerdictTie
-		out.stage.Tied = run.buildTree(rec, res.tied)
+	out.stage.Verdict = res.verdict
+	if res.verdict == VerdictTie {
+		// A tie is an error. The stage keeps its verdict and witness, and it
+		// has no chosen tree, no output and no warnings. The error holds the
+		// first and the second reading (§6).
 		out.stage.Witness = run.actions(rec, res.witness)
-	default:
-		out.stage.Verdict = VerdictResolved
+		out.err = &ParseError{Kind: ErrorAmbiguous, Stage: run.name, Reason: ReasonTie,
+			Readings: []*Node{run.buildTree(rec, res.first), run.buildTree(rec, res.second)},
+			Message:  "stage " + run.name + ": the text is ambiguous: it has two best readings, a tie"}
+		return out
 	}
-	out.tree = run.buildTree(rec, res.chosen)
-	// Only the chosen tree gives warnings: not the tied one, nor the reparse
-	// of elision-only (§12).
+	out.tree = run.buildTree(rec, res.first)
+	// Only the chosen tree gives warnings: not the reparse of elision-only
+	// (§12).
 	if g.warns {
-		out.warnings = run.warnings(rec, res.chosen)
+		out.warnings = run.warnings(rec, res.first)
 	}
-	if elisionOnly && out.stage.Verdict != VerdictUnique {
+	// The stage emits its tokens, and then it runs the check of §7, which
+	// applies only to a stage that chose one of several derivations. An
+	// error of the grammar found while emitting ends the stage before the
+	// check (§6).
+	out.stage.Output = run.emit(rec, res.first)
+	if elisionOnly && res.verdict == VerdictResolved {
 		if err := run.checkElision(out.tree, mandatory()); err != nil {
-			// The stage accepted its input: it keeps its verdict, witness,
-			// tied tree and output, and the result has no tree (§7).
+			// The stage accepted its input and chose its derivation: it keeps
+			// its verdict, output and warnings, and the result has no tree
+			// (§7).
 			out.err = err
 			out.tree = nil
 		}
 	}
-	out.stage.Output = run.emit(rec, res.chosen)
 	return out
 }
 
@@ -284,7 +290,7 @@ func (run *stageRun) rejection(rec *recognizer) *ParseError {
 }
 
 // forbiddenTerminator is the rejection of a text that maximal leaves with no
-// derivation (§4): of the derivation d the stage would otherwise have chosen,
+// derivation (§4): of the first reading d of the ranking without maximal,
 // the first elided terminator, in the order of the tree's leaves, that
 // maximal forbids, at its position, with its terminal and the rule its
 // optional is written in as the one expected there. It is nil if d has none.
@@ -361,7 +367,8 @@ func (run *stageRun) failure(f *parseFailure) *ParseError {
 // checkElision is engine §7: write the chosen tree's elided terminators back
 // and parse again with none elidable. The check passes when that parse has
 // one derivation or none, and fails with two readings when it has more:
-// ranked with no lean, any two derivations that differ are tied.
+// ranked with no lean, whatever the rule of the stage, any two derivations
+// that differ are tied, and the readings are the first and the second.
 func (run *stageRun) checkElision(tree *Node, g *lowered) *ParseError {
 	elided := elidedNodes(tree)
 	var toks []Token
@@ -393,7 +400,7 @@ func (run *stageRun) checkElision(tree *Node, g *lowered) *ParseError {
 		return nil
 	}
 	res := newRanker(rec, "", nil).rank(top)
-	if res == nil || res.tied == nil {
+	if res == nil || res.second == nil {
 		return nil
 	}
 	before := make([]int, len(toks)+1)
@@ -426,8 +433,8 @@ func (run *stageRun) checkElision(tree *Node, g *lowered) *ParseError {
 		}
 		return root
 	}
-	readings := []*Node{mapTree(run2.buildTree(rec, res.chosen)), mapTree(run2.buildTree(rec, res.tied))}
-	return &ParseError{Kind: ErrorAmbiguous, Stage: run.name, Readings: readings,
+	readings := []*Node{mapTree(run2.buildTree(rec, res.first)), mapTree(run2.buildTree(rec, res.second))}
+	return &ParseError{Kind: ErrorAmbiguous, Stage: run.name, Reason: ReasonElisionOnly, Readings: readings,
 		Message: "stage " + run.name + ": the text is ambiguous even with every elided terminator written"}
 }
 

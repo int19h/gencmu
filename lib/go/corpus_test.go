@@ -30,7 +30,7 @@ type corpusCase struct {
 	fields          map[string]any // the fields compared
 }
 
-var corpusFields = []string{"expect", "verdict", "stage", "ties", "words", "brackets"}
+var corpusFields = []string{"expect", "verdict", "stage", "error", "ties", "words", "brackets"}
 
 func readCorpus(t *testing.T) []*corpusCase {
 	files, _ := filepath.Glob("../../tests/corpus/*.jsonl")
@@ -79,6 +79,21 @@ func corpusOutcome(d *Dialect, c *corpusCase) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	data, _ := MarshalResult(res)
+	var canonical any
+	if err := json.Unmarshal(data, &canonical); err != nil {
+		return nil, err
+	}
+	return corpusOutcomeOf(res, canonical)
+}
+
+// corpusOutcomeOf is the outcome of a result and its canonical JSON. The
+// invariants of a tie hold of the canonical result first: a tied stage
+// emits nothing and ends the run with its error (tests/README.md).
+func corpusOutcomeOf(res *ParseResult, canonical any) (map[string]any, error) {
+	if problems := resultProblems(canonical); len(problems) > 0 {
+		return nil, fmt.Errorf("the result breaks an invariant: %s", strings.Join(problems, "; "))
+	}
 	got := map[string]any{}
 	if res.OK {
 		got["expect"] = "accept"
@@ -91,6 +106,10 @@ func corpusOutcome(d *Dialect, c *corpusCase) (map[string]any, error) {
 		} else {
 			got["stage"] = nil
 		}
+	}
+	// An ambiguous error pins its kind and its reason (tests/README.md).
+	if res.Error != nil && res.Error.Kind == ErrorAmbiguous {
+		got["error"] = map[string]any{"kind": res.Error.Kind, "reason": res.Error.Reason}
 	}
 	var ties []any
 	for _, s := range res.Stages {
@@ -110,6 +129,48 @@ func corpusOutcome(d *Dialect, c *corpusCase) (map[string]any, error) {
 		got["ties"] = ties
 	}
 	return got, nil
+}
+
+// The corpus runner refuses a result that breaks an invariant of a tie,
+// whatever the case expects, on every tied case of the corpus
+// (tests/README.md).
+func TestCorpusRunnerInvariants(t *testing.T) {
+	dialects := map[string]*Dialect{}
+	tied := 0
+	for _, c := range readCorpus(t) {
+		if _, ok := c.fields["ties"]; !ok {
+			continue
+		}
+		tied++
+		d := dialects[c.Dialect]
+		if d == nil {
+			var err error
+			if d, err = LoadDialect(c.Dialect); err != nil {
+				t.Fatal(err)
+			}
+			dialects[c.Dialect] = d
+		}
+		if f := checkCorpusCase(d, c); f != "" {
+			t.Fatal(f)
+		}
+		res, err := d.Parse(c.Text, ParseOptions{Features: c.Features, WithoutFeatures: c.WithoutFeatures})
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, _ := MarshalResult(res)
+		for name, mutate := range tieMutants {
+			var got map[string]any
+			json.Unmarshal(data, &got)
+			stages := got["stages"].([]any)
+			mutate(got, stages[len(stages)-1].(map[string]any))
+			if _, err := corpusOutcomeOf(res, got); err == nil {
+				t.Errorf("%s, %s: the corpus runner accepts it", c.ID, name)
+			}
+		}
+	}
+	if tied == 0 {
+		t.Fatal("the corpus has no tied case")
+	}
 }
 
 func TestCorpus(t *testing.T) {

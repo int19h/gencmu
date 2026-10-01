@@ -82,6 +82,12 @@ func (nr *notationReader) read(text, docPath string) (dom *domDoc, err *Error) {
 	for i, g := range nr.stages {
 		run := ps.newRun(g.name, g, toks)
 		out = run.run(nr.lowered[i], nil, false)
+		if out.err != nil && out.err.Kind == ErrorAmbiguous {
+			// A tie has no single position, so the error names the document
+			// alone, with no line or column (engine §8).
+			return nil, &Error{Kind: ErrorGrammar, Document: docPath,
+				Message: "the grammar text is ambiguous: the " + g.name + " stage of the notation reads it in two ways"}
+		}
 		if out.err != nil {
 			e := &Error{Kind: ErrorGrammar, Document: docPath, Message: "the document does not parse as the notation"}
 			if out.err.Source != nil {

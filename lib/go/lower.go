@@ -68,7 +68,7 @@ type lowered struct {
 	// characters it matches; nil for a terminal that is a tag (§4).
 	classes    []*charClass
 	prods      []*production
-	lean       string // "greedy", "lazy", or "" for no lean (§7)
+	lean       string // "greedy", "lazy", "late-elision", or "" for no lean (§6, §7)
 	maximal    bool   // no terminator is elided where its constituent could have been longer (§4)
 	sccMembers [][]int32
 	// fault is an error of the grammar that lowering for these features
