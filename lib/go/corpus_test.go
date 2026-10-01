@@ -132,58 +132,44 @@ func corpusOutcomeOf(res *ParseResult, canonical any) (map[string]any, error) {
 }
 
 // The corpus runner refuses a result that breaks an invariant of a tie,
-// whatever the case expects (tests/README.md).
+// whatever the case expects, on every tied case of the corpus
+// (tests/README.md).
 func TestCorpusRunnerInvariants(t *testing.T) {
-	const id = "cll.10.124.c10e17d8" // a tie in the syntax stage
-	var c *corpusCase
-	for _, x := range readCorpus(t) {
-		if x.ID == id {
-			c = x
+	dialects := map[string]*Dialect{}
+	tied := 0
+	for _, c := range readCorpus(t) {
+		if _, ok := c.fields["ties"]; !ok {
+			continue
+		}
+		tied++
+		d := dialects[c.Dialect]
+		if d == nil {
+			var err error
+			if d, err = LoadDialect(c.Dialect); err != nil {
+				t.Fatal(err)
+			}
+			dialects[c.Dialect] = d
+		}
+		if f := checkCorpusCase(d, c); f != "" {
+			t.Fatal(f)
+		}
+		res, err := d.Parse(c.Text, ParseOptions{Features: c.Features, WithoutFeatures: c.WithoutFeatures})
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, _ := MarshalResult(res)
+		for name, mutate := range tieMutants {
+			var got map[string]any
+			json.Unmarshal(data, &got)
+			stages := got["stages"].([]any)
+			mutate(got, stages[len(stages)-1].(map[string]any))
+			if _, err := corpusOutcomeOf(res, got); err == nil {
+				t.Errorf("%s, %s: the corpus runner accepts it", c.ID, name)
+			}
 		}
 	}
-	if c == nil {
-		t.Fatalf("no corpus case %s", id)
-	}
-	d, err := LoadDialect(c.Dialect)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if f := checkCorpusCase(d, c); f != "" {
-		t.Fatal(f)
-	}
-	res, err := d.Parse(c.Text, ParseOptions{Features: c.Features, WithoutFeatures: c.WithoutFeatures})
-	if err != nil {
-		t.Fatal(err)
-	}
-	data, _ := MarshalResult(res)
-	mutants := map[string]func(got, tied map[string]any){
-		"a tied stage with output": func(got, tied map[string]any) { tied["output"] = []any{} },
-		"a stage with tied": func(got, tied map[string]any) {
-			tied["tied"] = got["error"].(map[string]any)["readings"].([]any)[1]
-		},
-		"a stage after the tie": func(got, tied map[string]any) {
-			got["stages"] = append(got["stages"].([]any), map[string]any{"name": "later", "verdict": VerdictUnique})
-		},
-		"a tree":   func(got, tied map[string]any) { got["tree"] = got["error"].(map[string]any)["readings"].([]any)[0] },
-		"ok":       func(got, tied map[string]any) { got["ok"] = true },
-		"no error": func(got, tied map[string]any) { got["error"] = nil },
-		"an error without reason": func(got, tied map[string]any) {
-			delete(got["error"].(map[string]any), "reason")
-		},
-		"an error of another stage": func(got, tied map[string]any) { got["error"].(map[string]any)["stage"] = "words" },
-		"one reading": func(got, tied map[string]any) {
-			e := got["error"].(map[string]any)
-			e["readings"] = e["readings"].([]any)[:1]
-		},
-	}
-	for name, mutate := range mutants {
-		var got map[string]any
-		json.Unmarshal(data, &got)
-		stages := got["stages"].([]any)
-		mutate(got, stages[len(stages)-1].(map[string]any))
-		if _, err := corpusOutcomeOf(res, got); err == nil {
-			t.Errorf("%s: the corpus runner accepts it", name)
-		}
+	if tied == 0 {
+		t.Fatal("the corpus has no tied case")
 	}
 }
 

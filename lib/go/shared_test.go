@@ -382,6 +382,30 @@ func TestEngineRunnerLoadError(t *testing.T) {
 	}
 }
 
+// tieMutants are the changes to a tied result that the runners must refuse
+// (tests/README.md). Each changes the canonical result got, whose last stage
+// is the tied stage tied.
+var tieMutants = map[string]func(got, tied map[string]any){
+	"a tree": func(got, tied map[string]any) { got["tree"] = got["error"].(map[string]any)["readings"].([]any)[0] },
+	"one reading": func(got, tied map[string]any) {
+		e := got["error"].(map[string]any)
+		e["readings"] = e["readings"].([]any)[:1]
+	},
+	"ok":                        func(got, tied map[string]any) { got["ok"] = true },
+	"an error of another kind":  func(got, tied map[string]any) { got["error"].(map[string]any)["kind"] = ErrorRejected },
+	"an error of another stage": func(got, tied map[string]any) { got["error"].(map[string]any)["stage"] = "other" },
+	"another reason":            func(got, tied map[string]any) { got["error"].(map[string]any)["reason"] = ReasonElisionOnly },
+	"a tied stage with output":  func(got, tied map[string]any) { tied["output"] = []any{} },
+	"a stage with tied": func(got, tied map[string]any) {
+		tied["tied"] = got["error"].(map[string]any)["readings"].([]any)[1]
+	},
+	"a stage after the tie": func(got, tied map[string]any) {
+		got["stages"] = append(got["stages"].([]any), map[string]any{"name": "later", "verdict": VerdictUnique})
+	},
+	"no error":                func(got, tied map[string]any) { got["error"] = nil },
+	"an error without reason": func(got, tied map[string]any) { delete(got["error"].(map[string]any), "reason") },
+}
+
 // The runner refuses a result that breaks an invariant, whatever the case
 // expects (tests/README.md).
 func TestEngineRunnerInvariants(t *testing.T) {
@@ -402,19 +426,10 @@ func TestEngineRunnerInvariants(t *testing.T) {
 	fresh := func() (map[string]any, map[string]any) {
 		var got map[string]any
 		json.Unmarshal(data, &got)
-		return got, got["stages"].([]any)[0].(map[string]any)
+		stages := got["stages"].([]any)
+		return got, stages[len(stages)-1].(map[string]any)
 	}
-	mutants := map[string]func(got, tied map[string]any){
-		"a tied stage with output": func(got, tied map[string]any) { tied["output"] = []any{} },
-		"a stage with tied": func(got, tied map[string]any) {
-			tied["tied"] = got["error"].(map[string]any)["readings"].([]any)[1]
-		},
-		"a stage after the tie": func(got, tied map[string]any) {
-			got["stages"] = append(got["stages"].([]any), map[string]any{"name": "later", "verdict": VerdictUnique})
-		},
-		"an error without reason": func(got, tied map[string]any) { delete(got["error"].(map[string]any), "reason") },
-	}
-	for name, mutate := range mutants {
+	for name, mutate := range tieMutants {
 		got, tied := fresh()
 		mutate(got, tied)
 		if len(resultProblems(got)) == 0 {
