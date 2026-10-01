@@ -189,6 +189,8 @@ A gek before bridi-tails begins a forethought bridi-tail, not a forethought conn
 
 The outer level takes a connective only where the inner one cannot. That is where `ke` follows it, with or without a tense or modal first, or where a tense or modal and `cu` follow it. The reference's lookaheads leave these forms to the outer level. After `ke`, the words are a group of bridi-tails, unless a selbri ends with `ke'e` there, and then they are a tanru.
 
+The tenses and modals before `ke` and a forethought bridi-tail are one tag. The reference writes `tag*` there, but its `tag` reads every tense or modal that follows. So the repetition never runs twice. Here `[tag]` takes the whole run. A repetition here gives `pu ba ke ge broda mi gi brode do ke'e` two readings with the same elisions, one tag or two, and so a tie.
+
 ```jbogenbau
 %rule sentence
   (* sentence <- terms? CU_elidible bridi_tail / terms? gek sentence (gik sentence)+ GIhI_elidible tail_terms *)
@@ -253,7 +255,7 @@ The outer level takes a connective only where the inner one cannot. That is wher
   (* gek_bridi_tail <- gek bridi_tail (gik bridi_tail)+ !(gik (term / CU)) GIhI_elidible tail_terms
                      / tag* KE_clause gek_bridi_tail KEhE_elidible / NA_clause gek_bridi_tail *)
   | gek bridi-tail $g(gik-bridi-tails) [GIhI #] tail-terms
-  | [tag ...] KE # gek-bridi-tail [KEhE #]
+  | [tag] KE # gek-bridi-tail [KEhE #]
   | NA # gek-bridi-tail
 %conditions
   ¬begins(after($g), gik-term)
