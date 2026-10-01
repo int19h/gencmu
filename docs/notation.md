@@ -331,6 +331,8 @@ The predicates are:
 
 Inside such a parse, a condition can ask about the very span that is being parsed, as the same rule. Such a condition defines the rule in terms of itself over the same text, negated or not. The parser reports it as an error of the grammar.
 
+Such a parse never leaves out an elidable terminator where the same construct can go on and read that terminator as written. In the Zantufa dialect, `cy to roi toi klama` is `[cy (to roi toi)] klama`. A nested `tag` cannot read `cy to roi` as `cy roi` with an empty parenthesis, because the parenthesis can read on to its written `toi`. In the same way, the experimental dialect reads `mi klama na to broda toi` with `broda` inside the parenthesis. Engine §4 defines this written-terminator priority. Several readings that remain are no tie: the query holds.
+
 A lookahead tests a rule without reading the input. A PEG is a grammar that tries alternatives in order. PEG is short for parsing expression grammar. `begins` with `from` or `after` is a lookahead, like the lookahead of a PEG.
 
 `begins(after($f), post-word)` says that what follows `$f` begins with a `post-word`. That `post-word` can lie in the words after the constituent. `¬begins(from($f), cmevla)` says that no `cmevla` begins where `$f` begins, as a PEG's `!cmevla` before `$f` does.
