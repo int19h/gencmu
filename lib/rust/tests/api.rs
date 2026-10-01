@@ -893,3 +893,23 @@ fn exponentially_long_derivations_keep_exact_counts() {
         assert_eq!(gencmu::to_brackets(&result, false), "a", "{depth}");
     }
 }
+
+/// A cycle context keeps only the rules of the cycle that the item lies
+/// on (engine §6). Here each wrapper of each level is a cycle of its own,
+/// so keeping every cyclic rule above would make 2^N contexts.
+#[test]
+fn cycle_contexts_keep_only_the_rules_of_their_cycle() {
+    let depth = 40;
+    let mut grammar =
+        format!("%ambiguity-resolution late-elision\n%elidable T\n%rule text ε | r{depth}\n%rule r0 [T]\n");
+    for i in 1..=depth {
+        let below = i - 1;
+        grammar.push_str(&format!("%rule r{i} a{i} b{i}\n%rule a{i} r{below} | a{i}\n%rule b{i} r{below} | b{i}\n"));
+    }
+    let dialect = gencmu::load_dialect_sources(single(&grammar), "p.md").unwrap();
+    let started = std::time::Instant::now();
+    let result = dialect.parse_tokens(&[], &no_auto()).unwrap();
+    assert!(result.ok);
+    assert_eq!(result.stages[0].verdict, Some(Verdict::Resolved));
+    assert!(started.elapsed() < std::time::Duration::from_secs(30), "{:?}", started.elapsed());
+}

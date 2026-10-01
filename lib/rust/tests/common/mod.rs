@@ -359,6 +359,27 @@ fn error_where(expect: &Value, error: &gencmu::Error) -> Result<(), String> {
     }
 }
 
+/// How long one shared case may run before the runner reports it as
+/// hanging: `GENCMU_CASE_TIMEOUT` seconds, 120 by default.
+pub fn case_timeout() -> std::time::Duration {
+    let seconds = std::env::var("GENCMU_CASE_TIMEOUT").ok().and_then(|n| n.parse().ok()).unwrap_or(120);
+    std::time::Duration::from_secs(seconds)
+}
+
+/// Runs `work` on a thread of its own, and gives up on it after `limit`.
+/// A thread that hangs cannot be stopped, but the runner reports it and
+/// goes on, and the process ends with the test.
+pub fn within<T: Send + 'static>(limit: std::time::Duration, work: impl FnOnce() -> T + Send + 'static) -> Option<T> {
+    let (send, receive) = std::sync::mpsc::channel();
+    std::thread::Builder::new()
+        .stack_size(64 << 20)
+        .spawn(move || {
+            let _ = send.send(work());
+        })
+        .expect("a thread");
+    receive.recv_timeout(limit).ok()
+}
+
 /// Runs one engine case (tests/README.md); the error says what differs.
 /// A case with `parses` loads its dialect once and parses its input with
 /// each item's options in order, each result held to the item's `expect`.

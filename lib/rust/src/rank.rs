@@ -840,11 +840,18 @@ impl<'c> Ranker<'c> {
         self.dag.chart.sets[set as usize].items[index as usize]
     }
 
+    /// The cycle context below a constituent of `rule` whose own context is
+    /// `fset` (§6): the rules above it over its span that can complete
+    /// again below it, which are those of its own cycle, and `rule` itself.
+    /// A rule on no cycle has an empty context below it, since no rule
+    /// above it can complete again below it over the same span.
     fn fset_with(&mut self, fset: u32, rule: u32) -> u32 {
-        if !self.dag.g.cyclic[rule as usize] {
-            return fset;
-        }
-        let mut list = self.fsets[fset as usize].clone();
+        let cycles = &self.dag.g.cycle;
+        let Some(cycle) = cycles[rule as usize] else {
+            return 0;
+        };
+        let mut list: Vec<u32> =
+            self.fsets[fset as usize].iter().copied().filter(|&above| cycles[above as usize] == Some(cycle)).collect();
         if let Err(at) = list.binary_search(&rule) {
             list.insert(at, rule);
         }

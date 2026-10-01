@@ -18,7 +18,13 @@ fn engine_cases() {
             skipped += 1;
             continue;
         }
-        if let Err(problem) = run_engine_case(&case) {
+        // A case that hangs is a failure, and the others still run.
+        let limit = common::case_timeout();
+        let outcome = common::within(limit, move || {
+            std::panic::catch_unwind(|| run_engine_case(&case)).unwrap_or_else(|_| Err("the case panicked".to_string()))
+        });
+        let outcome = outcome.unwrap_or_else(|| Err(format!("the case did not finish in {limit:?}")));
+        if let Err(problem) = outcome {
             failures.push(format!("{}:\n{problem}", file.display()));
         }
     }
@@ -40,6 +46,12 @@ fn engine_cases() {
 fn harness_detects_a_wrong_expectation() {
     let case = parse_json(r#"{"grammar": "%rule text X | Y", "tokens": [{"text": "w", "tags": ["X", "Y"]}], "expect": {"result": {"ok": true, "stages": [{"verdict": "unique"}]}}}"#).unwrap();
     assert!(run_engine_case(&case).is_err());
+    // A case that does not finish in time is a failure.
+    assert!(common::within(std::time::Duration::from_millis(50), || std::thread::sleep(
+        std::time::Duration::from_secs(5)
+    ))
+    .is_none());
+    assert_eq!(common::within(std::time::Duration::from_secs(5), || 7), Some(7));
     let case = parse_json(r#"{"grammar": "%rule text X | Y", "tokens": [{"text": "w", "tags": ["X", "Y"]}], "expect": {"result": {"ok": true, "tree": {"children": [{"terminal": "Y"}]}}}}"#).unwrap();
     assert!(run_engine_case(&case).is_err());
     let case = parse_json(r#"{"grammar": "%rule text X | Y", "tokens": [{"text": "w", "tags": ["X", "Y"]}], "expect": {"result": {"ok": true, "tree": {"children": [{"terminal": "X"}]}}, "brackets": "v"}}"#).unwrap();
