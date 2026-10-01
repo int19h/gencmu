@@ -339,15 +339,27 @@ A parse option overrides `elision-only` either way. A caller switches it on to f
 
 At the time of this decision, a measurement on the same 29,308 records compared `late-elision` with `greedy` at the syntax stage. It kept each dialect's `maximal` and `elision-only`. In cll-ebnf and bpfk, `late-elision` chose the same tree for every text that parses, and left no tie. In the experimental dialect, it changed 1 tree and left 26 ties. In Zantufa, it changed 4 trees and left 30 ties.
 
+Those Zantufa results come from the earlier Zantufa grammar. That grammar listed `CU` in `%elidable` and had no attachment rules. So the count moved an elided `cu`, and some trees regressed, such as a JAI moved into the terms and numeric subscripts split apart. The migration below removes both causes.
+
 Most of those ties are choices of the grammar, not of terminators. Examples are a connective inside a sumti or between terms, a BE group, nested subscripts, and where a free modifier attaches in Zantufa. `greedy` settled them by its preference for a read, which no rule of the grammar states.
 
 ### Migration to late-elision
 
 The approved target is `late-elision` in the syntax stage of all four dialects. Each step is a change of the grammars, outside this specification:
 
-- cll-ebnf and bpfk declare `late-elision` in place of `greedy`, with their present `elision-only` and `maximal`. The CLL grammar also gains the condition that the official parser's lexer applies with `JOIK_KE`. In `selbri-4`, a tanru unit that starts with `ke` cannot follow a plain joik or jek. So `mi broda joi ke brode ke'e` keeps only its reading through `joik KE selbri-3 KEhE`.
+- cll-ebnf and bpfk declare `late-elision` in place of `greedy`, with their present `elision-only` and `maximal`. The CLL grammar also gains the condition that the official parser's lexer applies with `JOIK_KE`. In `selbri-4`, a tanru unit that starts with `ke` cannot directly follow a plain joik. So `mi broda joi ke brode ke'e` keeps only its reading through `joik KE selbri-3 KEhE`. The condition covers no jek, because that form of `selbri-4` takes only a joik. So `mi broda je ke brode ke'e` has one reading already, a jek before a tanru unit grouped with `ke`.
 - The experimental dialect declares `late-elision` together with local rules for the choices that it leaves tied.
-- The Zantufa dialect declares `late-elision` with explicit attachment rules, derived from its reference parser. Its `%elidable` no longer lists `CU`, as CLL's grammar has it. An elided `cu` is a separator, and moving it can change the category of what follows.
+- The Zantufa dialect declares `late-elision`. Its grammar states its attachment conventions as rules, derived from its reference parser, and its `%elidable` no longer lists `CU`.
+
+The Zantufa conventions are these:
+
+- A free modifier nests in the nearest open slot. The rule stands on `free`, not on each slot. So the dialect keeps its departure from CLL 19.6 in `mi klama pamai le zarci .e remai le zdani`.
+- A sumti connection comes before a term connection.
+- An operator run is read whole.
+- A gek before bridi-tails is a gek-bridi-tail.
+- A vocative with a name ends after the name, and closes its surrounding vocative. This is a second departure, next to the one of CLL 19.6. In `pe'usai doi xod ko jmina fi lo kamjikca lisri`, the reference parser gives `ko` to the vocative `pe'u`, so `jmina` has no first place. Here `ko` stays a term of the sentence.
+
+Without `CU` in `%elidable`, an absent `cu` is an ordinary empty optional, as in CLL's grammar. It counts for nothing, leaves no `elided` node, and `maximal` and `elision-only` do not see it. `%elidable` is the only control. The ranker has no logic for `CU` or for any other terminal. `IAU` stays in Zantufa's `%elidable` for now, and the maintainer decides it separately.
 
 Until its step lands, a dialect keeps its baseline declaration, and a tie in it is an error.
 
