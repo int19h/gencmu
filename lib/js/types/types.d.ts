@@ -531,7 +531,7 @@ export type RopeLeaf = {
 export type RopeConcat = {
     left: Rope;
     right: Rope;
-    size: number;
+    size: number | bigint;
 };
 export type Derivation = DerivationRead | DerivationRule;
 export type DerivationRead = {
@@ -987,11 +987,13 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {(name: string) => SpanValue} capture
  */
 /**
- * A sequence of actions, shared between the sequences built on it.
+ * A sequence of actions, shared between the sequences built on it. Its
+ * size is the number of its visible actions, exact however large (see
+ * Count in rank.js).
  * @typedef {{empty: true, size: number} | RopeLeaf | RopeConcat} Rope
  */
 /** @typedef {{leaf: Action, size: number}} RopeLeaf */
-/** @typedef {{left: Rope, right: Rope, size: number}} RopeConcat */
+/** @typedef {{left: Rope, right: Rope, size: number | bigint}} RopeConcat */
 /**
  * A derivation, every production closed, helpers and all.
  * @typedef {DerivationRead | DerivationRule} Derivation

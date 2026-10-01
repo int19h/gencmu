@@ -7,13 +7,14 @@ export type Allowed<T> = {
 export type Candidate = {
     seq: Rope;
     alts: Rope[];
-    at: number;
+    at: Count;
 };
 export type Difference = {
     left: Action | null;
     right: Action | null;
-    index: number;
+    index: Count;
 };
+export type Count = number | bigint;
 export type Ranking = {
     verdict: import("./types.js").Verdict;
     first: Rope;
@@ -71,7 +72,7 @@ declare function decide(difference: {
  * @returns {number}
  */
 declare function totalOrder(left: Rope, right: Rope, lean: Lean): number;
-export type TraversalContext = Set<Item | string>;
+export type TraversalContext = Set<string>;
 export declare class Ranker {
     tokens: import("./tokens.js").Token[];
     elisions: boolean;
@@ -95,8 +96,6 @@ export declare class Ranker {
         plain: Map<Item, Allowed<number>>;
         contextual: Map<Item, Map<string, Allowed<number>>>;
     };
-    /** @type {Map<Item, number>} */
-    itemIds: Map<Item, number>;
     /** @type {Map<Item, RopeLeaf>} */
     closes: Map<Item, RopeLeaf>;
     /** @type {Map<string, RopeLeaf>} */
@@ -167,10 +166,10 @@ export declare class Ranker {
     /**
      * @param {Candidate} entry
      * @param {Rope} alt
-     * @param {number} at
+     * @param {Count} at
      * @returns {Candidate}
      */
-    offer(entry: Candidate, alt: Rope, at: number): Candidate;
+    offer(entry: Candidate, alt: Rope, at: Count): Candidate;
     /**
      * @param {Candidate[]} kept
      * @param {Candidate} entry
@@ -209,15 +208,15 @@ export declare class Ranker {
  * @returns {Derivation}
  */
 export declare function derivationTree(rope: Rope): Derivation;
-export type ElisionSeq = {
-    at: number;
-    size: number;
-} | {
-    left: ElisionSeq;
-    right: ElisionSeq;
-    size: number;
-} | {
+export type ElisionSeq = ElisionNode | {
     size: 0;
+};
+export type ElisionNode = {
+    size: Count;
+    first: number;
+    last: number;
+    left?: ElisionSeq;
+    right?: ElisionSeq;
 };
 export type ElisionSummary = {
     /**
@@ -231,9 +230,19 @@ export type ElisionSummary = {
 /**
  * @param {ElisionSeq} left
  * @param {ElisionSeq} right
+ * @returns {ElisionSeq}
+ */
+declare function concatElisions(left: ElisionSeq, right: ElisionSeq): ElisionSeq;
+/**
+ * @param {ElisionSeq} left
+ * @param {ElisionSeq} right
  * @returns {number}
  */
 export declare function compareElisions(left: ElisionSeq, right: ElisionSeq): number;
+export type ElisionCursor = {
+    stack: ElisionSeq[];
+    taken: Count;
+};
 export declare const internals: {
     actions: typeof actions;
     firstDifference: typeof firstDifference;
@@ -242,5 +251,6 @@ export declare const internals: {
     visible: typeof visible;
     concat: typeof concat;
     leaf: typeof leaf;
+    concatElisions: typeof concatElisions;
 };
 export {};
