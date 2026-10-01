@@ -454,7 +454,11 @@ export type Production = {
     warnings: string[];
 };
 export type Resolution = {
-    lean: "greedy" | "lazy";
+    /**
+     * the rule of the
+     * ranking (engine §6)
+     */
+    lean: "greedy" | "lazy" | "late-elision";
     elisionOnly: boolean;
     /**
      * whether an elided terminator is forbidden
@@ -482,7 +486,7 @@ export type LoweredGrammar = {
         then: TagSet;
     }[];
 };
-export type Lean = "greedy" | "lazy" | "none";
+export type Lean = "greedy" | "lazy" | "late-elision" | "none";
 export type Slot = [number, number, number] | null;
 export type Edge = {
     kind: "seed";
@@ -920,7 +924,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  */
 /**
  * @typedef {object} Resolution
- * @property {"greedy" | "lazy"} lean
+ * @property {"greedy" | "lazy" | "late-elision"} lean the rule of the
+ *   ranking (engine §6)
  * @property {boolean} elisionOnly
  * @property {boolean} maximal whether an elided terminator is forbidden
  *   where its constituent could have been longer (engine §4)
@@ -939,9 +944,9 @@ export type ParseContext = import("./earley.js").ParseContext;
  *   implications, which its emitted tokens take (engine §11)
  */
 /**
- * The lean the ranking uses: the grammar's, or none for elision-only's
- * check.
- * @typedef {"greedy" | "lazy" | "none"} Lean
+ * The rule the ranking uses: the grammar's, or none for elision-only's
+ * check and for the readings of a late-elision tie (engine §6).
+ * @typedef {"greedy" | "lazy" | "late-elision" | "none"} Lean
  */
 /**
  * A captured part as a chart item records it: its span and the number of

@@ -4224,8 +4224,8 @@
             if (elisionOnly) rest.shift();
             const maximal = rest[0] === "maximal";
             if (maximal) rest.shift();
-            if ((lean !== "greedy" && lean !== "lazy") || rest.length > 0) {
-              throw new GencmuError("grammar", `${path}:${at.line}: %ambiguity-resolution takes greedy or lazy, then optionally elision-only, then optionally maximal`, at);
+            if ((lean !== "greedy" && lean !== "lazy" && lean !== "late-elision") || rest.length > 0) {
+              throw new GencmuError("grammar", `${path}:${at.line}: %ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only, then optionally maximal`, at);
             }
             this.resolution = { lean, elisionOnly, maximal };
             break;
@@ -5114,7 +5114,8 @@
 
   // ---- rank.js
   // Choosing a parse (engine §6): the first-difference order over bottom-up
-  // action sequences, computed over the packed forest.
+  // action sequences under greedy and lazy, and the order of elision vectors
+  // under late-elision, both computed over the packed forest.
 
 
 
@@ -5451,8 +5452,16 @@
      */
     constructor(tokens, lean, maximal = null) {
       this.tokens = tokens;
-      this.lean = lean;
+      // Under late-elision, the readings come from a ranking with no lean
+      // over the forest of the best derivations (engine §6).
+      this.elisions = lean === "late-elision";
+      /** @type {Lean} */
+      this.lean = this.elisions ? "none" : lean;
       this.maximal = maximal;
+      /** @type {{plain: Map<Item, Allowed<ElisionSummary>>, contextual: Map<Item, Map<string, Allowed<ElisionSummary>>>}} */
+      this.summaries = { plain: new Map(), contextual: new Map() };
+      /** @type {Map<number, ElisionSeq>} */
+      this.elisionLeaves = new Map();
       /** @type {{plain: Map<Item, Allowed<Candidate[]>>, contextual: Map<Item, Map<string, Allowed<Candidate[]>>>}} */
       this.memo = { plain: new Map(), contextual: new Map() };
       /** @type {{plain: Map<Item, Allowed<number>>, contextual: Map<Item, Map<string, Allowed<number>>>}} */
@@ -5493,13 +5502,19 @@
      */
     allowedCandidates(item) {
       const maximal = this.maximal;
-      return this.traverse(item, this.memo, (current, dependency) => {
+      return this.traverse(item, this.memo, (current, dependency, key) => {
         const guarded = maximal !== null && maximal.guards(current);
+        // Under late-elision, only the edges that attain the least vector of
+        // the item in its context (engine §6).
+        const summary = this.elisions ? this.summaryAt(current, key) : null;
         /** @type {Candidate[]} */
         let all = [];
         /** @type {Candidate[]} */
         let allowed = [];
-        for (const edge of current.edges) {
+        current.edges.forEach((edge, index) => {
+          const inAll = summary === null || summary.all.kept.has(index);
+          const inAllowed = summary === null || summary.allowed.kept.has(index);
+          if (!inAll && !inAllowed) return;
           /** @type {Candidate[]} */
           let produced;
           let permitted = true;
@@ -5526,12 +5541,97 @@
             if (guarded) permitted = !(/** @type {Maximal} */ (maximal)).forbids(edge.child, current.production.rhs[current.dot - 1].test);
           }
           for (const entry of produced) {
-            all = this.keep(all, entry);
-            if (guarded && permitted) allowed = this.keep(allowed, entry);
+            if (inAll) all = this.keep(all, entry);
+            if (guarded && permitted && inAllowed) allowed = this.keep(allowed, entry);
           }
-        }
+        });
         return { all, allowed: guarded ? allowed : all };
-      }, { all: [], allowed: [] });
+      }, { all: [], allowed: [] }, this.elisions ? (current, key) => this.keptEdges(current, key) : null);
+    }
+
+    // Under late-elision, an item's summaries in one context (engine §6):
+    // over all its derivations and over those an elided terminator may
+    // follow, as for the candidates, each with its least elision vector, the
+    // number of derivations that attain it and the number of all its
+    // derivations, both capped at two, and the edges that attain it.
+    /**
+     * @param {Item} item
+     * @returns {Allowed<ElisionSummary>}
+     */
+    elisionSummary(item) {
+      const maximal = this.maximal;
+      return this.traverse(item, this.summaries, (current, dependency) => {
+        const guarded = maximal !== null && maximal.guards(current);
+        const all = noDerivation();
+        const allowed = guarded ? noDerivation() : all;
+        current.edges.forEach((edge, index) => {
+          /** @type {ElisionSeq} */
+          let vector;
+          let least;
+          let total;
+          let permitted = true;
+          if (edge.kind === "seed") {
+            // The helper of an elidable optional that derives ε elides its
+            // terminator where it is empty.
+            vector = isElided(current) ? this.elisionLeaf(current.origin) : NO_ELISIONS;
+            least = 1;
+            total = 1;
+          } else if (edge.kind === "scan") {
+            const before = dependency(edge.previous).all;
+            if (before.total === 0) return;
+            vector = /** @type {ElisionSeq} */ (before.vector);
+            least = before.least;
+            total = before.total;
+          } else {
+            const earlier = dependency(edge.previous);
+            const before = maximal !== null && maximal.elided(edge.child) ? earlier.allowed : earlier.all;
+            const child = dependency(edge.child).all;
+            if (before.total === 0 || child.total === 0) return;
+            vector = concatElisions(/** @type {ElisionSeq} */ (before.vector), /** @type {ElisionSeq} */ (child.vector));
+            least = Math.min(2, before.least * child.least);
+            total = Math.min(2, before.total * child.total);
+            if (guarded) permitted = !(/** @type {Maximal} */ (maximal)).forbids(edge.child, current.production.rhs[current.dot - 1].test);
+          }
+          addEdge(all, index, vector, least, total);
+          if (guarded && permitted) addEdge(allowed, index, vector, least, total);
+        });
+        return { all, allowed };
+      }, { all: noDerivation(), allowed: noDerivation() });
+    }
+
+    /**
+     * The summaries of an item in the context that `key` names, which
+     * elisionSummary has already computed.
+     * @param {Item} item
+     * @param {string} key
+     * @returns {Allowed<ElisionSummary>}
+     */
+    summaryAt(item, key) {
+      const found = key === "" ? this.summaries.plain.get(item) : this.summaries.contextual.get(item)?.get(key);
+      if (found === undefined) throw new Error(`no elision summary for an item in context ${JSON.stringify(key)}`);
+      return found;
+    }
+
+    /**
+     * The edges of an item that attain a least vector in its context.
+     * @param {Item} item
+     * @param {string} key
+     * @returns {import("./types.js").Edge[]}
+     */
+    keptEdges(item, key) {
+      const summary = this.summaryAt(item, key);
+      return item.edges.filter((_, index) => summary.all.kept.has(index) || summary.allowed.kept.has(index));
+    }
+
+    /**
+     * The one sequence of a single elision at a position.
+     * @param {number} at
+     * @returns {ElisionSeq}
+     */
+    elisionLeaf(at) {
+      let found = this.elisionLeaves.get(at);
+      if (!found) this.elisionLeaves.set(at, (found = { at, size: 1 }));
+      return found;
     }
 
     /**
@@ -5698,16 +5798,19 @@
      * @template T
      * @param {Item} root
      * @param {{plain: Map<Item, T>, contextual: Map<Item, Map<string, T>>}} memo
-     * @param {(item: Item, dependency: (item: Item) => T) => T} combine
+     * @param {(item: Item, dependency: (item: Item) => T, key: string) => T} combine
+     *   `key` names the item's context
      * @param {T} cut the value of a dependency that would close a cycle
+     * @param {((item: Item, key: string) => import("./types.js").Edge[]) | null} [edgesOf]
+     *   the edges whose children `combine` reads, if not all
      * @returns {T}
      */
-    traverse(root, memo, combine, cut) {
-      /** @type {(item: Item) => Item[]} */
-      const dependenciesOf = (item) => {
+    traverse(root, memo, combine, cut, edgesOf = null) {
+      /** @type {(item: Item, key: string) => Item[]} */
+      const dependenciesOf = (item, key) => {
         /** @type {Item[]} */
         const result = [];
-        for (const edge of item.edges) {
+        for (const edge of edgesOf ? edgesOf(item, key) : item.edges) {
           if (edge.kind === "scan") result.push(edge.previous);
           else if (edge.kind === "complete") result.push(edge.previous, edge.child);
         }
@@ -5789,7 +5892,7 @@
             deliver(known);
             continue;
           }
-          frame.pending = dependenciesOf(frame.item);
+          frame.pending = dependenciesOf(frame.item, frame.key);
           frame.started = true;
         }
         let pushed = false;
@@ -5801,7 +5904,7 @@
           break;
         }
         if (pushed) continue;
-        const value = combine(frame.item, (item) => /** @type {T} */ (frame.results.get(item)));
+        const value = combine(frame.item, (item) => /** @type {T} */ (frame.results.get(item)), /** @type {string} */ (frame.key));
         store(frame.item, /** @type {string} */ (frame.key), value);
         deliver(value);
       }
@@ -5816,10 +5919,25 @@
      * @returns {Ranking | null} null when every derivation is cyclic
      */
     rank(roots) {
-      const count = Math.min(2, roots.reduce((sum, item) => sum + this.count(item), 0));
+      let count;
+      let ranked = roots;
+      let tied = false;
+      if (this.elisions) {
+        // Every complete item of `text` is an edge of one root (engine §6).
+        const root = noDerivation();
+        roots.forEach((item, index) => {
+          const summary = this.elisionSummary(item).all;
+          if (summary.total > 0) addEdge(root, index, /** @type {ElisionSeq} */ (summary.vector), summary.least, summary.total);
+        });
+        count = root.total;
+        tied = root.least === 2;
+        ranked = roots.filter((_, index) => root.kept.has(index));
+      } else {
+        count = Math.min(2, roots.reduce((sum, item) => sum + this.count(item), 0));
+      }
       /** @type {Candidate[]} */
       let kept = [];
-      for (const root of roots) for (const entry of this.full(root)) kept = this.keep(kept, entry);
+      for (const root of ranked) for (const entry of this.full(root)) kept = this.keep(kept, entry);
       // At the root nothing follows: candidates still undecided are tied
       // (engine §6), and T orders them.
       if (kept.length === 0) return null;
@@ -5834,8 +5952,11 @@
       /** @type {import("./types.js").Verdict} */
       let verdict;
       if (count === 1) verdict = "unique";
-      else if (main.alts.length === 0) verdict = "resolved";
+      else if (this.elisions ? !tied : main.alts.length === 0) verdict = "resolved";
       else verdict = "tie";
+      // The forest of the best derivations holds a second one exactly when
+      // the least count is two.
+      if (this.elisions && tied !== main.alts.length > 0) throw new Error("the least count of late-elision disagrees with its forest");
       /** @type {[Action | null, Action | null] | null} */
       let witness = null;
       const second = verdict === "tie"
@@ -5904,6 +6025,131 @@
       }
     }
     return stack[stack.length - 1];
+  }
+
+  // Under late-elision, a derivation's elided terminators as the sequence of
+  // their positions, in text order: its elision vector (engine §6). The
+  // elisions of an edge's children are those of the item before it and then
+  // those of the child, so the sequence of an edge is the two concatenated,
+  // and sequences built on one prefix share it.
+  /**
+   * @typedef {{at: number, size: number} | {left: ElisionSeq, right: ElisionSeq, size: number} | {size: 0}} ElisionSeq
+   */
+
+  /**
+   * An item's derivations in one context under late-elision: the least
+   * vector and the number of derivations that attain it, the number of all
+   * derivations, both capped at two, and the indices of the edges that attain
+   * the least vector.
+   * @typedef {object} ElisionSummary
+   * @property {ElisionSeq | null} vector null when there is no derivation
+   * @property {number} least
+   * @property {number} total
+   * @property {Set<number>} kept
+   */
+
+  /** @type {ElisionSeq} */
+  const NO_ELISIONS = { size: 0 };
+
+  /** @returns {ElisionSummary} */
+  function noDerivation() {
+    return { vector: null, least: 0, total: 0, kept: new Set() };
+  }
+
+  /**
+   * @param {ElisionSeq} left
+   * @param {ElisionSeq} right
+   * @returns {ElisionSeq}
+   */
+  function concatElisions(left, right) {
+    if (left.size === 0) return right;
+    if (right.size === 0) return left;
+    return { left, right, size: left.size + right.size };
+  }
+
+  // Adds an edge's derivations to a summary: the total counts every edge,
+  // losing ones included; the least count and the kept edges only those that
+  // attain the least vector.
+  /**
+   * @param {ElisionSummary} summary
+   * @param {number} index
+   * @param {ElisionSeq} vector
+   * @param {number} least
+   * @param {number} total
+   */
+  function addEdge(summary, index, vector, least, total) {
+    summary.total = Math.min(2, summary.total + total);
+    const order = summary.vector === null ? -1 : compareElisions(vector, summary.vector);
+    if (order < 0) {
+      summary.vector = vector;
+      summary.least = least;
+      summary.kept = new Set([index]);
+    } else if (order === 0) {
+      summary.least = Math.min(2, summary.least + least);
+      summary.kept.add(index);
+    }
+  }
+
+  // -1 when the left vector is less, 1 when the right one is, 0 when they are
+  // equal. Two sequences of positions compare at their first difference: the
+  // one that elides at the earlier position has the greater count there, so
+  // the later position is less; and a sequence that ends first has fewer
+  // elisions after the shared part.
+  /**
+   * @param {ElisionSeq} left
+   * @param {ElisionSeq} right
+   * @returns {number}
+   */
+  function compareElisions(left, right) {
+    const a = [left];
+    const b = [right];
+    /** @type {(stack: ElisionSeq[]) => ElisionSeq | null} */
+    const front = (stack) => {
+      while (stack.length > 0) {
+        const node = stack[stack.length - 1];
+        if (node.size > 0) return node;
+        stack.pop();
+      }
+      return null;
+    };
+    for (;;) {
+      const x = front(a);
+      const y = front(b);
+      if (x === null || y === null) return x === null ? (y === null ? 0 : -1) : 1;
+      if (x === y) {
+        a.pop();
+        b.pop();
+        continue;
+      }
+      if ("left" in x || "left" in y) {
+        // Descend the larger side first, so that a part both share is met at
+        // the front of both.
+        if ("left" in x && (!("left" in y) || x.size >= y.size)) {
+          a.pop();
+          a.push(x.right, x.left);
+        }
+        if ("left" in y && (!("left" in x) || y.size >= x.size)) {
+          b.pop();
+          b.push(y.right, y.left);
+        }
+        continue;
+      }
+      const xAt = /** @type {{at: number}} */ (x).at;
+      const yAt = /** @type {{at: number}} */ (y).at;
+      if (xAt !== yAt) return xAt > yAt ? -1 : 1;
+      a.pop();
+      b.pop();
+    }
+  }
+
+  /**
+   * Whether a completed item is an elided terminator: the empty production
+   * of an elidable optional's helper (engine §4).
+   * @param {Item} item
+   * @returns {boolean}
+   */
+  function isElided(item) {
+    return item.production.helper && item.production.elided !== null && item.production.rhs.length === 0;
   }
 
   // Exposed for the property test, which checks the ranking against an
@@ -9041,7 +9287,8 @@
 
   /**
    * @typedef {object} Resolution
-   * @property {"greedy" | "lazy"} lean
+   * @property {"greedy" | "lazy" | "late-elision"} lean the rule of the
+   *   ranking (engine §6)
    * @property {boolean} elisionOnly
    * @property {boolean} maximal whether an elided terminator is forbidden
    *   where its constituent could have been longer (engine §4)
@@ -9062,9 +9309,9 @@
    */
 
   /**
-   * The lean the ranking uses: the grammar's, or none for elision-only's
-   * check.
-   * @typedef {"greedy" | "lazy" | "none"} Lean
+   * The rule the ranking uses: the grammar's, or none for elision-only's
+   * check and for the readings of a late-elision tie (engine §6).
+   * @typedef {"greedy" | "lazy" | "late-elision" | "none"} Lean
    */
 
   /**
