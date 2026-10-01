@@ -18,7 +18,7 @@ from typing import Any
 
 from .shared import SHARED
 
-FIELDS = ("expect", "verdict", "stage", "ties", "words", "brackets")
+FIELDS = ("expect", "verdict", "stage", "error", "ties", "words", "brackets")
 
 _dialects: dict[str, Any] = {}
 
@@ -45,6 +45,9 @@ def outcome(case: dict[str, Any]) -> dict[str, Any]:
         got["verdict"] = result.stages[-1].verdict
     else:
         got["stage"] = result.error.stage if result.error else None
+    if result.error is not None and result.error.kind == "ambiguous":
+        # An ambiguous error pins its kind and its reason (tests/README.md).
+        got["error"] = {"kind": result.error.kind, "reason": result.error.reason}
     ties = [stage.name for stage in result.stages if stage.verdict == "tie"]
     if ties:
         got["ties"] = ties

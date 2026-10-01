@@ -768,7 +768,11 @@ class LoweringCaches(unittest.TestCase):
         assert dialect is not None, error
         for number in range(1 << len(names)):
             features = [name for index, name in enumerate(names) if number & (1 << index)]
-            self.assertEqual(dialect.parse("x", features=features, auto_features=False).ok, bool(features), features)
+            # The stage accepts its input whenever a feature is on, and ties
+            # when two are (engine §6).
+            result = dialect.parse("x", features=features, auto_features=False)
+            self.assertEqual(result.stages[0].verdict is not None, bool(features), features)
+            self.assertEqual(result.ok, len(features) == 1, features)
         self.assertLessEqual(len(dialect._lowered[0]), 16)
         self.assertLessEqual(len(dialect.grammars[0]._classifier_tables), 16)
 
