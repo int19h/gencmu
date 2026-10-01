@@ -841,12 +841,15 @@ class Elisions(Summaries):
         if least is None:
             return None
         readings = Ranker(self.forest, "none", self.maximal, best=self).rank(best)
-        assert readings is not None
+        # The least count says whether the best forest holds a second
+        # derivation, and the ranking with no lean over it finds one exactly
+        # then. A disagreement is a defect of the library, never a verdict.
+        if readings is None or (readings.verdict == "tie") != (count > 1):
+            raise RuntimeError("internal error: the least count of late-elision disagrees with its forest of best derivations")
         if total == 1:
             return Ranking("unique", readings.first, None, None)
         if count == 1:
             return Ranking("resolved", readings.first, None, None)
-        assert readings.verdict == "tie"
         return readings
 
 
