@@ -383,12 +383,14 @@ The Zantufa grammar states its attachment conventions as rules, derived from its
 
 - A free modifier nests in the nearest open slot. The rule stands on `free`, not on each slot. So the dialect keeps its departure from CLL 19.6 in `mi klama pamai le zarci .e remai le zdani`.
 - A sumti connection comes before a term connection.
-- An operator run is read whole.
-- A gek before bridi-tails is a gek-bridi-tail.
+- An operator run is read whole, and the operand after it is read wherever one follows.
+- A gek before bridi-tails begins a bridi-tail, not a connection of sentences. In `mi ge klama gi cadzu`, it begins a forethought tanru unit inside the bridi-tail. A bridi-tail that a further `gi` follows does not count, because the reference's runs of `gik` read as far as they can.
 
-It also states one rule that departs from the reference, which the maintainer approved. A vocative with a name ends after the name, and closes its surrounding vocative. This departure stands next to the one of CLL 19.6. In `pe'usai doi xod ko jmina fi lo kamjikca lisri`, the reference parser gives `ko` to the vocative `pe'u`, so `jmina` has no first place. Here `ko` stays a term of the sentence. The measurement above does not cover this rule.
+Other conditions state the reference's ordered choices where the ranking would leave a tie. A gek tanru unit comes before the forms with `se`, `fa` and `na'e`. A `cei` run nests to the right. The tenses and modals before `ke` and a gek-bridi-tail are one tag. A `ke` group of terms comes before a `ke` sumti.
 
-Zantufa's `%elidable` lists neither `CU` nor `IAU`, as CLL's grammar does not list `CU`. Both are separators, which end no constituent. An absent `cu` or `i'au` is an ordinary empty optional. It counts for nothing, leaves no `elided` node, and `maximal` and `elision-only` do not see it. `%elidable` is the only control, and the ranker has no logic for `CU` or for any other terminal.
+The vocative follows the reference. Zantufa merges cmevla and brivla, so a name is an ordinary tanru unit. The selbri of an address reads as far as it can, so `doi djan klama` is one vocative with the address `djan klama`. The dialect also keeps an odd reading of the reference. In `pe'usai doi xod ko jmina fi lo kamjikca lisri`, the vocative `pe'u` takes `ko` as its address, so `jmina` has no first place.
+
+Zantufa's `%elidable` lists neither `CU` nor `IAU`, as CLL's grammar does not list `CU`. Both are separators, and neither closes a constituent. An absent `cu` or `i'au` is an ordinary empty optional. It counts for nothing, leaves no `elided` node, and `maximal` and `elision-only` do not see it. `%elidable` is the only control, and the ranker has no logic for `CU` or for any other terminal.
 
 ## The result, and why it has no types
 
