@@ -468,6 +468,10 @@ A selbri can take a tense, a modal or `na` before it, and relative clauses and `
 
 The conditions give these alternatives the reference's order of preference. So `me su'i pa moi` is two tanru units, `me su'i` and `pa moi`. A mekso after `me` is not followed by words that can make it a quantifier. And a tanru unit after the first does not begin with a joik and a `selbri_5`. Those words belong to the tanru unit before it, which reads them as its connection.
 
+The reference tries a gek tanru unit before the forms with `se`, `fa` or `na'e` and a tanru unit. A gek can itself begin with `se`, and it can begin with a tag such as `na'e bai`. So `mi se ge klama gi cadzu` has two readings with the same elisions. In one, `se ge` is the gek. In the other, `se` converts the gek tanru unit `ge klama gi cadzu`. The reference takes the first, and a tie here is an error.
+
+So the conditions state the reference's order. `se`, `fa` and `na'e` do not take a tanru unit where the words from them begin a gek tanru unit (`gek-tanru-unit`). And the gek alternative does not begin with `na'e`, because the reference's optional `NAhE_clause` takes it first. So in `na'e bai gi broda gi brode`, `na'e` comes before the gek `bai gi`.
+
 ```jbogenbau
 %rule selbri
   (* selbri <- selbri_1 / tag selbri / NA_clause selbri *)
@@ -529,7 +533,8 @@ The conditions give these alternatives the reference's order of preference. So `
   | BRIVLA #
   | GOhA #
   | KE # selbri-2 [KEhE #]
-  | [NAhE #] gek selbri-2 $g(gik-selbris) [GIhI #]
+  | NAhE # gek selbri-2 $g(gik-selbris) [GIhI #]
+  | $k(gek) selbri-2 $g(gik-selbris) [GIhI #]
   | MUhOI any-word anything any-word #
   | GOhOI any-word #
   | LUhEI text [LIhAU #]
@@ -538,7 +543,7 @@ The conditions give these alternatives the reference's order of preference. So `
   | ME # $m(mex) [MEhU #] [MOI #]
   | ME # $t(tag) [MEhU #] [MOI #]
   | mex MOI #
-  | (FA # [joik FA #] ... | SE #) tanru-unit-1
+  | (FA # [joik FA #] ... | SE #) $w(tanru-unit-1)
   | JAI # [tag] tanru-unit-1
   | NAhE # $n(tanru-unit-1)
   | NU # [joik NU #] ... statement [KEI #]
@@ -551,7 +556,18 @@ The conditions give these alternatives the reference's order of preference. So `
   ¬matches($t, sumti),
   ¬begins(from($t), operator),
   ¬matches($t, mex),
-  $n ⟹ ¬matches($, mex-moi)
+  $n ⟹ ¬matches($, mex-moi),
+  ¬begins(from($k), nahe-word),
+  $n ⟹ ¬begins(from($), gek-tanru-unit),
+  $w ⟹ ¬begins(from($), gek-tanru-unit)
+
+%rule gek-tanru-unit
+  [NAhE #] gek selbri-2 $g(gik-selbris)
+%conditions
+  ¬begins(after($g), gik-term-or-cu)
+
+%rule nahe-word
+  NAhE
 
 %rule mex-moi
   mex MOI #
