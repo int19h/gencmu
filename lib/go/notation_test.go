@@ -332,6 +332,31 @@ func TestNotationLexicalTags(t *testing.T) {
 	}
 }
 
+// A tie in a stage of the notation is a grammar error that names the
+// document, with no line or column (engine §8).
+func TestNotationTie(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	// A notation whose one stage reads the character a in two ways.
+	notation, err := bundled.reader.read("```jbogenbau\n%ambiguity-resolution greedy\n%rule text p | q\n%rule p 'a'\n%rule q 'a'\n```\n", "n.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bootstrap := `{"format":` + strconv.Itoa(domFormat) + `,"stages":[{"name":"syntax","documents":[{"path":"n.md","dom":` + string(notation.json()) + `}]}]}`
+	tying, nerr := newNotationReader(bootstrap, bundled.uni)
+	if nerr != nil {
+		t.Fatal(nerr)
+	}
+	_, e := tying.read("```jbogenbau\na\n```\n", "t.md")
+	if e == nil || e.Kind != ErrorGrammar || e.Document != "t.md" || e.Line != 0 || e.Column != 0 {
+		t.Fatalf("got %#v", e)
+	}
+	if want := "t.md: the grammar text is ambiguous: the syntax stage of the notation reads it in two ways"; e.Error() != want {
+		t.Fatalf("got %q, want %q", e.Error(), want)
+	}
+}
+
 // The notation's lexical stage tags constants and the keywords that define
 // them (grammars/notation/lexical.md).
 func TestNotationLexicalConstants(t *testing.T) {

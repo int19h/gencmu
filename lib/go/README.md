@@ -25,7 +25,11 @@ data, _ := gencmu.MarshalResult(result) // canonical JSON, docs/output.md
 - `LoadDialect(name)` loads a bundled dialect. `name` is the name of a pipeline document under `grammars/dialects/` without `.md`.
 - `LoadDialectFile(path)` loads a pipeline document from disk. The loader finds its grammar documents relative to it. A document that is not valid UTF-8 is a load error of kind `grammar`.
 - `LoadDialectSources(sources, pipeline)` loads documents held in memory, a map from `/`-separated path to text. The map can hold its own `unicode.txt`, `notation/bootstrap.json` and `compiled.json`. The bundled ones fill in the rest. A `unicode.txt` in the map replaces the bundled table entirely, White_Space included (`docs/api.md`).
+
+  For each of the three, a tie while the notation reads a grammar document is a load error of kind `grammar`. It names the document, and it has no line or column (engine §8).
 - `(*Dialect).Parse(text, ParseOptions{Features, WithoutFeatures, NoAutoFeatures, Until, ElisionOnly})` parses a text. A text that is not valid UTF-8 is a usage error. The `Warnings` of a result are those of the warning features that are turned on.
+
+  A text that a stage reads in two or more best ways is a tie. Its result is not `OK`, and its `Error` has the kind `ambiguous` and the `Reason` `tie`, with two `Readings`. The stage has the verdict `tie` and a `Witness`, and it has no output. The `Reason` of the error of `ElisionOnly` is `elision-only`.
 
   For tests and tools, `(*Dialect).ParseTokens(text, tokens, options)` feeds pre-built tokens to the first stage. Each of those tokens has its `Text` as its label, whatever its `Label` says. A caller cannot supply attachments: a token with a non-empty `Before` or `After` is a usage error, and empty ones are dropped. The parse copies the tokens, so the caller's stay as they are.
 - `(*Dialect).Features()` lists the features of the dialect, the gates of its classifiers' entries included. Each is a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`. `Default` says whether the pipeline turns the feature on.
