@@ -44,6 +44,14 @@ Auto features (engine §13) are off for a case unless its options say `"autoFeat
 - An array matches when it has the same length and each element matches.
 - Anything else matches when it is equal.
 
+Every runner also checks these invariants on each canonical result that a case gives, whatever the case expects. A case cannot turn them off, and its pattern need not repeat them:
+
+- No stage has a member `tied`.
+- A stage whose verdict is `tie` has no member `output`, and it is the last stage of the result.
+- Such a result has `ok` false, `tree` null, and an error of kind `ambiguous` with the reason `tie`, that stage's name and two readings.
+
+A pattern matches a result that has members beyond its own. So the invariants, and not the patterns, say that a tied stage has no output.
+
 `expect.brackets` is the bracket rendering, with elided terminators hidden. `expect.warnings` is the list of warnings of the result, compared whole. So `[]` says that there are no warnings. `expect.features` is the list of features of the dialect (`docs/api.md`), compared whole. Each feature is written as `{"name":..., "kind":..., "default":...}`.
 
 A case can also parse its input several times with the one loaded dialect. Then it has `parses`, a list of objects, each with its own `options` and `expect`, in place of the case's `options` and `expect`:
@@ -93,11 +101,12 @@ Each line is one case: a Lojban text, with the result that gencmu must give for 
 
 - `dialect` is the name of a bundled dialect. `features`, when present, lists the features that the case turns on. `withoutFeatures` lists those that it turns off.
 - `expect` is `accept` or `reject`. For an accepted text, `verdict` is the verdict of the last stage, and `brackets` is its tree, with elided terminators hidden. For a rejected one, `stage` names the stage that rejected it.
-- `error`, when present, pins the error of a rejected text: `{"kind": "ambiguous", "reason": "tie"}`. It holds the error's `kind`, and for an `ambiguous` error its `reason`, `tie` or `elision-only` (engine §6, §7). A case expects an ambiguity with `expect` set to `reject`, its `stage`, and this `error`. A third value of `expect` is not needed. The error's `reason` stands inside `error`, apart from the case's own `reason`, which explains a departure from the seed (below).
+- `error` is present exactly when the result's error is of kind `ambiguous`. It is `{"kind": "ambiguous", "reason": "tie"}`, or the same with the reason `elision-only` (engine §6, §7). A case with any other result has no `error`, a rejection or an error of the grammar included. A case expects an ambiguity with `expect` set to `reject`, its `stage`, and this `error`. A third value of `expect` is not needed.
+- The `reason` inside `error` is the reason of the ambiguous error. It is a field of `error`, and it is not the case's own `reason`, which explains a departure from the seed (below). A case can have both.
 - `ties`, when present, names the stage whose verdict is `tie`. A tie ends the run, so at most one stage has it, and that stage can come before the last.
 - `words` records the word stage's output when that output is present. The case writes each token as its label (engine §5). So a pause inside a word is a space, and an opaque part is its text.
 
-A case runs with auto features on, which is the default of the API. The case matches when every one of those fields that the case or the result of the library has is equal.
+A runner also checks the invariants of a tie (above) on the result of each corpus case. A case runs with auto features on, which is the default of the API. The case matches when every one of those fields that the case or the result of the library has is equal.
 
 The corpus started from a seed: a fixture collection whose verdicts came from another parser. Where the expectation of gencmu differs from that seed, the case says so. `"seeded": "accept"` or `"reject"` is the verdict of the seed, and `reason` says why gencmu differs, in terms of its own grammars. `node tools/corpus-departures.js` lists every such case, grouped by reason. A change to the `words` or `brackets` of a case needs no field of its own. It is a change to what gencmu produces, made in the same commit as the grammar change that causes it.
 
