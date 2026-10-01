@@ -176,8 +176,11 @@ type domBuilder struct {
 	closedFor string
 }
 
-// The rules the reader looks at by name; every other rule is transparent.
+// The rules of the notation's syntax grammar that the reader knows (engine
+// §9). Every other rule is a wrapper, and the reader reads its parts in its
+// place.
 var domRules = map[string]bool{
+	"rule-name": true, "body": true, "primary": true, "emit-target": true, "condition": true, "argument": true, "term-atom": true,
 	"directive": true, "rule": true, "definer": true, "alternative": true, "choice": true,
 	"conjunction": true, "sequence": true, "element": true, "reference": true,
 	"string": true, "tag": true, "character": true, "phoneme": true, "name": true,
@@ -239,6 +242,97 @@ func ruleParts(n *Node) []*Node {
 	return out
 }
 
+// The parts that the reader reads from a node (engine §9). A node that
+// lacks one is an error of the document, which only a bootstrap of another
+// notation gives.
+
+func (b *domBuilder) lacks(n *Node, what string) {
+	b.fail(n, "the notation's %s has no %s", n.Rule, what)
+}
+
+// ofRule is the parts of a node of one rule.
+func ofRule(n *Node, name string) []*Node {
+	var out []*Node
+	for _, c := range ruleParts(n) {
+		if c.Rule == name {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// one is the first part of a rule, or nil.
+func one(n *Node, name string) *Node {
+	if found := ofRule(n, name); len(found) > 0 {
+		return found[0]
+	}
+	return nil
+}
+
+func (b *domBuilder) only(n *Node, name string) *Node {
+	found := one(n, name)
+	if found == nil {
+		b.lacks(n, name)
+	}
+	return found
+}
+
+// some is the parts of a rule, at least least of them.
+func (b *domBuilder) some(n *Node, name string, least int) []*Node {
+	found := ofRule(n, name)
+	if len(found) < least {
+		if least == 1 {
+			b.lacks(n, name)
+		}
+		b.lacks(n, fmt.Sprintf("%d of %s", least, name))
+	}
+	return found
+}
+
+// token is the first token among a node's parts.
+func (b *domBuilder) token(n *Node) *Node {
+	for _, c := range parts(n) {
+		if c.Kind == KindToken {
+			return c
+		}
+	}
+	b.lacks(n, "token")
+	return nil
+}
+
+// symbolPart is the first part of a node: a token, a range or a property.
+func (b *domBuilder) symbolPart(n *Node) *Node {
+	ps := parts(n)
+	if len(ps) > 0 && (ps[0].Kind == KindToken || ps[0].Rule == "range" || ps[0].Rule == "property") {
+		return ps[0]
+	}
+	b.lacks(n, "token, range or property")
+	return nil
+}
+
+// knownOf is the one rule among a node's parts, which must be one of kinds.
+func (b *domBuilder) knownOf(n *Node, kinds []string) *Node {
+	found := ruleParts(n)
+	if len(found) == 1 {
+		for _, k := range kinds {
+			if found[0].Rule == k {
+				return found[0]
+			}
+		}
+	}
+	b.lacks(n, "one of "+strings.Join(kinds, ", "))
+	return nil
+}
+
+// What a primary, a condition, a term and a term atom hold: the one rule
+// among their parts is one of these (engine §9).
+var (
+	primaryRules   = []string{"reference", "tag", "character", "phoneme", "range", "property", "tested", "capture", "group", "optional", "empty", "constant-reference"}
+	conditionRules = []string{"comparison", "call", "negation", "presence", "implication"}
+	termRules      = []string{"union", "guarded-term"}
+	atomRules      = []string{"string", "tag", "character", "phoneme", "range", "property", "name", "empty-set", "term", "call", "capture-reference", "constant-reference"}
+)
+
 func (b *domBuilder) text(n *Node) string {
 	if n.Kind == KindToken {
 		return b.toks[n.Token].Text
@@ -255,6 +349,11 @@ func (b *domBuilder) document(root *Node) *domDoc {
 	d := &domDoc{Rules: []*domRule{}, Directives: []*domDirective{}, Constants: []*domConst{}, Classifiers: []*domClassifier{}, Implications: []*domImplication{}}
 	for _, c := range ruleParts(root) {
 		switch c.Rule {
+		case "rule", "constant-definition", "classifier", "implication-declaration", "directive":
+		default:
+			b.fail(c, "the notation gives a %s where an item stands", c.Rule)
+		}
+		switch c.Rule {
 		case "rule":
 			d.Rules = append(d.Rules, b.rule(c))
 		case "constant-definition":
@@ -264,8 +363,9 @@ func (b *domBuilder) document(root *Node) *domDoc {
 		case "implication-declaration":
 			d.Implications = append(d.Implications, b.implicationDeclaration(c))
 		case "directive":
+			keyword := b.token(c)
 			ps := parts(c)
-			dir := &domDirective{Name: strings.TrimPrefix(b.text(ps[0]), "%"), Args: []string{}, At: b.at(ps[0])}
+			dir := &domDirective{Name: strings.TrimPrefix(b.text(keyword), "%"), Args: []string{}, At: b.at(keyword)}
 			var kinds []string
 			for _, p := range ps {
 				if p.Kind != KindRule {
@@ -273,20 +373,20 @@ func (b *domBuilder) document(root *Node) *domDoc {
 				}
 				switch p.Rule {
 				case "argument-word":
-					dir.Args = append(dir.Args, b.text(p))
-					if isCapital(b.text(p)) {
+					dir.Args = append(dir.Args, b.text(b.token(p)))
+					if isCapital(b.text(b.token(p))) {
 						kinds = append(kinds, operandClass)
 					} else {
 						kinds = append(kinds, operandName)
 					}
 				case "argument-string":
 					// A string operand is decoded, as a string of a rule is.
-					dir.Args = append(dir.Args, b.decode(parts(p)[0]))
+					dir.Args = append(dir.Args, b.decode(b.token(p)))
 					kinds = append(kinds, operandString)
 				case "argument-tag":
 					// A tag literal is its name; a phoneme or character tag,
 					// a range or a property is refused below.
-					t := parts(p)[0]
+					t := b.symbolPart(p)
 					if t.Kind == KindRule {
 						// A range or a property, which has no tag.
 						dir.Args = append(dir.Args, b.text(t))
@@ -305,7 +405,7 @@ func (b *domBuilder) document(root *Node) *domDoc {
 				}
 			}
 			if problem := operandProblem(dir.Name, kinds); problem != "" {
-				b.fail(ps[0], "%s", problem)
+				b.fail(keyword, "%s", problem)
 			}
 			d.Directives = append(d.Directives, dir)
 		}
@@ -317,16 +417,18 @@ func (b *domBuilder) document(root *Node) *domDoc {
 // value, a closed term of a type that a constant can have (engine §2, §9,
 // §10).
 func (b *domBuilder) constant(n *Node) *domConst {
-	ps := ruleParts(n)
-	k := &domConst{Name: strings.TrimPrefix(b.text(ps[1]), "$"), Op: "define", At: b.at(n)}
-	if b.text(ps[0]) == "%redefine-const" {
+	definer := b.token(b.only(n, "constant-definer"))
+	reference := b.token(b.only(n, "constant-reference"))
+	valueNode := b.only(n, "term")
+	k := &domConst{Name: strings.TrimPrefix(b.text(reference), "$"), Op: "define", At: b.at(n)}
+	if b.text(definer) == "%redefine-const" {
 		k.Op = "redefine"
 	}
 	b.closedFor = "a constant's value"
-	k.Value = b.value(ps[2])
+	k.Value = b.value(valueNode)
 	b.closedFor = ""
 	if _, f := constantValueType(k.Value, k.Op == "redefine", nil); f != nil {
-		b.fail(ps[2], "%s", f.problem)
+		b.fail(valueNode, "%s", f.problem)
 	}
 	return k
 }
@@ -335,16 +437,13 @@ func (b *domBuilder) constant(n *Node) *domConst {
 // lower-case letter, and its entries (engine §2, §9).
 func (b *domBuilder) classifier(n *Node) *domClassifier {
 	c := &domClassifier{Entries: []*domEntry{}, At: b.at(n)}
-	for _, p := range ruleParts(n) {
-		switch p.Rule {
-		case "classifier-name":
-			c.Name = b.text(p)
-			if !classifierName.MatchString(c.Name) {
-				b.fail(p, "%s begins with a capital, so it is a tag; a classifier's name begins with a lower-case letter", c.Name)
-			}
-		case "classifier-entry":
-			c.Entries = append(c.Entries, b.entry(p))
-		}
+	nameNode := b.only(n, "classifier-name")
+	c.Name = b.text(b.token(nameNode))
+	if !classifierName.MatchString(c.Name) {
+		b.fail(nameNode, "%s begins with a capital, so it is a tag; a classifier's name begins with a lower-case letter", c.Name)
+	}
+	for _, p := range ofRule(n, "classifier-entry") {
+		c.Entries = append(c.Entries, b.entry(p))
 	}
 	return c
 }
@@ -353,30 +452,27 @@ func (b *domBuilder) classifier(n *Node) *domClassifier {
 // a class (engine §2, §9).
 func (b *domBuilder) entry(n *Node) *domEntry {
 	e := &domEntry{Guards: []domGuard{}, At: b.at(n)}
-	for _, p := range ruleParts(n) {
-		switch p.Rule {
-		case "guard":
-			g := b.text(p)
-			if strings.HasSuffix(g, "!") {
-				b.fail(p, "an entry of a classifier takes gates only, not a warning")
-			}
-			neg := strings.HasPrefix(g, "¬")
-			e.Guards = append(e.Guards, domGuard{Feature: strings.TrimSuffix(strings.TrimPrefix(g, "¬"), "?"), Kind: FeatureGate, Negated: neg})
-		case "classifier-key":
-			key := b.decode(parts(p)[0])
-			if msg := soundProblem(key, b.uni); msg != "" {
-				b.fail(p, "a key is a canonical sound: %s", msg)
-			}
-			e.Keys = append(e.Keys, key)
-		case "classifier-operator":
-			e.Op = b.text(p)
-		case "classifier-class":
-			written := b.text(p)
-			e.Class = strings.TrimPrefix(written, "~")
-			if !isCapital(e.Class) {
-				b.fail(p, "%s is not a class: a class is an identifier tag that begins with a capital", written)
-			}
+	for _, p := range ofRule(n, "guard") {
+		g := b.text(b.token(p))
+		if strings.HasSuffix(g, "!") {
+			b.fail(p, "an entry of a classifier takes gates only, not a warning")
 		}
+		neg := strings.HasPrefix(g, "¬")
+		e.Guards = append(e.Guards, domGuard{Feature: strings.TrimSuffix(strings.TrimPrefix(g, "¬"), "?"), Kind: FeatureGate, Negated: neg})
+	}
+	for _, p := range b.some(n, "classifier-key", 1) {
+		key := b.decode(b.token(p))
+		if msg := soundProblem(key, b.uni); msg != "" {
+			b.fail(p, "a key is a canonical sound: %s", msg)
+		}
+		e.Keys = append(e.Keys, key)
+	}
+	e.Op = b.text(b.token(b.only(n, "classifier-operator")))
+	classNode := b.only(n, "classifier-class")
+	written := b.text(b.token(classNode))
+	e.Class = strings.TrimPrefix(written, "~")
+	if !isCapital(e.Class) {
+		b.fail(classNode, "%s is not a class: a class is an identifier tag that begins with a capital", written)
 	}
 	return e
 }
@@ -386,10 +482,7 @@ func (b *domBuilder) entry(n *Node) *domEntry {
 func (b *domBuilder) implicationDeclaration(n *Node) *domImplication {
 	m := &domImplication{At: b.at(n)}
 	var sides []*domTerm
-	for _, p := range ruleParts(n) {
-		if p.Rule != "union" {
-			continue
-		}
+	for _, p := range b.some(n, "union", 2)[:2] {
 		b.closedFor = "a side of an implication"
 		t := b.term(p)
 		b.closedFor = ""
@@ -408,9 +501,9 @@ const constantInBody = "a constant cannot stand in a body: a body names a class 
 func (b *domBuilder) rule(n *Node) *domRule {
 	// The definer, the name, the alternatives and the clauses; the syntax
 	// allows at most one of each clause, in order.
-	ps := parts(n)
-	r := &domRule{Name: b.text(ps[1]), At: b.at(ps[0]), Conditions: []*domCond{}}
-	switch b.text(ps[0]) {
+	definer := b.token(b.only(n, "definer"))
+	r := &domRule{Name: b.text(b.token(b.only(n, "rule-name"))), At: b.at(definer), Conditions: []*domCond{}}
+	switch b.text(definer) {
 	case "%redefine-rule":
 		r.Op = "redefine"
 	case "%extend-rule":
@@ -418,29 +511,25 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	default:
 		r.Op = "define"
 	}
-	for _, p := range ps[2:] {
-		if p.Kind != KindRule {
-			continue
-		}
-		switch p.Rule {
-		case "alternative":
-			r.Alternatives = append(r.Alternatives, b.alternative(p))
-		case "tags-clause":
-			r.Tags = b.constituentTags(p)
-		case "conditions-clause":
-			// Each item of the list is one condition (§9).
-			for _, c := range ruleParts(p) {
-				r.Conditions = append(r.Conditions, b.implication(c))
-			}
-		case "emits-clause":
-			r.Emit = b.emission(p)
-		case "opaque-clause":
-			r.Opaque = true
+	if p := one(n, "tags-clause"); p != nil {
+		r.Tags = b.constituentTags(p)
+	}
+	for _, p := range b.some(b.only(n, "body"), "alternative", 1) {
+		r.Alternatives = append(r.Alternatives, b.alternative(p))
+	}
+	if p := one(n, "conditions-clause"); p != nil {
+		// Each item of the list is one condition (§9).
+		for _, c := range b.some(p, "implication", 1) {
+			r.Conditions = append(r.Conditions, b.implication(c))
 		}
 	}
+	if p := one(n, "emits-clause"); p != nil {
+		r.Emit = b.emission(p)
+	}
+	r.Opaque = one(n, "opaque-clause") != nil
 	// The definition as a whole (§9), reported at the rule.
 	if msg := definitionProblem(r); msg != "" {
-		b.fail(ps[0], "%s", msg)
+		b.fail(definer, "%s", msg)
 	}
 	return r
 }
@@ -448,24 +537,21 @@ func (b *domBuilder) rule(n *Node) *domRule {
 func (b *domBuilder) alternative(n *Node) *domAlt {
 	a := &domAlt{Guards: []domGuard{}}
 	b.captures = map[string]bool{}
-	for _, p := range ruleParts(n) {
-		switch p.Rule {
-		case "guard":
-			// A guard's token is its spelling: f? or ¬f? for a gate, f! for
-			// a warning (§9).
-			g := b.text(p)
-			kind := FeatureGate
-			if strings.HasSuffix(g, "!") {
-				kind = FeatureWarning
-			}
-			neg := strings.HasPrefix(g, "¬")
-			name := strings.TrimSuffix(strings.TrimSuffix(strings.TrimPrefix(g, "¬"), "?"), "!")
-			a.Guards = append(a.Guards, domGuard{Feature: name, Kind: kind, Negated: neg})
-		case "alternative-tags":
-			a.Tags = b.constituentTags(p)
-		default:
-			a.Expr = b.expr(p)
+	for _, p := range ofRule(n, "guard") {
+		// A guard's token is its spelling: f? or ¬f? for a gate, f! for a
+		// warning (§9).
+		g := b.text(b.token(p))
+		kind := FeatureGate
+		if strings.HasSuffix(g, "!") {
+			kind = FeatureWarning
 		}
+		neg := strings.HasPrefix(g, "¬")
+		name := strings.TrimSuffix(strings.TrimSuffix(strings.TrimPrefix(g, "¬"), "?"), "!")
+		a.Guards = append(a.Guards, domGuard{Feature: name, Kind: kind, Negated: neg})
+	}
+	a.Expr = b.expr(b.only(n, "conjunction"))
+	if p := one(n, "alternative-tags"); p != nil {
+		a.Tags = b.constituentTags(p)
 	}
 	return a
 }
@@ -473,7 +559,7 @@ func (b *domBuilder) alternative(n *Node) *domAlt {
 // constituentTags reads a rule's or an alternative's tag term, which cannot
 // be made of the tags it defines: tags($) or classes($) (§9).
 func (b *domBuilder) constituentTags(n *Node) *domTerm {
-	t := b.tagTerm(ruleParts(n)[0])
+	t := b.tagTerm(b.only(n, "term"))
 	if readsOwnTags(t) {
 		b.fail(n, "a constituent's tags cannot be made of its own tags, tags($) or classes($)")
 	}
@@ -495,7 +581,7 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 	case "choice", "conjunction", "sequence":
 		kind := map[string]string{"choice": exChoice, "conjunction": exAnd, "sequence": exSeq}[n.Rule]
 		var items []*domExpr
-		parts := ruleParts(n)
+		parts := b.some(n, map[string]string{"choice": "conjunction", "conjunction": "sequence", "sequence": "element"}[n.Rule], 1)
 		// A capture stands only at an alternative's top level (§3.5): an
 		// item of a choice or an & is inside.
 		inside := kind != exSeq && len(parts) > 1
@@ -518,11 +604,9 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 	case "element":
 		var prim *domExpr
 		repeat := false
-		var primNode *Node
+		primNode := b.knownOf(b.only(n, "primary"), primaryRules)
 		for _, p := range parts(n) {
-			if p.Kind == KindRule {
-				primNode = p
-			} else if b.text(p) == "..." {
+			if p.Kind == KindToken && b.text(p) == "..." {
 				repeat = true
 			}
 		}
@@ -541,19 +625,18 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 		}
 		return &domExpr{Kind: exRepeat, Inner: prim, Min: 1}
 	case "reference":
-		return &domExpr{Kind: exRef, Name: b.text(n)}
+		return &domExpr{Kind: exRef, Name: b.text(b.token(n))}
 	case "tag", "character", "phoneme":
-		return &domExpr{Kind: exTerminal, Name: b.tagOf(parts(n)[0])}
+		return &domExpr{Kind: exTerminal, Name: b.tagOf(b.token(n))}
 	case "range":
 		return &domExpr{Kind: exRange, Range: b.readRange(n)}
 	case "property":
-		return &domExpr{Kind: exProperty, Name: b.readProperty(parts(n)[0])}
+		return &domExpr{Kind: exProperty, Name: b.readProperty(b.token(n))}
 	case "tested":
 		// A reference other than # or a terminal, and one test on its own
 		// span (engine §2, §9). The syntax grammar reads a test after any
 		// primary, so that the reader can name the reason.
-		ps := ruleParts(n)
-		symbol, testNode := ps[0], ps[1]
+		symbol, testNode := b.knownOf(b.only(n, "primary"), primaryRules), b.only(n, "test")
 		switch symbol.Rule {
 		case "constant-reference":
 			b.fail(symbol, "%s", constantInBody)
@@ -561,19 +644,17 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 		default:
 			b.fail(testNode, "a test follows only a reference other than # or a terminal, not a group, an optional, a capture, ε, # or another test")
 		}
-		if symbol.Rule == "reference" && b.text(symbol) == "#" {
+		if symbol.Rule == "reference" && b.text(b.token(symbol)) == "#" {
 			b.fail(testNode, "a test follows only a reference other than # or a terminal, not a group, an optional, a capture, ε, # or another test")
 		}
 		inner := b.expr(symbol)
 		// The comparator is the test's tokens: =, ≠, ⊇ or ⊉, or ∩ and =∅
 		// or ≠∅ around the operand.
 		var op strings.Builder
-		var operand *Node
+		operand := b.only(testNode, "test-operand")
 		for _, p := range parts(testNode) {
 			if p.Kind == KindToken {
 				op.WriteString(b.text(p))
-			} else if p.Rule == "test-operand" {
-				operand = p
 			}
 		}
 		test := op.String()
@@ -598,8 +679,8 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 		}
 		return &domExpr{Kind: exTest, Op: test, Value: value, Inner: inner}
 	case "capture":
-		ps := parts(n)
-		inner := ruleParts(n)
+		ps := []*Node{b.token(n)}
+		inner := []*Node{b.knownOf(b.only(n, "primary"), primaryRules)}
 		if b.text(ps[0]) == "$" {
 			b.fail(ps[0], "$ is the whole constituent and wraps nothing")
 		}
@@ -626,7 +707,7 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 		return &domExpr{Kind: exCapture, Name: name, Inner: b.expr(inner[0])}
 	case "group", "optional":
 		b.inner++
-		inner := b.expr(ruleParts(n)[0])
+		inner := b.expr(b.only(n, "choice"))
 		b.inner--
 		if n.Rule == "group" {
 			return inner
@@ -664,11 +745,8 @@ func firstOfRule(n *Node, name string) *Node {
 // spelling; its start must not be above its end (engine §1, §9).
 func (b *domBuilder) readRange(n *Node) [2]string {
 	var ends []string
-	for _, c := range ruleParts(n) {
-		ends = append(ends, b.tagOf(parts(c)[0]))
-	}
-	if len(ends) != 2 {
-		b.fail(n, "a range's ends are two character tags")
+	for _, c := range b.some(n, "character", 2)[:2] {
+		ends = append(ends, b.tagOf(b.token(c)))
 	}
 	r := [2]string{ends[0], ends[1]}
 	if msg := rangeProblem(r, b.uni); msg != "" {
@@ -766,23 +844,21 @@ func (b *domBuilder) term(n *Node) *domTerm { return b.termIn(n, false) }
 func (b *domBuilder) termIn(n *Node, argument bool) *domTerm {
 	switch n.Rule {
 	case "term":
-		return b.termIn(ruleParts(n)[0], argument)
-	case "test-operand":
-		// One term: a string, a tag, a range, ∅, a constant, or a term in
-		// parentheses (§9).
-		return b.termIn(ruleParts(n)[0], argument)
+		return b.termIn(b.knownOf(n, termRules), argument)
+	case "test-operand", "term-atom":
+		// A test's operand is one term, as a term-atom reads it (§9).
+		return b.termIn(b.knownOf(n, atomRules), argument)
 	case "guarded-term":
 		// A ⟹ t: its condition, and its term, which must be a tag set
 		// (§10).
 		if b.closedFor != "" {
 			b.fail(n, "%s is a closed term, and holds no guarded term", b.closedFor)
 		}
-		ps := ruleParts(n)
-		cond := b.anyOf(ps[0])
+		cond := b.anyOf(b.only(n, "any-of"))
 		if problem := condTypeProblem(cond); problem != "" {
 			b.fail(n, "%s", problem)
 		}
-		t := &domTerm{Kind: tmIf, Cond: cond, Items: []*domTerm{b.value(ps[1])}}
+		t := &domTerm{Kind: tmIf, Cond: cond, Items: []*domTerm{b.value(b.only(n, "term"))}}
 		if _, problem := typeOf(t); problem != "" {
 			b.fail(n, "%s", problem)
 		}
@@ -790,7 +866,7 @@ func (b *domBuilder) termIn(n *Node, argument bool) *domTerm {
 	case "union":
 		// Parts joined by ∪ and ∖ group from the left: a run joined by ∪
 		// is one union, and each ∖ takes what stands before it (§9).
-		ps := ruleParts(n)
+		ps := b.some(n, "intersection", 1)
 		if len(ps) == 1 {
 			return b.termIn(ps[0], argument)
 		}
@@ -824,15 +900,15 @@ func (b *domBuilder) termIn(n *Node, argument bool) *domTerm {
 		}
 		return result
 	case "intersection":
-		ps := ruleParts(n)
+		ps := b.some(n, "term-atom", 1)
 		if len(ps) == 1 {
 			return b.termIn(ps[0], argument)
 		}
 		return &domTerm{Kind: tmIntersection, Items: b.joined(n, ps, []string{"∩"})}
 	case "string":
-		return &domTerm{Kind: tmString, Str: b.decode(n)}
+		return &domTerm{Kind: tmString, Str: b.decode(b.token(n))}
 	case "tag", "character", "phoneme":
-		return &domTerm{Kind: tmTag, Str: b.tagOf(parts(n)[0])}
+		return &domTerm{Kind: tmTag, Str: b.tagOf(b.token(n))}
 	case "range":
 		return &domTerm{Kind: tmRange, Range: b.readRange(n)}
 	case "property":
@@ -840,7 +916,7 @@ func (b *domBuilder) termIn(n *Node, argument bool) *domTerm {
 	case "name":
 		// A bare name is a tag literal if it begins with a capital, and
 		// otherwise a rule, which only a function's argument names.
-		name := b.text(n)
+		name := b.text(b.token(n))
 		switch {
 		case isCapital(name):
 			return &domTerm{Kind: tmTag, Str: name}
@@ -851,9 +927,9 @@ func (b *domBuilder) termIn(n *Node, argument bool) *domTerm {
 	case "empty-set":
 		return &domTerm{Kind: tmEmptySet}
 	case "constant-reference":
-		return &domTerm{Kind: tmConst, Str: strings.TrimPrefix(b.text(n), "$"), At: b.at(n)}
+		return &domTerm{Kind: tmConst, Str: strings.TrimPrefix(b.text(b.token(n)), "$"), At: b.at(n)}
 	case "capture-reference":
-		name := strings.TrimPrefix(b.text(n), "$")
+		name := strings.TrimPrefix(b.text(b.token(n)), "$")
 		if b.closedFor != "" {
 			b.fail(n, "%s is a closed term, and holds no capture", b.closedFor)
 		}
@@ -921,7 +997,7 @@ func isStringTerm(t *domTerm) bool {
 // call reads a call in a term, or, in a condition, matches(), begins() or
 // initial().
 func (b *domBuilder) call(n *Node, inCondition bool) *domTerm {
-	ps := parts(n)
+	ps := []*Node{b.token(n)}
 	name := b.text(ps[0])
 	// A closed term calls only split and tag, the closed functions (§9,
 	// §10).
@@ -935,10 +1011,8 @@ func (b *domBuilder) call(n *Node, inCondition bool) *domTerm {
 		b.fail(ps[0], "%s is a closed term, and %s() is not closed", b.closedFor, name)
 	}
 	var args []*domTerm
-	for _, p := range ps[1:] {
-		if p.Kind == KindRule {
-			args = append(args, b.termIn(p, true))
-		}
+	for _, p := range ofRule(n, "argument") {
+		args = append(args, b.termIn(b.only(p, "union"), true))
 	}
 	shape := func(ok bool) {
 		if !ok {
@@ -999,12 +1073,12 @@ var notationFunctions = map[string]bool{
 
 // implication reads A ⟹ B, which groups to the right, or the one any-of.
 func (b *domBuilder) implication(n *Node) *domCond {
-	ps := ruleParts(n)
-	premise := b.anyOf(ps[0])
-	if len(ps) == 1 {
+	premise := b.anyOf(b.only(n, "any-of"))
+	consequent := one(n, "implication")
+	if consequent == nil {
 		return premise
 	}
-	return &domCond{Kind: cdIf, Items: []*domCond{premise, b.implication(ps[1])}}
+	return &domCond{Kind: cdIf, Items: []*domCond{premise, b.implication(consequent)}}
 }
 
 // anyOf reads conditions joined by ∨, each several joined by ∧. Parentheses
@@ -1012,9 +1086,9 @@ func (b *domBuilder) implication(n *Node) *domCond {
 // (a ∧ b) ∧ c is an all of three, (a ∨ b) ∨ c an any of three (§9).
 func (b *domBuilder) anyOf(n *Node) *domCond {
 	var items []*domCond
-	for _, all := range ruleParts(n) {
+	for _, all := range b.some(n, "all-of", 1) {
 		var conds []*domCond
-		for _, p := range ruleParts(all) {
+		for _, p := range b.some(all, "condition", 1) {
 			if c := b.condition(p); c.Kind == cdAll {
 				conds = append(conds, c.Items...)
 			} else {
@@ -1038,16 +1112,18 @@ func (b *domBuilder) anyOf(n *Node) *domCond {
 
 func (b *domBuilder) condition(n *Node) *domCond {
 	switch n.Rule {
+	case "condition":
+		return b.condition(b.knownOf(n, conditionRules))
 	case "comparison":
-		ps := ruleParts(n)
-		d := &domCond{Kind: cdCompare, Left: b.value(ps[0]), Op: b.text(ps[1]), Right: b.value(ps[2])}
+		ps := b.some(n, "union", 2)
+		d := &domCond{Kind: cdCompare, Left: b.value(ps[0]), Op: b.text(b.token(b.only(n, "comparator"))), Right: b.value(ps[1])}
 		// The two sides fit the comparator (§10).
 		if problem := condTypeProblem(d); problem != "" {
 			b.fail(n, "%s", problem)
 		}
 		return d
 	case "negation":
-		return &domCond{Kind: cdNot, Inner: b.condition(ruleParts(n)[0])}
+		return &domCond{Kind: cdNot, Inner: b.condition(b.only(n, "condition"))}
 	case "call":
 		t := b.call(n, true)
 		if t.Str == "initial" {
@@ -1059,7 +1135,7 @@ func (b *domBuilder) condition(n *Node) *domCond {
 		}
 		return &domCond{Kind: kind, Span: t.Items[0], Rule: t.Items[1].Str}
 	case "presence":
-		return &domCond{Kind: cdCaptured, Rule: strings.TrimPrefix(b.text(n), "$")}
+		return &domCond{Kind: cdCaptured, Rule: strings.TrimPrefix(b.text(b.token(n)), "$")}
 	case "implication":
 		// Between parentheses, which make no node.
 		return b.implication(n)
@@ -1069,25 +1145,25 @@ func (b *domBuilder) condition(n *Node) *domCond {
 }
 
 func (b *domBuilder) emission(n *Node) *domEmit {
-	first := parts(n)[0]
+	first := n
 	e := &domEmit{}
 	whole := 0
-	for _, item := range ruleParts(n) {
-		it := &domEmitItem{}
-		var target, tagsNode *Node
-		var before, after []*Node
-		for _, p := range parts(item) {
-			switch {
-			case p.Kind == KindRule && p.Rule == "emit-before":
-				before = append(before, p)
-			case p.Kind == KindRule && p.Rule == "emit-after":
-				after = append(after, p)
-			case p.Kind == KindRule && p.Rule == "emit-tags":
-				tagsNode = p
-			case target == nil:
-				target = p
-			}
+	// %emits ε emits nothing, and the constituent does not count.
+	var items []*Node
+	empty := false
+	for _, p := range parts(n) {
+		if p.Kind == KindToken && b.text(p) == "ε" {
+			empty = true
 		}
+	}
+	if !empty {
+		items = b.some(n, "emit-item", 1)
+	}
+	for _, item := range items {
+		it := &domEmitItem{}
+		target := b.symbolPart(b.only(item, "emit-target"))
+		tagsNode := one(item, "emit-tags")
+		before, after := ofRule(item, "emit-before"), ofRule(item, "emit-after")
 		// Errors of the item stand at the item, whose first part can be an
 		// attachment (engine §9).
 		text := b.text(target)
@@ -1111,7 +1187,7 @@ func (b *domBuilder) emission(n *Node) *domEmit {
 			if it.IsInsert {
 				b.fail(item, "an inserted tag takes no tags")
 			}
-			it.Tags = b.tagTerm(ruleParts(tagsNode)[0])
+			it.Tags = b.tagTerm(b.only(tagsNode, "term"))
 			if it.Tags.Kind == tmEmptySet {
 				b.fail(item, "<∅> emits a token no terminal can read; %%emits ε emits nothing")
 			}
