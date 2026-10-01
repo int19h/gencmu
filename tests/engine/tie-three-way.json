@@ -1,5 +1,5 @@
 {
-  "description": "A three-way tie at a non-final stage stays a tie, whatever the derivations emit (engine §6, §11).",
+  "description": "A three-way tie at a non-final stage is an error, even where the tied derivations would emit the same tokens. The stage emits nothing (engine §6, §11).",
   "documents": {
     "p.md": "## s\n\n```jbogenbau\n%stage first\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage second\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text p | q | r\n%rule p A B <A> %emits $\n%rule q A B <A> %emits $\n%rule r $a(A) $b(B) %emits $a, $b\n```\n",
@@ -22,21 +22,140 @@
   ],
   "expect": {
     "result": {
-      "ok": true,
+      "ok": false,
       "stages": [
         {
-          "verdict": "tie",
-          "output": [
-            {
-              "span": [
-                0,
-                2
-              ]
-            }
-          ]
-        },
-        {}
-      ]
-    }
+          "verdict": "tie"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "stage": "first",
+        "reason": "tie",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              2
+            ],
+            "source": [
+              0,
+              3
+            ],
+            "tags": [
+              "A"
+            ],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "p",
+                "span": [
+                  0,
+                  2
+                ],
+                "source": [
+                  0,
+                  3
+                ],
+                "tags": [
+                  "A"
+                ],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "B",
+                    "token": 1,
+                    "span": [
+                      1,
+                      2
+                    ],
+                    "source": [
+                      2,
+                      3
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              2
+            ],
+            "source": [
+              0,
+              3
+            ],
+            "tags": [
+              "A"
+            ],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "q",
+                "span": [
+                  0,
+                  2
+                ],
+                "source": [
+                  0,
+                  3
+                ],
+                "tags": [
+                  "A"
+                ],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "B",
+                    "token": 1,
+                    "span": [
+                      1,
+                      2
+                    ],
+                    "source": [
+                      2,
+                      3
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "error": "ambiguous"
   }
 }

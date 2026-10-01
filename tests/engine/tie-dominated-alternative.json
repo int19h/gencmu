@@ -1,5 +1,5 @@
 {
-  "description": "A derivation tied with the chosen one can still be dominated. The derivation through p ties with A C D at the first read, but loses to the one through q, which reads D where it closes p. So the one through q is the tied derivation reported (engine §6).",
+  "description": "A derivation tied with the first reading can still be dominated. The derivation through p ties with A C D at the first read, but loses to the one through q, which reads D where it closes p. So the one through q is the second reading (engine §6).",
   "grammar": "%ambiguity-resolution greedy\n%rule text A C D | p D | B q\n%rule p B C\n%rule q C D",
   "tokens": [
     {
@@ -24,7 +24,7 @@
   ],
   "expect": {
     "result": {
-      "ok": true,
+      "ok": false,
       "stages": [
         {
           "verdict": "tie",
@@ -41,8 +41,37 @@
                 "terminal": "B"
               }
             }
-          ],
-          "tied": {
+          ]
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "A",
+                "token": 0
+              },
+              {
+                "kind": "token",
+                "terminal": "C",
+                "token": 1
+              },
+              {
+                "kind": "token",
+                "terminal": "D",
+                "token": 2
+              }
+            ]
+          },
+          {
             "kind": "rule",
             "rule": "text",
             "children": [
@@ -69,29 +98,9 @@
               }
             ]
           }
-        }
-      ],
-      "tree": {
-        "kind": "rule",
-        "rule": "text",
-        "children": [
-          {
-            "kind": "token",
-            "terminal": "A",
-            "token": 0
-          },
-          {
-            "kind": "token",
-            "terminal": "C",
-            "token": 1
-          },
-          {
-            "kind": "token",
-            "terminal": "D",
-            "token": 2
-          }
         ]
       }
-    }
+    },
+    "error": "ambiguous"
   }
 }

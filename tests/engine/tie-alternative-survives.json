@@ -1,5 +1,5 @@
 {
-  "description": "The tied derivation reported is the one diverging from the chosen one earliest; it stays tied when the candidate it was first tied with loses to one that closes an empty constituent before X (engine §6).",
+  "description": "The second reading of a tie is the derivation that diverges from the first reading earliest. It stays tied when the candidate it was first tied with loses to one that closes an empty constituent before X (engine §6).",
   "grammar": "%ambiguity-resolution lazy\n%rule text t X\n%rule t A | a | C | A f\n%rule a A\n%rule f ε",
   "tokens": [
     {
@@ -18,11 +18,39 @@
   ],
   "expect": {
     "result": {
-      "ok": true,
+      "ok": false,
       "stages": [
         {
-          "verdict": "tie",
-          "tied": {
+          "verdict": "tie"
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie",
+        "readings": [
+          {
+            "children": [
+              {
+                "rule": "t",
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A"
+                  },
+                  {
+                    "rule": "f"
+                  }
+                ]
+              },
+              {
+                "kind": "token",
+                "terminal": "X"
+              }
+            ]
+          },
+          {
             "rule": "text",
             "children": [
               {
@@ -40,28 +68,9 @@
               }
             ]
           }
-        }
-      ],
-      "tree": {
-        "children": [
-          {
-            "rule": "t",
-            "children": [
-              {
-                "kind": "token",
-                "terminal": "A"
-              },
-              {
-                "rule": "f"
-              }
-            ]
-          },
-          {
-            "kind": "token",
-            "terminal": "X"
-          }
         ]
       }
-    }
+    },
+    "error": "ambiguous"
   }
 }

@@ -11,38 +11,103 @@
   ],
   "expect": {
     "result": {
-      "ok": true,
-      "error": null,
-      "stages": [
-        {
-          "verdict": "tie"
-        }
-      ],
-      "tree": {
-        "kind": "rule",
-        "rule": "text",
-        "children": [
+      "ok": false,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie",
+        "readings": [
           {
             "kind": "rule",
-            "rule": "a",
+            "rule": "text",
             "children": [
               {
-                "kind": "token",
-                "terminal": "A",
-                "token": 0
-              },
+                "kind": "rule",
+                "rule": "a",
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 0
+                  },
+                  {
+                    "kind": "elided",
+                    "terminal": "KU",
+                    "span": [
+                      1,
+                      1
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": [],
+            "children": [
               {
-                "kind": "elided",
-                "terminal": "KU",
+                "kind": "rule",
+                "rule": "c",
                 "span": [
-                  1,
+                  0,
                   1
+                ],
+                "source": [
+                  0,
+                  1
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "rule",
+                    "rule": "d",
+                    "span": [
+                      1,
+                      1
+                    ],
+                    "source": [
+                      1,
+                      1
+                    ],
+                    "tags": [],
+                    "children": []
+                  }
                 ]
               }
             ]
           }
         ]
-      }
-    }
+      },
+      "stages": [
+        {
+          "verdict": "tie"
+        }
+      ],
+      "tree": null
+    },
+    "error": "ambiguous"
   }
 }

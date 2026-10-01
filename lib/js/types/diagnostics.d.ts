@@ -1,4 +1,4 @@
-import type { Condition, ParseResult, Span, Argument, Production } from "./types.js";
+import type { Condition, ParseResult, Span, StageReport, Argument, Production } from "./types.js";
 import type { Token } from "./tokens.js";
 import type { Dialect } from "./dialect.js";
 import type { TraceEvent } from "./earley.js";
@@ -32,13 +32,16 @@ export declare function sourceExcerpt(text: string, source: Span): {
  */
 export declare function explainError(result: ParseResult): string;
 /**
- * The ties of a result explained, stage by stage: where the two readings
- * first differ, both readings as brackets, and both trees side by side.
- * Empty when no stage ties.
- * @param {ParseResult} result
+ * The tie of a result explained: where its two readings first differ, both
+ * readings as brackets, and both trees side by side. A tie ends the run, so
+ * at most one stage has one. Empty when no stage ties.
+ * @param {{text: string, stages: StageReport[]}} result
  * @returns {string}
  */
-export declare function explainTies(result: ParseResult): string;
+export declare function explainTies(result: {
+    text: string;
+    stages: StageReport[];
+}): string;
 /**
  * Each warning of a result (engine §12) as the feature it names and an
  * excerpt of the text the warned constituent covers.

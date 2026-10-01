@@ -12,8 +12,8 @@
   ],
   "expect": {
     "result": {
-      "format": 6,
-      "ok": true,
+      "format": 7,
+      "ok": false,
       "stages": [
         {
           "verdict": "tie",
@@ -30,8 +30,31 @@
                 "terminal": "Y"
               }
             }
-          ],
-          "tied": {
+          ]
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "tags": [
+              "X",
+              "Y"
+            ],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "X",
+                "token": 0
+              }
+            ]
+          },
+          {
             "kind": "rule",
             "rule": "text",
             "children": [
@@ -42,23 +65,9 @@
               }
             ]
           }
-        }
-      ],
-      "tree": {
-        "kind": "rule",
-        "rule": "text",
-        "tags": [
-          "X",
-          "Y"
-        ],
-        "children": [
-          {
-            "kind": "token",
-            "terminal": "X",
-            "token": 0
-          }
         ]
       }
-    }
+    },
+    "error": "ambiguous"
   }
 }

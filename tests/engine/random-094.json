@@ -19,8 +19,8 @@
   ],
   "expect": {
     "result": {
-      "format": 6,
-      "ok": true,
+      "format": 7,
+      "ok": false,
       "stages": [
         {
           "name": "main",
@@ -42,8 +42,16 @@
                 ]
               }
             }
-          ],
-          "tied": {
+          ]
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie",
+        "readings": [
+          {
             "kind": "rule",
             "rule": "text",
             "span": [
@@ -99,25 +107,9 @@
               }
             ]
           },
-          "output": []
-        }
-      ],
-      "tree": {
-        "kind": "rule",
-        "rule": "text",
-        "span": [
-          0,
-          2
-        ],
-        "source": [
-          0,
-          3
-        ],
-        "tags": [],
-        "children": [
           {
             "kind": "rule",
-            "rule": "u",
+            "rule": "text",
             "span": [
               0,
               2
@@ -129,37 +121,51 @@
             "tags": [],
             "children": [
               {
-                "kind": "token",
-                "terminal": "B",
-                "token": 0,
+                "kind": "rule",
+                "rule": "u",
                 "span": [
                   0,
-                  1
-                ],
-                "source": [
-                  0,
-                  1
-                ]
-              },
-              {
-                "kind": "token",
-                "terminal": "C",
-                "token": 1,
-                "span": [
-                  1,
                   2
                 ],
                 "source": [
-                  2,
+                  0,
                   3
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "B",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "C",
+                    "token": 1,
+                    "span": [
+                      1,
+                      2
+                    ],
+                    "source": [
+                      2,
+                      3
+                    ]
+                  }
                 ]
               }
             ]
           }
         ]
-      },
-      "error": null
+      }
     },
-    "brackets": "(a b)"
+    "error": "ambiguous"
   }
 }

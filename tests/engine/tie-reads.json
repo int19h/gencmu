@@ -1,5 +1,5 @@
 {
-  "description": "The same token read under two tags is a tie; the chosen reading is the terminal first in code point order (engine §6.1).",
+  "description": "The same token read under two tags is a tie. The first reading reads it as the terminal first in code point order (engine §6.1).",
   "grammar": "%rule text X | Y",
   "tokens": [
     {
@@ -12,7 +12,7 @@
   ],
   "expect": {
     "result": {
-      "ok": true,
+      "ok": false,
       "stages": [
         {
           "verdict": "tie",
@@ -32,16 +32,56 @@
           ]
         }
       ],
-      "tree": {
-        "kind": "rule",
-        "rule": "text",
-        "children": [
+      "tree": null,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie",
+        "readings": [
           {
-            "kind": "token",
-            "terminal": "X"
+            "kind": "rule",
+            "rule": "text",
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "X"
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": [
+              "X",
+              "Y"
+            ],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "Y",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              }
+            ]
           }
         ]
       }
-    }
+    },
+    "error": "ambiguous"
   }
 }

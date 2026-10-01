@@ -10,12 +10,11 @@ const result: ParseResult = dialect.parse("text ≔ A ;", { features: ["sa-su"],
 const verdicts: (Verdict | null)[] = result.stages.map((stage) => stage.verdict);
 for (const stage of result.stages) {
   if (stage.verdict === "tie") {
-    // A tie has its tied tree and witness without a check.
-    rules(stage.tied);
+    // A tie has its witness without a check.
     void stage.witness[0];
   } else {
-    // @ts-expect-error only a tie has a tied tree
-    rules(stage.tied);
+    // @ts-expect-error only a tie has a witness
+    void stage.witness[0];
   }
 }
 const brackets: string = toBrackets(result, { showElided: true });
@@ -35,7 +34,10 @@ function rules(node: ResultNode): string[] {
 if (result.tree) rules(result.tree);
 if (result.error) {
   const kind: "rejected" | "ambiguous" | "grammar" = result.error.kind;
-  void kind;
+  // An ambiguous error says why: a tie or the check of elision-only.
+  const reason: "tie" | "elision-only" | undefined = result.error.reason;
+  if (result.error.readings) rules(result.error.readings[0]);
+  void kind, reason;
 }
 
 const inMemory = loaderFromSources({ "unicode.txt": "" });

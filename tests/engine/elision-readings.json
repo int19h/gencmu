@@ -76,7 +76,8 @@
               }
             ]
           }
-        ]
+        ],
+        "reason": "elision-only"
       }
     },
     "error": "ambiguous"

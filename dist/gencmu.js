@@ -1579,6 +1579,7 @@
    * @typedef {object} ErrorJson
    * @property {ParseError["kind"]} kind
    * @property {string} [stage]
+   * @property {"tie" | "elision-only"} [reason]
    * @property {number} [token]
    * @property {Span} [source]
    * @property {number} [line]
@@ -1595,7 +1596,6 @@
    * @property {string} name
    * @property {import("./types.js").Verdict | null} verdict
    * @property {(ActionJson | null)[]} [witness]
-   * @property {NodeJson} [tied]
    * @property {TokenJson[]} [output]
    */
 
@@ -1626,7 +1626,7 @@
    * @typedef {{[name: string]: DisplayValue | DisplayValue[] | string | string[] | null}} DisplayValue
    */
 
-  const RESULT_FORMAT = 6;
+  const RESULT_FORMAT = 7;
 
   /**
    * A token in the result JSON. An attached token has no span, and a list of
@@ -1682,6 +1682,7 @@
     /** @type {Partial<ErrorJson>} */
     const result = { kind: error.kind };
     if (error.stage !== undefined) result.stage = error.stage;
+    if (error.reason !== undefined) result.reason = error.reason;
     if (error.token !== undefined) result.token = error.token;
     if (error.source !== undefined) result.source = error.source;
     if (error.line !== undefined) result.line = error.line;
@@ -1707,7 +1708,6 @@
         /** @type {StageJson} */
         const json = { name: stage.name, verdict: stage.verdict };
         if (stage.witness) json.witness = stage.witness.map(actionJson);
-        if (stage.tied) json.tied = nodeJson(stage.tied);
         if (stage.output) json.output = stage.output.map(tokenJson);
         return json;
       }),
@@ -3424,6 +3424,11 @@
         lines.push("What could have come there, by the rule that would have read it:");
         for (const rule of [...byRule.keys()].sort(compareCodePoints)) lines.push(`  ${rule}: ${byRule.get(rule).join(", ")}`);
       }
+    } else if (error.kind === "ambiguous" && error.reason === "tie") {
+      // A tie is explained where its two readings first differ.
+      const report = result.stages.find((stage) => stage.name === error.stage);
+      if (report) return explainTies({ text: result.text, stages: [report] });
+      lines.push(`The ${error.stage} stage's text is ambiguous: it has two best readings, a tie.`);
     } else if (error.kind === "ambiguous") {
       const report = result.stages.find((stage) => stage.name === error.stage);
       const tokens = (report && report.input) || [];
@@ -3472,10 +3477,10 @@
   }
 
   /**
-   * The ties of a result explained, stage by stage: where the two readings
-   * first differ, both readings as brackets, and both trees side by side.
-   * Empty when no stage ties.
-   * @param {ParseResult} result
+   * The tie of a result explained: where its two readings first differ, both
+   * readings as brackets, and both trees side by side. A tie ends the run, so
+   * at most one stage has one. Empty when no stage ties.
+   * @param {{text: string, stages: StageReport[]}} result
    * @returns {string}
    */
   function explainTies(result) {
@@ -3483,25 +3488,28 @@
     for (const stage of result.stages) {
       if (stage.verdict !== "tie") continue;
       const tokens = stage.input || [];
-      const [chosen, tied] = stage.witness;
-      const action = chosen || tied;
+      const [first, second] = stage.witness;
+      const action = first || second;
       const at = action ? (action.kind === "read" ? action.token : action.span[1]) : 0;
-      const lines = [`The ${stage.name} stage is ambiguous: its grammar reads the text two ways, which first differ here:`];
+      const lines = [`The ${stage.name} stage is ambiguous: its grammar reads the text in two ways, and no rule ranks one above the other.`,
+        "They first differ here:"];
       if (tokens.length) {
         const token = tokens[Math.min(at, tokens.length - 1)];
         /** @type {Span} */
         const source = at < tokens.length ? token.source : [token.source[1], token.source[1]];
         lines.push(sourceExcerpt(result.text, source).excerpt);
       }
-      lines.push(`  the chosen reading ${describeAction(chosen, tokens)}`);
-      lines.push(`  the other reading ${describeAction(tied, tokens)}`);
-      if (stage.tree) {
-        lines.push(`  chosen: ${nodeBrackets(stage.tree, tokens, { showElided: true })}`);
-        lines.push(`  other:  ${nodeBrackets(stage.tied, tokens, { showElided: true })}`);
+      lines.push(`  the first reading ${describeAction(first, tokens)}`);
+      lines.push(`  the second reading ${describeAction(second, tokens)}`);
+      // The readings are in the stage's error (engine §6).
+      const readings = stage.error && stage.error.readings;
+      if (readings && readings.length === 2) {
+        lines.push(`  first:  ${nodeBrackets(readings[0], tokens, { showElided: true })}`);
+        lines.push(`  second: ${nodeBrackets(readings[1], tokens, { showElided: true })}`);
         lines.push("");
-        lines.push(sideBySide(nodeTree(stage.tree, tokens, result.text), nodeTree(stage.tied, tokens, result.text), "chosen", "other"));
+        lines.push(sideBySide(nodeTree(readings[0], tokens, result.text), nodeTree(readings[1], tokens, result.text), "first", "second"));
       }
-      lines.push("The grammar should say which reading it means; until it does, the first in the canonical order is used.");
+      lines.push("The grammar must say which reading it means. Until it does, the text is an error.");
       blocks.push(lines.join("\n"));
     }
     return blocks.join("\n\n");
@@ -6329,8 +6337,8 @@
       const ranking = roots.length === 0 ? null : new Ranker(tokens, resolution.lean, maximal).rank(roots);
       if (ranking === null) {
         // A text that maximal leaves with no derivation is rejected at the
-        // first terminator it forbids in the derivation the stage would
-        // otherwise have chosen (engine §4).
+        // first terminator it forbids in the first reading, m, of the ranking
+        // without maximal, whatever its verdict (engine §4).
         const rejection = (maximal && roots.length > 0 && forbiddenTerminator(new Ranker(tokens, resolution.lean).rank(roots), maximal))
           || rejectionOf(chart);
         report.error = {
@@ -6345,15 +6353,26 @@
         return report;
       }
       if (ranking.verdict === "tie") {
-        // A tie always has a second derivation, and so a witness.
+        // A tie is an error: the stage keeps its verdict and witness, has no
+        // chosen tree, no output and no warnings, and the error holds the
+        // first and the second reading (engine §6). A tie always has a second
+        // derivation, and so a witness.
+        const readings = [ranking.chosen, /** @type {import("./types.js").Rope} */ (ranking.second)]
+          .map((rope) => resultTree(derivationTree(rope), context)[0]);
         Object.assign(report, {
           verdict: "tie",
           witness: witnessOf(/** @type {[Action | null, Action | null]} */ (ranking.witness)),
-          tied: resultTree(derivationTree(/** @type {import("./types.js").Rope} */ (ranking.second)), context)[0],
         });
-      } else {
-        Object.assign(report, { verdict: ranking.verdict, witness: null });
+        report.error = {
+          kind: "ambiguous",
+          stage: this.name,
+          reason: "tie",
+          readings,
+          message: `the ${this.name} stage's text has two best readings, a tie`,
+        };
+        return report;
       }
+      Object.assign(report, { verdict: ranking.verdict, witness: null });
       const derivation = derivationTree(ranking.chosen);
       report.tree = resultTree(derivation, context)[0];
       report.warnings = warningsOf(derivation, context, features, this.name);
@@ -6368,7 +6387,9 @@
       }
       const elisionOnly = options.elisionOnly === undefined || options.elisionOnly === null
         ? lowered.resolution.elisionOnly : options.elisionOnly;
-      if (elisionOnly && report.verdict !== "unique") {
+      // The check runs only for a stage that chose one of several
+      // derivations (engine §7).
+      if (elisionOnly && report.verdict === "resolved") {
         let readings;
         try {
           readings = this.elisionCheck(report.tree, tokens, sourceText, unicode, features);
@@ -6386,6 +6407,7 @@
           report.error = {
             kind: "ambiguous",
             stage: this.name,
+            reason: "elision-only",
             readings,
             message: `the ${this.name} stage's text is ambiguous with every elided terminator written out`,
           };
@@ -8402,6 +8424,11 @@
       const positionOf = (token) => positions[token.source[0]] || positions[positions.length - 1] || [1, 1];
       if (!run.ok) {
         const error = /** @type {ParseError} */ (run.error);
+        // An ambiguity has no single position, so it names the document
+        // alone (engine §8).
+        if (error.kind === "ambiguous") {
+          throw new GencmuError("grammar", `${path}: the grammar text is ambiguous: the ${error.stage} stage of the notation reads it in two ways`, { document: path });
+        }
         const source = error.source || [0, 0];
         const [line, column] = positions[source[0]] || (positions.length ? positions[positions.length - 1] : [1, 1]);
         throw new GencmuError("grammar", `${path}:${line}:${column}: ${error.message}`, { document: path, line, column });
@@ -8668,7 +8695,6 @@
       if (stage.input) stage.input.forEach(ownToken);
       if (stage.output) stage.output.forEach(ownToken);
       if (stage.tree) ownTree(stage.tree);
-      if (stage.tied) ownTree(stage.tied);
       if (stage.error && stage.error.readings) stage.error.readings.forEach(ownTree);
     }
   }
@@ -8931,11 +8957,13 @@
    */
 
   /**
-   * Why a text did not parse: rejected by a stage, ambiguous under
-   * elision-only, or a defect of the grammar found while running it.
+   * Why a text did not parse: rejected by a stage, ambiguous with a tie or
+   * under elision-only, or a defect of the grammar found while running it.
    * @typedef {object} ParseError
    * @property {"rejected" | "ambiguous" | "grammar"} kind
    * @property {string} [stage]
+   * @property {"tie" | "elision-only"} [reason] why an ambiguous error is
+   *   one: a tie (engine §6) or the check of elision-only (engine §7)
    * @property {number} [token]
    * @property {Span} [source]
    * @property {number} [line]
@@ -8966,21 +8994,21 @@
    */
 
   /**
-   * What one stage did. A stage whose verdict is `tie` has a witness and a
-   * tied tree; any other has neither.
+   * What one stage did. A stage whose verdict is `tie` has a witness, and
+   * its two readings are in its error; any other has no witness.
    * @typedef {TiedStageReport | SettledStageReport} StageReport
    */
 
   /**
-   * @typedef {StageReportBase & {verdict: "tie", witness: Witness, tied: ResultNode}} TiedStageReport
+   * @typedef {StageReportBase & {verdict: "tie", witness: Witness}} TiedStageReport
    */
 
   /**
-   * @typedef {StageReportBase & {verdict: "unique" | "resolved" | null, witness: null, tied?: undefined}} SettledStageReport
+   * @typedef {StageReportBase & {verdict: "unique" | "resolved" | null, witness: null}} SettledStageReport
    */
 
   /**
-   * Where the chosen and the tied derivation first differ: their actions
+   * Where the two readings of a tie first differ: their actions
    * there, null on the side of one that ended. The witness is plain data of
    * the result's own, and shares nothing with the grammar.
    * @typedef {[WitnessAction | null, WitnessAction | null]} Witness
@@ -9013,11 +9041,12 @@
    * @typedef {object} StageReportBase
    * @property {string} name
    * @property {Token[] | null} output the tokens handed to the next stage
-   * @property {ResultNode | null} tree
+   * @property {ResultNode | null} tree the chosen tree; null for a stage that
+   *   rejected its input or tied
    * @property {ParseError | null} error
    * @property {Token[]} [input] the tokens the stage read
    * @property {ParseWarning[]} [warnings] the warnings of the chosen tree
-   *   (engine §12); absent for a stage that rejected its input
+   *   (engine §12); absent for a stage that rejected its input or tied
    */
 
   /**

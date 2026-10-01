@@ -51,6 +51,11 @@ export type Expectation = {
 export type ParseError = {
     kind: "rejected" | "ambiguous" | "grammar";
     stage?: string;
+    /**
+     * why an ambiguous error is
+     * one: a tie (engine §6) or the check of elision-only (engine §7)
+     */
+    reason?: "tie" | "elision-only";
     token?: number;
     source?: Span;
     line?: number;
@@ -74,12 +79,10 @@ export type StageReport = TiedStageReport | SettledStageReport;
 export type TiedStageReport = StageReportBase & {
     verdict: "tie";
     witness: Witness;
-    tied: ResultNode;
 };
 export type SettledStageReport = StageReportBase & {
     verdict: "unique" | "resolved" | null;
     witness: null;
-    tied?: undefined;
 };
 export type Witness = [WitnessAction | null, WitnessAction | null];
 export type WitnessAction = WitnessRead | WitnessClose;
@@ -120,6 +123,10 @@ export type StageReportBase = {
      * the tokens handed to the next stage
      */
     output: Token[] | null;
+    /**
+     * the chosen tree; null for a stage that
+     * rejected its input or tied
+     */
     tree: ResultNode | null;
     error: ParseError | null;
     /**
@@ -128,7 +135,7 @@ export type StageReportBase = {
     input?: Token[];
     /**
      * the warnings of the chosen tree
-     * (engine §12); absent for a stage that rejected its input
+     * (engine §12); absent for a stage that rejected its input or tied
      */
     warnings?: ParseWarning[];
 };
@@ -613,11 +620,13 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {string[]} rules
  */
 /**
- * Why a text did not parse: rejected by a stage, ambiguous under
- * elision-only, or a defect of the grammar found while running it.
+ * Why a text did not parse: rejected by a stage, ambiguous with a tie or
+ * under elision-only, or a defect of the grammar found while running it.
  * @typedef {object} ParseError
  * @property {"rejected" | "ambiguous" | "grammar"} kind
  * @property {string} [stage]
+ * @property {"tie" | "elision-only"} [reason] why an ambiguous error is
+ *   one: a tie (engine §6) or the check of elision-only (engine §7)
  * @property {number} [token]
  * @property {Span} [source]
  * @property {number} [line]
@@ -644,18 +653,18 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Item} item
  */
 /**
- * What one stage did. A stage whose verdict is `tie` has a witness and a
- * tied tree; any other has neither.
+ * What one stage did. A stage whose verdict is `tie` has a witness, and
+ * its two readings are in its error; any other has no witness.
  * @typedef {TiedStageReport | SettledStageReport} StageReport
  */
 /**
- * @typedef {StageReportBase & {verdict: "tie", witness: Witness, tied: ResultNode}} TiedStageReport
+ * @typedef {StageReportBase & {verdict: "tie", witness: Witness}} TiedStageReport
  */
 /**
- * @typedef {StageReportBase & {verdict: "unique" | "resolved" | null, witness: null, tied?: undefined}} SettledStageReport
+ * @typedef {StageReportBase & {verdict: "unique" | "resolved" | null, witness: null}} SettledStageReport
  */
 /**
- * Where the chosen and the tied derivation first differ: their actions
+ * Where the two readings of a tie first differ: their actions
  * there, null on the side of one that ended. The witness is plain data of
  * the result's own, and shares nothing with the grammar.
  * @typedef {[WitnessAction | null, WitnessAction | null]} Witness
@@ -684,11 +693,12 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} StageReportBase
  * @property {string} name
  * @property {Token[] | null} output the tokens handed to the next stage
- * @property {ResultNode | null} tree
+ * @property {ResultNode | null} tree the chosen tree; null for a stage that
+ *   rejected its input or tied
  * @property {ParseError | null} error
  * @property {Token[]} [input] the tokens the stage read
  * @property {ParseWarning[]} [warnings] the warnings of the chosen tree
- *   (engine §12); absent for a stage that rejected its input
+ *   (engine §12); absent for a stage that rejected its input or tied
  */
 /**
  * A warning (engine §12): a node of a stage's chosen tree that a warned
