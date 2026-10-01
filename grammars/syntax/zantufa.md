@@ -25,9 +25,13 @@ The word stage reads the magic words, the words such as `si` that act on other w
 
 [The notation document](../../docs/notation.md) explains the notation. A lookahead of the reference, such as `!terms`, is a condition with `begins`. The terminals of this grammar (the symbols that each match one input token) are selma'o. A tag marks a token by name, phoneme or character. The rules `any-word` and `anything` match tokens tagged `word` and `quoted-text`, respectively. The word stage puts these tags on the words of a quote and on a unit that a quote hands on whole.
 
-The stage is greedy: at the first difference between two parses, it takes the one that reads the next word. A PEG's repetition is greedy too, and the two usually agree. Where two alternatives of an ordered choice can read the same words, the later one has a condition that removes that reading. The terminators that the reference writes with `_elidible` are elidable here, but `cu` and `i'au` are not.
+The directive `%ambiguity-resolution late-elision` says how the stage chooses among parses. It compares two parses only where they elide terminators. At the first place where they differ, it takes the parse that reads on. So a terminator is elided as late as the grammar allows. Two parses that elide the same terminators at the same places are tied, and a tie is an error. The stage does not declare `maximal` or `elision-only`.
 
-The reference writes `CU_elidible`, but `cu` is a separator. It stands between the terms and the bridi-tail, and it closes neither of them. CLL's grammar does not make `cu` elidable either. So `[CU #]` is an ordinary optional here. A written `cu` parses as before, and a sentence can still omit it. An absent `cu` makes no elided node in the tree, and the ranking does not count it. `maximal` and `elision-only` do not treat it as a terminator either.
+A PEG's repetition reads as far as it can, and the ranking usually gives the same reading. Where two alternatives of an ordered choice can read the same words, the later one has a condition that removes that reading. So the grammar, not the ranking, settles a choice that elides no terminator. The terminators that the reference writes with `_elidible` are elidable here, but `cu` and `i'au` are not.
+
+The reference writes `CU_elidible`, but `cu` is a separator. It stands between the terms and the bridi-tail, and it closes neither of them. CLL's grammar does not make `cu` elidable either. So `[CU #]` is an ordinary optional here. A written `cu` parses as before, and a sentence can still omit it. `maximal` and `elision-only` do not treat `cu` as a terminator.
+
+An absent `cu` makes no elided node in the tree, and the ranking does not count it. This matters. If `cu` is elidable, an absent `cu` is an elision before the bridi-tail, and so an early one. The ranking then prefers a reading that closes a parenthesis, a quote or a `jai` early, and begins the bridi-tail later. With an elidable `cu`, `to na cafne` closes the parenthesis after `na`. Zantufa holds `na cafne` in the parenthesis, and so does this grammar.
 
 The same holds for `i'au`. The reference writes `IAU_elidible` between a statement and the terms after it (`statement-terms`). There `i'au` separates the terms from the statement, and it closes nothing. So `[IAU #]` is an ordinary optional too, and an absent `i'au` makes no elided node.
 
@@ -41,7 +45,7 @@ The grammar also states the attachment conventions of the reference. These are t
 Each of these conditions is a restriction of the grammar, not a preference among whole parses. It removes a reading where the words from a given point begin a given rule. It does not test whether the remaining reading gives a parse of the whole text.
 
 ```jbogenbau
-%ambiguity-resolution greedy
+%ambiguity-resolution late-elision
 
 %elidable
   BEhO BOI DOhU FEhU GEhU GIhI KEI KEhE KU KUhAU KUhE
