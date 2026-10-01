@@ -40,7 +40,7 @@ The greedy rule settles these ambiguities. One of them is the connection of two 
 
 ## The text and its paragraphs
 
-The layer changes the text in four ways. A `nai` at the start of a text is an indicator, as the indicator stage of the experimental dialect reads it. So `indicators` takes it, like the indicators of camxes-exp, and a separate `nai` stands only before a run of names. The connective after a text-leading `.i` can be an ek, as in `.i .e do klama`, because camxes-exp's joik takes the words of A. The rule writes the tense before `bo` in a text-leading `.i` as a `tag`. A `stag` is a `tag` in this dialect (see "Tenses and modals"), so the name changes nothing.
+The layer changes the text in four ways. A `nai` at the start of a text is an indicator, as the indicator stage of the experimental dialect reads it. So `indicators` takes it, like the indicators of camxes-exp, and a separate `nai` stands only before a run of names. The connective after a text-leading `.i` can be an ek, as in `.i .e do klama`, because camxes-exp's joik takes the words of A. But such an `.i` needs a paragraph right after it. A bare ek is a fragment, so without this, `i.e` and `.iji` tie. One reading is `.i` with the connective `e` and no sentence after it. The other is `.i` and the fragment `e`, as in the answer to a `ji` question. CLL allows only a jek or joik after a text-leading `.i`, so it has only the second reading, and the layer keeps it. In the same way, `.i e .i mi klama` is `.i` and a paragraph that starts with the fragment `e`, as in CLL, and the layer rejects `.i e .i e mi klama`, as CLL does. camxes-exp takes the connective in each of these texts, because its `text_1` tries the connective first and its paragraphs can be empty. A jek causes no tie, because a bare jek is not a fragment. So `.ije` alone is still a text, as in CLL. The rule writes the tense before `bo` in a text-leading `.i` as a `tag`. A `stag` is a `tag` in this dialect (see "Tenses and modals"), so the name changes nothing.
 
 The third change is about runs of `ni'o`. First, `.i ni'o` can follow a `ni'o`, as usage writes a new topic inside a reply. At the start of a text, the CLL grammar's `text-1` already reads `.i ni'o`, as the repair of the printed grammar that it lists says. So `text-1` takes the form after a first run of `ni'o`, and `paragraphs` takes it after a later one. Second, a run of `ni'o` can end the text (`mi klama ni'o`), as in camxes-exp.
 
@@ -60,7 +60,7 @@ The layer keeps the CLL grammar's connective before the first `.i` of a text (`j
   UI | CAI | NAI | Y | DAhO | FUhO
 
 %redefine-rule text-1
-  [(I [jek | joik | ek] [[tag] BO] #) ...] [NIhO ... # [I # NIhO ... #]] [paragraphs]
+  [(I [jek | joik] [[tag] BO] #) ...] ([NIhO ... # [I # NIhO ... #]] [paragraphs] | I ek [[tag] BO] # paragraphs)
 
 %redefine-rule paragraphs
   paragraph [NIhO ... # [paragraphs | I # NIhO ... # [paragraphs]]]

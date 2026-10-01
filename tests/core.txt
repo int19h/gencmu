@@ -960,6 +960,15 @@ adhoc.camxes-exp.quantifier.gek-of-lahe-is-sumti
 adhoc.camxes-exp.quantifier.gek-of-numbers-in-description
 adhoc.camxes-exp.quantifier.gek-of-numbers
 adhoc.camxes-exp.quantifier.vei-gek-of-numbers
+adhoc.camxes-exp.ties.i-then-ek-fragment
+adhoc.camxes-exp.ties.i-then-ji-fragment
+adhoc.camxes-exp.ties.i-then-ji-fragment-in-quote
+adhoc.camxes-exp.ties.i-then-o-fragment-after-indicators
+adhoc.camxes-exp.ties.i-then-ek-fragment-before-i
+adhoc.camxes-exp.ties.i-ek-twice-rejected
+adhoc.camxes-exp.ties.i-ek-connects-sentence
+adhoc.camxes-exp.ties.i-ek-bo-connects-sentence
+adhoc.camxes-exp.ties.i-jek-alone
 adhoc.words.cll11.kiheuhe
 adhoc.words.cll11.kie
 adhoc.words.cll11.klez-ba
