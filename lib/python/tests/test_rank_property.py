@@ -32,6 +32,8 @@ from gencmu._model import Token
 from gencmu._rank import Elided, Least, Vector, actions, compare_vectors, count_roots, join, rank
 from gencmu._stage import StageRunner
 
+from .shared import SHARED, case_tokens, load_case, load_case_dialect
+
 TERMINALS = ["A", "B", "C"]
 INF = float("inf")
 
@@ -473,12 +475,15 @@ def forest_derivations(forest: Forest, context: StageContext, maximal: bool, bud
     def enumerate_item(item: int, open_: frozenset[Any]) -> list[tuple[tuple[Any, ...], int | None]]:
         """The derivations of an item, each with the completed item that its
         last edge advanced over, or None."""
-        keys: list[Any] = [item]
+        # Only a rule completed again over its own span makes a derivation
+        # cyclic. A partial item can repeat below itself in a derivation
+        # that is not cyclic (engine §4).
+        inner = open_
         if complete(item):
-            keys.append((production(item).lhs, forest.origin[item], forest.end[item]))
-        if any(key in open_ for key in keys):
-            return []
-        inner = open_ | frozenset(keys)
+            key = (production(item).lhs, forest.origin[item], forest.end[item])
+            if key in open_:
+                return []
+            inner = open_ | {key}
         found: list[tuple[tuple[Any, ...], int | None]] = []
         for pred, kind, a, b in forest.edges[item]:
             if kind == 0:
@@ -577,6 +582,24 @@ def random_rules_grammar(rng: random.Random) -> tuple[dict[str, Any], str, bool,
 
 
 class RankingProperty(unittest.TestCase):
+    def test_the_oracle_lets_a_partial_item_repeat(self) -> None:
+        """A partial item can repeat below itself in a derivation that is
+        not cyclic: only a rule completed again over its own span is a cycle
+        (engine §4). The oracle and the library agree on the shared case
+        that pins it."""
+        case = load_case(SHARED / "engine" / "cycle-repeated-partial-item.json")
+        dialect, error = load_case_dialect(case)
+        assert dialect is not None, error
+        lowered = dialect.lowered(0, frozenset(), False)
+        tokens, text = case_tokens(case)
+        context = StageContext(lowered, tokens, text, dialect.unicode)
+        context.count = count_roots
+        forest = Parser(context).parse(lowered.rule_ids["text"])
+        derivations = forest_derivations(forest, context, False, 20000)
+        expected = ranked(derivations, lowered.lean, frozenset(), len(tokens))
+        self.assertEqual(expected["verdict"], "resolved")
+        self.assertEqual(library_ranking(forest, lowered.lean, None), expected)
+
     def test_a_least_count_that_disagrees_is_an_internal_error(self) -> None:
         """If the least count of late-elision and the ranking with no lean
         over the best derivations ever disagree, the library fails with an
