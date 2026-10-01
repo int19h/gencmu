@@ -41,6 +41,7 @@ mod clauses;
 mod dialect;
 mod dom;
 mod earley;
+mod eligible;
 mod error;
 mod fxhash;
 mod grammar;
