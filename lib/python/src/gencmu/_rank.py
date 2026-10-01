@@ -379,9 +379,10 @@ class Summaries:
 
     def context_of(self, item: int, forbidden: frozenset[int]) -> frozenset[int]:
         """The part of a cycle context that matters to an item: the rules of
-        its own rule's group, the only ones that can complete again below
-        it over its span (engine §6). So the number of contexts of an item
-        does not grow with the number of paths that reach it."""
+        its own rule's cyclic group, the only ones that can complete again
+        below it over its span (engine §6). So ancestors outside that group
+        cause no difference of context. Different sets of ancestors within
+        the group can still need different summaries of the item."""
         if not forbidden or not self.sensitive(item):
             return self.empty
         groups = self.groups()

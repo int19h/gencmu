@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
+import signal
+import subprocess
 import sys
 import unittest
 from typing import Any
@@ -102,11 +105,35 @@ class EngineCases(unittest.TestCase):
         else:
             self.assertIsNone(value["error"], f"{label}: unexpected error\n{text[:2000]}")
 
+    @unittest.skipUnless(hasattr(signal, "setitimer"), "the process has no alarm signal")
     def test_a_case_that_hangs_fails(self) -> None:
-        """The runner reports a case that runs past its time as a failure."""
+        """With an alarm signal, the runner reports a case that runs past
+        its time as a failure, and the other cases go on."""
         with self.assertRaises(CaseTimeout), deadline("a loop", 0.2):
             while True:
                 pass
+
+    def test_a_case_that_hangs_without_an_alarm_ends_the_process(self) -> None:
+        """Without an alarm signal, as in a thread other than the main one,
+        the deadline ends the process with a traceback. The test runs it in
+        a process of its own, so that this suite goes on."""
+        program = (
+            "import threading\n"
+            "from tests.shared import deadline\n"
+            "def hang():\n"
+            "    with deadline('a loop', 0.2):\n"
+            "        while True:\n"
+            "            pass\n"
+            "thread = threading.Thread(target=hang)\n"
+            "thread.start()\n"
+            "thread.join()\n"
+        )
+        done = subprocess.run(
+            [sys.executable, "-c", program], cwd=Path(__file__).resolve().parents[1], capture_output=True, text=True, timeout=60
+        )
+        self.assertEqual(done.returncode, 1, done.stderr)
+        self.assertIn("Timeout (", done.stderr)
+        self.assertIn("in hang", done.stderr)
 
     def test_a_load_error_meets_only_an_expectation_of_the_error(self) -> None:
         # The runner fails a case whose dialect does not load, when the case
