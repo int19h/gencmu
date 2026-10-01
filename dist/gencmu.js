@@ -5519,6 +5519,12 @@
       this.summaries = { plain: new Map(), contextual: new Map() };
       /** @type {Map<number, ElisionSeq>} */
       this.elisionLeaves = new Map();
+      /** @type {Map<string, number>} */
+      this.ruleGroups = new Map();
+      // The group of a rule: its strongly connected group in the graph of
+      // groupRules, or undefined for a rule that cannot reach itself there.
+      /** @type {(rule: string) => number | undefined} */
+      this.groups = (rule) => this.ruleGroups.get(rule);
       /** @type {{plain: Map<Item, Allowed<Candidate[]>>, contextual: Map<Item, Map<string, Allowed<Candidate[]>>>}} */
       this.memo = { plain: new Map(), contextual: new Map() };
       /** @type {{plain: Map<Item, Allowed<number>>, contextual: Map<Item, Map<string, Allowed<number>>>}} */
@@ -5898,14 +5904,22 @@
       // complete frame, its rule, if the frame spans the same, else nothing.
       // The context holds rules only (engine §6). Keyed by the items above as
       // well, the contexts of one item would differ by the path that reaches
-      // it, and their number could grow exponentially.
+      // it, and their number could grow exponentially. Of those rules, it
+      // keeps only the ones in the item's group (see groups), since no other
+      // rule can complete again over the same span below the item. Keyed by
+      // every rule above, the contexts would still differ by path wherever
+      // two rules lead to the same one.
+      const group = this.groups;
       /** @type {(frame: Frame, item: Item) => TraversalContext} */
       const contextBelow = (frame, item) => {
         if (frame.item.origin !== item.origin || frame.item.end !== item.end) return EMPTY_CONTEXT;
-        if (!complete(frame.item) || frame.context.has(ruleKey(frame.item))) return frame.context;
-        const context = new Set(frame.context);
-        context.add(ruleKey(frame.item));
-        return context;
+        const own = group(item.production.lhs);
+        if (own === undefined) return EMPTY_CONTEXT;
+        /** @type {TraversalContext} */
+        const context = new Set();
+        for (const key of frame.context) if (group(key.slice(1)) === own) context.add(key);
+        if (complete(frame.item) && group(frame.item.production.lhs) === own) context.add(ruleKey(frame.item));
+        return context.size === 0 ? EMPTY_CONTEXT : context;
       };
       /** @type {(context: TraversalContext) => string} */
       const contextKey = (context) => {
@@ -5963,6 +5977,96 @@
       return answer;
     }
 
+    // Groups the rules of the forest below the roots for the cycle context.
+    // The graph has an arc from a rule to another when an item of the first
+    // has a completed child of the second over the same span. A rule above an
+    // item over its span can complete again below it only if the two rules
+    // reach each other in this graph, that is, are in one strongly connected
+    // group. So a context needs only the rules of its item's group, and an
+    // item whose rule cannot reach itself has none.
+    /**
+     * @param {Item[]} roots
+     */
+    groupRules(roots) {
+      /** @type {Map<string, Set<string>>} */
+      const arcs = new Map();
+      /** @type {Set<Item>} */
+      const seen = new Set();
+      const pending = [...roots];
+      for (let item = pending.pop(); item !== undefined; item = pending.pop()) {
+        if (seen.has(item)) continue;
+        seen.add(item);
+        for (const edge of item.edges) {
+          if (edge.kind === "seed") continue;
+          pending.push(edge.previous);
+          if (edge.kind !== "complete") continue;
+          pending.push(edge.child);
+          if (edge.child.origin !== item.origin || edge.child.end !== item.end) continue;
+          let targets = arcs.get(item.production.lhs);
+          if (!targets) arcs.set(item.production.lhs, (targets = new Set()));
+          targets.add(edge.child.production.lhs);
+        }
+      }
+      // Tarjan's algorithm, with an explicit stack.
+      /** @type {Map<string, number>} */
+      const index = new Map();
+      /** @type {Map<string, number>} */
+      const low = new Map();
+      /** @type {string[]} */
+      const open = [];
+      /** @type {Set<string>} */
+      const onOpen = new Set();
+      const groups = this.ruleGroups;
+      groups.clear();
+      let next = 0;
+      let found = 0;
+      for (const start of arcs.keys()) {
+        if (index.has(start)) continue;
+        /** @type {{rule: string, targets: Iterator<string>}[]} */
+        const frames = [];
+        /** @type {(rule: string) => void} */
+        const enter = (rule) => {
+          index.set(rule, next);
+          low.set(rule, next);
+          next++;
+          open.push(rule);
+          onOpen.add(rule);
+          frames.push({ rule, targets: (arcs.get(rule) || new Set()).values() });
+        };
+        enter(start);
+        while (frames.length > 0) {
+          const frame = frames[frames.length - 1];
+          const step = frame.targets.next();
+          if (!step.done) {
+            const target = step.value;
+            if (!index.has(target)) enter(target);
+            else if (onOpen.has(target)) low.set(frame.rule, Math.min(/** @type {number} */ (low.get(frame.rule)), /** @type {number} */ (index.get(target))));
+            continue;
+          }
+          frames.pop();
+          if (frames.length > 0) {
+            const parent = frames[frames.length - 1].rule;
+            low.set(parent, Math.min(/** @type {number} */ (low.get(parent)), /** @type {number} */ (low.get(frame.rule))));
+          }
+          if (low.get(frame.rule) === index.get(frame.rule)) {
+            /** @type {string[]} */
+            const members = [];
+            for (;;) {
+              const member = /** @type {string} */ (open.pop());
+              onOpen.delete(member);
+              members.push(member);
+              if (member === frame.rule) break;
+            }
+            // A group of one rule without an arc to itself has no cycle.
+            if (members.length > 1 || (arcs.get(frame.rule) || new Set()).has(frame.rule)) {
+              for (const member of members) groups.set(member, found);
+              found++;
+            }
+          }
+        }
+      }
+    }
+
     // Ranks the derivations of the root items: the verdict, the first
     // reading, and for a tie the second reading, the tied derivation that
     // diverges from the first earliest, and the witness.
@@ -5971,6 +6075,7 @@
      * @returns {Ranking | null} null when every derivation is cyclic
      */
     rank(roots) {
+      this.groupRules(roots);
       let count;
       let ranked = roots;
       let tied = false;

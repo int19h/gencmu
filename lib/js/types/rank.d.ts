@@ -86,6 +86,10 @@ export declare class Ranker {
     };
     /** @type {Map<number, ElisionSeq>} */
     elisionLeaves: Map<number, ElisionSeq>;
+    /** @type {Map<string, number>} */
+    ruleGroups: Map<string, number>;
+    /** @type {(rule: string) => number | undefined} */
+    groups: (rule: string) => number | undefined;
     /** @type {{plain: Map<Item, Allowed<Candidate[]>>, contextual: Map<Item, Map<string, Allowed<Candidate[]>>>}} */
     memo: {
         plain: Map<Item, Allowed<Candidate[]>>;
@@ -197,6 +201,10 @@ export declare class Ranker {
         plain: Map<Item, T>;
         contextual: Map<Item, Map<string, T>>;
     }, combine: (item: Item, dependency: (item: Item) => T, key: string) => T, cut: T, edgesOf?: ((item: Item, key: string) => import("./types.js").Edge[]) | null): T;
+    /**
+     * @param {Item[]} roots
+     */
+    groupRules(roots: Item[]): void;
     /**
      * @param {Item[]} roots
      * @returns {Ranking | null} null when every derivation is cyclic
