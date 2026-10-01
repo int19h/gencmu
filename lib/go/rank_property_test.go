@@ -17,34 +17,57 @@ import (
 // (cyclic ones excluded as engine §4 defines them), and the verdict, the
 // chosen derivation, the tied one and the witness computed from the
 // definitions and compared with the library's. A share of the cases rank
-// under late-elision, with T elidable.
+// under late-elision, with T elidable. Under another rule too, T is now and
+// then elidable, and then the stage now and then declares maximal. Rule
+// references are now and then tested by their sound, often right before an
+// elidable optional. The input can be empty.
+//
+// The oracle enumerates the derivations from the grammar alone, applying
+// tests and maximal on its own terms. A ranking must be nil exactly when no
+// derivation counts, and the stage's verdict must agree with the oracle.
 //
 // GENCMU_PROPERTY_CASES sets the number of cases (default 1500) and
 // GENCMU_PROPERTY_SEED the first seed, for a larger sweep.
 
 type genGrammar struct {
-	r     *rand.Rand
-	rules []string
-	terms []string
-	late  bool // late-elision, with T elidable
+	r        *rand.Rand
+	rules    []string
+	terms    []string
+	late     bool // late-elision, with T elidable
+	elidable bool // T is elidable
+	maximal  bool // the stage declares maximal
 }
 
 func (g *genGrammar) ref() *domExpr {
 	if g.r.Intn(2) == 0 {
 		return &domExpr{Kind: exRef, Name: g.terms[g.r.Intn(len(g.terms))]}
 	}
-	return &domExpr{Kind: exRef, Name: g.rules[g.r.Intn(len(g.rules))]}
+	return g.ruleRef()
+}
+
+// ruleRef is a reference to a rule, now and then tested by its sound
+// (engine §4).
+func (g *genGrammar) ruleRef() *domExpr {
+	ref := &domExpr{Kind: exRef, Name: g.rules[g.r.Intn(len(g.rules))]}
+	switch k := g.r.Intn(20); {
+	case k < 3:
+		return &domExpr{Kind: exTest, Inner: ref, Op: "=", Value: &domTerm{Kind: tmString, Str: "x"}}
+	case k < 5:
+		return &domExpr{Kind: exTest, Inner: ref, Op: "≠", Value: &domTerm{Kind: tmString, Str: "x"}}
+	}
+	return ref
+}
+
+// elidableOptional is [T] or [T x].
+func (g *genGrammar) elidableOptional() *domExpr {
+	t := &domExpr{Kind: exRef, Name: "T"}
+	if g.r.Intn(2) == 0 {
+		return &domExpr{Kind: exOptional, Inner: t}
+	}
+	return &domExpr{Kind: exOptional, Inner: &domExpr{Kind: exSeq, Items: []*domExpr{t, g.ref()}}}
 }
 
 func (g *genGrammar) item(depth int) *domExpr {
-	if g.late && g.r.Intn(5) == 0 {
-		// An elidable optional, [T] or [T x].
-		t := &domExpr{Kind: exRef, Name: "T"}
-		if g.r.Intn(2) == 0 {
-			return &domExpr{Kind: exOptional, Inner: t}
-		}
-		return &domExpr{Kind: exOptional, Inner: &domExpr{Kind: exSeq, Items: []*domExpr{t, g.ref()}}}
-	}
 	k := g.r.Intn(20)
 	if depth > 1 && k >= 12 {
 		k = 0
@@ -76,6 +99,15 @@ func (g *genGrammar) seq(depth int) *domExpr {
 	}
 	var items []*domExpr
 	for i := 0; i < n; i++ {
+		if g.elidable && g.r.Intn(4) == 0 {
+			// An elidable optional, often right after a rule, whose node
+			// maximal tests.
+			if g.r.Intn(2) == 0 {
+				items = append(items, g.ruleRef())
+			}
+			items = append(items, g.elidableOptional())
+			continue
+		}
 		items = append(items, g.item(depth))
 	}
 	if len(items) == 1 {
@@ -93,8 +125,12 @@ func (g *genGrammar) grammar() *domDoc {
 	if g.late {
 		lean = "late-elision"
 	}
-	d.Directives = []*domDirective{{Name: "ambiguity-resolution", Args: []string{lean}}}
-	if g.late {
+	args := []string{lean}
+	if g.maximal {
+		args = append(args, "maximal")
+	}
+	d.Directives = []*domDirective{{Name: "ambiguity-resolution", Args: args}}
+	if g.elidable {
 		d.Directives = append(d.Directives, &domDirective{Name: "elidable", Args: []string{"T"}})
 	}
 	for _, name := range g.rules {
@@ -158,13 +194,15 @@ func exprText(e *domExpr) string {
 		return "ε"
 	case exCapture:
 		return "$" + e.Name + "(" + exprText(e.Inner) + ")"
+	case exTest:
+		return exprText(e.Inner) + e.Op + strconv.Quote(e.Value.Str)
 	}
 	return e.Name
 }
 
 func domText(d *domDoc) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%%ambiguity-resolution %s\n", d.Directives[0].Args[0])
+	fmt.Fprintf(&b, "%%ambiguity-resolution %s\n", strings.Join(d.Directives[0].Args, " "))
 	for _, dir := range d.Directives[1:] {
 		fmt.Fprintf(&b, "%%%s %s\n", dir.Name, strings.Join(dir.Args, " "))
 	}
@@ -199,9 +237,48 @@ type bnode struct {
 type enumerator struct {
 	g      *lowered
 	tags   []map[string]bool
+	sounds []string // each token's phonemes
 	memo   map[string][]*bnode
 	work   int
 	budget int
+	// maximal leaves out a derivation with an elided terminator whose
+	// constituent could have been longer; plain enumerates without it, to
+	// find the longer constituents (engine §4).
+	maximal bool
+	plain   *enumerator
+}
+
+// soundHolds says whether a sound test holds of the tokens [i, j): their
+// phonemes joined are its string, or are not, for ≠ (engine §4, §5).
+func (en *enumerator) soundHolds(t *symTest, i, j int) bool {
+	if t.op != "=" && t.op != "≠" {
+		panic("the generator makes only sound tests")
+	}
+	return (strings.Join(en.sounds[i:j], "") == t.sound) == (t.op == "=")
+}
+
+// longer says whether a symbol with a test, or nil, also derives a span from
+// i that ends after j, where the test holds too.
+func (en *enumerator) longer(sym symbol, t *symTest, i, j int) (bool, error) {
+	for e := j + 1; e < len(en.sounds)+1; e++ {
+		if t != nil && !en.soundHolds(t, i, e) {
+			continue
+		}
+		ds, err := en.plain.derive(sym, i, e, nil)
+		if err != nil {
+			return false, err
+		}
+		if len(ds) > 0 {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// isElidedNode says whether a node is an elided terminator: the empty
+// production of an elidable optional's helper.
+func isElidedNode(n *bnode) bool {
+	return !n.read && n.prod.helper && n.prod.elided != "" && len(n.prod.rhs) == 0
 }
 
 var errBudget = fmt.Errorf("over budget")
@@ -246,11 +323,29 @@ func (en *enumerator) derive(sym symbol, i, j int, f []int32) ([]*bnode, error) 
 				if at == i && e == j {
 					cf = inner
 				}
+				if t := p.testAt(pos); t != nil && !en.soundHolds(t, at, e) {
+					continue
+				}
 				ds, err := en.derive(p.rhs[pos], at, e, cf)
 				if err != nil {
 					return err
 				}
+				// Under maximal, an elided terminator cannot follow the node
+				// before it where that could have been longer. A terminal, a
+				// first symbol, and what a production whose first symbol is
+				// its own rule has read so far are not guarded.
+				guarded := en.maximal && pos > 0 && !(pos == 1 && !p.rhs[0].term && p.rhs[0].id == p.lhs) && !kids[pos-1].read
 				for _, d := range ds {
+					if guarded && isElidedNode(d) {
+						prev := kids[pos-1]
+						long, err := en.longer(p.rhs[pos-1], p.testAt(pos-1), prev.start, prev.end)
+						if err != nil {
+							return err
+						}
+						if long {
+							continue
+						}
+					}
 					if err := rec(pos+1, e, append(kids, d)); err != nil {
 						return err
 					}
@@ -517,12 +612,17 @@ func TestRankingProperty(t *testing.T) {
 		t.Fatal(err)
 	}
 	started := time.Now()
-	checked, skipped, ties, resolved, rejected, late, lateResolved := 0, 0, 0, 0, 0, 0, 0
+	checked, skipped, ties, resolved, rejected, late, lateResolved, empty, withMaximal, narrowed := 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 	for c := 0; c < cases; c++ {
 		r := rand.New(rand.NewSource(seed + int64(c)))
 		gen := &genGrammar{r: r, rules: []string{"text", "a", "b", "c"}[:2+r.Intn(3)], terms: []string{"A", "B", "C"}}
 		if r.Intn(100) < lateShare {
-			gen.late, gen.terms = true, []string{"A", "B", "T"}
+			gen.late = true
+		}
+		gen.elidable = gen.late || r.Intn(10) < 3
+		gen.maximal = gen.elidable && r.Intn(10) < 4
+		if gen.elidable {
+			gen.terms = []string{"A", "B", "T"}
 		}
 		dom := gen.grammar()
 		sg, serr := stitch("main", []docDOM{{path: "g.md", dom: dom}}, bundled.uni)
@@ -530,7 +630,13 @@ func TestRankingProperty(t *testing.T) {
 			t.Fatalf("seed %d: %v", seed+int64(c), serr)
 		}
 		lg := lower(sg, nil, false)
-		n := r.Intn(maxTokens) + 1
+		if lg.fault != "" {
+			skipped++
+			continue
+		}
+		// The input can be empty.
+		n := r.Intn(maxTokens + 1)
+		sounds := make([]string, n)
 		toks := make([]Token, n)
 		var texts []string
 		tagMaps := make([]map[string]bool, n)
@@ -545,11 +651,16 @@ func TestRankingProperty(t *testing.T) {
 				tags[tag] = true
 			}
 			sort.Strings(list)
-			toks[i] = Token{Text: "x", Tags: list, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
+			sounds[i] = "x"
+			if r.Intn(10) >= 6 {
+				sounds[i] = "y"
+			}
+			toks[i] = Token{Text: "x", Phonemes: sounds[i], Tags: list, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
 			texts = append(texts, "x")
 			tagMaps[i] = tags
 		}
-		en := &enumerator{g: lg, tags: tagMaps, memo: map[string][]*bnode{}, budget: 20000}
+		en := &enumerator{g: lg, tags: tagMaps, sounds: sounds, memo: map[string][]*bnode{}, budget: 20000, maximal: lg.maximal}
+		en.plain = &enumerator{g: lg, tags: tagMaps, sounds: sounds, memo: map[string][]*bnode{}, budget: 20000}
 		trees, err := en.derive(symbol{id: lg.byName["text"]}, 0, n, nil)
 		if err != nil {
 			skipped++
@@ -562,7 +673,11 @@ func TestRankingProperty(t *testing.T) {
 		if r.Intn(100) < leanNone {
 			lean = "" // no lean, as elision-only ranks (engine §7)
 		}
-		rk := newRanker(rec, lean, nil)
+		var mx *maximal
+		if lg.maximal {
+			mx = newMaximal(rec)
+		}
+		rk := newRanker(rec, lean, mx)
 		var got *rankResult
 		if top := rec.accepted(lg.byName["text"]); len(top) > 0 {
 			got = rk.rank(top)
@@ -600,11 +715,34 @@ func TestRankingProperty(t *testing.T) {
 			}
 			fail("library accepts: %v (accepted items %d); derivations: %d\n  %s", got != nil, len(rec.accepted(lg.byName["text"])), len(ds), strings.Join(ws, "\n  "))
 		}
+		// The stage agrees: it rejects exactly when no derivation counts, and
+		// otherwise it has the verdict of the oracle.
+		if lean == lg.lean {
+			ps := newParseState(bundled.uni, []rune(strings.Join(texts, " ")))
+			out := ps.newRun("main", sg, toks).run(lg, nil, false)
+			wantVerdict := ""
+			if want != nil {
+				wantVerdict = want.verdict
+			}
+			if out.stage.Verdict != wantVerdict {
+				fail("the stage's verdict %q, want %q", out.stage.Verdict, wantVerdict)
+			}
+		}
 		if want == nil {
 			rejected++
 			continue
 		}
 		checked++
+		if n == 0 {
+			empty++
+		}
+		if lg.maximal {
+			withMaximal++
+			// Whether maximal left out a derivation here.
+			if plain, err := en.plain.derive(symbol{id: lg.byName["text"]}, 0, n, nil); err == nil && len(plain) > len(trees) {
+				narrowed++
+			}
+		}
 		if rk.elisions {
 			late++
 		}
@@ -636,8 +774,12 @@ func TestRankingProperty(t *testing.T) {
 			}
 		}
 	}
-	t.Logf("%d accepted cases checked (%d ties, %d resolved, %d under late-elision, %d of them resolved), %d rejected by both, %d skipped over budget, in %v", checked, ties, resolved, late, lateResolved, rejected, skipped, time.Since(started))
+	t.Logf("%d accepted cases checked (%d ties, %d resolved, %d under late-elision, %d of them resolved, %d empty inputs, %d under maximal, %d narrowed by it), %d rejected by both, %d skipped, in %v", checked, ties, resolved, late, lateResolved, empty, withMaximal, narrowed, rejected, skipped, time.Since(started))
 	if checked < cases/10 {
 		t.Errorf("only %d of %d cases were checked", checked, cases)
+	}
+	// Every kind of case is checked often enough to count.
+	if rejected <= cases/50 || empty <= cases/100 || withMaximal <= cases/50 || narrowed <= cases/500 {
+		t.Errorf("%d rejections, %d empty inputs, %d cases under maximal, %d narrowed by it", rejected, empty, withMaximal, narrowed)
 	}
 }
