@@ -1268,7 +1268,8 @@ func TestUnusedFeaturesShareALowering(t *testing.T) {
 }
 
 // TestLoweredBounded parses with every set of seven gates. The stage keeps
-// no more than maxLowered lowered grammars.
+// no more than maxLowered lowered grammars. Two gates on make a tie, which
+// is an error, but the stage still accepts its input.
 func TestLoweredBounded(t *testing.T) {
 	names := []string{"a", "b", "c", "d", "e", "f", "g"}
 	var alts []string
@@ -1284,7 +1285,7 @@ func TestLoweredBounded(t *testing.T) {
 			}
 		}
 		res, err := d.Parse("x", ParseOptions{Features: features, NoAutoFeatures: true})
-		if err != nil || res.OK != (len(features) > 0) {
+		if err != nil || (res.Stages[0].Verdict != "") != (len(features) > 0) {
 			t.Fatalf("%v: %v %+v", features, err, res)
 		}
 	}

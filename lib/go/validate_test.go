@@ -571,7 +571,7 @@ func TestDeepConstant(t *testing.T) {
 func TestCachedClauseWaitsForConstant(t *testing.T) {
 	loadBundled()
 	grammar := func(first, last string) string {
-		return "%ambiguity-resolution greedy\n%const $E " + first + "\n%rule text 'a' | $x('a')\n%tags Y ∪ ($E ∩ tags($x))\n%redefine-const $E " + last
+		return "%ambiguity-resolution greedy\n%const $E " + first + "\n%rule text 'b' | $x('a')\n%tags Y ∪ ($E ∩ tags($x))\n%redefine-const $E " + last
 	}
 	// The tags of the parse's tree, or the load error's position, with the
 	// cache entry given.
