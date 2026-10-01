@@ -145,6 +145,7 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("guard without a kind", lambda dom: alt(dom).update(guards=[{"feature": "f", "negated": False}])),
     ("guard of an unknown kind", lambda dom: alt(dom).update(guards=[{"feature": "f", "kind": "hint", "negated": False}])),
     ("a negated warning", lambda dom: alt(dom).update(guards=[{"feature": "f", "kind": "warning", "negated": True}])),
+    ("guard with another member", lambda dom: alt(dom).update(guards=[{"feature": "f", "kind": "gate", "negated": False, "extra": True}])),
     ("seq of one item", set_expr({"seq": [A]})),
     ("choice of one item", set_expr({"choice": [A]})),
     ("& of more than 16 items", set_expr({"and": [A] * 17})),
@@ -1216,6 +1217,13 @@ class Classifiers(unittest.TestCase):
             with self.subTest(kind=kind):
                 refused = [guard(""), guard("!"), guard("bad name")]
                 self.assert_refused(guard("f"), refused, "a malformed alternative", slot="alternative")
+
+    def test_a_guard_of_an_alternative_has_three_members(self) -> None:
+        """A guard of a rule's alternative has no member but its feature,
+        its kind and whether it is negated, as a gate of an entry has."""
+        well_formed = {"feature": "f", "kind": "gate", "negated": False}
+        refused = [{**well_formed, "extra": True}, {"note": "x", **well_formed}]
+        self.assert_refused(well_formed, refused, "a malformed alternative", slot="alternative")
 
     def assert_refused(self, well_formed: Dom, refused: list[Dom], problem: str, *, slot: str = "condition") -> None:
         """Each of ``refused`` is refused by the check, makes a cached entry a

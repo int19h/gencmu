@@ -82,9 +82,10 @@ def _is_span(value: Any) -> bool:
 
 def _is_guard(value: Any) -> bool:
     """A gate, negated or not, or a warning, which never is, of a feature
-    that is a name (engine §9)."""
+    that is a name (engine §9), with no member but those three."""
     return (
         isinstance(value, dict)
+        and len(value) == 3
         and isinstance(value.get("feature"), str)
         and _NAME.fullmatch(value["feature"]) is not None
         and isinstance(value.get("negated"), bool)

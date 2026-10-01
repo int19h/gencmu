@@ -1275,3 +1275,15 @@ fn a_node_of_two_forms_is_refused() {
     ];
     assert_refused(&with_mixed(&seq(captured, c), &condition), &refused, "a malformed");
 }
+
+/// A guard of a rule's alternative has no member but its feature, its kind
+/// and whether it is negated, as a gate of an entry has (docs/output.md).
+#[test]
+fn a_guard_of_an_alternative_has_three_members() {
+    let guarded = |guard: &str| with_alternative(&format!(r#"{{"guards":[{guard}],"expr":{{"terminal":"b"}}}}"#));
+    let refused = [
+        guarded(r#"{"feature":"f","kind":"gate","negated":false,"extra":true}"#),
+        guarded(r#"{"note":"x","feature":"f","kind":"gate","negated":false}"#),
+    ];
+    assert_refused(&guarded(r#"{"feature":"f","kind":"gate","negated":false}"#), &refused, "a malformed alternative");
+}
