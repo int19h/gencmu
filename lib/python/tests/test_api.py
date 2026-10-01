@@ -252,6 +252,10 @@ class Options(unittest.TestCase):
         with self.assertRaises(gencmu.GencmuError) as caught:
             self.dialect.parse("mi", until="semantics")
         self.assertEqual(caught.exception.kind, "usage")
+        # An empty name names no stage either (docs/api.md).
+        with self.assertRaises(gencmu.GencmuError) as caught:
+            self.dialect.parse("mi", until="")
+        self.assertEqual(caught.exception.kind, "usage")
 
     def test_elision_only(self) -> None:
         dialect = gencmu.load_dialect_sources(ELIDING, "p.md")

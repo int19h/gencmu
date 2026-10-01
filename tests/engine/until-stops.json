@@ -1,0 +1,60 @@
+{
+  "description": "A parse with until runs the stages up to the one it names, and no later stage. Its result is that of the named stage (engine §13, docs/api.md).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%include \"f.md\"\n%stage words\n%include \"w.md\"\n```\n",
+    "f.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $a(A)\n%emits $a <B>\n```\n",
+    "w.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text C\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "parses": [
+    {
+      "options": {
+        "until": "first"
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {
+              "name": "first",
+              "verdict": "unique"
+            }
+          ],
+          "error": null
+        },
+        "brackets": "a"
+      }
+    },
+    {
+      "options": {},
+      "expect": {
+        "result": {
+          "ok": false,
+          "stages": [
+            {
+              "name": "first",
+              "verdict": "unique"
+            },
+            {
+              "name": "words",
+              "verdict": null
+            }
+          ],
+          "error": {
+            "kind": "rejected",
+            "stage": "words"
+          }
+        },
+        "error": "rejected"
+      }
+    }
+  ]
+}

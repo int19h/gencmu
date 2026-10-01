@@ -156,6 +156,11 @@ func TestParseOptions(t *testing.T) {
 	} else if e, ok := err.(*Error); !ok || e.Kind != ErrorUsage {
 		t.Fatalf("an unknown stage is %#v, not a usage error", err)
 	}
+	// The zero value of Until, the empty string, runs every stage
+	// (docs/api.md).
+	if res, err := d.Parse("a", ParseOptions{Until: ""}); err != nil || len(res.Stages) != 2 {
+		t.Fatalf("an empty Until does not run every stage: %v %+v", err, res)
+	}
 	toks := []Token{{Text: "a", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}}
 	res, err = d.ParseTokens("a", toks, ParseOptions{Until: "one"})
 	if err != nil || res.OK {

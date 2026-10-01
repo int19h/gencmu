@@ -164,6 +164,9 @@ fn until_features_and_elision_only() {
 
     let error = dialect.parse("x", &ParseOptions { until: Some("three".into()), ..no_auto() }).expect_err("no stage");
     assert_eq!(error.kind, ErrorKind::Usage);
+    // An empty name names no stage either (docs/api.md).
+    let error = dialect.parse("x", &ParseOptions { until: Some(String::new()), ..no_auto() }).expect_err("no stage");
+    assert_eq!(error.kind, ErrorKind::Usage);
 
     let ambiguous = gencmu::load_dialect_sources(
         single("%ambiguity-resolution greedy elision-only\n%rule text s | s 'b' %rule s 'a' ['b']"),
