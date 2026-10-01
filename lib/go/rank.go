@@ -9,6 +9,12 @@ import (
 // The ranking (engine §6), composed over the packed forest the recognizer
 // leaves, without enumerating derivations.
 //
+// Under greedy, lazy and no lean, the ranking compares the action sequences
+// of derivations, as below. Under late-elision, it first keeps, for each
+// item in each context, the least elision vector of its derivations and the
+// links that attain it (see elSeq). Then it ranks with no lean over that
+// smaller forest of the best derivations, which gives the two readings.
+//
 // A derivation is kept as a persistent structure (dn) whose bottom-up action
 // sequence is read lazily, so that two derivations sharing a subtree compare
 // without walking it. For each item the ranking keeps a short list of
@@ -194,16 +200,30 @@ func (r cmpRes) flip() cmpRes {
 }
 
 type ranker struct {
-	rec     *recognizer
-	lean    string   // greedy, lazy, or "" for no lean, where any two differing derivations tie
-	maximal *maximal // the resolution's maximal, if it has it (engine §4)
-	items   map[*item]*itemRank
-	syms    map[*symNode]*itemRank
-	marked  map[*item]bool
+	rec *recognizer
+	// lean is greedy, lazy, or "" for no lean, where any two differing
+	// derivations tie. Under late-elision it is "", and elisions is set.
+	lean     string
+	elisions bool
+	maximal  *maximal // the resolution's maximal, if it has it (engine §4)
+	items    map[*item]*itemRank
+	syms     map[*symNode]*itemRank
+	marked   map[*item]bool
+	// leaves holds the one vector of a single elision at each position.
+	leaves map[int32]*elSeq
 }
 
-func newRanker(rec *recognizer, lean string, mx *maximal) *ranker {
-	return &ranker{rec: rec, lean: lean, maximal: mx, items: map[*item]*itemRank{}, syms: map[*symNode]*itemRank{}, marked: map[*item]bool{}}
+// newRanker ranks under the rule of a directive, greedy, lazy or
+// late-elision, or under no lean for "".
+func newRanker(rec *recognizer, rule string, mx *maximal) *ranker {
+	rk := &ranker{rec: rec, lean: rule, maximal: mx, items: map[*item]*itemRank{}, syms: map[*symNode]*itemRank{}, marked: map[*item]bool{}}
+	if rule == "late-elision" {
+		// The readings come from a ranking with no lean over the forest of
+		// the best derivations (engine §6).
+		rk.lean, rk.elisions = "", true
+		rk.leaves = map[int32]*elSeq{}
+	}
+	return rk
 }
 
 func (rk *ranker) itemMemo(it *item) *itemRank {
@@ -420,7 +440,12 @@ type cand struct {
 
 type entry struct {
 	cands []*cand
-	count int // derivations, up to 2
+	count int // derivations, up to 2: the total of engine §6
+	// Under late-elision, vec is the least elision vector of the
+	// derivations, and least the number of them that attain it, up to 2.
+	// cands then holds only derivations that attain vec.
+	vec   *elSeq
+	least int
 	// allowed is the same over only the derivations an elided terminator
 	// may follow, where maximal forbids some of the item's (see itemVal);
 	// nil where it may follow them all.
@@ -644,7 +669,7 @@ func (f forbidden) with(r int32) forbidden {
 	return out
 }
 
-var unitEntry = &entry{cands: []*cand{{}}, count: 1}
+var unitEntry = &entry{cands: []*cand{{}}, count: 1, least: 1}
 
 func memoSlotFor(m *itemRank, f forbidden) *memoSlot {
 	if len(f) == 0 {
@@ -685,8 +710,17 @@ func (rk *ranker) itemVal(it *item, f forbidden) *entry {
 	slot.state = 1
 	mx := rk.maximal
 	guarded := mx != nil && mx.guards(it)
-	var cands, permitted []*cand
-	count, permittedCount, forbade := 0, 0, false
+	// First the summary of every link: its derivations, and under
+	// late-elision their least vector and how many attain it.
+	type linkVal struct {
+		prev, child *entry
+		permitted   bool
+		vec         *elSeq
+		least       int
+	}
+	var vals []linkVal
+	all, allowed := summary{}, summary{}
+	forbade := false
 	for _, l := range it.links {
 		prev := unitEntry
 		if l.prev != nil {
@@ -704,7 +738,7 @@ func (rk *ranker) itemVal(it *item, f forbidden) *entry {
 		}
 		var child *entry
 		if l.sym == nil {
-			child = &entry{cands: []*cand{{d: readNode(l.tok, l.term)}}, count: 1}
+			child = &entry{cands: []*cand{{d: readNode(l.tok, l.term)}}, count: 1, least: 1}
 		} else {
 			var cf forbidden
 			if l.sym.start == it.origin && l.sym.end == it.set {
@@ -715,21 +749,42 @@ func (rk *ranker) itemVal(it *item, f forbidden) *entry {
 		if child == nil || child.count == 0 {
 			continue
 		}
-		from := len(cands)
-		count += prev.count * child.count
-		cands = rk.extend(prev.cands, child.cands, cands)
-		if guarded {
-			if l.sym != nil && mx.forbids(l.sym.rule, l.sym.start, l.sym.end, it.prod.testAt(int(it.dot)-1)) {
-				forbade = true
-			} else {
-				permittedCount += prev.count * child.count
-				permitted = append(permitted, cands[from:]...)
-			}
+		v := linkVal{prev: prev, child: child, permitted: true}
+		if guarded && l.sym != nil && mx.forbids(l.sym.rule, l.sym.start, l.sym.end, it.prod.testAt(int(it.dot)-1)) {
+			v.permitted, forbade = false, true
+		}
+		count := prev.count * child.count
+		if rk.elisions {
+			// An edge's vector is the sum of its children's, and its least
+			// count their product (engine §6).
+			v.vec, v.least = concatElisions(prev.vec, child.vec), min(prev.least*child.least, 2)
+		}
+		all.add(v.vec, v.least, count)
+		if v.permitted {
+			allowed.add(v.vec, v.least, count)
+		}
+		vals = append(vals, v)
+	}
+	// Then the candidates. Under late-elision, only the links that attain
+	// the least vector of the summary give them.
+	var cands, permitted []*cand
+	for _, v := range vals {
+		inAll := !rk.elisions || compareElisions(v.vec, all.vec) == 0
+		inAllowed := v.permitted && (!rk.elisions || compareElisions(v.vec, allowed.vec) == 0)
+		if !inAll && !(forbade && inAllowed) {
+			continue
+		}
+		produced := rk.extend(v.prev.cands, v.child.cands, nil)
+		if inAll {
+			cands = append(cands, produced...)
+		}
+		if forbade && inAllowed {
+			permitted = append(permitted, produced...)
 		}
 	}
 	var e *entry
-	if count > 0 {
-		e = &entry{count: min(count, 2)}
+	if all.total > 0 {
+		e = &entry{count: all.total, vec: all.vec, least: all.least}
 		// Where maximal forbids none of the links, an elided terminator may
 		// follow every derivation. Otherwise it may follow the candidates of
 		// the links maximal permits, copied before merging changes them.
@@ -738,7 +793,7 @@ func (rk *ranker) itemVal(it *item, f forbidden) *entry {
 			for i, c := range permitted {
 				forks[i] = c.fork()
 			}
-			e.allowed = &entry{cands: rk.merge(forks), count: min(permittedCount, 2)}
+			e.allowed = &entry{cands: rk.merge(forks), count: allowed.total, vec: allowed.vec, least: allowed.least}
 		}
 		e.cands = rk.merge(cands)
 	}
@@ -764,23 +819,43 @@ func (rk *ranker) symVal(s *symNode, f forbidden) *entry {
 	if rk.rec.g.rules[s.rule].scc >= 0 {
 		inner = f.with(s.rule)
 	}
-	var cands []*cand
-	count := 0
+	// Each completed item is an edge of the constituent.
+	type itemVal struct {
+		it  *item
+		e   *entry
+		vec *elSeq
+	}
+	var vals []itemVal
+	var sum summary
 	for _, c := range s.items {
 		e := rk.itemVal(c, inner)
 		if e == nil || e.count == 0 {
 			continue
 		}
-		count += e.count
-		for _, x := range e.cands {
+		vec := e.vec
+		if rk.elisions && c.prod.helper && c.prod.elided != "" && len(c.prod.rhs) == 0 {
+			// The helper of an elidable optional that derives ε elides its
+			// terminator at its position (engine §6).
+			vec = rk.leaf(s.start)
+		}
+		sum.add(vec, e.least, e.count)
+		vals = append(vals, itemVal{it: c, e: e, vec: vec})
+	}
+	var cands []*cand
+	for _, v := range vals {
+		if rk.elisions && compareElisions(v.vec, sum.vec) != 0 {
+			continue
+		}
+		c := v.it
+		for _, x := range v.e.cands {
 			n := &cand{d: closeNode(c.prod, s.start, s.end, s.tags, x.d)}
 			rk.inherit(n, x, 0, func(t *dn) *dn { return closeNode(c.prod, s.start, s.end, s.tags, t) }, inf+1)
 			cands = append(cands, n)
 		}
 	}
 	var e *entry
-	if count > 0 {
-		e = &entry{cands: rk.merge(cands), count: min(count, 2)}
+	if sum.total > 0 {
+		e = &entry{cands: rk.merge(cands), count: sum.total, vec: sum.vec, least: sum.least}
 	}
 	slot.state, slot.e = 2, e
 	return e
@@ -840,39 +915,182 @@ func (rk *ranker) prepare(top []*symNode) {
 	}
 }
 
-// rankResult is the outcome of ranking one parse.
+// rankResult is the outcome of ranking one parse: the verdict, the first
+// reading, m, which is the chosen derivation unless the verdict is a tie,
+// and for a tie the second reading, t, and the witness (engine §6).
 type rankResult struct {
-	count   int
-	chosen  *dn
-	tied    *dn // nil unless the verdict is a tie
+	verdict string
+	first   *dn
+	second  *dn // nil unless the verdict is a tie
 	witness [2]action
 }
 
+// rank ranks the derivations of the input, those of every completed item of
+// text that spans it, combined as the edges of one root (engine §6). It is
+// nil when every derivation is cyclic.
 func (rk *ranker) rank(top []*symNode) *rankResult {
 	rk.prepare(top)
-	var cands []*cand
-	count := 0
+	type rootVal struct {
+		e   *entry
+		vec *elSeq
+	}
+	var vals []rootVal
+	var root summary
 	for _, s := range top {
 		e := rk.symVal(s, nil)
-		if e == nil {
+		if e == nil || e.count == 0 {
 			continue
 		}
-		count += e.count
-		cands = append(cands, e.cands...)
+		root.add(e.vec, e.least, e.count)
+		vals = append(vals, rootVal{e: e, vec: e.vec})
 	}
-	if count == 0 {
+	if root.total == 0 {
 		return nil
 	}
-	m := rk.finish(rk.merge(cands))
-	res := &rankResult{count: min(count, 2), chosen: m.d}
-	if len(m.tied.ds) > 0 {
-		res.tied = m.tied.ds[0]
-		r := rk.compare(m.d, res.tied)
-		if r.kind == cVisDiff {
-			res.witness = [2]action{r.va, r.vb}
-		} else {
-			res.witness = [2]action{r.wa, r.wb}
+	var cands []*cand
+	for _, v := range vals {
+		if rk.elisions && compareElisions(v.vec, root.vec) != 0 {
+			continue
 		}
+		cands = append(cands, v.e.cands...)
+	}
+	m := rk.finish(rk.merge(cands))
+	res := &rankResult{first: m.d}
+	switch {
+	case root.total == 1:
+		res.verdict = VerdictUnique
+	case rk.elisions && root.least < 2, !rk.elisions && len(m.tied.ds) == 0:
+		res.verdict = VerdictResolved
+	default:
+		res.verdict = VerdictTie
+	}
+	if res.verdict != VerdictTie {
+		return res
+	}
+	if len(m.tied.ds) == 0 {
+		// Under late-elision, the forest of the best derivations holds a
+		// second one exactly when the least count is two.
+		panic("gencmu: the least count of late-elision disagrees with its forest")
+	}
+	res.second = m.tied.ds[0]
+	r := rk.compare(m.d, res.second)
+	if r.kind == cVisDiff {
+		res.witness = [2]action{r.va, r.vb}
+	} else {
+		res.witness = [2]action{r.wa, r.wb}
 	}
 	return res
+}
+
+// summary sums the derivations of the edges of one item, constituent or
+// root in one context (engine §6): their total, and under late-elision the
+// least vector and the number of derivations that attain it, each up to 2.
+type summary struct {
+	total int
+	vec   *elSeq
+	least int
+}
+
+// add adds an edge's derivations. The total counts every edge, losing ones
+// included; the least count counts only those that attain the least vector.
+// Outside late-elision every vector is empty, so least follows total.
+func (s *summary) add(vec *elSeq, least, total int) {
+	if total == 0 {
+		return
+	}
+	switch c := compareElisions(vec, s.vec); {
+	case s.total == 0 || c < 0:
+		s.vec, s.least = vec, least
+	case c == 0:
+		s.least = min(s.least+least, 2)
+	}
+	s.total = min(s.total+total, 2)
+}
+
+// elSeq is an elision vector (engine §6), kept as the sequence of the
+// positions of a derivation's elided terminators in text order: a leaf is
+// one elision at at, and a pair is left followed by right. nil is the
+// empty sequence. The sequence of an edge is that of the item before it
+// followed by that of the child, so sequences built on one prefix share it,
+// and a comparison skips what both share.
+type elSeq struct {
+	at          int32
+	left, right *elSeq
+	size        int32
+}
+
+func (rk *ranker) leaf(at int32) *elSeq {
+	l := rk.leaves[at]
+	if l == nil {
+		l = &elSeq{at: at, size: 1}
+		rk.leaves[at] = l
+	}
+	return l
+}
+
+func concatElisions(a, b *elSeq) *elSeq {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	return &elSeq{left: a, right: b, size: a.size + b.size}
+}
+
+// compareElisions is -1 when vector a is less than b, 1 when it is greater,
+// and 0 when they are equal. Two vectors compare at the first boundary where
+// their counts differ, and the smaller count is less. As sequences of
+// positions, they compare at their first difference: the one that elides at
+// the earlier position has the greater count there, so the later position
+// is less. A sequence that ends first has fewer elisions after the shared
+// part, so it is less.
+func compareElisions(a, b *elSeq) int {
+	if a == b {
+		return 0
+	}
+	sa, sb := []*elSeq{a}, []*elSeq{b}
+	front := func(st *[]*elSeq) *elSeq {
+		for len(*st) > 0 {
+			if n := (*st)[len(*st)-1]; n != nil {
+				return n
+			}
+			*st = (*st)[:len(*st)-1]
+		}
+		return nil
+	}
+	for {
+		x, y := front(&sa), front(&sb)
+		switch {
+		case x == nil && y == nil:
+			return 0
+		case x == nil:
+			return -1
+		case y == nil:
+			return 1
+		}
+		if x == y {
+			sa, sb = sa[:len(sa)-1], sb[:len(sb)-1]
+			continue
+		}
+		xPair, yPair := x.left != nil, y.left != nil
+		if xPair || yPair {
+			// Expand the larger side first, so that a part both share is met
+			// at the front of both.
+			if xPair && (!yPair || x.size >= y.size) {
+				sa = append(sa[:len(sa)-1], x.right, x.left)
+			}
+			if yPair && (!xPair || y.size >= x.size) {
+				sb = append(sb[:len(sb)-1], y.right, y.left)
+			}
+			continue
+		}
+		if x.at != y.at {
+			if x.at > y.at {
+				return -1
+			}
+			return 1
+		}
+		sa, sb = sa[:len(sa)-1], sb[:len(sb)-1]
+	}
 }

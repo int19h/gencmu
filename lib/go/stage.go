@@ -207,7 +207,7 @@ func (run *stageRun) run(g *lowered, mandatory func() *lowered, elisionOnly bool
 		// otherwise have chosen (§4).
 		if mx != nil && len(top) > 0 {
 			if other := newRanker(rec, g.lean, nil).rank(top); other != nil {
-				out.err = run.forbiddenTerminator(rec, other.chosen, mx)
+				out.err = run.forbiddenTerminator(rec, other.first, mx)
 			}
 		}
 		if out.err == nil {
@@ -215,20 +215,15 @@ func (run *stageRun) run(g *lowered, mandatory func() *lowered, elisionOnly bool
 		}
 		return out
 	}
-	switch {
-	case res.count == 1:
-		out.stage.Verdict = VerdictUnique
-	case res.tied != nil:
-		out.stage.Verdict = VerdictTie
+	out.stage.Verdict = res.verdict
+	if res.verdict == VerdictTie {
 		out.stage.Witness = run.actions(rec, res.witness)
-	default:
-		out.stage.Verdict = VerdictResolved
 	}
-	out.tree = run.buildTree(rec, res.chosen)
+	out.tree = run.buildTree(rec, res.first)
 	// Only the chosen tree gives warnings: not the tied one, nor the reparse
 	// of elision-only (§12).
 	if g.warns {
-		out.warnings = run.warnings(rec, res.chosen)
+		out.warnings = run.warnings(rec, res.first)
 	}
 	if elisionOnly && out.stage.Verdict != VerdictUnique {
 		if err := run.checkElision(out.tree, mandatory()); err != nil {
@@ -238,7 +233,7 @@ func (run *stageRun) run(g *lowered, mandatory func() *lowered, elisionOnly bool
 			out.tree = nil
 		}
 	}
-	out.stage.Output = run.emit(rec, res.chosen)
+	out.stage.Output = run.emit(rec, res.first)
 	return out
 }
 
@@ -392,7 +387,7 @@ func (run *stageRun) checkElision(tree *Node, g *lowered) *ParseError {
 		return nil
 	}
 	res := newRanker(rec, "", nil).rank(top)
-	if res == nil || res.tied == nil {
+	if res == nil || res.second == nil {
 		return nil
 	}
 	before := make([]int, len(toks)+1)
@@ -425,7 +420,7 @@ func (run *stageRun) checkElision(tree *Node, g *lowered) *ParseError {
 		}
 		return root
 	}
-	readings := []*Node{mapTree(run2.buildTree(rec, res.chosen)), mapTree(run2.buildTree(rec, res.tied))}
+	readings := []*Node{mapTree(run2.buildTree(rec, res.first)), mapTree(run2.buildTree(rec, res.second))}
 	return &ParseError{Kind: ErrorAmbiguous, Stage: run.name, Readings: readings,
 		Message: "stage " + run.name + ": the text is ambiguous even with every elided terminator written"}
 }

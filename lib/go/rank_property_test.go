@@ -16,7 +16,8 @@ import (
 // with several tags on a token, every derivation enumerated by brute force
 // (cyclic ones excluded as engine §4 defines them), and the verdict, the
 // chosen derivation, the tied one and the witness computed from the
-// definitions and compared with the library's.
+// definitions and compared with the library's. A share of the cases rank
+// under late-elision, with T elidable.
 //
 // GENCMU_PROPERTY_CASES sets the number of cases (default 1500) and
 // GENCMU_PROPERTY_SEED the first seed, for a larger sweep.
@@ -25,6 +26,7 @@ type genGrammar struct {
 	r     *rand.Rand
 	rules []string
 	terms []string
+	late  bool // late-elision, with T elidable
 }
 
 func (g *genGrammar) ref() *domExpr {
@@ -35,6 +37,14 @@ func (g *genGrammar) ref() *domExpr {
 }
 
 func (g *genGrammar) item(depth int) *domExpr {
+	if g.late && g.r.Intn(5) == 0 {
+		// An elidable optional, [T] or [T x].
+		t := &domExpr{Kind: exRef, Name: "T"}
+		if g.r.Intn(2) == 0 {
+			return &domExpr{Kind: exOptional, Inner: t}
+		}
+		return &domExpr{Kind: exOptional, Inner: &domExpr{Kind: exSeq, Items: []*domExpr{t, g.ref()}}}
+	}
 	k := g.r.Intn(20)
 	if depth > 1 && k >= 12 {
 		k = 0
@@ -80,7 +90,13 @@ func (g *genGrammar) grammar() *domDoc {
 	if g.r.Intn(2) == 0 {
 		lean = "lazy"
 	}
+	if g.late {
+		lean = "late-elision"
+	}
 	d.Directives = []*domDirective{{Name: "ambiguity-resolution", Args: []string{lean}}}
+	if g.late {
+		d.Directives = append(d.Directives, &domDirective{Name: "elidable", Args: []string{"T"}})
+	}
 	for _, name := range g.rules {
 		r := &domRule{Name: name, Op: "define"}
 		n := g.r.Intn(3) + 1
@@ -149,6 +165,9 @@ func exprText(e *domExpr) string {
 func domText(d *domDoc) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%%ambiguity-resolution %s\n", d.Directives[0].Args[0])
+	for _, dir := range d.Directives[1:] {
+		fmt.Fprintf(&b, "%%%s %s\n", dir.Name, strings.Join(dir.Args, " "))
+	}
 	for _, r := range d.Rules {
 		var alts []string
 		for _, a := range r.Alternatives {
@@ -269,6 +288,45 @@ func visibleOnly(as []action) []action {
 
 type bderiv struct {
 	whole, vis []action
+	// elisions is the elision vector (engine §6), as the positions of the
+	// derivation's elided terminators in text order.
+	elisions []int32
+}
+
+func elisionsOf(whole []action) []int32 {
+	var out []int32
+	for _, a := range whole {
+		if !a.read && a.prod.helper && a.prod.elided != "" && len(a.prod.rhs) == 0 {
+			out = append(out, a.start)
+		}
+	}
+	return out
+}
+
+// compareVectors compares two elision vectors as counts at each boundary,
+// from the first: -1 when x is less.
+func compareVectors(x, y []int32) int {
+	count := func(ps []int32, at int32) int {
+		n := 0
+		for _, p := range ps {
+			if p == at {
+				n++
+			}
+		}
+		return n
+	}
+	var bounds []int32
+	bounds = append(append(bounds, x...), y...)
+	sort.Slice(bounds, func(i, j int) bool { return bounds[i] < bounds[j] })
+	for _, at := range bounds {
+		if d := count(x, at) - count(y, at); d != 0 {
+			if d < 0 {
+				return -1
+			}
+			return 1
+		}
+	}
+	return 0
 }
 
 // bruteCompare returns: whether the first difference is decided (and for
@@ -318,18 +376,31 @@ func bruteCompare(rk *ranker, x, y bderiv) bcmp {
 
 type bruteResult struct {
 	count   int
+	verdict string
 	chosen  []action
 	tied    []action
 	witness [2]action
 }
 
+// bruteRank ranks every derivation by the definitions. Under late-elision,
+// one derivation beats another by its elision vector alone, and T orders
+// equal vectors as no lean does, which rk then has (engine §6).
 func bruteRank(rk *ranker, ds []bderiv) (*bruteResult, error) {
 	if len(ds) == 0 {
 		return nil, nil
 	}
+	late := rk.elisions
+	tFirst := func(x, y bderiv) bool {
+		if late {
+			if c := compareVectors(x.elisions, y.elisions); c != 0 {
+				return c < 0
+			}
+		}
+		return bruteCompare(rk, x, y).aFirst
+	}
 	m := 0
 	for i := 1; i < len(ds); i++ {
-		if !bruteCompare(rk, ds[m], ds[i]).aFirst {
+		if !tFirst(ds[m], ds[i]) {
 			m = i
 		}
 	}
@@ -338,6 +409,9 @@ func bruteRank(rk *ranker, ds []bderiv) (*bruteResult, error) {
 	for i := range ds {
 		if i == m {
 			continue
+		}
+		if late && compareVectors(ds[m].elisions, ds[i].elisions) != 0 {
+			continue // m beats it
 		}
 		c := bruteCompare(rk, ds[m], ds[i])
 		if !c.aFirst {
@@ -359,8 +433,14 @@ func bruteRank(rk *ranker, ds []bderiv) (*bruteResult, error) {
 			res.witness = c.pair
 		}
 	}
-	if t >= 0 {
+	switch {
+	case len(ds) == 1:
+		res.verdict = VerdictUnique
+	case t >= 0:
+		res.verdict = VerdictTie
 		res.tied = ds[t].whole
+	default:
+		res.verdict = VerdictResolved
 	}
 	return res, nil
 }
@@ -426,7 +506,7 @@ func TestRankingProperty(t *testing.T) {
 	} else if s := os.Getenv("GENCMU_PROPERTY_SEED"); s != "" {
 		seed, _ = strconv.ParseInt(s, 10, 64)
 	}
-	leanNone, maxTokens := 25, 4
+	leanNone, lateShare, maxTokens := 25, 30, 4
 	if s := os.Getenv("GENCMU_PROPERTY_TOKENS"); s != "" {
 		maxTokens, _ = strconv.Atoi(s)
 	}
@@ -437,10 +517,13 @@ func TestRankingProperty(t *testing.T) {
 		t.Fatal(err)
 	}
 	started := time.Now()
-	checked, skipped, ties, resolved, rejected := 0, 0, 0, 0, 0
+	checked, skipped, ties, resolved, rejected, late, lateResolved := 0, 0, 0, 0, 0, 0, 0
 	for c := 0; c < cases; c++ {
 		r := rand.New(rand.NewSource(seed + int64(c)))
 		gen := &genGrammar{r: r, rules: []string{"text", "a", "b", "c"}[:2+r.Intn(3)], terms: []string{"A", "B", "C"}}
+		if r.Intn(100) < lateShare {
+			gen.late, gen.terms = true, []string{"A", "B", "T"}
+		}
 		dom := gen.grammar()
 		sg, serr := stitch("main", []docDOM{{path: "g.md", dom: dom}}, bundled.uni)
 		if serr != nil {
@@ -487,7 +570,7 @@ func TestRankingProperty(t *testing.T) {
 		var ds []bderiv
 		for _, tr := range trees {
 			w := bnodeActions(tr, nil)
-			ds = append(ds, bderiv{whole: w, vis: visibleOnly(w)})
+			ds = append(ds, bderiv{whole: w, vis: visibleOnly(w), elisions: elisionsOf(w)})
 		}
 		want, werr := bruteRank(rk, ds)
 		if printDerivations {
@@ -522,22 +605,25 @@ func TestRankingProperty(t *testing.T) {
 			continue
 		}
 		checked++
-		if got.count != want.count {
-			fail("count %d, want %d", got.count, want.count)
+		if rk.elisions {
+			late++
 		}
-		if gc := dnActions(got.chosen); !sameActions(gc, want.chosen) {
+		if got.verdict != want.verdict {
+			fail("verdict %s, want %s", got.verdict, want.verdict)
+		}
+		if gc := dnActions(got.first); !sameActions(gc, want.chosen) {
 			fail("chosen\n  got  %s\n  want %s", actionsText(lg, gc), actionsText(lg, want.chosen))
 		}
-		if (got.tied == nil) != (want.tied == nil) {
+		if (got.second == nil) != (want.tied == nil) {
 			var gt string
-			if got.tied != nil {
-				gt = actionsText(lg, dnActions(got.tied))
+			if got.second != nil {
+				gt = actionsText(lg, dnActions(got.second))
 			}
-			fail("tie: got %v (%s), want %v", got.tied != nil, gt, want.tied != nil)
+			fail("tie: got %v (%s), want %v", got.second != nil, gt, want.tied != nil)
 		}
 		if want.tied != nil {
 			ties++
-			if gt := dnActions(got.tied); !sameActions(gt, want.tied) {
+			if gt := dnActions(got.second); !sameActions(gt, want.tied) {
 				fail("tied, chosen %s\n  got  %s\n  want %s", actionsText(lg, want.chosen), actionsText(lg, gt), actionsText(lg, want.tied))
 			}
 			if got.witness != want.witness {
@@ -545,9 +631,12 @@ func TestRankingProperty(t *testing.T) {
 			}
 		} else if want.count > 1 {
 			resolved++
+			if rk.elisions {
+				lateResolved++
+			}
 		}
 	}
-	t.Logf("%d accepted cases checked (%d ties, %d resolved), %d rejected by both, %d skipped over budget, in %v", checked, ties, resolved, rejected, skipped, time.Since(started))
+	t.Logf("%d accepted cases checked (%d ties, %d resolved, %d under late-elision, %d of them resolved), %d rejected by both, %d skipped over budget, in %v", checked, ties, resolved, late, lateResolved, rejected, skipped, time.Since(started))
 	if checked < cases/10 {
 		t.Errorf("only %d of %d cases were checked", checked, cases)
 	}
