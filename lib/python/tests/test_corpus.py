@@ -16,7 +16,7 @@ import unittest
 from concurrent.futures import ProcessPoolExecutor
 from typing import Any
 
-from .shared import SHARED
+from .shared import SHARED, result_problems
 
 FIELDS = ("expect", "verdict", "stage", "error", "ties", "words", "brackets")
 
@@ -40,6 +40,11 @@ def outcome(case: dict[str, Any]) -> dict[str, Any]:
     if dialect is None:
         dialect = _dialects[case["dialect"]] = gencmu.load_dialect(case["dialect"])
     result = dialect.parse(case["text"], features=case.get("features", []), without_features=case.get("withoutFeatures", []))
+    # A tied stage emits nothing and ends the run with its error
+    # (tests/README.md).
+    problems = result_problems(gencmu.result_json(result))
+    if problems:
+        raise AssertionError(f"the result breaks an invariant: {'; '.join(problems)}")
     got: dict[str, Any] = {"expect": "accept" if result.ok else "reject"}
     if result.ok:
         got["verdict"] = result.stages[-1].verdict

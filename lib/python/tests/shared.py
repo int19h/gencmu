@@ -49,6 +49,38 @@ def mismatch(pattern: Any, value: Any, where: str = "$") -> str | None:
     return None
 
 
+def result_problems(value: dict[str, Any]) -> list[str]:
+    """What a canonical result breaks of the invariants that every runner
+    checks on every result, whatever the case expects (tests/README.md): no
+    stage has a tied tree, and a stage whose verdict is tie has no output,
+    comes last, and has the result's ambiguous error with the reason tie,
+    its name and two readings."""
+    problems: list[str] = []
+    stages = value["stages"]
+    for index, stage in enumerate(stages):
+        if "tied" in stage:
+            problems.append(f"stage {stage['name']} has a tied tree")
+        if stage["verdict"] != "tie":
+            continue
+        if "output" in stage:
+            problems.append(f"the tied stage {stage['name']} has output")
+        if index != len(stages) - 1:
+            problems.append(f"a stage runs after the tied stage {stage['name']}")
+        error = value["error"]
+        if (
+            value["ok"] is not False
+            or value["tree"] is not None
+            or not isinstance(error, dict)
+            or error.get("kind") != "ambiguous"
+            or error.get("reason") != "tie"
+            or error.get("stage") != stage["name"]
+            or not isinstance(error.get("readings"), list)
+            or len(error["readings"]) != 2
+        ):
+            problems.append(f"the tied stage {stage['name']} lacks its error of kind ambiguous, reason tie and two readings")
+    return problems
+
+
 def case_sources(case: dict[str, Any]) -> tuple[dict[str, str], str]:
     if "grammar" in case:
         grammar = case["grammar"]
