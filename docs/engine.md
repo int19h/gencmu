@@ -112,7 +112,7 @@ A call `classify(a, C)` names the classifier `C` (§10). A `classify` whose clas
 
 A stage also has implications. An item `%implies A ⟹ B` (`implication`) adds one. `A` and `B` are closed terms (§10) whose type is a tag set. A constant in them has the value that the last definition of the stage gives it, as in a rule. After the loader stitches the stage, it makes sure that their types agree, as it does for a rule (§9). §11 says how the stage applies its implications.
 
-A stage has exactly one `%ambiguity-resolution L [elision-only] [maximal]`, or it is an error naming the stage. `L` is the rule of the ranking, `greedy`, `lazy` or `late-elision` (§6). If both `elision-only` (§7) and `maximal` (§4) are written, they stand in that order. `%elidable T...` names the elidable terminators, and repeated directives add up.
+A stage has exactly one `%ambiguity-resolution L [elision-only] [maximal]`, or it is an error naming the stage. `L` is the rule of the ranking, `greedy`, `lazy` or `late-elision` (§6). If both `elision-only` (§7) and `maximal` (§4) are written, they stand in that order. `%elidable T...` names the elidable terminators, and repeated directives add up. `%elidable maximal T...` names elidable terminators that are also maximal (§4). A terminator is maximal when any `%elidable maximal` of the stage names it, whatever a plain `%elidable` says.
 
 A name whose first character is `A` to `Z` is a terminal, the identifier tag of that name. The DOM writes both kinds of name as `ref`, and lowering (§3) tells them apart by that first letter. Any other name is a rule reference, and must be defined in the stage, or it is an error. `#`, the free-modifier slot, is a rule's name like any other.
 
@@ -229,6 +229,8 @@ Whether an omission is forbidden depends on the production prefix that the proof
 - Where the optional has a constituent `Y` (below), the fixed prefix is the item before `Y` in the same proof tree, with its captures. The omission is forbidden when the chart advances that item over a completed `Y` that ends at some position `p′ ≥ p`. The resulting item then advances over a completed nonempty alternative of the optional, from `p′`. That completed `Y` passes `Y`'s test, if it has one.
 - Where the optional has no constituent, the fixed prefix is the item before the optional itself. The omission is forbidden when the chart advances that item over a completed nonempty alternative of the optional, from `p`.
 
+An omission of a maximal terminator (below) is also forbidden when its constituent is not the longest possible in the query's chart. This holds where no terminator is written. The query's chart ends with its span. So a `matches` over a captured span sees no longer constituent past the span. A `begins` with `from` or `after` sees the rest of the input.
+
 The nonempty alternative is the whole content of the optional, not only its terminator. So a written terminator forbids an omission only where the whole optional can complete after it. For example, let `T` be elidable, and take `r → c [T A] D` and `c → B | B D`. On `B D T`, `begins` of `r` holds. The longer `c` reaches the `T`, but `[T A]` cannot complete. On `B D T A`, `begins` is false, because the whole written optional completes.
 
 The advances of a blocking path come from the chart. So their tests and conditions passed. They need not belong to a proof tree of `rule`, and they need not be eligible themselves. An attempt that never completes `rule` can still forbid an omission.
@@ -246,7 +248,7 @@ An implementation can keep two states for each item. The first, E, says that the
 - A predicted item has E.
 - An advance that is not an omission gives the new item E when the item before it has E. For a completion, the completed item has E too.
 - An omission gives the new item E only when the item before it has P.
-- The item before an optional with a constituent `Y` has P through one advance over `Y` that gives it E. The item before that advance is the fixed prefix, and that prefix must permit the omission.
+- The item before an optional with a constituent `Y` has P through one advance over `Y` that gives it E. The item before that advance is the fixed prefix, and that prefix must permit the omission. Where the optional's terminal is maximal, the completed `Y` of that advance must also be the longest possible.
 - The item before an optional with no constituent has P when it has E and it permits the omission itself.
 
 The implementation computes E and P together, to the least answer that the advances give. So an item that only a cycle through itself makes eligible has neither state.
@@ -291,9 +293,17 @@ When `Y` is tested, the longer constituent counts only if the test holds of it, 
 
 Only the constituent matters, not what follows the elided terminator in its production. Whether a constituent is the longest possible depends only on its symbol, its test, its origin and its end. So an implementation can find, once per parse, the furthest set in which each symbol completes from each origin. For a tested symbol, it needs each completed item of the symbol from each origin, since the furthest one need not pass the test. `maximal` does not apply to the parse of §7, which has no elided terminator. It also does not apply to a nested parse, which follows written-terminator priority instead (above).
 
+A maximal terminator is one that `%elidable maximal` names (§2). It brings the condition of `maximal` to that terminator alone. The engine does not count a derivation in which an elided terminator of a maximal terminal has a constituent that is not the longest possible. The terminal is that of the elidable optional (§3.8). The constituent, its origin, its test and the three cases with no constituent are as above. An elided terminator with no constituent is never forbidden.
+
+The longer constituent need not fit into any derivation of `text`, as above. A stage-wide `maximal` makes every elidable terminator maximal in the main parse. A maximal terminator differs from it in two ways. It applies whatever the directive of the stage says. It also applies in a nested parse (above), where a stage-wide `maximal` does not.
+
+The ranking (§6) sees only the derivations that remain, under every ranking rule. `elision-only` writes back a maximal terminator as any other (§7). Its parse has no elided terminator, so no terminator there is maximal or forbidden.
+
+An implementation already finds the furthest completion of each symbol from each origin for `maximal`. A maximal terminator uses the same table in the main parse, for its own elided terminators only. A nested parse whose grammar has a maximal terminator builds that table from its own chart, once per query. The table depends only on the query's chart, so the keys of the memo (above) fit the answer.
+
 A stage accepts when an item of the start rule `text` spans the whole input and has at least one derivation that is counted. It rejects an input whose every such derivation is cyclic, as it rejects one with no such item. A stage that accepts its input can still end with a tie, which is an error (§6). A rejected input reports the furthest position that any item reached. It also reports the terminals that the items there can read next, together with the rules that those items belong to (§11). The stage writes a tested terminal with its test, such as `LE="la"` (`docs/output.md`).
 
-An input rejected only because `maximal` forbids an elided terminator in every derivation that is not cyclic reports that terminator instead. The terminator comes from the first reading, `m`, of the ranking that the stage makes when `maximal` forbids nothing (§6). It is the first elided terminator of that derivation, in the order of the tree's leaves, that `maximal` forbids. Its position is the position reported, and its terminal, with the rule in whose alternative its optional is written, is the one terminal expected there. If that terminator is tested, the stage writes it with its test there too.
+An input rejected only because `maximal` or a maximal terminator forbids an elided terminator in every derivation that is not cyclic reports that terminator instead. The terminator comes from the first reading, `m`, of the ranking that the stage makes when neither forbids anything (§6). It is the first elided terminator of that derivation, in the order of the tree's leaves, that either forbids. Its position is the position reported, and its terminal, with the rule in whose alternative its optional is written, is the one terminal expected there. If that terminator is tested, the stage writes it with its test there too.
 
 The reported terminator comes from `m` whatever the verdict of that ranking. So *T* (§6) selects the forbidden terminator that such a rejection reports. The canonical tie-break keys never turn a tie into an accepted reading.
 
@@ -407,7 +417,7 @@ An edge of an item is one step by which the recognizer makes it. A start edge pr
 
 The context of a child is what its use in a derivation allows it. It has two parts, under every ranking rule:
 
-- The eligibility of the child. Under `maximal` (§4), a completion edge over an elided terminator combines only some derivations of the item before it. These are the derivations whose last symbol's node `maximal` does not forbid. Every other edge combines all derivations of its children.
+- The eligibility of the child. Under `maximal` (§4), a completion edge over an elided terminator combines only some derivations of the item before it. These are the derivations whose last symbol's node `maximal` does not forbid. A maximal terminator (§4) does the same for its own elided terminators, whatever the directive says. Every other edge combines all derivations of its children.
 - The cycle context of the child. A child cannot use a rule over the span of a constituent of that rule above it, or the derivation is cyclic (§4). The rules above a child over its own span are its cycle context.
 
   Only a rule that can complete again below the child over that span matters. Such a rule is reached from the child's rule through constituents over the same span, and it reaches that rule back in the same way. Such rules form the cyclic group of the child's rule. An implementation can leave every other rule out of the context. Two contexts that differ only in rules that it leaves out give the same summary.
@@ -615,7 +625,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A capture other than `$` named twice in one emission, as an item or as an attachment, is an error. So an attachment capture is never an item of its own.
 - A rule's or an alternative's tag term that reads the tags that it defines is an error: `tags($)` or `classes($)` in it. `tags(head($))` and the like read the tokens' tags, not the constituent's, and are allowed, as is `tags($, R)`.
 - An unknown directive or keyword is an error. The syntax grammar already refuses it.
-- A directive with the wrong operands is an error, reported at the directive. `%stage` takes one name, `%include` one string, and `%features` one or more names. `%elidable` takes identifier tags: names that begin with a capital, or `~name`. A range or a property there is an error, as a phoneme tag or a character tag is. `%ambiguity-resolution` takes names only.
+- A directive with the wrong operands is an error, reported at the directive. `%stage` takes one name, `%include` one string, and `%features` one or more names. `%elidable` takes identifier tags: names that begin with a capital, or `~name`. Before them, it can take the one word `maximal`, which sets the directive's `maximal` member and is no operand. A range or a property there is an error, as a phoneme tag or a character tag is. `%ambiguity-resolution` takes names only.
 
 Once the reader reads a definition (§2), it makes sure that the whole definition meets its requirements. Each of the following is an error of the document too, and the reader reports it at the definition:
 
