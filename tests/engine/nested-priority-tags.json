@@ -1,0 +1,37 @@
+{
+  "description": "tags follows written-terminator priority. Two completed items of r span B C T. The one tagged BAD leaves out [T] after y, although the same prefix reads y and then the written T, so it has no eligible witness. Only the one tagged GOOD counts, so the text's tags are GOOD alone (engine §4, §10).",
+  "grammar": "%elidable T\n%rule text B C T\n%tags tags($, r)\n%rule r B y [T] T <BAD> | B C T <GOOD>\n%rule y C",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "tags": [
+          "GOOD"
+        ]
+      }
+    }
+  }
+}
