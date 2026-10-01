@@ -560,10 +560,12 @@ def _walk(pending: list[tuple[str, Any, int, bool]], unicode: Lowercase, tests: 
             elif not (_is_ref(value.get("ref")) or is_tag(value.get("terminal"), unicode) or value.get("empty") is True):
                 return "a malformed expression"
         elif kind == "emission":
-            # No member but items, and no items for ε; otherwise items of the keys capture, insert,
-            # tags, before and after alone, attachments only on a named
-            # capture, each a non-empty list of capture names, $ only with $, a capture other than $ listed once,
-            # no tags on an inserted tag, no ∅ as an item's tags (engine §9).
+            # No member but items, and no items for ε (engine §9). Each item
+            # has only the keys capture, insert, tags, before and after.
+            # Attachments stand only on a named capture, each a non-empty
+            # list of capture names. $ goes only with $, and a capture other
+            # than $ is listed once. An inserted tag has no tags, and no
+            # item has ∅ as its tags.
             items = value.get("items")
             if not _items(items, 0) or len(value) != 1:
                 return "a malformed emission"
