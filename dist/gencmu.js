@@ -6971,10 +6971,36 @@
     const ofRule = (node, name) => parts(node).flatMap((child) => (child.kind === "rule" && child.rule === name ? [child] : []));
     /** @type {(node: ResultNode, name: string) => RuleNode | undefined} */
     const one = (node, name) => ofRule(node, name)[0];
+    // The parts that the reader reads from a node (engine §9). A node that
+    // lacks one is an error of the document, which only a bootstrap of
+    // another notation gives.
+    /** @type {(node: ResultNode, what: string) => never} */
+    const lacks = (node, what) => fail(`the notation's ${ruleOf(node)} has no ${what}`, node);
     /** @type {(node: ResultNode, name: string) => RuleNode} */
     const only = (node, name) => {
       const found = one(node, name);
-      return found || fail(`expected ${name}`, node);
+      return found || lacks(node, name);
+    };
+    /** @type {(node: ResultNode, name: string, least?: number) => RuleNode[]} */
+    const some = (node, name, least = 1) => {
+      const found = ofRule(node, name);
+      return found.length >= least ? found : lacks(node, least === 1 ? name : `${least} of ${name}`);
+    };
+    /** @type {(node: ResultNode) => ResultNode} */
+    const token = (node) => parts(node).find((child) => child.kind === "token") || lacks(node, "token");
+    // The first part, a token, a range or a property.
+    /** @type {(node: ResultNode) => ResultNode} */
+    const symbolPart = (node) => {
+      const first = parts(node)[0];
+      if (first && (first.kind === "token" || ruleOf(first) === "range" || ruleOf(first) === "property")) return first;
+      return lacks(node, "token, range or property");
+    };
+    // The one rule among the parts, which must be one of `kinds`.
+    /** @type {(node: ResultNode, kinds: Set<string>) => RuleNode} */
+    const knownOf = (node, kinds) => {
+      const found = parts(node).filter((child) => child.kind === "rule");
+      if (found.length !== 1 || !kinds.has(/** @type {RuleNode} */ (found[0]).rule)) return lacks(node, `one of ${[...kinds].join(", ")}`);
+      return /** @type {RuleNode} */ (found[0]);
     };
     /** @type {(node: ResultNode) => string | undefined} */
     const ruleOf = (node) => (node.kind === "rule" ? node.rule : undefined);
@@ -7007,10 +7033,10 @@
     /** @type {string[]} */
     let captures = [];
     for (const item of parts(tree)) {
+      if (item.kind === "rule" && !ITEMS.has(item.rule)) fail(`the notation gives a ${item.rule} where an item stands`, item);
       if (ruleOf(item) === "directive") {
-        const [directiveToken, ...rest] = parts(item);
-        const name = text(directiveToken).slice(1);
-        const operands = rest.filter((child) => ruleOf(child) === "argument-word" || ruleOf(child) === "argument-string" || ruleOf(child) === "argument-tag");
+        const name = text(token(item)).slice(1);
+        const operands = parts(item).filter((child) => ruleOf(child) === "argument-word" || ruleOf(child) === "argument-string" || ruleOf(child) === "argument-tag");
         const problem = operandProblem(name, operands.map((child) => operandKind(child)));
         if (problem) fail(problem, item);
         directives.push({
@@ -7018,11 +7044,10 @@
           // A string operand is decoded, as a string of a rule is, and a tag
           // literal is its name.
           args: operands.map((child) => {
-            const token = parts(child)[0];
-            if (ruleOf(child) === "argument-word") return text(token);
-            if (ruleOf(child) === "argument-string") return decode(token);
+            if (ruleOf(child) === "argument-word") return text(token(child));
+            if (ruleOf(child) === "argument-string") return decode(token(child));
             // A range or a property has no tag; operandProblem has refused it.
-            return tagOf(token);
+            return tagOf(symbolPart(child));
           }),
           at: at(item),
         });
@@ -7046,7 +7071,7 @@
      */
     function readClassifier(node) {
       const nameNode = only(node, "classifier-name");
-      const name = text(parts(nameNode)[0]);
+      const name = text(token(nameNode));
       if (!CLASSIFIER_NAME.test(name)) fail(`${name} begins with a capital, so it is a tag; a classifier's name begins with a lower-case letter`, nameNode);
       return { name, entries: ofRule(node, "classifier-entry").map(readEntry), at: at(node) };
     }
@@ -7059,22 +7084,22 @@
      */
     function readEntry(node) {
       const guards = ofRule(node, "guard").map((guard) => {
-        const spelled = text(parts(guard)[0]);
+        const spelled = text(token(guard));
         if (spelled.endsWith("!")) fail("an entry of a classifier takes gates only, not a warning", guard);
         const negated = spelled.startsWith("¬");
         /** @type {import("./types.js").Guard} */
         const read = { feature: spelled.slice(negated ? 1 : 0, -1), kind: "gate", negated };
         return read;
       });
-      const keys = ofRule(node, "classifier-key").map((keyNode) => {
-        const key = decode(parts(keyNode)[0]);
+      const keys = some(node, "classifier-key").map((keyNode) => {
+        const key = decode(token(keyNode));
         const wrong = soundProblem(key, unicode);
         if (wrong) fail(`a key is a canonical sound: ${wrong}`, keyNode);
         return key;
       });
-      const op = /** @type {"∈" | "∉"} */ (text(parts(only(node, "classifier-operator"))[0]));
+      const op = /** @type {"∈" | "∉"} */ (text(token(only(node, "classifier-operator"))));
       const classNode = only(node, "classifier-class");
-      const written = text(parts(classNode)[0]);
+      const written = text(token(classNode));
       const name = written.startsWith("~") ? written.slice(1) : written;
       if (!isCapital(name)) fail(`${written} is not a class: a class is an identifier tag that begins with a capital`, classNode);
       return { guards, keys, op, class: name, at: at(node) };
@@ -7087,7 +7112,7 @@
      * @returns {DomImplication}
      */
     function readImplicationDeclaration(node) {
-      const [antecedent, consequent] = ofRule(node, "union").map((side) => {
+      const [antecedent, consequent] = some(node, "union", 2).slice(0, 2).map((side) => {
         closedFor = "a side of an implication";
         const term = readTerm(side);
         closedFor = null;
@@ -7106,8 +7131,8 @@
      * @returns {DomConstant}
      */
     function readConstant(node) {
-      const keyword = tokenText(parts(only(node, "constant-definer"))[0]);
-      const name = text(parts(only(node, "constant-reference"))[0]).slice(1);
+      const keyword = text(token(only(node, "constant-definer")));
+      const name = text(token(only(node, "constant-reference"))).slice(1);
       const valueNode = only(node, "term");
       closedFor = "a constant's value";
       const value = readTerm(valueNode);
@@ -7123,19 +7148,18 @@
      * @returns {DomRule}
      */
     function readRule(node) {
-      const children = parts(node);
-      const keyword = tokenText(parts(only(node, "definer"))[0]);
+      const keyword = text(token(only(node, "definer")));
       /** @type {Partial<DomRule>} */
-      const rule = { name: text(children[1]), op: keyword === "%extend-rule" ? "extend" : keyword === "%redefine-rule" ? "redefine" : "define" };
+      const rule = { name: text(token(only(node, "rule-name"))), op: keyword === "%extend-rule" ? "extend" : keyword === "%redefine-rule" ? "redefine" : "define" };
       const tags = one(node, "tags-clause");
       if (tags) rule.tags = readConstituentTags(tags);
-      rule.alternatives = ofRule(only(node, "body"), "alternative").map(readAlternative);
+      rule.alternatives = some(only(node, "body"), "alternative").map(readAlternative);
       const emits = one(node, "emits-clause");
       if (emits) rule.emit = readEmission(emits);
       // Each condition of the list is one condition, applying where its
       // captures are (engine §3.6).
       const conditions = one(node, "conditions-clause");
-      rule.conditions = conditions ? ofRule(conditions, "implication").map(readImplication) : [];
+      rule.conditions = conditions ? some(conditions, "implication").map(readImplication) : [];
       if (one(node, "opaque-clause")) rule.opaque = true;
       rule.at = at(node);
       const problem = definitionProblem(rule);
@@ -7151,7 +7175,7 @@
       // A guard's token is its spelling: `f?` or `¬f?` for a gate, `f!` for
       // a warning (engine §9).
       const guards = ofRule(node, "guard").map((guard) => {
-        const spelled = text(parts(guard)[0]);
+        const spelled = text(token(guard));
         const negated = spelled.startsWith("¬");
         /** @type {import("./types.js").Guard} */
         const read = { feature: spelled.slice(negated ? 1 : 0, -1), kind: spelled.endsWith("!") ? "warning" : "gate", negated };
@@ -7174,24 +7198,24 @@
     function readExpression(node, top = false) {
       switch (ruleOf(node)) {
         case "choice": {
-          const found = ofRule(node, "conjunction");
+          const found = some(node, "conjunction");
           const items = found.map((item) => readExpression(item, top && found.length === 1));
           return items.length === 1 ? items[0] : { choice: items };
         }
         case "conjunction": {
-          const found = ofRule(node, "sequence");
+          const found = some(node, "sequence");
           const items = found.map((item) => readExpression(item, top && found.length === 1));
           // A & of n items expands to 2ⁿ−1 sequences (engine §3.2).
           if (items.length > 16) fail("an & joins at most 16 items", node);
           return items.length === 1 ? items[0] : { and: items };
         }
         case "sequence": {
-          const items = ofRule(node, "element").map((item) => readExpression(item, top));
+          const items = some(node, "element").map((item) => readExpression(item, top));
           return items.length === 1 ? items[0] : { seq: items };
         }
         case "element": {
           const repeated = parts(node).some((child) => tokenText(child) === "...");
-          const primary = readPrimary(parts(one(node, "primary") || node)[0], top && !repeated);
+          const primary = readPrimary(knownOf(only(node, "primary"), PRIMARIES), top && !repeated);
           if (!repeated) return primary;
           if ("optional" in primary) return { repeat: primary.optional, min: 0 };
           return { repeat: primary, min: 1 };
@@ -7208,20 +7232,20 @@
      */
     function readPrimary(node, top = false) {
       switch (ruleOf(node)) {
-        case "reference": return { ref: text(parts(node)[0]) };
-        case "tag": case "character": case "phoneme": return { terminal: tagOf(parts(node)[0]) };
+        case "reference": return { ref: text(token(node)) };
+        case "tag": case "character": case "phoneme": return { terminal: tagOf(token(node)) };
         case "range": return { range: readRange(node) };
-        case "property": return { property: readProperty(parts(node)[0]) };
+        case "property": return { property: readProperty(token(node)) };
         case "tested": {
           // A reference other than # or a terminal, and one test on its own
           // span (engine §2, §9). The syntax grammar reads a test after any
           // primary, so that the reader can name the reason.
-          const [primary, testNode] = parts(node);
-          const symbol = parts(primary)[0];
+          const testNode = only(node, "test");
+          const symbol = knownOf(only(node, "primary"), PRIMARIES);
           const kind = ruleOf(symbol);
           if (kind === "constant-reference") fail(CONSTANT_IN_BODY, symbol);
           if (!["reference", "tag", "character", "phoneme", "range", "property"].includes(/** @type {string} */ (kind)) ||
-              (kind === "reference" && text(parts(symbol)[0]) === "#")) {
+              (kind === "reference" && text(token(symbol)) === "#")) {
             fail("a test follows only a reference other than # or a terminal, not a group, an optional, a capture, ε, # or another test", testNode);
           }
           const expr = /** @type {import("./types.js").TestedSymbol} */ (readPrimary(symbol));
@@ -7243,10 +7267,11 @@
         }
         case "capture": {
           if (!top) fail("a capture stands at the top level of an alternative, not inside [ ], ( ), ..., & or a choice", node);
-          const [captureToken, , inner] = parts(node);
+          const captureToken = token(node);
+          const inner = only(node, "primary");
           if (text(captureToken) === "$") fail("$ is the whole constituent and wraps nothing", node);
           if (!CAPTURE_NAME.test(text(captureToken).slice(1))) fail("a capture's name is all lower case", node);
-          const wrapped = parts(inner)[0];
+          const wrapped = knownOf(inner, PRIMARIES);
           const kind = ruleOf(wrapped);
           if (kind === "constant-reference") fail(CONSTANT_IN_BODY, wrapped);
           if (!["reference", "tag", "character", "phoneme", "range", "property", "tested"].includes(/** @type {string} */ (kind))) fail("a capture wraps one symbol", node);
@@ -7274,8 +7299,8 @@
     function readEmission(node) {
       // `%emits ε` emits nothing, and the constituent does not count.
       if (parts(node).some((child) => tokenText(child) === "ε")) return { items: [] };
-      const items = ofRule(node, "emit-item").map((itemNode) => {
-        const target = parts(only(itemNode, "emit-target"))[0];
+      const items = some(node, "emit-item").map((itemNode) => {
+        const target = symbolPart(only(itemNode, "emit-target"));
         const kind = target.kind === "rule" ? target.rule : target.terminal;
         /** @type {EmitItem} */
         let item = {};
@@ -7368,8 +7393,8 @@
     function readAnyOf(node) {
       // Parentheses make no node, so a group of the same connective as the
       // one around it is part of it: (a ∧ b) ∧ c is a ∧ b ∧ c (engine §9).
-      const items = ofRule(node, "all-of").flatMap((allNode) => {
-        const all = ofRule(allNode, "condition").map(readCondition).flatMap((item) => ("all" in item ? item.all : [item]));
+      const items = some(node, "all-of").flatMap((allNode) => {
+        const all = some(allNode, "condition").map(readCondition).flatMap((item) => ("all" in item ? item.all : [item]));
         const one = all.length === 1 ? all[0] : { all };
         return "any" in one ? one.any : [one];
       });
@@ -7381,15 +7406,15 @@
      * @returns {Condition}
      */
     function readCondition(node) {
-      const inner = /** @type {ResultNode} */ (parts(node).find((child) => child.kind === "rule"));
+      const inner = knownOf(node, CONDITIONS);
       switch (ruleOf(inner)) {
         case "implication":
           return readImplication(inner);
         case "presence":
-          return { captured: text(parts(inner)[0]).slice(1) };
+          return { captured: text(token(inner)).slice(1) };
         case "comparison": {
-          const [left, comparator, right] = parts(inner);
-          const op = /** @type {Comparator} */ (text(parts(comparator)[0]));
+          const [left, right] = some(inner, "union", 2);
+          const op = /** @type {Comparator} */ (text(token(only(inner, "comparator"))));
           const condition = { op, left: readTerm(left), right: readTerm(right) };
           // The two sides fit the comparator (engine §10).
           const leftType = termType(condition.left);
@@ -7423,10 +7448,7 @@
      * @returns {Term}
      */
     function readTerm(node, argument = false) {
-      if (ruleOf(node) === "term") {
-        const inner = /** @type {ResultNode} */ (parts(node).find((child) => child.kind === "rule"));
-        return readTerm(inner, argument);
-      }
+      if (ruleOf(node) === "term") return readTerm(knownOf(node, TERMS), argument);
       if (ruleOf(node) === "guarded-term") {
         if (closedFor) fail(`${closedFor} is a closed term, and holds no guarded term`, node);
         const condition = readAnyOf(only(node, "any-of"));
@@ -7441,7 +7463,7 @@
       if (ruleOf(node) === "union") {
         // Parts joined by ∪ and ∖ group from the left: a run joined by ∪ is
         // one union, and each ∖ takes what stands before it (engine §9).
-        const found = ofRule(node, "intersection");
+        const found = some(node, "intersection");
         if (found.length === 1) return readTerm(found[0], argument);
         /** @type {string[]} */
         const operators = parts(node).flatMap((child) => {
@@ -7474,7 +7496,7 @@
         return result;
       }
       if (ruleOf(node) === "intersection") {
-        const found = ofRule(node, "term-atom");
+        const found = some(node, "term-atom");
         const items = found.map((item) => readTerm(item, argument && found.length === 1));
         if (items.length === 1) return items[0];
         const joined = joinedType(items.map((item) => {
@@ -7485,8 +7507,7 @@
         return { intersection: items };
       }
       if (ruleOf(node) === "term-atom" || ruleOf(node) === "test-operand") {
-        const inner = parts(node).find((child) => child.kind === "rule");
-        if (!inner) return fail("expected a term", node);
+        const inner = knownOf(node, ATOMS);
         if (ruleOf(inner) === "call") {
           const call = readCall(inner);
           if (!argument && SPANS.has(call.call)) fail(`${call.call} gives a span, which is not a value`, inner);
@@ -7496,23 +7517,23 @@
         return readTerm(inner, argument);
       }
       switch (ruleOf(node)) {
-        case "string": return { string: decode(parts(node)[0]) };
-        case "tag": case "character": case "phoneme": return { tag: tagOf(parts(node)[0]) };
+        case "string": return { string: decode(token(node)) };
+        case "tag": case "character": case "phoneme": return { tag: tagOf(token(node)) };
         case "range": return { range: readRange(node) };
         case "property": return fail("a property is not a tag set, and stands only as a terminal in a body", node);
         case "name": {
           // A bare name is a tag literal if it begins with a capital, and
           // otherwise a rule, which only a function's argument names.
-          const name = text(parts(node)[0]);
+          const name = text(token(node));
           if (isCapital(name)) return { tag: name };
           if (argument) return /** @type {Term} */ (/** @type {unknown} */ ({ rule: name }));
           return fail(`${name} names a rule, which is not a value; ~${name} is the tag`, node);
         }
         case "empty-set": return { emptySet: true };
         case "call": return readCall(node);
-        case "constant-reference": return { const: text(parts(node)[0]).slice(1), at: at(node) };
+        case "constant-reference": return { const: text(token(node)).slice(1), at: at(node) };
         case "capture-reference": {
-          const capture = text(parts(node)[0]).slice(1);
+          const capture = text(token(node)).slice(1);
           if (closedFor) fail(`${closedFor} is a closed term, and holds no capture`, node);
           if (!argument) fail(`a span is not a value: tags($${capture}) is the tag set of $${capture}`, node);
           return { capture };
@@ -7526,12 +7547,12 @@
      * @returns {{call: string, args: Argument[]}}
      */
     function readCall(node) {
-      const name = text(parts(node)[0]);
+      const name = text(token(node));
       if (!FUNCTIONS.has(name)) fail(`unknown function ${name}`, node);
       if (closedFor && name === "classify") fail(`${closedFor} is a closed term, and classify depends on the features`, node);
       if (closedFor && name !== "split" && name !== "tag") fail(`${closedFor} is a closed term, and ${name} reads a span`, node);
       /** @type {Argument[]} */
-      const args = ofRule(node, "argument").map((argument) => readTerm(parts(argument)[0], true));
+      const args = ofRule(node, "argument").map((argument) => readTerm(only(argument, "union"), true));
       /** @type {(argument: Argument | undefined) => boolean} */
       const isSpan = (argument) => argument !== undefined && ("capture" in argument || ("call" in argument && SPANS.has(argument.call)));
       /** @type {(argument: Argument | undefined) => boolean} */
@@ -7619,7 +7640,7 @@
      * @returns {[string, string]}
      */
     function readRange(node) {
-      const ends = ofRule(node, "character").map((end) => tagOf(parts(end)[0]));
+      const ends = some(node, "character", 2).map((end) => tagOf(token(end)));
       /** @type {[string, string]} */
       const range = [ends[0], ends[1]];
       const problem = rangeProblem(range, unicode);
@@ -7647,11 +7668,11 @@
      * @returns {OperandKind}
      */
     function operandKind(node) {
-      const token = parts(node)[0];
       if (ruleOf(node) === "argument-string") return "string";
-      if (ruleOf(node) === "argument-word") return isCapital(text(token)) ? "class" : "name";
-      if (ruleOf(token) === "range" || ruleOf(token) === "property") return /** @type {OperandKind} */ (ruleOf(token));
-      const written = text(token);
+      if (ruleOf(node) === "argument-word") return isCapital(text(token(node))) ? "class" : "name";
+      const first = symbolPart(node);
+      if (ruleOf(first) === "range" || ruleOf(first) === "property") return /** @type {OperandKind} */ (ruleOf(first));
+      const written = text(first);
       return written.startsWith("~") ? "tag" : written.startsWith("/") ? "phoneme" : "character";
     }
   }
@@ -7704,10 +7725,20 @@
     split: "two strings", tag: "one string", tags: "a span, and optionally a rule", classify: "a string and a classifier's name", matches: "a span and a rule", begins: "a span and a rule",
   };
 
-  // The rules of the notation's syntax grammar that the reader reads; every
-  // other rule is transparent.
+  // What a primary, a condition, a term and a term atom hold: the one rule
+  // among their parts is one of these (engine §9).
+  const PRIMARIES = new Set(["reference", "tag", "character", "phoneme", "range", "property", "tested", "capture", "group", "optional", "empty", "constant-reference"]);
+  const CONDITIONS = new Set(["comparison", "call", "negation", "presence", "implication"]);
+  const TERMS = new Set(["union", "guarded-term"]);
+  const ATOMS = new Set(["string", "tag", "character", "phoneme", "range", "property", "name", "empty-set", "term", "call", "capture-reference", "constant-reference"]);
+  // The items of a document (engine §9).
+  const ITEMS = new Set(["directive", "rule", "constant-definition", "classifier", "implication-declaration"]);
+
+  // The rules of the notation's syntax grammar that the reader knows (engine
+  // §9). Every other rule is a wrapper, and the reader reads its parts in its
+  // place.
   const NAMED = new Set([
-    "directive", "argument-word", "argument-string", "rule", "definer", "body", "alternative", "guard", "alternative-tags",
+    "directive", "argument-word", "argument-string", "rule", "definer", "rule-name", "body", "alternative", "guard", "alternative-tags",
     "conjunction", "sequence", "element", "primary", "reference", "string", "phoneme", "tested", "test", "test-operand", "capture", "group", "optional",
     "choice", "empty", "tags-clause", "conditions-clause", "emits-clause", "opaque-clause", "emit-item", "emit-target", "emit-tags", "emit-before", "emit-after",
     "implication", "any-of", "all-of", "condition", "comparison", "comparator", "negation", "presence",
