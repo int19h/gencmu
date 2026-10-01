@@ -38,6 +38,8 @@ Parsing is synchronous, and you can use a loaded dialect for any number of parse
 
 Some entry points exist for tests and tools. They are outside the common API, and each language spells them its own way. Each library can feed pre-built tokens to the first stage in place of the characters of a text. This is the `tokens` option in JavaScript, `Dialect.parse_tokens(tokens, text, ...)` in Python, `(*Dialect).ParseTokens(text, tokens, options)` in Go, and `Dialect::parse_tokens(tokens, options)` in Rust. A token that the caller supplies has its text as its label (engine §5).
 
+In JavaScript, Python and Go, a caller's token has a source and a span. Its source counts code points of the text, so it must start at 0 or later, end at or after its start, and end within the text. The sources of two tokens can overlap or lie out of order (engine §11). Its span counts tokens of the stage before, not code points, so it has no upper bound. It must start at 0 or later and end at or after its start. A token that breaks either rule is a usage error. The `InputToken` of Rust has no source and no span. The library gives each token its span, and a source in a text of the tokens' texts joined with single spaces. So these always lie within the text.
+
 A caller cannot supply attachments (engine §11). In JavaScript, Python and Go, a caller's token has the type of a token that a stage emits. So it can hold attachments: `before` and `after`, or `Before` and `After` in Go. In these three libraries, a caller's token whose attachments are not empty is a usage error. The library accepts empty lists and drops them. The `InputToken` of Rust has no such fields.
 
 Each library copies the caller's tokens before it parses them, and it leaves the caller's objects unchanged.

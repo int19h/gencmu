@@ -660,6 +660,26 @@ fn relative_paths_keep_their_leading_parents() {
     assert!(dialect.parse("%rule a B", &ParseOptions::default()).unwrap().ok);
 }
 
+/// An input token has no source or span of its own. The library gives each
+/// token its index as its span, and a source in the tokens' texts joined
+/// with single spaces, so both always lie in order within the text
+/// (docs/api.md).
+#[test]
+fn input_tokens_get_sources_within_the_text() {
+    let dialect = gencmu::load_dialect_sources(single("%ambiguity-resolution greedy\n%rule text W W W"), "p.md")
+        .expect("a dialect");
+    let tokens: Vec<gencmu::InputToken> = ["mi", "", "dô"]
+        .iter()
+        .map(|text| gencmu::InputToken { text: text.to_string(), tags: ["W".to_string()].into(), phonemes: None })
+        .collect();
+    let result = dialect.parse_tokens(&tokens, &no_auto()).expect("a parse");
+    assert!(result.ok);
+    let input = &result.stages[0].input;
+    let ranges: Vec<_> = input.iter().map(|token| (token.span.clone(), token.source.clone())).collect();
+    assert_eq!(ranges, [(0..1, 0..2), (1..2, 3..3), (2..3, 4..6)]);
+    assert_eq!(result.tree.expect("a tree").source, 0..6);
+}
+
 /// An entry that adds a membership that holds is an error of the grammar
 /// for the features that turn it on, and its message names the entry's
 /// document, line and column (engine §2).

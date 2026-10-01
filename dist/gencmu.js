@@ -8260,9 +8260,21 @@
       // each token, its tags and its positions, so the caller's objects stay
       // as they are, and the result shares none of them.
       if (options.tokens) {
+        const length = [...text].length;
         options.tokens.forEach((token, index) => {
           if ((token.before && token.before.length > 0) || (token.after && token.after.length > 0)) {
             throw new GencmuError("usage", `token ${index} has attachments, which a caller cannot supply`);
+          }
+          // A source counts code points of the text, and must lie within it.
+          // Sources can overlap or lie out of order (engine §11). A span
+          // counts tokens of the stage before, so only its order is checked
+          // (docs/api.md).
+          const [start, end] = token.source;
+          if (!(0 <= start && start <= end && end <= length)) {
+            throw new GencmuError("usage", `token ${index}: the source ${JSON.stringify(token.source)} is not a range within a text of ${length} code points`);
+          }
+          if (token.span && !(0 <= token.span[0] && token.span[0] <= token.span[1])) {
+            throw new GencmuError("usage", `token ${index}: the span ${JSON.stringify(token.span)} is not a range of tokens: it starts below 0 or ends before it starts`);
           }
         });
         options = { ...options, tokens: options.tokens.map((token) =>
