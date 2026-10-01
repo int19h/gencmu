@@ -147,7 +147,11 @@ A replacement quote is one unit of raw words in the word stage (`../words/lohai.
 
 After `to`, indicators begin the parenthesis, as they begin a quote after `lu`. So `to ui mi klama toi` holds `ui` inside the parenthesis. camxes-exp attaches `ui` to `to`, because its `TO_post` takes indicators.
 
-The dialect cannot yet settle two kinds of text, and it reports a tie for each. A quote or a parenthesis whose terminator is elided can hold a fragment of terms or a whole sentence: `to mi klama` holds `mi` or `mi klama`. camxes-exp reads the sentence. A forethought connective before a number can connect two sumti or make a quantifier: `ge nai abu gi no drata`. camxes-exp reads the quantifier.
+The dialect cannot yet settle one kind of text, and it reports a tie for it. A quote or a parenthesis whose terminator is elided can hold a fragment of terms or a whole sentence. So `to mi klama` holds `mi` or `mi klama`. camxes-exp reads the sentence.
+
+In `ge nai abu gi no drata`, a forethought connective can connect two sumti or make a quantifier. The dialect connects the sumti `abu` and `no drata`, as CLL does. A CLL quantifier is a number or a `vei` group. camxes-exp reads the quantifier `ge nai abu gi no` over `drata`. It does so only because its PEG tries a quantifier before a forethought connection of sumti.
+
+After a text-leading `.i`, an ek needs a paragraph. So `i.e` and `.iji` are `.i` and a fragment, as in CLL. camxes-exp reads `.i` with a connective and no sentence after it. The dialect also rejects `.i e .i e mi klama`, as CLL does, and camxes-exp accepts it.
 
 The dialect also reads `sa` by a different rule. The word stage erases with `sa` left to right, as the Magic Words proposal says ([`../words/stream.md`](../words/stream.md)). A `sa` erases back to the last word of the selma'o of the word after it, or to the start of the text. camxes-exp tries to do the same inside its syntax grammar, with one `_sa` rule for each kind of construct, and it reads some texts differently:
 

@@ -40,7 +40,15 @@ The greedy rule settles these ambiguities. One of them is the connection of two 
 
 ## The text and its paragraphs
 
-The layer changes the text in four ways. A `nai` at the start of a text is an indicator, as the indicator stage of the experimental dialect reads it. So `indicators` takes it, like the indicators of camxes-exp, and a separate `nai` stands only before a run of names. The connective after a text-leading `.i` can be an ek, as in `.i .e do klama`, because camxes-exp's joik takes the words of A. But such an `.i` needs a paragraph right after it. A bare ek is a fragment, so without this, `i.e` and `.iji` tie. One reading is `.i` with the connective `e` and no sentence after it. The other is `.i` and the fragment `e`, as in the answer to a `ji` question. CLL allows only a jek or joik after a text-leading `.i`, so it has only the second reading, and the layer keeps it. In the same way, `.i e .i mi klama` is `.i` and a paragraph that starts with the fragment `e`, as in CLL, and the layer rejects `.i e .i e mi klama`, as CLL does. camxes-exp takes the connective in each of these texts, because its `text_1` tries the connective first and its paragraphs can be empty. A jek causes no tie, because a bare jek is not a fragment. So `.ije` alone is still a text, as in CLL. The rule writes the tense before `bo` in a text-leading `.i` as a `tag`. A `stag` is a `tag` in this dialect (see "Tenses and modals"), so the name changes nothing.
+The layer changes the text in four ways. A `nai` at the start of a text is an indicator, as the indicator stage of the experimental dialect reads it. So `indicators` takes it, like the indicators of camxes-exp. A separate `nai` stands only before a run of names.
+
+The second change is that the connective after a text-leading `.i` can be an ek, as in `.i .e do klama`. camxes-exp allows it because its joik takes the words of A. The rule writes the tense before `bo` in a text-leading `.i` as a `tag`. A `stag` is a `tag` in this dialect (see "Tenses and modals"), so the name changes nothing.
+
+An `.i` with an ek needs a paragraph right after it. Without this rule, `i.e` and `.iji` tie, because a bare ek is a fragment. One reading is `.i` with the connective `e` and no sentence after it. The other is `.i` and the fragment `e`, as in the answer to a `ji` question. CLL allows only a jek or joik after a text-leading `.i`. So CLL has only the second reading, and the layer keeps it.
+
+In `.i e .i mi klama`, the first `.i` precedes a paragraph. That paragraph starts with the fragment `e`, as in CLL. The layer rejects `.i e .i e mi klama`, as CLL does. camxes-exp reads the connective in each of these texts. Its `text_1` tries the connective first, and its paragraphs can be empty.
+
+A jek causes no tie, because a bare jek is not a fragment. So `.ije` alone is still a text, as in CLL.
 
 The third change is about runs of `ni'o`. First, `.i ni'o` can follow a `ni'o`, as usage writes a new topic inside a reply. At the start of a text, the CLL grammar's `text-1` already reads `.i ni'o`, as the repair of the printed grammar that it lists says. So `text-1` takes the form after a first run of `ni'o`, and `paragraphs` takes it after a later one. Second, a run of `ni'o` can end the text (`mi klama ni'o`), as in camxes-exp.
 
@@ -538,7 +546,8 @@ camxes-exp replaces CLL's mekso with its own, and the layer follows it (camxes-e
 - `bo` after an operator, with an optional tense or modal, groups two operands tighter (`li pa su'i bo re`). There is no `bi'e`, and a forethought operator needs `pe'o`.
 - An operator can be a connective, a joik, jek or ek. A joik or jek operator has one slot of free modifiers, the one at the end of `joik-jek`. The PEG of camxes-exp never reads its second `free*` there.
 - A quantifier is a whole mekso, `pa su'i re broda`. It cannot begin with a lerfu word, `la'e` or `na'e`, because camxes-exp reads a sumti there (its `!sumti_6`). camxes-exp also refuses a quantifier where a selbri begins (`!selbri`), and so does the layer. So in `mi piso'umei jimpe`, `pi so'u mei jimpe` is the selbri, and not a quantifier of a description.
-- A quantifier also cannot begin with a forethought connection whose first half begins with one of those words (`gek-barrier`). A sumti starts there too. So in `ge nai abu gi no drata`, `ge nai ... gi` joins the two sumti `abu` and `no drata`. It does not make the quantifier `ge nai abu gi no` over `drata`. CLL has only the first reading, because a CLL quantifier is a number or a `vei` group. camxes-exp takes the second reading. Its PEG tries `sumti_5`, a quantifier and its sumti, before `gek sumti gik sumti_4`, and the quantifier matches first. Nothing shows that camxes-exp intends this reading, and the layer follows CLL. A forethought connection of numbers is still a quantifier, as in `lo ge pa gi re mi broda`.
+- A quantifier also cannot begin with a forethought connection whose first half begins with one of those words. A sumti starts there too. The rule `gek-barrier` finds such a start, also inside a nested connection. So in `ge nai abu gi no drata`, `ge nai ... gi` joins the two sumti `abu` and `no drata`. The quantifier `ge nai abu gi no` over `drata` is not a reading. In the same way, `ge ge abu gi by gi no drata` joins two sumti, and the first one connects `abu` and `by`.
+- CLL has only the sumti reading of these texts, because a CLL quantifier is a number or a `vei` group. camxes-exp takes the quantifier reading. Its PEG tries `sumti_5`, a quantifier and its sumti, before `gek sumti gik sumti_4`. So the quantifier matches first. Nothing shows that camxes-exp intends this reading, and the layer follows CLL. A forethought connection of numbers is still a quantifier, as in `lo ge pa gi re mi broda`.
 - `me` takes a mekso as well as a sumti, a whole mekso takes `moi`, and `nu'a` takes a whole operator.
 - After `me`, a lerfu string is a sumti and not a mekso, because camxes-exp tries the sumti first (`me my`). The layer settles that tie as camxes-exp does. Before `moi`, the layer differs: in `me my moi`, camxes-exp's `sumti_6` does not read `my` where a selbri begins (`!selbri`), so `my` is a mekso there. The layer reads a sumti. It does not copy the rejections of camxes-exp's PEG, which keeps a sumti once one matches. For example, `me my su'i pa` is the mekso `my su'i pa`, although camxes-exp rejects the text.
 
@@ -557,7 +566,7 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   BY | LAU | TEI | LAhE | NAhE
 
 %rule gek-barrier
-  gek quantifier-barrier
+  gek (quantifier-barrier | gek-barrier)
 
 %redefine-rule mex
   mex-1 [operator mex-1] ...

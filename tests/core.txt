@@ -957,6 +957,8 @@ adhoc.camxes-exp.word-forms.mz-in-lujvo.zantufa
 adhoc.camxes-exp.ties.gek-sumti-or-quantifier
 adhoc.camxes-exp.quantifier.gek-of-lerfu-is-sumti
 adhoc.camxes-exp.quantifier.gek-of-lahe-is-sumti
+adhoc.camxes-exp.quantifier.nested-gek-of-lerfu-is-sumti
+adhoc.camxes-exp.quantifier.nested-gek-of-numbers
 adhoc.camxes-exp.quantifier.gek-of-numbers-in-description
 adhoc.camxes-exp.quantifier.gek-of-numbers
 adhoc.camxes-exp.quantifier.vei-gek-of-numbers
