@@ -7640,7 +7640,7 @@
      * @returns {[string, string]}
      */
     function readRange(node) {
-      const ends = some(node, "character", 2).map((end) => tagOf(token(end)));
+      const ends = some(node, "character", 2).slice(0, 2).map((end) => tagOf(token(end)));
       /** @type {[string, string]} */
       const range = [ends[0], ends[1]];
       const problem = rangeProblem(range, unicode);

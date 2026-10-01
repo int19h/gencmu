@@ -12,9 +12,9 @@ fn read(path: &[&str]) -> String {
     std::fs::read_to_string(&path).unwrap_or_else(|error| panic!("{}: {error}", path.display()))
 }
 
-/// Loads the document with a bootstrap, and parses each input: its
-/// brackets, or the kind of its error. A load that fails gives the kind of
-/// its error.
+/// Loads the document of `shapes` with a bootstrap, and parses each of its
+/// inputs: its brackets, or the kind of its error. A load that fails gives
+/// the kind of its error.
 fn outcome(shapes: &Value, bootstrap: String) -> Value {
     let document = shapes.get("document").and_then(Value::str).expect("a document").to_string();
     let sources = [
@@ -90,5 +90,14 @@ fn notation_shapes() {
     }
     for (name, _) in loads.object() {
         assert!(names.contains(name), "{name} is no rule of the notation");
+    }
+    // A part that the reader does not read is ignored. Each item has its
+    // own document and inputs.
+    for item in shapes.get("extraParts").expect("extraParts").array() {
+        let text = |key: &str| item.get(key).and_then(Value::str).unwrap_or_else(|| panic!("{key}")).to_string();
+        let (find, replace) = (text("find"), text("replace"));
+        assert_eq!(bootstrap[syntax_at..].matches(&find).count(), 1, "{}", text("description"));
+        let changed = with_syntax(&|syntax: String| syntax.replacen(&find, &replace, 1));
+        assert_eq!(&outcome(item, changed), item.get("expect").expect("expect"), "{}", text("description"));
     }
 }

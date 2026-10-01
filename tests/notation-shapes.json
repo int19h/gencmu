@@ -121,5 +121,49 @@
       "(q s)",
       "rejected"
     ]
-  }
+  },
+  "extraParts": [
+    {
+      "description": "A range with a third character reads only its first two (engine §9).",
+      "find": "{\"ref\":\"character\"},{\"terminal\":\"double-dot\"},{\"ref\":\"character\"}]",
+      "replace": "{\"ref\":\"character\"},{\"terminal\":\"double-dot\"},{\"ref\":\"character\"},{\"ref\":\"character\"}]",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a'..'z' '\\u{110000}'\n```\n",
+      "inputs": [
+        "a",
+        "z",
+        "1"
+      ],
+      "expect": [
+        "a",
+        "z",
+        "rejected"
+      ]
+    },
+    {
+      "description": "A comparison with a third union reads only its first two (engine §9).",
+      "find": "{\"ref\":\"union\"},{\"ref\":\"comparator\"},{\"ref\":\"union\"}]",
+      "replace": "{\"ref\":\"union\"},{\"ref\":\"comparator\"},{\"ref\":\"union\"},{\"ref\":\"union\"}]",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $x('a'..'z')\n  %conditions text($x) = \"a\" \"\\u{110000}\"\n```\n",
+      "inputs": [
+        "a",
+        "b"
+      ],
+      "expect": [
+        "a",
+        "rejected"
+      ]
+    },
+    {
+      "description": "An implication with a third union reads only its first two (engine §9).",
+      "find": "{\"terminal\":\"keyword-implies\"},{\"ref\":\"union\"},{\"terminal\":\"'⟹'\"},{\"ref\":\"union\"}]",
+      "replace": "{\"terminal\":\"keyword-implies\"},{\"ref\":\"union\"},{\"terminal\":\"'⟹'\"},{\"ref\":\"union\"},{\"ref\":\"union\"}]",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%implies ~A ⟹ ~B \"\\u{110000}\"\n%rule text 'a'\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": [
+        "a"
+      ]
+    }
+  ]
 }

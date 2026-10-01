@@ -28,17 +28,19 @@ NAMES = [
 ]
 
 
-def outcome(bootstrap: str) -> Any:
-    """Loads the document with a bootstrap, and parses each input: its
+def outcome(bootstrap: str, document: str | None = None, inputs: list[str] | None = None) -> Any:
+    """Loads a document with a bootstrap, and parses each input: its
     brackets, or the kind of its error. A load that fails gives the kind of
     its error. Any other exception escapes, and fails the test."""
-    sources = {"p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n', "g.md": SHAPES["document"], "notation/bootstrap.json": bootstrap}
+    document = SHAPES["document"] if document is None else document
+    inputs = SHAPES["inputs"] if inputs is None else inputs
+    sources = {"p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n', "g.md": document, "notation/bootstrap.json": bootstrap}
     try:
         dialect = gencmu.load_dialect_sources(sources, "p.md", use_cache=False)
     except gencmu.GencmuError as error:
         return error.kind
     results = []
-    for text in SHAPES["inputs"]:
+    for text in inputs:
         result = dialect.parse(text)
         if result.ok:
             results.append(gencmu.to_brackets(result))
@@ -80,3 +82,10 @@ class NotationShapes(unittest.TestCase):
                 self.assertEqual(outcome(with_syntax(rename)), SHAPES["loads"].get(name, "grammar"))
         for name in SHAPES["loads"]:
             self.assertIn(name, NAMES)
+
+    def test_a_part_that_the_reader_does_not_read_is_ignored(self) -> None:
+        for item in SHAPES["extraParts"]:
+            with self.subTest(item["description"]):
+                self.assertEqual(BOOTSTRAP[SYNTAX_AT:].count(item["find"]), 1)
+                changed = with_syntax(lambda syntax, item=item: syntax.replace(item["find"], item["replace"]))
+                self.assertEqual(outcome(changed, item["document"], item["inputs"]), item["expect"])

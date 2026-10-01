@@ -20,10 +20,15 @@ func TestNotationShapes(t *testing.T) {
 		t.Fatal(err)
 	}
 	var shapes struct {
-		Document string
-		Inputs   []string
-		Control  any
-		Loads    map[string]any
+		Document   string
+		Inputs     []string
+		Control    any
+		Loads      map[string]any
+		ExtraParts []struct {
+			Description, Find, Replace, Document string
+			Inputs                               []string
+			Expect                               any
+		}
 	}
 	if err := json.Unmarshal(raw, &shapes); err != nil {
 		t.Fatal(err)
@@ -58,11 +63,11 @@ func TestNotationShapes(t *testing.T) {
 			}
 		}
 	}
-	// outcome loads the document with a bootstrap, and parses each input:
+	// outcomeOf loads a document with a bootstrap, and parses each input:
 	// its brackets, or the kind of its error. A load that fails gives the
 	// kind of its error, which must be an *Error.
-	outcome := func(boot string) any {
-		d, err := LoadDialectSources(map[string]string{"p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n", "g.md": shapes.Document, "notation/bootstrap.json": boot}, "p.md")
+	outcomeOf := func(boot, document string, inputs []string) any {
+		d, err := LoadDialectSources(map[string]string{"p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n", "g.md": document, "notation/bootstrap.json": boot}, "p.md")
 		if err != nil {
 			var e *Error
 			if !errors.As(err, &e) {
@@ -71,7 +76,7 @@ func TestNotationShapes(t *testing.T) {
 			return e.Kind
 		}
 		var results []any
-		for _, input := range shapes.Inputs {
+		for _, input := range inputs {
 			res, err := d.Parse(input, ParseOptions{})
 			if err != nil {
 				t.Fatalf("%q: %v", input, err)
@@ -84,6 +89,7 @@ func TestNotationShapes(t *testing.T) {
 		}
 		return results
 	}
+	outcome := func(boot string) any { return outcomeOf(boot, shapes.Document, shapes.Inputs) }
 	withSyntax := func(change func(string) string) string {
 		return bootstrap[:syntaxAt] + change(bootstrap[syntaxAt:])
 	}
@@ -121,6 +127,16 @@ func TestNotationShapes(t *testing.T) {
 	for name := range shapes.Loads {
 		if !known[name] {
 			t.Errorf("%s is no rule of the notation", name)
+		}
+	}
+	// A part that the reader does not read is ignored.
+	for _, item := range shapes.ExtraParts {
+		if strings.Count(bootstrap[syntaxAt:], item.Find) != 1 {
+			t.Fatalf("%s: the text to replace does not stand once", item.Description)
+		}
+		changed := withSyntax(func(syntax string) string { return strings.Replace(syntax, item.Find, item.Replace, 1) })
+		if got := outcomeOf(changed, item.Document, item.Inputs); !reflect.DeepEqual(got, item.Expect) {
+			t.Errorf("%s: %v, not %v", item.Description, got, item.Expect)
 		}
 	}
 }
