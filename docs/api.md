@@ -16,7 +16,9 @@ A `unicode.txt` in the map replaces the bundled table entirely, with no fallback
 
 The path of an `%include` resolves against the document that holds it, with `.` and `..` normalized (engine §13). A DOM (document object model) is the parsed form of a grammar document, as `docs/output.md` describes. `compiled.json` holds precompiled DOMs. A library reads a document through the notation (the grammar of grammar documents) only when `compiled.json` has no entry for it that matches. An entry matches when it has the same text hash, the same bootstrap hash and the same DOM format.
 
-A dialect that cannot be loaded is an error. A dialect cannot be loaded when a document is missing, does not parse as the notation, or does not stitch (combine) into a valid grammar. It also cannot be loaded when a document on disk is not valid UTF-8 (engine §1). The error is an exception in JavaScript and Python, and a returned error in Go and Rust. It carries a message with the document, line and column where known.
+A dialect that cannot be loaded is an error. A dialect cannot be loaded when a document is missing, does not parse as the notation, or does not stitch (combine) into a valid grammar. It also cannot be loaded when a document on disk is not valid UTF-8 (engine §1). A tie while the notation reads a document is a load error too (engine §8).
+
+The error is an exception in JavaScript and Python, and a returned error in Go and Rust. It carries a message with the document, line and column where known. A tie has no line or column.
 
 ### Parsing
 
@@ -60,7 +62,7 @@ A stage has its name, its input and output tokens, its verdict, and for a tie it
 
 A node has its kind (`rule`, `token` or `elided`), its rule or terminal, its span and source range, its tags and its children. A token node also has the index of the token that it read. Tags are a set of tags, each a string in its canonical spelling (engine §1). Source positions count Unicode code points, whatever the string indexing of the language is. Spans and token indices count tokens of the relevant stage.
 
-A result shares no value that can change with the dialect, or with the tokens of the caller. This holds for every tag set of a token or a node, in the chosen tree, the tied tree and the readings of an error. So a change to a result changes no later parse. A later change to a token of the caller does not change the result.
+A result shares no value that can change with the dialect, or with the tokens of the caller. This holds for every tag set of a token or a node, in the chosen tree and the readings of an error. So a change to a result changes no later parse. A later change to a token of the caller does not change the result.
 
 ### Output
 
