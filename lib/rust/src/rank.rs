@@ -1348,6 +1348,41 @@ mod tests {
         vector
     }
 
+    /// Runs of 2^32, 2^53, 2^60 and 2^100 elided terminators compare
+    /// exactly with runs built apart and with runs that differ by one, past
+    /// the widths of 32-bit and 64-bit integers and of a double.
+    #[test]
+    fn runs_that_differ_by_one_compare_exactly() {
+        let mut vectors = Vectors::new();
+        for k in [32, 53, 60, 100] {
+            let power = run(&mut vectors, 0, k);
+            let apart = run(&mut vectors, 0, k);
+            assert_ne!(power, apart, "built apart");
+            assert_eq!(vectors.compare(power, apart), Ordering::Equal, "2^{k}");
+            let one = vectors.one(0);
+            let above = vectors.join(power, one);
+            // 2^k - 1, as the sum of every smaller power of two.
+            let mut below = super::NO_ELISIONS;
+            for i in 0..k {
+                let part = run(&mut vectors, 0, i);
+                below = vectors.join(below, part);
+            }
+            assert_eq!(vectors.compare(power, above), Ordering::Less, "2^{k} + 1");
+            assert_eq!(vectors.compare(above, power), Ordering::Greater, "2^{k} + 1");
+            assert_eq!(vectors.compare(below, power), Ordering::Less, "2^{k} - 1");
+            assert_eq!(vectors.compare(power, below), Ordering::Greater, "2^{k} - 1");
+            let restored = vectors.join(below, one);
+            assert_eq!(vectors.compare(restored, power), Ordering::Equal, "2^{k} - 1 + 1");
+            // The same counts at a later boundary, after an equal prefix.
+            let first = vectors.one(0);
+            let at_three = run(&mut vectors, 3, k);
+            let late = vectors.join(first, at_three);
+            let at_three_more = vectors.join(at_three, vectors.leaves[&3]);
+            let later = vectors.join(first, at_three_more);
+            assert_eq!(vectors.compare(late, later), Ordering::Less, "2^{k} at 3");
+        }
+    }
+
     /// The comparison of elision vectors stays exact where a count at one
     /// boundary passes any fixed width, and where one run is split across
     /// joins.
