@@ -498,7 +498,7 @@ The first stage reads the text's characters. Each is a token with one tag, its c
 
 A grammar admits every parse that its rules allow. Where a text has more than one parse, the stage's `%ambiguity-resolution` names the rule that ranks them: `greedy`, `lazy` or `late-elision`. A parse is best when no other parse beats it under that rule. If exactly one parse is best, the stage takes it. If two or more are best, they are tied, and the text is ambiguous for this grammar.
 
-A tie is an error of kind `ambiguous`. The stage hands nothing on, and no later stage runs. The error shows two of the tied parses, and the first point at which they differ is its witness. The order of a rule's alternatives never decides which parse a stage takes. gencmu uses that order only to choose which two tied parses the error shows.
+A tie is an error of kind `ambiguous`. The stage hands nothing on, and no later stage runs. The error shows two of the tied parses, and the first point at which they differ is its witness. The order of a rule's alternatives sets the canonical order of the engine. That order orders the ambiguity diagnostics and selects the forbidden terminator that a `maximal` rejection reports. It never selects an accepted reading.
 
 `greedy` and `lazy` treat each parse as the sequence of steps that a bottom-up reader takes. A step reads the next token or closes a constituent. gencmu compares the parses at the first step where two of them differ:
 
@@ -506,7 +506,7 @@ A tie is an error of kind `ambiguous`. The stage hands nothing on, and no later 
 - If one reads and the other closes, the rule decides. `greedy` takes the one that reads, so a constituent ends as late as the grammar allows. `lazy` takes the one that closes, so a constituent ends as early as the grammar allows.
 - If both close different constituents, they are tied.
 
-Constituents with a single symbol, and the helper constituents that the notation creates for `[ ]` and `...`, are transparent to the comparison. So two parses that differ only in such a relabeling do not differ yet.
+Constituents with a single symbol, and the helper constituents that the notation creates for `[ ]` and `...`, are transparent to the comparison. So two parses that differ only in such a relabeling do not differ yet. Transparency does not merge parses, though. Two parses that differ only there are still two parses, and they are tied. For example, `[[X]]` matches the empty text in two ways, and so does `[A] & [B]`.
 
 The preference is like greedy and lazy quantifiers in a backtracking regular-expression engine. It is unlike the greed of a PEG parser. The preference orders the parses that the grammar already admits, and never commits early. So it never rejects a text by itself, but a tie that it leaves is an error. The earliest difference decides. And it applies to every constituent of the stage, not to one quantifier.
 
@@ -514,9 +514,11 @@ The preference is like greedy and lazy quantifiers in a backtracking regular-exp
 
 Two parses with the same counts at every position are tied, whatever else differs. So a stage whose parses elide nothing has a tie wherever its text has more than one parse. A token read under two tags does not decide anything, and neither do two different closes. The name of an elided terminator, and the constituent that it ends, do not count either.
 
-For example, the experimental grammar can read `to mi klama` in two ways. One ends the parenthesis `to` after `mi`, with `vau` and `toi` elided there, and `klama` is the main predicate. The other puts `mi klama` inside the parenthesis and elides terminators only at the end. `late-elision` takes the second, because the first leaves out a terminator earlier. `greedy` takes the first.
+For example, the experimental grammar can read `to mi klama` in two ways. One ends the parenthesis `to` after `mi`, with `vau` and `toi` elided there, and `klama` is the main predicate. The other puts `mi klama` inside the parenthesis and elides terminators only at the end. `late-elision` takes the second, because the first leaves out a terminator earlier. `greedy` leaves the two readings tied, so the text is an error under `greedy`. Before ties became errors, the canonical order took the first.
 
-The syntax grammars are greedy: an elided terminator sits as late as the grammar allows. The forms and words stages are lazy. The word forms divide a run in one way only, so in the forms stage the choice never decides where a word ends. A magic word, such as `si`, acts on other words. In the words stage, the choice makes a magic word act on what exists when it is read. So `mi si si` erases `mi` and then nothing.
+Today the bundled syntax grammars declare `greedy`, so an elided terminator sits as late as the grammar allows. That is the baseline. The approved policy moves the syntax of all four dialects to `late-elision`, with grammar rules that settle the choices that it leaves tied.
+
+The forms and words stages are lazy. The word forms divide a run in one way only, so in the forms stage the choice never decides where a word ends. A magic word, such as `si`, acts on other words. In the words stage, the choice makes a magic word act on what exists when it is read. So `mi si si` erases `mi` and then nothing.
 
 ## Elided terminators
 
@@ -542,10 +544,10 @@ CLL's own rule is narrower: a terminator can be elided only if no ambiguity resu
 
 With `elision-only`, after the stage chooses one of several parses, it writes the elided terminators of that parse back into the input. A terminator with an `=` test sounds like the test's string there. Then the stage parses the input again, with no terminator elidable. So an elidable terminator has no test or an `=` test. Any other test on it is an error of the grammar, which the loader reports.
 
-If that parse has exactly one derivation, the check passes. If it has none, the check passes too, because no two readings exist to show. With two or more, the ambiguity is not about terminators. The parse is then an error that shows two readings. A tie is an error before the check runs, so the check sees only a text that the rule settled. For the CLL grammar, `elision-only` rejects only the few texts that the printed grammar leaves ambiguous in more than a terminator, such as `mi broda joi ke brode ke'e`.
+If that parse has exactly one derivation, the check passes. If it has none, the check passes too, because no two readings exist to show. With two or more, the ambiguity is not about terminators, and the parse is an error that shows two readings. A tie is an error before the check runs, so the check sees only a text that the rule settled. Today, for the CLL grammar, `elision-only` rejects only a few texts. The printed grammar leaves them ambiguous in more than a terminator, such as `mi broda joi ke brode ke'e`.
 
-The grammars that extend CLL are really ambiguous in places. A sumti is an argument of the selbri. A term is a wider kind of argument that includes the sumti. In the experimental grammar, the `mi .e do` of `mi .e do klama` is two sumti joined by `.e`, or two terms joined by it.
+The grammars that extend CLL are really ambiguous in places. A sumti is an argument of the selbri. A term is a wider kind of argument that includes the sumti. Today the experimental grammar reads the `mi .e do` of `mi .e do klama` in two ways. It is two sumti joined by `.e`, or two terms joined by it.
 
 `late-elision` does not make `elision-only` redundant. Written-back terminators can let another alternative match, or change what a condition or a test sees. So the check can find two readings where the ranking found one best parse.
 
-The grammars that extend CLL declare only `greedy`. A caller can switch `elision-only` on for a parse, to find ambiguities that are not about terminators in the text that it supplies. A caller can also switch it off, to loosen a grammar that declares it.
+Today the grammars that extend CLL declare only `greedy`. A caller can switch `elision-only` on for a parse, to find ambiguities that are not about terminators in the text that it supplies. A caller can also switch it off, to loosen a grammar that declares it.
