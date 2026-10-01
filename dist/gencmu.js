@@ -2306,7 +2306,7 @@
    */
   function isTestable(expr, unicode) {
     if (!isDomObject(expr) || Object.keys(expr).length !== 1) return false;
-    return (typeof expr.ref === "string" && expr.ref !== "#") || isTag(expr.terminal, unicode) || isCharacterClass(expr, unicode);
+    return (typeof expr.ref === "string" && DOM_NAME.test(expr.ref)) || isTag(expr.terminal, unicode) || isCharacterClass(expr, unicode);
   }
 
   /**
@@ -2374,17 +2374,6 @@
   }
 
   /**
-   * Whether an expression node has a test but is not exactly a tested
-   * symbol: its comparator, its value and its symbol, and no other key that
-   * lowering could read in its place.
-   * @param {Record<string, unknown>} value
-   * @returns {boolean}
-   */
-  function isMisshapenTest(value) {
-    return "test" in value && (Object.keys(value).length !== 3 || !("expr" in value) || !("value" in value));
-  }
-
-  /**
    * @param {unknown} value
    * @returns {value is Record<string, unknown>}
    */
@@ -2413,18 +2402,25 @@
 
 
   /**
-   * The forms of a term, each as its members (docs/output.md). The first
-   * member names the form.
+   * The forms of an expression, a term and a condition, each as its members
+   * (docs/output.md). The first member names the form.
    */
+  const EXPRESSION_FORMS = [["seq"], ["choice"], ["and"], ["optional"], ["repeat", "min"], ["ref"], ["terminal"], ["capture", "expr"],
+    ["range"], ["property"], ["test", "value", "expr"], ["empty"]];
   const TERM_FORMS = [["union"], ["intersection"], ["difference"], ["if", "then"], ["call", "args"], ["string"], ["tag"], ["range"], ["emptySet"], ["capture"], ["const", "at"]];
+  const CONDITION_FORMS = [["op", "left", "right"], ["matches", "rule"], ["begins", "rule"], ["initial"], ["not"], ["any"], ["all"], ["captured"], ["if", "then"]];
 
   /**
-   * Whether a term node has exactly the members of one form, and no other.
+   * Whether a node has exactly the members of one of its forms, and no
+   * other. So a node that joins two forms, such as {"tag":…,"string":…}, is
+   * refused before it is read, and no library reads it one way where
+   * another reads it another way.
    * @param {Record<string, unknown>} value
+   * @param {string[][]} forms
    * @returns {boolean}
    */
-  function isTermShape(value) {
-    const form = TERM_FORMS.find((members) => members[0] in value);
+  function hasOneForm(value, forms) {
+    const form = forms.find((members) => members[0] in value);
     return form !== undefined && Object.keys(value).length === form.length && form.every((member) => member in value);
   }
 
@@ -2506,10 +2502,8 @@
         // items of a top-level sequence are below one, the sequence.
         const expr = alternative.expr;
         // The expression itself is checked before its sequence is split, so
-        // that a member beside `seq` is never left unread: a test, or a
-        // range or a property, which has no member but its own.
-        if (isDomObject(expr) && isMisshapenTest(expr)) return "a malformed expression";
-        if (isDomObject(expr) && ("range" in expr || "property" in expr) && !isCharacterClass(expr, unicode)) return "a malformed expression";
+        // that a member beside `seq` is never left unread.
+        if (isDomObject(expr) && !hasOneForm(expr, EXPRESSION_FORMS)) return "a malformed expression";
         const isSeq = isDomObject(expr) && Array.isArray(expr.seq);
         const top = isSeq ? /** @type {unknown[]} */ (expr.seq) : [expr];
         for (const item of top) {
@@ -2536,11 +2530,12 @@
       const push = (childKind, child) => pending.push({ kind: childKind, value: child, depth: next });
       /** @type {(list: unknown, least: number, most?: number) => boolean} */
       const list = (items, least, most = Infinity) => Array.isArray(items) && items.length >= least && items.length <= most;
-      if ((kind === "expr" || kind === "top-capture") && isMisshapenTest(value)) return "a malformed expression";
+      // An expression has exactly the members of one form (docs/output.md).
+      if ((kind === "expr" || kind === "top-capture") && !hasOneForm(value, EXPRESSION_FORMS)) return "a malformed expression";
       if (kind === "expr") {
-        // A range or a property has no member but its own.
-        if (("range" in value || "property" in value) && !isCharacterClass(value, unicode)) return "a malformed expression";
-        if ("choice" in value || "seq" in value) {
+        if ("range" in value || "property" in value) {
+          if (!isCharacterClass(value, unicode)) return "a malformed expression";
+        } else if ("choice" in value || "seq" in value) {
           const items = "choice" in value ? value.choice : value.seq;
           if (!list(items, 2)) return "a malformed expression";
           for (const item of /** @type {unknown[]} */ (items)) push("expr", item);
@@ -2562,17 +2557,19 @@
           push("expr", value.expr);
           push("term", value.value);
           tests.push(value);
-        } else if (!(typeof value.ref === "string" || isTag(value.terminal, unicode) || value.empty === true || isCharacterClass(value, unicode))) {
+        } else if (!((typeof value.ref === "string" && (DOM_NAME.test(value.ref) || value.ref === "#")) || isTag(value.terminal, unicode) || value.empty === true)) {
+          // A reference is a name or `#` (engine §9).
           return "a malformed expression";
         }
       } else if (kind === "top-capture") {
+        // A capture wraps one symbol: a reference, a terminal, a range, a
+        // property or a tested one of these (engine §9).
         const inner = value.expr;
         if (typeof value.capture !== "string" || !isDomObject(inner) ||
-            !(typeof inner.ref === "string" || isTag(inner.terminal, unicode) || "test" in inner || isCharacterClass(inner, unicode)) ||
-            (("range" in inner || "property" in inner) && !isCharacterClass(inner, unicode))) return "a malformed capture";
-        // A capture is a compound node; a tested symbol below it is checked
+            !["ref", "terminal", "range", "property", "test"].some((member) => member in inner)) return "a malformed capture";
+        // A capture is a compound node, and its symbol below it is checked
         // as any expression is.
-        if ("test" in inner) push("expr", inner);
+        push("expr", inner);
       } else if (kind === "constituent-tags") {
         // A constituent's tags cannot be made of its own (engine §9).
         if (readsOwnTags(value)) return "a constituent's tags made of its own";
@@ -2610,6 +2607,8 @@
           pending.push({ kind: "term", value: item.tags, depth });
         }
       } else if (kind === "condition") {
+        // A condition has exactly the members of one form (docs/output.md).
+        if (!hasOneForm(value, CONDITION_FORMS)) return "a malformed condition";
         if ("any" in value || "all" in value) {
           const items = value.any ?? value.all;
           if (!list(items, 2)) return "a malformed condition";
@@ -2639,7 +2638,7 @@
         // node that joins two forms, such as {"tag":…,"string":…}, is refused
         // before it is read, and no library reads it one way where another
         // reads it another way.
-        if (!isTermShape(value)) return "a malformed term";
+        if (!hasOneForm(value, TERM_FORMS)) return "a malformed term";
         if ("if" in value) {
           if (Object.keys(value).length !== 2 || !("then" in value)) return "a malformed term";
           push("condition", value.if);
