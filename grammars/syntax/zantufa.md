@@ -27,6 +27,15 @@ The word stage reads the magic words, the words such as `si` that act on other w
 
 The stage is greedy: at the first difference between two parses, it takes the one that reads the next word. A PEG's repetition is greedy too, and the two usually agree. Where two alternatives of an ordered choice can read the same words, the later one has a condition that removes that reading. The terminators that the reference writes with `_elidible` are elidable here.
 
+The grammar also states the attachment conventions of the reference. These are the points where a greedy repetition or an ordered choice of the reference decides how words attach. A condition states each of them, so that the grammar gives the reading, and the ranking does not. These are the conventions:
+
+- Free modifiers nest (see "Free modifiers").
+- A connective joins sumti before it joins terms (see "Sumti").
+- A run of operators is one unit (see "Mekso").
+- A gek before bridi-tails begins a forethought bridi-tail (see "Sentences and bridi-tails").
+
+Each of these conditions is a restriction of the grammar, not a preference among whole parses. It removes a reading where the words from a given point begin a given rule. It does not test whether the remaining reading gives a parse of the whole text.
+
 ```jbogenbau
 %ambiguity-resolution greedy
 
@@ -168,13 +177,17 @@ The lookaheads of the reference's fragments are conditions here. A `gek` or `joi
 
 A sentence is terms, an optional `cu` and a bridi-tail, or a forethought connection of sentences. Terms stand only before the first bridi-tail, because Zantufa has no JACU (a proposal for a simpler system of connectives). Bridi-tails connect at three levels, as in camxes.
 
+A gek before bridi-tails begins a forethought bridi-tail, not a forethought connection of sentences. So in `mi ge klama gi cadzu`, the gek is part of the bridi-tail after `mi`. The condition on the second alternative of `sentence` states this. It is the ordered choice of the reference, which tries the bridi-tail first. This is deliberate. Dated comments of the reference record that its author ordered these alternatives so, and give the intended trees.
+
 The outer level takes a connective only where the inner one cannot. That is where `ke` follows it, with or without a tense or modal first, or where a tense or modal and `cu` follow it. The reference's lookaheads leave these forms to the outer level. After `ke`, the words are a group of bridi-tails, unless a selbri ends with `ke'e` there, and then they are a tanru.
 
 ```jbogenbau
 %rule sentence
   (* sentence <- terms? CU_elidible bridi_tail / terms? gek sentence (gik sentence)+ GIhI_elidible tail_terms *)
   | [terms] [CU #] bridi-tail
-  | [terms] gek sentence (gik sentence) ... [GIhI #] tail-terms
+  | [terms] $g(gek) sentence (gik sentence) ... [GIhI #] tail-terms
+%conditions
+  ¬begins(from($g), bridi-tail)
 
 %rule bridi-tail
   (* bridi_tail <- bridi_tail_1 (joik_gihek tag? CU_elidible bridi_tail_1)* *)
@@ -331,6 +344,10 @@ In a term, no forethought bridi-tail, `bo` or selbri directly follows a tense or
 
 A sumti can be a `ra'oi`, `zo`, `zoi` or `lo'u` quote, a lerfu string, a `lu` quote, a `la'e` form, or a pro-sumti. It can also be a `lo'oi` abstraction over a statement, a description, a `li` mekso, or `na'e` with a sumti. A lerfu string is a sumti only where no mekso operator follows it, as the reference's two lookaheads say. The inner sumti of a description does not begin with a quantifier.
 
+A connective after a sumti joins that sumti to the next one, not the term to the next term. So `ba mi .e do klama` has one term, the tense `ba` with the sumti `mi .e do`. The term rule sees a connective only where the sumti cannot take it. The reference reads so because a term reads its sumti first, and the repetitions of `sumti_1` and `sumti_2` read as far as they can. No comment of the reference discusses this choice. But it is also the reading of CLL, which has no connection of terms, and of camxes.
+
+The conditions on `sumti-1` and `sumti-2` state this. Each says that no further link follows the whole run of sumti. The run is a rule of its own, because a condition on a rule with a repetition applies at each step of the repetition. On `sumti-1` itself, the condition applies to `mi` alone in `mi ce do`, and so it rejects the text. The rules `sumti-1-link` and `sumti-2-link` are only for the conditions, and the trees do not contain them.
+
 ```jbogenbau
 %rule sumti
   (* sumti <- sumti_1 (VUhO_clause relative_clauses)? *)
@@ -338,11 +355,27 @@ A sumti can be a `ra'oi`, `zo`, `zoi` or `lo'u` quote, a lerfu string, a `lu` qu
 
 %rule sumti-1
   (* sumti_1 <- sumti_2 (joik_ek sumti_2)* *)
+  $r(sumti-1-run)
+%conditions
+  ¬begins(after($r), sumti-1-link)
+
+%rule sumti-1-run
   sumti-2 [joik-ek sumti-2] ...
+
+%rule sumti-1-link
+  joik-ek sumti-2
 
 %rule sumti-2
   (* sumti_2 <- sumti_3 (joik_ek? tag? BO_clause sumti_3)* *)
+  $r(sumti-2-run)
+%conditions
+  ¬begins(after($r), sumti-2-link)
+
+%rule sumti-2-run
   sumti-3 [[joik-ek] [tag] BO # sumti-3] ...
+
+%rule sumti-2-link
+  [joik-ek] [tag] BO # sumti-3
 
 %rule sumti-3
   (* sumti_3 <- (KE_clause sumti KEhE_elidible / sumti_4 / gek sumti (gik sumti)+ GIhI_elidible) relative_clauses? *)
@@ -532,7 +565,9 @@ The conditions give these alternatives the reference's order of preference. So `
 
 ## Mekso
 
-Zantufa's mekso is flat: operands and runs of operators alternate, `bo` and `ke` group them, and `bi'e` raises the precedence of the operators after it. Reverse Polish takes `fu'a`, and forethought takes `pe'o` or a bare operator. The grammar reads a run of operators whole. A quantifier is a mekso that begins no sumti and no selbri, as the reference's lookaheads say. These are prefix tests, as a PEG's are.
+Zantufa's mekso is flat: operands and runs of operators alternate, `bo` and `ke` group them, and `bi'e` raises the precedence of the operators after it. Reverse Polish takes `fu'a`, and forethought takes `pe'o` or a bare operator. A quantifier is a mekso that begins no sumti and no selbri, as the reference's lookaheads say. These are prefix tests, as a PEG's are.
+
+The grammar reads a run of operators whole. So in `li re su'i ni'u pa`, `su'i ni'u` is one run. It is not an operator without an operand and then a link of its own. The rule `operators` states this, with a condition that no operator follows the run. The reference's `operator+` reads as far as it can. This is deliberate, and a comment of the reference shows a run of two operators as one unit, `[pi'i pi'i]`.
 
 ```jbogenbau
 %rule quantifier
@@ -547,7 +582,7 @@ Zantufa's mekso is flat: operands and runs of operators alternate, `bo` and `ke`
   mex-1 [mex-link] ...
 
 %rule mex-link
-  operator ... | operator ... $x(mex-1)
+  operators | operators $x(mex-1)
 %conditions
   ¬begins(from($x), operator)
 
@@ -557,7 +592,7 @@ Zantufa's mekso is flat: operands and runs of operators alternate, `bo` and `ke`
   mex-group [bihe-link] ...
 
 %rule bihe-link
-  BIhE # operator ... | BIhE # operator ... $x(mex-group)
+  BIhE # operators | BIhE # operators $x(mex-group)
 %conditions
   ¬begins(from($x), operator)
 
@@ -593,6 +628,15 @@ Zantufa's mekso is flat: operands and runs of operators alternate, `bo` and `ke`
   ¬matches($s, mex),
   ¬matches($u, mex),
   ¬matches($u, selbri)
+
+%rule operators
+  (* operator+, which reads every operator that follows *)
+  $r(operator-run)
+%conditions
+  ¬begins(after($r), operator)
+
+%rule operator-run
+  operator ...
 
 %rule cu-word
   CU
@@ -696,6 +740,12 @@ A tense or modal (the rule `tag`) is a run of `tcita-selci` joined by joiks. Eac
 
 A free modifier is a `sei` clause over a statement, a vocative, a mekso with `mai`, or a `to` parenthesis. It can also be a subscript, a replacement quote, or an attitudinal with its own free modifiers after it. A vocative takes a selbri or a sumti.
 
+A free modifier nests in the nearest slot that can take it. So no free modifier follows another one in the same slot. The condition on `free` states this. In `ui nai`, the `nai` is in the slot of `ui`. In `coi ui coi do`, `coi do` is in the slot of `ui`, which is in the slot of the first `coi`. In `xy boi xi by boi xi vo`, the second subscript is inside the first one.
+
+The reference reads so because `post_clause <- free*` reads as far as it can, and an attitudinal or a vocative word has its own `post_clause`. This is deliberate. A comment of the reference, from camxes, says that UI words are eaten after a word. And in CLL, an indicator applies to the word before it, as in `ui nai`. The standard camxes keeps a run of vocatives or subscripts flat, but the dialect follows Zantufa.
+
+The condition is on `free`, not on each slot. So it removes a free modifier that another free modifier follows at the same level. But it does not make each slot read as far as it can. This keeps a departure from Zantufa, in `mi klama pamai le zarci .e remai le zdani` (see "Differences from Zantufa 1.9999"). There the slot of `.e` stays empty, and `.e re` with `mai` is one free modifier after `zarci`.
+
 ```jbogenbau
 %rule free
   (* free <- SEI_clause statement SEhU_elidible / vocative relative_clauses? selbri DOhU_elidible
@@ -709,6 +759,8 @@ A free modifier is a `sei` clause over a statement, a vocative, a mekso with `ma
   | XI # mex-2
   | [LOhAI [lohai-word ...] [LOhAI [lohai-word ...]]] LEhAI #
   | UI #
+%conditions
+  ¬begins(after($), free)
 
 %rule vocative
   (* vocative <- COI_clause+;  COI_post <- vocative_post_clause *)
