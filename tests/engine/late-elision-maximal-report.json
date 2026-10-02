@@ -1,0 +1,49 @@
+{
+  "description": "A maximality rejection names the first forbidden terminator of the first reading of the ranking with maximality off, under the stage's own rule. Under late-elision, q elides U at 2 and p elides T at 1, so q's reading comes first, and the report names U at token 2. greedy would read on through p first and report T at token 1 (engine §4, §6).",
+  "grammar": "%ambiguity-resolution late-elision\n%elidable maximal T U\n%rule text p | q\n%rule p y [T] B C\n%rule y A | A B\n%rule q v w [U] C\n%rule v A\n%rule w B | B C",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 2,
+        "expected": [
+          {
+            "terminal": "U",
+            "rules": [
+              "q"
+            ]
+          }
+        ]
+      }
+    },
+    "error": "rejected"
+  }
+}
