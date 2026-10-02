@@ -30,6 +30,23 @@ pub(crate) fn matchers(g: &Lowered, tags: &mut Tags) -> Vec<Matcher> {
         .collect()
 }
 
+thread_local! {
+    /// How many items the recognizer has made on this thread, in parses and
+    /// nested parses alike: a measure of work that tests compare across
+    /// input lengths.
+    static ITEMS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// How many items the recognizer has made on this thread (`ITEMS`).
+pub fn recognizer_items() -> u64 {
+    ITEMS.with(|items| items.get())
+}
+
+/// Sets the count of the recognizer's items on this thread back to zero.
+pub fn reset_recognizer_items() {
+    ITEMS.with(|items| items.set(0));
+}
+
 /// A token of a stage's input.
 #[derive(Debug, Clone)]
 pub(crate) struct Tok {
@@ -430,6 +447,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             }
         }
         let target = &mut chart.sets[set];
+        ITEMS.with(|items| items.set(items.get() + 1));
         target.index.insert(item, target.items.len() as u32);
         target.items.push(item);
         target.tagset.push(u32::MAX);
