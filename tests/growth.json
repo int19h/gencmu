@@ -1,0 +1,38 @@
+[
+  {
+    "description": "A long chain of connected sumti costs work in proportion to its length. Four times the links cost at most about four times the work, where a condition over the whole prefix gives about ten times.",
+    "dialect": "experimental",
+    "text": "mi {links} klama",
+    "link": ".e do",
+    "small": 10,
+    "large": 40,
+    "most": 5
+  },
+  {
+    "description": "A long chain of connected terms costs work in proportion to its length. Four times the links cost at most about four times the work, where a condition over the whole prefix gives about ten times.",
+    "dialect": "experimental",
+    "text": "mi {links} klama",
+    "link": ".e ca do",
+    "small": 10,
+    "large": 40,
+    "most": 5
+  },
+  {
+    "description": "A long chain of connected sumti joined with bo costs work in proportion to its length. Four times the links cost at most about four times the work, where a condition over the whole prefix gives about ten times.",
+    "dialect": "experimental",
+    "text": "mi {links} klama",
+    "link": ".e bo do",
+    "small": 10,
+    "large": 40,
+    "most": 5
+  },
+  {
+    "description": "A long chain of connected terms joined with bo costs work in proportion to its length. Four times the links cost at most about four times the work, where a condition over the whole prefix gives about ten times.",
+    "dialect": "experimental",
+    "text": "mi {links} klama",
+    "link": ".e bo ca do",
+    "small": 10,
+    "large": 40,
+    "most": 5
+  }
+]

@@ -99,6 +99,17 @@ Each item of `extraParts` gives a rule a part that the reader does not read. In 
 
 Each item is one directive of a DOM (`docs/output.md`). A library puts it alone in an otherwise empty DOM of the current format, and checks the DOM as it checks a precompiled one (engine §9). The DOM is malformed exactly when `malformed` is true. A library that refuses a malformed precompiled DOM reads the document instead, so the check is not visible through a parse. That is why these cases test the check directly.
 
+## Growth cases: `growth.json`
+
+```
+[{"description": "...", "dialect": DIALECT, "text": "mi {links} klama", "link": ".e do",
+  "small": 10, "large": 40, "most": 5}, ...]
+```
+
+Each item says that a bundled dialect's work on a long text grows in proportion to its length. A condition that parses a whole prefix again at each step makes a long text cost more than its length says, and no other case shows that. The library builds two texts from `text`. It replaces `{links}` with `small` copies of `link`, joined by spaces, and then with `large` copies. Both texts must parse. The library counts the items that its recognizer makes for each text, in the main parse and in every nested parse, but not while it loads the dialect. The count for `large` copies must be at most `most` times the count for `small` copies.
+
+A library compares only its own two counts. Counts from different libraries are not compared, since each library makes its items in its own way.
+
 ## Corpus cases: `corpus/*.jsonl` and `core.txt`
 
 Each line is one case: a Lojban text, with the result that gencmu must give for it:
