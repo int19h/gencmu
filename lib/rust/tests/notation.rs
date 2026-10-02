@@ -119,3 +119,24 @@ fn a_tie_in_the_notation_is_a_grammar_error_with_no_position() {
     assert_eq!(error.stage.as_deref(), Some("main"));
     assert_eq!(error.message, "the grammar text is ambiguous: the syntax stage of the notation reads it in two ways");
 }
+
+/// In `%elidable`, only a first word `maximal` is the modifier. A plain
+/// `%elidable` with the operand `~maximal` names the terminal `maximal`
+/// and has no member `maximal` (engine §9).
+#[test]
+fn only_a_first_word_maximal_is_the_modifier_of_elidable() {
+    let directives = |text: &str| {
+        let json = gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{text}\n```\n")).expect("a document");
+        parse_json(&json).expect("a DOM").get("directives").cloned().expect("directives")
+    };
+    let expect = |json: &str| parse_json(json).unwrap();
+    assert_eq!(
+        directives("%elidable ~maximal T"),
+        expect(r#"[{"name":"elidable","args":["maximal","T"],"at":[2,1]}]"#)
+    );
+    assert_eq!(
+        directives("%elidable maximal ~maximal T"),
+        expect(r#"[{"name":"elidable","args":["maximal","T"],"maximal":true,"at":[2,1]}]"#)
+    );
+    assert_eq!(directives("%elidable maximal"), expect(r#"[{"name":"elidable","args":[],"maximal":true,"at":[2,1]}]"#));
+}

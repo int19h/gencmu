@@ -267,12 +267,26 @@ impl<'a> Reader<'a> {
     fn directive(&self, node: &'a Node) -> R<Directive> {
         let token = self.token(node)?;
         let name = self.text(token).trim_start_matches('%').to_string();
-        let operands: Vec<(&Node, &Node)> = Self::parts(node)
+        let mut parts: Vec<&Node> = Self::parts(node)
             .into_iter()
             .filter(|child| {
                 child.kind == NodeKind::Rule
                     && matches!(rule_name(child), "argument-word" | "argument-string" | "argument-tag")
             })
+            .collect();
+        // In `%elidable`, a first word `maximal` is the modifier, which
+        // gives the member `maximal` and no operand. A tag `~maximal` stays
+        // an operand (engine §9).
+        let maximal = name == "elidable"
+            && parts.first().is_some_and(|first| {
+                rule_name(first) == "argument-word"
+                    && self.token(first).is_ok_and(|token| self.text(token) == "maximal")
+            });
+        if maximal {
+            parts.remove(0);
+        }
+        let operands: Vec<(&Node, &Node)> = parts
+            .into_iter()
             // A token, or the node of a range or a property.
             .map(|child| {
                 let operand =
@@ -310,7 +324,7 @@ impl<'a> Reader<'a> {
                 _ => self.tag_of(operand)?,
             });
         }
-        Ok(Directive { name, args, at: self.at(token) })
+        Ok(Directive { name, args, maximal, at: self.at(token) })
     }
 
     fn rule(&self, node: &'a Node) -> R<RuleDef> {
