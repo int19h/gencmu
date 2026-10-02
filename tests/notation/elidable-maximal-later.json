@@ -1,0 +1,10 @@
+{
+  "description": "Only the first word of %elidable can be maximal. A later word maximal is a lower-case name, which %elidable refuses at the directive (engine §9).",
+  "document": "```jbogenbau\n%elidable T maximal\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  }
+}

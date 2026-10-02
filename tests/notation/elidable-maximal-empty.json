@@ -1,0 +1,19 @@
+{
+  "description": "%elidable maximal with no operands is a maximal directive with no arguments. It names nothing (engine §2, §9).",
+  "document": "```jbogenbau\n%elidable maximal\n```\n",
+  "expect": {
+    "dom": {
+      "directives": [
+        {
+          "name": "elidable",
+          "args": [],
+          "maximal": true,
+          "at": [
+            2,
+            1
+          ]
+        }
+      ]
+    }
+  }
+}

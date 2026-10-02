@@ -1,0 +1,21 @@
+{
+  "description": "A tag ~maximal stays an operand. After the word maximal, it names the terminal maximal (engine §9, docs/output.md).",
+  "document": "```jbogenbau\n%elidable maximal ~maximal\n```\n",
+  "expect": {
+    "dom": {
+      "directives": [
+        {
+          "name": "elidable",
+          "args": [
+            "maximal"
+          ],
+          "maximal": true,
+          "at": [
+            2,
+            1
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -90,6 +90,14 @@ A caller can supply its own `notation/bootstrap.json` (`docs/api.md`). Its notat
 
 Each item of `extraParts` gives a rule a part that the reader does not read. In the bundled bootstrap's syntax document, the text `find` stands once, and the bootstrap of the item has `replace` in its place. Each library loads the item's `document` with that bootstrap and parses its `inputs`, as above. The outcomes are those of `expect`. The extra part holds text that the reader refuses if it reads it, so an outcome other than `expect` shows that the library read it.
 
+## Malformed directives: `dom-malformed.json`
+
+```
+[{"description": "...", "directive": DIRECTIVE, "malformed": true}, ...]
+```
+
+Each item is one directive of a DOM (`docs/output.md`). A library puts it alone in an otherwise empty DOM of the current format, and checks the DOM as it checks a precompiled one (engine §9). The DOM is malformed exactly when `malformed` is true. A library that refuses a malformed precompiled DOM reads the document instead, so the check is not visible through a parse. That is why these cases test the check directly.
+
 ## Corpus cases: `corpus/*.jsonl` and `core.txt`
 
 Each line is one case: a Lojban text, with the result that gencmu must give for it:
