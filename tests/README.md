@@ -46,6 +46,7 @@ Auto features (engine §13) are off for a case unless its options say `"autoFeat
 
 Every runner also checks these invariants on each canonical result that a case gives, whatever the case expects. A case cannot turn them off, and its pattern need not repeat them:
 
+- An error of kind `ambiguous` has no member `token` and no member `source`.
 - No stage has a member `tied`.
 - A stage whose verdict is `tie` has no member `output`, and it is the last stage of the result.
 - Such a result has `ok` false, `tree` null, and an error of kind `ambiguous` with the reason `tie`, that stage's name and two readings.

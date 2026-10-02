@@ -1,0 +1,71 @@
+{
+  "description": "In the main parse, a longer constituent of a tested symbol counts for a maximal terminator only where the tag test holds of it: the y over A B carries b and not a (engine §4).",
+  "grammar": "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text x B C\n%rule x y⊇~a [T]\n%rule y A <~a> | A B <~b>",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "x",
+            "span": [
+              0,
+              1
+            ],
+            "children": [
+              {
+                "rule": "y",
+                "span": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "kind": "elided",
+                "terminal": "T",
+                "span": [
+                  1,
+                  1
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "B"
+          },
+          {
+            "kind": "token",
+            "terminal": "C"
+          }
+        ]
+      }
+    }
+  }
+}

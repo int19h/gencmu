@@ -26,7 +26,16 @@
       "ok": false,
       "error": {
         "kind": "rejected",
-        "stage": "main"
+        "stage": "main",
+        "token": 2,
+        "expected": [
+          {
+            "terminal": "T",
+            "rules": [
+              "text"
+            ]
+          }
+        ]
       }
     },
     "error": "rejected"
