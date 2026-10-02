@@ -24,6 +24,7 @@ var errTooMany = errors.New("too many steps")
 type proofOracle struct {
 	r       *recognizer
 	helpers map[int32]bool
+	maximal map[int32]bool // the helpers of the optionals of maximal terminators
 	budget  int
 	// written and after remember the answers of readsWritten and
 	// forbiddenAfter, which scan the whole chart.
@@ -118,6 +119,19 @@ func (o *proofOracle) nextOptional(x *item) string {
 	return "constituent"
 }
 
+// longer says whether the chart has a completed item of a constituent's
+// rule from its origin that ends later.
+func (o *proofOracle) longer(y *symNode) bool {
+	for _, s := range o.r.sets {
+		for _, c := range s.syms {
+			if c.rule == y.rule && c.start == y.start && c.end > y.end {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 type proofState struct {
 	it     *item
 	permit bool
@@ -151,6 +165,12 @@ func (o *proofOracle) search(x *item, permit bool, path map[proofState]bool) (bo
 	for _, l := range x.links {
 		b := o.prior(x, l)
 		if kind == "constituent" && (l.sym == nil || o.forbiddenAfter(b, x.set)) {
+			continue
+		}
+		// Before the optional of a maximal terminator, Y must also be the
+		// longest that the chart has from its origin. The generated
+		// grammars have no tests.
+		if kind == "constituent" && o.maximal[x.prod.rhs[x.dot].id] && o.longer(l.sym) {
 			continue
 		}
 		if l.sym == nil {
@@ -224,7 +244,15 @@ func TestEligibleProperty(t *testing.T) {
 		for _, rule := range rules {
 			lines = append(lines, "%rule "+rule+" "+body()+" | "+body())
 		}
-		grammar := "%ambiguity-resolution greedy\n%elidable T U\n%rule text A\n" + strings.Join(lines, "\n")
+		// Now and then T or U is a maximal terminator.
+		elidable, maximalT := "%elidable T U", map[string]bool{}
+		switch r.Intn(4) {
+		case 0:
+			elidable, maximalT = "%elidable U\n%elidable maximal T", map[string]bool{"T": true}
+		case 1:
+			elidable, maximalT = "%elidable maximal T U", map[string]bool{"T": true, "U": true}
+		}
+		grammar := "%ambiguity-resolution greedy\n" + elidable + "\n%rule text A\n" + strings.Join(lines, "\n")
 		dom, err := bundled.reader.read("```jbogenbau\n"+grammar+"\n```\n", "g.md")
 		if err != nil {
 			skipped++
@@ -264,10 +292,13 @@ func TestEligibleProperty(t *testing.T) {
 		if len(items) == 0 {
 			continue
 		}
-		o := &proofOracle{r: rec, helpers: map[int32]bool{}, budget: 200000, written: map[*item]bool{}, after: map[proofAfter]bool{}}
+		o := &proofOracle{r: rec, helpers: map[int32]bool{}, maximal: map[int32]bool{}, budget: 200000, written: map[*item]bool{}, after: map[proofAfter]bool{}}
 		for _, p := range lg.prods {
 			if p.helper && p.elided != "" {
 				o.helpers[p.lhs] = true
+				if maximalT[p.elided] {
+					o.maximal[p.lhs] = true
+				}
 			}
 		}
 		var want []bool

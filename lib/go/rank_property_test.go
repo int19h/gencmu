@@ -679,7 +679,7 @@ func TestRankingProperty(t *testing.T) {
 		}
 		var mx *maximal
 		if lg.maximal {
-			mx = newMaximal(rec)
+			mx = newMaximal(rec, true)
 		}
 		rk := newRanker(rec, lean, mx)
 		var got *rankResult
