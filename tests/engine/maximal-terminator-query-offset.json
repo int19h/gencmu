@@ -1,0 +1,37 @@
+{
+  "description": "A query that starts after token zero tests a longer constituent over its own tokens. In the query over A B, the longer y → A B sounds \"ab\", so y≠\"xa\" holds of it, and the omission of [T] after y → A is forbidden. begins of r is false. A library that tests the query's positions as the stage's would test the sound \"xa\" of W A and find no longer y (engine §4).",
+  "grammar": "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text W $s(suffix)\n%conditions begins($s, r)\n%rule suffix A B\n%rule r y≠\"xa\" [T] B\n%rule y A | A B",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "W"
+      ],
+      "phonemes": "x"
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "phonemes": "a"
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "phonemes": "b"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "stage": "main"
+      }
+    },
+    "error": "rejected"
+  }
+}
