@@ -336,11 +336,24 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *ta
 	if kind == cdBegins {
 		res.holds = rec.begun(start)
 	} else {
+		// One search of eligibility over the items of every tag set, and
+		// then the union of the tag sets that keep an item.
 		acc := rec.accepted(start)
+		var items []*item
+		for _, c := range acc {
+			items = append(items, c.items...)
+		}
+		kept := map[*item]bool{}
+		for _, it := range rec.eligibleItems(items) {
+			kept[it] = true
+		}
 		res.holds, res.tags = false, ps.in.empty()
 		for _, c := range acc {
-			if rec.anyEligible(c) {
-				res.holds, res.tags = true, ps.in.union(res.tags, c.tags)
+			for _, it := range c.items {
+				if kept[it] {
+					res.holds, res.tags = true, ps.in.union(res.tags, c.tags)
+					break
+				}
 			}
 		}
 	}

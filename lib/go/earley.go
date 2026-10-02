@@ -317,12 +317,6 @@ func (r *recognizer) begun(start int32) bool {
 	return len(r.eligibleItems(items)) > 0
 }
 
-// anyEligible says whether a constituent has an item with an eligible
-// proof tree (§4).
-func (r *recognizer) anyEligible(c *symNode) bool {
-	return len(r.eligibleItems(c.items)) > 0
-}
-
 func sortSyms(s []*symNode) {
 	for i := 1; i < len(s); i++ {
 		for j := i; j > 0 && s[j].tags.key < s[j-1].tags.key; j-- {

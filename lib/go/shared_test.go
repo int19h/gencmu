@@ -273,11 +273,20 @@ func checkParse(d *Dialect, c *engineCase, options *caseOptions, expect *caseExp
 // that the runners check on every result, whatever the case expects
 // (tests/README.md): no stage has a member tied, and a stage whose verdict
 // is tie has no output, is the last stage, and has the result's ambiguous
-// error with the reason tie, its name and two readings.
+// error with the reason tie, its name and two readings. An ambiguous error
+// has no token or source.
 func resultProblems(got any) []string {
 	var problems []string
 	result, _ := got.(map[string]any)
 	stages, _ := result["stages"].([]any)
+	// An ambiguous error has no position (docs/output.md).
+	if e, _ := result["error"].(map[string]any); e != nil && e["kind"] == ErrorAmbiguous {
+		for _, member := range []string{"token", "source"} {
+			if _, ok := e[member]; ok {
+				problems = append(problems, "the ambiguous error has a member "+member)
+			}
+		}
+	}
 	for i, s := range stages {
 		stage, _ := s.(map[string]any)
 		name, _ := stage["name"].(string)
@@ -387,7 +396,9 @@ func TestEngineRunnerLoadError(t *testing.T) {
 // (tests/README.md). Each changes the canonical result got, whose last stage
 // is the tied stage tied.
 var tieMutants = map[string]func(got, tied map[string]any){
-	"a tree": func(got, tied map[string]any) { got["tree"] = got["error"].(map[string]any)["readings"].([]any)[0] },
+	"an error with a token":  func(got, tied map[string]any) { got["error"].(map[string]any)["token"] = 0.0 },
+	"an error with a source": func(got, tied map[string]any) { got["error"].(map[string]any)["source"] = []any{0.0, 0.0} },
+	"a tree":                 func(got, tied map[string]any) { got["tree"] = got["error"].(map[string]any)["readings"].([]any)[0] },
 	"one reading": func(got, tied map[string]any) {
 		e := got["error"].(map[string]any)
 		e["readings"] = e["readings"].([]any)[:1]
