@@ -282,7 +282,7 @@ At the time of this decision (commit 1ea14a1), 5 of the 29,308 corpus records ti
 
 ### Elision-only
 
-CLL's own rule is narrower. It says only that a terminator can be elided if no ambiguity results. It says nothing of the other ambiguities that its EBNF has. `elision-only` applies that rule literally, to the stage whose grammar declares it. It applies the rule only when the ranking of that stage was `resolved`:
+CLL's own rule is narrower. It says only that a terminator can be elided if no ambiguity results. It says nothing of the other ambiguities that its EBNF has. `elision-only` is one reading of that rule, for the stage whose grammar declares it. CLL does not say which parse to test, so the check tests the one that the ranking chose. It applies the rule only when the ranking of that stage was `resolved`:
 
 1. Take the `elided` nodes of the chosen tree in the order of its leaves, left to right. This order follows the chosen derivation, also where several nodes stand at one point. For each node, insert a synthetic token before the stage-input token at the node's position. The synthetic token carries only the tag of that terminator, and is marked synthetic.
 2. Lower the same grammar again, and make mandatory every optional whose first symbol is an `%elidable` terminator. Parse the new token sequence.

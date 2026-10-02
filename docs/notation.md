@@ -558,7 +558,7 @@ A rejection names a forbidden terminator only when maximality removes every main
 
 This is for a construct that a reader closes as late as it can, such as a parenthesis. In Zantufa, `so to mi klama` can close the parenthesis `to` after `mi`, with `toi` elided, and leave `klama` as the selbri. The reference parser reads `to mi klama` as one parenthesis. No `toi` is written, so written-terminator priority cannot decide. With `TOI` maximal, the `to` cannot close before `klama`, because a longer parenthesis exists.
 
-CLL's own rule is narrower: a terminator can be elided only if no ambiguity results. CLL says nothing of the other ambiguities of its EBNF. `elision-only` applies that rule literally.
+CLL's own rule is narrower: a terminator can be elided only if no ambiguity results. CLL says nothing of the other ambiguities of its EBNF. `elision-only` is one reading of that rule. It tests only the parse that the ranking chose, and CLL does not say how to choose that parse.
 
 With `elision-only`, after the stage chooses one of several parses, it writes the elided terminators of that parse back into the input. A terminator with an `=` test sounds like the test's string there. Then the stage parses the input again, with no terminator elidable. So an elidable terminator has no test or an `=` test. Any other test on it is an error of the grammar, which the loader reports.
 
