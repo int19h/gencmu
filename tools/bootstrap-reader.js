@@ -213,8 +213,14 @@ class Parser {
         this.index++;
         const args = [];
         const kinds = [];
+        let maximal = false;
         while (["identifier", "string", "tag", "phoneme", "character", "property"].some((kind) => this.is(kind))) {
           const operand = this.take();
+          // A first word maximal of %elidable is no operand (engine §9).
+          if (token.name === "elidable" && args.length === 0 && !maximal && kinds.length === 0 && operand.kind === "identifier" && operand.text === "maximal") {
+            maximal = true;
+            continue;
+          }
           if (operand.kind === "character" && this.accept("..")) {
             this.take("character");
             kinds.push("range");
@@ -225,7 +231,7 @@ class Parser {
         }
         const problem = operandProblem(token.name, kinds);
         if (problem) fail(problem, token);
-        directives.push({ name: token.name, args, at: token.at });
+        directives.push(maximal ? { name: token.name, args, maximal: true, at: token.at } : { name: token.name, args, at: token.at });
       } else if (RULE_KEYWORDS[token.kind]) {
         rules.push(this.rule());
       } else if (CONSTANT_KEYWORDS[token.kind]) {

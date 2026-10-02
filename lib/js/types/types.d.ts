@@ -253,6 +253,11 @@ export type DomConstant = {
 export type DomDirective = {
     name: string;
     args: string[];
+    /**
+     * for `%elidable maximal`: its terminators are
+     * maximal (engine §2, §4)
+     */
+    maximal?: true;
     at: Position;
 };
 export type DomRule = {
@@ -477,6 +482,11 @@ export type LoweredGrammar = {
     productions: Production[];
     byLhs: Map<string, Production[]>;
     elidable: Set<string>;
+    /**
+     * the elidable terminators that are
+     * maximal (engine §4)
+     */
+    maximalTerminals: Set<string>;
     resolution: Resolution;
     /**
      * each classifier
@@ -792,6 +802,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} DomDirective
  * @property {string} name
  * @property {string[]} args
+ * @property {true} [maximal] for `%elidable maximal`: its terminators are
+ *   maximal (engine §2, §4)
  * @property {Position} at
  */
 /**
@@ -946,6 +958,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Production[]} productions
  * @property {Map<string, Production[]>} byLhs
  * @property {Set<string>} elidable
+ * @property {Set<string>} maximalTerminals the elidable terminators that are
+ *   maximal (engine §4)
  * @property {Resolution} resolution
  * @property {Map<string, Map<string, TagSet>>} classifiers each classifier
  *   of the stage, resolved for these features: each key's classes (engine

@@ -475,8 +475,14 @@
   // completed items of a queried rule have an eligible witness.
 
   /**
-   * @import { Edge, Item, LoweredGrammar } from "./types.js"
-   * @import { Chart } from "./earley.js"
+   * @import { Edge, Item, LoweredGrammar, SymbolTest, TagSet } from "./types.js"
+   * @import { Chart, ParseContext } from "./earley.js"
+   */
+
+  /**
+   * Whether a test holds of a span with the given tags: the recognizer's own,
+   * passed in so that this module does not import the recognizer.
+   * @typedef {(context: ParseContext, test: SymbolTest, from: number, to: number, tags: TagSet) => boolean} TestHolds
    */
 
   /** @type {WeakMap<LoweredGrammar, Set<string>>} */
@@ -532,6 +538,11 @@
    *   is forbidden when the chart advances that item over the nonempty
    *   alternative.
    *
+   * An omission of a maximal terminator with a constituent Y is also
+   * forbidden when the chart has a longer Y: a completed item of Y from the
+   * same origin with a later end, which passes Y's test. Maximality never
+   * forbids an omission with no constituent.
+   *
    * The chart is the whole recognition of the query, before any filtering,
    * so an attempt that never completes the rule can forbid an omission.
    *
@@ -541,9 +552,10 @@
    * so a permitted omission never combines with another witness's prefix.
    * @param {Chart} chart
    * @param {Item[]} witnesses
+   * @param {TestHolds} testHolds
    * @returns {Item[]}
    */
-  function eligibleWitnesses(chart, witnesses) {
+  function eligibleWitnesses(chart, witnesses, testHolds) {
     if (witnesses.length === 0) return witnesses;
     const helpers = helpersOf(chart.context.lowered);
     if (helpers.size === 0) return witnesses;
@@ -622,6 +634,37 @@
       if (item.dot === 1 && rhs[0].name === item.production.lhs) return "alone";
       return "constituent";
     });
+    // Whether the optional after each item is of a maximal terminator.
+    const lowered = chart.context.lowered;
+    const maximalNext = order.map((item, x) => {
+      if (next[x] !== "constituent" || lowered.maximalTerminals.size === 0) return false;
+      const helpers = lowered.byLhs.get(item.production.rhs[item.dot].name) || [];
+      return helpers.some((production) => production.elided !== null && lowered.maximalTerminals.has(production.elided));
+    });
+    // The completed items of each symbol from each origin, in the query's
+    // chart, made once per query when a maximal terminator needs them.
+    /** @type {Map<string, Item[]> | null} */
+    let completed = null;
+    /** @type {(constituent: Item, x: number) => boolean} */
+    const longer = (constituent, x) => {
+      if (completed === null) {
+        completed = new Map();
+        for (const set of chart.sets) {
+          if (!set) continue;
+          for (const item of set.items) {
+            if (item.dot !== item.production.rhs.length) continue;
+            const key = `${item.production.lhs}\u0000${item.origin}`;
+            const list = completed.get(key);
+            if (list) list.push(item);
+            else completed.set(key, [item]);
+          }
+        }
+      }
+      const test = order[x].production.rhs[order[x].dot - 1].test;
+      const candidates = completed.get(`${constituent.production.lhs}\u0000${constituent.origin}`) || [];
+      return candidates.some((candidate) => candidate.end > constituent.end &&
+        (!test || testHolds(chart.context, test, candidate.origin, candidate.end, chart.context.interner.get(candidate.tagId))));
+    };
     const eligible = new Uint8Array(order.length);
     const permits = new Uint8Array(order.length);
     /** @type {(item: Item) => number} */
@@ -648,7 +691,7 @@
             if (!reads.has(item)) l = 1;
           } else if (next[x] === "constituent" && edge.kind === "complete") {
             const end = further.get(edge.previous);
-            if (end === undefined || end < item.end) l = 1;
+            if ((end === undefined || end < item.end) && !(maximalNext[x] && longer(edge.child, x))) l = 1;
           }
         }
         if (a && !eligible[x]) {
@@ -1591,7 +1634,7 @@
    * @returns {boolean}
    */
   function nestedMatches(context, rule, start, end) {
-    return nested(context, "matches", rule, start, end, (chart) => eligibleWitnesses(chart, rootItems(chart, rule)).length > 0);
+    return nested(context, "matches", rule, start, end, (chart) => eligibleWitnesses(chart, rootItems(chart, rule), testHolds).length > 0);
   }
 
   /**
@@ -1612,7 +1655,7 @@
         if (set === undefined) continue;
         for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule) witnesses.push(item);
       }
-      return eligibleWitnesses(chart, witnesses).length > 0;
+      return eligibleWitnesses(chart, witnesses, testHolds).length > 0;
     });
   }
 
@@ -1625,7 +1668,7 @@
    */
   function nestedTags(context, rule, start, end) {
     return nested(context, "tags", rule, start, end, (chart) =>
-      eligibleWitnesses(chart, rootItems(chart, rule)).reduce((acc, item) => tagUnion(acc, context.interner.get(item.tagId)), tagSet()));
+      eligibleWitnesses(chart, rootItems(chart, rule), testHolds).reduce((acc, item) => tagUnion(acc, context.interner.get(item.tagId)), tagSet()));
   }
 
   // The furthest position the parse reached, and what could have been read
@@ -2464,7 +2507,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 16;
+  const DOM_FORMAT = 17;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9-]*$/;
   // A classifier's name begins with a lower-case letter, and a class with a
@@ -2642,6 +2685,9 @@
     for (const directive of dom.directives) {
       if (!isDomObject(directive) || typeof directive.name !== "string" || !Array.isArray(directive.args) ||
           !directive.args.every((arg) => typeof arg === "string") || !isDomPosition(directive.at)) return "a malformed directive";
+      // Only an elidable directive can be maximal, and the member is then true
+      // (engine §9).
+      if ("maximal" in directive && (directive.name !== "elidable" || directive.maximal !== true)) return "a malformed directive";
       // The operands the notation's syntax allows these directives (engine §9).
       const args = /** @type {string[]} */ (directive.args);
       if ((directive.name === "stage" && !(args.length === 1 && DOM_NAME.test(args[0]))) ||
@@ -4339,6 +4385,9 @@
       this.changes = [];
       /** @type {Set<string>} */
       this.elidable = new Set();
+      // The elidable terminators that %elidable maximal names (engine §2).
+      /** @type {Set<string>} */
+      this.maximalTerminals = new Set();
       /** @type {Resolution | null} */
       this.resolution = null;
       /**
@@ -4442,7 +4491,10 @@
             break;
           }
           case "elidable":
-            for (const terminal of directive.args) this.elidable.add(terminal);
+            for (const terminal of directive.args) {
+              this.elidable.add(terminal);
+              if (directive.maximal) this.maximalTerminals.add(terminal);
+            }
             break;
           default:
             throw new GencmuError("grammar", `${path}:${at.line}: unknown directive %${directive.name}`, at);
@@ -4979,6 +5031,7 @@
         productions: this.productions,
         byLhs: this.byLhs,
         elidable: this.grammar.elidable,
+        maximalTerminals: this.grammar.maximalTerminals,
         resolution: /** @type {Resolution} */ (this.grammar.resolution),
       };
     }
@@ -6589,13 +6642,19 @@
   /**
    * @param {Chart} chart
    * @param {LoweredGrammar} lowered
+   * @param {boolean} [stageWide] whether every elidable terminator is
+   *   restricted, as under the resolution's maximal, or only the maximal
+   *   terminators
    * @returns {Maximal}
    */
-  function maximalRule(chart, lowered) {
+  function maximalRule(chart, lowered, stageWide = true) {
+    // The helpers whose omission maximality restricts: every elidable
+    // optional's under stage-wide maximal, and otherwise those of the maximal
+    // terminators (engine §4).
     /** @type {Set<string>} */
     const elidable = new Set();
     for (const production of lowered.productions) {
-      if (production.helper && production.elided !== null) elidable.add(production.lhs);
+      if (production.helper && production.elided !== null && (stageWide || lowered.maximalTerminals.has(production.elided))) elidable.add(production.lhs);
     }
     // Whether a constituent could have been longer depends only on its
     // symbol, origin and end: the furthest set holding a completed item of
@@ -6639,7 +6698,7 @@
       return completed;
     };
     return {
-      elided: (item) => item.production.helper && item.production.elided !== null && item.production.rhs.length === 0,
+      elided: (item) => item.production.rhs.length === 0 && elidable.has(item.production.lhs),
       guards: (item) => {
         const rhs = item.production.rhs;
         const next = rhs[item.dot];
@@ -6730,7 +6789,9 @@
       // An input whose every derivation is cyclic (engine §4) has none to
       // count, and is rejected like one with no item of `text` at all.
       const resolution = lowered.resolution;
-      const maximal = resolution.maximal ? maximalRule(chart, lowered) : null;
+      // Maximality: stage-wide, or for the maximal terminators alone, before
+      // the ranking (engine §4).
+      const maximal = resolution.maximal || lowered.maximalTerminals.size > 0 ? maximalRule(chart, lowered, resolution.maximal) : null;
       const ranking = roots.length === 0 ? null : new Ranker(tokens, resolution.lean, maximal).rank(roots);
       if (ranking === null) {
         // A text that maximal leaves with no derivation is rejected at the
@@ -7701,7 +7762,11 @@
       if (item.kind === "rule" && !ITEMS.has(item.rule)) fail(`the notation gives a ${item.rule} where an item stands`, item);
       if (ruleOf(item) === "directive") {
         const name = text(token(item)).slice(1);
-        const operands = parts(item).filter((child) => ruleOf(child) === "argument-word" || ruleOf(child) === "argument-string" || ruleOf(child) === "argument-tag");
+        let operands = parts(item).filter((child) => ruleOf(child) === "argument-word" || ruleOf(child) === "argument-string" || ruleOf(child) === "argument-tag");
+        // A first word maximal of %elidable makes its terminators maximal and
+        // is no operand; a tag ~maximal stays one (engine §9).
+        const maximal = name === "elidable" && operands.length > 0 && ruleOf(operands[0]) === "argument-word" && text(token(operands[0])) === "maximal";
+        if (maximal) operands = operands.slice(1);
         const problem = operandProblem(name, operands.map((child) => operandKind(child)));
         if (problem) fail(problem, item);
         directives.push({
@@ -7714,6 +7779,7 @@
             // A range or a property has no tag; operandProblem has refused it.
             return tagOf(symbolPart(child));
           }),
+          ...(maximal ? { maximal: /** @type {const} */ (true) } : {}),
           at: at(item),
         });
       } else if (ruleOf(item) === "rule") {
@@ -9549,6 +9615,8 @@
    * @typedef {object} DomDirective
    * @property {string} name
    * @property {string[]} args
+   * @property {true} [maximal] for `%elidable maximal`: its terminators are
+   *   maximal (engine §2, §4)
    * @property {Position} at
    */
 
@@ -9726,6 +9794,8 @@
    * @property {Production[]} productions
    * @property {Map<string, Production[]>} byLhs
    * @property {Set<string>} elidable
+   * @property {Set<string>} maximalTerminals the elidable terminators that are
+   *   maximal (engine §4)
    * @property {Resolution} resolution
    * @property {Map<string, Map<string, TagSet>>} classifiers each classifier
    *   of the stage, resolved for these features: each key's classes (engine

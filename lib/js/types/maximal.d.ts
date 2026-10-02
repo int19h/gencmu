@@ -36,6 +36,9 @@ export type Maximal = {
 /**
  * @param {Chart} chart
  * @param {LoweredGrammar} lowered
+ * @param {boolean} [stageWide] whether every elidable terminator is
+ *   restricted, as under the resolution's maximal, or only the maximal
+ *   terminators
  * @returns {Maximal}
  */
-export declare function maximalRule(chart: Chart, lowered: LoweredGrammar): Maximal;
+export declare function maximalRule(chart: Chart, lowered: LoweredGrammar, stageWide?: boolean): Maximal;
