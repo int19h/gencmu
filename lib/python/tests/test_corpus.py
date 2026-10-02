@@ -32,16 +32,22 @@ def all_cases() -> list[dict[str, Any]]:
     return found
 
 
-def outcome(case: dict[str, Any], mutate: Callable[[dict[str, Any]], dict[str, Any]] | None = None) -> dict[str, Any]:
+def outcome(
+    case: dict[str, Any],
+    mutate: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
+    result: Any = None,
+) -> dict[str, Any]:
     """What gencmu makes of a case, in the case's own terms. ``mutate``, for
     a test of the runner, changes the canonical result before the check of
-    its invariants."""
+    its invariants. ``result``, also for such a test, is a parse result that
+    takes the place of the case's own parse."""
     import gencmu
 
-    dialect = _dialects.get(case["dialect"])
-    if dialect is None:
-        dialect = _dialects[case["dialect"]] = gencmu.load_dialect(case["dialect"])
-    result = dialect.parse(case["text"], features=case.get("features", []), without_features=case.get("withoutFeatures", []))
+    if result is None:
+        dialect = _dialects.get(case["dialect"])
+        if dialect is None:
+            dialect = _dialects[case["dialect"]] = gencmu.load_dialect(case["dialect"])
+        result = dialect.parse(case["text"], features=case.get("features", []), without_features=case.get("withoutFeatures", []))
     # A tied stage emits nothing and ends the run with its error
     # (tests/README.md).
     value = gencmu.result_json(result)
@@ -158,13 +164,14 @@ class Corpus(unittest.TestCase):
         dialect, load_error = load_case_dialect(engine_case)
         self.assertIsNone(load_error)
         assert dialect is not None
-        value = parse_case(dialect, engine_case)[0]
-        assert value is not None
-        self.assertEqual(value["error"]["reason"], "tie")
-        self.assertEqual(result_problems(value), [])
+        result = parse_case(dialect, engine_case)[1]
+        assert result is not None
+        # The engine case's result goes through the runner's own check, as a
+        # corpus case's result does.
+        self.assertEqual(outcome({}, result=result)["error"], {"kind": "ambiguous", "reason": "tie"})
         for name, mutate in mutants.items():
-            with self.subTest(case="engine/attach-tie.json", mutant=name):
-                self.assertNotEqual(result_problems(mutate(value)), [])
+            with self.subTest(case="engine/attach-tie.json", mutant=name), self.assertRaisesRegex(AssertionError, "breaks an invariant"):
+                outcome({}, mutate, result=result)
         for case in tied_cases:
             self.assertIsNone(mismatch(case, outcome(case)))
             for name, mutate in mutants.items():

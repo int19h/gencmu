@@ -771,7 +771,7 @@ Without the rule, the two readings elide the same terminators. camxes-exp nests 
 
 Any other free modifier after the mekso of a subscript attaches to the word that the subscript marks. CLL's grammar has no slot of free modifiers after a subscript: `XI # (number | lerfu-string) /BOI/`. So in `mi broda xi pa boi to do toi`, the subscript and the parenthesis both belong to `broda`. The official parser of CLL reads the text in this way. The same holds where `boi` is elided, and after `vei ... ve'o`.
 
-The second condition on the `xi` form of `free` states this rule. `mekso-ending-in-free` is a mekso that ends with a free modifier other than a subscript. A subscript's mekso cannot be one. Without the rule, the two readings elide the same terminators.
+The second condition on the `xi` form of `free` states this rule. `mekso-ending-in-free` is a mekso that ends with free modifiers, at least one of them not a subscript. A subscript's mekso cannot be one. Without the rule, the two readings elide the same terminators.
 
 camxes-exp departs here. It reads the mekso of a subscript as `mex_2`, which ends with its own free modifiers, so the parenthesis goes inside the subscript. That is a side effect of the reuse of `mex_2`, and not a choice that its grammar states.
 
@@ -792,7 +792,7 @@ camxes-exp departs here. It reads the mekso of a subscript as `mex_2`, which end
   ¬matches($m, mekso-ending-in-free)
 
 %rule mekso-ending-in-free
-  mex-2 [free ...] $f(free)
+  mex-2 [free ...] $f(free) [free ...]
 %conditions
   XI ⊈ tags(head($f))
 
