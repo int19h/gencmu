@@ -375,7 +375,10 @@ func (b *domBuilder) document(root *Node) *domDoc {
 			var kinds []string
 			first := true
 			for _, p := range ps {
-				if p.Kind != KindRule {
+				// The operands are the argument parts alone. The reader
+				// ignores any other part, which never counts as the first
+				// (engine §9).
+				if p.Kind != KindRule || (p.Rule != "argument-word" && p.Rule != "argument-string" && p.Rule != "argument-tag") {
 					continue
 				}
 				// In %elidable, a first argument-word maximal sets the
