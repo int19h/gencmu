@@ -1,0 +1,28 @@
+{
+  "description": "The pair of maximal-terminator-tested-fails where the longer y → A B has the tag p too. The test holds of it, so the omission of [T] after y → A is forbidden, and begins of r is false (engine §4).",
+  "grammar": "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text A B\n%conditions begins(from($), r)\n%rule r y⊇~p [T] B\n%rule y A <~p> | A B <~p>",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "stage": "main"
+      }
+    },
+    "error": "rejected"
+  }
+}
