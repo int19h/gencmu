@@ -31,6 +31,16 @@ under its content, which equal spans at other positions share; a longer span
 is kept under its position (engine §4)."""
 
 
+class RecognizerCounters:
+    """How many items the recognizer has made, in parses and nested parses
+    alike: a measure of work that tests compare across input lengths."""
+
+    items = 0
+
+
+recognizer_counters = RecognizerCounters()
+
+
 @dataclass
 class Forest:
     """The items of a parse, each with the edges it was derived by."""
@@ -739,4 +749,6 @@ class Parser:
                 expected.setdefault(written_symbol(terminal, test), set()).add(production.rule_name)
         # The forest's tokens are those the parse read, before its furthest
         # set.
+        # Every item is made once, by add, so the count is added here once.
+        recognizer_counters.items += len(prod)
         return Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected)
