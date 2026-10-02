@@ -193,18 +193,17 @@ func (run *stageRun) run(g *lowered, mandatory func() *lowered, elisionOnly bool
 	start := g.byName["text"]
 	rec := run.recognize(g, start, 0, len(run.toks))
 	top := rec.accepted(start)
-	var mx *maximal
-	if g.maximal {
-		mx = newMaximal(rec)
-	}
+	// Maximality applies before the ranking, from either form (§4).
+	mx := newMaximal(rec, g.maximal)
 	var res *rankResult
 	if len(top) > 0 {
 		res = newRanker(rec, g.lean, mx).rank(top)
 	}
 	if res == nil {
-		// A text that maximal leaves with no derivation is rejected at the
-		// first terminator it forbids in the first reading, m, of the
-		// ranking without maximal, whatever its verdict (§4).
+		// A text that maximality leaves with no derivation is rejected at
+		// the first terminator it forbids in the first reading, m, of the
+		// ranking on the same chart with both forms off, whatever its
+		// verdict (§4).
 		if mx != nil && len(top) > 0 {
 			if other := newRanker(rec, g.lean, nil).rank(top); other != nil {
 				out.err = run.forbiddenTerminator(rec, other.first, mx)

@@ -1,7 +1,10 @@
 package gencmu
 
-// The resolution maximal (engine §4): an elided terminator is forbidden
-// where its constituent, the node before it, could have been longer.
+// Maximality (engine §4): an elided terminator is forbidden where its
+// constituent, the node before it, could have been longer. Stage-wide
+// maximal, of %ambiguity-resolution, restricts every elidable terminator in
+// the main parse. A maximal terminator, of %elidable maximal, restricts
+// itself in the main parse and in nested queries.
 
 // maximal is what the ranking asks of maximal, over one parse's chart.
 type maximal struct {
@@ -16,27 +19,45 @@ type maximal struct {
 	// each rule from each origin, with its end and its tags, found when
 	// first asked for.
 	completed map[ruleOrigin][]*symNode
+	// passing is, for a tested symbol, the furthest end of a completed
+	// constituent of its rule from an origin that passes the test, or -1,
+	// found once for each rule, origin and test.
+	passing map[testOrigin]int32
 }
 
 type ruleOrigin struct{ rule, origin int32 }
 
-func newMaximal(rec *recognizer) *maximal {
+type testOrigin struct {
+	ro ruleOrigin
+	t  *symTest
+}
+
+// newMaximal is maximality over a chart: of every elidable terminator under
+// stage-wide maximal, and of the grammar's maximal terminators anyway. It
+// is nil where it restricts nothing.
+func newMaximal(rec *recognizer, stageWide bool) *maximal {
 	mx := &maximal{rec: rec, elides: make([]string, len(rec.g.rules))}
+	restricts := false
 	for _, p := range rec.g.prods {
-		if p.helper && p.elided != "" {
+		if p.helper && p.elided != "" && (stageWide || rec.g.maximalT[p.elided]) {
 			mx.elides[p.lhs] = p.elided
+			restricts = true
 		}
+	}
+	if !restricts {
+		return nil
 	}
 	return mx
 }
 
 // elided says whether a constituent of a rule over [start, end) is an elided
-// terminator: the helper of an elidable optional, deriving ε.
+// terminator that maximality restricts: the helper of such an optional,
+// deriving ε.
 func (mx *maximal) elided(rule, start, end int32) bool {
 	return start == end && mx.elides[rule] != ""
 }
 
-// guards says whether an item's next symbol is an elidable optional whose
+// guards says whether an item's next symbol is a restricted optional whose
 // elision the node before it can forbid: not at the start of a production,
 // and not after a production's first symbol when that is its own rule, what
 // a repetition has read so far.
@@ -67,13 +88,25 @@ func (mx *maximal) forbids(rule, start, end int32, t *symTest) bool {
 				}
 			}
 		}
-		base := mx.rec.base
-		for _, c := range mx.completed[ruleOrigin{rule, start}] {
-			if c.end > end && mx.rec.run.testHolds(t, base+int(start), base+int(c.end), c.tags) {
-				return true
-			}
+		// The test reads only the candidate's own span and tags, so the
+		// furthest end that passes it is found once.
+		ro := ruleOrigin{rule, start}
+		key := testOrigin{ro, t}
+		if mx.passing == nil {
+			mx.passing = map[testOrigin]int32{}
 		}
-		return false
+		far, ok := mx.passing[key]
+		if !ok {
+			far = -1
+			base := mx.rec.base
+			for _, c := range mx.completed[ro] {
+				if c.end > far && mx.rec.run.testHolds(t, base+int(start), base+int(c.end), c.tags) {
+					far = c.end
+				}
+			}
+			mx.passing[key] = far
+		}
+		return far > end
 	}
 	if mx.furthest == nil {
 		// Whether a constituent could have been longer depends only on its
