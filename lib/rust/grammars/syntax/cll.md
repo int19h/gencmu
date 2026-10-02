@@ -526,11 +526,11 @@ A tense or modal (the rule `tag`) turns a sumti into a modal or tense term (CLL 
 A `tense-modal` is a simple tense-modal with a free-modifier slot, or `fi'o selbri fe'u`, which makes a modal from any selbri (CLL 9.5). A `simple-tense-modal` is one of these:
 
 - A BAI modal
-- A time or space tense, a CAhA word such as `ka'e`, or the two in that order (`pu`, `ka'e`, `pu ka'e`)
+- A time tense, a space tense, or both with time first, then optionally a CAhA word such as `ka'e`. A CAhA word can also stand alone (`pu`, `va`, `pu va`, `ka'e`, `pu ka'e`).
 - The sticky tense `ki`
 - The question word `cu'e`
 
-`ki` sets a reference point (CLL 10.13). `se` can convert a BAI modal. `na'e` can negate a BAI modal or a tense, and `ki` can follow either.
+`ki` sets a reference point (CLL 10.13). `se` can convert a BAI modal. `na'e` can negate a BAI modal or a tense, and `ki` can follow either. CLL 10.4 puts time before space in one tense. The printed rule also lets space come first, and this grammar does not (item 8 of "Differences from the printed CLL grammar").
 
 A time tense is any combination of these, in this order (CLL 10.4 to 10.9):
 
@@ -552,7 +552,7 @@ A space tense is likewise a `va` distance, `fa'a`-family offsets, a space interv
   simple-tense-modal # | FIhO # selbri [FEhU #]
 
 %rule simple-tense-modal
-  [NAhE] [SE] BAI [NAI] [KI] | [NAhE] ((time [space] | space [time]) & CAhA) [KI] | KI | CUhE
+  [NAhE] [SE] BAI [NAI] [KI] | [NAhE] ((time [space] | space) & CAhA) [KI] | KI | CUhE
 
 %rule time
   ZI & time-offset ... & (ZEhA [PU [NAI]]) & interval-property ...
@@ -655,16 +655,17 @@ For example, `le sutra tavla` has two parses. One is a statement with the descri
 
 ## Differences from the printed CLL grammar
 
-This grammar departs from the EBNF printed in CLL in seven places. The first settles a precedence that the printed text states in a way that cannot be meant. The next three repair the EBNF's copy of the YACC grammar, the grammar of the official parser for the YACC parser generator. The EBNF uses that grammar as its source and cites its rule numbers. In each case, the YACC grammar has a path that the EBNF omits. The official parser accepts the text.
+This grammar departs from the EBNF printed in CLL in eight places. The first settles a precedence that the printed text states in a way that cannot be meant. The next three repair the EBNF's copy of the YACC grammar, the grammar of the official parser for the YACC parser generator. The EBNF uses that grammar as its source and cites its rule numbers. In each case, the YACC grammar has a path that the EBNF omits. The official parser accepts the text.
 
-The fifth follows the prose of CLL 19.8, which allows more than the EBNF. The sixth and the seventh choose between two parses of the printed grammar, as the lexer of the official parser does. The seventh also follows the prose of CLL 14.10 and 14.18. Apart from these, this grammar spells the printed grammar's `CMENE` as `CMEVLA`, the class that the word stage gives a name.
+The fifth follows the prose of CLL 19.8, which allows more than the EBNF. The sixth and the seventh choose between two parses of the printed grammar, as the lexer of the official parser does. The seventh also follows the prose of CLL 14.10 and 14.18. The eighth follows the prose of CLL 10.4, which the printed rule contradicts. Apart from these, this grammar spells the printed grammar's `CMENE` as `CMEVLA`, the class that the word stage gives a name.
 
-1. In `simple-tense-modal`, the printed text reads `[NAhE] (time [space] | space [time]) & CAhA [KI]`. By the stated precedence of `&`, that attaches `[NAhE]` only to the time/space branch and `[KI]` only to the `CAhA` branch. This grammar reads `[NAhE] ((time [space] | space [time]) & CAhA) [KI]`, so that `ba za ki` is one `simple-tense-modal`, and so is `na'e ka'e`.
+1. In `simple-tense-modal`, the printed text reads `[NAhE] (time [space] | space [time]) & CAhA [KI]`. By the stated precedence of `&`, that attaches `[NAhE]` only to the time/space branch and `[KI]` only to the `CAhA` branch. This grammar reads `[NAhE] ((time [space] | space [time]) & CAhA) [KI]`, with the time and space part narrowed as item 8 says. So that `ba za ki` is one `simple-tense-modal`, and so is `na'e ka'e`.
 2. A text can begin with `.i` separators followed by `ni'o` markers, as in `.i ni'o mi klama`. The printed `text-1` makes the two alternatives. YACC rule 2 (`text_B_2`) lets any number of `.i` forms precede a `ni'o` run. The camxes grammars call the printed form "a bug in the BNF".
 3. A `lo'u ... le'u` quote can be empty, `lo'u le'u`. The printed `sumti-6` requires at least one word. YACC rule 436 reads the body of the quote as one token that can be empty.
 4. The free-modifier slot after a `lu ... li'u` quote follows the quote whether or not `li'u` is written, so `lu cy. to toi` is a quote followed by a parenthesis. The printed `sumti-6` writes `/LIhU#/`, which drops the slot with the elided `li'u`. YACC rule 432 (`quote_arg`) attaches free modifiers to the whole quote, and its `LIhU` gap carries none. Every other elidable terminator keeps its slot as printed.
 5. A run of indicators can hold several groups, each with its own `fu'e`, as in `ui fu'e ia mi klama`. The printed `indicators` reads `[FUhE] indicator ...`, one group. CLL 19.8 lets a local attitudinal stand beside the ones that `fu'e` marks. The indicator stage reads the run after a word the same way.
 6. In `selbri-4` and `operator`, a plain joik directly before `ke` cannot take a unit that is only a `ke` group (`joik-before-ke`). The condition reads the tag `~ke-group` of the parsed unit, as item 7 does. The printed grammar reads `mi broda joi ke brode ke'e` in two ways. The lexer of the official parser makes `joi ke` one token, `JOIK_KE`, so it reads only the `ke` group joined by `joi`. That lexer also rejects `mi broda joi ke brode ke'e bo brodi`, which has only the plain reading. This grammar keeps the plain reading there, as the printed grammar does.
 7. In `bridi-tail-1`, a tail that ends the bridi-tail cannot follow a plain gihek where the `ke` form of `bridi-tail` can read it as a group of tails (`bridi-tail-2-not-ke-group`). The condition reads the tags `~ke-group` and `~vau-written` of the parsed tail. To pass them up, eight rules write an optional part as two alternatives, which read the same words in the same way. Item 6 reads `~ke-group` too. The printed grammar reads `mi broda gi'e ke brode ke'e` in two ways: a `ke` group of tails after `gi'e` (rule 50), or a plain `gi'e` (rule 51) before a tail whose selbri is a `ke` tanru unit. The elided terminators cannot choose: the two parses tie when `ke'e` is elided at the end, and `late-elision` takes the tanru when `ke'e` is written. CLL 14.10 groups tails with `ke` after a gihek, and CLL 14.18 puts a tense between a gihek and `ke`, which the tanru parse moves onto the selbri. The lexer of the official parser makes `gi'e ke` one token, `GIhEK_KE`, so it reads only the group. That lexer also rejects `mi broda gi'e ke brode ke'e brodi`, which has only the plain reading. This grammar keeps the plain reading there, as the printed grammar does.
+8. In `simple-tense-modal`, space cannot come before time. The printed rule reads `time [space] | space [time]`, and the YACC grammar also lets space come before time. CLL 10.4 says that when a tense has both, time comes first. It gives the reason: if space could come before or after time at will, some constructions would be ambiguous. This grammar reads `time [space] | space`. So `mi va pu klama` reads as the term `va` followed by the selbri `klama` with the tense `pu`, as the official parser reads it. The printed grammar reads `va pu` there as one tense. In the same way, `mi fe'e di'i co'a klama` reads `co'a` as a time tense of the selbri, since each space interval property takes its own `fe'e` (CLL 10.11). Where a connective holds a tense with space before time, the text is now an error: `mi .e vi pu bo do klama`, `mi klama .i vi pu bo do cadzu` and `mi broda gi'e vi pu bo brode`. The printed grammar accepts these three, and the official parser rejects them. No example in CLL writes space before time.
 
 This grammar keeps the free-modifier slot after an elided terminator as printed: an elided `[X #]` leaves no slot. So a free modifier cannot follow an elided `boi`, and where CLL example 17.38 writes `xy. xi ky.`, this grammar requires `xy. boi xi ky.`.
