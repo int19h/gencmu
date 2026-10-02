@@ -51,6 +51,11 @@ export type Expectation = {
 export type ParseError = {
     kind: "rejected" | "ambiguous" | "grammar";
     stage?: string;
+    /**
+     * why an ambiguous error is
+     * one: a tie (engine §6) or the check of elision-only (engine §7)
+     */
+    reason?: "tie" | "elision-only";
     token?: number;
     source?: Span;
     line?: number;
@@ -74,12 +79,10 @@ export type StageReport = TiedStageReport | SettledStageReport;
 export type TiedStageReport = StageReportBase & {
     verdict: "tie";
     witness: Witness;
-    tied: ResultNode;
 };
 export type SettledStageReport = StageReportBase & {
     verdict: "unique" | "resolved" | null;
     witness: null;
-    tied?: undefined;
 };
 export type Witness = [WitnessAction | null, WitnessAction | null];
 export type WitnessAction = WitnessRead | WitnessClose;
@@ -120,6 +123,10 @@ export type StageReportBase = {
      * the tokens handed to the next stage
      */
     output: Token[] | null;
+    /**
+     * the chosen tree, or null for a stage
+     * that rejected its input or tied
+     */
     tree: ResultNode | null;
     error: ParseError | null;
     /**
@@ -128,7 +135,7 @@ export type StageReportBase = {
     input?: Token[];
     /**
      * the warnings of the chosen tree
-     * (engine §12); absent for a stage that rejected its input
+     * (engine §12), absent for a stage that rejected its input or tied
      */
     warnings?: ParseWarning[];
 };
@@ -246,6 +253,11 @@ export type DomConstant = {
 export type DomDirective = {
     name: string;
     args: string[];
+    /**
+     * for `%elidable maximal`: its terminators are
+     * maximal (engine §2, §4)
+     */
+    maximal?: true;
     at: Position;
 };
 export type DomRule = {
@@ -454,7 +466,11 @@ export type Production = {
     warnings: string[];
 };
 export type Resolution = {
-    lean: "greedy" | "lazy";
+    /**
+     * the rule of the
+     * ranking (engine §6)
+     */
+    lean: "greedy" | "lazy" | "late-elision";
     elisionOnly: boolean;
     /**
      * whether an elided terminator is forbidden
@@ -466,6 +482,11 @@ export type LoweredGrammar = {
     productions: Production[];
     byLhs: Map<string, Production[]>;
     elidable: Set<string>;
+    /**
+     * the elidable terminators that are
+     * maximal (engine §4)
+     */
+    maximalTerminals: Set<string>;
     resolution: Resolution;
     /**
      * each classifier
@@ -482,7 +503,7 @@ export type LoweredGrammar = {
         then: TagSet;
     }[];
 };
-export type Lean = "greedy" | "lazy" | "none";
+export type Lean = "greedy" | "lazy" | "late-elision" | "none";
 export type Slot = [number, number, number] | null;
 export type Edge = {
     kind: "seed";
@@ -520,7 +541,7 @@ export type RopeLeaf = {
 export type RopeConcat = {
     left: Rope;
     right: Rope;
-    size: number;
+    size: number | bigint;
 };
 export type Derivation = DerivationRead | DerivationRule;
 export type DerivationRead = {
@@ -609,11 +630,13 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {string[]} rules
  */
 /**
- * Why a text did not parse: rejected by a stage, ambiguous under
- * elision-only, or a defect of the grammar found while running it.
+ * Why a text did not parse: rejected by a stage, ambiguous with a tie or
+ * under elision-only, or a defect of the grammar found while running it.
  * @typedef {object} ParseError
  * @property {"rejected" | "ambiguous" | "grammar"} kind
  * @property {string} [stage]
+ * @property {"tie" | "elision-only"} [reason] why an ambiguous error is
+ *   one: a tie (engine §6) or the check of elision-only (engine §7)
  * @property {number} [token]
  * @property {Span} [source]
  * @property {number} [line]
@@ -640,18 +663,18 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Item} item
  */
 /**
- * What one stage did. A stage whose verdict is `tie` has a witness and a
- * tied tree; any other has neither.
+ * What one stage did. A stage whose verdict is `tie` has a witness, and
+ * its two readings are in its error. Any other stage has no witness.
  * @typedef {TiedStageReport | SettledStageReport} StageReport
  */
 /**
- * @typedef {StageReportBase & {verdict: "tie", witness: Witness, tied: ResultNode}} TiedStageReport
+ * @typedef {StageReportBase & {verdict: "tie", witness: Witness}} TiedStageReport
  */
 /**
- * @typedef {StageReportBase & {verdict: "unique" | "resolved" | null, witness: null, tied?: undefined}} SettledStageReport
+ * @typedef {StageReportBase & {verdict: "unique" | "resolved" | null, witness: null}} SettledStageReport
  */
 /**
- * Where the chosen and the tied derivation first differ: their actions
+ * Where the two readings of a tie first differ: their actions
  * there, null on the side of one that ended. The witness is plain data of
  * the result's own, and shares nothing with the grammar.
  * @typedef {[WitnessAction | null, WitnessAction | null]} Witness
@@ -680,11 +703,12 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} StageReportBase
  * @property {string} name
  * @property {Token[] | null} output the tokens handed to the next stage
- * @property {ResultNode | null} tree
+ * @property {ResultNode | null} tree the chosen tree, or null for a stage
+ *   that rejected its input or tied
  * @property {ParseError | null} error
  * @property {Token[]} [input] the tokens the stage read
  * @property {ParseWarning[]} [warnings] the warnings of the chosen tree
- *   (engine §12); absent for a stage that rejected its input
+ *   (engine §12), absent for a stage that rejected its input or tied
  */
 /**
  * A warning (engine §12): a node of a stage's chosen tree that a warned
@@ -778,6 +802,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} DomDirective
  * @property {string} name
  * @property {string[]} args
+ * @property {true} [maximal] for `%elidable maximal`: its terminators are
+ *   maximal (engine §2, §4)
  * @property {Position} at
  */
 /**
@@ -920,7 +946,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  */
 /**
  * @typedef {object} Resolution
- * @property {"greedy" | "lazy"} lean
+ * @property {"greedy" | "lazy" | "late-elision"} lean the rule of the
+ *   ranking (engine §6)
  * @property {boolean} elisionOnly
  * @property {boolean} maximal whether an elided terminator is forbidden
  *   where its constituent could have been longer (engine §4)
@@ -931,6 +958,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Production[]} productions
  * @property {Map<string, Production[]>} byLhs
  * @property {Set<string>} elidable
+ * @property {Set<string>} maximalTerminals the elidable terminators that are
+ *   maximal (engine §4)
  * @property {Resolution} resolution
  * @property {Map<string, Map<string, TagSet>>} classifiers each classifier
  *   of the stage, resolved for these features: each key's classes (engine
@@ -939,9 +968,9 @@ export type ParseContext = import("./earley.js").ParseContext;
  *   implications, which its emitted tokens take (engine §11)
  */
 /**
- * The lean the ranking uses: the grammar's, or none for elision-only's
- * check.
- * @typedef {"greedy" | "lazy" | "none"} Lean
+ * The rule the ranking uses: the grammar's, or none for elision-only's
+ * check and for the readings of a late-elision tie (engine §6).
+ * @typedef {"greedy" | "lazy" | "late-elision" | "none"} Lean
  */
 /**
  * A captured part as a chart item records it: its span and the number of
@@ -972,11 +1001,13 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {(name: string) => SpanValue} capture
  */
 /**
- * A sequence of actions, shared between the sequences built on it.
+ * A sequence of actions, shared between the sequences built on it. Its
+ * size is the number of its visible actions, exact however large (see
+ * Count in rank.js).
  * @typedef {{empty: true, size: number} | RopeLeaf | RopeConcat} Rope
  */
 /** @typedef {{leaf: Action, size: number}} RopeLeaf */
-/** @typedef {{left: Rope, right: Rope, size: number}} RopeConcat */
+/** @typedef {{left: Rope, right: Rope, size: number | bigint}} RopeConcat */
 /**
  * A derivation, every production closed, helpers and all.
  * @typedef {DerivationRead | DerivationRule} Derivation

@@ -1,0 +1,53 @@
+{
+  "description": "text → [A] & [B] derives the empty input in three ways, through [A] alone, [B] alone, or both. All have the same empty tree and elide nothing, so they tie under late-elision (engine §3.2, §6).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text [A] & [B]",
+  "tokens": [],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie"
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              0
+            ],
+            "source": [
+              0,
+              0
+            ],
+            "tags": [],
+            "children": []
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              0
+            ],
+            "source": [
+              0,
+              0
+            ],
+            "tags": [],
+            "children": []
+          }
+        ]
+      }
+    },
+    "error": "ambiguous"
+  }
+}

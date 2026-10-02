@@ -177,6 +177,7 @@ fn until_features_and_elision_only() {
     assert!(!result.ok);
     let error = result.error.as_ref().unwrap();
     assert_eq!(error.kind, ParseErrorKind::Ambiguous);
+    assert_eq!(error.reason, Some(gencmu::AmbiguityReason::ElisionOnly));
     assert_eq!(error.readings.len(), 2);
     assert!(result.tree.is_none());
     let off = ambiguous.parse("ab", &ParseOptions { elision_only: Some(false), ..no_auto() }).unwrap();
@@ -412,7 +413,7 @@ fn results_outlive_the_dialect_and_cross_threads() {
         dialect.parse(&text, &ParseOptions::default()).unwrap()
     };
     let json = std::thread::spawn(move || gencmu::to_json(&result)).join().unwrap();
-    assert!(json.starts_with("{\"format\":6,\"ok\":true"));
+    assert!(json.starts_with("{\"format\":7,\"ok\":true"));
 
     let dialect = std::sync::Arc::new(gencmu::load_dialect("notation").unwrap());
     let threads: Vec<_> = (0..4)
@@ -482,9 +483,14 @@ fn deep_tokens_and_ties_do_not_overflow() {
         let started = std::time::Instant::now();
         let result = dialect.parse_tokens(&tokens, &no_auto()).unwrap();
         eprintln!("6000 tokens with 3000 independent ties in {:?}", started.elapsed());
-        assert!(result.ok);
+        // A tie is an ambiguous error, whose readings are the two trees.
+        assert!(!result.ok);
         assert_eq!(result.stages[0].verdict, Some(Verdict::Tie));
-        assert!(result.stages[0].tied.is_some());
+        assert!(result.stages[0].output.is_none());
+        let error = result.error.as_ref().expect("an error");
+        assert_eq!((error.kind, error.reason), (ParseErrorKind::Ambiguous, Some(gencmu::AmbiguityReason::Tie)));
+        assert_eq!(error.readings.len(), 2);
+        assert!(result.tree.is_none());
         let _ = gencmu::to_json(&result);
     });
 }
@@ -569,9 +575,12 @@ fn an_and_of_more_than_sixteen_items_is_an_error() {
         sources.insert("compiled.json".to_string(), compiled(text, &dom));
         gencmu::load_dialect_sources(sources, "p.md").expect("a dialect")
     };
+    // The & reads "B" in sixteen ways, a tie, but the stage accepts it.
+    let accepts =
+        |dialect: &gencmu::Dialect, text: &str| dialect.parse(text, &no_auto()).unwrap().stages[0].verdict.is_some();
     let dialect = and(16);
-    assert!(dialect.parse("B", &no_auto()).unwrap().ok, "the cache is used");
-    assert!(!dialect.parse("A", &no_auto()).unwrap().ok, "the cache is used");
+    assert!(accepts(&dialect, "B"), "the cache is used");
+    assert!(!accepts(&dialect, "A"), "the cache is used");
     // An & of 17 items is not a DOM the reader could give, so it is a
     // cache miss, and the document itself is read.
     let dialect = and(17);
@@ -850,4 +859,86 @@ fn the_experimental_syntax_reads_no_la() {
     assert!(!result.ok);
     assert_eq!(result.error.as_ref().and_then(|error| error.stage.as_deref()), Some("syntax"));
     assert!(probe.parse("lo mlatu ku cu klama", &ParseOptions::default()).expect("a result").ok);
+}
+
+/// A grammar whose derivations are exponentially long: each rule repeats
+/// the rule before it twice, from `r0 → [T]` with `T` elidable, and the
+/// rule `text` has the alternatives `text`.
+fn doubling(rule: &str, depth: usize, text: &str) -> gencmu::Dialect {
+    let mut grammar = format!("%ambiguity-resolution {rule}\n%elidable T\n%rule text {text}\n%rule r0 [T]\n");
+    for i in 1..=depth {
+        grammar.push_str(&format!("%rule r{i} r{} r{}\n", i - 1, i - 1));
+    }
+    gencmu::load_dialect_sources(single(&grammar), "p.md").unwrap()
+}
+
+/// The counts of a derivation can pass any fixed width: here 2^32 and
+/// 2^100 terminators elided at boundary 0, and as many visible actions.
+/// They stay exact (engine §6).
+#[test]
+fn exponentially_long_derivations_keep_exact_counts() {
+    for depth in [32, 100] {
+        // Under late-elision, the empty reading elides nothing and wins.
+        let dialect = doubling("late-elision", depth, &format!("ε | r{depth}"));
+        let result = dialect.parse_tokens(&[], &no_auto()).unwrap();
+        assert!(result.ok, "{depth}");
+        assert_eq!(result.stages[0].verdict, Some(Verdict::Resolved), "{depth}");
+        // Under greedy, the reading that reads A at once beats the one that
+        // first closes the long rule.
+        let dialect = doubling("greedy", depth, &format!("A | r{depth} A"));
+        let a = gencmu::InputToken { text: "a".into(), tags: ["A".to_string()].into_iter().collect(), phonemes: None };
+        let result = dialect.parse_tokens(&[a], &no_auto()).unwrap();
+        assert!(result.ok, "{depth}");
+        assert_eq!(result.stages[0].verdict, Some(Verdict::Resolved), "{depth}");
+        assert_eq!(gencmu::to_brackets(&result, false), "a", "{depth}");
+    }
+}
+
+/// A cycle context keeps only the rules of the cycle that the item lies
+/// on (engine §6). Here each wrapper of each level is a cycle of its own,
+/// so keeping every cyclic rule above would make 2^N contexts.
+#[test]
+fn cycle_contexts_keep_only_the_rules_of_their_cycle() {
+    let depth = 40;
+    let mut grammar =
+        format!("%ambiguity-resolution late-elision\n%elidable T\n%rule text ε | r{depth}\n%rule r0 [T]\n");
+    for i in 1..=depth {
+        let below = i - 1;
+        grammar.push_str(&format!("%rule r{i} a{i} b{i}\n%rule a{i} r{below} | a{i}\n%rule b{i} r{below} | b{i}\n"));
+    }
+    let dialect = gencmu::load_dialect_sources(single(&grammar), "p.md").unwrap();
+    let started = std::time::Instant::now();
+    let result = dialect.parse_tokens(&[], &no_auto()).unwrap();
+    assert!(result.ok);
+    assert_eq!(result.stages[0].verdict, Some(Verdict::Resolved));
+    assert!(started.elapsed() < std::time::Duration::from_secs(30), "{:?}", started.elapsed());
+}
+
+/// A timing probe of written-terminator priority (engine §4): a nested
+/// query over a long text with many omissions and no written terminator
+/// takes time in proportion to the text. The searches for a blocking path
+/// once looked at every later set of the chart for each omission, which
+/// took quadratic time.
+#[test]
+fn nested_queries_with_many_omissions_take_linear_time() {
+    let grammar = "%ambiguity-resolution greedy\n%elidable T\n%rule text body B\n%conditions matches($, r)\n\
+                   %rule body A ...\n%rule r parts B\n%rule parts part ...\n%rule part A [T]";
+    let dialect = gencmu::load_dialect_sources(single(grammar), "p.md").unwrap();
+    let time = |n: usize| {
+        let token = |tag: &str| gencmu::InputToken {
+            text: tag.to_lowercase(),
+            tags: [tag.to_string()].into_iter().collect(),
+            phonemes: None,
+        };
+        let tokens: Vec<_> = (0..n).map(|_| token("A")).chain([token("B")]).collect();
+        let started = std::time::Instant::now();
+        let result = dialect.parse_tokens(&tokens, &no_auto()).unwrap();
+        assert!(result.ok, "{n}");
+        started.elapsed()
+    };
+    let _ = time(500);
+    let (short, long) = (time(4000), time(16000));
+    eprintln!("4000 tokens in {short:?}, 16000 in {long:?}");
+    // Linear time gives about four times as long; quadratic, sixteen.
+    assert!(long < short * 10, "4000 tokens in {short:?}, 16000 in {long:?}");
 }

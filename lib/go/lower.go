@@ -68,8 +68,9 @@ type lowered struct {
 	// characters it matches; nil for a terminal that is a tag (§4).
 	classes    []*charClass
 	prods      []*production
-	lean       string // "greedy", "lazy", or "" for no lean (§7)
-	maximal    bool   // no terminator is elided where its constituent could have been longer (§4)
+	lean       string          // "greedy", "lazy", "late-elision", or "" for no lean (§6, §7)
+	maximal    bool            // no terminator is elided where its constituent could have been longer (§4)
+	maximalT   map[string]bool // the maximal terminators, which maximality restricts anyway (§4)
 	sccMembers [][]int32
 	// fault is an error of the grammar that lowering for these features
 	// found (§3.3), or "": parsing with it is a result with that error.
@@ -131,7 +132,7 @@ type helperNode struct {
 // lower lowers a stage's grammar for a set of features; mandatory makes
 // every optional that begins with an elidable terminal mandatory (§3.8).
 func lower(g *stageGrammar, features map[string]bool, mandatory bool) *lowered {
-	l := &lowered{stage: g, byName: map[string]int32{}, termID: map[string]int32{}, lean: g.lean, maximal: g.maximal}
+	l := &lowered{stage: g, byName: map[string]int32{}, termID: map[string]int32{}, lean: g.lean, maximal: g.maximal, maximalT: g.maximalT}
 	// The stage resolves its classifiers for the same features, before it
 	// lowers its rules; an error there ends the stage as an error of
 	// lowering does (§2, §3.3).

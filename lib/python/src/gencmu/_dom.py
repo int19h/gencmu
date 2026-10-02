@@ -336,11 +336,21 @@ class DomBuilder:
     def directive(self, node: Node) -> Dom:
         name = self.text(self.token(node))[1:]
         operands = [kid for kid in self.kids(node) if kid.kind == "rule" and kid.rule in ("argument-word", "argument-string", "argument-tag")]
+        # A first word maximal of %elidable makes its terminators maximal and
+        # is no operand. A tag ~maximal stays one (engine §9).
+        maximal = (
+            name == "elidable" and bool(operands) and operands[0].rule == "argument-word" and self.text(self.token(operands[0])) == "maximal"
+        )
+        if maximal:
+            operands = operands[1:]
         problem = operand_problem(name, [self.operand_kind(kid) for kid in operands])
         if problem:
             raise self.fail(node, problem)
-        args = [self.operand(kid) for kid in operands]
-        return {"name": name, "args": args, "at": list(self.position(node))}
+        directive: Dom = {"name": name, "args": [self.operand(kid) for kid in operands]}
+        if maximal:
+            directive["maximal"] = True
+        directive["at"] = list(self.position(node))
+        return directive
 
     def operand(self, node: Node) -> str:
         """A directive's operand: a name is its text, a string is decoded,

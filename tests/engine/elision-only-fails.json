@@ -19,7 +19,8 @@
     "result": {
       "ok": false,
       "error": {
-        "kind": "ambiguous"
+        "kind": "ambiguous",
+        "reason": "elision-only"
       }
     },
     "error": "ambiguous"

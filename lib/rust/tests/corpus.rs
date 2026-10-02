@@ -34,8 +34,20 @@ fn string(value: &str) -> Value {
     Value::String(value.to_string())
 }
 
-/// What gencmu makes of a case, in the case's own terms.
-fn outcome(dialect: &gencmu::Dialect, case: &Value) -> BTreeMap<&'static str, Value> {
+/// Holds the canonical result of a case to the invariants of a tie, as the
+/// engine-case runner does (tests/README.md).
+fn invariants(json: &Value) -> Result<(), String> {
+    let problems = common::result_problems(json);
+    if problems.is_empty() {
+        Ok(())
+    } else {
+        Err(format!("the result breaks an invariant: {}", problems.join("; ")))
+    }
+}
+
+/// What gencmu makes of a case, in the case's own terms, or how its result
+/// breaks an invariant.
+fn outcome(dialect: &gencmu::Dialect, case: &Value) -> Result<BTreeMap<&'static str, Value>, String> {
     let text = case.get("text").and_then(Value::str).expect("a text");
     let options = gencmu::ParseOptions {
         features: feature_names(case.get("features")),
@@ -43,6 +55,7 @@ fn outcome(dialect: &gencmu::Dialect, case: &Value) -> BTreeMap<&'static str, Va
         ..gencmu::ParseOptions::default()
     };
     let result = dialect.parse(text, &options).expect("a parse");
+    invariants(&parse_json(&gencmu::to_json(&result)).expect("the canonical result is JSON"))?;
     let mut got = BTreeMap::new();
     got.insert("expect", string(if result.ok { "accept" } else { "reject" }));
     if result.ok {
@@ -56,6 +69,19 @@ fn outcome(dialect: &gencmu::Dialect, case: &Value) -> BTreeMap<&'static str, Va
         got.insert("brackets", string(&gencmu::to_brackets(&result, false)));
     } else {
         got.insert("stage", result.error.as_ref().and_then(|error| error.stage.as_deref()).map_or(Value::Null, string));
+    }
+    // An ambiguous error pins its kind and reason, and no other error has
+    // the field (tests/README.md).
+    if let Some(error) = result.error.as_ref().filter(|error| error.kind == gencmu::ParseErrorKind::Ambiguous) {
+        let reason = match error.reason {
+            Some(gencmu::AmbiguityReason::Tie) => string("tie"),
+            Some(gencmu::AmbiguityReason::ElisionOnly) => string("elision-only"),
+            None => Value::Null,
+        };
+        got.insert(
+            "error",
+            Value::Object(vec![("kind".to_string(), string("ambiguous")), ("reason".to_string(), reason)]),
+        );
     }
     let ties: Vec<Value> = result
         .stages
@@ -73,11 +99,11 @@ fn outcome(dialect: &gencmu::Dialect, case: &Value) -> BTreeMap<&'static str, Va
         let words = output.iter().map(|token| string(&token.label)).collect();
         got.insert("words", Value::Array(words));
     }
-    got
+    Ok(got)
 }
 
 fn compare(case: &Value, got: &BTreeMap<&'static str, Value>) -> Option<String> {
-    for key in ["expect", "verdict", "stage", "ties", "words", "brackets"] {
+    for key in ["expect", "verdict", "stage", "error", "ties", "words", "brackets"] {
         let expected = case.get(key);
         let found = got.get(key);
         if expected.is_none() && found.is_none() {
@@ -145,7 +171,8 @@ fn the_corpus() {
                             .clone()
                     };
                     let problem = match std::panic::catch_unwind(|| outcome(&dialect, case)) {
-                        Ok(got) => compare(case, &got),
+                        Ok(Ok(got)) => compare(case, &got),
+                        Ok(Err(problem)) => Some(problem),
                         Err(panic) => Some(format!(
                             "crashed: {}",
                             panic
@@ -180,4 +207,56 @@ fn the_corpus() {
         cases.len(),
         shown.iter().map(|s| s.as_str()).collect::<Vec<_>>().join("\n")
     );
+}
+
+/// The corpus runner refuses the canonical result of a tied case once it
+/// breaks any part of the invariants, the whole error and tree included. No
+/// text ties in a bundled dialect, so a tied engine case of two stages
+/// stands for a tied corpus case.
+#[test]
+fn the_corpus_runner_refuses_a_result_that_breaks_an_invariant() {
+    let file = repository().join("tests/engine/attach-tie.json");
+    let case = parse_json(&std::fs::read_to_string(file).expect("the tied engine case")).expect("JSON");
+    let (documents, pipeline) = common::case_documents(&case);
+    let dialect = gencmu::load_dialect_sources(documents, &pipeline).expect("the dialect of the case");
+    let text = case.get("input").and_then(Value::str).expect("an input");
+    let options = gencmu::ParseOptions { auto_features: false, ..gencmu::ParseOptions::default() };
+    let json = parse_json(&gencmu::to_json(&dialect.parse(text, &options).unwrap())).unwrap();
+    assert_eq!(invariants(&json), Ok(()));
+    assert_eq!(json.get("error").and_then(|error| error.get("reason")).and_then(Value::str), Some("tie"));
+
+    // A copy of an object with one member set, or removed for `None`.
+    fn with(object: &Value, key: &str, value: Option<Value>) -> Value {
+        let mut members: Vec<(String, Value)> =
+            object.object().iter().filter(|(name, _)| name != key).cloned().collect();
+        members.extend(value.map(|value| (key.to_string(), value)));
+        Value::Object(members)
+    }
+    let stages = json.get("stages").unwrap().array();
+    let (last, before) = stages.split_last().expect("stages");
+    let staged = |tied: Value, after: Option<Value>| {
+        let mut all = before.to_vec();
+        all.push(tied);
+        all.extend(after);
+        with(&json, "stages", Some(Value::Array(all)))
+    };
+    let error = json.get("error").unwrap();
+    let readings = error.get("readings").unwrap().array();
+    let erred = |key: &str, value: Option<Value>| with(&json, "error", Some(with(error, key, value)));
+    let mutants = [
+        staged(with(last, "output", Some(Value::Array(Vec::new()))), None),
+        staged(with(last, "tied", Some(readings[1].clone())), None),
+        staged(last.clone(), Some(parse_json(r#"{"name": "later", "verdict": "unique"}"#).unwrap())),
+        erred("reason", None),
+        erred("reason", Some(string("elision-only"))),
+        erred("kind", Some(string("rejected"))),
+        erred("stage", Some(string("words"))),
+        erred("readings", Some(Value::Array(readings[..1].to_vec()))),
+        with(&json, "tree", Some(readings[0].clone())),
+        with(&json, "ok", Some(Value::Bool(true))),
+        with(&json, "error", Some(Value::Null)),
+    ];
+    for mutant in &mutants {
+        assert!(invariants(mutant).is_err(), "{mutant:?}");
+    }
 }

@@ -1,5 +1,5 @@
 {
-  "description": "Two different constituents over the same span are a tie; the chosen one has the lower production number (engine §6.3).",
+  "description": "Two different constituents over the same span are a tie. The first reading has the lower production number (engine §6.3).",
   "grammar": "%rule text p | q\n%rule p A B\n%rule q A B",
   "tokens": [
     {
@@ -17,7 +17,7 @@
   ],
   "expect": {
     "result": {
-      "ok": true,
+      "ok": false,
       "stages": [
         {
           "verdict": "tie",
@@ -43,16 +43,81 @@
           ]
         }
       ],
-      "tree": {
-        "kind": "rule",
-        "rule": "text",
-        "children": [
+      "tree": null,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie",
+        "readings": [
           {
             "kind": "rule",
-            "rule": "p"
+            "rule": "text",
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "p"
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              2
+            ],
+            "source": [
+              0,
+              3
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "q",
+                "span": [
+                  0,
+                  2
+                ],
+                "source": [
+                  0,
+                  3
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "A",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  },
+                  {
+                    "kind": "token",
+                    "terminal": "B",
+                    "token": 1,
+                    "span": [
+                      1,
+                      2
+                    ],
+                    "source": [
+                      2,
+                      3
+                    ]
+                  }
+                ]
+              }
+            ]
           }
         ]
       }
-    }
+    },
+    "error": "ambiguous"
   }
 }

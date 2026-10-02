@@ -470,9 +470,268 @@
     return [...text];
   }
 
+  // ---- eligible.js
+  // Written-terminator priority for nested queries (engine §4): which
+  // completed items of a queried rule have an eligible witness.
+
+  /**
+   * @import { Edge, Item, LoweredGrammar, SymbolTest, TagSet } from "./types.js"
+   * @import { Chart, ParseContext } from "./earley.js"
+   */
+
+  /**
+   * Whether a test holds of a span with the given tags: the recognizer's own,
+   * passed in so that this module does not import the recognizer.
+   * @typedef {(context: ParseContext, test: SymbolTest, from: number, to: number, tags: TagSet) => boolean} TestHolds
+   */
+
+  // How many completions the maximality checks of nested queries have read,
+  // for a test that the work stays linear.
+  const counters = { checks: 0, candidates: 0 };
+
+  /** @type {WeakMap<LoweredGrammar, Set<string>>} */
+  const elidableHelpers = new WeakMap();
+
+  /**
+   * The helpers of a grammar's elidable optionals (engine §3.8), by name.
+   * @param {LoweredGrammar} lowered
+   * @returns {Set<string>}
+   */
+  function helpersOf(lowered) {
+    let helpers = elidableHelpers.get(lowered);
+    if (!helpers) {
+      helpers = new Set();
+      for (const production of lowered.productions) if (production.helper && production.elided !== null) helpers.add(production.lhs);
+      elidableHelpers.set(lowered, helpers);
+    }
+    return helpers;
+  }
+
+  /**
+   * Whether a completed item is the empty helper of an elidable optional: an
+   * advance over it is an omission.
+   * @param {Item} item
+   * @returns {boolean}
+   */
+  function omitted(item) {
+    return item.production.helper && item.production.elided !== null && item.production.rhs.length === 0;
+  }
+
+  /**
+   * Whether a completed item is an elidable optional's helper over its
+   * nonempty alternative: an advance over it reads the optional as written.
+   * @param {Item} item
+   * @returns {boolean}
+   */
+  function written(item) {
+    return item.dot === item.production.rhs.length && item.production.helper && item.production.elided !== null && item.production.rhs.length > 0;
+  }
+
+  /**
+   * The witnesses, completed items of the queried rule, that have an eligible
+   * witness in the chart (engine §4). An omission is an advance over the
+   * empty helper of an elidable optional at its position p. It is forbidden
+   * where the prefix that the witness holds fixed can go on and read the
+   * optional as written:
+   *
+   * - Where the optional has a constituent Y, the prefix is the item before Y
+   *   in the same witness. The omission is forbidden when the chart advances
+   *   that item over Y to some p' ≥ p, and the item so made advances over the
+   *   optional's nonempty alternative.
+   * - Otherwise the prefix is the item before the optional, and the omission
+   *   is forbidden when the chart advances that item over the nonempty
+   *   alternative.
+   *
+   * An omission of a maximal terminator with a constituent Y is also
+   * forbidden when the chart has a longer Y: a completed item of Y from the
+   * same origin with a later end, which passes Y's test. Maximality never
+   * forbids an omission with no constituent.
+   *
+   * The chart is the whole recognition of the query, before any filtering,
+   * so an attempt that never completes the rule can forbid an omission.
+   *
+   * Each item has two states, computed together to the least fixpoint: it has
+   * an eligible witness (A), and it has an eligible witness that permits the
+   * optional after it to be empty (L). L follows the edge of the witness,
+   * so a permitted omission never combines with another witness's prefix.
+   * @param {Chart} chart
+   * @param {Item[]} witnesses
+   * @param {TestHolds} testHolds
+   * @returns {Item[]}
+   */
+  function eligibleWitnesses(chart, witnesses, testHolds) {
+    if (witnesses.length === 0) return witnesses;
+    const helpers = helpersOf(chart.context.lowered);
+    if (helpers.size === 0) return witnesses;
+    // The items the witnesses rest on, children before the items made from
+    // them where the edges allow, so that one sweep settles most of them.
+    /** @type {Map<Item, number>} */
+    const index = new Map();
+    /** @type {Item[]} */
+    const order = [];
+    let omits = false;
+    for (const witness of witnesses) {
+      if (index.has(witness)) continue;
+      index.set(witness, -1);
+      /** @type {{item: Item, edges: Edge[], next: number}[]} */
+      const stack = [{ item: witness, edges: witness.edges, next: 0 }];
+      while (stack.length > 0) {
+        const frame = stack[stack.length - 1];
+        let pushed = false;
+        while (frame.next < frame.edges.length * 2) {
+          const step = frame.next++;
+          const edge = frame.edges[step >> 1];
+          /** @type {Item | null} */
+          let below = null;
+          if ((step & 1) === 0) below = edge.kind === "seed" ? null : edge.previous;
+          else if (edge.kind === "complete") {
+            below = edge.child;
+            if (omitted(edge.child)) omits = true;
+          }
+          if (below !== null && !index.has(below)) {
+            index.set(below, -1);
+            stack.push({ item: below, edges: below.edges, next: 0 });
+            pushed = true;
+            break;
+          }
+        }
+        if (pushed) continue;
+        stack.pop();
+        index.set(frame.item, order.length);
+        order.push(frame.item);
+      }
+    }
+    // With no omission, every item of a chart has a finite proof, made from
+    // predicted items in the order in which the recognizer made it.
+    if (!omits) return witnesses;
+
+    // The prefixes that advance over a written optional, and for each item
+    // before a constituent Y, the furthest end of an advance over Y that then
+    // reads the optional as written.
+    /** @type {Set<Item>} */
+    const reads = new Set();
+    for (const set of chart.sets) {
+      if (!set) continue;
+      for (const item of set.items) {
+        for (const edge of item.edges) if (edge.kind === "complete" && written(edge.child)) reads.add(edge.previous);
+      }
+    }
+    /** @type {Map<Item, number>} */
+    const further = new Map();
+    for (const item of reads) {
+      for (const edge of item.edges) {
+        if (edge.kind !== "complete") continue;
+        const known = further.get(edge.previous);
+        if (known === undefined || known < item.end) further.set(edge.previous, item.end);
+      }
+    }
+
+    // For each item, whether an elidable optional comes next, and whether it
+    // has a constituent: not at the start, not after a terminal, and not
+    // after the first symbol of a production whose first symbol is its own
+    // rule (engine §4).
+    const next = order.map((item) => {
+      const rhs = item.production.rhs;
+      const symbol = rhs[item.dot];
+      if (symbol === undefined || symbol.terminal || !helpers.has(symbol.name)) return "none";
+      if (item.dot === 0 || rhs[item.dot - 1].terminal) return "alone";
+      if (item.dot === 1 && rhs[0].name === item.production.lhs) return "alone";
+      return "constituent";
+    });
+    // Whether the optional after each item is of a maximal terminator.
+    const lowered = chart.context.lowered;
+    const maximalNext = order.map((item, x) => {
+      if (next[x] !== "constituent" || lowered.maximalTerminals.size === 0) return false;
+      const helpers = lowered.byLhs.get(item.production.rhs[item.dot].name) || [];
+      return helpers.some((production) => production.elided !== null && lowered.maximalTerminals.has(production.elided));
+    });
+    // The completed items of each symbol from each origin, in the query's
+    // chart, made once per query when a maximal terminator needs them, with
+    // the furthest end of each list. For a tested symbol, the furthest end of
+    // a completion that passes the test is kept for each test, since a test
+    // reads only the candidate's own span and tags. So each check is a
+    // lookup, and not a walk of the list.
+    /** @type {Map<string, {items: Item[], furthest: number, tested: Map<SymbolTest, number>}> | null} */
+    let completed = null;
+    /** @type {(constituent: Item, x: number) => boolean} */
+    const longer = (constituent, x) => {
+      counters.checks++;
+      if (completed === null) {
+        completed = new Map();
+        for (const set of chart.sets) {
+          if (!set) continue;
+          for (const item of set.items) {
+            if (item.dot !== item.production.rhs.length) continue;
+            const key = `${item.production.lhs}\u0000${item.origin}`;
+            const entry = completed.get(key);
+            if (entry) {
+              entry.items.push(item);
+              if (item.end > entry.furthest) entry.furthest = item.end;
+            } else completed.set(key, { items: [item], furthest: item.end, tested: new Map() });
+          }
+        }
+      }
+      const entry = completed.get(`${constituent.production.lhs}\u0000${constituent.origin}`);
+      if (entry === undefined) return false;
+      const test = order[x].production.rhs[order[x].dot - 1].test;
+      if (!test) return entry.furthest > constituent.end;
+      let furthest = entry.tested.get(test);
+      if (furthest === undefined) {
+        furthest = -1;
+        for (const candidate of entry.items) {
+          counters.candidates++;
+          if (candidate.end > furthest && testHolds(chart.context, test, candidate.origin, candidate.end, chart.context.interner.get(candidate.tagId))) furthest = candidate.end;
+        }
+        entry.tested.set(test, furthest);
+      }
+      return furthest > constituent.end;
+    };
+    const eligible = new Uint8Array(order.length);
+    const permits = new Uint8Array(order.length);
+    /** @type {(item: Item) => number} */
+    const at = (item) => /** @type {number} */ (index.get(item));
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (let x = 0; x < order.length; x++) {
+        if (eligible[x] && (permits[x] || next[x] === "none")) continue;
+        const item = order[x];
+        let a = 0;
+        let l = 0;
+        for (const edge of item.edges) {
+          let through = 0;
+          if (edge.kind === "seed") through = 1;
+          else if (edge.kind === "scan") through = eligible[at(edge.previous)];
+          else {
+            const before = at(edge.previous);
+            through = (omitted(edge.child) ? permits[before] : eligible[before]) & eligible[at(edge.child)];
+          }
+          if (!through) continue;
+          a = 1;
+          if (next[x] === "alone") {
+            if (!reads.has(item)) l = 1;
+          } else if (next[x] === "constituent" && edge.kind === "complete") {
+            const end = further.get(edge.previous);
+            if ((end === undefined || end < item.end) && !(maximalNext[x] && longer(edge.child, x))) l = 1;
+          }
+        }
+        if (a && !eligible[x]) {
+          eligible[x] = 1;
+          changed = true;
+        }
+        if (l && !permits[x]) {
+          permits[x] = 1;
+          changed = true;
+        }
+      }
+    }
+    return witnesses.filter((witness) => eligible[at(witness)]);
+  }
+
   // ---- earley.js
   // Recognition (engine §4) and the terms and conditions it evaluates
   // (engine §10).
+
 
 
 
@@ -526,6 +785,10 @@
       return this.sets[id];
     }
   }
+
+  // How many items the recognizer has made, in parses and nested parses
+  // alike: a measure of work that tests compare across input lengths.
+  const recognizerCounters = { items: 0 };
 
   // What a parse and every nested parse it starts share.
   class ParseContext {
@@ -719,6 +982,7 @@
         return;
       }
       item = new Item(production, dot, origin, slots, previous, child);
+      recognizerCounters.items++;
       item.end = set.position;
       const trace = context.trace;
       if (trace && trace.depth === 0 && set.position === trace.position) {
@@ -1396,12 +1660,13 @@
    * @returns {boolean}
    */
   function nestedMatches(context, rule, start, end) {
-    return nested(context, "matches", rule, start, end, (chart) => rootItems(chart, rule).length > 0);
+    return nested(context, "matches", rule, start, end, (chart) => eligibleWitnesses(chart, rootItems(chart, rule), testHolds).length > 0);
   }
 
   /**
    * Whether a prefix of [start, end) parses as `rule`: a completed item of it
-   * has its origin at `start`, in any set (engine §4).
+   * with an eligible witness has its origin at `start`, in any set (engine
+   * §4).
    * @param {ParseContext} context
    * @param {string} rule
    * @param {number} start
@@ -1409,8 +1674,15 @@
    * @returns {boolean}
    */
   function nestedBegins(context, rule, start, end) {
-    return nested(context, "begins", rule, start, end, (chart) => chart.sets.some((set) =>
-      set !== undefined && set.items.some((item) => item.complete && item.origin === start && item.production.lhs === rule)));
+    return nested(context, "begins", rule, start, end, (chart) => {
+      /** @type {Item[]} */
+      const witnesses = [];
+      for (const set of chart.sets) {
+        if (set === undefined) continue;
+        for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule) witnesses.push(item);
+      }
+      return eligibleWitnesses(chart, witnesses, testHolds).length > 0;
+    });
   }
 
   /**
@@ -1422,7 +1694,7 @@
    */
   function nestedTags(context, rule, start, end) {
     return nested(context, "tags", rule, start, end, (chart) =>
-      rootItems(chart, rule).reduce((acc, item) => tagUnion(acc, context.interner.get(item.tagId)), tagSet()));
+      eligibleWitnesses(chart, rootItems(chart, rule), testHolds).reduce((acc, item) => tagUnion(acc, context.interner.get(item.tagId)), tagSet()));
   }
 
   // The furthest position the parse reached, and what could have been read
@@ -1579,6 +1851,7 @@
    * @typedef {object} ErrorJson
    * @property {ParseError["kind"]} kind
    * @property {string} [stage]
+   * @property {"tie" | "elision-only"} [reason]
    * @property {number} [token]
    * @property {Span} [source]
    * @property {number} [line]
@@ -1595,7 +1868,6 @@
    * @property {string} name
    * @property {import("./types.js").Verdict | null} verdict
    * @property {(ActionJson | null)[]} [witness]
-   * @property {NodeJson} [tied]
    * @property {TokenJson[]} [output]
    */
 
@@ -1626,7 +1898,7 @@
    * @typedef {{[name: string]: DisplayValue | DisplayValue[] | string | string[] | null}} DisplayValue
    */
 
-  const RESULT_FORMAT = 6;
+  const RESULT_FORMAT = 7;
 
   /**
    * A token in the result JSON. An attached token has no span, and a list of
@@ -1682,6 +1954,7 @@
     /** @type {Partial<ErrorJson>} */
     const result = { kind: error.kind };
     if (error.stage !== undefined) result.stage = error.stage;
+    if (error.reason !== undefined) result.reason = error.reason;
     if (error.token !== undefined) result.token = error.token;
     if (error.source !== undefined) result.source = error.source;
     if (error.line !== undefined) result.line = error.line;
@@ -1707,7 +1980,6 @@
         /** @type {StageJson} */
         const json = { name: stage.name, verdict: stage.verdict };
         if (stage.witness) json.witness = stage.witness.map(actionJson);
-        if (stage.tied) json.tied = nodeJson(stage.tied);
         if (stage.output) json.output = stage.output.map(tokenJson);
         return json;
       }),
@@ -2261,7 +2533,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 16;
+  const DOM_FORMAT = 17;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9-]*$/;
   // A classifier's name begins with a lower-case letter, and a class with a
@@ -2439,6 +2711,9 @@
     for (const directive of dom.directives) {
       if (!isDomObject(directive) || typeof directive.name !== "string" || !Array.isArray(directive.args) ||
           !directive.args.every((arg) => typeof arg === "string") || !isDomPosition(directive.at)) return "a malformed directive";
+      // Only an elidable directive can be maximal, and the member is then true
+      // (engine §9).
+      if ("maximal" in directive && (directive.name !== "elidable" || directive.maximal !== true)) return "a malformed directive";
       // The operands the notation's syntax allows these directives (engine §9).
       const args = /** @type {string[]} */ (directive.args);
       if ((directive.name === "stage" && !(args.length === 1 && DOM_NAME.test(args[0]))) ||
@@ -3424,6 +3699,11 @@
         lines.push("What could have come there, by the rule that would have read it:");
         for (const rule of [...byRule.keys()].sort(compareCodePoints)) lines.push(`  ${rule}: ${byRule.get(rule).join(", ")}`);
       }
+    } else if (error.kind === "ambiguous" && error.reason === "tie") {
+      // A tie is explained where its two readings first differ.
+      const report = result.stages.find((stage) => stage.name === error.stage);
+      if (report) return explainTies({ text: result.text, stages: [report] });
+      lines.push(`The ${error.stage} stage's text is ambiguous: it has two best readings, a tie.`);
     } else if (error.kind === "ambiguous") {
       const report = result.stages.find((stage) => stage.name === error.stage);
       const tokens = (report && report.input) || [];
@@ -3472,10 +3752,10 @@
   }
 
   /**
-   * The ties of a result explained, stage by stage: where the two readings
-   * first differ, both readings as brackets, and both trees side by side.
-   * Empty when no stage ties.
-   * @param {ParseResult} result
+   * The tie of a result explained: where its two readings first differ, both
+   * readings as brackets, and both trees side by side. A tie ends the run, so
+   * at most one stage has one. Empty when no stage ties.
+   * @param {{text: string, stages: StageReport[]}} result
    * @returns {string}
    */
   function explainTies(result) {
@@ -3483,25 +3763,28 @@
     for (const stage of result.stages) {
       if (stage.verdict !== "tie") continue;
       const tokens = stage.input || [];
-      const [chosen, tied] = stage.witness;
-      const action = chosen || tied;
+      const [first, second] = stage.witness;
+      const action = first || second;
       const at = action ? (action.kind === "read" ? action.token : action.span[1]) : 0;
-      const lines = [`The ${stage.name} stage is ambiguous: its grammar reads the text two ways, which first differ here:`];
+      const lines = [`The ${stage.name} stage is ambiguous: its grammar reads the text in two ways, and no rule ranks one above the other.`,
+        "They first differ here:"];
       if (tokens.length) {
         const token = tokens[Math.min(at, tokens.length - 1)];
         /** @type {Span} */
         const source = at < tokens.length ? token.source : [token.source[1], token.source[1]];
         lines.push(sourceExcerpt(result.text, source).excerpt);
       }
-      lines.push(`  the chosen reading ${describeAction(chosen, tokens)}`);
-      lines.push(`  the other reading ${describeAction(tied, tokens)}`);
-      if (stage.tree) {
-        lines.push(`  chosen: ${nodeBrackets(stage.tree, tokens, { showElided: true })}`);
-        lines.push(`  other:  ${nodeBrackets(stage.tied, tokens, { showElided: true })}`);
+      lines.push(`  the first reading ${describeAction(first, tokens)}`);
+      lines.push(`  the second reading ${describeAction(second, tokens)}`);
+      // The readings are in the stage's error (engine §6).
+      const readings = stage.error && stage.error.readings;
+      if (readings && readings.length === 2) {
+        lines.push(`  first:  ${nodeBrackets(readings[0], tokens, { showElided: true })}`);
+        lines.push(`  second: ${nodeBrackets(readings[1], tokens, { showElided: true })}`);
         lines.push("");
-        lines.push(sideBySide(nodeTree(stage.tree, tokens, result.text), nodeTree(stage.tied, tokens, result.text), "chosen", "other"));
+        lines.push(sideBySide(nodeTree(readings[0], tokens, result.text), nodeTree(readings[1], tokens, result.text), "first", "second"));
       }
-      lines.push("The grammar should say which reading it means; until it does, the first in the canonical order is used.");
+      lines.push("The grammar must say which reading it means. Until it does, the text is an error.");
       blocks.push(lines.join("\n"));
     }
     return blocks.join("\n\n");
@@ -4128,6 +4411,9 @@
       this.changes = [];
       /** @type {Set<string>} */
       this.elidable = new Set();
+      // The elidable terminators that %elidable maximal names (engine §2).
+      /** @type {Set<string>} */
+      this.maximalTerminals = new Set();
       /** @type {Resolution | null} */
       this.resolution = null;
       /**
@@ -4224,14 +4510,17 @@
             if (elisionOnly) rest.shift();
             const maximal = rest[0] === "maximal";
             if (maximal) rest.shift();
-            if ((lean !== "greedy" && lean !== "lazy") || rest.length > 0) {
-              throw new GencmuError("grammar", `${path}:${at.line}: %ambiguity-resolution takes greedy or lazy, then optionally elision-only, then optionally maximal`, at);
+            if ((lean !== "greedy" && lean !== "lazy" && lean !== "late-elision") || rest.length > 0) {
+              throw new GencmuError("grammar", `${path}:${at.line}: %ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only, then optionally maximal`, at);
             }
             this.resolution = { lean, elisionOnly, maximal };
             break;
           }
           case "elidable":
-            for (const terminal of directive.args) this.elidable.add(terminal);
+            for (const terminal of directive.args) {
+              this.elidable.add(terminal);
+              if (directive.maximal) this.maximalTerminals.add(terminal);
+            }
             break;
           default:
             throw new GencmuError("grammar", `${path}:${at.line}: unknown directive %${directive.name}`, at);
@@ -4768,6 +5057,7 @@
         productions: this.productions,
         byLhs: this.byLhs,
         elidable: this.grammar.elidable,
+        maximalTerminals: this.grammar.maximalTerminals,
         resolution: /** @type {Resolution} */ (this.grammar.resolution),
       };
     }
@@ -5114,7 +5404,8 @@
 
   // ---- rank.js
   // Choosing a parse (engine §6): the first-difference order over bottom-up
-  // action sequences, computed over the packed forest.
+  // action sequences under greedy and lazy, and the order of elision vectors
+  // under late-elision, both computed over the packed forest.
 
 
 
@@ -5135,20 +5426,67 @@
    * @typedef {object} Candidate
    * @property {Rope} seq
    * @property {Rope[]} alts
-   * @property {number} at
+   * @property {Count} at
    */
 
   /**
    * The first differing pair of two sequences' actions, null on the side
    * that ended, and the number of visible actions before it.
-   * @typedef {{left: Action | null, right: Action | null, index: number}} Difference
+   * @typedef {{left: Action | null, right: Action | null, index: Count}} Difference
    */
 
   /**
-   * What the ranking concluded.
+   * A count of actions or of elided terminators. It is a number while it is
+   * a safe integer, and a bigint beyond, since a shared sequence can hold
+   * exponentially many. Infinity stands for no divergence. Counts compare
+   * exactly with < and >, whatever their types.
+   * @typedef {number | bigint} Count
+   */
+
+  /**
+   * The sum of two counts, exact however large.
+   * @param {Count} left
+   * @param {Count} right
+   * @returns {Count}
+   */
+  function add(left, right) {
+    if (typeof left === "number" && typeof right === "number") {
+      const sum = left + right;
+      if (sum <= Number.MAX_SAFE_INTEGER || sum === Infinity) return sum;
+    }
+    if (left === Infinity || right === Infinity) return Infinity;
+    return BigInt(left) + BigInt(right);
+  }
+
+  /**
+   * The difference of two finite counts, the right one no greater.
+   * @param {Count} left
+   * @param {Count} right
+   * @returns {Count}
+   */
+  function subtract(left, right) {
+    if (typeof left === "number" && typeof right === "number") return left - right;
+    const difference = BigInt(left) - BigInt(right);
+    return difference <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(difference) : difference;
+  }
+
+  /**
+   * The lesser of two counts.
+   * @param {Count} left
+   * @param {Count} right
+   * @returns {Count}
+   */
+  function lesser(left, right) {
+    return right < left ? right : left;
+  }
+
+  /**
+   * What the ranking concluded: the verdict, the first reading, m, which is
+   * the chosen derivation unless the verdict is a tie, and for a tie the
+   * second reading and the witness (engine §6).
    * @typedef {object} Ranking
    * @property {import("./types.js").Verdict} verdict
-   * @property {Rope} chosen
+   * @property {Rope} first
    * @property {Rope | null} second
    * @property {[Action | null, Action | null] | null} witness
    */
@@ -5172,7 +5510,7 @@
   function concat(left, right) {
     if ("empty" in left) return right;
     if ("empty" in right) return left;
-    return { left, right, size: left.size + right.size };
+    return { left, right, size: add(left.size, right.size) };
   }
 
   /**
@@ -5304,6 +5642,7 @@
   function walkDifference(left, right, onlyVisible) {
     const a = new Cursor(left);
     const b = new Cursor(right);
+    /** @type {Count} */
     let index = 0;
     /** @type {(cursor: Cursor, other: Cursor | null) => Action | "shared" | null} */
     const nextLeaf = (cursor, other) => {
@@ -5329,7 +5668,7 @@
         const y = b.front();
         if (x === null || y === null) break;
         if (x === y || (onlyVisible && knownEqual(x, y))) {
-          index += x.size;
+          index = add(index, x.size);
           a.skip();
           b.skip();
           continue;
@@ -5352,7 +5691,7 @@
       if (x === null && y === null) return null;
       if (x === null || y === null) return { left: x, right: y, index };
       if (!sameAction(x, y)) return { left: x, right: y, index };
-      if (!onlyVisible || visible(x)) index++;
+      if (!onlyVisible || visible(x)) index = add(index, 1);
     }
   }
 
@@ -5395,8 +5734,9 @@
   // The total order T (engine §6): at the first visible difference, the
   // pair's decision by lean, and where that is a tie, the
   // canonical keys; sequences equal in their visible actions are ordered at
-  // their first difference among all actions. The chosen derivation is T's
-  // minimum.
+  // their first difference among all actions. The first reading is T's
+  // minimum. T orders the diagnostics and picks the terminator that a
+  // maximal rejection reports, and never turns a tie into a choice.
   /**
    * @param {Rope} left
    * @param {Rope} right
@@ -5434,9 +5774,9 @@
   }
 
   /**
-   * What is open above an item over exactly its span: items, and rules by
-   * their name prefixed with U+0000.
-   * @typedef {Set<Item | string>} TraversalContext
+   * The rules of the constituents above an item over exactly its span, each
+   * by its name prefixed with U+0000: its cycle context (engine §6).
+   * @typedef {Set<string>} TraversalContext
    */
 
   /** @type {TraversalContext} */
@@ -5451,14 +5791,26 @@
      */
     constructor(tokens, lean, maximal = null) {
       this.tokens = tokens;
-      this.lean = lean;
+      // Under late-elision, the readings come from a ranking with no lean
+      // over the forest of the best derivations (engine §6).
+      this.elisions = lean === "late-elision";
+      /** @type {Lean} */
+      this.lean = this.elisions ? "none" : lean;
       this.maximal = maximal;
+      /** @type {{plain: Map<Item, Allowed<ElisionSummary>>, contextual: Map<Item, Map<string, Allowed<ElisionSummary>>>}} */
+      this.summaries = { plain: new Map(), contextual: new Map() };
+      /** @type {Map<number, ElisionSeq>} */
+      this.elisionLeaves = new Map();
+      /** @type {Map<string, number>} */
+      this.ruleGroups = new Map();
+      // The group of a rule: its strongly connected group in the graph of
+      // groupRules, or undefined for a rule that cannot reach itself there.
+      /** @type {(rule: string) => number | undefined} */
+      this.groups = (rule) => this.ruleGroups.get(rule);
       /** @type {{plain: Map<Item, Allowed<Candidate[]>>, contextual: Map<Item, Map<string, Allowed<Candidate[]>>>}} */
       this.memo = { plain: new Map(), contextual: new Map() };
       /** @type {{plain: Map<Item, Allowed<number>>, contextual: Map<Item, Map<string, Allowed<number>>>}} */
       this.counts = { plain: new Map(), contextual: new Map() };
-      /** @type {Map<Item, number>} */
-      this.itemIds = new Map();
       /** @type {Map<Item, RopeLeaf>} */
       this.closes = new Map();
       /** @type {Map<string, RopeLeaf>} */
@@ -5493,13 +5845,19 @@
      */
     allowedCandidates(item) {
       const maximal = this.maximal;
-      return this.traverse(item, this.memo, (current, dependency) => {
+      return this.traverse(item, this.memo, (current, dependency, key) => {
         const guarded = maximal !== null && maximal.guards(current);
+        // Under late-elision, only the edges that attain the least vector of
+        // the item in its context (engine §6).
+        const summary = this.elisions ? this.summaryAt(current, key) : null;
         /** @type {Candidate[]} */
         let all = [];
         /** @type {Candidate[]} */
         let allowed = [];
-        for (const edge of current.edges) {
+        current.edges.forEach((edge, index) => {
+          const inAll = summary === null || summary.all.kept.has(index);
+          const inAllowed = summary === null || summary.allowed.kept.has(index);
+          if (!inAll && !inAllowed) return;
           /** @type {Candidate[]} */
           let produced;
           let permitted = true;
@@ -5519,19 +5877,105 @@
                 /** @type {Candidate} */
                 let entry = { seq: concat(before.seq, child.seq), alts: [], at: Infinity };
                 for (const alt of before.alts) entry = this.offer(entry, concat(alt, child.seq), before.at);
-                for (const alt of child.alts) entry = this.offer(entry, concat(before.seq, alt), before.seq.size + child.at);
+                for (const alt of child.alts) entry = this.offer(entry, concat(before.seq, alt), add(before.seq.size, child.at));
                 produced.push(entry);
               }
             }
             if (guarded) permitted = !(/** @type {Maximal} */ (maximal)).forbids(edge.child, current.production.rhs[current.dot - 1].test);
           }
           for (const entry of produced) {
-            all = this.keep(all, entry);
-            if (guarded && permitted) allowed = this.keep(allowed, entry);
+            if (inAll) all = this.keep(all, entry);
+            if (guarded && permitted && inAllowed) allowed = this.keep(allowed, entry);
           }
-        }
+        });
         return { all, allowed: guarded ? allowed : all };
-      }, { all: [], allowed: [] });
+      }, { all: [], allowed: [] }, this.elisions ? (current, key) => this.keptEdges(current, key) : null);
+    }
+
+    // Under late-elision, an item's summaries in one context (engine §6).
+    // As for the candidates, one summary covers all its derivations, and the
+    // other only those that an elided terminator can follow. Each holds the
+    // least elision vector, the number of derivations that attain it and the
+    // number of all derivations, both capped at two. It also holds the edges
+    // that attain the least vector.
+    /**
+     * @param {Item} item
+     * @returns {Allowed<ElisionSummary>}
+     */
+    elisionSummary(item) {
+      const maximal = this.maximal;
+      return this.traverse(item, this.summaries, (current, dependency) => {
+        const guarded = maximal !== null && maximal.guards(current);
+        const all = noDerivation();
+        const allowed = guarded ? noDerivation() : all;
+        current.edges.forEach((edge, index) => {
+          /** @type {ElisionSeq} */
+          let vector;
+          let least;
+          let total;
+          let permitted = true;
+          if (edge.kind === "seed") {
+            // The helper of an elidable optional that derives ε elides its
+            // terminator where it is empty.
+            vector = isElided(current) ? this.elisionLeaf(current.origin) : NO_ELISIONS;
+            least = 1;
+            total = 1;
+          } else if (edge.kind === "scan") {
+            const before = dependency(edge.previous).all;
+            if (before.total === 0) return;
+            vector = /** @type {ElisionSeq} */ (before.vector);
+            least = before.least;
+            total = before.total;
+          } else {
+            const earlier = dependency(edge.previous);
+            const before = maximal !== null && maximal.elided(edge.child) ? earlier.allowed : earlier.all;
+            const child = dependency(edge.child).all;
+            if (before.total === 0 || child.total === 0) return;
+            vector = concatElisions(/** @type {ElisionSeq} */ (before.vector), /** @type {ElisionSeq} */ (child.vector));
+            least = Math.min(2, before.least * child.least);
+            total = Math.min(2, before.total * child.total);
+            if (guarded) permitted = !(/** @type {Maximal} */ (maximal)).forbids(edge.child, current.production.rhs[current.dot - 1].test);
+          }
+          addEdge(all, index, vector, least, total);
+          if (guarded && permitted) addEdge(allowed, index, vector, least, total);
+        });
+        return { all, allowed };
+      }, { all: noDerivation(), allowed: noDerivation() });
+    }
+
+    /**
+     * The summaries of an item in the context that `key` names, which
+     * elisionSummary has already computed.
+     * @param {Item} item
+     * @param {string} key
+     * @returns {Allowed<ElisionSummary>}
+     */
+    summaryAt(item, key) {
+      const found = key === "" ? this.summaries.plain.get(item) : this.summaries.contextual.get(item)?.get(key);
+      if (found === undefined) throw new Error(`no elision summary for an item in context ${JSON.stringify(key)}`);
+      return found;
+    }
+
+    /**
+     * The edges of an item that attain a least vector in its context.
+     * @param {Item} item
+     * @param {string} key
+     * @returns {import("./types.js").Edge[]}
+     */
+    keptEdges(item, key) {
+      const summary = this.summaryAt(item, key);
+      return item.edges.filter((_, index) => summary.all.kept.has(index) || summary.allowed.kept.has(index));
+    }
+
+    /**
+     * The one sequence of a single elision at a position.
+     * @param {number} at
+     * @returns {ElisionSeq}
+     */
+    elisionLeaf(at) {
+      let found = this.elisionLeaves.get(at);
+      if (!found) this.elisionLeaves.set(at, (found = { size: 1, first: at, last: at }));
+      return found;
     }
 
     /**
@@ -5576,7 +6020,7 @@
     /**
      * @param {Candidate} entry
      * @param {Rope} alt
-     * @param {number} at
+     * @param {Count} at
      * @returns {Candidate}
      */
     offer(entry, alt, at) {
@@ -5649,7 +6093,7 @@
         const first = totalOrder(other.seq, current.seq, lean) <= 0;
         const [main, second] = first ? [other, current] : [current, other];
         let merged = this.offer(main, second.seq, at);
-        for (const alt of second.alts) merged = this.offer(merged, alt, Math.min(second.at, at));
+        for (const alt of second.alts) merged = this.offer(merged, alt, lesser(second.at, at));
         current = merged;
       }
       if (current !== null) result.push(current);
@@ -5689,25 +6133,28 @@
     //
     // A derivation is cyclic when a constituent has, below it, one of the same
     // rule over the same span (engine §4). Spans only grow going up, so what
-    // decides whether a derivation below an item is cyclic is the set of items
-    // and rules open above it over exactly its own span, its context: a
-    // dependency whose item or rule is in its context yields `cut`, and a
-    // result is remembered for its item and context together. For almost
-    // every item the context is empty.
+    // decides whether a derivation below an item is cyclic is the set of rules
+    // of the constituents above it over exactly its own span, its context. A
+    // completed item whose rule is in its context yields `cut`, and a result is
+    // remembered for its item and context together. For almost every item the
+    // context is empty.
     /**
      * @template T
      * @param {Item} root
      * @param {{plain: Map<Item, T>, contextual: Map<Item, Map<string, T>>}} memo
-     * @param {(item: Item, dependency: (item: Item) => T) => T} combine
+     * @param {(item: Item, dependency: (item: Item) => T, key: string) => T} combine
+     *   `key` names the item's context
      * @param {T} cut the value of a dependency that would close a cycle
+     * @param {((item: Item, key: string) => import("./types.js").Edge[]) | null} [edgesOf]
+     *   the edges whose children `combine` reads, if not all
      * @returns {T}
      */
-    traverse(root, memo, combine, cut) {
-      /** @type {(item: Item) => Item[]} */
-      const dependenciesOf = (item) => {
+    traverse(root, memo, combine, cut, edgesOf = null) {
+      /** @type {(item: Item, key: string) => Item[]} */
+      const dependenciesOf = (item, key) => {
         /** @type {Item[]} */
         const result = [];
-        for (const edge of item.edges) {
+        for (const edge of edgesOf ? edgesOf(item, key) : item.edges) {
           if (edge.kind === "scan") result.push(edge.previous);
           else if (edge.kind === "complete") result.push(edge.previous, edge.child);
         }
@@ -5735,27 +6182,31 @@
         if (!byContext) memo.contextual.set(item, (byContext = new Map()));
         byContext.set(key, value);
       };
-      const itemIds = this.itemIds;
-      /** @type {(item: Item) => number} */
-      const idOf = (item) => {
-        let id = itemIds.get(item);
-        if (id === undefined) itemIds.set(item, (id = itemIds.size));
-        return id;
-      };
-      // The context of `item` below a frame: the frame's context and the
-      // frame's own item and rule if it spans the same, else nothing.
+      // The context of `item` below a frame: the frame's context and, for a
+      // complete frame, its rule, if the frame spans the same, else nothing.
+      // The context holds rules only (engine §6). Keyed by the items above as
+      // well, the contexts of one item would differ by the path that reaches
+      // it, and their number could grow exponentially. Of those rules, it
+      // keeps only the ones in the item's group (see groups), since no other
+      // rule can complete again over the same span below the item. Keyed by
+      // every rule above, the contexts would still differ by path wherever
+      // two rules lead to the same one.
+      const group = this.groups;
       /** @type {(frame: Frame, item: Item) => TraversalContext} */
       const contextBelow = (frame, item) => {
         if (frame.item.origin !== item.origin || frame.item.end !== item.end) return EMPTY_CONTEXT;
-        const context = new Set(frame.context);
-        context.add(frame.item);
-        if (complete(frame.item)) context.add(ruleKey(frame.item));
-        return context;
+        const own = group(item.production.lhs);
+        if (own === undefined) return EMPTY_CONTEXT;
+        /** @type {TraversalContext} */
+        const context = new Set();
+        for (const key of frame.context) if (group(key.slice(1)) === own) context.add(key);
+        if (complete(frame.item) && group(frame.item.production.lhs) === own) context.add(ruleKey(frame.item));
+        return context.size === 0 ? EMPTY_CONTEXT : context;
       };
       /** @type {(context: TraversalContext) => string} */
       const contextKey = (context) => {
         if (context.size === 0) return "";
-        return [...context].map((entry) => (typeof entry === "string" ? entry : "#" + idOf(entry))).sort().join("\u0001");
+        return [...context].sort().join("\u0001");
       };
       /**
        * @typedef {object} Frame
@@ -5779,7 +6230,7 @@
       while (stack.length > 0) {
         const frame = stack[stack.length - 1];
         if (!frame.started) {
-          if (frame.context.has(frame.item) || (complete(frame.item) && frame.context.has(ruleKey(frame.item)))) {
+          if (complete(frame.item) && frame.context.has(ruleKey(frame.item))) {
             deliver(cut);
             continue;
           }
@@ -5789,7 +6240,7 @@
             deliver(known);
             continue;
           }
-          frame.pending = dependenciesOf(frame.item);
+          frame.pending = dependenciesOf(frame.item, frame.key);
           frame.started = true;
         }
         let pushed = false;
@@ -5801,25 +6252,131 @@
           break;
         }
         if (pushed) continue;
-        const value = combine(frame.item, (item) => /** @type {T} */ (frame.results.get(item)));
+        const value = combine(frame.item, (item) => /** @type {T} */ (frame.results.get(item)), /** @type {string} */ (frame.key));
         store(frame.item, /** @type {string} */ (frame.key), value);
         deliver(value);
       }
       return answer;
     }
 
-    // Ranks the derivations of the root items: the verdict, the chosen
-    // derivation, the tied derivation diverging from it earliest if the
-    // result is a tie, and the witness.
+    // Groups the rules of the forest below the roots for the cycle context.
+    // The graph has an arc from a rule to another when an item of the first
+    // has a completed child of the second over the same span. A rule above an
+    // item over its span can complete again below it only if the two rules
+    // reach each other in this graph, that is, are in one strongly connected
+    // group. So a context needs only the rules of its item's group, and an
+    // item whose rule cannot reach itself has none.
+    /**
+     * @param {Item[]} roots
+     */
+    groupRules(roots) {
+      /** @type {Map<string, Set<string>>} */
+      const arcs = new Map();
+      /** @type {Set<Item>} */
+      const seen = new Set();
+      const pending = [...roots];
+      for (let item = pending.pop(); item !== undefined; item = pending.pop()) {
+        if (seen.has(item)) continue;
+        seen.add(item);
+        for (const edge of item.edges) {
+          if (edge.kind === "seed") continue;
+          pending.push(edge.previous);
+          if (edge.kind !== "complete") continue;
+          pending.push(edge.child);
+          if (edge.child.origin !== item.origin || edge.child.end !== item.end) continue;
+          let targets = arcs.get(item.production.lhs);
+          if (!targets) arcs.set(item.production.lhs, (targets = new Set()));
+          targets.add(edge.child.production.lhs);
+        }
+      }
+      // Tarjan's algorithm, with an explicit stack.
+      /** @type {Map<string, number>} */
+      const index = new Map();
+      /** @type {Map<string, number>} */
+      const low = new Map();
+      /** @type {string[]} */
+      const open = [];
+      /** @type {Set<string>} */
+      const onOpen = new Set();
+      const groups = this.ruleGroups;
+      groups.clear();
+      let next = 0;
+      let found = 0;
+      for (const start of arcs.keys()) {
+        if (index.has(start)) continue;
+        /** @type {{rule: string, targets: Iterator<string>}[]} */
+        const frames = [];
+        /** @type {(rule: string) => void} */
+        const enter = (rule) => {
+          index.set(rule, next);
+          low.set(rule, next);
+          next++;
+          open.push(rule);
+          onOpen.add(rule);
+          frames.push({ rule, targets: (arcs.get(rule) || new Set()).values() });
+        };
+        enter(start);
+        while (frames.length > 0) {
+          const frame = frames[frames.length - 1];
+          const step = frame.targets.next();
+          if (!step.done) {
+            const target = step.value;
+            if (!index.has(target)) enter(target);
+            else if (onOpen.has(target)) low.set(frame.rule, Math.min(/** @type {number} */ (low.get(frame.rule)), /** @type {number} */ (index.get(target))));
+            continue;
+          }
+          frames.pop();
+          if (frames.length > 0) {
+            const parent = frames[frames.length - 1].rule;
+            low.set(parent, Math.min(/** @type {number} */ (low.get(parent)), /** @type {number} */ (low.get(frame.rule))));
+          }
+          if (low.get(frame.rule) === index.get(frame.rule)) {
+            /** @type {string[]} */
+            const members = [];
+            for (;;) {
+              const member = /** @type {string} */ (open.pop());
+              onOpen.delete(member);
+              members.push(member);
+              if (member === frame.rule) break;
+            }
+            // A group of one rule without an arc to itself has no cycle.
+            if (members.length > 1 || (arcs.get(frame.rule) || new Set()).has(frame.rule)) {
+              for (const member of members) groups.set(member, found);
+              found++;
+            }
+          }
+        }
+      }
+    }
+
+    // Ranks the derivations of the root items: the verdict, the first
+    // reading, and for a tie the second reading, the tied derivation that
+    // diverges from the first earliest, and the witness.
     /**
      * @param {Item[]} roots
      * @returns {Ranking | null} null when every derivation is cyclic
      */
     rank(roots) {
-      const count = Math.min(2, roots.reduce((sum, item) => sum + this.count(item), 0));
+      this.groupRules(roots);
+      let count;
+      let ranked = roots;
+      let tied = false;
+      if (this.elisions) {
+        // Every complete item of `text` is an edge of one root (engine §6).
+        const root = noDerivation();
+        roots.forEach((item, index) => {
+          const summary = this.elisionSummary(item).all;
+          if (summary.total > 0) addEdge(root, index, /** @type {ElisionSeq} */ (summary.vector), summary.least, summary.total);
+        });
+        count = root.total;
+        tied = root.least === 2;
+        ranked = roots.filter((_, index) => root.kept.has(index));
+      } else {
+        count = Math.min(2, roots.reduce((sum, item) => sum + this.count(item), 0));
+      }
       /** @type {Candidate[]} */
       let kept = [];
-      for (const root of roots) for (const entry of this.full(root)) kept = this.keep(kept, entry);
+      for (const root of ranked) for (const entry of this.full(root)) kept = this.keep(kept, entry);
       // At the root nothing follows: candidates still undecided are tied
       // (engine §6), and T orders them.
       if (kept.length === 0) return null;
@@ -5829,13 +6386,16 @@
         const difference = firstDifference(main.seq, other.seq, true);
         const at = difference ? difference.index : Infinity;
         main = this.offer(main, other.seq, at);
-        for (const alt of other.alts) main = this.offer(main, alt, Math.min(other.at, at));
+        for (const alt of other.alts) main = this.offer(main, alt, lesser(other.at, at));
       }
       /** @type {import("./types.js").Verdict} */
       let verdict;
       if (count === 1) verdict = "unique";
-      else if (main.alts.length === 0) verdict = "resolved";
+      else if (this.elisions ? !tied : main.alts.length === 0) verdict = "resolved";
       else verdict = "tie";
+      // The forest of the best derivations holds a second one exactly when
+      // the least count is two.
+      if (this.elisions && tied !== main.alts.length > 0) throw new Error("the least count of late-elision disagrees with its forest");
       /** @type {[Action | null, Action | null] | null} */
       let witness = null;
       const second = verdict === "tie"
@@ -5846,7 +6406,7 @@
         if (!difference || !difference.left || !difference.right) difference = firstDifference(main.seq, second, false);
         witness = difference ? [difference.left, difference.right] : null;
       }
-      return { verdict, chosen: main.seq, second, witness };
+      return { verdict, first: main.seq, second, witness };
     }
   }
 
@@ -5906,9 +6466,179 @@
     return stack[stack.length - 1];
   }
 
+  // Under late-elision, a derivation's elided terminators as the sequence of
+  // their positions, in text order: its elision vector (engine §6). The
+  // elisions of an edge's children are those of the item before it and then
+  // those of the child, so the sequence of an edge is the two concatenated,
+  // and sequences built on one prefix share it.
+  // Each node knows its size and its first and last positions. A node whose
+  // first and last positions are equal is a run: all its elisions stand at one
+  // position. A comparison takes a run whole, so it never walks a run's
+  // elisions one by one, however many a shared sequence holds.
+  /**
+   * @typedef {ElisionNode | {size: 0}} ElisionSeq
+   */
+
+  /**
+   * A sequence that holds at least one elision: one elision, or two
+   * sequences joined.
+   * @typedef {{size: Count, first: number, last: number, left?: ElisionSeq, right?: ElisionSeq}} ElisionNode
+   */
+
+  /**
+   * An item's derivations in one context under late-elision: the least
+   * vector and the number of derivations that attain it, the number of all
+   * derivations, both capped at two, and the indices of the edges that attain
+   * the least vector.
+   * @typedef {object} ElisionSummary
+   * @property {ElisionSeq | null} vector null when there is no derivation
+   * @property {number} least
+   * @property {number} total
+   * @property {Set<number>} kept
+   */
+
+  /** @type {ElisionSeq} */
+  const NO_ELISIONS = { size: 0 };
+
+  /** @returns {ElisionSummary} */
+  function noDerivation() {
+    return { vector: null, least: 0, total: 0, kept: new Set() };
+  }
+
+  /**
+   * @param {ElisionSeq} left
+   * @param {ElisionSeq} right
+   * @returns {ElisionSeq}
+   */
+  function concatElisions(left, right) {
+    if (!("first" in left)) return right;
+    if (!("first" in right)) return left;
+    return { left, right, size: add(left.size, right.size), first: left.first, last: right.last };
+  }
+
+  // Adds an edge's derivations to a summary. The total counts every edge,
+  // losing ones included. The least count and the kept edges count only the
+  // edges that attain the least vector.
+  /**
+   * @param {ElisionSummary} summary
+   * @param {number} index
+   * @param {ElisionSeq} vector
+   * @param {number} least
+   * @param {number} total
+   */
+  function addEdge(summary, index, vector, least, total) {
+    summary.total = Math.min(2, summary.total + total);
+    const order = summary.vector === null ? -1 : compareElisions(vector, summary.vector);
+    if (order < 0) {
+      summary.vector = vector;
+      summary.least = least;
+      summary.kept = new Set([index]);
+    } else if (order === 0) {
+      summary.least = Math.min(2, summary.least + least);
+      summary.kept.add(index);
+    }
+  }
+
+  // -1 when the left vector is less, 1 when the right one is, 0 when they are
+  // equal. Two sequences of positions compare at their first difference. The
+  // one that elides at the earlier position has the greater count there, so
+  // the later position is less. A sequence that ends first has fewer
+  // elisions after the shared part, so it is less. The comparison goes run by
+  // run, and counts what it has taken of the run at the front of each side.
+  /**
+   * @param {ElisionSeq} left
+   * @param {ElisionSeq} right
+   * @returns {number}
+   */
+  function compareElisions(left, right) {
+    /** @type {ElisionCursor} */
+    const a = { stack: [left], taken: 0 };
+    /** @type {ElisionCursor} */
+    const b = { stack: [right], taken: 0 };
+    for (;;) {
+      const x = elisionFront(a);
+      const y = elisionFront(b);
+      if (x === null || y === null) return x === null ? (y === null ? 0 : -1) : 1;
+      // A part that both share, at the same point, is equal.
+      if (x === y && !(a.taken < b.taken) && !(a.taken > b.taken)) {
+        dropFront(a);
+        dropFront(b);
+        continue;
+      }
+      const xRun = x.first === x.last;
+      const yRun = y.first === y.last;
+      if (!xRun || !yRun) {
+        // Descend the larger side first, so that a part both share is met at
+        // the front of both. Only a node that is no run is descended, and
+        // nothing of it has been taken.
+        if (!xRun && (yRun || !(x.size < y.size))) descendFront(a, x);
+        if (!yRun && (xRun || !(y.size < x.size))) descendFront(b, y);
+        continue;
+      }
+      if (x.first !== y.first) return x.first > y.first ? -1 : 1;
+      const xLeft = subtract(x.size, a.taken);
+      const yLeft = subtract(y.size, b.taken);
+      if (xLeft < yLeft) {
+        dropFront(a);
+        b.taken = add(b.taken, xLeft);
+      } else if (yLeft < xLeft) {
+        dropFront(b);
+        a.taken = add(a.taken, yLeft);
+      } else {
+        dropFront(a);
+        dropFront(b);
+      }
+    }
+  }
+
+  /**
+   * A walk over an elision sequence: the nodes still to take, and how much of
+   * the run at the front it has taken.
+   * @typedef {{stack: ElisionSeq[], taken: Count}} ElisionCursor
+   */
+
+  /**
+   * The node at the front of a walk, or null at its end.
+   * @param {ElisionCursor} cursor
+   * @returns {ElisionNode | null}
+   */
+  function elisionFront(cursor) {
+    while (cursor.stack.length > 0) {
+      const node = cursor.stack[cursor.stack.length - 1];
+      if ("first" in node) return node;
+      cursor.stack.pop();
+    }
+    return null;
+  }
+
+  /** @param {ElisionCursor} cursor */
+  function dropFront(cursor) {
+    cursor.stack.pop();
+    cursor.taken = 0;
+  }
+
+  /**
+   * @param {ElisionCursor} cursor
+   * @param {ElisionNode} node
+   */
+  function descendFront(cursor, node) {
+    cursor.stack.pop();
+    cursor.stack.push(/** @type {ElisionSeq} */ (node.right), /** @type {ElisionSeq} */ (node.left));
+  }
+
+  /**
+   * Whether a completed item is an elided terminator: the empty production
+   * of an elidable optional's helper (engine §4).
+   * @param {Item} item
+   * @returns {boolean}
+   */
+  function isElided(item) {
+    return item.production.helper && item.production.elided !== null && item.production.rhs.length === 0;
+  }
+
   // Exposed for the property test, which checks the ranking against an
   // enumeration of every derivation.
-  const internals = { actions, firstDifference, totalOrder, decide, visible, concat, leaf };
+  const internals = { actions, firstDifference, totalOrder, decide, visible, concat, leaf, concatElisions };
 
   // ---- maximal.js
   // The resolution maximal (engine §4): an elided terminator is forbidden
@@ -5938,13 +6668,19 @@
   /**
    * @param {Chart} chart
    * @param {LoweredGrammar} lowered
+   * @param {boolean} [stageWide] whether every elidable terminator is
+   *   restricted, as under the resolution's maximal, or only the maximal
+   *   terminators
    * @returns {Maximal}
    */
-  function maximalRule(chart, lowered) {
+  function maximalRule(chart, lowered, stageWide = true) {
+    // The helpers whose omission maximality restricts: every elidable
+    // optional's under stage-wide maximal, and otherwise those of the maximal
+    // terminators (engine §4).
     /** @type {Set<string>} */
     const elidable = new Set();
     for (const production of lowered.productions) {
-      if (production.helper && production.elided !== null) elidable.add(production.lhs);
+      if (production.helper && production.elided !== null && (stageWide || lowered.maximalTerminals.has(production.elided))) elidable.add(production.lhs);
     }
     // Whether a constituent could have been longer depends only on its
     // symbol, origin and end: the furthest set holding a completed item of
@@ -5988,7 +6724,7 @@
       return completed;
     };
     return {
-      elided: (item) => item.production.helper && item.production.elided !== null && item.production.rhs.length === 0,
+      elided: (item) => item.production.rhs.length === 0 && elidable.has(item.production.lhs),
       guards: (item) => {
         const rhs = item.production.rhs;
         const next = rhs[item.dot];
@@ -6079,12 +6815,14 @@
       // An input whose every derivation is cyclic (engine §4) has none to
       // count, and is rejected like one with no item of `text` at all.
       const resolution = lowered.resolution;
-      const maximal = resolution.maximal ? maximalRule(chart, lowered) : null;
+      // Maximality: stage-wide, or for the maximal terminators alone, before
+      // the ranking (engine §4).
+      const maximal = resolution.maximal || lowered.maximalTerminals.size > 0 ? maximalRule(chart, lowered, resolution.maximal) : null;
       const ranking = roots.length === 0 ? null : new Ranker(tokens, resolution.lean, maximal).rank(roots);
       if (ranking === null) {
         // A text that maximal leaves with no derivation is rejected at the
-        // first terminator it forbids in the derivation the stage would
-        // otherwise have chosen (engine §4).
+        // first terminator it forbids in the first reading, m, of the ranking
+        // without maximal, whatever its verdict (engine §4).
         const rejection = (maximal && roots.length > 0 && forbiddenTerminator(new Ranker(tokens, resolution.lean).rank(roots), maximal))
           || rejectionOf(chart);
         report.error = {
@@ -6099,16 +6837,27 @@
         return report;
       }
       if (ranking.verdict === "tie") {
-        // A tie always has a second derivation, and so a witness.
+        // A tie is an error: the stage keeps its verdict and witness, has no
+        // chosen tree, no output and no warnings, and the error holds the
+        // first and the second reading (engine §6). A tie always has a second
+        // derivation, and so a witness.
+        const readings = [ranking.first, /** @type {import("./types.js").Rope} */ (ranking.second)]
+          .map((rope) => resultTree(derivationTree(rope), context)[0]);
         Object.assign(report, {
           verdict: "tie",
           witness: witnessOf(/** @type {[Action | null, Action | null]} */ (ranking.witness)),
-          tied: resultTree(derivationTree(/** @type {import("./types.js").Rope} */ (ranking.second)), context)[0],
         });
-      } else {
-        Object.assign(report, { verdict: ranking.verdict, witness: null });
+        report.error = {
+          kind: "ambiguous",
+          stage: this.name,
+          reason: "tie",
+          readings,
+          message: `the ${this.name} stage's text has two best readings, a tie`,
+        };
+        return report;
       }
-      const derivation = derivationTree(ranking.chosen);
+      Object.assign(report, { verdict: ranking.verdict, witness: null });
+      const derivation = derivationTree(ranking.first);
       report.tree = resultTree(derivation, context)[0];
       report.warnings = warningsOf(derivation, context, features, this.name);
       try {
@@ -6122,7 +6871,9 @@
       }
       const elisionOnly = options.elisionOnly === undefined || options.elisionOnly === null
         ? lowered.resolution.elisionOnly : options.elisionOnly;
-      if (elisionOnly && report.verdict !== "unique") {
+      // The check runs only for a stage that chose one of several
+      // derivations (engine §7).
+      if (elisionOnly && report.verdict === "resolved") {
         let readings;
         try {
           readings = this.elisionCheck(report.tree, tokens, sourceText, unicode, features);
@@ -6140,6 +6891,7 @@
           report.error = {
             kind: "ambiguous",
             stage: this.name,
+            reason: "elision-only",
             readings,
             message: `the ${this.name} stage's text is ambiguous with every elided terminator written out`,
           };
@@ -6168,7 +6920,7 @@
         if (node.kind === "rule") for (let index = node.children.length - 1; index >= 0; index--) pending.push(node.children[index]);
       }
       // The input with the chosen parse's elided terminators written back, in
-      // text order, inner before outer where several are at one position; and
+      // the order of the tree's leaves; and
       // which positions of it are those synthetic terminators.
       /** @type {Token[]} */
       const restored = [];
@@ -6220,7 +6972,7 @@
           const end = toOriginal(node.span[1]);
           return { ...node, span: [start, end], source: sourceOf(original, start, end), children };
         });
-      return [ranking.chosen, /** @type {import("./types.js").Rope} */ (ranking.second)].map((rope) => remap(resultTree(derivationTree(rope), context)[0]));
+      return [ranking.first, /** @type {import("./types.js").Rope} */ (ranking.second)].map((rope) => remap(resultTree(derivationTree(rope), context)[0]));
     }
   }
 
@@ -6349,7 +7101,7 @@
   }
 
   /**
-   * Of a ranking's chosen derivation, the first elided terminator, in the order
+   * Of a ranking's first reading, the first elided terminator, in the order
    * of the tree's leaves, that maximal forbids: its position, and its terminal
    * with the rule its optional is written in as the one expected there (engine
    * §4). Null for no ranking, or none forbidden.
@@ -6360,7 +7112,7 @@
   function forbiddenTerminator(ranking, maximal) {
     if (ranking === null) return null;
     /** @type {{node: Derivation, next: number}[]} */
-    const stack = [{ node: derivationTree(ranking.chosen), next: 0 }];
+    const stack = [{ node: derivationTree(ranking.first), next: 0 }];
     while (stack.length > 0) {
       const frame = stack[stack.length - 1];
       const node = frame.node;
@@ -7036,7 +7788,11 @@
       if (item.kind === "rule" && !ITEMS.has(item.rule)) fail(`the notation gives a ${item.rule} where an item stands`, item);
       if (ruleOf(item) === "directive") {
         const name = text(token(item)).slice(1);
-        const operands = parts(item).filter((child) => ruleOf(child) === "argument-word" || ruleOf(child) === "argument-string" || ruleOf(child) === "argument-tag");
+        let operands = parts(item).filter((child) => ruleOf(child) === "argument-word" || ruleOf(child) === "argument-string" || ruleOf(child) === "argument-tag");
+        // A first word maximal of %elidable makes its terminators maximal and
+        // is no operand; a tag ~maximal stays one (engine §9).
+        const maximal = name === "elidable" && operands.length > 0 && ruleOf(operands[0]) === "argument-word" && text(token(operands[0])) === "maximal";
+        if (maximal) operands = operands.slice(1);
         const problem = operandProblem(name, operands.map((child) => operandKind(child)));
         if (problem) fail(problem, item);
         directives.push({
@@ -7049,6 +7805,7 @@
             // A range or a property has no tag; operandProblem has refused it.
             return tagOf(symbolPart(child));
           }),
+          ...(maximal ? { maximal: /** @type {const} */ (true) } : {}),
           at: at(item),
         });
       } else if (ruleOf(item) === "rule") {
@@ -8156,6 +8913,11 @@
       const positionOf = (token) => positions[token.source[0]] || positions[positions.length - 1] || [1, 1];
       if (!run.ok) {
         const error = /** @type {ParseError} */ (run.error);
+        // An ambiguity has no single position, so it names the document
+        // alone (engine §8).
+        if (error.kind === "ambiguous") {
+          throw new GencmuError("grammar", `${path}: the grammar text is ambiguous: the ${error.stage} stage of the notation reads it in two ways`, { document: path });
+        }
         const source = error.source || [0, 0];
         const [line, column] = positions[source[0]] || (positions.length ? positions[positions.length - 1] : [1, 1]);
         throw new GencmuError("grammar", `${path}:${line}:${column}: ${error.message}`, { document: path, line, column });
@@ -8422,7 +9184,6 @@
       if (stage.input) stage.input.forEach(ownToken);
       if (stage.output) stage.output.forEach(ownToken);
       if (stage.tree) ownTree(stage.tree);
-      if (stage.tied) ownTree(stage.tied);
       if (stage.error && stage.error.readings) stage.error.readings.forEach(ownTree);
     }
   }
@@ -8685,11 +9446,13 @@
    */
 
   /**
-   * Why a text did not parse: rejected by a stage, ambiguous under
-   * elision-only, or a defect of the grammar found while running it.
+   * Why a text did not parse: rejected by a stage, ambiguous with a tie or
+   * under elision-only, or a defect of the grammar found while running it.
    * @typedef {object} ParseError
    * @property {"rejected" | "ambiguous" | "grammar"} kind
    * @property {string} [stage]
+   * @property {"tie" | "elision-only"} [reason] why an ambiguous error is
+   *   one: a tie (engine §6) or the check of elision-only (engine §7)
    * @property {number} [token]
    * @property {Span} [source]
    * @property {number} [line]
@@ -8720,21 +9483,21 @@
    */
 
   /**
-   * What one stage did. A stage whose verdict is `tie` has a witness and a
-   * tied tree; any other has neither.
+   * What one stage did. A stage whose verdict is `tie` has a witness, and
+   * its two readings are in its error. Any other stage has no witness.
    * @typedef {TiedStageReport | SettledStageReport} StageReport
    */
 
   /**
-   * @typedef {StageReportBase & {verdict: "tie", witness: Witness, tied: ResultNode}} TiedStageReport
+   * @typedef {StageReportBase & {verdict: "tie", witness: Witness}} TiedStageReport
    */
 
   /**
-   * @typedef {StageReportBase & {verdict: "unique" | "resolved" | null, witness: null, tied?: undefined}} SettledStageReport
+   * @typedef {StageReportBase & {verdict: "unique" | "resolved" | null, witness: null}} SettledStageReport
    */
 
   /**
-   * Where the chosen and the tied derivation first differ: their actions
+   * Where the two readings of a tie first differ: their actions
    * there, null on the side of one that ended. The witness is plain data of
    * the result's own, and shares nothing with the grammar.
    * @typedef {[WitnessAction | null, WitnessAction | null]} Witness
@@ -8767,11 +9530,12 @@
    * @typedef {object} StageReportBase
    * @property {string} name
    * @property {Token[] | null} output the tokens handed to the next stage
-   * @property {ResultNode | null} tree
+   * @property {ResultNode | null} tree the chosen tree, or null for a stage
+   *   that rejected its input or tied
    * @property {ParseError | null} error
    * @property {Token[]} [input] the tokens the stage read
    * @property {ParseWarning[]} [warnings] the warnings of the chosen tree
-   *   (engine §12); absent for a stage that rejected its input
+   *   (engine §12), absent for a stage that rejected its input or tied
    */
 
   /**
@@ -8877,6 +9641,8 @@
    * @typedef {object} DomDirective
    * @property {string} name
    * @property {string[]} args
+   * @property {true} [maximal] for `%elidable maximal`: its terminators are
+   *   maximal (engine §2, §4)
    * @property {Position} at
    */
 
@@ -9041,7 +9807,8 @@
 
   /**
    * @typedef {object} Resolution
-   * @property {"greedy" | "lazy"} lean
+   * @property {"greedy" | "lazy" | "late-elision"} lean the rule of the
+   *   ranking (engine §6)
    * @property {boolean} elisionOnly
    * @property {boolean} maximal whether an elided terminator is forbidden
    *   where its constituent could have been longer (engine §4)
@@ -9053,6 +9820,8 @@
    * @property {Production[]} productions
    * @property {Map<string, Production[]>} byLhs
    * @property {Set<string>} elidable
+   * @property {Set<string>} maximalTerminals the elidable terminators that are
+   *   maximal (engine §4)
    * @property {Resolution} resolution
    * @property {Map<string, Map<string, TagSet>>} classifiers each classifier
    *   of the stage, resolved for these features: each key's classes (engine
@@ -9062,9 +9831,9 @@
    */
 
   /**
-   * The lean the ranking uses: the grammar's, or none for elision-only's
-   * check.
-   * @typedef {"greedy" | "lazy" | "none"} Lean
+   * The rule the ranking uses: the grammar's, or none for elision-only's
+   * check and for the readings of a late-elision tie (engine §6).
+   * @typedef {"greedy" | "lazy" | "late-elision" | "none"} Lean
    */
 
   /**
@@ -9101,12 +9870,14 @@
    */
 
   /**
-   * A sequence of actions, shared between the sequences built on it.
+   * A sequence of actions, shared between the sequences built on it. Its
+   * size is the number of its visible actions, exact however large (see
+   * Count in rank.js).
    * @typedef {{empty: true, size: number} | RopeLeaf | RopeConcat} Rope
    */
 
   /** @typedef {{leaf: Action, size: number}} RopeLeaf */
-  /** @typedef {{left: Rope, right: Rope, size: number}} RopeConcat */
+  /** @typedef {{left: Rope, right: Rope, size: number | bigint}} RopeConcat */
 
   /**
    * A derivation, every production closed, helpers and all.

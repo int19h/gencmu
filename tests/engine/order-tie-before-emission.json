@@ -1,0 +1,30 @@
+{
+  "description": "A tie ends the stage at the ranking, before emission. Each reading would emit a token with no tags, an error of the grammar, but the result is the tie (engine §6, §11).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text p | q\n%rule p $a(A)\n%emits $a <tags($a) ∖ A>\n%rule q $a(A)\n%emits $a <tags($a) ∖ A>",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie"
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie"
+      }
+    },
+    "error": "ambiguous"
+  }
+}

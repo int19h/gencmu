@@ -54,6 +54,7 @@ export type ActionJson = {
 export type ErrorJson = {
     kind: ParseError["kind"];
     stage?: string;
+    reason?: "tie" | "elision-only";
     token?: number;
     source?: Span;
     line?: number;
@@ -67,7 +68,6 @@ export type StageJson = {
     name: string;
     verdict: import("./types.js").Verdict | null;
     witness?: (ActionJson | null)[];
-    tied?: NodeJson;
     output?: TokenJson[];
 };
 export type ResultJson = {
@@ -122,6 +122,7 @@ export type DisplayValue = {
  * @typedef {object} ErrorJson
  * @property {ParseError["kind"]} kind
  * @property {string} [stage]
+ * @property {"tie" | "elision-only"} [reason]
  * @property {number} [token]
  * @property {Span} [source]
  * @property {number} [line]
@@ -137,7 +138,6 @@ export type DisplayValue = {
  * @property {string} name
  * @property {import("./types.js").Verdict | null} verdict
  * @property {(ActionJson | null)[]} [witness]
- * @property {NodeJson} [tied]
  * @property {TokenJson[]} [output]
  */
 /**
@@ -164,7 +164,7 @@ export type DisplayValue = {
  * member, its rule or terminal.
  * @typedef {{[name: string]: DisplayValue | DisplayValue[] | string | string[] | null}} DisplayValue
  */
-export declare const RESULT_FORMAT = 6;
+export declare const RESULT_FORMAT = 7;
 /**
  * @param {ResultNode} node
  * @returns {NodeJson}

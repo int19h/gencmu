@@ -155,7 +155,7 @@
           output: stage.output ? stage.output.length : null,
         })),
         error: error ? {
-          kind: error.kind, stage: error.stage || null, token: error.token === undefined ? null : error.token,
+          kind: error.kind, reason: error.reason || null, stage: error.stage || null, token: error.token === undefined ? null : error.token,
           line: error.line || null, column: error.column || null, message: error.message,
         } : null,
         explanation: gencmu.explainError(result),
@@ -165,20 +165,24 @@
 
     // A tie as the page shows it: explainTies's account of where the two
     // readings first differ, then both readings, as brackets and as trees,
-    // for the page to lay side by side.
+    // for the page to lay side by side. The readings are in the stage's
+    // error.
     function tieView(result, stage) {
       const tokens = stage.input || [];
       const text = gencmu.explainTies({ text: result.text, stages: [stage] });
-      const cut = text.indexOf("\n  chosen: ");
+      const cut = text.indexOf("\n  first: ");
       const end = text.lastIndexOf("\n");
+      const readings = (stage.error && stage.error.readings) || [];
+      const brackets = (node) => node ? gencmu.nodeBrackets(node, tokens, { showElided: true }) : "";
+      const tree = (node) => node ? gencmu.nodeTree(node, tokens, result.text) : "";
       return {
         stage: stage.name,
         summary: cut < 0 ? text : text.slice(0, cut),
         advice: end < 0 ? "" : text.slice(end + 1),
-        chosen: stage.tree ? gencmu.nodeBrackets(stage.tree, tokens, { showElided: true }) : "",
-        other: stage.tied ? gencmu.nodeBrackets(stage.tied, tokens, { showElided: true }) : "",
-        chosenTree: stage.tree ? gencmu.nodeTree(stage.tree, tokens, result.text) : "",
-        otherTree: stage.tied ? gencmu.nodeTree(stage.tied, tokens, result.text) : "",
+        first: brackets(readings[0]),
+        second: brackets(readings[1]),
+        firstTree: tree(readings[0]),
+        secondTree: tree(readings[1]),
       };
     }
 

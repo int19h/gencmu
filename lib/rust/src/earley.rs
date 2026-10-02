@@ -2,6 +2,7 @@
 //! capture before the dot, the captured part's span and tag set; with the
 //! evaluation of terms and conditions (§10) and nested parses.
 
+use crate::eligible::Proofs;
 use crate::fxhash::{FxMap, FxSet};
 
 use crate::lower::{Characters, CmpOp, LCond, LTerm, Lowered, Span, Sym, SymbolTest, TestOp};
@@ -27,6 +28,23 @@ pub(crate) fn matchers(g: &Lowered, tags: &mut Tags) -> Vec<Matcher> {
             None => Matcher::Tag(tags.tag(name)),
         })
         .collect()
+}
+
+thread_local! {
+    /// How many items the recognizer has made on this thread, in parses and
+    /// nested parses alike: a measure of work that tests compare across
+    /// input lengths.
+    static ITEMS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// How many items the recognizer has made on this thread (`ITEMS`).
+pub fn recognizer_items() -> u64 {
+    ITEMS.with(|items| items.get())
+}
+
+/// Sets the count of the recognizer's items on this thread back to zero.
+pub fn reset_recognizer_items() {
+    ITEMS.with(|items| items.set(0));
 }
 
 /// A token of a stage's input.
@@ -429,6 +447,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             }
         }
         let target = &mut chart.sets[set];
+        ITEMS.with(|items| items.set(items.get() + 1));
         target.index.insert(item, target.items.len() as u32);
         target.items.push(item);
         target.tagset.push(u32::MAX);
@@ -596,12 +615,20 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let mut accepted = false;
         let mut list = TagList::new();
         // The chart stops at its first empty set, which may lie before the
-        // span's end.
-        if let Some(last) = chart.sets.get(end - start) {
-            for &index in last.completed.get(&(rule, 0)).into_iter().flatten() {
-                accepted = true;
-                list = union(&list, self.shared.tags.list(last.tagset[index as usize]));
-            }
+        // span's end. Only the items with an eligible proof tree count.
+        let set = (end - start) as u32;
+        let witnesses: Vec<(u32, u32)> = chart
+            .sets
+            .get(set as usize)
+            .and_then(|last| last.completed.get(&(rule, 0)))
+            .into_iter()
+            .flatten()
+            .map(|&index| (set, index))
+            .collect();
+        let eligible = self.proofs(&chart, &tokens[start..end]).eligible(&witnesses);
+        for (&(set, index), _) in witnesses.iter().zip(&eligible).filter(|(_, &eligible)| eligible) {
+            accepted = true;
+            list = union(&list, self.shared.tags.list(chart.sets[set as usize].tagset[index as usize]));
         }
         let answer = (accepted, self.shared.tags.set(list));
         self.shared.memo.insert(key, answer);
@@ -624,9 +651,21 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             return Ok(answer);
         }
         let chart = self.parse_span(tokens, base, start, end, rule)?;
-        let answer = chart.sets.iter().any(|set| set.completed.contains_key(&(rule, 0)));
+        // A completed item from the span's start, in any set, with an
+        // eligible proof tree.
+        let witnesses: Vec<(u32, u32)> = (0..chart.sets.len())
+            .flat_map(|set| {
+                chart.sets[set].completed.get(&(rule, 0)).into_iter().flatten().map(move |&index| (set as u32, index))
+            })
+            .collect();
+        let answer = self.proofs(&chart, &tokens[start..end]).eligible(&witnesses).contains(&true);
         self.shared.begins.insert(key, answer);
         Ok(answer)
+    }
+
+    /// The proof trees of a nested parse's chart over `tokens`, its span.
+    fn proofs<'c>(&'c self, chart: &'c Chart, tokens: &'c [Tok]) -> Proofs<'c> {
+        Proofs::new(self.g, chart, tokens, self.shared.unicode, &self.shared.tags)
     }
 
     /// Runs the recognizer over `tokens[start..end]` alone, with `rule` as

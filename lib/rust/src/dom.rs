@@ -7,7 +7,7 @@ use crate::tags::{character_code, is_name, is_tag};
 use crate::unicode::{is_property_name, Unicode};
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 16;
+pub const DOM_FORMAT: i64 = 17;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -226,6 +226,9 @@ impl Attachments {
 pub(crate) struct Directive {
     pub name: String,
     pub args: Vec<String>,
+    /// `%elidable maximal`: the terminators it names are maximal (engine
+    /// §2, §4). Only an `elidable` directive has it.
+    pub maximal: bool,
     pub at: (usize, usize),
 }
 
@@ -269,6 +272,7 @@ pub(crate) fn dom_from_json(value: &Json, unicode: &Unicode) -> R<Dom> {
                     .iter()
                     .map(|arg| arg.as_str().map(str::to_string).ok_or_else(|| "a bad directive argument".to_string()))
                     .collect::<R<Vec<_>>>()?,
+                maximal: directive.get("maximal").is_some(),
                 at: position(directive)?,
             })
         })
@@ -804,6 +808,13 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
         };
         if !operands_ok {
             return Some("a malformed directive");
+        }
+        // Only `elidable` has the member `maximal`, and its value is
+        // always `true` (engine §9).
+        if let Some(maximal) = directive.get("maximal") {
+            if directive.get("name").and_then(Json::as_str) != Some("elidable") || *maximal != Json::Bool(true) {
+                return Some("a malformed directive");
+            }
         }
     }
     let mut pending: Vec<(Kind, &Json, usize)> = Vec::new();
@@ -1391,7 +1402,11 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
             }
             write_str(&mut out, arg);
         }
-        out.push_str(&format!("],\"at\":[{},{}]}}", directive.at.0, directive.at.1));
+        out.push(']');
+        if directive.maximal {
+            out.push_str(",\"maximal\":true");
+        }
+        out.push_str(&format!(",\"at\":[{},{}]}}", directive.at.0, directive.at.1));
     }
     out.push_str("],\"constants\":[");
     for (index, constant) in dom.constants.iter().enumerate() {

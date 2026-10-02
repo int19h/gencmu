@@ -7,7 +7,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 16
+const domFormat = 17
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
@@ -234,7 +234,10 @@ func (e *domEmit) nothing() bool {
 type domDirective struct {
 	Name string
 	Args []string
-	At   [2]int
+	// Maximal is set by %elidable maximal: its terminators are maximal
+	// (engine §2, §4). No other directive has it.
+	Maximal bool
+	At      [2]int
 }
 
 // ---- writing
@@ -263,7 +266,11 @@ func (d *domDoc) writeJSON(w *jsonWriter) {
 			}
 			w.str(a)
 		}
-		w.raw(`],"at":`)
+		w.raw("]")
+		if dir.Maximal {
+			w.raw(`,"maximal":true`)
+		}
+		w.raw(`,"at":`)
 		w.pair(dir.At)
 		w.raw("}")
 	}
@@ -687,7 +694,16 @@ func decodeDOM(raw json.RawMessage, uni *unicodeTable) (*domDoc, error) {
 		if err != nil {
 			return nil, fmt.Errorf("a malformed directive")
 		}
-		d.Directives = append(d.Directives, &domDirective{Name: name, Args: args, At: at})
+		// A maximal member stands only on elidable, and its value is the
+		// boolean true (engine §9).
+		maximal := false
+		if raw, ok := o["maximal"]; ok {
+			if name != "elidable" || string(bytes.TrimSpace(raw)) != "true" {
+				return nil, fmt.Errorf("a malformed directive")
+			}
+			maximal = true
+		}
+		d.Directives = append(d.Directives, &domDirective{Name: name, Args: args, Maximal: maximal, At: at})
 	}
 	if err := validateDOM(d, uni); err != nil {
 		return nil, err

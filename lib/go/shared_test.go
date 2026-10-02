@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 )
 
 // The shared cases of tests/README.md.
@@ -265,6 +266,58 @@ func checkParse(d *Dialect, c *engineCase, options *caseOptions, expect *caseExp
 	if err := json.Unmarshal(data, &got); err != nil {
 		return fmt.Errorf("the canonical JSON does not parse: %v\n%s", err, data)
 	}
+	return checkResult(res, got, data, expect)
+}
+
+// resultProblems lists what a canonical result breaks of the invariants
+// that the runners check on every result, whatever the case expects
+// (tests/README.md): no stage has a member tied, and a stage whose verdict
+// is tie has no output, is the last stage, and has the result's ambiguous
+// error with the reason tie, its name and two readings. An ambiguous error
+// has no token or source.
+func resultProblems(got any) []string {
+	var problems []string
+	result, _ := got.(map[string]any)
+	stages, _ := result["stages"].([]any)
+	// An ambiguous error has no position (docs/output.md).
+	if e, _ := result["error"].(map[string]any); e != nil && e["kind"] == ErrorAmbiguous {
+		for _, member := range []string{"token", "source"} {
+			if _, ok := e[member]; ok {
+				problems = append(problems, "the ambiguous error has a member "+member)
+			}
+		}
+	}
+	for i, s := range stages {
+		stage, _ := s.(map[string]any)
+		name, _ := stage["name"].(string)
+		if _, ok := stage["tied"]; ok {
+			problems = append(problems, "stage "+name+" has a tied tree")
+		}
+		if stage["verdict"] != VerdictTie {
+			continue
+		}
+		if _, ok := stage["output"]; ok {
+			problems = append(problems, "the tied stage "+name+" has output")
+		}
+		if i != len(stages)-1 {
+			problems = append(problems, "a stage runs after the tied stage "+name)
+		}
+		e, _ := result["error"].(map[string]any)
+		readings, _ := e["readings"].([]any)
+		tree, hasTree := result["tree"]
+		if result["ok"] != false || !hasTree || tree != nil || e == nil || e["kind"] != ErrorAmbiguous || e["reason"] != ReasonTie || e["stage"] != name || len(readings) != 2 {
+			problems = append(problems, "the tied stage "+name+" lacks its error of kind ambiguous, reason tie and two readings")
+		}
+	}
+	return problems
+}
+
+// checkResult matches a result, and its canonical JSON as got and as data,
+// against an expectation. The invariants of the result come first.
+func checkResult(res *ParseResult, got any, data []byte, expect *caseExpect) error {
+	if problems := resultProblems(got); len(problems) > 0 {
+		return fmt.Errorf("the result breaks an invariant: %s\n%s", strings.Join(problems, "; "), data)
+	}
 	// The warnings, compared whole, so [] says that there are none; the
 	// canonical JSON leaves them out then.
 	if expect.Warnings != nil {
@@ -339,7 +392,103 @@ func TestEngineRunnerLoadError(t *testing.T) {
 	}
 }
 
+// tieMutants are the changes to a tied result that the runners must refuse
+// (tests/README.md). Each changes the canonical result got, whose last stage
+// is the tied stage tied.
+var tieMutants = map[string]func(got, tied map[string]any){
+	"an error with a token":  func(got, tied map[string]any) { got["error"].(map[string]any)["token"] = 0.0 },
+	"an error with a source": func(got, tied map[string]any) { got["error"].(map[string]any)["source"] = []any{0.0, 0.0} },
+	"a tree":                 func(got, tied map[string]any) { got["tree"] = got["error"].(map[string]any)["readings"].([]any)[0] },
+	"one reading": func(got, tied map[string]any) {
+		e := got["error"].(map[string]any)
+		e["readings"] = e["readings"].([]any)[:1]
+	},
+	"ok":                        func(got, tied map[string]any) { got["ok"] = true },
+	"an error of another kind":  func(got, tied map[string]any) { got["error"].(map[string]any)["kind"] = ErrorRejected },
+	"an error of another stage": func(got, tied map[string]any) { got["error"].(map[string]any)["stage"] = "other" },
+	"another reason":            func(got, tied map[string]any) { got["error"].(map[string]any)["reason"] = ReasonElisionOnly },
+	"a tied stage with output":  func(got, tied map[string]any) { tied["output"] = []any{} },
+	"a stage with tied": func(got, tied map[string]any) {
+		tied["tied"] = got["error"].(map[string]any)["readings"].([]any)[1]
+	},
+	"a stage after the tie": func(got, tied map[string]any) {
+		got["stages"] = append(got["stages"].([]any), map[string]any{"name": "later", "verdict": VerdictUnique})
+	},
+	"no error":                func(got, tied map[string]any) { got["error"] = nil },
+	"an error without reason": func(got, tied map[string]any) { delete(got["error"].(map[string]any), "reason") },
+}
+
+// The runner fails a case that does not finish in time.
+func TestEngineRunnerTimeout(t *testing.T) {
+	grammar := doublingGrammar("late-elision", 25, false, "%rule text ε | rN")
+	c := &engineCase{Grammar: &grammar, Tokens: []caseToken{}, Expect: caseExpect{}}
+	if err := checkCaseWithin(c, time.Nanosecond); err == nil || !strings.Contains(err.Error(), "did not finish") {
+		t.Fatalf("the runner gave %v", err)
+	}
+}
+
+// The runner refuses a result that breaks an invariant, whatever the case
+// expects (tests/README.md).
+func TestEngineRunnerInvariants(t *testing.T) {
+	grammar := "%rule text x | y\n%rule x A\n%rule y A"
+	c := &engineCase{Grammar: &grammar, Tokens: []caseToken{{Text: "a", Tags: []string{"A"}}}, Expect: caseExpect{Error: ErrorAmbiguous}}
+	if err := checkCase(c, true); err != nil {
+		t.Fatal(err)
+	}
+	d, err := caseDialect(c, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := runCase(d, c, &c.Options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, _ := MarshalResult(res)
+	fresh := func() (map[string]any, map[string]any) {
+		var got map[string]any
+		json.Unmarshal(data, &got)
+		stages := got["stages"].([]any)
+		return got, stages[len(stages)-1].(map[string]any)
+	}
+	for name, mutate := range tieMutants {
+		got, tied := fresh()
+		mutate(got, tied)
+		if len(resultProblems(got)) == 0 {
+			t.Errorf("%s: no problem found", name)
+		}
+		if checkResult(res, got, data, &c.Expect) == nil {
+			t.Errorf("%s: the runner accepts it", name)
+		}
+	}
+}
+
+// caseTimeout is how long one engine case can run before it fails, so that
+// a hang is reported as a failure of its case. GENCMU_CASE_TIMEOUT sets it,
+// as a Go duration.
+const caseTimeout = 30 * time.Second
+
+// checkCaseWithin checks a case, and fails it when it takes longer than
+// the timeout. A case that hangs keeps its goroutine, but the run goes on.
+func checkCaseWithin(c *engineCase, timeout time.Duration) error {
+	done := make(chan error, 1)
+	go func() { done <- checkCase(c, false) }()
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(timeout):
+		return fmt.Errorf("the case did not finish within %v", timeout)
+	}
+}
+
 func TestEngineCases(t *testing.T) {
+	timeout := caseTimeout
+	if s := os.Getenv("GENCMU_CASE_TIMEOUT"); s != "" {
+		d, err := time.ParseDuration(s)
+		if err != nil {
+			t.Fatalf("GENCMU_CASE_TIMEOUT: %v", err)
+		}
+		timeout = d
+	}
 	files, _ := filepath.Glob("../../tests/engine/*.json")
 	if len(files) == 0 {
 		t.Fatal("no engine cases in ../../tests/engine")
@@ -347,7 +496,7 @@ func TestEngineCases(t *testing.T) {
 	for _, f := range files {
 		c := loadCase(t, f)
 		t.Run(strings.TrimSuffix(filepath.Base(f), ".json"), func(t *testing.T) {
-			if err := checkCase(c, false); err != nil {
+			if err := checkCaseWithin(c, timeout); err != nil {
 				t.Errorf("%s\n%v", c.Description, err)
 			}
 		})

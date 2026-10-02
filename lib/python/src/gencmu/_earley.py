@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from ._clauses import WHOLE
+from ._eligible import eligible
 from ._errors import _GrammarFault
 from ._grammar import Lowered, Production, SymbolTest, written_symbol
 from ._model import Range, Tags, Token
@@ -28,6 +29,16 @@ CONTENT_KEY_LIMIT = 64
 """The most tokens a span may have for a nested parse's answer to be kept
 under its content, which equal spans at other positions share; a longer span
 is kept under its position (engine §4)."""
+
+
+class RecognizerCounters:
+    """How many items the recognizer has made, in parses and nested parses
+    alike: a measure of work that tests compare across input lengths."""
+
+    items = 0
+
+
+recognizer_counters = RecognizerCounters()
 
 
 @dataclass
@@ -245,19 +256,22 @@ class StageContext:
         if found is not None:
             return found
         forest = self.parse_alone(rule, start, end)
-        # The answer reads the items: every completed item of the rule over
-        # the span, whether or not its derivations are all cyclic.
+        # The answer reads the completed items of the rule over the span
+        # that have an eligible proof tree, under written-terminator
+        # priority (engine §4).
+        found_items = eligible(forest, forest.roots, self, start)
         tags: Tags = EMPTY
-        for root in forest.roots:
+        for root in found_items:
             tags = union(tags, self.tagtab.get(forest.tag[root]))
-        answer = NestedAnswer(bool(forest.roots), tags)
+        answer = NestedAnswer(bool(found_items), tags)
         self.memo[key] = answer
         return answer
 
     def begins(self, rule: str, start: int, end: int) -> bool:
         """Whether a prefix of tokens start..end, the empty one included,
-        parses as rule: whether a completed item of the rule begins at the
-        span's start, in any set (engine §4)."""
+        parses as rule: whether a completed item of the rule with an
+        eligible proof tree begins at the span's start, in any set (engine
+        §4)."""
         key = self.nested_key(rule, start, end)
         found = self.begins_memo.get(key)
         if found is not None:
@@ -265,10 +279,13 @@ class StageContext:
         forest = self.parse_alone(rule, start, end)
         number = self.lowered.rule_ids[rule]
         productions = self.lowered.productions
-        answer = any(
-            origin == 0 and productions[prod].lhs == number and dot == len(productions[prod].rhs)
-            for prod, dot, origin in zip(forest.prod, forest.dot, forest.origin)
-        )
+        witnesses = [
+            item
+            for item, (prod, dot, origin) in enumerate(zip(forest.prod, forest.dot, forest.origin))
+            if origin == 0 and productions[prod].lhs == number and dot == len(productions[prod].rhs)
+        ]
+        # Only an item with an eligible proof tree counts (engine §4).
+        answer = bool(eligible(forest, witnesses, self, start))
         self.begins_memo[key] = answer
         return answer
 
@@ -732,4 +749,6 @@ class Parser:
                 expected.setdefault(written_symbol(terminal, test), set()).add(production.rule_name)
         # The forest's tokens are those the parse read, before its furthest
         # set.
+        # Every item is made once, by add, so the count is added here once.
+        recognizer_counters.items += len(prod)
         return Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected)

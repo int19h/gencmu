@@ -3,7 +3,7 @@
   "documents": {
     "p.md": "## phonemes\n\n```jbogenbau\n%stage phonemes\n```\n\n- [g.md](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## words\n\n```jbogenbau\n%stage words\n```\n\n- [h.md](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [part] ...\n%rule part letter | pause\n%rule letter $c('a')\n%emits $c <L ∪ /a/>, /./\n%rule pause '-' | pause '-'\n%emits $ <P ∪ /./>\n```\n",
-    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w(all)\n%emits $w <W>\n%rule all [any] ...\n%rule any L | P | /./\n```\n"
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w(all)\n%emits $w <W>\n%rule all [any] ...\n%rule any L | /./\n```\n"
   },
   "pipeline": "p.md",
   "input": "a--a",

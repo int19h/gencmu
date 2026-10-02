@@ -268,7 +268,7 @@ func TestMarshalResult(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"format":6,"ok":true,"stages":[{"name":"main","verdict":"unique","output":[]}],"tree":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":[],"children":[{"kind":"token","terminal":"'é'","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"KU","span":[1,1],"source":[1,1]}]},"error":null}`
+	want := `{"format":7,"ok":true,"stages":[{"name":"main","verdict":"unique","output":[]}],"tree":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":[],"children":[{"kind":"token","terminal":"'é'","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"KU","span":[1,1],"source":[1,1]}]},"error":null}`
 	if string(data) != want {
 		t.Fatalf("got  %s\nwant %s", data, want)
 	}
@@ -280,7 +280,7 @@ func TestMarshalResult(t *testing.T) {
 	}
 	res, _ = d.Parse("x", ParseOptions{})
 	data, _ = MarshalResult(res)
-	if !strings.HasPrefix(string(data), `{"format":6,"ok":false,"stages":[{"name":"main","verdict":null}],"tree":null,"error":{"kind":"rejected","stage":"main","token":0,"source":[0,1],"line":1,"column":1,"expected":[{"terminal":"'é'","rules":["text"]}],"message":`) {
+	if !strings.HasPrefix(string(data), `{"format":7,"ok":false,"stages":[{"name":"main","verdict":null}],"tree":null,"error":{"kind":"rejected","stage":"main","token":0,"source":[0,1],"line":1,"column":1,"expected":[{"terminal":"'é'","rules":["text"]}],"message":`) {
 		t.Fatalf("%s", data)
 	}
 	// The warnings follow the error, only when there is one; the result's
@@ -1268,7 +1268,8 @@ func TestUnusedFeaturesShareALowering(t *testing.T) {
 }
 
 // TestLoweredBounded parses with every set of seven gates. The stage keeps
-// no more than maxLowered lowered grammars.
+// no more than maxLowered lowered grammars. Two gates on make a tie, which
+// is an error, but the stage still accepts its input.
 func TestLoweredBounded(t *testing.T) {
 	names := []string{"a", "b", "c", "d", "e", "f", "g"}
 	var alts []string
@@ -1284,7 +1285,7 @@ func TestLoweredBounded(t *testing.T) {
 			}
 		}
 		res, err := d.Parse("x", ParseOptions{Features: features, NoAutoFeatures: true})
-		if err != nil || res.OK != (len(features) > 0) {
+		if err != nil || (res.Stages[0].Verdict != "") != (len(features) > 0) {
 			t.Fatalf("%v: %v %+v", features, err, res)
 		}
 	}

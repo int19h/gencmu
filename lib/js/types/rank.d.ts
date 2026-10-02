@@ -7,16 +7,17 @@ export type Allowed<T> = {
 export type Candidate = {
     seq: Rope;
     alts: Rope[];
-    at: number;
+    at: Count;
 };
 export type Difference = {
     left: Action | null;
     right: Action | null;
-    index: number;
+    index: Count;
 };
+export type Count = number | bigint;
 export type Ranking = {
     verdict: import("./types.js").Verdict;
-    chosen: Rope;
+    first: Rope;
     second: Rope | null;
     witness: [Action | null, Action | null] | null;
 };
@@ -71,11 +72,24 @@ declare function decide(difference: {
  * @returns {number}
  */
 declare function totalOrder(left: Rope, right: Rope, lean: Lean): number;
-export type TraversalContext = Set<Item | string>;
+export type TraversalContext = Set<string>;
 export declare class Ranker {
     tokens: import("./tokens.js").Token[];
+    elisions: boolean;
+    /** @type {Lean} */
     lean: Lean;
     maximal: Maximal | null;
+    /** @type {{plain: Map<Item, Allowed<ElisionSummary>>, contextual: Map<Item, Map<string, Allowed<ElisionSummary>>>}} */
+    summaries: {
+        plain: Map<Item, Allowed<ElisionSummary>>;
+        contextual: Map<Item, Map<string, Allowed<ElisionSummary>>>;
+    };
+    /** @type {Map<number, ElisionSeq>} */
+    elisionLeaves: Map<number, ElisionSeq>;
+    /** @type {Map<string, number>} */
+    ruleGroups: Map<string, number>;
+    /** @type {(rule: string) => number | undefined} */
+    groups: (rule: string) => number | undefined;
     /** @type {{plain: Map<Item, Allowed<Candidate[]>>, contextual: Map<Item, Map<string, Allowed<Candidate[]>>>}} */
     memo: {
         plain: Map<Item, Allowed<Candidate[]>>;
@@ -86,8 +100,6 @@ export declare class Ranker {
         plain: Map<Item, Allowed<number>>;
         contextual: Map<Item, Map<string, Allowed<number>>>;
     };
-    /** @type {Map<Item, number>} */
-    itemIds: Map<Item, number>;
     /** @type {Map<Item, RopeLeaf>} */
     closes: Map<Item, RopeLeaf>;
     /** @type {Map<string, RopeLeaf>} */
@@ -109,6 +121,32 @@ export declare class Ranker {
      * @returns {Allowed<Candidate[]>}
      */
     allowedCandidates(item: Item): Allowed<Candidate[]>;
+    /**
+     * @param {Item} item
+     * @returns {Allowed<ElisionSummary>}
+     */
+    elisionSummary(item: Item): Allowed<ElisionSummary>;
+    /**
+     * The summaries of an item in the context that `key` names, which
+     * elisionSummary has already computed.
+     * @param {Item} item
+     * @param {string} key
+     * @returns {Allowed<ElisionSummary>}
+     */
+    summaryAt(item: Item, key: string): Allowed<ElisionSummary>;
+    /**
+     * The edges of an item that attain a least vector in its context.
+     * @param {Item} item
+     * @param {string} key
+     * @returns {import("./types.js").Edge[]}
+     */
+    keptEdges(item: Item, key: string): import("./types.js").Edge[];
+    /**
+     * The one sequence of a single elision at a position.
+     * @param {number} at
+     * @returns {ElisionSeq}
+     */
+    elisionLeaf(at: number): ElisionSeq;
     /**
      * The one leaf for closing an item: every sequence that closes it shares
      * it, rather than each making its own.
@@ -132,10 +170,10 @@ export declare class Ranker {
     /**
      * @param {Candidate} entry
      * @param {Rope} alt
-     * @param {number} at
+     * @param {Count} at
      * @returns {Candidate}
      */
-    offer(entry: Candidate, alt: Rope, at: number): Candidate;
+    offer(entry: Candidate, alt: Rope, at: Count): Candidate;
     /**
      * @param {Candidate[]} kept
      * @param {Candidate} entry
@@ -152,14 +190,21 @@ export declare class Ranker {
      * @template T
      * @param {Item} root
      * @param {{plain: Map<Item, T>, contextual: Map<Item, Map<string, T>>}} memo
-     * @param {(item: Item, dependency: (item: Item) => T) => T} combine
+     * @param {(item: Item, dependency: (item: Item) => T, key: string) => T} combine
+     *   `key` names the item's context
      * @param {T} cut the value of a dependency that would close a cycle
+     * @param {((item: Item, key: string) => import("./types.js").Edge[]) | null} [edgesOf]
+     *   the edges whose children `combine` reads, if not all
      * @returns {T}
      */
     traverse<T>(root: Item, memo: {
         plain: Map<Item, T>;
         contextual: Map<Item, Map<string, T>>;
-    }, combine: (item: Item, dependency: (item: Item) => T) => T, cut: T): T;
+    }, combine: (item: Item, dependency: (item: Item) => T, key: string) => T, cut: T, edgesOf?: ((item: Item, key: string) => import("./types.js").Edge[]) | null): T;
+    /**
+     * @param {Item[]} roots
+     */
+    groupRules(roots: Item[]): void;
     /**
      * @param {Item[]} roots
      * @returns {Ranking | null} null when every derivation is cyclic
@@ -171,6 +216,41 @@ export declare class Ranker {
  * @returns {Derivation}
  */
 export declare function derivationTree(rope: Rope): Derivation;
+export type ElisionSeq = ElisionNode | {
+    size: 0;
+};
+export type ElisionNode = {
+    size: Count;
+    first: number;
+    last: number;
+    left?: ElisionSeq;
+    right?: ElisionSeq;
+};
+export type ElisionSummary = {
+    /**
+     * null when there is no derivation
+     */
+    vector: ElisionSeq | null;
+    least: number;
+    total: number;
+    kept: Set<number>;
+};
+/**
+ * @param {ElisionSeq} left
+ * @param {ElisionSeq} right
+ * @returns {ElisionSeq}
+ */
+declare function concatElisions(left: ElisionSeq, right: ElisionSeq): ElisionSeq;
+/**
+ * @param {ElisionSeq} left
+ * @param {ElisionSeq} right
+ * @returns {number}
+ */
+export declare function compareElisions(left: ElisionSeq, right: ElisionSeq): number;
+export type ElisionCursor = {
+    stack: ElisionSeq[];
+    taken: Count;
+};
 export declare const internals: {
     actions: typeof actions;
     firstDifference: typeof firstDifference;
@@ -179,5 +259,6 @@ export declare const internals: {
     visible: typeof visible;
     concat: typeof concat;
     leaf: typeof leaf;
+    concatElisions: typeof concatElisions;
 };
 export {};

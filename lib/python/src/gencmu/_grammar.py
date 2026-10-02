@@ -113,12 +113,18 @@ class SymbolTest:
         return not tags.isdisjoint(wanted)
 
 
+RANKING_RULES = ("greedy", "lazy", "late-elision")
+"""The rules of the ranking that ``%ambiguity-resolution`` can name
+(engine §2, §6)."""
+
+
 @dataclass
 class Grammar:
     """A stage's stitched grammar and its directives."""
 
     stage: str
     rules: dict[str, Rule]
+    # The rule of the ranking, one of RANKING_RULES (engine §6).
     lean: str
     elision_only: bool
     # Whether an elided terminator is forbidden where its constituent could
@@ -132,6 +138,9 @@ class Grammar:
     # The stage's implications, each side's tags with the constants' final
     # values (engine §2, §11).
     implications: list[tuple[frozenset[str], frozenset[str]]] = field(default_factory=list)
+    # The elidable terminators that some %elidable maximal names (engine
+    # §2, §4).
+    maximal_terminals: frozenset[str] = frozenset()
     # The features that gate an entry of a classifier. Only these change
     # the classifiers.
     classifier_gates: frozenset[str] = field(init=False, repr=False, compare=False)
@@ -480,6 +489,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
     changes: list[Change] = []
     resolutions: list[tuple[list[str], str, Any]] = []
     elidable: set[str] = set()
+    maximal_terminals: set[str] = set()
     classifier_items: list[tuple[str, Dom]] = []
     implication_items: list[tuple[str, Dom]] = []
     for path, dom in documents:
@@ -532,6 +542,8 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
                 resolutions.append((args, path, at))
             elif name == "elidable":
                 elidable.update(args)
+                if directive.get("maximal") is True:
+                    maximal_terminals.update(args)
             else:
                 raise _error(f"an unknown directive %{name}", path, at, stage)
         for constant in dom.get("constants", []):
@@ -549,8 +561,8 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
         args, path, at = resolutions[1]
         raise _error(f"stage {stage} has more than one %ambiguity-resolution", path, at, stage)
     args, path, at = resolutions[0]
-    # The lean, then elision-only and maximal, each optional, in that order
-    # (engine §2).
+    # The rule of the ranking (engine §6), then elision-only and maximal,
+    # each optional, in that order (engine §2).
     rest = args[1:]
     elision_only = rest[:1] == ["elision-only"]
     if elision_only:
@@ -558,9 +570,12 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
     maximal = rest[:1] == ["maximal"]
     if maximal:
         rest = rest[1:]
-    if not args or args[0] not in ("greedy", "lazy") or rest:
+    if not args or args[0] not in RANKING_RULES or rest:
         raise _error(
-            "%ambiguity-resolution takes greedy or lazy, then optionally elision-only, then optionally maximal", path, at, stage
+            "%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only, then optionally maximal",
+            path,
+            at,
+            stage,
         )
     if "text" not in rules:
         raise GencmuError(f"stage {stage} has no rule text, its start rule", stage=stage)
@@ -599,6 +614,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
         changes,
         classifier_items=classifier_items,
         implications=implications,
+        maximal_terminals=frozenset(maximal_terminals),
     )
 
 
@@ -749,8 +765,22 @@ class Lowered:
     # (engine §2, §11).
     classifiers: Classifiers = field(default_factory=dict)
     implications: list[tuple[frozenset[str], frozenset[str]]] = field(default_factory=list)
+    # The helpers of the elidable optionals, by rule number (engine §3.8):
+    # the rules of the productions whose empty alternative is an elided
+    # terminator.
+    elidable_helpers: frozenset[int] = frozenset()
+    maximal_helpers: frozenset[int] = frozenset()
 
     def __post_init__(self) -> None:
+        self.elidable_helpers = frozenset(
+            production.lhs for production in self.productions if production.helper and production.elided is not None
+        )
+        # The helpers of the maximal terminators among them (engine §4).
+        self.maximal_helpers = frozenset(
+            production.lhs
+            for production in self.productions
+            if production.helper and production.elided is not None and production.elided in self.grammar.maximal_terminals
+        )
         self.by_first_terminal = [{} for _ in self.rule_names]
         self.by_first_characters = [{} for _ in self.rule_names]
         self.not_terminal_first = [[] for _ in self.rule_names]

@@ -1,5 +1,7 @@
-"""The resolution maximal (engine §4): an elided terminator is forbidden
-where its constituent, the node before it, could have been longer."""
+"""Maximality (engine §4): an elided terminator is forbidden where its
+constituent, the node before it, could have been longer. It holds for every
+elidable terminator under the resolution's stage-wide maximal, and for the
+maximal terminators alone otherwise."""
 
 from __future__ import annotations
 
@@ -10,24 +12,31 @@ from ._grammar import SymbolTest
 class Maximal:
     """What the ranking asks of maximal about one parse's items."""
 
-    def __init__(self, forest: Forest, context: StageContext) -> None:
+    def __init__(self, forest: Forest, context: StageContext, stage_wide: bool = True, base: int = 0) -> None:
         self.forest = forest
-        # The parse's stage, whose tokens a sound test is checked against.
+        # The parse's stage, whose tokens a sound test is checked against,
+        # and where the parse's tokens begin among them: a nested parse
+        # counts its positions from the start of its span.
         self.context = context
+        self.base = base
         self.productions = forest.lowered.productions
-        # The helpers of the elidable optionals: an empty production of one
-        # is an elided terminator.
-        self.elidable = frozenset(
-            production.lhs for production in self.productions if production.helper and production.elided is not None
-        )
+        # The helpers whose omission maximality restricts: every elidable
+        # optional's under stage-wide maximal, and otherwise those of the
+        # maximal terminators. An empty production of one is an elided
+        # terminator.
+        lowered = forest.lowered
+        self.elidable = lowered.elidable_helpers if stage_wide else lowered.maximal_helpers
         self.furthest: dict[tuple[int, int], int] | None = None
         self.completed: dict[tuple[int, int], list[int]] | None = None
+        # For a tested symbol, the furthest end from each origin at which
+        # the symbol completes and the test holds, found once per key.
+        self.passing: dict[tuple[SymbolTest, int, int], int] = {}
 
     def elided(self, item: int) -> bool:
         """Whether a completed item is an elided terminator: the empty
         production of an elidable optional's helper."""
         production = self.productions[self.forest.prod[item]]
-        return production.helper and production.elided is not None and not production.rhs
+        return not production.rhs and production.lhs in self.elidable
 
     def guards(self, item: int) -> bool:
         """Whether an item's next symbol is an elidable optional whose
@@ -50,11 +59,20 @@ class Maximal:
         forest = self.forest
         key = (self.productions[forest.prod[item]].lhs, forest.origin[item])
         if test is not None:
-            origin, end = forest.origin[item], forest.end[item]
-            return any(
-                forest.end[longer] > end and self.context.test_holds(test, origin, forest.end[longer], forest.tag[longer])
-                for longer in self.all_completed().get(key, ())
-            )
+            found = self.passing.get((test, *key))
+            if found is None:
+                origin = forest.origin[item]
+                base = self.base
+                found = max(
+                    (
+                        forest.end[longer]
+                        for longer in self.all_completed().get(key, ())
+                        if self.context.test_holds(test, base + origin, base + forest.end[longer], forest.tag[longer])
+                    ),
+                    default=-1,
+                )
+                self.passing[(test, *key)] = found
+            return found > forest.end[item]
         furthest = self.longest().get(key)
         return furthest is not None and furthest > forest.end[item]
 

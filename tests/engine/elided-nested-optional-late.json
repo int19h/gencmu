@@ -1,0 +1,21 @@
+{
+  "description": "With KU elidable, text → [[KU]] on the empty input is resolved under late-elision. The outer helper empty elides nothing, vector (0). The inner one empty elides KU, vector (1). So the reading without an elided node wins (engine §6).",
+  "grammar": "%ambiguity-resolution late-elision\n%elidable KU\n%rule text [[KU]]",
+  "tokens": [],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": []
+      }
+    }
+  }
+}

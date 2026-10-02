@@ -82,6 +82,12 @@ func (nr *notationReader) read(text, docPath string) (dom *domDoc, err *Error) {
 	for i, g := range nr.stages {
 		run := ps.newRun(g.name, g, toks)
 		out = run.run(nr.lowered[i], nil, false)
+		if out.err != nil && out.err.Kind == ErrorAmbiguous {
+			// A tie has no single position, so the error names the document
+			// alone, with no line or column (engine §8).
+			return nil, &Error{Kind: ErrorGrammar, Document: docPath,
+				Message: "the grammar text is ambiguous: the " + g.name + " stage of the notation reads it in two ways"}
+		}
 		if out.err != nil {
 			e := &Error{Kind: ErrorGrammar, Document: docPath, Message: "the document does not parse as the notation"}
 			if out.err.Source != nil {
@@ -367,10 +373,22 @@ func (b *domBuilder) document(root *Node) *domDoc {
 			ps := parts(c)
 			dir := &domDirective{Name: strings.TrimPrefix(b.text(keyword), "%"), Args: []string{}, At: b.at(keyword)}
 			var kinds []string
+			first := true
 			for _, p := range ps {
-				if p.Kind != KindRule {
+				// The operands are the argument parts alone. The reader
+				// ignores any other part, which never counts as the first
+				// (engine §9).
+				if p.Kind != KindRule || (p.Rule != "argument-word" && p.Rule != "argument-string" && p.Rule != "argument-tag") {
 					continue
 				}
+				// In %elidable, a first argument-word maximal sets the
+				// member maximal and is no operand. ~maximal stays one
+				// (engine §9).
+				if first && dir.Name == "elidable" && p.Rule == "argument-word" && b.text(b.token(p)) == "maximal" {
+					dir.Maximal, first = true, false
+					continue
+				}
+				first = false
 				switch p.Rule {
 				case "argument-word":
 					dir.Args = append(dir.Args, b.text(b.token(p)))

@@ -11,8 +11,8 @@
   ],
   "expect": {
     "result": {
-      "format": 6,
-      "ok": true,
+      "format": 7,
+      "ok": false,
       "stages": [
         {
           "name": "main",
@@ -34,8 +34,46 @@
                 ]
               }
             }
-          ],
-          "tied": {
+          ]
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": [
+              "B"
+            ],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "B",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              }
+            ]
+          },
+          {
             "kind": "rule",
             "rule": "text",
             "span": [
@@ -79,42 +117,10 @@
                 ]
               }
             ]
-          },
-          "output": []
-        }
-      ],
-      "tree": {
-        "kind": "rule",
-        "rule": "text",
-        "span": [
-          0,
-          1
-        ],
-        "source": [
-          0,
-          1
-        ],
-        "tags": [
-          "B"
-        ],
-        "children": [
-          {
-            "kind": "token",
-            "terminal": "B",
-            "token": 0,
-            "span": [
-              0,
-              1
-            ],
-            "source": [
-              0,
-              1
-            ]
           }
         ]
-      },
-      "error": null
+      }
     },
-    "brackets": "a"
+    "error": "ambiguous"
   }
 }

@@ -1,0 +1,32 @@
+{
+  "description": "The verdict counts every derivation, losing ones included. Through a, one T is elided; through b, two. So the input has two derivations and one best, and the verdict is resolved, not unique (engine §6).",
+  "grammar": "%ambiguity-resolution late-elision\n%elidable T\n%rule text a | b\n%rule a A [T]\n%rule b A [T] [T]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "a"
+          }
+        ]
+      }
+    }
+  }
+}

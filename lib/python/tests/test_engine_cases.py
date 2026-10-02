@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
+import signal
+import subprocess
 import sys
 import unittest
 from typing import Any
 
 import gencmu
 
-from .shared import case_features, cases, load_case, load_case_dialect, mismatch, parse_case, run_case
+from .shared import CaseTimeout, case_features, cases, deadline, load_case, load_case_dialect, mismatch, parse_case, result_problems, run_case
 
 
 # The members of `expect` that only a loaded dialect can meet.
@@ -29,7 +32,8 @@ class EngineCases(unittest.TestCase):
         paths = cases("engine")
         self.assertTrue(paths, "no engine cases found")
         for path in paths:
-            with self.subTest(case=path.name):
+            # A case that hangs fails, and the other cases go on.
+            with self.subTest(case=path.name), deadline(path.name):
                 case = load_case(path)
                 if "parses" in case:
                     # The case parses its input several times with the one
@@ -81,6 +85,9 @@ class EngineCases(unittest.TestCase):
             return
         assert value is not None and result is not None
         text = json.dumps(value, ensure_ascii=False)
+        # The invariants hold of every result, whatever the case expects
+        # (tests/README.md).
+        self.assertEqual(result_problems(value), [], f"{label} breaks an invariant of the result\n{text[:2000]}")
         # The canonical JSON is the key order of docs/output.md and parses
         # back to the same value.
         self.assertEqual(json.loads(gencmu.to_json(result)), value)
@@ -97,6 +104,36 @@ class EngineCases(unittest.TestCase):
             self.assertEqual(value["error"]["kind"], expect["error"], label)
         else:
             self.assertIsNone(value["error"], f"{label}: unexpected error\n{text[:2000]}")
+
+    @unittest.skipUnless(hasattr(signal, "setitimer"), "the process has no alarm signal")
+    def test_a_case_that_hangs_fails(self) -> None:
+        """With an alarm signal, the runner reports a case that runs past
+        its time as a failure, and the other cases go on."""
+        with self.assertRaises(CaseTimeout), deadline("a loop", 0.2):
+            while True:
+                pass
+
+    def test_a_case_that_hangs_without_an_alarm_ends_the_process(self) -> None:
+        """Without an alarm signal, as in a thread other than the main one,
+        the deadline ends the process with a traceback. The test runs it in
+        a process of its own, so that this suite goes on."""
+        program = (
+            "import threading\n"
+            "from tests.shared import deadline\n"
+            "def hang():\n"
+            "    with deadline('a loop', 0.2):\n"
+            "        while True:\n"
+            "            pass\n"
+            "thread = threading.Thread(target=hang)\n"
+            "thread.start()\n"
+            "thread.join()\n"
+        )
+        done = subprocess.run(
+            [sys.executable, "-c", program], cwd=Path(__file__).resolve().parents[1], capture_output=True, text=True, timeout=60
+        )
+        self.assertEqual(done.returncode, 1, done.stderr)
+        self.assertIn("Timeout (", done.stderr)
+        self.assertIn("in hang", done.stderr)
 
     def test_a_load_error_meets_only_an_expectation_of_the_error(self) -> None:
         # The runner fails a case whose dialect does not load, when the case
@@ -128,6 +165,30 @@ class EngineCases(unittest.TestCase):
         # it.
         with self.assertRaises(AssertionError):
             self.check("load", {"error": "usage", "where": {"document": "main.md"}}, value, result, error, features)
+
+    def test_a_result_that_breaks_an_invariant_is_refused(self) -> None:
+        """The runner refuses a result that breaks an invariant of a tie,
+        whatever the case expects (tests/README.md)."""
+        value, result, error, features = run_case(
+            {"grammar": "%rule text x | y\n%rule x A\n%rule y A", "tokens": [{"text": "a", "tags": ["A"]}]}
+        )
+        assert value is not None and error is None
+        self.assertEqual(result_problems(value), [])
+        self.check("tie", {"error": "ambiguous"}, value, result, error, features)
+        tied = value["stages"][0]
+        mutants = {
+            "a tied stage with output": {**value, "stages": [{**tied, "output": []}]},
+            "a stage with a tied tree": {**value, "stages": [{**tied, "tied": value["error"]["readings"][1]}]},
+            "a stage after the tie": {**value, "stages": [tied, {"name": "later", "verdict": "unique"}]},
+            "an error without a reason": {**value, "error": {key: found for key, found in value["error"].items() if key != "reason"}},
+            "an ambiguous error with a token": {**value, "error": {**value["error"], "token": 0}},
+            "an ambiguous error with a source": {**value, "error": {**value["error"], "source": [0, 1]}},
+        }
+        for name, mutant in mutants.items():
+            with self.subTest(mutant=name):
+                self.assertNotEqual(result_problems(mutant), [])
+                with self.assertRaisesRegex(AssertionError, "breaks an invariant"):
+                    self.check("tie", {"error": "ambiguous"}, mutant, result, error, features)
 
 
 if __name__ == "__main__":

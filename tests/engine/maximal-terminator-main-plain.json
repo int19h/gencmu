@@ -1,0 +1,35 @@
+{
+  "description": "The control of maximal-terminator-main with a plain %elidable T: nothing restricts the omission, and the text parses (engine §4).",
+  "grammar": "%ambiguity-resolution greedy\n%elidable T\n%rule text A body [T] B\n%rule body X | X B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

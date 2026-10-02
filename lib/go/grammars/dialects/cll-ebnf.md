@@ -104,9 +104,13 @@ The stage applies CLL's non-formal rule `word = [BAhE] any-word [indicators]`. A
 The stage is the grammar of chapter 21, with selma'o as its terminals. The CLL grammar leaves the choice among parses to each dialect that uses it. This dialect makes the choice here:
 
 ```jbogenbau
-%ambiguity-resolution greedy elision-only
+%ambiguity-resolution late-elision elision-only
 ```
 
-The stage is greedy: of two parses, the one that reads the next word wins. So an elided terminator is absent for as long as the grammar allows. A terminator can be elided wherever a parse of the whole text needs it. With `elision-only`, the stage applies CLL's rule that a terminator can be elided only if no ambiguity results. So a text that is still ambiguous with its terminators written back is an error. [The notation document](../../docs/notation.md) explains both, under "Ambiguity".
+The stage ranks with `late-elision`. It compares only where two parses elide terminators. At the first place where they differ, the parse that reads on wins. So an elided terminator is absent for as long as the grammar allows. A terminator can be elided wherever a parse of the whole text needs it. Two parses that elide the same terminators at the same places are tied, and a tie is an error.
 
-So `le nanmu joi le ninmu cu klama` parses, although CLL 14.14 says that the text needs its first `ku`. `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` also parses, and its description ends before `se farvi`. Where the printed grammar is ambiguous in anything but a terminator, the text is an error that shows both readings. For example, `mi broda joi ke brode ke'e` is a `ke` group joined to `broda` by `joi`. It is also `joi` before a tanru unit (a part of a compound predicate) that begins with `ke`.
+With `elision-only`, the stage applies CLL's rule that a terminator can be elided only if no ambiguity results. So a text that is still ambiguous with its terminators written back is an error. [The notation document](../../docs/notation.md) explains both, under "Ambiguity".
+
+So `le nanmu joi le ninmu cu klama` parses, although CLL 14.14 says that the text needs its first `ku`. `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` also parses, and its description ends before `se farvi`. Where the printed grammar is ambiguous in anything but a terminator, the text is an error that shows both readings.
+
+The CLL grammar settles one such ambiguity with a condition, as the official parser does. `mi broda joi ke brode ke'e` is a `ke` group joined to `broda` by `joi`. The printed grammar also reads `joi` before a tanru unit (a part of a compound predicate) that begins with `ke`. The rules `plain-joik-jek` and `joik-before-ke` of the CLL grammar remove that second reading. Where only the plain reading parses, as in `mi broda joi ke brode ke'e bo brodi`, the dialect keeps it, as the printed grammar does.

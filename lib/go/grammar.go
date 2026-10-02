@@ -9,10 +9,11 @@ type stageGrammar struct {
 	constUsers  []constUser
 	rules       []*sRule
 	byName      map[string]*sRule
-	lean        string // "greedy" or "lazy"
+	lean        string // the rule of the ranking: "greedy", "lazy" or "late-elision" (engine §6)
 	elisionOnly bool
 	maximal     bool // no terminator is elided where its constituent could have been longer (engine §4)
 	elidable    map[string]bool
+	maximalT    map[string]bool // the maximal terminators, named by %elidable maximal (engine §2, §4)
 	changes     []stitchChange
 	// classifierSet holds the stage's classifiers, and implications its
 	// implications with their values (engine §2, §11).
@@ -75,7 +76,7 @@ func isTerminalName(name string) bool {
 }
 
 func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, *Error) {
-	g := &stageGrammar{name: stageName, uni: uni, constants: map[string]*stageConst{}, byName: map[string]*sRule{}, elidable: map[string]bool{}}
+	g := &stageGrammar{name: stageName, uni: uni, constants: map[string]*stageConst{}, byName: map[string]*sRule{}, elidable: map[string]bool{}, maximalT: map[string]bool{}}
 	g.classifierSet.names = map[string]bool{}
 	var implications []implicationItem
 	fail := func(doc string, at [2]int, format string, args ...any) *Error {
@@ -130,8 +131,9 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 				if len(ambiguity) > 1 {
 					return nil, fail(d.path, dir.At, "stage %s has more than one %%ambiguity-resolution", stageName)
 				}
-				// greedy or lazy, then optionally elision-only, then
-				// optionally maximal, in that order (engine §2).
+				// The rule of the ranking, greedy, lazy or late-elision, then
+				// optionally elision-only, then optionally maximal, in that
+				// order (engine §2).
 				args := dir.Args
 				rest := args
 				if len(rest) > 0 {
@@ -145,13 +147,16 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 				if maximal {
 					rest = rest[1:]
 				}
-				if len(args) == 0 || (args[0] != "greedy" && args[0] != "lazy") || len(rest) > 0 {
-					return nil, fail(d.path, dir.At, "%%ambiguity-resolution takes greedy or lazy, then optionally elision-only, then optionally maximal")
+				if len(args) == 0 || !isRankingRule(args[0]) || len(rest) > 0 {
+					return nil, fail(d.path, dir.At, "%%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only, then optionally maximal")
 				}
 				g.lean, g.elisionOnly, g.maximal = args[0], elisionOnly, maximal
 			case "elidable":
 				for _, a := range dir.Args {
 					g.elidable[a] = true
+					if dir.Maximal {
+						g.maximalT[a] = true
+					}
 				}
 			default:
 				return nil, fail(d.path, dir.At, "unknown directive %%%s", dir.Name)
@@ -401,4 +406,10 @@ func (g *stageGrammar) checkAlt(a *sAlt) *Error {
 		}
 	}
 	return nil
+}
+
+// isRankingRule says whether a word names the rule of a stage's ranking
+// (engine §2, §6). No lean, which the check of §7 uses, has no name.
+func isRankingRule(word string) bool {
+	return word == "greedy" || word == "lazy" || word == "late-elision"
 }

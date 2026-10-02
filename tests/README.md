@@ -44,6 +44,15 @@ Auto features (engine §13) are off for a case unless its options say `"autoFeat
 - An array matches when it has the same length and each element matches.
 - Anything else matches when it is equal.
 
+Every runner also checks these invariants on each canonical result that a case gives, whatever the case expects. A case cannot turn them off, and its pattern need not repeat them:
+
+- An error of kind `ambiguous` has no member `token` and no member `source`.
+- No stage has a member `tied`.
+- A stage whose verdict is `tie` has no member `output`, and it is the last stage of the result.
+- Such a result has `ok` false, `tree` null, and an error of kind `ambiguous` with the reason `tie`, that stage's name and two readings.
+
+A pattern matches a result that has members beyond its own. So the invariants, and not the patterns, say that a tied stage has no output.
+
 `expect.brackets` is the bracket rendering, with elided terminators hidden. `expect.warnings` is the list of warnings of the result, compared whole. So `[]` says that there are no warnings. `expect.features` is the list of features of the dialect (`docs/api.md`), compared whole. Each feature is written as `{"name":..., "kind":..., "default":...}`.
 
 A case can also parse its input several times with the one loaded dialect. Then it has `parses`, a list of objects, each with its own `options` and `expect`, in place of the case's `options` and `expect`:
@@ -82,6 +91,25 @@ A caller can supply its own `notation/bootstrap.json` (`docs/api.md`). Its notat
 
 Each item of `extraParts` gives a rule a part that the reader does not read. In the bundled bootstrap's syntax document, the text `find` stands once, and the bootstrap of the item has `replace` in its place. Each library loads the item's `document` with that bootstrap and parses its `inputs`, as above. The outcomes are those of `expect`. The extra part holds text that the reader refuses if it reads it, so an outcome other than `expect` shows that the library read it.
 
+## Malformed directives: `dom-malformed.json`
+
+```
+[{"description": "...", "directive": DIRECTIVE, "malformed": true}, ...]
+```
+
+Each item is one directive of a DOM (`docs/output.md`). A library puts it alone in an otherwise empty DOM of the current format, and checks the DOM as it checks a precompiled one (engine §9). The DOM is malformed exactly when `malformed` is true. A library that refuses a malformed precompiled DOM reads the document instead, so the check is not visible through a parse. That is why these cases test the check directly.
+
+## Growth cases: `growth.json`
+
+```
+[{"description": "...", "dialect": DIALECT, "text": "mi {links} klama", "link": ".e do",
+  "small": 10, "large": 40, "most": 5}, ...]
+```
+
+Each item says that a bundled dialect's work on a long text grows in proportion to its length. A condition that parses a whole prefix again at each step makes a long text cost more than its length says, and no other case shows that. The library builds two texts from `text`. It replaces `{links}` with `small` copies of `link`, joined by spaces, and then with `large` copies. Both texts must parse. The library counts the items that its recognizer makes for each text, in the main parse and in every nested parse, but not while it loads the dialect. The count for `large` copies must be at most `most` times the count for `small` copies.
+
+A library compares only its own two counts. Counts from different libraries are not compared, since each library makes its items in its own way.
+
 ## Corpus cases: `corpus/*.jsonl` and `core.txt`
 
 Each line is one case: a Lojban text, with the result that gencmu must give for it:
@@ -93,10 +121,12 @@ Each line is one case: a Lojban text, with the result that gencmu must give for 
 
 - `dialect` is the name of a bundled dialect. `features`, when present, lists the features that the case turns on. `withoutFeatures` lists those that it turns off.
 - `expect` is `accept` or `reject`. For an accepted text, `verdict` is the verdict of the last stage, and `brackets` is its tree, with elided terminators hidden. For a rejected one, `stage` names the stage that rejected it.
-- `ties`, when present, names every stage whose verdict is `tie`, so that a tie in a stage before the last is pinned too.
-- `words` is the output of the word stage, whenever the word stage accepted. The case writes each token as its label (engine §5). So a pause inside a word is a space, and an opaque part is its text.
+- `error` is present exactly when the result's error is of kind `ambiguous`. It is `{"kind": "ambiguous", "reason": "tie"}`, or the same with the reason `elision-only` (engine §6, §7). A case with any other result has no `error`, a rejection or an error of the grammar included. A case expects an ambiguity with `expect` set to `reject`, its `stage`, and this `error`. A third value of `expect` is not needed.
+- The `reason` inside `error` is the reason of the ambiguous error. It is a field of `error`, and it is not the case's own `reason`, which explains a departure from the seed (below). A case can have both.
+- `ties`, when present, names the stage whose verdict is `tie`. A tie ends the run, so at most one stage has it, and that stage can come before the last.
+- `words` records the word stage's output when that output is present. The case writes each token as its label (engine §5). So a pause inside a word is a space, and an opaque part is its text.
 
-A case runs with auto features on, which is the default of the API. The case matches when every one of those fields that the case or the result of the library has is equal.
+A runner also checks the invariants of a tie (above) on the result of each corpus case. No corpus text ties in its dialect, so each library also tests that its runner refuses a broken tie with the engine case `attach-tie.json`. A case runs with auto features on, which is the default of the API. The case matches when every one of those fields that the case or the result of the library has is equal.
 
 The corpus started from a seed: a fixture collection whose verdicts came from another parser. Where the expectation of gencmu differs from that seed, the case says so. `"seeded": "accept"` or `"reject"` is the verdict of the seed, and `reason` says why gencmu differs, in terms of its own grammars. `node tools/corpus-departures.js` lists every such case, grouped by reason. A change to the `words` or `brackets` of a case needs no field of its own. It is a change to what gencmu produces, made in the same commit as the grammar change that causes it.
 

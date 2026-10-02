@@ -11,22 +11,25 @@ Libraries write object keys in the order that this document gives. They write no
 ### A parse result
 
 ```
-{"format":6,"ok":true,"stages":[STAGE...],"tree":NODE,"error":ERROR,"warnings":[WARNING...]}
+{"format":7,"ok":true,"stages":[STAGE...],"tree":NODE,"error":ERROR,"warnings":[WARNING...]}
 ```
 
-`format` is the version of the shape of the result, 6. `tree` is the chosen tree of the last stage, or `null`. `error` is `null` when `ok` is true. `warnings` is present only when there is at least one warning (engine §12, §13).
+`format` is the version of the shape of the result, 7. `tree` is the chosen tree of the last stage, or `null`. `error` is `null` when `ok` is true. `warnings` is present only when there is at least one warning (engine §12, §13).
 
-A stage has this form:
+A stage has one of these forms:
 
 ```
-{"name":"words","verdict":"tie","witness":[ACTION,ACTION],"tied":NODE,"output":[TOKEN...]}
+{"name":"words","verdict":"resolved","output":[TOKEN...]}
+{"name":"syntax","verdict":"tie","witness":[ACTION,ACTION]}
 ```
 
-`verdict` is `unique`, `resolved`, `tie`, or `null` for a stage that rejected. `witness` and `tied` are present only for `tie`. `witness` is the pair of actions at the first visible difference between the chosen derivation and the tied one. If there is no visible difference, it is the pair at their first difference. That is the first pair of differing actions of the whole sequences, transparent ones included. A derivation whose visible sequence is a proper prefix of the other's differs from it where the shorter ends (engine §6).
+`verdict` is `unique`, `resolved`, `tie`, or `null` for a stage that rejected. `witness` is present only for `tie`. It is the pair of actions at the first visible difference between the two readings of the tie (engine §6). The action of the first reading comes first.
 
-`tied` is the tree of the tied derivation that is reported beside the chosen one. This is the tied derivation that diverges earliest from the chosen one (engine §6).
+If there is no visible difference, it is the pair at their first difference. That is the first pair of differing actions of the whole sequences, transparent ones included. A derivation whose visible sequence is a proper prefix of the other's differs from it where the shorter ends.
 
-`output` is the emitted tokens of an accepted stage, the last stage included. It is absent when the emission of the stage fails (engine §11). It is also absent when the reparse of `elision-only` meets an error of the grammar (engine §7).
+The readings themselves are in the result's error (below), and the stage holds no tree of them. The canonical order *T* of engine §6 orders the ambiguity diagnostics and selects the forbidden terminator that a maximality rejection reports (engine §4). The canonical tie-break keys never turn a tie into an accepted reading.
+
+`output` is the emitted tokens of a stage whose verdict is `unique` or `resolved`, the last stage included. It is absent for a tie, since a tied stage emits nothing (engine §6, §11). It is absent when the emission of the stage fails (engine §11). It is also absent when the reparse of `elision-only` meets an error of the grammar (engine §7).
 
 A token has this form. This one is the token of `mi` that the forms stage of the `cll-ebnf` dialect emits:
 
@@ -68,18 +71,23 @@ As in a node, `span` counts the input tokens of the stage, and `source` counts t
 
 An action in a witness is `{"read":{"token":4,"terminal":"KOhA"}}` or `{"close":{"rule":"sumti","production":57,"span":[2,5]}}`. The production is numbered from 0, as in engine §3. For a production of a helper, `rule` is the rule whose alternative introduced the helper.
 
-An error has this form:
+An error has one of these forms:
 
 ```
 {"kind":"rejected","stage":"syntax","token":4,"source":[12,15],"line":1,"column":13,
  "expected":[{"terminal":"KU","rules":["sumti"]},...],"message":"..."}
+{"kind":"ambiguous","stage":"syntax","reason":"tie","readings":[NODE,NODE],"message":"..."}
 ```
 
 `kind` is one of these values:
 
 - `rejected`: The grammar of the stage does not accept its input.
-- `ambiguous` (engine §7): The error has `stage`, `"readings":[NODE,NODE]` and `message`, and no position.
-- `grammar`: A grammar failed to load, or the parser found a defect while parsing. For a grammar that failed to load, the error has `document`, `line` and `column` where known. For a defect found while parsing, the error has `stage` and no position. An example of such a defect is a nested parse asked about its own span as the same rule.
+- `ambiguous` (engine §6, §7): The error has `stage`, `reason`, `"readings":[NODE,NODE]` and `message`, and no position. `reason` says which of two cases the error is:
+  - `tie`: The ranking of the stage has two or more best derivations (engine §6). The stage's verdict is `tie`, and it has no output. The readings are the first and the second reading of the tie, over the stage's input as the stage read it. They are two derivations, but they can be equal as `NODE` values. The engine counts derivations, and it merges neither those that differ only at transparent closes nor those with equal trees (engine §6). The witness then names the actions where they differ.
+  - `elision-only`: The stage chose one derivation, but its text stays ambiguous with its elided terminators written back (engine §7). The stage's verdict is `resolved`, and it keeps its output. The readings hold the written-back terminators as elided nodes.
+- `grammar`: A grammar failed to load, or the parser found a defect while parsing. For a grammar that failed to load, the error has `document`, `line` and `column` where known. A tie in a stage of the notation dialect has the `document` and no `line` or `column` (engine §8). For a defect found while parsing, the error has `stage` and no position. An example of such a defect is a nested parse asked about its own span as the same rule.
+
+For example, `text → [[X]]` on the empty input ties, and both readings are `{"kind":"rule","rule":"text","span":[0,0],"source":[0,0],"tags":[],"children":[]}`. The witness names two different productions of the helpers. A nullable `&`, such as `[A] & [B]`, gives such a tie in the same way, with three derivations.
 
 A mistake of the caller is not a result. It is an error of kind `usage` (engine §13).
 
@@ -94,7 +102,7 @@ The test uses notation operators and canonical output tags, with spaces only aro
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. `bootstrap.json` and the precompiled DOMs hold the same data.
 
 ```
-{"format":16,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}
+{"format":17,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}
 ```
 
 `format` is the version of the DOM. It changes whenever the shape of the DOM changes. A library never uses a cached DOM of another version.
@@ -154,11 +162,13 @@ A classifier and an implication have no member but those shown.
 
 A directive is `{"name":"elidable","args":["KU","KEI"],"at":[line,column]}`. An operand `~KU` of `%elidable` is the name `KU`. The name is the keyword without `%`: `ambiguity-resolution`, `elidable`, `stage`, `include` or `features`. An argument is a name, or, for `include`, the decoded string: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`.
 
+An `%elidable maximal` directive has the member `"maximal":true` after `args`: `{"name":"elidable","args":["TOI","SEhU"],"maximal":true,"at":[line,column]}`. The modifier `maximal` contributes no argument, but an operand `~maximal` written after it does: `%elidable maximal ~maximal` has `"args":["maximal"]`. A `%elidable maximal` with no operands has `"args":[]`. Any other directive has no `maximal` member, and the value of the member is always `true` (engine §9). A library ignores any other member of a directive. The members that it knows, `name`, `args`, `maximal` and `at`, keep their rules, so an unknown member does not make a malformed `maximal` member valid.
+
 `rules`, `directives`, `constants`, `classifiers` and `implications` each keep the order in which the document has them. `at` is the line and column of an item's first token. So the order of all of a document's items is the order of their positions. No two items of a DOM share a position (engine §9).
 
 ### Precompiled DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":16,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
+`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":17,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
 
 A precompiled DOM holds the document's constants, classifiers and implications as the document writes them. The loader gives the constants their values when it stitches a stage, and a stage resolves a classifier for the features of a parse. So one precompiled DOM serves every stage, dialect and set of features that uses the document (engine §2, §8).
 
@@ -166,7 +176,7 @@ A precompiled DOM holds the document's constants, classifiers and implications a
 
 The renderings are for people. The CLI and the playground implement all three renderings. Every library implements brackets, and the corpus tests compare brackets. Every rendering shows a token by its label.
 
-A token node reads an input token of the last stage, and that token can have attachments (engine §11). Every rendering shows them with the token node. The tied tree and the readings of an `ambiguous` error read the same tokens, so they show the same attachments.
+A token node reads an input token of the last stage, and that token can have attachments (engine §11). Every rendering shows them with the token node. The readings of an `ambiguous` error read the same tokens as each other, so they show the same attachments.
 
 A hollow rule node, such as an empty slot for a free modifier, has no token and no elided node below it. No rendering shows a hollow rule node. Brackets drop it as an empty node, and the tree and the display JSON leave it out. But the tree and the display JSON always show the root. So the tree renders a hollow tree, such as that of the empty text, as the rule name of the root alone. The display JSON renders it as `{"text": []}`, and brackets render it as nothing.
 

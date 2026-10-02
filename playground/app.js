@@ -46,7 +46,6 @@
     { label: "The eraser sa, with auto features", text: "mi klama sa do", dialect: "cll-ebnf" },
     { label: "Cyrillic orthography", text: "ми клама ле зарши", dialect: "cll-ebnf" },
     { label: "An elided terminator the PEG reading forbids (BPFK)", text: "le lojbo se farvi le loglo gi'enai mintu ja dunli le logla", dialect: "bpfk" },
-    { label: "A tie in the syntax stage", text: "mi bevri le dakli gi'eke bevri le gerku gi'a bevri le mlatu", dialect: "cll-ebnf" },
     { label: "Ambiguous beyond elision (experimental, elision-only on)", text: "la olivian na klama", dialect: "experimental", elision: "on" },
     { label: "A rule in jbogenbau", text: "%rule sumti-tail\n  [sumti-6 [relative-clauses]] sumti-tail-1 | relative-clauses sumti-tail-1", dialect: "notation" },
   ];
@@ -424,10 +423,10 @@
     else if (message.parseError) verdict = badge("bad", "error");
     else if (message.parse.ok) {
       const warned = message.parse.warnings.length;
-      verdict = message.parse.ties.length ? badge("warn", "accepted, with a tie")
-        : badge("good", warned ? `accepted, with ${plural(warned, "warning")}` : "accepted");
+      verdict = badge("good", warned ? `accepted, with ${plural(warned, "warning")}` : "accepted");
     }
     else if (message.parse.error.kind === "rejected") verdict = badge("bad", `rejected by the ${message.parse.error.stage} stage`);
+    else if (message.parse.error.kind === "ambiguous" && message.parse.error.reason === "tie") verdict = badge("bad", `a tie in the ${message.parse.error.stage} stage`);
     else if (message.parse.error.kind === "ambiguous") verdict = badge("bad", `ambiguous in the ${message.parse.error.stage} stage`);
     else verdict = badge("bad", `grammar error in the ${message.parse.error.stage || "?"} stage`);
     const chips = [];
@@ -440,7 +439,7 @@
         kind = "bad";
         detail = report.error;
       } else if (report) {
-        kind = report.verdict === "tie" ? "warn" : "good";
+        kind = "good";
         // The last stage hands on its tree; its tokens are usually none.
         const last = info && stage === info.stages[info.stages.length - 1];
         detail = report.verdict + (last && !report.output ? "" : ` · ${plural(report.output, "token")}`);
@@ -477,7 +476,8 @@
         element("h3", { text: "The parser could not run" }), element("pre", {}, linkified(message.parseError.message))));
     }
     const parse = message.parse;
-    if (parse && parse.error) {
+    // A tie has a box of its own below, with its two readings.
+    if (parse && parse.error && !(parse.error.kind === "ambiguous" && parse.error.reason === "tie")) {
       const error = parse.error;
       const titles = { rejected: "Rejected", ambiguous: "Ambiguous", grammar: "A grammar error while parsing" };
       const actions = [];
@@ -500,17 +500,17 @@
         element("pre", { class: "explanation", text: parse.warningsText })));
     }
     for (const tie of parse ? parse.ties : []) {
-      boxes.push(element("div", { class: "box warn" },
+      boxes.push(element("div", { class: "box bad", id: "explanation" },
         element("h3", { text: `A tie in the ${tie.stage} stage` }),
         element("pre", { class: "explanation" }, tie.summary),
         element("dl", { class: "readings" },
-          element("dt", { text: "chosen" }), element("dd", {}, element("code", { text: tie.chosen })),
-          element("dt", { text: "other" }), element("dd", {}, element("code", { text: tie.other }))),
+          element("dt", { text: "first" }), element("dd", {}, element("code", { text: tie.first })),
+          element("dt", { text: "second" }), element("dd", {}, element("code", { text: tie.second }))),
         element("details", { class: "tie-trees" },
           element("summary", { text: "Both trees, side by side" }),
           element("div", { class: "side-by-side" },
-            element("figure", {}, element("figcaption", { text: "chosen" }), element("pre", { text: tie.chosenTree })),
-            element("figure", {}, element("figcaption", { text: "other" }), element("pre", { text: tie.otherTree })))),
+            element("figure", {}, element("figcaption", { text: "first" }), element("pre", { text: tie.firstTree })),
+            element("figure", {}, element("figcaption", { text: "second" }), element("pre", { text: tie.secondTree })))),
         element("p", { class: "hint", text: tie.advice })));
     }
     $("diagnostics").replaceChildren(...boxes);
@@ -525,6 +525,9 @@
     }
     const noTree = () => {
       const error = message.parse.error;
+      if (error && error.kind === "ambiguous" && error.reason === "tie") {
+        return empty(`No tree: the ${error.stage} stage reads the text in two ways, a tie. The Tokens tab shows what the stages before it handed on.`);
+      }
       return empty(error ? `No tree: the ${error.stage} stage did not accept the text. The Tokens tab shows what the stages before it handed on.` : "No tree.");
     };
     const withCopy = (text) => [

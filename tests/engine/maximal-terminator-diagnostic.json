@@ -1,0 +1,60 @@
+{
+  "description": "A maximality rejection reports the first terminator that maximality forbids in the first reading of the ranking with both forms off. T is not maximal, so its omission after b → X counts, although b → X C is longer. U is maximal, and c → X B is longer than c → X, so the report names U at 4, not T at 2 (engine §4).",
+  "grammar": "%ambiguity-resolution greedy\n%elidable T\n%elidable maximal U\n%rule text A b [T] C c [U] B\n%rule b X | X C\n%rule c X | X B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "verdict": null
+        }
+      ],
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 4,
+        "expected": [
+          {
+            "terminal": "U",
+            "rules": [
+              "text"
+            ]
+          }
+        ]
+      }
+    },
+    "error": "rejected"
+  }
+}

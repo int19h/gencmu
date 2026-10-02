@@ -259,6 +259,9 @@ pub(crate) struct LRule {
     /// The id of that terminator's test, if it has one: an `=` test,
     /// whose string a restored token sounds like (engine §7).
     pub elided_test: Option<u32>,
+    /// Whether that terminator is maximal: a `%elidable maximal` names it
+    /// (engine §4).
+    pub maximal: bool,
 }
 
 impl Prod {
@@ -280,11 +283,14 @@ pub(crate) struct Lowered {
     /// property, whose name is then its written form (engine §4).
     pub characters: Vec<Option<Characters>>,
     pub start: u32,
-    /// Nonterminals that can occur twice on one chain of constituents over
-    /// one span: those in a cycle of the grammar's unit graph, whose edges
-    /// lead from a rule to a symbol of one of its productions whose other
-    /// symbols can all derive the empty text.
-    pub cyclic: Vec<bool>,
+    /// For each nonterminal that can occur twice on one chain of
+    /// constituents over one span, its cycle: the strongly connected
+    /// component of the grammar's unit graph that it lies on, if that
+    /// component has a cycle. The edges of the graph lead from a rule to a
+    /// symbol of one of its productions whose other symbols can all derive
+    /// the empty text. Only the rules of one cycle can complete again below
+    /// one another over one span.
+    pub cycle: Vec<Option<u32>>,
     /// The stage's classifiers, resolved for the same features (§2).
     pub classifiers: Arc<ClassifierTables>,
     /// The stage's implications, which apply to each token it emits (§11).
@@ -760,6 +766,7 @@ pub(crate) fn lower(
             prods: Vec::new(),
             elided: None,
             elided_test: None,
+            maximal: false,
         })
         .collect();
     for helper in &lowerer.helpers {
@@ -769,6 +776,7 @@ pub(crate) fn lower(
             prods: Vec::new(),
             elided: helper.elided.as_ref().map(|(name, _)| name.clone()),
             elided_test: helper.elided.as_ref().and_then(|(_, test)| *test),
+            maximal: helper.elided.as_ref().is_some_and(|(name, _)| grammar.maximal_terminals.contains(name)),
         });
     }
     let mut order: Vec<Pending> = Vec::new();
@@ -954,7 +962,7 @@ pub(crate) fn lower(
         prods.push(production);
     }
 
-    let cyclic = cyclic_rules(&rules, &prods);
+    let cycle = cycles(&rules, &prods);
     let tests = std::mem::take(&mut lowerer.tests);
     Ok(Lowered {
         start: grammar.index["text"] as u32,
@@ -963,14 +971,15 @@ pub(crate) fn lower(
         terminals,
         tests,
         characters,
-        cyclic,
+        cycle,
         classifiers,
         implications: grammar.implications.clone(),
     })
 }
 
-/// The nonterminals that lie on a cycle of the unit graph.
-fn cyclic_rules(rules: &[LRule], prods: &[Prod]) -> Vec<bool> {
+/// For each nonterminal, the cycle of the unit graph that it lies on, if
+/// any: the number of its strongly connected component.
+fn cycles(rules: &[LRule], prods: &[Prod]) -> Vec<Option<u32>> {
     let count = rules.len();
     let mut nullable = vec![false; count];
     loop {
@@ -1007,7 +1016,8 @@ fn cyclic_rules(rules: &[LRule], prods: &[Prod]) -> Vec<bool> {
     let mut low = vec![0u32; count];
     let mut on_stack = vec![false; count];
     let mut stack = Vec::new();
-    let mut cyclic = vec![false; count];
+    let mut cycle = vec![None; count];
+    let mut components = 0u32;
     let mut next = 0u32;
     for root in 0..count {
         if index[root] != u32::MAX {
@@ -1051,12 +1061,13 @@ fn cyclic_rules(rules: &[LRule], prods: &[Prod]) -> Vec<bool> {
                     let is_cycle = component.len() > 1 || edges[node].contains(&(node as u32));
                     if is_cycle {
                         for member in component {
-                            cyclic[member] = true;
+                            cycle[member] = Some(components);
                         }
+                        components += 1;
                     }
                 }
             }
         }
     }
-    cyclic
+    cycle
 }

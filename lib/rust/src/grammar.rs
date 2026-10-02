@@ -16,14 +16,17 @@ use crate::fxhash::FxMap;
 use crate::tags::{character_tag, code_of_character_tag, is_name};
 use crate::unicode::Unicode;
 
-/// How a stage chooses among parses (engine §6): the lean of rule 2, or,
-/// for the `elision-only` check (§7), no lean at all.
+/// The rule by which a stage ranks its derivations (engine §6): the lean
+/// of rule 2, the counts of elided terminators, or, for the `elision-only`
+/// check (§7), no lean at all.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Lean {
     Greedy,
     Lazy,
+    /// A derivation beats another when its elision vector is less.
+    LateElision,
     /// Neither: any two derivations that differ are tied, as the
-    /// `elision-only` check ranks (§7).
+    /// `elision-only` check ranks (§7). A directive cannot name it.
     Neither,
 }
 
@@ -72,6 +75,8 @@ pub(crate) struct StageGrammar {
     /// could have been longer (engine §4).
     pub maximal: bool,
     pub elidable: Vec<String>,
+    /// The elidable terminators that a `%elidable maximal` names (§2, §4).
+    pub maximal_terminals: Vec<String>,
     pub changes: Vec<Change>,
     /// The stage's `%classifier` items in stitching order, each with its
     /// document (engine §2).
@@ -167,6 +172,7 @@ pub(crate) fn stitch(
         elision_only: false,
         maximal: false,
         elidable: Vec::new(),
+        maximal_terminals: Vec::new(),
         changes: Vec::new(),
         classifiers: Vec::new(),
         implications: Arc::from(Vec::new()),
@@ -255,7 +261,7 @@ pub(crate) fn stitch(
                     }
                     let refused = || {
                         here(
-                            "%ambiguity-resolution takes greedy or lazy, then optionally elision-only, then optionally maximal"
+                            "%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only, then optionally maximal"
                                 .to_string(),
                         )
                     };
@@ -263,6 +269,7 @@ pub(crate) fn stitch(
                     grammar.lean = match args.next() {
                         Some("greedy") => Lean::Greedy,
                         Some("lazy") => Lean::Lazy,
+                        Some("late-elision") => Lean::LateElision,
                         _ => return Err(refused()),
                     };
                     // Each optional word in its place, and nothing after
@@ -278,6 +285,11 @@ pub(crate) fn stitch(
                     for arg in &directive.args {
                         if !grammar.elidable.contains(arg) {
                             grammar.elidable.push(arg.clone());
+                        }
+                        // A terminator is maximal when any `%elidable
+                        // maximal` names it (§2).
+                        if directive.maximal && !grammar.maximal_terminals.contains(arg) {
+                            grammar.maximal_terminals.push(arg.clone());
                         }
                     }
                 }

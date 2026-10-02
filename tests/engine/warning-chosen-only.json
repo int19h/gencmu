@@ -1,11 +1,17 @@
 {
-  "description": "Only the chosen tree gives warnings: the tied derivation through the warned alternative gives none (engine §6, §12).",
-  "grammar": "%rule text A | w! A",
+  "description": "Only the chosen tree gives warnings. Under lazy, x closes before B is read, so the derivation through x beats the one through the warned alternative y, which gives no warning (engine §6, §12).",
+  "grammar": "%ambiguity-resolution lazy\n%rule text x B | y\n%rule x A [C]\n%rule y w! A B",
   "tokens": [
     {
       "text": "a",
       "tags": [
         "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
       ]
     }
   ],
@@ -20,11 +26,24 @@
       "stages": [
         {
           "name": "main",
-          "verdict": "tie"
+          "verdict": "resolved"
         }
-      ]
+      ],
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "x"
+          },
+          {
+            "kind": "token",
+            "terminal": "B"
+          }
+        ]
+      }
     },
     "warnings": [],
-    "brackets": "a"
+    "brackets": "(a b)"
   }
 }

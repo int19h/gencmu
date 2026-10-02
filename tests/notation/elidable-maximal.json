@@ -1,0 +1,22 @@
+{
+  "description": "A first word maximal of %elidable sets the directive's maximal member to true and is no operand (engine §9, docs/output.md).",
+  "document": "```jbogenbau\n%elidable maximal TOI ~SEhU\n```\n",
+  "expect": {
+    "dom": {
+      "directives": [
+        {
+          "name": "elidable",
+          "args": [
+            "TOI",
+            "SEhU"
+          ],
+          "maximal": true,
+          "at": [
+            2,
+            1
+          ]
+        }
+      ]
+    }
+  }
+}

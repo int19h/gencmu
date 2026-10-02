@@ -1,5 +1,5 @@
 {
-  "description": "A tie whose trees read an input token with attachments: both trees read the same token, whose attachments the first stage's output holds, and the chosen derivation's token inherits them (engine §6, §11, §12).",
+  "description": "A tie whose readings read an input token with attachments: both readings read the same token, whose attachments the first stage's output holds. The tied stage emits nothing (engine §6, §11, §12).",
   "documents": {
     "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
     "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text item ...\n%rule item\n  | $w(word) | $w(word) $a(ii)\n%emits\n  $w ($a)\n%rule word\n  | 'l' <LE> | 'b' <BRIVLA> | 'c' <BRIVLA> | 'a' <A> | 'd' <B> | 'w' <W>\n%rule ii\n  'i' <I>\n%emits\n  $\n```\n",
@@ -9,8 +9,8 @@
   "input": "wi",
   "expect": {
     "result": {
-      "format": 6,
-      "ok": true,
+      "format": 7,
+      "ok": false,
       "stages": [
         {
           "name": "a",
@@ -72,8 +72,63 @@
                 ]
               }
             }
-          ],
-          "tied": {
+          ]
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "b",
+        "reason": "tie",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": [
+              "W"
+            ],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "a",
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ],
+                "tags": [
+                  "W"
+                ],
+                "children": [
+                  {
+                    "kind": "token",
+                    "terminal": "W",
+                    "token": 0,
+                    "span": [
+                      0,
+                      1
+                    ],
+                    "source": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
             "kind": "rule",
             "rule": "text",
             "span": [
@@ -119,90 +174,10 @@
                 ]
               }
             ]
-          },
-          "output": [
-            {
-              "text": "w",
-              "phonemes": "",
-              "label": "w",
-              "tags": [
-                "X"
-              ],
-              "span": [
-                0,
-                1
-              ],
-              "source": [
-                0,
-                1
-              ],
-              "after": [
-                {
-                  "text": "i",
-                  "phonemes": "",
-                  "label": "i",
-                  "tags": [
-                    "I"
-                  ],
-                  "source": [
-                    1,
-                    2
-                  ]
-                }
-              ]
-            }
-          ]
-        }
-      ],
-      "tree": {
-        "kind": "rule",
-        "rule": "text",
-        "span": [
-          0,
-          1
-        ],
-        "source": [
-          0,
-          1
-        ],
-        "tags": [
-          "W"
-        ],
-        "children": [
-          {
-            "kind": "rule",
-            "rule": "a",
-            "span": [
-              0,
-              1
-            ],
-            "source": [
-              0,
-              1
-            ],
-            "tags": [
-              "W"
-            ],
-            "children": [
-              {
-                "kind": "token",
-                "terminal": "W",
-                "token": 0,
-                "span": [
-                  0,
-                  1
-                ],
-                "source": [
-                  0,
-                  1
-                ]
-              }
-            ]
           }
         ]
-      },
-      "error": null
+      }
     },
-    "brackets": "(w i)"
+    "error": "ambiguous"
   }
 }

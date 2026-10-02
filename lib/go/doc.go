@@ -82,8 +82,10 @@
 //
 // # Ambiguity
 //
-// Where a text has several parses, the one chosen is the least in the
-// order of engine §6, computed over the packed parse forest without
-// enumerating parses; a tie is reported in the stage's Verdict, with the
-// witness and the tied tree that diverges from the chosen one earliest.
+// Where a text has several parses, the rule of the stage, greedy, lazy or
+// late-elision, ranks them over the packed parse forest without enumerating
+// them (engine §6). A stage takes the one best parse. Where two or more are
+// best, they are tied, and the tie is an error: the result's Error has kind
+// ErrorAmbiguous, the reason ReasonTie, and two readings. The stage's
+// Verdict is VerdictTie, with the witness, and it has no output.
 package gencmu

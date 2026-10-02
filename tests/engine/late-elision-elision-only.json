@@ -1,0 +1,70 @@
+{
+  "description": "late-elision does not make elision-only redundant. On A, a elides one T and b two, so a is chosen and the verdict is resolved. Written back, A T parses through both a and c, so the check fails with the reason elision-only, and the stage keeps its verdict (engine §6, §7).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T\n%rule text a | b | c\n%rule a A [T]\n%rule b A [T] [T]\n%rule c A T",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "elision-only",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "a",
+                "children": [
+                  {
+                    "kind": "token"
+                  },
+                  {
+                    "kind": "elided",
+                    "terminal": "T"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "c",
+                "children": [
+                  {
+                    "kind": "token"
+                  },
+                  {
+                    "kind": "elided",
+                    "terminal": "T"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "error": "ambiguous"
+  }
+}

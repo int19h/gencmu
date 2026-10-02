@@ -70,6 +70,8 @@ export declare class Grammar {
     changes: RuleChange[];
     /** @type {Set<string>} */
     elidable: Set<string>;
+    /** @type {Set<string>} */
+    maximalTerminals: Set<string>;
     /** @type {Resolution | null} */
     resolution: Resolution | null;
     /**

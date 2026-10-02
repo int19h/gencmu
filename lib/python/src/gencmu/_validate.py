@@ -29,7 +29,7 @@ class Lowercase(Protocol):
     def is_mark(self, code: int) -> bool: ...
 
 
-FORMAT = 16
+FORMAT = 17
 """The version of the DOM's shape (docs/output.md)."""
 
 CONSTANT_NAME = re.compile(r"[A-Z][A-Za-z0-9-]*")
@@ -348,6 +348,11 @@ def dom_problem(dom: Any, unicode: Lowercase) -> str | None:
             or not all(isinstance(arg, str) for arg in directive["args"])
             or not _is_position(directive.get("at"))
         ):
+            return "a malformed directive"
+        # Only an elidable directive can be maximal, and the member is then
+        # the boolean True itself: 1 equals True in Python, but it is no
+        # boolean (engine §9).
+        if "maximal" in directive and (directive["name"] != "elidable" or directive["maximal"] is not True):
             return "a malformed directive"
         # The operands the notation's syntax allows these directives (engine §9).
         name, args = directive["name"], directive["args"]

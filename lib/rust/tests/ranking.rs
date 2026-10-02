@@ -1,9 +1,10 @@
 //! A property test of the ranking (engine §6): random small grammars and
 //! inputs, every derivation enumerated by brute force, and the verdict,
-//! chosen derivation, tied derivation and witness computed straight from
-//! the definitions, compared with the library's.
+//! first reading, second reading and witness computed straight from the
+//! definitions, compared with the library's. The rule of the ranking is
+//! `greedy`, `lazy` or `late-elision`.
 //!
-//! `GENCMU_PROPERTY_CASES` sets how many cases to run (default 600) and
+//! `GENCMU_PROPERTY_CASES` sets how many cases to run (default 3000) and
 //! `GENCMU_PROPERTY_SEED` the first seed; a failing case prints its seed,
 //! grammar and tokens.
 
@@ -12,7 +13,7 @@ mod common;
 use std::collections::{BTreeMap, HashMap};
 use std::rc::Rc;
 
-use common::{parse_json, Value};
+use common::parse_json;
 use gencmu::tools::DOM_FORMAT;
 
 /// SplitMix64: small, and good enough to pick grammars.
@@ -43,10 +44,12 @@ enum Sym {
 }
 
 /// An item of an alternative as written: a symbol, `[s]`, `s ...` or
-/// `[s] ...`.
+/// `[s] ...`, or a rule tested by its sound, `r="x"` or `r≠"x"`.
 #[derive(Debug, Clone, Copy)]
 enum Item {
     Plain(Sym),
+    /// A rule and whether its test is `="x"` (true) or `≠"x"` (false).
+    Tested(usize, bool),
     Optional(Sym),
     Repeat(Sym),
     OptionalRepeat(Sym),
@@ -59,6 +62,8 @@ const TERMINALS: [&str; 3] = ["A", "B", "C"];
 enum Lean {
     Greedy,
     Lazy,
+    /// A derivation beats another when its elision vector is less.
+    LateElision,
     /// No lean: any two derivations that differ are tied, as the
     /// `elision-only` check ranks (§7).
     Neither,
@@ -70,6 +75,8 @@ struct Source {
     lean: Lean,
     elision_only: bool,
     elidable: Option<usize>,
+    /// Whether the stage declares `maximal` (§4).
+    maximal: bool,
 }
 
 /// A nonterminal of the lowered grammar: a rule, or a helper owned by one.
@@ -84,6 +91,9 @@ struct LRule {
 struct LProd {
     rule: usize,
     syms: Vec<Sym>,
+    /// The test of each symbol: `Some(true)` for `="x"`, `Some(false)` for
+    /// `≠"x"`.
+    tests: Vec<Option<bool>>,
     trailing_step: bool,
 }
 
@@ -93,6 +103,7 @@ struct Grammar {
     prods: Vec<LProd>,
     lean: Lean,
     elision_only: bool,
+    maximal: bool,
 }
 
 fn symbol(rng: &mut Rng, rule: usize, rule_count: usize, terminal_count: usize, position: usize, length: usize) -> Sym {
@@ -105,10 +116,30 @@ fn symbol(rng: &mut Rng, rule: usize, rule_count: usize, terminal_count: usize, 
     }
 }
 
-fn generate(rng: &mut Rng) -> (Source, Vec<Vec<usize>>) {
+/// A random input: each token's tags, and whether it sounds `x` (or `y`).
+type Input = (Vec<Vec<usize>>, Vec<bool>);
+
+fn generate(rng: &mut Rng) -> (Source, Input) {
     let rule_count = 1 + rng.below(4);
     let terminal_count = 1 + rng.below(3);
-    let sugar = rng.chance(40);
+    let lean = match rng.below(10) {
+        0..=3 => Lean::Greedy,
+        4..=6 => Lean::Lazy,
+        _ => Lean::LateElision,
+    };
+    let late = lean == Lean::LateElision;
+    let elision_only = lean == Lean::Greedy && rng.chance(25);
+    // Under late-elision, and now and then under another rule, a terminal
+    // is elidable, and then now and then the stage declares maximal.
+    let elidable = if !elision_only && (late || rng.chance(30)) { Some(rng.below(terminal_count)) } else { None };
+    let maximal = elidable.is_some() && rng.chance(50);
+    let sugar = elidable.is_some() || rng.chance(40);
+    // A rule reference, now and then tested by its sound (§4).
+    let reference = |rng: &mut Rng, rule: usize| match rng.below(20) {
+        0..=2 => Item::Tested(rule, true),
+        3..=4 => Item::Tested(rule, false),
+        _ => Item::Plain(Sym::N(rule)),
+    };
     let mut rules = Vec::new();
     for rule in 0..rule_count {
         let mut alternatives = Vec::new();
@@ -117,24 +148,40 @@ fn generate(rng: &mut Rng) -> (Source, Vec<Vec<usize>>) {
             let mut items = Vec::new();
             for position in 0..length {
                 let sym = symbol(rng, rule, rule_count, terminal_count, position, length);
-                items.push(match (sugar, rng.below(10)) {
-                    (true, 0) => Item::Optional(sym),
-                    (true, 1) => Item::Repeat(sym),
-                    (true, 2) => Item::OptionalRepeat(sym),
-                    _ => Item::Plain(sym),
-                });
+                match (sugar, rng.below(10), elidable) {
+                    (true, 0, _) => items.push(Item::Optional(sym)),
+                    (true, 1, _) => items.push(Item::Repeat(sym)),
+                    (true, 2, _) => items.push(Item::OptionalRepeat(sym)),
+                    // An elidable optional, often right after a rule, whose
+                    // constituent maximal tests.
+                    (true, 3 | 4, Some(t)) => {
+                        // The rule before it is often tested, so that
+                        // maximal's test of a longer constituent matters.
+                        if rng.chance(70) {
+                            let rule = rng.below(rule_count);
+                            items.push(match rng.below(4) {
+                                0 => Item::Tested(rule, true),
+                                1 => Item::Tested(rule, false),
+                                _ => Item::Plain(Sym::N(rule)),
+                            });
+                        }
+                        items.push(Item::Optional(Sym::T(t)));
+                    }
+                    _ => items.push(match sym {
+                        Sym::N(rule) => reference(rng, rule),
+                        _ => Item::Plain(sym),
+                    }),
+                }
             }
             let tags = if rng.chance(15) { Some(if rng.chance(50) { "X" } else { "Y" }) } else { None };
             alternatives.push((items, tags));
         }
         rules.push(alternatives);
     }
-    let lean = if rng.chance(50) { Lean::Greedy } else { Lean::Lazy };
-    let elision_only = lean == Lean::Greedy && rng.chance(25);
-    let elidable = if sugar && !elision_only && rng.chance(50) { Some(rng.below(terminal_count)) } else { None };
-    let source = Source { rules, lean, elision_only, elidable };
+    let source = Source { rules, lean, elision_only, elidable, maximal };
     let grammar = lower(&source);
     // Most inputs are sentences of the grammar, so that most cases parse.
+    // Now and then the input is empty.
     let mut sentence = Vec::new();
     if !rng.chance(20) && !sample(&grammar, rng, 0, 0, &mut sentence) {
         sentence.clear();
@@ -142,8 +189,11 @@ fn generate(rng: &mut Rng) -> (Source, Vec<Vec<usize>>) {
     if sentence.is_empty() && rng.chance(50) {
         sentence = (0..rng.below(5)).map(|_| rng.below(terminal_count)).collect();
     }
+    if rng.chance(8) {
+        sentence.clear();
+    }
     sentence.truncate(6);
-    let tokens = sentence
+    let tokens: Vec<Vec<usize>> = sentence
         .into_iter()
         .map(|terminal| {
             let mut tags = vec![terminal];
@@ -156,8 +206,13 @@ fn generate(rng: &mut Rng) -> (Source, Vec<Vec<usize>>) {
             tags
         })
         .collect();
-    (source, tokens)
+    let sounds = tokens.iter().map(|_| rng.chance(60)).collect();
+    (source, (tokens, sounds))
 }
+
+/// A production waiting for its number: its rule, its symbols, their
+/// tests, and whether it is the step of a trailing repetition.
+type Pending = (usize, Vec<Sym>, Vec<Option<bool>>, bool);
 
 /// Lowers the grammar (engine §3): a helper per optional or repetition, a
 /// rule whose only alternative ends in a repetition made left-recursive,
@@ -168,7 +223,8 @@ fn lower(source: &Source) -> Grammar {
     let mut rules: Vec<LRule> =
         (0..user).map(|owner| LRule { prods: Vec::new(), helper: false, owner, elided: None }).collect();
     let mut helper_prods: Vec<Vec<Vec<Sym>>> = Vec::new();
-    let mut pending: Vec<(usize, Vec<Sym>, bool)> = Vec::new();
+    let mut pending: Vec<Pending> = Vec::new();
+    let untested = |syms: &[Sym]| vec![None; syms.len()];
     // The helpers of the alternative being lowered, in written order.
     let mut places: Vec<usize> = Vec::new();
     fn helper(
@@ -187,10 +243,16 @@ fn lower(source: &Source) -> Grammar {
         for (items, _) in alternatives {
             let first_helper = rules.len();
             let mut syms = Vec::new();
+            let mut tests = Vec::new();
             let lowered_items = if trailing { &items[..items.len() - 1] } else { &items[..] };
             for item in lowered_items {
+                tests.push(match *item {
+                    Item::Tested(_, eq) => Some(eq),
+                    _ => None,
+                });
                 syms.push(match *item {
                     Item::Plain(sym) => sym,
+                    Item::Tested(rule, _) => Sym::N(rule),
                     Item::Optional(sym) => {
                         let elided = match sym {
                             Sym::T(t) if source.elidable == Some(t) => Some(t),
@@ -213,32 +275,33 @@ fn lower(source: &Source) -> Grammar {
                     Some(Item::Repeat(sym)) => {
                         let mut base = syms.clone();
                         base.push(*sym);
-                        pending.push((rule, base, false));
-                        pending.push((rule, vec![Sym::N(rule), *sym], true));
+                        tests.push(None);
+                        pending.push((rule, base, tests, false));
+                        pending.push((rule, vec![Sym::N(rule), *sym], vec![None, None], true));
                     }
                     Some(Item::OptionalRepeat(sym)) => {
-                        pending.push((rule, syms, false));
-                        pending.push((rule, vec![Sym::N(rule), *sym], true));
+                        pending.push((rule, syms, tests, false));
+                        pending.push((rule, vec![Sym::N(rule), *sym], vec![None, None], true));
                     }
                     _ => unreachable!(),
                 }
             } else {
-                pending.push((rule, syms, false));
+                pending.push((rule, syms, tests, false));
             }
             places.extend(first_helper..rules.len());
             for id in places.drain(..) {
                 for syms in &helper_prods[id - user] {
-                    pending.push((id, syms.clone(), false));
+                    pending.push((id, syms.clone(), untested(syms), false));
                 }
             }
         }
     }
     let mut prods: Vec<LProd> = Vec::new();
-    for (rule, syms, trailing_step) in pending {
+    for (rule, syms, tests, trailing_step) in pending {
         rules[rule].prods.push(prods.len());
-        prods.push(LProd { rule, syms, trailing_step });
+        prods.push(LProd { rule, syms, tests, trailing_step });
     }
-    Grammar { rules, prods, lean: source.lean, elision_only: source.elision_only }
+    Grammar { rules, prods, lean: source.lean, elision_only: source.elision_only, maximal: source.maximal }
 }
 
 /// Appends a random sentence of `rule` to `out`; false if it grew too deep.
@@ -268,6 +331,7 @@ fn item_text(item: &Item) -> String {
     };
     match item {
         Item::Plain(sym) => name(sym),
+        Item::Tested(rule, eq) => format!("{}{}\"x\"", RULES[*rule], if *eq { "=" } else { "≠" }),
         Item::Optional(sym) => format!("[{}]", name(sym)),
         Item::Repeat(sym) => format!("{} ...", name(sym)),
         Item::OptionalRepeat(sym) => format!("[{}] ...", name(sym)),
@@ -277,10 +341,12 @@ fn item_text(item: &Item) -> String {
 fn grammar_text(source: &Source) -> String {
     let mut text = String::new();
     text.push_str(match (source.lean, source.elision_only) {
-        (Lean::Lazy, _) => "%ambiguity-resolution lazy\n",
-        (_, true) => "%ambiguity-resolution greedy elision-only\n",
-        _ => "%ambiguity-resolution greedy\n",
+        (Lean::Lazy, _) => "%ambiguity-resolution lazy",
+        (Lean::LateElision, _) => "%ambiguity-resolution late-elision",
+        (_, true) => "%ambiguity-resolution greedy elision-only",
+        _ => "%ambiguity-resolution greedy",
     });
+    text.push_str(if source.maximal { " maximal\n" } else { "\n" });
     if let Some(t) = source.elidable {
         text.push_str(&format!("%elidable {}\n", TERMINALS[t]));
     }
@@ -320,6 +386,11 @@ fn grammar_dom(source: &Source) -> String {
                     .iter()
                     .map(|item| match item {
                         Item::Plain(sym) => reference(sym),
+                        Item::Tested(rule, eq) => format!(
+                            "{{\"test\":\"{}\",\"value\":{{\"string\":\"x\"}},\"expr\":{}}}",
+                            if *eq { "=" } else { "≠" },
+                            reference(&Sym::N(*rule))
+                        ),
                         Item::Optional(sym) => format!("{{\"optional\":{}}}", reference(sym)),
                         Item::Repeat(sym) => format!("{{\"repeat\":{},\"min\":1}}", reference(sym)),
                         Item::OptionalRepeat(sym) => format!("{{\"repeat\":{},\"min\":0}}", reference(sym)),
@@ -343,9 +414,11 @@ fn grammar_dom(source: &Source) -> String {
     }
     let args = match (source.lean, source.elision_only) {
         (Lean::Lazy, _) => "\"lazy\"",
+        (Lean::LateElision, _) => "\"late-elision\"",
         (_, true) => "\"greedy\",\"elision-only\"",
         _ => "\"greedy\"",
     };
+    let args = if source.maximal { format!("{args},\"maximal\"") } else { args.to_string() };
     let mut directives = vec![format!("{{\"name\":\"ambiguity-resolution\",\"args\":[{args}],\"at\":[2,1]}}")];
     if let Some(t) = source.elidable {
         directives.push(format!("{{\"name\":\"elidable\",\"args\":[\"{}\"],\"at\":[3,1]}}", TERMINALS[t]));
@@ -387,14 +460,73 @@ struct TooMany;
 
 type Derivations = Rc<Vec<Rc<Derivation>>>;
 
+/// Enumerates the derivations that count (§4): no cyclic one, and under
+/// `maximal` none with an elided terminator whose constituent could have
+/// been longer.
 struct Enumerator<'a> {
     grammar: &'a Grammar,
     tokens: &'a [Vec<usize>],
+    /// Whether each token sounds `x`, or else `y`.
+    sounds: &'a [bool],
+    /// Whether `maximal` applies, with every derivation, cyclic or not,
+    /// that says which constituents complete where.
+    maximal: bool,
     memo: HashMap<(usize, usize, usize, Vec<usize>), Derivations>,
+    completes: HashMap<(usize, usize, usize), bool>,
     budget: usize,
 }
 
 impl<'a> Enumerator<'a> {
+    fn new(grammar: &'a Grammar, tokens: &'a [Vec<usize>], sounds: &'a [bool], maximal: bool) -> Enumerator<'a> {
+        Enumerator { grammar, tokens, sounds, maximal, memo: HashMap::new(), completes: HashMap::new(), budget: 20_000 }
+    }
+
+    /// Whether a test holds of the span: its sound, the tokens' phonemes
+    /// joined, is `x`, or it is not.
+    fn holds(&self, test: Option<bool>, start: usize, end: usize) -> bool {
+        let sound: String = self.sounds[start..end].iter().map(|&x| if x { 'x' } else { 'y' }).collect();
+        test.map_or(true, |eq| (sound == "x") == eq)
+    }
+
+    /// Whether `rule` completes over the span, by any derivation. A cyclic
+    /// derivation needs one that is not, so those alone are searched.
+    fn completes(&mut self, rule: usize, start: usize, end: usize) -> Result<bool, TooMany> {
+        if let Some(&found) = self.completes.get(&(rule, start, end)) {
+            return Ok(found);
+        }
+        let mut plain = Enumerator::new(self.grammar, self.tokens, self.sounds, false);
+        let found = !plain.rule(rule, start, end, &[])?.is_empty();
+        self.budget = self.budget.checked_sub(20_000 - plain.budget).ok_or(TooMany)?;
+        self.completes.insert((rule, start, end), found);
+        Ok(found)
+    }
+
+    /// Under `maximal`, whether the terminator of the elidable optional at
+    /// `index` of `prod`, elided at `at`, follows a constituent from
+    /// `before` that could have been longer (§4). The constituent is the
+    /// node just before it, unless that is a terminal, or the optional
+    /// stands first, or the node is what a left-recursive production has
+    /// read so far.
+    fn forbidden(&mut self, prod: usize, index: usize, before: Option<usize>, at: usize) -> Result<bool, TooMany> {
+        let production = &self.grammar.prods[prod];
+        let Some(origin) = before.filter(|_| self.maximal && index > 0) else {
+            return Ok(false);
+        };
+        let Sym::N(constituent) = production.syms[index - 1] else {
+            return Ok(false);
+        };
+        if index == 1 && constituent == production.rule {
+            return Ok(false);
+        }
+        let test = production.tests[index - 1];
+        for later in at + 1..=self.tokens.len() {
+            if self.holds(test, origin, later) && self.completes(constituent, origin, later)? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
     fn rule(&mut self, rule: usize, start: usize, end: usize, forbidden: &[usize]) -> Result<Derivations, TooMany> {
         if forbidden.contains(&rule) {
             return Ok(Rc::new(Vec::new()));
@@ -408,8 +540,7 @@ impl<'a> Enumerator<'a> {
         inner.sort_unstable();
         let mut out = Vec::new();
         for &prod in &self.grammar.rules[rule].prods {
-            let syms = self.grammar.prods[prod].syms.clone();
-            for children in self.sequence(&syms, 0, start, end, (start, end), &inner)? {
+            for children in self.sequence(prod, 0, start, end, (start, end), &inner, None)? {
                 self.budget = self.budget.checked_sub(1).ok_or(TooMany)?;
                 out.push(Rc::new(Derivation { prod, start, end, children }));
             }
@@ -419,15 +550,21 @@ impl<'a> Enumerator<'a> {
         Ok(out)
     }
 
+    /// The children of `prod` from its symbol `index` on, over the span;
+    /// `before` is where the child before them starts.
+    #[allow(clippy::too_many_arguments)]
     fn sequence(
         &mut self,
-        syms: &[Sym],
+        prod: usize,
         index: usize,
         start: usize,
         end: usize,
         parent: (usize, usize),
         forbidden: &[usize],
+        before: Option<usize>,
     ) -> Result<Vec<Vec<Child>>, TooMany> {
+        let grammar = self.grammar;
+        let syms = &grammar.prods[prod].syms;
         if index == syms.len() {
             return Ok(if start == end { vec![Vec::new()] } else { Vec::new() });
         }
@@ -435,7 +572,7 @@ impl<'a> Enumerator<'a> {
         match syms[index] {
             Sym::T(terminal) => {
                 if start < end && self.tokens[start].contains(&terminal) {
-                    for rest in self.sequence(syms, index + 1, start + 1, end, parent, forbidden)? {
+                    for rest in self.sequence(prod, index + 1, start + 1, end, parent, forbidden, Some(start))? {
                         let mut children = vec![Child::Read(start, terminal)];
                         children.extend(rest);
                         out.push(children);
@@ -445,12 +582,20 @@ impl<'a> Enumerator<'a> {
             }
             Sym::N(rule) => {
                 for middle in start..=end {
+                    // A tested symbol's constituent passes its test (§4).
+                    if !self.holds(grammar.prods[prod].tests[index], start, middle) {
+                        continue;
+                    }
+                    let elided = middle == start && grammar.rules[rule].elided.is_some();
+                    if elided && self.forbidden(prod, index, before, start)? {
+                        continue;
+                    }
                     let same = (start, middle) == parent;
                     let firsts = self.rule(rule, start, middle, if same { forbidden } else { &[] })?;
                     if firsts.is_empty() {
                         continue;
                     }
-                    let rests = self.sequence(syms, index + 1, middle, end, parent, forbidden)?;
+                    let rests = self.sequence(prod, index + 1, middle, end, parent, forbidden, Some(start))?;
                     for first in firsts.iter() {
                         for rest in &rests {
                             let mut children = vec![Child::Node(first.clone())];
@@ -496,11 +641,13 @@ fn outcome(lean: Lean, a: &Act, b: &Act) -> (bool, bool) {
             Lean::Greedy => (true, false),
             Lean::Lazy => (false, false),
             Lean::Neither => (true, true),
+            Lean::LateElision => unreachable!("late-elision compares actions with no lean"),
         },
         (Act::Close { .. }, Act::Read { .. }) => match lean {
             Lean::Greedy => (false, false),
             Lean::Lazy => (true, false),
             Lean::Neither => (false, true),
+            Lean::LateElision => unreachable!("late-elision compares actions with no lean"),
         },
         (Act::Close { prod: p, start: s, end: e, .. }, Act::Close { prod: q, start: t, end: f, .. }) => {
             ((p, s, e) < (q, t, f), true)
@@ -536,11 +683,20 @@ fn first_difference<'x>(a: &'x [Act], b: &'x [Act]) -> Option<(usize, &'x Act, &
 struct Ranked {
     visible: Vec<Vec<Act>>,
     full: Vec<Vec<Act>>,
+    /// Each derivation's elision vector, as a count for each boundary.
+    vectors: Vec<Vec<usize>>,
 }
 
 impl Ranked {
-    /// The order T: is `a` before `b`?
+    /// The order T: is `a` before `b`? Under late-elision, the lesser
+    /// vector first, and then as with no lean.
     fn before(&self, lean: Lean, a: usize, b: usize) -> bool {
+        if lean == Lean::LateElision {
+            return match self.vectors[a].cmp(&self.vectors[b]) {
+                std::cmp::Ordering::Equal => self.before(Lean::Neither, a, b),
+                order => order == std::cmp::Ordering::Less,
+            };
+        }
         match first_difference(&self.visible[a], &self.visible[b]) {
             Some((_, x, y)) => outcome(lean, x, y).0,
             // A visible prefix before its extensions.
@@ -553,6 +709,9 @@ impl Ranked {
     }
 
     fn beats(&self, lean: Lean, a: usize, b: usize) -> bool {
+        if lean == Lean::LateElision {
+            return self.vectors[a] < self.vectors[b];
+        }
         match first_difference(&self.visible[a], &self.visible[b]) {
             Some((_, x, y)) => {
                 let (first, tie) = outcome(lean, x, y);
@@ -563,6 +722,9 @@ impl Ranked {
     }
 
     fn tied(&self, lean: Lean, a: usize, b: usize) -> bool {
+        if lean == Lean::LateElision {
+            return a != b && self.vectors[a] == self.vectors[b];
+        }
         a != b
             && match first_difference(&self.visible[a], &self.visible[b]) {
                 Some((_, x, y)) => outcome(lean, x, y).1,
@@ -756,10 +918,11 @@ fn action_json(grammar: &Grammar, act: &Act) -> String {
 
 fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool, String> {
     let mut rng = Rng(seed);
-    let (source, tokens) = generate(&mut rng);
+    let (source, (tokens, sounds)) = generate(&mut rng);
     let grammar = lower(&source);
     let text = grammar_text(&source);
-    let mut enumerator = Enumerator { grammar: &grammar, tokens: &tokens, memo: HashMap::new(), budget: 20_000 };
+    // The oracle reads the input itself, whatever the stage does with it.
+    let mut enumerator = Enumerator::new(&grammar, &tokens, &sounds, grammar.maximal);
     let Ok(derivations) = enumerator.rule(0, 0, tokens.len(), &[]) else {
         return Ok(false);
     };
@@ -772,7 +935,24 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
         })
         .collect();
     let visible = full.iter().map(|acts| acts.iter().filter(|act| act.visible()).copied().collect()).collect();
-    let ranked = Ranked { visible, full };
+    // The count of elided terminators at each boundary: a close of the
+    // empty production of an elidable optional's helper (engine §6).
+    let vectors = full
+        .iter()
+        .map(|acts| {
+            let mut counts = vec![0; tokens.len() + 1];
+            for act in acts {
+                if let Act::Close { prod, start, .. } = act {
+                    let production = &grammar.prods[*prod];
+                    if production.syms.is_empty() && grammar.rules[production.rule].elided.is_some() {
+                        counts[*start] += 1;
+                    }
+                }
+            }
+            counts
+        })
+        .collect();
+    let ranked = Ranked { visible, full, vectors };
 
     let document = format!("```jbogenbau\n{text}```\n");
     let dom = grammar_dom(&source);
@@ -800,24 +980,49 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
         .map(|(index, tags)| gencmu::InputToken {
             text: format!("t{index}"),
             tags: tags.iter().map(|&t| TERMINALS[t].to_string()).collect(),
-            phonemes: None,
+            phonemes: Some(if sounds[index] { "x" } else { "y" }.to_string()),
         })
         .collect();
     let options = gencmu::ParseOptions { auto_features: false, ..Default::default() };
     let result = dialect.parse_tokens(&input, &options).map_err(|error| format!("parse: {error}"))?;
     let json = gencmu::to_json(&result);
     let actual = parse_json(&json).map_err(|error| format!("not JSON: {error}"))?;
+    let broken = common::result_problems(&actual);
+    if !broken.is_empty() {
+        return Err(format!("seed {seed}: the result breaks an invariant: {broken:?}\nresult: {json}"));
+    }
     let describe = |problem: String| {
-        let tags: Vec<String> =
-            tokens.iter().map(|tags| tags.iter().map(|&t| TERMINALS[t]).collect::<Vec<_>>().join(",")).collect();
+        let tags: Vec<String> = tokens
+            .iter()
+            .zip(&sounds)
+            .map(|(tags, &x)| {
+                let tags = tags.iter().map(|&t| TERMINALS[t]).collect::<Vec<_>>().join(",");
+                format!("{tags} {}", if x { "x" } else { "y" })
+            })
+            .collect();
         format!(
             "seed {seed}: {problem}\ngrammar:\n{text}tokens: {tags:?}\nderivations: {}\nresult: {json}",
             derivations.len()
         )
     };
 
+    // The stage rejects its input exactly when no derivation counts (§4).
+    let verdict = result.stages.first().and_then(|stage| stage.verdict);
     if derivations.is_empty() {
-        return if result.ok { Err(describe("accepted a text with no derivation".to_string())) } else { Ok(true) };
+        *findings.entry("(stat) rejected").or_default() += 1;
+        return match verdict {
+            None if !result.ok => Ok(true),
+            _ => Err(describe("a verdict where no derivation counts".to_string())),
+        };
+    }
+    if verdict.is_none() {
+        return Err(describe(format!("no verdict where {} derivations count", derivations.len())));
+    }
+    if tokens.is_empty() {
+        *findings.entry("(stat) empty input").or_default() += 1;
+    }
+    if grammar.maximal {
+        *findings.entry("(stat) maximal").or_default() += 1;
     }
     let expected = match expect(&ranked, grammar.lean, findings) {
         Outcome::Expected(expected) => expected,
@@ -825,12 +1030,12 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
         Outcome::NoLeast(finding) => return Err(describe(finding.to_string())),
     };
     // With elision-only and no elidable terminators, the check ranks the
-    // same forest with no lean.
-    if grammar.elision_only && expected.verdict != "unique" {
+    // same forest with no lean. It runs only for a resolved stage (§7).
+    if grammar.elision_only && expected.verdict == "resolved" {
         if let Outcome::Expected(check) = expect(&ranked, Lean::Neither, findings) {
             if check.verdict == "tie" {
                 let pattern = format!(
-                    "{{\"ok\":false,\"error\":{{\"kind\":\"ambiguous\",\"readings\":[{},{}]}}}}",
+                    "{{\"ok\":false,\"error\":{{\"kind\":\"ambiguous\",\"reason\":\"elision-only\",\"readings\":[{},{}]}}}}",
                     tree_json(&grammar, &derivations[check.chosen]),
                     tree_json(&grammar, &derivations[check.tied.expect("a tie")])
                 );
@@ -841,22 +1046,28 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
             return Err(describe("T has no least derivation with no lean".to_string()));
         }
     }
-    let mut pattern = format!("{{\"ok\":true,\"stages\":[{{\"verdict\":\"{}\"", expected.verdict);
-    if let (Some(tied), Some((a, b))) = (expected.tied, expected.witness) {
-        pattern.push_str(&format!(
-            ",\"witness\":[{},{}],\"tied\":{}",
+    // A tie is an ambiguous error with the first and the second reading,
+    // and its stage has no output (§6).
+    let pattern = match (expected.tied, expected.witness) {
+        (Some(tied), Some((a, b))) => format!(
+            "{{\"ok\":false,\"stages\":[{{\"verdict\":\"tie\",\"witness\":[{},{}]}}],\"tree\":null,\
+             \"error\":{{\"kind\":\"ambiguous\",\"reason\":\"tie\",\"readings\":[{},{}]}}}}",
             action_json(&grammar, &a),
             action_json(&grammar, &b),
+            tree_json(&grammar, &derivations[expected.chosen]),
             tree_json(&grammar, &derivations[tied])
-        ));
-    }
-    pattern.push_str(&format!("}}],\"tree\":{}}}", tree_json(&grammar, &derivations[expected.chosen])));
+        ),
+        _ => format!(
+            "{{\"ok\":true,\"stages\":[{{\"verdict\":\"{}\"}}],\"tree\":{}}}",
+            expected.verdict,
+            tree_json(&grammar, &derivations[expected.chosen])
+        ),
+    };
     let pattern = parse_json(&pattern).expect("a pattern");
     common::matches(&pattern, &actual, "result").map_err(describe)?;
-    if expected.verdict != "tie"
-        && actual.get("stages").map(Value::array).and_then(|s| s.first()).and_then(|s| s.get("tied")).is_some()
-    {
-        return Err(describe("a tied tree without a tie".to_string()));
+    let stage = &result.stages[0];
+    if (stage.verdict == Some(gencmu::Verdict::Tie)) != stage.output.is_none() {
+        return Err(describe("a stage has output exactly when it does not tie".to_string()));
     }
     *findings
         .entry(match (expected.verdict, expected.count) {
@@ -866,12 +1077,20 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
             _ => "(stat) tie of more",
         })
         .or_default() += 1;
+    if grammar.lean == Lean::LateElision {
+        let stat = match expected.verdict {
+            "unique" => "(stat) late-elision unique",
+            "resolved" => "(stat) late-elision resolved",
+            _ => "(stat) late-elision tie",
+        };
+        *findings.entry(stat).or_default() += 1;
+    }
     Ok(true)
 }
 
 #[test]
 fn ranking_matches_the_definitions() {
-    let cases: u64 = std::env::var("GENCMU_PROPERTY_CASES").ok().and_then(|n| n.parse().ok()).unwrap_or(600);
+    let cases: u64 = std::env::var("GENCMU_PROPERTY_CASES").ok().and_then(|n| n.parse().ok()).unwrap_or(3000);
     let first: u64 = std::env::var("GENCMU_PROPERTY_SEED").ok().and_then(|n| n.parse().ok()).unwrap_or(1);
     let started = std::time::Instant::now();
     let mut findings = BTreeMap::new();
@@ -891,4 +1110,13 @@ fn ranking_matches_the_definitions() {
     let contradictions: Vec<_> = findings.keys().filter(|key| !key.starts_with("(stat)")).collect();
     assert!(contradictions.is_empty(), "the definitions of engine §6 contradict each other: {contradictions:?}");
     assert!(failures.is_empty(), "{} failures:\n\n{}", failures.len(), failures.join("\n\n"));
+    // Every kind of round is checked often enough to count.
+    let count = |key: &str| findings.get(key).copied().unwrap_or(0) as u64;
+    assert!(
+        count("(stat) rejected") > cases / 50
+            && count("(stat) empty input") > cases / 100
+            && count("(stat) maximal") > cases / 50,
+        "too few rounds of a kind: {findings:?}"
+    );
+    assert!(checked > cases / 6, "only {checked} grammars were checked");
 }

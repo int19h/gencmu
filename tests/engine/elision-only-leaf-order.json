@@ -1,0 +1,120 @@
+{
+  "description": "elision-only restores elided terminators in the order of the chosen tree's leaves, also where an outer and an inner one stand at one position. The chosen tree elides T in r and then U in the inner s, both before b, so the restored input is a T U b. Both r and q read it, and the check fails. An order of inner before outer would restore a U T b, which no alternative reads, and the check would pass (engine §7).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%elidable T U V\n%rule text A r | A q\n%rule r [T] s\n%rule s [U] t\n%rule t [V] B | B\n%rule q T u\n%rule u U v\n%rule v [V] B | B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved",
+          "output": []
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "elision-only",
+        "readings": [
+          {
+            "kind": "rule",
+            "rule": "text",
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "A"
+              },
+              {
+                "kind": "rule",
+                "rule": "r",
+                "children": [
+                  {
+                    "kind": "elided",
+                    "terminal": "T"
+                  },
+                  {
+                    "kind": "rule",
+                    "rule": "s",
+                    "children": [
+                      {
+                        "kind": "elided",
+                        "terminal": "U"
+                      },
+                      {
+                        "kind": "rule",
+                        "rule": "t",
+                        "children": [
+                          {
+                            "kind": "token",
+                            "terminal": "B"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "text",
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "A"
+              },
+              {
+                "kind": "rule",
+                "rule": "q",
+                "children": [
+                  {
+                    "kind": "elided",
+                    "terminal": "T"
+                  },
+                  {
+                    "kind": "rule",
+                    "rule": "u",
+                    "children": [
+                      {
+                        "kind": "elided",
+                        "terminal": "U"
+                      },
+                      {
+                        "kind": "rule",
+                        "rule": "v",
+                        "children": [
+                          {
+                            "kind": "token",
+                            "terminal": "B"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "warnings": [],
+    "error": "ambiguous"
+  }
+}

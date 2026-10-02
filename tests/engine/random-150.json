@@ -24,8 +24,8 @@
   ],
   "expect": {
     "result": {
-      "format": 6,
-      "ok": true,
+      "format": 7,
+      "ok": false,
       "stages": [
         {
           "name": "main",
@@ -51,8 +51,16 @@
                 ]
               }
             }
-          ],
-          "tied": {
+          ]
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie",
+        "readings": [
+          {
             "kind": "rule",
             "rule": "text",
             "span": [
@@ -194,64 +202,48 @@
               }
             ]
           },
-          "output": []
-        }
-      ],
-      "tree": {
-        "kind": "rule",
-        "rule": "text",
-        "span": [
-          0,
-          3
-        ],
-        "source": [
-          0,
-          5
-        ],
-        "tags": [],
-        "children": [
-          {
-            "kind": "token",
-            "terminal": "B",
-            "token": 0,
-            "span": [
-              0,
-              1
-            ],
-            "source": [
-              0,
-              1
-            ]
-          },
           {
             "kind": "rule",
-            "rule": "u",
+            "rule": "text",
             "span": [
-              1,
+              0,
               3
             ],
             "source": [
-              2,
+              0,
               5
             ],
             "tags": [],
             "children": [
               {
+                "kind": "token",
+                "terminal": "B",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              },
+              {
                 "kind": "rule",
                 "rule": "u",
                 "span": [
                   1,
-                  2
+                  3
                 ],
                 "source": [
                   2,
-                  3
+                  5
                 ],
                 "tags": [],
                 "children": [
                   {
                     "kind": "rule",
-                    "rule": "t",
+                    "rule": "u",
                     "span": [
                       1,
                       2
@@ -263,9 +255,8 @@
                     "tags": [],
                     "children": [
                       {
-                        "kind": "token",
-                        "terminal": "A",
-                        "token": 1,
+                        "kind": "rule",
+                        "rule": "t",
                         "span": [
                           1,
                           2
@@ -273,43 +264,43 @@
                         "source": [
                           2,
                           3
-                        ]
-                      },
-                      {
-                        "kind": "rule",
-                        "rule": "v",
-                        "span": [
-                          2,
-                          2
-                        ],
-                        "source": [
-                          3,
-                          3
                         ],
                         "tags": [],
-                        "children": []
+                        "children": [
+                          {
+                            "kind": "token",
+                            "terminal": "A",
+                            "token": 1,
+                            "span": [
+                              1,
+                              2
+                            ],
+                            "source": [
+                              2,
+                              3
+                            ]
+                          },
+                          {
+                            "kind": "rule",
+                            "rule": "v",
+                            "span": [
+                              2,
+                              2
+                            ],
+                            "source": [
+                              3,
+                              3
+                            ],
+                            "tags": [],
+                            "children": []
+                          }
+                        ]
                       }
                     ]
-                  }
-                ]
-              },
-              {
-                "kind": "rule",
-                "rule": "t",
-                "span": [
-                  2,
-                  3
-                ],
-                "source": [
-                  4,
-                  5
-                ],
-                "tags": [],
-                "children": [
+                  },
                   {
-                    "kind": "token",
-                    "terminal": "A",
-                    "token": 2,
+                    "kind": "rule",
+                    "rule": "t",
                     "span": [
                       2,
                       3
@@ -317,30 +308,45 @@
                     "source": [
                       4,
                       5
-                    ]
-                  },
-                  {
-                    "kind": "rule",
-                    "rule": "v",
-                    "span": [
-                      3,
-                      3
-                    ],
-                    "source": [
-                      5,
-                      5
                     ],
                     "tags": [],
-                    "children": []
+                    "children": [
+                      {
+                        "kind": "token",
+                        "terminal": "A",
+                        "token": 2,
+                        "span": [
+                          2,
+                          3
+                        ],
+                        "source": [
+                          4,
+                          5
+                        ]
+                      },
+                      {
+                        "kind": "rule",
+                        "rule": "v",
+                        "span": [
+                          3,
+                          3
+                        ],
+                        "source": [
+                          5,
+                          5
+                        ],
+                        "tags": [],
+                        "children": []
+                      }
+                    ]
                   }
                 ]
               }
             ]
           }
         ]
-      },
-      "error": null
+      }
     },
-    "brackets": "(a [b c])"
+    "error": "ambiguous"
   }
 }

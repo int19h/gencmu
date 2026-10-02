@@ -12,7 +12,7 @@ from ._grammar import Lowered, Production, SymbolTest, written_symbol
 from ._markdown import line_column
 from ._maximal import Maximal
 from ._model import Action, Expected, Node, ParseError, ParseWarning, Range, Tags, Token
-from ._rank import Act, Ranker, Ranking, Rope, actions, count_roots
+from ._rank import Act, Ranking, Rope, actions, count_roots, rank
 from ._tags import PAUSE, phoneme_of
 from ._unicode import UnicodeTable
 
@@ -193,7 +193,7 @@ def warnings_of(root: DNode, tree: Tree, features: frozenset[str], stage: str) -
 
 
 def forbidden_terminator(forest: Forest, ranking: Ranking | None, maximal: Maximal) -> tuple[int, list[Expected]] | None:
-    """Of a ranking's chosen derivation, the first elided terminator, in the
+    """Of a ranking's first reading, the first elided terminator, in the
     order of the tree's leaves, that maximal forbids: its position, and its
     terminal with the rule its optional is written in as the one expected
     there (engine §4). ``None`` for no ranking, or none forbidden."""
@@ -201,7 +201,7 @@ def forbidden_terminator(forest: Forest, ranking: Ranking | None, maximal: Maxim
         return None
     # Each entry is a node, its parent, and its place among the parent's
     # children.
-    stack: list[tuple[DChild, DNode | None, int]] = [(derivation(forest, ranking.chosen), None, 0)]
+    stack: list[tuple[DChild, DNode | None, int]] = [(derivation(forest, ranking.first), None, 0)]
     while stack:
         node, parent, index = stack.pop()
         if isinstance(node, DRead):
@@ -223,7 +223,7 @@ def forbidden_terminator(forest: Forest, ranking: Ranking | None, maximal: Maxim
 
 
 def elided_nodes(tree: Node) -> list[Node]:
-    """The elided nodes of a tree in text order, inner before outer."""
+    """The elided nodes of a tree in the order of its leaves."""
     found: list[Node] = []
     stack = [tree]
     while stack:
@@ -586,10 +586,7 @@ class StageOutcome:
     derivation: DNode | None = None
     output: list[Token] | None = None
     witness: tuple[Action, Action] | None = None
-    tied: Node | None = None
     error: ParseError | None = None
-    chosen_actions: list[Act] | None = None
-    tied_actions: list[Act] | None = None
     warnings: list[ParseWarning] = field(default_factory=list)
 
 
@@ -665,38 +662,42 @@ class StageRunner:
             return StageOutcome(error=self.fault(fault, self.tokens))
 
     def _run(self, elision_only: bool) -> StageOutcome:
+        """The steps of a stage, in order (engine §6): recognize, rank, and
+        then, for a verdict of unique or resolved, emit and run the check of
+        engine §7 where it applies. A tie ends the stage at the ranking."""
         lowered = self.lowered
         context = self.context(lowered, self.tokens)
         start = lowered.rule_ids["text"]
         forest = Parser(context).parse(start)
-        maximal = Maximal(forest, context) if lowered.grammar.maximal else None
-        ranking = Ranker(forest, lowered.lean, maximal).rank(forest.roots) if forest.roots else None
+        # Maximality, stage-wide or for the maximal terminators alone, before
+        # the ranking (engine §4).
+        stage_wide = lowered.grammar.maximal
+        maximal = Maximal(forest, context, stage_wide) if stage_wide or lowered.maximal_helpers else None
+        ranking = rank(forest, lowered.lean, maximal)
         if ranking is None:
             forbidden = None
             if forest.roots:
                 forest.furthest = len(self.tokens)
                 if maximal is not None:
-                    # A text that maximal leaves with no derivation is
+                    # A text that maximality leaves with no derivation is
                     # rejected at the first terminator it forbids in the
-                    # derivation the stage would otherwise have chosen
-                    # (engine §4).
-                    forbidden = forbidden_terminator(forest, Ranker(forest, lowered.lean).rank(forest.roots), maximal)
+                    # first reading of the ranking with both forms off, on
+                    # the same chart, whatever its verdict (engine §4).
+                    forbidden = forbidden_terminator(forest, rank(forest, lowered.lean), maximal)
             return StageOutcome(error=self.rejection(forest, forbidden))
-        root = derivation(forest, ranking.chosen)
+        if ranking.verdict == "tie":
+            return self.tie(forest, context, ranking)
+        root = derivation(forest, ranking.first)
         tree = Tree(root, context.sources, context.tagtab)
         outcome = StageOutcome(verdict=ranking.verdict, tree=tree.root, derivation=root)
         outcome.warnings = warnings_of(root, tree, self.features, self.name)
-        outcome.chosen_actions = list(actions(ranking.chosen))
-        if ranking.verdict == "tie":
-            assert ranking.witness is not None and ranking.witness[0] is not None and ranking.witness[1] is not None
-            outcome.witness = (_action(ranking.witness[0], lowered), _action(ranking.witness[1], lowered))
-            outcome.tied = Tree(derivation(forest, ranking.tied), context.sources, context.tagtab).root
-            outcome.tied_actions = list(actions(ranking.tied))
         emitter = Emitter(context, forest, tree, root)
         try:
             if self.emit:
                 outcome.output = emitter.emit()
-            if elision_only and ranking.verdict != "unique":
+            # The check runs only for a stage that chose one of several
+            # derivations (engine §7).
+            if elision_only and ranking.verdict == "resolved":
                 # The stage accepted its input, so it has its output; the
                 # check makes the parse fail, and the result has no tree.
                 error = self.check_elision(tree.root)
@@ -706,19 +707,38 @@ class StageRunner:
         except _GrammarFault as fault:
             # A defect found once the stage has chosen its tree, while emitting
             # or in the reparse of elision-only, leaves it without output; it
-            # keeps its verdict, witness, tied tree and warnings (engine §7,
-            # §11).
+            # keeps its verdict and warnings (engine §7, §11). A defect found
+            # while emitting ends the stage before the check.
             outcome.output = None
             outcome.tree = None
             outcome.error = self.fault(fault, self.tokens)
             return outcome
         return outcome
 
+    def tie(self, forest: Forest, context: StageContext, ranking: Ranking) -> StageOutcome:
+        """A tie is an error of kind ambiguous, with the reason tie. The
+        stage keeps its verdict and its witness, and has no tree, no output
+        and no warnings. The error holds the first and the second reading
+        (engine §6)."""
+        lowered = self.lowered
+        assert ranking.witness is not None and ranking.witness[0] is not None and ranking.witness[1] is not None
+        readings = [Tree(derivation(forest, rope), context.sources, context.tagtab).root for rope in (ranking.first, ranking.second)]
+        error = ParseError(
+            "ambiguous",
+            f"stage {self.name} is ambiguous: two readings of its text are best, a tie",
+            stage=self.name,
+            reason="tie",
+            readings=readings,
+        )
+        witness = (_action(ranking.witness[0], lowered), _action(ranking.witness[1], lowered))
+        return StageOutcome(verdict="tie", witness=witness, error=error)
+
     def check_elision(self, tree: Node) -> ParseError | None:
         """Engine §7: write the chosen tree's elided terminators back and
         parse again with none elidable. The check passes when that parse has
-        at most one derivation: it ranks with no lean, so any two
-        derivations that differ are tied."""
+        at most one derivation: it ranks with no lean, whatever the rule of
+        the stage, so any two derivations that differ are tied. Otherwise
+        the error holds the first and the second reading of that ranking."""
         tokens = self.tokens
         inserted = elided_nodes(tree)
         new_tokens: list[Token] = []
@@ -730,7 +750,7 @@ class StageRunner:
                 # A restored terminator with an = test sounds like the
                 # test's string, so that it matches its own terminator in the
                 # stricter grammar (engine §7).
-                new_tokens.append(Token("", frozenset((node.terminal or "",)), (index, index), node.source, node.sound))
+                new_tokens.append(Token("", frozenset((node.terminal or "",)), (len(new_tokens), len(new_tokens)), node.source, node.sound))
                 synthetic.append(True)
                 pending += 1
             if index < len(tokens):
@@ -742,18 +762,19 @@ class StageRunner:
         lowered = self.elision_lowered()
         context = self.context(lowered, new_tokens)
         forest = Parser(context).parse(lowered.rule_ids["text"])
-        ranking = Ranker(forest, "none").rank(forest.roots) if forest.roots else None
+        ranking = rank(forest, "none")
         if ranking is None or ranking.verdict != "tie":
             return None
         readings = []
         original = Sources(tokens)
-        for rope in (ranking.chosen, ranking.tied):
+        for rope in (ranking.first, ranking.second):
             reading = Tree(derivation(forest, rope), context.sources, context.tagtab).root
             readings.append(_map_back(reading, synthetic, boundary, original))
         return ParseError(
             "ambiguous",
             f"stage {self.name} is ambiguous even with every elided terminator written out",
             stage=self.name,
+            reason="elision-only",
             readings=readings,
         )
 

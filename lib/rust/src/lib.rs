@@ -41,6 +41,7 @@ mod clauses;
 mod dialect;
 mod dom;
 mod earley;
+mod eligible;
 mod error;
 mod fxhash;
 mod grammar;
@@ -49,6 +50,7 @@ mod loader;
 mod lower;
 mod markdown;
 mod maximal;
+mod nat;
 mod notation;
 mod output;
 mod pipeline;
@@ -66,8 +68,8 @@ pub use grammar::Change;
 pub use loader::{load_dialect, load_dialect_file, load_dialect_sources};
 pub use output::{node_to_json, to_brackets, to_json};
 pub use result::{
-    Action, Attachment, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Stage, Tags, Token, Verdict,
-    Warning,
+    Action, AmbiguityReason, Attachment, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Stage,
+    Tags, Token, Verdict, Warning,
 };
 
 /// Helpers for tests and tools: reading one grammar document to its DOM,
@@ -76,7 +78,12 @@ pub use result::{
 pub mod tools {
     pub use crate::dom::DOM_FORMAT;
     pub use crate::json::fnv1a64;
-    pub use crate::loader::{bootstrap_hash, read_grammar_document, splice_bundled_pipeline};
+    pub use crate::loader::{bootstrap_hash, check_dom, read_grammar_document, splice_bundled_pipeline};
+
+    /// The recognizer's work counter, for the growth tests only: not part
+    /// of the documented API.
+    #[doc(hidden)]
+    pub use crate::earley::{recognizer_items, reset_recognizer_items};
 }
 
 #[cfg(test)]

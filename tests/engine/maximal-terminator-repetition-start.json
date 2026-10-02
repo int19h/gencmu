@@ -1,0 +1,30 @@
+{
+  "description": "A maximal terminator elided at the start of a repeated item has no constituent, so maximality forbids nothing there (engine §4).",
+  "grammar": "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text x\n%rule x ([T] A) ...",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "(a a)"
+  }
+}

@@ -96,7 +96,7 @@ A feature is a named switch that the grammars test. The dialect turns on the fea
 The CLL grammar leaves the choice among parses to each dialect that uses it. This dialect makes the choice here:
 
 ```jbogenbau
-%ambiguity-resolution greedy elision-only maximal
+%ambiguity-resolution late-elision elision-only maximal
 ```
 
 The definition effort replaced the YACC grammar of the official parser with a PEG (parsing expression grammar). The bpfk dialect reads elided terminators as the PEG grammars do, camxes-std among them. A PEG never gives back what it read. So the part of a rule before an elided terminator runs as far as the words after it can extend it.
@@ -107,4 +107,6 @@ A PEG is greedy everywhere, and `maximal` only where a terminator is elided. So 
 
 In `le nu da poi remna li paso nanca kei cu broda`, the tail terms of `remna` are `li paso`, and `vau` is elided before `nanca`. `maximal` forbids that, because the terms can also be `li pa` and `so nanca`. That reading splits the number `paso`, which a PEG reads whole. The design document records this, the one such text of the test corpus.
 
-The stage is also greedy and `elision-only`, as in the cll-ebnf dialect. Unlike a PEG, it does not order the alternatives of a rule. So a text that the printed grammar leaves ambiguous in anything but a terminator is an error that shows both readings. `mi broda joi ke brode ke'e` is such a text.
+The stage also ranks with `late-elision` and applies `elision-only`, as in the cll-ebnf dialect. `late-elision` takes the parse that elides a terminator later. Unlike a PEG, the stage does not order the alternatives of a rule. So a text that the grammar leaves ambiguous in anything but a terminator is an error that shows both readings. The CLL grammar removes one such ambiguity with a condition: `mi broda joi ke brode ke'e` is a `ke` group joined by `joi`.
+
+camxes-std departs from this. It tries the plain connective first, so it reads `joi` before a tanru unit that begins with `ke`. Where only the plain reading parses, as in `mi broda joi ke brode ke'e bo brodi`, the dialect agrees with camxes-std.

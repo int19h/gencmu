@@ -70,16 +70,16 @@ The four libraries implement one specification, `docs/engine.md`. It was written
 2. Lowering turns the grammar into a context-free grammar. Lowering makes named helper rules for the notation's shorthand, such as `[ ]` and `...`, and diagnostics hide these rules.
 3. The recognizer is an Earley parser (a standard algorithm for any context-free grammar). Its items, the partial matches that it keeps, record the span and the identity of the tag set of each captured part. The parser evaluates each condition as soon as it reads the last capture of that condition. With `from` and `after`, a condition can look past its constituent to the end of the input. A PEG (parsing expression grammar, which tries alternatives in order) has a lookahead that does the same.
 
-   Nested parses for `matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` share their memo (a cache of answers) with the parse that started them. The memo key is the kind of query, the rule, and either the content of a short span or the position of a long span. A nested parse asked about its own span, as the same rule, is a grammar error.
-4. The engine chooses a parse. It orders the parses by their first difference, as sequences of bottom-up actions. The order uses the grammar's declared `%ambiguity-resolution`. This part also covers the verdicts unique, resolved and tie, the tie witness, and the `elision-only` check (see "Ambiguity" below).
+   Nested parses for `matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` share their memo (a cache of answers) with the parse that started them. The memo key is the kind of query, the rule, and either the content of a short span or the position of a long span. A nested parse asked about its own span, as the same rule, is a grammar error. A nested parse never leaves out an elidable optional that the same construct can read whole as written (see "Nested queries and elided terminators" below).
+4. The engine chooses a parse by the rule that the grammar's `%ambiguity-resolution` declares. `greedy` and `lazy` compare parses at their first difference, as sequences of bottom-up actions. `late-elision` compares only where the parses elide terminators. This part also covers the verdicts unique, resolved and tie, the error of a tie and its witness, and the `elision-only` check (see "Ambiguity" below).
 5. The stage emits the tokens of the next stage. Each token has its text, its phonemes, its label and its source range. The label is what the renderings for people show. A token can also carry attachments, tokens that belong to it and that no later stage reads.
-6. The pipeline runs the stages in order, and stops at the first rejection.
+6. The pipeline runs the stages in order, and stops at the first rejection or error.
 
 `tests/engine/` tests the specification. Each case is a small grammar, an input, and a pattern that the canonical result JSON of `docs/output.md` must match. So a fifth implementation can run the cases to make sure that it follows the specification, without the Lojban grammars at all. The cases are written together with the specification, one or more for each of its rules. They settle the edge cases that decide which parse comes out, so that the Lojban corpus does not become the specification by accident:
 
-- A tie is a successful parse (`ok` is true) with the verdict `tie`, a witness and the tied tree. The chosen tree is the least in a total order that breaks the ranking's ties by canonical keys. The tied tree is the derivation, tied with the chosen tree, that diverges from it earliest (engine §6). The tie is never silent: every surface shows it.
-- The witness of a tie is the pair of actions at the first visible difference between the two trees. A close of a helper rule, or of an alternative with one symbol, is transparent (not visible). An earlier difference at such a close does not decide the witness. If the two trees have no visible difference, the witness is the pair of actions at their first difference.
-- A non-final stage with a tie emits the chosen derivation. Its tie stands even when every tied derivation emits the same tokens. The stage is ambiguous as written, and the report of the tie lets a grammar author fix it. The engine cases include a three-way tie and a tie whose derivations emit the same tokens.
+- A tie is an error (`ok` is false) of kind `ambiguous`, with the reason `tie`. The stage has the verdict `tie` and a witness, and the error has two readings. The first reading is the least in a total order, *T*, that breaks the ranking's ties by canonical keys. The second is the tied derivation that diverges from the first earliest (engine §6). *T* orders the ambiguity diagnostics and selects the forbidden terminator that a `maximal` rejection reports. The canonical tie-break keys never turn a tie into an accepted reading.
+- The witness of a tie is the pair of actions at the first visible difference between the two readings. A close of a helper rule, or of an alternative with one symbol, is transparent (not visible). An earlier difference at such a close does not decide the witness. If the two readings have no visible difference, the witness is the pair of actions at their first difference.
+- A stage with a tie emits nothing, and the pipeline stops there. Its tie stands even when every tied derivation emits the same tokens. The stage is ambiguous as written, and the error lets a grammar author fix it. The engine cases include a three-way tie and a tie whose derivations emit the same tokens.
 - The cases cover empty spans and cycles: nullable rules, empty captures and a condition on an empty span. They also cover a unary cycle of `a` to `b` and `b` to `a`. Another case is a nested parse asked about its own span as the same rule. Each case has its defined outcome.
 
 Every span and every source range in a result is half-open: the range holds its start but not its end. Source positions count Unicode code points, not bytes or UTF-16 units, so that the four languages agree on non-ASCII text. Each library converts at its edge (JavaScript from UTF-16, Go and Rust from UTF-8). The libraries derive line and column in diagnostics from code points. Lines split at `\n`, `\r\n` and `\r`.
@@ -177,9 +177,9 @@ A clause can refer to a capture that some alternative lacks. Lowering decides su
 
 Directives are keywords too, and can stand in any block.
 
-`%ambiguity-resolution greedy` or `lazy`, optionally followed by `elision-only` and then, optionally, by `maximal`, says how the stage chooses among parses (see "Ambiguity"). Every stage must have exactly one, in any of its documents. A stage with none or two is a load error that names the stage.
+`%ambiguity-resolution` says how the stage chooses among parses (see "Ambiguity"). Its first operand is the rule of the ranking: `greedy`, `lazy` or `late-elision`. `elision-only` and then `maximal` can follow it. Every stage must have exactly one, in any of its documents. A stage with none or two is a load error that names the stage.
 
-`%elidable KU KEI VAU ...` lists the terminators that can be elided. An absent optional whose first symbol is one of them appears in the tree as that terminator, elided at that point. `elision-only` restores these terminators. A stage can have several `%elidable` directives, and their terminators add up.
+`%elidable KU KEI VAU ...` lists the terminators that can be elided. An absent optional whose first symbol is one of them appears in the tree as that terminator, elided at that point. `elision-only` restores these terminators. A stage can have several `%elidable` directives, and their terminators add up. `%elidable maximal TOI SEhU` also makes its terminators maximal (see "Maximal terminators").
 
 By convention, a directive stands in a block of its own, after prose that says why the grammar needs it. gencmu does not enforce the convention.
 
@@ -248,23 +248,51 @@ A document can be included in several stages, and an included document can hold 
 
 ## Ambiguity
 
-A grammar admits every parse that its rules allow. Where a text has more than one parse, the engine treats each parse as the sequence of steps that a bottom-up reader takes. A step reads the next token or closes a constituent. The engine compares the parses at the first step where two of them differ:
+A grammar admits every parse that its rules allow. Where a text has more than one parse, the stage's `%ambiguity-resolution` names the rule that ranks the parses: `greedy`, `lazy` or `late-elision`. A parse is best when no other parse beats it under that rule. A text with one parse has the verdict `unique`. If a text has several parses and exactly one is best, the stage chooses it, and the verdict is `resolved`. If two or more are best, the verdict is `tie`.
 
-- If both read the same token under two tags, the text is ambiguous for this grammar.
-- If one reads and the other closes, `%ambiguity-resolution` decides. `greedy` takes the one that reads, so a constituent ends as late as the grammar allows. `lazy` takes the one that closes, so a constituent ends as early as the grammar allows.
-- If both close different constituents, the text is ambiguous for this grammar, and the result is a tie, with its witness.
+`greedy` and `lazy` treat each parse as the sequence of steps that a bottom-up reader takes. A step reads the next token or closes a constituent. The engine compares the parses at the first step where two of them differ:
 
-The preference is like greedy and lazy quantifiers in a backtracking regular-expression engine, and not like the greed of a PEG. The preference orders the parses that the grammar already admits, and never commits, so it cannot reject a text. The earliest difference dominates. And the preference applies to every constituent of the stage, not to one quantifier.
+- If both read the same token under two tags, they are tied.
+- If one reads and the other closes, the rule decides. `greedy` takes the one that reads, so a constituent ends as late as the grammar allows. `lazy` takes the one that closes, so a constituent ends as early as the grammar allows.
+- If both close different constituents, they are tied.
 
-The syntax grammars are greedy, and that is how an elided terminator is placed. The forms stage divides the text into words. The words stage applies the magic words, such as `si`, which act on other words. Both stages are lazy. The word forms divide a run in one way only, so the choice matters only in the words stage. In that stage, a magic word acts on what exists when it is read.
+The preference is like greedy and lazy quantifiers in a backtracking regular-expression engine, and not like the greed of a PEG. The preference orders the parses that the grammar already admits, and never commits. It rejects a text only by leaving a tie. The earliest difference dominates. And the preference applies to every constituent of the stage, not to one quantifier.
 
-CLL's own rule is narrower. It says only that a terminator can be elided if no ambiguity results. It says nothing of the other ambiguities that its EBNF has. `elision-only` applies that rule literally, to the stage whose grammar declares it. It applies the rule only when the ranking of that stage was not `unique`:
+`late-elision` compares only the terminators that each parse elides. It counts them at each position between tokens, and compares the counts from the start of the text. These counts are the parse's elision vector. At the first position where the counts differ, the parse with fewer elided terminators wins. In plain words, at the first place where two readings differ in leaving out a terminator, it prefers the reading that reads on. Two parses with the same counts are tied, whatever else differs.
 
-1. Take the `elided` nodes of the chosen tree in text order. Where several stand at one point, take the inner before the outer. For each node, insert a synthetic token before the stage-input token at the node's position. The synthetic token carries only the tag of that terminator, and is marked synthetic.
+The reason for `late-elision` is that `greedy` decides more than CLL asks. CLL leaves one choice to the parser, the place of an elided terminator. `greedy` also decides every other choice of read against close, such as where a free modifier attaches. So it can hide an ambiguity of the grammar behind a preference that no rule states. `late-elision` decides only the place of elided terminators. Parses with equal counts at every position remain tied, and the grammar settles them with its rules.
+
+The count composes by addition over the packed forest, the shared graph of all parses. So the engine never enumerates the parses (engine §6). It does not depend on the name of a terminator, its depth or the constituent that it ends. "Close an older construct as late as possible" describes some of its results, but the count has no record of which construct is older. It can trade an early elision of one terminator for an early elision of another.
+
+Before this decision, the syntax grammars were greedy, and that was how an elided terminator was placed. That is the historical baseline. The syntax grammars now declare `late-elision` ("Migration to late-elision" below).
+
+The forms stage divides the text into words. The words stage applies the magic words, such as `si`, which act on other words. Both stages are lazy. The word forms divide a run in one way only, so the choice matters only in the words stage. In that stage, a magic word acts on what exists when it is read.
+
+### Ties are errors
+
+A tie is an error of kind `ambiguous`, with the reason `tie`. The stage emits nothing, and no later stage runs. The error shows two of the best parses, and the stage shows the witness, the pair of steps at their first difference. A tied stage gives no warnings, since it has no chosen parse.
+
+Before this decision, a tie was a successful parse. The canonical order of engine §6 then chose one of the tied parses. Among its keys are the numbers of the productions, which follow the order in which an author writes alternatives. So a text got an accepted reading that no rule of the grammar stated.
+
+Now that order, *T*, has a narrower role. *T* orders the ambiguity diagnostics and selects the forbidden terminator that a `maximal` rejection reports. The canonical tie-break keys never turn a tie into an accepted reading.
+
+An error is better than a hidden choice. A reader of the error sees the two readings and where they part. The grammar author settles the choice with a rule, and the rule says why. Every stage follows this, also a stage whose tied parses emit the same tokens, since the grammar is ambiguous there as written.
+
+At the time of this decision (commit 1ea14a1), 5 of the 29,308 corpus records tied at the syntax stage under their dialects' greedy rules. Under `late-elision`, four of them were resolved. The fifth is the case that a separate fix of the experimental grammar covers.
+
+### Elision-only
+
+CLL's own rule is narrower. It says only that a terminator can be elided if no ambiguity results. It says nothing of the other ambiguities that its EBNF has. `elision-only` applies that rule literally, to the stage whose grammar declares it. It applies the rule only when the ranking of that stage was `resolved`:
+
+1. Take the `elided` nodes of the chosen tree in the order of its leaves, left to right. This order follows the chosen derivation, also where several nodes stand at one point. For each node, insert a synthetic token before the stage-input token at the node's position. The synthetic token carries only the tag of that terminator, and is marked synthetic.
 2. Lower the same grammar again, and make mandatory every optional whose first symbol is an `%elidable` terminator. Parse the new token sequence.
-3. Build the ranking of that forest (the set of all its parses) with no lean to greedy or lazy. If the forest has exactly one derivation, the check passes. It also passes if the forest has none, since then no two restored readings exist to report. In that case, every other reading of the original input needed a terminator elided where the chosen reading did not. CLL's rule forbids that elision, because it made the text ambiguous.
+3. Build the ranking of that forest (the set of all its parses) with no lean to any rule. If the forest has exactly one derivation, the check passes. It also passes if the forest has none, since then no two restored readings exist to report. In that case, every other reading of the original input needed a terminator elided where the chosen reading did not. CLL's rule forbids that elision, because it made the text ambiguous.
 
-   Otherwise, the ambiguity is not about terminators, and the result is an error of kind `ambiguous`. `ok` is false, and the error carries the two readings that the ranking reports, the chosen and the tied, shown over the original input.
+   Otherwise, the ambiguity is not about terminators. The result is an error of kind `ambiguous`, with the reason `elision-only`, and `ok` is false. The error carries the first and the second reading of that ranking, shown over the original input.
+
+The stage ranks, then emits, and then runs the check. A tie ends the stage before emission and before the check. So a stage reports at most one `ambiguous` error, and a tie comes first. A stage that fails the check keeps its output, but no later stage runs.
+
+The two errors share their kind, because both say that the text has two readings. They differ in what the readings are. The readings of a tie are parses of the text as written. Those of `elision-only` hold terminators that the check wrote back. The stage's verdict, `tie` or `resolved`, already tells them apart. The error still carries its reason, so that the error alone says which it is, and the shared tests compare it.
 
 The engine cases pin the definition with these cases:
 
@@ -272,6 +300,66 @@ The engine cases pin the definition with these cases:
 - Two readings that differ with every terminator written, for which the check fails
 - A restored text with no derivation, for which the check passes
 - Several terminators elided at one point
+
+### Independent options
+
+`late-elision` makes neither `maximal` nor `elision-only` redundant, so both keep their order and their meaning. `maximal` (below) removes a parse because of a longer constituent. That constituent need not fit any parse of the whole text. A ranking sees only parses of the whole text, so it cannot reproduce this rejection.
+
+For example, take `text → A body [T] B` and `body → X | X B`, with `T` elidable. On `A X B`, the one complete parse uses `body → X` and elides `T`. `maximal` forbids that elision, because `body → X B` is longer, so the text is an error. Without `maximal`, every ranking rule accepts the one parse.
+
+`elision-only` parses again with the terminators written back. That can let another alternative match, and a condition or a test can answer differently. A ranking of the original parses sees neither. For example, take `text → a | b | c`, `a → A [T]`, `b → A [T] [T]` and `c → A T`. On `A`, `late-elision` prefers `a`, with one elided `T`, to `b`, with two. Written back, `A T` parses through both `a` and `c`, so `elision-only` reports the text.
+
+### Nested queries and elided terminators
+
+A condition can ask whether a span parses as a rule, with `matches`, `begins` or `tags` (engine §4). That nested parse sees every way to read the span, and an elidable optional can be left out anywhere in it. So a nested reading can rely on leaving out a terminator that the same construct reads in the actual text. A nested reading must not do that.
+
+So every nested query follows written-terminator priority (engine §4). A nested reading cannot leave out an elidable optional where the same construct can read that whole optional as written. The query answers from the proof trees that remain. Several such trees are an ordinary success, never a tie. No option turns this priority off.
+
+In Zantufa, `cy to roi toi klama` holds the parenthesis `to roi toi` after the letter `cy`. A condition of `term-2` requires that no tag begins where the term begins. Without priority, the nested parse reads `cy to roi` as the tag `cy roi`. It closes the parenthesis at once, with its `toi` left out, although `toi` is written right after `roi`. So the condition failed, and the dialect rejected the text. With priority, the brackets output is `([cy {to roi toi}] klama)`, as the Zantufa reference parser reads it.
+
+In the experimental dialect, `mi klama na to broda toi` has the same problem. The nested parse of a condition reads `na to broda` as a negated selbri, with `broda` taken from inside the parenthesis. With priority, the brackets output is `(mi [klama {na (to broda toi)}])`. camxes-exp also puts `broda` inside the parenthesis after `na`, and it closes `na` with an elided `ku`.
+
+The priority is a local commitment, not a proof that the shorter reading is impossible. Take `r → A c [T] T` and `c → B`, with `T` elidable, on `A B T`. Without priority, `r` leaves out `[T]` and reads the token as its last `T`. With priority, the token belongs to `[T]`, so the query fails.
+
+The window of a query is its span. A `matches` over a captured span does not look at a terminator written after the span. A `begins` with `from` or `after` already sees the rest of the input.
+
+The alternative was to apply `maximal` inside nested parses. It was measured in two variants over the parse jobs of the corpus. V1 sought the longer constituent in the whole input of the stage. It changed 39 jobs, and 31 of them became false ties. V2 sought it only in the chart of the query. It changed 24 jobs, and 17 of them became false ties.
+
+Both variants change queries where no terminator is written, so the policy was rejected. Written-terminator priority changed no corpus job. It settles every constructed text of this kind that was tried, in seven Zantufa and four experimental families of conditions.
+
+### Maximal terminators
+
+Some Zantufa conditions accept a nested reading that closes a parenthesis early, with no terminator written. The condition `¬matches($m, terms-vau)` of `fragment` is an example. So `so to mi klama` reads `([so {to mi}] klama)`, while the reference parser reads one mekso fragment, `so` with the parenthesis `to mi klama`. `so to recap` closes an empty `to`. In `ro sei ny rere'u basna mutce cusku`, the `sei` closes before `cusku`.
+
+Written-terminator priority does not settle these texts, because no `toi` or `se'u` is written. A condition cannot say that the content of a construct cannot be longer. An attempt to copy the greed of the reference with conditions rejected 27 texts that the reference accepts.
+
+Stage-wide `maximal` inside nested parses was measured in two variants ("Nested queries and elided terminators" above). V1 searched the whole stage input and changed 39 jobs, with 31 false ties. V2 searched the query's chart and changed 24 jobs, with 17 false ties. That policy applied to every elidable terminator. This feature lets a grammar select single terminators instead. For those selected constructs, a change to a query with no written terminator is the intent.
+
+So a grammar can make single terminators maximal (engine §4). Maximality is the restriction to the longest constituent. `%elidable maximal` selects terminals for it in the main parse and in nested queries. `%ambiguity-resolution … maximal` also restricts every elidable terminator, but in the main parse only, and it adds no terminal to the nested selection.
+
+The notation is a word on `%elidable`: `%elidable maximal TOI SEhU`. A maximal terminator is always elidable, so one directive declares both. No new keyword is needed. In the DOM, the word is the member `"maximal":true`, not an operand, so it stays apart from an operand `~maximal`. The DOM format becomes 17.
+
+Inside a query, the longer constituent comes from the query's own chart. A `begins` with `from` or `after` already sees the rest of the input. A bounded `matches` sees only its span, and a constituent that goes on past the span does not count there.
+
+A maximal terminator applies whether or not `%ambiguity-resolution` includes `maximal`. Both forms remove derivations before any ranking rule ranks them. In a query, written-terminator priority and a maximal terminator can each forbid an omission. `elision-only` writes back a maximal terminator as any other.
+
+A rejection names a forbidden terminator only when maximality removes every main derivation. The stage then reads the same chart, with both forms off, to find that terminator. A nested query that maximality changes only changes the value of its condition. If no main derivation remains, the rejection is ordinary, and it lists the terminals expected at the furthest position.
+
+The four libraries already find the furthest completion of each symbol from each origin for `maximal`. Lowering keeps the set of maximal terminals with the lowered grammar, so a cache of lowered grammars tells them apart. The main parse builds the table whenever either form needs it. A nested query builds the same table from its own chart, which costs one pass over that chart.
+
+The engine feature and the choice of terminators are separate decisions. The engine defines what a maximal terminator does. The Zantufa grammar chooses which of its terminators are maximal, and that choice has a cost.
+
+A scope experiment ran 74 cases with `TOI` and `SEhU` maximal, before the fix of `tag-term` below. Maximality in queries alone settles the four motivating readings, and it accepts all 27 texts of the greed experiment. Maximality in both scopes settles the same readings, but it rejects one of the 27, `corpus.camxes.2115`. On the 39 jobs that changed under V1, both choices give the same results: six bracket changes, no rejection and no tie.
+
+Both scopes also rejected the reduced text `sei abu pensi ba ju'o rinka`, which lies outside the 27. The reference and the earlier grammar read it as `[sei abu pensi] [ba ju'o rinka]`. The chart then held the longer statement `abu pensi ba`, with `ba` as a tag on its own. The longer constituent need not fit the enclosing construct, so maximality forbade the elided `se'u` after `pensi` in the main parse.
+
+The Zantufa `tag-term` now has the condition `¬begins(after($t), free)`. It removes that spurious candidate. In the reference, the tag is `ba ju'o`, so the `sei` ends after `pensi`. With this condition, both `corpus.camxes.2115` and the reduced text keep their readings.
+
+The main-parse scope enforces the declared restriction on main derivations, whatever the conditions say. The measurements do not show that the four motivating readings need it. They also do not show that it is useless in general. The approved semantics keeps both scopes.
+
+Whether Zantufa also makes `LIhU` maximal is undecided.
+
+A bounded query stays within its span. A `matches` over a captured span asks whether that span alone parses as the rule. A longer constituent past the span is outside that question. Looking past the span changes the windows and the memo keys of every query.
 
 ### Where an elided terminator can fall
 
@@ -283,7 +371,7 @@ The engine cases pin the definition with these cases:
 
 The notation offers the third reading as `maximal` (engine §4). It is a condition on which parses count, stated over the recognizer's items. It does not order the alternatives of a rule, so a grammar stays a description of its language. The bpfk dialect reads elided terminators this way, because the definition effort that approved its word forms also adopted the PEG.
 
-The cll-ebnf dialect takes the printed grammar as normative, and keeps the literal reading. So do the experimental and Zantufa dialects, which accept the most. The cll-ebnf and bpfk dialects each name their reading in their pipeline documents, after they include the CLL grammar. A stage states its `%ambiguity-resolution` exactly once, so the experimental layer over the CLL grammar states its own.
+The cll-ebnf dialect takes the printed grammar as normative, and keeps the literal reading. So do the experimental and Zantufa dialects, which accept the most. Zantufa has explicit exceptions for `TOI` and `SEhU`, which are maximal terminators and commit as the PEG does. Its grammar document lists the three texts that it rejects for this reason. The cll-ebnf and bpfk dialects each name their reading in their pipeline documents, after they include the CLL grammar. A stage states its `%ambiguity-resolution` exactly once, so the experimental layer over the CLL grammar states its own.
 
 A measurement at the time `maximal` was specified used the 24,552 CLL cases that the corpus then held. There, `maximal` rejects 68 texts that the literal reading accepts, and camxes-std, the reference PEG, rejects 66 of them. `maximal` changes the chosen reading of no text that it accepts. In 2,892 texts, it removes only parses that the greedy ranking already beat, so their verdict becomes `unique` instead of `resolved`.
 
@@ -291,13 +379,52 @@ Of the other two texts, camxes-std reads one as a forethought termset without `n
 
 The official parser's reading is not in the notation. Its lookahead is a lexeme, not a word. Step 5 of its preamble, the steps that prepare the words for its grammar, joins runs of words into one lexeme. Examples are the connective `na ja`, or a number followed by `moi`. A rule that reads one word ahead over a stage's tokens sees the `na` of `le nanla na vrude` as the start of `na ja`. Tried word by word, such a rule rejected 369 texts of the corpus that the official parser accepts.
 
-A dialect that reads as the official parser does needs that preparser as a stage of its own ([issue 28](https://github.com/int19h/gencmu/issues/28)). The same preparser settles ambiguities that the printed grammar leaves open, such as a gihek or joik directly before `ke`. The dialects here leave these ambiguities as the printed grammar has them. So `mi broda joi ke brode ke'e` has two readings that differ in more than a terminator, and `elision-only` reports it.
+A dialect that reads as the official parser does needs that preparser as a stage of its own ([issue 28](https://github.com/int19h/gencmu/issues/28)). The same preparser settles ambiguities that the printed grammar leaves open, such as a gihek or joik directly before `ke`. In the historical baseline, the dialects here left these ambiguities as the printed grammar has them. So `mi broda joi ke brode ke'e` had two readings that differ in more than a terminator, and `elision-only` reported it. The CLL condition on a plain joik now settles the joik case ("Migration to late-elision" below).
 
-Measured on the prototype's corpus, `elision-only` cost the CLL grammar nothing. Every one of its 8,853 ambiguous texts became unambiguous with its terminators written out. The extended grammars were different: 63 experimental and 74 Zantufa texts stayed ambiguous. Some of the Zantufa texts stayed ambiguous through its mekso (its grammar for mathematics).
+In a historical measurement on the prototype's corpus, `elision-only` cost the CLL grammar nothing. Every one of its 8,853 ambiguous texts became unambiguous with its terminators written out. The extended grammars were different: 63 experimental and 74 Zantufa texts stayed ambiguous. Some of the Zantufa texts stayed ambiguous through its mekso (its grammar for mathematics).
 
-In the experimental grammar today, two sumti (arguments of a predicate) joined by a connective between them cause such an ambiguity. A term is a wider kind of argument that includes the sumti. The grammar also reads the two sumti as two terms joined in the same way, with or without `bo`. So `mi .e do klama` and `mi .e bo do klama` each have two readings.
+In the historical baseline, two sumti (arguments of a predicate) joined by a connective between them caused such an ambiguity in the experimental grammar. A term is a wider kind of argument that includes the sumti. The grammar also read the two sumti as two terms joined in the same way, with or without `bo`. So `mi .e do klama` and `mi .e bo do klama` each had two readings. The experimental rule for sumti connections now settles both.
 
-So the dialects of the CLL syntax grammar declare `%ambiguity-resolution greedy elision-only`, with `maximal` in the bpfk dialect, and the extended dialects declare `greedy`. Each dialect has prose that gives these reasons. A parse option overrides `elision-only` either way. A caller switches it on to find ambiguities that are not about terminators in the supplied text, or off to loosen the CLL dialect. The lean itself (greedy or lazy) cannot be overridden, because a lazy syntax or a greedy word grammar is a different language, not a variation.
+In the historical baseline, the CLL syntax dialects declared `%ambiguity-resolution greedy elision-only`, with `maximal` in bpfk. The extended dialects declared `greedy`. Each dialect has prose that gives its reasons.
+
+A parse option overrides `elision-only` either way. A caller switches it on to find ambiguities that are not about terminators in the supplied text, or off to loosen the CLL dialect. The rule itself (`greedy`, `lazy` or `late-elision`) cannot be overridden, because each rule gives a different language, not a variation. A lazy syntax and a greedy word grammar are examples.
+
+At the time of this decision (commit 1ea14a1), a measurement on the same 29,308 records compared `late-elision` with `greedy` at the syntax stage. It kept each dialect's `maximal` and `elision-only`. In cll-ebnf and bpfk, `late-elision` chose the same tree for every text that parses, and left no tie. In the experimental dialect, it changed 1 tree and left 26 ties. These were 25 actionable ties, and one that a separate fix of the grammar covers. In Zantufa, it changed 4 trees and left 30 ties.
+
+Those Zantufa results come from the earlier Zantufa grammar. That grammar listed `CU` in `%elidable` and had no attachment rules. So the count moved an elided `cu`, and some trees regressed, such as a JAI moved into the terms and numeric subscripts split apart. The migration below removes both causes.
+
+Most of those ties are choices of the grammar, not of terminators. Examples are a connective inside a sumti or between terms, a BE group, nested subscripts, and where a free modifier attaches in Zantufa. `greedy` settled them by its preference for a read, which no rule of the grammar states.
+
+### Migration to late-elision
+
+The syntax stage of all four Lojban dialects declares `late-elision`. The grammar changes that this needs come with the engine change, on the same branch. Each dialect keeps its other settings: cll-ebnf keeps `elision-only`, and bpfk keeps both `elision-only` and `maximal`.
+
+The CLL grammar gains the condition that the official parser's lexer applies with `JOIK_KE`. A plain joik is a joik in the ordinary connective alternative of a rule, which joins two units. It is not the joik of the dedicated alternative `joik [stag] KE ... KEhE`, which groups with the connective itself. Where both alternatives can read the same words, a unit that starts with `ke` cannot directly follow a plain joik.
+
+The condition stands in `selbri-4` and in `operator`, the two rules where the overlap exists. It removes the plain reading only where the unit after the joik is only a `ke` group, so that the two readings compete. So `mi broda joi ke brode ke'e bo brodi` keeps its one plain reading, as in the printed grammar and camxes. The official parser rejects it. So `mi broda joi ke brode ke'e` keeps only its reading through `joik KE selbri-3 KEhE`. In the same way, `li ci su'i joi ke pi'i ke'e re du li xa` keeps only the operator's own `ke` group. The `sumti` and `operand` rules have a joik-plus-`ke` alternative too, but no competing alternative, so they need no condition.
+
+The condition covers no jek, because the dedicated form takes only a joik. So `mi broda je ke brode ke'e` has one reading, a jek before a tanru unit grouped with `ke`.
+
+The experimental dialect redefines `selbri-4` and `operator`, so a condition on the CLL definitions does not reach it (engine §2). Its own definitions of both rules state the same condition. It also states three conventions as rules:
+
+- A connection that can be a sumti connection is a sumti connection, and not a connection of terms.
+- A `be` group attaches to the preceding unit when there is one.
+- A subscript after a subscript nests, as CLL 18.13 says.
+
+The gek quantifier conflict and `.i` plus ek are separate fixes of the experimental grammar (pull request 114). They are not among these conventions.
+
+The Zantufa grammar states its attachment conventions as rules, derived from its reference parser:
+
+- A free modifier nests in the nearest open slot. The rule stands on `free`, not on each slot. So the dialect keeps its departure from CLL 19.6 in `mi klama pamai le zarci .e remai le zdani`.
+- A sumti connection comes before a term connection.
+- An operator run is read whole, and the operand after it is read wherever one follows.
+- A gek before bridi-tails begins a bridi-tail, not a connection of sentences. In `mi ge klama gi cadzu`, it begins a forethought tanru unit inside the bridi-tail. A bridi-tail that a further `gi` follows does not count, because the reference's runs of `gik` read as far as they can.
+
+Other conditions state the reference's ordered choices where the ranking would leave a tie. A gek tanru unit comes before the forms with `se`, `fa` and `na'e`. A `cei` run nests to the right. The tenses and modals before `ke` and a gek-bridi-tail are one tag. A `ke` group of terms comes before a `ke` sumti.
+
+The vocative follows the reference. Zantufa merges cmevla and brivla, so a name is an ordinary tanru unit. The selbri of an address reads as far as it can, so `doi djan klama` is one vocative with the address `djan klama`. The dialect also keeps an odd reading of the reference. In `pe'usai doi xod ko jmina fi lo kamjikca lisri`, the vocative `pe'u` takes `ko` as its address, so `jmina` has no first place.
+
+Zantufa's `%elidable` lists neither `CU` nor `IAU`, as CLL's grammar does not list `CU`. Both are separators, and neither closes a constituent. An absent `cu` or `i'au` is an ordinary empty optional. It counts for nothing, leaves no `elided` node, and `maximal` and `elision-only` do not see it. `%elidable` is the only control, and the ranker has no logic for `CU` or for any other terminal.
 
 ## The result, and why it has no types
 
@@ -305,10 +432,11 @@ The grammar decides the shape of the tree, and gencmu loads the grammar at runti
 
 ```
 ParseResult
-  ok            whether every stage accepted
+  ok            whether every stage accepted without an error
   stages        per stage: name, input tokens, output tokens, verdict, tie witness, rejection
   tree          the last stage's chosen tree, or none
-  error         the first rejection, with source position and what was expected
+  error         the first rejection or error: a rejection has its source position and what was expected,
+                an ambiguous error has its reason and two readings
   warnings      per warning: stage, feature, rule and range, for each place the chosen tree uses a warning's alternative
 
 Node
@@ -381,7 +509,7 @@ The CLI is `node lib/js/cli.js` (and `npx gencmu` once published). It has these 
 - `test`, to run a test file against a dialect
 - `help`, to list the commands and every option
 
-`parse` prints any warning on standard error, as it prints a tie. The CLI needs Node and nothing else.
+`parse` prints any warning on standard error, as it prints an error, a tie included. The CLI needs Node and nothing else.
 
 The playground is `index.html` with `dist/gencmu.js` and `dist/grammars.js` loaded as classic scripts. So it works from `file://`, where browsers refuse ES modules, and from GitHub Pages alike. Nothing is fetched: the grammars are a JavaScript object in `dist/grammars.js`. The page builds the worker from a `Blob` whose text is the library source and the grammar object. So the worker fetches nothing either.
 
@@ -462,7 +590,7 @@ A dialect that extends another makes two kinds of change. Most are additions, wh
 
 An addition is a warning, `name!`. Its alternative is there whether the feature is on or off, so turning the feature on changes no verdict and no tree. It only adds a warning to the result for each place where the chosen tree uses the alternative. The warning names the feature and the text. The dialect turns none of its warnings on, so its texts parse without warnings by default. A reader who wants to know which additions a text relies on turns them on.
 
-A warning is on the chosen tree only. An addition that only a tied or losing reading uses is not reported. The idea comes from jbotci, another Lojban parser, which warns where an experimental construct makes a text parse that the standard grammar rejects. The experimental syntax is already a layer over the CLL grammar, but its additions are not warnings yet. The one bundled warning is `y-cmavo`, in the word stage of the cll-ebnf dialect.
+A warning is on the chosen tree only. An addition that only a losing reading uses is not reported. A tie has no chosen tree, so it reports no warnings. The idea comes from jbotci, another Lojban parser, which warns where an experimental construct makes a text parse that the standard grammar rejects. The experimental syntax is already a layer over the CLL grammar, but its additions are not warnings yet. The one bundled warning is `y-cmavo`, in the word stage of the cll-ebnf dialect.
 
 A change of reading is a gate, `name?`, with the old form under `¬name?`, so that exactly one of the two is live. A warning cannot express it, because a warning keeps its alternative even with the feature off. The base reading is then gone either way. A dialect that makes such a change turns its gate on by default, and a caller who wants the base reading turns it off. Gates are also how a grammar keeps an expensive construct out of the parses that do not need it (see below).
 

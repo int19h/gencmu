@@ -155,6 +155,14 @@ pub(crate) fn read_document(notation: &Dialect, text: &str) -> Result<Dom, Error
     let options = ParseOptions { auto_features: false, ..ParseOptions::default() };
     let result = notation.parse_chars(grammar.chars.clone(), &options)?;
     if let Some(error) = &result.error {
+        // A tie has no single position, so the error names the document
+        // alone (engine §8).
+        if error.kind == ParseErrorKind::Ambiguous {
+            let stage = error.stage.as_deref().unwrap_or("?");
+            return Err(Error::grammar(format!(
+                "the grammar text is ambiguous: the {stage} stage of the notation reads it in two ways"
+            )));
+        }
         let at = error.source.as_ref().map_or(0, |source| source.start);
         let (line, column) = grammar.position(at);
         let message = match error.kind {
@@ -420,6 +428,16 @@ where
 pub fn read_grammar_document(text: &str) -> Result<String, Error> {
     let context = Context::bundled()?;
     read_document(&context.notation, text).map(|dom| dom_to_json(&dom))
+}
+
+/// Why a DOM, given as JSON, is malformed (engine §9), or `None` when it is
+/// a DOM the reader could have produced. The check is the one that a
+/// precompiled DOM meets, with the bundled table of Unicode. For tests and
+/// tools.
+pub fn check_dom(json: &str) -> Result<Option<String>, Error> {
+    let context = Context::bundled()?;
+    let value = crate::json::parse(json).map_err(grammar_error)?;
+    Ok(crate::dom::dom_problem(&value, &context.unicode).map(str::to_string))
 }
 
 /// Splices a bundled pipeline document (engine §13) and returns the result

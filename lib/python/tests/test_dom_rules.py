@@ -1075,7 +1075,7 @@ class Constants(unittest.TestCase):
 
         def document(first: str, last: str) -> str:
             return (
-                f"```jbogenbau\n%ambiguity-resolution greedy\n%const $E {first}\n%rule text A | $x(A)\n"
+                f"```jbogenbau\n%ambiguity-resolution greedy\n%const $E {first}\n%rule text A | B $x(A)\n"
                 f"%tags Y ∪ ($E ∩ tags($x))\n%redefine-const $E {last}\n```\n"
             )
 

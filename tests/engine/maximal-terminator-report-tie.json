@@ -1,0 +1,43 @@
+{
+  "description": "The ranking with maximality off can tie, and then the canonical order T picks the first reading whose terminator the report names. p and q tie under greedy, since they close different constituents. T puts p first, by its lower production number, so the report names T after y, not U after v (engine §4, §6).",
+  "grammar": "%ambiguity-resolution greedy\n%elidable maximal T U\n%rule text p | q\n%rule p y [T] B\n%rule q v [U] B\n%rule y A | A B\n%rule v A | A B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 1,
+        "expected": [
+          {
+            "terminal": "T",
+            "rules": [
+              "p"
+            ]
+          }
+        ]
+      }
+    },
+    "error": "rejected"
+  }
+}

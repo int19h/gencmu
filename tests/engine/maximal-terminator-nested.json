@@ -1,0 +1,37 @@
+{
+  "description": "A maximal terminator applies in a nested query too, where no terminator is written. On A B, r could read y as A and leave out [T], but y → A B is longer in the query's chart, so the omission is forbidden. begins of r is false, and the rejection is an ordinary one (engine §4).",
+  "grammar": "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text A B\n%conditions begins(from($), r)\n%rule r y [T] B\n%rule y A | A B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 1,
+        "expected": [
+          {
+            "terminal": "B",
+            "rules": [
+              "text"
+            ]
+          }
+        ]
+      }
+    },
+    "error": "rejected"
+  }
+}

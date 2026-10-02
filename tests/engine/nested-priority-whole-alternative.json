@@ -1,0 +1,30 @@
+{
+  "description": "An omission is forbidden only where the optional can be read whole. On B D T, c → B leaves out [T A] before D. The longer c → B D reaches the written T, but [T A] cannot complete there, so the omission is permitted, and begins of r holds. Reading the terminator alone is not enough (engine §4).",
+  "grammar": "%elidable T\n%rule text B D T\n%conditions begins(from($), r)\n%rule r c [T A] D\n%rule c B | B D",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "d",
+      "tags": [
+        "D"
+      ]
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null
+    }
+  }
+}

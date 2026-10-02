@@ -371,7 +371,7 @@ class Output(unittest.TestCase):
         result = dialect.parse("mi", until="words", auto_features=False)
         text = gencmu.to_json(result)
         self.assertEqual(json.loads(text), gencmu.result_json(result))
-        self.assertTrue(text.startswith('{"format":6,"ok":true,"stages":[{"name":"sounds","verdict":"unique","output":[{"text":"m","phonemes":"m","label":"m","tags":["/m/"],"span":[0,1],"source":[0,1]}'), text)
+        self.assertTrue(text.startswith('{"format":7,"ok":true,"stages":[{"name":"sounds","verdict":"unique","output":[{"text":"m","phonemes":"m","label":"m","tags":["/m/"],"span":[0,1],"source":[0,1]}'), text)
         self.assertIn(
             '"tree":{"kind":"rule","rule":"text","span":[0,2],"source":[0,2],"tags":[],"children":[{"kind":"rule","rule":"piece"',
             text,
@@ -768,7 +768,11 @@ class LoweringCaches(unittest.TestCase):
         assert dialect is not None, error
         for number in range(1 << len(names)):
             features = [name for index, name in enumerate(names) if number & (1 << index)]
-            self.assertEqual(dialect.parse("x", features=features, auto_features=False).ok, bool(features), features)
+            # The stage accepts its input whenever a feature is on, and ties
+            # when two are (engine §6).
+            result = dialect.parse("x", features=features, auto_features=False)
+            self.assertEqual(result.stages[0].verdict is not None, bool(features), features)
+            self.assertEqual(result.ok, len(features) == 1, features)
         self.assertLessEqual(len(dialect._lowered[0]), 16)
         self.assertLessEqual(len(dialect.grammars[0]._classifier_tables), 16)
 

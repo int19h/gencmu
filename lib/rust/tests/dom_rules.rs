@@ -990,9 +990,11 @@ fn a_bootstrap_constant_nested_too_deeply_is_an_error() {
 /// (engine §3.6, §9).
 #[test]
 fn a_precompiled_clause_with_a_constant_waits_for_its_value() {
+    // The first alternative has no capture and reads only "b", so the
+    // text "a" has one derivation.
     let document = |first: &str, last: &str| {
         format!(
-            "```jbogenbau\n%ambiguity-resolution greedy\n%const $E {first}\n%rule text 'a' | $x('a')\n%tags Y ∪ ($E ∩ tags($x))\n%redefine-const $E {last}\n```\n"
+            "```jbogenbau\n%ambiguity-resolution greedy\n%const $E {first}\n%rule text 'b' | $x('a')\n%tags Y ∪ ($E ∩ tags($x))\n%redefine-const $E {last}\n```\n"
         )
     };
     // The tags of the parse's tree, or the load error's position, with the
