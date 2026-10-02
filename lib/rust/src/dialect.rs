@@ -566,7 +566,11 @@ impl Dialect {
         let n = input.len();
         let accepted = chart.accepts(lowered.start, n);
         let lean = grammar.lean;
-        let maximal = grammar.maximal.then(|| Maximal::new(&lowered, &chart, &input, shared.unicode, &shared.tags));
+        // Maximality applies under stage-wide `maximal`, and to the maximal
+        // terminators whether or not the stage declares it (§4).
+        let restricted = grammar.maximal || lowered.rules.iter().any(|rule| rule.maximal);
+        let maximal =
+            restricted.then(|| Maximal::new(&lowered, &chart, &input, shared.unicode, &shared.tags, grammar.maximal));
         let ranked = if accepted {
             let mut ranker = Ranker::new(&lowered, &chart, &input, shared, lean, maximal.as_ref());
             ranker.rank().map(|ranking| {
@@ -904,7 +908,7 @@ fn forbidden_terminator(tree: &ITree, g: &Lowered, maximal: &Maximal) -> Option<
             if maximal.elided(helper.rule, start, end) && position > 0 && !own {
                 let before = &tree.nodes[node.children[position - 1] as usize];
                 if let IKind::Close { prod: constituent, start: from, end: to, .. } = before.kind {
-                    let test = g.test(prod, position - 1);
+                    let test = g.prods[prod as usize].test(position - 1);
                     if maximal.forbids(g.prods[constituent as usize].rule, from, to, test) {
                         let elided = &g.rules[helper.rule as usize];
                         let terminal = elided.elided.as_deref().expect("an elidable terminator");

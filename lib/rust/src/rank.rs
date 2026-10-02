@@ -22,7 +22,7 @@ use std::cmp::Ordering;
 
 use crate::earley::{test_holds, Chart, Item, Shared, Tok};
 use crate::grammar::Lean;
-use crate::lower::{Lowered, Sym, SymbolTest, NO_TEST};
+use crate::lower::{Lowered, Sym, NO_TEST};
 use crate::maximal::Maximal;
 use crate::nat::Nat;
 use crate::tags::{SetId, Tags};
@@ -1055,16 +1055,16 @@ impl<'c> Ranker<'c> {
 
     /// For an item, whether `maximal` guards it, and the test of the symbol
     /// whose constituent an elided terminator follows, if it is tested (§4).
-    fn guard(&self, set: u32, index: u32) -> (bool, Option<&'c SymbolTest>) {
+    fn guard(&self, set: u32, index: u32) -> (bool, Option<u32>) {
         let item = self.item(set, index);
         let guarded = self.maximal.is_some_and(|maximal| maximal.guards(&item));
-        let g: &'c Lowered = self.dag.g;
-        (guarded, if guarded { g.test(item.prod, item.dot as usize - 1) } else { None })
+        let production = &self.dag.g.prods[item.prod as usize];
+        (guarded, if guarded { production.test(item.dot as usize - 1) } else { None })
     }
 
     /// Of a link to `child`: whether the child is an elided terminator, and
     /// whether `maximal` lets an elided terminator follow it.
-    fn eligibility(&self, child: Node, guarded: bool, test: Option<&SymbolTest>) -> (bool, bool) {
+    fn eligibility(&self, child: Node, guarded: bool, test: Option<u32>) -> (bool, bool) {
         match (self.maximal, child) {
             (Some(maximal), Node::Group { rule, origin, set: end, .. }) => {
                 (maximal.elided(rule, origin, end), !guarded || !maximal.forbids(rule, origin, end, test))

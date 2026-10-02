@@ -1,7 +1,10 @@
-//! The resolution `maximal` (engine §4): an elided terminator is forbidden
-//! where its constituent, the node before it, could have been longer.
+//! Maximality (engine §4): an elided terminator is forbidden where its
+//! constituent, the node before it, could have been longer. Stage-wide
+//! `maximal` restricts every elidable terminator of the main parse, and a
+//! maximal terminator, which `%elidable maximal` names, restricts its own
+//! elided terminators in the main parse and in nested queries.
 
-use std::cell::OnceCell;
+use std::cell::{OnceCell, RefCell};
 
 use crate::earley::{test_holds, Chart, Item, Tok};
 use crate::fxhash::FxMap;
@@ -13,7 +16,8 @@ use crate::unicode::Unicode;
 /// origin), as its set and its tag set, in order.
 type Completed = FxMap<(u32, u32), Vec<(u32, SetId)>>;
 
-/// What the ranking and the stage ask of `maximal`, over one stage's chart.
+/// What the ranking, the stage and the nested queries ask of maximality,
+/// over one chart.
 pub(crate) struct Maximal<'c> {
     g: &'c Lowered,
     chart: &'c Chart,
@@ -22,6 +26,9 @@ pub(crate) struct Maximal<'c> {
     tokens: &'c [Tok],
     unicode: &'c Unicode,
     tags: &'c Tags,
+    /// Whether stage-wide `maximal` restricts every elidable terminator,
+    /// or only the maximal terminators do.
+    stage_wide: bool,
     /// The furthest set in which each symbol completes from each origin,
     /// found the first time it is asked for.
     furthest: OnceCell<FxMap<(u32, u32), u32>>,
@@ -29,6 +36,13 @@ pub(crate) struct Maximal<'c> {
     /// its tag set, in order, found the first time a tested symbol asks for
     /// it.
     completed: OnceCell<Completed>,
+    /// For a tested symbol, the furthest set in which it completes from an
+    /// origin with its test holding, by (symbol, origin, test), found once
+    /// for each.
+    passing: RefCell<FxMap<(u32, u32, u32), Option<u32>>>,
+    /// How many completed items the checks have looked at, for the tests
+    /// of the cost.
+    looked: std::cell::Cell<u64>,
 }
 
 impl<'c> Maximal<'c> {
@@ -38,16 +52,42 @@ impl<'c> Maximal<'c> {
         tokens: &'c [Tok],
         unicode: &'c Unicode,
         tags: &'c Tags,
+        stage_wide: bool,
     ) -> Maximal<'c> {
-        Maximal { g, chart, tokens, unicode, tags, furthest: OnceCell::new(), completed: OnceCell::new() }
+        Maximal {
+            g,
+            chart,
+            tokens,
+            unicode,
+            tags,
+            stage_wide,
+            furthest: OnceCell::new(),
+            completed: OnceCell::new(),
+            passing: RefCell::default(),
+            looked: std::cell::Cell::new(0),
+        }
+    }
+
+    /// Whether maximality restricts the elided terminators of the helper
+    /// `rule`: it is an elidable optional's helper, and stage-wide
+    /// `maximal` is on or its terminator is maximal.
+    pub(crate) fn restricts(&self, rule: u32) -> bool {
+        let rule = &self.g.rules[rule as usize];
+        rule.elided.is_some() && (self.stage_wide || rule.maximal)
+    }
+
+    /// How many completed items the checks have looked at so far.
+    #[cfg(test)]
+    pub(crate) fn looked(&self) -> u64 {
+        self.looked.get()
     }
 
     /// Whether a constituent of `rule` from `origin` to `end` is an elided
-    /// terminator: the empty production of an elidable optional's helper.
-    /// The helper's other productions begin with its terminator, so over an
-    /// empty span nothing else completes.
+    /// terminator that maximality restricts: the empty production of such
+    /// a helper. The helper's other productions begin with its terminator,
+    /// so over an empty span nothing else completes.
     pub(crate) fn elided(&self, rule: u32, origin: u32, end: u32) -> bool {
-        origin == end && self.g.rules[rule as usize].elided.is_some()
+        origin == end && self.restricts(rule)
     }
 
     /// Whether an item's next symbol is an elidable optional whose elision
@@ -57,7 +97,7 @@ impl<'c> Maximal<'c> {
     pub(crate) fn guards(&self, item: &Item) -> bool {
         let production = &self.g.prods[item.prod as usize];
         match production.syms.get(item.dot as usize) {
-            Some(&Sym::N(next)) if item.dot > 0 && self.g.rules[next as usize].elided.is_some() => {
+            Some(&Sym::N(next)) if item.dot > 0 && self.restricts(next) => {
                 !(item.dot == 1 && production.syms[0] == Sym::N(production.rule))
             }
             _ => false,
@@ -65,26 +105,32 @@ impl<'c> Maximal<'c> {
     }
 
     /// Whether an elided terminator may not follow a constituent of `rule`
-    /// from `origin` to `end`, which stands for a symbol with the given test,
-    /// if it has one: one of the same rule from the same origin completes in
-    /// a later set, and the test also holds of it, with its own span and its
-    /// own tags.
-    pub(crate) fn forbids(&self, rule: u32, origin: u32, end: u32, test: Option<&SymbolTest>) -> bool {
-        match test {
-            None => self.furthest().get(&(rule, origin)).is_some_and(|&furthest| furthest > end),
-            Some(test) => self.completed().get(&(rule, origin)).is_some_and(|completed| {
-                completed.iter().any(|&(later, tags)| {
-                    later > end
-                        && test_holds(
-                            test,
-                            &self.tokens[origin as usize..later as usize],
-                            self.unicode,
-                            self.tags,
-                            tags,
-                        )
-                })
-            }),
-        }
+    /// from `origin` to `end`, which stands for a symbol with the test of
+    /// the given id, if it has one: one of the same rule from the same
+    /// origin completes in a later set, and the test also holds of it, with
+    /// its own span and its own tags. Each check reads the furthest such
+    /// set, which is found once for each symbol, origin and test.
+    pub(crate) fn forbids(&self, rule: u32, origin: u32, end: u32, test: Option<u32>) -> bool {
+        let furthest = match test {
+            None => self.furthest().get(&(rule, origin)).copied(),
+            Some(test) => *self
+                .passing
+                .borrow_mut()
+                .entry((rule, origin, test))
+                .or_insert_with(|| self.furthest_passing(rule, origin, &self.g.tests[test as usize])),
+        };
+        furthest.is_some_and(|furthest| furthest > end)
+    }
+
+    /// The furthest set in which `rule` completes from `origin` with `test`
+    /// holding of the completed item.
+    fn furthest_passing(&self, rule: u32, origin: u32, test: &SymbolTest) -> Option<u32> {
+        let completed = self.completed().get(&(rule, origin))?;
+        completed.iter().rev().find_map(|&(later, tags)| {
+            self.looked.set(self.looked.get() + 1);
+            test_holds(test, &self.tokens[origin as usize..later as usize], self.unicode, self.tags, tags)
+                .then_some(later)
+        })
     }
 
     // Whether a constituent could have been longer depends only on its
@@ -97,6 +143,7 @@ impl<'c> Maximal<'c> {
             // The sets in order, so that the last to insert a key is the
             // furthest.
             for (set, eset) in self.chart.sets.iter().enumerate() {
+                self.looked.set(self.looked.get() + eset.completed.len() as u64);
                 for &key in eset.completed.keys() {
                     furthest.insert(key, set as u32);
                 }
