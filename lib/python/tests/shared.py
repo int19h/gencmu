@@ -93,12 +93,18 @@ def mismatch(pattern: Any, value: Any, where: str = "$") -> str | None:
 
 def result_problems(value: dict[str, Any]) -> list[str]:
     """What a canonical result breaks of the invariants that every runner
-    checks on every result, whatever the case expects (tests/README.md): no
-    stage has a tied tree, and a stage whose verdict is tie has no output,
+    checks on every result, whatever the case expects (tests/README.md): an
+    ambiguous error has no token or source, no stage has a tied tree, and a stage whose verdict is tie has no output,
     comes last, and has the result's ambiguous error with the reason tie,
     its name and two readings."""
     problems: list[str] = []
     stages = value["stages"]
+    error = value["error"]
+    # An ambiguous error has no position (docs/output.md).
+    if isinstance(error, dict) and error.get("kind") == "ambiguous":
+        for member in ("token", "source"):
+            if member in error:
+                problems.append(f"the ambiguous error has a member {member}")
     for index, stage in enumerate(stages):
         if "tied" in stage:
             problems.append(f"stage {stage['name']} has a tied tree")

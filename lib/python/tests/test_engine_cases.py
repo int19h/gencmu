@@ -181,6 +181,8 @@ class EngineCases(unittest.TestCase):
             "a stage with a tied tree": {**value, "stages": [{**tied, "tied": value["error"]["readings"][1]}]},
             "a stage after the tie": {**value, "stages": [tied, {"name": "later", "verdict": "unique"}]},
             "an error without a reason": {**value, "error": {key: found for key, found in value["error"].items() if key != "reason"}},
+            "an ambiguous error with a token": {**value, "error": {**value["error"], "token": 0}},
+            "an ambiguous error with a source": {**value, "error": {**value["error"], "source": [0, 1]}},
         }
         for name, mutant in mutants.items():
             with self.subTest(mutant=name):
