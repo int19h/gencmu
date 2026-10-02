@@ -458,7 +458,7 @@ A directive is a keyword and its operands. By convention each stands in a block 
 
   The operands are identifier tags: bare names that begin with a capital, or `~name`, so `KU` and `~KU` are one operand. A phoneme tag, a character tag, a range or a property there is an error. A stage can have several `%elidable` directives, and their terminators add up.
 
-  `%elidable maximal TOI SEhU` names terminators that are elidable and also maximal. The word `maximal` stands first. A maximal terminator can be elided only where its constituent cannot be longer, as `maximal` says below, but for that terminator alone. It applies in the main parse and in nested queries. A terminator that any `%elidable maximal` names is maximal.
+  `%elidable maximal TOI SEhU` names terminators that are elidable and also maximal. The word `maximal` stands first. A maximal terminator can be elided only where its constituent cannot be longer, as stage-wide `maximal` says below, but for that terminator alone. It applies in the main parse and in nested queries. A terminator that any `%elidable maximal` names is maximal.
 - `%stage NAME`, `%include "PATH"` and `%features NAME ...` build a pipeline, as the next section says.
 
 ## Pipelines
@@ -508,7 +508,7 @@ A grammar admits every parse that its rules allow. Where a text has more than on
 
 A tie is an error of kind `ambiguous`. The stage hands nothing on, and no later stage runs. The error shows two of the tied parses. The stage shows the first point at which they differ, its witness.
 
-The engine's canonical order (engine §6) orders the ambiguity diagnostics and selects the forbidden terminator that a `maximal` rejection reports. Among its keys are the numbers of the productions, which follow the order of a rule's alternatives. The canonical tie-break keys never turn a tie into an accepted reading.
+The engine's canonical order (engine §6) orders the ambiguity diagnostics and selects the forbidden terminator that a maximality rejection reports. Among its keys are the numbers of the productions, which follow the order of a rule's alternatives. The canonical tie-break keys never turn a tie into an accepted reading.
 
 `greedy` and `lazy` treat each parse as the sequence of steps that a bottom-up reader takes. A step reads the next token or closes a constituent. gencmu compares the parses at the first step where two of them differ:
 
@@ -548,11 +548,13 @@ By default, the constituent of an elided terminator can end wherever a parse of 
 
 `maximal` only removes parses, and never chooses among the parses that remain. The rule of the stage ranks the parses that remain, as before. `maximal` does not order the alternatives of a rule, as a PEG does. A stage that declares `maximal` still sees every parse that its rules allow, apart from those that `maximal` removes.
 
-If `maximal` leaves a text with no parse, the text is an error. The error is at the first terminator that `maximal` forbids in the parse that the stage ranks first without `maximal`. Writing that terminator out ends its constituent there. Where that ranking is a tie, the engine's canonical order decides which tied parse names the terminator. It never decides whether the text parses.
+If maximality, from stage-wide `maximal` or from maximal terminators, removes every main parse, the text is an error. The error is at the first terminator that maximality forbids in the parse that the stage ranks first without it. Writing that terminator out ends its constituent there. Where that ranking is a tie, the engine's canonical order decides which tied parse names the terminator. It never decides whether the text parses.
 
 `maximal` and `late-elision` do different things, and a stage can declare both. `late-elision` ranks only parses of the whole text. `maximal` removes a parse because of a longer constituent, even one that fits no parse of the whole text. So a ranking cannot reproduce the rejections of `maximal`.
 
-`maximal` holds for every terminator of a stage, and only in its main parse. A grammar can also make single terminators maximal, with `%elidable maximal` (engine §4). Such a terminator follows the rule of `maximal` wherever it is elided, also inside `matches`, `begins` and `tags`. Inside a query, the longer constituent lies within the query's own span. The other terminators of the stage keep the default.
+Stage-wide `maximal` holds for every elidable terminator of a stage, and only in its main parse. A grammar can also make single terminators maximal, with `%elidable maximal` (engine §4). Such a terminator follows the rule of `maximal` wherever it is elided, in the main parse and inside `matches`, `begins` and `tags`. Inside a query, the longer constituent lies within the query's own span, and it holds whether or not a terminator is written. The other terminators of the stage keep the default.
+
+A rejection names a forbidden terminator only when maximality removes every main parse. A nested query that maximality changes only changes the value of its condition. If no parse then remains, the error is an ordinary rejection, which lists the terminals expected at the furthest position.
 
 This is for a construct that a reader closes as late as it can, such as a parenthesis. In Zantufa, `so to mi klama` can close the parenthesis `to` after `mi`, with `toi` elided, and leave `klama` as the selbri. The reference parser reads `to mi klama` as one parenthesis. No `toi` is written, so written-terminator priority cannot decide. With `TOI` maximal, the `to` cannot close before `klama`, because a longer parenthesis exists.
 
