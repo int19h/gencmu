@@ -35,7 +35,7 @@ So `to mi klama` holds `mi klama` in its parenthesis, because the other reading 
 
 The layer does not declare `elision-only`, the option that applies CLL's rule that a terminator can be elided only where no ambiguity results. The layer has real ambiguities that are not about terminators. A parser of camxes-exp settles them by the order of its alternatives. This layer settles them with rules of its own:
 
-- In a tanru and between operators, a `ke` directly after a joik opens the connective's own `ke` group ("Selbri and tanru").
+- In a tanru and between operators, a `ke` directly after a joik opens the connective's own `ke` group ("Selbri and tanru", "Numbers, lerfu strings and mekso").
 - A connection that can be a sumti connection is one ("Terms").
 - A `be` group attaches to the tanru unit before it ("Selbri and tanru").
 - A subscript after a subscript nests. Any other free modifier after a subscript belongs to the word that the subscript marks ("Free modifiers, vocatives and indicators").
@@ -207,6 +207,8 @@ The rules `term` and `term-bo-group`, and their forms in a list of terms, state 
 Tags carry what the condition needs, so that it never parses the part before again. A tag `~link-extensible-end` says that a part ends with a sumti that a plain connective can extend. `~bo-extensible-end` says the same for a connective with `bo`. `~sumti-start` says that a link begins with a sumti. A tense or modal before the sumti keeps these tags. Each rule of the chain passes them up from its first or its last part.
 
 `sumti-2` has both end tags, since a connective can always extend it. A `ke` group with a written `ke'e` has none, so `mi .e ke do ke'e .e ko'a klama` joins two terms. After `vu'o`, a plain connective can extend the sumti, but a connective with `bo` cannot. `$EXTENSIBLE-END` holds the two end tags.
+
+A termset closed by a written `nu'u` is never a sumti for this rule, and a link that begins with one has no `~sumti-start`. So `mi .e ge do gi ti nu'u klama` joins two terms, the second a termset. Without `nu'u`, `mi .e ge do gi ti klama` joins two sumti, since the termset reading elides `nu'u`.
 
 `pe'e` takes any statement connective. The new terms are a bare `na`, and, under `soi-clause`, `soi subsentence se'u` as camxes-exp reads it. `fi'oi` and `xoi` are members of SOI.
 
