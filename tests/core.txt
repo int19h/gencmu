@@ -1283,3 +1283,11 @@ adhoc.zantufa.elision.separator.cu-not-elided-after-jai
 adhoc.zantufa.elision.separator.cu-not-elided-in-quote
 adhoc.zantufa.elision.separator.written-iau
 adhoc.zantufa.elision.separator.iau-after-vau
+adhoc.zantufa.elision.maximal-terminators.to-holds-rest-recap
+adhoc.zantufa.elision.maximal-terminators.to-holds-rest-after-so
+adhoc.zantufa.elision.maximal-terminators.to-holds-rest-after-pa
+adhoc.zantufa.elision.maximal-terminators.to-holds-sumti-in-me
+adhoc.zantufa.elision.maximal-terminators.sei-holds-rest
+adhoc.zantufa.elision.maximal-terminators.metonymy
+adhoc.zantufa.elision.tag-term.free-after-tag-in-sei
+adhoc.zantufa.elision.tag-term.free-after-tag-in-to

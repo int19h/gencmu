@@ -31,6 +31,10 @@ A PEG's repetition reads as far as it can, and the ranking usually gives the sam
 
 A condition parses the words that it tests, and that nested parse can elide terminators. It follows written-terminator priority ([engine §4](../../docs/engine.md#4-recognition)). So it cannot elide a terminator where the same construct can read on to that terminator as written. A PEG's lookahead reads on in the same way. So `cy to roi toi klama` parses as in Zantufa, with `roi` inside the parenthesis. The condition on a sumti term does not find the tag `cy roi` with an empty parenthesis there.
 
+Written-terminator priority does not help where no terminator is written. `to` holds a text and `sei` holds a statement, and the reference reads that content as far as it can. A nested reading here closed a `to` or a `sei` early, with its terminator elided. A negative condition then found a reading that the reference never forms, and it removed the right reading. So `%elidable maximal TOI SEhU` makes these two terminators maximal ([engine §4](../../docs/engine.md#4-recognition)). An elided `toi` or `se'u` then closes only content that cannot be longer, in the main parse and in each condition.
+
+These texts showed the problem, and each now has Zantufa's reading. In `so to recap` and `so to mi klama`, the parenthesis holds the rest of the text, and the text is one mekso. In ` o'ocu'i is mere tolerance`, the parenthesis after `re` holds `le rance`. In `ro sei ny rere'u basna mutce cusku`, the `sei` holds `ny rere'u basna mutce cusku`. Before, each of them closed the `to` or `sei` early in a condition's nested reading. The rule also rejects `metonymy`, as Zantufa does, because the parenthesis takes `ny my`, and `me` then has nothing.
+
 The reference writes `CU_elidible`, but `cu` is a separator. It stands between the terms and the bridi-tail, and it closes neither of them. CLL's grammar does not make `cu` elidable either. So `[CU #]` is an ordinary optional here. A written `cu` parses as before, and a sentence can still omit it. `maximal` and `elision-only` do not treat `cu` as a terminator.
 
 An absent `cu` makes no elided node in the tree, and the ranking does not count it. This matters. If `cu` is elidable, an absent `cu` is an elision before the bridi-tail, and so an early one. The ranking then prefers a reading that closes a parenthesis, a quote or a `jai` early, and begins the bridi-tail later. With an elidable `cu`, `to na cafne` closes the parenthesis after `na`. Zantufa holds `na cafne` in the parenthesis, and so does this grammar.
@@ -51,7 +55,8 @@ Each of these conditions is a restriction of the grammar, not a preference among
 
 %elidable
   BEhO BOI DOhU FEhU GEhU GIhI KEI KEhE KU KUhAU KUhE
-  KUhO LIhAU LIhU LOhO LUhU MEhU SEhU TEhU TOI TUhU VAU VEhO
+  KUhO LIhAU LIhU LOhO LUhU MEhU TEhU TUhU VAU VEhO
+%elidable maximal TOI SEhU
 
 %rule #
   [free ...]
@@ -286,6 +291,8 @@ Zantufa has no termsets. A term is a `xoi` clause, a `ke` group of terms, a tens
 
 In a term, no forethought bridi-tail, `bo` or selbri directly follows a tense or modal, as the reference's lookaheads say. No further part of a tense or modal follows it either, because the reference reads a tense or modal as far as it can. The reference's lookahead lets a selbri follow where the selbri begins with a tense or modal. But no such selbri is left after a tense or modal that reads as far as it can. So `mi pe pu ba broda` has no parse, as in Zantufa, and `mi pe pu ku ba broda` has one.
 
+Before its argument is read, a tag cannot leave a following free modifier unread. The reference's final word clause consumes that modifier before the tag-term lookaheads run. So in `sei abu pensi ba ju'o rinka`, the tag is `ba ju'o`, and the selbri `rinka` follows it. The condition on a selbri then removes the term, and the statement of the `sei` ends after `pensi`, as in Zantufa.
+
 A `ke` group of terms comes before a sumti that begins with `ke`, as in the reference's ordered choice. Where `ke'e` is elided, both can read the same words. So `ke mi klama` is a group of terms, `ke mi`, and then the selbri. It is not the sumti `ke mi` with an elided `ke'e`. Both readings elide one `ke'e`, so without a condition they tie. The condition on the sumti alternative (`ke-group-of-terms`) removes the sumti reading exactly where the group of terms begins.
 
 ```jbogenbau
@@ -347,6 +354,7 @@ A `ke` group of terms comes before a sumti that begins with `ke`, as in the refe
   | $f(fa-jai) tag-term-argument
 %conditions
   ¬begins(from($t), gek),
+  ¬begins(after($t), free),
   ¬begins(after($t), tcita-selci),
   ¬begins(after($t), selbri),
   ¬begins(after($t), gek-bridi-tail),
