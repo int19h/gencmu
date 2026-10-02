@@ -13,6 +13,7 @@ type stageGrammar struct {
 	elisionOnly bool
 	maximal     bool // no terminator is elided where its constituent could have been longer (engine §4)
 	elidable    map[string]bool
+	maximalT    map[string]bool // the maximal terminators, named by %elidable maximal (engine §2, §4)
 	changes     []stitchChange
 	// classifierSet holds the stage's classifiers, and implications its
 	// implications with their values (engine §2, §11).
@@ -75,7 +76,7 @@ func isTerminalName(name string) bool {
 }
 
 func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, *Error) {
-	g := &stageGrammar{name: stageName, uni: uni, constants: map[string]*stageConst{}, byName: map[string]*sRule{}, elidable: map[string]bool{}}
+	g := &stageGrammar{name: stageName, uni: uni, constants: map[string]*stageConst{}, byName: map[string]*sRule{}, elidable: map[string]bool{}, maximalT: map[string]bool{}}
 	g.classifierSet.names = map[string]bool{}
 	var implications []implicationItem
 	fail := func(doc string, at [2]int, format string, args ...any) *Error {
@@ -153,6 +154,9 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 			case "elidable":
 				for _, a := range dir.Args {
 					g.elidable[a] = true
+					if dir.Maximal {
+						g.maximalT[a] = true
+					}
 				}
 			default:
 				return nil, fail(d.path, dir.At, "unknown directive %%%s", dir.Name)
