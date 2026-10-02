@@ -349,9 +349,11 @@ The four libraries already find the furthest completion of each symbol from each
 
 The engine feature and the choice of terminators are separate decisions. The engine defines what a maximal terminator does. The Zantufa grammar chooses which of its terminators are maximal, and that choice has a cost.
 
-A scope experiment ran 74 cases with `TOI` and `SEhU` maximal. Maximality in queries alone settles the four motivating readings, and it accepts all 27 texts of the greed experiment. Maximality in both scopes settles the same readings, but it rejects one of the 27, `corpus.camxes.2115`. On the 39 jobs that changed under V1, both choices give the same results: six bracket changes, no rejection and no tie.
+A scope experiment ran 74 cases with `TOI` and `SEhU` maximal, before the fix of `tag-term` below. Maximality in queries alone settles the four motivating readings, and it accepts all 27 texts of the greed experiment. Maximality in both scopes settles the same readings, but it rejects one of the 27, `corpus.camxes.2115`. On the 39 jobs that changed under V1, both choices give the same results: six bracket changes, no rejection and no tie.
 
-Both scopes also reject the reduced text `sei abu pensi ba ju'o rinka`, which lies outside the 27. The reference and the earlier grammar read it as `[sei abu pensi] [ba ju'o rinka]`. The chart holds the longer statement `abu pensi ba`. The longer constituent need not fit the enclosing construct, so `se'u` cannot be elided after `pensi` in the main parse.
+Both scopes also rejected the reduced text `sei abu pensi ba ju'o rinka`, which lies outside the 27. The reference and the earlier grammar read it as `[sei abu pensi] [ba ju'o rinka]`. The chart then held the longer statement `abu pensi ba`, with `ba` as a tag on its own. The longer constituent need not fit the enclosing construct, so maximality forbade the elided `se'u` after `pensi` in the main parse.
+
+The Zantufa `tag-term` now has the condition `¬begins(after($t), free)`. It removes that spurious candidate. In the reference, the tag is `ba ju'o`, so the `sei` ends after `pensi`. With this condition, both `corpus.camxes.2115` and the reduced text keep their readings.
 
 The main-parse scope enforces the declared restriction on main derivations, whatever the conditions say. The measurements do not show that the four motivating readings need it. They also do not show that it is useless in general. The approved semantics keeps both scopes.
 
@@ -369,7 +371,7 @@ A bounded query stays within its span. A `matches` over a captured span asks whe
 
 The notation offers the third reading as `maximal` (engine §4). It is a condition on which parses count, stated over the recognizer's items. It does not order the alternatives of a rule, so a grammar stays a description of its language. The bpfk dialect reads elided terminators this way, because the definition effort that approved its word forms also adopted the PEG.
 
-The cll-ebnf dialect takes the printed grammar as normative, and keeps the literal reading. So do the experimental and Zantufa dialects, which accept the most. The cll-ebnf and bpfk dialects each name their reading in their pipeline documents, after they include the CLL grammar. A stage states its `%ambiguity-resolution` exactly once, so the experimental layer over the CLL grammar states its own.
+The cll-ebnf dialect takes the printed grammar as normative, and keeps the literal reading. So do the experimental and Zantufa dialects, which accept the most. Zantufa has explicit exceptions for `TOI` and `SEhU`, which are maximal terminators and commit as the PEG does. Its grammar document lists the three texts that it rejects for this reason. The cll-ebnf and bpfk dialects each name their reading in their pipeline documents, after they include the CLL grammar. A stage states its `%ambiguity-resolution` exactly once, so the experimental layer over the CLL grammar states its own.
 
 A measurement at the time `maximal` was specified used the 24,552 CLL cases that the corpus then held. There, `maximal` rejects 68 texts that the literal reading accepts, and camxes-std, the reference PEG, rejects 66 of them. `maximal` changes the chosen reading of no text that it accepts. In 2,892 texts, it removes only parses that the greedy ranking already beat, so their verdict becomes `unique` instead of `resolved`.
 
