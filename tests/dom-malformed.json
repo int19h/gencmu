@@ -115,5 +115,37 @@
       ]
     },
     "malformed": false
+  },
+  {
+    "description": "A maximal elidable directive with an unknown member. A library ignores a member of a directive that it does not know, and checks the members that it knows (docs/output.md).",
+    "directive": {
+      "name": "elidable",
+      "args": [
+        "T"
+      ],
+      "maximal": true,
+      "note": "an unknown member",
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "An unknown member does not excuse a malformed known member: maximal on ambiguity-resolution stays malformed (docs/output.md, engine §9).",
+    "directive": {
+      "name": "ambiguity-resolution",
+      "args": [
+        "greedy"
+      ],
+      "maximal": true,
+      "note": "an unknown member",
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
   }
 ]
