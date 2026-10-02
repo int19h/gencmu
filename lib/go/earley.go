@@ -1,5 +1,7 @@
 package gencmu
 
+import "sync/atomic"
+
 // The recognizer (engine §4): an Earley parser whose items carry, for each
 // capture before the dot, the captured part's span and tag set, and which
 // evaluates each condition as soon as the item has read the last capture it
@@ -158,11 +160,17 @@ func (r *recognizer) predictable(p *production, k int) bool {
 	return true
 }
 
+// recognizerWork counts the items that the recognizer makes, in parses and
+// nested parses alike, for a test that the work grows with the input's
+// length (tests/growth.json).
+var recognizerWork struct{ items atomic.Int64 }
+
 func (r *recognizer) add(k int, key itemKey, l link, hasLink bool) {
 	s := r.set(k)
 	it := s.index[key]
 	if it == nil {
 		it = &item{itemKey: key, set: int32(k)}
+		recognizerWork.items.Add(1)
 		s.index[key] = it
 		s.items = append(s.items, it)
 	}
