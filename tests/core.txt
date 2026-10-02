@@ -1291,3 +1291,5 @@ adhoc.zantufa.elision.maximal-terminators.sei-holds-rest
 adhoc.zantufa.elision.maximal-terminators.metonymy
 adhoc.zantufa.elision.tag-term.free-after-tag-in-sei
 adhoc.zantufa.elision.tag-term.free-after-tag-in-to
+adhoc.zantufa.elision.maximal-terminators.gek-branch-empty-after-to
+adhoc.zantufa.elision.maximal-terminators.soi-takes-selbri
