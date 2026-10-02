@@ -600,6 +600,32 @@ class RankingProperty(unittest.TestCase):
         self.assertEqual(expected["verdict"], "resolved")
         self.assertEqual(library_ranking(forest, lowered.lean, None), expected)
 
+    def test_a_divergence_past_any_fixed_bound_stays_decisive(self) -> None:
+        """Two derivations that first differ visibly after 2^n visible
+        actions differ decisively there, however large n is. The point
+        after every visible action, for derivations that differ only in
+        transparent actions, is no number of actions, so no real count
+        reaches it. Under greedy, rN A reads A where rN z A closes z, so the
+        input is resolved."""
+        for n in (60, 100):
+            with self.subTest(n=n):
+                grammar = f"%rule text r{n} A | r{n} z A\n%rule z w w\n%rule w ε\n%rule r0 ε\n" + "\n".join(
+                    f"%rule r{i} r{i - 1} r{i - 1}" for i in range(1, n + 1)
+                )
+                dialect, error = load_case_dialect({"grammar": grammar})
+                assert dialect is not None, error
+                lowered = dialect.lowered(0, frozenset(), False)
+                context = StageContext(lowered, [Token("a", frozenset(["A"]), (0, 1), (0, 1))], "a", dialect.unicode)
+                context.count = count_roots
+                forest = Parser(context).parse(lowered.rule_ids["text"])
+                # The ranking alone: the chosen tree has 2^n nodes, so the
+                # stage cannot build it.
+                ranking = rank(forest, "greedy")
+                assert ranking is not None
+                self.assertEqual((ranking.verdict, ranking.second), ("resolved", None))
+                assert ranking.first is not None
+                self.assertGreater(ranking.first.vis, 2**n)
+
     def test_a_least_count_that_disagrees_is_an_internal_error(self) -> None:
         """If the least count of late-elision and the ranking with no lean
         over the best derivations ever disagree, the library fails with an

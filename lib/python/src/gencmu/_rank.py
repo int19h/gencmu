@@ -13,12 +13,19 @@ earliest. Everything else is settled where it is found.
 
 from __future__ import annotations
 
+import math
 from typing import Any, Iterator, Optional
 
 from ._earley import Forest
 from ._maximal import Maximal
 
-INF = 1 << 60
+Count = float
+"""A number of visible actions, an exact integer, or INF."""
+
+INF: Count = math.inf
+"""The point of divergence of two derivations that differ only in
+transparent actions: after every visible action. It is no integer, so no
+real count of visible actions, however large, can reach it."""
 
 
 class Act:
@@ -181,7 +188,7 @@ def canonical(x: Act, y: Act) -> int:
 class Comparison:
     __slots__ = ("settled", "order", "index", "decisive", "x", "y")
 
-    def __init__(self, settled: bool, order: int, index: int, decisive: bool, x: Act | None = None, y: Act | None = None) -> None:
+    def __init__(self, settled: bool, order: int, index: Count, decisive: bool, x: Act | None = None, y: Act | None = None) -> None:
         self.settled = settled
         self.order = order
         self.index = index
@@ -228,7 +235,7 @@ class Entry:
 
     __slots__ = ("seq", "alts", "at")
 
-    def __init__(self, seq: Rope | None, alts: list[Alt], at: int) -> None:
+    def __init__(self, seq: Rope | None, alts: list[Alt], at: Count) -> None:
         self.seq = seq
         self.alts = alts
         self.at = at
@@ -640,7 +647,7 @@ class Ranker(Summaries):
                 self.offer(result, concat(before.seq, alt), at)
         return result
 
-    def offer(self, entry: Entry, alt: Rope | None, at: int) -> None:
+    def offer(self, entry: Entry, alt: Rope | None, at: Count) -> None:
         """Add a tied derivation to an entry's, keeping the earliest-diverging,
         and of those the T-least of any two whose order is
         settled."""
@@ -742,7 +749,7 @@ class Ranker(Summaries):
         # so it first differs from it visibly where the first one ends, and
         # so do its tied derivations that diverge from it no earlier.
         length = vis(first.seq)
-        candidates: list[tuple[int, Rope | None]] = [(first.at, alt) for alt in first.alts]
+        candidates: list[tuple[Count, Rope | None]] = [(first.at, alt) for alt in first.alts]
         for entry in kept:
             if entry is first:
                 continue
