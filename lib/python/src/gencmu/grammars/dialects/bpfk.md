@@ -108,3 +108,5 @@ A PEG is greedy everywhere, and `maximal` only where a terminator is elided. So 
 In `le nu da poi remna li paso nanca kei cu broda`, the tail terms of `remna` are `li paso`, and `vau` is elided before `nanca`. `maximal` forbids that, because the terms can also be `li pa` and `so nanca`. That reading splits the number `paso`, which a PEG reads whole. The design document records this, the one such text of the test corpus.
 
 The stage also ranks with `late-elision` and applies `elision-only`, as in the cll-ebnf dialect. `late-elision` takes the parse that elides a terminator later. Unlike a PEG, the stage does not order the alternatives of a rule. So a text that the grammar leaves ambiguous in anything but a terminator is an error that shows both readings. The CLL grammar removes one such ambiguity with a condition: `mi broda joi ke brode ke'e` is a `ke` group joined by `joi`.
+
+camxes-std departs from this. It tries the plain connective first, so it reads `joi` before a tanru unit that begins with `ke`. Where only the plain reading parses, as in `mi broda joi ke brode ke'e bo brodi`, the dialect agrees with camxes-std.

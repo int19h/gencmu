@@ -204,7 +204,9 @@ Without this rule, each of the first three texts has two readings, which elide t
 
 The rules `term` and `term-bo-group`, and their forms in a list of terms, state the rule. Each is left-recursive, so that its condition sees the part before a connective and the link after it. The condition refuses a link where the part before ends with a sumti that the connective can extend, and the link begins with a sumti. So the tree of three or more connected terms nests to the left, as they group.
 
-`sumti-final-term` and `sumti-final-bo-group` find such an end, after an optional tense or modal. `link-extensible-sumti` and `bo-extensible-sumti` are the sumti that a plain connective, or a connective with `bo`, can extend. A sumti that ends with `ke ... ke'e` is not one of them. So `mi .e ke do ke'e .e ko'a klama` joins two terms.
+Tags carry what the condition needs, so that it never parses the part before again. A tag `~link-extensible-end` says that a part ends with a sumti that a plain connective can extend. `~bo-extensible-end` says the same for a connective with `bo`. `~sumti-start` says that a link begins with a sumti. A tense or modal before the sumti keeps these tags. Each rule of the chain passes them up from its first or its last part.
+
+`sumti-2` has both end tags, since a connective can always extend it. A `ke` group with a written `ke'e` has none, so `mi .e ke do ke'e .e ko'a klama` joins two terms. After `vu'o`, a plain connective can extend the sumti, but a connective with `bo` cannot. `$EXTENSIBLE-END` holds the two end tags.
 
 `pe'e` takes any statement connective. The new terms are a bare `na`, and, under `soi-clause`, `soi subsentence se'u` as camxes-exp reads it. `fi'oi` and `xoi` are members of SOI.
 
@@ -225,22 +227,26 @@ The layer reads a termset with `nu'i` as `nu'i` with a forethought form wherever
 %redefine-rule term
   (* term_1 <- term_2 (joik_ek !tag_bo_ke_bridi_tail !tag_bo_subsentence term_2)* *)
   | term-bo-group
-  | $t(term) $l(term-link)
+  | $t(term) $l(term-link) <tags($l) ∩ $EXTENSIBLE-END>
 %conditions
-  ¬matches($t, sumti-final-term) ∨ ¬begins($l, sumti-link-start)
+  ~link-extensible-end ⊈ tags($t) ∨ ~sumti-start ⊈ tags($l)
 
 %rule term-bo-group
   (* term_2 <- term_3 (joik_ek stag? BO_clause term_3)* *)
   | term-3
-  | $g(term-bo-group) $l(term-bo-link)
+  | $g(term-bo-group) $l(term-bo-link) <(tags($g) ∩ ~sumti-start) ∪ (tags($l) ∩ $EXTENSIBLE-END)>
 %conditions
-  ¬matches($g, sumti-final-bo-group) ∨ ¬begins($l, sumti-bo-link-start)
+  ~bo-extensible-end ⊈ tags($g) ∨ ~sumti-start ⊈ tags($l)
 
 %rule term-bo-link
-  term-connective [stag] BO # term-3
+  term-connective [stag] BO # $u(term-3)
+%tags
+  tags($u) ∩ ($EXTENSIBLE-END ∪ ~sumti-start)
 
 %rule term-link
-  $c(term-connective) term-bo-group
+  $c(term-connective) $g(term-bo-group)
+%tags
+  tags($g) ∩ ($EXTENSIBLE-END ∪ ~sumti-start)
 %conditions
   ¬begins(after($c), tag-bo-ke-bridi-tail),
   ¬begins(after($c), tag-bo-subsentence)
@@ -256,31 +262,12 @@ The layer reads a termset with `nu'i` as `nu'i` with a forethought form wherever
 %rule term-connective
   joik # | jek # | ek # | VUhU #
 
-%rule sumti-final-term
-  [term term-connective] [term-bo-group term-connective [stag] BO #] [tag] link-extensible-sumti
+%const $EXTENSIBLE-END ~link-extensible-end ∪ ~bo-extensible-end
 
-%rule sumti-final-bo-group
-  [term-bo-group term-connective [stag] BO #] [tag] bo-extensible-sumti
-
-%rule link-extensible-sumti
-  | sumti-2
-  | sumti-1 VUhO # [relative-clauses] [sumti-connective link-extensible-sumti]
-  | sumti-2 sumti-connective [stag] KE # link-extensible-sumti
-
-%rule bo-extensible-sumti
-  | sumti-2
-  | sumti-1 VUhO # [relative-clauses] sumti-connective bo-extensible-sumti
-  | sumti-2 sumti-connective [stag] KE # bo-extensible-sumti
-
-%rule sumti-link-start
-  term-connective sumti
-
-%rule sumti-bo-link-start
-  term-connective [stag] BO # sumti
 
 %rule term-3
   (* term_3 <- sumti / tag_term / termset *)
-  | sumti
+  | $s(sumti) <tags($s) ∪ ~sumti-start>
   | tagged-term
   | termset
   | NA # KU #
@@ -301,36 +288,41 @@ The layer reads a termset with `nu'i` as `nu'i` with a forethought form wherever
 
 %rule tagged-term
   (* tag_term: !gek tag free* followed by a sumti or KU_elidible free* *)
-  $g(tag) (sumti | [KU] #)
+  | $g(tag) $s(sumti) <tags($s) ∩ $EXTENSIBLE-END>
+  | $g(tag) [KU] #
 %conditions
   ¬begins(from($g), gek)
 
 %rule listed-term
   (* abs_term_1 <- abs_term_2 (joik_ek !tag_bo_ke_bridi_tail !tag_bo_subsentence abs_term_2)* *)
   | listed-term-bo-group
-  | $t(listed-term) $l(listed-term-link)
+  | $t(listed-term) $l(listed-term-link) <tags($l) ∩ $EXTENSIBLE-END>
 %conditions
-  ¬matches($t, sumti-final-term) ∨ ¬begins($l, sumti-link-start)
+  ~link-extensible-end ⊈ tags($t) ∨ ~sumti-start ⊈ tags($l)
 
 %rule listed-term-bo-group
   (* abs_term_2 <- abs_term_3 (joik_ek stag BO_clause abs_term_3)*, with the stag optional *)
   | listed-term-3
-  | $g(listed-term-bo-group) $l(listed-term-bo-link)
+  | $g(listed-term-bo-group) $l(listed-term-bo-link) <(tags($g) ∩ ~sumti-start) ∪ (tags($l) ∩ $EXTENSIBLE-END)>
 %conditions
-  ¬matches($g, sumti-final-bo-group) ∨ ¬begins($l, sumti-bo-link-start)
+  ~bo-extensible-end ⊈ tags($g) ∨ ~sumti-start ⊈ tags($l)
 
 %rule listed-term-bo-link
-  term-connective [stag] BO # listed-term-3
+  term-connective [stag] BO # $u(listed-term-3)
+%tags
+  tags($u) ∩ ($EXTENSIBLE-END ∪ ~sumti-start)
 
 %rule listed-term-link
-  $c(term-connective) listed-term-bo-group
+  $c(term-connective) $g(listed-term-bo-group)
+%tags
+  tags($g) ∩ ($EXTENSIBLE-END ∪ ~sumti-start)
 %conditions
   ¬begins(after($c), tag-bo-ke-bridi-tail),
   ¬begins(after($c), tag-bo-subsentence)
 
 %rule listed-term-3
   (* abs_term_3 <- sumti / abs_tag_term / termset *)
-  | sumti
+  | $s(sumti) <tags($s) ∪ ~sumti-start>
   | listed-tagged-term
   | termset
   | NA # KU #
@@ -339,7 +331,8 @@ The layer reads a termset with `nu'i` as `nu'i` with a forethought form wherever
 
 %rule listed-tagged-term
   (* abs_tag_term: !gek tag free* !selbri !gek_sentence, then a sumti or an elided KU *)
-  $g(tag) (sumti | [KU] #)
+  | $g(tag) $s(sumti) <tags($s) ∩ $EXTENSIBLE-END>
+  | $g(tag) [KU] #
 %conditions
   ¬begins(from($g), gek),
   ¬begins(after($g), selbri-after-tag)
@@ -391,18 +384,18 @@ The layer reads a termset with `nu'i` as `nu'i` with a forethought form wherever
 
 %rule listed-term-not-starting-with-bare-gek
   | listed-term-bo-group-not-starting-with-bare-gek
-  | $t(listed-term-not-starting-with-bare-gek) $l(listed-term-link)
+  | $t(listed-term-not-starting-with-bare-gek) $l(listed-term-link) <tags($l) ∩ $EXTENSIBLE-END>
 %conditions
-  ¬matches($t, sumti-final-term) ∨ ¬begins($l, sumti-link-start)
+  ~link-extensible-end ⊈ tags($t) ∨ ~sumti-start ⊈ tags($l)
 
 %rule listed-term-bo-group-not-starting-with-bare-gek
   | listed-term-3-not-starting-with-bare-gek
-  | $g(listed-term-bo-group-not-starting-with-bare-gek) $l(listed-term-bo-link)
+  | $g(listed-term-bo-group-not-starting-with-bare-gek) $l(listed-term-bo-link) <(tags($g) ∩ ~sumti-start) ∪ (tags($l) ∩ $EXTENSIBLE-END)>
 %conditions
-  ¬matches($g, sumti-final-bo-group) ∨ ¬begins($l, sumti-bo-link-start)
+  ~bo-extensible-end ⊈ tags($g) ∨ ~sumti-start ⊈ tags($l)
 
 %rule listed-term-3-not-starting-with-bare-gek
-  | sumti
+  | $s(sumti) <tags($s) ∪ ~sumti-start>
   | listed-tagged-term
   | termset-with-nuhi
   | NA # KU #
@@ -434,13 +427,18 @@ A description can take a forethought sentence in place of a selbri, and so can a
 
 ```jbogenbau
 %redefine-rule sumti
-  sumti-1 [VUhO # [relative-clauses [sumti-connective sumti] | sumti-connective sumti]]
+  | sumti-1
+  | sumti-1 VUhO # [relative-clauses] <~link-extensible-end>
+  | sumti-1 VUhO # [relative-clauses] sumti-connective $i(sumti) <tags($i) ∩ $EXTENSIBLE-END>
 
 %redefine-rule sumti-1
-  sumti-2 [sumti-connective [stag] KE # sumti [KEhE] #]
+  | sumti-2
+  | sumti-2 sumti-connective [stag] KE # $i(sumti) [KEhE] # <KEhE ⊈ tags(head(after($i))) ⟹ tags($i) ∩ $EXTENSIBLE-END>
 
 %redefine-rule sumti-2
   sumti-3 [sumti-connective sumti-3] ...
+%tags
+  $EXTENSIBLE-END
 
 %redefine-rule sumti-3
   sumti-4 [sumti-connective [stag] BO # sumti-3]
@@ -504,7 +502,9 @@ Consecutive relative clauses can be joined by a joik, a jek or an ek, as well as
 
 Selbri and tanru-unit connectives are joik, jek, ek or VUhU (`selbri-connective`). A bare `fa`, which matches the rule `tag`, can come before a selbri. The term after `be` or `bei` can be absent. The new tanru units are a cmevla, under `cbm`, and preposed linked arguments (`lo be mi broda`). `me'oi` with the word that it quotes is a tanru unit too (`le me'oi klama cu broda`).
 
-In the plain form of `selbri-4`, the connective is `plain-selbri-connective`. It is the CLL rule `plain-joik-jek` with this layer's connectives, so a unit that begins with `ke` cannot directly follow its joik. So `mi broda joi ke brode ke'e` joins a `ke` group with `joi`, through `joik [stag] KE`, as the CLL grammar does. camxes-exp departs here. It tries the plain connective first, and reads `joi` before a tanru unit that begins with `ke`. In this text, both readings group the same words. The layer follows the official parser of CLL.
+In the plain form of `selbri-4`, the connective is `plain-selbri-connective`, the CLL rule `plain-joik-jek` with this layer's connectives. As in CLL, a joik directly before `ke` is `joik-before-ke`, and its unit cannot be only a `ke` group. So `mi broda joi ke brode ke'e` joins a `ke` group with `joi`, through `joik [stag] KE`, as the CLL grammar does. camxes-exp departs here. It tries the plain connective first, and reads `joi` before a tanru unit that begins with `ke`. In this text, both readings group the same words.
+
+Where only the plain reading parses, the layer keeps it, as camxes-exp does. So `mi broda joi ke brode ke'e bo brodi` joins `broda` to the unit `ke brode ke'e bo brodi`. The official parser of CLL rejects that text. The layer redefines `ke-selbri-group` and `ke-operator-group` with its own place for free modifiers.
 
 A group of preposed linked arguments comes before a whole `tanru-unit-1`, as in camxes-exp. A `be` group attaches to the tanru unit before it, where there is one. So a unit without a group of its own cannot be directly followed by `be` (`tanru-unit-1`). A preposed group stands only where no such unit comes before it, as at the start of a selbri or after a connective.
 
@@ -516,7 +516,7 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
 
 ```jbogenbau
 %redefine-rule selbri-4
-  selbri-5 [plain-selbri-connective selbri-5 | joik [stag] KE # selbri-3 [KEhE] #] ...
+  selbri-5 [plain-selbri-connective selbri-5 | joik-before-ke selbri-5-not-ke-group | joik [stag] KE # selbri-3 [KEhE] #] ...
 
 %rule plain-selbri-connective
   | $j(joik) #
@@ -525,6 +525,9 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   | VUhU #
 %conditions
   KE ⊈ tags(head(after($j)))
+
+%redefine-rule ke-selbri-group
+  KE # selbri-3 [KEhE] #
 
 %redefine-rule selbri-5
   selbri-6 [selbri-connective [stag] BO # selbri-5]
@@ -542,7 +545,7 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   selbri-4-not-starting-with-ke [selbri-4] ...
 
 %rule selbri-4-not-starting-with-ke
-  selbri-5-not-starting-with-ke [plain-selbri-connective selbri-5 | joik [stag] KE # selbri-3 [KEhE] #] ...
+  selbri-5-not-starting-with-ke [plain-selbri-connective selbri-5 | joik-before-ke selbri-5-not-ke-group | joik [stag] KE # selbri-3 [KEhE] #] ...
 
 %rule selbri-5-not-starting-with-ke
   selbri-6-not-starting-with-ke [selbri-connective [stag] BO # selbri-5]
@@ -627,7 +630,7 @@ camxes-exp replaces CLL's mekso with its own, and the layer follows it (camxes-e
 - An operand of a mekso is `mex-2`: a number or a lerfu string, a `vei` group, a forethought connection, or a `la'e` or `na'e` reference. It can also be a `pe'o` forethought expression or a reverse Polish expression. The operands `ni'e` and `mo'e` are inside numbers. There is no `jo'i` array, although the lexicon has `jo'i`. camxes-exp reads `jo'i` only in its `operand` rules, which nothing reads, so it rejects `li jo'i pa re te'u`.
 - `bo` after an operator, with an optional tense or modal, groups two operands tighter (`li pa su'i bo re`). There is no `bi'e`, and a forethought operator needs `pe'o`.
 - An operator can be a connective, a joik, jek or ek. A joik or jek operator has one slot of free modifiers, the one at the end of `joik-jek`. The PEG of camxes-exp never reads its second `free*` there.
-- `operator` joins operators with the CLL rule `plain-joik-jek`, as the CLL grammar does. So `li ci su'i joi ke pi'i ke'e re du li xa` joins `su'i` to the operator's own `ke` group. camxes-exp reads `joi` there as a plain connective before a `ke` operator.
+- `operator` joins operators with the CLL rules `plain-joik-jek` and `joik-before-ke`, as the CLL grammar does. So `li ci su'i joi ke pi'i ke'e re du li xa` joins `su'i` to the operator's own `ke` group. camxes-exp reads `joi` there as a plain connective before a `ke` operator. Where the operator goes on after its `ke` group, as in `ke pi'i ke'e je bo vu'u`, only the plain reading parses. The layer keeps it.
 - A quantifier is a whole mekso, `pa su'i re broda`. It cannot begin with a lerfu word, `la'e` or `na'e`, because camxes-exp reads a sumti there (its `!sumti_6`). camxes-exp also refuses a quantifier where a selbri begins (`!selbri`), and so does the layer. So in `mi piso'umei jimpe`, `pi so'u mei jimpe` is the selbri, and not a quantifier of a description.
 - A quantifier also cannot begin with a forethought connection whose first half begins with one of those words. The rule `gek-barrier` finds such a start, also inside a nested connection. So in `ge nai abu gi no drata`, `ge nai ... gi` joins the two sumti `abu` and `no drata`. The quantifier `ge nai abu gi no` over `drata` is not a reading. In the same way, `ge ge abu gi by gi no drata` joins two sumti, and the first one connects `abu` and `by`.
 - CLL has only the sumti reading of these texts, because a CLL quantifier is a number or a `vei ... ve'o` group. camxes-exp reads the quantifier `ge nai abu gi no` with the selbri `drata`, as in `re prenu`. The layer follows CLL here. A forethought connection of numbers is still a quantifier, as in `lo ge pa gi re mi broda`.
@@ -671,7 +674,10 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   mex-1 [rp-expression operator] ...
 
 %redefine-rule operator
-  operator-1 [plain-joik-jek operator-1 | joik [stag] KE # operator [KEhE] #] ...
+  operator-1 [plain-joik-jek operator-1 | joik-before-ke operator-1-not-ke-group | joik [stag] KE # operator [KEhE] #] ...
+
+%redefine-rule ke-operator-group
+  KE # operator [KEhE] #
 
 %redefine-rule operator-2
   mex-operator | KE # operator [KEhE] #

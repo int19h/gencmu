@@ -786,6 +786,10 @@
     }
   }
 
+  // How many items the recognizer has made, in parses and nested parses
+  // alike: a measure of work that tests compare across input lengths.
+  const recognizerCounters = { items: 0 };
+
   // What a parse and every nested parse it starts share.
   class ParseContext {
     /**
@@ -978,6 +982,7 @@
         return;
       }
       item = new Item(production, dot, origin, slots, previous, child);
+      recognizerCounters.items++;
       item.end = set.position;
       const trace = context.trace;
       if (trace && trace.depth === 0 && set.position === trace.position) {

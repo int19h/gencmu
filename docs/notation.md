@@ -564,7 +564,7 @@ With `elision-only`, after the stage chooses one of several parses, it writes th
 
 If that parse has exactly one derivation, the check passes. If it has none, the check passes too, because no two readings exist to show. With two or more, the ambiguity is not about terminators, and the parse is an error that shows two readings. A tie is an error before the check runs, so the check sees only a text that the rule settled.
 
-So the check fails only where one best parse survives, but the text with its terminators written back has two readings. The corpus measured for this decision had no such text, but that is no general guarantee. Historically, under `greedy`, `mi broda joi ke brode ke'e` was one. The CLL grammar now settles it as the official parser does. A `ke` unit cannot directly follow a plain joik, a joik that does not open its own `ke` group.
+So the check fails only where one best parse survives, but the text with its terminators written back has two readings. The corpus measured for this decision had no such text, but that is no general guarantee. Historically, under `greedy`, `mi broda joi ke brode ke'e` was one. The CLL grammar now settles it as the official parser does. A plain joik, a joik that does not open its own `ke` group, cannot take a unit that is only a `ke` group.
 
 The grammars that extend CLL are really ambiguous in places. A sumti is an argument of the selbri. A term is a wider kind of argument that includes the sumti. Historically, the experimental grammar read the `mi .e do` of `mi .e do klama` in two ways. It was two sumti joined by `.e`, or two terms joined by it. Its rule that a sumti connection comes before a term connection now settles it.
 

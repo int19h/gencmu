@@ -401,7 +401,7 @@ The syntax stage of all four Lojban dialects declares `late-elision`. The gramma
 
 The CLL grammar gains the condition that the official parser's lexer applies with `JOIK_KE`. A plain joik is a joik in the ordinary connective alternative of a rule, which joins two units. It is not the joik of the dedicated alternative `joik [stag] KE ... KEhE`, which groups with the connective itself. Where both alternatives can read the same words, a unit that starts with `ke` cannot directly follow a plain joik.
 
-The condition stands in `selbri-4` and in `operator`, the two rules where the overlap exists. So `mi broda joi ke brode ke'e` keeps only its reading through `joik KE selbri-3 KEhE`. In the same way, `li ci su'i joi ke pi'i ke'e re du li xa` keeps only the operator's own `ke` group. The `sumti` and `operand` rules have a joik-plus-`ke` alternative too, but no competing alternative, so they need no condition.
+The condition stands in `selbri-4` and in `operator`, the two rules where the overlap exists. It removes the plain reading only where the unit after the joik is only a `ke` group, so that the two readings compete. So `mi broda joi ke brode ke'e bo brodi` keeps its one plain reading, as in the printed grammar and camxes. The official parser rejects it. So `mi broda joi ke brode ke'e` keeps only its reading through `joik KE selbri-3 KEhE`. In the same way, `li ci su'i joi ke pi'i ke'e re du li xa` keeps only the operator's own `ke` group. The `sumti` and `operand` rules have a joik-plus-`ke` alternative too, but no competing alternative, so they need no condition.
 
 The condition covers no jek, because the dedicated form takes only a joik. So `mi broda je ke brode ke'e` has one reading, a jek before a tanru unit grouped with `ke`.
 
