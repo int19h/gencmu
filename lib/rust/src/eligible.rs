@@ -18,6 +18,7 @@ use std::cell::{Cell, OnceCell};
 use crate::earley::{test_holds, Cap, Chart, Item, Tok};
 use crate::fxhash::FxMap;
 use crate::lower::{Lowered, Sym};
+use crate::maximal::Maximal;
 use crate::tags::Tags;
 use crate::unicode::Unicode;
 
@@ -65,6 +66,10 @@ pub(crate) struct Proofs<'a> {
     /// The completed items of the whole chart by rule and origin, built
     /// once, when the first search for a blocking path needs it.
     index: OnceCell<CompletedIndex>,
+    /// The furthest completions of the query's chart, for the maximal
+    /// terminators, found once for the query when the first check needs
+    /// them (§4).
+    maximal: OnceCell<Maximal<'a>>,
     /// How many entries of the chart the searches have looked at: the
     /// index once, and then each completed item they read.
     operations: Cell<u64>,
@@ -78,13 +83,22 @@ impl<'a> Proofs<'a> {
         unicode: &'a Unicode,
         tags: &'a Tags,
     ) -> Proofs<'a> {
-        Proofs { g, chart, tokens, unicode, tags, index: OnceCell::new(), operations: Cell::new(0) }
+        Proofs {
+            g,
+            chart,
+            tokens,
+            unicode,
+            tags,
+            index: OnceCell::new(),
+            maximal: OnceCell::new(),
+            operations: Cell::new(0),
+        }
     }
 
     /// How many entries of the chart the searches have looked at so far.
     #[cfg(test)]
     pub(crate) fn operations(&self) -> u64 {
-        self.operations.get()
+        self.operations.get() + self.maximal.get().map_or(0, Maximal::looked)
     }
 
     fn count(&self, entries: usize) {
@@ -336,10 +350,13 @@ impl<'a> Proofs<'a> {
                         }
                         // The fixed prefix is the item before the advance
                         // over the constituent.
-                        (Next::Constituent, Edge::Complete { before, .. }) if !has_p => {
+                        (Next::Constituent, Edge::Complete { before, child, .. }) if !has_p => {
                             let prefix = order[before];
                             let until = *blocked.entry(prefix).or_insert_with(|| self.blocked_until(prefix));
-                            has_p = until.map_or(true, |until| until < place.0);
+                            // Where the optional's terminator is maximal,
+                            // the constituent of this advance must also be
+                            // the longest possible (§4).
+                            has_p = until.map_or(true, |until| until < place.0) && self.longest(place, order[child]);
                         }
                         _ => {}
                     }
@@ -355,6 +372,25 @@ impl<'a> Proofs<'a> {
             }
         }
         witnesses.iter().map(|witness| e[number[witness]]).collect()
+    }
+
+    /// Whether the completed constituent at `child`, which the item at
+    /// `place` has just read, permits the omission of a maximal terminator
+    /// after it: no completed item of its symbol from its origin ends later
+    /// in the query's chart with the symbol's test holding (§4). An
+    /// optional whose terminator is not maximal permits it always.
+    fn longest(&self, place: Place, child: Place) -> bool {
+        let item = self.item(place);
+        let production = &self.g.prods[item.prod as usize];
+        let Some(&Sym::N(helper)) = production.syms.get(item.dot as usize) else { return true };
+        if !self.g.rules[helper as usize].maximal {
+            return true;
+        }
+        let maximal =
+            self.maximal.get_or_init(|| Maximal::new(self.g, self.chart, self.tokens, self.unicode, self.tags, false));
+        let constituent = self.item(child);
+        let rule = self.g.prods[constituent.prod as usize].rule;
+        !maximal.forbids(rule, constituent.origin, child.0, production.test(item.dot as usize - 1))
     }
 
     /// The items that the advances of one item read.
@@ -414,6 +450,8 @@ mod tests {
 
     struct Oracle<'a> {
         g: &'a Lowered,
+        /// The maximal terminators, as the grammar names them.
+        maximal: Vec<&'static str>,
         chart: HashSet<OItem>,
         last: u32,
         budget: usize,
@@ -425,7 +463,7 @@ mod tests {
         /// and whose symbols before the dot read the tokens it spans.
         fn new<'a>(g: &'a Lowered, tokens: &[&str], start: u32) -> Oracle<'a> {
             let n = tokens.len() as u32;
-            let mut oracle = Oracle { g, chart: HashSet::new(), last: n, budget: 200_000 };
+            let mut oracle = Oracle { g, maximal: Vec::new(), chart: HashSet::new(), last: n, budget: 200_000 };
             let mut predicted: HashSet<(u32, u32)> = HashSet::from([(start, 0)]);
             loop {
                 let before = (oracle.chart.len(), predicted.len());
@@ -527,6 +565,20 @@ mod tests {
             })
         }
 
+        /// Whether the optional that comes next after the item has a
+        /// maximal terminator.
+        fn maximal_after(&self, (prod, dot, ..): OItem) -> bool {
+            let Some(&Sym::N(helper)) = self.syms(prod).get(dot as usize) else { return false };
+            self.g.rules[helper as usize].elided.as_deref().is_some_and(|name| self.maximal.contains(&name))
+        }
+
+        /// Whether the chart has a completed item of the same symbol as a
+        /// completed item, from its origin, that ends later.
+        fn longer(&self, (prod, _, origin, end, _): OItem) -> bool {
+            let rule = self.g.prods[prod as usize].rule;
+            (end + 1..=self.last).any(|k| !self.completed(rule, origin, k).is_empty())
+        }
+
         /// Where an elidable optional comes next after the item: with a
         /// constituent, alone, or not at all.
         fn next_optional(&self, (prod, dot, ..): OItem) -> Option<bool> {
@@ -613,6 +665,11 @@ mod tests {
                         if kind == Some(true) && self.forbidden_after(before, item.3) {
                             continue;
                         }
+                        // After a maximal terminator's constituent, the
+                        // constituent must be the longest in the chart.
+                        if kind == Some(true) && self.maximal_after(item) && self.longer(child) {
+                            continue;
+                        }
                         let child_rule = self.g.prods[child.0 as usize].rule;
                         let omission = self.syms(child.0).is_empty() && self.elidable(child_rule);
                         if self.search(before, omission, inner)? && self.search(child, false, inner)? {
@@ -671,10 +728,25 @@ mod tests {
     /// A random grammar as its document and its DOM, which the cache gives
     /// the loader so that a round does not read the document through the
     /// notation.
-    fn grammar(rng: &mut Rng) -> (String, String) {
+    fn grammar(rng: &mut Rng) -> (String, String, Vec<&'static str>) {
+        // Now and then T or U is a maximal terminator.
+        let (elidable, directives, maximal): (&str, &str, Vec<&str>) = match rng.below(4) {
+            0 => (
+                "%elidable U\n%elidable maximal T",
+                r#"{"name":"elidable","args":["U"],"at":[3,1]},{"name":"elidable","args":["T"],"maximal":true,"at":[4,1]}"#,
+                vec!["T"],
+            ),
+            1 => (
+                "%elidable maximal T U",
+                r#"{"name":"elidable","args":["T","U"],"maximal":true,"at":[3,1]}"#,
+                vec!["T", "U"],
+            ),
+            _ => ("%elidable T U", r#"{"name":"elidable","args":["T","U"],"at":[3,1]}"#, Vec::new()),
+        };
+        let text_line = 3 + elidable.lines().count();
         let mut lines = Vec::new();
         let mut rules = vec![format!(
-            r#"{{"name":"text","op":"define","alternatives":[{{"guards":[],"expr":{{"ref":"A"}}}}],"conditions":[],"at":[4,1]}}"#
+            r#"{{"name":"text","op":"define","alternatives":[{{"guards":[],"expr":{{"ref":"A"}}}}],"conditions":[],"at":[{text_line},1]}}"#
         )];
         for (line, rule) in RULES.iter().enumerate() {
             let (first, second) = (body(rng), body(rng));
@@ -682,27 +754,26 @@ mod tests {
             let alternatives = [first.1, second.1].map(|expr| format!(r#"{{"guards":[],"expr":{expr}}}"#)).join(",");
             rules.push(format!(
                 r#"{{"name":"{rule}","op":"define","alternatives":[{alternatives}],"conditions":[],"at":[{},1]}}"#,
-                line + 5
+                line + text_line + 1
             ));
         }
         let document = format!(
-            "```jbogenbau\n%ambiguity-resolution greedy\n%elidable T U\n%rule text A\n{}\n```\n",
+            "```jbogenbau\n%ambiguity-resolution greedy\n{elidable}\n%rule text A\n{}\n```\n",
             lines.join("\n")
         );
-        let directives = r#"[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]},{"name":"elidable","args":["T","U"],"at":[3,1]}]"#;
         let dom = format!(
-            r#"{{"format":{},"rules":[{}],"directives":{directives},"constants":[],"classifiers":[],"implications":[]}}"#,
+            r#"{{"format":{},"rules":[{}],"directives":[{{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}},{directives}],"constants":[],"classifiers":[],"implications":[]}}"#,
             crate::dom::DOM_FORMAT,
             rules.join(",")
         );
-        (document, dom)
+        (document, dom, maximal)
     }
 
     /// The eligible witnesses of `begins` as the library finds them and as
     /// the oracle does, for one random grammar and input; `None` when the
     /// round checks nothing.
     fn round(rng: &mut Rng, pipeline: &str, check_dom: bool) -> Option<(Vec<bool>, Vec<bool>, String)> {
-        let (document, dom) = grammar(rng);
+        let (document, dom, maximal) = grammar(rng);
         if check_dom {
             // The DOM given to the cache is the one the notation reads.
             let read = crate::tools::read_grammar_document(&document).expect("the document");
@@ -751,6 +822,7 @@ mod tests {
         let proofs = Proofs::new(&g, &chart, &input, &dialect.unicode, &shared.tags);
         let got = proofs.eligible(&witnesses);
         let mut oracle = Oracle::new(&g, &tokens, start);
+        oracle.maximal = maximal;
         let mut truth = Vec::new();
         for &(set, index) in &witnesses {
             let item = chart.sets[set as usize].items[index as usize];
@@ -772,40 +844,75 @@ mod tests {
     fn the_searches_for_blocking_paths_look_at_each_set_once() {
         let grammar = "%ambiguity-resolution greedy\n%elidable T\n%rule text body B\n%conditions matches($, r)\n\
                        %rule body A ...\n%rule r parts B\n%rule parts part ...\n%rule part A [T]\n";
-        let sources = [("main.md", format!("```jbogenbau\n{grammar}```\n")), ("p.md", PIPELINE.to_string())];
-        let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
-        let g = dialect.lowered_stage(0);
-        let start = g.rules.iter().position(|rule| rule.name == "r" && !rule.helper).expect("r") as u32;
         let operations = |n: usize| {
-            let chars: Vec<char> = vec![' '; (n + 1) * 2];
-            let mut shared = Shared::new(&dialect.unicode, &chars);
-            let input: Vec<Tok> = (0..=n)
-                .map(|index| Tok {
-                    text: "x".to_string(),
-                    tags: shared.tags.set_of([if index < n { "A" } else { "B" }]),
-                    phonemes: None,
-                    source: (index * 2, index * 2 + 1),
-                    label: "x".to_string(),
-                    sound: Default::default(),
-                    before: Vec::new(),
-                    after: Vec::new(),
-                })
-                .collect();
-            let matchers = matchers(&g, &mut shared.tags);
-            let chart = Recognizer { g: &g, matchers: &matchers, shared: &mut shared }
-                .recognize(&input, 0, start)
-                .expect("a chart");
-            let end = n as u32 + 1;
-            let witnesses: Vec<(u32, u32)> =
-                chart.sets[end as usize].completed[&(start, 0)].iter().map(|&index| (end, index)).collect();
-            let proofs = Proofs::new(&g, &chart, &input, &dialect.unicode, &shared.tags);
-            assert_eq!(proofs.eligible(&witnesses), vec![true; witnesses.len()]);
-            proofs.operations()
+            let (eligible, operations) = query_work(grammar, n, false);
+            assert!(eligible.iter().all(|&eligible| eligible));
+            operations
         };
         let (small, large) = (operations(500), operations(2000));
         assert!(small > 0, "the searches ran");
         // Four times the text costs about four times as much, not sixteen.
         assert!(large < small * 6, "{small} operations for 500 tokens, {large} for 2000");
+    }
+
+    /// The checks of a maximal terminator in a query read the furthest end
+    /// of each symbol from each origin, and for a tested symbol the
+    /// furthest end where its test holds, each found once. So the work
+    /// grows linearly with the text, where every omission of a maximal `T`
+    /// meets a longer `y`, with and without a test on `y`.
+    #[test]
+    fn the_checks_of_maximal_terminators_grow_linearly() {
+        let plain = "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text body B\n\
+                     %conditions begins(from($), r)\n%rule body A ...\n%rule r y [T]\n%rule y A ...\n";
+        let tested = "%ambiguity-resolution greedy\n%elidable maximal T\n%rule text body B\n\
+                      %conditions begins(from($), r)\n%rule body A ...\n%rule r y⊇~p [T]\n%rule y A ... <~p>\n";
+        for grammar in [plain, tested] {
+            let (eligible, small) = query_work(grammar, 1000, true);
+            // Only the longest y permits the omission.
+            assert_eq!(eligible.iter().filter(|&&eligible| eligible).count(), 1, "{grammar}");
+            let (_, large) = query_work(grammar, 4000, true);
+            assert!(large < small * 6, "{small} operations for 1000 tokens, {large} for 4000\n{grammar}");
+        }
+    }
+
+    /// Recognizes `n` tokens `A` and then a `B` as the rule `r` of the
+    /// grammar, alone, as a query does. Gives which witnesses have an
+    /// eligible proof tree, those of `begins` or of `matches`, and how many
+    /// entries of the chart the searches and the checks looked at.
+    fn query_work(grammar: &str, n: usize, begins: bool) -> (Vec<bool>, u64) {
+        let sources = [("main.md", format!("```jbogenbau\n{grammar}```\n")), ("p.md", PIPELINE.to_string())];
+        let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
+        let g = dialect.lowered_stage(0);
+        let start = g.rules.iter().position(|rule| rule.name == "r" && !rule.helper).expect("r") as u32;
+        let chars: Vec<char> = vec![' '; (n + 1) * 2];
+        let mut shared = Shared::new(&dialect.unicode, &chars);
+        let input: Vec<Tok> = (0..=n)
+            .map(|index| Tok {
+                text: "x".to_string(),
+                tags: shared.tags.set_of([if index < n { "A" } else { "B" }]),
+                phonemes: None,
+                source: (index * 2, index * 2 + 1),
+                label: "x".to_string(),
+                sound: Default::default(),
+                before: Vec::new(),
+                after: Vec::new(),
+            })
+            .collect();
+        let matchers = matchers(&g, &mut shared.tags);
+        let chart = Recognizer { g: &g, matchers: &matchers, shared: &mut shared }
+            .recognize(&input, 0, start)
+            .expect("a chart");
+        let end = n + 1;
+        let sets = if begins { 0..chart.sets.len() } else { end..end + 1 };
+        let witnesses: Vec<(u32, u32)> = sets
+            .flat_map(|set| {
+                chart.sets[set].completed.get(&(start, 0)).into_iter().flatten().map(move |&index| (set as u32, index))
+            })
+            .collect();
+        assert!(!witnesses.is_empty(), "r completes");
+        let proofs = Proofs::new(&g, &chart, &input, &dialect.unicode, &shared.tags);
+        let eligible = proofs.eligible(&witnesses);
+        (eligible, proofs.operations())
     }
 
     #[test]
