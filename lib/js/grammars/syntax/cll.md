@@ -71,6 +71,8 @@ A statement is a sentence, or a sentence with a prenex before it, or several sen
 
 `statement-2` is the right-grouping form. `.i` with an optional connective and an optional tense, then `bo`, binds the sentence after it more tightly than a plain `.i je` does. The rule refers to `statement-2` on its right, so a chain of `.i bo` groups to the right (CLL 14.8). `statement-3` is either a sentence or a `tu'e ... tu'u` block. The block makes a whole text-1 act as one sentence, for connection and for a tense before it (CLL 14.8). The block's `tu'u` is elidable and carries its own free-modifier slot.
 
+A prenex belongs to a whole statement. After `.i` with a connective, as in `.ije` or `.i bo`, the sentence cannot have a prenex of its own. CLL 1.1 prints examples 16.77 and 16.78 with a second `zo'u` there: `su'oda zo'u mi prami da .ije naku zo'u do prami da`. Rule 12 of the printed grammar (`statement-1`) does not allow it, so this grammar rejects the printed text. It treats that `zo'u` as an error in CLL and reads the examples without it: `su'oda zo'u mi prami da .ije naku do prami da`. Then `naku` is a term of the second sentence, and the prenex of the first sentence still binds `da` in both. CLL 1.3.4 corrects example 16.77 in the same way.
+
 A fragment is what a speaker utters when the utterance is not a sentence (CLL 19.5 and 14.13). It is one of these:
 
 - A bare connective, as the answer to a `ji` or `gi'i` question
