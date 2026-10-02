@@ -189,6 +189,9 @@ fn the_runner_refuses_a_result_that_breaks_an_invariant() {
         stages(vec![with(stage, "tied", Some(reading))]),
         stages(vec![stage.clone(), later]),
         with(&json, "error", Some(with(error, "reason", None))),
+        // An ambiguous error has no position.
+        with(&json, "error", Some(with(error, "token", Some(Value::Number(0.0))))),
+        with(&json, "error", Some(with(error, "source", Some(parse_json("[0, 1]").unwrap())))),
     ];
     for mutant in &mutants {
         assert!(!result_problems(mutant).is_empty(), "{mutant:?}");

@@ -478,6 +478,14 @@ pub fn result_problems(json: &Value) -> Vec<String> {
                 .push(format!("the tied stage {name} lacks its error of kind ambiguous, reason tie and two readings"));
         }
     }
+    // An ambiguous error has no position (docs/output.md).
+    if let Some(error) = json.get("error").filter(|error| error.get("kind").and_then(Value::str) == Some("ambiguous")) {
+        for member in ["token", "source"] {
+            if error.get(member).is_some() {
+                problems.push(format!("an ambiguous error has the member {member}"));
+            }
+        }
+    }
     problems
 }
 

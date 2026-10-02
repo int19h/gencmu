@@ -47,7 +47,9 @@ The grammars of the crate, `grammars/`, are a copy of the grammars of the reposi
 - The DOM cache
 - The API
 - The core sample of the Lojban corpus
-- A property test of the ranking, which compares the library with a brute-force enumeration of every derivation of random small grammars
+- A property test of the ranking, which compares the library with a brute-force enumeration of every derivation of random small grammars, in `tests/ranking.rs`
+- A property test of the eligibility of nested queries, which compares the library with a search for eligible proof trees in random small grammars with chained elidable optionals and maximal terminators, in `src/eligible.rs`
+- The invariants of every canonical result that a shared case gives, such as those of a tie and the absence of a position on an ambiguous error, with tests that feed the checks broken results
 
 `GENCMU_PROPERTY_CASES` and `GENCMU_PROPERTY_SEED` run a larger sweep. `GENCMU_CORPUS=full cargo test --release --test corpus` runs the whole corpus, on `GENCMU_CORPUS_WORKERS` threads. By default, the number of threads is one fewer than the number of cores.
 
