@@ -216,7 +216,7 @@ fn the_corpus() {
 #[test]
 fn the_corpus_runner_refuses_a_result_that_breaks_an_invariant() {
     let file = repository().join("tests/engine/attach-tie.json");
-    let case = parse_json(&std::fs::read_to_string(&file).expect("the tied engine case")).expect("JSON");
+    let case = parse_json(&std::fs::read_to_string(file).expect("the tied engine case")).expect("JSON");
     let (documents, pipeline) = common::case_documents(&case);
     let dialect = gencmu::load_dialect_sources(documents, &pipeline).expect("the dialect of the case");
     let text = case.get("input").and_then(Value::str).expect("an input");
