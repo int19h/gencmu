@@ -1,37 +1,119 @@
 [
   {
     "description": "A maximal member on a directive other than elidable (engine §9).",
-    "directive": {"name": "ambiguity-resolution", "args": ["greedy"], "maximal": true, "at": [1, 1]},
+    "directive": {
+      "name": "ambiguity-resolution",
+      "args": [
+        "greedy"
+      ],
+      "maximal": true,
+      "at": [
+        1,
+        1
+      ]
+    },
     "malformed": true
   },
   {
     "description": "A maximal member whose value is false (engine §9).",
-    "directive": {"name": "elidable", "args": ["T"], "maximal": false, "at": [1, 1]},
+    "directive": {
+      "name": "elidable",
+      "args": [
+        "T"
+      ],
+      "maximal": false,
+      "at": [
+        1,
+        1
+      ]
+    },
     "malformed": true
   },
   {
     "description": "A maximal member whose value is the string true (engine §9).",
-    "directive": {"name": "elidable", "args": ["T"], "maximal": "true", "at": [1, 1]},
+    "directive": {
+      "name": "elidable",
+      "args": [
+        "T"
+      ],
+      "maximal": "true",
+      "at": [
+        1,
+        1
+      ]
+    },
     "malformed": true
   },
   {
     "description": "A maximal member whose value is null (engine §9).",
-    "directive": {"name": "elidable", "args": ["T"], "maximal": null, "at": [1, 1]},
+    "directive": {
+      "name": "elidable",
+      "args": [
+        "T"
+      ],
+      "maximal": null,
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A maximal member whose value is the number 1, which is not true, also in a language where 1 equals true (engine §9).",
+    "directive": {
+      "name": "elidable",
+      "args": [
+        "T"
+      ],
+      "maximal": 1,
+      "at": [
+        1,
+        1
+      ]
+    },
     "malformed": true
   },
   {
     "description": "A maximal elidable directive with no arguments, as %elidable maximal gives (docs/output.md).",
-    "directive": {"name": "elidable", "args": [], "maximal": true, "at": [1, 1]},
+    "directive": {
+      "name": "elidable",
+      "args": [],
+      "maximal": true,
+      "at": [
+        1,
+        1
+      ]
+    },
     "malformed": false
   },
   {
     "description": "A maximal elidable directive whose argument is maximal, as %elidable maximal ~maximal gives (docs/output.md).",
-    "directive": {"name": "elidable", "args": ["maximal"], "maximal": true, "at": [1, 1]},
+    "directive": {
+      "name": "elidable",
+      "args": [
+        "maximal"
+      ],
+      "maximal": true,
+      "at": [
+        1,
+        1
+      ]
+    },
     "malformed": false
   },
   {
     "description": "A plain elidable directive whose argument is maximal, as %elidable ~maximal gives (docs/output.md).",
-    "directive": {"name": "elidable", "args": ["maximal"], "at": [1, 1]},
+    "directive": {
+      "name": "elidable",
+      "args": [
+        "maximal"
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
     "malformed": false
   }
 ]
