@@ -249,7 +249,7 @@ class StageContext:
         # The answer reads the completed items of the rule over the span
         # that have an eligible proof tree, under written-terminator
         # priority (engine §4).
-        found_items = eligible(forest, forest.roots)
+        found_items = eligible(forest, forest.roots, self, start)
         tags: Tags = EMPTY
         for root in found_items:
             tags = union(tags, self.tagtab.get(forest.tag[root]))
@@ -275,7 +275,7 @@ class StageContext:
             if origin == 0 and productions[prod].lhs == number and dot == len(productions[prod].rhs)
         ]
         # Only an item with an eligible proof tree counts (engine §4).
-        answer = bool(eligible(forest, witnesses))
+        answer = bool(eligible(forest, witnesses, self, start))
         self.begins_memo[key] = answer
         return answer
 

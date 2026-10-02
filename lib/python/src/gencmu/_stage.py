@@ -669,17 +669,20 @@ class StageRunner:
         context = self.context(lowered, self.tokens)
         start = lowered.rule_ids["text"]
         forest = Parser(context).parse(start)
-        maximal = Maximal(forest, context) if lowered.grammar.maximal else None
+        # Maximality, stage-wide or for the maximal terminators alone, before
+        # the ranking (engine §4).
+        stage_wide = lowered.grammar.maximal
+        maximal = Maximal(forest, context, stage_wide) if stage_wide or lowered.maximal_helpers else None
         ranking = rank(forest, lowered.lean, maximal)
         if ranking is None:
             forbidden = None
             if forest.roots:
                 forest.furthest = len(self.tokens)
                 if maximal is not None:
-                    # A text that maximal leaves with no derivation is
+                    # A text that maximality leaves with no derivation is
                     # rejected at the first terminator it forbids in the
-                    # first reading of the ranking without maximal, whatever
-                    # its verdict (engine §4).
+                    # first reading of the ranking with both forms off, on
+                    # the same chart, whatever its verdict (engine §4).
                     forbidden = forbidden_terminator(forest, rank(forest, lowered.lean), maximal)
             return StageOutcome(error=self.rejection(forest, forbidden))
         if ranking.verdict == "tie":
