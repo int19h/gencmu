@@ -259,6 +259,9 @@ pub(crate) struct LRule {
     /// The id of that terminator's test, if it has one: an `=` test,
     /// whose string a restored token sounds like (engine §7).
     pub elided_test: Option<u32>,
+    /// Whether that terminator is maximal: a `%elidable maximal` names it
+    /// (engine §4).
+    pub maximal: bool,
 }
 
 impl Prod {
@@ -763,6 +766,7 @@ pub(crate) fn lower(
             prods: Vec::new(),
             elided: None,
             elided_test: None,
+            maximal: false,
         })
         .collect();
     for helper in &lowerer.helpers {
@@ -772,6 +776,7 @@ pub(crate) fn lower(
             prods: Vec::new(),
             elided: helper.elided.as_ref().map(|(name, _)| name.clone()),
             elided_test: helper.elided.as_ref().and_then(|(_, test)| *test),
+            maximal: helper.elided.as_ref().is_some_and(|(name, _)| grammar.maximal_terminals.contains(name)),
         });
     }
     let mut order: Vec<Pending> = Vec::new();

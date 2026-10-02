@@ -75,6 +75,8 @@ pub(crate) struct StageGrammar {
     /// could have been longer (engine §4).
     pub maximal: bool,
     pub elidable: Vec<String>,
+    /// The elidable terminators that a `%elidable maximal` names (§2, §4).
+    pub maximal_terminals: Vec<String>,
     pub changes: Vec<Change>,
     /// The stage's `%classifier` items in stitching order, each with its
     /// document (engine §2).
@@ -170,6 +172,7 @@ pub(crate) fn stitch(
         elision_only: false,
         maximal: false,
         elidable: Vec::new(),
+        maximal_terminals: Vec::new(),
         changes: Vec::new(),
         classifiers: Vec::new(),
         implications: Arc::from(Vec::new()),
@@ -282,6 +285,11 @@ pub(crate) fn stitch(
                     for arg in &directive.args {
                         if !grammar.elidable.contains(arg) {
                             grammar.elidable.push(arg.clone());
+                        }
+                        // A terminator is maximal when any `%elidable
+                        // maximal` names it (§2).
+                        if directive.maximal && !grammar.maximal_terminals.contains(arg) {
+                            grammar.maximal_terminals.push(arg.clone());
                         }
                     }
                 }
