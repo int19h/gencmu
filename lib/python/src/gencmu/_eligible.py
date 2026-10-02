@@ -17,6 +17,13 @@ that the proof tree holds fixed can read the whole optional as written:
   omission is forbidden when the chart advances that item over a completed
   nonempty alternative of the optional.
 
+An omission of a maximal terminator with a constituent Y is also forbidden
+when Y is not the longest possible: the query's whole chart has a completed
+item of the same symbol, from the same origin, with a later end, that
+passes Y's test. That item need not be eligible or fit a proof tree, and a
+terminator need not be written. Maximality never forbids an omission with
+no constituent.
+
 A proof tree is eligible when none of its omissions is forbidden. Each item
 has two states, computed together to the least fixpoint: E, it has an
 eligible proof tree, and P, it has one whose fixed prefix permits the next
@@ -26,19 +33,21 @@ permitted omission never combines with the prefix of another tree.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from ._earley import Forest
+    from ._earley import Forest, StageContext
 
 # What follows an item: no elidable optional, one with no constituent, or
 # one whose constituent is the item's last symbol (engine §4).
 NONE, ALONE, CONSTITUENT = 0, 1, 2
 
 
-def eligible(forest: Forest, witnesses: list[int]) -> list[int]:
+def eligible(forest: Forest, witnesses: list[int], context: StageContext | None = None, base: int = 0) -> list[int]:
     """The completed items among ``witnesses`` that have an eligible proof
-    tree in the forest's chart, in their order."""
+    tree in the forest's chart, in their order. ``context`` and ``base`` are
+    the stage and where the query's span begins in its tokens, which the
+    test of a longer constituent of a maximal terminator reads."""
     if not witnesses:
         return witnesses
     lowered = forest.lowered
@@ -121,6 +130,26 @@ def eligible(forest: Forest, witnesses: list[int]) -> list[int]:
         return CONSTITUENT
 
     after = {item: follows(item) for item in order}
+
+    # The table of longer constituents, built from the query's own chart
+    # once, when a maximal terminator first needs it (engine §4).
+    maximal_helpers = lowered.maximal_helpers
+    longest: list[Any] = []
+
+    def shorter(item: int, child: int) -> bool:
+        """Whether the item's maximal optional may not be empty after the
+        constituent ``child``: a longer one completes from its origin."""
+        if productions[prod[item]].rhs[dot[item]] not in maximal_helpers:
+            return False
+        if not longest:
+            from ._maximal import Maximal
+
+            assert context is not None
+            longest.append(Maximal(forest, context, False, base))
+        production = productions[prod[item]]
+        test = production.tests[dot[item] - 1] if production.tests else None
+        return bool(longest[0].forbids(child, test))
+
     has_e: set[int] = set()
     has_p: set[int] = set()
     changed = True
@@ -144,8 +173,10 @@ def eligible(forest: Forest, witnesses: list[int]) -> list[int]:
                 e = True
                 if what == ALONE:
                     p = item not in reads
-                elif what == CONSTITUENT and kind == 2 and further.get(pred, -1) < end:
-                    # The tree's own prefix before Y permits the omission.
+                elif what == CONSTITUENT and kind == 2 and further.get(pred, -1) < end and not shorter(item, child):
+                    # The tree's own prefix before Y permits the omission,
+                    # and Y is the longest possible where the terminator is
+                    # maximal.
                     p = True
                 if p or what == NONE:
                     break
