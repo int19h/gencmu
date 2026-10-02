@@ -329,25 +329,35 @@ Both variants change queries where no terminator is written, so the policy was r
 
 ### Maximal terminators
 
-Some Zantufa conditions accept a nested reading that closes a parenthesis early, with no terminator written. The condition `¬matches($m, terms-vau)` of `fragment` is an example. So `so to mi klama` reads `([so {to mi}] klama)`, while the reference parser reads one mex fragment, `so` with the parenthesis `to mi klama`. `so to recap` closes an empty `to`. In `ro sei ny rere'u basna mutce cusku`, the `sei` closes before `cusku`.
+Some Zantufa conditions accept a nested reading that closes a parenthesis early, with no terminator written. The condition `¬matches($m, terms-vau)` of `fragment` is an example. So `so to mi klama` reads `([so {to mi}] klama)`, while the reference parser reads one mekso fragment, `so` with the parenthesis `to mi klama`. `so to recap` closes an empty `to`. In `ro sei ny rere'u basna mutce cusku`, the `sei` closes before `cusku`.
 
-Written-terminator priority does not settle these texts, because no `toi` or `se'u` is written. A condition cannot say that the content of a construct cannot be longer. An attempt to copy the greed of the reference with conditions rejected 27 texts that the reference accepts. Stage-wide `maximal` inside nested parses changed 39 jobs and made 31 false ties ("Nested queries and elided terminators" above).
+Written-terminator priority does not settle these texts, because no `toi` or `se'u` is written. A condition cannot say that the content of a construct cannot be longer. An attempt to copy the greed of the reference with conditions rejected 27 texts that the reference accepts.
 
-So a grammar can make single terminators maximal (engine §4). Such a terminator follows the rule of `maximal`, but for itself alone, and in nested queries too. The grammar names the constructs that a reader closes as late as it can, such as `to … toi` and `sei … se'u`. Every other terminator keeps the default.
+Stage-wide `maximal` inside nested parses was measured in two variants ("Nested queries and elided terminators" above). V1 searched the whole stage input and changed 39 jobs, with 31 false ties. V2 searched the query's chart and changed 24 jobs, with 17 false ties. That policy applied to every elidable terminator. This feature lets a grammar select single terminators instead. For those selected constructs, a change to a query with no written terminator is the intent.
 
-The notation is a word on `%elidable`: `%elidable maximal TOI SEhU`. A maximal terminator is always elidable, so one directive declares both. No new keyword is needed. In the DOM, the word is the member `"maximal":true`, not an operand, so it stays apart from `~maximal`. The DOM format becomes 17.
+So a grammar can make single terminators maximal (engine §4). Maximality is the restriction to the longest constituent. `%elidable maximal` selects terminals for it in the main parse and in nested queries. `%ambiguity-resolution … maximal` also restricts every elidable terminator, but in the main parse only, and it adds no terminal to the nested selection.
 
-Inside a query, the longer constituent comes from the query's own chart. So the window and the memo keys of a query do not change. A `begins` with `from` or `after` already sees the rest of the input. A bounded `matches` sees only its span, and a constituent that goes on past the span does not count there.
+The notation is a word on `%elidable`: `%elidable maximal TOI SEhU`. A maximal terminator is always elidable, so one directive declares both. No new keyword is needed. In the DOM, the word is the member `"maximal":true`, not an operand, so it stays apart from an operand `~maximal`. The DOM format becomes 17.
 
-A maximal terminator applies whatever the directive says, and stage-wide `maximal` keeps its meaning. Both remove derivations before any ranking rule ranks them. Written-terminator priority and a maximal terminator both forbid omissions in a query. A rejection names the first forbidden terminator, as for `maximal`. `elision-only` writes back a maximal terminator as any other.
+Inside a query, the longer constituent comes from the query's own chart. A `begins` with `from` or `after` already sees the rest of the input. A bounded `matches` sees only its span, and a constituent that goes on past the span does not count there.
 
-The four libraries already find the furthest completion of each symbol from each origin for `maximal`. The main parse uses that table for the named terminators only. A nested query builds the same table from its own chart, which costs one pass over that chart. The two states of written-terminator priority check the longer constituent in the same step.
+A maximal terminator applies whether or not `%ambiguity-resolution` includes `maximal`. Both forms remove derivations before any ranking rule ranks them. In a query, written-terminator priority and a maximal terminator can each forbid an omission. `elision-only` writes back a maximal terminator as any other.
+
+A rejection names a forbidden terminator only when maximality removes every main derivation. The stage then reads the same chart, with both forms off, to find that terminator. A nested query that maximality changes only changes the value of its condition. If no main derivation remains, the rejection is ordinary, and it lists the terminals expected at the furthest position.
+
+The four libraries already find the furthest completion of each symbol from each origin for `maximal`. Lowering keeps the set of maximal terminals with the lowered grammar, so a cache of lowered grammars tells them apart. The main parse builds the table whenever either form needs it. A nested query builds the same table from its own chart, which costs one pass over that chart.
 
 The engine feature and the choice of terminators are separate decisions. The engine defines what a maximal terminator does. The Zantufa grammar chooses which of its terminators are maximal, and that choice has a cost.
 
-With `TOI` and `SEhU` maximal, a prototype reads the motivating texts as the reference does. But it rejects `sei abu pensi ba ju'o rinka`, which the reference and the earlier grammar read as `[sei abu pensi] [ba ju'o rinka]`. The chart holds the longer statement `abu pensi ba`. The longer constituent need not fit the enclosing construct, so `se'u` cannot be elided after `pensi`. So the feature avoids 26 of the 27 false rejections of the greed experiment, and this text remains one.
+A scope experiment ran 74 cases with `TOI` and `SEhU` maximal. Maximality in queries alone settles the four motivating readings, and it accepts all 27 texts of the greed experiment. Maximality in both scopes settles the same readings, but it rejects one of the 27, `corpus.camxes.2115`. On the 39 jobs that changed under V1, both choices give the same results: six bracket changes, no rejection and no tie.
 
-Whether Zantufa also makes `LIhU` maximal is undecided. A bounded query stays within its span. A `matches` over a captured span asks whether that span alone parses as the rule. A longer constituent past the span is outside that question, and looking past it changes the windows and the memo keys of every query.
+Both scopes also reject the reduced text `sei abu pensi ba ju'o rinka`, which lies outside the 27. The reference and the earlier grammar read it as `[sei abu pensi] [ba ju'o rinka]`. The chart holds the longer statement `abu pensi ba`. The longer constituent need not fit the enclosing construct, so `se'u` cannot be elided after `pensi` in the main parse.
+
+The main-parse scope enforces the declared restriction on main derivations, whatever the conditions say. The measurements do not show that the four motivating readings need it. They also do not show that it is useless in general. The approved semantics keeps both scopes.
+
+Whether Zantufa also makes `LIhU` maximal is undecided.
+
+A bounded query stays within its span. A `matches` over a captured span asks whether that span alone parses as the rule. A longer constituent past the span is outside that question. Looking past the span changes the windows and the memo keys of every query.
 
 ### Where an elided terminator can fall
 
