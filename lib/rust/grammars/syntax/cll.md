@@ -111,9 +111,22 @@ A subsentence is a sentence, or a prenex followed by a subsentence. Abstractions
 
 The bridi-tail levels state how sentences share a head under a gihek, the connective family `gi'e`, `gi'a` and the rest of GIhA (CLL 14.9). `bridi-tail-3` is one selbri with its tail terms, or a forethought `gek-sentence`. `bridi-tail-2` binds two tails with `gihek [stag] bo`, right-grouping, and `bridi-tail-1` joins tails with a plain gihek, left-grouping. `bridi-tail` at the top lets a gihek be followed by `ke ... ke'e`, which groups the tails inside the brackets against the tail to the left. The tail terms after each selbri belong to that selbri. `vau` closes them and is almost always elided.
 
-The printed grammar lets the tail after a plain gihek begin with `ke`. So `mi broda gi'e ke brode gi'a brodi` has two parses, which differ in meaning. In one, `ke ... ke'e` groups the tails after `gi'e`, through `bridi-tail`. In the other, it groups a tanru that begins the second tail. CLL 14.10 shows the first. The official parser reads only the first, through a token of its lexer (the part that divides the input into tokens), `GIhEK_KE`.
+The printed grammar lets the tail after a plain gihek begin with `ke`, or with a tense and `ke`. So `mi broda gi'e ke brode ke'e` has two parses. In one, `ke ... ke'e` groups the tails after `gi'e`, through the `ke` form of `bridi-tail` (rule 50 of the printed grammar). In the other, `gi'e` is a plain gihek (rule 51), and `ke ... ke'e` groups a tanru that begins the second tail. With a tense, the two parses also differ in what the tense applies to. In `mi klama gi'e pu ke cadzu ke'e`, `pu` is part of the connective in the first parse, and a tense of the selbri `ke cadzu ke'e` in the second. CLL 14.10 groups tails with `ke` after a gihek, and CLL 14.18 puts a tense between a gihek and `ke` (example 14.164). The official parser reads only the group, through a token of its lexer (the part that divides the input into tokens), `GIhEK_KE`.
 
-This grammar follows the printed one, so the text has both parses. The tanru reading elides `ke'e` after `brode`. The group of tails elides it at the end of the text. The bundled dialects rank parses with `late-elision`, which takes the parse that elides a terminator later. So the stage takes the group of tails, as CLL does. With `ke'e` written after `brode`, only the tanru reading is left.
+The ranking of elided terminators does not settle this. In `mi broda gi'e ke brode`, both parses elide the same terminators at the same places, so they tie. In `mi broda gi'e ke brode ke'e`, the group elides the `vau` of `brode` before `ke'e`, and the tanru parse elides nothing there. So `late-elision` takes the tanru parse.
+
+This grammar states CLL's choice as conditions on the tail after a plain gihek, in `bridi-tail-1`. The conditions read tags of the tail that the parse built. A tag marks a constituent (see "Tags" in the notation document), and a constituent of one part has the tags of that part. The `ke` alternative of `tanru-unit-2` and the `ke` forms of `gek-sentence` carry the tag `~ke-group`. A tense or modal before the `ke` keeps the tag only where a `stag` can read it, since the `ke` form of `bridi-tail` takes a `stag` there. So `bridi-tail-2` carries `~ke-group` exactly when the whole tail is one `ke` group: a selbri that is one `ke` tanru unit, with its tail terms, or one `ke` group of a `gek-sentence`. To pass the tag up, `selbri`, `selbri-2`, `selbri-5`, `selbri-6`, `tanru-unit-1`, `bridi-tail-2`, `tail-terms` and `gek-sentence` write an optional part as two alternatives, one with the part and one without. They read the same words in the same way as the printed rules.
+
+The tail after a gihek goes through `bridi-tail-2-not-ke-group`, unless free modifiers stand between the gihek and the tail (the rule `free-modifiers`, a `#` slot that is not empty). That rule removes the plain parse where the tail carries `~ke-group` and no gihek follows it. So `mi broda gi'e ke brode` and `mi broda gi'e ke brode ke'e` each have one parse, the group. In `mi klama gi'e pu ke cadzu ke'e`, `pu` stays on the connective. In `mi broda gi'e ke brode ke'e le zarci`, `le zarci` is a tail term of the group, after `ke'e`, where CLL 14.63 puts shared tail terms.
+
+The tags come from the parse itself, so the condition sees the same tail and the same elided terminators as the parse. It does not divide the words before the gihek in another way. So in `mi klama lo nu broda gi'e ke brode ke'e`, the group stays inside the `nu` clause, as in the official parser. In `mi broda gi'e pu ke me le le brodi brodo ku me'u ke'e`, the inner `ku` is elided, and the tail is still one `ke` group, so `pu` stays on the connective. The condition applies only where the two parses compete. The plain parse stays where the group cannot read the same words:
+
+- Another gihek follows the tail, as in `mi broda gi'e ke brode ke'e gi'a brodi`. The `ke` form must end its bridi-tail.
+- The tail goes on after `ke'e`, as in `mi broda gi'e ke brode ke'e brodi`.
+- A free modifier stands between the gihek and `ke`, as in `mi broda gi'e to do toi ke brode ke'e`. The `ke` form has no slot there.
+- The tail terms of the tail end with a written `vau`, and more tail terms follow, as in `mi broda gi'e ke brode ke'e vau do` and `mi broda gi'e ke brode ke'e vau le le brodi brodo ku`. The group has one run of tail terms after `ke'e`, and cannot read two. `tail-terms` carries the tag `~vau-written` when its `vau` is written. `ke-group-closed-by-vau`, followed by `written-tail-terms`, keeps the plain parse in this case.
+
+The lexer of the official parser makes `gi'e ke` one token in all of these but the free modifier, and so it rejects them. This grammar follows the printed grammar there, and accepts them.
 
 A joik directly before `ke`, in a tanru or between operators, has two parses too. In `mi broda joi ke brode ke'e`, one parse joins a `ke` group to `broda` through `joik [stag] KE`. The other joins `broda` with `joi` to a tanru unit that begins with `ke`. Both parses elide the same terminators at the same places, so no ranking of elided terminators can choose. The official parser reads only the first, through its lexer token `JOIK_KE`.
 
@@ -134,20 +147,45 @@ A `gek-sentence` is the forethought form. It joins two subsentences before eithe
   bridi-tail-1 [gihek [stag] KE # bridi-tail [KEhE #] tail-terms]
 
 %rule bridi-tail-1
-  bridi-tail-2 [gihek # bridi-tail-2 tail-terms] ...
+  bridi-tail-2 [gihek (free-modifiers bridi-tail-2 tail-terms | bridi-tail-2-not-ke-group tail-terms | ke-group-closed-by-vau written-tail-terms)] ...
+
+%rule free-modifiers
+  free ...
+
+%rule bridi-tail-2-not-ke-group
+  $t(bridi-tail-2)
+%conditions
+  ~ke-group ⊈ tags($t) ∨ begins(after($t), gihek)
+
+%rule ke-group-closed-by-vau
+  $t(bridi-tail-2)
+%conditions
+  ~ke-group ∪ ~vau-written ⊆ tags($t),
+  ¬begins(after($t), gihek)
+
+%rule written-tail-terms
+  $v(tail-terms)
+%conditions
+  text($v) ≠ ""
 
 %rule bridi-tail-2
-  bridi-tail-3 [gihek [stag] BO # bridi-tail-2 tail-terms]
+  | bridi-tail-3
+  | bridi-tail-3 gihek [stag] BO # bridi-tail-2 tail-terms
 
 %rule bridi-tail-3
-  selbri tail-terms | gek-sentence
+  | $s(selbri) $v(tail-terms) <tags($s) ∩ ~ke-group ∪ tags($v) ∩ ~vau-written>
+  | gek-sentence
 
 
 %rule gek-sentence
-  gek subsentence gik subsentence tail-terms | [tag] KE # gek-sentence [KEhE #] | NA # gek-sentence
+  | gek subsentence gik subsentence tail-terms
+  | KE # gek-sentence [KEhE #] <~ke-group>
+  | $g(tag) KE # gek-sentence [KEhE #] <matches($g, stag) ⟹ ~ke-group>
+  | NA # gek-sentence
 
 %rule tail-terms
-  [terms] [VAU #]
+  | [VAU #] <text($) ≠ "" ⟹ ~vau-written>
+  | $m(terms) [VAU #] <text($) ≠ text($m) ⟹ ~vau-written>
 ```
 
 ## Terms
@@ -280,13 +318,14 @@ The `SE`, `JAI` and `NAhE` forms refer back to `tanru-unit-2`, so `se se broda` 
 
 ```jbogenbau
 %rule selbri
-  [tag] selbri-1
+  | selbri-1
+  | $g(tag) $s(selbri-1) <matches($g, stag) ⟹ tags($s)>
 
 %rule selbri-1
   selbri-2 | NA # selbri
 
 %rule selbri-2
-  selbri-3 [CO # selbri-2]
+  selbri-3 | selbri-3 CO # selbri-2
 
 %rule selbri-3
   selbri-4 ...
@@ -295,21 +334,21 @@ The `SE`, `JAI` and `NAhE` forms refer back to `tanru-unit-2`, so `se se broda` 
   selbri-5 [plain-joik-jek selbri-5 | joik-before-ke selbri-5-not-ke-group | joik [stag] KE # selbri-3 [KEhE #]] ...
 
 %rule selbri-5
-  selbri-6 [(jek | joik) [stag] BO # selbri-5]
+  selbri-6 | selbri-6 (jek | joik) [stag] BO # selbri-5
 
 %rule selbri-6
-  tanru-unit [BO # selbri-6] | [NAhE #] guhek selbri gik selbri-6
+  tanru-unit | tanru-unit BO # selbri-6 | [NAhE #] guhek selbri gik selbri-6
 
 %rule tanru-unit
   tanru-unit-1 [CEI # tanru-unit-1] ...
 
 %rule tanru-unit-1
-  tanru-unit-2 [linkargs]
+  tanru-unit-2 | tanru-unit-2 linkargs
 
 %rule tanru-unit-2
   | BRIVLA #
   | GOhA [RAhO] #
-  | KE # selbri-3 [KEhE #]
+  | KE # selbri-3 [KEhE #] <~ke-group>
   | ME # sumti [MEhU #] [MOI #]
   | (number | lerfu-string) MOI #
   | NUhA # mex-operator
@@ -621,9 +660,9 @@ For example, `le sutra tavla` has two parses. One is a statement with the descri
 
 ## Differences from the printed CLL grammar
 
-This grammar departs from the EBNF printed in CLL in six places. The first settles a precedence that the printed text states in a way that cannot be meant. The next three repair the EBNF's copy of the YACC grammar, the grammar of the official parser for the YACC parser generator. The EBNF uses that grammar as its source and cites its rule numbers. In each case, the YACC grammar has a path that the EBNF omits. The official parser accepts the text.
+This grammar departs from the EBNF printed in CLL in seven places. The first settles a precedence that the printed text states in a way that cannot be meant. The next three repair the EBNF's copy of the YACC grammar, the grammar of the official parser for the YACC parser generator. The EBNF uses that grammar as its source and cites its rule numbers. In each case, the YACC grammar has a path that the EBNF omits. The official parser accepts the text.
 
-The fifth follows the prose of CLL 19.8, which allows more than the EBNF. The sixth follows the lexer of the official parser. Apart from these, this grammar spells the printed grammar's `CMENE` as `CMEVLA`, the class that the word stage gives a name.
+The fifth follows the prose of CLL 19.8, which allows more than the EBNF. The sixth and the seventh choose between two parses of the printed grammar, as the lexer of the official parser does. The seventh also follows the prose of CLL 14.10 and 14.18. Apart from these, this grammar spells the printed grammar's `CMENE` as `CMEVLA`, the class that the word stage gives a name.
 
 1. In `simple-tense-modal`, the printed text reads `[NAhE] (time [space] | space [time]) & CAhA [KI]`. By the stated precedence of `&`, that attaches `[NAhE]` only to the time/space branch and `[KI]` only to the `CAhA` branch. This grammar reads `[NAhE] ((time [space] | space [time]) & CAhA) [KI]`, so that `ba za ki` is one `simple-tense-modal`, and so is `na'e ka'e`.
 2. A text can begin with `.i` separators followed by `ni'o` markers, as in `.i ni'o mi klama`. The printed `text-1` makes the two alternatives. YACC rule 2 (`text_B_2`) lets any number of `.i` forms precede a `ni'o` run. The camxes grammars call the printed form "a bug in the BNF".
@@ -631,5 +670,6 @@ The fifth follows the prose of CLL 19.8, which allows more than the EBNF. The si
 4. The free-modifier slot after a `lu ... li'u` quote follows the quote whether or not `li'u` is written, so `lu cy. to toi` is a quote followed by a parenthesis. The printed `sumti-6` writes `/LIhU#/`, which drops the slot with the elided `li'u`. YACC rule 432 (`quote_arg`) attaches free modifiers to the whole quote, and its `LIhU` gap carries none. Every other elidable terminator keeps its slot as printed.
 5. A run of indicators can hold several groups, each with its own `fu'e`, as in `ui fu'e ia mi klama`. The printed `indicators` reads `[FUhE] indicator ...`, one group. CLL 19.8 lets a local attitudinal stand beside the ones that `fu'e` marks. The indicator stage reads the run after a word the same way.
 6. In `selbri-4` and `operator`, a plain joik directly before `ke` cannot take a unit that is only a `ke` group (`joik-before-ke`). The printed grammar reads `mi broda joi ke brode ke'e` in two ways. The lexer of the official parser makes `joi ke` one token, `JOIK_KE`, so it reads only the `ke` group joined by `joi`. That lexer also rejects `mi broda joi ke brode ke'e bo brodi`, which has only the plain reading. This grammar keeps the plain reading there, as the printed grammar does.
+7. In `bridi-tail-1`, a tail that ends the bridi-tail cannot follow a plain gihek where the `ke` form of `bridi-tail` can read it as a group of tails (`bridi-tail-2-not-ke-group`). The condition reads the tags `~ke-group` and `~vau-written` of the parsed tail. To pass them up, eight rules write an optional part as two alternatives, which read the same words in the same way. The printed grammar reads `mi broda gi'e ke brode ke'e` in two ways: a `ke` group of tails after `gi'e` (rule 50), or a plain `gi'e` (rule 51) before a tail whose selbri is a `ke` tanru unit. The elided terminators cannot choose: the two parses tie when `ke'e` is elided at the end, and `late-elision` takes the tanru when `ke'e` is written. CLL 14.10 groups tails with `ke` after a gihek, and CLL 14.18 puts a tense between a gihek and `ke`, which the tanru parse moves onto the selbri. The lexer of the official parser makes `gi'e ke` one token, `GIhEK_KE`, so it reads only the group. That lexer also rejects `mi broda gi'e ke brode ke'e brodi`, which has only the plain reading. This grammar keeps the plain reading there, as the printed grammar does.
 
 This grammar keeps the free-modifier slot after an elided terminator as printed: an elided `[X #]` leaves no slot. So a free modifier cannot follow an elided `boi`, and where CLL example 17.38 writes `xy. xi ky.`, this grammar requires `xy. boi xi ky.`.
