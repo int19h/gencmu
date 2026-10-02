@@ -278,13 +278,13 @@ Now that order, *T*, has a narrower role. *T* orders the ambiguity diagnostics a
 
 An error is better than a hidden choice. A reader of the error sees the two readings and where they part. The grammar author settles the choice with a rule, and the rule says why. Every stage follows this, also a stage whose tied parses emit the same tokens, since the grammar is ambiguous there as written.
 
-At the time of this decision, 5 of the 29,308 corpus records tied at the syntax stage under their dialects' greedy rules. Under `late-elision`, four of them were resolved. The fifth is the case that a separate fix of the experimental grammar covers.
+At the time of this decision (commit 1ea14a1), 5 of the 29,308 corpus records tied at the syntax stage under their dialects' greedy rules. Under `late-elision`, four of them were resolved. The fifth is the case that a separate fix of the experimental grammar covers.
 
 ### Elision-only
 
 CLL's own rule is narrower. It says only that a terminator can be elided if no ambiguity results. It says nothing of the other ambiguities that its EBNF has. `elision-only` applies that rule literally, to the stage whose grammar declares it. It applies the rule only when the ranking of that stage was `resolved`:
 
-1. Take the `elided` nodes of the chosen tree in text order. Where several stand at one point, take the inner before the outer. For each node, insert a synthetic token before the stage-input token at the node's position. The synthetic token carries only the tag of that terminator, and is marked synthetic.
+1. Take the `elided` nodes of the chosen tree in the order of its leaves, left to right. This order follows the chosen derivation, also where several nodes stand at one point. For each node, insert a synthetic token before the stage-input token at the node's position. The synthetic token carries only the tag of that terminator, and is marked synthetic.
 2. Lower the same grammar again, and make mandatory every optional whose first symbol is an `%elidable` terminator. Parse the new token sequence.
 3. Build the ranking of that forest (the set of all its parses) with no lean to any rule. If the forest has exactly one derivation, the check passes. It also passes if the forest has none, since then no two restored readings exist to report. In that case, every other reading of the original input needed a terminator elided where the chosen reading did not. CLL's rule forbids that elision, because it made the text ambiguous.
 
@@ -389,7 +389,7 @@ In the historical baseline, the CLL syntax dialects declared `%ambiguity-resolut
 
 A parse option overrides `elision-only` either way. A caller switches it on to find ambiguities that are not about terminators in the supplied text, or off to loosen the CLL dialect. The rule itself (`greedy`, `lazy` or `late-elision`) cannot be overridden, because each rule gives a different language, not a variation. A lazy syntax and a greedy word grammar are examples.
 
-At the time of this decision, a measurement on the same 29,308 records compared `late-elision` with `greedy` at the syntax stage. It kept each dialect's `maximal` and `elision-only`. In cll-ebnf and bpfk, `late-elision` chose the same tree for every text that parses, and left no tie. In the experimental dialect, it changed 1 tree and left 26 ties. These were 25 actionable ties, and one that a separate fix of the grammar covers. In Zantufa, it changed 4 trees and left 30 ties.
+At the time of this decision (commit 1ea14a1), a measurement on the same 29,308 records compared `late-elision` with `greedy` at the syntax stage. It kept each dialect's `maximal` and `elision-only`. In cll-ebnf and bpfk, `late-elision` chose the same tree for every text that parses, and left no tie. In the experimental dialect, it changed 1 tree and left 26 ties. These were 25 actionable ties, and one that a separate fix of the grammar covers. In Zantufa, it changed 4 trees and left 30 ties.
 
 Those Zantufa results come from the earlier Zantufa grammar. That grammar listed `CU` in `%elidable` and had no attachment rules. So the count moved an elided `cu`, and some trees regressed, such as a JAI moved into the terms and numeric subscripts split apart. The migration below removes both causes.
 

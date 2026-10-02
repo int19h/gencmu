@@ -223,7 +223,7 @@ def forbidden_terminator(forest: Forest, ranking: Ranking | None, maximal: Maxim
 
 
 def elided_nodes(tree: Node) -> list[Node]:
-    """The elided nodes of a tree in text order, inner before outer."""
+    """The elided nodes of a tree in the order of its leaves."""
     found: list[Node] = []
     stack = [tree]
     while stack:
@@ -750,7 +750,7 @@ class StageRunner:
                 # A restored terminator with an = test sounds like the
                 # test's string, so that it matches its own terminator in the
                 # stricter grammar (engine §7).
-                new_tokens.append(Token("", frozenset((node.terminal or "",)), (index, index), node.source, node.sound))
+                new_tokens.append(Token("", frozenset((node.terminal or "",)), (len(new_tokens), len(new_tokens)), node.source, node.sound))
                 synthetic.append(True)
                 pending += 1
             if index < len(tokens):

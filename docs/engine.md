@@ -464,7 +464,7 @@ A vector has N + 1 components. So a sparse vector, or a shared sequence of elisi
 
 When the stage's directive has `elision-only`, or the caller asks for it, and the verdict is `resolved`:
 
-1. Take the chosen tree's elided terminators (§12) in text order, inner before outer where several are at one position. Before the input token at each one's position, insert a synthetic token. Its tags are that terminal alone, and its span and source are empty at that position. It has no attachments, and the parse of step 2 reads no attachments, as no parse does (§11).
+1. Take the chosen tree's elided terminators (§12) in the order of its leaves, left to right. Before the input token at each one's position, insert a synthetic token. Its tags are that terminal alone, and its span and source are empty at that position. It has no attachments, and the parse of step 2 reads no attachments, as no parse does (§11).
 
    If the terminator has an `=` test, the token's phonemes are the test's string. Otherwise the token has no phonemes. So a restored `KU="ku"` matches its own terminator in the parse of step 2.
 2. Parse the new token sequence with the grammar lowered as in §3.8.
@@ -476,7 +476,7 @@ When the stage's directive has `elision-only`, or the caller asks for it, and th
 
 The check runs after the stage emits its tokens (§6, §11). A tie never reaches it, because a tie ends the stage first. The check does not run for `unique`. The rule of the directive does not apply to the parse of step 2. Its elision vectors are all zero, and its ranking has no lean whatever the rule.
 
-The stage takes the elided terminators in the order of the chosen tree's leaves, left to right. If the parse of step 2 accepts nothing, the check passes as well. Restoring the terminators can reject every reading, and then no two restored readings exist to report. An error of the grammar found in the parse of step 2 ends the stage as one found while emitting does (§11). The stage keeps its verdict and warnings, but it has no output, and the error is the result's.
+If the parse of step 2 accepts nothing, the check passes as well. Restoring the terminators can reject every reading, and then no two restored readings exist to report. An error of the grammar found in the parse of step 2 ends the stage as one found while emitting does (§11). The stage keeps its verdict and warnings, but it has no output, and the error is the result's.
 
 A caller can also switch the check off for a stage that declares it.
 
