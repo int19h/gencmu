@@ -413,7 +413,8 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
   operator-2 | guhek operator-1 gik operator-2 | operator-2 (jek | joik) [stag] BO # operator-1
 
 %rule operator-2
-  mex-operator | KE # operator [KEhE #]
+  | mex-operator
+  | KE # operator [KEhE #] <~ke-group>
 
 %rule mex-operator
   SE # mex-operator | NAhE # mex-operator | MAhO # mex [TEhU #] | NAhU # selbri [TEhU #] | VUhU #
@@ -459,7 +460,7 @@ Each afterthought connective can be negated on either side, `na` before and `nai
 
 The ordinary alternative of `selbri-4` and `operator` joins two units with a plain connective. The other alternative, `joik [stag] KE`, groups with the connective itself. Where both alternatives read the same words, the official parser takes the `ke` group, through its lexer token `JOIK_KE`. Three rules state this choice. `plain-joik-jek` is a jek, or a joik that `ke` does not directly follow.
 
-`joik-before-ke` is a joik that `ke` directly follows. The unit after it cannot be only a `ke` group: `selbri-5-not-ke-group` and `operator-1-not-ke-group` say this. So the plain reading stays where the unit goes on after its `ke` group, as in `ke brode ke'e bo brodi`. The `ke` form cannot read that unit. A free modifier between the joik and `ke` also leaves only the plain reading, since the `ke` form has no slot there.
+`joik-before-ke` is a joik that `ke` directly follows. The unit after it cannot be only a `ke` group: `selbri-5-not-ke-group` and `operator-1-not-ke-group` say this. They read the tag `~ke-group` of the unit that the parse built, as `bridi-tail-2-not-ke-group` does (see "Sentences and bridi-tails"). The `ke` alternatives of `tanru-unit-2` and `operator-2` carry that tag, and a unit of one part passes it up. So the test sees the same elided terminators as the parse, and `mi broda joi ke me le le brodi brodo ku me'u ke'e`, whose inner `ku` is elided, is the `ke` group too. So the plain reading stays where the unit goes on after its `ke` group, as in `ke brode ke'e bo brodi`. The `ke` form cannot read that unit. A free modifier between the joik and `ke` also leaves only the plain reading, since the `ke` form has no slot there.
 
 The `sumti` and `operand` rules have a joik-plus-`ke` form too. But no unit of their plain alternatives begins with `ke`, so they keep `joik-ek`. A jek has no `ke` form, so the condition does not apply to it.
 
@@ -501,18 +502,12 @@ A gek is a forethought logical connective, a joik used in forethought with `gi`,
 %rule selbri-5-not-ke-group
   $u(selbri-5)
 %conditions
-  ¬matches($u, ke-selbri-group)
-
-%rule ke-selbri-group
-  KE # selbri-3 [KEhE #]
+  ~ke-group ⊈ tags($u)
 
 %rule operator-1-not-ke-group
   $u(operator-1)
 %conditions
-  ¬matches($u, ke-operator-group)
-
-%rule ke-operator-group
-  KE # operator [KEhE #]
+  ~ke-group ⊈ tags($u)
 
 %rule gek
   [SE] GA [NAI] # | joik GI # | stag gik
@@ -669,7 +664,7 @@ The fifth follows the prose of CLL 19.8, which allows more than the EBNF. The si
 3. A `lo'u ... le'u` quote can be empty, `lo'u le'u`. The printed `sumti-6` requires at least one word. YACC rule 436 reads the body of the quote as one token that can be empty.
 4. The free-modifier slot after a `lu ... li'u` quote follows the quote whether or not `li'u` is written, so `lu cy. to toi` is a quote followed by a parenthesis. The printed `sumti-6` writes `/LIhU#/`, which drops the slot with the elided `li'u`. YACC rule 432 (`quote_arg`) attaches free modifiers to the whole quote, and its `LIhU` gap carries none. Every other elidable terminator keeps its slot as printed.
 5. A run of indicators can hold several groups, each with its own `fu'e`, as in `ui fu'e ia mi klama`. The printed `indicators` reads `[FUhE] indicator ...`, one group. CLL 19.8 lets a local attitudinal stand beside the ones that `fu'e` marks. The indicator stage reads the run after a word the same way.
-6. In `selbri-4` and `operator`, a plain joik directly before `ke` cannot take a unit that is only a `ke` group (`joik-before-ke`). The printed grammar reads `mi broda joi ke brode ke'e` in two ways. The lexer of the official parser makes `joi ke` one token, `JOIK_KE`, so it reads only the `ke` group joined by `joi`. That lexer also rejects `mi broda joi ke brode ke'e bo brodi`, which has only the plain reading. This grammar keeps the plain reading there, as the printed grammar does.
-7. In `bridi-tail-1`, a tail that ends the bridi-tail cannot follow a plain gihek where the `ke` form of `bridi-tail` can read it as a group of tails (`bridi-tail-2-not-ke-group`). The condition reads the tags `~ke-group` and `~vau-written` of the parsed tail. To pass them up, eight rules write an optional part as two alternatives, which read the same words in the same way. The printed grammar reads `mi broda gi'e ke brode ke'e` in two ways: a `ke` group of tails after `gi'e` (rule 50), or a plain `gi'e` (rule 51) before a tail whose selbri is a `ke` tanru unit. The elided terminators cannot choose: the two parses tie when `ke'e` is elided at the end, and `late-elision` takes the tanru when `ke'e` is written. CLL 14.10 groups tails with `ke` after a gihek, and CLL 14.18 puts a tense between a gihek and `ke`, which the tanru parse moves onto the selbri. The lexer of the official parser makes `gi'e ke` one token, `GIhEK_KE`, so it reads only the group. That lexer also rejects `mi broda gi'e ke brode ke'e brodi`, which has only the plain reading. This grammar keeps the plain reading there, as the printed grammar does.
+6. In `selbri-4` and `operator`, a plain joik directly before `ke` cannot take a unit that is only a `ke` group (`joik-before-ke`). The condition reads the tag `~ke-group` of the parsed unit, as item 7 does. The printed grammar reads `mi broda joi ke brode ke'e` in two ways. The lexer of the official parser makes `joi ke` one token, `JOIK_KE`, so it reads only the `ke` group joined by `joi`. That lexer also rejects `mi broda joi ke brode ke'e bo brodi`, which has only the plain reading. This grammar keeps the plain reading there, as the printed grammar does.
+7. In `bridi-tail-1`, a tail that ends the bridi-tail cannot follow a plain gihek where the `ke` form of `bridi-tail` can read it as a group of tails (`bridi-tail-2-not-ke-group`). The condition reads the tags `~ke-group` and `~vau-written` of the parsed tail. To pass them up, eight rules write an optional part as two alternatives, which read the same words in the same way. Item 6 reads `~ke-group` too. The printed grammar reads `mi broda gi'e ke brode ke'e` in two ways: a `ke` group of tails after `gi'e` (rule 50), or a plain `gi'e` (rule 51) before a tail whose selbri is a `ke` tanru unit. The elided terminators cannot choose: the two parses tie when `ke'e` is elided at the end, and `late-elision` takes the tanru when `ke'e` is written. CLL 14.10 groups tails with `ke` after a gihek, and CLL 14.18 puts a tense between a gihek and `ke`, which the tanru parse moves onto the selbri. The lexer of the official parser makes `gi'e ke` one token, `GIhEK_KE`, so it reads only the group. That lexer also rejects `mi broda gi'e ke brode ke'e brodi`, which has only the plain reading. This grammar keeps the plain reading there, as the printed grammar does.
 
 This grammar keeps the free-modifier slot after an elided terminator as printed: an elided `[X #]` leaves no slot. So a free modifier cannot follow an elided `boi`, and where CLL example 17.38 writes `xy. xi ky.`, this grammar requires `xy. boi xi ky.`.
