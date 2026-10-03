@@ -924,13 +924,18 @@ class _Lowerer:
         if "optional" in expr:
             inner = expr["optional"]
             body = yield self._expand(inner)
-            first = self.first_terminal(inner)
-            elidable = first is not None and first[0] in self.grammar.elidable
-            helper = self.new_helper([[]] + body, first if elidable else None)
+            # A marked optional is elidable, with the terminal that its
+            # marker names (engine §3.8).
+            first = self.first_terminal(inner) if expr.get("elidable") is True else None
+            helper = self.new_helper([[]] + body, first)
             return [[(("n", helper), None)]]
         if "repeat" in expr:
-            body = yield self._expand(expr["repeat"])
-            return [[(("n", self.repeat_helper(body, expr.get("min", 1))), None)]]
+            # Flat braces are a helper, h → x | h s x, its base productions
+            # first; the places inside the item come before those inside the
+            # separator (engine §3.2).
+            items = yield self._expand(expr["repeat"])
+            separators = (yield self._expand(expr["separator"])) if "separator" in expr else [[]]
+            return [[(("n", self.repeat_helper(items, separators)), None)]]
         if "empty" in expr:
             return [[]]
         if "ref" in expr:
@@ -966,11 +971,10 @@ class _Lowerer:
             return [[(symbol, expr["capture"])]]
         raise self.fail(f"an unknown expression {sorted(expr)}")
 
-    def repeat_helper(self, body: list[list[_Sym]], minimum: int) -> int:
+    def repeat_helper(self, items: list[list[_Sym]], separators: list[list[_Sym]]) -> int:
         number = len(self.rule_names)
-        recursive: list[list[_Sym]] = [[(("n", number), None)] + expansion for expansion in body]
-        base: list[list[_Sym]] = [[]] if minimum == 0 else body
-        helper = self.new_helper(base + recursive)
+        recursive: list[list[_Sym]] = [[(("n", number), None)] + separator + item for separator in separators for item in items]
+        helper = self.new_helper(items + recursive)
         assert helper == number
         return helper
 
@@ -1139,36 +1143,10 @@ class _Lowerer:
             alternatives = [alt for alt in rule.alternatives if self.holds(alt.guards)]
             for alt in alternatives:
                 self.current_alt = alt
-                expr = alt.expr
-                trailing: tuple[list[Dom], Dom] | None = None
-                if len(alternatives) == 1:
-                    if "repeat" in expr:
-                        trailing = ([], expr)
-                    elif "seq" in expr and expr["seq"] and "repeat" in expr["seq"][-1]:
-                        trailing = (expr["seq"][:-1], expr["seq"][-1])
-                if trailing is None:
-                    expansions = self.expand(expr, top=True)
-                    for expansion in expansions:
-                        self.add(lhs, expansion, alt)
-                    self.flush(expansions)
-                    continue
-                prefix, repeat = trailing
-                if any("capture" in item and "expr" in item for item in prefix):
-                    # The recursive productions could not have the capture,
-                    # whose part lies inside the inner constituent (engine
-                    # §3.3).
-                    raise self.fail(f"an alternative of {name} captures a part, and is lowered as a trailing repetition")
-                heads = self.expand({"seq": prefix}, top=True)
-                body = self.expand(repeat["repeat"])
-                if repeat.get("min", 1) == 1:
-                    bases = [head + item for head in heads for item in body]
-                else:
-                    bases = heads
-                for expansion in bases:
+                expansions = self.expand(alt.expr, top=True)
+                for expansion in expansions:
                     self.add(lhs, expansion, alt)
-                for expansion in body:
-                    self.add(lhs, [(("n", lhs), None)] + expansion, alt, rep_splice=True)
-                self.flush(bases + body)
+                self.flush(expansions)
             self.current_alt = None
         rule_productions: list[list[int]] = [[] for _ in self.rule_names]
         for production in self.productions:

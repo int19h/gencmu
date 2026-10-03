@@ -59,10 +59,82 @@ def mentioned_in(dom: Any) -> set[str]:
     return found
 
 
-def top_captures(expr: Any) -> list[str]:
-    """The captures an alternative writes, in text order (engine §3.5)."""
-    top = expr["seq"] if isinstance(expr, dict) and isinstance(expr.get("seq"), list) else [expr]
-    return [item["capture"] for item in top if isinstance(item, dict) and isinstance(item.get("capture"), str) and "expr" in item]
+def capture_sequences(expr: Any) -> tuple[list[list[Dom]], list[Dom]]:
+    """The distinct sequences of captures that the productions of an
+    expression read, each in the order read (engine §3.2, §3.5): a choice
+    gives each branch's, an ``&`` each subsequence's, a plain optional none
+    or its content's, and braces and an elidable optional none. Productions
+    that read the same names in the same order are one sequence. The second
+    list holds the capture nodes that some production reads after one of
+    the same name, in no particular order. Gates do not matter, since they
+    drop whole alternatives."""
+    duplicates: dict[int, Dom] = {}
+
+    def distinct(lists: list[list[Dom]]) -> list[list[Dom]]:
+        seen: set[tuple[str, ...]] = set()
+        result: list[list[Dom]] = []
+        for captures in lists:
+            key = tuple(capture["capture"] for capture in captures)
+            if key not in seen:
+                seen.add(key)
+                result.append(captures)
+        return result
+
+    def product(left: list[list[Dom]], right: list[list[Dom]]) -> list[list[Dom]]:
+        result: list[list[Dom]] = []
+        for first in left:
+            names = {capture["capture"] for capture in first}
+            for second in right:
+                for capture in second:
+                    if capture["capture"] in names:
+                        duplicates[id(capture)] = capture
+                result.append(first + second)
+        return distinct(result)
+
+    def visit(node: Any) -> Walk:
+        if not isinstance(node, dict):
+            return [[]]
+        if isinstance(node.get("capture"), str) and "expr" in node:
+            return [[node]]
+        if isinstance(node.get("seq"), list):
+            sequences: list[list[Dom]] = [[]]
+            for item in node["seq"]:
+                sequences = product(sequences, (yield visit(item)))
+            return sequences
+        if isinstance(node.get("choice"), list):
+            branches: list[list[Dom]] = []
+            for item in node["choice"]:
+                branches.extend((yield visit(item)))
+            return distinct(branches)
+        if isinstance(node.get("and"), list):
+            parts = []
+            for item in node["and"]:
+                parts.append((yield visit(item)))
+            result: list[list[Dom]] = []
+            for mask in range(1, 1 << len(parts)):
+                chosen: list[list[Dom]] = [[]]
+                for index, part in enumerate(parts):
+                    if mask >> index & 1:
+                        chosen = product(chosen, part)
+                result.extend(chosen)
+            return distinct(result)
+        if "optional" in node:
+            if node.get("elidable") is True:
+                return [[]]
+            return distinct([[], *(yield visit(node["optional"]))])
+        return [[]]
+
+    sequences: list[list[Dom]] = run(visit(expr))
+    return sequences, list(duplicates.values())
+
+
+def alternative_captures(alternative: Dom) -> list[dict[str, int]]:
+    """The captures of each production of an alternative, each name with its
+    place in the order that the production reads them, and ``$`` at -1
+    (engine §3.5). Productions that read the same captures in the same order
+    are one."""
+    sequences, _ = capture_sequences(alternative["expr"])
+    return [{WHOLE: -1, **{capture["capture"]: index for index, capture in enumerate(sequence)}} for sequence in sequences]
 
 
 def simplify_condition(condition: Dom, present: AbstractSet[str]) -> Simplified:
@@ -224,8 +296,12 @@ def definition_problem(rule: Dom) -> str | None:
     simplification decides skip a clause that holds a constant without its
     value."""
     alternatives = rule["alternatives"]
-    captured = [top_captures(alternative["expr"]) for alternative in alternatives]
-    presents = [set(names) | {WHOLE} for names in captured]
+    # Each production of each alternative, with the captures it reads
+    # (engine §3.5, §9); productions that read the same captures in the same
+    # order are one.
+    productions = [(alternative, captures) for alternative in alternatives for captures in alternative_captures(alternative)]
+    captured = [[name for name, _ in sorted(captures.items(), key=lambda pair: pair[1]) if name != WHOLE] for _, captures in productions]
+    presents = [set(captures) for _, captures in productions]
     known = set().union(*presents)
     emit = rule.get("emit")
     items: list[Dom] = emit["items"] if emit is not None else []
@@ -243,31 +319,31 @@ def definition_problem(rule: Dom) -> str | None:
         if waits(condition):
             continue
         if all(applies(condition, present) is None for present in presents):
-            return f"a condition of {rule['name']} applies to none of its alternatives"
+            return f"a condition of {rule['name']} applies to none of its productions"
 
     def lacks(term: Dom, present: set[str]) -> bool:
         return not waits(term) and not captures_in(simplify_term(term, present)) <= present
 
-    for alternative, present in zip(alternatives, presents):
+    for (alternative, _), present in zip(productions, presents):
         if "tags" in alternative and lacks(alternative["tags"], present):
-            return "an alternative's tags use a capture it lacks; guard the use with ⟹"
+            return "an alternative's tags use a capture that one of its productions lacks; guard the use with ⟹"
         if "tags" in rule and lacks(rule["tags"], present):
-            return f"the %tags of {rule['name']} use a capture an alternative lacks; guard the use with ⟹"
+            return f"the %tags of {rule['name']} use a capture a production lacks; guard the use with ⟹"
     for names, present in zip(captured, presents):
         kept = [item for item in items if "insert" in item or item["capture"] in present]
         if items and not kept:
-            return f"%emits of {rule['name']} leaves an alternative nothing to emit"
+            return f"%emits of {rule['name']} leaves a production nothing to emit"
         for item in kept:
             if "tags" in item and lacks(item["tags"], present):
-                return "the tags of an item of %emits use a capture an alternative lacks; guard the use with ⟹"
-        # An alternative without an item's carrier lacks its attachments too
+                return "the tags of an item of %emits use a capture a production lacks; guard the use with ⟹"
+        # A production without an item's carrier lacks its attachments too
         # (engine §9).
         for item in items:
             if "capture" not in item or item["capture"] in present:
                 continue
             stray = next((name for name in attachments_of(item) if name in present), None)
             if stray is not None:
-                return f"%emits of {rule['name']} attaches ${stray} in an alternative without its carrier ${item['capture']}"
+                return f"%emits of {rule['name']} attaches ${stray} in a production without its carrier ${item['capture']}"
         # The written order of the captures, attachments included, is the
         # order they stand in (engine §9).
         written = [name for item in kept if item.get("capture") for name in attachment_order(item)]
@@ -279,5 +355,5 @@ def definition_problem(rule: Dom) -> str | None:
                 continue
             anchor = next((other["capture"] for other in items[index + 1 :] if "capture" in other), None)
             if anchor is not None and anchor not in present:
-                return f"an inserted tag of {rule['name']} stands before ${anchor}, which an alternative lacks"
+                return f"an inserted tag of {rule['name']} stands before ${anchor}, which a production lacks"
     return None
