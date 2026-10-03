@@ -18,6 +18,7 @@ import { DOM_FORMAT } from "../lib/js/src/dom.js";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
 import { includeIsLinked } from "./links.js";
 import { layoutProblems } from "./alternatives.js";
+import { quotedTextProblems } from "./quoted-texts.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const grammars = path.join(root, "grammars");
@@ -108,6 +109,13 @@ for (const [file, { dom }] of Object.entries(documents)) {
 }
 if (sprawling.length) {
   console.error(sprawling.join("\n"));
+  process.exit(1);
+}
+// Every Lojban text that a grammar document quotes has a corpus case, or an
+// entry in tests/quoted-allow.txt (tests/README.md, "Quoted texts").
+const unpinned = quotedTextProblems(root);
+if (unpinned.length) {
+  console.error(unpinned.join("\n"));
   process.exit(1);
 }
 write("grammars/compiled.json", JSON.stringify(compiled) + "\n");

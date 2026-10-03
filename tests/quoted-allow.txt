@@ -1,0 +1,42 @@
+# Quoted texts that no corpus case pins (tests/README.md, "Quoted texts").
+# Each line is the text, then " # ", then why it needs no case: it is a part
+# of a text that names the shape of a rule, or notation, and the sentence
+# makes no claim about a whole text. node tools/quoted-texts.js checks it.
+
+# grammars/syntax/cll.md
+.i ja nai # a connective between sentences, not a text
+ke cadzu ke'e # the selbri of the text quoted before it
+ke brode ke'e bo brodi # the tanru unit of a pinned text, mi broda joi ke brode ke'e bo brodi
+ca lo nu broda # a tense with its sumti, one example of a term
+mi ce'e do # the shape of a termset
+nu'i gek terms nu'u gik terms nu'u # notation: rule names between the cmavo
+nu'i terms nu'u # notation: a rule name between the cmavo
+mi .e do # the shape of an afterthought sumti connection
+mi joi do # the shape of a joik sumti connection
+ge mi gi do # the shape of a forethought sumti connection
+re lo gerku # the shape of an outer quantifier
+le mi zdani # the shape of a possessive inner sumti
+lo re lo gerku # the shape of a quantifier and a sumti after a descriptor
+mi goi ko'a # the shape of a goi clause
+le zdani pe mi # the shape of a pe clause
+sutra co tavla # the shape of a co inversion
+barda gerku zdani # a tanru; the tree draws its left grouping as one flat node
+barda je melbi # the shape of an afterthought jek in a selbri
+gu'e barda gi melbi # the shape of a guhek in a selbri
+klama cei broda # the shape of a cei assignment
+me sumti me'u # notation: a rule name between the cmavo
+se se broda # the shape of a SE unit
+na'e se broda # the shape of a NAhE unit
+nu je ka # the shape of connected abstraction words
+ke pi'i ke'e # the operator group of a pinned text, li ci su'i joi ke pi'i ke'e re du li xa
+pu je ca # the shape of a connected tense
+fi'o selbri fe'u # notation: a rule name between the cmavo
+sei mi cusku # the shape of a discursive bridi
+poi blabi gerku # a relative clause that maximal could read, not a text
+ba za ki # a simple-tense-modal, not a text
+fe'e di'i co'a # the tense of a pinned text, mi fe'e di'i co'a klama
+lo va pu broda # a description; the case adhoc.syntax.space-before-time-description pins it in a text
+pu gi do gi la djan # the sumti of a pinned text, mi viska va pu gi do gi la djan
+
+# grammars/dialects/bpfk.md
+lojbo se farvi # the sumti-tail of a pinned text
