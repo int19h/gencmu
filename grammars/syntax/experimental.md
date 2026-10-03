@@ -506,7 +506,7 @@ Selbri and tanru-unit connectives are joik, jek, ek or VUhU (`selbri-connective`
 
 In the plain form of `selbri-4`, the connective is `plain-selbri-connective`, the CLL rule `plain-joik-jek` with this layer's connectives. As in CLL, a joik directly before `ke` is `joik-before-ke`, and its unit cannot be only a `ke` group. So `mi broda joi ke brode ke'e` joins a `ke` group with `joi`, through `joik [stag] KE`, as the CLL grammar does. camxes-exp departs here. It tries the plain connective first, and reads `joi` before a tanru unit that begins with `ke`. In this text, both readings group the same words.
 
-Where only the plain reading parses, the layer keeps it, as camxes-exp does. So `mi broda joi ke brode ke'e bo brodi` joins `broda` to the unit `ke brode ke'e bo brodi`. The official parser of CLL rejects that text. The layer redefines `ke-selbri-group` and `ke-operator-group` with its own place for free modifiers.
+Where only the plain reading parses, the layer keeps it, as camxes-exp does. So `mi broda joi ke brode ke'e bo brodi` joins `broda` to the unit `ke brode ke'e bo brodi`. The official parser of CLL rejects that text. The test reads the tag `~ke-group` of the parsed unit, as in the CLL grammar. This layer's `ke` alternatives of `tanru-unit-2` and `operator-2` carry it. So that the tag reaches `selbri-5`, this layer's `tanru-unit` and `selbri-5` write their optional parts as alternatives. These read the same words in the same way.
 
 A group of preposed linked arguments comes before a whole `tanru-unit-1`, as in camxes-exp. A `be` group attaches to the tanru unit before it, where there is one. So a unit without a group of its own cannot be directly followed by `be` (`tanru-unit-1`). A preposed group stands only where no such unit comes before it, as at the start of a selbri or after a connective.
 
@@ -528,11 +528,9 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
 %conditions
   KE ⊈ tags(head(after($j)))
 
-%redefine-rule ke-selbri-group
-  KE # selbri-3 [KEhE] #
-
 %redefine-rule selbri-5
-  selbri-6 [selbri-connective [stag] BO # selbri-5]
+  | selbri-6
+  | selbri-6 selbri-connective [stag] BO # selbri-5
 
 %rule selbri-not-starting-with-ke
   [tag] selbri-1-not-starting-with-ke
@@ -556,7 +554,9 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   tanru-unit-not-starting-with-ke [BO # selbri-6] | [NAhE #] guhek selbri gik selbri-6
 
 %redefine-rule tanru-unit
-  tanru-unit-1 [CEI # tanru-unit-1] ... [selbri-relative-clauses]
+  | tanru-unit-1
+  | tanru-unit-1 (CEI # tanru-unit-1) ... [selbri-relative-clauses]
+  | tanru-unit-1 selbri-relative-clauses
 
 %redefine-rule tanru-unit-1
   | $u(tanru-unit-2)
@@ -565,7 +565,7 @@ A tanru unit can carry selbri relative clauses: `no'oi subsentence ku'oi`, in wh
   BE ⊈ tags(head(after($u)))
 
 %redefine-rule tanru-unit-2
-  | KE # selbri-3 [KEhE] #
+  | KE # selbri-3 [KEhE] # <~ke-group>
   | BRIVLA #
   | cbm? CMEVLA #
   | GOhA [RAhO] #
@@ -678,11 +678,9 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
 %redefine-rule operator
   operator-1 [plain-joik-jek operator-1 | joik-before-ke operator-1-not-ke-group | joik [stag] KE # operator [KEhE] #] ...
 
-%redefine-rule ke-operator-group
-  KE # operator [KEhE] #
-
 %redefine-rule operator-2
-  mex-operator | KE # operator [KEhE] #
+  | mex-operator
+  | KE # operator [KEhE] # <~ke-group>
 
 %redefine-rule mex-operator
   | SE # mex-operator

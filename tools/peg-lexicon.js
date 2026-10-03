@@ -6,8 +6,10 @@
 // before its first `jbogenbau` block and replaces every block after it.
 // Usage: node tools/peg-lexicon.js PEG LEXICON.md [CLASS,...]
 // The optional list names the classes that the lexicon's implication marks
-// as indicators. An empty list writes no implication.
+// as indicators. An empty list writes no implication. The blocks are those
+// that the Markdown parser of tools/markdown.js finds at the top level.
 import fs from "node:fs";
+import { parseMarkdown } from "./markdown.js";
 
 const [pegPath, documentPath, indicatorList] = process.argv.slice(2);
 if (!pegPath || !documentPath) {
@@ -69,7 +71,7 @@ const indicators = INDICATORS.filter((name) => classes.has(name));
 if (indicators.length) blocks += "\n```jbogenbau\n%implies " + indicators.join(" ∪ ") + " ⟹ ~indicator\n```\n";
 
 const document = fs.readFileSync(documentPath, "utf8");
-const first = document.indexOf("```jbogenbau");
-const prose = first < 0 ? document : document.slice(0, first);
+const block = parseMarkdown(document).children.find((node) => node.type === "code" && node.lang === "jbogenbau");
+const prose = block ? document.slice(0, block.position.start.offset - (block.position.start.column - 1)) : document;
 fs.writeFileSync(documentPath, prose.replace(/\n*$/, "\n\n") + blocks);
 console.log(`${words.size} words in ${classes.size} classes`);

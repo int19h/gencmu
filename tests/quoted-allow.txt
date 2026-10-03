@@ -1,0 +1,76 @@
+# Quoted texts that no corpus case pins as a whole text (tests/README.md,
+# "Quoted texts"). Each entry covers one document. It is the text, " # ",
+# the document, and then one of these:
+#
+# - " = " and the ids of the cases whose texts or words hold the text. The
+#   check requires a case of each dialect that the text needs. Use this
+#   form for a part of a text that the sentence makes a claim about.
+# - " # " and why the text needs no case: it is notation, or it shows the
+#   shape of a rule, and the sentence makes no claim about a whole text.
+#
+# node tools/quoted-texts.js checks it.
+
+# Parts of pinned texts that the sentences make claims about.
+ke cadzu ke'e # grammars/syntax/cll.md = adhoc.syntax.gihek-tense-ke-group adhoc.syntax.gihek-tense-ke-group.bpfk
+bo brodi # grammars/syntax/cll.md = adhoc.syntax.joik-ke-group-then-bo adhoc.syntax.joik-ke-group-then-bo.bpfk
+ke brode ke'e bo brodi # grammars/syntax/cll.md = adhoc.syntax.joik-ke-group-then-bo adhoc.syntax.joik-ke-group-then-bo.bpfk
+se se broda # grammars/syntax/cll.md = adhoc.syntax.se-se-unit adhoc.syntax.se-se-unit.bpfk
+na'e se broda # grammars/syntax/cll.md = adhoc.syntax.nahe-se-unit adhoc.syntax.nahe-se-unit.bpfk
+pa xy. # grammars/syntax/cll.md = adhoc.syntax.cll-18-6-quantifier-then-lerfu adhoc.syntax.cll-18-6-quantifier-then-lerfu.bpfk
+ke pi'i ke'e # grammars/syntax/cll.md = adhoc.syntax.joik-ke-operator adhoc.syntax.joik-ke-operator.bpfk
+pu va # grammars/syntax/cll.md = adhoc.syntax.time-before-space-jai adhoc.syntax.time-before-space-jai.bpfk
+le sutra # grammars/syntax/cll.md = corpus.camxes.1037 corpus.camxes.1037.bpfk
+fy. xy. # grammars/syntax/cll.md = adhoc.syntax.cll-18-34-boi-before-operand-elided adhoc.syntax.cll-18-34-boi-before-operand-elided.bpfk
+poi blabi gerku # grammars/syntax/cll.md = adhoc.syntax.cll-8-48-kuho-elided adhoc.syntax.cll-8-48-kuho-elided.bpfk
+ba za ki # grammars/syntax/cll.md = adhoc.syntax.simple-tense-modal-time-space-ki adhoc.syntax.simple-tense-modal-time-space-ki.bpfk
+na'e ka'e # grammars/syntax/cll.md = adhoc.syntax.simple-tense-modal-nahe-kahe adhoc.syntax.simple-tense-modal-nahe-kahe.bpfk
+pu ki # grammars/syntax/cll.md = adhoc.syntax.simple-tense-modal-time-ki adhoc.syntax.simple-tense-modal-time-ki.bpfk
+na'e ca'a # grammars/syntax/cll.md = adhoc.syntax.simple-tense-modal-nahe-caha adhoc.syntax.simple-tense-modal-nahe-caha.bpfk
+lo'u le'u # grammars/syntax/cll.md = adhoc.syntax.yacc-repair-empty-lohu adhoc.syntax.yacc-repair-empty-lohu.bpfk
+va pu # grammars/syntax/cll.md = adhoc.syntax.space-time-term-then-tense adhoc.syntax.space-time-term-then-tense.bpfk
+fe'e di'i # grammars/syntax/cll.md = adhoc.syntax.space-fehe-then-time-contour adhoc.syntax.space-fehe-then-time-contour.bpfk
+fe'e di'i co'a # grammars/syntax/cll.md = adhoc.syntax.space-fehe-then-time-contour adhoc.syntax.space-fehe-then-time-contour.bpfk
+lo va pu broda # grammars/syntax/cll.md = adhoc.syntax.space-before-time-description adhoc.syntax.space-before-time-description.bpfk
+pu gi do gi la djan # grammars/syntax/cll.md = adhoc.syntax.space-before-time-forethought-sumti adhoc.syntax.space-before-time-forethought-sumti.bpfk
+se farvi # grammars/dialects/cll-ebnf.md = corpus.camxes.12997
+fy no # grammars/dialects/bpfk.md = adhoc.words.cy.cy-before-number-needs-pause.bpfk
+lojbo se farvi # grammars/dialects/bpfk.md = corpus.camxes.12997.bpfk
+li paso # grammars/dialects/bpfk.md = adhoc.syntax.maximal-splits-number.bpfk
+
+# Notation, and parts of texts that show the shape of a rule.
+terms zo'u # grammars/syntax/cll.md # notation: a rule name before the cmavo
+.i ja nai # grammars/syntax/cll.md # a connective between sentences
+.i joi # grammars/syntax/cll.md # a connective between sentences
+.i bo # grammars/syntax/cll.md # a connective between sentences
+gi'e ke # grammars/syntax/cll.md # the words of one token of the official parser's lexer
+joi ke # grammars/syntax/cll.md # the words of one token of the official parser's lexer
+ca lo nu broda # grammars/syntax/cll.md # the shape of a tense with its sumti
+fi mi # grammars/syntax/cll.md # the shape of a place marker with its sumti
+pu ku # grammars/syntax/cll.md # the shape of a tense with an elided sumti
+na ku # grammars/syntax/cll.md # the shape of a negation as a term
+mi ce'e do # grammars/syntax/cll.md # the shape of a termset
+nu'i gek terms nu'u gik terms nu'u # grammars/syntax/cll.md # notation: rule names between the cmavo
+nu'i terms nu'u # grammars/syntax/cll.md # notation: a rule name between the cmavo
+mi .e do # grammars/syntax/cll.md # the shape of an afterthought sumti connection
+mi joi do # grammars/syntax/cll.md # the shape of a joik sumti connection
+ge mi gi do # grammars/syntax/cll.md # the shape of a forethought sumti connection
+re lo gerku # grammars/syntax/cll.md # the shape of an outer quantifier
+na'e bo # grammars/syntax/cll.md # the shape of a NAhE sumti
+le mi zdani # grammars/syntax/cll.md # the shape of a possessive inner sumti
+lo re lo gerku # grammars/syntax/cll.md # the shape of a quantifier and a sumti after a descriptor
+mi goi ko'a # grammars/syntax/cll.md # the shape of a goi clause
+le zdani pe mi # grammars/syntax/cll.md # the shape of a pe clause
+sutra co tavla # grammars/syntax/cll.md # the shape of a co inversion
+barda gerku zdani # grammars/syntax/cll.md # the shape of a tanru; the later notation branch pins how the tree groups it
+barda je melbi # grammars/syntax/cll.md # the shape of an afterthought jek in a selbri
+gu'e barda gi melbi # grammars/syntax/cll.md # the shape of a guhek in a selbri
+klama cei broda # grammars/syntax/cll.md # the shape of a cei assignment
+me sumti me'u # grammars/syntax/cll.md # notation: a rule name between the cmavo
+nu je ka # grammars/syntax/cll.md # the shape of connected abstraction words
+pu je ca # grammars/syntax/cll.md # the shape of a connected tense
+fi'o selbri fe'u # grammars/syntax/cll.md # notation: a rule name between the cmavo
+pu ka'e # grammars/syntax/cll.md # the shape of a tense with a CAhA word
+sei mi cusku # grammars/syntax/cll.md # the shape of a discursive bridi
+pa mai # grammars/syntax/cll.md # the shape of an utterance ordinal
+li pa # grammars/dialects/bpfk.md # a part of the split reading that maximal forbids in a pinned text
+so nanca # grammars/dialects/bpfk.md # a part of the split reading that maximal forbids in a pinned text

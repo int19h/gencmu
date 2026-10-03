@@ -121,13 +121,45 @@ Each line is one case: a Lojban text, with the result that gencmu must give for 
 
 - `dialect` is the name of a bundled dialect. `features`, when present, lists the features that the case turns on. `withoutFeatures` lists those that it turns off.
 - `expect` is `accept` or `reject`. For an accepted text, `verdict` is the verdict of the last stage, and `brackets` is its tree, with elided terminators hidden. For a rejected one, `stage` names the stage that rejected it.
+- `at`, in a rejected case, is where that stage stopped: the `token` of the error, an index into the stage's input, counted from 0. A change of that position fails the case. Two different failures can stop at the same token, so `at` does not show the reason for the rejection. It and the accepted twins of a rejection make the cases stronger, and neither proves the reason. An error with no position, such as an ambiguity, gives no `at`.
 - `error` is present exactly when the result's error is of kind `ambiguous`. It is `{"kind": "ambiguous", "reason": "tie"}`, or the same with the reason `elision-only` (engine §6, §7). A case with any other result has no `error`, a rejection or an error of the grammar included. A case expects an ambiguity with `expect` set to `reject`, its `stage`, and this `error`. A third value of `expect` is not needed.
 - The `reason` inside `error` is the reason of the ambiguous error. It is a field of `error`, and it is not the case's own `reason`, which explains a departure from the seed (below). A case can have both.
 - `ties`, when present, names the stage whose verdict is `tie`. A tie ends the run, so at most one stage has it, and that stage can come before the last.
 - `words` records the word stage's output when that output is present. The case writes each token as its label (engine §5). So a pause inside a word is a space, and an opaque part is its text.
 
-A runner also checks the invariants of a tie (above) on the result of each corpus case. No corpus text ties in its dialect, so each library also tests that its runner refuses a broken tie with the engine case `attach-tie.json`. A case runs with auto features on, which is the default of the API. The case matches when every one of those fields that the case or the result of the library has is equal.
+A runner also checks the invariants of a tie (above) on the result of each corpus case. No corpus text ties in its dialect, so each library also tests that its runner refuses a broken tie with the engine case `attach-tie.json`. A case runs with auto features on, which is the default of the API. The case matches when every one of those fields that the case or the result of the library has is equal. Every runner compares all of these fields, `at` included.
 
 The corpus started from a seed: a fixture collection whose verdicts came from another parser. Where the expectation of gencmu differs from that seed, the case says so. `"seeded": "accept"` or `"reject"` is the verdict of the seed, and `reason` says why gencmu differs, in terms of its own grammars. `node tools/corpus-departures.js` lists every such case, grouped by reason. A change to the `words` or `brackets` of a case needs no field of its own. It is a change to what gencmu produces, made in the same commit as the grammar change that causes it.
 
-`core.txt` lists the ids of the sample that every library runs on each pull request. On a pull request, the JavaScript and Rust libraries also run the whole corpus, and the others run it nightly. To run every case in JavaScript, run `GENCMU_CORPUS=full node --test test/corpus.test.js` in `lib/js/`.
+`core.txt` lists the ids of the sample that every library runs on each pull request. It holds every case that pins a text that a checked document quotes ("Quoted texts" below). So a change that makes such prose false fails in every library. On a pull request, the JavaScript and Rust libraries also run the whole corpus, and the others run it nightly. To run every case in JavaScript, run `GENCMU_CORPUS=full node --test test/corpus.test.js` in `lib/js/`.
+
+## Quoted texts: `quoted-allow.txt`
+
+A grammar document often says what gencmu does with a Lojban text that it quotes. A corpus case pins that text. Then a grammar change that makes the sentence false fails the case. `node tools/quoted-texts.js` checks that each quoted text has a case or an entry in the allow-list `quoted-allow.txt`. `node tools/sync.js --check` runs the same check.
+
+A quoted text is a code span in the prose of a document, outside code blocks, with these properties:
+
+- It has two words or more, separated by white space. A single word is often a name or a part of a rule.
+- It holds only lowercase ASCII letters, apostrophes, full stops, commas and white space, and each word has a letter. So a rule name is not a quoted text, since it has a hyphen or a digit. Nor is a selma'o or a token, which is uppercase, or jbogenbau, which has brackets and other symbols.
+- It holds no `...` or `…`, which mark a gap in the words.
+
+The check finds the code spans with the CommonMark and GFM parser of `tools/markdown.js`, so a code block holds none. Every prose block is one line, with its code spans ("Documents" in `docs/design.md`). So the line of a text's code span is the paragraph, list item, heading or table row that quotes it.
+
+The words of a quoted text, joined by single spaces, are compared with the text of each corpus case, written the same way. Each checked document has the dialects that its claims are about. A quoted text needs a case of each of them. Its line can name more dialects, as in "the bpfk dialect rejects it" or "In cll-ebnf and bpfk". The text then needs a case of each of those too. A name counts when it stands as a word in the prose, or in the text of a link. A name in a code span or a link target does not count.
+
+A sentence that says how a text reads quotes that exact text. For example, it says "Here `le poi blabi gerku cu klama` parses", not "the text without `ku'o` parses". Then the check sees the text that the claim is about.
+
+The case pins what the sentence says about the text: its verdict, and its brackets or words where the sentence says how the text reads. Before a case is added, the claim is checked by running the text. A false claim is corrected in the prose, not pinned. No tool compares the verdict that a sentence states with the case.
+
+When a case fails, the JavaScript corpus runner names the lines of the checked documents that quote its text, as `quoted at grammars/syntax/cll.md:669`. The prose there may now be false.
+
+Every case that pins a quoted text, by its own text or through an entry of `quoted-allow.txt`, is in `core.txt`. So every library runs it on a pull request. The check reports a case that is not there.
+
+Each entry of `quoted-allow.txt` covers one quoted text in one document. Its line is the text, then ` # `, then the document, and then one of these:
+
+- ` = ` and the ids of cases, separated by spaces. The text or the words of each case hold the quoted text as consecutive words. Among the cases, there is one of each dialect that the text needs. This form is for a part of a text that the sentence makes a claim about, such as `na'e ka'e` as one tense.
+- ` # ` and the reason. This form is for notation, such as `nu'i terms nu'u`, and for a part of a text that shows the shape of a rule, such as `mi .e do`.
+
+Lines that begin with `#` are comments. An entry that the check does not need is an error, so the list does not keep stale entries.
+
+The check covers the documents that `DOCUMENTS` in `tools/quoted-texts.js` lists. Now these are the CLL syntax grammar and the cll-ebnf and bpfk dialect documents. `DOCUMENTS` gives each document its dialects. They must be the dialects whose pipelines include the document, less those in `LAYERED`. The experimental dialect is in `LAYERED` for the CLL syntax grammar, since its own syntax document redefines rules of that grammar. A dialect document that neither `DOCUMENTS` nor `UNCHECKED` lists is an error. So a new dialect is not left out in silence.

@@ -53,7 +53,7 @@ tools/sync.js              regenerates every generated file below
 
 `grammars/` is the single source of the grammars. The repository keeps all generated files checked in, and CI (the checks that run on every change) makes sure that they are up to date. Each package needs its own copy, because the packaging of every ecosystem refuses files outside the package directory. Go's `embed` also refuses symbolic links. The copies are `lib/js/grammars/`, `lib/python/src/gencmu/grammars/`, `lib/go/grammars/`, `lib/rust/grammars/`, and `dist/grammars.js` for the browser.
 
-`dist/gencmu.js`, the library as one classic script (a script that is not an ES module), is generated too. So `index.html` works without a build step, from a clone opened with a double click and from GitHub Pages. One Node script with no dependencies, `node tools/sync.js`, writes all of these files. CI runs it and fails if anything changed. A contributor edits `grammars/` and runs one command.
+`dist/gencmu.js`, the library as one classic script (a script that is not an ES module), is generated too. So `index.html` works without a build step, from a clone opened with a double click and from GitHub Pages. One Node script, `node tools/sync.js`, writes all of these files, and it needs no dependencies to write them. CI runs it and fails if anything changed. A contributor edits `grammars/` and runs one command.
 
 ## The engine
 
@@ -155,7 +155,7 @@ The operators of a body are those of CLL:
 
 `#` is not built in. It is a rule that the grammar defines as `[free ...]`, as CLL's EBNF defines it. So the free modifiers of one slot, such as vocatives, are one node of the tree.
 
-CLL writes `/KU/` for an elidable terminator, a closing word that the speaker can leave out. Here it is written `[KU]`, and `/KU#/` is `[KU #]`. The grammar declares which terminators are elidable (see below). `[KU #]` is exactly what CLL prints: an elided terminator takes its free-modifier slot with it. So `xy. xi ky.` (CLL 17.38) needs `xy. boi xi ky.` under the printed grammar, as CLL's official parser does, and as the corpus scans of the prototype show. The grammars that allow free modifiers after an elided terminator, as the camxes family does, write `[KU] #`.
+CLL writes `/KU/` for an elidable terminator, a closing word that the speaker can leave out. Here it is written `[KU]`, and `/KU#/` is `[KU #]`. The grammar declares which terminators are elidable (see below). `[KU #]` is exactly what CLL prints: an elided terminator takes its free-modifier slot with it. So `xy. xi ky.` (CLL example 17.38) needs `xy. boi xi ky.` under the printed grammar, as CLL's official parser does, and as the corpus scans of the prototype show. The grammars that allow free modifiers after an elided terminator, as the camxes family does, write `[KU] #`.
 
 `%tags` gives the tags that the constituent of every alternative carries. An alternative's own tags, after it in angle brackets, add to them. A tag has no strength: a constituent carries it or not. There is one notation for a set of tags, the union: `UI ∪ CAI ∪ ~indicator`.
 
@@ -282,7 +282,7 @@ At the time of this decision (commit 1ea14a1), 5 of the 29,308 corpus records ti
 
 ### Elision-only
 
-CLL's own rule is narrower. It says only that a terminator can be elided if no ambiguity results. It says nothing of the other ambiguities that its EBNF has. `elision-only` applies that rule literally, to the stage whose grammar declares it. It applies the rule only when the ranking of that stage was `resolved`:
+CLL's own rule is narrower. It says only that a terminator can be elided if no ambiguity results. It says nothing of the other ambiguities that its EBNF has. `elision-only` is one reading of that rule, for the stage whose grammar declares it. CLL does not say which parse to test, so the check tests the one that the ranking chose. It applies the rule only when the ranking of that stage was `resolved`:
 
 1. Take the `elided` nodes of the chosen tree in the order of its leaves, left to right. This order follows the chosen derivation, also where several nodes stand at one point. For each node, insert a synthetic token before the stage-input token at the node's position. The synthetic token carries only the tag of that terminator, and is marked synthetic.
 2. Lower the same grammar again, and make mandatory every optional whose first symbol is an `%elidable` terminator. Parse the new token sequence.
@@ -379,7 +379,7 @@ Of the other two texts, camxes-std reads one as a forethought termset without `n
 
 The official parser's reading is not in the notation. Its lookahead is a lexeme, not a word. Step 5 of its preamble, the steps that prepare the words for its grammar, joins runs of words into one lexeme. Examples are the connective `na ja`, or a number followed by `moi`. A rule that reads one word ahead over a stage's tokens sees the `na` of `le nanla na vrude` as the start of `na ja`. Tried word by word, such a rule rejected 369 texts of the corpus that the official parser accepts.
 
-A dialect that reads as the official parser does needs that preparser as a stage of its own ([issue 28](https://github.com/int19h/gencmu/issues/28)). The same preparser settles ambiguities that the printed grammar leaves open, such as a gihek or joik directly before `ke`. In the historical baseline, the dialects here left these ambiguities as the printed grammar has them. So `mi broda joi ke brode ke'e` had two readings that differ in more than a terminator, and `elision-only` reported it. The CLL condition on a plain joik now settles the joik case ("Migration to late-elision" below).
+A dialect that reads as the official parser does needs that preparser as a stage of its own ([issue 28](https://github.com/int19h/gencmu/issues/28)). The same preparser settles ambiguities that the printed grammar leaves open, such as a gihek or joik directly before `ke`. In the historical baseline, the dialects here left these ambiguities as the printed grammar has them. So `mi broda joi ke brode ke'e` had two readings that differ in more than a terminator, and `elision-only` reported it. The CLL conditions on a plain joik and on a plain gihek now settle both cases ("Migration to late-elision" below).
 
 In a historical measurement on the prototype's corpus, `elision-only` cost the CLL grammar nothing. Every one of its 8,853 ambiguous texts became unambiguous with its terminators written out. The extended grammars were different: 63 experimental and 74 Zantufa texts stayed ambiguous. Some of the Zantufa texts stayed ambiguous through its mekso (its grammar for mathematics).
 
@@ -401,11 +401,13 @@ The syntax stage of all four Lojban dialects declares `late-elision`. The gramma
 
 The CLL grammar gains the condition that the official parser's lexer applies with `JOIK_KE`. A plain joik is a joik in the ordinary connective alternative of a rule, which joins two units. It is not the joik of the dedicated alternative `joik [stag] KE ... KEhE`, which groups with the connective itself. Where both alternatives can read the same words, a unit that starts with `ke` cannot directly follow a plain joik.
 
-The condition stands in `selbri-4` and in `operator`, the two rules where the overlap exists. It removes the plain reading only where the unit after the joik is only a `ke` group, so that the two readings compete. So `mi broda joi ke brode ke'e bo brodi` keeps its one plain reading, as in the printed grammar and camxes. The official parser rejects it. So `mi broda joi ke brode ke'e` keeps only its reading through `joik KE selbri-3 KEhE`. In the same way, `li ci su'i joi ke pi'i ke'e re du li xa` keeps only the operator's own `ke` group. The `sumti` and `operand` rules have a joik-plus-`ke` alternative too, but no competing alternative, so they need no condition.
+The condition stands in `selbri-4` and in `operator`, the two rules where a joik overlap exists. It removes the plain reading only where the unit after the joik is only a `ke` group, so that the two readings compete. So `mi broda joi ke brode ke'e bo brodi` keeps its one plain reading, as in the printed grammar and camxes. The official parser rejects it. So `mi broda joi ke brode ke'e` keeps only its reading through `joik KE selbri-3 KEhE`. In the same way, `li ci su'i joi ke pi'i ke'e re du li xa` keeps only the operator's own `ke` group. The `sumti` and `operand` rules have a joik-plus-`ke` alternative too, but no competing alternative, so they need no condition.
 
 The condition covers no jek, because the dedicated form takes only a joik. So `mi broda je ke brode ke'e` has one reading, a jek before a tanru unit grouped with `ke`.
 
-The experimental dialect redefines `selbri-4` and `operator`, so a condition on the CLL definitions does not reach it (engine §2). Its own definitions of both rules state the same condition. It also states three conventions as rules:
+The CLL grammar also gains the condition that the official parser's lexer applies with `GIhEK_KE`, in the rule `bridi-tail-1-final` of the CLL grammar. The `ke` form of `bridi-tail` groups the tails after a gihek, as in `mi broda gi'e ke brode ke'e`. A plain gihek can read the same words. "Sentences and bridi-tails" in [the CLL grammar](../grammars/syntax/cll.md) states the condition, which removes the plain reading in some of these texts. Where only the plain reading parses, as in `mi broda gi'e ke brode ke'e brodi`, the grammar keeps it, as the printed grammar does. The official parser rejects that text.
+
+The experimental dialect redefines `selbri-4` and `operator`, so a condition on the CLL definitions does not reach it (engine §2). Its own definitions of both rules state the same condition. It also redefines `bridi-tail` and `bridi-tail-1`, so the CLL gihek condition does not reach it either. The CLL rules `bridi-tail-1-final` and `free-modifiers` are unused there. They join the other CLL rules that `audit` reports as unreachable in that dialect. It also states three conventions as rules:
 
 - A connection that can be a sumti connection is a sumti connection, and not a connection of terms.
 - A `be` group attaches to the preceding unit when there is one.
@@ -543,6 +545,19 @@ The editor lists a dialect's documents stage by stage. A forgiving scan of the `
 - `json` is the display JSON, a projection of the tree for reading. It is pretty-printed so that a node with one child stays on one line with its parent, as in `{"tanru-unit-2": {"BRIVLA": "mlatu"}}`. This keeps deep trees readable.
 - `canonical` is the canonical JSON of the whole result, which the shared tests compare.
 
+## Documents
+
+Every paragraph, list item, heading and table row of a Markdown document in the repository stands on one line. Some renderers show a line break inside a paragraph as a break. A code span closes on the line where it opens. A paragraph can follow a heading directly. Code blocks and HTML blocks are exempt.
+
+`tools/sync.js --check` reads each document that git tracks with a CommonMark and GFM parser (`tools/markdown.js`). So it sees each block where GitHub sees it. It reports these layouts (`tools/prose-lines.js`):
+
+- a line that continues a paragraph or a heading, such as a lazy continuation line or the underline of a setext heading
+- a line of prose right after a table, which the table takes in as a row
+- a code span that closes on a later line, and a backtick that opens no code span
+- a fenced block with no closing fence, which takes in the rest of its container
+
+The check of quoted texts relies on this rule, since it gives each text the line of its code span (`tools/quoted-texts.js`).
+
 ## Tests
 
 There are three kinds of shared test. Every library runs each case that its API can express, as `tests/README.md` says:
@@ -563,7 +578,7 @@ The corpus was seeded once from the prototype's fixtures and their verdicts. Som
 
 A change to a case's expected `words` or `brackets` needs no field of its own. It is a change to what gencmu produces. The author of the change makes it in the same commit as the grammar change that causes it. The message of that commit explains it. After seeding, the corpus is ours: a change that alters an expectation updates the file in the same commit.
 
-Every library runs the whole corpus. On a pull request, a sampled core of about 1,200 cases (`tests/core.txt`) runs in every language. Rust and JavaScript also run the whole corpus there. All four languages run the whole corpus nightly and before a release, sharded if Python needs it. No language is permanently exempt.
+Every library runs the whole corpus. On a pull request, a core of about 1,500 cases (`tests/core.txt`) runs in every language. It is a sample, together with the cases that pin the texts that the grammar documents quote. Rust and JavaScript also run the whole corpus there. All four languages run the whole corpus nightly and before a release, sharded if Python needs it. No language is permanently exempt.
 
 ## CI
 

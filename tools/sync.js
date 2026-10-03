@@ -8,8 +8,12 @@
 //   dist/gencmu.js           the library as one factory function, for the browser
 //
 // and the other packages' copies of grammars/ and of LICENSE under lib/,
-// removing a copy of a document that grammars/ no longer has. No
-// dependencies; run it after editing a grammar.
+// removing a copy of a document that grammars/ no longer has. Run it after
+// editing a grammar. It checks the Markdown of the documents with a
+// parser, a development dependency of lib/js (tools/markdown.js): without
+// `npm ci` in lib/js, it skips those checks, and --check fails. The
+// libraries' own reader of grammar blocks (lib/js/src/markdown.js), which
+// docs/engine.md specifies, reads the grammar, as every library does.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,6 +22,9 @@ import { DOM_FORMAT } from "../lib/js/src/dom.js";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
 import { includeIsLinked } from "./links.js";
 import { layoutProblems } from "./alternatives.js";
+import { quotedTextProblems } from "./quoted-texts.js";
+import { markdownFiles, proseLineProblems } from "./prose-lines.js";
+import { missing as parserMissing } from "./markdown.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const grammars = path.join(root, "grammars");
@@ -84,21 +91,6 @@ for (const file of grammarFiles()) {
 }
 const compiled = { format: DOM_FORMAT, bootstrap: loader.bootstrapHash, documents };
 
-// Every %include of a document follows, in the same list item, a link to the
-// same path, so that the prose and the blocks name the same documents
-// (docs/design.md, "Pipelines").
-const unlinked = [];
-for (const [file, { dom }] of Object.entries(documents)) {
-  const text = fs.readFileSync(path.join(grammars, file), "utf8");
-  for (const directive of dom.directives) {
-    if (directive.name === "include" && !includeIsLinked(text, directive.at[0], directive.args[0])) unlinked.push(`${file}:${directive.at[0]}: %include "${directive.args[0]}" does not follow a list item with a link [text](${directive.args[0]})`);
-  }
-}
-if (unlinked.length) {
-  console.error(unlinked.join("\n"));
-  process.exit(1);
-}
-
 // A rule whose alternatives are single symbols does not put one on each of
 // its lines, and no line of its body holds more than 100 characters
 // (docs/notation.md, "Rules"; tools/alternatives.js).
@@ -109,6 +101,45 @@ for (const [file, { dom }] of Object.entries(documents)) {
 if (sprawling.length) {
   console.error(sprawling.join("\n"));
   process.exit(1);
+}
+// The checks of the documents' Markdown read it through the parser of
+// tools/markdown.js:
+//
+// - Every %include of a document follows, in the same list item, a link to
+//   the same path, so that the prose and the blocks name the same documents
+//   (docs/design.md, "Pipelines"; tools/links.js).
+// - Every paragraph, list item, heading and table row of every Markdown
+//   document stands on one line, with its code spans (docs/design.md,
+//   "Documents"; tools/prose-lines.js).
+// - Every Lojban text that a grammar document quotes has a corpus case, or
+//   an entry in tests/quoted-allow.txt (tests/README.md, "Quoted texts").
+if (parserMissing && check) {
+  console.error(`cannot check the Markdown of the documents: ${parserMissing}`);
+  process.exit(1);
+} else if (parserMissing) {
+  console.warn(`the Markdown of the documents is not checked: ${parserMissing}`);
+} else {
+  const unlinked = [];
+  for (const [file, { dom }] of Object.entries(documents)) {
+    const text = fs.readFileSync(path.join(grammars, file), "utf8");
+    for (const directive of dom.directives) {
+      if (directive.name === "include" && !includeIsLinked(text, directive.at[0], directive.args[0])) unlinked.push(`${file}:${directive.at[0]}: %include "${directive.args[0]}" does not follow a list item with a link [text](${directive.args[0]})`);
+    }
+  }
+  if (unlinked.length) {
+    console.error(unlinked.join("\n"));
+    process.exit(1);
+  }
+  const broken = markdownFiles(root).flatMap((file) => proseLineProblems(fs.readFileSync(path.join(root, file), "utf8"), file));
+  if (broken.length) {
+    console.error(broken.join("\n"));
+    process.exit(1);
+  }
+  const unpinned = quotedTextProblems(root);
+  if (unpinned.length) {
+    console.error(unpinned.join("\n"));
+    process.exit(1);
+  }
 }
 write("grammars/compiled.json", JSON.stringify(compiled) + "\n");
 

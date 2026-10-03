@@ -30,7 +30,7 @@ type corpusCase struct {
 	fields          map[string]any // the fields compared
 }
 
-var corpusFields = []string{"expect", "verdict", "stage", "error", "ties", "words", "brackets"}
+var corpusFields = []string{"expect", "verdict", "stage", "at", "error", "ties", "words", "brackets"}
 
 func readCorpus(t *testing.T) []*corpusCase {
 	files, _ := filepath.Glob("../../tests/corpus/*.jsonl")
@@ -105,6 +105,11 @@ func corpusOutcomeOf(res *ParseResult, canonical any) (map[string]any, error) {
 			got["stage"] = res.Error.Stage
 		} else {
 			got["stage"] = nil
+		}
+		// A rejection pins where its stage stopped (tests/README.md). A
+		// case's numbers decode as float64.
+		if res.Error != nil && res.Error.Token != nil {
+			got["at"] = float64(*res.Error.Token)
 		}
 	}
 	// An ambiguous error pins its kind and its reason (tests/README.md).

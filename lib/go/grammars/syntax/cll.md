@@ -22,6 +22,8 @@ The stages before it make the word stream that it reads. The forms stage ([forms
 
 [The notation document](../../docs/notation.md) explains the notation. Two of its points matter here. First, an elided terminator takes its `#` with it, so an elided `[X #]` leaves no free-modifier slot (see `#` below) at that point. Second, when omitted terminators leave a text with more than one parse, the stage chooses the parse as "Choosing among parses" after the grammar says.
 
+The notation reads `...` as CLL does. `x ...` means one `x`, optionally followed by more. `[x] ...` allows none. Point 7 of CLL 21.2's notation calls `...` "optional repetition of the construct to the left". This grammar reads it so: the first `x` is required, and its repetition is optional. Where CLL means none, it writes `[x] ...` or `[x ...]`. This clarifies point 7. It is not a departure from it. Juxtaposition binds tighter than `&`, which CLL does not say (item 1 of "Differences from the printed CLL grammar").
+
 This document writes the grammar literately: each block of rules follows the prose that explains it, and the blocks together are the grammar. The prose says what each construct is for and how the rules do it. The chapter numbers are those of CLL.
 
 A directive and a rule set the grammar up. This document does not say how the stage chooses among parses. CLL's rule that a terminator can be elided "if no grammatical ambiguity results" has more than one reading (see "Choosing among parses"). So each dialect that uses this grammar names its own reading after this document. The cll-ebnf and bpfk dialects do so in their pipeline documents. The experimental layer (a document that changes earlier rules) names its reading itself.
@@ -71,6 +73,8 @@ A statement is a sentence, or a sentence with a prenex before it, or several sen
 
 `statement-2` is the right-grouping form. `.i` with an optional connective and an optional tense, then `bo`, binds the sentence after it more tightly than a plain `.i je` does. The rule refers to `statement-2` on its right, so a chain of `.i bo` groups to the right (CLL 14.8). `statement-3` is either a sentence or a `tu'e ... tu'u` block. The block makes a whole text-1 act as one sentence, for connection and for a tense before it (CLL 14.8). The block's `tu'u` is elidable and carries its own free-modifier slot.
 
+A prenex belongs to a whole statement. Between two statements, a sentence after `.i` with a connective cannot have its own prenex (rules 12 and 13). Examples are `.ije` and `.i bo`. A `tu'e ... tu'u` block can hold one. CLL 1.1 prints examples 16.77 and 16.78 with a second `zo'u` there. Example 16.77 is `roda zo'u mi prami da .ije naku zo'u do prami da`. Example 16.78 is `su'oda zo'u mi prami da .ije naku zo'u do prami da`. This grammar rejects the printed texts and reads them without that `zo'u`. Then `naku` is a term of the second sentence. The prenex covers the whole statement, so it binds `da` in both sentences. The official parser accepts the printed texts. Its lexer reads `.ije` there as a plain `.i` (rule 10), and a prenex can follow that. Every edition of CLL from 1.2.12 on corrects example 16.77 in this way. These editions keep the `zo'u` of 16.78.
+
 A fragment is what a speaker utters when the utterance is not a sentence (CLL 19.5 and 14.13). It is one of these:
 
 - A bare connective, as the answer to a `ji` or `gi'i` question
@@ -111,9 +115,22 @@ A subsentence is a sentence, or a prenex followed by a subsentence. Abstractions
 
 The bridi-tail levels state how sentences share a head under a gihek, the connective family `gi'e`, `gi'a` and the rest of GIhA (CLL 14.9). `bridi-tail-3` is one selbri with its tail terms, or a forethought `gek-sentence`. `bridi-tail-2` binds two tails with `gihek [stag] bo`, right-grouping, and `bridi-tail-1` joins tails with a plain gihek, left-grouping. `bridi-tail` at the top lets a gihek be followed by `ke ... ke'e`, which groups the tails inside the brackets against the tail to the left. The tail terms after each selbri belong to that selbri. `vau` closes them and is almost always elided.
 
-The printed grammar lets the tail after a plain gihek begin with `ke`. So `mi broda gi'e ke brode gi'a brodi` has two parses, which differ in meaning. In one, `ke ... ke'e` groups the tails after `gi'e`, through `bridi-tail`. In the other, it groups a tanru that begins the second tail. CLL 14.10 shows the first. The official parser reads only the first, through a token of its lexer (the part that divides the input into tokens), `GIhEK_KE`.
+The printed grammar lets the tail after a plain gihek begin with `ke`, or with a tense and `ke`. So `mi broda gi'e ke brode ke'e` has two parses. In one, `ke ... ke'e` groups the tails after `gi'e`, through the `ke` form of `bridi-tail` (rule 50 of the printed grammar). In the other, `gi'e` is a plain gihek (rule 51), and `ke ... ke'e` groups a tanru that begins the second tail. With a tense, the two parses also differ in what the tense applies to. In `mi klama gi'e pu ke cadzu ke'e`, `pu` is part of the connective in the first parse, and a tense of the selbri `ke cadzu ke'e` in the second. CLL 14.10 groups tails with `ke` after a gihek, and CLL 14.18 puts a tense between a gihek and `ke` (example 14.164). The official parser reads only the group, through a token of its lexer (the part that divides the input into tokens), `GIhEK_KE`.
 
-This grammar follows the printed one, so the text has both parses. The tanru reading elides `ke'e` after `brode`. The group of tails elides it at the end of the text. The bundled dialects rank parses with `late-elision`, which takes the parse that elides a terminator later. So the stage takes the group of tails, as CLL does. With `ke'e` written after `brode`, only the tanru reading is left.
+The ranking of elided terminators does not settle this. In `mi broda gi'e ke brode`, both parses elide the same terminators at the same places, so they tie. In `mi broda gi'e ke brode ke'e`, the group elides the `vau` of `brode` before `ke'e`, and the tanru parse elides nothing there. So `late-elision` takes the tanru parse.
+
+This grammar states CLL's choice as a condition on the last tail after a plain gihek. The condition reads tags of the tail that the parse built. A tag marks a constituent (see "Tags" in the notation document), and a constituent of one part has the tags of that part. The `ke` alternative of `tanru-unit-2` and the `ke` forms of `gek-sentence` carry the tag `~ke-group`. A tense or modal before the `ke` keeps the tag only where a `stag` can read it, since the `ke` form of `bridi-tail` takes a `stag` there. So `bridi-tail-2` carries `~ke-group` exactly when the whole tail is one `ke` group. That is a selbri that is one `ke` tanru unit, with its tail terms, or one `ke` group of a `gek-sentence`. A `stag` can come before either. To pass the tag up, `selbri`, `selbri-2`, `selbri-5`, `selbri-6`, `tanru-unit-1`, `bridi-tail-2`, `tail-terms` and `gek-sentence` write an optional part as two alternatives, one with the part and one without. They read the same words in the same way as the printed rules.
+
+The condition stands in `bridi-tail-1-final`, the form of `bridi-tail` without the `ke` group of tails. It is the printed `bridi-tail-1` with its last plain connection written apart. Only that connection can compete with the `ke` form of `bridi-tail`. Rule 50 reads one `ke` group as the last part of a bridi-tail, followed by one run of tail terms. So it can read the same words as a plain gihek only in one case. In that case, the last tail is one `ke` group with one run of tail terms. The condition removes the plain parse in that case and in no other. The tails before the last one are in `bridi-tail-1`, which has no condition. So `mi broda gi'e ke brode` and `mi broda gi'e ke brode ke'e` each have one parse, the group. In `mi klama gi'e pu ke cadzu ke'e`, `pu` stays on the connective. In `mi broda gi'e ke brode ke'e le zarci`, `le zarci` is in the tail terms of rule 50, after `ke'e`. Tail terms after a connection of tails apply to both sides of it (CLL 14.9, example 14.54). So `le zarci` applies to `broda` and to the group. Writing the last connection apart also sets that connection apart in the tree. The tree does not show the whole left grouping of plain giheks (CLL 14.10). So three tails read as `{A gi'e B} gi'a C`, and four tails as `{A gi'e B gi'a C} gi'u D`.
+
+The condition needs no lookahead. The structure of the rule says that no gihek of the same bridi-tail follows the last tail. So the condition does not test the words after it. It reads only the tags of the parsed tail and the text of the tail terms after it. These are the same in the reparse of `elision-only`, where the elided terminators are written back. So `mi klama lo nu broda gi'e ke brode ke'e gi'a brodi` keeps its reading in that reparse. The condition does not divide the words before the gihek in another way. So in `mi klama lo nu broda gi'e ke brode ke'e`, the group stays inside the `nu` clause, as in the official parser. In `mi broda gi'e pu ke me le le brodi brodo ku me'u ke'e`, the inner `ku` is elided, and the tail is still one `ke` group, so `pu` stays on the connective. The plain parse stays where the group cannot read the same words:
+
+- The tail is not the last one, as in `mi broda gi'e ke brode ke'e gi'a brodi` and `mi broda gi'e ke ga brode gi brodi ke'e do gi'a brodi`. The `ke` form must end its bridi-tail.
+- The tail goes on after `ke'e`, as in `mi broda gi'e ke brode ke'e brodi`.
+- A free modifier stands between the gihek and `ke`, as in `mi broda gi'e to do toi ke brode ke'e`. The `ke` form has no slot there. `bridi-tail-1-final` reads this case in its own alternative, through the rule `free-modifiers`, a `#` slot that is not empty.
+- The tail has two runs of tail terms. Its own tail terms end with a written `vau`, and more tail terms follow, as in `mi broda gi'e ke brode ke'e vau do` and `mi broda gi'e ke brode ke'e vau le le brodi brodo ku`. The group has one run of tail terms after `ke'e`, and cannot read two. `tail-terms` carries the tag `~vau-written` when its `vau` is written. The condition reads that tag on the tail and tests that the tail terms after the tail are not empty.
+
+The lexer of the official parser makes `gi'e ke` one token in all of these but the free modifier, and so it rejects them. This grammar follows the printed grammar there, and accepts them.
 
 A joik directly before `ke`, in a tanru or between operators, has two parses too. In `mi broda joi ke brode ke'e`, one parse joins a `ke` group to `broda` through `joik [stag] KE`. The other joins `broda` with `joi` to a tanru unit that begins with `ke`. Both parses elide the same terminators at the same places, so no ranking of elided terminators can choose. The official parser reads only the first, through its lexer token `JOIK_KE`.
 
@@ -121,7 +138,7 @@ This grammar states that choice as a condition, in the rules `plain-joik-jek` an
 
 The condition applies only where the two parses compete. In `mi broda joi ke brode ke'e bo brodi`, the `ke` group cannot take `bo brodi`, so only the plain reading parses. There `joi` joins `broda` to the unit `ke brode ke'e bo brodi`. The lexer of the official parser makes `joi ke` one token there too, and so it rejects the text. This grammar follows the printed grammar there, and accepts the text.
 
-A `gek-sentence` is the forethought form. It joins two subsentences before either is spoken: `ga A gi B`, or `pu gi A gi B` with a tense in the gek. A tense or modal (the rule `tag`, see "Tenses and modals"), `ke` for grouping, or `na` can come before it (CLL 14.5, 14.10). Its tail terms follow the whole connection and apply to both sides.
+A `gek-sentence` is the forethought form. It joins two subsentences before either is spoken: `ga A gi B`, or `pu gi A gi B` with a tense in the gek. A tense or modal (the rule `tag`, see "Tenses and modals"), `ke` for grouping, or `na` can come before it (CLL 14.5, 14.10). Its tail terms follow the whole connection and apply to both sides. In the printed rule, the tag before `ke` is optional, so `ke ga mi klama gi do cadzu ke'e` is a `gek-sentence`. Rule 54 of the YACC grammar requires a tag there, and the official parser rejects that text. This grammar follows the EBNF.
 
 ```jbogenbau
 %rule sentence
@@ -131,23 +148,40 @@ A `gek-sentence` is the forethought form. It joins two subsentences before eithe
   sentence | prenex subsentence
 
 %rule bridi-tail
-  bridi-tail-1 [gihek [stag] KE # bridi-tail [KEhE #] tail-terms]
+  | bridi-tail-1-final
+  | bridi-tail-1 gihek [stag] KE # bridi-tail [KEhE #] tail-terms
 
 %rule bridi-tail-1
   bridi-tail-2 [gihek # bridi-tail-2 tail-terms] ...
 
+%rule bridi-tail-1-final
+  | bridi-tail-2
+  | bridi-tail-1 gihek free-modifiers bridi-tail-2 tail-terms
+  | bridi-tail-1 gihek $t(bridi-tail-2) $v(tail-terms)
+%conditions
+  ~ke-group ⊈ tags($t) ∨ (~vau-written ⊆ tags($t) ∧ text($v) ≠ "")
+
+%rule free-modifiers
+  free ...
+
 %rule bridi-tail-2
-  bridi-tail-3 [gihek [stag] BO # bridi-tail-2 tail-terms]
+  | bridi-tail-3
+  | bridi-tail-3 gihek [stag] BO # bridi-tail-2 tail-terms
 
 %rule bridi-tail-3
-  selbri tail-terms | gek-sentence
+  | $s(selbri) $v(tail-terms) <tags($s) ∩ ~ke-group ∪ tags($v) ∩ ~vau-written>
+  | gek-sentence
 
 
 %rule gek-sentence
-  gek subsentence gik subsentence tail-terms | [tag] KE # gek-sentence [KEhE #] | NA # gek-sentence
+  | gek subsentence gik subsentence tail-terms
+  | KE # gek-sentence [KEhE #] <~ke-group>
+  | $g(tag) KE # gek-sentence [KEhE #] <matches($g, stag) ⟹ ~ke-group>
+  | NA # gek-sentence
 
 %rule tail-terms
-  [terms] [VAU #]
+  | [VAU #] <text($) ≠ "" ⟹ ~vau-written>
+  | $m(terms) [VAU #] <text($) ≠ text($m) ⟹ ~vau-written>
 ```
 
 ## Terms
@@ -280,13 +314,14 @@ The `SE`, `JAI` and `NAhE` forms refer back to `tanru-unit-2`, so `se se broda` 
 
 ```jbogenbau
 %rule selbri
-  [tag] selbri-1
+  | selbri-1
+  | $g(tag) $s(selbri-1) <matches($g, stag) ⟹ tags($s)>
 
 %rule selbri-1
   selbri-2 | NA # selbri
 
 %rule selbri-2
-  selbri-3 [CO # selbri-2]
+  selbri-3 | selbri-3 CO # selbri-2
 
 %rule selbri-3
   selbri-4 ...
@@ -295,21 +330,21 @@ The `SE`, `JAI` and `NAhE` forms refer back to `tanru-unit-2`, so `se se broda` 
   selbri-5 [plain-joik-jek selbri-5 | joik-before-ke selbri-5-not-ke-group | joik [stag] KE # selbri-3 [KEhE #]] ...
 
 %rule selbri-5
-  selbri-6 [(jek | joik) [stag] BO # selbri-5]
+  selbri-6 | selbri-6 (jek | joik) [stag] BO # selbri-5
 
 %rule selbri-6
-  tanru-unit [BO # selbri-6] | [NAhE #] guhek selbri gik selbri-6
+  tanru-unit | tanru-unit BO # selbri-6 | [NAhE #] guhek selbri gik selbri-6
 
 %rule tanru-unit
   tanru-unit-1 [CEI # tanru-unit-1] ...
 
 %rule tanru-unit-1
-  tanru-unit-2 [linkargs]
+  tanru-unit-2 | tanru-unit-2 linkargs
 
 %rule tanru-unit-2
   | BRIVLA #
   | GOhA [RAhO] #
-  | KE # selbri-3 [KEhE #]
+  | KE # selbri-3 [KEhE #] <~ke-group>
   | ME # sumti [MEhU #] [MOI #]
   | (number | lerfu-string) MOI #
   | NUhA # mex-operator
@@ -335,6 +370,8 @@ A quantifier is a number closed by `boi` or a mekso in `vei ... ve'o` brackets (
 In reverse Polish notation, an expression is two operands followed by an operator, and each operand can itself be such an expression.
 
 Operators have their own connectives and grouping, in the same shape as selbri. `operator` joins operators by jek or joik or a `ke` group. As in `selbri-4`, its plain connective is `plain-joik-jek`. So `li ci su'i joi ke pi'i ke'e re du li xa` joins `su'i` to the group `ke pi'i ke'e` through `joik [stag] KE`. `operator-1` gives the guhek forethought and the `bo` forms. `operator-2` is a simple operator or a `ke ... ke'e` group.
+
+The `bo` form joins two operators by a jek or joik with `bo`, as in `li pa su'i je bo pi'i re` (rule 371 of the printed grammar). CLL 14.17 says that jeks and joiks with `bo` are not allowed for operators. But chapter 21 prints the form, and CLL 14.18 says that operators can have a tense in their logical connectives, as tanru units can. A jek takes a tense only in the `bo` form, as in `li pa su'i je pu bo pi'i re`. This grammar follows chapter 21 and keeps the form. The official parser accepts it too.
 
 A simple `mex-operator` is a VUhU word, possibly converted by `se` or negated by `na'e`. It can also be an operator made from a mekso through `ma'o`, or a selbri used as an operator through `na'u`. `te'u` closes these last two.
 
@@ -374,7 +411,8 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
   operator-2 | guhek operator-1 gik operator-2 | operator-2 (jek | joik) [stag] BO # operator-1
 
 %rule operator-2
-  mex-operator | KE # operator [KEhE #]
+  | mex-operator
+  | KE # operator [KEhE #] <~ke-group>
 
 %rule mex-operator
   SE # mex-operator | NAhE # mex-operator | MAhO # mex [TEhU #] | NAhU # selbri [TEhU #] | VUhU #
@@ -420,7 +458,7 @@ Each afterthought connective can be negated on either side, `na` before and `nai
 
 The ordinary alternative of `selbri-4` and `operator` joins two units with a plain connective. The other alternative, `joik [stag] KE`, groups with the connective itself. Where both alternatives read the same words, the official parser takes the `ke` group, through its lexer token `JOIK_KE`. Three rules state this choice. `plain-joik-jek` is a jek, or a joik that `ke` does not directly follow.
 
-`joik-before-ke` is a joik that `ke` directly follows. The unit after it cannot be only a `ke` group: `selbri-5-not-ke-group` and `operator-1-not-ke-group` say this. So the plain reading stays where the unit goes on after its `ke` group, as in `ke brode ke'e bo brodi`. The `ke` form cannot read that unit. A free modifier between the joik and `ke` also leaves only the plain reading, since the `ke` form has no slot there.
+`joik-before-ke` is a joik that `ke` directly follows. The unit after it cannot be only a `ke` group: `selbri-5-not-ke-group` and `operator-1-not-ke-group` say this. They read the tag `~ke-group` of the unit that the parse built, as `bridi-tail-1-final` does (see "Sentences and bridi-tails"). The `ke` alternatives of `tanru-unit-2` and `operator-2` carry that tag, and a unit of one part passes it up. So the test sees the same elided terminators as the parse, and `mi broda joi ke me le le brodi brodo ku me'u ke'e`, whose inner `ku` is elided, is the `ke` group too. So the plain reading stays where the unit goes on after its `ke` group, as in `ke brode ke'e bo brodi`. The `ke` form cannot read that unit. A free modifier between the joik and `ke` also leaves only the plain reading, since the `ke` form has no slot there.
 
 The `sumti` and `operand` rules have a joik-plus-`ke` form too. But no unit of their plain alternatives begins with `ke`, so they keep `joik-ek`. A jek has no `ke` form, so the condition does not apply to it.
 
@@ -462,18 +500,12 @@ A gek is a forethought logical connective, a joik used in forethought with `gi`,
 %rule selbri-5-not-ke-group
   $u(selbri-5)
 %conditions
-  ¬matches($u, ke-selbri-group)
-
-%rule ke-selbri-group
-  KE # selbri-3 [KEhE #]
+  ~ke-group ⊈ tags($u)
 
 %rule operator-1-not-ke-group
   $u(operator-1)
 %conditions
-  ¬matches($u, ke-operator-group)
-
-%rule ke-operator-group
-  KE # operator [KEhE #]
+  ~ke-group ⊈ tags($u)
 
 %rule gek
   [SE] GA [NAI] # | joik GI # | stag gik
@@ -492,11 +524,11 @@ A tense or modal (the rule `tag`) turns a sumti into a modal or tense term (CLL 
 A `tense-modal` is a simple tense-modal with a free-modifier slot, or `fi'o selbri fe'u`, which makes a modal from any selbri (CLL 9.5). A `simple-tense-modal` is one of these:
 
 - A BAI modal
-- A time or space tense, a CAhA word such as `ka'e`, or the two in that order (`pu`, `ka'e`, `pu ka'e`)
+- A time tense, a space tense, or both with time first, then optionally a CAhA word such as `ka'e`. A CAhA word can also stand alone (`pu`, `va`, `pu va`, `ka'e`, `pu ka'e`).
 - The sticky tense `ki`
 - The question word `cu'e`
 
-`ki` sets a reference point (CLL 10.13). `se` can convert a BAI modal. `na'e` can negate a BAI modal or a tense, and `ki` can follow either.
+`ki` sets a reference point (CLL 10.13). `se` can convert a BAI modal. `na'e` can negate a BAI modal or a tense, and `ki` can follow either. CLL 10.4 puts time before space in one tense. The printed rule also lets space come first, and this grammar does not (item 8 of "Differences from the printed CLL grammar").
 
 A time tense is any combination of these, in this order (CLL 10.4 to 10.9):
 
@@ -506,6 +538,12 @@ A time tense is any combination of these, in this order (CLL 10.4 to 10.9):
 - Interval properties
 
 A space tense is likewise a `va` distance, `fa'a`-family offsets, a space interval, and a `mo'i` movement. A space interval is `ve'a` or `vi'a` or both, with an optional direction, and then interval properties. Either of those two parts can stand alone, as in `mi ve'a klama` and `mi fe'e ta'e klama`. `fe'e` before an interval property applies that property to space rather than time. An interval property is `roi` with a number, `ta'e` and the others of TAhE, or a ZAhO event contour. Each can take `nai`.
+
+These rules allow more than some of CLL's prose and more than the lexer of the official parser. This grammar keeps them as printed, for these reasons:
+
+- A space interval can have several `fe'e` groups, as in `mi fe'e di'i fe'e co'a klama`. The rule `space-int-props` (rule 1049) repeats `fe'e` with each property, and CLL 10.11 says that each space interval property takes its own `fe'e`. The official lexer allows one `fe'e` group, and reads the second as a new tense.
+- A tense can hold a string of interval properties, as `time` (rule 1030) repeats them. CLL 10.21 says that a single tense can hold "strings of interval properties and event contours", as in example 10.161, `mi reroi ca'o xaroi darxi le damri`. The official lexer reads `mi ta'e di'i klama` as two tenses.
+- A ZAhO event contour can come before a TAhE or ROI interval property, as in `mi co'a ta'e klama`. CLL 10.10 says that the TAhE or ROI comes first when a tense has both. But example 10.161 puts the ZAhO `ca'o` before the ROI `xaroi`, and the printed rules allow either order. The official parser accepts both of these texts.
 
 ```jbogenbau
 %rule tag
@@ -518,7 +556,7 @@ A space tense is likewise a `va` distance, `fa'a`-family offsets, a space interv
   simple-tense-modal # | FIhO # selbri [FEhU #]
 
 %rule simple-tense-modal
-  [NAhE] [SE] BAI [NAI] [KI] | [NAhE] ((time [space] | space [time]) & CAhA) [KI] | KI | CUhE
+  [NAhE] [SE] BAI [NAI] [KI] | [NAhE] ((time [space] | space) & CAhA) [KI] | KI | CUhE
 
 %rule time
   ZI & time-offset ... & (ZEhA [PU [NAI]]) & interval-property ...
@@ -564,7 +602,7 @@ A vocative is a run of COI words, each with an optional `nai`, or `doi`, or both
 
 The `Y` alternative never applies here. The word stage reads `.y.` as hesitation and drops it, as the Magic Words proposal treats it as whitespace. So no `Y` reaches this grammar.
 
-A run of indicators attaches to the word before it, as CLL's non-formal rule below says. That is why `indicators` appears only at the start of a text. CLL prints `indicators` as `[FUhE] indicator ...`, which lets only the first indicator of a run take `fu'e`. This grammar lets each indicator take its own `fu'e`, as after a word, since CLL 19.8 allows several `fu'e` scopes at once.
+A run of indicators attaches to the word before it, as CLL's non-formal rule below says. That is why `indicators` appears only at the start of a text. CLL prints `indicators` as `[FUhE] indicator ...`, which lets only the first indicator of a run take `fu'e`. This grammar lets each indicator take its own `fu'e`, as after a word, since CLL 19.8 allows several `fu'e` scopes at once. A `fu'e` can stand at the start of a text, before its indicators, as rule 411 (`indicators`) allows. So `fu'e ui mi klama` is a text. The official parser rejects it.
 
 ```jbogenbau
 %rule free
@@ -600,7 +638,7 @@ CLL ends its grammar with four rules that it calls non-formal. A parser applies 
   ~quoted-text
 ```
 
-The stages before this one apply the other two. The indicator stage attaches `ba'e` and indicators to their words, and the word stage applies the erasers. This document shows them as CLL prints them, for reference only. CLL does not define anywhere the `utterance` that `sa` erases.
+The stages before this one apply the other two. The indicator stage attaches `ba'e` and indicators to their words, and the word stage applies the erasers. The indicator stage lets several `ba'e` stand before one word, as in `mi ba'e ba'e klama`, where rule 1100 allows one. CLL 19.16 says that "Multiple BAhE cmavo may be used in succession". This document shows them as CLL prints them, for reference only. CLL does not define anywhere the `utterance` that `sa` erases.
 
 ```text
 word = [BAhE] any-word [indicators]
@@ -611,7 +649,7 @@ null = any-word SI | utterance SA | text SU
 
 Because terminators can be omitted, some texts have more than one parse. The stage chooses among them by the rule that [the notation document](../../docs/notation.md) states under "Ambiguity" and "Elided terminators", with the resolution that each dialect declares. The cll-ebnf and bpfk dialects declare `late-elision elision-only`, and bpfk adds `maximal`. The experimental layer declares only `late-elision`.
 
-So in each of them, a terminator is elided as late as the grammar allows. Two parses that elide the same terminators at the same places are tied, and a tie is an error. In cll-ebnf and bpfk, a text whose parses differ in anything but where a terminator was elided is an error too.
+So in each of them, a terminator is elided as late as the grammar allows. Two parses that elide the same terminators at the same places are tied, and a tie is an error. In cll-ebnf and bpfk, `elision-only` then checks the parse that the ranking chose. It runs only when the ranking chose one parse among several (the verdict `resolved`), not when the text has one parse (the verdict `unique`). A tie is an error before it runs. It writes the elided terminators of the chosen parse back into the text, and parses that text again with no terminator elidable. If the restored text has two readings or more, the text is an error. If it has one reading, or none, the check passes. So the check asks that the chosen completion have at most one reading. It does not test any other way to write the terminators back.
 
 These two differ in where the part before an elided terminator can end. The cll-ebnf dialect takes the printed grammar as normative and lets it end wherever a parse of the whole text needs it ([`../dialects/cll-ebnf.md`](../dialects/cll-ebnf.md)). The bpfk dialect reads as the PEG grammars that the definition effort adopted, which never end it where a longer part is possible ([`../dialects/bpfk.md`](../dialects/bpfk.md)). A PEG is a parsing expression grammar. CLL's official parser reads in a third way, one lexeme (one token of its lexer) ahead, which no dialect here follows. The design document says why.
 
@@ -619,17 +657,32 @@ For example, `le sutra tavla` has two parses. One is a statement with the descri
 
 `late-elision` takes the parse that elides a terminator later, so `le sutra tavla` is a fragment. A speaker who means the statement says `le sutra cu tavla` or `le sutra ku tavla`.
 
+Note 10 of CLL 21.2 says that an elidable terminator "may be omitted (without change of meaning) if no grammatical ambiguity results". It does not say which parse a text has when the grammar allows more than one, so the ranking is a choice of this grammar's dialects. Nor does the note say how to check that no ambiguity results, so `elision-only` is a choice too. Both are chosen to fit the conventions of CLL. CLL does not state them.
+
+In cll-ebnf, this reading accepts some texts that CLL's prose says need a terminator. In each of these texts, a parse of the whole text needs the terminator elided where CLL requires it, and the restored text has one reading. The official parser, which reads one lexeme ahead, rejects them. These passages of CLL say that the terminator is required, and this dialect does not follow them:
+
+- CLL 14.14, after example 14.112: `le nanmu ku joi le ninmu cu klama le zarci` needs its first `ku`. Here `le nanmu joi le ninmu cu klama le zarci` parses, since `le` cannot continue a tanru after `joi`.
+- CLL 18.6, after example 18.32, and CLL 17.9, after example 17.25: `boi` is required between two numbers or lerfu strings in a row. Here `li fu'a pa re su'i du li ci` parses, with `boi` elided after `pa`, since only that split parses. In the same way, `pa xy. cu barda` reads `pa` as a quantifier and `xy.` as a lerfu string. The bpfk dialect rejects both of these texts. Where the words can be one string, they are one string, so `.abu dunda by. cy.` reads `by. cy.` as one string, as CLL 17.9 says.
+- CLL 18.6, after example 18.34: `boi` is required in `li zy du li ma'o fy.boi xy.`, since otherwise `xy.` would look like part of the operator name. Here `li zy du li ma'o fy. xy.` parses, with `boi` elided after `fy.`, and `xy.` is the operand. The bpfk dialect rejects it. `fy. xy.` can be one longer letter string, so `maximal` forbids the elided `boi`.
+- CLL 18.11, after example 18.93: `me'u` is required in `ta me li ny. su'i pa me'u moi le'i mi ratcu`, so that `pa` and `moi` stay apart. Here `ta me li ny. su'i pa moi le'i mi ratcu` parses.
+- CLL 18.17, after example 18.116: `lo'o` is required in `li re su'i re du li vo lo'o .onai lo nalseldjuno namcu`. Here `li re su'i re du li vo .onai lo nalseldjuno namcu` parses.
+- CLL 8.6, on example 8.48: `ku'o` must appear in `le poi blabi ku'o gerku cu klama`. Here `le poi blabi gerku cu klama` parses. The bpfk dialect rejects it, since `maximal` forbids the elided `ku'o` where the clause can be longer, as `poi blabi gerku`.
+
 ## Differences from the printed CLL grammar
 
-This grammar departs from the EBNF printed in CLL in six places. The first settles a precedence that the printed text states in a way that cannot be meant. The next three repair the EBNF's copy of the YACC grammar, the grammar of the official parser for the YACC parser generator. The EBNF uses that grammar as its source and cites its rule numbers. In each case, the YACC grammar has a path that the EBNF omits. The official parser accepts the text.
+This grammar departs from the EBNF printed in CLL in eight places. The first settles a precedence that the printed text leaves open. The next three repair the EBNF's copy of the YACC grammar, the grammar of the official parser for the YACC parser generator. The EBNF uses that grammar as its source and cites its rule numbers. In each case, the YACC grammar has a path that the EBNF omits. The official parser accepts the text.
 
-The fifth follows the prose of CLL 19.8, which allows more than the EBNF. The sixth follows the lexer of the official parser. Apart from these, this grammar spells the printed grammar's `CMENE` as `CMEVLA`, the class that the word stage gives a name.
+The fifth follows the prose of CLL 19.8, which allows more than the EBNF. The sixth and the seventh choose between two parses of the printed grammar, as the lexer of the official parser does. The seventh also follows the prose of CLL 14.10 and 14.18. The eighth follows the prose of CLL 10.4, which the printed rule contradicts. Apart from these, this grammar spells the printed grammar's `CMENE` as `CMEVLA`, the class that the word stage gives a name.
 
-1. In `simple-tense-modal`, the printed text reads `[NAhE] (time [space] | space [time]) & CAhA [KI]`. By the stated precedence of `&`, that attaches `[NAhE]` only to the time/space branch and `[KI]` only to the `CAhA` branch. This grammar reads `[NAhE] ((time [space] | space [time]) & CAhA) [KI]`, so that `ba za ki` is one `simple-tense-modal`, and so is `na'e ka'e`.
+The stages before this one depart from CLL too. [The word stream](../words/stream.md) lists six departures from CLL 19 under "Departures from CLL 19". They concern `si`, `zei`, `bu`, hesitation, `lo'u` and `zoi`, which it reads as the Magic Words proposal does. [The indicator stage](../indicators/cll.md) lets a word take several `fu'e` groups and several `ba'e`. Rule 1100 allows one `ba'e`, and rule 411, its `indicators`, allows one `fu'e` group. The [word forms](../words/cll.md) and the [CLL word stream](../words/cll-stream.md) describe their own choices and extensions, such as a cmavo like `ka'y` that uses `y` as a vowel. This section and those documents together describe where the dialect departs from CLL.
+
+1. In `simple-tense-modal`, the printed text reads `[NAhE] (time [space] | space [time]) & CAhA [KI]`. CLL 21.2 says that `...` binds closer than `&`, and `&` closer than `|`. It never ranks juxtaposition against `&`. This grammar reads juxtaposition as binding tighter, as its notation does. Under that reading, the printed rule attaches `[NAhE]` only to the time and space branch, and `[KI]` only to the `CAhA` branch. So this grammar reads `[NAhE] ((time [space] | space [time]) & CAhA) [KI]`, with the time and space part narrowed as item 8 says. Then `ba za ki` is one `simple-tense-modal`, and so is `na'e ka'e`. The repair also admits `pu ki` and `na'e ca'a`. The other reading, with `&` binding tighter, keeps rule 972 as meant but breaks rule 1030, the rule `time`, since it splits `ZEhA [PU [NAI]]`. So under either reading, one of the two rules needs parentheses. This grammar also writes `time` with parentheses that the printed rule does not have, `(ZEhA [PU [NAI]])`. Under the reading that this grammar uses, they change nothing.
 2. A text can begin with `.i` separators followed by `ni'o` markers, as in `.i ni'o mi klama`. The printed `text-1` makes the two alternatives. YACC rule 2 (`text_B_2`) lets any number of `.i` forms precede a `ni'o` run. The camxes grammars call the printed form "a bug in the BNF".
 3. A `lo'u ... le'u` quote can be empty, `lo'u le'u`. The printed `sumti-6` requires at least one word. YACC rule 436 reads the body of the quote as one token that can be empty.
 4. The free-modifier slot after a `lu ... li'u` quote follows the quote whether or not `li'u` is written, so `lu cy. to toi` is a quote followed by a parenthesis. The printed `sumti-6` writes `/LIhU#/`, which drops the slot with the elided `li'u`. YACC rule 432 (`quote_arg`) attaches free modifiers to the whole quote, and its `LIhU` gap carries none. Every other elidable terminator keeps its slot as printed.
 5. A run of indicators can hold several groups, each with its own `fu'e`, as in `ui fu'e ia mi klama`. The printed `indicators` reads `[FUhE] indicator ...`, one group. CLL 19.8 lets a local attitudinal stand beside the ones that `fu'e` marks. The indicator stage reads the run after a word the same way.
-6. In `selbri-4` and `operator`, a plain joik directly before `ke` cannot take a unit that is only a `ke` group (`joik-before-ke`). The printed grammar reads `mi broda joi ke brode ke'e` in two ways. The lexer of the official parser makes `joi ke` one token, `JOIK_KE`, so it reads only the `ke` group joined by `joi`. That lexer also rejects `mi broda joi ke brode ke'e bo brodi`, which has only the plain reading. This grammar keeps the plain reading there, as the printed grammar does.
+6. In `selbri-4` and `operator`, a plain joik directly before `ke` cannot take a unit that is only a `ke` group (`joik-before-ke`). The condition reads the tag `~ke-group` of the parsed unit, as item 7 does. The printed grammar reads `mi broda joi ke brode ke'e` in two ways. The lexer of the official parser makes `joi ke` one token, `JOIK_KE`, so it reads only the `ke` group joined by `joi`. That lexer also rejects `mi broda joi ke brode ke'e bo brodi`, which has only the plain reading. This grammar keeps the plain reading there, as the printed grammar does.
+7. In `bridi-tail-1-final`, the last tail after a plain gihek cannot be one `ke` group with one run of tail terms. Those are the words that the `ke` form of `bridi-tail` can read as a group of tails. `bridi-tail-1-final` is the printed `bridi-tail-1` with its last plain connection written apart, so the condition needs no lookahead. It reads the tags `~ke-group` and `~vau-written` of the parsed tail. It also tests whether tail terms follow the tail. To pass the tags up, eight rules write an optional part as two alternatives, which read the same words in the same way. Item 6 reads `~ke-group` too. The printed grammar reads `mi broda gi'e ke brode ke'e` in two ways: a `ke` group of tails after `gi'e` (rule 50), or a plain `gi'e` (rule 51) before a tail whose selbri is a `ke` tanru unit. The elided terminators cannot choose: the two parses tie when `ke'e` is elided at the end, and `late-elision` takes the tanru when `ke'e` is written. CLL 14.10 groups tails with `ke` after a gihek, and CLL 14.18 puts a tense between a gihek and `ke`, which the tanru parse moves onto the selbri. The lexer of the official parser makes `gi'e ke` one token, `GIhEK_KE`, so it reads only the group. That lexer also rejects `mi broda gi'e ke brode ke'e brodi`, which has only the plain reading. This grammar keeps the plain reading there, as the printed grammar does.
+8. In `simple-tense-modal`, space cannot come before time. The printed rule reads `time [space] | space [time]`, and the YACC grammar also lets space come before time. CLL 10.4 says that when a tense has both, time comes first. It gives the reason: if space could come before or after time at will, some constructions would be ambiguous. This grammar reads `time [space] | space`. So `mi va pu klama` reads as the term `va` followed by the selbri `klama` with the tense `pu`, as the official parser reads it. Under the printed rule, the dialect's ranking read `va pu` there as one tense. `mi fe'e di'i co'a klama` also splits. Without its own `fe'e`, `co'a` is an event contour of time (CLL 10.10), not a space interval modifier (CLL 10.11). A time modifier cannot follow space in one tense. So `fe'e di'i` is a term, and `co'a` is the tense of `klama`. The official parser reads `fe'e di'i co'a` as one tense, with one `fe'e` over both properties. Where a term can stand before the tense, the space part becomes a term (`mi va pu klama`, `va pu gi mi klama gi do cadzu`). The official parser rejects the second text. Elsewhere the text is now an error. That covers a tense in a connective before `bo` or `ke`, as in `mi .e vi pu bo do klama`, `mi broda gi'e va pu ke brode ke'e` and `li pa su'i je va pu bo pi'i re`. It also covers a tense before `tu'e`, after `jai`, and on the selbri of a description (`lo va pu broda`). The printed grammar accepts these texts, and the official parser rejects them. `mi viska va pu gi do gi la djan` tied before. Now `late-elision` chooses one reading: `va` tags the sumti `pu gi do gi la djan`, as in the official parser. The other reading, `va` with `ku` elided and then that sumti, elides one more terminator. No example in CLL writes space before time.
 
-This grammar keeps the free-modifier slot after an elided terminator as printed: an elided `[X #]` leaves no slot. So a free modifier cannot follow an elided `boi`, and where CLL example 17.38 writes `xy. xi ky.`, this grammar requires `xy. boi xi ky.`.
+This grammar keeps the free-modifier slot after an elided terminator as printed: an elided `[X #]` leaves no slot. So a free modifier cannot follow an elided `boi`, and where CLL example 17.38 writes `xy. xi ky.`, this grammar requires `xy. boi xi ky.`. CLL itself says so in two places. In CLL 14.17, after example 14.154, `xy. boi xi vei by. ce'o dy.`, it says that "the boi in [that example] is not elidable, because the xi subscript needs something to attach to". CLL 6.11 says that free modifiers can stand after any elidable terminator, "which, however, must not then be elided". The one exception is `li'u`, as item 4 above says.

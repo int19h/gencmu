@@ -69,6 +69,10 @@ fn outcome(dialect: &gencmu::Dialect, case: &Value) -> Result<BTreeMap<&'static 
         got.insert("brackets", string(&gencmu::to_brackets(&result, false)));
     } else {
         got.insert("stage", result.error.as_ref().and_then(|error| error.stage.as_deref()).map_or(Value::Null, string));
+        // A rejection pins where its stage stopped (tests/README.md).
+        if let Some(token) = result.error.as_ref().and_then(|error| error.token) {
+            got.insert("at", Value::Number(token as f64));
+        }
     }
     // An ambiguous error pins its kind and reason, and no other error has
     // the field (tests/README.md).
@@ -103,7 +107,7 @@ fn outcome(dialect: &gencmu::Dialect, case: &Value) -> Result<BTreeMap<&'static 
 }
 
 fn compare(case: &Value, got: &BTreeMap<&'static str, Value>) -> Option<String> {
-    for key in ["expect", "verdict", "stage", "error", "ties", "words", "brackets"] {
+    for key in ["expect", "verdict", "stage", "at", "error", "ties", "words", "brackets"] {
         let expected = case.get(key);
         let found = got.get(key);
         if expected.is_none() && found.is_none() {
