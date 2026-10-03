@@ -21,7 +21,12 @@ from ._unicode import UnicodeTable
 SEED = (-1, 0, 0, 0)
 """The edge of a predicted item: (predecessor, kind, a, b), where kind is 0
 for a prediction, 1 for a read of token a as terminal b, 2 for a completed
-child item a."""
+child item a, and RESTORE for a restoration."""
+
+RESTORE = 3
+"""The kind of the one edge of a restoration in the check of engine §7.4,
+(-1, RESTORE, token, terminal): the read of the synthetic token as the
+terminal, after which the empty production closes over that token."""
 
 Caps = tuple[tuple[int, int, int], ...]
 
@@ -584,7 +589,6 @@ class Parser:
         context = self.context
         lowered = context.lowered
         productions = lowered.productions
-        rule_productions = lowered.rule_productions
         # The stage's tokens, read from base on: a copy of the rest of a long
         # text would cost a nested parse its length.
         tokens = context.tokens
@@ -594,6 +598,16 @@ class Parser:
         evaluator = self.evaluator
         n = self.end - base
 
+        # The reconstruction mode of the check of engine §7.4, on the context
+        # of the reconstructed input R alone; every other parse reads as
+        # engine §4 says. R is always parsed whole, so base is 0 there.
+        synthetic = context.synthetic
+        recon = synthetic is not None
+        project = context.project
+        observed = context.observed
+        last_reading = reading_last(lowered) if recon else []
+        elidable_helpers = lowered.elidable_helpers
+
         prod: list[int] = []
         dot: list[int] = []
         origin: list[int] = []
@@ -601,6 +615,10 @@ class Parser:
         caps: list[Caps] = []
         edges: list[list[tuple[Any, ...]]] = []
         tag: dict[int, int] = {}
+        # In the reconstruction mode: whether every step that made an item is
+        # strict, and whether the item has been processed (engine §7.4).
+        strict: list[bool] = []
+        processed: list[bool] = []
         # A set is made when the parse reaches it: once one is empty, every
         # later one is, and a nested parse over the rest of a long text stops
         # there.
@@ -608,10 +626,15 @@ class Parser:
         waiting: list[dict[int, list[int]]] = [{}]
         scanning: list[dict[str, list[int]]] = [{}]
         empty_done: list[dict[int, list[int]]] = [{}]
-        predicted: list[set[int]] = [set()]
+        # The rules predicted in each set, each with whether its prediction
+        # was strict (engine §7.4), which only the reconstruction mode makes.
+        predicted: list[dict[int, bool]] = [{}]
+        # The restorations of the current set's synthetic token, made in the
+        # next set when the parse reaches it (engine §7.4).
+        restorations: list[int] = []
         agenda: list[int] = []
 
-        def add(production: int, position: int, start: int, captured: Caps, at: int, edge: tuple[Any, ...]) -> None:
+        def add(production: int, position: int, start: int, captured: Caps, at: int, edge: tuple[Any, ...], strict_step: bool = False) -> None:
             key = (production, position, start, captured)
             found = sets[at].get(key)
             if found is None:
@@ -623,10 +646,27 @@ class Parser:
                 end.append(at)
                 caps.append(captured)
                 edges.append([edge])
+                if recon:
+                    strict.append(strict_step)
+                    processed.append(False)
                 if at == current[0]:
                     agenda.append(found)
                 else:
                     following.append(found)
+            elif recon:
+                # An item is processed again where an ordinary step reaches
+                # it after it was processed as strict, and that step can
+                # repeat an edge it already has.
+                found_edges = edges[found]
+                if edge not in found_edges:
+                    found_edges.append(edge)
+                if strict[found] and not strict_step:
+                    # One ordinary step makes an item ordinary, and the
+                    # recognizer then applies to it what its strictness held
+                    # back (engine §7.4).
+                    strict[found] = False
+                    if processed[found]:
+                        agenda.append(found)
             else:
                 edges[found].append(edge)
 
@@ -639,17 +679,35 @@ class Parser:
                 return captured[production.slots[0]][2]
             return tagtab.empty
 
-        def advance(item: int, part: tuple[int, int, int], at: int, edge: tuple[Any, ...]) -> None:
+        def advance(item: int, part: tuple[int, int, int], at: int, edge: tuple[Any, ...], strict_step: bool = False, read_tag: int = -1) -> None:
             production = productions[prod[item]]
             position = dot[item]
+            if strict_step and position + 1 == len(production.rhs):
+                # A strict item never completes, so the path evaluates
+                # nothing more (engine §7.4).
+                return
             # A tested symbol's test must hold of its own span and tags, which
             # is checked before any condition the advance makes ready (engine
             # §4).
             tests = production.tests
             if tests is not None:
                 test = tests[position]
-                if test is not None and not context.test_holds(test, base + part[0], base + part[1], part[2]):
-                    return
+                if test is not None:
+                    if read_tag >= 0:
+                        # A test of a terminal reads the token with its
+                        # recognition values, a synthetic one's included
+                        # (engine §7.5).
+                        holds = context.test_holds(test, base + part[0], base + part[1], read_tag)
+                    elif project is not None:
+                        # In the check, a test of a reference reads its
+                        # projected span and its constituent's tags (engine
+                        # §7.5).
+                        assert observed is not None
+                        holds = observed.test_holds(test, project[part[0]], project[part[1]], part[2])
+                    else:
+                        holds = context.test_holds(test, base + part[0], base + part[1], part[2])
+                    if not holds:
+                        return
             captured = caps[item]
             if production.slots[position] >= 0:
                 captured = captured + (part,)
@@ -667,7 +725,7 @@ class Parser:
                 for condition in production.conds_whole:
                     if not evaluator.condition(condition, bound):
                         return
-            add(production.id, position + 1, origin[item], captured, at, edge)
+            add(production.id, position + 1, origin[item], captured, at, edge, strict_step)
 
         # A production whose first symbol is a terminal the next token lacks
         # is not predicted, since its item could never advance; a rejection
@@ -686,17 +744,52 @@ class Parser:
             bound = evaluator.bind(production, (), whole)
             return all(evaluator.condition(c, bound) for c in production.conds_predict)
 
-        def predict(rule: int, j: int) -> None:
+        def restore(number: int, j: int) -> None:
+            """The restoration of an elidable optional at j (engine §7.4):
+            its empty production read over the one synthetic token there,
+            where that token is compatible with the optional. It is made in
+            the next set, with no tags, and evaluates nothing of the
+            optional's content."""
+            assert synthetic is not None
+            if j >= n or not synthetic[j]:
+                return
+            production = productions[number]
+            if production.elided not in tokens[j].tags:
+                return
+            test = production.elided_test
+            if test is not None and not context.test_holds(test, j, j + 1, token_tags[j]):
+                return
+            restorations.append(number)
+
+        def predict(rule: int, j: int, strict_prediction: bool = False) -> None:
+            # A rule's productions are the same at every prediction in one
+            # set. A strict prediction (engine §7.4) leaves some out, so an
+            # ordinary one after it adds them.
+            before = predicted[j].get(rule)
+            if before is not None and (before is False or strict_prediction):
+                return
+            predicted[j][rule] = strict_prediction
             for number in not_terminal_first[rule]:
-                if allowed(productions[number], j):
-                    add(number, 0, j, (), j, SEED)
+                production = productions[number]
+                if recon:
+                    if not production.rhs and production.helper and production.elided is not None:
+                        # The empty production of an elidable optional is its
+                        # restoration, and never derives the empty sequence.
+                        restore(number, j)
+                        continue
+                    # A strict prediction predicts only the productions that
+                    # can read.
+                    if strict_prediction and last_reading[number] < 0:
+                        continue
+                if allowed(production, j):
+                    add(number, 0, j, (), j, SEED, strict_prediction)
             if j < n:
                 table = by_first[rule]
                 if table:
                     for tag in tokens[base + j].tags:
                         for number in table.get(tag, ()):
                             if allowed(productions[number], j):
-                                add(number, 0, j, (), j, SEED)
+                                add(number, 0, j, (), j, SEED, strict_prediction)
                 # A range or a property matches by the token's characters.
                 table = by_first_characters[rule]
                 if table:
@@ -705,11 +798,10 @@ class Parser:
                         if carries(terminal, token_tag):
                             for number in numbers:
                                 if allowed(productions[number], j):
-                                    add(number, 0, j, (), j, SEED)
+                                    add(number, 0, j, (), j, SEED, strict_prediction)
 
         current = [0]
         following: list[int] = []
-        predicted[0].add(start_rule)
         predict(start_rule, 0)
         furthest = 0
         for j in range(n + 1):
@@ -724,6 +816,20 @@ class Parser:
                 item = agenda.pop()
                 production = productions[prod[item]]
                 position = dot[item]
+                if recon:
+                    if processed[item]:
+                        # An item that an ordinary step reached after it was
+                        # processed as strict: the ordinary prediction of its
+                        # next symbol, and its advances over empty
+                        # constituents (engine §7.4). The step's own edge is
+                        # already in place.
+                        if position < len(production.rhs) and not production.terminal[position]:
+                            rule = production.rhs[position]
+                            predict(rule, j)  # type: ignore[arg-type]
+                            for child in empty_done[j].get(rule, ()):  # type: ignore[arg-type]
+                                advance(item, (j, j, tag[child]), j, (item, 2, child, 0))
+                        continue
+                    processed[item] = True
                 if position < len(production.rhs):
                     symbol = production.rhs[position]
                     if production.terminal[position]:
@@ -731,9 +837,19 @@ class Parser:
                         continue
                     rule = symbol
                     waiting[j].setdefault(rule, []).append(item)  # type: ignore[arg-type]
-                    if rule not in predicted[j]:
-                        predicted[j].add(rule)  # type: ignore[arg-type]
+                    if recon and strict[item]:
+                        if last_reading[production.id] <= position:
+                            # No symbol after the next one can read: the
+                            # strict item predicts its next symbol strictly,
+                            # and does not advance over an empty constituent
+                            # (engine §7.4).
+                            predict(rule, j, True)  # type: ignore[arg-type]
+                            continue
                         predict(rule, j)  # type: ignore[arg-type]
+                        for child in empty_done[j].get(rule, ()):  # type: ignore[arg-type]
+                            advance(item, (j, j, tag[child]), j, (item, 2, child, 0), True)
+                        continue
+                    predict(rule, j)  # type: ignore[arg-type]
                     for child in empty_done[j].get(rule, ()):  # type: ignore[arg-type]
                         advance(item, (j, j, tag[child]), j, (item, 2, child, 0))
                     continue
@@ -741,9 +857,19 @@ class Parser:
                 start = origin[item]
                 tag[item] = constituent_tag(production, caps[item], start, j)
                 lhs = production.lhs
+                part = (start, j, tag[item])
                 if start == j:
                     empty_done[j].setdefault(lhs, []).append(item)
-                part = (start, j, tag[item])
+                    if recon:
+                        for waiter in list(waiting[start].get(lhs, ())):
+                            if not strict[waiter]:
+                                advance(waiter, part, j, (waiter, 2, item, 0))
+                            elif last_reading[prod[waiter]] > dot[waiter]:
+                                # A strict item advances over an empty
+                                # constituent only where a later symbol can
+                                # read, and stays strict (engine §7.4).
+                                advance(waiter, part, j, (waiter, 2, item, 0), True)
+                        continue
                 for waiter in list(waiting[start].get(lhs, ())):
                     advance(waiter, part, j, (waiter, 2, item, 0))
             if j < n:
@@ -751,15 +877,34 @@ class Parser:
                 waiting.append({})
                 scanning.append({})
                 empty_done.append({})
-                predicted.append(set())
+                predicted.append({})
                 token = tokens[base + j]
                 token_tag = token_tags[base + j]
+                if not recon:
+                    for terminal, waiters in scanning[j].items():
+                        # A range or a property matches by the token's
+                        # characters, and never by a tag (engine §4).
+                        if carries(terminal, token_tag) if characters and terminal in characters else terminal in token.tags:
+                            for waiter in waiters:
+                                advance(waiter, (j, j + 1, token_tag), j + 1, (waiter, 1, j, terminal))
+                    continue
+                for number in restorations:
+                    add(number, 0, j, (), j + 1, (-1, RESTORE, j, productions[number].elided))
+                restorations.clear()
+                # A terminal that reads a synthetic token captures no tags,
+                # and a production that inherits from it inherits none
+                # (engine §7.5).
+                from_synthetic = synthetic[j]  # type: ignore[index]
+                captured_tag = tagtab.empty if from_synthetic else token_tag
                 for terminal, waiters in scanning[j].items():
-                    # A range or a property matches by the token's
-                    # characters, and never by a tag (engine §4).
                     if carries(terminal, token_tag) if characters and terminal in characters else terminal in token.tags:
                         for waiter in waiters:
-                            advance(waiter, (j, j + 1, token_tag), j + 1, (waiter, 1, j, terminal))
+                            # The written route of an elidable optional from a
+                            # synthetic token: the rest of the optional must
+                            # read, so the item after its terminal is strict
+                            # (engine §7.4).
+                            route = from_synthetic and dot[waiter] == 0 and productions[prod[waiter]].lhs in elidable_helpers
+                            advance(waiter, (j, j + 1, captured_tag), j + 1, (waiter, 1, j, terminal), route, token_tag)
         # The last set, if the parse reached it.
         final = sets[n] if n < len(sets) else {}
         roots = [
@@ -789,3 +934,38 @@ class Parser:
         # Every item is made once, by add, so the count is added here once.
         recognizer_counters.items += len(prod)
         return Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected)
+
+
+def reading_last(lowered: Lowered) -> list[int]:
+    """Which productions can read in the reconstruction mode of engine
+    §7.4: for each production, the index of its last symbol that can read,
+    or -1. A terminal can read, and so can a rule or helper with a
+    production that can, the empty production of an elidable helper
+    included, since in that mode it is the restoration, which reads a
+    synthetic token. These are the least sets that the rules give, so a rule
+    that can read only through itself cannot. Found once per lowered
+    grammar."""
+    found = lowered.reading_last
+    if found is not None:
+        return found
+    productions = lowered.productions
+    rules: set[int] = set()
+    changed = True
+    while changed:
+        changed = False
+        for production in productions:
+            if production.lhs in rules:
+                continue
+            restoration = not production.rhs and production.helper and production.elided is not None
+            if restoration or any(terminal or symbol in rules for symbol, terminal in zip(production.rhs, production.terminal)):
+                rules.add(production.lhs)
+                changed = True
+    found = []
+    for production in productions:
+        at = -1
+        for index, (symbol, terminal) in enumerate(zip(production.rhs, production.terminal)):
+            if terminal or symbol in rules:
+                at = index
+        found.append(at)
+    lowered.reading_last = found
+    return found

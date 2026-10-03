@@ -16,7 +16,7 @@ from __future__ import annotations
 import math
 from typing import Any, Iterator, Optional
 
-from ._earley import Forest
+from ._earley import RESTORE, Forest
 from ._maximal import Maximal
 
 Count = float
@@ -250,7 +250,8 @@ derivations cannot depend on it."""
 
 Step = tuple[int, int, Optional[Key], Optional[Key], Any, Any]
 """One edge of an item (engine §6), as a summary uses it: the edge's index
-among the item's edges, its kind (0 start, 1 read, 2 completion), the keys
+among the item's edges, its kind (0 start, 1 read, 2 completion, RESTORE a
+restoration of the check of engine §7.4), the keys
 of the item before the step and of the completed child, and the token and
 terminal of a read or the child item of a completion."""
 
@@ -425,8 +426,8 @@ class Summaries:
         start, end = forest.origin[item], forest.end[item]
         found = []
         for index, (pred, kind, a, b) in enumerate(forest.edges[item]):
-            if kind == 0:
-                found.append((index, 0, None, None, a, b))
+            if kind == 0 or kind == RESTORE:
+                found.append((index, kind, None, None, a, b))
                 continue
             pred_key = self.partial_key(pred, context if forest.end[pred] == end else self.empty)
             child_key = None
@@ -596,6 +597,12 @@ class Ranker(Summaries):
                 ways = 1
                 if self.entries:
                     produced.append(Entry(None, [], INF))
+            elif edge_kind == RESTORE:
+                # A restoration reads its synthetic token, and its own close
+                # follows (engine §7.4, §7.7).
+                ways = 1
+                if self.entries:
+                    produced.append(Entry(self.read_leaf(a, b), [], INF))
             else:
                 assert pred_key is not None
                 earlier = memo[pred_key][1 if self.eligible_before(edge_kind, a) else 0]
@@ -936,7 +943,8 @@ class Elisions(Summaries):
         memo = self.memo
         if kind == 0:
             inner = memo[self.inner_key(key)][0]
-            if inner is None or not self.elided[forest.prod[item]]:
+            # A restoration elides nothing (engine §7.7).
+            if inner is None or not self.elided[forest.prod[item]] or forest.edges[item][0][1] == RESTORE:
                 return inner
             # An elided terminator counts one at its position.
             at = forest.origin[item]
@@ -948,7 +956,7 @@ class Elisions(Summaries):
         every = Least()
         eligible = Least()
         for index, edge_kind, pred_key, child_key, a, _ in self.steps(key):
-            if edge_kind == 0:
+            if edge_kind == 0 or edge_kind == RESTORE:
                 total, vector, count = 1, None, 1
             else:
                 assert pred_key is not None

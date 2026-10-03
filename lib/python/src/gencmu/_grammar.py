@@ -770,6 +770,10 @@ class Lowered:
     # terminator.
     elidable_helpers: frozenset[int] = frozenset()
     maximal_helpers: frozenset[int] = frozenset()
+    # For each production, the index of its last symbol that can read in
+    # the reconstruction mode of engine §7.4, or -1; found when the check
+    # first needs it.
+    reading_last: list[int] | None = None
 
     def __post_init__(self) -> None:
         self.elidable_helpers = frozenset(
