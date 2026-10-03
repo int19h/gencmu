@@ -143,9 +143,13 @@ export function documentDialects(base = root) {
   for (const document of dialectDocuments(base)) {
     const dialect = path.posix.basename(document, ".md");
     add(document, dialect);
-    const markdown = fs.readFileSync(path.join(base, document), "utf8");
-    for (const match of markdown.matchAll(/^\s*%include\s+"([^"]+)"/gm)) {
-      add(path.posix.normalize(path.posix.join(path.posix.dirname(document), match[1])), dialect);
+    // The includes stand in the document's jbogenbau blocks, as the parser
+    // finds them.
+    for (const { node } of walk(parseMarkdown(fs.readFileSync(path.join(base, document), "utf8")))) {
+      if (node.type !== "code" || node.lang !== "jbogenbau") continue;
+      for (const match of node.value.matchAll(/^\s*%include\s+"([^"]+)"/gm)) {
+        add(path.posix.normalize(path.posix.join(path.posix.dirname(document), match[1])), dialect);
+      }
     }
   }
   return dialects;

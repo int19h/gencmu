@@ -37,33 +37,29 @@ export function proseLineProblems(markdown, file) {
   /** @type {[number, string][]} */
   const problems = [];
   const report = (/** @type {number} */ line, /** @type {string} */ message) => problems.push([line, `${file}:${line}: ${message}`]);
-  for (const { node, ancestors } of walk(parseMarkdown(markdown))) {
+  const tree = parseMarkdown(markdown);
+  // Every structural fact comes from the parser (tools/markdown.js): none
+  // is read again from the source text.
+  for (const { node } of walk(tree)) {
     const { start, end } = node.position;
     if (PROSE.has(node.type)) {
       for (let line = start.line + 1; line <= end.line; line++) {
         report(line, `this line continues the ${NAMES[node.type]} that begins on line ${start.line}; put the block on one line`);
       }
-      if (node.type === "tableRow" && markdown[start.offset] !== "|") {
+      if (node.type === "tableRow" && !node.data.leadingPipe) {
         report(start.line, "this line is a row of the table above it; put a blank line before a paragraph, and begin a row with |");
       }
     } else if (node.type === "inlineCode" && end.line > start.line) {
       report(start.line, `a code span opens here and closes on line ${end.line}; close it on this line`);
-    } else if (node.type === "text" && ancestors.some((block) => PROSE.has(block.type))) {
-      const source = markdown.slice(start.offset, end.offset);
-      for (let k = 0; k < source.length; k++) {
-        if (source[k] === "\\") { k++; continue; }
-        if (source[k] === "`") {
-          report(start.line + (source.slice(0, k).match(/\n/g) || []).length, "a backtick opens no code span here; close the span on this line, or escape the backtick");
-          break;
-        }
-      }
-    } else if (node.type === "code") {
-      const lines = markdown.slice(start.offset, end.offset).split(/\r\n|\r|\n/);
-      const opening = /^(`{3,}|~{3,})/.exec(lines[0]);
-      const closing = /^[\s>]*(`{3,}|~{3,})\s*$/.exec(lines[lines.length - 1]);
-      const closed = lines.length > 1 && closing && closing[1][0] === opening?.[1][0] && closing[1].length >= opening[1].length;
-      if (opening && !closed) report(start.line, "this fenced block has no closing fence, so it takes in the rest of its container; close it");
+    } else if (node.type === "code" && node.data && node.data.fenced && !node.data.closed) {
+      report(start.line, "this fenced block has no closing fence, so it takes in the rest of its container; close it");
     }
+  }
+  const backticks = new Set();
+  for (const { line } of tree.data.strayBackticks) {
+    if (backticks.has(line)) continue;
+    backticks.add(line);
+    report(line, "a backtick opens no code span here; close the span on this line, or escape the backtick");
   }
   return problems.sort((a, b) => a[0] - b[0]).map(([, problem]) => problem);
 }
