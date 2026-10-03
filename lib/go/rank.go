@@ -757,6 +757,9 @@ func (rk *ranker) itemVal(it *item, f forbidden) *entry {
 	if it.dot == 0 && !it.restores {
 		return unitEntry
 	}
+	if it.restores && rk.rec.run.ps.fault("rank-restoration") {
+		return nil
+	}
 	f = rk.restrict(f, it.prod.lhs)
 	slot := memoSlotFor(rk.itemMemo(it), f)
 	switch slot.state {
