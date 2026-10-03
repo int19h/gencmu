@@ -28,6 +28,12 @@ func TestNotationShapes(t *testing.T) {
 			Description, Find, Replace, Document string
 			Inputs                               []string
 			Expect                               any
+			// Where is the place of an expected load error in its
+			// document, when the item gives it (tests/README.md).
+			Where *struct {
+				Document     string
+				Line, Column int
+			}
 		}
 	}
 	if err := json.Unmarshal(raw, &shapes); err != nil {
@@ -66,14 +72,20 @@ func TestNotationShapes(t *testing.T) {
 	// outcomeOf loads a document with a bootstrap, and parses each input:
 	// its brackets, or the kind of its error. A load that fails gives the
 	// kind of its error, which must be an *Error.
-	outcomeOf := func(boot, document string, inputs []string) any {
+	outcomeAt := func(boot, document string, inputs []string, where *[3]any) any {
 		d, err := LoadDialectSources(map[string]string{"p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n", "g.md": document, "notation/bootstrap.json": boot}, "p.md")
 		if err != nil {
 			var e *Error
 			if !errors.As(err, &e) {
 				t.Fatalf("an error that is not an *Error: %v", err)
 			}
+			if where != nil && *where != [3]any{e.Document, e.Line, e.Column} {
+				t.Errorf("the load error stands at %s:%d:%d, not at %v: %v", e.Document, e.Line, e.Column, *where, e)
+			}
 			return e.Kind
+		}
+		if where != nil {
+			t.Errorf("the document loaded, but the error should stand at %v", *where)
 		}
 		var results []any
 		for _, input := range inputs {
@@ -89,6 +101,7 @@ func TestNotationShapes(t *testing.T) {
 		}
 		return results
 	}
+	outcomeOf := func(boot, document string, inputs []string) any { return outcomeAt(boot, document, inputs, nil) }
 	outcome := func(boot string) any { return outcomeOf(boot, shapes.Document, shapes.Inputs) }
 	withSyntax := func(change func(string) string) string {
 		return bootstrap[:syntaxAt] + change(bootstrap[syntaxAt:])
@@ -135,7 +148,11 @@ func TestNotationShapes(t *testing.T) {
 			t.Fatalf("%s: the text to replace does not stand once", item.Description)
 		}
 		changed := withSyntax(func(syntax string) string { return strings.Replace(syntax, item.Find, item.Replace, 1) })
-		if got := outcomeOf(changed, item.Document, item.Inputs); !reflect.DeepEqual(got, item.Expect) {
+		var where *[3]any
+		if w := item.Where; w != nil {
+			where = &[3]any{w.Document, w.Line, w.Column}
+		}
+		if got := outcomeAt(changed, item.Document, item.Inputs, where); !reflect.DeepEqual(got, item.Expect) {
 			t.Errorf("%s: %v, not %v", item.Description, got, item.Expect)
 		}
 	}

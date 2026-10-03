@@ -39,7 +39,7 @@ func newMaximal(rec *recognizer, stageWide bool) *maximal {
 	mx := &maximal{rec: rec, elides: make([]string, len(rec.g.rules))}
 	restricts := false
 	for _, p := range rec.g.prods {
-		if p.helper && p.elided != "" && (stageWide || rec.g.maximalT[p.elided]) {
+		if p.helper && p.elided != "" && (stageWide || rec.g.maximalH[p.lhs]) {
 			mx.elides[p.lhs] = p.elided
 			restricts = true
 		}

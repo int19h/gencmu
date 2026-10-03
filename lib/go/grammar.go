@@ -12,8 +12,6 @@ type stageGrammar struct {
 	lean        string // the rule of the ranking: "greedy", "lazy" or "late-elision" (engine §6)
 	elisionOnly bool
 	maximal     bool // no terminator is elided where its constituent could have been longer (engine §4)
-	elidable    map[string]bool
-	maximalT    map[string]bool // the maximal terminators, named by %elidable maximal (engine §2, §4)
 	changes     []stitchChange
 	// classifierSet holds the stage's classifiers, and implications its
 	// implications with their values (engine §2, §11).
@@ -76,7 +74,7 @@ func isTerminalName(name string) bool {
 }
 
 func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, *Error) {
-	g := &stageGrammar{name: stageName, uni: uni, constants: map[string]*stageConst{}, byName: map[string]*sRule{}, elidable: map[string]bool{}, maximalT: map[string]bool{}}
+	g := &stageGrammar{name: stageName, uni: uni, constants: map[string]*stageConst{}, byName: map[string]*sRule{}}
 	g.classifierSet.names = map[string]bool{}
 	var implications []implicationItem
 	fail := func(doc string, at [2]int, format string, args ...any) *Error {
@@ -151,13 +149,6 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 					return nil, fail(d.path, dir.At, "%%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only, then optionally maximal")
 				}
 				g.lean, g.elisionOnly, g.maximal = args[0], elisionOnly, maximal
-			case "elidable":
-				for _, a := range dir.Args {
-					g.elidable[a] = true
-					if dir.Maximal {
-						g.maximalT[a] = true
-					}
-				}
 			default:
 				return nil, fail(d.path, dir.At, "unknown directive %%%s", dir.Name)
 			}
@@ -181,9 +172,6 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 		return nil, err
 	}
 	if err := g.addImplications(implications); err != nil {
-		return nil, err
-	}
-	if err := g.checkElidableTests(); err != nil {
 		return nil, err
 	}
 	if len(ambiguity) == 0 {
@@ -228,39 +216,6 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 	return g, nil
 }
 
-// checkElidableTests checks that the terminal of an elidable optional has
-// no test or an = test, since elision-only restores it with a sound (engine
-// §3.8). The check runs once the stage is stitched, since a later
-// %elidable can make an optional elidable, over every alternative whatever
-// the features.
-func (g *stageGrammar) checkElidableTests() *Error {
-	for _, r := range g.rules {
-		for _, a := range r.alts {
-			stack := []*domExpr{a.alt.Expr}
-			for len(stack) > 0 {
-				e := stack[len(stack)-1]
-				stack = stack[:len(stack)-1]
-				if e.Kind == exOptional {
-					first := e.Inner
-					for first.Kind == exSeq {
-						first = first.Items[0]
-					}
-					if first.Kind == exTest && first.Op != "=" && isTagSymbol(first.Inner) && g.elidable[first.Inner.Name] {
-						e := grammarError(a.doc, a.at, "%s can elide %s, whose test %s gives it no sound to restore; an elidable terminator has no test or an = test", r.name, first.Inner.Name, first.Op)
-						e.Stage = g.name
-						return e
-					}
-				}
-				stack = append(stack, e.Items...)
-				if e.Inner != nil {
-					stack = append(stack, e.Inner)
-				}
-			}
-		}
-	}
-	return nil
-}
-
 // makeTests gives each test of the stitched stage's bodies its value, made
 // once for every lowering.
 func (g *stageGrammar) makeTests() *Error {
@@ -286,56 +241,32 @@ func (g *stageGrammar) makeTests() *Error {
 }
 
 // checkAlt checks what the notation's grammar cannot state: every rule named
-// is defined, and captures stand at the top level.
+// is defined.
 func (g *stageGrammar) checkAlt(a *sAlt) *Error {
 	fail := func(format string, args ...any) *Error { return grammarError(a.doc, a.at, format, args...) }
-	captures := map[string]bool{}
-	var walk func(e *domExpr, top bool) *Error
-	walk = func(e *domExpr, top bool) *Error {
-		switch e.Kind {
-		case exRef:
-			if !isTerminalName(e.Name) && g.byName[e.Name] == nil {
-				return fail("%s is not a rule of stage %s", e.Name, g.name)
-			}
-		case exCapture:
-			if !top {
-				return fail("a capture must stand at the top level of an alternative")
-			}
-			if captures[e.Name] {
-				return fail("$%s is captured twice in one alternative", e.Name)
-			}
-			captures[e.Name] = true
-			if len(captures) > 4 {
-				return fail("an alternative has at most four captures")
-			}
-			if !isCapturable(e.Inner.Kind) {
-				return fail("a capture wraps a single symbol")
-			}
-			return walk(e.Inner, false)
-		case exTest:
-			// A tested symbol refers to what its symbol does.
-			return walk(e.Inner, false)
-		case exSeq:
-			for _, it := range e.Items {
-				if err := walk(it, top); err != nil {
-					return err
-				}
-			}
-		case exChoice, exAnd:
-			if e.Kind == exAnd && len(e.Items) > maxAnd {
-				return fail("an & joins at most %d items", maxAnd)
-			}
-			for _, it := range e.Items {
-				if err := walk(it, false); err != nil {
-					return err
-				}
-			}
-		case exOptional, exRepeat:
-			return walk(e.Inner, false)
+	var walk func(e *domExpr) *Error
+	walk = func(e *domExpr) *Error {
+		if e == nil {
+			return nil
 		}
-		return nil
+		if e.Kind == exRef && !isTerminalName(e.Name) && g.byName[e.Name] == nil {
+			return fail("%s is not a rule of stage %s", e.Name, g.name)
+		}
+		if e.Kind == exAnd && len(e.Items) > maxAnd {
+			return fail("an & joins at most %d items", maxAnd)
+		}
+		for _, it := range e.Items {
+			if err := walk(it); err != nil {
+				return err
+			}
+		}
+		// A tested symbol refers to what its symbol does.
+		if err := walk(e.Inner); err != nil {
+			return err
+		}
+		return walk(e.Sep)
 	}
-	if err := walk(a.alt.Expr, true); err != nil {
+	if err := walk(a.alt.Expr); err != nil {
 		return err
 	}
 	var checkTerm func(t *domTerm) *Error

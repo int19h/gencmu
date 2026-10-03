@@ -136,12 +136,18 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 					c.fail("a malformed guard: a guard's feature is a name")
 				}
 			}
-			c.captures = map[string]bool{}
-			c.expr(a.Expr, 0, true)
+			c.expr(a.Expr, 0, true, false)
 			c.constituentTags(a.Tags)
 		}
 		if c.problem != nil {
 			return c.problem
+		}
+		// A capture name stands at most once in each production (engine
+		// §3.5).
+		for _, a := range r.Alternatives {
+			if _, twice := captureSequences(a.Expr); len(twice) > 0 {
+				return &domProblem{message: fmt.Sprintf("rule %s: a capture name used twice in one production", r.Name), rule: r}
+			}
 		}
 		// The values of its tests, once the nesting is bounded (engine §9).
 		for _, t := range c.tests {
@@ -257,18 +263,18 @@ func implicationSideFault(side *domTerm, ct constTypes) *typeFault {
 	return nil
 }
 
-// directiveOperandsOK checks the operands the notation's syntax allows the
-// pipeline directives (engine §9): %stage one name, %include one string,
-// %features one or more names, and %elidable names, each the name of an
-// identifier tag.
+// directiveOperandsOK checks a directive's name, one of the notation's four
+// directives, and the operands the notation's syntax allows the pipeline
+// directives (engine §9): %stage one name, %include one string and
+// %features one or more names. %elidable is no directive.
 func directiveOperandsOK(dir *domDirective) bool {
 	switch dir.Name {
 	case "stage":
 		return len(dir.Args) == 1 && domName.MatchString(dir.Args[0])
 	case "include":
 		return len(dir.Args) == 1
-	case "features", "elidable":
-		if dir.Name == "features" && len(dir.Args) == 0 {
+	case "features":
+		if len(dir.Args) == 0 {
 			return false
 		}
 		for _, a := range dir.Args {
@@ -276,6 +282,9 @@ func directiveOperandsOK(dir *domDirective) bool {
 				return false
 			}
 		}
+	case "ambiguity-resolution":
+	default:
+		return false
 	}
 	return true
 }
@@ -286,7 +295,6 @@ type domChecker struct {
 	implication *domImplication // the implication checked, or nil
 	label       string          // what the problems name: rule r, constant $C or an implication
 	uni         *unicodeTable
-	captures    map[string]bool
 	tests       []*domExpr // the tested symbols seen, whose values are checked once the nesting is bounded
 	problem     *domProblem
 }
@@ -307,9 +315,11 @@ func (c *domChecker) deep(depth int) bool {
 	return c.problem != nil
 }
 
-// expr checks an expression; top says it is the alternative's own or an
-// item of its top-level seq, the only places a capture may stand (§3.5).
-func (c *domChecker) expr(e *domExpr, depth int, top bool) {
+// expr checks an expression. whole says it is the alternative's whole
+// expression, the only place a chain may stand, and sealed that it lies
+// inside braces or an elidable optional, where no capture stands (engine
+// §3.5, §9).
+func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 	if c.deep(depth) {
 		return
 	}
@@ -325,23 +335,34 @@ func (c *domChecker) expr(e *domExpr, depth int, top bool) {
 			return
 		}
 		for _, it := range e.Items {
-			c.expr(it, depth+1, top && e.Kind == exSeq)
+			c.expr(it, depth+1, false, sealed)
 		}
 	case exOptional:
-		c.expr(e.Inner, depth+1, false)
+		// An elidable optional begins with its terminal (engine §3.8, §9).
+		if e.Elidable && elidableHead(e.Inner) == nil {
+			c.fail("a malformed elidable optional")
+			return
+		}
+		c.expr(e.Inner, depth+1, false, sealed || e.Elidable)
 	case exRepeat:
-		if e.Min != 0 && e.Min != 1 {
-			c.fail("a repetition with min %d", e.Min)
+		// A chain is the whole expression of its alternative (engine §9).
+		// A separator counts on from the depth of its repeat, as the item
+		// does.
+		if e.Chain != "" && !whole {
+			c.fail("a chain that is not the whole expression of its alternative")
 			return
 		}
-		c.expr(e.Inner, depth+1, false)
+		c.expr(e.Inner, depth+1, false, true)
+		if e.Sep != nil {
+			c.expr(e.Sep, depth+1, false, true)
+		}
 	case exCapture:
-		if !top {
-			c.fail("a capture inside [ ], ( ), ..., & or a choice")
+		// A capture wraps one symbol, and stands anywhere but in braces or
+		// an elidable optional; $, the whole constituent, wraps nothing.
+		if sealed {
+			c.fail("a capture inside braces or an elidable optional")
 			return
 		}
-		// A capture wraps a reference or a terminal, its name once per
-		// alternative; $, the whole constituent, wraps nothing.
 		if e.Name == "" {
 			c.fail("$ wraps a symbol")
 			return
@@ -354,16 +375,9 @@ func (c *domChecker) expr(e *domExpr, depth int, top bool) {
 			c.fail("a capture of something other than a reference, a terminal, a range, a property or a tested one of these")
 			return
 		}
-		if c.captures[e.Name] {
-			c.fail("$%s is captured twice in one alternative", e.Name)
-		}
-		c.captures[e.Name] = true
-		if len(c.captures) > 4 {
-			c.fail("an alternative has at most four captures")
-		}
 		// A capture is a compound node: its symbol lies below it, and is
 		// checked as any expression is.
-		c.expr(e.Inner, depth+1, false)
+		c.expr(e.Inner, depth+1, false, sealed)
 	case exTest:
 		// A compound node (engine §9) over one symbol; its value counts on
 		// from its depth, and is checked once the nesting is bounded.
@@ -375,7 +389,7 @@ func (c *domChecker) expr(e *domExpr, depth int, top bool) {
 			c.fail("a test follows only a reference other than # or a terminal")
 			return
 		}
-		c.expr(e.Inner, depth+1, false)
+		c.expr(e.Inner, depth+1, false, sealed)
 		if e.Value == nil {
 			c.fail("a missing value of a test")
 			return
@@ -404,6 +418,122 @@ func (c *domChecker) expr(e *domExpr, depth int, top bool) {
 	default:
 		c.fail("an unknown expression %q", e.Kind)
 	}
+}
+
+// elidableHead is the terminal at the head of an elidable optional's
+// expression, or nil when it has none (engine §3.8, §9): a reference whose
+// name begins with a capital, a terminal whose tag is a name, or an = test
+// of one of these, alone or first in a sequence.
+func elidableHead(e *domExpr) *domExpr {
+	if e == nil {
+		return nil
+	}
+	head := e
+	if e.Kind == exSeq && len(e.Items) > 0 {
+		head = e.Items[0]
+	}
+	if head == nil {
+		return nil
+	}
+	isTerminal := func(n *domExpr) bool {
+		return n != nil && ((n.Kind == exRef && constName.MatchString(n.Name)) || (n.Kind == exTerminal && domName.MatchString(n.Name)))
+	}
+	if isTerminal(head) || (head.Kind == exTest && head.Op == "=" && isTerminal(head.Inner)) {
+		return head
+	}
+	return nil
+}
+
+// captureSequences lists the distinct sequences of captures that the
+// productions of an expression read, each in the order read (engine §3.2,
+// §3.5): a choice gives each branch's, an & each subsequence's, a plain
+// optional none or its content's, and braces and an elidable optional
+// none. Productions that read the same names in the same order are one
+// sequence. duplicates are the captures that some production reads after
+// one of the same name. Gates do not matter, since they drop whole
+// alternatives.
+func captureSequences(e *domExpr) (sequences [][]*domExpr, duplicates map[*domExpr]bool) {
+	duplicates = map[*domExpr]bool{}
+	distinct := func(lists [][]*domExpr) [][]*domExpr {
+		seen := map[string]bool{}
+		var out [][]*domExpr
+		for _, list := range lists {
+			var key strings.Builder
+			for _, c := range list {
+				key.WriteString(c.Name)
+				key.WriteByte(' ')
+			}
+			if seen[key.String()] {
+				continue
+			}
+			seen[key.String()] = true
+			out = append(out, list)
+		}
+		return out
+	}
+	product := func(left, right [][]*domExpr) [][]*domExpr {
+		var out [][]*domExpr
+		for _, a := range left {
+			for _, b := range right {
+				for _, c := range b {
+					for _, other := range a {
+						if other.Name == c.Name {
+							duplicates[c] = true
+							break
+						}
+					}
+				}
+				joined := make([]*domExpr, 0, len(a)+len(b))
+				out = append(out, append(append(joined, a...), b...))
+			}
+		}
+		return distinct(out)
+	}
+	var visit func(n *domExpr) [][]*domExpr
+	visit = func(n *domExpr) [][]*domExpr {
+		if n == nil {
+			return [][]*domExpr{nil}
+		}
+		switch n.Kind {
+		case exCapture:
+			return [][]*domExpr{{n}}
+		case exSeq:
+			out := [][]*domExpr{nil}
+			for _, it := range n.Items {
+				out = product(out, visit(it))
+			}
+			return out
+		case exChoice:
+			var out [][]*domExpr
+			for _, it := range n.Items {
+				out = append(out, visit(it)...)
+			}
+			return distinct(out)
+		case exAnd:
+			parts := make([][][]*domExpr, len(n.Items))
+			for i, it := range n.Items {
+				parts[i] = visit(it)
+			}
+			var out [][]*domExpr
+			for mask := 1; mask < 1<<len(parts); mask++ {
+				seqs := [][]*domExpr{nil}
+				for i, part := range parts {
+					if mask&(1<<i) != 0 {
+						seqs = product(seqs, part)
+					}
+				}
+				out = append(out, seqs...)
+			}
+			return distinct(out)
+		case exOptional:
+			if n.Elidable {
+				return [][]*domExpr{nil}
+			}
+			return distinct(append([][]*domExpr{nil}, visit(n.Inner)...))
+		}
+		return [][]*domExpr{nil}
+	}
+	return visit(e), duplicates
 }
 
 // isCapturable says whether a capture can wrap an expression of a kind: a
@@ -524,7 +654,9 @@ func testsIn(e *domExpr) []*domExpr {
 		for _, it := range e.Items {
 			walk(it)
 		}
+		// A repeat's item comes before its separator.
 		walk(e.Inner)
+		walk(e.Sep)
 	}
 	walk(e)
 	return found

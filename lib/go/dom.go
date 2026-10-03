@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 17
+const domFormat = 18
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
@@ -101,12 +102,18 @@ const (
 type domExpr struct {
 	Kind  string
 	Items []*domExpr // seq, choice, and
-	Inner *domExpr   // optional, repeat, capture, test (its symbol)
-	Min   int        // repeat
-	Name  string     // ref, terminal (a tag in its canonical spelling), capture, property (its name)
-	Range [2]string  // range: its two ends, character tags in their canonical spelling
-	Op    string     // test: its comparator, one of testOps
-	Value *domTerm   // test: its value, a closed term
+	Inner *domExpr   // optional, repeat (its item), capture, test (its symbol)
+	// Sep is a repeat's separator, or nil; Chain is "left" or "right" for
+	// a chain, "" for flat braces (engine §3.2, §3.3).
+	Sep   *domExpr
+	Chain string
+	// Elidable marks an optional written [+T x] or [++T x], and Maximal one
+	// written [++T x] (engine §3.8).
+	Elidable, Maximal bool
+	Name              string    // ref, terminal (a tag in its canonical spelling), capture, property (its name)
+	Range             [2]string // range: its two ends, character tags in their canonical spelling
+	Op                string    // test: its comparator, one of testOps
+	Value             *domTerm  // test: its value, a closed term
 }
 
 // testOps are the comparators of a test in a body (engine §2): the two
@@ -234,10 +241,7 @@ func (e *domEmit) nothing() bool {
 type domDirective struct {
 	Name string
 	Args []string
-	// Maximal is set by %elidable maximal: its terminators are maximal
-	// (engine §2, §4). No other directive has it.
-	Maximal bool
-	At      [2]int
+	At   [2]int
 }
 
 // ---- writing
@@ -267,9 +271,6 @@ func (d *domDoc) writeJSON(w *jsonWriter) {
 			w.str(a)
 		}
 		w.raw("]")
-		if dir.Maximal {
-			w.raw(`,"maximal":true`)
-		}
 		w.raw(`,"at":`)
 		w.pair(dir.At)
 		w.raw("}")
@@ -418,12 +419,24 @@ func (e *domExpr) writeJSON(w *jsonWriter) {
 	case exOptional:
 		w.raw(`{"optional":`)
 		e.Inner.writeJSON(w)
+		if e.Elidable {
+			w.raw(`,"elidable":true`)
+		}
+		if e.Maximal {
+			w.raw(`,"maximal":true`)
+		}
 		w.raw("}")
 	case exRepeat:
 		w.raw(`{"repeat":`)
 		e.Inner.writeJSON(w)
-		w.raw(`,"min":`)
-		w.int(e.Min)
+		if e.Sep != nil {
+			w.raw(`,"separator":`)
+			e.Sep.writeJSON(w)
+		}
+		if e.Chain != "" {
+			w.raw(`,"chain":`)
+			w.str(e.Chain)
+		}
 		w.raw("}")
 	case exRef, exTerminal:
 		w.raw("{")
@@ -694,16 +707,11 @@ func decodeDOM(raw json.RawMessage, uni *unicodeTable) (*domDoc, error) {
 		if err != nil {
 			return nil, fmt.Errorf("a malformed directive")
 		}
-		// A maximal member stands only on elidable, and its value is the
-		// boolean true (engine §9).
-		maximal := false
-		if raw, ok := o["maximal"]; ok {
-			if name != "elidable" || string(bytes.TrimSpace(raw)) != "true" {
-				return nil, fmt.Errorf("a malformed directive")
-			}
-			maximal = true
+		// No directive has a maximal member (engine §9).
+		if _, ok := o["maximal"]; ok {
+			return nil, fmt.Errorf("a malformed directive")
 		}
-		d.Directives = append(d.Directives, &domDirective{Name: name, Args: args, Maximal: maximal, At: at})
+		d.Directives = append(d.Directives, &domDirective{Name: name, Args: args, At: at})
 	}
 	if err := validateDOM(d, uni); err != nil {
 		return nil, err
@@ -977,7 +985,27 @@ func decodeExpr(raw json.RawMessage) (*domExpr, error) {
 	}
 	if v, ok := o["optional"]; ok {
 		inner, err := decodeExpr(v)
-		return &domExpr{Kind: exOptional, Inner: inner}, err
+		if err != nil {
+			return nil, err
+		}
+		// An elidable optional is marked true, and a maximal one too; a
+		// maximal member stands only beside elidable (engine §9).
+		e := &domExpr{Kind: exOptional, Inner: inner}
+		for _, flag := range []struct {
+			name string
+			into *bool
+		}{{"elidable", &e.Elidable}, {"maximal", &e.Maximal}} {
+			if raw, ok := o[flag.name]; ok {
+				if string(bytes.TrimSpace(raw)) != "true" {
+					return nil, fmt.Errorf("a malformed expression")
+				}
+				*flag.into = true
+			}
+		}
+		if e.Maximal && !e.Elidable {
+			return nil, fmt.Errorf("a malformed expression")
+		}
+		return e, nil
 	}
 	if v, ok := o["repeat"]; ok {
 		inner, err := decodeExpr(v)
@@ -985,8 +1013,18 @@ func decodeExpr(raw json.RawMessage) (*domExpr, error) {
 			return nil, err
 		}
 		e := &domExpr{Kind: exRepeat, Inner: inner}
-		err = unmarshal(o["min"], &e.Min)
-		return e, err
+		if sep, ok := o["separator"]; ok {
+			if e.Sep, err = decodeExpr(sep); err != nil {
+				return nil, err
+			}
+		}
+		// A chain's direction is left or right (engine §9).
+		if raw, ok := o["chain"]; ok {
+			if err := unmarshal(raw, &e.Chain); err != nil || (e.Chain != "left" && e.Chain != "right") {
+				return nil, fmt.Errorf("a malformed expression")
+			}
+		}
+		return e, nil
 	}
 	if v, ok := o["capture"]; ok {
 		name, err := decodeString(v)
@@ -1030,7 +1068,7 @@ func decodeExpr(raw json.RawMessage) (*domExpr, error) {
 // member names the form. A rule argument and a classifier argument are
 // forms of a term too.
 var exprForms = [][]string{
-	{exSeq}, {exChoice}, {exAnd}, {exOptional}, {exRepeat, "min"}, {exRef}, {exTerminal}, {exCapture, "expr"},
+	{exSeq}, {exChoice}, {exAnd}, {exOptional, "elidable?", "maximal?"}, {exRepeat, "separator?", "chain?"}, {exRef}, {exTerminal}, {exCapture, "expr"},
 	{exRange}, {exProperty}, {exTest, "value", "expr"}, {exEmpty},
 }
 
@@ -1056,21 +1094,23 @@ func decodeRange(raw json.RawMessage) ([2]string, error) {
 // hasOneForm says whether a node has exactly the members of one of its
 // forms, and no other. So a node that joins two forms, such as
 // {"tag":…,"string":…}, is refused before it is read, and no library reads
-// it one way where another reads it another way.
+// it one way where another reads it another way. A member that ends in ?
+// may be absent.
 func hasOneForm(o jobj, forms [][]string) bool {
 	for _, form := range forms {
 		if _, ok := o[form[0]]; !ok {
 			continue
 		}
-		if len(o) != len(form) {
-			return false
-		}
+		known := 0
 		for _, member := range form {
-			if _, ok := o[member]; !ok {
+			name, optional := strings.CutSuffix(member, "?")
+			if _, ok := o[name]; ok {
+				known++
+			} else if !optional {
 				return false
 			}
 		}
-		return true
+		return known == len(o)
 	}
 	return false
 }

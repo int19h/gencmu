@@ -173,12 +173,16 @@ func firstTooDeep(dom *domDoc, uni *unicodeTable, found *domProblem) *domProblem
 }
 
 type domBuilder struct {
-	captures map[string]bool // the captures of the alternative being read
-	inner    int             // how deep inside [ ], ( ), ..., & or a choice the reader is
-	toks     []Token
-	gt       *grammarText
-	doc      string
-	uni      *unicodeTable // the lowercase mapping the strings of sound tests are checked against
+	// captureNodes holds the notation node of each capture of the
+	// alternative being read, where an error about it is reported.
+	captureNodes map[*domExpr]*Node
+	// braces and marked count the braces and the elidable optionals the
+	// reader is inside, where no capture stands (engine §3.5).
+	braces, marked int
+	toks           []Token
+	gt             *grammarText
+	doc            string
+	uni            *unicodeTable // the lowercase mapping the strings of sound tests are checked against
 	// closedFor is what the reader is reading as a closed term, a
 	// constant's value or a test's operand, or "" (§9, §10).
 	closedFor string
@@ -190,7 +194,7 @@ type domBuilder struct {
 var domRules = map[string]bool{
 	"rule-name": true, "body": true, "primary": true, "emit-target": true, "condition": true, "argument": true, "term-atom": true,
 	"directive": true, "rule": true, "definer": true, "alternative": true, "choice": true,
-	"conjunction": true, "sequence": true, "element": true, "reference": true,
+	"conjunction": true, "sequence": true, "repetition": true, "reference": true,
 	"string": true, "tag": true, "character": true, "phoneme": true, "name": true,
 	"tested": true, "test": true, "test-operand": true, "capture": true, "group": true, "optional": true,
 	"empty": true, "tags-clause": true, "conditions-clause": true, "emits-clause": true,
@@ -335,7 +339,7 @@ func (b *domBuilder) knownOf(n *Node, kinds []string) *Node {
 // What a primary, a condition, a term and a term atom hold: the one rule
 // among their parts is one of these (engine §9).
 var (
-	primaryRules   = []string{"reference", "tag", "character", "phoneme", "range", "property", "tested", "capture", "group", "optional", "empty", "constant-reference"}
+	primaryRules   = []string{"reference", "tag", "character", "phoneme", "range", "property", "tested", "capture", "group", "optional", "repetition", "empty", "constant-reference"}
 	conditionRules = []string{"comparison", "call", "negation", "presence", "implication"}
 	termRules      = []string{"union", "guarded-term"}
 	atomRules      = []string{"string", "tag", "character", "phoneme", "range", "property", "name", "empty-set", "term", "call", "capture-reference", "constant-reference"}
@@ -375,22 +379,12 @@ func (b *domBuilder) document(root *Node) *domDoc {
 			ps := parts(c)
 			dir := &domDirective{Name: strings.TrimPrefix(b.text(keyword), "%"), Args: []string{}, At: b.at(keyword)}
 			var kinds []string
-			first := true
 			for _, p := range ps {
 				// The operands are the argument parts alone. The reader
-				// ignores any other part, which never counts as the first
-				// (engine §9).
+				// ignores any other part (engine §9).
 				if p.Kind != KindRule || (p.Rule != "argument-word" && p.Rule != "argument-string" && p.Rule != "argument-tag") {
 					continue
 				}
-				// In %elidable, a first argument-word maximal sets the
-				// member maximal and is no operand. ~maximal stays one
-				// (engine §9).
-				if first && dir.Name == "elidable" && p.Rule == "argument-word" && b.text(b.token(p)) == "maximal" {
-					dir.Maximal, first = true, false
-					continue
-				}
-				first = false
 				switch p.Rule {
 				case "argument-word":
 					dir.Args = append(dir.Args, b.text(b.token(p)))
@@ -531,11 +525,14 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	default:
 		r.Op = "define"
 	}
-	if p := one(n, "tags-clause"); p != nil {
-		r.Tags = b.constituentTags(p)
-	}
+	// The parts of a definition are read in the order written: the body,
+	// then its clauses in their fixed order, and the checks of the whole
+	// definition last (engine §9).
 	for _, p := range b.some(b.only(n, "body"), "alternative", 1) {
 		r.Alternatives = append(r.Alternatives, b.alternative(p))
+	}
+	if p := one(n, "tags-clause"); p != nil {
+		r.Tags = b.constituentTags(p)
 	}
 	if p := one(n, "conditions-clause"); p != nil {
 		// Each item of the list is one condition (§9).
@@ -556,7 +553,7 @@ func (b *domBuilder) rule(n *Node) *domRule {
 
 func (b *domBuilder) alternative(n *Node) *domAlt {
 	a := &domAlt{Guards: []domGuard{}}
-	b.captures = map[string]bool{}
+	b.captureNodes = map[*domExpr]*Node{}
 	for _, p := range ofRule(n, "guard") {
 		// A guard's token is its spelling: f? or ¬f? for a gate, f! for a
 		// warning (§9).
@@ -569,7 +566,20 @@ func (b *domBuilder) alternative(n *Node) *domAlt {
 		name := strings.TrimSuffix(strings.TrimSuffix(strings.TrimPrefix(g, "¬"), "?"), "!")
 		a.Guards = append(a.Guards, domGuard{Feature: name, Kind: kind, Negated: neg})
 	}
-	a.Expr = b.expr(b.only(n, "conjunction"))
+	a.Expr = b.exprIn(b.only(n, "conjunction"), true)
+	// A name stands at most once in each production, gates aside: the
+	// error stands at the second capture that such a production reads, the
+	// first in the text where there are several (engine §3.5, §9).
+	if _, twice := captureSequences(a.Expr); len(twice) > 0 {
+		var first *Node
+		for c := range twice {
+			node := b.captureNodes[c]
+			if first == nil || before(b.at(node), b.at(first)) {
+				first = node
+			}
+		}
+		b.fail(first, "the capture %s is read twice by one production of the alternative", b.text(b.token(first)))
+	}
 	if p := one(n, "alternative-tags"); p != nil {
 		a.Tags = b.constituentTags(p)
 	}
@@ -596,23 +606,30 @@ func (b *domBuilder) tagTerm(n *Node) *domTerm {
 	return t
 }
 
-func (b *domBuilder) expr(n *Node) *domExpr {
+func (b *domBuilder) expr(n *Node) *domExpr { return b.exprIn(n, false) }
+
+// before says whether a position comes before another in the document.
+func before(a, c [2]int) bool {
+	return a[0] < c[0] || (a[0] == c[0] && a[1] < c[1])
+}
+
+// exprIn reads an expression; whole says it is the alternative's whole
+// expression, where a chain may stand (engine §9).
+func (b *domBuilder) exprIn(n *Node, whole bool) *domExpr {
 	switch n.Rule {
 	case "choice", "conjunction", "sequence":
 		kind := map[string]string{"choice": exChoice, "conjunction": exAnd, "sequence": exSeq}[n.Rule]
 		var items []*domExpr
-		parts := b.some(n, map[string]string{"choice": "conjunction", "conjunction": "sequence", "sequence": "element"}[n.Rule], 1)
-		// A capture stands only at an alternative's top level (§3.5): an
-		// item of a choice or an & is inside.
-		inside := kind != exSeq && len(parts) > 1
-		if inside {
-			b.inner++
-		}
+		parts := b.some(n, map[string]string{"choice": "conjunction", "conjunction": "sequence", "sequence": "primary"}[n.Rule], 1)
+		// Only the one conjunction of an alternative, and its one sequence
+		// of one primary, are its whole expression.
+		inWhole := whole && kind != exChoice && len(parts) == 1
 		for _, p := range parts {
-			items = append(items, b.expr(p))
-		}
-		if inside {
-			b.inner--
+			if kind == exSeq {
+				items = append(items, b.exprIn(b.knownOf(p, primaryRules), inWhole))
+			} else {
+				items = append(items, b.exprIn(p, inWhole))
+			}
 		}
 		if len(items) == 1 {
 			return items[0]
@@ -621,29 +638,8 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 			b.fail(n, "an & joins at most %d items, since it expands to 2ⁿ−1 sequences", maxAnd)
 		}
 		return &domExpr{Kind: kind, Items: items}
-	case "element":
-		var prim *domExpr
-		repeat := false
-		primNode := b.knownOf(b.only(n, "primary"), primaryRules)
-		for _, p := range parts(n) {
-			if p.Kind == KindToken && b.text(p) == "..." {
-				repeat = true
-			}
-		}
-		if repeat {
-			b.inner++
-		}
-		prim = b.expr(primNode)
-		if repeat {
-			b.inner--
-		}
-		if !repeat {
-			return prim
-		}
-		if prim.Kind == exOptional {
-			return &domExpr{Kind: exRepeat, Inner: prim.Inner, Min: 0}
-		}
-		return &domExpr{Kind: exRepeat, Inner: prim, Min: 1}
+	case "repetition":
+		return b.repetition(n, whole)
 	case "reference":
 		return &domExpr{Kind: exRef, Name: b.text(b.token(n))}
 	case "tag", "character", "phoneme":
@@ -655,29 +651,25 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 	case "tested":
 		// A reference other than # or a terminal, and one test on its own
 		// span (engine §2, §9). The syntax grammar reads a test after any
-		// primary, so that the reader can name the reason.
-		symbol, testNode := b.knownOf(b.only(n, "primary"), primaryRules), b.only(n, "test")
+		// primary, so that the reader can name the reason. The test is
+		// checked before anything the primary holds.
+		testNode := b.only(n, "test")
+		symbol := b.knownOf(b.only(n, "primary"), primaryRules)
 		switch symbol.Rule {
 		case "constant-reference":
 			b.fail(symbol, "%s", constantInBody)
 		case "reference", "tag", "character", "phoneme", "range", "property":
 		default:
-			b.fail(testNode, "a test follows only a reference other than # or a terminal, not a group, an optional, a capture, ε, # or another test")
+			b.fail(testNode, "a test follows only a reference other than # or a terminal, not a group, an optional, braces, a capture, ε, # or another test")
 		}
 		if symbol.Rule == "reference" && b.text(b.token(symbol)) == "#" {
-			b.fail(testNode, "a test follows only a reference other than # or a terminal, not a group, an optional, a capture, ε, # or another test")
+			b.fail(testNode, "a test follows only a reference other than # or a terminal, not a group, an optional, braces, a capture, ε, # or another test")
 		}
 		inner := b.expr(symbol)
 		// The comparator is the test's tokens: =, ≠, ⊇ or ⊉, or ∩ and =∅
 		// or ≠∅ around the operand.
-		var op strings.Builder
+		test := b.comparator(testNode)
 		operand := b.only(testNode, "test-operand")
-		for _, p := range parts(testNode) {
-			if p.Kind == KindToken {
-				op.WriteString(b.text(p))
-			}
-		}
-		test := op.String()
 		b.closedFor = "a test's operand"
 		value := b.term(operand)
 		b.closedFor = ""
@@ -699,40 +691,37 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 		}
 		return &domExpr{Kind: exTest, Op: test, Value: value, Inner: inner}
 	case "capture":
-		ps := []*Node{b.token(n)}
-		inner := []*Node{b.knownOf(b.only(n, "primary"), primaryRules)}
-		if b.text(ps[0]) == "$" {
-			b.fail(ps[0], "$ is the whole constituent and wraps nothing")
+		// Its place, then $, its name and its symbol, each at the capture,
+		// before what it wraps (engine §9).
+		if b.braces > 0 {
+			b.fail(n, "a capture cannot stand inside braces, whose parts repeat: name the list as a rule, and capture that")
 		}
-		name := strings.TrimPrefix(b.text(ps[0]), "$")
+		if b.marked > 0 {
+			b.fail(n, "a capture cannot stand inside an elidable optional, which elision restores as one unit")
+		}
+		captureToken := b.token(n)
+		inner := b.only(n, "primary")
+		if b.text(captureToken) == "$" {
+			b.fail(n, "$ is the whole constituent and wraps nothing")
+		}
+		name := strings.TrimPrefix(b.text(captureToken), "$")
 		if !captureName.MatchString(name) {
-			b.fail(ps[0], "a capture's name is all lower case")
+			b.fail(n, "a capture's name is all lower case")
 		}
-		if len(inner) == 1 && inner[0].Rule == "constant-reference" {
-			b.fail(inner[0], "%s", constantInBody)
+		wrapped := b.knownOf(inner, primaryRules)
+		if wrapped.Rule == "constant-reference" {
+			b.fail(wrapped, "%s", constantInBody)
 		}
-		if len(inner) != 1 || !capturedRules[inner[0].Rule] {
-			b.fail(ps[0], "a capture wraps a single symbol: a name, a tag literal, a character tag, a phoneme tag, a range or a property, or a tested one")
+		if !capturedRules[wrapped.Rule] {
+			b.fail(n, "a capture wraps a single symbol: a name, a tag literal, a character tag, a phoneme tag, a range or a property, or a tested one")
 		}
-		if b.inner > 0 {
-			b.fail(ps[0], "a capture stands only at the top level of an alternative, not inside [ ], ( ), ..., & or a choice")
-		}
-		if b.captures[name] {
-			b.fail(ps[0], "$%s is captured twice in one alternative", name)
-		}
-		b.captures[name] = true
-		if len(b.captures) > 4 {
-			b.fail(ps[0], "an alternative has at most four captures")
-		}
-		return &domExpr{Kind: exCapture, Name: name, Inner: b.expr(inner[0])}
-	case "group", "optional":
-		b.inner++
-		inner := b.expr(b.only(n, "choice"))
-		b.inner--
-		if n.Rule == "group" {
-			return inner
-		}
-		return &domExpr{Kind: exOptional, Inner: inner}
+		e := &domExpr{Kind: exCapture, Name: name, Inner: b.expr(wrapped)}
+		b.captureNodes[e] = n
+		return e
+	case "group":
+		return b.expr(b.only(n, "choice"))
+	case "optional":
+		return b.optional(n)
 	case "empty":
 		return &domExpr{Kind: exEmpty}
 	case "constant-reference":
@@ -740,6 +729,131 @@ func (b *domBuilder) expr(n *Node) *domExpr {
 	}
 	b.fail(n, "unexpected %s in an expression", n.Rule)
 	return nil
+}
+
+// comparator is a test's comparator, its tokens: =, ≠, ⊇ or ⊉, or ∩ and
+// =∅ or ≠∅ around the operand.
+func (b *domBuilder) comparator(testNode *Node) string {
+	var op strings.Builder
+	for _, p := range parts(testNode) {
+		if p.Kind == KindToken {
+			op.WriteString(b.text(p))
+		}
+	}
+	return op.String()
+}
+
+// optional reads an optional, and with a marker + or ++ among its parts an
+// elidable one (engine §3.8, §9). Its form is checked on the tree, where a
+// group is still a node: one sequence, with no leading | or &, whose first
+// primary is the terminal itself, =-tested or not.
+func (b *domBuilder) optional(n *Node) *domExpr {
+	var markers []*Node
+	for _, p := range parts(n) {
+		if p.Kind == KindToken && (b.text(p) == "+" || b.text(p) == "++") {
+			markers = append(markers, p)
+		}
+	}
+	if len(markers) >= 2 {
+		b.fail(markers[1], "an optional has one marker + or ++ at most")
+	}
+	choice := b.only(n, "choice")
+	if len(markers) == 0 {
+		return &domExpr{Kind: exOptional, Inner: b.expr(choice)}
+	}
+	const form = "an elidable optional begins with its terminator, a name with a capital or ~name, written directly after the marker, and joins it to nothing with | or &"
+	hasToken := func(node *Node, text string) bool {
+		for _, p := range parts(node) {
+			if p.Kind == KindToken && b.text(p) == text {
+				return true
+			}
+		}
+		return false
+	}
+	conjunctions := ofRule(choice, "conjunction")
+	leading := hasToken(choice, "|") || (len(conjunctions) == 1 && hasToken(conjunctions[0], "&"))
+	var head *Node
+	if len(conjunctions) == 1 && !leading {
+		if sequences := ofRule(conjunctions[0], "sequence"); len(sequences) == 1 {
+			if primaries := ofRule(sequences[0], "primary"); len(primaries) > 0 {
+				head = b.knownOf(primaries[0], primaryRules)
+			}
+		}
+	}
+	isTerminal := func(symbol *Node) bool {
+		return symbol.Rule == "tag" || (symbol.Rule == "reference" && isTerminalName(b.text(b.token(symbol))))
+	}
+	switch {
+	case head == nil:
+		b.fail(n, form)
+	case head.Rule == "tested":
+		if !isTerminal(b.knownOf(b.only(head, "primary"), primaryRules)) {
+			b.fail(n, form)
+		}
+		testNode := b.only(head, "test")
+		if b.comparator(testNode) != "=" {
+			b.fail(testNode, "the terminator of an elidable optional takes no test but =, since elision-only restores it with its sound")
+		}
+	case !isTerminal(head):
+		b.fail(n, form)
+	}
+	b.marked++
+	inner := b.expr(choice)
+	b.marked--
+	return &domExpr{Kind: exOptional, Inner: inner, Elidable: true, Maximal: b.text(markers[0]) == "++"}
+}
+
+// repetition reads braces: the item, its separator if a backslash has
+// one, and a chain's direction from its marker, a ... among the parts
+// (engine §9).
+func (b *domBuilder) repetition(n *Node, whole bool) *domExpr {
+	found := parts(n)
+	choices := b.some(n, "choice", 1)
+	index := func(node *Node) int {
+		for i, p := range found {
+			if p == node {
+				return i
+			}
+		}
+		return len(found)
+	}
+	var markers []int
+	for i, p := range found {
+		if p.Kind == KindToken && b.text(p) == "..." {
+			markers = append(markers, i)
+		}
+	}
+	// Two markers are an error at the second, and a marker after the
+	// separator is an error at that marker, whichever a reader meets first.
+	if len(markers) >= 2 {
+		b.fail(found[markers[1]], "braces have one chain marker ... at most")
+	}
+	second := len(found)
+	if len(choices) >= 2 {
+		second = index(choices[1])
+	}
+	if len(markers) == 1 && markers[0] > second {
+		b.fail(found[markers[0]], "a separator has no chain marker: ... stands after { or after the item")
+	}
+	e := &domExpr{Kind: exRepeat}
+	if len(markers) == 1 {
+		e.Chain = "right"
+		if markers[0] < index(choices[0]) {
+			e.Chain = "left"
+		}
+	}
+	// A chain is the whole expression of its alternative, as the lowering
+	// of its levels needs (engine §3.3, §9).
+	if e.Chain != "" && !whole {
+		b.fail(n, "a chain is the whole expression of its alternative: name it as a rule to use it here")
+	}
+	b.braces++
+	e.Inner = b.expr(choices[0])
+	if len(choices) >= 2 {
+		e.Sep = b.expr(choices[1])
+	}
+	b.braces--
+	return e
 }
 
 // capturedRules are the rules of the symbols a capture can wrap (engine §9).
@@ -1301,13 +1415,6 @@ func operandProblem(name string, kinds []string) string {
 	case "features":
 		if len(kinds) == 0 || !names {
 			return "%features takes one or more names"
-		}
-	case "elidable":
-		// Identifier tags: a name with a capital, or ~name.
-		for _, k := range kinds {
-			if k != operandClass && k != operandTag {
-				return "%elidable takes identifier tags: names with a capital, or ~name"
-			}
 		}
 	default:
 		if !names {

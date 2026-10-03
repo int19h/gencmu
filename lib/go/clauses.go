@@ -253,18 +253,18 @@ func condMentions(c *domCond, into map[string]bool) {
 	}
 }
 
-// altCaptures maps each capture of an alternative to its position among the
-// items of its top level; $ is at -1.
-func altCaptures(a *domAlt) map[string]int {
-	out := map[string]int{"": -1}
-	items := []*domExpr{a.Expr}
-	if a.Expr.Kind == exSeq {
-		items = a.Expr.Items
-	}
-	for i, it := range items {
-		if it.Kind == exCapture {
-			out[it.Name] = i
+// altCaptures lists, for each production of an alternative, each capture
+// it reads with its place in the order read; $ is at -1 (engine §3.5).
+// Productions that read the same captures in the same order are one.
+func altCaptures(a *domAlt) []map[string]int {
+	seqs, _ := captureSequences(a.Expr)
+	out := make([]map[string]int, len(seqs))
+	for i, seq := range seqs {
+		caps := map[string]int{"": -1}
+		for j, c := range seq {
+			caps[c.Name] = j
 		}
+		out[i] = caps
 	}
 	return out
 }
@@ -294,9 +294,19 @@ func definitionProblem(r *domRule) string {
 		}
 		return false
 	}
-	alts := make([]map[string]int, len(r.Alternatives))
-	for i, a := range r.Alternatives {
-		alts[i] = altCaptures(a)
+	// Each production of each alternative, with the captures it reads
+	// (engine §3.5, §9).
+	type prodCaptures struct {
+		caps map[string]int
+		alt  *domAlt
+	}
+	var prods []prodCaptures
+	var alts []map[string]int
+	for _, a := range r.Alternatives {
+		for _, caps := range altCaptures(a) {
+			prods = append(prods, prodCaptures{caps, a})
+			alts = append(alts, caps)
+		}
 	}
 	var items []*domEmitItem
 	if r.Emit != nil {
@@ -335,7 +345,7 @@ func definitionProblem(r *domRule) string {
 			}
 		}
 		if !found {
-			return fmt.Sprintf("$%s is captured by no alternative of %s", name, r.Name)
+			return fmt.Sprintf("$%s is captured by no production of %s", name, r.Name)
 		}
 	}
 	// A condition that applies to no alternative.
@@ -362,7 +372,7 @@ func definitionProblem(r *domRule) string {
 			}
 		}
 		if !applies {
-			return fmt.Sprintf("a condition of %s applies to no alternative", r.Name)
+			return fmt.Sprintf("a condition of %s applies to no production", r.Name)
 		}
 	}
 	unguarded := func(t *domTerm, has func(string) bool) string {
@@ -372,14 +382,14 @@ func definitionProblem(r *domRule) string {
 		used := map[string]bool{}
 		termCaptures(simplifyTerm(t, has), used)
 		if name, ok := usesAll(used, has); !ok {
-			return fmt.Sprintf("a tag term of %s uses $%s, which an alternative lacks; guard it with $%s ⟹", r.Name, name, name)
+			return fmt.Sprintf("a tag term of %s uses $%s, which a production lacks; guard it with $%s ⟹", r.Name, name, name)
 		}
 		return ""
 	}
-	for i, a := range r.Alternatives {
-		caps := alts[i]
+	for _, prod := range prods {
+		caps, a := prod.caps, prod.alt
 		has := hasIn(caps)
-		// The tags an alternative's constituent carries serve it.
+		// The tags a production's constituent carries serve it.
 		for _, t := range []*domTerm{r.Tags, a.Tags} {
 			if msg := unguarded(t, has); msg != "" {
 				return msg
@@ -388,7 +398,7 @@ func definitionProblem(r *domRule) string {
 		if r.Emit == nil {
 			continue
 		}
-		// What is left of the emission for this alternative: something, in
+		// What is left of the emission for this production: something, in
 		// the order its captures stand, each item's tags using only what it
 		// has.
 		var present []*domEmitItem
@@ -399,17 +409,17 @@ func definitionProblem(r *domRule) string {
 		}
 		// Only a rule that lists items can leave nothing; ε lists none.
 		if len(present) == 0 && len(items) > 0 {
-			return fmt.Sprintf("%%emits of %s leaves an alternative nothing to emit; a rule that emits nothing says %%emits ε", r.Name)
+			return fmt.Sprintf("%%emits of %s leaves a production nothing to emit; a rule that emits nothing says %%emits ε", r.Name)
 		}
-		// An alternative without an item's carrier lacks its attachments
-		// too (engine §9).
+		// A production without an item's carrier lacks its attachments too
+		// (engine §9).
 		for _, it := range items {
 			if it.IsInsert || has(it.Capture) {
 				continue
 			}
 			for _, name := range it.attachments() {
 				if has(name) {
-					return fmt.Sprintf("%%emits of %s attaches $%s in an alternative without its carrier $%s", r.Name, name, it.Capture)
+					return fmt.Sprintf("%%emits of %s attaches $%s in a production without its carrier $%s", r.Name, name, it.Capture)
 				}
 			}
 		}
@@ -438,7 +448,7 @@ func definitionProblem(r *domRule) string {
 		}
 	}
 	// An inserted tag's anchor, the capture listed next after it, is one
-	// every alternative has.
+	// every production has.
 	for i, it := range items {
 		if !it.IsInsert {
 			continue
@@ -449,7 +459,7 @@ func definitionProblem(r *domRule) string {
 			}
 			for _, caps := range alts {
 				if _, ok := caps[next.Capture]; !ok {
-					return fmt.Sprintf("%%emits of %s inserts a tag before $%s, which an alternative lacks", r.Name, next.Capture)
+					return fmt.Sprintf("%%emits of %s inserts a tag before $%s, which a production lacks", r.Name, next.Capture)
 				}
 			}
 			break

@@ -69,11 +69,13 @@ type lowered struct {
 	termID    map[string]int32
 	// classes holds, for each terminal that is a range or a property, the
 	// characters it matches; nil for a terminal that is a tag (§4).
-	classes    []*charClass
-	prods      []*production
-	lean       string          // "greedy", "lazy", "late-elision", or "" for no lean (§6, §7)
-	maximal    bool            // no terminator is elided where its constituent could have been longer (§4)
-	maximalT   map[string]bool // the maximal terminators, which maximality restricts anyway (§4)
+	classes []*charClass
+	prods   []*production
+	lean    string // "greedy", "lazy", "late-elision", or "" for no lean (§6, §7)
+	maximal bool   // no terminator is elided where its constituent could have been longer (§4)
+	// maximalH holds the helpers of the optionals written [++T x], whose
+	// terminators are maximal, which maximality restricts anyway (§3.8, §4).
+	maximalH   map[int32]bool
 	sccMembers [][]int32
 	// fault is an error of the grammar that lowering for these features
 	// found (§3.3), or "": parsing with it is a result with that error.
@@ -138,7 +140,7 @@ type helperNode struct {
 // lower lowers a stage's grammar for a set of features. The check of
 // elision-only reads the same productions in a mode of its own (§3.8, §7.4).
 func lower(g *stageGrammar, features map[string]bool) *lowered {
-	l := &lowered{stage: g, byName: map[string]int32{}, termID: map[string]int32{}, lean: g.lean, maximal: g.maximal, maximalT: g.maximalT}
+	l := &lowered{stage: g, byName: map[string]int32{}, termID: map[string]int32{}, lean: g.lean, maximal: g.maximal, maximalH: map[int32]bool{}}
 	// The stage resolves its classifiers for the same features, before it
 	// lowers its rules; an error there ends the stage as an error of
 	// lowering does (§2, §3.3).
@@ -209,46 +211,8 @@ func (lw *lowerer) lowerRule(r *sRule) {
 			lw.tests[t] = a.tests[i]
 		}
 		lw.into = &helpers
-		e := a.alt.Expr
-		var last *domExpr
-		var prefix []*domExpr
-		if len(alts) == 1 {
-			if e.Kind == exRepeat {
-				last = e
-			} else if e.Kind == exSeq && e.Items[len(e.Items)-1].Kind == exRepeat {
-				last = e.Items[len(e.Items)-1]
-				prefix = e.Items[:len(e.Items)-1]
-			}
-		}
-		if last != nil && lw.l.fault == "" && hasCapture(e) {
-			// Its recursive productions could not have its captures, whose
-			// parts lie inside the inner constituent (§3.3).
-			lw.l.fault = fmt.Sprintf("%s: an alternative of %s captures a part, and is lowered as a trailing repetition", a.doc, r.name)
-		}
-		if last != nil {
-			// Trailing repetition (§3.3): r → p x ... is r → p x | r x, and
-			// r → p [x] ... is r → p | r x. The places are expanded in the
-			// order they are written, which numbers their helpers.
-			ps := lw.expandSeq(prefix, a, r.name)
-			xs := lw.expand(last.Inner, a, r.name)
-			if last.Min == 1 {
-				for _, p := range ps {
-					for _, x := range xs {
-						lw.addProduction(lhs, concat(p, x), a, false)
-					}
-				}
-			} else {
-				for _, p := range ps {
-					lw.addProduction(lhs, p, a, false)
-				}
-			}
-			for _, x := range xs {
-				lw.addProduction(lhs, concat([]slot{{sym: symbol{id: lhs}}}, x), a, true)
-			}
-		} else {
-			for _, s := range lw.expand(e, a, r.name) {
-				lw.addProduction(lhs, s, a, false)
-			}
+		for _, x := range lw.expand(a.alt.Expr, a, r.name) {
+			lw.addProduction(lhs, x, a, false)
 		}
 		// Then the helpers, in the order their places are written, each
 		// followed at once by those inside it (§3, Numbering).
@@ -271,21 +235,6 @@ func (lw *lowerer) lowerRule(r *sRule) {
 		}
 		number(helpers)
 	}
-}
-
-// hasCapture says whether an alternative's expression captures a part,
-// which it can only at its top level (§3.5).
-func hasCapture(e *domExpr) bool {
-	items := []*domExpr{e}
-	if e.Kind == exSeq {
-		items = e.Items
-	}
-	for _, it := range items {
-		if it.Kind == exCapture {
-			return true
-		}
-	}
-	return false
 }
 
 func concat(a, b []slot) []slot {
@@ -534,27 +483,34 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 		inner := e.Inner
 		elide := ""
 		var elideT *symTest
-		if t, tested := elidableTerminal(inner); t != "" && lw.g.elidable[t] {
-			elide = t
-			if tested != nil {
-				elideT = lw.tests[tested]
+		if e.Elidable {
+			if t, tested := elidableTerminal(inner); t != "" {
+				elide = t
+				if tested != nil {
+					elideT = lw.tests[tested]
+				}
 			}
 		}
-		return lw.helper(a, ruleName, elide, elideT, func(int32) [][]slot {
+		out := lw.helper(a, ruleName, elide, elideT, func(int32) [][]slot {
 			return append([][]slot{{}}, lw.expand(inner, a, ruleName)...)
 		})
+		if e.Maximal {
+			lw.l.maximalH[out[0][0].sym.id] = true
+		}
+		return out
 	case exRepeat:
-		inner, min := e.Inner, e.Min
+		item, sep := e.Inner, e.Sep
 		return lw.helper(a, ruleName, "", nil, func(h int32) [][]slot {
-			xs := lw.expand(inner, a, ruleName)
-			var out [][]slot
-			if min == 0 {
-				out = append(out, []slot{})
-			} else {
-				out = append(out, xs...)
+			xs := lw.expand(item, a, ruleName)
+			ss := [][]slot{{}}
+			if sep != nil {
+				ss = lw.expand(sep, a, ruleName)
 			}
-			for _, x := range xs {
-				out = append(out, concat([]slot{{sym: symbol{id: h}}}, x))
+			out := append([][]slot{}, xs...)
+			for _, s := range ss {
+				for _, x := range xs {
+					out = append(out, concat(concat([]slot{{sym: symbol{id: h}}}, s), x))
+				}
 			}
 			return out
 		})

@@ -532,28 +532,3 @@ func TestUnicodeTable(t *testing.T) {
 		t.Error("hasProperty is wrong")
 	}
 }
-
-// The word maximal of %elidable is the first argument part, whatever other
-// parts a custom bootstrap gives the directive, which the reader ignores
-// (engine §9).
-func TestElidableMaximalAfterIgnoredPart(t *testing.T) {
-	if err := loadBundled(); err != nil {
-		t.Fatal(err)
-	}
-	bootstrap := bundled.sources["notation/bootstrap.json"]
-	find := `{"seq":[{"ref":"directive-name"},{"repeat":`
-	if strings.Count(bootstrap, find) != 1 {
-		t.Fatalf("the bootstrap has %d of %s", strings.Count(bootstrap, find), find)
-	}
-	custom, err := newNotationReader(strings.Replace(bootstrap, find, `{"seq":[{"ref":"directive-name"},{"ref":"string"},{"repeat":`, 1), bundled.uni)
-	if err != nil {
-		t.Fatal(err)
-	}
-	dom, rerr := custom.read("```jbogenbau\n%elidable \"ignored\" maximal T\n```\n", "t.md")
-	if rerr != nil {
-		t.Fatal(rerr)
-	}
-	if len(dom.Directives) != 1 || !dom.Directives[0].Maximal || !reflect.DeepEqual(dom.Directives[0].Args, []string{"T"}) {
-		t.Fatalf("got %+v", dom.Directives)
-	}
-}
